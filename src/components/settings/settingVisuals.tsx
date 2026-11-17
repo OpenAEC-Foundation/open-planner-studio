@@ -12,7 +12,9 @@ import { formatClock } from '@/utils/displayTime';
 import { durationSuffixesFrom, formatMeasuredDurationText, type MeasuredDuration } from '@/utils/taskDuration';
 import type { DurationDisplay } from '@/types/view';
 import { Icon } from '@/components/icons';
-import { DOC_PALETTE } from '@/utils/documents';
+import { DOC_PALETTE, documentCode } from '@/utils/documents';
+import { splitKeywords } from './catalog/settingsSearch';
+import '@/components/layout/DocumentChrome/DocumentChrome.css';
 import './settingVisuals.css';
 
 /** Een balk in procenten van de breedte van zijn spoor. */
@@ -47,59 +49,69 @@ export function ThemeSwatches({ theme }: { theme: ResolvedUITheme }) {
 
 // --- Documentwissel-stijl ------------------------------------------------------------------------
 
-/** Drie open projecten in hun documentkleur; het laatste is actief. */
-const DOC_COLORS = [DOC_PALETTE[3], DOC_PALETTE[1], DOC_PALETTE[4]];
-
-/** Een naam als streepje: het plaatje gaat over waar de wisselaar staat, niet over de tekst. */
-const Name = ({ width }: { width: number }) => <span className="sv-name" style={{ width }} />;
+/** Drie open projecten in hun documentkleur; het middelste is actief. */
+const DOC_COLORS = [DOC_PALETTE[1], DOC_PALETTE[3], DOC_PALETTE[2]];
+const ACTIVE_DOC = 1;
 
 /**
- * Een venster waarin alleen de wisselaar scherp staat, zoals hij er in de app uitziet: tabbladen in
- * een eigen balk onder het lint, een kolom met projectblokjes links, of een pil in de titelbalk. De
- * rest van het venster is gedimd en leeg, zodat het oog naar de wisselaar gaat.
+ * Een uitsnede van het venster op ware grootte, verkleind tot het plaatje: de wisselaar gebruikt
+ * dezelfde opmaak (`DocumentChrome.css`) en dezelfde iconen als in de app, met drie voorbeeldnamen.
+ * Alleen het stukje eromheen (lint, titelbalk, werkvlak) is gedimd en leeg, zodat het oog naar de
+ * wisselaar gaat. Spans in plaats van knoppen: het hele plaatje zit al in een keuzeknop.
  */
 export function DocumentChromeVisual({ value }: { value: string }) {
-  const active = DOC_COLORS.length - 1;
+  const { t } = useTranslation('common');
+  const docs = splitKeywords(t('settings.documentChromeSampleNames'))
+    .slice(0, DOC_COLORS.length)
+    .map((title, i) => ({ title, code: documentCode(title), color: DOC_COLORS[i], active: i === ACTIVE_DOC }));
+  const active = docs[ACTIVE_DOC] ?? docs[0];
+  const docColor = (color: string) => ({ ['--doc-color' as string]: color }) as CSSProperties;
   return (
-    <Frame className={`sv-window sv-chrome-${value}`}>
-      <div className="sv-titlebar">
-        <span className="sv-dots sv-dim" />
-        {value === 'switcher' && (
-          <span className="sv-switcher">
-            <span className="sv-docdot" style={{ background: DOC_COLORS[active] }} />
-            <Name width={24} />
-            <span className="sv-chevron" />
-            <span className="sv-count">3</span>
-          </span>
-        )}
-      </div>
-      <div className="sv-ribbon sv-dim" />
-      {value === 'tabs' && (
-        <div className="sv-doctabs">
-          <span className="sv-overview" />
-          {DOC_COLORS.map((color, i) => (
-            <span key={color} className={`sv-doctab${i === active ? ' is-active' : ''}`}
-              style={i === active ? { borderBottomColor: color } : undefined}>
-              <span className="sv-docdot" style={{ background: color }} />
-              <Name width={i === 0 ? 20 : 14} />
-              <span className="sv-close" />
+    <Frame className={`sv-chrome sv-chrome-${value}`}>
+      <div className="sv-chrome-real">
+        {value === 'switcher' ? (
+          <div className="sv-chrome-titlebar">
+            <span className="ops-pill">
+              <span className="ops-dot" style={docColor(active.color)} />
+              <span className="ops-pill-name">{active.title}</span>
+              <Icon id="ui.dropdown" size={12} style={{ opacity: 0.7 }} />
+              <span className="ops-pill-badge">{t('documents.openBadge', { count: docs.length })}</span>
             </span>
-          ))}
-          <span className="sv-plus" />
-        </div>
-      )}
-      <div className="sv-window-body">
-        {value === 'rail' && (
-          <div className="sv-docrail">
-            <span className="sv-overview" />
-            {DOC_COLORS.map((color, i) => (
-              <span key={color} className={`sv-railcard${i === active ? ' is-active' : ''}`}
-                style={i === active ? { background: color } : undefined} />
-            ))}
+          </div>
+        ) : (
+          <div className="sv-chrome-ribbon" />
+        )}
+        {value === 'switcher' && <div className="sv-chrome-ribbon" />}
+        {value === 'tabs' && (
+          <div className="ops-tabstrip">
+            <span className="ops-iconbtn ops-tabstrip-menu"><Icon id="documents.overview" size={17} /></span>
+            <div className="ops-tabstrip-tabs">
+              {docs.map(doc => (
+                <div key={doc.title} className="ops-tab-group">
+                  <span className={`ops-tab${doc.active ? ' active' : ''}`} style={docColor(doc.color)}>
+                    <span className="ops-dot" />
+                    <span className="ops-tab-name">{doc.title}</span>
+                  </span>
+                  <span className="ops-tab-close"><Icon id="document.close" size={16} /></span>
+                </div>
+              ))}
+            </div>
+            <span className="ops-iconbtn ops-tabstrip-add"><Icon id="documents.new-or-open" size={15} /></span>
           </div>
         )}
-        <div className="sv-workspace sv-dim">
-          <span /><span /><span />
+        <div className="sv-chrome-body">
+          {value === 'rail' && (
+            <div className="ops-rail">
+              <span className="ops-iconbtn ops-rail-grid"><Icon id="documents.overview" size={20} /></span>
+              <div className="ops-rail-sep" />
+              {docs.map(doc => (
+                <span key={doc.title} className={`ops-rail-item${doc.active ? ' active' : ''}`} style={docColor(doc.color)}>
+                  {doc.code}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="sv-chrome-workspace sv-dim"><span /><span /><span /><span /></div>
         </div>
       </div>
     </Frame>

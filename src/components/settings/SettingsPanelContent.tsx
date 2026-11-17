@@ -142,9 +142,6 @@ export function SettingsPanelContent() {
             onClick={() => chooseGroup(g)}
           >
             <span>{t(GROUP_LABEL_KEYS[g])}</span>
-            {SETTINGS_CATALOG.some(e => e.group === g && changed.has(e.id)) && (
-              <span className="settings-changed-dot" title={t('settings.groupHasChanges')} aria-hidden="true" />
-            )}
           </button>
         ))}
       </nav>

@@ -172,16 +172,16 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await page.keyboard.press('Control+f');
   await expect(search).toBeFocused();
 
-  // Een gewijzigde instelling krijgt een stip, ook bij haar groep, en telt mee in het filter. De
-  // fixture zet de formaatuitleg al uit (`ops-formatNoticeHidden`), dus die telt vanaf het begin mee.
+  // Een gewijzigde instelling krijgt een stip (alleen bij de instelling, niet bij haar groep) en telt
+  // mee in het filter. De fixture zet de formaatuitleg al uit (`ops-formatNoticeHidden`), dus die telt vanaf het begin mee.
   const filter = dialog.locator('[data-ops-settings-changed-only]');
   await expect(filter).toHaveText(/\(1\)$/);
-  await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
   const compress = dialog.locator('[data-ops-setting="compressNonWorkdays"]');
   await compress.getByRole('button', { name: /^(On|Aan)$/ }).click();
   await expect(compress.getByRole('checkbox')).toBeChecked();
   await expect(compress).toHaveAttribute('data-ops-setting-changed', 'true');
-  await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toBeVisible();
+  await expect(compress.locator('.settings-changed-dot')).toBeVisible();
+  await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
   await expect(filter).toHaveText(/\(2\)$/);
   await filter.click();
   await expect(filter).toHaveAttribute('aria-pressed', 'true');
@@ -192,7 +192,6 @@ async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
   await expectRows(dialog, ['formatNotices']);
   await expect(filter).toHaveText(/\(1\)$/);
   await filter.click();
-  await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
 
   // Het thema telt ook mee: zonder bewaarde keuze start de app Donker.
   await group(dialog, 'appearance').click();

@@ -539,6 +539,7 @@
     "documentChromeTabs": "Horizontale tabbladen",
     "documentChromeRail": "Verticale tabbladen",
     "documentChromeSwitcher": "Pil",
+    "documentChromeSampleNames": "Kantoor, Brug, Sluis",
     "dateNotation": "Datumnotatie",
     "dateNotationHint": "Hoe datums overal in de app staan; bestanden en berekeningen veranderen niet.",
     "dateNotationDmy": "dd-mm-jjjj",
@@ -573,7 +574,6 @@
       "about": "Over de app"
     },
     "groupsNav": "Groepen van instellingen",
-    "groupHasChanges": "Bevat gewijzigde instellingen",
     "searchPlaceholder": "Zoek een instelling…",
     "searchLabel": "Instellingen zoeken",
     "searchClear": "Zoekterm wissen",
