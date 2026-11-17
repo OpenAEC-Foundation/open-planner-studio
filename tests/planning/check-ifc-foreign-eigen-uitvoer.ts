@@ -12,10 +12,14 @@
 //    vangt, en dat de boomvorm van (c) zelf hem ziet (ook knownbug 1705: de aggregatie waarin een kop staat).
 // 6. PR 12d: fouten rond de typenaam op de taak in de echte uitvoer (een hernoemd type, een taak die haar type verloor);
 //    per tegenproef wat de verliescontrole (met de toets) en wat de uitvoercontrole zonder en met (c) ervan zegt.
+// 7. PR 12e: de identiteit van de weesrij in `TaskGuids` (knownbug 1706) en van de baselinekop (knownbug 1746); de vier
+//    tegenproeven van de reviews van #960 en #962.
+// 8. Fixronde 1 van PR 12e: de merge neemt de GlobalId van een weesrij uit de lezing van de bron, ook als `TaskGuids` daar een
+//    getal heeft of de sleutel mist.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
-import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
+import { writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { checkMergeOutput, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
@@ -24,8 +28,9 @@ import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import { PSET, ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
+import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import {
-  applyEdit, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, sameBytes,
+  applyEdit, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, openInStore, sameBytes,
   savedCatalogStart, savedSequenceStart, type Domain,
 } from './ifcMergeKern';
 import {
@@ -396,7 +401,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     const headTrees = (bytes: Uint8Array) => {
       const index = scanForeignStep(bytes);
       const own = (i: number) => { const c = sourceIndex.chunkOf(index.id(i)); return c < 0 || sourceCls.classes[c] === 1; };
-      return ownGroupTrees(indexView(index, own), new Set(b.input.tasks.map(t => t.id))).get(BASELINE_HEADS)?.join('\n') ?? '';
+      return ownGroupTrees(indexView(index, own)).get(BASELINE_HEADS)?.join('\n') ?? '';
     };
     const good = headTrees(b.bytes);
     ok('kop: de koppen staan in de aggregatie van het eigen werkplan', good.split('\n').every(t => t.startsWith('eigen IFCWORKPLAN|')), good);
@@ -469,15 +474,9 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
       ['oude koppeling gewijzigd', v => { map(v)[oldKey] = 'verkeerde-waarde'; }],
       ['nieuwe koppeling weg', v => { delete map(v)[newKey]; }],
     ];
-    if (kind === 'TaskGuids') {
-      // Bekend gat (knownbug 1706): een extra sleutel zonder taak in `TaskGuids` ziet (c) niet (de weesregel van de canon),
-      // en de controle na openen ook niet. Op de basis ving de verliescontrole hem in O1; in een gedragen `OPS_Baselines`
-      // niet meer. Er gaat niets verloren. Slaat deze proef om, dan is het gat dicht: werk dan 1706 bij.
-      const m = mutated(b.bytes, alterJson(kind, v => { map(v)['onverwacht'] = map(v)[newKey]; }));
-      const withC = await verdict(m, b.input, b.source, b.own);
-      console.log(`TEGENPROEF 7c TaskGuids: onverwachte nieuwe sleutel zonder taak: met (c) ${withC} (bekend gat, knownbug 1706)`);
-      ok('tegenproef 7c TaskGuids: onverwachte nieuwe sleutel zonder taak: laat door (bekend gat, knownbug 1706)', withC === 'laat door', withC);
-    } else variants.push(['onverwachte nieuwe sleutel', v => { map(v)['onverwacht'] = map(v)[newKey]; }]);
+    // Tot PR 12e liet (c) een extra sleutel zonder taak in `TaskGuids` door (de weesregel van de canon, knownbug 1706).
+    if (kind === 'TaskGuids') await counterProof(b, '7c TaskGuids: onverwachte nieuwe sleutel zonder taak (1706)', alterJson(kind, v => { map(v)['onverwacht'] = map(v)[newKey]; }), true);
+    else variants.push(['onverwachte nieuwe sleutel', v => { map(v)['onverwacht'] = map(v)[newKey]; }]);
     if (kind === 'TaskTypes') variants.push(['oude koppeling weg', v => { delete map(v)[oldKey]; }],
       ['nieuwe sleutel verkeerd', v => { map(v)['verkeerde-taak'] = map(v)[newKey]; delete map(v)[newKey]; }],
       ['definitie gewijzigd', v => { v.definitions[0].name = 'Ongevraagde naam'; }], ['nieuw type verkeerd', v => { map(v)[newKey] = 'onbekend-type'; }]);
@@ -604,6 +603,120 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     ok('tegenproef typenaam: (b) zet een typenaam terug, verkeerde naam na typewissel: laat door (bekend gat, knownbug 1747)', found.length === 0 && withC === 'laat door', `${found.length} / ${withC}`);
   }
   console.log(`BEWIJS alleen (c) vangt, met de typenaam: ${caughtOnlyByC.length}`);
+}
+
+const json = (bytes: Uint8Array, name: string) => jsonOf(prop(linesIn(bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l), name));
+/** De taak die de proeven van 7 en 8 wissen: een ongetypeerde taak in een baseline (de proef van de review van #960). */
+const orphanEdit = (keep: (id: string) => void) => se(s => {
+  const t = leaves(s).find((t: any) => !t.customTaskTypeId && s.baselines.some((x: any) => x.tasks.some((r: any) => r.taskId === t.id)));
+  keep(t.id); s.deleteTask(t.id);
+});
+
+// ── 7. PR 12e: (c) toetst de identiteit van de weesrij en van de baselinekop (knownbugs 1706 en 1746) ──
+// De tegenproeven van de reviews van #960 en #962, op de echte uitvoer van een gewone opslag, als nagebootste fout van de
+// writer. Tot PR 12e liet (c) ze alle vier door: een sleutel van `TaskGuids` zonder levende taak telde niet mee (de weesregel),
+// en van een baselinekop telde de GlobalId niet. Nu krijgt een weesrij in de herlezing de GlobalId van het domein
+// (`ownOutputProblem`), telt `TaskGuids` helemaal mee, en staat de kop met zijn GlobalId in de boomvorm (`ownGroupTrees`).
+{
+  const cat = await savedCatalog(SOURCES.eigen);
+  // 1706: een ongetypeerde taak uit de baselines wissen (de proef van de review van #960).
+  {
+    let removed = '';
+    const b = await base('weesrij: een taak uit de baselines wissen', cat, orphanEdit(id => { removed = id; }));
+    assert(json(b.bytes, 'TaskGuids')[removed], 'weesrij: de gewiste taak heeft een sleutel in TaskGuids');
+    await counterProof(b, '1706: een extra sleutel zonder rij in TaskGuids', alterJson('TaskGuids', v => { v['review-960-zonder-taak'] = '0000000000000000000001'; }), true);
+    await counterProof(b, '1706: een verkeerde GlobalId bij de rij van de gewiste taak', alterJson('TaskGuids', v => { v[removed] = '0000000000000000000001'; }), true);
+    await counterProof(b, '1706: de rij van de gewiste taak wijst naar een taak die er nog is', alterJson('TaskGuids', v => {
+      v[removed] = v[Object.keys(v).find(k => b.input.tasks.some(t => t.id === k))!];
+    }));
+    await counterProof(b, '1706: de sleutel van de gewiste taak weg', alterJson('TaskGuids', v => { delete v[removed]; }), true);
+  }
+  // 1746 (de proeven van de review van #962): twee koppen met verwisselde GlobalIds, na één baseline wissen.
+  {
+    const b = await base('kop: één baseline wissen (identiteit)', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+    const heads = (ls: OutLine[]) => ls.filter(l => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.'));
+    await counterProof(b, '1746: de GlobalIds van twee koppen verwisseld', ls => {
+      const [x, y] = heads(ls), g = x.args[0]; setArg(x, 0, y.args[0]); setArg(y, 0, g);
+    }, true);
+  }
+  // 1746: twee inhoudelijk gelijke koppen; de planner wist de eerste, en in de uitvoer blijft die staan in plaats van de
+  // blijvende (met de owner history van de goede uitvoer).
+  {
+    nextCase();
+    const opened = await openForeign(cat);
+    const renamed = await save(await se(s => { s.renameBaseline(s.baselines[2].id, s.baselines[1].name); })(cloneDomain(opened)), opened.ifcSource!);
+    assert(renamed.ok, 'kop: twee baselines met dezelfde naam schrijven');
+    const before = await openForeign(renamed.bytes), removeId = before.baselines![1].id;
+    const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+    const from = linesIn(renamed.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const twins = from.filter(l => isHead(l) && l.args[2] === `'${before.baselines![1].name}'`);
+    assert(twins.length === 2 && twins[0].args.slice(2).join(',') === twins[1].args.slice(2).join(','), 'kop: twee inhoudelijk gelijke koppen');
+    const b = await base('kop: van twee gelijke koppen de eerste wissen', renamed.bytes, se(s => { s.deleteBaseline(removeId); }));
+    const ls = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const kept = ls.find(l => isHead(l) && l.args[2] === twins[0].args[2])!, gone = twins.find(l => l.id !== kept.id)!;
+    assert(kept && gone, 'kop: de blijvende en de gewiste kop');
+    const agg = ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[5].split(/[^\d]+/).includes(String(kept.id)))!;
+    const wrong = bytesOf(linesIn(b.bytes).map(t => {
+      const l = parseOutLine(t.replace(/\r$/, ''));
+      const r = !l ? undefined : l.id === kept.id ? { ...gone, args: gone.args.map((a, k) => k === 1 ? kept.args[1] : a) }
+        : l.id === agg.id ? { ...l, args: l.args.map((a, k) => k === 5 ? a.replace(new RegExp(`#${kept.id}(?=[,)])`), `#${gone.id}`) : a) } : undefined;
+      return r ? `#${r.id}=${r.type}(${r.args.join(',')});${t.endsWith('\r') ? '\r' : ''}` : t;
+    }).join('\n'));
+    await counterProof(b, '1746: bij gelijke koppen blijft de gewiste staan en verdwijnt de blijvende', wrong, true);
+  }
+}
+
+// ── 8. Fixronde 1 van PR 12e: één afleiding van de GlobalId van een weesrij ──
+// De merge neemt de GlobalId van een weesrij over uit de lezing van de bron (`ImportResult.baselineOrphanGuids`, gezet door
+// `extractBaselines`), en leidt hem niet zelf af. De proef zet in `TaskGuids` van een geschreven bron bij de weesrij een
+// waarde die geen tekst is (een getal), of haalt de sleutel weg, en vergelijkt dan de lezer met de merge: wat de lezer van
+// die bron aannam, schrijft de merge in `TaskGuids`, en neemt de lezer van de uitvoer weer aan. Tot de fixronde zocht
+// de merge de kaart zelf op en hashte hij bij een getal, en liepen lezer en merge daar uiteen (review van #968).
+/** Staat `key` ergens als eigen sleutel in `x` (objecten, arrays en Maps; geen bytes)? */
+function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
+  if (!x || typeof x !== 'object' || ArrayBuffer.isView(x) || seen.has(x)) return false;
+  seen.add(x);
+  if (Object.prototype.hasOwnProperty.call(x, key)) return true;
+  return (x instanceof Map ? [...x.values()] : Object.values(x)).some(v => hasKey(v, key, seen));
+}
+{
+  let removed = '';
+  const b = await base('weesrij: één afleiding', await savedCatalog(SOURCES.eigen), orphanEdit(id => { removed = id; }));
+  const assumed = async (bytes: Uint8Array): Promise<unknown> =>
+    (await readIfcBytesDetailed(bytes, {}, { createWorker: () => null })).result.baselineOrphanGuids?.[removed];
+  for (const [label, edit, number] of [
+    ['een getal als waarde', (v: Record<string, unknown>) => { v[removed] = 12345; }, true],
+    ['geen sleutel', (v: Record<string, unknown>) => { delete v[removed]; }, false],
+  ] as const) {
+    const source = mutated(b.bytes, alterJson('TaskGuids', edit));
+    const fromReader = await assumed(source);
+    ok(`één afleiding ${label}: de lezer nam voor de weesrij een GlobalId aan`, fromReader !== undefined && (!number || fromReader === 12345), String(fromReader));
+    // Het veld staat alleen in de lezing: niet in de store na openen (document, undo, herstel), en de gewone writer schrijft
+    // met en zonder het veld dezelfde tekst.
+    {
+      const reading = (await readIfcBytesDetailed(source, {}, { createWorker: () => null })).result as WriteIFCInput;
+      const withoutField = { ...reading };
+      delete (withoutField as { baselineOrphanGuids?: unknown }).baselineOrphanGuids;
+      ok(`één afleiding ${label}: de gewone writer negeert het veld`, writeIFCForComparison(reading) === writeIFCForComparison(withoutField));
+      const { store } = await openInStore(source);
+      ok(`één afleiding ${label}: het veld staat nergens in de store na openen`, !hasKey(store.getState(), 'baselineOrphanGuids'));
+    }
+    for (const [what, change] of [['een taak en een baseline erbij', se(s => { addTask(s, 'Eén afleiding'); s.saveBaseline('Eén afleiding'); })],
+      ['alleen de projectbeschrijving', se(s => { s.setProject({ description: 'Eén afleiding' }); })]] as const) {
+      // Met een getal schrijft de merge het getal zoals de lezer het aannam; (b) hoeft niets terug te zetten, dus ook een
+      // taak en een baseline erbij schrijft. Die geeft `TaskGuids` een nieuwe sleutel, dus daar schrijft de writer de kaart
+      // zelf, en zet (b) haar niet terug: alleen daar ziet de proef een eigen afleiding van de merge (een baseline alleen
+      // geeft dezelfde kaart, en dan zet (b) de bronwaarde terug). Zonder sleutel: de uitkomst wordt hier alleen gemeten.
+      const { o } = await edited(`één afleiding ${label}: ${what}`, source, change, number);
+      if (!o.ok) { console.log(`ÉÉN AFLEIDING ${label}: ${what}: ${o.kinds.join(',')}: ${o.detail.slice(0, 200)}`); continue; }
+      const guids = json(o.bytes, 'TaskGuids') as Record<string, unknown>;
+      ok(`één afleiding ${label}: ${what}: de naam van het veld staat niet in het bestand`, !latin1(o.bytes).includes('baselineOrphanGuids'));
+      console.log(`ÉÉN AFLEIDING ${label}: ${what}: lezer ${JSON.stringify(fromReader)}, TaskGuids ${removed in guids ? JSON.stringify(guids[removed]) : '(geen sleutel)'}`);
+      if (number || removed in guids) ok(`één afleiding ${label}: ${what}: de merge schrijft wat de lezer aannam`, guids[removed] === fromReader,
+        `${JSON.stringify(fromReader)} → ${removed in guids ? JSON.stringify(guids[removed]) : '(geen sleutel)'}`);
+      ok(`één afleiding ${label}: ${what}: de lezer van de uitvoer neemt hetzelfde aan`, (await assumed(o.bytes)) === fromReader);
+    }
+  }
 }
 
 finish();

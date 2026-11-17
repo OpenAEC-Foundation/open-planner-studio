@@ -1429,7 +1429,9 @@ export function changedScopes(originalDomain: WriteIFCInput, originalPristine: I
   const pa = domain.project as unknown as Record<string, unknown>;
   const pb = pristine.project as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(pa), ...Object.keys(pb)])) if (json(pa[k]) !== json(pb[k])) keys.add(`project.${k}`);
-  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource', 'writeMode']);
+  // `baselineOrphanGuids` is geen planning maar wat de lezer voor een weesrij aannam (PR 12e); de baselines zelf tellen hier wel.
+  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource', 'writeMode',
+    'baselineOrphanGuids']);
   const a = domain as unknown as Record<string, unknown>;
   const b = pristine as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!skip.has(k) && json(a[k]) !== json(b[k])) keys.add(k);

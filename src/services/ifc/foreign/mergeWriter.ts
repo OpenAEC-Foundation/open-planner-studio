@@ -38,15 +38,15 @@
  *
  * Voorbereiding 1c: alleen tests gebruiken deze ingang. De opslagblokkade blijft dicht tot PR 11.
  */
-import { ifcGuid, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
+import { ifcGuid, ifcObjectSeed, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
-import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
+import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
@@ -430,7 +430,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
-    const written = writeIfcMergeLines(input, sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
+    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -706,6 +706,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
   const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project);
+  // De GlobalId van een weesrij zoals de lezer hem in de bron aannam (PR 12e, was knownbug 1702): de writer houdt hem, in O0
+  // en O1 (`buildLines`), in de andere toets (`openedOwnGroups`) en in de verwachting van (c) (`OwnOutputCheck.sourceRowGuid`).
+  const rowGuid = assumedRowGuid(pristine);
   // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
@@ -844,7 +847,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
     const actual = await checkedParts(assembled, input, source, index, cls, source.opened ?? pristine, probe,
-      { stepIds, writtenAt, skip: restoredGroups });
+      { stepIds, writtenAt, skip: restoredGroups, sourceRowGuid: rowGuid });
     const written = new Set(candidate.map(line => line.id));
     const classes = Uint8Array.from(actual.scan.chunkIds, id => {
       if (id < 0) return 0;
@@ -911,14 +914,19 @@ export interface OwnOutputCheck {
   readonly stepIds: Readonly<Record<string, number>>;
   readonly writtenAt: Date;
   readonly skip: ReadonlySet<string>;
+  /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
+  readonly sourceRowGuid: (taskId: string) => string | undefined;
 }
 
 /** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
  *  uitvoer). Gooit `MergeNeedsPhase2Error` zoals bij opslaan. */
-export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource, own?: OwnOutputCheck): Promise<void> {
+export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
+  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>): Promise<void> {
   const index = scanForeignStep(source.bytes), cls = classify(index);
   assertSameSource(index, cls, source);
-  await checkedParts([bytes], freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, own);
+  // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
+  const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
+  await checkedParts([bytes], freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
 }
 
 /** De vaste uitvoercontrole van #918, ook voor ongewijzigd teruggegeven bronbytes. */
@@ -968,7 +976,7 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
-  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, own) : undefined;
+  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
   return { bytes, index: actual.index, scan: outputScan };
 }
@@ -976,19 +984,22 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
 /**
  * Controle (c), PR 12a: de eigen groepen op projectniveau in de uitvoer (`ownGroups.ts`) zijn gelijk aan wat de writer
  * schrijft uit de herlezing van die uitvoer (`parsed`, de lezing die `checkedParts` al deed), met dezelfde schrijfklok en
- * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history en zonder vreemde
- * leden. Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
+ * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history van psets en hun
+ * leden en zonder vreemde leden; een baselinekop wel met zijn GlobalId, en `TaskGuids` helemaal (PR 12e). Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
  * writer of de lezer zijn. Alleen de stukken die de writer schreef tellen (de regel van `validateMergeOutput`); geen tweede
  * scan of herlezing. Groepen in `own.skip` toetst (c) niet: daar zette (b) bronwaarden terug.
  */
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
-  parsed: WriteIFCInput, own: OwnOutputCheck): string | undefined {
+  parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
   const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
   const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
-  const rewritten = writeIfcMergeLines(parsed, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
+  // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
+  // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
+  const domainGuids = withOrphanRowGuids(input, own.sourceRowGuid).ifcGlobalIds ?? {};
+  const reread = withOrphanRowGuids(parsed, id => domainGuids[ifcObjectSeed('task', id)]);
+  const rewritten = writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
     .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
-  const taskIds = new Set(parsed.tasks.map(t => t.id));
-  return ownGroupDifference(ownGroupTrees(output, taskIds), ownGroupTrees(linesView(rewritten, output.typeOf), taskIds), own.skip)?.detail;
+  return ownGroupDifference(ownGroupTrees(output), ownGroupTrees(linesView(rewritten, output.typeOf)), own.skip)?.detail;
 }
 
 /**
@@ -1016,11 +1027,11 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
   const out = new Map<number, string>(), forms = new Set<string>();
   if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms };
   const withForeign = groupsWithForeignMembers(source, members);
-  const taskIds = new Set([...pristine.tasks, ...opened.tasks].map(t => t.id));
+  const rowGuid = assumedRowGuid(pristine);
   const trees = (d: WriteIFCInput) => {
-    const lines = writeIfcMergeLines(d, sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
+    const lines = writeIfcMergeLines(withOrphanRowGuids(d, rowGuid), sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
       .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
-    return ownGroupTrees(linesView(lines, source.typeOf), taskIds);
+    return ownGroupTrees(linesView(lines, source.typeOf));
   };
   const read = trees(pristine), shown = trees(sourceFormWhereUnchanged(opened, opened, pristine).input);
   const unchanged = (g: string) => (read.get(g) ?? []).join('\n') === (shown.get(g) ?? []).join('\n');
@@ -1030,7 +1041,7 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
     const chunk = index.chunkOf(String(id));
     if (chunk >= 0) out.set(chunk, group);
   }
-  const inSource = ownGroupTrees(source, taskIds);
+  const inSource = ownGroupTrees(source);
   for (const [pset, form] of SECOND_FORMS) if (inSource.has(form) && !withForeign.has(form) && unchanged(form)) forms.add(pset);
   return { ownGroups: out, secondFormsUnchanged: forms };
 }
