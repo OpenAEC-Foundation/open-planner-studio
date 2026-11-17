@@ -2708,13 +2708,6 @@ en noem het in je rapport of PR-tekst.
      doel opzij zetten) bij een alleen-lezen doel; opslaan stopt dan veilig. Verwant aan 162. Niet gemeten (geen
      Windows hier). Uit 1131 stap 3. — S
 
-1777. **VERVOLG (#804, scope): bij `requireLiteralLeadingDot: false` toetst `place_file_exclusive` een runtime-verbod anders dan plugin-fs.**
-     Plugin-fs toetst een verbod met zijn eigen config (`tauri-plugin-fs-2.5.0/src/commands.rs:1585`); het commando
-     gebruikt `is_forbidden` van de runtime-scope, die plugin-fs met de standaardpuntregel maakt (`lib.rs:490`). Zet
-     iemand op Unix `plugins.fs.requireLiteralLeadingDot` op `false`, dan kan een wildcardverbod in de runtime-scope
-     bij het commando een puntbestand missen dat plugin-fs wel weigert. De huidige config (leeg) raakt dat niet.
-     Gevonden door de review van #972 (ronde 2). — B (code)
-
 1795. **VERVOLG (#804, netwerkschijf): een hernoeming kan een fout geven nadat ze toch gebeurde.**
      Op NFS kan een herhaald verzoek na een verloren antwoord `EEXIST` of `ENOENT` geven terwijl de eerste poging de
      naam al verplaatste. `place_file_exclusive` vangt dat niet: een fout van de stap blijft een fout (`io` of
@@ -2777,28 +2770,6 @@ en noem het in je rapport of PR-tekst.
      nesting open (`map/.a/.b`), en de puntregel uitzetten zou `$HOME/**` verborgen thuismappen laten toelaten. Op
      Windows geldt de puntregel standaard niet. Gevonden door de review van #975 (ronde 2, uit de bron; niet uitgevoerd).
      — B (bron gelezen)
-
-1797. **VERVOLG (beveiliging): `tauri-plugin-fs` staat op 2.5.0; upstream is 2.7.1.**
-     `src-tauri/Cargo.lock` vergrendelt 2.5.0 (`Cargo.toml` vraagt `2`, `tauri-plugin-persisted-scope` staat vast op
-     `=2.3.6` voor die versie). Wat de app daardoor mist, volgens de changelog van plugin-fs: in 2.5.2 het
-     standaardverbod op de webviewgegevens ("Fixed `deny-webview-data` has no effect"; de app zet het sinds #975 zelf
-     in `src-tauri/capabilities/webviewgegevens-*.json`) en "Fix `fs:default` … not giving any command scopes"; in
-     2.7.0 twee beveiligingsreparaties: de scopecontrole lost symbolische links in de bovenliggende mappen van een nog
-     niet bestaand pad op (daarvóór kwam een nieuw bestand onder een gelinkte map binnen de scope buiten de scope
-     terecht, bij `writeFile`, `mkdir`, `rename` en dergelijke), en `open` neemt geen `customFlags` meer aan uit de
-     webview (daarmee kon de webview willekeurige `open(2)`-vlaggen zoals `O_TRUNC` meegeven aan een bestand dat ze
-     alleen mag lezen). Wat een verhoging raakt: 2.6.0 laat `writeFile` en `writeTextFile` falen als de opties niet
-     te lezen zijn (eerder genegeerd, ook `createNew`), 2.7.1 maakt van de schrijfpermissies (`write-all`,
-     `allow-*-write[-recursive]`) sets van de `allow-*`-commando's, en de npm-versie `@tauri-apps/plugin-fs` moet
-     mee. Ook 2.7.1 dekt de webviewgegevens niet helemaal: `deny-webview-data` verbiedt alleen `map/**` (dat matcht de
-     map zelf niet), en `remove` (`plugins/fs/src/commands.rs:771`, `remove_dir_all` op regel 800) en `rename` (regel
-     840) toetsen via `resolve_path` (regel 1552) alleen de opgegeven paden; een beschermde map of `$APPLOCALDATA` zelf
-     hernoemen of recursief verwijderen blijft daar mogelijk (gelezen in de tak `v2`). De eigen capabilities
-     `webviewgegevens-*.json` blijven dus ook na de verhoging nodig; alleen de regels die `fs:default` dan zelf levert
-     (`map/**` en de twee bestanden op Linux, `EBWebView/**` op Windows) vervallen, anders staan ze dubbel en faalt de
-     bewering in `place_file_scope_volgt_plugin_fs`. Richting: een eigen PR direct na
-     de merge van #973, met een review, en een controle in de echte desktopapp vóór de merge: openen, opslaan,
-     Opslaan als, en herstel na een crash. — B (changelog en bron gelezen)
 
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
