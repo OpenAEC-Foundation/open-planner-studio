@@ -91,6 +91,7 @@ export function createDefaultUI(): UIState {
     collapsedTaskIds: [],
     gridActiveRowKey: null,
     showSettingsDialog: false,
+    settingsFocusId: null,
     showCalendarDialog: false,
     showUpdateDialog: false,
     justUpdated: null,

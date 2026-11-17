@@ -38,7 +38,7 @@ Eén sleepbeweging is één stap in *Ongedaan*, hoe lang je ook sleept. Op een g
 
 ### De tijdlijn verschuiven
 
-Wat een sleepbeweging op lege achtergrond doet, hangt af van je scrollmodus. Die kies je in *App-instellingen*, tabblad *Weergave*, onder *Gantt › Scrollen & zoomen* bij *Modus*:
+Wat een sleepbeweging op lege achtergrond doet, hangt af van je scrollmodus. Die kies je in *App-instellingen*, groep *Tijdlijn*, bij [Scrollen en zoomen](settings://scrollMode):
 
 - **Zoom + slepen** (standaard): sleep je op lege achtergrond met de linker muisknop, dan verschuift de tijdlijn mee met de muis, zoals een kaart. De cursor is een hand. Op een balk begint een sleep gewoon een balkgebaar.
 - **Positie** en **Toetsen**: dezelfde sleepbeweging maakt een selectiekader. De tijdlijn verschuif je dan met het wiel (zie [App-instellingen](docs://ref-instellingen)) of met de middelste muisknop.

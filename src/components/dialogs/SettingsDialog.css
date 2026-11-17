@@ -19,8 +19,9 @@
   box-shadow: var(--shadow-pop);
   display: flex;
   flex-direction: column;
-  width: 520px;
-  height: 480px;
+  /* Ruim genoeg voor de zoekbalk en drie plaatjes naast elkaar; op een klein scherm krimpt hij mee. */
+  width: min(760px, calc(100vw - 32px));
+  height: min(620px, calc(100vh - 32px));
   position: absolute;
   left: 50%;
   top: 50%;
@@ -88,28 +89,33 @@
   flex-direction: row;
 }
 
-/* Vertical tabs */
+/* Groepen links */
 .settings-tabs {
   background: var(--theme-surface-alt);
-  border-right: 1px solid var(--theme-border);
+  border-inline-end: 1px solid var(--theme-border);
   display: flex;
   flex-direction: column;
   padding: 10px 8px;
-  gap: 3px;
-  width: 130px;
+  gap: 2px;
+  width: 150px;
   flex-shrink: 0;
+  overflow-y: auto;
 }
 
 .settings-tab {
-  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 10px;
   font-size: var(--text-body);
   background: transparent;
   border: none;
   color: var(--theme-text-dim);
   font-weight: 500;
   border-radius: var(--radius-md);
-  transition: all 0.15s ease;
-  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -124,18 +130,30 @@
   font-weight: 600;
 }
 
-/* Tab content */
+.settings-tab:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
+
+/* Rechts: zoekbalk boven, instellingen eronder (scrollt) */
+.settings-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .settings-tab-content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 4px 14px 16px;
 }
 
 /* Sections */
 .settings-section-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 4px;
 }
 
 .settings-section h3 {
@@ -162,7 +180,7 @@
    met dezelfde linkerkantlijn als de rest van de sectie. */
 .settings-link {
   display: block;
-  text-align: left;
+  text-align: start;
   background: none;
   border: none;
   color: var(--theme-accent-hover);
@@ -234,16 +252,7 @@
   background: var(--theme-hover);
 }
 
-/* RTL support */
-[dir="rtl"] .settings-tabs {
-  border-right: none;
-  border-left: 1px solid var(--theme-border);
-}
-
-[dir="rtl"] .settings-tab {
-  text-align: right;
-}
-
+/* RTL: de randen en uitlijning gaan via logische eigenschappen; alleen de kop is fysiek. */
 [dir="rtl"] .settings-header {
   padding-left: 0;
   padding-right: 14px;
@@ -254,28 +263,9 @@
   margin-left: 8px;
 }
 
-/* --- Scroll & zoom settings --- */
-.scrollzoom-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.scrollzoom-label {
-  font-size: var(--text-body);
-  color: var(--theme-text);
-}
-
-.scrollzoom-hint {
-  margin: 4px 0 0 0;
+.settings-hint {
+  margin: 2px 0 0 0;
   font-size: var(--text-small);
   line-height: 1.4;
   color: var(--theme-text-muted);
-}
-
-.scrollzoom-mapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }

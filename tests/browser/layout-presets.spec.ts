@@ -201,8 +201,8 @@ test('legacy-instelling: de klassieke weergaveknoppen komen terug via Instelling
   await expect(page.getByRole('button', { name: /^(Sort|Sorteren)/ })).toHaveCount(0);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const legacy = page.locator('[data-ops-legacy-settings]');
-  // Het blok staat onderaan de laatste instellingentab (Toepassing/Geavanceerd).
-  await page.locator('.settings-tab').last().click();
+  // De instelling staat in de groep Geavanceerd, gemarkeerd als Legacy.
+  await page.locator('[data-ops-settings-group="advanced"]').click();
   await legacy.scrollIntoViewIfNeeded();
   await expect(legacy).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-legacy-instelling.png` });

@@ -33,7 +33,7 @@ A new calendar only does something once a task uses it. There are two ways.
 2. Choose *Assign calendar* and then the calendar, or *Project calendar* to remove the calendar of its own again. The calendar that applies now has a tick.
 3. If you want to give one calendar to several tasks at once, first select them with Ctrl (⌘ on a Mac) and right-click one of the selected tasks. The choice applies to all selected tasks. If you right-click a task that is not selected, it applies only to that task.
 
-A new calendar choice does not make the schedule current yet: the status bar reports *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*. If *Calculate automatically* is on (*Settings › Project › App settings*, tab *Planning*, heading *Calculation*), the app does this itself.
+A new calendar choice does not make the schedule current yet: the status bar reports *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*. If [Calculate automatically](settings://autoCalc) is on (*Settings › Project › App settings*, group *Scheduling*), the app does this itself.
 
 ### Switching the project calendar
 

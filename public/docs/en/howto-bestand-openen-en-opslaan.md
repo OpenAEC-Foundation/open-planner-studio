@@ -13,7 +13,7 @@ You start the day with yesterday's project, you get a file from a colleague or f
 1. Choose *Home › File › Open*, or *File › Open*, or press Ctrl+O (⌘+O on a Mac). The *File* group is also on the *Table* tab.
 2. Choose the file. You open one file at a time. On the desktop and in browsers with file access, such as Chrome and Edge, the window shows a list of file types: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* and *Primavera XER Files*.
 3. The project opens in a new tab. If the current tab was still empty and unchanged, the project opens in it.
-4. If the file was not IFC, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in [App settings](docs://ref-instellingen), on the *Advanced* tab.
+4. If the file was not IFC, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in the app settings, in the [Notices](settings://formatNotices) group.
 
 An IFC file gives its file name to the tab. A project from another format gets its project name.
 

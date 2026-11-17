@@ -35,7 +35,7 @@ Draai je in Claude Code:
 Draai je ergens anders, zoals claude.ai in de browser, zeg dan dat dit Claude Desktop of Claude Code nodig heeft. Weet je niet waar je draait, vraag het mij.
 
 Is de installatie klaar, leg dan in een paar zinnen uit:
-- hoe ik je in de open app laat werken: kies in Open Planner Studio Instellingen › Project › App-instellingen, tabblad Geavanceerd, en zet MCP-koppeling toestaan aan. Klik daarna op het tabblad MCP op Bridge starten.
+- hoe ik je in de open app laat werken: kies in Open Planner Studio Instellingen › Project › App-instellingen, groep Geavanceerd, en zet MCP-koppeling toestaan aan. Klik daarna op het tabblad MCP op Bridge starten.
 - dat zonder de app een wijziging pas in het bestand staat als je het opslaat, en dat je geen bestaand bestand overschrijft zolang de app open staat.
 Mislukt een stap, zeg dan in één zin wat er misging en wat ik kan doen. Gok niet.
 ```
@@ -53,7 +53,7 @@ De bridge werkt alleen in de desktop-app. Sta je de MCP-koppeling in de browser 
 ### 1. De MCP-koppeling toestaan
 
 1. Kies *Instellingen › Project › App-instellingen*. Je kunt ook *Bestand › App-instellingen* kiezen, of het tandwiel bovenaan.
-2. Kies het tabblad *Geavanceerd* en zet *MCP-koppeling toestaan* aan. Het tabblad *MCP* verschijnt in het lint.
+2. Kies links de groep *Geavanceerd* en zet [MCP-koppeling toestaan](settings://aiMode) aan. Het tabblad *MCP* verschijnt in het lint.
 3. Wil je dat de bridge meteen live is zodra de app start, zet dan ook *Bridge automatisch starten* aan. Dat schakelt alleen als de MCP-koppeling aanstaat en werkt alleen in de desktop-app. Standaard staat het uit, want een poort openen is een bewuste keuze.
 
 Zet je de MCP-koppeling uit, dan stopt de bridge en verdwijnt het tabblad *MCP*.

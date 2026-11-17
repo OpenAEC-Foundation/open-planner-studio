@@ -15,7 +15,9 @@
 //     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
 //     `examples://<file>` (opent hetzelfde voorbeeld-openpad als Backstage → Voorbeelden) —
 //     en — alleen waar de aanroeper `onOpenProject` meegeeft (een artikel of begeleidingsstap van
-//     een extensie) — `project://<asset>` (opent een meegeleverd projectbestand als nieuw document).
+//     een extensie) — `project://<asset>` (opent een meegeleverd projectbestand als nieuw document),
+//     en — alleen waar de aanroeper `onOpenSetting` meegeeft (de Help-viewer) — `settings://<id>`
+//     (opent de app-instellingen op die ene instelling, `openSettingsAt`).
 //     Dit zijn bewust de ENIGE toegestane linkvormen; alles anders, en een schema zonder handler,
 //     wordt als platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
 //   - afbeeldingen ![alt](pad) — het pad gaat door `handlers.resolveImage` (per bron: een
@@ -45,6 +47,8 @@ export interface MiniMarkdownHandlers {
   onOpenExample?: (file: string) => void;
   /** `project://<asset>`-link (extensie-inhoud). Weglaten = gewone tekst. */
   onOpenProject?: (assetName: string) => void;
+  /** `settings://<id>`-link: opent de app-instellingen op die instelling. Weglaten = gewone tekst. */
+  onOpenSetting?: (settingId: string) => void;
   /** Afbeeldingspad (zoals in de Markdown) → URL. Weglaten = `public/docs`-pad met `{lang}` = en. */
   resolveImage?: (src: string) => string;
 }
@@ -124,7 +128,7 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
       </button>
     );
   }
-  const { onOpenExample, onOpenProject } = handlers;
+  const { onOpenExample, onOpenProject, onOpenSetting } = handlers;
   if (href.startsWith('examples://') && onOpenExample) {
     const file = href.slice('examples://'.length);
     return (
@@ -137,6 +141,14 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
     const asset = href.slice('project://'.length);
     return (
       <button key={key} type="button" className="help-link help-link-project" data-help-project={asset} onClick={() => onOpenProject(asset)}>
+        {label}
+      </button>
+    );
+  }
+  if (href.startsWith('settings://') && onOpenSetting) {
+    const id = href.slice('settings://'.length);
+    return (
+      <button key={key} type="button" className="help-link help-link-internal" data-help-setting={id} onClick={() => onOpenSetting(id)}>
         {label}
       </button>
     );
