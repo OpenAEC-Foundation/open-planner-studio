@@ -767,7 +767,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const refuseChangedDocumentWrite = (snapshot: AppState, write: DocumentWrite): boolean => {
     if (!write.missingSourceSaveAs && !write.prepared) return false;
     const app = get();
-    const current = app.activeDocumentId === snapshot.activeDocumentId ? app : null; // MUTATIE (b): weer het actieve document
+    const current = saveSourceForDocument(app, snapshot.activeDocumentId);
     const doc = current && { ifcSource: current.ifcSource, foreignSourceMark: current.foreignSourceMark, ui: app.ui };
     if (write.missingSourceSaveAs) {
       if (doc && doc.ifcSource === snapshot.ifcSource && doc.foreignSourceMark === snapshot.foreignSourceMark
