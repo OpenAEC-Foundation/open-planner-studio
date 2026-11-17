@@ -222,26 +222,28 @@ export function installNodeFileIpc() {
       }
       case 'plugin:fs|write_text_file':
       case 'plugin:fs|write_file': {
-        // plugin-fs 2.7.1 `write_file_inner`: leest eerst de opties uit de kop (onleesbaar ⇒ fout, vóór het
-        // openen), opent daarmee en schrijft met write_all; een rauwe body gaat letterlijk door, een
-        // JSON-lijst moet uit bytes bestaan (0–255), anders faalt de aanroep (sinds 2.6.0).
+        // plugin-fs 2.7.1 `write_file_inner` (`commands.rs:1125-1210`), in zijn volgorde: de opties uit de kop
+        // (onleesbaar ⇒ fout, vóór het openen), de scope en het openen met die opties (`create`/`truncate`
+        // gebeuren hier al), pas dan de inhoud: een rauwe body gaat letterlijk door, een JSON-lijst moet uit
+        // bytes bestaan (0–255, sinds 2.6.0), anders faalt de aanroep ná het openen en blijft een leeg of
+        // afgekapt bestand achter. Daarna write_all.
         if (sent.error !== undefined) throw sent.error;
         const p = String(path), o = writeFileOpenOptions(callOptions);
         faults.beforeOpen?.(p);
         if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;
         if (!o.createNew && !o.append && faults.directWriteError !== null) throw faults.directWriteError;
-        const notByte = Array.isArray(args) ? (args as unknown[]).find(v => !(Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 255)) : undefined;
-        if (notByte !== undefined) throw `invalid byte in the data to write: ${JSON.stringify(notByte)}`;
-        const data = ArrayBuffer.isView(args) ? new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
-          : args instanceof ArrayBuffer ? new Uint8Array(args)
-            : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
-        if (data === null) throw new Error('unexpected invoke body');
         // De fouttekst van `write_file_inner`: openen en schrijven geven elk hun eigen begin.
         let fd: number;
         try { fd = fs.openSync(p, openFlags(o), o.mode); }
         catch (error) { throw `failed to open file at path: ${p} with error: ${error instanceof Error ? error.message : String(error)}`; }
         call.wrote = true;
         try {
+          const notByte = Array.isArray(args) ? (args as unknown[]).find(v => !(Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 255)) : undefined;
+          if (notByte !== undefined) throw `invalid byte in the data to write: ${JSON.stringify(notByte)}`;
+          const data = ArrayBuffer.isView(args) ? new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
+            : args instanceof ArrayBuffer ? new Uint8Array(args)
+              : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
+          if (data === null) throw new Error('unexpected invoke body');
           const size = fs.fstatSync(fd).size;
           const room = faults.writeErrorAfter === null ? data.length : Math.max(0, faults.writeErrorAfter - size);
           const n = Math.min(data.length, room);

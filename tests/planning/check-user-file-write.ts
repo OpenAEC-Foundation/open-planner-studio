@@ -574,9 +574,22 @@ for (const kind of ['text', 'bytes'] as const) {
         [await fout(invoke('plugin:fs|write_file', bytes, { headers: { path: encodeURIComponent(pad('c.bin')), options: kop } })),
           [...readFileSync(pad('c.bin'))]], ['', [1, 2, 3]]);
     }
-    eq('9d een JSON-lijst met een waarde die geen byte is: geweigerd',
-      /^invalid byte in the data to write: 256/.test(await fout(invoke('plugin:fs|write_file', [1, 256],
-        { headers: { path: encodeURIComponent(pad('d.bin')), options: 'null' } }))), true);
+    // In de volgorde van `write_file_inner`: eerst openen met de opties (standaard aanmaken en afkappen), dan
+    // de inhoud omzetten. De fout komt dus ná het openen: een nieuw bestand blijft leeg achter, een bestaand
+    // bestand is afgekapt. Met `createNew` weigert een bestaand doel al bij het openen.
+    for (const vooraf of [null, 'OUDE INHOUD'] as const) {
+      if (vooraf === null) rmSync(pad('d.bin'), { force: true }); else writeFileSync(pad('d.bin'), vooraf);
+      const melding = await fout(invoke('plugin:fs|write_file', [1, 256],
+        { headers: { path: encodeURIComponent(pad('d.bin')), options: 'null' } }));
+      eq(`9d een JSON-lijst met een waarde die geen byte is (${vooraf === null ? 'nieuw' : 'bestaand'} doel): geweigerd ná het openen`,
+        [/^invalid byte in the data to write: 256/.test(melding),
+          lstatSync(pad('d.bin'), { throwIfNoEntry: false }) ? [...readFileSync(pad('d.bin'))] : 'geen bestand'], [true, []]);
+    }
+    writeFileSync(pad('d.bin'), 'OUDE INHOUD');
+    eq('9d met createNew en een bestaand doel: geweigerd bij het openen, inhoud behouden',
+      [/^failed to open file at path: /.test(await fout(invoke('plugin:fs|write_file', [1, 256],
+        { headers: { path: encodeURIComponent(pad('d.bin')), options: '{"createNew":true}' } }))),
+      readFileSync(pad('d.bin'), 'utf8')], [true, 'OUDE INHOUD']);
     eq('9e de opties van de opslagroute (createNew en modus) zijn leesbaar',
       await fout(fs.writeFile(pad('e.bin'), bytes, { createNew: true, mode: 0o640 })), '');
   } finally {
