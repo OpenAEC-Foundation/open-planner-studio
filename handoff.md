@@ -132,6 +132,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-17: knownbug 1131 stap 5a (#804, concept): de vervanging van het eigen bestand op de desktop als functie (`replaceOwnPathWithRecovery`, §4.10 stap 0–6, manifest 6 alleen tijdens een vervanging) en het opruimen van restbestanden bij herstel en openen; nog niet aangesloten, Ctrl+S op een pad weigert zoals voorheen. Proef `check-ifc-own-file-replace.ts`. Nieuw: knownbugs 1815 en 1816. Deel b (aansluiten) wacht op #987.
 - 2026-11-17: ontwerp versie 21 (#804): de besluiten van de eigenaar van 16 en 17 november staan in §11 van het ontwerp (twaalf punten); §4.10 heeft de namen van de kopieën (`(versie van ander programma …)`, `(niet opgeslagen planning …)`), §4.12 het ritme van Automatisch opslaan (na 30 s rust, uiterlijk na 5 minuten) en de export zonder vraag vooraf. Nog niet herschreven: §4.10 (gewijzigd bestand), §4.8, §1, §7, §5.1, §6.5 en §5.3; daar geldt de lijst in §11. Nieuwe wens: knownbug 1757.
 - 2026-11-17: knownbug 1797 (#978, concept): `tauri-plugin-fs` van 2.5.0 naar 2.7.1 (Rust met ondergrens, npm gelijk), `tauri-plugin-persisted-scope` van de pin `=2.3.6` naar 2.4.3 (de pin hield fs op 2.5.0). `FsRenameScope` volgt de scoperegel van 2.7.1 (verbod op de padtekst en het echte pad, toestemming op het echte pad, links in bovenliggende mappen opgelost); de eigen capabilities `webviewgegevens-*.json` houden alleen wat `fs:default` niet dekt (de map zelf, `rename`/`remove` van `$APPLOCALDATA`). De Node-adapter weigert onleesbare schrijfopties zoals 2.6.0+. Gedragsverandering: in een map die via een link buiten `$HOME` uitkomt, schrijft Opslaan direct in plaats van via het halffabricaat. 1797 en 1777 opgelost. Vóór de merge: review en een controle in de echte desktopapp.
 - 2026-11-17: knownbug 1758 (#804): ook de modelscan van een bestaand doel draait in de scanworker. Dezelfde Worker krijgt de stukken één voor één en antwoordt per stuk met de stap van de scanner (verder, terugspoelen of de uitkomst), daarna de bytes voor de indeling; de vroege stop, het terugspoelen en de grens van 300 MiB blijven gelijk, een falende Worker geeft de uitkomst van de hoofdthread (opnieuw vanaf het begin). De handler staat los van `self` in `foreignScanHandler.ts`. Gemeten in Node bij 10.000 taken: de hoofdthread zit 10–15 ms vast in plaats van 580–800 ms. 1758 opgelost, 1759 bijgewerkt.
@@ -512,6 +513,30 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 - `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route of de flag uit na openen.
   - nl: Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
   - en: This file contains a building model; saving is not possible yet.
+- `replaceCopy.otherProgram` — Deel van de bestandsnaam van de versie die een ander programma tijdens het opslaan schreef: `<naam> (… <datum tijd>).ifc` (1131 stap 5a; tijd als `2026-11-17 14.32`, in elke taal gelijk).
+  - nl: versie van ander programma {{when}}
+  - en: version from another program {{when}}
+- `replaceCopy.unsavedSchedule` — Deel van de bestandsnaam van de eigen planning die na een crash midden in het opslaan niet op het bestand kwam.
+  - nl: niet opgeslagen planning {{when}}
+  - en: unsaved schedule {{when}}
+- `notifications.ifcForeignReplaceOtherVersion` — Na Ctrl+S op de desktop of bij herstel: een ander programma schreef tijdens het opslaan in het oude bestand (1131 stap 5a; nog niet aangesloten op Ctrl+S).
+  - nl: Een ander programma heeft {{file}} gewijzigd terwijl de app het opsloeg. Die versie is bewaard als {{copy}}.
+  - en: Another program changed {{file}} while the app was saving it. That version has been kept as {{copy}}.
+- `notifications.ifcForeignReplaceUnsavedCopy` — Bij herstel na een crash midden in het opslaan.
+  - nl: De app stopte terwijl hij {{file}} opsloeg. De planning die toen werd opgeslagen, staat in {{copy}}. Gooi dat bestand weg als je het niet meer nodig hebt.
+  - en: The app stopped while saving {{file}}. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.
+- `notifications.ifcForeignReplaceTargetTaken` — Ctrl+S op de desktop: na stap 3 zette een ander programma een nieuw bestand op de plek.
+  - nl: Niet opgeslagen. Tijdens het opslaan zette een ander programma een nieuw bestand op {{target}}. Er staan nu drie bestanden: dat nieuwe bestand op {{target}}, je planning in {{temp}} en de vorige versie in {{previous}}. Je wijzigingen staan ook nog in de app.
+  - en: Not saved. While saving, another program put a new file at {{target}}. There are now three files: that new file at {{target}}, your schedule in {{temp}} and the previous version in {{previous}}. Your changes are also still in the app.
+- `notifications.ifcForeignReplacePreviousStranded` — Ctrl+S op de desktop: stap 4 mislukte en de vorige versie kon niet terug.
+  - nl: Niet opgeslagen, en de vorige versie van het bestand kon niet terug op haar plek. Ze staat nu in {{previous}}. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.
+  - en: Not saved, and the previous version of the file could not be put back. It is now in {{previous}}. Your changes are still in the app. Choose Save As to keep them in a new file.
+- `notifications.ifcForeignReplaceSaveAsOnly` — Ctrl+S op de desktop bij een gelinkt bestand, buiten de toegestane mappen of op een schijf zonder veilige verplaatsing.
+  - nl: Niet opgeslagen. Dit bestand kan op deze plek niet veilig worden vervangen. Het bestand is niet veranderd. Kies Opslaan als om je wijzigingen in een nieuw bestand te bewaren.
+  - en: Not saved. This file cannot be replaced safely in this location. The file has not changed. Choose Save As to keep your changes in a new file.
+- `notifications.ifcForeignReplaceLeftOver` — Na opslaan of herstel: een bestand van een onderbroken opslag dat de app niet zeker kon thuisbrengen.
+  - nl: Van een onderbroken opslag van {{file}} bleef dit bestand staan: {{path}}. Kijk of je het nog nodig hebt.
+  - en: This file was left from an interrupted save of {{file}}: {{path}}. Check whether you still need it.
 - `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel: op de desktop altijd, in de browser alleen als een ander open document hetzelfde bestand als bron heeft (1766).
   - nl: Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.
   - en: File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.

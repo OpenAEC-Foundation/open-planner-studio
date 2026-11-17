@@ -2639,14 +2639,21 @@ en noem het in je rapport of PR-tekst.
         (`mcp-real-app.yml`): het app-log (kanaal `nieuweNaam`) moet voor dat doel `placed` of `dir-not-synced` van
         het echte commando tonen, zonder directe aanmaak; een mutatie die direct aanmaakt maakt die proef rood.
         Opslaan als via de dialoog, Windows, macOS en de terugvalwegen zijn in een echte app niet gemeten.
-     5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
-        herstel- en conflictkopie.
+     5. Ctrl+S op de desktop, in twee delen.
+        a. Gebouwd (stap 5a): de vervanging als functie (`replaceOwnPathWithRecovery` in `state/ownFileReplace.ts`,
+           stap 1–5 in `fileAccess/ownFileReplace.ts`): §4.10 stap 0–6 met `pendingReplace` in het herstelmanifest
+           (versie 6 alleen tijdens een vervanging), geen directe terugval, per uitkomst een melding; de restbestanden
+           bij herstel en bij het openen van het bestand (alleen het id uit het manifest), met de kopieën "versie van
+           ander programma" en "niet opgeslagen planning". Nog door geen opslagroute aangeroepen.
+        b. Open (stap 5b): Ctrl+S en *Opslaan* in de sluitvraag op een pad aansluiten op de functie, nadat "sluiten
+           wacht op een lopende opslag" (#987) in main staat. Dan vervalt `ifcForeignReplaceBlocked` voor het eigen pad.
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
-     `run-real-app.ts`. Crash, stroomuitval en externe
+     `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
+     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
@@ -4586,3 +4593,18 @@ en noem het in je rapport of PR-tekst.
      de eigenaar, 17 november 2026). De andere optie is niet gebouwd: de taak krijgt een eigen owner history met
      `LastModifyingApplication` = OPS, terwijl "gemaakt met" van het andere programma blijft en de gedeelde owner
      history heel blijft. Pas bouwen als een gebruiker erom vraagt. — S
+
+1815. **VERVOLG (#804, 1131 stap 5a): een onleesbare herstelsnapshot laat de restbestanden van haar vervanging liggen.**
+     `loadRecovery` geeft een manifestregel waarvan de snapshottekst niet te lezen is alleen als `readFailures` (id en
+     fout) terug, zonder `ifcSource`. Had dat document een lopende vervanging op de desktop, dan ziet
+     `settleRecoveredReplaces` haar `pendingReplace` niet: `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` blijven
+     staan en de planner hoort het niet. Er gaat geen versie verloren (de bestanden blijven), maar ontbreekt het doel
+     (crash tussen stap 3 en 4), dan staat de vorige versie alleen onder de hulpnaam. Hetzelfde geldt als een bestand
+     wordt geopend vóór de herstelcontrole bij de start klaar is. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+
+1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
+     De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
+     naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
+     (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
+     planner ziet een technische naam. Een volgnummer achter de tijd lost het op. Gevonden bij het bouwen van 1131
+     stap 5a. — S (code)

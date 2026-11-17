@@ -79,8 +79,8 @@ de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder
 het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `EBWebView`; macOS geen (WKWebView krijgt geen
 gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
 app-datamap toevoegt, zet het in `EIGEN_GEBRUIK` in `place_file.rs`. TS-ingang
-`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); de enige aanroeper is de nieuwe-naamroute
-hieronder (1131 stap 4). Proeven:
+`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); aanroepers: de nieuwe-naamroute
+hieronder (1131 stap 4) en de vervanging van het eigen bestand (1131 stap 5a, nog niet aangesloten). Proeven:
 `cargo test place_file` (naad `PlaceOps`; nep-app via de feature `tauri/test` voor de echte scope en dezelfde invoer
 door de IPC naar plugin-fs `rename` en dit commando, ook via een link naar buiten de scope en met een verbod dat een
 link noemt; `place_file_fs_default_verbiedt_zelf` toont wat `fs:default` zonder de eigen capabilities verbiedt; workflow
@@ -248,3 +248,27 @@ sluit. Daarna `commitSavedDocument` met `prepared`. `'not-recorded'` ⇒ niet sc
 door een ander programma tussen de tweede controle en `close()` gaat verloren (ontwerp §4.15; de beschrijving van de
 flag noemt het). Een pad (desktop) weigert nog vóór de merge met `ifcForeignReplaceBlocked` (stap 3 tot en met 5).
 Proeven: `check-ifc-document-save.ts` (nep-handle met echte herstelrondes) en `settings-tabs.spec.ts` (OPFS-handle).
+
+### Ctrl+S op het eigen bestand op de desktop: de vervanging (#804, knownbug 1131 stap 5a)
+
+Nog niet aangesloten: een pad weigert Ctrl+S nog vóór de merge (`ifcForeignReplaceBlocked`); deel b sluit aan na #987.
+`replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp §4.10 stap 0–6:
+een gelinkt doel (symlink, harde link) weigert vooraf; stap 0 is `replaceWithRecoveryPending` met `pendingReplace`
+(`not-recorded` ⇒ niets geschreven, 1764); stap 1–5 staan in `replaceOwnFileBytes` (`fileAccess/ownFileReplace.ts`,
+bewerkingen via `OwnFileReplaceFs`, op Tauri `tauriOwnFileReplaceFs`): `createNew` naar `save-<id>.ops-save.tmp`
+(`userFileTempPath(path, id)`, nooit `writeNewUserBytes` en geen directe aanmaak), `sourceTargetContent` op het doel,
+`place_file_exclusive` doel → `<naam>.ops-vorige-<id>` en tijdelijk → doel, `.ops-vorige` opnieuw vergelijken met de
+bron (gelijk: weg; anders exclusief naar `<naam> (versie van ander programma <JJJJ-MM-DD UU.mm>).ifc`,
+`i18n/replaceCopyName.ts`). Per uitkomst (`ownPathReplaceNotices`): stap 1 `forbidden path` of een gelinkt doel,
+stap 3 `unsupported`/`refused` ⇒ `save-as-only` (`ifcForeignReplaceSaveAsOnly`, het doel blijft); stap 1 een schrijffout,
+stap 3 `target-exists`/`io` ⇒ `failed`, eigen tijdelijk bestand weg; stap 2 ⇒ `ifcForeignTargetChanged`/`Gone`;
+`source-changed` in stap 3 of 4 ⇒ `unknown` (`ifcForeignPlaceUnknown`), niets teruggezet of opgeruimd; stap 4
+`target-exists` ⇒ alle drie de bestanden blijven, de melding noemt de drie paden; stap 4 anders ⇒ `.ops-vorige`
+exclusief terug, en lukt ook dat niet, dan noemt de melding waar die nu staat. Restbestanden na een crash
+(`settleReplaceRemnants`): alleen de twee namen met het id uit het manifest; doel weg ⇒ `.ops-vorige` exclusief terug;
+doel `pendingSha256` en `.ops-vorige` `vorigeSha256` ⇒ `.ops-vorige` weg; `.ops-vorige` anders ⇒ "versie van ander
+programma"; het tijdelijke bestand met `pendingSha256` terwijl het doel die niet heeft ⇒ `<naam> (niet opgeslagen
+planning …).ifc` met een melding; anders weg zodra het doel `sha256` of `pendingSha256` heeft; de rest blijft staan
+(`ifcForeignReplaceLeftOver`) en het openen van dat bestand probeert het opnieuw (`settleReplaceOnOpen`). Proef:
+`check-ifc-own-file-replace.ts` (echte bestanden, nagebootst commando, het manifest via de desktoptak van
+`recoveryStore` in een eigen app-datamap van `nodeFileIpc.ts`).

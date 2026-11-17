@@ -51,7 +51,9 @@ publiceren.
   `datesAsRecorded` levert `false` — het gewone #63-aanbod, nooit stilzwijgend de modus. Schema-1 en schema-2 XER-bronarchieven
   blijven eveneens leesbaar; schema 2 wordt in een koud proces via
   `readIFCWithXerReconstruction` uit uitsluitend de opgeslagen bronbytes herbouwd.
-- De leespoort ondersteunt manifestversies 1–5 en de historische versieloze webvorm met `docIds`.
+- De leespoort ondersteunt manifestversies 1–6 en de historische versieloze webvorm met `docIds`. Versie 6 is
+  versie 5 plus `ifcSource.pendingReplace`; de app schrijft haar alleen zolang op de desktop een vervanging van een
+  bestand met een gebouwmodel loopt (knownbug 1131 stap 5), anders 5.
   Documentidentiteiten moeten binnen elk manifest uniek zijn, ook in `docIds`; een duplicaat kan
   anders twee snapshots tot één geopend document reduceren. Onbekende/ongeldige manifesten blokkeren
   lezen en latere mutaties van die herstelset, met één blijvende sessiemelding. De bestaande
