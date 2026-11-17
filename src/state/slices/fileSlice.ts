@@ -1392,7 +1392,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     onTurn();
     // #804 stap 3: een opslag hoort bij het document waarvoor hij gevraagd werd. Is dat bij zijn beurt niet het actieve
     // document (de planner wisselde terwijl een eerdere opslag liep), dan slaat hij niet op en blijft het document
-    // gewijzigd (knownbug 1763). Fixronde 1 (BLOKKEERT 1): wisselt het actieve document tijdens het wachten op een vraag
+    // gewijzigd (knownbug 1814). Fixronde 1 (BLOKKEERT 1): wisselt het actieve document tijdens het wachten op een vraag
     // (de schemavraag, de afhankelijke projecten met een luie import), dan stopt opslaan ook stil.
     if (get().activeDocumentId !== documentId) return false;
     if (refuseForeignDocumentWrite()) return false;

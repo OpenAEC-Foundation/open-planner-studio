@@ -2840,7 +2840,7 @@ en noem het in je rapport of PR-tekst.
      zijn eigen begrenzing en de worker stopt na elke scan: geen onbegrensd lek en geen extra volledige kopie van
      300 MiB aangetoond. Richting: laat `push` los zodra een stap een uitkomst bevat. Gevonden door de review van #986
      (Sol). — B (proef van de review)
-1746. **Een opslag die nooit eindigt, houdt het afsluiten tegen; er is geen knop om het wachten af te breken.** Sinds
+1813. **Een opslag die nooit eindigt, houdt het afsluiten tegen; er is geen knop om het wachten af te breken.** Sinds
      #804 stap 3 wachten afsluiten, een document sluiten en de updater tot de schrijfrij leeg is
      (`whenProjectFileWritesIdle`, besluit eigenaar 17 november 2026: wachten, dan sluiten, zonder vraag). De I/O onder
      het schrijfslot heeft geen eigen einde: de schrijfstappen van plugin-fs (`write_file`, `rename`,
@@ -2855,7 +2855,7 @@ en noem het in je rapport of PR-tekst.
      geen eigen aanduiding.
      Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
      tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
-1763. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
+1814. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
      op.** Sinds #804 stap 3 hoort een opslag bij het document waarvoor hij gevraagd werd (`writeActiveDocument`,
      `saveDocumentAsOnTurn` in `fileSlice.ts`). Drukt de planner Ctrl+S terwijl een eerdere opslag loopt en wisselt hij
      daarna van tabblad, dan stopt de wachtende opslag bij zijn beurt zonder melding; het document blijft gewijzigd (er
