@@ -34,6 +34,13 @@
 //      meerregelige string als doel: er komt een write.
 //      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel, ook met parameters bij beide
 //      sectiekoppen (`DATA('…',(…));`): geen write.
+//  10. opslaan in de achtergrond, stap 2 (9c): de indeling van het doel draait in de scanworker. Bytes, stroom en
+//      FSA-bestand geven met een geïnjecteerde Worker (ook een die niet start, niet antwoordt of een fout geeft) precies de
+//      uitkomst van de synchrone weg van de kern; boven 300 MiB 'unreadable' zonder Worker; `targetRefusal` gebruikt de
+//      module-Worker van `globalThis`;
+//  11. fixronde 1 van #985 (9d): een Worker die niet start, houdt de doelcontrole en het schrijfslot hoogstens de korte
+//      starttijd op (productiewaarde); na een startbevestiging geldt de ruime rekentijd; late berichten doen niets; de
+//      echte handler van `foreignScan.worker.ts` antwoordt in de matrix van 9c.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -43,6 +50,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
+import { fakeScanWorker, fakeScanWorkerStats, LATE_MS, loadRealScanHandler } from './fakeScanWorker';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -1741,6 +1749,184 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     ipc.dispose();
     (globalThis as { window?: unknown }).window = savedWindow;
     rmSync(dir, { recursive: true, force: true });
+  }
+  // 9c. Stap 2 van achtergrond opslaan: de indeling van het doel draait in de scanworker (`runForeignScan`), niet op de
+  // hoofdthread. Elke asynchrone ingang (bytes, stroom, FSA-bestand) geeft met een geïnjecteerde Worker precies wat de
+  // synchrone weg van de kern geeft, ook als de Worker niet start, niet antwoordt of een fout geeft (dan rekent de
+  // terugval op de hoofdthread). Geen scanuitkomst is nooit 'no-model'.
+  {
+    const { scanForeignTargetBytes, scanForeignTargetBytesAsync, scanForeignTargetSource, scanForeignTargetBlob } =
+      await import('@/services/ifc/foreign/targetForeignScan');
+    const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+    const { IFC_FOREIGN_SCAN_MAX_BYTES } = await import('@/services/ifc/foreign/foreignScan');
+    const { targetRefusal } = await import('@/services/fileAccess/foreignSourceTarget');
+    type RunOptions = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanRunOptions;
+    type Scan = Awaited<ReturnType<typeof scanForeignTargetSource>>;
+    /** Een bron uit losse stukken, met terugspoelen naar elke positie (de stukken mogen dezelfde buffer delen). */
+    const segmentSource = (segments: Uint8Array[]) => {
+      let index = 0;
+      let skip = 0;
+      let closed = 0;
+      return {
+        source: {
+          next: async () => {
+            if (index >= segments.length) return null;
+            const chunk = segments[index++].subarray(skip);
+            skip = 0;
+            return chunk;
+          },
+          seek: async (offset: number) => {
+            index = 0;
+            while (index < segments.length && offset >= segments[index].length) offset -= segments[index++].length;
+            skip = offset;
+          },
+          close: async () => { closed++; },
+        },
+        closed: () => closed,
+      };
+    };
+    const chunked = (bytes: Uint8Array, size = 64 << 10) => {
+      const segments: Uint8Array[] = [];
+      for (let at = 0; at < bytes.length; at += size) segments.push(bytes.subarray(at, at + size));
+      return segmentSource(segments);
+    };
+    const stats = fakeScanWorkerStats();
+    const realWorker = await loadRealScanHandler();
+    const modes = [
+      ['ok', () => fakeScanWorker('ok', stats)],
+      ['echte handler', () => realWorker(stats)],
+      ['transport', () => fakeScanWorker('transport', stats)],
+      ['stil', () => fakeScanWorker('stil', stats)],
+      ['gestart-stil', () => fakeScanWorker('gestart-stil', stats)],
+      ['laat', () => fakeScanWorker('laat', stats)],
+      ['indeling', () => fakeScanWorker('indeling', stats)],
+      ['start gooit', () => { throw new Error('CSP'); }],
+      ['geen Worker', () => null],
+    ] as const;
+    const csv = enc.encode('Naam;Duur\nFundering;5\n');
+    const cases: Array<{ name: string; bytes: Uint8Array; want?: Scan }> = [
+      { name: 'eigen planning', bytes: showcase, want: 'no-model' },
+      { name: 'vreemde inhoud', bytes: externalPset, want: 'foreign' },
+      { name: 'vreemde inhoud in een string', bytes: enc.encode(stringFile(dec(showcase))), want: 'foreign' },
+      { name: 'gebouwmodel', bytes: modelIfc4, want: 'model' },
+      { name: 'kapotte kop (Terra)', bytes: enc.encode(terraFile(dec(modelIfc4))), want: 'unreadable' },
+      { name: 'leeg bestand', bytes: new Uint8Array(0), want: 'not-ifc' },
+      { name: 'CSV', bytes: csv, want: 'not-ifc' },
+      // De STEP-scanner van de indeling weigert, de modelscan niet: 'unreadable' uit de indeling zelf.
+      ...dataKopBestanden(dec(showcase), 'scannerWeigert').slice(0, 2)
+        .map(([name, text]) => ({ name: `indeling weigert ${name}`, bytes: enc.encode(text), want: 'unreadable' as const })),
+    ];
+    for (const c of cases) {
+      const sync = scanForeignTargetBytes(c.bytes);
+      eq(`9c ${c.name}: synchrone uitkomst`, sync, c.want);
+      const classifies = scanTargetBytes(c.bytes) === 'no-model';
+      for (const [mode, createWorker] of modes) {
+        // Korte grenzen alleen voor de matrix; 9d toetst de productiewaarde van de starttimer.
+        const opts: RunOptions = { createWorker, startTimeoutMs: 20, timeoutMs: 40 };
+        const posts = stats.posts;
+        const terminated = stats.terminated;
+        const viaBytes = await scanForeignTargetBytesAsync(c.bytes, opts);
+        const stream = chunked(c.bytes);
+        const viaSource = await scanForeignTargetSource(stream.source, opts);
+        const viaBlob = await scanForeignTargetBlob(new Blob([c.bytes as BlobPart]), opts);
+        eq(`9c ${c.name}, Worker ${mode}: bytes, stroom en bestand gelijk aan de synchrone weg`, [viaBytes, viaSource, viaBlob], [sync, sync, sync]);
+        eq(`9c ${c.name}, Worker ${mode}: de stroom is gesloten`, stream.closed(), 1);
+        const workers = mode === 'start gooit' || mode === 'geen Worker' ? 0 : classifies ? 3 : 0;
+        eq(`9c ${c.name}, Worker ${mode}: de indeling ging ${workers ? 'door de Worker' : 'niet naar een Worker'}, die daarna stopte`,
+          [stats.posts - posts, stats.terminated - terminated], [workers, workers]);
+      }
+    }
+    // Boven de grens van 300 MiB: 'unreadable', zonder Worker. De stroom deelt één buffer van 1 MiB (geen 300 MiB in het
+    // geheugen): een eigen planning met een lang commentaar na `DATA;`, dus de modelscan leest alles en zegt 'no-model'.
+    {
+      const own = dec(showcase);
+      const data = own.indexOf('\nDATA;\n') + '\nDATA;\n'.length;
+      const spaces = new Uint8Array(1 << 20).fill(0x20);
+      const segments = [enc.encode(`${own.slice(0, data)}/*`), ...Array.from({ length: 301 }, () => spaces), enc.encode(`*/\n${own.slice(data)}`)];
+      ok('9c te groot: de stroom is groter dan de grens', segments.reduce((n, s) => n + s.length, 0) > IFC_FOREIGN_SCAN_MAX_BYTES);
+      const posts = stats.posts;
+      const big = segmentSource(segments);
+      eq('9c te groot: stroom unreadable, bron gesloten', [await scanForeignTargetSource(big.source, { createWorker: () => fakeScanWorker('ok', stats) }), big.closed()], ['unreadable', 1]);
+      const hugeBlob = { size: IFC_FOREIGN_SCAN_MAX_BYTES + 1, stream: () => { throw new Error('niet lezen'); } } as unknown as Blob;
+      eq('9c te groot: bestand unreadable zonder te lezen', await scanForeignTargetBlob(hugeBlob, { createWorker: () => fakeScanWorker('ok', stats) }), 'unreadable');
+      eq('9c te groot: geen Worker gevraagd', stats.posts - posts, 0);
+    }
+    // De app zelf (`targetRefusal`, site en handle) gebruikt de module-Worker als die er is: met een nep-`Worker` op
+    // `globalThis` (zoals de webview) gaat de indeling erdoor, met dezelfde weigering als zonder Worker.
+    const originalWorker = globalThis.Worker;
+    try {
+      for (const c of cases) {
+        const refusal = (scan: Scan) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
+        const want = refusal(scanForeignTargetBytes(c.bytes));
+        const classifies = scanTargetBytes(c.bytes) === 'no-model';
+        globalThis.Worker = class { constructor() { return fakeScanWorker('ok', stats); } } as unknown as typeof Worker;
+        const posts = stats.posts;
+        const site = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
+        const handle = await targetRefusal({ kind: 'handle', handle: fakeHandle('doel.ifc', c.bytes).handle });
+        eq(`9c ${c.name}: site en handle weigeren gelijk, via de Worker`, [site, handle, stats.posts - posts], [want, want, classifies ? 2 : 0]);
+        globalThis.Worker = class { constructor() { return fakeScanWorker('indeling', stats); } } as unknown as typeof Worker;
+        const failing = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
+        eq(`9c ${c.name}: een fout uit de Worker geeft dezelfde weigering`, failing, want);
+      }
+    } finally { globalThis.Worker = originalWorker; }
+  }
+  // 9d. Fixronde 1 van #985 (Sol): een Worker die niet start, houdt de opslag niet twee minuten op. De runner wacht kort
+  // op de startbevestiging (`FOREIGN_SCAN_START_TIMEOUT_MS`) en daarna pas de ruime rekentijd.
+  {
+    const { scanForeignTargetBytes, scanForeignTargetBytesAsync } = await import('@/services/ifc/foreign/targetForeignScan');
+    const { FOREIGN_SCAN_START_TIMEOUT_MS } = await import('@/services/ifc/foreign/foreignScanRunner');
+    const { targetRefusal } = await import('@/services/fileAccess/foreignSourceTarget');
+    const { runProjectFileWrite, isProjectFileWriteBusy } = await import('@/services/fileAccess/writeCoordinator');
+    const stats = fakeScanWorkerStats();
+    const wait = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms); });
+    // Start en antwoord: het antwoord van de Worker geldt, zonder terugval (de 'vals'-Worker telt een C extra).
+    let before = stats.posts;
+    eq('9d start en antwoord: het antwoord van de Worker geldt, één scan in één Worker',
+      [await scanForeignTargetBytesAsync(showcase, { createWorker: () => fakeScanWorker('vals', stats) }), stats.posts - before],
+      ['foreign', 1]);
+    // Gestart, daarna stil: de ruime rekentijd geldt (hier 200 ms), niet de starttimer (hier 20 ms); daarna de terugval.
+    before = stats.terminated;
+    let t0 = performance.now();
+    const silentAfterStart = await scanForeignTargetBytesAsync(externalPset,
+      { createWorker: () => fakeScanWorker('gestart-stil', stats), startTimeoutMs: 20, timeoutMs: 200 });
+    const afterStart = performance.now() - t0;
+    eq('9d gestart en stil: na de rekentijd dezelfde uitkomst, Worker gestopt', [silentAfterStart, stats.terminated - before], ['foreign', 1]);
+    ok(`9d gestart en stil: de rekentijd gold, niet de starttimer (${Math.round(afterStart)} ms)`, afterStart >= 190);
+    // Een late start en een laat antwoord na de terugval doen niets: de uitkomst van de hoofdthread geldt, de Worker is
+    // gestopt en zijn berichten hebben geen luisteraar meer.
+    const ignored = stats.ignored;
+    before = stats.terminated;
+    const late = await scanForeignTargetBytesAsync(externalPset, { createWorker: () => fakeScanWorker('laat', stats), startTimeoutMs: 20 });
+    const stoppedBeforeLate = stats.terminated - before;
+    await wait(LATE_MS + 100);
+    eq('9d late start: terugval, Worker gestopt vóór zijn start, beide late berichten zonder luisteraar',
+      [late, stoppedBeforeLate, stats.ignored - ignored], ['foreign', 1, 2]);
+    // De route van de reviewer, met de PRODUCTIEWAARDE van de starttimer: `targetRefusal` onder het schrijfslot met een
+    // Worker die nooit iets meldt. De weigering komt binnen de starttijd, het slot komt vrij en de volgende opslag wacht
+    // niet langer.
+    ok(`9d de starttijd is kort (${FOREIGN_SCAN_START_TIMEOUT_MS} ms)`, FOREIGN_SCAN_START_TIMEOUT_MS > 0 && FOREIGN_SCAN_START_TIMEOUT_MS <= 5000);
+    const originalWorker = globalThis.Worker;
+    try {
+      globalThis.Worker = class { constructor() { return fakeScanWorker('stil', stats); } } as unknown as typeof Worker;
+      before = stats.terminated;
+      t0 = performance.now();
+      let refusedAt = 0;
+      let queuedAt = 0;
+      const save = runProjectFileWrite(() => targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset }))
+        .then(r => { refusedAt = performance.now() - t0; return r; });
+      await new Promise<void>(resolve => { setImmediate(resolve); });
+      const queued = runProjectFileWrite(async () => { queuedAt = performance.now() - t0; });
+      ok('9d stille Worker: het schrijfslot is bezet tijdens de doelcontrole', isProjectFileWriteBusy());
+      const refusal = await save;
+      await queued;
+      eq('9d stille Worker: dezelfde weigering als zonder Worker, Worker gestopt, slot vrij',
+        [refusal, refusal === scanForeignTargetBytes(externalPset), stats.terminated - before, isProjectFileWriteBusy()], ['foreign', true, 1, false]);
+      ok(`9d stille Worker: weigering na de starttijd en ruim binnen een seconde erna (${Math.round(refusedAt)} ms)`,
+        refusedAt >= FOREIGN_SCAN_START_TIMEOUT_MS - 5 && refusedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
+      console.log(`..  9d stille Worker: weigering na ${Math.round(refusedAt)} ms, volgende opslag na ${Math.round(queuedAt)} ms (starttijd ${FOREIGN_SCAN_START_TIMEOUT_MS} ms); gestart en stil: ${Math.round(afterStart)} ms`);
+      ok(`9d stille Worker: de volgende opslag liep direct daarna (${Math.round(queuedAt)} ms)`,
+        queuedAt >= refusedAt - 1 && queuedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
+    } finally { globalThis.Worker = originalWorker; }
   }
 }
 

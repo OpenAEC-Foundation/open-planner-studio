@@ -3,9 +3,11 @@
 import { foreignScanTransferables, scanForeign, type ForeignScanOutcome } from './foreignScan';
 
 export type ForeignScanWorkerRequest = { id: number; bytes: Uint8Array };
-export type ForeignScanWorkerResponse = { id: number } & ({ outcome: ForeignScanOutcome } | { error: string });
+/** Eerst `started` (het script draait en het verzoek is binnen; fixronde 1 van #985), dan de uitkomst of de fout. */
+export type ForeignScanWorkerResponse = { id: number } & ({ started: true } | { outcome: ForeignScanOutcome } | { error: string });
 
 self.onmessage = ({ data }: MessageEvent<ForeignScanWorkerRequest>) => {
+  self.postMessage({ id: data.id, started: true } satisfies ForeignScanWorkerResponse);
   let response: ForeignScanWorkerResponse;
   let transfer: ArrayBuffer[] = [];
   try {
