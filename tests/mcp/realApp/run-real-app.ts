@@ -238,7 +238,9 @@ test('echte app: Opslaan van een geopend IFC-bestand schrijft via de gewone rout
 
 // Knownbug 1131 stap 4: met een gebouwmodel schrijft `planner_export_ifc` naar een nieuwe naam via een eigen
 // tijdelijk bestand en het echte Rust-commando `place_file_exclusive`. De thuismap valt in de scope, dus hier is dat de
-// gewone weg (niet de directe terugval). Faalt het commando (ontbreekt, weigert, `io`), dan is de export een fout.
+// gewone weg (niet de directe terugval). Welke weg de route nam, staat per doel in het app-log (`writeNewUserBytes`,
+// kanaal `nieuweNaam`): de proef eist voor precies dit doel `placed` of `dir-not-synced` van het echte commando, en
+// geen directe aanmaak. Een terugval na `unsupported` of een scopeweigering zou anders ook een goed bestand geven.
 test('echte app: planner_export_ifc met een gebouwmodel naar een nieuwe naam (place_file_exclusive)', async () => {
   const dir = mkdtempSync(join(homedir(), 'ops-real-app-'));
   // De bundeltest hierboven stopte de bridge; start hem weer zoals Stop/Start op het AI-tabblad.
@@ -262,6 +264,11 @@ test('echte app: planner_export_ifc met een gebouwmodel naar een nieuwe naam (pl
     assert(readFileSync(target).equals(bytes), 'ongewijzigd document: precies de bronbytes op de nieuwe naam');
     assert(readFileSync(source).equals(bytes), 'de bron blijft intact');
     assertEq(readdirSync(dir).sort(), ['export.ifc', 'model.ifc'], 'geen tijdelijk bestand achtergebleven');
+    const lines = (await ops('log', { channel: 'nieuweNaam' })) as string[];
+    const ways = lines.filter(line => line.startsWith(`${target}: `)).map(line => line.slice(target.length + 2));
+    assertEq(ways.length, 1, `precies één weg voor dit doel; het kanaal: ${JSON.stringify(lines)}`);
+    assert(['geplaatst (placed)', 'geplaatst (dir-not-synced)'].includes(ways[0]),
+      `het echte place_file_exclusive plaatste het bestand, geen directe aanmaak: ${ways[0]}`);
     const again = await call('planner_export_ifc', { path: target, overwrite: true });
     assert(!again.ok, 'een bestaande naam weigert, ook met overwrite');
     assert(readFileSync(target).equals(bytes), 'het bestaande exportbestand blijft bytegelijk');

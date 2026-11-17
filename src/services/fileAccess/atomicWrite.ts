@@ -16,6 +16,7 @@
  */
 
 import { generateId } from '@/utils/id';
+import { appLog } from '@/services/debug/appLog';
 import { ByteWriteError } from './byteWrite';
 import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
 
@@ -231,10 +232,17 @@ export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'
  * - `io`: eigen bestand weg, fout `write`.
  * Na `io` of `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (knownbug 1795): het opruimen
  * is best effort en verbergt of vervangt de fout nooit, en de route leest het doel niet terug om succes te melden.
- * Mag het tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, of in een map die via een link naar
- * buiten wijst), dan blijft de directe exclusieve aanmaak de weg; die is niet crashvast (1131).
+ * Mag het tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap; vanaf plugin-fs 2.7.1 ook in een map
+ * die via een link naar buiten wijst, met 2.5.0 ontstaat het daar nog, zie 1754), dan blijft de directe exclusieve
+ * aanmaak de weg; die is niet crashvast (1131). Alleen de plaatsing via het tijdelijke bestand laat nooit een half
+ * einddoel staan.
+ * Per doel schrijft de route één regel in het app-log (kanaal `NEW_NAME_LOG_CHANNEL`): het doelpad en de weg, nooit
+ * inhoud. De echte-app-proef leest die regel terug (`tests/mcp/realApp/run-real-app.ts`).
  * De aanroeper wijzigt de buffer niet tot de opslag klaar is.
  */
+export const NEW_NAME_LOG_CHANNEL = 'nieuweNaam';
+const logWay = (path: string, way: string) => appLog.emit('event', NEW_NAME_LOG_CHANNEL, `${path}: ${way}`);
+
 export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
   const tmp = userFileTempPath(path);
   // Alleen ons eigen tijdelijke bestand, en alleen als het van ons kan zijn; een mislukt opruimen is geen fout.
@@ -248,33 +256,39 @@ export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes:
       await removeOwnTemp();
       throw new ByteWriteError('write', error.cause);
     }
-    if (isForbiddenPathError(error)) return createNewDirectly(fs, path, bytes);
+    if (isForbiddenPathError(error)) return createNewDirectly(fs, path, bytes, 'forbidden path');
     // Geen eigendom (ook EEXIST op de hulpnaam): niets verwijderen, geen terugval.
     throw new ByteWriteError('write', error);
   }
   const outcome = await fs.place(tmp, path);
   switch (outcome.code) {
     case 'placed':
+      logWay(path, 'geplaatst (placed)');
       return;
     case 'dir-not-synced':
+      logWay(path, 'geplaatst (dir-not-synced)');
       console.warn(`Opgeslagen, maar de map is niet vastgelegd: ${outcome.message}`);
       return;
     case 'target-exists':
+      logWay(path, 'niet geplaatst (target-exists)');
       await removeOwnTemp();
       throw new ByteWriteError('create-new');
     case 'unsupported':
       await removeOwnTemp();
-      return createNewDirectly(fs, path, bytes);
+      return createNewDirectly(fs, path, bytes, 'unsupported');
     case 'refused':
       if (outcome.reason === 'scope') {
         await removeOwnTemp();
-        return createNewDirectly(fs, path, bytes);
+        return createNewDirectly(fs, path, bytes, 'refused/scope');
       }
+      logWay(path, `niet geplaatst (refused/${outcome.reason})`);
       if (outcome.reason !== 'not-regular-file') await removeOwnTemp();
       throw new ByteWriteError('write', new Error(`place_file_exclusive: refused (${outcome.reason})`));
     case 'source-changed':
+      logWay(path, 'niet geplaatst (source-changed)');
       throw new ByteWriteError('source-changed');
     case 'io':
+      logWay(path, 'niet geplaatst (io)');
       await removeOwnTemp();
       throw new ByteWriteError('write', new Error(outcome.message));
   }
@@ -282,7 +296,8 @@ export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes:
 
 /** De directe exclusieve aanmaak: één `createNew` op het einddoel met de hele buffer. Vervangt nooit een bestaand
  *  bestand, maar een crash halverwege kan een onvolledig einddoel laten staan. */
-async function createNewDirectly(fs: Pick<NewUserBytesFs, 'createNew' | 'remove'>, path: string, bytes: Uint8Array): Promise<void> {
+async function createNewDirectly(fs: Pick<NewUserBytesFs, 'createNew' | 'remove'>, path: string, bytes: Uint8Array, why: string): Promise<void> {
+  logWay(path, `directe aanmaak (${why})`);
   try {
     await fs.createNew(path, bytes);
   } catch (error) {

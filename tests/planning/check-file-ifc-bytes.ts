@@ -8,6 +8,8 @@ import { installNodeFileIpc, writeFileCall as fileWrite } from './nodeFileIpc';
 import { saveNewBytesDialog, saveNewBytesToRef, sourceTargetContent } from '@/services/fileAccess';
 import { TARGET_CHUNK_BYTES } from '@/services/fileAccess/sourceTargetContent';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
+import { NEW_NAME_LOG_CHANNEL } from '@/services/fileAccess/atomicWrite';
+import { appLog } from '@/services/debug/appLog';
 import { saveNewSiteFileBytes, saveSiteFileVersionBytes } from '@/services/fileAccess/siteBackend';
 
 // Latin-1, CRLF, ongeldige UTF-8 en een geldige UTF-8-reeks: de bytes gaan ongewijzigd door, nooit als tekst.
@@ -216,6 +218,35 @@ async function main() {
       } finally { console.warn = warn; }
       assert.deepEqual(onDisk(d), { 'niet-vastgelegd.ifc': hex(bytes) });
       assert.match(warnings.map(w => w.map(String).join(' ')).join('\n'), /fsync van de map mislukte/);
+    });
+    await check('10. Tauri: per doel één logregel met de weg die de route nam, zonder inhoud', async () => {
+      // De echte-app-proef leest deze regel terug; hier staat vast wat hij per uitkomst zegt: het doelpad en de weg,
+      // verder niets (de hele regel wordt vergeleken).
+      const logFor = (target: string) => appLog.snapshot()
+        .filter(e => e.channel === NEW_NAME_LOG_CHANNEL && e.text.startsWith(`${target}: `))
+        .map(e => e.text.slice(target.length + 2));
+      const cases: [string, Parameters<typeof withPlace>[0] | null, (() => void) | null, string][] = [
+        ['geplaatst.ifc', null, null, 'geplaatst (placed)'],
+        ['map-niet-vast.ifc', (_f, _t, real) => { real(); return { resolve: { code: 'dir-not-synced', message: 'x' } }; }, null, 'geplaatst (dir-not-synced)'],
+        ['unsupported.ifc', () => ({ reject: { code: 'unsupported', message: 'x' } }), null, 'directe aanmaak (unsupported)'],
+        ['scope.ifc', () => ({ reject: { code: 'refused', reason: 'scope' } }), null, 'directe aanmaak (refused/scope)'],
+        ['forbidden.ifc', null, () => { ipc.faults.forbidden = p => isTemp(p); }, 'directe aanmaak (forbidden path)'],
+        ['io.ifc', () => ({ reject: { code: 'io', message: 'x' } }), null, 'niet geplaatst (io)'],
+        ['bezet-log.ifc', (_f, to, real) => { fs.writeFileSync(to, 'X'); return real(); }, null, 'niet geplaatst (target-exists)'],
+      ];
+      const warn = console.warn;
+      console.warn = () => {};
+      try {
+        for (const [name, answer, setup, way] of cases) {
+          const target = path.join(caseDir(), name);
+          setup?.();
+          try {
+            const run = async () => { try { await save(target); } catch { /* de fout zelf is elders bewezen */ } };
+            if (answer) await withPlace(answer, run); else await run();
+          } finally { ipc.faults.forbidden = null; }
+          assert.deepEqual(logFor(target), [way], name);
+        }
+      } finally { console.warn = warn; }
     });
     await check('Tauri: bestaand doel blijft intact; geen rename van plugin-fs en geen directe terugval', async () => {
       const d = caseDir(), target = path.join(d, 'bestaand.ifc');
