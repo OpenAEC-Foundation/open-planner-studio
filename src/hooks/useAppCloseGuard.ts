@@ -26,7 +26,12 @@ export function useAppCloseGuard(autoSaveEnabled: MutableRefObject<boolean>): vo
       if (disposed) return;
       const appWindow = getCurrentWindow();
       const controller = createAppQuitController(appQuitDependencies(appStoreContext, {
-        stopRecovery: () => { autoSaveEnabled.current = false; },
+        stopRecovery: () => {
+          // Terug naar de stand van daarvoor als het venster toch niet dichtgaat (de herstelkeuze kan nog open staan).
+          const before = autoSaveEnabled.current;
+          autoSaveEnabled.current = false;
+          return () => { autoSaveEnabled.current = before; };
+        },
         // Alleen de eigen snapshots: wat de gebruiker in het herstelvenster uitstelde, of dat nog
         // niet eens is aangeboden, blijft voor de volgende start staan.
         clearRecovery: clearOwnRecovery,

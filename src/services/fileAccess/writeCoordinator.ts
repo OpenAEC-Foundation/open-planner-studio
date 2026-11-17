@@ -3,6 +3,8 @@
 // een tweede write voorbereiden. Het is app-runtime, geen document- of IFC-data.
 let busy = false;
 let tail: Promise<void> = Promise.resolve();
+/** Hoeveel afsluitfasen de poort dicht houden (afsluiten en de updater kunnen elkaar overlappen). */
+let closers = 0;
 
 export function isProjectFileWriteBusy(): boolean {
   return busy;
@@ -19,7 +21,32 @@ export function whenProjectFileWritesIdle(): Promise<void> | null {
   return last.then(() => whenProjectFileWritesIdle() ?? undefined);
 }
 
-export async function runProjectFileWrite<T>(work: () => Promise<T>): Promise<T> {
+/**
+ * #804 stap 3, fixronde 1: de laatste fase van afsluiten en van de updater. Vanaf de aanroep (in dezelfde beurt) laat
+ * `runProjectFileWrite` niets nieuws meer toe; wat al was toegelaten, loopt af en wordt hier afgewacht. Een lege rij
+ * alleen is geen garantie: zonder deze poort kon na het wachten nog een Ctrl+S of een ronde van Automatisch opslaan
+ * beginnen terwijl het venster dichtging of de updater installeerde. De poort blijft dicht tot en met `destroy` of
+ * `relaunch`; daarna (of als die stap mislukt) zet de teruggegeven functie hem weer open (één keer telt).
+ */
+export async function closeProjectFileWrites(): Promise<() => void> {
+  closers++;
+  let open = false;
+  const reopen = () => {
+    if (open) return;
+    open = true;
+    closers--;
+  };
+  await whenProjectFileWritesIdle();
+  return reopen;
+}
+
+/**
+ * Schrijft onder de lock. `closed` is wat deze route teruggeeft als de laatste fase (`closeProjectFileWrites`) al
+ * begonnen is: dan loopt `work` niet, er wordt niets geschreven en het document blijft zoals het was (niet als
+ * opgeslagen gemarkeerd). Elke route kiest die uitkomst zelf, zodat een weigering nooit als mislukte opslag meldt.
+ */
+export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
+  if (closers > 0) return closed();
   busy = true;
   let release: (() => void) | undefined;
   const turn = new Promise<void>((resolve) => { release = resolve; });

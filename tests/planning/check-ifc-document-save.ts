@@ -16,6 +16,7 @@ import { classify } from '@/services/ifc/foreign/classify';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
@@ -1272,18 +1273,24 @@ await check('handle: drie keer Ctrl+S tijdens een lopende opslag geeft twee opsl
   } finally { release(); handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
 });
 
-await check('AutoSave-ronde die na het sluiten van de poort (afsluiten) aan de beurt komt, schrijft niet', async () => {
+await check('AutoSave-ronde die na het begin van de laatste fase (afsluiten, updater) om het slot vraagt, schrijft niet', async () => {
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
   const { store, name } = await openHandle(plain);
   store.getState().setAutoSaveToFile(true); longer(store); writableLog.length = 0; clearNotices(store);
-  // De poort is open bij het kiezen van de kandidaten en dicht als de ronde het schrijfslot krijgt.
-  let gateChecks = 0;
-  await createFileAutoSaveController({ getState: store.getState, enabled: () => gateChecks++ === 0 }).flush();
-  assert(gateChecks >= 2, 'de poort is onder het slot opnieuw bekeken');
+  // De ronde kiest haar kandidaten met een open poort; de laatste fase begint voordat ze om het schrijfslot vraagt.
+  let closing: Promise<() => void> | undefined;
+  const autosave = createFileAutoSaveController({ getState: store.getState, enabled: () => { closing ??= closeProjectFileWrites(); return true; } });
+  await autosave.flush();
+  assert(closing, 'de laatste fase begon tijdens de ronde');
   assert.deepEqual(writableLog, [], 'niets geschreven');
   assert.equal(hash(fileOf(name)), hash(plain));
   assert.equal(store.getState().isDirty, true);
   assert.equal(store.getState().ui.notifications.length, 0, 'geen melding');
+  // Na een afgebroken fase (een mislukte installatie) schrijft de volgende ronde wel.
+  (await closing)();
+  await createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush();
+  assert.equal(store.getState().isDirty, false, 'weer opgeslagen');
+  assert.notEqual(hash(fileOf(name)), hash(plain));
 });
 
 rmSync(dir, { recursive: true, force: true });

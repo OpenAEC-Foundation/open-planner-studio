@@ -126,6 +126,7 @@ export function createDefaultUI(): UIState {
     pendingCloseDocId: null,
     appQuitPending: false,
     savingBeforeClose: false,
+    appClosing: false,
     showNewProjectDialog: false,
     showNewOrOpenProjectDialog: false,
     pendingTaskNameFocusId: null,

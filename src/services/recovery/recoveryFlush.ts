@@ -6,7 +6,7 @@
 // zijn ronde; `flushRecoveryNow()` schrijft vóór de herstart nog één snapshot, zodat het
 // herstel-venster na de update alles aanbiedt. Geen hook geregistreerd (web-test, vóór mount) ⇒
 // no-op.
-import { whenProjectFileWritesIdle } from '@/services/fileAccess/writeCoordinator';
+import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
 
 type RecoveryFlush = () => Promise<void>;
 let registered: RecoveryFlush | null = null;
@@ -21,11 +21,19 @@ export async function flushRecoveryNow(): Promise<void> {
 }
 
 /**
- * Vóór de herstart van de updater (#804 stap 3): eerst wachten tot er geen projectopslag meer loopt of wacht (een
- * vervanging mag niet halverwege afgebroken worden), dan één herstelronde met wat die opslag vastlegde. Niet binnen
- * `runProjectFileWrite` aanroepen; `replaceWithRecoveryPending` gebruikt daar `flushRecoveryNow`.
+ * De laatste fase van de updater (#804 stap 3): de poort voor projectopslag dicht (`closeProjectFileWrites`), wachten
+ * tot een toegelaten opslag klaar is (een vervanging mag niet halverwege afgebroken worden), dan één herstelronde met
+ * wat die opslag vastlegde. Geeft de functie terug die de poort weer opent als installeren of herstarten mislukt; mislukt
+ * de herstelronde zelf, dan staat de poort al weer open. Niet binnen `runProjectFileWrite` aanroepen;
+ * `replaceWithRecoveryPending` gebruikt daar `flushRecoveryNow`.
  */
-export async function flushRecoveryAfterWrites(): Promise<void> {
-  for (let idle = whenProjectFileWritesIdle(); idle; idle = whenProjectFileWritesIdle()) await idle;
-  await flushRecoveryNow();
+export async function closeWritesAndFlushRecovery(): Promise<() => void> {
+  const reopen = await closeProjectFileWrites();
+  try {
+    await flushRecoveryNow();
+  } catch (error) {
+    reopen();
+    throw error;
+  }
+  return reopen;
 }

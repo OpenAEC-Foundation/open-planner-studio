@@ -86,11 +86,12 @@ export function isShortcutBlockedByDialog(): boolean {
  * ook wanneer de startvraag tijdelijk voor Help verborgen is. Dezelfde pending-poort schermt de
  * achtergrondbediening in de shell af; de vraag en Help houden hun eigen toetsen.
  * Andere dialogen behouden hun bestaande toetscontract. Ook "Wordt nog opgeslagen…" (#804 stap 3)
- * zet alles stil: afsluiten of sluiten wacht, en niets mag de ronde intussen laten veranderen.
+ * zet alles stil: afsluiten of sluiten wacht, en niets mag de ronde intussen laten veranderen. En de laatste fase van
+ * afsluiten (`appClosing`): het venster gaat weg, er wordt niets meer opgeslagen.
  */
 export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
   return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null
-    || ui.savingBeforeClose;
+    || ui.savingBeforeClose || ui.appClosing;
 }
 
 /**

@@ -38,6 +38,8 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     ui.pendingCloseDocId !== null ||
     // "Wordt nog opgeslagen…" (#804 stap 3): afsluiten of sluiten wacht op een opslag; niets mag intussen wijzigen.
     ui.savingBeforeClose ||
+    // De laatste fase van afsluiten (fixronde 1): de poort voor projectopslag is dicht, het venster gaat weg.
+    ui.appClosing ||
     // Handmatig koppelwerk in de voortgangsimportdialoog hangt aan taak-id's van
     // ÉÉN document en leeft alleen in de dialoog — een documentwissel moet onmogelijk zijn zolang
     // hij openstaat, niet: dat werk over de wissel heen bewaren.

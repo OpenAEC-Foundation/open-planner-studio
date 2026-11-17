@@ -4,11 +4,19 @@
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import './domStub';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createAppQuitController, type AppQuitDocument } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { appStoreContext, createAppStoreContext } from '@/state/appStore';
 import { createPendingTextEdits, mountedPendingTextEdits } from '@/state/pendingTextEdits';
-import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
+import { isBlockingDialogOpen } from '@/state/blockingDialogs';
+import { installNodeFileIpc } from './nodeFileIpc';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -36,7 +44,12 @@ function harness(initial: AppQuitDocument[]) {
     getPendingCloseDocId: () => world.pending,
     setPendingCloseDocId: (id) => { world.pending = id; log.push(`vraag:${id}`); },
     setQuitPending: (p) => { world.quitPending = p; },
-    stopRecovery: () => { world.recoveryOn = false; log.push('herstel-uit'); },
+    closeWrites: async () => { log.push('poort-dicht'); return () => { log.push('poort-open'); }; },
+    stopRecovery: () => {
+      world.recoveryOn = false;
+      log.push('herstel-uit');
+      return () => { world.recoveryOn = true; log.push('herstel-aan'); };
+    },
     clearRecovery: async () => { log.push('herstel-gewist'); },
     destroyWindow: async () => { log.push('venster-dicht'); },
     waitForSaves: () => {
@@ -72,7 +85,7 @@ function harness(initial: AppQuitDocument[]) {
   const h = harness([{ id: 'a', isDirty: false }, { id: 'b', isDirty: false }]);
   eq('1 CloseRequested wordt overgenomen', h.controller.requestQuit(), true);
   await h.settle();
-  eq('1 schone exit: volgorde', h.log, ['herstel-uit', 'herstel-gewist', 'venster-dicht']);
+  eq('1 schone exit: volgorde', h.log, ['poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
 // 2. Twee gewijzigde documenten: per document de vraag; opslaan + niet opslaan ⇒ dicht.
@@ -85,7 +98,7 @@ function harness(initial: AppQuitDocument[]) {
   eq('2 daarna de vraag voor c', h.log, ['vraag:a', 'vraag:c']);
   h.answer('niet-opslaan');
   await h.settle();
-  eq('2 daarna schone exit', h.log.slice(2), ['herstel-uit', 'herstel-gewist', 'venster-dicht']);
+  eq('2 daarna schone exit', h.log.slice(2), ['poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
 // 3. Annuleren breekt het afsluiten af: herstel blijft aan, venster blijft open, vlag weer uit.
@@ -140,7 +153,7 @@ function harness(initial: AppQuitDocument[]) {
   reg.register({ release: () => { released++; } });
   const log: string[] = [];
   const controller = createAppQuitController(appQuitDependencies(ctx, {
-    stopRecovery: () => { log.push('herstel-uit'); },
+    stopRecovery: () => { log.push('herstel-uit'); return () => { log.push('herstel-aan'); }; },
     clearRecovery: async () => { log.push('herstel-gewist'); },
     destroyWindow: async () => { log.push('venster-dicht'); },
   }));
@@ -177,7 +190,7 @@ function harness(initial: AppQuitDocument[]) {
   eq('8 nog een sluitpoging of storewijziging: geen tweede wachtronde', h.log, ['aanduiding-aan']);
   release();
   await h.settle();
-  eq('8 daarna de schone exit', h.log, ['aanduiding-aan', 'aanduiding-uit', 'herstel-uit', 'herstel-gewist', 'venster-dicht']);
+  eq('8 daarna de schone exit', h.log, ['aanduiding-aan', 'aanduiding-uit', 'poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
 // 9. Een opslag die tijdens het wachten mislukt (er komt een foutmelding), breekt het afsluiten af, zoals een mislukte
@@ -204,7 +217,7 @@ function harness(initial: AppQuitDocument[]) {
   eq('10 na het wachten de sluitvraag', h.log, ['aanduiding-aan', 'aanduiding-uit', 'vraag:a']);
   h.answer('niet-opslaan');
   await h.settle();
-  eq('10 daarna dicht', h.log.slice(3), ['herstel-uit', 'herstel-gewist', 'venster-dicht']);
+  eq('10 daarna dicht', h.log.slice(3), ['poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
 // 11. Loopt er na de sluitvraag nog een schrijfactie (een AutoSave-ronde), dan wacht het afsluiten ook daarop.
@@ -217,7 +230,7 @@ function harness(initial: AppQuitDocument[]) {
   eq('11 na de vraag eerst wachten', [h.log, h.world.recoveryOn], [['vraag:a', 'aanduiding-aan'], true]);
   release();
   await h.settle();
-  eq('11 daarna dicht', h.log.slice(1), ['aanduiding-aan', 'aanduiding-uit', 'herstel-uit', 'herstel-gewist', 'venster-dicht']);
+  eq('11 daarna dicht', h.log.slice(1), ['aanduiding-aan', 'aanduiding-uit', 'poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
 // 12. De echte randen (`appQuitDependencies`): de schrijfrij, de aanduiding `ui.savingBeforeClose` in de store, en een
@@ -233,14 +246,14 @@ function harness(initial: AppQuitDocument[]) {
     if (now.ui.savingBeforeClose !== before.ui.savingBeforeClose) shown.push(now.ui.savingBeforeClose);
   });
   const controller = createAppQuitController(appQuitDependencies(ctx, {
-    stopRecovery: () => { log.push('herstel-uit'); },
+    stopRecovery: () => { log.push('herstel-uit'); return () => { log.push('herstel-aan'); }; },
     clearRecovery: async () => { log.push('herstel-gewist'); },
     destroyWindow: async () => { log.push('venster-dicht'); },
   }));
   const settle = () => new Promise((r) => setTimeout(r, 0));
   const failedSave = () => s().notify({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: 'opslag-1' });
   let release: () => void = () => undefined;
-  const holdWrite = () => runProjectFileWrite(() => new Promise<void>((r) => { release = r; }));
+  const holdWrite = () => runProjectFileWrite(() => new Promise<void>((r) => { release = r; }), () => undefined);
 
   let write = holdWrite();
   controller.requestQuit();
@@ -277,21 +290,109 @@ function harness(initial: AppQuitDocument[]) {
 // 13. Zonder lopende opslag: de volgorde van nu, zonder aanduiding.
 {
   const ctx = createAppStoreContext();
+  const s = () => ctx.store.getState();
   ctx.store.getState().newProject();
   ctx.store.setState((st) => { st.isDirty = false; });
   const log: string[] = [];
   let shown = false;
   const off = ctx.store.subscribe((now) => { if (now.ui.savingBeforeClose) shown = true; });
   const controller = createAppQuitController(appQuitDependencies(ctx, {
-    stopRecovery: () => { log.push('herstel-uit'); },
+    stopRecovery: () => { log.push('herstel-uit'); return () => { log.push('herstel-aan'); }; },
     clearRecovery: async () => { log.push('herstel-gewist'); },
     destroyWindow: async () => { log.push('venster-dicht'); },
   }));
   controller.requestQuit();
-  eq('13 de stappen beginnen meteen, in dezelfde beurt', log, ['herstel-uit', 'herstel-gewist']);
+  eq('13 de laatste fase begint meteen, in dezelfde beurt: de schil staat stil', [log, s().ui.appClosing], [[], true]);
   await new Promise((r) => setTimeout(r, 0));
   eq('13 schone exit zonder aanduiding', [log, shown], [['herstel-uit', 'herstel-gewist', 'venster-dicht'], false]);
+  eq('13 na het venster staat de poort weer open', isProjectFileWriteBusy(), false);
   off();
+}
+
+// 14. #804 stap 3, fixronde 1 (BLOKKEERT; de proef van de review): de laatste fase. Een lege rij alleen sloot nieuwe
+//     opslag niet uit: tijdens het wissen van het herstel en het sluiten van het venster kon nog een Ctrl+S of een ronde
+//     van Automatisch opslaan beginnen. De echte store, de echte opslagroute en de echte bestands-AutoSave op een echt
+//     bestand, met dezelfde subscription als `useAppCloseGuard`; alleen het venster en de bestandsbrug van Tauri zijn
+//     nagebootst. Gaat het venster daarna niet dicht, dan is het afsluiten afgebroken en werkt opslaan weer.
+{
+  const ipc = installNodeFileIpc();
+  const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
+  const invoke = win.__TAURI_INTERNALS__.invoke;
+  let dialogs = 0;
+  win.__TAURI_INTERNALS__.invoke = async (...args: unknown[]) => {
+    if (args[0] === 'plugin:dialog|save') { dialogs++; return null; }
+    return invoke(...args);
+  };
+  const dir = mkdtempSync(join(tmpdir(), 'ops-app-quit-'));
+  const target = join(dir, 'afsluiten.ifc');
+  writeFileSync(target, readFileSync('public/examples/03-kantoorgebouw-zuidas.ifc'));
+  const fileHash = () => createHash('sha256').update(readFileSync(target)).digest('hex');
+  const mutating = (from: number) => ipc.calls.slice(from).map((c) => c.command)
+    .filter((c) => /write|rename|place|remove|truncate|copy/.test(c));
+  const deferred = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((r) => { resolve = r; });
+    return { promise, resolve };
+  };
+  const ctx = createAppStoreContext();
+  const s = () => ctx.store.getState();
+  s().newProject();
+  ctx.store.setState((st) => { st.isDirty = false; st.filePath = target; st.autoSaveToFile = true; });
+  const autosave = createFileAutoSaveController({ getState: s, enabled: () => true });
+  const firstEntered = deferred(), allowFirst = deferred(), clearEntered = deferred(), allowClear = deferred();
+  const destroyed = deferred();
+  let recoveryOn = true;
+  let phase = { calls: 0, hash: '' };
+  let atDestroy: unknown = null;
+  const controller = createAppQuitController(appQuitDependencies(ctx, {
+    stopRecovery: () => { recoveryOn = false; return () => { recoveryOn = true; }; },
+    clearRecovery: async () => { clearEntered.resolve(); await allowClear.promise; },
+    destroyWindow: async () => {
+      atDestroy = { busy: isProjectFileWriteBusy(), dirty: s().isDirty, written: mutating(phase.calls), same: fileHash() === phase.hash };
+      destroyed.resolve();
+      throw new Error('Het venster weigert te sluiten');
+    },
+  }));
+  const off = ctx.store.subscribe(() => { if (controller.active) controller.step(); });
+  const realError = console.error;
+  console.error = () => undefined;
+  try {
+    const first = runProjectFileWrite(async () => { firstEntered.resolve(); await allowFirst.promise; }, () => undefined);
+    await firstEntered.promise;
+    controller.requestQuit();
+    await new Promise((r) => setTimeout(r, 0));
+    eq('14 eerst wachten op de lopende opslag', [s().ui.savingBeforeClose, s().ui.appClosing], [true, false]);
+    allowFirst.resolve();
+    await first;
+    await clearEntered.promise;
+    phase = { calls: ipc.calls.length, hash: fileHash() };
+    eq('14 de laatste fase: de schil staat stil, ook voor de MCP-bridge',
+      [s().ui.appClosing, isGlobalShortcutFrozen(s().ui), isBlockingDialogOpen(s().ui), recoveryOn], [true, true, true, false]);
+    // Wat de schil tegenhoudt, maar de store nog wel zou kunnen: een bewerking, Ctrl+S, Opslaan als, een AutoSave-ronde.
+    s().addTask({ name: 'Bewerking tijdens het afsluiten' });
+    eq('14 Ctrl+S slaat niet op', await s().saveFileForDocument(s().activeDocumentId), false);
+    await s().saveFileAs();
+    await autosave.flush();
+    eq('14 geen kiezer, geen melding, niets geschreven, document gewijzigd',
+      [dialogs, s().ui.notifications.length, mutating(phase.calls), fileHash() === phase.hash, s().isDirty], [0, 0, [], true, true]);
+    allowClear.resolve();
+    await destroyed.promise;
+    await new Promise((r) => setTimeout(r, 0));
+    eq('14 bij destroyWindow: geen schrijfactie, niets geschreven, document nog gewijzigd', atDestroy,
+      { busy: false, dirty: true, written: [], same: true });
+    // Het venster ging niet dicht: afsluiten afgebroken, alles weer open.
+    eq('14 afgebroken: schil, afsluiten en herstel terug', [s().ui.appClosing, s().ui.appQuitPending, controller.active, recoveryOn],
+      [false, false, false, true]);
+    eq('14 opslaan werkt weer', await s().saveFileForDocument(s().activeDocumentId), true);
+    eq('14 en schreef het bestand', [s().isDirty, fileHash() !== phase.hash], [false, true]);
+  } finally {
+    console.error = realError;
+    allowFirst.resolve();
+    allowClear.resolve();
+    off();
+    ipc.dispose();
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 if (diffs.length === 0) {

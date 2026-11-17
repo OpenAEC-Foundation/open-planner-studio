@@ -70,11 +70,10 @@ export function createFileAutoSaveController(deps: {
     },
     serialize: candidate => serializeForSave(candidate.source),
     canWrite: canWriteToRefWithoutPrompt,
-    write: (candidate, content) => runProjectFileWrite(async () => {
-      // #804 stap 3: de ronde koos haar kandidaten vóór het slot. Sloot het afsluiten intussen de poort (het wachtte op
-      // de rij, zag haar leeg en stopt nu het herstel), dan schrijft deze ronde niet meer: geen write na de schone exit.
-      // Niets geschreven en niets te melden; het document blijft gewijzigd.
-      if (!deps.enabled()) return 'refused';
+    // #804 stap 3, fixronde 1: de ronde koos haar kandidaten vóór het slot. Begon intussen de laatste fase van afsluiten
+    // of van de updater (`closeProjectFileWrites`), dan schrijft ze niet meer: `'refused'`, niets te melden, het
+    // document blijft gewijzigd.
+    write: (candidate, content) => runProjectFileWrite<boolean | 'stale' | 'refused'>(async () => {
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock, vóór de write.
       const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
       if (reason) {
@@ -92,7 +91,7 @@ export function createFileAutoSaveController(deps: {
       if (!current) return false;
       if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
       return saveToRefWithoutPrompt(candidate.ref!, content);
-    }),
+    }, () => 'refused'),
     markSavedIfUnchanged: candidate => getState().markAutoSaveVersionSaved(candidate.id, candidate.source),
     onFailure: (_candidate, error) => {
       console.error('Werkelijke AutoSave mislukt:', error);

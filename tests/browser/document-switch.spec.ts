@@ -259,7 +259,7 @@ test('IFC toepassen behoudt documentbinding en sluitwaarschuwing, met één undo
     const coordinator = await import(/* @vite-ignore */ path) as typeof import('@/services/fileAccess/writeCoordinator');
     void coordinator.runProjectFileWrite(() => new Promise<void>((resolve) => {
       (window as unknown as { releaseOpsWrite: () => void }).releaseOpsWrite = resolve;
-    }));
+    }), () => undefined);
   });
   await page.locator(`[data-ops-tab="${before.documentId}"]`).locator('..')
     .getByRole('button', { name: /^(Close|Sluiten) / }).click();

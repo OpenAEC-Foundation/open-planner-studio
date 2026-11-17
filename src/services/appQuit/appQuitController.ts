@@ -16,6 +16,14 @@
 // er tijdens het wachten een foutmelding (een mislukte of geweigerde opslag), dan breekt het afsluiten af zoals een
 // mislukte opslag uit de sluitvraag; een document dat nog gewijzigd is, krijgt de gewone sluitvraag. Het herstel wordt
 // pas gestopt en gewist als er niets meer geschreven wordt. Zonder lopende opslag is de volgorde die van vóór stap 3.
+//
+// Fixronde 1: een lege rij alleen is geen garantie. Is er niets meer ongeopgeslagen, dan begint de laatste fase met
+// `closeWrites`: vanaf dat moment start er geen projectopslag meer (Ctrl+S, Opslaan als, een export naar het eigen bestand,
+// een ronde van Automatisch opslaan, site, MCP) en staat de schil stil, tot het venster weg is. Opslaan vanuit de
+// sluitvraag gebeurt daarvóór en blijft dus mogelijk; afbreken (annuleren, een rode melding) gebeurt ook daarvóór.
+// Na `destroyWindow` gaat de poort weer open (in de echte app bestaat het venster dan niet meer). Gaat het venster niet
+// dicht (`destroyWindow` mislukt), dan is het afsluiten afgebroken: ook crashherstel weer aan, en de app werkt verder
+// zoals voorheen.
 
 export interface AppQuitDocument {
   id: string;
@@ -31,8 +39,11 @@ export interface AppQuitDependencies {
   getPendingCloseDocId: () => string | null;
   setPendingCloseDocId: (id: string) => void;
   setQuitPending: (pending: boolean) => void;
-  /** Crashherstel stilzetten (geen nieuwe snapshot meer ná de opruimactie). */
-  stopRecovery: () => void;
+  /** De laatste fase: geen nieuwe projectopslag meer en de schil stil, tot het venster weg is. Klaar als een al
+   *  toegelaten opslag afgerond is (`closeProjectFileWrites`); de teruggegeven functie zet beide weer open. */
+  closeWrites: () => Promise<() => void>;
+  /** Crashherstel stilzetten (geen nieuwe snapshot meer ná de opruimactie); de teruggegeven functie zet het terug. */
+  stopRecovery: () => () => void;
   clearRecovery: () => Promise<void>;
   /** Sluit het venster definitief (Tauri `destroy`, geen nieuw `CloseRequested`). */
   destroyWindow: () => Promise<void>;
@@ -68,7 +79,8 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
   const finish = async () => {
     if (finishing) return;
     finishing = true;
-    deps.stopRecovery();
+    const reopenWrites = await deps.closeWrites();
+    const resumeRecovery = deps.stopRecovery();
     try {
       await deps.clearRecovery();
     } catch (error) {
@@ -76,7 +88,18 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
       // hoogstens een overbodig herstel aan. Nooit het afsluiten tegenhouden.
       console.warn('Herstelsnapshots opruimen bij afsluiten mislukt:', error);
     }
-    await deps.destroyWindow();
+    try {
+      await deps.destroyWindow();
+    } catch (error) {
+      // Het venster ging niet dicht: het afsluiten is afgebroken en de app blijft bruikbaar, met opslaan en
+      // crashherstel. Een nieuwe sluitpoging begint opnieuw.
+      console.error('Venster sluiten bij afsluiten mislukt:', error);
+      resumeRecovery();
+      finishing = false;
+      abort();
+    } finally {
+      reopenWrites();
+    }
   };
 
   const waitThenStep = async (saving: Promise<void>) => {

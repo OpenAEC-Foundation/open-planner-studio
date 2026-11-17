@@ -1518,12 +1518,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       notifyWriteError(err);
       return false;
     }
-  });
+  }, () => false); // de laatste fase van afsluiten of van de updater: niets geschreven, het document blijft gewijzigd
 
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
   const saveActiveDocumentAs = (): Promise<void> => {
     const requestedDocumentId = get().activeDocumentId;
-    return runProjectFileWrite(() => saveDocumentAsOnTurn(requestedDocumentId));
+    return runProjectFileWrite(() => saveDocumentAsOnTurn(requestedDocumentId), () => undefined);
   };
   const saveDocumentAsOnTurn = async (requestedDocumentId: string): Promise<void> => {
     // Fixronde 1 (BLOKKEERT 1) en #804 stap 3: zie `writeActiveDocument`.
@@ -1595,10 +1595,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const documentId = expectedDocumentId ?? get().activeDocumentId;
     const waiting = waitingSaves.get(documentId);
     if (waiting) return waiting;
-    const save: Promise<boolean> = writeActiveDocument(documentId, () => {
-      if (waitingSaves.get(documentId) === save) waitingSaves.delete(documentId);
-    });
+    const forget = () => { if (waitingSaves.get(documentId) === save) waitingSaves.delete(documentId); };
+    const save: Promise<boolean> = writeActiveDocument(documentId, forget);
     waitingSaves.set(documentId, save);
+    // Een opslag die nooit aan de beurt kwam (de laatste fase weigerde hem), wacht ook niet meer.
+    void save.then(forget, forget);
     return save;
   };
 
@@ -2223,7 +2224,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
       // onder dezelfde lock als Opslaan als; anders schreef AutoSave er tussendoor de ankertekst en markeerde hij het
       // document als opgeslagen (knownbug 1026). De andere formaten raken het eigen bestand niet en blijven zoals ze waren.
-      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord) : await writeAndRecord();
+      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een IFC-export niets, net als na annuleren.
+      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord, () => null) : await writeAndRecord();
       // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
@@ -2317,7 +2319,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           { refuseTarget, refuseDownload: () => refuseChangedExport(state) });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         return written;
-      });
+      }, () => null);
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);

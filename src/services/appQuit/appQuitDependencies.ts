@@ -1,5 +1,6 @@
 import type { AppStoreContext } from '@/state/appStore';
 import type { AppQuitDependencies } from './appQuitController';
+import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
 
 /**
  * De randen van `createAppQuitController` voor één storecontext. Los van `useAppCloseGuard`, zodat
@@ -21,6 +22,15 @@ export function appQuitDependencies(
     setPendingCloseDocId: (id) => store.getState().setUI({ pendingCloseDocId: id }),
     setQuitPending: (pending) => store.getState().setUI({ appQuitPending: pending }),
     waitForSaves: () => store.getState().waitForSavesBeforeClose(),
+    // #804 stap 3, fixronde 1: dicht tot en met `destroyWindow`; daarna (of als die mislukt) weer open.
+    closeWrites: async () => {
+      store.getState().setUI({ appClosing: true });
+      const reopen = await closeProjectFileWrites();
+      return () => {
+        reopen();
+        store.getState().setUI({ appClosing: false });
+      };
+    },
     // Elke mislukte of geweigerde opslag meldt zich rood. Een nieuwe melding is een nieuw object, en een samengevouwen
     // herhaling ("×2") vervangt het object van de bestaande (Immer); beide tellen dus als nieuw.
     watchFailures: () => {
