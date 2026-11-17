@@ -154,13 +154,13 @@ export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain } | { ok
 export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
     let shown: Domain | undefined;
-    const parts = await writeIfcMerge(d, source, async (parsed, side) => {
+    const bytes = await writeIfcMerge(d, source, async (parsed, side) => {
       const result = structuredClone(parsed);
       if (side === 'uitvoer') shown = result;
       return result;
     });
     if (!shown) throw new Error('merge gaf geen planning aan de naad');
-    return { ok: true, bytes: concat(parts), shown };
+    return { ok: true, bytes, shown };
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), error: e };
     throw e;
@@ -431,7 +431,7 @@ export async function savedSequenceStart(bytes: Uint8Array): Promise<Uint8Array>
   state.updateTask(leaf.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7c' });
   const input = snapshot(store);
   const prepared = await prepareIfcWrite(input, input.ifcSource!);
-  const output = concat(prepared.parts);
+  const output = prepared.bytes;
   const reopened = await openForeign(output);
   if (!reopened.baselines?.some(b => b.name === 'Opgeslagen beginbaseline 7c')
     || reopened.tasks.find(t => t.id === leaf.id)?.customTaskTypeId !== 'type-7c'
@@ -484,7 +484,7 @@ export async function savedCatalogStart(bytes: Uint8Array, twoTypes = true): Pro
   const code = s.addActivityCodeType('Code A 7d'), value = s.addActivityCodeValue(code, { code: 'A', description: 'Waarde A' });
   s.setTaskActivityCode(leaves[0].id, code, value);
   s.saveBaseline('Baseline A 7d'); s.saveBaseline('Baseline B 7d');
-  const input = snapshot(store), output = concat((await prepareIfcWrite(input, input.ifcSource!)).parts);
+  const input = snapshot(store), output = (await prepareIfcWrite(input, input.ifcSource!)).bytes;
   const reread = await openForeign(output);
   if (JSON.stringify(reread.customTaskTypes) !== JSON.stringify(input.customTaskTypes)
     || JSON.stringify(reread.activityCodeTypes) !== JSON.stringify(input.activityCodeTypes)

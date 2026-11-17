@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "Ei tallennettu. Olemassa olevan tiedoston korvaaminen, jossa on rakennusmalli, ei ole vielä turvallista. Käytä ”Tallenna nimellä” ja valitse uusi nimi.",
     "ifcForeignMergeRefused": "IFC-tiedostoa ei kirjoitettu. Rakennusmalli tai toisen ohjelman tiedot eivät muuten säilyisi kokonaan. Kumoa viimeisin muutos tai vie vain aikataulu: IFC-muotoon valinnalla ”Ilman rakennusmallia” tai toiseen muotoon.",
     "ifcSaveChangedWhileWaiting": "Ei tallennettu. Asiakirja tai rakennusmallin lähde muuttui valmistelun aikana. Yritä tallentaa uudelleen.",
-    "ifcForeignExportNewTarget": "Ei viety. Tämä IFC-tiedosto voidaan viedä vain uuteen tiedostonimeen. Valitse nimi, jota ei ole vielä olemassa.",
     "ifcSourceCopyFailed": "Aikataulu tallennetaan palautusta varten kaatumisen jälkeen, mutta rakennusmallin kopiota ei voitu tallentaa. Kaatumisen jälkeen rakennusmalli voi puuttua. Tallenna itse kokonaisena IFC-tiedostona.",
     "ifcForeignSourceMissing": "Ei tallennettu. Rakennusmallia tai toisen ohjelman tietoja ei löytynyt. Käytä ”Tallenna nimellä” ja tallenna vain aikataulu uuteen tiedostoon. Avaa alkuperäinen IFC-tiedosto, niin koko tiedostoa voi taas käsitellä."
   },

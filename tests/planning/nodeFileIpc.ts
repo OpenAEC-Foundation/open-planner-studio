@@ -5,6 +5,7 @@
 // body of als JSON verstuurt (`rawBody`/`bytesInObject` per aanroep). Of de echte webview de rauwe route
 // neemt of terugvalt op `postMessage`, bewijst dit niet.
 import * as fs from 'node:fs';
+import * as nodePath from 'node:path';
 
 interface OpenOptions {
   read?: boolean; write?: boolean; create?: boolean; createNew?: boolean; truncate?: boolean; append?: boolean; mode?: number;
@@ -25,6 +26,45 @@ export const writeFileCall = (c: { command: string }): boolean =>
   c.command === 'plugin:fs|write_file' || c.command === 'plugin:fs|write_text_file';
 /** Elke aanroep die bytes naar een bestand schrijft, ook via een open handle. */
 export const byteWrite = (c: { command: string }): boolean => c.command === 'plugin:fs|write' || writeFileCall(c);
+
+/** Wat de nabootsing van `place_file_exclusive` teruggeeft: `resolve` voor een plaatsing, `reject` voor een fout,
+ *  zoals Tauri het `Result` van het commando doorgeeft (proef `place_file_uitkomsten_hebben_vaste_codes`). */
+export type PlaceAnswer = { resolve: unknown } | { reject: unknown };
+
+/** De regel voor de eigen hulpnamen uit `place_file.rs` (`is_helper_name`): `save-<id>.ops-save.tmp` of
+ *  `<naam>.ops-vorige-<id>`, met `<id>` kleine letters en cijfers. */
+function isHelperName(name: string): boolean {
+  const id = /^[0-9a-z]{1,64}$/;
+  const save = /^save-(.+)\.ops-save\.tmp$/.exec(name);
+  if (save && id.test(save[1])) return true;
+  const at = name.lastIndexOf('.ops-vorige-');
+  return at > 0 && id.test(name.slice(at + '.ops-vorige-'.length));
+}
+
+/**
+ * Nabootsing van `place_file_exclusive` (#804, 1131 stap 3) op echte bestanden, in de volgorde van het commando:
+ * vorm (absoluut, dezelfde map), hulpnaam, scope (`forbidden` op beide paden), een gewoon bestand als bron, dan de
+ * exclusieve stap. Node kent geen `renameat2`; `link` + `unlink` faalt net zo met `EEXIST` als er op het doel iets
+ * staat en vervangt nooit. Bewijst de route in TypeScript; dat de stap echt exclusief en atomair is, bewijst
+ * `cargo test place_file` per platform.
+ */
+function placeOnDisk(from: string, to: string, forbidden: ((path: string) => boolean) | null): PlaceAnswer {
+  const refused = (reason: string): PlaceAnswer => ({ reject: { code: 'refused', reason } });
+  if (!nodePath.isAbsolute(from) || !nodePath.isAbsolute(to) || nodePath.dirname(from) !== nodePath.dirname(to)) {
+    return refused('path-shape');
+  }
+  if (isHelperName(nodePath.basename(from)) === isHelperName(nodePath.basename(to))) return refused('helper-name');
+  if (forbidden?.(from) || forbidden?.(to)) return refused('scope');
+  try {
+    if (!fs.lstatSync(from).isFile()) return refused('not-regular-file');
+    fs.linkSync(from, to);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return { reject: { code: 'target-exists' } };
+    return { reject: { code: 'io', message: error instanceof Error ? error.message : String(error) } };
+  }
+  fs.unlinkSync(from);
+  return { resolve: { code: 'placed' } };
+}
 
 const isBytes = (value: unknown): boolean => value instanceof ArrayBuffer || ArrayBuffer.isView(value);
 const containsBytes = (value: unknown): boolean => isBytes(value)
@@ -79,6 +119,10 @@ export function installNodeFileIpc() {
     removeError: null as unknown,
     directWriteError: null as unknown,
     readError: null as unknown,
+    /** Vervangt de uitkomst van `place_file_exclusive`. Krijgt `from`, `to` en de echte stap (`placeOnDisk`) mee,
+     *  zodat een proef eerst echt kan plaatsen en dan een fout kan melden; een belofte die nooit afloopt bootst een
+     *  crash na. `undefined` laat de echte stap lopen. */
+    place: null as ((from: string, to: string, real: () => PlaceAnswer) => PlaceAnswer | undefined | Promise<PlaceAnswer | undefined>) | null,
   };
   let bytesRead = 0;
   let seeks = 0;
@@ -211,10 +255,21 @@ export function installNodeFileIpc() {
         if (faults.renameError !== null) throw faults.renameError;
         fs.renameSync(String(a.oldPath), String(a.newPath));
         return null;
+      case 'plugin:fs|mkdir':
+        fs.mkdirSync(String(path), { recursive: (a.options as { recursive?: boolean } | undefined)?.recursive === true });
+        return null;
       case 'plugin:fs|remove':
         if (faults.removeError !== null) throw faults.removeError;
         fs.unlinkSync(String(path));
         return null;
+      case 'place_file_exclusive': {
+        const from = String(a.from), to = String(a.to);
+        call.path = to;
+        const real = () => placeOnDisk(from, to, faults.forbidden);
+        const answer = (await faults.place?.(from, to, real)) ?? real();
+        if ('reject' in answer) throw answer.reject;
+        return answer.resolve;
+      }
       default: throw new Error(`Onverwacht Tauri-commando in Node-fs-adapter: ${command}`);
     }
   };

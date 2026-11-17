@@ -219,6 +219,8 @@ hij `ready.json`. Op Linux is `appDataDir` = `~/.local/share/org.openaec.planner
      `tests/mcp/realApp/run-real-app.ts` dat `runtime.json` verdwijnt (`docs/mcp-ontdekking.md`)
    - `mcpConnection` — poort, token en status van de MCP-bridge (`{ port, token, status, aiMode }`); zo verbindt
      `tests/mcp/realApp/run-real-app.ts` een externe client met de echte bridge
+   - `log` `{channel}` — de regels van één kanaal uit het app-log (`appLog`), als tekst; dev-only. Zo ziet
+     `tests/mcp/realApp/run-real-app.ts` welke weg een opslag naar een nieuwe naam nam (kanaal `nieuweNaam`)
 3. Paden moeten binnen de fs-scope vallen (appData of home; zie `src-tauri/capabilities/default.json`).
 
 Voorbeeld:

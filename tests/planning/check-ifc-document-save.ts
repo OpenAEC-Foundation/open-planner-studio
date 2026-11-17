@@ -1,7 +1,7 @@
 // #804 PR 11a: echte documentacties, volledige heropening of bewijs van nul schrijfacties.
 // Bronobjecten alleen op identiteit vergelijken; nooit een assert-diff van bronbytes maken.
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +49,15 @@ async function check(name: string, action: () => Promise<void>) {
   try { await action(); passed++; console.log(`OK ${name}`); }
   catch (error) { failed++; console.error(`XX ${name}: ${String(error instanceof Error ? error.message : error).slice(0, 1600)}`); }
 }
+/** Het eigen tijdelijke bestand van de nieuwe-naamroute (knownbug 1131 stap 4). */
+const isTemp = (path: string | undefined) => /[\\/]save-[0-9a-z]+\.ops-save\.tmp$/.test(path ?? '');
+const tempLeft = () => readdirSync(dir).filter(name => isTemp(join(dir, name)));
+/** Nam deze route de nieuwe weg: één `createNew` in het eigen tijdelijke bestand en één plaatsing op `target`? */
+function tookTempRoute(calls: readonly { command: string; path?: string; options?: { createNew?: boolean } }[], target: string) {
+  assert.deepEqual(calls.filter(c => c.command === 'plugin:fs|write_file').map(c => [isTemp(c.path), c.options?.createNew]), [[true, true]],
+    'de hele buffer in het eigen tijdelijke bestand, niet in het doel');
+  assert.deepEqual(calls.filter(c => c.command === 'place_file_exclusive').map(c => c.path), [target], 'één plaatsing op het doel');
+}
 function desktop() {
   const ipc = installNodeFileIpc();
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
@@ -67,8 +76,11 @@ await check('desktop: duur, nieuwe naam, resource, tweede nieuwe naam; volledig 
   try {
     const id = longer(store), duration = store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration;
     const first = join(dir, 'eerste.ifc'); ipc.choose(first);
+    const calls = ipc.calls.length;
     await store.getState().saveFileAs();
     assert(existsSync(first), 'Opslaan als schreef een nieuw bestand');
+    tookTempRoute(ipc.calls.slice(calls), first);
+    assert.deepEqual(tempLeft(), [], 'geen hulpbestand achtergebleven');
     const output = new Uint8Array(readFileSync(first));
     assert.deepEqual(mergeProblems(bytes, output), [], 'het vreemde deel blijft bytegelijk');
     const reopened = await openForeign(output);
@@ -155,17 +167,20 @@ await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam, nul bytes
   } finally { ipc.dispose(); }
 });
 
-await check('Opslaan als bestaand eigen bestand: createNew weigert, oude bytes intact', async () => {
+await check('Opslaan als bestaand eigen bestand: de plaatsing weigert, oude bytes intact, dezelfde zin als Exporteren', async () => {
   const { store } = await openInStore(bytes); longer(store);
   const ipc = desktop(), target = join(dir, 'bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
   writeFileSync(target, plain); ipc.choose(target);
   const before = preserved(store);
   try {
+    const calls = ipc.calls.length;
     clearNotices(store); await store.getState().saveFileAs(); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), hash(plain));
-    assertNotice(store, 'notifications.saveFailed');
-    assert(ipc.calls.some(c => c.path === target && c.options?.createNew));
+    // Knownbug 1760: geen interne tekst ("Byte-delen … (create-new)"), maar de zin van Exporteren.
+    assertNotice(store, 'notifications.ifcForeignNewTargetOnly');
+    tookTempRoute(ipc.calls.slice(calls), target);
+    assert.deepEqual(tempLeft(), [], 'het eigen hulpbestand is weg');
   } finally { ipc.dispose(); }
 });
 
@@ -193,7 +208,9 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
         assert.equal(store.getState().filePath, before.path);
       } else unchanged(store, before);
       if (fault === 'I/O-fout') {
-        assert(ipc.calls.some(c => c.wrote && c.path === target), 'de schrijffout is werkelijk bereikt');
+        assert(ipc.calls.some(c => c.wrote && isTemp(c.path)), 'de schrijffout is werkelijk bereikt, in het tijdelijke bestand');
+        assert.equal(ipc.calls.some(c => c.command === 'place_file_exclusive'), false, 'niets geplaatst');
+        assert.deepEqual(tempLeft(), [], 'het eigen hulpbestand is weg');
         assertNotice(store, 'notifications.saveFailed');
       }
     } finally { ipc.dispose(); }
@@ -323,7 +340,7 @@ await check('doorwerken tijdens schrijven: bron volgt schijf, bewerking blijft d
   ipc.choose(first);
   let edited = false;
   ipc.faults.beforeOpen = path => {
-    if (path !== first || edited) return; edited = true;
+    if (!isTemp(path) || edited) return; edited = true;
     store.getState().updateTask(id, { name: 'Tijdens schrijven gewijzigd' });
   };
   try {
@@ -401,9 +418,11 @@ await check('IFC-export desktop: volledig bestand, document intact, daarna Opsla
   try {
     const id = longer(store), before = preserved(store), literal = store.getState().ifcLiteralCalendarIds;
     const target = join(dir, 'export-volledig.ifc'); ipc.choose(target);
+    const calls = ipc.calls.length;
     const result = await store.getState().exportAs('ifc');
     assert(result.ok && !result.cancelled, 'IFC-export schrijft');
     assert(existsSync(target), 'nieuw exportbestand bestaat');
+    tookTempRoute(ipc.calls.slice(calls), target);
     const output = new Uint8Array(readFileSync(target)), reopened = await openForeign(output);
     assert.deepEqual(mergeProblems(bytes, output), []);
     assert.equal(reopened.tasks.find(t => t.id === id)!.time.scheduleDuration,
@@ -440,8 +459,36 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     clearNotices(store); const result = await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash);
-    assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
-    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignExportNewTarget' : 'notifications.ifcForeignTargetExport');
+    // Een bestaand doel: alleen het eigen tijdelijke bestand werd geschreven, de plaatsing weigerde en het is weer weg.
+    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), kind === 'bestaand' ? [true] : []);
+    assert.deepEqual(tempLeft(), []);
+    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly' : 'notifications.ifcForeignTargetExport');
+  } finally { ipc.dispose(); }
+});
+
+// Knownbug 1131 stap 4: `source-changed` na de plaatsing. De stand op schijf is onbekend: na de plaatsing raakt de app
+// niets meer aan, het document blijft zoals het was (niet opgeslagen) en de planner krijgt de eigen zin.
+for (const route of ['Opslaan als', 'Exporteren'] as const) await check(`${route}: source-changed laat alles staan, eigen melding`, async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  const ipc = desktop(), target = join(dir, `onbekend-${route === 'Opslaan als' ? 'opslag' : 'export'}.ifc`);
+  ipc.choose(target);
+  ipc.faults.place = (_from, _to, real) => { real(); return { reject: { code: 'source-changed' } }; };
+  const before = preserved(store);
+  try {
+    clearNotices(store);
+    if (route === 'Opslaan als') await store.getState().saveFileAs();
+    else {
+      const result = await store.getState().exportAs('ifc');
+      assert(result.ok && result.cancelled, 'de export telt niet als geslaagd');
+    }
+    unchanged(store, before);
+    const calls = ipc.calls, at = calls.findIndex(c => c.command === 'place_file_exclusive');
+    assert(at >= 0, 'de route plaatste');
+    assert.deepEqual(calls.slice(at + 1).filter(c => c.command.startsWith('plugin:fs|')).map(c => c.command), [],
+      'na de plaatsing geen schrijf-, verwijder- of leesactie');
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey),
+      ['notifications.ifcForeignPlaceUnknown']);
+    assert.equal(existsSync(target), true, 'wat de stap achterliet, blijft staan');
   } finally { ipc.dispose(); }
 });
 
@@ -870,8 +917,7 @@ await check('handle Ctrl+S drie keer (taak, duur, relatie; de derde via de sluit
       }
       const output = fileOf(name);
       assert.equal(hash(output), expected.sha256, `ronde ${round}: precies de voorbereide merge`);
-      assert.deepEqual(writableLog, [`create ${name}`, `close ${name} ${expected.parts.length}`], 'één vervanging, in delen');
-      assert(expected.parts.length > 1, 'de proef raakt meer dan één deel');
+      assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
       assert.deepEqual(mergeProblems(bytes, output), [], `ronde ${round}: het vreemde deel blijft bytegelijk`);
       const reopened = await openForeign(output), now = store.getState();
       assert.equal(reopened.tasks.find(t => t.id === added)?.name, 'Taak via Ctrl+S');
@@ -913,8 +959,8 @@ const handleFaultCases = [
     arrange: (name: string) => { handleFaults.set(name, { onWrite: () => { handleFiles.set(name, otherProgram); } }); }, after: otherProgram },
   { fault: 'weg tussen schrijven en close()', notice: 'notifications.ifcForeignTargetGone', writes: true, aborts: true,
     arrange: (name: string) => { handleFaults.set(name, { onWrite: () => { handleFiles.delete(name); } }); }, after: null },
-  { fault: 'schrijffout halverwege', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: true,
-    arrange: (name: string) => { handleFaults.set(name, { writeErrorAt: 1 }); }, after: bytes },
+  { fault: 'schrijffout', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: true,
+    arrange: (name: string) => { handleFaults.set(name, { writeErrorAt: 0 }); }, after: bytes },
   { fault: 'fout bij close()', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: false,
     arrange: (name: string) => { handleFaults.set(name, { closeError: true }); }, after: bytes },
 ] as const;

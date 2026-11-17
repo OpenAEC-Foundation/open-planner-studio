@@ -258,7 +258,6 @@
     "ifcForeignReplaceBlocked": "未保存。暂时无法安全地覆盖包含建筑模型的现有文件。请使用“另存为”并选择一个新名称。",
     "ifcForeignMergeRefused": "IFC 文件未写入。否则建筑模型或其他程序的数据将无法完整保留。请撤销上一次更改，或只导出计划：导出为 IFC 时选择“无建筑模型”，或导出为其他格式。",
     "ifcSaveChangedWhileWaiting": "未保存。文档或建筑模型来源在准备期间已更改。请再次尝试保存。",
-    "ifcForeignExportNewTarget": "未导出。此 IFC 文件只能导出到新的文件名。请选择一个尚不存在的名称。",
     "ifcSourceCopyFailed": "计划正在保存用于崩溃恢复，但建筑模型的副本未能保存。崩溃后建筑模型可能会丢失。请自行将你的工作保存为完整的 IFC 文件。",
     "ifcForeignSourceMissing": "未保存。找不到建筑模型或其他程序的数据。请使用“另存为”，只将计划保存到新文件中。请打开原始 IFC 文件，以便再次处理完整文件。"
   },

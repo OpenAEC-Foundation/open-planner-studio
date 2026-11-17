@@ -458,7 +458,6 @@
     "ifcForeignReplaceBlocked": "Nije spremljeno. Spremanje preko postojeće datoteke s modelom zgrade još nije sigurno. Upotrijebite „Spremi kao“ i odaberite novi naziv.",
     "ifcForeignMergeRefused": "IFC-datoteka nije spremljena. Model zgrade ili podaci drugog programa inače ne bi ostali u potpunosti sačuvani. Poništite posljednju promjenu ili izvezite samo raspored: u IFC s opcijom „Bez modela zgrade“ ili u drugi format.",
     "ifcSaveChangedWhileWaiting": "Nije spremljeno. Dokument ili izvor modela zgrade promijenio se tijekom pripreme. Pokušajte ponovo spremiti.",
-    "ifcForeignExportNewTarget": "Nije izvezeno. Ova IFC-datoteka može se izvesti samo u novu datoteku. Odaberite naziv koji još ne postoji.",
     "ifcSourceCopyFailed": "Raspored se sprema za oporavak od pada, ali kopija modela zgrade nije mogla biti spremljena. Nakon pada model zgrade može nedostajati. Sami spremite svoj dokument kao cjelovitu IFC-datoteku.",
     "ifcForeignSourceMissing": "Nije spremljeno. Model zgrade ili podaci drugog programa nisu pronađeni. Upotrijebite „Spremi kao“ kako biste spremili samo raspored u novu datoteku. Otvorite izvornu IFC-datoteku da biste ponovo radili s cijelom datotekom."
   },

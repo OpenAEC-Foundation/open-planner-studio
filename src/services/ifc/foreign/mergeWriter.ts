@@ -329,11 +329,11 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
  */
 export type OpenMergePlanning = (planning: WriteIFCInput, side: 'uitvoer' | 'domein') => Promise<WriteIFCInput>;
 
-export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<Uint8Array[]> {
-  return [...(await prepareIfcWrite(input, source, probe)).parts];
+export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<Uint8Array> {
+  return (await prepareIfcWrite(input, source, probe)).bytes;
 }
 
-/** De ene schrijfingang: gecontroleerde delen, digest en bronmetadata van de geschreven versie (§4.8). */
+/** De ene schrijfingang: gecontroleerde uitvoer in één buffer, digest en bronmetadata van de geschreven versie (§4.8). */
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
   if (!source.foreign) {
@@ -347,7 +347,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // dezelfde nummering vanaf 1 en de sessiekaart, zonder nieuwe indeling tot eigenaar te maken.
     const metadata = writeIfcMergeLines(input, { firstId: 1, keep: new Map(), reserved: new Set(), baselineHeads: new Map() });
     const next = await writtenSource(input, bytes, scan, writerStepIds(input, metadata.idMap), classes, []);
-    return { parts: [bytes], sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
+    return { bytes, sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
   }
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
@@ -355,8 +355,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
   if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
-    await checkedParts([source.bytes], input, source, index, cls, source.opened, probe);
-    return { parts: [source.bytes], sha256: source.sha256, source,
+    await checkedBytes(source.bytes, input, source, index, cls, source.opened, probe);
+    return { bytes: source.bytes, sha256: source.sha256, source,
       literalCalendarIds: input.ifcLiteralCalendarIds ?? [] };
   }
 
@@ -840,13 +840,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
-    const assembled = assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`));
+    const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`)));
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
-    const actual = await checkedParts(assembled, input, source, index, cls, source.opened ?? pristine, probe,
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe,
       { stepIds, writtenAt, skip: restoredGroups, sourceRowGuid: rowGuid });
     const written = new Set(candidate.map(line => line.id));
     const classes = Uint8Array.from(actual.scan.chunkIds, id => {
@@ -856,11 +856,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
     const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
-    let at = 0;
-    const parts = assembled.map(part => {
-      const view = actual.bytes.subarray(at, at + part.length); at += part.length; return view;
-    });
-    return { parts, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
+    return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
   const block = lines.filter(l => !l.drop);
   let preserved: readonly OutLine[] | undefined;
@@ -926,17 +922,20 @@ export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, 
   assertSameSource(index, cls, source);
   // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
   const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
-  await checkedParts([bytes], freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
+  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
+}
+
+/** Eén buffer uit de stukken van `assemble`: de enige kopie van de hele uitvoer. */
+function concatParts(parts: readonly Uint8Array[]): Uint8Array {
+  const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let at = 0;
+  for (const part of parts) { bytes.set(part, at); at += part.length; }
+  return bytes;
 }
 
 /** De vaste uitvoercontrole van #918, ook voor ongewijzigd teruggegeven bronbytes. */
-async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, source: IfcSource,
+async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
   index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck) {
-  const bytes = parts.length === 1 ? parts[0] : new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
-  if (parts.length !== 1) {
-    let at = 0;
-    for (const part of parts) { bytes.set(part, at); at += part.length; }
-  }
   let actual: ReturnType<typeof validateMergeOutput>;
   let shown: WriteIFCInput, wanted: WriteIFCInput;
   let parsed: WriteIFCInput;
@@ -983,7 +982,7 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
 
 /**
  * Controle (c), PR 12a: de eigen groepen op projectniveau in de uitvoer (`ownGroups.ts`) zijn gelijk aan wat de writer
- * schrijft uit de herlezing van die uitvoer (`parsed`, de lezing die `checkedParts` al deed), met dezelfde schrijfklok en
+ * schrijft uit de herlezing van die uitvoer (`parsed`, de lezing die `checkedBytes` al deed), met dezelfde schrijfklok en
  * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history van psets en hun
  * leden en zonder vreemde leden; een baselinekop wel met zijn GlobalId, en `TaskGuids` helemaal (PR 12e). Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
  * writer of de lezer zijn. Alleen de stukken die de writer schreef tellen (de regel van `validateMergeOutput`); geen tweede
@@ -1268,10 +1267,7 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
   block: readonly string[], taskIds: readonly number[]) {
   const alsoRead = new Set(scan.mixedPsetChunks);
   const skip = (i: number) => cls.classes[i] === 4 && i !== scan.projectContext && !alsoRead.has(i);
-  const parts = assemble(source, index, cls, block, skip);
-  const bytes = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
-  let at = 0;
-  for (const p of parts) { bytes.set(p, at); at += p.length; }
+  const bytes = concatParts(assemble(source, index, cls, block, skip));
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
   return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
