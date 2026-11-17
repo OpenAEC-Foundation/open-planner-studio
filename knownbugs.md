@@ -3441,6 +3441,11 @@ en noem het in je rapport of PR-tekst.
       gebruikersgeval"). Dat is afgeleid, niet uit een trace bewezen. Richting: alleen beschrijven wat
       de stap doet (wachten tot het paneel zichtbaar is, focus op de navigatie controleren). Sol-review
       ronde 5 van #942: [BEVESTIGD] VERVOLG. — B
+1714. **VERVOLG: het pijltje in het pictogram van de pil wijst bij een rechts-naar-links-taal naar
+      links.** `.sv-chrome-chevron` in `src/components/settings/settingVisuals.css` gebruikt
+      `border-inline-end` met een vaste `rotate(45deg)`; in RTL wordt dat de linkerrand en kantelt het
+      pijltje. Een pijltje omlaag hoort zijn richting te houden. Richting: `border-right` in plaats van
+      `border-inline-end`. Sol-review ronde 8 van #942: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 
