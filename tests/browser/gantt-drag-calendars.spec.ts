@@ -81,6 +81,9 @@ async function settledPoint(page: Page, id: string, edge: 'left' | 'body' | 'rig
  *  smal naast het raster), en geef die linkerrand zodra de balk stilstaat. */
 async function showBar(page: Page, id: string): Promise<{ x: number; y: number }> {
   await page.evaluate(() => window.__OPS__!.store.getState().setViewStartDate('2026-05-25'));
+  // De eerste paint met de taak kan nog ontbreken. Bepaal de scroll pas met een balkpunt;
+  // anders slaat de ontbrekende geometrie de scroll over en blijft de sleep buiten beeld.
+  await settledPoint(page, id, 'left');
   const paints = await page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'));
   const moved = await page.evaluate(taskId => {
     const s = window.__OPS__!.store.getState();

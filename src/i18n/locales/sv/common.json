@@ -75,6 +75,14 @@
     "xmlUnknownSchedule": "Okänt XML-format för tidsplan. Öppna en MS Project-XML (Project) eller Primavera P6-XML (APIBusinessObjects).",
     "mppEncrypted": "Den här .mpp-filen är lösenordsskyddad. Exportera den från MS Project som XML (Arkiv → Spara som → XML) och öppna den filen.",
     "saveFailed": "Kunde inte spara",
+    "ifcForeignSaveBlocked": "Den här filen innehåller en byggnadsmodell. Att spara är ännu inte möjligt.",
+    "ifcForeignTargetSave": "Den här filen innehåller en byggnadsmodell eller data från ett annat program. Välj en annan fil att spara till.",
+    "ifcForeignTargetExport": "Den här filen innehåller en byggnadsmodell eller data från ett annat program. Välj en annan fil att exportera till.",
+    "ifcExportChangedWhileWaiting": "Tidsplanen ändrades medan exporten väntade på en annan lagring. Inget har exporterats. Exportera igen.",
+    "ifcForeignTargetAutoSave": "Autospara har stoppats: den här filen innehåller en byggnadsmodell eller data från ett annat program. Välj en annan fil att spara till.",
+    "ifcUnreadableTargetSave": "Appen kan inte läsa den här filen ordentligt; den kan innehålla en byggnadsmodell. Välj en annan fil att spara till.",
+    "ifcUnreadableTargetExport": "Appen kan inte läsa den här filen ordentligt; den kan innehålla en byggnadsmodell. Välj en annan fil att exportera till.",
+    "ifcUnreadableTargetAutoSave": "Autospara har stoppats: appen kan inte läsa den här filen ordentligt; den kan innehålla en byggnadsmodell. Välj en annan fil att spara till.",
     "ambiguousThousands": "”{{text}}” är tvetydigt: menar du ett decimaltal eller tusental? Skriv decimaler med ”{{separator}}” (1{{separator}}5) och tusental utan skiljetecken (1500). Värdet har inte ändrats.",
     "siteSaveConflict": "Inte sparat: ”{{name}}” har ändrats på webbplatsen av någon annan under tiden. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem som en ny fil.",
     "siteSaveConflictCopy": "”{{original}}” har på webbplatsen ändrats av någon annan under tiden. Ditt arbete har därför sparats i en kopia: ”{{name}}”. Spara skriver från och med nu till den kopian.",
@@ -109,10 +117,14 @@
     "duplicateIdsRenamed": "Objekt med dubbelt id i den här filen: {{total}}. De har fått ett eget id; hänvisningar till dem stannar hos första förekomsten. Kontrollera samband och tilldelningar.",
     "relationsSkippedOnInsert_one": "{{count}} samband skapades inte: ogiltig koppling (t.ex. en uppgift kopplad till en sammanfattningsuppgift högre upp, eller en dubblett).",
     "relationsSkippedOnInsert_other": "{{count}} samband skapades inte: ogiltiga kopplingar (t.ex. en uppgift kopplad till en sammanfattningsuppgift högre upp, eller en dubblett).",
+    "relationsSkippedOnDissolve_one": "Dissolve utfört, men {{count}} samband skapades inte: det är ett ogiltigt samband (t.ex. en uppgift till sin egen (för)förälder-sammanfattningsuppgift, eller en cirkel).",
+    "relationsSkippedOnDissolve_other": "Dissolve utfört, men {{count}} samband skapades inte: de är ogiltiga (t.ex. en uppgift till sin egen (för)förälder-sammanfattningsuppgift, eller en cirkel).",
     "mppSourceScheduleNotes_one": "Den här MS Project-filen innehåller {{count}} uppgift med avbrott, utjämnad eller resursstyrd tidsplan. Den läses in och visas så.",
     "mppSourceScheduleNotes_other": "Den här MS Project-filen innehåller {{count}} uppgifter med avbrott, utjämnad eller resursstyrd tidsplan. De läses in och visas så.",
     "exportSplitsLost_one": "{{count}} uppgift med avbrott exporterades utan avbrotten: MS Project och P6 känner bara till avbrott som en arbetsfördelning.",
     "exportSplitsLost_other": "{{count}} uppgifter med avbrott exporterades utan sina avbrott: MS Project och P6 känner bara till avbrott som en arbetsfördelning.",
+    "exportCostResourcesLost_one": "{{count}} kostnadsresurs exporterades inte, med dess tilldelningar och belopp: det här formatet får kostnadsresurser först i en senare version.",
+    "exportCostResourcesLost_other": "{{count}} kostnadsresurser exporterades inte, med deras tilldelningar och belopp: det här formatet får kostnadsresurser först i en senare version.",
     "exportP6Truncated_one": "{{count}} namn eller kod har förkortats till den längd som P6 tillåter.",
     "exportP6Truncated_other": "{{count}} namn eller koder har förkortats till den längd som P6 tillåter.",
     "exportInvalidXmlChars_one": "{{count}} tecken som XML inte tillåter ersattes med � i exporten.",
@@ -147,6 +159,8 @@
     "dragDatesAreActual": "”{{name}}” är klar: början och slut är de verkliga datumen och flyttas inte. Ändra dem via framdriften.",
     "referencesClearedOnPaste_one": "{{count}} referens fanns inte i det här dokumentet och har tagits bort (en uppgiftskalender, egen arbetskategori, uppgiftskod eller eget fält från källdokumentet).",
     "referencesClearedOnPaste_other": "{{count}} referenser fanns inte i det här dokumentet och har tagits bort (uppgiftskalendrar, egna arbetskategorier, uppgiftskoder eller egna fält från källdokumentet).",
+    "assignmentsSkippedOnPaste_one": "{{count}} tilldelning klistrades inte in: resursen är här en annan typ (kostnad eller arbete), eller en milstolpe tar bara emot kostnad.",
+    "assignmentsSkippedOnPaste_other": "{{count}} tilldelningar klistrades inte in: resursen är här en annan typ (kostnad eller arbete), eller en milstolpe tar bara emot kostnad.",
     "milestoneRefusedAssignments": "”{{task}}” har tilldelningar och kan inte bli en milstolpe. Ta bort tilldelningarna först.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} uppgift har resurstilldelningar och kan inte bli en milstolpe. Ta bort tilldelningarna först.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} uppgifter har resurstilldelningar och kan inte bli milstolpar. Ta bort tilldelningarna först.",
@@ -295,6 +309,8 @@
       "noteStatus_other": "{{count}} avbockade anteckningar: anteckningarna tas med, bockmarkeringarna inte",
       "resourceTypes_one": "{{count}} resurs av typen arbetslag eller underentreprenör har blivit arbetskraft",
       "resourceTypes_other": "{{count}} resurser av typen arbetslag eller underentreprenör har blivit arbetskraft",
+      "costResources_one": "{{count}} kostnadsresurs utelämnades, med dess tilldelningar och belopp",
+      "costResources_other": "{{count}} kostnadsresurser utelämnades, med deras tilldelningar och belopp",
       "libraryLinks_one": "{{count}} koppling till resursbiblioteket",
       "libraryLinks_other": "{{count}} kopplingar till resursbiblioteket",
       "holidayNames_one": "{{count}} namn på en helgdag (dagen själv tas med)",
@@ -330,7 +346,21 @@
     },
     "dependentProjectsFound": "Beroende projekt: {{projects}}. Kopplingar till detta projekt: {{links}}.",
     "dependentProjectsNone": "Inga projekt med ett externt samband till denna tidplan hittades.",
-    "dependentProjectsFailed": "Mappen med beroende projekt kunde inte läsas."
+    "dependentProjectsFailed": "Mappen med beroende projekt kunde inte läsas.",
+    "costTypeChangeRefused": "Biblioteket vill byta typ mellan kostnad och en annan typ. Resursen har tilldelningar i det här projektet, så typen blir kvar som den är. Resursen visas nu som avvikande från biblioteket.",
+    "reportLayoutGone": "Layouten för rapporten finns inte längre. Rapporten visar alla uppgifter igen.",
+    "reportFontNoBold": "”{{name}}” har ingen fet variant. Fet text i rapporten använder det vanliga typsnittet.",
+    "reportFontMissing": "Ditt eget typsnitt ”{{name}}” finns inte längre på den här enheten. Rapporten använder Inter igen.",
+    "layoutsNotSaved": "Layouter kunde inte sparas. Ingenting har ändrats. Försök igen.",
+    "ifcForeignOpenSchema": "Den här IFC-filen innehåller data från ett annat program och har ett okänt eller saknat schema. Öppnandet har stoppats för att förhindra dataförlust när filen sparas.",
+    "ifcForeignOpenUnsafe": "Den här IFC-filen kan inte klassificeras säkert. Öppnandet har stoppats för att förhindra dataförlust när filen sparas.",
+    "ifc2x3PlanningOnly": "IFC2X3 öppnades som tidsplan. Data från andra program tas inte med vid sparning.",
+    "ifcForeignReplaceBlocked": "Inte sparad. Att spara över en befintlig fil med en byggnadsmodell är ännu inte säkert. Använd ”Spara som” och välj ett nytt namn.",
+    "ifcForeignMergeRefused": "IFC-filen skrevs inte. Byggnadsmodellen eller data från ett annat program skulle annars inte bevaras helt. Ångra den senaste ändringen, eller exportera bara tidsplanen: till IFC med ”Utan byggnadsmodell”, eller till ett annat format.",
+    "ifcSaveChangedWhileWaiting": "Inte sparad. Dokumentet eller källan till byggnadsmodellen ändrades under förberedelsen. Försök spara igen.",
+    "ifcForeignExportNewTarget": "Inte exporterad. Den här IFC-filen kan bara exporteras till ett nytt filnamn. Välj ett namn som inte finns än.",
+    "ifcSourceCopyFailed": "Tidsplanen sparas för kraschskydd, men kopian av byggnadsmodellen kunde inte sparas. Efter en krasch kan byggnadsmodellen saknas. Spara ditt projekt själv som en fullständig IFC-fil.",
+    "ifcForeignSourceMissing": "Inte sparad. Byggnadsmodellen eller data från ett annat program hittades inte. Använd ”Spara som” för att bara spara tidsplanen i en ny fil. Öppna den ursprungliga IFC-filen för att arbeta med hela filen igen."
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -370,6 +400,7 @@
     "addSubtask": "Ny underuppgift",
     "addMilestone": "Lägg till milstolpe",
     "addRelation": "Lägg till samband",
+    "dissolve": "Dissolve (behåll kedjan)",
     "delete": "Ta bort",
     "newTask": "Ny uppgift",
     "tracePath": "Spåra drivkedja",
@@ -438,6 +469,8 @@
     "experimentalHide": "Dölj",
     "demoTopbarAnimation": "Demo: animation i övre fältet",
     "demoTopbarAnimationHint": "En lugn orange glansvåg över det övre fältet. Visar hur en experimentell brytare fungerar.",
+    "ifcForeignContent": "Öppna IFC med en byggnadsmodell",
+    "ifcForeignContentHint": "Öppnar även en IFC-fil med en byggnadsmodell eller data från andra program. Du kan använda ”Spara som” till en ny fil, spara till webbplatsen, ladda ner i webbläsaren och använda Exportera → IFC, även utan byggnadsmodell eller med biblioteket bredvid (då bara med tidsplanen). Att spara över en befintlig lokal fil är ännu inte möjligt. Kraschskyddet för byggnadsmodellen kräver åtkomst till den ursprungliga filen eller en sparad kopia i webbläsaren.",
     "tourHint": "Gå igenom appens introduktionsrundtur igen.",
     "theme": "Tema",
     "themeHint": "Gränssnittets färgschema.",
@@ -448,6 +481,10 @@
     "themeSystemHint": "Följer färgschemat i ditt system (nu: {{theme}}).",
     "showTaskTypes": "Använd uppgiftstyper",
     "showTaskTypesHint": "Välj per uppgift vad som ändras när varaktighet, tilldelningsenhet eller arbete ändras, som Task Type i MS Project och Duration Type i P6. Av: varaktighet och tilldelningsenhet står kvar. En fil med uppgiftstyper eller sparat arbete visar dem även när detta är av.",
+    "dissolveSummaryMode": "Dissolve på en sammanfattningsuppgift",
+    "dissolveSummaryBranch": "Hela fasen, med underuppgifter",
+    "dissolveSummaryHeader": "Endast sammanfattningsraden",
+    "dissolveSummaryModeHint": "Vad Dissolve gör med en sammanfattningsuppgift. Hela fasen: underuppgifterna följer med bort, som vid ”Ta bort”. Endast sammanfattningsraden: underuppgifterna flyttas upp en nivå och står kvar.",
     "allowMixedDayHour": "Tillåt blandad dag/timplanering",
     "defaultTaskDurationUnit": "Standardenhet för nya uppgifter",
     "defaultTaskDurationUnitHint": "Dagsenhet: en varaktighet räknas i kalenderns arbetsdagar. Timenhet: en varaktighet räknas i arbetstimmar. Befintliga uppgifter ändras inte. En uppgift med fast arbete använder alltid timenheten.",
@@ -680,6 +717,7 @@
     "privacy": "Din anmälan och skärmbilden skickas till Open Feedback Studio av OpenAEC och kan visas som ett offentligt ärende på GitHub. Lägg inte in något du inte vill dela.",
     "sentWith": "Medskickat: v{{version}} · {{os}} · {{language}}",
     "sentTitle": "Tack, din anmälan har skickats.",
+    "sentIssue": "Din anmälan finns nu som ett issue på GitHub. Där kan du läsa vårt svar:",
     "alreadyIn": "Den här anmälan har redan kommit in till oss. Vill du lägga till något? Ändra då texten och skicka igen.",
     "sentScreenshotDropped": "Skärmbilden var för stor och skickades inte med.",
     "errorValidation": "Anmälan godtogs inte. Kontrollera texten (inte bara länkar) och e-postadressen och försök igen.",
@@ -921,7 +959,8 @@
       "equipment": "Utrustning",
       "material": "Material",
       "subcontractor": "Underentreprenör",
-      "crew": "Arbetslag"
+      "crew": "Arbetslag",
+      "cost": "Kostnad"
     },
     "name": "Namn",
     "typeLabel": "Typ",
@@ -930,6 +969,7 @@
     "costPerHour": "Standardkostnad/timme",
     "total": "Totalt",
     "totalHint": "Belastade tilldelningsenheter × timmar/dag × standardkostnad (beräkna om med F5)",
+    "costTotalHint": "Summa av beloppen på alla tilldelningar",
     "unitOfMeasure": "Enhet",
     "unitOnlyMaterial": "Fyll bara i för resurser av typen Material.",
     "parent": "Arbetslag",
@@ -1046,7 +1086,9 @@
       "documents": "Dokument",
       "selectHint": "Välj en resurs för att se histogrammet."
     },
-    "color": "Färg"
+    "color": "Färg",
+    "notForCost": "Gäller inte för en kostnadsresurs: den har bara ett fast belopp per tilldelning.",
+    "costTypeLocked": "Den här resursen har tilldelningar. Ta bort dem först för att byta mellan en kostnadsresurs och en annan typ."
   },
   "calendar": {
     "library": {
@@ -1896,6 +1938,26 @@
     "colOwnTask": "Aktivitet här",
     "colAnchor": "Ankardatum: gammalt → nytt",
     "saveAnyway": "Spara ändå",
+    "cancel": "Avbryt"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Spara endast tidsplanen?",
+    "body": "Byggnadsmodellen eller data från ett annat program hittades inte. Den nya filen innehåller bara tidsplanen. Den ursprungliga filen förblir oförändrad. Vill du fortsätta?",
+    "continue": "Fortsätt",
+    "cancel": "Avbryt"
+  },
+  "fatalError": {
+    "title": "Något gick fel",
+    "body": "Open Planner Studio kan inte fortsätta. Ladda om appen. Händer detta hela tiden, anmäl det och skicka med detaljerna nedan.",
+    "reload": "Ladda om",
+    "details": "Detaljer"
+  },
+  "ifcExportWithoutModel": {
+    "option": "Utan byggnadsmodell",
+    "title": "Exportera utan byggnadsmodell?",
+    "body": "Den nya filen innehåller bara tidsplanen. Byggnadsmodellen och data från ett annat program tas inte med. Den öppnade filen förblir oförändrad. Vill du fortsätta?",
+    "bodyWithPool": "Projektfilen innehåller bara tidsplanen; biblioteket hamnar i en andra fil. Byggnadsmodellen och data från ett annat program tas inte med. Den öppnade filen förblir oförändrad. Vill du fortsätta?",
+    "continue": "Exportera",
     "cancel": "Avbryt"
   }
 }
