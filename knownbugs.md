@@ -2872,6 +2872,16 @@ en noem het in je rapport of PR-tekst.
      Een eerdere versie van dit punt las `allow_file` als alleen letterlijk; dat was onjuist. Richting: bij #978, die
      de regel van 2.7.1 aan de proef toevoegt, de canonieke vorm in de nagebootste dialoog zetten. Gevonden door de
      review van #979. — B (bron en proef van de review)
+1758. **VERVOLG (#804, opslaan in de achtergrond, stap 2): de modelscan van het doel draait nog op de hoofdthread, en
+     kost meer dan de indeling.** Stap 2 haalde alleen de C/A/V-indeling uit de hoofdthread (`runForeignScan` in
+     `targetForeignScan.ts`). De modelscan ervoor (`scanTargetBytes`, en `scanTargetSource` als stroom) bleef bewust
+     zoals hij was. Gemeten in Node (V8, deze machine), een eigen planning van 10.000 taken (8,7 MiB, de
+     benchmarkgenerator): de hele doelscan 1,33 s, waarvan de modelscan 0,80 s en de indeling 0,50 s; op de hoofdthread
+     na stap 2 nog ongeveer 0,74 s. Op de stroomroute (Tauri-pad, FSA-bestand) komt die tijd in stukken van 1 MiB, met
+     echt lezen ertussen (ongeveer 90 ms per stuk; of de webview daartussen tekent, is niet gemeten). Op de siteroute
+     (`scanForeignTargetBytesAsync`) is het één blok. Richting: de modelscan ook in de scanworker, of één Worker die
+     eerst de modelscan en dan de indeling doet; de vroege stop bij een modelentiteit en het terugspoelen moeten dan
+     mee. — B (meting)
 
 ## Rondleiding, Help en extensie-gidsen
 
