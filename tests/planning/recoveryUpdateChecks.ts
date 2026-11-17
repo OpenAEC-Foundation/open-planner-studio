@@ -12,7 +12,8 @@ import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { clearRecovery, loadRecovery, recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
-import { registerRecoveryFlush, flushRecoveryNow } from '@/services/recovery/recoveryFlush';
+import { registerRecoveryFlush, flushRecoveryAfterWrites } from '@/services/recovery/recoveryFlush';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
@@ -98,7 +99,7 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     'src/services/updater/updaterService.ts', {
       '@/utils/platform': { isTauri: () => true },
       '@/services/githubRepo': { GITHUB_REPO: 'geen-netwerk' },
-      '@/services/recovery/recoveryFlush': { flushRecoveryNow },
+      '@/services/recovery/recoveryFlush': { flushRecoveryAfterWrites },
       '@tauri-apps/api/core': { invoke: async () => 'native' },
       '@tauri-apps/plugin-updater': { check: async () => ({
         download: async () => { calls.push('download'); },
@@ -192,9 +193,28 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     await install();
     assert.ok((await loadRecovery()).docs[0]!.ifc.includes('Nieuwste bewerking tijdens update'));
     assert.deepEqual(calls, ['download', 'download', 'install', 'relaunch']);
+
+    // #804 stap 3: een lopende projectopslag (de schrijfrij) houdt de herstart tegen tot hij klaar is; pas daarna de
+    // herstelronde, dus met wat de opslag vastlegde.
+    let releaseWrite: () => void = () => undefined;
+    const write = runProjectFileWrite(async () => {
+      await new Promise<void>(resolve => { releaseWrite = resolve; });
+      ctx.store.getState().updateTask(taskId, { name: 'Vastgelegd door de opslag' });
+    });
+    calls.length = 0;
+    statuses.length = 0;
+    const waiting = install();
+    await turn();
+    assert.deepEqual(calls, ['download']);
+    assert.deepEqual(statuses, [], 'de updater wacht op de lopende opslag');
+    releaseWrite();
+    await write;
+    await waiting;
+    assert.deepEqual(calls, ['download', 'install', 'relaunch']);
+    assert.ok((await loadRecovery()).docs[0]!.ifc.includes('Vastgelegd door de opslag'), 'de herstelronde liep na de opslag');
   } finally {
     failWrites();
     if (typeof cleanup === 'function') cleanup();
   }
-  console.log('OK  herstel vóór update: opslagfouten blokkeren installatie, timer en herpoging blijven bruikbaar');
+  console.log('OK  herstel vóór update: opslagfouten blokkeren installatie, timer en herpoging blijven bruikbaar, een lopende opslag wordt afgewacht');
 }

@@ -8,6 +8,7 @@ import { createAppQuitController, type AppQuitDocument } from '@/services/appQui
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { appStoreContext, createAppStoreContext } from '@/state/appStore';
 import { createPendingTextEdits, mountedPendingTextEdits } from '@/state/pendingTextEdits';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -24,6 +25,10 @@ function harness(initial: AppQuitDocument[]) {
     quitPending: false,
     recoveryOn: true,
     inputFinished: 0,
+    /** Een lopende of wachtende opslag (in de app: de schrijfrij). */
+    saving: null as Promise<void> | null,
+    /** Aantal foutmeldingen (in de app: een mislukte of geweigerde opslag meldt zich zo). */
+    errors: 0,
   };
   const controller = createAppQuitController({
     finishPendingInput: () => { world.inputFinished++; },
@@ -34,7 +39,23 @@ function harness(initial: AppQuitDocument[]) {
     stopRecovery: () => { world.recoveryOn = false; log.push('herstel-uit'); },
     clearRecovery: async () => { log.push('herstel-gewist'); },
     destroyWindow: async () => { log.push('venster-dicht'); },
+    waitForSaves: () => {
+      const saving = world.saving;
+      if (!saving) return null;
+      log.push('aanduiding-aan');
+      return saving.then(() => { world.saving = null; log.push('aanduiding-uit'); });
+    },
+    watchFailures: () => {
+      const seen = world.errors;
+      return () => world.errors > seen;
+    },
   });
+  /** Laat een opslag lopen tot `release()`. */
+  const hold = () => {
+    let release!: () => void;
+    world.saving = new Promise<void>((r) => { release = r; });
+    return release;
+  };
   // De sluit-bevestiging, zoals CloseDocumentDialog hem afhandelt.
   const answer = (choice: 'opslaan' | 'niet-opslaan' | 'annuleren' | 'opslaan-mislukt') => {
     const id = world.pending!;
@@ -43,7 +64,7 @@ function harness(initial: AppQuitDocument[]) {
     controller.step();
   };
   const settle = () => new Promise((r) => setTimeout(r, 0));
-  return { controller, world, log, answer, settle };
+  return { controller, world, log, answer, settle, hold };
 }
 
 // 1. Niets ongeopgeslagen: meteen herstel uit, gewist, venster dicht — zonder vraag.
@@ -140,6 +161,136 @@ function harness(initial: AppQuitDocument[]) {
   eq('7 andere context raakt de zichtbare invoer niet', commits, 0);
   appStoreContext.store.getState().newDocument();
   eq('7 de gemounte context rondt hem af', commits, 1);
+  off();
+}
+
+// 8. #804 stap 3 (besluit eigenaar 17 november 2026: wachten, dan sluiten). Afsluiten tijdens een opslag wacht eerst,
+//    met "Wordt nog opgeslagen…", en zet pas daarna het herstel uit en wist het.
+{
+  const h = harness([{ id: 'a', isDirty: false }]);
+  const release = h.hold();
+  eq('8 CloseRequested wordt overgenomen', h.controller.requestQuit(), true);
+  await h.settle();
+  eq('8 eerst wachten met de aanduiding; het herstel blijft', [h.log, h.world.recoveryOn], [['aanduiding-aan'], true]);
+  h.controller.requestQuit();
+  h.controller.step();
+  eq('8 nog een sluitpoging of storewijziging: geen tweede wachtronde', h.log, ['aanduiding-aan']);
+  release();
+  await h.settle();
+  eq('8 daarna de schone exit', h.log, ['aanduiding-aan', 'aanduiding-uit', 'herstel-uit', 'herstel-gewist', 'venster-dicht']);
+}
+
+// 9. Een opslag die tijdens het wachten mislukt (er komt een foutmelding), breekt het afsluiten af, zoals een mislukte
+//    opslag uit de sluitvraag: geen vraag, het herstel blijft staan, het venster blijft open.
+{
+  const h = harness([{ id: 'a', isDirty: true }]);
+  const release = h.hold();
+  h.controller.requestQuit();
+  h.world.errors++;
+  release();
+  await h.settle();
+  eq('9 geen vraag en geen exit', h.log, ['aanduiding-aan', 'aanduiding-uit']);
+  eq('9 herstel aan, afsluiten afgebroken', [h.world.recoveryOn, h.world.quitPending, h.controller.active], [true, false, false]);
+}
+
+// 10. Een document dat tijdens de opslag verder gewijzigd is (na het wachten nog gewijzigd, zonder fout): de gewone
+//     sluitvraag.
+{
+  const h = harness([{ id: 'a', isDirty: true }, { id: 'b', isDirty: false }]);
+  const release = h.hold();
+  h.controller.requestQuit();
+  release();
+  await h.settle();
+  eq('10 na het wachten de sluitvraag', h.log, ['aanduiding-aan', 'aanduiding-uit', 'vraag:a']);
+  h.answer('niet-opslaan');
+  await h.settle();
+  eq('10 daarna dicht', h.log.slice(3), ['herstel-uit', 'herstel-gewist', 'venster-dicht']);
+}
+
+// 11. Loopt er na de sluitvraag nog een schrijfactie (een AutoSave-ronde), dan wacht het afsluiten ook daarop.
+{
+  const h = harness([{ id: 'a', isDirty: true }]);
+  h.controller.requestQuit();
+  const release = h.hold();
+  h.answer('opslaan');
+  await h.settle();
+  eq('11 na de vraag eerst wachten', [h.log, h.world.recoveryOn], [['vraag:a', 'aanduiding-aan'], true]);
+  release();
+  await h.settle();
+  eq('11 daarna dicht', h.log.slice(1), ['aanduiding-aan', 'aanduiding-uit', 'herstel-uit', 'herstel-gewist', 'venster-dicht']);
+}
+
+// 12. De echte randen (`appQuitDependencies`): de schrijfrij, de aanduiding `ui.savingBeforeClose` in de store, en een
+//     nieuwe of herhaalde foutmelding als teken dat een opslag tijdens het wachten mislukte.
+{
+  const ctx = createAppStoreContext();
+  const s = () => ctx.store.getState();
+  s().newProject();
+  ctx.store.setState((st) => { st.isDirty = false; });
+  const log: string[] = [];
+  const shown: boolean[] = [];
+  const off = ctx.store.subscribe((now, before) => {
+    if (now.ui.savingBeforeClose !== before.ui.savingBeforeClose) shown.push(now.ui.savingBeforeClose);
+  });
+  const controller = createAppQuitController(appQuitDependencies(ctx, {
+    stopRecovery: () => { log.push('herstel-uit'); },
+    clearRecovery: async () => { log.push('herstel-gewist'); },
+    destroyWindow: async () => { log.push('venster-dicht'); },
+  }));
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  const failedSave = () => s().notify({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: 'opslag-1' });
+  let release: () => void = () => undefined;
+  const holdWrite = () => runProjectFileWrite(() => new Promise<void>((r) => { release = r; }));
+
+  let write = holdWrite();
+  controller.requestQuit();
+  await settle();
+  eq('12 tijdens de opslag: de aanduiding staat, niets gewist', [s().ui.savingBeforeClose, s().ui.appQuitPending, log], [true, true, []]);
+  failedSave();
+  release();
+  await write;
+  await settle();
+  eq('12 mislukt: afgebroken, aanduiding weg', [s().ui.savingBeforeClose, s().ui.appQuitPending, log], [false, false, []]);
+
+  // Dezelfde fout nog een keer (samengevouwen tot "×2", geen nieuwe melding) telt ook.
+  write = holdWrite();
+  controller.requestQuit();
+  await settle();
+  failedSave();
+  release();
+  await write;
+  await settle();
+  eq('12 herhaalde fout: opnieuw afgebroken', [s().ui.appQuitPending, log], [false, []]);
+
+  // Geslaagd: de oude foutmeldingen van eerder tellen niet.
+  write = holdWrite();
+  controller.requestQuit();
+  await settle();
+  release();
+  await write;
+  await settle();
+  eq('12 geslaagd: daarna de schone exit', log, ['herstel-uit', 'herstel-gewist', 'venster-dicht']);
+  eq('12 de aanduiding drie keer aan en weer uit', shown, [true, false, true, false, true, false]);
+  off();
+}
+
+// 13. Zonder lopende opslag: de volgorde van nu, zonder aanduiding.
+{
+  const ctx = createAppStoreContext();
+  ctx.store.getState().newProject();
+  ctx.store.setState((st) => { st.isDirty = false; });
+  const log: string[] = [];
+  let shown = false;
+  const off = ctx.store.subscribe((now) => { if (now.ui.savingBeforeClose) shown = true; });
+  const controller = createAppQuitController(appQuitDependencies(ctx, {
+    stopRecovery: () => { log.push('herstel-uit'); },
+    clearRecovery: async () => { log.push('herstel-gewist'); },
+    destroyWindow: async () => { log.push('venster-dicht'); },
+  }));
+  controller.requestQuit();
+  eq('13 de stappen beginnen meteen, in dezelfde beurt', log, ['herstel-uit', 'herstel-gewist']);
+  await new Promise((r) => setTimeout(r, 0));
+  eq('13 schone exit zonder aanduiding', [log, shown], [['herstel-uit', 'herstel-gewist', 'venster-dicht'], false]);
   off();
 }
 
