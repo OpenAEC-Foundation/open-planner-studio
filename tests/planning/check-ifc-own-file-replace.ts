@@ -109,6 +109,19 @@ function placeCalls(answers: Record<number, (from: string, to: string, real: () 
   ipc.faults.place = (from, to, real) => answers[++n]?.(from, to, real);
   return () => n;
 }
+/** Een ander programma doet iets vlak vóór (of na) de n-de plaatsing van de vervanging; los van het nagebootste
+ *  commando, zodat het ook gebeurt als de plaatsing iets anders is (mutatie a). */
+async function aroundPlace(n: number, when: 'before' | 'after', act: () => void): Promise<OwnFileReplaceFs> {
+  const base = await tauriOwnFileReplaceFs();
+  let calls = 0;
+  return { ...base, place: async (from, to) => {
+    const mine = ++calls === n;
+    if (mine && when === 'before') act();
+    const outcome = await base.place(from, to);
+    if (mine && when === 'after') act();
+    return outcome;
+  } };
+}
 const reject = (code: string, extra: Record<string, string> = {}): { reject: Record<string, string> } => ({ reject: { code, ...extra } });
 const tidy = async (c: Case) => {
   ipc.faults.place = null; ipc.faults.writeErrorAfter = null; ipc.faults.forbidden = null; ipc.faults.beforeOpen = null;
@@ -276,8 +289,7 @@ await check('stap 3 source-changed: onbekende stand, niets teruggezet en niets o
 await check('stap 4 target-exists (een ander programma zette na stap 3 een bestand op het doel): alle drie blijven staan', async () => {
   const c = await opened();
   try {
-    placeCalls({ 2: () => { writeFileSync(c.path, otherNew); return undefined; } });
-    const { result, committed } = await replace(c);
+    const { result, committed } = await replace(c, await aroundPlace(2, 'before', () => writeFileSync(c.path, otherNew)));
     assert.equal(result.code, 'target-taken'); assert.equal(committed, false);
     const id = helperId(c);
     assert.deepEqual(disk(c), {
@@ -333,8 +345,7 @@ await check('stap 4 faalt en terugzetten ook: de melding zegt waar de vorige ver
 await check('het doel verandert tussen stap 2 en 3: de versie van de ander blijft als "versie van ander programma"', async () => {
   const c = await opened();
   try {
-    placeCalls({ 1: () => { writeFileSync(c.path, otherProgram); return undefined; } });
-    const { result } = await replace(c);
+    const { result } = await replace(c, await aroundPlace(1, 'before', () => writeFileSync(c.path, otherProgram)));
     assert.deepEqual(result, { code: 'replaced', otherVersion: join(c.dir, OTHER_COPY), leftOver: null });
     assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [OTHER_COPY]: hash(otherProgram) });
     const [notice] = ownPathReplaceNotices(result, c.path);
@@ -346,12 +357,7 @@ await check('het doel verandert tussen stap 2 en 3: de versie van de ander blijf
 await check('een ander programma schrijft na stap 3 in de vorige versie: die blijft als "versie van ander programma"', async () => {
   const c = await opened();
   try {
-    placeCalls({ 2: (_f, _t, real) => {
-      const answer = real();
-      writeFileSync(previousVersionPath(c.path, helperId(c)), otherProgram);
-      return answer;
-    } });
-    const { result } = await replace(c);
+    const { result } = await replace(c, await aroundPlace(2, 'after', () => writeFileSync(previousVersionPath(c.path, helperId(c)), otherProgram)));
     assert.equal(result.code, 'replaced');
     assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [OTHER_COPY]: hash(otherProgram) });
   } finally { await tidy(c); }
@@ -361,8 +367,7 @@ await check('de naam van de kopie volgt de taal van de app', async () => {
   await i18next.changeLanguage('en');
   const c = await opened();
   try {
-    placeCalls({ 1: () => { writeFileSync(c.path, otherProgram); return undefined; } });
-    const { result } = await replace(c);
+    const { result } = await replace(c, await aroundPlace(1, 'before', () => writeFileSync(c.path, otherProgram)));
     assert.equal(result.code === 'replaced' && result.otherVersion, join(c.dir, 'model (version from another program 2026-11-17 14.32).ifc'));
   } finally { await i18next.changeLanguage('nl'); await tidy(c); }
 });
