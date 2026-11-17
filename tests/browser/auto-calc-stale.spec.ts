@@ -97,7 +97,7 @@ test('automatisch berekenen herhaalt een mislukte berekening niet tot de invoer 
 
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const dialog = page.locator('.settings-dialog');
-  await dialog.locator('.settings-tab').filter({ hasText: /^Planning$/ }).click();
+  await dialog.locator('[data-ops-settings-group="planning"]').click();
   await dialog.getByLabel(/^(Calculate automatically|Automatisch berekenen)$/).check();
   await dialog.locator('.modal-close-btn').click();
   await expect(dialog).toBeHidden();

@@ -2883,6 +2883,12 @@ en noem het in je rapport of PR-tekst.
      of schrijf dat de vlag niet waar is. Alleen commentaar; het gedrag klopt.
      Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
+1712. **De tutorial over resources noemt mogelijk nog de oude plek van *Taaktypes gebruiken*.**
+      Sinds #942 staat die instelling in de groep *Planning* (Engels: *Scheduling*) van de
+      app-instellingen. De stapscript-test (`tests/browser/tutorials/tut-5.ts`, stap `werkregel`) is
+      bijgewerkt, maar de tekst van tutorial 5 staat in de tutorials-extensie, buiten deze repo, en is
+      niet nagelopen. Richting: de tekst daar controleren op "tabblad Planning" / "Planning tab". — S
+
 ## Teksten en helpteksten
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
@@ -3665,6 +3671,29 @@ en noem het in je rapport of PR-tekst.
      afgerond is rood). Andere `check-*.ts` met `main().catch(...)` of top-level `await` hebben die bewaking niet; of er
      nu een stil afbrekende check is, is niet nagegaan. Richting: één bewaking in de harness (`run.sh` of de bundel van
      een check) die eist dat het script zijn einde haalde, in plaats van per check. — B (voor die ene check), S (rest)
+
+1710. **VERVOLG: de zoekroute over alle zichtbare teksten slaat het blok Experimenteel over.**
+      `assertVisibleTextsFindTheirSetting` in `tests/browser/settings-tabs.spec.ts` draait vóór het
+      ontgrendelen en leest alleen knoppen en labels. De zoekteksten van Experimenteel (uitleg per
+      schakelaar, knop Verbergen) zijn daardoor niet bewaakt. Richting: na het bestaande ontgrendelen
+      zoeken op "Verbergen" en de uitleg van de twee schakelaars. Het zoeken zelf werkt (met de hand
+      nagelopen in nl en en). Sol-review ronde 4 van #942: [BEVESTIGD] VERVOLG. — B
+1711. **`settings-tabs.spec.ts` overschrijft bij elke run gecommit schermbewijs.** De stap voor
+      Duurweergave schrijft `artifacts/uren-f4a/duurweergave-ops-{light,dark}.png` zodra de rij in
+      de dialoog staat (`tests/browser/settings-tabs.spec.ts`, regel met `durationRow.screenshot`).
+      Schermbewijs in `artifacts/` hoort na de merge niet meer te veranderen, dus elke lokale run laat
+      twee gewijzigde PNG's achter. Richting: naar `test-results/` schrijven, of alleen met een
+      omgevingsvariabele naar `artifacts/`. Gezien tijdens #942 (bestond al eerder). — B
+1713. **VERVOLG: commentaar bij de Backstage-stap in `settings-tabs.spec.ts` noemt de oorzaak te
+      stellig.** Er staat dat de test in CI Ctrl+F drukte vóór het paneel geladen was ("geen
+      gebruikersgeval"). Dat is afgeleid, niet uit een trace bewezen. Richting: alleen beschrijven wat
+      de stap doet (wachten tot het paneel zichtbaar is, focus op de navigatie controleren). Sol-review
+      ronde 5 van #942: [BEVESTIGD] VERVOLG. — B
+1714. **VERVOLG: het pijltje in het pictogram van de pil wijst bij een rechts-naar-links-taal naar
+      links.** `.sv-chrome-chevron` in `src/components/settings/settingVisuals.css` gebruikt
+      `border-inline-end` met een vaste `rotate(45deg)`; in RTL wordt dat de linkerrand en kantelt het
+      pijltje. Een pijltje omlaag hoort zijn richting te houden. Richting: `border-right` in plaats van
+      `border-inline-end`. Sol-review ronde 8 van #942: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 
@@ -4574,3 +4603,9 @@ en noem het in je rapport of PR-tekst.
      Controle 2 (Windows) voegt niets toe zolang elke backslash verboden is. Richting: beide invoervormen meenemen,
      controle 2 weghalen en de tekst beperken tot de bewaakte regressie; bouw geen tweede glob-parser in TypeScript.
      Gevonden door de review van #963 (Sol, ronde 1). — B
+
+1757. **Wens (#804, herkomst): "laatst gewijzigd met Open Planner Studio" op een taak van een ander programma.**
+     Wijzigt de planner een taak uit Bonsai of Synchro, dan blijft de herkomst zoals hij was (ontwerp §4.5; besluit van
+     de eigenaar, 17 november 2026). De andere optie is niet gebouwd: de taak krijgt een eigen owner history met
+     `LastModifyingApplication` = OPS, terwijl "gemaakt met" van het andere programma blijft en de gedeelde owner
+     history heel blijft. Pas bouwen als een gebruiker erom vraagt. — S

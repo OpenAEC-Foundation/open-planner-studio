@@ -1,7 +1,9 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 20 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
-4 van de review van PR #839 door Sol en Terra, §12; daarna de uitkomst van fase 0, met drie besluiten van wrakko, §11).
+Status: ontwerp, versie 21 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
+4 van de review van PR #839 door Sol en Terra, §12; daarna de uitkomst van fase 0, met drie besluiten van wrakko, §11;
+17 november 2026: de besluiten van de eigenaar van 16 en 17 november in §11, met de namen van de kopieën in §4.10 en
+het ritme van Automatisch opslaan en de export in §4.12).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -359,7 +361,8 @@ verdwijnen.
   writer schrijft het brontoken terug, en de owner history van het andere programma blijft als C staan (§4.2 stap 4). Zo
   heeft het object na elk opslaan, en na sluiten en opnieuw openen, nog steeds vreemde herkomst. De app past de owner
   history van een ander programma niet aan, ook niet als de planner het object wijzigt (geen nieuwe `ChangeAction`): het
-  is een stuk van een ander, en het kan gedeeld zijn. (Fable, Opus en Sol, ronde 6: in v6 zette de writer overal zijn
+  is een stuk van een ander, en het kan gedeeld zijn. De eigenaar bevestigde dit op 17 november 2026 (§11, punt 8).
+  (Fable, Opus en Sol, ronde 6: in v6 zette de writer overal zijn
   eigen owner history; na één opslaan had alles eigen herkomst, en bij het tweede opslaan heette werkplan 'Plan' 'Proj'
   en verdween de `QuantityInProcess` van Bonsai.)
 - De lezer bewaart voor elk D-stuk en elk R-stuk **alle** ruwe slot-tokens en het entiteittype, in `ifcSource.sourceSlots`.
@@ -718,8 +721,14 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     sha256 van de inhoud vergelijken; anders stopt opslaan (eerste punt hierboven). 3: het doel exclusief verplaatsen
     naar `<naam>.ops-vorige-<id>`. 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
     `.ops-vorige` narekenen. Gelijk aan `vorigeSha256`: verwijderen. Anders (een programma schreef via een open handle in
-    het oude bestand): exclusief verplaatsen naar `<naam> (conflict <datum tijd>).ifc` en melden. 6: het manifest
-    bijwerken en `pendingReplace` wissen.
+    het oude bestand): exclusief verplaatsen naar `<naam> (versie van ander programma <datum tijd>).ifc` en melden. 6:
+    het manifest bijwerken en `pendingReplace` wissen.
+  - **Namen van de kopieën** (besluit van de eigenaar, 17 november 2026). De naam zegt wiens versie het is: de versie
+    die een ander programma intussen schreef heet `<naam> (versie van ander programma <datum tijd>).ifc`, de eigen
+    planning na een crash midden in een opslag heet `<naam> (niet opgeslagen planning <datum tijd>).ifc`. De tijd staat
+    met een punt, bijvoorbeeld `Kantoor Zuidas (versie van ander programma 2026-11-17 14.32).ifc`. In een Engelse app
+    hetzelfde in het Engels. "Conflictkopie" en "herstelkopie" zijn in dit ontwerp alleen de interne namen voor deze
+    twee bestanden; de planner ziet die woorden niet.
   - **Fouten.** Faalt stap 4 omdat er weer een bestand op het doelpad staat, dan stopt opslaan. Alle drie de bestanden
     blijven staan, en de melding noemt de precieze paden: het nieuwe bestand op het doelpad, de uitvoer van de app in
     het tijdelijke bestand en de vorige versie in `.ops-vorige`. Geeft stap 4 `source-changed`, dan stopt de app met een
@@ -733,7 +742,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `.ops-vorige` de `vorigeSha256`, dan verwijdert hij `.ops-vorige`. Ontbreekt het doel (crash tussen stap 3 en 4), dan
     zet hij `.ops-vorige` exclusief terug; herstel neemt dan de oude bron met de oude `sha256`. Het tijdelijke bestand
     bevat de volledige nieuwe planning, en de herstelsnapshot kan tot 10 s achterlopen (`useAutoSave.ts:19-27`). Daarom
-    verplaatst de app het exclusief naar `<naam> (herstelkopie <datum tijd>).ifc`, meldt het pad, en laat het staan tot
+    verplaatst de app het exclusief naar `<naam> (niet opgeslagen planning <datum tijd>).ifc`, meldt het pad, en laat het staan tot
     de planner na herstel weer heeft opgeslagen of de kopie zelf weggooit (Sol, ronde 4). Een `.ops-vorige` met een andere sha256 wordt een conflictkopie, met een melding. Het tijdelijke
     bestand (eigen id, met `createNew` gemaakt) verwijdert hij in de andere gevallen zodra het doel `sha256` of
     `pendingSha256` heeft.
@@ -783,8 +792,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 | `exportAs('ifc')` | `fileSlice.ts:1396-1399` | Volledig bestand, zelfde controles; vervangt `ifcSource` niet (§4.8). |
 | Exporteren → IFC zonder gebouwmodel | `fileSlice.ts`, nieuw | Modus `planOnly`: alleen P (de huidige uitvoer). Vraag vooraf die dat zegt. |
 | `exportProjectWithPool` | `fileSlice.ts:1474` | Een export voor uitwisseling van resources: alleen planning en pool, zonder model, met een vraag vooraf. |
-| Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER) | `fileSlice.ts` | Alleen planning, met een vraag vooraf. Het model gaat niet mee. |
-| Echte AutoSave naar het bestand | `useAutoSave.ts:148` | Volledig bestand, op de hoofdthread. Langere wachttijd met een vreemd deel (voorstel 60 s, te meten). |
+| Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER) | `fileSlice.ts` | Alleen planning; het model gaat niet mee. STEP↔IFCX: met een vraag vooraf. CSV, MSPDI, XER en het voortgangsblad: geen vraag; de melding na afloop zegt dat alleen de planning is geëxporteerd (besluit van de eigenaar, 16 november 2026; knownbug 1740). |
+| Echte AutoSave naar het bestand | `useAutoSave.ts:148` | Volledig bestand, in de achtergrond (besluit van de eigenaar, 16 november 2026; tot opslaan in de achtergrond er is, stopt AutoSave bij een vreemd deel met één melding, §4.10). Ritme met een vreemd deel (besluit van de eigenaar, 17 november 2026): opslaan na 30 s rust, en bij onafgebroken doorwerken uiterlijk na 5 minuten. Technische ondergrens: een opslag neemt nooit meer dan ongeveer een tiende van de tijd in. |
 | Crashherstel (10 s) | `recoverySnapshotInput.ts` | Alleen P + verwijzing naar de bron (§4.14). |
 | MCP-backup | `backupService.ts:312` | P + de sha256 van de bron, geen modelkopie. Terugzetten = de planning uit de backup + het vreemde deel van de **huidige** bron van het open document; dat verandert tussen opslagrondes alleen via §4.6–4.7. D-objecten koppelen via de kaart van de huidige bron; een object dat daar niet meer staat, geldt als nieuw. Is er geen open document met een bron, dan zet de app alleen de planning terug, als nieuw document, met een melding. (Fable, ronde 5: met twee bewaarde bronnen was een backup van vóór een agentfout na twee AutoSaves zijn model kwijt.) |
 | MCP-bestandstools, `planner_export_ifc` | `mcp/tools/fileTools.ts` | Volledig bestand, zelfde controles. |
@@ -1404,6 +1413,55 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
    gebruikt (advies Bjorn, §5.2).
 2. **`openaec::activity` meeschrijven**: vervalt; ifcx-explorer leest `openaec::planning::activity` (§5.3).
 3. **Planning van een ander programma in `openaec::planning::`**: openen en bewerken (§5.5).
+
+**Besluiten van de eigenaar, 16 en 17 november 2026.** Genomen tijdens de bouw van fase 1, elk op een voorgelegde
+keuze. Waar een besluit eerdere tekst vervangt, staat dat erbij. Nog niet herschreven naar deze besluiten: §4.10 (het
+bestand is intussen gewijzigd), §4.8, §1, §7, §5.1 en §6.5 (bijwerken en samenvoegen, de modelbron) en §5.3 (het
+profiel); daar geldt deze lijst.
+
+1. **Ctrl+S buiten de thuismap** bij een bestand met een gebouwmodel (knownbug 1762): overal, maar later. Nu alleen in
+   de thuismap; daarbuiten verwijst de app naar *Opslaan als*. De uitbreiding is de laatste bouwtaak vóór de
+   featureflag standaard aan gaat.
+2. **Automatisch opslaan** bij een bestand met een gebouwmodel: aan, met opslaan in de achtergrond, ook voor gewone
+   bestanden. Tot dat er is, blijft de melding dat automatisch opslaan gestopt is (§4.10, §4.12). Het ritme staat in
+   §4.12.
+3. **Het bestand is intussen door een ander programma gewijzigd.** Na een onderzoek (16 november 2026): het gewone
+   geval is een nieuwe export van de architect, zonder planning. Besloten:
+   - de planner slaat standaard op in een eigen bestand, met het bestand van de architect als modelbron en een knop
+     *Gebouwmodel bijwerken*; opslaan in het geopende bestand blijft mogelijk, en de app zet de planning terug in een
+     nieuwe export;
+   - bevat de nieuwe versie de planning niet: een instelling, standaard vragen (de app meldt het, toont wat er wegvalt
+     en vraagt of de planning erin moet); de andere stand doet het vanzelf en meldt het achteraf;
+   - wijzigden beiden de planning: samenvoegen waar het kan; bij overlap één scherm met één lijst van alle botsende
+     taken en relaties, per regel de twee versies naast elkaar, in elke volgorde te kiezen, met "Alles van mij",
+     "Alles van de ander" en één knop Samenvoegen. De keuze is per taak of relatie, niet per veld; daarna rekent de app
+     opnieuw en toont hij wat er verschoof;
+   - zonder eigen wijzigingen laadt een nieuwe versie vanzelf als alleen het gebouwmodel anders is; is ook de planning
+     anders, dan een balk met *Herladen*. Met eigen wijzigingen laadt er nooit iets vanzelf.
+   Niet bouwen: een samenvoeging op IFC-entiteiten, een slot op het bestand, *Toch opslaan*. Volgorde: Ctrl+S op de
+   desktop eerst met de eenvoudige weigering, daarna bijwerken en samenvoegen, de modelbron daarna.
+4. ***Opslaan als* over een andere bestaande naam** (knownbug 1130): de desktopapp vervangt het bestand langs de
+   veilige weg van §4.10, gebouwd na Ctrl+S op de desktop; tot dan de weigering. In de browser blijft *Opslaan als* met
+   een gebouwmodel een download.
+5. **Na een download omdat de browser schrijftoestemming weigert** (knownbug 1768): het document blijft gewijzigd tot
+   het geopende bestand is bijgewerkt; de melding noemt de kopie in Downloads.
+6. **Exporteren naar CSV, MSPDI of XER**: geen vraag vooraf, wel een zin in de melding na afloop (§4.12).
+7. **Een eigen taaktype van het project hernoemen** (knownbug 1748): de app vraagt bij hernoemen of het ook in dit
+   project moet.
+8. **Een taak van een ander programma die de planner wijzigt**: de herkomst blijft zoals hij was (§4.5). Een eigen
+   "laatst gewijzigd met Open Planner Studio" is een wens (knownbug 1757), pas te bouwen als iemand erom vraagt.
+   **Koppelingen van een ander programma naar een taak die de planner wist** (§4.7): meteen bij het wissen een melding
+   met het aantal koppelingen dat bij het opslaan vervalt en een knop *Ongedaan maken*, zonder vraag; na het opslaan
+   dezelfde melding als nu. Fase 2.
+9. **De namen van de kopieën**: §4.10. De overige teksten beoordeelt de eigenaar in de app, als ze definitief zijn.
+10. **Sluiten tijdens een opslag** (document of app): de app wacht, toont "Wordt nog opgeslagen…" en sluit daarna
+    vanzelf.
+11. **Wat de planner ziet tijdens het opslaan**: rustig in de statusbalk, "Opslaan…" en daarna "Opgeslagen 14:32", bij
+    elk bestand, met en zonder gebouwmodel; een fout komt als gewone melding.
+12. **Het IFCX-profiel voor planning** staat voorlopig in deze repo; een eigen repo later, als een tweede programma
+    meebeheert (antwoord van Bjorn op #804, 16 november 2026). De velden, de betekenis van lag en de tests zijn eigen
+    keuzes, die wij documenteren; fase 3 wacht niet meer op afstemming. Het besluit van 14 november (een eigen kleine
+    repo) vervalt daarmee voorlopig.
 
 **Besluit over het Rust-commando** (wrakko, 9 november 2026): het smalle commando `place_file_exclusive(from, to)`
 (§4.10) mag in fase 2. Het is een technische keuze; de planner merkt alleen dat opslaan veiliger is. Voorwaarden:

@@ -52,7 +52,7 @@ If you type a remaining duration, the app works back to the percentage: for a ta
 
 ### 3. Recalculate the schedule
 
-Every change to progress or the status date makes the schedule out of date: the status bar reports *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example through *Planning › Schedule › Calculate*. If *Calculate automatically* is on (under *Settings › Project › App settings*, tab *Planning*), the app does this itself.
+Every change to progress or the status date makes the schedule out of date: the status bar reports *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example through *Planning › Schedule › Calculate*. If [Calculate automatically](settings://autoCalc) is on (under *Settings › Project › App settings*, group *Scheduling*), the app does this itself.
 
 ## Checking the result
 

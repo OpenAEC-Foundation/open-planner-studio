@@ -384,8 +384,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (`text-caption`…`text-title`); `text-xs`/`text-sm` no longer exist and silently do nothing.
 - **Settings:** `localStorage` under `ops-` keys (no store plugin: the npm dependency `@tauri-apps/plugin-store`
   is gone; the Rust side still registers `tauri-plugin-store`, unused), declared in `settingsRegistry.ts`.
-  A setting in `SettingsPanelContent` automatically appears in all three places (⚙, Settings tab, Backstage);
-  a remembered view choice via a ribbon button or dragging does not belong there.
+  A setting in the panel is one entry in `src/components/settings/catalog/settingsCatalog.tsx` (plus its id in
+  `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
+  the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
+  A remembered view choice via a ribbon button or dragging does not belong there.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
@@ -445,7 +447,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
 - **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
   name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
   Flags default to off; `writesNewIfcData` does not hide or disable the experimental switch. The hidden
-  Experimental block in Settings → Advanced is unlocked by activating its version number for
+  Experimental block in Settings → About is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
   removes its flag and the corresponding checks. List the flag's own UI texts in `texts` (`ns:path` or

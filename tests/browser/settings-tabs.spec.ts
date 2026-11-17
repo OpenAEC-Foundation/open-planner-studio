@@ -1,109 +1,241 @@
-// U1: Instellingen kreeg drie tabs (Weergave/Planning/Geavanceerd i.p.v. de oude vier), met de
-// sectie Project eruit. Dit is de ENE gedeelde `SettingsPanelContent`-component op drie ingangen
-// (tandwiel-popup, Instellingen-ribbontab, Backstage → Instellingen) — deze test bewijst dat alle
-// drie daadwerkelijk dezelfde tabs/sectiekoppen tonen ná echte klikken, niet alleen ná een
-// store-fixture. Openen/sluiten/tab-wisselen en de verborgen schakelaars gaan via echte
-// DOM-interacties; de brug zet alleen de herlaadfixture en leest de opgeslagen keuzes.
+// Het instellingenpaneel is ÉÉN gedeelde `SettingsPanelContent`-component op drie ingangen
+// (tandwiel-popup, Instellingen-ribbontab, Backstage → Instellingen), opgebouwd uit één lijst
+// (`settingsCatalog.tsx`): links de groepen, rechts de instellingen, bovenaan zoeken en "Alleen
+// gewijzigd". Deze test bewijst dat alle drie de ingangen dezelfde groepen en instellingen tonen ná
+// echte klikken, en loopt zoeken, terugzetten, het filter en de directe link door. Openen, sluiten,
+// groep wisselen en de verborgen schakelaars gaan via echte DOM-interacties; de brug zet alleen
+// fixtures en leest de opgeslagen keuzes.
 import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import type { Locator, Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
-const TAB_LABELS: RegExp[] = [
-  /^(Appearance|Weergave)$/,
-  /^Planning$/,
-  /^(Advanced|Geavanceerd)$/,
-];
+const GROUP_LABELS: Record<string, RegExp> = {
+  appearance: /^(Appearance|Uiterlijk)$/,
+  notation: /^(Formats|Notatie)$/,
+  timeline: /^(Timeline|Tijdlijn)$/,
+  workspace: /^(Workspace|Werkruimte)$/,
+  planning: /^(Scheduling|Planning)$/,
+  notices: /^(Notices|Meldingen)$/,
+  advanced: /^(Advanced|Geavanceerd)$/,
+  about: /^(About|Over de app)$/,
+};
 
-// Exacte sectiekoppen (h3/h4) per tab, in de vaste volgorde uit AGENTS.md/de opdracht.
-const SECTION_HEADINGS: RegExp[][] = [
-  [
-    /^(Theme|Thema)$/,
-    /^(Language|Taal)$/,
-    /^(Font|Lettertype)$/,
-    /^(Text size|Tekengrootte)$/,
-    /^(Date format|Datumnotatie)$/,
-    /^(Time format|Tijdnotatie)$/,
-    /^(Duration display|Duurweergave)$/,
-    /^(Document switch style|Documentwissel-stijl)$/,
-    /^(Ribbon|Lint)$/,
-    // #851: Kolommen automatisch aanpassen staat in een eigen sectie Taakraster.
-    /^(Task grid|Taakraster)$/,
-    /^Gantt$/,
-    /^(Timeline axis|Tijd-as)$/,
-    /^(Quarter-hour zoom|Kwartierzoom)$/,
-    /^(Task bars at interruptions|Taakbalken bij onderbrekingen)$/,
-    /^(Scroll & zoom|Scrollen & zoomen)$/,
-  ],
-  [
-    /^(Construction mode|Bouwmodus)$/,
-    /^(Week starts on|Week begint op)$/,
-    /^(Calculation|Berekenen)$/,
-    // De instelling voor Dissolve bij een samenvattingstaak heeft een eigen sectie (sinds #887).
-    /^(Dissolve on a summary task|Dissolve bij een samenvattingstaak)$/,
-  ],
-  [
-    // Uitleg na het openen van een ander formaat dan IFC (FormatNoticeDialog), per formaat aan/uit.
-    /^(Show an explanation after opening|Uitleg tonen na het openen van)$/,
-    /^(MCP connection|MCP-koppeling)$/,
-    /^(Debug terminal|Debug-terminal)$/,
-    /^Benchmark$/,
-    /^(Statistics|Statistieken)$/,
-    /^(Tour|Rondleiding)$/,
-    /^(Version|Versie)$/,
-    // Issue #144: vervangen functies staan in een eigen, als zodanig gemarkeerd blok onderaan.
-    /^(Legacy features|Legacy-functies)$/,
-  ],
-];
+// De instellingen per groep, in de vaste volgorde. Schermverdeling en Muiswiel per toets horen bij
+// Tijdlijn maar staan pas in beeld bij hun scrollmodus; Experimenteel pas na ontgrendelen.
+const GROUP_SETTINGS: Record<string, string[]> = {
+  appearance: ['theme', 'language', 'fontFamily', 'fontScale'],
+  notation: ['dateNotation', 'timeNotation', 'durationDisplay', 'weekStartDay'],
+  timeline: ['compressNonWorkdays', 'quarterHourZoom', 'barSplitMode', 'scrollMode'],
+  workspace: ['documentChrome', 'ribbonWheel', 'autoFitColumns'],
+  planning: ['constructionMode', 'autoCalc', 'taskTypes', 'mixedDayHour', 'dissolveSummaryMode'],
+  notices: ['formatNotices'],
+  advanced: ['aiMode', 'aiAutostart', 'debugTerminal', 'classicViewControls'],
+  about: ['version', 'tour', 'stats', 'benchmark'],
+};
 
 const PROJECT_SECTION_TEXT = /^(Project|Project information\.\.\.|Projectinformatie\.\.\.)$/;
 
-/** Doorloopt alle drie de tabs binnen `container` en vergelijkt tabnamen + sectiekoppen. */
-async function assertThreeTabsAndSections(container: Locator): Promise<void> {
-  const tabs = container.locator('.settings-tab');
-  await expect(tabs).toHaveCount(3);
-  for (let i = 0; i < TAB_LABELS.length; i++) {
-    await expect(tabs.nth(i)).toHaveText(TAB_LABELS[i]);
+const group = (container: Locator, id: string) => container.locator(`[data-ops-settings-group="${id}"]`);
+const rows = (container: Locator) => container.locator('[data-ops-setting]');
+
+async function expectRows(container: Locator, ids: string[]): Promise<void> {
+  await expect(rows(container)).toHaveCount(ids.length);
+  for (let i = 0; i < ids.length; i++) {
+    await expect(rows(container).nth(i)).toHaveAttribute('data-ops-setting', ids[i]);
+  }
+}
+
+/** Doorloopt alle groepen binnen `container` en vergelijkt groepsnamen en instellingen. */
+async function assertGroupsAndSettings(container: Locator): Promise<void> {
+  const nav = container.locator('.settings-tab');
+  const ids = Object.keys(GROUP_LABELS);
+  await expect(nav).toHaveCount(ids.length);
+  for (let i = 0; i < ids.length; i++) {
+    await expect(nav.nth(i)).toHaveAttribute('data-ops-settings-group', ids[i]);
+    await expect(nav.nth(i)).toHaveText(GROUP_LABELS[ids[i]]);
   }
 
-  for (let i = 0; i < SECTION_HEADINGS.length; i++) {
-    await tabs.nth(i).click();
-    // Scopen op directe kinderen: de theme-kaartjes (Weergave → Thema) hebben zelf ook een <h4>
-    // per kleurstaal, die géén sectiekop is en dus niet mag meetellen.
-    if (i === 0) {
-      const duration = container.getByRole('button', { name: /^(Duration display|Duurweergave)$/, exact: true });
+  for (const id of ids) {
+    await group(container, id).click();
+    await expect(group(container, id)).toHaveAttribute('aria-current', 'page');
+    await expect(container.locator('.settings-group-title')).toHaveText(GROUP_LABELS[id]);
+    if (id === 'notation') {
+      // B9: Duurweergave is grijs in het OPS-profiel, met de reden eronder; onder P6 kies je weer.
+      const durationRow = container.locator('[data-ops-setting="durationDisplay"]');
+      const hours = durationRow.getByRole('button', { name: /^(Always hours|Altijd uren)$/ });
       const page = container.page();
       await page.evaluate(() => window.__OPS__!.store.getState().setProject({
         schedulingProfile: { baseId: 'ops', id: 'ops', name: '', overrides: {} },
       }));
-      await expect(duration).toBeDisabled();
-      if (container.locator('.modal-close-btn') && await container.locator('.modal-close-btn').count()) {
+      await expect(hours).toBeDisabled();
+      if (await container.locator('.modal-close-btn').count()) {
         for (const uiTheme of ['light', 'dark'] as const) {
           await page.evaluate(theme => window.__OPS__!.store.getState().setUI({ uiTheme: theme }), uiTheme);
-          await duration.locator('xpath=..').screenshot({ path: `artifacts/uren-f4a/duurweergave-ops-${uiTheme}.png` });
+          await durationRow.screenshot({ path: `artifacts/uren-f4a/duurweergave-ops-${uiTheme}.png` });
         }
       }
-      await expect(container.getByText(/^(In the OPS profile, each task shows its own unit\.|In het OPS-profiel toont elke taak zijn eigen maat\.)$/)).toBeVisible();
+      await expect(durationRow.getByText(/^(In the OPS profile, each task shows its own unit\.|In het OPS-profiel toont elke taak zijn eigen maat\.)$/)).toBeVisible();
       await page.evaluate(() => window.__OPS__!.store.getState().setProject({
         schedulingProfile: { baseId: 'p6', id: 'p6', name: '', overrides: {} },
       }));
-      await expect(duration).toBeEnabled();
-      await duration.click();
-      await page.getByRole('option', { name: /^(Always hours|Altijd uren)$/, exact: true }).click();
+      await expect(hours).toBeEnabled();
+      await hours.click();
+      await expect(hours).toHaveAttribute('aria-pressed', 'true');
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.durationDisplay)).toBe('hours');
-      await expect(container.getByText(
-        /^(Alleen voor urentaken: balken opsplitsen rond pauzes en niet-werktijd\. Echte taakonderbrekingen blijven altijd zichtbaar\.|For hour tasks only: split bars around breaks and non-working time\. Actual task interruptions remain visible regardless of this setting\.)$/,
-      )).toBeVisible();
+      // Terug naar de standaard, zodat elke ingang met dezelfde stand begint.
+      await durationRow.locator('[data-ops-setting-reset="durationDisplay"]').click();
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.durationDisplay)).toBe('auto');
     }
-    const headings = container.locator('.settings-section-list > .settings-section > h3, .settings-section-list > h3.settings-subhead');
-    await expect(headings).toHaveCount(SECTION_HEADINGS[i].length);
-    for (let j = 0; j < SECTION_HEADINGS[i].length; j++) {
-      await expect(headings.nth(j)).toHaveText(SECTION_HEADINGS[i][j]);
-    }
+    await expectRows(container, GROUP_SETTINGS[id]);
   }
 
-  // De sectie Project (issue-regel 1) is nergens meer te vinden — niet als tabnaam, niet als
-  // sectiekop, niet als de oude snelkoppelingsknop "Projectinformatie...".
+  // De sectie Project (issue-regel 1) is nergens meer te vinden — niet als groep, niet als
+  // instelling, niet als de oude snelkoppelingsknop "Projectinformatie...".
   await expect(container.getByText(PROJECT_SECTION_TEXT, { exact: true })).toHaveCount(0);
+}
+
+/**
+ * Elke zichtbare knop- en labeltekst in een instelling vindt die instelling via de zoekbalk. Zo valt
+ * een eigen bediening die haar teksten niet aan de zoekindex geeft meteen op (review #942).
+ */
+async function assertVisibleTextsFindTheirSetting(dialog: Locator): Promise<void> {
+  const search = dialog.locator('[data-ops-settings-search]');
+  for (const g of Object.keys(GROUP_SETTINGS)) {
+    await search.fill('');
+    await group(dialog, g).click();
+    const rows = await dialog.locator('[data-ops-setting]').evaluateAll(els => els.map(el => ({
+      id: el.getAttribute('data-ops-setting')!,
+      // Bij een kaart met plaatje telt de naam eronder, niet de tekst in het plaatje.
+      texts: [...el.querySelectorAll<HTMLElement>('button:not(.settings-visual-card), label, .settings-visual-card-label')]
+        .filter(e => e.offsetParent !== null)
+        .map(e => e.innerText.replace(/\s+/g, ' ').trim())
+        // Aan/Uit onder een schakelaar is geen naam om op te zoeken.
+        .filter(text => text !== '' && !/^(On|Off)$/.test(text)),
+    })));
+    for (const { id, texts } of rows) {
+      for (const text of texts) {
+        await search.fill(text);
+        await expect(dialog.locator(`[data-ops-setting="${id}"]`), `zoeken op "${text}"`).toBeVisible();
+      }
+    }
+  }
+  await search.fill('');
+  await group(dialog, 'appearance').click();
+}
+
+/** Zoeken, "Alleen gewijzigd", terugzetten en de directe link, in de tandwiel-popup. */
+async function assertSearchChangedAndDeepLink(dialog: Locator): Promise<void> {
+  const page = dialog.page();
+  const search = dialog.locator('[data-ops-settings-search]');
+  // De dialoog zet de cursor meteen in de zoekbalk.
+  await expect(search).toBeFocused();
+
+  // Op naam, op een zoekwoord uit MS Project/P6 en zonder treffer.
+  await search.fill('weekend');
+  await expectRows(dialog, ['compressNonWorkdays']);
+  await expect(dialog.locator('.settings-tab[aria-current]')).toHaveCount(0);
+  await search.fill('task type');
+  await expectRows(dialog, ['taskTypes']);
+  // Een instelling die nu niets doet, staat bij zoeken uitgegrijsd in beeld, met de reden.
+  await search.fill('Ctrl');
+  await expect(dialog.locator('[data-ops-setting="modifierMap"] fieldset button').first()).toBeDisabled();
+  await expect(dialog.locator('[data-ops-setting="modifierMap"] .settings-unavailable-reason')).toBeVisible();
+  await assertVisibleTextsFindTheirSetting(dialog);
+  await search.click();
+  // Ook keuzes binnen een eigen bediening: de schakelaar onder Thema en de namen van de talen.
+  await search.fill('follow system');
+  await expect(dialog.locator('[data-ops-setting="theme"]')).toBeVisible();
+  await search.fill('Nederlands');
+  await expectRows(dialog, ['language']);
+  // En de veld- en toetsnamen van Muiswiel per toets (uitgegrijsd zolang Toetsen niet gekozen is).
+  await search.fill('Ctrl + scroll');
+  await expect(dialog.locator('[data-ops-setting="modifierMap"]')).toBeVisible();
+  await search.fill('horizontal');
+  await expect(dialog.locator('[data-ops-setting="modifierMap"]')).toBeVisible();
+  await search.fill('qqqzzz');
+  await expect(dialog.locator('[data-ops-settings-empty]')).toBeVisible();
+  // Escape wist eerst de zoekterm; de dialoog blijft open en toont weer de groep.
+  await page.keyboard.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(dialog).toBeVisible();
+  await expect(group(dialog, 'appearance')).toHaveAttribute('aria-current', 'page');
+  // "/" ergens in het paneel springt naar de zoekbalk, ook vanaf een vinkje; Ctrl+F ook vanaf de
+  // sluitknop in de kop van de dialoog.
+  await group(dialog, 'timeline').click();
+  await page.keyboard.press('/');
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue('');
+  await dialog.locator('[data-ops-setting="quarterHourZoom"]').getByRole('checkbox').focus();
+  await page.keyboard.press('/');
+  await expect(search).toBeFocused();
+  await dialog.locator('.modal-close-btn').focus();
+  await page.keyboard.press('Control+f');
+  await expect(search).toBeFocused();
+
+  // Een gewijzigde instelling krijgt een stip (alleen bij de instelling, niet bij haar groep) en telt
+  // mee in het filter. De fixture zet de formaatuitleg al uit (`ops-formatNoticeHidden`), dus die telt vanaf het begin mee.
+  const filter = dialog.locator('[data-ops-settings-changed-only]');
+  await expect(filter).toHaveText(/\(1\)$/);
+  const compress = dialog.locator('[data-ops-setting="compressNonWorkdays"]');
+  await compress.getByRole('button', { name: /^(On|Aan)$/ }).click();
+  await expect(compress.getByRole('checkbox')).toBeChecked();
+  await expect(compress).toHaveAttribute('data-ops-setting-changed', 'true');
+  await expect(compress.locator('.settings-changed-dot')).toBeVisible();
+  await expect(group(dialog, 'timeline').locator('.settings-changed-dot')).toHaveCount(0);
+  await expect(filter).toHaveText(/\(2\)$/);
+  await filter.click();
+  await expect(filter).toHaveAttribute('aria-pressed', 'true');
+  await expectRows(dialog, ['compressNonWorkdays', 'formatNotices']);
+  await compress.locator('[data-ops-setting-reset="compressNonWorkdays"]').click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.compressNonWorkdays)).toBe(false);
+  expect(await page.evaluate(() => localStorage.getItem('ops-compressNonWorkdays'))).toBe('false');
+  await expectRows(dialog, ['formatNotices']);
+  await expect(filter).toHaveText(/\(1\)$/);
+  await filter.click();
+
+  // Het thema telt ook mee: zonder bewaarde keuze start de app Donker.
+  await group(dialog, 'appearance').click();
+  const theme = dialog.locator('[data-ops-setting="theme"]');
+  await expect(theme).not.toHaveAttribute('data-ops-setting-changed', 'true');
+  await theme.locator('[data-ops-theme-card="light"]').click();
+  await expect(theme).toHaveAttribute('data-ops-setting-changed', 'true');
+  await expect(filter).toHaveText(/\(2\)$/);
+  await theme.locator('[data-ops-setting-reset="theme"]').click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe('dark');
+  expect(await page.evaluate(() => localStorage.getItem('ops-theme'))).toBe('dark');
+  await expect(filter).toHaveText(/\(1\)$/);
+
+  // Directe link: opent op de groep, ook op een instelling die bij de huidige modus verborgen is,
+  // en laat hem oplichten met de focus erin.
+  await group(dialog, 'appearance').click();
+  await page.evaluate(async () => {
+    const path = '/src/components/settings/openSettingsAt.ts';
+    const { openSettingsAt } = await import(/* @vite-ignore */ path);
+    openSettingsAt('positionDivision');
+  });
+  const division = dialog.locator('[data-ops-setting="positionDivision"]');
+  await expect(group(dialog, 'timeline')).toHaveAttribute('aria-current', 'page');
+  await expect(division).toHaveClass(/is-highlighted/);
+  await expect(division).toBeInViewport();
+  // Schermverdeling doet in de modus Zoom + slepen niets: de rij zelf krijgt de focus.
+  await expect(division).toBeFocused();
+  // Het oplichten stopt; de rij blijft in beeld tot je een andere groep kiest.
+  await expect(division).not.toHaveClass(/is-highlighted/, { timeout: 5_000 });
+  await expect(division).toBeVisible();
+  await group(dialog, 'appearance').click();
+  await group(dialog, 'timeline').click();
+  await expect(division).toHaveCount(0);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.settingsFocusId)).toBeNull();
+
+  // Een link naar het vergrendelde blok Experimenteel toont het niet, maar landt op het versienummer.
+  await page.evaluate(async () => {
+    const path = '/src/components/settings/openSettingsAt.ts';
+    const { openSettingsAt } = await import(/* @vite-ignore */ path);
+    openSettingsAt('experimental');
+  });
+  await expect(group(dialog, 'about')).toHaveAttribute('aria-current', 'page');
+  await expect(dialog.locator('[data-ops-setting="version"]')).toHaveClass(/is-highlighted/);
+  await expect(dialog.locator('[data-ops-setting="experimental"]')).toHaveCount(0);
 }
 
 /** Lees via dezelfde functie als de titelbalk, zonder de geteste actie te vervangen. */
@@ -118,7 +250,7 @@ async function enabledDemo(page: Page): Promise<boolean> {
 async function reloadSettingsApp(page: Page): Promise<void> {
   await page.reload();
   await waitForOps(page);
-  // `assertThreeTabsAndSections` wisselt het rekenprofiel (het document is dan gewijzigd), dus na de
+  // `assertGroupsAndSettings` wisselt het rekenprofiel (het document is dan gewijzigd), dus na de
   // herlaad kan eerst het herstelvenster komen; de welkomst wacht daarop. Zelfde aanpak als
   // `settleAfterReload` in site-storage.spec.ts.
   const recovery = page.locator('[data-ops-recovery-dialog]');
@@ -134,8 +266,9 @@ async function reloadSettingsApp(page: Page): Promise<void> {
   });
 }
 
-test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experimentele schakelaars', async ({ page, ops: _ops }) => {
-  test.setTimeout(60_000);
+test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde experimentele schakelaars', async ({ page, ops: _ops }) => {
+  // Lange route: drie ingangen, twee talen en een zoekopdracht per zichtbare tekst van elke instelling.
+  test.setTimeout(120_000);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   const titleBar = page.locator('.title-bar');
   const animation = titleBar.locator('[data-ops-topbar-animation]');
@@ -150,7 +283,8 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const gearDialog = page.locator('.settings-dialog');
   await expect(gearDialog).toBeVisible();
-  await assertThreeTabsAndSections(gearDialog);
+  await assertSearchChangedAndDeepLink(gearDialog);
+  await assertGroupsAndSettings(gearDialog);
   await gearDialog.locator('.modal-close-btn').click();
   await expect(gearDialog).toBeHidden();
 
@@ -159,7 +293,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await page.locator('.ribbon-content').getByRole('button', { name: /^(App settings|App-instellingen)$/, exact: true }).click();
   const ribbonDialog = page.locator('.settings-dialog');
   await expect(ribbonDialog).toBeVisible();
-  await assertThreeTabsAndSections(ribbonDialog);
+  await assertGroupsAndSettings(ribbonDialog);
   await ribbonDialog.locator('.modal-close-btn').click();
   await expect(ribbonDialog).toBeHidden();
 
@@ -168,15 +302,22 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   const backstage = page.locator('.backstage');
   await expect(backstage).toBeVisible();
   await backstage.locator('.backstage-nav-item').filter({ hasText: /^(App settings|App-instellingen)$/ }).click();
-  await assertThreeTabsAndSections(backstage.locator('.backstage-main'));
+  // Ctrl+F werkt ook als de focus nog op de navigatie van Backstage staat. Eerst wachten tot het
+  // paneel er staat: in CI drukte de test soms vóór het paneel geladen was (geen gebruikersgeval).
+  const backstageSearch = backstage.locator('[data-ops-settings-search]');
+  await expect(backstageSearch).toBeVisible();
+  await expect(backstage.locator('.backstage-nav-item').filter({ hasText: /^(App settings|App-instellingen)$/ })).toBeFocused();
+  await page.keyboard.press('Control+f');
+  await expect(backstageSearch).toBeFocused();
+  await assertGroupsAndSettings(backstage.locator('.backstage-main'));
 
-  // Taalfixture: dezelfde zichtbare secties en de urentaakhint ook in het Nederlands.
+  // Taalfixture: dezelfde groepen en instellingen ook in het Nederlands.
   await page.evaluate(async () => {
     const localePath = '/src/i18n/config.ts';
     const { setLocale } = await import(/* @vite-ignore */ localePath);
     await setLocale('nl');
   });
-  await assertThreeTabsAndSections(backstage.locator('.backstage-main'));
+  await assertGroupsAndSettings(backstage.locator('.backstage-main'));
 
   // Verborgen bediening: één losse klik en zelfs 6 s langzaam klikken (> 0,5 s ertussen)
   // ontgrendelen niet. De stilgezette Playwright-klok voorkomt echte wachttijd en grensflaky's.
@@ -232,7 +373,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await backstage.locator('[data-ops-backstage-back]').click();
   expect(await enabledDemo(page)).toBe(false);
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
-  await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
+  await group(gearDialog, 'about').click();
   const gearExperimental = gearDialog.locator('[data-ops-experimental-settings]');
   const demo = gearExperimental.locator('[data-ops-feature-flag="demo-topbar-animation"]');
   await expect(gearExperimental).toBeVisible();
@@ -251,9 +392,9 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
 
   // Echte themakeuze: het nieuwe blok past in zowel Light als Dark, met de bestaande kleurrollen.
   for (const theme of ['light', 'dark']) {
-    await gearDialog.getByRole('button', { name: TAB_LABELS[0] }).click();
+    await group(gearDialog, 'appearance').click();
     await gearDialog.locator(`[data-ops-theme-card="${theme}"]`).click();
-    await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
+    await group(gearDialog, 'about').click();
     await expect(demo).toBeChecked();
     await expect(animation).toBeVisible();
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -280,7 +421,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
     await expect(gearDialog).toBeHidden();
     await titleBar.locator('.quick-access-btn').last().click();
     await expect(gearDialog).toBeVisible();
-    await gearDialog.locator('.settings-tab').nth(2).click();
+    await group(gearDialog, 'about').click();
     await expect(demo).toBeChecked();
   }
   await page.evaluate(async () => {
@@ -300,7 +441,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await expect.poll(() => enabledDemo(page)).toBe(true);
   await expect(animation).toBeVisible();
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
-  await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
+  await group(gearDialog, 'about').click();
   await expect(gearExperimental).toHaveCount(0);
 
   // Via echte Tab/Shift+Tab naar het versienummer. Enter blijft ingedrukt: volgende down-events
@@ -328,12 +469,12 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   // De lint-ingang en Backstage delen de zichtbaarheid en de aangevinkte keuze.
   await page.locator('.ribbon-tab').filter({ hasText: /^(Settings|Instellingen)$/ }).click();
   await page.locator('.ribbon-content').getByRole('button', { name: /^(App settings|App-instellingen)$/, exact: true }).click();
-  await ribbonDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
+  await group(ribbonDialog, 'about').click();
   await expect(ribbonDialog.locator('[data-ops-feature-flag="demo-topbar-animation"]')).toBeChecked();
   await ribbonDialog.locator('.modal-close-btn').click();
   await page.locator('.ribbon-tab--file').click();
   await backstage.locator('.backstage-nav-item').filter({ hasText: /^(App settings|App-instellingen)$/ }).click();
-  await backstage.getByRole('button', { name: TAB_LABELS[2] }).click();
+  await group(backstage, 'about').click();
   await expect(backstage.locator('[data-ops-feature-flag="demo-topbar-animation"]')).toBeChecked();
 
   // Ook de ontgrendelde zichtbaarheid zelf overleeft herladen; geen tweede gebaar nodig.
@@ -341,7 +482,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await expect.poll(() => enabledDemo(page)).toBe(true);
   await expect(animation).toBeVisible();
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
-  await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
+  await group(gearDialog, 'about').click();
   await expect(demo).toBeChecked();
 
   // Echt uitvinken verwijdert de laag direct en bewaart ook die keuze na herladen.
@@ -352,7 +493,7 @@ test('de drie instellingen-ingangen delen tabs en verborgen, bewaarde experiment
   await expect.poll(() => enabledDemo(page)).toBe(false);
   await expect(animation).toHaveCount(0);
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
-  await gearDialog.getByRole('button', { name: TAB_LABELS[2] }).click();
+  await group(gearDialog, 'about').click();
   await expect(demo).not.toBeChecked();
   // De echte IFC-schakelaar bestuurt de bytes-route; schrijven blijft door de bestaande guard begrensd.
   const ifcToggle = gearExperimental.locator('[data-ops-feature-flag="ifcForeignContent"]');
