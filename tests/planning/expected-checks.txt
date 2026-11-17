@@ -383,6 +383,7 @@ check-restwerk-duurwijziging.ts matrix
 check-ribbon-overlays.ts matrix
 check-row-drag-intent.ts matrix
 check-run-ts-cleanup.ts matrix
+check-save-dialog-extension.ts matrix
 check-save-failure-status.ts matrix
 check-saved-filters.ts matrix
 check-schedule-errors.ts matrix
