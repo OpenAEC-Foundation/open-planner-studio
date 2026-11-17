@@ -2695,6 +2695,7 @@ dependencies = [
 name = "open-planner-studio"
 version = "2026.47.0"
 dependencies = [
+ "glob",
  "libc",
  "serde",
  "serde_json",

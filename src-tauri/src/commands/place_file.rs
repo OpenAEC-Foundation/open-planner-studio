@@ -635,8 +635,9 @@ pub(crate) fn place(
     let (from_dir, from_name) = plain_path(from).ok_or(refused(RefusalReason::PathShape))?;
     let (to_dir, to_name) = plain_path(to).ok_or(refused(RefusalReason::PathShape))?;
 
-    // 2. De scope op de padteksten van de aanroeper, in de volgorde van plugin-fs `rename`. Een doel dat
-    // nog niet bestaat, maakt Tauri niet canoniek: een link in de map telt dus mee zoals hij er staat.
+    // 2. De scope op de padteksten van de aanroeper, in de volgorde van plugin-fs `rename`: een verbod op
+    // de tekst of op het echte pad (ook via een link in een bovenliggende map van een doel dat nog niet
+    // bestaat) weigert, en het echte pad moet toegestaan zijn ([`FsRenameScope::allows`]).
     if !in_scope(Path::new(from)) || !in_scope(Path::new(to)) {
         return Err(refused(RefusalReason::Scope));
     }
@@ -709,8 +710,8 @@ pub(crate) fn place(
 // ── De scope: die van plugin-fs `rename`, niet nagebouwd ─────────────────────────────────────────
 
 /// Eén scope-item van plugin-fs. Zijn eigen type (`scope::Entry`) is privé
-/// (`tauri-plugin-fs-2.5.0/src/lib.rs:39`); dit is dezelfde vorm met dezelfde omzetting
-/// (`lib.rs:356-375`): een pad of `{ path }`, met `$HOME`, `$APPLOCALDATA` en dergelijke opgelost door
+/// (`tauri-plugin-fs-2.7.1/src/scope.rs:10-19`); dit is dezelfde vorm met dezelfde omzetting
+/// (`lib.rs:431-455`): een pad of `{ path }`, met `$HOME`, `$APPLOCALDATA` en dergelijke opgelost door
 /// `PathResolver::parse` van Tauri, en `None` voor een basismap die dit systeem niet kent.
 #[derive(Debug)]
 struct FsScopeEntry {
@@ -745,13 +746,17 @@ impl tauri::ipc::ScopeObject for FsScopeEntry {
 }
 
 /// Wat plugin-fs `rename` voor deze webview toelaat, met dezelfde regel als `resolve_path` in
-/// `tauri-plugin-fs-2.5.0/src/commands.rs:1528-1570`: de toegestane en verboden paden van de capability
+/// `tauri-plugin-fs-2.7.1/src/commands.rs:1615-1657`: de toegestane en verboden paden van de capability
 /// (globaal en voor het commando, via [`tauri::Webview::resolve_command_scope`]) in één scope, naast de
 /// scope die tijdens het draaien groeit (`fs_scope()`: de bestandsdialoog en `persisted-scope`). Een
-/// verbod in een van beide wint; daarna moet een van beide het pad toestaan.
+/// verbod in een van beide wint, op het pad zoals gegeven én op het echte pad ([`real_path`]); daarna
+/// moet een van beide het echte pad toestaan. Is het echte pad niet te bepalen (een lus van links),
+/// dan is het pad geweigerd.
 pub(crate) struct FsRenameScope {
     runtime: Option<tauri::scope::fs::Scope>,
     configured: tauri::scope::fs::Scope,
+    /// `plugins.fs.requireLiteralLeadingDot` uit de config; plugin-fs neemt `None` als "aan op Unix".
+    require_literal_leading_dot: Option<bool>,
 }
 
 impl FsRenameScope {
@@ -789,14 +794,79 @@ impl FsRenameScope {
         Some(Self {
             runtime: webview.try_fs_scope(),
             configured,
+            require_literal_leading_dot,
         })
     }
 
     pub(crate) fn allows(&self, path: &Path) -> bool {
+        let Ok(real) = real_path(path) else {
+            return false;
+        };
         let scopes: Vec<&tauri::scope::fs::Scope> =
             self.runtime.iter().chain([&self.configured]).collect();
-        !scopes.iter().any(|scope| scope.is_forbidden(path))
-            && scopes.iter().any(|scope| scope.is_allowed(path))
+        let options = glob::MatchOptions {
+            // Zoals plugin-fs: `map/*` matcht geen bestand in een submap.
+            require_literal_separator: true,
+            require_literal_leading_dot: self.require_literal_leading_dot.unwrap_or(cfg!(unix)),
+            ..Default::default()
+        };
+        let denied = |scope: &tauri::scope::fs::Scope, path: &Path| {
+            let path: PathBuf = path.components().collect();
+            scope
+                .forbidden_patterns()
+                .iter()
+                .any(|pattern| pattern.matches_path_with(&path, options))
+        };
+        !scopes
+            .iter()
+            .any(|scope| denied(*scope, path) || denied(*scope, &real))
+            && scopes.iter().any(|scope| scope.is_allowed(&real))
+    }
+}
+
+/// Het pad waarop het systeem werkt, zoals `resolve_real_path` van plugin-fs
+/// (`tauri-plugin-fs-2.7.1/src/commands.rs:1673-1725`, privé): het canonieke pad als het bestaat,
+/// anders het canonieke pad van de dichtstbijzijnde bestaande bovenliggende map met de rest erachter.
+/// Een dode link wordt gevolgd, een relatief doel vanaf de map van de link. Een lus geeft een fout.
+fn real_path(path: &Path) -> io::Result<PathBuf> {
+    real_path_inner(path, 0)
+}
+
+/// Zoals `MAX_SYMLINK_FOLLOWS` van plugin-fs (en `MAXSYMLINKS`/`ELOOP`).
+const MAX_SYMLINK_FOLLOWS: usize = 40;
+
+fn real_path_inner(path: &Path, followed: usize) -> io::Result<PathBuf> {
+    use std::path::Component;
+
+    if let Ok(canonical) = std::fs::canonicalize(path) {
+        return Ok(canonical);
+    }
+    if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+        if followed >= MAX_SYMLINK_FOLLOWS {
+            return Err(io::Error::other("too many levels of symbolic links"));
+        }
+        let target = std::fs::read_link(path)?;
+        let target = match path.parent() {
+            Some(parent) if target.is_relative() => parent.join(target),
+            _ => target,
+        };
+        return real_path_inner(&target, followed + 1);
+    }
+    let mut components = path.components();
+    let last = components.next_back();
+    let parent = components.as_path();
+    if parent.as_os_str().is_empty() {
+        return Ok(path.to_path_buf());
+    }
+    match last {
+        Some(Component::Normal(name)) => Ok(real_path_inner(parent, followed)?.join(name)),
+        Some(Component::ParentDir) => {
+            let mut resolved = real_path_inner(parent, followed)?;
+            resolved.pop();
+            Ok(resolved)
+        }
+        Some(Component::CurDir) => real_path_inner(parent, followed),
+        _ => Ok(path.to_path_buf()),
     }
 }
 
@@ -1618,7 +1688,7 @@ mod tests {
     }
 
     /// De scope die plugin-fs voor `command` gebruikt, opgebouwd zoals [`FsRenameScope::new`] dat voor
-    /// `rename` doet (de regel van `resolve_path`, `tauri-plugin-fs-2.5.0/src/commands.rs:1528-1570`).
+    /// `rename` doet (de regel van `resolve_path`, `tauri-plugin-fs-2.7.1/src/commands.rs:1615-1657`).
     /// Met `met_verbod` onwaar alleen de toestemmingen van de capability, zonder runtime-scope: zo is te
     /// zien dat een weigering van het verbod komt en niet van een ontbrekende toestemming.
     /// `None`: de capability staat het commando niet toe.
@@ -1626,6 +1696,17 @@ mod tests {
         webview: &tauri::Webview<tauri::test::MockRuntime>,
         command: &str,
         met_verbod: bool,
+    ) -> Option<FsRenameScope> {
+        scope_met(webview, command, &|_| met_verbod, met_verbod)
+    }
+
+    /// Als [`scope_voor`], met alleen de verboden paden waarvoor `houd` waar geeft, en met of zonder de
+    /// runtime-scope.
+    fn scope_met(
+        webview: &tauri::Webview<tauri::test::MockRuntime>,
+        command: &str,
+        houd: &dyn Fn(&Path) -> bool,
+        met_runtime: bool,
     ) -> Option<FsRenameScope> {
         use tauri_plugin_fs::FsExt;
         let resolved = webview
@@ -1638,9 +1719,7 @@ mod tests {
         allow.extend(paths(resolved.command_scope().allows()));
         let mut deny = paths(resolved.global_scope().denies());
         deny.extend(paths(resolved.command_scope().denies()));
-        if !met_verbod {
-            deny.clear();
-        }
+        deny.retain(|p| houd(p.as_path()));
         // `tauri.conf.json` laat `plugins.fs` leeg, dus geen `requireLiteralLeadingDot` (zoals `new`).
         let configured = tauri::scope::fs::Scope::new(
             webview,
@@ -1652,58 +1731,108 @@ mod tests {
         )
         .unwrap();
         Some(FsRenameScope {
-            runtime: if met_verbod {
+            runtime: if met_runtime {
                 webview.try_fs_scope()
             } else {
                 None
             },
             configured,
+            require_literal_leading_dot: None,
         })
     }
 
-    /// Het verbod op de webviewgegevens dat de capabilities per platform in de globale scope van fs zetten
-    /// (knownbug 1796), relatief aan `$APPLOCALDATA`: de lijst van `permissions/deny-webview-data.toml` van
-    /// tauri-plugin-fs vanaf 2.5.2, met per map ook de map zelf (review #975 ronde 1: `map/**` matcht
-    /// `map` niet, `glob-0.3.3/src/lib.rs:640-650`, en `rename`/`remove` toetsen alleen de opgegeven
-    /// paden). Linux: de mappen en bestanden van WebKitGTK (de gegevensmap van de webview is daar
-    /// `$APPLOCALDATA` zelf, `tauri-2.12.3/src/manager/webview.rs:559-568` en
+    /// Het verbod op de webviewgegevens in de globale scope van fs (knownbug 1796), relatief aan
+    /// `$APPLOCALDATA`, in twee delen. Linux: de mappen en bestanden van WebKitGTK (de gegevensmap van de
+    /// webview is daar `$APPLOCALDATA` zelf, `tauri-2.12.3/src/manager/webview.rs:559-568` en
     /// `wry-0.57.0/src/webkitgtk/web_context.rs:32-47`); Windows: de map van WebView2.
-    const VERBOD_LINUX: [&str; 16] = [
-        "CacheStorage",
+    ///
+    /// Van `fs:default`: `deny-default` → `deny-webview-data-linux`/`-windows` van tauri-plugin-fs 2.7.1
+    /// (`permissions/deny-webview-data.toml`, werkzaam sinds 2.5.2): per map alleen `map/**`, plus de twee
+    /// bestanden op Linux.
+    const FS_DEFAULT_LINUX: [&str; 9] = [
         "CacheStorage/**",
         "cookies",
         "hsts-storage.sqlite",
-        "serviceworkers",
         "serviceworkers/**",
-        "WebKitCache",
         "WebKitCache/**",
-        "databases",
         "databases/**",
-        "localstorage",
         "localstorage/**",
-        "mediakeys",
         "mediakeys/**",
-        "storage",
         "storage/**",
     ];
-    const VERBOD_WINDOWS: [&str; 2] = ["EBWebView", "EBWebView/**"];
+    const FS_DEFAULT_WINDOWS: [&str; 1] = ["EBWebView/**"];
+    /// Van de app (`webviewgegevens-linux.json`, `-windows.json`): de map zelf, want `map/**` matcht
+    /// `map` niet (`glob-0.3.3/src/lib.rs:640-650`) en `rename`/`remove` van plugin-fs toetsen alleen de
+    /// opgegeven paden (review #975 ronde 1).
+    const APP_LINUX: [&str; 7] = [
+        "CacheStorage",
+        "serviceworkers",
+        "WebKitCache",
+        "databases",
+        "localstorage",
+        "mediakeys",
+        "storage",
+    ];
+    const APP_WINDOWS: [&str; 1] = ["EBWebView"];
 
-    /// Het verbod op dit platform. macOS: geen; Tauri geeft WKWebView daar geen gegevensmap
-    /// (`webview.rs:559-568` alleen voor Linux en Windows) en wry gebruikt dan de standaardopslag van
-    /// WebKit (`wry-0.57.0/src/wkwebview/mod.rs:234-244`), buiten `$APPLOCALDATA`.
-    fn verbod_hier() -> &'static [&'static str] {
+    /// Wat `fs:default` op dit platform verbiedt. macOS: niets; Tauri geeft WKWebView daar geen
+    /// gegevensmap (`webview.rs:559-568` alleen voor Linux en Windows) en wry gebruikt dan de
+    /// standaardopslag van WebKit (`wry-0.57.0/src/wkwebview/mod.rs:234-244`), buiten `$APPLOCALDATA`.
+    fn fs_default_hier() -> &'static [&'static str] {
         if cfg!(target_os = "linux") {
-            &VERBOD_LINUX
+            &FS_DEFAULT_LINUX
         } else if cfg!(windows) {
-            &VERBOD_WINDOWS
+            &FS_DEFAULT_WINDOWS
         } else {
             &[]
         }
     }
 
+    /// Wat de app op dit platform zelf verbiedt.
+    fn app_hier() -> &'static [&'static str] {
+        if cfg!(target_os = "linux") {
+            &APP_LINUX
+        } else if cfg!(windows) {
+            &APP_WINDOWS
+        } else {
+            &[]
+        }
+    }
+
+    /// Het hele verbod op dit platform: van `fs:default` en van de app samen.
+    fn verbod_hier() -> Vec<&'static str> {
+        fs_default_hier()
+            .iter()
+            .chain(app_hier())
+            .copied()
+            .collect()
+    }
+
+    /// De verboden paden in de globale scope die de capability van de app voor dit platform zelf zet
+    /// (`fs:scope` met `deny`), opgelost zoals Tauri dat doet.
+    fn eigen_verbod(app: &MockApp) -> Vec<PathBuf> {
+        use tauri::Manager;
+        let json = if cfg!(target_os = "linux") {
+            include_str!("../../capabilities/webviewgegevens-linux.json")
+        } else if cfg!(windows) {
+            include_str!("../../capabilities/webviewgegevens-windows.json")
+        } else {
+            return vec![];
+        };
+        let capability: serde_json::Value = serde_json::from_str(json).unwrap();
+        capability["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|p| p["identifier"] == "fs:scope")
+            .flat_map(|p| p["deny"].as_array().unwrap().iter())
+            .map(|d| app.path().parse(d["path"].as_str().unwrap()).unwrap())
+            .collect()
+    }
+
     /// De beschermde mappen van dit platform (de patronen `map/**`), relatief aan `$APPLOCALDATA`.
     fn mappen_hier() -> Vec<&'static str> {
-        verbod_hier()
+        fs_default_hier()
             .iter()
             .filter_map(|p| p.strip_suffix("/**"))
             .collect()
@@ -1795,6 +1924,11 @@ mod tests {
     // Review #972 ronde 2, blokkade 3: dezelfde invoer door de echte IPC naar plugin-fs `rename` en naar
     // dit commando, met de echte capability. Wat plugin-fs weigert, weigert dit commando ook, en er
     // verandert niets op schijf. Eerst een controle dat beide ingangen via de IPC werken.
+    //
+    // Sinds tauri-plugin-fs 2.7.0 (knownbug 1797) toetst plugin-fs de toestemming op het echte pad, ook
+    // via een link in een bovenliggende map van een doel dat nog niet bestaat, en een verbod ook op het pad
+    // zoals gegeven. Daarom de twee gevallen met een link. Het vroegere geval `$HOME/.alias/doel.ifc`
+    // (`.alias` een link naar de toegestane map) neemt plugin-fs nu aan: het echte pad ligt in `$HOME/**`.
     #[test]
     fn place_file_weigert_wat_plugin_fs_weigert() {
         use serde_json::json;
@@ -1803,12 +1937,12 @@ mod tests {
         let home = app.path().home_dir().unwrap();
         let naam = format!("ops-place-file-{}-ipc", std::process::id());
         let echt = home.join(&naam);
-        let _opruimen = Opruimen(vec![echt.clone(), home.join(format!(".{naam}"))]);
+        let _opruimen = Opruimen(vec![echt.clone()]);
         let _ = std::fs::remove_dir_all(&echt);
         std::fs::create_dir_all(echt.join("sub")).unwrap();
         let bytes = content(40, 1_000);
         std::fs::write(echt.join(TMP), &bytes).unwrap();
-        let from = text(&echt.join(TMP));
+        let from = echt.join(TMP);
 
         // Controle: plugin-fs `rename` werkt via deze IPC in deze map.
         std::fs::write(echt.join("a.txt"), b"a").unwrap();
@@ -1824,44 +1958,73 @@ mod tests {
 
         let sep = std::path::MAIN_SEPARATOR;
         #[allow(unused_mut)]
-        let mut gevallen = vec![(
-            format!("{}{sep}sub{sep}..{sep}{DOEL}", text(&echt)),
+        let mut gevallen: Vec<(PathBuf, PathBuf, &str)> = vec![(
+            from.clone(),
+            PathBuf::from(format!("{}{sep}sub{sep}..{sep}{DOEL}", text(&echt))),
             "path-shape",
         )];
-        // Unix: `$HOME/.alias/doel.ifc` met `.alias` een link naar de toegestane map. Het doel bestaat
-        // nog niet, dus Tauri toetst de tekst, en `$HOME/**` laat een punt vooraan niet toe.
+        // Unix (Windows vraagt voor een link extra rechten). De tijdelijke map van het systeem ligt op
+        // de runners buiten de thuismap.
+        #[cfg(unix)]
+        let buiten = TempDir::new("buiten-de-scope");
         #[cfg(unix)]
         {
-            let alias = home.join(format!(".{naam}"));
-            std::os::unix::fs::symlink(&echt, &alias).unwrap();
-            gevallen.push((text(&alias.join(DOEL)), "scope"));
+            use tauri_plugin_fs::FsExt;
+            let echte_home = std::fs::canonicalize(&home).unwrap();
+            assert!(
+                !buiten.real.starts_with(&echte_home),
+                "{:?} ligt in de thuismap",
+                buiten.real
+            );
+            // 1. De bovenliggende map van het doel is een link naar buiten de scope: `$HOME/…/buiten`
+            // wijst naar de tijdelijke map. Het doel bestaat nog niet; plugin-fs 2.5.0 toetste de tekst
+            // (in `$HOME/**`) en schreef buiten de scope.
+            std::os::unix::fs::symlink(&buiten.path, echt.join("buiten")).unwrap();
+            gevallen.push((from.clone(), echt.join("buiten").join(DOEL), "scope"));
+            // 2. Een verbod dat een link noemt: de runtime-scope verbiedt `$HOME/…/verboden` (zoals een
+            // verbod in de capability) vóórdat de link er is; daarna wijst de link naar een toegestane
+            // map. Het echte pad is toegestaan, de tekst is verboden.
+            let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+            runtime
+                .forbid_directory(echt.join("verboden"), true)
+                .unwrap();
+            std::fs::create_dir_all(echt.join("toegestaan")).unwrap();
+            std::os::unix::fs::symlink(echt.join("toegestaan"), echt.join("verboden")).unwrap();
+            std::fs::write(echt.join("toegestaan").join(TMP), &bytes).unwrap();
+            gevallen.push((
+                echt.join("verboden").join(TMP),
+                echt.join("verboden").join(DOEL),
+                "scope",
+            ));
         }
-        for (to, reden) in &gevallen {
+        for (from, to, reden) in &gevallen {
             let fs = ipc(
                 &window,
                 "plugin:fs|rename",
-                json!({ "oldPath": from, "newPath": to }),
+                json!({ "oldPath": text(from), "newPath": text(to) }),
             );
-            assert!(fs.is_err(), "plugin-fs nam {to} aan: {fs:?}");
+            assert!(fs.is_err(), "plugin-fs nam {to:?} aan: {fs:?}");
             assert_eq!(
                 ipc(
                     &window,
                     "place_file_exclusive",
-                    json!({ "from": from, "to": to })
+                    json!({ "from": text(from), "to": text(to) })
                 ),
                 Err(json!({ "code": "refused", "reason": reden })),
-                "{to}"
+                "{from:?} naar {to:?}"
             );
-            assert_eq!(std::fs::read(echt.join(TMP)).unwrap(), bytes);
-            assert!(!exists(&echt.join(DOEL)));
+            assert_eq!(std::fs::read(from).unwrap(), bytes);
+            assert!(!exists(to), "{to:?}");
         }
+        #[cfg(unix)]
+        assert!(!exists(&buiten.file(DOEL)));
 
         // Controle: dezelfde bron naar een gewoon doel plaatst dit commando via dezelfde IPC.
         assert_eq!(
             ipc(
                 &window,
                 "place_file_exclusive",
-                json!({ "from": from, "to": text(&echt.join(DOEL)) })
+                json!({ "from": text(&from), "to": text(&echt.join(DOEL)) })
             ),
             Ok(json!({ "code": "placed" }))
         );
@@ -1894,15 +2057,22 @@ mod tests {
         assert!(scope.allows(&buiten));
 
         // Het verbod op de webviewgegevens (knownbug 1796) staat in de globale scope van fs, precies de
-        // lijst van dit platform en niets ruimers. Het standaardverbod van tauri-plugin-fs 2.5.0 levert
-        // niets (`[[scope.deny]]` in plaats van `[[permission.scope.deny]]`); de capabilities
-        // `webviewgegevens-linux.json` en `-windows.json` zetten het zelf.
+        // lijst van dit platform, elk patroon één keer en niets ruimers. Het komt van twee kanten:
+        // `fs:default` (tauri-plugin-fs 2.7.1) levert `map/**` en op Linux de twee bestanden; de
+        // capabilities `webviewgegevens-linux.json` en `-windows.json` zetten alleen de map zelf. Staat
+        // een patroon van `fs:default` ook in de capability, dan staat het hier dubbel.
+        let gewoon = |p: &Path| p.components().collect::<PathBuf>();
+        let local = app.path().app_local_data_dir().unwrap();
+        let mut eigen: Vec<PathBuf> = eigen_verbod(&app).iter().map(|p| gewoon(p)).collect();
+        eigen.sort();
+        let mut verwacht_eigen: Vec<PathBuf> =
+            app_hier().iter().map(|p| gewoon(&local.join(p))).collect();
+        verwacht_eigen.sort();
+        assert_eq!(eigen, verwacht_eigen, "het eigen verbod in de capability");
         let resolved = webview
             .resolve_command_scope::<FsScopeEntry>("fs", "rename")
             .unwrap()
             .unwrap();
-        let local = app.path().app_local_data_dir().unwrap();
-        let gewoon = |p: &Path| p.components().collect::<PathBuf>();
         let mut verboden: Vec<PathBuf> = resolved
             .global_scope()
             .denies()
@@ -1947,6 +2117,45 @@ mod tests {
                 assert_eq!(verboden, verbod_op_l, "{command}");
             } else {
                 assert!(verboden.is_empty(), "{command}: {verboden:?}");
+            }
+        }
+    }
+
+    // De struikeldraad van #975 omgekeerd (knownbug 1797): `fs:default` van tauri-plugin-fs 2.7.1 verbiedt
+    // nu zelf wat eronder ligt (`map/x`, en op Linux de twee bestanden), ook zonder het eigen verbod van
+    // de app. De map zelf dekt het niet: daarvoor blijft de capability van de app nodig. De scope is hier
+    // die van de echte capabilities, zonder de verboden paden uit `webviewgegevens-*.json`.
+    #[test]
+    fn place_file_fs_default_verbiedt_zelf() {
+        use tauri::Manager;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let local = app.path().app_local_data_dir().unwrap();
+        let gewoon = |p: &Path| p.components().collect::<PathBuf>();
+        let eigen: Vec<PathBuf> = eigen_verbod(&app).iter().map(|p| gewoon(p)).collect();
+        assert_eq!(eigen.is_empty(), cfg!(target_os = "macos"));
+        let houd = |p: &Path| !eigen.contains(&gewoon(p));
+        for command in ["rename", "read_file", "write_file", "remove"] {
+            let alleen_fs_default = scope_met(webview, command, &houd, false)
+                .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
+            let met_eigen = scope_voor(webview, command, true).unwrap();
+            for patroon in fs_default_hier() {
+                let pad = onder(&local, patroon);
+                assert!(
+                    !alleen_fs_default.allows(&pad),
+                    "fs:default {command}: {pad:?}"
+                );
+            }
+            for map in app_hier() {
+                let pad = local.join(map);
+                assert!(
+                    alleen_fs_default.allows(&pad),
+                    "fs:default dekt {pad:?} niet ({command})"
+                );
+                assert!(
+                    !met_eigen.allows(&pad),
+                    "het eigen verbod {command}: {pad:?}"
+                );
             }
         }
     }
@@ -2198,9 +2407,11 @@ mod tests {
         let webview: &tauri::Webview<_> = window.as_ref();
         let data = app.path().app_data_dir().unwrap();
         let rename = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
-        let verboden_namen: Vec<&str> = VERBOD_LINUX
+        let verboden_namen: Vec<&str> = FS_DEFAULT_LINUX
             .iter()
-            .chain(VERBOD_WINDOWS.iter())
+            .chain(&FS_DEFAULT_WINDOWS)
+            .chain(&APP_LINUX)
+            .chain(&APP_WINDOWS)
             .map(|p| p.trim_end_matches("/**"))
             .collect();
         for (namen, commands) in EIGEN_GEBRUIK {
@@ -2473,6 +2684,7 @@ mod tests {
         let scope = FsRenameScope {
             runtime: Some(runtime.clone()),
             configured,
+            require_literal_leading_dot: None,
         };
         let home = app.path().home_dir().unwrap();
         let verboden = home.join("verboden").join("plan.ifc");
