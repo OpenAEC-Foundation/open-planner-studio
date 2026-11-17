@@ -2849,6 +2849,14 @@ en noem het in je rapport of PR-tekst.
      Een eerdere versie van dit punt las `allow_file` als alleen letterlijk; dat was onjuist. Richting: bij #978, die
      de regel van 2.7.1 aan de proef toevoegt, de canonieke vorm in de nagebootste dialoog zetten. Gevonden door de
      review van #979. — B (bron en proef van de review)
+1754. **VERVOLG (#804, 1131 stap 4): in een gelinkte map binnen de thuismap kan Opslaan als met een gebouwmodel een
+     hulpbestand laten staan.** Uit de code en 1755 afgeleid, niet in de app gezien. Met plugin-fs 2.5.0 ontstaat
+     `save-<id>.ops-save.tmp` in `~/projecten` (link naar `/data/…`) nog, want het nieuwe pad is lexicaal in de scope.
+     `place_file_exclusive` toetst ook de echte map en geeft `refused`/`scope`; `writeNewUserBytes` ruimt dan op en maakt
+     het doel direct met `createNew`. Dat opruimen gaat via plugin-fs `remove`, dat het bestaande hulpbestand op het
+     opgeloste pad toetst en weigert (zoals in 1755): het bestand blijft staan, de opslag zelf slaagt. Met plugin-fs
+     2.7.1 (#978) mislukt al de aanmaak (`forbidden path`) en ontstaat er geen hulpbestand. Richting: bij #978 nagaan;
+     anders een `refused`/`scope` vóór de aanmaak voorkomen. — S
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -3644,6 +3652,13 @@ en noem het in je rapport of PR-tekst.
      `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
      in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
      meting weghalen, of als basis de merge-base van de PR nemen. — B
+1753. **VERVOLG (#804, proeven): een check die op een belofte blijft wachten, eindigt stil met exit 0.**
+     Gezien bij 1131 stap 4: in `check-file-ifc-bytes.ts` wachtte een proef op een belofte die nooit afliep; Node
+     stopte omdat er niets meer te doen was, zonder fout, en `run.sh` gaf "EINDOORDEEL planningssuite: GROEN (exit 0)"
+     terwijl de proeven erna niet draaiden en er al een `XX`-regel stond. Die check heeft nu een `exit`-bewaking (niet
+     afgerond is rood). Andere `check-*.ts` met `main().catch(...)` of top-level `await` hebben die bewaking niet; of er
+     nu een stil afbrekende check is, is niet nagegaan. Richting: één bewaking in de harness (`run.sh` of de bundel van
+     een check) die eist dat het script zijn einde haalde, in plaats van per check. — B (voor die ene check), S (rest)
 
 ## Wensen en open taken (geen bug)
 
