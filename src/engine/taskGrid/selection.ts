@@ -229,15 +229,43 @@ function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<G
  * Blijft de celcursor al op de juiste rij staan (de gewone gridklik-route, die zelf al
  * `selectTask` aanroept ná het zetten van `active`), dan is dit een no-op op de celcursor.
  */
+/**
+ * In een groepering staat een taak meer dan eens. Een door de store gekozen rij (`preferredRowKey`,
+ * na verwijderen de buurrij) van deze taak wint. Staat de cursor al op een voorkomen, dan dat;
+ * anders het voorkomen dat het dichtst bij de cursor ligt (bij gelijke afstand het bovenste), zodat
+ * de cursor in zijn groep blijft. Zonder cursor het eerste voorkomen.
+ */
+function nearestOccurrence(
+  rowIndex: TaskGridRowIndex,
+  taskId: string,
+  cursorRowKey: string | null,
+  preferredRowKey: string | null,
+): TaskGridRowIndex['taskRows'][number] | undefined {
+  const preferredRow = preferredRowKey ? rowIndex.taskByRowKey.get(preferredRowKey) : undefined;
+  if (preferredRow?.task.id === taskId) return preferredRow;
+  const cursorRow = cursorRowKey ? rowIndex.taskByRowKey.get(cursorRowKey) : undefined;
+  if (cursorRow?.task.id === taskId) return cursorRow;
+  const cursor = cursorRowKey ? rowIndex.taskIndexByRowKey.get(cursorRowKey) : undefined;
+  let best: TaskGridRowIndex['taskRows'][number] | undefined;
+  let bestDistance = Infinity;
+  rowIndex.taskRows.forEach((row, index) => {
+    if (row.task.id !== taskId) return;
+    const distance = cursor === undefined ? index : Math.abs(index - cursor);
+    if (distance < bestDistance) { best = row; bestDistance = distance; }
+  });
+  return best;
+}
+
 export function syncActiveCellToPublishedTask(
   reconciled: Readonly<GridSelectionState>,
   publishedActiveTaskId: string | null,
   publishedSelectedTaskIds: readonly string[],
   rowIndex: TaskGridRowIndex,
   columns: readonly TaskColumnId[],
+  preferredRowKey: string | null = null,
 ): GridSelectionState {
   const activeRow = publishedActiveTaskId
-    ? rowIndex.taskRows.find(row => row.task.id === publishedActiveTaskId)
+    ? nearestOccurrence(rowIndex, publishedActiveTaskId, reconciled.active?.rowKey ?? null, preferredRowKey)
     : undefined;
   if (activeRow && activeRow.rowKey !== reconciled.active?.rowKey) {
     const columnId = reconciled.active?.columnId ?? columns[0];

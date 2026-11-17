@@ -6,6 +6,47 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.47.0 — 2026-11-17
+
+### Added
+
+- Cost resources hold a fixed amount per assignment, including on milestones. They have no work, units, rate, capacity or calendar, do not participate in loading or levelling, and do not change task duration. The resource panel totals their amounts. Native IFC and the extension API preserve the cost resource and its amounts; MS Project XML, P6 XML and XER omit them with a loss notice.
+- The dependency panel can add several predecessors or successors in one undo step. Its arrows follow the dependency chain, preferring the driving or most critical relation when there is a choice. Back and forward navigation retains the task visits.
+- Dissolve removes selected tasks and reconnects their predecessors and successors with finish-to-start relations and no lag. A setting chooses whether dissolving a summary removes its subtree or just its header. Relations that cannot be recreated are reported.
+- Gantt and PDF reports can show start and finish dates beside the bars. Report fonts add Liberation Mono and a supported custom TrueType font from a local file or the computer's font list; the PDF embeds the chosen font, subject to its embedding permissions and supported outline format.
+- Activity-code values can be reordered. Feedback displays a link to the created issue.
+
+### Changed
+
+- The redesigned Report workspace is enabled for everyone. Its five steps cover tasks and grouping, columns, bars and timeline, page, and header and footer. The paper opens the relevant step; a collapsed sidebar uses movable popovers. The Resource diagram is a layout within the Gantt report.
+- Report rows may use all tasks, the current view or a saved layout. Following the view also follows its columns and bar colours. A layout's columns and bar options are applied only by explicit buttons, with undo; filters, grouping and sorting follow the layout. Page scale and the report's other choices remain independent.
+- Report settings share one persisted state and preserve concurrent choices from other windows. Failed reads and writes are reported rather than interpreted as empty or successfully saved data. Only the visible paper sheets are drawn in the preview.
+- Project settings explicitly select the default task type and apply the associated field visibility and work-rule transition. Phase-template names follow the interface language.
+- External project links can optionally read anchors from another open document. Source-version choices and pending refreshes remain guarded.
+- The approved OpenAEC icon set is now the default. Experimental settings expose each registered feature flag; building-model support remains off by default.
+- The desktop window stays hidden until the first committed view and fonts are ready, with an error route and a Rust fallback. Browser and embedded startup retain their own behaviour.
+
+### Fixed
+
+- Preserve resource hours when a task duration is set to the same value. Keep task selection on a visible neighbouring row after deletion or collapse, paste copied table cells as tasks in another plan, and show the subtask control in Table view and automatic column sizing.
+- CSV export preserves decimal values. IFC duration parsing handles supported day components and exact duration forms, while calendar exchange retains minutes, seconds, midnight boundaries, source clock forms and calendars already saved as literal times.
+- IFC section discovery and target inspection share strict STEP grammar and protect existing files with building-model or unreadable content. Historical Open Planner Studio headers are recognised within a narrow, byte-preserving boundary. Ambiguous or unsupported rewrites are refused rather than silently losing content.
+- Update the Tauri updater, ZIP handling, HTTP dependencies and minimatch for the addressed dependency advisories. Desktop filesystem scopes use the intended Windows path separators; the real-app check exercises Save followed by XER opening.
+- Browser regressions wait for the actual task bar and stable geometry during drag and undo routes.
+
+### Experimental IFC building-model support
+
+- With the experimental flag enabled, IFC opens through a byte-preserving scanner and retains the original source outside undo snapshots. Guarded document Save As, IFC export and app-MCP export can combine supported planning edits with foreign content to a new desktop file, browser download or versioned site file. Existing local targets remain refused.
+- Prepared output validates the generated planning and commits the saved source, target and literal-calendar choices together after successful document I/O. Exports do not change the open document's source or destination.
+- Crash recovery rereads source files or browser handles, or uses best-effort browser source copies after hash verification. Missing sources block ordinary output. Explicit Save As or planning-only export can proceed only after a cancel-by-default question; the original destination stays protected.
+- Resource/calendar identity, helper identifiers, author information, catalogue growth and the emitted planning are checked conservatively. File AutoSave, pool and other unsupported write routes remain blocked for foreign content. This feature is incomplete and disabled by default.
+
+### Documentation
+
+- Dutch and English guides cover the Report workspace, custom fonts, cost amounts, dependency selection and navigation, Dissolve, project task types, reordered code values, live external sources and the experimental IFC restrictions. Wiki feature descriptions follow this release.
+- All 28 interface languages are updated through the translation pipeline. Guide translations beyond Dutch and English remain separate work.
+- Release documentation now records Monday publication with no evening time limit; the weekend stop and mandatory recovery gates remain in place.
+
 ## v2026.45.0 — 2026-11-09
 
 ### Added

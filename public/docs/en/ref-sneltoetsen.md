@@ -32,9 +32,9 @@ The built app (desktop and the web version on the site) also blocks a number of 
 
 ## Edit
 
-**Ctrl+C** — *Copy*: copies the selected tasks. Only with a selection. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open. In the task grid Ctrl+C copies the selected cells; the grid handles that itself.
+**Ctrl+C** — *Copy*: copies the selected tasks. Only with a selection. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open. In the task grid Ctrl+C copies the selected cells, and also the tasks of those cells, so you can paste them into another plan.
 
-**Ctrl+V** — *Paste*: pastes copied tasks. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open, because the task list is not in view there. In the task grid it pastes the cells.
+**Ctrl+V** — *Paste*: pastes copied tasks. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open, because the task list is not in view there. In the task grid it pastes the cells. If you copied in the task grid of another plan, it pastes those tasks.
 
 **Ctrl+Z** — *Undo*. Not in a dialog: close the window first.
 

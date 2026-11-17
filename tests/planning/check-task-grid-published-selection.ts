@@ -16,16 +16,25 @@ import type { Task } from '@/types/task';
 const source = readFileSync('src/components/task-grid/FullTaskGrid.tsx', 'utf8');
 const bodies = [...source.matchAll(/setSelection\(current => \{([\s\S]*?)\n    \}\);/g)];
 assert.equal(bodies.length, 1, 'precies één synchronisatie-updater in TaskGridSurface');
+// Issue #899: React voert de updater pas bij de volgende render uit, als de refs al op de nieuwe
+// rijen staan. Leest hij ze daar, dan kent de herstelregel de oude plek niet en springt de cursor
+// naar de bovenste rij. De updater mag dus alleen de vooraf vastgelegde waarden gebruiken.
+assert.ok(!/previous(Rows|Columns)Ref/.test(bodies[0][1]),
+  'de synchronisatie-updater leest geen previousRowsRef/previousColumnsRef (die zijn dan al bijgewerkt)');
 const columns = [taskColumnId('task.name'), taskColumnId('task.time.scheduleDuration')];
 const runUpdater = new Function(
-  'current', 'selectedTaskIds', 'publishedActiveTaskId', 'rowIndex', 'previousRowsRef',
-  'visibleColumnIds', 'previousColumnsRef', 'createEmptyGridSelection', 'updateGridSelection',
-  'reconcileGridSelection', 'syncActiveCellToPublishedTask', 'GHOST_ROW_KEY', bodies[0][1],
+  'current', 'selectedTaskIds', 'publishedActiveTaskId', 'rowIndex', 'previousRows',
+  'visibleColumnIds', 'previousColumns', 'createEmptyGridSelection', 'updateGridSelection',
+  'reconcileGridSelection', 'syncActiveCellToPublishedTask', 'GHOST_ROW_KEY', 'preferredRowKey', bodies[0][1],
 ) as (...args: unknown[]) => GridSelectionState;
 
-function run(current: GridSelectionState, published: readonly string[], active: string | null, rows: TaskGridRowIndex) {
-  return runUpdater(current, published, active, rows, { current: rows }, columns, { current: columns },
-    createEmptyGridSelection, updateGridSelection, reconcileGridSelection, syncActiveCellToPublishedTask, GHOST_ROW_KEY);
+function run(
+  current: GridSelectionState, published: readonly string[], active: string | null, rows: TaskGridRowIndex,
+  previousRows: TaskGridRowIndex = rows,
+) {
+  return runUpdater(current, published, active, rows, previousRows, columns, columns,
+    createEmptyGridSelection, updateGridSelection, reconcileGridSelection, syncActiveCellToPublishedTask, GHOST_ROW_KEY,
+    null);
 }
 const row = (id: string, rowKey = id): ViewRow => ({
   kind: 'task', rowKey, task: { id } as Task, depth: 0, dimmed: false,
@@ -41,6 +50,17 @@ assert.deepEqual(run(createEmptyGridSelection(), [], null, rows),
 assert.deepEqual(run(createEmptyGridSelection(), ['a', 'b'], 'b', rows),
   updateGridSelection(createEmptyGridSelection(), { ...first, rowKey: 'b' }, rows, columns, 'replace'));
 assert.deepEqual(run(createEmptyGridSelection(), [], null, createTaskGridRowIndex([])), createEmptyGridSelection());
+
+// Issue #899: de cursor stond op c (derde van vijf); c verdwijnt (ingeklapt of verwijderd) en de store
+// publiceert nog niets nieuws. De cursor gaat naar de rij op die plek (d), niet naar de bovenste.
+{
+  const five = createTaskGridRowIndex(['a', 'b', 'c', 'd', 'e'].map(id => row(id)));
+  const withoutC = createTaskGridRowIndex(['a', 'b', 'd', 'e'].map(id => row(id)));
+  const onC = updateGridSelection(createEmptyGridSelection(), { rowKey: 'c', columnId: columns[1] }, five, columns, 'replace');
+  const after = run(onC, ['c'], 'c', withoutC, five);
+  assert.equal(after.active?.rowKey, 'd', 'verdwenen rij ⇒ de rij op dezelfde plek, niet de bovenste');
+  assert.equal(after.active?.columnId, columns[1], 'de kolom blijft');
+}
 
 // Alle kleine lijsten, inclusief lege lijsten, andere volgorde en asymmetrische duplicaten.
 // [a,a] tegenover [a,b] is bewust gelijk volgens het oude contract; de omkering is dat niet.

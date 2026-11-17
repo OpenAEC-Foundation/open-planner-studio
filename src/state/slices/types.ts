@@ -35,6 +35,7 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 // Opslag via de site: de VRAAG van de twee site-dialogen. Type-only import, net als hierboven.
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
+import type { PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
@@ -84,6 +85,10 @@ export const TIME_NOTATIONS: TimeNotation[] = ['24h', '12h'];
 export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
+
+/** Dissolve bij een samenvattingstaak (issue #887): de hele fase met subtaken, of alleen de kopregel. */
+export type DissolveSummaryMode = 'branch' | 'header';
+export const DISSOLVE_SUMMARY_MODES: DissolveSummaryMode[] = ['branch', 'header'];
 
 // 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
 // (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
@@ -296,6 +301,7 @@ export type NotificationMessageKey =
   | 'notifications.summaryRelationsDropped'
   | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
+  | 'notifications.relationsSkippedOnDissolve'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
@@ -637,15 +643,6 @@ export interface PhaseAssignmentQuestion {
  * Een bron van het actieve document met een nieuwe versie (keuze 1, Ethan 2026-11-03; stap 1.5). De balk onder
  * het lint toont er één per bron, met *Bekijken* en *Later*. Sessie-only: na herstarten kijkt de app opnieuw.
  */
-/** Het spoor van terug en vooruit in het relatiepaneel voor één document (issue #888). */
-export interface RelationTrail {
-  documentId: string;
-  /** De taken waar het paneel heen sprong, met het vertrekpunt van de eerste sprong vooraan. */
-  taskIds: string[];
-  /** Waar je in het spoor staat; een eigen klik in tabel of Gantt verzet dit niet. */
-  index: number;
-}
-
 /** Het zoekresultaat *Afhankelijke projecten* van één document (stap 1.11). */
 export interface DependentProjectsResult {
   documentId: string;
@@ -709,6 +706,9 @@ export interface UIState {
   activeRibbonTab: RibbonTab;
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
+  /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+  gridActiveRowKey: string | null;
   showSettingsDialog: boolean;
   showCalendarDialog: boolean;
   showUpdateDialog: boolean;
@@ -808,9 +808,6 @@ export interface UIState {
   /** session — het laatste zoekresultaat *Afhankelijke projecten* per document (stap 1.11). Afgeleide
    *  data, geen projectdata: niet in `DOCUMENT_FIELDS` en niet in het IFC-bestand. */
   dependentProjects: DependentProjectsResult[];
-  /** session — terug en vooruit in het relatiepaneel, per document (issue #888). Geen projectdata:
-   *  niet in `DOCUMENT_FIELDS`, niet in undo en niet in het IFC-bestand. */
-  relationTrails: RelationTrail[];
   /** session — de vraag vóór opslaan: deze ankers van afhankelijke projecten worden te krap. */
   pendingDependentAnchorWarning: TightAnchor[] | null;
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt
@@ -820,6 +817,7 @@ export interface UIState {
    *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
   showResourceAccent: boolean;               // persisted
   showFloatBand: boolean;                    // persisted — groene spelingsband ná niet-kritieke balken
+  showBarDates: boolean;                     // persisted — begin- en einddatum naast de Gantt-balken (#868)
   /** Canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
   barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus; niet gepersisteerd
@@ -844,6 +842,7 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  dissolveSummaryMode: DissolveSummaryMode;  // persisted — Dissolve bij een samenvattingstaak (default 'branch')
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT
@@ -897,8 +896,9 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
-  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
-  pendingIfcMissingSourceSaveAs: boolean;
+  /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
+   *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
+  pendingPlanOnlyQuestion: PlanOnlyReason | null;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg

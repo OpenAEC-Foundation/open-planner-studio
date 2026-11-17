@@ -24,6 +24,8 @@
     "undo": "Fortryd",
     "redo": "Gentag",
     "delete": "Slet",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: sletter de valgte opgaver og sammenkæder hver foregående opgave med hver efterfølgende opgave (slut til start, uden forsinkelse)",
     "undoTitle": "Fortryd (Ctrl+Z)",
     "redoTitle": "Gentag (Ctrl+Y)",
     "deleteTitle": "Slet markering (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Vælg kolonnerne i tabelvisningen — vises på fanen Tabel",
     "toggleResourceAccent": "Ressourceaccent",
     "toggleFloatBand": "Slækbånd",
+    "toggleBarDates": "Datoer ved bjælker",
     "screenColors": "Bjælkefarver",
     "screenColors_critical": "Kritisk vej",
     "screenColors_auto": "Pr. opgave — automatisk",
@@ -281,7 +284,8 @@
       "label": "IFC-skema ved lagring",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (standard)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Filen indeholder data fra et andet program. Derfor bliver skemaet fra den oprindelige header bevaret."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Faseringsskabelon",
     "tmplEmpty": "Tom",
     "tmplWoningbouw": "Boligbyggeri",
-    "tmplUtiliteit": "Erhvervsbyggeri / renovering"
+    "tmplUtiliteit": "Erhvervsbyggeri / renovering",
+    "phase": {
+      "siteGroundwork": "Byggeplads & jordarbejde",
+      "foundation": "Fundering",
+      "shell": "Råbygning / skal",
+      "roof": "Tag",
+      "facadeFitOut": "Facade & indretning",
+      "services": "Installationer (VVS/el)",
+      "finishes": "Afslutningsarbejder",
+      "handover": "Aflevering",
+      "demolitionStripOut": "Nedrivning & strip-out",
+      "groundworkFoundation": "Jordarbejde & fundering",
+      "mainStructure": "Hovedbærekonstruktion",
+      "facadeRoof": "Facade & tag",
+      "fitOut": "Indretning",
+      "commissioning": "Idriftsættelse & test"
+    }
   },
   "status": {
     "tasks": "Opgaver:",
@@ -315,12 +335,14 @@
     "recentTitle": "Seneste projekter",
     "recentSubtitle": "Klik for at åbne.",
     "recentEmpty": "Ingen nyligt åbnede projekter endnu.",
+    "recentLoading": "Indlæser seneste filer…",
     "recentUnavailable": "Denne browser kan ikke åbne lokale filer igen fra „Seneste“. Brug „Åbn“ for at vælge din projektfil igen.",
     "recentOnSite": "På stedet",
     "examples": "Eksempler",
     "examplesTitle": "Eksempelprojekter",
     "examplesSubtitle": "Medfølgende byggetidsplaner. Klik for at åbne i en ny fane.",
     "examplesLoading": "Indlæser eksempler…",
+    "loading": "Indlæser…",
     "examplesEmpty": "Ingen eksempler tilgængelige.",
     "examplesError": "Eksemplerne kunne ikke indlæses.",
     "examplesShowcaseHeading": "Fulde showcase-tidsplaner",

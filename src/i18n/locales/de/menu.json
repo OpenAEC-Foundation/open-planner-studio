@@ -24,6 +24,8 @@
     "undo": "Rückgängig",
     "redo": "Wiederholen",
     "delete": "Löschen",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: löscht die ausgewählten Vorgänge und verknüpft jeden Vorgänger mit jedem Nachfolger (Ende-Anfang, ohne Zeitabstand)",
     "undoTitle": "Rückgängig (Ctrl+Z)",
     "redoTitle": "Wiederholen (Ctrl+Y)",
     "deleteTitle": "Auswahl löschen (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Spalten der Tabellenansicht wählen — sichtbar im Register Tabelle",
     "toggleResourceAccent": "Ressourcen-Akzent",
     "toggleFloatBand": "Pufferband",
+    "toggleBarDates": "Datumsangaben an Balken",
     "screenColors": "Balkenfarben",
     "screenColors_critical": "Kritischer Pfad",
     "screenColors_auto": "Pro Vorgang — automatisch",
@@ -281,7 +284,8 @@
       "label": "IFC-Schema beim Speichern",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (Standard)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Die Datei enthält Daten einer anderen Anwendung. Daher bleibt das Schema aus dem ursprünglichen Dateikopf erhalten."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Phasen-Vorlage",
     "tmplEmpty": "Leer",
     "tmplWoningbouw": "Wohnungsbau",
-    "tmplUtiliteit": "Gewerbebau / Sanierung"
+    "tmplUtiliteit": "Gewerbebau / Sanierung",
+    "phase": {
+      "siteGroundwork": "Baustelle & Erdarbeiten",
+      "foundation": "Gründung",
+      "shell": "Rohbau",
+      "roof": "Dach",
+      "facadeFitOut": "Fassade & Ausbau",
+      "services": "Haustechnik (TGA)",
+      "finishes": "Oberflächen",
+      "handover": "Übergabe",
+      "demolitionStripOut": "Abbruch & Rückbau",
+      "groundworkFoundation": "Erdarbeiten & Gründung",
+      "mainStructure": "Tragwerk",
+      "facadeRoof": "Fassade & Dach",
+      "fitOut": "Ausbau",
+      "commissioning": "Einregulierung & Prüfung"
+    }
   },
   "status": {
     "tasks": "Vorgänge:",
@@ -315,12 +335,14 @@
     "recentTitle": "Zuletzt verwendete Projekte",
     "recentSubtitle": "Klicken zum Öffnen.",
     "recentEmpty": "Noch keine kürzlich geöffneten Projekte.",
+    "recentLoading": "Letzte Dateien laden…",
     "recentUnavailable": "Dieser Browser kann zuvor geöffnete lokale Dateien nicht über „Zuletzt verwendet“ erneut öffnen. Wählen Sie Ihre Projektdatei mit „Öffnen“ erneut aus.",
     "recentOnSite": "Auf der Website",
     "examples": "Beispiele",
     "examplesTitle": "Beispielprojekte",
     "examplesSubtitle": "Mitgelieferte Bauzeitpläne. Klicken zum Öffnen in einem neuen Tab.",
     "examplesLoading": "Beispiele werden geladen…",
+    "loading": "Wird geladen…",
     "examplesEmpty": "Keine Beispiele verfügbar.",
     "examplesError": "Beispiele konnten nicht geladen werden.",
     "examplesShowcaseHeading": "Vollständige Showcase-Zeitpläne",

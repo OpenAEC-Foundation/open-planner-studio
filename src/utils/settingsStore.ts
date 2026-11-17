@@ -10,6 +10,7 @@ import type {
   TimeNotation,
   DurationDisplay,
   BarSplitMode,
+  DissolveSummaryMode,
   FilterNode,
   SavedFilter,
   UIFontFamily,
@@ -370,6 +371,11 @@ export async function saveShowFloatBand(value: boolean): Promise<void> {
   await setSetting('showFloatBand', value);
 }
 
+/** Begin- en einddatum naast de Gantt-balken (#868) — view-state, zelfde model als hierboven. */
+export async function saveShowBarDates(value: boolean): Promise<void> {
+  await setSetting('showBarDates', value);
+}
+
 export async function saveShowResourceAccent(value: boolean): Promise<void> {
   await setSetting('showResourceAccent', value);
 }
@@ -708,6 +714,10 @@ export async function saveDurationDisplay(value: DurationDisplay): Promise<void>
 
 export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
   await setSetting('barSplitMode', value);
+}
+
+export async function saveDissolveSummaryMode(value: DissolveSummaryMode): Promise<void> {
+  await setSetting('dissolveSummaryMode', value);
 }
 
 // «alleen werkbare dagen tonen» — globale weergavevoorkeur, zelfde

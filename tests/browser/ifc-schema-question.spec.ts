@@ -193,7 +193,7 @@ test('Ontbrekend gebouwmodel: Opslaan als vraagt bewust doorgaan, Annuleren heef
           state.restoreDocuments([restored], 'hersteld');
         }
       }, { model, entry });
-      const dialog = page.locator('[data-ops-ifc-missing-source-save-as]');
+      const dialog = page.locator('[data-ops-plan-only-question="missingSourceSaveAs"]');
       const before = downloads;
       await page.keyboard.press('Control+s');
       await expect(dialog).toHaveCount(0);

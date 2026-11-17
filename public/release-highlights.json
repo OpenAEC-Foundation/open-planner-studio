@@ -1,8 +1,999 @@
 {
   "schema": 1,
   "product": "open-planner-studio",
-  "generated": "2026-11-09T18:54:06.101Z",
+  "generated": "2026-11-17T03:27:02.581Z",
   "releases": [
+    {
+      "version": "2026.47.0",
+      "tag": "v2026.47.0",
+      "stats": {
+        "daysSincePrevious": 7,
+        "commitsSincePrevious": 712,
+        "addedCodeLines": 86292
+      },
+      "highlights": {
+        "nl": {
+          "primary": {
+            "category": "RAPPORTEN",
+            "title": "Van planning naar papier",
+            "description": "Vijf stappen, layouts, datums bij balken en je eigen lettertype.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KOSTEN",
+              "title": "Ken vaste bedragen toe",
+              "description": "Kostenresources zetten een bedrag op een taak of mijlpaal, zonder uren.",
+              "icon": "library"
+            },
+            {
+              "category": "RELATIES",
+              "title": "Bouw en volg de keten",
+              "description": "Voeg meerdere relaties tegelijk toe en spring naar voorgangers en opvolgers.",
+              "icon": "relations"
+            },
+            {
+              "category": "BEWERKEN",
+              "title": "Haal een taak uit de keten",
+              "description": "Dissolve verbindt de taken ervoor en erna opnieuw.",
+              "icon": "tasks"
+            },
+            {
+              "category": "BETROUWBAARHEID",
+              "title": "Bewaar tijden nauwkeuriger",
+              "description": "Verbeterde IFC-kalenders, taakselectie en kopiëren tussen planningen.",
+              "icon": "import"
+            }
+          ]
+        },
+        "en": {
+          "primary": {
+            "category": "REPORTS",
+            "title": "From schedule to paper",
+            "description": "Five steps, layouts, dates beside bars and your own font.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "COSTS",
+              "title": "Assign fixed amounts",
+              "description": "Cost resources put an amount on a task or milestone, without hours.",
+              "icon": "library"
+            },
+            {
+              "category": "DEPENDENCIES",
+              "title": "Build and follow the chain",
+              "description": "Add several relations together and jump to predecessors and successors.",
+              "icon": "relations"
+            },
+            {
+              "category": "EDITING",
+              "title": "Remove a task from the chain",
+              "description": "Dissolve reconnects the tasks before and after it.",
+              "icon": "tasks"
+            },
+            {
+              "category": "RELIABILITY",
+              "title": "Preserve times more accurately",
+              "description": "Improved IFC calendars, task selection and copying between schedules.",
+              "icon": "import"
+            }
+          ]
+        },
+        "fr": {
+          "primary": {
+            "category": "RAPPORTS",
+            "title": "Du planning au papier",
+            "description": "Cinq étapes, des mises en page, des dates près des barres et votre police.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "COÛTS",
+              "title": "Affectez des montants fixes",
+              "description": "Les ressources de coût portent un montant par tâche ou jalon, sans heures.",
+              "icon": "library"
+            },
+            {
+              "category": "RELATIONS",
+              "title": "Construisez et suivez la chaîne",
+              "description": "Ajoutez plusieurs relations et accédez aux prédécesseurs et successeurs.",
+              "icon": "relations"
+            },
+            {
+              "category": "MODIFICATION",
+              "title": "Retirez une tâche de la chaîne",
+              "description": "Dissolve relie à nouveau les tâches qui la précèdent et la suivent.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FIABILITÉ",
+              "title": "Conservez mieux les horaires",
+              "description": "Calendriers IFC, sélection et copie entre plannings améliorés.",
+              "icon": "import"
+            }
+          ]
+        },
+        "de": {
+          "primary": {
+            "category": "BERICHTE",
+            "title": "Vom Terminplan aufs Papier",
+            "description": "Fünf Schritte, Layouts, Daten neben Balken und Ihre eigene Schrift.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KOSTEN",
+              "title": "Feste Beträge zuweisen",
+              "description": "Kostenressourcen tragen Beträge an Vorgängen oder Meilensteinen, ohne Stunden.",
+              "icon": "library"
+            },
+            {
+              "category": "BEZIEHUNGEN",
+              "title": "Ketten aufbauen und verfolgen",
+              "description": "Mehrere Beziehungen hinzufügen und zu Vorgängern und Nachfolgern springen.",
+              "icon": "relations"
+            },
+            {
+              "category": "BEARBEITUNG",
+              "title": "Vorgänge aus der Kette entfernen",
+              "description": "Dissolve verbindet die Vorgänge davor und danach erneut.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ZUVERLÄSSIGKEIT",
+              "title": "Zeiten genauer erhalten",
+              "description": "Verbesserte IFC-Kalender, Vorgangsauswahl und Kopien zwischen Terminplänen.",
+              "icon": "import"
+            }
+          ]
+        },
+        "es": {
+          "primary": {
+            "category": "INFORMES",
+            "title": "De la planificación al papel",
+            "description": "Cinco pasos, diseños, fechas junto a las barras y su propia fuente.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "COSTES",
+              "title": "Asigne importes fijos",
+              "description": "Los recursos de coste asignan un importe a tareas o hitos, sin horas.",
+              "icon": "library"
+            },
+            {
+              "category": "RELACIONES",
+              "title": "Construya y siga la cadena",
+              "description": "Añada varias relaciones y salte a predecesoras y sucesoras.",
+              "icon": "relations"
+            },
+            {
+              "category": "EDICIÓN",
+              "title": "Quite una tarea de la cadena",
+              "description": "Dissolve vuelve a conectar las tareas anteriores y posteriores.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FIABILIDAD",
+              "title": "Conserve las horas con precisión",
+              "description": "Mejoras en calendarios IFC, selección y copia entre planificaciones.",
+              "icon": "import"
+            }
+          ]
+        },
+        "zh": {
+          "primary": {
+            "category": "报告",
+            "title": "从计划到纸张",
+            "description": "五个步骤、布局、条形旁的日期和自选字体。",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "成本",
+              "title": "分配固定金额",
+              "description": "成本资源为任务或里程碑分配金额，不涉及工时。",
+              "icon": "library"
+            },
+            {
+              "category": "依赖关系",
+              "title": "建立并追踪任务链",
+              "description": "同时添加多个关系，并跳转到前置或后续任务。",
+              "icon": "relations"
+            },
+            {
+              "category": "编辑",
+              "title": "从任务链中移除任务",
+              "description": "Dissolve 会重新连接其前后的任务。",
+              "icon": "tasks"
+            },
+            {
+              "category": "可靠性",
+              "title": "更准确地保留时间",
+              "description": "改进 IFC 日历、任务选择和计划间的复制。",
+              "icon": "import"
+            }
+          ]
+        },
+        "it": {
+          "primary": {
+            "category": "RAPPORTI",
+            "title": "Dal piano alla carta",
+            "description": "Cinque passaggi, layout, date accanto alle barre e il proprio carattere.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "COSTI",
+              "title": "Assegnare importi fissi",
+              "description": "Le risorse di costo assegnano importi a compiti o milestone, senza ore.",
+              "icon": "library"
+            },
+            {
+              "category": "RELAZIONI",
+              "title": "Creare e seguire la catena",
+              "description": "Aggiungere più relazioni e passare ai predecessori e successori.",
+              "icon": "relations"
+            },
+            {
+              "category": "MODIFICA",
+              "title": "Togliere un compito dalla catena",
+              "description": "Dissolve ricollega i compiti precedenti e successivi.",
+              "icon": "tasks"
+            },
+            {
+              "category": "AFFIDABILITÀ",
+              "title": "Conservare meglio gli orari",
+              "description": "Migliorati calendari IFC, selezione e copia tra piani.",
+              "icon": "import"
+            }
+          ]
+        },
+        "pt": {
+          "primary": {
+            "category": "RELATÓRIOS",
+            "title": "Do planeamento ao papel",
+            "description": "Cinco passos, disposições, datas junto às barras e o seu tipo de letra.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "CUSTOS",
+              "title": "Atribua montantes fixos",
+              "description": "Os recursos de custo atribuem montantes a tarefas ou marcos, sem horas.",
+              "icon": "library"
+            },
+            {
+              "category": "RELAÇÕES",
+              "title": "Crie e siga a cadeia",
+              "description": "Adicione várias relações e passe às predecessoras e sucessoras.",
+              "icon": "relations"
+            },
+            {
+              "category": "EDIÇÃO",
+              "title": "Retire uma tarefa da cadeia",
+              "description": "Dissolve volta a ligar as tarefas anteriores e posteriores.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FIABILIDADE",
+              "title": "Preserve os horários com precisão",
+              "description": "Melhorias nos calendários IFC, seleção e cópia entre planeamentos.",
+              "icon": "import"
+            }
+          ]
+        },
+        "pl": {
+          "primary": {
+            "category": "RAPORTY",
+            "title": "Z harmonogramu na papier",
+            "description": "Pięć kroków, układy, daty obok słupków i własna czcionka.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KOSZTY",
+              "title": "Przypisuj stałe kwoty",
+              "description": "Zasoby kosztowe przypisują kwoty do zadań lub kamieni milowych, bez godzin.",
+              "icon": "library"
+            },
+            {
+              "category": "RELACJE",
+              "title": "Buduj i śledź łańcuch",
+              "description": "Dodawaj wiele relacji i przechodź do poprzedników i następników.",
+              "icon": "relations"
+            },
+            {
+              "category": "EDYCJA",
+              "title": "Usuń zadanie z łańcucha",
+              "description": "Dissolve ponownie łączy zadania przed nim i po nim.",
+              "icon": "tasks"
+            },
+            {
+              "category": "NIEZAWODNOŚĆ",
+              "title": "Dokładniej zachowuj godziny",
+              "description": "Ulepszone kalendarze IFC, wybór zadań i kopiowanie między harmonogramami.",
+              "icon": "import"
+            }
+          ]
+        },
+        "tr": {
+          "primary": {
+            "category": "RAPORLAR",
+            "title": "Plandan kâğıda",
+            "description": "Beş adım, düzenler, çubukların yanında tarihler ve kendi yazı tipiniz.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "MALİYETLER",
+              "title": "Sabit tutarlar atayın",
+              "description": "Maliyet kaynakları görevlere veya kilometre taşlarına saat olmadan tutar atar.",
+              "icon": "library"
+            },
+            {
+              "category": "İLİŞKİLER",
+              "title": "Zinciri kurun ve izleyin",
+              "description": "Birden çok ilişki ekleyin, önceki ve sonraki görevlere geçin.",
+              "icon": "relations"
+            },
+            {
+              "category": "DÜZENLEME",
+              "title": "Bir görevi zincirden çıkarın",
+              "description": "Dissolve öncesindeki ve sonrasındaki görevleri yeniden bağlar.",
+              "icon": "tasks"
+            },
+            {
+              "category": "GÜVENİLİRLİK",
+              "title": "Saatleri daha doğru koruyun",
+              "description": "IFC takvimleri, görev seçimi ve planlar arasında kopyalama iyileştirildi.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ar": {
+          "primary": {
+            "category": "التقارير",
+            "title": "من الجدول إلى الورق",
+            "description": "خمس خطوات وتخطيطات وتواريخ بجانب الأشرطة وخطك الخاص.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "التكاليف",
+              "title": "عيّن مبالغ ثابتة",
+              "description": "تعيّن موارد التكلفة مبلغًا للمهمة أو للحدث الرئيسي دون ساعات.",
+              "icon": "library"
+            },
+            {
+              "category": "العلاقات",
+              "title": "أنشئ السلسلة وتتبعها",
+              "description": "أضف عدة علاقات معًا وانتقل إلى المهام السابقة واللاحقة.",
+              "icon": "relations"
+            },
+            {
+              "category": "التحرير",
+              "title": "أزل مهمة من السلسلة",
+              "description": "يعيد Dissolve ربط المهام التي تسبقها وتليها.",
+              "icon": "tasks"
+            },
+            {
+              "category": "الموثوقية",
+              "title": "احتفظ بالأوقات بدقة أكبر",
+              "description": "تحسين تقاويم IFC وتحديد المهام والنسخ بين الجداول.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ja": {
+          "primary": {
+            "category": "レポート",
+            "title": "計画から紙面へ",
+            "description": "5つの手順、レイアウト、バー横の日付、独自のフォント。",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "コスト",
+              "title": "固定金額を割り当て",
+              "description": "コストリソースで、工数を使わずタスクやマイルストーンに金額を設定。",
+              "icon": "library"
+            },
+            {
+              "category": "依存関係",
+              "title": "チェーンを作成して追跡",
+              "description": "複数の関係をまとめて追加し、先行・後続タスクへ移動。",
+              "icon": "relations"
+            },
+            {
+              "category": "編集",
+              "title": "チェーンからタスクを除去",
+              "description": "Dissolve が前後のタスクを再接続します。",
+              "icon": "tasks"
+            },
+            {
+              "category": "信頼性",
+              "title": "時刻をより正確に保持",
+              "description": "IFC カレンダー、タスク選択、計画間のコピーを改善。",
+              "icon": "import"
+            }
+          ]
+        },
+        "ko": {
+          "primary": {
+            "category": "보고서",
+            "title": "일정에서 인쇄물로",
+            "description": "다섯 단계, 레이아웃, 막대 옆 날짜와 사용자 글꼴.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "비용",
+              "title": "고정 금액 배정",
+              "description": "비용 자원으로 시간 없이 작업이나 마일스톤에 금액을 배정합니다.",
+              "icon": "library"
+            },
+            {
+              "category": "관계",
+              "title": "연결을 만들고 따라가기",
+              "description": "여러 관계를 함께 추가하고 선행 및 후행 작업으로 이동합니다.",
+              "icon": "relations"
+            },
+            {
+              "category": "편집",
+              "title": "연결에서 작업 제거",
+              "description": "Dissolve가 앞뒤 작업을 다시 연결합니다.",
+              "icon": "tasks"
+            },
+            {
+              "category": "신뢰성",
+              "title": "시간을 더 정확하게 보존",
+              "description": "IFC 달력, 작업 선택, 일정 간 복사를 개선했습니다.",
+              "icon": "import"
+            }
+          ]
+        },
+        "fa": {
+          "primary": {
+            "category": "گزارش‌ها",
+            "title": "از برنامه تا کاغذ",
+            "description": "پنج مرحله، چیدمان‌ها، تاریخ کنار میله‌ها و قلم دلخواه شما.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "هزینه‌ها",
+              "title": "مبلغ ثابت تخصیص دهید",
+              "description": "منابع هزینه به فعالیت یا نقطه عطف مبلغ می‌دهند، بدون ساعت کار.",
+              "icon": "library"
+            },
+            {
+              "category": "روابط",
+              "title": "زنجیره را بسازید و دنبال کنید",
+              "description": "چند رابطه را هم‌زمان اضافه کنید و به پیش‌نیازها و پس‌نیازها بروید.",
+              "icon": "relations"
+            },
+            {
+              "category": "ویرایش",
+              "title": "فعالیتی را از زنجیره بردارید",
+              "description": "Dissolve فعالیت‌های قبل و بعد را دوباره به هم وصل می‌کند.",
+              "icon": "tasks"
+            },
+            {
+              "category": "قابلیت اعتماد",
+              "title": "زمان‌ها را دقیق‌تر نگه دارید",
+              "description": "بهبود تقویم‌های IFC، انتخاب فعالیت و کپی میان برنامه‌ها.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ru": {
+          "primary": {
+            "category": "ОТЧЁТЫ",
+            "title": "От плана к бумаге",
+            "description": "Пять шагов, макеты, даты у полос и собственный шрифт.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ЗАТРАТЫ",
+              "title": "Назначайте фиксированные суммы",
+              "description": "Ресурсы затрат задают сумму для задачи или вехи без трудозатрат.",
+              "icon": "library"
+            },
+            {
+              "category": "СВЯЗИ",
+              "title": "Стройте и прослеживайте цепочку",
+              "description": "Добавляйте несколько связей и переходите к предшественникам и последователям.",
+              "icon": "relations"
+            },
+            {
+              "category": "РЕДАКТИРОВАНИЕ",
+              "title": "Уберите задачу из цепочки",
+              "description": "Dissolve заново соединяет задачи до и после неё.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАДЁЖНОСТЬ",
+              "title": "Точнее сохраняйте время",
+              "description": "Улучшены календари IFC, выбор задач и копирование между планами.",
+              "icon": "import"
+            }
+          ]
+        },
+        "uk": {
+          "primary": {
+            "category": "ЗВІТИ",
+            "title": "Від плану до паперу",
+            "description": "П’ять кроків, макети, дати біля смуг і власний шрифт.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ВИТРАТИ",
+              "title": "Призначайте фіксовані суми",
+              "description": "Ресурси витрат задають суму для завдання чи віхи без робочих годин.",
+              "icon": "library"
+            },
+            {
+              "category": "ЗВ’ЯЗКИ",
+              "title": "Будуйте й відстежуйте ланцюг",
+              "description": "Додавайте кілька зв’язків і переходьте до попередників та наступників.",
+              "icon": "relations"
+            },
+            {
+              "category": "РЕДАГУВАННЯ",
+              "title": "Вилучіть завдання з ланцюга",
+              "description": "Dissolve знову з’єднує завдання перед ним і після нього.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАДІЙНІСТЬ",
+              "title": "Точніше зберігайте час",
+              "description": "Поліпшено календарі IFC, вибір завдань і копіювання між планами.",
+              "icon": "import"
+            }
+          ]
+        },
+        "cs": {
+          "primary": {
+            "category": "SESTAVY",
+            "title": "Z plánu na papír",
+            "description": "Pět kroků, rozvržení, data u pruhů a vlastní písmo.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "NÁKLADY",
+              "title": "Přiřaďte pevné částky",
+              "description": "Nákladové zdroje přiřadí částku úkolu či milníku bez pracovních hodin.",
+              "icon": "library"
+            },
+            {
+              "category": "VAZBY",
+              "title": "Vytvořte a sledujte řetězec",
+              "description": "Přidejte více vazeb a přecházejte k předchůdcům a následníkům.",
+              "icon": "relations"
+            },
+            {
+              "category": "ÚPRAVY",
+              "title": "Vyjměte úkol z řetězce",
+              "description": "Dissolve znovu propojí úkoly před ním a za ním.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SPOLEHLIVOST",
+              "title": "Uchovejte časy přesněji",
+              "description": "Vylepšené kalendáře IFC, výběr úkolů a kopírování mezi plány.",
+              "icon": "import"
+            }
+          ]
+        },
+        "sk": {
+          "primary": {
+            "category": "ZOSTAVY",
+            "title": "Z plánu na papier",
+            "description": "Päť krokov, rozloženia, dátumy pri pruhoch a vlastné písmo.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "NÁKLADY",
+              "title": "Priraďte pevné sumy",
+              "description": "Nákladové zdroje priradia sumu úlohe či míľniku bez pracovných hodín.",
+              "icon": "library"
+            },
+            {
+              "category": "VÄZBY",
+              "title": "Vytvorte a sledujte reťazec",
+              "description": "Pridajte viac väzieb a prechádzajte k predchodcom a nasledovníkom.",
+              "icon": "relations"
+            },
+            {
+              "category": "ÚPRAVY",
+              "title": "Vyberte úlohu z reťazca",
+              "description": "Dissolve znova prepojí úlohy pred ňou a za ňou.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SPOĽAHLIVOSŤ",
+              "title": "Zachovajte časy presnejšie",
+              "description": "Vylepšené kalendáre IFC, výber úloh a kopírovanie medzi plánmi.",
+              "icon": "import"
+            }
+          ]
+        },
+        "sr": {
+          "primary": {
+            "category": "ИЗВЕШТАЈИ",
+            "title": "Од плана до папира",
+            "description": "Пет корака, распореди, датуми уз траке и сопствени фонт.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ТРОШКОВИ",
+              "title": "Доделите фиксне износе",
+              "description": "Трошковни ресурси додељују износ задатку или прекретници, без сати.",
+              "icon": "library"
+            },
+            {
+              "category": "ВЕЗЕ",
+              "title": "Изградите и пратите ланац",
+              "description": "Додајте више веза и пређите на претходнике и следбенике.",
+              "icon": "relations"
+            },
+            {
+              "category": "УРЕЂИВАЊЕ",
+              "title": "Уклоните задатак из ланца",
+              "description": "Dissolve поново повезује задатке пре и после њега.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ПОУЗДАНОСТ",
+              "title": "Прецизније сачувајте време",
+              "description": "Побољшани IFC календари, избор задатака и копирање између планова.",
+              "icon": "import"
+            }
+          ]
+        },
+        "hr": {
+          "primary": {
+            "category": "IZVJEŠTAJI",
+            "title": "Od plana do papira",
+            "description": "Pet koraka, izgledi, datumi uz trake i vlastiti font.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "TROŠKOVI",
+              "title": "Dodijelite fiksne iznose",
+              "description": "Troškovni resursi dodjeljuju iznos zadatku ili prekretnici, bez sati.",
+              "icon": "library"
+            },
+            {
+              "category": "VEZE",
+              "title": "Izgradite i pratite lanac",
+              "description": "Dodajte više veza i prijeđite na prethodnike i sljedbenike.",
+              "icon": "relations"
+            },
+            {
+              "category": "UREĐIVANJE",
+              "title": "Uklonite zadatak iz lanca",
+              "description": "Dissolve ponovno povezuje zadatke prije i poslije njega.",
+              "icon": "tasks"
+            },
+            {
+              "category": "POUZDANOST",
+              "title": "Preciznije sačuvajte vrijeme",
+              "description": "Poboljšani IFC kalendari, odabir zadataka i kopiranje između planova.",
+              "icon": "import"
+            }
+          ]
+        },
+        "bg": {
+          "primary": {
+            "category": "ОТЧЕТИ",
+            "title": "От плана до хартията",
+            "description": "Пет стъпки, оформления, дати до лентите и собствен шрифт.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "РАЗХОДИ",
+              "title": "Задавайте фиксирани суми",
+              "description": "Разходните ресурси задават сума за задача или етап, без часове.",
+              "icon": "library"
+            },
+            {
+              "category": "ВРЪЗКИ",
+              "title": "Изграждайте и следвайте веригата",
+              "description": "Добавяйте няколко връзки и преминавайте към предходни и следващи задачи.",
+              "icon": "relations"
+            },
+            {
+              "category": "РЕДАКТИРАНЕ",
+              "title": "Премахнете задача от веригата",
+              "description": "Dissolve свързва отново задачите преди и след нея.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАДЕЖДНОСТ",
+              "title": "Запазвайте часовете по-точно",
+              "description": "Подобрени IFC календари, избор на задачи и копиране между планове.",
+              "icon": "import"
+            }
+          ]
+        },
+        "hu": {
+          "primary": {
+            "category": "JELENTÉSEK",
+            "title": "A tervtől a papírig",
+            "description": "Öt lépés, elrendezések, dátumok a sávok mellett és saját betűtípus.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KÖLTSÉGEK",
+              "title": "Rendeljen hozzá fix összegeket",
+              "description": "A költségerőforrás feladathoz vagy mérföldkőhöz rendel összeget, munkaóra nélkül.",
+              "icon": "library"
+            },
+            {
+              "category": "KAPCSOLATOK",
+              "title": "Építse és kövesse a láncot",
+              "description": "Adjon hozzá több kapcsolatot, és lépjen az elődökre vagy utódokra.",
+              "icon": "relations"
+            },
+            {
+              "category": "SZERKESZTÉS",
+              "title": "Vegyen ki egy feladatot a láncból",
+              "description": "A Dissolve újra összeköti az előtte és utána álló feladatokat.",
+              "icon": "tasks"
+            },
+            {
+              "category": "MEGBÍZHATÓSÁG",
+              "title": "Pontosabban őrizze meg az időket",
+              "description": "Javultak az IFC-naptárak, a feladatkijelölés és a tervek közti másolás.",
+              "icon": "import"
+            }
+          ]
+        },
+        "ro": {
+          "primary": {
+            "category": "RAPOARTE",
+            "title": "Din plan pe hârtie",
+            "description": "Cinci pași, aranjamente, date lângă bare și propriul font.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "COSTURI",
+              "title": "Atribuiți sume fixe",
+              "description": "Resursele de cost atribuie sume sarcinilor sau jaloanelor, fără ore.",
+              "icon": "library"
+            },
+            {
+              "category": "RELAȚII",
+              "title": "Construiți și urmăriți lanțul",
+              "description": "Adăugați mai multe relații și treceți la predecesori și succesori.",
+              "icon": "relations"
+            },
+            {
+              "category": "EDITARE",
+              "title": "Scoateți o sarcină din lanț",
+              "description": "Dissolve reconectează sarcinile dinaintea și de după ea.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FIABILITATE",
+              "title": "Păstrați orele mai precis",
+              "description": "Calendare IFC, selecție și copiere între planuri îmbunătățite.",
+              "icon": "import"
+            }
+          ]
+        },
+        "sv": {
+          "primary": {
+            "category": "RAPPORTER",
+            "title": "Från plan till papper",
+            "description": "Fem steg, layouter, datum vid staplarna och ditt eget teckensnitt.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KOSTNADER",
+              "title": "Tilldela fasta belopp",
+              "description": "Kostnadsresurser ger aktiviteter eller milstolpar belopp utan timmar.",
+              "icon": "library"
+            },
+            {
+              "category": "SAMBAND",
+              "title": "Bygg och följ kedjan",
+              "description": "Lägg till flera samband och gå till föregångare och efterföljare.",
+              "icon": "relations"
+            },
+            {
+              "category": "REDIGERING",
+              "title": "Ta bort en aktivitet ur kedjan",
+              "description": "Dissolve kopplar ihop aktiviteterna före och efter den igen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "TILLFÖRLITLIGHET",
+              "title": "Bevara tider mer exakt",
+              "description": "Förbättrade IFC-kalendrar, aktivitetsval och kopiering mellan planer.",
+              "icon": "import"
+            }
+          ]
+        },
+        "nb": {
+          "primary": {
+            "category": "RAPPORTER",
+            "title": "Fra plan til papir",
+            "description": "Fem trinn, oppsett, datoer ved stolpene og din egen skrifttype.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KOSTNADER",
+              "title": "Tildel faste beløp",
+              "description": "Kostnadsressurser gir aktiviteter eller milepæler beløp uten timer.",
+              "icon": "library"
+            },
+            {
+              "category": "AVHENGIGHETER",
+              "title": "Bygg og følg kjeden",
+              "description": "Legg til flere relasjoner og gå til forgjengere og etterfølgere.",
+              "icon": "relations"
+            },
+            {
+              "category": "REDIGERING",
+              "title": "Ta en aktivitet ut av kjeden",
+              "description": "Dissolve kobler aktivitetene før og etter den sammen igjen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PÅLITELIGHET",
+              "title": "Bevar tider mer nøyaktig",
+              "description": "Forbedrede IFC-kalendere, aktivitetsvalg og kopiering mellom planer.",
+              "icon": "import"
+            }
+          ]
+        },
+        "da": {
+          "primary": {
+            "category": "RAPPORTER",
+            "title": "Fra plan til papir",
+            "description": "Fem trin, layout, datoer ved bjælkerne og din egen skrifttype.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "OMKOSTNINGER",
+              "title": "Tildel faste beløb",
+              "description": "Omkostningsressourcer giver opgaver eller milepæle beløb uden timer.",
+              "icon": "library"
+            },
+            {
+              "category": "RELATIONER",
+              "title": "Byg og følg kæden",
+              "description": "Tilføj flere relationer, og gå til forgængere og efterfølgere.",
+              "icon": "relations"
+            },
+            {
+              "category": "REDIGERING",
+              "title": "Tag en opgave ud af kæden",
+              "description": "Dissolve forbinder opgaverne før og efter den igen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PÅLIDELIGHED",
+              "title": "Bevar tider mere præcist",
+              "description": "Forbedrede IFC-kalendere, opgavevalg og kopiering mellem planer.",
+              "icon": "import"
+            }
+          ]
+        },
+        "fi": {
+          "primary": {
+            "category": "RAPORTIT",
+            "title": "Suunnitelmasta paperille",
+            "description": "Viisi vaihetta, asettelut, päivämäärät palkkien vieressä ja oma fontti.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "KUSTANNUKSET",
+              "title": "Kohdista kiinteitä summia",
+              "description": "Kustannusresurssit antavat tehtäville tai virstanpylväille summan ilman tunteja.",
+              "icon": "library"
+            },
+            {
+              "category": "RIIPPUVUUDET",
+              "title": "Rakenna ja seuraa ketjua",
+              "description": "Lisää useita suhteita ja siirry edeltäjiin ja seuraajiin.",
+              "icon": "relations"
+            },
+            {
+              "category": "MUOKKAUS",
+              "title": "Poista tehtävä ketjusta",
+              "description": "Dissolve yhdistää sitä edeltävät ja seuraavat tehtävät uudelleen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "LUOTETTAVUUS",
+              "title": "Säilytä ajat tarkemmin",
+              "description": "Parannetut IFC-kalenterit, tehtävien valinta ja kopiointi suunnitelmien välillä.",
+              "icon": "import"
+            }
+          ]
+        },
+        "lo": {
+          "primary": {
+            "category": "ລາຍງານ",
+            "title": "ຈາກແຜນສູ່ເຈ້ຍ",
+            "description": "ຫ້າຂັ້ນຕອນ, ຮູບແບບ, ວັນທີຂ້າງແຖບ ແລະຟອນຂອງທ່ານ.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ຄ່າໃຊ້ຈ່າຍ",
+              "title": "ກຳນົດຈຳນວນເງິນຄົງທີ່",
+              "description": "ຊັບພະຍາກອນຄ່າໃຊ້ຈ່າຍກຳນົດເງິນໃຫ້ວຽກ ຫຼືໝາຍສຳຄັນ ໂດຍບໍ່ມີຊົ່ວໂມງ.",
+              "icon": "library"
+            },
+            {
+              "category": "ຄວາມສຳພັນ",
+              "title": "ສ້າງ ແລະຕິດຕາມລຳດັບ",
+              "description": "ເພີ່ມຫຼາຍຄວາມສຳພັນພ້ອມກັນ ແລະໄປຫາວຽກກ່ອນ ແລະວຽກຕໍ່ໄປ.",
+              "icon": "relations"
+            },
+            {
+              "category": "ການແກ້ໄຂ",
+              "title": "ເອົາວຽກອອກຈາກລຳດັບ",
+              "description": "Dissolve ເຊື່ອມວຽກກ່ອນ ແລະຫຼັງຄືນໃໝ່.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ຄວາມໝັ້ນໃຈ",
+              "title": "ຮັກສາເວລາໃຫ້ແມ່ນຍຳຂຶ້ນ",
+              "description": "ປັບປຸງປະຕິທິນ IFC, ການເລືອກວຽກ ແລະການຄັດລອກລະຫວ່າງແຜນ.",
+              "icon": "import"
+            }
+          ]
+        }
+      }
+    },
     {
       "version": "2026.45.0",
       "tag": "v2026.45.0",
