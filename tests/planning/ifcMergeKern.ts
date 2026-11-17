@@ -14,8 +14,10 @@
 //   hebben die de leesverliestoets doorstaat (fixronde 2 van #867).
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
-import { MergeNeedsPhase2Error, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
-import { StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
+import { MergeNeedsPhase2Error, mergeIdPlan, openedOwnGroups, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { changedScopes, lossCheck, parseOutLine, pristineDomain, type OutLine } from '@/services/ifc/foreign/lossCheck';
+import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
+import { StepScanError, scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -507,4 +509,35 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
       s.setActiveBaseline(s.baselines.find(b => b.id !== s.activeBaselineId)!.id);
     }), (a, b) => a.activeBaselineId !== b.activeBaselineId),
   ];
+}
+
+/**
+ * De verliescontrole (`lossCheck`) direct op de echte uitvoer van een geslaagde opslag, als O1, met de bron als O0 (zo kan
+ * een proef een fout van de writer in O1 nabootsen). `run(lines)` geeft de bronstukken waarop de controle weigert; de
+ * ongemuteerde O1 hoort leeg te geven. `toets`: ook met de andere toets voor de eigen groepen (PR 12b) en de baselinekop
+ * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main.
+ */
+export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8Array, toets = false) {
+  const lines = (b: Uint8Array) => latin1Text(b).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
+  const opened = await openForeign(bytes), source = opened.ifcSource!;
+  const index = scanStep(bytes), cls = classify(index);
+  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
+  const o0 = lines(bytes), o1 = lines(output);
+  const reread = await openForeign(output);
+  const objects1 = new Map(Object.entries(reread.ifcSource!.stepIds).map(([key, id]) => [id, key]));
+  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
+  const pristine = await pristineDomain(index, cls, source);
+  const own = toets && source.opened ? openedOwnGroups(index, cls, plan.plan, pristine, source.opened, source.stepIds, new Date()) : {};
+  const run = (o1Lines: OutLine[], edited = input, lines0 = o0) => {
+    const found: number[] = [];
+    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
+      o0: lines0, o1: o1Lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
+      plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
+      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      ...own,
+    }, f => found.push(f.chunk));
+    return found;
+  };
+  return { index, o0, o1, run, opened };
 }

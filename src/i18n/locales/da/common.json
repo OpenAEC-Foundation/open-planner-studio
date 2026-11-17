@@ -75,6 +75,14 @@
     "xmlUnknownSchedule": "Ukendt XML-tidsplanformat. Åbn en MS Project XML (Project) eller Primavera P6 XML (APIBusinessObjects).",
     "mppEncrypted": "Denne .mpp-fil er beskyttet med en adgangskode. Eksportér den i MS Project som XML (Fil → Gem som → XML), og åbn den fil.",
     "saveFailed": "Kunne ikke gemme",
+    "ifcForeignSaveBlocked": "Denne fil indeholder en bygningsmodel; at gemme er endnu ikke muligt.",
+    "ifcForeignTargetSave": "Denne fil indeholder en bygningsmodel eller data fra et andet program. Vælg en anden fil at gemme til.",
+    "ifcForeignTargetExport": "Denne fil indeholder en bygningsmodel eller data fra et andet program. Vælg en anden fil at eksportere til.",
+    "ifcExportChangedWhileWaiting": "Tidsplanen ændrede sig, mens eksporten ventede på en anden lagring. Der blev ikke eksporteret noget. Eksportér igen.",
+    "ifcForeignTargetAutoSave": "Automatisk gemning er stoppet: denne fil indeholder en bygningsmodel eller data fra et andet program. Vælg en anden fil at gemme til.",
+    "ifcUnreadableTargetSave": "Appen kan ikke læse denne fil ordentligt; den kan indeholde en bygningsmodel. Vælg en anden fil at gemme til.",
+    "ifcUnreadableTargetExport": "Appen kan ikke læse denne fil ordentligt; den kan indeholde en bygningsmodel. Vælg en anden fil at eksportere til.",
+    "ifcUnreadableTargetAutoSave": "Automatisk gemning er stoppet: appen kan ikke læse denne fil ordentligt; den kan indeholde en bygningsmodel. Vælg en anden fil at gemme til.",
     "ambiguousThousands": "\"{{text}}\" er tvetydig: mener du et decimaltal eller et tusindtal? Skriv decimaler med \"{{separator}}\" (1{{separator}}5) og tusindtal uden skilletegn (1500). Værdien er ikke ændret.",
     "siteSaveConflict": "Ikke gemt: '{{name}}' er i mellemtiden ændret på webstedet af en anden. Dine ændringer findes stadig i appen. Vælg Gem som for at gemme dem som ny fil.",
     "siteSaveConflictCopy": "'{{original}}' er i mellemtiden blevet ændret af en anden på webstedet. Dit arbejde er derfor gemt i en kopi: '{{name}}'. Gem skriver fra nu af til den kopi.",
@@ -109,10 +117,14 @@
     "duplicateIdsRenamed": "Objekter med et duplikeret id i denne fil: {{total}}. De har hver fået deres eget id; henvisninger til dem peger stadig på den første forekomst. Tjek afhængigheder og tildelinger.",
     "relationsSkippedOnInsert_one": "{{count}} afhængighed er ikke oprettet: ugyldig forbindelse (fx en opgave til sin egen (over)ordnede hovedopgave, eller et duplikat).",
     "relationsSkippedOnInsert_other": "{{count}} afhængigheder er ikke oprettet: ugyldig forbindelse (fx en opgave til sin egen (over)ordnede hovedopgave, eller et duplikat).",
+    "relationsSkippedOnDissolve_one": "Dissolve er udført, men {{count}} afhængighed er ikke oprettet: ugyldig sammenkædning (f.eks. en opgave knyttet til sin egen (bed)forælder-hovedopgave, eller en cirkel).",
+    "relationsSkippedOnDissolve_other": "Dissolve er udført, men {{count}} afhængigheder er ikke oprettet: ugyldig sammenkædning (f.eks. en opgave knyttet til sin egen (bed)forælder-hovedopgave, eller en cirkel).",
     "mppSourceScheduleNotes_one": "Denne MS Project-fil indeholder {{count}} opgave med afbrydelse, udjævning eller ressourcestyret tidsplan. Den indlæses og vises sådan.",
     "mppSourceScheduleNotes_other": "Denne MS Project-fil indeholder {{count}} opgaver med afbrydelser, udjævning eller ressourcestyret tidsplan. De indlæses og vises sådan.",
     "exportSplitsLost_one": "{{count}} opgave med afbrydelse er eksporteret uden afbrydelse: MS Project og P6 kender afbrydelser kun som fordeling af arbejde.",
     "exportSplitsLost_other": "{{count}} opgaver med afbrydelser er eksporteret uden afbrydelser: MS Project og P6 kender afbrydelser kun som fordeling af arbejde.",
+    "exportCostResourcesLost_one": "{{count}} omkostningsressource er ikke eksporteret, med dens tildelinger og beløb: dette format får omkostningsressourcer først i en senere version.",
+    "exportCostResourcesLost_other": "{{count}} omkostningsressourcer er ikke eksporteret, med deres tildelinger og beløb: dette format får omkostningsressourcer først i en senere version.",
     "exportP6Truncated_one": "{{count}} navn eller kode er forkortet til den længde, P6 tillader.",
     "exportP6Truncated_other": "{{count}} navne eller koder er forkortet til den længde, P6 tillader.",
     "exportInvalidXmlChars_one": "{{count}} tegn, som XML ikke tillader, er erstattet med � i eksporten.",
@@ -147,6 +159,8 @@
     "dragDatesAreActual": "'{{name}}' er færdig: start- og slutdato er de faktiske datoer og flytter ikke. Ændr dem via fremdriften.",
     "referencesClearedOnPaste_one": "{{count}} reference fandtes ikke i dette dokument og er blevet ryddet (en opgavekalender, en egen arbejdskategori, en opgavekode eller et brugerdefineret felt fra kildedokumentet).",
     "referencesClearedOnPaste_other": "{{count}} referencer fandtes ikke i dette dokument og er blevet ryddet (opgavekalendere, egne arbejdskategorier, opgavekoder eller brugerdefinerede felter fra kildedokumentet).",
+    "assignmentsSkippedOnPaste_one": "{{count}} tildeling er ikke indsat: ressourcen er her en anden type (omkostning eller arbejde), eller en milepæl bærer kun omkostninger.",
+    "assignmentsSkippedOnPaste_other": "{{count}} tildelinger er ikke indsat: ressourcen er her en anden type (omkostning eller arbejde), eller en milepæl bærer kun omkostninger.",
     "milestoneRefusedAssignments": "'{{task}}' har ressource-tildelinger og kan ikke blive en milepæl. Fjern tildelingerne først.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} opgave har ressource-tildelinger og kan ikke blive en milepæl. Fjern tildelingerne først.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} opgaver har ressource-tildelinger og kan ikke blive milepæle. Fjern tildelingerne først.",
@@ -295,6 +309,8 @@
       "noteStatus_other": "{{count}} afkrydsede noter: noterne medtages, afkrydsningerne ikke",
       "resourceTypes_one": "{{count}} ressource af typen hold eller underentreprenør er blevet arbejdskraft",
       "resourceTypes_other": "{{count}} ressourcer af typen hold eller underentreprenør er blevet arbejdskraft",
+      "costResources_one": "{{count}} omkostningsressource er udeladt, med dens tildelinger og beløb",
+      "costResources_other": "{{count}} omkostningsressourcer er udeladt, med deres tildelinger og beløb",
       "libraryLinks_one": "{{count}} forbindelse til biblioteket",
       "libraryLinks_other": "{{count}} forbindelser til biblioteket",
       "holidayNames_one": "{{count}} navn på en helligdag (selve dagen medtages)",
@@ -330,7 +346,21 @@
     },
     "dependentProjectsFound": "Afhængige projekter: {{projects}}. Koblinger til dette projekt: {{links}}.",
     "dependentProjectsNone": "Der blev ikke fundet projekter med en ekstern afhængighed til denne tidsplan.",
-    "dependentProjectsFailed": "Mappen med afhængige projekter kunne ikke læses."
+    "dependentProjectsFailed": "Mappen med afhængige projekter kunne ikke læses.",
+    "costTypeChangeRefused": "Ressourcebiblioteket vil skifte typen mellem omkostning og en anden type. Ressourcen har tildelinger i dette projekt, så typen bliver, som den er. Ressourcen vises nu som afvigende fra biblioteket.",
+    "reportLayoutGone": "Rapportens layout findes ikke længere. Rapporten viser igen alle opgaver.",
+    "reportFontNoBold": "{{name}} har ingen fed variant. Fed tekst i rapporten bruger den almindelige skrifttype.",
+    "reportFontMissing": "Din egen skrifttype {{name}} findes ikke længere på denne enhed. Rapporten bruger igen Inter.",
+    "layoutsNotSaved": "Layouts kunne ikke gemmes. Intet er ændret. Prøv igen.",
+    "ifcForeignOpenSchema": "Denne IFC-fil indeholder data fra et andet program og har et ukendt eller manglende skema. Åbningen er stoppet for at forhindre datatab ved gemning.",
+    "ifcForeignOpenUnsafe": "Denne IFC-fil kan ikke klassificeres sikkert. Åbningen er stoppet for at forhindre datatab ved gemning.",
+    "ifc2x3PlanningOnly": "IFC2X3 er åbnet som tidsplan. Data fra andre programmer tages ikke med ved gemning.",
+    "ifcForeignReplaceBlocked": "Ikke gemt. Overskrivning af en eksisterende fil med en bygningsmodel er endnu ikke sikker. Brug »Gem som« og vælg et nyt navn.",
+    "ifcForeignMergeRefused": "IFC-filen blev ikke skrevet. Bygningsmodellen eller data fra et andet program ville ellers ikke blive fuldt bevaret. Fortryd din sidste ændring, eller eksportér kun tidsplanen: til IFC med »Uden bygningsmodel«, eller til et andet format.",
+    "ifcSaveChangedWhileWaiting": "Ikke gemt. Dokumentet eller kilden til bygningsmodellen ændrede sig under forberedelsen. Prøv at gemme igen.",
+    "ifcForeignExportNewTarget": "Ikke eksporteret. Denne IFC-fil kan kun eksporteres til et nyt filnavn. Vælg et navn, der endnu ikke findes.",
+    "ifcSourceCopyFailed": "Tidsplanen gemmes til genoprettelse efter nedbrud, men kopien af bygningsmodellen kunne ikke gemmes. Efter et nedbrud kan bygningsmodellen mangle. Gem selv dit arbejde som en komplet IFC-fil.",
+    "ifcForeignSourceMissing": "Ikke gemt. Bygningsmodellen eller data fra et andet program blev ikke fundet. Brug »Gem som« for kun at gemme tidsplanen i en ny fil. Åbn den oprindelige IFC-fil for igen at arbejde med hele filen."
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -370,6 +400,7 @@
     "addSubtask": "Tilføj underopgave",
     "addMilestone": "Tilføj milepæl",
     "addRelation": "Tilføj afhængighed",
+    "dissolve": "Dissolve (bevar kæden)",
     "delete": "Slet",
     "newTask": "Opret opgave",
     "tracePath": "Spor sti",
@@ -438,6 +469,8 @@
     "experimentalHide": "Skjul",
     "demoTopbarAnimation": "Demo: animation i topbjælken",
     "demoTopbarAnimationHint": "En rolig orange glans over topbjælken. Viser hvordan en eksperimentel kontakt virker.",
+    "ifcForeignContent": "Åbn IFC med bygningsmodel",
+    "ifcForeignContentHint": "Åbner også en IFC-fil med en bygningsmodel eller data fra andre programmer. Du kan bruge »Gem som« til en ny fil, gemme på webstedet, downloade i browseren og bruge Eksportér → IFC, også uden bygningsmodellen eller med ressourcebiblioteket ved siden af (så kun med tidsplanen). Gem over en eksisterende lokal fil er endnu ikke muligt. Genoprettelse efter nedbrud af bygningsmodellen kræver adgang til den oprindelige fil eller en gemt kopi i browseren.",
     "tourHint": "Gennemgå appens introduktionsrundvisning igen.",
     "theme": "Tema",
     "themeHint": "Interfacets farveskema.",
@@ -448,6 +481,10 @@
     "themeSystemHint": "Følger farveskemaet på dit system (nu: {{theme}}).",
     "showTaskTypes": "Brug opgavetyper",
     "showTaskTypesHint": "Vælg per opgave, hvad der justeres, når varighed, tildelingsenheder eller arbejde ændres, som Task Type i MS Project og Duration Type i P6. Fra: varighed og tildelingsenheder bliver stående. En fil med opgavetyper eller gemt arbejde viser dem også, når dette er fra.",
+    "dissolveSummaryMode": "Dissolve ved en hovedopgave",
+    "dissolveSummaryBranch": "Hele fasen, med underopgaver",
+    "dissolveSummaryHeader": "Kun overskriftsrækken",
+    "dissolveSummaryModeHint": "Hvad Dissolve gør med en hovedopgave. Hele fasen: underopgaverne går med, som ved Slet. Kun overskriftsrækken: underopgaverne rykker et niveau op og bliver stående.",
     "allowMixedDayHour": "Tillad blandet dag/timeplanlægning",
     "defaultTaskDurationUnit": "Standardenhed for nye opgaver",
     "defaultTaskDurationUnitHint": "Dagsenhed: en varighed tælles i arbejdsdage i kalenderen. Timeenhed: en varighed tælles i arbejdstimer. Eksisterende opgaver ændrer sig ikke. En opgave med fast arbejde har altid timeenheden.",
@@ -680,6 +717,7 @@
     "privacy": "Din melding og skærmbilledet sendes til Open Feedback Studio fra OpenAEC og kan blive et offentligt issue på GitHub. Skriv ikke noget, du ikke vil dele.",
     "sentWith": "Sendt med: v{{version}} · {{os}} · {{language}}",
     "sentTitle": "Tak, din melding er sendt.",
+    "sentIssue": "Din melding er nu et issue på GitHub. Du kan læse vores svar der:",
     "alreadyIn": "Vi har denne melding allerede. Vil du tilføje noget? Så ret teksten og send den igen.",
     "sentScreenshotDropped": "Skærmbilledet var for stort, og det er ikke sendt med.",
     "errorValidation": "Meldingen blev ikke accepteret. Kontrollér teksten (ikke kun links) og e-mailadressen, og prøv igen.",
@@ -921,7 +959,8 @@
       "equipment": "Udstyr",
       "material": "Materiale",
       "subcontractor": "Underentreprenør",
-      "crew": "Arbejdsskift"
+      "crew": "Arbejdsskift",
+      "cost": "Omkostning"
     },
     "name": "Navn",
     "typeLabel": "Type",
@@ -930,6 +969,7 @@
     "costPerHour": "Standardsats/time",
     "total": "Total",
     "totalHint": "Belastede tildelingsenheder × timer/dag × standardsats (tryk F5 for at genberegne)",
+    "costTotalHint": "Sum af beløbene på alle tildelinger",
     "unitOfMeasure": "Enhed",
     "unitOnlyMaterial": "Kan kun udfyldes for ressourcer af typen Materiale.",
     "parent": "Arbejdsskift",
@@ -1046,7 +1086,9 @@
       "documents": "Dokumenter",
       "selectHint": "Vælg en ressource for at se histogrammet."
     },
-    "color": "Farve"
+    "color": "Farve",
+    "notForCost": "Gælder ikke for en omkostningsressource: den har kun et fast beløb pr. tildeling.",
+    "costTypeLocked": "Denne ressource har tildelinger. Fjern dem først for at skifte mellem en omkostningsressource og en anden type."
   },
   "calendar": {
     "library": {
@@ -1896,6 +1938,26 @@
     "colOwnTask": "Opgave her",
     "colAnchor": "Ankerdato: gammel → ny",
     "saveAnyway": "Gem alligevel",
+    "cancel": "Annuller"
+  },
+  "ifcMissingSourceSaveAs": {
+    "title": "Gem kun tidsplanen?",
+    "body": "Bygningsmodellen eller data fra et andet program blev ikke fundet. Den nye fil indeholder kun tidsplanen. Den oprindelige fil forbliver uændret. Vil du fortsætte?",
+    "continue": "Fortsæt",
+    "cancel": "Annuller"
+  },
+  "fatalError": {
+    "title": "Noget gik galt",
+    "body": "Open Planner Studio kan ikke fortsætte. Genindlæs appen. Hvis det sker igen, så meld fejlen og send detaljerne nedenfor med.",
+    "reload": "Genindlæs",
+    "details": "Detaljer"
+  },
+  "ifcExportWithoutModel": {
+    "option": "Uden bygningsmodel",
+    "title": "Eksportér uden bygningsmodel?",
+    "body": "Den nye fil indeholder kun tidsplanen. Bygningsmodellen og data fra et andet program medtages ikke. Den åbne fil forbliver uændret. Vil du fortsætte?",
+    "bodyWithPool": "Projektfilen indeholder kun tidsplanen; ressourcebiblioteket kommer i en anden fil. Bygningsmodellen og data fra et andet program medtages ikke. Den åbne fil forbliver uændret. Vil du fortsætte?",
+    "continue": "Eksportér",
     "cancel": "Annuller"
   }
 }

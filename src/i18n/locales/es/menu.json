@@ -24,6 +24,8 @@
     "undo": "Deshacer",
     "redo": "Rehacer",
     "delete": "Eliminar",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: elimina las tareas seleccionadas y vincula cada predecesor con cada sucesor (fin-comienzo, sin desfase)",
     "undoTitle": "Deshacer (Ctrl+Z)",
     "redoTitle": "Rehacer (Ctrl+Y)",
     "deleteTitle": "Eliminar selección (Supr)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Elegir las columnas de la vista Tabla: se ven en la pestaña Tabla",
     "toggleResourceAccent": "Acento de recurso",
     "toggleFloatBand": "Banda de holgura",
+    "toggleBarDates": "Fechas junto a las barras",
     "screenColors": "Colores de barras",
     "screenColors_critical": "Ruta crítica",
     "screenColors_auto": "Por tarea — automático",
@@ -282,7 +285,8 @@
       "label": "Esquema IFC al guardar",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (predeterminado)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "El archivo contiene datos de otra aplicación. Por eso se conserva el esquema de su encabezado original."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Plantilla de fases",
     "tmplEmpty": "Vacío",
     "tmplWoningbouw": "Construcción residencial",
-    "tmplUtiliteit": "Edificación / renovación"
+    "tmplUtiliteit": "Edificación / renovación",
+    "phase": {
+      "siteGroundwork": "Obra y movimiento de tierras",
+      "foundation": "Cimentación",
+      "shell": "Obra gruesa / estructura",
+      "roof": "Cubierta",
+      "facadeFitOut": "Fachada y acabados",
+      "services": "Instalaciones (MEP)",
+      "finishes": "Acabados",
+      "handover": "Entrega",
+      "demolitionStripOut": "Demolición y desmontaje interior",
+      "groundworkFoundation": "Movimiento de tierras y cimentación",
+      "mainStructure": "Estructura principal",
+      "facadeRoof": "Fachada y cubierta",
+      "fitOut": "Acabado interior",
+      "commissioning": "Puesta en marcha y pruebas"
+    }
   },
   "status": {
     "tasks": "Tareas:",
@@ -317,12 +337,14 @@
     "recentTitle": "Proyectos recientes",
     "recentSubtitle": "Haga clic para abrir.",
     "recentEmpty": "Aún no hay proyectos abiertos recientemente.",
+    "recentLoading": "Cargando archivos recientes…",
     "recentUnavailable": "Este navegador no puede volver a abrir archivos locales desde «Recientes». Use «Abrir» para elegir de nuevo el archivo de su proyecto.",
     "recentOnSite": "En el sitio",
     "examples": "Ejemplos",
     "examplesTitle": "Proyectos de ejemplo",
     "examplesSubtitle": "Planificaciones de obra incluidas. Haga clic para abrir en una pestaña nueva.",
     "examplesLoading": "Cargando ejemplos…",
+    "loading": "Cargando…",
     "examplesEmpty": "No hay ejemplos disponibles.",
     "examplesError": "No se pudieron cargar los ejemplos.",
     "examplesShowcaseHeading": "Planificaciones de muestra completas",

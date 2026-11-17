@@ -1953,16 +1953,6 @@ en noem het in je rapport of PR-tekst.
      (`/tmp/fase1b-v2-scope/echte-invoer/resultaten.json` op aia09-mp50, 11 november 2026). — B
 
 
-1110. **VERVOLG: de laatste taak met een eigen taaktype wissen in een bestand met een model laat de merge weigeren.** De
-     writer schrijft de project-pset `OPS_TaskTypes` alleen zolang een taak een eigen taaktype heeft
-     (`writeTaskTypeMeta` in `src/services/ifc/ifcWriter.ts`). Wist de planner de enige taak met zo'n type, dan staat de
-     pset niet meer in de uitvoer, en de merge weigert (`niet-gedragen`: "IFCPROPERTYSET (OPS_TaskTypes): ontbreekt in de
-     uitvoer na de bewerking"). Geen verlies: een gewone opslag laat de pset dan ook weg, en de weigering gaat over de taak
-     die de planner wiste. Gezien in de telling op `fixtures/ifc-arity-oude-writer.ifc + wand` (`taak-wissen`: 2 van de 5
-     geweigerd; bij één nagegaan dat dit de oorzaak is), nadat de lijst ids in `WorkingExceptionIds` niet meer weigerde.
-     Richting: het wegvallen van die pset verklaren met het wissen van de laatste taak met een eigen taaktype. Besluit
-     van Trias (wrakko, 11 november 2026): blijft VERVOLG. Uit #886. — B
-
 1570. **VERVOLG (#804, gemaakt geval): id-afleiding bij een `-dup-N`-object na crashherstel nog beproeven.**
      PR 9a gebruikt de gewone bytes-route, zonder `idExceptions`: de echte keten met een in de app
      toegevoegde resource, Opslaan als, verder bewerken, crashherstel en opnieuw Opslaan als behoudt
@@ -2154,28 +2144,49 @@ en noem het in je rapport of PR-tekst.
      bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
      mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
-1700. **VERVOLG (#804, gebouwmodel): één bestaande baseline wissen weigert.**
-     Op `eigen-plus-model.ifc`, het kantoorvoorbeeld met een wand en `oud-eigen-0.1-plus-model.ifc` weigert de merge
-     "één bestaande baseline wissen" met `niet-gedragen` op de `IfcRelAggregates` van het werkplan (de kop van de
-     gewiste baseline). Zelfde oorzaak als 1581, maar een gewonere handeling. Gemeten in het onderzoek van 14 november
-     (`logs/v1/7c7d-*.jsonl`) en opnieuw in `check-ifc-foreign-eigen-uitvoer.ts` (PR 12a). Richting: stap 3 van de
-     overstap (de baselinekop). — B
+1770. **VERVOLG (#804, gebouwmodel): op een baseline van OPS v2026.7.4 tot v2026.7.14 krijgt een weesrij na de eerste merge de interne id uit de bron.**
+     Op de oude showcase (`v2026.7.12-data-showcase-verbouwing-eengezinswoning.ifc` met een wand) zet de herleestoets (b)
+     het baseline-JSON in de vorm van de bron terug (#1104: zonder `TaskGuids`, met de interne taak-ids van toen). Wist de
+     planner een taak uit die baseline, dan leest de rij van die taak na de eerste merge met de interne id uit het JSON
+     (`task-mkfedmo…`) in plaats van de id uit het domein (`task-ifc-…`); haar GlobalId blijft dezelfde, en vanaf die
+     lezing blijven id en GlobalId gelijk (PR 12e, `check-ifc-foreign-eigen-toets.ts` blok 7a). De canon ziet het bewust
+     niet (`orphanRowsWithoutId`), en de rij wijst in beide vormen naar geen taak; de planning is dezelfde. `OPS_Baselines`
+     is op zo'n bestand al vóór het wissen niet gedragen (een baseline vastleggen of wissen weigert daar ook op het
+     onbewerkte bestand), dus dit maakt niets strenger. De `TaskGuids` van die uitvoer heeft daarom sleutels in de vorm van
+     het domein naast rijen in de vorm van de bron; (c) toetst die groep daar niet, omdat (b) hem terugzette. Richting: zo
+     laten, tenzij zulke bestanden met een gebouwmodel vaak voorkomen; dan het JSON bij de eerste baselinebewerking in de
+     vorm van de writer schrijven, zoals nu al gebeurt. — B
 
-1701. **VERVOLG (#804, controle): de verliescontrole toetst de typenaam op de taak niet op zijn waarde.**
-     Een verkeerde `ObjectType` op de taak waarvan de planner het type veranderde (nieuw type, typewissel), lieten de
-     verliescontrole en de controle "planning na openen" allebei door: de verliescontrole ziet alleen dat dat slot mocht
-     veranderen, en de lezer leest het type uit het JSON. Alleen een fout van de writer kan dit geven. Sinds PR 12a vangt
-     controle (c) het in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`). Open: de
-     verliescontrole zelf blijft het slot niet op waarde toetsen tot stap 4 van de overstap. — B
+1771. **VERVOLG (#804, test): `check-ifc-foreign-strikt.ts` rekent lokaal ongeveer vijf minuten en zit op de tijdgrens.**
+     Op aia09-mp50 duurt de check ongeveer vijf minuten (gemeten op 16 november 2026: 05:12 tot 05:17 op `519221cb0`,
+     groen; om 07:57 bij load 3 gestopt door `timeout 300`). Hij schrijft pas aan het eind uitvoer, dus hij lijkt te
+     hangen; het proces rekent (ongeveer 150% CPU, 450 MB). In de CI is hij groen. Tot hij sneller is: lokaal alleen met
+     `timeout 600` als de machine rustig is; verder geldt de CI als bewijs (besluit van de technisch beslisser,
+     16 november 2026). Richting: de check splitsen of de dubbele opslagrondes per proef verminderen, en tussentijds
+     uitvoer schrijven. — B
 
-1702. **VERVOLG (#804, gebouwmodel): een baselinerij van een gewiste taak verandert bij herlezen.**
-     Op een oud bestand krijgt na een merge met "taak wissen" de rij van de gewiste taak bij heropenen een nieuwe taak-id
-     (oude showcase) of een nieuwe GlobalId in `TaskGuids` (`oud-eigen-0.1-plus-model.ifc`); een gewone opslag houdt
-     beide. De canon ziet het bewust niet (`orphanRowsWithoutId`), en controle (c) volgt die regel (PR 12a; zonder die
-     regel weigert de keten op het oude bestand een goede uitvoer, gemeten met een mutatie). Gevolg: in de opslag daarna is
-     `OPS_Baselines` niet gedragen, en dan weigert bijvoorbeeld "B1 wissen, B2 actief, type aan nieuwe taak". Gemeten in
-     het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Richting: vóór stap 5 van de
-     overstap de GlobalId en taak-id van zo'n rij stabiel maken. — B
+1772. **VERVOLG (#804, gebouwmodel): op de showcase met een wand weigert een tweede taak wissen na opslaan en heropenen.**
+     `public/examples/showcase-appartementencomplex.ifc` met een wand, flag aan: één taak wissen, opslaan, heropenen en
+     een tweede taak wissen weigert met `planning-na-openen`, met als verschil een duur
+     (`task-ifc-h7C5E3LHT12RvX1VuT3fYF.time.scheduleDuration: 3 → 5`). De eerste opslag schrijft (22.419 bytes). Zo was
+     het ook vóór PR 12e (dezelfde bytes en dezelfde weigering op `3fcd4d628`); er gaat niets verloren. De oorzaak is
+     niet uitgezocht; het is niet de toewijzings-id van 1709, en 1770 is niet als oorzaak bewezen. Richting: eerst meten
+     waar de duur verandert (het openen, de herberekening of de bronvorm). Gevonden door de bouwer van PR 12e, gemeten
+     door de review van #968. — B (proef)
+
+1773. **VERVOLG (#804, opruimen): het type van `ImportResult.baselineOrphanGuids` belooft tekst, maar geeft door wat in het bestand stond.**
+     `src/services/importTypes.ts` typeert het veld als een kaart van tekst naar tekst. De lezer zet er de waarde in
+     waarmee hij de rij zocht (`taskGuids?.[id] ?? ifcGuid(id)`), en bij een `TaskGuids`-kaart met een getal als waarde
+     is dat dat getal (proef: blok 8 van `check-ifc-foreign-eigen-uitvoer.ts`, `12345`). De gebruikers geven de waarde
+     ongewijzigd door; er is geen opslagfout gevonden. Richting: het type rechttrekken, zonder de lezing te normaliseren
+     en zonder nieuwe terugval. Gevonden door de review van #968, ronde 2. — B
+
+1774. **VERVOLG (#804, gemaakte bron): een `TaskGuids`-kaart die de sleutel van een weesrij mist, weigert bij een taak en een baseline erbij.**
+     Alleen met een bewerkte bron: de gewone writer schrijft voor elke niet-lege baselinerij een sleutel. Haal je de
+     sleutel van de rij van een gewiste taak uit de kaart, dan schrijft "alleen de projectbeschrijving wijzigen" wel,
+     maar "een taak en een baseline erbij" weigert met `niet-gedragen`. Zo was het ook vóór de fixronde van PR 12e
+     (dezelfde weigering op de merge-code van `cf5671d99`); er gaat niets verloren. De oorzaak is niet uitgezocht.
+     Gevonden door de bouwer van PR 12e, bevestigd door de review van #968, ronde 2. — B (proef)
 
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
@@ -2188,15 +2199,53 @@ en noem het in je rapport of PR-tekst.
      codetemplate, de naam of aanmaakdatum van een baselinekop, of het weghalen van een template uit de lijst, een
      weigering `uitvoer-controle` met "extra niet-P-stuk #691" (`IFCPERSON($,'Contractor',…)`), en een gewijzigde
      codewaarde in `OPS_StructureMeta` "extra niet-P-stuk" op een `IfcPropertyEnumeratedValue`. Dat weigert terecht,
-     maar om een reden die niets met de fout te maken heeft. Niet uitgezocht waarom `classify` die regels dan anders
-     indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
+     maar om een reden die niets met de fout te maken heeft. De tegenproeven rond de baselinekop van PR 12c (verkeerde naam
+     of datum, een kop in de aggregatie van het project, de kop van een gewiste baseline die blijft of in de plaats van
+     een blijvende staat) weigeren om dezelfde reden; dat (c) ze zelf ook ziet, toetst die check apart. Niet uitgezocht
+     waarom `classify` die regels dan anders indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
 
-1705. **VERVOLG (#804, controle (c)): de tweede vorm van de baselinekop bewaakt alleen lidmaatschap van enige aggregatie.**
-     `ownGroupTrees` in `src/services/ifc/foreign/ownGroups.ts` schrijft per baselinekop alleen "in aggregatie" of "los".
-     Een kop van de werkplanaggregatie naar een andere aggregatie (zoals die van het project) verplaatsen, geeft daar geen
-     verschil. De volledige uitvoercontrole weigert die proef nu wel (`uitvoer-controle`, extra niet-P-stuk), dus de
-     opslag van nu heeft geen gat. Gevonden door de review van #953 (Sol, ronde 1). Richting: aanscherpen in stap 3, vóór
-     de baselinekop een verschil mag dragen: de koppeling naar het eigen werkplan vastleggen. — B
+1707. **VERVOLG (#804, de andere toets): een eigen groep met een vreemd lid valt terug op de controle van main.**
+     Een property van een ander programma in `OPS_Baselines`, `OPS_TaskTypes` of `OPS_StructureMeta` maakt de groep in
+     PR 12b niet gedragen (`groupsWithForeignMembers` in `ownGroups.ts`): dat lid schrijft de writer niet. Daar weigert de
+     merge dus wat main weigert, ook als alleen het laatste eigen lid wegvalt (type weghalen bij de laatste taak, de
+     laatste code wissen). Zonder die regel schreven die twee, heel (vreemd deel bytegelijk, heropend zoals getoond), met
+     een pset die alleen het vreemde lid houdt; (c) ziet zo'n pset sinds de review van #953 niet als groep. Gemaakt geval:
+     een eigen pset met een vreemd lid ontstaat alleen met de hand. Richting: laten zoals het is, tenzij een ander
+     programma echt in OPS-psets schrijft; dan eerst bepalen wat een pset met alleen vreemde leden is. — B
+
+1745. **VERVOLG (#804, gebouwmodel): op `ifc-arity-oude-writer.ifc` beweegt de baselinekop niet mee.**
+     De koppen in dat bestand (een oude writer, 15 argumenten) hebben geen StartTime; de writer schrijft er een, dus de
+     herleestoets (b) zet `$` terug en de koppen zijn in de bron niet gedragen. Dan geldt voor de aggregatie van het
+     werkplan de controle van main (PR 12c, E1 eist dat (b) geen kop terugzette, omdat (c) zo'n groep niet toetst): een
+     baseline wissen of alles wissen weigert op dat bestand met een wand, net als op de basis. Na één opslag (de
+     catalogus in `check-ifc-foreign-eigen-toets.ts`) schrijft het wel. Met de StartTime ingevuld zoals de writer hem
+     schrijft, schrijft het wissen ook op de bron (de proef van (a′) op de bronvorm). Richting: alleen als oude bestanden
+     zonder StartTime op de kop vaak voorkomen; dan de lege StartTime van een kop als gedragen zien. — B
+
+1747. **VERVOLG (#804, controle (c)): zette (b) ergens een typenaam terug, dan toetst geen controle de typenaam op de taak.**
+     Controle (c) slaat de groep `taak:ObjectType` over zodra de herleestoets (b) bij één taak slot 4 of 12 terugzette
+     (`editedOwnGroup` in `ownGroups.ts`): dan schrijft de writer die groep niet uit het domein. De verliescontrole van main
+     ziet bij een nieuw type of een typewissel alleen dat slot 4 mocht veranderen, niet waarin. Tegenproef in
+     `check-ifc-foreign-eigen-uitvoer.ts`: een bron met een typenaam op een taak zonder type (die zet (b) terug), een
+     typewissel, en in de echte uitvoer een verkeerde typenaam op de taak die wisselde: alle controles laten hem door. Zo was
+     het ook op de basis van PR 12d (zelfde overslagregel, zelfde controle van main); de typenaam beweegt in dat geval niet
+     mee met een hernoeming (E2 eist dat (b) geen typenaam terugzette), dus PR 12d maakt het niet groter. Alleen een fout van
+     de writer kan dit geven: de gewone writer schrijft de naam uit de definitie van het type van de taak. Richting: in (c)
+     alleen de taken overslaan waarvan (b) een slot terugzette, niet de hele groep. — B
+
+1748. **VERVOLG (#804, taaktypen): een eigen taaktype van het project kan in de app niet hernoemd worden.**
+     De beheer-UI (`TaskTypeField.tsx`) hernoemt alleen het persoonlijke type (`renamePersonalTaskType`); de kopie in het
+     project (`customTaskTypes`) houdt haar naam, en ook `planner_*` via MCP weigert een andere naam bij hetzelfde id
+     ("already exists with project snapshot"). Daardoor is de typenaam die sinds PR 12d bij een gebouwmodel meebeweegt met
+     een hernoemd type (E2, oud knownbug 1586) alleen met domeininvoer te bereiken; de proeven in
+     `check-ifc-foreign-eigen-toets.ts` gebruiken die. Of de projectkopie mee moet met een hernoeming, is een productkeuze;
+     niets gaat verloren. — S
+
+1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
+     In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
+     of weg) of in de baselines terecht met `planning-na-openen`, maar de melding noemt als eerste verschil
+     `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
+     `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
 
 1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
      Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
@@ -2974,6 +3023,130 @@ en noem het in je rapport of PR-tekst.
       afwijken van inzet × resterende duur; onder Vaste inzet blijven andere toewijzingen alleen bij gelijke
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
+
+1789. **VERVOLG, BEVESTIGD: de Turkse hoofdletter İ geeft een onterechte termwaarschuwing.**
+     Het stale-pakket tr/ui-report-01 heeft de kolomkop Voortgang → İlerleme, met vaste term
+     ilerleme. De bestaande pakketchecker geeft GROEN met nul fouten maar meldt dat de term niet
+     gevonden is. softText in scripts/translate/gates.ts:58–63 verlaagt tekst en termvormen met
+     toLocaleLowerCase() zonder de pakkettaal door te geven. De verklaring met de extra
+     Unicodepunt bij de standaardomzetting van İ is uit die bronroute afgeleid, niet met een
+     extra lokale JavaScript-run gemeten. De eigen checkeruitvoer en onafhankelijke nalezing
+     blijven het bewijs voor deze concrete valse waarschuwing. Richting: maak de zachte
+     termvergelijking taalbewust en toets Turkse hoofdletters, zonder de termbase of de juiste
+     apptekst te veranderen. In deze release is de checker niet aangepast. — B
+
+1788. **VERVOLG, BEVESTIGD: een herstelstation kan na alleen de eerste bevindingen afronden.**
+     Het eerste Servische herstel van ui-report-01 verwerkte drie voorstellen uit een goedgekeurde
+     review met 29 entries voor 27 sleutels. De pakketcheck bleef groen, omdat die niet toetst of
+     alle reviewvoorstellen zijn verwerkt. De oudervergelijking wees het herstel terecht af:
+     26 entries weken nog af; de volledige Sonnet-review en de al juiste uitvoer bleven behouden.
+     De huidige herstelbrief noemt het echte aantal, alle sleutels en plakken van maximaal tien
+     bevindingen. De ouderpoort vergelijkt daarna nog steeds iedere entry, ook pluralcategorieën.
+     Richting: neem deze expliciete telling en volledige lijst op in de gedeelde herstelbrief. — B
+
+1787. **VERVOLG, BEVESTIGD: beoordeel invulwaarden samen met de aanroepvoorwaarden.**
+     Bij de Poolse rapportvertaling las de ouder alleen de vertaaloproep met count=totalPages en
+     rows=paperInfo.rows en noemde die tellingen ten onrechte onafhankelijk. De volledige route
+     maakt totalPages uit layout.rows × layout.cols (useReportPaper.ts:105), publiceert de waarden
+     samen (StudioPaper.tsx:61–70) en kiest manyPagesRows alleen bij cols <= 1
+     (GanttReportStudio.tsx:660–661). In deze bereikbare route zijn count en rows dus gelijk.
+     Het eerdere voorbeeld count=6/rows=2 gold hier niet. Het bronbewijs en deze correctie zijn
+     bewaard. De voorgestelde neutrale formulering blijft geldig voor de werkelijke waarden en
+     vroeg geen verdere wijziging. Richting voor reviews: geef de volledige aanroepvoorwaarde en
+     herkomst van invulwaarden mee voordat een grammaticale fout wordt toegeschreven aan hun
+     onderlinge onafhankelijkheid. — B
+
+1786. **VERVOLG, BEVESTIGD: lees resultaatgegevens pas na echte voltooiing en bewaar ze op schijf.**
+     De uitvoeringshulp van de maandagrelease parseerde bij de integriteitsmeting rechtstreeks
+     de uitvoer van exec_command, zonder een eventueel teruggegeven shellsessie af te wachten.
+     Bij de Poolse rapportreview leidde een lege resultaattekst tot Unexpected end of JSON input;
+     de review en volledige toolhistorie waren al bewaard. Ook een afzonderlijke postcheck gaf
+     exit 0 met een lege teruggelezen tekst, terwijl het volledige bewijsbestand wel geldig was.
+     De huidige uitvoering wacht op commandovoltooiing, bewaart commandogegevens en leest een
+     leeg antwoord opnieuw uit het bewijsbestand; een ontbrekend resultaat geeft nooit groen.
+     De volledige schrijf-, checker- en vertaalpoorten blijven gelden. Richting voor de gedeelde
+     uitvoeringshulp: een lege of afgebroken resultaattekst is geen fout van het vertaalstation. — B
+
+1785. **VERVOLG, BEVESTIGD: een extra padvoorwaarde veroorzaakte onnodige reviewherhalingen.**
+     De ouderpoort van de maandagrelease eiste ten onrechte een absoluut reviewpad in de opdrachtkop.
+     Twee Kroatische Haiku-werkreviews hadden de verplichte kop met een volledig repo-relatief pad,
+     maar werden daardoor als mislukt geteld en onnodig door Sonnet gevolgd. De eis is gecorrigeerd;
+     deze pogingen tellen niet als falen van de plakmethode. De gecorrigeerde teksten zijn opnieuw
+     volledig door Haiku beoordeeld en hersteld, met een groene oudercheck. Het oorspronkelijke bewijs en de
+     aanvullende Sonnet-review blijven bewaard. Richting: toets de werkelijk gevraagde inhoud en
+     accepteer een ondubbelzinnig pad binnen de release-worktree.
+
+     Ook een Python-toewijzing S=sys.argv[1] binnen een heredoc werd ten onrechte als Bash-toewijzing
+     gelezen. Daardoor werden echte /tmp-bestanden als fictieve repo-paden afgewezen. De parser
+     slaat de letterlijke heredoc-inhoud over en verwerkt shelltoewijzingen op hun echte positie.
+     Ook na deze correctie blijft de echte rootafwijking uit de Perzische activiteit zichtbaar in
+     de scopecontrole; dat tegenbewijs is bewaard.
+
+     Bij Servisch werd ook het woord node in de uitvoer van een bestandslijst ten onrechte als
+     uitgevoerde opdracht gelezen. De scopecontrole leest nu de oorspronkelijke Bash-invoer uit
+     de eigen native sessielogs, gekoppeld aan dezelfde tool-ID. Opdrachtuitvoer wordt niet als
+     shellcode behandeld. Het Servische tegenvoorbeeld slaagt; de echte Perzische rootafwijking
+     blijft aantoonbaar zichtbaar. De onterechte afwijzing telt niet als falen van Haiku.
+
+     Een Turkse review liep ook vast op één eindspatie: T3 trimt die in de weergave van de
+     opdracht, terwijl het native sessielog hem bewaart. De koppeling vergelijkt nu alleen de
+     weergaveregel zonder eindspaties; de volledige originele invoerbytes blijven geaudit. De
+     voltooide review kon daarna ongewijzigd door de normale ouderpoort, zonder nieuwe
+     Haiku-poging of modelwissel. Een fout bij invoerherkomst bewaart nu ook zijn stderr. — B
+
+1784. **VERVOLG, BEVESTIGD: gerichte naleesaanvulling mag niet in een herstelbrief terechtkomen.**
+     Tijdens de maandagrelease van 16 november 2026 kreeg een Kroatisch herstelstation ook de
+     gerichte instructie van de nalezer om uitsluitend het reviewbestand te schrijven. Het station
+     leegde daardoor ten onrechte de review-array. De afgewezen uitvoer en het bewijs zijn bewaard;
+     de zeven goedgekeurde voorstellen zijn op hun oorspronkelijke hash teruggezet en door een
+     nieuw herstelstation correct toegepast, met groene oudercheck. De huidige uitvoering scheidt
+     naleesaanvullingen van andere rollen, bewaart het reviewbestand vóór herstel en controleert
+     dat het ongewijzigd blijft. Richting voor de gedeelde stationbrieven: maak de schrijfgrens per
+     rol expliciet en geef rolspecifieke aanvullingen uitsluitend aan die rol mee. — B
+
+1783. **VERVOLG, BEVESTIGD: Deense commandostijl botst met een vaste termvorm.**
+     In `da/ui-report-01` bleef `studio.stale.action` op "Genberegne nu" staan, terwijl de pakketstijl
+     voor opdrachten de gebiedende wijs vraagt. De nalezer stelde "Genberegn nu" voor; het
+     herstelstation zette die correctie terug wegens de vaste `recalculate`-vormen in het pakket.
+     De release behoudt de termbase volgens het eigenaarsbesluit. Richting: toets via de termenstraat
+     de gebiedende vorm en de prioriteit van termvorm tegenover commandostijl. Alleen een
+     knoptekst; geen nieuwe fixronde voor dit VERVOLG-punt. — B
+
+1782. **VERVOLG: grote vertaalpakketten passen niet in één leesbeurt van een nalezer.**
+     Bij `ar/ui-report-01` (150 broneenheden) verloren twee Haiku-nalezers na een compactie de
+     bestandsopdracht en eindigden ze onvolledig met de algemene zin dat alleen tekst gevraagd was.
+     Richting, besluit eigenaar 16 november 2026: vanaf ongeveer 100 items lezen in plakken van
+     maximaal 40 items. Na elke plak opdracht, voortgang en bevindingen in het eigen reviewbestand
+     bewaren; de opdracht met het reviewpad staat boven- en onderaan de brief en als kop in dat bestand.
+     Alle items, waarschuwingen en de bestaande eindpoorten blijven verplicht. Mislukt de aanpak met
+     plakken tweemaal, dan alleen dat pakket door Sonnet 5.5 laten nalezen en dat melden.
+     Tel ook runtimefouten door te snel gevulde context na compactie mee als mislukte
+     plakpoging; niet alleen een onvolledig eindrapport. Bewaar de echte taakstatus en foutreden.
+     Een fout in de ouderpoort telt niet als een mislukte Haiku-poging. — B
+
+1781. **VERVOLG: de vertaalbrief moet de schrijfgrens van het station zelf expliciet noemen.**
+     Tijdens de maandagrelease van 16 november 2026 schreef een Finse vertaler naast zijn
+     `.out.json` ook een reviewbestand; later maakte een Perzisch herstelstation tijdelijk een
+     `.mjs`-hulpscript in de repowortel en verwijderde dat zelf. Bewijs en afgewezen uitvoer blijven
+     bewaard. Definitief besluit eigenaar 16 november 2026: na elk station moeten alle gevolgde
+     bestanden en de checkerhash gelijk zijn en mag buiten `build/translate/` geen nieuw ongevolgd
+     bestand blijven staan. Een zelf verwijderd tijdelijk bestand stopt de release niet; de uitvoer
+     van het afwijkende station telt niet en het station draait opnieuw met het bestaande pakket.
+     Verplaats een achtergebleven bestand veilig naar de bewijsmap. Stop alleen bij een gewijzigd
+     gevolgd bestand, of een blijvend bestand buiten `build/translate/` en `/tmp` dat niet veilig
+     verplaatst kan worden. Elke brief bevat letterlijk:
+     "Maak geen bestanden in de repo buiten build/translate/. Een hulpscript zet je in /tmp."
+     Elke vertaalbrief noemt bovendien letterlijk
+     "Schrijf alleen <pad>.out.json. Schrijf geen reviewbestand en niets anders." Geen algemene
+     naleesinstructies in vertaalbriefs; behoud alle poorten. Controleer shellredirecties en `cp`. — B
+
+1780. **VERVOLG, VERMOED: de Perzische term voor een Gantt-balk kan met de Windows-taakbalk worden verward.**
+     `i18n/termbase/fa.json`, concept `gantt-bar`: `نوار وظیفه` (bron `existing-ui`, status `arbitrated`).
+     De Perzische Haiku-nalezer meldde bij `ui-menu-01` in de maandagrelease van 16 november 2026 dat deze
+     term ook de Windows-taakbalk kan aanduiden. Dat betekenisverschil is niet onafhankelijk taalkundig
+     getoetst en niet in de app nagespeeld; de huidige vertaling volgt de bestaande termbase. Richting:
+     laat de term in een afzonderlijke termbase-opdracht beoordelen en verwerk een eventuele wijziging
+     via de termenstraat. In deze release blijft de termbase ongewijzigd. — S
 
 ## Tests
 
@@ -4208,46 +4381,6 @@ en noem het in je rapport of PR-tekst.
      (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
 
-1581. **VERVOLG, vóór de flag standaard aan gaat: alle baselines wissen bij een gebouwmodel weigert.** Open
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met de flag en wis de bestaande baseline via `deleteBaseline`.
-     De merge weigert op `IFCRELAGGREGATES #45` slot 5 en de verdwenen `Baselines #319`, `TaskGuids #320`,
-     `ActiveBaselineId #321`, `OPS_Baselines #322` en relatie `#323`. Het verdwijnen van de complete pset vraagt
-     een afzonderlijke verklaring, zoals de taaktype-pset van 1110. Wissen → taak → nieuwe baseline schrijft wel
-     na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
-
-1582. **VERVOLG, vóór de flag standaard aan gaat: het type weghalen bij de laatste getypeerde taak weigert.**
-     Maak in `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` een eigen taaktype, geef het aan één taak, sla via
-     de merge op en heropen. Zet die taak terug naar een standaardtype: de writer laat de volledige project-pset
-     `OPS_TaskTypes` weg en de merge weigert. Dezelfde levenscyclus als 1110 (laatste getypeerde taak wissen).
-     PR 7d verklaart nieuwe definities en gewijzigde/verwijderde koppelingen zolang alle oude definities behouden
-     blijven; het verdwijnen van de hele pset blijft afzonderlijk. Reproductie `1582 taaktype type-verliezen`
-     in `check-ifc-foreign-preserve.ts`. Eindlijst, verplicht vóór de flag standaard aan gaat. — B
-
-1585. **VERVOLG: een bestaande activiteitscodedefinitie hernoemen of wissen bij een gebouwmodel weigert.**
-     Begin met twee opgeslagen codedefinities met waarden en taaktoewijzingen (de drie bronnen van PR 7d).
-     `renameActivityCodeType` op de eerste of `removeActivityCodeType` op de eerste laat de bestaande
-     `OPS_ActivityCodes`-templatelijst veranderen en de oude template/enumeratie verdwijnen: `niet-gedragen`.
-     Gemeten op `eigen-plus-model.ifc` via echte acties, voorbereiding en volledige bytes-opening; proeven
-     `1585 code hernoemen met andere definitie over` en `1585 code wissen met andere definitie over` in
-     `check-ifc-foreign-preserve.ts`. Een waarde toevoegen aan een bestaande code schrijft en heropent al.
-     PR 7d verklaart uitsluitend toegevoegde definities met alle bestaande exact behouden. — B
-
-1586. **VERVOLG: het laatste gebruik van één eigen taaktype weghalen terwijl een ander gebruikt blijft weigert.**
-     Begin met twee opgeslagen gebruikte typen A en B, geef alle taken van A via `updateTask` het type B.
-     De gewone writer neemt alleen gebruikte definities op, dus `TaskTypes.definitions` verliest A; de merge
-     weigert `niet-gedragen` op waardeslot 2. Dit is definitieverwijdering, buiten de groei-/koppelingsregel van
-     PR 7d. Reproductie `1586 laatste gebruik van een definitie weg terwijl ander type blijft` op de opgeslagen
-     beginstand van `eigen-plus-model.ifc` in `check-ifc-foreign-preserve.ts`. Een projectdefinitie hernoemen
-     weigert eveneens, gemeten alleen op domeininvoer: er is geen store-actie voor die projectkopie, de beheer-UI
-     hernoemt persoonlijke typen. Die aparte grensproef claimt dus geen UI-route. — B
-
-1587. **VERVOLG, vóór de flag standaard aan gaat: de laatste activiteitscodedefinitie wissen weigert.**
-     Open de opgeslagen beginstand met één code uit PR 7d en wis die met `removeActivityCodeType`.
-     `OPS_StructureMeta`, de template/enumeratie en `OPS_ActivityCodes` verdwijnen geheel; de merge weigert
-     `niet-gedragen`. Reproductie `7d grens laatste codedefinitie wissen` in `check-ifc-foreign-preserve.ts`,
-     gemeten op `eigen-plus-model.ifc`. Het verdwijnen van een hele pset blijft naast 1110 en 1581 op de
-     eindlijst, verplicht vóór de flag standaard aan gaat. — B
-
 1588. **VERVOLG, gemaakte bron: een opgeslagen maar ongebruikt eigen taaktype laat ook ander werk weigeren.**
      Voeg in een kopie van de opgeslagen beginstand van PR 7d aan `TaskTypes.definitions` een extra
      `{ id, name }` toe zonder taakkoppeling. Open de bytes en wijzig alleen de projectbeschrijving.
@@ -4255,18 +4388,10 @@ en noem het in je rapport of PR-tekst.
      een andere planning geeft bij de onafhankelijke heropening (`customTaskTypes`). Geen nieuw verlies en geen
      regressie van 7d; gemeten met de verliescontrole van main 648a75c0d en de nieuwe controle. Een onbekend veld
      binnen een gebruikte definitie blijft bij ander werk wel letterlijk behouden; bij typegroei blijft het geweigerd.
+     Ook met de andere toets van PR 12b weigert dit: `OPS_TaskTypes` is in de bron niet gedragen (de herleestoets (b)
+     zet de bronwaarde terug), dus geldt de controle van main (`check-ifc-foreign-eigen-toets.ts`).
      Reproductie `1588 ongebruikte brondefinitie bij alleen projectbeschrijving` in
      `check-ifc-foreign-preserve.ts`; basisbewijs in `/tmp/fase1c-pr7d-bewijs/ongebruikt-main.log`. — B
-
-1589. **VERVOLG (#804, gewone handeling): een taak met een eigen taaktype wissen bij een gebouwmodel weigert.** In een
-     opgeslagen beginstand met twee taken van type A en twee van type B: alleen de tweede A-taak wissen → de merge
-     weigert `niet-gedragen` op `IFCPROPERTYSINGLEVALUE (TaskTypes)`, waardeslot 2, terwijl beide definities en de
-     pset blijven bestaan. `explainOwnMapGrowth` in `src/services/ifc/foreign/lossCheck.ts` bekijkt alleen de taken
-     die overblijven; een koppeling die verdwijnt omdat haar taak is gewist, verklaart zij niet. Bestaat ook op main
-     `648a75c0d`. Dit is niet 1110 (de laatste getypeerde taak) en niet 1586 (een definitie verdwijnt). Besluit Trias
-     14 november 2026: geen nieuwe losse verklaringen meer; dit geval, 1585 en 1586 gaan mee in het onderzoek naar een
-     andere toets voor gegevens die volledig van de app zelf zijn. Gevonden door de review van #932 (eigen proef op
-     `council/r4-k1-na-opslaan.ifc`). — B
 
 1590. **VERVOLG (#804, structuur en opruimen): regel B is niet één gedeelde controle, en twee restjes uit PR 7d.**
      Regel A (`ownDefinitionsGrow`) is gedeeld door codes en taaktypes. Regel B (een bestaande waarde volgt een
@@ -4276,13 +4401,14 @@ en noem het in je rapport of PR-tekst.
      de aanroepen) en de lokale `isObj` in `lossCheck.ts`, die `jsonObject` herhaalt. Gevonden door de review van
      #932. — B
 
-1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft nodig tot de andere toets er is.**
+1591. **VERVOLG (#804): de vormcontrole voor codetemplates in de verliescontrole blijft tot stap 5.**
      De lezer haalt codedefinities uit `OPS_StructureMeta` en gebruikt de templates (`IFCSIMPLEPROPERTYTEMPLATE`,
      `IFCPROPERTYENUMERATION`) alleen als terugval, dus volledig heropenen ziet een fout in die tweede vorm niet. Sinds
-     PR 12a vangt controle (c) zo'n fout in de echte uitvoer wel: het enumeratielabel `WAND` → `DAK` bij een oude en bij
-     een nieuwe code weigert met `eigen-uitvoer` (`check-ifc-foreign-eigen-uitvoer.ts`). Open blijft alleen dat
-     `explainCodeDefinitions` in `lossCheck.ts` de vorm van de bron blijft bewaken tot stap 2 en 5 van de overstap
-     (onderzoek van 14 november, vraag 7); daar pas mag hij weg. — B
+     PR 12a vangt controle (c) zo'n fout in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`), en
+     sinds PR 12b bereikt de verliescontrole `explainCodeDefinitions` in een gedragen `OPS_StructureMeta` niet meer. In een
+     niet-gedragen `OPS_StructureMeta` (een bronwaarde van (b), of een vreemd lid) bewaakt hij de vorm nog. Open: hem
+     weghalen in stap 5 van de overstap, als een meting laat zien dat main hem in een niet-gedragen groep niet meer nodig
+     heeft. — B
 
 1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
      keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in

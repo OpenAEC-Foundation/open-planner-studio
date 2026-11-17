@@ -24,6 +24,8 @@
     "undo": "Zpět",
     "redo": "Znovu",
     "delete": "Smazat",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: odstraní vybrané úkoly a propojí každého předchůdce s každým následníkem (dokončení-zahájení, bez prodlevy)",
     "undoTitle": "Vrátit zpět (Ctrl+Z)",
     "redoTitle": "Znovu (Ctrl+Y)",
     "deleteTitle": "Smazat výběr (Delete)",
@@ -213,6 +215,7 @@
     "columnsHintGoToTable": "Vybrat sloupce zobrazení Tabulka — zobrazeno na kartě Tabulka",
     "toggleResourceAccent": "Zvýraznění zdrojů",
     "toggleFloatBand": "Pás časové rezervy",
+    "toggleBarDates": "Zobrazit data u pruhů",
     "screenColors": "Barvy pruhů",
     "screenColors_critical": "Kritická cesta",
     "screenColors_auto": "Podle úkolu — automaticky",
@@ -283,7 +286,8 @@
       "label": "Schéma IFC při ukládání",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (výchozí)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Soubor obsahuje data z jiné aplikace, proto se zachová schéma z jeho původní hlavičky."
     }
   },
   "newProject": {
@@ -291,7 +295,23 @@
     "template": "Šablona fází",
     "tmplEmpty": "Prázdný",
     "tmplWoningbouw": "Bytová výstavba",
-    "tmplUtiliteit": "Nebytová výstavba / rekonstrukce"
+    "tmplUtiliteit": "Nebytová výstavba / rekonstrukce",
+    "phase": {
+      "siteGroundwork": "Staveniště a zemní práce",
+      "foundation": "Základy",
+      "shell": "Hrubá stavba",
+      "roof": "Střecha",
+      "facadeFitOut": "Fasáda a dokončovací práce",
+      "services": "Technická zařízení budov",
+      "finishes": "Dokončovací práce",
+      "handover": "Předání",
+      "demolitionStripOut": "Demolice a vybourání",
+      "groundworkFoundation": "Zemní práce a základy",
+      "mainStructure": "Hlavní nosná konstrukce",
+      "facadeRoof": "Fasáda a střecha",
+      "fitOut": "Vnitřní dokončovací práce",
+      "commissioning": "Seřízení a zkoušení"
+    }
   },
   "status": {
     "tasks": "Úkoly:",
@@ -319,12 +339,14 @@
     "recentTitle": "Nedávné projekty",
     "recentSubtitle": "Klikněte pro otevření.",
     "recentEmpty": "Zatím nebyly otevřeny žádné nedávné projekty.",
+    "recentLoading": "Načítání nedávných souborů…",
     "recentUnavailable": "Tento prohlížeč nemůže znovu otevřít dříve otevřené místní soubory z „Nedávné“. Použijte „Otevřít“ a znovu vyberte soubor projektu.",
     "recentOnSite": "Na stavbě",
     "examples": "Příklady",
     "examplesTitle": "Ukázkové projekty",
     "examplesSubtitle": "Dodávané stavební plány. Klikněte pro otevření v nové kartě.",
     "examplesLoading": "Načítání příkladů…",
+    "loading": "Načítání…",
     "examplesEmpty": "Nejsou k dispozici žádné příklady.",
     "examplesError": "Příklady se nepodařilo načíst.",
     "examplesShowcaseHeading": "Úplné ukázkové plány",
