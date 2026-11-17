@@ -16,7 +16,9 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveBytePartsDialog, saveBytePartsToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveBytePartsDialog, saveBytePartsToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithParts, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
+import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -37,7 +39,9 @@ import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
-  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
+  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE, IFC_FOREIGN_OPEN_ELSEWHERE_NOTICE,
+  IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE, isOpenForeignSourceTarget,
+  IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
@@ -732,7 +736,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
     if (!ifcFullWriteBlocked(state)) return false;
-    get().notify(ifcWriteBlockedNotice(state));
+    get().notify(ifcWriteBlockedNotice(state, state.ui.featureFlags));
     return true;
   };
 
@@ -743,7 +747,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
     try { return await prepareIfcOutput(state, input, planOnly); }
     catch (error) {
-      if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
+      if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state, state.ui.featureFlags));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
       else throw error;
       return null;
@@ -772,16 +776,25 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite): SaveTargetCheck => async target => {
+  /** `ownTarget`: alleen Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen doel van het document vraagt de
+   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` geeft haar alleen aan een handle. */
+  const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite, ownTarget = false): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
-    const ownSiteVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
-      ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! } : undefined;
+    const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
+      ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
+      : ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource)
+        ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
     const reason = await refusedWriteTarget(get(), target,
-      { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownSiteVersion);
+      { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownVersion);
     if (reason) {
-      get().notify(hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
-        ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
-        : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
+      const ownSourceRefused = hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site';
+      // Knownbug 1766: Ctrl+S op de eigen handle weigert alleen nog als een ander open document dit bestand als bron heeft.
+      const others = { getOpenDocumentPayloads: () => get().getOpenDocumentPayloads().filter(d => d.id !== snapshot.activeDocumentId) };
+      const openElsewhere = ownSourceRefused && ownTarget && target.kind === 'handle'
+        && await isOpenForeignSourceTarget(others, target, fileIdentityFs);
+      get().notify(openElsewhere ? IFC_FOREIGN_OPEN_ELSEWHERE_NOTICE
+        : ownSourceRefused ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
+          : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
       return true;
     }
     return write ? refuseChangedDocumentWrite(snapshot, write) : false;
@@ -1331,6 +1344,55 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return get().activeDocumentId === documentId;
   };
 
+  /** Knownbug 1131 stap 2: de melding als op het eigen doel niet meer precies de bron staat. */
+  const ownTargetContentNotice = (content: Exclude<SourceTargetContent, 'same'>): NotifyInput =>
+    content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
+
+  /**
+   * Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle, bij een document met een gebouwmodel. In het
+   * herstel in twee stappen (`replaceWithRecoveryPending`): eerst staat de komende versie in het herstelmanifest, dan
+   * schrijft de browser de delen, vlak vóór `close()` volgt de tweede inhoudscontrole, en pas na `close()` wordt de
+   * geschreven versie de bron (`commitSavedDocument` met `prepared`). Kan het herstel de komende versie niet vastleggen
+   * (`'not-recorded'`: geen herstelronde, de herstelvraag bij de start nog open, of IndexedDB geweigerd), dan schrijft
+   * de app niet (knownbug 1764). Bij elke weigering of fout blijft het document zoals het was.
+   */
+  const replaceOwnHandle = async (
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+    ref: Extract<FileRef, { kind: 'handle' }>, failureNoticeKey: string,
+  ): Promise<boolean> => {
+    const expected = state.ifcSource!.bytes;
+    const seen: { refused?: Exclude<SourceTargetContent, 'same'>; committed?: boolean } = {};
+    try {
+      const outcome = await replaceWithRecoveryPending(documentId, prepared.sha256, {
+        replace: async () => {
+          if (refuseChangedDocumentWrite(state, write)) return false;
+          return replaceHandleWithParts(ref, prepared.parts, async () => {
+            const content = await sourceTargetContent(ref, expected);
+            if (content !== 'same') seen.refused = content;
+            return content === 'same';
+          });
+        },
+        commit: () => { seen.committed = commitSavedDocument(documentId, state, undefined, prepared); },
+      });
+      if (outcome === 'replaced') return seen.committed === true;
+      if (outcome === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
+      else if (seen.refused) get().notify(ownTargetContentNotice(seen.refused));
+      return false;
+    } catch (err) {
+      console.error('Save failed:', err);
+      get().notify({
+        severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed',
+        detail: saveErrorDetail(err instanceof BytePartsWriteError && err.cause !== undefined ? err.cause : err),
+        dedupeKey: failureNoticeKey, replaceOnDedupe: true,
+      });
+      return false;
+    }
+  };
+
+  /** Knownbug 1760: het gekozen doel van een volledige merge bestaat al (T1: alleen een nieuw bestand). Een andere
+   *  schrijffout houdt "Opslaan mislukt" met de fout eronder. */
+  const targetExists = (err: unknown) => err instanceof BytePartsWriteError && err.reason === 'target-exists';
+
   let saveAttemptSequence = 0;
   const writeActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
     // Fixronde 1 (BLOKKEERT 1): het document van de start. Wisselt het actieve document tijdens het wachten (de
@@ -1362,14 +1424,24 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
-      // Het eigen bestaande lokale modeldoel blijft in 1c dicht, ook als de merge de inhoud niet draagt.
-      if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site'
-        && await documentTargetCheck(state)(ref)) return false;
+      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop) weigert hier tot knownbug 1131 stap 5. Een handle
+      // (browser, stap 2) mag alleen met schrijftoestemming en als er nog precies de bron staat; zonder toestemming
+      // valt Ctrl+S terug op de download, zoals bij een gewoon bestand.
+      let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
+      if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
+        if (await documentTargetCheck(state, undefined, true)(ref)) return false;
+        if (ref.kind === 'handle' && await handleWritePermission(ref)) {
+          const content = await sourceTargetContent(ref, state.ifcSource!.bytes);
+          if (content !== 'same') { get().notify(ownTargetContentNotice(content)); return false; }
+          ownHandle = ref;
+        }
+      }
       const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, 'merge'));
       if (!write || refuseChangedDocumentWrite(state, write)) return false;
       // Fixronde 1: het eigen doel is de bron van een (ander) open document met een vreemd deel. Vóór elke write: site,
       // pad en handle.
-      if (ref && await documentTargetCheck(state, write)(ref)) return false;
+      if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
+      if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.
@@ -1396,8 +1468,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           filePath: state.filePath ?? saved.name, fileHandle: null, siteFileId: ref.id, siteFileVersion: saved.version,
         }, write.prepared);
       }
-      // Een site-ref geeft hier altijd `false` (zie `saveToRef`): dan loopt de route hieronder.
-      if (ref) {
+      // Een site-ref geeft hier altijd `false` (zie `saveToRef`): dan loopt de route hieronder. Een merge naar een
+      // handle zonder schrijftoestemming gaat naar de download hieronder.
+      if (ref && !(write.prepared && ref.kind === 'handle')) {
         try {
           if (refuseChangedDocumentWrite(state, write)) return false;
           const saved = write.prepared ? await saveBytePartsToRef(ref, write.prepared.parts) : await saveToRef(ref, write.content);
@@ -1443,6 +1516,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         notifySiteSaveError(err, siteName, failureNoticeKey);
         return false;
       }
+      if (targetExists(err)) { get().notify(IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE); return false; }
       notifyWriteError(err);
       return false;
     }
@@ -1503,6 +1577,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         notifySiteSaveError(err, siteName);
         return;
       }
+      if (targetExists(err)) { get().notify(IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE); return; }
       console.error('Save As failed:', err);
       get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
     }
@@ -2123,7 +2198,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         } catch (error) {
           if (!preparedExport) throw error;
           get().notify(refusalNotice({
-            messageKey: error instanceof BytePartsWriteError && error.reason === 'create-new'
+            messageKey: error instanceof BytePartsWriteError && (error.reason === 'create-new' || error.reason === 'target-exists')
               ? 'notifications.ifcForeignExportNewTarget' : 'notifications.saveFailed',
             dedupeKey: 'ifc-export-write-failed',
           }));

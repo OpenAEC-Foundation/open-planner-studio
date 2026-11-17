@@ -2005,7 +2005,9 @@ en noem het in je rapport of PR-tekst.
      of een echte browser na een herstart de leesrechten nog geeft, is niet gemeten. Zonder rechten valt het herstel
      op een bestaande kopie terug (PR 9b), anders op "bron ontbreekt" (opslag geweigerd, niets verloren).
      Voor handles wordt geen extra kopie gemaakt: dat zou voor grote bestanden extra opslag vragen en
-     afwijken van de afgesproken kopiegrens. Richting: een proef in een echte browser vóór de flag standaard aan gaat. Gevonden door de review van #929. — S
+     afwijken van de afgesproken kopiegrens. Ctrl+S via de handle (1131 stap 2) vraagt de schrijftoestemming bij het
+     gebaar, vóór de merge; ook dat is na een echte herstart niet gemeten (de browserproef gebruikt een OPFS-handle, die
+     geen toestemming vraagt). Richting: een proef in een echte browser vóór de flag standaard aan gaat. Gevonden door de review van #929. — S
 
 
 1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
@@ -2102,13 +2104,6 @@ en noem het in je rapport of PR-tekst.
      nieuwe naam" geven en zeggen dat veilig vervangen nog ontbreekt (1131); geen nieuwe foutklasse. Gevonden door de
      review van #928. — B
 
-1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
-     `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
-     planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
-     als het bestand alleen gegevens van een ander programma bevat. Zij noemt de geweigerde route en het
-     passende alternatief niet. PR 9e geeft bron ontbreekt de uitweg Opslaan als naar een nieuw bestand na bevestigen,
-     voor crashherstel en geopende backups; de overige weigeringen blijven bij de lijst "Teksten voor de planner" in `handoff.md`, die de eigenaar beoordeelt. Gevonden door de review van #928. — B
-
 1593. **VERVOLG (#804, test): drie opslagscenario's staan nog niet blijvend in de klokproef.**
      `tests/planning/check-ifc-foreign-klok.ts` toetst een gewijzigde `modifiedAt`, een lege planstart en een baseline
      zonder eigen aanmaakdatum alleen op ongelijkheid van de canon, niet met daadwerkelijk schrijven en heropenen. De
@@ -2134,13 +2129,6 @@ en noem het in je rapport of PR-tekst.
      overheen, zoals main met elk gewoon document doet. Met de flag aan weigert de inhoudscontrole van het doel dit wel.
      Alleen uit de code gelezen, niet gemeten. Richting: bij fase 2 of 9c beslissen of de bescherming met het bestand
      mee moet. — S
-
-1596. **VERVOLG (#804, tekst): met de flag uit noemt de melding bij "bron ontbreekt" Opslaan als, dat dan weigert.**
-     `notifications.ifcForeignSourceMissing` zegt sinds PR 9e "Gebruik Opslaan als om alleen de planning in een nieuw
-     bestand te bewaren". Die uitweg bestaat alleen met `ifcForeignContent` aan. Een document met dat kenmerk ontstaat
-     alleen met de flag aan; zet iemand de flag uit tussen crash en herstel, dan weigert Opslaan als met dezelfde
-     melding. Alleen uit de code gelezen. Richting: verdwijnt als de flag eraf gaat; anders een tweede tekst zonder die
-     zin voor de flag uit. — S
 
 1598. **VERVOLG (#804, docs): `.claude/rules/state.md` zegt te algemeen dat een download het openingsdoel, de bron en het kenmerk houdt.**
      Dat geldt voor een download op de mergeroute. De bevestigde Opslaan als zonder gebouwmodel van PR 9e (planOnly) legt
@@ -2173,7 +2161,7 @@ en noem het in je rapport of PR-tekst.
      een tweede taak wissen weigert met `planning-na-openen`, met als verschil een duur
      (`task-ifc-h7C5E3LHT12RvX1VuT3fYF.time.scheduleDuration: 3 → 5`). De eerste opslag schrijft (22.419 bytes). Zo was
      het ook vóór PR 12e (dezelfde bytes en dezelfde weigering op `3fcd4d628`); er gaat niets verloren. De oorzaak is
-     niet uitgezocht; het is niet de toewijzings-id van 1709, en 1770 is niet als oorzaak bewezen. Richting: eerst meten
+     niet uitgezocht; het is niet de toewijzings-id van 1709 (opgelost in #971), en 1770 is niet als oorzaak bewezen. Richting: eerst meten
      waar de duur verandert (het openen, de herberekening of de bronvorm). Gevonden door de bouwer van PR 12e, gemeten
      door de review van #968. — B (proef)
 
@@ -2190,6 +2178,21 @@ en noem het in je rapport of PR-tekst.
      maar "een taak en een baseline erbij" weigert met `niet-gedragen`. Zo was het ook vóór de fixronde van PR 12e
      (dezelfde weigering op de merge-code van `cf5671d99`); er gaat niets verloren. De oorzaak is niet uitgezocht.
      Gevonden door de bouwer van PR 12e, bevestigd door de review van #968, ronde 2. — B (proef)
+
+1775. **VERVOLG (#804, tekst): Exporteren zegt bij elke mislukte aanmaak van het nieuwe bestand "Kies een naam die nog niet bestaat".**
+     Ook als het aanmaken om een andere reden mislukt (geen schrijfrecht in de map, een volle schijf), krijgt de planner
+     `ifcForeignExportNewTarget`. Sinds #971 onderscheidt de fout van de byte-delen `target-exists` (het doel bestond al)
+     van `create-new` (iets anders); Opslaan en Opslaan als gebruiken dat al, Exporteren bewust nog niet, om de export in
+     #971 niet te veranderen. `fileSlice.ts` (de catch van `writeAndRecord` in `exportAs`). Richting: alleen
+     `target-exists` krijgt de zin over de nieuwe naam, de rest "Opslaan mislukt" met de fout eronder. — B (code)
+
+1776. **VERVOLG (#804, tekst): Opslaan als naar de bron van een open document met een gebouwmodel zegt "Gebruik Opslaan als".**
+     Kiest de planner in Opslaan als het bestand waaruit een open document met een gebouwmodel kwam (dit tabblad of een
+     ander), dan weigert de app met `ifcForeignReplaceBlocked`: "… kan nog niet veilig. Gebruik Opslaan als en kies een
+     nieuwe naam." Hij zit al in Opslaan als; alleen "kies een nieuwe naam" helpt. Sluiten van het andere tabblad helpt
+     hier niet: het bestand bevat dan nog steeds een gebouwmodel en de doelcontrole weigert het met
+     `ifcForeignTargetSave`. #971 gaf alleen Ctrl+S op de eigen handle een eigen zin (1766). Richting: in Opslaan als een
+     zin zonder "Gebruik Opslaan als". Alleen uit de code gelezen (`documentTargetCheck` in `fileSlice.ts`). — S
 
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
@@ -2244,12 +2247,6 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-foreign-eigen-toets.ts` gebruiken die. Of de projectkopie mee moet met een hernoeming, is een productkeuze;
      niets gaat verloren. — S
 
-1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
-     In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
-     of weg) of in de baselines terecht met `planning-na-openen`, maar de melding noemt als eerste verschil
-     `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
-     `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
-
 1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
      Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
      Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
@@ -2259,15 +2256,15 @@ en noem het in je rapport of PR-tekst.
      echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
      reden. — B
 
-1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
+1741. **VERVOLG (#804, uitleg): de handleiding noemt nog niet wat er bij Exporteren zonder gebouwmodel wegvalt.**
      Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
      op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent
      met dezelfde 4 taken, 1 relatie, 1 resource, 1 toewijzing en 2 kalenders. Het `IfcProject` houdt zijn GlobalId. Weg zijn,
      zoals bedoeld: het gebouwmodel (wanden, geometrie, terrein, gebouw, verdieping), maar ook de koppelingen taak↔wand
      (`IfcRelAssignsToProduct`), het tweede werkschema en de baseline van het andere programma met hun drie taken, de
-     vreemde pset-waarden en de herkomst (owner history) van het andere programma. De vraag zegt alleen in het algemeen
-     dat "de gegevens van een ander programma" niet meegaan. Richting: in de handleiding (1566) opsommen wat wegvalt;
-     een telling in de vraag alleen als de eigenaar dat wil. — B
+     vreemde pset-waarden en de herkomst (owner history) van het andere programma. Sinds #971 noemt de vraag de koppelingen
+     tussen taken en bouwdelen en "een planning uit dat programma", zonder telling. Richting: de volledige opsomming in de
+     handleiding (1566). — B
 
 1742. **VERVOLG (browsertest): in `settings-tabs.spec.ts` verschijnt na de twee heropeningen nog een vierde document.**
      Na Exporteren → IFC (download, Ctrl+O) en Ctrl+Shift+S (download, Ctrl+O) staat het heropende bestand actief. Kort
@@ -2609,12 +2606,86 @@ en noem het in je rapport of PR-tekst.
      T1 laat alleen een nieuw einddoel met `createNew` toe; een bestaand doel blijft geweigerd.
      Verplicht vóór de flag aan mag: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand
      moet kunnen, net als bronherstel (1112). PR 11a meldt nu waarom dit nog weigert en verwijst naar Opslaan als.
-     Voor vervanging zijn de bron-sha256 en de exclusieve plaatsing uit ontwerp §4.10 nodig,
-     met `place_file_exclusive` (Rust, uitsluitend fase 2) en herstel na onderbreking. Plugin-fs-rename
-     vervangt bestaande bestanden en is daarvoor ongeschikt. De nieuwe route schrijft na createNew
-     via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone
-     I/O-fout is best effort en biedt geen padslot tegen externe wissels. Proeven toetsen botsing,
-     schrijf-/sluitfout en geen directe terugval; crash, stroomuitval en externe padwissels niet gemeten. — B (code/proef)
+     Plugin-fs-rename vervangt bestaande bestanden en is daarvoor ongeschikt. De route naar een nieuwe naam schrijft na
+     createNew via de handle: een crash kan een onvolledig nieuw bestand laten staan; cleanup na een gewone I/O-fout is
+     best effort en biedt geen padslot tegen externe wissels. Onderzoek van 16 november 2026: zes stappen.
+     1. Klaar (stap 1): de inhoudscontrole van het eigen doel (`sourceTargetContent`, pad en handle, in stukken van
+        1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5, `replaceWithRecoveryPending`).
+     2. Klaar (stap 2): Ctrl+S in de browser via de handle (Chrome, Edge), achter de flag: de uitzondering "eigen doel"
+        in `refusedWriteTarget` (alleen een handle), de inhoudscontrole vóór de merge en vlak vóór `close()`, de
+        vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
+        tot en met 5.
+     3. Het Rust-commando `place_file_exclusive` met fsync, los en per platform getoetst (wacht op een productkeuze).
+     4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
+     5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
+        herstel- en conflictkopie.
+        Daarna kan de melding `notifications.ifcForeignAutoSaveBlocked` terug van "Sla je wijzigingen zelf op met
+        Opslaan als" naar "Opslaan of Opslaan als" (zolang Ctrl+S op de desktop weigert, noemt zij alleen Opslaan als).
+     6. Teksten en handleiding, met de eigenaar.
+     Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
+     `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle). Crash, stroomuitval en externe
+     padwissels in een echte app niet gemeten. — B (code/proef)
+
+1761. **VERVOLG (#804, ontwerp): het ontwerp noemt geen fsync bij het vervangen, terwijl de eis stroomuitval noemt.**
+     In stap 4 van §4.10 is het doel een vrije naam; daar helpt `auto_da_alloc` van ext4 niet, dus na stroomuitval kan
+     het doel leeg of half zijn terwijl de opzijgezette versie volledig is. Richting: `sync_all` op het tijdelijke
+     bestand en een fsync van de map in `place_file_exclusive` (Windows: `FlushFileBuffers` en `MOVEFILE_WRITE_THROUGH`),
+     en §4.10 aanvullen. Uit het onderzoek naar 1131. — S
+
+1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
+     De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
+     (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
+     schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
+     productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
+
+1763. **VERVOLG (#804, CI): de Rust-proeven per platform uit het besluit over `place_file_exclusive` hebben nog geen workflow.**
+     `cargo test` draait alleen op Ubuntu, voor `mcp_bridge` en `desktop_integration`
+     (`.github/workflows/mcp-real-app.yml:42, 74-75`); de builds op Windows en macOS in `ci.yml` draaien geen tests.
+     Nodig vóór stap 3 van 1131; de workflowwijziging pusht Trias. Uit het onderzoek naar 1131. — B
+
+1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
+     `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
+     herstelronde draaien (IndexedDB geweigerd, zoals een sandbox-iframe zonder `allow-same-origin`, #582; de
+     herstelvraag bij de start nog open; geen geregistreerde ronde), dan schrijft Ctrl+S met een gebouwmodel niet en
+     meldt `ifcForeignReplaceNotRecorded` dat het bestand nu niet veilig vervangen kan worden en dat Opslaan als wel kan.
+     Besluit (stap 2, review van #965): de weigering blijft de standaard, zonder uitzondering; een ontoegankelijke
+     IndexedDB bewijst niet dat er geen herstelset is die bescherming nodig heeft. Een uitzondering vraagt een eigen
+     besluit, voorwaarden en proef. Proef: `check-ifc-document-save.ts` (geen herstelronde, manifest geweigerd). — B
+
+1765. **VERVOLG (#804, stroomuitval): het manifest met `pendingSha256` staat na stroomuitval mogelijk niet op schijf.**
+     De helper wacht tot de herstelronde klaar is, maar die schrijft op de desktop zonder fsync (`recoveryStore.ts`,
+     via plugin-fs) en in de browser met de standaardduurzaamheid van IndexedDB, zonder `durability: 'strict'`. Na
+     stroomuitval kan de nieuwe versie op het doel staan terwijl het manifest nog de oude noemt: herstel geeft dan
+     "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
+     gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: meenemen bij de fsync van 1761. Gevonden
+     in stap 1 van 1131. — S
+
+1767. **VERVOLG (#804, niet gemeten): Ctrl+S via een handle uit de bestandskiezer in een echte browser.** De
+     browserproef gebruikt een handle uit OPFS (`navigator.storage.getDirectory()`): geen toestemmingsvraag, geen
+     wisselbestand naast een bestand van de planner. Niet gemeten: een handle uit `showOpenFilePicker` in Chrome of Edge
+     (de vraag om schrijftoestemming, wat de browser na een crash midden in `close()` achterlaat), en de duur bij grote
+     bestanden: twee volledige inhoudscontroles en de merge, alle op de hoofdthread. Richting: meenemen in de proef in
+     een echte browser van 1574 en de meting van PR 6. — S
+
+1768. **VERVOLG (#804, productkeuze): na een download omdat de browser schrijftoestemming weigert, staat het document als opgeslagen.**
+     Browser, flag aan, document met een gebouwmodel dat via de bestandskiezer geopend is. Weigert de browser de
+     schrijftoestemming, dan wordt Ctrl+S een download van het volledige bestand (planning en gebouwmodel). De bron, het
+     kenmerk, de handle en de naam blijven die van het geopende bestand, en dat is juist: daar staat nog de oude versie.
+     Maar `isDirty` gaat uit, dus de sluitvraag komt niet meer, terwijl het geopende bestand niet is bijgewerkt en het
+     werk alleen in de downloadmap staat. Geen verlies aangetoond: de download is heel, en met later verleende
+     toestemming schrijft Ctrl+S alsnog op dezelfde handle (proef van de review van #967). "Zoals main" klopt maar ten
+     dele: de gewone route probeert eerst de opslaankiezer en verliest bij een download haar handle; de mergeroute
+     downloadt altijd (1130) en houdt het openingsdoel. Richting: de eigenaar kiest wat "opgeslagen" hier betekent (het
+     document blijft gewijzigd tot het geopende bestand is bijgewerkt, of een kopie telt), en de melding zegt het; met
+     de teksten van stap 6 van 1131. Gevonden door de review van #967. — B (proef)
+
+1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
+     `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde
+     bytes terug en toetst dat de oude weigering ontbreekt. Opent het document schoon, dan bewijst dat niet dat er
+     geschreven is. Het bewerkte deel van de proef schrijft wel andere bytes en heropent die. Richting: de begintoestand
+     toetsen en wachten op een waargenomen schrijfronde, bijvoorbeeld via `lastModified` van het bestand. Niet gemeten
+     door de reviewer (de run kwam niet aan de beurt). Gevonden door de review van #967. — S
+
 1148. **VERVOLG (#804, grote bestanden): de site-opslag via SuperCloud maakt van de byte-delen nog één volledige buffer.**
      De byte-ingang van #922 geeft de site een Blob, maar `superCloudHost.ts` doet daarna
      `new Uint8Array(await data.arrayBuffer())`, omdat het hostcontract één `Uint8Array` vraagt. De bytes blijven gelijk

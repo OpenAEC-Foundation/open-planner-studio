@@ -26,6 +26,10 @@ import { ownRecoveryNames } from '@/hooks/recoveryPaths';
 import { planTauriV3RecoverySave, parseRecoveryManifest } from '@/services/recovery/recoveryStore';
 import { checkRecoveryDocuments, checkRecoveryManifestVersion } from '@/services/recovery/recoveryManifest';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
+import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
+import { pendingIfcSourceSha256, replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { castDraft } from 'immer';
 
 installDeterminism();
 await loadStore();
@@ -551,3 +555,144 @@ writeFileSync(join(evidenceDir, 'compat-input.json'), JSON.stringify({
   foreignId: compatForeignId, ordinaryId: compatPlainId,
 }));
 console.log(`COMPAT-INVOER: ${evidenceDir}/compat-input.json; bestaande database v3 met uitsluitend records/xer-archives; bronkopie apart.`);
+
+// ── #804, knownbug 1131 stap 1: herstel in twee stappen (`pendingSha256`) en de helper om een vervanging heen. ──
+// Geen route roept de helper nog aan; deze proeven spelen de vervanging na met een echte schrijfactie op het doel.
+await clearRecovery();
+const producer = await openAt(bytes, null); durationEdit(producer);
+const nextVersion = await saveAs(producer, 'volgende-versie.ifc');
+const nextSource = (await openAt(nextVersion, null)).getState().ifcSource!;
+const thirdVersion = new Uint8Array(bytes); thirdVersion[Buffer.from(thirdVersion).indexOf("FILE_NAME('") + 11] ^= 1;
+assert.notEqual(hash(nextVersion), hash(bytes));
+const manifestDoc = (loaded: Awaited<ReturnType<typeof loadRecovery>>, id: string | null) => loaded.docs.find(d => d.id === id)!;
+const withFlush = async <T>(store: Store, run: () => Promise<T>): Promise<T> => {
+  const tracker = new RecoveryDeltaTracker();
+  const unregister = registerRecoveryFlush(async () => { await tick(store, true, tracker); });
+  try { return await run(); } finally { unregister(); }
+};
+async function restoreFrom(loaded: Awaited<ReturnType<typeof loadRecovery>>, onDesktop: boolean) {
+  const ipc = onDesktop ? desktop() : null;
+  try { return await restore(loaded); } finally { ipc?.dispose(); }
+}
+
+for (const route of ['desktop', 'handle'] as const) {
+  const onDesktop = route === 'desktop';
+  const target = join(dir, `vervang-${route}.ifc`), handleName = `vervang-${route}.ifc`;
+  const put = (data: Uint8Array) => { if (onDesktop) writeFileSync(target, data); else handleData.set(handleName, data); };
+  put(bytes);
+  const replacing = await openAt(bytes, onDesktop ? { kind: 'path', path: target } : { kind: 'handle', handle: new Handle(handleName) as unknown as FileSystemFileHandle });
+  const edit = durationEdit(replacing);
+  const id = replacing.getState().activeDocumentId!;
+  let duringReplace!: Awaited<ReturnType<typeof loadRecovery>>, crashAfterWrite!: Awaited<ReturnType<typeof loadRecovery>>;
+  const outcome = await withFlush(replacing, () => runProjectFileWrite(() => replaceWithRecoveryPending(id, hash(nextVersion), {
+    replace: async () => {
+      duringReplace = await loadRecovery();
+      put(nextVersion);
+      crashAfterWrite = await loadRecovery();
+      return true;
+    },
+    commit: () => { replacing.setState(s => { s.ifcSource = castDraft(nextSource); }); },
+  })));
+  assert.equal(outcome, 'replaced', route);
+  // Vastleggen vóór de vervanging: de oude bron plus de komende versie.
+  assert.equal(manifestDoc(duringReplace, id).ifcSource?.sha256, hash(bytes), route);
+  assert.equal(manifestDoc(duringReplace, id).ifcSource?.pendingSha256, hash(nextVersion), route);
+  // Crash ná het schrijven en vóór het bijwerken van het manifest: de nieuwe versie is de bron, het doel komt terug.
+  const afterWrite = await restoreFrom(crashAfterWrite, onDesktop);
+  assert.equal(afterWrite.getState().ifcSource?.sha256, hash(nextVersion), `${route}: nieuwe versie via pendingSha256`);
+  assert.equal(afterWrite.getState().foreignSourceMark?.sourceMissing, undefined, route);
+  assert.equal(afterWrite.getState().foreignSourceMark?.sha256, hash(nextVersion), route);
+  if (onDesktop) assert.equal(afterWrite.getState().filePath, target);
+  else assert.equal(afterWrite.getState().fileHandle?.name, handleName);
+  assert.equal(afterWrite.getState().tasks.find(t => t.id === edit.id)!.time.scheduleDuration, edit.duration, `${route}: planning uit de snapshot`);
+  // Hetzelfde manifest zonder het veld: precies het gedrag van nu, dus bron ontbreekt.
+  const withoutField = { ...crashAfterWrite, docs: crashAfterWrite.docs.map(d => {
+    if (!d.ifcSource) return d;
+    const { pendingSha256: _dropped, ...rest } = d.ifcSource; void _dropped;
+    return { ...d, ifcSource: rest };
+  }) };
+  const oldBehaviour = await restoreFrom(withoutField, onDesktop);
+  assert.equal(oldBehaviour.getState().foreignSourceMark?.sourceMissing, true, `${route}: zonder veld bron ontbreekt`);
+  // Crash vóór het schrijven: het doel heeft nog de oude versie, die het herstel via sha256 vindt.
+  put(bytes);
+  const beforeWrite = await restoreFrom(duringReplace, onDesktop);
+  assert.equal(beforeWrite.getState().ifcSource?.sha256, hash(bytes), `${route}: oude versie via sha256`);
+  assert.equal(beforeWrite.getState().foreignSourceMark?.sourceMissing, undefined, route);
+  // Een derde inhoud blijft bron ontbreekt, zonder doel.
+  put(thirdVersion);
+  const third = await restoreFrom(crashAfterWrite, onDesktop);
+  assert.equal(third.getState().foreignSourceMark?.sourceMissing, true, `${route}: derde inhoud`);
+  assert.equal(third.getState().filePath, null); assert.equal(third.getState().fileHandle, null);
+  // Na de geslaagde vervanging: de bronverwijzing op de nieuwe versie, het veld gewist.
+  const settled = manifestDoc(await loadRecovery(), id).ifcSource;
+  assert.equal(settled?.sha256, hash(nextVersion), route);
+  assert.equal(settled?.pendingSha256, undefined, `${route}: veld gewist na slagen`);
+  assert.equal(pendingIfcSourceSha256(id), undefined);
+  await clearRecovery();
+}
+console.log('PROEF 1131-2 GROEN: crash na schrijven herstelt de nieuwe versie (pad en handle), crash ervoor de oude, een derde inhoud bron ontbreekt, zonder veld gedrag van nu.');
+
+// De helper: mislukken wist het veld; een manifest dat niet te schrijven is, laat niets vervangen.
+const helperPath = join(dir, 'helper-a.ifc'), otherPath = join(dir, 'helper-b.ifc');
+writeFileSync(helperPath, bytes); writeFileSync(otherPath, bytes);
+const two = await openAt(bytes, { kind: 'path', path: otherPath }); durationEdit(two);
+const otherId = two.getState().activeDocumentId!;
+two.getState().newDocument();
+await two.getState().openOpenedFile({ name: 'gewoon.ifc', content: '', bytes: plain, ref: { kind: 'path', path: join(dir, 'helper-gewoon.ifc') } });
+durationEdit(two);
+const plainHelperId = two.getState().activeDocumentId!;
+two.getState().newDocument();
+await two.getState().openOpenedFile({ name: 'helper-a.ifc', content: '', bytes, ref: { kind: 'path', path: helperPath } });
+durationEdit(two);
+const helperId = two.getState().activeDocumentId!;
+const helper = (replace: () => Promise<boolean>) => withFlush(two, () => runProjectFileWrite(() =>
+  replaceWithRecoveryPending(helperId, hash(nextVersion), { replace, commit: () => { two.setState(s => { s.ifcSource = castDraft(nextSource); }); } })));
+await tick(two);
+const otherBefore = manifestDoc(await loadRecovery(), otherId).ifcSource;
+let seenDuring: Awaited<ReturnType<typeof loadRecovery>> | undefined;
+assert.equal(await helper(async () => { seenDuring = await loadRecovery(); return false; }), 'not-replaced');
+assert.equal(manifestDoc(seenDuring!, helperId).ifcSource?.pendingSha256, hash(nextVersion), 'vastgelegd vóór de vervanging');
+assert.deepEqual(manifestDoc(seenDuring!, otherId).ifcSource, otherBefore, 'het andere document houdt zijn verwijzing');
+assert.equal(manifestDoc(await loadRecovery(), helperId).ifcSource?.pendingSha256, undefined, 'veld gewist na mislukken');
+assert.equal(manifestDoc(await loadRecovery(), helperId).ifcSource?.sha256, hash(bytes), 'bron blijft de oude versie');
+await assert.rejects(helper(async () => { throw new Error('schrijffout'); }), /schrijffout/);
+assert.equal(manifestDoc(await loadRecovery(), helperId).ifcSource?.pendingSha256, undefined, 'veld gewist na een fout');
+assert.equal(pendingIfcSourceSha256(helperId), undefined);
+let replaced = 0;
+failManifest = true;
+try { assert.equal(await helper(async () => { replaced++; return true; }), 'not-recorded'); }
+finally { failManifest = false; }
+assert.equal(replaced, 0, 'manifest niet te schrijven: geen vervanging');
+assert.equal(hash(readFileSync(helperPath)), hash(bytes));
+assert.equal(pendingIfcSourceSha256(helperId), undefined);
+assert.equal(await runProjectFileWrite(() => replaceWithRecoveryPending(helperId, hash(nextVersion), {
+  replace: async () => { replaced++; return true; }, commit: () => {} })), 'not-recorded', 'geen herstelronde: geen vervanging');
+assert.equal(replaced, 0);
+await assert.rejects(replaceWithRecoveryPending(helperId, hash(nextVersion), { replace: async () => true, commit: () => {} }),
+  /runProjectFileWrite/, 'buiten de schrijfvolgorde geweigerd');
+// Twee documenten tegelijk: het veld van het ene raakt het andere niet.
+let both: Awaited<ReturnType<typeof loadRecovery>> | undefined, compatRecords: unknown;
+assert.equal(await helper(async () => {
+  writeFileSync(helperPath, nextVersion);
+  both = await loadRecovery();
+  compatRecords = [...idb.store('records')];
+  return true;
+}), 'replaced');
+assert.equal(manifestDoc(both!, helperId).ifcSource?.pendingSha256, hash(nextVersion));
+assert.equal(manifestDoc(both!, otherId).ifcSource?.pendingSha256, undefined);
+assert.deepEqual(manifestDoc(await loadRecovery(), otherId).ifcSource, otherBefore);
+assert.equal(manifestDoc(await loadRecovery(), helperId).ifcSource?.sha256, hash(nextVersion));
+// Het herstel van dit moment: het vervangen document neemt de nieuwe versie, de andere komen gewoon terug.
+const mixedRestore = await restoreFrom(both!, true);
+const restoredDocs = new Map(mixedRestore.getState().getOpenDocumentPayloads().map(d => [d.id, d.payload]));
+assert.equal(restoredDocs.get(helperId)?.ifcSource?.sha256, hash(nextVersion));
+assert.equal(restoredDocs.get(otherId)?.ifcSource?.sha256, hash(bytes));
+assert.equal(restoredDocs.get(otherId)?.foreignSourceMark?.sourceMissing, undefined);
+assert(restoredDocs.get(plainHelperId), 'het gewone document komt terug');
+writeFileSync(join(evidenceDir, 'pending-compat-input.json'), JSON.stringify({
+  records: compatRecords, session: [...session], helperId, otherId, plainHelperId, helperPath, otherPath,
+  oldSha: hash(bytes), nextSha: hash(nextVersion),
+}));
+await clearRecovery();
+console.log('PROEF 1131-3 GROEN: vastleggen/slagen/wissen, mislukken en fout wissen, manifest niet te schrijven of geen ronde: niets vervangen; twee documenten los.');
+console.log(`PENDING-COMPAT-INVOER: ${evidenceDir}/pending-compat-input.json`);

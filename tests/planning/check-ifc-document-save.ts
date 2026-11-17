@@ -19,6 +19,13 @@ import { createFileAutoSaveController } from '@/services/actualAutosave/fileAuto
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
+import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
+import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
+import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
+import { flushRecoveryNow, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
+import { recoverySourceDocument } from '@/state/recoverySourceDocument';
+import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { installNodeFileIpc } from './nodeFileIpc';
 import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
@@ -150,31 +157,27 @@ await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam, nul bytes
 
 await check('Opslaan als bestaand eigen bestand: createNew weigert, oude bytes intact', async () => {
   const { store } = await openInStore(bytes); longer(store);
+  // Zonder opslagdoel opent ook Ctrl+S de kiezer (een eigen pad weigert eerder, met ifcForeignReplaceBlocked).
+  store.setState(s => { s.filePath = null; });
   const ipc = desktop(), target = join(dir, 'bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
   writeFileSync(target, plain); ipc.choose(target);
   const before = preserved(store);
   try {
-    clearNotices(store); await store.getState().saveFileAs(); unchanged(store, before);
-    assert.equal(hash(new Uint8Array(readFileSync(target))), hash(plain));
-    assertNotice(store, 'notifications.saveFailed');
+    // Knownbug 1760: Opslaan als en Ctrl+S met de kiezer zeggen dat de naam al bestaat, zoals Exporteren.
+    for (const save of [() => store.getState().saveFileAs(), () => store.getState().saveFile()]) {
+      clearNotices(store); await save(); unchanged(store, before);
+      assert.equal(hash(new Uint8Array(readFileSync(target))), hash(plain));
+      assertNotice(store, 'notifications.ifcForeignSaveNewTarget');
+    }
     assert(ipc.calls.some(c => c.path === target && c.options?.createNew));
+    // Een andere fout bij het aanmaken van een nieuwe naam houdt "Opslaan mislukt" met de fout eronder.
+    const fresh = join(dir, 'nieuw-maar-fout.ifc'); ipc.choose(fresh);
+    ipc.faults.openError = new Error('schijf vol');
+    clearNotices(store); await store.getState().saveFileAs(); unchanged(store, before);
+    assertNotice(store, 'notifications.saveFailed'); assert.equal(existsSync(fresh), false);
+    assert.match(String(store.getState().ui.notifications[0].detail), /\(create-new\)/, 'de fouttekst blijft zoals hij was');
   } finally { ipc.dispose(); }
-});
-
-await check('browserhandle Ctrl+S: nul bytes, geen downloadterugval', async () => {
-  let writables = 0;
-  const handle = { kind: 'file', name: 'model.ifc', isSameEntry: async (other: unknown) => other === handle,
-    getFile: async () => new File([new Uint8Array(bytes).buffer], 'model.ifc'),
-    createWritable: async () => { writables++; throw new Error('mag niet schrijven'); },
-  } as unknown as FileSystemFileHandle;
-  const store = await openAt({ kind: 'handle', handle }); longer(store);
-  const before = preserved(store), browser = browserDownload();
-  try {
-    clearNotices(store); await store.getState().saveFile(); unchanged(store, before);
-    assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
-    assert.equal(writables, 0); assert.equal(browser.downloads.length, 0);
-  } finally { browser.dispose(); }
 });
 
 for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', 'flag-uit-na-kiezer'] as const) {
@@ -288,11 +291,15 @@ for (const kind of ['nieuw', 'versie', 'conflictkopie', 'zonder-basis'] as const
   });
 }
 
-for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause}: alle documentroutes nul bytes`, async () => {
+const blockedNotice = {
+  'flag-uit': 'notifications.ifcForeignSaveBlocked', sourceMissing: 'notifications.ifcForeignSourceMissing',
+  'sourceMissing-flag-uit': 'notifications.ifcForeignSourceMissingFlagOff',
+} as const;
+for (const cause of ['flag-uit', 'sourceMissing', 'sourceMissing-flag-uit'] as const) await check(`${cause}: alle documentroutes nul bytes`, async () => {
   const { store } = await openInStore(bytes); longer(store);
   store.setState(s => {
-    if (cause === 'flag-uit') s.ui.featureFlags = {};
-    else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+    if (cause !== 'sourceMissing') s.ui.featureFlags = {};
+    if (cause !== 'flag-uit') s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
   });
   const before = preserved(store), browser = browserDownload();
   try {
@@ -301,14 +308,22 @@ for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`${cause
       let siteCalls = 0;
       if (site) win.openaecHost = { storage: { list: async () => [], open: async () => null, versions: async () => [], save: async () => { siteCalls++; throw new Error('geen writes'); } } };
       for (const save of [() => store.getState().saveFile(), () => store.getState().saveFileAs(), () => store.getState().saveFileForDocument(store.getState().activeDocumentId)]) {
-        clearNotices(store); await save(); unchanged(store, before); assertNotice(store, cause === 'sourceMissing' ? 'notifications.ifcForeignSourceMissing' : 'notifications.ifcForeignSaveBlocked');
+        clearNotices(store); await save(); unchanged(store, before); assertNotice(store, blockedNotice[cause]);
       }
       assert.equal(siteCalls, 0); delete win.openaecHost;
     }
     assert.equal(browser.downloads.length, 0);
     const ipc = desktop(); ipc.choose(join(dir, `${cause}.ifc`));
-    try { await store.getState().saveFileAs(); assert.equal(ipc.picks(), 0); unchanged(store, before); }
-    finally { ipc.dispose(); }
+    try {
+      await store.getState().saveFileAs(); assert.equal(ipc.picks(), 0); unchanged(store, before);
+      // De uitweg die de melding met de flag uit noemt (1563, 1596): de planning naar een ander formaat exporteren.
+      if (cause !== 'sourceMissing') {
+        const csv = join(dir, `${cause}.csv`); ipc.choose(csv); clearNotices(store);
+        const result = await store.getState().exportAs('csv');
+        assert(result.ok && !result.cancelled, 'de export naar een ander formaat gaat door'); assert(existsSync(csv));
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+      }
+    } finally { ipc.dispose(); }
   } finally { browser.dispose(); }
 });
 
@@ -366,18 +381,27 @@ await check('zonder vreemd deel en flag aan: beide acties bytegelijk aan de gewo
   } finally { ipc.dispose(); }
 });
 
-await check('AutoSave: nul bytes, één bestaande melding per document per sessie', async () => {
-  const ipc = desktop(), original = join(dir, 'autosave-bron.ifc'); writeFileSync(original, bytes);
-  try {
-    const store = await openAt({ kind: 'path', path: original }); longer(store);
-    store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
-    const before = preserved(store), count = ipc.calls.length;
-    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true });
-    await controller.flush(); await controller.flush();
-    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignSaveBlocked');
-    assert.equal(ipc.calls.length, count); assert.equal(hash(new Uint8Array(readFileSync(original))), hash(bytes));
-  } finally { ipc.dispose(); }
-});
+// Knownbug 1563: met de flag aan kan de planner zelf opslaan; met de flag uit of zonder bron de melding van die reden.
+for (const [cause, notice] of [['flag aan', 'notifications.ifcForeignAutoSaveBlocked'], ['flag uit', 'notifications.ifcForeignSaveBlocked'],
+  ['sourceMissing', 'notifications.ifcForeignSourceMissing'], ['sourceMissing en flag uit', 'notifications.ifcForeignSourceMissingFlagOff']] as const) {
+  await check(`AutoSave ${cause}: nul bytes, één melding per document per sessie`, async () => {
+    const ipc = desktop(), original = join(dir, `autosave-bron-${cause.replace(/ /g, '-')}.ifc`); writeFileSync(original, bytes);
+    try {
+      const store = await openAt({ kind: 'path', path: original }); longer(store);
+      store.setState(s => {
+        s.autoSaveToFile = true;
+        if (cause.includes('flag uit')) s.ui.featureFlags = {};
+        if (cause.startsWith('sourceMissing')) s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+      });
+      clearNotices(store);
+      const before = preserved(store), count = ipc.calls.length;
+      const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true });
+      await controller.flush(); await controller.flush();
+      unchanged(store, before); assertNotice(store, notice);
+      assert.equal(ipc.calls.length, count); assert.equal(hash(new Uint8Array(readFileSync(original))), hash(bytes));
+    } finally { ipc.dispose(); }
+  });
+}
 
 await check('planOnly met vreemd deel: bewaakte voorbereiding weigert vóór I/O', async () => {
   const { store } = await openInStore(bytes);
@@ -698,6 +722,21 @@ await check('export met bibliotheek: vraag, projectbestand met alleen de plannin
   } finally { ipc.dispose(); resetPlanOnlyAsker(); }
 });
 
+// Knownbug 1741: de vraag die beide exports stellen (hierboven: `export` en `exportWithPool`) noemt concreet wat wegvalt,
+// zonder telling; de volledige opsomming hoort in de handleiding (1566).
+await check('1741: de vraag vóór beide exports zonder gebouwmodel noemt de koppelingen en de planning van een ander programma', async () => {
+  const { PLAN_ONLY_TEXTS } = await import('@/components/dialogs/PlanOnlyQuestionDialog');
+  for (const locale of ['nl', 'en'] as const) {
+    const texts = JSON.parse(readFileSync(join(root, `src/i18n/locales/${locale}/common.json`), 'utf8')) as Record<string, Record<string, string>>;
+    for (const reason of ['export', 'exportWithPool'] as const) {
+      const [ns, key] = PLAN_ONLY_TEXTS[reason].body.split('.'), text = texts[ns][key];
+      assert.match(text, locale === 'nl' ? /koppelingen tussen taken en bouwdelen/ : /links between tasks and building elements/, `${locale} ${reason}`);
+      assert.match(text, locale === 'nl' ? /een planning uit dat programma/ : /a schedule from that program/, `${locale} ${reason}`);
+      assert.doesNotMatch(text, /\d/, `${locale} ${reason}: zonder telling`);
+    }
+  }
+});
+
 for (const cause of ['sourceMissing', 'flag-uit'] as const) await check(`${cause}: beide routes zonder gebouwmodel geweigerd met de bestaande melding, geen vraag`, async () => {
   const { store } = await openInStore(bytes); longer(store);
   store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
@@ -763,6 +802,318 @@ await check('zonder ja blijft planOnly geweigerd; een ja geldt één keer en all
     assert.equal(await askPlanOnly('export'), null, 'nee geeft geen bevestiging');
   } finally { resetPlanOnlyAsker(); }
 });
+// ── Knownbug 1131 stap 2: Ctrl+S op het eigen bestand via de bestandshandle (browser). ──
+// De dubbel overleeft `structuredClone` in de nep-IndexedDB (prototype terug in `onRead`), zodat het herstel na een
+// crash via dezelfde handle leest, zoals Chromium een handle uit IndexedDB teruggeeft. Inhoud en storingen staan per
+// naam buiten het object. Geen bewijs van browserrechten of van het wisselbestand van een echte browser.
+const handleFiles = new Map<string, Uint8Array>();
+interface HandleFaults {
+  permission?: 'denied'; unreadable?: boolean; writeErrorAt?: number; closeError?: boolean;
+  onWrite?: (written: number) => void; afterClose?: () => Promise<void>;
+}
+const handleFaults = new Map<string, HandleFaults>();
+const writableLog: string[] = [];
+class FakeHandle {
+  readonly kind = 'file';
+  constructor(readonly name: string) {}
+  async isSameEntry(other: unknown) { return other instanceof FakeHandle && other.name === this.name; }
+  async queryPermission() { return handleFaults.get(this.name)?.permission === 'denied' ? 'prompt' : 'granted'; }
+  async requestPermission() { return handleFaults.get(this.name)?.permission === 'denied' ? 'denied' : 'granted'; }
+  async getFile() {
+    const data = handleFiles.get(this.name);
+    if (!data) throw new DOMException('weg', 'NotFoundError');
+    if (handleFaults.get(this.name)?.unreadable) throw new DOMException('onleesbaar', 'NotReadableError');
+    return new File([new Uint8Array(data).buffer], this.name);
+  }
+  async createWritable() {
+    const name = this.name, faults = handleFaults.get(name) ?? {}, parts: Uint8Array[] = [];
+    writableLog.push(`create ${name}`);
+    return {
+      write: async (part: Uint8Array | string) => {
+        if (faults.writeErrorAt === parts.length) throw new DOMException('schijf vol', 'QuotaExceededError');
+        parts.push(typeof part === 'string' ? new TextEncoder().encode(part) : new Uint8Array(part)); faults.onWrite?.(parts.length);
+      },
+      abort: async () => { writableLog.push(`abort ${name}`); },
+      close: async () => {
+        if (faults.closeError) throw new DOMException('sluiten', 'InvalidStateError');
+        handleFiles.set(name, new Uint8Array(Buffer.concat(parts)));
+        writableLog.push(`close ${name} ${parts.length}`);
+        await faults.afterClose?.();
+      },
+    };
+  }
+}
+let failManifest = false;
+const hydrateHandles = (value: unknown): void => {
+  if (!value || typeof value !== 'object') return;
+  if (Reflect.get(value, 'kind') === 'file' && handleFiles.has(Reflect.get(value, 'name'))) Object.setPrototypeOf(value, FakeHandle.prototype);
+  else for (const child of Object.values(value)) hydrateHandles(child);
+};
+installFakeRecoveryIndexedDb({
+  onRead: (_store, _method, value) => hydrateHandles(value),
+  onPut: (store, value) => {
+    if (failManifest && store === 'records' && Reflect.get(value, 'kind') === 'manifest') throw new Error('IndexedDB weigert');
+  },
+});
+const sessionValues = new Map<string, string>();
+Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
+  getItem: (k: string) => sessionValues.get(k) ?? null, setItem: (k: string, v: string) => sessionValues.set(k, v),
+  removeItem: (k: string) => sessionValues.delete(k),
+} });
+/** De herstelronde zoals `useAutoSave` haar registreert: `replaceWithRecoveryPending` wacht erop. */
+function recoveryRounds(store: Store) {
+  const tracker = new RecoveryDeltaTracker();
+  return registerRecoveryFlush(async () => {
+    const s = store.getState();
+    await runRecoveryTick(tracker, s.activeDocumentId,
+      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)));
+  });
+}
+async function restoreFrom(loaded: Awaited<ReturnType<typeof loadRecovery>>) {
+  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  const inputs = [];
+  for (const doc of loaded.docs) inputs.push(await readRecoveryDocument(doc, loaded.archives, true));
+  assert.equal(store.getState().restoreDocuments(inputs, loaded.activeDocumentId).skippedIds.length, 0);
+  return store;
+}
+let handleCount = 0;
+async function openHandle(data = bytes) {
+  const name = `model-${++handleCount}.ifc`, handle = new FakeHandle(name);
+  handleFiles.set(name, data);
+  const store = await openAt({ kind: 'handle', handle: handle as unknown as FileSystemFileHandle }, data);
+  return { store, name, handle };
+}
+const fileOf = (name: string) => handleFiles.get(name)!;
+const leaf = (store: Store, skip: readonly string[] = []) =>
+  store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone && !skip.includes(t.id))!;
+const ctrlS = (store: Store) => store.getState().saveFileForDocument(store.getState().activeDocumentId);
+const pendingIn = async (id: string) => (await loadRecovery()).docs.find(d => d.id === id)?.ifcSource?.pendingSha256;
+
+await check('handle Ctrl+S drie keer (taak, duur, relatie; de derde via de sluitvraag): volledig bestand, bron volgt', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    let previous: Uint8Array = bytes;
+    const added = store.getState().addTask({ name: 'Taak via Ctrl+S' }); store.getState().runCPM();
+    const longerId = leaf(store, [added]).id;
+    for (const round of [1, 2, 3]) {
+      if (round === 2) longer(store);
+      if (round === 3) {
+        assert(store.getState().addSequence({ predecessorId: longerId, successorId: added, type: 'FINISH_START', lagDays: 0 }), 'relatie aangemaakt');
+        store.getState().runCPM();
+      }
+      assert.equal(hash(store.getState().ifcSource!.bytes), hash(previous), `ronde ${round}: de bron is de uitvoer van de vorige ronde`);
+      assert.equal(store.getState().isDirty, true);
+      const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      clearNotices(store); writableLog.length = 0;
+      if (round < 3) assert.equal(await ctrlS(store), true, `ronde ${round}: Ctrl+S schrijft`);
+      else {
+        let closed = false;
+        await createCloseDocumentDialogActions({
+          pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
+          switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+          saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+        }).save();
+        assert.equal(closed, true, 'de sluitvraag sluit na een geslaagde opslag');
+      }
+      const output = fileOf(name);
+      assert.equal(hash(output), expected.sha256, `ronde ${round}: precies de voorbereide merge`);
+      assert.deepEqual(writableLog, [`create ${name}`, `close ${name} ${expected.parts.length}`], 'één vervanging, in delen');
+      assert(expected.parts.length > 1, 'de proef raakt meer dan één deel');
+      assert.deepEqual(mergeProblems(bytes, output), [], `ronde ${round}: het vreemde deel blijft bytegelijk`);
+      const reopened = await openForeign(output), now = store.getState();
+      assert.equal(reopened.tasks.find(t => t.id === added)?.name, 'Taak via Ctrl+S');
+      assert.equal(reopened.tasks.find(t => t.id === longerId)!.time.scheduleDuration, now.tasks.find(t => t.id === longerId)!.time.scheduleDuration);
+      assert.equal(reopened.sequences.some(q => q.predecessorId === longerId && q.successorId === added), round === 3);
+      assert.equal(hash(now.ifcSource!.bytes), hash(output)); assert.equal(now.ifcSource!.sha256, hash(output));
+      assert.equal(now.foreignSourceMark!.sha256, hash(output)); assert(now.foreignSourceMark!.handle, 'het kenmerk houdt de handle');
+      assert.equal(now.isDirty, false); assert.equal(now.ui.notifications.filter(n => n.severity === 'error').length, 0);
+      assert.equal(await pendingIn(now.activeDocumentId), undefined, 'het veld is na de vervanging gewist');
+      assert.equal((await loadRecovery()).docs.find(d => d.id === now.activeDocumentId)?.ifcSource?.sha256, hash(output));
+      previous = output;
+    }
+    assert.equal(browser.downloads.length, 0, 'geen download');
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle Opslaan als blijft een download; het eigen bestand blijft staan', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    longer(store); const before = preserved(store);
+    await store.getState().saveFileAs();
+    assert.equal(browser.downloads.length, 1);
+    assert.deepEqual(mergeProblems(bytes, new Uint8Array(await browser.downloads[0].arrayBuffer())), []);
+    assert.equal(hash(fileOf(name)), hash(bytes)); unchanged(store, { ...before, dirty: false });
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+const otherProgram = new Uint8Array(bytes); otherProgram[Buffer.from(otherProgram).indexOf("FILE_NAME('") + 11] ^= 1;
+const handleFaultCases = [
+  { fault: 'gewijzigd vóór de merge', notice: 'notifications.ifcForeignTargetChanged', writes: false, aborts: false,
+    arrange: (name: string) => { handleFiles.set(name, otherProgram); }, after: otherProgram },
+  { fault: 'langer vóór de merge', notice: 'notifications.ifcForeignTargetChanged', writes: false, aborts: false,
+    arrange: (name: string) => { handleFiles.set(name, new Uint8Array([...bytes, 10])); }, after: new Uint8Array([...bytes, 10]) },
+  { fault: 'weg vóór de merge', notice: 'notifications.ifcForeignTargetGone', writes: false, aborts: false,
+    arrange: (name: string) => { handleFiles.delete(name); }, after: null },
+  { fault: 'onleesbaar vóór de merge', notice: 'notifications.ifcForeignTargetGone', writes: false, aborts: false,
+    arrange: (name: string) => { handleFaults.set(name, { unreadable: true }); }, after: bytes },
+  { fault: 'gewijzigd tussen schrijven en close()', notice: 'notifications.ifcForeignTargetChanged', writes: true, aborts: true,
+    arrange: (name: string) => { handleFaults.set(name, { onWrite: () => { handleFiles.set(name, otherProgram); } }); }, after: otherProgram },
+  { fault: 'weg tussen schrijven en close()', notice: 'notifications.ifcForeignTargetGone', writes: true, aborts: true,
+    arrange: (name: string) => { handleFaults.set(name, { onWrite: () => { handleFiles.delete(name); } }); }, after: null },
+  { fault: 'schrijffout halverwege', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: true,
+    arrange: (name: string) => { handleFaults.set(name, { writeErrorAt: 1 }); }, after: bytes },
+  { fault: 'fout bij close()', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: false,
+    arrange: (name: string) => { handleFaults.set(name, { closeError: true }); }, after: bytes },
+] as const;
+for (const c of handleFaultCases) await check(`handle Ctrl+S, ${c.fault}: niets vervangen, document ongewijzigd`, async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const before = preserved(store), id = store.getState().activeDocumentId;
+    c.arrange(name);
+    assert.equal(await ctrlS(store), false);
+    unchanged(store, before);
+    if (c.after) assert.equal(hash(fileOf(name)), hash(c.after), 'het bestand op het doel is niet door de app veranderd');
+    else assert.equal(handleFiles.has(name), false);
+    assert.equal(writableLog.some(l => l.startsWith('close')), false, 'geen close()');
+    assert.equal(writableLog.includes(`create ${name}`), c.writes, c.writes ? 'de controle viel ná het schrijven' : 'geen schrijfstroom');
+    assert.equal(writableLog.includes(`abort ${name}`), c.aborts, 'de stroom is afgebroken (abort)');
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey).join(), c.notice);
+    assert.equal(await pendingIn(id), undefined, 'het veld is gewist');
+    assert.equal(browser.downloads.length, 0, 'geen download als terugval');
+  } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle Ctrl+S, crash na close() en vóór het manifest: herstel vindt de nieuwe versie via pendingSha256', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store);
+  try {
+    const edit = longer(store), id = store.getState().activeDocumentId;
+    // De gewone herstelronde na een bewerking (in de app de 10 s-ronde): het manifest kent het document al.
+    await flushRecoveryNow();
+    assert.equal((await loadRecovery()).docs.find(d => d.id === id)?.ifcSource?.pendingSha256, undefined);
+    let crash: Awaited<ReturnType<typeof loadRecovery>> | undefined;
+    handleFaults.set(name, { afterClose: async () => { crash = await loadRecovery(); } });
+    assert.equal(await ctrlS(store), true);
+    const written = fileOf(name), doc = crash!.docs.find(d => d.id === id)!;
+    assert.equal(doc.ifcSource?.sha256, hash(bytes), 'op het moment van de crash noemt het manifest nog de oude bron');
+    assert.equal(doc.ifcSource?.pendingSha256, hash(written), 'en de komende versie');
+    const restored = await restoreFrom(crash!), payload = restored.getState().getOpenDocumentPayloads().find(d => d.id === id)!.payload;
+    assert.equal(payload.ifcSource?.sha256, hash(written), 'herstel neemt de nieuwe versie als bron');
+    assert.equal(payload.foreignSourceMark?.sourceMissing, undefined);
+    assert.equal((payload.fileHandle as unknown as FakeHandle | null)?.name, name, 'en geeft het doel terug');
+    assert.equal(payload.tasks.find(t => t.id === edit)!.time.scheduleDuration,
+      store.getState().tasks.find(t => t.id === edit)!.time.scheduleDuration);
+    // Na het herstel werkt Ctrl+S weer op hetzelfde bestand, met de herstelde versie als bron.
+    handleFaults.clear(); unregister();
+    restored.getState().switchDocument(id); longer(restored);
+    const restoredRounds = recoveryRounds(restored);
+    try {
+      clearNotices(restored);
+      assert.equal(await ctrlS(restored), true, 'Ctrl+S na herstel schrijft');
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+      assert.equal(restored.getState().ifcSource!.sha256, hash(fileOf(name)));
+    } finally { restoredRounds(); }
+  } finally { handleFaults.clear(); unregister(); await clearRecovery(); }
+});
+
+for (const cause of ['geen herstelronde', 'IndexedDB weigert het manifest'] as const) {
+  await check(`handle Ctrl+S, ${cause} (1764): niets vervangen, eigen melding`, async () => {
+    const { store, name } = await openHandle(), unregister = cause === 'geen herstelronde' ? () => {} : recoveryRounds(store);
+    const browser = browserDownload();
+    failManifest = cause !== 'geen herstelronde';
+    try {
+      longer(store); clearNotices(store); writableLog.length = 0;
+      const before = preserved(store);
+      assert.equal(await ctrlS(store), false);
+      unchanged(store, before); assert.equal(hash(fileOf(name)), hash(bytes)); assert.deepEqual(writableLog, []);
+      assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey).at(-1),
+        'notifications.ifcForeignReplaceNotRecorded');
+      assert.equal(browser.downloads.length, 0);
+    } finally { failManifest = false; unregister(); browser.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('handle zonder schrijftoestemming: download zoals bij een gewoon bestand, het eigen bestand blijft staan', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    longer(store); const before = preserved(store); writableLog.length = 0;
+    handleFaults.set(name, { permission: 'denied' });
+    await ctrlS(store);
+    assert.equal(browser.downloads.length, 1); assert.deepEqual(writableLog, []);
+    assert.deepEqual(mergeProblems(bytes, new Uint8Array(await browser.downloads[0].arrayBuffer())), []);
+    assert.equal(hash(fileOf(name)), hash(bytes)); unchanged(store, { ...before, dirty: false });
+  } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle: een ander open document met hetzelfde bestand als bron blijft geweigerd', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store);
+  try {
+    store.getState().newDocument();
+    await store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const before = preserved(store);
+    assert.equal(await ctrlS(store), false);
+    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignOpenElsewhere');
+    assert.deepEqual(writableLog, []); assert.equal(hash(fileOf(name)), hash(bytes));
+    const s = store.getState(), deps = { identityFs: async () => undefined, readers: () => ({}) };
+    const own = { documentId: s.activeDocumentId, source: s.ifcSource! };
+    assert.equal(await refusedWriteTarget(s, { kind: 'handle', handle: s.fileHandle! }, deps, own), 'open-source');
+    // De uitweg uit de melding (1766): het andere tabblad sluiten en opnieuw opslaan.
+    const first = s.documents.find(d => d.id !== s.activeDocumentId)!.id, second = s.activeDocumentId;
+    store.getState().closeDocument(first); store.getState().switchDocument(second);
+    assert.equal(await ctrlS(store), true, 'na het sluiten van het andere tabblad schrijft Ctrl+S');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+  } finally { unregister(); await clearRecovery(); }
+});
+
+await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen handle, nooit voor een pad of een export', async () => {
+  const { store, name } = await openHandle(), s = store.getState();
+  const deps = { identityFs: async () => undefined, readers: () => ({}) };
+  const handle = { kind: 'handle' as const, handle: s.fileHandle! }, own = { documentId: s.activeDocumentId, source: s.ifcSource! };
+  assert.equal(await refusedWriteTarget(s, handle, deps, own), null, 'eigen document, eigen handle');
+  assert.equal(await refusedWriteTarget(s, handle, deps), 'open-source', 'zonder ownVersion (export, Opslaan als) geen uitzondering');
+  assert.equal(await refusedWriteTarget(s, handle, deps, { ...own, documentId: 'ander-document' }), 'open-source');
+  assert.equal(await refusedWriteTarget(s, handle, deps, { ...own, source: { ...own.source } }), 'open-source', 'een andere bron');
+  const other = { kind: 'handle' as const, handle: new FakeHandle(`${name}.ander`) as unknown as FileSystemFileHandle };
+  handleFiles.set(`${name}.ander`, bytes);
+  assert.equal(await refusedWriteTarget(s, other, deps, own), 'building-model', 'een andere handle: geen uitzondering, het model in het doel weigert');
+  store.setState(x => { x.ui.featureFlags = {}; });
+  assert.equal(await refusedWriteTarget(store.getState(), handle, deps, own), 'open-source', 'flag uit');
+  store.setState(x => { x.ui.featureFlags = { ifcForeignContent: true }; x.foreignSourceMark = { ...x.foreignSourceMark!, sourceMissing: true }; });
+  assert.equal(await refusedWriteTarget(store.getState(), handle, deps, own), 'open-source', 'bron ontbreekt');
+  const path = join(dir, 'pad-eigen-doel.ifc'); writeFileSync(path, bytes);
+  const onPath = await openAt({ kind: 'path', path }), p = onPath.getState();
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, { documentId: p.activeDocumentId, source: p.ifcSource! }),
+    'open-source', 'een pad krijgt de uitzondering niet (stap 5)');
+});
+
+for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`handle ${cause}: Ctrl+S weigert zoals nu, nul bytes`, async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    longer(store);
+    store.setState(s => {
+      if (cause === 'flag-uit') s.ui.featureFlags = {};
+      else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
+    });
+    clearNotices(store); writableLog.length = 0; const before = preserved(store);
+    assert.equal(await ctrlS(store), false); unchanged(store, before);
+    assertNotice(store, cause === 'flag-uit' ? 'notifications.ifcForeignSaveBlocked' : 'notifications.ifcForeignSourceMissing');
+    assert.deepEqual(writableLog, []); assert.equal(browser.downloads.length, 0); assert.equal(hash(fileOf(name)), hash(bytes));
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('handle zonder gebouwmodel, flag aan: Ctrl+S schrijft de gewone tekst zoals main, zonder herstelronde', async () => {
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  const { store, name } = await openHandle(plain);
+  longer(store); writableLog.length = 0;
+  const expected = writeIFC(buildWriteIFCInput(store.getState(), 'merge'));
+  assert.equal(await ctrlS(store), true);
+  assert.equal(new TextDecoder().decode(fileOf(name)), expected);
+  assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'de gewone tekstroute (saveToRefWeb)');
+  assert.equal(store.getState().isDirty, false);
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;

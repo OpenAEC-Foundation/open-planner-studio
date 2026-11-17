@@ -6,7 +6,7 @@ import type { PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 
 /** De teksten per reden. Opslaan als bij een ontbrekend gebouwmodel houdt de teksten van PR 9e. */
-const TEXTS = {
+export const PLAN_ONLY_TEXTS = {
   missingSourceSaveAs: {
     title: 'ifcMissingSourceSaveAs.title', body: 'ifcMissingSourceSaveAs.body',
     continue: 'ifcMissingSourceSaveAs.continue', cancel: 'ifcMissingSourceSaveAs.cancel',
@@ -28,7 +28,7 @@ export function PlanOnlyQuestionDialog() {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const focusCancel = useCallback(() => cancelRef.current, []);
   if (!reason) return null;
-  const texts = TEXTS[reason];
+  const texts = PLAN_ONLY_TEXTS[reason];
   const cancel = () => answerPlanOnlyQuestion(false);
   return (
     <Dialog

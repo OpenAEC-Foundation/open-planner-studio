@@ -16,6 +16,8 @@
 //    tegenproeven van de reviews van #960 en #962.
 // 8. Fixronde 1 van PR 12e: de merge neemt de GlobalId van een weesrij uit de lezing van de bron, ook als `TaskGuids` daar een
 //    getal heeft of de sleutel mist.
+// 9. Knownbug 1709: een weigering `planning-na-openen` in een tegenproef noemt het echte verschil (bij `TaskTypes` het
+//    taaktype, bij de baselines de baseline), geen toewijzings-id; de uitkomst per geval blijft gelijk.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
@@ -302,6 +304,14 @@ async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promi
   return { bytes: o.bytes, input, source, own };
 }
 const caughtOnlyByC: string[] = [];
+/** Knownbug 1709: een weigering `planning-na-openen` noemt het echte verschil, niet het id van een toewijzing (dat maakt
+ *  de lezer bij elke lezing nieuw). `expected`: wat het eerste verschil bij deze tegenproef moet noemen. Of er geweigerd
+ *  wordt, beslist de canon; dat toetst de rest van deze check. */
+function namesRealDifference(label: string, kind: string, expected?: RegExp) {
+  if (kind !== 'planning-na-openen') return;
+  ok(`tegenproef ${label}: de melding noemt geen toewijzings-id (1709)`, !/assignments\.\d+\.id/.test(lastDetail), lastDetail);
+  if (expected) ok(`tegenproef ${label}: de melding noemt het verschil (1709)`, expected.test(lastDetail), lastDetail);
+}
 async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate | Uint8Array, onlyC = false) {
   const m = mutate instanceof Uint8Array ? mutate : mutated(b.bytes, mutate);
   const without = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
@@ -309,6 +319,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   const named = /niet-P-stuk #(\d+)/.exec(lastDetail);
   if (named) console.log(`  dat stuk: ${linesIn(m).find(l => l.startsWith(`#${named[1]}=`))?.slice(0, 200)}`);
   ok(`tegenproef ${label}: geweigerd`, withC !== 'laat door');
+  namesRealDifference(label, withC, /TaskTypes/.test(label) ? /customTaskType/ : /Baseline/.test(label) ? /\.(activeBaselineId|baselines)\b/ : undefined);
   if (without === 'laat door' && withC === 'eigen-uitvoer') caughtOnlyByC.push(label);
   if (onlyC) ok(`tegenproef ${label}: de basis laat hem door, (c) vangt hem`, without === 'laat door' && withC === 'eigen-uitvoer', `${without} / ${withC}`);
 }
@@ -462,6 +473,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     const withC = await verdict(b.bytes, cloneDomain(b.source.opened! as Parameters<typeof cloneDomain>[0]), b.source, b.own);
     console.log(`TEGENPROEF ${label}: echte uitvoer zonder plannerhandeling: met (c) ${withC} (${lastDetail})`);
     ok(`tegenproef ${label}: echte uitvoer zonder plannerhandeling geweigerd`, withC !== 'laat door');
+    namesRealDifference(`${label} zonder plannerhandeling`, withC);
   };
   // 7c: de twee groeiende kaarten (TaskGuids bij taak + baseline, TaskTypes bij taak + bestaand type).
   for (const [kind, i] of [['TaskGuids', 0], ['TaskTypes', 2]] as const) {

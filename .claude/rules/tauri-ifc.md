@@ -29,7 +29,8 @@ De nieuwe delen-ingang (#804, T1) staat naast deze bestaande tekst-/binaire schr
 `saveBytePartsDialog` en `saveBytePartsToRef` nemen `readonly Uint8Array[]`. Tauri opent alleen
 een nieuw einddoel met `createNew`, schrijft de delen via die handle en valt nooit terug op direct
 overschrijven of rename. Dit is geen atomaire publicatie van een compleet bestand bij een crash
-(1131). Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven; de webdialoog
+(1131). Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
+hieronder); de webdialoog
 downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileParts` en
 `saveSiteFileVersionParts` dragen een Blob; de laatste weigert vóór I/O zonder basisversie en
 behoudt de conflictkopie van de host. De aanroeper houdt de delen ongewijzigd tot voltooiing.
@@ -150,3 +151,26 @@ alleen voor deze bevestigde opslag een momentopname zonder bron. De gedeelde `Di
 hetzelfde kenmerk blijft alleen als doelbescherming met `sourceMissing: false`. Die expliciete waarde staat ook in
 de bestaande `foreignSource`-manifestmetadata, zonder hogere manifest- of databaseversie. De gewone IFC krijgt geen
 herstelkenmerk; een volgende crash maakt er geen ontbrekend model meer van. Met de flag uit blijft de oude weigering.
+
+### Inhoudscontrole van het eigen doel (#804, knownbug 1131 stap 1)
+
+`sourceTargetContent(ref, ifcSource.bytes)` (`src/services/fileAccess/index.ts`, kern in `sourceTargetContent.ts`) zegt
+of op een pad (desktop) of bestandshandle (browser) nog precies de bron staat: `same`, `changed`, `missing` of
+`unreadable`. Eerst de grootte, dan stukken van 1 MiB byte voor byte; geen sha256 van het doel en nooit het hele doel in
+één buffer (afwijking van §4.10, besluit 16 november 2026). Het pad gebruikt dezelfde stukkenlezer als de doelscan
+(`openPathChunksTauri` in `tauriBackend.ts`), de handle `File.slice()`. Site en download hebben geen doel: de functie
+neemt alleen `path`/`handle`. Proef: `check-file-byte-parts.ts`.
+
+### Ctrl+S op het eigen bestand via de handle (#804, knownbug 1131 stap 2)
+
+Alleen de browser, alleen met de flag aan, voor Ctrl+S en *Opslaan* in de sluitvraag (`writeActiveDocument`). Vóór de
+merge: de doelcontrole met de uitzondering "eigen doel" (`refusedWriteTarget`, zie `state.md`), de schrijftoestemming
+(`handleWritePermission`; geweigerd ⇒ de download, zoals bij een gewoon bestand) en `sourceTargetContent` (anders
+`ifcForeignTargetChanged`/`ifcForeignTargetGone`). Dan één merge (`prepareIfcOutput`, `'merge'`) en binnen
+`replaceWithRecoveryPending`: `replaceHandleWithParts` (`webBackend.ts`) opent `createWritable()`, schrijft de delen
+los, vraagt vlak vóór `close()` opnieuw `sourceTargetContent` (verschil ⇒ `abort()`, het bestand blijft ongemoeid) en
+sluit. Daarna `commitSavedDocument` met `prepared`. `'not-recorded'` ⇒ niet schrijven, `ifcForeignReplaceNotRecorded`
+(1764); een schrijf- of sluitfout ⇒ `ifcForeignReplaceFailed`; het document blijft dan zoals het was. Een wijziging
+door een ander programma tussen de tweede controle en `close()` gaat verloren (ontwerp §4.15; de beschrijving van de
+flag noemt het). Een pad (desktop) weigert nog vóór de merge met `ifcForeignReplaceBlocked` (stap 3 tot en met 5).
+Proeven: `check-ifc-document-save.ts` (nep-handle met echte herstelrondes) en `settings-tabs.spec.ts` (OPFS-handle).

@@ -11,13 +11,19 @@ import { recoveryInputFromParsed, type RecoveryDocInput } from './documentContra
 
 /** Bronbytes + planningstekst: dezelfde bytes-openroute als Bestand → Openen, daarna de
  * snapshot als bewerkte stand, los van bron-I/O. De MCP-backup is een apart onderdeel 9c.
+ * Knownbug 1131 stap 1: ook de versie van een onderbroken vervanging (`pendingSha256`) is een bewezen bron; het
+ * document krijgt dan de gevonden versie als bron.
  */
 export async function recoveryDocumentWithSource(
   bytes: Uint8Array, snapshot: RecoveryDocInput, reference: RecoveryIfcSource, labels?: ImportLabels,
 ): Promise<RecoveryDocInput> {
-  if (bytes.length !== reference.byteLength || await precomputeSha256(bytes) !== reference.sha256) {
-    throw new Error('Herstelbron wijkt af van de vastgelegde sha256 of grootte.');
-  }
+  const mismatch = () => new Error('Herstelbron wijkt af van de vastgelegde sha256 of grootte.');
+  // Zonder vervanging precies als vóór 1131: een andere grootte wordt niet eens gehasht.
+  if (bytes.length !== reference.byteLength && reference.pendingSha256 === undefined) throw mismatch();
+  const sha256 = await precomputeSha256(bytes);
+  const known = (bytes.length === reference.byteLength && sha256 === reference.sha256)
+    || (reference.pendingSha256 !== undefined && sha256 === reference.pendingSha256);
+  if (!known) throw mismatch();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
   await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels);

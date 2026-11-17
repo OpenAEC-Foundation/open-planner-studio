@@ -212,13 +212,18 @@ export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Prom
  * De aanroeper houdt de delen ongewijzigd tot de opslag klaar is.
  */
 export async function writeNewByteParts(
-  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'>,
+  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove' | 'lstat'>,
   path: string,
   parts: readonly Uint8Array[],
 ): Promise<void> {
   let file: Awaited<ReturnType<typeof fs.createNew>>;
   try { file = await fs.createNew(path); }
-  catch (error) { throw new BytePartsWriteError('create-new', error); }
+  catch (error) {
+    // Alleen voor de melding (knownbug 1760): staat er al iets op het doel, dan zegt de app "kies een nieuwe naam".
+    let exists = false;
+    try { await fs.lstat(path); exists = true; } catch { /* bestaat niet of geen metarecht: de gewone fout */ }
+    throw new BytePartsWriteError(exists ? 'target-exists' : 'create-new', error);
+  }
   let phase: 'write' | 'close' = 'write';
   try {
     for (const part of parts) await file.write(part);

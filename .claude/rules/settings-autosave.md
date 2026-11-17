@@ -57,7 +57,13 @@ uitsluitend voor doelbescherming staan met `sourceMissing: false`; die expliciet
 binnen manifest v5. De vingerafdruk blijft in de herstelsnapshot, nooit in de gewone IFC-opslag. Herstel houdt zo de
 planning gewoon en het oorspronkelijke doel beschermd, ook met de flag uit. Oude metadata zonder die waarde houdt
 het oude veilige gedrag. Een nieuwe MCP-backup van die gewone planning draagt geen modelkenmerk. Een inmiddels gewone planning
-herstelt zonder bronblokkade; een oud manifest of flag uit houdt het oude gedrag. Geen pending of manifestversie 6.
+herstelt zonder bronblokkade; een oud manifest of flag uit houdt het oude gedrag. Geen manifestversie 6.
+Knownbug 1131 stap 1: `ifcSource.pendingSha256` (optioneel, v5) is de versie die tijdens een vervanging op het eigen
+doel komt. `replaceWithRecoveryPending` (`recoveryPendingSource.ts`, binnen `runProjectFileWrite`) legt het vast, wacht
+via `flushRecoveryNow` tot de gepersisteerde basis van `runRecoveryTick` het noemt (anders geen vervanging), zet na
+slagen eerst de nieuwe bron en wist dan het veld; na mislukken alleen wissen. Herstel aanvaardt een bron met `sha256`
+of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Ctrl+S via de browserhandle roept
+het aan (stap 2, `tauri-ifc.md`); zonder vastgelegd manifest schrijft hij niet (1764).
 PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
 met de bestaande ene melding per document per sessie; site-AutoSave blijft uit.
 

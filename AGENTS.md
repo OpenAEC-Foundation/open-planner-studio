@@ -224,7 +224,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
   accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
-  weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130). `saveNewSiteFileParts` en
+  weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130); alleen Ctrl+S op het eigen bestand achter een
+  handle vervangt, via `replaceHandleWithParts` (1131 stap 2). `saveNewSiteFileParts` en
   `saveSiteFileVersionParts` schrijven een Blob; de laatste eist een basisversie en bewaart de
   eventuele conflictkopie in het antwoord. Tekst en bestaande binaire exports houden hun gedrag.
   `ifcSaveBlocked` houdt de overige routes dicht; exclusieve vervanging/bronhash en crashvaste publicatie
@@ -257,7 +258,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131).
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`); desktop paths still refuse.
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark
@@ -351,8 +352,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
   1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
-  `ifcSource` reference (sha256, byteLength, foreign and optional browser handle) restores a foreign source through
-  the ordinary bytes-open route after hash verification; the snapshot supplies the edited planning. Foreign documents
+  `ifcSource` reference (sha256, byteLength, foreign, optional browser handle and, while a replacement runs,
+  `pendingSha256`) restores a foreign source through the ordinary bytes-open route after hash verification against
+  either hash; the snapshot supplies the edited planning. Foreign documents
   keep no save target in the manifest, so older readers restore planning with `sourceMissing` and no target.
   Desktop paths and browser handles read the source again. Browser files without a handle and site files use
   best-effort source copies in a separate `ops-ifc-sources.<recoveryBase>` IndexedDB database (created only when needed

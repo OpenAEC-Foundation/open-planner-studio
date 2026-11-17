@@ -3,6 +3,7 @@ import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import { writeUserBytesTauri, writeUserTextFileTauri, writeUserBytePartsTauri } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
 
 /** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
 export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
@@ -10,14 +11,20 @@ export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
   return { stat: (path) => stat(path) };
 }
 
+/** Een geopend pad als stroom stukken van `TARGET_CHUNK_BYTES` (plugin-fs `open`/`read`/`seek`). */
+interface PathChunksTauri {
+  next(): Promise<Uint8Array | null>;
+  seek(offset: number): Promise<void>;
+  close(): Promise<void>;
+}
+
 /**
- * Een bestaand pad als stroom lezen voor de doelcontrole (#804 fixronde 2 en 4): stukken van 1 MiB via plugin-fs
- * `open`/`read`/`seek` (toegestaan via `fs:allow-home-read-recursive`, dat `read-all` bevat), tot de uitkomst vaststaat.
- * Elk stuk krijgt een eigen buffer: de lezer houdt stukken vast om terug te spoelen. `seek` leest opnieuw vanaf een
- * positie (een mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`).
- * `null` uitsluitend bij bewezen ontbreken. Een bestaand of onzeker doel met een leesfout is 'unreadable'.
+ * Een bestaand pad openen als stroom van stukken van 1 MiB via plugin-fs (toegestaan via `fs:allow-home-read-recursive`,
+ * dat `read-all` bevat). Elk stuk krijgt een eigen buffer: de doelscan houdt stukken vast om terug te spoelen. `seek`
+ * leest opnieuw vanaf een positie. `null` uitsluitend bij bewezen ontbreken; een bestaand of onzeker pad dat niet open
+ * wil, is 'unreadable'.
  */
-export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
+async function openPathChunksTauri(path: string): Promise<PathChunksTauri | null | 'unreadable'> {
   const { open, stat, SeekMode } = await import('@tauri-apps/plugin-fs');
   let handle: Awaited<ReturnType<typeof open>>;
   try {
@@ -27,15 +34,49 @@ export async function scanTargetPathTauri(path: string): Promise<TargetForeignSc
     try { await stat(path); } catch (error) { if (missingTarget(error)) return null; }
     return 'unreadable';
   }
-  return scanForeignTargetSource({
+  return {
     next: async () => {
-      const buffer = new Uint8Array(1 << 20);
+      const buffer = new Uint8Array(TARGET_CHUNK_BYTES);
       const n = await handle.read(buffer);
       return n === null || n === 0 ? null : buffer.subarray(0, n);
     },
     seek: async (offset) => { await handle.seek(offset, SeekMode.Start); },
     close: async () => { try { await handle.close(); } catch { /* al dicht */ } },
-  });
+  };
+}
+
+/**
+ * Een bestaand pad als stroom lezen voor de doelcontrole (#804 fixronde 2 en 4), tot de uitkomst vaststaat (een
+ * mislukte entiteit, of de tweede lezing vanaf het regel-verankerde `DATA;`, spoelt terug).
+ * `null` uitsluitend bij bewezen ontbreken. Een bestaand of onzeker doel met een leesfout is 'unreadable'.
+ */
+export async function scanTargetPathTauri(path: string): Promise<TargetForeignScan | null> {
+  const chunks = await openPathChunksTauri(path);
+  if (chunks === null || chunks === 'unreadable') return chunks;
+  return scanForeignTargetSource(chunks);
+}
+
+/**
+ * #804, knownbug 1131 stap 1: staat op dit pad nog precies `expected`? Eerst de grootte (`stat`), dan dezelfde stukken
+ * als de doelscan, byte voor byte (`compareTargetChunks`). Een pad dat tussen `stat` en `open` verdwijnt, is weg.
+ */
+export async function sourceTargetContentOfPathTauri(path: string, expected: Uint8Array): Promise<SourceTargetContent> {
+  const { stat } = await import('@tauri-apps/plugin-fs');
+  try {
+    if ((await stat(path)).size !== expected.length) return 'changed';
+  } catch (error) {
+    return missingTarget(error) ? 'missing' : 'unreadable';
+  }
+  const chunks = await openPathChunksTauri(path);
+  if (chunks === null) return 'missing';
+  if (chunks === 'unreadable') return 'unreadable';
+  try {
+    return await compareTargetChunks(chunks.next, expected);
+  } catch {
+    return 'unreadable';
+  } finally {
+    await chunks.close();
+  }
 }
 
 export interface TauriOpenIO {

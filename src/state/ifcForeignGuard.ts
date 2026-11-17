@@ -7,7 +7,7 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, sameEntry, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
@@ -15,18 +15,29 @@ import type { DocumentPayload } from './documentContract';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
-/** De melding bij een geweigerde opslag: een weigering (eigenaarsbesluit 2026-10-17: rood, blijft staan tot het
- *  kruisje). Een herhaling telt op in dezelfde melding. */
+/** De melding bij een geweigerde IFC-opslag of -export met de flag uit: een weigering (eigenaarsbesluit 2026-10-17:
+ *  rood, blijft staan tot het kruisje). Een herhaling telt op in dezelfde melding. Met de flag aan bereikt alleen een
+ *  ongeldig ja op de vraag "alleen de planning" deze melding (`prepareIfcOutput`, verdedigend). */
 export const IFC_FOREIGN_SAVE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignSaveBlocked',
   dedupeKey: 'ifc-foreign-save-blocked',
 });
 
-/** De bron ontbreekt na crashherstel; het kenmerk kan ook uit een planningsbackup komen. */
-export function ifcWriteBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0]): NotifyInput {
-  return s.foreignSourceMark?.sourceMissing
+/** De melding van een geweigerde IFC-route (knownbugs 1563 en 1596). De bron ontbreekt na crashherstel (het kenmerk kan
+ *  ook uit een planningsbackup komen): met de flag aan is Opslaan als de uitweg, met de flag uit niet. */
+export function ifcWriteBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0], flags: Readonly<FeatureFlagValues>): NotifyInput {
+  if (!s.foreignSourceMark?.sourceMissing) return IFC_FOREIGN_SAVE_BLOCKED_NOTICE;
+  return ifcForeignContentEnabled(flags)
     ? refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissing', dedupeKey: 'ifc-foreign-source-missing' })
-    : IFC_FOREIGN_SAVE_BLOCKED_NOTICE;
+    : refusalNotice({ messageKey: 'notifications.ifcForeignSourceMissingFlagOff', dedupeKey: 'ifc-foreign-source-missing-flag-off' });
+}
+
+/** AutoSave schrijft nooit naar een bestand met een gebouwmodel (`fileAutoSave.ts`). Met de flag aan en de bron aanwezig
+ *  kan de planner zelf opslaan (1563); anders de melding van de andere IFC-routes. */
+export function ifcAutoSaveBlockedNotice(s: Parameters<typeof ifcSaveBlocked>[0], flags: Readonly<FeatureFlagValues>): NotifyInput {
+  return !s.foreignSourceMark?.sourceMissing && ifcForeignContentEnabled(flags)
+    ? refusalNotice({ messageKey: 'notifications.ifcForeignAutoSaveBlocked', dedupeKey: 'ifc-foreign-autosave-blocked' })
+    : ifcWriteBlockedNotice(s, flags);
 }
 
 /** Weigert de app IFC-uitvoer van dit document (fase 1a)? Met een `ifcSource` met een vreemd deel, en na crashherstel
@@ -50,6 +61,27 @@ export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
 
 export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',
+});
+/** Knownbug 1766: Ctrl+S op het eigen bestand achter een handle weigert, omdat een ander open document hetzelfde bestand
+ *  als bron heeft. Sluit de planner dat document, dan mag Ctrl+S weer. */
+export const IFC_FOREIGN_OPEN_ELSEWHERE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignOpenElsewhere', dedupeKey: 'ifc-foreign-open-elsewhere',
+});
+/** Knownbug 1760: Opslaan naar een gekozen bestand dat al bestaat. Een document met een gebouwmodel schrijft alleen naar
+ *  een nieuw bestand (T1); dezelfde vorm als `ifcForeignExportNewTarget`. */
+export const IFC_FOREIGN_SAVE_NEW_TARGET_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignSaveNewTarget', dedupeKey: 'ifc-foreign-save-new-target',
+});
+// Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle. Staat daar niet meer precies de bron, of kan het
+// crashherstel de komende versie niet vastleggen, dan schrijft de app niet.
+export const IFC_FOREIGN_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetChanged', dedupeKey: 'ifc-foreign-target-changed',
+});
+export const IFC_FOREIGN_TARGET_GONE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetGone', dedupeKey: 'ifc-foreign-target-gone',
+});
+export const IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignReplaceNotRecorded', dedupeKey: 'ifc-foreign-replace-not-recorded',
 });
 export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
@@ -140,7 +172,7 @@ export async function isOpenForeignSourceTarget(
 /** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
 export interface WriteTargetState {
   getOpenDocumentPayloads(): readonly { readonly id: string; readonly payload: Pick<DocumentPayload,
-    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion'> }[];
+    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle'> }[];
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }
 
@@ -161,22 +193,34 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
+ * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
+ * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
+ *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
+ *  - handle (knownbug 1131 stap 2): dezelfde handle als het document en zijn kenmerk (`isSameEntry`). Een ander open
+ *    document met hetzelfde bestand als bron blijft geweigerd. Of op dat bestand nog de bron staat, toetst de aanroeper
+ *    (`sourceTargetContent`, vóór de merge en vlak vóór `close()`);
+ *  - een pad (desktop) krijgt de uitzondering niet: opslaan over het eigen bestand weigert daar tot stap 5.
  * Meldt niets: de aanroeper kiest de melding. Geeft de reden van de weigering, of `null` als het schrijven mag.
  */
 export async function refusedWriteTarget(
   s: WriteTargetState,
   target: FileRef,
   deps: WriteTargetDeps,
-  // Alleen een volledige documentmerge naar het eigen sitebestand; de host bewaakt de basisversie.
-  ownSiteVersion?: { readonly documentId: string; readonly baseVersion: string | null; readonly source: IfcSource },
+  ownVersion?: { readonly documentId: string; readonly baseVersion?: string | null; readonly source: IfcSource },
 ): Promise<'open-source' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
-  const own = ownSiteVersion && s.getOpenDocumentPayloads().find(d => d.id === ownSiteVersion.documentId)?.payload;
-  const isOwnVersion = target.kind === 'site' && ownSiteVersion && own?.siteFileId === target.id
-    && !!ownSiteVersion.baseVersion && own.siteFileVersion === ownSiteVersion.baseVersion
-    && own.ifcSource === ownSiteVersion.source && hasForeignContent(own.ifcSource)
+  const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
+  const ownSource = !!own && own.ifcSource === ownVersion.source && hasForeignContent(own.ifcSource)
     && ifcForeignContentEnabled(s.ui.featureFlags)
-    && own.foreignSourceMark?.siteFileId === target.id && !own.foreignSourceMark.sourceMissing
-    && own.foreignSourceMark.sha256 === ownSiteVersion.source.sha256;
+    && !!own.foreignSourceMark && !own.foreignSourceMark.sourceMissing
+    && own.foreignSourceMark.sha256 === ownVersion.source.sha256;
+  const isOwnVersion = ownSource && target.kind === 'site' && own.siteFileId === target.id
+    && !!ownVersion.baseVersion && own.siteFileVersion === ownVersion.baseVersion
+    && own.foreignSourceMark!.siteFileId === target.id;
+  if (ownSource && target.kind === 'handle' && !own.siteFileId && own.fileHandle && own.foreignSourceMark!.handle
+    && await sameEntry(own.fileHandle, target.handle) && await sameEntry(own.foreignSourceMark!.handle, target.handle)) {
+    const others = { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== ownVersion.documentId) };
+    return await isOpenForeignSourceTarget(others, target, deps.identityFs) ? 'open-source' : null;
+  }
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;

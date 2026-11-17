@@ -100,7 +100,9 @@ const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
 const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
-const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
+const AUTOSAVE_BLOCKED = 'notifications.ifcForeignAutoSaveBlocked';
+const SOURCE_MISSING_FLAG_OFF = 'notifications.ifcForeignSourceMissingFlagOff';
+const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, SOURCE_MISSING_FLAG_OFF, AUTOSAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een
@@ -390,8 +392,9 @@ let oldRecoveryText = '';
     id: 'twee', filePath: null, foreignSource: { filePath: 'bonsai-4d.ifc', siteFileId: null }, isDirty: true, datesAsRecorded: false,
   })], 'twee');
   await twice.getState().saveFileAs();
+  // Met de flag uit noemt de melding Opslaan als niet (knownbug 1596).
   eq('herstel, tweede keer: het kenmerk blijft en Opslaan als weigert (ook met de flag uit)',
-    [twice.getState().foreignSourceMark?.sourceMissing, fresh.writables(), noticeCount(twice, SOURCE_MISSING)], [true, 0, 1]);
+    [twice.getState().foreignSourceMark?.sourceMissing, fresh.writables(), noticeCount(twice, SOURCE_MISSING_FLAG_OFF)], [true, 0, 1]);
   ok('herstel: het kenmerk blijft tot het document sluit', R().foreignSourceMark?.sha256 === sha(bonsai));
   pick = null;
 }
@@ -512,7 +515,8 @@ for (const flag of [false, true]) {
     dialogAnswer = modelPath;
     await restored.getState().saveFileAs();
     eq('Tauri herstel: Opslaan als naar het oude pad geweigerd', [unchanged(), restored.getState().filePath], [sha(bonsai), null]);
-    ok('Tauri herstel: met de melding van een vreemd deel (fixronde 2 van #886)', modelNotices(restored).some(n => n.messageKey === SOURCE_MISSING));
+    // Deze store heeft de flag uit: de melding zonder Opslaan als (knownbug 1596).
+    ok('Tauri herstel: met de melding van een vreemd deel (fixronde 2 van #886)', modelNotices(restored).some(n => n.messageKey === SOURCE_MISSING_FLAG_OFF));
     dialogAnswer = join(dir, 'link.csv');
     const tauriCsv = await restored.getState().exportAs('csv');
     eq('Tauri herstel: export via een link naar het oude pad geweigerd', [tauriCsv, unchanged()], [{ ok: true, warnings: [], cancelled: true }, sha(bonsai)]);
