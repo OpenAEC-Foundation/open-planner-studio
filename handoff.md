@@ -132,6 +132,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-16: knownbug 1131 stap 2 (#804): Ctrl+S (en Opslaan in de sluitvraag) op het eigen bestand via de bestandshandle in de browser, bij een document met een gebouwmodel en de flag aan. Vóór de merge de schrijftoestemming en de inhoudscontrole; de vervanging in het herstel in twee stappen, met een tweede inhoudscontrole vlak vóór `close()`. Zonder vastgelegd manifest weigert hij (1764, besloten). De desktop, de site, Opslaan als (download) en de echte AutoSave veranderen niet. 1131, 1574 en 1764 bijgewerkt; 1766–1767 erbij.
 - 2026-11-16: knownbug 1131 stap 1 (#804): de inhoudscontrole van het eigen doel (`sourceTargetContent`: gelijk, gewijzigd, weg, onleesbaar; pad en handle, stukken van 1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5; `replaceWithRecoveryPending` legt het vast en wacht op het manifest). Nog door geen route aangeroepen; Ctrl+S weigert zoals nu. 1131 bijgewerkt; 1760–1765 erbij.
 - 2026-11-16: fase 1c PR 12e (#804): de weesrij (de baselinerij van een gewiste taak) houdt in de merge haar GlobalId (de writer krijgt de GlobalId die de lezer voor die rij aanneemt), dus `OPS_Baselines` blijft na heropenen gedragen en de keten op het oude bestand schrijft ook na "taak wissen"; (c) toetst `TaskGuids` helemaal en de GlobalId van elke baselinekop. 1702, 1706 en 1746 opgelost; 1770 (de taak-id op een baseline van v2026.7.4–7.14) erbij; het weghalen van de oude verklaringen (stap 5) blijft.
 - 2026-11-16: fase 1c PR 12d (#804): de typenaam (`ObjectType`) op de taak beweegt in de verliescontrole mee als de planner een eigen taaktype hernoemt en `OPS_TaskTypes` onder de toets van 12b valt; alleen dat slot, (c) toetst de waarde per taak (nu ook met het PredefinedType), en de twee tweede vormen staan op één manier in de code (`SECOND_FORMS`). 1586 en 1701 opgelost; het weghalen van de oude verklaringen (stap 5) blijft.
@@ -458,9 +459,9 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 
 ## Teksten voor de planner (te beoordelen vóór de flag aan mag)
 
-- `settings.ifcForeignContentHint` — Bij de experimentele IFC-schakelaar; stand na PR 13.
-  - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken, ook zonder gebouwmodel of met de resourcebibliotheek ernaast (dan met alleen de planning). Opslaan over een bestaand lokaal bestand is nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
-  - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). Saving over an existing local file is not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
+- `settings.ifcForeignContentHint` — Bij de experimentele IFC-schakelaar; stand na 1131 stap 2. Hier staat ook de uitleg van ontwerp §4.15 (het venster tot `close()`), met je/jij; zonder het advies over de desktop-app, want die vervangt nog niet.
+  - nl: Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken, ook zonder gebouwmodel of met de resourcebibliotheek ernaast (dan met alleen de planning). In Chrome en Edge slaat Opslaan ook het geopende bestand zelf op. Wijzigt een ander programma dit bestand precies tijdens het opslaan, dan kan die wijziging verloren gaan. In de desktop-app is opslaan over een bestaand bestand nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.
+  - en: Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). In Chrome and Edge, Save also saves the opened file itself. If another program changes this file exactly while saving, that change can be lost. In the desktop app, saving over an existing file is not possible yet. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.
 
 - `ifcMissingSourceSaveAs.title` — Vraag vóór Opslaan als bij ontbrekend gebouwmodel, na herstel én bij een geopende MCP-backup; Annuleren heeft de beginfocus.
   - nl: Alleen de planning opslaan?
@@ -503,9 +504,21 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 - `notifications.ifcForeignSaveBlocked` — Bij een geblokkeerde IFC-route of de flag uit na openen.
   - nl: Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.
   - en: This file contains a building model; saving is not possible yet.
-- `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel.
+- `notifications.ifcForeignReplaceBlocked` — Bij opslag over een bestaande lokale bron met een gebouwmodel: op de desktop altijd, in de browser alleen als een ander open document hetzelfde bestand als bron heeft (1766).
   - nl: Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.
   - en: File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.
+- `notifications.ifcForeignTargetChanged` — Ctrl+S via de handle (1131 stap 2): op het eigen bestand staat niet meer de bron, vóór de merge of vlak vóór `close()`. De knop *Opnieuw openen* uit het ontwerp is er niet; die keuze ligt bij de eigenaar.
+  - nl: Niet opgeslagen. Het bestand is intussen door een ander programma gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.
+  - en: Not saved. The file was changed by another program in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.
+- `notifications.ifcForeignTargetGone` — Idem, het bestand is weg of niet te lezen.
+  - nl: Niet opgeslagen. Het bestand is verplaatst, verwijderd of niet meer te lezen. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.
+  - en: Not saved. The file was moved or deleted, or can no longer be read. Your changes are still in the app. Choose Save As to keep them in a new file.
+- `notifications.ifcForeignReplaceNotRecorded` — Idem, het crashherstel kan de komende versie niet vastleggen (1764).
+  - nl: Niet opgeslagen. Het bestand kan nu niet veilig worden vervangen, omdat het crashherstel niet kan worden bijgewerkt. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.
+  - en: Not saved. The file cannot be replaced safely right now, because crash recovery cannot be updated. Your changes are still in the app. Choose Save As to keep them in a new file.
+- `notifications.ifcForeignReplaceFailed` — Idem, een schrijf- of sluitfout van de browser (een echte fout, geen weigering; de foutmelding van de browser staat eronder).
+  - nl: Niet opgeslagen. Het bestand kon niet worden geschreven. Je wijzigingen staan nog in de app. Probeer opnieuw op te slaan, of kies Opslaan als om ze in een nieuw bestand te bewaren.
+  - en: Not saved. The file could not be written. Your changes are still in the app. Try saving again, or choose Save As to keep them in a new file.
 - `notifications.ifcForeignMergeRefused` — Als de voorbereiding verlies zou geven en daarom niets schrijft; stand na PR 13.
   - nl: Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan, of exporteer alleen de planning: naar IFC met Zonder gebouwmodel, of naar een ander formaat.
   - en: The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change, or export the schedule only: to IFC with Without building model, or to another format.

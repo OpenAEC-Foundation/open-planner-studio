@@ -9,7 +9,7 @@ import type { TargetReaders } from './foreignSourceTarget';
 import { readSiteSourceFile } from './siteBackend';
 import {
   openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
-  saveBytePartsDialogWeb, saveBytePartsToRefWeb,
+  saveBytePartsDialogWeb, saveBytePartsToRefWeb, handleWritePermissionWeb, replaceHandleWithPartsWeb,
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
 import { sourceTargetContentOfHandle, type SourceTargetContent } from './sourceTargetContent';
@@ -161,6 +161,18 @@ export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): 
   if (ref.kind === 'handle') return sourceTargetContentOfHandle(ref.handle, expected);
   if (!isTauri()) return Promise.reject(new Error('Een pad is in de browser geen doel om te vergelijken.'));
   return sourceTargetContentOfPathTauri(ref.path, expected);
+}
+
+/** Knownbug 1131 stap 2: het eigen bestand van een document met een gebouwmodel achter een bestandshandle (alleen de
+ *  browser; de desktop heeft paden). Eerst de schrijftoestemming, vóór de merge; dan de vervanging met een tweede
+ *  inhoudscontrole vlak vóór `close()`. Zie `webBackend.ts`. */
+export function handleWritePermission(ref: Extract<FileRef, { kind: 'handle' }>): Promise<boolean> {
+  return handleWritePermissionWeb(ref.handle);
+}
+export function replaceHandleWithParts(
+  ref: Extract<FileRef, { kind: 'handle' }>, parts: readonly Uint8Array[], stillSource: () => Promise<boolean>,
+): Promise<boolean> {
+  return replaceHandleWithPartsWeb(ref.handle, parts, stillSource);
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */

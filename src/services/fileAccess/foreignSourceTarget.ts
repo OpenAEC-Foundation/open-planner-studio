@@ -36,7 +36,7 @@ function samePath(a: string, b: string): boolean {
   return na !== null && na === normalizeExternalSourcePath(b);
 }
 
-async function sameEntry(a: FileSystemFileHandle, b: FileSystemFileHandle): Promise<boolean> {
+export async function sameEntry(a: FileSystemFileHandle, b: FileSystemFileHandle): Promise<boolean> {
   try {
     return await a.isSameEntry(b);
   } catch {
