@@ -1,6 +1,8 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
-import { writeUserBytesTauri, writeUserTextFileTauri, writeUserBytePartsTauri } from '@/services/fileAccess/atomicWrite';
+import {
+  isForbiddenPathError, writeUserBytesTauri, writeUserTextFileTauri, writeUserBytePartsTauri,
+} from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
@@ -112,7 +114,9 @@ export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDial
 /**
  * De dialoogkant van beide opslaan-als-varianten: downloadmap-voorkeur, de kiezer zelf en de
  * extensienormalisatie. Alleen het wegschrijven verschilt tussen tekst en bytes, dus dat blijft
- * bij de aanroeper — één plek voor het gedrag dat de gebruiker ziet.
+ * bij de aanroeper — één plek voor het gedrag dat de gebruiker ziet. Vult de app de extensie aan
+ * en is de eindnaam niet vrij of niet toegestaan, dan opent het venster nog eens met die naam
+ * (`check-save-dialog-extension.ts`); in het gewone geval blijft het één venster.
  */
 async function pickSavePathTauri(
   defaultName: string, filters: FileFilter[], opts?: SaveDialogOpts,
@@ -128,11 +132,29 @@ async function pickSavePathTauri(
       // net als het bestaande gedrag van elke andere export.
     }
   }
-  const picked = await save({ defaultPath, filters });
-  if (!picked) return null;
-  // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren.
   const ext = filters[0]?.extensions[0] ?? '';
-  return ext ? ensureExtension(picked, ext) : picked;
+  let picked = await save({ defaultPath, filters });
+  while (picked) {
+    // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren.
+    const target = ext ? ensureExtension(picked, ext) : picked;
+    // Het venster gaf toestemming (scope) en stelde de overschrijfvraag voor `picked`, niet voor `target`. Valt
+    // `target` buiten de scope of bestaat hij al, dan gaat hij zelf nog een keer door het venster, ingevuld.
+    if (target === picked || !(await needsOwnDialogRound(target))) return target;
+    picked = await save({ defaultPath: target, filters });
+  }
+  return null;
+}
+
+/** Mag de app op de aangevulde naam schrijven zonder dat het venster die naam zag? Niet als plugin-fs het pad
+ *  buiten de scope weigert (`exists` toetst eerst de scope) of als er al iets staat. */
+async function needsOwnDialogRound(path: string): Promise<boolean> {
+  const { exists } = await import('@tauri-apps/plugin-fs');
+  try {
+    return await exists(path);
+  } catch (error) {
+    if (isForbiddenPathError(error)) return true;
+    throw error;
+  }
 }
 
 export async function saveFileDialogTauri(
