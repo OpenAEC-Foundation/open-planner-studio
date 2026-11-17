@@ -708,9 +708,10 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     terug op de directe exclusieve aanmaak (één `createNew` op de naam); een andere weigering is een fout, zonder
     opruimen bij `not-regular-file`; `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
     planner hoort dat de app niet weet of het bestand goed is opgeslagen; `io` ruimt op en is een fout. Mag het
-    tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, of in een map die via een link naar buiten
-    de thuismap wijst), dan blijft de directe aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast
-    (knownbug 1131). Na een crash kan er een `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
+    tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap; vanaf plugin-fs 2.7.1 ook in een map die
+    via een link naar buiten de thuismap wijst, met 2.5.0 ontstaat het daar nog, knownbug 1754), dan blijft de directe
+    aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast (knownbug 1131). Na een crash kan er een
+    `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
     (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
     hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de

@@ -2629,18 +2629,25 @@ en noem het in je rapport of PR-tekst.
         dat alleen een nieuwe naam kan (dezelfde zin voor Opslaan als en Exporteren); `unsupported` en
         `refused`/`scope` ruimen op en maken het doel direct met `createNew`; een andere weigering is een fout (zonder
         opruimen bij `not-regular-file`); `source-changed` stopt zonder terugzetten of opruimen, met een eigen zin;
-        `io` ruimt op en is een fout. Blijft: buiten de thuismap en in een map die via een link naar buiten wijst,
-        mag het tijdelijke bestand niet ontstaan (`forbidden path`) en maakt de app het doel direct met `createNew`;
-        die weg vervangt nooit een bestand, maar een crash halverwege laat daar een onvolledig bestand staan. Na een
-        crash kan een `save-<id>.ops-save.tmp` blijven staan; er is geen opruimronde bij de start. Het commando zelf
-        is in deze route niet in een echte app gemeten (alleen `cargo test place_file` en de nabootsing in Node).
+        `io` ruimt op en is een fout. Blijft: buiten de thuismap mag het tijdelijke bestand niet ontstaan
+        (`forbidden path`) en maakt de app het doel direct met `createNew`; in een map die via een link naar buiten
+        wijst geldt dat pas vanaf plugin-fs 2.7.1 (#978). Met 2.5.0 ontstaat het tijdelijke bestand daar wel, geeft
+        `place_file_exclusive` `refused`/`scope` en blijft het daarna staan (1754); het doel komt er ook dan via de
+        directe `createNew`. Die weg vervangt nooit een bestand, maar een crash halverwege laat daar een onvolledig
+        bestand staan; alleen de plaatsing via het tijdelijke bestand laat nooit een half einddoel achter. Na een
+        crash kan een `save-<id>.ops-save.tmp` blijven staan; er is geen opruimronde bij de start. In een echte app
+        is de route alleen gemeten met `planner_export_ifc` naar een nieuwe naam in de thuismap, op Linux
+        (`mcp-real-app.yml`): het app-log (kanaal `nieuweNaam`) moet voor dat doel `placed` of `dir-not-synced` van
+        het echte commando tonen, zonder directe aanmaak; een mutatie die direct aanmaakt maakt die proef rood.
+        Opslaan als via de dialoog, Windows, macOS en de terugvalwegen zijn in een echte app niet gemeten.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
-     commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts` en `cases-doc-file.ts`. Crash, stroomuitval en externe
+     commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
+     `run-real-app.ts`. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
