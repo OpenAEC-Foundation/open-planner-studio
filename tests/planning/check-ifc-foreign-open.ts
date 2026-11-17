@@ -19,6 +19,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
+import { fakeScanWorker, fakeScanWorkerStats, type FakeScanWorkerMode } from './fakeScanWorker';
 import { oldHeaderTable, compareOldHeaderTable, type OldHeaderRow } from './ifcOudeKopVergelijking';
 import { oudeKop, oudeKopVelden, oudeWand } from './ifcOudeKop';
 import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
@@ -49,7 +50,6 @@ const { capturePayload } = await import('@/state/documentContract');
 const { createSnapshot } = await import('@/state/snapshot');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
 const contexts = new WeakMap<Store, ReturnType<typeof createAppStoreContext>>();
-type ForeignScanWorker = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanWorker;
 
 let checks = 0;
 const diffs: string[] = [];
@@ -671,7 +671,8 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
           const outcome = scanForeign(msg.bytes);
           if (!outcome.ok) throw new Error(outcome.message);
           const data = { id: msg.id, outcome: { ...outcome, selection: { ...outcome.selection, resources: Int32Array.of(-1) } } };
-          queueMicrotask(() => this.onmessage?.({ data }));
+          // Eerst de startbevestiging, zoals `foreignScan.worker.ts`; anders valt de runner na de starttijd terug.
+          queueMicrotask(() => { this.onmessage?.({ data: { id: msg.id, started: true } }); this.onmessage?.({ data }); });
         }
       }
       globalThis.Worker = DifferentSelectionWorker as unknown as typeof Worker;
@@ -767,33 +768,8 @@ ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijk
 
 // ── 8. Worker en terugval ──────────────────────────────────────────────────────────────────────────────────────
 {
-  const { foreignScanTransferables } = await import('@/services/ifc/foreign/foreignScan');
-  /** Een nep-Worker zoals de echte: kopie van de bytes via `structuredClone`, antwoord async met `transfer`, de indeling in
-   *  de "Worker". */
-  let terminated = 0;
-  const fakeWorker = (mode: 'ok' | 'transport' | 'indeling' | 'stil'): ForeignScanWorker => {
-    const w: ForeignScanWorker = {
-      onmessage: null, onerror: null, onmessageerror: null,
-      terminate: () => { terminated++; },
-      postMessage: (msg: { id: number; bytes: Uint8Array }) => {
-        const copy = structuredClone(msg);
-        setTimeout(() => {
-          if (mode === 'stil') return;
-          if (mode === 'transport') {
-            (w.onerror as unknown as (e: { message: string; preventDefault: () => void }) => void)?.({ message: 'start mislukt', preventDefault: () => {} });
-            return;
-          }
-          const deliver = (data: unknown, transfer: ArrayBuffer[] = []) =>
-            (w.onmessage as unknown as (e: { data: unknown }) => void)?.({ data: structuredClone(data, { transfer }) });
-          if (mode === 'indeling') { deliver({ id: copy.id, error: 'indeling faalt' }); return; }
-          // Zoals `foreignScan.worker.ts`: de typed arrays gaan over met `transfer`, niet als kopie.
-          const outcome = scanForeign(copy.bytes);
-          deliver({ id: copy.id, outcome }, foreignScanTransferables(outcome));
-        }, 0);
-      },
-    } as unknown as ForeignScanWorker;
-    return w;
-  };
+  const stats = fakeScanWorkerStats();
+  const fakeWorker = (mode: FakeScanWorkerMode) => fakeScanWorker(mode, stats);
   const sourceOf = async (opts: Parameters<typeof readIfcBytesDetailed>[2]) => {
     reseed(0x804);
     const r = await readIfcBytesDetailed(bonsai, {}, opts);
@@ -804,12 +780,13 @@ ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijk
   const without = await sourceOf({ createWorker: () => null });
   eq('Worker: met Worker hetzelfde als zonder', sha(await sourceOf({ createWorker: () => fakeWorker('ok') })), sha(without));
   eq('Worker: een transportfout valt terug, met dezelfde uitkomst', sha(await sourceOf({ createWorker: () => fakeWorker('transport') })), sha(without));
-  eq('Worker: geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), timeoutMs: 20 })), sha(without));
+  eq('Worker: geen start op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), startTimeoutMs: 20 })), sha(without));
+  eq('Worker: gestart, geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('gestart-stil'), timeoutMs: 20 })), sha(without));
   eq('Worker: een fout bij het maken valt terug', sha(await sourceOf({ createWorker: () => { throw new Error('CSP'); } })), sha(without));
   let failure = '';
   try { await readIfcBytesDetailed(bonsai, {}, { createWorker: () => fakeWorker('indeling') }); } catch (e) { failure = (e as Error).message; }
   eq('Worker: een fout in de indeling zelf valt niet terug', failure, 'indeling faalt');
-  eq('Worker: elke Worker is gestopt', terminated, 4);
+  eq('Worker: elke Worker is gestopt', stats.terminated, 5);
 }
 
 // #885 / review Sol (#889): twee waarden met dezelfde codetekst in één type. De writer zet dan het waarde-id naast de

@@ -2821,6 +2821,25 @@ en noem het in je rapport of PR-tekst.
      deze ene omzetting van de aanroepvorm". Richting: die omzetting reproduceerbaar maken in het script, of alleen dit
      verschil normaliseren bij de vergelijking; niet de hele referentie opnieuw opnemen vanaf een featurebranch.
      Gevonden door de review van #973 (Sol). — B
+1759. **VERVOLG (#985, scanworker): de starttijd van 3 s is een inschatting; trage ontvangst kan een gezonde worker
+     onnodig naar de hoofdthread terughalen.** `foreignScanRunner.ts` start de timer vóór het eerste `postMessage`; de
+     worker stuurt zijn startbericht pas als dat eerste verzoek binnen is (`foreignScanHandler.ts`). Het laden van het
+     script, het kopiëren van het eerste verzoek en het verwerken van het startbericht vallen dus binnen die 3 s. Bij
+     het openen en op de siteroute van de doelscan is dat eerste verzoek het hele bestand; op de stroomroutes van de
+     doelscan (desktoppad, bestand in de browser) sinds #804/1758 alleen het eerste stuk. Duurt het langer, of is de
+     hoofdthread zo lang bezet, dan rekent de app zelf: trager en blokkerend, maar met dezelfde uitkomst. Geen geval
+     aangetoond waarin een gewone start de grens haalt; de starttijd in een echte webview (koud, met enkele honderden
+     MiB) is niet gemeten. Het commentaar bij de timer is bij 1758 versoberd. Richting: meten in de echte webview; een
+     startbericht vóór het verzoek zou de kopie buiten de starttijd houden,
+     maar bevestigt dan alleen dat het script geladen is. Gevonden door de review van #985 (Sol, ronde 2). — S
+1761. **VERVOLG (#986, scanworker): de afgeronde modelscanner houdt zijn invoerkopie vast tijdens de indeling.**
+     `foreignScanHandler.ts` bewaart de `push`-functie van de modelscanner tot de worker stopt. Na de uitkomst van de
+     modelscan is die scanner klaar, maar bij het volgende verzoek (de indeling) houdt hij zijn eerdere stukken nog
+     vast, naast de nieuwe volledige kopie. De review toonde het met de echte handler: bij een planning met 4 MiB
+     commentaar bleven 4.226.932 bytes van de eerste kopie bereikbaar tot de handler werd losgelaten. De scanner heeft
+     zijn eigen begrenzing en de worker stopt na elke scan: geen onbegrensd lek en geen extra volledige kopie van
+     300 MiB aangetoond. Richting: laat `push` los zodra een stap een uitkomst bevat. Gevonden door de review van #986
+     (Sol). — B (proef van de review)
 
 ## Rondleiding, Help en extensie-gidsen
 
