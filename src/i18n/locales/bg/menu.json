@@ -413,7 +413,7 @@
       "plannedReadOnly": "планирано, не променяйте",
       "summaryRow": "— обобщаваща задача: не попълвайте"
     },
-    "csvLabel": "CSV (разделени с точка и запетая)",
+    "csvLabel": "CSV",
     "csvDesc": "Универсален табличен експорт. Всички задачи с дати и продължителност.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "За отваряне в Microsoft Project. Пълна WBS структура.",
@@ -425,7 +425,7 @@
     "profileHint": "Вашият проект в момента използва профила {{name}}. Препоръчваме профила {{target}} за най-добра съвместимост с този файлов формат.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт на buildingSMART, в IFC схемата на проекта (по подразбиране IFC 4.3 ADD2). 4D свързване с BIM модели.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Разширения",

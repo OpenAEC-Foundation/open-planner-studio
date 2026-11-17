@@ -413,7 +413,7 @@
       "plannedReadOnly": "tervezett, ne módosítsa",
       "summaryRow": "— összefoglaló tevékenység: ne töltse ki"
     },
-    "csvLabel": "CSV (pontosvesszővel tagolt)",
+    "csvLabel": "CSV",
     "csvDesc": "Általános táblázat-export. Az összes tevékenység dátumokkal és időtartamokkal.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Megnyitható a Microsoft Project-ben. Teljes WBS-szerkezet.",
@@ -425,7 +425,7 @@
     "profileHint": "A projekt jelenleg a {{name}} profillal számol. Ehhez a fájlformátumhoz a legjobb kompatibilitás érdekében a {{target}} profil használatát javasoljuk.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-szabvány, a projekt IFC-sémájában (alapértelmezés: IFC 4.3 ADD2). 4D-összekapcsolás BIM-modellekkel.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Bővítmények",

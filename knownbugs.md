@@ -2551,33 +2551,12 @@ en noem het in je rapport of PR-tekst.
      de export. Het pad schrijft bovendien buiten de gedeelde schrijflock (`runProjectFileWrite`), dus een AutoSave of
      export kan er tussendoor schrijven (ronde 7, GPT-6.1-Sol). Uit #872 (ronde 4, GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
 
-1250. **VERVOLG: de CSV-export schrijft een breuklag met een komma, en een oudere app-versie leest die verkeerd.**
-     `src/services/csv/csvWriter.ts:104` zet in de kolom `Predecessors` de punt van `formatLagShort` om naar een komma.
-     Die cel is tekst, dus de punt veroorzaakte #873 niet; in die lijst is de komma ook het scheidingsteken, daarom
-     kreeg `csvReader.ts:176` een extra regex. Gezien (nieuwe schrijver, oude lezer): `1FS+1,5u` wordt een lag van 1 dag
-     plus een niet-bestaande voorganger "5u"; `1FS+12,5e%` wordt 12 dagen. Alleen een melding in de console. Het taakraster
-     toont dezelfde notatie met een punt (`relationCell.ts:175`). Richting: regel 104 terug naar de punt en de
-     verwachting in `check-csv-import.ts` mee; de normalisatie in de lezer mag blijven voor handinvoer (zet de regex dan
-     als constante naast `PREDECESSOR_TOKEN`). Uit de review van #876 (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
-
 1251. **VERVOLG: een getal in e-notatie komt verkeerd terug uit de CSV.** `csvWriter.ts:144,155` maken van
      `toString()` met een komma bijvoorbeeld `"1,5e-7"`; `csvReader.ts:221` stopt bij de `e` en leest 1,5. Ook
      `-2.220446049250313e-16` komt terug als −2,22 dagen speling. De solver maakt zulke waarden vrijwel zeker niet; een
      geïmporteerde vastgelegde speling of duur mogelijk wel (niet nagegaan). Richting: één hulpje voor vaste notatie dat
      ook de drie `.replace('.', ',')` vervangt, of de lezer een exponent laten toestaan. Uit de review van #876
      (Opus 5.5, xhigh, mechanisme BEVESTIGD, voorkomen VERMOED laag, VERVOLG). — B
-
-1252. **VERVOLG: de CSV-export past met de komma niet bij een spreadsheet met Engelse (VS) of Zwitserse instelling.**
-     Sinds #876 schrijft de export decimalen met een komma, bij het vaste scheidingsteken `;`. LibreOffice met en-US
-     maakt van `"6,5"` tekst (gezien); Excel of Power Query met en-US leest het vermoedelijk als 65 (niet getest).
-     de-CH (`;` en een decimale punt) heeft hetzelfde probleem. Bij één vaste `;`-export is dat niet te vermijden;
-     een keuze voor het scheidingsteken of de landinstelling bij exporteren is een productbesluit. Uit de review van
-     #876 (Opus 5.5, xhigh, VERMOED midden, VERVOLG). — S
-
-1253. **VERVOLG: de gids over exportformaten noemt de decimale komma in de CSV niet.**
-     `public/docs/nl/ref-import-exportformaten.md:133` en de Engelse versie beschrijven scheidingsteken, BOM en
-     kolomkoppen, maar niet het decimaalteken. Eén zin in nl en en volstaat; zie ook 1254. Uit de review van #876
-     (Opus 5.5, xhigh, BEVESTIGD, VERVOLG). — B
 
 1254. **VERVOLG: een getypte komma-lag zonder eenheid in de CSV wordt een tweede voorganger.** `3FS+1,5` geeft de
      relaties "3FS+1" en "5"; bestaat taak 5, dan ontstaat stil een verkeerde relatie. Dat gedrag bestond al en de test
@@ -2596,6 +2575,21 @@ en noem het in je rapport of PR-tekst.
      Alleen bij een lijst zonder spatie na de komma en een WBS-code die op een getal met eenheid lijkt; een OPS-export
      schrijft `, ` en houdt zijn betekenis. Richting: een melding als beide lezingen naar bestaande WBS-codes wijzen, of
      de normalisatie laten vallen samen met 1250. Uit de review van #876 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+
+1257. **VERVOLG: uitleg verwijst nog naar de oude CSV-exportnaam.** `public/docs/nl/howto-exporteren.md:22`
+     en de Engelse gids noemen nog CSV (;) en CSV (puntkomma-gescheiden), terwijl het menu sinds de systeemnotatie-fix
+     kortweg CSV toont. Ook `src/i18n/locales/nl/common.json` (`formatNotice.formats.csv.save`, getoond in
+     `FormatNoticeDialog.tsx`) en de uitleg over rekenprofielen gebruiken de oude naam. Bij en-US belooft die bovendien
+     het verkeerde scheidingsteken. Richting: deze verwijzingen consequent CSV noemen, nl/en samen aanpassen en de
+     bronstempels voor gewijzigde UI-tekst bijwerken. Uit de review van de CSV-systeemnotatie (GPT-6.1-Sol, xhigh,
+     BEVESTIGD, VERVOLG). — B
+
+1258. **VERVOLG: het commentaar bij de CSV-lagparser beschrijft de oude schrijver.** `src/services/csv/csvReader.ts:166`
+     zegt dat nieuwe exports komma-lags schrijven en oude exports een punt. Sinds de systeemnotatie-fix schrijft de
+     export juist weer een punt, voor oudere lezers. De parser werkt; alleen het commentaar klopt niet. Richting:
+     benoem dat de komma-normalisatie de exports uit v2026.47.0 en handinvoer ondersteunt, terwijl nieuwe exports een
+     punt schrijven. Uit de review van de CSV-systeemnotatie (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
 1130. **VERVOLG (#804, T1): browserhandles kunnen een nieuwe IFC-naam niet exclusief plaatsen.**
      `FileSystemFileHandle.createWritable()` heeft geen `createNew` bij de uiteindelijke plaatsing;

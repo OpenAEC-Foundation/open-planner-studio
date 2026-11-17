@@ -415,7 +415,7 @@
       "plannedReadOnly": "prévu, ne pas modifier",
       "summaryRow": "— tâche récapitulative : ne pas remplir"
     },
-    "csvLabel": "CSV (séparé par des points-virgules)",
+    "csvLabel": "CSV",
     "csvDesc": "Export tableau universel. Toutes les tâches avec dates et durées.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "À ouvrir dans Microsoft Project. Structure WBS complète.",
@@ -427,7 +427,7 @@
     "profileHint": "Votre projet utilise actuellement le profil {{name}}. Nous recommandons le profil {{target}} pour une meilleure compatibilité avec ce format de fichier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard buildingSMART, dans le schéma IFC du projet (par défaut IFC 4.3 ADD2). Liaison 4D avec les modèles BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensions",

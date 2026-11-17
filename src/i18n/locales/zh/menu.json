@@ -411,7 +411,7 @@
       "plannedReadOnly": "计划值，请勿更改",
       "summaryRow": "— 摘要任务：请勿填写"
     },
-    "csvLabel": "CSV（分号分隔）",
+    "csvLabel": "CSV",
     "csvDesc": "通用表格导出，包含所有任务的日期和工期。",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "可在 Microsoft Project 中打开，完整 WBS 结构。",
@@ -423,7 +423,7 @@
     "profileHint": "你的项目当前使用 {{name}} 配置。为了与此文件格式获得最佳兼容性，我们建议使用 {{target}} 配置。",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 标准，采用项目的 IFC 模式（默认为 IFC 4.3 ADD2）。与 BIM 模型的 4D 关联。",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "扩展",

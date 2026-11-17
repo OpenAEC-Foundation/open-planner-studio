@@ -413,7 +413,7 @@
       "plannedReadOnly": "gepland, niet wijzigen",
       "summaryRow": "— verzameltaak: niet invullen"
     },
-    "csvLabel": "CSV (puntkomma-gescheiden)",
+    "csvLabel": "CSV",
     "csvDesc": "Universele tabel-export. Alle taken met datums en duur.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Te openen in Microsoft Project. Volledige WBS-structuur.",
@@ -425,7 +425,7 @@
     "profileHint": "Je project rekent nu met het {{name}}-profiel. We raden aan om het {{target}}-profiel te gebruiken voor de beste compatibiliteit met dit bestandsformaat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standaard, in het IFC-schema van het project (standaard IFC 4.3 ADD2). 4D-koppeling met BIM-modellen.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensies",

@@ -413,7 +413,7 @@
       "plannedReadOnly": "planlanan, değiştirmeyin",
       "summaryRow": "— özet görev: doldurmayın"
     },
-    "csvLabel": "CSV (noktalı virgülle ayrılmış)",
+    "csvLabel": "CSV",
     "csvDesc": "Evrensel tablo dışa aktarımı. Tarihler ve sürelerle birlikte tüm görevler.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Microsoft Project'te açılır. Tam WBS yapısı.",
@@ -425,7 +425,7 @@
     "profileHint": "Projeniz şu anda {{name}} profilini kullanıyor. Bu dosya biçimiyle en iyi uyumluluk için {{target}} profilini kullanmanızı öneririz.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART standardı, projenin IFC şemasında (varsayılan IFC 4.3 ADD2). BIM modelleriyle 4D bağlantısı.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Uzantılar",

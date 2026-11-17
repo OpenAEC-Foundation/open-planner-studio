@@ -411,7 +411,7 @@
       "plannedReadOnly": "계획값, 변경하지 마세요",
       "summaryRow": "— 요약 작업: 입력하지 마세요"
     },
-    "csvLabel": "CSV (세미콜론 구분)",
+    "csvLabel": "CSV",
     "csvDesc": "범용 테이블 내보내기. 날짜 및 기간이 포함된 모든 작업.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Microsoft Project에서 열 수 있습니다. 전체 WBS 구조.",
@@ -423,7 +423,7 @@
     "profileHint": "현재 프로젝트는 {{name}} 프로필을 사용하고 있습니다. 이 파일 형식과 가장 잘 호환되도록 {{target}} 프로필을 사용하는 것을 권장합니다.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 표준, 프로젝트의 IFC 스키마 기준 (기본값 IFC 4.3 ADD2). BIM 모델과의 4D 연동.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "확장 프로그램",
