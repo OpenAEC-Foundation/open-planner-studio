@@ -24,6 +24,8 @@
     "undo": "واگرد",
     "redo": "باز‌گرد",
     "delete": "حذف",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: وظیفه‌های انتخاب‌شده را حذف می‌کند و هر پیش‌نیاز را به هر پس‌نیاز پیوند می‌دهد (پایان-شروع، بدون تأخیر)",
     "undoTitle": "واگرد (Ctrl+Z)",
     "redoTitle": "باز‌گرد (Ctrl+Y)",
     "deleteTitle": "حذف انتخاب (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "انتخاب ستون‌های نمای جدول — در زبانه جدول دیده می‌شود",
     "toggleResourceAccent": "تأکید منبع",
     "toggleFloatBand": "نوار شناوری",
+    "toggleBarDates": "تاریخ‌ها کنار نوارهای وظیفه",
     "screenColors": "رنگ میله‌ها",
     "screenColors_critical": "مسیر بحرانی",
     "screenColors_auto": "به ازای هر کار — خودکار",
@@ -281,7 +284,8 @@
       "label": "طرح‌واره IFC هنگام ذخیره",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (پیش‌فرض)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "این فایل داده‌هایی از برنامهٔ دیگری دارد. به همین دلیل، طرح‌واره از سرصفحهٔ اصلی حفظ می‌شود."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "الگوی فازبندی",
     "tmplEmpty": "خالی",
     "tmplWoningbouw": "ساخت مسکونی",
-    "tmplUtiliteit": "ساختمان تجاری / بازسازی"
+    "tmplUtiliteit": "ساختمان تجاری / بازسازی",
+    "phase": {
+      "siteGroundwork": "آماده‌سازی کارگاه و کارهای خاکی",
+      "foundation": "پی",
+      "shell": "اسکلت سازه‌ای",
+      "roof": "بام",
+      "facadeFitOut": "نما و تکمیل داخلی",
+      "services": "تأسیسات (W/E)",
+      "finishes": "پرداخت نهایی",
+      "handover": "تحویل پروژه",
+      "demolitionStripOut": "تخریب و تخلیهٔ داخلی",
+      "groundworkFoundation": "خاک‌برداری و پی‌ریزی",
+      "mainStructure": "سازهٔ باربر اصلی",
+      "facadeRoof": "نما و بام",
+      "fitOut": "تکمیل داخلی",
+      "commissioning": "تنظیم و آزمایش"
+    }
   },
   "status": {
     "tasks": "وظایف:",
@@ -315,12 +335,14 @@
     "recentTitle": "پروژه‌های اخیر",
     "recentSubtitle": "برای باز کردن کلیک کنید.",
     "recentEmpty": "هنوز پروژه‌ای باز نشده است.",
+    "recentLoading": "در حال بارگذاری فایل‌های اخیر…",
     "recentUnavailable": "این مرورگر نمی‌تواند فایل‌های محلی قبلی را از «اخیر» دوباره باز کند. از «باز کردن» استفاده کنید تا فایل پروژه‌تان را دوباره انتخاب کنید.",
     "recentOnSite": "در سایت",
     "examples": "نمونه‌ها",
     "examplesTitle": "پروژه‌های نمونه",
     "examplesSubtitle": "برنامه‌های ساختمانی همراه. برای باز کردن در برگه جدید کلیک کنید.",
     "examplesLoading": "در حال بارگذاری نمونه‌ها…",
+    "loading": "در حال بارگذاری…",
     "examplesEmpty": "نمونه‌ای در دسترس نیست.",
     "examplesError": "بارگذاری نمونه‌ها ممکن نشد.",
     "examplesShowcaseHeading": "برنامه‌های نمایشی کامل",
