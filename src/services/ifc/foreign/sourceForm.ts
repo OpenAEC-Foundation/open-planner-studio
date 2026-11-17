@@ -54,7 +54,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MINUTE_MODEL_TIME_MODEL, migrateToMinuteModel, TIME_FIELDS } from '@/state/migrations/minuteModel';
 import { inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { sameValue } from '@/utils/sameValue';
-import type { WriteIFCInput } from '../ifcWriter';
+import { ifcObjectSeed, type WriteIFCInput } from '../ifcWriter';
 import { planningIdentities } from './planningIdentity';
 
 /** Een veld dat de merge in de vorm van de bron schrijft omdat de omzetting het maakte. */
@@ -133,6 +133,36 @@ export function orphanRowsWithoutId<T extends { tasks: readonly Task[]; baseline
     ...planning,
     baselines: planning.baselines.map(b => ({ ...b, tasks: b.tasks.map(t => (ids.has(t.taskId) ? t : { ...t, taskId: '' })) })),
   };
+}
+
+/**
+ * De GlobalId van elke weesrij in `ifcGlobalIds` (PR 12e, was knownbug 1702). De lezer zet in `ifcGlobalIds` alleen de
+ * GlobalIds van taken die er zijn; voor de rij van een gewiste taak schreef de writer daarom bij de volgende opslag een
+ * nieuwe hash in `TaskGuids` (`objectGuid`), en was `OPS_Baselines` in het bestand daarna niet meer gedragen. Hier krijgt
+ * elke weesrij zonder GlobalId de waarde van `guidOf`: voor een gelezen bestand de GlobalId die de lezer zelf voor die rij
+ * aannam (`assumedRowGuid`). Een GlobalId die er al staat (een taak die de planner in deze sessie wiste) blijft.
+ */
+export function withOrphanRowGuids<T extends { tasks: readonly Task[]; baselines?: readonly Baseline[];
+  ifcGlobalIds?: Readonly<Record<string, string>> | null }>(planning: T, guidOf: (taskId: string) => string | undefined): T {
+  const live = new Set(planning.tasks.map(t => t.id));
+  let guids: Record<string, string> | undefined;
+  for (const b of planning.baselines ?? []) for (const row of b.tasks) {
+    const seed = ifcObjectSeed('task', row.taskId);
+    if (!row.taskId || live.has(row.taskId) || (guids ?? planning.ifcGlobalIds)?.[seed] !== undefined) continue;
+    const guid = guidOf(row.taskId);
+    if (guid !== undefined) (guids ??= { ...planning.ifcGlobalIds })[seed] = guid;
+  }
+  return guids ? { ...planning, ifcGlobalIds: guids } : planning;
+}
+
+/**
+ * Per id van een weesrij de GlobalId die de lezer ervoor aannam, uit zijn eigen lezing (`ImportResult.baselineOrphanGuids`,
+ * gezet door `extractBaselines` in `ifcReader.ts`). Geen tweede afleiding: een rij die de lezer niet als wees las, geeft
+ * `undefined`, en de writer houdt dan zijn eigen keuze.
+ */
+export function assumedRowGuid(reading: Pick<ImportResult, 'baselineOrphanGuids'>): (taskId: string) => string | undefined {
+  const guids = new Map(Object.entries(reading.baselineOrphanGuids ?? {}));
+  return taskId => guids.get(taskId);
 }
 
 /** De velden die het openen veranderde en die de bronwaarde terug kunnen krijgen (zie de kop). */

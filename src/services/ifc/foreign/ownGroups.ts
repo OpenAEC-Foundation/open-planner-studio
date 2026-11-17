@@ -15,36 +15,77 @@
  *
  * Gebruik: de uitvoercontrole (c) in `mergeWriter.ts` vergelijkt per groep de boomvorm van de uitvoer met die van de writer
  * op de herlezing (`ownGroupTrees`, `ownGroupDifference`), en slaat de groepen over waar de herleestoets (b) bronwaarden
- * terugzette (`editedOwnGroup`). Een latere stap (de andere toets in de verliescontrole) kan dezelfde indeling op de
- * bronregels gebruiken: `ownGroupMembers` geeft per regel de groep.
+ * terugzette (`editedOwnGroup`). De andere toets in de verliescontrole (PR 12b, `openedOwnGroups` in `mergeWriter.ts`)
+ * gebruikt dezelfde indeling op de bronregels (`indexView`, `ownGroupMembers`).
  */
 import { decodeStepText } from '../stepText';
 import { PSET } from '../ifcPsets';
 import { refsOutsideText, type OutLine } from './lossCheck';
+import type { StepIndex } from './stepScanner';
 
-/** De tweede vorm van `OPS_Baselines`: de baselinekoppen en hun lidmaatschap van een aggregatie. */
+/** De tweede vorm van `OPS_Baselines`: de baselinekoppen en de aggregatie waarin ze staan (die van het eigen werkplan). */
 export const BASELINE_HEADS = `kop:${PSET.Baselines}`;
-/** De tweede vorm van `OPS_TaskTypes`: `ObjectType` van elke eigen taak met `PredefinedType .USERDEFINED.`. */
+/** De tweede vorm van `OPS_TaskTypes`: `ObjectType` van elke eigen taak met `PredefinedType .USERDEFINED.` (of met een
+ *  `ObjectType`, PR 12d: de writer schrijft er alleen een bij `.USERDEFINED.`). */
 export const TASK_OBJECT_TYPES = `taak:ObjectType`;
+/** Per pset zijn tweede vorm buiten de pset. Wat een vorm in de verliescontrole mag dragen, staat bij `SECOND_FORMS` in
+ *  `lossCheck.ts` (op pset); `openedOwnGroups` in `mergeWriter.ts` toetst per vorm dat het openen hem niet veranderde. */
+export const SECOND_FORMS: ReadonlyMap<string, string> = new Map([[PSET.Baselines, BASELINE_HEADS], [PSET.TaskTypes, TASK_OBJECT_TYPES]]);
 
 /**
  * Een kijk op een reeks regels. `line(id)`: een eigen regel (van de writer), anders `undefined`. `typeOf(id)`: het
- * entiteittype van elk stuk, ook een vreemd (zoals een `IfcProject` van een ander programma). `aggregated`: de ids die in
- * een `IfcRelAggregates` staan, eigen of vreemd.
+ * entiteittype van elk stuk, ook een vreemd (zoals een `IfcProject` van een ander programma). `aggregatedIn`: per id dat in
+ * een `IfcRelAggregates` staat (eigen of vreemd), het geheel van elke aggregatie waarin het staat: `eigen <type>` als dat
+ * geheel een eigen regel is, anders `vreemd <type>` (PR 12c, knownbug 1705: de kop hoort in die van het eigen werkplan).
  */
 export interface OwnLinesView {
   readonly lines: Iterable<OutLine>;
   line(id: number): OutLine | undefined;
   typeOf(id: number): string | undefined;
-  readonly aggregated: ReadonlySet<number>;
+  readonly aggregatedIn: ReadonlyMap<number, readonly string[]>;
+}
+
+/** Het geheel van een aggregatie, zoals `aggregatedIn` het noemt. */
+function wholeOf(own: boolean, type: string | undefined): string {
+  return `${own ? 'eigen' : 'vreemd'} ${type ?? '?'}`;
+}
+function addTo(map: Map<number, string[]>, id: number, whole: string) {
+  const a = map.get(id) ?? []; a.push(whole); map.set(id, a);
 }
 
 /** Een view op losse regels (de writer), met een terugval voor ids die niet tussen die regels staan. */
 export function linesView(lines: readonly OutLine[], fallbackType: (id: number) => string | undefined = () => undefined): OwnLinesView {
   const byId = new Map(lines.map(l => [l.id, l]));
-  const aggregated = new Set<number>();
-  for (const l of lines) if (l.type === 'IFCRELAGGREGATES') for (const id of refsOutsideText(l.args[5] ?? '')) aggregated.add(id);
-  return { lines, line: id => byId.get(id), typeOf: id => byId.get(id)?.type ?? fallbackType(id), aggregated };
+  const typeOf = (id: number) => byId.get(id)?.type ?? fallbackType(id);
+  const aggregatedIn = new Map<number, string[]>();
+  for (const l of lines) {
+    if (l.type !== 'IFCRELAGGREGATES') continue;
+    const whole = refsOutsideText(l.args[4] ?? '')[0];
+    for (const id of refsOutsideText(l.args[5] ?? '')) addTo(aggregatedIn, id, wholeOf(whole !== undefined && byId.has(whole), whole === undefined ? undefined : typeOf(whole)));
+  }
+  return { lines, line: id => byId.get(id), typeOf, aggregatedIn };
+}
+
+/**
+ * Een view op de stukken van een scan. Alleen de stukken waarvoor `own(chunk)` geldt, zijn regels (eigen regels); het type
+ * en het lidmaatschap van een aggregatie gelden voor elk stuk, ook een vreemd.
+ */
+export function indexView(index: StepIndex, own: (chunk: number) => boolean): OwnLinesView {
+  const lines: OutLine[] = [];
+  const aggregatedIn = new Map<number, string[]>();
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    if (index.type(i) === 'IFCRELAGGREGATES') {
+      const whole = index.refAt(i, 4);
+      for (const c of index.refsAt(i, 5)) addTo(aggregatedIn, Number(index.id(c)), wholeOf(whole >= 0 && own(whole), whole >= 0 ? index.type(whole) : undefined));
+    }
+    if (!own(i)) continue;
+    const args = index.argTokens(i);
+    if (args) lines.push({ id: Number(index.id(i)), type: index.type(i), args });
+  }
+  const byId = new Map(lines.map(l => [l.id, l]));
+  const typeOf = (id: number) => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; };
+  return { lines, line: id => byId.get(id), typeOf, aggregatedIn };
 }
 
 /** Typen die een object zijn (geen deel van een groep): in de boomvorm staat alleen hun type. */
@@ -116,6 +157,25 @@ export function ownGroupMembers(view: OwnLinesView): Map<number, string> {
   return out;
 }
 
+/**
+ * De groepen met een vreemd lid: een eigen regel van de groep wijst (buiten tekst) naar een stuk dat niet eigen is en geen
+ * `IfcProject` is, zoals een property van een ander programma in een eigen pset. Zo'n lid schrijft de writer niet; de merge
+ * zet het erbij. De writer schrijft uit de lezing van de bron dus niet precies de bronregels van die groep (PR 12b,
+ * voorwaarde a).
+ *
+ * Een owner history is geen lid (PR 12c): in een eigen bestand met een gebouwmodel deelt het `IfcProject` zijn owner
+ * history met het model, en dan is die owner history in de indeling context (C), niet eigen. Telde hij mee, dan had elke
+ * groep van zo'n bestand een "vreemd lid" en gold de andere toets daar nooit. De boomvorm telt hem ook niet (`ROOT_TYPES`).
+ */
+export function groupsWithForeignMembers(view: OwnLinesView, members: ReadonlyMap<number, string>): Set<string> {
+  const foreign = (r: number) => view.line(r) === undefined && view.typeOf(r) !== 'IFCPROJECT' && view.typeOf(r) !== 'IFCOWNERHISTORY';
+  const out = new Set<string>();
+  for (const [id, group] of members) {
+    if (view.line(id)?.args.some(a => refsOutsideText(a).some(foreign))) out.add(group);
+  }
+  return out;
+}
+
 /** De groep die een herstelde bronwaarde (b) raakt: argument `arg` van eigen regel `line`, of niets. */
 export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLine, arg: number): string | undefined {
   if (line.type === 'IFCTASK') return arg === 4 || arg === 12 ? TASK_OBJECT_TYPES : undefined;
@@ -124,10 +184,14 @@ export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLi
 
 /**
  * Per groep een gesorteerde lijst boomvormen, zonder GlobalId en owner history; een object staat er alleen met zijn type.
- * Alleen eigen leden tellen mee (`refs`: een vreemd lid van een pset, template of relatie niet). `taskIds`: de taken van de
- * herlezing; een sleutel van `TaskGuids` zonder taak telt niet mee (de regel van de canon, `orphanRowsWithoutId`).
+ * Alleen eigen leden tellen mee (`refs`: een vreemd lid van een pset, template of relatie niet). `TaskGuids` telt helemaal
+ * mee, ook de sleutel en de GlobalId van een weesrij (PR 12e, was knownbug 1706): de merge houdt die GlobalId
+ * (`withOrphanRowGuids` in `sourceForm.ts`), dus een extra sleutel, een ontbrekende of een andere waarde leest anders dan
+ * wat de writer schrijft. Een baselinekop staat er met zijn GlobalId (was knownbug 1746): de writer leidt die af uit het id van
+ * zijn baseline, dus twee verwisselde koppen, of de kop van een gewiste baseline in de plaats van een blijvende, lezen ook
+ * bij gelijke inhoud anders.
  */
-export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>): Map<string, string[]> {
+export function ownGroupTrees(view: OwnLinesView): Map<string, string[]> {
   const tree = (id: number, depth: number): string => {
     const l = view.line(id);
     if (!l) return view.typeOf(id) ?? `?#${id}`;
@@ -138,7 +202,6 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
   const argsOf = (l: OutLine, depth: number) => l.args.map((a, k) => {
     const t = a.trim();
     if (ROOT_TYPES.has(l.type) && k < 2) return k === 0 ? 'G' : 'OH';
-    if (l.type === 'IFCPROPERTYSINGLEVALUE' && k === 2 && unquote(l.args[0]) === 'TaskGuids') return withoutOrphans(t, taskIds);
     const list = /^\(([\s\S]*)\)$/.exec(t);
     if (list && /^#\d+(\s*,\s*#\d+)*$/.test(list[1].trim())) {
       const members = l.type === 'IFCPROPERTYSET' && k === 4;
@@ -152,22 +215,18 @@ export function ownGroupTrees(view: OwnLinesView, taskIds: ReadonlySet<string>):
   const add = (g: string, t: string) => { const a = groups.get(g) ?? []; a.push(t); groups.set(g, a); };
   for (const [g, roots] of groupRoots(view)) for (const l of roots) add(g, tree(l.id, 0));
   for (const l of view.lines) {
-    if (isBaselineHead(l)) add(BASELINE_HEADS, `${view.aggregated.has(l.id) ? 'in aggregatie' : 'los'}|${argsOf({ ...l, args: l.args.slice(2) }, 0).join(',')}`);
-    else if (l.type === 'IFCTASK' && l.args[12]?.trim() === '.USERDEFINED.') add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${l.args[4]?.trim()}`);
+    // De kop met de aggregaties waarin hij staat (knownbug 1705): een kop in een andere aggregatie dan die van het eigen
+    // werkplan (die van het project, of een vreemde) leest anders dan wat de writer schrijft.
+    if (isBaselineHead(l)) add(BASELINE_HEADS, `${[...view.aggregatedIn.get(l.id) ?? ['los']].sort().join('+')}|${l.args[0].trim()}|${argsOf({ ...l, args: l.args.slice(2) }, 0).join(',')}`);
+    // De typenaam per taak (op GlobalId), met het PredefinedType erbij (PR 12d): ook een typenaam op een taak zonder
+    // `.USERDEFINED.`, en een `.USERDEFINED.` dat wegviel terwijl de taak haar type houdt, lezen anders dan wat de writer
+    // schrijft (de lezer leest het type per taak uit `OPS_TaskTypes`, niet uit deze twee slots).
+    else if (l.type === 'IFCTASK' && (l.args[12]?.trim() === '.USERDEFINED.' || (l.args[4]?.trim() ?? '$') !== '$')) {
+      add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${l.args[4]?.trim()}|${l.args[12]?.trim()}`);
+    }
   }
   for (const v of groups.values()) v.sort();
   return groups;
-}
-
-/** `TaskGuids` zonder de sleutels van taken die na herlezen niet bestaan, op sleutel gesorteerd. */
-function withoutOrphans(token: string, taskIds: ReadonlySet<string>): string {
-  const m = /^IFCTEXT\(('[\s\S]*')\)$/.exec(token);
-  if (!m) return token;
-  let map: unknown;
-  try { map = JSON.parse(unquote(m[1])); } catch { return token; }
-  if (!map || typeof map !== 'object' || Array.isArray(map)) return token;
-  const kept = Object.entries(map as Record<string, unknown>).filter(([k]) => taskIds.has(k)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
-  return `TaskGuids${JSON.stringify(kept)}`;
 }
 
 /** Het eerste verschil tussen twee indelingen: de groep en een stukje van beide kanten rond het eerste andere teken. */

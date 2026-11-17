@@ -179,6 +179,7 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
@@ -450,6 +451,7 @@ check-task-resource-scope.ts matrix
 check-task-slice.ts matrix
 check-task-tree.ts matrix
 check-task-trigger-changes.ts matrix
+check-tauri-capability-scopes.ts matrix
 check-tauri-refresh-evidence.ts matrix
 check-text-asset.ts matrix
 check-theme-bar-contrast.ts matrix
