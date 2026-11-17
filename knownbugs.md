@@ -4507,14 +4507,6 @@ en noem het in je rapport of PR-tekst.
      Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
      alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B
 
-1720. **VERVOLG (#949, blokkadecontrole bij het wachten op de browserreparatie): bij meer dan honderd reacties leest ze
-     een verouderde laatste reactie.** `.claude/skills/release/SKILL.md`, de lus `wacht_op_reparatie`, gebruikt
-     `gh issue list --json comments` en dan `.comments[-1]`. `gh` 2.45.0 vraagt `comments(first: 100)` op: bij honderd
-     gewone reacties en daarna `REPARATIE GEBLOKKEERD` als reactie 101 ziet de lus geen blokkade; omgekeerd blijft een
-     oude blokkade op positie 100 zichtbaar nadat het werk is hervat. Richting: de laatste reactie echt opvragen
-     (`comments(last: 1)` via `gh api graphql`), en beide beslissingen uit één antwoord nemen in plaats van twee
-     `gh`-aanroepen per ronde. Gevonden door de review van #949 (Sol, ronde 2). — B
-
 1721. **VERVOLG (#949, controle 7g in `verify:docs`): ze verwart verboden woorden met verboden releasegedrag.**
      `scripts/verify-docs.ts` keurt elke `14:00` of `deadline` buiten de reparatieskill af, en stelt de hele
      reparatieskill ervan vrij. Gedraaid in het geheugen: `De release heeft geen deadline.` wordt afgekeurd; een

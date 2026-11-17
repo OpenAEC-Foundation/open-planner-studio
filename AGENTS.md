@@ -17,8 +17,8 @@ If heavy local work is truly needed, ask the owner first. Owner decision 2026-10
 stricter rule of 2026-10-22.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
-steps in its own release worktree, including package checks by its Haiku translation stations
-(website generators in a temporary copy there); see
+steps in its own release worktrees (the release script and `release-werk`), including package checks by its
+Haiku translation stations (website generators in a temporary copy); see
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
 that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
@@ -457,7 +457,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (owner, 2026-11-09); the weekend stop (Saturday 23:00 to Monday 01:00) and Sunday still apply.
   When you tell a reporter in an issue comment when a fix ships, name the date of the next Monday release,
   checked against today's date (`date`). Green main CI, a green
-  last browser run (Saturday 22:00) and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  last browser run (since Friday 22:00) and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
   Monday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
   neither unfinished work nor a stop reason, also for an older tag; the final report says Arch got no package
@@ -468,7 +468,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   translations for all locales, wiki publication and the two website blocks (the highlights in
   `#whats-new` and the new entry under `#releases`); guide translations beyond nl/en run only on the
   owner's separate request. The job repairs a red CI itself (owner decision 8; route in the `ci-release` rule).
-  The schedule and literal job prompt live in `.claude/skills/release/scheduled-job.md`.
+  The schedule lives in `.claude/skills/release/scheduled-job.md`. The fixed steps run in `scripts/release/run.mjs`
+  (owner, 2026-11-16): the release thread starts it, passes every `RELEASE-STOP <code>` to the orchestrator and
+  never tags itself; release texts come from one `claude -p` text agent inside the script.
   Release text in `docs/release-notes/v<version>.md`; `docs/CHANGELOG.md` only at release.
 - The user term is "resourcebibliotheek"; code/IFC still say `companyId`/`companyName`.
 - Screen evidence in a PR: `artifacts/<topic>/`, PNG ≤ ~150 KB, a handful; local QA screenshots in `qa/`.
