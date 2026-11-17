@@ -113,7 +113,8 @@ test `tests/mcp/cases-discovery.ts` en de echte-app-run.
 
 **IFC-export van de app (#804, 1c PR 11b).** `planner_export_ifc` deelt `state/prepareIfcOutput.ts` met
 de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan uitsluitend naar een nieuw doel,
-via de optionele `McpFileFs.writeNewUserBytes` (Tauri `createNew`, geen tekstrondgang). Het antwoord bevat
+via de optionele `McpFileFs.writeNewUserBytes` (Tauri: eigen tijdelijk bestand en `place_file_exclusive`, zie
+`tauri-ifc.md`; geen tekstrondgang). Een bestaande naam en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
 `byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
 doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
 Headless biedt de nieuwe bytenaad niet en blijft op zijn bestaande tekstgedrag (1136, fase 2).

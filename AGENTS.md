@@ -213,14 +213,15 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
   Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
   same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
-  the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
+  the open folder; Windows `SetFileInformationByHandle` on the open source without replace, which succeeds when the
+  name is a hard link of the source itself, knownbug 1798); it refuses unless
   exactly one name is an own helper file and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
   then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
   plus the runtime scope, the plugin-fs rule: a deny wins). A step error stays an error; after the step it checks that
   the opened source is at the target and otherwise returns `source-changed` without touching anything again (no
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799), is in the header of
-  `place_file.rs` and design §4.10. No fallback; not yet used by any route (TS entry
-  `fileAccess/placeFileExclusive.ts`). The command-less
+  `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
+  one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The app itself denies the webview's data to every plugin-fs command and to `place_file_exclusive`: the capabilities
   `webviewgegevens-linux.json` (the WebKitGTK folders and files in `$APPLOCALDATA`, which on Linux is the same folder
@@ -244,9 +245,13 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
   Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
-- **IFC-bytes naar een nieuw doel (#804, T1).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
-  accepteert één `Uint8Array`: Tauri opent het einddoel met `createNew`, zonder rename of
-  directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
+- **IFC-bytes naar een nieuw doel (#804, T1; 1131 stap 4).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
+  accepteert één `Uint8Array`. Tauri (`writeNewUserBytes`, ook voor `planner_export_ifc`) schrijft die met `createNew`
+  in één aanroep naar een eigen `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de
+  naam; nooit `rename` van plugin-fs. Een bestaande naam weigert (`notifications.ifcForeignNewTargetOnly`);
+  `source-changed` stopt zonder terugzetten of opruimen (`notifications.ifcForeignPlaceUnknown`). Alleen
+  `unsupported`, een scopeweigering of een tijdelijk bestand buiten de scope (`forbidden path`) vallen terug op één
+  directe `createNew` op de naam; die is niet crashvast. Web downloadt een Blob; een browserhandle
   weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130); alleen Ctrl+S op het eigen bestand achter een
   handle vervangt, via `replaceHandleWithBytes` (1131 stap 2). `saveNewSiteFileBytes` en
   `saveSiteFileVersionBytes` schrijven een Blob; de laatste eist een basisversie en bewaart de

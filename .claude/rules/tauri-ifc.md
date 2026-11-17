@@ -73,7 +73,8 @@ de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder
 het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `EBWebView`; macOS geen (WKWebView krijgt geen
 gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
 app-datamap toevoegt, zet het in `EIGEN_GEBRUIK` in `place_file.rs`. TS-ingang
-`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); nog door geen route gebruikt. Proeven:
+`fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); de enige aanroeper is de nieuwe-naamroute
+hieronder (1131 stap 4). Proeven:
 `cargo test place_file` (naad `PlaceOps`; nep-app via de feature `tauri/test` voor de echte scope en dezelfde invoer
 door de IPC naar plugin-fs `rename` en dit commando; workflow
 `rust-tests.yml` op Linux, macOS en Windows) en `check-place-file-exclusive.ts`.
@@ -81,10 +82,22 @@ door de IPC naar plugin-fs `rename` en dit commando; workflow
 ## IFC is the native file format, not a sidecar
 
 De nieuwe byte-ingang (#804, T1) staat naast deze bestaande tekst-/binaire schrijfroutes:
-`saveNewBytesDialog` en `saveNewBytesToRef` nemen één `Uint8Array` (de buffer die de merge al heeft). Tauri opent alleen
-een nieuw einddoel met `createNew` met de hele buffer erin, als rauwe body in één aanroep, en valt nooit terug op direct
-overschrijven of rename. Dit is geen atomaire publicatie van een compleet bestand bij een crash
-(1131). Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
+`saveNewBytesDialog` en `saveNewBytesToRef` nemen één `Uint8Array` (de buffer die de merge al heeft). Tauri
+(`writeNewUserBytes` in `atomicWrite.ts`, knownbug 1131 stap 4; ook `planner_export_ifc`) maakt in dezelfde map
+`save-<id>.ops-save.tmp` (`userFileTempPath`, dezelfde naam als `replaceUserFile`) met `createNew` en de hele buffer als
+rauwe body in één aanroep, en zet het met `place_file_exclusive` op de naam. Per uitkomst: `placed` klaar;
+`dir-not-synced` klaar met `console.warn`; `target-exists` eigen bestand weg (best effort) en `ByteWriteError('create-new')`;
+`unsupported` en `refused`/`scope` eigen bestand weg en de directe exclusieve aanmaak (één `createNew` op de naam);
+`refused` anders een fout, zonder opruimen bij `not-regular-file`; `source-changed` stoppen met `ByteWriteError('source-changed')`
+(niets terugzetten, opruimen of terugvallen); `io` eigen bestand weg en `write`. Een `forbidden path` op het tijdelijke
+bestand (buiten de thuismap; vanaf plugin-fs 2.7.1 ook een gelinkte map naar buiten) gaat naar de directe aanmaak; een
+andere aanmaakfout (ook `EEXIST` op de hulpnaam) geeft geen eigendom: niets verwijderen, geen terugval. Na `io` of
+`target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (1795): opruimen verbergt de fout nooit en het
+doel wordt niet teruggelezen. Nooit `rename` van plugin-fs (die vervangt). De directe aanmaak is niet crashvast, en na
+een crash kan een `save-<id>.ops-save.tmp` blijven staan (1131). Meldingen: `ifcForeignNewTargetOnly` (Opslaan als en
+Exporteren, 1760) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
+`check-file-ifc-bytes.ts` (nagebootst commando op echte bestanden in `nodeFileIpc.ts`), `check-ifc-document-save.ts` en
+`cases-doc-file.ts`. Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
 hieronder); de webdialoog
 downloadt een Blob, ook met FSA (1130). De sitefuncties `saveNewSiteFileBytes` en
 `saveSiteFileVersionBytes` dragen een Blob; de laatste weigert vóór I/O zonder basisversie en

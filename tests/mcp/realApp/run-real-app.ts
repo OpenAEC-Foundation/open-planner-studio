@@ -13,7 +13,7 @@ import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PROTOCOL_VERSION, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
-import { externalClientChecks, type AppProbe } from '../externalClient';
+import { connectClient, externalClientChecks, type AppProbe } from '../externalClient';
 import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/services/mcp/discoveryContract';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -232,6 +232,42 @@ test('echte app: Opslaan van een geopend IFC-bestand schrijft via de gewone rout
     const leftovers = readdirSync(dir).filter((n) => n.endsWith('.tmp'));
     assertEq(leftovers, [], 'geen halffabricaten na opslaan');
   } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Knownbug 1131 stap 4: met een gebouwmodel schrijft `planner_export_ifc` naar een nieuwe naam via een eigen
+// tijdelijk bestand en het echte Rust-commando `place_file_exclusive`. De thuismap valt in de scope, dus hier is dat de
+// gewone weg (niet de directe terugval). Faalt het commando (ontbreekt, weigert, `io`), dan is de export een fout.
+test('echte app: planner_export_ifc met een gebouwmodel naar een nieuwe naam (place_file_exclusive)', async () => {
+  const dir = mkdtempSync(join(homedir(), 'ops-real-app-'));
+  // De bundeltest hierboven stopte de bridge; start hem weer zoals Stop/Start op het AI-tabblad.
+  await ops('mcpRestart');
+  const live = await waitLive();
+  await ops('dispatch', { action: 'setUI', args: [{ featureFlags: { ifcForeignContent: true } }] });
+  const { client } = await connectClient(`http://127.0.0.1:${live.port}/mcp`, { Authorization: `Bearer ${live.token}` });
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const res = await client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 });
+    return (res.structuredContent ?? {}) as { ok?: boolean; error?: string; data?: Record<string, unknown> };
+  };
+  try {
+    const source = join(dir, 'model.ifc'), target = join(dir, 'export.ifc');
+    const bytes = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+    writeFileSync(source, bytes);
+    const imported = await call('planner_import_schedule', { path: source });
+    assert(imported.ok, `openen met gebouwmodel: ${imported.error}`);
+    const exported = await call('planner_export_ifc', { path: target, overwrite: false });
+    assert(exported.ok, `export naar een nieuwe naam: ${exported.error}`);
+    assertEq(exported.data?.byteLength, bytes.length, 'de bytes-route schreef (byteLength)');
+    assert(readFileSync(target).equals(bytes), 'ongewijzigd document: precies de bronbytes op de nieuwe naam');
+    assert(readFileSync(source).equals(bytes), 'de bron blijft intact');
+    assertEq(readdirSync(dir).sort(), ['export.ifc', 'model.ifc'], 'geen tijdelijk bestand achtergebleven');
+    const again = await call('planner_export_ifc', { path: target, overwrite: true });
+    assert(!again.ok, 'een bestaande naam weigert, ook met overwrite');
+    assert(readFileSync(target).equals(bytes), 'het bestaande exportbestand blijft bytegelijk');
+  } finally {
+    await client.close();
+    await ops('dispatch', { action: 'setUI', args: [{ featureFlags: {} }] });
     rmSync(dir, { recursive: true, force: true });
   }
 });

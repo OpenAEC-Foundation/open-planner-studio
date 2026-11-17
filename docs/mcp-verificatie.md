@@ -284,7 +284,8 @@ headless MCP-server (#572) op een werkmap. Dit is het schakelstuk uit het ontwer
 ## Volledige IFC-export in de app (#804, fase 1c PR 11b)
 
 `planner_export_ifc` gebruikt met `ifcForeignContent` en een bewaarde vreemde bron dezelfde voorbereiding als
-Opslaan als. De app schrijft de bytes via `McpFileFs.writeNewUserBytes` naar een exclusief nieuw einddoel,
+Opslaan als. De app schrijft de bytes via `McpFileFs.writeNewUserBytes` naar een exclusief nieuw einddoel (eerst een eigen
+tijdelijk bestand, dan `place_file_exclusive`; knownbug 1131 stap 4),
 ook met `overwrite: true`. Een export vervangt geen documentbron en legt geen kalenderkeuzes vast. Het antwoord
 bevat `byteLength` voor deze byte-uitvoer; alleen de gewone tekstroute geeft `characters`.
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,

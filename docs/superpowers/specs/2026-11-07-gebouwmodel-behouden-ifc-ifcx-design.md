@@ -648,7 +648,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   (`tauri-plugin-fs-2.5.1/src/commands.rs:830`); er is geen exclusieve variant en geen harde link. Alleen `writeFile` en
   `open` kennen `createNew`.
   - **Keuze: één smal Rust-commando `place_file_exclusive(from, to)`.** Het plaatst een bestand onder een nieuwe naam en
-    faalt als die naam al bestaat, in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
+    faalt als die naam al bestaat (op Windows niet als daar een harde link van de bron zelf staat: dan `placed`, knownbug
+    1798), in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
     `renameatx_np` met `RENAME_EXCL`, op Windows `SetFileInformationByHandle` (`FileRenameInfo`) zonder vervangen. Kent het
     bestandssysteem zo'n stap niet (`EINVAL`, `ENOTSUP`, bijvoorbeeld op sommige netwerkschijven), dan geeft het de fout
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
@@ -658,8 +659,9 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     3 is dat `to`, in stap 4 `from`. Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*);
     wrakko keurde het goed onder voorwaarden (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
     `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
-    ondersteund*, dan laat de app het doel staan en biedt hij *Opslaan als* aan; Opslaan als naar een nieuwe naam maakt
-    het bestand met `createNew`.
+    ondersteund*, dan laat de app het doel staan en biedt hij *Opslaan als* aan; Opslaan als naar een nieuwe naam gaat
+    via het eigen tijdelijke bestand en dit commando, met de directe `createNew` als terugval (zie *Een nieuwe naam*
+    hieronder).
   - **Fsync en scope in het commando** (knownbug 1761; 1131 stap 3). De eis noemt stroomuitval, en in stap 4 is het
     doel een vrije naam, waar `auto_da_alloc` van ext4 niet helpt. Daarom legt het commando zelf de inhoud van `from`
     vast vóór de stap (`sync_all`; Windows `FlushFileBuffers`) en de map erna (Unix: `sync_all` op de open map;
@@ -698,6 +700,17 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     belooft geen stand op schijf: de app leidt er geen eigendom of opruimen uit af. Geen terugval: wat de stap niet
     kent, geeft *niet ondersteund*. Een netwerkschijf kan een fout geven nadat de hernoeming toch gebeurde; het
     commando vangt dat niet (knownbug 1795).
+  - **Een nieuwe naam** (Opslaan als, Exporteren → IFC en `planner_export_ifc` op de desktop; knownbug 1131 stap 4, de
+    eerste route op het commando). De app schrijft de hele uitvoer met `createNew` in één aanroep naar
+    `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de gekozen naam
+    (`writeNewUserBytes` in `atomicWrite.ts`). `placed` en `dir-not-synced` zijn klaar; `target-exists` ruimt het eigen
+    bestand op en meldt dat alleen een nieuwe naam kan; `unsupported` en `refused` met reden `scope` ruimen op en vallen
+    terug op de directe exclusieve aanmaak (één `createNew` op de naam); een andere weigering is een fout, zonder
+    opruimen bij `not-regular-file`; `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
+    planner hoort dat de app niet weet of het bestand goed is opgeslagen; `io` ruimt op en is een fout. Mag het
+    tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, of in een map die via een link naar buiten
+    de thuismap wijst), dan blijft de directe aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast
+    (knownbug 1131). Na een crash kan er een `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
     (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
     hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
@@ -708,7 +721,9 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     bijwerken en `pendingReplace` wissen.
   - **Fouten.** Faalt stap 4 omdat er weer een bestand op het doelpad staat, dan stopt opslaan. Alle drie de bestanden
     blijven staan, en de melding noemt de precieze paden: het nieuwe bestand op het doelpad, de uitvoer van de app in
-    het tijdelijke bestand en de vorige versie in `.ops-vorige`. Faalt stap 4 om een andere reden, dan zet de app
+    het tijdelijke bestand en de vorige versie in `.ops-vorige`. Geeft stap 4 `source-changed`, dan stopt de app met een
+    onbekende stand op schijf: hij zet niets terug en ruimt niets op, en meldt dat hij niet weet of het bestand goed is
+    opgeslagen (knownbug 1744). Faalt stap 4 om een andere reden, dan zet de app
     `.ops-vorige` exclusief terug op het doel; faalt ook dat, dan meldt hij meteen waar de bron nu staat. Faalt stap 3
     (Windows: het doel is open in een ander programma), dan stopt opslaan zonder iets te verplaatsen.
   - **Restbestanden na een crash.** Bij herstel, en bij het openen van een bestand waarvoor het manifest
@@ -1601,7 +1616,7 @@ meer. Een JSON-item zonder sleutelveld (of met een dubbel sleutelveld) en met on
 een herkomstmerk `ifcOrigin` op het domeinitem; dat reist mee door bewerken, undo en herstel, en ontbreekt het of
 staat het dubbel, dan stopt opslaan met de bestaande vraag. Paren op waarden en op volgorde is weg. In Tauri vervangt
 geen stap meer een bestaand bestand: een nieuw, smal Rust-commando `place_file_exclusive` plaatst exclusief
-(`RENAME_NOREPLACE`, `RENAME_EXCL`, `MoveFileExW` zonder vervangen), met `createNew` als terugval; staat er weer een
+(`RENAME_NOREPLACE`, `RENAME_EXCL`, `SetFileInformationByHandle` zonder vervangen), met `createNew` als terugval; staat er weer een
 bestand op het doel, dan stopt opslaan en blijven alle bestanden staan. Het fout- en herstelpad en het opruimen van
 eigen restbestanden (op id en sha256 uit het manifest) zijn beschreven; per route staat de echte garantie. Het commando
 is goedgekeurd onder voorwaarden (wrakko, 9 november 2026, §11). De voorproef `classify-v9.py` weigert een `#id` dat twee keer voorkomt en controleert de
