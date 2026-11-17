@@ -60,8 +60,9 @@ export async function runForeignScan(bytes: Uint8Array, opts: ForeignScanRunOpti
   try {
     return await new Promise<ForeignScanOutcome>((resolve, reject) => {
       let started = false;
+      // MUTATIE: niet op de startbevestiging wachten, alleen op de rekentijd.
       timeout = setTimeout(() => reject(new Error('De scanner-Worker startte niet op tijd.')),
-        opts.startTimeoutMs ?? FOREIGN_SCAN_START_TIMEOUT_MS);
+        opts.timeoutMs ?? 120_000);
       active.onmessage = ({ data }: MessageEvent<ForeignScanWorkerResponse>) => {
         if (data.id !== 1) return;
         if ('started' in data) {
