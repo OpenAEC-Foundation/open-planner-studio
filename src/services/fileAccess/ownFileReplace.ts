@@ -266,7 +266,9 @@ export async function settleReplaceRemnants(
 export async function tauriOwnFileReplaceFs(): Promise<OwnFileReplaceFs> {
   const fs = await import('@tauri-apps/plugin-fs');
   const { lstat, createNew, remove } = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
-  return { lstat, createNew, remove, place: placeFileExclusive, content: sourceTargetContentOfPathTauri };
+  // MUTATIE (a): stap 3 en 4 met een gewone hernoeming die een bestaand doel vervangt.
+  return { lstat, createNew, remove, content: sourceTargetContentOfPathTauri,
+    place: async (from, to) => { await fs.rename(from, to); return { code: 'placed' }; } };
 }
 
 /** Het opruimen op plugin-fs: een ontbrekend bestand is `null`, een link wordt niet gelezen. */
