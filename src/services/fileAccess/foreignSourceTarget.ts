@@ -19,7 +19,7 @@
 // vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { scanForeignTargetBlob, scanForeignTargetBytes, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
 import type { FileRef } from './index';
@@ -85,7 +85,7 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
         return readers.scanPath ? refusal(await readers.scanPath(target.path)) : 'unreadable';
       case 'site': {
         const bytes = readers.readSite ? await readers.readSite(target.id) : null;
-        return bytes ? refusal(scanForeignTargetBytes(bytes)) : 'unreadable';
+        return bytes ? refusal(await scanForeignTargetBytesAsync(bytes)) : 'unreadable';
       }
     }
   } catch {

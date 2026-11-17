@@ -34,6 +34,10 @@
 //      meerregelige string als doel: er komt een write.
 //      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel, ook met parameters bij beide
 //      sectiekoppen (`DATA('…',(…));`): geen write.
+//  10. opslaan in de achtergrond, stap 2 (9c): de indeling van het doel draait in de scanworker. Bytes, stroom en
+//      FSA-bestand geven met een geïnjecteerde Worker (ook een die niet start, niet antwoordt of een fout geeft) precies de
+//      uitkomst van de synchrone weg van de kern; boven 300 MiB 'unreadable' zonder Worker; `targetRefusal` gebruikt de
+//      module-Worker van `globalThis`.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -43,6 +47,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
+import { fakeScanWorker, fakeScanWorkerStats } from './fakeScanWorker';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -1741,6 +1746,121 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     ipc.dispose();
     (globalThis as { window?: unknown }).window = savedWindow;
     rmSync(dir, { recursive: true, force: true });
+  }
+  // 9c. Stap 2 van achtergrond opslaan: de indeling van het doel draait in de scanworker (`runForeignScan`), niet op de
+  // hoofdthread. Elke asynchrone ingang (bytes, stroom, FSA-bestand) geeft met een geïnjecteerde Worker precies wat de
+  // synchrone weg van de kern geeft, ook als de Worker niet start, niet antwoordt of een fout geeft (dan rekent de
+  // terugval op de hoofdthread). Geen scanuitkomst is nooit 'no-model'.
+  {
+    const { scanForeignTargetBytes, scanForeignTargetBytesAsync, scanForeignTargetSource, scanForeignTargetBlob } =
+      await import('@/services/ifc/foreign/targetForeignScan');
+    const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+    const { IFC_FOREIGN_SCAN_MAX_BYTES } = await import('@/services/ifc/foreign/foreignScan');
+    const { targetRefusal } = await import('@/services/fileAccess/foreignSourceTarget');
+    type RunOptions = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanRunOptions;
+    type Scan = Awaited<ReturnType<typeof scanForeignTargetSource>>;
+    /** Een bron uit losse stukken, met terugspoelen naar elke positie (de stukken mogen dezelfde buffer delen). */
+    const segmentSource = (segments: Uint8Array[]) => {
+      let index = 0;
+      let skip = 0;
+      let closed = 0;
+      return {
+        source: {
+          next: async () => {
+            if (index >= segments.length) return null;
+            const chunk = segments[index++].subarray(skip);
+            skip = 0;
+            return chunk;
+          },
+          seek: async (offset: number) => {
+            index = 0;
+            while (index < segments.length && offset >= segments[index].length) offset -= segments[index++].length;
+            skip = offset;
+          },
+          close: async () => { closed++; },
+        },
+        closed: () => closed,
+      };
+    };
+    const chunked = (bytes: Uint8Array, size = 64 << 10) => {
+      const segments: Uint8Array[] = [];
+      for (let at = 0; at < bytes.length; at += size) segments.push(bytes.subarray(at, at + size));
+      return segmentSource(segments);
+    };
+    const stats = fakeScanWorkerStats();
+    const modes = [
+      ['ok', () => fakeScanWorker('ok', stats)],
+      ['transport', () => fakeScanWorker('transport', stats)],
+      ['stil', () => fakeScanWorker('stil', stats)],
+      ['indeling', () => fakeScanWorker('indeling', stats)],
+      ['start gooit', () => { throw new Error('CSP'); }],
+      ['geen Worker', () => null],
+    ] as const;
+    const csv = enc.encode('Naam;Duur\nFundering;5\n');
+    const cases: Array<{ name: string; bytes: Uint8Array; want?: Scan }> = [
+      { name: 'eigen planning', bytes: showcase, want: 'no-model' },
+      { name: 'vreemde inhoud', bytes: externalPset, want: 'foreign' },
+      { name: 'vreemde inhoud in een string', bytes: enc.encode(stringFile(dec(showcase))), want: 'foreign' },
+      { name: 'gebouwmodel', bytes: modelIfc4, want: 'model' },
+      { name: 'kapotte kop (Terra)', bytes: enc.encode(terraFile(dec(modelIfc4))), want: 'unreadable' },
+      { name: 'leeg bestand', bytes: new Uint8Array(0), want: 'not-ifc' },
+      { name: 'CSV', bytes: csv, want: 'not-ifc' },
+      // De STEP-scanner van de indeling weigert, de modelscan niet: 'unreadable' uit de indeling zelf.
+      ...dataKopBestanden(dec(showcase), 'scannerWeigert').slice(0, 2)
+        .map(([name, text]) => ({ name: `indeling weigert ${name}`, bytes: enc.encode(text), want: 'unreadable' as const })),
+    ];
+    for (const c of cases) {
+      const sync = scanForeignTargetBytes(c.bytes);
+      eq(`9c ${c.name}: synchrone uitkomst`, sync, c.want);
+      const classifies = scanTargetBytes(c.bytes) === 'no-model';
+      for (const [mode, createWorker] of modes) {
+        const opts: RunOptions = { createWorker, timeoutMs: 20 };
+        const posts = stats.posts;
+        const terminated = stats.terminated;
+        const viaBytes = await scanForeignTargetBytesAsync(c.bytes, opts);
+        const stream = chunked(c.bytes);
+        const viaSource = await scanForeignTargetSource(stream.source, opts);
+        const viaBlob = await scanForeignTargetBlob(new Blob([c.bytes as BlobPart]), opts);
+        eq(`9c ${c.name}, Worker ${mode}: bytes, stroom en bestand gelijk aan de synchrone weg`, [viaBytes, viaSource, viaBlob], [sync, sync, sync]);
+        eq(`9c ${c.name}, Worker ${mode}: de stroom is gesloten`, stream.closed(), 1);
+        const workers = mode === 'start gooit' || mode === 'geen Worker' ? 0 : classifies ? 3 : 0;
+        eq(`9c ${c.name}, Worker ${mode}: de indeling ging ${workers ? 'door de Worker' : 'niet naar een Worker'}, die daarna stopte`,
+          [stats.posts - posts, stats.terminated - terminated], [workers, workers]);
+      }
+    }
+    // Boven de grens van 300 MiB: 'unreadable', zonder Worker. De stroom deelt één buffer van 1 MiB (geen 300 MiB in het
+    // geheugen): een eigen planning met een lang commentaar na `DATA;`, dus de modelscan leest alles en zegt 'no-model'.
+    {
+      const own = dec(showcase);
+      const data = own.indexOf('\nDATA;\n') + '\nDATA;\n'.length;
+      const spaces = new Uint8Array(1 << 20).fill(0x20);
+      const segments = [enc.encode(`${own.slice(0, data)}/*`), ...Array.from({ length: 301 }, () => spaces), enc.encode(`*/\n${own.slice(data)}`)];
+      ok('9c te groot: de stroom is groter dan de grens', segments.reduce((n, s) => n + s.length, 0) > IFC_FOREIGN_SCAN_MAX_BYTES);
+      const posts = stats.posts;
+      const big = segmentSource(segments);
+      eq('9c te groot: stroom unreadable, bron gesloten', [await scanForeignTargetSource(big.source, { createWorker: () => fakeScanWorker('ok', stats) }), big.closed()], ['unreadable', 1]);
+      const hugeBlob = { size: IFC_FOREIGN_SCAN_MAX_BYTES + 1, stream: () => { throw new Error('niet lezen'); } } as unknown as Blob;
+      eq('9c te groot: bestand unreadable zonder te lezen', await scanForeignTargetBlob(hugeBlob, { createWorker: () => fakeScanWorker('ok', stats) }), 'unreadable');
+      eq('9c te groot: geen Worker gevraagd', stats.posts - posts, 0);
+    }
+    // De app zelf (`targetRefusal`, site en handle) gebruikt de module-Worker als die er is: met een nep-`Worker` op
+    // `globalThis` (zoals de webview) gaat de indeling erdoor, met dezelfde weigering als zonder Worker.
+    const originalWorker = globalThis.Worker;
+    try {
+      for (const c of cases) {
+        const refusal = (scan: Scan) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
+        const want = refusal(scanForeignTargetBytes(c.bytes));
+        const classifies = scanTargetBytes(c.bytes) === 'no-model';
+        globalThis.Worker = class { constructor() { return fakeScanWorker('ok', stats); } } as unknown as typeof Worker;
+        const posts = stats.posts;
+        const site = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
+        const handle = await targetRefusal({ kind: 'handle', handle: fakeHandle('doel.ifc', c.bytes).handle });
+        eq(`9c ${c.name}: site en handle weigeren gelijk, via de Worker`, [site, handle, stats.posts - posts], [want, want, classifies ? 2 : 0]);
+        globalThis.Worker = class { constructor() { return fakeScanWorker('indeling', stats); } } as unknown as typeof Worker;
+        const failing = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
+        eq(`9c ${c.name}: een fout uit de Worker geeft dezelfde weigering`, failing, want);
+      }
+    } finally { globalThis.Worker = originalWorker; }
   }
 }
 

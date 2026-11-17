@@ -19,8 +19,9 @@ export interface ForeignScanRunOptions {
   timeoutMs?: number;
 }
 
-/** Een fout uit `scanForeign` in de Worker: inhoudelijk, dus geen terugval. */
-class ForeignScanFailure extends Error {}
+/** Een fout uit `scanForeign` in de Worker: inhoudelijk, dus geen terugval. De doelscan rekent hem wel opnieuw
+ *  (`targetForeignScan.ts`), zodat zijn uitkomst altijd die van de synchrone weg is. */
+export class ForeignScanFailure extends Error {}
 
 function defaultCreateWorker(): ForeignScanWorker | null {
   if (typeof Worker === 'undefined') return null;
