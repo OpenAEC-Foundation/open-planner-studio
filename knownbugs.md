@@ -2875,6 +2875,16 @@ en noem het in je rapport of PR-tekst.
      scanworker doet eerst de modelcontrole en dan de indeling, met behoud van de vroege modelweigering, de grens van
      300 MiB en het terugspoelen van de stroomroute; niet vooraf elk model volledig inlezen. Een volgende kleine PR.
      — B (meting)
+1759. **VERVOLG (#985, scanworker): de starttijd van 3 s is een inschatting; trage ontvangst kan een gezonde worker
+     onnodig naar de hoofdthread terughalen.** `foreignScanRunner.ts` start de timer vóór `postMessage`; de worker
+     stuurt zijn startbericht pas als het verzoek met de kopie van de bytes binnen is (`foreignScan.worker.ts`). Het
+     laden van het script, het kopiëren en het verwerken van het startbericht vallen dus binnen die 3 s. Duurt dat bij
+     een groot bestand langer, of is de hoofdthread zo lang bezet, dan rekent de app zelf: trager en blokkerend, maar
+     met dezelfde uitkomst. Geldt voor het openen en voor de doelscan. Geen geval aangetoond waarin een gewone start
+     de grens haalt; de starttijd in een echte webview (koud, met enkele honderden MiB) is niet gemeten. Het commentaar
+     bij de timer zegt "zonder netwerk"; dat geldt niet algemeen voor de app in de browser. Richting: meten in de echte
+     webview en het commentaar versoberen; een startbericht vóór het verzoek zou de kopie buiten de starttijd houden,
+     maar bevestigt dan alleen dat het script geladen is. Gevonden door de review van #985 (Sol, ronde 2). — S
 
 ## Rondleiding, Help en extensie-gidsen
 
