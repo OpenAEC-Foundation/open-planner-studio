@@ -226,8 +226,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   and plugin-fs `rename`/`remove` only check the given paths), and `fs:allow-rename`/`fs:allow-remove` deny
   `$APPLOCALDATA` itself; `mkdir`, `read_dir`, reading and writing there stay allowed (crash recovery and the MCP files
   live there, so never deny all of `$APPLOCALDATA`). Out of bounds: renaming or removing a folder above it on Windows
-  (knownbug 1770), and a dot-named file inside a protected folder that the user picks in a file dialog (the
-  matcher's leading-dot rule keeps a deny from matching it; knownbug 1771). plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797).
+  (knownbug 1775), and a dot-named file inside a protected folder that the user picks in a file dialog (the
+  matcher's leading-dot rule keeps a deny from matching it; knownbug 1776). plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797).
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
   levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
   `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde

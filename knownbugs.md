@@ -2756,8 +2756,8 @@ en noem het in je rapport of PR-tekst.
      #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
      `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
 
-1770. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
-     De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en wat eronder ligt (op 1771
+1775. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
+     De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en wat eronder ligt (op 1776
      na), en `rename`
      en `remove` van `$APPLOCALDATA` zelf. Een map daarboven valt erbuiten (besluit van de technisch beslisser, 16
      november 2026): op Windows staat `$HOME/**` `AppData\Local` en `AppData` toe, en `rename` of recursief `remove`
@@ -2767,7 +2767,7 @@ en noem het in je rapport of PR-tekst.
      de bestandsdialoog als map toestaat (`dependentFolder.ts`, `open({ directory: true })`) wel een bovenmap zijn.
      Niet in een echte app nagegaan. — B (bron gelezen)
 
-1771. **VERVOLG (beveiliging, buiten de grens van #975): een puntbestand in een beschermde webviewmap dat de gebruiker zelf kiest.**
+1776. **VERVOLG (beveiliging, buiten de grens van #975): een puntbestand in een beschermde webviewmap dat de gebruiker zelf kiest.**
      Buiten de grens (besluit van de technisch beslisser, 17 november 2026): een bestand met een punt vooraan (of onder
      een map met een punt vooraan) in een beschermde map, dat de gebruiker zelf in een bestandsdialoog kiest. De
      puntregel van de matcher laat het verbod dat pad niet raken; code in de webview komt er zonder die keuze van de
