@@ -6,7 +6,7 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
-## v2026.47.0 — 2026-11-16
+## v2026.47.0 — 2026-11-17
 
 ### Added
 
