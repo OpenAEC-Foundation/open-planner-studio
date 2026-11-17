@@ -155,7 +155,7 @@ export function installNodeFileIpc() {
         };
       }
       case 'plugin:fs|exists': {
-        // plugin-fs 2.5.0 `exists`: eerst de scope (`resolve_path`, buiten de scope de fout "forbidden path"), dan
+        // plugin-fs `exists` (2.5.0 en 2.7.1 gelijk): eerst de scope (`resolve_path`, buiten de scope de fout "forbidden path"), dan
         // `Path::exists`, dat links volgt en elke andere fout als `false` teruggeeft.
         const p = String(path);
         if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;

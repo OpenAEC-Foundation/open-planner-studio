@@ -4,15 +4,16 @@
 // al bestaat, en anders bij één venster blijft (`pickSavePathTauri` in `tauriBackend.ts`).
 //
 // Nagebootst: de ECHTE plugin-fs- en plugin-dialog-JS-clients via nep-IPC (`nodeFileIpc.ts`) op Node-fs. Het venster
-// hieronder geeft, zoals plugin-dialog 2.7.0 (`commands.rs` `save`: `allow_file`), alleen het pad vrij dat het
-// teruggeeft, en stelt zoals GTK (rfd 0.16.0, `gtk_file_chooser_set_do_overwrite_confirmation`) de overschrijfvraag
-// voor dat pad. De scope volgt tauri 2.12.3 `Scope::is_allowed`: een bestaand pad wordt eerst met links en al
-// opgelost, een nieuw pad telt zoals het er staat. Niet bewezen: de echte Rust-scope, het echte venster, Windows/macOS.
+// hieronder geeft, zoals plugin-dialog 2.7.0 (`commands.rs` `save`: `allow_file`), het pad vrij dat het teruggeeft, in
+// de twee vormen die tauri 2.12.3 `push_pattern` opneemt: zoals gegeven, en met `canonicalize_parent` (`scope/fs.rs`:
+// de dichtstbijzijnde bestaande voorouder canoniek, de rest erachter). Het stelt zoals GTK (rfd 0.16.0,
+// `gtk_file_chooser_set_do_overwrite_confirmation`) de overschrijfvraag voor dat pad. Hoe plugin-fs een pad tegen de
+// scope legt, staat per versie in `SCOPE_RULES`. Niet bewezen: de echte Rust-scope, het echte venster, Windows/macOS.
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { installNodeFileIpc, writeFileCall } from './nodeFileIpc';
+import { installNodeFileIpc, realPath, writeFileCall } from './nodeFileIpc';
 import {
   saveBytePartsDialogTauri, saveBytesDialogTauri, saveFileDialogTauri,
 } from '@/services/fileAccess/tauriBackend';
@@ -22,14 +23,27 @@ const FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
 const NEW_TEXT = 'NIEUWE INHOUD\r\n';
 const OLD_TEXT = 'OUDE INHOUD\n';
 
+/** tauri 2.12.3 `canonicalize_parent` (`scope/fs.rs:162-191`): het pad canoniek, of anders zijn dichtstbijzijnde
+ *  voorouder die canoniek te maken is, met de overige delen erachter (een dode link telt als niet te maken). */
+function canonicalParent(p: string): string {
+  try { return fs.realpathSync.native(p); } catch { /* bestaat niet: één map hoger */ }
+  const parent = path.dirname(p);
+  return parent === p ? p : path.join(canonicalParent(parent), path.basename(p));
+}
+
 /**
- * Hoe plugin-fs een pad tegen de scope legt. Per versie één regel; de verhoging naar plugin-fs 2.7.1 (#978) voegt hier
- * een regel toe die elke link oplost, ook in de voorouders van een nieuw pad (`resolve_real_path`), met de verwachte
- * vensters voor een map in de thuismap die een link naar buiten is.
+ * Hoe plugin-fs een pad tegen de scope legt, per versie één regel, met wat de app in een map in de thuismap doet die
+ * een link naar buiten is: hoeveel vensters een nieuwe naam zonder extensie kost (`linkDialogs`), en of het hulpbestand
+ * `save-<id>.ops-save.tmp` daar achterblijft (`linkHelperLeft`).
  */
-const SCOPE_RULES: { plugin: string; scopePath: (p: string) => string; linkDialogs: number }[] = [
+const SCOPE_RULES: { plugin: string; scopePath: (p: string) => string; linkDialogs: number; linkHelperLeft: boolean }[] = [
   // plugin-fs 2.5.0 + tauri 2.12.3 `is_allowed`: bestaat het pad, dan het opgeloste pad; anders het pad zoals gegeven.
-  { plugin: 'plugin-fs 2.5.0', scopePath: p => (fs.existsSync(p) ? fs.realpathSync(p) : p), linkDialogs: 1 },
+  // Het nieuwe hulpbestand mag dus (lexicaal onder `$HOME`), maar `rename` en `remove` ervan niet (opgelost buiten).
+  { plugin: 'plugin-fs 2.5.0', scopePath: p => (fs.existsSync(p) ? fs.realpathSync(p) : p), linkDialogs: 1, linkHelperLeft: true },
+  // plugin-fs 2.7.1 `resolve_path` (`commands.rs:1615-1657`): de toestemming geldt het echte pad (`resolve_real_path`),
+  // ook de voorouders van een nieuw pad. `kopie.ifc` naast een gekozen `kopie` is dan niet vrij (tweede venster), en het
+  // hulpbestand wordt al bij het aanmaken geweigerd: Opslaan schrijft direct (knownbug 1752).
+  { plugin: 'plugin-fs 2.7.1', scopePath: p => realPath(p), linkDialogs: 2, linkHelperLeft: false },
 ];
 
 let passed = 0;
@@ -87,7 +101,9 @@ async function main() {
         // GTK: "Nee" op de overschrijfvraag laat het venster open; de proef annuleert dan.
         if (!round.overwrite) return null;
       }
+      // `allow_file` → `push_pattern`: het pad zoals gegeven én in de vorm van `canonicalize_parent`.
       granted.add(round.pick);
+      granted.add(canonicalParent(round.pick));
       return round.pick;
     };
 
@@ -208,16 +224,58 @@ async function main() {
           assert.equal(fs.readFileSync(full, 'utf8'), OLD_TEXT);
         });
 
-        await check(`${tag} (g) ${variant}: map in de thuismap die een link naar buiten is, nieuwe naam zonder extensie`, async () => {
+        // Een map in de thuismap die een link naar buiten is (`~/projecten` → `/data/projecten`). Met plugin-fs 2.7.1 is
+        // dit het geval dat de review van #978 als blokkade vond: zonder de tweede ronde van #979 weigert het schrijven.
+        const linked = () => {
           reset();
           fs.symlinkSync(outside, path.join(home, 'projecten'));
-          const typed = path.join(home, 'projecten', 'kopie'), full = `${typed}.ifc`;
+          return path.join(home, 'projecten', 'kopie');
+        };
+        /** In de echte map: het doel, plus alleen het hulpbestand als de regel dat laat staan. */
+        const realDirHolds = (file: string) => {
+          const rest = fs.readdirSync(outside).filter(n => n !== file);
+          assert.ok(fs.readdirSync(outside).includes(file), `${file} staat er`);
+          assert.equal(rest.length, rule.linkHelperLeft ? 1 : 0, `rest: ${rest.join(', ')}`);
+          for (const n of rest) assert.match(n, /^save-.*\.ops-save\.tmp$/);
+        };
+
+        await check(`${tag} (g) ${variant}: gelinkte map, nieuwe naam zonder extensie`, async () => {
+          const typed = linked(), full = `${typed}.ifc`;
           const script: Round[] = rule.linkDialogs === 1 ? [{ pick: typed }] : [{ pick: typed }, { pick: full }];
           const outcome = await save(variant, script);
-          assert.equal(seen.length, rule.linkDialogs);
+          assert.deepEqual(seen.map(r => r.defaultPath), ['standaard.ifc', full].slice(0, rule.linkDialogs));
           savedTo(outcome, full);
-          // Niet `deepEqual`: met plugin-fs 2.5.0 blijft hier het hulpbestand `save-<id>.ops-save.tmp` staan (knownbug 1755).
-          assert.ok(fs.readdirSync(outside).includes('kopie.ifc'));
+          realDirHolds('kopie.ifc');
+        });
+
+        await check(`${tag} (g) ${variant}: gelinkte map, naam met extensie → één venster`, async () => {
+          const full = `${linked()}.ifc`;
+          savedTo(await save(variant, [{ pick: full }]), full);
+          assert.deepEqual(seen, [{ defaultPath: 'standaard.ifc', askedOverwrite: false }]);
+          realDirHolds('kopie.ifc');
+        });
+
+        await check(`${tag} (g) ${variant}: gelinkte map, eindnaam bestaat → tweede venster, bevestigen vervangt`, async () => {
+          const typed = linked(), full = `${typed}.ifc`;
+          fs.writeFileSync(full, OLD_TEXT);
+          const outcome = await save(variant, [{ pick: typed }, { pick: full, overwrite: true }]);
+          assert.deepEqual(seen, [
+            { defaultPath: 'standaard.ifc', askedOverwrite: false },
+            { defaultPath: full, askedOverwrite: true },
+          ]);
+          savedTo(outcome, full);
+          realDirHolds('kopie.ifc');
+        });
+
+        await check(`${tag} (g) ${variant}: gelinkte map, eindnaam bestaat, tweede venster geannuleerd → oud bestand bytegelijk`, async () => {
+          const typed = linked(), full = `${typed}.ifc`;
+          fs.writeFileSync(full, OLD_TEXT);
+          const before = ipc.calls.length;
+          assert.equal(await save(variant, [{ pick: typed }, 'annuleren']), null);
+          assert.equal(seen.length, 2);
+          assert.deepEqual([...fs.readFileSync(full)], [...Buffer.from(OLD_TEXT)]);
+          assert.deepEqual(fs.readdirSync(outside), ['kopie.ifc']);
+          assert.equal(ipc.calls.slice(before).filter(writeFileCall).length, 0, 'geen schrijfactie');
         });
       }
     } finally {
