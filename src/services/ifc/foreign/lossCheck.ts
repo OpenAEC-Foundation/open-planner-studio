@@ -228,6 +228,12 @@ export interface LossCheckInput {
    * ook gedragen is (a): geen stuk ervan had (b) nodig. Zonder dit veld: de controle van main.
    */
   readonly ownGroups?: ReadonlyMap<number, string>;
+  /**
+   * E1 (PR 12c): het openen veranderde de baselinekoppen niet (a′ voor de tweede vorm van `OPS_Baselines`, in dezelfde
+   * bronvorm als `ownGroups`). Alleen dan mag een kop met zijn baseline uit de aggregatie van het werkplan wegvallen of erbij
+   * komen (`headsFollowBaselines`).
+   */
+  readonly headsUnchanged?: boolean;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -368,6 +374,11 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // dat de planning gelijk blijft. Elke andere groep, en alles buiten de eigen groepen, blijft onder de controle hieronder.
   const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
   const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
+  // E1, de baselinekop (PR 12c): valt `OPS_Baselines` onder de toets hierboven (in de bron, gedragen, niet door het openen
+  // veranderd), veranderde het openen ook de koppen niet, en zette (b) geen kop terug, dan mag een kop met zijn baseline uit
+  // de aggregatie van het werkplan wegvallen of erbij komen (`headsFollowBaselines`). Anders geldt de controle van main.
+  const headsFollow = input.headsUnchanged === true && [...input.ownGroups?.values() ?? []].includes(PSET.Baselines)
+    && !uncarried.has(PSET.Baselines) && !restores.some(r => isBaselineHead(index, r.chunk));
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
@@ -442,7 +453,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
-      if (ownGroupCarries(d.chunk)) continue;
+      if (ownGroupCarries(d.chunk) || (headsFollow && !lost.has(d.chunk) && headsFollowBaselines(ctx, d))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -2248,6 +2259,49 @@ function addedBaselineIds(ctx: O1Context): ReadonlySet<string> {
   if (!ctx.plannerChanged.has('baselines')) return new Set();
   const before = new Set(((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).map(b => b.id));
   return new Set((ctx.input.domain.baselines ?? []).filter(b => !before.has(b.id)).map(b => b.id));
+}
+
+/**
+ * E1 (PR 12c; onderzoek van 14 november 2026, vraag 7, stap 3): de leden van de aggregatie van het eigen werkplan, waar de
+ * baselinekoppen in staan (de tweede vorm van `OPS_Baselines`). Een kop van de bron die niet meer in O1 staat (zijn baseline
+ * is weg), valt uit de bronlijst; een nieuwe kop (een baseline die erbij kwam) valt uit de lijst van O1. Wat overblijft,
+ * moet exact gelijk zijn, in dezelfde volgorde: elk ander lid (het live schema, of een lid van een ander programma) staat er
+ * nog, op zijn plek. Hooguit zoveel koppen weg als de planner baselines wiste, en hooguit zoveel erbij als hij er maakte.
+ * Welke kop bij welke baseline hoort en wat erin staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: elke kop
+ * met zijn naam, datums en de aggregatie waarin hij staat). Alleen als `headsFollow` in `lossCheck` geldt.
+ */
+function headsFollowBaselines(ctx: O1Context, d: LossDiff): boolean {
+  const { input, p } = ctx;
+  const { index } = input;
+  const s = d.chunk;
+  if (index.type(s) !== 'IFCRELAGGREGATES' || d.whole || d.arg !== 5 || (d.outArg ?? d.arg) !== 5) return false;
+  const whole = index.refAt(s, 4);
+  if (whole < 0 || index.type(whole) !== 'IFCWORKPLAN' || input.cls.classes[whole] !== 1 || !input.fixed.has(Number(index.id(whole)))) return false;
+  const line = p.out.get(p.pairedOut.get(s)?.[0] ?? -1);
+  const members = index.refsAt(s, 5);
+  if (!line || members.some(c => c < 0)) return false;
+  const isBaselineLine = (l: OutLine | undefined) => l?.type === 'IFCWORKSCHEDULE' && l.args[workControlSlots(l.args).predefinedType]?.trim() === '.BASELINE.';
+  const dropped = new Set(members.filter(c => input.fixed.has(Number(index.id(c))) && isBaselineHead(index, c) && !p.out.has(Number(index.id(c)))));
+  if (dropped.size > removedBaselineCount(ctx)) return false;
+  const kept = members.filter(c => !dropped.has(c));
+  const out: number[] = [];
+  let added = 0;
+  for (const id of refList(line.args[5])) {
+    // Een nieuwe kop heeft geen vast id (een kop van de bron houdt het zijne via zijn GlobalId); het paren kan hem op zijn
+    // plek aan een gewiste kop koppelen, dus eerst dit.
+    if (!input.fixed.has(id) && input.objects1?.get(id) === 'baselines' && isBaselineLine(p.out.get(id))) { added++; continue; }
+    const c = sourceChunkOf(input, id, p);
+    if (c === undefined) return false;
+    out.push(c);
+  }
+  return added <= addedBaselineIds(ctx).size && kept.length === out.length && kept.every((c, i) => c === out[i]);
+}
+
+/** Hoeveel baselines de planner wiste, tegenover de toestand bij openen. */
+function removedBaselineCount(ctx: O1Context): number {
+  if (!ctx.plannerChanged.has('baselines')) return 0;
+  const after = new Set((ctx.input.domain.baselines ?? []).map(b => b.id));
+  return ((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).filter(b => !after.has(b.id)).length;
 }
 
 /** Is het object van een lid verdwenen/erbij gekomen, of wisselde het zijn ouder/kalender? */

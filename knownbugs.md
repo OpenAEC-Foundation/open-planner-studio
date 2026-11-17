@@ -2142,13 +2142,6 @@ en noem het in je rapport of PR-tekst.
      bij een download juist het nieuwe doel en `sourceMissing: false` vast. Richting: de regel beperken tot de
      mergeroute en de uitzondering noemen. Gevonden door de review van #935. — B
 
-1700. **VERVOLG (#804, gebouwmodel): één bestaande baseline wissen weigert.**
-     Op `eigen-plus-model.ifc`, het kantoorvoorbeeld met een wand en `oud-eigen-0.1-plus-model.ifc` weigert de merge
-     "één bestaande baseline wissen" met `niet-gedragen` op de `IfcRelAggregates` van het werkplan (de kop van de
-     gewiste baseline). Zelfde oorzaak als 1581, maar een gewonere handeling. Gemeten in het onderzoek van 14 november
-     (`logs/v1/7c7d-*.jsonl`) en opnieuw in `check-ifc-foreign-eigen-uitvoer.ts` (PR 12a). Richting: stap 3 van de
-     overstap (de baselinekop). — B
-
 1701. **VERVOLG (#804, controle): de verliescontrole toetst de typenaam op de taak niet op zijn waarde.**
      Een verkeerde `ObjectType` op de taak waarvan de planner het type veranderde (nieuw type, typewissel), lieten de
      verliescontrole en de controle "planning na openen" allebei door: de verliescontrole ziet alleen dat dat slot mocht
@@ -2165,7 +2158,9 @@ en noem het in je rapport of PR-tekst.
      het onderzoek van 14 november (`logs/wees.jsonl`, `logs/v1/taskguids-oud.jsonl`). Sinds PR 12b ook gezien in
      `check-ifc-foreign-eigen-toets.ts`: in de keten op het oude bestand schrijft stap 2 (code hernoemen, getypeerde taak
      wissen, baseline B2), en weigert daarna "taak en baseline erbij" op `TaskGuids` (de groep is dan niet gedragen).
-     Richting: vóór stap 5 van de overstap de GlobalId en taak-id van zo'n rij stabiel maken. — B
+     Sinds PR 12c weigeren daar om dezelfde reden ook "B1 wissen, B2 actief" en "alles wissen": in een niet-gedragen
+     `OPS_Baselines` beweegt de baselinekop niet mee. Richting: vóór stap 5 van de overstap de GlobalId en taak-id van zo'n
+     rij stabiel maken. — B
 
 1703. **VERVOLG (#804, gemaakt geval): de herstelmarkering verdwijnt bij het openen van een backup met een vreemd deel.**
      `backup-met-kenmerk.ifc` met een wand: alle 34 handelingen van de telling weigeren op `OPS_RecoveryForeignSource`,
@@ -2178,15 +2173,10 @@ en noem het in je rapport of PR-tekst.
      codetemplate, de naam of aanmaakdatum van een baselinekop, of het weghalen van een template uit de lijst, een
      weigering `uitvoer-controle` met "extra niet-P-stuk #691" (`IFCPERSON($,'Contractor',…)`), en een gewijzigde
      codewaarde in `OPS_StructureMeta` "extra niet-P-stuk" op een `IfcPropertyEnumeratedValue`. Dat weigert terecht,
-     maar om een reden die niets met de fout te maken heeft. Niet uitgezocht waarom `classify` die regels dan anders
-     indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
-
-1705. **VERVOLG (#804, controle (c)): de tweede vorm van de baselinekop bewaakt alleen lidmaatschap van enige aggregatie.**
-     `ownGroupTrees` in `src/services/ifc/foreign/ownGroups.ts` schrijft per baselinekop alleen "in aggregatie" of "los".
-     Een kop van de werkplanaggregatie naar een andere aggregatie (zoals die van het project) verplaatsen, geeft daar geen
-     verschil. De volledige uitvoercontrole weigert die proef nu wel (`uitvoer-controle`, extra niet-P-stuk), dus de
-     opslag van nu heeft geen gat. Gevonden door de review van #953 (Sol, ronde 1). Richting: aanscherpen in stap 3, vóór
-     de baselinekop een verschil mag dragen: de koppeling naar het eigen werkplan vastleggen. — B
+     maar om een reden die niets met de fout te maken heeft. De tegenproeven rond de baselinekop van PR 12c (verkeerde naam
+     of datum, een kop in de aggregatie van het project, de kop van een gewiste baseline die blijft of in de plaats van
+     een blijvende staat) weigeren om dezelfde reden; dat (c) ze zelf ook ziet, toetst die check apart. Niet uitgezocht
+     waarom `classify` die regels dan anders indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
 
 1706. **VERVOLG (#804, controle (c)): een extra sleutel zonder taak in `TaskGuids` ziet geen enkele controle meer.**
      Tegenproef in `check-ifc-foreign-eigen-uitvoer.ts`: zet in de uitvoer van "taak + baseline" (7c) een extra sleutel
@@ -2210,16 +2200,28 @@ en noem het in je rapport of PR-tekst.
      een eigen pset met een vreemd lid ontstaat alleen met de hand. Richting: laten zoals het is, tenzij een ander
      programma echt in OPS-psets schrijft; dan eerst bepalen wat een pset met alleen vreemde leden is. — B
 
-1708. **VERVOLG (#804, test): geen proef laat zien dat (a′) op de bronvorm moet toetsen in plaats van de ruwe vorm.**
-     Met (a′) op de ruwe vorm (`trees(opened)` in `openedOwnGroups`) blijft `check-ifc-foreign-eigen-toets.ts` groen.
-     Gemeten: de ruwe vorm ziet `OPS_Baselines` als "door openen veranderd" in 18 van de 227 opslagen (op
-     `ifc-arity-oude-writer.ifc` en op de door de nieuwe toets geschreven uitvoer van de keten), de bronvorm nergens; maar in
-     al die gevallen verklaart de controle van main de baselineverschillen zelf, of weigert om de baselinekop (stap 3). De
-     keuze volgt uit het onderzoek (vraag 2, tegenvoorbeeld 1). De review van #960 (Sol) mat dat de bronvorm een
-     inhoudelijke wijziging door het openen niet wegpoetst (`projectDuration` van een baseline +2 blijft zichtbaar en de
-     opslag weigert); wat ontbreekt is alleen een opslag die met de bronvorm schrijft en met de ruwe vorm zou weigeren.
-     Richting: een geval met een baselinewijziging die alleen de nieuwe toets laat schrijven (komt met stap 3), en dan
-     deze mutatie opnieuw. — B
+1745. **VERVOLG (#804, gebouwmodel): op `ifc-arity-oude-writer.ifc` beweegt de baselinekop niet mee.**
+     De koppen in dat bestand (een oude writer, 15 argumenten) hebben geen StartTime; de writer schrijft er een, dus de
+     herleestoets (b) zet `$` terug en de koppen zijn in de bron niet gedragen. Dan geldt voor de aggregatie van het
+     werkplan de controle van main (PR 12c, E1 eist dat (b) geen kop terugzette, omdat (c) zo'n groep niet toetst): een
+     baseline wissen of alles wissen weigert op dat bestand met een wand, net als op de basis. Na één opslag (de
+     catalogus in `check-ifc-foreign-eigen-toets.ts`) schrijft het wel. Met de StartTime ingevuld zoals de writer hem
+     schrijft, schrijft het wissen ook op de bron (de proef van (a′) op de bronvorm). Richting: alleen als oude bestanden
+     zonder StartTime op de kop vaak voorkomen; dan de lege StartTime van een kop als gedragen zien. — B
+
+1746. **VERVOLG (#804, de baselinekop): geen controle toetst de identiteit van een baselinekop.**
+     De verliescontrole telt in de aggregatie van het werkplan de koppen die wegvallen of erbij komen (hooguit zoveel als
+     de planner wiste of maakte) en eist de rest exact en in volgorde (PR 12c, `headsFollowBaselines`). Staat na het wissen
+     van baseline A de kop van A er nog en die van een blijvende baseline niet, dan laat zij dat door
+     (`check-ifc-foreign-eigen-toets.ts`, "verwisselde kop", een nagebootste fout van de writer). Controle (c) bewaakt per
+     kop het aantal, de inhoud (de argumenten vanaf de naam) en de plaats (`ownGroupTrees`, `aggregatedIn`), niet de
+     GlobalId of het STEP-id: zij weigert een verwisseling van koppen met verschillende inhoud
+     (`check-ifc-foreign-eigen-uitvoer.ts`, "een kop verwisseld"). Gemeten door de review van #962 (Sol): alleen de
+     GlobalIds van twee koppen verwisselen blijft onzichtbaar, en bij twee inhoudelijk gelijke koppen wordt een uitvoer
+     waarin de gewiste kop blijft staan en de blijvende verdwijnt door alle controles aanvaard. Op de basis weigerde de
+     verliescontrole elk wissen van een baseline. Alleen een fout van de writer kan dit geven: de gewone writer koppelt de
+     kop via baseline-id en GlobalId, en geen gewone bewerking liet de verkeerde kop verdwijnen. Richting: in (c) de
+     GlobalId van de kop per baseline meenemen, of de verliescontrole die laten kennen. — B
 
 1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
      In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
@@ -4172,13 +4174,6 @@ en noem het in je rapport of PR-tekst.
      heel. Main doet hetzelfde, en de app met de flag uit ook (1133). De getypeerde weigering van de kern
      (`toIfc()`, `IFC_WRITE_FAILED`) geldt hier niet. Richting (Trias, 14 november 2026): headless export naar een nieuwe naam weigert bij ongedragen vreemde invoer. Hoort bij fase 2 (besluit T3: volledige bytes voor headless, kern en HTTP), vóór de flag eraf gaat. Gevonden door de
      review van #915 (Sol), met een proef via de echte headless host en dispatcher. — B
-
-1581. **VERVOLG, vóór de flag standaard aan gaat: alle baselines wissen bij een gebouwmodel weigert.** Open
-     `tests/fixtures/ifc-foreign/eigen-plus-model.ifc` met de flag en wis de bestaande baseline via `deleteBaseline`.
-     De merge weigert op `IFCRELAGGREGATES #45` slot 5 en de verdwenen `Baselines #319`, `TaskGuids #320`,
-     `ActiveBaselineId #321`, `OPS_Baselines #322` en relatie `#323`. Sinds PR 12b (de andere toets voor de eigen
-     projectgroepen) hoeft het verdwijnen van de pset geen verklaring meer; open blijft de kop in de aggregatie van het
-     werkplan (stap 3, samen met 1700). Wissen → taak → nieuwe baseline schrijft wel na 7c. Reproductie in `check-ifc-foreign-preserve.ts` (1581); eindlijst, verplicht vóór standaard aan. — B
 
 1586. **VERVOLG: een eigen taaktypedefinitie hernoemen bij een gebouwmodel weigert.** Sinds PR 12b schrijft het
      laatste gebruik van één type weghalen terwijl een ander gebruikt blijft (de andere toets voor de eigen projectgroepen,

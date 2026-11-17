@@ -69,7 +69,7 @@ haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden sa
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
 `OPS_StructureMeta` ook templates en `IfcRelDeclares`, plus de tweede vormen baselinekop en `ObjectType` van een
-`.USERDEFINED.`-taak) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
+`.USERDEFINED.`-taak; een kop met de aggregaties waarin hij staat, `eigen IFCWORKPLAN` of anders) moeten in de uitvoer gelijk zijn aan wat de writer schrijft uit de herlezing die er al is, met de
 schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en owner history, en met de weesregel van de
 canon voor `TaskGuids`. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
@@ -78,12 +78,16 @@ Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren.
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
-verklaren als de groep in de bron gedragen is (a: geen vreemd lid, `groupsWithForeignMembers`, en geen stuk dat de
-herleestoets (b) nodig had) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
+verklaren als de groep in de bron gedragen is (a: geen vreemd lid, `groupsWithForeignMembers`, waarbij een owner history
+geen lid is, en geen stuk dat de herleestoets (b) nodig had) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
 schrijft in die groep hetzelfde, in de bronvorm van `sourceFormWhereUnchanged`; alleen met `opened`). Dan toetsen (c) en
-de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. Buiten de toets: de
-baselinekoppen (stap 3, 1700), de typenaam op de taak (stap 4), en alles buiten de eigen projectgroepen (taken, relaties,
-kalenders, resources). De oude verklaringen blijven tot stap 5. Proef: `check-ifc-foreign-eigen-toets.ts`.
+de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. De baselinekop (PR 12c,
+E1, `headsUnchanged` en `headsFollowBaselines`): valt `OPS_Baselines` onder de toets, veranderde het openen ook de koppen
+niet en zette (b) geen kop terug, dan mag in de aggregatie van het eigen werkplan een kop met zijn baseline wegvallen of
+erbij komen (hooguit zoveel als de planner wiste of maakte); de rest van die aggregatie blijft exact en in volgorde. (c)
+bewaakt van de koppen het aantal, de inhoud en de plaats, niet hun identiteit (knownbug 1746). Buiten de toets: de typenaam op de taak (stap 4), en alles buiten de eigen
+projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen blijven tot stap 5. Proef:
+`check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 
 ### Vergelijkingsklok (#804 fase 1c)
 

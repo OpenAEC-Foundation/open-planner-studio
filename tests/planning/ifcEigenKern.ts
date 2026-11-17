@@ -75,8 +75,10 @@ export const se = (f: (s: S) => void) => async (d: Domain): Promise<Domain> => {
   return structuredClone(buildWriteIFCInput(store.getState(), 'merge')) as Domain;
 };
 export const leaves = (s: S) => s.tasks.filter((t: any) => !t.isMilestone && !t.childIds.length);
+/** Een taak onder de eerste gewone taak; zonder taken (na "alles wissen") de eerste taak van het project. */
 export const addTask = (s: S, name: string) => {
-  const id = s.addTask({ name, position: { anchorId: leaves(s)[0].id, where: 'below' } }, { phaseAssignments: 'move', answered: true });
+  const anchor = leaves(s)[0];
+  const id = s.addTask(anchor ? { name, position: { anchorId: anchor.id, where: 'below' } } : { name }, { phaseAssignments: 'move', answered: true });
   if (!id) throw new Error('taak toevoegen mislukt'); return id;
 };
 export const deleteAll = (s: S) => {
