@@ -24,6 +24,8 @@
     "undo": "Скасувати",
     "redo": "Повторити",
     "delete": "Видалити",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: видаляє вибрані завдання і пов'язує кожного попередника з кожним наступником (завершення-початок, без затримки)",
     "undoTitle": "Скасувати (Ctrl+Z)",
     "redoTitle": "Повторити (Ctrl+Y)",
     "deleteTitle": "Видалити вибране (Delete)",
@@ -213,6 +215,7 @@
     "columnsHintGoToTable": "Вибрати стовпці подання «Таблиця» — показано на вкладці «Таблиця»",
     "toggleResourceAccent": "Акцент ресурсу",
     "toggleFloatBand": "Смуга резерву часу",
+    "toggleBarDates": "Дати біля смуг",
     "screenColors": "Кольори смуг",
     "screenColors_critical": "Критичний шлях",
     "screenColors_auto": "За завданням — автоматично",
@@ -283,7 +286,8 @@
       "label": "Схема IFC під час збереження",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (за замовчуванням)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Файл містить дані іншої програми, тому схема з початкового заголовка зберігається."
     }
   },
   "newProject": {
@@ -291,7 +295,23 @@
     "template": "Шаблон фазування",
     "tmplEmpty": "Порожній",
     "tmplWoningbouw": "Житлове будівництво",
-    "tmplUtiliteit": "Нежитлове будівництво / реконструкція"
+    "tmplUtiliteit": "Нежитлове будівництво / реконструкція",
+    "phase": {
+      "siteGroundwork": "Будмайданчик і земляні роботи",
+      "foundation": "Фундамент",
+      "shell": "Несучий каркас",
+      "roof": "Дах",
+      "facadeFitOut": "Фасад і оздоблення",
+      "services": "Інженерні системи",
+      "finishes": "Оздоблення",
+      "handover": "Передача об'єкта",
+      "demolitionStripOut": "Демонтаж і зачистка",
+      "groundworkFoundation": "Земляні роботи і фундамент",
+      "mainStructure": "Основна несуча конструкція",
+      "facadeRoof": "Фасад і дах",
+      "fitOut": "Оздоблювальні роботи",
+      "commissioning": "Налагодження і випробування"
+    }
   },
   "status": {
     "tasks": "Завдання:",
@@ -319,12 +339,14 @@
     "recentTitle": "Нещодавні проєкти",
     "recentSubtitle": "Клацніть, щоб відкрити.",
     "recentEmpty": "Ще немає нещодавно відкритих проєктів.",
+    "recentLoading": "Завантаження нещодавніх файлів…",
     "recentUnavailable": "Цей браузер не може знову відкрити локальні файли з розділу «Нещодавні». Використайте «Відкрити» і виберіть файл проєкту знову.",
     "recentOnSite": "На сайті",
     "examples": "Приклади",
     "examplesTitle": "Приклади проєктів",
     "examplesSubtitle": "Вбудовані будівельні графіки. Клацніть, щоб відкрити в новій вкладці.",
     "examplesLoading": "Завантаження прикладів…",
+    "loading": "Завантаження…",
     "examplesEmpty": "Приклади недоступні.",
     "examplesError": "Не вдалося завантажити приклади.",
     "examplesShowcaseHeading": "Повні демонстраційні графіки",

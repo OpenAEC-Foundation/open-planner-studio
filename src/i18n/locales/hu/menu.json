@@ -24,6 +24,8 @@
     "undo": "Visszavonás",
     "redo": "Megismétlés",
     "delete": "Törlés",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: törli a kijelölt tevékenységeket, és minden elődöt összekapcsol minden utóddal (befejezés-kezdés, késleltetés nélkül)",
     "undoTitle": "Visszavonás (Ctrl+Z)",
     "redoTitle": "Megismétlés (Ctrl+Y)",
     "deleteTitle": "Kijelölés törlése (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Válassza ki a Táblázat nézet oszlopait — a Táblázat lapon jelenik meg",
     "toggleResourceAccent": "Erőforrás-kiemelés",
     "toggleFloatBand": "Tartalékidő-sáv",
+    "toggleBarDates": "Dátumok a sávok mellett",
     "screenColors": "Sávszínek",
     "screenColors_critical": "Kritikus út",
     "screenColors_auto": "Tevékenységenként — automatikus",
@@ -281,7 +284,8 @@
       "label": "IFC-séma mentéskor",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (alapértelmezett)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "A fájl más programhoz tartozó adatokat tartalmaz, ezért az eredeti fejléc sémája megmarad."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Fázissablon",
     "tmplEmpty": "Üres",
     "tmplWoningbouw": "Lakóépítés",
-    "tmplUtiliteit": "Nem lakó célú építés / felújítás"
+    "tmplUtiliteit": "Nem lakó célú építés / felújítás",
+    "phase": {
+      "siteGroundwork": "Építési terület & földmunka",
+      "foundation": "Alapozás",
+      "shell": "Nyers szerkezet / váz",
+      "roof": "Tető",
+      "facadeFitOut": "Homlokzat & kiépítés",
+      "services": "Épületgépészet (MEP)",
+      "finishes": "Befejező munkák",
+      "handover": "Átadás",
+      "demolitionStripOut": "Bontás & kibontás",
+      "groundworkFoundation": "Földmunka & alapozás",
+      "mainStructure": "Főtartószerkezet",
+      "facadeRoof": "Homlokzat & tető",
+      "fitOut": "Belső kiépítés",
+      "commissioning": "Beszabályozás & tesztelés"
+    }
   },
   "status": {
     "tasks": "Tevékenységek:",
@@ -315,12 +335,14 @@
     "recentTitle": "Legutóbbi projektek",
     "recentSubtitle": "Kattintson a megnyitáshoz.",
     "recentEmpty": "Még nincs legutóbb megnyitott projekt.",
+    "recentLoading": "Legutóbbi fájlok betöltése…",
     "recentUnavailable": "Ez a böngésző nem tudja újra megnyitni a korábban megnyitott helyi fájlokat a „Legutóbbi” listából. Használja a „Megnyitás” parancsot a projektfájl újbóli kiválasztásához.",
     "recentOnSite": "Helyszínen",
     "examples": "Példák",
     "examplesTitle": "Példaprojektek",
     "examplesSubtitle": "Mellékelt építési ütemezések. Kattintson az új lapon való megnyitáshoz.",
     "examplesLoading": "Példák betöltése…",
+    "loading": "Betöltés…",
     "examplesEmpty": "Nincs elérhető példa.",
     "examplesError": "A példákat nem lehetett betölteni.",
     "examplesShowcaseHeading": "Teljes bemutató-ütemezések",
