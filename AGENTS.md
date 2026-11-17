@@ -17,12 +17,14 @@ If heavy local work is truly needed, ask the owner first. Owner decision 2026-10
 stricter rule of 2026-10-22.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
-steps in its own release worktree, including package checks by its Haiku translation stations
-(website generators in a temporary copy there); see
+steps in its own release worktrees (the release script and `release-werk`), including package checks by its
+Haiku translation stations (website generators in a temporary copy); see
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
 that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
-dev servers stay CI-only.
+dev servers stay CI-only. The scheduled nightly translation job (Monday to Saturday 01:00,
+[`.claude/skills/nachtvertalingen/SKILL.md`](.claude/skills/nachtvertalingen/SKILL.md)) has the same kind of
+exception for its own list in `referentie.md` (owner decision 2026-11-16).
 
 ## Commands
 
@@ -96,7 +98,8 @@ Translations: `npm run i18n:add` puts one string in `nl` + `en` (required) and a
 `npm run i18n:fmt` puts the locale files in the fixed format (one key per line, `nl` order),
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
 `npm run translate -- <command>` is the translation pipeline (termbase `i18n/termbase/`, UI work packages in
-`build/translate/`, `apply ui`, `status`; the UI for all locales before every release via the `update-ui-lang` skill; design
+`build/translate/`, `apply ui`, `status`; the UI texts that are done every night via the `nachtvertalingen` skill
+(48 hours unchanged on `main`, not of a feature flag), the rest for all locales before every release via the `update-ui-lang` skill; design
 `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`,
 overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18n/ui-sources/` (and drops them
 for locales it did not write, so `prepare ui <locale> --missing`/`--stale` picks them up).
@@ -210,15 +213,16 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
   Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
   same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
-  the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
+  the open folder; Windows `SetFileInformationByHandle` on the open source without replace, which succeeds when the
+  name is a hard link of the source itself, knownbug 1798); it refuses unless
   exactly one name is an own helper file and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
   then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
   plus the runtime scope, the rule of plugin-fs 2.7.1: a deny on the path text or on the real path wins, the allow
   applies to the real path, and the real path resolves symlinks in the ancestors of a path that does not exist yet). A step error stays an error; after the step it checks that
   the opened source is at the target and otherwise returns `source-changed` without touching anything again (no
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799), is in the header of
-  `place_file.rs` and design §4.10. No fallback; not yet used by any route (TS entry
-  `fileAccess/placeFileExclusive.ts`). The command-less
+  `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
+  one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
   of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
@@ -233,8 +237,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   matcher's leading-dot rule keeps a deny from matching it; knownbug 1776). `tauri-plugin-fs` is 2.7.1 (lower bound in
   `Cargo.toml`, npm `@tauri-apps/plugin-fs` the same) and `tauri-plugin-persisted-scope` 2.4.3.
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
-  levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
-  `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde
+  levert de uitvoer als één buffer (`bytes`, dezelfde als `source.bytes`), sha256, de nieuwe `IfcSource` met
+  sessiekaart en bevroren schrijfinvoer, en `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de bytes. Alleen een ongewijzigde
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
@@ -245,15 +249,19 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
   Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
-- **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
-  accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
-  directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
+- **IFC-bytes naar een nieuw doel (#804, T1; 1131 stap 4).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
+  accepteert één `Uint8Array`. Tauri (`writeNewUserBytes`, ook voor `planner_export_ifc`) schrijft die met `createNew`
+  in één aanroep naar een eigen `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de
+  naam; nooit `rename` van plugin-fs. Een bestaande naam weigert (`notifications.ifcForeignNewTargetOnly`);
+  `source-changed` stopt zonder terugzetten of opruimen (`notifications.ifcForeignPlaceUnknown`). Alleen
+  `unsupported`, een scopeweigering of een tijdelijk bestand buiten de scope (`forbidden path`) vallen terug op één
+  directe `createNew` op de naam; die is niet crashvast. Web downloadt een Blob; een browserhandle
   weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130); alleen Ctrl+S op het eigen bestand achter een
-  handle vervangt, via `replaceHandleWithParts` (1131 stap 2). `saveNewSiteFileParts` en
-  `saveSiteFileVersionParts` schrijven een Blob; de laatste eist een basisversie en bewaart de
+  handle vervangt, via `replaceHandleWithBytes` (1131 stap 2). `saveNewSiteFileBytes` en
+  `saveSiteFileVersionBytes` schrijven een Blob; de laatste eist een basisversie en bewaart de
   eventuele conflictkopie in het antwoord. Tekst en bestaande binaire exports houden hun gedrag.
   `ifcSaveBlocked` houdt de overige routes dicht; exclusieve vervanging/bronhash en crashvaste publicatie
-  zijn fase 2 (1131). Bewijs: `check-file-byte-parts.ts`.
+  zijn fase 2 (1131). Bewijs: `check-file-ifc-bytes.ts`.
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a
@@ -433,7 +441,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   Experimental block in Settings → Advanced is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
-  removes its flag and the corresponding checks.
+  removes its flag and the corresponding checks. List the flag's own UI texts in `texts` (`ns:path` or
+  `ns:path.*`): the nightly translation skips them until the flag is gone, the release translates them.
   Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik 5 seconden snel achter elkaar op het versienummer).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
@@ -457,7 +466,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (owner, 2026-11-09); the weekend stop (Saturday 23:00 to Monday 01:00) and Sunday still apply.
   When you tell a reporter in an issue comment when a fix ships, name the date of the next Monday release,
   checked against today's date (`date`). Green main CI, a green
-  last browser run (Saturday 22:00) and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  last browser run (since Friday 22:00) and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
   Monday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
   neither unfinished work nor a stop reason, also for an older tag; the final report says Arch got no package
@@ -468,7 +477,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   translations for all locales, wiki publication and the two website blocks (the highlights in
   `#whats-new` and the new entry under `#releases`); guide translations beyond nl/en run only on the
   owner's separate request. The job repairs a red CI itself (owner decision 8; route in the `ci-release` rule).
-  The schedule and literal job prompt live in `.claude/skills/release/scheduled-job.md`.
+  The schedule lives in `.claude/skills/release/scheduled-job.md`. The fixed steps run in `scripts/release/run.mjs`
+  (owner, 2026-11-16): the release thread starts it, passes every `RELEASE-STOP <code>` to the orchestrator and
+  never tags itself; release texts come from one `claude -p` text agent inside the script.
   Release text in `docs/release-notes/v<version>.md`; `docs/CHANGELOG.md` only at release.
 - The user term is "resourcebibliotheek"; code/IFC still say `companyId`/`companyName`.
 - Screen evidence in a PR: `artifacts/<topic>/`, PNG ≤ ~150 KB, a handful; local QA screenshots in `qa/`.
@@ -521,7 +532,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).

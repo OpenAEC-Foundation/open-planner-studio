@@ -15,7 +15,7 @@ import { psetOwners, validateMergeOutput } from '@/services/ifc/foreign/mergeVal
 import { openInStore, storeEdit, TRIAS_FILES } from './ifcAppRoute';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
-import { applyEdit, cloneDomain, concat, mergeProblems, newObjectEdits, openForeign, ordinaryEdits, tryMerge, type Domain } from './ifcMergeKern';
+import { applyEdit, cloneDomain, mergeProblems, newObjectEdits, openForeign, ordinaryEdits, tryMerge, type Domain } from './ifcMergeKern';
 import { readbackDifference } from './ifcReadbackEquality';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -289,7 +289,7 @@ if (fallback.ok) {
 const bare = await openForeign(born);
 assert(bare.ifcSource && !bare.ifcSource.foreign);
 reseed(0xe16); const ordinary = new TextEncoder().encode(writeIFC(cloneDomain(bare)));
-reseed(0xe16); const unchanged = concat(await writeIfcMerge(cloneDomain(bare), bare.ifcSource));
+reseed(0xe16); const unchanged = await writeIfcMerge(cloneDomain(bare), bare.ifcSource);
 check('E16 gewone route: byte voor byte de gewone writer, zonder behoudstap', Buffer.compare(ordinary, unchanged) === 0);
 
 if (failures.length) { for (const failure of failures) console.error(`XX ${failure}`); throw new Error(`${failures.length} afwijkingen in hulpidentiteit`); }

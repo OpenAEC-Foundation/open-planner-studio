@@ -2,14 +2,14 @@ import { isTauri } from '@/utils/platform';
 import {
   openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
-  saveBytePartsDialogTauri, saveBytePartsToRefTauri,
+  saveNewBytesDialogTauri, saveNewBytesToRefTauri,
 } from './tauriBackend';
 import type { FileIdentityFs } from './fileIdentity';
 import type { TargetReaders } from './foreignSourceTarget';
 import { readSiteSourceFile } from './siteBackend';
 import {
   openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
-  saveBytePartsDialogWeb, saveBytePartsToRefWeb, handleWritePermissionWeb, replaceHandleWithPartsWeb,
+  saveNewBytesDialogWeb, saveNewBytesToRefWeb, handleWritePermissionWeb, replaceHandleWithBytesWeb,
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
 import { sourceTargetContentOfHandle, type SourceTargetContent } from './sourceTargetContent';
@@ -169,10 +169,10 @@ export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): 
 export function handleWritePermission(ref: Extract<FileRef, { kind: 'handle' }>): Promise<boolean> {
   return handleWritePermissionWeb(ref.handle);
 }
-export function replaceHandleWithParts(
-  ref: Extract<FileRef, { kind: 'handle' }>, parts: readonly Uint8Array[], stillSource: () => Promise<boolean>,
+export function replaceHandleWithBytes(
+  ref: Extract<FileRef, { kind: 'handle' }>, bytes: Uint8Array, stillSource: () => Promise<boolean>,
 ): Promise<boolean> {
-  return replaceHandleWithPartsWeb(ref.handle, parts, stillSource);
+  return replaceHandleWithBytesWeb(ref.handle, bytes, stillSource);
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */
@@ -187,7 +187,7 @@ export function saveFileDialog(
 /**
  * Opslaan-als / export van BYTES via picker — de binaire tegenhanger van `saveFileDialog`,
  * met dezelfde annuleer-, weigerings- en download-terugvalafhandeling. Dit is het bestaande
- * byte-schrijfpad voor binaire exports; de strikte delen-ingang hieronder vervangt nooit een lokaal bestand.
+ * byte-schrijfpad voor binaire exports; de strikte ingang hieronder vervangt nooit een lokaal bestand.
  */
 export function saveBytesDialog(
   defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts: CheckedSaveDialogOpts,
@@ -198,23 +198,23 @@ export function saveBytesDialog(
 }
 
 /**
- * #804, T1: voorbereid schrijfresultaat als delen. Desktop maakt alleen een nieuw einddoel aan;
+ * #804, T1: het voorbereide schrijfresultaat (één buffer). Desktop maakt alleen een nieuw einddoel aan;
  * web downloadt altijd. De doelcontrole blijft verplicht, ook bij een nieuw bedoelde naam.
- * Site-opslag gebruikt de delen-functies in siteBackend, met de documentversie als verplichte basis.
+ * Site-opslag gebruikt de byte-functies in siteBackend, met de documentversie als verplichte basis.
  */
-export function saveBytePartsDialog(
-  defaultName: string, parts: readonly Uint8Array[], filters: FileFilter[], opts: CheckedSaveDialogOpts,
+export function saveNewBytesDialog(
+  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts: CheckedSaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   return isTauri()
-    ? saveBytePartsDialogTauri(defaultName, parts, filters, opts)
-    : saveBytePartsDialogWeb(defaultName, parts, opts);
+    ? saveNewBytesDialogTauri(defaultName, bytes, filters, opts)
+    : saveNewBytesDialogWeb(defaultName, bytes, opts);
 }
 
-/** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een BytePartsWriteError.
+/** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.
  * Geen permissieprompt of terugval. Een site-ref geeft false: daar is de basisversie nodig. */
-export function saveBytePartsToRef(ref: FileRef, parts: readonly Uint8Array[]): Promise<boolean> {
+export function saveNewBytesToRef(ref: FileRef, bytes: Uint8Array): Promise<boolean> {
   if (ref.kind === 'site') return Promise.resolve(false);
-  return isTauri() ? saveBytePartsToRefTauri(ref, parts) : saveBytePartsToRefWeb(ref, parts);
+  return isTauri() ? saveNewBytesToRefTauri(ref, bytes) : saveNewBytesToRefWeb(ref, bytes);
 }
 
 // Een site-ref gaat hieronder NOOIT naar de Tauri- of webbackend. Schrijven naar de site kan via

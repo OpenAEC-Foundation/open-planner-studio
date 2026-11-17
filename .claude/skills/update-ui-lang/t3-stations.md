@@ -61,3 +61,20 @@ Gebruik voor elk pakket eigen taak-ID's en bestanden. Deel de gitignored pakkett
 Pas met alle vereiste stations afgerond (`OPEN_STATIONS=0`) mag de ouder `apply ui` uitvoeren.
 Daarna volgen `--stale` en de bestaande eindpoorten.
 Alleen de ouder past de locale-/hashbestanden toe en maakt de vertaalcommit.
+
+## Bundels
+
+Met `packages ui <talen> --bundle <tekens>` (de nachttaak, [nachtvertalingen](../nachtvertalingen/SKILL.md))
+krijgt elke bundel `[lang, [id, …]]` één delegatie per station in plaats van één per pakket. Alles
+hierboven blijft gelden, met deze waarden:
+
+- `{{PACKAGES}}` = de pakketpaden van de bundel, gescheiden door `, `
+  (`<repo>/build/translate/<lang>/<id>.json`). `{{PACKAGE}}` en `{{ID}}` vallen weg; `{{PACKAGE_DIR}}`,
+  `{{NODE}}` en `{{CHECK}}` blijven.
+- `{{REVIEW_FILE}}` = `<repo>/build/translate/<lang>/review-<eerste id>.json`, één lijst voor de hele
+  bundel; elk item noemt zijn `package`.
+- `clientRequestId` = `<ronde>:<lang>:<eerste id>:<station>`.
+- Herstellen: alleen als de lijst niet leeg is, met `{{PACKAGES}}` = de pakketten die in de lijst
+  voorkomen. Een pakket zonder bevindingen hoeft niet opnieuw.
+- Poort: de ouder draait `check.mjs` op elk pakket van de bundel apart. Een rood pakket houdt de andere
+  pakketten van de bundel niet tegen; `apply` neemt alleen groene pakketten.

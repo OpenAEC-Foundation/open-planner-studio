@@ -558,7 +558,6 @@
     "ifcForeignReplaceBlocked": "Soubor nebyl uložen. Přepsání existujícího souboru s modelem budovy zatím není bezpečné. Použijte „Uložit jako“ a zvolte nový název.",
     "ifcForeignMergeRefused": "Soubor IFC nebyl zapsán. Model budovy nebo data z jiného programu by se jinak nezachovala úplně. Vraťte poslední změnu zpět, nebo exportujte pouze plán: do IFC pomocí „Bez modelu budovy“, nebo do jiného formátu.",
     "ifcSaveChangedWhileWaiting": "Soubor nebyl uložen. Dokument nebo zdroj modelu budovy se během přípravy změnil. Zkuste uložit znovu.",
-    "ifcForeignExportNewTarget": "Neexportováno. Tento soubor IFC lze exportovat jen do nového názvu souboru. Zvolte název, který ještě neexistuje.",
     "ifcSourceCopyFailed": "Plán se ukládá pro zotavení systému po chybě, ale kopii modelu budovy se nepodařilo uložit. Po chybě může model budovy chybět. Uložte svou práci sami jako úplný soubor IFC.",
     "ifcForeignSourceMissing": "Soubor nebyl uložen. Model budovy nebo data z jiného programu nebyla nalezena. Použijte „Uložit jako“ a uložte jen plán do nového souboru. Otevřete původní soubor IFC, abyste znovu pracovali s úplným souborem."
   },

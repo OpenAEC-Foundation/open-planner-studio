@@ -558,7 +558,6 @@
     "ifcForeignReplaceBlocked": "Nie zapisano. Zapis nad istniejącym plikiem z modelem budynku nie jest jeszcze bezpieczny. Użyj „Zapisz jako” i wybierz nową nazwę.",
     "ifcForeignMergeRefused": "Plik IFC nie został zapisany. Model budynku albo dane z innego programu inaczej nie zostałyby w pełni zachowane. Cofnij ostatnią zmianę albo wyeksportuj tylko harmonogram: do IFC z opcją „Bez modelu budynku” albo do innego formatu.",
     "ifcSaveChangedWhileWaiting": "Nie zapisano. Dokument albo źródło modelu budynku zmieniło się podczas przygotowania. Spróbuj zapisać ponownie.",
-    "ifcForeignExportNewTarget": "Nie wyeksportowano. Ten plik IFC można wyeksportować tylko pod nową nazwą pliku. Wybierz nazwę, która jeszcze nie istnieje.",
     "ifcSourceCopyFailed": "Harmonogram jest zapisywany na potrzeby odzyskiwania po awarii, ale kopii modelu budynku nie udało się zapisać. Po awarii model budynku może brakować. Zapisz samodzielnie cały projekt jako pełny plik IFC.",
     "ifcForeignSourceMissing": "Nie zapisano. Nie znaleziono modelu budynku ani danych z innego programu. Użyj „Zapisz jako”, aby zapisać tylko harmonogram w nowym pliku. Otwórz pierwotny plik IFC, aby znów pracować z pełnym plikiem."
   },

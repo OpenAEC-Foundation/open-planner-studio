@@ -16,7 +16,9 @@
  */
 
 import { generateId } from '@/utils/id';
-import { BytePartsWriteError } from './byteParts';
+import { appLog } from '@/services/debug/appLog';
+import { ByteWriteError } from './byteWrite';
+import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
 
 /** De drie bestandsoperaties die de schrijf-en-vervang nodig heeft — injecteerbaar voor tests. */
 export interface AtomicWriteFs {
@@ -85,6 +87,16 @@ export async function writeBytesFileAtomic(dir: string, name: string, bytes: Uin
 /** Achtervoegsel van het halffabricaat naast een gebruikersbestand. */
 export const USER_FILE_TMP_SUFFIX = '.ops-save.tmp';
 
+/** Het eigen halffabricaat naast `path`: `save-<id>.ops-save.tmp` in dezelfde map, elke keer een verse naam.
+ * Een zelfstandige, korte basename laat ook lange doelnamen toe. Behoud de map letterlijk; in een absoluut
+ * POSIX-pad is een backslash een geldig onderdeel van de bestandsnaam. `place_file.rs` herkent deze vorm
+ * als eigen hulpnaam (`is_helper_name`). */
+export function userFileTempPath(path: string): string {
+  const windowsPath = /^[a-z]:[\\/]|^\\\\/i.test(path);
+  const lastSeparator = windowsPath ? Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) : path.lastIndexOf('/');
+  return `${path.slice(0, lastSeparator + 1)}${generateId('save')}${USER_FILE_TMP_SUFFIX}`;
+}
+
 /** De bestandsoperaties die `replaceUserFile` nodig heeft — injecteerbaar voor tests. */
 export interface UserFileFs<D> {
   lstat(path: string): Promise<{ isSymlink: boolean; nlink: number | null; mode: number | null }>;
@@ -96,11 +108,6 @@ export interface UserFileFs<D> {
   write(path: string, data: D, mode?: number): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   remove(path: string): Promise<void>;
-}
-
-/** Achteraan toevoegen aan een bestaand bestand; maakt nooit aan en kapt nooit af. */
-export interface ByteAppend<D> {
-  append(path: string, data: D): Promise<void>;
 }
 
 /** `createNew` maakte het bestand aan, maar het schrijven daarna mislukte; `cause` is de schrijffout. */
@@ -132,11 +139,7 @@ export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: 
   }
   // Het oude vaste pad blijft geheel met rust, ook als daar een link of een andere save staat.
   // Een verse naam voorkomt normale botsingen; createNew beslist, niet de willekeur of een lstat.
-  // Een zelfstandige, korte basename laat ook lange doelnamen toe. Behoud de map letterlijk;
-  // in een absoluut POSIX-pad is een backslash een geldig onderdeel van de bestandsnaam.
-  const windowsPath = /^[a-z]:[\\/]|^\\\\/i.test(path);
-  const lastSeparator = windowsPath ? Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) : path.lastIndexOf('/');
-  const tmp = `${path.slice(0, lastSeparator + 1)}${generateId('save')}${USER_FILE_TMP_SUFFIX}`;
+  const tmp = userFileTempPath(path);
   const mode = info?.mode != null ? info.mode & 0o777 : undefined;
   const removeOwnTemp = async () => {
     try { await fs.remove(tmp); } catch { /* eigen halffabricaat blijft mogelijk achter */ }
@@ -181,7 +184,7 @@ type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
  * Sinds 2.6.0 faalt de aanroep vóór het openen als die opties niet te lezen zijn; daarvóór vielen ze stil
  * terug op aanmaken en afkappen (ook zonder `createNew`). De opties hieronder zijn altijd leesbaar.
  */
-function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> & ByteAppend<D> {
+function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
   return {
     lstat: p => fs.lstat(p),
     createNew: async (p, data, mode) => {
@@ -194,7 +197,6 @@ function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?
         throw err;
       }
     },
-    append: (p, data) => write(p, data, { append: true, create: false }),
     write: (p, data, mode) => write(p, data, mode === undefined ? undefined : { mode }),
     rename: (a, b) => fs.rename(a, b),
     remove: p => fs.remove(p),
@@ -213,41 +215,106 @@ export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Prom
   await replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, bytes);
 }
 
+/** De bestandsoperaties van `writeNewUserBytes`: exclusief aanmaken, opruimen en exclusief plaatsen. */
+export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'> & {
+  place(from: string, to: string): Promise<PlaceFileOutcome>;
+};
+
 /**
- * T1: uitsluitend een NIEUW einddoel. Gewone rename vervangt een intussen verschenen bestand;
- * daarom maakt deze ingang het einddoel zelf aan met createNew (met het eerste deel erin), zonder
- * rename of directe terugval, en voegt daarna elk volgend deel apart toe: geen samengevoegde kopie
- * van het hele bestand. Dit maakt geen atomaire vervanging of crashvaste publicatie: die primitief
- * hoort bij fase 2. Een volgend deel gaat op pad, niet op een open handle: wie het pad tussen twee
- * delen vervangt, krijgt de rest. De aanroeper houdt de delen ongewijzigd tot de opslag klaar is.
+ * Een NIEUW einddoel (#804, knownbug 1131 stap 4): Opslaan als, Exporteren → IFC en `planner_export_ifc`. Vervangt
+ * nooit een bestaand bestand. Eerst het eigen tijdelijke bestand `save-<id>.ops-save.tmp` in dezelfde map, met de hele
+ * buffer in één rauwe `createNew`-aanroep; dan zet `place_file_exclusive` het op de naam. Een crash vóór die stap laat
+ * hoogstens het tijdelijke bestand staan, nooit een half einddoel. Per uitkomst:
+ * - `placed`, `dir-not-synced`: klaar (het bestand ís verplaatst; het tweede alleen met een waarschuwing);
+ * - `target-exists`: eigen bestand weg, fout `create-new`;
+ * - `unsupported`, `refused`/`scope`: eigen bestand weg, dan de directe exclusieve aanmaak;
+ * - `refused` met een andere reden: fout; bij `not-regular-file` niets opruimen (dan staat er iets anders onder de
+ *   hulpnaam);
+ * - `source-changed`: stoppen. De stand op schijf is onbekend: niets terugzetten, niets opruimen, geen terugval;
+ * - `io`: eigen bestand weg, fout `write`.
+ * Na `io` of `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (knownbug 1795): het opruimen
+ * is best effort en verbergt of vervangt de fout nooit, en de route leest het doel niet terug om succes te melden.
+ * Mag het tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, en sinds plugin-fs 2.7.1 ook in een
+ * map die via een link naar buiten wijst), dan blijft de directe exclusieve
+ * aanmaak de weg; die is niet crashvast (1131). Alleen de plaatsing via het tijdelijke bestand laat nooit een half
+ * einddoel staan.
+ * Per doel schrijft de route één regel in het app-log (kanaal `NEW_NAME_LOG_CHANNEL`): het doelpad en de weg, nooit
+ * inhoud. De echte-app-proef leest die regel terug (`tests/mcp/realApp/run-real-app.ts`).
+ * De aanroeper wijzigt de buffer niet tot de opslag klaar is.
  */
-export async function writeNewByteParts(
-  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'> & ByteAppend<Uint8Array>,
-  path: string,
-  parts: readonly Uint8Array[],
-): Promise<void> {
-  // Alleen na een geslaagde eigen aanmaak opruimen; een botsend doel nooit verwijderen.
-  const removeOwn = async () => {
-    try { await fs.remove(path); } catch { /* eigen onvolledig bestand kan achterblijven */ }
+export const NEW_NAME_LOG_CHANNEL = 'nieuweNaam';
+const logWay = (path: string, way: string) => appLog.emit('event', NEW_NAME_LOG_CHANNEL, `${path}: ${way}`);
+
+export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
+  const tmp = userFileTempPath(path);
+  // Alleen ons eigen tijdelijke bestand, en alleen als het van ons kan zijn; een mislukt opruimen is geen fout.
+  const removeOwnTemp = async () => {
+    try { await fs.remove(tmp); } catch { /* weg, of het blijft achter: de oorspronkelijke uitkomst telt */ }
   };
-  const [first = new Uint8Array(), ...rest] = parts;
   try {
-    await fs.createNew(path, first);
+    await fs.createNew(tmp, bytes);
   } catch (error) {
-    if (!(error instanceof OwnFileWriteError)) throw new BytePartsWriteError('create-new', error);
-    await removeOwn();
-    throw new BytePartsWriteError('write', error.cause);
+    if (error instanceof OwnFileWriteError) {
+      await removeOwnTemp();
+      throw new ByteWriteError('write', error.cause);
+    }
+    if (isForbiddenPathError(error)) return createNewDirectly(fs, path, bytes, 'forbidden path');
+    // Geen eigendom (ook EEXIST op de hulpnaam): niets verwijderen, geen terugval.
+    throw new ByteWriteError('write', error);
   }
-  try {
-    for (const part of rest) await fs.append(path, part);
-  } catch (error) {
-    await removeOwn();
-    throw new BytePartsWriteError('write', error);
+  const outcome = await fs.place(tmp, path);
+  switch (outcome.code) {
+    case 'placed':
+      logWay(path, 'geplaatst (placed)');
+      return;
+    case 'dir-not-synced':
+      logWay(path, 'geplaatst (dir-not-synced)');
+      console.warn(`Opgeslagen, maar de map is niet vastgelegd: ${outcome.message}`);
+      return;
+    case 'target-exists':
+      logWay(path, 'niet geplaatst (target-exists)');
+      await removeOwnTemp();
+      throw new ByteWriteError('create-new');
+    case 'unsupported':
+      await removeOwnTemp();
+      return createNewDirectly(fs, path, bytes, 'unsupported');
+    case 'refused':
+      if (outcome.reason === 'scope') {
+        await removeOwnTemp();
+        return createNewDirectly(fs, path, bytes, 'refused/scope');
+      }
+      logWay(path, `niet geplaatst (refused/${outcome.reason})`);
+      if (outcome.reason !== 'not-regular-file') await removeOwnTemp();
+      throw new ByteWriteError('write', new Error(`place_file_exclusive: refused (${outcome.reason})`));
+    case 'source-changed':
+      logWay(path, 'niet geplaatst (source-changed)');
+      throw new ByteWriteError('source-changed');
+    case 'io':
+      logWay(path, 'niet geplaatst (io)');
+      await removeOwnTemp();
+      throw new ByteWriteError('write', new Error(outcome.message));
   }
 }
 
-/** Tauri: het nieuwe doel exclusief met het eerste deel, dan elk volgend deel; alles als rauwe body. */
-export async function writeUserBytePartsTauri(path: string, parts: readonly Uint8Array[]): Promise<void> {
+/** De directe exclusieve aanmaak: één `createNew` op het einddoel met de hele buffer. Vervangt nooit een bestaand
+ *  bestand, maar een crash halverwege kan een onvolledig einddoel laten staan. */
+async function createNewDirectly(fs: Pick<NewUserBytesFs, 'createNew' | 'remove'>, path: string, bytes: Uint8Array, why: string): Promise<void> {
+  logWay(path, `directe aanmaak (${why})`);
+  try {
+    await fs.createNew(path, bytes);
+  } catch (error) {
+    if (!(error instanceof OwnFileWriteError)) throw new ByteWriteError('create-new', error);
+    // Alleen na een geslaagde eigen aanmaak opruimen; een botsend doel nooit verwijderen.
+    try { await fs.remove(path); } catch { /* eigen onvolledig bestand kan achterblijven */ }
+    throw new ByteWriteError('write', error.cause);
+  }
+}
+
+/** Tauri: een nieuw doel via het eigen tijdelijke bestand en `place_file_exclusive`; bytes als rauwe body. */
+export async function writeNewUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
   const fs = await import('@tauri-apps/plugin-fs');
-  await writeNewByteParts(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, parts);
+  await writeNewUserBytes({
+    ...tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)),
+    place: placeFileExclusive,
+  }, path, bytes);
 }

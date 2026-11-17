@@ -156,64 +156,16 @@ test('CLI: ontbrekende lokale releasetag wordt uit actuele origin-tags meegenome
   assertVersions(dir, '2026.43.2');
 });
 
-test('afgeschreven tag wordt niet hervat en de opvolger blijft hoger dan die tag', t => {
+// De herkenning van een afgeschreven tag en de versiepoort vóór de tag zitten in het releasescript
+// (tests/dev-server/release-run.test.mjs). Hier alleen de bump: de origin-tag blijft meetellen.
+test('na een afgeschreven tag kiest de bump een opvolger boven die tag', t => {
   const dir = fixture(t);
   const tag = 'v2026.43.0';
   bumpVersion({ root: dir, version: tag.slice(1) });
-  const env = { ...gitEnvironment(dir, [tag]), TAG: tag, OPS_BUMP_DATE: '2026-10-24' };
-  const reference = read(root, '.claude/skills/release/referentie.md');
-  const blocks = text => [...text.matchAll(/```bash\n([\s\S]*?)\n```/g)].map(match => match[1]);
-  const route = blocks(reference).find(body => body.includes('const afgeschreven ='));
-  assert.ok(route, 'uitvoerbare afschrijvingscontrole ontbreekt');
-  const ghTrace = join(dir, 'gh-trace.json');
-  // Alleen PR-bodies lezen mag. Ook een onbedoelde rerun/publicatie blijft volledig lokaal.
-  writeFileSync(join(dir, 'bin/gh'), `#!${process.execPath}
-import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
-const args = process.argv.slice(2);
-writeFileSync(${JSON.stringify(ghTrace)}, JSON.stringify(args));
-assert.deepEqual(args, ['pr', 'list', '--repo', 'OpenAEC-Foundation/open-planner-studio',
-  '--base', 'main', '--state', 'merged', '--search', '"Release v2026.43.0" in:title',
-  '--limit', '1000', '--json', 'title,body,url']);
-if (process.env.OPS_TEST_PR_ERROR) process.exit(1);
-console.log(process.env.OPS_TEST_PR_BODIES);
-`, { mode: 0o755 });
-  const pr = { title: `Release ${tag}`, body: `Afgeschreven tag: ${tag}`, url: 'https://example.invalid/pull/7' };
-  const run = body => spawnSync('bash', ['-e', '-c', body], { cwd: dir, env, encoding: 'utf8', timeout: 10_000 });
-  const before = snapshot(dir);
-  for (const [body, title, expected] of [
-    ['Nog onafgerond', pr.title, 'hervatten'],
-    ['Afgeschreven tag: v2026.42.0', pr.title, 'hervatten'],
-    [pr.body, 'Gewone fix-PR', 'hervatten'],
-    [`Reden: fout in getagde code\r\n${pr.body}\r\nFix-PR: #8`, pr.title, 'opvolger'],
-    [pr.body, pr.title, 'opvolger'], // Dezelfde marker blijft ook de volgende zaterdag gelden.
-  ]) {
-    env.OPS_TEST_PR_BODIES = JSON.stringify([{ ...pr, body, title }]);
-    const result = run(route);
-    assert.equal(result.status, 0, result.stderr);
-    const decision = JSON.parse(result.stdout);
-    assert.equal(decision.actie, expected);
-    assert.equal(decision.prev, tag, 'afschrijving verlaagt PREV niet');
-    assert.equal(decision.releasePr, expected === 'opvolger' ? pr.url : undefined);
-    assert.deepEqual(JSON.parse(readFileSync(ghTrace, 'utf8')).slice(0, 2), ['pr', 'list']);
-    assert.deepEqual(snapshot(dir), before, 'herkenning schrijft geen versievelden');
-  }
-  env.OPS_TEST_PR_ERROR = '1';
-  assert.notEqual(run(route).status, 0, 'een leesfout mag geen opvolgroute vrijgeven');
-  delete env.OPS_TEST_PR_ERROR;
-
+  const env = { ...gitEnvironment(dir, [tag]), OPS_BUMP_DATE: '2026-10-24' };
   const bumped = spawnSync(process.execPath, ['scripts/bump-version.js'], { cwd: dir, env, encoding: 'utf8' });
   assert.equal(bumped.status, 0, bumped.stderr);
   assertVersions(dir, '2026.43.1');
-  const gate = blocks(read(root, '.claude/skills/release/SKILL.md'))
-    .find(body => body.includes('const [version, previous]'));
-  assert.ok(gate, 'numerieke eindpoort ontbreekt');
-  env.PREV = tag;
-  for (const version of ['2026.42.99', '2026.43.0', '2026.43.1']) {
-    env.VERSION = version;
-    const checked = run(gate.slice(0, gate.indexOf('\nJS\n') + 4));
-    assert.equal(checked.status === 0, version === '2026.43.1', checked.stderr);
-  }
 });
 
 test('CLI: onbereikbare of ontbrekende origin blokkeert zonder lokale terugval en zonder schrijven', t => {

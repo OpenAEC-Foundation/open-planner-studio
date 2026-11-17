@@ -263,9 +263,10 @@ test('commando: --browser doet alleen de browsercontrole en noemt de run', (t) =
 });
 
 test('de release en de reparatie gebruiken dezelfde browsercontrole als de gate', () => {
-  for (const file of ['.claude/skills/release/SKILL.md', '.claude/skills/browsertests-repareren/SKILL.md']) {
-    assert.match(readFileSync(join(root, file), 'utf8'), /node scripts\/release-ci-check\.mjs --browser "\$SHA"/, file);
-  }
+  assert.match(readFileSync(join(root, '.claude/skills/browsertests-repareren/SKILL.md'), 'utf8'), /node scripts\/release-ci-check\.mjs --browser "\$SHA"/);
+  // Het releasescript roept dezelfde controle aan, met en zonder --browser.
+  const script = readFileSync(join(root, 'scripts/release/stappen.mjs'), 'utf8');
+  assert.match(script, /'scripts\/release-ci-check\.mjs'\), \.\.\.\(alleenBrowser \? \['--browser'\] : \[\]\), sha\]/);
   const repair = readFileSync(join(root, '.claude/skills/browsertests-repareren/SKILL.md'), 'utf8');
   assert.doesNotMatch(repair, /--event schedule/, 'de reparatie kiest geen eigen run');
   assert.match(repair, /BROWSERRUN/);

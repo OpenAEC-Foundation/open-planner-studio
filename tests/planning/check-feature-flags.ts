@@ -14,8 +14,8 @@ for (const flag of FEATURE_FLAGS) {
 }
 
 FEATURE_FLAGS.push(
-  { id: 'voorbeeld', nameKey: 'settings.experimentalSection', writesNewIfcData: false },
-  { id: 'nieuwe-ifc', nameKey: 'settings.version', writesNewIfcData: true },
+  { id: 'voorbeeld', nameKey: 'settings.experimentalSection', writesNewIfcData: false, texts: [] },
+  { id: 'nieuwe-ifc', nameKey: 'settings.version', writesNewIfcData: true, texts: [] },
 );
 ok(!isFeatureEnabled({}, 'voorbeeld'), 'ontbrekend is uit');
 ok(!isFeatureEnabled({ voorbeeld: false }, 'voorbeeld'), 'expliciet uit blijft uit');

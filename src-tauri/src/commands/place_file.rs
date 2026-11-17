@@ -153,7 +153,9 @@ pub(crate) trait PlaceOps {
     /// Leg de inhoud van de open bron vast (fsync).
     fn sync_file(&self, source: &File) -> io::Result<()>;
     /// Verplaats `from` exclusief naar `to` in de open map: faalt met `AlreadyExists` als er op `to`
-    /// iets staat. Unix: relatief aan de open map; Windows: via de open bron.
+    /// iets staat. Unix: relatief aan de open map; Windows: via de open bron. Uitzondering op Windows
+    /// (knownbug 1798): is `to` een harde link van de bron zelf, dan slaagt de stap, zonder dat een ander
+    /// bestand vervangen wordt.
     fn rename_exclusive(
         &self,
         dir: &OpenDir,

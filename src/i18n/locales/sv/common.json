@@ -358,7 +358,6 @@
     "ifcForeignReplaceBlocked": "Inte sparad. Att spara över en befintlig fil med en byggnadsmodell är ännu inte säkert. Använd ”Spara som” och välj ett nytt namn.",
     "ifcForeignMergeRefused": "IFC-filen skrevs inte. Byggnadsmodellen eller data från ett annat program skulle annars inte bevaras helt. Ångra den senaste ändringen, eller exportera bara tidsplanen: till IFC med ”Utan byggnadsmodell”, eller till ett annat format.",
     "ifcSaveChangedWhileWaiting": "Inte sparad. Dokumentet eller källan till byggnadsmodellen ändrades under förberedelsen. Försök spara igen.",
-    "ifcForeignExportNewTarget": "Inte exporterad. Den här IFC-filen kan bara exporteras till ett nytt filnamn. Välj ett namn som inte finns än.",
     "ifcSourceCopyFailed": "Tidsplanen sparas för kraschskydd, men kopian av byggnadsmodellen kunde inte sparas. Efter en krasch kan byggnadsmodellen saknas. Spara ditt projekt själv som en fullständig IFC-fil.",
     "ifcForeignSourceMissing": "Inte sparad. Byggnadsmodellen eller data från ett annat program hittades inte. Använd ”Spara som” för att bara spara tidsplanen i en ny fil. Öppna den ursprungliga IFC-filen för att arbeta med hela filen igen."
   },

@@ -122,8 +122,8 @@ check-f4b-voortgangsduur.ts matrix
 check-feature-flags.ts matrix
 check-fidelity-cells-gate.ts los
 check-fidelity-core.ts matrix
-check-file-byte-parts.ts matrix
 check-file-drop.ts matrix
+check-file-ifc-bytes.ts matrix
 check-first-start.ts matrix
 check-float-band-end.ts matrix
 check-float-remaining-text.ts matrix
@@ -467,6 +467,7 @@ check-translate-apply.ts matrix
 check-translate-docs.ts matrix
 check-translate-gates.ts matrix
 check-translate-labels.ts matrix
+check-translate-night.ts matrix
 check-translate-prepare.ts matrix
 check-translate-tbx.ts matrix
 check-translate-termfix.ts matrix

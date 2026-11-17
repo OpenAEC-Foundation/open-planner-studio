@@ -2597,18 +2597,16 @@ en noem het in je rapport of PR-tekst.
      `FileSystemFileHandle.createWritable()` heeft geen `createNew` bij de uiteindelijke plaatsing;
      een leeg bestand of een voorafgaande controle sluit een intussen verschenen bestand niet uit.
      De strikte delen-ingang weigert een handle getypeerd vóór elke write; de webdialoog downloadt
-     een Blob, ook als FSA beschikbaar is. Getoetst in `check-file-byte-parts.ts`; geen echte browserrun.
+     een Blob, ook als FSA beschikbaar is. Getoetst in `check-file-ifc-bytes.ts`; geen echte browserrun.
      Richting: download behouden totdat de browser een passende exclusieve primitief biedt.
      Contract: https://fs.spec.whatwg.org/#api-filesystemfilehandle-createwritable. — B
 
 1131. **VERVOLG (fase 2, #804, E32): lokale byte-opslag heeft nog geen exclusieve vervanging met bronhash.**
-     T1 laat alleen een nieuw einddoel met `createNew` toe; een bestaand doel blijft geweigerd.
+     T1 laat alleen een nieuw einddoel toe; een bestaand doel blijft geweigerd.
      Verplicht vóór de flag aan mag: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand
      moet kunnen, net als bronherstel (1112). PR 11a meldt nu waarom dit nog weigert en verwijst naar Opslaan als.
-     Plugin-fs-rename vervangt bestaande bestanden en is daarvoor ongeschikt. De route naar een nieuwe naam schrijft het
-     eerste deel in de createNew-aanroep en voegt volgende delen op pad toe (#973, knownbug 1792): een crash kan een
-     onvolledig nieuw bestand laten staan; cleanup na een gewone I/O-fout is
-     best effort en biedt geen padslot tegen externe wissels. Onderzoek van 16 november 2026: zes stappen.
+     Plugin-fs-rename vervangt bestaande bestanden en is daarvoor ongeschikt. Onderzoek van 16 november 2026: zes
+     stappen.
      1. Klaar (stap 1): de inhoudscontrole van het eigen doel (`sourceTargetContent`, pad en handle, in stukken van
         1 MiB) en herstel in twee stappen (`pendingSha256` optioneel in manifest 5, `replaceWithRecoveryPending`).
      2. Klaar (stap 2): Ctrl+S in de browser via de handle (Chrome, Edge), achter de flag: de uitzondering "eigen doel"
@@ -2616,7 +2614,7 @@ en noem het in je rapport of PR-tekst.
         vervanging in `replaceWithRecoveryPending`. De desktop (een pad) weigert nog zoals voorheen en wacht op stap 3
         tot en met 5.
      3. Gebouwd (stap 3, #972): het Rust-commando `place_file_exclusive` (`src-tauri/src/commands/place_file.rs`) en
-        de TS-ingang `placeFileExclusive.ts`; nog door geen route gebruikt. De grens van het commando (besluit van de
+        de TS-ingang `placeFileExclusive.ts`; sinds stap 4 gebruikt door de route naar een nieuwe naam. De grens van het commando (besluit van de
         technisch beslisser, 16 november 2026) staat bovenaan `place_file.rs` en in ontwerp §4.10: nooit een bestaand
         doel vervangen, nooit een pad dat plugin-fs weigert (de padteksten van de aanroeper en de echte map), een fout
         van de stap blijft een fout, na de stap hoogstens één verplaatsing en geen herstel. Op Unix blijft een venster
@@ -2624,20 +2622,32 @@ en noem het in je rapport of PR-tekst.
         Windows (aantallen in #972), ook wissels vóór en na de echte stap, een harde link op het doel en dezelfde
         invoer door de IPC naar plugin-fs `rename` en dit commando. Elke controle kreeg een mutatie die haar eigen
         proef rood maakte.
-     4. Opslaan als op de desktop via een eigen tijdelijk bestand en `place_file_exclusive`.
+     4. Klaar (stap 4, #983): Opslaan als, Exporteren → IFC en `planner_export_ifc` naar een nieuwe naam op de
+        desktop (`writeNewUserBytes` in `atomicWrite.ts`). De merge geeft één buffer (`PreparedIfcWrite.bytes`); de
+        route schrijft die met `createNew` in één aanroep naar `save-<id>.ops-save.tmp` in dezelfde map en zet dat met
+        `place_file_exclusive` op de naam. `placed` en `dir-not-synced` zijn klaar; `target-exists` ruimt op en meldt
+        dat alleen een nieuwe naam kan (dezelfde zin voor Opslaan als en Exporteren); `unsupported` en
+        `refused`/`scope` ruimen op en maken het doel direct met `createNew`; een andere weigering is een fout (zonder
+        opruimen bij `not-regular-file`); `source-changed` stopt zonder terugzetten of opruimen, met een eigen zin;
+        `io` ruimt op en is een fout. Blijft: buiten de thuismap mag het tijdelijke bestand niet ontstaan
+        (`forbidden path`) en maakt de app het doel direct met `createNew`; sinds plugin-fs 2.7.1 (#978) geldt dat ook
+        in een map die via een link naar buiten wijst (met 2.5.0 ontstond het tijdelijke bestand daar nog en bleef
+        het staan; dat was 1754). Die weg vervangt nooit een bestand, maar een crash halverwege laat daar een onvolledig
+        bestand staan; alleen de plaatsing via het tijdelijke bestand laat nooit een half einddoel achter. Na een
+        crash kan een `save-<id>.ops-save.tmp` blijven staan; er is geen opruimronde bij de start. In een echte app
+        is de route alleen gemeten met `planner_export_ifc` naar een nieuwe naam in de thuismap, op Linux
+        (`mcp-real-app.yml`): het app-log (kanaal `nieuweNaam`) moet voor dat doel `placed` of `dir-not-synced` van
+        het echte commando tonen, zonder directe aanmaak; een mutatie die direct aanmaakt maakt die proef rood.
+        Opslaan als via de dialoog, Windows, macOS en de terugvalwegen zijn in een echte app niet gemeten.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
      6. Teksten en handleiding, met de eigenaar.
-     Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
+     Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
-     en `check-place-file-exclusive.ts`. Crash, stroomuitval en externe
+     en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
+     commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
+     `run-real-app.ts`. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
-
-1760. **VERVOLG (#804, tekst): Opslaan als over een bestaand planningsbestand met een gebouwmodel geeft een interne fouttekst.**
-     Desktop. De planner ziet "Opslaan mislukt" met als detail "Byte-delen konden niet worden opgeslagen (create-new)."
-     Exporteren heeft wel een eigen zin (`ifcForeignExportNewTarget`). `fileSlice.ts` (de catch van Opslaan als),
-     `byteParts.ts:8`; de proef `check-ifc-document-save.ts` toetst alleen de sleutel. Richting: dezelfde zin als bij
-     Exporteren. Uit het onderzoek naar 1131 (16 november 2026). — B (code)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
      De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
@@ -2739,20 +2749,6 @@ en noem het in je rapport of PR-tekst.
      43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
      Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
 
-1744. **VERVOLG (#804, ontwerp): §4.10 zet na elke andere fout van stap 4 `.ops-vorige` terug, ook bij `source-changed`.**
-     Het ontwerp (§4.10, "Fouten") zegt: faalt stap 4 om een andere reden dan een bezet doel, dan zet de app
-     `.ops-vorige` exclusief terug op het doel. Het contract van `place_file_exclusive` zegt dat `source-changed` geen
-     schijfstand belooft. Stap 4 en 5 van 1131 moeten bij die uitkomst stoppen, de planner melden dat de stand op schijf
-     onbekend is en niets automatisch terugzetten of opruimen; de zin in §4.10 moet dat uitsluiten. Nu alleen tekst: er
-     is nog geen aanroeper. Op te lossen in stap 4 van 1131. Gevonden door de review van #972 (ronde 3). — B (tekst)
-
-1749. **VERVOLG (#804, tekst): drie plekken beloven een weigering bij elk bestaand doel, zonder de uitzondering van 1798.**
-     `src/services/fileAccess/placeFileExclusive.ts:3`, het commentaar bij `PlaceOps` in
-     `src-tauri/src/commands/place_file.rs:155` en `AGENTS.md:212` zeggen dat een bestaand doel altijd geweigerd wordt;
-     op Windows geldt dat niet voor een harde link van de bron zelf (1798). De oude samenvatting in het ontwerp
-     (regel 1601) noemt nog `MoveFileExW`; de code gebruikt `SetFileInformationByHandle`. Op te lossen in stap 4 van
-     1131, die deze bestanden toch raakt. Gevonden door de review van #972 (ronde 3). — B (tekst)
-
 1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
      Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan
      een partij met hernoemrechten in die map tussen controle en stap een ander object onder de hulpnaam zetten. Het
@@ -2809,19 +2805,6 @@ en noem het in je rapport of PR-tekst.
      nooit in een object naar Tauri gaan. Richting: dezelfde vorm als `atomicWrite.ts` (`writeTextFile` met
      `createNew` en modus 0600 in één aanroep, eigendom alleen bij de schrijffout na aanmaak). Gevonden bij #973,
      alleen in de code gelezen. — B (code)
-1792. **VERVOLG (#973, desktop): Opslaan als met een gebouwmodel voegt elk volgend deel op pad toe.**
-     `writeNewByteParts` maakt het nieuwe doel met `createNew` en het eerste deel, en opent het pad daarna voor elk
-     volgend deel opnieuw met `append`. Vóór #973 ging alles via één open bestand. Wisselt een ander programma het pad
-     tussen twee delen, dan krijgt het vervangende bestand de rest en meldt de app toch succes; bij een schrijffout
-     daarna kan het opruimen dat vervangende bestand verwijderen (opruimen op pad bestond al). De review van #973 toonde
-     het met een proef tegen basis en head: op de basis kreeg het oorspronkelijke bestand `DEEL1DEEL2` en bleef het
-     vervangende bestand heel, op de head kreeg het vervangende bestand `DEEL2` erbij. Meerdere delen zijn gewoon bij
-     een gewijzigde merge (`mergeWriter.ts`: bewaarde bronreeksen plus writerblokken van hoogstens 2.000 regels). Geen
-     synchronisatieclient aangetoond die dit bij een gewone opslag doet. Richting: de merge maakt voor de
-     uitvoercontrole al één volledige buffer en knipt die daarna weer in stukken; geef die ene buffer door, dan is het
-     één exclusieve aanroep en kunnen `ByteAppend` en de append-lus weg. Op te lossen bij stap 4 van 1131 (Opslaan als
-     op de desktop via een tijdelijk bestand), die deze route toch herschrijft. Gevonden door de review van #973
-     (Sol). — B (proef)
 1793. **VERVOLG (#973, proeven): de Node-adapter `tests/planning/nodeFileIpc.ts` doet `write_all` niet volledig na.**
      Hij negeert het aantal bytes dat `fs.writeSync` teruggeeft: schrijft die aanroep één van vijf bytes, dan meldt de
      adapter succes, terwijl de echte Rust-code met `write_all` doorloopt. Een echte fout van `writeSync` krijgt niet
@@ -3633,6 +3616,13 @@ en noem het in je rapport of PR-tekst.
      `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
      in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
      meting weghalen, of als basis de merge-base van de PR nemen. — B
+1753. **VERVOLG (#804, proeven): een check die op een belofte blijft wachten, eindigt stil met exit 0.**
+     Gezien bij 1131 stap 4: in `check-file-ifc-bytes.ts` wachtte een proef op een belofte die nooit afliep; Node
+     stopte omdat er niets meer te doen was, zonder fout, en `run.sh` gaf "EINDOORDEEL planningssuite: GROEN (exit 0)"
+     terwijl de proeven erna niet draaiden en er al een `XX`-regel stond. Die check heeft nu een `exit`-bewaking (niet
+     afgerond is rood). Andere `check-*.ts` met `main().catch(...)` of top-level `await` hebben die bewaking niet; of er
+     nu een stil afbrekende check is, is niet nagegaan. Richting: één bewaking in de harness (`run.sh` of de bundel van
+     een check) die eist dat het script zijn einde haalde, in plaats van per check. — B (voor die ene check), S (rest)
 
 ## Wensen en open taken (geen bug)
 
@@ -4473,14 +4463,6 @@ en noem het in je rapport of PR-tekst.
      Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
      alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B
 
-1720. **VERVOLG (#949, blokkadecontrole bij het wachten op de browserreparatie): bij meer dan honderd reacties leest ze
-     een verouderde laatste reactie.** `.claude/skills/release/SKILL.md`, de lus `wacht_op_reparatie`, gebruikt
-     `gh issue list --json comments` en dan `.comments[-1]`. `gh` 2.45.0 vraagt `comments(first: 100)` op: bij honderd
-     gewone reacties en daarna `REPARATIE GEBLOKKEERD` als reactie 101 ziet de lus geen blokkade; omgekeerd blijft een
-     oude blokkade op positie 100 zichtbaar nadat het werk is hervat. Richting: de laatste reactie echt opvragen
-     (`comments(last: 1)` via `gh api graphql`), en beide beslissingen uit één antwoord nemen in plaats van twee
-     `gh`-aanroepen per ronde. Gevonden door de review van #949 (Sol, ronde 2). — B
-
 1721. **VERVOLG (#949, controle 7g in `verify:docs`): ze verwart verboden woorden met verboden releasegedrag.**
      `scripts/verify-docs.ts` keurt elke `14:00` of `deadline` buiten de reparatieskill af, en stelt de hele
      reparatieskill ervan vrij. Gedraaid in het geheugen: `De release heeft geen deadline.` wordt afgekeurd; een
@@ -4510,6 +4492,26 @@ en noem het in je rapport of PR-tekst.
      `.claude/skills/browsertests-repareren/SKILL.md`, sectie "Stoppen om 14:00". De 23:50 komt uit de letterlijke
      prompt van de geplande ochtendtaak van Trias; de weekendstop van de eigenaar is zaterdag 23:00 tot maandag 01:00.
      Zet beide op dezelfde grens (23:00), in de skill én in die prompt. Gevonden door de review van #949 (Sol,
+     ronde 3). — B
+
+1810. **VERVOLG (#984, releasescript): bij hervatten met een nieuwere main worden de releaseteksten niet aangevuld.**
+     `scripts/release/stappen.mjs`, `teksten` en de lus in `releasePrKlaarmaken`. Zodra notes, changelogkop en
+     highlightblok bestaan, slaat `teksten` de tekstagent over; een nieuwe basis (main schoof op, of een hervatte
+     release-PR) vernieuwt alleen de cijfers. Fixes die na de eerste tekstronde op main kwamen, ontbreken dan in notes,
+     highlights en de documentatiecontrole. Richting: bij een gewijzigde inhoudsbasis de tekstagent de toegevoegde
+     commits laten aanvullen. Gevonden door de review van #984 (Sol, ronde 2). — B
+
+1811. **VERVOLG (#984, releasescript): de live websitecontrole bewijst de twee releaseblokken niet.**
+     `scripts/release/stappen.mjs`, `websiteAf`. De livecontrole is alleen `live.includes('v<versie>')`: een pagina die
+     de versie elders noemt (bijvoorbeeld in de footer) en waarin `#whats-new` en de tijdlijn ontbreken, telt als af.
+     Richting: de versie zoeken binnen `<section id="whats-new">` en binnen het `rn:start`–`rn:end`-blok van de live
+     pagina. Gevonden door de review van #984 (Sol, ronde 2). — B
+
+1812. **VERVOLG (#984, release-skill): het startvoorbeeld verbergt de slotregel.** `.claude/skills/release/SKILL.md`,
+     sectie *Starten*. Het blok schrijft `EXIT:$?` achter de scriptuitvoer en toont daarna `tail -n 1`, dus alleen
+     `EXIT:2` en niet de regel `RELEASE-STOP …` die de thread moet doorgeven; de afsluitende
+     `grep '^RELEASE-MELDING '` geeft exit 1 als er geen meldingen zijn, ook na een geslaagde release. De uitkomst
+     staat wel in het log. Richting: `tail -n 2` en `grep … || true`. Gevonden door de review van #984 (Sol,
      ronde 3). — B
 
 1750. **VERVOLG (#963, fs-scope voor lettertypen): het Windows-pad `C:/Windows/Fonts/**` is op Linux en macOS een

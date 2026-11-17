@@ -98,7 +98,7 @@ const d = cloneDomain(opened);
   assert.deepEqual(d, before, 'de controle veranderde het domein van de aanroeper niet');
   assert.deepEqual((await loadStore()).buildWriteIFCInput(store.getState(), 'merge'), liveBefore, 'de actieve store is ongewijzigd');
   assert.strictEqual(store.getState(), liveState, 'ook de documentregistry, historie en UI van de actieve store bleven onaangeraakt');
-  assert((await writeIfcMerge(d, source)).length > 0, 'de productieroute heeft zelf de vaste open-stappen');
+  assert((await writeIfcMerge(d, source)).byteLength > 0, 'de productieroute heeft zelf de vaste open-stappen');
   console.log('OK E21: vaste open-stappen, identiteit en naamwijziging geweigerd; invoer en actieve store ongewijzigd');
 }
 

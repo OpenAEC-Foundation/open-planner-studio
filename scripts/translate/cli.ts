@@ -11,6 +11,12 @@
 //   prepare ui <taal> --avoid [--stale] vertalingen met een avoid-variant uit de termbase (reason "avoid",
 //                                      per item `previous` en `avoidHits`; opdracht prompts/ui-termfix.md)
 //   prepare ui <taal> --keys <bestand> precies de sleutels uit een JSON-lijst ["ns:pad", …] (met `previous`)
+//   prepare ui <taal> --open           --missing en --stale samen in één ronde (de nachtvertaling)
+//   prepare ui <taal> … --only <bestand> de selectie beperkt tot een JSON-lijst ["ns:pad", …] (doorsnede)
+//   settled --out <bestand>            nl-eenheden die af zijn (48 uur ongewijzigd op main tot HEAD, niet van
+//                                      een feature flag) als JSON-lijst voor --only
+//   night-guard <BASE>                 exit 1 als een first-parent-commit van origin/main na BASE de
+//                                      selectie-invoer raakte (de nacht vervalt dan)
 //   apply-findings <taal> <bestand>    [{ key: "ns:pad", fix }] na de harde poorten → src/i18n/locales/<taal>/
 //   bundle-check                       alleen build/translate/check.mjs bouwen
 //   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
@@ -19,6 +25,7 @@
 //                                      + pitfalls.md voor de nalezer uit prompts/pitfalls/)
 //   packages ui|docs <taal…> [--red]   open pakketten als JSON [[taal, id]] (invoer voor scripts/translate/workflows/);
 //                                      --red = alleen pakketten met uitvoer die niet groen keurt
+//   packages ui <taal…> --bundle <N>   dezelfde pakketten per taal in bundels tot N tekens: [[taal, [id, …]]]
 //   check-docs <taal> [id…]            pakketpoort op gepubliceerde artikelen (na herstel buiten de stations)
 //   apply docs <taal>                  groene docs-pakketten → public/docs/<taal>/<id>.md + index.json (C2)
 //                                      + i18n/docs-sources/<taal>.json (C3); herschikt ook artikelen zonder pakket
@@ -50,6 +57,8 @@ import {
 import {
   applyTerms, conceptsErrors, inconsistencyReport, mergeConcepts, validateLangTermbase, type TermsOut,
 } from './termbase';
+import { FEATURE_FLAGS } from '../../src/utils/featureFlags';
+import { bundlePackages, flagUnitKeys, guardCommits, nlHistory, settledUnits, type Git } from './night';
 import { buildTermsPackages, indexTbx, parseTbx, uiExamplesFor, type TermsCheckPackage, type TermsPackage } from './tbx';
 import {
   avoidRules, buildUiPackages, orderSources, packageText, resolveKeyList, uiReleaseGaps, uiStatus,
@@ -132,7 +141,7 @@ function option(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
 }
-const positional = (args: string[]) => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && /^--(size|concepts|keys|ids|max-words)$/.test(args[i - 1])));
+const positional = (args: string[]) => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && /^--(size|concepts|keys|only|bundle|out|ids|max-words)$/.test(args[i - 1])));
 
 function loadConcepts(path = CONCEPTS): Concept[] {
   if (!existsSync(path)) {
@@ -341,28 +350,33 @@ function prepare(args: string[]): void {
   if (what === 'docs') { prepareDocs(args, checkLang(langArg)); return; }
   if (what !== 'ui') fail(`prepare ${what ?? ''}: kies "ui" of "docs"`);
   const lang = checkLang(langArg);
-  const modes = (['--missing', '--stale', '--all'] as const).filter(f => flag(args, f));
-  if (modes.length > 1) fail('kies één van --missing, --stale, --all');
+  const modes = (['--missing', '--stale', '--open', '--all'] as const).filter(f => flag(args, f));
+  if (modes.length > 1) fail('kies één van --missing, --stale, --open, --all');
   const mode = (modes[0]?.slice(2) ?? 'missing') as Selection;
   const avoid = flag(args, '--avoid');
   const keysFile = option(args, '--keys');
   if (flag(args, '--keys') && (!keysFile || keysFile.startsWith('--'))) fail('--keys: geef een bestand');
   if (avoid && (mode === 'all' || flag(args, '--missing'))) fail('--avoid gaat alleen samen met --stale');
-  if (keysFile && (avoid || modes.length)) fail('--keys gaat niet samen met --missing, --stale, --all of --avoid');
-  let keys: Map<string, Set<string>> | undefined;
-  if (keysFile) {
-    const path = resolve(ROOT, keysFile);
-    if (!existsSync(path)) fail(`--keys: ${keysFile} bestaat niet`);
+  if (avoid && mode === 'open') fail('--avoid gaat alleen samen met --stale');
+  if (keysFile && (avoid || modes.length)) fail('--keys gaat niet samen met --missing, --stale, --open, --all of --avoid');
+  const onlyFile = option(args, '--only');
+  if (flag(args, '--only') && (!onlyFile || onlyFile.startsWith('--'))) fail('--only: geef een bestand');
+  if (onlyFile && (avoid || keysFile)) fail('--only gaat niet samen met --keys of --avoid');
+  const keyList = (opt: string, file: string) => {
+    const path = resolve(ROOT, file);
+    if (!existsSync(path)) fail(`${opt}: ${file} bestaat niet`);
     const r = resolveKeyList(readJson<unknown>(path), nlByNs());
-    if (r.errors.length) fail(`${r.errors.length} fout(en) in ${keysFile}:\n    - ${r.errors.join('\n    - ')}`);
-    keys = r.keys;
-  }
+    if (r.errors.length) fail(`${r.errors.length} fout(en) in ${file}:\n    - ${r.errors.join('\n    - ')}`);
+    return r.keys;
+  };
+  const keys = keysFile ? keyList('--keys', keysFile) : undefined;
+  const only = onlyFile ? keyList('--only', onlyFile) : undefined;
   const termbase = loadTermbase(lang);
   if (avoid && !termbase) fail(`--avoid: i18n/termbase/${lang}.json bestaat niet`);
   const sources = readJsonOr<UiSources>(sourcesPath(lang), {});
   const packs = buildUiPackages({
     lang, inputs: nsInputs(lang), mode, sources, concepts: loadConcepts(), termbase,
-    size: Number(option(args, '--size') ?? 150), avoid, ...(keys ? { keys } : {}),
+    size: Number(option(args, '--size') ?? 150), avoid, ...(keys ? { keys } : {}), ...(only ? { only } : {}),
   });
   const dir = join(WORK, lang);
   archive(dir, 'ui-');
@@ -372,7 +386,8 @@ function prepare(args: string[]): void {
   bundleCheck();
   const items = packs.reduce((s, p) => s + p.items.length, 0);
   const sizes = packs.map(p => packageText(p).length);
-  const label = keys ? `--keys ${keysFile}` : avoid ? `--avoid${mode === 'stale' ? ' --stale' : ''}` : `--${mode}`;
+  const label = (keys ? `--keys ${keysFile}` : avoid ? `--avoid${mode === 'stale' ? ' --stale' : ''}` : `--${mode}`)
+    + (onlyFile ? ` --only ${onlyFile}` : '');
   console.log(`OK  prepare ui ${lang} ${label}: ${items} item(s) in ${packs.length} pakket(ten)`
     + (packs.length ? `, grootste ${Math.max(...sizes)} tekens` : ''));
 }
@@ -444,6 +459,10 @@ function packagesCmd(args: string[]): void {
   if (what !== 'ui' && what !== 'docs') fail(`packages ${what ?? ''}: kies "ui" of "docs"`);
   if (!langArgs.length) fail('packages ui|docs <taal…>: geef minstens één taal');
   const onlyRed = flag(args, '--red');
+  const bundle = option(args, '--bundle');
+  if (flag(args, '--bundle') && (what !== 'ui' || onlyRed || !/^[1-9]\d*$/.test(bundle ?? ''))) {
+    fail('--bundle <tekens>: alleen voor packages ui, zonder --red, met een positief getal');
+  }
   const items: [string, string][] = [];
   for (const lang of langArgs.map(checkLang)) {
     const dir = join(WORK, lang);
@@ -472,7 +491,46 @@ function packagesCmd(args: string[]): void {
       items.push([lang, base]);
     }
   }
+  if (bundle) {
+    const chars = ([lang, base]: [string, string]) => statSync(join(WORK, lang, `${base}.json`)).size;
+    console.log(JSON.stringify(bundlePackages(items.map(it => ({ lang: it[0], id: it[1], chars: chars(it) })), Number(bundle))));
+    return;
+  }
   console.log(JSON.stringify(items));
+}
+
+const git: Git = args => {
+  const r = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.trim()}`);
+  return r.stdout;
+};
+
+/**
+ * `settled --out <bestand>`: wat de nacht mag vertalen (plan nachtvertalingen §1), op HEAD: de nachtworktree
+ * staat losgekoppeld op origin/main, en `prepare` leest daarna dezelfde nl en dezelfde flags.
+ */
+function settledCmd(args: string[]): void {
+  const out = option(args, '--out');
+  if (!out || out.startsWith('--')) fail('settled --out <bestand>');
+  const history = nlHistory(git, 'HEAD', Date.now());
+  const current = history[history.length - 1] ?? {};
+  const flags = flagUnitKeys(FEATURE_FLAGS, current);
+  if (flags.errors.length) fail(`${flags.errors.length} fout(en) in FEATURE_FLAGS.texts:\n    - ${flags.errors.join('\n    - ')}`);
+  const r = settledUnits(history, flags.keys);
+  const path = resolve(ROOT, out);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(r.keys, null, 2)}\n`);
+  console.log(`OK  settled: ${r.keys.length} eenheid/eenheden af; ${r.moving} te nieuw of veranderd (48 uur), `
+    + `${r.flagged} van een feature flag → ${out}`);
+}
+
+/** `night-guard <BASE>`: vervalt de nacht? (plan nachtvertalingen §3 stap 6). */
+function nightGuardCmd(args: string[]): void {
+  const [base] = positional(args);
+  if (!base) fail('night-guard <BASE>');
+  const hits = guardCommits(git, base, 'origin/main');
+  if (hits.length) fail(`${hits.length} commit(s) op origin/main na ${base} raken de selectie-invoer; de nacht vervalt:\n    - ${hits.join('\n    - ')}`);
+  console.log(`OK  night-guard: origin/main raakte na ${base} geen selectie-invoer`);
 }
 
 function applyFindingsCmd(args: string[]): void {
@@ -947,6 +1005,8 @@ switch (cmd) {
   case 'apply': applyUi(rest); break;
   case 'apply-findings': applyFindingsCmd(rest); break;
   case 'packages': packagesCmd(rest); break;
+  case 'settled': settledCmd(rest); break;
+  case 'night-guard': nightGuardCmd(rest); break;
   case 'check-docs': checkDocsCmd(rest); break;
   case 'status': status(rest); break;
   case 'rename-doc': renameDoc(rest); break;
@@ -955,8 +1015,8 @@ switch (cmd) {
   case 'docs-literal': docsLiteral(); break;
   default:
     console.log('gebruik: npm run translate -- <validate-termbase | concepts-candidates | concepts-merge | terms-lookup <taal> | '
-      + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all|--avoid [--stale]|--keys <bestand>] | bundle-check | '
-      + 'apply ui <taal> | apply-findings <taal> <bestand> | packages ui|docs <taal…> [--red] | check-docs <taal> [id…] | status [taal] [--strict] | '
+      + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--open|--all|--avoid [--stale]|--keys <bestand>] [--only <bestand>] | bundle-check | '
+      + 'apply ui <taal> | apply-findings <taal> <bestand> | packages ui|docs <taal…> [--red|--bundle N] | settled --out <bestand> | night-guard <BASE> | check-docs <taal> [id…] | status [taal] [--strict] | '
       + 'prepare docs <taal> [--missing|--stale|--ids a,b] [--max-words N] | apply docs <taal> | rename-doc <oud> <nieuw> | '
       + 'remove-doc <id> | docs-budget <taal…> | docs-literal>');
     process.exit(cmd ? 1 : 0);

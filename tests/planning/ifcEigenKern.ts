@@ -13,7 +13,7 @@ import { parseOutLine } from '@/services/ifc/foreign/lossCheck';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { generateId } from '@/utils/id';
 import { storeWith } from './ifcAppRoute';
-import { concat, type Domain } from './ifcMergeKern';
+import type { Domain } from './ifcMergeKern';
 import { installDeterminism } from './ifcPariteitKern';
 
 export const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -94,7 +94,7 @@ export async function save(d: Domain, source: IfcSource): Promise<Outcome> {
   clock.start();
   try {
     const prepared = await prepareIfcWrite(d, source);
-    return { ok: true, bytes: concat(prepared.parts), next: prepared.source };
+    return { ok: true, bytes: prepared.bytes, next: prepared.source };
   } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), detail: e.cases[0]?.detail.slice(0, 300) ?? '' };
