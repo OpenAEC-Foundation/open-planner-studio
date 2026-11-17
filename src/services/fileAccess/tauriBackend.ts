@@ -139,7 +139,7 @@ async function pickSavePathTauri(
     const target = ext ? ensureExtension(picked, ext) : picked;
     // Het venster gaf toestemming (scope) en stelde de overschrijfvraag voor `picked`, niet voor `target`. Valt
     // `target` buiten de scope of bestaat hij al, dan gaat hij zelf nog een keer door het venster, ingevuld.
-    if (target === picked || !(await needsOwnDialogRound(target)) || true) return target; // MUTATIE: tweede ronde weg
+    if (target === picked || !(await needsOwnDialogRound(target))) return target;
     picked = await save({ defaultPath: target, filters });
   }
   return null;
