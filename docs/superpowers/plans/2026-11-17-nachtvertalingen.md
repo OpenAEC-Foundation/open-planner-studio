@@ -88,8 +88,12 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
   (`src/components/settings/SettingsPanelContent.tsx:88`, `:582-606`), dus dat is gedekt. Daarnaast
   hebben de exportformaten P6 XML en XER een zichtbaar label "Experimenteel"
   (`src/services/formatRegistry.ts:368-369`, `menu:export.experimentalBadge`). Die staan niet achter
-  een flag en planners zien ze. **Voorstel: de nacht vertaalt ze wel**, want ze zijn zichtbaar en hun
-  teksten veranderen niet vaker dan andere. Dit is een productkeuze: ik leg hem voor aan wrakko.
+  een flag. **De nacht vertaalt ze wel** (besluit wrakko namens Trias, 2026-11-17, optie 1). Ethans
+  reden was dat teksten definitief moeten zijn ("we hebben er niet veel aan als teksten nog niet
+  definitief zijn"). Deze teksten staan al maanden zichtbaar en ongewijzigd; het label "Experimenteel"
+  zegt iets over de functie, niet over de tekst. De grens is dus: achter een featureflag of nog in
+  beweging, niet het woord Experimenteel in een label. Verandert zo'n tekst toch, dan houdt de
+  48 uursregel hem tegen zoals elke andere tekst.
 - De kop van het blok zelf (`common:settings.experimentalSection`, `…Empty`, `…Hide`) is vaste UI en
   gaat wel mee.
 
@@ -99,8 +103,8 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
    → per namespace de rustige eenheid-sleutels, plus `flagKeys(flags, nlByNs)` die de `texts`
    (met `*`) tegen nl oplost en fouten geeft voor een item zonder treffer.
 2. **CLI** (`scripts/translate/cli.ts`):
-   - `translate settled [--min-age-hours 48] [--ref origin/main] --out <bestand>`: doet de git-I/O
-     van §1a, leest `FEATURE_FLAGS`, schrijft een JSON-lijst `["ns:pad", …]` (zelfde vorm als
+   - `translate settled --out <bestand>`: vaste grens 48 uur, vaste bron `origin/main` (geen opties;
+     er is één afgesproken grens en één bron). Doet de git-I/O van §1a, leest `FEATURE_FLAGS`, schrijft een JSON-lijst `["ns:pad", …]` (zelfde vorm als
      `--keys`) en meldt per reden hoeveel eenheden afvielen (nieuw/gewijzigd, flag).
    - `prepare ui <taal> --open --only <bestand>`: nieuwe selectie `open` = `missing` ∪ `stale`
      (`selectUnits`), beperkt tot de lijst. Ontbrekende items krijgen geen `previous`, verouderde wel,
@@ -109,12 +113,11 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
      een tweede ronde na `apply` de nacht dubbel aan een verschuivende main zou blootstellen. De
      pakketwaarde `mode` leest geen enkele poort (alleen `selectUnits` en het CLI-label), dus een
      gemengd pakket verandert niets aan check of apply. `--only` mag ook met `--missing` en `--stale`.
+     `--only` is een doorsnede met de selectie, geen `--keys`: `selectKeys` (`ui.ts:186`) neemt elke
+     opgegeven sleutel, ook een actuele; `--only` laat een actuele sleutel uit de lijst juist weg.
    - `packages ui <talen> --bundle <maxTekens>`: per taal de open pakketten in bundels tot het
      maximum (standaard 60.000 tekens pakkettekst), als `[[taal, [id, …]], …]`. Zonder `--bundle`
      blijft de uitvoer zoals nu.
-   - `translate night-paths`: leest `git diff --name-only <basis>...HEAD` en faalt als er iets anders
-     verandert dan `src/i18n/locales/<taal>/*.json` en `i18n/ui-sources/<taal>.json` voor de 26
-     vertaaltalen (geen `nl`, geen `en`).
 3. **`src/utils/featureFlags.ts`**: veld `texts` op `FeatureFlag`, ingevuld voor beide flags.
 4. **Opdrachten** (`scripts/translate/prompts/`):
    - `ui.md`: van "ONE package" naar "the packages in `{{PACKAGES}}`" (één of meer, zelfde taal). Per
@@ -130,7 +133,7 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
    stations volgen `update-ui-lang/t3-stations.md`, dat een bundelvariant krijgt: één vertaal-, één
    naleesdelegatie per bundel, herstel alleen voor de pakketten met bevindingen.
 6. **Besluit 9**: `release/referentie.md` krijgt een kopje voor de nachttaak met dezelfde lichte
-   vertaalscripts plus `translate settled` en `translate night-paths`, in de eigen nachtworktree.
+   vertaalscripts plus `translate settled`, in de eigen nachtworktree.
    AGENTS.md (alinea over de releasejob) noemt de nachttaak ernaast.
 7. **Release**: `release/SKILL.md` stap vertalen: wacht eerst tot de nacht van maandag klaar is (§3,
    markering) en vertaal dan wat er nog ligt, zoals nu.
@@ -140,9 +143,9 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
      meervoudsfamilie waarvan één vorm veranderde valt af; alleen `en` gewijzigd blijft rustig;
    - flag-items: exacte sleutel, `*`-voorvoegsel, `nameKey`/`descriptionKey`, item zonder treffer is
      een fout; de echte `FEATURE_FLAGS` lossen allemaal op;
-   - `--open` = ontbrekend ∪ verouderd met `previous` alleen bij verouderd; `--only` snijdt elke selectie;
+   - `--open` = ontbrekend ∪ verouderd met `previous` alleen bij verouderd; `--only` snijdt elke selectie
+     en laat een actuele sleutel uit de lijst weg (het verschil met `--keys`);
    - bundelen respecteert het maximum en splitst nooit een pakket;
-   - `night-paths` weigert `nl`, `en`, code en andere paden;
    - mutatiebewijs: drie mutaties in `settled.ts` (48 uur-grens, momentopnames tussendoor overslaan,
      flag-uitsluiting weglaten) maken de check rood; uitgevoerd met een kopie in `/tmp`, uitkomst in
      de PR.
@@ -163,8 +166,11 @@ Stappen:
 1. **Werkplek.** `git fetch origin`; nieuwe worktree, losgekoppeld, op `origin/main`
    (`git worktree add --detach <pad> origin/main`). Nooit een vorige nachtbranch hervatten.
    Eenmaal `npm ci` (besluit 9). Noteer `BASE=$(git rev-parse HEAD)`.
+   De doeltalen staan vast: `TALEN` = de 28 locales uit AGENTS.md zonder `nl` en `en` (26). Alleen
+   die talen gaan door `status`, `prepare`, `apply` en de padcontrole; `en` nooit, ook niet als
+   `status` hem noemt.
 2. **Wat is af.** `npm run translate -- settled --out build/translate/settled.json`.
-3. **Wat staat open.** `npm run translate -- status`; talen met ontbrekend en met verouderd/zonder hash.
+3. **Wat staat open.** `npm run translate -- status <taal>` voor elke taal in `TALEN`.
 4. **Pakketten.** Per taal met iets open: `prepare ui <taal> --open --only build/translate/settled.json`.
    Leeg in alle talen: klaar zonder PR (rapport "niets af en open").
 5. **Stations.** `packages ui <talen> --bundle 60000` → per bundel vertalen, nalezen, zo nodig
@@ -172,20 +178,31 @@ Stappen:
    las en het een geldige JSON-lijst is. Alle gevolgde bestanden, pakketten, zegel en checker blijven
    ongewijzigd (`git status --short` en de zegel voor en na); een run die daarbuiten schrijft telt niet
    en draait opnieuw. `OPEN_STATIONS` moet 0 zijn vóór de volgende stap.
-6. **Verse main.** `git fetch origin`. Is `package-lock.json` veranderd tussen `BASE` en de nieuwe
-   `origin/main`: deze nacht vervalt (geen tweede `npm ci`). Anders
-   `git switch -c vertalingen/JJJJ-MM-DD origin/main` (de werkboom is schoon; `build/` is gitignored
-   en blijft staan).
+6. **Verse main.** `git fetch origin`; `NIEUW=$(git rev-parse origin/main)`. Veranderde tussen `BASE`
+   en `NIEUW` iets van de selectie-invoer, dan **vervalt de nacht**:
+   `git diff --quiet BASE NIEUW -- src/i18n/locales i18n/ui-sources i18n/termbase src/utils/featureFlags.ts scripts/translate package-lock.json`
+   moet exit 0 geven. Daarmee kan geen intussen gecorrigeerde doelvertaling of bronhash worden
+   overschreven (`applyUiPackage` vervangt de doeltekst, `packageMismatch` toetst alleen nl), kan
+   geen sleutel die intussen bij een flag hoort of opnieuw veranderde mee, en draait apply met
+   dezelfde checker en dependencies als de stations. "Af" hoeft dan niet opnieuw te worden berekend:
+   alle invoer ervan (nl-geschiedenis tot `BASE`, flags) is gelijk, en een nl-wijziging na `BASE`
+   valt onder deze regel. Om 01:00–03:00 komt er zelden iets op main; vervallen kost dan een nacht.
+   Anders: `git switch -c vertalingen/JJJJ-MM-DD NIEUW` (de werkboom is schoon; `build/` is
+   gitignored en blijft staan).
 7. **Toepassen.** Per taal `apply ui <taal>`. Een pakket met een intussen veranderde nl-tekst wordt
    rood en gaat niet mee (`packageMismatch`, `scripts/translate/apply.ts:56`).
 8. **Rood na apply** (vertaalfout of niet meer passend): blijft liggen voor de volgende nacht of de
    release; geen tweede ronde in dezelfde nacht. Staat in de PR-tekst.
-9. **Poorten.** `npm run verify:i18n` (exit 0), `npm run translate -- night-paths`, `git status -sb`.
-   Commit alleen `src/i18n/locales` en `i18n/ui-sources` met noreply-adres. Push
+9. **Poorten.** `npm run verify:i18n` (exit 0). Stage gericht per taal in `TALEN`:
+   `git add src/i18n/locales/<taal> i18n/ui-sources/<taal>.json`. Dan de padcontrole op wat er
+   echt de commit in gaat: `git diff --cached --name-only` bevat alleen
+   `src/i18n/locales/<taal>/*.json` en `i18n/ui-sources/<taal>.json` voor talen in `TALEN`, en
+   `git status --porcelain` toont buiten `build/` niets anders (geen ongestaged of nieuw bestand).
+   Afwijking: niet committen, nacht vervalt, melding. Commit met het ingestelde noreply-adres. Push
    `vertalingen/JJJJ-MM-DD`, PR "UI-vertalingen JJJJ-MM-DD" (niet draft) met per taal de aantallen,
    rode/open pakketten en de uitgesloten aantallen (flag, te nieuw).
 10. **Merge.** Wacht in de voorgrond op CI van de PR-head. Groen: `git fetch origin`; is
-    `origin/main` nog gelijk aan de basis van de branch, dan
+    `origin/main` nog gelijk aan `NIEUW` (de basis van de branch), dan
     `gh pr merge <nr> --merge --admin --match-head-commit <head-sha>`. Is main verder: PR dicht met
     een korte reden, de poging vervalt. Rood: geen herstel, PR dicht, melding in het rapport.
 11. **Eind.** Markering weg, worktree weg (`git worktree remove`). Twee vervallen of mislukte nachten op
@@ -198,7 +215,7 @@ tekst die daar verandert, staat daarna als verouderd en de volgende nacht of de 
 ## 4. Wat er aan de vertaalopdracht verandert
 
 Nu: één delegatie per pakket per station; op 16 november 130 pakketten, dus 130 vertaal- en 130
-naleesruns. Straks in de nacht: per taal één ronde (ontbrekend en verouderd samen) en meestal één bundel (meestal) met al zijn pakketten,
+naleesruns. Straks in de nacht: per taal één ronde (ontbrekend en verouderd samen) en meestal één bundel met al zijn pakketten,
 dus per taal één vertaal- en één naleesrun, plus herstel. De pakketten zelf (namespace, 150 items,
 24.000 tekens) en de check per pakket blijven gelijk, zodat `apply` en de rode-pakketroute niet
 veranderen. Een bundel heeft een grens van 60.000 tekens pakkettekst; daarboven twee bundels.
