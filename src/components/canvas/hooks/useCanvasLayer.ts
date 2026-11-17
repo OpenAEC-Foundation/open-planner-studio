@@ -64,6 +64,12 @@ export function readAccentColor(): string {
 export interface UseCanvasLayerOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   containerRef: RefObject<HTMLElement | null>;
+  /**
+   * De gemounte container als React-state, voor een container die pas ná de eerste commit mount
+   * (het histogram via een portal). Het observer-effect hangt dan aan deze node in plaats van aan
+   * het stabiele ref-object en hecht opnieuw zodra de node verschijnt of wisselt.
+   */
+  containerNode?: HTMLElement | null;
   draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
   enabled?: boolean;
   renderRevision?: string | number;
@@ -72,6 +78,7 @@ export interface UseCanvasLayerOptions {
 export function useCanvasLayer({
   canvasRef,
   containerRef,
+  containerNode,
   draw,
   enabled = true,
   renderRevision,
@@ -98,7 +105,7 @@ export function useCanvasLayer({
   // Observeer CSS-maat én device-pixels: beide kunnen onafhankelijk wijzigen.
   useEffect(() => {
     if (!enabled) return;
-    const container = containerRef.current;
+    const container = containerNode === undefined ? containerRef.current : containerNode;
     if (!container) return;
     let frame: number | undefined;
     const schedulePaint = () => {
@@ -139,7 +146,7 @@ export function useCanvasLayer({
       if (frame !== undefined) cancelAnimationFrame(frame);
       measuredBoxes.delete(container);
     };
-  }, [enabled, containerRef]);
+  }, [enabled, containerRef, containerNode]);
 
   return paint;
 }

@@ -317,10 +317,9 @@ export function GanttCanvas({
   // `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
   // strook (portal-doel `histogramHost` bestaat pas ná de eerste render, of de hele Gantt wordt
   // ver- en hermount bij een tabwissel naar Tabel/Backstage) wijzigt `.current` zonder dat React dat
-  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` moet de node zelf als afhankelijk-
-  // heid krijgen om zijn wheel-listener opnieuw te hechten, dus spiegelen we `.current` hier naar
-  // React-state via een callback-ref (overige consumenten van `histogramContainerRef`, zoals
-  // `useGanttRendererHost`, lezen via het ref-object).
+  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` (wheel-listener) en de
+  // observers van `useGanttRendererHost` moeten de node zelf als afhankelijkheid krijgen om opnieuw
+  // te hechten, dus spiegelen we `.current` hier naar React-state via een callback-ref.
   const [histogramContainerEl, setHistogramContainerEl] = useState<HTMLDivElement | null>(null);
   const setHistogramContainerNode = useCallback((node: HTMLDivElement | null) => {
     histogramContainerRef.current = node;
@@ -751,6 +750,7 @@ export function GanttCanvas({
       primaryContainerRef: containerRef,
       secondaryContainerRef,
       histogramContainerRef,
+      histogramContainer: histogramContainerEl,
     },
     primary: primaryRenderInput,
     secondary: secondaryRenderInput,
