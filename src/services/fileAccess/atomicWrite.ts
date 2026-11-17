@@ -236,6 +236,7 @@ export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'
  * De aanroeper wijzigt de buffer niet tot de opslag klaar is.
  */
 export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
+  if (path) return createNewDirectly(fs, path, bytes); // MUTATIE a
   const tmp = userFileTempPath(path);
   // Alleen ons eigen tijdelijke bestand, en alleen als het van ons kan zijn; een mislukt opruimen is geen fout.
   const removeOwnTemp = async () => {
