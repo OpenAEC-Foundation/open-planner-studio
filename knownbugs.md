@@ -2852,6 +2852,21 @@ en noem het in je rapport of PR-tekst.
      deze ene omzetting van de aanroepvorm". Richting: die omzetting reproduceerbaar maken in het script, of alleen dit
      verschil normaliseren bij de vergelijking; niet de hele referentie opnieuw opnemen vanaf een featurebranch.
      Gevonden door de review van #973 (Sol). — B
+1755. **Opslaan in een map in de thuismap die een link naar buiten is laat met plugin-fs 2.5.0 een hulpbestand
+     achter, en een bestaand bestand daar vervangen mislukt.** Uit de bron gelezen: tauri 2.12.3 `Scope::is_allowed`
+     lost een BESTAAND pad eerst op (`canonicalize`), een nieuw pad niet. Opslaan als naar `~/projecten/kopie.ifc`
+     (`~/projecten` → `/data/…`): het hulpbestand `save-<id>.ops-save.tmp` wordt nog aangemaakt (nieuw pad, lexicaal
+     onder `$HOME`), maar `rename` en `remove` van dat bestaande hulpbestand toetsen het opgeloste pad `/data/…` en
+     worden geweigerd; de terugval schrijft het doel direct en het hulpbestand blijft staan. Bestaat het doel al, dan
+     weigert ook die directe write (`forbidden path`). Nagebootst in `check-save-dialog-extension.ts` (g), niet in de
+     echte app gezien. Met plugin-fs 2.7.1 (#978) mislukt al het aanmaken van het hulpbestand. Gevonden bij #979. — S
+1756. **Met plugin-fs 2.7.1 (#978) helpt de toestemming van het opslagvenster mogelijk niet voor een pad via een
+     gelinkte map.** Het venster zet het teruggegeven pad letterlijk in de scope (`allow_file`, tauri 2.12.3
+     `push_pattern` maakt het pad niet canoniek); 2.7.1 toetst het pad met alle links opgelost (`resolve_real_path`
+     en daarna `is_allowed`). Geeft GTK `~/projecten/kopie.ifc` terug terwijl `~/projecten` een link naar `/data` is,
+     dan matcht `/data/kopie.ifc` die toestemming niet, ook niet na de tweede ronde van #979. Of GTK het pad met of
+     zonder link teruggeeft, is niet nagegaan; de proef van de review van #978 gaf beide paden vrij. Richting: in de
+     echte desktopapp nagaan vóór de merge van #978. Gevonden bij #979 (uit de bron). — S
 
 ## Rondleiding, Help en extensie-gidsen
 
