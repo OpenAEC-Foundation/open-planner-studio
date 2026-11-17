@@ -222,6 +222,12 @@ export interface LossCheckInput {
   /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
    *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
   readonly plannerChanged?: ReadonlySet<string>;
+  /**
+   * De andere toets (PR 12b): per bronstuk de eigen groep op projectniveau waarvan het openen niets veranderde (a′,
+   * `openedOwnGroups` in `mergeWriter.ts`). Een verschil in O1 in zo'n groep hoeft geen bewerking te verklaren als de groep
+   * ook gedragen is (a): geen stuk ervan had (b) nodig. Zonder dit veld: de controle van main.
+   */
+  readonly ownGroups?: ReadonlyMap<number, string>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -354,6 +360,14 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
     .map(r => `${r.chunk}:${r.outArg}`));
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
+  // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
+  // veranderde (a′, `input.ownGroups`) en die in de bron gedragen is (a: geen stuk ervan had (b) nodig), schrijft de writer
+  // uit de lezing van de bron precies zoals hij in de bron staat. Een verschil in O1 in die groep is dan wat de writer uit
+  // de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven groep terugleest tot precies wat de writer
+  // ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in `mergeWriter.ts`), en de controle na openen
+  // dat de planning gelijk blijft. Elke andere groep, en alles buiten de eigen groepen, blijft onder de controle hieronder.
+  const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
+  const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
@@ -428,6 +442,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
+      if (ownGroupCarries(d.chunk)) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -435,7 +450,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
-      if (different.has(chunk) || scopes.size !== 1) continue;
+      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk)) continue;
       const scope = [...scopes][0];
       const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
       if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'

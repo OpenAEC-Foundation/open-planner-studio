@@ -15,12 +15,13 @@
  *
  * Gebruik: de uitvoercontrole (c) in `mergeWriter.ts` vergelijkt per groep de boomvorm van de uitvoer met die van de writer
  * op de herlezing (`ownGroupTrees`, `ownGroupDifference`), en slaat de groepen over waar de herleestoets (b) bronwaarden
- * terugzette (`editedOwnGroup`). Een latere stap (de andere toets in de verliescontrole) kan dezelfde indeling op de
- * bronregels gebruiken: `ownGroupMembers` geeft per regel de groep.
+ * terugzette (`editedOwnGroup`). De andere toets in de verliescontrole (PR 12b, `openedOwnGroups` in `mergeWriter.ts`)
+ * gebruikt dezelfde indeling op de bronregels (`indexView`, `ownGroupMembers`).
  */
 import { decodeStepText } from '../stepText';
 import { PSET } from '../ifcPsets';
 import { refsOutsideText, type OutLine } from './lossCheck';
+import type { StepIndex } from './stepScanner';
 
 /** De tweede vorm van `OPS_Baselines`: de baselinekoppen en hun lidmaatschap van een aggregatie. */
 export const BASELINE_HEADS = `kop:${PSET.Baselines}`;
@@ -45,6 +46,25 @@ export function linesView(lines: readonly OutLine[], fallbackType: (id: number) 
   const aggregated = new Set<number>();
   for (const l of lines) if (l.type === 'IFCRELAGGREGATES') for (const id of refsOutsideText(l.args[5] ?? '')) aggregated.add(id);
   return { lines, line: id => byId.get(id), typeOf: id => byId.get(id)?.type ?? fallbackType(id), aggregated };
+}
+
+/**
+ * Een view op de stukken van een scan. Alleen de stukken waarvoor `own(chunk)` geldt, zijn regels (eigen regels); het type
+ * en het lidmaatschap van een aggregatie gelden voor elk stuk, ook een vreemd.
+ */
+export function indexView(index: StepIndex, own: (chunk: number) => boolean): OwnLinesView {
+  const lines: OutLine[] = [];
+  const aggregated = new Set<number>();
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    if (index.type(i) === 'IFCRELAGGREGATES') for (const c of index.refsAt(i, 5)) aggregated.add(Number(index.id(c)));
+    if (!own(i)) continue;
+    const args = index.argTokens(i);
+    if (args) lines.push({ id: Number(index.id(i)), type: index.type(i), args });
+  }
+  const byId = new Map(lines.map(l => [l.id, l]));
+  const typeOf = (id: number) => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; };
+  return { lines, line: id => byId.get(id), typeOf, aggregated };
 }
 
 /** Typen die een object zijn (geen deel van een groep): in de boomvorm staat alleen hun type. */
@@ -113,6 +133,21 @@ export function ownGroupMembers(view: OwnLinesView): Map<number, string> {
   };
   for (const [g, roots] of groupRoots(view)) for (const l of roots) walk(l.id, g);
   for (const l of view.lines) if (isBaselineHead(l)) out.set(l.id, BASELINE_HEADS);
+  return out;
+}
+
+/**
+ * De groepen met een vreemd lid: een eigen regel van de groep wijst (buiten tekst) naar een stuk dat niet eigen is en geen
+ * `IfcProject` is, zoals een property van een ander programma in een eigen pset. Zo'n lid schrijft de writer niet; de merge
+ * zet het erbij. De writer schrijft uit de lezing van de bron dus niet precies de bronregels van die groep (PR 12b,
+ * voorwaarde a).
+ */
+export function groupsWithForeignMembers(view: OwnLinesView, members: ReadonlyMap<number, string>): Set<string> {
+  const out = new Set<string>();
+  for (const [id, group] of members) {
+    const line = view.line(id);
+    if (line?.args.some(a => refsOutsideText(a).some(r => view.line(r) === undefined && view.typeOf(r) !== 'IFCPROJECT'))) out.add(group);
+  }
   return out;
 }
 

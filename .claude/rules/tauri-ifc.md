@@ -74,8 +74,16 @@ schrijfklok van O1 (`writeIfcMergeLines(…, writtenAt)`), zonder GlobalId en ow
 canon voor `TaskGuids`. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
 vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
-Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren; de verliescontrole verandert niet.
-Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
+Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
+
+De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
+een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
+verklaren als de groep in de bron gedragen is (a: geen vreemd lid, `groupsWithForeignMembers`, en geen stuk dat de
+herleestoets (b) nodig had) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
+schrijft in die groep hetzelfde, in de bronvorm van `sourceFormWhereUnchanged`; alleen met `opened`). Dan toetsen (c) en
+de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. Buiten de toets: de
+baselinekoppen (stap 3, 1700), de typenaam op de taak (stap 4), en alles buiten de eigen projectgroepen (taken, relaties,
+kalenders, resources). De oude verklaringen blijven tot stap 5. Proef: `check-ifc-foreign-eigen-toets.ts`.
 
 ### Vergelijkingsklok (#804 fase 1c)
 
