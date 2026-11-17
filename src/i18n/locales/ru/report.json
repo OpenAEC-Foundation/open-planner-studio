@@ -76,7 +76,7 @@
     "start": "Начало",
     "end": "Окончание",
     "duration": "Длительность",
-    "completion": "Заверш."
+    "completion": "Ход выполнения"
   },
   "reportType": {
     "label": "Тип отчета",

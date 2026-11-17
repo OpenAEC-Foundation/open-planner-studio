@@ -74,7 +74,7 @@
     "start": "Început",
     "end": "Sfârșit",
     "duration": "Durată",
-    "completion": "Proc. fin."
+    "completion": "Progres"
   },
   "reportType": {
     "label": "Tip de raport",

@@ -76,7 +76,7 @@
     "start": "Початок",
     "end": "Завершення",
     "duration": "Тривалість",
-    "completion": "Викон."
+    "completion": "Прогрес"
   },
   "reportType": {
     "label": "Тип звіту",

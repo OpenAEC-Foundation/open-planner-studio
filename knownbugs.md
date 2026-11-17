@@ -2785,6 +2785,17 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1789. **VERVOLG, BEVESTIGD: de Turkse hoofdletter İ geeft een onterechte termwaarschuwing.**
+     Het stale-pakket tr/ui-report-01 heeft de kolomkop Voortgang → İlerleme, met vaste term
+     ilerleme. De bestaande pakketchecker geeft GROEN met nul fouten maar meldt dat de term niet
+     gevonden is. softText in scripts/translate/gates.ts:58–63 verlaagt tekst en termvormen met
+     toLocaleLowerCase() zonder de pakkettaal door te geven. De verklaring met de extra
+     Unicodepunt bij de standaardomzetting van İ is uit die bronroute afgeleid, niet met een
+     extra lokale JavaScript-run gemeten. De eigen checkeruitvoer en onafhankelijke nalezing
+     blijven het bewijs voor deze concrete valse waarschuwing. Richting: maak de zachte
+     termvergelijking taalbewust en toets Turkse hoofdletters, zonder de termbase of de juiste
+     apptekst te veranderen. In deze release is de checker niet aangepast. — B
+
 1788. **VERVOLG, BEVESTIGD: een herstelstation kan na alleen de eerste bevindingen afronden.**
      Het eerste Servische herstel van ui-report-01 verwerkte drie voorstellen uit een goedgekeurde
      review met 29 entries voor 27 sleutels. De pakketcheck bleef groen, omdat die niet toetst of

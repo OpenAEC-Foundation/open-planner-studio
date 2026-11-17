@@ -72,7 +72,7 @@
     "start": "Начало",
     "end": "Завършване",
     "duration": "Продължителност",
-    "completion": "Зав."
+    "completion": "Напредък"
   },
   "reportType": {
     "label": "Тип отчет",

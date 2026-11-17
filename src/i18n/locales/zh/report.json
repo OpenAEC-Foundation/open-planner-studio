@@ -70,7 +70,7 @@
     "start": "开始",
     "end": "结束",
     "duration": "工期",
-    "completion": "完成"
+    "completion": "进度"
   },
   "reportType": {
     "label": "报表类型",

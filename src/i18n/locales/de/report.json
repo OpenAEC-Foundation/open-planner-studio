@@ -72,7 +72,7 @@
     "start": "Anfang",
     "end": "Ende",
     "duration": "Dauer",
-    "completion": "Fertigst."
+    "completion": "Fortschritt"
   },
   "reportType": {
     "label": "Berichtstyp",

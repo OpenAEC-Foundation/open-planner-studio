@@ -74,7 +74,7 @@
     "start": "Почетак",
     "end": "Завршетак",
     "duration": "Трајање",
-    "completion": "Заврш."
+    "completion": "Напредак"
   },
   "reportType": {
     "label": "Тип извештаја",

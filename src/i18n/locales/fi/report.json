@@ -72,7 +72,7 @@
     "start": "Alku",
     "end": "Loppu",
     "duration": "Kesto",
-    "completion": "Valm."
+    "completion": "Edistyminen"
   },
   "reportType": {
     "label": "Raporttityyppi",

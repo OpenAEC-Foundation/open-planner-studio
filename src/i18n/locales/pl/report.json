@@ -76,7 +76,7 @@
     "start": "Początek",
     "end": "Koniec",
     "duration": "Czas trwania",
-    "completion": "Post."
+    "completion": "Postęp"
   },
   "reportType": {
     "label": "Typ raportu",

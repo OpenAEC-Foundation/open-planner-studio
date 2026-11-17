@@ -76,7 +76,7 @@
     "start": "Začátek",
     "end": "Dokončení",
     "duration": "Doba trvání",
-    "completion": "Dokonč."
+    "completion": "Průběh"
   },
   "reportType": {
     "label": "Typ sestavy",

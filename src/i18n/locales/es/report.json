@@ -74,7 +74,7 @@
     "start": "Inicio",
     "end": "Fin",
     "duration": "Duración",
-    "completion": "Av."
+    "completion": "Avance"
   },
   "reportType": {
     "label": "Tipo de informe",
