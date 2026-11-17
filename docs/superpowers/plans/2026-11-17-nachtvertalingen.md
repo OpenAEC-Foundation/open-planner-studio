@@ -103,7 +103,7 @@ Controles op die lijst (in de test, op de echte `FEATURE_FLAGS`):
    → per namespace de rustige eenheid-sleutels, plus `flagKeys(flags, nlByNs)` die de `texts`
    (met `*`) tegen nl oplost en fouten geeft voor een item zonder treffer.
 2. **CLI** (`scripts/translate/cli.ts`):
-   - `translate settled --out <bestand>`: vaste grens 48 uur, vaste bron `origin/main` (geen opties;
+   - `translate settled --out <bestand>`: vaste grens 48 uur, vaste bron `HEAD` = de nachtworktree op `origin/main` (geen opties;
      er is één afgesproken grens en één bron). Doet de git-I/O van §1a, leest `FEATURE_FLAGS`, schrijft een JSON-lijst `["ns:pad", …]` (zelfde vorm als
      `--keys`) en meldt per reden hoeveel eenheden afvielen (nieuw/gewijzigd, flag).
    - `translate night-guard <BASE>`: faalt (exit 1, met de commits) als een first-parent-commit van

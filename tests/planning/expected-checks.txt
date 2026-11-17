@@ -466,6 +466,7 @@ check-translate-apply.ts matrix
 check-translate-docs.ts matrix
 check-translate-gates.ts matrix
 check-translate-labels.ts matrix
+check-translate-night.ts matrix
 check-translate-prepare.ts matrix
 check-translate-tbx.ts matrix
 check-translate-termfix.ts matrix

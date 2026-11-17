@@ -63,6 +63,22 @@ zijn eigen `build/translate/check.mjs`-pakketcheck uit deze lijst mee. Dit geldt
 nalezen en herstellen, uitsluitend binnen deze maandagjob. De stations installeren niets.
 Behoud de bestaande pakketpoorten en wacht op alle vereiste stations vóór `apply ui`.
 
+## Node-uitzondering voor de nachttaak
+
+**Besluit Ethan, 2026-11-16 (vertalingen elke nacht), dat besluit 9 uitbreidt.** De geplande nachttaak
+op aia09-mp50 ([nachtvertalingen](../nachtvertalingen/SKILL.md)) mag dezelfde lichte stappen draaien als
+de maandagjob, beperkt tot de vertaling, uitsluitend in zijn eigen nachtworktree:
+
+- Eenmaal per run `npm ci` in de nachtworktree, en `node -p 'process.execPath'` voor het Node-pad.
+- `npm run translate -- settled --out <bestand>`, `npm run translate -- night-guard <BASE>`,
+  `npm run translate -- prepare ui <taal> --open --only <bestand>`, `npm run translate -- apply ui <taal>`,
+  `npm run translate -- packages ui <talen> [--red|--bundle <tekens>]` en `npm run translate -- status [taal]`.
+- `node build/translate/check.mjs <pakket>` bij de ouder én zijn Haiku-stations, in dezelfde worktree.
+- `npm run verify:i18n`.
+
+Verder niets: geen tests, builds, volledige verify, dev-servers, andere installaties of `npx`. De CI van de
+PR draait de rest.
+
 ## Hervatten
 
 Doe dit vóór “niets veranderd” en vóór `npm run bump`. Neem de numeriek nieuwste stabiele
