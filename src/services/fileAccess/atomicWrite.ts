@@ -16,7 +16,7 @@
  */
 
 import { generateId } from '@/utils/id';
-import { BytePartsWriteError } from './byteParts';
+import { ByteWriteError } from './byteWrite';
 
 /** De drie bestandsoperaties die de schrijf-en-vervang nodig heeft — injecteerbaar voor tests. */
 export interface AtomicWriteFs {
@@ -97,11 +97,6 @@ export interface UserFileFs<D> {
   remove(path: string): Promise<void>;
 }
 
-/** Achteraan toevoegen aan een bestaand bestand; maakt nooit aan en kapt nooit af. */
-export interface ByteAppend<D> {
-  append(path: string, data: D): Promise<void>;
-}
-
 /** `createNew` maakte het bestand aan, maar het schrijven daarna mislukte; `cause` is de schrijffout. */
 export class OwnFileWriteError extends Error {
   constructor(readonly cause: unknown) {
@@ -179,7 +174,7 @@ type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
  * de opties uit de kop `options` en schrijft met `write_all` (tauri-plugin-fs 2.5.0, `write_file_inner`).
  * Die kop moet geldige JSON zijn: onleesbare opties vallen in Rust stil terug op aanmaken en afkappen.
  */
-function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> & ByteAppend<D> {
+function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
   return {
     lstat: p => fs.lstat(p),
     createNew: async (p, data, mode) => {
@@ -192,7 +187,6 @@ function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?
         throw err;
       }
     },
-    append: (p, data) => write(p, data, { append: true, create: false }),
     write: (p, data, mode) => write(p, data, mode === undefined ? undefined : { mode }),
     rename: (a, b) => fs.rename(a, b),
     remove: p => fs.remove(p),
@@ -213,39 +207,28 @@ export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Prom
 
 /**
  * T1: uitsluitend een NIEUW einddoel. Gewone rename vervangt een intussen verschenen bestand;
- * daarom maakt deze ingang het einddoel zelf aan met createNew (met het eerste deel erin), zonder
- * rename of directe terugval, en voegt daarna elk volgend deel apart toe: geen samengevoegde kopie
- * van het hele bestand. Dit maakt geen atomaire vervanging of crashvaste publicatie: die primitief
- * hoort bij fase 2. Een volgend deel gaat op pad, niet op een open handle: wie het pad tussen twee
- * delen vervangt, krijgt de rest. De aanroeper houdt de delen ongewijzigd tot de opslag klaar is.
+ * daarom maakt deze ingang het einddoel zelf aan met createNew, met de hele buffer in één rauwe
+ * aanroep, zonder rename of directe terugval. Dit maakt geen crashvaste publicatie: een crash
+ * tijdens het schrijven kan een onvolledig einddoel laten staan. De aanroeper wijzigt de buffer
+ * niet tot de opslag klaar is.
  */
-export async function writeNewByteParts(
-  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'> & ByteAppend<Uint8Array>,
+export async function writeNewUserBytes(
+  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'>,
   path: string,
-  parts: readonly Uint8Array[],
+  bytes: Uint8Array,
 ): Promise<void> {
-  // Alleen na een geslaagde eigen aanmaak opruimen; een botsend doel nooit verwijderen.
-  const removeOwn = async () => {
+  try {
+    await fs.createNew(path, bytes);
+  } catch (error) {
+    if (!(error instanceof OwnFileWriteError)) throw new ByteWriteError('create-new', error);
+    // Alleen na een geslaagde eigen aanmaak opruimen; een botsend doel nooit verwijderen.
     try { await fs.remove(path); } catch { /* eigen onvolledig bestand kan achterblijven */ }
-  };
-  const [first = new Uint8Array(), ...rest] = parts;
-  try {
-    await fs.createNew(path, first);
-  } catch (error) {
-    if (!(error instanceof OwnFileWriteError)) throw new BytePartsWriteError('create-new', error);
-    await removeOwn();
-    throw new BytePartsWriteError('write', error.cause);
-  }
-  try {
-    for (const part of rest) await fs.append(path, part);
-  } catch (error) {
-    await removeOwn();
-    throw new BytePartsWriteError('write', error);
+    throw new ByteWriteError('write', error.cause);
   }
 }
 
-/** Tauri: het nieuwe doel exclusief met het eerste deel, dan elk volgend deel; alles als rauwe body. */
-export async function writeUserBytePartsTauri(path: string, parts: readonly Uint8Array[]): Promise<void> {
+/** Tauri: het nieuwe doel exclusief, met de hele buffer als rauwe body. */
+export async function writeNewUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
   const fs = await import('@tauri-apps/plugin-fs');
-  await writeNewByteParts(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, parts);
+  await writeNewUserBytes(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, bytes);
 }

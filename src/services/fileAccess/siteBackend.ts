@@ -16,7 +16,7 @@ import type { OpenDialogOpts, OpenedFile } from './index';
 import { getSiteStorage, type SiteFileInfo, type SiteStorage, type SiteVersionInfo } from './siteHost';
 import { isConflictCopyAnswer } from './superCloudHost';
 import { extensionOf } from '@/utils/filePath';
-import { bytePartsBlob, BytePartsWriteError } from './byteParts';
+import { bytesBlob, ByteWriteError } from './byteWrite';
 
 /** MIME-type van een opgeslagen IFC-bestand (de tool schrijft altijd IFC). */
 export const SITE_SAVE_MIME = 'application/x-step';
@@ -179,20 +179,20 @@ export async function saveNewSiteFile(name: string, content: string): Promise<Sa
   return checkedSaveAnswer(answer, name);
 }
 
-/** T1: byte-delen als Blob naar een nieuw sitebestand, zonder tekstomzetting. */
-export async function saveNewSiteFileParts(name: string, parts: readonly Uint8Array[]): Promise<SavedSiteFile> {
-  const answer = await requireStorage().save({ name, data: bytePartsBlob(parts, SITE_SAVE_MIME) });
+/** T1: de bytes als Blob naar een nieuw sitebestand, zonder tekstomzetting. */
+export async function saveNewSiteFileBytes(name: string, bytes: Uint8Array): Promise<SavedSiteFile> {
+  const answer = await requireStorage().save({ name, data: bytesBlob(bytes, SITE_SAVE_MIME) });
   return checkedSaveAnswer(answer, name);
 }
 
 /** T1: een bestaande site-id nooit zonder basisversie schrijven. Het antwoord bewaart de
  * versie en eventuele conflictkopie van de host, zoals de bestaande tekstingang. */
-export async function saveSiteFileVersionParts(
-  id: string, name: string, parts: readonly Uint8Array[], baseVersion: string | null,
+export async function saveSiteFileVersionBytes(
+  id: string, name: string, bytes: Uint8Array, baseVersion: string | null,
 ): Promise<SavedSiteFile> {
-  if (typeof baseVersion !== 'string' || !baseVersion.length) throw new BytePartsWriteError('base-version');
+  if (typeof baseVersion !== 'string' || !baseVersion.length) throw new ByteWriteError('base-version');
   const answer = await requireStorage().save({
-    id, name, data: bytePartsBlob(parts, SITE_SAVE_MIME), baseVersion,
+    id, name, data: bytesBlob(bytes, SITE_SAVE_MIME), baseVersion,
   });
   return checkedSaveAnswer(answer, name, id);
 }

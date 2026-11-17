@@ -1,6 +1,6 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { extensionOf } from '@/utils/filePath';
-import { bytePartsBlob, BytePartsWriteError } from './byteParts';
+import { bytesBlob, ByteWriteError } from './byteWrite';
 
 const hasFSA = (): boolean => typeof window !== 'undefined' && 'showOpenFilePicker' in window;
 
@@ -153,19 +153,19 @@ function downloadBlob(name: string, content: string | Uint8Array | Blob, mime?: 
  * Een browserhandle heeft geen createNew op het uiteindelijke doel. Daarom kiest de nieuwe
  * byte-dialoog in 1c altijd een download, ook wanneer de gewone tekstkiezer beschikbaar is.
  */
-export async function saveBytePartsDialogWeb(
-  defaultName: string, parts: readonly Uint8Array[], opts: SaveDialogOpts,
+export async function saveNewBytesDialogWeb(
+  defaultName: string, bytes: Uint8Array, opts: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   if (opts.refuseDownload?.()) return null;
-  try { downloadBlob(defaultName, bytePartsBlob(parts, opts.mime ?? 'application/octet-stream'), opts.mime); }
-  catch (error) { throw new BytePartsWriteError('download', error); }
+  try { downloadBlob(defaultName, bytesBlob(bytes, opts.mime ?? 'application/octet-stream'), opts.mime); }
+  catch (error) { throw new ByteWriteError('download', error); }
   return { ref: null, name: defaultName, viaDownload: true };
 }
 
 /** Ook een leeg bestand bewijst geen nieuwe naam; vóór createWritable veilig weigeren (1130). */
-export async function saveBytePartsToRefWeb(ref: FileRef, _parts: readonly Uint8Array[]): Promise<boolean> {
+export async function saveNewBytesToRefWeb(ref: FileRef, _bytes: Uint8Array): Promise<boolean> {
   if (ref.kind !== 'handle') return false;
-  throw new BytePartsWriteError('handle-not-exclusive');
+  throw new ByteWriteError('handle-not-exclusive');
 }
 
 /**
@@ -185,21 +185,21 @@ export async function handleWritePermissionWeb(handle: FileSystemFileHandle): Pr
 }
 
 /**
- * Knownbug 1131 stap 2: het eigen bestand achter een handle vervangen door de delen, zonder samengevoegde buffer.
+ * Knownbug 1131 stap 2: het eigen bestand achter een handle vervangen door de voorbereide buffer.
  * `createWritable()` schrijft naar een tijdelijk bestand van de browser; pas `close()` zet de inhoud op zijn plek.
  * Vlak vóór `close()` vraagt deze functie `stillSource()`: staat op het doel nog de bron? Zo niet, dan `abort()` en
  * `false`: het bestand blijft ongemoeid. Een wijziging tussen die controle en `close()` gaat verloren; de browser kent
- * geen voorwaardelijk opslaan (ontwerp §4.10, §4.15). Een schrijf- of sluitfout gooit `BytePartsWriteError`.
+ * geen voorwaardelijk opslaan (ontwerp §4.10, §4.15). Een schrijf- of sluitfout gooit `ByteWriteError`.
  */
-export async function replaceHandleWithPartsWeb(
-  handle: FileSystemFileHandle, parts: readonly Uint8Array[], stillSource: () => Promise<boolean>,
+export async function replaceHandleWithBytesWeb(
+  handle: FileSystemFileHandle, bytes: Uint8Array, stillSource: () => Promise<boolean>,
 ): Promise<boolean> {
   const writable = await handle.createWritable();
   try {
-    for (const part of parts) await writable.write(part as BufferSource);
+    await writable.write(bytes as BufferSource);
   } catch (error) {
     await writable.abort().catch(() => { /* de schrijffout hieronder telt */ });
-    throw new BytePartsWriteError('write', error);
+    throw new ByteWriteError('write', error);
   }
   let same: boolean;
   try { same = await stillSource(); }
@@ -208,7 +208,7 @@ export async function replaceHandleWithPartsWeb(
     await writable.abort();
     return false;
   }
-  try { await writable.close(); } catch (error) { throw new BytePartsWriteError('close', error); }
+  try { await writable.close(); } catch (error) { throw new ByteWriteError('close', error); }
   return true;
 }
 

@@ -16,14 +16,14 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveBytePartsDialog, saveBytePartsToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithParts, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
 import {
-  latestSiteVersion, listSiteFiles, openSiteFile, readSiteSourceFile, saveNewSiteFile, saveSiteFileVersion, saveNewSiteFileParts, saveSiteFileVersionParts,
+  latestSiteVersion, listSiteFiles, openSiteFile, readSiteSourceFile, saveNewSiteFile, saveSiteFileVersion, saveNewSiteFileBytes, saveSiteFileVersionBytes,
 } from '@/services/fileAccess/siteBackend';
 import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAccess/siteDialogs';
 import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
@@ -49,7 +49,7 @@ import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/if
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
 import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
-import { BytePartsWriteError } from '@/services/fileAccess/byteParts';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -798,7 +798,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const options = { refuseTarget: documentTargetCheck(snapshot, write),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write) };
     return write.prepared
-      ? saveBytePartsDialog(name, write.prepared.parts, [{ name: 'IFC Files', extensions: ['ifc'] }], options)
+      ? saveNewBytesDialog(name, write.prepared.bytes, [{ name: 'IFC Files', extensions: ['ifc'] }], options)
       : saveFileDialog(name, write.content, [{ name: 'IFC Files', extensions: ['ifc'] }], options);
   };
 
@@ -1201,7 +1201,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  een fout van de site (de aanroeper meldt hem). */
   const saveAsNewSiteFile = async (documentId: string, state: AppState, write: DocumentWrite, name: string): Promise<boolean> => {
     if (refuseChangedDocumentWrite(state, write)) return false;
-    const info = write.prepared ? await saveNewSiteFileParts(name, write.prepared.parts) : await saveNewSiteFile(name, write.content);
+    const info = write.prepared ? await saveNewSiteFileBytes(name, write.prepared.bytes) : await saveNewSiteFile(name, write.content);
     const saved = commitSavedDocument(documentId, state, {
       filePath: info.name, fileHandle: null, siteFileId: info.id, siteFileVersion: info.version,
     }, write.prepared, write.missingSourceSaveAs);
@@ -1345,7 +1345,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /**
    * Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle, bij een document met een gebouwmodel. In het
    * herstel in twee stappen (`replaceWithRecoveryPending`): eerst staat de komende versie in het herstelmanifest, dan
-   * schrijft de browser de delen, vlak vóór `close()` volgt de tweede inhoudscontrole, en pas na `close()` wordt de
+   * schrijft de browser de buffer, vlak vóór `close()` volgt de tweede inhoudscontrole, en pas na `close()` wordt de
    * geschreven versie de bron (`commitSavedDocument` met `prepared`). Kan het herstel de komende versie niet vastleggen
    * (`'not-recorded'`: geen herstelronde, de herstelvraag bij de start nog open, of IndexedDB geweigerd), dan schrijft
    * de app niet (knownbug 1764). Bij elke weigering of fout blijft het document zoals het was.
@@ -1360,7 +1360,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await replaceWithRecoveryPending(documentId, prepared.sha256, {
         replace: async () => {
           if (refuseChangedDocumentWrite(state, write)) return false;
-          return replaceHandleWithParts(ref, prepared.parts, async () => {
+          return replaceHandleWithBytes(ref, prepared.bytes, async () => {
             const content = await sourceTargetContent(ref, expected);
             if (content !== 'same') seen.refused = content;
             return content === 'same';
@@ -1376,7 +1376,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       console.error('Save failed:', err);
       get().notify({
         severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed',
-        detail: saveErrorDetail(err instanceof BytePartsWriteError && err.cause !== undefined ? err.cause : err),
+        detail: saveErrorDetail(err instanceof ByteWriteError && err.cause !== undefined ? err.cause : err),
         dedupeKey: failureNoticeKey, replaceOnDedupe: true,
       });
       return false;
@@ -1438,7 +1438,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref?.kind === 'site' && siteStorageAvailable()) {
         siteName = documentFileName(state);
         const saved = write.prepared
-          ? await saveSiteFileVersionParts(ref.id, siteName, write.prepared.parts, state.siteFileVersion)
+          ? await saveSiteFileVersionBytes(ref.id, siteName, write.prepared.bytes, state.siteFileVersion)
           : await saveSiteFileVersion(ref.id, siteName, write.content, state.siteFileVersion);
         if (saved.conflictCopy) {
           // De SuperCloud bewaarde het werk na een conflict in een KOPIE (#818). Die kopie wordt het
@@ -1463,7 +1463,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref && !(write.prepared && ref.kind === 'handle')) {
         try {
           if (refuseChangedDocumentWrite(state, write)) return false;
-          const saved = write.prepared ? await saveBytePartsToRef(ref, write.prepared.parts) : await saveToRef(ref, write.content);
+          const saved = write.prepared ? await saveNewBytesToRef(ref, write.prepared.bytes) : await saveToRef(ref, write.content);
           if (saved) return commitSavedDocument(documentId, state, undefined, write.prepared);
         } catch (err) {
           // Alleen de browser biedt na een echte handle-schrijffout de bestaande uitweg Opslaan als.
@@ -2179,14 +2179,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         let written: SaveOutcome | null;
         try {
           written = preparedExport
-            ? await saveBytePartsDialog(defaultName, preparedExport.parts, filters, dialogOpts)
+            ? await saveNewBytesDialog(defaultName, preparedExport.bytes, filters, dialogOpts)
             : typeof payload === 'string'
               ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
               : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
         } catch (error) {
           if (!preparedExport) throw error;
           get().notify(refusalNotice({
-            messageKey: error instanceof BytePartsWriteError && error.reason === 'create-new'
+            messageKey: error instanceof ByteWriteError && error.reason === 'create-new'
               ? 'notifications.ifcForeignExportNewTarget' : 'notifications.saveFailed',
             dedupeKey: 'ifc-export-write-failed',
           }));

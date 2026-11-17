@@ -47,7 +47,7 @@ import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
-import { writeUserTextFileTauri, writeUserBytePartsTauri } from '@/services/fileAccess/atomicWrite';
+import { writeUserTextFileTauri, writeNewUserBytesTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
@@ -84,7 +84,7 @@ export interface McpFileFs extends FileIdentityFs {
   exists(path: string): Promise<boolean>;
   writeTextFile(path: string, content: string): Promise<void>;
   /** Alleen een nieuw einddoel, exclusief en zonder tekstrondgang. Headless biedt dit nog niet (fase 2). */
-  writeNewByteParts?(path: string, parts: readonly Uint8Array[]): Promise<void>;
+  writeNewUserBytes?(path: string, bytes: Uint8Array): Promise<void>;
   readTextFile(path: string): Promise<string>;
   readFile(path: string): Promise<Uint8Array>;
   /**
@@ -120,10 +120,10 @@ async function realFs(): Promise<McpFileFs> {
     readTextFile: (p) => readTextFile(p),
     readFile: (p) => readFile(p),
     scanTarget: (p) => scanTargetPathTauri(p),
-    writeNewByteParts: async (p, parts) => {
+    writeNewUserBytes: async (p, bytes) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true });
-      await writeUserBytePartsTauri(p, parts);
+      await writeNewUserBytesTauri(p, bytes);
     },
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
@@ -395,7 +395,7 @@ export const fileTools: McpToolDef[] = [
           'Undo the last change or export the schedule to another format.');
         throw error;
       }
-      if (output.prepared && (existed || !fs.writeNewByteParts)) return toolError(ctx, 'VALIDATION',
+      if (output.prepared && (existed || !fs.writeNewUserBytes)) return toolError(ctx, 'VALIDATION',
         existed ? 'IFC export with a building model or data from other programs requires a new file name, even with overwrite: true.'
           : 'This file host cannot create an exclusive new byte file. Nothing was written.');
       const ifcSchema = projectIfcSchema(input.project);
@@ -416,7 +416,7 @@ export const fileTools: McpToolDef[] = [
         }
         if (ifcFullWriteBlocked(now)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
         try {
-          if (output.prepared) await fs.writeNewByteParts!(path, output.prepared.parts);
+          if (output.prepared) await fs.writeNewUserBytes!(path, output.prepared.bytes);
           else await fs.writeTextFile(path, output.content);
         } catch (e) {
           return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -435,7 +435,7 @@ export const fileTools: McpToolDef[] = [
           // Aantal TEKENS van het IFC-document (geen bytes: UTF-8 is multi-byte voor niet-ASCII
           // projectnamen/omschrijvingen, dus `length` zou als byte-telling onjuist zijn).
           ...(output.prepared
-            ? { byteLength: output.prepared.parts.reduce((length, part) => length + part.byteLength, 0) }
+            ? { byteLength: output.prepared.bytes.byteLength }
             : { characters: output.content.length }),
           tasks: state.tasks.length,
           /** Werkelijke uitkomst: stond er al een bestand op dit pad dat nu vervangen is? */

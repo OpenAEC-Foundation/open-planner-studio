@@ -232,8 +232,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (knownbug 1775), and a dot-named file inside a protected folder that the user picks in a file dialog (the
   matcher's leading-dot rule keeps a deny from matching it; knownbug 1776). plugin-fs 2.5.0's own `deny-default` is empty (knownbug 1797).
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
-  levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
-  `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde
+  levert de uitvoer als één buffer (`bytes`, dezelfde als `source.bytes`), sha256, de nieuwe `IfcSource` met
+  sessiekaart en bevroren schrijfinvoer, en `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de bytes. Alleen een ongewijzigde
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
@@ -244,15 +244,15 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
   Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
-- **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
-  accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
+- **IFC-bytes naar een nieuw doel (#804, T1).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
+  accepteert één `Uint8Array`: Tauri opent het einddoel met `createNew`, zonder rename of
   directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
   weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130); alleen Ctrl+S op het eigen bestand achter een
-  handle vervangt, via `replaceHandleWithParts` (1131 stap 2). `saveNewSiteFileParts` en
-  `saveSiteFileVersionParts` schrijven een Blob; de laatste eist een basisversie en bewaart de
+  handle vervangt, via `replaceHandleWithBytes` (1131 stap 2). `saveNewSiteFileBytes` en
+  `saveSiteFileVersionBytes` schrijven een Blob; de laatste eist een basisversie en bewaart de
   eventuele conflictkopie in het antwoord. Tekst en bestaande binaire exports houden hun gedrag.
   `ifcSaveBlocked` houdt de overige routes dicht; exclusieve vervanging/bronhash en crashvaste publicatie
-  zijn fase 2 (1131). Bewijs: `check-file-byte-parts.ts`.
+  zijn fase 2 (1131). Bewijs: `check-file-ifc-bytes.ts`.
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a

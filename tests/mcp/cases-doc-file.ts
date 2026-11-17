@@ -1415,12 +1415,10 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
   let byteWrites = 0, textWrites = 0;
   const textWrite = fs.writeTextFile;
   fs.writeTextFile = async (p, c) => { textWrites++; await textWrite(p, c); };
-  fs.writeNewByteParts = async (p, parts) => {
+  fs.writeNewUserBytes = async (p, bytes) => {
     if (await fs.exists(p)) throw new Error('EEXIST');
     byteWrites++;
-    const output = new Uint8Array(parts.reduce((n, part) => n + part.byteLength, 0));
-    let at = 0; for (const part of parts) { output.set(part, at); at += part.byteLength; }
-    binFiles.set(p, output);
+    binFiles.set(p, new Uint8Array(bytes));
   };
   fs.scanTarget = async p => {
     const data = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : null);
@@ -1493,7 +1491,7 @@ test('export_ifc: volledige bytes, exclusief nieuw doel, bron en document intact
     const latinCtx = makeCtx(); await callOk('planner_import_schedule', { path: latinPath }, latinCtx);
     const { prepareIfcWrite, MergeNeedsPhase2Error } = await import('@/services/ifc/foreign/mergeWriter');
     const unchangedLatin = await prepareIfcWrite(buildWriteIFCInput(S(), 'merge'), S().ifcSource!);
-    assertEq(unchangedLatin.parts.reduce((n, part) => n + part.length, 0), latin.length, 'Latin-1-bronlengte exact');
+    assertEq(unchangedLatin.bytes.length, latin.length, 'Latin-1-bronlengte exact');
     assertEq(unchangedLatin.sha256, hash(latin), 'Latin-1-bronhash exact');
     const latinExport = `${HOME}/latin1-corpus-export.ifc`;
     const exportedLatin = await exportRpc(latinExport, false, latinCtx);

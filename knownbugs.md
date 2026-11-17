@@ -2597,7 +2597,7 @@ en noem het in je rapport of PR-tekst.
      `FileSystemFileHandle.createWritable()` heeft geen `createNew` bij de uiteindelijke plaatsing;
      een leeg bestand of een voorafgaande controle sluit een intussen verschenen bestand niet uit.
      De strikte delen-ingang weigert een handle getypeerd vóór elke write; de webdialoog downloadt
-     een Blob, ook als FSA beschikbaar is. Getoetst in `check-file-byte-parts.ts`; geen echte browserrun.
+     een Blob, ook als FSA beschikbaar is. Getoetst in `check-file-ifc-bytes.ts`; geen echte browserrun.
      Richting: download behouden totdat de browser een passende exclusieve primitief biedt.
      Contract: https://fs.spec.whatwg.org/#api-filesystemfilehandle-createwritable. — B
 
@@ -2628,7 +2628,7 @@ en noem het in je rapport of PR-tekst.
      5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
         herstel- en conflictkopie.
      6. Teksten en handleiding, met de eigenaar.
-     Proeven van stap 1: `check-file-byte-parts.ts` en `check-recovery-ifc-source.ts`; van stap 2:
+     Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
@@ -2824,7 +2824,7 @@ en noem het in je rapport of PR-tekst.
      `createNew` en modus 0600 in één aanroep, eigendom alleen bij de schrijffout na aanmaak). Gevonden bij #973,
      alleen in de code gelezen. — B (code)
 1792. **VERVOLG (#973, desktop): Opslaan als met een gebouwmodel voegt elk volgend deel op pad toe.**
-     `writeNewByteParts` maakt het nieuwe doel met `createNew` en het eerste deel, en opent het pad daarna voor elk
+     `writeNewUserBytes` maakt het nieuwe doel met `createNew` en het eerste deel, en opent het pad daarna voor elk
      volgend deel opnieuw met `append`. Vóór #973 ging alles via één open bestand. Wisselt een ander programma het pad
      tussen twee delen, dan krijgt het vervangende bestand de rest en meldt de app toch succes; bij een schrijffout
      daarna kan het opruimen dat vervangende bestand verwijderen (opruimen op pad bestond al). De review van #973 toonde

@@ -1,24 +1,22 @@
-// #804 fase 1c, T1: byte-delen alleen naar een nieuw lokaal doel, download of siteversie.
+// #804 fase 1c, T1: de voorbereide IFC-bytes alleen naar een nieuw lokaal doel, download of siteversie.
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { installNodeFileIpc, writeFileCall as fileWrite } from './nodeFileIpc';
-import { saveBytePartsDialog, saveBytePartsToRef, sourceTargetContent } from '@/services/fileAccess';
+import { saveNewBytesDialog, saveNewBytesToRef, sourceTargetContent } from '@/services/fileAccess';
 import { TARGET_CHUNK_BYTES } from '@/services/fileAccess/sourceTargetContent';
-import { BytePartsWriteError } from '@/services/fileAccess/byteParts';
-import { saveNewSiteFileParts, saveSiteFileVersionParts } from '@/services/fileAccess/siteBackend';
+import { ByteWriteError } from '@/services/fileAccess/byteWrite';
+import { saveNewSiteFileBytes, saveSiteFileVersionBytes } from '@/services/fileAccess/siteBackend';
 
-// Latin-1, CRLF, ongeldige UTF-8 en een geldige UTF-8-reeks over de deelgrens.
-const parts: readonly Uint8Array[] = [
-  new Uint8Array([0x49, 0x46, 0x43, 0x0d, 0x0a, 0xe9, 0x0d]),
-  new Uint8Array([0x0a, 0xc3, 0x28, 0xff, 0xe2]),
-  new Uint8Array([0x82, 0xac, 0x0d, 0x0a]),
-];
-const expected = Buffer.concat(parts);
-const typedFailure = (error: unknown): boolean => error instanceof BytePartsWriteError;
-const reason = (expected: BytePartsWriteError['reason']) => (error: unknown): boolean =>
-  error instanceof BytePartsWriteError && error.reason === expected;
+// Latin-1, CRLF, ongeldige UTF-8 en een geldige UTF-8-reeks: de bytes gaan ongewijzigd door, nooit als tekst.
+const bytes = new Uint8Array([
+  0x49, 0x46, 0x43, 0x0d, 0x0a, 0xe9, 0x0d, 0x0a, 0xc3, 0x28, 0xff, 0xe2, 0x82, 0xac, 0x0d, 0x0a,
+]);
+const expected = Buffer.from(bytes);
+const typedFailure = (error: unknown): boolean => error instanceof ByteWriteError;
+const reason = (expected: ByteWriteError['reason']) => (error: unknown): boolean =>
+  error instanceof ByteWriteError && error.reason === expected;
 /** Een schrijfaanroep die het doel zelf afkapt (geen eigen aanmaak, geen toevoegen). */
 const direct = (c: { command: string; options?: { createNew?: boolean; append?: boolean } }) =>
   fileWrite(c) && !c.options?.createNew && !c.options?.append;
@@ -48,13 +46,13 @@ function contentFixture() {
 }
 
 async function main() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ops-byte-parts-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ops-ifc-bytes-'));
   const ipc = installNodeFileIpc();
   try {
-    await check('Tauri: nieuw doel bytegelijk, elk deel als rauwe body, geen tekstroute', async () => {
+    await check('Tauri: nieuw doel bytegelijk, de hele buffer als rauwe body, geen tekstroute', async () => {
       const target = path.join(dir, 'nieuw.ifc');
       const before = ipc.calls.length;
-      assert.equal(await saveBytePartsToRef({ kind: 'path', path: target }, parts), true);
+      assert.equal(await saveNewBytesToRef({ kind: 'path', path: target }, bytes), true);
       assert.deepEqual(fs.readFileSync(target), expected);
       assert.equal(ipc.openHandles(), 0);
       const calls = ipc.calls.slice(before);
@@ -62,18 +60,16 @@ async function main() {
       assert.equal(calls.some(c => c.bytesInObject), false);
       assert.equal(calls.some(c => c.command === 'plugin:fs|open' || c.command === 'plugin:fs|write'), false);
       const writes = calls.filter(fileWrite);
-      // Het doel exclusief met het eerste deel, dan elk volgend deel apart erachter (append zonder
-      // create, dus nooit aanmaken of afkappen): geen samengevoegde kopie van het hele bestand.
+      // Het doel exclusief, met de hele buffer in één aanroep; geen append.
       assert.deepEqual(writes.map(c => [c.command, c.path, c.rawBody, c.options?.createNew, c.options?.append, c.options?.create]), [
         ['plugin:fs|write_file', target, true, true, undefined, undefined],
-        ...parts.slice(1).map(() => ['plugin:fs|write_file', target, true, undefined, true, false]),
       ]);
     });
     await check('Tauri: bestand verschijnt bij aanmaken; botsing laat het intact', async () => {
       const target = path.join(dir, 'botsing.ifc');
       ipc.faults.beforeOpen = p => { if (p === target) fs.writeFileSync(target, 'INTUSSEN'); };
       try {
-        await assert.rejects(saveBytePartsToRef({ kind: 'path', path: target }, parts), reason('create-new'));
+        await assert.rejects(saveNewBytesToRef({ kind: 'path', path: target }, bytes), reason('create-new'));
         assert.equal(fs.readFileSync(target, 'utf8'), 'INTUSSEN');
       } finally { ipc.faults.beforeOpen = null; }
     });
@@ -84,7 +80,7 @@ async function main() {
       ipc.faults.renameError = new Error('Plaatsing geweigerd');
       try {
         let error: unknown;
-        try { await saveBytePartsToRef({ kind: 'path', path: target }, parts); } catch (caught) { error = caught; }
+        try { await saveNewBytesToRef({ kind: 'path', path: target }, bytes); } catch (caught) { error = caught; }
         assert.equal(fs.readFileSync(target, 'utf8'), 'OUD');
         assert.ok(reason('create-new')(error));
         // T1 maakt het uiteindelijke doel exclusief: een vervangende rename is nooit bereikbaar, en na
@@ -94,15 +90,15 @@ async function main() {
         assert.deepEqual(calls.filter(fileWrite).map(c => c.options?.createNew), [true]);
       } finally { ipc.faults.renameError = null; }
     });
-    // plugin-fs schrijft elk deel met write_all en sluit binnen dezelfde aanroep: een aparte sluitfout
-    // bestaat op deze route niet meer. Een schijffout midden in een deel en een fout op een later deel wel.
+    // plugin-fs schrijft de buffer met write_all en sluit binnen dezelfde aanroep: een aparte sluitfout
+    // bestaat op deze route niet. Een schijffout aan het begin of halverwege wel.
     await check('Tauri: schrijffout getypeerd, eigen doel opgeruimd, geen directe terugval of geslaagde opslag', async () => {
-      for (const [name, after] of [['eerste-deel', 2], ['later-deel', parts[0].length + 1]] as const) {
+      for (const [name, after] of [['begin', 2], ['halverwege', bytes.length - 3]] as const) {
         const target = path.join(dir, `${name}.ifc`);
         const before = ipc.calls.length;
         ipc.faults.writeErrorAfter = after;
         try {
-          await assert.rejects(saveBytePartsToRef({ kind: 'path', path: target }, parts), reason('write'));
+          await assert.rejects(saveNewBytesToRef({ kind: 'path', path: target }, bytes), reason('write'));
           assert.equal(fs.existsSync(target), false);
           assert.equal(ipc.openHandles(), 0);
           assert.equal(ipc.calls.slice(before).some(direct), false);
@@ -170,7 +166,7 @@ async function main() {
   const downloads: Blob[] = [];
   let clicks = 0;
   let downloadName = '';
-  URL.createObjectURL = blob => { assert.ok(blob instanceof Blob); downloads.push(blob); return 'blob:byte-parts'; };
+  URL.createObjectURL = blob => { assert.ok(blob instanceof Blob); downloads.push(blob); return 'blob:ifc-bytes'; };
   URL.revokeObjectURL = () => {};
   Object.defineProperty(globalThis, 'document', { configurable: true, value: {
     createElement: () => ({ href: '', download: '', click() { clicks++; downloadName = this.download; } }),
@@ -179,19 +175,19 @@ async function main() {
     await check('Browserhandle: geen createNew beschikbaar, getypeerd geweigerd vóór schrijven', async () => {
       let writes = 0;
       const handle = { createWritable: () => { writes++; throw new Error('Mag niet schrijven'); } } as unknown as FileSystemFileHandle;
-      await assert.rejects(saveBytePartsToRef({ kind: 'handle', handle }, parts), typedFailure);
+      await assert.rejects(saveNewBytesToRef({ kind: 'handle', handle }, bytes), typedFailure);
       assert.equal(writes, 0);
     });
     await check('Download: bytegelijk, ook met aanwezige browserkiezer', async () => {
       win.showSaveFilePicker = () => { throw new Error('Handle kan T1 niet garanderen'); };
-      const saved = await saveBytePartsDialog('nieuw.ifc', parts, [], { refuseTarget: null });
+      const saved = await saveNewBytesDialog('nieuw.ifc', bytes, [], { refuseTarget: null });
       assert.deepEqual(saved, { ref: null, name: 'nieuw.ifc', viaDownload: true });
       assert.equal(downloadName, 'nieuw.ifc');
       assert.equal(clicks, 1);
       assert.deepEqual(Buffer.from(await downloads[0].arrayBuffer()), expected);
     });
     await check('Download: weigering start geen download', async () => {
-      assert.equal(await saveBytePartsDialog('nieuw.ifc', parts, [], { refuseTarget: null, refuseDownload: () => true }), null);
+      assert.equal(await saveNewBytesDialog('nieuw.ifc', bytes, [], { refuseTarget: null, refuseDownload: () => true }), null);
       assert.equal(clicks, 1);
     });
 
@@ -206,18 +202,18 @@ async function main() {
       },
     } };
     await check('Site: nieuwe naam als Blob, bytegelijk', async () => {
-      assert.equal((await saveNewSiteFileParts('nieuw.ifc', parts)).id, 'nieuw');
+      assert.equal((await saveNewSiteFileBytes('nieuw.ifc', bytes)).id, 'nieuw');
       assert.deepEqual(Buffer.from(await siteBlobs.at(-1)!.arrayBuffer()), expected);
     });
     await check('Site: ontbrekende basisversie weigert met nul schrijfacties', async () => {
       const before = calls;
       for (const version of [null, '']) {
-        await assert.rejects(saveSiteFileVersionParts('bron', 'bron.ifc', parts, version), typedFailure);
+        await assert.rejects(saveSiteFileVersionBytes('bron', 'bron.ifc', bytes, version), typedFailure);
       }
       assert.equal(calls, before);
     });
     await check('Site: basisversie gaat mee; bytes ongewijzigd', async () => {
-      assert.equal((await saveSiteFileVersionParts('bron', 'bron.ifc', parts, 'v1')).version, 'v2');
+      assert.equal((await saveSiteFileVersionBytes('bron', 'bron.ifc', bytes, 'v1')).version, 'v2');
       assert.equal(lastBase, 'v1');
       assert.deepEqual(Buffer.from(await siteBlobs.at(-1)!.arrayBuffer()), expected);
     });
@@ -235,7 +231,7 @@ async function main() {
           return { id, name: 'bron (conflict).ifc', version: 'v1', conflictCopy: true };
         },
       };
-      assert.deepEqual(await saveSiteFileVersionParts('bron', 'bron.ifc', parts, 'v1'), {
+      assert.deepEqual(await saveSiteFileVersionBytes('bron', 'bron.ifc', bytes, 'v1'), {
         id: 'kopie', name: 'bron (conflict).ifc', version: 'v1', conflictCopy: true,
       });
       assert.deepEqual(Buffer.from(copied!), expected);
@@ -277,7 +273,7 @@ async function main() {
     failSliceAt = slices.length + 2;
     assert.equal(await handleContent(content.source), 'unreadable', 'leesfout halverwege');
   });
-  console.log(`Byte-delen: ${passed} geslaagd, ${failed} mislukt.`);
+  console.log(`IFC-bytes: ${passed} geslaagd, ${failed} mislukt.`);
   if (failed) process.exitCode = 1;
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -19,8 +19,8 @@ import type { StepIndex } from './stepScanner';
  * Pas na geslaagde opslag legt de aanroeper `source` en de letterlijke kalender-ids vast.
  */
 export interface PreparedIfcWrite {
-  /** Delen delen de buffer met source.bytes; de aanroeper wijzigt hun bytes nooit. */
-  readonly parts: readonly Uint8Array[];
+  /** De volledige uitvoer: dezelfde buffer als `source.bytes`; de aanroeper wijzigt hem nooit. */
+  readonly bytes: Uint8Array;
   readonly sha256: string;
   readonly source: IfcSource;
   readonly literalCalendarIds: readonly string[];

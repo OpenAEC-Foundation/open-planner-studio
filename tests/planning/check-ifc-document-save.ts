@@ -870,8 +870,7 @@ await check('handle Ctrl+S drie keer (taak, duur, relatie; de derde via de sluit
       }
       const output = fileOf(name);
       assert.equal(hash(output), expected.sha256, `ronde ${round}: precies de voorbereide merge`);
-      assert.deepEqual(writableLog, [`create ${name}`, `close ${name} ${expected.parts.length}`], 'één vervanging, in delen');
-      assert(expected.parts.length > 1, 'de proef raakt meer dan één deel');
+      assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
       assert.deepEqual(mergeProblems(bytes, output), [], `ronde ${round}: het vreemde deel blijft bytegelijk`);
       const reopened = await openForeign(output), now = store.getState();
       assert.equal(reopened.tasks.find(t => t.id === added)?.name, 'Taak via Ctrl+S');
@@ -913,8 +912,8 @@ const handleFaultCases = [
     arrange: (name: string) => { handleFaults.set(name, { onWrite: () => { handleFiles.set(name, otherProgram); } }); }, after: otherProgram },
   { fault: 'weg tussen schrijven en close()', notice: 'notifications.ifcForeignTargetGone', writes: true, aborts: true,
     arrange: (name: string) => { handleFaults.set(name, { onWrite: () => { handleFiles.delete(name); } }); }, after: null },
-  { fault: 'schrijffout halverwege', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: true,
-    arrange: (name: string) => { handleFaults.set(name, { writeErrorAt: 1 }); }, after: bytes },
+  { fault: 'schrijffout', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: true,
+    arrange: (name: string) => { handleFaults.set(name, { writeErrorAt: 0 }); }, after: bytes },
   { fault: 'fout bij close()', notice: 'notifications.ifcForeignReplaceFailed', writes: true, aborts: false,
     arrange: (name: string) => { handleFaults.set(name, { closeError: true }); }, after: bytes },
 ] as const;
