@@ -78,24 +78,54 @@
   background: var(--theme-surface);
 }
 .sv-chrome-switcher .sv-chrome-bar { justify-content: center; align-items: center; }
+/* De pil toont het actieve document, een pijltje en het aantal open documenten. */
 .sv-chrome-pill {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  width: 46px;
-  height: 11px;
-  padding-inline-end: 5px;
+  gap: 3px;
+  height: 12px;
+  padding-inline: 4px 2px;
   border: 1px solid var(--theme-accent);
   border-radius: 999px;
 }
+.sv-chrome-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; background: var(--theme-text-muted); }
+.sv-chrome-pill .sv-chrome-dot,
+.sv-chrome-row.is-active .sv-chrome-dot { background: var(--theme-accent); }
+.sv-chrome-name { width: 22px; height: 2px; border-radius: 1px; background: var(--theme-text-dim); }
 .sv-chrome-chevron {
   width: 4px;
   height: 4px;
   margin-top: -2px;
+  margin-inline: 1px 2px;
   border-inline-end: 1px solid var(--theme-text);
   border-bottom: 1px solid var(--theme-text);
   transform: rotate(45deg);
 }
+.sv-chrome-count {
+  min-width: 8px;
+  padding: 1px 2px;
+  border-radius: 999px;
+  background: var(--theme-accent);
+  color: var(--theme-accent-on);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1;
+  transform: scale(0.85);
+}
+/* De uitgeklapte lijst hangt onder de pil: zo zie je dat je er documenten mee kiest. */
+.sv-chrome-list {
+  display: flex;
+  flex-direction: column;
+  width: 58px;
+  margin: 2px auto 0;
+  padding: 2px;
+  gap: 1px;
+  border: 1px solid var(--theme-control-border);
+  border-radius: 3px;
+  background: var(--theme-surface);
+}
+.sv-chrome-row { display: flex; align-items: center; gap: 3px; height: 7px; padding-inline: 3px; border-radius: 2px; }
+.sv-chrome-row.is-active { background: color-mix(in srgb, var(--theme-accent) 22%, transparent); }
 
 /* --- Raster (duurweergave) --- */
 .sv-grid { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding-inline: 6px; }

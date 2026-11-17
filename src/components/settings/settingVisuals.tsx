@@ -52,8 +52,8 @@ const ACTIVE_DOC = 1;
 
 /**
  * Een pictogram van waar de wisselaar staat: drie tabbladen bovenin, drie blokjes in een kolom links,
- * of één pil midden bovenin. Het actieve document (of de pil) staat in de accentkleur, net als het
- * belangrijke deel in de andere plaatjes; de rest van het venster blijft leeg.
+ * of één pil midden bovenin met daaronder haar uitgeklapte lijst van de drie documenten. Het actieve
+ * document staat in de accentkleur, net als het belangrijke deel in de andere plaatjes.
  */
 export function DocumentChromeVisual({ value }: { value: string }) {
   return (
@@ -69,9 +69,24 @@ export function DocumentChromeVisual({ value }: { value: string }) {
         </div>
       )}
       {value === 'switcher' && (
-        <div className="sv-chrome-bar">
-          <span className="sv-chrome-pill"><span className="sv-chrome-chevron" /></span>
-        </div>
+        <>
+          <div className="sv-chrome-bar">
+            <span className="sv-chrome-pill">
+              <span className="sv-chrome-dot" />
+              <span className="sv-chrome-name" />
+              <span className="sv-chrome-chevron" />
+              <span className="sv-chrome-count">{DOCS.length}</span>
+            </span>
+          </div>
+          <div className="sv-chrome-list">
+            {DOCS.map(i => (
+              <span key={i} className={`sv-chrome-row${i === ACTIVE_DOC ? ' is-active' : ''}`}>
+                <span className="sv-chrome-dot" />
+                <span className="sv-chrome-name" />
+              </span>
+            ))}
+          </div>
+        </>
       )}
     </Frame>
   );
