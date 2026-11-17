@@ -2860,9 +2860,26 @@ en noem het in je rapport of PR-tekst.
      `saveDocumentAsOnTurn` in `fileSlice.ts`). Drukt de planner Ctrl+S terwijl een eerdere opslag loopt en wisselt hij
      daarna van tabblad, dan stopt de wachtende opslag bij zijn beurt zonder melding; het document blijft gewijzigd (er
      gaat niets verloren, het herstel en de sluitvraag zien het). Vóór stap 3 sloeg diezelfde wachtende opslag het dan
-     actieve document op. Een opslag die al loopt, gaat wél door en wordt in zijn eigen document vastgelegd. Richting:
-     het slapende document opslaan vanuit zijn payload als er geen vraag nodig is (eigen doel, geen schemavraag, geen
-     afhankelijke projecten), anders één melding. Gevonden bij #804 stap 3, uit de code. — S
+     actieve document op. Een opslag die al loopt, gaat wél door en wordt in zijn eigen document vastgelegd. De review
+     van #987 (Sol) bevestigt dat een planner dit in gewoon werk merkt: Ctrl+S aanvragen terwijl een opslag loopt en dan
+     van tabblad wisselen laat de wachtende aanvraag stil vervallen. Er wordt geen ander document geschreven en het
+     oorspronkelijke document wordt niet als opgeslagen gemarkeerd. Richting: het slapende document opslaan wanneer
+     geen vraag nodig is, anders melden dat de aanvraag niet is uitgevoerd. Gevonden bij #804 stap 3, uit de code;
+     bevestigd door de review van #987. — B (review)
+1817. **Afsluiten herkent een mislukte opslag aan zichtbare rode meldingen, niet aan de uitkomst van de opslag.**
+     `watchFailures` in `src/services/appQuit/appQuitDependencies.ts` vergelijkt alleen welke rode meldingen er na het
+     wachten nog staan. De begrenzing van de meldingenlijst (`uiSlice.ts`, `MAX_NOTIFICATIONS`) kan een nieuwe weigering
+     meteen weer verwijderen: met drie oude fouten in beeld verdween een nieuwe opslagweigering (`refusalNotice`) direct
+     en zag het afsluiten geen mislukking. Andersom breekt een nieuwe fout uit een ander onderdeel het afsluiten af. Het
+     gewijzigde document blijft beschermd door zijn dirty-vlag en de sluitvraag; gegevensverlies is niet aangetoond.
+     Richting: de opslag geeft zelf zijn uitkomst door. Gevonden door de review van #987 (Sol). — B (proef van de review)
+1818. **Een IFC-export weigert nog als de planner tijdens de export van tabblad wisselt.** Sinds #804 stap 3 kijkt de
+     weigering van Opslaan en Opslaan als naar het document van de momentopname. De exports niet: `refuseChangedExport`
+     in `fileSlice.ts` (Bestand → Exporteren als IFC, en de export met de resourcebibliotheek) vergelijkt met het actieve
+     document, net als de MCP-export (`planner_export_ifc` in `fileTools.ts`). Wisselt de planner van tabblad terwijl de
+     export op een eerdere opslag wacht, dan meldt de app "het document veranderde" en schrijft niets; opnieuw
+     exporteren werkt. Richting: dezelfde binding aan het document van de momentopname als bij Opslaan. Gevonden bij
+     #804 stap 3, uit de code. — S
 
 ## Rondleiding, Help en extensie-gidsen
 

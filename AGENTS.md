@@ -371,7 +371,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
 - **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
   write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
   a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
-  opgeslagen…" (#804, owner decision 2026-11-17). A save belongs to the document it was asked for: its re-checks
+  opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
+  `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`
+  outcome (nothing written, not marked saved, no notice) until `destroy`/`relaunch` is done or fails; quitting also
+  freezes the shell then (`ui.appClosing`). A save belongs to the document it was asked for: its re-checks
   (`refuseChangedDocumentWrite`) and its commit use that document id, never the active document; at most one waiting
   Ctrl+S per document.
 - **Tailwind sources.** `src/styles/globals.css` disables automatic detection with `source(none)` and

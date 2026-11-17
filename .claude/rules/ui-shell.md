@@ -46,4 +46,6 @@ Afsluiten, het kruisje van een tabblad (`requestCloseDocument`) en de keuzes van
 wachten op een lopende opslag. Intussen staat `SavingBeforeCloseNotice` (`src/components/layout/DocumentChrome/`, gedeelde
 `Dialog` op `z-[95]`, boven de sluitvraag) met één zin, zonder knop en zonder Escape; `ui.savingBeforeClose` bevriest de
 sneltoetsen en de schil zoals een wachtende vraag, en `isBlockingDialogOpen`/`BLOCKING_UI_FLAGS` blokkeren. Wacht de opslag
-op een vraag aan de planner (`saveQuestionOpen`), dan staat die vraag en niet de aanduiding.
+op een vraag aan de planner (`saveQuestionOpen`), dan staat die vraag en niet de aanduiding. In de laatste fase van
+afsluiten (niets meer ongeopgeslagen, de poort voor projectopslag dicht) houdt `ui.appClosing` de schil op dezelfde
+manier stil, zonder eigen melding, tot het venster weg is.
