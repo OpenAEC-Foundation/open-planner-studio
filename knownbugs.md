@@ -2830,6 +2830,130 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
+1789. **VERVOLG, BEVESTIGD: de Turkse hoofdletter İ geeft een onterechte termwaarschuwing.**
+     Het stale-pakket tr/ui-report-01 heeft de kolomkop Voortgang → İlerleme, met vaste term
+     ilerleme. De bestaande pakketchecker geeft GROEN met nul fouten maar meldt dat de term niet
+     gevonden is. softText in scripts/translate/gates.ts:58–63 verlaagt tekst en termvormen met
+     toLocaleLowerCase() zonder de pakkettaal door te geven. De verklaring met de extra
+     Unicodepunt bij de standaardomzetting van İ is uit die bronroute afgeleid, niet met een
+     extra lokale JavaScript-run gemeten. De eigen checkeruitvoer en onafhankelijke nalezing
+     blijven het bewijs voor deze concrete valse waarschuwing. Richting: maak de zachte
+     termvergelijking taalbewust en toets Turkse hoofdletters, zonder de termbase of de juiste
+     apptekst te veranderen. In deze release is de checker niet aangepast. — B
+
+1788. **VERVOLG, BEVESTIGD: een herstelstation kan na alleen de eerste bevindingen afronden.**
+     Het eerste Servische herstel van ui-report-01 verwerkte drie voorstellen uit een goedgekeurde
+     review met 29 entries voor 27 sleutels. De pakketcheck bleef groen, omdat die niet toetst of
+     alle reviewvoorstellen zijn verwerkt. De oudervergelijking wees het herstel terecht af:
+     26 entries weken nog af; de volledige Sonnet-review en de al juiste uitvoer bleven behouden.
+     De huidige herstelbrief noemt het echte aantal, alle sleutels en plakken van maximaal tien
+     bevindingen. De ouderpoort vergelijkt daarna nog steeds iedere entry, ook pluralcategorieën.
+     Richting: neem deze expliciete telling en volledige lijst op in de gedeelde herstelbrief. — B
+
+1787. **VERVOLG, BEVESTIGD: beoordeel invulwaarden samen met de aanroepvoorwaarden.**
+     Bij de Poolse rapportvertaling las de ouder alleen de vertaaloproep met count=totalPages en
+     rows=paperInfo.rows en noemde die tellingen ten onrechte onafhankelijk. De volledige route
+     maakt totalPages uit layout.rows × layout.cols (useReportPaper.ts:105), publiceert de waarden
+     samen (StudioPaper.tsx:61–70) en kiest manyPagesRows alleen bij cols <= 1
+     (GanttReportStudio.tsx:660–661). In deze bereikbare route zijn count en rows dus gelijk.
+     Het eerdere voorbeeld count=6/rows=2 gold hier niet. Het bronbewijs en deze correctie zijn
+     bewaard. De voorgestelde neutrale formulering blijft geldig voor de werkelijke waarden en
+     vroeg geen verdere wijziging. Richting voor reviews: geef de volledige aanroepvoorwaarde en
+     herkomst van invulwaarden mee voordat een grammaticale fout wordt toegeschreven aan hun
+     onderlinge onafhankelijkheid. — B
+
+1786. **VERVOLG, BEVESTIGD: lees resultaatgegevens pas na echte voltooiing en bewaar ze op schijf.**
+     De uitvoeringshulp van de maandagrelease parseerde bij de integriteitsmeting rechtstreeks
+     de uitvoer van exec_command, zonder een eventueel teruggegeven shellsessie af te wachten.
+     Bij de Poolse rapportreview leidde een lege resultaattekst tot Unexpected end of JSON input;
+     de review en volledige toolhistorie waren al bewaard. Ook een afzonderlijke postcheck gaf
+     exit 0 met een lege teruggelezen tekst, terwijl het volledige bewijsbestand wel geldig was.
+     De huidige uitvoering wacht op commandovoltooiing, bewaart commandogegevens en leest een
+     leeg antwoord opnieuw uit het bewijsbestand; een ontbrekend resultaat geeft nooit groen.
+     De volledige schrijf-, checker- en vertaalpoorten blijven gelden. Richting voor de gedeelde
+     uitvoeringshulp: een lege of afgebroken resultaattekst is geen fout van het vertaalstation. — B
+
+1785. **VERVOLG, BEVESTIGD: een extra padvoorwaarde veroorzaakte onnodige reviewherhalingen.**
+     De ouderpoort van de maandagrelease eiste ten onrechte een absoluut reviewpad in de opdrachtkop.
+     Twee Kroatische Haiku-werkreviews hadden de verplichte kop met een volledig repo-relatief pad,
+     maar werden daardoor als mislukt geteld en onnodig door Sonnet gevolgd. De eis is gecorrigeerd;
+     deze pogingen tellen niet als falen van de plakmethode. De gecorrigeerde teksten zijn opnieuw
+     volledig door Haiku beoordeeld en hersteld, met een groene oudercheck. Het oorspronkelijke bewijs en de
+     aanvullende Sonnet-review blijven bewaard. Richting: toets de werkelijk gevraagde inhoud en
+     accepteer een ondubbelzinnig pad binnen de release-worktree.
+
+     Ook een Python-toewijzing S=sys.argv[1] binnen een heredoc werd ten onrechte als Bash-toewijzing
+     gelezen. Daardoor werden echte /tmp-bestanden als fictieve repo-paden afgewezen. De parser
+     slaat de letterlijke heredoc-inhoud over en verwerkt shelltoewijzingen op hun echte positie.
+     Ook na deze correctie blijft de echte rootafwijking uit de Perzische activiteit zichtbaar in
+     de scopecontrole; dat tegenbewijs is bewaard.
+
+     Bij Servisch werd ook het woord node in de uitvoer van een bestandslijst ten onrechte als
+     uitgevoerde opdracht gelezen. De scopecontrole leest nu de oorspronkelijke Bash-invoer uit
+     de eigen native sessielogs, gekoppeld aan dezelfde tool-ID. Opdrachtuitvoer wordt niet als
+     shellcode behandeld. Het Servische tegenvoorbeeld slaagt; de echte Perzische rootafwijking
+     blijft aantoonbaar zichtbaar. De onterechte afwijzing telt niet als falen van Haiku.
+
+     Een Turkse review liep ook vast op één eindspatie: T3 trimt die in de weergave van de
+     opdracht, terwijl het native sessielog hem bewaart. De koppeling vergelijkt nu alleen de
+     weergaveregel zonder eindspaties; de volledige originele invoerbytes blijven geaudit. De
+     voltooide review kon daarna ongewijzigd door de normale ouderpoort, zonder nieuwe
+     Haiku-poging of modelwissel. Een fout bij invoerherkomst bewaart nu ook zijn stderr. — B
+
+1784. **VERVOLG, BEVESTIGD: gerichte naleesaanvulling mag niet in een herstelbrief terechtkomen.**
+     Tijdens de maandagrelease van 16 november 2026 kreeg een Kroatisch herstelstation ook de
+     gerichte instructie van de nalezer om uitsluitend het reviewbestand te schrijven. Het station
+     leegde daardoor ten onrechte de review-array. De afgewezen uitvoer en het bewijs zijn bewaard;
+     de zeven goedgekeurde voorstellen zijn op hun oorspronkelijke hash teruggezet en door een
+     nieuw herstelstation correct toegepast, met groene oudercheck. De huidige uitvoering scheidt
+     naleesaanvullingen van andere rollen, bewaart het reviewbestand vóór herstel en controleert
+     dat het ongewijzigd blijft. Richting voor de gedeelde stationbrieven: maak de schrijfgrens per
+     rol expliciet en geef rolspecifieke aanvullingen uitsluitend aan die rol mee. — B
+
+1783. **VERVOLG, BEVESTIGD: Deense commandostijl botst met een vaste termvorm.**
+     In `da/ui-report-01` bleef `studio.stale.action` op "Genberegne nu" staan, terwijl de pakketstijl
+     voor opdrachten de gebiedende wijs vraagt. De nalezer stelde "Genberegn nu" voor; het
+     herstelstation zette die correctie terug wegens de vaste `recalculate`-vormen in het pakket.
+     De release behoudt de termbase volgens het eigenaarsbesluit. Richting: toets via de termenstraat
+     de gebiedende vorm en de prioriteit van termvorm tegenover commandostijl. Alleen een
+     knoptekst; geen nieuwe fixronde voor dit VERVOLG-punt. — B
+
+1782. **VERVOLG: grote vertaalpakketten passen niet in één leesbeurt van een nalezer.**
+     Bij `ar/ui-report-01` (150 broneenheden) verloren twee Haiku-nalezers na een compactie de
+     bestandsopdracht en eindigden ze onvolledig met de algemene zin dat alleen tekst gevraagd was.
+     Richting, besluit eigenaar 16 november 2026: vanaf ongeveer 100 items lezen in plakken van
+     maximaal 40 items. Na elke plak opdracht, voortgang en bevindingen in het eigen reviewbestand
+     bewaren; de opdracht met het reviewpad staat boven- en onderaan de brief en als kop in dat bestand.
+     Alle items, waarschuwingen en de bestaande eindpoorten blijven verplicht. Mislukt de aanpak met
+     plakken tweemaal, dan alleen dat pakket door Sonnet 5.5 laten nalezen en dat melden.
+     Tel ook runtimefouten door te snel gevulde context na compactie mee als mislukte
+     plakpoging; niet alleen een onvolledig eindrapport. Bewaar de echte taakstatus en foutreden.
+     Een fout in de ouderpoort telt niet als een mislukte Haiku-poging. — B
+
+1781. **VERVOLG: de vertaalbrief moet de schrijfgrens van het station zelf expliciet noemen.**
+     Tijdens de maandagrelease van 16 november 2026 schreef een Finse vertaler naast zijn
+     `.out.json` ook een reviewbestand; later maakte een Perzisch herstelstation tijdelijk een
+     `.mjs`-hulpscript in de repowortel en verwijderde dat zelf. Bewijs en afgewezen uitvoer blijven
+     bewaard. Definitief besluit eigenaar 16 november 2026: na elk station moeten alle gevolgde
+     bestanden en de checkerhash gelijk zijn en mag buiten `build/translate/` geen nieuw ongevolgd
+     bestand blijven staan. Een zelf verwijderd tijdelijk bestand stopt de release niet; de uitvoer
+     van het afwijkende station telt niet en het station draait opnieuw met het bestaande pakket.
+     Verplaats een achtergebleven bestand veilig naar de bewijsmap. Stop alleen bij een gewijzigd
+     gevolgd bestand, of een blijvend bestand buiten `build/translate/` en `/tmp` dat niet veilig
+     verplaatst kan worden. Elke brief bevat letterlijk:
+     "Maak geen bestanden in de repo buiten build/translate/. Een hulpscript zet je in /tmp."
+     Elke vertaalbrief noemt bovendien letterlijk
+     "Schrijf alleen <pad>.out.json. Schrijf geen reviewbestand en niets anders." Geen algemene
+     naleesinstructies in vertaalbriefs; behoud alle poorten. Controleer shellredirecties en `cp`. — B
+
+1780. **VERVOLG, VERMOED: de Perzische term voor een Gantt-balk kan met de Windows-taakbalk worden verward.**
+     `i18n/termbase/fa.json`, concept `gantt-bar`: `نوار وظیفه` (bron `existing-ui`, status `arbitrated`).
+     De Perzische Haiku-nalezer meldde bij `ui-menu-01` in de maandagrelease van 16 november 2026 dat deze
+     term ook de Windows-taakbalk kan aanduiden. Dat betekenisverschil is niet onafhankelijk taalkundig
+     getoetst en niet in de app nagespeeld; de huidige vertaling volgt de bestaande termbase. Richting:
+     laat de term in een afzonderlijke termbase-opdracht beoordelen en verwerk een eventuele wijziging
+     via de termenstraat. In deze release blijft de termbase ongewijzigd. — S
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een

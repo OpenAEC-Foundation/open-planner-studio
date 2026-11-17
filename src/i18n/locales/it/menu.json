@@ -24,6 +24,8 @@
     "undo": "Annulla",
     "redo": "Ripeti",
     "delete": "Elimina",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: elimina le attività selezionate e collega ogni predecessore a ogni successore (fine-inizio, senza ritardo)",
     "undoTitle": "Annulla (Ctrl+Z)",
     "redoTitle": "Ripeti (Ctrl+Y)",
     "deleteTitle": "Elimina selezione (Canc)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Scegli le colonne della vista Tabella — visibili nella scheda Tabella",
     "toggleResourceAccent": "Accento risorsa",
     "toggleFloatBand": "Banda di slack",
+    "toggleBarDates": "Date accanto alle barre",
     "screenColors": "Colori barre",
     "screenColors_critical": "Percorso critico",
     "screenColors_auto": "Per attività — automatico",
@@ -282,7 +285,8 @@
       "label": "Schema IFC al salvataggio",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (predefinito)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Il file contiene dati di un'altra applicazione, quindi lo schema dell'intestazione originale viene mantenuto."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Modello di fasi",
     "tmplEmpty": "Vuoto",
     "tmplWoningbouw": "Edilizia residenziale",
-    "tmplUtiliteit": "Edilizia non residenziale / ristrutturazione"
+    "tmplUtiliteit": "Edilizia non residenziale / ristrutturazione",
+    "phase": {
+      "siteGroundwork": "Cantiere e movimenti di terra",
+      "foundation": "Fondazioni",
+      "shell": "Struttura grezza",
+      "roof": "Copertura",
+      "facadeFitOut": "Facciata e completamento",
+      "services": "Impianti (MEP)",
+      "finishes": "Finiture",
+      "handover": "Consegna",
+      "demolitionStripOut": "Demolizione e strip-out",
+      "groundworkFoundation": "Movimenti di terra e fondazioni",
+      "mainStructure": "Struttura principale",
+      "facadeRoof": "Facciata e copertura",
+      "fitOut": "Completamento",
+      "commissioning": "Messa in servizio e collaudo"
+    }
   },
   "status": {
     "tasks": "Attività:",
@@ -317,12 +337,14 @@
     "recentTitle": "Progetti recenti",
     "recentSubtitle": "Fai clic per aprire.",
     "recentEmpty": "Nessun progetto aperto di recente.",
+    "recentLoading": "Caricamento dei file recenti…",
     "recentUnavailable": "Questo browser non può riaprire i file locali da Recenti. Usa Apri per scegliere di nuovo il file del progetto.",
     "recentOnSite": "Sul sito",
     "examples": "Esempi",
     "examplesTitle": "Progetti di esempio",
     "examplesSubtitle": "Pianificazioni edilizie incluse. Fai clic per aprire in una nuova scheda.",
     "examplesLoading": "Caricamento esempi…",
+    "loading": "Caricamento…",
     "examplesEmpty": "Nessun esempio disponibile.",
     "examplesError": "Impossibile caricare gli esempi.",
     "examplesShowcaseHeading": "Pianificazioni showcase complete",
