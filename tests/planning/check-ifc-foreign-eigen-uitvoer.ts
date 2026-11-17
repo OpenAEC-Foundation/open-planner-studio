@@ -8,112 +8,57 @@
 //    (`checkMergeOutput`): zonder (c), zoals de basis, en met (c).
 // 3. Niets veranderd: de bronbytes komen terug, zonder (c).
 // 4. De klok: de gevallen van 1 ook met een lopende klok (elke "nu" een seconde later).
+// 5. PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen"; per tegenproef welke controle hem
+//    vangt, en dat de boomvorm van (c) zelf hem ziet (ook knownbug 1705: de aggregatie waarin een kop staat).
+// Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
+// dezelfde invoer heeft.
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { checkMergeOutput, MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
+import { checkMergeOutput, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
-import { BASELINE_HEADS, linesView, ownGroupMembers } from '@/services/ifc/foreign/ownGroups';
+import { BASELINE_HEADS, indexView, linesView, ownGroupMembers, ownGroupTrees } from '@/services/ifc/foreign/ownGroups';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { classify } from '@/services/ifc/foreign/classify';
 import { PSET, ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
 import { decodeStepText } from '@/services/ifc/stepText';
-import { storeWith } from './ifcAppRoute';
 import {
-  applyEdit, cloneDomain, concat, fixedCatalogEdits, fixedSequenceEdits, mergeProblems, openForeign, sameBytes,
+  applyEdit, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, mergeProblems, openForeign, sameBytes,
   savedCatalogStart, savedSequenceStart, type Domain,
 } from './ifcMergeKern';
-import { installDeterminism } from './ifcPariteitKern';
+import {
+  BASE, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, save, se, summary,
+  withForeignMember, withLines, type S,
+} from './ifcEigenKern';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const read = (rel: string) => new Uint8Array(readFileSync(join(root, rel)));
-const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
-const latin1 = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode(...b.subarray(i, i + 8192)); return s; };
-const bytesOf = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
-
-// ── Klok: vast, of lopend (elke "nu" een seconde later, ook binnen één opslag) ──
-const RealDate = Date;
-const reseed = installDeterminism();
-const BASE = RealDate.UTC(2026, 10, 14, 11, 11, 48);
-let clockMode: 'vast' | 'lopend' = 'vast', now = BASE;
-class Clock extends RealDate {
-  constructor(...args: unknown[]) {
-    if (args.length) super(...(args as [number])); else { if (clockMode === 'lopend') now += 1000; super(now); }
-  }
-  static now() { if (clockMode === 'lopend') now += 1000; return now; }
-}
-globalThis.Date = Clock as unknown as DateConstructor;
-const clockStart = () => { now = BASE; reseed(0x804); };
-
-let passed = 0, failed = 0;
-function ok(name: string, cond: boolean, detail = '') {
-  if (cond) { passed++; console.log(`OK ${name}`); } else { failed++; console.error(`XX ${name}${detail ? `: ${detail}` : ''}`); }
-}
-
-type S = any;
-/** Eén plannerhandeling in een verse store; de proxy leest na elke handeling de actuele stand. */
-const se = (f: (s: S) => void) => async (d: Domain): Promise<Domain> => {
-  const { store, buildWriteIFCInput } = await storeWith(d);
-  f(new Proxy({} as S, { get: (_, k) => (store.getState() as unknown as Record<string | symbol, unknown>)[k] }));
-  return structuredClone(buildWriteIFCInput(store.getState(), 'merge')) as Domain;
-};
-const leaves = (s: S) => s.tasks.filter((t: any) => !t.isMilestone && !t.childIds.length);
-
-type Outcome = { ok: true; bytes: Uint8Array; next: IfcSource } | { ok: false; kinds: string[]; detail: string };
-async function save(d: Domain, source: IfcSource): Promise<Outcome> {
-  clockStart();
-  try {
-    const prepared = await prepareIfcWrite(d, source);
-    return { ok: true, bytes: concat(prepared.parts), next: prepared.source };
-  } catch (e) {
-    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
-    return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), detail: e.cases[0]?.detail.slice(0, 300) ?? '' };
-  }
-}
-const summary = (o: Outcome) => o.ok ? `geschreven ${o.bytes.length} ${sha(o.bytes)}` : `geweigerd ${o.kinds.join(',')}`;
+const clockStart = () => clock.start();
+let caseNo = 0;
+/** Een nieuw geval: de teller van `generateId` op zijn eigen vaste stand (`idsAt`), de klok op de begintijd. Zo krijgt een
+ *  geval op de basiscode dezelfde invoer, ook als een eerder geval daar weigerde en hier schrijft (PR 12c). */
+function nextCase() { idsAt(++caseNo * 50_000); clockStart(); }
+/** De opgeslagen beginstanden, elk met een eigen vaste stand van de teller (anders hangen hun nieuwe ids af van de gevallen
+ *  ervoor). */
+const savedCatalog = (raw: Uint8Array, twoTypes = true) => { nextCase(); return savedCatalogStart(raw, twoTypes); };
+const savedSequence = (raw: Uint8Array) => { nextCase(); return savedSequenceStart(raw); };
 
 /** Eén geval: openen, bewerken, opslaan. Geen weigering met `eigen-uitvoer`; `expectWrite`: het schrijft. */
 async function edited(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, expectWrite = false) {
-  clockStart();
+  nextCase();
   const opened = await openForeign(bytes);
   assert(opened.ifcSource?.foreign, `${label}: echte vreemde bytes-openroute`);
   const d = await edit(cloneDomain(opened));
   const o = await save(d, opened.ifcSource);
-  console.log(`UITKOMST ${clockMode} ${label}: ${summary(o)}`);
-  ok(`${clockMode} ${label}: geen weigering door (c)`, o.ok || !o.kinds.includes('eigen-uitvoer'), o.ok ? '' : o.detail);
-  if (expectWrite) ok(`${clockMode} ${label}: schrijft`, o.ok, o.ok ? '' : `${o.kinds.join(',')}: ${o.detail}`);
-  if (o.ok) ok(`${clockMode} ${label}: vreemd deel byte voor byte`, mergeProblems(bytes, o.bytes).length === 0);
+  console.log(`UITKOMST ${clock.mode} ${label}: ${summary(o)}`);
+  ok(`${clock.mode} ${label}: geen weigering door (c)`, o.ok || !o.kinds.includes('eigen-uitvoer'), o.ok ? '' : o.detail);
+  if (expectWrite) ok(`${clock.mode} ${label}: schrijft`, o.ok, o.ok ? '' : `${o.kinds.join(',')}: ${o.detail}`);
+  if (o.ok) ok(`${clock.mode} ${label}: vreemd deel byte voor byte`, mergeProblems(bytes, o.bytes).length === 0);
   return { o, d, opened };
 }
-
-const REVIT_WALL = [
-  "#90001=IFCORGANIZATION($,'Arch',$,$,$);", "#90002=IFCAPPLICATION(#90001,'1','Revit','RVT');",
-  "#90003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);", '#90004=IFCPERSONANDORGANIZATION(#90003,#90001,$);',
-  '#90005=IFCOWNERHISTORY(#90004,#90002,$,.ADDED.,$,$,$,1);', "#90006=IFCWALL('2O2Fr$t4X7Zf8NOew3FLOX',#90005,'Wand',$,$,$,$,$,$);",
-];
-const withLines = (src: string, lines: readonly string[]) => { const at = src.lastIndexOf('ENDSEC;'); return `${src.slice(0, at)}${lines.map(l => `${l}\n`).join('')}${src.slice(at)}`; };
-const SOURCES: Record<'eigen' | 'kantoor' | 'oud', Uint8Array> = {
-  eigen: read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'),
-  kantoor: bytesOf(withLines(latin1(read('public/examples/03-kantoorgebouw-zuidas.ifc')), REVIT_WALL)),
-  oud: read('tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc'),
-};
-
-const addTask = (s: S, name: string) => {
-  const id = s.addTask({ name, position: { anchorId: leaves(s)[0].id, where: 'below' } }, { phaseAssignments: 'move', answered: true });
-  if (!id) throw new Error('taak toevoegen mislukt'); return id;
-};
-const deleteAll = (s: S) => {
-  for (const b of [...s.baselines]) s.deleteBaseline(b.id);
-  for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id);
-  for (const t of [...s.tasks].filter((t: any) => !t.parentId)) if (s.tasks.some((x: any) => x.id === t.id)) s.deleteTask(t.id);
-};
 
 // ── 1 en 4. Geen nieuwe weigering, met een vaste en een lopende klok ──
 async function noNewRefusal(which: keyof typeof SOURCES) {
   const raw = SOURCES[which], tag = which;
-  const saved = await savedCatalogStart(raw), single = await savedCatalogStart(raw, false);
+  const saved = await savedCatalog(raw), single = await savedCatalog(raw, false);
   // 7d: de vier vaste bewerkingen op de catalogus (de tweede op de bron met één type) schrijven op de basis.
   for (const i of [0, 1, 2, 3]) await edited(`7d ${tag}: ${fixedCatalogEdits({} as Domain)[i].label}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits(d)[i], d), true);
   await edited(`7d ${tag}: actieve baseline uitzetten`, saved, se(s => { s.setActiveBaseline(null); }));
@@ -123,7 +68,7 @@ async function noNewRefusal(which: keyof typeof SOURCES) {
   await edited(`7d ${tag}: één bestaande baseline wissen`, saved, se(s => { s.deleteBaseline(s.baselines[0].id); }));
   // 7c: de vaste reeksen op een opgeslagen beginstand (alleen op de eigen bron, zoals check-ifc-foreign-preserve).
   if (which === 'eigen') {
-    const seq = await savedSequenceStart(raw);
+    const seq = await savedSequence(raw);
     for (const i of [0, 1, 2, 3]) await edited(`7c ${tag}: vaste reeks ${i}`, seq, d => applyEdit(fixedSequenceEdits(d)[i], d), true);
   }
   // Reeksen in één sessie.
@@ -175,28 +120,18 @@ async function session(which: 'eigen' | 'kantoor') {
     }],
     ['7 niets bewerken (opnieuw Ctrl+S)', () => {}],
   ];
-  clockStart();
+  nextCase();
   const opened = await openForeign(SOURCES[which]);
   let source = opened.ifcSource!, d: Domain = cloneDomain(opened);
   for (const [label, f] of steps) {
     const next = await se(f)(d);
     const o = await save(next, source);
-    console.log(`UITKOMST ${clockMode} sessie ${which}: stap ${label}: ${summary(o)}`);
-    ok(`${clockMode} sessie ${which}: stap ${label}: geen weigering door (c)`, o.ok || !o.kinds.includes('eigen-uitvoer'), o.ok ? '' : o.detail);
+    console.log(`UITKOMST ${clock.mode} sessie ${which}: stap ${label}: ${summary(o)}`);
+    ok(`${clock.mode} sessie ${which}: stap ${label}: geen weigering door (c)`, o.ok || !o.kinds.includes('eigen-uitvoer'), o.ok ? '' : o.detail);
     if (!o.ok) break;
-    if (label.startsWith('7')) ok(`${clockMode} sessie ${which}: niets bewerkt geeft de vorige uitvoer terug`, sameBytes(o.bytes, source.bytes));
+    if (label.startsWith('7')) ok(`${clock.mode} sessie ${which}: niets bewerkt geeft de vorige uitvoer terug`, sameBytes(o.bytes, source.bytes));
     source = o.next; d = next;
   }
-}
-
-/** Een vreemde property in de ledenlijst van de eerste pset met deze naam; de rest byte voor byte gelijk. */
-function withForeignMember(bytes: Uint8Array, pset: string): Uint8Array {
-  let t = latin1(bytes);
-  const re = new RegExp(`^(#\\d+=IFCPROPERTYSET\\('[^']*',#\\d+,'${pset}',\\$,\\()([^)]*)(\\)\\);)`, 'm');
-  assert(re.test(t), `pset ${pset} niet gevonden`);
-  t = t.replace(re, (_, a, m, z) => `${a}${m},#95000${z}`);
-  const at = t.lastIndexOf('ENDSEC;');
-  return bytesOf(`${t.slice(0, at)}#95000=IFCPROPERTYSINGLEVALUE('VendorNote',$,IFCTEXT('van een ander programma'),$);\n${t.slice(at)}`);
 }
 
 /** Een onbekende `IfcSimplePropertyTemplate` van een ander programma in de lijst van het codetemplate (review van #953). */
@@ -220,7 +155,7 @@ const foreignTemplateKept = (text: string) => text.includes("#95001=IFCSIMPLEPRO
 async function foreignMember() {
   const eigen = SOURCES.eigen;
   const bl = withForeignMember(eigen, PSET.Baselines);
-  const cat = withForeignMember(await savedCatalogStart(eigen), PSET.StructureMeta);
+  const cat = withForeignMember(await savedCatalog(eigen), PSET.StructureMeta);
   const cases: [string, Uint8Array, (d: Domain) => Promise<Domain> | Domain][] = [
     ['vreemd lid in OPS_Baselines: projectbeschrijving', bl, se(s => s.setProject({ description: 'Alleen beschrijving' }))],
     ['vreemd lid in OPS_Baselines: baseline erbij', bl, se(s => s.saveBaseline('Met vreemd lid'))],
@@ -230,11 +165,10 @@ async function foreignMember() {
     const { o } = await edited(label, bytes, edit, true);
     if (!o.ok) continue;
     const text = latin1(o.bytes);
-    ok(`${label}: het vreemde lid blijft staan`, text.includes("#95000=IFCPROPERTYSINGLEVALUE('VendorNote'")
-      && new RegExp(`=IFCPROPERTYSET\\('[^']*',#\\d+,'${label.includes('Baselines') ? PSET.Baselines : PSET.StructureMeta}',\\$,\\([^)]*#95000[,)]`).test(text));
+    ok(`${label}: het vreemde lid blijft staan`, foreignMemberKept(text, label.includes('Baselines') ? PSET.Baselines : PSET.StructureMeta));
   }
   // Een vreemd lid in een eigen template (review van #953, ronde 1): de basis schrijft dit met lid en koppeling.
-  const tmpl = withForeignTemplate(await savedCatalogStart(eigen));
+  const tmpl = withForeignTemplate(await savedCatalog(eigen));
   {
     const { o } = await edited('vreemd lid in het codetemplate: projectbeschrijving', tmpl, se(s => s.setProject({ description: 'Alleen de projectbeschrijving door review 953' })), true);
     if (o.ok) {
@@ -256,7 +190,7 @@ async function foreignMember() {
   clockStart();
   const opened = await openForeign(bl);
   const o = await save(cloneDomain(opened), opened.ifcSource!);
-  console.log(`UITKOMST ${clockMode} vreemd lid in OPS_Baselines: niets: ${summary(o)}`);
+  console.log(`UITKOMST ${clock.mode} vreemd lid in OPS_Baselines: niets: ${summary(o)}`);
   ok('vreemd lid in OPS_Baselines: niets bewerkt geeft de bronbytes terug', o.ok && sameBytes(o.bytes, bl));
 }
 
@@ -291,12 +225,12 @@ async function foreignMember() {
 }
 
 for (const mode of ['vast', 'lopend'] as const) {
-  clockMode = mode;
+  clock.mode = mode;
   for (const which of mode === 'vast' ? ['eigen', 'kantoor', 'oud'] as const : ['eigen'] as const) await noNewRefusal(which);
   for (const which of mode === 'vast' ? ['eigen', 'kantoor'] as const : ['eigen'] as const) await session(which);
   if (mode === 'vast') await foreignMember();
 }
-clockMode = 'vast';
+clock.mode = 'vast';
 
 // ── 3. Niets veranderd: de bronbytes terug, zonder (c). Op die bytes zegt (c) soms "nee": ze zijn niet door deze writer
 // geschreven (een oudere versie, of een bron die niet in de vorm van de writer staat). Dat legt dit vast. ──
@@ -350,7 +284,7 @@ async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: IfcSourc
 }
 /** Een basis: een geslaagde opslag, en wat (c) daarvoor nodig heeft (de sessiekaart en de klok van die opslag). */
 async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain) {
-  clockStart();
+  nextCase();
   const opened = await openForeign(bytes), source = opened.ifcSource!;
   const input = await edit(cloneDomain(opened));
   const o = await save(input, source);
@@ -360,8 +294,8 @@ async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promi
   return { bytes: o.bytes, input, source, own };
 }
 const caughtOnlyByC: string[] = [];
-async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate, onlyC = false) {
-  const m = mutated(b.bytes, mutate);
+async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate | Uint8Array, onlyC = false) {
+  const m = mutate instanceof Uint8Array ? mutate : mutated(b.bytes, mutate);
   const without = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
   console.log(`TEGENPROEF ${label}: zonder (c) ${without}; met (c) ${withC} (${lastDetail})`);
   const named = /niet-P-stuk #(\d+)/.exec(lastDetail);
@@ -373,7 +307,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
 
 {
   const eigen = SOURCES.eigen;
-  const cat = await savedCatalogStart(eigen), single = await savedCatalogStart(eigen, false);
+  const cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
   // De twee die de basis doorlaat: een verkeerde typenaam (ObjectType) op de taak waarvan de planner het type veranderde.
   for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
     const b = await base(`7d ${label}`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
@@ -412,6 +346,64 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
     await counterProof(b, 'baselinekop: aanmaakdatum anders', ls => { setArg(head(ls), 6, "'2001-01-01T00:00:00'"); });
     await counterProof(b, 'ActiveBaselineId wijst naar een onbekende', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr('onbekend')})`); });
   }
+  // PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen" (sinds PR 12c schrijft die opslag; de
+  // kop in de aggregatie van het werkplan beweegt in de verliescontrole mee met zijn baseline). Elke fout moet de controle
+  // op de echte uitvoer vangen; de regel zegt welke.
+  {
+    const b = await base('kop: één baseline wissen', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+    const ls0 = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+    const planId = ls0.find(l => l.type === 'IFCWORKPLAN')!.id;
+    const agg = (ls: OutLine[]) => ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[4].trim() === `#${planId}`)!;
+    const projectAgg = (ls: OutLine[]) => ls.find(l => l.type === 'IFCRELAGGREGATES' && ls.find(x => `#${x.id}` === l.args[4].trim())?.type === 'IFCPROJECT')!;
+    const members = (l: OutLine) => l.args[5].trim().slice(1, -1).split(',').map(x => x.trim());
+    const heads = ls0.filter(isHead);
+    assert(heads.length === 2 && projectAgg(ls0), 'kop: twee koppen na wissen, en een aggregatie van het project');
+    const [h1] = heads;
+    const gone = linesIn(cat).find(l => /^#\d+=IFCWORKSCHEDULE\(/.test(l) && l.includes('.BASELINE.')
+      && !heads.some(h => l.startsWith(`#${h.id}=`)))!;
+    assert(gone, 'kop: de kop van de gewiste baseline in de bron');
+    const goneId = /^#(\d+)=/.exec(gone)![1];
+    const nextId = Math.max(...ls0.map(l => l.id)) + 1;
+    const dropLine = (bytes: Uint8Array, id: number) => bytesOf(linesIn(bytes).filter(l => !l.startsWith(`#${id}=`)).join('\n'));
+    const moved = mutated(b.bytes, ls => {
+      setArg(agg(ls), 5, `(${members(agg(ls)).filter(id => id !== `#${h1.id}`).join(',')})`);
+      setArg(projectAgg(ls), 5, `(${[...members(projectAgg(ls)), `#${h1.id}`].join(',')})`);
+    });
+    const proofs: [string, Uint8Array][] = [
+      ['een kop te veel', bytesOf(withLines(latin1(mutated(b.bytes, ls => { setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${nextId}`].join(',')})`); })),
+        [`#${nextId}=IFCWORKSCHEDULE('0R12CEXTRAKOP0000000000',${h1.args.slice(1).join(',')});`]))],
+      ['een kop te weinig', dropLine(mutated(b.bytes, ls => { setArg(agg(ls), 5, `(${members(agg(ls)).filter(id => id !== `#${h1.id}`).join(',')})`); }), h1.id)],
+      ['een kop met een verkeerde naam', mutated(b.bytes, ls => { setArg(ls.find(l => l.id === h1.id)!, 2, "'Verkeerde kopnaam'"); })],
+      ['een kop met een verkeerde aanmaakdatum', mutated(b.bytes, ls => { setArg(ls.find(l => l.id === h1.id)!, 6, "'2001-01-01T00:00:00'"); })],
+      ['een kop in de aggregatie van het project (1705)', moved],
+      ['de kop van de gewiste baseline blijft staan', bytesOf(withLines(latin1(mutated(b.bytes, ls => {
+        setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${goneId}`].join(',')})`);
+      })), [gone.replace(/\r$/, '')]))],
+      ['een kop verwisseld (die van de gewiste baseline in plaats van een blijvende)', bytesOf(withLines(latin1(dropLine(mutated(b.bytes, ls => {
+        setArg(agg(ls), 5, `(${members(agg(ls)).map(id => id === `#${h1.id}` ? `#${goneId}` : id).join(',')})`);
+      }), h1.id)), [gone.replace(/\r$/, '')]))],
+    ];
+    // (c) zelf: de boomvorm van de koppen in de uitvoer. De lezer leest de koppen niet (de baselines staan in het JSON), dus
+    // de herschreven kant is voor elke tegenproef dezelfde als voor de goede uitvoer; ziet de boomvorm van de uitvoer een
+    // verschil, dan weigert (c), ook als de volledige uitvoercontrole hem niet eerder had gevangen. Zo ook knownbug 1705: de
+    // boomvorm noemt de aggregatie van elke kop.
+    // Eigen regels zoals in `ownOutputProblem`: een stuk dat in de bron P is, of nieuw.
+    const sourceIndex = scanForeignStep(b.source.bytes), sourceCls = classify(sourceIndex);
+    const headTrees = (bytes: Uint8Array) => {
+      const index = scanForeignStep(bytes);
+      const own = (i: number) => { const c = sourceIndex.chunkOf(index.id(i)); return c < 0 || sourceCls.classes[c] === 1; };
+      return ownGroupTrees(indexView(index, own), new Set(b.input.tasks.map(t => t.id))).get(BASELINE_HEADS)?.join('\n') ?? '';
+    };
+    const good = headTrees(b.bytes);
+    ok('kop: de koppen staan in de aggregatie van het eigen werkplan', good.split('\n').every(t => t.startsWith('eigen IFCWORKPLAN|')), good);
+    for (const [label, m] of proofs) {
+      await counterProof(b, `kop: ${label}`, m);
+      const tree = headTrees(m);
+      console.log(`BEWIJS (c) kop: ${label}: ${tree === good ? 'GEEN VERSCHIL' : `verschil, «${tree.split('\n').filter(t => !good.split('\n').includes(t)).join(' / ').slice(0, 160) || `${tree.split('\n').length} koppen in plaats van ${good.split('\n').length}`}»`}`);
+      ok(`kop: ${label}: (c) zelf ziet het`, tree !== good);
+    }
+  }
   // Een fout in een eigen template van een bestand met een vreemd templatelid blijft geweigerd (review van #953).
   {
     const b = await base('vreemd templatelid: projectbeschrijving', withForeignTemplate(cat), se(s => s.setProject({ description: 'Alleen beschrijving' })));
@@ -423,7 +415,7 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   }
   // 7c: TaskGuids groeit (taak + baseline).
   {
-    const seq = await savedSequenceStart(eigen);
+    const seq = await savedSequence(eigen);
     const b = await base('7c taak + baseline', seq, d => applyEdit(fixedSequenceEdits(d)[0], d));
     const added = b.input.tasks.find(t => !b.source.opened!.tasks.some(o => o.id === t.id))!;
     await counterProof(b, 'TaskGuids: nieuwe GUID verkeerd', alterJson('TaskGuids', v => { v[added.id] = 'verkeerde-guid'; }), true);
@@ -448,10 +440,99 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   console.log(`BEWIJS alleen (c) vangt: ${caughtOnlyByC.length} — ${caughtOnlyByC.join('; ')}`);
 }
 
+// ── De andere tegenproeven van het onderzoek (`proef-mutaties.ts`; PR 12b) ──
+// Sinds PR 12b hoeft een verschil in een gedragen eigen groep in de verliescontrole geen bewerking meer te verklaren. Een
+// fout van de writer in zo'n groep moet dus de controle op de echte uitvoer vangen: (c) of de controle na openen. Op de
+// basis ving de verliescontrole deze fouten al in O1; hier staan ze op de uitvoer van een geslaagde opslag, door de volledige
+// uitvoercontrole met (c). Plus "de echte uitvoer zonder dat de planner iets deed": de uitvoer van een bewerking, getoetst
+// tegen het onbewerkte domein.
+{
+  const eigen = SOURCES.eigen;
+  const seq = await savedSequence(eigen), cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
+  const json = (bytes: Uint8Array, name: string) => jsonOf(prop(linesIn(bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l), name));
+  const unedited = async (b: Awaited<ReturnType<typeof base>>, label: string) => {
+    const withC = await verdict(b.bytes, cloneDomain(b.source.opened! as Parameters<typeof cloneDomain>[0]), b.source, b.own);
+    console.log(`TEGENPROEF ${label}: echte uitvoer zonder plannerhandeling: met (c) ${withC} (${lastDetail})`);
+    ok(`tegenproef ${label}: echte uitvoer zonder plannerhandeling geweigerd`, withC !== 'laat door');
+  };
+  // 7c: de twee groeiende kaarten (TaskGuids bij taak + baseline, TaskTypes bij taak + bestaand type).
+  for (const [kind, i] of [['TaskGuids', 0], ['TaskTypes', 2]] as const) {
+    const b = await base(`7c ${kind}`, seq, d => applyEdit(fixedSequenceEdits(d)[i], d));
+    const map = (v: any) => kind === 'TaskGuids' ? v : v.taskTypeIds;
+    const before = json(b.source.bytes, kind), after = json(b.bytes, kind);
+    const oldKey = Object.keys(map(before))[0], newKey = Object.keys(map(after)).find(k => !(k in map(before)))!;
+    assert(oldKey && newKey, `7c ${kind}: een oude en een nieuwe koppeling`);
+    const variants: [string, (v: any) => void][] = [
+      ['oude koppeling gewijzigd', v => { map(v)[oldKey] = 'verkeerde-waarde'; }],
+      ['nieuwe koppeling weg', v => { delete map(v)[newKey]; }],
+    ];
+    if (kind === 'TaskGuids') {
+      // Bekend gat (knownbug 1706): een extra sleutel zonder taak in `TaskGuids` ziet (c) niet (de weesregel van de canon),
+      // en de controle na openen ook niet. Op de basis ving de verliescontrole hem in O1; in een gedragen `OPS_Baselines`
+      // niet meer. Er gaat niets verloren. Slaat deze proef om, dan is het gat dicht: werk dan 1706 bij.
+      const m = mutated(b.bytes, alterJson(kind, v => { map(v)['onverwacht'] = map(v)[newKey]; }));
+      const withC = await verdict(m, b.input, b.source, b.own);
+      console.log(`TEGENPROEF 7c TaskGuids: onverwachte nieuwe sleutel zonder taak: met (c) ${withC} (bekend gat, knownbug 1706)`);
+      ok('tegenproef 7c TaskGuids: onverwachte nieuwe sleutel zonder taak: laat door (bekend gat, knownbug 1706)', withC === 'laat door', withC);
+    } else variants.push(['onverwachte nieuwe sleutel', v => { map(v)['onverwacht'] = map(v)[newKey]; }]);
+    if (kind === 'TaskTypes') variants.push(['oude koppeling weg', v => { delete map(v)[oldKey]; }],
+      ['nieuwe sleutel verkeerd', v => { map(v)['verkeerde-taak'] = map(v)[newKey]; delete map(v)[newKey]; }],
+      ['definitie gewijzigd', v => { v.definitions[0].name = 'Ongevraagde naam'; }], ['nieuw type verkeerd', v => { map(v)[newKey] = 'onbekend-type'; }]);
+    for (const [label, f] of variants) await counterProof(b, `7c ${kind}: ${label}`, alterJson(kind, f));
+    await unedited(b, `7c ${kind}`);
+  }
+  // 7d: de templates van de codes (tweede code).
+  {
+    const b = await base('7d tweede code (onderzoek)', cat, d => applyEdit(fixedCatalogEdits(d)[0], d));
+    const tmpl = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
+    const refsOf = (ls: OutLine[]) => tmpl(ls).args[6].trim().slice(1, -1).split(',');
+    const byRef = (ls: OutLine[], r: string) => ls.find(l => `#${l.id}` === r.trim())!;
+    await counterProof(b, 'template: verwachte wijziging ontbreekt (alleen de oude definitie)', ls => { setArg(tmpl(ls), 6, `(${refsOf(ls)[0]})`); });
+    await counterProof(b, 'template: twee keer dezelfde definitie', ls => { const r = refsOf(ls); setArg(tmpl(ls), 6, `(${r[0]},${r[0]})`); });
+    await counterProof(b, 'template: extra definitie zonder handeling', ls => { const r = refsOf(ls); setArg(tmpl(ls), 6, `(${[...r, r[0]].join(',')})`); });
+    await counterProof(b, 'template: nieuwe definitie verkeerde naam', ls => { setArg(byRef(ls, refsOf(ls)[1]), 2, "'Ongevraagde code'"); });
+    await unedited(b, '7d tweede code');
+  }
+  // 7d: TaskTypes bij een nieuw type en bij een typewissel.
+  for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
+    const b = await base(`7d ${label} (onderzoek)`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
+    const before = json(b.source.bytes, 'TaskTypes'), after = json(b.bytes, 'TaskTypes');
+    const changed = Object.keys(after.taskTypeIds).find(k => before.taskTypeIds[k] !== after.taskTypeIds[k])!;
+    const other = Object.keys(before.taskTypeIds).find(k => k !== changed)!;
+    assert(changed && other, `7d ${label}: een gewijzigde en een andere koppeling`);
+    const variants: [string, (v: any) => void][] = [
+      ['oude definitie weg', v => { v.definitions.shift(); }],
+      ['oude definitie gewijzigd', v => { v.definitions[0].name = 'Verloren naam'; }],
+      ['onaangeraakte koppeling gewijzigd', v => { v.taskTypeIds[other] = v.taskTypeIds[other] === 'type-7d-b' ? 'type-7d-a' : 'type-7d-b'; }],
+      ['gewijzigde koppeling verkeerde waarde', v => { v.taskTypeIds[changed] = before.taskTypeIds[changed] ?? 'type-7d-a'; }],
+      ['koppeling naar een onbekende definitie', v => { v.taskTypeIds[changed] = 'onbekend'; }],
+    ];
+    for (const [l, f] of variants) await counterProof(b, `TaskTypes ${label}: ${l}`, alterJson('TaskTypes', f));
+    await unedited(b, `7d ${label}`);
+  }
+  // 7d: de actieve baseline en de baselinegegevens.
+  {
+    const b = await base('7d actieve baseline (onderzoek)', cat, d => applyEdit(fixedCatalogEdits(d)[3], d));
+    const opened = b.source.opened!, other = b.input.baselines!.find(x => x.id !== b.input.activeBaselineId && x.id !== opened.activeBaselineId);
+    await counterProof(b, 'ActiveBaselineId wijst naar de oude actieve', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr(opened.activeBaselineId!)})`); });
+    if (other) await counterProof(b, 'ActiveBaselineId wijst naar een andere bestaande', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr(other.id)})`); });
+    await counterProof(b, 'Baselines leeg', ls => { setArg(prop(ls, 'Baselines'), 2, "IFCTEXT('[]')"); });
+    await counterProof(b, 'Baselines: één rijdatum anders', alterJson('Baselines', v => {
+      const row = v[0].tasks[0]; const k = Object.keys(row).find(k => /start/i.test(k))!; row[k] = '2001-01-01';
+    }));
+    await unedited(b, '7d actieve baseline');
+  }
+  // Projectinstellingen: een veld dat de lezer leest.
+  {
+    const b = await base('projectbeschrijving (onderzoek)', cat, se(s => { s.setProject({ description: 'Nieuwe omschrijving' }); }));
+    await counterProof(b, 'ProjectSettings: ProjectDescription anders', ls => { setArg(prop(ls, 'ProjectDescription'), 2, "IFCTEXT('Verkeerd')"); });
+  }
+}
+
 // ── De indeling: wat de writer op project en werkschema zet, is een groep; per-taak-psets niet. ──
 {
   clockStart();
-  const out = await base('indeling', await savedCatalogStart(SOURCES.eigen), d => d);
+  const out = await base('indeling', await savedCatalog(SOURCES.eigen), d => d);
   const lines = linesIn(out.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
   const groups = new Set(ownGroupMembers(linesView(lines)).values());
   const register = new Set<string>(Object.values(PSET));
@@ -463,5 +544,4 @@ async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, 
   for (const g of [PSET.TaskNotes, PSET.Assignments, PSET.Resource, PSET.Calendar, PSET.WorkRule]) ok(`indeling: ${g} (per object) is geen groep`, !groups.has(g));
 }
 
-console.log(`\n${passed} OK, ${failed} XX`);
-if (failed > 0) process.exit(1);
+finish();
