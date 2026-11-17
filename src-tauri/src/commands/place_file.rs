@@ -2123,8 +2123,10 @@ mod tests {
 
     // De struikeldraad van #975 omgekeerd (knownbug 1797): `fs:default` van tauri-plugin-fs 2.7.1 verbiedt
     // nu zelf wat eronder ligt (`map/x`, en op Linux de twee bestanden), ook zonder het eigen verbod van
-    // de app. De map zelf dekt het niet: daarvoor blijft de capability van de app nodig. De scope is hier
-    // die van de echte capabilities, zonder de verboden paden uit `webviewgegevens-*.json`.
+    // de app. De map zelf dekt het niet: daarvoor blijft de capability van de app nodig
+    // (`place_file_webviewgegevens_verboden`, `place_file_ipc_webviewmappen_dicht`). De scope is die van
+    // de echte capabilities zonder de verboden paden uit `webviewgegevens-*.json`; in de mutatie zonder
+    // die capabilities is het dezelfde scope.
     #[test]
     fn place_file_fs_default_verbiedt_zelf() {
         use tauri::Manager;
@@ -2133,12 +2135,10 @@ mod tests {
         let local = app.path().app_local_data_dir().unwrap();
         let gewoon = |p: &Path| p.components().collect::<PathBuf>();
         let eigen: Vec<PathBuf> = eigen_verbod(&app).iter().map(|p| gewoon(p)).collect();
-        assert_eq!(eigen.is_empty(), cfg!(target_os = "macos"));
         let houd = |p: &Path| !eigen.contains(&gewoon(p));
         for command in ["rename", "read_file", "write_file", "remove"] {
             let alleen_fs_default = scope_met(webview, command, &houd, false)
                 .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
-            let met_eigen = scope_voor(webview, command, true).unwrap();
             for patroon in fs_default_hier() {
                 let pad = onder(&local, patroon);
                 assert!(
@@ -2151,10 +2151,6 @@ mod tests {
                 assert!(
                     alleen_fs_default.allows(&pad),
                     "fs:default dekt {pad:?} niet ({command})"
-                );
-                assert!(
-                    !met_eigen.allows(&pad),
-                    "het eigen verbod {command}: {pad:?}"
                 );
             }
         }
