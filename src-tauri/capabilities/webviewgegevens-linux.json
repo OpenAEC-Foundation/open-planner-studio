@@ -2,11 +2,28 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "webviewgegevens-linux",
   "description": "Verbiedt de fs-commando's de zeven mappen van WebKitGTK in $APPLOCALDATA (de app-datamap; op Linux dezelfde map als $APPDATA) zelf, en rename en remove van $APPLOCALDATA zelf. Wat eronder ligt (map/**) en de bestanden cookies en hsts-storage.sqlite verbiedt fs:default van tauri-plugin-fs 2.7.1 al; dat dekt de map zelf en de app-datamap niet. mkdir, read_dir, lezen en schrijven in $APPLOCALDATA blijven, voor het herstel na een crash. De grens en wat erbuiten valt staan in .claude/rules/tauri-ifc.md en in knownbugs 1775 en 1776.",
-  "windows": [
-    "main"
-  ],
-  "platforms": [
-    "linux"
-  ],
-  "permissions": []
+  "windows": ["main"],
+  "platforms": ["linux"],
+  "permissions": [
+    {
+      "identifier": "fs:scope",
+      "deny": [
+        { "path": "$APPLOCALDATA/CacheStorage" },
+        { "path": "$APPLOCALDATA/serviceworkers" },
+        { "path": "$APPLOCALDATA/WebKitCache" },
+        { "path": "$APPLOCALDATA/databases" },
+        { "path": "$APPLOCALDATA/localstorage" },
+        { "path": "$APPLOCALDATA/mediakeys" },
+        { "path": "$APPLOCALDATA/storage" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-rename",
+      "deny": [{ "path": "$APPLOCALDATA" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "deny": [{ "path": "$APPLOCALDATA" }]
+    }
+  ]
 }
