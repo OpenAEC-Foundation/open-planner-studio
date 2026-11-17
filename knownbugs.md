@@ -967,6 +967,11 @@ en noem het in je rapport of PR-tekst.
      verwacht percentages (`90`, `100`, `110`, `125`) en kiest de dichtstbijzijnde: beide gevallen worden 90%. Het
      label noemt 100% en 125%. De echte 100%- en 125%-gevallen zijn los nagemeten en goed (eindig, zelfde dagbreedte
      als zonder datums). Voorstel: `[100, 125]` en het label zonder `* 100`. Bron: review Sol ronde 3 van #951. — B
+1652. **Alt+↑/↓ op een groepsruitje van een ingeklapte mijlpalenreeks heeft geen eigen browserstap.** F2 en
+     Alt+↑/↓ delen `singleTarget` in `src/hooks/keyboard/shortcutRegistry.ts`, die een lid van een gedeeld ruitje
+     (mijlpalen op dezelfde dag) weigert. `tests/browser/mijlpalenreeks.spec.ts` stap 5b controleert dat alleen voor
+     F2. Voorstel: Alt+↑ en Alt+↓ op het groepsruitje in stap 5b, met een controle dat de volgorde onder de fase
+     gelijk blijft, en een tegenproef op een los ruitje. Bron: review Sol ronde 4 van #956. — B
 1673. **VERVOLG: binnen één gebundelde wijziging kan de selectie na verwijderen op een verborgen fase landen.**
      `selectNeighbourAfterRemoval` (`src/state/selectionAfterRowChange.ts`) kiest de buur uit `viewRows`. Binnen
      een transactie die het herberekenen van de rijen uitstelt (`runtime.deferViewRows`, bijvoorbeeld

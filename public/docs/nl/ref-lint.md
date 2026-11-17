@@ -157,7 +157,7 @@ Deze groep staat ook op *Tabel*.
 
 ### Beeld › Overzicht
 
-- **Inklappen** — klapt de geselecteerde samenvattingstaken in; zonder selectie alle. In een gegroepeerde weergave klapt hij alle groepen in en heeft een selectie geen effect.
+- **Inklappen** — klapt de geselecteerde samenvattingstaken in; zonder selectie alle. Reeksen van mijlpalen direct onder elkaar klappen mee in tot één regel. In een gegroepeerde weergave klapt hij alle groepen in en heeft een selectie geen effect.
 - **Uitklappen** — het omgekeerde.
 
 ### Beeld › Layout

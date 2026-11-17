@@ -167,6 +167,8 @@ export interface GanttTooltipState {
   /** Issue #391: gezet als de muis op de baselinestrook staat: de baselines in dat stuk
    *  (0 = actief, 1/2 = vergelijking). */
   baselineSlots?: (0 | 1 | 2)[];
+  /** Issue #868: de mijlpalen op één groepsruitje (de voorman eerst); de tooltip noemt ze allemaal. */
+  group?: readonly Task[];
 }
 
 export interface GanttRelationPopoverState {

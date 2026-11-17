@@ -45,7 +45,7 @@ import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
 import { HoverTooltip } from './HoverTooltip';
-import { TaskTooltipContent } from './TaskTooltipContent';
+import { MilestoneGroupTooltipContent, TaskTooltipContent } from './TaskTooltipContent';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { saveHistogramHeight } from '@/utils/settingsStore';
@@ -1024,7 +1024,9 @@ export function GanttCanvas({
           <HoverTooltip left={tooltip.x + 16} top={tooltip.y - 10}>
             {tooltip.baselineSlots !== undefined
               ? <BaselineTooltipContent task={tooltip.task} slots={tooltip.baselineSlots} layers={baselineLayers} />
-              : <TaskTooltipContent task={tooltip.task} />}
+              : tooltip.group
+                ? <MilestoneGroupTooltipContent tasks={tooltip.group} />
+                : <TaskTooltipContent task={tooltip.task} />}
           </HoverTooltip>
         )}
         {secondaryTooltip?.baselineSlots && (

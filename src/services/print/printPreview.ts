@@ -464,6 +464,8 @@ export function buildPrintRows(
   if (rows) {
     for (const row of rows) {
       if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
+      // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
+      else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
       else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
     }
     return printRows;

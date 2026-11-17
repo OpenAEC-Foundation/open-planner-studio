@@ -51,8 +51,10 @@ export function useDependencyDraw({
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const targetTask = renderer.getTaskAtY(y);
-        if (targetTask && targetTask.id !== depDragState.sourceTaskId && isTimelineCanvasX(x, rect.width)) {
+        const targetTask = renderer.getTaskAt(x, y);
+        // Op een groepsruitje (#868) landt geen relatie: welke mijlpaal zou het zijn? Uitklappen.
+        if (targetTask && targetTask.id !== depDragState.sourceTaskId && !renderer.getMilestoneGroup(targetTask.id)
+          && isTimelineCanvasX(x, rect.width)) {
           onRelationDrawn(depDragState.sourceTaskId, targetTask.id, e.clientX, e.clientY);
         }
       }

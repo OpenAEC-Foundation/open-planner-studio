@@ -5,6 +5,7 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { groupBy } from '@/utils/collections';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
@@ -66,7 +67,18 @@ export interface TaskGridGroupRowMeta {
   traceClass: null;
 }
 
-export type TaskGridRowMeta = TaskGridTaskRowMeta | TaskGridGroupRowMeta;
+/** Issue #868: een ingeklapte mijlpalenreeks. Alleen-lezen; een klik kiest alle `taskIds`. */
+export interface TaskGridMilestonesRowMeta {
+  rowKey: string;
+  kind: 'milestones';
+  /** De mijlpalen van de reeks, in lijstvolgorde; de eerste is de kop. */
+  taskIds: string[];
+  depth: number;
+  selected: boolean;
+  traceClass: null;
+}
+
+export type TaskGridRowMeta = TaskGridTaskRowMeta | TaskGridGroupRowMeta | TaskGridMilestonesRowMeta;
 
 export interface TaskGridAdapterCell {
   text: string;
@@ -382,6 +394,13 @@ export function createTaskGridAdapter(
         collapsed: row.collapsed,
       };
     }
+    if (row.kind === 'milestones') {
+      const selected = row.tasks.every(t => selectedTaskIds.has(t.id));
+      rowMetaByKey.set(row.rowKey, {
+        rowKey: row.rowKey, kind: 'milestones', taskIds: row.tasks.map(t => t.id), depth: row.depth, selected, traceClass: null,
+      });
+      return { kind: 'data', rowKey: row.rowKey, depth: row.depth, dimmed: row.dimmed, selected, traceClass: null };
+    }
     rowMetaByKey.set(row.rowKey, {
       rowKey: row.rowKey,
       taskId: row.task.id,
@@ -416,11 +435,35 @@ export function createTaskGridAdapter(
   }
 
   function getCell(rowKey: string, columnId: TaskColumnId): TaskGridAdapterCell | null {
+    const meta = rowMetaByKey.get(rowKey);
+    if (meta?.kind === 'milestones') return milestonesCell(meta, columnId);
     const taskResult = resolveTask(rowKey, columnId);
     if (!taskResult.ok) return null;
+    return taskCell(taskResult.value, rowKey, columnId);
+  }
+
+  /**
+   * Cel van een ingeklapte mijlpalenreeks (#868, punt 5): Start is die van de vroegste mijlpaal,
+   * Einde die van de laatste, met dezelfde tekst als hun eigen cel; alles alleen-lezen. De andere
+   * kolommen (ook de naam, die de UI zelf tekent) blijven leeg.
+   */
+  function milestonesCell(meta: TaskGridMilestonesRowMeta, columnId: TaskColumnId): TaskGridAdapterCell {
+    const empty: TaskGridAdapterCell = { text: '', value: undefined, copyText: '', editText: '', readOnly: true };
+    const tasks = meta.taskIds.map(id => context.tasksById.get(id)).filter((t): t is Task => !!t);
+    if (tasks.length === 0) return empty;
+    const pick = columnId === 'task.time.start'
+      ? tasks.reduce((a, b) => (shownStart(b) < shownStart(a) ? b : a))
+      : columnId === 'task.time.finish'
+        ? tasks.reduce((a, b) => (shownFinish(b) > shownFinish(a) ? b : a))
+        : null;
+    if (!pick) return empty;
+    const cell = taskCell(pick, meta.rowKey, columnId);
+    return cell ? { ...cell, readOnly: true, readOnlyReason: undefined } : empty;
+  }
+
+  function taskCell(task: Task, rowKey: string, columnId: TaskColumnId): TaskGridAdapterCell | null {
     const descriptor = descriptorsById.get(columnId);
     if (!descriptor) return null;
-    const task = taskResult.value;
     const value = descriptor.read(task, context);
     const readOnly = typeof descriptor.readOnly === 'function'
       ? descriptor.readOnly(task, context)

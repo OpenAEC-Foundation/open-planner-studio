@@ -27,6 +27,7 @@ import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments, splitEngineFor, taskSplitMeasure } from './splitBarGeometry';
 import { milestoneAnchorX, taskBarSpan } from './barSpan';
+import { milestoneGroups, type MilestoneGroups } from './milestoneGroups';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
@@ -60,7 +61,14 @@ interface ArrowEntry {
   pred: Task;
   succ: Task;
 }
-/** De tekenbare relaties (beide eindpunten een taakrij, eerste occurrence) in relatievolgorde, per
+/** De taak `id` in rij `row`: een taakrij, of één mijlpaal uit een ingeklapte reeks (#868). */
+function rowTask(row: ViewRow | undefined, id: string): Task | undefined {
+  if (row?.kind === 'task') return row.task;
+  if (row?.kind === 'milestones') return row.tasks.find(task => task.id === id);
+  return undefined;
+}
+
+/** De tekenbare relaties (beide eindpunten een taakrij of een mijlpalenreeks, eerste occurrence) in relatievolgorde, per
  *  (relaties, rijen) één keer opgebouwd. */
 const arrowEntryCache = new WeakMap<Sequence[], { rows: ViewRow[]; entries: ArrowEntry[] }>();
 function cachedArrowEntries(sequences: Sequence[], rows: ViewRow[], rowIndexByTask: Map<string, number>): ArrowEntry[] {
@@ -72,12 +80,12 @@ function cachedArrowEntries(sequences: Sequence[], rows: ViewRow[], rowIndexByTa
     const predIdx = rowIndexByTask.get(seq.predecessorId) ?? -1;
     const succIdx = rowIndexByTask.get(seq.successorId) ?? -1;
     if (predIdx < 0 || succIdx < 0) continue;
-    const predRow = rows[predIdx];
-    const succRow = rows[succIdx];
-    if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
+    const pred = rowTask(rows[predIdx], seq.predecessorId);
+    const succ = rowTask(rows[succIdx], seq.successorId);
+    if (!pred || !succ) continue;
     entries.push({
       seq, predIdx, succIdx, loIdx: Math.min(predIdx, succIdx), hiIdx: Math.max(predIdx, succIdx),
-      pred: predRow.task, succ: succRow.task,
+      pred, succ,
     });
   }
   if (cacheable) arrowEntryCache.set(sequences, { rows, entries });
@@ -349,6 +357,8 @@ export class GanttRenderer {
   // canvas-interacties vanzelf degraderen.
   private rows: ViewRow[];
   private rowIndexByTask: Map<string, number>; // task id -> EERSTE rij-index (pijlen)
+  /** Mijlpalen op dezelfde dag in een ingeklapte reeks (#868): één ruitje per groep. */
+  private milestoneGroups: MilestoneGroups;
   /** Engine op de PROJECTkalender — enige bron voor de niet-werkdag-arcering van de grid
    *  (weekpatroon + feestdagen): geen hardcoded za/zo en geen eigen holiday-expansie. */
   private projectEngine: CalendarEngine;
@@ -405,6 +415,7 @@ export class GanttRenderer {
     this.rows = opts.rows;
     // "Eerste index wint": bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
     this.rowIndexByTask = cachedRowIndexByTask(opts.rows);
+    this.milestoneGroups = milestoneGroups(opts.rows);
     // Eén engine per render voor de grid-arcering; ook in de engineCache gezet zodat een
     // uur-modus-projectkalender in `engineFor` dezelfde instantie hergebruikt (geen dubbele
     // holiday-expansie binnen één render).
@@ -1334,20 +1345,18 @@ export class GanttRenderer {
         this.ctx.fillRect(0, rowY, this.opts.canvasWidth, this.opts.rowHeight);
         continue;
       }
+      if (row.kind === 'milestones') {
+        this.drawingRowIndex = i;
+        this.drawMilestoneRun(row.tasks, y, barHeight);
+        continue;
+      }
       const task = row.task;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
       this.drawingRowIndex = i;
 
-      let overrideColor: string | undefined;
-      let dimmed = false;
       const traceRole = classifyTraceTask(trace, task.id);
-      if (traceRole === 'predecessor-driving') overrideColor = this.colors.tracePredDriving;
-      else if (traceRole === 'predecessor') overrideColor = this.colors.tracePred;
-      else if (traceRole === 'successor-driving') overrideColor = this.colors.traceSuccDriving;
-      else if (traceRole === 'successor') overrideColor = this.colors.traceSucc;
-      else if (traceRole === 'dimmed') {
-        dimmed = true;
-      }
+      const overrideColor = this.traceOverrideColor(traceRole);
+      const dimmed = traceRole === 'dimmed';
 
       if (dimmed) this.ctx.globalAlpha = 0.25;
       else if (row.dimmed) this.ctx.globalAlpha = GanttRenderer.DIM_ALPHA; // filter-ouderketen
@@ -1927,7 +1936,19 @@ export class GanttRenderer {
     // Grens-model, gedeeld met de afdruk (`milestoneAnchorX` in barSpan.ts): een startmijlpaal ankert op
     // het dagBEGIN, een eindmijlpaal op het dagEINDE, automatisch dag-gecentreerd; een mijlpaal met een
     // moment op dat moment zelf.
-    return milestoneAnchorX(task, date => this.dateToX(date), this.opts.view.zoom);
+    // Een lid van een groep op dezelfde dag (#868) staat op het ruitje van de groep.
+    return milestoneAnchorX(this.groupLead(task), date => this.dateToX(date), this.opts.view.zoom);
+  }
+
+  /** De voorman van de groep waarin `task` staat (zie `milestoneGroups.ts`), anders `task` zelf. */
+  private groupLead(task: Task): Task {
+    return this.milestoneGroups.get(task.id)?.[0] ?? task;
+  }
+
+  /** De mijlpalen die met `taskId` één ruitje delen (de voorman eerst), of `null` als hij er alleen staat.
+   *  Klik, sleep en tooltip op het ruitje gelden voor de hele groep (#868). */
+  getMilestoneGroup(taskId: string): readonly Task[] | null {
+    return this.milestoneGroups.get(taskId) ?? null;
   }
 
   /** Het greepvlak van een nulduurmijlpaal: het anker van de getekende ruit (`drawMilestone`) en de
@@ -1939,7 +1960,48 @@ export class GanttRenderer {
     return { x, half: Math.max(6, this.bar.barHeight * 0.4) };
   }
 
-  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
+  /**
+   * Issue #868: een ingeklapte mijlpalenreeks op één rij. Elk ruitje tekent zoals een losse mijlpaal
+   * (kleur, trace, selectie per mijlpaal); zijn naam kapt af vóór het volgende ruitje, de hele naam
+   * staat in de tooltip. Mijlpalen op dezelfde dag delen één ruitje met hun aantal (`milestoneGroups.ts`).
+   */
+  private drawMilestoneRun(tasks: readonly Task[], y: number, height: number): void {
+    const placed = tasks
+      .filter(task => this.groupLead(task) === task)
+      .map(task => ({ task, x: this.milestoneAnchorX(task) }))
+      .filter((p): p is { task: Task; x: number } => p.x !== null)
+      .sort((a, b) => a.x - b.x);
+    const size = height * 0.4;
+    const selected = this.opts.selectedTaskIds;
+    placed.forEach(({ task, x }, k) => {
+      const next = placed[k + 1];
+      // Ruimte voor datum en naam: van achter dit ruitje tot vlak vóór het volgende.
+      const room = next ? next.x - size - 4 - (x + size + 6) : Infinity;
+      const group = this.milestoneGroups.get(task.id);
+      const members = group ?? [task];
+      // Eén ruitje voor de groep: gekozen als één lid gekozen is, gedimd als alle leden gedimd zijn, de
+      // trace-tint van het eerste lid in de trace, en kritiek gekleurd als één lid kritiek is.
+      const roles = members.map(member => classifyTraceTask(this.opts.trace, member.id));
+      const shown = roles.findIndex(role => role !== 'dimmed');
+      if (shown < 0) this.ctx.globalAlpha = 0.25;
+      const look = members.find(member => member.time.isCritical) ?? task;
+      this.drawMilestone(look, y, height, members.some(member => selected.includes(member.id)),
+        this.traceOverrideColor(roles[Math.max(0, shown)]), room, group);
+      this.ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Trace-tint van een taak in een pad-trace (zie `drawTaskBars`); `undefined` buiten een trace. */
+  private traceOverrideColor(traceRole: ReturnType<typeof classifyTraceTask>): string | undefined {
+    if (traceRole === 'predecessor-driving') return this.colors.tracePredDriving;
+    if (traceRole === 'predecessor') return this.colors.tracePred;
+    if (traceRole === 'successor-driving') return this.colors.traceSuccDriving;
+    if (traceRole === 'successor') return this.colors.traceSucc;
+    return undefined;
+  }
+
+  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string, labelRoom = Infinity,
+    group?: readonly Task[]): void {
     const ctx = this.ctx;
     // Zelfde guard als barGeometry: een datumloze mijlpaal heeft niets om op te
     // ankeren — niets tekenen i.p.v. per frame crashen op `undefined.includes(...)`.
@@ -1998,19 +2060,34 @@ export class GanttRenderer {
     // canvas-einde, maar hoogstens 200 px (voorbij die breedte is een naam als aanduiding klaar en
     // begint hij alleen nog te overlappen).
     // Met de datums aan (#868) staat de ene datum van de mijlpaal tussen de ruit en de naam.
-    let labelX = x + size + 6;
+    const labelStart = x + size + 6;
+    let labelX = labelStart;
+    // Een groep op dezelfde dag (#868): eerst het aantal, dat altijd staat; daarna de namen achter elkaar.
+    if (group) {
+      const count = String(group.length);
+      ctx.fillStyle = this.colors.text;
+      ctx.font = this.font('body');
+      ctx.textBaseline = 'middle';
+      ctx.fillText(count, labelX, cy);
+      labelX += ctx.measureText(count).width + 4;
+    }
     // Een mijlpaal met alleen een start (de ruit staat dan op die start) toont die datum.
     const dates = this.barDates(task);
     const date = dates && (dates.finish || dates.start);
     if (date) {
-      this.drawBarDateText(date, labelX, cy);
       ctx.font = this.font('small');
-      labelX += ctx.measureText(date).width + BAR_DATE_GAP;
+      const dateWidth = ctx.measureText(date).width;
+      // In een mijlpalenreeks (#868) vervalt de datum als hij niet vóór het volgende ruitje past.
+      if (dateWidth <= labelRoom) {
+        this.drawBarDateText(date, labelX, cy);
+        labelX += dateWidth + BAR_DATE_GAP;
+      }
     }
     ctx.fillStyle = this.colors.text;
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
-    const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4));
+    const name = group ? group.map(member => member.name).join(', ') : task.name;
+    const msLabel = this.ellipsize(name, Math.min(200, this.opts.canvasWidth - labelX - 4, labelRoom - (labelX - labelStart)));
     if (msLabel) ctx.fillText(msLabel, labelX, cy);
   }
 
@@ -2325,7 +2402,17 @@ export class GanttRenderer {
     const x2 = new Float64Array(len).fill(-Infinity);
     for (let i = first; i <= last; i++) {
       const row = this.rows[i];
-      if (row.kind !== 'task') continue;
+      if (row.kind === 'group') continue;
+      // Een ingeklapte mijlpalenreeks (#868): van het eerste tot het laatste ruitje is bezet.
+      if (row.kind === 'milestones') {
+        for (const task of row.tasks) {
+          const anchor = this.milestoneAnchorX(task);
+          if (anchor === null) continue;
+          x1[i - first] = Math.min(x1[i - first], anchor - 6);
+          x2[i - first] = Math.max(x2[i - first], anchor + 6);
+        }
+        continue;
+      }
       const geo = this.barGeometry(row.task);
       // Een mijlpaalruit steekt buiten [x1,x2] uit (anker + halve ruitbreedte); ruimer padden i.p.v.
       // de anker-logica van `drawMilestone` te dupliceren (die zou stil uit de pas kunnen lopen).
@@ -2483,6 +2570,8 @@ export class GanttRenderer {
    * hij tot een dag naast een uurbalk begon of eindigde.
    */
   private relationAnchorX(task: Task, atStart: boolean): number {
+    // Een lid van een groep op dezelfde dag (#868): de pijl komt bij het ruitje van de groep uit.
+    task = this.groupLead(task);
     const start = shownStart(task);
     const finish = shownFinish(task);
     if ((start ?? '').includes('T') || (finish ?? '').includes('T')) {
@@ -2521,6 +2610,9 @@ export class GanttRenderer {
     const cullMargin = rowH / 2 + 8;
     const rightCull = this.opts.canvasWidth + GanttRenderer.ARROW_STUB + 8;
     for (const { seq, predIdx, succIdx, loIdx, hiIdx, pred, succ } of cachedArrowEntries(this.opts.sequences, this.rows, this.rowIndexByTask)) {
+      // Twee mijlpalen op één groepsruitje (#868): een pijl van het ruitje naar zichzelf zegt niets; uitklappen toont hem.
+      const group = this.milestoneGroups.get(pred.id);
+      if (group && group === this.milestoneGroups.get(succ.id)) continue;
       // Verticale offscreen-cull vóór alles (prestatie). Het pad is niet één elleboog, dus de marge
       // is hieruit afgeleid: alle y-waarden van de route liggen in {predY,
       // succY, laneP, laneS}; de goten `laneP`/`laneS` liggen op een rijgrens op ±rowHeight/2 van hun
@@ -2638,6 +2730,26 @@ export class GanttRenderer {
     return row?.kind === 'task' ? row.task : null;
   }
 
+  /**
+   * Hit test op x én y: de taak van een gewone rij, of in een ingeklapte mijlpalenreeks (#868) de
+   * mijlpaal waarvan het ruitje onder `canvasX` ligt (het dichtstbijzijnde binnen zijn greepvlak).
+   */
+  getTaskAt(canvasX: number, canvasY: number): Task | null {
+    const row = this.getRowAtY(canvasY);
+    if (row?.kind === 'task') return row.task;
+    if (row?.kind !== 'milestones') return null;
+    let best: Task | null = null;
+    let bestDist = Infinity;
+    for (const task of row.tasks) {
+      const grab = this.milestoneGrab(task);
+      if (!grab) continue;
+      const dist = Math.abs(canvasX - grab.x);
+      if (dist <= grab.half && dist < bestDist) { best = task; bestDist = dist; }
+    }
+    // Op een groepsruitje is het de voorman; `getMilestoneGroup` geeft de rest.
+    return best && this.groupLead(best);
+  }
+
   /** Hit test: staat `canvasX`/`canvasY` in het tekstvlak van de naam die de laatste render rechts
    *  achter de balk tekende (`drawOutsideBarName`)? Alleen voor selectie, openen, menu en tooltip;
    *  sleep- en relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`).
@@ -2680,9 +2792,9 @@ export class GanttRenderer {
     const rowIndex = this.rowIndexByTask.get(taskId);
     if (rowIndex === undefined) return null;
     const row = this.rows[rowIndex];
-    if (row?.kind !== 'task') return null;
-    const task = row.task;
-    if (isSummaryTask(task)) return null;
+    // In een ingeklapte mijlpalenreeks (#868) staat de mijlpaal als ruitje op de reeksrij.
+    const task = row?.kind === 'task' ? row.task : row?.kind === 'milestones' ? row.tasks.find(t => t.id === taskId) : undefined;
+    if (!task || isSummaryTask(task)) return null;
     const { barHeight, barOffset } = this.bar;
     const top = this.rowToY(rowIndex) + barOffset;
     // Een ruit met maar één datum staat er wel (`milestoneAnchorX`) en is dus ook te verplaatsen.
@@ -2725,7 +2837,7 @@ export class GanttRenderer {
     task: Task; edge: 'left' | 'right' | 'body'; segmentIndex: number; segmentCount: number;
   } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
-    const task = this.getTaskAtY(canvasY);
+    const task = this.getTaskAt(canvasX, canvasY);
     if (!task || isSummaryTask(task)) return null;
     // Een nulduurmijlpaal (ruit) is verplaatsbaar maar niet rekbaar (issue #691): hij heeft alleen
     // een body, rond de getekende ruit, ook als hij maar één datum heeft (`milestoneAnchorX` leent
@@ -2781,7 +2893,7 @@ export class GanttRenderer {
    *  het contextmenu ("de pauze onder de cursor") en door de splits-modus (klik in een pauze = niets). */
   getSplitGapAt(canvasX: number, canvasY: number): { task: Task; gapIndex: number; segmentCount: number } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
-    const task = this.getTaskAtY(canvasY);
+    const task = this.getTaskAt(canvasX, canvasY);
     if (!task || task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
     const segs = this.drawnSplitSegments(task);
     if (!segs || this.getTaskBarBounds(canvasX, canvasY)) return null;
@@ -2823,7 +2935,7 @@ export class GanttRenderer {
    */
   getRelationSourceAt(canvasX: number, canvasY: number): Task | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
-    const task = this.getTaskAtY(canvasY);
+    const task = this.getTaskAt(canvasX, canvasY);
     if (!task) return null;
 
     const hasStart = !!shownStart(task);

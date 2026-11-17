@@ -224,10 +224,23 @@ export function useGanttPointerCoordinator(
       deselectAll();
       return;
     }
+    // Een groepsruitje (#868) kiest alle mijlpalen op die dag; Ctrl/Cmd zet ze samen aan of uit, Shift
+    // neemt ze allemaal mee in het bereik.
+    const group = renderer.getMilestoneGroup(task.id);
+    if (group) {
+      const ids = group.map(member => member.id);
+      if (event.shiftKey) {
+        selectTask(task.id, false, true);
+        selectTasks(ids, true);
+      } else if (!(event.ctrlKey || event.metaKey)) selectTasks(ids, false);
+      else if (ids.every(id => selectedTaskIds.includes(id))) ids.forEach(id => selectTask(id, true, false));
+      else selectTasks(ids, true);
+      return;
+    }
     if (event.shiftKey) selectTask(task.id, false, true);
     else if (event.ctrlKey || event.metaKey) selectTask(task.id, true, false);
     else selectTask(task.id, false, false);
-  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, deselectAll, selectTask]);
+  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, deselectAll, selectTask, selectTasks, selectedTaskIds]);
 
   const onDoubleClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -237,7 +250,8 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
-    if (task) openTask(task.id);
+    // Eén mijlpaal uit een groepsruitje (#868) open je na uitklappen.
+    if (task && !renderer.getMilestoneGroup(task.id)) openTask(task.id);
   }, [canvasRef, rendererRef, openTask]);
 
   const onContextMenu = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
@@ -270,7 +284,14 @@ export function useGanttPointerCoordinator(
       });
       return;
     }
-    if (task && !selectedTaskIds.includes(task.id)) selectTask(task.id, false);
+    // Een groepsruitje (#868) kiest de groep maar opent geen menu, net als de ingeklapte regel in de tabel:
+    // het taakmenu bedient één mijlpaal, en dat doe je na uitklappen. Delete en Ctrl+C werken op de keuze.
+    const group = renderer.getMilestoneGroup(task.id);
+    if (group) {
+      if (!group.every(member => selectedTaskIds.includes(member.id))) selectTasks(group.map(member => member.id), false);
+      return;
+    }
+    if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false);
     // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
     // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.
@@ -293,7 +314,7 @@ export function useGanttPointerCoordinator(
       group: null,
       splitGapIndex,
     });
-  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask, effectiveCalendarByTaskId, calendar, viewport.sharedAxis]);
+  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask, selectTasks, effectiveCalendarByTaskId, calendar, viewport.sharedAxis]);
 
   const beginPan = useCallback((event: ReactMouseEvent<HTMLCanvasElement>, button: number) => {
     pan.startPan({
@@ -347,6 +368,11 @@ export function useGanttPointerCoordinator(
     // 4. Shift/dependency-mode gebruikt uitsluitend de publieke relatiehittest en wint van drag.
     if (event.shiftKey || dependencyMode) {
       const source = renderer.getRelationSourceAt(x, y);
+      // Vanaf een groepsruitje (#868) trek je geen relatie: welke mijlpaal zou het zijn? Uitklappen.
+      if (source && renderer.getMilestoneGroup(source.id)) {
+        event.preventDefault();
+        return;
+      }
       if (source) {
         event.preventDefault();
         dependencyDraw.startDepDraw({
@@ -402,8 +428,11 @@ export function useGanttPointerCoordinator(
       // stuk welke (zie `useBarDrag`).
       event.preventDefault();
       const grip = dragHit(hit);
+      // Een groepsruitje (#868) sleept alle mijlpalen op die dag mee.
+      const group = renderer.getMilestoneGroup(hit.task.id);
       barDrag.startBarDrag({
         taskId: hit.task.id,
+        companionIds: group?.slice(1).map(member => member.id),
         edge: grip.edge,
         segmentIndex: grip.segmentIndex,
         segmentCount: grip.segmentCount,
@@ -419,7 +448,8 @@ export function useGanttPointerCoordinator(
         originalDuration: hit.task.time.scheduleDuration,
         originalDurationMinutes: hit.task.time.durationMinutes,
       });
-      selectTask(hit.task.id, false);
+      if (group) selectTasks(group.map(member => member.id), false);
+      else selectTask(hit.task.id, false);
       return;
     }
 
@@ -432,7 +462,7 @@ export function useGanttPointerCoordinator(
     // 8. Iedere overige achtergrondroute start boxselectie.
     event.preventDefault();
     boxSelect.startBoxSelect({ startClientX: event.clientX, startClientY: event.clientY });
-  }, [barDrag, dependencyDraw, splitGesture, boxSelect, pan.active, beginPan, canvasRef, rendererRef, headerHeight, dependencyMode, splitMode, splitRefusalFor, dragHit, selectTask, scrollMode]);
+  }, [barDrag, dependencyDraw, splitGesture, boxSelect, pan.active, beginPan, canvasRef, rendererRef, headerHeight, dependencyMode, splitMode, splitRefusalFor, dragHit, selectTask, selectTasks, scrollMode]);
 
   const onMouseMove = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     if (barDrag.active || dependencyDraw.active || splitGesture.active || pan.active || boxSelect.active || contextMenu) {
@@ -489,7 +519,7 @@ export function useGanttPointerCoordinator(
       else setHoverCursor('grab');
       setTooltip(baselineHit
         ? { x: event.clientX, y: event.clientY, task: baselineHit.task, baselineSlots: baselineHit.slots }
-        : { x: event.clientX, y: event.clientY, task: hit.task });
+        : { x: event.clientX, y: event.clientY, task: hit.task, group: renderer.getMilestoneGroup(hit.task.id) ?? undefined });
       return;
     }
     if (baselineHit) {
@@ -499,7 +529,7 @@ export function useGanttPointerCoordinator(
     }
     const hoveredTask = renderer.getRelationSourceAt(x, y);
     if (hoveredTask) {
-      setTooltip({ x: event.clientX, y: event.clientY, task: hoveredTask });
+      setTooltip({ x: event.clientX, y: event.clientY, task: hoveredTask, group: renderer.getMilestoneGroup(hoveredTask.id) ?? undefined });
     } else {
       setTooltip(null);
     }
@@ -523,6 +553,12 @@ export function useGanttPointerCoordinator(
   // stilstaande muis levert geen nieuwe hit. Gebruik daarom live taakdata voor de tooltip (379).
   const tooltipTaskId = tooltip?.task.id;
   const tooltipTask = useMemo(() => tooltipTaskId ? tasks.find(task => task.id === tooltipTaskId) : undefined, [tasks, tooltipTaskId]);
+  const tooltipGroupIds = tooltip?.group?.map(task => task.id).join('\u0000');
+  const tooltipGroup = useMemo(() => {
+    if (!tooltipGroupIds) return undefined;
+    const ids = tooltipGroupIds.split('\u0000');
+    return ids.map(id => tasks.find(task => task.id === id)).filter((task): task is Task => !!task);
+  }, [tasks, tooltipGroupIds]);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
@@ -560,7 +596,7 @@ export function useGanttPointerCoordinator(
     },
     contextMenu,
     relationPopover,
-    tooltip: tooltip && tooltipTask ? { ...tooltip, task: tooltipTask } : null,
+    tooltip: tooltip && tooltipTask ? { ...tooltip, task: tooltipTask, group: tooltipGroup } : null,
     closeContextMenu,
     closeRelationPopover,
   };

@@ -248,6 +248,7 @@ check-mijlpaal-afmelden.ts matrix
 check-milestone-drag.ts matrix
 check-milestone-duration-render.ts matrix
 check-milestone-report-status.ts matrix
+check-milestone-run-rows.ts matrix
 check-minmax-spread.ts matrix
 check-minute-model-boundaries.ts matrix
 check-minute-model-compat.ts matrix

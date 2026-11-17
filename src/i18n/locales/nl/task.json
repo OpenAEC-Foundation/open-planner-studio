@@ -47,6 +47,8 @@
     "recentColumns": "Laatst gebruikt",
     "noColumns": "Voeg met + een kolom toe.",
     "toggleSummary": "Samenvatting in- of uitklappen",
+    "toggleMilestones": "Mijlpalen in- of uitklappen",
+    "milestonesRun": "Mijlpalen ({{n}})",
     "calculatedReadOnly": "Deze berekende kolom kan niet worden bewerkt."
   },
   "taskGrid": {

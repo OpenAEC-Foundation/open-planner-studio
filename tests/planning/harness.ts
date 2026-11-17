@@ -1471,7 +1471,9 @@ function evaluateCase(c: Case, exp: CaseExpect, built: Built, cmp: Comparer): st
       const actual = rows.map(r =>
         r.kind === 'task'
           ? { kind: 'task' as const, name: idToName[r.task.id] ?? r.task.id, dim: r.dimmed, depth: r.depth }
-          : { kind: 'group' as const, label: r.label, count: r.count, collapsed: r.collapsed, level: r.levelIndex },
+          : r.kind === 'milestones'
+            ? { kind: 'milestones' as const, names: r.tasks.map(t => idToName[t.id] ?? t.id), depth: r.depth }
+            : { kind: 'group' as const, label: r.label, count: r.count, collapsed: r.collapsed, level: r.levelIndex },
       );
       const fmt = (x: any) => x.kind === 'task' ? `T:${x.name}` : `G:${x.label}`;
       if (actual.length !== v.expectRows.length) {

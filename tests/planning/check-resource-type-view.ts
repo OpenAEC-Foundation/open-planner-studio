@@ -49,7 +49,8 @@ const opts = (group: GroupLevel[], sort: SortLevel[] = []): ViewRowOpts => ({
 });
 const outline = (rows: ViewRow[]) => rows.map(row => (row.kind === 'group'
   ? `${'  '.repeat(row.depth)}[${row.label}]`
-  : `${'  '.repeat(row.depth)}${row.task.id}`));
+  : row.kind === 'milestones' ? `${'  '.repeat(row.depth)}<${row.tasks.map(t => t.id).join('|')}>`
+    : `${'  '.repeat(row.depth)}${row.task.id}`));
 
 console.log('-- resourcetype: één laag --');
 eq('typebanden in de vaste rapportvolgorde, "(geen)" achteraan; een taak met twee typen onder beide',
