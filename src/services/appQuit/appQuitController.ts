@@ -98,7 +98,7 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
   const step = () => {
     if (!active || finishing || waiting) return;
     if (deps.getPendingCloseDocId() !== null) return; // de bevestiging staat nog open
-    const saving: Promise<void> | null = null; // MUTATIE (a): afsluiten wacht niet op de schrijfrij
+    const saving = deps.waitForSaves();
     if (saving) {
       void waitThenStep(saving);
       return;
