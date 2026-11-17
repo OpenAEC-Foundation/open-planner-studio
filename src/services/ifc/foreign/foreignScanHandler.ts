@@ -27,8 +27,9 @@ export function createForeignScanHandler(
     }
     try {
       if ('push' in request) {
+        // MUTATIE: de Worker slaat de modelcontrole over; aan het einde zegt hij altijd 'no-model'.
         push ??= targetScanPush();
-        post({ id: request.id, step: push(request.push) }, []);
+        post({ id: request.id, step: request.push === null ? { result: 'no-model' } : null }, []);
       } else {
         const outcome = scanForeign(request.bytes);
         post({ id: request.id, outcome }, foreignScanTransferables(outcome));
