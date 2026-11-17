@@ -4580,3 +4580,9 @@ en noem het in je rapport of PR-tekst.
      Controle 2 (Windows) voegt niets toe zolang elke backslash verboden is. Richting: beide invoervormen meenemen,
      controle 2 weghalen en de tekst beperken tot de bewaakte regressie; bouw geen tweede glob-parser in TypeScript.
      Gevonden door de review van #963 (Sol, ronde 1). — B
+
+1757. **Wens (#804, herkomst): "laatst gewijzigd met Open Planner Studio" op een taak van een ander programma.**
+     Wijzigt de planner een taak uit Bonsai of Synchro, dan blijft de herkomst zoals hij was (ontwerp §4.5; besluit van
+     de eigenaar, 17 november 2026). De andere optie is niet gebouwd: de taak krijgt een eigen owner history met
+     `LastModifyingApplication` = OPS, terwijl "gemaakt met" van het andere programma blijft en de gedeelde owner
+     history heel blijft. Pas bouwen als een gebruiker erom vraagt. — S
