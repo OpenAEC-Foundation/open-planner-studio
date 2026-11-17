@@ -72,6 +72,8 @@ interface ExportCapabilities {
   readonly notes: boolean;
   /** Schrijft de writer een hammock als hammock terug? (XER: `TT_LOE`; P6 XML: `Level of Effort`, #775.) */
   readonly hammocks: boolean;
+  /** Schrijft de writer handmatige planning terug? (MSPDI: `<Manual>` met `<ManualStart>`/`<ManualFinish>`, #814.) */
+  readonly manualScheduling: boolean;
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
    *  CSV en MSPDI heropenen als OPS; P6 XML en XER als P6 (#775). */
   readonly reopenProfile: BuiltInProfileId;
@@ -97,6 +99,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     schedulingOptions: 'none',
     notes: false,
     hammocks: false,
+    manualScheduling: false,
     reopenProfile: 'ops',
   },
   mspdi: {
@@ -108,6 +111,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     schedulingOptions: 'critical-slack-limit',
     notes: false,
     hammocks: false,
+    manualScheduling: true,
     reopenProfile: 'ops',
   },
   p6: {
@@ -119,6 +123,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     schedulingOptions: 'p6',
     notes: false,
     hammocks: true,
+    manualScheduling: false,
     reopenProfile: 'p6',
   },
   // De XER-writer (`xer/xerWriter.ts`) meldt zijn eigen verlies per soort; deze matrix telt alleen
@@ -132,6 +137,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     schedulingOptions: 'none',
     notes: true,
     hammocks: true,
+    manualScheduling: false,
     reopenProfile: 'p6',
   },
 };
@@ -309,9 +315,10 @@ function categoriesFor(
     categories.push('p6-relation-lag-degradation');
   }
   if (input.tasks.some(task => hasConstraintLoss(capabilities, task))) categories.push('constraints');
-  // Handmatige planning schrijft geen writer: die taak gaat als gewone taak met berekende datums. Een
-  // hammock schrijven CSV en MSPDI niet; XER schrijft hem als `TT_LOE`, P6 XML als `Level of Effort` (#775).
-  if (input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
+  // Handmatige planning schrijft alleen MSPDI terug (#814); elders gaat die taak als gewone taak met
+  // berekende datums. Een hammock schrijven CSV en MSPDI niet; XER schrijft hem als `TT_LOE`, P6 XML als
+  // `Level of Effort` (#775).
+  if (!capabilities.manualScheduling && input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
   if (!capabilities.hammocks && input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');
   return categories;
 }

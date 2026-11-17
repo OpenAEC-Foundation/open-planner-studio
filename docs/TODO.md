@@ -177,12 +177,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > Uit de Z20-eindronde: dingen die deze etappe bewust NIET meenam, met de reden erbij — zodat het
 > geen verrassing is als iemand er later tegenaan loopt.
 
-- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>` lezen en schrijven.**
+- [ ] **Native MSPDI-`<LevelingDelay>` lezen en schrijven.**
       Orkestratorbesluit O4 (2026-08-17): native schrijven zonder terugleeslezen zou een stille
       semantiek-omklap zijn (hetzelfde precedent als `ELAPSEDTIME`) — de MSPDI-export waarschuwt
-      daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
+      daarom bewust in plaats van dit element te schrijven. `<TimephasedData>` is sinds de
       contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
-      `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
+      `contourIo.ts`), `<Manual>` sinds issue #814 (met `<ManualStart>`/`<ManualFinish>`,
+      `check-mspdi-handmatig.ts`); `<LevelingDelay>` blijft een eigen, kleine vervolg-etappe.
 - [ ] **Native MSPDI-/P6-schrijven van een split zonder urenverdeling.** Een onderbroken taak zonder
       contour gaat nu zonder onderbrekingen naar MSPDI/P6 (de export meldt het aantal via
       `exportSplitsLostNotice`). Vervolg: de pauzes als `<TimephasedData>`-/spreidingsvorm van de

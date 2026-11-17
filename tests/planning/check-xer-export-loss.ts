@@ -292,8 +292,10 @@ resetProject('Native verzameltaak met constraints');
     JSON.stringify(nativeLoss(await store().exportAs('mspdi'))) === JSON.stringify(['constraints']));
 }
 
-// #554 (review ronde 1): handmatige planning en hammock schrijft geen van de drie writers.
-// MUTATIEBEWIJS: haal de 'manual-scheduling'- of 'hammock-tasks'-regel uit `categoriesFor` ⇒ rood.
+// #554 (review ronde 1): handmatige planning en hammock schrijven CSV en P6 XML niet. MSPDI schrijft
+// handmatige planning sinds #814 wel (`<Manual>`), een hammock niet.
+// MUTATIEBEWIJS: haal de 'manual-scheduling'- of 'hammock-tasks'-regel uit `categoriesFor` ⇒ rood; zet
+// `manualScheduling` van mspdi op false ⇒ rood.
 resetProject('Native handmatig en hammock');
 {
   const manualId = store().addTask({ name: 'Handmatig' });
@@ -305,11 +307,13 @@ resetProject('Native handmatig en hammock');
   });
   for (const format of ['mspdi', 'p6', 'csv'] as const) {
     const result = await store().exportAs(format);
-    expect(`${format}: handmatige planning en hammock staan in de envelope (#554)`,
+    expect(`${format}: wat de writer niet schrijft van handmatig en hammock staat in de envelope (#554, #814)`,
       result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
       && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(
-        // P6 XML schrijft een hammock als Level of Effort (#775): geen hammock-categorie.
-        forFormat(format, format === 'p6' ? ['manual-scheduling'] : ['manual-scheduling', 'hammock-tasks'])));
+        // P6 XML schrijft een hammock als Level of Effort (#775): geen hammock-categorie. MSPDI schrijft
+        // `<Manual>` (#814): geen categorie voor handmatige planning.
+        forFormat(format, format === 'p6' ? ['manual-scheduling']
+          : format === 'mspdi' ? ['hammock-tasks'] : ['manual-scheduling', 'hammock-tasks'])));
   }
   // XER schrijft een hammock als `TT_LOE` (#393, review ronde 9): geen hammock-categorie, wel handmatig.
   const xerResult = await store().exportAs('xer');

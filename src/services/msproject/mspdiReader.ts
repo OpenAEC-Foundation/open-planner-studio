@@ -550,8 +550,15 @@ export function readMSPDI(content: string): ImportResult {
     const durationUnit = measure.durationUnit;
     const durationMinutes = measure.durationMinutes;
     const duration = measure.scheduleDuration;
-    const startRaw = getElementText(te, 'Start');
-    const finishRaw = getElementText(te, 'Finish');
+    // `<Manual>1`: handmatig gepland (MS Project 2010+, issue #814). Zo'n taak houdt haar eigen
+    // ankerdatums; de solver bevriest `scheduleStart`/`scheduleFinish` rauw. Net als de .mpp-lezer
+    // (`resolveScheduleField`): het manual-paar (`<ManualStart>`/`<ManualFinish>`) wint als het gevuld
+    // is, anders `<Start>`/`<Finish>`. Een gestarte taak schrijft in `<Start>` haar werkelijke start;
+    // het manual-paar draagt dan nog het ingevoerde anker.
+    const manualRaw = getElementText(te, 'Manual').trim().toLowerCase();
+    const isManual = manualRaw === '1' || manualRaw === 'true';
+    const startRaw = (isManual ? getElementText(te, 'ManualStart') : '') || getElementText(te, 'Start');
+    const finishRaw = (isManual ? getElementText(te, 'ManualFinish') : '') || getElementText(te, 'Finish');
     // De tijdregel van het bestand (I8, `xmlTaskDate`): in een OPS-export zonder lijst beslist de kalender
     // (`isHour`), zoals die writers schreven; anders is elke tijd echt.
     const parseTaskDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, isHour);
@@ -713,6 +720,7 @@ export function readMSPDI(content: string): ImportResult {
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
       ...(mspTaskType ? { mspTaskType } : {}),
       ...(effortDriven ? { effortDriven: true } : {}),
+      ...(isManual ? { manuallyScheduled: true } : {}),
     });
     outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
     if (!actualFinish && ((remainingMinutes ?? 0) > 0 || (remainingTime ?? 0) > 0)) runningAtFullIds.add(id);

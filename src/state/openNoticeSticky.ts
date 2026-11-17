@@ -45,7 +45,6 @@ export const STICKY_OPEN_NOTICE_KEYS: ReadonlySet<string> = new Set<Notification
   'notifications.msProjectLostResourceRates',
   'notifications.msProjectLostSubprojects',
   'notifications.msProjectLostExternalTasks',
-  'notifications.msProjectLostManualTasks',
   'notifications.msProjectLostLevelingDelays',
   'notifications.msProjectLostInactiveTasks',
   'notifications.msProjectLostCriticalSlack',

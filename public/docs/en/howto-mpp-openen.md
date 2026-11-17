@@ -28,7 +28,7 @@ If the file contains tasks with splits, leveling or a resource-driven schedule, 
 - hyperlinks;
 - the fixed costs of tasks;
 - the rates of resources: from an `.mpp` no rate at all, from MS Project XML only the standard rate;
-- only with MS Project XML: manually scheduled tasks (the app schedules them automatically), inactive tasks (they are included in the calculation) and the leveling delay.
+- only with MS Project XML: inactive tasks (they are included in the calculation) and the leveling delay.
 
 The critical threshold from MS Project is imported as a project setting, for both `.mpp` and XML. It remains in effect after recalculation and saving as IFC.
 
