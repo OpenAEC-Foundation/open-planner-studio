@@ -817,10 +817,10 @@ impl FsRenameScope {
                 .iter()
                 .any(|pattern| pattern.matches_path_with(&path, options))
         };
-        // MUTATIE: de regel van vóór 2.7.1 (tauri-core `is_forbidden`/`is_allowed` op de padtekst).
-        let _ = (&denied, &real);
-        !scopes.iter().any(|scope| scope.is_forbidden(path))
-            && scopes.iter().any(|scope| scope.is_allowed(path))
+        !scopes
+            .iter()
+            .any(|scope| denied(*scope, path) || denied(*scope, &real))
+            && scopes.iter().any(|scope| scope.is_allowed(&real))
     }
 }
 
