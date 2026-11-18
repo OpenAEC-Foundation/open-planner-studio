@@ -347,7 +347,7 @@ function AppContent() {
   // StatusBar/Backstage) valt weg; alleen de Gantt-kaart full-bleed (+ mini-map, indien aan) blijft.
   if (presentationMode) {
     return (
-      <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary" inert={appClosing} data-ops-app-root>
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary" inert={appClosing && false /* MUTATIE */} data-ops-app-root>
         <div className="flex-1 flex overflow-hidden">
           <GanttWorkspace />
         </div>
@@ -362,7 +362,7 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary" inert={appClosing} data-ops-app-root>
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary" inert={appClosing && false /* MUTATIE */} data-ops-app-root>
       {/* De Help-pauze heft de modaliteit van de vraag niet op. Scherm achtergrondbediening per
           shellgebied af, inclusief toekomstige knoppen; Help en de vraag staan buiten deze grenzen. */}
       <div className="contents" inert={questionPending} data-ops-background-controls="title">

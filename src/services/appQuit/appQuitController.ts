@@ -106,7 +106,7 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
       finishing = false;
     };
     // Het vangnet: met een gewijzigd document gaat het venster nooit dicht nadat het herstel gewist is.
-    if (deps.listDocuments().some((doc) => doc.isDirty)) {
+    if (false as boolean /* MUTATIE */) {
       reopen();
       step();
       return;
