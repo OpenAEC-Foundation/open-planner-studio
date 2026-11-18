@@ -1043,6 +1043,24 @@ en noem het in je rapport of PR-tekst.
       tijdstip bewaart beide wel. Bij een vastgelegde `TaskDialogStartEdit` kan de tweede
       gelijkheidstoets tegen de bijgewerkte rekendatum vervallen (`src/state/taskDialogSave.ts`).
       Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
+1854. **VERVOLG: Taak bewerken legt voortgang vast op basis van een nivelleergat dat Opslaan wist.**
+      Fundering duurt vier werkdagen, heeft een nivelleergat van zeven werkdagen en een harde MFO
+      op 22 juni 2026. Statusdatum 10 juni. Maak de duur drie werkdagen en zet in dezelfde dialoog
+      de voortgang op 1%. Opslaan wist het gat en boekt zonder startvraag 9 juni om 07:00. Main
+      (`6f74f000c`) boekt in dezelfde Chromium-proef 10 juni om 07:00, ook zonder vraag. Als alleen
+      de kortere duur eerst wordt opgeslagen, is de geplande start op beide versies 18 juni om
+      07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets ook de gevolgen van
+      de duurbewerking meenemen (`src/state/taskDialogSave.ts`). Sol ronde 6, BEVESTIGD.
+      Trias (wrakko) deelde dit als VERVOLG in. — B
+1855. **VERVOLG: Voortgang in Taak bewerken negeert de voorganger van de nieuw gekozen fase.**
+      Bouwfase heeft een einde-startrelatie vanaf Grondwerk van tien werkdagen, met projectstart
+      8 juni 2026 en statusdatum 10 juni. Hang Fundering onder Bouwfase en zet in dezelfde dialoog
+      de voortgang op 1%. Opslaan verplaatst Fundering en boekt zonder startvraag 8 juni om 07:00.
+      Main (`6f74f000c`) boekt in dezelfde Chromium-proef 10 juni om 07:00, ook zonder vraag.
+      Als alleen het verhangen eerst wordt opgeslagen, is de geplande start op beide versies
+      24 juni om 07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets de gekozen
+      hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
+      Trias (wrakko) deelde dit als VERVOLG in. — B
 
 ## Kalenders
 
