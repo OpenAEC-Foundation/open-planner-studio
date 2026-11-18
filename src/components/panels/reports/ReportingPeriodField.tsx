@@ -41,6 +41,8 @@ interface Props {
    * zijbalk van het Rapport-tabblad (#817; fixronde na council ronde 5).
    */
   compact?: boolean;
+  /** Dezelfde keuze opnieuw gekozen (de Gantt-afdruk: een openstaande oude periode wissen, #997). */
+  onReselect?: (current: ReportingPeriod) => void;
 }
 
 /** De referentiedag en projectspanne uit de live store — dezelfde bron als `useReportContext`.
@@ -56,7 +58,7 @@ export function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
   }, [period, tasks, statusDate, today]);
 }
 
-export function ReportingPeriodField({ id, value, onChange, dataKey, compact = false }: Props) {
+export function ReportingPeriodField({ id, value, onChange, dataKey, compact = false, onReselect }: Props) {
   const { t } = useTranslation('report');
   const dd = useDisplayDate();
   const resolved = useResolvedPeriod(value);
@@ -134,6 +136,7 @@ export function ReportingPeriodField({ id, value, onChange, dataKey, compact = f
           aria-label={compact ? t('studio.reportingPeriod') : t('tableReports.options.reportingPeriod')}
           value={value.preset}
           onChange={v => changePreset(v as ReportingPeriodPreset)}
+          onReselect={onReselect ? () => onReselect(value) : undefined}
           options={REPORTING_PERIOD_PRESETS.map(p => ({ value: p, label: t(`tableReports.periodPresets.${p}`) }))}
         />
       </div>

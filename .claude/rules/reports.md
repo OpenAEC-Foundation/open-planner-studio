@@ -61,11 +61,13 @@ tonen*); het resourcediagram heeft geen eigen periode meer. Een oude `resourceGa
 als het meegeleverde Resourcediagram de bron was (`parseGanttPeriod`); bij een eigen layout blijft zij apart bewaard
 (`legacyResourcePeriod`) tot het tabblad de layouts kent, en `legacyPeriodPatch` maakt er dan het tijdvak van (de layout
 in de nieuwste opslag groepeert op resource) of laat haar vallen. Een eigen keuze, ook *Hele project*, wist haar in
-dezelfde schrijfactie (`periodChoicePatch`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
+dezelfde schrijfactie (`periodChoicePatch`), ook bij opnieuw dezelfde keuze (`onReselect`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
 tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen clip (ook de minimumbreedte en
 de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het
-venster). Of een balk in het venster valt, beslist de TIJD (`barInWindow`), niet de geklemde x: op de werkdagas valt werk
-in niet-werktijd tot één punt samen en krijgt dan de minimumbreedte. Welke rijen erin horen, beslist de rijenbron, en
+venster). Of een balk of mijlpaal (ook een baselinemijlpaal) in het venster valt, beslist de TIJD (`barInWindow`,
+`momentInWindow`), niet de x: op de werkdagas valt werk in niet-werktijd tot één punt samen en krijgt dan de
+minimumbreedte, en een ruit op de rand wordt naar binnen geklemd. De status- en voortgangslijn tellen de linkerrand mee
+(statusdatum op de eerste dag van het tijdvak). Welke rijen erin horen, beslist de rijenbron, en
 altijd vóór groeperen en inklappen: alleen de bladtaken die het tijdvak raken (`taskInPeriod`), met hun ouders. Het
 resourcediagram via `window` van `computeResourceGanttRows`, *Zoals de weergave* en een layout via `within` van
 `computeViewRows` (stap 1, naast het filter; de ouders zijn dan niet gedimd), *Alle taken* via `treeRowsInPeriod`

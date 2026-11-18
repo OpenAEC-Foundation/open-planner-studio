@@ -42,7 +42,8 @@ import { useReportLayouts } from './useReportLayouts';
 import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/engine/reports/layoutReport';
 import { leavesOutsidePeriod, taskInPeriod, treeRowsInPeriod } from '@/engine/reports/reportPeriodRows';
 import type { ReportingPeriod } from '@/engine/reports/reportingPeriod';
-import { computeViewRows } from '@/engine/view/visibleRows';
+import { computeViewRows, type ViewRow } from '@/engine/view/visibleRows';
+import type { Task } from '@/types/task';
 import { evaluate } from '@/engine/view/filterEval';
 import { viewRowInputs } from '@/state/viewRows';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
@@ -293,14 +294,13 @@ export function GanttReportStudio() {
   const noneLabel = tTask('structure.none');
   const resourceTypeLabels = useResourceTypeLabels();
   const locale = i18n.language;
-  const layoutRows = useMemo(() => (chosenLayout ? computeLayoutReportRows(chosenLayout, {
-    tasks,
-    ctx: { activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels },
-  }, {
+  const layoutCtx = useMemo(() => ({ activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels }),
+    [activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels]);
+  const layoutRows = useMemo(() => (chosenLayout ? computeLayoutReportRows(chosenLayout, { tasks, ctx: layoutCtx }, {
     includeUnassigned: resourceOptions.includeUnassigned, groupByType: resourceOptions.groupByType,
     window: periodWindow, locale, typeLabels: resourceTypeLabels,
-  }) : null), [chosenLayout, tasks, activityCodeTypes, customFieldDefs, resources, assignments, noneLabel,
-    resourceTypeLabels, resourceOptions.includeUnassigned, resourceOptions.groupByType, periodWindow, locale]);
+  }) : null), [chosenLayout, tasks, layoutCtx, resourceTypeLabels, resourceOptions.includeUnassigned,
+    resourceOptions.groupByType, periodWindow, locale]);
   const { rowSource, outsidePeriod } = useMemo(() => {
     const base: Omit<StudioRowSource, 'window'> = layoutRows ? {
       rows: layoutRows.rows,
@@ -318,19 +318,27 @@ export function GanttReportStudio() {
     if (base.resource) return { rowSource: { ...base, window: periodWindow }, outsidePeriod: 0 };
     // Een layout kreeg het tijdvak al mee. *Zoals de weergave* bouwt de rijen van het scherm opnieuw, met het
     // tijdvak vóór groeperen en inklappen, zodat banden, tellingen en ingeklapte rijen alleen over het tijdvak gaan.
-    const { opts, ctx } = viewRowInputs({
-      tasks, view, ui: { collapsedTaskIds }, activityCodeTypes, customFieldDefs, resources, assignments,
-    });
-    const filter = chosenLayout ? chosenLayout.filter ?? null : source.kind === 'view' ? opts.filter : null;
-    const rows = layoutRows ? layoutRows.rows
-      : source.kind === 'view' ? computeViewRows(tasks, { ...opts, within: task => taskInPeriod(task, periodWindow) }, ctx)
-        : treeRowsInPeriod(tasks, periodWindow);
-    return {
-      rowSource: { ...base, rows, window: periodWindow },
-      outsidePeriod: leavesOutsidePeriod(tasks, periodWindow, filter ? leaf => evaluate(filter, leaf, ctx) : undefined),
-    };
+    // De melding telt de bladtaken die het filter van de bron halen.
+    const within = (task: Task) => taskInPeriod(task, periodWindow);
+    let rows: ViewRow[];
+    let passes: ((leaf: Task) => boolean) | undefined;
+    if (chosenLayout && layoutRows) {
+      rows = layoutRows.rows;
+      const filter = chosenLayout.filter;
+      passes = filter ? leaf => evaluate(filter, leaf, layoutCtx) : undefined;
+    } else if (source.kind === 'view') {
+      const { opts, ctx } = viewRowInputs({
+        tasks, view, ui: { collapsedTaskIds }, activityCodeTypes, customFieldDefs, resources, assignments,
+      });
+      rows = computeViewRows(tasks, { ...opts, within }, ctx);
+      const filter = opts.filter;
+      passes = filter ? leaf => evaluate(filter, leaf, ctx) : undefined;
+    } else {
+      rows = treeRowsInPeriod(tasks, periodWindow);
+    }
+    return { rowSource: { ...base, rows, window: periodWindow }, outsidePeriod: leavesOutsidePeriod(tasks, periodWindow, passes) };
   }, [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup, tasks, view, collapsedTaskIds,
-    activityCodeTypes, customFieldDefs, resources, assignments, chosenLayout]);
+    activityCodeTypes, customFieldDefs, resources, assignments, chosenLayout, layoutCtx]);
   const multiBand = rowSource.multiBand;
   const resourceResult = rowSource.resource?.result ?? null;
   const fileName = `${fileBase}-${t(resourceResult ? 'fileSuffix.resourceGantt' : 'fileSuffix.gantt')}.pdf`;
@@ -787,6 +795,7 @@ export function GanttReportStudio() {
                 id="rs-period"
                 value={settings.period}
                 onChange={choosePeriod}
+                onReselect={legacyResourcePeriod ? choosePeriod : undefined}
                 dataKey="ganttPeriod"
                 compact
               />

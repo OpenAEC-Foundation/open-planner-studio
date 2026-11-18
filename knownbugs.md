@@ -805,6 +805,12 @@ en noem het in je rapport of PR-tekst.
     `printPreview.ts`) per moment met een exclusief einde. Een nachttaak van 24 september 22.00 uur tot 25 september
     00.00 uur krijgt bij een tijdvak vanaf 25 september een rij met een lege balk. Richting: voor beide dezelfde
     intervalregel, met behoud van mijlpalen op de grens. Gevonden door de review van #1005 (Sol, ronde 2). — B
+1861. **VERVOLG (#997): *Buiten de periode* van het resourcediagram telt een taak mee die door een andere instelling al ontbreekt.**
+    `computeResourceGanttRows` (`resourceGantt.ts`) telt elke bladtaak buiten het tijdvak, ook een taak zonder resource
+    terwijl *Taken zonder resource meenemen* uit staat. Voorbeeld: één toegewezen taak in het tijdvak en één taak zonder
+    resource erbuiten; *Hele project* en het tijdvak drukken dezelfde taak af, toch staat er *Buiten de periode: 1*.
+    Richting: alleen taken tellen die met dezelfde broninstellingen op papier zouden komen. Gevonden door de review van
+    #1005 (Sol, ronde 3). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm

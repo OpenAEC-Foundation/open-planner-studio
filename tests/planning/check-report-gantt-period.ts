@@ -166,8 +166,12 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   eq('een ingeklapte reeks houdt haar sleutel en alleen de mijlpalen in het tijdvak', reeksRij.map(r => r.kind === 'milestones' ? `${r.rowKey}=${r.tasks.map(t => t.id)}` : r.rowKey),
     ['p', 'milestones:m-uit=m-in']);
   eq('… en valt weg als er geen over is', shape(computeViewRows(reeks, opts({ collapsedTaskIds: new Set(['m-uit']), within: x => taskInPeriod(x, { from: '2026-01-01', to: '2026-01-31' }) }), ctx)), []);
-  const zonderTijdvak = computeViewRows(plan, opts({ group, within: undefined }), ctx);
-  eq('zonder tijdvak verandert er niets', shape(zonderTijdvak), shape(open));
+  // Een tijdvak dat alles omsluit, geeft dezelfde rijen als het scherm zonder tijdvak (boom en groepen).
+  const alles = (x: Task) => taskInPeriod(x, { from: '2026-01-01', to: '2026-12-31' });
+  for (const g of [[], group]) {
+    eq(`een tijdvak om alles heen = het scherm (${g.length ? 'gegroepeerd' : 'boom'})`,
+      computeViewRows(plan, opts({ group: g, within: alles }), ctx), computeViewRows(plan, opts({ group: g, within: undefined }), ctx));
+  }
   // Een layout krijgt het tijdvak via zijn venster.
   const layout = computeLayoutReportRows({ group }, { tasks: plan, ctx }, { includeUnassigned: true, groupByType: false, window: period, locale: 'nl' });
   eq('een layout gaat door dezelfde pijplijn', shape(layout.rows), shape(computeViewRows(plan, opts({ group }), ctx)));
@@ -318,6 +322,72 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   };
   const edge = maxX({ timeWindow: { from: '2026-09-25', to: '2026-09-27' } });
   ok(edge.max <= edge.width + 1e-6, `de fase en haar haakjes blijven binnen het blad (tot x=${edge.max}, rand ${edge.width})`);
+}
+
+// ── 7. Render: status- en voortgangslijn op de eerste dag, mijlpalen op de laatste dag ───────────────
+// Review Sol #1005, ronde 3. De rijen komen uit de rijenbron met hetzelfde tijdvak (`treeRowsInPeriod`), zoals in de app.
+{
+  const draw = (tasksHere: Task[], window: { from: string; to: string }, options: Partial<PrintOptions>) => {
+    const fills: [number, number][][] = [];
+    const strokes: { pts: [number, number][]; lw: number }[] = [];
+    let cur: [number, number][] = [];
+    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
+    const d2d: Draw2D = {
+      get font() { return st.font; }, set font(v) { st.font = v; },
+      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
+      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
+      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
+      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
+      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
+      setLineDash() {}, fillRect() {}, strokeRect() {}, closePath() {},
+      beginPath() { cur = []; },
+      moveTo(x, y) { cur.push([x, y]); },
+      lineTo(x, y) { cur.push([x, y]); },
+      fill() { fills.push(cur.slice()); },
+      stroke() { strokes.push({ pts: cur.slice(), lw: st.lineWidth }); },
+      roundRect() { cur = []; }, fillText() {},
+      measureText(text) { return { width: text.length * 4.5 }; },
+    };
+    const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
+      showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
+      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
+      locale: 'nl', reportFontScale: 100, rows: treeRowsInPeriod(tasksHere, window), timeWindow: window, ...options,
+    } as PrintOptions);
+    const chartBottom = dims.height - dims.footerHeight;
+    const inChart = ([, y]: [number, number]) => y > dims.headerHeight && y < chartBottom;
+    // Een ruit: vier hoekpunten, twee op dezelfde x (boven en onder) en twee op dezelfde y.
+    const diamonds = fills.filter(f => f.length === 4 && f.every(inChart) && f[0][0] === f[2][0] && f[1][1] === f[3][1]);
+    // Elke gevulde vorm onder de kop (een balk gaat via `roundRect` en telt niet; de baselineruit van de laatste rij
+    // kan onder de rij uitsteken).
+    const shapes = fills.filter(f => f.length >= 3 && f.every(([, y]) => y > dims.headerHeight));
+    return { dims, strokes, diamonds, shapes };
+  };
+
+  // Statuslijn: statusdatum maandag 28 september, tijdvak 28 september t/m 25 oktober (Volgende 4 weken).
+  const werk = task('wk', 'Werk', '2026-09-28', '2026-10-09', { parentId: undefined });
+  for (const statusLine of ['statusDate', 'progress'] as const) {
+    const r = draw([werk], { from: '2026-09-28', to: '2026-10-25' }, { statusDate: '2026-09-28', statusLine });
+    const status = r.strokes.filter(s => s.lw === 1.5 && s.pts.some(([x]) => Math.abs(x - r.dims.tableWidth) < 1e-6));
+    ok(status.length > 0, `${statusLine}: de lijn staat op de linkerrand als de statusdatum de eerste dag van het tijdvak is`);
+  }
+
+  // Mijlpalen op zondag 27 september, de laatste dag van het tijdvak, op de werkdagas: met en zonder tijd.
+  const ms = (id: string, at: string) => task(id, id, at, at, { parentId: undefined, isMilestone: true,
+    time: { ...time(at, at), scheduleDuration: 0 } as unknown as TaskTime });
+  const vrij = task('vr2', 'Vrijdag', '2026-09-25', '2026-09-25', { parentId: undefined });
+  const zondagDag = ms('zd', '2026-09-27');
+  const zondagTijd = ms('zt', '2026-09-27T10:00');
+  const rand = draw([vrij, zondagDag, zondagTijd], { from: '2026-09-25', to: '2026-09-27' }, { compressNonWorkdays: true });
+  eq('beide zondagmijlpalen op de laatste dag houden hun ruit', rand.diamonds.length, 2);
+  ok(rand.diamonds.flat().every(([x]) => x >= rand.dims.tableWidth - 1e-6 && x <= rand.dims.width + 1e-6), 'de ruiten blijven binnen het chartgebied');
+  // Een baselinemijlpaal van zondag 10.00 uur valt buiten een tijdvak van alleen maandag 28 september, ook al deelt
+  // zondag op de werkdagas zijn x met maandag 00.00 uur.
+  const ma = task('ma2', 'Maandag', '2026-09-28', '2026-09-28', { parentId: undefined });
+  const baseline = new Map([['ma2', { start: '2026-09-27T10:00', finish: '2026-09-27T10:00', isMilestone: true }]]);
+  const zonder = draw([ma], { from: '2026-09-28', to: '2026-09-28' }, { compressNonWorkdays: true, showBaselineOverlay: true, baselineOverlay: baseline });
+  eq('een baselinemijlpaal van buiten het tijdvak staat niet op papier', zonder.shapes.length, 0);
+  const binnen = draw([ma], { from: '2026-09-27', to: '2026-09-28' }, { compressNonWorkdays: true, showBaselineOverlay: true, baselineOverlay: baseline });
+  ok(binnen.shapes.length > 0, '… en wel als zijn dag in het tijdvak valt');
 }
 
 if (failures > 0) {

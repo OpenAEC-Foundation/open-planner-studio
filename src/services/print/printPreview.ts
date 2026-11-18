@@ -13,7 +13,7 @@ import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
-import { milestoneAnchorX, taskBarSpan, type TaskBarSpan } from '@/engine/renderer/barSpan';
+import { milestoneAnchorX, milestoneMoment, taskBarSpan, type TaskBarSpan } from '@/engine/renderer/barSpan';
 import { taskDateLabel } from '@/utils/taskDateLabel';
 import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
 import { snapToChoice } from '@/utils/numberChoice';
@@ -40,7 +40,7 @@ import { taskTreeRows } from '@/engine/reports/reportPeriodRows';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { baselineReach, type BaselineOverlay } from '@/types/baseline';
 import {
-  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, paintBaselineStrip, widenBars,
+  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStart, paintBaselineStrip, widenBars,
   type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from '@/engine/renderer/baselineStrip';
 
@@ -1456,6 +1456,11 @@ export function renderReport(
   const windowToMs = maxDate.getTime();
   const inWindowTime = (start: Date, endExclusive: Date) => endExclusive.getTime() > windowFromMs && start.getTime() < windowToMs;
   const barInWindow = (bar: TaskBarSpan | null) => !!bar && inWindowTime(bar.start, bar.hourMode ? bar.end : addCalendarDays(bar.end, 1));
+  // Een mijlpaal: een tijdstip in [van, tot), of een dag die in het venster valt. Ook hier beslist de tijd: op de
+  // werkdagas valt een zondag samen met de rand, en het dagmidden ligt dan buiten het chartgebied.
+  const momentInWindow = (moment: { date: Date; hourMode: boolean } | null) => !!moment && (moment.hourMode
+    ? moment.date.getTime() >= windowFromMs && moment.date.getTime() < windowToMs
+    : inWindowTime(moment.date, addCalendarDays(moment.date, 1)));
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
   const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
 
@@ -1644,7 +1649,8 @@ export function renderReport(
     const statusDay = parseDate(options.statusDate);
     const statusInstant = statusDateInstant(options.statusDate, statusUsesTime);
     statusLineX = dateToX(statusInstant);
-    if (statusLineX > m.tableWidth && statusLineX < canvasWidth) {
+    // De linkerrand telt mee: valt de statusdatum op de eerste dag van een tijdvak, dan ligt de lijn daar.
+    if (statusLineX >= m.tableWidth && statusLineX < canvasWidth) {
       drawStatusReferenceLine = () => {
         d2d.strokeStyle = PRINT_COLORS.today;
         d2d.lineWidth = 1.5;
@@ -1779,12 +1785,11 @@ export function renderReport(
       const x = milestoneAnchorX(task, dateToX, zoom) ?? Number.NaN;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
-      // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
-      // rand wordt met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of
-      // over de rechterrand hangt.
-      // Middelpunt buiten het chartgebied ⇒ niet tekenen (een naar binnen geklemde ruit zou
-      // een dag suggereren waarop de mijlpaal niet valt).
-      const inWindow = !windowed || (x >= m.tableWidth && x <= canvasWidth);
+      // Tijdvenster: valt het moment van de mijlpaal buiten het venster, dan geen ruit (een naar binnen
+      // geklemde ruit zou een dag suggereren waarop ze niet valt). Valt het erin, dan wordt een ruit op de
+      // rand met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of over de
+      // rechterrand hangt; op de werkdagas ligt een zondag op de rand en haar dagmidden erbuiten.
+      const inWindow = !windowed || momentInWindow(milestoneMoment(task));
       const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
       if (inWindow) {
@@ -1992,7 +1997,7 @@ export function renderReport(
         const pos = baselineSpanX(entry, dateToX, zoom);
         if (!pos) continue;
         if (pos.kind === 'milestone') {
-          if (!windowed || (pos.x >= m.tableWidth && pos.x <= canvasWidth)) milestones.push({ slot: layer.slot, x: pos.x, moment: pos.moment });
+          if (!windowed || momentInWindow(baselineStart(entry))) milestones.push({ slot: layer.slot, x: clampX(pos.x), moment: pos.moment });
           continue;
         }
         // Echte grenzen, ook in een rapportvenster: de lijnen delen de hoogte zoals op het scherm, en
