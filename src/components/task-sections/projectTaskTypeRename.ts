@@ -19,10 +19,16 @@ export interface DeferredProjectRenames {
 }
 
 /** Voert de hernoeming uit in het document waarin ze gevraagd is; is dat niet meer actief, dan niets.
- *  Een botsende naam laat de projectnaam staan, met een melding waarom. */
+ *  Een botsende naam laat de projectnaam staan, met een melding waarom. Gebruikt intussen geen taak de
+ *  werksoort meer (Taak bewerken haalde het laatste gebruik weg, knownbug 1834), dan krijgt de ongebruikte
+ *  kopie de naam stil, zoals bij elke ongebruikte kopie (eigenaarsbesluit 18 november 2026). */
 export function applyProjectTaskTypeRename(rename: ProjectTaskTypeRename): void {
   const store = useAppStore.getState();
   const outcome = store.renameProjectTaskType(rename.documentId, rename.id, rename.newName);
+  if (outcome.status === 'unused') {
+    store.renameUnusedProjectTaskType(rename.documentId, rename.id, rename.newName);
+    return;
+  }
   if (outcome.status !== 'nameTaken') return;
   store.notify({
     severity: 'info',

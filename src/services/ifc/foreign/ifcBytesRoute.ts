@@ -128,6 +128,7 @@ export async function readIfcBytesDetailed(
     foreignMembers: Array.from(scan.foreignMembers),
     foreign: foreignObjectCount > 0,
     foreignObjectCount,
+    buildingModel: scan.buildingModel,
     lineEnding: scan.lineEnding,
   };
   return { result: { ...result, ifcSource } };

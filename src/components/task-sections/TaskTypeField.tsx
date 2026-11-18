@@ -113,10 +113,16 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
     const result = renamePersonalTaskType(id, name);
     if (!result) return;
     setName(''); setEditingId(null);
-    // Alleen een werksoort die een taak gebruikt: een ongebruikte projectkopie bewaren IFC en herstel niet.
     const inProject = project.find(type => type.id === id);
-    if (inProject && inProject.name !== result.name && customTaskTypeInUse(useAppStore.getState().tasks, id)) {
+    if (!inProject || inProject.name === result.name) return;
+    // Gebruikt een taak de werksoort, dan vraagt de app het; een ongebruikte projectkopie (die IFC en
+    // herstel niet bewaren) krijgt de naam stil (eigenaarsbesluit 18 november 2026). Botst die naam in
+    // het project, dan blijft de kopie zoals ze is, zonder melding.
+    const store = useAppStore.getState();
+    if (customTaskTypeInUse(store.tasks, id)) {
       setProjectRename({ documentId: activeDocumentId, id, oldName: inProject.name, newName: result.name });
+    } else {
+      store.renameUnusedProjectTaskType(activeDocumentId, id, result.name);
     }
   };
   const answerProjectRename = (alsoInProject: boolean) => {

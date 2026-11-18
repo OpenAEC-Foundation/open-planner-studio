@@ -11,7 +11,8 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
-import { exportGoesToRecents, exportSplitsLostNotice } from '@/state/slices/fileSlice';
+import { exportGoesToRecents, exportSplitsLostNotice, withPlanOnlyExportSentence } from '@/state/slices/fileSlice';
+import type { NotifyInput } from '@/state/slices/types';
 import { EXPORT_FORMATS, type ExportFormat } from '@/services/formatRegistry';
 import i18next from 'i18next';
 import enMenu from '@/i18n/locales/en/menu.json';
@@ -158,6 +159,28 @@ const metContour: Task[] = S().tasks.map(t => (t.id === sp
   : t));
 eq('18 mspdi: taak met contour ⇒ geen melding', exportSplitsLostNotice('mspdi', metContour), null);
 eq('19 p6: taak met contour ⇒ geen melding', exportSplitsLostNotice('p6', metContour), null);
+
+// Knownbug 1740: de zin "alleen de planning" bij een export naar een ander formaat vanuit een document met een gebouwmodel.
+// De route zelf (vijf meldingen, download, vreemde inhoud zonder gebouwmodel, gewoon document) toetst
+// `check-ifc-document-save.ts`; hier de regel zonder bestandsdialoog: zonder andere melding een eigen melding, anders een
+// regel onder de laatste, met een eigen samenvouwsleutel.
+{
+  const first: NotifyInput = { severity: 'info', messageKey: 'notifications.savedViaDownload', params: { name: 'x.csv' }, dedupeKey: 'saved-via-download' };
+  const loss: NotifyInput = { severity: 'info', messageKey: 'notifications.exportDataLoss', params: { format: 'CSV' }, dedupeKey: 'verlies' };
+  const other: NotifyInput = { severity: 'info', messageKey: 'notifications.exportCriticalHoursLost' };
+  for (const format of ['csv', 'mspdi', 'p6', 'xer', 'progress-xlsx'] as const) {
+    eq(`28 ${format}: geen andere melding ⇒ een eigen melding`, withPlanOnlyExportSentence(format, true, [null]),
+      [{ severity: 'info', messageKey: 'notifications.exportPlanOnly' }]);
+  }
+  eq('29 regel onder de laatste melding, eigen samenvouwsleutel, de rest gelijk', withPlanOnlyExportSentence('csv', true, [first, null, loss]), [
+    first, { ...loss, detailLines: [{ messageKey: 'notifications.exportPlanOnly' }], dedupeKey: 'verlies:alleen-planning' },
+  ]);
+  eq('30 laatste melding zonder samenvouwsleutel houdt er geen', withPlanOnlyExportSentence('mspdi', true, [loss, other, null]),
+    [loss, { ...other, detailLines: [{ messageKey: 'notifications.exportPlanOnly' }] }]);
+  eq('31 IFC draagt het gebouwmodel: ongewijzigd', withPlanOnlyExportSentence('ifc', true, [loss, null]), [loss]);
+  eq('32 zonder gebouwmodel: ongewijzigd', withPlanOnlyExportSentence('csv', false, [null, loss]), [loss]);
+  eq('33 zonder gebouwmodel en zonder melding: niets', withPlanOnlyExportSentence('csv', false, [null]), []);
+}
 
 // Bestandsnaamdelen volgen de taal; zonder UI-initialisatie blijft headless export bruikbaar.
 eq('20 headless voortgang heeft Engelse terugval', exportFileSuffix('progress'), 'progress');

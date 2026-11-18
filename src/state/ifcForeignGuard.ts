@@ -67,6 +67,19 @@ export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
 });
 
+/** Knownbug 1768 (besluit van de eigenaar, 16 november 2026): weigert de browser de schrijftoestemming op het geopende
+ *  bestand met een gebouwmodel, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is
+ *  bijgewerkt; dat is de bescherming. Deze melding noemt de kopie en is een gewone informatiemelding, zoals
+ *  `savedViaDownload` op main: ze verdwijnt vanzelf en wijkt in de stapel voor elke nieuwe melding (review van #1002
+ *  ronde 3; of ze moet blijven staan tot het kruisje is een vraag aan de eigenaar, knownbug 1843). Er is er één voor de
+ *  hele app; een nieuwe kopie ververst haar en noemt dan de laatste kopie. */
+export function downloadCopyNotice(file: string): NotifyInput {
+  return {
+    severity: 'info', messageKey: 'notifications.ifcForeignDownloadCopy', params: { file },
+    dedupeKey: 'ifc-foreign-download-copy', replaceOnDedupe: true,
+  };
+}
+
 /** Het opslagdoel dat het herstelmanifest bewaart (§4.14). De herstelsnapshot heeft geen bronbytes; met een vreemd deel
  *  zou Ctrl+S na herstel het modelbestand overschrijven met alleen planning. Dan geen doel: opslaan wordt opslaan als.
  *  Zonder vreemd deel precies zoals vóór #804. */

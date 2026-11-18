@@ -564,6 +564,41 @@ export function removeSessionHistoryForDocumentFromState(
   state.historyEvents = removeSessionHistoryForDocument(state.historyEvents, documentId);
 }
 
+/**
+ * Dezelfde historie, met `rewrite` op elke vóór- en na-momentopname van `documentId`. Voor een wijziging
+ * die bewust geen stap is, maar die een oudere momentopname anders bij ongedaan maken zou terugdraaien
+ * (de stille naam van een ongebruikte werksoort, #804 keuze 7). `rewrite` geeft dezelfde snapshot terug
+ * als er niets verandert; dan blijft ook het event hetzelfde object. Een snapshot die in twee deltas
+ * staat, wordt één keer herschreven. Werkt op gewone (geen Immer-draft) events.
+ */
+export function rewriteDocumentHistorySnapshots(
+  events: readonly SessionHistoryEvent[],
+  documentId: string,
+  rewrite: (snapshot: Snapshot) => Snapshot,
+): SessionHistoryEvent[] {
+  const rewritten = new Map<Snapshot, Snapshot>();
+  const once = (snapshot: Snapshot): Snapshot => {
+    let next = rewritten.get(snapshot);
+    if (!next) {
+      next = rewrite(snapshot);
+      rewritten.set(snapshot, next);
+    }
+    return next;
+  };
+  return events.map((event) => {
+    let changed = false;
+    const deltas = event.deltas.map((delta) => {
+      if (delta.kind !== 'document-data' || delta.documentId !== documentId) return delta;
+      const before = once(delta.before);
+      const after = once(delta.after);
+      if (before === delta.before && after === delta.after) return delta;
+      changed = true;
+      return { ...delta, before, after };
+    }) as unknown as SessionHistoryEvent['deltas'];
+    return changed ? { ...event, deltas } : event;
+  });
+}
+
 export function replaceSessionHistoryState(
   state: AppState,
   events: SessionHistoryEvent[],
