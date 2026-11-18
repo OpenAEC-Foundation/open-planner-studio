@@ -68,12 +68,14 @@ export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
 });
 
 /** Knownbug 1768 (besluit van de eigenaar, 16 november 2026): weigert de browser de schrijftoestemming op het geopende
- *  bestand, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is bijgewerkt; deze
- *  melding noemt de kopie. Blijft staan tot het kruisje; een volgende download ververst haar. */
-export function ifcForeignDownloadCopyNotice(file: string): NotifyInput {
+ *  bestand met een gebouwmodel, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is
+ *  bijgewerkt; deze melding noemt de kopie. Blijft staan tot het kruisje; een volgende download van hetzelfde document
+ *  ververst haar, en schrijft het document alsnog op het geopende bestand, dan verdwijnt ze (review van #1002). */
+export const ifcForeignDownloadCopyKey = (documentId: string) => `ifc-foreign-download-copy:${documentId}`;
+export function ifcForeignDownloadCopyNotice(file: string, documentId: string): NotifyInput {
   return {
     severity: 'info', sticky: true, messageKey: 'notifications.ifcForeignDownloadCopy', params: { file },
-    dedupeKey: 'ifc-foreign-download-copy', replaceOnDedupe: true,
+    dedupeKey: ifcForeignDownloadCopyKey(documentId), replaceOnDedupe: true,
   };
 }
 

@@ -574,7 +574,6 @@ for (const format of ['csv', 'mspdi', 'p6', 'xer', 'progress-xlsx'] as const) aw
   const { store } = await openInStore(bytes); longer(store);
   const withModel = await exportNotices(store, format);
   assert.deepEqual(withModel.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'de zin precies één keer');
-  assert.deepEqual(withModel[0].lines.at(-1), PLAN_ONLY_EXPORT, 'als regel onder de eerste melding');
   store.setState(s => { s.ui.featureFlags = {}; });
   assert.deepEqual(await exportNotices(store, format), withoutSentence(withModel),
     'flag uit: dezelfde meldingen zonder de zin; de zin duwt geen melding weg');
@@ -582,6 +581,21 @@ for (const format of ['csv', 'mspdi', 'p6', 'xer', 'progress-xlsx'] as const) aw
   assert(!hasForeignContent(plain.getState().ifcSource));
   const ordinary = await exportNotices(plain, format);
   assert.deepEqual(ordinary, withoutSentence(ordinary), 'gewoon document: geen zin');
+});
+
+// Review van #1002 (BLOKKEERT 1): MS Project XML met een kostenresource en een kritieke drempel in uren geeft vijf meldingen,
+// meer dan de store tegelijk toont (`MAX_NOTIFICATIONS`). Wat de planner na afloop ziet, draagt de zin precies één keer.
+await check('export mspdi met vijf meldingen: na afloop staat de zin er nog, precies één keer', async () => {
+  const { store } = await openInStore(bytes);
+  store.getState().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+  store.getState().setProject({ schedulingOptions: { criticalDefinition: { mode: 'totalFloat', thresholdHours: 2 } } });
+  const shown = new Set<string>();
+  const stop = store.subscribe(now => { for (const n of now.ui.notifications) shown.add(n.id); });
+  try {
+    const final = await exportNotices(store, 'mspdi');
+    assert(shown.size > (await import('@/state/slices/uiSlice')).MAX_NOTIFICATIONS, `meer meldingen dan de grens (${shown.size})`);
+    assert.deepEqual(final.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'de zin precies één keer');
+  } finally { stop(); }
 });
 
 for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
@@ -1145,6 +1159,35 @@ await check('handle zonder schrijftoestemming: download, het document blijft gew
     assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`]);
     assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
     assert.equal(store.getState().isDirty, false); assert(store.getState().fileHandle === before.handle, 'dezelfde handle');
+    assert(!store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'),
+      'de kopiemelding verdwijnt zodra het geopende bestand is bijgewerkt');
+  } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+// Review van #1002 (BLOKKEERT 2): vreemde inhoud zonder gebouwmodel (alleen een eigenschappenset van een ander programma).
+// De modelscan zegt 'no-model'; export en download doen precies wat main doet.
+await check('vreemde inhoud zonder gebouwmodel: export zonder zin, download telt als opgeslagen, zoals main', async () => {
+  const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+  const original = readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  const source = original.replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+    "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+  assert.notEqual(source, original);
+  const input = new TextEncoder().encode(source);
+  assert.equal(scanTargetBytes(input), 'no-model', 'geen gebouwmodel');
+  const { store } = await openInStore(input);
+  assert(hasForeignContent(store.getState().ifcSource), 'wel vreemde inhoud');
+  for (const format of ['csv', 'mspdi'] as const) {
+    const flagOn = await exportNotices(store, format);
+    assert.deepEqual(flagOn, withoutSentence(flagOn), `${format}: geen zin`);
+  }
+  const { store: onHandle, name } = await openHandle(input), unregister = recoveryRounds(onHandle), browser = browserDownload();
+  try {
+    longer(onHandle); clearNotices(onHandle); handleFaults.set(name, { permission: 'denied' });
+    assert.equal(await ctrlS(onHandle), true, 'de download telt als opgeslagen, zoals main');
+    assert.equal(browser.downloads.length, 1); assert.equal(onHandle.getState().isDirty, false);
+    assert(!onHandle.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'), 'geen kopiemelding');
+    assert.equal(hash(fileOf(name)), hash(input), 'het geopende bestand blijft staan');
   } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
 });
 

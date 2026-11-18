@@ -240,7 +240,7 @@ neemt alleen `path`/`handle`. Proef: `check-file-ifc-bytes.ts`.
 
 Alleen de browser, alleen met de flag aan, voor Ctrl+S en *Opslaan* in de sluitvraag (`writeActiveDocument`). Vóór de
 merge: de doelcontrole met de uitzondering "eigen doel" (`refusedWriteTarget`, zie `state.md`), de schrijftoestemming
-(`handleWritePermission`; geweigerd ⇒ de download, zoals bij een gewoon bestand, maar zonder commit: het document blijft gewijzigd en `ifcForeignDownloadCopy` noemt de kopie, knownbug 1768) en `sourceTargetContent` (anders
+(`handleWritePermission`; geweigerd ⇒ de download, zoals bij een gewoon bestand, en met een gebouwmodel (`documentHasBuildingModel`) zonder commit: het document blijft gewijzigd en `ifcForeignDownloadCopy` noemt de kopie, knownbug 1768) en `sourceTargetContent` (anders
 `ifcForeignTargetChanged`/`ifcForeignTargetGone`). Dan één merge (`prepareIfcOutput`, `'merge'`) en binnen
 `replaceWithRecoveryPending`: `replaceHandleWithBytes` (`webBackend.ts`) opent `createWritable()`, schrijft de buffer
 in één `write`, vraagt vlak vóór `close()` opnieuw `sourceTargetContent` (verschil ⇒ `abort()`, het bestand blijft ongemoeid) en

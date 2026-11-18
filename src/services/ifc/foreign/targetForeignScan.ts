@@ -99,6 +99,30 @@ export function scanForeignTargetBytesAsync(bytes: Uint8Array, opts: ForeignScan
   }, opts);
 }
 
+/** Alleen de modelscan van bytes in het geheugen (`scanTargetBytes`, zonder de indeling erna), in de scanworker. Zonder
+ *  Worker of bij een fout van het transport, en ook bij een inhoudelijke fout uit de Worker, op de hoofdthread: de uitkomst
+ *  is altijd die van de synchrone weg. Voor de vraag of een geopend document een gebouwmodel heeft
+ *  (`documentHasBuildingModel`, knownbug 1768 en 1740). */
+export async function scanTargetModelBytesAsync(bytes: Uint8Array, opts: ForeignScanRunOptions = {}): Promise<TargetModelScan> {
+  let at: number | null = 0;
+  const source = {
+    next: async () => {
+      if (at === null) return null;
+      const chunk = bytes.subarray(at);
+      at = null;
+      return chunk;
+    },
+    seek: async (offset: number) => { at = offset; },
+  };
+  const onMain = () => scanTargetBytes(bytes);
+  try {
+    return await withScanWorker(opts, session => driveTargetScan(source, session.step), onMain);
+  } catch (error) {
+    if (!(error instanceof ForeignScanFailure)) throw error;
+    return onMain();
+  }
+}
+
 /** FSA-bestand; een lege, door de kiezer aangemaakte file blijft een normaal nieuw doel. */
 export async function scanForeignTargetBlob(blob: Blob, opts: ForeignScanRunOptions = {}): Promise<TargetForeignScan> {
   if (blob.size > IFC_FOREIGN_SCAN_MAX_BYTES) return 'unreadable';

@@ -41,9 +41,10 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice, ifcForeignDownloadCopyNotice,
+  refusedWriteTarget, newTargetWriteNotice, ifcForeignDownloadCopyNotice, ifcForeignDownloadCopyKey,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { documentHasBuildingModel } from '../buildingModel';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
@@ -434,29 +435,29 @@ export function exportCriticalHoursLostNotice(
 
 /**
  * Knownbug 1740 (besluit van de eigenaar, 16 november 2026; ontwerp §4.12): een export naar een ander formaat dan IFC
- * vanuit een document met een gebouwmodel vraagt niets vooraf, maar de melding na afloop zegt ook dat alleen de planning
- * is geëxporteerd. Dit is de enige plek die beslist of die zin komt; geen formaat behalve IFC draagt een gebouwmodel.
- * De zin wordt een regel onder de eerste melding van de export, zodat er geen melding bij komt die bij de grens van
- * drie (`MAX_NOTIFICATIONS`) de downloadmelding of een verliesmelding wegduwt; komt er geen andere melding, dan een eigen.
- * De eerste melding krijgt een eigen samenvouwsleutel: een latere melding met de gewone sleutel (een export zonder
- * gebouwmodel) vouwt zo niet samen met een melding die de zin draagt. Met de flag uit of zonder gebouwmodel komen de
- * meldingen ongewijzigd terug.
+ * vanuit een document met een gebouwmodel (`documentHasBuildingModel`) vraagt niets vooraf, maar de melding na afloop zegt
+ * ook dat alleen de planning is geëxporteerd. Dit is de enige plek die beslist waar die zin komt; geen formaat behalve
+ * IFC draagt een gebouwmodel. De zin wordt een regel onder de LAATSTE melding van de export: de store toont hoogstens
+ * `MAX_NOTIFICATIONS` meldingen en duwt de oudste weg, dus de laatste blijft na afloop staan (review van #1002). Komt er
+ * geen andere melding, dan een eigen. Die melding krijgt een eigen samenvouwsleutel: anders vouwt een latere melding met
+ * de gewone sleutel en zonder detailregels (een export zonder gebouwmodel) samen met deze en blijft de zin eronder staan.
+ * Zonder gebouwmodel komen de meldingen ongewijzigd terug.
  */
 export function withPlanOnlyExportSentence(
   format: ExportFormat,
-  state: { readonly ifcSource: AppState['ifcSource']; readonly ui: { readonly featureFlags: AppState['ui']['featureFlags'] } },
+  buildingModel: boolean,
   notices: readonly (NotifyInput | null)[],
 ): NotifyInput[] {
   const shown = notices.filter((notice): notice is NotifyInput => notice !== null);
-  if (format === 'ifc' || !hasForeignContent(state.ifcSource) || !ifcForeignContentEnabled(state.ui.featureFlags)) return shown;
+  if (format === 'ifc' || !buildingModel) return shown;
   const sentence = 'notifications.exportPlanOnly' as const;
-  const [first, ...rest] = shown;
-  if (!first) return [{ severity: 'info', messageKey: sentence }];
-  return [{
-    ...first,
-    detailLines: [...(first.detailLines ?? []), { messageKey: sentence }],
-    ...(first.dedupeKey ? { dedupeKey: `${first.dedupeKey}:alleen-planning` } : {}),
-  }, ...rest];
+  const last = shown[shown.length - 1] as NotifyInput | undefined;
+  if (!last) return [{ severity: 'info', messageKey: sentence }];
+  return [...shown.slice(0, -1), {
+    ...last,
+    detailLines: [...(last.detailLines ?? []), { messageKey: sentence }],
+    ...(last.dedupeKey ? { dedupeKey: `${last.dedupeKey}:alleen-planning` } : {}),
+  }];
 }
 
 /** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
@@ -1369,6 +1370,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return get().activeDocumentId === documentId;
   };
 
+  const dismissDownloadCopyNotice = (documentId: string) => {
+    const key = ifcForeignDownloadCopyKey(documentId);
+    for (const notice of get().ui.notifications) if (notice.dedupeKey === key) get().dismissNotification(notice.id);
+  };
+
   /** Knownbug 1131 stap 2: de melding als op het eigen doel niet meer precies de bron staat. */
   const ownTargetContentNotice = (content: Exclude<SourceTargetContent, 'same'>): NotifyInput =>
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
@@ -1399,7 +1405,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         },
         commit: () => { seen.committed = commitSavedDocument(documentId, state, undefined, prepared); },
       });
-      if (outcome === 'replaced') return seen.committed === true;
+      if (outcome === 'replaced') {
+        // Knownbug 1768, review van #1002: het geopende bestand is bijgewerkt, dus de melding over de kopie klopt niet meer.
+        dismissDownloadCopyNotice(documentId);
+        return seen.committed === true;
+      }
       if (outcome === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
       else if (seen.refused) get().notify(ownTargetContentNotice(seen.refused));
       return false;
@@ -1530,8 +1540,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Knownbug 1768: het geopende bestand met een gebouwmodel kreeg geen schrijftoestemming, dus de app downloadde een
       // kopie. Dat bestand is niet bijgewerkt: het document blijft gewijzigd (geen commit) en de melding noemt de kopie.
       // Zonder commit blijven ook bron, kenmerk, handle en naam die van het geopende bestand.
-      if (write.prepared && outcome.viaDownload && ref?.kind === 'handle') {
-        get().notify(ifcForeignDownloadCopyNotice(outcome.name));
+      // Alleen met een gebouwmodel (`documentHasBuildingModel`); vreemde inhoud zonder gebouwmodel doet wat main doet.
+      if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && await documentHasBuildingModel(state)) {
+        get().notify(ifcForeignDownloadCopyNotice(outcome.name, documentId));
         return false;
       }
       const saved = write.prepared && outcome.viaDownload
@@ -2265,51 +2276,56 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
-      // De meldingen na afloop, in deze volgorde; `withPlanOnlyExportSentence` voegt bij een gebouwmodel de zin toe.
+      // De meldingen na afloop, in deze volgorde; `withPlanOnlyExportSentence` voegt bij een gebouwmodel de zin toe aan de
+      // laatste. Gooit het opstellen van een latere melding, dan toont `finally` wat al klaar was (het bestand staat er al).
+      const buildingModel = format !== 'ifc' && await documentHasBuildingModel(state);
       const notices: (NotifyInput | null)[] = [downloadNotice(outcome)];
-      // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
-      // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
-      // document zonder XER-herkomst krijgt de algemene melding (#554).
-      const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
-      const categories = warnings.flatMap(warning => warning.categories);
-      const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
-        : format === 'p6' ? exportP6XmlLossNotice({
-          project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
-          sequences: state.sequences, resources: state.resources, assignments: state.assignments,
-          baselineCount: state.baselines.length,
-        }, categories) : null;
-      if (xerLoss || format === 'p6') {
-        notices.push(lossNotice);
-      } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
-        notices.push({
-          severity: 'info',
-          messageKey: 'notifications.xerExportLoss',
-          params: { format: lossFormat },
-          dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
-          helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
-        });
-      } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
-        notices.push({
-          severity: 'info',
-          messageKey: 'notifications.exportDataLoss',
-          params: { format: lossFormat },
-          dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
-          helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
-        });
+      try {
+        // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
+        // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
+        // document zonder XER-herkomst krijgt de algemene melding (#554).
+        const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
+        const categories = warnings.flatMap(warning => warning.categories);
+        const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
+          : format === 'p6' ? exportP6XmlLossNotice({
+            project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
+            sequences: state.sequences, resources: state.resources, assignments: state.assignments,
+            baselineCount: state.baselines.length,
+          }, categories) : null;
+        if (xerLoss || format === 'p6') {
+          notices.push(lossNotice);
+        } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
+          notices.push({
+            severity: 'info',
+            messageKey: 'notifications.xerExportLoss',
+            params: { format: lossFormat },
+            dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
+            helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+          });
+        } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
+          notices.push({
+            severity: 'info',
+            messageKey: 'notifications.exportDataLoss',
+            params: { format: lossFormat },
+            dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
+            helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
+          });
+        }
+        // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
+        notices.push(
+          exportSplitsLostNotice(format, state.tasks),
+          exportCostResourcesLostNotice(format, state.resources),
+          exportP6TruncatedNotice(format, p6Truncated),
+          exportInvalidXmlCharsNotice(format, invalidXmlChars),
+          exportCriticalHoursLostNotice(format, state.project),
+        );
+        if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
+          notices.push(exportProfileNotice(format, state.project.schedulingProfile, name => (
+            i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name)));
+        }
+      } finally {
+        for (const notice of withPlanOnlyExportSentence(format, buildingModel, notices)) get().notify(notice);
       }
-      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
-      notices.push(
-        exportSplitsLostNotice(format, state.tasks),
-        exportCostResourcesLostNotice(format, state.resources),
-        exportP6TruncatedNotice(format, p6Truncated),
-        exportInvalidXmlCharsNotice(format, invalidXmlChars),
-        exportCriticalHoursLostNotice(format, state.project),
-      );
-      if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
-        notices.push(exportProfileNotice(format, state.project.schedulingProfile, name => (
-          i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name)));
-      }
-      for (const notice of withPlanOnlyExportSentence(format, state, notices)) get().notify(notice);
       return { ok: true, warnings };
     },
 

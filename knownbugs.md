@@ -2702,7 +2702,10 @@ en noem het in je rapport of PR-tekst.
      volledige bestand. (2) *Opslaan als*, dat in de browser met een gebouwmodel altijd een download is (§11 punt 4).
      Geen verlies: de download is heel en het geopende bestand blijft ongewijzigd. Vraag aan de eigenaar: geldt
      "gewijzigd tot het geopende bestand is bijgewerkt" ook hier, of telt een kopie daar wel als opgeslagen? Bij (1) kan
-     het geopende bestand in die browser nooit worden bijgewerkt, dus de sluitvraag zou dan altijd komen. Code:
+     het geopende bestand in die browser nooit worden bijgewerkt, dus de sluitvraag zou dan altijd komen. Ook een
+     document met vreemde inhoud zonder gebouwmodel (bijvoorbeeld alleen een eigenschappenset van een ander programma)
+     telt een download bij geweigerde schrijftoestemming nog als opgeslagen, zoals main; of "gewijzigd tot het geopende
+     bestand is bijgewerkt" ook daar moet gelden, hoort bij dezelfde vraag aan de eigenaar. Code:
      `writeActiveDocument` en `saveDocumentAsOnTurn` in `fileSlice.ts` (`commitSavedDocument` na `viaDownload`).
      Gevonden bij het bouwen van 1768. — B voor (2) (proef "download: twee volledige heropeningen" in
      `check-ifc-document-save.ts`), S voor (1) (code gelezen)
@@ -2711,6 +2714,16 @@ en noem het in je rapport of PR-tekst.
      "Opslaan van een bestand met zo'n vreemd deel blijft geblokkeerd." Dat klopt niet meer: Opslaan als werkt, in de
      browser ook Ctrl+S, en Ctrl+S op de desktop volgt (knownbug 1131). Bijwerken met de handleiding van stap 6 van
      1131. Gezien door de bouwer van #1002. — B
+
+1842. **VERVOLG (#804, tekst): de vraag en het vinkje "zonder gebouwmodel" komen ook bij vreemde inhoud zonder gebouwmodel.**
+     Browser en desktop, flag aan. Exporteren → IFC toont het vinkje *Zonder gebouwmodel* en de vraag *Exporteren zonder
+     gebouwmodel?* ("Het gebouwmodel en de gegevens van een ander programma gaan niet mee") bij elk document met vreemde
+     inhoud (`hasForeignContent`: `modelPresent` in `Backstage.tsx`, `planOnlyQuestionApplies` in `prepareIfcOutput.ts`),
+     ook bij een planning met alleen een eigenschappenset van een ander programma, waar geen gebouwmodel is (de modelscan
+     zegt `no-model`). Geen verlies: de vraag blijft nodig, want de gegevens van het andere programma gaan niet mee; alleen
+     de woorden "gebouwmodel" kloppen dan niet. Richting: de tekst laten volgen uit `documentHasBuildingModel`
+     (`src/state/buildingModel.ts`, PR #1002), of de vraag algemener formuleren. Gevonden bij de fixronde van #1002. — S
+     (code gelezen)
 
 1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
      `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde
