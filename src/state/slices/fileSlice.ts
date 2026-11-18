@@ -19,7 +19,7 @@ import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
-import { remnantNotices } from '../ownFileReplace';
+import { ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -769,6 +769,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return write;
   };
 
+  const SAVE_CHANGED_NOTICE = refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' });
   /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. #804 stap 3: dit kijkt naar
    *  het document van de momentopname (`snapshot.activeDocumentId` is het document dat opgeslagen wordt), nooit naar het
    *  document dat nu actief is. Bestaat het nog en is zijn bron hetzelfde object, dan gaat de opslag door, ook als de
@@ -785,7 +786,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       app.notify(ifcWriteBlockedNotice(doc));
       return true;
     } else if (doc && doc.ifcSource === snapshot.ifcSource) return false;
-    app.notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+    app.notify(SAVE_CHANGED_NOTICE);
     return true;
   };
 
@@ -1395,6 +1396,48 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /**
+   * Knownbug 1131 stap 5b: Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen pad van een document met een gebouwmodel,
+   * op de desktop. Loopt binnen de ene `runProjectFileWrite` van `writeActiveDocument`: de merge, de vervanging
+   * (`replaceOwnPathWithRecovery`, ontwerp §4.10 stap 0–6), de broncommit, de laatste herstelronde en het wissen van het
+   * record. Afsluiten en de updater wachten daar dus op. Na de eerste herstelronde en vóór de eerste schrijfactie in de
+   * projectmap toetst hij opnieuw: bestaat het document nog, is zijn opslagdoel nog dit pad en zijn bron nog dezelfde?
+   * Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar melding (`ownPathReplaceNotices`); er is
+   * geen terugval naar de gewone schrijfroutine, die op naam schrijft. Een nieuwe naam is een eigen keuze van de planner
+   * (Opslaan als). `true` alleen als `commitSavedDocument` het document schoon liet: na een bewerking tijdens de opslag
+   * is de geschreven versie de bron, maar blijft het document gewijzigd, en dan sluit de sluitvraag niet.
+   */
+  const replaceOwnPath = async (
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+    ref: Extract<FileRef, { kind: 'path' }>, failureNoticeKey: string,
+  ): Promise<boolean> => {
+    const movedTarget = () => {
+      const current = saveSourceForDocument(get(), documentId);
+      const target = current && saveTargetRef(current);
+      if (target?.kind === 'path' && target.path === ref.path) return false;
+      get().notify(SAVE_CHANGED_NOTICE);
+      return true;
+    };
+    let committed = false;
+    try {
+      const result = await replaceOwnPathWithRecovery({
+        documentId, path: ref.path, prepared,
+        source: { bytes: state.ifcSource!.bytes, sha256: state.ifcSource!.sha256 },
+        stopBeforeWrite: () => refuseChangedDocumentWrite(state, write) || movedTarget(),
+        commit: () => { committed = commitSavedDocument(documentId, state, undefined, prepared); },
+      });
+      for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
+      return committed;
+    } catch (err) {
+      console.error('Save failed:', err);
+      get().notify({
+        severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err),
+        dedupeKey: failureNoticeKey, replaceOnDedupe: true,
+      });
+      return false;
+    }
+  };
+
   let saveAttemptSequence = 0;
   /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
   const writeActiveDocument = (documentId: string, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
@@ -1432,13 +1475,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
-      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop) weigert hier tot knownbug 1131 stap 5. Een handle
-      // (browser, stap 2) mag alleen met schrijftoestemming en als er nog precies de bron staat; zonder toestemming
-      // valt Ctrl+S terug op de download, zoals bij een gewoon bestand.
+      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop, knownbug 1131 stap 5b) gaat alleen via de
+      // vervanging; of er nog de bron staat, toetst die zelf (stap 2). Een handle (browser, stap 2) mag alleen met
+      // schrijftoestemming en als er nog precies de bron staat; zonder toestemming valt Ctrl+S terug op de download,
+      // zoals bij een gewoon bestand.
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
+      let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
-        if (ref.kind === 'handle' && await handleWritePermission(ref)) {
+        if (ref.kind === 'path') ownPath = ref;
+        else if (await handleWritePermission(ref)) {
           const content = await sourceTargetContent(ref, state.ifcSource!.bytes);
           if (content !== 'same') { get().notify(ownTargetContentNotice(content)); return false; }
           ownHandle = ref;
@@ -1450,6 +1496,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // pad en handle.
       if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
+      // Nooit de gewone schrijfroutine op het eigen pad: met een vreemd deel geeft de merge altijd `prepared`.
+      if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.
