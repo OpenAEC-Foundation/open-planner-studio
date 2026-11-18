@@ -257,13 +257,6 @@ export async function settleReplaceRemnants(
       try { await fs.remove(temp); } catch { leave(temp); }
     } else leave(temp);
   }
-  // MUTATIE (c): ook restbestanden met een ander id in dezelfde map opruimen.
-  const { readDir, remove } = await import('@tauri-apps/plugin-fs');
-  for (const entry of await readDir(userFileDir(path))) {
-    if (entry.name.includes('.ops-vorige-') || /^save-.+\.ops-save\.tmp$/.test(entry.name)) {
-      await remove(`${userFileDir(path)}${entry.name}`).catch(() => {});
-    }
-  }
   return events;
 }
 
