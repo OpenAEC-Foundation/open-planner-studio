@@ -202,7 +202,6 @@
     "ganttOnlyHint": "Disponible uniquement lorsque le diagramme de Gantt est visible",
     "relationLinkSelected": "Lier les tâches sélectionnées",
     "relationLinkSelectedHint": "La première sélection devient le prédécesseur et la seconde le successeur (FS, décalage 0)",
-    "relationSelectExactlyTwo": "Sélectionnez exactement deux tâches",
     "relationAddExternal": "Ajouter une relation externe…",
     "relationAddExternalHint": "Ajoutez un prédécesseur ou un successeur externe à la tâche sélectionnée",
     "relationSelectOne": "Sélectionnez exactement une tâche",

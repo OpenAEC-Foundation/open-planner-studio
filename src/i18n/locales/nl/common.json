@@ -405,6 +405,8 @@
     "addSubtask": "Subtaak toevoegen",
     "addMilestone": "Mijlpaal toevoegen",
     "addRelation": "Relatie toevoegen",
+    "assignPredecessors": "Voorgangers toewijzen…",
+    "assignSuccessors": "Opvolgers toewijzen…",
     "dissolve": "Dissolve (keten behouden)",
     "delete": "Verwijderen",
     "newTask": "Nieuwe taak",
@@ -1396,7 +1398,8 @@
     "edit": {
       "copy": "Kopiëren",
       "deselect": "Selectie opheffen",
-      "selectAll": "Alles selecteren"
+      "selectAll": "Alles selecteren",
+      "linkSelected": "Geselecteerde taken als keten koppelen"
     },
     "structure": {
       "moveUp": "Taak omhoog verplaatsen",

@@ -690,6 +690,9 @@ export interface ExternalSourceUpdate {
   changedLinks: number;
 }
 
+/** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
+export type RelationAssignDirection = 'predecessor' | 'successor';
+
 export interface UIState {
   showTaskDialog: boolean;
   editingTaskId: string | null;
@@ -766,6 +769,10 @@ export interface UIState {
   showNewOrOpenProjectDialog: boolean;
   /** Een pas gemaakte taak krijgt éénmalig de naamfocus in het eigenschappenpaneel. */
   pendingTaskNameFocusId: string | null;
+  /** Session — "Voorgangers/Opvolgers toewijzen…" (issue #1000, zoals Assign in Primavera): het
+   *  relatiepaneel opent éénmalig de keuzerij bij deze taak, met de richting al gekozen. Alleen via
+   *  `requestRelationAssign` (`state/relationActions.ts`); `TaskDependenciesSection` wist het. */
+  pendingRelationAssign: { taskId: string; direction: RelationAssignDirection } | null;
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
   /** persisted (`ops-feedbackEmail`) — het optionele e-mailadres uit de feedbackdialoog, onthouden na
    *  een geslaagde melding. Geen paneelinstelling: het hoort bij het formulier zelf. */

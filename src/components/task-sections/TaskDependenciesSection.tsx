@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
@@ -134,6 +134,26 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   useEffect(() => {
     setDraft(null);
   }, [taskId]);
+
+  // "Voorgangers/Opvolgers toewijzen…" uit het rechtsklikmenu of het lint (issue #1000, Assign in
+  // Primavera): open de conceptrij met die richting. Na de reset hierboven, zodat een verzoek dat
+  // samen met de selectiewissel komt blijft staan. Alleen het paneel (`interactive`) handelt het af.
+  const assignRequest = useAppStore(s => s.ui.pendingRelationAssign);
+  const draftRef = useRef<HTMLDivElement>(null);
+  const revealDraft = useRef(false);
+  useEffect(() => {
+    if (!interactive || !assignRequest || assignRequest.taskId !== taskId) return;
+    revealDraft.current = true;
+    setDraft({ ...EMPTY_DRAFT, direction: assignRequest.direction });
+    useAppStore.getState().setUI({ pendingRelationAssign: null });
+  }, [assignRequest, interactive, taskId]);
+  // De sectie staat onderaan het paneel, vaak buiten beeld: schuif de hele conceptrij (zoekveld,
+  // type en lag) erin, niet alleen het zoekveld dat de focus krijgt.
+  useLayoutEffect(() => {
+    if (!draft || !revealDraft.current) return;
+    revealDraft.current = false;
+    draftRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [draft]);
 
   // Alleen zoekinvoer bepaalt de treffers; pijlen, type, richting en lag wijzigen het concept ook.
   const query = draft?.query;
@@ -311,7 +331,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
         })}
       </div>
       {interactive && (draft ? (
-        <div className="dependency-draft" data-ops-dependency-draft>
+        <div ref={draftRef} className="dependency-draft" data-ops-dependency-draft>
           <div className="dependency-draft-head">
             <span className="dependency-draft-direction" data-ops-dependency-direction={draft.direction}>
               <Select

@@ -42,7 +42,7 @@ import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes,
 import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { RelationTypePopover } from './RelationTypePopover';
-import { createRelationDraftWithFeedback } from '@/state/relationActions';
+import { createRelationDraftWithFeedback, requestRelationAssign } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
 import { HoverTooltip } from './HoverTooltip';
 import { MilestoneGroupTooltipContent, TaskTooltipContent } from './TaskTooltipContent';
@@ -1125,6 +1125,9 @@ export function GanttCanvas({
               selectTask(contextMenu.task.id, false);
               setUI({ showDependencyMode: true });
             }
+          }}
+          onAssignRelation={direction => {
+            if (contextMenu.task) requestRelationAssign(contextMenu.task.id, direction);
           }}
           onSaveTemplate={() => {
             if (!contextMenu.task) return;

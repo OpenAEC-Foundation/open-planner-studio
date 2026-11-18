@@ -18,15 +18,15 @@ Not sure which type you need? Below the type choice, a sentence with the real ta
 
 There are four ways to add a relation. They create the same relation; pick whatever suits your situation best.
 
-### Linking two selected tasks
+### Linking selected tasks
 
-Useful when you work in the task list.
+Useful when you work in the task list, or want to put a series of tasks in a row in one go.
 
 1. In the task list, click the task that comes first: the predecessor.
-2. Hold Ctrl (⌘ on a Mac) and click the task that comes next: the successor.
-3. Choose *Home › Tasks › Link ▾ › Link selected tasks*. The same button is also on *Planning › Relations*.
+2. Hold Ctrl (⌘ on a Mac) and click the task that comes next: the successor. You can click more tasks this way, in the order the work runs. Tasks that are listed one below the other can also be selected with Shift; they come in the order of the list.
+3. Press Ctrl+F2 (⌘+F2 on a Mac), or choose *Home › Tasks › Link ▾ › Link selected tasks*. The same button is also on *Planning › Relations*.
 
-The app creates a Finish-Start relation without lag. You see it as an arrow in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses the relation. The button only works with exactly two selected tasks.
+The app creates a Finish-Start relation without lag between each task and the next: the first becomes the predecessor of the second, the second of the third, and so on. You see them as arrows in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses a relation. If one of the relations already exists, the app says so and adds the others anyway. One *Undo* removes them all. The button works from two selected tasks.
 
 ### Drawing a relation in the Gantt
 
@@ -44,8 +44,8 @@ If you press Esc in the *Relation type* window, nothing is recorded. For a singl
 
 Useful when you are looking at one task and want to add its predecessors or successors.
 
-1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
-2. In the *Dependencies* block, click *Add relation*.
+1. Right-click the task, in the task list or on its bar, and choose *Assign predecessors…* or *Assign successors…*. The same two are in *Home › Tasks › Link ▾* when one task is selected. The *Properties* panel opens, the *Dependencies* block scrolls into view and the direction is already set. Continue at step 4.
+2. Or: select the task and click *Add relation* in the *Dependencies* block of the *Properties* panel. If you do not see the panel, turn it on with *View › Panels › Properties*.
 3. Leave the direction on *Predecessor* if the other task comes first, or choose *Successor*.
 4. Type part of the other task's name. Pick the right one with the arrow keys and Enter, or click it.
 5. Choose the type (FS by default) and fill in a lag if needed.
@@ -87,7 +87,7 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 ## Pitfalls and what the app does
 
-**Reversed order.** With *Link selected tasks* the order in which you click counts, not the order in the list. If you click the later task first, the relation is the wrong way round. Delete it in *Dependencies* with the bin icon and add it again.
+**Reversed order.** With *Link selected tasks* the order in which you Ctrl-click counts, not the order in the list. If you click the later task first, the relation is the wrong way round. Delete it in *Dependencies* with the bin icon and add it again.
 
 **Typing in the column wipes what was there.** If the cell holds `3.4 FS; 3.2 FS` and you type only `3.2 FS`, the relation with 3.4 is gone, without a message. Type all predecessors, use Enter or F2 to add to them, or undo with Ctrl+Z.
 

@@ -52,7 +52,7 @@ import {
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
-import { createRelationWithFeedback } from '@/state/relationActions';
+import { linkTasksInChain, requestRelationAssign } from '@/state/relationActions';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
@@ -337,24 +337,28 @@ export function MilestoneDropdown() {
 
 export interface RelationActionAvailability {
   linkSelected: boolean;
+  /** Voorgangers of opvolgers toewijzen in het paneel (issue #1000): voor precies één taak. */
+  assign: boolean;
   addExternal: boolean;
   refreshExternal: boolean;
 }
 
-/** Pure beschikbaarheidsregels achter de vier vaste dropdownacties. */
+/** Pure beschikbaarheidsregels achter de vaste dropdownacties. */
 export function relationActionAvailability(
   selectedTaskCount: number,
   externalRelationCount: number,
 ): RelationActionAvailability {
   return {
-    linkSelected: selectedTaskCount === 2,
+    // Twee of meer: de selectie wordt een keten (issue #1000, Ctrl+F2 in MS Project).
+    linkSelected: selectedTaskCount >= 2,
+    assign: selectedTaskCount === 1,
     addExternal: selectedTaskCount === 1,
     refreshExternal: externalRelationCount > 0,
   };
 }
 
 /**
- * Relatie is bewust een keuzemenu met vier vaste betekenissen. De selectie bepaalt alleen of een
+ * Relatie is bewust een keuzemenu met vaste betekenissen. De selectie bepaalt alleen of een
  * actie beschikbaar is; de hoofdknop verandert nooit stil van gedrag.
  */
 export function RelationDropdown() {
@@ -382,7 +386,7 @@ export function RelationDropdown() {
   const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
 
   const items: Array<{
-    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal' | 'findDependents';
+    key: 'draw' | 'linkSelected' | 'assignPredecessors' | 'assignSuccessors' | 'addExternal' | 'refreshExternal' | 'findDependents';
     label: string;
     disabled: boolean;
     title: string;
@@ -407,12 +411,25 @@ export function RelationDropdown() {
       disabled: !availability.linkSelected,
       title: availability.linkSelected
         ? tMenu('ribbon.relationLinkSelectedHint')
-        : tMenu('ribbon.relationSelectExactlyTwo'),
+        : tMenu('ribbon.relationSelectAtLeastTwo'),
       onClick: () => {
-        createRelationWithFeedback(selectedTaskIds[0], selectedTaskIds[1], 'FINISH_START');
+        linkTasksInChain(selectedTaskIds);
         setOpen(false);
       },
     },
+    // Zoals Assign in Primavera (issue #1000): kies de andere taken uit een doorzoekbare lijst in
+    // het relatiepaneel, met type en lag. Het paneel gaat open met de richting al gekozen.
+    ...(['predecessor', 'successor'] as const).map(direction => ({
+      key: direction === 'predecessor' ? 'assignPredecessors' as const : 'assignSuccessors' as const,
+      label: tCommon(direction === 'predecessor' ? 'context.assignPredecessors' : 'context.assignSuccessors'),
+      disabled: !availability.assign,
+      title: !availability.assign ? tMenu('ribbon.relationSelectOne')
+        : tMenu(direction === 'predecessor' ? 'ribbon.relationAssignPredecessorsHint' : 'ribbon.relationAssignSuccessorsHint'),
+      onClick: () => {
+        requestRelationAssign(selectedTaskIds[0], direction);
+        setOpen(false);
+      },
+    })),
     {
       key: 'addExternal',
       label: tMenu('ribbon.relationAddExternal'),

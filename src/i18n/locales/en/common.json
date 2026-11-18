@@ -405,6 +405,8 @@
     "addSubtask": "Add subtask",
     "addMilestone": "Add milestone",
     "addRelation": "Add relation",
+    "assignPredecessors": "Assign predecessors…",
+    "assignSuccessors": "Assign successors…",
     "dissolve": "Dissolve (keep chain)",
     "delete": "Delete",
     "newTask": "New task",
@@ -1396,7 +1398,8 @@
     "edit": {
       "copy": "Copy",
       "deselect": "Clear selection",
-      "selectAll": "Select all"
+      "selectAll": "Select all",
+      "linkSelected": "Link selected tasks in a chain"
     },
     "structure": {
       "moveUp": "Move task up",

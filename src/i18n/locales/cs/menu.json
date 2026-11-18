@@ -203,7 +203,6 @@
     "ganttOnlyHint": "Dostupné jen tehdy, když je diagram Gantt vidět",
     "relationLinkSelected": "Propojit vybrané úkoly",
     "relationLinkSelectedHint": "První výběr se stane předchůdcem; druhý výběr následníkem (FS, prodleva 0)",
-    "relationSelectExactlyTwo": "Vyberte přesně dva úkoly",
     "relationAddExternal": "Přidat vazbu mezi projekty…",
     "relationAddExternalHint": "Přidejte k vybranému úkolu předchůdce nebo následníka z jiného projektu",
     "relationSelectOne": "Vyberte přesně jeden úkol",

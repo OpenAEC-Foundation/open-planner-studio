@@ -170,10 +170,12 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
   await expect.poll(() => state(page).then(s => s.sequences.map(q => q.predecessorId))).toEqual([extra(3), extra(5)]);
 });
 
-test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweigerd', async ({ page, ops: _ops }) => {
-  const [grondwerk, fundering] = await seedProject(page, [
+test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd, toewijzen via rechtsklik en Ctrl+F2', async ({ page, ops: _ops }) => {
+  const [grondwerk, fundering, ruwbouw, afbouw] = await seedProject(page, [
     { name: 'Grondwerk', start: '2026-09-07', finish: '2026-09-18' },
     { name: 'Fundering', start: '2026-09-21', finish: '2026-10-02' },
+    { name: 'Ruwbouw', start: '2026-10-05', finish: '2026-10-16' },
+    { name: 'Afbouw', start: '2026-10-19', finish: '2026-10-30' },
   ]);
 
   await page.evaluate((id) => {
@@ -215,6 +217,38 @@ test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweig
   await again.locator('[data-ops-dependency-search]').press('Escape');
   await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
   await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(1);
+
+  // Issue #1000, zoals Assign in Primavera: rechtsklik op een rij ⇒ "Voorgangers toewijzen…". Ook
+  // met het paneel dicht gaat het open, met de conceptrij in beeld, richting Voorganger en de focus
+  // in het zoekveld; kiezen en vastleggen kan daarna met alleen het toetsenbord.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showPropertiesPanel: false }));
+  await expect(page.locator('[data-ops-dependency-add]')).toHaveCount(0);
+  const cell = (id: string) => page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.name"]`,
+  );
+  await cell(ruwbouw).click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Assign predecessors|Voorgangers toewijzen)…$/ }).click();
+  const assign = page.locator('[data-ops-dependency-draft]');
+  await expect(assign).toBeInViewport();
+  await expect(assign.locator('[data-ops-dependency-direction]')).toHaveAttribute('data-ops-dependency-direction', 'predecessor');
+  await expect(assign.locator('[data-ops-dependency-search]')).toBeFocused();
+  await page.keyboard.type('Fund');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
+  await expect.poll(() => state(page).then(s => s.sequences.map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[grondwerk, fundering], [fundering, ruwbouw]]);
+
+  // Zoals Ctrl+F2 in MS Project: drie taken selecteren en als keten koppelen, in de volgorde van
+  // klikken. Eén Ctrl+Z haalt de hele keten weg.
+  await cell(grondwerk).click();
+  await cell(ruwbouw).click({ modifiers: ['ControlOrMeta'] });
+  await cell(afbouw).click({ modifiers: ['ControlOrMeta'] });
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId, q.type])))
+    .toEqual([[grondwerk, ruwbouw, 'FINISH_START'], [ruwbouw, afbouw, 'FINISH_START']]);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(2);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

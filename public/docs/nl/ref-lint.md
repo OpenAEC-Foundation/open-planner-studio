@@ -49,7 +49,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 - **Taak** — voegt een taak toe met de naam *Nieuwe taak*, met een duur van 5 werkdagen en beginnend op de projectstart. (Koos je bij *Standaardmaat voor nieuwe taken* in *Projectinstellingen* de *Urenmaat*, dan is de duur 5 uur. Onder het P6- en het MSP-profiel zijn het 5 werkdagen in uren.) Is er een taak geselecteerd en staat de weergave in de gewone boom, dan komt hij direct onder de onderste geselecteerde taak (tooltip *Nieuwe taak direct onder de selectie*). Is er geen selectie, dan komt hij onderaan (tooltip *Nieuwe taak onderaan de lijst*). Is er wel een selectie maar wordt er gefilterd, gegroepeerd of gesorteerd, dan komt hij ook onderaan. Een rode melding zegt dan dat de app hem niet onder je selectie kan zetten, met de knop *Wissen*. De nieuwe taak wordt de enige selectie, de Gantt springt ernaartoe en de naam staat klaar om te overschrijven in het paneel *Eigenschappen*.
 - **Mijlpaal ▾** — keuzemenu dat een mijlpaal (duur 0) op dezelfde plek zet als *Taak*. *Startmijlpaal* en *Eindmijlpaal* zetten de soort mijlpaal; de nieuwe mijlpaal heet *Nieuwe mijlpaal* en krijgt werksoort *Overig*. *Inspectiemoment (verplicht)* maakt een eindmijlpaal met werksoort *Keuring/Inspectie* en de vlag *Verplicht (contractueel)*, met de naam *Nieuw inspectiemoment*.
-- **Relatie ▾** — keuzemenu met vier vaste acties; de hoofdknop verandert nooit van betekenis. Zie *Planning › Relaties* voor de vier acties.
+- **Relatie ▾** — keuzemenu met vaste acties; de hoofdknop verandert nooit van betekenis. Zie *Planning › Relaties* voor de acties.
 - **Taak splitsen** — zet de splits-modus aan of uit. Aan: een strook onder het lint legt uit dat je op een balk klikt waar de onderbreking begint en naar rechts sleept voor de lengte. Uitgeschakeld als de Gantt niet in beeld is (op de tabbladen *Tabel*, *IFC*, *Rapport* en onder het volledige resourcepaneel); de tooltip zegt dan *Alleen beschikbaar als de Gantt in beeld is*. Zie [Een taak splitsen](docs://howto-taak-splitsen).
 
 ### Start › Planning
@@ -72,10 +72,11 @@ De knop *Bereken* is dezelfde als op *Start*.
 
 ### Planning › Relaties
 
-De groep heeft de knop *Relatie ▾* met vier acties en de knop *Taak splitsen* (zelfde als op *Start*). De vier acties:
+De groep heeft de knop *Relatie ▾* en de knop *Taak splitsen* (zelfde als op *Start*). De acties van *Relatie ▾*:
 
 - **Relatie tekenen** — zet de relatiemodus aan of uit; een vinkje staat erbij als hij aan is, en de hoofdknop licht op. Aan: je sleept in de Gantt van de ene balk naar de andere om een relatie te leggen, en een strook onder het lint zegt hoe je stopt (*Stoppen* of Esc). Uitgeschakeld als de Gantt niet in beeld is.
-- **Geselecteerde taken koppelen** — legt een relatie Eind-Start zonder lag tussen twee taken; de eerst geselecteerde wordt voorganger. Alleen beschikbaar bij precies twee geselecteerde taken (anders *Selecteer precies twee taken*). Een dubbele relatie of een kring wordt geweigerd met een melding.
+- **Geselecteerde taken koppelen** — legt een relatie Eind-Start zonder lag tussen elke geselecteerde taak en de volgende, in de volgorde van selecteren; de eerst geselecteerde wordt voorganger van de tweede, enzovoort. Sneltoets Ctrl+F2. Alleen beschikbaar bij minstens twee geselecteerde taken (anders *Selecteer minstens twee taken*). Een dubbele relatie of een kring wordt geweigerd met een melding; de andere relaties komen er wel bij.
+- **Voorgangers toewijzen…** en **Opvolgers toewijzen…** — openen in het paneel *Eigenschappen* het blok *Afhankelijkheden* met een zoekveld om andere taken te kiezen, met type en lag; de richting staat al goed. Alleen beschikbaar bij precies één geselecteerde taak (anders *Selecteer precies één taak*).
 - **Externe relatie toevoegen…** — opent een venster om een externe voorganger of opvolger aan de geselecteerde taak toe te voegen. Alleen beschikbaar bij precies één geselecteerde taak (anders *Selecteer precies één taak*).
 - **Alle externe relaties vernieuwen** — ververst de ankers van alle externe relaties en meldt in het menu hoeveel er zijn bijgewerkt of ontbreken. Alleen beschikbaar als het project externe relaties heeft (anders *Dit project bevat geen externe relaties*).
 

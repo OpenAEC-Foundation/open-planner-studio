@@ -1,7 +1,7 @@
 import { useAppStore } from '@/state/appStore';
 import { relationAddVerdict, type RelationAddRejection } from '@/state/relationRules';
 import type { Sequence, SequenceType } from '@/types/sequence';
-import type { NotificationMessageKey } from '@/state/slices/types';
+import type { NotificationMessageKey, RelationAssignDirection } from '@/state/slices/types';
 import { cycleLabel } from '@/state/notificationLabels';
 import { refusalNotice } from '@/state/refusalNotice';
 import { withTransaction } from '@/state/batchTransaction';
@@ -25,9 +25,10 @@ const REJECTION_MESSAGE: Record<RelationAddRejection, NotificationMessageKey> = 
  *
  * Waarom deze wrapper bestaat: `addSequence` weigert stil (geen mutatie, geen undo-stap), dus zonder
  * wrapper gebeurt er bij een weigering zichtbaar niets. Een geslaagde relatie meldt zich bewust niet
- * (eigenaarsbesluit 2026-10-12): die is in de Gantt en de tabel al te zien. Alle callsites die met één gebaar een
- * Eind-Start-relatie leggen (de lint-knop bij 2 selecties, de knop in het Relaties-paneel, het
- * slepen in de Gantt) gaan hier door één deur, met het meldingenkanaal als uitgang.
+ * (eigenaarsbesluit 2026-10-12): die is in de Gantt en de tabel al te zien. Elke route die een
+ * relatie legt (de Gantt-popover, het relatiepaneel, de keten van de lintknop en Ctrl+F2) gaat via
+ * {@link createRelationDraftWithFeedback} door één deur, met het meldingenkanaal als uitgang; deze
+ * variant is de korte vorm voor één relatie zonder lag.
  *
  * De REDEN komt uit `relationAddVerdict`, dezelfde pure functie die `addSequence` zelf gebruikt als
  * handhavingsgrens. Twee aanroepen van een pure functie is goedkoper dan de reden door het
@@ -88,4 +89,31 @@ export function createRelationsWithFeedback(relations: readonly Omit<Sequence, '
   const anyAllowed = relations.some(rel => relationAddVerdict(st.tasks, st.sequences, rel).ok);
   if (!anyAllowed) return relations.map(createRelationDraftWithFeedback);
   return withTransaction(() => relations.map(createRelationDraftWithFeedback), 'Relaties toevoegen');
+}
+
+/**
+ * Koppel taken als keten, Eind-Start zonder lag (issue #1000): Ctrl+F2 in MS Project, "Link
+ * Activities" in Primavera. De volgorde is die van de lijst — voor de selectie de volgorde van
+ * kiezen (Ctrl-klik voegt achteraan toe, een Shift-bereik komt in rijvolgorde), zoals de lintknop
+ * bij twee taken al deed. Elke schakel gaat door {@link createRelationsWithFeedback}: één undo-stap,
+ * en een bestaande of verboden schakel meldt zich zonder de rest tegen te houden.
+ */
+export function linkTasksInChain(taskIds: readonly string[]): (string | null)[] {
+  return createRelationsWithFeedback(taskIds.slice(1).map((successorId, index) => ({
+    predecessorId: taskIds[index],
+    successorId,
+    type: 'FINISH_START' as const,
+    lagDays: 0,
+  })));
+}
+
+/**
+ * Open het toewijzen van voorgangers of opvolgers voor één taak (issue #1000, "Assign" in
+ * Primavera): de taak wordt de selectie, het eigenschappenpaneel gaat open (`setUI` klapt de rail
+ * dan ook uit) en de relatiesectie opent haar keuzerij met deze richting. Verandert het document niet.
+ */
+export function requestRelationAssign(taskId: string, direction: RelationAssignDirection): void {
+  const st = useAppStore.getState();
+  st.selectTask(taskId, false);
+  st.setUI({ showPropertiesPanel: true, pendingRelationAssign: { taskId, direction } });
 }

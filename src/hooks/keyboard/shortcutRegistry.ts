@@ -31,6 +31,7 @@ import { insertTaskRelativeToScope, addTaskNearSelection } from '@/state/taskIns
 import { computeScrollToDate } from '@/utils/ganttViewport';
 // De acties die het lint EN het toetsenbord delen, staan één keer gedefinieerd.
 import { COMMANDS } from '@/state/commands';
+import { linkTasksInChain } from '@/state/relationActions';
 import i18n from '@/i18n/config';
 import { isTauri } from '@/utils/platform';
 
@@ -465,6 +466,16 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'shortcuts.edit.selectAll',
     when: () => !isShortcutBlockedByDialog(),
     run: (store) => store.selectAllTasks(),
+  },
+  {
+    // Issue #1000: zoals Ctrl+F2 in MS Project. Koppelt de selectie als keten (Eind-Start), in de
+    // volgorde van selecteren — dezelfde functie als "Geselecteerde taken koppelen" in het lint.
+    id: 'edit.linkSelected',
+    combo: { key: 'F2', mod: true },
+    category: 'edit',
+    labelKey: 'shortcuts.edit.linkSelected',
+    when: () => useAppStore.getState().selectedTaskIds.length >= 2 && !isShortcutBlockedByDialog(),
+    run: (store) => { linkTasksInChain(store.selectedTaskIds); },
   },
 
   // --- Weergave: zoom (Ctrl+=/-) + rapport-navigatie + sneltoetsen-overzicht ---

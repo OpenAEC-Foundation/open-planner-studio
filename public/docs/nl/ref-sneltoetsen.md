@@ -46,6 +46,8 @@ De gebouwde app (desktop en de webversie op de site) blokkeert bovendien een aan
 
 **Ctrl+A** — *Alles selecteren*: selecteert alle taken. Niet in een dialoog.
 
+**Ctrl+F2** — *Geselecteerde taken als keten koppelen*: legt een Eind-Start-relatie zonder lag tussen elke geselecteerde taak en de volgende, in de volgorde van selecteren. Alleen met minstens twee geselecteerde taken. Niet in een dialoog. Zie [Relaties leggen](docs://howto-relaties-leggen).
+
 **Esc** — *Selectie opheffen*: heft de selectie op en zet tegelijk de relatiemodus, de splits-modus en het pad traceren uit, sluit de taakdialoog en het projectoverzicht. Tijdens de presentatie sluit Esc alleen de presentatie (zie *Weergave*). In een invoerveld doet Esc niets van dit alles.
 
 ## Structuur

@@ -31,7 +31,10 @@ import {
   createRelationDraftWithFeedback,
   createRelationsWithFeedback,
   createRelationWithFeedback,
+  linkTasksInChain,
+  requestRelationAssign,
 } from '@/state/relationActions';
+import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
 import type { RelationSetIntent } from '@/types/taskGrid';
 
 const S = () => useAppStore.getState();
@@ -421,6 +424,64 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('11.10 alles geweigerd: geen relatie', none, [null]);
   eq('11.11 alles geweigerd: geen undo-stap', undoDepth(), before + 1);
   eq('11.12 lege lijst doet niets', createRelationsWithFeedback([]), []);
+}
+
+// ── 12. Selectie als keten koppelen en toewijzen zoals in Primavera (issue #1000) ──────────────
+// MS Project koppelt met Ctrl+F2 alle geselecteerde taken als keten (Eind-Start), Primavera heeft
+// "Link Activities". De lintknop koppelde alleen precies twee taken. Nu: twee of meer, in de volgorde
+// van selecteren, als ÉÉN undo-stap; een bestaande of verboden schakel meldt zich en houdt de rest
+// niet tegen. De sneltoets Ctrl+F2 doet hetzelfde.
+{
+  fresh();
+  const a = S().addTask({ name: 'A' });
+  const b = S().addTask({ name: 'B' });
+  const c = S().addTask({ name: 'C' });
+  const d = S().addTask({ name: 'D' });
+  S().addSequence({ predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 });
+  useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; });
+  const depth = undoDepth();
+  // Volgorde van selecteren, niet van de rijen: D eerst gekozen, dan A, B, C.
+  const ids = linkTasksInChain([d, a, b, c]);
+  eq('12.1 per schakel een id of null', ids.map(id => id === null ? null : 'id'), ['id', 'id', null]);
+  eq('12.2 de keten volgt de selectievolgorde', pairs(), ['B→C', 'D→A', 'A→B']);
+  eq('12.3 alles Eind-Start zonder lag', S().sequences.slice(1).map(q => [q.type, q.lagDays]), [['FINISH_START', 0], ['FINISH_START', 0]]);
+  eq('12.4 precies één undo-stap', undoDepth(), depth + 1);
+  eq('12.5 de bestaande schakel meldt zich', notes().map(n => n.key), ['notifications.relationDuplicate']);
+  S().undo();
+  eq('12.6 één Ctrl+Z haalt de keten weg', pairs(), ['B→C']);
+  eq('12.7 één taak koppelt niets', linkTasksInChain([a]), []);
+
+  // De sneltoets: Ctrl+F2 (Cmd+F2 op de Mac) met de gewone selectie.
+  const shortcut = SHORTCUTS.find(entry => entry.id === 'edit.linkSelected');
+  eq('12.8 Ctrl+F2 staat in het register', shortcut?.combo, { key: 'F2', mod: true });
+  S().selectTask(a, false);
+  ok('12.9 met één taak doet Ctrl+F2 niets', shortcut?.when?.() === false);
+  S().selectTask(c, true);
+  S().selectTask(d, true);
+  ok('12.10 met drie taken mag Ctrl+F2', shortcut?.when?.() === true);
+  shortcut?.run(S());
+  eq('12.11 Ctrl+F2 koppelt de selectie als keten', pairs(), ['B→C', 'A→C', 'C→D']);
+
+  // Toewijzen zoals in Primavera: rechtsklik of lint ⇒ het relatiepaneel opent bij deze taak, met
+  // de richting al gekozen. Het paneel gaat aan en de rail klapt uit, ook als hij dicht was.
+  S().setUI({ showPropertiesPanel: false, rightPanelCollapsed: true });
+  requestRelationAssign(b, 'successor');
+  eq('12.12 de taak is de selectie', [S().selectedTaskIds, S().activeTaskId], [[b], b]);
+  eq('12.13 eigenschappenpaneel open, rail uitgeklapt',
+    [S().ui.showPropertiesPanel, S().ui.rightPanelCollapsed], [true, false]);
+  eq('12.14 het verzoek draagt taak en richting', S().ui.pendingRelationAssign, { taskId: b, direction: 'successor' });
+  eq('12.15 toewijzen zelf verandert het document niet', pairs(), ['B→C', 'A→C', 'C→D']);
+
+  // Shift-klik op een balk (de store-route van de Gantt) zet het bereik in de volgorde van de
+  // lijst, net als Shift in de takenlijst: van onder naar boven selecteren gaf eerst de onderste
+  // taak en dan de rest van boven af, en de keten liep dan kriskras.
+  S().selectTask(d, false);
+  S().selectTask(b, false, true);
+  eq('12.16 een Shift-bereik volgt de lijst, ook naar boven', S().selectedTaskIds, [b, c, d]);
+  S().selectTask(a, false);
+  S().selectTask(c, true);
+  S().selectTask(b, false, true);
+  eq('12.17 eerder aangeklikte taken buiten het bereik blijven vooraan', S().selectedTaskIds, [a, b, c]);
 }
 
 // Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.

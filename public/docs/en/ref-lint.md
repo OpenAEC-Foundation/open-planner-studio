@@ -49,7 +49,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 - **Task** — adds a task named *New task*, with a duration of 5 working days, starting on the project start. (If you chose *Hour measure* under *Default measure for new tasks* in *Project settings*, the duration is 5 hours. In the P6 and MSP profiles it is 5 working days in hours.) If a task is selected and the view is the plain tree, it lands directly below the lowest selected task (tooltip *New task directly below the selection*). With no selection it goes at the bottom (tooltip *New task at the bottom of the list*). With a selection but while filtering, grouping or sorting, it also goes at the bottom. A red notification then says that the app cannot place it below your selection, with the *Clear* button. The new task becomes the only selection, the Gantt jumps to it and its name is ready to overwrite in the *Properties* panel.
 - **Milestone ▾** — a drop-down that puts a milestone (duration 0) in the same place as *Task*. *Start milestone* and *Finish milestone* set the kind of milestone; the new milestone is named *New milestone* and gets work category *Other*. *Inspection point (mandatory)* makes a finish milestone with work category *Inspection* and the flag *Mandatory (contractual)*, named *New inspection point*.
-- **Link ▾** — a drop-down with four fixed actions; the main button never changes meaning. See *Planning › Relations* for the four actions.
+- **Link ▾** — a drop-down with fixed actions; the main button never changes meaning. See *Planning › Relations* for the actions.
 - **Split task** — turns split mode on or off. On: a strip under the ribbon explains that you click on a bar where the break starts and drag right for its length. Disabled when the Gantt is not in view (on the *Table*, *IFC* and *Report* tabs and under the full resource panel); the tooltip then says *Only available when the Gantt chart is visible*. See [Splitting a task](docs://howto-taak-splitsen).
 
 ### Home › Schedule
@@ -72,10 +72,11 @@ The *Calculate* button is the same as on *Home*.
 
 ### Planning › Relations
 
-The group has the *Link ▾* button with four actions and the *Split task* button (same as on *Home*). The four actions:
+The group has the *Link ▾* button and the *Split task* button (same as on *Home*). The actions of *Link ▾*:
 
 - **Draw relation** — turns link mode on or off; a check mark appears when it is on, and the main button lights up. On: you drag from one bar to another in the Gantt to create a relation, and a strip under the ribbon says how to stop (*Stop* or Esc). Disabled when the Gantt is not in view.
-- **Link selected tasks** — creates a Finish-Start relation without lag between two tasks; the one selected first becomes the predecessor. Only available with exactly two tasks selected (otherwise *Select exactly two tasks*). A duplicate relation or a cycle is refused with a message.
+- **Link selected tasks** — creates a Finish-Start relation without lag between each selected task and the next, in the order of selection; the one selected first becomes the predecessor of the second, and so on. Shortcut Ctrl+F2. Only available with at least two tasks selected (otherwise *Select at least two tasks*). A duplicate relation or a cycle is refused with a message; the other relations are still added.
+- **Assign predecessors…** and **Assign successors…** — open the *Dependencies* block in the *Properties* panel with a search field to choose other tasks, with type and lag; the direction is already set. Only available with exactly one task selected (otherwise *Select exactly one task*).
 - **Add external relation…** — opens a window to add an external predecessor or successor to the selected task. Only available with exactly one task selected (otherwise *Select exactly one task*).
 - **Refresh all external relations** — refreshes the anchors of all external relations and reports in the menu how many were updated or are missing. Only available when the project has external relations (otherwise *This project has no external relations*).
 

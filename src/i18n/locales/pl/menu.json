@@ -203,7 +203,6 @@
     "ganttOnlyHint": "Dostępne tylko wtedy, gdy wykres Gantta jest widoczny",
     "relationLinkSelected": "Połącz zaznaczone zadania",
     "relationLinkSelectedHint": "Pierwsze zaznaczenie będzie poprzednikiem, a drugie następnikiem (FS, opóźnienie 0)",
-    "relationSelectExactlyTwo": "Zaznacz dokładnie dwa zadania",
     "relationAddExternal": "Dodaj relację zewnętrzną…",
     "relationAddExternalHint": "Dodaj zewnętrznego poprzednika lub następnika do zaznaczonego zadania",
     "relationSelectOne": "Zaznacz dokładnie jedno zadanie",

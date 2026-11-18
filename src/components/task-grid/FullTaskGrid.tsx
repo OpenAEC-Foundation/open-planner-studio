@@ -57,6 +57,7 @@ import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { COLUMNS_RIBBON_TOGGLE_SELECTOR } from './ColumnChooser';
 import { withTransaction } from '@/state/batchTransaction';
+import { requestRelationAssign } from '@/state/relationActions';
 import {
   appendGhostRow,
   GHOST_ROW_KEY,
@@ -1385,6 +1386,9 @@ export function TaskGridSurface({
             if (!contextMenu.task) return;
             selectTask(contextMenu.task.id, false);
             setUI({ showDependencyMode: true });
+          }}
+          onAssignRelation={direction => {
+            if (contextMenu.task) requestRelationAssign(contextMenu.task.id, direction);
           }}
           onSaveTemplate={() => {
             if (!contextMenu.task) return;

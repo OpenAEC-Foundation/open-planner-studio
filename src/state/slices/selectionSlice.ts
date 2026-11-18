@@ -116,9 +116,11 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
           const start = Math.min(fromIdx, toIdx);
           const end = Math.max(fromIdx, toIdx);
           const rangeIds = flatIds.slice(start, end + 1);
-          // Merge with existing selection (union)
-          const merged = new Set([...s.selectedTaskIds, ...rangeIds]);
-          s.selectedTaskIds = Array.from(merged);
+          // Vereniging met de bestaande selectie, het bereik in de volgorde van de lijst — ook als
+          // je naar boven selecteert, net als Shift in de takenlijst. De volgorde telt: koppelen
+          // als keten (issue #1000) volgt haar. Eerder aangeklikte taken buiten het bereik blijven vooraan.
+          const inRange = new Set(rangeIds);
+          s.selectedTaskIds = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
         } else {
           s.selectedTaskIds = [id];
         }

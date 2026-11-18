@@ -130,6 +130,7 @@ export function createDefaultUI(): UIState {
     showNewProjectDialog: false,
     showNewOrOpenProjectDialog: false,
     pendingTaskNameFocusId: null,
+    pendingRelationAssign: null,
     showFeedbackDialog: false,
     feedbackEmail: '',
     feedbackDraft: null,
