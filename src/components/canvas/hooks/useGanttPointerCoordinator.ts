@@ -558,6 +558,12 @@ export function useGanttPointerCoordinator(
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
+  const { startDepDraw } = dependencyDraw;
+  const closeForDocumentSwitch = useCallback(() => {
+    setContextMenu(null);
+    setRelationPopover(null);
+    startDepDraw(null);
+  }, [startDepDraw]);
 
   const cursor = pan.panState
       ? 'grabbing'
@@ -595,5 +601,6 @@ export function useGanttPointerCoordinator(
     tooltip: tooltip && tooltipTask ? { ...tooltip, task: tooltipTask, group: tooltipGroup } : null,
     closeContextMenu,
     closeRelationPopover,
+    closeForDocumentSwitch,
   };
 }

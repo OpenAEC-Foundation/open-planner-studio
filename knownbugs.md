@@ -1116,6 +1116,16 @@ en noem het in je rapport of PR-tekst.
       bij nul of één gekozen taak en met het menu dicht; `chainOrder` maakt per rij een tijdelijke array.
       Eén doorloop, alleen bij twee of meer gekozen taken, volstaat. Het effect op scrollen is niet gemeten.
       Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+1878. **VERVOLG (#1004): in de 26 andere talen belooft de lintuitleg nog de klikvolgorde.** #1004 maakt de
+      keten de volgorde op het scherm en past `menu:ribbon.relationLinkSelectedHint` en de Help aan in nl en
+      en. De andere talen houden de oude tekst ("de eerst gekozen taak wordt voorganger") tot de
+      vertaalstraat ze bijwerkt; de bronhash staat al op verouderd. Een nieuwe sleutel zou tot dan op de
+      Engelse tekst terugvallen. Gezien in het Duits. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 10,
+      BEVESTIGD, VERVOLG). — B
+1879. **Een balksleep of splitsgebaar in de tijdlijn over een documentwissel heen (Ctrl+1).** #1004 sluit bij
+      een wissel het menu en de relatiepopover en breekt een relatiesleep af, omdat die taak-id's vasthouden
+      en een variant dezelfde id's draagt. Een lopende balksleep of splitsgebaar houdt ook een taak-id vast;
+      of loslaten na de wissel de taak in het andere document verplaatst, is niet nagegaan. — S
 
 ## Kalenders
 

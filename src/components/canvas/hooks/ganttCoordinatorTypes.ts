@@ -276,4 +276,7 @@ export interface GanttPointerCoordinatorOutput {
   tooltip: GanttTooltipState | null;
   closeContextMenu: () => void;
   closeRelationPopover: () => void;
+  /** Sluit menu en relatiepopover en breekt een relatiesleep af: ze houden taak-id's vast, en een
+   *  variant draagt dezelfde id's. Na een documentwissel landde hun actie anders in het andere document. */
+  closeForDocumentSwitch: () => void;
 }

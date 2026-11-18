@@ -425,6 +425,46 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect(assignSuccessors).toBeVisible();
   await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), copy);
   await expect(assignSuccessors).toHaveCount(0);
+
+  // Net zo een lopende relatiesleep en een open relatiepopover (ronde 10): na de wissel legt loslaten of
+  // Enter niets vast, in geen van beide documenten. Beide documenten krijgen dezelfde weergave, zodat
+  // dezelfde schermplek in beide op dezelfde balk valt.
+  await page.evaluate(([src, cp]) => {
+    const s = () => window.__OPS__!.store.getState();
+    for (const id of [src, cp]) {
+      s().switchDocument(id);
+      s().setUI({ showPropertiesPanel: false });
+      s().setZoom(10);
+      s().setScroll(0, 0);
+    }
+  }, [source, copy]);
+  const relationCounts = () => page.evaluate(() => window.__OPS__!.store.getState().getOpenDocumentPayloads()
+    .map(doc => doc.payload.sequences.length));
+  const countsBefore = await relationCounts();
+  const from = await barPoint(page, grondwerk);
+  const to = await barPoint(page, ruwbouw);
+  const popover = page.locator('[data-ops-relation-popover]');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 3 });
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  await page.mouse.move(to.x, to.y, { steps: 3 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.waitForTimeout(300);
+  await expect(popover).toHaveCount(0);
+  await page.keyboard.down('Shift');
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect(popover).toBeVisible();
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), copy);
+  await expect(popover).toHaveCount(0);
+  await page.keyboard.press('Enter');
+  expect(await relationCounts()).toEqual(countsBefore);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben
