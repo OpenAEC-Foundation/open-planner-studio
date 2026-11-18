@@ -3,7 +3,7 @@ import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteMode
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
-import { progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
+import { carryLiveProgressPlan, liveProgressPlannedStarts, progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -897,10 +897,10 @@ function commitProgressEdit(
   // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
-  const plannedStart = progressPlannedStarts(originalAppState(s) ?? s);
+  const base = originalAppState(s);
   const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
     calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
-    plannedStart: ctx.plannedStart ?? (() => plannedStart(task)) });
+    plannedStart: ctx.plannedStart ?? (() => base ? liveProgressPlannedStarts(base)(task) : progressPlannedStarts(s)(task)) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
@@ -1027,6 +1027,22 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     pendingPhaseChoice = onChoice;
     recheckPhaseQuestion = recheck;
     set((s) => { s.ui.pendingPhaseAssignmentQuestion = question; });
+  };
+
+  const writeProgress = (
+    taskId: string, edit: ProgressEdit, ctx: Omit<ProgressEntryContext, 'statusDate'>,
+    opts?: { coalesceKey?: string },
+  ): ProgressEntryResult => {
+    const before = get();
+    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
+    set(s => { result = commitProgressEdit(runtime, s, taskId, edit, ctx, opts); });
+    if (!result.ok) return result;
+    get().recomputeViewRows();
+    if (result.statusDateToday) {
+      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
+    }
+    carryLiveProgressPlan(before, get(), taskId);
+    return { ok: true };
   };
 
   return {
@@ -1742,47 +1758,17 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     return newRootId;
   },
 
-  setTaskProgress: (taskId, raw, opts) => {
-    let accepted = true;
-    // % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
-    // onder 100% ⇒ actualFinish vervalt. Dezelfde regel als de concept in "Taak bewerken"
-    // (`draftWithProgress`). Verzameltaak (alleen-lezen), snapshot, nivelleergaten, stale, de
-    // no-op-regel en de werknazorg: zie `commitProgressEdit`.
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'completion', value: raw }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setTaskProgress: (taskId, raw, opts) =>
+    writeProgress(taskId, { field: 'completion', value: raw }, {}, opts).ok,
 
-  setActualStart: (taskId, date, opts) => {
-    let accepted = true;
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualStart', value: date }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setActualStart: (taskId, date, opts) =>
+    writeProgress(taskId, { field: 'actualStart', value: date }, {}, opts).ok,
 
-  setActualFinish: (taskId, date, opts) => {
-    let accepted = true;
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualFinish', value: date }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setActualFinish: (taskId, date, opts) =>
+    writeProgress(taskId, { field: 'actualFinish', value: date }, {}, opts).ok,
 
-  enterTaskProgress: (taskId, edit, opts) => {
-    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
-    set((s) => {
-      result = commitProgressEdit(
-        runtime, s, taskId, edit,
-        { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart },
-        { coalesceKey: opts.coalesceKey },
-      );
-    });
-    get().recomputeViewRows();
-    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
-    if (result.ok && result.statusDateToday) {
-      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
-    }
-    return result.ok ? { ok: true } : result;
-  },
+  enterTaskProgress: (taskId, edit, opts) =>
+    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart }, opts),
 
   previewProgressImport: (rows, overrides, opts) => {
     const s = get();
