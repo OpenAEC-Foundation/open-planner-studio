@@ -1,5 +1,6 @@
-// #804, knownbug 1131 stap 5 (deel a): het eigen bestand met een gebouwmodel op de desktop vervangen (ontwerp §4.10,
-// stappen 0 tot en met 6) en het afhandelen van restbestanden na een crash of fout. Op echte bestanden in een tijdelijke
+// #804, knownbug 1131 stap 5: het eigen bestand met een gebouwmodel op de desktop vervangen (ontwerp §4.10,
+// stappen 0 tot en met 6) en het afhandelen van restbestanden na een crash of fout (deel a), en Ctrl+S en *Opslaan* in
+// de sluitvraag op die vervanging, vanaf de productie-ingang (deel b, onderaan). Op echte bestanden in een tijdelijke
 // map, met de echte plugin-fs-client en het nagebootste `place_file_exclusive` (`nodeFileIpc.ts`); het herstelmanifest
 // en het herstelrecord van de vervanging staan als echte bestanden in een eigen app-datamap. Elke proef na een crash of
 // fout leest het record en het manifest opnieuw van schijf, ook na een volgende ronde; niets komt uit een eerder
@@ -44,6 +45,10 @@ import { ownRecoveryNames, recoveryNames } from '@/services/recovery/recoveryPat
 import { flushRecoveryNow, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
+import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
+import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
+import { castDraft } from 'immer';
+import { mergeProblems } from './ifcMergeKern';
 
 await i18next.init({ lng: 'nl', fallbackLng: 'en', resources: { nl: { common: nlCommon }, en: { common: enCommon } } });
 await loadStore();
@@ -917,15 +922,228 @@ await check('een lopende vervanging van deze sessie blijft buiten het afhandelen
   } finally { await tidy(c); }
 });
 
-await check('Ctrl+S op het eigen pad weigert in deze stap nog zoals voorheen', async () => {
+// ── Deel b: Ctrl+S en *Opslaan* in de sluitvraag, vanaf de productie-ingang ──────────────────────────────────────
+// De store-actie achter Ctrl+S (`saveFile`) en de handler van de sluitvraag (`createCloseDocumentDialogActions` met
+// `saveFileForDocument`, zoals `CloseDocumentDialog`), niet de losse functie.
+
+const errorKeys = (c: Case) => c.store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+const clearNotices = (c: Case) => c.store.setState(s => { s.ui.notifications = []; });
+/** Elke `write_file` in de projectmap sinds `from`: de vervanging schrijft er precies één (haar eigen tijdelijke
+ *  bestand); de gewone schrijfroutine voor een nieuwe naam schreef er nog één. */
+const projectWriteFiles = (c: Case, from: number) => ipc.calls.slice(from)
+  .filter(call => call.command === 'plugin:fs|write_file' && call.path?.startsWith(c.dir));
+const placesSince = (from: number) => ipc.calls.slice(from).filter(call => call.command === 'place_file_exclusive');
+const renameTask = (c: Case, name: string) => {
+  const task = c.store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+  c.store.getState().updateTask(task.id, { name });
+};
+const latin1 = (path: string) => readFileSync(path).toString('latin1');
+/** *Opslaan* in de sluitvraag van een tabblad (of van de app: dezelfde dialoog). `true` = het tabblad ging dicht. */
+async function closeQuestionSave(c: Case): Promise<boolean> {
+  let closed = false;
+  await createCloseDocumentDialogActions({
+    pendingId: c.id, getActiveDocumentId: () => c.store.getState().activeDocumentId,
+    switchDocument: c.store.getState().switchDocument,
+    closeDocument: async id => { await c.store.getState().closeDocumentAfterSaves(id); closed = true; },
+    saveFile: () => c.store.getState().saveFileForDocument(c.id),
+    clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+  }).save();
+  return closed;
+}
+const isOpen = (c: Case) => c.store.getState().getOpenDocumentPayloads().some(d => d.id === c.id);
+
+await check('Ctrl+S op het eigen pad: de nieuwe uitvoer op het doel, het model bytegelijk, niets achtergebleven; een tweede Ctrl+S slaagt weer', async () => {
   const c = await opened();
   try {
-    assert.equal(await c.store.getState().saveFileForDocument(c.id), false);
-    assert(c.store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignReplaceBlocked'));
-    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) });
+    for (const round of ['eerste', 'tweede'] as const) {
+      if (round === 'tweede') renameTask(c, 'Tweede Ctrl+S');
+      clearNotices(c);
+      const before = fileHash(c, 'model.ifc'), from = ipc.calls.length;
+      await c.store.getState().saveFile();
+      const output = new Uint8Array(readFileSync(c.path)), s = c.store.getState();
+      assert.deepEqual(errorKeys(c), [], `${round}: geen melding`);
+      assert.notEqual(hash(output), before, `${round}: het bestand is vervangen`);
+      assert.deepEqual(mergeProblems(bytes, output), [], `${round}: het gebouwmodel bytegelijk behouden`);
+      assert.equal(s.isDirty, false, `${round}: niet meer gewijzigd`);
+      assert.equal(s.ifcSource!.sha256, hash(output), `${round}: de bron in het geheugen is de geschreven versie`);
+      assert.deepEqual(s.ifcSource!.bytes, output);
+      assert.deepEqual(files(c), ['model.ifc'], `${round}: geen hulpbestand`);
+      assert.deepEqual(recordsOnDisk(), [], `${round}: geen record`);
+      assert.equal(projectWriteFiles(c, from).length, 1, `${round}: één schrijfactie, in het eigen tijdelijke bestand`);
+      assert.equal(placesSince(from).length, 2, `${round}: stap 3 en 4`);
+      const after = (await loadRecovery()).docs.find(d => d.id === c.id)?.ifcSource;
+      assert.deepEqual([after?.sha256, after?.pendingSha256], [hash(output), undefined], `${round}: het manifest kent de nieuwe bron`);
+    }
+    assert(latin1(c.path).includes('Tweede Ctrl+S'), 'de tweede bewerking staat in het bestand');
+  } finally { await tidy(c); }
+});
+
+await check('bewerken tijdens de opslag: het bestand heeft de momentopname, het document blijft gewijzigd; Opslaan in de sluitvraag sluit niet', async () => {
+  const c = await opened();
+  try {
+    clearNotices(c);
+    const source = c.store.getState().ifcSource;
+    placeCalls({ 2: () => { renameTask(c, 'Tijdens het opslaan'); return undefined; } });
+    assert.equal(await closeQuestionSave(c), false, 'het tabblad blijft open');
+    const s = c.store.getState(), output = new Uint8Array(readFileSync(c.path));
+    assert(isOpen(c));
+    assert.notEqual(hash(output), hash(bytes), 'de momentopname is geschreven');
+    assert.equal(latin1(c.path).includes('Tijdens het opslaan'), false, 'zonder de bewerking van tijdens de opslag');
+    assert.equal(s.isDirty, true, 'het document blijft gewijzigd');
+    assert.notEqual(s.ifcSource, source);
+    assert.equal(s.ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+    assert.deepEqual(errorKeys(c), []);
+    assert.deepEqual(files(c), ['model.ifc']);
+    assert.deepEqual(recordsOnDisk(), []);
+    // De volgende Ctrl+S bouwt op die bron en schrijft de bewerking.
+    ipc.faults.place = null;
+    await c.store.getState().saveFile();
+    assert.deepEqual([c.store.getState().isDirty, latin1(c.path).includes('Tijdens het opslaan')], [false, true]);
+  } finally { await tidy(c); }
+});
+
+await check('een ander programma wijzigde het bestand vóór Ctrl+S: niets vervangen, de melding, geen terugval', async () => {
+  const c = await opened();
+  try {
+    writeFileSync(c.path, otherProgram);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await c.store.getState().saveFile();
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetChanged']);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(otherProgram) }, 'de versie van het andere programma staat er nog');
+    assert.equal(c.store.getState().isDirty, true);
+    assert.equal(c.store.getState().ifcSource, source, 'de bron is niet vervangen');
+    assert.deepEqual(recordsOnDisk(), []);
+    assert.equal(projectWriteFiles(c, from).length, 1, 'alleen het eigen tijdelijke bestand: de gewone schrijfroutine liep niet');
+    assert.deepEqual(placesSince(from), [], 'niets geplaatst');
+  } finally { await tidy(c); }
+});
+
+for (const [label, prepare, notice, writes, places, remains] of [
+  ['stap 3 target-exists', () => placeCalls({ 1: () => reject('target-exists') }), 'notifications.ifcForeignReplaceFailed', 1, 1, false],
+  ['stap 3 source-changed (unknown)', () => placeCalls({ 1: () => reject('source-changed') }), 'notifications.ifcForeignPlaceUnknown', 1, 1, true],
+  ['stap 3 refused/hard-linked', () => placeCalls({ 1: () => reject('refused', { reason: 'hard-linked' }) }), 'notifications.ifcForeignReplaceSaveAsOnly', 1, 1, false],
+  ['not-recorded', (c: Case) => { c.unregister(); }, 'notifications.ifcForeignReplaceNotRecorded', 0, 0, false],
+] as const) {
+  for (const entry of ['Ctrl+S', 'sluitvraag'] as const) {
+    await check(`${entry}, ${label}: de opslag stopt met haar melding, zonder terugval; het bestand van de planner staat er nog`, async () => {
+      const c = await opened();
+      try {
+        clearNotices(c);
+        (prepare as (c: Case) => void)(c);
+        const source = c.store.getState().ifcSource, from = ipc.calls.length;
+        if (entry === 'Ctrl+S') await c.store.getState().saveFile();
+        else assert.equal(await closeQuestionSave(c), false, 'het tabblad blijft open');
+        assert(isOpen(c));
+        assert.deepEqual(errorKeys(c), [notice]);
+        assert.equal(fileHash(c, 'model.ifc'), hash(bytes), 'het bestand van de planner is ongewijzigd');
+        assert.equal(c.store.getState().isDirty, true);
+        assert.equal(c.store.getState().ifcSource, source);
+        assert.equal(projectWriteFiles(c, from).length, writes, 'geen terugval op de gewone schrijfroutine');
+        assert.equal(placesSince(from).length, places);
+        assert.equal(recordsOnDisk().length, remains ? 1 : 0, remains ? 'het record blijft (onbekende stand)' : 'geen record');
+      } finally { await tidy(c); }
+    });
+  }
+}
+
+await check('Opslaan in de sluitvraag: na een geslaagde vervanging gaat het tabblad dicht', async () => {
+  const c = await opened();
+  try {
+    clearNotices(c);
+    assert.equal(await closeQuestionSave(c), true);
+    assert.equal(isOpen(c), false);
+    const output = new Uint8Array(readFileSync(c.path));
+    assert.notEqual(hash(output), hash(bytes));
+    assert.deepEqual(mergeProblems(bytes, output), []);
+    assert.deepEqual(errorKeys(c), []);
+    assert.deepEqual(files(c), ['model.ifc']);
     assert.deepEqual(recordsOnDisk(), []);
   } finally { await tidy(c); }
 });
+
+for (const change of ['document gesloten', 'ander doel', 'andere bron'] as const) {
+  await check(`na de eerste herstelronde: ${change}; niets geschreven in de projectmap`, async () => {
+    const c = await opened();
+    c.unregister();
+    const tracker = new RecoveryDeltaTracker();
+    let armed = true;
+    const unregister = registerRecoveryFlush(async () => {
+      const s = c.store.getState();
+      await runRecoveryTick(tracker, s.activeDocumentId,
+        s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)));
+      // De eerste ronde binnen de vervanging: `pendingSha256` staat nu in het manifest.
+      if (!armed || !hasPendingIfcSource()) return;
+      armed = false;
+      if (change === 'document gesloten') c.store.getState().closeDocument(c.id);
+      else if (change === 'ander doel') c.store.setState(st => { st.filePath = join(c.dir, 'ander.ifc'); });
+      else {
+        const copy = { ...c.store.getState().ifcSource! };
+        c.store.setState(st => { st.ifcSource = castDraft(copy); });
+      }
+    });
+    try {
+      clearNotices(c);
+      const from = ipc.calls.length;
+      assert.equal(await c.store.getState().saveFileForDocument(c.id), false);
+      assert.equal(armed, false, 'de wijziging gebeurde in de eerste ronde');
+      assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote && call.path?.startsWith(c.dir)), [], 'geen schrijfactie in de projectmap');
+      assert.deepEqual(placesSince(from), []);
+      assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) });
+      assert.deepEqual(recordsOnDisk(), []);
+      assert.deepEqual(errorKeys(c), ['notifications.ifcSaveChangedWhileWaiting']);
+    } finally { unregister(); await tidy(c); }
+  });
+}
+
+// Met de flag uit, en voor een document zonder gebouwmodel, loopt Ctrl+S zoals op main. De reeks aanroepen aan de
+// bestandsrand is vastgelegd op main (`cef70233b`), met dezelfde proef. Met de flag uit opent de app geen bestand met
+// een gebouwmodel; zo'n document bestaat dan alleen als de flag na het openen uitging.
+await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering als main, geen aanroep aan de bestandsrand', async () => {
+  const c = await opened();
+  try {
+    c.store.setState(s => { s.ui.featureFlags = {}; });
+    clearNotices(c);
+    const from = ipc.calls.length;
+    await c.store.getState().saveFile();
+    assert.deepEqual(ipc.calls.slice(from).map(call => call.command), [], 'zoals main: niets aan de bestandsrand');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignSaveBlocked']);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) });
+    assert.equal(c.store.getState().isDirty, true);
+  } finally { await tidy(c); }
+});
+
+const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+const MAIN_CALLS: Record<'aan' | 'uit', string[]> = {
+  // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
+  aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
+    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/model.ifc',
+    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  uit: ['plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+};
+for (const flag of [true, false]) {
+  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde route en dezelfde aanroepen aan de bestandsrand als main`, async () => {
+    const dir = join(work, `geval-${++cases}`);
+    mkdirSync(dir);
+    const path = join(dir, 'model.ifc');
+    writeFileSync(path, plain);
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
+    await store.getState().openOpenedFile({ name: 'model.ifc', content: Buffer.from(plain).toString('utf8'), bytes: plain, ref: { kind: 'path', path } });
+    assert.equal(store.getState().filePath, path);
+    assert.equal(!!store.getState().ifcSource?.foreign, false, 'geen vreemd deel');
+    const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    store.getState().updateTask(task.id, { name: 'Gewone opslag' });
+    store.setState(s => { s.ui.notifications = []; });
+    const from = ipc.calls.length;
+    await store.getState().saveFile();
+    const seen = ipc.calls.slice(from).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
+    assert.deepEqual(seen, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+    assert.equal(store.getState().isDirty, false);
+    assert(readFileSync(path).toString('latin1').includes('Gewone opslag'));
+  });
+}
 
 ipc.dispose();
 rmSync(work, { recursive: true, force: true });

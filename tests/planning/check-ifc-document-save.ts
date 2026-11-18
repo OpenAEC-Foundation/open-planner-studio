@@ -59,8 +59,8 @@ function tookTempRoute(calls: readonly { command: string; path?: string; options
     'de hele buffer in het eigen tijdelijke bestand, niet in het doel');
   assert.deepEqual(calls.filter(c => c.command === 'place_file_exclusive').map(c => c.path), [target], 'één plaatsing op het doel');
 }
-function desktop() {
-  const ipc = installNodeFileIpc();
+function desktop(appDataDir?: string) {
+  const ipc = installNodeFileIpc(appDataDir === undefined ? {} : { appDataDir });
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null, picks = 0;
@@ -140,32 +140,41 @@ function assertNotice(store: Store, key: string) {
 }
 const clearNotices = (store: Store) => store.setState(s => { s.ui.notifications = []; });
 
-await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam, nul bytes', async () => {
-  const ipc = desktop();
+// Knownbug 1131 stap 5b: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand, en het origineel.
+// De vervanging zelf is uitgebreid beproefd in `check-ifc-own-file-replace.ts`; hier de keten vanaf de productie-ingang.
+await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam worden vervangen, het model bytegelijk', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData);
   try {
     const original = join(dir, 'origineel.ifc'); writeFileSync(original, bytes);
     const store = await openAt({ kind: 'path', path: original });
-    for (const step of [0, 1]) {
-      if (step === 1) { ipc.choose(join(dir, 'voor-ctrl-s.ifc')); await store.getState().saveFileAs(); }
-      longer(store); clearNotices(store);
-      const before = preserved(store), oldBytes = hash(new Uint8Array(readFileSync(before.path!))), calls = ipc.calls.length;
-      assert.equal(await store.getState().saveFileForDocument(store.getState().activeDocumentId), false);
-      unchanged(store, before);
-      assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
-      assert.equal(hash(new Uint8Array(readFileSync(before.path!))), oldBytes);
-      assert.equal(ipc.calls.slice(calls).some(c => c.options?.write || byteWrite(c)), false,
-        'de doelcontrole stopt vóór iedere schrijfpoging');
-      clearNotices(store);
-      let closed = false;
-      await createCloseDocumentDialogActions({
-        pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
-        switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
-        saveFile: () => store.getState().saveFileForDocument(store.getState().activeDocumentId),
-        clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
-      }).save();
-      assert.equal(closed, false); unchanged(store, before);
-    }
-  } finally { ipc.dispose(); }
+    const unregister = recoveryRounds(store);
+    try {
+      for (const step of [0, 1]) {
+        if (step === 1) { ipc.choose(join(dir, 'voor-ctrl-s.ifc')); await store.getState().saveFileAs(); }
+        const id = store.getState().activeDocumentId, path = store.getState().filePath!;
+        longer(store); clearNotices(store);
+        assert.equal(await store.getState().saveFileForDocument(id), true);
+        const output = new Uint8Array(readFileSync(path));
+        assert.deepEqual(mergeProblems(bytes, output), [], 'het gebouwmodel bytegelijk');
+        assert.equal(store.getState().ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+        assert.deepEqual([store.getState().isDirty, store.getState().filePath], [false, path]);
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+        assert.deepEqual(tempLeft(), [], 'geen hulpbestand');
+        longer(store);
+        let closed = false;
+        await createCloseDocumentDialogActions({
+          pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+          switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+          saveFile: () => store.getState().saveFileForDocument(id),
+          clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+        }).save();
+        assert.equal(closed, true, 'Opslaan in de sluitvraag sluit na een geslaagde vervanging');
+        assert.equal(hash(new Uint8Array(readFileSync(path))), store.getState().ifcSource!.sha256);
+      }
+      assert.equal(hash(new Uint8Array(readFileSync(original))) !== hash(bytes), true, 'het origineel is ook vervangen');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
 await check('Opslaan als bestaand eigen bestand: de plaatsing weigert, oude bytes intact, dezelfde zin als Exporteren', async () => {
@@ -1105,7 +1114,7 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
   } finally { unregister(); await clearRecovery(); }
 });
 
-await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen handle, nooit voor een pad of een export', async () => {
+await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen handle of het eigen pad, nooit voor een export', async () => {
   const { store, name } = await openHandle(), s = store.getState();
   const deps = { identityFs: async () => undefined, readers: () => ({}) };
   const handle = { kind: 'handle' as const, handle: s.fileHandle! }, own = { documentId: s.activeDocumentId, source: s.ifcSource! };
@@ -1121,9 +1130,19 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
   store.setState(x => { x.ui.featureFlags = { ifcForeignContent: true }; x.foreignSourceMark = { ...x.foreignSourceMark!, sourceMissing: true }; });
   assert.equal(await refusedWriteTarget(store.getState(), handle, deps, own), 'open-source', 'bron ontbreekt');
   const path = join(dir, 'pad-eigen-doel.ifc'); writeFileSync(path, bytes);
-  const onPath = await openAt({ kind: 'path', path }), p = onPath.getState();
-  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, { documentId: p.activeDocumentId, source: p.ifcSource! }),
-    'open-source', 'een pad krijgt de uitzondering niet (stap 5)');
+  const onPath = await openAt({ kind: 'path', path }), p = onPath.getState(), ownPath = { documentId: p.activeDocumentId, source: p.ifcSource! };
+  // Knownbug 1131 stap 5b: het eigen pad op de desktop krijgt de uitzondering; of er nog de bron staat, toetst de vervanging.
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, ownPath), null, 'eigen document, eigen pad');
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps), 'open-source', 'zonder ownVersion (export, Opslaan als) geen uitzondering');
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, { ...ownPath, source: { ...ownPath.source } }), 'open-source', 'een andere bron');
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path: `${path}.ander` }, deps, ownPath), 'unreadable-target',
+    'een ander pad: geen uitzondering (zonder lezer is het doel onleesbaar)');
+  // Een ander open document met hetzelfde bestand als bron.
+  onPath.getState().newDocument();
+  await onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
+  const twice = onPath.getState();
+  assert.equal(await refusedWriteTarget(twice, { kind: 'path', path }, deps, { documentId: twice.activeDocumentId, source: twice.ifcSource! }),
+    'open-source', 'een ander open document met dit bestand als bron blijft geweigerd');
 });
 
 for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`handle ${cause}: Ctrl+S weigert zoals nu, nul bytes`, async () => {

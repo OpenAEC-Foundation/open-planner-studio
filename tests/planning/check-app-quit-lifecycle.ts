@@ -44,6 +44,10 @@ let nextCallback = 0;
 const edge = {
   install: { entered: deferred(), release: deferred(), started: false, fails: true },
   clear: { hold: false, entered: deferred(), release: deferred() },
+  /** Het wissen van het herstelrecord van een vervanging (de laatste stap van Ctrl+S op een bestand met een model). */
+  record: { hold: false, entered: deferred(), release: deferred() },
+  /** Vlak vóór elke `place_file_exclusive`, met het doel. */
+  place: null as ((to: string) => void) | null,
   destroyFails: false,
   destroys: [] as Array<{ dirty: boolean; recoveryFiles: number }>,
 };
@@ -84,11 +88,22 @@ Object.assign(win.__TAURI_INTERNALS__, {
       }));
       case 'plugin:fs|read_text_file': return readFileSync(args.path as string);
       case 'plugin:fs|remove':
+        if (/\.replace\.[0-9a-z]+\.json$/.test(String(args.path))) {
+          if (edge.record.hold) {
+            edge.record.hold = false;
+            edge.record.entered.resolve();
+            await edge.record.release.promise;
+          }
+          return nativeInvoke(command, args, options);
+        }
         if (edge.clear.hold) {
           edge.clear.hold = false;
           edge.clear.entered.resolve();
           await edge.clear.release.promise;
         }
+        return nativeInvoke(command, args, options);
+      case 'place_file_exclusive':
+        edge.place?.(String(args.to));
         return nativeInvoke(command, args, options);
       case 'plugin:dialog|save': throw new Error('De proef heeft al een schrijfdoel');
       default: return nativeInvoke(command, args, options);
@@ -221,6 +236,8 @@ const closeQuestion = (id: string) => createCloseDocumentDialogActions({
 const resetEdge = () => {
   edge.install = { entered: deferred(), release: deferred(), started: false, fails: true };
   edge.clear = { hold: false, entered: deferred(), release: deferred() };
+  edge.record = { hold: false, entered: deferred(), release: deferred() };
+  edge.place = null;
   edge.destroyFails = false;
   edge.destroys.length = 0;
 };
@@ -238,6 +255,8 @@ async function check(name: string, action: () => Promise<void>) {
   finally {
     edge.install.release.resolve();
     edge.clear.release.resolve();
+    edge.record.release.resolve();
+    useAppStore.setState((st) => { st.ui.featureFlags = {}; });
     state().setUI({ showBaselineDialog: false, showUpdateDialog: false, pendingCloseDocId: null });
     await until(() => false, 20);
     unmount();
@@ -362,6 +381,96 @@ await check('na een geweigerde destroy werkt het hervatte crashherstel weer (kno
   assert.deepEqual(docs.map((d) => d.id).sort(), [one.id, two].sort(), 'een volledige herstelronde');
   assert.ok(docs.find((d) => d.id === two)!.ifc.includes('Bewerking na het geweigerde sluiten'));
 });
+
+// #804, knownbug 1131 stap 5b: Ctrl+S en *Opslaan* in de sluitvraag op het eigen bestand met een gebouwmodel.
+const modelFile = new Uint8Array(readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+const recordFiles = () => readdirSync(appDataDir).filter((name) => /\.replace\.[0-9a-z]+\.json$/.test(name));
+const errorKeys = () => state().ui.notifications.filter((n) => n.severity === 'error').map((n) => n.messageKey);
+const renameTask = (name: string) => {
+  const task = state().tasks.find((t) => !t.childIds.length && !t.isMilestone)!;
+  state().updateTask(task.id, { name });
+};
+/** Eén document met een gebouwmodel uit een eigen bestand (flag aan), met een bewerking; de rest gaat dicht. */
+const foreignDocument = async () => {
+  useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
+  const empty = state().newDocument();
+  for (const other of state().getOpenDocumentPayloads().map((d) => d.id)) if (other !== empty) state().closeDocument(other);
+  const target = join(dir, `model-${++fileNumber}.ifc`);
+  writeFileSync(target, modelFile);
+  await state().openOpenedFile({ name: 'model.ifc', content: '', bytes: modelFile, ref: { kind: 'path', path: target } });
+  assert.ok(state().ifcSource?.foreign, 'geopend met een gebouwmodel');
+  assert.equal(state().filePath, target);
+  renameTask('Een bewerking in het model');
+  state().setUI({ pendingCloseDocId: null });
+  useAppStore.setState((st) => { st.ui.notifications = []; });
+  await flushRecoveryNow();
+  return { id: state().activeDocumentId, target };
+};
+
+await check('gebouwmodel: afsluiten wacht op een lopende vervanging tot ook het record weg is; Ctrl+S in de laatste fase weigert stil; Opslaan in de sluitvraag vervangt en sluit', async () => {
+  const { id, target } = await foreignDocument();
+  const before = fileHash(target);
+  edge.record.hold = true;
+  const saving = state().saveFileForDocument(id);
+  await Promise.race([edge.record.entered.promise, saving.then((ok) => {
+    throw new Error(`de opslag eindigde (${ok}) zonder een herstelrecord te wissen`);
+  })]);
+  assert.notEqual(fileHash(target), before, 'het bestand is al vervangen');
+  assert.equal(recordFiles().length, 1, 'alleen het wissen van het record loopt nog');
+  await nativeClose();
+  await until(() => false, 40);
+  assert.deepEqual([edge.destroys.length, state().ui.pendingCloseDocId, state().ui.appQuitPending], [0, null, true],
+    'het afsluiten wacht, zonder sluitvraag');
+  edge.clear.hold = true;
+  edge.record.release.resolve();
+  assert.equal(await saving, true, 'de vervanging is geslaagd');
+  assert.deepEqual(recordFiles(), [], 'het record is weg');
+  await edge.clear.entered.promise;
+  assert.equal(state().ui.appClosing, true, 'de laatste fase');
+  // Een bewerking en Ctrl+S in de laatste fase: geweigerd, zonder melding van een mislukte opslag.
+  const saved = fileHash(target);
+  renameTask('Bewerking in de laatste fase');
+  const from = ipc.calls.length;
+  assert.equal(await state().saveFileForDocument(id), false);
+  assert.deepEqual(errorKeys(), [], 'geen melding');
+  assert.deepEqual(ipc.calls.slice(from).filter((call) => call.wrote || call.command === 'place_file_exclusive'), [], 'niets geschreven');
+  assert.deepEqual([fileHash(target), recordFiles().length], [saved, 0]);
+  edge.clear.release.resolve();
+  // Het vangnet: met een gewijzigd document gaat het venster niet dicht; de gewone sluitvraag volgt.
+  await until(() => state().ui.pendingCloseDocId !== null, 400);
+  assert.equal(state().ui.pendingCloseDocId, id);
+  assert.deepEqual(edge.destroys.filter((d) => d.dirty), []);
+  await closeQuestion(id).save();
+  await until(() => edge.destroys.length > 0, 400);
+  assert.ok(readFileSync(target).toString('latin1').includes('Bewerking in de laatste fase'), 'Opslaan in de sluitvraag vervangt het bestand');
+  assert.deepEqual(errorKeys(), []);
+  assert.deepEqual(edge.destroys, [{ dirty: false, recoveryFiles: 0 }], 'dicht, zonder herstelbestanden of record');
+});
+
+for (const outcome of ['een ander programma wijzigde het bestand', 'bewerken tijdens de opslag'] as const) {
+  await check(`gebouwmodel, Opslaan in de sluitvraag van de app: ${outcome}; de app sluit niet`, async () => {
+    const { id, target } = await foreignDocument();
+    if (outcome === 'een ander programma wijzigde het bestand') writeFileSync(target, new Uint8Array([...modelFile, 10]));
+    else edge.place = (to) => { if (to === target) renameTask('Tijdens het opslaan'); };
+    const before = fileHash(target);
+    await nativeClose();
+    assert.equal(state().ui.pendingCloseDocId, id, 'de sluitvraag');
+    await closeQuestion(id).save();
+    await until(() => !state().ui.appQuitPending, 400);
+    assert.deepEqual([edge.destroys.length, state().ui.appQuitPending, state().isDirty], [0, false, true],
+      'het afsluiten is afgebroken; het document blijft gewijzigd');
+    assert.ok(state().getOpenDocumentPayloads().some((d) => d.id === id));
+    if (outcome === 'een ander programma wijzigde het bestand') {
+      assert.equal(fileHash(target), before, 'niets vervangen');
+      assert.deepEqual(errorKeys(), ['notifications.ifcForeignTargetChanged']);
+    } else {
+      assert.notEqual(fileHash(target), before, 'de momentopname staat in het bestand');
+      assert.equal(readFileSync(target).toString('latin1').includes('Tijdens het opslaan'), false);
+      assert.deepEqual(errorKeys(), []);
+    }
+    assert.deepEqual(recordFiles(), []);
+  });
+}
 
 ipc.dispose();
 rmSync(dir, { recursive: true, force: true });
