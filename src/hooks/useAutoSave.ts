@@ -5,10 +5,10 @@ import { appStoreContext, useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
-import { recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
+import { clearOwnRecovery, recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
-import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
+import { registerRecoveryClear, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
@@ -94,6 +94,15 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     // Directe ronde op verzoek (updater vóór `relaunch`): wacht een lopende save af en schrijft
     // daarna de actuele staat, buiten de throttle om.
     const unregisterFlush = registerRecoveryFlush(runAutoSave);
+    // Schone exit (`useAppCloseGuard`): wissen in dezelfde volgorde als de rondes, en daarna geldt er geen opgeslagen basis
+    // meer. Gaat het venster toch niet dicht, dan schrijft de hervatte ronde alles opnieuw (knownbug 1819).
+    const unregisterClear = registerRecoveryClear(() => recoveryDelta.runExclusive(async () => {
+      try {
+        await clearOwnRecovery();
+      } finally {
+        recoveryDelta.forgetPersisted();
+      }
+    }));
     const unsub = useAppStore.subscribe(() => {
       if (timer) return; // er staat al een save gepland binnen dit interval
       const wait = Math.max(0, AUTOSAVE_INTERVAL_MS - (Date.now() - lastSaveAt));
@@ -112,6 +121,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       if (timer) clearTimeout(timer);
       unsub();
       unregisterFlush();
+      unregisterClear();
     };
   }, [autoSaveEnabled]);
 

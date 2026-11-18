@@ -102,7 +102,7 @@ async function replace(c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordSt
     source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
     commit: () => { committed = c.store.getState().commitSavedDocument(c.id, c.state, undefined, c.prepared); },
     now: NOW, ...(fs ? { fs } : {}), ...(records ? { records } : {}),
-  }));
+  }), () => { throw new Error('de schrijfpoort is dicht (afsluitfase); deze proef sluit hem nooit'); });
   return { result, committed };
 }
 const files = (c: Case) => readdirSync(c.dir).sort();

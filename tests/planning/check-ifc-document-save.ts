@@ -16,6 +16,7 @@ import { classify } from '@/services/ifc/foreign/classify';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
@@ -184,7 +185,7 @@ await check('Opslaan als bestaand eigen bestand: de plaatsing weigert, oude byte
   } finally { ipc.dispose(); }
 });
 
-for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', 'flag-uit-na-kiezer'] as const) {
+for (const fault of ['annuleren', 'I/O-fout', 'document-gesloten', 'nieuwe-bron', 'flag-uit-na-kiezer'] as const) {
   await check(`${fault}: na voorbereiden nul bytes, bron en doel intact`, async () => {
     const { store } = await openInStore(bytes); longer(store);
     const before = preserved(store), id = store.getState().activeDocumentId;
@@ -192,7 +193,8 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
     ipc.choose(fault === 'annuleren' ? null : target);
     if (fault === 'I/O-fout') ipc.faults.writeErrorAfter = 2;
     let expectedSource = before.source;
-    if (fault === 'documentwissel') ipc.onPick(() => { store.getState().newDocument(); });
+    // #804 stap 3: niet de documentwissel maar het verdwijnen van het document weigert (zie de proef hieronder).
+    if (fault === 'document-gesloten') ipc.onPick(() => { store.getState().newDocument(); store.getState().closeDocument(id); });
     if (fault === 'flag-uit-na-kiezer') ipc.onPick(() => { store.setState(s => { s.ui.featureFlags = {}; }); });
     if (fault === 'nieuwe-bron') {
       const other = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!);
@@ -202,8 +204,10 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
     try {
       await store.getState().saveFileAs();
       assert.equal(existsSync(target), false);
-      if (fault === 'documentwissel') store.getState().switchDocument(id);
-      if (fault === 'nieuwe-bron') {
+      if (fault === 'document-gesloten') {
+        assert.equal(store.getState().documents.some(d => d.id === id), false);
+        assertNotice(store, 'notifications.ifcSaveChangedWhileWaiting');
+      } else if (fault === 'nieuwe-bron') {
         assert(store.getState().ifcSource === expectedSource, 'de inmiddels gecommitte bron blijft staan');
         assert.equal(store.getState().filePath, before.path);
       } else unchanged(store, before);
@@ -216,6 +220,46 @@ for (const fault of ['annuleren', 'I/O-fout', 'documentwissel', 'nieuwe-bron', '
     } finally { ipc.dispose(); }
   });
 }
+
+/** Een tweede document met eigen, herkenbare inhoud: het mag door een opslag van het andere document nooit geraakt worden. */
+function otherDocument(store: Store) {
+  const id = store.getState().newDocument();
+  store.getState().addTask({ name: 'Taak van het andere document' });
+  const s = store.getState();
+  return { id, tasks: s.tasks, ifcSource: s.ifcSource, mark: s.foreignSourceMark, filePath: s.filePath, handle: s.fileHandle };
+}
+/** Het andere document is nog actief en precies zoals het was. */
+function otherUntouched(store: Store, other: ReturnType<typeof otherDocument>) {
+  const s = store.getState();
+  assert.equal(s.activeDocumentId, other.id, 'het andere document blijft actief');
+  assert(s.tasks === other.tasks, 'zijn taken zijn niet aangeraakt');
+  assert(s.ifcSource === other.ifcSource && s.foreignSourceMark === other.mark, 'zijn bron en kenmerk zijn niet aangeraakt');
+  assert.equal(s.filePath, other.filePath); assert(s.fileHandle === other.handle, 'zijn doel is niet aangeraakt');
+  assert.equal(s.isDirty, true, 'het blijft gewijzigd');
+}
+const payloadOf = (store: Store, id: string) => store.getState().getOpenDocumentPayloads().find(d => d.id === id)!.payload;
+
+await check('Opslaan als met een tabbladwissel tijdens de bestandskiezer: het slapende document wordt opgeslagen en vastgelegd (#804 stap 3)', async () => {
+  const { store } = await openInStore(bytes); const edited = longer(store);
+  const id = store.getState().activeDocumentId, duration = store.getState().tasks.find(t => t.id === edited)!.time.scheduleDuration;
+  const ipc = desktop(), target = join(dir, 'tabbladwissel.ifc');
+  let other: ReturnType<typeof otherDocument> | undefined;
+  ipc.choose(target); ipc.onPick(() => { other = otherDocument(store); });
+  try {
+    clearNotices(store);
+    await store.getState().saveFileAs();
+    assert(existsSync(target), 'het bestand is geschreven');
+    const output = new Uint8Array(readFileSync(target)), saved = payloadOf(store, id);
+    assert.deepEqual(mergeProblems(bytes, output), [], 'het vreemde deel blijft bytegelijk');
+    const reopened = await openForeign(output);
+    assert.equal(reopened.tasks.find(t => t.id === edited)!.time.scheduleDuration, duration, 'de inhoud van het opgeslagen document');
+    assert.equal(reopened.tasks.some(t => t.name === 'Taak van het andere document'), false, 'niets van het andere document');
+    assert.equal(saved.filePath, target); assert.equal(saved.isDirty, false);
+    assert.equal(saved.ifcSource!.sha256, hash(output)); assert.equal(saved.foreignSourceMark!.sha256, hash(output));
+    otherUntouched(store, other!);
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0);
+  } finally { ipc.dispose(); }
+});
 
 function browserDownload() {
   const win = window as unknown as Record<string, unknown>;
@@ -860,12 +904,13 @@ Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value:
   removeItem: (k: string) => sessionValues.delete(k),
 } });
 /** De herstelronde zoals `useAutoSave` haar registreert: `replaceWithRecoveryPending` wacht erop. */
-function recoveryRounds(store: Store) {
+function recoveryRounds(store: Store, afterRound?: () => void) {
   const tracker = new RecoveryDeltaTracker();
   return registerRecoveryFlush(async () => {
     const s = store.getState();
     await runRecoveryTick(tracker, s.activeDocumentId,
       s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)));
+    afterRound?.();
   });
 }
 async function restoreFrom(loaded: Awaited<ReturnType<typeof loadRecovery>>) {
@@ -1105,6 +1150,147 @@ await check('handle zonder gebouwmodel, flag aan: Ctrl+S schrijft de gewone teks
   assert.equal(new TextDecoder().decode(fileOf(name)), expected);
   assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'de gewone tekstroute (saveToRefWeb)');
   assert.equal(store.getState().isDirty, false);
+});
+
+// ── #804 stap 3: een opslag hoort bij het document van zijn momentopname; sluiten wacht; één wachtende opslag. ──
+/** Eén keer iets doen na de eerstvolgende herstelronde: die van `replaceWithRecoveryPending`, midden in de opslag
+ *  (na de merge en het vastleggen van de komende versie, vóór de laatste controle en het schrijven). */
+function midSave() {
+  let action: (() => void) | undefined;
+  return { set: (a: () => void) => { action = a; }, run: () => { const a = action; action = undefined; a?.(); } };
+}
+const turnUntil = async (done: () => boolean) => {
+  for (let i = 0; i < 2000 && !done(); i++) await new Promise(r => setImmediate(r));
+  assert(done(), 'de opslag bereikte het verwachte punt');
+};
+
+await check('handle Ctrl+S met een tabbladwissel tijdens de opslag: het slapende document wordt opgeslagen, het actieve blijft onaangeroerd', async () => {
+  const { store, name } = await openHandle(), hook = midSave(), unregister = recoveryRounds(store, hook.run), browser = browserDownload();
+  try {
+    const edited = longer(store), id = store.getState().activeDocumentId;
+    const duration = store.getState().tasks.find(t => t.id === edited)!.time.scheduleDuration;
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    let other: ReturnType<typeof otherDocument> | undefined;
+    hook.set(() => { other = otherDocument(store); });
+    clearNotices(store); writableLog.length = 0;
+    assert.equal(await ctrlS(store), true, 'de opslag gaat door na de wissel');
+    assert(other, 'de wissel gebeurde tijdens de opslag');
+    const output = fileOf(name), saved = payloadOf(store, id);
+    assert.equal(hash(output), expected.sha256, 'het doel kreeg precies de merge van het opgeslagen document');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`]);
+    const reopened = await openForeign(output);
+    assert.equal(reopened.tasks.find(t => t.id === edited)!.time.scheduleDuration, duration);
+    assert.equal(reopened.tasks.some(t => t.name === 'Taak van het andere document'), false, 'niets van het actieve document');
+    assert.equal(saved.isDirty, false, 'vastgelegd in het slapende document');
+    assert.equal(saved.ifcSource!.sha256, hash(output)); assert.equal(saved.foreignSourceMark!.sha256, hash(output));
+    otherUntouched(store, other!);
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0);
+    assert.equal((await loadRecovery()).docs.find(d => d.id === id)?.ifcSource?.sha256, hash(output), 'het herstel volgt de nieuwe bron');
+  } finally { unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+for (const cause of ['document gesloten', 'bron vervangen'] as const) {
+  await check(`handle Ctrl+S, ${cause} tijdens de opslag: de weigering, niets geschreven`, async () => {
+    const { store, name } = await openHandle(), hook = midSave(), unregister = recoveryRounds(store, hook.run), browser = browserDownload();
+    try {
+      longer(store); const id = store.getState().activeDocumentId;
+      const replacement = cause === 'bron vervangen'
+        ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!) : null;
+      hook.set(() => {
+        if (replacement) store.getState().commitSavedDocument(id, store.getState(), undefined, replacement);
+        else { store.getState().newDocument(); store.getState().closeDocument(id); }
+      });
+      clearNotices(store); writableLog.length = 0;
+      assert.equal(await ctrlS(store), false);
+      assert.equal(hash(fileOf(name)), hash(bytes), 'het bestand is niet vervangen');
+      assert.deepEqual(writableLog, [], 'geen schrijfstroom');
+      if (replacement) assert(store.getState().ifcSource === replacement.source, 'de vervangen bron blijft staan');
+      else assert.equal(store.getState().documents.some(d => d.id === id), false);
+      assertNotice(store, 'notifications.ifcSaveChangedWhileWaiting');
+    } finally { unregister(); browser.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('handle Ctrl+S: sluiten tijdens de opslag wacht, met de aanduiding, en sluit daarna zonder vraag', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  let release!: () => void; const held = new Promise<void>(r => { release = r; });
+  handleFaults.set(name, { afterClose: () => held });
+  try {
+    longer(store); const id = store.getState().activeDocumentId;
+    const neighbour = store.getState().newDocument(); store.getState().switchDocument(id);
+    clearNotices(store); writableLog.length = 0;
+    const saving = ctrlS(store);
+    await turnUntil(() => writableLog.includes(`close ${name} 1`));
+    store.getState().requestCloseDocument(id);
+    assert.equal(store.getState().ui.savingBeforeClose, true, '"Wordt nog opgeslagen…" staat');
+    assert(store.getState().documents.some(d => d.id === id), 'het document is er nog');
+    assert.equal(store.getState().ui.pendingCloseDocId, null, 'geen sluitvraag tijdens de opslag');
+    release();
+    assert.equal(await saving, true);
+    await turnUntil(() => !store.getState().documents.some(d => d.id === id));
+    assert.equal(store.getState().ui.savingBeforeClose, false, 'de aanduiding is weg');
+    assert.equal(store.getState().ui.pendingCloseDocId, null, 'opgeslagen, dus zonder sluitvraag gesloten');
+    assert.equal(store.getState().activeDocumentId, neighbour);
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0);
+  } finally { release(); handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('sluiten zonder lopende opslag: meteen, zonder aanduiding; gewijzigd geeft meteen de sluitvraag', async () => {
+  const { store } = await openInStore(bytes);
+  const shown: boolean[] = [];
+  const off = store.subscribe((now, before) => { if (now.ui.savingBeforeClose !== before.ui.savingBeforeClose) shown.push(now.ui.savingBeforeClose); });
+  try {
+    const first = store.getState().activeDocumentId, second = store.getState().newDocument();
+    store.getState().requestCloseDocument(second);
+    assert.equal(store.getState().documents.some(d => d.id === second), false, 'het schone document is in dezelfde beurt gesloten');
+    longer(store);
+    store.getState().requestCloseDocument(first);
+    assert.equal(store.getState().ui.pendingCloseDocId, first, 'het gewijzigde document krijgt in dezelfde beurt de sluitvraag');
+    await store.getState().closeDocumentAfterSaves(first);
+    assert.equal(store.getState().documents.some(d => d.id === first), false);
+    assert.deepEqual(shown, [], 'nooit de aanduiding');
+  } finally { off(); }
+});
+
+await check('handle: drie keer Ctrl+S tijdens een lopende opslag geeft twee opslagen, niet vier; de tweede neemt alles mee', async () => {
+  const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
+  let release!: () => void; const held = new Promise<void>(r => { release = r; });
+  handleFaults.set(name, { afterClose: () => held });
+  try {
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const first = ctrlS(store);
+    await turnUntil(() => writableLog.includes(`close ${name} 1`));
+    const edited = longer(store), duration = store.getState().tasks.find(t => t.id === edited)!.time.scheduleDuration;
+    const more = [ctrlS(store), ctrlS(store), ctrlS(store)];
+    release();
+    // De eerste is opgeslagen maar niet schoon (er kwam een bewerking bij); de wachtende neemt die mee.
+    assert.deepEqual(await Promise.all([first, ...more]), [false, true, true, true]);
+    assert.equal(writableLog.filter(l => l === `create ${name}`).length, 2, 'twee vervangingen');
+    const reopened = await openForeign(fileOf(name));
+    assert.equal(reopened.tasks.find(t => t.id === edited)!.time.scheduleDuration, duration, 'de wachtende opslag nam de latere bewerking mee');
+    assert.equal(store.getState().isDirty, false);
+    assert.equal(hash(store.getState().ifcSource!.bytes), hash(fileOf(name)));
+  } finally { release(); handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+await check('AutoSave-ronde die na het begin van de laatste fase (afsluiten, updater) om het slot vraagt, schrijft niet', async () => {
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  const { store, name } = await openHandle(plain);
+  store.getState().setAutoSaveToFile(true); longer(store); writableLog.length = 0; clearNotices(store);
+  // De ronde kiest haar kandidaten met een open poort; de laatste fase begint voordat ze om het schrijfslot vraagt.
+  let closing: Promise<() => void> | undefined;
+  const autosave = createFileAutoSaveController({ getState: store.getState, enabled: () => { closing ??= closeProjectFileWrites(); return true; } });
+  await autosave.flush();
+  assert(closing, 'de laatste fase begon tijdens de ronde');
+  assert.deepEqual(writableLog, [], 'niets geschreven');
+  assert.equal(hash(fileOf(name)), hash(plain));
+  assert.equal(store.getState().isDirty, true);
+  assert.equal(store.getState().ui.notifications.length, 0, 'geen melding');
+  // Na een afgebroken fase (een mislukte installatie) schrijft de volgende ronde wel.
+  (await closing)();
+  await createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush();
+  assert.equal(store.getState().isDirty, false, 'weer opgeslagen');
+  assert.notEqual(hash(fileOf(name)), hash(plain));
 });
 
 rmSync(dir, { recursive: true, force: true });

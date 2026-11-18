@@ -761,6 +761,14 @@ export interface UIState {
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
    *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
   appQuitPending: boolean;
+  /** Session — afsluiten, een document sluiten of de sluitvraag wacht op een lopende of wachtende projectopslag
+   *  (#804 stap 3): "Wordt nog opgeslagen…" (`SavingBeforeCloseNotice`). Zet de schil stil zoals een wachtende vraag.
+   *  Alleen via `waitForSavesBeforeClose` (documentSlice). */
+  savingBeforeClose: boolean;
+  /** Session — de laatste fase van afsluiten (#804 stap 3, fixronde 1): niets meer ongeopgeslagen, de poort voor
+   *  projectopslag is dicht en het venster gaat weg. Zet de schil stil tot het venster weg is, zonder eigen melding.
+   *  Alleen via `appQuitDependencies` (`closeWrites`). */
+  appClosing: boolean;
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
   showNewOrOpenProjectDialog: boolean;
