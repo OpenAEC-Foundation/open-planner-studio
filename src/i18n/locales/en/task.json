@@ -328,7 +328,11 @@
     "rename": "Edit",
     "remove": "Remove",
     "addToMine": "Add to my work categories",
-    "confirmRemove": "This work category is used in the open project. Remove it from My work categories? The project copy remains."
+    "confirmRemove": "This work category is used in the open project. Remove it from My work categories? The project copy remains.",
+    "renameInProjectTitle": "Rename it in this project too?",
+    "renameInProjectMessage": "The work category “{{oldName}}” is also used in this project. Do you want to call it “{{newName}}” here too?",
+    "renameInProjectYes": "Also in this project",
+    "renameInProjectNo": "Only in my list"
   },
   "duration": {
     "label": "Duration",

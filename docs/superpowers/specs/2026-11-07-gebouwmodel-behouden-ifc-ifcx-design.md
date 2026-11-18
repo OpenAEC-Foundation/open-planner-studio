@@ -1471,7 +1471,7 @@ profiel); daar geldt deze lijst.
    het geopende bestand is bijgewerkt; de melding noemt de kopie in Downloads.
 6. **Exporteren naar CSV, MSPDI of XER**: geen vraag vooraf, wel een zin in de melding na afloop (§4.12).
 7. **Een eigen taaktype van het project hernoemen** (knownbug 1748): de app vraagt bij hernoemen of het ook in dit
-   project moet.
+   project moet. Gebouwd in PR #999.
 8. **Een taak van een ander programma die de planner wijzigt**: de herkomst blijft zoals hij was (§4.5). Een eigen
    "laatst gewijzigd met Open Planner Studio" is een wens (knownbug 1757), pas te bouwen als iemand erom vraagt.
    **Koppelingen van een ander programma naar een taak die de planner wist** (§4.7): meteen bij het wissen een melding
