@@ -1010,7 +1010,20 @@ en noem het in je rapport of PR-tekst.
      bestand verdwijnt; kiest de planner zo'n werksoort, dan ziet hij dus ook de oude naam.
      Gemeten door de bouwer van #999 met een tijdelijke stap in `custom-task-types.spec.ts`. Wat de lijst hoort te
      tonen (bijvoorbeeld altijd de projectnaam voor een werksoort die in het project staat) is een keuze voor de
-     eigenaar, bij de handleiding en de teksten. — B
+     eigenaar, bij de handleiding en de teksten. Ook de keuzes van de kolom *Eigen werksoort* in de Tabel
+     (`taskColumnRegistry.ts`) tonen een ongebruikte projectkopie onder haar oude naam (bevestigd door de review van
+     #999, ronde 2). — B
+1834. **VERVOLG (#804 keuze 7, werksoorten): haalt Opslaan in *Taak bewerken* het laatste gebruik weg, dan vervalt een bevestigde hernoeming stil.**
+     De planner bevestigt in *Taak bewerken* een nieuwe naam voor de werksoort van die taak (*Ook in dit project*),
+     geeft daarna de enige taak die de werksoort gebruikt een ingebouwde werksoort en slaat op. De keuzelijst had de
+     nieuwe naam al getoond; bij het sluiten weigert de store de uitgestelde hernoeming als `unused`
+     (`structureSlice.ts`, `projectTaskTypeRename.ts`). De eigen lijst heeft de nieuwe naam, de projectkopie de oude,
+     zonder melding. Hetzelfde bij een documentwissel terwijl de dialoog openstaat (`otherDocument`). Er gaat niets
+     verloren. Richting: een melding bij deze weigering. Gevonden door de review van #999, ronde 2. — B (review)
+1835. **VERVOLG (#804 keuze 7, opruimen): *Taak bewerken* kopieert de projectcatalogus ook als er geen hernoeming wacht.**
+     `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
+     voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van
+     #999, ronde 2. — B (review)
 
 ## Kalenders
 
