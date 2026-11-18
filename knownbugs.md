@@ -1036,6 +1036,13 @@ en noem het in je rapport of PR-tekst.
       `src/state/taskDialogSave.ts` ondersteunt daar alleen tests. Laat die tests dezelfde invoervorm
       gebruiken en verwijder de aparte tak voor bestaande taken. Uit de review van #1003
       (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+1853. **VERVOLG: een getypt startanker vervalt als de actuele rekendatum intussen exact gelijk wordt.**
+      Typ in Taak bewerken 22 juni om 07:00 en wijzig in dezelfde dialoog de wachttijd, zodat de
+      berekende start precies daarop uitkomt. Bevestig bij 1% de werkelijke start op 9 juni.
+      Opslaan houdt het oude anker van 8 juni en voegt geen SNET toe. De invoer zonder expliciet
+      tijdstip bewaart beide wel. Bij een vastgelegde `TaskDialogStartEdit` kan de tweede
+      gelijkheidstoets tegen de bijgewerkte rekendatum vervallen (`src/state/taskDialogSave.ts`).
+      Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
