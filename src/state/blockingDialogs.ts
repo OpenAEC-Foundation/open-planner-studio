@@ -39,6 +39,9 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     // Handmatig koppelwerk in de voortgangsimportdialoog hangt aan taak-id's van
     // ÉÉN document en leeft alleen in de dialoog — een documentwissel moet onmogelijk zijn zolang
     // hij openstaat, niet: dat werk over de wissel heen bewaren.
-    ui.showProgressImportDialog
+    ui.showProgressImportDialog ||
+    // De taken in "Taken naar de site" zijn die van ÉÉN document; een documentwissel onder het venster
+    // zou andere taken bewaren dan het venster telde.
+    ui.showSiteRecordsDialog
   );
 }

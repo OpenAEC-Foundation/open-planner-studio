@@ -17,6 +17,7 @@ import { ExportProfileHint } from '@/components/common/ExportProfileHint';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
+import { siteRecordsAvailable } from '@/services/fileAccess/siteHostRecords';
 import { isTauri } from '@/utils/platform';
 import { remainingUnreadSources } from '@/engine/externalLinks';
 import { DateTextInput } from '@/components/common/DateTextInput';
@@ -651,6 +652,7 @@ export function ExportDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
   const exportAs = useAppStore(s => s.exportAs);
+  const setUI = useAppStore(s => s.setUI);
 
   const formats: { label: string; format: ExportFormat; experimental: boolean }[] = EXPORT_FORMATS.map(
     (f) => ({ label: tMenu(f.shortLabelKey ?? f.labelKey), format: f.format, experimental: 'experimental' in f && f.experimental }),
@@ -688,6 +690,18 @@ export function ExportDropdown() {
           <ExportProfileHint format={f.format} />
         </RibbonMenuItem>
       ))}
+      {/* Alleen op een site die objecten bewaart (`records` op de host): de taken naar ERPNext. */}
+      {siteRecordsAvailable() && (
+        <RibbonMenuItem
+          overflow="wrap"
+          onClick={() => {
+            setUI({ showSiteRecordsDialog: true });
+            setOpen(false);
+          }}
+        >
+          {tMenu('export.tasksToSite')}
+        </RibbonMenuItem>
+      )}
     </Popover>
   );
 }

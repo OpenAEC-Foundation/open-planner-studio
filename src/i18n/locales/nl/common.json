@@ -2024,5 +2024,19 @@
     "bodyWithPool": "Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
     "continue": "Exporteren",
     "cancel": "Annuleren"
+  },
+  "siteRecords": {
+    "title": "Taken naar de site",
+    "intro": "Bewaar de taken van deze planning bij een project in ERPNext. Elke taak wordt daar ook een taak; opnieuw bewaren werkt ze bij. Samenvattingstaken gaan niet mee.",
+    "loading": "Projecten laden…",
+    "noProjects": "Er zijn op deze site geen open projecten die je mag zien.",
+    "projectLabel": "Project",
+    "taskCount_one": "{{count}} taak in deze planning.",
+    "taskCount_other": "{{count}} taken in deze planning.",
+    "keptCount_one": "Bij dit project staat al {{count}} taak.",
+    "keptCount_other": "Bij dit project staan al {{count}} taken.",
+    "saved_one": "{{count}} taak bewaard.",
+    "saved_other": "{{count}} taken bewaard.",
+    "save": "Bewaren bij het project"
   }
 }

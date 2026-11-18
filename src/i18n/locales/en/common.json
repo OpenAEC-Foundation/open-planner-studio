@@ -2024,5 +2024,19 @@
     "bodyWithPool": "The project file will contain only the schedule; the resource library goes into a second file. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?",
     "continue": "Export",
     "cancel": "Cancel"
+  },
+  "siteRecords": {
+    "title": "Tasks to the site",
+    "intro": "Keep the tasks of this schedule with a project in ERPNext. Each task becomes a task there too; saving again updates them. Summary tasks are left out.",
+    "loading": "Loading projects…",
+    "noProjects": "This site has no open projects you may see.",
+    "projectLabel": "Project",
+    "taskCount_one": "{{count}} task in this schedule.",
+    "taskCount_other": "{{count}} tasks in this schedule.",
+    "keptCount_one": "This project already holds {{count}} task.",
+    "keptCount_other": "This project already holds {{count}} tasks.",
+    "saved_one": "{{count}} task saved.",
+    "saved_other": "{{count}} tasks saved.",
+    "save": "Save with the project"
   }
 }

@@ -144,7 +144,7 @@ const BLOCKING_UI_FLAGS = [
   'showCalendarDialog', 'showUpdateDialog', 'showNewProjectDialog', 'showFeedbackDialog',
   'showStructureDialog', 'showLevelingDialog', 'showBaselineDialog', 'showColumnsDialog',
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
-  'showTourOverlay', 'showWelcomeDialog', 'showTutorialOffer', 'showProgressImportDialog', 'pendingActualStartQuestion',
+  'showTourOverlay', 'showWelcomeDialog', 'showTutorialOffer', 'showProgressImportDialog', 'showSiteRecordsDialog', 'pendingActualStartQuestion',
   'pendingPhaseAssignmentQuestion', 'pendingSiteOpen', 'pendingSiteSave', 'pendingIfcSchemaQuestion',
   'pendingPlanOnlyQuestion', 'pendingDependentAnchorWarning',
 ] as const;

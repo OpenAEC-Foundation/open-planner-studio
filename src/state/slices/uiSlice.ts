@@ -147,6 +147,7 @@ export function createDefaultUI(): UIState {
     showLevelingDialog: false,
     showBaselineDialog: false,
     showMoveProjectDialog: false,
+    showSiteRecordsDialog: false,
     externalSourceUpdates: [],
     externalSourceReview: null,
     dependentProjects: [],
