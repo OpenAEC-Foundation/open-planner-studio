@@ -330,8 +330,7 @@ async function saveDataDialogWeb(
       const writable = await handle.createWritable();
       await writable.write(data as FileSystemWriteChunkType);
       await writable.close();
-      const file = await handle.getFile();
-      return { ref: { kind: 'handle', handle }, name: file.name };
+      return { ref: { kind: 'handle', handle }, name: handle.name };
     } catch (err) {
       // Annuleren is geen fout — en mag dus ook geen download opleveren.
       if (isAbort(err)) return null;
