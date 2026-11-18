@@ -51,7 +51,7 @@ Kies *Start › Bestand › Opslaan* of *Bestand › Opslaan*, of druk op Ctrl+S
 3. Bewaart je browser alleen via een download (zoals Firefox), dan komt het bestand in je downloadmap, en elke keer opslaan maakt een nieuwe download. De eerste keer in een sessie zie je de melding *Opgeslagen als download: 'naam.ifc' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.*
 4. Kan je browser door beperkte bestandstoegang niet terugschrijven naar het bestand van het project, dan vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. Dat lijkt op *Opslaan als*, maar het is een grens van de browser. De eerste keer in een sessie legt de melding *Deze browser laat de app niet terugschrijven naar 'naam.ifc'.* dat uit, met een link naar [Bestanden](docs://uitleg-bestanden).
 
-Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad, de asterisk voor de projectnaam bovenaan en de tekst *Niet opgeslagen* rechtsonder in de statusbalk.
+Tijdens het opslaan staat rechtsonder in de statusbalk *Opslaan…*; je kunt intussen doorwerken. Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad en de asterisk voor de projectnaam bovenaan. In de statusbalk staat dan *Opgeslagen* met de tijd, bijvoorbeeld *Opgeslagen 14:32*. Wat je tijdens het opslaan nog wijzigde, staat niet in het bestand: daarna staat er weer *Niet opgeslagen*.
 
 ### Opslaan onder een andere naam
 
