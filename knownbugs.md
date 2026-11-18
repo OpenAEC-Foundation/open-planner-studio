@@ -3410,13 +3410,9 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
-720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
-     verouderde vaste basis.** `.github/workflows/task-grid-published-selection.yml` neemt elke wijziging
-     aan `tests/browser/table-editor.spec.ts` mee en vergelijkt met `fbd4a3f9d` (versie 2026.43.0).
-     De verplichte `cmp base/package-lock.json head/package-lock.json` faalt op main-versie 2026.44.0,
-     vóór de meetproef begint. Bevestigd op PR #788, head `d6b4f8a04`, run `41449022992`: exit 1 bij
-     byte 56, regel 3. Voorstel: maak de historische prestatiemeting los van het gewone
-     regressiebestand, met een bewust gekozen vergelijkingsbasis en identieke meetfixture. — B
+720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**
+     De workflow filtert op het hele testbestand en meet vervolgens één toetsenroute. Vervolg: beperk
+     de trigger tot wijzigingen die de gemeten route raken. Bevestigd in de review van #1011 (Sol 6.2 xhigh). — B
 
 781. **De MPP-meethelper `mppScannedFiles` heeft geen aanroepers meer.**
      `scripts/measure-profiles-status.mjs:116` exporteert deze functie nog, terwijl
@@ -3832,12 +3828,6 @@ en noem het in je rapport of PR-tekst.
       daarbij `default-features = false`, in zip 4.6.1 en 9.5.1). Dat `miniz_oxide` actief is komt doordat
       `flate2/rust_backend` via andere dependencies binnenkomt. Pas de toelichting aan. Sol-review op
       2fe63a9e4 (PR #944): [BEVESTIGD] VERVOLG. — B
-1670. **De meting "Taakselectie meten" (`task-grid-published-selection.yml`) faalt op elke PR die haar paden raakt.**
-     Ze vergelijkt een vaste basiscommit (`BASE_SHA: fbd4a3f9…`) met de kop van de PR en eist dat
-     `package-lock.json` in beide gelijk is. Sinds main verder is, verschilt die altijd: PR #947 (die alleen
-     `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
-     in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
-     meting weghalen, of als basis de merge-base van de PR nemen. — B
 1753. **VERVOLG (#804, proeven): een check die op een belofte blijft wachten, eindigt stil met exit 0.**
      Gezien bij 1131 stap 4: in `check-file-ifc-bytes.ts` wachtte een proef op een belofte die nooit afliep; Node
      stopte omdat er niets meer te doen was, zonder fout, en `run.sh` gaf "EINDOORDEEL planningssuite: GROEN (exit 0)"

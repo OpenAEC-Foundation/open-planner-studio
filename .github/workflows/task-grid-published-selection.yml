@@ -3,7 +3,7 @@ name: Taakselectie meten
 on:
   pull_request:
     branches: [main]
-    # Alleen deze meetroute; gewone productwijzigingen krijgen geen poort tegen een oude basis.
+    # Alleen deze meetroute. Gewone productwijzigingen draaien deze meting niet.
     paths:
       - '.github/workflows/task-grid-published-selection.yml'
       - 'scripts/compare-published-selection.py'
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
-      BASE_SHA: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       OPS_SELECTION_MEASURE: '1'
       CI: 'true'
@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v5
         with:
-          ref: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+          ref: ${{ github.event.pull_request.base.sha }}
           path: base
           persist-credentials: false
       - uses: actions/setup-node@v5
@@ -47,11 +47,7 @@ jobs:
         run: |
           test "$(git -C base rev-parse HEAD)" = "$BASE_SHA"
           test "$(git -C head rev-parse HEAD)" = "$HEAD_SHA"
-          cmp base/package-lock.json head/package-lock.json
-          mkdir evidence
-          cp head/tests/browser/table-editor.spec.ts base/tests/browser/table-editor.spec.ts
-          cp head/tests/browser/fixtures/publishedSelection.ts base/tests/browser/fixtures/publishedSelection.ts
-          cp head/tests/planning/check-task-grid-published-selection.ts base/tests/planning/check-task-grid-published-selection.ts
+          mkdir -p evidence
           {
             echo "basis=$BASE_SHA"
             echo "head=$HEAD_SHA"
@@ -62,6 +58,16 @@ jobs:
             sha256sum base/src/components/task-grid/FullTaskGrid.tsx head/src/components/task-grid/FullTaskGrid.tsx
             lscpu
           } > evidence/omgeving.txt
+          # Een releasebump wijzigt alleen de twee versies van het eigen pakket.
+          jq -eS 'del(.version, .packages[""].version)' base/package-lock.json > evidence/base-lock-zonder-appversie.json
+          jq -eS 'del(.version, .packages[""].version)' head/package-lock.json > evidence/head-lock-zonder-appversie.json
+          if ! cmp -s evidence/base-lock-zonder-appversie.json evidence/head-lock-zonder-appversie.json; then
+            echo '::error::De lockfiles verschillen buiten de appversie. Meet basis en head met dezelfde afhankelijkheden.'
+            exit 1
+          fi
+          cp head/tests/browser/table-editor.spec.ts base/tests/browser/table-editor.spec.ts
+          cp head/tests/browser/fixtures/publishedSelection.ts base/tests/browser/fixtures/publishedSelection.ts
+          cp head/tests/planning/check-task-grid-published-selection.ts base/tests/planning/check-task-grid-published-selection.ts
       - name: Installeer basis
         working-directory: base
         run: npm ci
@@ -73,8 +79,7 @@ jobs:
       - name: Basis — contract, werkbudget en echte toetsenroute
         working-directory: base
         env:
-          OPS_SELECTION_BASELINE: '1'
-          OPS_SELECTION_REVISION: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+          OPS_SELECTION_REVISION: ${{ github.event.pull_request.base.sha }}
           OPS_SELECTION_CONTRACT_OUT: ${{ github.workspace }}/evidence/base-contract.json
           OPS_SELECTION_BROWSER_OUT: ${{ github.workspace }}/evidence/base-browser.json
         run: |
