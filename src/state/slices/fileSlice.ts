@@ -1497,7 +1497,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
       // Nooit de gewone schrijfroutine op het eigen pad: met een vreemd deel geeft de merge altijd `prepared`.
-      if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
+      // MUTATIE (a): na een mislukte vervanging terug naar de gewone schrijfroutine.
+      if (ownPath && write.prepared && await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey)) return true;
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.
