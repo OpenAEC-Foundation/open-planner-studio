@@ -2035,6 +2035,8 @@
     "properties.interferingFloat": "576faaddd337656b",
     "properties.criticalPath": "8f1db851b04ce509",
     "properties.dependencies": "f63e81b1edfd9988",
+    "properties.predecessors": "0f1616333935bc8d",
+    "properties.successors": "bfe448326fc4b71f",
     "properties.addRelation": "46d8e5f3ab0199a1",
     "properties.addRelationSearch": "4b2ddcbb3258250d",
     "properties.addRelationConfirm": "59c5042f1635686f",
