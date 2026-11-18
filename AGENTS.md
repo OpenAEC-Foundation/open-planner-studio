@@ -401,8 +401,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   The source goes over as a copy (the main thread keeps the bytes), output buffers come back transferred, content errors
   arrive as the same error class, transport failures as `IfcSaveWorkerError`. The main thread computes only when the
   worker does not start (no `started` message); after a crash, timeout or unreadable answer it is an error, never a
-  retry on the main thread. The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker bundles get `zustand`
-  without React (`vite.config.ts`). Test: `check-save-worker.ts`.
+  retry on the main thread; neither is an answer that does not fit the request (`resultFits`). The worker loads
+  `appStoreFactory.ts`, never `appStore.ts`; worker bundles get the headless-core boundary (`vite.config.ts`: `zustand`
+  without React, `STUBBED` modules as throwing stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime) and
+  `save-worker-production.spec.ts` (the worker from the real production config, its modules incl. dynamic chunks).
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both

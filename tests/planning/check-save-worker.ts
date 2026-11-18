@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IfcOutput, IfcSaveJob } from '@/state/prepareIfcOutput';
@@ -13,8 +12,6 @@ import type { IfcSaveWorkerPort } from '@/services/ifc/saveWorker/ifcSaveWorker'
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { installDeterminism } from './ifcPariteitKern';
 import { lengthen, lengthenedTask, loadStore, openInStore } from './ifcAppRoute';
-// @ts-expect-error — headless-bundle.mjs is plain JS zonder types
-import { zustandWithoutReactSource } from '../../scripts/lib/headless-bundle.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const reseed = installDeterminism();
@@ -419,37 +416,7 @@ await check('de rekentijd groeit mee met de bron', () => {
   assert.ok(ifcSaveTimeoutMs(mergeJob) > 60_000);
 });
 
-await check('de workerbundel: de storefabriek wel, React, Tauri, de singleton en de i18n-UI-config niet', async () => {
-  const esbuild = createRequire(import.meta.url)(join(root, 'node_modules/esbuild')) as typeof import('esbuild');
-  const result = await esbuild.build({
-    entryPoints: [join(root, 'src/services/ifc/saveWorker/ifcSave.worker.ts')], bundle: true, format: 'esm', splitting: true,
-    platform: 'browser', outdir: join(root, '.ops-save-worker-bundle'), write: false, metafile: true, minify: true,
-    alias: { '@': join(root, 'src') }, logLevel: 'error',
-    define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.MODE': '"production"',
-      __OPS_DEV_INSTANCE__: '""', __APP_VERSION__: '"0"' },
-    // Hetzelfde als de workerplugin in vite.config.ts: zustand zonder React.
-    plugins: [{ name: 'zustand-zonder-react', setup(build) {
-      build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-zustand' }));
-      build.onLoad({ filter: /.*/, namespace: 'ops-zustand' }, () => ({ resolveDir: root, contents: zustandWithoutReactSource('a Web Worker') as string }));
-    } }],
-  });
-  const outputs = result.metafile.outputs;
-  const entry = Object.keys(outputs).find(key => outputs[key]!.entryPoint?.endsWith('ifcSave.worker.ts'))!;
-  const loaded = new Set<string>();
-  for (const stack = [entry]; stack.length;) {
-    const key = stack.pop()!;
-    if (loaded.has(key)) continue;
-    loaded.add(key);
-    for (const next of outputs[key]!.imports) if (next.kind === 'import-statement' && !next.external) stack.push(next.path);
-  }
-  const inputs = new Set([...loaded].flatMap(key => Object.keys(outputs[key]!.inputs).map(p => p.replace(/\\/g, '/'))));
-  const forbidden = [...inputs].filter(p => /node_modules\/(react|react-dom|@tauri-apps)\/|src\/state\/appStore\.ts$|src\/i18n\/config\.ts$|src\/i18n\/locales\/|src\/components\/|src\/hooks\//.test(p));
-  assert.deepEqual(forbidden, [], 'verboden in de statische bundel');
-  assert.ok([...inputs].some(p => p.endsWith('src/state/appStoreFactory.ts')), 'de storefabriek zit erin');
-  const kib = [...loaded].reduce((sum, key) => sum + outputs[key]!.bytes, 0) / 1024;
-  const lazy = Object.keys(outputs).filter(key => !loaded.has(key)).reduce((sum, key) => sum + outputs[key]!.bytes, 0) / 1024;
-  console.log(`   (esbuild, verkleind: ${Math.round(kib)} KiB statisch in ${loaded.size} delen, ${inputs.size} bronbestanden; ${Math.round(lazy)} KiB alleen achter een dynamische import)`);
-});
+// De bundel van de worker bewijst tests/browser/save-worker-production.spec.ts met de echte Vite-productiebouw.
 
 console.log(`\n${passed} OK, ${failed} XX`);
 if (failed) process.exit(1);

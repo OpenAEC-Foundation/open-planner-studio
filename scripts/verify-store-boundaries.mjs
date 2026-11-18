@@ -109,7 +109,7 @@ for (const file of coreFiles) {
 }
 
 // De opslagworker (#804 stap 4, `src/services/ifc/saveWorker/`) laadt de storefabriek voor de heropening van de merge,
-// nooit de app-singleton. Transitieve lekken vangt de bundelproef in `tests/planning/check-save-worker.ts`.
+// nooit de app-singleton. Transitieve lekken vangt `tests/browser/save-worker-production.spec.ts` (de echte Vite-bouw).
 const saveWorkerFiles = sourceFiles(resolve(root, 'src/services/ifc/saveWorker'));
 for (const file of saveWorkerFiles) {
   const sourceFile = parse(file);

@@ -47,21 +47,30 @@ function linkedPackageRoots(modules: string): string[] {
 // @ts-expect-error — dev-port.mjs is plain JS zonder types
 import { worktreeRoot, readRecordedPort } from './scripts/dev-port.mjs';
 // @ts-expect-error — headless-bundle.mjs is plain JS zonder types
-import { zustandWithoutReactSource } from './scripts/lib/headless-bundle.mjs';
+import { STUBBED, stubModuleSource, zustandWithoutReactSource } from './scripts/lib/headless-bundle.mjs';
 
 /**
- * Workerbundels krijgen `zustand` zonder React (#804 stap 4): de opslagworker laadt de storefabriek voor de heropening
- * van de merge, en `create` uit `zustand` importeert React voor zijn hook. Een worker heeft geen hook nodig. Dezelfde
- * bron als de headless kern (`scripts/lib/headless-bundle.mjs`). Alleen de productiebouw: de dev-server laadt een
- * worker met de gewone plugins, en daar is React in de worker onschuldig.
+ * De grens van de workerbundels (#804 stap 4), dezelfde als die van de headless kern (`scripts/lib/headless-bundle.mjs`).
+ * De opslagworker laadt de storefabriek voor de heropening van de merge. Daarmee komen `zustand` (dat React importeert
+ * voor zijn hook) en, achter dynamische imports in bestandstoegang en `fileSlice.ts`, Tauri en de i18n-UI-config mee. Een
+ * worker rekent alleen: `zustand` zonder React, en de modules uit `STUBBED` als stub die bij gebruik gooit, zodat ze niet
+ * in de uitvoer van een worker komen. De andere workers raken die modules niet. Alleen de productiebouw: de dev-server
+ * laadt een worker met de gewone plugins. Bewijs: `tests/browser/save-worker-production.spec.ts`.
  */
-function zustandWithoutReactInWorkers(): Plugin {
-  const id = '\0ops-worker-zustand';
+function workerBoundary(): Plugin {
+  const prefix = '\0ops-worker:';
+  const label = 'a Web Worker';
+  const stubbed = (source: string) => (STUBBED as RegExp[]).some((pattern) => pattern.test(source))
+    || /[\\/]src[\\/]i18n[\\/]config(\.ts)?$/.test(source);
   return {
-    name: 'ops-worker-zustand-without-react',
+    name: 'ops-worker-boundary',
     enforce: 'pre',
-    resolveId: (source) => (source === 'zustand' ? id : null),
-    load: (loaded) => (loaded === id ? (zustandWithoutReactSource('a Web Worker') as string) : null),
+    resolveId: (source) => (source === 'zustand' ? `${prefix}zustand` : stubbed(source) ? `${prefix}stub:${source}` : null),
+    load: (id) => {
+      if (id === `${prefix}zustand`) return zustandWithoutReactSource(label) as string;
+      if (id.startsWith(`${prefix}stub:`)) return stubModuleSource(id.slice(prefix.length + 5), label) as string;
+      return null;
+    },
   };
 }
 
@@ -94,7 +103,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Web Workers (nivelleren op de achtergrond, `services/leveling/`): ES-modules, zodat een worker
   // die engine-code met dynamische imports meeneemt ook in de productiebuild bundelt.
-  worker: { format: 'es', plugins: () => [zustandWithoutReactInWorkers()] },
+  worker: { format: 'es', plugins: () => [workerBoundary()] },
   server: {
     // Port comes from scripts/tauri-dev.mjs (OPS_DEV_PORT) so the desktop
     // window's devUrl always matches. strictPort makes a clash fail loudly

@@ -101,7 +101,7 @@ export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveR
 
 /** Een fout van een bekende soort, met tekst, naam en velden. Anders: een transportfout. */
 export function wireErrorFits(error: unknown): error is IfcSaveWireError {
-  return isRecord(error) && typeof error.type === 'string' && Object.hasOwn(CONTENT_ERRORS, error.type)
+  return isRecord(error) && typeof error.type === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_ERRORS, error.type)
     && typeof error.name === 'string' && typeof error.message === 'string' && isRecord(error.data)
     && (error.stack === undefined || typeof error.stack === 'string');
 }

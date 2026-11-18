@@ -149,7 +149,10 @@ geven `createIfcSaveWorker().compute` mee. Heen gaat de bron als kopie, terug de
 (`ifcSaveProtocol.ts`); een inhoudelijke fout komt aan als dezelfde foutsoort, een transportfout als
 `IfcSaveWorkerError`. Terugval op de hoofdthread alleen als de worker niet start (geen `started`); sterft hij daarna, of
 verloopt de tijd (60 s plus 1 s per MiB bron), dan is het een fout en rekent de hoofdthread niet opnieuw. De worker laadt
-`appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`, bundelproef in `check-save-worker.ts`).
+`appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`). Een antwoord dat niet bij het verzoek past
+(`resultFits`), is een transportfout. Workerbundels krijgen de grens van de headless kern (`vite.config.ts`: `zustand`
+zonder React, de modules uit `STUBBED` als stub). Bewijs: `check-save-worker.ts` (bytes, fouten, levensduur) en
+`save-worker-production.spec.ts` (de worker uit de echte productieconfiguratie, met zijn modules, ook dynamisch).
 
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
