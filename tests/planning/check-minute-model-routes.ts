@@ -41,6 +41,7 @@ const expected: Record<string, string[]> = {
   'src/core/index.ts': ['bereken'],
   'src/engine/externalRefreshPreview.ts': ['solveProject'], // vluchtig: Bekijken rekent voor en na op een kopie (stap 1.5)
   'src/engine/reports/dcmaAssessment.ts': ['solveProject'], // vluchtig rapport, nooit terugschrijven
+  'src/engine/scheduler/solveProject.ts': ['solveProject'], // vluchtige kopie zonder statusdatumvloer, voor de geplande start bij voortgang (#998)
   'src/extensions/extensionApi.ts': ['bereken'],
   'src/extensions/retainActiveDocument.ts': ['bereken'], // na de laadgrens
   'src/hooks/keyboard/shortcutRegistry.ts': ['bereken'],

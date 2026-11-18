@@ -1,4 +1,4 @@
-import { isElapsedTask } from '@/engine/scheduler/duration';
+import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 // =================================================================================================
 // MCP-bridge — validatielaag (guards, validaties en relatie-validatie).
 //
@@ -215,7 +215,8 @@ export const progress = {
     //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
     //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
     //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
-    const plannedStart = () => getPlannedStart?.(task);
+    const plannedStart = update.completion === undefined || isZeroDurationMilestone(task)
+      ? undefined : () => getPlannedStart?.(task);
     if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, plannedStart);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
@@ -266,7 +267,7 @@ export const progress = {
       actualFinish: !!update.actualFinish,
     }, isElapsedTask(task) ? undefined : calendar, plannedStart);
     if (question) {
-      const planned = plannedStart() ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
+      const planned = plannedStart?.() ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
       return {
         applied: false,
         reason: `task '${taskId}' has no actual start yet and was planned to start only after the status ` +

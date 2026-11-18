@@ -277,7 +277,8 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
       const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
-      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar), environment.plannedStart);
+      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar),
+      wrote('task.time.completion') ? environment.plannedStart : undefined);
       if (!question) return planned;
       return {
         ok: false,

@@ -217,7 +217,9 @@ export function fillMissingActualStart(
 ): void {
   const time = task.time;
   if (time.actualStart) return;
-  const start = normalizeActualDate(task, 'actualStart', plannedStart?.() ?? defaultActualStart(time), statusDate, calendar)!;
+  // Een nulduur-mijlpaal heeft één werkelijk moment. Gebruik daarvoor de regel voor afmelden.
+  const originalStart = isZeroDurationMilestone(task) ? undefined : plannedStart?.();
+  const start = normalizeActualDate(task, 'actualStart', originalStart ?? defaultActualStart(time), statusDate, calendar)!;
   const finish = time.actualFinish
     || (time.completion >= 1
       ? normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar)
