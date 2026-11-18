@@ -5,7 +5,7 @@
 // meldingen en recente bestanden als Bestand → Openen.
 import type { FileRef, OpenedFile } from './index';
 import { openedFromFile } from './webBackend';
-import { readOpenedTauriPath, type TauriOpenIO } from './tauriBackend';
+import { readOpenedTauriPath, readsPathAsBytes, type TauriOpenIO } from './tauriBackend';
 import { basename } from '@/utils/filePath';
 import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/services/formatRegistry';
 
@@ -84,7 +84,7 @@ export function droppedFilesFromDataTransfer(dt: DataTransferLike, readOptions?:
 export function droppedFilesFromPaths(paths: readonly string[], io: TauriOpenIO, readOptions?: FormatReadOptions): DroppedFile[] {
   return paths.map((path) => ({
     name: basename(path),
-    read: () => readOpenedTauriPath(path, { binaryExtensions: binaryExtensions(readOptions) }, io),
+    read: () => readOpenedTauriPath(path, readsPathAsBytes(path, { binaryExtensions: binaryExtensions(readOptions) }), io),
   }));
 }
 

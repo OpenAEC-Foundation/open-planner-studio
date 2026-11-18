@@ -4673,9 +4673,11 @@ en noem het in je rapport of PR-tekst.
 
 1815. **VERVOLG (#804, 1131 stap 5a): een herstelrecord dat niet afgehandeld kan worden, blijft en meldt zich steeds.**
      Het record van een vervanging (`recovery[.<slug>].replace.<id>.json`) verdwijnt pas als er geen hulpbestand van de
-     operatie meer staat. Een bestand onder een hulpnaam dat niet aantoonbaar van de operatie is (een andere inhoud,
-     onleesbaar, of een stap die faalt), blijft staan met zijn record: bij elke start en elke keer dat dat bestand
-     geopend wordt, komt dezelfde rode melding terug, tot de planner het bestand weghaalt of hernoemt. Een record dat
+     operatie meer staat. Een bestand onder een hulpnaam dat herstel niet mag wissen of terugzetten, blijft staan met
+     zijn record: een andere inhoud, iets onleesbaars, een stap die faalt, en ook een `.ops-vorige` met de vorige
+     versie naast een doel dat bestaat (ook na een crash vlak na stap 4, want de doelhash bewijst stap 4 niet; ronde 2
+     van de review van #991). Bij elke start en elke keer dat dat bestand geopend wordt, komt dezelfde rode melding
+     terug, tot de planner het bestand weghaalt of hernoemt. Een record dat
      zelf niet te lezen of ongeldig is, slaat de app over zonder melding (alleen een regel in de console); de
      hulpbestanden blijven dan ongemeld staan. Er gaat geen versie verloren. Gevonden bij het bouwen van 1131 stap 5a;
      aangepast in fixronde 1 van #991. — S (code)

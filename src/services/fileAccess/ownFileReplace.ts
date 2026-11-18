@@ -167,12 +167,17 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
 
 // ── Restbestanden na een crash (§4.10) ──────────────────────────────────────────────────────────────────────────
 
-/** Staat er nog een hulpbestand van de vervanging met dit id? Zo niet, dan mag het herstelrecord weg. Een naam die
- *  niet te bekijken is, telt als aanwezig. */
-export async function replaceHelpersGone(fs: Pick<OwnFileReplaceFs, 'content'>, path: string, id: string): Promise<boolean> {
-  const none = new Uint8Array(0);
+/** Staan beide hulpnamen van de vervanging met dit id aantoonbaar niet meer op schijf? Alleen dan mag het herstelrecord
+ *  weg. De naam zelf telt (`lstat`, geen link volgen): een link naar een verdwenen bestand staat er nog. Elke andere
+ *  fout dan "bestaat niet" telt als aanwezig. */
+export async function replaceHelpersGone(fs: Pick<OwnFileReplaceFs, 'lstat'>, path: string, id: string): Promise<boolean> {
   for (const helper of [userFileTempPath(path, id), previousVersionPath(path, id)]) {
-    if (await fs.content(helper, none) !== 'missing') return false;
+    try {
+      await fs.lstat(helper);
+      return false;
+    } catch (error) {
+      if (!missingTarget(error)) return false;
+    }
   }
   return true;
 }
@@ -200,8 +205,10 @@ type Seen = string | 'missing' | 'unreadable';
  * niets: eigendom volgt uit de inhoud (sha256) en de stand van het doel.
  * - `.ops-vorige` met `vorigeSha256` en het doel weg: de versie die stap 3 opzijzette, terwijl stap 4 niet op het doel
  *   kwam. Exclusief terug op het doel.
- * - `.ops-vorige` met `vorigeSha256` en het doel met `pendingSha256`: stap 4 lukte, dus stap 3 ook, en stap 5 had deze
- *   gecontroleerde versie gewist. Weg.
+ * - `.ops-vorige` met `vorigeSha256` en een doel dat bestaat, met welke inhoud ook: blijft staan, met een melding. Ook
+ *   de nieuwe uitvoer op het doel bewijst niet dat stap 4 slaagde (een ander kan dezelfde bytes daar gezet hebben, of
+ *   de plaatsing gaf een fout terwijl de hernoeming gebeurde, knownbug 1795). Alleen stap 5 van een lopende operatie,
+ *   na een bevestigde plaatsing, wist de gecontroleerde vorige versie.
  * - Het tijdelijke bestand met `pendingSha256` en het doel ook: een dubbel van wat op het doel staat. Weg.
  * - Het tijdelijke bestand met `pendingSha256` en het doel niet: de eigen nieuwe planning, die niet op het doel kwam
  *   (de herstelsnapshot kan tot 10 s achterlopen). Exclusief naar "niet opgeslagen planning"; niets gewist.
@@ -232,8 +239,6 @@ export async function settleReplaceRemnants(
   if (before === vorigeSha256 && target === 'missing') {
     if (placedOk(await fs.place(previous, path))) target = before;
     else leave(previous);
-  } else if (before === vorigeSha256 && target === pendingSha256) {
-    await removeOrLeave(previous);
   } else if (before !== 'missing') leave(previous);
 
   const written = await see(temp);

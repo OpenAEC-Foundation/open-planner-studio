@@ -749,8 +749,11 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     app leest de inhoud en vergelijkt de sha256 met het record.
     - `.ops-vorige` heeft `vorigeSha256` en het doel ontbreekt: dit is de versie die stap 3 opzijzette en stap 4 kwam
       niet op het doel. Exclusief terug op het doel; herstel neemt dan de oude bron.
-    - `.ops-vorige` heeft `vorigeSha256` en het doel `pendingSha256`: stap 4 lukte, dus stap 3 ook; stap 5 had deze
-      gecontroleerde versie gewist. Verwijderen.
+    - `.ops-vorige` heeft `vorigeSha256` en het doel bestaat (met welke inhoud ook, ook `pendingSha256`): blijft staan,
+      met een melding, en het record ook. De inhoud van het doel bewijst niet dat stap 4 slaagde: een ander programma
+      kan dezelfde bytes daar gezet hebben (stap 4 gaf dan `target-exists`), of de plaatsing gaf een fout terwijl de
+      hernoeming toch gebeurde (knownbug 1795). Review van #991, ronde 2. Alleen stap 5 van een lopende operatie, na een
+      bevestigde plaatsing in stap 4, wist de gecontroleerde vorige versie.
     - Het tijdelijke bestand heeft `pendingSha256` en het doel ook: een dubbel. Verwijderen.
     - Het tijdelijke bestand heeft `pendingSha256` en het doel niet: de volledige nieuwe planning, en de herstelsnapshot
       kan tot 10 s achterlopen (`useAutoSave.ts:19-27`). Exclusief verplaatsen naar `<naam> (niet opgeslagen planning
@@ -759,7 +762,10 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
       programma na stap 3 veranderde, of een vreemd bestand onder de tijdelijke naam), een onvolledig tijdelijk bestand
       na een crash in stap 1, iets onleesbaars, of een stap die faalt. Het record blijft dan ook, en de volgende start of
       het openen van het bestand probeert het opnieuw.
-    Het record verdwijnt zodra er geen hulpbestand van de operatie meer staat.
+    Het record verdwijnt pas als beide hulpnamen aantoonbaar afwezig zijn: de naam zelf wordt getoetst (`lstat`, geen
+    link volgen), en elke fout bij die controle telt als "staat er nog". Herstel leidt nergens uit af of een plaatsing
+    slaagde; het kijkt alleen per hulpnaam of die er staat en of de inhoud de vastgelegde vorige versie (terugzetten)
+    of een dubbel van de nieuwe uitvoer (wissen) is.
   - **Garantie.** Met het commando vervangt of verwijdert de app geen versie van het bestand die hij niet zelf
     gecontroleerd heeft: elke versie die op het doelpad stond, staat daarna nog als bestand (op het doel, als
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude

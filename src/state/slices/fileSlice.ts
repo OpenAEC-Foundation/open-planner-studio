@@ -20,6 +20,7 @@ import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, sa
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import { remnantNotices } from '../ownFileReplace';
+import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -295,6 +296,13 @@ export function xerImportNotice(
  * onherkende CSV-datum zijn rij/kolom/celwaarde; andere fouten de bestaande sleutel
  * (`importErrorMessageKey`) met de technische tekst als detail.
  */
+/** Een mislukt openen van een lokaal pad: eerst wat het afhandelen van een onafgeronde vervanging vóór het lezen deed
+ *  (knownbug 1131 stap 5; anders gaat het pad van een teruggevonden planning verloren), dan de leesfout zelf. */
+export function openFailureNotices(err: unknown): NotifyInput[] {
+  if (!(err instanceof ReadAfterSettleError)) return [importFailureNotice(err, saveErrorDetail(err))];
+  return [...remnantNotices(err.replaceRemnants), importFailureNotice(err.cause, saveErrorDetail(err.cause))];
+}
+
 export function importFailureNotice(err: unknown, detail: string): NotifyInput {
   if (err instanceof CsvDateImportError) {
     return {
@@ -1986,7 +1994,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(formatReadOptions()) });
       } catch (err) {
         console.error('Failed to open file:', err);
-        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
       if (opened) await get().openOpenedFile(opened, labels);
@@ -2709,13 +2717,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
         // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
         const readOptions = formatReadOptions();
+        // De bytekeuze van Recent: op de naam, met de IFC-terugval voor een onbekende extensie (`readsAsBytes`).
+        const isBinary = readsAsBytes(entry.name, readOptions);
         let opened: OpenedFile;
         if (entry.ref.kind === 'path' && isTauri()) {
           // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen
-          // (knownbug 1131 stap 5), dan lezen.
-          opened = { ...await readOpenedPath(entry.ref.path, { binaryExtensions: binaryExtensions(readOptions) }), name: entry.name };
+          // (knownbug 1131 stap 5), dan lezen, met de eigen bytekeuze van Recent.
+          opened = { ...await readOpenedPath(entry.ref.path, isBinary), name: entry.name };
         } else {
-          const isBinary = readsAsBytes(entry.name, readOptions);
           const content = isBinary ? null : await readFromRef(entry.ref);
           const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
           if (isBinary ? bytes === null : content === null) {
@@ -2729,7 +2738,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         await get().openOpenedFile(opened, labels);
       } catch (err) {
         console.error('Failed to open recent file:', err);
-        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        for (const notice of openFailureNotices(err)) get().notify(notice);
       }
     },
 

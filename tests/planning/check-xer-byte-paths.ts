@@ -1,5 +1,5 @@
 import { openDialogFilters, binaryExtensions, parseOpenedFile } from '@/services/formatRegistry';
-import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
+import { readOpenedTauriPath, readsPathAsBytes } from '@/services/fileAccess/tauriBackend';
 import { openFileDialogWeb, readBytesFromRefWeb } from '@/services/fileAccess/webBackend';
 import { activeImportResult } from '@/services/importTypes';
 import { existsSync, readFileSync } from 'node:fs';
@@ -134,9 +134,9 @@ for (const [encoding, bytes] of encodings) {
 
   // Tauri-openroute: dezelfde oorspronkelijke bytes via plugin-fs.readFile, niet readTextFile.
   const tauriCalls: string[] = [];
-  const tauriOpened = await readOpenedTauriPath('/tmp/route.xer', {
+  const tauriOpened = await readOpenedTauriPath('/tmp/route.xer', readsPathAsBytes('/tmp/route.xer', {
     binaryExtensions: binaryExtensions(),
-  }, {
+  }), {
     readTextFile: async () => { tauriCalls.push('text'); return 'verboden'; },
     readFile: async () => { tauriCalls.push('bytes'); return bytes; },
     settle: async () => [],

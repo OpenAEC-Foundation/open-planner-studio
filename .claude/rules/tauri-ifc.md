@@ -267,14 +267,19 @@ stap 1 een schrijffout, stap 3 `target-exists`/`io` ⇒ `failed`, eigen tijdelij
 `ifcForeignTargetChanged`/`Gone`; `source-changed` ⇒ `unknown`, niets teruggezet of opgeruimd; stap 4 `target-exists` ⇒
 alle drie de bestanden blijven; stap 4 anders ⇒ `.ops-vorige` exclusief terug, en lukt ook dat niet, dan noemt de
 melding waar die staat. Het record verdwijnt alleen als geen hulpbestand van de operatie meer staat
-(`replaceHelpersGone`), nooit na `unknown`.
+(`replaceHelpersGone`: `lstat` op de hulpnaam zelf, een andere fout dan "bestaat niet" telt als aanwezig), nooit na
+`unknown`. De bytes-of-tekstkeuze maakt elke aanroeper van `readOpenedTauriPath` zelf, zoals in main: de dialoog en
+neerzetten met `readsPathAsBytes` (de extensielijst), Recent met `readsAsBytes` op de naam (met de IFC-terugval). Faalt
+het lezen nadat het afhandelen iets deed, dan draagt `ReadAfterSettleError` de gebeurtenissen mee en meldt
+`openFailureNotices` ze vóór de leesfout.
 
 Afhandelen (`settlePendingReplaces`, los van de flag, alleen desktop): bij de start in `useRecoveryRestore` vóór
 `loadRecovery`, en vóór het lezen van een lokaal pad in de ene kern `readOpenedTauriPath` (dialoog, neerzetten en Recent;
 de echte IO in `fileAccess/tauriOpenPath.ts`; `OpenedFile.replaceRemnants` → `remnantNotices` in `openOpenedFile`).
 Zonder record voor het pad leest dat alleen de appDataDir. Een record van een vervanging die in deze sessie loopt
 (`whileReplaceRuns`), blijft erbuiten. Eigendom alleen op inhoud (`settleReplaceRemnants`): `.ops-vorige` met
-`vorigeSha256` en het doel weg ⇒ exclusief terug; met het doel op `pendingSha256` ⇒ weg; het tijdelijke bestand met
+`vorigeSha256` en het doel weg ⇒ exclusief terug; met een doel dat bestaat ⇒ blijft staan, ook als het doel
+`pendingSha256` heeft (dat bewijst stap 4 niet: een ander kan dezelfde bytes gezet hebben, of 1795); het tijdelijke bestand met
 `pendingSha256` en het doel ook ⇒ weg, en anders ⇒ `<naam> (niet opgeslagen planning …).ifc`; al het andere blijft staan
 (`ifcForeignReplaceLeftOver`) en het record ook (1815). De snapshotopruiming en een oudere app herkennen de naam van het
 record niet. Proef: `check-ifc-own-file-replace.ts` (echte bestanden, nagebootst commando, manifest en record als echte

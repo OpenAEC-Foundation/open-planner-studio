@@ -31,7 +31,8 @@ import {
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import { userFileTempPath } from '@/services/fileAccess/atomicWrite';
-import { binaryExtensions } from '@/services/formatRegistry';
+import { readsAsBytes } from '@/services/formatRegistry';
+import { readBytesFromRef } from '@/services/fileAccess';
 import {
   ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery, type OwnPathReplaceResult,
 } from '@/state/ownFileReplace';
@@ -663,15 +664,76 @@ await check('crash na stap 3, doel weg, met een andere inhoud onder de vorige na
   } finally { await tidy(c); }
 });
 
-await check('crash na stap 4: de gecontroleerde vorige versie gaat weg, herstel neemt de nieuwe versie', async () => {
+await check('crash na stap 4: de vorige versie blijft staan met een melding (de doelhash bewijst stap 4 niet); herstel neemt de nieuwe versie', async () => {
   const c = await opened();
   try {
     let calls = 0;
-    await crashAt(c, (base, crash) => ({ content: async (p, e) => (++calls === 2 ? crash() : base.content(p, e)) }));
+    const record = await crashAt(c, (base, crash) => ({ content: async (p, e) => (++calls === 2 ? crash() : base.content(p, e)) }));
     const { notices, restored } = await recover(c);
     fullVersionOnTarget(c, restored, c.prepared.sha256);
-    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256 }); assert.deepEqual(notices, []);
-    assert.deepEqual(recordsOnDisk(), []);
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) });
+    assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
+      ['notifications.ifcForeignReplaceLeftOver', { file: c.path, path: previousVersionPath(c.path, record.id) }],
+    ]);
+    assert.deepEqual(recordsOnDisk(), [record], 'het record blijft zolang de vorige versie er staat');
+  } finally { await tidy(c); }
+});
+
+await check('stap 4 target-exists terwijl een ander de nieuwe bytes op het doel zette: de vorige versie en het record blijven', async () => {
+  const c = await opened();
+  try {
+    const { result, committed } = await replace(c, await aroundPlace(2, 'before', () => {
+      writeFileSync(c.path, readFileSync(tempOf(c, helperId(c))), { flag: 'wx' });
+    }));
+    assert.equal(result.code, 'target-taken');
+    assert.equal(committed, false);
+    const record = oneRecord(c);
+    assert.deepEqual(disk(c), {
+      'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes), [`save-${record.id}.ops-save.tmp`]: c.prepared.sha256,
+    });
+    const notices = await nextRound();
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) },
+      'alleen het exacte dubbel van de nieuwe uitvoer ging weg');
+    assert.deepEqual(notices.map(n => n.params), [{ file: c.path, path: previousVersionPath(c.path, record.id) }]);
+    assert.deepEqual(recordsOnDisk(), [record]);
+  } finally { await tidy(c); }
+});
+
+await check('stap 4 io ná een geslaagde hernoeming (1795), terugzetten faalt: de vorige versie en het record blijven', async () => {
+  const c = await opened();
+  try {
+    placeCalls({ 2: (_f, _t, move) => {
+      assert.deepEqual(move(), { resolve: { code: 'placed' } });
+      return reject('io', { message: 'netwerkfout na de hernoemstap' });
+    } });
+    const { result, committed } = await replace(c);
+    assert.equal(result.code, 'previous-stranded');
+    assert.equal(committed, false);
+    const record = oneRecord(c);
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) });
+    ipc.faults.place = null;
+    const notices = await nextRound();
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) });
+    assert.deepEqual(notices.map(n => n.params), [{ file: c.path, path: previousVersionPath(c.path, record.id) }]);
+    assert.deepEqual(recordsOnDisk(), [record]);
+  } finally { await tidy(c); }
+});
+
+await check('een bungelende symlink op de tijdelijke naam: het record blijft en de volgende ronde meldt het pad', async () => {
+  const c = await opened(), fs = await tauriOwnFileReplaceFs();
+  let link = '';
+  try {
+    const { result } = await replace(c, { ...fs, createNew: async (path, data, mode) => {
+      link = path;
+      symlinkSync(join(c.dir, 'verdwenen.ifc'), path);
+      await fs.createNew(path, data, mode);
+    } });
+    assert.equal(result.code, 'failed');
+    assert(files(c).includes(link.slice(c.dir.length + 1)), 'de hulpnaam bestaat op schijf');
+    assert.equal(recordsOnDisk().length, 1, 'een mislukte stat van het referentiebestand bewijst niet dat de hulpnaam weg is');
+    const notices = await nextRound();
+    assert(notices.some(n => n.params?.path === link));
+    assert.equal(recordsOnDisk().length, 1);
   } finally { await tidy(c); }
 });
 
@@ -733,13 +795,74 @@ await check('Recent: wat bij de start niet lukte, handelt Recent af vóór het o
   } finally { await tidy(c); }
 });
 
+await check('Recent meldt de veilig gezette nieuwe planning ook als het doel daarna niet te openen is', async () => {
+  const c = await opened();
+  try {
+    let calls = 0;
+    const record = await crashAt(c, (base, crash) => ({ place: async (f, t) => (++calls === 2 ? crash() : base.place(f, t)) }));
+    // Een ander programma schreef via de nog open oude bron: die gaat niet terug op het doel.
+    writeFileSync(previousVersionPath(c.path, record.id), otherProgram);
+    await nextRound(blocked);
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    store.setState(s => {
+      s.recentFiles = [{ id: 'recent-test', name: 'model.ifc', ref: { kind: 'path', path: c.path }, addedAt: 1 }];
+    });
+    await store.getState().openRecentFile('recent-test');
+    assert.equal(existsSync(c.path), false);
+    // Recent gebruikt de echte klok: de kopie heeft de tijd van nu in haar naam.
+    const copy = files(c).find(name => name.startsWith('model (niet opgeslagen planning '));
+    assert(copy, 'de nieuwe planning kreeg een leesbare kopienaam');
+    assert.equal(fileHash(c, copy), c.prepared.sha256);
+    assert.deepEqual(recordsOnDisk(), [record]);
+    const notices = store.getState().ui.notifications;
+    assert(notices.some(n => n.messageKey === 'notifications.ifcForeignReplaceUnsavedCopy'
+      && n.params?.copy === join(c.dir, copy)), 'de melding met het kopiepad');
+    assert(notices.some(n => n.messageKey === 'notifications.ifcForeignReplaceLeftOver'), 'de melding over de vorige versie');
+    assert(notices.some(n => n.messageKey === 'notifications.openFailed'), 'en de leesfout zelf');
+  } finally { await tidy(c); }
+});
+
+await check('Recent houdt de bytekeuze van main: een IFC-bestand met een andere extensie blijft bytegelijk na Opslaan als', async () => {
+  const c = await opened();
+  try {
+    const name = 'model.bak', path = join(c.dir, name);
+    const ref = { kind: 'path' as const, path };
+    const original = new Uint8Array(bytes);
+    const wall = Buffer.from(original).indexOf('Wand B');
+    assert(wall > 0);
+    original[wall + 5] = 0xe9; // geen geldige UTF-8
+    const rawWall = Buffer.from([0x57, 0x61, 0x6e, 0x64, 0x20, 0xe9]);
+    writeFileSync(path, original);
+    assert(readsAsBytes(name, { ifcBytes: true }), 'de IFC-terugval kiest bytes');
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    store.setState(s => {
+      s.ui.featureFlags = { ifcForeignContent: true };
+      s.recentFiles = [{ id: 'recent-bak', name, ref, addedAt: 1 }];
+    });
+    const from = ipc.calls.length;
+    await store.getState().openRecentFile('recent-bak');
+    assert.equal(store.getState().filePath, path);
+    assert.deepEqual(ipc.calls.slice(from).filter(call => call.path === path).map(call => call.command).slice(-1), ['plugin:fs|read_file']);
+    assert.equal(store.getState().ifcSource?.sha256, hash(original));
+    assert.equal(hash((await readBytesFromRef(ref))!), hash(original));
+    const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } }).__TAURI_INTERNALS__;
+    const invoke = internals.invoke, output = join(c.dir, 'uitvoer.ifc');
+    const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    store.getState().updateTask(task.id, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration + 1 } });
+    store.getState().runCPM();
+    internals.invoke = (command, ...args) => command === 'plugin:dialog|save' ? Promise.resolve(output) : invoke(command, ...args);
+    try { await store.getState().saveFileAs(); } finally { internals.invoke = invoke; }
+    assert(readFileSync(output).includes(rawWall), 'het ruwe byte E9 staat bytegelijk in de uitvoer');
+  } finally { await tidy(c); }
+});
+
 await check('dialoog en neerzetten: dezelfde kern handelt af vóór het lezen en meldt het bij het openen', async () => {
   const c = await opened();
   try {
     const record = await crashAt(c, (_b, crash) => ({ content: crash }));
     await nextRound(blocked);
     assert(existsSync(tempOf(c, record.id)), 'bij de start nog niet afgehandeld');
-    const openedFile = await readOpenedTauriPath(c.path, { binaryExtensions: binaryExtensions() }, await tauriOpenIO());
+    const openedFile = await readOpenedTauriPath(c.path, false, await tauriOpenIO());
     assert.equal(existsSync(tempOf(c, record.id)), false, 'afgehandeld vóór het lezen');
     assert.deepEqual(openedFile.replaceRemnants?.map(e => e.kind), ['unsaved-schedule']);
     const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
@@ -763,7 +886,7 @@ await check('zonder record voor het pad raken de start en het openen de projectm
     assert.deepEqual(await io.settle(c.path), []);
     assert.deepEqual(projectCalls(from), [], 'afhandelen vóór het lezen leest alleen de app-datamap');
     from = ipc.calls.length;
-    const openedFile = await readOpenedTauriPath(c.path, { binaryExtensions: binaryExtensions() }, io);
+    const openedFile = await readOpenedTauriPath(c.path, false, io);
     assert.equal(openedFile.replaceRemnants, undefined);
     assert.deepEqual(projectCalls(from).map(call => call.command), ['plugin:fs|read_text_file'], 'alleen het lezen zelf');
     // De start zonder enig record: alleen de app-datamap.

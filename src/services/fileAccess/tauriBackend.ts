@@ -89,24 +89,39 @@ export interface TauriOpenIO {
   settle(path: string): Promise<RemnantEvent[]>;
 }
 
+/** De bytes-of-tekstkeuze van de dialoog en neerzetten: de extensie van het pad staat in de lijst van binaire
+ *  leesformaten (`binaryExtensions`). Recent kiest zelf, met `readsAsBytes` op de naam (met de IFC-terugval). */
+export function readsPathAsBytes(path: string, opts: OpenDialogOpts | undefined): boolean {
+  return (opts?.binaryExtensions ?? []).includes(extensionOf(path));
+}
+
+/** Lezen mislukte nadat het afhandelen van een onafgeronde vervanging iets deed: de gebeurtenissen gaan mee, zodat de
+ *  melding met hun pad niet verloren gaat (`openFailureNotices`). `cause` is de oorspronkelijke leesfout. */
+export class ReadAfterSettleError extends Error {
+  constructor(readonly cause: unknown, readonly replaceRemnants: RemnantEvent[]) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'ReadAfterSettleError';
+  }
+}
+
 /** Injecteerbare kern van de Tauri-openroute, de enige plek waar de desktop een lokaal pad leest om het te openen
  * (de dialoog, neerzetten en Recent). Eerst een onafgeronde vervanging van dat pad afhandelen (zonder herstelrecord
- * voor het pad raakt dat de projectmap niet), dan pas lezen. Bewaakt ook dat binaire bronformaten nooit via
- * `readTextFile` lopen en hun oorspronkelijke bytes dus behouden. */
-export async function readOpenedTauriPath(
-  path: string,
-  opts: OpenDialogOpts | undefined,
-  io: TauriOpenIO,
-): Promise<OpenedFile> {
+ * voor het pad raakt dat de projectmap niet), dan pas lezen. `asBytes` kiest de aanroeper, zoals voorheen per route
+ * (`readsPathAsBytes`, of `readsAsBytes` voor Recent); binaire bronformaten lopen dus nooit via `readTextFile` en
+ * houden hun oorspronkelijke bytes. */
+export async function readOpenedTauriPath(path: string, asBytes: boolean, io: TauriOpenIO): Promise<OpenedFile> {
   const remnants = await io.settle(path);
   const replaceRemnants = remnants.length > 0 ? { replaceRemnants: remnants } : {};
-  const isBinary = (opts?.binaryExtensions ?? []).includes(extensionOf(path));
-  if (isBinary) {
-    const bytes = await io.readFile(path);
-    return { name: basename(path), content: '', bytes, ref: { kind: 'path', path }, ...replaceRemnants };
+  try {
+    if (asBytes) {
+      const bytes = await io.readFile(path);
+      return { name: basename(path), content: '', bytes, ref: { kind: 'path', path }, ...replaceRemnants };
+    }
+    const content = await io.readTextFile(path);
+    return { name: basename(path), content, ref: { kind: 'path', path }, ...replaceRemnants };
+  } catch (error) {
+    throw remnants.length > 0 ? new ReadAfterSettleError(error, remnants) : error;
   }
-  const content = await io.readTextFile(path);
-  return { name: basename(path), content, ref: { kind: 'path', path }, ...replaceRemnants };
 }
 
 /** De dialoog kiest alleen het pad; lezen gaat via `readOpenedTauriPath` (`tauriOpenPath.ts`). */

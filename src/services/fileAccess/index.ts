@@ -258,8 +258,8 @@ export function readFromRef(ref: FileRef): Promise<string | null> {
 
 /** Desktop: een lokaal pad lezen om het te openen (Recent), via dezelfde kern als de dialoog en neerzetten: eerst een
  *  onafgeronde vervanging van dat pad afhandelen, dan lezen. */
-export function readOpenedPath(path: string, opts?: OpenDialogOpts): Promise<OpenedFile> {
-  return readOpenedPathTauri(path, opts);
+export function readOpenedPath(path: string, asBytes: boolean): Promise<OpenedFile> {
+  return readOpenedPathTauri(path, asBytes);
 }
 
 /** Bytes van een bewaarde ref herlezen. `null` bij onbruikbare ref/geweigerd; leesfouten gooien. */
