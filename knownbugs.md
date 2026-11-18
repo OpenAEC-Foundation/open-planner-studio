@@ -3925,6 +3925,26 @@ en noem het in je rapport of PR-tekst.
       dan kan de mergecontrole om de verkeerde reden weigeren. Nu geven beide dezelfde selectie. Richting: de lokale
       set en filter vervangen door één aanroep van `savedCustomTaskTypes`, met de bestaande terugval naar een lege
       catalogus. Sol-review ronde 2 van #1007: [BEVESTIGD] VERVOLG. — B
+1848. **Een lokale run van `settings-tabs.spec.ts` overschrijft twee bewaarde schermafbeeldingen.** De spec schrijft
+      bij elke run `artifacts/uren-f4a/duurweergave-ops-{light,dark}.png` (`tests/browser/settings-tabs.spec.ts:74`); die
+      staan in git, dus na een lokale run staan ze als gewijzigd in `git status` en kan een blinde commit ze meenemen.
+      `gantt-hour-drag.spec.ts:187` doet hetzelfde met `artifacts/uren-f4a/tijdkop-*.png`. Richting: naar `qa/` of
+      `test-results/` schrijven, of alleen met een expliciete omgevingsvariabele. Gezien bij #804 stap 4 (opslagworker):
+      na `node scripts/run-browser-tests.mjs tests/browser/settings-tabs.spec.ts` waren beide bestanden gewijzigd. — B
+1849. **VERVOLG (#1016, opslagworker): de productieproef start de worker via een testmodule, niet via de constructor
+      van de client.** `tests/browser/fixtures/saveWorkerProof.ts` onderschept in `defaultCreateIfcSaveWorker` alleen de
+      door Vite ingevulde URL en start die als module via een blob die eerst de vaste schrijfklok zet. Een fout in de
+      constructoropties van de productieclient valt daardoor buiten `save-worker-production.spec.ts`. De stap in
+      `settings-tabs.spec.ts` start de gewone constructor wel, maar op de dev-server. Richting: bij stap 5 (het
+      gebouwmodel via de worker) een korte startcontrole in de echte opslagroute opnemen en dan de overlappende
+      dev-stap schrappen; de proef met de vaste klok blijft voor de bytevergelijking. Sol-review ronde 2 van #1016:
+      [BEVESTIGD] VERVOLG. — B
+1892. **VERVOLG (#1016, opslagworker): de terugvalproef laat de verwijderde encode-decodeomweg nog toe.** De terugval
+      roept `computeIfcOutputHere` rechtstreeks aan (`ifcSaveWorker.ts`), maar de vergelijking in
+      `tests/planning/check-save-worker.ts` accepteert writeruitvoer met en zonder `bytes`, dus ook de oude omweg zou
+      slagen; het terugvalblok gebruikt bovendien twee geldige opdrachten, en de foutproef loopt via een werkende
+      worker. Richting: één assert op afwezige writerbytes bij terugval en één mislukte opdracht in datzelfde blok,
+      zodat de directe terugval en de foutsoort vastliggen. Sol-review ronde 2 van #1016: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 

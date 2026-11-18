@@ -534,6 +534,39 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
     expect(before.foreign, fixture.path).toBe(fixture.foreign);
     expect(before.blocked, fixture.path).toBe(fixture.foreign);
     if (!fixture.foreign) expect(before.dirty, fixture.path).toBe(false);
+    // #804 stap 4: de opslagworker (nog door geen opslagroute gebruikt) laadt als echte Vite-worker en rekent voor dit
+    // document hetzelfde als de hoofdthread: de merge byte voor byte, de gewone writer op de schrijftijd na.
+    const parity = await page.evaluate(async () => {
+      const paths = ['/src/state/prepareIfcOutput.ts', '/src/state/ifcSaveInput.ts', '/src/services/ifc/saveWorker/ifcSaveWorker.ts'];
+      const [{ prepareIfcOutput }, { buildWriteIFCInput }, { createIfcSaveWorker, defaultCreateIfcSaveWorker }] =
+        await Promise.all(paths.map(path => import(/* @vite-ignore */ path)));
+      let started = false, answers = 0;
+      const saveWorker = createIfcSaveWorker({ createWorker: () => {
+        const port = defaultCreateIfcSaveWorker() as Worker;
+        port.addEventListener('message', (event: MessageEvent) => { if ('started' in event.data) started = true; else answers++; });
+        return port;
+      } });
+      const state = window.__OPS__!.store.getState();
+      const input = buildWriteIFCInput(state, 'merge');
+      const viaWorker = await prepareIfcOutput(state, input, undefined, saveWorker.compute);
+      const main = await prepareIfcOutput(state, input);
+      saveWorker.dispose();
+      const hex = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)),
+        b => b.toString(16).padStart(2, '0')).join('');
+      // Alleen de schrijftijd gelijkmaken, zoals check-recovery-worker.ts: kop en owner history.
+      const timeless = (ifc: string) => {
+        const stamp = /^FILE_NAME\('[^']*','([^']*)'/m.exec(ifc)?.[1];
+        return new TextEncoder().encode((stamp ? ifc.split(`'${stamp}'`).join("'<tijd>'") : ifc)
+          .replace(/^(#\d+=IFCOWNERHISTORY\((?:[^,]*,){7})\d+\)/m, '$1<tijd>)'));
+      };
+      return {
+        started, answers, merge: !!main.prepared, sourceIntact: !state.ifcSource || await hex(state.ifcSource.bytes) === state.ifcSource.sha256,
+        worker: main.prepared ? [viaWorker.prepared?.sha256, await hex(viaWorker.prepared.bytes)] : [!!viaWorker.bytes, await hex(timeless(new TextDecoder().decode(viaWorker.bytes)))],
+        main: main.prepared ? [main.prepared.sha256, main.prepared.sha256] : [true, await hex(timeless(main.content))],
+      };
+    });
+    expect(parity, fixture.path).toEqual({ ...parity, started: true, answers: 1, merge: fixture.foreign, sourceIntact: true });
+    expect(parity.worker, fixture.path).toEqual(parity.main);
     await page.keyboard.press('Control+s');
     if (fixture.foreign) {
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);

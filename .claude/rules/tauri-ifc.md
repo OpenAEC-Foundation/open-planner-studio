@@ -142,6 +142,18 @@ door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven d
 gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel, dev-bridge en AutoSave blijven geblokkeerd.
 
+**De opslagworker** (#804 stap 4, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de gewone
+writer of `prepareIfcWrite`) in één herbruikbare Web Worker; nog door geen opslagroute, export of MCP-tool gebruikt.
+`prepareIfcOutput` houdt de beslissing en krijgt het rekenen als optionele `compute` (standaard deze thread); stap 5 en 6
+geven `createIfcSaveWorker().compute` mee. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen
+(`ifcSaveProtocol.ts`); een inhoudelijke fout komt aan als dezelfde foutsoort, een transportfout als
+`IfcSaveWorkerError`. Terugval op de hoofdthread alleen als de worker niet start (geen `started`); sterft hij daarna, of
+verloopt de tijd (60 s plus 1 s per MiB bron), dan is het een fout en rekent de hoofdthread niet opnieuw. De worker laadt
+`appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`). Een antwoord dat niet bij het verzoek past
+(`resultFits`), is een transportfout. Workerbundels krijgen de grens van de headless kern (`vite.config.ts`: `zustand`
+zonder React, de modules uit `STUBBED` als stub). Bewijs: `check-save-worker.ts` (bytes, fouten, levensduur) en
+`save-worker-production.spec.ts` (de worker uit de echte productieconfiguratie, met zijn modules, ook dynamisch).
+
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
 `OPS_StructureMeta` ook templates en `IfcRelDeclares`, plus de tweede vormen baselinekop en de typenaam per taak
