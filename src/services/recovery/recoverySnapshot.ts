@@ -43,7 +43,7 @@ export async function runRecoveryTick(
       // gepersisteerde basis telt. Een document met een bronkopie (site, download) heeft geen doel om te vervangen, en
       // daar kan een mislukte kopie de bronverwijzing uit het manifest laten terwijl de basis haar wel noemt.
       confirmRecordedPending(id => documents.some(d => d.id === id && !d.sourceCopy)
-        ? tracker.persistedIfcSource(id) : undefined);
+        ? tracker.persistedIfcSource(id)?.pendingSha256 : undefined);
     }
   });
 }

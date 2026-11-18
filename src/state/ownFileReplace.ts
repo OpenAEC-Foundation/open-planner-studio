@@ -1,17 +1,16 @@
 // #804, knownbug 1131 stap 5 (deel a): Ctrl+S op het eigen bestand van een document met een gebouwmodel op de desktop,
-// als één functie (ontwerp §4.10 stappen 0 tot en met 6), plus wat herstel met de restbestanden doet. In deze stap
-// roept nog geen opslagroute de vervanging aan: Ctrl+S op een pad weigert nog vóór de merge (`ifcForeignReplaceBlocked`).
-// Het aansluiten is deel b, na "sluiten wacht op een lopende opslag" (#987). Het opruimen na een crash werkt al wel.
+// als één functie (ontwerp §4.10 stappen 0 tot en met 6), plus de meldingen bij het afhandelen van restbestanden. In
+// deze stap roept nog geen opslagroute de vervanging aan: Ctrl+S op een pad weigert nog vóór de merge
+// (`ifcForeignReplaceBlocked`). Het aansluiten is deel b, na "sluiten wacht op een lopende opslag" (#987). Het afhandelen
+// na een crash werkt al wel (`settlePendingReplaces`, bij de start en vóór het lezen van een lokaal pad).
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
-  linkedOwnFile, replaceOwnFileBytes, settleReplaceRemnants, tauriOwnFileReplaceFs, tauriReplaceRemnantsFs,
-  type OwnFileReplaceFs, type OwnFileReplaceOutcome, type PendingReplaceRecord, type RemnantEvent, type ReplaceRemnantsFs,
+  linkedOwnFile, replaceHelpersGone, replaceOwnFileBytes, tauriOwnFileReplaceFs,
+  type OwnFileReplaceFs, type OwnFileReplaceOutcome, type RemnantEvent,
 } from '@/services/fileAccess/ownFileReplace';
+import { tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore } from '@/services/fileAccess/replaceRecords';
 import { userFileHelperId } from '@/services/fileAccess/atomicWrite';
-import type { LoadedRecoveryDoc } from '@/services/recovery/recoveryStore';
-import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
-import { isTauri } from '@/utils/platform';
 import {
   IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE, IFC_FOREIGN_TARGET_CHANGED_NOTICE,
   IFC_FOREIGN_TARGET_GONE_NOTICE,
@@ -32,31 +31,49 @@ export interface OwnPathReplaceInput {
   /** Na een geslaagde vervanging: de geschreven versie wordt de bron (`commitSavedDocument` met `prepared`). */
   commit: () => void;
   fs?: OwnFileReplaceFs;
+  records?: ReplaceRecordStore;
   now?: Date;
 }
 
 /**
- * Het eigen bestand vervangen, binnen `runProjectFileWrite`. Een gelinkt doel weigert vóór alles. Dan stap 0 (het
- * manifest krijgt `pendingReplace` en `pendingSha256`; lukt dat niet, dan `not-recorded` en gebeurt er niets), stap 1
- * tot en met 5 (`replaceOwnFileBytes`), en stap 6: na `replaced` eerst `commit`, dan wist het herstel de twee velden.
+ * Het eigen bestand vervangen, binnen `runProjectFileWrite`. Een gelinkt doel weigert vóór alles (`linkedOwnFile`, de
+ * enige voorcontrole). Dan stap 0: het herstelrecord (`replaceRecords.ts`: id, doel, `vorigeSha256`, `pendingSha256`)
+ * en in het manifest `pendingSha256`; lukt een van de twee niet, dan `not-recorded` en staat er niets op schijf. Dan
+ * stap 1 tot en met 5 (`replaceOwnFileBytes`) en stap 6: na `replaced` eerst `commit`, dan wist het herstel
+ * `pendingSha256`. Het record verdwijnt alleen als er geen hulpbestand van de operatie meer staat; na `unknown`
+ * (`source-changed`) blijft het altijd. Een record dat blijft, handelt de volgende start of het openen van het bestand af.
  */
 export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Promise<OwnPathReplaceResult> {
   const fs = input.fs ?? await tauriOwnFileReplaceFs();
   const target = await linkedOwnFile(fs, input.path);
   if (target.linked) return { code: 'save-as-only', why: 'linked target' };
+  const records = input.records ?? await tauriReplaceRecords();
   const id = userFileHelperId();
-  let outcome: OwnFileReplaceOutcome | undefined;
-  const recorded = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
-    replace: async () => {
-      outcome = await replaceOwnFileBytes(fs, {
-        path: input.path, id, bytes: input.prepared.bytes, source: input.source.bytes,
-        ...(target.mode === undefined ? {} : { mode: target.mode }), label: replaceCopyLabel(input.now),
-      });
-      return outcome.code === 'replaced';
-    },
-    commit: input.commit,
-  }, { id, vorigeSha256: input.source.sha256 });
-  return recorded === 'not-recorded' ? { code: 'not-recorded' } : outcome!;
+  return whileReplaceRuns(id, async () => {
+    try {
+      await records.write({ id, path: input.path, vorigeSha256: input.source.sha256, pendingSha256: input.prepared.sha256 });
+    } catch (error) {
+      console.error('Herstelrecord van de vervanging niet vastgelegd:', input.path, error);
+      return { code: 'not-recorded' };
+    }
+    let outcome: OwnFileReplaceOutcome | undefined;
+    const recorded = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
+      replace: async () => {
+        outcome = await replaceOwnFileBytes(fs, {
+          path: input.path, id, bytes: input.prepared.bytes, source: input.source.bytes,
+          ...(target.mode === undefined ? {} : { mode: target.mode }), label: replaceCopyLabel(input.now),
+        });
+        return outcome.code === 'replaced';
+      },
+      commit: input.commit,
+    });
+    if (recorded === 'not-recorded' || (outcome!.code !== 'unknown' && await replaceHelpersGone(fs, input.path, id))) {
+      // Niets meer op schijf van deze operatie (bij `not-recorded` begon stap 1 nooit). Een mislukt wissen is geen
+      // fout: de volgende start vindt dan geen hulpbestand en wist het record alsnog.
+      await records.remove(id).catch(error => console.error('Herstelrecord van de vervanging niet gewist:', error));
+    }
+    return recorded === 'not-recorded' ? { code: 'not-recorded' } : outcome!;
+  });
 }
 
 /** De meldingen bij een uitkomst; leeg bij een gewone geslaagde vervanging. */
@@ -98,68 +115,9 @@ const leftOverNotice = (file: string, path: string): NotifyInput => ({
   dedupeKey: `ifc-foreign-replace-left-over:${path}`, replaceOnDedupe: true,
 });
 
-/** De meldingen bij het opruimen van restbestanden. Het terugzetten van de vorige versie meldt niets: dan staat het
- *  bestand weer zoals vóór de opslag, en de melding over de niet opgeslagen planning noemt het pad. */
+/** De meldingen bij het afhandelen van restbestanden (`settlePendingReplaces`). */
 export function remnantNotices(events: readonly RemnantEvent[]): NotifyInput[] {
-  return events.flatMap((event): NotifyInput[] => {
-    switch (event.kind) {
-      case 'previous-back': return [];
-      case 'other-version': return [otherVersionNotice(event.target, event.copy)];
-      case 'unsaved-schedule': return [{
-        severity: 'error', messageKey: 'notifications.ifcForeignReplaceUnsavedCopy', params: { file: event.target, copy: event.copy },
-      }];
-      case 'left-over': return [leftOverNotice(event.target, event.path)];
-    }
-  });
-}
-
-// ── Restbestanden na een crash: bij herstel en bij het openen van het bestand ────────────────────────────────────
-
-/** De onderbroken vervanging uit een manifestregel, als het document een desktoppad als doel had. */
-export function pendingReplaceOf(doc: Pick<LoadedRecoveryDoc, 'ifcSource' | 'foreignSource'>): PendingReplaceRecord | null {
-  const replace = doc.ifcSource?.pendingReplace, path = doc.foreignSource?.filePath;
-  if (!replace || !path || doc.foreignSource?.siteFileId) return null;
-  return { path, id: replace.id, vorigeSha256: replace.vorigeSha256, pendingSha256: replace.pendingSha256,
-    sha256: doc.ifcSource!.sha256 };
-}
-
-/** Wat bij herstel niet helemaal thuisgebracht is (een restbestand bleef staan, of een fout), per doelpad: opnieuw bij
- *  het openen van dat bestand. Alleen in het geheugen van deze sessie. */
-const unsettled = new Map<string, PendingReplaceRecord>();
-
-async function settle(record: PendingReplaceRecord, fs: ReplaceRemnantsFs | undefined, now: Date | undefined): Promise<NotifyInput[]> {
-  try {
-    const events = await settleReplaceRemnants(fs ?? await tauriReplaceRemnantsFs(), record, replaceCopyLabel(now), precomputeSha256);
-    // Bleef er iets staan, dan probeert het openen van het bestand het nog eens.
-    if (events.some(event => event.kind === 'left-over')) unsettled.set(record.path, record);
-    else unsettled.delete(record.path);
-    return remnantNotices(events);
-  } catch (error) {
-    console.error('Restbestanden van een onderbroken opslag niet opgeruimd:', record.path, error);
-    unsettled.set(record.path, record);
-    return [];
-  }
-}
-
-/**
- * Bij herstel, vóór de bron gelezen wordt: de restbestanden van elke onderbroken vervanging in het manifest. Alleen op
- * de desktop (de browser vervangt via de handle, zonder restbestanden). Los van de flag: de restbestanden zijn van een
- * eerdere sessie en blijven anders onvindbaar zodra het manifest zonder `pendingReplace` opnieuw geschreven is.
- */
-export async function settleRecoveredReplaces(
-  docs: readonly Pick<LoadedRecoveryDoc, 'ifcSource' | 'foreignSource'>[], options: { fs?: ReplaceRemnantsFs; now?: Date } = {},
-): Promise<NotifyInput[]> {
-  if (!options.fs && !isTauri()) return [];
-  const notices: NotifyInput[] = [];
-  for (const doc of docs) {
-    const record = pendingReplaceOf(doc);
-    if (record) notices.push(...await settle(record, options.fs, options.now));
-  }
-  return notices;
-}
-
-/** Bij het openen van een pad: had het manifest voor dit bestand een vervanging die bij herstel niet thuiskwam? */
-export async function settleReplaceOnOpen(path: string, options: { fs?: ReplaceRemnantsFs; now?: Date } = {}): Promise<NotifyInput[]> {
-  const record = unsettled.get(path);
-  return record ? settle(record, options.fs, options.now) : [];
+  return events.map((event): NotifyInput => event.kind === 'unsaved-schedule'
+    ? { severity: 'error', messageKey: 'notifications.ifcForeignReplaceUnsavedCopy', params: { file: event.target, copy: event.copy } }
+    : leftOverNotice(event.target, event.path));
 }

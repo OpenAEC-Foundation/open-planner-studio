@@ -365,7 +365,7 @@
     "ifcForeignNewTargetOnly": "This IFC file can only be written to a new file name. Choose a name that does not exist yet.",
     "ifcForeignPlaceUnknown": "The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.",
     "ifcForeignReplaceOtherVersion": "Another program changed {{file}} while the app was saving it. That version has been kept as {{copy}}.",
-    "ifcForeignReplaceUnsavedCopy": "The app stopped while saving {{file}}. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.",
+    "ifcForeignReplaceUnsavedCopy": "An earlier save of {{file}} did not finish. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.",
     "ifcForeignReplaceTargetTaken": "Not saved. While saving, another program put a new file at {{target}}. There are now three files: that new file at {{target}}, your schedule in {{temp}} and the previous version in {{previous}}. Your changes are also still in the app.",
     "ifcForeignReplacePreviousStranded": "Not saved, and the previous version of the file could not be put back. It is now in {{previous}}. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignReplaceSaveAsOnly": "Not saved. This file cannot be replaced safely in this location. The file has not changed. Choose Save As to keep your changes in a new file.",

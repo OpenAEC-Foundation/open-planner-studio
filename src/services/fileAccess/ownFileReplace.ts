@@ -1,7 +1,8 @@
 /**
  * #804, knownbug 1131 stap 5 (deel a): het eigen bestand van een document met een gebouwmodel op de desktop vervangen,
  * zonder dat ooit een versie verloren gaat die de app niet zelf gecontroleerd heeft (ontwerp §4.10, "Bestand buiten
- * de app vervangen", stappen 1 tot en met 5; stap 0 en 6 zijn het herstelmanifest, `state/ownFileReplace.ts`).
+ * de app vervangen", stappen 1 tot en met 5; stap 0 en 6 zijn het herstelrecord (`replaceRecords.ts`), het
+ * herstelmanifest en de broncommit, `state/ownFileReplace.ts`).
  *
  * 1. De hele uitvoer in één `createNew`-aanroep naar `save-<id>.ops-save.tmp` in dezelfde map (geen directe aanmaak
  *    als terugval: dit is geen nieuwe naam).
@@ -17,11 +18,12 @@
  * of de vervanging stopt. Grens: een programma dat via een al open handle schrijft tussen de controle van stap 5 en het
  * verwijderen (één systeemaanroep), en de grens van het commando zelf (knownbugs 1795 en 1799).
  */
-import { isForbiddenPathError, OwnFileWriteError, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
+import { createOwnTemp, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
 import { missingTarget } from './fileIdentity';
 import { sourceTargetContentOfPathTauri } from './tauriBackend';
 import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
 import type { SourceTargetContent } from './sourceTargetContent';
+import type { ReplaceRecord } from './replaceRecords';
 
 /** De bestandsbewerkingen van de vervanging; injecteerbaar voor de proeven (`tests/planning/nodeFileIpc.ts`). */
 export interface OwnFileReplaceFs {
@@ -79,7 +81,7 @@ export type OwnFileReplaceOutcome =
 export interface OwnFileReplaceInput {
   /** Het doel: het eigen bestand van het document. */
   path: string;
-  /** Het id van de hulpnamen, gelijk aan `pendingReplace.id` in het manifest. */
+  /** Het id van de hulpnamen, gelijk aan dat van het herstelrecord. */
   id: string;
   /** De voorbereide uitvoer (`PreparedIfcWrite.bytes`); de aanroeper wijzigt die niet tot de vervanging klaar is. */
   bytes: Uint8Array;
@@ -91,7 +93,8 @@ export interface OwnFileReplaceInput {
 }
 
 /** Is het doel een link (symbolisch, of een harde link met meer namen)? Dan vervangt de app niet (§4.10). Een doel dat
- *  niet te bekijken is, komt in stap 2 als weg of onleesbaar terug. */
+ *  niet te bekijken is, komt in stap 2 als weg of onleesbaar terug. Plugin-fs 2.7.1 geeft op Windows `nlink: null`:
+ *  daar ziet deze voorcontrole een harde link niet (knownbug 1820; dicht in `place_file_exclusive` vóór deel b). */
 export async function linkedOwnFile(fs: Pick<OwnFileReplaceFs, 'lstat'>, path: string): Promise<{ linked: boolean; mode?: number }> {
   try {
     const info = await fs.lstat(path);
@@ -107,20 +110,13 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
   const { path, id, bytes, source } = input;
   const temp = userFileTempPath(path, id), previous = previousVersionPath(path, id);
   const removeOwnTemp = async () => {
-    try { await fs.remove(temp); } catch { /* blijft achter; het id staat niet meer in het manifest */ }
+    try { await fs.remove(temp); } catch { /* blijft achter; het herstelrecord blijft dan ook, herstel handelt het af */ }
   };
 
-  // Stap 1. Geen eigendom bij een mislukte aanmaak (ook EEXIST op de hulpnaam): niets verwijderen.
-  try {
-    await fs.createNew(temp, bytes, input.mode);
-  } catch (error) {
-    if (error instanceof OwnFileWriteError) {
-      await removeOwnTemp();
-      return { code: 'failed', detail: String(error.message) };
-    }
-    if (isForbiddenPathError(error)) return { code: 'save-as-only', why: 'forbidden path' };
-    return { code: 'failed', detail: error instanceof Error ? error.message : String(error) };
-  }
+  // Stap 1. Geen terugval naar een directe aanmaak: dit is geen nieuwe naam.
+  const created = await createOwnTemp(fs, temp, bytes, input.mode);
+  if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path' };
+  if (created.failed) return { code: 'failed', detail: created.cause instanceof Error ? created.cause.message : String(created.cause) };
 
   // Stap 2.
   const content = await fs.content(path, source);
@@ -171,16 +167,14 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
 
 // ── Restbestanden na een crash (§4.10) ──────────────────────────────────────────────────────────────────────────
 
-/** Wat het manifest van een onderbroken vervanging weet: het doel, het id en de drie versies. */
-export interface PendingReplaceRecord {
-  path: string;
-  id: string;
-  /** De versie die de app in stap 2 op het doel controleerde. */
-  vorigeSha256: string;
-  /** De versie die op het doel zou komen. */
-  pendingSha256: string;
-  /** De bron van het document volgens het manifest (gewoonlijk gelijk aan `vorigeSha256`). */
-  sha256: string;
+/** Staat er nog een hulpbestand van de vervanging met dit id? Zo niet, dan mag het herstelrecord weg. Een naam die
+ *  niet te bekijken is, telt als aanwezig. */
+export async function replaceHelpersGone(fs: Pick<OwnFileReplaceFs, 'content'>, path: string, id: string): Promise<boolean> {
+  const none = new Uint8Array(0);
+  for (const helper of [userFileTempPath(path, id), previousVersionPath(path, id)]) {
+    if (await fs.content(helper, none) !== 'missing') return false;
+  }
+  return true;
 }
 
 export interface ReplaceRemnantsFs {
@@ -190,33 +184,34 @@ export interface ReplaceRemnantsFs {
   place(from: string, to: string): Promise<PlaceFileOutcome>;
 }
 
-/** Wat het opruimen deed; alleen dat wat de planner moet weten. */
+/** Wat het afhandelen deed; alleen dat wat de planner moet weten. */
 export type RemnantEvent =
-  /** De vorige versie stond naast een leeg doel en staat er weer op. */
-  | { kind: 'previous-back'; target: string }
-  /** Een `.ops-vorige` met een andere inhoud: de versie van een ander programma, nu onder deze naam. */
-  | { kind: 'other-version'; target: string; copy: string }
   /** Het tijdelijke bestand met de volledige nieuwe planning, die niet op het doel kwam, nu onder deze naam. */
   | { kind: 'unsaved-schedule'; target: string; copy: string }
-  /** Een restbestand dat de app niet zeker kon thuisbrengen; het blijft staan. */
+  /** Een bestand onder een hulpnaam dat niet aantoonbaar van deze operatie is, of nog niet weg of opzij kon: het
+   *  blijft staan, en het herstelrecord ook. */
   | { kind: 'left-over'; target: string; path: string };
 
 type Seen = string | 'missing' | 'unreadable';
 
 /**
- * De restbestanden van één onderbroken vervanging thuisbrengen. Alleen `save-<id>.ops-save.tmp` en
- * `<naam>.ops-vorige-<id>` met het id uit het manifest; een bestand met een ander id raakt dit niet aan.
- * - Ontbreekt het doel en staat er een `.ops-vorige`: die exclusief terug op het doel.
- * - `.ops-vorige` met `vorigeSha256` en het doel met `pendingSha256` (opslaan was klaar): `.ops-vorige` weg.
- * - `.ops-vorige` met een andere inhoud: exclusief naar "versie van ander programma".
- * - Het tijdelijke bestand met `pendingSha256` terwijl het doel die versie niet heeft: exclusief naar "niet opgeslagen
- *   planning" (de herstelsnapshot kan tot 10 s achterlopen). Anders weg zodra het doel `sha256` of `pendingSha256` heeft.
- * - Al het andere blijft staan (`left-over`). Geen stap vervangt of verwijdert een versie die niet gecontroleerd is.
+ * De restbestanden van één onderbroken vervanging afhandelen. Alleen `save-<id>.ops-save.tmp` en
+ * `<naam>.ops-vorige-<id>` met het id uit het record; een bestand met een ander id raakt dit niet aan. De naam bewijst
+ * niets: eigendom volgt uit de inhoud (sha256) en de stand van het doel.
+ * - `.ops-vorige` met `vorigeSha256` en het doel weg: de versie die stap 3 opzijzette, terwijl stap 4 niet op het doel
+ *   kwam. Exclusief terug op het doel.
+ * - `.ops-vorige` met `vorigeSha256` en het doel met `pendingSha256`: stap 4 lukte, dus stap 3 ook, en stap 5 had deze
+ *   gecontroleerde versie gewist. Weg.
+ * - Het tijdelijke bestand met `pendingSha256` en het doel ook: een dubbel van wat op het doel staat. Weg.
+ * - Het tijdelijke bestand met `pendingSha256` en het doel niet: de eigen nieuwe planning, die niet op het doel kwam
+ *   (de herstelsnapshot kan tot 10 s achterlopen). Exclusief naar "niet opgeslagen planning"; niets gewist.
+ * - Al het andere (een andere inhoud, onleesbaar, of een stap die faalde) blijft staan en wordt gemeld (`left-over`).
+ * `resolved`: er staat geen hulpbestand van de operatie meer; het record mag weg.
  */
 export async function settleReplaceRemnants(
-  fs: ReplaceRemnantsFs, record: PendingReplaceRecord, label: ReplaceCopyLabel, sha256: (bytes: Uint8Array) => Promise<string>,
-): Promise<RemnantEvent[]> {
-  const { path, id } = record;
+  fs: ReplaceRemnantsFs, record: ReplaceRecord, label: ReplaceCopyLabel, sha256: (bytes: Uint8Array) => Promise<string>,
+): Promise<{ events: RemnantEvent[]; resolved: boolean }> {
+  const { path, id, vorigeSha256, pendingSha256 } = record;
   const temp = userFileTempPath(path, id), previous = previousVersionPath(path, id);
   const events: RemnantEvent[] = [];
   const see = async (file: string): Promise<Seen> => {
@@ -228,36 +223,28 @@ export async function settleReplaceRemnants(
     }
   };
   const leave = (file: string) => { events.push({ kind: 'left-over', target: path, path: file }); };
+  const removeOrLeave = async (file: string) => {
+    try { await fs.remove(file); } catch { leave(file); }
+  };
 
   let target = await see(path);
   const before = await see(previous);
-  if (before !== 'missing') {
-    if (target === 'missing') {
-      if (placedOk(await fs.place(previous, path))) {
-        target = before;
-        events.push({ kind: 'previous-back', target: path });
-      } else leave(previous);
-    } else if (before === record.vorigeSha256 && target === record.pendingSha256) {
-      try { await fs.remove(previous); } catch { leave(previous); }
-    } else if (before !== 'unreadable' && before !== record.vorigeSha256) {
-      const copy = replaceCopyPath(path, label('other-program'));
-      if (placedOk(await fs.place(previous, copy))) events.push({ kind: 'other-version', target: path, copy });
-      else leave(previous);
-    } else leave(previous);
-  }
+  if (before === vorigeSha256 && target === 'missing') {
+    if (placedOk(await fs.place(previous, path))) target = before;
+    else leave(previous);
+  } else if (before === vorigeSha256 && target === pendingSha256) {
+    await removeOrLeave(previous);
+  } else if (before !== 'missing') leave(previous);
 
   const written = await see(temp);
-  if (written !== 'missing') {
-    if (written === record.pendingSha256 && target !== record.pendingSha256) {
-      const copy = replaceCopyPath(path, label('unsaved-schedule'));
-      if (placedOk(await fs.place(temp, copy))) events.push({ kind: 'unsaved-schedule', target: path, copy });
-      else leave(temp);
-    } else if (target === record.sha256 || target === record.vorigeSha256 || target === record.pendingSha256) {
-      // Een onvolledig eigen bestand (crash in stap 1), of een dubbel van wat al op het doel staat.
-      try { await fs.remove(temp); } catch { leave(temp); }
-    } else leave(temp);
-  }
-  return events;
+  if (written === pendingSha256 && target === pendingSha256) {
+    await removeOrLeave(temp);
+  } else if (written === pendingSha256) {
+    const copy = replaceCopyPath(path, label('unsaved-schedule'));
+    if (placedOk(await fs.place(temp, copy))) events.push({ kind: 'unsaved-schedule', target: path, copy });
+    else leave(temp);
+  } else if (written !== 'missing') leave(temp);
+  return { events, resolved: !events.some(event => event.kind === 'left-over') };
 }
 
 // ── Tauri ───────────────────────────────────────────────────────────────────────────────────────────────────────

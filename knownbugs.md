@@ -2641,10 +2641,12 @@ en noem het in je rapport of PR-tekst.
         Opslaan als via de dialoog, Windows, macOS en de terugvalwegen zijn in een echte app niet gemeten.
      5. Ctrl+S op de desktop, in twee delen.
         a. Gebouwd (stap 5a): de vervanging als functie (`replaceOwnPathWithRecovery` in `state/ownFileReplace.ts`,
-           stap 1–5 in `fileAccess/ownFileReplace.ts`): §4.10 stap 0–6 met `pendingReplace` in het herstelmanifest
-           (versie 6 alleen tijdens een vervanging), geen directe terugval, per uitkomst een melding; de restbestanden
-           bij herstel en bij het openen van het bestand (alleen het id uit het manifest), met de kopieën "versie van
-           ander programma" en "niet opgeslagen planning". Nog door geen opslagroute aangeroepen.
+           stap 1–5 in `fileAccess/ownFileReplace.ts`): §4.10 stap 0–6 met een eigen herstelrecord per vervanging in
+           de appDataDir (`fileAccess/replaceRecords.ts`; het manifest blijft versie 5), geen directe terugval, per
+           uitkomst een melding. Het record blijft tot er geen hulpbestand van de operatie meer staat; bij de start en
+           vóór het lezen van een lokaal pad (dialoog, neerzetten, Recent: `readOpenedTauriPath`) handelt de app het af,
+           met eigendom alleen op inhoud, en met de kopie "niet opgeslagen planning". Nog door geen opslagroute
+           aangeroepen.
         b. Open (stap 5b): Ctrl+S en *Opslaan* in de sluitvraag op een pad aansluiten op de functie, nadat "sluiten
            wacht op een lopende opslag" (#987) in main staat. Dan vervalt `ifcForeignReplaceBlocked` voor het eigen pad.
      6. Teksten en handleiding, met de eigenaar.
@@ -2693,7 +2695,10 @@ en noem het in je rapport of PR-tekst.
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
      gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: een eigen fsync voor de herstelopslag;
      die van `place_file_exclusive` (1131 stap 3) dekt alleen het verplaatste bestand en zijn map. Gevonden in stap 1
-     van 1131. — S
+     van 1131. Geldt ook voor het vastleggen in stap 0 van de vervanging op de desktop (1131 stap 5a): het herstelrecord
+     (`replaceRecords.ts`) wordt atomair vervangen zonder fsync. Na stroomuitval kan de verplaatsing uit stap 3 op
+     schijf staan terwijl het herstelrecord ontbreekt; dan staat de vorige versie alleen onder `<naam>.ops-vorige-<id>`
+     en meldt de app het niet. Gevonden door de review van #991. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
      Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
@@ -4594,17 +4599,27 @@ en noem het in je rapport of PR-tekst.
      `LastModifyingApplication` = OPS, terwijl "gemaakt met" van het andere programma blijft en de gedeelde owner
      history heel blijft. Pas bouwen als een gebruiker erom vraagt. — S
 
-1815. **VERVOLG (#804, 1131 stap 5a): een onleesbare herstelsnapshot laat de restbestanden van haar vervanging liggen.**
-     `loadRecovery` geeft een manifestregel waarvan de snapshottekst niet te lezen is alleen als `readFailures` (id en
-     fout) terug, zonder `ifcSource`. Had dat document een lopende vervanging op de desktop, dan ziet
-     `settleRecoveredReplaces` haar `pendingReplace` niet: `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` blijven
-     staan en de planner hoort het niet. Er gaat geen versie verloren (de bestanden blijven), maar ontbreekt het doel
-     (crash tussen stap 3 en 4), dan staat de vorige versie alleen onder de hulpnaam. Hetzelfde geldt als een bestand
-     wordt geopend vóór de herstelcontrole bij de start klaar is. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+1815. **VERVOLG (#804, 1131 stap 5a): een herstelrecord dat niet afgehandeld kan worden, blijft en meldt zich steeds.**
+     Het record van een vervanging (`recovery[.<slug>].replace.<id>.json`) verdwijnt pas als er geen hulpbestand van de
+     operatie meer staat. Een bestand onder een hulpnaam dat niet aantoonbaar van de operatie is (een andere inhoud,
+     onleesbaar, of een stap die faalt), blijft staan met zijn record: bij elke start en elke keer dat dat bestand
+     geopend wordt, komt dezelfde rode melding terug, tot de planner het bestand weghaalt of hernoemt. Een record dat
+     zelf niet te lezen of ongeldig is, slaat de app over zonder melding (alleen een regel in de console); de
+     hulpbestanden blijven dan ongemeld staan. Er gaat geen versie verloren. Gevonden bij het bouwen van 1131 stap 5a;
+     aangepast in fixronde 1 van #991. — S (code)
 
 1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
      De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
      naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
      (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
-     planner ziet een technische naam. Een volgnummer achter de tijd lost het op. Gevonden bij het bouwen van 1131
-     stap 5a. — S (code)
+     planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
+     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+
+1820. **VERVOLG (#804, 1131 stap 5a, Windows): de voorcontrole ziet daar een harde link niet.**
+     Plugin-fs 2.7.1 geeft op Windows `nlink: null`; `linkedOwnFile` (`fileAccess/ownFileReplace.ts`) maakt daar 1 van.
+     Een eigen bestand met een tweede naam (harde link) wordt daar dus niet vooraf geweigerd: de vervanging zet een
+     nieuw bestand op het doel en de tweede naam houdt de oude versie, zodat de twee namen uiteenlopen. Wordt gedicht
+     door een eigen kleine PR waarin `place_file_exclusive` in stap 3 een bron met meer dan één naam weigert, met een
+     eigen reden bij `refused` (branch `fix/804-place-file-harde-link`, loopt); die moet gemerged zijn voordat deel b
+     (1131 stap 5b) de route aansluit. `check-ifc-own-file-replace.ts` legt het huidige gedrag vast (vastlegging,
+     knownbug 1820). Gevonden door de review van #991. — B (proef van de review van #991)

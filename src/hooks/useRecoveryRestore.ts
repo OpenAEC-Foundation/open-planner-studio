@@ -10,7 +10,8 @@ import { type RecoveryDocInput } from '@/state/documentContract';
 import { loadRecovery, clearRecovery, holdRecoveryForLater } from '@/services/recovery/recoveryStore';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
-import { settleRecoveredReplaces } from '@/state/ownFileReplace';
+import { remnantNotices } from '@/state/ownFileReplace';
+import { settlePendingReplaces } from '@/services/fileAccess/replaceRecords';
 
 // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
 // recovery-payload + de callbacks om te herstellen/verwerpen/uitstellen. Lokale
@@ -61,13 +62,17 @@ export function useRecoveryRestore(): RecoveryRestore {
       // Poort opent zodra de keuze is gemaakt (of er niets te herstellen valt);
       // pas dan mag de auto-save de snapshots overschrijven.
       const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
+      // Knownbug 1131 stap 5: eerst de onafgeronde vervangingen op de desktop afhandelen (een eigen herstelrecord, los
+      // van het manifest en van de herstelkeuze), zodat het doel weer een volledige versie heeft vóór herstel de bron leest.
+      try {
+        for (const notice of remnantNotices(await settlePendingReplaces())) useAppStore.getState().notify(notice);
+      } catch (error) {
+        console.error('Onafgeronde vervangingen niet afgehandeld:', error);
+      }
       try {
         const loaded = await loadRecovery();
         const readFailures = loaded.readFailures ?? [];
         if (loaded.docs.length === 0 && readFailures.length === 0) { finish(); return; }
-        // Knownbug 1131 stap 5: eerst de restbestanden van een onderbroken vervanging op de desktop thuisbrengen, zodat
-        // het doel weer een volledige versie heeft vóór het herstel de bron leest. Los van de herstelkeuze.
-        for (const notice of await settleRecoveredReplaces(loaded.docs)) useAppStore.getState().notify(notice);
         for (const failure of readFailures) {
           useAppStore.getState().notify({
             severity: 'error', messageKey: 'notifications.recoveryReadFailed',

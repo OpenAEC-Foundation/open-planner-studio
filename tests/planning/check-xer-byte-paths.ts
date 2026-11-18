@@ -139,6 +139,7 @@ for (const [encoding, bytes] of encodings) {
   }, {
     readTextFile: async () => { tauriCalls.push('text'); return 'verboden'; },
     readFile: async () => { tauriCalls.push('bytes'); return bytes; },
+    settle: async () => [],
   });
   const tauriParsed = activeImportResult(await parseOpenedFile(tauriOpened));
   eq(`Tauri ${encoding}: plugin-fs-bytes blijven ongewijzigd`, {

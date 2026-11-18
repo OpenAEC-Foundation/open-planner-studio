@@ -16,10 +16,10 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
-import { settleReplaceOnOpen } from '../ownFileReplace';
+import { remnantNotices } from '../ownFileReplace';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -1969,8 +1969,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openOpenedFile: async (opened, labels, options) => {
       try {
-        // Knownbug 1131 stap 5: restbestanden van een onderbroken vervanging die bij herstel niet thuiskwamen.
-        if (opened.ref?.kind === 'path') for (const notice of await settleReplaceOnOpen(opened.ref.path)) get().notify(notice);
+        // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
+        for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
@@ -2683,27 +2683,24 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
         // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
         const readOptions = formatReadOptions();
-        const isBinary = readsAsBytes(entry.name, readOptions);
-        const content = isBinary ? null : await readFromRef(entry.ref);
-        const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-        if (isBinary ? bytes === null : content === null) {
-          get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
-          return;
+        let opened: OpenedFile;
+        if (entry.ref.kind === 'path' && isTauri()) {
+          // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen
+          // (knownbug 1131 stap 5), dan lezen.
+          opened = { ...await readOpenedPath(entry.ref.path, { binaryExtensions: binaryExtensions(readOptions) }), name: entry.name };
+        } else {
+          const isBinary = readsAsBytes(entry.name, readOptions);
+          const content = isBinary ? null : await readFromRef(entry.ref);
+          const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
+          if (isBinary ? bytes === null : content === null) {
+            get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
+            return;
+          }
+          opened = { name: entry.name, content: content ?? '', ...(bytes ? { bytes } : {}), ref: entry.ref };
         }
-        const parsed = await parseOpenedFile(
-          { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
-          labels,
-          readOptions,
-        );
-
-        // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`) en gekoppeld
-        // laden komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
-        get().openAsDocument(parsed, { name: entry.name, ref: entry.ref });
-        offerFormatNotice(entry.name, content ?? undefined);
-
-        // MRU verversen: het net-geopende bestand naar boven (óók bij een niet-IFC bronformaat —
-        // alleen het opslagdoel blijft leeg, zie `saveTargetFor` in `openAsDocument`).
-        await pushRecent(entry.ref, entry.name);
+        // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`), gekoppeld laden en het
+        // verversen van Recent komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
+        await get().openOpenedFile(opened, labels);
       } catch (err) {
         console.error('Failed to open recent file:', err);
         get().notify(importFailureNotice(err, saveErrorDetail(err)));
