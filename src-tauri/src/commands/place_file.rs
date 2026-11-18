@@ -638,9 +638,11 @@ fn admit_source(info: SourceInfo) -> Result<FileId, PlaceError> {
     if !info.regular {
         return refused(RefusalReason::NotRegularFile);
     }
-    // MUTATIE: de toets op het aantal namen is weg.
-    let _ = info.links;
-    Ok(info.id)
+    match info.links {
+        1 => Ok(info.id),
+        0 => Err(PlaceError::SourceChanged),
+        _ => refused(RefusalReason::HardLinked),
+    }
 }
 
 // ── Het commando ─────────────────────────────────────────────────────────────────────────────────
