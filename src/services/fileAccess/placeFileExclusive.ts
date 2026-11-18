@@ -2,12 +2,16 @@
  * Ingang van het Rust-commando `place_file_exclusive` (#804, knownbug 1131, stap 3):
  * één bestand exclusief onder een nieuwe naam in dezelfde map plaatsen. Faalt als er op de nieuwe
  * naam al iets staat, in één systeemstap; nooit een terugval (`src-tauri/src/commands/place_file.rs`).
- * Uitzondering op Windows (knownbug 1798): staat er een harde link van de bron zelf, dan slaagt de stap
- * (`placed`), zonder dat een ander bestand vervangen wordt.
  *
  * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde map staan, precies één van beide
  * namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`) en plugin-fs
- * `rename` beide paden voor deze webview toelaat. Buiten Tauri: altijd `unsupported`.
+ * `rename` beide paden voor deze webview toelaat, en de bron een gewoon bestand is waarvoor het bestandssysteem
+ * precies één naam meldt. Meldt het er meer, dan weigert het commando met `hard-linked` (besluit van de technisch
+ * beslisser van 18 november 2026: anders lopen de twee namen na een vervanging stil uiteen); nul namen geeft
+ * `source-changed`. Het commando leest het aantal van de open bron, ook op Windows, waar plugin-fs `nlink: null`
+ * geeft. De weigering geldt dus alleen waar het bestandssysteem het aantal namen eerlijk meldt: SSHFS en andere FUSE-
+ * of netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie (knownbug 1823).
+ * Buiten Tauri: altijd `unsupported`.
  *
  * De grens van het commando (besluit van de technisch beslisser, 16 november 2026):
  * - nooit een bestaand doel vervangen;
@@ -25,7 +29,7 @@
 import { isTauri } from '@/utils/platform';
 
 /** Welke controle van het commando weigerde. Gelijk aan `RefusalReason` in `place_file.rs`. */
-export type PlaceFileRefusal = 'path-shape' | 'helper-name' | 'scope' | 'not-regular-file';
+export type PlaceFileRefusal = 'path-shape' | 'helper-name' | 'scope' | 'not-regular-file' | 'hard-linked';
 
 /**
  * Elke uitkomst, op `code`. Gelijk aan `PlaceOutcome` en `PlaceError` in `place_file.rs`; de proef
@@ -36,7 +40,8 @@ export type PlaceFileRefusal = 'path-shape' | 'helper-name' | 'scope' | 'not-reg
  * - `unsupported`: het bestandssysteem of platform kent de exclusieve stap niet; niets verplaatst.
  * - `refused`: een controle weigerde vóór elke wijziging.
  * - `source-changed`: na de stap stond op het doel niet de gecontroleerde bron; het commando raakte
- *   daarna niets meer aan. Belooft geen stand op schijf: leid er geen eigendom of opruimen uit af.
+ *   daarna niets meer aan. Of al vóór de stap: de open bron had geen naam meer (nul namen), er is niets
+ *   verplaatst. Belooft geen stand op schijf: leid er geen eigendom of opruimen uit af.
  * - `io`: een andere systeemfout; niets verplaatst, behalve op een netwerkschijf die de fout pas na de
  *   hernoeming meldt (knownbug 1795).
  */
@@ -49,7 +54,7 @@ export type PlaceFileOutcome =
   | { code: 'source-changed' }
   | { code: 'io'; message: string };
 
-const REFUSALS: readonly string[] = ['path-shape', 'helper-name', 'scope', 'not-regular-file'] satisfies PlaceFileRefusal[];
+const REFUSALS: readonly string[] = ['path-shape', 'helper-name', 'scope', 'not-regular-file', 'hard-linked'] satisfies PlaceFileRefusal[];
 
 function describe(value: unknown): string {
   if (typeof value === 'string') return value;

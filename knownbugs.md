@@ -2622,6 +2622,8 @@ en noem het in je rapport of PR-tekst.
         Windows (aantallen in #972), ook wissels vóór en na de echte stap, een harde link op het doel en dezelfde
         invoer door de IPC naar plugin-fs `rename` en dit commando. Elke controle kreeg een mutatie die haar eigen
         proef rood maakte.
+        Sinds 18 november 2026 weigert het een bron met meer dan één naam (`refused`/`hard-linked`, het aantal van
+        de open bron, ook op Windows); nul namen geeft `source-changed` (#996).
      4. Klaar (stap 4, #983): Opslaan als, Exporteren → IFC en `planner_export_ifc` naar een nieuwe naam op de
         desktop (`writeNewUserBytes` in `atomicWrite.ts`). De merge geeft één buffer (`PreparedIfcWrite.bytes`); de
         route schrijft die met `createNew` in één aanroep naar `save-<id>.ops-save.tmp` in dezelfde map en zet dat met
@@ -2741,14 +2743,6 @@ en noem het in je rapport of PR-tekst.
      dat de hulpnaam nog bestaat. De proef `place_file_fout_na_uitgevoerde_hernoeming` legt vast dat de fout terugkomt.
      Op een echte netwerkschijf niet gemeten. Uit 1131 stap 3. — S
 
-1798. **VERVOLG (#804, Windows): een harde link van de bron op het doel geeft daar `placed`, niet `target-exists`.**
-     De grens van `place_file_exclusive` eist dat een fout van de stap een fout blijft (`EEXIST` is `target-exists`, ook
-     bij hetzelfde inode). Op Unix geeft de stap die fout en blijven beide namen. Op Windows ontstaat er geen fout:
-     `SetFileInformationByHandle` zonder vervangen slaagt als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
-     bestaat en de inhoud is ongewijzigd (proef `place_file_harde_link_op_het_doel`, gemeten in de Rust-tests, run
-     43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
-     Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
-
 1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
      Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan
      een partij met hernoemrechten in die map tussen controle en stap een ander object onder de hulpnaam zetten. Het
@@ -2758,6 +2752,32 @@ en noem het in je rapport of PR-tekst.
      kan zetten, heeft via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`. Gevonden door de review van
      #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
      `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
+
+1822. **VERVOLG (#804, #996): een bestandssysteem dat voor een nieuw gewoon bestand nul namen meldt, laat Opslaan als stoppen.**
+     `place_file_exclusive` geeft bij nul namen op de open bron `source-changed` (review #996). Meldt een
+     bestandssysteem dat ook voor het verse `save-<id>.ops-save.tmp`, dan stoppen Opslaan als, Exporteren → IFC en
+     `planner_export_ifc` naar een nieuwe naam met een fout, waar main doorliep (naar de stap, of bij `unsupported` naar
+     de directe aanmaak). Niet aangetroffen: Windows documenteert 1 voor FAT, Linux FAT en exFAT geven 1, en de review
+     vond geen gewone doelmap die 0 meldt. Richting als het voorkomt: een uitzondering voor alleen de route naar een
+     nieuwe naam (besluit van de technisch beslisser, 18 november 2026). Gevonden door de review van #996 (VERMOED,
+     zekerheid midden). Daarbij (review #996 ronde 2, bevestigd): bij nul namen stopt het commando vóór de
+     verplaatsing, maar de app en MCP tonen de bestaande melding van `source-changed` dat de stand op schijf onbekend
+     is (`ifcForeignGuard.ts`, `fileTools.ts`); die is ruimer dan nodig. Een preciezere melding vraagt onderscheid
+     tussen een weigering vóór de stap en een wissel die pas erna is ontdekt. — S
+1821. **VERVOLG (#804, #996, opruimen): `SourceInfo` in `place_file.rs` heeft ongebruikte derives.** `Debug`, `Clone`
+     en `Copy` op `SourceInfo` (`src-tauri/src/commands/place_file.rs`) worden nergens gebruikt; de regel kan weg.
+     Geen fout in gedrag. Gevonden door de review van #996, ronde 2. — B (review)
+
+1823. **VERVOLG (#804, #996): op een bestandssysteem dat harde links verbergt, komt een bron met meer dan één naam door de controle.**
+     SSHFS 3.7.7 meldt ook voor een harde link op de server één naam (`st_nlink=1`), ook op de open handle, en kan
+     exclusief hernoemen (`RENAME_NOREPLACE`). Een bron met twee namen komt daar dus door de controle van
+     `place_file_exclusive`; bij de vervanging (Ctrl+S, §4.10) lopen de twee namen dan uiteen. Er gaat geen versie
+     verloren: de andere naam houdt de oude inhoud. Buiten de grens (besluit van de technisch beslisser, 18 november
+     2026): de garantie geldt waar het bestandssysteem het aantal namen eerlijk meldt; SSHFS en andere FUSE- of
+     netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie. Reden: het geval is zeldzaam, en mounts
+     herkennen per platform is breekbaar, maakt het commando groter en zou Ctrl+S op elke SSHFS-map uitzetten.
+     Gevonden door de review van #996; bevestigd uit de broncode van beide lagen, niet op een echte mount gedraaid.
+     — B (code), geen proef
 
 1775. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
      De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en wat eronder ligt (op 1776
