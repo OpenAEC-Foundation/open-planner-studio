@@ -46,8 +46,7 @@ export async function closeProjectFileWrites(): Promise<() => void> {
  * opgeslagen gemarkeerd). Elke route kiest die uitkomst zelf, zodat een weigering nooit als mislukte opslag meldt.
  */
 export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
-  // MUTATIE: de poort gaat niet dicht.
-  void closed;
+  if (closers > 0) return closed();
   busy = true;
   let release: (() => void) | undefined;
   const turn = new Promise<void>((resolve) => { release = resolve; });
