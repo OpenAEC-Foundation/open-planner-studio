@@ -1,5 +1,5 @@
 import './domStub';
-import { deepStrictEqual, strictEqual } from 'node:assert';
+import { deepStrictEqual, strictEqual, throws } from 'node:assert';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcGuid128, ifcObjectSeed, writeIFC } from '@/services/ifc/ifcWriter';
 import { parseStep } from './ifcSchemaCheck';
@@ -10,6 +10,20 @@ const same = (actual: unknown, expected: unknown, label: string) => {
   deepStrictEqual(actual, expected, label);
   checks++;
 };
+
+// Een ongeldige verplichte verwijzing mag nooit stil als #0 in een IFC terechtkomen (knownbug 1020).
+// Onbekende WBS-kinderen werden al bewust overgeslagen en blijven dat.
+{
+  const input = createIfcNestingFixture(20, 'breed');
+  const sequence = input.sequences[0];
+  if (!sequence) throw new Error('fixture mist een relatie');
+  throws(() => writeIFC({ ...input, sequences: [{ ...sequence, predecessorId: 'ontbrekende-taak' }] }),
+    /IFC-verwijzing ontbreekt: task_ontbrekende-taak/);
+  checks++;
+  input.tasks[0].childIds.push('ontbrekend-kind');
+  const output = writeIFC(input);
+  same(/#0\b/.test(output), false, 'ontbrekend WBS-kind wordt overgeslagen, nooit #0');
+}
 
 // Meerdere relaties voor dezelfde ouder, herhalingen binnen/over relaties, ongeldige refs
 // en een kind dat later nog aan een andere ouder hangt. De bestaande bestandsvoorrang blijft:

@@ -351,7 +351,15 @@ function objectGuid(ctx: WriteContext, kind: IfcObjectKind, id: string): string 
 }
 
 function ref(ctx: WriteContext, key: string): string {
-  return `#${ctx.idMap.get(key) || 0}`;
+  const id = ctx.idMap.get(key);
+  if (id === undefined) throw new Error(`IFC-verwijzing ontbreekt: ${key}`);
+  return `#${id}`;
+}
+
+/** Alleen gebruiken waar ontbrekende verwijzingen bewust worden overgeslagen. */
+function optionalRef(ctx: WriteContext, key: string): string | null {
+  const id = ctx.idMap.get(key);
+  return id === undefined ? null : `#${id}`;
 }
 
 /** Het `#id` voor een nieuw stuk. Zonder merge-plan: de volgende in de reeks vanaf `#1`. `baselineGuid` alleen voor de
@@ -1780,16 +1788,16 @@ function writeCalendarLibrary(
     if (Number.isNaN(cal.id)) continue;
 
     const resRefs = (resourcesByCalendar.get(cal.id) ?? [])
-      .map(r => ref(ctx, `res_${r.id}`))
-      .filter(r => r !== '#0');
+      .map(r => optionalRef(ctx, `res_${r.id}`))
+      .filter((r): r is string => r !== null);
     if (resRefs.length > 0) {
       addLine(ctx, `resctrl_${cal.id}`,
         `IFCRELASSIGNSTOCONTROL(${ifcStr(guidOf(ctx, 'resctrl_' + cal.id))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,#${calStepId})`);
     }
 
     const taskRefs = (tasksByCalendar.get(cal.id) ?? [])
-      .map(t => ref(ctx, `task_${t.id}`))
-      .filter(r => r !== '#0');
+      .map(t => optionalRef(ctx, `task_${t.id}`))
+      .filter((r): r is string => r !== null);
     if (taskRefs.length > 0) {
       addLine(ctx, `taskctrl_${cal.id}`,
         `IFCRELASSIGNSTOCONTROL(${ifcStr(guidOf(ctx, 'taskctrl_' + cal.id))},#${ownerHistId},$,$,(${taskRefs.join(',')}),$,#${calStepId})`);
@@ -1906,8 +1914,8 @@ function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number):
   for (const task of tasks) {
     if (!isSummaryTask(task)) continue;
     const childRefs = task.childIds
-      .map(cid => ref(ctx, `task_${cid}`))
-      .filter(r => r !== '#0')
+      .map(cid => optionalRef(ctx, `task_${cid}`))
+      .filter((r): r is string => r !== null)
       .join(',');
     if (childRefs) {
       addLine(ctx, `nest_${task.id}`,
@@ -2128,8 +2136,8 @@ function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId:
     // Ook bij beschadigde invoer blijft NaN, anders dan bij Map.get, ongelijk aan zichzelf.
     if (Number.isNaN(crew.id)) continue;
     const memberRefs = (resourcesByParent.get(crew.id) ?? [])
-      .map(r => ref(ctx, `res_${r.id}`))
-      .filter(r => r !== '#0');
+      .map(r => optionalRef(ctx, `res_${r.id}`))
+      .filter((r): r is string => r !== null);
     if (memberRefs.length === 0) continue;
     addLine(ctx, `nest_res_${crew.id}`,
       `IFCRELNESTS(${ifcStr(guidOf(ctx, 'nest_res_' + crew.id))},#${ownerHistId},${ifcStr('Ploeg ' + crew.name)},$,${ref(ctx, `res_${crew.id}`)},(${memberRefs.join(',')}))`);
@@ -2145,13 +2153,13 @@ function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId:
  * functie.
  */
 function writtenAssignmentsByTask(ctx: WriteContext, assignments: ResourceAssignment[]): Map<string, ResourceAssignment[]> {
-  return groupBy(assignments.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0'), a => a.taskId);
+  return groupBy(assignments.filter(a => optionalRef(ctx, `res_${a.resourceId}`) !== null), a => a.taskId);
 }
 
 function writeAssignments(ctx: WriteContext, assignments: ResourceAssignment[], ownerHistId: number): void {
   for (const [taskId, list] of writtenAssignmentsByTask(ctx, assignments)) {
-    const taskRef = ref(ctx, `task_${taskId}`);
-    if (taskRef === '#0') continue;
+    const taskRef = optionalRef(ctx, `task_${taskId}`);
+    if (taskRef === null) continue;
     const resRefs = list.map(a => ref(ctx, `res_${a.resourceId}`));
     addLine(ctx, `assign_${taskId}`,
       `IFCRELASSIGNSTOPROCESS(${ifcStr(guidOf(ctx, 'assign_' + taskId))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,${taskRef},$)`);
