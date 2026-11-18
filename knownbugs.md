@@ -1794,17 +1794,6 @@ en noem het in je rapport of PR-tekst.
      imports van de ingang. Uit de review van #864 (GPT-6.1-Sol en GPT-6.1-Terra, xhigh, ronde 1, op `a11864e19`,
      BEVESTIGD, VERVOLG). — B
 
-1013. **Een check met `void main()` die blijft hangen, eindigt stil met exit 0.** Lost een `await` in `main()` nooit op,
-     dan stopt Node zodra er niets meer te doen is, zonder rapport en met exit 0; de suite telt dat als groen. Een
-     check met een `await` op het hoogste niveau heeft dit niet (Node geeft dan exit 13). Gezien in
-     `tests/planning/check-web-save-fallback.ts`: op main (`2a66df33c`) bleef hij hangen bij stap 7e (de wissel kwam
-     vóór de dialoog, dus de nep-dialoog kreeg nooit antwoord), en de stappen 7e tot en met 10 draaiden nooit. #864
-     (fixronde 1) repareert die check en geeft hem een vangnet (`beforeExit`: geen rapport ⇒ rood). Dezelfde vorm,
-     zonder vangnet, hebben nog: `tests/planning/check-ifc-building-model-guard.ts`, `check-text-asset.ts`,
-     `check-wbs-auto-on-open.ts`, `check-xml-adapter-fidelity.ts` en `tests/library/check-i18n-plurals.ts`. Niet
-     nagegaan of die nu hangen. Richting: hetzelfde vangnet, of een `await` op het hoogste niveau. Gevonden in #864
-     (fixronde 1). — B
-
 1014. **Opslaan als in de browser meldt een fout als `getFile()` na het schrijven faalt.** `saveDataDialogWeb`
      (`src/services/fileAccess/webBackend.ts`) schrijft het bestand en vraagt daarna `handle.getFile()`, alleen voor de
      naam. Faalt die lezing (bijvoorbeeld omdat een ander programma het bestand net vergrendelde), dan geeft de route de
