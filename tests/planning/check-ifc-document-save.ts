@@ -13,7 +13,9 @@ import { askPlanOnly, resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason 
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
-import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
+import { prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { createIfcSaveWorker, mergesInWorker, type IfcSaveWorkerOptions } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import { saveStatusOf } from '@/state/documentSaveState';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
@@ -30,6 +32,7 @@ import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
 import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
+import { InProcessWorker } from './inProcessSaveWorker';
 
 const reseed = installDeterminism();
 await loadStore();
@@ -127,8 +130,9 @@ function unchanged(store: Store, before: ReturnType<typeof preserved>) {
   assert(now.handle === before.handle);
   assert.deepEqual([now.path, now.site, now.version, now.dirty], [before.path, before.site, before.version, before.dirty]);
 }
-async function openAt(ref: import('@/services/fileAccess').FileRef, data = bytes) {
-  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+/** `ifcSaveCompute`: het rekenen van de opslag, zoals `appStore.ts` de opslagworker aan de app geeft (#804 stap 5). */
+async function openAt(ref: import('@/services/fileAccess').FileRef, data = bytes, ifcSaveCompute?: IfcOutputCompute) {
+  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext({ ifcSaveCompute });
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
   await store.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes: data, ref });
   assert(store.getState().ifcSource, 'echte bytes-openroute afgerond');
@@ -980,10 +984,10 @@ async function restoreFrom(loaded: Awaited<ReturnType<typeof loadRecovery>>) {
   return store;
 }
 let handleCount = 0;
-async function openHandle(data = bytes) {
+async function openHandle(data = bytes, ifcSaveCompute?: IfcOutputCompute) {
   const name = `model-${++handleCount}.ifc`, handle = new FakeHandle(name);
   handleFiles.set(name, data);
-  const store = await openAt({ kind: 'handle', handle: handle as unknown as FileSystemFileHandle }, data);
+  const store = await openAt({ kind: 'handle', handle: handle as unknown as FileSystemFileHandle }, data, ifcSaveCompute);
   return { store, name, handle };
 }
 const fileOf = (name: string) => handleFiles.get(name)!;
@@ -1616,6 +1620,241 @@ await check('AutoSave-ronde die na het begin van de laatste fase (afsluiten, upd
   await createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush();
   assert.equal(store.getState().isDirty, false, 'weer opgeslagen');
   assert.notEqual(hash(fileOf(name)), hash(plain));
+});
+
+// ── #804 stap 5: het gebouwmodel via de opslagworker, en de opslagstand per document in de statusbalk. ──
+/** De opslagworker zoals de app hem aan zijn store geeft (`appStore.ts`: `mergesInWorker` over één client), met dubbels
+ *  in dit proces. `manual`: de proef start en beantwoordt zelf, zodat ze tijdens de merge kan typen of wisselen. */
+function saveWorker(mode: 'auto' | 'manual' = 'auto', options: Omit<IfcSaveWorkerOptions, 'createWorker'> = {}) {
+  const workers: InProcessWorker[] = [];
+  const client = createIfcSaveWorker({ ...options, createWorker: () => { const w = new InProcessWorker(mode); workers.push(w); return w; } });
+  const requests = () => workers.flatMap(w => w.requests);
+  return { workers, client, compute: mergesInWorker(client.compute), requests,
+    merges: () => requests().filter(r => r.job.kind === 'merge').length };
+}
+type SaveWorker = ReturnType<typeof saveWorker>;
+/** Tot het n-de verzoek in de worker is: de opslag rekent dan in de achtergrond. */
+const mergeArrives = (sw: SaveWorker, n: number) => turnUntil(() => sw.requests().length >= n);
+/** De worker start (één keer) en beantwoordt zijn laatste verzoek met de echte handler. */
+const finishMerge = async (sw: SaveWorker) => { const w = sw.workers.at(-1)!; w.start(); await w.answer(w.requests.length - 1); };
+/** Wat de statusbalk voor dit document toont: 'saving' ("Opslaan…"), 'saved' ("Opgeslagen 14:32"), 'unsaved' of niets. */
+const statusOf = (store: Store, id = store.getState().activeDocumentId) => {
+  const s = store.getState(), entry = s.documents.find(d => d.id === id)!;
+  return saveStatusOf(entry.saveState, id === s.activeDocumentId ? s.isDirty : entry.payload!.isDirty)?.kind ?? null;
+};
+const saveStateOf = (store: Store, id = store.getState().activeDocumentId) => store.getState().documents.find(d => d.id === id)!.saveState;
+const plainBytes = () => new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+
+await check('gebouwmodel via de opslagworker: Ctrl+S, Opslaan als en Exporteren → IFC rekenen de merge daar, met dezelfde bytes; de gewone writer niet', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    longer(store);
+    const viaCtrlS = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(sw.merges(), 1, 'Ctrl+S rekende de merge in de worker');
+    assert.equal(hash(fileOf(name)), viaCtrlS.sha256, 'Ctrl+S: dezelfde bytes als de hoofdthread');
+    longer(store);
+    const viaSaveAs = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    await store.getState().saveFileAs();
+    assert.equal(sw.merges(), 2, 'Opslaan als rekende de merge in de worker');
+    assert.equal(hash(new Uint8Array(await browser.downloads[0]!.arrayBuffer())), viaSaveAs.sha256, 'Opslaan als: dezelfde bytes');
+    longer(store);
+    const viaExport = await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    const result = await store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled);
+    assert.equal(sw.merges(), 3, 'Exporteren → IFC rekende de merge in de worker');
+    assert.equal(hash(new Uint8Array(await browser.downloads[1]!.arrayBuffer())), viaExport.sha256, 'Exporteren: dezelfde bytes');
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0);
+    // Zonder vreemd deel blijft de gewone writer op de hoofdthread (stap 6), ook met de flag aan.
+    const plain = await openHandle(plainBytes(), sw.compute);
+    longer(plain.store);
+    assert.equal(await ctrlS(plain.store), true);
+    assert.equal(sw.requests().length, 3, 'de gewone writer ging niet naar de worker');
+    assert.equal(sw.workers.length, 1, 'één worker voor alle opslagen');
+  } finally { unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('typen tijdens de merge in de worker: het bestand krijgt de momentopname, de bron volgt, het latere werk blijft gewijzigd', async () => {
+  const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); writableLog.length = 0;
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    const saving = ctrlS(store);
+    assert.equal(statusOf(store), 'saving', '"Opslaan…" vanaf het begin van de opslag');
+    await mergeArrives(sw, 1);
+    const later = store.getState().addTask({ name: 'Getypt tijdens de merge' });
+    assert.equal(statusOf(store), 'saving', '"Opslaan…" ook terwijl de planner doortypt');
+    await finishMerge(sw);
+    assert.equal(await saving, false, 'opgeslagen, maar niet schoon');
+    assert.equal(hash(fileOf(name)), expected.sha256, 'het bestand kreeg precies de momentopname');
+    assert.equal((await openForeign(fileOf(name))).tasks.some(t => t.id === later), false, 'zonder het latere werk');
+    const now = store.getState();
+    assert.equal(now.ifcSource!.sha256, hash(fileOf(name)), 'de bron volgt wat er geschreven is');
+    assert.equal(now.isDirty, true, 'het latere werk blijft gewijzigd');
+    assert(now.tasks.some(t => t.id === later), 'het latere werk staat er nog');
+    assert.equal(statusOf(store), 'unsaved', '"Niet opgeslagen"');
+    // De volgende opslag neemt het latere werk mee, één keer.
+    const next = ctrlS(store);
+    await mergeArrives(sw, 2); await finishMerge(sw);
+    assert.equal(await next, true);
+    assert((await openForeign(fileOf(name))).tasks.some(t => t.id === later), 'de tweede opslag schreef het latere werk');
+    assert.equal(writableLog.filter(l => l === `create ${name}`).length, 2, 'twee vervangingen, niet meer');
+    assert.equal(sw.merges(), 2);
+    assert.equal(statusOf(store), 'saved', '"Opgeslagen <tijd>"');
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('twee keer Ctrl+S tijdens de merge in de worker: één extra opslag, die het latere werk meeneemt', async () => {
+  const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const first = ctrlS(store);
+    await mergeArrives(sw, 1);
+    const edited = longer(store), duration = store.getState().tasks.find(t => t.id === edited)!.time.scheduleDuration;
+    const more = [ctrlS(store), ctrlS(store)];
+    await finishMerge(sw);
+    await mergeArrives(sw, 2); await finishMerge(sw);
+    assert.deepEqual(await Promise.all([first, ...more]), [false, true, true]);
+    for (let i = 0; i < 50; i++) await new Promise(r => setImmediate(r));
+    assert.equal(sw.merges(), 2, 'twee merges, niet drie');
+    assert.equal(writableLog.filter(l => l === `create ${name}`).length, 2, 'twee vervangingen, geen dubbele');
+    assert.equal((await openForeign(fileOf(name))).tasks.find(t => t.id === edited)!.time.scheduleDuration, duration, 'niets verloren');
+    assert.equal(store.getState().isDirty, false);
+    assert.equal(statusOf(store), 'saved');
+    assert.equal(saveStateOf(store)!.saving, 0);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('tabbladwissel tijdens de merge in de worker: het slapende document wordt opgeslagen en vastgelegd, de stand hoort bij het document', async () => {
+  const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    const id = store.getState().activeDocumentId;
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    const saving = ctrlS(store);
+    await mergeArrives(sw, 1);
+    const other = otherDocument(store);
+    assert.equal(statusOf(store), 'unsaved', 'het andere tabblad toont zijn eigen stand');
+    assert.equal(statusOf(store, id), 'saving', 'het opgeslagen document staat nog op "Opslaan…"');
+    await finishMerge(sw);
+    assert.equal(await saving, true);
+    assert.equal(hash(fileOf(name)), expected.sha256, 'precies de merge van het opgeslagen document');
+    const saved = payloadOf(store, id);
+    assert.equal(saved.isDirty, false, 'vastgelegd in het slapende document');
+    assert.equal(saved.ifcSource!.sha256, hash(fileOf(name)));
+    otherUntouched(store, other);
+    assert.equal(statusOf(store), 'unsaved');
+    store.getState().switchDocument(id);
+    assert.equal(statusOf(store), 'saved', 'terug op het tabblad: "Opgeslagen <tijd>"');
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+for (const [reason, route] of [['crashed', 'Ctrl+S'], ['timeout', 'Opslaan als'], ['transport', 'Exporteren → IFC']] as const) {
+  await check(`workerfout (${reason}) bij ${route}: niets geschreven, doel en herstel ongewijzigd, document gewijzigd, één melding`, async () => {
+    const sw = saveWorker('manual', { timeoutMs: () => 30 });
+    const { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store), browser = browserDownload();
+    const realError = console.error; console.error = () => {};
+    try {
+      longer(store); await flushRecoveryNow(); clearNotices(store); writableLog.length = 0;
+      const id = store.getState().activeDocumentId, before = preserved(store);
+      const recovered = async () => {
+        const doc = (await loadRecovery()).docs.find(d => d.id === id);
+        return [doc?.ifcSource?.sha256, doc?.ifcSource?.pendingSha256];
+      };
+      const recoveryBefore = await recovered();
+      const run = route === 'Ctrl+S' ? ctrlS(store) : route === 'Opslaan als' ? store.getState().saveFileAs() : store.getState().exportAs('ifc');
+      await mergeArrives(sw, 1);
+      const w = sw.workers[0]!; w.start();
+      if (reason === 'crashed') w.fail('Out of memory');
+      if (reason === 'transport') w.onmessageerror?.call(w as unknown as Worker, {} as MessageEvent);
+      await run;
+      assert.equal(w.terminated, true, 'de worker is gestopt');
+      assert.equal(sw.requests().length, 1, 'niet opnieuw gerekend');
+      assert.equal(hash(fileOf(name)), hash(bytes), 'het doel is niet veranderd');
+      assert.deepEqual(writableLog, [], 'geen schrijfstroom');
+      assert.equal(browser.downloads.length, 0, 'geen download');
+      unchanged(store, before);
+      assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+      assert.deepEqual(await recovered(), recoveryBefore, 'het herstelrecord is niet veranderd');
+      assertNotice(store, 'notifications.ifcSaveWorkerFailed');
+      assert.equal(saveStateOf(store), undefined, 'geen "Opslaan…" meer en geen "Opgeslagen"');
+      assert.equal(statusOf(store), 'unsaved');
+    } finally { console.error = realError; unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('de opslagworker start niet: de hoofdthread rekent en de opslag slaagt', async () => {
+  for (const [label, client] of [
+    ['geen Worker', createIfcSaveWorker({ createWorker: () => null })],
+    ['geen started', createIfcSaveWorker({ createWorker: () => new InProcessWorker('silent'), startTimeoutMs: 30 })],
+  ] as const) {
+    const { store, name } = await openHandle(bytes, mergesInWorker(client.compute)), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      assert.equal(await ctrlS(store), true, label);
+      assert.equal(hash(fileOf(name)), expected.sha256, `${label}: dezelfde bytes`);
+      assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0, label);
+      assert.equal(statusOf(store), 'saved', label);
+    } finally { unregister(); client.dispose(); await clearRecovery(); }
+  }
+});
+
+await check('opslagstand: "Opslaan…" tot en met de laatste herstelronde na de commit, dan "Opgeslagen" met de tijd; weg na annuleren, weigering en fout', async () => {
+  // Geslaagd, via de handle: de laatste herstelronde (die het record van de vervanging bijwerkt) valt ná de commit.
+  const sw = saveWorker();
+  const rounds: Array<{ status: string | null; dirty: boolean }> = [];
+  const { store } = await openHandle(bytes, sw.compute);
+  const unregister = recoveryRounds(store, () => rounds.push({ status: statusOf(store), dirty: store.getState().isDirty }));
+  try {
+    longer(store);
+    assert.equal(statusOf(store), 'unsaved');
+    const t0 = Date.now(); assert.equal(await ctrlS(store), true); const t1 = Date.now();
+    assert.deepEqual(rounds.at(-1), { status: 'saving', dirty: false }, 'na de commit, bij de laatste herstelronde: nog "Opslaan…"');
+    assert.deepEqual(rounds.map(r => r.status), rounds.map(() => 'saving'), 'elke herstelronde van de opslag ziet "Opslaan…"');
+    const at = saveStateOf(store)!.savedAt!;
+    assert(at >= t0 && at <= t1, 'de tijd van deze opslag');
+    assert.deepEqual(saveStatusOf(saveStateOf(store), false), { kind: 'saved', at });
+    longer(store);
+    assert.equal(statusOf(store), 'unsaved', 'weer gewijzigd: "Niet opgeslagen"');
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+
+  // Weigering (het eigen bestand is door een ander programma gewijzigd) en een fout bij close(): geen stand.
+  for (const [label, arrange] of [
+    ['weigering', (name: string) => { handleFiles.set(name, otherProgram); }],
+    ['fout', (name: string) => { handleFaults.set(name, { closeError: true }); }],
+  ] as const) {
+    const sw2 = saveWorker(), opened = await openHandle(bytes, sw2.compute), unregister2 = recoveryRounds(opened.store);
+    const realError = console.error; console.error = () => {};
+    try {
+      longer(opened.store); arrange(opened.name);
+      assert.equal(await ctrlS(opened.store), false, label);
+      assert.equal(saveStateOf(opened.store), undefined, `${label}: geen "Opslaan…" en geen "Opgeslagen"`);
+      assert.equal(statusOf(opened.store), 'unsaved', label);
+    } finally { console.error = realError; handleFaults.clear(); unregister2(); sw2.client.dispose(); await clearRecovery(); }
+  }
+
+  // Annuleren van de bestandskiezer (desktop, Opslaan als) en een gewoon document zonder gebouwmodel: ook voor alle
+  // bestanden geldt de stand.
+  const ipc = desktop();
+  try {
+    const { store: plain } = await openInStore(plainBytes(), 'gewoon.ifc');
+    longer(plain);
+    ipc.choose(null);
+    const saving = plain.getState().saveFileAs();
+    assert.equal(statusOf(plain), 'saving', 'Opslaan als: "Opslaan…" vanaf het begin');
+    await saving;
+    assert.equal(saveStateOf(plain), undefined, 'annuleren: weg');
+    assert.equal(statusOf(plain), 'unsaved');
+    const target = join(dir, 'gewoon-opgeslagen.ifc'); ipc.choose(target);
+    await plain.getState().saveFileAs();
+    assert(existsSync(target));
+    assert.equal(statusOf(plain), 'saved', 'een gewoon document: "Opgeslagen <tijd>"');
+    // Een nieuwe inhoud in hetzelfde tabblad neemt de stand niet over.
+    plain.getState().newProject();
+    assert.equal(statusOf(plain), null, 'nieuw project in hetzelfde tabblad: geen "Opgeslagen"');
+  } finally { ipc.dispose(); }
 });
 
 rmSync(dir, { recursive: true, force: true });

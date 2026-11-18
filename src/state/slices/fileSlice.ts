@@ -41,7 +41,7 @@ import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
-  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
+  IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice,
 } from '../ifcForeignGuard';
@@ -87,6 +87,8 @@ import {
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
+import { changeSaving, forgetSaveState, stampSaved } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightDependentAnchors } from '@/engine/dependentProjects';
@@ -780,13 +782,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const missingSourceSaveAsAllowed = (state: Parameters<typeof ifcFullWriteBlocked>[0]) =>
     planOnlyQuestionApplies(state, 'missingSourceSaveAs');
   /** Alle IFC-routes van de app delen de modus- en bronbewaking; hier krijgt een weigering de appmelding. Een ja op de
-   *  vraag "alleen de planning" gaat mee als `planOnly` en geldt voor deze ene voorbereiding. */
+   *  vraag "alleen de planning" gaat mee als `planOnly` en geldt voor deze ene voorbereiding. Het rekenen komt van de
+   *  context (`runtime.ifcSaveCompute`, #804 stap 5): in de gemounte app rekent een merge in de opslagworker. Faalt die
+   *  (`IfcSaveWorkerError`), dan is dit een mislukte opslag of export vóór elke I/O: één melding, niets geschreven, geen
+   *  doel, bron of herstelrecord veranderd en geen tweede poging op deze thread. */
   const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
-    try { return await prepareIfcOutput(state, input, planOnly); }
+    try { return await prepareIfcOutput(state, input, planOnly, runtime.ifcSaveCompute); }
     catch (error) {
       if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
-      else throw error;
+      else if (error instanceof IfcSaveWorkerError) {
+        console.error('De opslagworker faalde:', error);
+        get().notify(IFC_SAVE_WORKER_FAILED_NOTICE);
+      } else throw error;
       return null;
     }
   };
@@ -1180,7 +1188,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // Knownbug 1026: wat deze opslag letterlijk schreef, blijft letterlijk (`savedLiteralCalendars.ts`), ook als het
     // document intussen veranderde: het bestand heeft die kalenders nu letterlijk.
     const written = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
+    const savedAt = Date.now();
     set((state) => {
+      // #804 stap 5: de tijd voor "Opgeslagen 14:32" in de statusbalk, ook als het document intussen veranderde (dan
+      // toont de balk "Niet opgeslagen" tot een volgende opslag).
+      stampSaved(state, documentId, savedAt);
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
         applyPrepared(state);
@@ -1475,6 +1487,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /** #804 stap 5: "Opslaan…" in de statusbalk, van de vraag (Ctrl+S, Opslaan als, *Opslaan* in de sluitvraag) tot en met
+   *  het einde van de hele werkgang: wachten op de beurt, rekenen, schrijven, de commit en (bij een vervanging van het
+   *  eigen bestand) de laatste herstelronde. Ook na annuleren, een weigering of een fout is de stand daarna weg. */
+  const trackSave = <T,>(documentId: string, save: Promise<T>): Promise<T> => {
+    set(s => { changeSaving(s, documentId, 1); });
+    return save.finally(() => set(s => { changeSaving(s, documentId, -1); }));
+  };
+
   let saveAttemptSequence = 0;
   /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
   const writeActiveDocument = (documentId: string, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
@@ -1625,7 +1645,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
   const saveActiveDocumentAs = (): Promise<void> => {
     const requestedDocumentId = get().activeDocumentId;
-    return runProjectFileWrite(() => saveDocumentAsOnTurn(requestedDocumentId), () => undefined);
+    return trackSave(requestedDocumentId, runProjectFileWrite(() => saveDocumentAsOnTurn(requestedDocumentId), () => undefined));
   };
   const saveDocumentAsOnTurn = async (requestedDocumentId: string): Promise<void> => {
     // Fixronde 1 (BLOKKEERT 1) en #804 stap 3: zie `writeActiveDocument`.
@@ -1698,7 +1718,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const waiting = waitingSaves.get(documentId);
     if (waiting) return waiting;
     const forget = () => { if (waitingSaves.get(documentId) === save) waitingSaves.delete(documentId); };
-    const save: Promise<boolean> = writeActiveDocument(documentId, forget);
+    const save: Promise<boolean> = trackSave(documentId, writeActiveDocument(documentId, forget));
     waitingSaves.set(documentId, save);
     // Een opslag die nooit aan de beurt kwam (de laatste fase weigerde hem), wacht ook niet meer.
     void save.then(forget, forget);
@@ -1834,7 +1854,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // of een bewerking (eigenaarsbesluit 2026-10-19 5b). Vóór de meldingen hieronder.
         clearRefusals(s.ui);
         if (editing) runtime.beginUndoable(s, { label: 'IFC toepassen' });
-        else removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
+        else {
+          removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
+          forgetSaveState(s, s.activeDocumentId);
+        }
         if (activation.invalidateRedoScope) {
           invalidateDocumentRedo(s, s.activeDocumentId);
         }

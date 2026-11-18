@@ -3,11 +3,13 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
-import { useDisplayDate } from '@/hooks/displayDate';
+import { useDisplayDate, useTimeNotation } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR, AI_STATUS_ICON } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { BaselineLegend, useBaselineLegendLayers } from '@/components/canvas/BaselineLegend';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
+import { formatClock } from '@/utils/displayTime';
+import { saveStatusOf } from '@/state/documentSaveState';
 import { useStatusFold } from './useStatusFold';
 
 // De balk is altijd één rij. Past niet alles, dan valt dit samen, in deze volgorde: eerst wat de
@@ -21,7 +23,7 @@ const FOLD_ORDER = [
   'critical',
   'selection', // Ook zichtbaar in de Gantt en de tabel.
   'end',
-  'unsaved', // Staat ook in de titelbalk en op het tabblad.
+  'saveState', // De opslagstand. "Niet opgeslagen" staat ook in de titelbalk en op het tabblad.
   'stale',
 ] as const;
 
@@ -38,6 +40,9 @@ export function StatusBar() {
   // alle taken) opnieuw bij elke scroll.
   const zoom = useAppStore(s => s.view.zoom);
   const isDirty = useAppStore(s => s.isDirty);
+  // #804 stap 5: de opslagstand hoort bij het document dat je ziet (`documentSaveState.ts`).
+  const saveState = useAppStore(s => s.documents.find(d => d.id === s.activeDocumentId)?.saveState);
+  const timeNotation = useTimeNotation();
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
   const aiMode = useAppStore(s => s.ui.aiMode);
@@ -102,11 +107,18 @@ export function StatusBar() {
   // Afgeleid uit zoom — kan niet desyncen van de getekende as.
   const scaleText = `${t('status.scale')} ${t(`ribbon.${scaleFromZoom(zoom)}`)}`;
   const zoomText = t('status.zoom', { level: Math.round(zoom) });
-  const unsavedText = isDirty ? t('status.unsaved') : '';
+  // "Opslaan…" tijdens een opslag van dit document, daarna "Opgeslagen 14:32" (de tijd van die opslag, in de tijdnotatie
+  // van de app), en "Niet opgeslagen" zodra het weer gewijzigd is. Een fout is een gewone melding, geen stand hier.
+  const saveStatus = saveStatusOf(saveState, isDirty);
+  const savedAt = saveStatus?.kind === 'saved' ? new Date(saveStatus.at) : null;
+  const saveStateText = saveStatus === null ? ''
+    : saveStatus.kind === 'saving' ? t('status.saving')
+      : saveStatus.kind === 'unsaved' ? t('status.unsaved')
+        : t('status.saved', { time: formatClock(savedAt!.getHours() * 60 + savedAt!.getMinutes(), timeNotation) });
   const baselineNames = baselineLayers.map(l => l.name);
 
   const level = useStatusFold(barRef, FOLD_ORDER.length, [
-    tasksText, milestonesText, criticalText, endText, staleText, selectionText, scaleText, unsavedText,
+    tasksText, milestonesText, criticalText, endText, staleText, selectionText, scaleText, saveStateText,
     ...baselineNames, ...activeWarnings.map(w => w.label), aiMode, debugTerminalEnabled,
   ].join('|'), zoomText);
   const folded = (part: typeof FOLD_ORDER[number]) => FOLD_ORDER.indexOf(part) < level;
@@ -119,7 +131,7 @@ export function StatusBar() {
     ...(folded('selection') ? [selectionText] : []),
     ...(folded('baselineNames') ? baselineNames : []),
     ...(folded('view') ? [scaleText, zoomText] : []),
-    ...(folded('unsaved') ? [unsavedText] : []),
+    ...(folded('saveState') ? [saveStateText] : []),
   ].filter(text => text !== '');
 
   return (
@@ -150,7 +162,14 @@ export function StatusBar() {
       <BaselineLegend layers={baselineLayers} namesHidden={folded('baselineNames')} />
       {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{scaleText}</span>}
       {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{zoomText}</span>}
-      {unsavedText && !folded('unsaved') && <span style={{ color: 'var(--theme-warning-text)' }}>{unsavedText}</span>}
+      {saveStateText && !folded('saveState') && (
+        <span
+          data-ops-save-status={saveStatus!.kind}
+          style={saveStatus!.kind === 'unsaved' ? { color: 'var(--theme-warning-text)' } : undefined}
+        >
+          {saveStateText}
+        </span>
+      )}
       {hiddenTexts.length > 0 && (
         <button
           type="button"

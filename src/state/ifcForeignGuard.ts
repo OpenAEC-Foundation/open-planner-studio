@@ -66,6 +66,11 @@ export const IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotic
 export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
 });
+/** #804 stap 5: de opslagworker stierf, antwoordde niet op tijd of onleesbaar (`IfcSaveWorkerError`). Een mislukte opslag
+ *  of export, geen weigering: er is niets geschreven en de hoofdthread rekent niet opnieuw. */
+export const IFC_SAVE_WORKER_FAILED_NOTICE: NotifyInput = {
+  severity: 'error', messageKey: 'notifications.ifcSaveWorkerFailed', dedupeKey: 'ifc-save-worker-failed', replaceOnDedupe: true,
+};
 
 /** Knownbug 1768 (besluit van de eigenaar, 16 november 2026): weigert de browser de schrijftoestemming op het geopende
  *  bestand met een gebouwmodel, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is

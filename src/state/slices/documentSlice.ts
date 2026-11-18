@@ -42,6 +42,7 @@ import type { IFCSaveSource } from '../ifcSaveInput';
 import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { clearRefusals } from '../refusalNotice';
+import type { DocumentSaveState } from '../documentSaveState';
 import {
   mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
 } from '../calendarTasks';
@@ -74,6 +75,9 @@ export interface DocumentEntry {
    *  volgt bij activering, bij het document waar ze over gaat. Sessie-UI, geen documentdata: hoort
    *  daarom niet in de payload/het documentcontract en verdwijnt met het document. */
   pendingWorkRuleSettle?: CalendarLibrarySettle;
+  /** De opslagstand voor de statusbalk (#804 stap 5, `documentSaveState.ts`). Sessie-UI, geen documentdata, net als
+   *  `pendingWorkRuleSettle`. */
+  saveState?: DocumentSaveState;
 }
 
 /**

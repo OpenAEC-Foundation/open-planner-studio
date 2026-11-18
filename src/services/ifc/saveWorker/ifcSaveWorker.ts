@@ -1,8 +1,8 @@
 /**
  * De bediening van de opslagworker (#804 stap 4), op het patroon van `recoverySnapshotSerializer.ts`: één herbruikbare
  * worker, hoogstens één verzoek tegelijk (een volgend verzoek wacht zijn beurt af), een verzoeknummer, een time-out die
- * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. Nog door geen opslagroute gebruikt
- * (stap 5 en 6 sluiten hem aan via `prepareIfcOutput(…, compute)`).
+ * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. Stap 5: de gemounte app bezit één
+ * client (`appStore.ts`) en geeft via `mergesInWorker` alleen de merge aan de worker; stap 6 ook de gewone writer.
  *
  * De terugvalregel (besluit technisch beslisser, 16 november 2026): alleen als de worker niet start, rekent de
  * hoofdthread zelf, met `computeIfcOutputHere` (zoals `prepareIfcOutput` zonder worker). "Gestart" betekent: de worker
@@ -19,6 +19,7 @@ import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/
 import {
   errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequest, type IfcSaveResponse, type IfcSaveResult,
 } from './ifcSaveProtocol';
+import { IfcSaveWorkerError } from './ifcSaveWorkerError';
 
 export type IfcSaveWorkerPort = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
 
@@ -30,15 +31,6 @@ export const IFC_SAVE_START_TIMEOUT_MS = 10_000;
 export function ifcSaveTimeoutMs(job: IfcSaveJob): number {
   const mib = job.kind === 'merge' ? Math.ceil(job.source.bytes.byteLength / 2 ** 20) : 0;
   return 60_000 + mib * 1_000;
-}
-
-/** De worker faalde nadat hij startte, of de opslag werd gestopt. Geen inhoudelijke fout en geen terugval. */
-export class IfcSaveWorkerError extends Error {
-  readonly code = 'IFC_SAVE_WORKER';
-  constructor(readonly reason: 'crashed' | 'timeout' | 'transport' | 'disposed', message: string) {
-    super(message);
-    this.name = 'IfcSaveWorkerError';
-  }
 }
 
 /** De worker startte niet: alleen dan rekent de hoofdthread. */
@@ -163,4 +155,13 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       abort?.(disposedError());
     },
   };
+}
+
+/**
+ * #804 stap 5: wat de gemounte app aan de opslagroutes geeft (`appStore.ts`). Alleen een merge (een document met een
+ * vreemd deel, dus met de flag `ifcForeignContent`) rekent in de worker; de gewone writer blijft op deze thread tot
+ * stap 6. De keuze valt op het al besliste `job.kind`, dus na de bewaking van `prepareIfcOutput`.
+ */
+export function mergesInWorker(compute: IfcOutputCompute): IfcOutputCompute {
+  return job => job.kind === 'merge' ? compute(job) : computeIfcOutputHere(job);
 }
