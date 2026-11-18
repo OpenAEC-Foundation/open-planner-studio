@@ -3797,6 +3797,13 @@ en noem het in je rapport of PR-tekst.
       `border-inline-end` met een vaste `rotate(45deg)`; in RTL wordt dat de linkerrand en kantelt het
       pijltje. Een pijltje omlaag hoort zijn richting te houden. Richting: `border-right` in plaats van
       `border-inline-end`. Sol-review ronde 8 van #942: [BEVESTIGD] VERVOLG. — B
+1839. **VERVOLG: de test "lange planning: inklappen en verwijderen houden de selectie op haar plek" zit op de
+      tijdgrens.** `tests/browser/task-grid-selection-keep.spec.ts:184` duurde lokaal op aia09-mp50 60,0 s
+      (groen), bij een testgrens van 60 s. In de handmatige browserrun 44319088585 op
+      `feat/804-werksoort-ongebruikt-naam` (deel 4 van 4) liep hij uit op die grens, in `isInGrid`
+      (`locator.boundingBox`) via `scrollUntilVisible`. De branch raakt het raster niet en sinds de laatste
+      groene browserrun op main is aan die spec en het raster niets veranderd. Richting: de route
+      inkorten of de grens voor deze ene test ruimer zetten. Gezien bij #804 keuze 7 (werksoort ongebruikt). — B
 
 ## Wensen en open taken (geen bug)
 
