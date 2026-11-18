@@ -31,19 +31,15 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
-81. **Voortgang zonder werkelijke datums legt een verkeerde werkelijke start of een verkeerd einde vast.** Bij
-    `completion: 100` zonder `actualFinish` wordt het werkelijke einde de statusdatum (`defaultActualFinish`,
-    `taskMutationRules.ts:29-34`); zonder `actualStart` wordt de werkelijke start de geplande start
-    (`defaultActualStart`, r.44-46); alleen `actualFinish` opgeven zet de start op dezelfde dag
-    (`applyProgressInvariants`). Welke geplande start dat is, hangt af van de route (zie 85): in losse calls
-    heeft de statusdatum niet-gestart werk al naar die datum geschoven, binnen één `planner_batch` niet.
-    Nagespeeld via de echte MCP-dispatcher op Grondwerk (3 wd, gepland 7–9 juni 2027), Fundering storten (2),
-    Metselwerk (5), Dak (3), statusdatum vrijdag 11 juni, baseline-einde 23 juni: losse calls met alleen
-    `completion: 100` ⇒ Grondwerk werkelijk 11–11 juni, +2 werkdagen; in één batch ⇒ werkelijk 7–11 juni.
-    De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het grid en de panelen
-    hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. **Besluit eigenaar (2026-10-07, nog niet
-    gebouwd):** de afgeleide werkelijke start moet het oorspronkelijk geplande begin van vóór de
-    statusdatumverschuiving zijn. — B (MCP), S (UI)
+81. **Op 100% kan een taak eindigen op de statusdatum in plaats van op het geplande einde (#998).**
+    De schuif zet bij ontbrekende statusdatum die datum op vandaag. Op 100% neemt `defaultActualFinish`
+    de statusdatum over als werkelijk einde. Nagespeeld in Chromium: een taak van 3 werkdagen,
+    gepland van 28 t/m 30 oktober 2026, hield tijdens het slepen haar begin en einde bij 23%, 50% en 77%.
+    Bij 100% verschoof het einde naar 18 november. De geplande duur bleef 3 werkdagen.
+    Besluit nodig over het afgeleide einde. Bij invoer van uitsluitend een werkelijk einde en zonder
+    eerder ingevulde werkelijke start zet de voortgangsinvariant beide datums op hetzelfde moment.
+    Bij invoer van een percentage gebruikt OPS sinds #998 de geplande start van vóór de
+    statusdatumverschuiving. — B
 
 114. **De motor plant een lopende taak op 100 % niet met zijn vastgelegde restduur.** Zo'n taak (status
     STARTED, `completion` 1, geen werkelijk einde) komt uit P6 als `TK_Active` op 100 %. In P6 eindigt

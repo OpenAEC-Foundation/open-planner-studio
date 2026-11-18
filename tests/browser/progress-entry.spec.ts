@@ -11,6 +11,7 @@
 // gaan via muis en toetsenbord. Headless tegenhanger: tests/planning/check-progress-entry.ts.
 import type { Locator, Page } from '@playwright/test';
 import { computeEffectiveViewStart } from '@/utils/ganttViewport';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import { barPoint, expect, state, test } from './fixtures/ops';
 
 /** Vandaag in de browser, zoals de gebruiker hem in het statusdatumveld typt (lokale kalenderdag). */
@@ -61,6 +62,16 @@ function readProgress(page: Page, taskId: string) {
       actualStart: task.time.actualStart ?? null,
     };
   }, taskId);
+}
+
+async function readProgressDates(page: Page, taskId: string) {
+  const task = await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!, taskId);
+  return {
+    percent: Math.round(task.time.completion * 100),
+    start: shownStart(task),
+    finish: shownFinish(task),
+    duration: task.time.scheduleDuration,
+  };
 }
 
 /** De datum zoals de melding hem toont (standaardnotatie dd-mm-jjjj). */
@@ -164,8 +175,10 @@ async function rejectReversedDates(page: Page, scope: Locator, taskId: string): 
 }
 
 test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt dat, en is één Ctrl+Z', async ({ page, ops: _ops }) => {
+  await page.clock.setFixedTime(new Date('2026-11-18T12:00:00Z'));
   const today = await browserToday(page);
   const { B } = await seedChain(page, -28);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
   expect(await readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
 
   const point = await barPoint(page, B);
@@ -173,11 +186,29 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   const slider = page.locator('[data-ops-progress-slider]').first();
   await expect(slider).toHaveValue('0');
   const before = await state(page);
-  await slider.focus();
-  await page.keyboard.press('ArrowRight');
+  const original = await readProgressDates(page, B);
+  await slider.scrollIntoViewIfNeeded();
+  const box = (await slider.boundingBox())!;
+  const yCenter = box.y + box.height / 2;
+  await page.mouse.move(box.x + 2, yCenter);
+  await page.mouse.down();
+  for (const fraction of [0.25, 0.5, 0.75]) {
+    await page.mouse.move(box.x + box.width * fraction, yCenter, { steps: 4 });
+    const step = await readProgressDates(page, B);
+    expect(Math.abs(step.percent - fraction * 100)).toBeLessThan(5);
+    expect(step).toEqual({ ...original, percent: step.percent });
+    console.log('Schuif zonder statusdatum', step);
+  }
+  await page.mouse.move(box.x + box.width - 2, yCenter, { steps: 4 });
+  await expect(slider).toHaveValue('100');
+  const completed = await readProgressDates(page, B);
+  console.log('Schuif zonder statusdatum op 100%', { original, completed });
+  expect(completed).toEqual({ ...original, percent: 100, finish: `${today}T16:00` });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  expect(await readProgressDates(page, B)).toEqual(completed);
 
   await expect.poll(() => readProgress(page, B).then(p => p.statusDate)).toBe(today);
-  expect((await readProgress(page, B)).completion).toBe(0.01);
   // De melding via het ene meldkanaal, met de datum van vandaag.
   const toast = page.locator('.ops-toast', { hasText: shown(today) });
   await expect(toast).toBeVisible();
@@ -195,6 +226,22 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.mouse.click(point.x, point.y);
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
+
+  // Wanneer de statusdatum al berekend is, is de zichtbare start van de open taak opgeschoven.
+  // Dezelfde schuif moet haar oorspronkelijke, door Fundering bepaalde, start vastleggen.
+  await page.evaluate(date => {
+    const s = window.__OPS__!.store.getState();
+    s.setProject({ statusDate: date });
+    s.runCPM();
+  }, today);
+  const shifted = await readProgressDates(page, B);
+  expect(shifted.start > original.start).toBe(true);
+  await slider.focus();
+  await page.keyboard.press('End');
+  const afterShift = await readProgressDates(page, B);
+  console.log('Schuif na statusdatumverschuiving', { shifted, afterShift });
+  expect(afterShift).toEqual(completed);
+
   await seedActualDates(page, B);
   await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
   await rejectReversedDates(page, page.locator('body'), B);

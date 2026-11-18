@@ -297,9 +297,19 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
     S().enterTaskProgress(B, { field: 'completion', value: 0.6 }, { today: TODAY }), { ok: true });
   const past = fresh();
   const { B: pastB } = setup(past.S);
+  const plannedStart = taskOf(past.S, pastB).time.earlyStart;
   past.S().setStatusDate(TODAY);
+  past.S().runCPM();
+  eq('3f statusdatum schoof de opvolger voorbij de oorspronkelijke start',
+    taskOf(past.S, pastB).time.earlyStart > plannedStart, true);
   eq('3f geplande start vóór de statusdatum: geen vraag (de afgeleide start bestaat)',
     past.S().enterTaskProgress(pastB, { field: 'completion', value: 0.6 }, { today: TODAY }), { ok: true });
+  eq('3f paneel: de werkelijke start is de oorspronkelijke start na de voorganger',
+    taskOf(past.S, pastB).time.actualStart, plannedStart);
+  past.S().undo();
+  const grid = past.S().runGridMutation([cell(pastB, 'task.time.completion', 1)], { progressEntry: { today: TODAY } });
+  eq('3f raster: voltooien na statusdatumverschuiving houdt het oorspronkelijke begin',
+    { ok: grid.ok, start: taskOf(past.S, pastB).time.actualStart }, { ok: true, start: plannedStart });
 }
 {
   // Taakraster: de hele handeling wordt geweigerd met per taak `actualStartRequired`; dezelfde

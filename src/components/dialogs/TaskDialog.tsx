@@ -10,6 +10,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { localTodayIso } from '@/utils/dateUtils';
 import { planProgressEntry, type ProgressEdit, type ProgressEntryResult } from '@/engine/progressEntry';
 import { saveTaskDialog } from '@/state/taskDialogSave';
+import { progressPlannedStart } from '@/state/progressPlannedStart';
 import { shownStart, startIsActual } from '@/utils/taskDates';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
@@ -148,8 +149,10 @@ export function TaskDialog() {
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
-    const plan = planProgressEntry(draftRef.current, edit, {
+    const task = draftRef.current;
+    const plan = planProgressEntry(task, edit, {
       statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart, calendar: effCal,
+      plannedStart: () => progressPlannedStart(useAppStore.getState(), task),
     });
     if (!plan.ok) return plan;
     if (plan.change) {

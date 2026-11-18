@@ -212,10 +212,12 @@ export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | '
  * Een aanwezige werkelijke start — door gebruiker of AI opgegeven, of eerder gezet — blijft altijd
  * ongemoeid; een ongeldig opgegeven paar hoort de aanroeper te weigeren, niet stil te klemmen.
  */
-export function fillMissingActualStart(task: Task, statusDate: string | undefined, calendar?: WorkCalendar): void {
+export function fillMissingActualStart(
+  task: Task, statusDate: string | undefined, calendar?: WorkCalendar, plannedStart?: () => string | undefined,
+): void {
   const time = task.time;
   if (time.actualStart) return;
-  const start = normalizeActualDate(task, 'actualStart', defaultActualStart(time), statusDate, calendar)!;
+  const start = normalizeActualDate(task, 'actualStart', plannedStart?.() ?? defaultActualStart(time), statusDate, calendar)!;
   const finish = time.actualFinish
     || (time.completion >= 1
       ? normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar)
@@ -230,11 +232,14 @@ export function fillMissingActualStart(task: Task, statusDate: string | undefine
  *  `fillMissingActualStart`, dus nooit ná het werkelijke einde). In die volgorde: de klem moet het
  *  einde zien dat na deze bewerking overblijft. Daarna hoort de aanroeper `applyProgressInvariants`
  *  te draaien, met dezelfde `statusDate`. */
-export function applyCompletionEdit(task: Task, completion: number, statusDate: string | undefined, calendar?: WorkCalendar): void {
+export function applyCompletionEdit(
+  task: Task, completion: number, statusDate: string | undefined, calendar?: WorkCalendar,
+  plannedStart?: () => string | undefined,
+): void {
   const time = task.time;
   time.completion = completion;
   if (completion < 1) time.actualFinish = undefined;
-  if (completion > 0) fillMissingActualStart(task, statusDate, calendar);
+  if (completion > 0) fillMissingActualStart(task, statusDate, calendar, plannedStart);
 }
 
 /** Een werkelijke start of einde zetten (`undefined` = wissen) en daarna de voortgangsinvarianten

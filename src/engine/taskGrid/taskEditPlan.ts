@@ -77,6 +77,7 @@ export interface TaskEditPlanEnvironment {
   projectId: string;
   wbsAutoNumber: boolean;
   statusDate?: string;
+  plannedStart?: () => string | undefined;
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
@@ -605,7 +606,7 @@ function applyMilestoneEdit(
   return scheduleChanged ? finishDurationEdit(task, timeBefore, environment, edit) : { ok: true, value: false };
 }
 
-function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined, calendar?: WorkCalendar): void {
+function applyStatus(task: Task, status: TaskStatus, environment: TaskEditPlanEnvironment, calendar?: WorkCalendar): void {
   if (status === 'NOT_STARTED') {
     task.time.completion = 0;
     task.time.actualStart = undefined;
@@ -613,12 +614,12 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   } else if (status === 'STARTED') {
     if (task.time.completion >= 1) task.time.completion = 0;
     task.time.actualFinish = undefined;
-    fillMissingActualStart(task, statusDate, calendar);
+    fillMissingActualStart(task, environment.statusDate, calendar, environment.plannedStart);
   } else {
     task.time.completion = 1;
     // Zelfde regel als setTaskProgress en de completion-cel: zonder actualStart geldt de eigen
     // geplande start, niet AS = AF (dan kromp de voltooide balk tot zijn laatste dag).
-    fillMissingActualStart(task, statusDate, calendar);
+    fillMissingActualStart(task, environment.statusDate, calendar, environment.plannedStart);
   }
 }
 
@@ -674,12 +675,12 @@ function applyProgressEdit(
     if (typeof edit.value !== 'string' || !TASK_STATUSES.includes(edit.value as TaskStatus)) {
       return failure('enum', edit);
     }
-    applyStatus(task, edit.value as TaskStatus, environment.statusDate, calendar);
+    applyStatus(task, edit.value as TaskStatus, environment, calendar);
   } else if (id === 'task.time.completion') {
     if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
     // Zelfde regel als store (`setTaskProgress`) en MCP: een afgeleide werkelijke start valt
     // nooit ná het werkelijke einde (100% met een statusdatum vóór de geplande start).
-    applyCompletionEdit(task, edit.value, environment.statusDate, calendar);
+    applyCompletionEdit(task, edit.value, environment.statusDate, calendar, environment.plannedStart);
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value && environment.statusDate
@@ -716,6 +717,7 @@ function applyProgressEdit(
         completionFromDuration(task, edit.value, remaining, environment),
         environment.statusDate,
         calendar,
+        environment.plannedStart,
       );
     }
   } else {
@@ -911,14 +913,14 @@ function applyProgressEdits(
     // Pas ná het vastleggen van het einde: een afgeleide werkelijke start valt nooit ná het
     // (opgegeven of straks afgeleide) werkelijke einde — zelfde uitkomst als het enkele-celpad.
     // Een in deze rij opgegeven Actual Start staat er dan al en blijft ongemoeid.
-    if (desiredCompletion > 0) fillMissingActualStart(task, environment.statusDate, calendar);
+    if (desiredCompletion > 0) fillMissingActualStart(task, environment.statusDate, calendar, environment.plannedStart);
   }
   if (desiredStatus === 'NOT_STARTED') {
     task.time.actualStart = undefined;
     task.time.actualFinish = undefined;
   } else if (desiredStatus === 'STARTED') {
     task.time.actualFinish = undefined;
-    fillMissingActualStart(task, environment.statusDate, calendar);
+    fillMissingActualStart(task, environment.statusDate, calendar, environment.plannedStart);
   }
   applyProgressInvariants(task, environment.statusDate, calendar);
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);

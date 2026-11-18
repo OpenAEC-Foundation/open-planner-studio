@@ -60,7 +60,7 @@ export interface SolveProjectInput {
  *
  * De aanroeper beslist wat er met het resultaat gebeurt (opslaan, melden, weggooien).
  */
-export function solveProject(input: SolveProjectInput): CPMResult {
+export function solveProject(input: SolveProjectInput, originalTasks?: readonly Task[]): CPMResult {
   // Per-taak-kalender: de solver krijgt de projectdefault + de bibliotheek en
   // bouwt zelf een engine-cache; taken zonder eigen calendarId rekenen in de projectkalender.
   // Externe relaties op een fase gelden voor de bladtaken eronder (`leafTasksForSolve`).
@@ -100,7 +100,38 @@ export function solveProject(input: SolveProjectInput): CPMResult {
   // Terugschrijven + verzameltaak-rollup: één gedeelde functie, ook gebruikt door de benchmark.
   applyCpmResult(input.tasks, result, { projectCalendar: input.calendar, calendars: input.calendars });
 
+  if (originalTasks && input.dataDate && !input.schedulingOptions.unstartedIgnoresStatusDate) {
+    progressPlans.set(result, { input: { ...input, tasks: originalTasks } });
+  }
   return result;
+}
+
+// Een document geeft de ongewijzigde invoertaken mee. Die horen bij precies dit rekenresultaat,
+// ook na een bewerking zonder F5 of na Ctrl+Z. Pas bij de eerste afleiding van een werkelijke
+// start doorrekenen, eenmaal per resultaat. Geen extra doorrekening per schuifstap of plakrij.
+type ProgressPlanInput = Omit<SolveProjectInput, 'tasks'> & { tasks: readonly Task[] };
+const progressPlans = new WeakMap<CPMResult, { input: ProgressPlanInput } | { starts: Map<string, string> }>();
+
+export function plannedStartBeforeStatusShift(result: CPMResult | null, task: Task): string | undefined {
+  if (!result || result.tasks.get(task.id)?.earlyStart !== task.time.earlyStart) return undefined;
+  const plan = progressPlans.get(result);
+  if (!plan) return undefined;
+  if ('input' in plan) {
+    const input = plan.input;
+    const withoutFloor = solveProject({
+      ...input,
+      tasks: cloneTasksForSolve(input.tasks),
+      schedulingOptions: { ...input.schedulingOptions, unstartedIgnoresStatusDate: true },
+      traceDateDrivers: false,
+    });
+    const starts = new Map<string, string>();
+    for (const [id, { earlyStart }] of withoutFloor.tasks) {
+      if (earlyStart !== result.tasks.get(id)?.earlyStart) starts.set(id, earlyStart);
+    }
+    progressPlans.set(result, { starts });
+    return starts.get(task.id);
+  }
+  return plan.starts.get(task.id);
 }
 
 /**
@@ -112,6 +143,6 @@ export function solveProject(input: SolveProjectInput): CPMResult {
  * `resourceIds`, `constraints`, …) blijven dus bewust gedeelde referenties — kopiëren zou geen
  * enkele mutatie voorkomen en wél per doorrekening geheugen kosten.
  */
-export function cloneTasksForSolve(tasks: Task[]): Task[] {
+export function cloneTasksForSolve(tasks: readonly Task[]): Task[] {
   return tasks.map(task => ({ ...task, time: { ...task.time } }));
 }

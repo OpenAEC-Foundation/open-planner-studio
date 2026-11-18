@@ -2,7 +2,8 @@ import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
-import { currentAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { progressPlannedStart } from '@/state/progressPlannedStart';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -276,7 +277,7 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
       const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
-      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar), environment.plannedStart);
       if (!question) return planned;
       return {
         ok: false,
@@ -894,7 +895,8 @@ function commitProgressEdit(
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
   const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
-    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar) });
+    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
+    plannedStart: () => progressPlannedStart(originalAppState(s) ?? s, task) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag

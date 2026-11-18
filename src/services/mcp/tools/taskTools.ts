@@ -27,6 +27,7 @@ import {
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
+import { progressPlannedStart } from '@/state/progressPlannedStart';
 import {
   parseProgress,
   parseTaskFields,
@@ -422,8 +423,11 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       if (!shape.ok) { rejections.push({ id, reason: shape.reason }); rejectedHere = true; }
       else {
         const patch: ProgressPatch = shape.value;
+        const state = ctx.app.store.getState();
         let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'not executed' };
-        ctx.app.store.setState((s) => { pr = progress.applyProgressUpdate(s, id, patch, statusDate); });
+        ctx.app.store.setState((s) => {
+          pr = progress.applyProgressUpdate(s, id, patch, statusDate, task => progressPlannedStart(state, task));
+        });
         if (pr.applied) touched = true;
         else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
       }

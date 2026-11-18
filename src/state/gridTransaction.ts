@@ -40,6 +40,8 @@ import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
+import { originalAppState } from './immerDraft';
+import { progressPlannedStart } from './progressPlannedStart';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -523,6 +525,7 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     projectId: state.project.id,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     statusDate: state.project.statusDate,
+    plannedStart: () => progressPlannedStart(originalAppState(state) ?? state, task),
     calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourModeCalendar(effectiveCalendar) === true,
@@ -1057,7 +1060,8 @@ export function prepareGridMutation(
         const question = actualStartQuestionFor(before, after, entryStatusDate, {
           actualStart: wrote('task.time.actualStart'),
           actualFinish: wrote('task.time.actualFinish'),
-        }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar));
+        }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar),
+        () => progressPlannedStart(state, before));
         if (question) {
           errors.push(validationError('actualStartRequired', { taskId }, {
             statusDate: question.statusDate, latest: question.latest,

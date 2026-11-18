@@ -172,6 +172,7 @@ export const progress = {
     taskId: string,
     update: { completion?: number; actualStart?: string; actualFinish?: string },
     statusDate: string | undefined,
+    getPlannedStart?: (task: Task) => string | undefined,
   ): ProgressResult {
     const task = draftState.tasks.find((t) => t.id === taskId) as Task | undefined;
     if (!task) return { applied: false, reason: `task '${taskId}' does not exist` };
@@ -214,7 +215,8 @@ export const progress = {
     //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
     //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
     //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
-    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar);
+    const plannedStart = () => getPlannedStart?.(task);
+    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, plannedStart);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
@@ -262,9 +264,9 @@ export const progress = {
     const question = actualStartQuestionFor(task, scratch, statusDate, {
       actualStart: !!update.actualStart,
       actualFinish: !!update.actualFinish,
-    }, isElapsedTask(task) ? undefined : calendar);
+    }, isElapsedTask(task) ? undefined : calendar, plannedStart);
     if (question) {
-      const planned = scratch.time.earlyStart || scratch.time.scheduleStart;
+      const planned = plannedStart() ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
       return {
         applied: false,
         reason: `task '${taskId}' has no actual start yet and was planned to start only after the status ` +

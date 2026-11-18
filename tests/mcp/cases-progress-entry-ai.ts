@@ -95,11 +95,16 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
 
-test('taak die volgens plan al begonnen is: voortgang zonder actualStart werkt zoals altijd', async () => {
-  const { V } = setup('2026-06-10');
-  const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 40 } }] });
+test('knownbug 81: voltooien na F5 gebruikt het geplande begin van vóór de statusdatumverschuiving', async () => {
+  const { V } = setup(undefined);
+  const originalStart = timeOf(V).earlyStart;
+  await rpc('planner_update_project', { statusDate: '2026-06-10' });
+  S().runCPM();
+  assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
+  const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 100 } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  assertEq(timeOf(V).actualStart, timeOf(V).earlyStart, 'afgeleide start = geplande start');
+  assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
+  assertEq(timeOf(V).actualFinish, '2026-06-10T16:00', 'afgeleid einde = statusdatum');
 });
 
 test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', async () => {
