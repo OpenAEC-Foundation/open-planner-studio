@@ -74,5 +74,7 @@ met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blij
 geweigerd. De exports vragen vóór de bestandskiezer en schrijven niet als het document tijdens de vraag veranderde
 (`refuseChangedExport` onder het schrijfslot); ze raken het document niet.
 De uitzondering "eigen doel" in `refusedWriteTarget` (`ownVersion`) bindt document-id, bronidentiteit en kenmerk op één plek; exports en Opslaan als geven haar niet mee. Site: met de basisversie. Handle (1131 stap 2, alleen Ctrl+S via `documentTargetCheck(…, true)`): dezelfde handle als document en kenmerk (`isSameEntry`); een ander open document met dat bestand als bron blijft geweigerd. Een pad krijgt haar niet. De route staat in `tauri-ifc.md`. De voorbereiding
-loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd.
+loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd, op het document van
+de momentopname en niet op het actieve document (#804 stap 3): een tabbladwissel tijdens de opslag weigert niet, en de
+commit gaat naar dat document. Na de momentopname leest een opslag het actieve document niet meer.
 Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit.

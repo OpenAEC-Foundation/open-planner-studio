@@ -28,7 +28,7 @@ export function CloseDocumentDialog() {
   const filePath = useAppStore((s) => s.filePath);
   const activeCode = useAppStore((s) => documentProjectCode(s.project, s.xerImportMetadata));
   const setUI = useAppStore((s) => s.setUI);
-  const closeDocument = useAppStore((s) => s.closeDocument);
+  const closeDocumentAfterSaves = useAppStore((s) => s.closeDocumentAfterSaves);
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -66,7 +66,7 @@ export function CloseDocumentDialog() {
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
     switchDocument,
-    closeDocument,
+    closeDocument: closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
     clearPending: () => { setUI({ pendingCloseDocId: null }); },
     restoreOpenerFocus,
@@ -83,7 +83,7 @@ export function CloseDocumentDialog() {
       busy={savePending}
       cancelButtonRef={cancelButtonRef}
       onCancel={actions.cancel}
-      onDiscard={actions.discard}
+      onDiscard={() => { void actions.discard(); }}
       onSave={() => { void actions.save(); }}
     />
   );

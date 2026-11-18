@@ -2854,6 +2854,78 @@ en noem het in je rapport of PR-tekst.
      zijn eigen begrenzing en de worker stopt na elke scan: geen onbegrensd lek en geen extra volledige kopie van
      300 MiB aangetoond. Richting: laat `push` los zodra een stap een uitkomst bevat. Gevonden door de review van #986
      (Sol). — B (proef van de review)
+1813. **Een opslag die nooit eindigt, houdt het afsluiten tegen; er is geen knop om het wachten af te breken.** Sinds
+     #804 stap 3 wachten afsluiten, een document sluiten en de updater tot de schrijfrij leeg is
+     (`whenProjectFileWritesIdle`, besluit eigenaar 17 november 2026: wachten, dan sluiten, zonder vraag). De I/O onder
+     het schrijfslot heeft geen eigen einde: de schrijfstappen van plugin-fs (`write_file`, `rename`,
+     `place_file_exclusive`), het lezen van het doel (`refusedWriteTarget`, `sourceTargetContent`), de schrijfstroom van
+     een browserhandle (`write`/`close()`), een verzoek aan de site en de herstelronde in `replaceWithRecoveryPending`.
+     Hangt er één (bijvoorbeeld een netwerkschijf die wegvalt), dan staat "Wordt nog opgeslagen…" er voor altijd, ligt
+     de schil stil en sluit de app alleen nog via het besturingssysteem; het herstel blijft dan wel staan. Een vraag
+     onder het slot (site, IFC-schema, alleen de planning, afhankelijke projecten) houdt het wachten ook tegen, maar
+     staat zichtbaar: de aanduiding gaat er niet overheen (`SavingBeforeCloseNotice`). De native opslaan-dialoog staat
+     als eigen venster bovenop; of `CloseRequested` op Windows, macOS en Linux überhaupt binnenkomt terwijl die open
+     is, is niet nagegaan. De updater toont tijdens het wachten "Installatie voorbereiden…" met een draaiend teken en
+     geen eigen aanduiding.
+     Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
+     tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
+1814. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
+     op.** Sinds #804 stap 3 hoort een opslag bij het document waarvoor hij gevraagd werd (`writeActiveDocument`,
+     `saveDocumentAsOnTurn` in `fileSlice.ts`). Drukt de planner Ctrl+S terwijl een eerdere opslag loopt en wisselt hij
+     daarna van tabblad, dan stopt de wachtende opslag bij zijn beurt zonder melding; het document blijft gewijzigd (er
+     gaat niets verloren, het herstel en de sluitvraag zien het). Vóór stap 3 sloeg diezelfde wachtende opslag het dan
+     actieve document op. Een opslag die al loopt, gaat wél door en wordt in zijn eigen document vastgelegd. De review
+     van #987 (Sol) bevestigt dat een planner dit in gewoon werk merkt: Ctrl+S aanvragen terwijl een opslag loopt en dan
+     van tabblad wisselen laat de wachtende aanvraag stil vervallen. Er wordt geen ander document geschreven en het
+     oorspronkelijke document wordt niet als opgeslagen gemarkeerd. Richting: het slapende document opslaan wanneer
+     geen vraag nodig is, anders melden dat de aanvraag niet is uitgevoerd. Gevonden bij #804 stap 3, uit de code;
+     bevestigd door de review van #987. — B (review)
+1817. **Afsluiten herkent een mislukte opslag aan zichtbare rode meldingen, niet aan de uitkomst van de opslag.**
+     `watchFailures` in `src/services/appQuit/appQuitDependencies.ts` vergelijkt alleen welke rode meldingen er na het
+     wachten nog staan. De begrenzing van de meldingenlijst (`uiSlice.ts`, `MAX_NOTIFICATIONS`) kan een nieuwe weigering
+     meteen weer verwijderen: met drie oude fouten in beeld verdween een nieuwe opslagweigering (`refusalNotice`) direct
+     en zag het afsluiten geen mislukking. Andersom breekt een nieuwe fout uit een ander onderdeel het afsluiten af. Het
+     gewijzigde document blijft beschermd door zijn dirty-vlag en de sluitvraag; gegevensverlies is niet aangetoond.
+     Richting: de opslag geeft zelf zijn uitkomst door. Gevonden door de review van #987 (Sol). — B (proef van de review)
+1818. **Een IFC-export weigert nog als de planner tijdens de export van tabblad wisselt.** Sinds #804 stap 3 kijkt de
+     weigering van Opslaan en Opslaan als naar het document van de momentopname. De exports niet: `refuseChangedExport`
+     in `fileSlice.ts` (Bestand → Exporteren als IFC, en de export met de resourcebibliotheek) vergelijkt met het actieve
+     document, net als de MCP-export (`planner_export_ifc` in `fileTools.ts`). Wisselt de planner van tabblad terwijl de
+     export op een eerdere opslag wacht, dan meldt de app "het document veranderde" en schrijft niets; opnieuw
+     exporteren werkt. Richting: dezelfde binding aan het document van de momentopname als bij Opslaan. Gevonden bij
+     #804 stap 3, uit de code. — S
+1819. **Tijdens de laatste fase van afsluiten blijft een keuzevenster aan `document.body` bedienbaar, en de laatste
+     controle staat vóór een wachtstap.** De wortel van de app is dan `inert` (`App.tsx`), maar de datumkiezer hangt
+     aan `document.body` (`DatePicker.tsx`) en de statusdatum in het lint gebruikt zijn dagkeuze voor een directe
+     documentbewerking (`ribbonWidgets.tsx`). De laatste controle op een gewijzigd document
+     (`appQuitController.ts`) staat vóór het wachten op de MCP-ontdekking (`useAppCloseGuard.ts`, hoogstens 1,5 s). In
+     de proef van de review werd in dat venster de actie voor de statusdatum aangeroepen: bij de native sluitaanroep
+     was het document gewijzigd, stonden er nul herstelsnapshots en waren de IFC-bytes onveranderd. De echte klik in
+     de desktopwebview is niet uitgevoerd; de wijziging moet precies tussen de laatste controle en `destroy` vallen.
+     Richting: interactieve portals onder dezelfde inerte grens, en de bestaande controle verplaatsen tot na het
+     wachten op MCP, direct vóór `destroy`; één controle volstaat. Gevonden door de review van #987 (Sol, ronde 3).
+     — B (proef van de review)
+1824. **Tijdens het downloaden van een update kan F11 de sluitvraag verbergen waarop de updater wacht.** F11 blijft
+     toegestaan bij een updatedialoog (`shortcutRegistry.ts`), en in de presentatieweergave rendert `App` de sluitvraag
+     niet (`App.tsx`, `CloseDocumentDialogControl.tsx`). In de proef van de review: update gestart, F11, een
+     sluitverzoek van het venster, download klaar. De sluitvraag stond in de store en de installatie wachtte, zonder
+     dat er iets te zien was; na Escape kwam de gewone weergave terug en liet Annuleren de installatie doorgaan.
+     Richting: de bestaande sluitvraag in beide weergaven tonen, met één gedeelde mount. Gevonden door de review van
+     #987 (Sol, ronde 3). — B (proef van de review)
+1825. **Afsluiten met *Niet opslaan* wacht op een herstelronde die nog serialiseert en waarvan het resultaat wordt
+     weggegooid.** Het wissen van het herstel wacht onder het deltaslot (`clearRecoveryNow` in `useAutoSave.ts`), ook
+     al heeft afsluiten het crashherstel al stilgezet. Met gecontroleerd vertraagde serialisatie bleef de app inert tot
+     de vrijgave; met de hooks van vóór #987 fixronde 2 bereikte de app de native sluitaanroep eerder. Een echte worker
+     heeft een antwoordtermijn van 60 seconden per verzoek (`recoverySnapshotSerializer.ts`), daarna synchrone terugval;
+     de duur bij een echte grote planning is niet gemeten. Richting: de volgorde voor schijfacties houden en de
+     deltabasis ongeldig maken vóór de eerstvolgende hervatte ronde, zodat sluiten niet wacht op serialisatie die nog
+     niets aan de opslag heeft aangeboden. Gevonden door de review van #987 (Sol, ronde 3). — B (proef van de review)
+1826. **`shutdownPhase.ts` kan eenvoudiger, en de Enter-stap in de browserproef toetst niets.** De code vraagt alleen
+     of de afsluitfase bezet is: de naam van de eigenaar en de lijst met wachtenden kunnen eruit; één belofte per
+     bezetting volstaat, met een eenmalige vrijgave en een nieuwe poging na het wachten. In
+     `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
+     want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
+     geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
 
 ## Rondleiding, Help en extensie-gidsen
 

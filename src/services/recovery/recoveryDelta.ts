@@ -193,6 +193,11 @@ export class RecoveryDeltaTracker {
     return this.persisted !== null;
   }
 
+  /** De snapshots zijn gewist (schone exit): de volgende ronde schrijft weer alles. De serialisatiecache blijft. */
+  forgetPersisted(): void {
+    this.persisted = null;
+  }
+
   /** De bronverwijzing van een document zoals het laatst geslaagde manifest haar schreef. */
   persistedIfcSource(documentId: string): RecoveryIfcSource | undefined {
     return this.persisted?.documents.find(d => d.id === documentId)?.ifcSource;

@@ -92,7 +92,7 @@ export function useDocumentCards(includeThumbnails = false): DocumentCard[] {
 /** Gedeelde acties voor alle drie de chrome-stijlen + het overzicht. */
 export function useDocumentActions() {
   const switchDocument = useAppStore((s) => s.switchDocument);
-  const closeDocument = useAppStore((s) => s.closeDocument);
+  const requestCloseDocument = useAppStore((s) => s.requestCloseDocument);
   const setUI = useAppStore((s) => s.setUI);
   // De titelbalk-wisselaar blijft ook in Help bereikbaar; de startvraag hoort bij het huidige document.
   const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
@@ -102,14 +102,12 @@ export function useDocumentActions() {
   }, [startQuestionOpen, switchDocument]);
 
   // Dirty document → open de sluit-bevestiging (Opslaan/Niet opslaan/Annuleren);
-  // schoon document sluit meteen.
+  // schoon document sluit meteen. Loopt er een opslag, dan eerst "Wordt nog opgeslagen…" (#804 stap 3).
   const closeWithGuard = useCallback(
-    (doc: { id: string; isDirty: boolean }) => {
-      if (startQuestionOpen) return;
-      if (doc.isDirty) { setUI({ pendingCloseDocId: doc.id }); return; }
-      closeDocument(doc.id);
+    (doc: { id: string }) => {
+      if (!startQuestionOpen) requestCloseDocument(doc.id);
     },
-    [closeDocument, setUI, startQuestionOpen],
+    [requestCloseDocument, startQuestionOpen],
   );
 
   const openOverview = useCallback(() => {

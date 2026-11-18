@@ -1924,10 +1924,10 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       t0 = performance.now();
       let refusedAt = 0;
       let queuedAt = 0;
-      const save = runProjectFileWrite(() => targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset }))
+      const save = runProjectFileWrite(() => targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset }), () => null)
         .then(r => { refusedAt = performance.now() - t0; return r; });
       await new Promise<void>(resolve => { setImmediate(resolve); });
-      const queued = runProjectFileWrite(async () => { queuedAt = performance.now() - t0; });
+      const queued = runProjectFileWrite(async () => { queuedAt = performance.now() - t0; }, () => undefined);
       ok('9d stille Worker: het schrijfslot is bezet tijdens de doelcontrole', isProjectFileWriteBusy());
       const refusal = await save;
       await queued;

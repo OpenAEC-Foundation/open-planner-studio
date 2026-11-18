@@ -85,6 +85,7 @@ import {
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightDependentAnchors } from '@/engine/dependentProjects';
 import { dependentAnchorsAsSaved } from '../dependentCandidates';
@@ -740,7 +741,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   type DocumentWrite = IfcOutput & { readonly missingSourceSaveAs?: true };
-  const missingSourceSaveAsAllowed = (state: AppState) => planOnlyQuestionApplies(state, 'missingSourceSaveAs');
+  const missingSourceSaveAsAllowed = (state: Parameters<typeof ifcFullWriteBlocked>[0]) =>
+    planOnlyQuestionApplies(state, 'missingSourceSaveAs');
   /** Alle IFC-routes van de app delen de modus- en bronbewaking; hier krijgt een weigering de appmelding. Een ja op de
    *  vraag "alleen de planning" gaat mee als `planOnly` en geldt voor deze ene voorbereiding. */
   const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
@@ -758,20 +760,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return write;
   };
 
-  /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. */
+  /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. #804 stap 3: dit kijkt naar
+   *  het document van de momentopname (`snapshot.activeDocumentId` is het document dat opgeslagen wordt), nooit naar het
+   *  document dat nu actief is. Bestaat het nog en is zijn bron hetzelfde object, dan gaat de opslag door, ook als de
+   *  planner intussen in een ander tabblad werkt; is het weg of is zijn bron vervangen, dan de weigering. */
   const refuseChangedDocumentWrite = (snapshot: AppState, write: DocumentWrite): boolean => {
+    if (!write.missingSourceSaveAs && !write.prepared) return false;
+    const app = get();
+    const current = saveSourceForDocument(app, snapshot.activeDocumentId);
+    const doc = current && { ifcSource: current.ifcSource, foreignSourceMark: current.foreignSourceMark, ui: app.ui };
     if (write.missingSourceSaveAs) {
-      const now = get();
-      if (now.activeDocumentId === snapshot.activeDocumentId && now.ifcSource === snapshot.ifcSource
-        && now.foreignSourceMark === snapshot.foreignSourceMark && missingSourceSaveAsAllowed(now)) return false;
-      get().notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+      if (doc && doc.ifcSource === snapshot.ifcSource && doc.foreignSourceMark === snapshot.foreignSourceMark
+        && missingSourceSaveAsAllowed(doc)) return false;
+    } else if (doc && ifcFullWriteBlocked(doc)) {
+      app.notify(ifcWriteBlockedNotice(doc));
       return true;
-    }
-    if (!write.prepared) return false;
-    if (refuseForeignDocumentWrite()) return true;
-    const now = get();
-    if (now.activeDocumentId === snapshot.activeDocumentId && now.ifcSource === snapshot.ifcSource) return false;
-    get().notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+    } else if (doc && doc.ifcSource === snapshot.ifcSource) return false;
+    app.notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
     return true;
   };
 
@@ -1269,9 +1274,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Staat er al een site-vraag open? Dan start Opslaan/Openen geen tweede ronde: Ctrl+S in het
    *  naamveld van "Opslaan op de site" zou anders na het antwoord nog een versie schrijven. Zonder
    *  site zijn beide vlaggen altijd `null`. Ook de schemavraag bij opslaan telt mee (issue #292). */
-  const siteQuestionOpen = () => get().ui.pendingSiteSave !== null || get().ui.pendingSiteOpen !== null
-    || get().ui.pendingIfcSchemaQuestion !== null || get().ui.pendingDependentAnchorWarning !== null
-    || get().ui.pendingPlanOnlyQuestion !== null;
+  const siteQuestionOpen = () => saveQuestionOpen(get().ui);
 
   /** Uitleg na het openen van een ander formaat dan IFC (`services/formatNotice.ts`). Alleen de
    *  open-routes die de GEBRUIKER start roepen dit aan (Bestand → Openen, Recente bestanden, Openen
@@ -1384,17 +1387,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   let saveAttemptSequence = 0;
-  const writeActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
-    // Fixronde 1 (BLOKKEERT 1): het document van de start. Wisselt het actieve document tijdens het wachten (de
-    // schemavraag, de afhankelijke projecten met een luie import), dan stopt opslaan stil, zoals bij een verwacht id.
-    const startDocumentId = get().activeDocumentId;
-    if (expectedDocumentId && expectedDocumentId !== startDocumentId) return false;
+  /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
+  const writeActiveDocument = (documentId: string, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
+    onTurn();
+    // #804 stap 3: een opslag hoort bij het document waarvoor hij gevraagd werd. Is dat bij zijn beurt niet het actieve
+    // document (de planner wisselde terwijl een eerdere opslag liep), dan slaat hij niet op en blijft het document
+    // gewijzigd (knownbug 1814). Fixronde 1 (BLOKKEERT 1): wisselt het actieve document tijdens het wachten op een vraag
+    // (de schemavraag, de afhankelijke projecten met een luie import), dan stopt opslaan ook stil.
+    if (get().activeDocumentId !== documentId) return false;
     if (refuseForeignDocumentWrite()) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
     if (!(await settleDependentAnchors())) return false;
+    // De momentopname. Vanaf hier leest de opslag alleen nog `state` en, via `documentId`, het eigen document
+    // (`refuseChangedDocumentWrite`, `commitSavedDocument`); nooit meer het actieve document (#804 stap 3).
     const state = get();
-    const documentId = state.activeDocumentId;
-    if (documentId !== startDocumentId) return false;
+    if (state.activeDocumentId !== documentId) return false;
     // Opnieuw op de momentopname die de app echt schrijft: niets mag tijdens het wachten een vreemd deel binnenbrengen.
     if (refuseForeignDocumentWrite(state)) return false;
     // Gezet zolang er naar de SITE geschreven wordt: dan meldt de catch een sitefout (met conflict-
@@ -1511,13 +1518,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       notifyWriteError(err);
       return false;
     }
-  });
+  }, () => false); // de laatste fase van afsluiten of van de updater: niets geschreven, het document blijft gewijzigd
 
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
-  const saveActiveDocumentAs = (): Promise<void> => runProjectFileWrite(async () => {
-    // Fixronde 1 (BLOKKEERT 1): zie `writeActiveDocument`.
+  const saveActiveDocumentAs = (): Promise<void> => {
+    const requestedDocumentId = get().activeDocumentId;
+    return runProjectFileWrite(() => saveDocumentAsOnTurn(requestedDocumentId), () => undefined);
+  };
+  const saveDocumentAsOnTurn = async (requestedDocumentId: string): Promise<void> => {
+    // Fixronde 1 (BLOKKEERT 1) en #804 stap 3: zie `writeActiveDocument`.
     const before = get();
     const startDocumentId = before.activeDocumentId;
+    if (startDocumentId !== requestedDocumentId) return;
     const missingSourceSaveAs = missingSourceSaveAsAllowed(before);
     let planOnly: PlanOnlyConfirmation | undefined;
     if (missingSourceSaveAs) {
@@ -1572,11 +1584,24 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       get().notify(newTargetWriteNotice(err)
         ?? { severity: 'error', messageKey: 'notifications.saveFailed', detail: saveErrorDetail(err) });
     }
-  });
+  };
 
-  const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => (
-    siteQuestionOpen() ? Promise.resolve(false) : writeActiveDocument(expectedDocumentId)
-  );
+  /** #804 stap 3: per document hoogstens één wachtende opslag. Een Ctrl+S terwijl er voor dit document al een opslag
+   *  wacht (niet: loopt), sluit zich daarbij aan; die pakt bij zijn beurt een verse momentopname, dus er gaat niets
+   *  verloren. Een lopende opslag telt niet mee: die schrijft een oudere momentopname. */
+  const waitingSaves = new Map<string, Promise<boolean>>();
+  const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => {
+    if (siteQuestionOpen()) return Promise.resolve(false);
+    const documentId = expectedDocumentId ?? get().activeDocumentId;
+    const waiting = waitingSaves.get(documentId);
+    if (waiting) return waiting;
+    const forget = () => { if (waitingSaves.get(documentId) === save) waitingSaves.delete(documentId); };
+    const save: Promise<boolean> = writeActiveDocument(documentId, forget);
+    waitingSaves.set(documentId, save);
+    // Een opslag die nooit aan de beurt kwam (de laatste fase weigerde hem), wacht ook niet meer.
+    void save.then(forget, forget);
+    return save;
+  };
 
   return {
     commitSavedDocument,
@@ -2199,7 +2224,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
       // onder dezelfde lock als Opslaan als; anders schreef AutoSave er tussendoor de ankertekst en markeerde hij het
       // document als opgeslagen (knownbug 1026). De andere formaten raken het eigen bestand niet en blijven zoals ze waren.
-      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord) : await writeAndRecord();
+      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een IFC-export niets, net als na annuleren.
+      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord, () => null) : await writeAndRecord();
       // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
@@ -2293,7 +2319,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           { refuseTarget, refuseDownload: () => refuseChangedExport(state) });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         return written;
-      });
+      }, () => null);
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);

@@ -748,7 +748,8 @@
     "confirmClose": "Dit document heeft niet-opgeslagen wijzigingen. Toch sluiten?",
     "closeTitle": "Niet-opgeslagen wijzigingen",
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
-    "dontSave": "Niet opslaan"
+    "dontSave": "Niet opslaan",
+    "stillSaving": "Wordt nog opgeslagen…"
   },
   "feedback": {
     "buttonTooltip": "Feedback geven",
