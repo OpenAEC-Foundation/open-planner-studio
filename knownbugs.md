@@ -3804,6 +3804,13 @@ en noem het in je rapport of PR-tekst.
       (`locator.boundingBox`) via `scrollUntilVisible`. De branch raakt het raster niet en sinds de laatste
       groene browserrun op main is aan die spec en het raster niets veranderd. Richting: de route
       inkorten of de grens voor deze ene test ruimer zetten. Gezien bij #804 keuze 7 (werksoort ongebruikt). — B
+1840. **VERVOLG: de IFC-mergecontrole heeft een eigen kopie van de regel "welke werksoorten gaan mee".**
+      `src/services/ifc/foreign/lossCheck.ts` (rond regel 1924) berekent de door taken gebruikte definities zelf, met
+      een eigen set en filter, en vergelijkt ze daarna met de uitgevoerde definities. De schrijver en `sameIFCSource`
+      gebruiken sinds #1007 één functie, `savedCustomTaskTypes` (`customTaskTypeRules.ts`). Wijzigt die regel later,
+      dan kan de mergecontrole om de verkeerde reden weigeren. Nu geven beide dezelfde selectie. Richting: de lokale
+      set en filter vervangen door één aanroep van `savedCustomTaskTypes`, met de bestaande terugval naar een lege
+      catalogus. Sol-review ronde 2 van #1007: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 
