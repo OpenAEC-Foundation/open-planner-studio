@@ -651,8 +651,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   (`tauri-plugin-fs-2.7.1/src/commands.rs:864`); er is geen exclusieve variant en geen harde link. Alleen `writeFile` en
   `open` kennen `createNew`.
   - **Keuze: één smal Rust-commando `place_file_exclusive(from, to)`.** Het plaatst een bestand onder een nieuwe naam en
-    faalt als die naam al bestaat (op Windows niet als daar een harde link van de bron zelf staat: dan `placed`, knownbug
-    1798), in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
+    faalt als die naam al bestaat, in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
     `renameatx_np` met `RENAME_EXCL`, op Windows `SetFileInformationByHandle` (`FileRenameInfo`) zonder vervangen. Kent het
     bestandssysteem zo'n stap niet (`EINVAL`, `ENOTSUP`, bijvoorbeeld op sommige netwerkschijven), dan geeft het de fout
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
@@ -685,6 +684,17 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     - een fout van de stap blijft een fout (`EEXIST` is `target-exists`, ook bij hetzelfde inode);
     - na de stap hoogstens één verplaatsing, geen herstel.
 
+    Een bron met meer dan één naam (een harde link) weigert het vóór de stap, met `refused` en de eigen reden
+    `hard-linked` (besluit van de technisch beslisser, 18 november 2026; review #991): anders lopen de twee namen na een
+    vervanging stil uiteen, en de voorcontrole in TypeScript ziet het aantal op Windows niet (plugin-fs 2.7.1 geeft
+    daar `nlink: null`). Het commando leest het aantal van de open bron, in dezelfde lezing als het bestandstype en de
+    identiteit (Unix `fstat` op de open descriptor, Windows `nNumberOfLinks` van `GetFileInformationByHandle` op de open
+    handle). Precies één naam mag. Nul namen betekent dat de open bron intussen geen naam meer heeft: dan stopt het met
+    `source-changed`, zonder iets te verplaatsen, en de aanroeper ruimt niet op naam op (review #996). Een lezing die
+    mislukt, geeft `io`. De regel geldt voor elke bron, in stap 3 en in stap 4; een harde link van de bron op het doel
+    valt er ook onder (daarvóór gaf Windows daar `placed`, knownbug 1798). Een bestandssysteem dat voor een nieuw
+    bestand nul namen meldt, zou de route naar een nieuwe naam laten stoppen (knownbug 1822, niet aangetroffen).
+
     Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen controle en
     stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als het dat achteraf ziet, en
     kan het missen bij een wissel-terug. Op Windows speelt dit niet.
@@ -693,10 +703,18 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     in twee stappen die alleen Linux heeft. Wie tussen controle en stap een object onder de hulpnaam kan zetten, heeft
     via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`.
 
+    Ook buiten de grens (benoemd, knownbug 1823; besluit van de technisch beslisser, 18 november 2026, na review
+    #996): de weigering van een harde link geldt waar het bestandssysteem het aantal namen eerlijk meldt. SSHFS en
+    andere FUSE- of netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie (SSHFS 3.7.7 meldt ook
+    voor een harde link op de server één naam en kan exclusief hernoemen). Waarom: er gaat geen versie verloren, want
+    de andere naam houdt de oude inhoud; het geval is zeldzaam (een harde link naar een IFC-bestand op een SSHFS-map);
+    mounts herkennen per platform is breekbaar, maakt het commando groter en zou Ctrl+S op elke SSHFS-map uitzetten,
+    en dat is erger dan het gat dat het dicht.
+
     Hoe: eerst de padteksten van de aanroeper zoals plugin-fs `rename` ze toetst (`SafeFilePath`, dan de scope van
     `from` en daarna van `to`; een doel dat nog niet bestaat, maakt Tauri niet canoniek). Dan de map, één keer geopend
     en vastgehouden, met de scope ook op het echte pad van die open map. De bron wordt in die map geopend zonder links
-    te volgen en op de open bron gecontroleerd en vastgelegd. De stap gaat relatief aan de open map (Linux
+    te volgen en op de open bron gecontroleerd (een gewoon bestand met precies één naam) en vastgelegd. De stap gaat relatief aan de open map (Linux
     `renameat2`, macOS `renameatx_np`); op Windows zijn map en bron geopend zonder `FILE_SHARE_DELETE` en hernoemt
     `SetFileInformationByHandle` de open bron zelf. Na de stap moet op het doel de open bron staan, in de open map en
     via het pad van de aanroeper; anders geeft het commando `source-changed` en raakt het niets meer aan. Die uitkomst
@@ -709,7 +727,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     (`writeNewUserBytes` in `atomicWrite.ts`). `placed` en `dir-not-synced` zijn klaar; `target-exists` ruimt het eigen
     bestand op en meldt dat alleen een nieuwe naam kan; `unsupported` en `refused` met reden `scope` ruimen op en vallen
     terug op de directe exclusieve aanmaak (één `createNew` op de naam); een andere weigering is een fout, zonder
-    opruimen bij `not-regular-file`; `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
+    opruimen bij `not-regular-file` (bij `hard-linked` wel: dat haalt alleen de eigen naam weg); `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
     planner hoort dat de app niet weet of het bestand goed is opgeslagen; `io` ruimt op en is een fout. Mag het
     tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, en sinds plugin-fs 2.7.1 ook in een map
     die via een link naar buiten de thuismap wijst), dan blijft de directe
@@ -771,10 +789,16 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
     bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Op een
     bestandssysteem zonder atomaire exclusieve hernoemstap overschrijft de app het bestand niet; daar is alleen
-    *Opslaan als* mogelijk.
-  - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (symlink, harde link), buiten de fs-scope, of
-    als een stap faalt, schrijft de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in
-    `atomicWrite.ts:105-116, 155-160` past niet bij deze garantie). Zonder vreemd deel blijft de huidige route.
+    *Opslaan als* mogelijk. Dat een bestand met een harde link niet vervangen wordt, geldt waar het bestandssysteem het
+    aantal namen eerlijk meldt (besluit van de technisch beslisser, 18 november 2026; knownbug 1823): op SSHFS en
+    andere FUSE- of netwerkmounts die harde links verbergen, lopen de twee namen bij een vervanging uiteen. Er gaat
+    dan geen versie verloren, want de andere naam houdt de oude inhoud; detectie zou breekbaar zijn en Ctrl+S op
+    elke SSHFS-map uitzetten.
+  - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (een symlink, of een harde link die het
+    bestandssysteem meldt: een gemeld aantal namen groter dan één), buiten de fs-scope, of als een stap faalt, schrijft
+    de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in `atomicWrite.ts:105-116, 155-160` past
+    niet bij deze garantie). Een harde link die het bestandssysteem verbergt (SSHFS en andere FUSE- of netwerkmounts,
+    knownbug 1823) ziet de app niet; daar stopt hij dus niet. Zonder vreemd deel blijft de huidige route.
 - **Browser met een bestands-handle (File System Access)**: de browser zet de inhoud pas neer bij `close()` van de
   schrijfstroom. De app leest vlak vóór `close()` het bestand via de handle opnieuw en vergelijkt de sha256. Een wijziging
   tussen die controle en `close()` gaat verloren; de browser kan geen kopie naast het bestand maken en geen voorwaardelijk
