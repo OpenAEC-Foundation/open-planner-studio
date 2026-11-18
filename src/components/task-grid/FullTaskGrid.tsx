@@ -74,7 +74,7 @@ import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
-import { liveSelectionAnchor, pastesGridTaskCopy } from '@/state/slices/selectionSlice';
+import { pastesGridTaskCopy, shiftAnchor } from '@/state/slices/selectionSlice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -232,6 +232,29 @@ function gridAnchor(selection: GridSelectionState, rowIndex: TaskGridRowIndex): 
   return taskIds ? { rowKey, taskIds } : undefined;
 }
 
+/**
+ * Shift in de lijst begint bij het anker van de store, hetzelfde als in de tijdlijn (review #1004,
+ * ronde 8): de lijst houdt geen eigen beginpunt bij dat kan afwijken. Van de ankerrij tellen alleen
+ * de taken van dat anker, ook als de cursor op die rij eindigt: één ruitje uit een ingeklapte reeks
+ * blijft één ruitje. Geeft het anker terug om te publiceren.
+ */
+function extendFromSharedAnchor(
+  selection: GridSelectionState,
+  cell: GridCellAddress,
+  rowIndex: TaskGridRowIndex,
+  columns: readonly TaskColumnId[],
+): { next: GridSelectionState; anchor?: SelectionAnchor } {
+  const anchor = shiftAnchor(useAppStore.getState());
+  const from = anchor && rowIndex.absoluteIndexByRowKey.has(anchor.rowKey)
+    ? withSelectionAnchor(selection, anchor.rowKey)
+    : selection;
+  const next = updateGridSelection(from, cell, rowIndex, columns, 'extend');
+  if (!anchor || next.anchor?.rowKey !== anchor.rowKey) return { next };
+  const rowTaskIds = gridAnchor(next, rowIndex)?.taskIds ?? [];
+  const selectedTaskIds = next.selectedTaskIds.filter(id => !rowTaskIds.includes(id) || anchor.taskIds.includes(id));
+  return { next: { ...next, selectedTaskIds }, anchor };
+}
+
 export function TaskGridSurface({
   surfaceId,
   baseHeaderHeight = 32,
@@ -280,7 +303,6 @@ export function TaskGridSurface({
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
   const publishedActiveTaskId = useAppStore(state => state.activeTaskId);
   const publishedRowKey = useAppStore(state => state.ui.gridActiveRowKey);
-  const publishedAnchor = useAppStore(liveSelectionAnchor);
   const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
@@ -540,9 +562,6 @@ export function TaskGridSurface({
   // De cursorrij die deze lijst zelf in de store zette. Alleen een andere rij is een verzoek van
   // buiten (de tijdlijn of verwijderen); anders trok een oude waarde de cursor terug na een klik.
   const ownRowKeyRef = useRef<string | null>(null);
-  // Het Shift-anker delen deze lijst en de tijdlijn (`ui.selectionAnchor`, review #1004). Een nieuw
-  // anker van buiten (klik of kader in de tijdlijn) neemt de lijst over; zie de updater.
-  const seenAnchorRef = useRef(publishedAnchor);
   const previousColumnsRef = useRef<readonly TaskColumnId[]>(visibleColumnIds);
   useEffect(() => {
     // Net vastgelegd op de spookregel. Bleef de cursor in dezelfde kolom (Enter), dan staat hij nu
@@ -577,10 +596,6 @@ export function TaskGridSurface({
     // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899), en een
     // klik in de tijdlijn de aangeklikte rij (review #1004).
     const preferredRowKey = publishedRowKey === ownRowKeyRef.current ? null : publishedRowKey;
-    const storeAnchorRowKey = publishedAnchor && rowIndex.absoluteIndexByRowKey.has(publishedAnchor.rowKey)
-      ? publishedAnchor.rowKey : null;
-    const anchorChanged = publishedAnchor !== seenAnchorRef.current;
-    seenAnchorRef.current = publishedAnchor;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -619,23 +634,19 @@ export function TaskGridSurface({
       }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
       const samePublishedRow = preferredRowKey === null || preferredRowKey === reconciled.active?.rowKey;
-      if (samePublishedSelection && samePublishedActiveTask && samePublishedRow) {
-        return anchorChanged && storeAnchorRowKey ? withSelectionAnchor(reconciled, storeAnchorRowKey) : reconciled;
-      }
+      if (samePublishedSelection && samePublishedActiveTask && samePublishedRow) return reconciled;
 
       // syncActiveCellToPublishedTask trekt de celcursor
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
       // die functie voor waarom dat zonder deze aanroep uit elkaar loopt tussen een gantt-klik en
       // pijltjesnavigatie.
-      const synced = syncActiveCellToPublishedTask(
+      return syncActiveCellToPublishedTask(
         reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds, preferredRowKey,
       );
-      // De selectie veranderde van buiten (tijdlijn, Ctrl+A, verwijderen): het anker volgt de store.
-      return storeAnchorRowKey ? withSelectionAnchor(synced, storeAnchorRowKey) : synced;
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
-  }, [publishedActiveTaskId, publishedAnchor, publishedRowKey, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
+  }, [publishedActiveTaskId, publishedRowKey, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
 
   // De store kent alleen taak-ids; in een groepering staat een taak meer dan eens. Verwijderen kiest
   // de buur vanaf de rij van de celcursor (issue #899). De spookregel is geen taakrij.
@@ -683,22 +694,16 @@ export function TaskGridSurface({
     return true;
   }, [editing]);
 
-  const applySelection = useCallback((next: GridSelectionState) => {
+  const applySelection = useCallback((next: GridSelectionState, anchor?: SelectionAnchor) => {
     setSelection(next);
     // De spookregel is geen taak: die id gaat nooit naar de store-selectie. Het anker van de lijst is
     // ook het beginpunt van Shift in de tijdlijn (review #1004).
-    let taskIds = next.selectedTaskIds.filter(id => !isGhostTaskId(id));
-    let anchor = gridAnchor(next, rowIndex);
-    // Shift vanaf een ruitje dat in de tijdlijn als enige van zijn ingeklapte reeks gekozen is: de
-    // lijst kent alleen de hele reeksrij, maar van die ankerrij telt alleen het gekozen ruitje, zoals
-    // in de tijdlijn (ronde 7). Alleen bij uitbreiden: het anker ligt dan op een andere rij dan de cursor.
-    const shared = liveSelectionAnchor(useAppStore.getState());
-    if (anchor && shared?.rowKey === anchor.rowKey && next.active?.rowKey !== anchor.rowKey) {
-      const rowTaskIds = anchor.taskIds;
-      taskIds = taskIds.filter(id => !rowTaskIds.includes(id) || shared.taskIds.includes(id));
-      anchor = shared;
-    }
-    selectTasks(taskIds, false, isGhostTaskId(next.activeTaskId) ? null : next.activeTaskId, anchor);
+    selectTasks(
+      next.selectedTaskIds.filter(id => !isGhostTaskId(id)),
+      false,
+      isGhostTaskId(next.activeTaskId) ? null : next.activeTaskId,
+      anchor ?? gridAnchor(next, rowIndex),
+    );
     setSurfaceError(null);
   }, [rowIndex, selectTasks]);
 
@@ -709,8 +714,9 @@ export function TaskGridSurface({
     if (event.button !== 0) return;
     if (!sameCellAddress(editing?.cell ?? null, cell) && !finishEditing()) return;
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
-    const next = updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
-    if (next !== selection) applySelection(next);
+    const extended = gesture === 'extend' ? extendFromSharedAnchor(selection, cell, rowIndex, visibleColumnIds) : null;
+    const next = extended?.next ?? updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
+    if (next !== selection) applySelection(next, extended?.anchor);
     if (gesture === 'replace' && onPlainTaskClick) {
       const meta = adapter.rowMetaByKey.get(cell.rowKey);
       const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
@@ -764,14 +770,10 @@ export function TaskGridSurface({
   const handleCommand = useCallback((command: TaskGridCommand) => {
     if (command.kind === 'move') {
       if (!finishEditing()) return;
-      const next = updateGridSelection(
-        selection,
-        command.cell,
-        rowIndex,
-        visibleColumnIds,
-        command.extend ? 'extend' : 'replace',
-      );
-      applySelection(next);
+      const extended = command.extend
+        ? extendFromSharedAnchor(selection, command.cell, rowIndex, visibleColumnIds)
+        : { next: updateGridSelection(selection, command.cell, rowIndex, visibleColumnIds, 'replace') };
+      applySelection(extended.next, extended.anchor);
       if (!command.extend && onPlainTaskClick) {
         const meta = adapter.rowMetaByKey.get(command.cell.rowKey);
         const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;

@@ -160,14 +160,16 @@ export function linkTasksInChain(taskIds: readonly string[]): (string | null)[] 
  * Primavera): de taak wordt de selectie, het eigenschappenpaneel gaat open (`setUI` klapt de rail
  * dan ook uit) en de relatiesectie opent haar keuzerij met deze richting. Verandert het document niet.
  */
-export function requestRelationAssign(taskId: string, direction: RelationAssignDirection): void {
+export function requestRelationAssign(taskId: string, direction: RelationAssignDirection, rowKey?: string): void {
   const st = useAppStore.getState();
   // Een selectie kan na Ongedaan naar een verdwenen taak wijzen (`selectedTaskIds` zit niet in de
   // undo-snapshot); dan geen verzoek dat blijft hangen tot Opnieuw de taak terugbrengt.
   if (!st.tasks.some(task => task.id === taskId)) return;
-  // Is de taak al de selectie (lint, of de rechtsklik koos haar al op haar rij), dan niet opnieuw
-  // kiezen: dat zou zonder rij het Shift-anker en de gekozen rij wissen (review #1004, ronde 7).
+  // Met de rij van het rechtsklikmenu: de taak op die rij, ook als ze al gekozen was op een andere rij
+  // (review #1004, ronde 8). Zonder rij (lint) een taak die al de selectie is niet opnieuw kiezen: dat
+  // zou het Shift-anker en de gekozen rij wissen (ronde 7).
   const alreadySelected = st.activeTaskId === taskId && st.selectedTaskIds.length === 1 && st.selectedTaskIds[0] === taskId;
-  if (!alreadySelected) st.selectTask(taskId, false);
+  if (rowKey !== undefined) st.selectTask(taskId, false, false, { rowKey });
+  else if (!alreadySelected) st.selectTask(taskId, false);
   st.setUI({ showPropertiesPanel: true, pendingRelationAssign: { taskId, direction } });
 }

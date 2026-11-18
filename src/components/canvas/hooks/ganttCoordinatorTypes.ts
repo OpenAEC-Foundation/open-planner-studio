@@ -159,6 +159,8 @@ export interface GanttContextMenuState {
   /** Rechtsklik op LEGE ruimte (geen balk): de datum onder de cursor (`YYYY-MM-DD`). "Nieuwe taak"
    *  en "Nieuwe mijlpaal" beginnen dan op die datum (review 2026-10-06, punt 1). */
   clickDate?: string | null;
+  /** De aangeklikte rij: dezelfde taak kan in meer ploegen staan. Toewijzen kiest de taak op deze rij. */
+  rowKey?: string;
 }
 
 export interface GanttTooltipState {

@@ -37,7 +37,7 @@ import {
   selectionInView,
 } from '@/state/relationActions';
 import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
-import { liveSelectionAnchor } from '@/state/slices/selectionSlice';
+import { liveSelectionAnchor, shiftAnchor } from '@/state/slices/selectionSlice';
 import type { RelationSetIntent } from '@/types/taskGrid';
 
 const S = () => useAppStore.getState();
@@ -600,6 +600,11 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
   requestRelationAssign(b, 'successor');
   eq('13.38 toewijzen houdt de gekozen rij als anker', S().ui.selectionAnchor?.rowKey, S().viewRows[6].rowKey);
+  // Ronde 8: toewijzen via de rechtsklik op het ANDERE voorkomen kiest de taak op die rij.
+  S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
+  requestRelationAssign(b, 'successor', S().viewRows[6].rowKey);
+  eq('13.44 de rij van het rechtsklikmenu wordt het anker', S().ui.selectionAnchor?.rowKey, S().viewRows[6].rowKey);
+  eq('13.45 en de cursorrij', S().ui.gridActiveRowKey, S().viewRows[6].rowKey);
   S().setUI({ pendingRelationAssign: null });
   S().deselectAll();
   eq('13.23 niets kiezen wist het anker', S().ui.selectionAnchor, null);
@@ -683,6 +688,31 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().toggleCollapse(fase);
   S().selectTask(g, false, true, { rowKey: rowOf(g) });
   eq('13.43 Shift vanaf de fase neemt Fundering niet mee', [...S().selectedTaskIds].sort(), [fase, g].sort());
+}
+
+// Ronde 8: een anker dat ongeldig werd, komt niet terug als later dezelfde taken weer gekozen zijn.
+// Fase A met kind C, daarna B. A ingeklapt: A, Shift B. Uitklappen, Ctrl+A, inklappen (C gaat op in
+// A: weer A, B) en uitklappen. Shift op B gaat dan vanaf B, niet vanaf het oude anker A: C blijft eruit.
+{
+  fresh();
+  const a = S().addTask({ name: 'A' });
+  const c = S().addTask({ name: 'C' });
+  const b = S().addTask({ name: 'B' });
+  S().moveTask(c, a);
+  const rowOf = (id: string) => S().viewRows.find(row => row.kind === 'task' && row.task.id === id)!.rowKey;
+  S().toggleCollapse(a);
+  S().selectTask(a, false, false, { rowKey: rowOf(a) });
+  S().selectTask(b, false, true, { rowKey: rowOf(b) });
+  eq('13.46 A, Shift B', S().selectedTaskIds, [a, b]);
+  S().toggleCollapse(a);
+  S().selectAllTasks();
+  S().toggleCollapse(a);
+  eq('13.47 inklappen kiest weer A en B', [...S().selectedTaskIds].sort(), [a, b].sort());
+  eq('13.48 het oude anker geldt niet meer', liveSelectionAnchor(S()), null);
+  S().toggleCollapse(a);
+  S().selectTask(b, false, true, { rowKey: rowOf(b) });
+  ok('13.49 Shift op B neemt C niet mee', !S().selectedTaskIds.includes(c));
+  eq('13.50 Shift na Ctrl+A begint voor beide oppervlakken bij de actieve taak', shiftAnchor(S())?.taskIds, [b]);
 }
 
 // Een ingeklapte mijlpalenreeks (#868) is één rij. Shift-klik op een groepsruitje neemt zijn

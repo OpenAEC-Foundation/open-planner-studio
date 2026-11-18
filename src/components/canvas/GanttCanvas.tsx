@@ -1134,7 +1134,7 @@ export function GanttCanvas({
             }
           }}
           onAssignRelation={direction => {
-            if (contextMenu.task) requestRelationAssign(contextMenu.task.id, direction);
+            if (contextMenu.task) requestRelationAssign(contextMenu.task.id, direction, contextMenu.rowKey);
           }}
           onSaveTemplate={() => {
             if (!contextMenu.task) return;

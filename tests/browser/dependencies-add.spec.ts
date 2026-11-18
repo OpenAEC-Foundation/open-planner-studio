@@ -390,6 +390,15 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
     s.setSort([]);
     return s.activeDocumentId;
   });
+  // Ronde 8: na Ctrl+A begint Shift in de lijst bij de actieve taak, net als in de tijdlijn, niet bij
+  // het oude beginpunt. Grondwerk, Shift Fundering, alles kiezen (fixture), Shift Afbouw ⇒ Fundering
+  // t/m Afbouw.
+  await cell(grondwerk).click();
+  await cell(fundering).click({ modifiers: ['Shift'] });
+  await page.evaluate(() => window.__OPS__!.store.getState().selectAllTasks());
+  await cell(afbouw).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw, afbouw]);
+
   await cell(ruwbouw).click();
   await page.evaluate(() => { window.__OPS__!.store.getState().duplicateDocument(); });
   await cell(ruwbouw).click({ button: 'right' });

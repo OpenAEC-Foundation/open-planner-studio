@@ -18,6 +18,7 @@ import { isCostResource, type ResourceAssignment } from '@/types/resource';
 import type { TaskAssignmentResourceKind } from '@/types/taskGrid';
 import { subtreeCollector } from '@/state/taskTree';
 import { generateId } from '@/utils/id';
+import { baseList } from '@/state/immerDraft';
 import {
   assignInsertedWbsCodes, insertRemappedRelations, normalizeInsertedBranch, notifyAssignmentsSkipped, notifyReferencesCleared,
   notifyRelationsSkipped,
@@ -110,38 +111,42 @@ interface AnchorState {
   ui: { selectionAnchor: StoredSelectionAnchor | null };
 }
 
-/** Het Shift-anker, als het nog bij de huidige selectie hoort. Een schrijver die het anker niet kent
- *  (plakken, inklappen, Ctrl+A, MCP) vervangt de selectie zonder het bij te werken; dan geldt het
- *  niet meer, in plaats van dat Shift vanaf een oude rij begint (review #1004, ronde 7). */
+/** Het Shift-anker, als het nog bij de huidige selectie hoort: dezelfde lijst, niet alleen dezelfde
+ *  inhoud. Een schrijver die het anker niet kent (plakken, inklappen, Ctrl+A, MCP) zet een nieuwe
+ *  lijst neer; dan geldt het anker niet meer, ook niet als later dezelfde taken weer gekozen zijn
+ *  (review #1004, rondes 7 en 8). */
 export function liveSelectionAnchor(s: AnchorState): StoredSelectionAnchor | null {
   const anchor = s.ui.selectionAnchor;
-  if (!anchor || anchor.selection.length !== s.selectedTaskIds.length) return null;
-  const now = new Set(s.selectedTaskIds);
-  return anchor.selection.every(taskId => now.has(taskId)) ? anchor : null;
+  return anchor && baseList(anchor.selection) === baseList(s.selectedTaskIds) ? anchor : null;
 }
 
-/** Leg het anker vast bij de selectie zoals die NU in de draft staat. */
-function rememberAnchor(s: AnchorState, anchor: SelectionAnchor | null): void {
+/** Leg het anker vast bij `selection`: de lijst die de aanroeper net als selectie neerzette (of de
+ *  ongewijzigde basis). Zo wijzen anker en selectie na de producer naar dezelfde lijst. */
+function rememberAnchor(s: AnchorState, anchor: SelectionAnchor | null, selection: readonly string[]): void {
   s.ui.selectionAnchor = anchor
-    ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds], selection: [...s.selectedTaskIds] }
+    ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds], selection }
     : null;
 }
 
-/** Het anker voor Shift: het geldende anker als die rij nog op het scherm staat, anders de actieve
- *  taak (of de laatst gekozen) op de cursorrij als die haar draagt, anders op haar eerste rij. */
-function currentAnchor(s: AnchorState & {
+type ShiftState = AnchorState & {
   viewRows: readonly ViewRow[]; activeTaskId: string | null; ui: { gridActiveRowKey: string | null };
-}): SelectionAnchor {
+};
+
+/** Waar Shift begint, in de tijdlijn én de takenlijst: het geldende anker als die rij nog op het
+ *  scherm staat, anders de actieve taak (of de laatst gekozen) op de cursorrij als die haar draagt,
+ *  anders op haar eerste rij. `null` zonder selectie. */
+export function shiftAnchor(s: ShiftState): SelectionAnchor | null {
   const anchor = liveSelectionAnchor(s);
   if (anchor && s.viewRows.some(row => row.rowKey === anchor.rowKey
     && anchor.taskIds.some(taskId => uniqueTaskIds([row]).includes(taskId)))) return anchor;
   const taskId = s.activeTaskId !== null && s.selectedTaskIds.includes(s.activeTaskId)
     ? s.activeTaskId
     : s.selectedTaskIds[s.selectedTaskIds.length - 1];
+  if (taskId === undefined) return null;
   const holds = (row: ViewRow) => uniqueTaskIds([row]).includes(taskId);
   const row = s.viewRows.find(candidate => candidate.rowKey === s.ui.gridActiveRowKey && holds(candidate))
     ?? s.viewRows.find(holds);
-  return { rowKey: row?.rowKey ?? '', taskIds: [taskId] };
+  return row ? { rowKey: row.rowKey, taskIds: [taskId] } : null;
 }
 
 export interface SelectionSlice {
@@ -184,31 +189,29 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
   selectTask: (id, multi = false, range = false, row) =>
     set((s) => {
       const clicked = row?.taskIds ?? [id];
-      const anchor = range && s.selectedTaskIds.length > 0 ? currentAnchor(s) : null;
+      const anchor = range ? shiftAnchor(s) : null;
       const rangeIds = anchor ? shiftRange(s.viewRows, anchor, id, clicked, row?.rowKey) : null;
       s.activeTaskId = id;
       if (row?.rowKey !== undefined) s.ui.gridActiveRowKey = row.rowKey;
-      if (rangeIds) {
+      if (anchor && rangeIds) {
         // Vereniging met de bestaande selectie, zoals op main; het bereik in de volgorde van het
         // scherm, ook naar boven. Het anker blijft staan.
         const inRange = new Set(rangeIds);
-        s.selectedTaskIds = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
-        rememberAnchor(s, anchor);
+        const next = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
+        s.selectedTaskIds = next;
+        rememberAnchor(s, anchor, next);
         return;
       }
-      if (multi && !range) {
-        // Een groepsruitje gaat samen aan of uit.
-        if (clicked.every(taskId => s.selectedTaskIds.includes(taskId))) {
-          s.selectedTaskIds = s.selectedTaskIds.filter(taskId => !clicked.includes(taskId));
-        } else {
-          s.selectedTaskIds.push(...clicked.filter(taskId => !s.selectedTaskIds.includes(taskId)));
-        }
-      } else {
-        s.selectedTaskIds = [...clicked];
-      }
+      // Een groepsruitje gaat met Ctrl samen aan of uit. Altijd een nieuwe lijst: het anker wijst
+      // ernaar (`liveSelectionAnchor`).
+      const next = !(multi && !range) ? [...clicked]
+        : clicked.every(taskId => s.selectedTaskIds.includes(taskId))
+          ? s.selectedTaskIds.filter(taskId => !clicked.includes(taskId))
+          : [...s.selectedTaskIds, ...clicked.filter(taskId => !s.selectedTaskIds.includes(taskId))];
+      s.selectedTaskIds = next;
       // Een klik zonder (bruikbaar) Shift is het nieuwe anker, ook bij uitvinken met Ctrl. Zonder rij
-      // valt Shift terug op de actieve taak (`currentAnchor`).
-      rememberAnchor(s, row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: clicked } : null);
+      // valt Shift terug op de actieve taak (`shiftAnchor`).
+      rememberAnchor(s, row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: clicked } : null, next);
     }),
 
   deselectAll: () =>
@@ -241,7 +244,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         s.selectedTaskIds = nextSelectedTaskIds;
         s.activeTaskId = nextActiveTaskId;
       }
-      rememberAnchor(s, anchor ?? null);
+      rememberAnchor(s, anchor ?? null, unchanged ? baseList(s.selectedTaskIds) : nextSelectedTaskIds);
     }),
 
   copyTasks: (ids, gridText) =>
