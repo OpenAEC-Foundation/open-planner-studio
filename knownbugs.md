@@ -995,6 +995,12 @@ en noem het in je rapport of PR-tekst.
      gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
      BEVESTIGD, VERVOLG). — B
 
+1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
+     `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
+     browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt
+     het thema niet en in de browsertest moet er een `page.once('dialog', …)` voor. De vraag bij hernoemen (keuze 7)
+     gebruikt wel de eigen `Dialog`. Voorstel: `ConfirmDialog` met `danger`. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -2238,13 +2244,13 @@ en noem het in je rapport of PR-tekst.
      de writer kan dit geven: de gewone writer schrijft de naam uit de definitie van het type van de taak. Richting: in (c)
      alleen de taken overslaan waarvan (b) een slot terugzette, niet de hele groep. — B
 
-1748. **VERVOLG (#804, taaktypen): een eigen taaktype van het project kan in de app niet hernoemd worden.**
-     De beheer-UI (`TaskTypeField.tsx`) hernoemt alleen het persoonlijke type (`renamePersonalTaskType`); de kopie in het
-     project (`customTaskTypes`) houdt haar naam, en ook `planner_*` via MCP weigert een andere naam bij hetzelfde id
-     ("already exists with project snapshot"). Daardoor is de typenaam die sinds PR 12d bij een gebouwmodel meebeweegt met
-     een hernoemd type (E2, oud knownbug 1586) alleen met domeininvoer te bereiken; de proeven in
-     `check-ifc-foreign-eigen-toets.ts` gebruiken die. Of de projectkopie mee moet met een hernoeming, is een productkeuze;
-     niets gaat verloren. — S
+1828. **VERVOLG (#804 keuze 7, MCP): `planner_*` weigert een andere naam bij hetzelfde id van een eigen werksoort.**
+     In de app vraagt *Werksoorten beheren…* sinds keuze 7 of een nieuwe naam ook in het project moet (store-actie
+     `renameProjectTaskType`), maar de veldlaag van MCP (`src/services/mcp/tools/taskFields.ts`, "already exists with
+     project snapshot") en de draft (`ensureCustomTaskType` in `src/state/runtime/createMcpTransactions.ts`) weigeren een
+     `customTaskType` met een bekend id en een andere naam. Een AI-assistent kan een werksoort van het project dus niet
+     hernoemen. Gezien in de code, niet nagespeeld met een MCP-client. Voorstel: een eigen tool of veld dat dezelfde
+     store-regel gebruikt. — S
 
 1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
      In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
