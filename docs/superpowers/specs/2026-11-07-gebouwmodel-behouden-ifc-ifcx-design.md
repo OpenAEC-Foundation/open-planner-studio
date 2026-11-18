@@ -737,8 +737,16 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     app) op het eigen pad lopen via deze vervanging, binnen één toegelaten schrijfactie van de schrijfcoördinator: van
     de merge tot en met de broncommit, de laatste herstelronde en het wissen van het record. Afsluiten wacht erop en
     laat intussen geen nieuwe schrijfactie toe. Na de eerste herstelronde en vóór het eerste schrijven in de projectmap
-    controleert de app opnieuw of het document er nog is, of het opslagdoel nog dit pad is en de bron nog de verwachte;
-    anders stopt hij zonder te schrijven. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
+    loopt dezelfde doelbewaking als vóór de merge nog een keer (fixronde 1 van #1008): het document is er nog, zijn
+    opslagdoel is nog dit pad, de bron is nog de verwachte, en geen ander open document heeft het bestand als bron;
+    anders stopt hij zonder te schrijven, met de melding van die bewaking. Volgorde van openen en vervangen: het openen
+    van een pad op de desktop (dialoog, neerzetten, Recent) wacht vóór het lezen tot er geen projectbestand meer
+    geschreven wordt. Een tabblad dat tijdens de vervanging opengaat, leest dus de nieuwe versie; een tabblad dat er
+    vóór de tweede controle al is, houdt de vervanging tegen. Het wachten zit in de openroute, niet in een leesfunctie
+    die de vervanging zelf gebruikt, zodat de schrijfrij nooit op zichzelf wacht. Grens: een lezing die al vóór de
+    opslag begon en pas na de tweede controle in de store komt, krijgt de oude versie; Ctrl+S in dat tabblad weigert
+    dan (knownbug 1837). *Opslaan* in de sluitvraag sluit alleen als de opslag slaagde én hetzelfde document vlak vóór
+    het sluiten nog schoon is; Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
     melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
     als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
     sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd),

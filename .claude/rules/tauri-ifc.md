@@ -258,8 +258,12 @@ alles vast: de doelcontrole met de uitzondering "eigen doel" (`refusedWriteTarge
 van document en kenmerk, zonder handle; een ander open document met dat bestand als bron blijft
 `ifcForeignReplaceBlocked`), de merge, de vervanging, de broncommit, de laatste herstelronde en het wissen van het
 record. Afsluiten en de updater wachten erop (#987). Na de eerste herstelronde, vóór de eerste schrijfactie in de
-projectmap, `stopBeforeWrite`: bestaat het document nog, is `saveTargetRef` nog dit pad en `ifcSource` nog dezelfde?
-Anders `ifcSaveChangedWhileWaiting` en uitkomst `stopped`, niets in de projectmap. `commit` is
+projectmap, `stopBeforeWrite` = dezelfde `documentTargetCheck(momentopname, write, true)` als vóór de merge (fixronde 1
+van #1008): document en bron ongewijzigd (`refuseChangedDocumentWrite`), `saveTargetRef` nog dit pad (`movedOwnTarget`,
+`sameFileRef`) en geen ander open document met dit bestand als bron (`refusedWriteTarget`). Anders de melding van die
+bewaking en uitkomst `stopped`, niets in de projectmap. Volgorde met openen: `readOpenedTauriPath` (`tauriBackend.ts`,
+waar dialoog, neerzetten en Recent samenkomen) wacht vóór het lezen op `whenProjectFileWritesIdle`; geen opslagroute
+leest erdoor, dus de schrijfrij wacht nooit op zichzelf. Een lezing die al vóór de opslag liep: knownbug 1837. `commit` is
 `commitSavedDocument(id, momentopname, undefined, prepared)`; zijn boolean is de uitkomst van de opslag en dus de
 sluitbeslissing (een bewerking tijdens de opslag: de geschreven versie wordt de bron, het document blijft gewijzigd).
 Elke andere uitkomst meldt via `ownPathReplaceNotices` en stopt; nooit de gewone schrijfroutine (die schrijft op naam).

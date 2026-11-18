@@ -3009,6 +3009,11 @@ en noem het in je rapport of PR-tekst.
      en zag het afsluiten geen mislukking. Andersom breekt een nieuwe fout uit een ander onderdeel het afsluiten af. Het
      gewijzigde document blijft beschermd door zijn dirty-vlag en de sluitvraag; gegevensverlies is niet aangetoond.
      Richting: de opslag geeft zelf zijn uitkomst door. Gevonden door de review van #987 (Sol). — B (proef van de review)
+     Aanvulling (#804, 1131 stap 5b, review van #1008): ook een geslaagde vervanging van het eigen bestand kan een rode
+     melding geven, namelijk dat de versie van een ander programma apart is bewaard (`ifcForeignReplaceOtherVersion`,
+     `ownPathReplaceNotices` in `ownFileReplace.ts`). Wacht het afsluiten op die opslag, dan breekt die melding het
+     afsluiten af, terwijl het bestand wel is opgeslagen; de planner kan opnieuw afsluiten. Andersom volgt na een
+     verdwenen foutmelding bij een nog gewijzigd document de gewone sluitvraag. Zelfde richting. — B (review)
 1818. **Een IFC-export weigert nog als de planner tijdens de export van tabblad wisselt.** Sinds #804 stap 3 kijkt de
      weigering van Opslaan en Opslaan als naar het document van de momentopname. De exports niet: `refuseChangedExport`
      in `fileSlice.ts` (Bestand → Exporteren als IFC, en de export met de resourcebibliotheek) vergelijkt met het actieve
@@ -4845,3 +4850,11 @@ en noem het in je rapport of PR-tekst.
      Automatisch opslaan (en voor de flag uit na het openen). Er gaat niets verloren. Richting: een eigen zin voor
      Automatisch opslaan, met de teksten van stap 6 van 1131, of vervalt als Automatisch opslaan via de vervanging gaat.
      Gevonden bij stap 5b, uit de code. — B (code)
+1837. **VERVOLG (#804, 1131 stap 5b): een tweede tabblad waarvan het lezen al vóór Ctrl+S begon, kan de oude versie
+     krijgen.** Het openen op de desktop (`readOpenedTauriPath` in `tauriBackend.ts`: dialoog, neerzetten, Recent) wacht
+     tot er geen projectbestand meer geschreven wordt, en de vervanging kijkt na de eerste herstelronde opnieuw of een
+     ander open document het bestand als bron heeft. Begon het lezen van hetzelfde bestand al vóór de opslag en komt het
+     tabblad pas na die tweede controle in de store, dan opent het met de oude bron terwijl het bestand de nieuwe versie
+     krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
+     het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
+     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
