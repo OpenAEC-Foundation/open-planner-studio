@@ -371,6 +371,18 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
     ok(status.length > 0, `${statusLine}: de lijn staat op de linkerrand als de statusdatum de eerste dag van het tijdvak is`);
   }
 
+  // Review Sol #1005, ronde 4: op de werkdagas beslist de datum, niet de x. Zondag 27 september ligt op dezelfde x als
+  // maandag 28 september (de linkerrand van een tijdvak vanaf die maandag), zondag 4 oktober op de rechterrand van een
+  // tijdvak tot en met die zondag.
+  const statusStrokes = (window: { from: string; to: string }, statusDate: string) => {
+    const r = draw([werk], window, { statusDate, statusLine: 'statusDate', compressNonWorkdays: true });
+    return r.strokes.filter(st => st.lw === 1.5 && st.pts.length === 2 && st.pts[0][0] === st.pts[1][0]
+      && st.pts[0][0] >= r.dims.tableWidth - 1e-6 && st.pts[0][0] <= r.dims.width + 1e-6).length;
+  };
+  eq('werkdagas: een statusdatum op de zondag vóór het tijdvak staat niet op papier', statusStrokes({ from: '2026-09-28', to: '2026-10-02' }, '2026-09-27'), 0);
+  eq('werkdagas: een statusdatum op de zondag als laatste dag staat er wel', statusStrokes({ from: '2026-09-28', to: '2026-10-04' }, '2026-10-04'), 1);
+  eq('werkdagas: een statusdatum op de eerste dag staat er ook', statusStrokes({ from: '2026-09-28', to: '2026-10-02' }, '2026-09-28'), 1);
+
   // Mijlpalen op zondag 27 september, de laatste dag van het tijdvak, op de werkdagas: met en zonder tijd.
   const ms = (id: string, at: string) => task(id, id, at, at, { parentId: undefined, isMilestone: true,
     time: { ...time(at, at), scheduleDuration: 0 } as unknown as TaskTime });

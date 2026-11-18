@@ -811,6 +811,23 @@ en noem het in je rapport of PR-tekst.
     resource erbuiten; *Hele project* en het tijdvak drukken dezelfde taak af, toch staat er *Buiten de periode: 1*.
     Richting: alleen taken tellen die met dezelfde broninstellingen op papier zouden komen. Gevonden door de review van
     #1005 (Sol, ronde 3). — B
+1862. **VERVOLG (#997): met kleuren per resource kan de balk van een zichtbare taak op de rand van het tijdvak wegvallen.**
+    Een taak met twee ploegen van zondag 4 oktober 08.00 uur tot dinsdag 6 oktober 16.00 uur, tijdvak tot en met die
+    zondag, werkdagas: in de standaardkleur tekent de afdruk een balk van 3 px, met kleuren per resource geen, omdat de
+    kleurvakken (`advies.kind === 'segments'` in `printPreview.ts`) de minimumbreedte omzeilen. Richting: voor een smal
+    zichtbaar stuk de bestaande terugval naar één kleur. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1863. **VERVOLG (#997): een baselineruit steekt over de rand van het tijdvak en een fase kan een vals eindhaakje krijgen.**
+    De afdruk klemt van een baselineruit alleen het middelpunt (`clampX` in `printPreview.ts`), dus de ruit loopt tot
+    x = 1061,48 bij een rand op 1058,52. Een fase die op zondag eindigt, krijgt in een afdruk tot en met vrijdag een
+    eindhaakje, omdat beide grenzen op de werkdagas samenvallen. Richting: de ruit met haar halve diagonaal klemmen en het
+    eindhaakje uit het echte eindmoment afleiden. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1864. **VERVOLG (#997): een mijlpaal met maar één datum valt uit het tijdvak van de Gantt-afdruk.** `taskInPeriod`
+    (`reportPeriodRows.ts`) eist een begin- én einddatum; een mijlpaal met alleen een startdatum staat bij *Hele project*
+    op papier en ontbreekt bij een tijdvak dat haar dag bevat. De tekenaar kent die vorm al (`milestoneMoment`). Richting:
+    voor mijlpalen hetzelfde moment als de ruit. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1865. **VERVOLG (#997, opruimen): `check-report-gantt-period.ts` heeft vier eigen tekenopnames.** De bestaande
+    `SvgRecordingDraw2D` (`src/services/pdf/svgDraw2d.ts`) levert paden, lijnstijlen en tekst; dan blijven per scenario
+    alleen invoer en controles over. Gevonden door de review van #1005 (Sol, ronde 4). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm

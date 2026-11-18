@@ -66,8 +66,8 @@ tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` 
 de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het
 venster). Of een balk of mijlpaal (ook een baselinemijlpaal) in het venster valt, beslist de TIJD (`barInWindow`,
 `momentInWindow`), niet de x: op de werkdagas valt werk in niet-werktijd tot één punt samen en krijgt dan de
-minimumbreedte, en een ruit op de rand wordt naar binnen geklemd. De status- en voortgangslijn tellen de linkerrand mee
-(statusdatum op de eerste dag van het tijdvak). Welke rijen erin horen, beslist de rijenbron, en
+minimumbreedte, en een ruit op de rand wordt naar binnen geklemd. Ook de status- en voortgangslijn staan er alleen als de statusdatum in het
+tijdvak valt, en dan altijd, op de rand geklemd; zonder tijdvak geldt de zichtbaarheidsregel van vandaag. Welke rijen erin horen, beslist de rijenbron, en
 altijd vóór groeperen en inklappen: alleen de bladtaken die het tijdvak raken (`taskInPeriod`), met hun ouders. Het
 resourcediagram via `window` van `computeResourceGanttRows`, *Zoals de weergave* en een layout via `within` van
 `computeViewRows` (stap 1, naast het filter; de ouders zijn dan niet gedimd), *Alle taken* via `treeRowsInPeriod`

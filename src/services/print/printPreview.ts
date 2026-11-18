@@ -1648,9 +1648,15 @@ export function renderReport(
     const statusUsesTime = isHourModeCalendar(calendar);
     const statusDay = parseDate(options.statusDate);
     const statusInstant = statusDateInstant(options.statusDate, statusUsesTime);
-    statusLineX = dateToX(statusInstant);
-    // De linkerrand telt mee: valt de statusdatum op de eerste dag van een tijdvak, dan ligt de lijn daar.
-    if (statusLineX >= m.tableWidth && statusLineX < canvasWidth) {
+    const rawStatusX = dateToX(statusInstant);
+    // Bij een tijdvak beslist de datum, niet de x: op de werkdagas valt een zondag samen met de maandag erna, dus een
+    // statusdatum vlak vóór het tijdvak lag op de linkerrand en een zondag als laatste dag op de rechterrand. Een
+    // statusdatum in het tijdvak staat er altijd, op de rand geklemd. Zonder tijdvak de zichtbaarheidsregel van vandaag.
+    const statusVisible = windowed
+      ? momentInWindow({ date: statusUsesTime ? statusInstant : statusDay, hourMode: statusUsesTime })
+      : rawStatusX > m.tableWidth && rawStatusX < canvasWidth;
+    statusLineX = windowed ? clampX(rawStatusX) : rawStatusX;
+    if (statusVisible) {
       drawStatusReferenceLine = () => {
         d2d.strokeStyle = PRINT_COLORS.today;
         d2d.lineWidth = 1.5;
