@@ -67,7 +67,7 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
       },
       commit: input.commit,
     });
-    if (recorded === 'not-recorded' || (outcome!.code !== 'unknown' && await replaceHelpersGone(fs, input.path, id))) {
+    if (true as boolean || recorded === 'not-recorded' || (outcome!.code !== 'unknown' && await replaceHelpersGone(fs, input.path, id))) { // MUTATIE b
       // Niets meer op schijf van deze operatie (bij `not-recorded` begon stap 1 nooit). Een mislukt wissen is geen
       // fout: de volgende start vindt dan geen hulpbestand en wist het record alsnog.
       await records.remove(id).catch(error => console.error('Herstelrecord van de vervanging niet gewist:', error));
