@@ -43,7 +43,7 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice,
+  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice, IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -52,6 +52,9 @@ import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/se
 import { castDraft } from 'immer';
 import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
+import type { TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { scanForeignTargetBytesAsync } from '@/services/ifc/foreign/targetForeignScan';
+import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -821,16 +824,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad).
    *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
    *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
-   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. */
-  const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite, ownTarget = false): SaveTargetCheck => async target => {
+   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. `readers`: hoe de controle
+   *  een bestaand doel leest (Opslaan als over een bestaande naam scant daar de inhoud die het als verwacht vastlegde). */
+  const documentTargetCheck = (
+    snapshot: AppState, write?: DocumentWrite, ownTarget = false, readers: () => TargetReaders = writeTargetReaders,
+  ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
     const ownLocal = ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource);
     if (ownLocal && movedOwnTarget(snapshot, target)) return true;
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const reason = await refusedWriteTarget(get(), target,
-      { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownVersion);
+    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers }, ownVersion);
     if (reason) {
       get().notify(hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
         ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
@@ -849,9 +854,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  const documentSaveDialog = (snapshot: AppState, write: DocumentWrite, name: string) => {
+  /** `replaceExisting`: alleen Opslaan als (#804 keuze 4); zie `SaveDialogOpts.replaceExisting`. */
+  const documentSaveDialog = (
+    snapshot: AppState, write: DocumentWrite, name: string, replaceExisting?: (path: string, current: Uint8Array) => Promise<void>,
+  ) => {
     const options = { refuseTarget: documentTargetCheck(snapshot, write),
-      refuseDownload: () => refuseChangedDocumentWrite(snapshot, write) };
+      refuseDownload: () => refuseChangedDocumentWrite(snapshot, write), replaceExisting };
     return write.prepared
       ? saveNewBytesDialog(name, write.prepared.bytes, [{ name: 'IFC Files', extensions: ['ifc'] }], options)
       : saveFileDialog(name, write.content, [{ name: 'IFC Files', extensions: ['ifc'] }], options);
@@ -1475,6 +1483,44 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /**
+   * #804 keuze 4 (knownbug 1131 stap 8): *Opslaan als* over een ANDERE bestaande naam op de desktop, voor een document met
+   * een vreemd deel (de merge). De planner bevestigde het vervangen al in de bestandskiezer. Dezelfde vervanging als Ctrl+S
+   * (`replaceOwnPathWithRecovery`, §4.10 stap 0–6), binnen dezelfde `runProjectFileWrite` van de opslag; alleen de verwachte
+   * inhoud is anders: de app opende dit bestand niet, dus het is wat er bij het begin van de opslag stond (`current`, net na
+   * de bestandskiezer en de doelcontrole gelezen; zijn sha256 is `vorigeSha256` in het herstelrecord). Staat er vlak vóór
+   * het opzijzetten iets anders (stap 2), dan stopt de opslag met de melding van Ctrl+S en blijft het doel zoals het is.
+   * De doelbewaking na de eerste herstelronde scant `current` zelf, niet het pad opnieuw: wat stap 5 als vorige versie mag
+   * weghalen, is dan precies wat de doelbescherming toeliet. Na een geslaagde vervanging is het document hetzelfde als na
+   * Opslaan als naar een nieuwe naam (nieuw pad, de geschreven bytes als bron, Recent). Waar de vervanging niet kan
+   * (`save-as-only`: een map waar het tijdelijke bestand niet mag ontstaan, een link, een bestandssysteem zonder exclusieve
+   * stap) blijft de melding van voorheen: alleen een nieuwe naam. Geen terugval op een routine die het bestand overschrijft.
+   */
+  const replaceExistingPath = (
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+  ) => async (path: string, current: Uint8Array): Promise<void> => {
+    const ref = { kind: 'path', path } as const;
+    let replaced = false;
+    try {
+      const result = await replaceOwnPathWithRecovery({
+        documentId, path, prepared, source: { bytes: current, sha256: await precomputeSha256(current) },
+        stopBeforeWrite: () => documentTargetCheck(state, write, false,
+          () => ({ ...writeTargetReaders(), scanPath: () => scanForeignTargetBytesAsync(current) }))(ref),
+        commit: () => {
+          replaced = true;
+          commitSavedDocument(documentId, state, { filePath: path, fileHandle: null, siteFileId: null, siteFileVersion: null }, prepared);
+        },
+      });
+      for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
+        get().notify(notice);
+      }
+    } catch (err) {
+      console.error('Save As failed:', err);
+      get().notify({ severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err) });
+    }
+    if (replaced) await pushRecent(ref, basename(path));
+  };
+
   let saveAttemptSequence = 0;
   /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
   const writeActiveDocument = (documentId: string, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
@@ -1671,7 +1717,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return;
         }
       }
-      const outcome = await documentSaveDialog(state, write, state.filePath ?? `${suggestedFileBase(state)}.ifc`);
+      const outcome = await documentSaveDialog(state, write, state.filePath ?? `${suggestedFileBase(state)}.ifc`,
+        write.prepared && replaceExistingPath(documentId, state, write.prepared, write));
       if (!outcome) return;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(documentId, state);
       else commitSavedDocument(documentId, state, localDestination(outcome), write.prepared, write.missingSourceSaveAs);

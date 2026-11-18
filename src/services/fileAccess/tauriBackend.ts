@@ -219,8 +219,24 @@ export async function saveNewBytesDialogTauri(
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
   if (await opts.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
+  if (opts.replaceExisting) {
+    const current = await existingRegularFileTauri(savedPath);
+    if (current) {
+      await opts.replaceExisting(savedPath, current);
+      return null;
+    }
+  }
   await writeNewUserBytesTauri(savedPath, bytes);
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
+}
+
+/** De inhoud van een gewoon bestand op `path`, zonder een link te volgen; `null` als daar niets staat, of een link of
+ *  map. Een leesfout van een gewoon bestand gooit. */
+async function existingRegularFileTauri(path: string): Promise<Uint8Array | null> {
+  const { lstat, readFile } = await import('@tauri-apps/plugin-fs');
+  let info;
+  try { info = await lstat(path); } catch (error) { if (missingTarget(error)) return null; throw error; }
+  return info.isFile ? readFile(path) : null;
 }
 
 export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array): Promise<boolean> {

@@ -1508,8 +1508,8 @@ for (const [label, where, expected] of [
       const target = otherFile(c);
       const record = await crashAt(c, where, target);
       const { notices, restored } = await recover(c);
+      assert.deepEqual(disk(c), { ...expected(c, record.id), 'model.ifc': hash(bytes) }, JSON.stringify(disk(c)));
       const after = disk(c);
-      assert.deepEqual(after, { ...expected(c, record.id), 'model.ifc': hash(bytes) }, JSON.stringify(after));
       assert([hash(plain), c.prepared.sha256].includes(after['ander.ifc']), 'op het doel staat een volledige versie');
       if (after['ander.ifc'] !== c.prepared.sha256) {
         assert.equal(after['ander.ifc'], hash(plain), 'zolang de nieuwe versie er niet staat, staat de oude er');

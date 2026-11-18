@@ -85,7 +85,8 @@ export interface OwnFileReplaceInput {
   id: string;
   /** De voorbereide uitvoer (`PreparedIfcWrite.bytes`); de aanroeper wijzigt die niet tot de vervanging klaar is. */
   bytes: Uint8Array;
-  /** De bron in het geheugen (`ifcSource.bytes`): wat er op het doel hoort te staan. */
+  /** Wat er op het doel hoort te staan: de bron in het geheugen (`ifcSource.bytes`), of bij Opslaan als over een
+   *  bestaande naam de inhoud van dat bestand bij het begin van de opslag. */
   source: Uint8Array;
   /** De modus van het oude bestand voor het nieuwe (Unix); de umask kan haar beperken. */
   mode?: number;
