@@ -42,7 +42,7 @@ const refusedByRust: Array<[string, PlaceFileOutcome]> = [
   ['{"code":"unsupported","message":"m"}', { code: 'unsupported', message: 'm' }],
   ['{"code":"io","message":"m"}', { code: 'io', message: 'm' }],
   ['{"code":"source-changed"}', { code: 'source-changed' }],
-  ...(['path-shape', 'helper-name', 'scope', 'not-regular-file'] as const).map((reason): [string, PlaceFileOutcome] =>
+  ...(['path-shape', 'helper-name', 'scope', 'not-regular-file', 'hard-linked'] as const).map((reason): [string, PlaceFileOutcome] =>
     [`{"code":"refused","reason":"${reason}"}`, { code: 'refused', reason }]),
 ];
 
