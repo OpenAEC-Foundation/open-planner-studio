@@ -1328,7 +1328,9 @@ export function renderReport(
     .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
     .map(r => ({ ...r.task, _depth: r.depth }));
 
-  if (flatTasks.length === 0) {
+  // Met een tijdvak kan er een ingeklapte groepsband zonder taakrij op papier staan (#997): dan is er wel iets te
+  // tekenen, en de tijdas komt uit het tijdvak.
+  if (flatTasks.length === 0 && !(options.timeWindow && printRows.length > 0)) {
     const d2d = makeDraw2D(600, 200);
     d2d.fillStyle = PRINT_COLORS.bg;
     d2d.fillRect(0, 0, 600, 200);
@@ -1655,7 +1657,10 @@ export function renderReport(
     const statusVisible = windowed
       ? momentInWindow({ date: statusUsesTime ? statusInstant : statusDay, hourMode: statusUsesTime })
       : rawStatusX > m.tableWidth && rawStatusX < canvasWidth;
-    statusLineX = windowed ? clampX(rawStatusX) : rawStatusX;
+    // Geklemd met de halve lijndikte (1,5) plus de halve tabelrand (1) naar binnen: de tabel en haar rand worden ná
+    // de lijn getekend en overschilderden een lijn precies op de rand (statusdatum op de eerste dag).
+    const statusInset = 1.25;
+    statusLineX = windowed ? Math.min(canvasWidth - statusInset, Math.max(m.tableWidth + statusInset, rawStatusX)) : rawStatusX;
     if (statusVisible) {
       drawStatusReferenceLine = () => {
         d2d.strokeStyle = PRINT_COLORS.today;

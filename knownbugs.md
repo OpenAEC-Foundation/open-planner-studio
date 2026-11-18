@@ -828,6 +828,10 @@ en noem het in je rapport of PR-tekst.
 1865. **VERVOLG (#997, opruimen): `check-report-gantt-period.ts` heeft vier eigen tekenopnames.** De bestaande
     `SvgRecordingDraw2D` (`src/services/pdf/svgDraw2d.ts`) levert paden, lijnstijlen en tekst; dan blijven per scenario
     alleen invoer en controles over. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1866. **VERVOLG (#997): op een smal blad valt het statuslabel weg.** Bij een tijdvak van één dag op een vaste schaal van
+    22 px per dag tekent de afdruk de statuslijn zonder datumlabel: `reserveHeaderLineLabel` (`printPreview.ts`) geeft de
+    reservering op zodra de tekst niet past. Richting: de bestaande afkortlogica gebruiken als een korter label past.
+    Gevonden door de review van #1005 (Sol, ronde 5). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm

@@ -67,13 +67,13 @@ de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; 
 venster). Of een balk of mijlpaal (ook een baselinemijlpaal) in het venster valt, beslist de TIJD (`barInWindow`,
 `momentInWindow`), niet de x: op de werkdagas valt werk in niet-werktijd tot één punt samen en krijgt dan de
 minimumbreedte, en een ruit op de rand wordt naar binnen geklemd. Ook de status- en voortgangslijn staan er alleen als de statusdatum in het
-tijdvak valt, en dan altijd, op de rand geklemd; zonder tijdvak geldt de zichtbaarheidsregel van vandaag. Welke rijen erin horen, beslist de rijenbron, en
+tijdvak valt, en dan altijd, net binnen de rand geklemd (de tabelrand wordt erna getekend); zonder tijdvak geldt de zichtbaarheidsregel van vandaag. Welke rijen erin horen, beslist de rijenbron, en
 altijd vóór groeperen en inklappen: alleen de bladtaken die het tijdvak raken (`taskInPeriod`), met hun ouders. Het
 resourcediagram via `window` van `computeResourceGanttRows`, *Zoals de weergave* en een layout via `within` van
 `computeViewRows` (stap 1, naast het filter; de ouders zijn dan niet gedimd), *Alle taken* via `treeRowsInPeriod`
 (`src/engine/reports/reportPeriodRows.ts`). Banden, tellingen, reeksen en ingeklapte rijen gaan zo alleen over het tijdvak;
 een ingeklapte reeks houdt haar sleutel. De melding onder de keuze telt de bladtaken die het filter van de bron halen en
-buiten het tijdvak vallen (`leavesOutsidePeriod`). `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit
+buiten het tijdvak vallen (`leavesOutsidePeriod`). Staat er alleen een ingeklapte band in het tijdvak, dan tekent de afdruk die band (geen leeg blad). `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit
 hetzelfde bestand. Rond middernacht spreken rijfilter (per dag) en render (per moment) elkaar nog tegen (knownbug 1860).
 Bewaking: `check-report-gantt-period.ts`.
 

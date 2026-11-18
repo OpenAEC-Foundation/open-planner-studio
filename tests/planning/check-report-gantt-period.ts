@@ -330,6 +330,7 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   const draw = (tasksHere: Task[], window: { from: string; to: string }, options: Partial<PrintOptions>) => {
     const fills: [number, number][][] = [];
     const strokes: { pts: [number, number][]; lw: number }[] = [];
+    const texts: string[] = [];
     let cur: [number, number][] = [];
     const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
     const d2d: Draw2D = {
@@ -345,7 +346,7 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
       lineTo(x, y) { cur.push([x, y]); },
       fill() { fills.push(cur.slice()); },
       stroke() { strokes.push({ pts: cur.slice(), lw: st.lineWidth }); },
-      roundRect() { cur = []; }, fillText() {},
+      roundRect() { cur = []; }, fillText(text) { texts.push(text); },
       measureText(text) { return { width: text.length * 4.5 }; },
     };
     const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
@@ -360,15 +361,18 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
     // Elke gevulde vorm onder de kop (een balk gaat via `roundRect` en telt niet; de baselineruit van de laatste rij
     // kan onder de rij uitsteken).
     const shapes = fills.filter(f => f.length >= 3 && f.every(([, y]) => y > dims.headerHeight));
-    return { dims, strokes, diamonds, shapes };
+    return { dims, strokes, diamonds, shapes, texts };
   };
 
   // Statuslijn: statusdatum maandag 28 september, tijdvak 28 september t/m 25 oktober (Volgende 4 weken).
   const werk = task('wk', 'Werk', '2026-09-28', '2026-10-09', { parentId: undefined });
   for (const statusLine of ['statusDate', 'progress'] as const) {
     const r = draw([werk], { from: '2026-09-28', to: '2026-10-25' }, { statusDate: '2026-09-28', statusLine });
-    const status = r.strokes.filter(s => s.lw === 1.5 && s.pts.some(([x]) => Math.abs(x - r.dims.tableWidth) < 1e-6));
-    ok(status.length > 0, `${statusLine}: de lijn staat op de linkerrand als de statusdatum de eerste dag van het tijdvak is`);
+    // Net binnen de tabelrand (rand 1 px, lijn 1,5 px): de tabel wordt erna getekend en overschilderde een lijn precies
+    // op de rand (review Sol #1005, ronde 5). Met het label erbij.
+    const status = r.strokes.filter(s => s.lw === 1.5 && s.pts.some(([x]) => Math.abs(x - (r.dims.tableWidth + 1.25)) < 1e-6));
+    ok(status.length > 0, `${statusLine}: de lijn staat net binnen de linkerrand als de statusdatum de eerste dag van het tijdvak is`);
+    ok(r.texts.some(t => t.includes('28-09-2026')), `${statusLine}: met het datumlabel`);
   }
 
   // Review Sol #1005, ronde 4: op de werkdagas beslist de datum, niet de x. Zondag 27 september ligt op dezelfde x als
@@ -382,6 +386,13 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   eq('werkdagas: een statusdatum op de zondag vóór het tijdvak staat niet op papier', statusStrokes({ from: '2026-09-28', to: '2026-10-02' }, '2026-09-27'), 0);
   eq('werkdagas: een statusdatum op de zondag als laatste dag staat er wel', statusStrokes({ from: '2026-09-28', to: '2026-10-04' }, '2026-10-04'), 1);
   eq('werkdagas: een statusdatum op de eerste dag staat er ook', statusStrokes({ from: '2026-09-28', to: '2026-10-02' }, '2026-09-28'), 1);
+
+  // Review Sol #1005, ronde 5: in het tijdvak valt alleen werk onder een ingeklapte groep. Dan staat die band op papier,
+  // met haar telling, in plaats van een leeg blad.
+  const band: ViewRow = { kind: 'group', rowKey: '["Bouw"]', key: '["Bouw"]', label: 'Bouw', count: 1, depth: 0, levelIndex: 0, collapsed: true };
+  const alleenBand = draw([werk], { from: '2026-09-28', to: '2026-10-02' }, { rows: [band], showTaskNames: true });
+  ok(alleenBand.texts.some(t => t.includes('Bouw') && t.includes('1')), `een ingeklapte band alleen staat op papier met haar telling (${alleenBand.texts.slice(0, 6).join(' | ')})`);
+  ok(!alleenBand.texts.some(t => /No tasks|Geen taken/.test(t)), 'en het blad is niet leeg');
 
   // Mijlpalen op zondag 27 september, de laatste dag van het tijdvak, op de werkdagas: met en zonder tijd.
   const ms = (id: string, at: string) => task(id, id, at, at, { parentId: undefined, isMilestone: true,
