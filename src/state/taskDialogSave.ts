@@ -168,17 +168,13 @@ function planTaskDialogStart(
 /** Toets conceptvoortgang met de actuele planning en dezelfde startregel als Opslaan. */
 export function planTaskDialogProgress(
   state: AppState, draft: Task, startDate: TaskDialogSaveInput['startDate'], edit: ProgressEdit,
-  context: Pick<ProgressEntryContext, 'today' | 'actualStart'>,
+  { initialDuration, ...context }: Pick<ProgressEntryContext, 'today' | 'actualStart'>
+    & Pick<TaskDialogSaveInput, 'initialDuration'>,
 ): ProgressEntryPlan {
   const live = state.tasks.find(task => task.id === draft.id);
   const start = live ? planTaskDialogStart(state, live, draft, startDate) : undefined;
-  const task = live ? { ...draft, constraint: start?.constraint, time: {
-    ...draft.time,
-    scheduleStart: start?.anchor ?? live.time.scheduleStart,
-    scheduleFinish: live.time.scheduleFinish,
-    earlyStart: live.time.earlyStart,
-    earlyFinish: live.time.earlyFinish,
-  } } : draft;
+  const task = live ? { ...draft, constraint: start?.constraint, time: savedTime(live, draft, initialDuration) } : draft;
+  if (start?.anchor !== undefined) task.time.scheduleStart = start.anchor;
   let plannedStart: string | undefined;
   const plan = planProgressEntry(task, edit, {
     ...context,
@@ -186,15 +182,23 @@ export function planTaskDialogProgress(
     calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
     plannedStart: live ? () => (plannedStart ??= progressPlannedStartAfterEdit(state, live, task)) : undefined,
   });
-  if (!plan.ok || !plan.change) return plan;
-  // De afgeleide SNET is geen expliciete keuze in het beperkingenveld. Opslaan leidt die opnieuw
-  // af uit de getypte datum, op basis van de dan geldende relaties en beperkingen.
-  return { ...plan, change: { ...plan.change, task: { ...plan.change.task, constraint: draft.constraint } } };
+  if (!live || !plan.ok || !plan.change) return plan;
+  // Alleen de voortgang gaat terug naar het concept. De actuele duur en de afgeleide SNET
+  // zijn invoer voor de berekening, geen door de gebruiker gewijzigde conceptvelden.
+  const { status, time } = plan.change.task;
+  const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = time;
+  return {
+    ok: true,
+    change: {
+      ...plan.change,
+      task: { ...draft, status, time: { ...draft.time, completion, actualStart, actualFinish, remainingTime, remainingMinutes } },
+    },
+  };
 }
 
 /**
- * De tijd die Opslaan op een bestaande taak schrijft, vóór het startanker. Gedeeld door de
- * weigering vooraf (duur korter dan het gedane werk) en `save`.
+ * De samengevoegde tijd vóór het startanker. Voortgang, de duurtoets en Opslaan rekenen met
+ * dezelfde actuele taak en dezelfde bewust gewijzigde conceptvelden.
  */
 function savedTime(
   editingTask: Task,

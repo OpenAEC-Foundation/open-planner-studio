@@ -9,7 +9,9 @@ import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { ProgressEdit, ProgressEntryResult } from '@/engine/progressEntry';
-import { planTaskDialogProgress, saveTaskDialog, type TaskDialogStartEdit } from '@/state/taskDialogSave';
+import {
+  planTaskDialogProgress, saveTaskDialog, type TaskDialogInitialDuration, type TaskDialogStartEdit,
+} from '@/state/taskDialogSave';
 import { shownStart, startIsActual } from '@/utils/taskDates';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
@@ -79,7 +81,7 @@ export function TaskDialog() {
   const [startDateEdit, setStartDateEdit] = useState<TaskDialogStartEdit>();
   const originalStart = editingTask ? shownStart(editingTask) : project.startDate;
   const startDate = startDateEdit?.date ?? originalStart;
-  const initialDurationRef = useRef<{ unit: 'days' | 'hours'; scheduleDuration: number; durationMinutes?: number } | null>(null);
+  const initialDurationRef = useRef<TaskDialogInitialDuration | null>(null);
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -166,7 +168,7 @@ export function TaskDialog() {
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
     const state = useAppStore.getState();
     const plan = planTaskDialogProgress(state, draftRef.current, startDateEdit, edit, {
-      today: localTodayIso(), actualStart: opts?.actualStart,
+      today: localTodayIso(), actualStart: opts?.actualStart, initialDuration: initialDurationRef.current,
     });
     if (!plan.ok) return plan;
     if (plan.change) {

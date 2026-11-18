@@ -313,6 +313,55 @@ test('Taak bewerken: voortgang en startanker volgen de actuele planning na het v
   expect((await dates()).anchor).toBe(original.anchor);
 });
 
+test('#998 Taak bewerken: voortgang toetst de actuele toegewezen duur', async ({ page, ops: _ops }) => {
+  const id = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: true, dateNotation: 'dmy' });
+    s.setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+    const task = s.addTask({
+      name: 'Fundering', time: { scheduleDuration: 10 } as never,
+      constraint: { type: 'MFO', date: '2026-06-22', hard: true },
+    });
+    const crane = s.addResource({ name: 'Kraan', type: 'LABOR', description: '', maxUnits: 1 });
+    s.assignResource(task, crane, 1);
+    s.setTaskWorkRule(task, 'FIXED_RATE');
+    s.runCPM();
+    s.setViewStartDate('2026-06-08');
+    return task;
+  });
+  const planning = () => page.evaluate(taskId => {
+    const time = window.__OPS__!.store.getState().tasks.find(task => task.id === taskId)!.time;
+    return { start: time.earlyStart, duration: time.scheduleDuration };
+  }, id);
+  await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.name"]`)
+    .click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+  const dialog = page.locator('[data-ops-task-dialog]');
+  const work = dialog.locator('[data-ops-assignment-work] input').first();
+  await expect(work).toHaveValue('80');
+  await work.fill('8');
+  await work.press('Tab');
+  await expect.poll(planning).toEqual({ start: '2026-06-22T07:00', duration: 1 });
+
+  const slider = dialog.locator('[data-ops-progress-slider]');
+  await pressSlider(page, slider, { right: 1 });
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  await expect(question).toBeVisible();
+  expect((await readTask(page, id)).actualStart).toBeNull();
+  await question.getByRole('group', { name: /Fundering/ }).getByRole('textbox').first().fill('09');
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect(slider).toHaveValue('1');
+
+  // Een tweede wijziging via de toewijzing blijft ook na de voortgang van kracht bij Opslaan.
+  await work.fill('16');
+  await work.press('Tab');
+  await expect.poll(() => planning().then(value => value.duration)).toBe(2);
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect((await planning()).duration).toBe(2);
+  expect(await readTask(page, id)).toMatchObject({ completion: 0.01, actualStart: '2026-06-09T07:00' });
+});
+
 test('Taak bewerken: één keer Opslaan (naam, ouder, nieuw taaktype, voortgang) is één Ctrl+Z', async ({ page, ops: _ops }) => {
   // Kiest de dialoogdraft een persoonlijk type dat nog niet in het project staat, dan mag de
   // taaktypekiezer dat type maar één keer tonen (de fixture faalt op elke consolefout, dus ook op

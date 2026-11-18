@@ -7,8 +7,7 @@ import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { localTodayIso } from '@/utils/dateUtils';
-import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { planProgressEntry } from '@/engine/progressEntry';
+import { planStoredProgressEdit } from '@/state/slices/taskSlice';
 import { progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
 import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
@@ -165,9 +164,8 @@ export const contextMenuBulk = {
       starts.clear();
       for (const id of batch?.order ?? ids) {
         const task = byId.get(id)!;
-        const plan = planProgressEntry(task, edit, {
-          statusDate: state.project.statusDate, today, actualStart: answers[id],
-          calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
+        const plan = planStoredProgressEdit(state, task, edit, {
+          today, actualStart: answers[id],
           plannedStart: () => {
             const start = plannedStart(task);
             starts.set(id, start);

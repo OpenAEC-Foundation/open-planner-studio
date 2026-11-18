@@ -22,7 +22,7 @@ import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import {
   actualStartQuestionFor, hasRecordedProgress, planProgressEntry, progressEntryStatusDate,
-  type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
+  type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan, type ProgressEntryResult,
 } from '@/engine/progressEntry';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
@@ -863,6 +863,23 @@ function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): Phase
 // Compatibele export voor bestaande MCP-aanroepers; de ene implementatie leeft in taskEditPlan.
 export { applyProgressInvariants };
 
+/** De taak zoals een voortgangssetter haar bewaart. Ook het contextmenu toetst opvolgers op deze
+ * uitkomst, met datumnormalisatie en zonder de nivelleergaten die door de bewerking vervallen. */
+export function planStoredProgressEdit(
+  state: Pick<AppState, 'project' | 'calendar' | 'calendars'>,
+  task: Task, edit: ProgressEdit, ctx: Omit<ProgressEntryContext, 'statusDate' | 'calendar'>,
+): ProgressEntryPlan {
+  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: state.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar) });
+  if (!plan.ok || !plan.change) return plan;
+  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
+  // geen undo-stap of verlies van nivelleergaten veroorzaken.
+  const normalized = normalizeTaskDates(plan.change.task, state);
+  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true, change: null };
+  clearLevelingGaps(normalized);
+  return { ok: true, change: { ...plan.change, task: normalized } };
+}
+
 /**
  * De ene commit van de voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`)
  * en van de UI-invoer (`enterTaskProgress`), binnen hun producer. Wat de bewerking doet,
@@ -898,31 +915,23 @@ function commitProgressEdit(
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
   const base = originalAppState(s);
-  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
-    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
+  const plan = planStoredProgressEdit(s, task, edit, { ...ctx,
     plannedStart: ctx.plannedStart ?? (() => base ? liveProgressPlannedStarts(base)(task) : progressPlannedStarts(s)(task)) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
-  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
-  // geen undo-stap of verlies van nivelleergaten veroorzaken.
-  const normalized = normalizeTaskDates(plan.change.task, s);
-  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
   // Voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de ongewijzigde
   // taak, settle ná de mutatie. Ná de no-op-check, zodat een no-op ook het werk niet raakt.
   const progressWork = captureProgressWork(task, s);
-  const { statusDateToday } = plan.change;
+  const { task: updated, statusDateToday } = plan.change;
   if (statusDateToday) {
     s.project.statusDate = statusDateToday;
     s.project.modifiedAt = new Date().toISOString();
   }
-  task.time = normalized.time;
-  task.status = plan.change.task.status;
+  task.time = updated.time;
+  task.status = updated.status;
+  if (task.splitGaps !== updated.splitGaps) task.splitGaps = updated.splitGaps;
   settleProgressWork(task, taskAssignmentDrafts(s, task.id), progressWork); // eigen toewijzingen, zonder proxy per stuk
-  // Invalidatie van nivelleergaten, klasse voortgang. Voortgang loopt buiten `updateTask` om, dus
-  // deze setters hebben hun eigen aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor
-  // het waarom.
-  clearLevelingGaps(task);
   // ALTIJD stale: elke voortgangsmutatie is datum-beïnvloedend, met of zonder statusdatum
   // (`applyProgressInvariants` pint completion===1 op actuals/eigen finish, en de IN-PROGRESS-tak
   // in CPMSolver leunt evenmin op de statusdatum).

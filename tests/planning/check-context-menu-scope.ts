@@ -199,6 +199,26 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
     ['2026-06-10T16:00', 1, '2026-06-09T07:00']);
 }
 
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+  const a = S().addTask({
+    name: 'A', time: { scheduleDuration: 4 } as Task['time'],
+    splitGaps: [{ afterMinutes: 1440, gapMinutes: 960, source: 'leveling' }],
+  });
+  const b = S().addTask({ name: 'B', time: { scheduleDuration: 2 } as Task['time'] });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: -3 });
+  S().runCPM();
+  S().selectTasks([b, a], false);
+  const action = contextMenuBulk.setProgress(b, 0.5);
+  eq('#998 het gewiste nivelleergat veroorzaakt geen startvraag op de opvolger',
+    S().ui.pendingActualStartQuestion, null);
+  answerActualStartQuestion(null);
+  await action;
+  eq('#998 groepsvoortgang gebruikt de opvolgerstart na het wissen van het nivelleergat',
+    [task(a)?.splitGaps, task(b)?.time.actualStart], [undefined, '2026-06-09T07:00']);
+}
+
 // ── 4) Prioriteit ───────────────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();

@@ -261,6 +261,35 @@ test('Regel 1, contextmenu: 50 % zonder statusdatum zet hem op vandaag', async (
   await expect(page.locator('.ops-toast', { hasText: shown(today) })).toBeVisible();
 });
 
+test('#998 contextmenu: opvolger gebruikt de planning nadat het nivelleergat verdwijnt', async ({ page, ops: _ops }) => {
+  const statusDate = '2026-06-10';
+  const { A, B } = await page.evaluate((date) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: false });
+    s.setProject({ startDate: '2026-06-08', statusDate: date });
+    const A = s.addTask({
+      name: 'Grondwerk', time: { scheduleDuration: 4 } as never,
+      splitGaps: [{ afterMinutes: 1440, gapMinutes: 960, source: 'leveling' }],
+    });
+    const B = s.addTask({ name: 'Fundering', time: { scheduleDuration: 2 } as never });
+    s.addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: -4 });
+    s.runCPM();
+    s.setViewStartDate('2026-06-08');
+    s.selectTasks([B, A], false);
+    return { A, B };
+  }, statusDate);
+  const gaps = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.splitGaps?.length ?? 0, A);
+  expect(await gaps()).toBe(1);
+  await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${B}"][data-grid-column-id="task.name"]`)
+    .click({ button: 'right' });
+  await page.getByText(/^(Progress|Voortgang)$/).hover();
+  await page.getByRole('button', { name: '50%', exact: true }).click();
+  await expect(page.locator('[data-ops-actual-start-dialog]')).toBeHidden();
+  expect(await gaps()).toBe(0);
+  expect(await readProgress(page, A)).toMatchObject({ completion: 0.5, actualStart: '2026-06-08T07:00' });
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-08T07:00' });
+});
+
 // ── Regel 2 (Z1b): voortgang op een taak die pas na de statusdatum begint ⇒ eerst vragen ─────────
 
 /** Keten die helemaal ná de statusdatum (gisteren) ligt: projectstart twee weken na vandaag. */

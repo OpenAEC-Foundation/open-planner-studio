@@ -1031,6 +1031,11 @@ en noem het in je rapport of PR-tekst.
       opvolgers die in hetzelfde verzoek nog een werkelijke start nodig hebben
       (`src/services/mcp/tools/taskTools.ts`). Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 4,
       BEVESTIGD, VERVOLG). — B
+1852. **VERVOLG: de startregel van Taak bewerken ondersteunt nog twee invoervormen.**
+      De app geeft bij bestaande taken een `TaskDialogStartEdit` door. De `string`-tak in
+      `src/state/taskDialogSave.ts` ondersteunt daar alleen tests. Laat die tests dezelfde invoervorm
+      gebruiken en verwijder de aparte tak voor bestaande taken. Uit de review van #1003
+      (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
