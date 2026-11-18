@@ -2723,14 +2723,29 @@ en noem het in je rapport of PR-tekst.
      6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
         feitelijk bijgewerkt; zie ook 1836).
      7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
-     8. Open: Opslaan als over een andere bestaande naam (keuze 4).
+     8. Gebouwd (stap 8, #1019): *Opslaan als* over een andere bestaande naam op de desktop (keuze 4), voor een
+        document met een vreemd deel, met de flag aan. Staat er op het gekozen pad na de doelcontrole een gewoon
+        bestand, dan schrijft de bestandskiezer niet zelf (`SaveDialogOpts.replaceExisting`) maar geeft hij het pad en
+        de inhoud van dat moment aan `replaceExistingPath` (`fileSlice.ts`): dezelfde vervanging als Ctrl+S
+        (`replaceOwnPathWithRecovery`, stap 0–6, hetzelfde herstelrecord), met die inhoud als verwachte inhoud
+        (`vorigeSha256`), binnen de ene `runProjectFileWrite` van de opslag. De doelbewaking na de eerste herstelronde
+        scant die gelezen inhoud zelf, dus wat stap 5 weghaalt, liet de doelbescherming toe. Na een geslaagde
+        vervanging is het document hetzelfde als na een nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft
+        weigeren zoals voorheen: het doel is de bron van een open document (`ifcForeignReplaceBlocked`), het doel bevat
+        zelf een gebouwmodel of C/A/V-inhoud (`ifcForeignTargetSave`, de doelscan, onveranderd), en waar de vervanging
+        niet kan (`save-as-only`: buiten de thuismap, een link, `unsupported`, `refused`) dezelfde zin als een
+        bestaande naam voorheen (`ifcForeignNewTargetOnly`), zonder terugval. Blijft open: Exporteren → IFC en
+        `planner_export_ifc` over een bestaande naam (weigeren nog), en de bestandskiezer van Ctrl+S bij een document
+        zonder opslagdoel (schrijft alleen naar een nieuwe naam). Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
      `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
      stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden); van stap 5b: hetzelfde bestand
-     onderaan, `check-ifc-document-save.ts` en `check-app-quit-lifecycle.ts`, vanaf de productie-ingang. Crash, stroomuitval en externe
+     onderaan, `check-ifc-document-save.ts` en `check-app-quit-lifecycle.ts`, vanaf de productie-ingang; van stap 8:
+     `check-ifc-own-file-replace.ts` deel c (vanaf `saveFileAs`, ook een crash na elke stap met een nooit geopend doel)
+     en `check-ifc-document-save.ts` (zonder herstelronde). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**

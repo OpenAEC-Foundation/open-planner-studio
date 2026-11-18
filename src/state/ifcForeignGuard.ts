@@ -99,7 +99,9 @@ export function recoverySaveTarget(p: {
 // weigering blijft ook na fase 1c bestaan: dan bewaart Opslaan het vreemde deel wel, maar alleen in het eigen document.
 
 /** Knownbug 1131 stap 4 (en 1760): een nieuwe naam voor een bestand met een gebouwmodel (Opslaan als, Exporteren →
- *  IFC) kon niet exclusief ontstaan, meestal omdat er al een bestand met die naam staat. Eén zin voor beide routes. */
+ *  IFC) kon niet exclusief ontstaan, meestal omdat er al een bestand met die naam staat. Eén zin voor beide routes.
+ *  Sinds stap 8 vervangt Opslaan als een bestaand gewoon bestand; daar geldt de zin nog waar die vervanging niet kan
+ *  (`save-as-only`: buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap). */
 export const IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignNewTargetOnly',
   dedupeKey: 'ifc-foreign-new-target-only',
