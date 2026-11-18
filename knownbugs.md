@@ -1000,6 +1000,15 @@ en noem het in je rapport of PR-tekst.
      browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt
      het thema niet en in de browsertest moet er een `page.once('dialog', …)` voor. De vraag bij hernoemen (keuze 7)
      gebruikt wel de eigen `Dialog`. Voorstel: `ConfirmDialog` met `danger`. — B
+1829. **VERVOLG (#804 keuze 7, werksoorten): na "Alleen in mijn lijst" kiest de planner de ene naam en ziet hij de andere.**
+     Heet een werksoort in de eigen lijst anders dan in het project (voorbeeld: eigen lijst "Werkvoorbereiding",
+     project "Engineering"), dan toont de keuzelijst in `TaskTypeField.tsx` bij een taak die de werksoort al heeft de
+     projectnaam, en bij een andere taak de naam uit de eigen lijst; kiest de planner die, dan staat daarna de
+     projectnaam op de knop. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main
+     al zo na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
+     Gemeten door de bouwer van #999 met een tijdelijke stap in `custom-task-types.spec.ts`. Wat de lijst hoort te
+     tonen (bijvoorbeeld altijd de projectnaam voor een werksoort die in het project staat) is een keuze voor de
+     eigenaar, bij de handleiding en de teksten. — B
 
 ## Kalenders
 
