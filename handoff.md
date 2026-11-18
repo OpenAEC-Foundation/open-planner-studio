@@ -132,6 +132,7 @@ VERVOLG 1113 staan. Opslaan met een vreemd deel blijft geweigerd tot 1c.
 
 ## Werk
 
+- 2026-11-18: #804 keuze 7 (#999, concept): hernoemt de planner in *Werksoorten beheren…* een eigen werksoort die ook in het actieve document staat met een andere naam, dan vraagt de app of de naam ook in dit project moet (*Ook in dit project* / *Alleen in mijn lijst*). Ja loopt via de store-actie `renameProjectTaskType` (één ongedaan-maakstap, document gewijzigd, naam in het IFC); een botsende naam laat de projectnaam staan, met een melding. Geen flag. 1748 opgelost; 1827 (`window.confirm` bij verwijderen) en 1828 (MCP weigert een andere naam bij hetzelfde id) erbij.
 - 2026-11-17: ontwerp versie 21 (#804): de besluiten van de eigenaar van 16 en 17 november staan in §11 van het ontwerp (twaalf punten); §4.10 heeft de namen van de kopieën (`(versie van ander programma …)`, `(niet opgeslagen planning …)`), §4.12 het ritme van Automatisch opslaan (na 30 s rust, uiterlijk na 5 minuten) en de export zonder vraag vooraf. Nog niet herschreven: §4.10 (gewijzigd bestand), §4.8, §1, §7, §5.1, §6.5 en §5.3; daar geldt de lijst in §11. Nieuwe wens: knownbug 1757.
 - 2026-11-17: knownbug 1797 (#978, concept): `tauri-plugin-fs` van 2.5.0 naar 2.7.1 (Rust met ondergrens, npm gelijk), `tauri-plugin-persisted-scope` van de pin `=2.3.6` naar 2.4.3 (de pin hield fs op 2.5.0). `FsRenameScope` volgt de scoperegel van 2.7.1 (verbod op de padtekst en het echte pad, toestemming op het echte pad, links in bovenliggende mappen opgelost); de eigen capabilities `webviewgegevens-*.json` houden alleen wat `fs:default` niet dekt (de map zelf, `rename`/`remove` van `$APPLOCALDATA`). De Node-adapter weigert onleesbare schrijfopties zoals 2.6.0+. Gedragsverandering: in een map die via een link buiten `$HOME` uitkomt, schrijft Opslaan direct in plaats van via het halffabricaat. 1797 en 1777 opgelost. Vóór de merge: review en een controle in de echte desktopapp.
 - 2026-11-17: knownbug 1758 (#804): ook de modelscan van een bestaand doel draait in de scanworker. Dezelfde Worker krijgt de stukken één voor één en antwoordt per stuk met de stap van de scanner (verder, terugspoelen of de uitkomst), daarna de bytes voor de indeling; de vroege stop, het terugspoelen en de grens van 300 MiB blijven gelijk, een falende Worker geeft de uitkomst van de hoofdthread (opnieuw vanaf het begin). De handler staat los van `self` in `foreignScanHandler.ts`. Gemeten in Node bij 10.000 taken: de hoofdthread zit 10–15 ms vast in plaats van 580–800 ms. 1758 opgelost, 1759 bijgewerkt.
@@ -548,3 +549,19 @@ De PR blijft concept, daarna Terra en Sol gericht volgens het besluit van Trias.
 - `notifications.ifcForeignPlaceUnknown` — Als `place_file_exclusive` bij Opslaan als of Exporteren `source-changed` meldt: de stand op schijf is onbekend (1131 stap 4).
   - nl: De app weet niet of het bestand goed is opgeslagen: tijdens het opslaan veranderde er iets in de map. Je wijzigingen staan nog in de app. Kijk of het bestand klopt, of sla opnieuw op onder een nieuwe naam.
   - en: The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.
+
+- `task:taskType.renameInProjectTitle` — Titel van de vraag bij hernoemen van een eigen werksoort die ook in het project staat (#804 keuze 7, #999).
+  - nl: Naam ook in dit project wijzigen?
+  - en: Rename it in this project too?
+- `task:taskType.renameInProjectMessage`
+  - nl: De werksoort „{{oldName}}” staat ook in dit project. Wil je die hier ook „{{newName}}” noemen?
+  - en: The work category “{{oldName}}” is also used in this project. Do you want to call it “{{newName}}” here too?
+- `task:taskType.renameInProjectYes` — Knop, verandert de naam in het project.
+  - nl: Ook in dit project
+  - en: Also in this project
+- `task:taskType.renameInProjectNo` — Knop (ook Escape), het project houdt de oude naam.
+  - nl: Alleen in mijn lijst
+  - en: Only in my list
+- `notifications.taskTypeRenameNameTaken` — Melding als een andere werksoort in het project de nieuwe naam al heeft.
+  - nl: In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”.
+  - en: In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”.
