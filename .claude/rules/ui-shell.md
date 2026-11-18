@@ -44,7 +44,9 @@ IFC-kaart van Bestand → Exporteren staat er alleen bij een document met gebouw
 
 Afsluiten, het kruisje van een tabblad (`requestCloseDocument`) en de keuzes van de sluitvraag (`closeDocumentAfterSaves`)
 wachten op een lopende opslag. *Opslaan* in de sluitvraag sluit alleen als de opslag `true` gaf én hetzelfde document
-vlak vóór het sluiten nog schoon is (`onlyIfClean`); zolang die opslag loopt, zet `CloseDocumentDialog`
+vlak vóór het sluiten nog schoon is: `closeDocument(id, { onlyIfClean: true })` rondt eerst open veldinvoer af, kijkt
+dan en verwijdert pas daarna (#1008). Een waarde die tijdens de opslag in een veld getypt is, houdt het tabblad open;
+bij afsluiten ziet de afsluitronde het gewijzigde document en breekt af. *Niet opslaan* sluit ook met open invoer. Zolang die opslag loopt, zet `CloseDocumentDialog`
 `ui.closeQuestionSaving` en lezen de knoppen én Escape (`edit.deselect` in het sneltoetsregister) die vlag. Intussen staat `SavingBeforeCloseNotice` (`src/components/layout/DocumentChrome/`, gedeelde
 `Dialog` op `z-[95]`, boven de sluitvraag) met één zin, zonder knop en zonder Escape; `ui.savingBeforeClose` bevriest de
 sneltoetsen en de schil zoals een wachtende vraag, en `isBlockingDialogOpen`/`BLOCKING_UI_FLAGS` blokkeren. Wacht de opslag

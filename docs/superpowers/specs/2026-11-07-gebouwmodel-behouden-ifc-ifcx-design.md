@@ -746,7 +746,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     die de vervanging zelf gebruikt, zodat de schrijfrij nooit op zichzelf wacht. Grens: een lezing die al vóór de
     opslag begon en pas na de tweede controle in de store komt, krijgt de oude versie; Ctrl+S in dat tabblad weigert
     dan (knownbug 1837). *Opslaan* in de sluitvraag sluit alleen als de opslag slaagde én hetzelfde document vlak vóór
-    het sluiten nog schoon is; Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
+    het sluiten nog schoon is, gekeken ná het afronden van open veldinvoer (een waarde die tijdens de opslag in een
+    veld getypt is, houdt het tabblad en het venster open); Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
     melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
     als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
     sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd),

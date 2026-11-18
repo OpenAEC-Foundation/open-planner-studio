@@ -95,7 +95,7 @@ An automatically detected update waits until the welcome screens and any active 
 
 **Experimental** — click the version number repeatedly for 5 seconds to show this hidden section under *Version*. Every experimental feature has a toggle and is off by default. The app remembers your choices on this device. *Hide* hides the section and keeps the choices. Where: [About](settings://experimental).
 
-**Open IFC with a building model** — in the *Experimental* section. When on, also opens IFC files with a building model or data from other programs. Saving keeps the building model: in the desktop app, Save writes over the opened file itself if it is in your home folder, and Save As only to a new name. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file, and tells you so. You can save your own schedule file without foreign content, even when you have not changed a task.
+**Open IFC with a building model** — in the *Experimental* section. When on, also opens IFC files with a building model or data from other programs. Saving keeps the building model: in the desktop app, Save writes over the opened file itself if it is in your home folder, and Save As only to a new name. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file; only a change at exactly the same moment can still be lost. You can save your own schedule file without foreign content, even when you have not changed a task.
 
 **Start tour** — the introductory tour again. Effect: closes the *App settings* window and starts the tour from the first step. Where: [About](settings://tour).
 
