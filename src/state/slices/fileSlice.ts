@@ -41,7 +41,7 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice,
+  refusedWriteTarget, newTargetWriteNotice, ifcForeignDownloadCopyNotice,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -1499,6 +1499,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
       const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
+      // Knownbug 1768: het geopende bestand met een gebouwmodel kreeg geen schrijftoestemming, dus de app downloadde een
+      // kopie. Dat bestand is niet bijgewerkt: het document blijft gewijzigd (geen commit) en de melding noemt de kopie.
+      // Zonder commit blijven ook bron, kenmerk, handle en naam die van het geopende bestand.
+      if (write.prepared && outcome.viaDownload && ref?.kind === 'handle') {
+        get().notify(ifcForeignDownloadCopyNotice(outcome.name));
+        return false;
+      }
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(documentId, state)
         : commitSavedDocument(documentId, state, localDestination(outcome), write.prepared);

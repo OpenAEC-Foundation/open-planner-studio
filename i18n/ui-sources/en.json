@@ -249,6 +249,7 @@
     "notifications.ifcForeignTargetChanged": "5ee98d3d8e4176ab",
     "notifications.ifcForeignTargetGone": "09c5a7cd5ae27334",
     "notifications.ifcForeignReplaceNotRecorded": "2b2d4291d99c4e5d",
+    "notifications.ifcForeignDownloadCopy": "9a9f6f8801d32143",
     "notifications.ifcForeignReplaceFailed": "fad274456e4637b7",
     "notifications.ifcForeignMergeRefused": "bf7ce2523022f8b6",
     "notifications.ifcSaveChangedWhileWaiting": "6cd756a521ebd351",

@@ -67,6 +67,16 @@ export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
 });
 
+/** Knownbug 1768 (besluit van de eigenaar, 16 november 2026): weigert de browser de schrijftoestemming op het geopende
+ *  bestand, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is bijgewerkt; deze
+ *  melding noemt de kopie. Blijft staan tot het kruisje; een volgende download ververst haar. */
+export function ifcForeignDownloadCopyNotice(file: string): NotifyInput {
+  return {
+    severity: 'info', sticky: true, messageKey: 'notifications.ifcForeignDownloadCopy', params: { file },
+    dedupeKey: 'ifc-foreign-download-copy', replaceOnDedupe: true,
+  };
+}
+
 /** Het opslagdoel dat het herstelmanifest bewaart (§4.14). De herstelsnapshot heeft geen bronbytes; met een vreemd deel
  *  zou Ctrl+S na herstel het modelbestand overschrijven met alleen planning. Dan geen doel: opslaan wordt opslaan als.
  *  Zonder vreemd deel precies zoals vóór #804. */

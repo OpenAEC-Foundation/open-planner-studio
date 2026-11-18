@@ -77,4 +77,4 @@ De uitzondering "eigen doel" in `refusedWriteTarget` (`ownVersion`) bindt docume
 loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd, op het document van
 de momentopname en niet op het actieve document (#804 stap 3): een tabbladwissel tijdens de opslag weigert niet, en de
 commit gaat naar dat document. Na de momentopname leest een opslag het actieve document niet meer.
-Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit.
+Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit. Uitzondering (knownbug 1768): de download die Ctrl+S geeft als de browser de schrijftoestemming op de eigen handle weigert, commit niets; het document blijft gewijzigd, Ctrl+S geeft `false` (de sluitvraag sluit niet) en de melding `ifcForeignDownloadCopy` noemt de kopie. Opslaan als en Ctrl+S zonder handle zetten het nog op opgeslagen (1830).

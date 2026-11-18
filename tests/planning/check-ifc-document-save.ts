@@ -1077,16 +1077,66 @@ for (const cause of ['geen herstelronde', 'IndexedDB weigert het manifest'] as c
   });
 }
 
-await check('handle zonder schrijftoestemming: download zoals bij een gewoon bestand, het eigen bestand blijft staan', async () => {
+// Knownbug 1768 (besluit van de eigenaar, 16 november 2026): na de download blijft het document gewijzigd tot het
+// geopende bestand is bijgewerkt; de melding noemt de kopie. Ook *Opslaan* in de sluitvraag sluit dan niet.
+await check('handle zonder schrijftoestemming: download, het document blijft gewijzigd; later met toestemming opgeslagen', async () => {
   const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
   try {
-    longer(store); const before = preserved(store); writableLog.length = 0;
+    longer(store); const before = preserved(store); writableLog.length = 0; clearNotices(store);
     handleFaults.set(name, { permission: 'denied' });
-    await ctrlS(store);
+    assert.equal(await ctrlS(store), false, 'Ctrl+S meldt: niet opgeslagen');
     assert.equal(browser.downloads.length, 1); assert.deepEqual(writableLog, []);
     assert.deepEqual(mergeProblems(bytes, new Uint8Array(await browser.downloads[0].arrayBuffer())), []);
-    assert.equal(hash(fileOf(name)), hash(bytes)); unchanged(store, { ...before, dirty: false });
+    assert.equal(hash(fileOf(name)), hash(bytes)); unchanged(store, before);
+    assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+    const shown = store.getState().ui.notifications, { suggestedFileBase } = await import('@/state/slices/fileSlice');
+    assert.deepEqual(shown.map(n => n.messageKey), ['notifications.ifcForeignDownloadCopy'], 'alleen de eigen melding');
+    assert.deepEqual(shown[0].params, { file: `${suggestedFileBase(store.getState())}.ifc` }, 'de melding noemt de kopie');
+    // *Opslaan* in de sluitvraag: weer een download, het document blijft open en gewijzigd.
+    let closed = false;
+    await createCloseDocumentDialogActions({
+      pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
+      switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+      saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    }).save();
+    assert.equal(closed, false, 'de sluitvraag sluit niet na een download');
+    assert.equal(browser.downloads.length, 2); assert.equal(store.getState().isDirty, true);
+    assert.equal(store.getState().ui.notifications.find(n => n.messageKey === 'notifications.ifcForeignDownloadCopy')?.count, 1,
+      'een tweede download ververst de melding');
+    // Later toestemming: Ctrl+S schrijft alsnog op de handle en het document staat op opgeslagen.
+    handleFaults.delete(name);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(browser.downloads.length, 2, 'geen download meer');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`]);
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.equal(store.getState().isDirty, false); assert(store.getState().fileHandle === before.handle, 'dezelfde handle');
   } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+// Knownbug 1768, punt 5: een document zonder gebouwmodel houdt de gewone route. Eerst de opslaankiezer; zonder kiezer een
+// download die het document op opgeslagen zet. Geen melding over een kopie.
+await check('gewoon document, handle zonder schrijftoestemming: eerst de opslaankiezer, anders een download, zoals main', async () => {
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  const win = window as unknown as Record<string, unknown>;
+  for (const picker of [true, false]) {
+    const { store, name } = await openHandle(plain), browser = browserDownload(), chosen: string[] = [];
+    if (picker) {
+      win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+      win.showSaveFilePicker = async () => {
+        const target = `${name}.nieuw`; chosen.push(target); handleFiles.set(target, new Uint8Array());
+        return new FakeHandle(target);
+      };
+    }
+    try {
+      longer(store); clearNotices(store); handleFaults.set(name, { permission: 'denied' });
+      assert.equal(await ctrlS(store), true, `kiezer ${picker}: opgeslagen`);
+      assert.equal(hash(fileOf(name)), hash(plain), 'het geopende bestand blijft staan');
+      assert.equal(store.getState().isDirty, false);
+      assert.equal(chosen.length, picker ? 1 : 0); assert.equal(browser.downloads.length, picker ? 0 : 1);
+      assert.equal(store.getState().fileHandle === null, !picker, picker ? 'de nieuwe handle' : 'de download verliest de handle');
+      assert(!store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'));
+    } finally { handleFaults.clear(); browser.dispose(); delete win.showOpenFilePicker; }
+  }
 });
 
 await check('handle: een ander open document met hetzelfde bestand als bron blijft geweigerd', async () => {

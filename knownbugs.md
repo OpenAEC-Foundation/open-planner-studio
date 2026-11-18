@@ -2701,17 +2701,18 @@ en noem het in je rapport of PR-tekst.
      bestanden: twee volledige inhoudscontroles en de merge, alle op de hoofdthread. Richting: meenemen in de proef in
      een echte browser van 1574 en de meting van PR 6. — S
 
-1768. **VERVOLG (#804, productkeuze): na een download omdat de browser schrijftoestemming weigert, staat het document als opgeslagen.**
-     Browser, flag aan, document met een gebouwmodel dat via de bestandskiezer geopend is. Weigert de browser de
-     schrijftoestemming, dan wordt Ctrl+S een download van het volledige bestand (planning en gebouwmodel). De bron, het
-     kenmerk, de handle en de naam blijven die van het geopende bestand, en dat is juist: daar staat nog de oude versie.
-     Maar `isDirty` gaat uit, dus de sluitvraag komt niet meer, terwijl het geopende bestand niet is bijgewerkt en het
-     werk alleen in de downloadmap staat. Geen verlies aangetoond: de download is heel, en met later verleende
-     toestemming schrijft Ctrl+S alsnog op dezelfde handle (proef van de review van #967). "Zoals main" klopt maar ten
-     dele: de gewone route probeert eerst de opslaankiezer en verliest bij een download haar handle; de mergeroute
-     downloadt altijd (1130) en houdt het openingsdoel. Richting: de eigenaar kiest wat "opgeslagen" hier betekent (het
-     document blijft gewijzigd tot het geopende bestand is bijgewerkt, of een kopie telt), en de melding zegt het; met
-     de teksten van stap 6 van 1131. Gevonden door de review van #967. — B (proef)
+1830. **VERVOLG (#804, productkeuze): de andere downloads van een document met een gebouwmodel zetten het document nog op opgeslagen.**
+     Browser, flag aan. Sinds knownbug 1768 blijft het document gewijzigd na de download die Ctrl+S geeft als de browser
+     de schrijftoestemming op het geopende bestand weigert (besluit van de eigenaar, 16 november 2026). Twee andere
+     downloads van zo'n document doen nog wat main doet: `isDirty` gaat uit. (1) Ctrl+S bij een document zonder handle
+     (geopend via slepen of in een browser zonder bestandstoegang, zoals Firefox): elke Ctrl+S is een download van het
+     volledige bestand. (2) *Opslaan als*, dat in de browser met een gebouwmodel altijd een download is (§11 punt 4).
+     Geen verlies: de download is heel en het geopende bestand blijft ongewijzigd. Vraag aan de eigenaar: geldt
+     "gewijzigd tot het geopende bestand is bijgewerkt" ook hier, of telt een kopie daar wel als opgeslagen? Bij (1) kan
+     het geopende bestand in die browser nooit worden bijgewerkt, dus de sluitvraag zou dan altijd komen. Code:
+     `writeActiveDocument` en `saveDocumentAsOnTurn` in `fileSlice.ts` (`commitSavedDocument` na `viaDownload`).
+     Gevonden bij het bouwen van 1768. — B voor (2) (proef "download: twee volledige heropeningen" in
+     `check-ifc-document-save.ts`), S voor (1) (code gelezen)
 
 1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
      `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde

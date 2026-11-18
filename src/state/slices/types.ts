@@ -239,6 +239,7 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignTargetChanged'
   | 'notifications.ifcForeignTargetGone'
   | 'notifications.ifcForeignReplaceNotRecorded'
+  | 'notifications.ifcForeignDownloadCopy'
   | 'notifications.ifcForeignReplaceFailed'
   | 'notifications.ifcForeignMergeRefused'
   // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
