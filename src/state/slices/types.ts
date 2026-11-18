@@ -812,6 +812,7 @@ export interface UIState {
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open
   showBaselineDialog: boolean;              // session — baseline-dialoog open
   showMoveProjectDialog: boolean;           // session — "Project verplaatsen…"-dialoog open
+  showSiteRecordsDialog: boolean;           // session — "Taken naar de site…"-dialoog open
   /** session — bronnen met een nieuwe versie (de balk onder het lint, stap 1.5). */
   externalSourceUpdates: ExternalSourceUpdate[];
   /** session — het venster *Bekijken* voor deze bron (`ExternalSourceUpdate.key`) staat open. */

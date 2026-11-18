@@ -30,6 +30,16 @@ In de OpenAEC SuperCloud gaat dit anders: daar zet de site je werk in een kopie 
 
 **Exporteren gaat altijd naar je eigen pc.** Een export (CSV, Excel, MS Project, P6, PDF) komt als download of via de bestandskiezer, niet op de site.
 
+## Taken bij een project in ERPNext bewaren
+
+In de OpenAEC SuperCloud kun je de taken van een planning ook bij een project in ERPNext bewaren. Elke taak wordt daar een taak met zijn begin, zijn einde en zijn voortgang.
+
+1. Kies *Start › Bestand › Exporteren › Taken naar de site…*. De regel staat er alleen als de site dit kan.
+2. Kies het project. Het venster zegt hoeveel taken de planning heeft en hoeveel er al bij dat project staan.
+3. Klik op *Bewaren bij het project*.
+
+Bewaar je later opnieuw, dan werkt de site dezelfde taken bij; er komen geen dubbele. Samenvattingstaken gaan niet mee. Een taak die je uit de planning haalt, blijft in ERPNext staan tot je hem daar verwijdert. De datums zijn de berekende datums: reken de planning eerst door (F5) als je iets hebt gewijzigd.
+
 ## Zie ook
 
 - [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan): openen en opslaan op je eigen pc.

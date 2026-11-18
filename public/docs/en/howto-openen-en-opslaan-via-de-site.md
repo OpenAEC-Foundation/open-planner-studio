@@ -30,6 +30,16 @@ In the OpenAEC SuperCloud this works differently: there the site puts your work 
 
 **Exporting always goes to your own computer.** An export (CSV, Excel, MS Project, P6, PDF) arrives as a download or through the file picker, not on the site.
 
+## Keeping tasks with a project in ERPNext
+
+In the OpenAEC SuperCloud you can also keep the tasks of a schedule with a project in ERPNext. Each task becomes a task there, with its start, its finish and its progress.
+
+1. Choose *Home › File › Export › Tasks to the site…*. The entry is only there when the site can do this.
+2. Choose the project. The window says how many tasks the schedule has and how many that project already holds.
+3. Click *Save with the project*.
+
+When you save again later, the site updates the same tasks; no duplicates appear. Summary tasks are left out. A task you remove from the schedule stays in ERPNext until you delete it there. The dates are the calculated dates: calculate the schedule first (F5) after a change.
+
 ## See also
 
 - [Opening and saving a file](docs://howto-bestand-openen-en-opslaan): opening and saving on your own computer.

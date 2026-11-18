@@ -86,6 +86,11 @@
  * Code: `siteHostPreferences.ts` (lezen), `siteHostSettings.ts` (instellingen) en
  * `src/hooks/useSiteHostPreferences.ts` (de luisteraars).
  *
+ * ## Objecten naast ERPNext
+ *
+ * Een site kan ook `records` op de host zetten (OpenAEC SuperCloud): objecten van de tool, bij een
+ * project in ERPNext. De planner bewaart er zijn taken mee. Zie `siteHostRecords.ts`.
+ *
  * ## De vier functies (de `storage`-vorm)
  *
  * - `list({ extensions })` — de bestanden die de tool kan openen. `extensions` zijn extensies zonder
@@ -193,6 +198,9 @@ export interface OpenAECHost {
   /** Opslag voor de instellingen van de tool, als de browser zelf niets bewaart (#818). Zie
    *  `siteHostSettings.ts`. */
   settings?: SiteHostSettings;
+  /** Objecten van de tool op de site, naast ERPNext (OpenAEC SuperCloud): de planner bewaart er zijn
+   *  taken mee bij een project. Zie `siteHostRecords.ts`. */
+  records?: import('./siteHostRecords').SiteHostRecords;
   /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }

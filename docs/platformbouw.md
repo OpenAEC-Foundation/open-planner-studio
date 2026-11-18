@@ -119,8 +119,21 @@ interface OpenAECHost {
     set(key: string, value: unknown): Promise<unknown>;
     delete(key: string): Promise<unknown>;
   };
+  /** Objecten van de tool op de site, naast ERPNext (OpenAEC SuperCloud). Zie hieronder. */
+  records?: {
+    projects(): Promise<{ id: string; title: string }[]>;
+    list(scope?: { project?: string; file?: boolean; kind?: string }): Promise<SiteRecord[]>;
+    save(records: SiteRecord[], scope?: { project?: string; file?: boolean }): Promise<{ kind: string; key: string; taskId: string | null }[]>;
+    delete(records: { kind: string; key: string }[], scope?: { project?: string; file?: boolean }): Promise<number>;
+  };
   /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
+}
+
+interface SiteRecord {
+  kind: string; key: string; title: string; data: unknown;
+  task?: { start?: string | null; end?: string | null; progress?: number | null } | null;
+  taskId?: string | null;
 }
 
 interface SiteStorage {
@@ -199,6 +212,11 @@ Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
   gedrag van #716 ("een latere host verandert de taal niet"): zet de site de host pas na de start en stuurt ze
   `openaec-host-ready`, dan neemt de tool taal en thema alsnog over, en leest hij de instellingen (`settings`)
   als een laat antwoord (zie hieronder).
+- `records` (optioneel): objecten van de tool op de site, naast ERPNext. De planner bewaart er zijn taken mee bij
+  een project (*Exporteren › Taken naar de site…*, `SiteRecordsDialog`): per taak een record van de soort `taak`
+  met het GlobalId als sleutel, en `task` met begin, einde en voortgang, zodat de site er ook een taak in ERPNext
+  van maakt. Samenvattingstaken gaan niet mee. De regel in het menu staat er alleen als de host `records` met de
+  vier functies heeft (`siteHostRecords.ts`, `tests/planning/check-site-records.ts`).
 - `settings` (optioneel, #818): de tool bewaart daar zijn blijvende `ops-`-instellingen, voor een frame waarin
   `localStorage` na herladen leeg is (de SuperCloud: een vervanger in het geheugen). Eén hostsleutel per
   instelling, met dezelfde naam (`ops-theme`, `ops-showFloatBand`, …) en tekst als waarde. Twee frames die elk

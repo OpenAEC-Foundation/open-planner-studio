@@ -93,6 +93,7 @@ const IfcSchemaQuestionDialog = lazy(() => import('@/components/dialogs/IfcSchem
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
+const SiteRecordsDialog = lazy(() => import('@/components/dialogs/SiteRecordsDialog').then(m => ({ default: m.SiteRecordsDialog })));
 const MoveProjectDialog = lazy(() => import('@/components/dialogs/MoveProjectDialog').then(m => ({ default: m.MoveProjectDialog })));
 const ExternalSourceReviewDialog = lazy(() => import('@/components/dialogs/ExternalSourceReviewDialog').then(m => ({ default: m.ExternalSourceReviewDialog })));
 const ColumnsDialog = lazy(() => import('@/components/dialogs/ColumnsDialog').then(m => ({ default: m.ColumnsDialog })));
@@ -139,6 +140,7 @@ function AppContent() {
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
+  const showSiteRecordsDialog = useAppStore(s => s.ui.showSiteRecordsDialog);
   const externalSourceReview = useAppStore(s => s.ui.externalSourceReview);
   const pendingDependentAnchorWarning = useAppStore(s => s.ui.pendingDependentAnchorWarning !== null);
   const showProgressImportDialog = useAppStore(s => s.ui.showProgressImportDialog);
@@ -487,6 +489,7 @@ function AppContent() {
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
+        {showSiteRecordsDialog && <SiteRecordsDialog />}
         {externalSourceReview !== null && <ExternalSourceReviewDialog />}
         {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}
         {showFilterDialog && <FilterDialog />}

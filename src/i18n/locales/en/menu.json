@@ -425,7 +425,8 @@
     "profileHint": "Your project currently uses the {{name}} profile. We recommend the {{target}} profile for the best compatibility with this file format.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART standard, in the IFC schema of the project (default IFC 4.3 ADD2). 4D link with BIM models.",
-    "csvShort": "CSV"
+    "csvShort": "CSV",
+    "tasksToSite": "Tasks to the site…"
   },
   "extensions": {
     "title": "Extensions",
