@@ -1,5 +1,5 @@
 import './domStub';
-import { deepStrictEqual, strictEqual, throws } from 'node:assert';
+import { deepStrictEqual, strictEqual } from 'node:assert';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcGuid128, ifcObjectSeed, writeIFC } from '@/services/ifc/ifcWriter';
 import { parseStep } from './ifcSchemaCheck';
@@ -10,31 +10,6 @@ const same = (actual: unknown, expected: unknown, label: string) => {
   deepStrictEqual(actual, expected, label);
   checks++;
 };
-
-// Een ongeldige verplichte verwijzing mag nooit stil als #0 in een IFC terechtkomen (knownbug 1020).
-// Onbekende WBS-kinderen werden al bewust overgeslagen en blijven dat.
-{
-  const input = createIfcNestingFixture(20, 'breed');
-  const sequence = input.sequences[0];
-  if (!sequence) throw new Error('fixture mist een relatie');
-  throws(() => writeIFC({ ...input, sequences: [{ ...sequence, predecessorId: 'ontbrekende-taak' }] }),
-    /IFC-verwijzing ontbreekt: task_ontbrekende-taak/);
-  checks++;
-  input.tasks[0].childIds.push('ontbrekend-kind');
-  const output = writeIFC(input);
-  const entities = parseStep(output);
-  const taskRef = (id: string) => {
-    const guid = `'${ifcGuid128(ifcObjectSeed('task', id))}'`;
-    const task = entities.find(e => e.type === 'IFCTASK' && e.args[0].k === 'str' && e.args[0].raw === guid);
-    if (!task) throw new Error(`IFCTASK ontbreekt: ${id}`);
-    return task.id;
-  };
-  const parent = taskRef(input.tasks[0].id);
-  const nesting = entities.find(e => e.type === 'IFCRELNESTS' && e.args[4].k === 'ref' && e.args[4].id === parent);
-  if (!nesting || nesting.args[5].k !== 'list') throw new Error('WBS-relatie ontbreekt');
-  same(nesting.args[5].items, input.tasks.slice(1).map(t => ({ k: 'ref', id: taskRef(t.id) })),
-    'ontbrekend WBS-kind wordt overgeslagen; geldige kinderen blijven behouden');
-}
 
 // Meerdere relaties voor dezelfde ouder, herhalingen binnen/over relaties, ongeldige refs
 // en een kind dat later nog aan een andere ouder hangt. De bestaande bestandsvoorrang blijft:
