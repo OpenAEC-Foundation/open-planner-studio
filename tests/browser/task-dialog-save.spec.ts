@@ -224,8 +224,8 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    // Onbegonnen werk staat na de statusdatum (6 maart) gepland; de afgeleide start volgt die.
-    completion: 0.4, status: 'STARTED', actualStart: "2026-03-06T07:00", actualFinish: null, remainingTime: 6,
+    // #998: de taak was naar 6 maart geschoven. Het percentage legt haar geplande begin op 2 maart vast.
+    completion: 0.4, status: 'STARTED', actualStart: "2026-03-02T07:00", actualFinish: null, remainingTime: 6,
   });
 
   dialog = await openDialogByDoubleClick(page, taskId);
@@ -233,7 +233,7 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    completion: 1, status: 'COMPLETED', actualStart: "2026-03-06T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
+    completion: 1, status: 'COMPLETED', actualStart: "2026-03-02T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
 });
 
