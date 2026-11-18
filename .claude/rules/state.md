@@ -61,6 +61,9 @@ Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes sa
 document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
 de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
+`sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
+taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
+naam van een ongebruikte werksoort (`renameUnusedProjectTaskType`, #804 keuze 7) geen inhoudsverschil voor opslaan, AutoSave en herstel.
 PR 11a sluit documentroutes aan en PR 11b IFC-export en app-MCP, via `ifcFullWriteBlocked`.
 `state/prepareIfcOutput.ts` bewaakt de modus en deelt één voorbereiding zonder I/O of documentcommit.
 De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalenderkeuzes; exports doen dit niet.

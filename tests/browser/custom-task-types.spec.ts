@@ -126,6 +126,59 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await manager.getByRole('button', { name: /^(Add to my work categories|Toevoegen aan mijn werksoorten)$/ }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]')))
     .toEqual(created.catalog);
+
+  // Een werksoort die geen taak gebruikt (eigenaarsbesluit 18 november 2026): hernoemen geeft geen vraag en
+  // de projectkopie krijgt de nieuwe naam stil, zonder dat het document gewijzigd raakt. Daarna tonen het
+  // eigenschappenpaneel en de keuzes van de kolom Eigen werksoort de nieuwe naam (knownbug 1829).
+  await manager.getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
+  await expect(manager).toBeHidden();
+  await select.getByRole('button').click();
+  await page.getByRole('option', { name: /^(Construction|Bouw)$/ }).click();
+  expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(task => task.id === id)?.customTaskTypeId, taskId))
+    .toBeUndefined();
+  await page.evaluate(() => window.__OPS__!.store.setState({ isDirty: false })); // zoals na opslaan
+  const historyLength = await page.evaluate(() => window.__OPS__!.store.getState().historyEvents.length);
+  await select.getByRole('button').click();
+  await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
+  await editButton.click();
+  await manager.getByRole('textbox').fill('Ontwerp');
+  await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect(manager).toContainText('Ontwerp');
+  await expect(question).toHaveCount(0);
+  expect(await names()).toEqual({
+    personal: [{ id: created.personal[0].id, name: 'Ontwerp' }],
+    project: [{ id: created.personal[0].id, name: 'Ontwerp' }],
+  });
+  expect(await page.evaluate(() => {
+    const state = window.__OPS__!.store.getState();
+    return { dirty: state.isDirty, history: state.historyEvents.length };
+  })).toEqual({ dirty: false, history: historyLength });
+  await manager.getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
+  await expect(manager).toBeHidden();
+
+  await select.getByRole('button').click();
+  await page.getByRole('option', { name: 'Ontwerp', exact: true }).click();
+  await expect(select.getByRole('button')).toContainText('Ontwerp');
+
+  await page.evaluate(() => {
+    const store = window.__OPS__!.store.getState();
+    const columns = store.taskGridSurfaces['full-task-grid'].columns;
+    store.setTaskGridColumns('full-task-grid', [
+      ...columns,
+      { id: 'task.customTaskTypeId', width: 160, pinned: false } as unknown as (typeof columns)[number],
+    ]);
+  });
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const typeCell = page.locator('[data-task-grid-surface-id="full-task-grid"]').locator(
+    `[data-grid-data-row="true"][data-grid-row-key="${taskId}"] [data-grid-data-cell="true"][data-grid-column-id="task.customTaskTypeId"]`,
+  );
+  await typeCell.scrollIntoViewIfNeeded();
+  await typeCell.click();
+  await page.keyboard.press('Enter');
+  const columnChoices = page.getByRole('listbox');
+  await expect(columnChoices.getByRole('option', { name: 'Ontwerp', exact: true })).toBeVisible();
+  await expect(columnChoices).not.toContainText('Engineering');
+  await page.keyboard.press('Escape');
 });
 
 test('Taaktypekiezer: een geïmporteerd projecttype blijft kiesbaar zonder persoonlijke kopie', async ({ page, ops: _ops }) => {
