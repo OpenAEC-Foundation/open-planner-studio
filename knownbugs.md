@@ -4866,3 +4866,9 @@ en noem het in je rapport of PR-tekst.
      invoer wel eerst af (`finishPendingInput` in `appQuitController.ts`). Richting: `requestCloseDocument` rondt de
      invoer af vóór de controle, zoals het afsluiten. Gevonden bij fixronde 2 van #1008, uit de code; niet beproefd
      in een echte webview. — S
+1847. **VERVOLG (opruimen): de schooncontrole bij het sluiten bouwt de titels van alle tabbladen op.**
+     `closeDocument(id, { onlyIfClean })` (`documentSlice.ts`) vraagt via `getOpenDocuments` de titel en het volgnummer
+     van elk open document op om van één document de wijzigingsvlag te lezen. Eén zoekactie naar het doel-id, gevolgd
+     door de wijzigingsvlag van het actieve document of die in de gevonden payload, volstaat; de volgorde (afronden,
+     controleren, verwijderen) en de uitkomst blijven gelijk. De venstercontrole vóór `destroyWindow`
+     (`appQuitController.ts`) blijft nodig. Sol-review ronde 3 van #1008: [BEVESTIGD] VERVOLG. — B
