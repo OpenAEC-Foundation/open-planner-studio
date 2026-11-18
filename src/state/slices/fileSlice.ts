@@ -1427,8 +1427,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         commit: () => { committed = commitSavedDocument(documentId, state, undefined, prepared); },
       });
       for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
-      // MUTATIE (b): de sluitbeslissing kijkt niet meer naar de boolean van `commitSavedDocument`.
-      return committed || result.code === 'replaced';
+      return committed;
     } catch (err) {
       console.error('Save failed:', err);
       get().notify({
