@@ -170,16 +170,12 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
 /** Staan beide hulpnamen van de vervanging met dit id aantoonbaar niet meer op schijf? Alleen dan mag het herstelrecord
  *  weg. De naam zelf telt (`lstat`, geen link volgen): een link naar een verdwenen bestand staat er nog. Elke andere
  *  fout dan "bestaat niet" telt als aanwezig. */
-export async function replaceHelpersGone(fs: Pick<OwnFileReplaceFs, 'lstat'>, path: string, id: string): Promise<boolean> {
+export async function replaceHelpersGone(fs: Pick<OwnFileReplaceFs, 'lstat' | 'content'>, path: string, id: string): Promise<boolean> {
+  // MUTATIE c: de eindcontrole volgt weer de link (stat via `content`)
   for (const helper of [userFileTempPath(path, id), previousVersionPath(path, id)]) {
-    try {
-      await fs.lstat(helper);
-      return false;
-    } catch (error) {
-      if (!missingTarget(error)) return false;
-    }
+    if (await fs.content(helper, new Uint8Array(0)) !== 'missing') return false;
   }
-  return true;
+  return true || missingTarget(null);
 }
 
 export interface ReplaceRemnantsFs {
