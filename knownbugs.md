@@ -4708,12 +4708,3 @@ en noem het in je rapport of PR-tekst.
      (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
      planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
      de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
-
-1820. **VERVOLG (#804, 1131 stap 5a, Windows): de voorcontrole ziet daar een harde link niet.**
-     Plugin-fs 2.7.1 geeft op Windows `nlink: null`; `linkedOwnFile` (`fileAccess/ownFileReplace.ts`) maakt daar 1 van.
-     Een eigen bestand met een tweede naam (harde link) wordt daar dus niet vooraf geweigerd: de vervanging zet een
-     nieuw bestand op het doel en de tweede naam houdt de oude versie, zodat de twee namen uiteenlopen. Wordt gedicht
-     door een eigen kleine PR waarin `place_file_exclusive` in stap 3 een bron met meer dan één naam weigert, met een
-     eigen reden bij `refused` (branch `fix/804-place-file-harde-link`, loopt); die moet gemerged zijn voordat deel b
-     (1131 stap 5b) de route aansluit. `check-ifc-own-file-replace.ts` legt het huidige gedrag vast (vastlegging,
-     knownbug 1820). Gevonden door de review van #991. — B (proef van de review van #991)

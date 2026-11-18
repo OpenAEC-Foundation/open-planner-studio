@@ -93,8 +93,9 @@ export interface OwnFileReplaceInput {
 }
 
 /** Is het doel een link (symbolisch, of een harde link met meer namen)? Dan vervangt de app niet (§4.10). Een doel dat
- *  niet te bekijken is, komt in stap 2 als weg of onleesbaar terug. Plugin-fs 2.7.1 geeft op Windows `nlink: null`:
- *  daar ziet deze voorcontrole een harde link niet (knownbug 1820; dicht in `place_file_exclusive` vóór deel b). */
+ *  niet te bekijken is, komt in stap 2 als weg of onleesbaar terug. Dit is alleen een snelle weigering: plugin-fs 2.7.1
+ *  geeft op Windows `nlink: null`. De garantie komt van `place_file_exclusive`, dat in stap 3 een bron met meer dan één
+ *  naam weigert (`refused`/`hard-linked`, #996) en dan geeft de vervanging `save-as-only`. */
 export async function linkedOwnFile(fs: Pick<OwnFileReplaceFs, 'lstat'>, path: string): Promise<{ linked: boolean; mode?: number }> {
   try {
     const info = await fs.lstat(path);

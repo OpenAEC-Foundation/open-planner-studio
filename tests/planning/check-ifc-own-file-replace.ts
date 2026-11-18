@@ -304,17 +304,23 @@ for (const kind of ['symbolische link', 'harde link'] as const) {
   });
 }
 
-await check('vastlegging, knownbug 1820: met de Windows-metadata (nlink null) ziet de voorcontrole een harde link niet', async () => {
+await check('Windows-metadata (nlink null): stap 3 weigert het doel met een tweede naam (hard-linked), niets verplaatst, alleen Opslaan als', async () => {
   const c = await opened();
   try {
     const alias = join(c.dir, 'harde-link.ifc');
     linkSync(c.path, alias);
     const base = await tauriOwnFileReplaceFs();
-    const { result } = await replace(c, { ...base, lstat: async p => ({ ...await base.lstat(p), nlink: null }) });
-    // Het huidige gedrag: vervangen, en de twee namen lopen uiteen. Dicht in `place_file_exclusive` (stap 3 weigert een
-    // bron met meer dan één naam) vóór deel b de route aansluit; deze proef gaat dan om.
-    assert.equal(result.code, 'replaced');
-    assert.deepEqual(disk(c), { 'harde-link.ifc': hash(bytes), 'model.ifc': c.prepared.sha256 });
+    // De voorcontrole ziet het aantal namen niet (plugin-fs geeft op Windows `nlink: null`); de garantie komt van
+    // `place_file_exclusive` (#996), hier de nabootsing uit `nodeFileIpc.ts`, die een bron met meer namen weigert.
+    const placed: string[] = [];
+    const { result, committed } = await replace(c, { ...base, lstat: async p => ({ ...await base.lstat(p), nlink: null }),
+      place: async (from, to) => { const outcome = await base.place(from, to); placed.push(outcome.code === 'refused' ? `refused/${outcome.reason}` : outcome.code); return outcome; } });
+    assert.deepEqual(placed, ['refused/hard-linked'], 'stap 3 weigert, er volgt geen plaatsing');
+    assert.equal(result.code, 'save-as-only'); assert.match(result.code === 'save-as-only' ? result.why : '', /hard-linked/);
+    assert.equal(committed, false);
+    assert.deepEqual(disk(c), { 'harde-link.ifc': hash(bytes), 'model.ifc': hash(bytes) }, 'het doel en zijn tweede naam ongewijzigd');
+    assert.deepEqual(recordsOnDisk(), [], 'geen hulpbestand, dus geen record');
+    assert.deepEqual(noticeKeys(result, c.path), ['notifications.ifcForeignReplaceSaveAsOnly']);
   } finally { await tidy(c); }
 });
 

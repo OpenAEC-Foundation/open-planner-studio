@@ -252,10 +252,10 @@ Proeven: `check-ifc-document-save.ts` (nep-handle met echte herstelrondes) en `s
 
 ### Ctrl+S op het eigen bestand op de desktop: de vervanging (#804, knownbug 1131 stap 5a)
 
-Nog niet aangesloten: een pad weigert Ctrl+S nog vóór de merge (`ifcForeignReplaceBlocked`); deel b sluit aan na #987
-en na de PR van 1820. `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
-§4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, de enige voorcontrole; op Windows ziet die een harde
-link niet, 1820). Stap 0: een eigen herstelrecord `recovery[.<slug>].replace.<id>.json` in de appDataDir
+Nog niet aangesloten: een pad weigert Ctrl+S nog vóór de merge (`ifcForeignReplaceBlocked`); deel b sluit aan na #987. `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
+§4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, een snelle voorcontrole; op Windows ziet die een harde
+link niet, `nlink: null`); de garantie geeft stap 3: `place_file_exclusive` weigert een bron met meer dan één naam
+(`refused`/`hard-linked`, #996) ⇒ `save-as-only`, niets verplaatst. Stap 0: een eigen herstelrecord `recovery[.<slug>].replace.<id>.json` in de appDataDir
 (`fileAccess/replaceRecords.ts`: `{ id, path, vorigeSha256, pendingSha256 }`, atomair zoals het manifest) plus
 `replaceWithRecoveryPending` voor `pendingSha256` in het manifest, dat versie 5 blijft; lukt een van de twee niet ⇒
 `not-recorded`, niets geschreven (1764). Stap 1–5 in `replaceOwnFileBytes` (`fileAccess/ownFileReplace.ts`, bewerkingen
