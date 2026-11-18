@@ -339,6 +339,42 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect(gridRow(rowKeys[5]!)).toHaveAttribute('data-grid-active', 'true');
   await gridRow(rowKeys[1]!).click({ modifiers: ['Shift'] });
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, fundering, ruwbouw]);
+
+  // Review #1004, ronde 4: tijdlijn en lijst delen één beginpunt voor Shift. Grondwerk in de lijst,
+  // Shift Fundering (ploeg 1) in de lijst, dan een gewone klik op Fundering in de tijdlijn, op de rij
+  // waar de cursor al staat: Shift op Ruwbouw in de lijst gaat vanaf Fundering, niet vanaf Grondwerk.
+  const firstFundering = await gridRow(rowKeys[2]!).boundingBox();
+  await gridRow(rowKeys[1]!).click();
+  await gridRow(rowKeys[2]!).click({ modifiers: ['Shift'] });
+  await page.mouse.click(funderingEnd.x + 16, firstFundering!.y + firstFundering!.height / 2);
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering]);
+  await gridRow(rowKeys[4]!).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw]);
+
+  // En een kader (Ctrl-slepen over lege achtergrond) rond alleen Fundering in ploeg 1, na een klik op
+  // Fundering in ploeg 2: Shift op de naam van Afbouw gaat vanaf de rij in het kader.
+  await page.mouse.click(funderingEnd.x + 16, secondFundering!.y + secondFundering!.height / 2);
+  const anchorRow = () => page.evaluate(() => window.__OPS__!.store.getState().ui.selectionAnchor?.rowKey);
+  await expect.poll(anchorRow).toBe(rowKeys[5]);
+  const canvas = (await page.getByTestId('gantt-primary-canvas').boundingBox())!;
+  const emptyY = firstFundering!.y + firstFundering!.height / 2;
+  await page.keyboard.down('Control');
+  await page.mouse.move(canvas.x + canvas.width - 20, emptyY);
+  await page.mouse.down();
+  await page.mouse.move(canvas.x + canvas.width - 80, emptyY, { steps: 4 });
+  await expect(page.getByTestId('box-select-rect')).toBeVisible();
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  await expect.poll(anchorRow).toBe(rowKeys[2]);
+  const afbouwEnd = await barPoint(page, afbouw, 'right');
+  const afbouwRow = await gridRow(rowKeys[6]!).boundingBox();
+  await page.keyboard.down('Shift');
+  await page.mouse.click(afbouwEnd.x + 16, afbouwRow!.y + afbouwRow!.height / 2);
+  await page.keyboard.up('Shift');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw, afbouw]);
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[fundering, afbouw], [ruwbouw, afbouw]]);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

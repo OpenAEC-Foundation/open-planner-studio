@@ -950,7 +950,7 @@ export function GanttCanvas({
 
         {/* Box-selection kader: half-transparant rechthoekje tijdens de sleep,
             in viewport-coördinaten — hoeft niet mee te scrollen, de rij-intersectie zelf
-            wordt op het actuele moment berekend (getTaskIdsInYRange). */}
+            wordt op het actuele moment berekend (getRowsInYRange). */}
         {boxSelectState && (() => {
           const containerRect = containerRef.current?.getBoundingClientRect();
           const left = (containerRect?.left ?? 0);

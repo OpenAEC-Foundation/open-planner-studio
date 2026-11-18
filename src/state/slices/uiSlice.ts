@@ -90,6 +90,7 @@ export function createDefaultUI(): UIState {
     backstageSection: 'recent',
     collapsedTaskIds: [],
     gridActiveRowKey: null,
+    selectionAnchor: null,
     showSettingsDialog: false,
     settingsFocusId: null,
     showCalendarDialog: false,

@@ -25,16 +25,17 @@ const columns = [taskColumnId('task.name'), taskColumnId('task.time.scheduleDura
 const runUpdater = new Function(
   'current', 'selectedTaskIds', 'publishedActiveTaskId', 'rowIndex', 'previousRows',
   'visibleColumnIds', 'previousColumns', 'createEmptyGridSelection', 'updateGridSelection',
-  'reconcileGridSelection', 'syncActiveCellToPublishedTask', 'GHOST_ROW_KEY', 'preferredRowKey', bodies[0][1],
+  'reconcileGridSelection', 'syncActiveCellToPublishedTask', 'GHOST_ROW_KEY', 'preferredRowKey',
+  'externalAnchorRowKey', bodies[0][1],
 ) as (...args: unknown[]) => GridSelectionState;
 
 function run(
   current: GridSelectionState, published: readonly string[], active: string | null, rows: TaskGridRowIndex,
-  previousRows: TaskGridRowIndex = rows,
+  previousRows: TaskGridRowIndex = rows, externalAnchorRowKey: string | null = null,
 ) {
   return runUpdater(current, published, active, rows, previousRows, columns, columns,
     createEmptyGridSelection, updateGridSelection, reconcileGridSelection, syncActiveCellToPublishedTask, GHOST_ROW_KEY,
-    null);
+    null, externalAnchorRowKey);
 }
 const row = (id: string, rowKey = id): ViewRow => ({
   kind: 'task', rowKey, task: { id } as Task, depth: 0, dimmed: false,
@@ -60,6 +61,22 @@ assert.deepEqual(run(createEmptyGridSelection(), [], null, createTaskGridRowInde
   const after = run(onC, ['c'], 'c', withoutC, five);
   assert.equal(after.active?.rowKey, 'd', 'verdwenen rij ⇒ de rij op dezelfde plek, niet de bovenste');
   assert.equal(after.active?.columnId, columns[1], 'de kolom blijft');
+}
+
+// Review #1004, ronde 4: de tijdlijn zette een ander Shift-anker (klik op de rij waar de cursor al
+// stond, of een kader). De lijst neemt dat anker over, ook als selectie en cursor gelijk blijven.
+{
+  const onB = updateGridSelection(
+    updateGridSelection(createEmptyGridSelection(), first, rows, columns, 'replace'),
+    { rowKey: 'b', columnId: columns[0] }, rows, columns, 'extend',
+  );
+  assert.equal(onB.anchor?.rowKey, 'a');
+  const adopted = run(onB, ['b'], 'b', rows, rows, 'b');
+  assert.equal(adopted.anchor?.rowKey, 'b', 'een gewone klik in de tijdlijn op de cursorrij is het nieuwe anker');
+  assert.equal(adopted.active?.rowKey, 'b', 'de cursor blijft staan');
+  const same = run(onB, ['a', 'b'], 'b', rows, rows, 'c');
+  assert.equal(same.anchor?.rowKey, 'c', 'ook bij een gelijke selectie (een kader rond een andere rij)');
+  assert.equal(run(onB, ['a', 'b'], 'b', rows).anchor?.rowKey, 'a', 'zonder anker van buiten blijft het eigen anker');
 }
 
 // Alle kleine lijsten, inclusief lege lijsten, andere volgorde en asymmetrische duplicaten.

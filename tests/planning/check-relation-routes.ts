@@ -554,6 +554,29 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
   eq('13.11 het bereik begint op de aangeklikte B-rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
   eq('13.12 de cursorrij volgt de Shift-klik', S().ui.gridActiveRowKey, S().viewRows[5].rowKey);
+  // Ronde 4: een kader in de tijdlijn rond alleen de bovenste B maakt die rij het anker.
+  S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
+  S().selectTasks([b], false, b, { rowKey: S().viewRows[1].rowKey, taskIds: [b] });
+  eq('13.20 het kader zet zijn bovenste rij als cursorrij', S().ui.gridActiveRowKey, S().viewRows[1].rowKey);
+  S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
+  eq('13.21 Shift na het kader begint op die rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
+  // Shift begint bij de laatste klik zonder Shift, ook als die klik iets uitvinkte, zoals in de
+  // takenlijst (en een bestandsverkenner): B, Ctrl D aan, Ctrl D uit, Shift C ⇒ D en C erbij.
+  S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
+  S().selectTask(d, true, false, { rowKey: S().viewRows[4].rowKey });
+  S().selectTask(d, true, false, { rowKey: S().viewRows[4].rowKey });
+  S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
+  eq('13.22 na uitvinken begint Shift op de uitgevinkte rij', S().selectedTaskIds.map(name), ['B', 'D', 'C']);
+  // Met het anker op de ONDERSTE B (niet het eerste voorkomen): klik en kader.
+  S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
+  S().selectTask(a, false, true, { rowKey: S().viewRows[2].rowKey });
+  eq('13.24 Shift vanaf de onderste B naar A', S().selectedTaskIds.map(name), ['A', 'D', 'C', 'B']);
+  S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
+  S().selectTasks([b], false, b, { rowKey: S().viewRows[6].rowKey, taskIds: [b] });
+  S().selectTask(a, false, true, { rowKey: S().viewRows[2].rowKey });
+  eq('13.25 een kader rond de onderste B, dan Shift A', S().selectedTaskIds.map(name), ['A', 'D', 'C', 'B']);
+  S().deselectAll();
+  eq('13.23 niets kiezen wist het anker', S().ui.selectionAnchor, null);
   S().setSort([]);
   S().setGroup([]);
 

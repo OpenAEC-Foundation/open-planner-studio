@@ -12,7 +12,7 @@ import { durationHoursPerDay, effHoursPerDay, formatTaskDurationDisplay } from '
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
-import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
+import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 // Resource-accent: dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
 import { assignmentsForTask, computeBarColors, type BarPalette } from '@/services/print/barColors';
@@ -2769,18 +2769,13 @@ export class GanttRenderer {
     return Math.floor((canvasY - this.opts.headerHeight + this.opts.view.scrollY) / this.opts.rowHeight);
   }
 
-  /** Hit test (box-selection): welke taak-ids liggen met hun rij-band verticaal
-   *  in [y1,y2] (canvas-coördinaten, willekeurige volgorde)? Bandrijen (`kind:'group'`) doen niet
-   *  mee. Zelfde rij-index-wiskunde als getRowAtY, dus consistent met alle andere hit-tests. */
-  getTaskIdsInYRange(y1: number, y2: number): string[] {
+  /** Hit test (box-selection): welke rijen liggen met hun rij-band verticaal in [y1,y2]
+   *  (canvas-coördinaten), van boven naar beneden? Zelfde rij-index-wiskunde als getRowAtY, dus
+   *  consistent met alle andere hit-tests. */
+  getRowsInYRange(y1: number, y2: number): ViewRow[] {
     const lo = Math.max(0, this.getRowIndex(Math.min(y1, y2)));
     const hi = Math.min(this.rows.length - 1, this.getRowIndex(Math.max(y1, y2)));
-    const rows: ViewRow[] = [];
-    for (let i = lo; i <= hi; i++) {
-      const row = this.rows[i];
-      if (row) rows.push(row);
-    }
-    return uniqueTaskIds(rows);
+    return this.rows.slice(lo, hi + 1);
   }
 
   /** Dev/browser-testnaad: vind de werkelijk getekende sleepbalk zonder geometrie te dupliceren.

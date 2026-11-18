@@ -2,6 +2,8 @@ import { RefObject, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { BOX_SELECT_THRESHOLD } from './constants';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
+import { uniqueTaskIds } from '@/engine/view/visibleRows';
+import type { SelectionAnchor } from '@/state/slices/types';
 
 /** Sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
  *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
@@ -23,7 +25,7 @@ export interface BoxSelectState {
 interface UseBoxSelectOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   rendererRef: RefObject<GanttRenderer | null>;
-  selectTasks: (ids: string[], additive: boolean) => void;
+  selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null, anchor?: SelectionAnchor) => void;
   deselectAll: () => void;
   /** Gedeelde vlag met pan + click-handler: onderdrukt de eerstvolgende click ná een kader. */
   justBoxSelectedRef: RefObject<boolean>;
@@ -62,7 +64,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
   }, [boxSelectCandidate]);
 
   // Het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
-  // (GanttRenderer.getTaskIdsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
+  // (GanttRenderer.getRowsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
   // dus takentabel en chart gedragen zich identiek. Ctrl/Cmd bij mouseup = toevoegen, anders
   // vervangen. Escape annuleert zonder selectie-wijziging.
   useEffect(() => {
@@ -79,10 +81,15 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
         const rect = canvas.getBoundingClientRect();
         const y1 = boxSelectState.startClientY - rect.top;
         const y2 = e.clientY - rect.top;
-        const ids = renderer.getTaskIdsInYRange(Math.min(y1, y2), Math.max(y1, y2));
+        const rows = renderer.getRowsInYRange(Math.min(y1, y2), Math.max(y1, y2));
+        const ids = uniqueTaskIds(rows);
         const additive = e.ctrlKey || e.metaKey;
-        if (ids.length > 0) {
-          selectTasks(ids, additive);
+        // De bovenste taakrij in het kader is het anker voor Shift, op die rij (review #1004): bij
+        // groeperen op resource staat dezelfde taak ook elders.
+        const top = rows.find(row => uniqueTaskIds([row]).length > 0);
+        if (top && ids.length > 0) {
+          const taskIds = uniqueTaskIds([top]);
+          selectTasks(ids, additive, taskIds[0], { rowKey: top.rowKey, taskIds });
         } else if (!additive) {
           deselectAll();
         }

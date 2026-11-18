@@ -268,6 +268,7 @@ export function TaskGridSurface({
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
   const publishedActiveTaskId = useAppStore(state => state.activeTaskId);
   const publishedRowKey = useAppStore(state => state.ui.gridActiveRowKey);
+  const publishedAnchor = useAppStore(state => state.ui.selectionAnchor);
   const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
@@ -527,6 +528,8 @@ export function TaskGridSurface({
   // De cursorrij die deze lijst zelf in de store zette. Alleen een andere rij is een verzoek van
   // buiten (de tijdlijn of verwijderen); anders trok een oude waarde de cursor terug na een klik.
   const ownRowKeyRef = useRef<string | null>(null);
+  // Zo ook het Shift-anker: de tijdlijn en deze lijst delen `ui.selectionAnchor` (review #1004).
+  const ownAnchorRowKeyRef = useRef<string | null>(null);
   const previousColumnsRef = useRef<readonly TaskColumnId[]>(visibleColumnIds);
   useEffect(() => {
     // Net vastgelegd op de spookregel. Bleef de cursor in dezelfde kolom (Enter), dan staat hij nu
@@ -561,6 +564,8 @@ export function TaskGridSurface({
     // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899), en een
     // klik in de tijdlijn de aangeklikte rij (review #1004).
     const preferredRowKey = publishedRowKey === ownRowKeyRef.current ? null : publishedRowKey;
+    const externalAnchorRowKey = publishedAnchor && publishedAnchor.rowKey !== ownAnchorRowKeyRef.current
+      && rowIndex.absoluteIndexByRowKey.has(publishedAnchor.rowKey) ? publishedAnchor.rowKey : null;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -599,19 +604,24 @@ export function TaskGridSurface({
       }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
       const samePublishedRow = preferredRowKey === null || preferredRowKey === reconciled.active?.rowKey;
-      if (samePublishedSelection && samePublishedActiveTask && samePublishedRow) return reconciled;
+      const samePublishedAnchor = externalAnchorRowKey === null || externalAnchorRowKey === reconciled.anchor?.rowKey;
+      if (samePublishedSelection && samePublishedActiveTask && samePublishedRow && samePublishedAnchor) return reconciled;
 
       // syncActiveCellToPublishedTask trekt de celcursor
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
       // die functie voor waarom dat zonder deze aanroep uit elkaar loopt tussen een gantt-klik en
       // pijltjesnavigatie.
-      return syncActiveCellToPublishedTask(
+      const synced = syncActiveCellToPublishedTask(
         reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds, preferredRowKey,
       );
+      // Een anker van de tijdlijn (klik, kader) wordt ook hier het beginpunt van Shift.
+      return externalAnchorRowKey && synced.active && synced.anchor?.rowKey !== externalAnchorRowKey
+        ? { ...synced, anchor: { rowKey: externalAnchorRowKey, columnId: synced.active.columnId } }
+        : synced;
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
-  }, [publishedActiveTaskId, publishedRowKey, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
+  }, [publishedActiveTaskId, publishedAnchor, publishedRowKey, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
 
   // De store kent alleen taak-ids; in een groepering staat een taak meer dan eens. Verwijderen kiest
   // de buur vanaf de rij van de celcursor (issue #899). De spookregel is geen taakrij.
@@ -622,6 +632,18 @@ export function TaskGridSurface({
     if (useAppStore.getState().ui.gridActiveRowKey !== rowKey) setUI({ gridActiveRowKey: rowKey });
   }, [activeRowKey, setUI]);
   useEffect(() => () => setUI({ gridActiveRowKey: null }), [setUI]);
+  // Het anker van deze lijst is ook het beginpunt van Shift in de tijdlijn. Alleen bij een ander
+  // anker; een overgenomen anker met dezelfde rij laat de gekozen taken van de tijdlijn staan.
+  const anchorRowKey = selection.anchor?.rowKey ?? null;
+  useEffect(() => {
+    const rowKey = anchorRowKey === GHOST_ROW_KEY ? null : anchorRowKey;
+    if (rowKey === ownAnchorRowKeyRef.current) return;
+    ownAnchorRowKeyRef.current = rowKey;
+    if (rowKey === null || useAppStore.getState().ui.selectionAnchor?.rowKey === rowKey) return;
+    const taskRow = rowIndex.taskByRowKey.get(rowKey);
+    const taskIds = taskRow ? [taskRow.task.id] : rowIndex.runByRowKey.get(rowKey)?.tasks.map(task => task.id);
+    if (taskIds) setUI({ selectionAnchor: { rowKey, taskIds } });
+  }, [anchorRowKey, rowIndex, setUI]);
 
   useEffect(() => {
     if (!editing || editing.documentId !== activeDocumentId) return;

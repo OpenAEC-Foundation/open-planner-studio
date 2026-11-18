@@ -701,6 +701,11 @@ export interface ExternalSourceUpdate {
 }
 
 /** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
+/** De rij van de laatste klik zonder Shift, in de tijdlijn of de takenlijst, en de taken die daar
+ *  gekozen werden (een groepsruitje #868: zijn leden; een rij in de takenlijst: haar taken). Shift
+ *  begint hier, in beide oppervlakken, ook na uitvinken met Ctrl, zoals in een bestandsverkenner. */
+export interface SelectionAnchor { rowKey: string; taskIds: readonly string[] }
+
 export type RelationAssignDirection = 'predecessor' | 'successor';
 
 export interface UIState {
@@ -729,9 +734,10 @@ export interface UIState {
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
    *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899).
-   *  Een klik in de tijdlijn zet hier de aangeklikte rij; de takenlijst volgt en Shift-klik in de
-   *  tijdlijn begint hier (review #1004). */
+   *  Een klik in de tijdlijn zet hier de aangeklikte rij, en de takenlijst volgt (review #1004). */
   gridActiveRowKey: string | null;
+  /** Beginpunt van Shift-klik, gedeeld door tijdlijn en takenlijst (review #1004). Sessiestand. */
+  selectionAnchor: SelectionAnchor | null;
   showSettingsDialog: boolean;
   /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
    *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */
