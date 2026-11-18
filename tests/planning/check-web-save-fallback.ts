@@ -35,7 +35,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import {
-  saveFileDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
+  saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
   openFileDialogWeb, webReadRefusedByPlatform, resetWebReadRefusalForTests,
 } from '@/services/fileAccess/webBackend';
 import type { FileRef } from '@/services/fileAccess';
@@ -411,6 +411,21 @@ async function main() {
   eq('10b de picker is precies één keer geprobeerd', openPickerCalls, 1);
   eq('10c annuleren triggert géén input-terugval (dus geen tweede kiezer)', createdTags.includes('input'), false);
   eq('10d annuleren zet de open-weigering niet aan', webReadRefusedByPlatform(), false);
+
+  // Na succesvol schrijven mag een mislukte herlezing geen fout of download veroorzaken (#1014).
+  // Zowel tekst als bytes lopen door dezelfde opslaan-als-route.
+  for (const kind of ['text', 'bytes'] as const) {
+    resetWebWriteRefusalForTests();
+    const handle = makeHandle({ getFileError: new DOMException('locked', 'NotReadableError') });
+    installWindow(handle);
+    const before = downloads.length;
+    const outcome = kind === 'text'
+      ? await saveFileDialogWeb('default.ifc', 'content', FILTERS)
+      : await saveBytesDialogWeb('default.ifc', new Uint8Array([1, 2]), FILTERS);
+    eq(`1014 ${kind}: gekozen naam`, outcome?.name, 'project.ifc');
+    eq(`1014 ${kind}: gekozen handle behouden`, outcome?.ref?.kind === 'handle' && outcome.ref.handle === handle, true);
+    eq(`1014 ${kind}: geen extra download`, downloads.length, before);
+  }
 
   // ── Rapport ───────────────────────────────────────────────────────────────────────────────
   reported = true;
