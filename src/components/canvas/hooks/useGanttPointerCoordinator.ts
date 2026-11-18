@@ -46,6 +46,7 @@ export function useGanttPointerCoordinator(
     compressNonWorkdays,
     selectTask,
     selectTasks,
+    setGridActiveRowKey,
     deselectAll,
     updateTask,
     setTaskSplits,
@@ -90,6 +91,7 @@ export function useGanttPointerCoordinator(
     canvasRef,
     rendererRef,
     selectTasks,
+    setGridActiveRowKey,
     deselectAll,
     justBoxSelectedRef,
   });
@@ -282,7 +284,8 @@ export function useGanttPointerCoordinator(
       if (!group.every(member => selectedTaskIds.includes(member.id))) selectTasks(group.map(member => member.id), false);
       return;
     }
-    if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false);
+    // Op de aangeklikte rij, zoals een linkerklik: dezelfde taak kan in meer ploegen staan.
+    if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false, false, { rowKey: renderer.getRowAtY(y)?.rowKey });
     // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
     // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.

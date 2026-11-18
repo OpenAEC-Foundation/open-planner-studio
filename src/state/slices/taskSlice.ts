@@ -1719,7 +1719,6 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (newRootId) {
         s.selectedTaskIds = [newRootId];
         s.activeTaskId = newRootId;
-        s.ui.selectionAnchor = null; // nieuwe selectie zonder rij: Shift begint bij de nieuwe tak
       }
       settlePhaseTransitions(s, phasePlan.transitions, outcome, opts);
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon: planning verouderd tot F5.

@@ -26,6 +26,7 @@ interface UseBoxSelectOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   rendererRef: RefObject<GanttRenderer | null>;
   selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null, anchor?: SelectionAnchor) => void;
+  setGridActiveRowKey: (rowKey: string) => void;
   deselectAll: () => void;
   /** Gedeelde vlag met pan + click-handler: onderdrukt de eerstvolgende click ná een kader. */
   justBoxSelectedRef: RefObject<boolean>;
@@ -34,7 +35,7 @@ interface UseBoxSelectOptions {
 // Box-selectie (kader-select vanaf lege achtergrond / takentabel). Bezit de twee fases —
 // kandidaat (onder drempel) en gepromoveerd kader — met elk hun eigen window-listeners. Het
 // centrale mousedown-hittest roept `startBoxSelect(...)` aan (zet de kandidaat).
-export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef }: UseBoxSelectOptions) {
+export function useBoxSelect({ canvasRef, rendererRef, selectTasks, setGridActiveRowKey, deselectAll, justBoxSelectedRef }: UseBoxSelectOptions) {
   // Box-selection: kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
   const [boxSelectCandidate, setBoxSelectCandidate] = useState<BoxSelectCandidate | null>(null);
   const [boxSelectState, setBoxSelectState] = useState<BoxSelectState | null>(null);
@@ -90,6 +91,9 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
         if (top && ids.length > 0) {
           const taskIds = uniqueTaskIds([top]);
           selectTasks(ids, additive, taskIds[0], { rowKey: top.rowKey, taskIds });
+          // Die rij is ook de cursorrij, net als na een klik: verwijderen kiest de buur vanaf daar
+          // (review #1004, ronde 7).
+          setGridActiveRowKey(top.rowKey);
         } else if (!additive) {
           deselectAll();
         }
@@ -124,7 +128,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
     }
 
     return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
-  }, [boxSelectState, canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef]);
+  }, [boxSelectState, canvasRef, rendererRef, selectTasks, setGridActiveRowKey, deselectAll, justBoxSelectedRef]);
 
   return {
     boxSelectCandidate,

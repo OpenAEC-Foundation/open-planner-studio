@@ -221,6 +221,8 @@ export interface GanttPointerCoordinatorInput {
   compressNonWorkdays: boolean;
   selectTask: (id: string, additive?: boolean, range?: boolean, row?: SelectedRow) => void;
   selectTasks: (ids: string[], additive: boolean) => void;
+  /** Zet de cursorrij van de takenlijst (`ui.gridActiveRowKey`); het kader doet dat net als een klik. */
+  setGridActiveRowKey: (rowKey: string) => void;
   deselectAll: () => void;
   updateTask: (id: string, updates: Partial<Task>, options?: { coalesceKey?: string }) => void;
   /** De ENE schrijfweg voor gebruikerssplits (`taskSlice.setTaskSplits`). */

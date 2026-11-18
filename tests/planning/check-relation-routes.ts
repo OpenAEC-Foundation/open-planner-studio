@@ -37,6 +37,7 @@ import {
   selectionInView,
 } from '@/state/relationActions';
 import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
+import { liveSelectionAnchor } from '@/state/slices/selectionSlice';
 import type { RelationSetIntent } from '@/types/taskGrid';
 
 const S = () => useAppStore.getState();
@@ -595,6 +596,11 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('13.29 dan legt Ctrl+F2 niets', linkTasksInChain([b, d]), []);
   eq('13.30 en meldt waarom', notes().map(n => n.key), ['notifications.relationChainOrderUnclear']);
   eq('13.31 er is geen relatie bijgekomen', S().sequences.length, chainBefore);
+  // Ronde 7: toewijzen voor de taak die al gekozen is, houdt haar rij als anker (de onderste B).
+  S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
+  requestRelationAssign(b, 'successor');
+  eq('13.38 toewijzen houdt de gekozen rij als anker', S().ui.selectionAnchor?.rowKey, S().viewRows[6].rowKey);
+  S().setUI({ pendingRelationAssign: null });
   S().deselectAll();
   eq('13.23 niets kiezen wist het anker', S().ui.selectionAnchor, null);
   S().setSort([]);
@@ -642,6 +648,41 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   linkTasksInChain(S().selectedTaskIds);
   eq('13.37 de keten is A → C', pairs(), ['A→C']);
   S().setGroup([]);
+}
+
+// Ronde 7: een schrijver die het anker niet kent (plakken, inklappen) laat het oude anker niet meer
+// gelden. Shift begint dan bij de actieve taak, niet bij een oude rij.
+{
+  fresh();
+  const g = S().addTask({ name: 'Grondwerk' });
+  const f = S().addTask({ name: 'Fundering' });
+  const r = S().addTask({ name: 'Ruwbouw' });
+  const rowOf = (id: string) => S().viewRows.find(row => row.kind === 'task' && row.task.id === id)!.rowKey;
+  S().selectTask(g, false, false, { rowKey: rowOf(g) });
+  S().copyTasks();
+  const [copy] = S().pasteTasks();
+  eq('13.39 na plakken is alleen de kopie gekozen', S().selectedTaskIds, [copy]);
+  eq('13.40 en geldt het anker van Grondwerk niet meer', liveSelectionAnchor(S()), null);
+  S().selectTask(r, false, true, { rowKey: rowOf(r) });
+  const expectRange = (ids: readonly string[]) => {
+    const order = S().viewRows.flatMap(row => row.kind === 'task' ? [row.task.id] : []);
+    const [from, to] = [order.indexOf(copy), order.indexOf(r)].sort((x, y) => x - y);
+    return order.slice(from, to + 1).every(id => ids.includes(id)) && ids.length === to - from + 1;
+  };
+  ok('13.41 Shift na plakken loopt van de kopie tot Ruwbouw', expectRange(S().selectedTaskIds)
+    && S().selectedTaskIds.includes(copy) && !S().selectedTaskIds.includes(g));
+
+  // Inklappen tilt de selectie naar de fase; uitklappen laat de fase gekozen. Shift op Grondwerk gaat
+  // dan vanaf de fase, niet vanaf het oude anker op Fundering.
+  const fase = S().addTask({ name: 'Fase' });
+  S().moveTask(g, fase);
+  S().moveTask(f, fase);
+  S().selectTask(f, false, false, { rowKey: rowOf(f) });
+  S().toggleCollapse(fase);
+  eq('13.42 inklappen kiest de fase', S().selectedTaskIds, [fase]);
+  S().toggleCollapse(fase);
+  S().selectTask(g, false, true, { rowKey: rowOf(g) });
+  eq('13.43 Shift vanaf de fase neemt Fundering niet mee', [...S().selectedTaskIds].sort(), [fase, g].sort());
 }
 
 // Een ingeklapte mijlpalenreeks (#868) is één rij. Shift-klik op een groepsruitje neemt zijn

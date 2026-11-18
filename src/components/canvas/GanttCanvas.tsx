@@ -163,6 +163,7 @@ export function GanttCanvas({
   const endHistorySession = useAppStore(s => s.endHistorySession);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
+  const setGridActiveRowKey = useCallback((rowKey: string) => setUI({ gridActiveRowKey: rowKey }), [setUI]);
   // Store-acties die het contextmenu ontsluit. De muterende taak-acties (in-/uitspringen,
   // mijlpaal, kalender, voortgang, prioriteit, verwijderen) lopen via `contextMenuBulk` en worden
   // hier daarom niet los uit de store getrokken.
@@ -524,6 +525,7 @@ export function GanttCanvas({
     compressNonWorkdays,
     selectTask,
     selectTasks,
+    setGridActiveRowKey,
     deselectAll,
     updateTask,
     setTaskSplits,

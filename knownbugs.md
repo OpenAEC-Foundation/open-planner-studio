@@ -1069,6 +1069,11 @@ en noem het in je rapport of PR-tekst.
       in `src/engine/taskGrid/selection.ts` doet dat al. Eén omzetting volstaat, plus het weglaten van de
       spookregel bij publiceren naar de store. Opruimen, geen fout. Uit de review van #1004 (GPT-6.2-Sol,
       xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
+1877. **VERVOLG (#1004): het menu Relatie loopt de zichtbare rijen twee keer door bij elke wijziging.**
+      `RelationDropdown` in `ribbonWidgets.tsx` abonneert zich op `selectionInView` én `chainOrder`, ook
+      bij nul of één gekozen taak en met het menu dicht; `chainOrder` maakt per rij een tijdelijke array.
+      Eén doorloop, alleen bij twee of meer gekozen taken, volstaat. Het effect op scrollen is niet gemeten.
+      Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 

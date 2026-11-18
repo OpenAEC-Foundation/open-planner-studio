@@ -74,7 +74,7 @@ import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
-import { pastesGridTaskCopy } from '@/state/slices/selectionSlice';
+import { liveSelectionAnchor, pastesGridTaskCopy } from '@/state/slices/selectionSlice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -280,7 +280,7 @@ export function TaskGridSurface({
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
   const publishedActiveTaskId = useAppStore(state => state.activeTaskId);
   const publishedRowKey = useAppStore(state => state.ui.gridActiveRowKey);
-  const publishedAnchor = useAppStore(state => state.ui.selectionAnchor);
+  const publishedAnchor = useAppStore(liveSelectionAnchor);
   const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
@@ -687,12 +687,18 @@ export function TaskGridSurface({
     setSelection(next);
     // De spookregel is geen taak: die id gaat nooit naar de store-selectie. Het anker van de lijst is
     // ook het beginpunt van Shift in de tijdlijn (review #1004).
-    selectTasks(
-      next.selectedTaskIds.filter(id => !isGhostTaskId(id)),
-      false,
-      isGhostTaskId(next.activeTaskId) ? null : next.activeTaskId,
-      gridAnchor(next, rowIndex),
-    );
+    let taskIds = next.selectedTaskIds.filter(id => !isGhostTaskId(id));
+    let anchor = gridAnchor(next, rowIndex);
+    // Shift vanaf een ruitje dat in de tijdlijn als enige van zijn ingeklapte reeks gekozen is: de
+    // lijst kent alleen de hele reeksrij, maar van die ankerrij telt alleen het gekozen ruitje, zoals
+    // in de tijdlijn (ronde 7). Alleen bij uitbreiden: het anker ligt dan op een andere rij dan de cursor.
+    const shared = liveSelectionAnchor(useAppStore.getState());
+    if (anchor && shared?.rowKey === anchor.rowKey && next.active?.rowKey !== anchor.rowKey) {
+      const rowTaskIds = anchor.taskIds;
+      taskIds = taskIds.filter(id => !rowTaskIds.includes(id) || shared.taskIds.includes(id));
+      anchor = shared;
+    }
+    selectTasks(taskIds, false, isGhostTaskId(next.activeTaskId) ? null : next.activeTaskId, anchor);
     setSurfaceError(null);
   }, [rowIndex, selectTasks]);
 

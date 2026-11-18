@@ -11,7 +11,7 @@
 // zodat kopiëren en plakken tussen documenten werkt. Beide velden blijven op het top-level van
 // `AppState` staan, dus `documentContract.ts` verandert niet mee: die leest `s.selectedTaskIds`,
 // niet `s.selection.selectedTaskIds`.
-import type { AppSliceFactory, SelectionAnchor } from './types';
+import type { AppSliceFactory, SelectionAnchor, StoredSelectionAnchor } from './types';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { isCostResource, type ResourceAssignment } from '@/types/resource';
@@ -105,20 +105,43 @@ function shiftRange(
   return [...new Set(fromIdx < toIdx ? [...fromIds, ...between, ...toIds] : [...toIds, ...between, ...fromIds])];
 }
 
-/** Het anker voor Shift: `ui.selectionAnchor` als die rij nog op het scherm staat, anders de actieve
- *  taak (of de laatst gekozen) op haar eerste rij. */
-function currentAnchor(s: {
-  viewRows: readonly ViewRow[]; selectedTaskIds: readonly string[]; activeTaskId: string | null;
-  ui: { selectionAnchor: SelectionAnchor | null };
-}): SelectionAnchor {
+interface AnchorState {
+  selectedTaskIds: readonly string[];
+  ui: { selectionAnchor: StoredSelectionAnchor | null };
+}
+
+/** Het Shift-anker, als het nog bij de huidige selectie hoort. Een schrijver die het anker niet kent
+ *  (plakken, inklappen, Ctrl+A, MCP) vervangt de selectie zonder het bij te werken; dan geldt het
+ *  niet meer, in plaats van dat Shift vanaf een oude rij begint (review #1004, ronde 7). */
+export function liveSelectionAnchor(s: AnchorState): StoredSelectionAnchor | null {
   const anchor = s.ui.selectionAnchor;
+  if (!anchor || anchor.selection.length !== s.selectedTaskIds.length) return null;
+  const now = new Set(s.selectedTaskIds);
+  return anchor.selection.every(taskId => now.has(taskId)) ? anchor : null;
+}
+
+/** Leg het anker vast bij de selectie zoals die NU in de draft staat. */
+function rememberAnchor(s: AnchorState, anchor: SelectionAnchor | null): void {
+  s.ui.selectionAnchor = anchor
+    ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds], selection: [...s.selectedTaskIds] }
+    : null;
+}
+
+/** Het anker voor Shift: het geldende anker als die rij nog op het scherm staat, anders de actieve
+ *  taak (of de laatst gekozen) op de cursorrij als die haar draagt, anders op haar eerste rij. */
+function currentAnchor(s: AnchorState & {
+  viewRows: readonly ViewRow[]; activeTaskId: string | null; ui: { gridActiveRowKey: string | null };
+}): SelectionAnchor {
+  const anchor = liveSelectionAnchor(s);
   if (anchor && s.viewRows.some(row => row.rowKey === anchor.rowKey
     && anchor.taskIds.some(taskId => uniqueTaskIds([row]).includes(taskId)))) return anchor;
   const taskId = s.activeTaskId !== null && s.selectedTaskIds.includes(s.activeTaskId)
     ? s.activeTaskId
     : s.selectedTaskIds[s.selectedTaskIds.length - 1];
-  const rowKey = s.viewRows.find(row => uniqueTaskIds([row]).includes(taskId))?.rowKey ?? '';
-  return { rowKey, taskIds: [taskId] };
+  const holds = (row: ViewRow) => uniqueTaskIds([row]).includes(taskId);
+  const row = s.viewRows.find(candidate => candidate.rowKey === s.ui.gridActiveRowKey && holds(candidate))
+    ?? s.viewRows.find(holds);
+  return { rowKey: row?.rowKey ?? '', taskIds: [taskId] };
 }
 
 export interface SelectionSlice {
@@ -161,9 +184,8 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
   selectTask: (id, multi = false, range = false, row) =>
     set((s) => {
       const clicked = row?.taskIds ?? [id];
-      const rangeIds = range && s.selectedTaskIds.length > 0
-        ? shiftRange(s.viewRows, currentAnchor(s), id, clicked, row?.rowKey)
-        : null;
+      const anchor = range && s.selectedTaskIds.length > 0 ? currentAnchor(s) : null;
+      const rangeIds = anchor ? shiftRange(s.viewRows, anchor, id, clicked, row?.rowKey) : null;
       s.activeTaskId = id;
       if (row?.rowKey !== undefined) s.ui.gridActiveRowKey = row.rowKey;
       if (rangeIds) {
@@ -171,11 +193,9 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         // scherm, ook naar boven. Het anker blijft staan.
         const inRange = new Set(rangeIds);
         s.selectedTaskIds = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
+        rememberAnchor(s, anchor);
         return;
       }
-      // Een klik zonder (bruikbaar) Shift is het nieuwe anker, ook bij uitvinken met Ctrl. Zonder rij
-      // valt Shift terug op de actieve taak (`currentAnchor`).
-      s.ui.selectionAnchor = row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: [...clicked] } : null;
       if (multi && !range) {
         // Een groepsruitje gaat samen aan of uit.
         if (clicked.every(taskId => s.selectedTaskIds.includes(taskId))) {
@@ -186,6 +206,9 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       } else {
         s.selectedTaskIds = [...clicked];
       }
+      // Een klik zonder (bruikbaar) Shift is het nieuwe anker, ook bij uitvinken met Ctrl. Zonder rij
+      // valt Shift terug op de actieve taak (`currentAnchor`).
+      rememberAnchor(s, row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: clicked } : null);
     }),
 
   deselectAll: () =>
@@ -205,29 +228,20 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
   selectTasks: (ids, additive, activeTaskId, anchor) =>
     set((s) => {
-      s.ui.selectionAnchor = anchor ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds] } : null;
       const uniqueIds = [...new Set(ids)];
-      if (!additive) {
-        const nextActiveTaskId = activeTaskId === undefined ? (uniqueIds[0] ?? null) : activeTaskId;
-        const unchanged = s.activeTaskId === nextActiveTaskId
-          && s.selectedTaskIds.length === uniqueIds.length
-          && s.selectedTaskIds.every((id, index) => id === uniqueIds[index]);
-        if (unchanged) return;
-        s.selectedTaskIds = uniqueIds;
-        s.activeTaskId = nextActiveTaskId;
-        return;
-      }
-      const merged = new Set([...s.selectedTaskIds, ...uniqueIds]);
-      const nextSelectedTaskIds = Array.from(merged);
+      const nextSelectedTaskIds = additive ? Array.from(new Set([...s.selectedTaskIds, ...uniqueIds])) : uniqueIds;
       const nextActiveTaskId = activeTaskId !== undefined
         ? activeTaskId
+        : !additive ? (uniqueIds[0] ?? null)
         : uniqueIds.length > 0 ? uniqueIds[uniqueIds.length - 1] : s.activeTaskId;
       const unchanged = s.activeTaskId === nextActiveTaskId
         && s.selectedTaskIds.length === nextSelectedTaskIds.length
         && s.selectedTaskIds.every((id, index) => id === nextSelectedTaskIds[index]);
-      if (unchanged) return;
-      s.selectedTaskIds = nextSelectedTaskIds;
-      s.activeTaskId = nextActiveTaskId;
+      if (!unchanged) {
+        s.selectedTaskIds = nextSelectedTaskIds;
+        s.activeTaskId = nextActiveTaskId;
+      }
+      rememberAnchor(s, anchor ?? null);
     }),
 
   copyTasks: (ids, gridText) =>

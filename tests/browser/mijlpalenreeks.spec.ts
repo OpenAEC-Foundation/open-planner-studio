@@ -130,6 +130,10 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect.poll(dialog).toBe(ids.m2);
   await page.keyboard.press('Escape');
   await expect.poll(dialog).toBeNull();
+  // Shift in de lijst vanaf dat ene ruitje neemt van de reeks alleen dat ruitje mee, niet zijn buren
+  // op dezelfde regel (#1004, ronde 7).
+  await nameCell(page, ids.work).click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([ids.work, ids.m2].sort());
   await page.mouse.click(group.x, group.y);
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
   await page.keyboard.press('F2');

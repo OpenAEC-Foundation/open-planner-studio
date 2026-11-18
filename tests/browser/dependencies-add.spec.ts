@@ -366,6 +366,8 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.mouse.up();
   await page.keyboard.up('Control');
   await expect.poll(anchorRow).toBe(rowKeys[2]);
+  // Het kader zet ook de cursor op die rij, net als een klik: verwijderen gaat daar van uit (ronde 7).
+  await expect(gridRow(rowKeys[2]!)).toHaveAttribute('data-grid-active', 'true');
   const afbouwEnd = await barPoint(page, afbouw, 'right');
   const afbouwRow = await gridRow(rowKeys[6]!).boundingBox();
   await page.keyboard.down('Shift');

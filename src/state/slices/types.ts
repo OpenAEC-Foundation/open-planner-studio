@@ -703,12 +703,17 @@ export interface ExternalSourceUpdate {
   changedLinks: number;
 }
 
-/** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
 /** De rij van de laatste klik zonder Shift, in de tijdlijn of de takenlijst, en de taken die daar
  *  gekozen werden (een groepsruitje #868: zijn leden; een rij in de takenlijst: haar taken). Shift
  *  begint hier, in beide oppervlakken, ook na uitvinken met Ctrl, zoals in een bestandsverkenner. */
 export interface SelectionAnchor { rowKey: string; taskIds: readonly string[] }
 
+/** Het anker zoals de store het bewaart: met de selectie waarvoor het geldt. Verandert de selectie
+ *  langs een andere weg (plakken, inklappen, Ctrl+A, MCP), dan geldt het niet meer
+ *  (`liveSelectionAnchor`); zo hoeft niet elke schrijver van de selectie het anker te kennen. */
+export interface StoredSelectionAnchor extends SelectionAnchor { selection: readonly string[] }
+
+/** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
 export type RelationAssignDirection = 'predecessor' | 'successor';
 
 export interface UIState {
@@ -739,8 +744,9 @@ export interface UIState {
    *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899).
    *  Een klik in de tijdlijn zet hier de aangeklikte rij, en de takenlijst volgt (review #1004). */
   gridActiveRowKey: string | null;
-  /** Beginpunt van Shift-klik, gedeeld door tijdlijn en takenlijst (review #1004). Sessiestand. */
-  selectionAnchor: SelectionAnchor | null;
+  /** Beginpunt van Shift-klik, gedeeld door tijdlijn en takenlijst (review #1004). Sessiestand.
+   *  Lees het via `liveSelectionAnchor`. */
+  selectionAnchor: StoredSelectionAnchor | null;
   showSettingsDialog: boolean;
   /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
    *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */

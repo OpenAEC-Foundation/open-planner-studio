@@ -165,6 +165,9 @@ export function requestRelationAssign(taskId: string, direction: RelationAssignD
   // Een selectie kan na Ongedaan naar een verdwenen taak wijzen (`selectedTaskIds` zit niet in de
   // undo-snapshot); dan geen verzoek dat blijft hangen tot Opnieuw de taak terugbrengt.
   if (!st.tasks.some(task => task.id === taskId)) return;
-  st.selectTask(taskId, false);
+  // Is de taak al de selectie (lint, of de rechtsklik koos haar al op haar rij), dan niet opnieuw
+  // kiezen: dat zou zonder rij het Shift-anker en de gekozen rij wissen (review #1004, ronde 7).
+  const alreadySelected = st.activeTaskId === taskId && st.selectedTaskIds.length === 1 && st.selectedTaskIds[0] === taskId;
+  if (!alreadySelected) st.selectTask(taskId, false);
   st.setUI({ showPropertiesPanel: true, pendingRelationAssign: { taskId, direction } });
 }
