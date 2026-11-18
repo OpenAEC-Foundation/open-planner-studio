@@ -41,7 +41,7 @@ import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
 import { originalAppState } from './immerDraft';
-import { progressPlannedStart } from './progressPlannedStart';
+import { progressPlannedStart, progressPlannedStartAfterEdit } from './progressPlannedStart';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -525,7 +525,7 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     projectId: state.project.id,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     statusDate: state.project.statusDate,
-    plannedStart: () => progressPlannedStart(originalAppState(state) ?? state, task),
+    plannedStart: edited => progressPlannedStart(originalAppState(state) ?? state, edited),
     calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourModeCalendar(effectiveCalendar) === true,
@@ -575,6 +575,8 @@ function applyCellEdits(
   timephasedGuidanceLost: boolean;
   skippedReadOnlyCount: number;
   startNotice?: StartEditNotice;
+  /** Dezelfde datum voor de afleiding en voor de startvraag na toepassen van de plak. */
+  progressStart?: string;
   /** Bewaard, afwijkend restwerk dat een duurcel opnieuw uitrekende (`settleDurationEdit`). */
   recomputedWork?: readonly RecomputedRemainingWork[];
 }, readonly CellValidationError[]> {
@@ -826,7 +828,11 @@ function applyCellEdits(
   // Een voortgangscel verplaatst opgeslagen werk van rest naar verricht.
   const progressWork = captureProgressWork(current, state);
   const workRuleBefore = current.workRule;
-  const planned = planTaskCellEdits(current, remainingEdits, environment);
+  let progressStart: string | undefined;
+  const planned = planTaskCellEdits(current, remainingEdits, {
+    ...environment,
+    plannedStart: edited => (progressStart = progressPlannedStartAfterEdit(state, task, edited)),
+  });
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     changed = true;
@@ -860,7 +866,7 @@ function applyCellEdits(
       : undefined;
   return {
     ok: true,
-    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice, recomputedWork },
+    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice, recomputedWork, progressStart },
   };
 }
 
@@ -954,6 +960,7 @@ export function prepareGridMutation(
       else cellWritesByTaskId.set(write.taskId, [write]);
     }
     const appliedCellTaskIds = new Set<string>();
+    const progressStarts = new Map<string, string>();
     for (const write of orderedWrites) {
       if (write.kind === 'cell-edit') {
         if (appliedCellTaskIds.has(write.taskId)) continue;
@@ -976,6 +983,7 @@ export function prepareGridMutation(
           if (taskWrites.length > applied.value.skippedReadOnlyCount) wroteTaskIds.add(write.taskId);
           if (applied.value.startNotice) startNotices.push(applied.value.startNotice);
           if (applied.value.recomputedWork) recomputedWork.push(...applied.value.recomputedWork);
+          if (applied.value.progressStart) progressStarts.set(write.taskId, applied.value.progressStart);
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
@@ -1061,7 +1069,7 @@ export function prepareGridMutation(
           actualStart: wrote('task.time.actualStart'),
           actualFinish: wrote('task.time.actualFinish'),
         }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar),
-        wrote('task.time.completion') ? () => progressPlannedStart(state, before) : undefined);
+        () => progressStarts.get(taskId));
         if (question) {
           errors.push(validationError('actualStartRequired', { taskId }, {
             statusDate: question.statusDate, latest: question.latest,

@@ -237,6 +237,53 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   });
 });
 
+test('Taak bewerken: voortgang en startanker volgen de actuele planning na het verwijderen van een voorganger', async ({ page, ops: _ops }) => {
+  const [predecessor, taskId] = await seedTenDayTasks(page, ['Grondwerk', 'Fundering']);
+  await page.evaluate(({ predecessor, taskId }) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: true });
+    s.addSequence({ predecessorId: predecessor, successorId: taskId, type: 'FINISH_START', lagDays: 0 });
+    s.runCPM();
+  }, { predecessor, taskId });
+  const dates = () => page.evaluate((id) => {
+    const time = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time;
+    return { anchor: time.scheduleStart, calculated: time.earlyStart };
+  }, taskId);
+  const original = await dates();
+  expect(original.calculated).not.toBe(original.anchor);
+  const open = async () => {
+    await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${taskId}"][data-grid-column-id="task.name"]`)
+      .click({ button: 'right' });
+    await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+    const dialog = page.locator('[data-ops-task-dialog]');
+    await expect(dialog).toBeVisible();
+    return dialog;
+  };
+
+  let dialog = await open();
+  await dialog.locator('.dependency-remove-button').click();
+  await expect.poll(dates).toEqual({ anchor: original.anchor, calculated: '2026-03-06T07:00' });
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect((await dates()).anchor).toBe(original.anchor);
+
+  await page.evaluate(({ predecessor, taskId }) => {
+    const s = window.__OPS__!.store.getState();
+    s.addSequence({ predecessorId: predecessor, successorId: taskId, type: 'FINISH_START', lagDays: 0 });
+    s.runCPM();
+  }, { predecessor, taskId });
+  await expect.poll(dates).toEqual(original);
+  dialog = await open();
+  await dialog.locator('.dependency-remove-button').click();
+  await expect.poll(dates).toEqual({ anchor: original.anchor, calculated: '2026-03-06T07:00' });
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+  await expect(page.locator('[data-ops-actual-start-dialog]')).toHaveCount(0);
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 1, actualStart: original.anchor });
+  expect((await dates()).anchor).toBe(original.anchor);
+});
+
 test('Taak bewerken: één keer Opslaan (naam, ouder, nieuw taaktype, voortgang) is één Ctrl+Z', async ({ page, ops: _ops }) => {
   // Kiest de dialoogdraft een persoonlijk type dat nog niet in het project staat, dan mag de
   // taaktypekiezer dat type maar één keer tonen (de fixture faalt op elke consolefout, dus ook op

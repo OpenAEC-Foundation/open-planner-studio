@@ -312,6 +312,30 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
     { ok: grid.ok, start: taskOf(past.S, pastB).time.actualStart }, { ok: true, start: plannedStart });
 }
 {
+  // Een startbeperking in dezelfde plak telt mee vóór voortgang een werkelijke start afleidt.
+  const { S } = fresh();
+  const { B } = setup(S);
+  S().setStatusDate(TODAY);
+  S().runCPM();
+  const future = daysBeforeToday(-14);
+  const before = taskOf(S, B);
+  const writes: CellEditIntent[] = [
+    { kind: 'cell-edit', taskId: B, columnId: 'task.constraint.type' as CellEditIntent['columnId'], route: 'task-constraint', value: 'SNET' },
+    { kind: 'cell-edit', taskId: B, columnId: 'task.constraint.date' as CellEditIntent['columnId'], route: 'task-constraint', value: future },
+    cell(B, 'task.time.completion', 0.5),
+  ];
+  const paste = { kind: 'paste', writes } as const;
+  const result = S().runGridMutation([paste], { progressEntry: { today: TODAY } });
+  eq('#998 geplakte SNET en percentage vragen de werkelijke start',
+    result.ok ? 'ok' : result.errors.map(e => e.code), ['actualStartRequired']);
+  eq('#998 geweigerde plak verandert de taak niet', taskOf(S, B), before);
+  const retry = S().runGridMutation([{ ...paste, writes: [...writes, cell(B, 'task.time.actualStart', TODAY)] }],
+    { progressEntry: { today: TODAY } });
+  eq('#998 geplakte SNET met opgegeven werkelijke start wordt toegepast',
+    { ok: retry.ok, start: taskOf(S, B).time.actualStart, constraint: taskOf(S, B).constraint?.type },
+    { ok: true, start: `${TODAY}T07:00`, constraint: 'SNET' });
+}
+{
   // Taakraster: de hele handeling wordt geweigerd met per taak `actualStartRequired`; dezelfde
   // handeling mét een werkelijke start per taak slaagt (zo herhaalt FullTaskGrid hem na de vraag).
   const { S } = fresh();

@@ -991,6 +991,11 @@ en noem het in je rapport of PR-tekst.
      gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
      BEVESTIGD, VERVOLG). — B
 
+1850. **VERVOLG: tests gebruiken nog een tweede percentagepad voor de taakdialoog.** `draftWithProgress`
+      in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
+      Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
+      #1003 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

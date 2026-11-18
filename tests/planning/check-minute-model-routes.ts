@@ -52,6 +52,7 @@ const expected: Record<string, string[]> = {
   'src/services/mcp/freshness.ts': ['bereken'], // verhuisd uit staleGuard.ts (#572)
   'src/services/mcp/tools/batchTool.ts': ['bewerking'],
   'src/state/documentActivation.ts': ['solveProject', 'solveProject'], // vluchtige teller; laadgrens
+  'src/state/progressPlannedStart.ts': ['solveProject'], // vluchtige berekening van samengestelde voortgangsinvoer (#998)
   'src/state/runtime/createMcpTransactions.ts': ['bewerking'],
   'src/state/slices/documentSlice.ts': ['solveProject'], // slaat omzetting open over
   'src/state/slices/fileSlice.ts': ['bewerking', 'bereken', 'bereken'], // `applyRefreshedTasks` (verversen, accepteren); openen

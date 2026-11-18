@@ -67,7 +67,7 @@ function fixture(names: string[]): Fixture & { ids: string[] } {
     save: createTaskDialogSave(ctx),
     open: (id) => {
       const t = task(id);
-      return { editingTaskId: id, draft: { ...t, time: { ...t.time } }, startDate: t.time.earlyStart || t.time.scheduleStart };
+      return { editingTaskId: id, draft: { ...t, time: { ...t.time } } };
     },
     undoDepth: () => historyDepthsForActiveScope(S()).undoDepth,
   };

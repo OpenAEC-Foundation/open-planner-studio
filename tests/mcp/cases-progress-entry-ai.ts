@@ -117,6 +117,22 @@ test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', asy
   assertEq(JSON.stringify(timeOf(L)), before, 'taak ongewijzigd (batch)');
 });
 
+test('#998: nieuwe startbeperking en percentage in één item vragen om actualStart', async () => {
+  const { V } = setup('2026-06-10');
+  const result = await rpc('planner_update_tasks', { updates: [{ id: V,
+    fields: { constraint: { type: 'SNET', date: '2026-06-22' } }, progress: { completion: 50 },
+  }] });
+  assert(reasons(result).some(reason => /progress\.actualStart/.test(reason) && /2026-06-22/.test(reason)),
+    `weigering noemt de nieuwe geplande start en vraagt om actualStart: ${reasons(result)}`);
+  assertEq(timeOf(V).completion, 0, 'percentage geweigerd');
+  assertEq(S().tasks.find(t => t.id === V)?.constraint?.date?.slice(0, 10), '2026-06-22', 'beperking toegepast');
+  const earlier = await rpc('planner_update_tasks', { updates: [{ id: V,
+    fields: { constraint: { type: 'SNET', date: '2026-06-04' } }, progress: { completion: 50 },
+  }] });
+  assertEq(reasons(earlier), [], 'de nieuwe beperking ligt nu vóór de statusdatum');
+  assertEq(timeOf(V).actualStart, '2026-06-04T07:00', 'het percentage gebruikt de nieuw geplande start');
+});
+
 // F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
 for (const [statusDate, actualFinish, want] of [
   ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],

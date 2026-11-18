@@ -106,8 +106,8 @@ export interface TaskDialogSaveInput {
   /** De bewerkte taak; `null` (of een inmiddels verdwenen id) ⇒ de "nieuwe taak"-tak. */
   editingTaskId: string | null;
   draft: Task;
-  /** De in de dialoog getoonde startdatum. */
-  startDate: string;
+  /** Een expliciet gewijzigde startdatum. Zonder waarde blijft het anker van een bestaande taak staan. */
+  startDate?: string;
   /** De duur bij het openen; afwezig ⇒ de duur uit de concept telt altijd als bewerkt. */
   initialDuration?: TaskDialogInitialDuration | null;
   /** De open bewerksessie van de dialoog (`historyMark`); afwezig ⇒ één `withTransaction`. */
@@ -257,6 +257,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       return;
     }
 
+    const newStart = startDate ?? draft.time.scheduleStart;
     S().addTask({
       name: draft.name,
       description: draft.description,
@@ -274,12 +275,12 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         durationUnit: draft.isMilestone ? 'days' : draft.time.durationUnit,
         scheduleDuration: draft.isMilestone ? 0 : draft.time.scheduleDuration,
         durationMinutes: draft.isMilestone || draft.time.durationUnit === 'days' ? undefined : draft.time.durationMinutes,
-        scheduleStart: startDate,
-        scheduleFinish: startDate,
-        earlyStart: startDate,
-        earlyFinish: startDate,
-        lateStart: startDate,
-        lateFinish: startDate,
+        scheduleStart: newStart,
+        scheduleFinish: newStart,
+        earlyStart: newStart,
+        earlyFinish: newStart,
+        lateStart: newStart,
+        lateFinish: newStart,
         freeFloat: 0,
         totalFloat: 0,
         isCritical: false,
