@@ -2723,7 +2723,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (entry.ref.kind === 'path' && isTauri()) {
           // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen
           // (knownbug 1131 stap 5), dan lezen, met de eigen bytekeuze van Recent.
-          opened = { ...await readOpenedPath(entry.ref.path, isBinary), name: entry.name };
+          const path = entry.ref.path; // MUTATIE b: Recent kiest weer alleen uit de extensielijst
+          opened = { ...await readOpenedPath(path, binaryExtensions(readOptions).some(ext => path.toLowerCase().endsWith(`.${ext}`))), name: entry.name };
         } else {
           const content = isBinary ? null : await readFromRef(entry.ref);
           const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
