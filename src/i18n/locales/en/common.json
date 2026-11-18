@@ -749,7 +749,8 @@
     "confirmClose": "This document has unsaved changes. Close anyway?",
     "closeTitle": "Unsaved changes",
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
-    "dontSave": "Don't save"
+    "dontSave": "Don't save",
+    "stillSaving": "Still saving…"
   },
   "feedback": {
     "buttonTooltip": "Send feedback",

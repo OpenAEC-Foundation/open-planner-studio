@@ -252,9 +252,24 @@ test('IFC toepassen behoudt documentbinding en sluitwaarschuwing, met één undo
   await page.locator(`[data-ops-tab="${otherId}"]`).click();
   await page.locator(`[data-ops-tab="${before.documentId}"]`).click();
   await expect.poll(identity).toEqual(before);
+  // #804 stap 3: loopt er een opslag (hier vastgehouden in het echte schrijfslot), dan wacht het kruisje met
+  // "Wordt nog opgeslagen…"; de schil ligt stil en de sluitvraag komt pas daarna.
+  await page.evaluate(async () => {
+    const path = '/src/services/fileAccess/writeCoordinator.ts';
+    const coordinator = await import(/* @vite-ignore */ path) as typeof import('@/services/fileAccess/writeCoordinator');
+    void coordinator.runProjectFileWrite(() => new Promise<void>((resolve) => {
+      (window as unknown as { releaseOpsWrite: () => void }).releaseOpsWrite = resolve;
+    }), () => undefined);
+  });
   await page.locator(`[data-ops-tab="${before.documentId}"]`).locator('..')
     .getByRole('button', { name: /^(Close|Sluiten) / }).click();
+  const stillSaving = page.locator('[data-ops-saving-before-close]');
   const closeDialog = page.locator('[data-ops-close-dialog]');
+  await expect(stillSaving).toHaveText(/^(Still saving…|Wordt nog opgeslagen…)$/);
+  await expect(page.locator('[data-ops-background-controls="title"]')).toHaveAttribute('inert', '');
+  await expect(closeDialog).toHaveCount(0);
+  await page.evaluate(() => { (window as unknown as { releaseOpsWrite: () => void }).releaseOpsWrite(); });
+  await expect(stillSaving).toHaveCount(0);
   await expect(closeDialog).toBeVisible();
   await closeDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
   await expect(closeDialog).toHaveCount(0);

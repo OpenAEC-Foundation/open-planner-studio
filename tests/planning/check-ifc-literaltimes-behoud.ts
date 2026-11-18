@@ -332,7 +332,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       const { store, file, S } = await openOwn();
       addHourTask(store);
       let release!: () => void;
-      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
       win.showSaveFilePicker = async () => file.handle;
       const exporting = run(S);
       await new Promise(r => setTimeout(r, 20));
@@ -347,7 +347,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [true, true, true, true]);
       // 7e. Wachten zonder wijziging: de export schrijft na de lock, en legt de keuze vast.
       let release2!: () => void;
-      const hold2 = runProjectFileWrite(() => new Promise<void>(r => { release2 = r; }));
+      const hold2 = runProjectFileWrite(() => new Promise<void>(r => { release2 = r; }), () => undefined);
       const exporting2 = run(S);
       await new Promise(r => setTimeout(r, 20));
       eq(`7e ${route}: tijdens het wachten nog niets geschreven`, file.text() === before, true);
@@ -366,7 +366,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       const { store, file, S } = await openOwn();
       S().addTask({ name: 'Gewone taak' });
       let release!: () => void;
-      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
       win.showSaveFilePicker = async () => file.handle;
       const exporting = run(S);
       await new Promise(r => setTimeout(r, 20));
@@ -398,7 +398,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
           const { S } = await openOwn();
           S().addTask({ name: 'Gewone taak' });
           let release!: () => void;
-          const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+          const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
           downloads = 0;
           const exporting = run(S);
           await new Promise(r => setTimeout(r, 20));

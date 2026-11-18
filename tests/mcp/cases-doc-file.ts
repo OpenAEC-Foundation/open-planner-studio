@@ -582,7 +582,7 @@ test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (know
   // verandert het document (een opslag in de wachtrij), dan schrijft de export niets.
   const waitFor = async (during: () => void) => {
     let release!: () => void;
-    const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+    const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
     const before = files.get(own);
     const pending = callErr('planner_export_ifc', { path: own, overwrite: true });
     await new Promise(r => setTimeout(r, 50));

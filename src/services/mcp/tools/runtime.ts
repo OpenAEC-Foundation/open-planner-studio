@@ -146,7 +146,7 @@ const BLOCKING_UI_FLAGS = [
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
   'showTourOverlay', 'showWelcomeDialog', 'showTutorialOffer', 'showProgressImportDialog', 'pendingActualStartQuestion',
   'pendingPhaseAssignmentQuestion', 'pendingSiteOpen', 'pendingSiteSave', 'pendingIfcSchemaQuestion',
-  'pendingPlanOnlyQuestion', 'pendingDependentAnchorWarning',
+  'pendingPlanOnlyQuestion', 'pendingDependentAnchorWarning', 'savingBeforeClose', 'appClosing',
 ] as const;
 
 /** Naam van de eerste open blokkerende ui-vlag, of null wanneer er geen open staat. */

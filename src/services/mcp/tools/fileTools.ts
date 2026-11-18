@@ -433,7 +433,7 @@ export const fileTools: McpToolDef[] = [
           ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
         }
         return null;
-      });
+      }, () => toolError(ctx, 'VALIDATION', 'The app is closing or installing an update. Nothing was written.'));
       if (writeError) return writeError;
       return {
         ok: true,

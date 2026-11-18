@@ -15,6 +15,7 @@ import {
   type RecoveryDocInput,
 } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
+import { whenProjectFileWritesIdle } from '@/services/fileAccess/writeCoordinator';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
@@ -160,8 +161,19 @@ export interface DocumentSlice {
   duplicateDocument: (name?: string) => string;
   /** Wissel naar een ander geopend document. */
   switchDocument: (id: string) => void;
-  /** Sluit een document; het laatste sluiten reset naar één leeg document. */
+  /** Sluit een document; het laatste sluiten reset naar één leeg document. Wacht niet op een lopende opslag: de routes
+   *  van de planner gaan via `requestCloseDocument` of `closeDocumentAfterSaves`. */
   closeDocument: (id: string) => void;
+  /** #804 stap 3 (besluit eigenaar 17 november 2026: wachten, dan sluiten). `null` als er geen projectopslag loopt of
+   *  wacht: dan wacht en toont niets. Anders klaar zodra de schrijfrij leeg is, met intussen "Wordt nog opgeslagen…"
+   *  (`ui.savingBeforeClose`). Kijk daarna opnieuw: een nieuwe opslag kan net begonnen zijn. */
+  waitForSavesBeforeClose: () => Promise<void> | null;
+  /** Het kruisje van een tabblad: eerst wachten op een lopende opslag, dan is het document gewijzigd ⇒ de sluitvraag
+   *  (`ui.pendingCloseDocId`), anders sluiten. Zonder lopende opslag in dezelfde beurt, zoals voorheen. */
+  requestCloseDocument: (id: string) => void;
+  /** Sluit `id` zodra er geen opslag meer loopt of wacht (de keuzes van de sluitvraag). Zonder lopende opslag sluit
+   *  het in dezelfde beurt. */
+  closeDocumentAfterSaves: (id: string) => Promise<void>;
   /** Lijst van geopende documenten met afgeleide titel + dirty/active-status. */
   getOpenDocuments: () => DocumentInfo[];
   /** Alle geopende documenten als payload (actief live, rest uit de registry) —
@@ -340,6 +352,17 @@ function openProjectNames(s: AppState): string[] {
  * slice-instantie voorkomt dat; de scratch-context zet daar bovenop nog het ECHTE docId van de
  * payload (zie `runInScratchDocument`).
  */
+/** `waitForSavesBeforeClose` voor één storecontext: de aanduiding staat zolang minstens één aanroeper wacht. */
+function saveWaitWithNotice(setShown: (shown: boolean) => void): () => Promise<void> | null {
+  let waiters = 0;
+  return () => {
+    const idle = whenProjectFileWritesIdle();
+    if (!idle) return null;
+    if (waiters++ === 0) setShown(true);
+    return idle.finally(() => { if (--waiters === 0) setShown(false); });
+  };
+}
+
 function initialDocumentRegistry(): Pick<DocumentSlice, 'documents' | 'activeDocumentId'> {
   const id = generateId('doc');
   return { documents: [{ id, payload: null }], activeDocumentId: id };
@@ -567,6 +590,25 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
     });
+  },
+
+  waitForSavesBeforeClose: saveWaitWithNotice((shown) => set((s) => { s.ui.savingBeforeClose = shown; })),
+
+  requestCloseDocument: (id) => {
+    const saving = get().waitForSavesBeforeClose();
+    if (saving) {
+      void saving.then(() => get().requestCloseDocument(id));
+      return;
+    }
+    const doc = get().getOpenDocuments().find((d) => d.id === id);
+    if (!doc) return;
+    if (doc.isDirty) get().setUI({ pendingCloseDocId: id });
+    else get().closeDocument(id);
+  },
+
+  closeDocumentAfterSaves: async (id) => {
+    for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+    get().closeDocument(id);
   },
 
   getOpenDocuments: () => {
