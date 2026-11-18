@@ -11,11 +11,16 @@ test('Recent: leesfout meldt de reden en behoudt project en item; opnieuw prober
     await page.evaluate(({ path, ifc }) => {
       const w = window as unknown as {
         __recentReadFails: boolean;
-        __TAURI_INTERNALS__: { invoke: (cmd: string, args: { path: string }) => Promise<Uint8Array> };
+        __TAURI_INTERNALS__: { invoke: (cmd: string, args: { path?: string }) => Promise<unknown> };
       };
       w.__recentReadFails = true;
+      // Vóór het lezen handelt de app onafgeronde vervangingen van dit pad af (knownbug 1131 stap 5): ze vraagt de
+      // appDataDir op en leest daar de herstelrecords. Hier is die map leeg, dus er valt niets af te handelen.
+      const appData = 'C:\\Users\\planner\\AppData\\Roaming\\org.openaec.planner';
       w.__TAURI_INTERNALS__ = {
         invoke: async (cmd, args) => {
+          if (cmd === 'plugin:path|resolve_directory') return appData;
+          if (cmd === 'plugin:fs|read_dir' && args.path === appData) return [];
           if (cmd !== 'plugin:fs|read_text_file' || args.path !== path) {
             throw new Error(`Onverwachte bestandsaanroep: ${cmd} ${args.path}`);
           }
