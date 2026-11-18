@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-18T02:01:39.607Z",
-  "downloads": 4673,
+  "generatedAt": "2026-11-18T04:01:30.897Z",
+  "downloads": 4679,
   "releases": [
     {
       "tag": "v2026.47.0",
@@ -11,20 +11,20 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 32,
-          "update": 105,
+          "install": 36,
+          "update": 110,
           "both": 0,
           "byKind": {
-            "exe": 32,
-            "nsis.zip": 105
+            "exe": 36,
+            "nsis.zip": 110
           }
         },
         "macos": {
-          "install": 15,
+          "install": 16,
           "update": 14,
           "both": 0,
           "byKind": {
-            "dmg": 15,
+            "dmg": 16,
             "app.tar.gz": 14
           }
         },
@@ -40,7 +40,7 @@
           }
         }
       },
-      "polls": 501
+      "polls": 523
     },
     {
       "tag": "v2026.45.0",
@@ -196,11 +196,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 1248,
+          "install": 1249,
           "update": 69,
           "both": 0,
           "byKind": {
-            "exe": 1248,
+            "exe": 1249,
             "nsis.zip": 69
           }
         },
@@ -965,20 +965,20 @@
   ],
   "totals": {
     "windows": {
-      "install": 2735,
-      "update": 940,
+      "install": 2740,
+      "update": 945,
       "both": 0,
       "byKind": {
-        "exe": 2735,
-        "nsis.zip": 940
+        "exe": 2740,
+        "nsis.zip": 945
       }
     },
     "macos": {
-      "install": 472,
+      "install": 473,
       "update": 172,
       "both": 0,
       "byKind": {
-        "dmg": 472,
+        "dmg": 473,
         "app.tar.gz": 172
       }
     },
@@ -994,7 +994,7 @@
       }
     }
   },
-  "polls": 11809,
+  "polls": 11831,
   "unknown": [
     "v2026.47.0: open-planner-studio-2026.47.0.mcpb",
     "v2026.45.0: open-planner-studio-2026.45.0.mcpb",
