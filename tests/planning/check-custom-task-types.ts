@@ -4,6 +4,8 @@
 // eigen taaktype hernoemen is één ongedaan-maakstap, maakt het document gewijzigd en gaat mee in het IFC.
 // Fixronde 1 van #999: alleen een werksoort die een taak gebruikt (anders bewaart IFC/herstel de naam niet),
 // alleen in het document waarin de vraag gesteld is, en de bevestigde naam overleeft IFC én crashherstel.
+// Eigenaarsbesluit 18 november 2026 (#804 keuze 7, knownbug 1829): een projectkopie die geen taak gebruikt,
+// krijgt de nieuwe naam stil (`renameUnusedProjectTaskType`): geen vraag, geen ongedaan-maakstap, niet gewijzigd.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createAppStoreContext } from '@/state/appStoreFactory';
@@ -23,6 +25,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import type { Task } from '@/types/task';
 import { installDOMParser } from './xmldom-shim';
+import { applyProjectTaskTypeRename } from '@/components/task-sections/projectTaskTypeRename';
 
 installDOMParser();
 
@@ -184,6 +187,67 @@ eq('documentbinding: A blijft daarna gelijk', projectNames(), ['ctt-gevel=GEVELC
 
 // Main liet een ongebruikte definitie al weg uit IFC; dat blijft zo (de schrijfregel verandert niet).
 eq('ongebruikt: IFC bewaart alleen de gebruikte definitie', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE' }]);
+
+// ── Ongebruikte projectkopie: de nieuwe naam gaat stil mee (eigenaarsbesluit 18 november 2026) ──
+// Zo'n definitie bewaart IFC noch herstel, dus er verandert niets wat bewaard wordt: geen sluitvraag
+// (`isDirty` blijft staan) en geen eigen ongedaan-maakstap. Een gebruikte kopie houdt de vraag van #999.
+const docC = S().newDocument();
+S().ensureProjectTaskType({ id: 'ctt-kozijn', name: 'Kozijnen' });
+S().ensureProjectTaskType({ id: 'ctt-stel', name: 'Stelwerk' });
+const kozijnTask = S().addTask({ name: 'Kozijn zetten' });
+S().updateTask(kozijnTask, { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-kozijn' });
+const stelTask = S().addTask({ name: 'Stellen' });
+S().updateTask(stelTask, { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-stel' });
+// Het laatste gebruik gaat weg; daarna nog een losse bewerking, zodat ongedaan maken iets terug te zetten heeft.
+S().updateTask(stelTask, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+S().updateTask(kozijnTask, { name: 'Kozijn plaatsen' });
+useAppStore.setState({ isDirty: false }); // zoals na opslaan
+const events = () => [S().historyEvents.length, S().nextHistorySequence, applied()];
+const eventsBefore = events();
+eq('stil: uitslag', S().renameUnusedProjectTaskType(docC, 'ctt-stel', '  Stelkozijnen  '), { status: 'renamed' });
+eq('stil: nieuwe naam in het project', projectNames(), ['ctt-kozijn=Kozijnen', 'ctt-stel=Stelkozijnen']);
+eq('stil: document niet gewijzigd', S().isDirty, false);
+eq('stil: geen ongedaan-maakstap', events(), eventsBefore);
+
+// Ongedaan maken van een eerdere bewerking zet de oude naam niet terug zolang de kopie daar ongebruikt is;
+// een stand waarin een taak de werksoort nog gebruikte, houdt haar naam van toen (die bewaart IFC wel).
+S().undo();
+eq('stil: ongedaan maken (taaknaam) houdt de nieuwe naam', [S().tasks.find(t => t.id === kozijnTask)?.name, projectNames()], ['Kozijn zetten', ['ctt-kozijn=Kozijnen', 'ctt-stel=Stelkozijnen']]);
+S().undo();
+eq('stil: ongedaan maken tot het gebruik terug is: naam van toen', [S().tasks.find(t => t.id === stelTask)?.customTaskTypeId, projectNames()], ['ctt-stel', ['ctt-kozijn=Kozijnen', 'ctt-stel=Stelwerk']]);
+S().redo();
+S().redo();
+eq('stil: opnieuw: weer ongebruikt en de nieuwe naam', [S().tasks.find(t => t.id === stelTask)?.customTaskTypeId, S().tasks.find(t => t.id === kozijnTask)?.name, projectNames()], [undefined, 'Kozijn plaatsen', ['ctt-kozijn=Kozijnen', 'ctt-stel=Stelkozijnen']]);
+
+// Taak bewerken annuleren draait de sessie terug met haar vóór-stand; ook die houdt de nieuwe naam.
+const mark = S().historyMark();
+S().updateTask(kozijnTask, { name: 'Kozijn in sessie' });
+eq('stil: in een bewerksessie', S().renameUnusedProjectTaskType(docC, 'ctt-stel', 'Stelraam'), { status: 'renamed' });
+S().revertHistorySince(mark);
+eq('stil: Annuleren houdt de nieuwe naam', [S().tasks.find(t => t.id === kozijnTask)?.name, projectNames()], ['Kozijn plaatsen', ['ctt-kozijn=Kozijnen', 'ctt-stel=Stelraam']]);
+
+// Een gebruikte kopie raakt deze actie niet (daar hoort de vraag bij); een botsende naam, een ander
+// document, een onbekend type, een lege of gelijke naam veranderen niets, zonder stap en zonder melding.
+useAppStore.setState({ isDirty: false });
+const quiet = events();
+const quietNames = projectNames();
+const notices = S().ui.notifications.length;
+eq('stil: gebruikt', S().renameUnusedProjectTaskType(docC, 'ctt-kozijn', 'Ramen'), { status: 'inUse' });
+eq('stil: botsing', S().renameUnusedProjectTaskType(docC, 'ctt-stel', 'kozijnen'), { status: 'nameTaken', takenName: 'Kozijnen' });
+eq('stil: ander document', S().renameUnusedProjectTaskType(docA, 'ctt-stel', 'Stelwerk B'), { status: 'otherDocument' });
+eq('stil: onbekend', S().renameUnusedProjectTaskType(docC, 'ctt-bestaat-niet', 'Iets'), { status: 'missing' });
+eq('stil: leeg', S().renameUnusedProjectTaskType(docC, 'ctt-stel', '  '), { status: 'empty' });
+eq('stil: gelijk', S().renameUnusedProjectTaskType(docC, 'ctt-stel', 'Stelraam'), { status: 'unchanged' });
+eq('stil: geweigerd verandert niets', [projectNames(), events(), S().isDirty, S().ui.notifications.length], [quietNames, quiet, false, notices]);
+
+// Knownbug 1834: een bevestigde hernoeming die bij uitvoeren `unused` blijkt (het laatste gebruik ging
+// intussen weg), gaat dezelfde weg: de ongebruikte kopie krijgt de naam stil.
+applyProjectTaskTypeRename({ documentId: docC, id: 'ctt-stel', oldName: 'Stelraam', newName: 'Stelkozijn' });
+eq('1834: uitgestelde hernoeming van een ongebruikte kopie', [projectNames(), events(), S().isDirty], [['ctt-kozijn=Kozijnen', 'ctt-stel=Stelkozijn'], quiet, false]);
+
+// Krijgt een taak de werksoort daarna, dan heeft hij de nieuwe naam, ook na IFC-uitvoer en herlezing.
+S().updateTask(stelTask, { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-stel' });
+eq('stil: daarna toegekend: nieuwe naam in het IFC', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-kozijn', name: 'Kozijnen' }, { id: 'ctt-stel', name: 'Stelkozijn' }]);
 
 if (errors.length) {
   for (const error of errors) console.error(`XX ${error}`);

@@ -1004,22 +1004,26 @@ en noem het in je rapport of PR-tekst.
      Heet een werksoort in de eigen lijst anders dan in het project (voorbeeld: eigen lijst "Werkvoorbereiding",
      project "Engineering"), dan toont de keuzelijst in `TaskTypeField.tsx` bij een taak die de werksoort al heeft de
      projectnaam, en bij een andere taak de naam uit de eigen lijst; kiest de planner die, dan staat daarna de
-     projectnaam op de knop. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main
-     al zo na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
-     Een projectkopie die geen taak gebruikt, houdt bij hernoemen haar oude naam (er komt geen vraag) tot ze uit het
-     bestand verdwijnt; kiest de planner zo'n werksoort, dan ziet hij dus ook de oude naam.
-     Gemeten door de bouwer van #999 met een tijdelijke stap in `custom-task-types.spec.ts`. Wat de lijst hoort te
-     tonen (bijvoorbeeld altijd de projectnaam voor een werksoort die in het project staat) is een keuze voor de
-     eigenaar, bij de handleiding en de teksten. Ook de keuzes van de kolom *Eigen werksoort* in de Tabel
-     (`taskColumnRegistry.ts`) tonen een ongebruikte projectkopie onder haar oude naam (bevestigd door de review van
-     #999, ronde 2). — B
-1834. **VERVOLG (#804 keuze 7, werksoorten): haalt Opslaan in *Taak bewerken* het laatste gebruik weg, dan vervalt een bevestigde hernoeming stil.**
-     De planner bevestigt in *Taak bewerken* een nieuwe naam voor de werksoort van die taak (*Ook in dit project*),
-     geeft daarna de enige taak die de werksoort gebruikt een ingebouwde werksoort en slaat op. De keuzelijst had de
-     nieuwe naam al getoond; bij het sluiten weigert de store de uitgestelde hernoeming als `unused`
-     (`structureSlice.ts`, `projectTaskTypeRename.ts`). De eigen lijst heeft de nieuwe naam, de projectkopie de oude,
-     zonder melding. Hetzelfde bij een documentwissel terwijl de dialoog openstaat (`otherDocument`). Er gaat niets
-     verloren. Richting: een melding bij deze weigering. Gevonden door de review van #999, ronde 2. — B (review)
+     projectnaam op de knop. Ook de keuzes van de kolom *Eigen werksoort* in de Tabel (`taskColumnRegistry.ts`) tonen
+     de projectnaam. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main al zo
+     na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
+     Een projectkopie die geen taak gebruikt, krijgt bij hernoemen sinds het eigenaarsbesluit van 18 november 2026
+     stil de nieuwe naam (`renameUnusedProjectTaskType` in `structureSlice.ts`). Er blijven drie gevallen met twee
+     namen: (1) na *Alleen in mijn lijst*, zoals hierboven; (2) heet een ándere werksoort in het project al zo, dan
+     houdt de ongebruikte kopie haar oude naam, zonder melding (proef "stil: botsing" in
+     `check-custom-task-types.ts`); (3) alleen het actieve document krijgt de naam: een ander geopend tabblad houdt
+     zijn oude naam, ook als de planner er daarna naar wisselt, tot het bestand opnieuw geopend wordt (een
+     ongebruikte kopie bewaart IFC niet) of de planner de werksoort daar opnieuw hernoemt. Daarnaast: ongedaan maken tot een stand waarin een taak
+     de werksoort nog gebruikte, zet de naam van toen terug, want die stand bewaart IFC wel. Wat de lijst hoort te
+     tonen bij (1) is een keuze voor de eigenaar, bij de handleiding en de teksten. — B
+1834. **VERVOLG (#804 keuze 7, werksoorten): een bevestigde hernoeming uit *Taak bewerken* vervalt stil bij een documentwissel.**
+     De planner bevestigt in *Taak bewerken* een nieuwe naam voor de werksoort van die taak (*Ook in dit project*) en
+     wisselt daarna van document terwijl de dialoog openstaat. Bij het sluiten weigert de store de uitgestelde
+     hernoeming als `otherDocument` (`structureSlice.ts`, `projectTaskTypeRename.ts`): de eigen lijst heeft de nieuwe
+     naam, de projectkopie de oude, zonder melding. Er gaat niets verloren. Richting: een melding bij deze weigering.
+     Haalde Opslaan het laatste gebruik weg (`unused`), dan krijgt de kopie sinds het eigenaarsbesluit van
+     18 november 2026 de naam stil, zoals elke ongebruikte kopie; dat geval is opgelost. Gevonden door de review van
+     #999, ronde 2. — B (review)
 1835. **VERVOLG (#804 keuze 7, opruimen): *Taak bewerken* kopieert de projectcatalogus ook als er geen hernoeming wacht.**
      `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
      voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van

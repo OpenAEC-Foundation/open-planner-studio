@@ -30,3 +30,15 @@ export function customTaskTypeClashes(
 export function customTaskTypeInUse(tasks: readonly { customTaskTypeId?: string }[], id: string): boolean {
   return tasks.some(task => task.customTaskTypeId === id);
 }
+
+/** De typelijst met `id` hernoemd naar `name` (al getrimd), of `null` als dat niet kan of niets
+ *  verandert: het type ontbreekt, een ánder type heet al zo, of de naam is gelijk. */
+export function renamedCustomTaskTypes(
+  types: readonly CustomTaskType[],
+  id: string,
+  name: string,
+): CustomTaskType[] | null {
+  const { sameId, sameNameOtherId } = customTaskTypeClashes(types, { id, name });
+  if (!sameId || sameNameOtherId || sameId.name === name) return null;
+  return types.map(type => type.id === id ? { ...type, name } : type);
+}
