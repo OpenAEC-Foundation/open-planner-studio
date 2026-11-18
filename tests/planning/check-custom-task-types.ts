@@ -1,5 +1,15 @@
 // F3-contract: adapters mogen een OPS-customclassificatie nooit stil als CONSTRUCTION teruggeven.
 // IFC blijft de bron van waarheid; CSV/MSPDI/P6 gebruiken elk hun eigen vrije uitbreidingsveld.
+// Daarna (#804 keuze 7, knownbug 1748) de store-actie `renameProjectTaskType`: de projectkopie van een
+// eigen taaktype hernoemen is één ongedaan-maakstap, maakt het document gewijzigd en gaat mee in het IFC.
+// Fixronde 1 van #999: alleen een werksoort die een taak gebruikt (anders bewaart IFC/herstel de naam niet),
+// alleen in het document waarin de vraag gesteld is, en de bevestigde naam overleeft IFC én crashherstel.
+import './domStub';
+import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext } from '@/state/appStoreFactory';
+import { serializeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
+import { readRecoveryDocument } from '@/state/readRecoveryDocument';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultProject } from '@/state/slices/projectSlice';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -103,7 +113,79 @@ eq('MSPDI vreemde marker genegeerd', readMSPDI(hostileMspdi).tasks[0]?.customTas
 const hostileP6 = p6.replace('<Title>OPS Custom Task Type</Title>', '<Title>Vendor JSON</Title>');
 eq('P6 vreemde UDF-definitie genegeerd', readP6XML(hostileP6).tasks[0]?.customTaskTypeId, undefined);
 
+// ── Projectkopie hernoemen (#804 keuze 7): één store-actie, undo/redo, gewijzigd document, IFC ──
+const S = () => useAppStore.getState();
+S().newProject();
+S().ensureProjectTaskType({ id: 'ctt-gevel', name: 'Gevelinspectie' });
+S().ensureProjectTaskType({ id: 'ctt-dak', name: 'Dakinspectie' });
+const storeTask = S().addTask({ name: 'Gevel bekijken' });
+S().updateTask(storeTask, { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-gevel' });
+useAppStore.setState({ isDirty: false }); // zoals na opslaan
+const projectNames = () => S().customTaskTypes.map(type => `${type.id}=${type.name}`);
+const before = projectNames();
+eq('hernoemen: begin niet gewijzigd', S().isDirty, false);
+eq('hernoemen: uitslag', S().renameProjectTaskType(S().activeDocumentId, 'ctt-gevel', '  Gevelcontrole  '), { status: 'renamed' });
+eq('hernoemen: nieuwe naam in het project', projectNames(), ['ctt-gevel=Gevelcontrole', 'ctt-dak=Dakinspectie']);
+eq('hernoemen: document gewijzigd', S().isDirty, true);
+S().undo();
+eq('hernoemen: ongedaan maken zet de oude naam terug', projectNames(), before);
+S().redo();
+eq('hernoemen: opnieuw zet de nieuwe naam terug', projectNames(), ['ctt-gevel=Gevelcontrole', 'ctt-dak=Dakinspectie']);
+
+const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+eq('hernoemen: na opslaan en heropenen staat de nieuwe naam in het IFC', reopened.customTaskTypes, [{ id: 'ctt-gevel', name: 'Gevelcontrole' }]);
+
+// Een botsende naam (ander type in dit project, ook met andere hoofdletters), een lege naam, een
+// onbekend type, dezelfde naam, een werksoort die geen taak gebruikt of een ander document veranderen
+// niets en maken geen ongedaan-maakstap.
+const applied = () => S().historyEvents.filter(event => event.state === 'applied').length;
+const stepsBefore = applied();
+const namesBefore = projectNames();
+eq('botsing: uitslag noemt het andere type', S().renameProjectTaskType(S().activeDocumentId, 'ctt-gevel', 'dakinspectie'), { status: 'nameTaken', takenName: 'Dakinspectie' });
+eq('leeg: uitslag', S().renameProjectTaskType(S().activeDocumentId, 'ctt-gevel', '   '), { status: 'empty' });
+eq('onbekend: uitslag', S().renameProjectTaskType(S().activeDocumentId, 'ctt-bestaat-niet', 'Iets'), { status: 'missing' });
+eq('gelijk: uitslag', S().renameProjectTaskType(S().activeDocumentId, 'ctt-gevel', 'Gevelcontrole'), { status: 'unchanged' });
+// `ctt-dak` staat in het project maar geen taak gebruikt hem: IFC en herstel bewaren hem niet, dus geen hernoeming.
+eq('ongebruikt: uitslag', S().renameProjectTaskType(S().activeDocumentId, 'ctt-dak', 'Dakcontrole'), { status: 'unused' });
+eq('ander document: uitslag', S().renameProjectTaskType('doc-bestaat-niet', 'ctt-gevel', 'Gevelronde'), { status: 'otherDocument' });
+eq('geweigerd: namen ongewijzigd', projectNames(), namesBefore);
+eq('geweigerd: geen ongedaan-maakstap', applied(), stepsBefore);
+// Alleen hoofdletters anders is wél een hernoeming van hetzelfde type.
+eq('hoofdletters: uitslag', S().renameProjectTaskType(S().activeDocumentId, 'ctt-gevel', 'GEVELCONTROLE'), { status: 'renamed' });
+eq('hoofdletters: nieuwe naam', projectNames()[0], 'ctt-gevel=GEVELCONTROLE');
+
+// Crashherstel: de herstelsnapshot van dit document, gelezen en teruggezet in een verse store, houdt de
+// bevestigde naam (zelfde route als de app: serialiseren → herstellezer → restoreDocuments).
+const docA = S().activeDocumentId;
+const recovered = await readRecoveryDocument({
+  id: docA, ifc: serializeRecoverySnapshot(S()), filePath: null,
+  isDirty: S().isDirty, datesAsRecorded: S().datesAsRecorded, mtime: null,
+}, new Map(), false);
+const fresh = createAppStoreContext().store;
+eq('herstel: geen document overgeslagen', fresh.getState().restoreDocuments([recovered], docA).skippedIds, []);
+eq('herstel: bevestigde naam terug', fresh.getState().customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE' }]);
+
+// Twee documenten met hetzelfde werksoort-id: de hernoeming hoort bij het document waarin ze gevraagd is.
+// Is een ander document actief, dan verandert nergens iets.
+const docB = S().newDocument();
+S().ensureProjectTaskType({ id: 'ctt-gevel', name: 'Gevel in B' });
+const taskB = S().addTask({ name: 'Gevel B' });
+S().updateTask(taskB, { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-gevel' });
+const stepsB = applied();
+eq('documentbinding: vraag uit A terwijl B actief is', S().renameProjectTaskType(docA, 'ctt-gevel', 'Gevel uit A'), { status: 'otherDocument' });
+eq('documentbinding: B houdt zijn naam', projectNames(), ['ctt-gevel=Gevel in B']);
+eq('documentbinding: geen ongedaan-maakstap', applied(), stepsB);
+S().switchDocument(docA);
+eq('documentbinding: A houdt zijn naam', projectNames(), ['ctt-gevel=GEVELCONTROLE', 'ctt-dak=Dakinspectie']);
+S().switchDocument(docB);
+eq('documentbinding: in B zelf mag het', S().renameProjectTaskType(docB, 'ctt-gevel', 'Gevel B nieuw'), { status: 'renamed' });
+S().switchDocument(docA);
+eq('documentbinding: A blijft daarna gelijk', projectNames(), ['ctt-gevel=GEVELCONTROLE', 'ctt-dak=Dakinspectie']);
+
+// Main liet een ongebruikte definitie al weg uit IFC; dat blijft zo (de schrijfregel verandert niet).
+eq('ongebruikt: IFC bewaart alleen de gebruikte definitie', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes, [{ id: 'ctt-gevel', name: 'GEVELCONTROLE' }]);
+
 if (errors.length) {
   for (const error of errors) console.error(`XX ${error}`);
   process.exitCode = 1;
-} else console.log('OK custom task types: IFC + CSV/MSPDI/P6 id+naam round-trip en foreign fallback');
+} else console.log('OK custom task types: IFC + CSV/MSPDI/P6 id+naam round-trip, foreign fallback en hernoemen in het project');

@@ -328,7 +328,11 @@
     "rename": "Bewerken",
     "remove": "Verwijderen",
     "addToMine": "Toevoegen aan mijn werksoorten",
-    "confirmRemove": "Deze werksoort wordt in het geopende project gebruikt. Verwijderen uit Mijn werksoorten? De projectkopie blijft behouden."
+    "confirmRemove": "Deze werksoort wordt in het geopende project gebruikt. Verwijderen uit Mijn werksoorten? De projectkopie blijft behouden.",
+    "renameInProjectTitle": "Naam ook in dit project wijzigen?",
+    "renameInProjectMessage": "De werksoort „{{oldName}}” staat ook in dit project. Wil je die hier ook „{{newName}}” noemen?",
+    "renameInProjectYes": "Ook in dit project",
+    "renameInProjectNo": "Alleen in mijn lijst"
   },
   "duration": {
     "label": "Duur",

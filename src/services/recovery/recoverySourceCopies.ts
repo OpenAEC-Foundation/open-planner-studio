@@ -1,5 +1,5 @@
 // #804: bronbytes staan los van ops-recovery v3, zodat een oudere release blijft herstellen.
-import { recoveryBase } from '@/hooks/recoveryPaths';
+import { recoveryBase } from '@/services/recovery/recoveryPaths';
 import { openDbStores } from '@/utils/idb';
 
 export const SOURCE_COPY_DB = `ops-ifc-sources.${recoveryBase}`;

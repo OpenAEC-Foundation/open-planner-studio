@@ -1,10 +1,12 @@
 import { isTauri } from '@/utils/platform';
 import {
-  openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
+  saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
   saveNewBytesDialogTauri, saveNewBytesToRefTauri,
 } from './tauriBackend';
+import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
 import type { FileIdentityFs } from './fileIdentity';
+import type { RemnantEvent } from './ownFileReplace';
 import type { TargetReaders } from './foreignSourceTarget';
 import { readSiteSourceFile } from './siteBackend';
 import {
@@ -66,6 +68,9 @@ export interface OpenedFile {
   content: string;
   bytes?: Uint8Array;
   ref: FileRef | null;
+  /** Desktop: wat het afhandelen van een onafgeronde vervanging van dit pad vóór het lezen deed (`readOpenedTauriPath`);
+   *  `openOpenedFile` meldt het. */
+  replaceRemnants?: RemnantEvent[];
 }
 
 export interface OpenDialogOpts {
@@ -249,6 +254,12 @@ export function saveToRefWithoutPrompt(ref: FileRef, content: string): Promise<b
 export function readFromRef(ref: FileRef): Promise<string | null> {
   if (ref.kind === 'site') return Promise.resolve(null);
   return isTauri() ? readFromRefTauri(ref) : readFromRefWeb(ref);
+}
+
+/** Desktop: een lokaal pad lezen om het te openen (Recent), via dezelfde kern als de dialoog en neerzetten: eerst een
+ *  onafgeronde vervanging van dat pad afhandelen, dan lezen. */
+export function readOpenedPath(path: string, asBytes: boolean): Promise<OpenedFile> {
+  return readOpenedPathTauri(path, asBytes);
 }
 
 /** Bytes van een bewaarde ref herlezen. `null` bij onbruikbare ref/geweigerd; leesfouten gooien. */

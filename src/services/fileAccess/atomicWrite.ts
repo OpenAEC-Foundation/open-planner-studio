@@ -91,10 +91,21 @@ export const USER_FILE_TMP_SUFFIX = '.ops-save.tmp';
  * Een zelfstandige, korte basename laat ook lange doelnamen toe. Behoud de map letterlijk; in een absoluut
  * POSIX-pad is een backslash een geldig onderdeel van de bestandsnaam. `place_file.rs` herkent deze vorm
  * als eigen hulpnaam (`is_helper_name`). */
-export function userFileTempPath(path: string): string {
+export function userFileTempPath(path: string, id: string = userFileHelperId()): string {
+  return `${userFileDir(path)}save-${id}${USER_FILE_TMP_SUFFIX}`;
+}
+
+/** Een vers id voor de eigen hulpnamen (`save-<id>.ops-save.tmp`, `<naam>.ops-vorige-<id>`): kleine letters en cijfers,
+ *  zoals `place_file.rs` (`is_helper_id`) het eist. */
+export function userFileHelperId(): string {
+  return generateId();
+}
+
+/** De map van `path` met het scheidingsteken erachter, letterlijk; leeg als er geen map in staat. */
+export function userFileDir(path: string): string {
   const windowsPath = /^[a-z]:[\\/]|^\\\\/i.test(path);
   const lastSeparator = windowsPath ? Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) : path.lastIndexOf('/');
-  return `${path.slice(0, lastSeparator + 1)}${generateId('save')}${USER_FILE_TMP_SUFFIX}`;
+  return path.slice(0, lastSeparator + 1);
 }
 
 /** De bestandsoperaties die `replaceUserFile` nodig heeft — injecteerbaar voor tests. */
@@ -184,7 +195,7 @@ type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
  * Sinds 2.6.0 faalt de aanroep vóór het openen als die opties niet te lezen zijn; daarvóór vielen ze stil
  * terug op aanmaken en afkappen (ook zonder `createNew`). De opties hieronder zijn altijd leesbaar.
  */
-function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
+export function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, options?: TauriWriteOptions) => Promise<void>): UserFileFs<D> {
   return {
     lstat: p => fs.lstat(p),
     createNew: async (p, data, mode) => {
@@ -247,23 +258,38 @@ export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'
 export const NEW_NAME_LOG_CHANNEL = 'nieuweNaam';
 const logWay = (path: string, way: string) => appLog.emit('event', NEW_NAME_LOG_CHANNEL, `${path}: ${way}`);
 
-export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
-  const tmp = userFileTempPath(path);
-  // Alleen ons eigen tijdelijke bestand, en alleen als het van ons kan zijn; een mislukt opruimen is geen fout.
-  const removeOwnTemp = async () => {
-    try { await fs.remove(tmp); } catch { /* weg, of het blijft achter: de oorspronkelijke uitkomst telt */ }
-  };
+/** Het eigen tijdelijke bestand weghalen; een mislukt opruimen is geen fout (de oorspronkelijke uitkomst telt). */
+async function removeQuietly(fs: Pick<UserFileFs<Uint8Array>, 'remove'>, path: string): Promise<void> {
+  try { await fs.remove(path); } catch { /* weg, of het blijft achter */ }
+}
+
+/**
+ * De eerste stap van elke schrijfroute via een eigen hulpnaam (`writeNewUserBytes`, de vervanging van het eigen bestand
+ * in `ownFileReplace.ts`): de hele buffer in één `createNew`. Alleen na een `OwnFileWriteError` is het onvolledige
+ * bestand van ons en gaat het weg. `forbidden`: het tijdelijke bestand mag daar niet ontstaan. Elke andere fout (ook
+ * EEXIST op de hulpnaam) geeft geen eigendom: niets verwijderen.
+ */
+export async function createOwnTemp(
+  fs: Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'>, tmp: string, bytes: Uint8Array, mode?: number,
+): Promise<{ failed: null } | { failed: 'forbidden' | 'write'; cause: unknown }> {
   try {
-    await fs.createNew(tmp, bytes);
+    await fs.createNew(tmp, bytes, mode);
+    return { failed: null };
   } catch (error) {
     if (error instanceof OwnFileWriteError) {
-      await removeOwnTemp();
-      throw new ByteWriteError('write', error.cause);
+      await removeQuietly(fs, tmp);
+      return { failed: 'write', cause: error.cause };
     }
-    if (isForbiddenPathError(error)) return createNewDirectly(fs, path, bytes, 'forbidden path');
-    // Geen eigendom (ook EEXIST op de hulpnaam): niets verwijderen, geen terugval.
-    throw new ByteWriteError('write', error);
+    return { failed: isForbiddenPathError(error) ? 'forbidden' : 'write', cause: error };
   }
+}
+
+export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
+  const tmp = userFileTempPath(path);
+  const removeOwnTemp = () => removeQuietly(fs, tmp);
+  const created = await createOwnTemp(fs, tmp, bytes);
+  if (created.failed === 'forbidden') return createNewDirectly(fs, path, bytes, 'forbidden path');
+  if (created.failed) throw new ByteWriteError('write', created.cause);
   const outcome = await fs.place(tmp, path);
   switch (outcome.code) {
     case 'placed':

@@ -244,6 +244,14 @@ export type NotificationMessageKey =
   // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
   | 'notifications.ifcForeignNewTargetOnly'
   | 'notifications.ifcForeignPlaceUnknown'
+  // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
+  // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).
+  | 'notifications.ifcForeignReplaceOtherVersion'
+  | 'notifications.ifcForeignReplaceUnsavedCopy'
+  | 'notifications.ifcForeignReplaceTargetTaken'
+  | 'notifications.ifcForeignReplacePreviousStranded'
+  | 'notifications.ifcForeignReplaceSaveAsOnly'
+  | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
@@ -410,6 +418,8 @@ export type NotificationMessageKey =
   | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
+  // Een eigen werksoort ook in het project hernoemen botst met een andere werksoort daar (#804 keuze 7).
+  | 'notifications.taskTypeRenameNameTaken'
   // Nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.

@@ -1753,8 +1753,8 @@ if (tweeCodes) {
 await opgelosteWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
   for (const t of s.tasks.filter(t => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
 }));
-// Er is geen actie die de projectkopie van een taaktype hernoemt (de beheer-UI hernoemt alleen persoonlijke typen, knownbug
-// 1748). Meet de writergrens daarom expliciet op domeininvoer; dit is geen geclaimde UI-route. Sinds PR 12d schrijft het (E2).
+// De projectkopie van een taaktype hernoemen kan sinds #804 keuze 7 via de store-actie `renameProjectTaskType` (de vraag in
+// Werksoorten beheren); deze proef meet de writergrens op domeininvoer, met hetzelfde resultaat. Sinds PR 12d schrijft het (E2).
 await opgelosteWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
   d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d;
 });

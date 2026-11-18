@@ -991,6 +991,35 @@ en noem het in je rapport of PR-tekst.
      gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
      BEVESTIGD, VERVOLG). — B
 
+1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
+     `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
+     browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt
+     het thema niet en in de browsertest moet er een `page.once('dialog', …)` voor. De vraag bij hernoemen (keuze 7)
+     gebruikt wel de eigen `Dialog`. Voorstel: `ConfirmDialog` met `danger`. — B
+1829. **VERVOLG (#804 keuze 7, werksoorten): na "Alleen in mijn lijst" kiest de planner de ene naam en ziet hij de andere.**
+     Heet een werksoort in de eigen lijst anders dan in het project (voorbeeld: eigen lijst "Werkvoorbereiding",
+     project "Engineering"), dan toont de keuzelijst in `TaskTypeField.tsx` bij een taak die de werksoort al heeft de
+     projectnaam, en bij een andere taak de naam uit de eigen lijst; kiest de planner die, dan staat daarna de
+     projectnaam op de knop. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main
+     al zo na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
+     Een projectkopie die geen taak gebruikt, houdt bij hernoemen haar oude naam (er komt geen vraag) tot ze uit het
+     bestand verdwijnt; kiest de planner zo'n werksoort, dan ziet hij dus ook de oude naam.
+     Gemeten door de bouwer van #999 met een tijdelijke stap in `custom-task-types.spec.ts`. Wat de lijst hoort te
+     tonen (bijvoorbeeld altijd de projectnaam voor een werksoort die in het project staat) is een keuze voor de
+     eigenaar, bij de handleiding en de teksten. Ook de keuzes van de kolom *Eigen werksoort* in de Tabel
+     (`taskColumnRegistry.ts`) tonen een ongebruikte projectkopie onder haar oude naam (bevestigd door de review van
+     #999, ronde 2). — B
+1834. **VERVOLG (#804 keuze 7, werksoorten): haalt Opslaan in *Taak bewerken* het laatste gebruik weg, dan vervalt een bevestigde hernoeming stil.**
+     De planner bevestigt in *Taak bewerken* een nieuwe naam voor de werksoort van die taak (*Ook in dit project*),
+     geeft daarna de enige taak die de werksoort gebruikt een ingebouwde werksoort en slaat op. De keuzelijst had de
+     nieuwe naam al getoond; bij het sluiten weigert de store de uitgestelde hernoeming als `unused`
+     (`structureSlice.ts`, `projectTaskTypeRename.ts`). De eigen lijst heeft de nieuwe naam, de projectkopie de oude,
+     zonder melding. Hetzelfde bij een documentwissel terwijl de dialoog openstaat (`otherDocument`). Er gaat niets
+     verloren. Richting: een melding bij deze weigering. Gevonden door de review van #999, ronde 2. — B (review)
+1835. **VERVOLG (#804 keuze 7, opruimen): *Taak bewerken* kopieert de projectcatalogus ook als er geen hernoeming wacht.**
+     `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
+     voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van
+     #999, ronde 2. — B (review)
 1850. **VERVOLG: tests gebruiken nog een tweede percentagepad voor de taakdialoog.** `draftWithProgress`
       in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
       Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
@@ -2239,13 +2268,13 @@ en noem het in je rapport of PR-tekst.
      de writer kan dit geven: de gewone writer schrijft de naam uit de definitie van het type van de taak. Richting: in (c)
      alleen de taken overslaan waarvan (b) een slot terugzette, niet de hele groep. — B
 
-1748. **VERVOLG (#804, taaktypen): een eigen taaktype van het project kan in de app niet hernoemd worden.**
-     De beheer-UI (`TaskTypeField.tsx`) hernoemt alleen het persoonlijke type (`renamePersonalTaskType`); de kopie in het
-     project (`customTaskTypes`) houdt haar naam, en ook `planner_*` via MCP weigert een andere naam bij hetzelfde id
-     ("already exists with project snapshot"). Daardoor is de typenaam die sinds PR 12d bij een gebouwmodel meebeweegt met
-     een hernoemd type (E2, oud knownbug 1586) alleen met domeininvoer te bereiken; de proeven in
-     `check-ifc-foreign-eigen-toets.ts` gebruiken die. Of de projectkopie mee moet met een hernoeming, is een productkeuze;
-     niets gaat verloren. — S
+1828. **VERVOLG (#804 keuze 7, MCP): `planner_*` weigert een andere naam bij hetzelfde id van een eigen werksoort.**
+     In de app vraagt *Werksoorten beheren…* sinds keuze 7 of een nieuwe naam ook in het project moet (store-actie
+     `renameProjectTaskType`), maar de veldlaag van MCP (`src/services/mcp/tools/taskFields.ts`, "already exists with
+     project snapshot") en de draft (`ensureCustomTaskType` in `src/state/runtime/createMcpTransactions.ts`) weigeren een
+     `customTaskType` met een bekend id en een andere naam. Een AI-assistent kan een werksoort van het project dus niet
+     hernoemen. Gezien in de code, niet nagespeeld met een MCP-client. Voorstel: een eigen tool of veld dat dezelfde
+     store-regel gebruikt. — S
 
 1709. **VERVOLG (#804, melding): de weigering `planning-na-openen` noemt soms een id van een toewijzing als verschil.**
      In de tegenproeven van `check-ifc-foreign-eigen-uitvoer.ts` weigert een fout in `TaskTypes` (een definitie gewijzigd
@@ -2642,14 +2671,23 @@ en noem het in je rapport of PR-tekst.
         (`mcp-real-app.yml`): het app-log (kanaal `nieuweNaam`) moet voor dat doel `placed` of `dir-not-synced` van
         het echte commando tonen, zonder directe aanmaak; een mutatie die direct aanmaakt maakt die proef rood.
         Opslaan als via de dialoog, Windows, macOS en de terugvalwegen zijn in een echte app niet gemeten.
-     5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
-        herstel- en conflictkopie.
+     5. Ctrl+S op de desktop, in twee delen.
+        a. Gebouwd (stap 5a): de vervanging als functie (`replaceOwnPathWithRecovery` in `state/ownFileReplace.ts`,
+           stap 1–5 in `fileAccess/ownFileReplace.ts`): §4.10 stap 0–6 met een eigen herstelrecord per vervanging in
+           de appDataDir (`fileAccess/replaceRecords.ts`; het manifest blijft versie 5), geen directe terugval, per
+           uitkomst een melding. Het record blijft tot er geen hulpbestand van de operatie meer staat; bij de start en
+           vóór het lezen van een lokaal pad (dialoog, neerzetten, Recent: `readOpenedTauriPath`) handelt de app het af,
+           met eigendom alleen op inhoud, en met de kopie "niet opgeslagen planning". Nog door geen opslagroute
+           aangeroepen.
+        b. Open (stap 5b): Ctrl+S en *Opslaan* in de sluitvraag op een pad aansluiten op de functie, nadat "sluiten
+           wacht op een lopende opslag" (#987) in main staat. Dan vervalt `ifcForeignReplaceBlocked` voor het eigen pad.
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
-     `run-real-app.ts`. Crash, stroomuitval en externe
+     `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
+     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
@@ -2689,7 +2727,10 @@ en noem het in je rapport of PR-tekst.
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
      gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: een eigen fsync voor de herstelopslag;
      die van `place_file_exclusive` (1131 stap 3) dekt alleen het verplaatste bestand en zijn map. Gevonden in stap 1
-     van 1131. — S
+     van 1131. Geldt ook voor het vastleggen in stap 0 van de vervanging op de desktop (1131 stap 5a): het herstelrecord
+     (`replaceRecords.ts`) wordt atomair vervangen zonder fsync. Na stroomuitval kan de verplaatsing uit stap 3 op
+     schijf staan terwijl het herstelrecord ontbreekt; dan staat de vorige versie alleen onder `<naam>.ops-vorige-<id>`
+     en meldt de app het niet. Gevonden door de review van #991. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
      Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
@@ -4679,3 +4720,32 @@ en noem het in je rapport of PR-tekst.
      de eigenaar, 17 november 2026). De andere optie is niet gebouwd: de taak krijgt een eigen owner history met
      `LastModifyingApplication` = OPS, terwijl "gemaakt met" van het andere programma blijft en de gedeelde owner
      history heel blijft. Pas bouwen als een gebruiker erom vraagt. — S
+
+1815. **VERVOLG (#804, 1131 stap 5a): een herstelrecord dat niet afgehandeld kan worden, blijft en meldt zich steeds.**
+     Het record van een vervanging (`recovery[.<slug>].replace.<id>.json`) verdwijnt pas als er geen hulpbestand van de
+     operatie meer staat. Een bestand onder een hulpnaam dat herstel niet mag wissen of terugzetten, blijft staan met
+     zijn record: een andere inhoud, iets onleesbaars, een stap die faalt, en ook een `.ops-vorige` met de vorige
+     versie naast een doel dat bestaat (ook na een crash vlak na stap 4, want de doelhash bewijst stap 4 niet; ronde 2
+     van de review van #991). Bij elke start en elke keer dat dat bestand geopend wordt, komt dezelfde rode melding
+     terug, tot de planner het bestand weghaalt of hernoemt. Een record dat
+     zelf niet te lezen of ongeldig is, slaat de app over zonder melding (alleen een regel in de console); de
+     hulpbestanden blijven dan ongemeld staan. Er gaat geen versie verloren. Gevonden bij het bouwen van 1131 stap 5a;
+     aangepast in fixronde 1 van #991. — S (code)
+
+1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
+     De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
+     naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
+     (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
+     planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
+     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
+     Is `<naam>.ops-vorige-<id>` intussen een symlink geworden, dan leest de vergelijking in stap 5
+     (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
+     bij een toegestane verwijdering de linknaam weg. Er verdwijnt hooguit een linknaam, geen inhoud; het vraagt een
+     derde partij die precies tussen stap 3 en stap 5 de hulpnaam vervangt. Richting: een aangetroffen link laten
+     staan via de bestaande `leftOver`-uitkomst (de eindcontrole doet dat al met `lstat`). Gevonden door de review van
+     #991, ronde 3. — B (review)
+1833. **VERVOLG (#804, 1131 stap 5a, test): de Recent-proef leest de bron een keer extra buiten de geteste route.**
+     In `tests/planning/check-ifc-own-file-replace.ts` leest de proef voor Recent met een afwijkende extensie de bron
+     opnieuw met `readBytesFromRef`; die aanroep en haar import kunnen weg. De IPC-lezing, de bronhash in de store en
+     het ruwe byte in de uitvoer bewijzen de regressie al. Gevonden door de review van #991, ronde 3. — B (review)

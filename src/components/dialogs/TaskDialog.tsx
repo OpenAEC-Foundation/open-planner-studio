@@ -20,6 +20,7 @@ import { Icon } from '@/components/icons';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
+import { applyProjectTaskTypeRename, type ProjectTaskTypeRename } from '@/components/task-sections/projectTaskTypeRename';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
 import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFields';
 import { TaskHammockFields } from '@/components/task-sections/TaskHammockFields';
@@ -93,6 +94,26 @@ export function TaskDialog() {
   const historyMark = useAppStore(s => s.historyMark);
   const endHistorySession = useAppStore(s => s.endHistorySession);
   const revertHistorySince = useAppStore(s => s.revertHistorySince);
+  // Een in deze dialoog bevestigde hernoeming van een werksoort in het project (#804 keuze 7) hoort niet bij
+  // de taakbewerking: Annuleren zou haar terugdraaien en Opslaan zou haar met de taak samenvoegen. Ze wacht
+  // daarom tot de sessie dicht is en wordt dan een eigen stap (fixronde 1 van #999).
+  const pendingRenamesRef = useRef<ProjectTaskTypeRename[]>([]);
+  const [pendingRenames, setPendingRenames] = useState<ProjectTaskTypeRename[]>([]);
+  const deferProjectRename = useCallback((rename: ProjectTaskTypeRename) => {
+    const next = [...pendingRenamesRef.current.filter(item => item.id !== rename.id || item.documentId !== rename.documentId), rename];
+    pendingRenamesRef.current = next;
+    setPendingRenames(next);
+  }, []);
+  /** Sluit de bewerksessie en voert daarna de uitgestelde hernoemingen uit, elk als eigen stap. */
+  const finishSession = useCallback(() => {
+    if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
+    historyMarkRef.current = null;
+    const renames = pendingRenamesRef.current;
+    if (renames.length === 0) return;
+    pendingRenamesRef.current = [];
+    setPendingRenames([]);
+    for (const rename of renames) applyProjectTaskTypeRename(rename);
+  }, [endHistorySession]);
 
   // Effectieve kalender volgt de kalender-dropdown live; de gedeelde duurbediening gebruikt hem
   // alleen voor plaatsing en exacte conversievoorstellen, nooit om de taakeenheid af te leiden.
@@ -102,16 +123,16 @@ export function TaskDialog() {
     if (!showTaskDialog) {
       initializedSessionRef.current = null;
       setReadySession(null);
-      // Dicht op een andere manier dan Opslaan/Annuleren: de sessie sluiten, de historie laten staan.
-      if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
-      historyMarkRef.current = null;
+      // Dicht (ook op een andere manier dan Opslaan/Annuleren): de sessie sluiten, de historie laten staan;
+      // na Opslaan of Annuleren is de sessie al dicht. Daarna pas de uitgestelde hernoemingen.
+      finishSession();
       return;
     }
 
     if (initializedSessionRef.current === sessionKey) return;
     initializedSessionRef.current = sessionKey;
     setReadySession(sessionKey);
-    if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
+    finishSession();
     historyMarkRef.current = editingTaskId ? historyMark() : null;
     setStartDateEdit(undefined);
 
@@ -124,7 +145,7 @@ export function TaskDialog() {
       setDraft(blankDraft(project.startDate, constructionMode, newTaskUnit));
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, sessionKey, project.startDate, constructionMode, newTaskUnit, historyMark, endHistorySession]);
+  }, [showTaskDialog, editingTaskId, editingTask, sessionKey, project.startDate, constructionMode, newTaskUnit, historyMark, finishSession]);
 
   // Dialog/useFocusTrap is de enige focuseigenaar. De draft staat al in de DOM voordat dit
   // wordt aangeroepen; selecteer die naam ook bij hervatten na Help. Geen late timer die een
@@ -326,6 +347,7 @@ export function TaskDialog() {
             onCalendarChange={id => onChange({ calendarId: id })}
             hideName
             materializeTaskType={false}
+            projectRenames={{ pending: pendingRenames, defer: deferProjectRename }}
           />
 
           {/* Bovenliggende taak (item 2, besluit 2): blijft dialoog-only — bestaat niet in het
