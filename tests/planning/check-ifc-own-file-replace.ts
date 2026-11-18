@@ -101,12 +101,20 @@ async function opened(content: Uint8Array = bytes) {
 }
 type Case = Awaited<ReturnType<typeof opened>>;
 
-async function replace(c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordStore): Promise<{ result: OwnPathReplaceResult; committed: boolean }> {
+/** Een ander bestaand bestand als doel (Opslaan als over een bestaande naam, deel c): de verwachte inhoud is wat daar
+ *  bij het begin van de opslag stond, niet de bron van het document. */
+interface OtherTarget { path: string; content: Uint8Array }
+
+async function replace(
+  c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordStore, target?: OtherTarget,
+): Promise<{ result: OwnPathReplaceResult; committed: boolean }> {
   let committed = false;
+  const destination = target && { filePath: target.path, fileHandle: null, siteFileId: null, siteFileVersion: null };
   const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
-    documentId: c.id, path: c.path, prepared: c.prepared,
-    source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
-    commit: () => { committed = c.store.getState().commitSavedDocument(c.id, c.state, undefined, c.prepared); },
+    documentId: c.id, path: target?.path ?? c.path, prepared: c.prepared,
+    source: target ? { bytes: target.content, sha256: hash(target.content) }
+      : { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
+    commit: () => { committed = c.store.getState().commitSavedDocument(c.id, c.state, destination, c.prepared); },
     // De doelbewaking na de eerste herstelronde is van de route (`replaceOwnPath`); de proeven onderaan dekken haar.
     stopBeforeWrite: async () => false,
     now: NOW, ...(fs ? { fs } : {}), ...(records ? { records } : {}),
@@ -125,11 +133,13 @@ const manifestOnDisk = () => {
 const recordsOnDisk = (): ReplaceRecord[] => readdirSync(appData).filter(n => replaceRecordId(n) !== null).sort()
   .map(n => parseReplaceRecord(readFileSync(join(appData, n), 'utf8'))!);
 /** Precies één record, voor dit geval, met de twee versies van de vervanging. */
-function oneRecord(c: Case): ReplaceRecord {
+function oneRecord(c: Case, target?: OtherTarget): ReplaceRecord {
   const records = recordsOnDisk();
   assert.equal(records.length, 1, `één herstelrecord op schijf (${records.length})`);
   const [record] = records;
-  assert.deepEqual(record, { id: record.id, path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 });
+  assert.deepEqual(record, {
+    id: record.id, path: target?.path ?? c.path, vorigeSha256: hash(target?.content ?? bytes), pendingSha256: c.prepared.sha256,
+  });
   return record;
 }
 /** De `place_file_exclusive`-aanroepen tellen; `answers[n]` vervangt de n-de (vanaf 1) uitkomst. */
@@ -531,7 +541,9 @@ class Crash extends Error {}
  * vervanging de fout opvangt), schrijft het herstel van deze sessie niets meer en wist niemand het record. Wat op
  * schijf staat, blijft de stand van dat moment; daarna mag de map niet meer veranderen.
  */
-async function crashAt(c: Case, where: (base: OwnFileReplaceFs, crash: () => Promise<never>) => Partial<OwnFileReplaceFs>) {
+async function crashAt(
+  c: Case, where: (base: OwnFileReplaceFs, crash: () => Promise<never>) => Partial<OwnFileReplaceFs>, target?: OtherTarget,
+) {
   const base = await tauriOwnFileReplaceFs(), realRecords = await tauriReplaceRecords();
   let diskAtCrash: Record<string, string> | undefined;
   const crash = async (): Promise<never> => { c.unregister(); diskAtCrash ??= disk(c); throw new Crash('crash'); };
@@ -543,10 +555,10 @@ async function crashAt(c: Case, where: (base: OwnFileReplaceFs, crash: () => Pro
     place: dead(steps.place), content: dead(steps.content),
   };
   const records: ReplaceRecordStore = { ...realRecords, remove: dead(realRecords.remove) };
-  await replace(c, fs, records).catch(error => { if (!(error instanceof Crash)) throw error; });
+  await replace(c, fs, records, target).catch(error => { if (!(error instanceof Crash)) throw error; });
   assert(diskAtCrash, 'de crash vond plaats');
   assert.deepEqual(disk(c), diskAtCrash, 'na de crash veranderde er niets meer in de map');
-  return oneRecord(c);
+  return oneRecord(c, target);
 }
 /** Herstel zoals bij de start, alles van schijf: eerst de records, dan het manifest en het document met zijn bron. */
 async function recover(c: Case) {
@@ -1338,6 +1350,241 @@ for (const flag of [true, false]) {
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag in de sluitvraag'));
   });
 }
+
+// ── Deel c: Opslaan als over een andere bestaande naam (#804 keuze 4, knownbug 1131 stap 8) ─────────────────────────
+// De planner kiest in de bestandskiezer een bestaand bestand en bevestigt daar het vervangen. De app vervangt het langs
+// dezelfde weg als Ctrl+S; de verwachte inhoud is wat er bij het begin van de opslag op het doel stond. Vanaf de
+// productie-ingang (`saveFileAs`), met de echte bestandskiezer-aanroep nagebootst.
+
+const isTempPath = (path: string) => /[\\/]save-[0-9a-z]+\.ops-save\.tmp$/.test(path);
+/** Een ander bestaand bestand naast het geopende, standaard een gewone planning van de app (de doelscan laat het toe). */
+const otherFile = (c: Case, content: Uint8Array = plain, name = 'ander.ifc'): OtherTarget => {
+  const path = join(c.dir, name);
+  writeFileSync(path, content);
+  return { path, content };
+};
+/** *Opslaan als* (Ctrl+Shift+S) met `path` als keuze in de bestandskiezer. */
+async function saveAsTo(store: Case['store'], path: string): Promise<void> {
+  const invoke = internal.invoke;
+  internal.invoke = (command, ...args) => command === 'plugin:dialog|save' ? Promise.resolve(path) : invoke(command, ...args);
+  try { await store.getState().saveFileAs(); } finally { internal.invoke = invoke; }
+}
+/** Het document is zoals vóór de opslag: oud pad, oude bron, nog gewijzigd. */
+function documentUnchanged(c: Case, source: unknown) {
+  const s = c.store.getState();
+  assert.deepEqual([s.filePath, s.isDirty, s.foreignSourceMark?.filePath], [c.path, true, c.path], 'het document houdt zijn oude pad en blijft gewijzigd');
+  assert.equal(s.ifcSource, source, 'de bron is niet vervangen');
+}
+const otherWithModel = new Uint8Array(otherProgram);
+const changedPlain = new Uint8Array([...plain, 10]);
+
+await check('Opslaan als over een ander bestaand bestand: vervangen langs de weg van Ctrl+S, het document volgt, Ctrl+S daarna ook', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    let atStep3: ReplaceRecord[] | undefined;
+    placeCalls({ 1: () => { atStep3 = recordsOnDisk(); return undefined; } });
+    clearNotices(c);
+    const from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    const output = new Uint8Array(readFileSync(target.path)), s = c.store.getState();
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.deepEqual(mergeProblems(bytes, output), [], 'het gebouwmodel bytegelijk in het vervangen bestand');
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(output), 'model.ifc': hash(bytes) }, 'geen hulpbestand; het geopende bestand ongewijzigd');
+    assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+    assert.equal(atStep3?.length, 1, 'tijdens de vervanging stond er een herstelrecord');
+    assert.deepEqual([atStep3![0].path, atStep3![0].vorigeSha256], [target.path, hash(plain)],
+      'de verwachte inhoud is wat bij het begin op het doel stond');
+    assert.equal(atStep3![0].pendingSha256, hash(output), 'en de komende versie is de geschreven uitvoer');
+    assert.deepEqual([s.filePath, s.isDirty, s.foreignSourceMark?.filePath], [target.path, false, target.path], 'het nieuwe pad, niet gewijzigd');
+    assert.equal(s.ifcSource!.sha256, hash(output), 'de geschreven bytes zijn de bron');
+    assert(s.recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target.path), 'Recent kent het nieuwe pad');
+    assert.equal(projectWriteFiles(c, from).length, 1, 'één schrijfactie, in het eigen tijdelijke bestand');
+    assert.deepEqual(placesSince(from).map(call => call.path), [previousVersionPath(target.path, atStep3![0].id), target.path],
+      'stap 3 en 4, geen gewone schrijfroutine');
+    const manifest = (await loadRecovery()).docs.find(d => d.id === c.id)?.ifcSource;
+    assert.deepEqual([manifest?.sha256, manifest?.pendingSha256], [hash(output), undefined], 'het manifest kent de nieuwe bron');
+    // Het gewone vervolg: Ctrl+S op het zojuist vervangen bestand.
+    ipc.faults.place = null;
+    renameTask(c, 'Na Opslaan als');
+    assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
+    assert(latin1(target.path).includes('Na Opslaan als'));
+    assert.deepEqual(errorKeys(c), []);
+    assert.deepEqual(files(c), ['ander.ifc', 'model.ifc']);
+  } finally { await tidy(c); }
+});
+
+await check('Opslaan als: het doel verandert tussen het begin van de opslag en de vervanging: melding, niets vervangen', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    // Een ander programma schrijft het doel, vlak voordat de app haar eigen tijdelijke bestand aanmaakt (na het lezen van
+    // de verwachte inhoud en na de doelbewaking).
+    ipc.faults.beforeOpen = p => { if (isTempPath(p)) { writeFileSync(target.path, changedPlain); ipc.faults.beforeOpen = null; } };
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetChanged']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(changedPlain), 'model.ifc': hash(bytes) }, 'het doel houdt de nieuwe inhoud van de ander');
+    documentUnchanged(c, source);
+    assert.deepEqual(placesSince(from), [], 'niets verplaatst');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('Opslaan als over de bron van een ander open document: geweigerd met de bestaande melding, niets geschreven', async () => {
+  const c = await opened();
+  try {
+    const second = otherFile(c, bytes, 'tweede.ifc');
+    await c.store.getState().openOpenedFile({ name: 'tweede.ifc', content: '', bytes, ref: { kind: 'path', path: second.path } });
+    assert.equal(c.store.getState().getOpenDocumentPayloads().length, 2, 'het tweede bestand staat in een eigen tabblad');
+    c.store.getState().switchDocument(c.id);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await saveAsTo(c.store, second.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignReplaceBlocked']);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), 'tweede.ifc': hash(bytes) });
+    documentUnchanged(c, source);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+  } finally { await tidy(c); }
+});
+
+await check('Opslaan als over een bestand met een gebouwmodel van een ander: de doelbescherming weigert, zoals voorheen', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c, otherWithModel);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetSave']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(otherWithModel), 'model.ifc': hash(bytes) });
+    documentUnchanged(c, source);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+  } finally { await tidy(c); }
+});
+
+for (const [label, prepare] of [
+  ['een map waar het tijdelijke bestand niet mag ontstaan (forbidden path)', () => { ipc.faults.forbidden = isTempPath; }],
+  ['stap 3 unsupported (een bestandssysteem zonder exclusieve stap)', () => placeCalls({ 1: () => reject('unsupported') })],
+  ['stap 3 refused/scope', () => placeCalls({ 1: () => reject('refused', { reason: 'scope' }) })],
+] as const) {
+  await check(`Opslaan als, ${label}: de bestaande melding, het doel onveranderd, geen terugval`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c);
+      clearNotices(c);
+      const source = c.store.getState().ifcSource, from = ipc.calls.length;
+      prepare();
+      await saveAsTo(c.store, target.path);
+      assert.deepEqual(errorKeys(c), ['notifications.ifcForeignNewTargetOnly']);
+      assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel onveranderd, geen hulpbestand');
+      documentUnchanged(c, source);
+      assert.deepEqual(projectWriteFiles(c, from).filter(call => !isTempPath(call.path!)), [], 'nooit een schrijfactie op het doel');
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { await tidy(c); }
+  });
+}
+
+// Een onderbreking na elke stap van de vervanging over een ander bestaand bestand, gevolgd door herstel zoals bij de
+// start. Het doel was in deze sessie nooit geopend; het herstelrecord noemt het en de inhoud van het begin.
+const SAVE_AS_UNSAVED_COPY = 'ander (niet opgeslagen planning 2026-11-17 14.32).ifc';
+for (const [label, where, expected] of [
+  ['na stap 0', (_b: OwnFileReplaceFs, crash: () => Promise<never>) => ({ createNew: crash }),
+    (_c: Case, _id: string) => ({ 'ander.ifc': hash(plain) })],
+  ['na stap 2 (vóór het opzijzetten)', (_b: OwnFileReplaceFs, crash: () => Promise<never>) => ({ place: crash }),
+    (c: Case, _id: string) => ({ 'ander.ifc': hash(plain), [SAVE_AS_UNSAVED_COPY]: c.prepared.sha256 })],
+  ['na stap 3 (doel weg)', (base: OwnFileReplaceFs, crash: () => Promise<never>) => {
+    let calls = 0;
+    return { place: async (f: string, t: string) => (++calls === 2 ? crash() : base.place(f, t)) };
+  }, (c: Case, _id: string) => ({ 'ander.ifc': hash(plain), [SAVE_AS_UNSAVED_COPY]: c.prepared.sha256 })],
+  ['na stap 4', (base: OwnFileReplaceFs, crash: () => Promise<never>) => {
+    let calls = 0;
+    return { content: async (p: string, e: Uint8Array) => (++calls === 2 ? crash() : base.content(p, e)) };
+  }, (c: Case, id: string) => ({ 'ander.ifc': c.prepared.sha256, [`ander.ifc.ops-vorige-${id}`]: hash(plain) })],
+] as const) {
+  await check(`Opslaan als, crash ${label}: na afhandelen een volledig bestand, de oude inhoud terug te vinden`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c);
+      const record = await crashAt(c, where, target);
+      const { notices, restored } = await recover(c);
+      const after = disk(c);
+      assert.deepEqual(after, { ...expected(c, record.id), 'model.ifc': hash(bytes) }, JSON.stringify(after));
+      assert([hash(plain), c.prepared.sha256].includes(after['ander.ifc']), 'op het doel staat een volledige versie');
+      if (after['ander.ifc'] !== c.prepared.sha256) {
+        assert.equal(after['ander.ifc'], hash(plain), 'zolang de nieuwe versie er niet staat, staat de oude er');
+      } else assert(Object.values(after).includes(hash(plain)), 'de oude inhoud is terug te vinden');
+      // Het herstelde document: het eigen bestand met zijn bron (Opslaan als had het nog niet vastgelegd).
+      assert.deepEqual([restored.filePath, restored.ifcSource?.sha256], [c.path, hash(bytes)]);
+      const kept = after[`ander.ifc.ops-vorige-${record.id}`] !== undefined;
+      assert.deepEqual(recordsOnDisk().length, kept ? 1 : 0, kept ? 'het record blijft zolang de vorige versie er staat' : 'het record is weg');
+      assert.deepEqual(notices.map(n => n.messageKey), kept ? ['notifications.ifcForeignReplaceLeftOver']
+        : after[SAVE_AS_UNSAVED_COPY] ? ['notifications.ifcForeignReplaceUnsavedCopy'] : []);
+    } finally { await tidy(c); }
+  });
+}
+
+await check('Opslaan als, crash na stap 3: openen van het doel (dialoog of neerzetten) handelt eerst af, ook al was het nooit geopend', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    let calls = 0;
+    const record = await crashAt(c, (base, crash) => ({ place: async (f, t) => (++calls === 2 ? crash() : base.place(f, t)) }), target);
+    assert.equal(existsSync(target.path), false, 'het doel staat opzij');
+    const openedFile = await readOpenedTauriPath(target.path, false, await tauriOpenIO());
+    assert.equal(hash(readFileSync(target.path)), hash(plain), 'de oude inhoud is terug op het doel, vóór het lezen');
+    assert.equal(existsSync(previousVersionPath(target.path, record.id)), false);
+    assert.deepEqual(openedFile.replaceRemnants?.map(e => e.kind), ['unsaved-schedule']);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+// Een document zonder vreemd deel, met de flag aan of uit, en een document met een gebouwmodel met de flag uit: Opslaan
+// als over een bestaand bestand loopt zoals op main. De reeksen aanroepen aan de bestandsrand zijn vastgelegd op main
+// (`62e7786d4`), met dezelfde proef.
+const MAIN_SAVE_AS_CALLS: Record<'aan' | 'uit', string[]> = {
+  // Met de flag aan leest de doelcontrole eerst het bestaande doel, dan de gewone atomaire opslag over het doel.
+  aan: ['plugin:fs|open <map>/ander.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
+    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/ander.ifc',
+    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  uit: ['plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+};
+for (const flag of [true, false]) {
+  await check(`Opslaan als over een bestaand bestand zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde aanroepen als main`, async () => {
+    const dir = join(work, `geval-${++cases}`);
+    mkdirSync(dir);
+    const path = join(dir, 'model.ifc'), target = join(dir, 'ander.ifc');
+    writeFileSync(path, plain); writeFileSync(target, changedPlain);
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
+    await store.getState().openOpenedFile({ name: 'model.ifc', content: Buffer.from(plain).toString('utf8'), bytes: plain, ref: { kind: 'path', path } });
+    assert.equal(!!store.getState().ifcSource?.foreign, false, 'geen vreemd deel');
+    const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    store.getState().updateTask(task.id, { name: 'Gewoon Opslaan als' });
+    store.setState(s => { s.ui.notifications = []; });
+    const from = ipc.calls.length;
+    await saveAsTo(store, target);
+    const seen = ipc.calls.slice(from).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
+    assert.deepEqual(seen, MAIN_SAVE_AS_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+    assert.deepEqual([store.getState().filePath, store.getState().isDirty], [target, false]);
+    assert(readFileSync(target).toString('latin1').includes('Gewoon Opslaan als'), 'het bestaande bestand is vervangen, zoals op main');
+  });
+}
+
+await check('Opslaan als met een gebouwmodel en de flag uit (na het openen uitgezet): dezelfde weigering als main, niets aan de bestandsrand', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    c.store.setState(s => { s.ui.featureFlags = {}; });
+    clearNotices(c);
+    const from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(ipc.calls.slice(from).map(call => call.command), [], 'zoals main: niets aan de bestandsrand');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignSaveBlocked']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) });
+  } finally { await tidy(c); }
+});
 
 ipc.dispose();
 rmSync(work, { recursive: true, force: true });
