@@ -2684,7 +2684,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
         const readOptions = formatReadOptions();
         let opened: OpenedFile;
-        if (entry.ref.kind === 'path' && isTauri() && false as boolean) { // MUTATIE c: Recent leest weer vóór het afhandelen
+        if (entry.ref.kind === 'path' && isTauri()) {
           // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen
           // (knownbug 1131 stap 5), dan lezen.
           opened = { ...await readOpenedPath(entry.ref.path, { binaryExtensions: binaryExtensions(readOptions) }), name: entry.name };
