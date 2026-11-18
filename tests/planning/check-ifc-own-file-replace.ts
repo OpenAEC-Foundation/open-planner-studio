@@ -1185,6 +1185,91 @@ await check('een tweede tabblad dat er na de eerste herstelronde toch is: de ver
 // Met de flag uit, en voor een document zonder gebouwmodel, loopt Ctrl+S zoals op main. De reeks aanroepen aan de
 // bestandsrand is vastgelegd op main (`cef70233b`), met dezelfde proef. Met de flag uit opent de app geen bestand met
 // een gebouwmodel; zo'n document bestaat dan alleen als de flag na het openen uitging.
+// De bestandskiezer en Recent lopen ook door `readOpenedTauriPath` en wachten dus net zo; en de grens van 1837 (een
+// lezing die al vóór Ctrl+S begon) vastgelegd: het tabblad krijgt de oude bron, maar Ctrl+S daarin weigert. Proeven van
+// de review van #1008, ronde 2.
+const internal = (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, ...args: unknown[]) => Promise<unknown> } }).__TAURI_INTERNALS__;
+const deferredOpen = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>(r => { resolve = r; });
+  return { resolve, promise };
+};
+const throughRecent = (c: Case) => {
+  c.store.setState(s => {
+    s.recentFiles = [{ id: 'review-recent', name: 'model.ifc', ref: { kind: 'path', path: c.path }, addedAt: 1 }];
+  });
+  return c.store.getState().openRecentFile('review-recent');
+};
+for (const route of ['dialoog', 'Recent'] as const) {
+  await check(`${route}: opening tijdens herstel wacht en leest wat Ctrl+S schreef`, async () => {
+    const c = await opened();
+    const invoke = internal.invoke;
+    internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(c.path) : invoke(command, ...args);
+    let opening: Promise<void> | undefined;
+    const round = firstPendingRound(c, async () => {
+      opening = route === 'dialoog' ? c.store.getState().openFile() : throughRecent(c);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(otherTab(c), undefined);
+    });
+    try {
+      assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
+      assert.ok(opening && round.fired());
+      await opening;
+      const written = fileHash(c, 'model.ifc');
+      assert.notEqual(written, hash(bytes));
+      assert.equal(otherTab(c)?.payload.ifcSource?.sha256, written);
+      assert.deepEqual(errorKeys(c), []);
+    } finally {
+      internal.invoke = invoke;
+      round.unregister();
+      await tidy(c);
+    }
+  });
+}
+
+await check('1837: een al begonnen lezing blijft oud, maar Ctrl+S weigert ook nadat het eerste tabblad dicht is', async () => {
+  const c = await opened();
+  const read = deferredOpen(), release = deferredOpen();
+  const invoke = internal.invoke;
+  let captured = false;
+  internal.invoke = async (command, ...args) => {
+    if (!captured && /^plugin:fs\|read_(text_)?file$/.test(command) && (args[0] as { path?: string })?.path === c.path) {
+      captured = true;
+      const result = await invoke(command, ...args);
+      read.resolve();
+      await release.promise;
+      return result;
+    }
+    return invoke(command, ...args);
+  };
+  const opening = throughRecent(c);
+  try {
+    await Promise.race([read.promise, opening.then(() => { throw new Error('de route heeft de verwachte leesrand niet geraakt'); })]);
+    assert.equal(otherTab(c), undefined);
+    assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
+    const written = fileHash(c, 'model.ifc');
+    assert.notEqual(written, hash(bytes));
+    release.resolve();
+    await opening;
+    const second = otherTab(c);
+    assert(second, 'het tweede tabblad ging open');
+    assert.equal(second.payload.ifcSource?.sha256, hash(bytes), 'het las de oude bron');
+    c.store.getState().closeDocument(c.id);
+    renameTask(c, 'Bewerking in het achterlopende tabblad');
+    const from = ipc.calls.length;
+    assert.equal(await c.store.getState().saveFileForDocument(second.id), false);
+    assert.equal(fileHash(c, 'model.ifc'), written);
+    assert.equal(c.store.getState().isDirty, true);
+    assert.equal(placesSince(from).length, 0);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetChanged']);
+  } finally {
+    release.resolve();
+    await opening;
+    internal.invoke = invoke;
+    await tidy(c);
+  }
+});
+
 await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering als main, geen aanroep aan de bestandsrand', async () => {
   const c = await opened();
   try {

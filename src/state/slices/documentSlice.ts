@@ -162,8 +162,11 @@ export interface DocumentSlice {
   /** Wissel naar een ander geopend document. */
   switchDocument: (id: string) => void;
   /** Sluit een document; het laatste sluiten reset naar één leeg document. Wacht niet op een lopende opslag: de routes
-   *  van de planner gaan via `requestCloseDocument` of `closeDocumentAfterSaves`. */
-  closeDocument: (id: string) => void;
+   *  van de planner gaan via `requestCloseDocument` of `closeDocumentAfterSaves`. Volgorde, op deze ene plek: open
+   *  veldinvoer afronden, dan (met `onlyIfClean`, *Opslaan* in de sluitvraag, fixronde 1 en 2 van #1008) kijken of
+   *  hetzelfde document nog bestaat en schoon is, dan pas verwijderen. Invoer die tijdens de opslag getypt is, maakt
+   *  het document bij het afronden gewijzigd en houdt het dan open. Geeft terug of het gesloten is. */
+  closeDocument: (id: string, options?: { onlyIfClean?: boolean }) => boolean;
   /** #804 stap 3 (besluit eigenaar 17 november 2026: wachten, dan sluiten). `null` als er geen projectopslag loopt of
    *  wacht: dan wacht en toont niets. Anders klaar zodra de schrijfrij leeg is, met intussen "Wordt nog opgeslagen…"
    *  (`ui.savingBeforeClose`). Kijk daarna opnieuw: een nieuwe opslag kan net begonnen zijn. */
@@ -172,9 +175,8 @@ export interface DocumentSlice {
    *  (`ui.pendingCloseDocId`), anders sluiten. Zonder lopende opslag in dezelfde beurt, zoals voorheen. */
   requestCloseDocument: (id: string) => void;
   /** Sluit `id` zodra er geen opslag meer loopt of wacht (de keuzes van de sluitvraag). Zonder lopende opslag sluit
-   *  het in dezelfde beurt. `onlyIfClean` (*Opslaan* in de sluitvraag, fixronde 1 van #1008): sluit alleen als het
-   *  document vlak vóór het sluiten nog bestaat en niet gewijzigd is; een bewerking tijdens of na de opslag houdt het
-   *  open. Geeft terug of het gesloten is. */
+   *  het in dezelfde beurt. Wacht alleen; de beslissing (ook `onlyIfClean`) valt in `closeDocument`, waarvan de
+   *  uitkomst terugkomt. */
   closeDocumentAfterSaves: (id: string, options?: { onlyIfClean?: boolean }) => Promise<boolean>;
   /** Lijst van geopende documenten met afgeleide titel + dirty/active-status. */
   getOpenDocuments: () => DocumentInfo[];
@@ -534,10 +536,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     });
   },
 
-  closeDocument: (id) => {
+  closeDocument: (id, options) => {
     runtime.finishPendingTextEdits(); // open veldinvoer hoort bij het document dat nu actief is
     const state = get();
-    if (!state.documents.some((d) => d.id === id)) return;
+    if (!state.documents.some((d) => d.id === id)) return false;
+    // Ná het afronden van de invoer (fixronde 2 van #1008): die kan het document juist gewijzigd maken.
+    if (options?.onlyIfClean && state.getOpenDocuments().some((doc) => doc.id === id && doc.isDirty)) return false;
 
     // Laatste document sluiten → reset naar één vers, leeg document.
     if (state.documents.length === 1) {
@@ -554,7 +558,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         publishActivation(s, activation);
       });
       runtime.emitHostEvent(HOST_EVENTS.projectNew);
-      return;
+      return true;
     }
 
     // Inactief document: gewoon verwijderen.
@@ -563,7 +567,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         removeSessionHistoryForDocumentFromState(s, id);
         s.documents = s.documents.filter((d) => d.id !== id);
       });
-      return;
+      return true;
     }
 
     // Actief document: eerst naar een buur wisselen, dan verwijderen.
@@ -592,6 +596,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
     });
+    return true;
   },
 
   waitForSavesBeforeClose: saveWaitWithNotice((shown) => set((s) => { s.ui.savingBeforeClose = shown; })),
@@ -610,10 +615,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   closeDocumentAfterSaves: async (id, options) => {
     for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
-    // Na het wachten, in dezelfde beurt als het sluiten: het moment waarop de beslissing valt.
-    if (options?.onlyIfClean && !get().getOpenDocuments().some((doc) => doc.id === id && !doc.isDirty)) return false;
-    get().closeDocument(id);
-    return true;
+    // Na het wachten, in dezelfde beurt: `closeDocument` rondt de invoer af, beslist en sluit.
+    return get().closeDocument(id, options);
   },
 
   getOpenDocuments: () => {

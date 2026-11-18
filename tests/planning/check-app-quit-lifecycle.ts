@@ -539,6 +539,135 @@ await check('gebouwmodel: de updater wacht op het wissen van het herstelrecord e
   assert.ok(readFileSync(target).toString('latin1').includes('Bewerking na updatefout'));
 });
 
+// Fixronde 2 van #1008 (review Sol ronde 2, bevinding 1): open veldinvoer die tijdens *Opslaan* in de sluitvraag getypt
+// is, rondt de sluitactie eerst af; daarna kijkt dezelfde actie of het document schoon is (`closeDocument` met
+// `onlyIfClean`). De invoer blijft dus in het open tabblad, en het venster gaat niet dicht. Proeven van de reviewer.
+modules['@/state/pendingTextEdits'] = await import('@/state/pendingTextEdits');
+modules['@/utils/decimalInput'] = await import('@/utils/decimalInput');
+const { readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
+async function assignmentOnDisk(target: string, resourceName: string) {
+  const parsed = await readIfcBytes(new Uint8Array(readFileSync(target)));
+  const resource = parsed.resources.find(r => r.name === resourceName);
+  return parsed.assignments.find(a => a.resourceId === resource?.id)?.unitsPerDay;
+}
+
+// UnitsInput is de echte component. Alleen React-hooks en de bezorging van het change-event zijn nagebootst.
+const draftInput = (assignmentId: string, seen: Array<{ value: number; dirty: boolean }>) => {
+  const cleanups: Array<() => void> = [];
+  const react = {
+    useEffect: (effect: () => void | (() => void)) => { const off = effect(); if (off) cleanups.push(off); },
+    useRef: <V,>(value: V) => ({ current: value }),
+    useState: <V,>(value: V) => [value, () => undefined],
+  };
+  type Rendered = { type: (props: unknown) => { props: { onChange: (event: { target: { value: string } }) => void } }; props: unknown };
+  const { UnitsInput } = loadModule<{ UnitsInput: (props: unknown) => Rendered }>('src/components/common/UnitsInput.tsx', react);
+  const component = UnitsInput({
+    value: 1, locale: 'nl', commitOnBlur: true,
+    onCommit: (unitsPerDay: number) => {
+      state().updateAssignment(assignmentId, { unitsPerDay });
+      seen.push({ value: state().assignments.find(a => a.id === assignmentId)!.unitsPerDay, dirty: state().isDirty });
+    },
+  });
+  const field = component.type(component.props);
+  return { type: (value: string) => field.props.onChange({ target: { value } }), dispose: () => { for (const off of cleanups.reverse()) off(); } };
+};
+
+for (const route of ['tabblad', 'app'] as const) {
+  await check(`${route}: Opslaan in de sluitvraag bewaart een open, pas na de broncommit getypte inzet`, async () => {
+    const { id, target } = await foreignDocument();
+    const resourceName = 'Ploeg voor proef open veldinvoer';
+    const task = state().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    const resource = state().addResource({ name: resourceName, type: 'LABOR', description: '', maxUnits: 4 });
+    state().assignResource(task.id, resource, 1);
+    const assignment = state().assignments.find(a => a.resourceId === resource)!;
+    assert.ok(assignment);
+    if (route === 'app') await nativeClose();
+    else state().requestCloseDocument(id);
+    assert.equal(state().ui.pendingCloseDocId, id);
+    const seen: Array<{ value: number; dirty: boolean }> = [];
+    const field = draftInput(assignment.id, seen);
+    try {
+      edge.record.hold = true;
+      const saving = closeQuestion(id).save();
+      await Promise.race([edge.record.entered.promise, saving.then(() => { throw new Error('geen broncommit bereikt'); })]);
+      assert.equal(state().isDirty, false);
+      assert.equal(await assignmentOnDisk(target, resourceName), 1);
+      field.type('3');
+      assert.equal(state().isDirty, false, 'het veld wacht op blur/afronden');
+      assert.deepEqual(seen, []);
+      edge.record.release.resolve();
+      await saving;
+      if (route === 'app') await until(() => edge.destroys.length > 0 || !state().ui.appQuitPending, 400);
+      const current = state().getOpenDocumentPayloads().find(d => d.id === id);
+      const observed = {
+        commits: seen, unitsOnDisk: await assignmentOnDisk(target, resourceName), tabOpen: !!current,
+        documentDirty: current?.payload.isDirty ?? null, windowDestroyed: edge.destroys.length,
+      };
+      console.log('VELDINVOER', route, JSON.stringify(observed));
+      assert.deepEqual(observed, {
+        commits: [{ value: 3, dirty: true }], unitsOnDisk: 1, tabOpen: true, documentDirty: true, windowDestroyed: 0,
+      });
+    } finally {
+      field.dispose();
+    }
+  });
+}
+
+for (const outcome of ['annuleren', 'fout'] as const) {
+  await check(`gewoon document: na ${outcome} van de bestandsdialoog werkt een nieuwe sluitvraag en Escape weer`, async () => {
+    const { id } = freshDocument(true);
+    useAppStore.setState(st => { st.filePath = null; });
+    const originalInvoke = win.__TAURI_INTERNALS__.invoke;
+    win.__TAURI_INTERNALS__.invoke = async (cmd, ...args) => {
+      if (cmd !== 'plugin:dialog|save') return originalInvoke(cmd, ...args);
+      if (outcome === 'fout') throw new Error('Reviewer: de bestandskiezer faalt');
+      return null;
+    };
+    try {
+      state().requestCloseDocument(id);
+      assert.equal(state().ui.pendingCloseDocId, id);
+      await closeQuestion(id).save();
+      assert.deepEqual([state().isDirty, state().ui.pendingCloseDocId, state().ui.closeQuestionSaving], [true, null, false]);
+      state().requestCloseDocument(id);
+      assert.equal(state().ui.pendingCloseDocId, id);
+      const { SHORTCUTS, canRunShortcut } = await import('@/hooks/keyboard/shortcutRegistry');
+      const escape = SHORTCUTS.find(shortcut => shortcut.id === 'edit.deselect')!;
+      assert.equal(canRunShortcut(escape, false), true);
+      escape.run(state());
+      assert.deepEqual([state().isDirty, state().ui.pendingCloseDocId, state().ui.closeQuestionSaving], [true, null, false]);
+    } finally {
+      win.__TAURI_INTERNALS__.invoke = originalInvoke;
+    }
+  });
+}
+
+// *Niet opslaan* gooit de wijzigingen weg, ook open veldinvoer: die houdt het sluiten niet tegen (tabblad en venster).
+for (const route of ['tabblad', 'app'] as const) {
+  await check(`${route}: Niet opslaan in de sluitvraag sluit ook met open veldinvoer`, async () => {
+    const { id } = freshDocument(true);
+    const task = state().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    const resource = state().addResource({ name: 'Ploeg voor Niet opslaan', type: 'LABOR', description: '', maxUnits: 4 });
+    state().assignResource(task.id, resource, 1);
+    const assignment = state().assignments.find(a => a.resourceId === resource)!;
+    if (route === 'app') await nativeClose();
+    else state().requestCloseDocument(id);
+    assert.equal(state().ui.pendingCloseDocId, id);
+    const seen: Array<{ value: number; dirty: boolean }> = [];
+    const field = draftInput(assignment.id, seen);
+    try {
+      field.type('3');
+      await closeQuestion(id).discard();
+      if (route === 'app') await until(() => edge.destroys.length > 0 || !state().ui.appQuitPending, 400);
+      assert.deepEqual(seen, [{ value: 3, dirty: true }], 'de open invoer is afgerond en daarna weggegooid');
+      assert.equal(state().getOpenDocumentPayloads().some(d => d.id === id), false, 'het tabblad is dicht');
+      assert.equal(edge.destroys.length, route === 'app' ? 1 : 0, 'het venster gaat dicht na Niet opslaan');
+    } finally {
+      field.dispose();
+    }
+  });
+}
+
+
 ipc.dispose();
 rmSync(dir, { recursive: true, force: true });
 console.log(`Afsluiten vanaf de productie-ingang: ${passed} geslaagd, ${failed} mislukt.`);
