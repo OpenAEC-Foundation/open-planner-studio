@@ -204,7 +204,7 @@
     "relationLinkSelectedHint": "Links the tasks in the order of the list: each task becomes the predecessor of the next (FS, lag 0)",
     "relationSelectAtLeastTwo": "Select at least two tasks",
     "relationSelectionHidden": "Not all selected tasks are visible (filter or collapsed phase)",
-    "relationChainOrderUnclear": "A selected task appears more than once in the list (grouping), both before and after another selected task: the order is not fixed",
+    "relationChainOrderUnclear": "The order of the selected tasks is not fixed: a task appears both before and after another (grouping), or two milestones share a collapsed series",
     "relationAssignPredecessorsHint": "Choose predecessors for this task from a searchable list, with type and lag",
     "relationAssignSuccessorsHint": "Choose successors for this task from a searchable list, with type and lag",
     "relationAddExternal": "Add external relation…",

@@ -1122,10 +1122,13 @@ en noem het in je rapport of PR-tekst.
       vertaalstraat ze bijwerkt; de bronhash staat al op verouderd. Een nieuwe sleutel zou tot dan op de
       Engelse tekst terugvallen. Gezien in het Duits. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 10,
       BEVESTIGD, VERVOLG). — B
-1879. **Een balksleep of splitsgebaar in de tijdlijn over een documentwissel heen (Ctrl+1).** #1004 sluit bij
-      een wissel het menu en de relatiepopover en breekt een relatiesleep af, omdat die taak-id's vasthouden
-      en een variant dezelfde id's draagt. Een lopende balksleep of splitsgebaar houdt ook een taak-id vast;
-      of loslaten na de wissel de taak in het andere document verplaatst, is niet nagegaan. — S
+1879. **Een tabklik of het sluitkruis legt de open relatiepopover eerst vast.** Na een relatiesleep staat het
+      venster *Type relatie* open. Klik je dan op een ander documenttabblad, dan legt de klik buiten het
+      venster de relatie eerst vast in het document dat je verlaat (`RelationTypePopover`, bevestigen bij
+      `mousedown` buiten). Het sluitkruis van het tabblad doet hetzelfde, nog vóór de sluitvraag. Ctrl+1 en
+      de andere documentwissels zonder muis annuleren het venster wel (#1004). Mogelijke oplossing: een
+      uitzondering voor de documentknoppen in de klik-buiten-handler. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 11, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 

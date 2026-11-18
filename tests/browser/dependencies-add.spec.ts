@@ -377,7 +377,7 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   // Ronde 6: Fundering staat hier vóór Ruwbouw (ploeg 1) en erna (ploeg 2). De volgorde ligt niet
   // vast, dus Ctrl+F2 legt niets en zegt waarom; het lint zet de knop uit.
   await page.keyboard.press('ControlOrMeta+F2');
-  await expect(page.locator('.ops-toast', { hasText: /order is not fixed|volgorde ligt niet vast/ })).toBeVisible();
+  await expect(page.locator('.ops-toast', { hasText: /order in the list is not fixed|volgorde in de lijst ligt niet vast/ })).toBeVisible();
   await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
     .toEqual([[fundering, afbouw]]);
 
@@ -465,6 +465,55 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect(popover).toHaveCount(0);
   await page.keyboard.press('Enter');
   expect(await relationCounts()).toEqual(countsBefore);
+
+  // Een balksleep en een splitsgebaar horen ook bij hun document (ronde 11): na de wissel schrijft verder
+  // slepen of loslaten niets meer, in geen van beide documenten.
+  const ruwbouwPerDocument = () => page.evaluate((id) => Object.fromEntries(window.__OPS__!.store.getState()
+    .getOpenDocumentPayloads().map(doc => {
+      const task = doc.payload.tasks.find(candidate => candidate.id === id);
+      return [doc.id, { start: task?.time.scheduleStart, gaps: task?.splitGaps ?? null }];
+    })), ruwbouw);
+  const beforeDrag = await ruwbouwPerDocument();
+  const bar = await barPoint(page, ruwbouw);
+  await page.mouse.move(bar.x, bar.y);
+  await page.mouse.down();
+  await page.mouse.move(bar.x + 60, bar.y, { steps: 6 });
+  await expect.poll(() => ruwbouwPerDocument().then(docs => docs[copy].start)).not.toBe(beforeDrag[copy].start);
+  const draggedInCopy = (await ruwbouwPerDocument())[copy];
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  await page.mouse.move(bar.x + 180, bar.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const afterDrag = await ruwbouwPerDocument();
+  expect(afterDrag[source]).toEqual(beforeDrag[source]);
+  expect(afterDrag[copy]).toEqual(draggedInCopy);
+
+  // Splitsen weigert een handmatig geplande taak; zet Ruwbouw in beide documenten op automatisch.
+  await page.evaluate(([src, cp, id]) => {
+    const s = () => window.__OPS__!.store.getState();
+    for (const doc of [src, cp]) {
+      s().switchDocument(doc);
+      s().updateTask(id, { manuallyScheduled: false });
+    }
+  }, [source, copy, ruwbouw]);
+  const beforeSplit = await ruwbouwPerDocument();
+  await page.locator('[data-ops-ribbon-item="splitTask"]').click();
+  await expect(page.locator('[data-ops-split-mode]')).toBeVisible();
+  const splitAt = await barPoint(page, ruwbouw);
+  await page.mouse.move(splitAt.x, splitAt.y);
+  await page.mouse.down();
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  expect(await ruwbouwPerDocument()).toEqual(beforeSplit);
+  // Zonder wissel splitst hetzelfde gebaar wel: de proef hierboven ging dus echt over de wissel.
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), copy);
+  await page.mouse.move(splitAt.x, splitAt.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect.poll(() => ruwbouwPerDocument().then(docs => docs[copy].gaps)).not.toBeNull();
+  expect((await ruwbouwPerDocument())[source]).toEqual(beforeSplit[source]);
+  await page.keyboard.press('Escape');
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

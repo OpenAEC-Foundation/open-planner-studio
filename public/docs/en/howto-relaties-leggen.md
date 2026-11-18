@@ -87,7 +87,7 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 ## Pitfalls and what the app does
 
-**The chain follows the list.** *Link selected tasks* links from top to bottom as the list stands now, also when you sort or group it. If a later task should be the predecessor, sort differently, or choose *Assign predecessors…* or *Assign successors…* in the right-click menu. When you group by resource, a task appears under each crew. If a selected task then appears both above and below another selected task, the order is not fixed and nothing is linked; you get a message instead.
+**The chain follows the list.** *Link selected tasks* links from top to bottom as the list stands now, also when you sort or group it. If a later task should be the predecessor, sort differently, or choose *Assign predecessors…* or *Assign successors…* in the right-click menu. When you group by resource, a task appears under each crew. If a selected task then appears both above and below another selected task, the order is not fixed and nothing is linked; you get a message instead. The same applies to two selected milestones in one collapsed milestone series: expand the series first.
 
 **Typing in the column wipes what was there.** If the cell holds `3.4 FS; 3.2 FS` and you type only `3.2 FS`, the relation with 3.4 is gone, without a message. Type all predecessors, use Enter or F2 to add to them, or undo with Ctrl+Z.
 

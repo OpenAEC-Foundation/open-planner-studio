@@ -106,21 +106,22 @@ export function selectionInView(state: Pick<AppState, 'selectedTaskIds' | 'viewR
  * De gekozen taken in de volgorde OP HET SCHERM (filter, sortering, groepering), of `null` als die
  * volgorde niet vastligt. Bij groeperen op resource staat een taak in elke ploeg; staat ze dan zowel
  * vóór als na een andere gekozen taak, dan is elke keuze een gok die een relatie kan omdraaien
- * (review #1004, ronde 6). Vast is de volgorde als de rijen van elke gekozen taak samen een blok
- * vormen dat niet overlapt met dat van een andere. Taken die niet in beeld staan vallen weg.
+ * (review #1004, ronde 6). Zo ook bij twee gekozen ruitjes op één ingeklapte mijlpalenrij (ronde 11).
+ * Vast is de volgorde als de rijen van elke gekozen taak samen een blok vormen dat niet overlapt met
+ * dat van een andere. Taken die niet in beeld staan vallen weg.
  */
 export function chainOrder(rows: readonly ViewRow[], taskIds: readonly string[]): string[] | null {
   const chosen = new Set(taskIds);
-  // Per taak de eerste en laatste plaats in de lijst; een mijlpalenreeks telt elk lid apart.
+  // Per taak de eerste en laatste rij. De leden van een ingeklapte mijlpalenreeks delen één rij: hun
+  // onderlinge volgorde ligt dan niet vast (review #1004, ronde 11).
   const span = new Map<string, { first: number; last: number }>();
-  let position = 0;
-  for (const taskId of rows.flatMap(row => uniqueTaskIds([row]))) {
-    if (chosen.has(taskId)) {
+  rows.forEach((row, position) => {
+    for (const taskId of uniqueTaskIds([row])) {
+      if (!chosen.has(taskId)) continue;
       const seen = span.get(taskId);
       if (seen) seen.last = position; else span.set(taskId, { first: position, last: position });
     }
-    position++;
-  }
+  });
   // `span` staat al in de volgorde van het eerste voorkomen.
   const ordered = [...span];
   return ordered.every(([, at], index) => index === 0 || ordered[index - 1][1].last < at.first)

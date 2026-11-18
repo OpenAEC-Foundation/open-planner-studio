@@ -24,6 +24,7 @@ import {
   notifyRelationsSkipped,
 } from '@/state/insertedBranch';
 import {
+  milestonesInDrawnOrder,
   normalizeTaskRowCursor,
   uniqueTaskIds,
   type TaskRowCursor,
@@ -79,7 +80,7 @@ export interface SelectedRow { rowKey?: string; taskIds?: readonly string[] }
  * Shift-klik in de tijdlijn: de taken van het anker (`ui.selectionAnchor`) tot de aangeklikte rij,
  * over de rijen OP HET SCHERM (filter, sortering, groepering, ingeklapte fasen), net als Shift in de
  * takenlijst. Van de eindrijen tellen alleen de gekozen taken (anker, aangeklikt); liggen ze op één rij
- * (een mijlpalenreeks), dan alles daartussen in de volgorde van de rij. `null` als een van beide rijen
+ * (een mijlpalenreeks), dan alle ruitjes daartussen zoals ze getekend staan. `null` als een van beide rijen
  * niet (meer) op het scherm staat.
  */
 function shiftRange(
@@ -90,13 +91,18 @@ function shiftRange(
   clickedRowKey: string | undefined,
 ): string[] | null {
   const idsAt = (index: number) => uniqueTaskIds([rows[index]]);
+  // Binnen één mijlpalenrij telt wat er getekend staat, van links naar rechts (review #1004, ronde 11).
+  const drawnIdsAt = (index: number) => {
+    const row = rows[index];
+    return row.kind === 'milestones' ? milestonesInDrawnOrder(row.tasks).map(task => task.id) : idsAt(index);
+  };
   const toIdx = rows.findIndex((row, index) => (clickedRowKey === undefined || row.rowKey === clickedRowKey)
     && idsAt(index).includes(clickedId));
   const fromIdx = rows.findIndex((row, index) => row.rowKey === anchor.rowKey
     && anchor.taskIds.some(taskId => idsAt(index).includes(taskId)));
   if (toIdx < 0 || fromIdx < 0) return null;
   if (fromIdx === toIdx) {
-    const ids = idsAt(toIdx);
+    const ids = drawnIdsAt(toIdx);
     const marks = [...anchor.taskIds, ...clicked].map(taskId => ids.indexOf(taskId)).filter(index => index >= 0);
     return ids.slice(Math.min(...marks), Math.max(...marks) + 1);
   }

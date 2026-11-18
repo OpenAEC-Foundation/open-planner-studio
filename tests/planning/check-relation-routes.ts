@@ -775,6 +775,34 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   }
 }
 
+// In een ingeklapte reeks staan de ruitjes op datum, niet in lijstvolgorde (review #1004, ronde 11):
+// lijst Midden, Vroeg, Laat; getekend Vroeg, Midden, Laat.
+{
+  fresh();
+  const on = (date: string) => ({
+    durationUnit: 'days', scheduleDuration: 0, scheduleStart: date, scheduleFinish: date, earlyStart: date, earlyFinish: date,
+  }) as never;
+  const midden = S().addTask({ name: 'Midden', isMilestone: true, time: on('2026-03-16') });
+  const vroeg = S().addTask({ name: 'Vroeg', isMilestone: true, time: on('2026-03-10') });
+  const laat = S().addTask({ name: 'Laat', isMilestone: true, time: on('2026-03-20') });
+  const na = S().addTask({ name: 'Na' });
+  S().toggleCollapse(midden);
+  const run = S().viewRows.find(row => row.kind === 'milestones');
+  ok('13.51 Midden, Vroeg en Laat vormen één rij', run !== undefined);
+  if (run) {
+    S().selectTask(vroeg, false, false, { rowKey: run.rowKey });
+    S().selectTask(laat, false, true, { rowKey: run.rowKey });
+    eq('13.52 Shift van Vroeg naar Laat neemt Midden mee, zoals getekend', S().selectedTaskIds, [vroeg, midden, laat]);
+    eq('13.53 twee ruitjes op één rij: de volgorde ligt niet vast', chainOrder(S().viewRows, [vroeg, laat]), null);
+    const before = S().sequences.length;
+    clearNotes();
+    eq('13.54 de keten koppelt dan niets', linkTasksInChain([vroeg, laat]), []);
+    eq('13.55 en meldt waarom', notes().map(n => n.key), ['notifications.relationChainOrderUnclear']);
+    eq('13.56 geen relatie erbij', S().sequences.length, before);
+    eq('13.57 één ruitje en de taak eronder liggen wel vast', chainOrder(S().viewRows, [na, laat]), [laat, na]);
+  }
+}
+
 // Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.
 ok('runGridMutation-export bestaat', typeof runGridMutation === 'function');
 

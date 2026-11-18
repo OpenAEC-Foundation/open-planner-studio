@@ -346,5 +346,10 @@ export function useSplitGesture({
     ctx.setLineDash([]);
   }, [state, containerRef, overlayCanvasRef]);
 
-  return { gestureState: state, startSplitGesture, updateHover, clearHover, active: !!state?.dragging };
+  // Documentwissel midden in het gebaar (review #1004, ronde 11): stoppen zonder commit. Een al
+  // geschreven pauze blijft in het startdocument; `frozenRef` leeg houdt de nog levende listeners stil.
+  return {
+    gestureState: state, startSplitGesture, updateHover, clearHover, endForDocumentSwitch: stop,
+    active: !!state?.dragging,
+  };
 }
