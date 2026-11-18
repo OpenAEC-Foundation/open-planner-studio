@@ -1,6 +1,97 @@
 {
   "cases": [
     {
+      "id": "knownbug-55-completed-hour-date-only",
+      "title": "Voltooide urentaak met alleen datum op een werkdag blijft op die dag; expliciete tijden blijven onaangetast.",
+      "anchor": "2027-06-21",
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [
+              {
+                "start": 420,
+                "end": 720
+              },
+              {
+                "start": 780,
+                "end": 960
+              }
+            ],
+            "2": [
+              {
+                "start": 420,
+                "end": 720
+              },
+              {
+                "start": 780,
+                "end": 960
+              }
+            ],
+            "3": [
+              {
+                "start": 420,
+                "end": 720
+              },
+              {
+                "start": 780,
+                "end": 960
+              }
+            ],
+            "4": [
+              {
+                "start": 420,
+                "end": 720
+              },
+              {
+                "start": 780,
+                "end": 960
+              }
+            ],
+            "5": [
+              {
+                "start": 420,
+                "end": 720
+              },
+              {
+                "start": 780,
+                "end": 960
+              }
+            ],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [
+        {
+          "name": "Datum",
+          "dur": "8u",
+          "completion": 1,
+          "actualStart": "2027-06-21",
+          "actualFinish": "2027-06-21"
+        },
+        {
+          "name": "Tijd",
+          "dur": "4u",
+          "completion": 1,
+          "actualStart": "2027-06-21T07:00",
+          "actualFinish": "2027-06-21T11:00"
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "Datum": {
+            "es": "2027-06-21T07:00",
+            "ef": "2027-06-21T16:00"
+          },
+          "Tijd": {
+            "es": "2027-06-21T07:00",
+            "ef": "2027-06-21T11:00"
+          }
+        }
+      }
+    },
+    {
       "id": "prog-A-three-states",
       "title": "Scenario A (§3.3): drie voortgangsstaten + data-date-vloer op losse taak D, retained.",
       "anchor": "2026-07-06",
