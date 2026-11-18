@@ -367,7 +367,8 @@
     "ifcForeignNewTargetOnly": "Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geschreven. Kies een naam die nog niet bestaat.",
     "ifcForeignPlaceUnknown": "De app weet niet of het bestand goed is opgeslagen: tijdens het opslaan veranderde er iets in de map. Je wijzigingen staan nog in de app. Kijk of het bestand klopt, of sla opnieuw op onder een nieuwe naam.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
-    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
+    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.",
+    "taskTypeRenameNameTaken": "In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",

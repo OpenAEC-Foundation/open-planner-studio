@@ -66,14 +66,50 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
   await expect(manager).toContainText('Werkvoorbereiding');
 
-  // Globaal hernoemen herschrijft de projectsnapshot en bestaande toekenning bewust niet.
-  expect(await page.evaluate(() => ({
+  // Het type staat ook in dit project (#804 keuze 7): de app vraagt of de naam daar mee moet.
+  const question = page.locator('[data-ops-rename-project-task-type]');
+  await expect(question).toBeVisible();
+  await expect(question).toContainText('Engineering');
+  await expect(question).toContainText('Werkvoorbereiding');
+  await question.getByRole('button', { name: /^(Only in my list|Alleen in mijn lijst)$/ }).click();
+  await expect(question).toBeHidden();
+  await expect(manager).toBeVisible();
+
+  // Alleen in mijn lijst: de projectkopie en de bestaande toekenning houden hun naam.
+  const names = () => page.evaluate(() => ({
     personal: JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]'),
     project: window.__OPS__!.store.getState().customTaskTypes,
-  }))).toEqual({
+  }));
+  expect(await names()).toEqual({
     personal: [{ id: created.personal[0].id, name: 'Werkvoorbereiding' }],
     project: [{ id: created.personal[0].id, name: 'Engineering' }],
   });
+
+  // Nogmaals opslaan met dezelfde naam vraagt het opnieuw, want het project heet nog anders.
+  await editButton.click();
+  await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect(question).toBeVisible();
+  await question.getByRole('button', { name: /^(Also in this project|Ook in dit project)$/ }).click();
+  await expect(question).toBeHidden();
+  expect(await names()).toEqual({
+    personal: [{ id: created.personal[0].id, name: 'Werkvoorbereiding' }],
+    project: [{ id: created.personal[0].id, name: 'Werkvoorbereiding' }],
+  });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(true);
+  await manager.getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
+  await expect(manager).toBeHidden();
+  await expect(select.getByRole('button')).toContainText('Werkvoorbereiding');
+
+  // Ctrl+Z zet de naam in het project terug; de persoonlijke naam blijft.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await names()).project).toEqual([{ id: created.personal[0].id, name: 'Engineering' }]);
+  await expect(select.getByRole('button')).toContainText('Engineering');
+  expect((await names()).personal).toEqual([{ id: created.personal[0].id, name: 'Werkvoorbereiding' }]);
+
+  await select.getByRole('button').click();
+  await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
+  await expect(manager).toBeVisible();
 
   page.once('dialog', dialog => void dialog.accept());
   await removeButton.click();
@@ -105,6 +141,42 @@ test('Taaktypekiezer: een geïmporteerd projecttype blijft kiesbaar zonder perso
   await page.getByRole('option', { name: 'Imported permit', exact: true }).click();
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(task => task.id === id)?.customTaskTypeId, taskId))
     .toBe('imported-permit');
+
+  // Een eigen type hernoemen naar de naam van dat geïmporteerde type: in de eigen lijst mag het, in
+  // het project niet (#804 keuze 7). De projectnaam blijft en een melding zegt waarom.
+  await createFromCurrentSelector(page, 'Permit check');
+  await selector.getByRole('button').click();
+  await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
+  const manager = page.locator('[data-ops-task-type-manager]');
+  await manager.getByRole('button', { name: /^(Edit|Bewerken)$/ }).click();
+  await manager.getByRole('textbox').fill('Imported permit');
+  await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  const question = page.locator('[data-ops-rename-project-task-type]');
+  await question.getByRole('button', { name: /^(Also in this project|Ook in dit project)$/ }).click();
+  await expect(question).toBeHidden();
+  await expect(page.locator('.ops-toast').filter({ hasText: /Permit check/ })).toContainText('Imported permit');
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().customTaskTypes.map(type => type.name)))
+    .toEqual(['Imported permit', 'Permit check']);
+
+  // De vraag hoort bij het document waarin ze gesteld is (fixronde 1 van #999): wisselt het actieve document
+  // terwijl ze openstaat, ook naar een document met een geselecteerde taak (het paneel blijft staan), dan vervalt ze.
+  await manager.getByRole('button', { name: /^(Edit|Bewerken)$/ }).click();
+  await manager.getByRole('textbox').fill('Permit check 2');
+  await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect(question).toBeVisible();
+  const docA = await page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId);
+  await page.evaluate(() => {
+    const store = window.__OPS__!.store.getState();
+    store.newDocument();
+    const other = store.addTask({ name: 'Taak in B' });
+    window.__OPS__!.store.getState().selectTask(other);
+  });
+  await expect(question).toBeHidden();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().customTaskTypes)).toEqual([]);
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), docA);
+  await expect(question).toBeHidden();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().customTaskTypes.map(type => type.name)))
+    .toEqual(['Imported permit', 'Permit check']);
 });
 
 test('Taak bewerken: aanmaken blijft app-breed na Annuleren maar materialiseert pas bij Opslaan', async ({ page, ops: _ops }) => {
@@ -155,6 +227,52 @@ test('Taak bewerken: aanmaken blijft app-breed na Annuleren maar materialiseert 
     taskTypeId: beforeCancel.personal[0].id,
     catalog: beforeCancel.personal,
   });
+
+  // Hernoemen vanuit Taak bewerken (fixronde 1 van #999): de hernoeming in het project is een eigen stap ná
+  // de taakbewerking. Annuleren draait alleen de taakbewerking terug; na Opslaan zet één Ctrl+Z alleen de
+  // naam van de werksoort terug en een tweede de taakbewerking.
+  const permitId = beforeCancel.personal[0].id;
+  const stateNow = () => page.evaluate(({ id, task }) => {
+    const state = window.__OPS__!.store.getState();
+    return {
+      project: state.customTaskTypes.find(type => type.id === id)?.name,
+      taskName: state.tasks.find(item => item.id === task)?.name,
+    };
+  }, { id: permitId, task: taskId });
+  const renameInDialog = async (newName: string) => {
+    await taskDialog.locator('[data-ops-task-type]').getByRole('button').click();
+    await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
+    const manager = page.locator('[data-ops-task-type-manager]');
+    await manager.getByRole('button', { name: /^(Edit|Bewerken)$/ }).click();
+    await manager.getByRole('textbox').fill(newName);
+    await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+    const question = page.locator('[data-ops-rename-project-task-type]');
+    await question.getByRole('button', { name: /^(Also in this project|Ook in dit project)$/ }).click();
+    await expect(question).toBeHidden();
+    await manager.getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
+    await expect(manager).toBeHidden();
+    await expect(taskDialog.locator('[data-ops-task-type]').getByRole('button')).toContainText(newName);
+  };
+
+  await page.evaluate((id) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), taskId);
+  await expect(taskDialog).toBeVisible();
+  await renameInDialog('Permit review');
+  await taskDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
+  await expect(taskDialog).toBeHidden();
+  expect(await stateNow()).toEqual({ project: 'Permit review', taskName: 'Vergunning aanvragen' });
+
+  await page.evaluate((id) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), taskId);
+  await expect(taskDialog).toBeVisible();
+  await renameInDialog('Permit final');
+  await taskDialog.locator('[data-ops-task-name]').fill('Vergunning indienen');
+  await taskDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  await expect(taskDialog).toBeHidden();
+  expect(await stateNow()).toEqual({ project: 'Permit final', taskName: 'Vergunning indienen' });
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+z');
+  await expect.poll(stateNow).toEqual({ project: 'Permit review', taskName: 'Vergunning indienen' });
+  await page.keyboard.press('Control+z');
+  await expect.poll(stateNow).toEqual({ project: 'Permit review', taskName: 'Vergunning aanvragen' });
 });
 
 test('taaktypen blijven bruikbaar in RTL en corrupte app-opslag wordt veilig genegeerd', async ({ page, ops: _ops }) => {
