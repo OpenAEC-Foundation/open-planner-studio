@@ -36,6 +36,7 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
+import { taskTreeRows } from '@/engine/reports/reportPeriodRows';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { baselineReach, type BaselineOverlay } from '@/types/baseline';
 import {
@@ -452,7 +453,7 @@ export interface PrintRow {
 /**
  * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (volg-weergave) tekent het rapport
  * precies die rijen — filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders:
- * de volledige takenboom (self-flatten), met wezen zonder gevonden ouder achteraan.
+ * de volledige takenboom (`taskTreeRows`), met wezen zonder gevonden ouder achteraan.
  * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
  */
 export function buildPrintRows(
@@ -461,38 +462,11 @@ export function buildPrintRows(
   rowAssignments?: ReadonlyMap<string, RowAssignment>,
 ): PrintRow[] {
   const printRows: PrintRow[] = [];
-  if (rows) {
-    for (const row of rows) {
-      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
-      // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
-      else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
-      else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
-    }
-    return printRows;
-  }
-  // Eén keer indexeren i.p.v. per taak `tasks.filter` + per taak `printRows.some`: dat was O(n²) en
-  // draait per render-venster (1–3 per pagina) plus bij meten — seconden per pagina bij 10k taken.
-  // Kindvolgorde = arrayvolgorde, dus dezelfde rijen als voorheen.
-  const childrenOf = new Map<string, Task[]>();
-  for (const t of tasks) {
-    if (!t.parentId) continue;
-    const list = childrenOf.get(t.parentId);
-    if (list) list.push(t);
-    else childrenOf.set(t.parentId, [t]);
-  }
-  const placed = new Set<string>();
-  const addRecursive = (task: Task, depth: number) => {
-    if (placed.has(task.id)) return;
-    placed.add(task.id);
-    printRows.push({ kind: 'task', task, depth });
-    for (const child of childrenOf.get(task.id) ?? []) addRecursive(child, depth + 1);
-  };
-  for (const root of tasks) if (!root.parentId) addRecursive(root, 0);
-  for (const task of tasks) {
-    if (!placed.has(task.id)) {
-      placed.add(task.id);
-      printRows.push({ kind: 'task', task, depth: 0 });
-    }
+  for (const row of rows ?? taskTreeRows(tasks)) {
+    if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
+    // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
+    else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
+    else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
   }
   return printRows;
 }
@@ -943,15 +917,15 @@ export interface PrintOptions {
    */
   timelineColumns?: number;
   /**
-   * OPTIONEEL — rapportageperiode als TIJDVENSTER (resourcediagram): de
-   * tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de gebruikelijke marge van
-   * 7/14 dagen, en balken, mijlpalen, speling, voortgang en baseline worden op de chartrand
-   * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd (ook de 3 px-
-   * minimumbreedte van een balk en het middelpunt van een ruit; relatiepijlen worden bij een
-   * venster helemaal niet getekend). Welke rijen in het
-   * venster horen beslist de rijenbron (`computeResourceGanttRows`), niet de render; een rij die
-   * er toch buiten valt tekent gewoon geen balk. Relatiepijlen worden niet geklemd: het venster
-   * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ geen venster.
+   * OPTIONEEL — het TIJDVAK van de Gantt-afdruk (#997; eerder alleen de rapportageperiode van het
+   * resourcediagram): de tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de
+   * gebruikelijke marge van 7/14 dagen, en balken, mijlpalen, speling, voortgang, baseline en
+   * relatielijnen worden op de chartrand afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf
+   * wordt geklemd (ook de 3 px-minimumbreedte van een balk en het middelpunt van een ruit; een
+   * relatielijn per recht stuk, een pijlpunt alleen als hij helemaal in het venster valt). Welke
+   * rijen in het venster horen beslist de rijenbron (`rowsInPeriod`, of `computeResourceGanttRows`
+   * bij het resourcediagram), niet de render; een rij die er toch buiten valt tekent gewoon geen
+   * balk. Afwezig ⇒ geen venster.
    */
   timeWindow?: { from: string; to: string };
   /**
@@ -2037,9 +2011,8 @@ export function renderReport(
   // In de vector-PDF staat tekst sowieso boven alle vormen (vormen gaan in het gedeelde
   // Form-XObject, tekst wordt daarná per tegel geëmit); deze volgorde brengt de RASTER-preview
   // daarmee in lijn, want die twee horen WYSIWYG te zijn.
-  // Bij een tijdvenster worden relaties nooit getekend: `drawDependencies` klemt niet, en het
-  // venster wordt alleen op het resourcediagram aangeboden, dat sowieso geen relaties tekent.
-  if (options.showDeps && !windowed) {
+  // Bij een tijdvenster kapt `drawDependencies` elke lijn af op het chartgebied (#997).
+  if (options.showDeps) {
     // Volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
     // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
     // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus zijn alle taken
@@ -2050,7 +2023,8 @@ export function renderReport(
       if (r.kind === 'task' && r.task) { rowIndexOf.set(r.task.id, idx); tasksById.set(r.task.id, r.task); }
     });
     drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf,
-      win ? (lo, hi) => rowDrawn(lo) || rowDrawn(hi) || (rowToY(lo) < win.y1 + m.rowHeight && rowToY(hi) + m.rowHeight > win.y0 - m.rowHeight) : undefined);
+      win ? (lo, hi) => rowDrawn(lo) || rowDrawn(hi) || (rowToY(lo) < win.y1 + m.rowHeight && rowToY(hi) + m.rowHeight > win.y0 - m.rowHeight) : undefined,
+      windowed ? [m.tableWidth, canvasWidth] : undefined);
   }
 
   for (const job of barLabelJobs) {
@@ -2740,6 +2714,8 @@ function drawDependencies(
   rowIndexOf: Map<string, number>,
   /** Rijvenster: tekent de relatie tussen de rijen `lo` en `hi` (lo ≤ hi)? Ontbreekt ⇒ alles. */
   spanDrawn?: (lo: number, hi: number) => boolean,
+  /** Tijdvenster: de x-grenzen van het chartgebied; elke lijn wordt daarop afgekapt. Ontbreekt ⇒ niet afkappen. */
+  clipX?: readonly [number, number],
 ) {
   d2d.lineWidth = 1.2;
 
@@ -2810,31 +2786,26 @@ function drawDependencies(
     //    "omheen" via de rijgoot: de horizontale scheiding tussen twee rijen (bovenrand van de
     //    opvolger-rij als die eronder ligt, onderrand als hij erboven ligt), een paar px de rij in
     //    zodat de lijn nét naast de rasterlijn valt.
-    d2d.beginPath();
     // Voorwaarts (knik volstaat) als `outX` ruim buiten de opvolgerbalk ligt aan de aankomstkant:
     // bij start-aankomst (dirIn −1) rechts ervan, bij finish-aankomst (dirIn +1) links ervan.
+    let route: [number, number][];
     if ((outX - toX) * dirIn >= DEP_STUB) {
-      d2d.moveTo(fromX, predY);
-      d2d.lineTo(outX, predY);
-      d2d.lineTo(outX, succY);
-      d2d.lineTo(toX, succY);
+      route = [[fromX, predY], [outX, predY], [outX, succY], [toX, succY]];
     } else {
       const gutterInset = 2;
       const gutterY = succIdx > predIdx
         ? rowToY(succIdx) + gutterInset            // opvolger eronder ⇒ goot = bovenrand opvolger-rij
         : rowToY(succIdx) + m.rowHeight - gutterInset; // opvolger erboven ⇒ goot = onderrand opvolger-rij
       const inX = toX + dirIn * DEP_STUB;
-      d2d.moveTo(fromX, predY);
-      d2d.lineTo(outX, predY);
-      d2d.lineTo(outX, gutterY);
-      d2d.lineTo(inX, gutterY);
-      d2d.lineTo(inX, succY);
-      d2d.lineTo(toX, succY);
+      route = [[fromX, predY], [outX, predY], [outX, gutterY], [inX, gutterY], [inX, succY], [toX, succY]];
     }
-    d2d.stroke();
+    if (!strokeRoute(d2d, route, clipX)) continue;
 
     // Arrowhead (filled triangle) — een `fill` negeert het dash-patroon, dus ook een niet-bepalende
-    // relatie houdt een massieve pijlpunt (net als op het scherm).
+    // relatie houdt een massieve pijlpunt (net als op het scherm). Bij een tijdvenster alleen als hij
+    // er helemaal in valt: een halve pijlpunt aan de rand wijst nergens heen.
+    const headX = toX + dirIn * 5;
+    if (clipX && (Math.min(toX, headX) < clipX[0] || Math.max(toX, headX) > clipX[1])) continue;
     d2d.beginPath();
     d2d.moveTo(toX, succY);
     d2d.lineTo(toX + dirIn * 5, succY - 3);
@@ -2849,6 +2820,39 @@ function drawDependencies(
   d2d.setLineDash([]);
 }
 
+
+/**
+ * Tekent een relatieroute: een reeks rechte stukken, elk horizontaal of verticaal. Met `clipX` (tijdvenster) wordt
+ * elk stuk op [x0, x1] afgekapt: een verticaal stuk erbuiten valt weg, een horizontaal stuk wordt ingekort. Waar
+ * de route het venster verlaat en weer binnenkomt, begint een nieuw subpad. Geeft `false` als er niets in het
+ * venster viel (dan ook geen pijlpunt).
+ */
+function strokeRoute(d2d: Draw2D, route: readonly [number, number][], clipX: readonly [number, number] | undefined): boolean {
+  d2d.beginPath();
+  let pen: [number, number] | null = null;
+  let drawn = false;
+  for (let i = 1; i < route.length; i++) {
+    let [ax, ay] = route[i - 1];
+    let [bx, by] = route[i];
+    if (clipX) {
+      const [lo, hi] = clipX;
+      if (ax === bx) {
+        if (ax < lo || ax > hi) continue;
+      } else {
+        const l = Math.max(lo, Math.min(ax, bx));
+        const r = Math.min(hi, Math.max(ax, bx));
+        if (l > r) continue;
+        if (ax < bx) { ax = l; bx = r; } else { ax = r; bx = l; }
+      }
+    }
+    if (!pen || !Object.is(pen[0], ax) || !Object.is(pen[1], ay)) d2d.moveTo(ax, ay);
+    d2d.lineTo(bx, by);
+    pen = [bx, by];
+    drawn = true;
+  }
+  if (drawn) d2d.stroke();
+  return drawn;
+}
 
 /** Draw the footer with project info, legend, and page number */
 function drawFooter(

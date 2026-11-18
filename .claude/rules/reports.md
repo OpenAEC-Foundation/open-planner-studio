@@ -32,9 +32,7 @@ per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
 positie zonder vulgraaddrempel wint — een band direct onder een band (de optionele typelaag
 `groupByType`: eerst een band per resourcetype in de vaste volgorde `RESOURCE_TYPE_BAND_ORDER`) krijgt
-geen eigen gedwongen positie; optie *Rapportageperiode* = de gedeelde `ReportingPeriod` als
-`PrintOptions.timeWindow` (tijdas exact op het venster, geometrie geklemd op het chartgebied want
-`Draw2D` kent geen clip; de rijenbron filtert op overlap en telt `counts.outsidePeriod`); optie
+geen eigen gedwongen positie; de rijenbron filtert op het tijdvak (hieronder) en telt `counts.outsidePeriod`; optie
 *Eenheden/dag en curve tonen* = `PrintOptions.assignmentColumns` + `rowAssignments` (per `rowKey`
 uit `assignmentByRowKey`: eenheden opgeteld, curve alleen bij eensluidende records) als twee
 tabelkolommen achter de naam; de voet
@@ -56,6 +54,17 @@ tijdvenster (look-ahead, voortgang, belasting, toewijzingen) delen de **rapporta
 uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableReportOptions`, in de
 UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePeriodFor(ctx, period)`
 — nooit een eigen weken-getal erbij bouwen.
+
+**Tijdvak van de Gantt-afdruk** (issue #997). Eén `ReportingPeriod` voor elke rijenbron van de stap Taken
+(`ReportSettings.period`, in de UI het gedeelde `ReportingPeriodField` onder de keuze van de rijen, met *Hele project
+tonen*); het resourcediagram heeft geen eigen periode meer (een oude `resourceGantt.period` gaat bij het laden alleen
+over als dat diagram de bron was, `parseGanttPeriod`). Niet `project` ⇒ `StudioRowSource.window` en
+`PrintOptions.timeWindow`: de tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen
+clip, relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het venster). Welke rijen
+erin horen beslist de rijenbron: het resourcediagram zelf (`window` van `computeResourceGanttRows`), de andere bronnen via
+`rowsInPeriod` (`src/engine/reports/reportPeriodRows.ts`: overlap op de getoonde spanne, lege banden weg, tellingen
+opnieuw). `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit hetzelfde bestand. Bewaking:
+`check-report-gantt-period.ts`.
 
 **Voortgangscurve** (issue #689, spec `docs/superpowers/specs/2026-10-27-voortgangscurve-rapport.md`) is
 een tabelrapport (`progressCurve`, rekenlaag `progressCurve.ts`) met twee extra blokken in dezelfde

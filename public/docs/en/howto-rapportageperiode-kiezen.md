@@ -4,7 +4,7 @@ Goal: decide which stretch of time a report covers, for example the coming four 
 
 ## When you need this
 
-The weekly meeting wants to know what happens in the coming four weeks. The monthly report covers June. Without a period you get the whole schedule on paper. Five reports therefore work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Resource diagram*. The other reports have no period.
+The weekly meeting wants to know what happens in the coming four weeks. The monthly report covers June. Without a period you get the whole schedule on paper. Five reports therefore work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Gantt chart*, also with the layout *Resource diagram*. The other reports have no period.
 
 The period is not tied to a calendar month, but to a **reference day**: the status date of your project (the day on which you measure progress, see [Updating progress](docs://howto-voortgang-bijwerken)), or today if the project has no status date. *Next 4 weeks* counts from that day. If you move the status date, the window moves with it.
 
@@ -16,13 +16,13 @@ If you work with a relative choice, such as *Next 4 weeks* or *Last month*, set 
 
 ### 2. Choose a report with a period
 
-Open the *Report* tab and choose one of the four table reports with a period at *Report type*. The *Reporting period:* list is under *Report options*. For the Resource diagram, choose the *Gantt chart* with the layout *Resource diagram*: the period is then in the *Tasks and grouping* step, under *Per resource*. The same holds for another layout per resource.
+Open the *Report* tab and choose one of the four table reports with a period at *Report type*. The *Reporting period:* list is under *Report options*. For the *Gantt chart*, *Reporting period* is in the *Tasks and grouping* step, below the choice of rows. That period applies to every choice there: *All tasks*, *As in the view* and every layout, also the *Resource diagram*.
 
 Each report remembers its own period. These are the initial values:
 
 - *Look-ahead*: *Next month*.
 - *Progress report*: *Last month*.
-- *Resource loading*, *Resource assignments* and *Resource diagram*: *Project duration*.
+- *Resource loading*, *Resource assignments* and *Gantt chart*: *Project duration*.
 
 ### 3. Choose a period from the list
 
@@ -41,7 +41,7 @@ With *Custom*, *From* and *To* become two date fields. They start with the dates
 
 ### 5. Read the period in the report
 
-For the Look-ahead, Resource loading and Resource assignments the period is under the title, for example *Period: 20-05-2027 – 19-06-2027*. If you choose *Project duration*, *Project duration* is added behind the dates. The Progress report shows the period in the summary at *Period*. The Resource diagram lets its time axis run exactly over the period.
+For the Look-ahead, Resource loading and Resource assignments the period is under the title, for example *Period: 20-05-2027 – 19-06-2027*. If you choose *Project duration*, *Project duration* is added behind the dates. The Progress report shows the period in the summary at *Period*. The Gantt chart lets its time axis run exactly over the period and names the period in the closed *Tasks and grouping* step.
 
 ### What the period does per report
 
@@ -51,13 +51,13 @@ The period does not work the same in every report.
 - **Progress report** uses the period for *Completed in the past period*. The section *Starting in the next period* looks ahead from the status date, up to the date at *Look ahead until* in the summary. If you choose a *Last* period, the report looks ahead as far as it looks back: with *Last 2 weeks* and status date 20 May it says *Look ahead until* 3 June. A custom period or *Project duration* that lies entirely in the past is not mirrored.
 - **Resource loading** shows every week or month that touches the period, in full. If your period runs from Wednesday to Wednesday you therefore see whole weeks, so a row always shows the same number as the histogram.
 - **Resource assignments** shows the assignments of activities that touch the period. With *Project duration* there is no filtering on date.
-- **Resource diagram** shows only the tasks that touch the period. In the summary, *Outside the period:* counts how many tasks were left out.
+- **Gantt chart** shows only the tasks that touch the period; a bar that runs beyond the period is cut off at the edge, and so is a relation line. A phase stays as long as one of its tasks falls in the period. Below the choice it says how many tasks fall outside the period, with *Show the whole project* to bring back the whole schedule. With the *Resource diagram*, *Outside the period:* in the summary counts how many tasks were left out.
 
 ## Pitfalls and what the app does
 
-**There is no status date.** The app then uses today. For the four table reports with a period (*Look-ahead*, *Progress report*, *Resource loading* and *Resource assignments*) it says at the top, with a relative period, *No status date set — the report uses today (29-09-2026).*, with your own date of today. The Resource diagram does not report this. So look at *From* and *To*: they are then around today, not around your schedule.
+**There is no status date.** The app then uses today. For the four table reports with a period (*Look-ahead*, *Progress report*, *Resource loading* and *Resource assignments*) it says at the top, with a relative period, *No status date set — the report uses today (29-09-2026).*, with your own date of today. The Gantt chart does not report this. So look at *From* and *To*: they are then around today, not around your schedule.
 
-**The period lies outside your schedule.** Then the report is empty. The Resource diagram says so with *No tasks in the reporting period — choose another period or Whole project.* (in the list that choice is called *Project duration*). In the other reports you see zero activities or no rows.
+**The period lies outside your schedule.** Then the report is empty. The Gantt chart says so with *No tasks in the reporting period — choose another period or Whole project.* (in the list that choice is called *Project duration*). In the other reports you see zero activities or no rows.
 
 **The dates are in your own notation.** *From* and *To* follow the date notation from your settings, also in the date fields of *Custom*. You type the date or click it in the calendar, just like the status date (see [Entering a date](docs://howto-datum-invoeren)).
 

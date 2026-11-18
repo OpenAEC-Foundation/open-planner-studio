@@ -13,12 +13,12 @@ const expect = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) failures.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-expect('defaults: blad per resource uit, taken zonder resource uit, typelaag uit', DEFAULT_REPORT_SETTINGS.resourceGantt, { pageBreakPerResource: false, includeUnassigned: false, groupByType: false, period: { preset: 'project' }, showAssignmentColumns: true });
+expect('defaults: blad per resource uit, taken zonder resource uit, typelaag uit', DEFAULT_REPORT_SETTINGS.resourceGantt, { pageBreakPerResource: false, includeUnassigned: false, groupByType: false, showAssignmentColumns: true });
 expect('defaults: één bron', DEFAULT_REPORT_SETTINGS.resourceGantt, DEFAULT_RESOURCE_GANTT_OPTIONS);
-localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: true, groupByType: true, period: { preset: 'next4Weeks' }, showAssignmentColumns: false } }));
+localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: true, groupByType: true, showAssignmentColumns: false } }));
 const loaded = await loadReportSettings();
 expect('opgeslagen rapporttype resourceGantt wordt geladen', loaded.reportType, 'resourceGantt');
-expect('opgeslagen opties worden geladen', loaded.resourceGantt, { pageBreakPerResource: true, includeUnassigned: true, groupByType: true, period: { preset: 'next4Weeks' }, showAssignmentColumns: false });
+expect('opgeslagen opties worden geladen', loaded.resourceGantt, { pageBreakPerResource: true, includeUnassigned: true, groupByType: true, showAssignmentColumns: false });
 
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'gantt', showLegend: false }));
 const zonderBlok = await loadReportSettings();
@@ -27,21 +27,17 @@ expect('… en de overige voorkeuren blijven staan', zonderBlok.showLegend, fals
 
 localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { pageBreakPerResource: 'ja', includeUnassigned: true } }));
 const rommel = await loadReportSettings();
-expect('rommel in één veld ⇒ alleen dat veld terug op de default', rommel.resourceGantt, { pageBreakPerResource: false, includeUnassigned: true, groupByType: false, period: { preset: 'project' }, showAssignmentColumns: true });
-// Punt 3: de rapportageperiode gaat door dezelfde tolerante parser als de tabelrapporten.
-localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { period: { preset: 'nonsense' } } }));
-expect('onbekende periode-preset ⇒ Hele project', (await loadReportSettings()).resourceGantt.period, { preset: 'project' });
-localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { period: { preset: 'custom', from: '2026-09-30', to: '2026-09-01' } } }));
-expect('omgekeerd eigen bereik ⇒ Hele project', (await loadReportSettings()).resourceGantt.period, { preset: 'project' });
+expect('rommel in één veld ⇒ alleen dat veld terug op de default', rommel.resourceGantt, { pageBreakPerResource: false, includeUnassigned: true, groupByType: false, showAssignmentColumns: true });
+// De periode is sinds #997 het tijdvak van de hele Gantt-afdruk: `check-report-gantt-period.ts`.
 localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: 'aan' }));
 expect('rommel in het hele blok ⇒ defaults', (await loadReportSettings()).resourceGantt, DEFAULT_RESOURCE_GANTT_OPTIONS);
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceDiagram' }));
 expect('onbekend rapporttype ⇒ default rapporttype', (await loadReportSettings()).reportType, DEFAULT_REPORT_SETTINGS.reportType);
 
-patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, showAssignmentColumns: false } });
+patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, showAssignmentColumns: false } });
 const saved = await loadReportSettings();
 expect('rapporttype overleeft een round-trip', saved.reportType, 'resourceGantt');
-expect('opties overleven een round-trip', saved.resourceGantt, { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, showAssignmentColumns: false });
+expect('opties overleven een round-trip', saved.resourceGantt, { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, showAssignmentColumns: false });
 
 if (failures.length > 0) {
   console.log(`XX report-resource-gantt-setting: ${failures.length} afwijking(en)`);

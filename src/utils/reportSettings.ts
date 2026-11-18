@@ -31,6 +31,7 @@ import {
 } from '@/engine/reports/reportingPeriod';
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontChoice } from '@/services/pdf/reportFont';
+import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 
 /** De `localStorage`-sleutel van de rapportinstellingen. */
 const LOCAL_KEY = 'ops-reportSettings';
@@ -111,16 +112,14 @@ export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
  * uitdelen; uit = één doorlopend overlegdocument. `includeUnassigned` neemt de taken zonder
  * resource als laatste band mee — handig om in een overleg te zien wat nog niemand heeft.
  * `groupByType` zet er een laag boven: eerst een band per resourcetype (arbeid, ploeg,
- * onderaannemer, materieel, materiaal), daarbinnen per resource. `period` is de gedeelde
- * rapportageperiode: alleen taken die het venster raken, en de tijdas exact op het venster; default
- * `project` = de hele projectspanne. `showAssignmentColumns` zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
+ * onderaannemer, materieel, materiaal), daarbinnen per resource. Het tijdvak is sinds #997 dat van de hele
+ * Gantt-afdruk (`ReportSettings.period`), niet meer een eigen optie van dit diagram. `showAssignmentColumns` zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
  * de band — standaard aan: dat is de informatie waarvoor je dit rapport uitdeelt.
  */
 export interface ResourceGanttReportOptions {
   pageBreakPerResource: boolean;
   includeUnassigned: boolean;
   groupByType: boolean;
-  period: ReportingPeriod;
   showAssignmentColumns: boolean;
 }
 
@@ -128,7 +127,6 @@ export const DEFAULT_RESOURCE_GANTT_OPTIONS: ResourceGanttReportOptions = {
   pageBreakPerResource: false,
   includeUnassigned: false,
   groupByType: false,
-  period: { preset: 'project' },
   showAssignmentColumns: true,
 };
 
@@ -209,6 +207,12 @@ export interface ReportSettings {
    * `reportType: 'resourceGantt'` opent als die layout. Zie `reportTaskSource`.
    */
   layoutId: string;
+  /**
+   * Het tijdvak van de Gantt-afdruk (issue #997), voor elke rijenbron: alleen taken die het raken staan op het
+   * papier, en de tijdas loopt precies over het tijdvak (`PrintOptions.timeWindow`). Standaard `project` = de
+   * hele planning. Dezelfde `ReportingPeriod` als de tabelrapporten; bewaard per apparaat, zoals de rest hier.
+   */
+  period: ReportingPeriod;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
   /**
@@ -267,6 +271,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   statusLine: 'none',
   followView: false,
   layoutId: '',
+  period: { preset: 'project' },
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
@@ -388,6 +393,19 @@ export function parseTableReportOptions(raw: unknown): TableReportOptions {
   };
 }
 
+/**
+ * Het tijdvak van de Gantt-afdruk. Ontbreekt het (opslag van vóór #997), dan geldt de oude periode van het
+ * resourcediagram, maar alleen als dat diagram de gekozen bron was: alleen dan stond die periode op het papier.
+ * De oude sleutel wordt daarna niet meer teruggeschreven.
+ */
+function parseGanttPeriod(s: Record<string, unknown>): ReportingPeriod {
+  const d = DEFAULT_REPORT_SETTINGS.period;
+  if (s.period !== undefined) return parseReportingPeriod(s.period, d);
+  const resourceDiagram = s.reportType === 'resourceGantt' || s.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID;
+  const legacy = s.resourceGantt && typeof s.resourceGantt === 'object' ? (s.resourceGantt as Record<string, unknown>).period : undefined;
+  return resourceDiagram ? parseReportingPeriod(legacy, d) : { ...d };
+}
+
 function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
   const d = DEFAULT_RESOURCE_GANTT_OPTIONS;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...d };
@@ -396,7 +414,6 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
     pageBreakPerResource: parseBoolean(s.pageBreakPerResource) ?? d.pageBreakPerResource,
     includeUnassigned: parseBoolean(s.includeUnassigned) ?? d.includeUnassigned,
     groupByType: parseBoolean(s.groupByType) ?? d.groupByType,
-    period: parseReportingPeriod(s.period, d.period),
     showAssignmentColumns: parseBoolean(s.showAssignmentColumns) ?? d.showAssignmentColumns,
   };
 }
@@ -482,6 +499,7 @@ function parseReportSettings(raw: unknown): ReportSettings {
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
+    period: parseGanttPeriod(s),
     // `previewZoom` en `previewQuality` van de oude rasterpreview (vóór #817) lezen we niet meer; bij het
     // volgende opslaan vallen ze weg.
     tableReports: parseTableReportOptions(s.tableReports),
