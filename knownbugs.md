@@ -2793,6 +2793,23 @@ en noem het in je rapport of PR-tekst.
      van de scanner (geen tweede lezer). — S (code gelezen; de drie varianten met een wand staan als proef in
      `check-ifc-document-save.ts`)
 
+1846. **VERVOLG (meldingen): een ververste melding houdt haar oude plek en kan direct daarna uit de stapel vallen.**
+     Browser. De store vouwt een herhaalde melding samen op haar oude plek (`notify` in `uiSlice.ts`, stap 1: de positie
+     blijft staan) en gooit bij een vierde melding de oudste gewone weg. Komt er tussen twee exports een andere gewone
+     melding bij, dan is de ververste downloadmelding van de tweede export de oudste, en duwt de verliesmelding van die
+     export haar er meteen uit: de planner ziet de naam van het gedownloade bestand niet. Scenario uit de review van
+     #1002 ronde 4 (GPT-6.2-Sol), binnen enkele seconden: (1) Ctrl+S op een gewone planning via download (de eenmalige
+     browseruitleg), (2) CSV-export uit een document met een gebouwmodel, (3) Ctrl+S op dat document met geweigerde
+     schrijftoestemming (de kopiemelding van #1002), (4) CSV-export uit de gewone planning: de melding met de
+     CSV-bestandsnaam ontbreekt, de twee verliesmeldingen staan er. De reviewer gaf dit als "[BEVESTIGD] [BLOKKEERT] Een
+     geslaagde CSV-export verliest de melding met haar bestandsnaam."; Trias (wrakko) deelde het in als VERVOLG: geen
+     dataverlies, het document blijft gewijzigd, de download staat in de browser, en de oorzaak zit in de meldingenstore
+     van main. Zo ook op main met een willekeurige andere gewone melding in plaats van stap 3: gemeten op 18 november
+     2026 met de productcode van main `3a989ffa1` (dezelfde reeks, met `notify` van een gewone melding tussen de twee
+     exports): na de tweede export staan de twee verliesmeldingen en de tussenliggende melding er, de downloadmelding
+     niet. Richting: een ververste melding gaat naar het eind van de stapel, in een eigen kleine PR voor alle meldingen.
+     — B
+
 1842. **VERVOLG (#804, tekst): de vraag en het vinkje "zonder gebouwmodel" komen ook bij vreemde inhoud zonder gebouwmodel.**
      Browser en desktop, flag aan. Exporteren → IFC toont het vinkje *Zonder gebouwmodel* en de vraag *Exporteren zonder
      gebouwmodel?* ("Het gebouwmodel en de gegevens van een ander programma gaan niet mee") bij elk document met vreemde
