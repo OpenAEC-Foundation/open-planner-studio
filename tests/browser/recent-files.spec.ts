@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { BaseDirectory } from '@tauri-apps/api/path';
 import { expect, test } from './fixtures/ops';
 
 const ifc = readFileSync('public/examples/10-villa-wassenaar.ifc', 'utf8');
@@ -8,18 +9,21 @@ test('Recent: leesfout meldt de reden en behoudt project en item; opnieuw prober
     ops.acceptError(/Failed to open recent file:/);
     const path = 'D:\\Budowy Łódź\\Zażółć gęślą jaźń.ifc';
     // Alleen de native I/O-rand is vervangen. De klikken, parser, store en melding zijn echt.
-    await page.evaluate(({ path, ifc }) => {
+    await page.evaluate(({ path, ifc, appDataDirectory }) => {
       const w = window as unknown as {
         __recentReadFails: boolean;
-        __TAURI_INTERNALS__: { invoke: (cmd: string, args: { path?: string }) => Promise<unknown> };
+        __TAURI_INTERNALS__: {
+          invoke: (cmd: string, args: { path?: string; directory?: number }) => Promise<unknown>;
+        };
       };
       w.__recentReadFails = true;
       // Vóór het lezen handelt de app onafgeronde vervangingen van dit pad af (knownbug 1131 stap 5): ze vraagt de
       // appDataDir op en leest daar de herstelrecords. Hier is die map leeg, dus er valt niets af te handelen.
+      // Alleen de AppData-map telt: een andere map (bijvoorbeeld AppLocalData) valt in de fout hieronder.
       const appData = 'C:\\Users\\planner\\AppData\\Roaming\\org.openaec.planner';
       w.__TAURI_INTERNALS__ = {
         invoke: async (cmd, args) => {
-          if (cmd === 'plugin:path|resolve_directory') return appData;
+          if (cmd === 'plugin:path|resolve_directory' && args.directory === appDataDirectory) return appData;
           if (cmd === 'plugin:fs|read_dir' && args.path === appData) return [];
           if (cmd !== 'plugin:fs|read_text_file' || args.path !== path) {
             throw new Error(`Onverwachte bestandsaanroep: ${cmd} ${args.path}`);
@@ -31,7 +35,7 @@ test('Recent: leesfout meldt de reden en behoudt project en item; opnieuw prober
       window.__OPS__!.store.setState({ recentFiles: [{
         id: 'recent-windows', name: 'Zażółć gęślą jaźń.ifc', ref: { kind: 'path', path }, addedAt: 1,
       }] });
-    }, { path, ifc });
+    }, { path, ifc, appDataDirectory: BaseDirectory.AppData });
     const snapshot = () => page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       return JSON.stringify({ active: s.activeDocumentId, documents: s.getOpenDocumentPayloads(),
