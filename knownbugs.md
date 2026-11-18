@@ -4738,3 +4738,14 @@ en noem het in je rapport of PR-tekst.
      (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
      planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
      de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
+     Is `<naam>.ops-vorige-<id>` intussen een symlink geworden, dan leest de vergelijking in stap 5
+     (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
+     bij een toegestane verwijdering de linknaam weg. Er verdwijnt hooguit een linknaam, geen inhoud; het vraagt een
+     derde partij die precies tussen stap 3 en stap 5 de hulpnaam vervangt. Richting: een aangetroffen link laten
+     staan via de bestaande `leftOver`-uitkomst (de eindcontrole doet dat al met `lstat`). Gevonden door de review van
+     #991, ronde 3. — B (review)
+1833. **VERVOLG (#804, 1131 stap 5a, test): de Recent-proef leest de bron een keer extra buiten de geteste route.**
+     In `tests/planning/check-ifc-own-file-replace.ts` leest de proef voor Recent met een afwijkende extensie de bron
+     opnieuw met `readBytesFromRef`; die aanroep en haar import kunnen weg. De IPC-lezing, de bronhash in de store en
+     het ruwe byte in de uitvoer bewijzen de regressie al. Gevonden door de review van #991, ronde 3. — B (review)
