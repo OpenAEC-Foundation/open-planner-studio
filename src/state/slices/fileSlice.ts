@@ -1423,8 +1423,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const result = await replaceOwnPathWithRecovery({
         documentId, path: ref.path, prepared,
         source: { bytes: state.ifcSource!.bytes, sha256: state.ifcSource!.sha256 },
-        // MUTATIE (c): geen controle na de eerste herstelronde (de namen blijven gebruikt voor de typecheck).
-        stopBeforeWrite: () => { void write; void movedTarget; return false; },
+        stopBeforeWrite: () => refuseChangedDocumentWrite(state, write) || movedTarget(),
         commit: () => { committed = commitSavedDocument(documentId, state, undefined, prepared); },
       });
       for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
