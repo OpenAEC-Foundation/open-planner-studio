@@ -170,6 +170,29 @@ function harness(initial: AppQuitDocument[]) {
   eq('6 geannuleerd', [s().ui.appQuitPending, controller.active], [false, false]);
 }
 
+// 1838: een tabkruisje kan op WebKit zonder blur worden aangeklikt.
+// De actieve draft moet vóór de dirty-controle worden vastgelegd, ook bij een ander doel.
+for (const closeActive of [true, false]) {
+  const reg = createPendingTextEdits();
+  const ctx = createAppStoreContext({ pendingTextEdits: reg });
+  const s = () => ctx.store.getState();
+  s().newProject();
+  const task = s().addTask({ name: 'Metselwerk' });
+  const resource = s().addResource({ name: 'Metselaar', type: 'LABOR', description: '', maxUnits: 4 });
+  s().assignResource(task, resource, 1);
+  const assignment = s().assignments[0]!.id;
+  const active = s().activeDocumentId;
+  const other = s().newDocument();
+  s().switchDocument(active);
+  ctx.store.setState(st => { st.isDirty = false; });
+  reg.register({ commit: () => s().updateAssignment(assignment, { unitsPerDay: 3 }) });
+  s().requestCloseDocument(closeActive ? active : other);
+  eq(`1838/${closeActive}: open veld is vastgelegd`, s().assignments[0]!.unitsPerDay, 3);
+  eq(`1838/${closeActive}: wijziging blijft bewaard`, s().isDirty, true);
+  eq(`1838/${closeActive}: vraag hoort bij gewijzigde doel`, s().ui.pendingCloseDocId, closeActive ? active : null);
+  eq(`1838/${closeActive}: juiste document blijft open`, s().documents.some(d => d.id === (closeActive ? active : other)), closeActive);
+}
+
 // 7. Review #401 (vervolg 3): het register hoort bij één storecontext. Een documentactie in een
 //    andere context rondt de invoer van de zichtbare app niet af; in de gemounte context wel.
 {
