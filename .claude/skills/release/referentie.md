@@ -231,13 +231,13 @@ Lees op aia09-mp50 **`~/.claude/agents/reviewer.md`**. Neem de volledige body va
 `# Hyperkritische review` **letterlijk** op in `task`. Daarmee staan de houding, bewijslast en
 rapportvorm in de brief zelf. Alleen naar het bestand verwijzen is onvoldoende.
 De YAML-keuze voor Opus neem je niet over. Lees `orchestrator_capabilities` en kies provider
-`codex`, model `gpt-6.1-sol`, met `target.options.reasoningEffort="xhigh"`.
+`codex`, model `gpt-6.2-sol`, met `target.options.reasoningEffort="xhigh"`.
 Ontbreekt het bestand, model of de optie: bewaar de fix-PR en meld de exacte blokkade.
 
 Gebruik een nieuwe T3 `delegate_task` per reviewronde:
 ```json
 {
-  "target": {"providerInstanceId":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh"}},
+  "target": {"providerInstanceId":"codex","model":"gpt-6.2-sol","options":{"reasoningEffort":"xhigh"}},
   "isolation": "shared",
   "mode": "wait",
   "timeoutMs": 60000,
