@@ -1006,6 +1006,8 @@ en noem het in je rapport of PR-tekst.
      projectnaam, en bij een andere taak de naam uit de eigen lijst; kiest de planner die, dan staat daarna de
      projectnaam op de knop. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main
      al zo na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
+     Een projectkopie die geen taak gebruikt, houdt bij hernoemen haar oude naam (er komt geen vraag) tot ze uit het
+     bestand verdwijnt; kiest de planner zo'n werksoort, dan ziet hij dus ook de oude naam.
      Gemeten door de bouwer van #999 met een tijdelijke stap in `custom-task-types.spec.ts`. Wat de lijst hoort te
      tonen (bijvoorbeeld altijd de projectnaam voor een werksoort die in het project staat) is een keuze voor de
      eigenaar, bij de handleiding en de teksten. — B
