@@ -32,9 +32,14 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
   const personal = usePersonalTypes();
   const project = useAppStore(s => s.customTaskTypes);
   const ensureProjectTaskType = useAppStore(s => s.ensureProjectTaskType);
+  const renameProjectTaskType = useAppStore(s => s.renameProjectTaskType);
+  const notify = useAppStore(s => s.notify);
   const [dialog, setDialog] = useState<'new' | 'manage' | null>(null);
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Hernoemd persoonlijk type dat ook in het actieve document staat, met een andere naam daar:
+  // de app vraagt of die naam mee moet (#804 keuze 7).
+  const [projectRename, setProjectRename] = useState<{ id: string; oldName: string; newName: string } | null>(null);
 
   const projectOnly = project.filter(p => !personal.some(g => g.id === p.id));
   const selected = task.customTaskTypeId ? customValue(task.customTaskTypeId) : task.taskType;
@@ -86,7 +91,23 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
   };
   const rename = (id: string) => {
     const result = renamePersonalTaskType(id, name);
-    if (result) { setName(''); setEditingId(null); }
+    if (!result) return;
+    setName(''); setEditingId(null);
+    const inProject = project.find(type => type.id === id);
+    if (inProject && inProject.name !== result.name) setProjectRename({ id, oldName: inProject.name, newName: result.name });
+  };
+  const answerProjectRename = (alsoInProject: boolean) => {
+    const pending = projectRename;
+    setProjectRename(null);
+    if (!pending || !alsoInProject) return;
+    const outcome = renameProjectTaskType(pending.id, pending.newName);
+    if (outcome.status === 'nameTaken') {
+      notify({
+        severity: 'info',
+        messageKey: 'notifications.taskTypeRenameNameTaken',
+        params: { oldName: pending.oldName, takenName: outcome.takenBy.name },
+      });
+    }
   };
   const deleteType = (id: string) => {
     const inOpenProject = project.some(type => type.id === id);
@@ -141,6 +162,20 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
       </div>
       {projectOnly.length > 0 && <div className="flex flex-col gap-2"><span className="!text-small uppercase text-text-secondary">{t('taskType.projectGroup')}</span>{projectOnly.map(type => <div className="flex items-center gap-2 text-small leading-4" key={type.id}><span className="flex-1">{type.name}</span><button className="btn btn--sm btn--secondary" onClick={() => addPersonalTaskType(type.name, type.id)}>{t('taskType.addToMine')}</button></div>)}</div>}
       <div className="flex justify-end"><button className="btn btn--sm btn--primary" onClick={() => setDialog(null)}>{tCommon('close')}</button></div>
+    </Dialog>}
+
+    {projectRename && <Dialog
+      onCancel={() => answerProjectRename(false)} onConfirm={() => answerProjectRename(true)} focusedButtonOwnsEnter
+      overlayClassName="bg-black/60 z-[70]" stopBackdropPropagation
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[420px] p-4 flex flex-col gap-3"
+      panelProps={{ 'data-ops-rename-project-task-type': true }}
+    >
+      <h2 className="text-body leading-5 font-bold">{t('taskType.renameInProjectTitle')}</h2>
+      <p className="text-small leading-relaxed">{t('taskType.renameInProjectMessage', { oldName: projectRename.oldName, newName: projectRename.newName })}</p>
+      <div className="flex justify-end gap-2">
+        <button className="btn btn--sm btn--secondary" onClick={() => answerProjectRename(false)}>{t('taskType.renameInProjectNo')}</button>
+        <button className="btn btn--sm btn--primary" onClick={() => answerProjectRename(true)}>{t('taskType.renameInProjectYes')}</button>
+      </div>
     </Dialog>}
   </>;
 }

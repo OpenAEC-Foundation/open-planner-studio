@@ -365,7 +365,8 @@
     "ifcForeignNewTargetOnly": "This IFC file can only be written to a new file name. Choose a name that does not exist yet.",
     "ifcForeignPlaceUnknown": "The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
-    "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again."
+    "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
+    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
