@@ -834,6 +834,7 @@ export function CalendarForm({
           onConfirm={() => regenerate(true)}
           onCancel={() => setConfirmRegeneration(false)}
           danger
+          requireButtonFocus
         />
       )}
 
