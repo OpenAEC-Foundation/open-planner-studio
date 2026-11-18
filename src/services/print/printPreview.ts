@@ -13,7 +13,7 @@ import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
-import { milestoneAnchorX, taskBarSpan } from '@/engine/renderer/barSpan';
+import { milestoneAnchorX, taskBarSpan, type TaskBarSpan } from '@/engine/renderer/barSpan';
 import { taskDateLabel } from '@/utils/taskDateLabel';
 import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
 import { snapToChoice } from '@/utils/numberChoice';
@@ -1449,6 +1449,13 @@ export function renderReport(
   // is dit de identiteit.
   const windowed = !!options.timeWindow;
   const clampX = (x: number) => (windowed ? Math.min(canvasWidth, Math.max(m.tableWidth, x)) : x);
+  // Tijdvenster: valt een stuk [start, einde) in de TIJD binnen het venster? Beslis dat niet op de geklemde x:
+  // op de werkdagas valt een stuk in niet-werktijd (een zondagtaak op een weekendkalender) tot één punt samen.
+  // Het hoort dan wel in het venster en krijgt de minimumbreedte, net als zonder venster.
+  const windowFromMs = minDate.getTime();
+  const windowToMs = maxDate.getTime();
+  const inWindowTime = (start: Date, endExclusive: Date) => endExclusive.getTime() > windowFromMs && start.getTime() < windowToMs;
+  const barInWindow = (bar: TaskBarSpan | null) => !!bar && inWindowTime(bar.start, bar.hourMode ? bar.end : addCalendarDays(bar.end, 1));
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
   const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
 
@@ -1809,10 +1816,10 @@ export function renderReport(
       const rawX1 = bar?.x1 ?? Number.NaN;
       const rawX2 = bar?.x2 ?? Number.NaN;
       // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
-      // een echt begin/einde suggereren). Valt de hele haak buiten het venster, dan niets.
+      // een echt begin/einde suggereren). Valt de hele haak in de tijd buiten het venster, dan niets.
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
-      if (windowed && x2 <= x1) continue;
+      if (windowed && !barInWindow(bar)) continue;
       const width = Math.max(x2 - x1, 3);
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
@@ -1861,11 +1868,11 @@ export function renderReport(
       const rawX2 = bar?.x2 ?? Number.NaN;
       const width = Math.max(rawX2 - rawX1, 3);
       // Tijdvenster: de balkuiteinden geklemd op het chartgebied; de voortgangsgrens en de
-      // speling hieronder klemmen op dezelfde manier. Een balk die helemaal buiten het venster
-      // valt tekent niets (ook geen label).
+      // speling hieronder klemmen op dezelfde manier. Een balk die in de tijd helemaal buiten het
+      // venster valt tekent niets (ook geen label).
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
-      if (windowed && x2 <= x1) continue;
+      if (windowed && !barInWindow(bar)) continue;
 
       // Kleurmodi en onderbroken balken zijn onafhankelijke dimensies: dezelfde
       // kleurverhouding komt terug in elk werkblok van één taak.
@@ -1882,7 +1889,8 @@ export function renderReport(
         const rx1 = i === 0 ? rawX1 : dateToX(s.start);
         const rx2 = i === segments.length - 1 ? rawX2 : dateToX(s.end);
         return { rx1, rx2, x1: clampX(rx1), x2: clampX(rx2) };
-      }).filter(s => !windowed || s.x2 > s.x1);
+      // Bij één stuk besliste `barInWindow` al; een werkblok van een onderbroken balk telt in de tijd.
+      }).filter((s, i) => !windowed || segments.length === 1 || s.x2 > s.x1 || inWindowTime(segments[i].start, segments[i].end));
       const split = segs.length > 1;
 
       if (split) {

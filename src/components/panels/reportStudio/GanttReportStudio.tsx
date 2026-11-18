@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  latestReportSettings, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  latestReportSettings, legacyPeriodPatch, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -269,6 +269,14 @@ export function GanttReportStudio() {
   const resolvedPeriod = useResolvedPeriod(settings.period);
   const bandShape = chosenLayout ? resourceBandShape(chosenLayout.group) : null;
   const periodWindow = settings.period.preset !== 'project' ? resolvedPeriod : undefined;
+  // Een opslag van vóór #997 met een eigen layout als bron: de oude periode van het resourcediagram stond alleen op
+  // het papier als die layout op resource groepeert. Beslissen zodra de eigen layouts gelezen zijn.
+  const { legacyResourcePeriod } = settings;
+  useEffect(() => {
+    if (!layoutsLoaded || !legacyResourcePeriod) return;
+    const next = legacyPeriodPatch({ period: settings.period, legacyResourcePeriod }, !!bandShape);
+    if (next) remember(next);
+  }, [layoutsLoaded, legacyResourcePeriod, settings.period, bandShape, remember]);
   const noneLabel = tTask('structure.none');
   const resourceTypeLabels = useResourceTypeLabels();
   const locale = i18n.language;
@@ -293,7 +301,8 @@ export function GanttReportStudio() {
       resource: null,
     };
     if (!periodWindow) return { rowSource: { ...base, window: undefined }, outsidePeriod: 0 };
-    if (base.resource) return { rowSource: { ...base, window: periodWindow }, outsidePeriod: base.resource.result.counts.outsidePeriod };
+    // Het resourcediagram filtert zelf en telt in zijn eigen blok (`counts.outsidePeriod`).
+    if (base.resource) return { rowSource: { ...base, window: periodWindow }, outsidePeriod: 0 };
     const inPeriod = rowsInPeriod(base.rows ?? taskTreeRows(tasks), periodWindow);
     return { rowSource: { ...base, rows: inPeriod.rows, window: periodWindow }, outsidePeriod: inPeriod.outsidePeriod };
   }, [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup, tasks]);
@@ -759,7 +768,7 @@ export function GanttReportStudio() {
               {periodWindow && (
                 <>
                   <p className="rs-hint">{t('studio.period.hint')}</p>
-                  {!resourceResult && outsidePeriod > 0 && (
+                  {outsidePeriod > 0 && (
                     <p className="rs-hint" data-rs-period-outside>{t('studio.period.outside', { count: outsidePeriod })}</p>
                   )}
                   <button type="button" className="ops-textlink self-start" onClick={() => patch({ period: { preset: 'project' } }, 'period')} data-rs-period-all>

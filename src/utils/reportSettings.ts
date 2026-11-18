@@ -31,7 +31,7 @@ import {
 } from '@/engine/reports/reportingPeriod';
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontChoice } from '@/services/pdf/reportFont';
-import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
+import { isBuiltinLayoutId, RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 
 /** De `localStorage`-sleutel van de rapportinstellingen. */
 const LOCAL_KEY = 'ops-reportSettings';
@@ -213,6 +213,12 @@ export interface ReportSettings {
    * hele planning. Dezelfde `ReportingPeriod` als de tabelrapporten; bewaard per apparaat, zoals de rest hier.
    */
   period: ReportingPeriod;
+  /**
+   * De oude periode van het resourcediagram (vóór #997) bij een EIGEN layout als bron. Of die layout op resource
+   * groepeerde, en de periode dus op het papier stond, weet pas het Rapport-tabblad als de layouts gelezen zijn; tot
+   * dan blijft de periode hier bewaard, en daarna haalt het tabblad haar weg (`legacyPeriodPatch`).
+   */
+  legacyResourcePeriod?: ReportingPeriod;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
   /**
@@ -394,16 +400,32 @@ export function parseTableReportOptions(raw: unknown): TableReportOptions {
 }
 
 /**
- * Het tijdvak van de Gantt-afdruk. Ontbreekt het (opslag van vóór #997), dan geldt de oude periode van het
- * resourcediagram, maar alleen als dat diagram de gekozen bron was: alleen dan stond die periode op het papier.
- * De oude sleutel wordt daarna niet meer teruggeschreven.
+ * Het tijdvak van de Gantt-afdruk en, bij een opslag van vóór #997, de oude periode van het resourcediagram. Die
+ * stond alleen op het papier als de bron op resource groepeerde. Het meegeleverde Resourcediagram (of het oude
+ * rapporttype) neemt haar meteen over; een eigen layout houdt haar apart tot het tabblad weet hoe die groepeert; bij
+ * elke andere bron telde ze niet. De oude sleutel `resourceGantt.period` wordt niet meer teruggeschreven.
  */
-function parseGanttPeriod(s: Record<string, unknown>): ReportingPeriod {
-  const d = DEFAULT_REPORT_SETTINGS.period;
-  if (s.period !== undefined) return parseReportingPeriod(s.period, d);
-  const resourceDiagram = s.reportType === 'resourceGantt' || s.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID;
-  const legacy = s.resourceGantt && typeof s.resourceGantt === 'object' ? (s.resourceGantt as Record<string, unknown>).period : undefined;
-  return resourceDiagram ? parseReportingPeriod(legacy, d) : { ...d };
+function parseGanttPeriod(s: Record<string, unknown>): Pick<ReportSettings, 'period' | 'legacyResourcePeriod'> {
+  const project: ReportingPeriod = { preset: 'project' };
+  const period = s.period !== undefined ? parseReportingPeriod(s.period, project) : project;
+  const pending = s.legacyResourcePeriod !== undefined ? parseReportingPeriod(s.legacyResourcePeriod, project) : undefined;
+  if (pending) return pending.preset === 'project' ? { period } : { period, legacyResourcePeriod: pending };
+  const rg = s.resourceGantt && typeof s.resourceGantt === 'object' ? s.resourceGantt as Record<string, unknown> : null;
+  if (s.period !== undefined || rg?.period === undefined) return { period };
+  const legacy = parseReportingPeriod(rg.period, project);
+  if (legacy.preset === 'project') return { period };
+  if (s.reportType === 'resourceGantt' || s.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID) return { period: legacy };
+  const ownLayout = typeof s.layoutId === 'string' && s.layoutId !== '' && !isBuiltinLayoutId(s.layoutId);
+  return ownLayout ? { period, legacyResourcePeriod: legacy } : { period };
+}
+
+/**
+ * Wat het tabblad schrijft zodra het weet of de gekozen bron op resource groepeert: de bewaarde oude periode wordt
+ * het tijdvak (ja) of vervalt (nee). `null` als er niets te beslissen is.
+ */
+export function legacyPeriodPatch(settings: Pick<ReportSettings, 'period' | 'legacyResourcePeriod'>, resourceSource: boolean): Partial<ReportSettings> | null {
+  if (!settings.legacyResourcePeriod) return null;
+  return { period: resourceSource ? settings.legacyResourcePeriod : settings.period, legacyResourcePeriod: undefined };
 }
 
 function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
@@ -499,7 +521,7 @@ function parseReportSettings(raw: unknown): ReportSettings {
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
-    period: parseGanttPeriod(s),
+    ...parseGanttPeriod(s),
     // `previewZoom` en `previewQuality` van de oude rasterpreview (vóór #817) lezen we niet meer; bij het
     // volgende opslaan vallen ze weg.
     tableReports: parseTableReportOptions(s.tableReports),

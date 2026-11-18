@@ -8,7 +8,7 @@
 //   4. De render: relatielijnen blijven bij een tijdvak staan, afgekapt op het chartgebied (eerst vielen ze weg).
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
+import { DEFAULT_REPORT_SETTINGS, legacyPeriodPatch, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 import { rowsInPeriod, taskTreeRows } from '@/engine/reports';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { studioRowPrintFields } from '@/components/panels/reportStudio/studioRowSource';
@@ -50,6 +50,23 @@ const eq = (msg: string, got: unknown, want: unknown) => {
     (await load({ layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, period: { preset: 'lastMonth' }, resourceGantt: { period: { preset: 'next4Weeks' } } })).period,
     { preset: 'lastMonth' });
   ok(!('period' in (await load({ resourceGantt: { period: custom } })).resourceGantt), 'de oude sleutel blijft niet in de geladen stand');
+  // Een eigen layout: of die op resource groepeerde, weet pas het tabblad. Tot dan blijft de oude periode bewaard,
+  // ook als er intussen iets anders wordt opgeslagen (review Sol #1005: ze ging bij de eerste schrijfactie verloren).
+  const eigen = await load({ layoutId: 'layout-eigen', resourceGantt: { period: custom } });
+  eq('eigen layout: nog geen tijdvak, de oude periode apart bewaard', [eigen.period, eigen.legacyResourcePeriod], [{ preset: 'project' }, custom]);
+  patchReportSettings({ showDeps: false });
+  const naSchrijven = await loadReportSettings();
+  eq('… en een schrijfactie ertussen bewaart haar', naSchrijven.legacyResourcePeriod, custom);
+  patchReportSettings(legacyPeriodPatch(naSchrijven, true)!);
+  const besloten = await loadReportSettings();
+  eq('groepeert de layout op resource, dan wordt zij het tijdvak', besloten.period, custom);
+  ok(besloten.legacyResourcePeriod === undefined && !('legacyResourcePeriod' in JSON.parse(localStorage.getItem('ops-reportSettings')!)),
+    '… en daarna staat zij niet meer apart in de opslag');
+  eq('groepeert de layout niet op resource, dan vervalt zij',
+    legacyPeriodPatch({ period: { preset: 'project' }, legacyResourcePeriod: custom as never }, false), { period: { preset: 'project' }, legacyResourcePeriod: undefined });
+  eq('niets te beslissen zonder oude periode', legacyPeriodPatch({ period: { preset: 'project' } }, true), null);
+  eq('een andere meegeleverde layout bewaart niets: daar stond de periode nooit op papier',
+    (await load({ layoutId: 'builtin:anders', resourceGantt: { period: custom } })).legacyResourcePeriod, undefined);
   localStorage.setItem('ops-reportSettings', JSON.stringify({}));
   patchReportSettings({ period: { preset: 'custom', from: '2026-04-01', to: '2026-04-30' } });
   eq('round-trip door de opslag', (await loadReportSettings()).period, { preset: 'custom', from: '2026-04-01', to: '2026-04-30' });
@@ -101,6 +118,19 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   ];
   eq('lege banden vallen weg, tellingen volgen, een ingeklapte band blijft',
     shape(rowsInPeriod(grouped, period).rows), ['G0:Ploeg A(2)', 'G1:Week 2(2)', '2:b', '2:c', 'G0:Ingeklapt(4)']);
+  // Review Sol #1005: een ingeklapte subband houdt haar hoofdband, ook als de open subband ernaast wegvalt.
+  const zones: ViewRow[] = [
+    g('Zone A', 0, 1), g('wk 12', 1, 1), t(b, 2),
+    g('Zone B', 0, 3), g('26 sep', 1, 2, true), g('3 sep', 1, 1), t(a, 2),
+  ];
+  eq('een ingeklapte subband houdt haar hoofdband, met haar telling',
+    shape(rowsInPeriod(zones, period).rows), ['G0:Zone A(1)', 'G1:wk 12(1)', '2:b', 'G0:Zone B(2)', 'G1:26 sep(2)']);
+  // Een fase met opgeslagen datums hoeft haar kinderen niet te omsluiten: ze blijft staan als ouder van een kind in
+  // het tijdvak, ook als haar eigen spanne het mist.
+  const oudeFase = task('of', 'Fase met eigen datums', '2026-03-01', '2026-03-10', { parentId: undefined, childIds: ['k'] });
+  const kind = task('k', 'Kind', '2026-03-25', '2026-03-27', { parentId: 'of' });
+  const metOuder = rowsInPeriod(taskTreeRows([oudeFase, kind]), period);
+  eq('een fase blijft als ouder van een kind in het tijdvak', [shape(metOuder.rows), metOuder.outsidePeriod], [['0:of', '1:k'], 0]);
   const reeks: ViewRow[] = [{ kind: 'milestones', rowKey: 'ms', tasks: [wees, m], depth: 1, dimmed: false }];
   eq('een mijlpalenreeks houdt alleen de mijlpalen in het tijdvak', shape(rowsInPeriod(reeks, period).rows), ['M1:w']);
   eq('… en valt weg als er geen over is', shape(rowsInPeriod(reeks, { from: '2026-01-01', to: '2026-01-31' }).rows), []);
@@ -178,6 +208,41 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   ok(late.deps.length === 2 && late.arrows.length === 1, `rechts het venster uit: twee lijnen, één pijlpunt (${late.deps.length}, ${late.arrows.length})`);
   ok(lateXs.every(x => x <= late.dims.width + 1e-6) && lateXs.some(x => Math.abs(x - late.dims.width) < 1e-6),
     'de lijn die rechts het venster uitloopt, stopt op de rechterrand');
+}
+
+// ── 5. Render: een taak in niet-werktijd op de werkdagas houdt haar balk ───────────────────────────
+// Review Sol #1005. Zondag 27 september van 10.00 tot 12.00 uur (een taak op een weekendkalender) valt op de werkdagas (alleen werkbare dagen) tot één punt samen met maandag.
+// Zonder tijdvak krijgt zo'n balk de minimumbreedte; met een tijdvak van 27 t/m 28 september viel hij weg.
+{
+  const zondag = task('zo', 'Zondagwerk', '2026-09-27T10:00', '2026-09-27T12:00', { parentId: undefined });
+  const maandag = task('ma', 'Maandagwerk', '2026-09-28', '2026-09-28', { parentId: undefined });
+  const bars = (options: Partial<PrintOptions>) => {
+    const rects: { x: number; y: number; w: number }[] = [];
+    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
+    const d2d: Draw2D = {
+      get font() { return st.font; }, set font(v) { st.font = v; },
+      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
+      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
+      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
+      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
+      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
+      setLineDash() {}, fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {}, stroke() {},
+      roundRect(x, y, w) { rects.push({ x, y, w }); }, fillText() {},
+      measureText(text) { return { width: text.length * 4.5 }; },
+    };
+    const tasksHere = [zondag, maandag];
+    const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
+      showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
+      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
+      locale: 'nl', reportFontScale: 100, rows: taskTreeRows(tasksHere), compressNonWorkdays: true, ...options,
+    } as PrintOptions);
+    const chartBottom = dims.height - dims.footerHeight;
+    const inChart = rects.filter(r => r.y > dims.headerHeight && r.y < chartBottom && r.x >= dims.tableWidth - 1e-6 && r.x + r.w <= dims.width + 1e-6);
+    return new Set(inChart.map(r => Math.round(r.y))).size;
+  };
+  eq('zonder tijdvak: twee balken', bars({}), 2);
+  eq('met tijdvak 27 t/m 28 september: nog steeds twee balken', bars({ timeWindow: { from: '2026-09-27', to: '2026-09-28' } }), 2);
+  eq('met tijdvak 29 t/m 30 september: geen balk (taken buiten het venster)', bars({ timeWindow: { from: '2026-09-29', to: '2026-09-30' } }), 0);
 }
 
 if (failures > 0) {

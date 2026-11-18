@@ -58,55 +58,65 @@ export interface PeriodRowsResult {
 }
 
 /**
- * Alleen de rijen die het tijdvak raken.
- * - Een taakrij blijft als haar eigen spanne het tijdvak raakt; een fase dus ook als een van haar kinderen erin
- *   valt (haar spanne omvat die van de kinderen).
+ * Alleen de rijen die het tijdvak raken, met hun ouders erboven.
+ * - Een taakrij blijft als haar eigen spanne het tijdvak raakt.
  * - Een ingeklapte mijlpalenreeks houdt alleen de mijlpalen in het tijdvak, en valt weg als er geen over is.
- * - Een groepsband blijft alleen als er onder hem nog een rij staat; zijn telling wordt het aantal taakrijen
- *   eronder. Een ingeklapte band (zijn rijen staan er niet) blijft staan zoals hij is.
+ * - Een ingeklapte groepsband blijft staan zoals hij is: zijn rijen staan er niet, dus de afdruk kan ze niet wegen.
+ * - Een rij die blijft, houdt haar ouders (de rijen erboven met een kleinere diepte): de groepsband waar ze onder
+ *   valt, en ook een fase waarvan de eigen spanne het tijdvak mist (een fase met opgeslagen datums hoeft haar
+ *   kinderen niet te omsluiten). Een groepsband zonder blijvende rij eronder valt weg.
+ * - De telling van een open groepsband wordt het aantal taakrijen dat eronder blijft, plus de telling van een
+ *   ingeklapte band eronder.
  */
 export function rowsInPeriod(rows: readonly ViewRow[], period: ResolvedPeriod): PeriodRowsResult {
-  const outside = new Set<string>();
-  const inside = (task: Task): boolean => {
-    if (taskInPeriod(task, period)) return true;
-    outside.add(task.id);
-    return false;
-  };
-  const kept: ViewRow[] = [];
-  for (const row of rows) {
+  const kept: (ViewRow | null)[] = rows.map(() => null);
+  const open: number[] = [];
+  rows.forEach((row, i) => {
+    while (open.length > 0 && rows[open[open.length - 1]].depth >= row.depth) open.pop();
+    let own: ViewRow | null = null;
     if (row.kind === 'task') {
-      if (inside(row.task)) kept.push(row);
+      if (taskInPeriod(row.task, period)) own = row;
     } else if (row.kind === 'milestones') {
-      const tasks = row.tasks.filter(inside);
-      if (tasks.length === row.tasks.length) kept.push(row);
-      else if (tasks.length > 0) kept.push({ ...row, tasks });
-    } else {
-      kept.push(row);
+      const tasks = row.tasks.filter(task => taskInPeriod(task, period));
+      if (tasks.length > 0) own = tasks.length === row.tasks.length ? row : { ...row, tasks };
+    } else if (row.collapsed) {
+      own = row;
     }
-  }
-  // Banden zonder rijen eronder weg, van achter naar voren: een band telt de taakrijen tot de volgende rij op
-  // zijn eigen of een hoger niveau.
-  const result: (ViewRow | null)[] = [];
-  const open: { index: number; depth: number; count: number; hasRows: boolean }[] = [];
+    if (own) {
+      kept[i] = own;
+      // De ouders, van dichtbij naar ver; een ouder die al blijft, heeft zijn eigen ouders al meegenomen.
+      for (let k = open.length - 1; k >= 0 && !kept[open[k]]; k--) kept[open[k]] = rows[open[k]];
+    }
+    open.push(i);
+  });
+
+  // Tellingen van de open groepsbanden.
+  const result: ViewRow[] = [];
+  const bands: { index: number; depth: number; count: number }[] = [];
   const close = (depth: number) => {
-    while (open.length > 0 && open[open.length - 1].depth >= depth) {
-      const band = open.pop()!;
+    while (bands.length > 0 && bands[bands.length - 1].depth >= depth) {
+      const band = bands.pop()!;
       const row = result[band.index];
-      if (!row || row.kind !== 'group') continue;
-      if (!band.hasRows && !row.collapsed) result[band.index] = null;
-      else if (!row.collapsed && row.count !== band.count) result[band.index] = { ...row, count: band.count };
+      if (row.kind === 'group' && row.count !== band.count) result[band.index] = { ...row, count: band.count };
     }
   };
+  const onPaper = new Set<string>();
   for (const row of kept) {
+    if (!row) continue;
     close(row.depth);
-    if (row.kind === 'group') {
-      open.push({ index: result.length, depth: row.depth, count: 0, hasRows: false });
-    } else {
-      const taskRows = row.kind === 'milestones' ? row.tasks.length : 1;
-      for (const band of open) { band.hasRows = true; band.count += taskRows; }
-    }
+    const counted = row.kind === 'task' ? 1 : row.kind === 'milestones' ? row.tasks.length : row.collapsed ? row.count : 0;
+    for (const band of bands) band.count += counted;
+    if (row.kind === 'group' && !row.collapsed) bands.push({ index: result.length, depth: row.depth, count: 0 });
+    if (row.kind === 'task') onPaper.add(row.task.id);
+    else if (row.kind === 'milestones') for (const task of row.tasks) onPaper.add(task.id);
     result.push(row);
   }
   close(-Infinity);
-  return { rows: result.filter((row): row is ViewRow => row !== null), outsidePeriod: outside.size };
+
+  const outside = new Set<string>();
+  for (const row of rows) {
+    if (row.kind === 'task' && !onPaper.has(row.task.id)) outside.add(row.task.id);
+    else if (row.kind === 'milestones') for (const task of row.tasks) if (!onPaper.has(task.id)) outside.add(task.id);
+  }
+  return { rows: result, outsidePeriod: outside.size };
 }
