@@ -185,6 +185,7 @@ const NOT_A_REFUSAL: Record<string, string> = {
   siteSaveConflict: 'opslaan geweigerd door de site: data staat op het spel, blijft een echte fout die nooit weggeduwd wordt',
   ifcSourceCopyFailed: 'opslagfout van de bronkopie; de planner kan doorwerken, geen geweigerde bewerking',
   ifcForeignReplaceFailed: 'storing (het eigen bestand kon niet worden geschreven, knownbug 1131 stap 2), echte fout',
+  ifcForeignDownloadCopy: 'het werk staat heel in een gedownloade kopie (knownbug 1768); blijvende info zoals siteSaveConflictCopy, het document blijft gewijzigd',
   recoveryReadFailed: 'storing bij herstel', recoveryDocumentsSkipped: 'storing bij herstel',
   scheduleFailed: 'storing (planning onberekenbaar)', ifcParseFailed: 'storing (bestand onleesbaar)',
   librarySaveFailed: 'storing (opslag)', schedulingTemplateStorageFailed: 'storing (opslag vol)',
