@@ -175,7 +175,7 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
       if (!active) {
         // De updater heeft de fase: het venster blijft open, zonder vraag (zie de kop van dit bestand).
         releaseShutdown = deps.claimShutdown();
-        // MUTATIE (b): ook met de updater als eigenaar de gewone afsluitronde, met sluitvraag.
+        if (!releaseShutdown) return true;
       }
       deps.finishPendingInput();
       if (!active) {
