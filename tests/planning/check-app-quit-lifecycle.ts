@@ -231,7 +231,8 @@ const closeQuestion = (id: string) => createCloseDocumentDialogActions({
   saveFile: () => state().saveFileForDocument(id),
   clearPending: () => state().setUI({ pendingCloseDocId: null }),
   restoreOpenerFocus: () => undefined,
-  onSavePendingChange: () => undefined,
+  // Zoals `CloseDocumentDialog`: de lopende opslag van de sluitvraag staat in de store (de knoppen en Escape lezen haar).
+  onSavePendingChange: (pending) => state().setUI({ closeQuestionSaving: pending }),
 });
 const resetEdge = () => {
   edge.install = { entered: deferred(), release: deferred(), started: false, fails: true };
@@ -471,6 +472,72 @@ for (const outcome of ['een ander programma wijzigde het bestand', 'bewerken tij
     assert.deepEqual(recordFiles(), []);
   });
 }
+
+// Fixronde 1 van #1008 (review Sol, bevinding 1): *Opslaan* in de sluitvraag sluit alleen een document dat vlak vóór
+// het sluiten nog schoon is, en Escape verbergt de sluitvraag niet terwijl haar opslag loopt. Proef van de reviewer.
+await check('gebouwmodel: Escape tijdens de laatste opslagstap verbergt de sluitvraag niet, en een latere bewerking houdt het tabblad open', async () => {
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: {} } });
+  const { SHORTCUTS, canRunShortcut, matchesCombo } = await import('@/hooks/keyboard/shortcutRegistry');
+  const { id, target } = await foreignDocument();
+  state().requestCloseDocument(id);
+  assert.equal(state().ui.pendingCloseDocId, id, 'de echte tabbladactie opent de sluitvraag');
+  edge.record.hold = true;
+  const saving = closeQuestion(id).save();
+  await Promise.race([edge.record.entered.promise, saving.then(() => {
+    throw new Error('de opslag eindigde zonder een herstelrecord te wissen');
+  })]);
+  assert.equal(state().isDirty, false, 'de broncommit is al geweest');
+  assert.equal(state().ui.pendingCloseDocId, id, 'de sluitvraag staat nog open tijdens het opruimen');
+  // Escape zoals `useKeyboardShortcuts`: de eerste sneltoets die past en mag lopen.
+  const escapeEvent = { key: 'Escape', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+  SHORTCUTS.find(entry => matchesCombo(escapeEvent, entry.combo) && canRunShortcut(entry, false))?.run(state());
+  assert.equal(state().ui.pendingCloseDocId, id, 'Escape verbergt de sluitvraag niet terwijl haar opslag loopt');
+  // Een bewerking langs een andere weg (de store-actie) tijdens de laatste stap: het tabblad mag dan niet dicht.
+  renameTask('Nieuwe bewerking tijdens de laatste stap');
+  assert.equal(state().isDirty, true);
+  edge.record.release.resolve();
+  await saving;
+  const current = state().getOpenDocumentPayloads().find(d => d.id === id);
+  assert.ok(current, 'het tabblad blijft open');
+  assert.equal(current.payload.isDirty, true, 'met de nog niet opgeslagen bewerking');
+  assert.equal(readFileSync(target).toString('latin1').includes('Nieuwe bewerking tijdens de laatste stap'), false);
+  assert.equal(state().ui.pendingCloseDocId, null, 'de sluitvraag is weg, zoals na een opslag die het document gewijzigd liet');
+});
+
+await check('gebouwmodel: de updater wacht op het wissen van het herstelrecord en geeft na een installatiefout de schrijfpoort terug', async () => {
+  const { claimShutdown } = await import('@/services/appQuit/shutdownPhase');
+  const { id, target } = await foreignDocument();
+  const before = fileHash(target);
+  edge.record.hold = true;
+  const storing = state().saveFile();
+  await Promise.race([edge.record.entered.promise, storing.then(() => { throw new Error('geen herstelrecord gewist'); })]);
+  assert.notEqual(fileHash(target), before);
+  assert.equal(recordFiles().length, 1);
+  const statuses: string[] = [];
+  const updating = downloadAndInstall(status => { statuses.push(status.kind); });
+  const updaterOwnsPhase = () => {
+    const release = claimShutdown('quit');
+    if (!release) return true;
+    release();
+    return false;
+  };
+  await until(updaterOwnsPhase, 400);
+  assert.ok(updaterOwnsPhase(), 'de updater bezit de afsluitfase');
+  assert.equal(edge.install.started, false);
+  const from = ipc.calls.length;
+  assert.equal(await state().saveFileForDocument(id), false, 'de schrijfpoort weigert al');
+  assert.equal(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'place_file_exclusive').length, 0);
+  edge.record.release.resolve();
+  await storing;
+  await edge.install.entered.promise;
+  assert.deepEqual(recordFiles(), []);
+  edge.install.release.resolve();
+  await updating;
+  assert.equal(statuses.at(-1), 'error');
+  renameTask('Bewerking na updatefout');
+  assert.equal(await state().saveFileForDocument(id), true);
+  assert.ok(readFileSync(target).toString('latin1').includes('Bewerking na updatefout'));
+});
 
 ipc.dispose();
 rmSync(dir, { recursive: true, force: true });

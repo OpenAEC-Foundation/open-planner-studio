@@ -107,6 +107,8 @@ async function replace(c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordSt
     documentId: c.id, path: c.path, prepared: c.prepared,
     source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
     commit: () => { committed = c.store.getState().commitSavedDocument(c.id, c.state, undefined, c.prepared); },
+    // De doelbewaking na de eerste herstelronde is van de route (`replaceOwnPath`); de proeven onderaan dekken haar.
+    stopBeforeWrite: async () => false,
     now: NOW, ...(fs ? { fs } : {}), ...(records ? { records } : {}),
   }), () => { throw new Error('de schrijfpoort is dicht (afsluitfase); deze proef sluit hem nooit'); });
   return { result, committed };
@@ -944,9 +946,14 @@ async function closeQuestionSave(c: Case): Promise<boolean> {
   await createCloseDocumentDialogActions({
     pendingId: c.id, getActiveDocumentId: () => c.store.getState().activeDocumentId,
     switchDocument: c.store.getState().switchDocument,
-    closeDocument: async id => { await c.store.getState().closeDocumentAfterSaves(id); closed = true; },
+    closeDocument: async (id, options) => {
+      const done = await c.store.getState().closeDocumentAfterSaves(id, options);
+      closed = done !== false;
+      return done;
+    },
     saveFile: () => c.store.getState().saveFileForDocument(c.id),
-    clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    clearPending: () => {}, restoreOpenerFocus: () => {},
+    onSavePendingChange: pending => c.store.getState().setUI({ closeQuestionSaving: pending }),
   }).save();
   return closed;
 }
@@ -1096,6 +1103,85 @@ for (const change of ['document gesloten', 'ander doel', 'andere bron'] as const
   });
 }
 
+// Fixronde 1 van #1008 (review Sol, bevinding 2): een tweede tabblad op hetzelfde bestand. Openen via de desktoproute
+// van neerzetten (`readOpenedTauriPath`), zoals de proef van de reviewer.
+const openViaDrop = async (c: Case) => {
+  const { droppedFilesFromPaths } = await import('@/services/fileAccess/fileDrop');
+  const { openDroppedFiles } = await import('@/state/fileDrop');
+  const paths = droppedFilesFromPaths([c.path], await tauriOpenIO(), { ifcBytes: true });
+  await openDroppedFiles(c.store, paths, {} as Parameters<typeof openDroppedFiles>[2],
+    () => c.store.getState().ui.pendingCloseDocId !== null || c.store.getState().ui.savingBeforeClose);
+};
+const otherTab = (c: Case) => c.store.getState().getOpenDocumentPayloads()
+  .find(d => d.id !== c.id && d.payload.foreignSourceMark?.filePath === c.path);
+/** De herstelronde van `opened`, met `during` één keer in de eerste ronde binnen de vervanging (`pendingSha256` staat dan
+ *  in het manifest; de controle na de herstelronde komt daarna). */
+function firstPendingRound(c: Case, during: () => void | Promise<void>) {
+  c.unregister();
+  const tracker = new RecoveryDeltaTracker();
+  let armed = true;
+  const unregister = registerRecoveryFlush(async () => {
+    const s = c.store.getState();
+    await runRecoveryTick(tracker, s.activeDocumentId,
+      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)));
+    if (!armed || !hasPendingIfcSource()) return;
+    armed = false;
+    await during();
+  });
+  return { unregister, fired: () => !armed };
+}
+
+await check('een vooraf geopend tweede tabblad met hetzelfde bestand stopt Ctrl+S, met nul plaatsingen', async () => {
+  const c = await opened();
+  try {
+    await openViaDrop(c);
+    assert(otherTab(c), 'het tweede tabblad is open');
+    c.store.getState().switchDocument(c.id);
+    clearNotices(c);
+    const from = ipc.calls.length;
+    const result = await c.store.getState().saveFileForDocument(c.id);
+    assert.deepEqual({ result, changed: fileHash(c, 'model.ifc') !== hash(bytes), places: placesSince(from).length, errors: errorKeys(c) },
+      { result: false, changed: false, places: 0, errors: ['notifications.ifcForeignReplaceBlocked'] });
+  } finally { await tidy(c); }
+});
+
+await check('een tweede tabblad dat tijdens de eerste herstelronde opengaat, wacht tot de vervanging klaar is en leest de nieuwe versie', async () => {
+  const c = await opened();
+  let opening: Promise<void> | undefined;
+  // Niet afwachten in de herstelronde: die loopt binnen de schrijfactie, en het openen wacht juist daarop.
+  const round = firstPendingRound(c, () => { opening = openViaDrop(c); });
+  try {
+    clearNotices(c);
+    const from = ipc.calls.length;
+    const result = await c.store.getState().saveFileForDocument(c.id);
+    assert.equal(round.fired(), true, 'het openen begon tijdens de eerste herstelronde');
+    await opening;
+    const written = fileHash(c, 'model.ifc');
+    assert.deepEqual({ result, changed: written !== hash(bytes), places: placesSince(from).length, errors: errorKeys(c) },
+      { result: true, changed: true, places: 2, errors: [] }, 'de opslag slaagt');
+    const second = otherTab(c);
+    assert(second, 'het tweede tabblad is open');
+    assert.equal(second.payload.ifcSource?.sha256, written, 'het tweede tabblad las de nieuwe versie');
+  } finally { round.unregister(); await tidy(c); }
+});
+
+await check('een tweede tabblad dat er na de eerste herstelronde toch is: de vervanging stopt met nul plaatsingen en de melding van de doelbewaking', async () => {
+  const c = await opened();
+  // Rechtstreeks in de store (de openactie met bytes, zonder de leesroute), tussen de controle vóór en na de herstelronde.
+  const round = firstPendingRound(c, () => c.store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes, ref: { kind: 'path', path: c.path } }));
+  try {
+    clearNotices(c);
+    const from = ipc.calls.length;
+    const result = await c.store.getState().saveFileForDocument(c.id);
+    assert.equal(round.fired(), true);
+    assert(otherTab(c), 'het tweede tabblad is open');
+    assert.deepEqual({ result, changed: fileHash(c, 'model.ifc') !== hash(bytes), places: placesSince(from).length, errors: errorKeys(c) },
+      { result: false, changed: false, places: 0, errors: ['notifications.ifcForeignReplaceBlocked'] });
+    assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote && call.path?.startsWith(c.dir)), [], 'geen schrijfactie in de projectmap');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { round.unregister(); await tidy(c); }
+});
+
 // Met de flag uit, en voor een document zonder gebouwmodel, loopt Ctrl+S zoals op main. De reeks aanroepen aan de
 // bestandsrand is vastgelegd op main (`cef70233b`), met dezelfde proef. Met de flag uit opent de app geen bestand met
 // een gebouwmodel; zo'n document bestaat dan alleen als de flag na het openen uitging.
@@ -1142,6 +1228,29 @@ for (const flag of [true, false]) {
     assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
     assert.equal(store.getState().isDirty, false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag'));
+    // *Opslaan* in de sluitvraag: dezelfde aanroepen, en het tabblad gaat dicht zoals op main (fixronde 1 van #1008: de
+    // controle vlak vóór het sluiten beslist voor een gewoon document niets anders).
+    const id = store.getState().activeDocumentId;
+    store.getState().updateTask(task.id, { name: 'Gewone opslag in de sluitvraag' });
+    let closed = false;
+    const fromClose = ipc.calls.length;
+    await createCloseDocumentDialogActions({
+      pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+      switchDocument: store.getState().switchDocument,
+      closeDocument: async (docId, options) => {
+        const done = await store.getState().closeDocumentAfterSaves(docId, options);
+        closed = done !== false;
+        return done;
+      },
+      saveFile: () => store.getState().saveFileForDocument(id),
+      clearPending: () => {}, restoreOpenerFocus: () => {},
+      onSavePendingChange: pending => store.getState().setUI({ closeQuestionSaving: pending }),
+    }).save();
+    const seenClose = ipc.calls.slice(fromClose).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
+    assert.deepEqual(seenClose, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
+    assert.equal(closed, true, 'het tabblad gaat dicht');
+    assert.equal(store.getState().getOpenDocumentPayloads().some(d => d.id === id), false);
+    assert(readFileSync(path).toString('latin1').includes('Gewone opslag in de sluitvraag'));
   });
 }
 
