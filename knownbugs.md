@@ -3958,11 +3958,6 @@ en noem het in je rapport of PR-tekst.
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
      De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
 
-592. **De P6 XML-export meldt kleuren en resourcebeschrijvingen niet als verlies.** `src/state/p6XmlExportNotice.ts` kijkt er niet
-     naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
-     komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
-     zelf geëxporteerd door de reviewer. — B
-
 601. **VERVOLG: de nieuwe buiten-dienstregel (503) is alleen op de dagkalender getoetst.** In
      `tests/planning/check-mijlpaal-afmelden.ts`, sectie 8h, staan de gevallen ma 18:00 en ma 05:00 alleen op de
      kalender `dag`. Voeg een geval toe met een nachtdienst: ma 00:00–06:00 en di–vr 22:00–06:00. Een anker op ma

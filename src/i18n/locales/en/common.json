@@ -343,6 +343,7 @@
       "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost",
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
+      "visualDetails": "Task and resource colours and resource descriptions are not included",
       "projectDetails": "Project author and company"
     },
     "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
