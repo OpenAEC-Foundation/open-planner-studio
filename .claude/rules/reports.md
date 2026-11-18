@@ -60,15 +60,20 @@ UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePer
 tonen*); het resourcediagram heeft geen eigen periode meer. Een oude `resourceGantt.period` gaat bij het laden over
 als het meegeleverde Resourcediagram de bron was (`parseGanttPeriod`); bij een eigen layout blijft zij apart bewaard
 (`legacyResourcePeriod`) tot het tabblad de layouts kent, en `legacyPeriodPatch` maakt er dan het tijdvak van (de layout
-groepeert op resource) of laat haar vallen. Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
-tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen clip, relatielijnen per recht
-stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het venster). Of een balk in het venster valt, beslist de
-TIJD (`barInWindow`), niet de geklemde x: op de werkdagas valt werk in niet-werktijd tot één punt samen en krijgt dan de
-minimumbreedte. Welke rijen erin horen beslist de rijenbron: het resourcediagram zelf (`window` van
-`computeResourceGanttRows`), de andere bronnen via `rowsInPeriod` (`src/engine/reports/reportPeriodRows.ts`: overlap op de
-getoonde spanne; een blijvende rij houdt haar ouders, dus ook een fase met opgeslagen datums en de hoofdband van een
-ingeklapte subband; lege banden weg, tellingen opnieuw). `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit hetzelfde bestand. Bewaking:
-`check-report-gantt-period.ts`.
+in de nieuwste opslag groepeert op resource) of laat haar vallen. Een eigen keuze, ook *Hele project*, wist haar in
+dezelfde schrijfactie (`periodChoicePatch`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
+tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen clip (ook de minimumbreedte en
+de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het
+venster). Of een balk in het venster valt, beslist de TIJD (`barInWindow`), niet de geklemde x: op de werkdagas valt werk
+in niet-werktijd tot één punt samen en krijgt dan de minimumbreedte. Welke rijen erin horen, beslist de rijenbron, en
+altijd vóór groeperen en inklappen: alleen de bladtaken die het tijdvak raken (`taskInPeriod`), met hun ouders. Het
+resourcediagram via `window` van `computeResourceGanttRows`, *Zoals de weergave* en een layout via `within` van
+`computeViewRows` (stap 1, naast het filter; de ouders zijn dan niet gedimd), *Alle taken* via `treeRowsInPeriod`
+(`src/engine/reports/reportPeriodRows.ts`). Banden, tellingen, reeksen en ingeklapte rijen gaan zo alleen over het tijdvak;
+een ingeklapte reeks houdt haar sleutel. De melding onder de keuze telt de bladtaken die het filter van de bron halen en
+buiten het tijdvak vallen (`leavesOutsidePeriod`). `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit
+hetzelfde bestand. Rond middernacht spreken rijfilter (per dag) en render (per moment) elkaar nog tegen (knownbug 1860).
+Bewaking: `check-report-gantt-period.ts`.
 
 **Voortgangscurve** (issue #689, spec `docs/superpowers/specs/2026-10-27-voortgangscurve-rapport.md`) is
 een tabelrapport (`progressCurve`, rekenlaag `progressCurve.ts`) met twee extra blokken in dezelfde

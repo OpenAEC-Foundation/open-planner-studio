@@ -923,7 +923,7 @@ export interface PrintOptions {
    * relatielijnen worden op de chartrand afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf
    * wordt geklemd (ook de 3 px-minimumbreedte van een balk en het middelpunt van een ruit; een
    * relatielijn per recht stuk, een pijlpunt alleen als hij helemaal in het venster valt). Welke
-   * rijen in het venster horen beslist de rijenbron (`rowsInPeriod`, of `computeResourceGanttRows`
+   * rijen in het venster horen beslist de rijenbron (`within` van `computeViewRows`, `treeRowsInPeriod` of `computeResourceGanttRows`
    * bij het resourcediagram), niet de render; een rij die er toch buiten valt tekent gewoon geen
    * balk. Afwezig ⇒ geen venster.
    */
@@ -1820,7 +1820,15 @@ export function renderReport(
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
       if (windowed && !barInWindow(bar)) continue;
-      const width = Math.max(x2 - x1, 3);
+      // Bij een venster dezelfde minimumbreedte als een gewone balk: naar binnen geschoven, niet afgeknepen. De
+      // haakjes blijven ook binnen het chartgebied.
+      let sx1 = x1;
+      let width = windowed ? x2 - x1 : Math.max(x2 - x1, 3);
+      if (windowed && width < 3) {
+        width = Math.min(3, canvasWidth - m.tableWidth);
+        sx1 = Math.max(m.tableWidth, Math.min(x1, canvasWidth - width));
+      }
+      const hook = windowed ? Math.min(6, canvasWidth - sx1, sx1 + width - m.tableWidth) : 6;
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
 
@@ -1830,15 +1838,15 @@ export function renderReport(
       const sumCompletion = options.showCompletion ? Math.max(0, Math.min(1, task.time.completion || 0)) : 0;
       const sumProgressX = sumCompletion >= 1 ? Infinity : sumCompletion > 0 ? rawX1 + (rawX2 - rawX1) * sumCompletion : -Infinity;
       const sumGrey = doneBarTones(PRINT_COLORS.summary, false).fill;
-      paintProgressBarPiece(d2d, x1, x1 + width, barY, barH, 0, PRINT_COLORS.summary, sumProgressX, false);
+      paintProgressBarPiece(d2d, sx1, sx1 + width, barY, barH, 0, PRINT_COLORS.summary, sumProgressX, false);
 
       // Left triangle
       d2d.fillStyle = sumCompletion > 0 ? sumGrey : PRINT_COLORS.summary;
       if (x1 === rawX1) {
         d2d.beginPath();
-        d2d.moveTo(x1, barY);
-        d2d.lineTo(x1, barY + barH + 5);
-        d2d.lineTo(x1 + 6, barY + barH);
+        d2d.moveTo(sx1, barY);
+        d2d.lineTo(sx1, barY + barH + 5);
+        d2d.lineTo(sx1 + hook, barY + barH);
         d2d.closePath();
         d2d.fill();
       }
@@ -1847,16 +1855,16 @@ export function renderReport(
       d2d.fillStyle = sumCompletion >= 1 ? sumGrey : PRINT_COLORS.summary;
       if (x2 === rawX2) {
         d2d.beginPath();
-        d2d.moveTo(x1 + width, barY);
-        d2d.lineTo(x1 + width, barY + barH + 5);
-        d2d.lineTo(x1 + width - 6, barY + barH);
+        d2d.moveTo(sx1 + width, barY);
+        d2d.lineTo(sx1 + width, barY + barH + 5);
+        d2d.lineTo(sx1 + width - hook, barY + barH);
         d2d.closePath();
         d2d.fill();
       }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
       if (wantBarLabel) {
-        barLabelJobs.push(barLabel(task, { barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true }));
+        barLabelJobs.push(barLabel(task, { barRightX: sx1 + width, barLeftX: sx1, y: y + barHeight / 2 + m.s(3), bold: true }));
       }
     } else {
       // Normal task bar, met de balkgrenzen van het scherm (`taskBarSpan`): met momenten van het startmoment

@@ -800,6 +800,11 @@ en noem het in je rapport of PR-tekst.
     van een baselinemijlpaal op het begin van het tijdvenster maar half te zien (mijlpaal op
     2026-10-20T00:00 bij een rapport vanaf 20 oktober). Vervolgpunt uit review ronde 2 van PR #403
     (GPT-6.1-Sol). — B
+1860. **VERVOLG (#997): rond middernacht kiest het tijdvak van de Gantt-afdruk een rij waarvan de balk niet getekend wordt.**
+    Het rijfilter (`taskInPeriod` in `reportPeriodRows.ts`) vergelijkt datums per dag, de render (`barInWindow` in
+    `printPreview.ts`) per moment met een exclusief einde. Een nachttaak van 24 september 22.00 uur tot 25 september
+    00.00 uur krijgt bij een tijdvak vanaf 25 september een rij met een lege balk. Richting: voor beide dezelfde
+    intervalregel, met behoud van mijlpalen op de grens. Gevonden door de review van #1005 (Sol, ronde 2). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm

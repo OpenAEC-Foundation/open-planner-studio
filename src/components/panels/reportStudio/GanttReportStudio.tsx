@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  latestReportSettings, legacyPeriodPatch, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  latestReportSettings, legacyPeriodPatch, periodChoicePatch, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -40,7 +40,11 @@ import {
 } from './reportLayouts';
 import { useReportLayouts } from './useReportLayouts';
 import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/engine/reports/layoutReport';
-import { rowsInPeriod, taskTreeRows } from '@/engine/reports/reportPeriodRows';
+import { leavesOutsidePeriod, taskInPeriod, treeRowsInPeriod } from '@/engine/reports/reportPeriodRows';
+import type { ReportingPeriod } from '@/engine/reports/reportingPeriod';
+import { computeViewRows } from '@/engine/view/visibleRows';
+import { evaluate } from '@/engine/view/filterEval';
+import { viewRowInputs } from '@/state/viewRows';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import { layoutIcon } from '@/components/viewControls/layoutIcons';
 import { ReportingPeriodField, useResolvedPeriod } from '@/components/panels/reports/ReportingPeriodField';
@@ -89,7 +93,7 @@ const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM 
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   // De keuze (alle taken, weergave of layout; een oude `reportType: 'resourceGantt'` hoort bij de layout
   // Resourcediagram), het tijdvak en de opties van het Resourcediagram.
-  tasks: ['followView', 'layoutId', 'reportType', 'period', 'resourceGantt'],
+  tasks: ['followView', 'layoutId', 'reportType', 'period', 'legacyResourcePeriod', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
   bars: ['showTaskNames', 'showBarDates', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
   page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
@@ -145,7 +149,9 @@ export function GanttReportStudio() {
   const calendar = useAppStore(s => s.calendar);
   const project = useAppStore(s => s.project);
   const viewRows = useAppStore(s => s.viewRows);
-  const viewGroup = useAppStore(s => s.view.group);
+  const view = useAppStore(s => s.view);
+  const viewGroup = view.group;
+  const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const scheduleStale = useAppStore(s => s.scheduleStale);
   // "Datums zoals opgeslagen": het rapport kent de cel "niet vastgelegd" niet. Dezelfde melding als boven de
   // andere rapporten zegt dat het papier de datums uit het bestand toont.
@@ -264,19 +270,26 @@ export function GanttReportStudio() {
   }, [layoutsLoaded, source, chosenLayout, remember]);
 
   const resourceOptions = settings.resourceGantt;
-  // Het tijdvak (#997) geldt voor elke bron: het resourcediagram filtert er zijn rijen zelf op, de andere bronnen
-  // via `rowsInPeriod`. Hele project = geen venster, dus het papier van vóór #997.
+  // Het tijdvak (#997) geldt voor elke bron, vóór groeperen en inklappen (zie `reportPeriodRows.ts`). Hele
+  // project = geen venster, dus het papier van vóór #997.
   const resolvedPeriod = useResolvedPeriod(settings.period);
   const bandShape = chosenLayout ? resourceBandShape(chosenLayout.group) : null;
   const periodWindow = settings.period.preset !== 'project' ? resolvedPeriod : undefined;
   // Een opslag van vóór #997 met een eigen layout als bron: de oude periode van het resourcediagram stond alleen op
   // het papier als die layout op resource groepeert. Beslissen zodra de eigen layouts gelezen zijn.
+  // Een eigen keuze van een tijdvak wist de overgang in dezelfde schrijfactie (`choosePeriod`); hier beslist de
+  // nieuwste opslag met haar eigen bron, niet de stand van deze render.
   const { legacyResourcePeriod } = settings;
   useEffect(() => {
     if (!layoutsLoaded || !legacyResourcePeriod) return;
-    const next = legacyPeriodPatch({ period: settings.period, legacyResourcePeriod }, !!bandShape);
+    const latest = latestReportSettings();
+    const latestSource = reportTaskSource(latest);
+    const latestLayout = latestSource.kind === 'layout' ? layouts.find(layout => layout.id === latestSource.id) : undefined;
+    const next = legacyPeriodPatch(latest, !!latestLayout && !!resourceBandShape(latestLayout.group));
     if (next) remember(next);
-  }, [layoutsLoaded, legacyResourcePeriod, settings.period, bandShape, remember]);
+  }, [layoutsLoaded, legacyResourcePeriod, layouts, remember]);
+  const choosePeriod = useCallback(
+    (next: ReportingPeriod) => patch(periodChoicePatch(next), 'period'), [patch]);
   const noneLabel = tTask('structure.none');
   const resourceTypeLabels = useResourceTypeLabels();
   const locale = i18n.language;
@@ -303,9 +316,21 @@ export function GanttReportStudio() {
     if (!periodWindow) return { rowSource: { ...base, window: undefined }, outsidePeriod: 0 };
     // Het resourcediagram filtert zelf en telt in zijn eigen blok (`counts.outsidePeriod`).
     if (base.resource) return { rowSource: { ...base, window: periodWindow }, outsidePeriod: 0 };
-    const inPeriod = rowsInPeriod(base.rows ?? taskTreeRows(tasks), periodWindow);
-    return { rowSource: { ...base, rows: inPeriod.rows, window: periodWindow }, outsidePeriod: inPeriod.outsidePeriod };
-  }, [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup, tasks]);
+    // Een layout kreeg het tijdvak al mee. *Zoals de weergave* bouwt de rijen van het scherm opnieuw, met het
+    // tijdvak vóór groeperen en inklappen, zodat banden, tellingen en ingeklapte rijen alleen over het tijdvak gaan.
+    const { opts, ctx } = viewRowInputs({
+      tasks, view, ui: { collapsedTaskIds }, activityCodeTypes, customFieldDefs, resources, assignments,
+    });
+    const filter = chosenLayout ? chosenLayout.filter ?? null : source.kind === 'view' ? opts.filter : null;
+    const rows = layoutRows ? layoutRows.rows
+      : source.kind === 'view' ? computeViewRows(tasks, { ...opts, within: task => taskInPeriod(task, periodWindow) }, ctx)
+        : treeRowsInPeriod(tasks, periodWindow);
+    return {
+      rowSource: { ...base, rows, window: periodWindow },
+      outsidePeriod: leavesOutsidePeriod(tasks, periodWindow, filter ? leaf => evaluate(filter, leaf, ctx) : undefined),
+    };
+  }, [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup, tasks, view, collapsedTaskIds,
+    activityCodeTypes, customFieldDefs, resources, assignments, chosenLayout]);
   const multiBand = rowSource.multiBand;
   const resourceResult = rowSource.resource?.result ?? null;
   const fileName = `${fileBase}-${t(resourceResult ? 'fileSuffix.resourceGantt' : 'fileSuffix.gantt')}.pdf`;
@@ -761,7 +786,7 @@ export function GanttReportStudio() {
               <ReportingPeriodField
                 id="rs-period"
                 value={settings.period}
-                onChange={next => patch({ period: next }, 'period')}
+                onChange={choosePeriod}
                 dataKey="ganttPeriod"
                 compact
               />
@@ -771,7 +796,7 @@ export function GanttReportStudio() {
                   {outsidePeriod > 0 && (
                     <p className="rs-hint" data-rs-period-outside>{t('studio.period.outside', { count: outsidePeriod })}</p>
                   )}
-                  <button type="button" className="ops-textlink self-start" onClick={() => patch({ period: { preset: 'project' } }, 'period')} data-rs-period-all>
+                  <button type="button" className="ops-textlink self-start" onClick={() => choosePeriod({ preset: 'project' })} data-rs-period-all>
                     {t('studio.period.showAll')}
                   </button>
                 </>

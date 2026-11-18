@@ -43,6 +43,12 @@ export interface ViewRowOpts {
   sort: SortLevel[];
   collapsedTaskIds: Set<string>;
   collapsedGroupKeys: Set<string>;
+  /**
+   * Alleen bladtaken waarvoor dit waar is, met hun ouders (issue #997: het tijdvak van de Gantt-afdruk). Werkt
+   * vóór groeperen en inklappen, net als het filter, zodat banden, tellingen en reeksen alleen over deze taken
+   * gaan. Anders dan bij het filter worden de ouders niet gedimd. Afwezig = geen beperking.
+   */
+  within?: (task: Task) => boolean;
 }
 
 /** Rauwe sleutel voor de "(geen)"-band (taak zonder waarde op dit groepniveau). */
@@ -258,30 +264,38 @@ export function milestoneRunHeadOf(tasks: readonly Task[], taskId: string): stri
 
 // --- De pijplijn ---
 
+/**
+ * De bladtaken waarvoor `keep` waar is, met hun ouderketen: id → `true` voor een ouder die alleen als ouder
+ * meekomt, `false` voor een blad. Stap 1 van `computeViewRows`; de Gantt-afdruk gebruikt hem ook voor het tijdvak
+ * bij *Alle taken* (#997).
+ */
+export function leavesWithAncestors(
+  tasks: readonly Task[],
+  keep: (leaf: Task) => boolean,
+  byId: ReadonlyMap<string, Task> = new Map(tasks.map(t => [t.id, t])),
+): Map<string, boolean> {
+  const selected = new Map<string, boolean>();
+  for (const leaf of tasks) {
+    if (!isLeafTask(leaf) || !keep(leaf)) continue;
+    selected.set(leaf.id, false);
+    // Stoppen bij de eerste al gekozen ouder: die kreeg zijn hele keten al eerder mee. Dat is
+    // ook de cyclusbewaking (zoals `ancestorIds` in utils/wbs, maar zonder per blad een generator
+    // en Set — dit draait na elke mutatie): een `parentId`-kring liep hier anders eindeloos rond.
+    for (let p = leaf.parentId; p && !selected.has(p); p = byId.get(p)?.parentId ?? null) selected.set(p, true);
+  }
+  return selected;
+}
+
 export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewContext): ViewRow[] {
-  const { filter, group, sort, collapsedTaskIds, collapsedGroupKeys } = opts;
+  const { filter, group, sort, collapsedTaskIds, collapsedGroupKeys, within } = opts;
   const byId = new Map(tasks.map(t => [t.id, t]));
 
-  // Stap 1 — filter: matchende bladeren + hun gedimde ouderketen (P6 "show summaries").
-  const visible = new Set<string>();
-  const dimmed = new Map<string, boolean>();
-  if (filter === null) {
-    for (const t of tasks) { visible.add(t.id); dimmed.set(t.id, false); }
-  } else {
-    for (const leaf of tasks) {
-      if (!isLeafTask(leaf)) continue;
-      if (!evaluate(filter, leaf, ctx)) continue;
-      visible.add(leaf.id);
-      dimmed.set(leaf.id, false);
-      // Stoppen bij de eerste al zichtbare ouder: die kreeg zijn hele keten al eerder mee. Dat is
-      // ook de cyclusbewaking (zoals `ancestorIds` in utils/wbs, maar zonder per blad een generator
-      // en Set — dit draait na elke mutatie): een `parentId`-kring liep hier anders eindeloos rond.
-      for (let p = leaf.parentId; p && !visible.has(p); p = byId.get(p)?.parentId ?? null) {
-        visible.add(p);
-        dimmed.set(p, true);
-      }
-    }
-  }
+  // Stap 1 — filter: matchende bladeren + hun gedimde ouderketen (P6 "show summaries"). Het tijdvak
+  // (`within`) beperkt de bladeren op dezelfde plek; zijn ouders zijn alleen gedimd als er ook een filter is.
+  const selected = filter === null && !within ? null : leavesWithAncestors(
+    tasks, leaf => (filter === null || evaluate(filter, leaf, ctx)) && (!within || within(leaf)), byId);
+  const visible = { has: (id: string) => selected === null || selected.has(id) };
+  const dimmed = { get: (id: string) => filter !== null && selected?.get(id) === true };
 
   // Stap 2 — gegroepeerde modus: platte banden op zichtbare bladeren.
   if (group.length > 0) {
@@ -343,8 +357,10 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
       const item = stack.pop()!;
       if ('run' in item) {
         for (const t of item.run) seen.add(t.id);
-        if (!item.hidden) {
-          rows.push({ kind: 'milestones', rowKey: `milestones:${item.run[0].id}`, tasks: item.run, depth: item.depth, dimmed: false });
+        // Een reeks houdt haar sleutel (en dus haar inklapstand) als de eerste mijlpaal buiten het tijdvak valt.
+        const shown = within ? item.run.filter(t => visible.has(t.id)) : item.run;
+        if (!item.hidden && shown.length > 0) {
+          rows.push({ kind: 'milestones', rowKey: `milestones:${item.run[0].id}`, tasks: shown, depth: item.depth, dimmed: false });
         }
         continue;
       }
@@ -353,7 +369,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
       seen.add(task.id);
       if (!hidden && visible.has(task.id)) {
         rows.push({
-          kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id) ?? false,
+          kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id),
           ...(item.runSize ? { runSize: item.runSize } : {}),
         });
       }
@@ -368,7 +384,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   // Wees-vangnet: taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {
-      rows.push({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: dimmed.get(t.id) ?? false });
+      rows.push({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: dimmed.get(t.id) });
     }
   }
   return rows;

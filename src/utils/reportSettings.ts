@@ -428,6 +428,15 @@ export function legacyPeriodPatch(settings: Pick<ReportSettings, 'period' | 'leg
   return { period: resourceSource ? settings.legacyResourcePeriod : settings.period, legacyResourcePeriod: undefined };
 }
 
+/**
+ * Een eigen keuze van een tijdvak, ook *Hele project*: wint van een openstaande oude periode, in dezelfde
+ * schrijfactie (review Sol #1005, ronde 2: koos de planner terwijl de layouts nog laadden, dan schreef de overgang
+ * er daarna de oude periode overheen).
+ */
+export function periodChoicePatch(period: ReportingPeriod): Partial<ReportSettings> {
+  return { period, legacyResourcePeriod: undefined };
+}
+
 function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
   const d = DEFAULT_RESOURCE_GANTT_OPTIONS;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...d };

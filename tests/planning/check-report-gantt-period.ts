@@ -2,14 +2,18 @@
 //
 //   1. Opslag: één tijdvak (`period`) voor elke rijenbron, standaard de hele planning. De oude periode van het
 //      resourcediagram (`resourceGantt.period`) gaat erin op, maar alleen als dat diagram de gekozen bron was.
-//   2. Rijen: `rowsInPeriod` houdt alleen rijen die het tijdvak raken; lege groepsbanden vallen weg en tellen opnieuw.
+//   2. Rijen: alleen de bladtaken die het tijdvak raken, met hun ouders, vóór groeperen en inklappen
+//      (`treeRowsInPeriod` voor alle taken, `within` van `computeViewRows` voor de weergave en een layout).
 //      `taskTreeRows` is de boom die `buildPrintRows` zonder rijenlijst gebruikt (dezelfde rijen als eerst).
 //   3. De printvelden: het tijdvak gaat als `timeWindow` naar de render, voor elke bron.
 //   4. De render: relatielijnen blijven bij een tijdvak staan, afgekapt op het chartgebied (eerst vielen ze weg).
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
-import { DEFAULT_REPORT_SETTINGS, legacyPeriodPatch, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
-import { rowsInPeriod, taskTreeRows } from '@/engine/reports';
+import { DEFAULT_REPORT_SETTINGS, latestReportSettings, legacyPeriodPatch, loadReportSettings, patchReportSettings, periodChoicePatch } from '@/utils/reportSettings';
+import { computeLayoutReportRows, leavesOutsidePeriod, taskInPeriod, taskTreeRows, treeRowsInPeriod } from '@/engine/reports';
+import { computeViewRows, type ViewContext, type ViewRowOpts } from '@/engine/view/visibleRows';
+import { evaluate } from '@/engine/view/filterEval';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { studioRowPrintFields } from '@/components/panels/reportStudio/studioRowSource';
 import { buildPrintRows, renderReport, type PrintOptions } from '@/services/print/printPreview';
@@ -67,6 +71,14 @@ const eq = (msg: string, got: unknown, want: unknown) => {
   eq('niets te beslissen zonder oude periode', legacyPeriodPatch({ period: { preset: 'project' } }, true), null);
   eq('een andere meegeleverde layout bewaart niets: daar stond de periode nooit op papier',
     (await load({ layoutId: 'builtin:anders', resourceGantt: { period: custom } })).legacyResourcePeriod, undefined);
+  // Review Sol #1005, ronde 2: kiest de planner een tijdvak terwijl de overgang nog openstaat (de eigen layouts
+  // worden nog gelezen), dan wint die keuze; de overgang leest daarna de nieuwste opslag en heeft niets meer te doen.
+  for (const keuze of [{ preset: 'nextMonth' }, { preset: 'project' }] as const) {
+    await load({ layoutId: 'layout-eigen', resourceGantt: { period: custom } });
+    patchReportSettings(periodChoicePatch(keuze));
+    const naKeuze = latestReportSettings();
+    eq(`een eigen keuze (${keuze.preset}) wint van de oude periode`, [naKeuze.period, legacyPeriodPatch(naKeuze, true)], [keuze, null]);
+  }
   localStorage.setItem('ops-reportSettings', JSON.stringify({}));
   patchReportSettings({ period: { preset: 'custom', from: '2026-04-01', to: '2026-04-30' } });
   eq('round-trip door de opslag', (await loadReportSettings()).period, { preset: 'custom', from: '2026-04-01', to: '2026-04-30' });
@@ -98,44 +110,70 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   : r.kind === 'milestones' ? `M${r.depth}:${r.tasks.map(t => t.id).join('+')}` : `${r.depth}:${r.task.id}`));
 
 // ── 2. Rijen ─────────────────────────────────────────────────────────────────────────────────────────
+// Het tijdvak werkt vóór groeperen en inklappen (review Sol #1005, ronde 2): alleen de bladtaken die het raken,
+// met hun ouders. Daarna bouwt de bestaande pijplijn banden, tellingen, reeksen en ingeklapte rijen.
 {
   eq('boom: wortels met kinderen, dan wezen', shape(taskTreeRows(tasks)), ['0:fase', '1:a', '1:b', '1:c', '1:m', '0:x', '0:w']);
   const printShape = (rows: ReturnType<typeof buildPrintRows>) => rows.map(r => `${r.kind}:${r.depth}:${r.task?.id ?? r.label}`);
   eq('buildPrintRows zonder rijenlijst = met de boom', printShape(buildPrintRows(tasks, undefined)), printShape(buildPrintRows(tasks, taskTreeRows(tasks))));
 
-  const r = rowsInPeriod(taskTreeRows(tasks), period);
-  eq('alleen wat het tijdvak raakt; een fase blijft, een taak zonder datums niet', shape(r.rows), ['0:fase', '1:b', '1:c', '0:w']);
-  eq('buiten het tijdvak: Fundering, Oplevering, zonder datums', r.outsidePeriod, 3);
-  eq('rand telt mee: een taak die op de eerste dag eindigt', shape(rowsInPeriod(taskTreeRows(tasks), { from: '2026-03-13', to: '2026-03-13' }).rows), ['0:fase', '1:a']);
-
-  const g = (label: string, depth: number, count: number, collapsed = false): ViewRow =>
-    ({ kind: 'group', rowKey: label, key: label, label, count, depth, levelIndex: depth, collapsed });
-  const t = (x: Task, depth: number): ViewRow => ({ kind: 'task', rowKey: x.id, task: x, depth, dimmed: false });
-  const grouped: ViewRow[] = [
-    g('Ploeg A', 0, 3), g('Week 1', 1, 1), t(a, 2), g('Week 2', 1, 2), t(b, 2), t(c, 2),
-    g('Ploeg B', 0, 1), t(m, 1),
-    g('Ingeklapt', 0, 4, true),
-  ];
-  eq('lege banden vallen weg, tellingen volgen, een ingeklapte band blijft',
-    shape(rowsInPeriod(grouped, period).rows), ['G0:Ploeg A(2)', 'G1:Week 2(2)', '2:b', '2:c', 'G0:Ingeklapt(4)']);
-  // Review Sol #1005: een ingeklapte subband houdt haar hoofdband, ook als de open subband ernaast wegvalt.
-  const zones: ViewRow[] = [
-    g('Zone A', 0, 1), g('wk 12', 1, 1), t(b, 2),
-    g('Zone B', 0, 3), g('26 sep', 1, 2, true), g('3 sep', 1, 1), t(a, 2),
-  ];
-  eq('een ingeklapte subband houdt haar hoofdband, met haar telling',
-    shape(rowsInPeriod(zones, period).rows), ['G0:Zone A(1)', 'G1:wk 12(1)', '2:b', 'G0:Zone B(2)', 'G1:26 sep(2)']);
-  // Een fase met opgeslagen datums hoeft haar kinderen niet te omsluiten: ze blijft staan als ouder van een kind in
-  // het tijdvak, ook als haar eigen spanne het mist.
+  // Alle taken.
+  eq('alleen wat het tijdvak raakt; een fase blijft, een taak zonder datums niet', shape(treeRowsInPeriod(tasks, period)), ['0:fase', '1:b', '1:c', '0:w']);
+  eq('buiten het tijdvak: Fundering, Oplevering, zonder datums', leavesOutsidePeriod(tasks, period), 3);
+  eq('rand telt mee: een taak die op de eerste dag eindigt', shape(treeRowsInPeriod(tasks, { from: '2026-03-13', to: '2026-03-13' })), ['0:fase', '1:a']);
   const oudeFase = task('of', 'Fase met eigen datums', '2026-03-01', '2026-03-10', { parentId: undefined, childIds: ['k'] });
   const kind = task('k', 'Kind', '2026-03-25', '2026-03-27', { parentId: 'of' });
-  const metOuder = rowsInPeriod(taskTreeRows([oudeFase, kind]), period);
-  eq('een fase blijft als ouder van een kind in het tijdvak', [shape(metOuder.rows), metOuder.outsidePeriod], [['0:of', '1:k'], 0]);
-  const reeks: ViewRow[] = [{ kind: 'milestones', rowKey: 'ms', tasks: [wees, m], depth: 1, dimmed: false }];
-  eq('een mijlpalenreeks houdt alleen de mijlpalen in het tijdvak', shape(rowsInPeriod(reeks, period).rows), ['M1:w']);
-  eq('… en valt weg als er geen over is', shape(rowsInPeriod(reeks, { from: '2026-01-01', to: '2026-01-31' }).rows), []);
+  eq('een fase met opgeslagen datums blijft als ouder van een kind in het tijdvak', shape(treeRowsInPeriod([oudeFase, kind], period)), ['0:of', '1:k']);
+  const zonderKind = task('lf', 'Fase zonder taak in het tijdvak', '2026-03-20', '2026-03-25', { parentId: undefined, childIds: ['a2'] });
+  const a2 = task('a2', 'Vroeg', '2026-03-02', '2026-03-06', { parentId: 'lf' });
+  eq('een fase zonder taak in het tijdvak valt weg, ook als haar eigen datums het raken', shape(treeRowsInPeriod([zonderKind, a2], period)), []);
   const same = taskTreeRows([fase, b, c]);
-  ok(rowsInPeriod(same, period).rows.every((row, i) => row === same[i]), 'een rij die blijft, is dezelfde rij');
+  ok(treeRowsInPeriod([fase, b, c], period).every((row, i) => JSON.stringify(row) === JSON.stringify(same[i])), 'een rij die blijft, is dezelfde rij');
+
+  // Zoals de weergave en een layout: de echte pijplijn met `within`.
+  const res = (id: string, name: string): Resource => ({ id, name, type: 'LABOR', description: '', maxUnits: 1 });
+  const resources = [res('r-jan', 'Jan'), res('r-kraan', 'Kraan'), res('r-ploeg', 'Ploeg')];
+  let n = 0;
+  const asg = (taskId: string, resourceId: string): ResourceAssignment => ({ id: `as${++n}`, taskId, resourceId, unitsPerDay: 1 });
+  // Fundering (buiten) bij Jan en Kraan; Casco (binnen) bij twee ploegen, Jan en Ploeg; Gevel (binnen) zonder resource.
+  const assignments = [asg('a', 'r-jan'), asg('a', 'r-kraan'), asg('b', 'r-jan'), asg('b', 'r-ploeg')];
+  const ctx: ViewContext = { activityCodeTypes: [], customFieldDefs: [], resources, assignments, noneLabel: '(geen)', resourceTypeLabels: {} };
+  const plan = [fase, a, b, c];
+  const within = (x: Task) => taskInPeriod(x, period);
+  const group: ViewRowOpts['group'] = [{ field: { src: 'builtin', key: 'taskType' }, dir: 'asc' }, { field: { src: 'resource' }, dir: 'asc' }];
+  const opts = (over: Partial<ViewRowOpts> = {}): ViewRowOpts =>
+    ({ filter: null, group: [], sort: [], collapsedTaskIds: new Set(), collapsedGroupKeys: new Set(), within, ...over });
+  const open = computeViewRows(plan, opts({ group, within: undefined }), ctx);
+  const keyOf = (label: string) => open.find(r => r.kind === 'group' && r.label === label)!.rowKey;
+  const countOf = (rows: ViewRow[], match: (r: Extract<ViewRow, { kind: 'group' }>) => boolean) => {
+    const row = rows.find(r => r.kind === 'group' && match(r));
+    return row?.kind === 'group' ? row.count : null;
+  };
+  const gegroepeerd = computeViewRows(plan, opts({ group, collapsedGroupKeys: new Set([keyOf('Kraan')]) }), ctx);
+  ok(!gegroepeerd.some(r => r.kind === 'group' && r.label === 'Kraan'),
+    `een ingeklapte subband met alleen werk buiten het tijdvak valt weg (${shape(gegroepeerd).join(' ')})`);
+  eq('een taak onder twee ploegen telt in de hoofdband één keer', countOf(gegroepeerd, r => r.depth === 0), 2);
+  const dicht = computeViewRows(plan, opts({ group, collapsedGroupKeys: new Set([keyOf('Jan')]) }), ctx);
+  eq('een ingeklapte subband telt alleen haar taken in het tijdvak', countOf(dicht, r => r.label === 'Jan'), 1);
+  const boomDicht = computeViewRows([oudeFase, kind], opts({ collapsedTaskIds: new Set(['of']) }), ctx);
+  eq('een ingeklapte fase blijft als alleen haar verborgen kind in het tijdvak valt', shape(boomDicht), ['0:of']);
+  ok(boomDicht.every(r => r.kind !== 'task' || !r.dimmed), 'zonder filter is de ouder niet gedimd');
+  const ms = (id: string, date: string) => task(id, id, date, date, { parentId: 'p', isMilestone: true,
+    time: { ...time(date, date), scheduleDuration: 0 } as unknown as TaskTime });
+  const p = task('p', 'Mijlpalen', '2026-03-01', '2026-05-01', { parentId: undefined, childIds: ['m-uit', 'm-in'] });
+  const reeks = [p, ms('m-uit', '2026-03-02'), ms('m-in', '2026-03-25')];
+  const reeksRij = computeViewRows(reeks, opts({ collapsedTaskIds: new Set(['m-uit']) }), ctx);
+  eq('een ingeklapte reeks houdt haar sleutel en alleen de mijlpalen in het tijdvak', reeksRij.map(r => r.kind === 'milestones' ? `${r.rowKey}=${r.tasks.map(t => t.id)}` : r.rowKey),
+    ['p', 'milestones:m-uit=m-in']);
+  eq('… en valt weg als er geen over is', shape(computeViewRows(reeks, opts({ collapsedTaskIds: new Set(['m-uit']), within: x => taskInPeriod(x, { from: '2026-01-01', to: '2026-01-31' }) }), ctx)), []);
+  const zonderTijdvak = computeViewRows(plan, opts({ group, within: undefined }), ctx);
+  eq('zonder tijdvak verandert er niets', shape(zonderTijdvak), shape(open));
+  // Een layout krijgt het tijdvak via zijn venster.
+  const layout = computeLayoutReportRows({ group }, { tasks: plan, ctx }, { includeUnassigned: true, groupByType: false, window: period, locale: 'nl' });
+  eq('een layout gaat door dezelfde pijplijn', shape(layout.rows), shape(computeViewRows(plan, opts({ group }), ctx)));
+  const filter: ViewRowOpts['filter'] = { kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Fundering' };
+  eq('buiten het tijdvak telt een taak die het filter van de bron al niet haalt niet mee',
+    [leavesOutsidePeriod(plan, period), leavesOutsidePeriod(plan, period, x => evaluate(filter!, x, ctx))], [1, 0]);
 }
 
 // ── 3. Printvelden ───────────────────────────────────────────────────────────────────────────────────
@@ -243,6 +281,43 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   eq('zonder tijdvak: twee balken', bars({}), 2);
   eq('met tijdvak 27 t/m 28 september: nog steeds twee balken', bars({ timeWindow: { from: '2026-09-27', to: '2026-09-28' } }), 2);
   eq('met tijdvak 29 t/m 30 september: geen balk (taken buiten het venster)', bars({ timeWindow: { from: '2026-09-29', to: '2026-09-30' } }), 0);
+}
+
+// ── 6. Render: een fase aan de rechterrand blijft binnen het blad ─────────────────────────────────
+// Review Sol #1005, ronde 2. Werkdagas, tijdvak 25 t/m 27 september, een fase op zondag 27 september van 10.00 tot
+// 12.00 uur: ze valt samen met de rechterrand. Haar minimumbreedte en haar haakjes staken er eerst buiten.
+{
+  const zondagFase = task('zf', 'Zondagfase', '2026-09-27T10:00', '2026-09-27T12:00', { parentId: undefined, isSummary: true });
+  const vrijdag = task('vr', 'Vrijdagwerk', '2026-09-25', '2026-09-25', { parentId: undefined });
+  const maxX = (options: Partial<PrintOptions>) => {
+    const xs: { x: number; y: number }[] = [];
+    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
+    const d2d: Draw2D = {
+      get font() { return st.font; }, set font(v) { st.font = v; },
+      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
+      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
+      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
+      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
+      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
+      setLineDash() {}, strokeRect() {}, beginPath() {}, closePath() {}, fill() {}, stroke() {},
+      fillRect(x, y, w) { xs.push({ x: x + w, y }); },
+      moveTo(x, y) { xs.push({ x, y }); },
+      lineTo(x, y) { xs.push({ x, y }); },
+      roundRect(x, y, w) { xs.push({ x: x + w, y }); }, fillText() {},
+      measureText(text) { return { width: text.length * 4.5 }; },
+    };
+    const tasksHere = [vrijdag, zondagFase];
+    const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
+      showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
+      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
+      locale: 'nl', reportFontScale: 100, rows: taskTreeRows(tasksHere), compressNonWorkdays: true, ...options,
+    } as PrintOptions);
+    const chartBottom = dims.height - dims.footerHeight;
+    const inChart = xs.filter(p => p.y > dims.headerHeight && p.y < chartBottom && Number.isFinite(p.x));
+    return { max: Math.max(...inChart.map(p => p.x)), width: dims.width };
+  };
+  const edge = maxX({ timeWindow: { from: '2026-09-25', to: '2026-09-27' } });
+  ok(edge.max <= edge.width + 1e-6, `de fase en haar haakjes blijven binnen het blad (tot x=${edge.max}, rand ${edge.width})`);
 }
 
 if (failures > 0) {
