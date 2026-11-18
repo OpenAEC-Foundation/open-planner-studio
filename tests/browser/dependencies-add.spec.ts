@@ -326,6 +326,19 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.keyboard.press('ControlOrMeta+F2');
   await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
     .toEqual([[fundering, afbouw]]);
+
+  // Review #1004, ronde 3: de takenlijst staat daarna op de rij die je in de tijdlijn aanklikte
+  // (Fundering in ploeg 2), niet op het eerste voorkomen. Shift-klik in de lijst op Grondwerk gaat
+  // vanaf die rij: Grondwerk, Fundering, Ruwbouw.
+  await expect(gridRow(rowKeys[5]!)).toHaveAttribute('data-grid-active', 'true');
+  // Ook als die taak al gekozen was: Fundering in ploeg 1 in de lijst, dan dezelfde taak in ploeg 2
+  // in de tijdlijn. De selectie blijft gelijk, de cursor gaat mee naar ploeg 2.
+  await gridRow(rowKeys[2]!).click();
+  await expect(gridRow(rowKeys[2]!)).toHaveAttribute('data-grid-active', 'true');
+  await page.mouse.click(funderingEnd.x + 16, secondFundering!.y + secondFundering!.height / 2);
+  await expect(gridRow(rowKeys[5]!)).toHaveAttribute('data-grid-active', 'true');
+  await gridRow(rowKeys[1]!).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, fundering, ruwbouw]);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

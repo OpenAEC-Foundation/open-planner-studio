@@ -728,7 +728,9 @@ export interface UIState {
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
-   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899).
+   *  Een klik in de tijdlijn zet hier de aangeklikte rij; de takenlijst volgt en Shift-klik in de
+   *  tijdlijn begint hier (review #1004). */
   gridActiveRowKey: string | null;
   showSettingsDialog: boolean;
   /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die

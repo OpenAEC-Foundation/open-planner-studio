@@ -547,6 +547,13 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(d, false);
   S().selectTask(b, false, true, { rowKey: S().viewRows[1].rowKey });
   eq('13.2 en naar de B-rij in ploeg 1, over de bandkop heen', S().selectedTaskIds.map(name), ['B', 'A', 'D']);
+  // Het anker is de rij waarop je klikte, niet het voorkomen van die taak dat het dichtst bij het
+  // eindpunt ligt (review #1004, ronde 3): B in ploeg 1, dan Shift op C → B A D C, zoals in Tabel.
+  S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
+  eq('13.10 een Gantt-klik zet de aangeklikte rij als cursorrij', S().ui.gridActiveRowKey, S().viewRows[1].rowKey);
+  S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
+  eq('13.11 het bereik begint op de aangeklikte B-rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
+  eq('13.12 de cursorrij volgt de Shift-klik', S().ui.gridActiveRowKey, S().viewRows[5].rowKey);
   S().setSort([]);
   S().setGroup([]);
 
@@ -584,6 +591,40 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
     S().selectTask(na, false);
     S().selectTask(m3, false, true, { rowKey });
     eq('13.9 een los ruitje neemt alleen zichzelf uit de reeksrij', S().selectedTaskIds, [m3, na]);
+  }
+}
+
+// Een reeksrij met een groepsruitje M1/M2 en een los ruitje M3, dan de taak Na (review #1004,
+// ronde 3). De store kent de ruitjes niet; de tijdlijn geeft de leden van het aangeklikte ruitje mee.
+{
+  fresh();
+  const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
+  const m1 = S().addTask({ name: 'M1', isMilestone: true, time: zero as never });
+  const m2 = S().addTask({ name: 'M2', isMilestone: true, time: zero as never });
+  const m3 = S().addTask({ name: 'M3', isMilestone: true, time: zero as never });
+  const na = S().addTask({ name: 'Na' });
+  S().toggleCollapse(m1);
+  const run = S().viewRows.find(row => row.kind === 'milestones');
+  const naRow = S().viewRows.find(row => row.kind === 'task' && row.task.id === na);
+  ok('13.13 M1, M2 en M3 vormen één rij', run !== undefined && naRow !== undefined);
+  if (run && naRow) {
+    const diamond = { rowKey: run.rowKey, taskIds: [m1, m2] };
+    S().selectTask(m3, false, false, { rowKey: run.rowKey });
+    S().selectTask(na, false, true, { rowKey: naRow.rowKey });
+    eq('13.14 vanaf een los ruitje telt van de reeksrij alleen dat ruitje', S().selectedTaskIds, [m3, na]);
+    S().selectTask(m3, false, false, { rowKey: run.rowKey });
+    S().selectTask(m1, false, true, diamond);
+    eq('13.15 binnen één reeksrij volgt het bereik de rij', S().selectedTaskIds, [m1, m2, m3]);
+    S().deselectAll();
+    S().selectTask(m1, false, true, diamond);
+    eq('13.16 Shift zonder anker kiest het hele groepsruitje', S().selectedTaskIds, [m1, m2]);
+    S().selectTask(na, false, false, { rowKey: naRow.rowKey });
+    S().selectTask(m1, true, false, diamond);
+    eq('13.17 Ctrl op een groepsruitje zet zijn leden erbij', S().selectedTaskIds, [na, m1, m2]);
+    S().selectTask(m1, true, false, diamond);
+    eq('13.18 en weer samen uit', S().selectedTaskIds, [na]);
+    S().selectTask(m1, false, false, diamond);
+    eq('13.19 een gewone klik kiest het hele groepsruitje', S().selectedTaskIds, [m1, m2]);
   }
 }
 

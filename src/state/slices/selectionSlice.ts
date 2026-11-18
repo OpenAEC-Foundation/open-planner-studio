@@ -70,8 +70,50 @@ export function pastesGridTaskCopy(clip: TaskClipboard | null, text: string, doc
     && clip.fromGrid.text === sameClipboardText(text);
 }
 
-/** De aangeklikte rij bij Shift-klik in de Gantt (review #1004). */
-export interface SelectedRow { rowKey: string; taskIds?: readonly string[] }
+/** Wat er in de tijdlijn is aangeklikt (review #1004): de rij, en bij een groepsruitje (#868) zijn
+ *  leden. Zonder `taskIds` alleen de taak zelf. */
+export interface SelectedRow { rowKey?: string; taskIds?: readonly string[] }
+
+/**
+ * Shift-klik in de tijdlijn: de taken van het anker tot de aangeklikte rij, over de rijen OP HET
+ * SCHERM (filter, sortering, groepering, ingeklapte fasen), net als Shift in de takenlijst. Het anker
+ * is de actieve taak op haar cursorrij (`ui.gridActiveRowKey`, ook gezet door een tijdlijnklik); staat
+ * ze daar niet, dan haar voorkomen het dichtst bij de klik. Van de eindrijen tellen alleen de gekozen
+ * taken: op de ankerrij de geselecteerde, op de aangeklikte rij de aangeklikte; binnen één rij (een
+ * mijlpalenreeks) alles daartussen in de volgorde van de rij. `null` zonder bruikbaar anker.
+ */
+function shiftRange(
+  rows: readonly ViewRow[],
+  anchorId: string,
+  anchorRowKey: string | null,
+  selected: ReadonlySet<string>,
+  clickedId: string,
+  clicked: readonly string[],
+  clickedRowKey: string | undefined,
+): string[] | null {
+  const idsAt = (index: number) => uniqueTaskIds([rows[index]]);
+  const toIdx = rows.findIndex((row, index) => (clickedRowKey === undefined || row.rowKey === clickedRowKey)
+    && idsAt(index).includes(clickedId));
+  if (toIdx < 0) return null;
+  let fromIdx = rows.findIndex((row, index) => row.rowKey === anchorRowKey && idsAt(index).includes(anchorId));
+  if (fromIdx < 0) {
+    rows.forEach((_row, index) => {
+      if (idsAt(index).includes(anchorId) && (fromIdx < 0 || Math.abs(index - toIdx) < Math.abs(fromIdx - toIdx))) {
+        fromIdx = index;
+      }
+    });
+  }
+  if (fromIdx < 0) return null;
+  if (fromIdx === toIdx) {
+    const ids = idsAt(toIdx);
+    const marks = [anchorId, ...clicked].map(taskId => ids.indexOf(taskId)).filter(index => index >= 0);
+    return ids.slice(Math.min(...marks), Math.max(...marks) + 1);
+  }
+  const fromIds = idsAt(fromIdx).filter(taskId => selected.has(taskId));
+  const toIds = idsAt(toIdx).filter(taskId => clicked.includes(taskId));
+  const between = uniqueTaskIds(rows.slice(Math.min(fromIdx, toIdx) + 1, Math.max(fromIdx, toIdx)));
+  return [...new Set(fromIdx < toIdx ? [...fromIds, ...between, ...toIds] : [...toIds, ...between, ...fromIds])];
+}
 
 export interface SelectionSlice {
   selectedTaskIds: string[];
@@ -80,11 +122,11 @@ export interface SelectionSlice {
   activeTaskId: string | null;
   taskClipboard: TaskClipboard | null;
 
-  /** Selecteer één taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) breidt uit vanaf de laatst
-   *  geselecteerde. `row` is de aangeklikte rij: dezelfde taak kan in meer rijen staan (groeperen
-   *  op resource), en een ingeklapte mijlpalenreeks is één rij met meer taken, waarvan alleen
-   *  `row.taskIds` (standaard `[id]`; een groepsruitje: zijn leden) in het bereik komen. Zonder `row`
-   *  de eerste rij met de taak. Geen undo: selectie is geen documentdata. */
+  /** Selecteer een taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) breidt uit vanaf de actieve
+   *  taak (`shiftRange`). `row` is wat er in de tijdlijn is aangeklikt: dezelfde taak kan in meer rijen
+   *  staan (groeperen op resource), en een groepsruitje (#868) kiest al zijn leden (`row.taskIds`).
+   *  Met `row.rowKey` wordt die rij de cursorrij (`ui.gridActiveRowKey`), zodat de takenlijst op
+   *  dezelfde rij staat. Geen undo: selectie is geen documentdata. */
   selectTask: (id: string, multi?: boolean, range?: boolean, row?: SelectedRow) => void;
   deselectAll: () => void;
   /** Ctrl/Cmd+A: selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
@@ -110,50 +152,30 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
   selectTask: (id, multi = false, range = false, row) =>
     set((s) => {
+      const clicked = row?.taskIds ?? [id];
+      const anchorId = s.activeTaskId !== null && s.selectedTaskIds.includes(s.activeTaskId)
+        ? s.activeTaskId
+        : s.selectedTaskIds[s.selectedTaskIds.length - 1];
+      const rangeIds = range && anchorId !== undefined
+        ? shiftRange(s.viewRows, anchorId, s.ui.gridActiveRowKey, new Set(s.selectedTaskIds), id, clicked, row?.rowKey)
+        : null;
       s.activeTaskId = id;
-      if (range && s.selectedTaskIds.length > 0) {
-        // Shift-klik in de Gantt: bereik van de laatst gekozen taak tot de aangeklikte RIJ, over de
-        // rijen OP HET SCHERM — met filter, sortering, groepering en ingeklapte fasen — net als Shift
-        // in de takenlijst; pas daarna ontdubbelen. Nooit de interne taakvolgorde of een id-lijst:
-        // die nam weggefilterde taken mee en koos bij een dubbele rij de verkeerde (review #1004).
-        const rows = s.viewRows;
-        const holds = (index: number, taskId: string) => uniqueTaskIds([rows[index]]).includes(taskId);
-        const toIdx = row !== undefined
-          ? rows.findIndex((viewRow, index) => viewRow.rowKey === row.rowKey && holds(index, id))
-          : rows.findIndex((_row, index) => holds(index, id));
-        const lastSelected = s.selectedTaskIds[s.selectedTaskIds.length - 1];
-        // Het anker staat mogelijk ook in meer rijen: neem het voorkomen het dichtst bij de klik.
-        let fromIdx = -1;
-        rows.forEach((_row, index) => {
-          if (holds(index, lastSelected) && (fromIdx < 0 || Math.abs(index - toIdx) < Math.abs(fromIdx - toIdx))) fromIdx = index;
-        });
-        if (fromIdx >= 0 && toIdx >= 0) {
-          const start = Math.min(fromIdx, toIdx);
-          const end = Math.max(fromIdx, toIdx);
-          // Van de aangeklikte rij alleen wat aangeklikt is: in een mijlpalenreeks niet de hele rij.
-          // Die rij ligt aan één kant van het bereik; de andere rijen tellen helemaal mee.
-          const clicked = new Set(row?.taskIds ?? [id]);
-          const clickedIds = uniqueTaskIds([rows[toIdx]]).filter(taskId => clicked.has(taskId));
-          const rangeIds = [...new Set(toIdx === start
-            ? [...clickedIds, ...uniqueTaskIds(rows.slice(start + 1, end + 1))]
-            : [...uniqueTaskIds(rows.slice(start, end)), ...clickedIds])];
-          // Vereniging met de bestaande selectie, het bereik in de volgorde van de lijst — ook als
-          // je naar boven selecteert, net als Shift in de takenlijst. De volgorde telt: koppelen
-          // als keten (issue #1000) volgt haar. Eerder aangeklikte taken buiten het bereik blijven vooraan.
-          const inRange = new Set(rangeIds);
-          s.selectedTaskIds = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
+      if (row?.rowKey !== undefined) s.ui.gridActiveRowKey = row.rowKey;
+      if (rangeIds) {
+        // Vereniging met de bestaande selectie, het bereik in de volgorde van het scherm — ook als je
+        // naar boven selecteert. De volgorde telt: koppelen als keten (issue #1000) volgt haar.
+        // Eerder aangeklikte taken buiten het bereik blijven vooraan.
+        const inRange = new Set(rangeIds);
+        s.selectedTaskIds = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
+      } else if (multi && !range) {
+        // Een groepsruitje gaat samen aan of uit.
+        if (clicked.every(taskId => s.selectedTaskIds.includes(taskId))) {
+          s.selectedTaskIds = s.selectedTaskIds.filter(taskId => !clicked.includes(taskId));
         } else {
-          s.selectedTaskIds = [id];
-        }
-      } else if (multi) {
-        const idx = s.selectedTaskIds.indexOf(id);
-        if (idx >= 0) {
-          s.selectedTaskIds.splice(idx, 1);
-        } else {
-          s.selectedTaskIds.push(id);
+          s.selectedTaskIds.push(...clicked.filter(taskId => !s.selectedTaskIds.includes(taskId)));
         }
       } else {
-        s.selectedTaskIds = [id];
+        s.selectedTaskIds = [...clicked];
       }
     }),
 

@@ -774,9 +774,13 @@ export function GanttCanvas({
     const y = e.clientY - rect.top;
     if (y < headerHeight) return;
     const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
-    const rowKey = renderer.getRowAtY(y)?.rowKey;
-    if (task) selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey, rowKey === undefined ? undefined : { rowKey });
-    else deselectAll();
+    // Zoals het primaire paneel: de aangeklikte rij, en een groepsruitje (#868) met al zijn leden.
+    if (task) {
+      selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey, {
+        rowKey: renderer.getRowAtY(y)?.rowKey,
+        taskIds: renderer.getMilestoneGroup(task.id)?.map(member => member.id),
+      });
+    } else deselectAll();
   }, [secondaryCanvasRef, secondaryRendererRef, selectTask, deselectAll, headerHeight]);
 
   // Hover op de baselinestrook in het secundaire paneel: alleen de baselinetooltip (dit paneel kent

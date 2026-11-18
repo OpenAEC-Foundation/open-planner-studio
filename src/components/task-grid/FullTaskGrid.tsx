@@ -267,6 +267,7 @@ export function TaskGridSurface({
   const collapsedTaskIds = useAppStore(state => state.ui.collapsedTaskIds);
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
   const publishedActiveTaskId = useAppStore(state => state.activeTaskId);
+  const publishedRowKey = useAppStore(state => state.ui.gridActiveRowKey);
   const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
@@ -523,6 +524,9 @@ export function TaskGridSurface({
   }), [activityCodeTypes, customFieldDefs, project.id, surfaceId]);
 
   const previousRowsRef = useRef(rowIndex);
+  // De cursorrij die deze lijst zelf in de store zette. Alleen een andere rij is een verzoek van
+  // buiten (de tijdlijn of verwijderen); anders trok een oude waarde de cursor terug na een klik.
+  const ownRowKeyRef = useRef<string | null>(null);
   const previousColumnsRef = useRef<readonly TaskColumnId[]>(visibleColumnIds);
   useEffect(() => {
     // Net vastgelegd op de spookregel. Bleef de cursor in dezelfde kolom (Enter), dan staat hij nu
@@ -554,8 +558,9 @@ export function TaskGridSurface({
     // van een verborgen of verwijderde rij niet en viel hij terug op de bovenste rij (issue #899).
     const previousRows = previousRowsRef.current;
     const previousColumns = previousColumnsRef.current;
-    // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899).
-    const preferredRowKey = useAppStore.getState().ui.gridActiveRowKey;
+    // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899), en een
+    // klik in de tijdlijn de aangeklikte rij (review #1004).
+    const preferredRowKey = publishedRowKey === ownRowKeyRef.current ? null : publishedRowKey;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -593,7 +598,8 @@ export function TaskGridSurface({
         samePublishedSelection = current.selectedTaskIds.every(id => publishedSelectionIds.has(id));
       }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
-      if (samePublishedSelection && samePublishedActiveTask) return reconciled;
+      const samePublishedRow = preferredRowKey === null || preferredRowKey === reconciled.active?.rowKey;
+      if (samePublishedSelection && samePublishedActiveTask && samePublishedRow) return reconciled;
 
       // syncActiveCellToPublishedTask trekt de celcursor
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
@@ -605,13 +611,14 @@ export function TaskGridSurface({
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
-  }, [publishedActiveTaskId, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
+  }, [publishedActiveTaskId, publishedRowKey, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
 
   // De store kent alleen taak-ids; in een groepering staat een taak meer dan eens. Verwijderen kiest
   // de buur vanaf de rij van de celcursor (issue #899). De spookregel is geen taakrij.
   const activeRowKey = selection.active?.rowKey ?? null;
   useEffect(() => {
     const rowKey = activeRowKey === GHOST_ROW_KEY ? null : activeRowKey;
+    ownRowKeyRef.current = rowKey;
     if (useAppStore.getState().ui.gridActiveRowKey !== rowKey) setUI({ gridActiveRowKey: rowKey });
   }, [activeRowKey, setUI]);
   useEffect(() => () => setUI({ gridActiveRowKey: null }), [setUI]);
