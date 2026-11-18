@@ -47,5 +47,7 @@ wachten op een lopende opslag. Intussen staat `SavingBeforeCloseNotice` (`src/co
 `Dialog` op `z-[95]`, boven de sluitvraag) met één zin, zonder knop en zonder Escape; `ui.savingBeforeClose` bevriest de
 sneltoetsen en de schil zoals een wachtende vraag, en `isBlockingDialogOpen`/`BLOCKING_UI_FLAGS` blokkeren. Wacht de opslag
 op een vraag aan de planner (`saveQuestionOpen`), dan staat die vraag en niet de aanduiding. In de laatste fase van
-afsluiten (niets meer ongeopgeslagen, de poort voor projectopslag dicht) houdt `ui.appClosing` de schil op dezelfde
-manier stil, zonder eigen melding, tot het venster weg is.
+afsluiten (niets meer ongeopgeslagen, de poort voor projectopslag dicht) maakt `ui.appClosing` de hele app inert (de
+wortel in `App.tsx`, `data-ops-app-root`), ook een dialoog die al openstond en het werkvlak, zonder eigen melding, tot
+het venster weg is; `useDialogKeys` negeert Escape en Enter zolang de wortel inert is. Alles blijft gemount, dus na
+afbreken staat een dialoog er nog met zijn invoer.

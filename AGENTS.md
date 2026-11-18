@@ -373,8 +373,11 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
   opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
   `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`
-  outcome (nothing written, not marked saved, no notice) until `destroy`/`relaunch` is done or fails; quitting also
-  freezes the shell then (`ui.appClosing`). A save belongs to the document it was asked for: its re-checks
+  outcome (nothing written, not marked saved, no notice) until `destroy`/`relaunch` is done or fails. Quitting and the
+  updater have one owner of that phase (`claimShutdown`, `src/services/appQuit/shutdownPhase.ts`): during an install a
+  window close is swallowed without a question, and the updater waits for a running quit. In quitting's final phase the
+  whole app is inert (`ui.appClosing` on the app root, also open dialogs and their keys), and it never destroys the
+  window with a dirty document: it reopens and asks the close question. A save belongs to the document it was asked for: its re-checks
   (`refuseChangedDocumentWrite`) and its commit use that document id, never the active document; at most one waiting
   Ctrl+S per document.
 - **Tailwind sources.** `src/styles/globals.css` disables automatic detection with `source(none)` and
