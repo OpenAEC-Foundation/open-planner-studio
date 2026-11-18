@@ -43,12 +43,12 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice,
+  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
-import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
 import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
@@ -439,6 +439,33 @@ export function exportCriticalHoursLostNotice(
 ): NotifyInput | null {
   if (format !== 'mspdi' || !mspdiDropsHourThreshold(project.schedulingOptions?.criticalDefinition)) return null;
   return { severity: 'info', messageKey: 'notifications.exportCriticalHoursLost' };
+}
+
+/**
+ * Knownbug 1740 (besluit van de eigenaar, 16 november 2026; ontwerp §4.12): een export naar een ander formaat dan IFC
+ * vanuit een document met een gebouwmodel (`hasBuildingModel`, flag aan) vraagt niets vooraf, maar de melding na afloop zegt
+ * ook dat alleen de planning is geëxporteerd. Dit is de enige plek die beslist waar die zin komt; geen formaat behalve
+ * IFC draagt een gebouwmodel. De zin wordt een regel onder de LAATSTE melding van de export: de store toont hoogstens
+ * `MAX_NOTIFICATIONS` meldingen en duwt de oudste weg, dus de laatste blijft na afloop staan (review van #1002). Komt er
+ * geen andere melding, dan een eigen. Die melding krijgt een eigen samenvouwsleutel: anders vouwt een latere melding met
+ * de gewone sleutel en zonder detailregels (een export zonder gebouwmodel) samen met deze en blijft de zin eronder staan.
+ * Zonder gebouwmodel komen de meldingen ongewijzigd terug.
+ */
+export function withPlanOnlyExportSentence(
+  format: ExportFormat,
+  buildingModel: boolean,
+  notices: readonly (NotifyInput | null)[],
+): NotifyInput[] {
+  const shown = notices.filter((notice): notice is NotifyInput => notice !== null);
+  if (format === 'ifc' || !buildingModel) return shown;
+  const sentence = 'notifications.exportPlanOnly' as const;
+  const last = shown[shown.length - 1] as NotifyInput | undefined;
+  if (!last) return [{ severity: 'info', messageKey: sentence }];
+  return [...shown.slice(0, -1), {
+    ...last,
+    detailLines: [...(last.detailLines ?? []), { messageKey: sentence }],
+    ...(last.dedupeKey ? { dedupeKey: `${last.dedupeKey}:alleen-planning` } : {}),
+  }];
 }
 
 /** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
@@ -1085,16 +1112,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * nadrukkelijk GEEN fout (severity `info`): het opslaan is geslaagd, alleen langs een andere weg.
    * Eén gedeelde helper zodat alle vier de opslaan/exporteer-paden dezelfde melding geven.
    */
+  const downloadNotice = (outcome: SaveOutcome | null): NotifyInput | null => outcome?.viaDownload ? {
+    severity: 'info',
+    messageKey: 'notifications.savedViaDownload',
+    params: { name: outcome.name },
+    // Bij "project + bibliotheek" vallen twee downloads vlak na elkaar; die horen niet als twee
+    // losse toasts de stapel te vullen.
+    dedupeKey: 'saved-via-download',
+  } : null;
   const noticeIfDownloaded = (outcome: SaveOutcome | null) => {
-    if (!outcome?.viaDownload) return;
-    get().notify({
-      severity: 'info',
-      messageKey: 'notifications.savedViaDownload',
-      params: { name: outcome.name },
-      // Bij "project + bibliotheek" vallen twee downloads vlak na elkaar; die horen niet als twee
-      // losse toasts de stapel te vullen.
-      dedupeKey: 'saved-via-download',
-    });
+    const notice = downloadNotice(outcome);
+    if (notice) get().notify(notice);
   };
 
   const saveSourceForDocument = (state: AppState, documentId: string): AppState | DocumentPayload | null => {
@@ -1508,6 +1536,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
       const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
+      // Knownbug 1768: het geopende bestand met een gebouwmodel kreeg geen schrijftoestemming, dus de app downloadde een
+      // kopie. Dat bestand is niet bijgewerkt: het document blijft gewijzigd (geen commit) en de melding noemt de kopie.
+      // Zonder commit blijven ook bron, kenmerk, handle en naam die van het geopende bestand.
+      // Alleen met een gebouwmodel (`hasBuildingModel`, van de bron); vreemde inhoud zonder gebouwmodel doet wat main doet.
+      if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
+        get().notify(downloadCopyNotice(outcome.name));
+        return false;
+      }
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(documentId, state)
         : commitSavedDocument(documentId, state, localDestination(outcome), write.prepared);
@@ -2241,52 +2277,54 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
-      noticeIfDownloaded(outcome);
-      // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
-      // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
-      // document zonder XER-herkomst krijgt de algemene melding (#554).
-      const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
-      const categories = warnings.flatMap(warning => warning.categories);
-      const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
-        : format === 'p6' ? exportP6XmlLossNotice({
-          project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
-          sequences: state.sequences, resources: state.resources, assignments: state.assignments,
-          baselineCount: state.baselines.length,
-        }, categories) : null;
-      if (xerLoss || format === 'p6') {
-        if (lossNotice) get().notify(lossNotice);
-      } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
-        get().notify({
-          severity: 'info',
-          messageKey: 'notifications.xerExportLoss',
-          params: { format: lossFormat },
-          dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
-          helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
-        });
-      } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
-        get().notify({
-          severity: 'info',
-          messageKey: 'notifications.exportDataLoss',
-          params: { format: lossFormat },
-          dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
-          helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
-        });
-      }
-      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
-      const splitsLost = exportSplitsLostNotice(format, state.tasks);
-      if (splitsLost) get().notify(splitsLost);
-      const costLost = exportCostResourcesLostNotice(format, state.resources);
-      if (costLost) get().notify(costLost);
-      const truncated = exportP6TruncatedNotice(format, p6Truncated);
-      if (truncated) get().notify(truncated);
-      const invalidChars = exportInvalidXmlCharsNotice(format, invalidXmlChars);
-      if (invalidChars) get().notify(invalidChars);
-      const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
-      if (criticalHoursLost) get().notify(criticalHoursLost);
-      if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
-        const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
-          i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
-        if (profileNotice) get().notify(profileNotice);
+      // De meldingen na afloop, in deze volgorde; `withPlanOnlyExportSentence` voegt bij een gebouwmodel de zin toe aan de
+      // laatste. Gooit het opstellen van een latere melding, dan toont `finally` wat al klaar was (het bestand staat er al).
+      const buildingModel = format !== 'ifc' && ifcForeignContentEnabled(state.ui.featureFlags) && hasBuildingModel(state.ifcSource);
+      const notices: (NotifyInput | null)[] = [downloadNotice(outcome)];
+      try {
+        // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
+        // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
+        // document zonder XER-herkomst krijgt de algemene melding (#554).
+        const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
+        const categories = warnings.flatMap(warning => warning.categories);
+        const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
+          : format === 'p6' ? exportP6XmlLossNotice({
+            project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
+            sequences: state.sequences, resources: state.resources, assignments: state.assignments,
+            baselineCount: state.baselines.length,
+          }, categories) : null;
+        if (xerLoss || format === 'p6') {
+          notices.push(lossNotice);
+        } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
+          notices.push({
+            severity: 'info',
+            messageKey: 'notifications.xerExportLoss',
+            params: { format: lossFormat },
+            dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
+            helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+          });
+        } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
+          notices.push({
+            severity: 'info',
+            messageKey: 'notifications.exportDataLoss',
+            params: { format: lossFormat },
+            dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
+            helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
+          });
+        }
+        // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
+        // Elk apart: gooit een latere, dan staan de eerdere al in de lijst (review van #1002 ronde 2).
+        notices.push(exportSplitsLostNotice(format, state.tasks));
+        notices.push(exportCostResourcesLostNotice(format, state.resources));
+        notices.push(exportP6TruncatedNotice(format, p6Truncated));
+        notices.push(exportInvalidXmlCharsNotice(format, invalidXmlChars));
+        notices.push(exportCriticalHoursLostNotice(format, state.project));
+        if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
+          notices.push(exportProfileNotice(format, state.project.schedulingProfile, name => (
+            i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name)));
+        }
+      } finally {
+        for (const notice of withPlanOnlyExportSentence(format, buildingModel, notices)) get().notify(notice);
       }
       return { ok: true, warnings };
     },

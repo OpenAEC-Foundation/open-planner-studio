@@ -2286,15 +2286,6 @@ en noem het in je rapport of PR-tekst.
      `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
      `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
 
-1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
-     Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
-     Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
-     de IFC-export zonder gebouwmodel en de export met de resourcebibliotheek stellen de vraag (PR 13). Er gaat niets
-     verloren: het geopende bestand blijft ongewijzigd en die formaten dragen nooit een gebouwmodel. Niet gebouwd in PR 13
-     (besluit Trias, 16 november 2026). Op de eindlijst vóór de flag standaard aan mag; of de vraag er bij deze formaten
-     echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
-     reden. — B
-
 1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
      Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
      op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent
@@ -2749,17 +2740,85 @@ en noem het in je rapport of PR-tekst.
      bestanden: twee volledige inhoudscontroles en de merge, alle op de hoofdthread. Richting: meenemen in de proef in
      een echte browser van 1574 en de meting van PR 6. — S
 
-1768. **VERVOLG (#804, productkeuze): na een download omdat de browser schrijftoestemming weigert, staat het document als opgeslagen.**
-     Browser, flag aan, document met een gebouwmodel dat via de bestandskiezer geopend is. Weigert de browser de
-     schrijftoestemming, dan wordt Ctrl+S een download van het volledige bestand (planning en gebouwmodel). De bron, het
-     kenmerk, de handle en de naam blijven die van het geopende bestand, en dat is juist: daar staat nog de oude versie.
-     Maar `isDirty` gaat uit, dus de sluitvraag komt niet meer, terwijl het geopende bestand niet is bijgewerkt en het
-     werk alleen in de downloadmap staat. Geen verlies aangetoond: de download is heel, en met later verleende
-     toestemming schrijft Ctrl+S alsnog op dezelfde handle (proef van de review van #967). "Zoals main" klopt maar ten
-     dele: de gewone route probeert eerst de opslaankiezer en verliest bij een download haar handle; de mergeroute
-     downloadt altijd (1130) en houdt het openingsdoel. Richting: de eigenaar kiest wat "opgeslagen" hier betekent (het
-     document blijft gewijzigd tot het geopende bestand is bijgewerkt, of een kopie telt), en de melding zegt het; met
-     de teksten van stap 6 van 1131. Gevonden door de review van #967. — B (proef)
+1830. **VERVOLG (#804, productkeuze): de andere downloads van een document met een gebouwmodel zetten het document nog op opgeslagen.**
+     Browser, flag aan. Sinds knownbug 1768 blijft het document gewijzigd na de download die Ctrl+S geeft als de browser
+     de schrijftoestemming op het geopende bestand weigert (besluit van de eigenaar, 16 november 2026). Twee andere
+     downloads van zo'n document doen nog wat main doet: `isDirty` gaat uit. (1) Ctrl+S bij een document zonder handle
+     (geopend via slepen of in een browser zonder bestandstoegang, zoals Firefox): elke Ctrl+S is een download van het
+     volledige bestand. (2) *Opslaan als*, dat in de browser met een gebouwmodel altijd een download is (§11 punt 4).
+     Geen verlies: de download is heel en het geopende bestand blijft ongewijzigd. Vraag aan de eigenaar: geldt
+     "gewijzigd tot het geopende bestand is bijgewerkt" ook hier, of telt een kopie daar wel als opgeslagen? Bij (1) kan
+     het geopende bestand in die browser nooit worden bijgewerkt, dus de sluitvraag zou dan altijd komen. Ook een
+     document met vreemde inhoud zonder gebouwmodel (bijvoorbeeld alleen een eigenschappenset van een ander programma)
+     telt een download bij geweigerde schrijftoestemming nog als opgeslagen, zoals main; of "gewijzigd tot het geopende
+     bestand is bijgewerkt" ook daar moet gelden, hoort bij dezelfde vraag aan de eigenaar. Code:
+     `writeActiveDocument` en `saveDocumentAsOnTurn` in `fileSlice.ts` (`commitSavedDocument` na `viaDownload`).
+     Gevonden bij het bouwen van 1768. — B voor (2) (proef "download: twee volledige heropeningen" in
+     `check-ifc-document-save.ts`), S voor (1) (code gelezen)
+1831. **VERVOLG (#804, handleiding): de tekst bij de experimentele instelling zegt nog dat opslaan met een gebouwmodel geblokkeerd is.**
+     `public/docs/nl/ref-instellingen.md` en `public/docs/en/ref-instellingen.md`, bij *IFC met gebouwmodel openen*:
+     "Opslaan van een bestand met zo'n vreemd deel blijft geblokkeerd." Dat klopt niet meer: Opslaan als werkt, in de
+     browser ook Ctrl+S, en Ctrl+S op de desktop volgt (knownbug 1131). Bijwerken met de handleiding van stap 6 van
+     1131. Gezien door de bouwer van #1002. — B
+
+1843. **VERVOLG (#804, melding): de kopiemelding verdwijnt vanzelf, terwijl het document gewijzigd blijft.**
+     Browser, flag aan. Na de download bij een geweigerde schrijftoestemming (knownbug 1768) noemt een gewone
+     informatiemelding de kopie, zoals `savedViaDownload` op main: ze verdwijnt vanzelf en wijkt in de stapel voor elke
+     nieuwe melding. Er is er één voor de hele app; een nieuwe kopie, ook van een ander document, ververst haar. Het document
+     blijft gewijzigd, dus de sluitvraag komt nog; alleen de uitleg over de kopie kan weg zijn. Review van #1002 ronde 2 en 3:
+     een blijvende kopiemelding hield een plek in de stapel vast en verdrong samen met twee blijvende openingswaarschuwingen
+     (XER of IFC2X3) de meldingen van een export. Of de melding moet blijven staan tot het kruisje, is een vraag aan de
+     eigenaar bij de teksten; dan moet ze wijken voor andere meldingen zoals regel b in `uiSlice.ts` dat voor weigeringen
+     doet, in plaats van een plek vast te houden. — B (proef "drie kopieën: één gewone kopiemelding" in
+     `check-ifc-document-save.ts`)
+
+1844. **VERVOLG (meldingen): drie blijvende meldingen slokken de meldingen van een export op.** Staan er drie blijvende
+     informatiemeldingen (bijvoorbeeld de openingsmeldingen `duplicateIdsRenamed`, `summaryRelationsDropped` en
+     `minuteModelCalendarRepaired`), dan geeft een CSV-export geen enkele melding: de store toont er hoogstens drie
+     (`MAX_NOTIFICATIONS`) en gooit een nieuwe gewone melding zelf weg als er alleen nog blijvende of foutmeldingen staan
+     (`uiSlice.ts`, regel c). Zo ziet de planner na een download niet waar het bestand staat en niet wat er verloren
+     ging. Zo op main, niet van #1002. Gemeten op 18 november 2026 met een tijdelijke proef: drie blijvende meldingen via
+     `notify`, daarna `exportAs('csv')` uit `03-kantoorgebouw-zuidas.ifc`: na afloop alleen de drie blijvende meldingen.
+     Richting: een melding die de uitkomst van een handeling van de planner meldt, mag niet verdwijnen voordat hij te zien
+     was. Bij drie blijvende meldingen verdwijnt ook de kopiemelding van knownbug 1768, zoals `savedViaDownload` op main.
+     — B (tijdelijke proef, niet ingecheckt)
+
+1845. **VERVOLG (#804, zeldzaam): een complexe instantie zonder modeltype telt als gebouwmodel.**
+     Browser en desktop, flag aan. `hasBuildingModelEntity` (`foreignScan.ts`) leest van een complexe instantie
+     (`#1=(IFCA() IFCB());`) alleen `(COMPLEX)` uit de index, niet haar deeltypen, en telt haar daarom altijd als
+     gebouwmodel (review van #1002 ronde 3: het lezen van de tekst miste commentaar en kleine letters). Een bron met een
+     complexe instantie zonder modeltype krijgt dus de zin "alleen de planning" bij een export, en na een download bij
+     geweigerde schrijftoestemming blijft het document gewijzigd. Dat is de veilige kant; Open Planner Studio schrijft zelf
+     geen complexe instanties. Richting: de index geeft de deeltypen van een complexe instantie, met de eigen tokenlezer
+     van de scanner (geen tweede lezer). — S (code gelezen; de drie varianten met een wand staan als proef in
+     `check-ifc-document-save.ts`)
+
+1846. **VERVOLG (meldingen): een ververste melding houdt haar oude plek en kan direct daarna uit de stapel vallen.**
+     Browser. De store vouwt een herhaalde melding samen op haar oude plek (`notify` in `uiSlice.ts`, stap 1: de positie
+     blijft staan) en gooit bij een vierde melding de oudste gewone weg. Komt er tussen twee exports een andere gewone
+     melding bij, dan is de ververste downloadmelding van de tweede export de oudste, en duwt de verliesmelding van die
+     export haar er meteen uit: de planner ziet de naam van het gedownloade bestand niet. Scenario uit de review van
+     #1002 ronde 4 (GPT-6.2-Sol), binnen enkele seconden: (1) Ctrl+S op een gewone planning via download (de eenmalige
+     browseruitleg), (2) CSV-export uit een document met een gebouwmodel, (3) Ctrl+S op dat document met geweigerde
+     schrijftoestemming (de kopiemelding van #1002), (4) CSV-export uit de gewone planning: de melding met de
+     CSV-bestandsnaam ontbreekt, de twee verliesmeldingen staan er. De reviewer gaf dit als "[BEVESTIGD] [BLOKKEERT] Een
+     geslaagde CSV-export verliest de melding met haar bestandsnaam."; Trias (wrakko) deelde het in als VERVOLG: geen
+     dataverlies, het document blijft gewijzigd, de download staat in de browser, en de oorzaak zit in de meldingenstore
+     van main. Zo ook op main met een willekeurige andere gewone melding in plaats van stap 3: gemeten op 18 november
+     2026 met de productcode van main `3a989ffa1` (dezelfde reeks, met `notify` van een gewone melding tussen de twee
+     exports): na de tweede export staan de twee verliesmeldingen en de tussenliggende melding er, de downloadmelding
+     niet. Richting: een ververste melding gaat naar het eind van de stapel, in een eigen kleine PR voor alle meldingen.
+     — B
+
+1842. **VERVOLG (#804, tekst): de vraag en het vinkje "zonder gebouwmodel" komen ook bij vreemde inhoud zonder gebouwmodel.**
+     Browser en desktop, flag aan. Exporteren → IFC toont het vinkje *Zonder gebouwmodel* en de vraag *Exporteren zonder
+     gebouwmodel?* ("Het gebouwmodel en de gegevens van een ander programma gaan niet mee") bij elk document met vreemde
+     inhoud (`hasForeignContent`: `modelPresent` in `Backstage.tsx`, `planOnlyQuestionApplies` in `prepareIfcOutput.ts`),
+     ook bij een planning met alleen een eigenschappenset van een ander programma, waar geen gebouwmodel is (de modelscan
+     zegt `no-model`). Geen verlies: de vraag blijft nodig, want de gegevens van het andere programma gaan niet mee; alleen
+     de woorden "gebouwmodel" kloppen dan niet. Richting: de tekst laten volgen uit `hasBuildingModel` (`ifcSource.ts`,
+     PR #1002), of de vraag algemener formuleren. Gevonden bij de fixronde van #1002. — S
+     (code gelezen)
 
 1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
      `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde

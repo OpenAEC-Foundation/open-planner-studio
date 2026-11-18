@@ -395,6 +395,9 @@ for (const [name, text] of [
   eq('eigen-plus-model met flag: aantal objecten in het vreemde deel (C + A + V)', on.getState().ifcSource?.foreignObjectCount, 13 + 0 + 77);
   const b = await open(true, 'bonsai-4d.ifc', bonsai);
   eq('bonsai-4d met flag: aantal objecten in het vreemde deel (C + A + V)', b.getState().ifcSource?.foreignObjectCount, 15 + 13 + 127);
+  // Review van #1002 ronde 2: de bron draagt of er een gebouwmodel is, uit de scan die haar accepteerde.
+  eq('eigen-plus-model met flag: de bron heeft een gebouwmodel', on.getState().ifcSource?.buildingModel, true);
+  eq('bonsai-4d met flag: de bron heeft een gebouwmodel', b.getState().ifcSource?.buildingModel, true);
   const scan = scanForeign(bonsai);
   eq('bonsai-4d met flag: de taken van selectPlanning', b.getState().tasks.length, scan.ok ? scan.selection.tasks.length : -1);
 }
@@ -469,7 +472,7 @@ for (const pad of ownFiles) {
   eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
   if (!opened(off, name)) continue;
   // Ook v2026.7.12 O'Hara krijgt nu een bron: de smalle kopherkenning verandert de planning/opslag niet.
-  ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0);
+  ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0 && !src.buildingModel);
   ok(`${pad}: met flag opslaan toegestaan`, !ifcSaveBlocked(on.getState()));
   eq(`${pad}: zonder flag geen bron`, off.getState().ifcSource, null);
   const a = saved(on);

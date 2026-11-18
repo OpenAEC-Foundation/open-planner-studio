@@ -52,6 +52,7 @@ async function sourceProof(result: PreparedIfcWrite, input: WriteIFCInput) {
   assert.equal(source.schemaName, reopened.schemaName);
   assert.equal(source.foreign, reopened.foreign);
   assert.equal(source.foreignObjectCount, reopened.foreignObjectCount);
+  assert.equal(source.buildingModel, reopened.buildingModel, 'de merge zet het gebouwmodel zoals openen');
   assert.equal(source.lineEnding, reopened.lineEnding);
   assert(result.bytes === source.bytes, 'de uitvoer is de nieuwe bronbuffer zelf');
 }
