@@ -394,6 +394,15 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
+- **Save worker (#804 step 4, not wired yet).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput`
+  computes (the plain writer, or the merge with a foreign part) in one reusable Web Worker; no save route, export or
+  MCP tool uses it yet. `prepareIfcOutput` keeps the decision (mode, flag, guard, plan-only question) and takes the
+  computation as an optional `compute` argument (default: this thread); later steps pass `createIfcSaveWorker().compute`.
+  The source goes over as a copy (the main thread keeps the bytes), output buffers come back transferred, content errors
+  arrive as the same error class, transport failures as `IfcSaveWorkerError`. The main thread computes only when the
+  worker does not start (no `started` message); after a crash, timeout or unreadable answer it is an error, never a
+  retry on the main thread. The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker bundles get `zustand`
+  without React (`vite.config.ts`). Test: `check-save-worker.ts`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
