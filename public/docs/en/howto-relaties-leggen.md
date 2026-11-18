@@ -23,10 +23,10 @@ There are four ways to add a relation. They create the same relation; pick whate
 Useful when you work in the task list, or want to put a series of tasks in a row in one go.
 
 1. In the task list, click the task that comes first: the predecessor.
-2. Hold Ctrl (⌘ on a Mac) and click the task that comes next: the successor. You can click more tasks this way, in the order the work runs. Tasks that are listed one below the other can also be selected with Shift; they come in the order of the list.
+2. Hold Ctrl (⌘ on a Mac) and click the task that comes next: the successor. You can click more tasks this way. Tasks that are listed one below the other can also be selected with Shift.
 3. Press Ctrl+F2 (⌘+F2 on a Mac), or choose *Home › Tasks › Link ▾ › Link selected tasks*. The same button is also on *Planning › Relations*.
 
-The app creates a Finish-Start relation without lag between each task and the next: the first becomes the predecessor of the second, the second of the third, and so on. You see them as arrows in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses a relation. If one of the relations already exists, the app says so and adds the others anyway. One *Undo* removes them all. The button works from two selected tasks.
+The app creates a Finish-Start relation without lag between each task and the next, in the order of the list on your screen: the top one becomes the predecessor of the next, that one of the one after, and so on. The order in which you click does not count. You see them as arrows in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses a relation. If one of the relations already exists, the app says so and adds the others anyway. One *Undo* removes them all. The button works from two selected tasks.
 
 ### Drawing a relation in the Gantt
 
@@ -87,7 +87,7 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 ## Pitfalls and what the app does
 
-**Reversed order.** With *Link selected tasks* the order in which you Ctrl-click counts, not the order in the list. If you click the later task first, the relation is the wrong way round. Delete it in *Dependencies* with the bin icon and add it again.
+**The chain follows the list.** *Link selected tasks* links from top to bottom as the list stands now, also when you sort or group it. If a later task should be the predecessor, sort differently, or choose *Assign predecessors…* or *Assign successors…* in the right-click menu.
 
 **Typing in the column wipes what was there.** If the cell holds `3.4 FS; 3.2 FS` and you type only `3.2 FS`, the relation with 3.4 is gone, without a message. Type all predecessors, use Enter or F2 to add to them, or undo with Ctrl+Z.
 

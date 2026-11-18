@@ -141,6 +141,9 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect(nameCell(page, runKey)).toHaveAttribute('data-grid-active', 'true');
   // Ctrl+C op de reeksregel kopieert alle mijlpalen van de reeks (review Sol ronde 2).
   await nameCell(page, runKey).click();
+  // Na het ruitje en dan de reeksregel in de lijst is de hele reeks het beginpunt van Shift (#1004).
+  await expect.poll(() => page.evaluate(() => [...(window.__OPS__!.store.getState().ui.selectionAnchor?.taskIds ?? [])].sort()))
+    .toEqual([ids.m1, ids.m2, ids.m3].sort());
   await page.keyboard.press('Control+c');
   await expect.poll(() => page.evaluate(() => (window.__OPS__!.store.getState().taskClipboard?.tasks ?? []).map(t => t.id).sort()))
     .toEqual([ids.m1, ids.m2, ids.m3].sort());

@@ -140,8 +140,9 @@ export interface SelectionSlice {
    *  Geen undo: selectie is geen documentdata. */
   selectAllTasks: () => void;
   /** Box-selectie: zet de selectie op precies `ids` (vervangen), of voeg ze
-   *  toe aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). Met `anchor` (het kader in
-   *  de tijdlijn: de bovenste taakrij) wordt dat het anker en de cursorrij. Geen undo. */
+   *  toe aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). `anchor` is het nieuwe
+   *  beginpunt van Shift (het kader in de tijdlijn: zijn bovenste taakrij; de takenlijst: haar anker);
+   *  zonder `anchor` is het beginpunt onbekend. Geen undo. */
   selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null, anchor?: SelectionAnchor) => void;
 
   /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord.
@@ -166,9 +167,8 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       s.activeTaskId = id;
       if (row?.rowKey !== undefined) s.ui.gridActiveRowKey = row.rowKey;
       if (rangeIds) {
-        // Vereniging met de bestaande selectie, het bereik in de volgorde van het scherm — ook als je
-        // naar boven selecteert. De volgorde telt: koppelen als keten (issue #1000) volgt haar.
-        // Eerder aangeklikte taken buiten het bereik blijven vooraan. Het anker blijft staan.
+        // Vereniging met de bestaande selectie, zoals op main; het bereik in de volgorde van het
+        // scherm, ook naar boven. Het anker blijft staan.
         const inRange = new Set(rangeIds);
         s.selectedTaskIds = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
         return;
@@ -205,10 +205,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
   selectTasks: (ids, additive, activeTaskId, anchor) =>
     set((s) => {
-      if (anchor) {
-        s.ui.selectionAnchor = { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds] };
-        s.ui.gridActiveRowKey = anchor.rowKey;
-      }
+      s.ui.selectionAnchor = anchor ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds] } : null;
       const uniqueIds = [...new Set(ids)];
       if (!additive) {
         const nextActiveTaskId = activeTaskId === undefined ? (uniqueIds[0] ?? null) : activeTaskId;

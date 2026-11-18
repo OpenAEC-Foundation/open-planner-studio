@@ -456,7 +456,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   },
   {
     // Issue #1000: zoals Ctrl+F2 in MS Project. Koppelt de selectie als keten (Eind-Start), in de
-    // volgorde van selecteren — dezelfde functie als "Geselecteerde taken koppelen" in het lint.
+    // volgorde op het scherm — dezelfde functie als "Geselecteerde taken koppelen" in het lint.
     id: 'edit.linkSelected',
     combo: { key: 'F2', mod: true },
     category: 'edit',

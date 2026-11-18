@@ -201,7 +201,7 @@
     "ganttOnlyHint": "Only available when the Gantt chart is visible",
     "taskListOnlyHint": "Only available when the task list is visible",
     "relationLinkSelected": "Link selected tasks",
-    "relationLinkSelectedHint": "Links the tasks in the order you selected them: each task becomes the predecessor of the next (FS, lag 0)",
+    "relationLinkSelectedHint": "Links the tasks in the order of the list: each task becomes the predecessor of the next (FS, lag 0)",
     "relationSelectAtLeastTwo": "Select at least two tasks",
     "relationSelectionHidden": "Not all selected tasks are visible (filter or collapsed phase)",
     "relationAssignPredecessorsHint": "Choose predecessors for this task from a searchable list, with type and lag",

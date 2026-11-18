@@ -1058,6 +1058,13 @@ en noem het in je rapport of PR-tekst.
       op #1004, run 44367101990). Een basis met dezelfde lockfile, of alleen de afhankelijkheden vergelijken,
       lost het op. — B
 
+1875. **VERVOLG (#1004): na Esc houdt de takenlijst haar oude Shift-beginpunt.** A, Shift C in de lijst, Esc, Shift E
+      kiest weer A t/m E: de store wist selectie en anker, maar het raster houdt zijn lokale anker zolang de
+      store er geen nieuw geeft (`withSelectionAnchor` alleen met een anker). Bestond al op main. Het anker bij
+      een selectiewissel van buiten op de cursor zetten brak het bestaande contract van
+      `check-task-grid-published-selection.ts`; dat vraagt een eigen afweging. Uit de review van #1004
+      (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

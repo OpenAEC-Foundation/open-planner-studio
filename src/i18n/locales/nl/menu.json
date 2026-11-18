@@ -201,7 +201,7 @@
     "ganttOnlyHint": "Alleen beschikbaar als de Gantt in beeld is",
     "taskListOnlyHint": "Alleen beschikbaar als de takenlijst in beeld is",
     "relationLinkSelected": "Geselecteerde taken koppelen",
-    "relationLinkSelectedHint": "Koppelt de taken in de volgorde van selecteren: elke taak wordt voorganger van de volgende (FS, lag 0)",
+    "relationLinkSelectedHint": "Koppelt de taken in de volgorde van de lijst: elke taak wordt voorganger van de volgende (FS, lag 0)",
     "relationSelectAtLeastTwo": "Selecteer minstens twee taken",
     "relationSelectionHidden": "Niet alle geselecteerde taken staan in beeld (filter of ingeklapte fase)",
     "relationAssignPredecessorsHint": "Kies voorgangers voor deze taak uit een doorzoekbare lijst, met type en lag",

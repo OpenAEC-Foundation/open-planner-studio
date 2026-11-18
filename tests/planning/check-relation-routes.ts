@@ -430,8 +430,8 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
 // ── 12. Selectie als keten koppelen en toewijzen zoals in Primavera (issue #1000) ──────────────
 // MS Project koppelt met Ctrl+F2 alle geselecteerde taken als keten (Eind-Start), Primavera heeft
 // "Link Activities". De lintknop koppelde alleen precies twee taken. Nu: twee of meer, in de volgorde
-// van selecteren, als ÉÉN undo-stap; een bestaande of verboden schakel meldt zich en houdt de rest
-// niet tegen. De sneltoets Ctrl+F2 doet hetzelfde.
+// op het scherm (niet die van klikken, review ronde 5), als ÉÉN undo-stap; een bestaande of verboden
+// schakel meldt zich en houdt de rest niet tegen. De sneltoets Ctrl+F2 doet hetzelfde.
 {
   fresh();
   const a = S().addTask({ name: 'A' });
@@ -441,10 +441,10 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().addSequence({ predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 });
   useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; });
   const depth = undoDepth();
-  // Volgorde van selecteren, niet van de rijen: D eerst gekozen, dan A, B, C.
+  // Volgorde van de rijen, niet van selecteren: D eerst gekozen, dan A, B, C ⇒ A → B → C → D.
   const ids = linkTasksInChain([d, a, b, c]);
-  eq('12.1 per schakel een id of null', ids.map(id => id === null ? null : 'id'), ['id', 'id', null]);
-  eq('12.2 de keten volgt de selectievolgorde', pairs(), ['B→C', 'D→A', 'A→B']);
+  eq('12.1 per schakel een id of null', ids.map(id => id === null ? null : 'id'), ['id', null, 'id']);
+  eq('12.2 de keten volgt het scherm, niet de klikvolgorde', pairs(), ['B→C', 'A→B', 'C→D']);
   eq('12.3 alles Eind-Start zonder lag', S().sequences.slice(1).map(q => [q.type, q.lagDays]), [['FINISH_START', 0], ['FINISH_START', 0]]);
   eq('12.4 precies één undo-stap', undoDepth(), depth + 1);
   eq('12.5 de bestaande schakel meldt zich', notes().map(n => n.key), ['notifications.relationDuplicate']);
@@ -515,6 +515,15 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setUI({ pendingRelationAssign: null });
   requestRelationAssign('task-bestaat-niet', 'successor');
   eq('12.25 geen verzoek voor een taak die niet bestaat', S().ui.pendingRelationAssign, null);
+  // Aflopend op naam staat R boven Q en P: de keten loopt R → Q → P, wat de klikvolgorde ook was.
+  const p = S().addTask({ name: 'P' });
+  const q = S().addTask({ name: 'Q' });
+  const r = S().addTask({ name: 'R' });
+  S().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
+  const before = S().sequences.length;
+  linkTasksInChain([p, r, q]);
+  eq('12.26 bij een aflopende sortering volgt de keten het scherm', pairs().slice(before), ['R→Q', 'Q→P']);
+  S().setSort([]);
 }
 
 // ── 13. Het Gantt-bereik werkt op rijen, niet op taak-id's (review #1004, ronde 2) ──────────────
@@ -557,7 +566,7 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   // Ronde 4: een kader in de tijdlijn rond alleen de bovenste B maakt die rij het anker.
   S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
   S().selectTasks([b], false, b, { rowKey: S().viewRows[1].rowKey, taskIds: [b] });
-  eq('13.20 het kader zet zijn bovenste rij als cursorrij', S().ui.gridActiveRowKey, S().viewRows[1].rowKey);
+  eq('13.20 het kader zet zijn bovenste rij als anker', S().ui.selectionAnchor?.rowKey, S().viewRows[1].rowKey);
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
   eq('13.21 Shift na het kader begint op die rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
   // Shift begint bij de laatste klik zonder Shift, ook als die klik iets uitvinkte, zoals in de
@@ -648,6 +657,9 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
     eq('13.18 en weer samen uit', S().selectedTaskIds, [na]);
     S().selectTask(m1, false, false, diamond);
     eq('13.19 een gewone klik kiest het hele groepsruitje', S().selectedTaskIds, [m1, m2]);
+    // Een ander document (bv. een variant met dezelfde taak-id's en rijen) erft het anker niet.
+    S().newDocument();
+    eq('13.26 een documentwissel wist het Shift-anker', S().ui.selectionAnchor, null);
   }
 }
 

@@ -104,14 +104,18 @@ export function selectionInView(state: Pick<AppState, 'selectedTaskIds' | 'viewR
 
 /**
  * Koppel taken als keten, Eind-Start zonder lag (issue #1000): Ctrl+F2 in MS Project, "Link
- * Activities" in Primavera. De volgorde is die van de lijst — voor de selectie de volgorde van
- * kiezen (Ctrl-klik voegt achteraan toe, een Shift-bereik komt in rijvolgorde), zoals de lintknop
- * bij twee taken al deed. Elke schakel gaat door {@link createRelationsWithFeedback}: één undo-stap,
- * en een bestaande of verboden schakel meldt zich zonder de rest tegen te houden.
+ * Activities" in Primavera. De keten volgt de volgorde OP HET SCHERM (filter, sortering,
+ * groepering), niet die van klikken: de klikvolgorde liep tussen tijdlijn en takenlijst uiteen
+ * (review #1004, ronde 5). Taken die niet in beeld staan vallen weg; de aanroepers koppelen alleen
+ * als alles in beeld staat ({@link selectionInView}). Elke schakel gaat door
+ * {@link createRelationsWithFeedback}: één undo-stap, en een bestaande of verboden schakel meldt zich
+ * zonder de rest tegen te houden.
  */
 export function linkTasksInChain(taskIds: readonly string[]): (string | null)[] {
-  return createRelationsWithFeedback(taskIds.slice(1).map((successorId, index) => ({
-    predecessorId: taskIds[index],
+  const chosen = new Set(taskIds);
+  const ordered = uniqueTaskIds(useAppStore.getState().viewRows).filter(taskId => chosen.has(taskId));
+  return createRelationsWithFeedback(ordered.slice(1).map((successorId, index) => ({
+    predecessorId: ordered[index],
     successorId,
     type: 'FINISH_START' as const,
     lagDays: 0,

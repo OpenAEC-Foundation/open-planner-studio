@@ -23,10 +23,10 @@ Er zijn vier manieren om een relatie te leggen. Ze maken dezelfde relatie; kies 
 Handig als je in de takenlijst werkt, of een reeks taken in één keer achter elkaar wilt zetten.
 
 1. Klik in de takenlijst op de taak die eerst moet: de voorganger.
-2. Houd Ctrl (op een Mac ⌘) ingedrukt en klik op de taak die daarna komt: de opvolger. Zo kun je meer taken aanklikken, in de volgorde waarin het werk loopt. Taken die onder elkaar staan, selecteer je ook met Shift; die komen in de volgorde van de lijst.
+2. Houd Ctrl (op een Mac ⌘) ingedrukt en klik op de taak die daarna komt: de opvolger. Zo kun je meer taken aanklikken. Taken die onder elkaar staan, selecteer je ook met Shift.
 3. Druk op Ctrl+F2 (op een Mac ⌘+F2), of kies *Start › Taken › Relatie ▾ › Geselecteerde taken koppelen*. Dezelfde knop staat ook op *Planning › Relaties*.
 
-De app legt tussen elke taak en de volgende een Eind-Start-relatie zonder lag: de eerste wordt voorganger van de tweede, de tweede van de derde, enzovoort. Je ziet ze als pijlen in de Gantt en in de kolom *Voorgangers*; een melding komt er alleen als de app een relatie weigert. Bestaat een van de relaties al, dan meldt de app dat en komen de andere er wel bij. Eén keer *Ongedaan* haalt ze allemaal weg. De knop werkt vanaf twee geselecteerde taken.
+De app legt tussen elke taak en de volgende een Eind-Start-relatie zonder lag, in de volgorde van de lijst op je scherm: de bovenste wordt voorganger van de volgende, die van de daaropvolgende, enzovoort. De volgorde waarin je klikt telt niet. Je ziet ze als pijlen in de Gantt en in de kolom *Voorgangers*; een melding komt er alleen als de app een relatie weigert. Bestaat een van de relaties al, dan meldt de app dat en komen de andere er wel bij. Eén keer *Ongedaan* haalt ze allemaal weg. De knop werkt vanaf twee geselecteerde taken.
 
 ### Een relatie tekenen in de Gantt
 
@@ -87,7 +87,7 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd �
 
 ## Valkuilen en wat de app dan doet
 
-**Omgekeerde volgorde.** Bij *Geselecteerde taken koppelen* telt de volgorde waarin je met Ctrl klikt, niet die in de lijst. Klik je eerst de latere taak aan, dan staat de relatie verkeerd om. Verwijder hem in *Afhankelijkheden* met het prullenbakje en leg hem opnieuw.
+**De keten volgt de lijst.** *Geselecteerde taken koppelen* koppelt van boven naar beneden zoals de lijst nu staat, ook als je hem sorteert of groepeert. Moet een latere taak juist voorganger worden, sorteer dan anders, of kies *Voorgangers toewijzen…* of *Opvolgers toewijzen…* in het rechtermuismenu.
 
 **Typen in de kolom wist wat er stond.** Staat in de cel `3.4 FS; 3.2 FS` en typ je alleen `3.2 FS`, dan is de relatie met 3.4 weg, zonder melding. Typ alle voorgangers mee, gebruik Enter of F2 om aan te vullen, of zet het terug met Ctrl+Z.
 
