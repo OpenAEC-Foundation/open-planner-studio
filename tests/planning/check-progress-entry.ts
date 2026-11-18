@@ -217,6 +217,34 @@ const progressOf = (S: () => AppState, id: string) => {
   return { completion: t.time.completion, status: t.status, as: t.time.actualStart ?? null, af: t.time.actualFinish ?? null };
 };
 const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
+for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
+  const today = '2026-06-10';
+  const { S } = fresh();
+  S().setProject({ startDate: '2026-06-08', statusDate: today });
+  const A = S().addTask({ name: 'A', time: { scheduleDuration: scenario === 'voor F5' ? 20 : 1 } as Task['time'] });
+  const B = S().addTask({ name: 'B', time: { scheduleDuration: 2 } as Task['time'] });
+  S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+  if (scenario === 'voor F5') {
+    const panel = S().enterTaskProgress(B, { field: 'completion', value: 1 }, { today });
+    eq('#998 paneel vóór eerste F5 vraagt om start', panel.ok ? 'ok' : panel.reason, 'needsActualStart');
+    if (panel.ok) S().undo();
+  } else S().runCPM();
+  const original = S().tasks;
+  const writes = [cell(B, 'task.time.completion', 0.5)];
+  if (scenario === 'voorganger afmelden') writes.unshift(cell(A, 'task.time.completion', 1));
+  for (const order of [writes, [...writes].reverse()]) {
+    const grid = S().runGridMutation([{ kind: 'paste', writes: order }], { progressEntry: { today } });
+    eq(`#998 raster ${scenario} vraagt om start van opvolger`, grid.ok ? 'ok' : grid.errors.map(e => [e.code, e.taskId]), [['actualStartRequired', B]]);
+    eq(`#998 raster ${scenario} schrijft niets vóór de startvraag`, S().tasks === original, true);
+    if (grid.ok) S().undo();
+  }
+  if (scenario === 'voorganger afmelden') {
+    const confirmed = S().runGridMutation([{ kind: 'paste', writes: [...writes, cell(B, 'task.time.actualStart', '2026-06-09')] }], { progressEntry: { today } });
+    eq('#998 raster past beide percentages toe met een expliciete start op B',
+      [confirmed.ok, taskOf(S, A).time.actualFinish, taskOf(S, B).time.actualStart],
+      [true, '2026-06-10T16:00', '2026-06-09T07:00']);
+  }
+}
 {
   const { S } = fresh();
   const { B } = setupFuture(S, SD);

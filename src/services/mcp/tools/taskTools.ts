@@ -27,7 +27,7 @@ import {
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
-import { progressPlannedStarts, taskPlacementChanged } from '@/state/progressPlannedStart';
+import { progressCanShiftOtherTasks, progressPlannedStarts, taskPlacementChanged } from '@/state/progressPlannedStart';
 import {
   parseProgress,
   parseTaskFields,
@@ -377,11 +377,17 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
   const initial = ctx.app.store.getState();
   const statusDate = initial.project.statusDate;
   let plannedStart = progressPlannedStarts(initial);
-  const refreshPlannedStart = (before: Task | undefined): void => {
+  let canShiftOtherTasks: ((id: string) => boolean) | undefined;
+  const refreshPlannedStart = (before: Task | undefined, progressOnly = false): void => {
     if (!before) return;
     const updated = ctx.app.store.getState();
     const after = updated.tasks.find(task => task.id === before.id);
-    if (after && taskPlacementChanged(before, after)) plannedStart = progressPlannedStarts(updated, true);
+    if (!after || !taskPlacementChanged(before, after)) return;
+    if (progressOnly && (after.time.actualStart || !before.time.actualStart)) {
+      canShiftOtherTasks ??= progressCanShiftOtherTasks(updated);
+      if (!canShiftOtherTasks(before.id)) return;
+    } else if (!progressOnly) canShiftOtherTasks = undefined;
+    plannedStart = progressPlannedStarts(updated, true);
   };
   const rejections: { id: string; reason: string }[] = [];
   const applied: string[] = [];
@@ -434,16 +440,14 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       if (!shape.ok) { rejections.push({ id, reason: shape.reason }); rejectedHere = true; }
       else {
         const patch: ProgressPatch = shape.value;
-        const before = 'actualStart' in patch || 'actualFinish' in patch
-          ? ctx.app.store.getState().tasks.find(task => task.id === id)
-          : undefined;
+        const before = ctx.app.store.getState().tasks.find(task => task.id === id);
         let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'not executed' };
         ctx.app.store.setState((s) => {
           pr = progress.applyProgressUpdate(s, id, patch, statusDate, plannedStart);
         });
         if (pr.applied) {
           touched = true;
-          refreshPlannedStart(before);
+          refreshPlannedStart(before, true);
         } else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
       }
     }

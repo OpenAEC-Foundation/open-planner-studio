@@ -40,7 +40,7 @@ import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
-import { progressPlannedStarts } from './progressPlannedStart';
+import { progressPlacementForBatch, progressPlannedStarts } from './progressPlannedStart';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -869,11 +869,73 @@ function applyCellEdits(
   };
 }
 
+/** Bepaal starts met de nieuwe plaatsing en de voortgang van eerdere taken in de relatiegraaf. */
+function plannedStartsForGrid(
+  state: Readonly<AppState>,
+  writes: readonly GridWriteIntent[],
+  skipReadOnlyCells: boolean,
+  today: string | undefined,
+): (task: Task) => string | undefined {
+  const placementWrites = writes.filter(write => write.kind !== 'cell-edit'
+    || write.route === 'task-schedule' || write.route === 'task-constraint'
+    || write.route === 'task-milestone' || write.route === 'task-hammock'
+    || String(write.columnId) === 'task.workRule');
+  const placement = placementWrites.length > 0
+    ? prepareGridWrites(state, [{ kind: 'paste', writes: placementWrites, allowSkippingReadOnlyCells: skipReadOnlyCells }])
+    : undefined;
+  const placed = placement?.ok ? placement.value.isolated : state;
+  const base = progressPlannedStarts(placed);
+  const progressByTask = new Map<string, CellEditIntent[]>();
+  for (const write of writes) {
+    if (write.kind !== 'cell-edit' || write.route !== 'task-progress') continue;
+    const group = progressByTask.get(write.taskId);
+    if (group) group.push(write);
+    else progressByTask.set(write.taskId, [write]);
+  }
+  const statusDate = placed.project.statusDate || today;
+  const batch = progressPlacementForBatch(placed, new Set(progressByTask.keys()), statusDate);
+  if (!batch) return base;
+
+  const starts = new Map<string, string | undefined>();
+  const tasksById = new Map(placed.tasks.map(task => [task.id, task]));
+  for (const id of batch.order) {
+    const edits = progressByTask.get(id)!;
+    const before = tasksById.get(id)!;
+    const environment = buildTaskEditPlanEnvironment(placed, before);
+    const plan = planTaskCellEdits(before, edits, {
+      ...environment,
+      statusDate,
+      plannedStart: task => {
+        const start = batch.plannedStart(task);
+        starts.set(id, start);
+        return start;
+      },
+    });
+    if (!plan.ok || !plan.value.changed) continue;
+    const after = plan.value.task;
+    if (today && progressStartQuestion(before, after, edits, statusDate, placed, starts.get(id))) continue;
+    batch.accept(before, after);
+  }
+  return task => starts.has(task.id) ? starts.get(task.id) : base(task);
+}
+
+function progressStartQuestion(
+  before: Task, after: Task, edits: readonly CellEditIntent[], statusDate: string | undefined,
+  state: Pick<AppState, 'calendar' | 'calendars'>, plannedStart: string | undefined,
+) {
+  const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
+  return actualStartQuestionFor(before, after, statusDate, {
+    actualStart: wrote('task.time.actualStart'),
+    actualFinish: wrote('task.time.actualFinish'),
+  }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, state.calendars, state.calendar),
+  () => plannedStart);
+}
+
 function prepareGridWrites(
   state: Readonly<AppState>,
   intents: readonly GridIntent[],
   options?: GridMutationOptions,
-): GridResult<Omit<PreparedGridMutation, 'derivedAfter'> & { isolated: AppState }, readonly CellValidationError[]> {
+): GridResult<Omit<PreparedGridMutation, 'derivedAfter' | 'before' | 'after'> & { isolated: AppState }, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
   const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
@@ -904,25 +966,9 @@ function prepareGridWrites(
     0,
   );
 
-  let lookup = progressPlannedStarts(state);
-  let checkedPlacement = false;
+  let lookup: ((task: Task) => string | undefined) | undefined;
   const plannedStart = (task: Task): string | undefined => {
-    if (!checkedPlacement) {
-      checkedPlacement = true;
-      // Eerst alle plaatsingswijzigingen uit de plak, zonder nieuwe percentages. Een
-      // voorganger kan op een andere rij staan, ook onder de taak die voortgang krijgt.
-      const placementWrites = orderedWrites.filter(write => write.kind !== 'cell-edit'
-        || write.route === 'task-schedule' || write.route === 'task-constraint'
-        || write.route === 'task-milestone' || write.route === 'task-hammock'
-        || ['task.workRule', 'task.time.actualStart', 'task.time.actualFinish'].includes(String(write.columnId)));
-      if (placementWrites.length > 0) {
-        const preview = prepareGridWrites(state, [{ kind: 'paste', writes: placementWrites,
-          allowSkippingReadOnlyCells: skipReadOnlyCells }]);
-        if (preview.ok && preview.value.after.scheduleStale) {
-          lookup = progressPlannedStarts(preview.value.after, true);
-        }
-      }
-    }
+    lookup ??= plannedStartsForGrid(state, orderedWrites, skipReadOnlyCells, today);
     return lookup(task);
   };
 
@@ -931,7 +977,6 @@ function prepareGridWrites(
   for (const write of orderedWrites) {
     if (write.kind === 'relation-set') relationWriteCount++;
   }
-  const before = createSnapshot(state as AppState);
   let errors: CellValidationError[] = [];
   const timephasedLossTaskIds = new Set<string>();
   const assignmentValidationTaskIds = new Set<string>();
@@ -1085,12 +1130,7 @@ function prepareGridWrites(
         const after = draftTasksById.get(taskId);
         if (!before || !after) continue;
         const writes = cellWritesByTaskId.get(taskId) ?? [];
-        const wrote = (columnId: string) => writes.some(write => String(write.columnId) === columnId && !!write.value);
-        const question = actualStartQuestionFor(before, after, entryStatusDate, {
-          actualStart: wrote('task.time.actualStart'),
-          actualFinish: wrote('task.time.actualFinish'),
-        }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar),
-        () => progressStarts.get(taskId));
+        const question = progressStartQuestion(before, after, writes, entryStatusDate, draft, progressStarts.get(taskId));
         if (question) {
           errors.push(validationError('actualStartRequired', { taskId }, {
             statusDate: question.statusDate, latest: question.latest,
@@ -1141,8 +1181,6 @@ function prepareGridWrites(
     value: {
       isolated,
       documentId: state.activeDocumentId,
-      before,
-      after: createSnapshot(isolated),
       notifications: [...notifications, ...startEditNotifications(startNotices, state.ui.dateNotation, state.ui.timeNotation)],
       timephasedLossCount: timephasedLossTaskIds.size,
       skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
@@ -1170,7 +1208,7 @@ export function prepareGridMutation(
     resourceLoadResult = state.resourceLoadResult !== null && resourceLoadInputsUnchanged(state, isolated)
       ? state.resourceLoadResult
       : computeReliableResourceLoad(
-      mutation.after.cpmResult,
+      isolated.cpmResult,
       isolated.resources,
       isolated.assignments,
       isolated.tasks,
@@ -1183,7 +1221,12 @@ export function prepareGridMutation(
   }
   return {
     ok: true,
-    value: { ...mutation, derivedAfter: { viewRows, resourceLoadResult } },
+    value: {
+      ...mutation,
+      before: createSnapshot(state as AppState),
+      after: createSnapshot(isolated),
+      derivedAfter: { viewRows, resourceLoadResult },
+    },
   };
 }
 

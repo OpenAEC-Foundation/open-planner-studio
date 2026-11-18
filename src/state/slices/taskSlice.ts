@@ -3,7 +3,7 @@ import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteMode
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
-import { progressPlannedStarts } from '@/state/progressPlannedStart';
+import { progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -268,9 +268,10 @@ export interface ProgressImportEntryOptions {
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
 function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
   const statusDate = progressEntryStatusDate(s.project.statusDate, today);
-  const plannedStart = progressPlannedStarts(s);
+  const baseStart = progressPlannedStarts(s);
   return {
-    planEdits: (task, edits) => {
+    preparePlacement: ids => progressPlacementForBatch(s, ids, statusDate),
+    planEdits: (task, edits, plannedStart = baseStart) => {
       const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedStart };
       const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
       if (!planned.ok || !today) return planned;
@@ -1797,7 +1798,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     let plan!: ProgressImportPlan;
     let statusDateToday: string | undefined;
     set((s) => {
-      plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides, opts?.conflictChoices);
+      const live = originalAppState(s) ?? s;
+      plan = buildProgressImportPlan(rows, live.tasks, progressImportDeps(live, opts?.today), overrides, opts?.conflictChoices);
       if (plan.appliedCount === 0 || plan.unresolvedConflictCount > 0) return;
       runtime.beginUndoable(s);
       // Met `ProgressImportEntryOptions`: houdt een toegepaste rij voortgang over en was er geen

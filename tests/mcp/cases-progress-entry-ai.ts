@@ -170,6 +170,34 @@ test('#998: een opgegeven werkelijk einde van een voorganger telt mee in hetzelf
   assertEq(timeOf(next).completion, 0, 'percentage van opvolger geweigerd');
 });
 
+for (const batch of [false, true]) {
+  for (const change of ['completion', 'milestoneKind'] as const) {
+    test(`#998: ${change} van voorganger telt mee (batch: ${batch})`, async () => {
+      S().newProject();
+      S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+      const milestone = change === 'milestoneKind';
+      const A = S().addTask({ name: 'A', isMilestone: milestone, ...(milestone ? { milestoneKind: 'START' } : {}),
+        time: createDefaultTaskTime(milestone ? '2026-06-10' : '2026-06-08', milestone ? 0 : 1) });
+      const B = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-06-08', 2) });
+      S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+      S().runCPM();
+      const args = { updates: [
+        milestone ? { id: A, fields: { milestoneKind: 'FINISH' } } : { id: A, progress: { completion: 100 } },
+        { id: B, progress: { completion: 50 } },
+      ] };
+      if (batch) await rpc('planner_batch', { steps: [{ tool: 'planner_update_tasks', args }] });
+      else {
+        const res = await rpc('planner_update_tasks', args);
+        assert(reasons(res).some(reason => /progress\.actualStart/.test(reason) && /2026-06-11/.test(reason)),
+          `weigering noemt de nieuwe begindatum: ${reasons(res)}`);
+      }
+      assertEq(timeOf(B).completion, 0, 'percentage van opvolger geweigerd');
+      if (milestone) assertEq(S().tasks.find(task => task.id === A)?.milestoneKind, 'FINISH', 'mijlpaalsoort gewijzigd');
+      else assertEq(timeOf(A).actualFinish, '2026-06-10T16:00', 'voorganger afgemeld');
+    });
+  }
+}
+
 // F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
 for (const [statusDate, actualFinish, want] of [
   ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],

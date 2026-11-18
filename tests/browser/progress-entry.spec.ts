@@ -574,12 +574,21 @@ test('#998, taakraster: plakken van een latere voorganger en voortgang vraagt vÃ
     s.commitTaskGridColumns('full-task-grid', 'Beperkingen en voortgang', columns);
   }, { statusDate, columns });
 
-  const constraint = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.constraint ?? null, A);
-  await page.evaluate(() => navigator.clipboard.writeText('SNET\t22-06-2026\t0%\nASAP\t\t50%'));
-  await page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${A}"] [data-grid-column-id="task.constraint.type"]`).click();
-  await page.keyboard.press('Control+V');
-
+  const paste = async (column: string, text: string) => {
+    await page.evaluate(value => navigator.clipboard.writeText(value), text);
+    await page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${A}"] [data-grid-column-id="${column}"]`).click();
+    await page.keyboard.press('Control+V');
+  };
   const question = page.locator('[data-ops-actual-start-dialog]');
+  await paste('task.time.completion', '100%\n50%');
+  await expect(question).toBeVisible();
+  expect(await readProgress(page, A)).toEqual({ statusDate, completion: 0, actualStart: null });
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
+  await question.locator('[data-ops-actual-start-cancel]').click();
+  await expect(question).toBeHidden();
+
+  const constraint = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.constraint ?? null, A);
+  await paste('task.constraint.type', 'SNET\t22-06-2026\t0%\nASAP\t\t50%');
   await expect(question).toBeVisible();
   expect(await constraint()).toBeNull();
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
