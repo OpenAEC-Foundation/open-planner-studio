@@ -1790,15 +1790,16 @@ export class CPMSolver {
     return out;
   }
 
-  /** Sessie voor de nivelleerder: alleen delays/splitGaps van bestaande taken mogen wijzigen.
-   *  Graaf, kalenders, duurbronnen, ankers en opties blijven vast; gebruik een eigen solverinstance.
+  /** Herbruikbare voorwaartse pass voor gewijzigde delays, splits en voortgang van bestaande taken.
+   *  Graaf, kalenders, duurbronnen, ankers, beperkingen en opties blijven vast.
    *  Een wijziging schuift via een topologische wachtrij door de bestaande forward-pass, tot aan
    *  de gevraagde taak. Latere opvolgers wachten tot ze nodig zijn. Zo veroorzaakt een keten van
    *  plaatsingen geen volledige netwerkpass per taak. ALAP/hammock vereisen de volledige solve.
    *  Dat geldt ook voor completion >= 1 zonder actualFinish: zo'n taak blijft actief in de
    *  nivelleerder, terwijl de resultaatpass haar start nog op een voltooidvenster kan zetten.
    */
-  createLevelingForwardPass(): {
+  createIncrementalForwardPass(): {
+    order: readonly string[];
     markChanged: (taskId: string) => void;
     earlyStart: (taskId: string) => string | undefined;
   } | null {
@@ -1819,6 +1820,7 @@ export class CPMSolver {
       queue.push(rank);
     };
     return {
+      order,
       markChanged,
       earlyStart: (taskId: string) => {
         const target = rankOf.get(taskId);
