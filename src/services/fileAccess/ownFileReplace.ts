@@ -239,8 +239,6 @@ export async function settleReplaceRemnants(
   if (before === vorigeSha256 && target === 'missing') {
     if (placedOk(await fs.place(previous, path))) target = before;
     else leave(previous);
-  } else if (before === vorigeSha256 && target === pendingSha256) { // MUTATIE a: wissen op de doelhash
-    try { await fs.remove(previous); } catch { leave(previous); }
   } else if (before !== 'missing') leave(previous);
 
   const written = await see(temp);
