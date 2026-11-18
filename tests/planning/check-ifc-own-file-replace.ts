@@ -1476,6 +1476,61 @@ await check('Opslaan als over de bron van een ander open document: geweigerd met
   } finally { await tidy(c); }
 });
 
+// Fixronde 1 van #1019 (review Sol, BLOKKEERT): een gewone planning zonder vreemd deel, open in een ander tabblad. De
+// doelbescherming via bronkenmerken ziet haar niet; de route kijkt daarom ook naar de paden van de open documenten.
+await check('Opslaan als over een gewone planning die in een ander tabblad open staat: geweigerd, niets geschreven, beide tabbladen ongewijzigd', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const target = otherFile(c);
+    internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(target.path) : invoke(command, ...args);
+    await c.store.getState().openFile();
+    internal.invoke = invoke;
+    const secondId = c.store.getState().activeDocumentId;
+    assert.notEqual(secondId, c.id, 'het bestand staat in een eigen tabblad');
+    assert.deepEqual([c.store.getState().filePath, c.store.getState().foreignSourceMark], [target.path, null], 'een gewone planning');
+    renameTask(c, 'Werk in het tweede tabblad');
+    c.store.getState().switchDocument(c.id);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetOpenInTab']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel houdt zijn bytes');
+    documentUnchanged(c, source);
+    const second = c.store.getState().getOpenDocumentPayloads().find(d => d.id === secondId)!.payload;
+    assert.deepEqual([second.filePath, second.isDirty], [target.path, true], 'het tweede tabblad houdt zijn pad en wijzigingen');
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
+// Vervolgpunt 1 van dezelfde review: was het gekozen pad leeg toen de bestandskiezer terugkwam, dan blijft het de
+// exclusieve aanmaakroute houden; een bestand dat daarna verschijnt, geeft `target-exists` zoals voorheen.
+await check('Opslaan als naar een vrije naam waar na de bestandskiezer een bestand verschijnt: niet vervangen, de melding van een bestaande naam', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const path = join(c.dir, 'nieuw.ifc');
+    let appeared = false;
+    internal.invoke = (command, ...args) => {
+      if (!appeared && command === 'plugin:fs|open' && (args[0] as { path?: string })?.path === path) {
+        appeared = true;
+        writeFileSync(path, plain);
+      }
+      return invoke(command, ...args);
+    };
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await saveAsTo(c.store, path);
+    assert(appeared, 'het bestand verscheen na de bestandskiezer');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignNewTargetOnly']);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), 'nieuw.ifc': hash(plain) }, 'het verschenen bestand blijft');
+    documentUnchanged(c, source);
+    assert.deepEqual(placesSince(from).map(call => call.path), [path], 'alleen de exclusieve plaatsing, geen vervanging');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
 await check('Opslaan als over een bestand met een gebouwmodel van een ander: de doelbescherming weigert, zoals voorheen', async () => {
   const c = await opened();
   try {
