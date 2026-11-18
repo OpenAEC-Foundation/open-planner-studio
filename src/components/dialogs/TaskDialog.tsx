@@ -8,9 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { localTodayIso } from '@/utils/dateUtils';
-import { planProgressEntry, type ProgressEdit, type ProgressEntryResult } from '@/engine/progressEntry';
-import { saveTaskDialog } from '@/state/taskDialogSave';
-import { progressPlannedStartAfterEdit } from '@/state/progressPlannedStart';
+import type { ProgressEdit, ProgressEntryResult } from '@/engine/progressEntry';
+import { planTaskDialogProgress, saveTaskDialog, type TaskDialogStartEdit } from '@/state/taskDialogSave';
 import { shownStart, startIsActual } from '@/utils/taskDates';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
@@ -77,8 +76,9 @@ export function TaskDialog() {
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
   // Volg de actuele planning totdat het startveld in deze sessie wordt gewijzigd.
-  const [startDateEdit, setStartDateEdit] = useState<string>();
-  const startDate = startDateEdit ?? (editingTask ? shownStart(editingTask) : project.startDate);
+  const [startDateEdit, setStartDateEdit] = useState<TaskDialogStartEdit>();
+  const originalStart = editingTask ? shownStart(editingTask) : project.startDate;
+  const startDate = startDateEdit?.date ?? originalStart;
   const initialDurationRef = useRef<{ unit: 'days' | 'hours'; scheduleDuration: number; durationMinutes?: number } | null>(null);
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
@@ -165,19 +165,8 @@ export function TaskDialog() {
   draftRef.current = draft;
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
     const state = useAppStore.getState();
-    const currentDraft = draftRef.current;
-    const live = state.tasks.find(task => task.id === currentDraft.id);
-    const task = live ? { ...currentDraft, time: {
-      ...currentDraft.time,
-      scheduleStart: startDateEdit ?? live.time.scheduleStart,
-      scheduleFinish: live.time.scheduleFinish,
-      earlyStart: live.time.earlyStart,
-      earlyFinish: live.time.earlyFinish,
-    } } : currentDraft;
-    let plannedStart: string | undefined;
-    const plan = planProgressEntry(task, edit, {
-      statusDate: state.project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart, calendar: effCal,
-      plannedStart: live ? () => (plannedStart ??= progressPlannedStartAfterEdit(state, live, task)) : undefined,
+    const plan = planTaskDialogProgress(state, draftRef.current, startDateEdit, edit, {
+      today: localTodayIso(), actualStart: opts?.actualStart,
     });
     if (!plan.ok) return plan;
     if (plan.change) {
@@ -281,7 +270,7 @@ export function TaskDialog() {
 
   // Een gestarte taak (ook als de werkelijke start in deze dialoog net is ingevuld) begint op haar
   // werkelijke start: dan toont Startdatum die datum, alleen-lezen (eigenaarsbesluit 2026-10-12).
-  // Opslaan legt dan geen anker vast (`saveTaskDialog`).
+  // Een eerder ingevulde geplande start blijft deel van de sessie.
   const startLocked = startIsActual(draft);
 
   const inputCls =
@@ -387,7 +376,10 @@ export function TaskDialog() {
                 required
                 disabled={startLocked}
                 title={startLocked ? t('taskGrid.validation.startIsActual') : undefined}
-                onCommit={value => setStartDateEdit(value === startDate ? startDateEdit : value)}
+                onCommit={value => {
+                  if (startLocked || value === startDate) return;
+                  setStartDateEdit(value === originalStart ? undefined : { date: value, completion: draft.time.completion });
+                }}
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('dialog.startDate')}
               />

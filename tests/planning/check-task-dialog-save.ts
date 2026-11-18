@@ -22,14 +22,12 @@
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import {
-  createTaskDialogSave, draftWithActualFinish, draftWithActualStart,
+  createTaskDialogSave, draftWithActualFinish, draftWithActualStart, planTaskDialogProgress,
   type TaskDialogSaveInput,
 } from '@/state/taskDialogSave';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { addPersonalTaskType } from '@/services/taskTypes/personalTaskTypes';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
-import { planProgressEntry } from '@/engine/progressEntry';
-import { progressPlannedStartAfterEdit } from '@/state/progressPlannedStart';
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
@@ -84,16 +82,54 @@ function progressOf(t: Task) {
   };
 }
 
-function draftWithPercentage(f: Fixture, draft: Task, value: number): Task {
-  const state = f.S();
-  const plan = planProgressEntry(draft, { field: 'completion', value }, {
-    statusDate: state.project.statusDate,
-    today: '2026-03-06',
-    calendar: state.calendar,
-    plannedStart: () => progressPlannedStartAfterEdit(state, f.task(draft.id), draft),
-  });
+function draftWithPercentage(f: Fixture, draft: Task, value: number, startDate?: string): Task {
+  const plan = planTaskDialogProgress(f.S(), draft, startDate, { field: 'completion', value }, { today: '2026-03-06' });
   if (!plan.ok) throw new Error(`Dialoog weigerde ${value * 100}%: ${plan.reason}`);
   return plan.change?.task ?? draft;
+}
+
+// Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.
+for (const explicit of [true, false]) {
+  const f = fixture(['A', 'B']);
+  const [a, b] = f.ids;
+  f.S().updateTask(a, { time: { ...f.task(a).time, scheduleDuration: 1 } });
+  f.S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  if (!explicit) f.S().updateTask(b, { constraint: { type: 'SNLT', date: '2026-03-31' } });
+  f.S().runCPM();
+  const input = f.open(b);
+  const startDate = '2026-03-23';
+  const draft = explicit ? { ...input.draft, constraint: { type: 'SNET' as const, date: '2026-03-05' } } : input.draft;
+  f.save({ ...input, startDate, draft: draftWithPercentage(f, draft, 0.01, startDate) });
+  const task = f.task(b);
+  eq(`#998 start en voortgang met ${explicit ? 'expliciete' : 'bestaande'} beperking`,
+    [task.time.actualStart, task.time.scheduleStart, task.constraint?.type, task.constraint?.date?.slice(0, 10)],
+    explicit
+      ? ['2026-03-05T07:00', '2026-03-23T07:00', 'SNET', '2026-03-05']
+      : ['2026-03-03T07:00', input.draft.time.scheduleStart, 'SNLT', '2026-03-31']);
+}
+
+{
+  const f = fixture(['A', 'B']);
+  const [a, b] = f.ids;
+  f.S().updateTask(a, { time: { ...f.task(a).time, scheduleDuration: 1 } });
+  f.S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  f.S().setActualStart(b, '2026-03-03');
+  f.S().runCPM();
+  const input = f.open(b);
+  const cleared = draftWithActualStart(input.draft, undefined, '2026-03-06');
+  if (!cleared) throw new Error('de werkelijke start kon niet worden gewist');
+  const startDate = { date: '2026-03-23', completion: cleared.time.completion };
+  const edit = { field: 'completion', value: 0.01 } as const;
+  const plan = planTaskDialogProgress(f.S(), cleared, startDate, edit, { today: '2026-03-06' });
+  eq('#998 na het wissen van de werkelijke start telt een getypte toekomstige datum mee',
+    plan.ok ? 'ok' : plan.reason, 'needsActualStart');
+  const answered = planTaskDialogProgress(f.S(), cleared, startDate, edit, { today: '2026-03-06', actualStart: '2026-03-04' });
+  if (!answered.ok || !answered.change) throw new Error('de expliciete werkelijke start is niet toegepast');
+  f.save({ ...input, startDate, draft: answered.change.task });
+  const task = f.task(b);
+  eq('#998 ook op een heropende taak houdt Opslaan beide ingevoerde datums',
+    [task.time.actualStart, task.time.scheduleStart, task.constraint?.date],
+    ['2026-03-04T07:00', '2026-03-23T07:00', '2026-03-23T07:00']);
 }
 
 // ── 1. Voortgang na eerdere paneelvoortgang (het r5-scenario): 20% in week 1, dan 60% en 100% ─────

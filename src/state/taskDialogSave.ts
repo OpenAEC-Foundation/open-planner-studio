@@ -1,5 +1,5 @@
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { appStoreContext, type AppStoreContext } from '@/state/appStore';
+import { appStoreContext, type AppState, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
   applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate,
@@ -10,7 +10,10 @@ import {
   constraintBlockingStart, predecessorDrivenTaskIds, startConstraintAfterEdit,
 } from '@/engine/startEditConstraint';
 import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
-import { hasRecordedProgress } from '@/engine/progressEntry';
+import {
+  hasRecordedProgress, planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan,
+} from '@/engine/progressEntry';
+import { progressPlannedStartAfterEdit } from '@/state/progressPlannedStart';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import { durationEditRefusal } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
@@ -102,12 +105,18 @@ export interface TaskDialogInitialDuration {
   durationMinutes?: number;
 }
 
+/** De voortgang op het moment dat het bewerkbare startveld werd ingevuld. */
+export interface TaskDialogStartEdit {
+  date: string;
+  completion: number;
+}
+
 export interface TaskDialogSaveInput {
   /** De bewerkte taak; `null` (of een inmiddels verdwenen id) ⇒ de "nieuwe taak"-tak. */
   editingTaskId: string | null;
   draft: Task;
   /** Een expliciet gewijzigde startdatum. Zonder waarde blijft het anker van een bestaande taak staan. */
-  startDate?: string;
+  startDate?: string | TaskDialogStartEdit;
   /** De duur bij het openen; afwezig ⇒ de duur uit de concept telt altijd als bewerkt. */
   initialDuration?: TaskDialogInitialDuration | null;
   /** De open bewerksessie van de dialoog (`historyMark`); afwezig ⇒ één `withTransaction`. */
@@ -121,6 +130,67 @@ export interface TaskDialogSaveInput {
 }
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
+
+/** De geplande start zoals de dialoog haar vóór de nieuwe voortgang verwerkt. */
+function planTaskDialogStart(
+  state: Pick<AppState, 'tasks' | 'sequences'>, editingTask: Task, draft: Task,
+  startDate: TaskDialogSaveInput['startDate'],
+): { anchor?: string; constraint: Task['constraint']; notice?: StartEditNotice } {
+  const unchanged = { constraint: draft.constraint };
+  if (!startDate) return unchanged;
+  const entered = typeof startDate === 'object' ? startDate : undefined;
+  const date = typeof startDate === 'string' ? startDate : startDate.date;
+  const timeBeforeProgress = entered
+    ? { ...editingTask.time, completion: entered.completion, actualStart: undefined }
+    : startIsActual(draft) ? editingTask.time : draft.time;
+  const hasActualStart = !entered && startIsActual({ ...editingTask, time: timeBeforeProgress });
+  const anchor = date && !hasActualStart ? startAnchorAfterEdit(editingTask, date) : undefined;
+  if (anchor === undefined) return unchanged;
+  // Een expliciet gekozen beperking wint van de SNET die typen van een start anders toevoegt.
+  const explicitConstraint = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
+    || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
+  const driven = !explicitConstraint && predecessorDrivenTaskIds(state.tasks, state.sequences).has(editingTask.id);
+  // De getypte start hoort bij de taak vóór de conceptvoortgang. Een werkelijke start die de
+  // schuif daarna afleidt of vraagt, mag het eerder getypte anker of de SNET niet wissen.
+  const prospective = { ...editingTask, isHammock: draft.isHammock, time: timeBeforeProgress };
+  const blocked = constraintBlockingStart(prospective, driven);
+  if (blocked) return {
+    ...unchanged, notice: { kind: 'blocked', name: draft.name, constraint: blocked, taskId: editingTask.id },
+  };
+  const snet = startConstraintAfterEdit(prospective, anchor, driven);
+  return {
+    anchor,
+    constraint: snet?.constraint ?? draft.constraint,
+    notice: snet ? { kind: 'snet', name: draft.name, date: anchor, change: snet.change } : undefined,
+  };
+}
+
+/** Toets conceptvoortgang met de actuele planning en dezelfde startregel als Opslaan. */
+export function planTaskDialogProgress(
+  state: AppState, draft: Task, startDate: TaskDialogSaveInput['startDate'], edit: ProgressEdit,
+  context: Pick<ProgressEntryContext, 'today' | 'actualStart'>,
+): ProgressEntryPlan {
+  const live = state.tasks.find(task => task.id === draft.id);
+  const start = live ? planTaskDialogStart(state, live, draft, startDate) : undefined;
+  const task = live ? { ...draft, constraint: start?.constraint, time: {
+    ...draft.time,
+    scheduleStart: start?.anchor ?? live.time.scheduleStart,
+    scheduleFinish: live.time.scheduleFinish,
+    earlyStart: live.time.earlyStart,
+    earlyFinish: live.time.earlyFinish,
+  } } : draft;
+  let plannedStart: string | undefined;
+  const plan = planProgressEntry(task, edit, {
+    ...context,
+    statusDate: state.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
+    plannedStart: live ? () => (plannedStart ??= progressPlannedStartAfterEdit(state, live, task)) : undefined,
+  });
+  if (!plan.ok || !plan.change) return plan;
+  // De afgeleide SNET is geen expliciete keuze in het beperkingenveld. Opslaan leidt die opnieuw
+  // af uit de getypte datum, op basis van de dan geldende relaties en beperkingen.
+  return { ...plan, change: { ...plan.change, task: { ...plan.change.task, constraint: draft.constraint } } };
+}
 
 /**
  * De tijd die Opslaan op een bestaande taak schrijft, vóór het startanker. Gedeeld door de
@@ -190,28 +260,9 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
     const editingTask = editingTaskId ? S().tasks.find(task => task.id === editingTaskId) : undefined;
     if (editingTask) {
       const time = savedTime(editingTask, draft, initialDuration);
-      // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
-      // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
-      // en de drift na herberekenen herintroduceren.
-      // Start is verplicht: het veld weigert leeg al (`required`), dit is het vangnet.
-      // Een gestarte taak (in de opgeslagen draft) begint op haar werkelijke start: het veld was
-      // alleen-lezen en er komt geen anker bij (eigenaarsbesluit 2026-10-12).
-      const anchor = startDate && !startIsActual(draft) ? startAnchorAfterEdit(editingTask, startDate) : undefined;
-      // Een getypte start op een taak met voorganger wordt een beperking "Start niet eerder dan"
-      // (dezelfde regel als Tabel, paneel en Gantt-sleep), in dezelfde `updateTask` en dus
-      // dezelfde undo-stap. Houdt een andere constraint de start tegen, dan wordt de start niet
-      // toegepast en volgt een melding. Koos de gebruiker in deze dialoog zelf een beperking, dan
-      // wint die expliciete keuze en doet de startregel niets.
-      const constraintEditedHere = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
-        || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
-      const driven = anchor !== undefined && !constraintEditedHere
-        && predecessorDrivenTaskIds(S().tasks, S().sequences).has(editingTask.id);
-      const prospective: Task = { ...editingTask, isHammock: draft.isHammock, time };
-      const blocking = constraintBlockingStart(prospective, driven);
-      const snet = anchor !== undefined && !blocking ? startConstraintAfterEdit(prospective, anchor, driven) : undefined;
-      if (anchor !== undefined && !blocking) time.scheduleStart = anchor;
-      if (blocking) notices.push({ kind: 'blocked', name: draft.name, constraint: blocking, taskId: editingTask.id });
-      else if (snet && anchor !== undefined) notices.push({ kind: 'snet', name: draft.name, date: anchor, change: snet.change });
+      const start = planTaskDialogStart(S(), editingTask, draft, startDate);
+      if (start.anchor !== undefined) time.scheduleStart = start.anchor;
+      if (start.notice) notices.push(start.notice);
       const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
@@ -223,7 +274,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         milestoneKind: draft.milestoneKind,
         mandatory: draft.mandatory,
         isHammock: draft.isHammock,
-        constraint: snet ? snet.constraint : draft.constraint,
+        constraint: start.constraint,
         constraint2: draft.constraint2,
         deadline: draft.deadline,
         notes: draft.notes,
@@ -257,7 +308,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       return;
     }
 
-    const newStart = startDate ?? draft.time.scheduleStart;
+    const newStart = (typeof startDate === 'object' ? startDate.date : startDate) ?? draft.time.scheduleStart;
     S().addTask({
       name: draft.name,
       description: draft.description,

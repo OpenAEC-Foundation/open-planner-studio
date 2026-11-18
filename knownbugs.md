@@ -1024,6 +1024,13 @@ en noem het in je rapport of PR-tekst.
       in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
       Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
       #1003 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+1851. **VERVOLG: één MCP-verzoek berekent de planning opnieuw na voortgang op meerdere voorgangers.**
+      De echte dispatcher deed in een plan met 1.000 taken voor 80 percentage-updates op losse taken
+      2 volledige berekeningen in 0,26 s. Met 80 onafhankelijke FS-paren waren het 81 berekeningen in
+      2,73 s, terwijl het verzoek geen van de opvolgers bewerkte. Beperk het opnieuw berekenen tot
+      opvolgers die in hetzelfde verzoek nog een werkelijke start nodig hebben
+      (`src/services/mcp/tools/taskTools.ts`). Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 4,
+      BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 

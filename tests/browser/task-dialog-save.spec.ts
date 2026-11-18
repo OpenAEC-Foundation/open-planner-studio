@@ -241,7 +241,9 @@ test('Taak bewerken: voortgang en startanker volgen de actuele planning na het v
   const [predecessor, taskId] = await seedTenDayTasks(page, ['Grondwerk', 'Fundering']);
   await page.evaluate(({ predecessor, taskId }) => {
     const s = window.__OPS__!.store.getState();
-    s.setUI({ autoCalcCPM: true });
+    s.setUI({ autoCalcCPM: true, dateNotation: 'dmy' });
+    const first = s.tasks.find(task => task.id === predecessor)!;
+    s.updateTask(predecessor, { time: { ...first.time, scheduleDuration: 1 } });
     s.addSequence({ predecessorId: predecessor, successorId: taskId, type: 'FINISH_START', lagDays: 0 });
     s.runCPM();
   }, { predecessor, taskId });
@@ -261,6 +263,33 @@ test('Taak bewerken: voortgang en startanker volgen de actuele planning na het v
   };
 
   let dialog = await open();
+  const startInput = dialog.locator('[data-ops-task-date-time="dialog-start"] input').first();
+  await startInput.click();
+  await page.keyboard.type('23032026');
+  await page.keyboard.press('Tab');
+  await expect(startInput).toHaveValue('23');
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { right: 1 });
+
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  await expect(question).toBeVisible();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 0, actualStart: null });
+  await question.getByRole('group', { name: /Fundering/ }).getByRole('textbox').first().fill('04');
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect(question).toBeHidden();
+  await expect(dialog.locator('[data-ops-progress-slider]')).toHaveValue('1');
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 0.01, actualStart: '2026-03-04T07:00' });
+  expect(await page.evaluate(id => {
+    const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
+    return { anchor: task.time.scheduleStart, constraint: task.constraint };
+  }, taskId)).toEqual({
+    anchor: '2026-03-23T07:00', constraint: { type: 'SNET', date: '2026-03-23T07:00' },
+  });
+  await page.locator('.quick-access-toolbar').getByTitle(/^(Undo|Ongedaan maken) \(Ctrl\+Z\)$/).click();
+  await expect.poll(dates).toEqual(original);
+
+  dialog = await open();
   await dialog.locator('.dependency-remove-button').click();
   await expect.poll(dates).toEqual({ anchor: original.anchor, calculated: '2026-03-06T07:00' });
   await dialog.locator('[data-ops-task-save]').click();
