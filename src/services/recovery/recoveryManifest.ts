@@ -1,4 +1,4 @@
-import type { RecoveryManifestDoc } from '@/hooks/recoveryPaths';
+import type { RecoveryManifestDoc } from '@/services/recovery/recoveryPaths';
 
 /** 1/2: stabiele snapshots; 3: generaties; 4: datumstand; 5: XER-archiefverwijzing. */
 export const RECOVERY_MANIFEST_VERSION = 5;

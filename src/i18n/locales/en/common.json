@@ -364,6 +364,12 @@
     "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again.",
     "ifcForeignNewTargetOnly": "This IFC file can only be written to a new file name. Choose a name that does not exist yet.",
     "ifcForeignPlaceUnknown": "The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.",
+    "ifcForeignReplaceOtherVersion": "Another program changed {{file}} while the app was saving it. That version has been kept as {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "An earlier save of {{file}} did not finish. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.",
+    "ifcForeignReplaceTargetTaken": "Not saved. While saving, another program put a new file at {{target}}. There are now three files: that new file at {{target}}, your schedule in {{temp}} and the previous version in {{previous}}. Your changes are also still in the app.",
+    "ifcForeignReplacePreviousStranded": "Not saved, and the previous version of the file could not be put back. It is now in {{previous}}. Your changes are still in the app. Choose Save As to keep them in a new file.",
+    "ifcForeignReplaceSaveAsOnly": "Not saved. This file cannot be replaced safely in this location. The file has not changed. Choose Save As to keep your changes in a new file.",
+    "ifcForeignReplaceLeftOver": "This file was left from an interrupted save of {{file}}: {{path}}. Check whether you still need it.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
     "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
     "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”."
@@ -2026,5 +2032,9 @@
     "bodyWithPool": "The project file will contain only the schedule; the resource library goes into a second file. The building model and data from another program are not included. The open file will remain unchanged. Do you want to continue?",
     "continue": "Export",
     "cancel": "Cancel"
+  },
+  "replaceCopy": {
+    "otherProgram": "version from another program {{when}}",
+    "unsavedSchedule": "unsaved schedule {{when}}"
   }
 }

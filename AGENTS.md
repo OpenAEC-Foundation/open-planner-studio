@@ -398,7 +398,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
-  1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
+  1–5 plus the historical unversioned web `docIds` form. A desktop replacement of the own file (knownbug 1131 step 5)
+  keeps its own record `recovery[.<slug>].replace.<id>.json` outside the manifest (`replaceRecords.ts`). With `ifcForeignContent`, an optional per-document
   `ifcSource` reference (sha256, byteLength, foreign, optional browser handle and, while a replacement runs,
   `pendingSha256`) restores a foreign source through the ordinary bytes-open route after hash verification against
   either hash; the snapshot supplies the edited planning. Foreign documents

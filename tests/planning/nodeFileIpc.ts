@@ -147,7 +147,10 @@ function openFlags(o: OpenOptions): number {
   return flags;
 }
 
-export function installNodeFileIpc() {
+/** `appDataDir`: beantwoord ook `plugin:path` (`appDataDir`, `join`), `read_dir`, `read_file` en `read_text_file`, zodat
+ *  het crashherstel van de desktop (`recoveryStore`, Tauri-tak) op echte bestanden in die map draait. Zonder deze optie
+ *  blijven die commando's onverwacht, zoals voorheen. */
+export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const handles = new Map<number, { fd: number; path: string; written: number; readAt: number }>();
   let nextRid = 1;
@@ -326,8 +329,27 @@ export function installNodeFileIpc() {
         if ('reject' in answer) throw answer.reject;
         return answer.resolve;
       }
-      default: throw new Error(`Onverwacht Tauri-commando in Node-fs-adapter: ${command}`);
+      case 'plugin:path|resolve_directory':
+        if (options.appDataDir === undefined) break;
+        return options.appDataDir;
+      case 'plugin:path|join':
+        if (options.appDataDir === undefined) break;
+        return nodePath.join(...(a.paths as string[]));
+      case 'plugin:fs|read_dir':
+        if (options.appDataDir === undefined) break;
+        return fs.readdirSync(String(path), { withFileTypes: true }).map(e => ({
+          name: e.name, isDirectory: e.isDirectory(), isFile: e.isFile(), isSymlink: e.isSymbolicLink(),
+        }));
+      case 'plugin:fs|read_file':
+      case 'plugin:fs|read_text_file': {
+        if (options.appDataDir === undefined) break;
+        if (faults.readError !== null) throw faults.readError;
+        const data = new Uint8Array(fs.readFileSync(String(path)));
+        bytesRead += data.length;
+        return data;
+      }
     }
+    throw new Error(`Onverwacht Tauri-commando in Node-fs-adapter: ${command}`);
   };
   Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: {
     __TAURI_INTERNALS__: { invoke },

@@ -6,7 +6,7 @@
 // Het tweede deel doet hetzelfde voor de desktop (Tauri), tegen een nep-`invoke` voor plugin-fs.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
-import { ownRecoveryNames, type RecoveryManifest } from '@/hooks/recoveryPaths';
+import { ownRecoveryNames, type RecoveryManifest } from '@/services/recovery/recoveryPaths';
 import {
   clearOwnRecovery, clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   RECOVERY_MANIFEST_VERSION, RecoveryManifestError,
