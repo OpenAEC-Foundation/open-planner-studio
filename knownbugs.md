@@ -1051,6 +1051,13 @@ en noem het in je rapport of PR-tekst.
       taak), maar het item had uit moeten staan. *Externe relatie toevoegen…* heeft hetzelfde. Uit de review van
       #1004 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 
+1874. **De workflow *Taakselectie meten* is rood op elke PR die zijn bestanden raakt.** Hij vergelijkt met een
+      vaste basis (`fbd4a3f9`, v2026.43.0) en stopt bij `cmp base/package-lock.json head/package-lock.json`,
+      omdat de versieregel sinds die basis is opgehoogd. Zo faalt hij al vóór het meten, zonder bewijs, zodra een
+      PR `tests/planning/check-task-grid-published-selection.ts` of een ander pad uit zijn `paths` wijzigt (gezien
+      op #1004, run 44367101990). Een basis met dezelfde lockfile, of alleen de afhankelijkheden vergelijken,
+      lost het op. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
