@@ -9,7 +9,7 @@
  * vóór een lokaal pad gelezen wordt, handelt `settlePendingReplaces` de records af (`settleReplaceRemnants`: eigendom
  * alleen op inhoud). Zonder record voor een pad raakt dat de projectmap niet aan: alleen de appDataDir wordt gelezen.
  */
-import { ownRecoveryNames, recoveryTmpSuffix } from '@/hooks/recoveryPaths';
+import { ownRecoveryNames, recoveryTmpSuffix } from '@/services/recovery/recoveryPaths';
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { isTauri } from '@/utils/platform';
@@ -128,9 +128,16 @@ export interface SettleOptions {
  */
 export async function settlePendingReplaces(options: SettleOptions = {}): Promise<RemnantEvent[]> {
   if (!options.records && !isTauri()) return [];
-  const records = options.records ?? await tauriReplaceRecords();
-  const pending = (await records.list())
-    .filter(record => !running.has(record.id) && (options.path === undefined || record.path === options.path));
+  let records: ReplaceRecordStore, pending: ReplaceRecord[];
+  try {
+    records = options.records ?? await tauriReplaceRecords();
+    pending = (await records.list())
+      .filter(record => !running.has(record.id) && (options.path === undefined || record.path === options.path));
+  } catch (error) {
+    // Afhandelen houdt de start of het openen nooit tegen: zonder leesbare appDataDir gaat het gewoon verder.
+    console.error('Herstelrecords van vervangingen niet te lezen:', error);
+    return [];
+  }
   if (pending.length === 0) return [];
   const fs = options.fs ?? await tauriReplaceRemnantsFs();
   const events: RemnantEvent[] = [];

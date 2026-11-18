@@ -22,7 +22,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
-import { ownRecoveryNames } from '@/hooks/recoveryPaths';
+import { ownRecoveryNames } from '@/services/recovery/recoveryPaths';
 import { planTauriV3RecoverySave, parseRecoveryManifest } from '@/services/recovery/recoveryStore';
 import { checkRecoveryDocuments, checkRecoveryManifestVersion } from '@/services/recovery/recoveryManifest';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';

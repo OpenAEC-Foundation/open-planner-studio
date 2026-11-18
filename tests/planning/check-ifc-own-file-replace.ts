@@ -39,7 +39,7 @@ import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { clearRecovery, loadRecovery } from '@/services/recovery/recoveryStore';
 import { checkRecoveryManifestVersion } from '@/services/recovery/recoveryManifest';
-import { ownRecoveryNames, recoveryNames } from '@/hooks/recoveryPaths';
+import { ownRecoveryNames, recoveryNames } from '@/services/recovery/recoveryPaths';
 import { flushRecoveryNow, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { recoverySourceDocument } from '@/state/recoverySourceDocument';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
