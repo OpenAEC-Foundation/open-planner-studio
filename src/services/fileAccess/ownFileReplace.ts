@@ -234,7 +234,7 @@ export async function settleReplaceRemnants(
     else leave(previous);
   } else if (before === vorigeSha256 && target === pendingSha256) {
     await removeOrLeave(previous);
-  } else if (before !== 'missing') await removeOrLeave(previous); // MUTATIE a: op naam
+  } else if (before !== 'missing') leave(previous);
 
   const written = await see(temp);
   if (written === pendingSha256 && target === pendingSha256) {
@@ -243,7 +243,7 @@ export async function settleReplaceRemnants(
     const copy = replaceCopyPath(path, label('unsaved-schedule'));
     if (placedOk(await fs.place(temp, copy))) events.push({ kind: 'unsaved-schedule', target: path, copy });
     else leave(temp);
-  } else if (written !== 'missing') await removeOrLeave(temp); // MUTATIE a: op naam
+  } else if (written !== 'missing') leave(temp);
   return { events, resolved: !events.some(event => event.kind === 'left-over') };
 }
 
