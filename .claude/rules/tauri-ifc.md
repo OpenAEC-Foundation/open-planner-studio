@@ -81,7 +81,7 @@ het herstel, `mcp/`, `ops-test/` en de bibliotheek); Windows `EBWebView`; macOS 
 gegevensmap, `tauri-2.12.3/src/manager/webview.rs:559-568`). Wie een eigen bestand of map in de
 app-datamap toevoegt, zet het in `EIGEN_GEBRUIK` in `place_file.rs`. TS-ingang
 `fileAccess/placeFileExclusive.ts` (alleen dynamisch in `isTauri()`); aanroepers: de nieuwe-naamroute
-hieronder (1131 stap 4) en de vervanging van het eigen bestand met haar afhandelen na een crash (1131 stap 5a; de vervanging is nog niet aangesloten). Proeven:
+hieronder (1131 stap 4) en de vervanging van het eigen bestand met haar afhandelen na een crash (1131 stap 5a, aangesloten op Ctrl+S in stap 5b). Proeven:
 `cargo test place_file` (naad `PlaceOps`; nep-app via de feature `tauri/test` voor de echte scope en dezelfde invoer
 door de IPC naar plugin-fs `rename` en dit commando, ook via een link naar buiten de scope en met een verbod dat een
 link noemt; `place_file_fs_default_verbiedt_zelf` toont wat `fs:default` zonder de eigen capabilities verbiedt; workflow
@@ -247,12 +247,31 @@ in één `write`, vraagt vlak vóór `close()` opnieuw `sourceTargetContent` (ve
 sluit. Daarna `commitSavedDocument` met `prepared`. `'not-recorded'` ⇒ niet schrijven, `ifcForeignReplaceNotRecorded`
 (1764); een schrijf- of sluitfout ⇒ `ifcForeignReplaceFailed`; het document blijft dan zoals het was. Een wijziging
 door een ander programma tussen de tweede controle en `close()` gaat verloren (ontwerp §4.15; de beschrijving van de
-flag noemt het). Een pad (desktop) weigert nog vóór de merge met `ifcForeignReplaceBlocked` (stap 3 tot en met 5).
+flag noemt het). Een pad (desktop) gaat via de vervanging hieronder (stap 5b).
 Proeven: `check-ifc-document-save.ts` (nep-handle met echte herstelrondes) en `settings-tabs.spec.ts` (OPFS-handle).
 
-### Ctrl+S op het eigen bestand op de desktop: de vervanging (#804, knownbug 1131 stap 5a)
+### Ctrl+S op het eigen bestand op de desktop: de vervanging (#804, knownbug 1131 stap 5a en 5b)
 
-Nog niet aangesloten: een pad weigert Ctrl+S nog vóór de merge (`ifcForeignReplaceBlocked`); deel b sluit aan na #987. `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
+**De route (5b, #1008).** Ctrl+S en *Opslaan* in de sluitvraag (`writeActiveDocument` → `replaceOwnPath` in
+`fileSlice.ts`), alleen met de flag aan en een vreemd deel, alleen op het eigen pad. Eén `runProjectFileWrite` houdt
+alles vast: de doelcontrole met de uitzondering "eigen doel" (`refusedWriteTarget`, ook voor een pad: precies het pad
+van document en kenmerk, zonder handle; een ander open document met dat bestand als bron blijft
+`ifcForeignReplaceBlocked`), de merge, de vervanging, de broncommit, de laatste herstelronde en het wissen van het
+record. Afsluiten en de updater wachten erop (#987). Na de eerste herstelronde, vóór de eerste schrijfactie in de
+projectmap, `stopBeforeWrite` = dezelfde `documentTargetCheck(momentopname, write, true)` als vóór de merge (fixronde 1
+van #1008): document en bron ongewijzigd (`refuseChangedDocumentWrite`), `saveTargetRef` nog dit pad (`movedOwnTarget`,
+`sameFileRef`) en geen ander open document met dit bestand als bron (`refusedWriteTarget`). Anders de melding van die
+bewaking en uitkomst `stopped`, niets in de projectmap. Volgorde met openen: `readOpenedTauriPath` (`tauriBackend.ts`,
+waar dialoog, neerzetten en Recent samenkomen) wacht vóór het lezen op `whenProjectFileWritesIdle`; geen opslagroute
+leest erdoor, dus de schrijfrij wacht nooit op zichzelf. Een lezing die al vóór de opslag liep: knownbug 1837. `commit` is
+`commitSavedDocument(id, momentopname, undefined, prepared)`; zijn boolean is de uitkomst van de opslag en dus de
+sluitbeslissing (een bewerking tijdens de opslag: de geschreven versie wordt de bron, het document blijft gewijzigd).
+Elke andere uitkomst meldt via `ownPathReplaceNotices` en stopt; nooit de gewone schrijfroutine (die schrijft op naam).
+Automatisch opslaan en `planner_export_ifc` nemen deze route niet (zie `settings-autosave.md`; de export weigert een
+bestaand pad met een vreemd deel). Proeven: `check-ifc-own-file-replace.ts` (onderaan), `check-ifc-document-save.ts`,
+`check-app-quit-lifecycle.ts`.
+
+**De vervanging (5a).** `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
 §4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, een snelle voorcontrole; op Windows ziet die een harde
 link niet, `nlink: null`); de garantie geeft stap 3: `place_file_exclusive` weigert een bron met meer dan één naam
 (`refused`/`hard-linked`, #996) ⇒ `save-as-only`, niets verplaatst. Stap 0: een eigen herstelrecord `recovery[.<slug>].replace.<id>.json` in de appDataDir

@@ -2674,15 +2674,26 @@ en noem het in je rapport of PR-tekst.
            vóór het lezen van een lokaal pad (dialoog, neerzetten, Recent: `readOpenedTauriPath`) handelt de app het af,
            met eigendom alleen op inhoud, en met de kopie "niet opgeslagen planning". Nog door geen opslagroute
            aangeroepen.
-        b. Open (stap 5b): Ctrl+S en *Opslaan* in de sluitvraag op een pad aansluiten op de functie, nadat "sluiten
-           wacht op een lopende opslag" (#987) in main staat. Dan vervalt `ifcForeignReplaceBlocked` voor het eigen pad.
-     6. Teksten en handleiding, met de eigenaar.
+        b. Gebouwd (stap 5b, #1008): Ctrl+S en *Opslaan* in de sluitvraag (tabblad en app) op het eigen pad lopen via
+           de functie (`replaceOwnPath` in `fileSlice.ts`), binnen de ene `runProjectFileWrite` van de opslag, van de
+           merge tot en met de broncommit, de laatste herstelronde en het wissen van het record; afsluiten wacht erop.
+           Na de eerste herstelronde opnieuw document, opslagdoel en bron (`stopBeforeWrite`); elke andere uitkomst
+           stopt met haar melding, zonder terugval; de sluitvraag sluit op de boolean van `commitSavedDocument`.
+           `ifcForeignReplaceBlocked` vervalt voor het eigen pad (de uitzondering "eigen doel" geldt nu ook voor een
+           pad); hij blijft voor Opslaan als over de bron van een open document en voor een bestand dat ook de bron
+           van een ander open document is. Automatisch opslaan schrijft een document met een vreemd deel nog steeds
+           niet; `planner_export_ifc` weigert nog steeds een bestaand pad. Niet gemeten in een echte desktopapp.
+     6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
+        feitelijk bijgewerkt; zie ook 1836).
+     7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
+     8. Open: Opslaan als over een andere bestaande naam (keuze 4).
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
      `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
-     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden). Crash, stroomuitval en externe
+     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden); van stap 5b: hetzelfde bestand
+     onderaan, `check-ifc-document-save.ts` en `check-app-quit-lifecycle.ts`, vanaf de productie-ingang. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
@@ -2998,6 +3009,11 @@ en noem het in je rapport of PR-tekst.
      en zag het afsluiten geen mislukking. Andersom breekt een nieuwe fout uit een ander onderdeel het afsluiten af. Het
      gewijzigde document blijft beschermd door zijn dirty-vlag en de sluitvraag; gegevensverlies is niet aangetoond.
      Richting: de opslag geeft zelf zijn uitkomst door. Gevonden door de review van #987 (Sol). — B (proef van de review)
+     Aanvulling (#804, 1131 stap 5b, review van #1008): ook een geslaagde vervanging van het eigen bestand kan een rode
+     melding geven, namelijk dat de versie van een ander programma apart is bewaard (`ifcForeignReplaceOtherVersion`,
+     `ownPathReplaceNotices` in `ownFileReplace.ts`). Wacht het afsluiten op die opslag, dan breekt die melding het
+     afsluiten af, terwijl het bestand wel is opgeslagen; de planner kan opnieuw afsluiten. Andersom volgt na een
+     verdwenen foutmelding bij een nog gewijzigd document de gewone sluitvraag. Zelfde richting. — B (review)
 1818. **Een IFC-export weigert nog als de planner tijdens de export van tabblad wisselt.** Sinds #804 stap 3 kijkt de
      weigering van Opslaan en Opslaan als naar het document van de momentopname. De exports niet: `refuseChangedExport`
      in `fileSlice.ts` (Bestand → Exporteren als IFC, en de export met de resourcebibliotheek) vergelijkt met het actieve
@@ -4816,3 +4832,33 @@ en noem het in je rapport of PR-tekst.
      In `tests/planning/check-ifc-own-file-replace.ts` leest de proef voor Recent met een afwijkende extensie de bron
      opnieuw met `readBytesFromRef`; die aanroep en haar import kunnen weg. De IPC-lezing, de bronhash in de store en
      het ruwe byte in de uitvoer bewijzen de regressie al. Gevonden door de review van #991, ronde 3. — B (review)
+
+1836. **VERVOLG (#804, 1131 stap 5b, tekst): de melding van Automatisch opslaan zegt dat opslaan met een gebouwmodel
+     nog niet kan.** `notifications.ifcForeignSaveBlocked` ("Dit bestand bevat een gebouwmodel; opslaan is nog niet
+     mogelijk.") toont Automatisch opslaan één keer per document per sessie als het een document met een vreemd deel
+     overslaat (`fileAutoSave.ts`). Sinds stap 5b kan Ctrl+S dat document wel opslaan; de zin klopt dan alleen nog voor
+     Automatisch opslaan (en voor de flag uit na het openen). Er gaat niets verloren. Richting: een eigen zin voor
+     Automatisch opslaan, met de teksten van stap 6 van 1131, of vervalt als Automatisch opslaan via de vervanging gaat.
+     Gevonden bij stap 5b, uit de code. — B (code)
+1837. **VERVOLG (#804, 1131 stap 5b): een tweede tabblad waarvan het lezen al vóór Ctrl+S begon, kan de oude versie
+     krijgen.** Het openen op de desktop (`readOpenedTauriPath` in `tauriBackend.ts`: dialoog, neerzetten, Recent) wacht
+     tot er geen projectbestand meer geschreven wordt, en de vervanging kijkt na de eerste herstelronde opnieuw of een
+     ander open document het bestand als bron heeft. Begon het lezen van hetzelfde bestand al vóór de opslag en komt het
+     tabblad pas na die tweede controle in de store, dan opent het met de oude bron terwijl het bestand de nieuwe versie
+     krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
+     het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
+     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
+1838. **Het kruisje van een tabblad kijkt naar de wijzigingsvlag vóór het afronden van open veldinvoer.**
+     `requestCloseDocument` (`documentSlice.ts`) leest `isDirty` en sluit een schoon document meteen via
+     `closeDocument`; die rondt pas daarna de open veldinvoer af. Staat er in een veld een getypte waarde zonder blur
+     (bijvoorbeeld op macOS, waar een klik op een knop in WebKit de focus niet verplaatst), dan wordt die waarde
+     verwerkt en direct met het tabblad weggegooid, zonder sluitvraag. Op main net zo. Afsluiten van de app rondt de
+     invoer wel eerst af (`finishPendingInput` in `appQuitController.ts`). Richting: `requestCloseDocument` rondt de
+     invoer af vóór de controle, zoals het afsluiten. Gevonden bij fixronde 2 van #1008, uit de code; niet beproefd
+     in een echte webview. — S
+1847. **VERVOLG (opruimen): de schooncontrole bij het sluiten bouwt de titels van alle tabbladen op.**
+     `closeDocument(id, { onlyIfClean })` (`documentSlice.ts`) vraagt via `getOpenDocuments` de titel en het volgnummer
+     van elk open document op om van één document de wijzigingsvlag te lezen. Eén zoekactie naar het doel-id, gevolgd
+     door de wijzigingsvlag van het actieve document of die in de gevonden payload, volstaat; de volgorde (afronden,
+     controleren, verwijderen) en de uitkomst blijven gelijk. De venstercontrole vóór `destroyWindow`
+     (`appQuitController.ts`) blijft nodig. Sol-review ronde 3 van #1008: [BEVESTIGD] VERVOLG. — B

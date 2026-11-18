@@ -733,6 +733,25 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     die via een link naar buiten de thuismap wijst), dan blijft de directe
     aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast (knownbug 1131). Na een crash kan er een
     `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
+  - **Aangesloten** (knownbug 1131 stap 5b, #1008). Ctrl+S en *Opslaan* in de sluitvraag (van een tabblad en van de
+    app) op het eigen pad lopen via deze vervanging, binnen één toegelaten schrijfactie van de schrijfcoördinator: van
+    de merge tot en met de broncommit, de laatste herstelronde en het wissen van het record. Afsluiten wacht erop en
+    laat intussen geen nieuwe schrijfactie toe. Na de eerste herstelronde en vóór het eerste schrijven in de projectmap
+    loopt dezelfde doelbewaking als vóór de merge nog een keer (fixronde 1 van #1008): het document is er nog, zijn
+    opslagdoel is nog dit pad, de bron is nog de verwachte, en geen ander open document heeft het bestand als bron;
+    anders stopt hij zonder te schrijven, met de melding van die bewaking. Volgorde van openen en vervangen: het openen
+    van een pad op de desktop (dialoog, neerzetten, Recent) wacht vóór het lezen tot er geen projectbestand meer
+    geschreven wordt. Een tabblad dat tijdens de vervanging opengaat, leest dus de nieuwe versie; een tabblad dat er
+    vóór de tweede controle al is, houdt de vervanging tegen. Het wachten zit in de openroute, niet in een leesfunctie
+    die de vervanging zelf gebruikt, zodat de schrijfrij nooit op zichzelf wacht. Grens: een lezing die al vóór de
+    opslag begon en pas na de tweede controle in de store komt, krijgt de oude versie; Ctrl+S in dat tabblad weigert
+    dan (knownbug 1837). *Opslaan* in de sluitvraag sluit alleen als de opslag slaagde én hetzelfde document vlak vóór
+    het sluiten nog schoon is, gekeken ná het afronden van open veldinvoer (een waarde die tijdens de opslag in een
+    veld getypt is, houdt het tabblad en het venster open); Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
+    melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
+    als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
+    sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd),
+    Ctrl+S buiten de thuismap (alleen *Opslaan als*) en *Opslaan als* over een bestaande naam.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het

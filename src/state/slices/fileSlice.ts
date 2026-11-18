@@ -16,10 +16,10 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
-import { remnantNotices } from '../ownFileReplace';
+import { ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -796,6 +796,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return write;
   };
 
+  const SAVE_CHANGED_NOTICE = refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' });
   /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. #804 stap 3: dit kijkt naar
    *  het document van de momentopname (`snapshot.activeDocumentId` is het document dat opgeslagen wordt), nooit naar het
    *  document dat nu actief is. Bestaat het nog en is zijn bron hetzelfde object, dan gaat de opslag door, ook als de
@@ -812,18 +813,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       app.notify(ifcWriteBlockedNotice(doc));
       return true;
     } else if (doc && doc.ifcSource === snapshot.ifcSource) return false;
-    app.notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+    app.notify(SAVE_CHANGED_NOTICE);
     return true;
   };
 
   /** `ownTarget`: alleen Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen doel van het document vraagt de
-   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` geeft haar alleen aan een handle. */
+   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad).
+   *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
+   *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
+   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. */
   const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite, ownTarget = false): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
+    const ownLocal = ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource);
+    if (ownLocal && movedOwnTarget(snapshot, target)) return true;
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
-      : ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource)
-        ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
+      : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
     const reason = await refusedWriteTarget(get(), target,
       { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownVersion);
     if (reason) {
@@ -833,6 +838,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return true;
     }
     return write ? refuseChangedDocumentWrite(snapshot, write) : false;
+  };
+
+  /** Is het opslagdoel van het document van de momentopname intussen een ander dan `target` (of is het weg)? Meldt dan. */
+  const movedOwnTarget = (snapshot: AppState, target: FileRef): boolean => {
+    const current = saveSourceForDocument(get(), snapshot.activeDocumentId);
+    const now = current && saveTargetRef(current);
+    if (now && sameFileRef(now, target)) return false;
+    get().notify(SAVE_CHANGED_NOTICE);
+    return true;
   };
 
   const documentSaveDialog = (snapshot: AppState, write: DocumentWrite, name: string) => {
@@ -1423,6 +1437,44 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /**
+   * Knownbug 1131 stap 5b: Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen pad van een document met een gebouwmodel,
+   * op de desktop. Loopt binnen de ene `runProjectFileWrite` van `writeActiveDocument`: de merge, de vervanging
+   * (`replaceOwnPathWithRecovery`, ontwerp §4.10 stap 0–6), de broncommit, de laatste herstelronde en het wissen van het
+   * record. Afsluiten en de updater wachten daar dus op. Na de eerste herstelronde en vóór de eerste schrijfactie in de
+   * projectmap draait opnieuw dezelfde doelbewaking als vóór de merge (`documentTargetCheck`): bestaat het document nog,
+   * is zijn opslagdoel nog dit pad en zijn bron nog dezelfde, en heeft geen ander open document dit bestand als bron?
+   * Een tabblad dat tijdens de opslag op dit pad opengaat, wacht met lezen tot de opslag klaar is (`readOpenedTauriPath`).
+   * Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar melding (`ownPathReplaceNotices`); er is
+   * geen terugval naar de gewone schrijfroutine, die op naam schrijft. Een nieuwe naam is een eigen keuze van de planner
+   * (Opslaan als). `true` alleen als `commitSavedDocument` het document schoon liet: na een bewerking tijdens de opslag
+   * is de geschreven versie de bron, maar blijft het document gewijzigd, en dan sluit de sluitvraag niet.
+   */
+  const replaceOwnPath = async (
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+    ref: Extract<FileRef, { kind: 'path' }>, failureNoticeKey: string,
+  ): Promise<boolean> => {
+    let committed = false;
+    try {
+      const result = await replaceOwnPathWithRecovery({
+        documentId, path: ref.path, prepared,
+        source: { bytes: state.ifcSource!.bytes, sha256: state.ifcSource!.sha256 },
+        // Dezelfde doelbewaking als vóór de merge (fixronde 1 van #1008, review Sol).
+        stopBeforeWrite: () => documentTargetCheck(state, write, true)(ref),
+        commit: () => { committed = commitSavedDocument(documentId, state, undefined, prepared); },
+      });
+      for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
+      return committed;
+    } catch (err) {
+      console.error('Save failed:', err);
+      get().notify({
+        severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err),
+        dedupeKey: failureNoticeKey, replaceOnDedupe: true,
+      });
+      return false;
+    }
+  };
+
   let saveAttemptSequence = 0;
   /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
   const writeActiveDocument = (documentId: string, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
@@ -1460,13 +1512,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
-      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop) weigert hier tot knownbug 1131 stap 5. Een handle
-      // (browser, stap 2) mag alleen met schrijftoestemming en als er nog precies de bron staat; zonder toestemming
-      // valt Ctrl+S terug op de download, zoals bij een gewoon bestand.
+      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop, knownbug 1131 stap 5b) gaat alleen via de
+      // vervanging; of er nog de bron staat, toetst die zelf (stap 2). Een handle (browser, stap 2) mag alleen met
+      // schrijftoestemming en als er nog precies de bron staat; zonder toestemming valt Ctrl+S terug op de download,
+      // zoals bij een gewoon bestand.
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
+      let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
-        if (ref.kind === 'handle' && await handleWritePermission(ref)) {
+        if (ref.kind === 'path') ownPath = ref;
+        else if (await handleWritePermission(ref)) {
           const content = await sourceTargetContent(ref, state.ifcSource!.bytes);
           if (content !== 'same') { get().notify(ownTargetContentNotice(content)); return false; }
           ownHandle = ref;
@@ -1478,6 +1533,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // pad en handle.
       if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
+      // Nooit de gewone schrijfroutine op het eigen pad: met een vreemd deel geeft de merge altijd `prepared`.
+      if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.

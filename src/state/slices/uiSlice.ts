@@ -124,6 +124,7 @@ export function createDefaultUI(): UIState {
     ribbonWheelSwitchesTabs: true,
     showProjectOverview: false,
     pendingCloseDocId: null,
+    closeQuestionSaving: false,
     appQuitPending: false,
     savingBeforeClose: false,
     appClosing: false,
