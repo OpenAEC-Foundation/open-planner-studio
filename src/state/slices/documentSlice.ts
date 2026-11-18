@@ -42,6 +42,7 @@ import type { IFCSaveSource } from '../ifcSaveInput';
 import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { clearRefusals } from '../refusalNotice';
+import { dropDownloadCopyNotice } from '../ifcForeignGuard';
 import {
   mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
 } from '../calendarTasks';
@@ -536,6 +537,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     runtime.finishPendingTextEdits(); // open veldinvoer hoort bij het document dat nu actief is
     const state = get();
     if (!state.documents.some((d) => d.id === id)) return;
+    // Knownbug 1768: de kopiemelding van dit document hoort niet bij een ander document (review van #1002 ronde 2).
+    set((s) => { dropDownloadCopyNotice(s, id); });
 
     // Laatste document sluiten → reset naar één vers, leeg document.
     if (state.documents.length === 1) {

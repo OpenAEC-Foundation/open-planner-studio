@@ -2757,14 +2757,33 @@ en noem het in je rapport of PR-tekst.
      browser ook Ctrl+S, en Ctrl+S op de desktop volgt (knownbug 1131). Bijwerken met de handleiding van stap 6 van
      1131. Gezien door de bouwer van #1002. — B
 
+1843. **VERVOLG (#804, melding): er is één kopiemelding voor de hele app; ze kan verdwijnen terwijl een ander document alleen een kopie heeft.**
+     Browser, flag aan. Na de download bij een geweigerde schrijftoestemming (knownbug 1768) noemt één blijvende melding de
+     laatst gedownloade kopie; een nieuwe kopie van een ander document vervangt haar (review van #1002 ronde 2: drie
+     blijvende kopiemeldingen vulden de hele stapel en slokten de meldingen van een export op). Wat dat kost: document A
+     heeft alleen een kopie, de melding noemt intussen B, B wordt in het geopende bestand opgeslagen of gesloten, en de
+     melding verdwijnt. A blijft gewijzigd, dus de sluitvraag komt nog; alleen de uitleg over de kopie van A is weg.
+     Richting als het nodig blijkt: de melding noemt het aantal documenten met alleen een kopie. — B (proef "de ene
+     kopiemelding noemt de laatste kopie" in `check-ifc-document-save.ts`)
+
+1844. **VERVOLG (meldingen): drie blijvende meldingen slokken de meldingen van een export op.** Staan er drie blijvende
+     informatiemeldingen (bijvoorbeeld de openingsmeldingen `duplicateIdsRenamed`, `summaryRelationsDropped` en
+     `minuteModelCalendarRepaired`), dan geeft een CSV-export geen enkele melding: de store toont er hoogstens drie
+     (`MAX_NOTIFICATIONS`) en gooit een nieuwe gewone melding zelf weg als er alleen nog blijvende of foutmeldingen staan
+     (`uiSlice.ts`, regel c). Zo ziet de planner na een download niet waar het bestand staat en niet wat er verloren
+     ging. Zo op main, niet van #1002. Gemeten op 18 november 2026 met een tijdelijke proef: drie blijvende meldingen via
+     `notify`, daarna `exportAs('csv')` uit `03-kantoorgebouw-zuidas.ifc`: na afloop alleen de drie blijvende meldingen.
+     Richting: een melding die de uitkomst van een handeling van de planner meldt, mag niet verdwijnen voordat hij te zien
+     was. — B (tijdelijke proef, niet ingecheckt)
+
 1842. **VERVOLG (#804, tekst): de vraag en het vinkje "zonder gebouwmodel" komen ook bij vreemde inhoud zonder gebouwmodel.**
      Browser en desktop, flag aan. Exporteren → IFC toont het vinkje *Zonder gebouwmodel* en de vraag *Exporteren zonder
      gebouwmodel?* ("Het gebouwmodel en de gegevens van een ander programma gaan niet mee") bij elk document met vreemde
      inhoud (`hasForeignContent`: `modelPresent` in `Backstage.tsx`, `planOnlyQuestionApplies` in `prepareIfcOutput.ts`),
      ook bij een planning met alleen een eigenschappenset van een ander programma, waar geen gebouwmodel is (de modelscan
      zegt `no-model`). Geen verlies: de vraag blijft nodig, want de gegevens van het andere programma gaan niet mee; alleen
-     de woorden "gebouwmodel" kloppen dan niet. Richting: de tekst laten volgen uit `documentHasBuildingModel`
-     (`src/state/buildingModel.ts`, PR #1002), of de vraag algemener formuleren. Gevonden bij de fixronde van #1002. — S
+     de woorden "gebouwmodel" kloppen dan niet. Richting: de tekst laten volgen uit `hasBuildingModel` (`ifcSource.ts`,
+     PR #1002), of de vraag algemener formuleren. Gevonden bij de fixronde van #1002. — S
      (code gelezen)
 
 1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**

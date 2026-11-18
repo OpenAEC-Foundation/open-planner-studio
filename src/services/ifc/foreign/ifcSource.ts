@@ -50,6 +50,10 @@ export interface IfcSource {
   readonly foreign: boolean;
   /** Aantal entiteiten dat niet P is (C, A en V), voor de melding van §4.15. */
   readonly foreignObjectCount: number;
+  /** Heeft de bron een gebouwmodel (een entiteit met een modeltype)? Gezet door de scan die de bron accepteerde: bij
+   *  openen (`ifcBytesRoute.ts`) en na een gecontroleerde merge (`mergeWriter.ts`). Verplicht, dus nooit onbeslist; bij
+   *  twijfel zet de scan `true` (`hasBuildingModelEntity` in `foreignScan.ts`). */
+  readonly buildingModel: boolean;
   /** Regeleinde van de bron. */
   readonly lineEnding: '\r\n' | '\n';
   /**
@@ -67,4 +71,10 @@ export interface IfcSource {
 /** Heeft dit document een vreemd deel? Zonder bron (nieuw document, ander formaat, flag uit): nee. */
 export function hasForeignContent(source: IfcSource | null | undefined): boolean {
   return source?.foreign === true;
+}
+
+/** Heeft dit document een gebouwmodel (#804, knownbug 1768 en 1740)? Vreemde inhoud is niet genoeg: een planning met
+ *  alleen een eigenschappenset van een ander programma heeft er geen. De enige plek voor die vraag. */
+export function hasBuildingModel(source: IfcSource | null | undefined): boolean {
+  return hasForeignContent(source) && source!.buildingModel;
 }

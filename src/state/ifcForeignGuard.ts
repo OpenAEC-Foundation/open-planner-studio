@@ -69,14 +69,32 @@ export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
 
 /** Knownbug 1768 (besluit van de eigenaar, 16 november 2026): weigert de browser de schrijftoestemming op het geopende
  *  bestand met een gebouwmodel, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is
- *  bijgewerkt; deze melding noemt de kopie. Blijft staan tot het kruisje; een volgende download van hetzelfde document
- *  ververst haar, en schrijft het document alsnog op het geopende bestand, dan verdwijnt ze (review van #1002). */
-export const ifcForeignDownloadCopyKey = (documentId: string) => `ifc-foreign-download-copy:${documentId}`;
-export function ifcForeignDownloadCopyNotice(file: string, documentId: string): NotifyInput {
+ *  bijgewerkt; deze melding noemt de kopie en blijft staan tot het kruisje. Review van #1002 ronde 2: alle kopiemeldingen
+ *  samen nemen hoogstens één plek in de stapel in (de store toont er drie en slokt een nieuwe gewone melding op als er
+ *  alleen nog blijvende staan). Er is er dus één voor de hele app, die de laatst gedownloade kopie noemt
+ *  (`downloadCopyNotice`, `dropOtherDownloadCopyNotices`); ze verdwijnt als het document dat ze noemt alsnog in het geopende bestand is opgeslagen of
+ *  gesloten wordt (`dropDownloadCopyNotice`). Elk document blijft zelf gewijzigd; dat is de bescherming. */
+const DOWNLOAD_COPY_KEY = 'notifications.ifcForeignDownloadCopy';
+const downloadCopyDedupeKey = (documentId: string) => `ifc-foreign-download-copy:${documentId}`;
+type NoticeStack = { ui: { notifications: { messageKey: string; dedupeKey?: string }[] } };
+
+export function downloadCopyNotice(file: string, documentId: string): NotifyInput {
   return {
-    severity: 'info', sticky: true, messageKey: 'notifications.ifcForeignDownloadCopy', params: { file },
-    dedupeKey: ifcForeignDownloadCopyKey(documentId), replaceOnDedupe: true,
+    severity: 'info', sticky: true, messageKey: DOWNLOAD_COPY_KEY, params: { file },
+    dedupeKey: downloadCopyDedupeKey(documentId), replaceOnDedupe: true,
   };
+}
+
+/** Vóór een nieuwe kopiemelding: weg met die van een ander document (voor hetzelfde document ververst ze in place). */
+export function dropOtherDownloadCopyNotices(s: NoticeStack, documentId: string): void {
+  const key = downloadCopyDedupeKey(documentId);
+  s.ui.notifications = s.ui.notifications.filter(n => n.messageKey !== DOWNLOAD_COPY_KEY || n.dedupeKey === key);
+}
+
+/** Weg met de kopiemelding als ze dit document noemt. */
+export function dropDownloadCopyNotice(s: NoticeStack, documentId: string): void {
+  const key = downloadCopyDedupeKey(documentId);
+  s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== key);
 }
 
 /** Het opslagdoel dat het herstelmanifest bewaart (§4.14). De herstelsnapshot heeft geen bronbytes; met een vreemd deel

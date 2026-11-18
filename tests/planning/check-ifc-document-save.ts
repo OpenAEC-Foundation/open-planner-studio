@@ -1191,6 +1191,95 @@ await check('vreemde inhoud zonder gebouwmodel: export zonder zin, download telt
   } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
 });
 
+// Review van #1002 ronde 2 (BLOKKEERT 1): twee bronnen met een gebouwmodel die de lezer opent maar de strengere doelscan
+// `unreadable` noemt. Het antwoord komt van de bron (de scan die de bron accepteerde), dus het document blijft gewijzigd,
+// het tabblad sluit niet en CSV krijgt de zin.
+for (const [variant, edit] of [
+  ['kop zonder tweede argument van FILE_DESCRIPTION', (text: string) => text.replace(",'2;1');", ');')],
+  ['IFCREAL(NAN) vóór de eerste wand', (text: string) => text.replace(/^DATA;\n/m, "DATA;\n#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCREAL(NAN),$);\n")],
+] as const) await check(`gebouwmodel met ${variant}: blijft gewijzigd, sluit niet, CSV met de zin`, async () => {
+  const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+  const model = new TextDecoder().decode(bytes), content = edit(model);
+  assert.notEqual(content, model);
+  const input = new TextEncoder().encode(content);
+  assert.equal(scanTargetBytes(input), 'unreadable', 'de doelscan beslist hier niet');
+  const { store, name } = await openHandle(input), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    assert(store.getState().ifcSource?.foreign, 'geopend met vreemde inhoud');
+    longer(store);
+    const notices = await exportNotices(store, 'csv');
+    assert.deepEqual(notices.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'CSV met de zin');
+    handleFaults.set(name, { permission: 'denied' });
+    let closed = false;
+    await createCloseDocumentDialogActions({
+      pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
+      switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+      saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    }).save();
+    assert.equal(closed, false, 'het tabblad sluit niet na alleen een kopie');
+    assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+    assert.equal(browser.downloads.length, 1, 'de kopie (de CSV telt `exportNotices` zelf)');
+    assert.equal(hash(fileOf(name)), hash(input), 'het geopende bestand blijft staan');
+  } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+// Review van #1002 ronde 2 (BLOKKEERT 2): drie documenten met een gebouwmodel en een geweigerde schrijftoestemming, daarna
+// een export. De kopiemeldingen nemen samen hoogstens één plek in, dus na afloop staan de meldingen van de export er nog
+// (wat main toont, plus de zin). De stapel wordt vooraf bewust niet geleegd.
+async function threeCopies() {
+  const { store, name } = await openHandle(), browser = browserDownload(), ids: string[] = [];
+  clearNotices(store);
+  for (const [i, modelName] of [name, `${name}.tab2.ifc`, `${name}.tab3.ifc`].entries()) {
+    if (i > 0) {
+      handleFiles.set(modelName, bytes);
+      await store.getState().openOpenedFile({ name: modelName, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(modelName) as unknown as FileSystemFileHandle } });
+    }
+    ids.push(store.getState().activeDocumentId);
+    longer(store); handleFaults.set(modelName, { permission: 'denied' });
+    assert.equal(await ctrlS(store), false); assert.equal(store.getState().isDirty, true);
+  }
+  assert.equal(new Set(ids).size, 3); assert.equal(browser.downloads.length, 3);
+  return { store, browser, ids };
+}
+const keysAndLines = (store: Store) => store.getState().ui.notifications.map(n => [n.messageKey, ...(n.detailLines ?? []).map(l => l.messageKey)]);
+await check('drie kopieën, daarna CSV uit het derde document: de exportmeldingen en de zin staan er', async () => {
+  const { store, browser } = await threeCopies();
+  try {
+    const result = await store.getState().exportAs('csv');
+    assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 4);
+    const final = keysAndLines(store), flat = final.flat();
+    assert.equal(flat.filter(key => key === PLAN_ONLY_EXPORT).length, 1, `de zin precies één keer: ${JSON.stringify(final)}`);
+    assert(flat.includes('notifications.savedViaDownload'), 'de downloadmelding');
+    assert(flat.includes('notifications.exportDataLoss'), 'de verliesmelding');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
+await check('drie kopieën, daarna CSV uit een gewone planning: download- en verliesmelding zoals main', async () => {
+  const { store, browser } = await threeCopies();
+  try {
+    const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+    await store.getState().openOpenedFile({ name: 'gewone-planning.ifc', content: '', bytes: plain, ref: null });
+    assert(!hasForeignContent(store.getState().ifcSource));
+    const result = await store.getState().exportAs('csv');
+    assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 4);
+    const flat = keysAndLines(store).flat();
+    assert(flat.includes('notifications.savedViaDownload') && flat.includes('notifications.exportDataLoss'), JSON.stringify(flat));
+    assert(!flat.includes(PLAN_ONLY_EXPORT), 'geen zin');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
+await check('de ene kopiemelding noemt de laatste kopie en verdwijnt als dat document sluit', async () => {
+  const { store, browser, ids } = await threeCopies();
+  try {
+    const copy = () => store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignDownloadCopy');
+    assert.equal(copy().length, 1, 'hoogstens één kopiemelding');
+    assert.equal(copy()[0].params?.file, `${(await import('@/state/slices/fileSlice')).suggestedFileBase(store.getState())}.ifc`, 'ze noemt de laatste kopie');
+    store.getState().closeDocument(ids[0]);
+    assert.equal(copy().length, 1, 'een ander document sluiten laat haar staan');
+    store.getState().closeDocument(ids[2]);
+    assert.equal(copy().length, 0, 'het document dat ze noemt is gesloten');
+    assert(store.getState().documents.some(d => d.id === ids[1]), 'het tweede document is er nog');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
+
 // Knownbug 1768, punt 5: een document zonder gebouwmodel houdt de gewone route. Eerst de opslaankiezer; zonder kiezer een
 // download die het document op opgeslagen zet. Geen melding over een kopie.
 await check('gewoon document, handle zonder schrijftoestemming: eerst de opslaankiezer, anders een download, zoals main', async () => {

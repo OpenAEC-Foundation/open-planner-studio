@@ -6,7 +6,8 @@
  * keuze van `selectPlanning` als stukindexen. Puur: geen store, DOM, bestandstoegang of Tauri. De Worker
  * (`foreignScan.worker.ts`) en de synchrone terugval (`foreignScanRunner.ts`) roepen dezelfde functie aan.
  */
-import { StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { COMPLEX_TYPE, StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 
@@ -53,6 +54,8 @@ export interface ForeignScanResult {
   /** Properties in een eigen pset die de lezer niet leest (stukindexen). */
   readonly foreignMembers: Int32Array;
   readonly lineEnding: '\r\n' | '\n';
+  /** Heeft de bron een gebouwmodel (`hasBuildingModelEntity`)? */
+  readonly buildingModel: boolean;
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -126,7 +129,29 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     counts: { ...cls.counts },
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
+    buildingModel: hasBuildingModelEntity(index, bytes),
   };
+}
+
+/**
+ * Heeft de bron een gebouwmodel (#804, review van #1002 ronde 2)? Een entiteit met een modeltype: dezelfde lijst als de
+ * modelweigering bij openen en de doelscan (`IFC_BUILDING_MODEL_TYPES`), uit de index die deze scan al heeft, dus bij
+ * openen en bij de controle van de uitvoer. Vreemde inhoud zonder modeltype (alleen een eigenschappenset van een ander
+ * programma) is geen gebouwmodel. Van een complexe instantie kent de index alleen `(COMPLEX)`; daar telt elk woord met
+ * een modeltype vóór een `(` in de tekst, ook in een string: bij twijfel een gebouwmodel (de veilige kant: het document
+ * blijft na een kopie gewijzigd, de exportzin staat erbij).
+ */
+function hasBuildingModelEntity(index: StepIndex, bytes: Uint8Array): boolean {
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    const type = index.type(i);
+    if (IFC_BUILDING_MODEL_TYPES.has(type)) return true;
+    if (type !== COMPLEX_TYPE) continue;
+    let text = '';
+    for (let k = index.start(i); k < index.end(i); k++) text += String.fromCharCode(bytes[k]);
+    for (const word of text.matchAll(/([A-Z][A-Z0-9_]*)\s*\(/g)) if (IFC_BUILDING_MODEL_TYPES.has(word[1])) return true;
+  }
+  return false;
 }
 
 /** §4.6 b: de V-stukken van een pset uit het register onder een gemengde `IfcRelDefinesByProperties` (A, met een D-object
