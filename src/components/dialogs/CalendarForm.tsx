@@ -1,9 +1,10 @@
 import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
-import { isHourModeCalendar, type WorkCalendar, type Holiday, type WorkTimeBands } from '@/types/calendar';
+import { holidayEndDate, isHourModeCalendar, type WorkCalendar, type Holiday, type WorkTimeBands } from '@/types/calendar';
 import { accentChipClass, CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { WorkTimeEditor } from './WorkTimeEditor';
+import { ConfirmDialog } from './ConfirmDialog';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { StepButtons, TimeInput, TIME_STEP_MINUTES } from '@/components/common/TimeInput';
@@ -36,6 +37,12 @@ type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeO
 
 function minutesFromText(value: string): number | undefined {
   return /^\d+$/.test(value) && Number(value) <= 24 * 60 ? Number(value) : undefined;
+}
+
+/** Volgorde en een lege einddatum veranderen de inhoud van de lijst niet. */
+function holidayListSignature(holidays: readonly Holiday[]): string {
+  return JSON.stringify(holidays.map(holiday =>
+    JSON.stringify([holiday.name, holiday.startDate, holidayEndDate(holiday)])).sort());
 }
 
 /**
@@ -75,6 +82,7 @@ export function CalendarForm({
   const timeNotation = useAppStore(s => s.ui.timeNotation);
 
   const [showGenerator, setShowGenerator] = useState(false);
+  const [confirmRegeneration, setConfirmRegeneration] = useState(false);
   // Werktijden-UI: eigen presets (app-niveau localStorage), banden-editor achter een knop,
   // en een inline naam-invoer voor "Bewaar als preset…".
   const [ownPresets, setOwnPresets] = useState<WorkTimePreset[]>([]);
@@ -267,13 +275,23 @@ export function CalendarForm({
     setShowGenerator(false);
   };
 
-  const regenerate = () => {
+  const regenerate = (replacementConfirmed = false) => {
     if (!draft.generation || !projectYearSpan) return;
     const params: HolidayGenParams = {
       country: draft.generation.ruleSetId,
       region: draft.generation.region,
       bouwvak: draft.generation.breakChoice ?? 'geen',
     };
+    if (!replacementConfirmed) {
+      const { generatedFromYear: from, generatedToYear: to } = draft.generation;
+      // IFC bewaart de herkomst ook voor oudere bestanden. Alleen geldige jaren kunnen de lijst verklaren.
+      const validYears = Number.isInteger(from) && Number.isInteger(to) && from >= 1000 && to <= 9999 && from <= to;
+      if (!validYears || holidayListSignature(draft.holidays) !== holidayListSignature(materializeHolidays(params, from, to).holidays)) {
+        setConfirmRegeneration(true);
+        return;
+      }
+    }
+    setConfirmRegeneration(false);
     const { holidays, generation } = materializeHolidays(params, projectYearSpan.from, projectYearSpan.to);
     onChange({ holidays, generation });
   };
@@ -777,7 +795,7 @@ export function CalendarForm({
                   year: projectYearSpan!.to,
                 })}
               </span>
-              <button onClick={regenerate} className="btn btn--sm btn--secondary">
+              <button onClick={() => regenerate()} className="btn btn--sm btn--secondary">
                 {tCommon('calendar.regen.button')}
               </button>
             </div>
@@ -808,6 +826,16 @@ export function CalendarForm({
           </div>
         )}
       </div>
+
+      {confirmRegeneration && (
+        <ConfirmDialog
+          message={tCommon('calendar.regen.confirmMessage')}
+          confirmLabel={tCommon('calendar.regen.confirmReplace')}
+          onConfirm={() => regenerate(true)}
+          onCancel={() => setConfirmRegeneration(false)}
+          danger
+        />
+      )}
 
       {/* Holidays */}
       <div className="flex flex-col gap-2">

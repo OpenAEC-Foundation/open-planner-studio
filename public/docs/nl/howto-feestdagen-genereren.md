@@ -30,7 +30,7 @@ De jaren volgen de projectperiode: van het jaar vóór de startdatum tot en met 
 
 ### Opnieuw genereren na een nieuwe projectperiode
 
-Verschuift je project, of krijgt het een latere einddatum, dan dekken de feestdagen de nieuwe jaren niet meer. De app meldt dat in het venster *Kalenders*, bijvoorbeeld *Feestdagen dekken 2025–2028; opnieuw genereren tot en met 2030?* Klik dan op *Opnieuw genereren*. De app gebruikt dezelfde keuzes als de vorige keer (land, regio, bouwvak) voor de jaren van het project. Klik daarna op *Toepassen*. Deze melding zie je alleen bij een kalender waarvan de feestdagen eerder zijn gegenereerd.
+Verschuift je project, of krijgt het een latere einddatum, dan dekken de feestdagen de nieuwe jaren niet meer. De app meldt dat in het venster *Kalenders*, bijvoorbeeld *Feestdagen dekken 2025–2028; opnieuw genereren tot en met 2030?* Klik dan op *Opnieuw genereren*. De app gebruikt dezelfde keuzes als de vorige keer (land, regio, bouwvak) voor de jaren van het project. Wijkt de lijst af van de eerder gegenereerde lijst, dan vraagt de app eerst of je de vrije dagen wilt vervangen. Kies *Annuleren* om je aangepaste lijst te behouden. Klik daarna op *Toepassen*. De melding over de jaren zie je alleen bij een kalender waarvan de feestdagen eerder zijn gegenereerd.
 
 ### Een eigen vrije dag of periode toevoegen
 
