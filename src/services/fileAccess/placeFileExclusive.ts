@@ -5,10 +5,13 @@
  *
  * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde map staan, precies één van beide
  * namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`) en plugin-fs
- * `rename` beide paden voor deze webview toelaat, en de bron een gewoon bestand met precies één naam is. Een harde
- * link weigert het met `hard-linked` (besluit van de technisch beslisser van 18 november 2026: anders lopen de twee
- * namen na een vervanging stil uiteen); nul namen geeft `source-changed`. Het commando leest het aantal van de open
- * bron, ook op Windows, waar plugin-fs `nlink: null` geeft. Buiten Tauri: altijd `unsupported`.
+ * `rename` beide paden voor deze webview toelaat, en de bron een gewoon bestand is waarvoor het bestandssysteem
+ * precies één naam meldt. Meldt het er meer, dan weigert het commando met `hard-linked` (besluit van de technisch
+ * beslisser van 18 november 2026: anders lopen de twee namen na een vervanging stil uiteen); nul namen geeft
+ * `source-changed`. Het commando leest het aantal van de open bron, ook op Windows, waar plugin-fs `nlink: null`
+ * geeft. De weigering geldt dus alleen waar het bestandssysteem het aantal namen eerlijk meldt: SSHFS en andere FUSE-
+ * of netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie (knownbug 1823).
+ * Buiten Tauri: altijd `unsupported`.
  *
  * De grens van het commando (besluit van de technisch beslisser, 16 november 2026):
  * - nooit een bestaand doel vervangen;

@@ -2760,7 +2760,13 @@ en noem het in je rapport of PR-tekst.
      de directe aanmaak). Niet aangetroffen: Windows documenteert 1 voor FAT, Linux FAT en exFAT geven 1, en de review
      vond geen gewone doelmap die 0 meldt. Richting als het voorkomt: een uitzondering voor alleen de route naar een
      nieuwe naam (besluit van de technisch beslisser, 18 november 2026). Gevonden door de review van #996 (VERMOED,
-     zekerheid midden). — S
+     zekerheid midden). Daarbij (review #996 ronde 2, bevestigd): bij nul namen stopt het commando vóór de
+     verplaatsing, maar de app en MCP tonen de bestaande melding van `source-changed` dat de stand op schijf onbekend
+     is (`ifcForeignGuard.ts`, `fileTools.ts`); die is ruimer dan nodig. Een preciezere melding vraagt onderscheid
+     tussen een weigering vóór de stap en een wissel die pas erna is ontdekt. — S
+1821. **VERVOLG (#804, #996, opruimen): `SourceInfo` in `place_file.rs` heeft ongebruikte derives.** `Debug`, `Clone`
+     en `Copy` op `SourceInfo` (`src-tauri/src/commands/place_file.rs`) worden nergens gebruikt; de regel kan weg.
+     Geen fout in gedrag. Gevonden door de review van #996, ronde 2. — B (review)
 
 1823. **VERVOLG (#804, #996): op een bestandssysteem dat harde links verbergt, komt een bron met meer dan één naam door de controle.**
      SSHFS 3.7.7 meldt ook voor een harde link op de server één naam (`st_nlink=1`), ook op de open handle, en kan

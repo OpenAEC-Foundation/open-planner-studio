@@ -774,9 +774,11 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     andere FUSE- of netwerkmounts die harde links verbergen, lopen de twee namen bij een vervanging uiteen. Er gaat
     dan geen versie verloren, want de andere naam houdt de oude inhoud; detectie zou breekbaar zijn en Ctrl+S op
     elke SSHFS-map uitzetten.
-  - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (symlink, harde link), buiten de fs-scope, of
-    als een stap faalt, schrijft de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in
-    `atomicWrite.ts:105-116, 155-160` past niet bij deze garantie). Zonder vreemd deel blijft de huidige route.
+  - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (een symlink, of een harde link die het
+    bestandssysteem meldt: een gemeld aantal namen groter dan één), buiten de fs-scope, of als een stap faalt, schrijft
+    de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in `atomicWrite.ts:105-116, 155-160` past
+    niet bij deze garantie). Een harde link die het bestandssysteem verbergt (SSHFS en andere FUSE- of netwerkmounts,
+    knownbug 1823) ziet de app niet; daar stopt hij dus niet. Zonder vreemd deel blijft de huidige route.
 - **Browser met een bestands-handle (File System Access)**: de browser zet de inhoud pas neer bij `close()` van de
   schrijfstroom. De app leest vlak vóór `close()` het bestand via de handle opnieuw en vergelijkt de sha256. Een wijziging
   tussen die controle en `close()` gaat verloren; de browser kan geen kopie naast het bestand maken en geen voorwaardelijk
