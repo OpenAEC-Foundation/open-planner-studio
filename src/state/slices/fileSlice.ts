@@ -791,7 +791,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /** `ownTarget`: alleen Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen doel van het document vraagt de
-   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` geeft haar alleen aan een handle. */
+   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad). */
   const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite, ownTarget = false): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id

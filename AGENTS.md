@@ -290,7 +290,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`); desktop paths still refuse.
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark

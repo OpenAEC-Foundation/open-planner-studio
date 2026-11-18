@@ -733,6 +733,16 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     die via een link naar buiten de thuismap wijst), dan blijft de directe
     aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast (knownbug 1131). Na een crash kan er een
     `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
+  - **Aangesloten** (knownbug 1131 stap 5b, #1008). Ctrl+S en *Opslaan* in de sluitvraag (van een tabblad en van de
+    app) op het eigen pad lopen via deze vervanging, binnen één toegelaten schrijfactie van de schrijfcoördinator: van
+    de merge tot en met de broncommit, de laatste herstelronde en het wissen van het record. Afsluiten wacht erop en
+    laat intussen geen nieuwe schrijfactie toe. Na de eerste herstelronde en vóór het eerste schrijven in de projectmap
+    controleert de app opnieuw of het document er nog is, of het opslagdoel nog dit pad is en de bron nog de verwachte;
+    anders stopt hij zonder te schrijven. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
+    melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
+    als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
+    sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd),
+    Ctrl+S buiten de thuismap (alleen *Opslaan als*) en *Opslaan als* over een bestaande naam.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
