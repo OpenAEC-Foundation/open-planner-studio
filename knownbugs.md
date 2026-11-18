@@ -1863,12 +1863,6 @@ en noem het in je rapport of PR-tekst.
      eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
      en de lange variant in de test. Uit #864 (fase 1a). — S
 
-1020. **De writer schrijft stil `#0` bij een sleutel die hij niet kent.** `ref()` (`src/services/ifc/ifcWriter.ts:323`)
-     geeft `#${idMap.get(key) || 0}`. Ontbreekt de sleutel, dan staat er een verwijzing naar `#0` in de uitvoer, zonder
-     fout of melding. Gezien bij het lezen van de code (eigen zoektocht van fase 1b); geen geval bekend waarin het nu
-     gebeurt. De merge-writer weigert zo'n verwijzing (`src/services/ifc/foreign/mergeWriter.ts`, stap 9); de gewone
-     writer niet. Richting: een fout in `ref()` als de sleutel ontbreekt. Uit #867 (fase 1b). — S
-
 1021. **VERVOLG: de merge-writer scant de bron bij elke merge opnieuw.** `writeIfcMerge`
      (`src/services/ifc/foreign/mergeWriter.ts:245`) doet `scanStep` en `classify` op `ifcSource.bytes`, want `ifcSource`
      bewaart alleen typed arrays en geen index. CI-meting run 42748742900 (`ubuntu-24.04`, Node 22), eigen planning plus

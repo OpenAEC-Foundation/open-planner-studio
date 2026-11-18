@@ -40,6 +40,14 @@ const truthy = (label: string, got: boolean) => {
   if (!got) diffs.push(`${label}: verwacht waar, kreeg onwaar`);
 };
 
+// Ook kleine projecten mogen geen relaties naar niet-bestaande taken genereren.
+for (const size of [1, 2, 3]) {
+  const g = generateBenchmarkProject(size, { seed: 0x1fc });
+  const ids = new Set(g.tasks.map(t => t.id));
+  eq(`klein project ${size}: alle relatie-einden bestaan`,
+    g.sequences.filter(s => !ids.has(s.predecessorId) || !ids.has(s.successorId)).length, 0);
+}
+
 // ── 1. Elke leaf-taak zit in het relatienetwerk ──────────────────────────────
 // Over ALLE aangeboden groottes, want de oude bug werd juist bij de grote zichtbaar.
 for (const size of BENCHMARK_SIZES) {

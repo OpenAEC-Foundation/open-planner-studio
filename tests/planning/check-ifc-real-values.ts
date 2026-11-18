@@ -5,7 +5,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { writeIFC } from '@/services/ifc/ifcWriter';
+import { ifcGuid128, ifcObjectSeed, writeIFC } from '@/services/ifc/ifcWriter';
+import { throws } from 'node:assert';
+import { createIfcNestingFixture } from './ifcNestingFixture';
 import { stepReal, ifcTypedReal } from '@/services/ifc/ifcPsets';
 import { ALL_RECORDED_SLOT_KEYS, TASKTIME_SLOT, ifcCompletionReal } from '@/services/ifc/ifcTaskSlots';
 import { IFC_SCHEMAS } from '@/types/project';
@@ -21,6 +23,31 @@ function ok(label: string, condition: boolean): void {
 }
 function eq(label: string, got: unknown, want: unknown): void {
   ok(`${label}: kreeg ${JSON.stringify(got)}, verwacht ${JSON.stringify(want)}`, JSON.stringify(got) === JSON.stringify(want));
+}
+
+// Een ongeldige verplichte verwijzing mag nooit stil als #0 in een IFC terechtkomen (knownbug 1020).
+// Onbekende WBS-kinderen werden al bewust overgeslagen en blijven dat.
+{
+  const input = createIfcNestingFixture(20, 'breed');
+  const sequence = input.sequences[0];
+  if (!sequence) throw new Error('fixture mist een relatie');
+  throws(() => writeIFC({ ...input, sequences: [{ ...sequence, predecessorId: 'ontbrekende-taak' }] }),
+    /IFC-verwijzing ontbreekt: task_ontbrekende-taak/);
+  checks++;
+  input.tasks[0].childIds.push('ontbrekend-kind');
+  const output = writeIFC(input);
+  const entities = parseStep(output);
+  const taskRef = (id: string) => {
+    const guid = `'${ifcGuid128(ifcObjectSeed('task', id))}'`;
+    const task = entities.find(e => e.type === 'IFCTASK' && e.args[0].k === 'str' && e.args[0].raw === guid);
+    if (!task) throw new Error(`IFCTASK ontbreekt: ${id}`);
+    return task.id;
+  };
+  const parent = taskRef(input.tasks[0].id);
+  const nesting = entities.find(e => e.type === 'IFCRELNESTS' && e.args[4].k === 'ref' && e.args[4].id === parent);
+  if (!nesting || nesting.args[5].k !== 'list') throw new Error('WBS-relatie ontbreekt');
+  eq('ontbrekend WBS-kind wordt overgeslagen; geldige kinderen blijven behouden', nesting.args[5].items,
+    input.tasks.slice(1).map(t => ({ k: 'ref', id: taskRef(t.id) })));
 }
 
 const realForm = /^[+-]?\d+\.\d*(E[+-]?\d+)?$/;
