@@ -1049,10 +1049,6 @@ export interface PrintOptions {
   };
 }
 
-interface PrintTask extends Task {
-  _depth?: number;
-}
-
 /**
  * Breek `text` op woordgrenzen in regels die binnen `maxWidth` passen (dezelfde px-eenheid als
  * `d2d.measureText`). Eén woord dat alleen al te breed is wordt met een ellipsis afgekort.
@@ -1324,13 +1320,11 @@ export function renderReport(
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen die
   // als samenvattings-strook tekenen.
   const printRows = buildPrintRows(tasks, options.rows, assignmentColumns ? options.rowAssignments : undefined);
-  const flatTasks: PrintTask[] = printRows
-    .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
-    .map(r => ({ ...r.task, _depth: r.depth }));
+  const printedTasks = printRows.flatMap(r => (r.kind === 'task' && r.task ? [r.task] : []));
 
   // Met een tijdvak kan er een ingeklapte groepsband zonder taakrij op papier staan (#997): dan is er wel iets te
   // tekenen, en de tijdas komt uit het tijdvak.
-  if (flatTasks.length === 0 && !(options.timeWindow && printRows.length > 0)) {
+  if (printedTasks.length === 0 && !(options.timeWindow && printRows.length > 0)) {
     const d2d = makeDraw2D(600, 200);
     d2d.fillStyle = PRINT_COLORS.bg;
     d2d.fillRect(0, 0, 600, 200);
@@ -1351,8 +1345,7 @@ export function renderReport(
   // Compute date range
   let minMs = 8640000000000000;
   let maxMs = 0;
-  // Over de taken uit de store, niet over de kopieën in `flatTasks`: alleen een bevroren taak komt uit
-  // de cache van `taskDayRange`.
+  // Over de taken uit de store (een bevroren taak komt uit de cache van `taskDayRange`).
   for (const row of printRows) {
     if (row.kind !== 'task' || !row.task) continue;
     const days = taskDayRange(row.task);
@@ -1374,7 +1367,7 @@ export function renderReport(
     // Alleen de baselines van de afgedrukte taken; per taak hooguit drie opzoekingen.
     const reach = baselineReach(overlays.map(o => {
       const own: BaselineOverlay = new Map();
-      for (const t of flatTasks) { const e = o.get(t.id); if (e) own.set(t.id, e); }
+      for (const t of printedTasks) { const e = o.get(t.id); if (e) own.set(t.id, e); }
       return own;
     }));
     if (reach.earliest) { const d = parseDate(reach.earliest); if (d < minDate) minDate = d; }
@@ -1425,10 +1418,8 @@ export function renderReport(
   });
   // Tijdvenster zonder één werkdag (b.v. een weekend) op de gecomprimeerde as: de as zou dan naar
   // de eerstvolgende werkdag búiten het venster kleven. Val voor dít venster terug op de kalender-as.
-  let windowOnCalendarAxis = false;
   if (options.timeWindow && compressed && measureAxis.daySpan(minDate, maxDate) < 1) {
     compressed = false;
-    windowOnCalendarAxis = true;
     measureAxis = resolveGanttAxis({
       calendar: calEngine, compressNonWorkdays: false,
       origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
@@ -1909,21 +1900,28 @@ export function renderReport(
         ? taskSplitSegments(task, effectiveCalendarOf(task, calendar, options.calendars ?? []), options.workdayDurationMeasure ?? true)
           ?? [{ start, end }]
         : [{ start, end }];
-      const segs = segments.map((s, i) => {
+      const allSegs = segments.map((s, i) => {
         const rx1 = i === 0 ? rawX1 : dateToX(s.start);
         const rx2 = i === segments.length - 1 ? rawX2 : dateToX(s.end);
         return { rx1, rx2, x1: clampX(rx1), x2: clampX(rx2) };
+      });
       // Bij één stuk besliste `barInWindow` al; een werkblok van een onderbroken balk telt in de tijd.
-      }).filter((s, i) => !windowed || segments.length === 1 || s.x2 > s.x1 || inWindowTime(segments[i].start, segments[i].end));
-      const split = segs.length > 1;
+      const segs = allSegs.filter((s, i) => !windowed || segments.length === 1 || s.x2 > s.x1 || inWindowTime(segments[i].start, segments[i].end));
+      const split = allSegs.length > 1;
 
+      // De verbindingslijn loopt van het eerste tot het laatste werkblok van de hele taak, en wordt bij een venster
+      // apart afgekapt: een tijdvak dat in een onderbreking begint of eindigt, houdt het zichtbare stuk ervan.
       if (split) {
-        d2d.strokeStyle = baseColor + '80';
-        d2d.lineWidth = 1;
-        d2d.beginPath();
-        d2d.moveTo(segs[0].x2, y + barHeight / 2);
-        d2d.lineTo(segs[segs.length - 1].x1, y + barHeight / 2);
-        d2d.stroke();
+        const lineFrom = allSegs[0].x2;
+        const lineTo = allSegs[allSegs.length - 1].x1;
+        if (!windowed || lineTo > lineFrom) {
+          d2d.strokeStyle = baseColor + '80';
+          d2d.lineWidth = 1;
+          d2d.beginPath();
+          d2d.moveTo(lineFrom, y + barHeight / 2);
+          d2d.lineTo(lineTo, y + barHeight / 2);
+          d2d.stroke();
+        }
       }
 
       // Voortgang zoals op het scherm (één tekenregel, `paintProgressBarPiece`): het voltooide deel
@@ -2071,7 +2069,8 @@ export function renderReport(
   // ---- TIMELINE HEADER ----
   drawTimelineHeader(
     d2d, m, canvasWidth, minDate, calendarDays, timelineDates, compressed, zoom, dateToX, options,
-    todayVisible ? todayX : null, statusLineX, windowOnCalendarAxis, isHourModeCalendar(calendar),
+    // Bij een tijdvak ook de weekenddagcijfers: anders zijn een afdruk van alleen zaterdag en van alleen zondag gelijk.
+    todayVisible ? todayX : null, statusLineX, !!options.timeWindow, isHourModeCalendar(calendar),
   );
 
   // ---- TASK TABLE ----

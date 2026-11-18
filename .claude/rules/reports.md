@@ -73,7 +73,7 @@ resourcediagram via `window` van `computeResourceGanttRows`, *Zoals de weergave*
 `computeViewRows` (stap 1, naast het filter; de ouders zijn dan niet gedimd), *Alle taken* via `treeRowsInPeriod`
 (`src/engine/reports/reportPeriodRows.ts`). Banden, tellingen, reeksen en ingeklapte rijen gaan zo alleen over het tijdvak;
 een ingeklapte reeks houdt haar sleutel. De melding onder de keuze telt de bladtaken die het filter van de bron halen en
-buiten het tijdvak vallen (`leavesOutsidePeriod`). Staat er alleen een ingeklapte band in het tijdvak, dan tekent de afdruk die band (geen leeg blad). `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit
+buiten het tijdvak vallen (`leavesOutsidePeriod`). Staat er alleen een ingeklapte band in het tijdvak, dan tekent de afdruk die band (geen leeg blad). Bij een tijdvak staan ook de dagcijfers van het weekend in de kop, en de verbindingslijn van een onderbroken taak wordt over de hele taak bepaald en daarna afgekapt. `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit
 hetzelfde bestand. Rond middernacht spreken rijfilter (per dag) en render (per moment) elkaar nog tegen (knownbug 1860).
 Bewaking: `check-report-gantt-period.ts`.
 

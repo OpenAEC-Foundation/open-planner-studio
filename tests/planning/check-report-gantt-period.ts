@@ -329,7 +329,7 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
 {
   const draw = (tasksHere: Task[], window: { from: string; to: string }, options: Partial<PrintOptions>) => {
     const fills: [number, number][][] = [];
-    const strokes: { pts: [number, number][]; lw: number }[] = [];
+    const strokes: { pts: [number, number][]; lw: number; style: string }[] = [];
     const texts: string[] = [];
     let cur: [number, number][] = [];
     const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
@@ -345,7 +345,7 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
       moveTo(x, y) { cur.push([x, y]); },
       lineTo(x, y) { cur.push([x, y]); },
       fill() { fills.push(cur.slice()); },
-      stroke() { strokes.push({ pts: cur.slice(), lw: st.lineWidth }); },
+      stroke() { strokes.push({ pts: cur.slice(), lw: st.lineWidth, style: st.strokeStyle }); },
       roundRect() { cur = []; }, fillText(text) { texts.push(text); },
       measureText(text) { return { width: text.length * 4.5 }; },
     };
@@ -393,6 +393,27 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   const alleenBand = draw([werk], { from: '2026-09-28', to: '2026-10-02' }, { rows: [band], showTaskNames: true });
   ok(alleenBand.texts.some(t => t.includes('Bouw') && t.includes('1')), `een ingeklapte band alleen staat op papier met haar telling (${alleenBand.texts.slice(0, 6).join(' | ')})`);
   ok(!alleenBand.texts.some(t => /No tasks|Geen taken/.test(t)), 'en het blad is niet leeg');
+
+  // Review Sol #1005, ronde 6: een afdruk van alleen zaterdag en een van alleen zondag zijn te onderscheiden (het
+  // dagcijfer staat er, ook op de gewone kalenderas).
+  const weekend = task('we', 'Over het weekend', '2026-09-25', '2026-09-28', { parentId: undefined });
+  const dagCijfers = (day: string) => draw([weekend], { from: day, to: day }, {}).texts.filter(t => /^\d{1,2}$/.test(t));
+  ok(dagCijfers('2026-09-26').includes('26') && dagCijfers('2026-09-27').includes('27'),
+    `het dagcijfer van een weekenddag staat op papier (za: ${dagCijfers('2026-09-26')}, zo: ${dagCijfers('2026-09-27')})`);
+
+  // Review Sol #1005, ronde 6: een tijdvak dat in een werkonderbreking begint of er helemaal in valt, houdt het zichtbare
+  // stuk van de verbindingslijn. Werk ma 1 t/m wo 3 juni, een onderbreking van 12 werkdagen, hervatting ma 22 juni.
+  const gesplitst = task('sp', 'Onderbroken', '2026-06-01', '2026-06-25', { parentId: undefined,
+    time: { ...time('2026-06-01', '2026-06-25'), durationType: 'WORKTIME', scheduleDuration: 1 } as unknown as TaskTime,
+    splitGaps: [{ afterMinutes: 1440, gapMinutes: 5760 }] } as Partial<Task>);
+  const verbinding = (window: { from: string; to: string }) => {
+    const r = draw([gesplitst], window, {});
+    return r.strokes.filter(st => st.style.endsWith('80')).map(st => st.pts.map(([x]) => x))
+      .filter(xs => xs.every(x => x >= r.dims.tableWidth - 1e-6 && x <= r.dims.width + 1e-6) && Math.abs(xs[xs.length - 1] - xs[0]) > 1);
+  };
+  eq('de hele taak: één verbindingslijn', verbinding({ from: '2026-06-01', to: '2026-06-30' }).length, 1);
+  eq('een tijdvak helemaal in de onderbreking: de lijn loopt van rand tot rand', verbinding({ from: '2026-06-08', to: '2026-06-10' }).length, 1);
+  eq('een tijdvak dat in de onderbreking begint: de lijn loopt van de linkerrand naar de hervatting', verbinding({ from: '2026-06-15', to: '2026-06-26' }).length, 1);
 
   // Mijlpalen op zondag 27 september, de laatste dag van het tijdvak, op de werkdagas: met en zonder tijd.
   const ms = (id: string, at: string) => task(id, id, at, at, { parentId: undefined, isMilestone: true,
