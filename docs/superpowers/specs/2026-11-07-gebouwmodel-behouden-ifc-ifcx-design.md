@@ -1444,8 +1444,9 @@ profiel); daar geldt deze lijst.
    veilige weg van §4.10, gebouwd na Ctrl+S op de desktop; tot dan de weigering. In de browser blijft *Opslaan als* met
    een gebouwmodel een download.
 5. **Na een download omdat de browser schrijftoestemming weigert** (knownbug 1768): het document blijft gewijzigd tot
-   het geopende bestand is bijgewerkt; de melding noemt de kopie in Downloads.
-6. **Exporteren naar CSV, MSPDI of XER**: geen vraag vooraf, wel een zin in de melding na afloop (§4.12).
+   het geopende bestand is bijgewerkt; de melding noemt de kopie in Downloads. Gebouwd in PR #1002.
+6. **Exporteren naar CSV, MSPDI of XER**: geen vraag vooraf, wel een zin in de melding na afloop (§4.12). Gebouwd in
+   PR #1002.
 7. **Een eigen taaktype van het project hernoemen** (knownbug 1748): de app vraagt bij hernoemen of het ook in dit
    project moet.
 8. **Een taak van een ander programma die de planner wijzigt**: de herkomst blijft zoals hij was (§4.5). Een eigen

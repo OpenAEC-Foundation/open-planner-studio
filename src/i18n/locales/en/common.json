@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} tasks show the dates as recorded in the file (not recalculated).",
     "xerExportLoss": "Exporting to {{format}} loses XER source information.",
     "exportDataLoss": "Exporting to {{format}} drops data that {{format}} cannot hold, such as notes or a secondary constraint. The IFC project file keeps everything.",
+    "exportPlanOnly": "Only the schedule was exported; the building model is not part of this format.",
     "mppLegacy": "This .mpp file uses an older format (Project 2007 or earlier). In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "mppInvalidContainer": "This MPP file has an invalid file structure and cannot be opened.",
     "xmlUnknownSchedule": "Unknown XML schedule format. Open an MS Project XML (Project) or Primavera P6 XML (APIBusinessObjects).",

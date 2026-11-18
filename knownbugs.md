@@ -2252,15 +2252,6 @@ en noem het in je rapport of PR-tekst.
      `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
      `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
 
-1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
-     Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
-     Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
-     de IFC-export zonder gebouwmodel en de export met de resourcebibliotheek stellen de vraag (PR 13). Er gaat niets
-     verloren: het geopende bestand blijft ongewijzigd en die formaten dragen nooit een gebouwmodel. Niet gebouwd in PR 13
-     (besluit Trias, 16 november 2026). Op de eindlijst vóór de flag standaard aan mag; of de vraag er bij deze formaten
-     echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
-     reden. — B
-
 1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
      Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
      op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent

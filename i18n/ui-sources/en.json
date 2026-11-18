@@ -51,6 +51,7 @@
     "notifications.importDatesAsRecorded": "d9d43736b88d5fbf",
     "notifications.xerExportLoss": "8e4a2df2cda6fa10",
     "notifications.exportDataLoss": "ebf8308985af4c9b",
+    "notifications.exportPlanOnly": "0c442cdb8754964d",
     "notifications.mppLegacy": "7bb4221aad8f40b2",
     "notifications.mppInvalidContainer": "6463c7024d270c7c",
     "notifications.xmlUnknownSchedule": "6188e914cac08905",

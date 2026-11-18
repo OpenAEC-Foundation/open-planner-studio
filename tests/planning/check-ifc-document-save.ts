@@ -269,6 +269,8 @@ function browserDownload() {
   URL.revokeObjectURL = () => {};
   Object.defineProperty(globalThis, 'document', { configurable: true, value: {
     createElement: () => ({ href: '', download: '', click: () => {} }),
+    // Het voortgangsblad laadt `@/i18n/config`, dat de taalrichting op het document zet.
+    documentElement: {},
   } });
   win.showSaveFilePicker = () => { throw new Error('een vreemde browseropslag moet downloaden'); };
   return { downloads, dispose: () => {
@@ -546,7 +548,40 @@ await check('IFC-export browser: volledige download, bron/doel/dirty/kalenders i
     assert.deepEqual(mergeProblems(bytes, output), []);
     assert.equal(reopened.tasks.find(t => t.id === id)!.time.scheduleDuration, store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration);
     unchanged(store, before); assert(store.getState().ifcLiteralCalendarIds === literal);
+    assert(!store.getState().ui.notifications.some(n => n.messageKey === 'notifications.exportPlanOnly'), 'IFC draagt het gebouwmodel: geen zin');
   } finally { browser.dispose(); }
+});
+
+// Knownbug 1740 (besluit van de eigenaar, 16 november 2026): geen vraag vooraf, wel een zin na afloop. Alleen met een
+// gebouwmodel en de flag aan; verder dezelfde meldingen als zonder die zin, en vanuit een gewoon document niets nieuws.
+const PLAN_ONLY_EXPORT = 'notifications.exportPlanOnly';
+async function exportNotices(store: Store, format: import('@/services/formatRegistry').ExportFormat) {
+  clearNotices(store);
+  const before = preserved(store), browser = browserDownload();
+  try {
+    const result = await store.getState().exportAs(format);
+    assert(result.ok && !result.cancelled, `${format}: geëxporteerd`); assert.equal(browser.downloads.length, 1);
+  } finally { browser.dispose(); }
+  unchanged(store, before);
+  return store.getState().ui.notifications.map(n => ({
+    key: n.messageKey, params: n.params, count: n.count, lines: (n.detailLines ?? []).map(line => line.messageKey),
+  }));
+}
+/** De meldingen zonder de zin: als eigen melding weg, als regel van de eerste melding weg. */
+const withoutSentence = (notices: Awaited<ReturnType<typeof exportNotices>>) => notices
+  .filter(n => n.key !== PLAN_ONLY_EXPORT).map(n => ({ ...n, lines: n.lines.filter(line => line !== PLAN_ONLY_EXPORT) }));
+for (const format of ['csv', 'mspdi', 'p6', 'xer', 'progress-xlsx'] as const) await check(`export ${format}: de zin "alleen de planning" alleen met een gebouwmodel`, async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  const withModel = await exportNotices(store, format);
+  assert.deepEqual(withModel.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'de zin precies één keer');
+  assert.deepEqual(withModel[0].lines.at(-1), PLAN_ONLY_EXPORT, 'als regel onder de eerste melding');
+  store.setState(s => { s.ui.featureFlags = {}; });
+  assert.deepEqual(await exportNotices(store, format), withoutSentence(withModel),
+    'flag uit: dezelfde meldingen zonder de zin; de zin duwt geen melding weg');
+  const plain = (await openInStore(new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'))))).store;
+  assert(!hasForeignContent(plain.getState().ifcSource));
+  const ordinary = await exportNotices(plain, format);
+  assert.deepEqual(ordinary, withoutSentence(ordinary), 'gewoon document: geen zin');
 });
 
 for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
