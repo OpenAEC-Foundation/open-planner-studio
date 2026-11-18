@@ -2706,6 +2706,11 @@ en noem het in je rapport of PR-tekst.
      `writeActiveDocument` en `saveDocumentAsOnTurn` in `fileSlice.ts` (`commitSavedDocument` na `viaDownload`).
      Gevonden bij het bouwen van 1768. — B voor (2) (proef "download: twee volledige heropeningen" in
      `check-ifc-document-save.ts`), S voor (1) (code gelezen)
+1831. **VERVOLG (#804, handleiding): de tekst bij de experimentele instelling zegt nog dat opslaan met een gebouwmodel geblokkeerd is.**
+     `public/docs/nl/ref-instellingen.md` en `public/docs/en/ref-instellingen.md`, bij *IFC met gebouwmodel openen*:
+     "Opslaan van een bestand met zo'n vreemd deel blijft geblokkeerd." Dat klopt niet meer: Opslaan als werkt, in de
+     browser ook Ctrl+S, en Ctrl+S op de desktop volgt (knownbug 1131). Bijwerken met de handleiding van stap 6 van
+     1131. Gezien door de bouwer van #1002. — B
 
 1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
      `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde
