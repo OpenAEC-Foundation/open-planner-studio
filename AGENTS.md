@@ -214,13 +214,13 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
   same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
   the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
-  exactly one name is an own helper file, the opened source is a regular file with exactly one name (`hard-linked`
-  otherwise, read from the open handle; technical decision 2026-11-18), and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
+  exactly one name is an own helper file, the opened source is a regular file with exactly one name (more is `hard-linked`,
+  zero is `source-changed`, read once from the open handle; technical decision 2026-11-18), and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
   then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
   plus the runtime scope, the rule of plugin-fs 2.7.1: a deny on the path text or on the real path wins, the allow
   applies to the real path, and the real path resolves symlinks in the ancestors of a path that does not exist yet). A step error stays an error; after the step it checks that
   the opened source is at the target and otherwise returns `source-changed` without touching anything again (no
-  restore). Its boundary, including the Unix window it leaves open (knownbug 1799), is in the header of
+  restore). Its boundary, including the Unix window it leaves open (knownbug 1799) and mounts that hide hard links (knownbug 1823), is in the header of
   `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
   one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).

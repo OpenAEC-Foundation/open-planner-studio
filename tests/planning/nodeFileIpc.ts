@@ -46,8 +46,8 @@ function isHelperName(name: string): boolean {
 /**
  * Nabootsing van `place_file_exclusive` (#804, 1131 stap 3) op echte bestanden, in de volgorde van het commando:
  * vorm (absoluut, dezelfde map), hulpnaam, scope (`forbidden` op beide paden), een gewoon bestand met precies één naam
- * als bron (anders `hard-linked`; Node leest het aantal op naam, het commando van de open bron), dan de exclusieve
- * stap. Node kent geen `renameat2`; `link` + `unlink` faalt net zo met `EEXIST` als er op het doel iets
+ * als bron (meer namen `hard-linked`, nul `source-changed`; Node leest het aantal op naam, dus nul komt hier alleen via
+ * `faults.place` voor; het commando leest van de open bron), dan de exclusieve stap. Node kent geen `renameat2`; `link` + `unlink` faalt net zo met `EEXIST` als er op het doel iets
  * staat en vervangt nooit. Bewijst de route in TypeScript; dat de stap echt exclusief en atomair is, bewijst
  * `cargo test place_file` per platform.
  */
@@ -61,7 +61,8 @@ function placeOnDisk(from: string, to: string, forbidden: ((path: string) => boo
   try {
     const source = fs.lstatSync(from);
     if (!source.isFile()) return refused('not-regular-file');
-    if (source.nlink !== 1) return refused('hard-linked');
+    if (source.nlink > 1) return refused('hard-linked');
+    if (source.nlink === 0) return { reject: { code: 'source-changed' } };
     fs.linkSync(from, to);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return { reject: { code: 'target-exists' } };

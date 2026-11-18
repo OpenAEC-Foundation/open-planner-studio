@@ -2623,7 +2623,7 @@ en noem het in je rapport of PR-tekst.
         invoer door de IPC naar plugin-fs `rename` en dit commando. Elke controle kreeg een mutatie die haar eigen
         proef rood maakte.
         Sinds 18 november 2026 weigert het een bron met meer dan één naam (`refused`/`hard-linked`, het aantal van
-        de open bron, ook op Windows).
+        de open bron, ook op Windows); nul namen geeft `source-changed` (#996).
      4. Klaar (stap 4, #983): Opslaan als, Exporteren → IFC en `planner_export_ifc` naar een nieuwe naam op de
         desktop (`writeNewUserBytes` in `atomicWrite.ts`). De merge geeft één buffer (`PreparedIfcWrite.bytes`); de
         route schrijft die met `createNew` in één aanroep naar `save-<id>.ops-save.tmp` in dezelfde map en zet dat met
@@ -2752,6 +2752,26 @@ en noem het in je rapport of PR-tekst.
      kan zetten, heeft via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`. Gevonden door de review van
      #972 (ronde 2, met de echte Linux-stap). Proeven: `place_file_bronwissel_tussen_controle_en_stap`,
      `place_file_mapwissel_tussen_controle_en_stap` en `place_file_doelwissel_na_de_stap`. — B (proef)
+
+1822. **VERVOLG (#804, #996): een bestandssysteem dat voor een nieuw gewoon bestand nul namen meldt, laat Opslaan als stoppen.**
+     `place_file_exclusive` geeft bij nul namen op de open bron `source-changed` (review #996). Meldt een
+     bestandssysteem dat ook voor het verse `save-<id>.ops-save.tmp`, dan stoppen Opslaan als, Exporteren → IFC en
+     `planner_export_ifc` naar een nieuwe naam met een fout, waar main doorliep (naar de stap, of bij `unsupported` naar
+     de directe aanmaak). Niet aangetroffen: Windows documenteert 1 voor FAT, Linux FAT en exFAT geven 1, en de review
+     vond geen gewone doelmap die 0 meldt. Richting als het voorkomt: een uitzondering voor alleen de route naar een
+     nieuwe naam (besluit van de technisch beslisser, 18 november 2026). Gevonden door de review van #996 (VERMOED,
+     zekerheid midden). — S
+
+1823. **VERVOLG (#804, #996): op een bestandssysteem dat harde links verbergt, komt een bron met meer dan één naam door de controle.**
+     SSHFS 3.7.7 meldt ook voor een harde link op de server één naam (`st_nlink=1`), ook op de open handle, en kan
+     exclusief hernoemen (`RENAME_NOREPLACE`). Een bron met twee namen komt daar dus door de controle van
+     `place_file_exclusive`; bij de vervanging (Ctrl+S, §4.10) lopen de twee namen dan uiteen. Er gaat geen versie
+     verloren: de andere naam houdt de oude inhoud. Buiten de grens (besluit van de technisch beslisser, 18 november
+     2026): de garantie geldt waar het bestandssysteem het aantal namen eerlijk meldt; SSHFS en andere FUSE- of
+     netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie. Reden: het geval is zeldzaam, en mounts
+     herkennen per platform is breekbaar, maakt het commando groter en zou Ctrl+S op elke SSHFS-map uitzetten.
+     Gevonden door de review van #996; bevestigd uit de broncode van beide lagen, niet op een echte mount gedraaid.
+     — B (code), geen proef
 
 1775. **VERVOLG (beveiliging, buiten de grens van #975): een map bóven de app-datamap kan hernoemd of verwijderd worden.**
      De capabilities `webviewgegevens-*.json` verbieden de beschermde webviewmappen zelf en wat eronder ligt (op 1776

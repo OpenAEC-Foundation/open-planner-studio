@@ -5,10 +5,10 @@
  *
  * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde map staan, precies één van beide
  * namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`) en plugin-fs
- * `rename` beide paden voor deze webview toelaat, en de bron een gewoon bestand met precies één naam is (een harde
- * link weigert het met `hard-linked`, besluit van de technisch beslisser van 18 november 2026: anders lopen de twee
- * namen na een vervanging stil uiteen; het commando leest het aantal van de open bron, ook op Windows, waar
- * plugin-fs `nlink: null` geeft). Buiten Tauri: altijd `unsupported`.
+ * `rename` beide paden voor deze webview toelaat, en de bron een gewoon bestand met precies één naam is. Een harde
+ * link weigert het met `hard-linked` (besluit van de technisch beslisser van 18 november 2026: anders lopen de twee
+ * namen na een vervanging stil uiteen); nul namen geeft `source-changed`. Het commando leest het aantal van de open
+ * bron, ook op Windows, waar plugin-fs `nlink: null` geeft. Buiten Tauri: altijd `unsupported`.
  *
  * De grens van het commando (besluit van de technisch beslisser, 16 november 2026):
  * - nooit een bestaand doel vervangen;
@@ -37,7 +37,8 @@ export type PlaceFileRefusal = 'path-shape' | 'helper-name' | 'scope' | 'not-reg
  * - `unsupported`: het bestandssysteem of platform kent de exclusieve stap niet; niets verplaatst.
  * - `refused`: een controle weigerde vóór elke wijziging.
  * - `source-changed`: na de stap stond op het doel niet de gecontroleerde bron; het commando raakte
- *   daarna niets meer aan. Belooft geen stand op schijf: leid er geen eigendom of opruimen uit af.
+ *   daarna niets meer aan. Of al vóór de stap: de open bron had geen naam meer (nul namen), er is niets
+ *   verplaatst. Belooft geen stand op schijf: leid er geen eigendom of opruimen uit af.
  * - `io`: een andere systeemfout; niets verplaatst, behalve op een netwerkschijf die de fout pas na de
  *   hernoeming meldt (knownbug 1795).
  */

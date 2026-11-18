@@ -220,6 +220,18 @@ async function main() {
       assert.deepEqual(removes(calls).map(c => isTemp(c.path)), [true], 'alleen de eigen hulpnaam opgeruimd');
       assert.equal(writesTo(calls).length, 1, 'geen directe terugval');
     });
+    await check('8e. Tauri: source-changed vóór de stap (de open bron had nul namen): stoppen, niets opruimen op naam', async () => {
+      // Het commando zag vóór de stap dat de open bron geen naam meer had; onder de hulpnaam kan iets anders staan.
+      const d = caseDir(), target = path.join(d, 'nul-namen.ifc'), before = ipc.calls.length;
+      await withPlace(() => ({ reject: { code: 'source-changed' } }), async () => {
+        assert.ok(reason('source-changed')(await caught(save(target))));
+      });
+      const calls = callsFrom(before), at = calls.findIndex(c => c.command === 'place_file_exclusive');
+      assert.deepEqual(calls.slice(at + 1).map(c => c.command), [], 'na de plaatsing geen enkele aanroep, ook geen remove');
+      const left = Object.keys(onDisk(d));
+      assert.equal(left.length, 1);
+      assert.ok(isTemp(path.join(d, left[0])), 'wat onder de hulpnaam staat, blijft staan; geen doel');
+    });
     await check('9. Tauri: dir-not-synced: het bestand is geplaatst, dus geslaagd (met een waarschuwing)', async () => {
       const d = caseDir(), target = path.join(d, 'niet-vastgelegd.ifc');
       const warn = console.warn, warnings: unknown[][] = [];

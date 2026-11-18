@@ -687,10 +687,13 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     Een bron met meer dan één naam (een harde link) weigert het vóór de stap, met `refused` en de eigen reden
     `hard-linked` (besluit van de technisch beslisser, 18 november 2026; review #991): anders lopen de twee namen na een
     vervanging stil uiteen, en de voorcontrole in TypeScript ziet het aantal op Windows niet (plugin-fs 2.7.1 geeft
-    daar `nlink: null`). Het commando leest het aantal van de open bron (Unix de metadata van de open descriptor,
-    Windows `nNumberOfLinks` van `GetFileInformationByHandle` op de open handle); precies één naam mag, een aantal dat
-    niet te lezen is, geeft `io`. De regel geldt voor elke bron, in stap 3 en in stap 4; een harde link van de bron op
-    het doel valt er ook onder (daarvóór gaf Windows daar `placed`, knownbug 1798).
+    daar `nlink: null`). Het commando leest het aantal van de open bron, in dezelfde lezing als het bestandstype en de
+    identiteit (Unix `fstat` op de open descriptor, Windows `nNumberOfLinks` van `GetFileInformationByHandle` op de open
+    handle). Precies één naam mag. Nul namen betekent dat de open bron intussen geen naam meer heeft: dan stopt het met
+    `source-changed`, zonder iets te verplaatsen, en de aanroeper ruimt niet op naam op (review #996). Een lezing die
+    mislukt, geeft `io`. De regel geldt voor elke bron, in stap 3 en in stap 4; een harde link van de bron op het doel
+    valt er ook onder (daarvóór gaf Windows daar `placed`, knownbug 1798). Een bestandssysteem dat voor een nieuw
+    bestand nul namen meldt, zou de route naar een nieuwe naam laten stoppen (knownbug 1822, niet aangetroffen).
 
     Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen controle en
     stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als het dat achteraf ziet, en
@@ -699,6 +702,14 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     Waarom: op Linux en macOS hernoemt het systeem op naam, dus een strikte binding bestaat daar niet zonder een omweg
     in twee stappen die alleen Linux heeft. Wie tussen controle en stap een object onder de hulpnaam kan zetten, heeft
     via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`.
+
+    Ook buiten de grens (benoemd, knownbug 1823; besluit van de technisch beslisser, 18 november 2026, na review
+    #996): de weigering van een harde link geldt waar het bestandssysteem het aantal namen eerlijk meldt. SSHFS en
+    andere FUSE- of netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie (SSHFS 3.7.7 meldt ook
+    voor een harde link op de server één naam en kan exclusief hernoemen). Waarom: er gaat geen versie verloren, want
+    de andere naam houdt de oude inhoud; het geval is zeldzaam (een harde link naar een IFC-bestand op een SSHFS-map);
+    mounts herkennen per platform is breekbaar, maakt het commando groter en zou Ctrl+S op elke SSHFS-map uitzetten,
+    en dat is erger dan het gat dat het dicht.
 
     Hoe: eerst de padteksten van de aanroeper zoals plugin-fs `rename` ze toetst (`SafeFilePath`, dan de scope van
     `from` en daarna van `to`; een doel dat nog niet bestaat, maakt Tauri niet canoniek). Dan de map, één keer geopend
@@ -758,7 +769,11 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
     bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Op een
     bestandssysteem zonder atomaire exclusieve hernoemstap overschrijft de app het bestand niet; daar is alleen
-    *Opslaan als* mogelijk.
+    *Opslaan als* mogelijk. Dat een bestand met een harde link niet vervangen wordt, geldt waar het bestandssysteem het
+    aantal namen eerlijk meldt (besluit van de technisch beslisser, 18 november 2026; knownbug 1823): op SSHFS en
+    andere FUSE- of netwerkmounts die harde links verbergen, lopen de twee namen bij een vervanging uiteen. Er gaat
+    dan geen versie verloren, want de andere naam houdt de oude inhoud; detectie zou breekbaar zijn en Ctrl+S op
+    elke SSHFS-map uitzetten.
   - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (symlink, harde link), buiten de fs-scope, of
     als een stap faalt, schrijft de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in
     `atomicWrite.ts:105-116, 155-160` past niet bij deze garantie). Zonder vreemd deel blijft de huidige route.

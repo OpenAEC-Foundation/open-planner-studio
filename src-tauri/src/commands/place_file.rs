@@ -23,11 +23,13 @@
 //! Een bron met meer dan één naam (een harde link) weigert het, vóór de stap, met de eigen reden
 //! `hard-linked` (besluit van de technisch beslisser, 18 november 2026; review #991). Anders lopen de twee
 //! namen na een vervanging stil uiteen, en de voorcontrole in TypeScript ziet het aantal op Windows niet
-//! (plugin-fs 2.7.1 geeft daar `nlink: null`). Het aantal komt van de open bron: Unix uit de metadata
-//! van de open descriptor, Windows `nNumberOfLinks` van `GetFileInformationByHandle` op de open handle.
-//! Precies één naam mag; een aantal dat niet te lezen is, is een fout (`io`), nooit "één". De regel geldt
-//! voor elke bron, ook het eigen tijdelijke bestand: daardoor bestaat ook de uitzondering van knownbug
-//! 1798 (een harde link van de bron op het doel) niet meer.
+//! (plugin-fs 2.7.1 geeft daar `nlink: null`). Het aantal komt van de open bron, in dezelfde lezing als
+//! het bestandstype en de identiteit: Unix `fstat` op de open descriptor, Windows `nNumberOfLinks` van
+//! `GetFileInformationByHandle` op de open handle. Precies één naam mag. Nul namen betekent dat de open
+//! bron intussen geen naam meer heeft: dan stopt het als na een wissel, met `source-changed` (er is niets
+//! verplaatst; de aanroeper ruimt niet op naam op). Een lezing die mislukt, is een fout (`io`), nooit
+//! "één". De regel geldt voor elke bron, ook het eigen tijdelijke bestand: daardoor bestaat ook de
+//! uitzondering van knownbug 1798 (een harde link van de bron op het doel) niet meer.
 //!
 //! Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen
 //! controle en stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als
@@ -36,6 +38,15 @@
 //! Waarom: op Linux en macOS hernoemt het systeem op naam, dus een strikte binding bestaat daar niet
 //! zonder een omweg in twee stappen die alleen Linux heeft. Wie tussen controle en stap een object onder
 //! de hulpnaam kan zetten, heeft via plugin-fs al dezelfde rechten in de thuismap. Geen `linkat`.
+//!
+//! Ook buiten de grens (benoemd, knownbug 1823; besluit van de technisch beslisser, 18 november 2026):
+//! de weigering van een harde link geldt waar het bestandssysteem het aantal namen eerlijk meldt. SSHFS
+//! en andere FUSE- of netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie (SSHFS
+//! 3.7.7 meldt ook voor een harde link op de server één naam en kan exclusief hernoemen).
+//!
+//! Waarom: er gaat geen versie verloren, want de andere naam houdt de oude inhoud. Het geval is zeldzaam
+//! (een harde link naar een IFC-bestand op een SSHFS-map). Mounts herkennen per platform is breekbaar,
+//! maakt het commando groter en zou Ctrl+S op elke SSHFS-map uitzetten; dat is erger dan het gat.
 //!
 //! Hoe: het commando toetst eerst de padteksten zoals plugin-fs `rename` (`SafeFilePath`, dan de scope
 //! van `from` en daarna van `to`). Het opent de map één keer en houdt haar vast; de scope geldt ook het
@@ -83,7 +94,9 @@ pub enum PlaceError {
     Refused { reason: RefusalReason },
     /// Na de stap stond op het doel niet de gecontroleerde bron: tussen controle en stap is de bron of
     /// de map gewisseld, of daarna het doel. Het commando raakt daarna niets meer aan en belooft geen
-    /// stand op schijf: wat de stap verplaatste, kan op `to` staan of al weer weg zijn.
+    /// stand op schijf: wat de stap verplaatste, kan op `to` staan of al weer weg zijn. Ook vóór de stap,
+    /// als de open bron geen naam meer had (nul namen): dan is er niets verplaatst, maar wat nu onder de
+    /// hulpnaam staat, is niet de bron.
     SourceChanged,
     /// Een andere fout van het systeem, met zijn tekst. Er is niets verplaatst, behalve op een
     /// netwerkschijf die de fout pas meldt nadat de hernoeming gebeurde (knownbug 1795).
@@ -103,8 +116,8 @@ pub enum RefusalReason {
     Scope,
     /// `from` is geen gewoon bestand (een map of een symbolische link).
     NotRegularFile,
-    /// `from` heeft niet precies één naam: een tweede naam (een harde link) of een aantal van nul.
-    /// Besluit van de technisch beslisser, 18 november 2026.
+    /// `from` heeft meer dan één naam (een harde link). Besluit van de technisch beslisser, 18 november
+    /// 2026.
     HardLinked,
 }
 
@@ -205,9 +218,19 @@ impl PlaceOps for SystemOps {
 /// Identiteit van een bestand: apparaat en inode (Unix), volumenummer en bestandsindex (Windows).
 type FileId = (u64, u64);
 
+/// Wat het commando van de open bron weet, uit één lezing van haar metadata.
+#[derive(Debug, Clone, Copy)]
+struct SourceInfo {
+    /// Een gewoon bestand (geen map, geen link, geen apparaat).
+    regular: bool,
+    /// Het aantal namen.
+    links: u64,
+    id: FileId,
+}
+
 #[cfg(unix)]
 mod sys {
-    use super::{FileId, OpenDir};
+    use super::{FileId, OpenDir, SourceInfo};
     use std::ffi::CString;
     use std::fs::File;
     use std::io;
@@ -283,13 +306,14 @@ mod sys {
         error.raw_os_error() == Some(libc::ELOOP)
     }
 
-    pub fn is_regular(file: &File) -> io::Result<bool> {
-        Ok(file.metadata()?.file_type().is_file())
-    }
-
-    /// Het aantal namen van de open bron (`st_nlink` van `fstat` op de open descriptor).
-    pub fn link_count(file: &File) -> io::Result<u64> {
-        Ok(file.metadata()?.nlink())
+    /// Bestandstype, aantal namen en identiteit van de open bron, uit één `fstat` op de open descriptor.
+    pub fn source_info(file: &File) -> io::Result<SourceInfo> {
+        let meta = file.metadata()?;
+        Ok(SourceInfo {
+            regular: meta.file_type().is_file(),
+            links: meta.nlink(),
+            id: (meta.dev(), meta.ino()),
+        })
     }
 
     pub fn id_in_dir(dir: &OpenDir, name: &str) -> io::Result<FileId> {
@@ -370,7 +394,7 @@ mod sys {
     //! met een open bestand erin is ook niet te verplaatsen. Het echte pad van de open map blijft dus
     //! kloppen. De stap hernoemt de open bron zelf (`SetFileInformationByHandle`, `FileRenameInfo`,
     //! `ReplaceIfExists` onwaar): wat verplaatst wordt, is precies het geopende bestand.
-    use super::{FileId, OpenDir};
+    use super::{FileId, OpenDir, SourceInfo};
     use std::fs::File;
     use std::io;
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
@@ -469,14 +493,17 @@ mod sys {
         false
     }
 
-    pub fn is_regular(file: &File) -> io::Result<bool> {
-        let attributes = info(file)?.dwFileAttributes;
-        Ok(attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT) == 0)
-    }
-
-    /// Het aantal namen van de open bron (`nNumberOfLinks` van `GetFileInformationByHandle`).
-    pub fn link_count(file: &File) -> io::Result<u64> {
-        Ok(u64::from(info(file)?.nNumberOfLinks))
+    /// Bestandstype, aantal namen (`nNumberOfLinks`) en identiteit van de open bron, uit één
+    /// `GetFileInformationByHandle` op de open handle.
+    pub fn source_info(file: &File) -> io::Result<SourceInfo> {
+        let info = info(file)?;
+        Ok(SourceInfo {
+            regular: info.dwFileAttributes
+                & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)
+                == 0,
+            links: u64::from(info.nNumberOfLinks),
+            id: id(&info),
+        })
     }
 
     pub fn id_in_dir(dir: &OpenDir, name: &str) -> io::Result<FileId> {
@@ -534,7 +561,7 @@ mod sys {
 
 #[cfg(not(any(unix, windows)))]
 mod sys {
-    use super::{FileId, OpenDir};
+    use super::{FileId, OpenDir, SourceInfo};
     use std::fs::File;
     use std::io;
     use std::path::{Path, PathBuf};
@@ -563,10 +590,7 @@ mod sys {
     pub fn is_link_refusal(_: &io::Error) -> bool {
         false
     }
-    pub fn is_regular(_: &File) -> io::Result<bool> {
-        unsupported()
-    }
-    pub fn link_count(_: &File) -> io::Result<u64> {
+    pub fn source_info(_: &File) -> io::Result<SourceInfo> {
         unsupported()
     }
     pub fn id_in_dir(_: &OpenDir, _: &str) -> io::Result<FileId> {
@@ -602,6 +626,22 @@ fn step_error(error: io::Error) -> PlaceError {
         }
     } else {
         io_error(error)
+    }
+}
+
+/// De toelating van de open bron, voor elke bron dezelfde (stap 3 en 4 van §4.10): een gewoon bestand
+/// met precies één naam. Meer namen: `hard-linked` (besluit van 18 november 2026). Nul namen: de open
+/// bron is intussen weggehaald en onder de hulpnaam kan iets anders staan, dus stoppen als na een
+/// wissel, zonder dat de aanroeper op naam opruimt (review #996).
+fn admit_source(info: SourceInfo) -> Result<FileId, PlaceError> {
+    let refused = |reason| Err(PlaceError::Refused { reason });
+    if !info.regular {
+        return refused(RefusalReason::NotRegularFile);
+    }
+    match info.links {
+        1 => Ok(info.id),
+        0 => Err(PlaceError::SourceChanged),
+        _ => refused(RefusalReason::HardLinked),
     }
 }
 
@@ -644,7 +684,8 @@ fn plain_path(path: &str) -> Option<(&str, &str)> {
 /// 4. precies één van beide namen is een eigen hulpbestand;
 /// 5. beide paden in de scope, ook op het echte pad van de open map;
 /// 6. de bron, geopend in de open map zonder links te volgen, is een gewoon bestand met precies één naam
-///    (gelezen van de open bron; onleesbaar is een fout);
+///    ([`admit_source`], uit één lezing van de open bron; onleesbaar is een fout, nul namen
+///    [`PlaceError::SourceChanged`]);
 /// 7. fsync van de open bron;
 /// 8. de exclusieve stap; een fout blijft een fout;
 /// 9. controle: op het doel staat nu de open bron, in de open map én via het pad van de aanroeper;
@@ -704,15 +745,8 @@ pub(crate) fn place(
             io_error(e)
         }
     })?;
-    if !sys::is_regular(&source).map_err(io_error)? {
-        return Err(refused(RefusalReason::NotRegularFile));
-    }
-    // Een tweede naam zou na een vervanging stil uiteenlopen. Gelezen van de open bron, niet opnieuw op
-    // naam; een aantal dat niet te lezen is, is een fout zoals bij de controle hierboven, nooit "één".
-    if sys::link_count(&source).map_err(io_error)? != 1 {
-        return Err(refused(RefusalReason::HardLinked));
-    }
-    let source_id = sys::file_id(&source).map_err(io_error)?;
+    // Eén lezing van de open bron, niet opnieuw op naam; een lezing die mislukt, is een fout, nooit "één".
+    let source_id = admit_source(sys::source_info(&source).map_err(io_error)?)?;
 
     // 7. Inhoud vastleggen vóór de naam verandert.
     ops.sync_file(&source).map_err(io_error)?;
@@ -1649,6 +1683,35 @@ mod tests {
         assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
         assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
         assert!(ops.events.borrow().is_empty());
+    }
+
+    // De toelating van de open bron (review #996): eerst het type, dan het aantal namen. Nul namen is
+    // in een proef niet zonder naad te maken (de bron wordt binnen `place` geopend en meteen gelezen);
+    // daarom hier de regel zelf, met de waarden die het systeem kan geven.
+    #[test]
+    fn place_file_toelating_van_de_bron() {
+        let id = (7, 42);
+        let info = |regular, links| SourceInfo { regular, links, id };
+        assert_eq!(admit_source(info(true, 1)), Ok(id));
+        for links in [2, 3, u64::from(u32::MAX), u64::MAX] {
+            assert_eq!(
+                admit_source(info(true, links)),
+                Err(PlaceError::Refused {
+                    reason: RefusalReason::HardLinked
+                }),
+                "{links}"
+            );
+        }
+        assert_eq!(admit_source(info(true, 0)), Err(PlaceError::SourceChanged));
+        for links in [0, 1, 2] {
+            assert_eq!(
+                admit_source(info(false, links)),
+                Err(PlaceError::Refused {
+                    reason: RefusalReason::NotRegularFile
+                }),
+                "{links}"
+            );
+        }
     }
 
     // Besluit van 18 november 2026 (review #991): een bron met een tweede naam elders in de map wordt

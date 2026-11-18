@@ -231,7 +231,8 @@ export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'
  * - `refused` met een andere reden: fout; bij `not-regular-file` niets opruimen (dan staat er iets anders onder de
  *   hulpnaam). Bij `hard-linked` (het tijdelijke bestand kreeg een tweede naam) wel: `remove` haalt alleen deze naam
  *   weg, de inhoud blijft onder de andere naam;
- * - `source-changed`: stoppen. De stand op schijf is onbekend: niets terugzetten, niets opruimen, geen terugval;
+ * - `source-changed`: stoppen. De stand op schijf is onbekend: niets terugzetten, niets opruimen, geen terugval. Ook
+ *   als het commando vóór de stap zag dat de open bron geen naam meer had: onder de hulpnaam kan dan iets anders staan;
  * - `io`: eigen bestand weg, fout `write`.
  * Na `io` of `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (knownbug 1795): het opruimen
  * is best effort en verbergt of vervangt de fout nooit, en de route leest het doel niet terug om succes te melden.

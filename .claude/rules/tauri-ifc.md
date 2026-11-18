@@ -50,7 +50,7 @@ ook op het echte pad van de open map (`FsRenameScope`: de capability via `Webvie
 runtime-scope; een verbod op de padtekst of op het echte pad wint, de toestemming geldt het echte pad, en het echte pad
 lost ook links in de bovenliggende mappen van een nog niet bestaand pad op, een lus weigert; zoals `resolve_path` en
 `resolve_real_path` in `tauri-plugin-fs-2.7.1/src/commands.rs:1615-1725`, die privé zijn), de bron geopend in de open
-map zonder link te volgen en een gewoon bestand met precies één naam (het aantal van de open bron; anders `hard-linked`,
+map zonder link te volgen en een gewoon bestand met precies één naam (het aantal van de open bron, in één lezing met type en identiteit; meer `hard-linked`, nul `source-changed`,
 besluit van 18 november 2026), fsync van die open bron, de exclusieve stap (een fout blijft een fout,
 ook `EEXIST`), een controle na de stap (op het doel staat de open bron, in de open map
 én via het pad van de aanroeper; anders `source-changed` en geen verdere stap, geen terugzetten), fsync van de map.
