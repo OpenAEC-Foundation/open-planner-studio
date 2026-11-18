@@ -44,6 +44,7 @@ import {
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice, IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE,
+  IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -824,10 +825,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad).
    *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
    *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
-   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. `readers`: hoe de controle
-   *  een bestaand doel leest (Opslaan als over een bestaande naam scant daar de inhoud die het als verwacht vastlegde). */
+   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor Opslaan als
+   *  over een bestaande naam (#804 keuze 4): `readers` scant de inhoud die als verwacht is vastgelegd in plaats van het
+   *  pad, en `openDocumentPaths` weigert ook een pad dat een open document als bestand heeft (fixronde 1 van #1019). */
   const documentTargetCheck = (
-    snapshot: AppState, write?: DocumentWrite, ownTarget = false, readers: () => TargetReaders = writeTargetReaders,
+    snapshot: AppState, write?: DocumentWrite, ownTarget = false,
+    { readers = writeTargetReaders, openDocumentPaths = false }: { readers?: () => TargetReaders; openDocumentPaths?: boolean } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
     const ownLocal = ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource);
@@ -835,9 +838,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers }, ownVersion);
+    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers, openDocumentPaths }, ownVersion);
     if (reason) {
-      get().notify(hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
+      get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
+        : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
         ? IFC_FOREIGN_REPLACE_BLOCKED_NOTICE
         : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
       return true;
@@ -858,7 +862,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const documentSaveDialog = (
     snapshot: AppState, write: DocumentWrite, name: string, replaceExisting?: (path: string, current: Uint8Array) => Promise<void>,
   ) => {
-    const options = { refuseTarget: documentTargetCheck(snapshot, write),
+    const options = { refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentPaths: !!replaceExisting }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write), replaceExisting };
     return write.prepared
       ? saveNewBytesDialog(name, write.prepared.bytes, [{ name: 'IFC Files', extensions: ['ifc'] }], options)
@@ -1504,8 +1508,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     try {
       const result = await replaceOwnPathWithRecovery({
         documentId, path, prepared, source: { bytes: current, sha256: await precomputeSha256(current) },
-        stopBeforeWrite: () => documentTargetCheck(state, write, false,
-          () => ({ ...writeTargetReaders(), scanPath: () => scanForeignTargetBytesAsync(current) }))(ref),
+        stopBeforeWrite: () => documentTargetCheck(state, write, false, {
+          readers: () => ({ ...writeTargetReaders(), scanPath: () => scanForeignTargetBytesAsync(current) }),
+          openDocumentPaths: true,
+        })(ref),
         commit: () => {
           replaced = true;
           commitSavedDocument(documentId, state, { filePath: path, fileHandle: null, siteFileId: null, siteFileVersion: null }, prepared);

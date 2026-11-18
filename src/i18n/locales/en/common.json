@@ -365,6 +365,7 @@
     "ifcForeignMergeRefused": "The IFC file was not written. The building model or data from another program would not be fully preserved. Undo the last change, or export the schedule only: to IFC with Without building model, or to another format.",
     "ifcSaveChangedWhileWaiting": "File not saved. The document or the building model source changed during preparation. Try saving again.",
     "ifcForeignNewTargetOnly": "This IFC file can only be written to a new file name. Choose a name that does not exist yet.",
+    "ifcForeignTargetOpenInTab": "Not saved. This file is open in another tab. Close that tab or choose another name.",
     "ifcForeignPlaceUnknown": "The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.",
     "ifcForeignReplaceOtherVersion": "Another program changed {{file}} while the app was saving it. That version has been kept as {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "An earlier save of {{file}} did not finish. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.",

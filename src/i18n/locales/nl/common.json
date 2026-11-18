@@ -365,6 +365,7 @@
     "ifcForeignMergeRefused": "Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan, of exporteer alleen de planning: naar IFC met Zonder gebouwmodel, of naar een ander formaat.",
     "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
     "ifcForeignNewTargetOnly": "Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geschreven. Kies een naam die nog niet bestaat.",
+    "ifcForeignTargetOpenInTab": "Niet opgeslagen. Dit bestand staat open in een ander tabblad. Sluit dat tabblad of kies een andere naam.",
     "ifcForeignPlaceUnknown": "De app weet niet of het bestand goed is opgeslagen: tijdens het opslaan veranderde er iets in de map. Je wijzigingen staan nog in de app. Kijk of het bestand klopt, of sla opnieuw op onder een nieuwe naam.",
     "ifcForeignReplaceOtherVersion": "Een ander programma heeft {{file}} gewijzigd terwijl de app het opsloeg. Die versie is bewaard als {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Een eerdere opslag van {{file}} is niet afgemaakt. De planning die toen werd opgeslagen, staat in {{copy}}. Gooi dat bestand weg als je het niet meer nodig hebt.",

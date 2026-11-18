@@ -1441,9 +1441,11 @@ await check('Opslaan als: een gebouwmodel op het doel na de bestandskiezer: de t
     const source = c.store.getState().ifcSource, from = ipc.calls.length;
     // Na de doelcontrole in de bestandskiezer, vlak voordat de app de verwachte inhoud leest, zet een ander programma een
     // gebouwmodel op het doel. Die inhoud wordt de verwachte inhoud; zonder tweede controle zou stap 5 haar weghalen.
-    let swapped = false;
+    // De eerste `lstat` op het doel stelt direct na de kiezer vast dat er een bestand staat; de tweede gaat aan het lezen
+    // van de verwachte inhoud vooraf.
+    let swapped = false, lstats = 0;
     internal.invoke = (command, ...args) => {
-      if (!swapped && command === 'plugin:fs|lstat' && (args[0] as { path?: string })?.path === target.path) {
+      if (!swapped && command === 'plugin:fs|lstat' && (args[0] as { path?: string })?.path === target.path && ++lstats === 2) {
         swapped = true;
         writeFileSync(target.path, otherWithModel);
       }
@@ -1502,6 +1504,29 @@ await check('Opslaan als over een gewone planning die in een ander tabblad open 
     assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
     assert.deepEqual(recordsOnDisk(), []);
   } finally { internal.invoke = invoke; await tidy(c); }
+});
+
+await check('Opslaan als: een tabblad dat tijdens de eerste herstelronde op de gewone planning opengaat, stopt de vervanging', async () => {
+  const c = await opened();
+  const target = otherFile(c);
+  // Rechtstreeks in de store (de openactie met bytes), tussen de controle in de bestandskiezer en die na de herstelronde.
+  const round = firstPendingRound(c, () => c.store.getState().openOpenedFile({
+    name: 'ander.ifc', content: Buffer.from(plain).toString('utf8'), bytes: plain, ref: { kind: 'path', path: target.path },
+  }));
+  try {
+    clearNotices(c);
+    const from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.equal(round.fired(), true, 'de herstelronde met de komende versie liep');
+    assert(c.store.getState().getOpenDocumentPayloads().some(d => d.id !== c.id && d.payload.filePath === target.path), 'het tweede tabblad is open');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetOpenInTab']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel houdt zijn bytes');
+    const own = c.store.getState().getOpenDocumentPayloads().find(d => d.id === c.id)!.payload;
+    assert.deepEqual([own.filePath, own.isDirty], [c.path, true], 'het document houdt zijn oude pad en blijft gewijzigd');
+    assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote && call.path?.startsWith(c.dir)), [], 'geen schrijfactie in de projectmap');
+    assert.deepEqual(placesSince(from), []);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { round.unregister(); await tidy(c); }
 });
 
 // Vervolgpunt 1 van dezelfde review: was het gekozen pad leeg toen de bestandskiezer terugkwam, dan blijft het de

@@ -255,6 +255,7 @@
     "notifications.ifcForeignMergeRefused": "bf7ce2523022f8b6",
     "notifications.ifcSaveChangedWhileWaiting": "6cd756a521ebd351",
     "notifications.ifcForeignNewTargetOnly": "b37c6a151b446d9c",
+    "notifications.ifcForeignTargetOpenInTab": "db7692e1f5a5f40a",
     "notifications.ifcForeignPlaceUnknown": "b039b883d9c952a3",
     "notifications.ifcForeignReplaceOtherVersion": "9be5aea676ceb7ae",
     "notifications.ifcForeignReplaceUnsavedCopy": "4731bb30d8be2a5b",
