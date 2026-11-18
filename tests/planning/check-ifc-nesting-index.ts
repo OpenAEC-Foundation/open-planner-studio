@@ -22,7 +22,18 @@ const same = (actual: unknown, expected: unknown, label: string) => {
   checks++;
   input.tasks[0].childIds.push('ontbrekend-kind');
   const output = writeIFC(input);
-  same(/#0\b/.test(output), false, 'ontbrekend WBS-kind wordt overgeslagen, nooit #0');
+  const entities = parseStep(output);
+  const taskRef = (id: string) => {
+    const guid = `'${ifcGuid128(ifcObjectSeed('task', id))}'`;
+    const task = entities.find(e => e.type === 'IFCTASK' && e.args[0].k === 'str' && e.args[0].raw === guid);
+    if (!task) throw new Error(`IFCTASK ontbreekt: ${id}`);
+    return task.id;
+  };
+  const parent = taskRef(input.tasks[0].id);
+  const nesting = entities.find(e => e.type === 'IFCRELNESTS' && e.args[4].k === 'ref' && e.args[4].id === parent);
+  if (!nesting || nesting.args[5].k !== 'list') throw new Error('WBS-relatie ontbreekt');
+  same(nesting.args[5].items, input.tasks.slice(1).map(t => ({ k: 'ref', id: taskRef(t.id) })),
+    'ontbrekend WBS-kind wordt overgeslagen; geldige kinderen blijven behouden');
 }
 
 // Meerdere relaties voor dezelfde ouder, herhalingen binnen/over relaties, ongeldige refs
