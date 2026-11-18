@@ -607,6 +607,10 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       void saving.then(() => get().requestCloseDocument(id));
       return;
     }
+    if (!get().documents.some((document) => document.id === id)) return;
+    // Het actieve veld kan zonder blur nog een wijziging bevatten. Rond die af vóór de
+    // dirty-controle, ook wanneer het kruisje bij een ander tabblad hoort.
+    runtime.finishPendingTextEdits();
     const doc = get().getOpenDocuments().find((d) => d.id === id);
     if (!doc) return;
     if (doc.isDirty) get().setUI({ pendingCloseDocId: id });
