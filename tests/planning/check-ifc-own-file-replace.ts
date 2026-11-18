@@ -1432,6 +1432,33 @@ await check('Opslaan als: het doel verandert tussen het begin van de opslag en d
   } finally { await tidy(c); }
 });
 
+await check('Opslaan als: een gebouwmodel op het doel na de bestandskiezer: de tweede doelcontrole weigert het, het model blijft', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const target = otherFile(c);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    // Na de doelcontrole in de bestandskiezer, vlak voordat de app de verwachte inhoud leest, zet een ander programma een
+    // gebouwmodel op het doel. Die inhoud wordt de verwachte inhoud; zonder tweede controle zou stap 5 haar weghalen.
+    let swapped = false;
+    internal.invoke = (command, ...args) => {
+      if (!swapped && command === 'plugin:fs|lstat' && (args[0] as { path?: string })?.path === target.path) {
+        swapped = true;
+        writeFileSync(target.path, otherWithModel);
+      }
+      return invoke(command, ...args);
+    };
+    await saveAsTo(c.store, target.path);
+    assert(swapped, 'de wissel gebeurde');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetSave']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(otherWithModel), 'model.ifc': hash(bytes) }, 'het gebouwmodel van de ander staat er nog');
+    documentUnchanged(c, source);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties in de map');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
 await check('Opslaan als over de bron van een ander open document: geweigerd met de bestaande melding, niets geschreven', async () => {
   const c = await opened();
   try {
