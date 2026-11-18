@@ -1,0 +1,417 @@
+// #804 stap 4: de opslagworker, nog niet aangesloten. De worker is hier een dubbel in dit proces die de echte handler
+// draait en berichten verstuurt zoals een browser: een kopie (`structuredClone`), en wat in de overdrachtslijst staat,
+// is daarna aan de kant van de afzender leeg. Zo is te zien wat gekopieerd en wat overgedragen wordt.
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { IfcOutput, IfcSaveJob } from '@/state/prepareIfcOutput';
+import type { IfcSaveRequest, IfcSaveResponse } from '@/services/ifc/saveWorker/ifcSaveProtocol';
+import type { IfcSaveWorkerPort } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
+import { installDeterminism } from './ifcPariteitKern';
+import { lengthen, lengthenedTask, loadStore, openInStore } from './ifcAppRoute';
+// @ts-expect-error — headless-bundle.mjs is plain JS zonder types
+import { zustandWithoutReactSource } from '../../scripts/lib/headless-bundle.mjs';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const reseed = installDeterminism();
+await loadStore();
+const { prepareIfcOutput, computeIfcOutputHere } = await import('@/state/prepareIfcOutput');
+const { handleIfcSaveRequest, wireError, errorFromWire } = await import('@/services/ifc/saveWorker/ifcSaveProtocol');
+const { createIfcSaveWorker, ifcSaveTimeoutMs, IfcSaveWorkerError } = await import('@/services/ifc/saveWorker/ifcSaveWorker');
+const { MergeNeedsPhase2Error } = await import('@/services/ifc/foreign/mergeWriter');
+const { StepScanError } = await import('@/services/ifc/foreign/stepScanner');
+const { IfcCalendarTimePrecisionError, IfcParseError } = await import('@/services/ifc/ifcErrors');
+const { XerSourceArchiveValidationError } = await import('@/services/xerSourceArchive');
+const { readIFC } = await import('@/services/ifc/ifcReader');
+const { createAppStoreContext } = await import('@/state/appStoreFactory');
+const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
+const { generateBenchmarkProject } = await import('@/services/benchmark/generateProject');
+
+let passed = 0, failed = 0;
+async function check(name: string, action: () => void | Promise<void>) {
+  try { await action(); passed++; console.log(`OK ${name}`); }
+  catch (error) { failed++; console.error(`XX ${name}: ${String(error instanceof Error ? error.stack : error).slice(0, 1500)}`); }
+}
+const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+const turn = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+const read = (rel: string) => new Uint8Array(readFileSync(join(root, rel)));
+
+/** Een worker in dit proces. `auto`: meldt `started` en antwoordt met de echte handler. `manual`: de proef bepaalt.
+ *  `silent`: start nooit. Elk bericht is een kopie, en de overdrachtslijst maakt de buffers aan de afzenderkant leeg. */
+class InProcessWorker implements IfcSaveWorkerPort {
+  onmessage: Worker['onmessage'] = null;
+  onerror: Worker['onerror'] = null;
+  onmessageerror: Worker['onmessageerror'] = null;
+  readonly requests: IfcSaveRequest[] = [];
+  /** De buffers die de worker teruggaf, zoals hij ze daarna nog ziet (overgedragen = leeg). */
+  readonly sentBack: Uint8Array[] = [];
+  terminated = false;
+  private startedSent = false;
+  constructor(private readonly mode: 'auto' | 'manual' | 'silent' = 'auto') {}
+  postMessage(message: unknown, options?: StructuredSerializeOptions | Transferable[]) {
+    const transfer = Array.isArray(options) ? options : options?.transfer ?? [];
+    const request = structuredClone(message as IfcSaveRequest, { transfer });
+    this.requests.push(request);
+    if (this.mode === 'auto') setTimeout(() => { this.start(); void this.answer(this.requests.length - 1); }, 0);
+  }
+  start() {
+    if (this.startedSent || this.terminated) return;
+    this.startedSent = true;
+    this.emit({ started: true });
+  }
+  async answer(index: number) {
+    const { response, transfer } = await handleIfcSaveRequest(this.requests[index]!);
+    if (this.terminated) return;
+    const views = 'result' in response && response.result.kind !== 'merge-unchanged'
+      ? response.result.kind === 'writer' ? [response.result.bytes] : [response.result.prepared.bytes] : [];
+    const delivered = structuredClone(response, { transfer });
+    this.sentBack.push(...views);
+    this.emit(delivered);
+  }
+  emit(data: IfcSaveResponse) {
+    this.onmessage?.call(this as unknown as Worker, { data } as MessageEvent<IfcSaveResponse>);
+  }
+  fail(message: string) {
+    this.onerror?.call(this as unknown as Worker, { message, preventDefault: () => undefined } as ErrorEvent);
+  }
+  terminate() { this.terminated = true; }
+}
+
+type Outcome = { readonly output: IfcOutput } | { readonly error: unknown };
+async function outcome(run: () => Promise<IfcOutput>): Promise<Outcome> {
+  reseed(1);
+  try { return { output: await run() }; } catch (error) { return { error }; }
+}
+function ownFields(error: object) {
+  return Object.fromEntries(Object.entries(error).filter(([key]) => key !== 'stack'));
+}
+function sameError(viaWorker: unknown, main: unknown, label: string) {
+  assert.ok(main instanceof Error, `${label}: de hoofdthread gooit een Error`);
+  assert.ok(viaWorker instanceof Error, `${label}: via de worker ook (${String(viaWorker)})`);
+  assert.equal(Object.getPrototypeOf(viaWorker), Object.getPrototypeOf(main), `${label}: dezelfde foutsoort`);
+  assert.ok(!(viaWorker instanceof IfcSaveWorkerError), `${label}: geen transportfout`);
+  assert.equal(viaWorker.message, main.message, `${label}: dezelfde tekst`);
+  assert.equal(viaWorker.name, main.name, `${label}: dezelfde naam`);
+  assert.deepEqual(ownFields(viaWorker), ownFields(main), `${label}: dezelfde gegevens`);
+}
+const SOURCE_FIELDS = ['sha256', 'schemaName', 'chunkStarts', 'chunkIds', 'classes', 'stepIds', 'foreignMembers', 'foreign',
+  'foreignObjectCount', 'buildingModel', 'lineEnding', 'opened'] as const;
+/** Dezelfde uitkomst, of dezelfde fout. Geeft de soort terug voor de telling. */
+function sameOutcome(viaWorker: Outcome, main: Outcome, label: string): 'writer' | 'merge' | 'geweigerd' | 'fout' {
+  if ('error' in main) {
+    assert.ok('error' in viaWorker, `${label}: de hoofdthread weigert, de worker niet`);
+    sameError(viaWorker.error, main.error, label);
+    return main.error instanceof MergeNeedsPhase2Error ? 'geweigerd' : 'fout';
+  }
+  assert.ok('output' in viaWorker, `${label}: de worker gaf een fout: ${'error' in viaWorker ? String(viaWorker.error) : ''}`);
+  const a = viaWorker.output, b = main.output;
+  assert.deepEqual([...a.literalCalendarIds], [...b.literalCalendarIds], `${label}: dezelfde letterlijke kalenders`);
+  if (!b.prepared) {
+    assert.ok(!a.prepared && a.bytes, `${label}: de gewone writer geeft bytes terug`);
+    assert.equal(sha(a.bytes!), sha(new TextEncoder().encode(b.content)), `${label}: dezelfde sha256`);
+    assert.equal(a.content, b.content, `${label}: dezelfde tekst`);
+    return 'writer';
+  }
+  assert.ok(a.prepared, `${label}: de merge geeft een voorbereide opslag terug`);
+  assert.equal(sha(a.prepared.bytes), sha(b.prepared.bytes), `${label}: dezelfde bytes`);
+  assert.equal(a.prepared.sha256, b.prepared.sha256, `${label}: dezelfde sha256`);
+  assert.equal(a.prepared.sha256, sha(a.prepared.bytes), `${label}: de sha256 hoort bij de bytes`);
+  assert.equal(a.prepared.bytes, a.prepared.source.bytes, `${label}: de uitvoer is de buffer van de nieuwe bron`);
+  for (const key of SOURCE_FIELDS) assert.deepEqual(a.prepared.source[key], b.prepared.source[key], `${label}: bron.${key}`);
+  assert.equal(sha(a.prepared.source.bytes), sha(b.prepared.source.bytes), `${label}: bron.bytes`);
+  if (a.prepared.source.opened) assert.ok(Object.isFrozen(a.prepared.source.opened.tasks), `${label}: bron.opened is bevroren`);
+  return 'merge';
+}
+
+const shared = new InProcessWorker();
+let sharedStarts = 0;
+const saveWorker = createIfcSaveWorker({ createWorker: () => { sharedStarts++; return shared; } });
+const counts: Record<string, number> = {};
+const count = (kind: string) => { counts[kind] = (counts[kind] ?? 0) + 1; };
+
+/** Hoofdthread en worker voor dezelfde toestand en invoer, via `prepareIfcOutput` (de beslisregels één keer). */
+async function compare(state: Parameters<typeof prepareIfcOutput>[0], input: Parameters<typeof prepareIfcOutput>[1], label: string) {
+  const sourceBefore = state.ifcSource ? sha(state.ifcSource.bytes) : undefined;
+  const lengthBefore = state.ifcSource?.bytes.byteLength;
+  const main = await outcome(() => prepareIfcOutput(state, input));
+  const viaWorker = await outcome(() => prepareIfcOutput(state, input, undefined, saveWorker.compute));
+  if ('output' in main && main.output.prepared && 'output' in viaWorker && viaWorker.output.prepared) {
+    // Gaf de hoofdthread de bron zelf terug (ongewijzigd), dan de worker ook: dezelfde identiteit.
+    assert.equal(viaWorker.output.prepared.source === state.ifcSource, main.output.prepared.source === state.ifcSource,
+      `${label}: bron-identiteit`);
+  }
+  count(sameOutcome(viaWorker, main, label));
+  if (state.ifcSource) {
+    assert.equal(state.ifcSource.bytes.byteLength, lengthBefore, `${label}: de bronbytes op de hoofdthread zijn niet overgedragen`);
+    assert.equal(sha(state.ifcSource.bytes), sourceBefore, `${label}: de bronbytes op de hoofdthread zijn intact`);
+  }
+}
+
+await check('pariteit: de voorbeelden (gewone writer)', async () => {
+  const files = readdirSync(join(root, 'public/examples')).filter(f => f.endsWith('.ifc')).sort();
+  assert.ok(files.length >= 8);
+  for (const file of files) {
+    const { store, snapshot } = await openInStore(read(`public/examples/${file}`), file);
+    await compare(store.getState(), snapshot(store), file);
+  }
+});
+
+await check('pariteit: de fixtures met een vreemd deel (merge), ongewijzigd en na een bewerking', async () => {
+  const files = readdirSync(join(root, 'tests/fixtures/ifc-foreign')).filter(f => f.endsWith('.ifc')).sort();
+  let opened = 0;
+  for (const file of files) {
+    let route: Awaited<ReturnType<typeof openInStore>>;
+    try { route = await openInStore(read(`tests/fixtures/ifc-foreign/${file}`), file); } catch { continue; }
+    opened++;
+    const state = route.store.getState();
+    const input = route.snapshot(route.store);
+    await compare(state, input, `${file} ongewijzigd`);
+    const task = lengthenedTask(input);
+    if (!task) continue; // alleen een model, geen taak om te bewerken
+    await compare(state, { ...await lengthen(input, task.id), writeMode: 'merge' }, `${file} een dag langer`);
+  }
+  assert.ok(opened >= 6, `${opened} fixtures geopend`);
+  assert.ok((counts.merge ?? 0) >= 6, `merges vergeleken: ${counts.merge ?? 0}`);
+});
+
+let plan1000: WriteIFCInput | undefined;
+await check('pariteit: een gegenereerd plan van 1.000 taken, gewone writer en merge', async () => {
+  const { store } = createAppStoreContext();
+  store.getState().openAsDocument(generateBenchmarkProject(1000), { name: 'plan-1000.ifc', ref: null });
+  const input = buildWriteIFCInput(store.getState(), 'merge');
+  assert.ok(input.tasks.length >= 1000, `${input.tasks.length} taken`);
+  plan1000 = input;
+  let start = performance.now();
+  await compare(store.getState(), input, 'plan 1000 writer');
+  console.log(`   (1000 taken, gewone writer, beide routes: ${Math.round(performance.now() - start)} ms)`);
+  // Dezelfde planning met een wand van een ander programma: de merge.
+  const office = (await prepareIfcOutput(store.getState(), input)).content!;
+  const wall = [
+    "#990001=IFCORGANIZATION($,'Arch',$,$,$);", "#990002=IFCAPPLICATION(#990001,'1','Revit','RVT');",
+    "#990003=IFCPERSON($,'Ontwerper',$,$,$,$,$,$);", '#990004=IFCPERSONANDORGANIZATION(#990003,#990001,$);',
+    '#990005=IFCOWNERHISTORY(#990004,#990002,$,.ADDED.,$,$,$,1);',
+    "#990006=IFCWALL('2O2Fr$t4X7Zf8NOew3FLOX',#990005,'Wand',$,$,$,$,$,$);",
+  ].join('\n');
+  const at = office.lastIndexOf('ENDSEC;');
+  const route = await openInStore(new TextEncoder().encode(`${office.slice(0, at)}${wall}\n${office.slice(at)}`), 'plan-1000-wand.ifc');
+  const state = route.store.getState();
+  assert.equal(state.ifcSource?.foreign, true);
+  const mergeInput = route.snapshot(route.store);
+  start = performance.now();
+  await compare(state, mergeInput, 'plan 1000 merge ongewijzigd');
+  await compare(state, { ...await lengthen(mergeInput, lengthenedTask(mergeInput).id), writeMode: 'merge' }, 'plan 1000 merge een dag langer');
+  console.log(`   (1000 taken, merge, twee keer beide routes: ${Math.round(performance.now() - start)} ms)`);
+});
+
+await check('één worker voor alle verzoeken hierboven, na elkaar', () => {
+  assert.equal(sharedStarts, 1, 'dezelfde worker hergebruikt');
+  assert.equal(shared.terminated, false, 'een weigering of fout van de merge laat de worker staan');
+  assert.ok(shared.requests.length >= 20, `${shared.requests.length} verzoeken`);
+  assert.deepEqual(shared.requests.map(r => r.id), shared.requests.map((_r, i) => i + 1), 'oplopende verzoeknummers');
+  // Terug overgedragen, niet gekopieerd: na het versturen is de buffer aan de kant van de worker leeg.
+  assert.ok(shared.sentBack.length > 0 && shared.sentBack.every(view => view.byteLength === 0), 'uitvoer overgedragen');
+  console.log(`   (vergeleken: ${JSON.stringify(counts)})`);
+});
+
+await check('dezelfde weigering van de merge, met dezelfde gevallen', () => {
+  assert.ok((counts.geweigerd ?? 0) >= 1, `weigeringen vergeleken: ${counts.geweigerd ?? 0}`);
+});
+
+const fixtureRoute = await openInStore(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'eigen-plus-model.ifc');
+const fixtureState = fixtureRoute.store.getState();
+const fixtureInput = fixtureRoute.snapshot(fixtureRoute.store);
+const mergeJob: IfcSaveJob = { kind: 'merge', input: fixtureInput, source: fixtureState.ifcSource! };
+const writerJob: IfcSaveJob = { kind: 'writer', input: { ...plan1000!, writeMode: 'merge' } };
+
+await check('dezelfde fouten over de grens: writer, scanner en de merge zelf', async () => {
+  const zoned = readFileSync(join(root, 'tests/planning/fixtures/periode-oude-minuutfractie.ifc'), 'utf8')
+    .replace("IFCTIMEPERIOD('07:30.5:00','16:00:00')", "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')");
+  const fine = readIFC(zoned);
+  fine.calendar.workTime!.byWeekday[1][0].start += 1;
+  const jobs: Array<[string, IfcSaveJob, new (...args: never[]) => Error]> = [
+    ['kalenderprecisie (writer)', { kind: 'writer', input: { ...fine, writeMode: 'planOnly' } }, IfcCalendarTimePrecisionError],
+    ['geen STEP (scanner)', { kind: 'merge', input: fixtureInput, source: { ...mergeJob.source, bytes: new TextEncoder().encode('geen ifc') } }, StepScanError],
+    ['andere bron dan de index', { kind: 'merge', input: fixtureInput, source: { ...mergeJob.source, chunkIds: new Int32Array(mergeJob.source.chunkIds.length) } }, Error],
+  ];
+  for (const [label, job, kind] of jobs) {
+    const main = await outcome(() => computeIfcOutputHere(job));
+    const viaWorker = await outcome(() => saveWorker.compute(job));
+    assert.ok('error' in main && main.error instanceof kind, `${label}: de hoofdthread gooit ${kind.name} (${'error' in main ? String(main.error) : 'geen fout'})`);
+    sameError('error' in viaWorker ? viaWorker.error : undefined, main.error, label);
+  }
+  assert.equal(shared.terminated, false, 'inhoudelijke fouten laten de worker staan');
+});
+
+await check('elke foutsoort van de grens komt terug als zichzelf, met haar gegevens', () => {
+  const errors: Error[] = [
+    new MergeNeedsPhase2Error([{ kind: 'vreemde-herkomst', sourceId: 12, detail: 'x' }, { kind: 'niet-gedragen', detail: 'y',
+      field: { type: 'IFCTASK', slot: 3, source: "'a'", output: "'b'" } as never }]),
+    new IfcCalendarTimePrecisionError(481.5), new StepScanError('id-te-groot', 'te groot', 17), new IfcParseError('no-data-section', 'leeg'),
+    new XerSourceArchiveValidationError('archief'), new TypeError('type'), new RangeError('bereik'), new Error('gewoon'),
+  ];
+  for (const error of errors) sameError(errorFromWire(structuredClone(wireError(error))), error, error.name);
+  const thrown = errorFromWire(structuredClone(wireError('tekst')));
+  assert.equal(Object.getPrototypeOf(thrown), Error.prototype);
+  assert.equal(thrown.message, 'tekst');
+});
+
+await check('de worker start niet: de hoofdthread rekent en geeft hetzelfde', async () => {
+  const main = { writer: await outcome(() => computeIfcOutputHere(writerJob)), merge: await outcome(() => computeIfcOutputHere(mergeJob)) };
+  const silent = new InProcessWorker('silent');
+  const failing = new InProcessWorker('manual');
+  const factories: Array<[string, () => IfcSaveWorkerPort | null, InProcessWorker?]> = [
+    ['geen Worker', () => null],
+    ['constructor weigert (sandbox)', () => { throw new Error('SecurityError'); }],
+    ['geen started binnen de starttijd', () => silent, silent],
+    ['fout bij het laden', () => { setTimeout(() => failing.fail('module laadt niet'), 0); return failing; }, failing],
+  ];
+  for (const [label, factory, port] of factories) {
+    let created = 0;
+    const client = createIfcSaveWorker({ createWorker: () => { created++; return factory(); }, startTimeoutMs: 30 });
+    for (const job of [writerJob, mergeJob]) {
+      const viaFallback = await outcome(() => client.compute(job));
+      sameOutcome(viaFallback, job.kind === 'writer' ? main.writer : main.merge, `${label}, ${job.kind}`);
+    }
+    assert.equal(created, 1, `${label}: na een startprobleem rekent de rest van de sessie de hoofdthread`);
+    if (port) assert.equal(port.terminated, true, `${label}: de worker is gestopt`);
+    assert.equal(sha(mergeJob.source.bytes), mergeJob.source.sha256, `${label}: bron intact`);
+    client.dispose();
+  }
+});
+
+await check('de worker sterft tijdens het rekenen of overschrijdt de tijd: een fout, de hoofdthread rekent niet opnieuw', async () => {
+  for (const [label, act, reason] of [
+    ['sterft', (w: InProcessWorker) => w.fail('Out of memory'), 'crashed'],
+    ['geen antwoord', () => undefined, 'timeout'],
+    ['onleesbaar antwoord', (w: InProcessWorker) => w.onmessageerror?.call(w as unknown as Worker, {} as MessageEvent), 'transport'],
+  ] as const) {
+    const workers: InProcessWorker[] = [];
+    const client = createIfcSaveWorker({
+      createWorker: () => { const w = new InProcessWorker('manual'); workers.push(w); return w; }, timeoutMs: () => 40,
+    });
+    const run = client.compute(mergeJob);
+    await turn();
+    workers[0]!.start();
+    act(workers[0]!);
+    await assert.rejects(run, (error: unknown) => error instanceof IfcSaveWorkerError && error.reason === reason, label);
+    assert.equal(workers[0]!.terminated, true, `${label}: de worker is gestopt`);
+    assert.equal(sha(mergeJob.source.bytes), mergeJob.source.sha256, `${label}: bron intact`);
+    // De volgende opslag start een nieuwe worker; de hoofdthread rekende niet.
+    const next = client.compute(writerJob);
+    await turn();
+    assert.equal(workers.length, 2, `${label}: de volgende opslag krijgt een nieuwe worker`);
+    workers[1]!.start();
+    await workers[1]!.answer(0);
+    assert.ok((await next).bytes, `${label}: de nieuwe worker rekent`);
+    client.dispose();
+  }
+  // Ook een verzoek dat niet over de grens kan, is een fout en geen terugval.
+  const port = new InProcessWorker('auto');
+  const client = createIfcSaveWorker({ createWorker: () => port });
+  await assert.rejects(client.compute({ kind: 'writer', input: { ...writerJob.input, kanNiet: () => 1 } as never }),
+    (error: unknown) => error instanceof IfcSaveWorkerError && error.reason === 'transport');
+  client.dispose();
+});
+
+await check('dispose tijdens een verzoek: een fout, en een laat antwoord doet niets', async () => {
+  const port = new InProcessWorker('manual');
+  let created = 0;
+  const client = createIfcSaveWorker({ createWorker: () => { created++; return port; } });
+  const run = client.compute(mergeJob);
+  let settled = 0;
+  run.then(() => { settled++; }, () => { settled++; });
+  await turn();
+  port.start();
+  client.dispose();
+  await assert.rejects(run, (error: unknown) => error instanceof IfcSaveWorkerError && error.reason === 'disposed');
+  assert.equal(port.terminated, true);
+  // Het late antwoord: de handler rekent het uit en stuurt het; er luistert niemand meer en er verandert niets.
+  const late = await handleIfcSaveRequest(port.requests[0]!);
+  port.emit(late.response);
+  await turn();
+  assert.equal(settled, 1, 'de opslag eindigde één keer');
+  await assert.rejects(client.compute(writerJob), (error: unknown) => error instanceof IfcSaveWorkerError && error.reason === 'disposed');
+  assert.equal(created, 1, 'na dispose geen nieuwe worker');
+});
+
+await check('twee verzoeken na elkaar via dezelfde worker: het tweede wacht zijn beurt af', async () => {
+  const port = new InProcessWorker('manual');
+  let created = 0;
+  const client = createIfcSaveWorker({ createWorker: () => { created++; return port; } });
+  const first = client.compute(mergeJob);
+  const second = client.compute(writerJob);
+  await turn();
+  assert.equal(port.requests.length, 1, 'hoogstens één verzoek tegelijk');
+  port.start();
+  port.emit({ id: 999, result: { kind: 'merge-unchanged', literalCalendarIds: [] } });
+  await turn();
+  assert.equal(port.requests.length, 1, 'een antwoord met een ander nummer telt niet');
+  await port.answer(0);
+  const a = await first;
+  assert.equal(a.prepared?.source, mergeJob.source, 'ongewijzigd: dezelfde bron terug, zoals op de hoofdthread');
+  await turn();
+  assert.equal(port.requests.length, 2);
+  assert.deepEqual(port.requests.map(r => r.id), [1, 2]);
+  await port.answer(1);
+  assert.ok((await second).bytes);
+  assert.equal(created, 1);
+  client.dispose();
+});
+
+await check('de bron gaat als kopie heen: de buffers op de hoofdthread blijven bruikbaar', async () => {
+  const port = new InProcessWorker('auto');
+  const client = createIfcSaveWorker({ createWorker: () => port });
+  await client.compute(mergeJob);
+  assert.equal(mergeJob.source.bytes.byteLength, fixtureState.ifcSource!.bytes.byteLength);
+  assert.equal(sha(mergeJob.source.bytes), mergeJob.source.sha256);
+  assert.ok(mergeJob.source.chunkStarts.length > 0 && mergeJob.source.classes.length > 0);
+  assert.notEqual(port.requests[0]!.job.kind === 'merge' && port.requests[0]!.job.source.bytes, mergeJob.source.bytes, 'een eigen kopie');
+  client.dispose();
+});
+
+await check('de rekentijd groeit mee met de bron', () => {
+  assert.equal(ifcSaveTimeoutMs(writerJob), 60_000);
+  const big = { ...mergeJob, source: { ...mergeJob.source, bytes: new Uint8Array(0) } };
+  Object.defineProperty(big.source.bytes, 'byteLength', { value: 300 * 2 ** 20 });
+  assert.equal(ifcSaveTimeoutMs(big), 360_000);
+  assert.ok(ifcSaveTimeoutMs(mergeJob) > 60_000);
+});
+
+await check('de workerbundel: de storefabriek wel, React, Tauri, de singleton en de i18n-UI-config niet', async () => {
+  const esbuild = createRequire(import.meta.url)(join(root, 'node_modules/esbuild')) as typeof import('esbuild');
+  const result = await esbuild.build({
+    entryPoints: [join(root, 'src/services/ifc/saveWorker/ifcSave.worker.ts')], bundle: true, format: 'esm', splitting: true,
+    platform: 'browser', outdir: join(root, '.ops-save-worker-bundle'), write: false, metafile: true, minify: true,
+    alias: { '@': join(root, 'src') }, logLevel: 'error',
+    define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.MODE': '"production"',
+      __OPS_DEV_INSTANCE__: '""', __APP_VERSION__: '"0"' },
+    // Hetzelfde als de workerplugin in vite.config.ts: zustand zonder React.
+    plugins: [{ name: 'zustand-zonder-react', setup(build) {
+      build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-zustand' }));
+      build.onLoad({ filter: /.*/, namespace: 'ops-zustand' }, () => ({ resolveDir: root, contents: zustandWithoutReactSource('a Web Worker') as string }));
+    } }],
+  });
+  const outputs = result.metafile.outputs;
+  const entry = Object.keys(outputs).find(key => outputs[key]!.entryPoint?.endsWith('ifcSave.worker.ts'))!;
+  const loaded = new Set<string>();
+  for (const stack = [entry]; stack.length;) {
+    const key = stack.pop()!;
+    if (loaded.has(key)) continue;
+    loaded.add(key);
+    for (const next of outputs[key]!.imports) if (next.kind === 'import-statement' && !next.external) stack.push(next.path);
+  }
+  const inputs = new Set([...loaded].flatMap(key => Object.keys(outputs[key]!.inputs).map(p => p.replace(/\\/g, '/'))));
+  const forbidden = [...inputs].filter(p => /node_modules\/(react|react-dom|@tauri-apps)\/|src\/state\/appStore\.ts$|src\/i18n\/config\.ts$|src\/i18n\/locales\/|src\/components\/|src\/hooks\//.test(p));
+  assert.deepEqual(forbidden, [], 'verboden in de statische bundel');
+  assert.ok([...inputs].some(p => p.endsWith('src/state/appStoreFactory.ts')), 'de storefabriek zit erin');
+  const kib = [...loaded].reduce((sum, key) => sum + outputs[key]!.bytes, 0) / 1024;
+  const lazy = Object.keys(outputs).filter(key => !loaded.has(key)).reduce((sum, key) => sum + outputs[key]!.bytes, 0) / 1024;
+  console.log(`   (esbuild, verkleind: ${Math.round(kib)} KiB statisch in ${loaded.size} delen, ${inputs.size} bronbestanden; ${Math.round(lazy)} KiB alleen achter een dynamische import)`);
+});
+
+console.log(`\n${passed} OK, ${failed} XX`);
+if (failed) process.exit(1);

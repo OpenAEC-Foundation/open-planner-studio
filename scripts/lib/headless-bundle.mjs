@@ -20,6 +20,19 @@ export const FORBIDDEN_INPUTS = [
   'node_modules/@tauri-apps/',
 ];
 
+/** De bron van `zustand` zonder React: `create` geeft een functie-object met de store-API, net als zustand zelf, maar
+ *  zonder `useSyncExternalStore`; de hook gooit pas bij gebruik. Ook gebruikt voor de workerbundels van Vite
+ *  (`vite.config.ts`, de opslagworker laadt de storefabriek). */
+export function zustandWithoutReactSource(label) {
+  return `
+          import { createStore } from 'zustand/vanilla';
+          const bind = (api) => Object.assign(() => {
+            throw new Error(${JSON.stringify(`React hooks are not available in ${label}`)});
+          }, api);
+          export const create = (init) => (init ? bind(createStore(init)) : (i) => bind(createStore(i)));
+          export { createStore };`;
+}
+
 /** esbuild-plugin: zustand zonder React-hook, en een gooiende stub voor elke module uit `STUBBED`. */
 export function headlessStubPlugin(root, label) {
   return {
@@ -30,13 +43,7 @@ export function headlessStubPlugin(root, label) {
       build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-core-zustand' }));
       build.onLoad({ filter: /.*/, namespace: 'ops-core-zustand' }, () => ({
         resolveDir: root,
-        contents: `
-          import { createStore } from 'zustand/vanilla';
-          const bind = (api) => Object.assign(() => {
-            throw new Error(${JSON.stringify(`React hooks are not available in ${label}`)});
-          }, api);
-          export const create = (init) => (init ? bind(createStore(init)) : (i) => bind(createStore(i)));
-          export { createStore };`,
+        contents: zustandWithoutReactSource(label),
       }));
       for (const filter of STUBBED) {
         build.onResolve({ filter }, (args) => ({ path: args.path, namespace: 'ops-core-stub' }));

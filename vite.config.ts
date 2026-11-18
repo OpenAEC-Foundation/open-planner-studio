@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
@@ -46,6 +46,24 @@ function linkedPackageRoots(modules: string): string[] {
 }
 // @ts-expect-error — dev-port.mjs is plain JS zonder types
 import { worktreeRoot, readRecordedPort } from './scripts/dev-port.mjs';
+// @ts-expect-error — headless-bundle.mjs is plain JS zonder types
+import { zustandWithoutReactSource } from './scripts/lib/headless-bundle.mjs';
+
+/**
+ * Workerbundels krijgen `zustand` zonder React (#804 stap 4): de opslagworker laadt de storefabriek voor de heropening
+ * van de merge, en `create` uit `zustand` importeert React voor zijn hook. Een worker heeft geen hook nodig. Dezelfde
+ * bron als de headless kern (`scripts/lib/headless-bundle.mjs`). Alleen de productiebouw: de dev-server laadt een
+ * worker met de gewone plugins, en daar is React in de worker onschuldig.
+ */
+function zustandWithoutReactInWorkers(): Plugin {
+  const id = '\0ops-worker-zustand';
+  return {
+    name: 'ops-worker-zustand-without-react',
+    enforce: 'pre',
+    resolveId: (source) => (source === 'zustand' ? id : null),
+    load: (loaded) => (loaded === id ? (zustandWithoutReactSource('a Web Worker') as string) : null),
+  };
+}
 
 /**
  * Vite-modus van de platformbouw voor de OpenAEC-app op Frappe (issue #307). Alleen
@@ -76,7 +94,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Web Workers (nivelleren op de achtergrond, `services/leveling/`): ES-modules, zodat een worker
   // die engine-code met dynamische imports meeneemt ook in de productiebuild bundelt.
-  worker: { format: 'es' },
+  worker: { format: 'es', plugins: () => [zustandWithoutReactInWorkers()] },
   server: {
     // Port comes from scripts/tauri-dev.mjs (OPS_DEV_PORT) so the desktop
     // window's devUrl always matches. strictPort makes a clash fail loudly
