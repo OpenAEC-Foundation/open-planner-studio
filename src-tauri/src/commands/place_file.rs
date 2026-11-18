@@ -709,9 +709,8 @@ pub(crate) fn place(
     }
     // Een tweede naam zou na een vervanging stil uiteenlopen. Gelezen van de open bron, niet opnieuw op
     // naam; een aantal dat niet te lezen is, is een fout zoals bij de controle hierboven, nooit "één".
-    if sys::link_count(&source).map_err(io_error)? != 1 {
-        return Err(refused(RefusalReason::HardLinked));
-    }
+    // MUTATIE: de controle op het aantal namen is weg (alleen gelezen, niet getoetst).
+    let _ = sys::link_count(&source);
     let source_id = sys::file_id(&source).map_err(io_error)?;
 
     // 7. Inhoud vastleggen vóór de naam verandert.
