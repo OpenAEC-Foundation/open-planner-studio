@@ -23,3 +23,10 @@ export function customTaskTypeClashes(
     sameNameOtherId: types.find(type => type.id !== candidate.id && sameTaskTypeName(type.name, candidate.name)),
   };
 }
+
+/** Gebruikt minstens één taak dit eigen taaktype? Alleen zo'n definitie gaat mee in het IFC-bestand en in
+ *  het crashherstel (`writeTaskTypeMeta` in `ifcWriter.ts` schrijft alleen gebruikte definities), dus alleen
+ *  dan heeft een hernoeming van de projectkopie blijvend effect (#804 keuze 7). */
+export function customTaskTypeInUse(tasks: readonly { customTaskTypeId?: string }[], id: string): boolean {
+  return tasks.some(task => task.customTaskTypeId === id);
+}

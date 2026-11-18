@@ -418,6 +418,8 @@ export type NotificationMessageKey =
   | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
+  // Een eigen werksoort ook in het project hernoemen botst met een andere werksoort daar (#804 keuze 7).
+  | 'notifications.taskTypeRenameNameTaken'
   // Nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.

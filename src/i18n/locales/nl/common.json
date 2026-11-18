@@ -371,7 +371,8 @@
     "ifcForeignReplaceSaveAsOnly": "Niet opgeslagen. Dit bestand kan op deze plek niet veilig worden vervangen. Het bestand is niet veranderd. Kies Opslaan als om je wijzigingen in een nieuw bestand te bewaren.",
     "ifcForeignReplaceLeftOver": "Van een onderbroken opslag van {{file}} bleef dit bestand staan: {{path}}. Kijk of je het nog nodig hebt.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
-    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
+    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.",
+    "taskTypeRenameNameTaken": "In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
