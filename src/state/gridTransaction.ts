@@ -40,8 +40,7 @@ import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
-import { originalAppState } from './immerDraft';
-import { progressPlannedStart, progressPlannedStartAfterEdit } from './progressPlannedStart';
+import { progressPlannedStarts } from './progressPlannedStart';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -525,7 +524,6 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     projectId: state.project.id,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     statusDate: state.project.statusDate,
-    plannedStart: edited => progressPlannedStart(originalAppState(state) ?? state, edited),
     calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourModeCalendar(effectiveCalendar) === true,
@@ -565,6 +563,7 @@ function applyCellEdits(
   // Bepaalt een voorganger de start van deze taak? Lui en per transactie gedeeld (zie
   // `prepareGridMutation`), want alleen een getypte start heeft het nodig.
   startDrivenByPredecessor: (taskId: string) => boolean,
+  plannedStart: (task: Task) => string | undefined,
   // De toewijzingen van deze taak (uit de callerindex, O(1)), voor de
   // werkdriehoek bij een duurbewerking.
   assignmentsForTask: readonly AppState['assignments'][number][] = [],
@@ -831,7 +830,7 @@ function applyCellEdits(
   let progressStart: string | undefined;
   const planned = planTaskCellEdits(current, remainingEdits, {
     ...environment,
-    plannedStart: edited => (progressStart = progressPlannedStartAfterEdit(state, task, edited)),
+    plannedStart: edited => (progressStart = plannedStart(edited)),
   });
   if (!planned.ok) return planned;
   if (planned.value.changed) {
@@ -870,11 +869,11 @@ function applyCellEdits(
   };
 }
 
-export function prepareGridMutation(
+function prepareGridWrites(
   state: Readonly<AppState>,
   intents: readonly GridIntent[],
   options?: GridMutationOptions,
-): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
+): GridResult<Omit<PreparedGridMutation, 'derivedAfter'> & { isolated: AppState }, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
   const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
@@ -904,6 +903,28 @@ export function prepareGridMutation(
     (total, intent) => total + (intent.kind === 'paste' ? intent.skippedReadOnlyCount ?? 0 : 0),
     0,
   );
+
+  let lookup = progressPlannedStarts(state);
+  let checkedPlacement = false;
+  const plannedStart = (task: Task): string | undefined => {
+    if (!checkedPlacement) {
+      checkedPlacement = true;
+      // Eerst alle plaatsingswijzigingen uit de plak, zonder nieuwe percentages. Een
+      // voorganger kan op een andere rij staan, ook onder de taak die voortgang krijgt.
+      const placementWrites = orderedWrites.filter(write => write.kind !== 'cell-edit'
+        || write.route === 'task-schedule' || write.route === 'task-constraint'
+        || write.route === 'task-milestone' || write.route === 'task-hammock'
+        || ['task.workRule', 'task.time.actualStart', 'task.time.actualFinish'].includes(String(write.columnId)));
+      if (placementWrites.length > 0) {
+        const preview = prepareGridWrites(state, [{ kind: 'paste', writes: placementWrites,
+          allowSkippingReadOnlyCells: skipReadOnlyCells }]);
+        if (preview.ok && preview.value.after.scheduleStale) {
+          lookup = progressPlannedStarts(preview.value.after, true);
+        }
+      }
+    }
+    return lookup(task);
+  };
 
   const runtime = buildGridColumnRuntime(state);
   let relationWriteCount = 0;
@@ -967,7 +988,7 @@ export function prepareGridMutation(
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
         const applied = applyCellEdits(
-          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor,
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor, plannedStart,
           draftAssignmentsByTaskId.get(write.taskId) ?? [],
           plansStatusDateToday ? today : undefined,
         );
@@ -1115,7 +1136,31 @@ export function prepareGridMutation(
   const workNotice = remainingWorkRecomputedNotice(recomputedWork);
   if (workNotice) notifications.push(workNotice);
 
-  const after = createSnapshot(isolated);
+  return {
+    ok: true,
+    value: {
+      isolated,
+      documentId: state.activeDocumentId,
+      before,
+      after: createSnapshot(isolated),
+      notifications: [...notifications, ...startEditNotifications(startNotices, state.ui.dateNotation, state.ui.timeNotation)],
+      timephasedLossCount: timephasedLossTaskIds.size,
+      skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
+      skippedReadOnlyUntouchedTaskIds: [...skippedReadOnlyTaskIds].filter(id => !wroteTaskIds.has(id)),
+      skippedReadOnlyPartialTaskIds: [...skippedReadOnlyTaskIds].filter(id => wroteTaskIds.has(id)),
+      label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
+    },
+  };
+}
+
+export function prepareGridMutation(
+  state: Readonly<AppState>,
+  intents: readonly GridIntent[],
+  options?: GridMutationOptions,
+): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
+  const prepared = prepareGridWrites(state, intents, options);
+  if (!prepared.ok) return prepared;
+  const { isolated, ...mutation } = prepared.value;
   let viewRows: readonly ViewRow[];
   let resourceLoadResult: ResourceLoadResult | null;
   try {
@@ -1125,7 +1170,7 @@ export function prepareGridMutation(
     resourceLoadResult = state.resourceLoadResult !== null && resourceLoadInputsUnchanged(state, isolated)
       ? state.resourceLoadResult
       : computeReliableResourceLoad(
-      after.cpmResult,
+      mutation.after.cpmResult,
       isolated.resources,
       isolated.assignments,
       isolated.tasks,
@@ -1138,18 +1183,7 @@ export function prepareGridMutation(
   }
   return {
     ok: true,
-    value: {
-      documentId: state.activeDocumentId,
-      before,
-      after,
-      derivedAfter: { viewRows, resourceLoadResult },
-      notifications: [...notifications, ...startEditNotifications(startNotices, state.ui.dateNotation, state.ui.timeNotation)],
-      timephasedLossCount: timephasedLossTaskIds.size,
-      skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
-      skippedReadOnlyUntouchedTaskIds: [...skippedReadOnlyTaskIds].filter(id => !wroteTaskIds.has(id)),
-      skippedReadOnlyPartialTaskIds: [...skippedReadOnlyTaskIds].filter(id => wroteTaskIds.has(id)),
-      label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
-    },
+    value: { ...mutation, derivedAfter: { viewRows, resourceLoadResult } },
   };
 }
 

@@ -10,6 +10,7 @@
 // De brug zet alleen fixtures (taken, relaties, weergave) en leest state; de geteste handelingen
 // gaan via muis en toetsenbord. Headless tegenhanger: tests/planning/check-progress-entry.ts.
 import type { Locator, Page } from '@playwright/test';
+import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { computeEffectiveViewStart } from '@/utils/ganttViewport';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 import { barPoint, expect, state, test } from './fixtures/ops';
@@ -552,6 +553,40 @@ test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de inv
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart: `${actualStart}T07:00` });
+});
+
+test('#998, taakraster: plakken van een latere voorganger en voortgang vraagt vóór het schrijven om de start', async ({ page, context, ops: _ops }) => {
+  await page.clock.setFixedTime(new Date('2026-06-10T12:00:00Z'));
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { A, B } = await seedChain(page, -9);
+  const statusDate = '2026-06-10';
+  const columns = [
+    { id: taskColumnId('task.name'), width: 180, pinned: true },
+    ...['task.constraint.type', 'task.constraint.date', 'task.time.completion'].map(id => (
+      { id: taskColumnId(id), width: 120, pinned: false }
+    )),
+  ];
+  await page.evaluate(({ statusDate, columns }) => {
+    const s = window.__OPS__!.store.getState();
+    s.setStatusDate(statusDate);
+    s.runCPM();
+    s.setUI({ activeRibbonTab: 'table' });
+    s.commitTaskGridColumns('full-task-grid', 'Beperkingen en voortgang', columns);
+  }, { statusDate, columns });
+
+  const constraint = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.constraint ?? null, A);
+  await page.evaluate(() => navigator.clipboard.writeText('SNET\t22-06-2026\t0%\nASAP\t\t50%'));
+  await page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${A}"] [data-grid-column-id="task.constraint.type"]`).click();
+  await page.keyboard.press('Control+V');
+
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  await expect(question).toBeVisible();
+  expect(await constraint()).toBeNull();
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
+  await fillQuestionDate(page, 'Metselwerk', '2026-06-09');
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-09T07:00' });
+  expect(await constraint()).toMatchObject({ type: 'SNET', date: '2026-06-22T07:00' });
 });
 
 test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt alleen de vraag', async ({ page, ops: _ops }) => {

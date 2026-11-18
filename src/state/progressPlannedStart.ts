@@ -3,25 +3,40 @@ import { cloneTasksForSolve, plannedStartBeforeStatusShift, solveProject } from 
 import type { Task } from '@/types/task';
 import { taskTriggerChanges } from '@/utils/taskDefaults';
 import type { AppState } from './appStore';
-import { originalAppState } from './immerDraft';
 
-export function progressPlannedStart(
-  state: Pick<AppState, 'cpmResult' | 'datesAsRecorded'>, task: Task,
-): string | undefined {
-  return state.datesAsRecorded ? undefined
-    : plannedStartBeforeStatusShift(state.cpmResult, task);
+type ProgressPlanning = Pick<AppState,
+  'tasks' | 'sequences' | 'project' | 'calendar' | 'calendars'
+  | 'cpmResult' | 'datesAsRecorded' | 'scheduleStale'>;
+
+/** De eerste afleiding rekent zo nodig op een kopie, gedeeld door alle taken in deze invoer. */
+export function progressPlannedStarts(
+  state: ProgressPlanning, placementEdited = false,
+): (task: Task) => string | undefined {
+  if (state.datesAsRecorded && !placementEdited) return () => undefined;
+  if (!placementEdited && (!state.scheduleStale || !state.cpmResult)) {
+    return task => plannedStartBeforeStatusShift(state.cpmResult, task);
+  }
+  let result: ReturnType<typeof solveProject> | undefined;
+  return task => {
+    if (!result) {
+      const input = solveInputFor(state.project, cloneTasksForSolve(state.tasks), state.sequences, state.calendar, state.calendars);
+      result = solveProject({
+        ...input,
+        schedulingOptions: { ...input.schedulingOptions, unstartedIgnoresStatusDate: true },
+      });
+    }
+    return result.error ? undefined : result.tasks.get(task.id)?.earlyStart;
+  };
+}
+
+export function taskPlacementChanged(before: Task, after: Task): boolean {
+  return taskTriggerChanges(before, after).levelingGaps
+    || before.isMilestone !== after.isMilestone || before.isHammock !== after.isHammock;
 }
 
 /** Bij gecombineerde invoer telt de bewerkte taak mee vóór het percentage haar start vastlegt. */
 export function progressPlannedStartAfterEdit(state: AppState, before: Task, edited: Task): string | undefined {
-  if (!taskTriggerChanges(before, edited).levelingGaps
-    && before.isMilestone === edited.isMilestone && before.isHammock === edited.isHammock) {
-    return progressPlannedStart(originalAppState(state) ?? state, edited);
-  }
-  const tasks = cloneTasksForSolve(state.tasks.map(task => task.id === edited.id ? edited : task));
-  const input = solveInputFor(state.project, tasks, state.sequences, state.calendar, state.calendars);
-  return solveProject({
-    ...input,
-    schedulingOptions: { ...input.schedulingOptions, unstartedIgnoresStatusDate: true },
-  }).tasks.get(edited.id)?.earlyStart;
+  if (!taskPlacementChanged(before, edited)) return progressPlannedStarts(state)(edited);
+  const tasks = state.tasks.map(task => task.id === edited.id ? edited : task);
+  return progressPlannedStarts({ ...state, tasks }, true)(edited);
 }

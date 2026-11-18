@@ -133,6 +133,28 @@ test('#998: nieuwe startbeperking en percentage in één item vragen om actualSt
   assertEq(timeOf(V).actualStart, '2026-06-04T07:00', 'het percentage gebruikt de nieuw geplande start');
 });
 
+for (const batch of [false, true]) {
+  test(`#998: een eerder gewijzigd voorgangeritem telt mee (batch: ${batch})`, async () => {
+    const { V } = setup('2026-06-10');
+    const next = S().addTask({ name: 'Opvolger', time: createDefaultTaskTime('2026-06-01', 2) });
+    S().addSequence({ predecessorId: V, successorId: next, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    const args = { updates: [
+      { id: V, fields: { constraint: { type: 'SNET', date: '2026-06-22' } } },
+      { id: next, progress: { completion: 50 } },
+    ] };
+    if (batch) {
+      await rpc('planner_batch', { steps: [{ tool: 'planner_update_tasks', args }] });
+    } else {
+      const res = await rpc('planner_update_tasks', args);
+      assert(reasons(res).some(reason => /progress\.actualStart/.test(reason) && /2026-06-29/.test(reason)),
+        `weigering noemt de herberekende begindatum: ${reasons(res)}`);
+    }
+    assertEq(timeOf(next).completion, 0, 'percentage van opvolger geweigerd');
+    assertEq(S().tasks.find(t => t.id === V)?.constraint?.date?.slice(0, 10), '2026-06-22', 'beperking toegepast');
+  });
+}
+
 // F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
 for (const [statusDate, actualFinish, want] of [
   ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],

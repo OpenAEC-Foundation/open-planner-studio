@@ -29,7 +29,7 @@ import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { addPersonalTaskType } from '@/services/taskTypes/personalTaskTypes';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { planProgressEntry } from '@/engine/progressEntry';
-import { progressPlannedStart } from '@/state/progressPlannedStart';
+import { progressPlannedStartAfterEdit } from '@/state/progressPlannedStart';
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
@@ -90,7 +90,7 @@ function draftWithPercentage(f: Fixture, draft: Task, value: number): Task {
     statusDate: state.project.statusDate,
     today: '2026-03-06',
     calendar: state.calendar,
-    plannedStart: () => progressPlannedStart(state, draft),
+    plannedStart: () => progressPlannedStartAfterEdit(state, f.task(draft.id), draft),
   });
   if (!plan.ok) throw new Error(`Dialoog weigerde ${value * 100}%: ${plan.reason}`);
   return plan.change?.task ?? draft;

@@ -9,7 +9,7 @@ import { isLeafTask } from '@/utils/taskHierarchy';
 import { localTodayIso } from '@/utils/dateUtils';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { planProgressEntry } from '@/engine/progressEntry';
-import { progressPlannedStart } from '@/state/progressPlannedStart';
+import { progressPlannedStarts } from '@/state/progressPlannedStart';
 import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
 /**
@@ -153,12 +153,13 @@ export const contextMenuBulk = {
     }
     const ids = [...leafIds];
     const edit = { field: 'completion', value: completion } as const;
+    const plannedStart = progressPlannedStarts(state);
     const questions = ids.flatMap((id) => {
       const task = byId.get(id);
       if (!task) return [];
       const plan = planProgressEntry(task, edit, { statusDate: state.project.statusDate, today,
         calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
-        plannedStart: () => progressPlannedStart(state, task) });
+        plannedStart: () => plannedStart(task) });
       return !plan.ok && plan.reason === 'needsActualStart' ? [{ ...plan.question, taskName: task.name }] : [];
     });
     let answers: ActualStartAnswers = {};
@@ -168,7 +169,9 @@ export const contextMenuBulk = {
       answers = given;
     }
     appTaskBulkActions.applyToTaskIds(ids, (current, id) => {
-      current.enterTaskProgress(id, edit, { today, actualStart: answers[id] });
+      const task = byId.get(id);
+      current.enterTaskProgress(id, edit, { today, actualStart: answers[id],
+        plannedStart: task ? () => plannedStart(task) : undefined });
     });
   },
 

@@ -3,7 +3,7 @@ import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteMode
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
-import { progressPlannedStart } from '@/state/progressPlannedStart';
+import { progressPlannedStarts } from '@/state/progressPlannedStart';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -200,7 +200,7 @@ export interface TaskSlice {
   enterTaskProgress: (
     taskId: string,
     edit: ProgressEdit,
-    opts: { today: string; actualStart?: string; coalesceKey?: string },
+    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedStart?: () => string | undefined },
   ) => ProgressEntryResult;
   /**
    * De ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
@@ -268,9 +268,10 @@ export interface ProgressImportEntryOptions {
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
 function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
   const statusDate = progressEntryStatusDate(s.project.statusDate, today);
+  const plannedStart = progressPlannedStarts(s);
   return {
     planEdits: (task, edits) => {
-      const environment = buildTaskEditPlanEnvironment(s, task);
+      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedStart };
       const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
       if (!planned.ok || !today) return planned;
       const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
@@ -278,7 +279,7 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
       }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar),
-      wrote('task.time.completion') ? () => environment.plannedStart?.(task) : undefined);
+      wrote('task.time.completion') ? () => plannedStart(task) : undefined);
       if (!question) return planned;
       return {
         ok: false,
@@ -895,9 +896,10 @@ function commitProgressEdit(
   // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
+  const plannedStart = progressPlannedStarts(originalAppState(s) ?? s);
   const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
     calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
-    plannedStart: () => progressPlannedStart(originalAppState(s) ?? s, task) });
+    plannedStart: ctx.plannedStart ?? (() => plannedStart(task)) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
@@ -1768,7 +1770,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     let result: ReturnType<typeof commitProgressEdit> = { ok: true };
     set((s) => {
       result = commitProgressEdit(
-        runtime, s, taskId, edit, { today: opts.today, actualStart: opts.actualStart }, { coalesceKey: opts.coalesceKey },
+        runtime, s, taskId, edit,
+        { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart },
+        { coalesceKey: opts.coalesceKey },
       );
     });
     get().recomputeViewRows();

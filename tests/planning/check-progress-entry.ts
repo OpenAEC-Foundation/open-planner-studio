@@ -336,6 +336,46 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
     { ok: true, start: `${TODAY}T07:00`, constraint: 'SNET' });
 }
 {
+  const { S } = fresh();
+  const { A, B } = setup(S);
+  const laterInPast = daysBeforeToday(21);
+  const reference = fresh().S;
+  const referenceIds = setup(reference);
+  reference().updateTask(referenceIds.A, { constraint: { type: 'SNET', date: laterInPast } });
+  reference().runCPM();
+  const nextStart = taskOf(reference, referenceIds.B).time.earlyStart;
+  eq('#998 de nieuwe voorgangerbeperking schuift de opvolger een week op',
+    !!nextStart && nextStart > taskOf(S, B).time.earlyStart!, true);
+  S().setStatusDate(TODAY);
+  S().runCPM();
+  const before = S().tasks;
+  const future = daysBeforeToday(-14);
+  const writes: CellEditIntent[] = [
+    { kind: 'cell-edit', taskId: A, columnId: 'task.constraint.type' as CellEditIntent['columnId'], route: 'task-constraint', value: 'SNET' },
+    { kind: 'cell-edit', taskId: A, columnId: 'task.constraint.date' as CellEditIntent['columnId'], route: 'task-constraint', value: future },
+    cell(B, 'task.time.completion', 0.5),
+  ];
+  for (const order of [writes, [writes[2], ...writes.slice(0, 2)]]) {
+    const result = S().runGridMutation([{ kind: 'paste', writes: order }], { progressEntry: { today: TODAY } });
+    eq('#998 vóór de plak geldt de nieuwe beperking op de voorganger',
+      result.ok ? 'ok' : result.errors.map(e => [e.code, e.taskId]), [['actualStartRequired', B]]);
+    eq('#998 geweigerde meerregelige plak verandert geen taak', S().tasks, before);
+    if (result.ok) S().undo();
+  }
+  S().runGridMutation(writes.slice(0, 2));
+  const panel = S().enterTaskProgress(B, { field: 'completion', value: 0.5 }, { today: TODAY });
+  eq('#998 zonder F5: paneel houdt rekening met gewijzigde voorganger', panel.ok ? 'ok' : panel.reason, 'needsActualStart');
+  if (panel.ok) S().undo();
+  const grid = S().runGridMutation([writes[2]], { progressEntry: { today: TODAY } });
+  eq('#998 zonder F5: raster houdt rekening met gewijzigde voorganger',
+    grid.ok ? 'ok' : grid.errors.map(e => e.code), ['actualStartRequired']);
+  const past = S().runGridMutation([{ kind: 'paste', writes: [
+    writes[2], writes[0], { ...writes[1], value: laterInPast },
+  ] }], { progressEntry: { today: TODAY } });
+  eq('#998 eerdere beperking en voortgang in dezelfde plak leggen de nieuwe start vast',
+    { ok: past.ok, start: taskOf(S, B).time.actualStart }, { ok: true, start: nextStart });
+}
+{
   // Taakraster: de hele handeling wordt geweigerd met per taak `actualStartRequired`; dezelfde
   // handeling mét een werkelijke start per taak slaagt (zo herhaalt FullTaskGrid hem na de vraag).
   const { S } = fresh();
