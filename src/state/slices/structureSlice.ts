@@ -41,7 +41,22 @@ export interface StructureSlice {
   /** Zet een veldwaarde op een taak (null = waarde weghalen). */
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
   ensureProjectTaskType: (type: CustomTaskType) => void;
+  /**
+   * Hernoemt de projectkopie van een eigen taaktype in het actieve document (#804 keuze 7): één
+   * ongedaan-maakstap, document gewijzigd, de naam gaat mee in het IFC. Dezelfde botsingsregel als
+   * `ensureProjectTaskType`; een geweigerde of overbodige hernoeming verandert niets.
+   */
+  renameProjectTaskType: (id: string, name: string) => RenameProjectTaskTypeResult;
 }
+
+/** Uitkomst van `renameProjectTaskType`. `nameTaken` noemt het ándere type met die naam, zodat de
+ *  planner ziet waarom de naam in het project niet veranderde. */
+export type RenameProjectTaskTypeResult =
+  | { status: 'renamed' }
+  | { status: 'unchanged' }
+  | { status: 'missing' }
+  | { status: 'empty' }
+  | { status: 'nameTaken'; takenBy: CustomTaskType };
 
 export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) => (set, get) => ({
   activityCodeTypes: [],
@@ -58,6 +73,22 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       s.customTaskTypes.push({ id, name });
       runtime.finishMutation(s);
     });
+  },
+
+  renameProjectTaskType: (id, name) => {
+    const clean = name.trim();
+    if (!clean) return { status: 'empty' };
+    const { sameId, sameNameOtherId } = customTaskTypeClashes(get().customTaskTypes, { id, name: clean });
+    if (!sameId) return { status: 'missing' };
+    if (sameNameOtherId) return { status: 'nameTaken', takenBy: { ...sameNameOtherId } };
+    if (sameId.name === clean) return { status: 'unchanged' };
+    set((s) => {
+      runtime.beginUndoable(s);
+      s.customTaskTypes = s.customTaskTypes.map(type => type.id === id ? { ...type, name: clean } : type);
+      runtime.finishMutation(s);
+    });
+    get().recomputeViewRows();
+    return { status: 'renamed' };
   },
 
   addActivityCodeType: (name) => {
