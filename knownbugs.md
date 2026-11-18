@@ -3410,13 +3410,9 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
-720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
-     verouderde vaste basis.** `.github/workflows/task-grid-published-selection.yml` neemt elke wijziging
-     aan `tests/browser/table-editor.spec.ts` mee en vergelijkt met `fbd4a3f9d` (versie 2026.43.0).
-     De verplichte `cmp base/package-lock.json head/package-lock.json` faalt op main-versie 2026.44.0,
-     vóór de meetproef begint. Bevestigd op PR #788, head `d6b4f8a04`, run `41449022992`: exit 1 bij
-     byte 56, regel 3. Voorstel: maak de historische prestatiemeting los van het gewone
-     regressiebestand, met een bewust gekozen vergelijkingsbasis en identieke meetfixture. — B
+720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**
+     De workflow filtert op het hele testbestand en meet vervolgens één toetsenroute. Vervolg: beperk
+     de trigger tot wijzigingen die de gemeten route raken. Bevestigd in de review van #1011 (Sol 6.2 xhigh). — B
 
 781. **De MPP-meethelper `mppScannedFiles` heeft geen aanroepers meer.**
      `scripts/measure-profiles-status.mjs:116` exporteert deze functie nog, terwijl
