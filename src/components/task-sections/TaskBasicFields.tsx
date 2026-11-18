@@ -5,6 +5,7 @@ import { Task } from '@/types/task';
 import { Select } from '@/components/common/Select';
 import { TaskTypeField } from './TaskTypeField';
 import { Field, Input } from './shared';
+import type { DeferredProjectRenames } from './projectTaskTypeRename';
 
 /**
  * Naam / WBS-code / omschrijving / type / kalender (sectie van
@@ -22,12 +23,14 @@ import { Field, Input } from './shared';
  * select-all-ref op bij het openen) — deze sectie slaat het dan over zodat het niet dubbel
  * verschijnt. Het paneel laat dit weg (toont het naam-veld gewoon hier).
  */
-export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, materializeTaskType = true }: {
+export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, materializeTaskType = true, projectRenames }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;
   onCalendarChange: (calendarId: string | undefined) => void;
   hideName?: boolean;
   materializeTaskType?: boolean;
+  /** Taak bewerken: een hernoeming van een werksoort in het project wacht tot de taakbewerking dicht is. */
+  projectRenames?: DeferredProjectRenames;
 }) {
   const { t } = useTranslation('task');
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
@@ -73,7 +76,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, ma
         />
       </Field>
 
-      <TaskTypeField task={task} onChange={onChange} materializeProjectType={materializeTaskType} />
+      <TaskTypeField task={task} onChange={onChange} materializeProjectType={materializeTaskType} projectRenames={projectRenames} />
 
       <Field label={t('properties.calendar')}>
         <Select

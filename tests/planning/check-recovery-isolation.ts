@@ -23,7 +23,7 @@
 // `ownRecoveryNames` is hier de dev-variant. Deze batterij gebruikt daarom overal expliciete
 // bases via `recoveryNames(...)` — anders zou de belangrijkste casus (productiebuild) niet
 // getest kunnen worden.
-import { recoveryNames, type RecoveryManifest } from '@/hooks/recoveryPaths';
+import { recoveryNames, type RecoveryManifest } from '@/services/recovery/recoveryPaths';
 import {
   manifestOwnership, planRecoveryCleanup, planRecoveryClear, planRecoveryExitClear, parseRecoveryManifest,
   planTauriV3RecoverySave,

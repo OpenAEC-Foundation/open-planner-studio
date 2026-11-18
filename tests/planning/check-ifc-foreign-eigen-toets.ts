@@ -24,7 +24,7 @@
 // 6. PR 12d, de typenaam op de taak (E2): hernoemt de planner een eigen taaktype, dan beweegt `ObjectType` (slot 4) van elke
 //    taak met dat type mee (1586), op drie bronnen, samen met andere bewerkingen, in een keten en in een sessie met een vaste
 //    en een lopende klok; wat moet blijven weigeren; en de verliescontrole zelf op een nagebootste fout van de writer.
-//    Een projecttype hernoemen kan in de app niet (de beheer-UI hernoemt alleen persoonlijke typen): dat deel is domeininvoer.
+//    Het hernoemen van een projecttype is hier domeininvoer; in de app loopt het sinds #804 keuze 7 via `renameProjectTaskType`.
 // 7. PR 12e, de weesrij (knownbug 1702): de rij van een gewiste taak in een baseline houdt haar taak-id en GlobalId over
 //    opslaan en heropenen, en `OPS_Baselines` blijft daarna gedragen; daardoor schrijft de keten op het oude bestand nu ook
 //    de stappen na "taak wissen". Op de oude showcase houdt de weesrij haar GlobalId (haar taak-id wordt één keer de interne
@@ -46,8 +46,8 @@ import {
 
 type Expect = 'schrijft' | 'weigert';
 type Edit = (d: Domain) => Promise<Domain> | Domain;
-/** Eén stap van een keten of sessie: een plannerhandeling in de store, of een bewerking van het domein (voor wat de store
- *  niet kan, zoals een eigen taaktype van het project hernoemen: knownbug 1586). */
+/** Eén stap van een keten of sessie: een plannerhandeling in de store, of een bewerking van het domein (zoals een eigen
+ *  taaktype van het project hernoemen, knownbug 1586; de store kan dat sinds #804 keuze 7 ook, via `renameProjectTaskType`). */
 type Step = ((s: S) => void) | { readonly domain: Edit };
 const runStep = (f: Step, d: Domain): Promise<Domain> => typeof f === 'function' ? se(f)(d) : Promise.resolve(f.domain(d));
 
@@ -537,8 +537,8 @@ async function probe(label: string, bytes: Uint8Array, edit: Edit) {
 
 // ── 6. PR 12d: de typenaam op de taak beweegt mee met de definitie (E2) ──
 // De catalogus van elke bron: type A (`type-7d-a`, 'Type 0 7d') op twee taken, type B (`type-7d-b`, 'Type 1 7d') op één.
-/** Een eigen taaktype van het project hernoemen. In de app kan dat niet (knownbug 1586: geen store-actie voor de projectkopie);
- *  daarom domeininvoer. Gooit een `TypeError` als het type er niet is (dan is de stap niet van toepassing). */
+/** Een eigen taaktype van het project hernoemen, als domeininvoer (in de app sinds #804 keuze 7 via `renameProjectTaskType`).
+ *  Gooit een `TypeError` als het type er niet is (dan is de stap niet van toepassing). */
 const renameType = (id: string, name: string): Edit => d => {
   const t = d.customTaskTypes?.find(x => x.id === id);
   if (!t) throw new TypeError(`geen taaktype ${id}`);
