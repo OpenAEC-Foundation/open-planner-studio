@@ -46,7 +46,7 @@ The built app (desktop and the web version on the site) also blocks a number of 
 
 **Ctrl+A** — *Select all*: selects all tasks. Not in a dialog.
 
-**Ctrl+F2** — *Link selected tasks in a chain*: creates a Finish-Start relation without lag between each selected task and the next, in the order of selection. Only with at least two tasks selected. Not in a dialog. See [Creating relations](docs://howto-relaties-leggen).
+**Ctrl+F2** — *Link selected tasks in a chain*: creates a Finish-Start relation without lag between each selected task and the next, in the order of selection. Only with at least two tasks selected. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open, because the task list is not in view there. See [Creating relations](docs://howto-relaties-leggen).
 
 **Esc** — *Clear selection*: clears the selection and at the same time switches off relation mode, split mode and path tracing, and closes the task dialog and the project overview. During the presentation, Esc only closes the presentation (see *View*). In an input field Esc does none of this.
 

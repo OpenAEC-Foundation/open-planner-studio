@@ -80,22 +80,29 @@ ok('berekend zonder driving: gewone rollen, geen terugval naar sterke nadruk',
     && classifyTraceTask(calculatedEmpty, 'd') === 'successor');
 
 ok('zonder selectie zijn koppelen en extern toevoegen concreet niet beschikbaar', (() => {
-  const availability = relationActionAvailability(0, 0);
+  const availability = relationActionAvailability(0, 0, true);
   return !availability.linkSelected && !availability.addExternal && !availability.refreshExternal;
 })());
 ok('één selectie opent alleen de externe route', (() => {
-  const availability = relationActionAvailability(1, 0);
+  const availability = relationActionAvailability(1, 0, true);
   return !availability.linkSelected && availability.addExternal && !availability.refreshExternal;
 })());
 ok('twee selecties koppelen en bestaande externe links laten verversen', (() => {
-  const availability = relationActionAvailability(2, 1);
+  const availability = relationActionAvailability(2, 1, true);
   return availability.linkSelected && !availability.addExternal && availability.refreshExternal;
 })());
 // Issue #1000: koppelen werkt voor elke selectie van twee of meer taken (als keten), toewijzen
 // (voorgangers/opvolgers kiezen in het paneel, zoals in Primavera) voor precies één taak.
-ok('drie selecties koppelen als keten', relationActionAvailability(3, 0).linkSelected);
-ok('toewijzen alleen bij precies één taak', !relationActionAvailability(0, 0).assign
-  && relationActionAvailability(1, 0).assign && !relationActionAvailability(2, 0).assign);
+ok('drie selecties koppelen als keten', relationActionAvailability(3, 0, true).linkSelected);
+ok('toewijzen alleen bij precies één taak', !relationActionAvailability(0, 0, true).assign
+  && relationActionAvailability(1, 0, true).assign && !relationActionAvailability(2, 0, true).assign);
+// Review #1004: zonder takenlijst in beeld (volledig resourcepaneel) koppelt en wijst het lint niets
+// toe: de selectie is dan onzichtbaar, en het eigenschappenpaneel staat er niet.
+ok('zonder takenlijst in beeld geen koppelen of toewijzen', (() => {
+  const availability = relationActionAvailability(3, 0, false);
+  const single = relationActionAvailability(1, 0, false);
+  return !availability.linkSelected && !single.assign && single.addExternal;
+})());
 
 const beforeUi = useAppStore.getState();
 const selectionBefore = [...beforeUi.selectedTaskIds];

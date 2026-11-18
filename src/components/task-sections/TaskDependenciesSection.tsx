@@ -14,14 +14,13 @@ import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationsWithFeedback } from '@/state/relationActions';
 import { relationStepTarget, type RelationStepDirection } from '@/state/relationStep';
 import { Icon } from '@/components/icons';
+import type { RelationAssignDirection } from '@/state/slices/types';
 
 interface HoverState { x: number; y: number; task: Task; }
 
-/** Richting van de conceptrelatie, gezien vanuit de GEKOZEN taak t.o.v. de huidige taak. */
-type DraftDirection = 'predecessor' | 'successor';
-
 interface RelationDraft {
-  direction: DraftDirection;
+  /** Richting van de conceptrelatie, gezien vanuit de GEKOZEN taak t.o.v. de huidige taak. */
+  direction: RelationAssignDirection;
   /** De aangevinkte tegenpartijen, in de volgorde van kiezen (issue #888: meerdere tegelijk). */
   picked: string[];
   /** Staat de trefferlijst open? Dicht na een keuze met Enter; typen opent hem weer. */
@@ -148,11 +147,13 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     useAppStore.getState().setUI({ pendingRelationAssign: null });
   }, [assignRequest, interactive, taskId]);
   // De sectie staat onderaan het paneel, vaak buiten beeld: schuif de hele conceptrij (zoekveld,
-  // type en lag) erin, niet alleen het zoekveld dat de focus krijgt.
+  // type en lag) erin. De focus gaat expliciet naar het zoekveld: `autoFocus` werkt alleen als de
+  // rij nieuw verschijnt, niet bij een tweede verzoek terwijl ze al openstaat.
   useLayoutEffect(() => {
     if (!draft || !revealDraft.current) return;
     revealDraft.current = false;
     draftRef.current?.scrollIntoView({ block: 'nearest' });
+    draftRef.current?.querySelector<HTMLInputElement>('[data-ops-dependency-search]')?.focus();
   }, [draft]);
 
   // Alleen zoekinvoer bepaalt de treffers; pijlen, type, richting en lag wijzigen het concept ook.
@@ -342,7 +343,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   { value: 'successor', label: t('relations.successor') },
                 ]}
                 onChange={value => setDraft(current => (current
-                  ? { ...current, direction: value as DraftDirection }
+                  ? { ...current, direction: value as RelationAssignDirection }
                   : current))}
                 className="ops-select__trigger--compact"
               />

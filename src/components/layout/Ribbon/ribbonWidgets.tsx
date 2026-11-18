@@ -53,7 +53,7 @@ import {
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { linkTasksInChain, requestRelationAssign } from '@/state/relationActions';
-import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
+import { isGanttWorkspaceVisible, isTaskListInView } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
@@ -343,15 +343,18 @@ export interface RelationActionAvailability {
   refreshExternal: boolean;
 }
 
-/** Pure beschikbaarheidsregels achter de vaste dropdownacties. */
+/** Pure beschikbaarheidsregels achter de vaste dropdownacties. Koppelen en toewijzen alleen met
+ *  de takenlijst in beeld (`isTaskListInView`): onder het volledige resourcepaneel is de selectie
+ *  onzichtbaar en staat het eigenschappenpaneel er niet (review #1004). */
 export function relationActionAvailability(
   selectedTaskCount: number,
   externalRelationCount: number,
+  taskListInView: boolean,
 ): RelationActionAvailability {
   return {
     // Twee of meer: de selectie wordt een keten (issue #1000, Ctrl+F2 in MS Project).
-    linkSelected: selectedTaskCount >= 2,
-    assign: selectedTaskCount === 1,
+    linkSelected: taskListInView && selectedTaskCount >= 2,
+    assign: taskListInView && selectedTaskCount === 1,
     addExternal: selectedTaskCount === 1,
     refreshExternal: externalRelationCount > 0,
   };
@@ -372,6 +375,7 @@ export function RelationDropdown() {
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
   // Tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
   const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
+  const taskListInView = useAppStore(s => isTaskListInView(s.ui));
   const externalRelationCount = useAppStore(s => s.tasks.reduce(
     (count, task) => count + (task.externalLinks?.length ?? 0),
     0,
@@ -383,7 +387,7 @@ export function RelationDropdown() {
   // De app onthoudt welke bronnen zonder pad nog openstaan, en hoeveel bronnen met pad niet gelezen zijn.
   const [unreadSources, setUnreadSources] = useState<{ projectIds: string[]; others: number }>({ projectIds: [], others: 0 });
   const canChooseSources = unreadSources.projectIds.length > 0 && !isTauri() && !siteStorageAvailable();
-  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
+  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount, taskListInView);
 
   const items: Array<{
     key: 'draw' | 'linkSelected' | 'assignPredecessors' | 'assignSuccessors' | 'addExternal' | 'refreshExternal' | 'findDependents';
@@ -409,8 +413,8 @@ export function RelationDropdown() {
       key: 'linkSelected',
       label: tMenu('ribbon.relationLinkSelected'),
       disabled: !availability.linkSelected,
-      title: availability.linkSelected
-        ? tMenu('ribbon.relationLinkSelectedHint')
+      title: availability.linkSelected ? tMenu('ribbon.relationLinkSelectedHint')
+        : !taskListInView ? tMenu('ribbon.taskListOnlyHint')
         : tMenu('ribbon.relationSelectAtLeastTwo'),
       onClick: () => {
         linkTasksInChain(selectedTaskIds);
@@ -423,7 +427,8 @@ export function RelationDropdown() {
       key: direction === 'predecessor' ? 'assignPredecessors' as const : 'assignSuccessors' as const,
       label: tCommon(direction === 'predecessor' ? 'context.assignPredecessors' : 'context.assignSuccessors'),
       disabled: !availability.assign,
-      title: !availability.assign ? tMenu('ribbon.relationSelectOne')
+      title: !taskListInView ? tMenu('ribbon.taskListOnlyHint')
+        : !availability.assign ? tMenu('ribbon.relationSelectOne')
         : tMenu(direction === 'predecessor' ? 'ribbon.relationAssignPredecessorsHint' : 'ribbon.relationAssignSuccessorsHint'),
       onClick: () => {
         requestRelationAssign(selectedTaskIds[0], direction);

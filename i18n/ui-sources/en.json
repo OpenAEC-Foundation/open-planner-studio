@@ -3055,6 +3055,7 @@
     "ribbon.splitTaskOnHint": "7bb3630df6625137",
     "ribbon.splitTaskOffHint": "6f1a13350c0c552e",
     "ribbon.ganttOnlyHint": "c3d7f9b01e6277e7",
+    "ribbon.taskListOnlyHint": "f2e04d26cb63c9ae",
     "ribbon.relationLinkSelected": "8fbef04cf96ad92f",
     "ribbon.relationLinkSelectedHint": "e3617b882b60c490",
     "ribbon.relationSelectAtLeastTwo": "a287db937a6e8ced",

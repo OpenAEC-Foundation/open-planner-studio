@@ -1,4 +1,4 @@
-import { expect, seedProject, state, test } from './fixtures/ops';
+import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
 // Relatie toevoegen vanuit het eigenschappenpaneel (sectie Afhankelijkheden, 2026-09). De fixture
 // (taken + selectie) komt via de brug; alles daarna is echte bediening: klikken op de
@@ -232,6 +232,14 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect(assign).toBeInViewport();
   await expect(assign.locator('[data-ops-dependency-direction]')).toHaveAttribute('data-ops-dependency-direction', 'predecessor');
   await expect(assign.locator('[data-ops-dependency-search]')).toBeFocused();
+  // Een tweede verzoek terwijl de rij al openstaat: de richting wisselt en de focus gaat terug naar
+  // het zoekveld (de rechtsklik had hem naar de takenlijst gehaald).
+  for (const [item, direction] of [['successors|Opvolgers', 'successor'], ['predecessors|Voorgangers', 'predecessor']] as const) {
+    await cell(ruwbouw).click({ button: 'right' });
+    await page.getByRole('button', { name: new RegExp(`^(Assign ${item.split('|')[0]}|${item.split('|')[1]} toewijzen)…$`) }).click();
+    await expect(assign.locator('[data-ops-dependency-direction]')).toHaveAttribute('data-ops-dependency-direction', direction);
+    await expect(assign.locator('[data-ops-dependency-search]')).toBeFocused();
+  }
   await page.keyboard.type('Fund');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
@@ -248,6 +256,35 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId, q.type])))
     .toEqual([[grondwerk, ruwbouw, 'FINISH_START'], [ruwbouw, afbouw, 'FINISH_START']]);
   await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(2);
+
+  // Review #1004: Shift-klik in de Gantt volgt de rijen op het scherm. In de Gantt selecteert
+  // Shift-klik op de naam naast de balk een bereik (Shift op de balk zelf trekt een relatie). Fixture:
+  // Fundering weggefilterd, en ver uitgezoomd zodat de namen naast de balken staan. Ruwbouw →
+  // Shift-klik op de naam van Grondwerk wordt het bereik Grondwerk, Ruwbouw — zonder de verborgen
+  // taak — en Ctrl+F2 legt precies die ene relatie.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setFilter({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Fundering' });
+    s.setZoom(1);
+  });
+  await expect(cell(fundering)).toHaveCount(0);
+  await cell(ruwbouw).click();
+  const grondwerkEnd = await barPoint(page, grondwerk, 'right');
+  await page.keyboard.down('Shift');
+  await page.mouse.click(grondwerkEnd.x + 16, grondwerkEnd.y);
+  await page.keyboard.up('Shift');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, ruwbouw]);
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[grondwerk, ruwbouw]]);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(2);
+
+  // Zonder takenlijst in beeld koppelt Ctrl+F2 niets, zoals Delete: de selectie is dan onzichtbaar.
+  await page.locator('.ribbon-tab').filter({ hasText: /^(Report|Rapport)$/ }).click();
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, ruwbouw]);
   await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(2);
 });
 

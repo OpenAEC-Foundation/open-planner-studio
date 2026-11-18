@@ -80,7 +80,6 @@ export interface SelectionSlice {
   /** Selecteer één taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) breidt uit vanaf de laatst
    *  geselecteerde. Geen undo: selectie is geen documentdata. */
   selectTask: (id: string, multi?: boolean, range?: boolean) => void;
-  selectTaskRange: (fromId: string, toId: string) => void;
   deselectAll: () => void;
   /** Ctrl/Cmd+A: selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
    *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
@@ -107,9 +106,11 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
     set((s) => {
       s.activeTaskId = id;
       if (range && s.selectedTaskIds.length > 0) {
-        // Shift+click: select range from last selected to clicked task
+        // Shift-klik (balk in de Gantt): bereik van de laatst gekozen tot de aangeklikte taak, over de
+        // rijen OP HET SCHERM — met filter, sortering en ingeklapte fasen — net als Shift in de
+        // takenlijst. Nooit de interne taakvolgorde: die nam weggefilterde taken mee (review #1004).
         const lastSelected = s.selectedTaskIds[s.selectedTaskIds.length - 1];
-        const flatIds = s.tasks.map(t => t.id);
+        const flatIds = uniqueTaskIds(s.viewRows);
         const fromIdx = flatIds.indexOf(lastSelected);
         const toIdx = flatIds.indexOf(id);
         if (fromIdx >= 0 && toIdx >= 0) {
@@ -133,19 +134,6 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         }
       } else {
         s.selectedTaskIds = [id];
-      }
-    }),
-
-  selectTaskRange: (fromId, toId) =>
-    set((s) => {
-      const flatIds = s.tasks.map(t => t.id);
-      const fromIdx = flatIds.indexOf(fromId);
-      const toIdx = flatIds.indexOf(toId);
-      if (fromIdx >= 0 && toIdx >= 0) {
-        const start = Math.min(fromIdx, toIdx);
-        const end = Math.max(fromIdx, toIdx);
-        s.selectedTaskIds = flatIds.slice(start, end + 1);
-        s.activeTaskId = toId;
       }
     }),
 

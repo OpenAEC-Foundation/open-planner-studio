@@ -114,6 +114,9 @@ export function linkTasksInChain(taskIds: readonly string[]): (string | null)[] 
  */
 export function requestRelationAssign(taskId: string, direction: RelationAssignDirection): void {
   const st = useAppStore.getState();
+  // Een selectie kan na Ongedaan naar een verdwenen taak wijzen (`selectedTaskIds` zit niet in de
+  // undo-snapshot); dan geen verzoek dat blijft hangen tot Opnieuw de taak terugbrengt.
+  if (!st.tasks.some(task => task.id === taskId)) return;
   st.selectTask(taskId, false);
   st.setUI({ showPropertiesPanel: true, pendingRelationAssign: { taskId, direction } });
 }

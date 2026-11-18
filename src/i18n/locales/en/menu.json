@@ -199,6 +199,7 @@
     "splitTaskOnHint": "Turn on split mode; then click a bar where the break starts",
     "splitTaskOffHint": "Turn off split mode",
     "ganttOnlyHint": "Only available when the Gantt chart is visible",
+    "taskListOnlyHint": "Only available when the task list is visible",
     "relationLinkSelected": "Link selected tasks",
     "relationLinkSelectedHint": "Links the tasks in the order you selected them: each task becomes the predecessor of the next (FS, lag 0)",
     "relationSelectAtLeastTwo": "Select at least two tasks",

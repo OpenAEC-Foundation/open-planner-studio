@@ -482,6 +482,38 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(c, true);
   S().selectTask(b, false, true);
   eq('12.17 eerder aangeklikte taken buiten het bereik blijven vooraan', S().selectedTaskIds, [a, b, c]);
+
+  // Review #1004: het bereik volgt de rijen OP HET SCHERM, niet de interne taakvolgorde. Een
+  // weggefilterde taak hoort er niet bij, en bij een aflopende sortering loopt de keten mee.
+  S().setFilter({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'B' });
+  S().selectTask(c, false);
+  S().selectTask(a, false, true);
+  eq('12.18 een weggefilterde taak valt buiten het bereik', S().selectedTaskIds, [a, c]);
+  S().setFilter(null);
+  S().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
+  S().selectTask(d, false);
+  S().selectTask(b, false, true);
+  eq('12.19 bij een aflopende sortering volgt het bereik het scherm', S().selectedTaskIds, [d, c, b]);
+  S().setSort([]);
+
+  // Review #1004: Ctrl+F2 koppelt alleen als de takenlijst in beeld is, net als Delete en Ctrl+C.
+  S().selectTask(a, false);
+  S().selectTask(d, true);
+  S().setUI({ activeRibbonTab: 'report' });
+  ok('12.21 op Rapport doet Ctrl+F2 niets', shortcut?.when?.() === false);
+  S().setUI({ activeRibbonTab: 'start', showResourcePanel: true, resourcePanelDocked: false });
+  ok('12.22 onder het volledige resourcepaneel doet Ctrl+F2 niets', shortcut?.when?.() === false);
+  S().setUI({ resourcePanelDocked: true });
+  ok('12.23 met het gedockte resourcepaneel mag Ctrl+F2', shortcut?.when?.() === true);
+  S().setUI({ showResourcePanel: false, resourcePanelDocked: false, activeRibbonTab: 'table' });
+  ok('12.24 op Tabel mag Ctrl+F2', shortcut?.when?.() === true);
+  S().setUI({ activeRibbonTab: 'start' });
+
+  // Review #1004: na Ongedaan kan de selectie naar een verdwenen taak wijzen. Toewijzen zet dan geen
+  // verzoek dat blijft hangen tot Opnieuw de taak terugbrengt.
+  S().setUI({ pendingRelationAssign: null });
+  requestRelationAssign('task-bestaat-niet', 'successor');
+  eq('12.25 geen verzoek voor een taak die niet bestaat', S().ui.pendingRelationAssign, null);
 }
 
 // Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.
