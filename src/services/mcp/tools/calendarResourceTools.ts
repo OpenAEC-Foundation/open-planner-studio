@@ -35,6 +35,7 @@ import { validate } from '@/state/mcpValidation';
 import { resolveCalendarHolidays } from '../calendarGenerate';
 import { ensureFreshSchedule } from '../freshness';
 import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
+import { HOLIDAY_COUNTRIES } from '@/engine/calendar/holidays';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { hoursPerDayForBlocks, workDaysFromBands, workDaysSetPatch } from '@/services/subdayIo';
@@ -165,7 +166,7 @@ const CAL_READONLY_KEYS: string[] = [
 // binnen `runInMcpTransaction` en rolt de hele call terug met "Cannot read properties of undefined").
 
 /** Het ECHTE domein van `generate.country` (holidays.ts + generateCalendarHolidays.ts). */
-const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'];
+const GEN_COUNTRIES: GeneratorCountry[] = [...HOLIDAY_COUNTRIES, 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
 
 // ── DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ────────────────────────────────────────────────────────
@@ -190,8 +191,6 @@ const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
 const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '7'];
 const MIN_PER_DAY = 1440;
 const SHIFT_VALUES = ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED'];
-/** `CalendarGeneration.ruleSetId` is een HolidayCountry — dus ZONDER de generator-waarde 'none'. */
-const GEN_RULESETS = GEN_COUNTRIES.filter((c) => c !== 'none');
 const BREAK_CHOICES = ['noord', 'midden', 'zuid'];
 
 /** `minuten-vanaf-middernacht` leesbaar maken in een foutmelding (1800 ⇒ '06:00 van de volgende dag'). */
@@ -374,9 +373,9 @@ function generationReason(gen: unknown): string | null {
       return `unknown field \`generation.${k}\`; allowed: ${allowed.join(', ')}`;
     }
   }
-  if (!(GEN_RULESETS as string[]).includes(g.ruleSetId as string)) {
+  if (!(HOLIDAY_COUNTRIES as readonly string[]).includes(g.ruleSetId as string)) {
     return `unknown \`generation.ruleSetId\` '${String(g.ruleSetId)}'; valid values are ` +
-      `${GEN_RULESETS.join(', ')} (case-sensitive; 'none' does not exist here — leave \`generation\` out or ` +
+      `${HOLIDAY_COUNTRIES.join(', ')} (case-sensitive; 'none' does not exist here — leave \`generation\` out or ` +
       'give `null` for a literal calendar)';
   }
   if (g.region !== undefined && typeof g.region !== 'string') return '`generation.region` must be a string';

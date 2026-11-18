@@ -523,6 +523,28 @@ test('kalenderdialoog: na Continu krijgt een dag die weer aan gaat 00:00–24:00
 
 // Nieuwe route: eerder gegenereerde feestdagen uitbreiden na wijziging van de projectperiode.
 test('generatiehint noemt het doeljaar inclusief buffer, niet een verzonnen projecteinde', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setProject({ startDate: '2026-01-01' });
+    s.setUI({ activeRibbonTab: 'planning' });
+  });
+  await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
+  const boliviaDialog = page.locator('[data-ops-calendar-dialog]');
+  await boliviaDialog.getByRole('button', { name: 'Generate holidays…', exact: true }).click();
+  await boliviaDialog.getByLabel('Country', { exact: true }).click();
+  await page.getByRole('option', { name: 'Bolivia', exact: true }).click();
+  await boliviaDialog.getByLabel('Region', { exact: true }).click();
+  await page.getByRole('option', { name: 'Potosí', exact: true }).click();
+  await boliviaDialog.getByRole('button', { name: 'Generate', exact: true }).click();
+  await boliviaDialog.locator('[data-ops-cal-apply]').click();
+  await expect(boliviaDialog).toBeHidden();
+  const bolivia = await page.evaluate(() => window.__OPS__!.store.getState().calendar);
+  expect(bolivia.generation).toMatchObject({ ruleSetId: 'BO', region: 'P' });
+  expect(bolivia.holidays).toContainEqual(expect.objectContaining({
+    name: 'Gesta Libertaria de Potosí', startDate: '2026-11-10', endDate: '2026-11-10',
+  }));
+  expect(bolivia.holidays.some(h => h.startDate === '2026-09-24')).toBe(false);
+
   for (const endDate of ['2029-12-31', '']) {
     await page.evaluate(endDate => {
       const s = window.__OPS__!.store.getState();
