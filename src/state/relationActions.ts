@@ -1,5 +1,5 @@
 import { useAppStore, type AppState } from '@/state/appStore';
-import { uniqueTaskIds } from '@/engine/view/visibleRows';
+import { uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
 import { relationAddVerdict, type RelationAddRejection } from '@/state/relationRules';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { NotificationMessageKey, RelationAssignDirection } from '@/state/slices/types';
@@ -103,17 +103,50 @@ export function selectionInView(state: Pick<AppState, 'selectedTaskIds' | 'viewR
 }
 
 /**
+ * De gekozen taken in de volgorde OP HET SCHERM (filter, sortering, groepering), of `null` als die
+ * volgorde niet vastligt. Bij groeperen op resource staat een taak in elke ploeg; staat ze dan zowel
+ * vóór als na een andere gekozen taak, dan is elke keuze een gok die een relatie kan omdraaien
+ * (review #1004, ronde 6). Vast is de volgorde als de rijen van elke gekozen taak samen een blok
+ * vormen dat niet overlapt met dat van een andere. Taken die niet in beeld staan vallen weg.
+ */
+export function chainOrder(rows: readonly ViewRow[], taskIds: readonly string[]): string[] | null {
+  const chosen = new Set(taskIds);
+  // Per taak de eerste en laatste plaats in de lijst; een mijlpalenreeks telt elk lid apart.
+  const span = new Map<string, { first: number; last: number }>();
+  let position = 0;
+  for (const taskId of rows.flatMap(row => uniqueTaskIds([row]))) {
+    if (chosen.has(taskId)) {
+      const seen = span.get(taskId);
+      if (seen) seen.last = position; else span.set(taskId, { first: position, last: position });
+    }
+    position++;
+  }
+  // `span` staat al in de volgorde van het eerste voorkomen.
+  const ordered = [...span];
+  return ordered.every(([, at], index) => index === 0 || ordered[index - 1][1].last < at.first)
+    ? ordered.map(([taskId]) => taskId)
+    : null;
+}
+
+/**
  * Koppel taken als keten, Eind-Start zonder lag (issue #1000): Ctrl+F2 in MS Project, "Link
- * Activities" in Primavera. De keten volgt de volgorde OP HET SCHERM (filter, sortering,
- * groepering), niet die van klikken: de klikvolgorde liep tussen tijdlijn en takenlijst uiteen
- * (review #1004, ronde 5). Taken die niet in beeld staan vallen weg; de aanroepers koppelen alleen
- * als alles in beeld staat ({@link selectionInView}). Elke schakel gaat door
+ * Activities" in Primavera. De keten volgt de volgorde op het scherm ({@link chainOrder}), niet die
+ * van klikken: de klikvolgorde liep tussen tijdlijn en takenlijst uiteen (review #1004, ronde 5).
+ * Ligt die volgorde niet vast, dan geen keten maar een melding. De aanroepers koppelen alleen als
+ * alles in beeld staat ({@link selectionInView}). Elke schakel gaat door
  * {@link createRelationsWithFeedback}: één undo-stap, en een bestaande of verboden schakel meldt zich
  * zonder de rest tegen te houden.
  */
 export function linkTasksInChain(taskIds: readonly string[]): (string | null)[] {
-  const chosen = new Set(taskIds);
-  const ordered = uniqueTaskIds(useAppStore.getState().viewRows).filter(taskId => chosen.has(taskId));
+  const st = useAppStore.getState();
+  const ordered = chainOrder(st.viewRows, taskIds);
+  if (!ordered) {
+    st.notify(refusalNotice({
+      messageKey: 'notifications.relationChainOrderUnclear',
+      dedupeKey: 'relation-chain-order-unclear',
+    }));
+    return [];
+  }
   return createRelationsWithFeedback(ordered.slice(1).map((successorId, index) => ({
     predecessorId: ordered[index],
     successorId,

@@ -31,6 +31,7 @@ import {
   createRelationDraftWithFeedback,
   createRelationsWithFeedback,
   createRelationWithFeedback,
+  chainOrder,
   linkTasksInChain,
   requestRelationAssign,
   selectionInView,
@@ -584,6 +585,16 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTasks([b], false, b, { rowKey: S().viewRows[6].rowKey, taskIds: [b] });
   S().selectTask(a, false, true, { rowKey: S().viewRows[2].rowKey });
   eq('13.25 een kader rond de onderste B, dan Shift A', S().selectedTaskIds.map(name), ['A', 'D', 'C', 'B']);
+  // Ronde 6: de keten volgt het scherm, maar B staat hier vóór A (ploeg 1) en ná D en C (ploeg 2).
+  // Welke volgorde de planner bedoelt, ligt dan niet vast: geen keten, wel een melding. Taken die
+  // elk één blok rijen beslaan (A, D) koppelen gewoon.
+  eq('13.27 A en D liggen vast', chainOrder(S().viewRows, [d, a])?.map(name), ['A', 'D']);
+  eq('13.28 B voor én na D ligt niet vast', chainOrder(S().viewRows, [d, b]), null);
+  clearNotes();
+  const chainBefore = S().sequences.length;
+  eq('13.29 dan legt Ctrl+F2 niets', linkTasksInChain([b, d]), []);
+  eq('13.30 en meldt waarom', notes().map(n => n.key), ['notifications.relationChainOrderUnclear']);
+  eq('13.31 er is geen relatie bijgekomen', S().sequences.length, chainBefore);
   S().deselectAll();
   eq('13.23 niets kiezen wist het anker', S().ui.selectionAnchor, null);
   S().setSort([]);
@@ -601,6 +612,36 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setFilter(null);
   ok('13.5 zonder filter staat de selectie weer in beeld', selectionInView(S()));
   ok('13.6 en mag Ctrl+F2', shortcut?.when?.() === true);
+}
+
+// Ronde 6: na verwijderen begint Shift op de buurrij die de cursor kreeg, ook als die taak eerder in
+// een andere ploeg staat. Op het scherm | A D | B A C; B in ploeg 2 weg ⇒ de cursor op A in ploeg 2.
+// Shift op C is dan A, C (niet ook D uit ploeg 1), en de keten A → C.
+{
+  fresh();
+  const b = S().addTask({ name: 'B' });
+  const a = S().addTask({ name: 'A' });
+  const c = S().addTask({ name: 'C' });
+  const d = S().addTask({ name: 'D' });
+  const ploeg1 = S().addResource({ name: 'Ploeg 1', type: 'LABOR', description: '', maxUnits: 1 });
+  const ploeg2 = S().addResource({ name: 'Ploeg 2', type: 'LABOR', description: '', maxUnits: 1 });
+  for (const [task, res] of [[a, ploeg1], [d, ploeg1], [b, ploeg2], [a, ploeg2], [c, ploeg2]] as const) {
+    S().assignResource(task, res, 1, 'UNIFORM');
+  }
+  S().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+  const name = (id: string) => S().tasks.find(t => t.id === id)?.name;
+  const shape = () => S().viewRows.map(row => (row.kind === 'task' ? name(row.task.id) : '|'));
+  eq('13.32 op het scherm', shape(), ['|', 'A', 'D', '|', 'B', 'A', 'C']);
+  S().selectTask(b, false, false, { rowKey: S().viewRows[4].rowKey });
+  S().deleteTask(b);
+  eq('13.33 na verwijderen', shape(), ['|', 'A', 'D', '|', 'A', 'C']);
+  eq('13.34 de cursor staat op A in ploeg 2', S().ui.gridActiveRowKey, S().viewRows[4].rowKey);
+  eq('13.35 en daar begint Shift', S().ui.selectionAnchor?.rowKey, S().viewRows[4].rowKey);
+  S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
+  eq('13.36 Shift op C neemt alleen ploeg 2', S().selectedTaskIds.map(name), ['A', 'C']);
+  linkTasksInChain(S().selectedTaskIds);
+  eq('13.37 de keten is A → C', pairs(), ['A→C']);
+  S().setGroup([]);
 }
 
 // Een ingeklapte mijlpalenreeks (#868) is één rij. Shift-klik op een groepsruitje neemt zijn

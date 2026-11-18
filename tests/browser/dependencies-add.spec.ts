@@ -247,8 +247,8 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect.poll(() => state(page).then(s => s.sequences.map(q => [q.predecessorId, q.successorId])))
     .toEqual([[grondwerk, fundering], [fundering, ruwbouw]]);
 
-  // Zoals Ctrl+F2 in MS Project: drie taken selecteren en als keten koppelen, in de volgorde van
-  // klikken. Eén Ctrl+Z haalt de hele keten weg.
+  // Zoals Ctrl+F2 in MS Project: drie taken selecteren en als keten koppelen, in de volgorde op het
+  // scherm. Eén Ctrl+Z haalt de hele keten weg.
   await cell(grondwerk).click();
   await cell(ruwbouw).click({ modifiers: ['ControlOrMeta'] });
   await cell(afbouw).click({ modifiers: ['ControlOrMeta'] });
@@ -372,9 +372,35 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.mouse.click(afbouwEnd.x + 16, afbouwRow!.y + afbouwRow!.height / 2);
   await page.keyboard.up('Shift');
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw, afbouw]);
+  // Ronde 6: Fundering staat hier vóór Ruwbouw (ploeg 1) en erna (ploeg 2). De volgorde ligt niet
+  // vast, dus Ctrl+F2 legt niets en zegt waarom; het lint zet de knop uit.
   await page.keyboard.press('ControlOrMeta+F2');
+  await expect(page.locator('.ops-toast', { hasText: /order is not fixed|volgorde ligt niet vast/ })).toBeVisible();
   await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
-    .toEqual([[fundering, afbouw], [ruwbouw, afbouw]]);
+    .toEqual([[fundering, afbouw]]);
+
+  // Ronde 6: een open concept hoort bij zijn document. Ruwbouw gekozen in de bron én in de kopie;
+  // in de kopie "Opvolgers toewijzen…" en Afbouw aangevinkt, dan terug naar de bron: het concept is
+  // weg, zodat bevestigen niets in de bron kan leggen.
+  const source = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setGroup([]);
+    s.setSort([]);
+    return s.activeDocumentId;
+  });
+  await cell(ruwbouw).click();
+  await page.evaluate(() => { window.__OPS__!.store.getState().duplicateDocument(); });
+  await cell(ruwbouw).click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Assign successors|Opvolgers toewijzen)…$/ }).click();
+  await expect(assign.locator('[data-ops-dependency-search]')).toBeFocused();
+  await page.keyboard.type('Afb');
+  await page.keyboard.press('Enter');
+  await expect(assign.locator('[data-ops-dependency-search]')).toHaveValue(/Afbouw/);
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw]);
+  await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[fundering, afbouw]]);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

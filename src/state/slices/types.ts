@@ -308,6 +308,9 @@ export type NotificationMessageKey =
   // De store-route weigert een relatie die een kring sluit (net als raster en MCP). Parameter
   // `cycle`: de taaknamen van de kring, "A → B → A".
   | 'notifications.relationCycle'
+  // Ctrl+F2 / Geselecteerde taken koppelen: een gekozen taak staat meer dan eens in de lijst (groeperen op
+  // resource), voor én na een andere gekozen taak. De keten wordt niet gelegd (review #1004, ronde 6).
+  | 'notifications.relationChainOrderUnclear'
   // Verhangen maakte een bestaande relatie tot voorouder-relatie (telt niet meer mee) — zie
   // `hierarchyRelationNotice.ts`. Meervoud, `count`.
   | 'notifications.relationsExcludedByHierarchy'

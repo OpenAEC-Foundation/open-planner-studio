@@ -1,5 +1,6 @@
 import { uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
+import type { SelectionAnchor } from '@/state/slices/types';
 
 /**
  * Selectie na in-/uitklappen en verwijderen (issue #899). Zonder deze regels bleef de selectie op
@@ -11,7 +12,7 @@ interface SelectionDraft {
   selectedTaskIds: string[];
   activeTaskId: string | null;
   viewRows: ViewRow[];
-  ui: { gridActiveRowKey: string | null };
+  ui: { gridActiveRowKey: string | null; selectionAnchor: SelectionAnchor | null };
 }
 
 /**
@@ -117,4 +118,7 @@ export function selectNeighbourAfterRemoval(
   s.selectedTaskIds = [neighbour.task.id];
   s.activeTaskId = neighbour.task.id;
   s.ui.gridActiveRowKey = currentRowKey(s.viewRows, neighbour);
+  // Die rij is ook het nieuwe beginpunt van Shift, zoals na een klik: het oude anker hoorde bij de
+  // verwijderde rij, en de tijdlijn viel dan terug op het eerste voorkomen van de taak (review #1004).
+  s.ui.selectionAnchor = s.ui.gridActiveRowKey ? { rowKey: s.ui.gridActiveRowKey, taskIds: [neighbour.task.id] } : null;
 }

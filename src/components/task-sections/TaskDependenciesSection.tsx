@@ -129,10 +129,12 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
 
   // Zelfde reden als de spooktooltip hieronder: een selectiewissel (pijltoets, Ctrl+Z, AI) mag geen
   // half ingevulde conceptrij van de vórige taak laten staan — die zou bij bevestigen op de nieuwe
-  // taak landen.
+  // taak landen. Ook niet na een documentwissel: een variant draagt dezelfde taak-id's, en het concept
+  // landde dan in het andere document (review #1004, ronde 6).
+  const documentId = useAppStore(s => s.activeDocumentId);
   useEffect(() => {
     setDraft(null);
-  }, [taskId]);
+  }, [taskId, documentId]);
 
   // "Voorgangers/Opvolgers toewijzen…" uit het rechtsklikmenu of het lint (issue #1000, Assign in
   // Primavera): open de conceptrij met die richting. Na de reset hierboven, zodat een verzoek dat

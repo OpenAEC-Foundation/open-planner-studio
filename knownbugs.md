@@ -1064,6 +1064,11 @@ en noem het in je rapport of PR-tekst.
       een selectiewissel van buiten op de cursor zetten brak het bestaande contract van
       `check-task-grid-published-selection.ts`; dat vraagt een eigen afweging. Uit de review van #1004
       (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+1876. **VERVOLG (#1004): twee omzettingen van een rasterrij naar haar taken.** `gridAnchor` in
+      `FullTaskGrid.tsx` bepaalt opnieuw welke taken bij een taakrij of mijlpalenreeks horen; `selectableRow`
+      in `src/engine/taskGrid/selection.ts` doet dat al. Eén omzetting volstaat, plus het weglaten van de
+      spookregel bij publiceren naar de store. Opruimen, geen fout. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 

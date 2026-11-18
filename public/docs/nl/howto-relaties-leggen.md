@@ -87,7 +87,7 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd �
 
 ## Valkuilen en wat de app dan doet
 
-**De keten volgt de lijst.** *Geselecteerde taken koppelen* koppelt van boven naar beneden zoals de lijst nu staat, ook als je hem sorteert of groepeert. Moet een latere taak juist voorganger worden, sorteer dan anders, of kies *Voorgangers toewijzen…* of *Opvolgers toewijzen…* in het rechtermuismenu.
+**De keten volgt de lijst.** *Geselecteerde taken koppelen* koppelt van boven naar beneden zoals de lijst nu staat, ook als je hem sorteert of groepeert. Moet een latere taak juist voorganger worden, sorteer dan anders, of kies *Voorgangers toewijzen…* of *Opvolgers toewijzen…* in het rechtermuismenu. Bij groeperen op resource staat een taak in elke ploeg. Staat een gekozen taak zo zowel boven als onder een andere gekozen taak, dan ligt de volgorde niet vast en koppelt de app niets; je krijgt dan een melding.
 
 **Typen in de kolom wist wat er stond.** Staat in de cel `3.4 FS; 3.2 FS` en typ je alleen `3.2 FS`, dan is de relatie met 3.4 weg, zonder melding. Typ alle voorgangers mee, gebruik Enter of F2 om aan te vullen, of zet het terug met Ctrl+Z.
 
