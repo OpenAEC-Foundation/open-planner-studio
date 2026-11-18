@@ -336,11 +336,11 @@ test('poort 11: de agentgids is groen, en een docs://- of examples://-link wordt
 // --- (d) poort 9: frontmatter en skill-verzamelingen -------------------------------------------------
 
 test('poort 9: frontmatter-name alleen binnen de frontmatter, leeg of anders = fout', () => {
-  const ok = '---\nname: progress-update\ndescription: Use when …\n---\n\n# X\n';
+  const ok = '---\nname: progress-update\ndescription: "Use when …"\n---\n\n# X\n';
   assertEq(checkSkillFrontmatter(ok, 'progress-update', 'x'), [], 'een correcte frontmatter is groen');
-  assert(checkSkillFrontmatter('---\nname:\ndescription: d\n---\n', 'a', 'x').some((d) => d.includes('leeg')), 'lege name niet gemeld');
-  assert(checkSkillFrontmatter('---\nname: b\ndescription: d\n---\n', 'a', 'x').some((d) => d.includes('"b"')), 'verkeerde name niet gemeld');
-  assert(checkSkillFrontmatter('---\ndescription: d\n---\n\nname: a\n', 'a', 'x').some((d) => d.includes('ontbreekt')),
+  assert(checkSkillFrontmatter('---\nname:\ndescription: "d"\n---\n', 'a', 'x').some((d) => d.includes('leeg')), 'lege name niet gemeld');
+  assert(checkSkillFrontmatter('---\nname: b\ndescription: "d"\n---\n', 'a', 'x').some((d) => d.includes('"b"')), 'verkeerde name niet gemeld');
+  assert(checkSkillFrontmatter('---\ndescription: "d"\n---\n\nname: a\n', 'a', 'x').some((d) => d.includes('ontbreekt')),
     'een name-regel BUITEN de frontmatter telt niet');
   assert(checkSkillFrontmatter('# geen frontmatter\nname: a\n', 'a', 'x').some((d) => d.includes('geen frontmatter')), 'ontbrekende frontmatter niet gemeld');
   assert(checkSkillFrontmatter('---\nname: a\ndescription:\n---\n', 'a', 'x').some((d) => d.includes('description')), 'lege description niet gemeld');
@@ -348,8 +348,22 @@ test('poort 9: frontmatter-name alleen binnen de frontmatter, leeg of anders = f
 
 test('poort 9: de frontmatter is geldige YAML (mutatiebewijs met de fout uit council-ronde 3)', () => {
   const fm = (desc: string) => `---\nname: a\ndescription: ${desc}\n---\n\nBody.\n`;
-  // Groen: gewone waarden met puntkomma, sterretje en pijl, en gequote waarden mét dubbele punt.
-  for (const desc of ['Build schedules via planner_*; for progress use b.', 'Een → pijl', "'Progress: b.'", '"Progress: b."', "'it''s: ok'"]) {
+  // Knownbug 1003: YAML kan deze ongequote waarden als null, boolean of getal lezen.
+  // Quotes maken er wél geldige tekst van; geen eigen, onvolledige YAML-typetabel nodig.
+  for (const scalar of ['null', '~', 'true', 'false', '123', '-1.5', '0x10', '.inf', '2026-11-12', 'gewone tekst']) {
+    assert(checkSkillFrontmatter(fm(scalar), 'a', 'x').some(d => d.includes('tussen aanhalingstekens')),
+      `ongequote description geweigerd: ${scalar}`);
+    for (const quote of ["'", '"']) {
+      assertEq(checkSkillFrontmatter(fm(`${quote}${scalar}${quote}`), 'a', 'x'), [],
+        `gequote description blijft tekst: ${quote}${scalar}${quote}`);
+    }
+  }
+  for (const empty of ["''", '""', "'   '", '"   "']) {
+    assert(checkSkillFrontmatter(fm(empty), 'a', 'x').some(d => d.includes('description ontbreekt of is leeg')),
+      `lege gequote description geweigerd: ${empty}`);
+  }
+  // Groen: description is expliciet tekst, ook bij puntkomma, sterretje, pijl en dubbele punt.
+  for (const desc of ['"Build schedules via planner_*; for progress use b."', '"Een → pijl"', "'Progress: b.'", '"Progress: b."', "'it''s: ok'"]) {
     assertEq(checkSkillFrontmatter(fm(desc), 'a', 'x'), [], `geldige YAML afgekeurd: ${desc}`);
   }
   assertEq(parseSkillFrontmatter("name: a\ndescription: 'it''s: ok'").values.description, "it's: ok", 'enkel-gequote waarde gelezen');
@@ -369,9 +383,9 @@ test('poort 9: de frontmatter is geldige YAML (mutatiebewijs met de fout uit cou
     const diffs = checkSkillFrontmatter(fm(desc), 'a', 'x');
     assert(diffs.some((d) => d.includes(word)), `niet gemeld als YAML-fout (${word}): ${desc} → ${JSON.stringify(diffs)}`);
   }
-  const multi = checkSkillFrontmatter('---\nname: a\ndescription: one\n  two\n---\n', 'a', 'x');
+  const multi = checkSkillFrontmatter('---\nname: a\ndescription: "one"\n  two\n---\n', 'a', 'x');
   assert(multi.some((d) => d.includes('op één regel')), `vervolgregel niet gemeld: ${JSON.stringify(multi)}`);
-  const twice = checkSkillFrontmatter('---\nname: a\nname: a\ndescription: d\n---\n', 'a', 'x');
+  const twice = checkSkillFrontmatter('---\nname: a\nname: a\ndescription: "d"\n---\n', 'a', 'x');
   assert(twice.some((d) => d.includes('twee keer')), `dubbele sleutel niet gemeld: ${JSON.stringify(twice)}`);
   // De echte skills: bron en kopie.
   for (const s of AGENT_SKILLS) {
