@@ -207,6 +207,19 @@ async function main() {
         assert.equal(writesTo(callsFrom(before)).length, 1, 'geen directe terugval');
       });
     }
+    await check('8d. Tauri: refused/hard-linked (het tijdelijke bestand kreeg een tweede naam): fout, alleen de eigen naam weg, de tweede naam blijft', async () => {
+      const d = caseDir(), target = path.join(d, 'tweede-naam.ifc'), second = path.join(d, 'tweede.bin'), before = ipc.calls.length;
+      // De echte nabootsing beslist: eerst een tweede naam voor het tijdelijke bestand, dan de controle van het commando.
+      await withPlace((from, _to, real) => { fs.linkSync(from, second); return real(); }, async () => {
+        const error = await caught(save(target));
+        assert.ok(reason('write')(error));
+        assert.match(String((error as ByteWriteError).cause), /refused \(hard-linked\)/);
+      });
+      assert.deepEqual(onDisk(d), { 'tweede.bin': hex(bytes) }, 'geen doel; de inhoud staat nog onder de tweede naam');
+      const calls = callsFrom(before);
+      assert.deepEqual(removes(calls).map(c => isTemp(c.path)), [true], 'alleen de eigen hulpnaam opgeruimd');
+      assert.equal(writesTo(calls).length, 1, 'geen directe terugval');
+    });
     await check('9. Tauri: dir-not-synced: het bestand is geplaatst, dus geslaagd (met een waarschuwing)', async () => {
       const d = caseDir(), target = path.join(d, 'niet-vastgelegd.ifc');
       const warn = console.warn, warnings: unknown[][] = [];

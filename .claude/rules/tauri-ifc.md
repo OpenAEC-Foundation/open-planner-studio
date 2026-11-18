@@ -50,11 +50,12 @@ ook op het echte pad van de open map (`FsRenameScope`: de capability via `Webvie
 runtime-scope; een verbod op de padtekst of op het echte pad wint, de toestemming geldt het echte pad, en het echte pad
 lost ook links in de bovenliggende mappen van een nog niet bestaand pad op, een lus weigert; zoals `resolve_path` en
 `resolve_real_path` in `tauri-plugin-fs-2.7.1/src/commands.rs:1615-1725`, die privé zijn), de bron geopend in de open
-map zonder link te volgen en een gewoon bestand, fsync van die open bron, de exclusieve stap (een fout blijft een fout,
-ook `EEXIST` bij een harde link van de bron), een controle na de stap (op het doel staat de open bron, in de open map
+map zonder link te volgen en een gewoon bestand met precies één naam (het aantal van de open bron; anders `hard-linked`,
+besluit van 18 november 2026), fsync van die open bron, de exclusieve stap (een fout blijft een fout,
+ook `EEXIST`), een controle na de stap (op het doel staat de open bron, in de open map
 én via het pad van de aanroeper; anders `source-changed` en geen verdere stap, geen terugzetten), fsync van de map.
 Uitkomsten op `code`: `placed`, `dir-not-synced` (wel verplaatst), `target-exists`, `unsupported`, `refused` met
-`reason` (`path-shape`, `helper-name`, `scope`, `not-regular-file`), `source-changed` (belooft geen stand op schijf),
+`reason` (`path-shape`, `helper-name`, `scope`, `not-regular-file`, `hard-linked`), `source-changed` (belooft geen stand op schijf),
 `io`. De grens van het commando staat letterlijk bovenaan `place_file.rs` en in ontwerp §4.10; op Unix blijft een
 venster tussen controle en stap (knownbug 1799). Geen terugval: `link()` + `unlink()` en "eerst kijken, dan hernoemen" laten
 een bestand verdwijnen dat tussendoor op het doel komt (review #839, ronde 4); een bestandssysteem zonder gebonden
@@ -95,7 +96,7 @@ De nieuwe byte-ingang (#804, T1) staat naast deze bestaande tekst-/binaire schri
 rauwe body in één aanroep, en zet het met `place_file_exclusive` op de naam. Per uitkomst: `placed` klaar;
 `dir-not-synced` klaar met `console.warn`; `target-exists` eigen bestand weg (best effort) en `ByteWriteError('create-new')`;
 `unsupported` en `refused`/`scope` eigen bestand weg en de directe exclusieve aanmaak (één `createNew` op de naam);
-`refused` anders een fout, zonder opruimen bij `not-regular-file`; `source-changed` stoppen met `ByteWriteError('source-changed')`
+`refused` anders een fout, zonder opruimen bij `not-regular-file` (bij `hard-linked` wel, alleen de eigen naam); `source-changed` stoppen met `ByteWriteError('source-changed')`
 (niets terugzetten, opruimen of terugvallen); `io` eigen bestand weg en `write`. Een `forbidden path` op het tijdelijke
 bestand (buiten de thuismap; vanaf plugin-fs 2.7.1 ook een gelinkte map naar buiten) gaat naar de directe aanmaak; een
 andere aanmaakfout (ook `EEXIST` op de hulpnaam) geeft geen eigendom: niets verwijderen, geen terugval. Na `io` of

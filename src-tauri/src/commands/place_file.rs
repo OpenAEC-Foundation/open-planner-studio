@@ -20,6 +20,15 @@
 //! - een fout van de stap blijft een fout (`EEXIST` is `target-exists`, ook bij hetzelfde inode);
 //! - na de stap hoogstens één verplaatsing, geen herstel.
 //!
+//! Een bron met meer dan één naam (een harde link) weigert het, vóór de stap, met de eigen reden
+//! `hard-linked` (besluit van de technisch beslisser, 18 november 2026; review #991). Anders lopen de twee
+//! namen na een vervanging stil uiteen, en de voorcontrole in TypeScript ziet het aantal op Windows niet
+//! (plugin-fs 2.7.1 geeft daar `nlink: null`). Het aantal komt van de open bron: Unix uit de metadata
+//! van de open descriptor, Windows `nNumberOfLinks` van `GetFileInformationByHandle` op de open handle.
+//! Precies één naam mag; een aantal dat niet te lezen is, is een fout (`io`), nooit "één". De regel geldt
+//! voor elke bron, ook het eigen tijdelijke bestand: daardoor bestaat ook de uitzondering van knownbug
+//! 1798 (een harde link van de bron op het doel) niet meer.
+//!
 //! Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen
 //! controle en stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als
 //! het dat achteraf ziet, en kan het missen bij een wissel-terug. Op Windows speelt dit niet.
@@ -31,10 +40,10 @@
 //! Hoe: het commando toetst eerst de padteksten zoals plugin-fs `rename` (`SafeFilePath`, dan de scope
 //! van `from` en daarna van `to`). Het opent de map één keer en houdt haar vast; de scope geldt ook het
 //! echte pad van die open map. Het opent de bron zonder links te volgen en stelt op de open bron vast dat
-//! het een gewoon bestand is. De stap gaat relatief aan de open map (Unix) of hernoemt de open bron
-//! (Windows; map en bron zijn geopend zonder `FILE_SHARE_DELETE`). Daarna gaat het na dat op het doel de
-//! open bron staat, in de open map en via het pad van de aanroeper. Is dat niet zo, dan geeft het
-//! `source-changed` en raakt het niets meer aan; die uitkomst belooft geen stand op schijf.
+//! het een gewoon bestand met precies één naam is. De stap gaat relatief aan de open map (Unix) of
+//! hernoemt de open bron (Windows; map en bron zijn geopend zonder `FILE_SHARE_DELETE`). Daarna gaat het
+//! na dat op het doel de open bron staat, in de open map en via het pad van de aanroeper. Is dat niet zo,
+//! dan geeft het `source-changed` en raakt het niets meer aan; die uitkomst belooft geen stand op schijf.
 //!
 //! Geen terugval: kent het bestandssysteem of het platform de gebonden exclusieve stap niet, dan is de
 //! uitkomst *niet ondersteund* en is er niets verplaatst. Een `link()` + `unlink()` liet een bestand
@@ -94,6 +103,9 @@ pub enum RefusalReason {
     Scope,
     /// `from` is geen gewoon bestand (een map of een symbolische link).
     NotRegularFile,
+    /// `from` heeft niet precies één naam: een tweede naam (een harde link) of een aantal van nul.
+    /// Besluit van de technisch beslisser, 18 november 2026.
+    HardLinked,
 }
 
 // ── De regel voor de hulpnamen, op één plek ──────────────────────────────────────────────────────
@@ -147,15 +159,15 @@ pub(crate) struct OpenDir {
 
 /// De drie stappen rond de verplaatsing. De proeven zetten er een eigen variant tussen om fouten na te
 /// bootsen, de volgorde te zien en tussen controle en stap te wisselen; het commando gebruikt
-/// [`SystemOps`]. De controles zelf (vorm, hulpnaam, scope, gewoon bestand, de controle na de stap)
-/// zitten niet in de naad.
+/// [`SystemOps`]. De controles zelf (vorm, hulpnaam, scope, gewoon bestand, aantal namen, de controle na
+/// de stap) zitten niet in de naad.
 pub(crate) trait PlaceOps {
     /// Leg de inhoud van de open bron vast (fsync).
     fn sync_file(&self, source: &File) -> io::Result<()>;
     /// Verplaats `from` exclusief naar `to` in de open map: faalt met `AlreadyExists` als er op `to`
-    /// iets staat. Unix: relatief aan de open map; Windows: via de open bron. Uitzondering op Windows
-    /// (knownbug 1798): is `to` een harde link van de bron zelf, dan slaagt de stap, zonder dat een ander
-    /// bestand vervangen wordt.
+    /// iets staat. Unix: relatief aan de open map; Windows: via de open bron. (Op Windows slaagt de
+    /// systeemstap als `to` een harde link van de bron zelf is; [`place`] laat zo'n bron niet tot hier
+    /// komen, want ze heeft dan twee namen.)
     fn rename_exclusive(
         &self,
         dir: &OpenDir,
@@ -273,6 +285,11 @@ mod sys {
 
     pub fn is_regular(file: &File) -> io::Result<bool> {
         Ok(file.metadata()?.file_type().is_file())
+    }
+
+    /// Het aantal namen van de open bron (`st_nlink` van `fstat` op de open descriptor).
+    pub fn link_count(file: &File) -> io::Result<u64> {
+        Ok(file.metadata()?.nlink())
     }
 
     pub fn id_in_dir(dir: &OpenDir, name: &str) -> io::Result<FileId> {
@@ -457,6 +474,11 @@ mod sys {
         Ok(attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT) == 0)
     }
 
+    /// Het aantal namen van de open bron (`nNumberOfLinks` van `GetFileInformationByHandle`).
+    pub fn link_count(file: &File) -> io::Result<u64> {
+        Ok(u64::from(info(file)?.nNumberOfLinks))
+    }
+
     pub fn id_in_dir(dir: &OpenDir, name: &str) -> io::Result<FileId> {
         id_of_path(&dir.real.join(name))
     }
@@ -544,6 +566,9 @@ mod sys {
     pub fn is_regular(_: &File) -> io::Result<bool> {
         unsupported()
     }
+    pub fn link_count(_: &File) -> io::Result<u64> {
+        unsupported()
+    }
     pub fn id_in_dir(_: &OpenDir, _: &str) -> io::Result<FileId> {
         unsupported()
     }
@@ -618,7 +643,8 @@ fn plain_path(path: &str) -> Option<(&str, &str)> {
 /// 3. de map van `from` geopend en vastgehouden, en die van `to` is dezelfde open map;
 /// 4. precies één van beide namen is een eigen hulpbestand;
 /// 5. beide paden in de scope, ook op het echte pad van de open map;
-/// 6. de bron, geopend in de open map zonder links te volgen, is een gewoon bestand;
+/// 6. de bron, geopend in de open map zonder links te volgen, is een gewoon bestand met precies één naam
+///    (gelezen van de open bron; onleesbaar is een fout);
 /// 7. fsync van de open bron;
 /// 8. de exclusieve stap; een fout blijft een fout;
 /// 9. controle: op het doel staat nu de open bron, in de open map én via het pad van de aanroeper;
@@ -680,6 +706,11 @@ pub(crate) fn place(
     })?;
     if !sys::is_regular(&source).map_err(io_error)? {
         return Err(refused(RefusalReason::NotRegularFile));
+    }
+    // Een tweede naam zou na een vervanging stil uiteenlopen. Gelezen van de open bron, niet opnieuw op
+    // naam; een aantal dat niet te lezen is, is een fout zoals bij de controle hierboven, nooit "één".
+    if sys::link_count(&source).map_err(io_error)? != 1 {
+        return Err(refused(RefusalReason::HardLinked));
     }
     let source_id = sys::file_id(&source).map_err(io_error)?;
 
@@ -1079,6 +1110,7 @@ mod tests {
             (RefusalReason::HelperName, "helper-name"),
             (RefusalReason::Scope, "scope"),
             (RefusalReason::NotRegularFile, "not-regular-file"),
+            (RefusalReason::HardLinked, "hard-linked"),
         ] {
             assert_eq!(
                 json(&PlaceError::Refused { reason }),
@@ -1598,10 +1630,10 @@ mod tests {
         assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
     }
 
-    // Review #972 ronde 2, blokkade 2: een harde link van de bron op het doel. Unix: de echte stap weigert
-    // (`EEXIST`); dat blijft `target-exists`, ook al is het hetzelfde inode, en beide namen blijven.
-    // Windows: `SetFileInformationByHandle` zonder vervangen geeft hier geen fout (gemeten in de CI); de
-    // proef legt vast wat er dan op schijf staat.
+    // Review #972 ronde 2, blokkade 2: een harde link van de bron op het doel. Sinds het besluit van 18
+    // november 2026 heeft de bron dan twee namen en weigert het commando vóór de stap, op elk platform:
+    // `hard-linked`, beide namen blijven, er is niets vastgelegd of verplaatst. Daarvóór gaf Unix hier
+    // `target-exists` en Windows `placed` (knownbug 1798, run 43947435718).
     #[test]
     fn place_file_harde_link_op_het_doel() {
         let dir = TempDir::new("hardelink");
@@ -1610,16 +1642,52 @@ mod tests {
         std::fs::hard_link(dir.file(TMP), dir.file(DOEL)).unwrap();
         let to = text(&dir.file(DOEL));
         let ops = Recorder::default();
-        let uitkomst = place(&from, &to, &dir.scope(), &ops);
-        let stand = (uitkomst, exists(&dir.file(TMP)), exists(&dir.file(DOEL)));
-        if cfg!(unix) {
-            assert_eq!(stand, (Err(PlaceError::TargetExists), true, true));
-            assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
-            assert_eq!(*ops.events.borrow(), ["sync_file", "rename_exclusive"]);
-        } else {
-            assert_eq!(stand, (Ok(PlaceOutcome::Placed), false, true), "Windows");
-        }
+        assert_eq!(
+            place(&from, &to, &dir.scope(), &ops),
+            refused(RefusalReason::HardLinked)
+        );
+        assert_eq!(std::fs::read(dir.file(TMP)).unwrap(), bytes);
         assert_eq!(std::fs::read(dir.file(DOEL)).unwrap(), bytes);
+        assert!(ops.events.borrow().is_empty());
+    }
+
+    // Besluit van 18 november 2026 (review #991): een bron met een tweede naam elders in de map wordt
+    // geweigerd, in beide richtingen (stap 3: het bestand van de planner opzij; stap 4: het eigen
+    // tijdelijke bestand op de naam). Beide namen en het doel blijven onaangeroerd, er gebeurt geen enkele
+    // stap. Met één naam over slaagt dezelfde aanroep zoals altijd.
+    #[test]
+    fn place_file_bron_met_tweede_naam_geweigerd() {
+        let dir = TempDir::new("tweedenaam");
+        let planner = content(37, 4_000);
+        let eigen = content(38, 3_000);
+        for (from_name, to_name, tweede, bytes) in [
+            (DOEL, VORIGE, "kopie.ifc", &planner),
+            (TMP, "nieuw.ifc", "elders.bin", &eigen),
+        ] {
+            let from = dir.write(from_name, bytes);
+            std::fs::hard_link(dir.file(from_name), dir.file(tweede)).unwrap();
+            let to = text(&dir.file(to_name));
+            let ops = Recorder::default();
+            assert_eq!(
+                place(&from, &to, &dir.scope(), &ops),
+                refused(RefusalReason::HardLinked),
+                "{from_name} -> {to_name}"
+            );
+            assert!(ops.events.borrow().is_empty(), "{from_name}: geen stap");
+            assert_eq!(std::fs::read(dir.file(from_name)).unwrap(), *bytes);
+            assert_eq!(std::fs::read(dir.file(tweede)).unwrap(), *bytes);
+            assert!(!exists(&dir.file(to_name)));
+
+            // De tweede naam weg: één naam, en de stap gaat zoals altijd.
+            std::fs::remove_file(dir.file(tweede)).unwrap();
+            assert_eq!(
+                place(&from, &to, &dir.scope(), &SystemOps),
+                Ok(PlaceOutcome::Placed),
+                "{from_name} -> {to_name}"
+            );
+            assert_eq!(std::fs::read(dir.file(to_name)).unwrap(), *bytes);
+            assert!(!exists(&dir.file(from_name)));
+        }
     }
 
     // Review #972 ronde 2, blokkade 1: na de stap zet een ander het doel opzij en een eigen bestand B op

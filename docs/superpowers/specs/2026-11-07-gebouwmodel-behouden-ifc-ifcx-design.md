@@ -651,8 +651,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   (`tauri-plugin-fs-2.7.1/src/commands.rs:864`); er is geen exclusieve variant en geen harde link. Alleen `writeFile` en
   `open` kennen `createNew`.
   - **Keuze: één smal Rust-commando `place_file_exclusive(from, to)`.** Het plaatst een bestand onder een nieuwe naam en
-    faalt als die naam al bestaat (op Windows niet als daar een harde link van de bron zelf staat: dan `placed`, knownbug
-    1798), in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
+    faalt als die naam al bestaat, in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
     `renameatx_np` met `RENAME_EXCL`, op Windows `SetFileInformationByHandle` (`FileRenameInfo`) zonder vervangen. Kent het
     bestandssysteem zo'n stap niet (`EINVAL`, `ENOTSUP`, bijvoorbeeld op sommige netwerkschijven), dan geeft het de fout
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
@@ -685,6 +684,14 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     - een fout van de stap blijft een fout (`EEXIST` is `target-exists`, ook bij hetzelfde inode);
     - na de stap hoogstens één verplaatsing, geen herstel.
 
+    Een bron met meer dan één naam (een harde link) weigert het vóór de stap, met `refused` en de eigen reden
+    `hard-linked` (besluit van de technisch beslisser, 18 november 2026; review #991): anders lopen de twee namen na een
+    vervanging stil uiteen, en de voorcontrole in TypeScript ziet het aantal op Windows niet (plugin-fs 2.7.1 geeft
+    daar `nlink: null`). Het commando leest het aantal van de open bron (Unix de metadata van de open descriptor,
+    Windows `nNumberOfLinks` van `GetFileInformationByHandle` op de open handle); precies één naam mag, een aantal dat
+    niet te lezen is, geeft `io`. De regel geldt voor elke bron, in stap 3 en in stap 4; een harde link van de bron op
+    het doel valt er ook onder (daarvóór gaf Windows daar `placed`, knownbug 1798).
+
     Buiten de grens (benoemd, knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen controle en
     stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als het dat achteraf ziet, en
     kan het missen bij een wissel-terug. Op Windows speelt dit niet.
@@ -696,7 +703,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     Hoe: eerst de padteksten van de aanroeper zoals plugin-fs `rename` ze toetst (`SafeFilePath`, dan de scope van
     `from` en daarna van `to`; een doel dat nog niet bestaat, maakt Tauri niet canoniek). Dan de map, één keer geopend
     en vastgehouden, met de scope ook op het echte pad van die open map. De bron wordt in die map geopend zonder links
-    te volgen en op de open bron gecontroleerd en vastgelegd. De stap gaat relatief aan de open map (Linux
+    te volgen en op de open bron gecontroleerd (een gewoon bestand met precies één naam) en vastgelegd. De stap gaat relatief aan de open map (Linux
     `renameat2`, macOS `renameatx_np`); op Windows zijn map en bron geopend zonder `FILE_SHARE_DELETE` en hernoemt
     `SetFileInformationByHandle` de open bron zelf. Na de stap moet op het doel de open bron staan, in de open map en
     via het pad van de aanroeper; anders geeft het commando `source-changed` en raakt het niets meer aan. Die uitkomst
@@ -709,7 +716,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     (`writeNewUserBytes` in `atomicWrite.ts`). `placed` en `dir-not-synced` zijn klaar; `target-exists` ruimt het eigen
     bestand op en meldt dat alleen een nieuwe naam kan; `unsupported` en `refused` met reden `scope` ruimen op en vallen
     terug op de directe exclusieve aanmaak (één `createNew` op de naam); een andere weigering is een fout, zonder
-    opruimen bij `not-regular-file`; `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
+    opruimen bij `not-regular-file` (bij `hard-linked` wel: dat haalt alleen de eigen naam weg); `source-changed` stopt: niets terugzetten, niets opruimen, geen terugval, en de
     planner hoort dat de app niet weet of het bestand goed is opgeslagen; `io` ruimt op en is een fout. Mag het
     tijdelijke bestand niet ontstaan (`forbidden path`: buiten de thuismap, en sinds plugin-fs 2.7.1 ook in een map
     die via een link naar buiten de thuismap wijst), dan blijft de directe

@@ -213,9 +213,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
   Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
   same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
-  the open folder; Windows `SetFileInformationByHandle` on the open source without replace, which succeeds when the
-  name is a hard link of the source itself, knownbug 1798); it refuses unless
-  exactly one name is an own helper file and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
+  the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
+  exactly one name is an own helper file, the opened source is a regular file with exactly one name (`hard-linked`
+  otherwise, read from the open handle; technical decision 2026-11-18), and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
   then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
   plus the runtime scope, the rule of plugin-fs 2.7.1: a deny on the path text or on the real path wins, the allow
   applies to the real path, and the real path resolves symlinks in the ancestors of a path that does not exist yet). A step error stays an error; after the step it checks that

@@ -2622,6 +2622,8 @@ en noem het in je rapport of PR-tekst.
         Windows (aantallen in #972), ook wissels vóór en na de echte stap, een harde link op het doel en dezelfde
         invoer door de IPC naar plugin-fs `rename` en dit commando. Elke controle kreeg een mutatie die haar eigen
         proef rood maakte.
+        Sinds 18 november 2026 weigert het een bron met meer dan één naam (`refused`/`hard-linked`, het aantal van
+        de open bron, ook op Windows).
      4. Klaar (stap 4, #983): Opslaan als, Exporteren → IFC en `planner_export_ifc` naar een nieuwe naam op de
         desktop (`writeNewUserBytes` in `atomicWrite.ts`). De merge geeft één buffer (`PreparedIfcWrite.bytes`); de
         route schrijft die met `createNew` in één aanroep naar `save-<id>.ops-save.tmp` in dezelfde map en zet dat met
@@ -2740,14 +2742,6 @@ en noem het in je rapport of PR-tekst.
      de bron op het doel een valse `placed` (review #972, ronde 2). Stap 4 en 5 moeten na zo'n fout dus niet aannemen
      dat de hulpnaam nog bestaat. De proef `place_file_fout_na_uitgevoerde_hernoeming` legt vast dat de fout terugkomt.
      Op een echte netwerkschijf niet gemeten. Uit 1131 stap 3. — S
-
-1798. **VERVOLG (#804, Windows): een harde link van de bron op het doel geeft daar `placed`, niet `target-exists`.**
-     De grens van `place_file_exclusive` eist dat een fout van de stap een fout blijft (`EEXIST` is `target-exists`, ook
-     bij hetzelfde inode). Op Unix geeft de stap die fout en blijven beide namen. Op Windows ontstaat er geen fout:
-     `SetFileInformationByHandle` zonder vervangen slaagt als het doel een harde link naar de bron zelf is: de uitkomst is `placed`, de hulpnaam is weg, het doel
-     bestaat en de inhoud is ongewijzigd (proef `place_file_harde_link_op_het_doel`, gemeten in de Rust-tests, run
-     43947435718). Er is één verplaatsing en geen ander bestand is vervangen; alleen de uitkomst wijkt af van Unix.
-     Stap 4 en 5 maken zelf geen harde link van een hulpbestand op het doel. Uit 1131 stap 3 (fixronde 2). — B (proef)
 
 1799. **VERVOLG (#804, Unix): tussen controle en stap kan een ander object onder de hulpnaam komen.**
      Buiten de grens van `place_file_exclusive` (besluit van de technisch beslisser, 16 november 2026): op Unix kan
