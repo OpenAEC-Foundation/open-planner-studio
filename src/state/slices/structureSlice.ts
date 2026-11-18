@@ -1,6 +1,6 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
-import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
+import { customTaskTypeClashes, customTaskTypeInUse } from '@/services/taskTypes/customTaskTypeRules';
 import type { CustomTaskType } from '@/types/taskType';
 import { generateId } from '@/utils/id';
 import type { AppSliceFactory } from './types';
@@ -42,21 +42,25 @@ export interface StructureSlice {
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
   ensureProjectTaskType: (type: CustomTaskType) => void;
   /**
-   * Hernoemt de projectkopie van een eigen taaktype in het actieve document (#804 keuze 7): één
-   * ongedaan-maakstap, document gewijzigd, de naam gaat mee in het IFC. Dezelfde botsingsregel als
+   * Hernoemt de projectkopie van een eigen taaktype (#804 keuze 7): één ongedaan-maakstap, document
+   * gewijzigd, de naam gaat mee in het IFC en het herstel. Alleen in `documentId`, het document waarin de
+   * planner het bevestigde (is een ander document actief: niets), en alleen als een taak het type gebruikt
+   * (een ongebruikte definitie bewaart IFC/herstel niet). Dezelfde botsingsregel als
    * `ensureProjectTaskType`; een geweigerde of overbodige hernoeming verandert niets.
    */
-  renameProjectTaskType: (id: string, name: string) => RenameProjectTaskTypeResult;
+  renameProjectTaskType: (documentId: string, id: string, name: string) => RenameProjectTaskTypeResult;
 }
 
-/** Uitkomst van `renameProjectTaskType`. `nameTaken` noemt het ándere type met die naam, zodat de
+/** Uitkomst van `renameProjectTaskType`. `nameTaken` noemt de naam van het ándere type, zodat de
  *  planner ziet waarom de naam in het project niet veranderde. */
 export type RenameProjectTaskTypeResult =
   | { status: 'renamed' }
   | { status: 'unchanged' }
   | { status: 'missing' }
   | { status: 'empty' }
-  | { status: 'nameTaken'; takenBy: CustomTaskType };
+  | { status: 'unused' }
+  | { status: 'otherDocument' }
+  | { status: 'nameTaken'; takenName: string };
 
 export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) => (set, get) => ({
   activityCodeTypes: [],
@@ -75,12 +79,15 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
     });
   },
 
-  renameProjectTaskType: (id, name) => {
+  renameProjectTaskType: (documentId, id, name) => {
+    const state = get();
+    if (state.activeDocumentId !== documentId) return { status: 'otherDocument' };
     const clean = name.trim();
     if (!clean) return { status: 'empty' };
-    const { sameId, sameNameOtherId } = customTaskTypeClashes(get().customTaskTypes, { id, name: clean });
+    const { sameId, sameNameOtherId } = customTaskTypeClashes(state.customTaskTypes, { id, name: clean });
     if (!sameId) return { status: 'missing' };
-    if (sameNameOtherId) return { status: 'nameTaken', takenBy: { ...sameNameOtherId } };
+    if (!customTaskTypeInUse(state.tasks, id)) return { status: 'unused' };
+    if (sameNameOtherId) return { status: 'nameTaken', takenName: sameNameOtherId.name };
     if (sameId.name === clean) return { status: 'unchanged' };
     set((s) => {
       runtime.beginUndoable(s);

@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useState } from 'react';
+import { useEffect, useSyncExternalStore, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import type { Task, TaskType } from '@/types/task';
@@ -8,9 +8,11 @@ import { useAppStore } from '@/state/appStore';
 import {
   addPersonalTaskType, getPersonalTaskTypes, removePersonalTaskType, renamePersonalTaskType, subscribePersonalTaskTypes,
 } from '@/services/taskTypes/personalTaskTypes';
+import { customTaskTypeInUse } from '@/services/taskTypes/customTaskTypeRules';
 import { Dialog } from '@/components/common/Dialog';
 import { Select, type SelectOption } from '@/components/common/Select';
 import { Field } from './shared';
+import { applyProjectTaskTypeRename, type DeferredProjectRenames, type ProjectTaskTypeRename } from './projectTaskTypeRename';
 
 const GROUP_BUILTIN = '__ops_task_type_group_builtin__';
 const GROUP_PERSONAL = '__ops_task_type_group_personal__';
@@ -25,21 +27,39 @@ function usePersonalTypes(): CustomTaskType[] {
 }
 
 /** Eén veld voor het instant-apply paneel én de TaskDialog-draft. De globale bibliotheek is nooit
- * documentstate; de projectkopie wordt pas gematerialiseerd bij een echte typekeuze. */
-export function TaskTypeField({ task, onChange, materializeProjectType = true }: { task: Task; onChange: (patch: Partial<Task>) => void; materializeProjectType?: boolean }) {
+ * documentstate; de projectkopie wordt pas gematerialiseerd bij een echte typekeuze. Met
+ * `projectRenames` (Taak bewerken) wacht een bevestigde hernoeming in het project tot de taakbewerking
+ * dicht is; zonder (het paneel) gebeurt ze meteen. */
+export function TaskTypeField({ task, onChange, materializeProjectType = true, projectRenames }: {
+  task: Task;
+  onChange: (patch: Partial<Task>) => void;
+  materializeProjectType?: boolean;
+  projectRenames?: DeferredProjectRenames;
+}) {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const personal = usePersonalTypes();
-  const project = useAppStore(s => s.customTaskTypes);
+  const storedProject = useAppStore(s => s.customTaskTypes);
+  const activeDocumentId = useAppStore(s => s.activeDocumentId);
+  // Een uitgestelde hernoeming (Taak bewerken) toont in deze dialoog al de naam die de planner koos.
+  const project = projectRenames
+    ? storedProject.map(type => {
+      const pending = projectRenames.pending.find(rename => rename.id === type.id && rename.documentId === activeDocumentId);
+      return pending ? { ...type, name: pending.newName } : type;
+    })
+    : storedProject;
   const ensureProjectTaskType = useAppStore(s => s.ensureProjectTaskType);
-  const renameProjectTaskType = useAppStore(s => s.renameProjectTaskType);
-  const notify = useAppStore(s => s.notify);
   const [dialog, setDialog] = useState<'new' | 'manage' | null>(null);
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  // Hernoemd persoonlijk type dat ook in het actieve document staat, met een andere naam daar:
-  // de app vraagt of die naam mee moet (#804 keuze 7).
-  const [projectRename, setProjectRename] = useState<{ id: string; oldName: string; newName: string } | null>(null);
+  // Hernoemd persoonlijk type dat een taak in het actieve document gebruikt, met een andere naam daar:
+  // de app vraagt of die naam mee moet (#804 keuze 7). De vraag hoort bij het document waarin ze gesteld
+  // is en vervalt bij een documentwissel (fixronde 1 van #999).
+  const [projectRename, setProjectRename] = useState<ProjectTaskTypeRename | null>(null);
+  const openRename = projectRename?.documentId === activeDocumentId ? projectRename : null;
+  useEffect(() => {
+    if (projectRename && projectRename.documentId !== activeDocumentId) setProjectRename(null);
+  }, [projectRename, activeDocumentId]);
 
   const projectOnly = project.filter(p => !personal.some(g => g.id === p.id));
   const selected = task.customTaskTypeId ? customValue(task.customTaskTypeId) : task.taskType;
@@ -93,21 +113,18 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
     const result = renamePersonalTaskType(id, name);
     if (!result) return;
     setName(''); setEditingId(null);
+    // Alleen een werksoort die een taak gebruikt: een ongebruikte projectkopie bewaren IFC en herstel niet.
     const inProject = project.find(type => type.id === id);
-    if (inProject && inProject.name !== result.name) setProjectRename({ id, oldName: inProject.name, newName: result.name });
+    if (inProject && inProject.name !== result.name && customTaskTypeInUse(useAppStore.getState().tasks, id)) {
+      setProjectRename({ documentId: activeDocumentId, id, oldName: inProject.name, newName: result.name });
+    }
   };
   const answerProjectRename = (alsoInProject: boolean) => {
-    const pending = projectRename;
+    const pending = openRename;
     setProjectRename(null);
     if (!pending || !alsoInProject) return;
-    const outcome = renameProjectTaskType(pending.id, pending.newName);
-    if (outcome.status === 'nameTaken') {
-      notify({
-        severity: 'info',
-        messageKey: 'notifications.taskTypeRenameNameTaken',
-        params: { oldName: pending.oldName, takenName: outcome.takenBy.name },
-      });
-    }
+    if (projectRenames) projectRenames.defer(pending);
+    else applyProjectTaskTypeRename(pending);
   };
   const deleteType = (id: string) => {
     const inOpenProject = project.some(type => type.id === id);
@@ -164,14 +181,14 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
       <div className="flex justify-end"><button className="btn btn--sm btn--primary" onClick={() => setDialog(null)}>{tCommon('close')}</button></div>
     </Dialog>}
 
-    {projectRename && <Dialog
+    {openRename && <Dialog
       onCancel={() => answerProjectRename(false)} onConfirm={() => answerProjectRename(true)} focusedButtonOwnsEnter
       overlayClassName="bg-black/60 z-[70]" stopBackdropPropagation
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[420px] p-4 flex flex-col gap-3"
       panelProps={{ 'data-ops-rename-project-task-type': true }}
     >
       <h2 className="text-body leading-5 font-bold">{t('taskType.renameInProjectTitle')}</h2>
-      <p className="text-small leading-relaxed">{t('taskType.renameInProjectMessage', { oldName: projectRename.oldName, newName: projectRename.newName })}</p>
+      <p className="text-small leading-relaxed">{t('taskType.renameInProjectMessage', { oldName: openRename.oldName, newName: openRename.newName })}</p>
       <div className="flex justify-end gap-2">
         <button className="btn btn--sm btn--secondary" onClick={() => answerProjectRename(false)}>{t('taskType.renameInProjectNo')}</button>
         <button className="btn btn--sm btn--primary" onClick={() => answerProjectRename(true)}>{t('taskType.renameInProjectYes')}</button>
