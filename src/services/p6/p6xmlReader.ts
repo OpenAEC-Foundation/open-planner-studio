@@ -1,3 +1,4 @@
+import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { P6XmlImportError } from './p6xmlErrors';
 import { p6ConstraintFromCodeOrLabel } from './p6ConstraintTypes';
@@ -20,7 +21,7 @@ import {
 } from '@/services/xmlDayMeasure';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importDateTimeOrUndefined, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { childElementNames, childElements, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult, OpenedImport, P6XmlEmptyReason, P6XmlImportReport } from '@/services/importTypes';
 import type { Baseline } from '@/types/baseline';
@@ -1137,6 +1138,9 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
     const actualStart = parseTaskDate(actualStartRaw);
     const actualFinish = parseTaskDate(actualFinishRaw);
+    // Deze P6-bronvelden zijn geen OPS-anker: bewaar hun tijd onafhankelijk van de kalender.
+    const stop = importDateTimeOrUndefined(getElementText(actEl, 'SuspendDate'), true);
+    const resume = importDateTimeOrUndefined(getElementText(actEl, 'ResumeDate'), true);
     // Duur en rest (alleen uren §3.10; `readMeasure`). Urenmaat ⇒ minuten (`uren × 60`, op de hele minuut)
     // als bron van waarheid, dagengetal via `hourTaskScheduleDuration`; een `OPS_ExactMinutes`-record geeft
     // een breuk in minuten terug. Dagenmaat (OPS-markering `days`) ⇒ het record `[dagen, minuten]` zolang
@@ -1247,6 +1251,8 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
         isCritical: false,
         actualStart,
         actualFinish,
+        ...(stop ? { stop } : {}),
+        ...(resume ? { resume } : {}),
         remainingTime,
         ...(remainingMinutes != null ? { remainingMinutes } : {}),
         completion: percentComplete / 100,
@@ -1255,6 +1261,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     };
 
+    if (hasValidP6SuspendResume({ ...task, p6SuspendResume: true })) task.p6SuspendResume = true;
     leafTasks.push(task);
     if (!p6DurationType && projectDefaultDurationType) inheritsDefaultDurationType.add(id);
     const running = writtenByOps

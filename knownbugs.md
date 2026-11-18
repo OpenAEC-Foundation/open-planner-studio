@@ -4011,9 +4011,8 @@ en noem het in je rapport of PR-tekst.
      op de P6-standaard en noteert een terugval. Bij XER komt die terugval in de importmetadata; bij P6 XML gaat hij
      verloren. Voorstel: de terugvallen als één regel in de openingsmelding. VERVOLG uit #775. — B
 
-621. **De P6 XML-lezer leest `SuspendDate`/`ResumeDate` en `ResourceList` nog niet.** Een XER draagt onderbreken en
-     hervatten (`p6SuspendResume`) en de resourcelijst wel. Een geopende P6 XML met een onderbroken activiteit rekent
-     daardoor anders dan dezelfde XER. De pariteitstest van #775 heeft geen onderbroken activiteit. VERVOLG uit #775. — S
+621. **VERVOLG: de P6 XML-lezer leest `ResourceList` nog niet.** Een XER draagt de resourcelijst wel. De
+     onderbrekingsdatums zijn afzonderlijk aangepakt; de resourcelijst blijft een open punt. — S
 
 622. **De dialoogtekst `formatNotice.formats.p6xml.limited` is verouderd in 26 talen.** #775 paste nl en en aan ("rekent als
      Primavera P6, met de rekenopties uit het bestand"). De andere talen zeggen nog dat het project met het OPS-profiel

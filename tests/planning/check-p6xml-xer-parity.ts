@@ -261,6 +261,26 @@ for (const variant of VARIANTS) {
   }
 }
 
+// 621: bronmomenten van een P6-onderbreking blijven ook op een scalaire kalender behouden.
+// Ongeldige of incomplete paren bewaren alleen de leesbare ruwe datum, zonder P6-opt-in.
+{
+  const source = synthetic({}, 'RETAINED_LOGIC');
+  const xml = xmlText(source);
+  const withDates = (stop: string, resume: string) => xml.replace(/<Activity>([\s\S]*?)<\/Activity>/g,
+    whole => whole.includes('<Id>A</Id>')
+      ? whole.replace('</Activity>', `<SuspendDate>${stop}</SuspendDate><ResumeDate>${resume}</ResumeDate></Activity>`) : whole);
+  const readFirst = (stop: string, resume: string) => readP6XML(withDates(stop, resume)).tasks.find(t => t.wbsCode === 'A')!;
+  const valid = readFirst('2026-03-03T10:15:00', '2026-03-05T14:30:00');
+  eq('621 bronmomenten met P6-opt-in', [valid.time.stop, valid.time.resume, valid.p6SuspendResume],
+    ['2026-03-03T10:15', '2026-03-05T14:30', true]);
+  const reversed = readFirst('2026-03-05T14:30:00', '2026-03-03T10:15:00');
+  eq('621 omgekeerde datums activeren P6 niet', [reversed.time.stop, reversed.time.resume, reversed.p6SuspendResume],
+    ['2026-03-05T14:30', '2026-03-03T10:15', undefined]);
+  const partial = readFirst('2026-03-03', 'ongeldig');
+  eq('621 onleesbaar einde wordt niet verzonnen', [partial.time.stop, partial.time.resume, partial.p6SuspendResume],
+    ['2026-03-03', undefined, undefined]);
+}
+
 // ── P3: P6-eigen waarden in <ScheduleOptions> ↔ XER-tokens ──────────────────────────────────────
 {
   const base = synthetic({}, 'RETAINED_LOGIC');
