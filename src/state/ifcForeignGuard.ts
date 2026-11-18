@@ -67,6 +67,19 @@ export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
 });
 
+/** Knownbug 1768 (besluit van de eigenaar, 16 november 2026): weigert de browser de schrijftoestemming op het geopende
+ *  bestand met een gebouwmodel, dan wordt Ctrl+S een download. Het document blijft gewijzigd tot het geopende bestand is
+ *  bijgewerkt; dat is de bescherming. Deze melding noemt de kopie en is een gewone informatiemelding, zoals
+ *  `savedViaDownload` op main: ze verdwijnt vanzelf en wijkt in de stapel voor elke nieuwe melding (review van #1002
+ *  ronde 3; of ze moet blijven staan tot het kruisje is een vraag aan de eigenaar, knownbug 1843). Er is er één voor de
+ *  hele app; een nieuwe kopie ververst haar en noemt dan de laatste kopie. */
+export function downloadCopyNotice(file: string): NotifyInput {
+  return {
+    severity: 'info', messageKey: 'notifications.ifcForeignDownloadCopy', params: { file },
+    dedupeKey: 'ifc-foreign-download-copy', replaceOnDedupe: true,
+  };
+}
+
 /** Het opslagdoel dat het herstelmanifest bewaart (§4.14). De herstelsnapshot heeft geen bronbytes; met een vreemd deel
  *  zou Ctrl+S na herstel het modelbestand overschrijven met alleen planning. Dan geen doel: opslaan wordt opslaan als.
  *  Zonder vreemd deel precies zoals vóór #804. */
@@ -172,10 +185,22 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
+/** Het eigen lokale bestand van een document (zie de uitzondering "eigen doel" bij `refusedWriteTarget`). */
+async function isOwnLocalFile(
+  own: Pick<DocumentPayload, 'foreignSourceMark' | 'fileHandle' | 'filePath'>, target: FileRef,
+): Promise<boolean> {
+  const mark = own.foreignSourceMark!;
+  if (target.kind === 'handle') {
+    return !!own.fileHandle && !!mark.handle && await sameEntry(own.fileHandle, target.handle)
+      && await sameEntry(mark.handle, target.handle);
+  }
+  return target.kind === 'path' && !own.fileHandle && own.filePath === target.path && mark.filePath === target.path;
+}
+
 /** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
 export interface WriteTargetState {
   getOpenDocumentPayloads(): readonly { readonly id: string; readonly payload: Pick<DocumentPayload,
-    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle'> }[];
+    'foreignSourceMark' | 'ifcSource' | 'siteFileId' | 'siteFileVersion' | 'fileHandle' | 'filePath'> }[];
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }
 
@@ -199,10 +224,11 @@ export interface WriteTargetDeps {
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
  *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
- *  - handle (knownbug 1131 stap 2): dezelfde handle als het document en zijn kenmerk (`isSameEntry`). Een ander open
- *    document met hetzelfde bestand als bron blijft geweigerd. Of op dat bestand nog de bron staat, toetst de aanroeper
- *    (`sourceTargetContent`, vóór de merge en vlak vóór `close()`);
- *  - een pad (desktop) krijgt de uitzondering niet: opslaan over het eigen bestand weigert daar tot stap 5.
+ *  - handle (knownbug 1131 stap 2): dezelfde handle als het document en zijn kenmerk (`isSameEntry`). Of op dat bestand
+ *    nog de bron staat, toetst de aanroeper (`sourceTargetContent`, vóór de merge en vlak vóór `close()`);
+ *  - pad (desktop, knownbug 1131 stap 5b): precies het pad van het document en van zijn kenmerk, zonder handle. Of op dat
+ *    bestand nog de bron staat, toetst de vervanging zelf (`replaceOwnPathWithRecovery`, stap 2 en 5).
+ * Een ander open document met hetzelfde bestand als bron blijft in beide gevallen geweigerd.
  * Meldt niets: de aanroeper kiest de melding. Geeft de reden van de weigering, of `null` als het schrijven mag.
  */
 export async function refusedWriteTarget(
@@ -219,8 +245,7 @@ export async function refusedWriteTarget(
   const isOwnVersion = ownSource && target.kind === 'site' && own.siteFileId === target.id
     && !!ownVersion.baseVersion && own.siteFileVersion === ownVersion.baseVersion
     && own.foreignSourceMark!.siteFileId === target.id;
-  if (ownSource && target.kind === 'handle' && !own.siteFileId && own.fileHandle && own.foreignSourceMark!.handle
-    && await sameEntry(own.fileHandle, target.handle) && await sameEntry(own.foreignSourceMark!.handle, target.handle)) {
+  if (ownSource && !own.siteFileId && await isOwnLocalFile(own, target)) {
     const others = { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== ownVersion.documentId) };
     return await isOpenForeignSourceTarget(others, target, deps.identityFs) ? 'open-source' : null;
   }

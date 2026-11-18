@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { documentProjectCode } from '@/utils/documentProjectCode';
@@ -34,13 +34,13 @@ export function CloseDocumentDialog() {
   const openerRef = useRef<HTMLElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
-  const [savePending, setSavePending] = useState(false);
+  // In de store, niet lokaal: Escape (`edit.deselect`) leest dezelfde vlag (fixronde 1 van #1008).
+  const savePending = useAppStore((s) => s.ui.closeQuestionSaving);
   if (!actionGateRef.current) actionGateRef.current = createCloseDocumentActionGate();
 
   useEffect(() => {
     if (!pendingId) {
       actionGateRef.current = createCloseDocumentActionGate();
-      setSavePending(false);
       return;
     }
     if (actionGateRef.current?.started) return;
@@ -70,7 +70,7 @@ export function CloseDocumentDialog() {
     saveFile: () => saveFileForDocument(pendingId),
     clearPending: () => { setUI({ pendingCloseDocId: null }); },
     restoreOpenerFocus,
-    onSavePendingChange: setSavePending,
+    onSavePendingChange: (pending) => { setUI({ closeQuestionSaving: pending }); },
   });
 
   return (

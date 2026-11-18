@@ -311,6 +311,9 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'edit',
     labelKey: 'shortcuts.edit.deselect',
     skipPreventDefault: true, // geen e.preventDefault() voor de gewone Escape
+    // Fixronde 1 van #1008: dezelfde blokkering als de knoppen van de sluitvraag. Anders verborg Escape de vraag terwijl
+    // haar opslag liep, en kon een nieuwe bewerking samen met het tabblad verdwijnen.
+    when: () => !useAppStore.getState().ui.closeQuestionSaving,
     run: (store) => {
       store.deselectAll();
       store.setUI({

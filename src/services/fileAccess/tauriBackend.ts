@@ -7,6 +7,7 @@ import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
 import type { RemnantEvent } from './ownFileReplace';
+import { whenProjectFileWritesIdle } from './writeCoordinator';
 
 /** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
 export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
@@ -108,8 +109,13 @@ export class ReadAfterSettleError extends Error {
  * (de dialoog, neerzetten en Recent). Eerst een onafgeronde vervanging van dat pad afhandelen (zonder herstelrecord
  * voor het pad raakt dat de projectmap niet), dan pas lezen. `asBytes` kiest de aanroeper, zoals voorheen per route
  * (`readsPathAsBytes`, of `readsAsBytes` voor Recent); binaire bronformaten lopen dus nooit via `readTextFile` en
- * houden hun oorspronkelijke bytes. */
+ * houden hun oorspronkelijke bytes.
+ * Fixronde 1 van #1008: eerst wachten tot er geen projectbestand meer geschreven wordt (`whenProjectFileWritesIdle`).
+ * Zo leest een tabblad dat tijdens Ctrl+S op hetzelfde bestand opengaat de versie ná de vervanging, en nooit een oude
+ * bron die de vervanging daarna overschrijft. Geen opslagroute leest via deze functie (de vervanging leest het doel met
+ * `sourceTargetContent`), dus de schrijfrij wacht nooit op zichzelf. */
 export async function readOpenedTauriPath(path: string, asBytes: boolean, io: TauriOpenIO): Promise<OpenedFile> {
+  await whenProjectFileWritesIdle();
   const remnants = await io.settle(path);
   const replaceRemnants = remnants.length > 0 ? { replaceRemnants: remnants } : {};
   try {

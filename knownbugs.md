@@ -31,19 +31,15 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
-81. **Voortgang zonder werkelijke datums legt een verkeerde werkelijke start of een verkeerd einde vast.** Bij
-    `completion: 100` zonder `actualFinish` wordt het werkelijke einde de statusdatum (`defaultActualFinish`,
-    `taskMutationRules.ts:29-34`); zonder `actualStart` wordt de werkelijke start de geplande start
-    (`defaultActualStart`, r.44-46); alleen `actualFinish` opgeven zet de start op dezelfde dag
-    (`applyProgressInvariants`). Welke geplande start dat is, hangt af van de route (zie 85): in losse calls
-    heeft de statusdatum niet-gestart werk al naar die datum geschoven, binnen één `planner_batch` niet.
-    Nagespeeld via de echte MCP-dispatcher op Grondwerk (3 wd, gepland 7–9 juni 2027), Fundering storten (2),
-    Metselwerk (5), Dak (3), statusdatum vrijdag 11 juni, baseline-einde 23 juni: losse calls met alleen
-    `completion: 100` ⇒ Grondwerk werkelijk 11–11 juni, +2 werkdagen; in één batch ⇒ werkelijk 7–11 juni.
-    De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het grid en de panelen
-    hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. **Besluit eigenaar (2026-10-07, nog niet
-    gebouwd):** de afgeleide werkelijke start moet het oorspronkelijk geplande begin van vóór de
-    statusdatumverschuiving zijn. — B (MCP), S (UI)
+81. **Op 100% kan een taak eindigen op de statusdatum in plaats van op het geplande einde (#998).**
+    De schuif zet bij ontbrekende statusdatum die datum op vandaag. Op 100% neemt `defaultActualFinish`
+    de statusdatum over als werkelijk einde. Nagespeeld in Chromium: een taak van 3 werkdagen,
+    gepland van 28 t/m 30 oktober 2026, hield tijdens het slepen haar begin en einde bij 23%, 50% en 77%.
+    Bij 100% verschoof het einde naar 18 november. De geplande duur bleef 3 werkdagen.
+    Besluit nodig over het afgeleide einde. Bij invoer van uitsluitend een werkelijk einde en zonder
+    eerder ingevulde werkelijke start zet de voortgangsinvariant beide datums op hetzelfde moment.
+    Bij invoer van een percentage gebruikt OPS sinds #998 de geplande start van vóór de
+    statusdatumverschuiving. — B
 
 114. **De motor plant een lopende taak op 100 % niet met zijn vastgelegde restduur.** Zo'n taak (status
     STARTED, `completion` 1, geen werkelijk einde) komt uit P6 als `TK_Active` op 100 %. In P6 eindigt
@@ -1004,26 +1000,71 @@ en noem het in je rapport of PR-tekst.
      Heet een werksoort in de eigen lijst anders dan in het project (voorbeeld: eigen lijst "Werkvoorbereiding",
      project "Engineering"), dan toont de keuzelijst in `TaskTypeField.tsx` bij een taak die de werksoort al heeft de
      projectnaam, en bij een andere taak de naam uit de eigen lijst; kiest de planner die, dan staat daarna de
-     projectnaam op de knop. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main
-     al zo na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
-     Een projectkopie die geen taak gebruikt, houdt bij hernoemen haar oude naam (er komt geen vraag) tot ze uit het
-     bestand verdwijnt; kiest de planner zo'n werksoort, dan ziet hij dus ook de oude naam.
-     Gemeten door de bouwer van #999 met een tijdelijke stap in `custom-task-types.spec.ts`. Wat de lijst hoort te
-     tonen (bijvoorbeeld altijd de projectnaam voor een werksoort die in het project staat) is een keuze voor de
-     eigenaar, bij de handleiding en de teksten. Ook de keuzes van de kolom *Eigen werksoort* in de Tabel
-     (`taskColumnRegistry.ts`) tonen een ongebruikte projectkopie onder haar oude naam (bevestigd door de review van
-     #999, ronde 2). — B
-1834. **VERVOLG (#804 keuze 7, werksoorten): haalt Opslaan in *Taak bewerken* het laatste gebruik weg, dan vervalt een bevestigde hernoeming stil.**
-     De planner bevestigt in *Taak bewerken* een nieuwe naam voor de werksoort van die taak (*Ook in dit project*),
-     geeft daarna de enige taak die de werksoort gebruikt een ingebouwde werksoort en slaat op. De keuzelijst had de
-     nieuwe naam al getoond; bij het sluiten weigert de store de uitgestelde hernoeming als `unused`
-     (`structureSlice.ts`, `projectTaskTypeRename.ts`). De eigen lijst heeft de nieuwe naam, de projectkopie de oude,
-     zonder melding. Hetzelfde bij een documentwissel terwijl de dialoog openstaat (`otherDocument`). Er gaat niets
-     verloren. Richting: een melding bij deze weigering. Gevonden door de review van #999, ronde 2. — B (review)
+     projectnaam op de knop. Ook de keuzes van de kolom *Eigen werksoort* in de Tabel (`taskColumnRegistry.ts`) tonen
+     de projectnaam. De werksoort staat nooit twee keer in de lijst en er gaat niets verloren. Dit was op main al zo
+     na een hernoeming in Beheer; sinds keuze 7 kiest de planner er bewust voor met *Alleen in mijn lijst*.
+     Een projectkopie die geen taak gebruikt, krijgt bij hernoemen sinds het eigenaarsbesluit van 18 november 2026
+     stil de nieuwe naam (`renameUnusedProjectTaskType` in `structureSlice.ts`). Er blijven drie gevallen met twee
+     namen: (1) na *Alleen in mijn lijst*, zoals hierboven; (2) heet een ándere werksoort in het project al zo, dan
+     houdt de ongebruikte kopie haar oude naam, zonder melding (proef "stil: botsing" in
+     `check-custom-task-types.ts`); (3) alleen het actieve document krijgt de naam: een ander geopend tabblad houdt
+     zijn oude naam, ook als de planner er daarna naar wisselt, tot het bestand opnieuw geopend wordt (een
+     ongebruikte kopie bewaart IFC niet) of de planner de werksoort daar opnieuw hernoemt. Daarnaast: ongedaan maken tot een stand waarin een taak
+     de werksoort nog gebruikte, zet de naam van toen terug, want die stand bewaart IFC wel. Wat de lijst hoort te
+     tonen bij (1) is een keuze voor de eigenaar, bij de handleiding en de teksten. — B
+1834. **VERVOLG (#804 keuze 7, werksoorten): een bevestigde hernoeming uit *Taak bewerken* vervalt stil bij een documentwissel.**
+     De planner bevestigt in *Taak bewerken* een nieuwe naam voor de werksoort van die taak (*Ook in dit project*) en
+     wisselt daarna van document terwijl de dialoog openstaat. Bij het sluiten weigert de store de uitgestelde
+     hernoeming als `otherDocument` (`structureSlice.ts`, `projectTaskTypeRename.ts`): de eigen lijst heeft de nieuwe
+     naam, de projectkopie de oude, zonder melding. Er gaat niets verloren. Richting: een melding bij deze weigering.
+     Haalde Opslaan het laatste gebruik weg (`unused`), dan krijgt de kopie sinds het eigenaarsbesluit van
+     18 november 2026 de naam stil, zoals elke ongebruikte kopie; dat geval is opgelost. Gevonden door de review van
+     #999, ronde 2. — B (review)
 1835. **VERVOLG (#804 keuze 7, opruimen): *Taak bewerken* kopieert de projectcatalogus ook als er geen hernoeming wacht.**
      `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
      voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van
      #999, ronde 2. — B (review)
+1850. **VERVOLG: tests gebruiken nog een tweede percentagepad voor de taakdialoog.** `draftWithProgress`
+      in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
+      Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
+      #1003 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+1851. **VERVOLG: één MCP-verzoek berekent de planning opnieuw na voortgang op meerdere voorgangers.**
+      De echte dispatcher deed in een plan met 1.000 taken voor 80 percentage-updates op losse taken
+      2 volledige berekeningen in 0,26 s. Met 80 onafhankelijke FS-paren waren het 81 berekeningen in
+      2,73 s, terwijl het verzoek geen van de opvolgers bewerkte. Beperk het opnieuw berekenen tot
+      opvolgers die in hetzelfde verzoek nog een werkelijke start nodig hebben
+      (`src/services/mcp/tools/taskTools.ts`). Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 4,
+      BEVESTIGD, VERVOLG). — B
+1852. **VERVOLG: de startregel van Taak bewerken ondersteunt nog twee invoervormen.**
+      De app geeft bij bestaande taken een `TaskDialogStartEdit` door. De `string`-tak in
+      `src/state/taskDialogSave.ts` ondersteunt daar alleen tests. Laat die tests dezelfde invoervorm
+      gebruiken en verwijder de aparte tak voor bestaande taken. Uit de review van #1003
+      (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+1853. **VERVOLG: een getypt startanker vervalt als de actuele rekendatum intussen exact gelijk wordt.**
+      Typ in Taak bewerken 22 juni om 07:00 en wijzig in dezelfde dialoog de wachttijd, zodat de
+      berekende start precies daarop uitkomt. Bevestig bij 1% de werkelijke start op 9 juni.
+      Opslaan houdt het oude anker van 8 juni en voegt geen SNET toe. De invoer zonder expliciet
+      tijdstip bewaart beide wel. Bij een vastgelegde `TaskDialogStartEdit` kan de tweede
+      gelijkheidstoets tegen de bijgewerkte rekendatum vervallen (`src/state/taskDialogSave.ts`).
+      Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
+1854. **VERVOLG: Taak bewerken legt voortgang vast op basis van een nivelleergat dat Opslaan wist.**
+      Fundering duurt vier werkdagen, heeft een nivelleergat van zeven werkdagen en een harde MFO
+      op 22 juni 2026. Statusdatum 10 juni. Maak de duur drie werkdagen en zet in dezelfde dialoog
+      de voortgang op 1%. Opslaan wist het gat en boekt zonder startvraag 9 juni om 07:00. Main
+      (`6f74f000c`) boekt in dezelfde Chromium-proef 10 juni om 07:00, ook zonder vraag. Als alleen
+      de kortere duur eerst wordt opgeslagen, is de geplande start op beide versies 18 juni om
+      07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets ook de gevolgen van
+      de duurbewerking meenemen (`src/state/taskDialogSave.ts`). Sol ronde 6, BEVESTIGD.
+      Trias (wrakko) deelde dit als VERVOLG in. — B
+1855. **VERVOLG: Voortgang in Taak bewerken negeert de voorganger van de nieuw gekozen fase.**
+      Bouwfase heeft een einde-startrelatie vanaf Grondwerk van tien werkdagen, met projectstart
+      8 juni 2026 en statusdatum 10 juni. Hang Fundering onder Bouwfase en zet in dezelfde dialoog
+      de voortgang op 1%. Opslaan verplaatst Fundering en boekt zonder startvraag 8 juni om 07:00.
+      Main (`6f74f000c`) boekt in dezelfde Chromium-proef 10 juni om 07:00, ook zonder vraag.
+      Als alleen het verhangen eerst wordt opgeslagen, is de geplande start op beide versies
+      24 juni om 07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets de gekozen
+      hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
+      Trias (wrakko) deelde dit als VERVOLG in. — B
 
 1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
       presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
@@ -2332,15 +2373,6 @@ en noem het in je rapport of PR-tekst.
      `planning.assignments.0.id: "asgn-…" → "asgn-…"`: een id die de lezer bij elke lezing nieuw maakt. Niet uitgezocht of
      `planningDifference` daar een ander vergelijk gebruikt dan `planningCanon`. Alleen de tekst van de melding. — S
 
-1740. **VERVOLG (#804, eindlijst): exporteren naar een ander formaat vanuit een document met een gebouwmodel vraagt niets vooraf.**
-     Ontwerp §4.12 (rij "Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER)"): "Alleen planning, met een vraag vooraf.
-     Het model gaat niet mee." Nu exporteren CSV, MSPDI, XER en het voortgangsblad vanuit zo'n document zonder vraag; alleen
-     de IFC-export zonder gebouwmodel en de export met de resourcebibliotheek stellen de vraag (PR 13). Er gaat niets
-     verloren: het geopende bestand blijft ongewijzigd en die formaten dragen nooit een gebouwmodel. Niet gebouwd in PR 13
-     (besluit Trias, 16 november 2026). Op de eindlijst vóór de flag standaard aan mag; of de vraag er bij deze formaten
-     echt bij moet, beslist de eigenaar. Richting als het ja wordt: dezelfde vraag "alleen de planning" met een eigen
-     reden. — B
-
 1741. **VERVOLG (#804, uitleg): de vraag vóór Exporteren zonder gebouwmodel noemt niet wat er van de planning van een ander programma wegvalt.**
      Gemeten in fase 1c PR 13 op `tests/fixtures/ifc-foreign/bonsai-4d.ifc` (bewijs in `/tmp/fase1c-pr13-bewijs/proef2/`
      op aia09-mp50): het nieuwe bestand heeft alleen planning (82 stukken, geen gedeelde, gekoppelde of vreemde) en heropent
@@ -2729,15 +2761,26 @@ en noem het in je rapport of PR-tekst.
            vóór het lezen van een lokaal pad (dialoog, neerzetten, Recent: `readOpenedTauriPath`) handelt de app het af,
            met eigendom alleen op inhoud, en met de kopie "niet opgeslagen planning". Nog door geen opslagroute
            aangeroepen.
-        b. Open (stap 5b): Ctrl+S en *Opslaan* in de sluitvraag op een pad aansluiten op de functie, nadat "sluiten
-           wacht op een lopende opslag" (#987) in main staat. Dan vervalt `ifcForeignReplaceBlocked` voor het eigen pad.
-     6. Teksten en handleiding, met de eigenaar.
+        b. Gebouwd (stap 5b, #1008): Ctrl+S en *Opslaan* in de sluitvraag (tabblad en app) op het eigen pad lopen via
+           de functie (`replaceOwnPath` in `fileSlice.ts`), binnen de ene `runProjectFileWrite` van de opslag, van de
+           merge tot en met de broncommit, de laatste herstelronde en het wissen van het record; afsluiten wacht erop.
+           Na de eerste herstelronde opnieuw document, opslagdoel en bron (`stopBeforeWrite`); elke andere uitkomst
+           stopt met haar melding, zonder terugval; de sluitvraag sluit op de boolean van `commitSavedDocument`.
+           `ifcForeignReplaceBlocked` vervalt voor het eigen pad (de uitzondering "eigen doel" geldt nu ook voor een
+           pad); hij blijft voor Opslaan als over de bron van een open document en voor een bestand dat ook de bron
+           van een ander open document is. Automatisch opslaan schrijft een document met een vreemd deel nog steeds
+           niet; `planner_export_ifc` weigert nog steeds een bestaand pad. Niet gemeten in een echte desktopapp.
+     6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
+        feitelijk bijgewerkt; zie ook 1836).
+     7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
+     8. Open: Opslaan als over een andere bestaande naam (keuze 4).
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
      `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
-     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden). Crash, stroomuitval en externe
+     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden); van stap 5b: hetzelfde bestand
+     onderaan, `check-ifc-document-save.ts` en `check-app-quit-lifecycle.ts`, vanaf de productie-ingang. Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
@@ -2795,17 +2838,85 @@ en noem het in je rapport of PR-tekst.
      bestanden: twee volledige inhoudscontroles en de merge, alle op de hoofdthread. Richting: meenemen in de proef in
      een echte browser van 1574 en de meting van PR 6. — S
 
-1768. **VERVOLG (#804, productkeuze): na een download omdat de browser schrijftoestemming weigert, staat het document als opgeslagen.**
-     Browser, flag aan, document met een gebouwmodel dat via de bestandskiezer geopend is. Weigert de browser de
-     schrijftoestemming, dan wordt Ctrl+S een download van het volledige bestand (planning en gebouwmodel). De bron, het
-     kenmerk, de handle en de naam blijven die van het geopende bestand, en dat is juist: daar staat nog de oude versie.
-     Maar `isDirty` gaat uit, dus de sluitvraag komt niet meer, terwijl het geopende bestand niet is bijgewerkt en het
-     werk alleen in de downloadmap staat. Geen verlies aangetoond: de download is heel, en met later verleende
-     toestemming schrijft Ctrl+S alsnog op dezelfde handle (proef van de review van #967). "Zoals main" klopt maar ten
-     dele: de gewone route probeert eerst de opslaankiezer en verliest bij een download haar handle; de mergeroute
-     downloadt altijd (1130) en houdt het openingsdoel. Richting: de eigenaar kiest wat "opgeslagen" hier betekent (het
-     document blijft gewijzigd tot het geopende bestand is bijgewerkt, of een kopie telt), en de melding zegt het; met
-     de teksten van stap 6 van 1131. Gevonden door de review van #967. — B (proef)
+1830. **VERVOLG (#804, productkeuze): de andere downloads van een document met een gebouwmodel zetten het document nog op opgeslagen.**
+     Browser, flag aan. Sinds knownbug 1768 blijft het document gewijzigd na de download die Ctrl+S geeft als de browser
+     de schrijftoestemming op het geopende bestand weigert (besluit van de eigenaar, 16 november 2026). Twee andere
+     downloads van zo'n document doen nog wat main doet: `isDirty` gaat uit. (1) Ctrl+S bij een document zonder handle
+     (geopend via slepen of in een browser zonder bestandstoegang, zoals Firefox): elke Ctrl+S is een download van het
+     volledige bestand. (2) *Opslaan als*, dat in de browser met een gebouwmodel altijd een download is (§11 punt 4).
+     Geen verlies: de download is heel en het geopende bestand blijft ongewijzigd. Vraag aan de eigenaar: geldt
+     "gewijzigd tot het geopende bestand is bijgewerkt" ook hier, of telt een kopie daar wel als opgeslagen? Bij (1) kan
+     het geopende bestand in die browser nooit worden bijgewerkt, dus de sluitvraag zou dan altijd komen. Ook een
+     document met vreemde inhoud zonder gebouwmodel (bijvoorbeeld alleen een eigenschappenset van een ander programma)
+     telt een download bij geweigerde schrijftoestemming nog als opgeslagen, zoals main; of "gewijzigd tot het geopende
+     bestand is bijgewerkt" ook daar moet gelden, hoort bij dezelfde vraag aan de eigenaar. Code:
+     `writeActiveDocument` en `saveDocumentAsOnTurn` in `fileSlice.ts` (`commitSavedDocument` na `viaDownload`).
+     Gevonden bij het bouwen van 1768. — B voor (2) (proef "download: twee volledige heropeningen" in
+     `check-ifc-document-save.ts`), S voor (1) (code gelezen)
+1831. **VERVOLG (#804, handleiding): de tekst bij de experimentele instelling zegt nog dat opslaan met een gebouwmodel geblokkeerd is.**
+     `public/docs/nl/ref-instellingen.md` en `public/docs/en/ref-instellingen.md`, bij *IFC met gebouwmodel openen*:
+     "Opslaan van een bestand met zo'n vreemd deel blijft geblokkeerd." Dat klopt niet meer: Opslaan als werkt, in de
+     browser ook Ctrl+S, en Ctrl+S op de desktop volgt (knownbug 1131). Bijwerken met de handleiding van stap 6 van
+     1131. Gezien door de bouwer van #1002. — B
+
+1843. **VERVOLG (#804, melding): de kopiemelding verdwijnt vanzelf, terwijl het document gewijzigd blijft.**
+     Browser, flag aan. Na de download bij een geweigerde schrijftoestemming (knownbug 1768) noemt een gewone
+     informatiemelding de kopie, zoals `savedViaDownload` op main: ze verdwijnt vanzelf en wijkt in de stapel voor elke
+     nieuwe melding. Er is er één voor de hele app; een nieuwe kopie, ook van een ander document, ververst haar. Het document
+     blijft gewijzigd, dus de sluitvraag komt nog; alleen de uitleg over de kopie kan weg zijn. Review van #1002 ronde 2 en 3:
+     een blijvende kopiemelding hield een plek in de stapel vast en verdrong samen met twee blijvende openingswaarschuwingen
+     (XER of IFC2X3) de meldingen van een export. Of de melding moet blijven staan tot het kruisje, is een vraag aan de
+     eigenaar bij de teksten; dan moet ze wijken voor andere meldingen zoals regel b in `uiSlice.ts` dat voor weigeringen
+     doet, in plaats van een plek vast te houden. — B (proef "drie kopieën: één gewone kopiemelding" in
+     `check-ifc-document-save.ts`)
+
+1844. **VERVOLG (meldingen): drie blijvende meldingen slokken de meldingen van een export op.** Staan er drie blijvende
+     informatiemeldingen (bijvoorbeeld de openingsmeldingen `duplicateIdsRenamed`, `summaryRelationsDropped` en
+     `minuteModelCalendarRepaired`), dan geeft een CSV-export geen enkele melding: de store toont er hoogstens drie
+     (`MAX_NOTIFICATIONS`) en gooit een nieuwe gewone melding zelf weg als er alleen nog blijvende of foutmeldingen staan
+     (`uiSlice.ts`, regel c). Zo ziet de planner na een download niet waar het bestand staat en niet wat er verloren
+     ging. Zo op main, niet van #1002. Gemeten op 18 november 2026 met een tijdelijke proef: drie blijvende meldingen via
+     `notify`, daarna `exportAs('csv')` uit `03-kantoorgebouw-zuidas.ifc`: na afloop alleen de drie blijvende meldingen.
+     Richting: een melding die de uitkomst van een handeling van de planner meldt, mag niet verdwijnen voordat hij te zien
+     was. Bij drie blijvende meldingen verdwijnt ook de kopiemelding van knownbug 1768, zoals `savedViaDownload` op main.
+     — B (tijdelijke proef, niet ingecheckt)
+
+1845. **VERVOLG (#804, zeldzaam): een complexe instantie zonder modeltype telt als gebouwmodel.**
+     Browser en desktop, flag aan. `hasBuildingModelEntity` (`foreignScan.ts`) leest van een complexe instantie
+     (`#1=(IFCA() IFCB());`) alleen `(COMPLEX)` uit de index, niet haar deeltypen, en telt haar daarom altijd als
+     gebouwmodel (review van #1002 ronde 3: het lezen van de tekst miste commentaar en kleine letters). Een bron met een
+     complexe instantie zonder modeltype krijgt dus de zin "alleen de planning" bij een export, en na een download bij
+     geweigerde schrijftoestemming blijft het document gewijzigd. Dat is de veilige kant; Open Planner Studio schrijft zelf
+     geen complexe instanties. Richting: de index geeft de deeltypen van een complexe instantie, met de eigen tokenlezer
+     van de scanner (geen tweede lezer). — S (code gelezen; de drie varianten met een wand staan als proef in
+     `check-ifc-document-save.ts`)
+
+1846. **VERVOLG (meldingen): een ververste melding houdt haar oude plek en kan direct daarna uit de stapel vallen.**
+     Browser. De store vouwt een herhaalde melding samen op haar oude plek (`notify` in `uiSlice.ts`, stap 1: de positie
+     blijft staan) en gooit bij een vierde melding de oudste gewone weg. Komt er tussen twee exports een andere gewone
+     melding bij, dan is de ververste downloadmelding van de tweede export de oudste, en duwt de verliesmelding van die
+     export haar er meteen uit: de planner ziet de naam van het gedownloade bestand niet. Scenario uit de review van
+     #1002 ronde 4 (GPT-6.2-Sol), binnen enkele seconden: (1) Ctrl+S op een gewone planning via download (de eenmalige
+     browseruitleg), (2) CSV-export uit een document met een gebouwmodel, (3) Ctrl+S op dat document met geweigerde
+     schrijftoestemming (de kopiemelding van #1002), (4) CSV-export uit de gewone planning: de melding met de
+     CSV-bestandsnaam ontbreekt, de twee verliesmeldingen staan er. De reviewer gaf dit als "[BEVESTIGD] [BLOKKEERT] Een
+     geslaagde CSV-export verliest de melding met haar bestandsnaam."; Trias (wrakko) deelde het in als VERVOLG: geen
+     dataverlies, het document blijft gewijzigd, de download staat in de browser, en de oorzaak zit in de meldingenstore
+     van main. Zo ook op main met een willekeurige andere gewone melding in plaats van stap 3: gemeten op 18 november
+     2026 met de productcode van main `3a989ffa1` (dezelfde reeks, met `notify` van een gewone melding tussen de twee
+     exports): na de tweede export staan de twee verliesmeldingen en de tussenliggende melding er, de downloadmelding
+     niet. Richting: een ververste melding gaat naar het eind van de stapel, in een eigen kleine PR voor alle meldingen.
+     — B
+
+1842. **VERVOLG (#804, tekst): de vraag en het vinkje "zonder gebouwmodel" komen ook bij vreemde inhoud zonder gebouwmodel.**
+     Browser en desktop, flag aan. Exporteren → IFC toont het vinkje *Zonder gebouwmodel* en de vraag *Exporteren zonder
+     gebouwmodel?* ("Het gebouwmodel en de gegevens van een ander programma gaan niet mee") bij elk document met vreemde
+     inhoud (`hasForeignContent`: `modelPresent` in `Backstage.tsx`, `planOnlyQuestionApplies` in `prepareIfcOutput.ts`),
+     ook bij een planning met alleen een eigenschappenset van een ander programma, waar geen gebouwmodel is (de modelscan
+     zegt `no-model`). Geen verlies: de vraag blijft nodig, want de gegevens van het andere programma gaan niet mee; alleen
+     de woorden "gebouwmodel" kloppen dan niet. Richting: de tekst laten volgen uit `hasBuildingModel` (`ifcSource.ts`,
+     PR #1002), of de vraag algemener formuleren. Gevonden bij de fixronde van #1002. — S
+     (code gelezen)
 
 1769. **VERVOLG (#804, test): de browserproef "onbewerkt opslaan" kan al vóór Ctrl+S waar zijn.**
      `tests/browser/settings-tabs.spec.ts` wacht in de stap zonder bewerking op `isDirty === false`, leest dezelfde
@@ -2985,6 +3096,11 @@ en noem het in je rapport of PR-tekst.
      en zag het afsluiten geen mislukking. Andersom breekt een nieuwe fout uit een ander onderdeel het afsluiten af. Het
      gewijzigde document blijft beschermd door zijn dirty-vlag en de sluitvraag; gegevensverlies is niet aangetoond.
      Richting: de opslag geeft zelf zijn uitkomst door. Gevonden door de review van #987 (Sol). — B (proef van de review)
+     Aanvulling (#804, 1131 stap 5b, review van #1008): ook een geslaagde vervanging van het eigen bestand kan een rode
+     melding geven, namelijk dat de versie van een ander programma apart is bewaard (`ifcForeignReplaceOtherVersion`,
+     `ownPathReplaceNotices` in `ownFileReplace.ts`). Wacht het afsluiten op die opslag, dan breekt die melding het
+     afsluiten af, terwijl het bestand wel is opgeslagen; de planner kan opnieuw afsluiten. Andersom volgt na een
+     verdwenen foutmelding bij een nog gewijzigd document de gewone sluitvraag. Zelfde richting. — B (review)
 1818. **Een IFC-export weigert nog als de planner tijdens de export van tabblad wisselt.** Sinds #804 stap 3 kijkt de
      weigering van Opslaan en Opslaan als naar het document van de momentopname. De exports niet: `refuseChangedExport`
      in `fileSlice.ts` (Bestand → Exporteren als IFC, en de export met de resourcebibliotheek) vergelijkt met het actieve
@@ -3397,13 +3513,9 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
-720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
-     verouderde vaste basis.** `.github/workflows/task-grid-published-selection.yml` neemt elke wijziging
-     aan `tests/browser/table-editor.spec.ts` mee en vergelijkt met `fbd4a3f9d` (versie 2026.43.0).
-     De verplichte `cmp base/package-lock.json head/package-lock.json` faalt op main-versie 2026.44.0,
-     vóór de meetproef begint. Bevestigd op PR #788, head `d6b4f8a04`, run `41449022992`: exit 1 bij
-     byte 56, regel 3. Voorstel: maak de historische prestatiemeting los van het gewone
-     regressiebestand, met een bewust gekozen vergelijkingsbasis en identieke meetfixture. — B
+720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**
+     De workflow filtert op het hele testbestand en meet vervolgens één toetsenroute. Vervolg: beperk
+     de trigger tot wijzigingen die de gemeten route raken. Bevestigd in de review van #1011 (Sol 6.2 xhigh). — B
 
 781. **De MPP-meethelper `mppScannedFiles` heeft geen aanroepers meer.**
      `scripts/measure-profiles-status.mjs:116` exporteert deze functie nog, terwijl
@@ -3819,12 +3931,6 @@ en noem het in je rapport of PR-tekst.
       daarbij `default-features = false`, in zip 4.6.1 en 9.5.1). Dat `miniz_oxide` actief is komt doordat
       `flate2/rust_backend` via andere dependencies binnenkomt. Pas de toelichting aan. Sol-review op
       2fe63a9e4 (PR #944): [BEVESTIGD] VERVOLG. — B
-1670. **De meting "Taakselectie meten" (`task-grid-published-selection.yml`) faalt op elke PR die haar paden raakt.**
-     Ze vergelijkt een vaste basiscommit (`BASE_SHA: fbd4a3f9…`) met de kop van de PR en eist dat
-     `package-lock.json` in beide gelijk is. Sinds main verder is, verschilt die altijd: PR #947 (die alleen
-     `check-task-grid-published-selection.ts` raakte) kreeg `base/package-lock.json head/package-lock.json differ`
-     in de stap "Controleer revisies", run 43617221845. De controle is niet verplicht. Voorstel: de eenmalige
-     meting weghalen, of als basis de merge-base van de PR nemen. — B
 1753. **VERVOLG (#804, proeven): een check die op een belofte blijft wachten, eindigt stil met exit 0.**
      Gezien bij 1131 stap 4: in `check-file-ifc-bytes.ts` wachtte een proef op een belofte die nooit afliep; Node
      stopte omdat er niets meer te doen was, zonder fout, en `run.sh` gaf "EINDOORDEEL planningssuite: GROEN (exit 0)"
@@ -3855,6 +3961,20 @@ en noem het in je rapport of PR-tekst.
       `border-inline-end` met een vaste `rotate(45deg)`; in RTL wordt dat de linkerrand en kantelt het
       pijltje. Een pijltje omlaag hoort zijn richting te houden. Richting: `border-right` in plaats van
       `border-inline-end`. Sol-review ronde 8 van #942: [BEVESTIGD] VERVOLG. — B
+1839. **VERVOLG: de test "lange planning: inklappen en verwijderen houden de selectie op haar plek" zit op de
+      tijdgrens.** `tests/browser/task-grid-selection-keep.spec.ts:184` duurde lokaal op aia09-mp50 60,0 s
+      (groen), bij een testgrens van 60 s. In de handmatige browserrun 44319088585 op
+      `feat/804-werksoort-ongebruikt-naam` (deel 4 van 4) liep hij uit op die grens, in `isInGrid`
+      (`locator.boundingBox`) via `scrollUntilVisible`. De branch raakt het raster niet en sinds de laatste
+      groene browserrun op main is aan die spec en het raster niets veranderd. Richting: de route
+      inkorten of de grens voor deze ene test ruimer zetten. Gezien bij #804 keuze 7 (werksoort ongebruikt). — B
+1840. **VERVOLG: de IFC-mergecontrole heeft een eigen kopie van de regel "welke werksoorten gaan mee".**
+      `src/services/ifc/foreign/lossCheck.ts` (rond regel 1924) berekent de door taken gebruikte definities zelf, met
+      een eigen set en filter, en vergelijkt ze daarna met de uitgevoerde definities. De schrijver en `sameIFCSource`
+      gebruiken sinds #1007 één functie, `savedCustomTaskTypes` (`customTaskTypeRules.ts`). Wijzigt die regel later,
+      dan kan de mergecontrole om de verkeerde reden weigeren. Nu geven beide dezelfde selectie. Richting: de lokale
+      set en filter vervangen door één aanroep van `savedCustomTaskTypes`, met de bestaande terugval naar een lege
+      catalogus. Sol-review ronde 2 van #1007: [BEVESTIGD] VERVOLG. — B
 
 ## Wensen en open taken (geen bug)
 
@@ -4799,3 +4919,33 @@ en noem het in je rapport of PR-tekst.
      In `tests/planning/check-ifc-own-file-replace.ts` leest de proef voor Recent met een afwijkende extensie de bron
      opnieuw met `readBytesFromRef`; die aanroep en haar import kunnen weg. De IPC-lezing, de bronhash in de store en
      het ruwe byte in de uitvoer bewijzen de regressie al. Gevonden door de review van #991, ronde 3. — B (review)
+
+1836. **VERVOLG (#804, 1131 stap 5b, tekst): de melding van Automatisch opslaan zegt dat opslaan met een gebouwmodel
+     nog niet kan.** `notifications.ifcForeignSaveBlocked` ("Dit bestand bevat een gebouwmodel; opslaan is nog niet
+     mogelijk.") toont Automatisch opslaan één keer per document per sessie als het een document met een vreemd deel
+     overslaat (`fileAutoSave.ts`). Sinds stap 5b kan Ctrl+S dat document wel opslaan; de zin klopt dan alleen nog voor
+     Automatisch opslaan (en voor de flag uit na het openen). Er gaat niets verloren. Richting: een eigen zin voor
+     Automatisch opslaan, met de teksten van stap 6 van 1131, of vervalt als Automatisch opslaan via de vervanging gaat.
+     Gevonden bij stap 5b, uit de code. — B (code)
+1837. **VERVOLG (#804, 1131 stap 5b): een tweede tabblad waarvan het lezen al vóór Ctrl+S begon, kan de oude versie
+     krijgen.** Het openen op de desktop (`readOpenedTauriPath` in `tauriBackend.ts`: dialoog, neerzetten, Recent) wacht
+     tot er geen projectbestand meer geschreven wordt, en de vervanging kijkt na de eerste herstelronde opnieuw of een
+     ander open document het bestand als bron heeft. Begon het lezen van hetzelfde bestand al vóór de opslag en komt het
+     tabblad pas na die tweede controle in de store, dan opent het met de oude bron terwijl het bestand de nieuwe versie
+     krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
+     het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
+     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
+1838. **Het kruisje van een tabblad kijkt naar de wijzigingsvlag vóór het afronden van open veldinvoer.**
+     `requestCloseDocument` (`documentSlice.ts`) leest `isDirty` en sluit een schoon document meteen via
+     `closeDocument`; die rondt pas daarna de open veldinvoer af. Staat er in een veld een getypte waarde zonder blur
+     (bijvoorbeeld op macOS, waar een klik op een knop in WebKit de focus niet verplaatst), dan wordt die waarde
+     verwerkt en direct met het tabblad weggegooid, zonder sluitvraag. Op main net zo. Afsluiten van de app rondt de
+     invoer wel eerst af (`finishPendingInput` in `appQuitController.ts`). Richting: `requestCloseDocument` rondt de
+     invoer af vóór de controle, zoals het afsluiten. Gevonden bij fixronde 2 van #1008, uit de code; niet beproefd
+     in een echte webview. — S
+1847. **VERVOLG (opruimen): de schooncontrole bij het sluiten bouwt de titels van alle tabbladen op.**
+     `closeDocument(id, { onlyIfClean })` (`documentSlice.ts`) vraagt via `getOpenDocuments` de titel en het volgnummer
+     van elk open document op om van één document de wijzigingsvlag te lezen. Eén zoekactie naar het doel-id, gevolgd
+     door de wijzigingsvlag van het actieve document of die in de gevonden payload, volstaat; de volgorde (afronden,
+     controleren, verwijderen) en de uitkomst blijven gelijk. De venstercontrole vóór `destroyWindow`
+     (`appQuitController.ts`) blijft nodig. Sol-review ronde 3 van #1008: [BEVESTIGD] VERVOLG. — B

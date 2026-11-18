@@ -16,10 +16,10 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
-import { remnantNotices } from '../ownFileReplace';
+import { ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -43,12 +43,12 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice,
+  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
-import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
+import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
 import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
@@ -441,6 +441,33 @@ export function exportCriticalHoursLostNotice(
   return { severity: 'info', messageKey: 'notifications.exportCriticalHoursLost' };
 }
 
+/**
+ * Knownbug 1740 (besluit van de eigenaar, 16 november 2026; ontwerp §4.12): een export naar een ander formaat dan IFC
+ * vanuit een document met een gebouwmodel (`hasBuildingModel`, flag aan) vraagt niets vooraf, maar de melding na afloop zegt
+ * ook dat alleen de planning is geëxporteerd. Dit is de enige plek die beslist waar die zin komt; geen formaat behalve
+ * IFC draagt een gebouwmodel. De zin wordt een regel onder de LAATSTE melding van de export: de store toont hoogstens
+ * `MAX_NOTIFICATIONS` meldingen en duwt de oudste weg, dus de laatste blijft na afloop staan (review van #1002). Komt er
+ * geen andere melding, dan een eigen. Die melding krijgt een eigen samenvouwsleutel: anders vouwt een latere melding met
+ * de gewone sleutel en zonder detailregels (een export zonder gebouwmodel) samen met deze en blijft de zin eronder staan.
+ * Zonder gebouwmodel komen de meldingen ongewijzigd terug.
+ */
+export function withPlanOnlyExportSentence(
+  format: ExportFormat,
+  buildingModel: boolean,
+  notices: readonly (NotifyInput | null)[],
+): NotifyInput[] {
+  const shown = notices.filter((notice): notice is NotifyInput => notice !== null);
+  if (format === 'ifc' || !buildingModel) return shown;
+  const sentence = 'notifications.exportPlanOnly' as const;
+  const last = shown[shown.length - 1] as NotifyInput | undefined;
+  if (!last) return [{ severity: 'info', messageKey: sentence }];
+  return [...shown.slice(0, -1), {
+    ...last,
+    detailLines: [...(last.detailLines ?? []), { messageKey: sentence }],
+    ...(last.dedupeKey ? { dedupeKey: `${last.dedupeKey}:alleen-planning` } : {}),
+  }];
+}
+
 /** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
  *  opslaan-dialoog en de CPM-fout (`cpmResult.error` + `errorInfo`) meegegeven, zodat de aanroeper
  *  die kan tonen i.p.v. stilletjes niets te doen — vertaald via `scheduleErrorText`.
@@ -769,6 +796,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return write;
   };
 
+  const SAVE_CHANGED_NOTICE = refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' });
   /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. #804 stap 3: dit kijkt naar
    *  het document van de momentopname (`snapshot.activeDocumentId` is het document dat opgeslagen wordt), nooit naar het
    *  document dat nu actief is. Bestaat het nog en is zijn bron hetzelfde object, dan gaat de opslag door, ook als de
@@ -785,18 +813,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       app.notify(ifcWriteBlockedNotice(doc));
       return true;
     } else if (doc && doc.ifcSource === snapshot.ifcSource) return false;
-    app.notify(refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' }));
+    app.notify(SAVE_CHANGED_NOTICE);
     return true;
   };
 
   /** `ownTarget`: alleen Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen doel van het document vraagt de
-   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` geeft haar alleen aan een handle. */
+   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad).
+   *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
+   *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
+   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. */
   const documentTargetCheck = (snapshot: AppState, write?: DocumentWrite, ownTarget = false): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
+    const ownLocal = ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource);
+    if (ownLocal && movedOwnTarget(snapshot, target)) return true;
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
-      : ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource)
-        ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
+      : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
     const reason = await refusedWriteTarget(get(), target,
       { identityFs: fileIdentityFs, readers: writeTargetReaders }, ownVersion);
     if (reason) {
@@ -806,6 +838,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return true;
     }
     return write ? refuseChangedDocumentWrite(snapshot, write) : false;
+  };
+
+  /** Is het opslagdoel van het document van de momentopname intussen een ander dan `target` (of is het weg)? Meldt dan. */
+  const movedOwnTarget = (snapshot: AppState, target: FileRef): boolean => {
+    const current = saveSourceForDocument(get(), snapshot.activeDocumentId);
+    const now = current && saveTargetRef(current);
+    if (now && sameFileRef(now, target)) return false;
+    get().notify(SAVE_CHANGED_NOTICE);
+    return true;
   };
 
   const documentSaveDialog = (snapshot: AppState, write: DocumentWrite, name: string) => {
@@ -1085,16 +1126,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * nadrukkelijk GEEN fout (severity `info`): het opslaan is geslaagd, alleen langs een andere weg.
    * Eén gedeelde helper zodat alle vier de opslaan/exporteer-paden dezelfde melding geven.
    */
+  const downloadNotice = (outcome: SaveOutcome | null): NotifyInput | null => outcome?.viaDownload ? {
+    severity: 'info',
+    messageKey: 'notifications.savedViaDownload',
+    params: { name: outcome.name },
+    // Bij "project + bibliotheek" vallen twee downloads vlak na elkaar; die horen niet als twee
+    // losse toasts de stapel te vullen.
+    dedupeKey: 'saved-via-download',
+  } : null;
   const noticeIfDownloaded = (outcome: SaveOutcome | null) => {
-    if (!outcome?.viaDownload) return;
-    get().notify({
-      severity: 'info',
-      messageKey: 'notifications.savedViaDownload',
-      params: { name: outcome.name },
-      // Bij "project + bibliotheek" vallen twee downloads vlak na elkaar; die horen niet als twee
-      // losse toasts de stapel te vullen.
-      dedupeKey: 'saved-via-download',
-    });
+    const notice = downloadNotice(outcome);
+    if (notice) get().notify(notice);
   };
 
   const saveSourceForDocument = (state: AppState, documentId: string): AppState | DocumentPayload | null => {
@@ -1395,6 +1437,44 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /**
+   * Knownbug 1131 stap 5b: Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen pad van een document met een gebouwmodel,
+   * op de desktop. Loopt binnen de ene `runProjectFileWrite` van `writeActiveDocument`: de merge, de vervanging
+   * (`replaceOwnPathWithRecovery`, ontwerp §4.10 stap 0–6), de broncommit, de laatste herstelronde en het wissen van het
+   * record. Afsluiten en de updater wachten daar dus op. Na de eerste herstelronde en vóór de eerste schrijfactie in de
+   * projectmap draait opnieuw dezelfde doelbewaking als vóór de merge (`documentTargetCheck`): bestaat het document nog,
+   * is zijn opslagdoel nog dit pad en zijn bron nog dezelfde, en heeft geen ander open document dit bestand als bron?
+   * Een tabblad dat tijdens de opslag op dit pad opengaat, wacht met lezen tot de opslag klaar is (`readOpenedTauriPath`).
+   * Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar melding (`ownPathReplaceNotices`); er is
+   * geen terugval naar de gewone schrijfroutine, die op naam schrijft. Een nieuwe naam is een eigen keuze van de planner
+   * (Opslaan als). `true` alleen als `commitSavedDocument` het document schoon liet: na een bewerking tijdens de opslag
+   * is de geschreven versie de bron, maar blijft het document gewijzigd, en dan sluit de sluitvraag niet.
+   */
+  const replaceOwnPath = async (
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+    ref: Extract<FileRef, { kind: 'path' }>, failureNoticeKey: string,
+  ): Promise<boolean> => {
+    let committed = false;
+    try {
+      const result = await replaceOwnPathWithRecovery({
+        documentId, path: ref.path, prepared,
+        source: { bytes: state.ifcSource!.bytes, sha256: state.ifcSource!.sha256 },
+        // Dezelfde doelbewaking als vóór de merge (fixronde 1 van #1008, review Sol).
+        stopBeforeWrite: () => documentTargetCheck(state, write, true)(ref),
+        commit: () => { committed = commitSavedDocument(documentId, state, undefined, prepared); },
+      });
+      for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
+      return committed;
+    } catch (err) {
+      console.error('Save failed:', err);
+      get().notify({
+        severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err),
+        dedupeKey: failureNoticeKey, replaceOnDedupe: true,
+      });
+      return false;
+    }
+  };
+
   let saveAttemptSequence = 0;
   /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
   const writeActiveDocument = (documentId: string, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
@@ -1432,13 +1512,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
-      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop) weigert hier tot knownbug 1131 stap 5. Een handle
-      // (browser, stap 2) mag alleen met schrijftoestemming en als er nog precies de bron staat; zonder toestemming
-      // valt Ctrl+S terug op de download, zoals bij een gewoon bestand.
+      // Het eigen lokale modeldoel, vóór de merge. Een pad (desktop, knownbug 1131 stap 5b) gaat alleen via de
+      // vervanging; of er nog de bron staat, toetst die zelf (stap 2). Een handle (browser, stap 2) mag alleen met
+      // schrijftoestemming en als er nog precies de bron staat; zonder toestemming valt Ctrl+S terug op de download,
+      // zoals bij een gewoon bestand.
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
+      let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
-        if (ref.kind === 'handle' && await handleWritePermission(ref)) {
+        if (ref.kind === 'path') ownPath = ref;
+        else if (await handleWritePermission(ref)) {
           const content = await sourceTargetContent(ref, state.ifcSource!.bytes);
           if (content !== 'same') { get().notify(ownTargetContentNotice(content)); return false; }
           ownHandle = ref;
@@ -1450,6 +1533,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // pad en handle.
       if (ref && await documentTargetCheck(state, write, true)(ref)) return false;
       if (ownHandle && write.prepared) return await replaceOwnHandle(documentId, state, write.prepared, write, ownHandle, failureNoticeKey);
+      // Nooit de gewone schrijfroutine op het eigen pad: met een vreemd deel geeft de merge altijd `prepared`.
+      if (ownPath) return write.prepared ? await replaceOwnPath(documentId, state, write.prepared, write, ownPath, failureNoticeKey) : false;
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.
@@ -1508,6 +1593,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
       const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
+      // Knownbug 1768: het geopende bestand met een gebouwmodel kreeg geen schrijftoestemming, dus de app downloadde een
+      // kopie. Dat bestand is niet bijgewerkt: het document blijft gewijzigd (geen commit) en de melding noemt de kopie.
+      // Zonder commit blijven ook bron, kenmerk, handle en naam die van het geopende bestand.
+      // Alleen met een gebouwmodel (`hasBuildingModel`, van de bron); vreemde inhoud zonder gebouwmodel doet wat main doet.
+      if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
+        get().notify(downloadCopyNotice(outcome.name));
+        return false;
+      }
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(documentId, state)
         : commitSavedDocument(documentId, state, localDestination(outcome), write.prepared);
@@ -2241,52 +2334,54 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
-      noticeIfDownloaded(outcome);
-      // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
-      // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
-      // document zonder XER-herkomst krijgt de algemene melding (#554).
-      const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
-      const categories = warnings.flatMap(warning => warning.categories);
-      const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
-        : format === 'p6' ? exportP6XmlLossNotice({
-          project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
-          sequences: state.sequences, resources: state.resources, assignments: state.assignments,
-          baselineCount: state.baselines.length,
-        }, categories) : null;
-      if (xerLoss || format === 'p6') {
-        if (lossNotice) get().notify(lossNotice);
-      } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
-        get().notify({
-          severity: 'info',
-          messageKey: 'notifications.xerExportLoss',
-          params: { format: lossFormat },
-          dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
-          helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
-        });
-      } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
-        get().notify({
-          severity: 'info',
-          messageKey: 'notifications.exportDataLoss',
-          params: { format: lossFormat },
-          dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
-          helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
-        });
-      }
-      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
-      const splitsLost = exportSplitsLostNotice(format, state.tasks);
-      if (splitsLost) get().notify(splitsLost);
-      const costLost = exportCostResourcesLostNotice(format, state.resources);
-      if (costLost) get().notify(costLost);
-      const truncated = exportP6TruncatedNotice(format, p6Truncated);
-      if (truncated) get().notify(truncated);
-      const invalidChars = exportInvalidXmlCharsNotice(format, invalidXmlChars);
-      if (invalidChars) get().notify(invalidChars);
-      const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
-      if (criticalHoursLost) get().notify(criticalHoursLost);
-      if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
-        const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
-          i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
-        if (profileNotice) get().notify(profileNotice);
+      // De meldingen na afloop, in deze volgorde; `withPlanOnlyExportSentence` voegt bij een gebouwmodel de zin toe aan de
+      // laatste. Gooit het opstellen van een latere melding, dan toont `finally` wat al klaar was (het bestand staat er al).
+      const buildingModel = format !== 'ifc' && ifcForeignContentEnabled(state.ui.featureFlags) && hasBuildingModel(state.ifcSource);
+      const notices: (NotifyInput | null)[] = [downloadNotice(outcome)];
+      try {
+        // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
+        // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
+        // document zonder XER-herkomst krijgt de algemene melding (#554).
+        const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
+        const categories = warnings.flatMap(warning => warning.categories);
+        const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
+          : format === 'p6' ? exportP6XmlLossNotice({
+            project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
+            sequences: state.sequences, resources: state.resources, assignments: state.assignments,
+            baselineCount: state.baselines.length,
+          }, categories) : null;
+        if (xerLoss || format === 'p6') {
+          notices.push(lossNotice);
+        } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
+          notices.push({
+            severity: 'info',
+            messageKey: 'notifications.xerExportLoss',
+            params: { format: lossFormat },
+            dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
+            helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+          });
+        } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
+          notices.push({
+            severity: 'info',
+            messageKey: 'notifications.exportDataLoss',
+            params: { format: lossFormat },
+            dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
+            helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
+          });
+        }
+        // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
+        // Elk apart: gooit een latere, dan staan de eerdere al in de lijst (review van #1002 ronde 2).
+        notices.push(exportSplitsLostNotice(format, state.tasks));
+        notices.push(exportCostResourcesLostNotice(format, state.resources));
+        notices.push(exportP6TruncatedNotice(format, p6Truncated));
+        notices.push(exportInvalidXmlCharsNotice(format, invalidXmlChars));
+        notices.push(exportCriticalHoursLostNotice(format, state.project));
+        if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
+          notices.push(exportProfileNotice(format, state.project.schedulingProfile, name => (
+            i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name)));
+        }
+      } finally {
+        for (const notice of withPlanOnlyExportSentence(format, buildingModel, notices)) get().notify(notice);
       }
       return { ok: true, warnings };
     },

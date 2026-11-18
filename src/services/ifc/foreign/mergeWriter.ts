@@ -900,7 +900,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   return {
     bytes, sha256: await precomputeSha256(bytes), schemaName,
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
-    foreign: foreignObjectCount > 0, foreignObjectCount, lineEnding: scan.lineEnding, opened: input,
+    foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
 

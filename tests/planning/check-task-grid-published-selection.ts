@@ -140,8 +140,7 @@ for (const count of [1_000, 5_000, 10_000]) {
   const result = run(current, published, current.activeTaskId, index);
   assert.equal(result, current, 'identieke selectie houdt exact dezelfde referentie');
   // De proxy telt gelezen RHS-items, geen tijden: de oude includes-loop is deterministisch kwadratisch.
-  if (process.env.OPS_SELECTION_BASELINE === '1') assert.equal(reads, count * (count + 1) / 2);
-  else assert.ok(reads <= count, `${count} ids: ${reads} RHS-lezingen overschrijden het lineaire budget`);
+  assert.ok(reads <= count, `${count} ids: ${reads} RHS-lezingen overschrijden het lineaire budget`);
   budgets.push({ count, rhsReads: reads, outputSha256: createHash('sha256').update(JSON.stringify(result)).digest('hex') });
 }
 const report = { cases, budgets };

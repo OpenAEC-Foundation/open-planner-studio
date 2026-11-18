@@ -239,6 +239,8 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignTargetChanged'
   | 'notifications.ifcForeignTargetGone'
   | 'notifications.ifcForeignReplaceNotRecorded'
+  | 'notifications.ifcForeignDownloadCopy'
+  | 'notifications.exportPlanOnly'
   | 'notifications.ifcForeignReplaceFailed'
   | 'notifications.ifcForeignMergeRefused'
   // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
@@ -780,6 +782,10 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
+   *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
+   *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */
+  closeQuestionSaving: boolean;
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
    *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
   appQuitPending: boolean;

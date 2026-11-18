@@ -59,8 +59,8 @@ function tookTempRoute(calls: readonly { command: string; path?: string; options
     'de hele buffer in het eigen tijdelijke bestand, niet in het doel');
   assert.deepEqual(calls.filter(c => c.command === 'place_file_exclusive').map(c => c.path), [target], 'één plaatsing op het doel');
 }
-function desktop() {
-  const ipc = installNodeFileIpc();
+function desktop(appDataDir?: string) {
+  const ipc = installNodeFileIpc(appDataDir === undefined ? {} : { appDataDir });
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null, picks = 0;
@@ -140,32 +140,41 @@ function assertNotice(store: Store, key: string) {
 }
 const clearNotices = (store: Store) => store.setState(s => { s.ui.notifications = []; });
 
-await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam, nul bytes', async () => {
-  const ipc = desktop();
+// Knownbug 1131 stap 5b: het gewone vervolg Opslaan als → Ctrl+S op het zojuist gemaakte bestand, en het origineel.
+// De vervanging zelf is uitgebreid beproefd in `check-ifc-own-file-replace.ts`; hier de keten vanaf de productie-ingang.
+await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam worden vervangen, het model bytegelijk', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData);
   try {
     const original = join(dir, 'origineel.ifc'); writeFileSync(original, bytes);
     const store = await openAt({ kind: 'path', path: original });
-    for (const step of [0, 1]) {
-      if (step === 1) { ipc.choose(join(dir, 'voor-ctrl-s.ifc')); await store.getState().saveFileAs(); }
-      longer(store); clearNotices(store);
-      const before = preserved(store), oldBytes = hash(new Uint8Array(readFileSync(before.path!))), calls = ipc.calls.length;
-      assert.equal(await store.getState().saveFileForDocument(store.getState().activeDocumentId), false);
-      unchanged(store, before);
-      assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
-      assert.equal(hash(new Uint8Array(readFileSync(before.path!))), oldBytes);
-      assert.equal(ipc.calls.slice(calls).some(c => c.options?.write || byteWrite(c)), false,
-        'de doelcontrole stopt vóór iedere schrijfpoging');
-      clearNotices(store);
-      let closed = false;
-      await createCloseDocumentDialogActions({
-        pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
-        switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
-        saveFile: () => store.getState().saveFileForDocument(store.getState().activeDocumentId),
-        clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
-      }).save();
-      assert.equal(closed, false); unchanged(store, before);
-    }
-  } finally { ipc.dispose(); }
+    const unregister = recoveryRounds(store);
+    try {
+      for (const step of [0, 1]) {
+        if (step === 1) { ipc.choose(join(dir, 'voor-ctrl-s.ifc')); await store.getState().saveFileAs(); }
+        const id = store.getState().activeDocumentId, path = store.getState().filePath!;
+        longer(store); clearNotices(store);
+        assert.equal(await store.getState().saveFileForDocument(id), true);
+        const output = new Uint8Array(readFileSync(path));
+        assert.deepEqual(mergeProblems(bytes, output), [], 'het gebouwmodel bytegelijk');
+        assert.equal(store.getState().ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+        assert.deepEqual([store.getState().isDirty, store.getState().filePath], [false, path]);
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+        assert.deepEqual(tempLeft(), [], 'geen hulpbestand');
+        longer(store);
+        let closed = false;
+        await createCloseDocumentDialogActions({
+          pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+          switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+          saveFile: () => store.getState().saveFileForDocument(id),
+          clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+        }).save();
+        assert.equal(closed, true, 'Opslaan in de sluitvraag sluit na een geslaagde vervanging');
+        assert.equal(hash(new Uint8Array(readFileSync(path))), store.getState().ifcSource!.sha256);
+      }
+      assert.equal(hash(new Uint8Array(readFileSync(original))) !== hash(bytes), true, 'het origineel is ook vervangen');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
 await check('Opslaan als bestaand eigen bestand: de plaatsing weigert, oude bytes intact, dezelfde zin als Exporteren', async () => {
@@ -269,6 +278,8 @@ function browserDownload() {
   URL.revokeObjectURL = () => {};
   Object.defineProperty(globalThis, 'document', { configurable: true, value: {
     createElement: () => ({ href: '', download: '', click: () => {} }),
+    // Het voortgangsblad laadt `@/i18n/config`, dat de taalrichting op het document zet.
+    documentElement: {},
   } });
   win.showSaveFilePicker = () => { throw new Error('een vreemde browseropslag moet downloaden'); };
   return { downloads, dispose: () => {
@@ -546,7 +557,54 @@ await check('IFC-export browser: volledige download, bron/doel/dirty/kalenders i
     assert.deepEqual(mergeProblems(bytes, output), []);
     assert.equal(reopened.tasks.find(t => t.id === id)!.time.scheduleDuration, store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration);
     unchanged(store, before); assert(store.getState().ifcLiteralCalendarIds === literal);
+    assert(!store.getState().ui.notifications.some(n => n.messageKey === 'notifications.exportPlanOnly'), 'IFC draagt het gebouwmodel: geen zin');
   } finally { browser.dispose(); }
+});
+
+// Knownbug 1740 (besluit van de eigenaar, 16 november 2026): geen vraag vooraf, wel een zin na afloop. Alleen met een
+// gebouwmodel en de flag aan; verder dezelfde meldingen als zonder die zin, en vanuit een gewoon document niets nieuws.
+const PLAN_ONLY_EXPORT = 'notifications.exportPlanOnly';
+async function exportNotices(store: Store, format: import('@/services/formatRegistry').ExportFormat) {
+  clearNotices(store);
+  const before = preserved(store), browser = browserDownload();
+  try {
+    const result = await store.getState().exportAs(format);
+    assert(result.ok && !result.cancelled, `${format}: geëxporteerd`); assert.equal(browser.downloads.length, 1);
+  } finally { browser.dispose(); }
+  unchanged(store, before);
+  return store.getState().ui.notifications.map(n => ({
+    key: n.messageKey, params: n.params, count: n.count, lines: (n.detailLines ?? []).map(line => line.messageKey),
+  }));
+}
+/** De meldingen zonder de zin: als eigen melding weg, als regel van de eerste melding weg. */
+const withoutSentence = (notices: Awaited<ReturnType<typeof exportNotices>>) => notices
+  .filter(n => n.key !== PLAN_ONLY_EXPORT).map(n => ({ ...n, lines: n.lines.filter(line => line !== PLAN_ONLY_EXPORT) }));
+for (const format of ['csv', 'mspdi', 'p6', 'xer', 'progress-xlsx'] as const) await check(`export ${format}: de zin "alleen de planning" alleen met een gebouwmodel`, async () => {
+  const { store } = await openInStore(bytes); longer(store);
+  const withModel = await exportNotices(store, format);
+  assert.deepEqual(withModel.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'de zin precies één keer');
+  store.setState(s => { s.ui.featureFlags = {}; });
+  assert.deepEqual(await exportNotices(store, format), withoutSentence(withModel),
+    'flag uit: dezelfde meldingen zonder de zin; de zin duwt geen melding weg');
+  const plain = (await openInStore(new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'))))).store;
+  assert(!hasForeignContent(plain.getState().ifcSource));
+  const ordinary = await exportNotices(plain, format);
+  assert.deepEqual(ordinary, withoutSentence(ordinary), 'gewoon document: geen zin');
+});
+
+// Review van #1002 (BLOKKEERT 1): MS Project XML met een kostenresource en een kritieke drempel in uren geeft vijf meldingen,
+// meer dan de store tegelijk toont (`MAX_NOTIFICATIONS`). Wat de planner na afloop ziet, draagt de zin precies één keer.
+await check('export mspdi met vijf meldingen: na afloop staat de zin er nog, precies één keer', async () => {
+  const { store } = await openInStore(bytes);
+  store.getState().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+  store.getState().setProject({ schedulingOptions: { criticalDefinition: { mode: 'totalFloat', thresholdHours: 2 } } });
+  const shown = new Set<string>();
+  const stop = store.subscribe(now => { for (const n of now.ui.notifications) shown.add(n.id); });
+  try {
+    const final = await exportNotices(store, 'mspdi');
+    assert(shown.size > (await import('@/state/slices/uiSlice')).MAX_NOTIFICATIONS, `meer meldingen dan de grens (${shown.size})`);
+    assert.deepEqual(final.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'de zin precies één keer');
+  } finally { stop(); }
 });
 
 for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) await check(`IFC-export ${cause}: nul bytes vóór kiezer`, async () => {
@@ -1077,16 +1135,273 @@ for (const cause of ['geen herstelronde', 'IndexedDB weigert het manifest'] as c
   });
 }
 
-await check('handle zonder schrijftoestemming: download zoals bij een gewoon bestand, het eigen bestand blijft staan', async () => {
+// Knownbug 1768 (besluit van de eigenaar, 16 november 2026): na de download blijft het document gewijzigd tot het
+// geopende bestand is bijgewerkt; de melding noemt de kopie. Ook *Opslaan* in de sluitvraag sluit dan niet.
+await check('handle zonder schrijftoestemming: download, het document blijft gewijzigd; later met toestemming opgeslagen', async () => {
   const { store, name } = await openHandle(), unregister = recoveryRounds(store), browser = browserDownload();
   try {
-    longer(store); const before = preserved(store); writableLog.length = 0;
+    longer(store); const before = preserved(store); writableLog.length = 0; clearNotices(store);
     handleFaults.set(name, { permission: 'denied' });
-    await ctrlS(store);
+    assert.equal(await ctrlS(store), false, 'Ctrl+S meldt: niet opgeslagen');
     assert.equal(browser.downloads.length, 1); assert.deepEqual(writableLog, []);
     assert.deepEqual(mergeProblems(bytes, new Uint8Array(await browser.downloads[0].arrayBuffer())), []);
-    assert.equal(hash(fileOf(name)), hash(bytes)); unchanged(store, { ...before, dirty: false });
+    assert.equal(hash(fileOf(name)), hash(bytes)); unchanged(store, before);
+    assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+    const shown = store.getState().ui.notifications, { suggestedFileBase } = await import('@/state/slices/fileSlice');
+    assert.deepEqual(shown.map(n => n.messageKey), ['notifications.ifcForeignDownloadCopy'], 'alleen de eigen melding');
+    assert.deepEqual(shown[0].params, { file: `${suggestedFileBase(store.getState())}.ifc` }, 'de melding noemt de kopie');
+    assert.deepEqual([shown[0].severity, shown[0].sticky ?? false], ['info', false], 'een gewone melding die vanzelf verdwijnt (ronde 3)');
+    // *Opslaan* in de sluitvraag: weer een download, het document blijft open en gewijzigd.
+    let closed = false;
+    await createCloseDocumentDialogActions({
+      pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
+      switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+      saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    }).save();
+    assert.equal(closed, false, 'de sluitvraag sluit niet na een download');
+    assert.equal(browser.downloads.length, 2); assert.equal(store.getState().isDirty, true);
+    assert.equal(store.getState().ui.notifications.find(n => n.messageKey === 'notifications.ifcForeignDownloadCopy')?.count, 1,
+      'een tweede download ververst de melding');
+    // Later toestemming: Ctrl+S schrijft alsnog op de handle en het document staat op opgeslagen.
+    handleFaults.delete(name);
+    assert.equal(await ctrlS(store), true);
+    assert.equal(browser.downloads.length, 2, 'geen download meer');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`]);
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.equal(store.getState().isDirty, false); assert(store.getState().fileHandle === before.handle, 'dezelfde handle');
   } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+// Review van #1002 (BLOKKEERT 2): vreemde inhoud zonder gebouwmodel (alleen een eigenschappenset van een ander programma).
+// De modelscan zegt 'no-model'; export en download doen precies wat main doet.
+await check('vreemde inhoud zonder gebouwmodel: export zonder zin, download telt als opgeslagen, zoals main', async () => {
+  const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+  const original = readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+  const source = original.replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+    "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+  assert.notEqual(source, original);
+  const input = new TextEncoder().encode(source);
+  assert.equal(scanTargetBytes(input), 'no-model', 'geen gebouwmodel');
+  const { store } = await openInStore(input);
+  assert(hasForeignContent(store.getState().ifcSource), 'wel vreemde inhoud');
+  for (const format of ['csv', 'mspdi'] as const) {
+    const flagOn = await exportNotices(store, format);
+    assert.deepEqual(flagOn, withoutSentence(flagOn), `${format}: geen zin`);
+  }
+  const { store: onHandle, name } = await openHandle(input), unregister = recoveryRounds(onHandle), browser = browserDownload();
+  try {
+    longer(onHandle); clearNotices(onHandle); handleFaults.set(name, { permission: 'denied' });
+    assert.equal(await ctrlS(onHandle), true, 'de download telt als opgeslagen, zoals main');
+    assert.equal(browser.downloads.length, 1); assert.equal(onHandle.getState().isDirty, false);
+    assert(!onHandle.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'), 'geen kopiemelding');
+    assert.equal(hash(fileOf(name)), hash(input), 'het geopende bestand blijft staan');
+  } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+// Review van #1002 ronde 2 (BLOKKEERT 1): twee bronnen met een gebouwmodel die de lezer opent maar de strengere doelscan
+// `unreadable` noemt. Het antwoord komt van de bron (de scan die de bron accepteerde), dus het document blijft gewijzigd,
+// het tabblad sluit niet en CSV krijgt de zin.
+for (const [variant, edit] of [
+  ['kop zonder tweede argument van FILE_DESCRIPTION', (text: string) => text.replace(",'2;1');", ');')],
+  ['IFCREAL(NAN) vóór de eerste wand', (text: string) => text.replace(/^DATA;\n/m, "DATA;\n#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCREAL(NAN),$);\n")],
+] as const) await check(`gebouwmodel met ${variant}: blijft gewijzigd, sluit niet, CSV met de zin`, async () => {
+  const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+  const model = new TextDecoder().decode(bytes), content = edit(model);
+  assert.notEqual(content, model);
+  const input = new TextEncoder().encode(content);
+  assert.equal(scanTargetBytes(input), 'unreadable', 'de doelscan beslist hier niet');
+  const { store, name } = await openHandle(input), unregister = recoveryRounds(store), browser = browserDownload();
+  try {
+    assert(store.getState().ifcSource?.foreign, 'geopend met vreemde inhoud');
+    longer(store);
+    const notices = await exportNotices(store, 'csv');
+    assert.deepEqual(notices.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'CSV met de zin');
+    handleFaults.set(name, { permission: 'denied' });
+    let closed = false;
+    await createCloseDocumentDialogActions({
+      pendingId: store.getState().activeDocumentId, getActiveDocumentId: () => store.getState().activeDocumentId,
+      switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+      saveFile: () => ctrlS(store), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+    }).save();
+    assert.equal(closed, false, 'het tabblad sluit niet na alleen een kopie');
+    assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+    assert.equal(browser.downloads.length, 1, 'de kopie (de CSV telt `exportNotices` zelf)');
+    assert.equal(hash(fileOf(name)), hash(input), 'het geopende bestand blijft staan');
+  } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
+});
+
+// Review van #1002 ronde 3 (BLOKKEERT 1, keuze 1 van de orkestrator): een complexe instantie telt altijd als
+// gebouwmodel, zonder tekst te lezen. Commentaar of kleine letters tussen de deelnamen maken geen verschil meer.
+const plainExample = () => readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8');
+for (const variant of ['hoofdletters', 'commentaar', 'kleine-letters'] as const) {
+  await check(`gebouwmodel in een complexe instantie (${variant}): blijft gewijzigd, sluit niet, CSV met de zin`, async () => {
+    const gap = variant === 'commentaar' ? ' /* IFC STEP commentaar */ ' : '';
+    const type = (word: string) => variant === 'kleine-letters' ? word.toLowerCase() : word;
+    const wall = [
+      'IFCBUILDINGELEMENT()', 'IFCELEMENT($)', 'IFCOBJECT($)', 'IFCOBJECTDEFINITION()',
+      'IFCPRODUCT($,$)', "IFCROOT('242F3AJ$ylGv3IUzUFH5GZ',$,'Proefwand',$)", 'IFCWALL(.NOTDEFINED.)',
+    ].map(part => part.replace(/^([A-Z]+)\(/, (_, word: string) => `${type(word)}${gap}(`)).join(' ');
+    const plain = plainExample(), content = plain.replace(/\bDATA;\r?\n/, match => `${match}#99001=(${wall});\n`);
+    assert.notEqual(content, plain);
+    const input = new TextEncoder().encode(content), { store, name } = await openHandle(input), browser = browserDownload();
+    try {
+      assert.deepEqual([store.getState().ifcSource?.foreign, store.getState().ifcSource?.buildingModel], [true, true], 'bron met gebouwmodel');
+      const id = store.getState().activeDocumentId, task = longer(store);
+      const wanted = store.getState().tasks.find(t => t.id === task)!.time.scheduleDuration;
+      const notices = await exportNotices(store, 'csv');
+      assert.deepEqual(notices.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'CSV met de zin');
+      handleFaults.set(name, { permission: 'denied' });
+      assert.equal(await ctrlS(store), false, 'Ctrl+S: niet opgeslagen');
+      assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+      assert.equal(hash(fileOf(name)), hash(input), 'het geopende bestand blijft staan');
+      assert.equal(browser.downloads.length, 1);
+      const copy = await browser.downloads[0].text();
+      assert(copy.includes(`#99001=(${wall});`), 'de kopie draagt de wand');
+      assert.equal((await openForeign(new TextEncoder().encode(copy))).tasks.find(t => t.id === task)!.time.scheduleDuration, wanted);
+      let closed = false;
+      await createCloseDocumentDialogActions({
+        pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+        switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+        saveFile: () => store.getState().saveFileForDocument(id), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+      }).save();
+      assert.equal(closed, false, '*Opslaan* in de sluitvraag sluit het tabblad niet');
+      assert.equal(store.getState().isDirty, true);
+    } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+  });
+}
+await check('gewone planning zonder vreemde inhoud: buildingModel false, export zonder zin', async () => {
+  const plain = new TextEncoder().encode(plainExample()), { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+  const scan = scanForeign(plain);
+  assert(scan.ok, 'de scan leest het voorbeeld'); assert.equal(scan.buildingModel, false, 'de scan ziet geen gebouwmodel');
+  const { store } = await openInStore(plain);
+  assert.equal(store.getState().ifcSource?.buildingModel, false, 'de bron heeft geen gebouwmodel');
+  assert(!hasForeignContent(store.getState().ifcSource));
+  const notices = await exportNotices(store, 'csv');
+  assert.deepEqual(notices, withoutSentence(notices), 'geen zin');
+});
+
+// Review van #1002 ronde 3 (BLOKKEERT 2, keuze 2): de kopiemelding is een gewone informatiemelding, zoals
+// `savedViaDownload` op main. Twee blijvende openingswaarschuwingen (XER of IFC2X3) plus een kopie verdringen de
+// exportmeldingen dus niet. De stapel wordt vooraf bewust niet geleegd.
+const keysAndLines = (store: Store) => store.getState().ui.notifications.map(n => [n.messageKey, ...(n.detailLines ?? []).map(l => l.messageKey)]);
+async function openWarnings(store: Store, kind: 'xer' | 'ifc2x3') {
+  const files = kind === 'xer'
+    ? ['zonder-geplande-start.xer', 'onbekend-taaktype.xer'].map(file => [file, readFileSync(join(root, 'tests/browser/fixtures/xer', file), 'utf8')])
+    : (() => {
+      const legacy = plainExample().replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));");
+      return [['archief-1.ifc', legacy], ['archief-2.ifc', legacy.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('tweede-archief.ifc'")]];
+    })();
+  for (const [file, content] of files) {
+    await store.getState().openOpenedFile({ name: file, content, bytes: new TextEncoder().encode(content), ref: null });
+  }
+  const warnings = store.getState().ui.notifications.filter(n => n.sticky);
+  if (kind === 'xer') {
+    assert.equal(warnings.filter(n => n.messageKey.startsWith('notifications.xerImport')).length, 2, JSON.stringify(keysAndLines(store)));
+    const lines = warnings.flatMap(n => (n.detailLines ?? []).map(l => l.messageKey));
+    assert(lines.includes('notifications.xerImportMissingPlannedStarts') && lines.includes('notifications.xerImportEnumFallbacks'), JSON.stringify(lines));
+  } else assert.equal(warnings.filter(n => n.messageKey === 'notifications.ifc2x3PlanningOnly').length, 2, JSON.stringify(keysAndLines(store)));
+}
+for (const kind of ['xer', 'ifc2x3'] as const) for (const from of ['model', 'gewoon'] as const) {
+  await check(`twee ${kind}-openingswaarschuwingen, een kopie, daarna CSV uit ${from === 'model' ? 'het modeldocument' : 'een gewone planning'}`, async () => {
+    const { store, name } = await openHandle(), browser = browserDownload();
+    try {
+      const modelId = store.getState().activeDocumentId;
+      longer(store);
+      await openWarnings(store, kind);
+      store.getState().switchDocument(modelId);
+      handleFaults.set(name, { permission: 'denied' });
+      assert.equal(await ctrlS(store), false); assert.equal(browser.downloads.length, 1, 'de kopie');
+      assert(store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'), 'de kopiemelding');
+      if (from === 'gewoon') {
+        const plain = new TextEncoder().encode(plainExample());
+        await store.getState().openOpenedFile({ name: 'gewone-planning.ifc', content: '', bytes: plain, ref: null });
+        assert(!hasForeignContent(store.getState().ifcSource));
+      }
+      const result = await store.getState().exportAs('csv');
+      assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 2, 'de CSV');
+      const flat = keysAndLines(store).flat();
+      assert(flat.includes('notifications.exportDataLoss'), `de verliesmelding: ${JSON.stringify(keysAndLines(store))}`);
+      assert.equal(flat.filter(key => key === PLAN_ONLY_EXPORT).length, from === 'model' ? 1 : 0, `de zin: ${JSON.stringify(keysAndLines(store))}`);
+    } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+  });
+}
+
+// Drie documenten met een gebouwmodel en een geweigerde schrijftoestemming, daarna een export. Er is één gewone
+// kopiemelding voor de hele app; elke nieuwe kopie ververst haar. De stapel wordt vooraf bewust niet geleegd.
+async function threeCopies() {
+  const { store, name } = await openHandle(), browser = browserDownload(), ids: string[] = [];
+  clearNotices(store);
+  for (const [i, modelName] of [name, `${name}.tab2.ifc`, `${name}.tab3.ifc`].entries()) {
+    if (i > 0) {
+      handleFiles.set(modelName, bytes);
+      await store.getState().openOpenedFile({ name: modelName, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(modelName) as unknown as FileSystemFileHandle } });
+    }
+    ids.push(store.getState().activeDocumentId);
+    longer(store); handleFaults.set(modelName, { permission: 'denied' });
+    assert.equal(await ctrlS(store), false); assert.equal(store.getState().isDirty, true);
+  }
+  assert.equal(new Set(ids).size, 3); assert.equal(browser.downloads.length, 3);
+  return { store, browser, ids };
+}
+await check('drie kopieën: één gewone kopiemelding die de laatste kopie noemt', async () => {
+  const { store, browser } = await threeCopies();
+  try {
+    const copy = store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignDownloadCopy');
+    assert.equal(copy.length, 1, 'één kopiemelding');
+    assert.deepEqual([copy[0].severity, copy[0].sticky ?? false, copy[0].count], ['info', false, 1], 'gewoon, ververst');
+    assert.equal(copy[0].params?.file, `${(await import('@/state/slices/fileSlice')).suggestedFileBase(store.getState())}.ifc`, 'ze noemt de laatste kopie');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
+await check('drie kopieën, daarna CSV uit het derde document: de exportmeldingen en de zin staan er', async () => {
+  const { store, browser } = await threeCopies();
+  try {
+    const result = await store.getState().exportAs('csv');
+    assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 4);
+    const final = keysAndLines(store), flat = final.flat();
+    assert.equal(flat.filter(key => key === PLAN_ONLY_EXPORT).length, 1, `de zin precies één keer: ${JSON.stringify(final)}`);
+    assert(flat.includes('notifications.savedViaDownload'), 'de downloadmelding');
+    assert(flat.includes('notifications.exportDataLoss'), 'de verliesmelding');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
+await check('drie kopieën, daarna CSV uit een gewone planning: download- en verliesmelding zoals main', async () => {
+  const { store, browser } = await threeCopies();
+  try {
+    const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+    await store.getState().openOpenedFile({ name: 'gewone-planning.ifc', content: '', bytes: plain, ref: null });
+    assert(!hasForeignContent(store.getState().ifcSource));
+    const result = await store.getState().exportAs('csv');
+    assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 4);
+    const flat = keysAndLines(store).flat();
+    assert(flat.includes('notifications.savedViaDownload') && flat.includes('notifications.exportDataLoss'), JSON.stringify(flat));
+    assert(!flat.includes(PLAN_ONLY_EXPORT), 'geen zin');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
+
+// Knownbug 1768, punt 5: een document zonder gebouwmodel houdt de gewone route. Eerst de opslaankiezer; zonder kiezer een
+// download die het document op opgeslagen zet. Geen melding over een kopie.
+await check('gewoon document, handle zonder schrijftoestemming: eerst de opslaankiezer, anders een download, zoals main', async () => {
+  const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+  const win = window as unknown as Record<string, unknown>;
+  for (const picker of [true, false]) {
+    const { store, name } = await openHandle(plain), browser = browserDownload(), chosen: string[] = [];
+    if (picker) {
+      win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+      win.showSaveFilePicker = async () => {
+        const target = `${name}.nieuw`; chosen.push(target); handleFiles.set(target, new Uint8Array());
+        return new FakeHandle(target);
+      };
+    }
+    try {
+      longer(store); clearNotices(store); handleFaults.set(name, { permission: 'denied' });
+      assert.equal(await ctrlS(store), true, `kiezer ${picker}: opgeslagen`);
+      assert.equal(hash(fileOf(name)), hash(plain), 'het geopende bestand blijft staan');
+      assert.equal(store.getState().isDirty, false);
+      assert.equal(chosen.length, picker ? 1 : 0); assert.equal(browser.downloads.length, picker ? 0 : 1);
+      assert.equal(store.getState().fileHandle === null, !picker, picker ? 'de nieuwe handle' : 'de download verliest de handle');
+      assert(!store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'));
+    } finally { handleFaults.clear(); browser.dispose(); delete win.showOpenFilePicker; }
+  }
 });
 
 await check('handle: een ander open document met hetzelfde bestand als bron blijft geweigerd', async () => {
@@ -1105,7 +1420,7 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
   } finally { unregister(); await clearRecovery(); }
 });
 
-await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen handle, nooit voor een pad of een export', async () => {
+await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen handle of het eigen pad, nooit voor een export', async () => {
   const { store, name } = await openHandle(), s = store.getState();
   const deps = { identityFs: async () => undefined, readers: () => ({}) };
   const handle = { kind: 'handle' as const, handle: s.fileHandle! }, own = { documentId: s.activeDocumentId, source: s.ifcSource! };
@@ -1121,9 +1436,19 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
   store.setState(x => { x.ui.featureFlags = { ifcForeignContent: true }; x.foreignSourceMark = { ...x.foreignSourceMark!, sourceMissing: true }; });
   assert.equal(await refusedWriteTarget(store.getState(), handle, deps, own), 'open-source', 'bron ontbreekt');
   const path = join(dir, 'pad-eigen-doel.ifc'); writeFileSync(path, bytes);
-  const onPath = await openAt({ kind: 'path', path }), p = onPath.getState();
-  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, { documentId: p.activeDocumentId, source: p.ifcSource! }),
-    'open-source', 'een pad krijgt de uitzondering niet (stap 5)');
+  const onPath = await openAt({ kind: 'path', path }), p = onPath.getState(), ownPath = { documentId: p.activeDocumentId, source: p.ifcSource! };
+  // Knownbug 1131 stap 5b: het eigen pad op de desktop krijgt de uitzondering; of er nog de bron staat, toetst de vervanging.
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, ownPath), null, 'eigen document, eigen pad');
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps), 'open-source', 'zonder ownVersion (export, Opslaan als) geen uitzondering');
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path }, deps, { ...ownPath, source: { ...ownPath.source } }), 'open-source', 'een andere bron');
+  assert.equal(await refusedWriteTarget(p, { kind: 'path', path: `${path}.ander` }, deps, ownPath), 'unreadable-target',
+    'een ander pad: geen uitzondering (zonder lezer is het doel onleesbaar)');
+  // Een ander open document met hetzelfde bestand als bron.
+  onPath.getState().newDocument();
+  await onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
+  const twice = onPath.getState();
+  assert.equal(await refusedWriteTarget(twice, { kind: 'path', path }, deps, { documentId: twice.activeDocumentId, source: twice.ifcSource! }),
+    'open-source', 'een ander open document met dit bestand als bron blijft geweigerd');
 });
 
 for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`handle ${cause}: Ctrl+S weigert zoals nu, nul bytes`, async () => {
