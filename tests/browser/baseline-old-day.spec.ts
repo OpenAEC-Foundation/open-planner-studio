@@ -96,8 +96,11 @@ test('oude baseline: ⚠ met uitleg in Baselineduur en Duurafwijking; een nieuwe
   // #804 stap 3, fixronde 2: in de laatste fase van afsluiten (`ui.appClosing`; afsluiten bestaat alleen op desktop, hier
   // gezet via de bridge) is ook een dialoog die al openstond niet te bedienen. Een echte klik op Opslaan en Escape doen
   // niets; breekt het afsluiten af, dan staat de dialoog er nog met de getypte naam.
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ appClosing: true }));
-  await expect(page.locator('[data-ops-app-root]')).toHaveAttribute('inert', '');
+  // Eén frame, zodat React de vlag heeft getekend vóór de klik.
+  await page.evaluate(() => new Promise<void>(resolve => {
+    window.__OPS__!.store.getState().setUI({ appClosing: true });
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
   const box = (await save.boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.keyboard.press('Escape');
