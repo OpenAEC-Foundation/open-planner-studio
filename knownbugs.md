@@ -2757,14 +2757,16 @@ en noem het in je rapport of PR-tekst.
      browser ook Ctrl+S, en Ctrl+S op de desktop volgt (knownbug 1131). Bijwerken met de handleiding van stap 6 van
      1131. Gezien door de bouwer van #1002. — B
 
-1843. **VERVOLG (#804, melding): er is één kopiemelding voor de hele app; ze kan verdwijnen terwijl een ander document alleen een kopie heeft.**
-     Browser, flag aan. Na de download bij een geweigerde schrijftoestemming (knownbug 1768) noemt één blijvende melding de
-     laatst gedownloade kopie; een nieuwe kopie van een ander document vervangt haar (review van #1002 ronde 2: drie
-     blijvende kopiemeldingen vulden de hele stapel en slokten de meldingen van een export op). Wat dat kost: document A
-     heeft alleen een kopie, de melding noemt intussen B, B wordt in het geopende bestand opgeslagen of gesloten, en de
-     melding verdwijnt. A blijft gewijzigd, dus de sluitvraag komt nog; alleen de uitleg over de kopie van A is weg.
-     Richting als het nodig blijkt: de melding noemt het aantal documenten met alleen een kopie. — B (proef "de ene
-     kopiemelding noemt de laatste kopie" in `check-ifc-document-save.ts`)
+1843. **VERVOLG (#804, melding): de kopiemelding verdwijnt vanzelf, terwijl het document gewijzigd blijft.**
+     Browser, flag aan. Na de download bij een geweigerde schrijftoestemming (knownbug 1768) noemt een gewone
+     informatiemelding de kopie, zoals `savedViaDownload` op main: ze verdwijnt vanzelf en wijkt in de stapel voor elke
+     nieuwe melding. Er is er één voor de hele app; een nieuwe kopie, ook van een ander document, ververst haar. Het document
+     blijft gewijzigd, dus de sluitvraag komt nog; alleen de uitleg over de kopie kan weg zijn. Review van #1002 ronde 2 en 3:
+     een blijvende kopiemelding hield een plek in de stapel vast en verdrong samen met twee blijvende openingswaarschuwingen
+     (XER of IFC2X3) de meldingen van een export. Of de melding moet blijven staan tot het kruisje, is een vraag aan de
+     eigenaar bij de teksten; dan moet ze wijken voor andere meldingen zoals regel b in `uiSlice.ts` dat voor weigeringen
+     doet, in plaats van een plek vast te houden. — B (proef "drie kopieën: één gewone kopiemelding" in
+     `check-ifc-document-save.ts`)
 
 1844. **VERVOLG (meldingen): drie blijvende meldingen slokken de meldingen van een export op.** Staan er drie blijvende
      informatiemeldingen (bijvoorbeeld de openingsmeldingen `duplicateIdsRenamed`, `summaryRelationsDropped` en
@@ -2774,7 +2776,18 @@ en noem het in je rapport of PR-tekst.
      ging. Zo op main, niet van #1002. Gemeten op 18 november 2026 met een tijdelijke proef: drie blijvende meldingen via
      `notify`, daarna `exportAs('csv')` uit `03-kantoorgebouw-zuidas.ifc`: na afloop alleen de drie blijvende meldingen.
      Richting: een melding die de uitkomst van een handeling van de planner meldt, mag niet verdwijnen voordat hij te zien
-     was. — B (tijdelijke proef, niet ingecheckt)
+     was. Bij drie blijvende meldingen verdwijnt ook de kopiemelding van knownbug 1768, zoals `savedViaDownload` op main.
+     — B (tijdelijke proef, niet ingecheckt)
+
+1845. **VERVOLG (#804, zeldzaam): een complexe instantie zonder modeltype telt als gebouwmodel.**
+     Browser en desktop, flag aan. `hasBuildingModelEntity` (`foreignScan.ts`) leest van een complexe instantie
+     (`#1=(IFCA() IFCB());`) alleen `(COMPLEX)` uit de index, niet haar deeltypen, en telt haar daarom altijd als
+     gebouwmodel (review van #1002 ronde 3: het lezen van de tekst miste commentaar en kleine letters). Een bron met een
+     complexe instantie zonder modeltype krijgt dus de zin "alleen de planning" bij een export, en na een download bij
+     geweigerde schrijftoestemming blijft het document gewijzigd. Dat is de veilige kant; Open Planner Studio schrijft zelf
+     geen complexe instanties. Richting: de index geeft de deeltypen van een complexe instantie, met de eigen tokenlezer
+     van de scanner (geen tweede lezer). — S (code gelezen; de drie varianten met een wand staan als proef in
+     `check-ifc-document-save.ts`)
 
 1842. **VERVOLG (#804, tekst): de vraag en het vinkje "zonder gebouwmodel" komen ook bij vreemde inhoud zonder gebouwmodel.**
      Browser en desktop, flag aan. Exporteren → IFC toont het vinkje *Zonder gebouwmodel* en de vraag *Exporteren zonder

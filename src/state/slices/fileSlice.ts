@@ -43,7 +43,7 @@ import {
   IFC_UNREADABLE_TARGET_SAVE_NOTICE, ifcFullWriteBlocked,
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
-  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice, dropOtherDownloadCopyNotices, dropDownloadCopyNotice,
+  refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -1408,11 +1408,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         },
         commit: () => { seen.committed = commitSavedDocument(documentId, state, undefined, prepared); },
       });
-      if (outcome === 'replaced') {
-        // Knownbug 1768, review van #1002: het geopende bestand is bijgewerkt, dus de melding over de kopie klopt niet meer.
-        set(s => { dropDownloadCopyNotice(s, documentId); });
-        return seen.committed === true;
-      }
+      if (outcome === 'replaced') return seen.committed === true;
       if (outcome === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
       else if (seen.refused) get().notify(ownTargetContentNotice(seen.refused));
       return false;
@@ -1545,8 +1541,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Zonder commit blijven ook bron, kenmerk, handle en naam die van het geopende bestand.
       // Alleen met een gebouwmodel (`hasBuildingModel`, van de bron); vreemde inhoud zonder gebouwmodel doet wat main doet.
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
-        set(s => { dropOtherDownloadCopyNotices(s, documentId); });
-        get().notify(downloadCopyNotice(outcome.name, documentId));
+        get().notify(downloadCopyNotice(outcome.name));
         return false;
       }
       const saved = write.prepared && outcome.viaDownload

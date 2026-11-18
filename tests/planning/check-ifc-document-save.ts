@@ -1141,6 +1141,7 @@ await check('handle zonder schrijftoestemming: download, het document blijft gew
     const shown = store.getState().ui.notifications, { suggestedFileBase } = await import('@/state/slices/fileSlice');
     assert.deepEqual(shown.map(n => n.messageKey), ['notifications.ifcForeignDownloadCopy'], 'alleen de eigen melding');
     assert.deepEqual(shown[0].params, { file: `${suggestedFileBase(store.getState())}.ifc` }, 'de melding noemt de kopie');
+    assert.deepEqual([shown[0].severity, shown[0].sticky ?? false], ['info', false], 'een gewone melding die vanzelf verdwijnt (ronde 3)');
     // *Opslaan* in de sluitvraag: weer een download, het document blijft open en gewijzigd.
     let closed = false;
     await createCloseDocumentDialogActions({
@@ -1159,8 +1160,6 @@ await check('handle zonder schrijftoestemming: download, het document blijft gew
     assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`]);
     assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
     assert.equal(store.getState().isDirty, false); assert(store.getState().fileHandle === before.handle, 'dezelfde handle');
-    assert(!store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'),
-      'de kopiemelding verdwijnt zodra het geopende bestand is bijgewerkt');
   } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
 });
 
@@ -1223,9 +1222,104 @@ for (const [variant, edit] of [
   } finally { handleFaults.clear(); unregister(); browser.dispose(); await clearRecovery(); }
 });
 
-// Review van #1002 ronde 2 (BLOKKEERT 2): drie documenten met een gebouwmodel en een geweigerde schrijftoestemming, daarna
-// een export. De kopiemeldingen nemen samen hoogstens één plek in, dus na afloop staan de meldingen van de export er nog
-// (wat main toont, plus de zin). De stapel wordt vooraf bewust niet geleegd.
+// Review van #1002 ronde 3 (BLOKKEERT 1, keuze 1 van de orkestrator): een complexe instantie telt altijd als
+// gebouwmodel, zonder tekst te lezen. Commentaar of kleine letters tussen de deelnamen maken geen verschil meer.
+const plainExample = () => readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8');
+for (const variant of ['hoofdletters', 'commentaar', 'kleine-letters'] as const) {
+  await check(`gebouwmodel in een complexe instantie (${variant}): blijft gewijzigd, sluit niet, CSV met de zin`, async () => {
+    const gap = variant === 'commentaar' ? ' /* IFC STEP commentaar */ ' : '';
+    const type = (word: string) => variant === 'kleine-letters' ? word.toLowerCase() : word;
+    const wall = [
+      'IFCBUILDINGELEMENT()', 'IFCELEMENT($)', 'IFCOBJECT($)', 'IFCOBJECTDEFINITION()',
+      'IFCPRODUCT($,$)', "IFCROOT('242F3AJ$ylGv3IUzUFH5GZ',$,'Proefwand',$)", 'IFCWALL(.NOTDEFINED.)',
+    ].map(part => part.replace(/^([A-Z]+)\(/, (_, word: string) => `${type(word)}${gap}(`)).join(' ');
+    const plain = plainExample(), content = plain.replace(/\bDATA;\r?\n/, match => `${match}#99001=(${wall});\n`);
+    assert.notEqual(content, plain);
+    const input = new TextEncoder().encode(content), { store, name } = await openHandle(input), browser = browserDownload();
+    try {
+      assert.deepEqual([store.getState().ifcSource?.foreign, store.getState().ifcSource?.buildingModel], [true, true], 'bron met gebouwmodel');
+      const id = store.getState().activeDocumentId, task = longer(store);
+      const wanted = store.getState().tasks.find(t => t.id === task)!.time.scheduleDuration;
+      const notices = await exportNotices(store, 'csv');
+      assert.deepEqual(notices.flatMap(n => [n.key, ...n.lines]).filter(key => key === PLAN_ONLY_EXPORT), [PLAN_ONLY_EXPORT], 'CSV met de zin');
+      handleFaults.set(name, { permission: 'denied' });
+      assert.equal(await ctrlS(store), false, 'Ctrl+S: niet opgeslagen');
+      assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+      assert.equal(hash(fileOf(name)), hash(input), 'het geopende bestand blijft staan');
+      assert.equal(browser.downloads.length, 1);
+      const copy = await browser.downloads[0].text();
+      assert(copy.includes(`#99001=(${wall});`), 'de kopie draagt de wand');
+      assert.equal((await openForeign(new TextEncoder().encode(copy))).tasks.find(t => t.id === task)!.time.scheduleDuration, wanted);
+      let closed = false;
+      await createCloseDocumentDialogActions({
+        pendingId: id, getActiveDocumentId: () => store.getState().activeDocumentId,
+        switchDocument: store.getState().switchDocument, closeDocument: () => { closed = true; },
+        saveFile: () => store.getState().saveFileForDocument(id), clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+      }).save();
+      assert.equal(closed, false, '*Opslaan* in de sluitvraag sluit het tabblad niet');
+      assert.equal(store.getState().isDirty, true);
+    } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+  });
+}
+await check('gewone planning zonder vreemde inhoud: buildingModel false, export zonder zin', async () => {
+  const plain = new TextEncoder().encode(plainExample()), { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+  const scan = scanForeign(plain);
+  assert(scan.ok, 'de scan leest het voorbeeld'); assert.equal(scan.buildingModel, false, 'de scan ziet geen gebouwmodel');
+  const { store } = await openInStore(plain);
+  assert.equal(store.getState().ifcSource?.buildingModel, false, 'de bron heeft geen gebouwmodel');
+  assert(!hasForeignContent(store.getState().ifcSource));
+  const notices = await exportNotices(store, 'csv');
+  assert.deepEqual(notices, withoutSentence(notices), 'geen zin');
+});
+
+// Review van #1002 ronde 3 (BLOKKEERT 2, keuze 2): de kopiemelding is een gewone informatiemelding, zoals
+// `savedViaDownload` op main. Twee blijvende openingswaarschuwingen (XER of IFC2X3) plus een kopie verdringen de
+// exportmeldingen dus niet. De stapel wordt vooraf bewust niet geleegd.
+const keysAndLines = (store: Store) => store.getState().ui.notifications.map(n => [n.messageKey, ...(n.detailLines ?? []).map(l => l.messageKey)]);
+async function openWarnings(store: Store, kind: 'xer' | 'ifc2x3') {
+  const files = kind === 'xer'
+    ? ['zonder-geplande-start.xer', 'onbekend-taaktype.xer'].map(file => [file, readFileSync(join(root, 'tests/browser/fixtures/xer', file), 'utf8')])
+    : (() => {
+      const legacy = plainExample().replace(/FILE_SCHEMA\(.*?\);/, "FILE_SCHEMA(('IFC2X3'));");
+      return [['archief-1.ifc', legacy], ['archief-2.ifc', legacy.replace(/FILE_NAME\('[^']*'/, "FILE_NAME('tweede-archief.ifc'")]];
+    })();
+  for (const [file, content] of files) {
+    await store.getState().openOpenedFile({ name: file, content, bytes: new TextEncoder().encode(content), ref: null });
+  }
+  const warnings = store.getState().ui.notifications.filter(n => n.sticky);
+  if (kind === 'xer') {
+    assert.equal(warnings.filter(n => n.messageKey.startsWith('notifications.xerImport')).length, 2, JSON.stringify(keysAndLines(store)));
+    const lines = warnings.flatMap(n => (n.detailLines ?? []).map(l => l.messageKey));
+    assert(lines.includes('notifications.xerImportMissingPlannedStarts') && lines.includes('notifications.xerImportEnumFallbacks'), JSON.stringify(lines));
+  } else assert.equal(warnings.filter(n => n.messageKey === 'notifications.ifc2x3PlanningOnly').length, 2, JSON.stringify(keysAndLines(store)));
+}
+for (const kind of ['xer', 'ifc2x3'] as const) for (const from of ['model', 'gewoon'] as const) {
+  await check(`twee ${kind}-openingswaarschuwingen, een kopie, daarna CSV uit ${from === 'model' ? 'het modeldocument' : 'een gewone planning'}`, async () => {
+    const { store, name } = await openHandle(), browser = browserDownload();
+    try {
+      const modelId = store.getState().activeDocumentId;
+      longer(store);
+      await openWarnings(store, kind);
+      store.getState().switchDocument(modelId);
+      handleFaults.set(name, { permission: 'denied' });
+      assert.equal(await ctrlS(store), false); assert.equal(browser.downloads.length, 1, 'de kopie');
+      assert(store.getState().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignDownloadCopy'), 'de kopiemelding');
+      if (from === 'gewoon') {
+        const plain = new TextEncoder().encode(plainExample());
+        await store.getState().openOpenedFile({ name: 'gewone-planning.ifc', content: '', bytes: plain, ref: null });
+        assert(!hasForeignContent(store.getState().ifcSource));
+      }
+      const result = await store.getState().exportAs('csv');
+      assert(result.ok && !result.cancelled); assert.equal(browser.downloads.length, 2, 'de CSV');
+      const flat = keysAndLines(store).flat();
+      assert(flat.includes('notifications.exportDataLoss'), `de verliesmelding: ${JSON.stringify(keysAndLines(store))}`);
+      assert.equal(flat.filter(key => key === PLAN_ONLY_EXPORT).length, from === 'model' ? 1 : 0, `de zin: ${JSON.stringify(keysAndLines(store))}`);
+    } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+  });
+}
+
+// Drie documenten met een gebouwmodel en een geweigerde schrijftoestemming, daarna een export. Er is één gewone
+// kopiemelding voor de hele app; elke nieuwe kopie ververst haar. De stapel wordt vooraf bewust niet geleegd.
 async function threeCopies() {
   const { store, name } = await openHandle(), browser = browserDownload(), ids: string[] = [];
   clearNotices(store);
@@ -1241,7 +1335,15 @@ async function threeCopies() {
   assert.equal(new Set(ids).size, 3); assert.equal(browser.downloads.length, 3);
   return { store, browser, ids };
 }
-const keysAndLines = (store: Store) => store.getState().ui.notifications.map(n => [n.messageKey, ...(n.detailLines ?? []).map(l => l.messageKey)]);
+await check('drie kopieën: één gewone kopiemelding die de laatste kopie noemt', async () => {
+  const { store, browser } = await threeCopies();
+  try {
+    const copy = store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignDownloadCopy');
+    assert.equal(copy.length, 1, 'één kopiemelding');
+    assert.deepEqual([copy[0].severity, copy[0].sticky ?? false, copy[0].count], ['info', false, 1], 'gewoon, ververst');
+    assert.equal(copy[0].params?.file, `${(await import('@/state/slices/fileSlice')).suggestedFileBase(store.getState())}.ifc`, 'ze noemt de laatste kopie');
+  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
+});
 await check('drie kopieën, daarna CSV uit het derde document: de exportmeldingen en de zin staan er', async () => {
   const { store, browser } = await threeCopies();
   try {
@@ -1264,19 +1366,6 @@ await check('drie kopieën, daarna CSV uit een gewone planning: download- en ver
     const flat = keysAndLines(store).flat();
     assert(flat.includes('notifications.savedViaDownload') && flat.includes('notifications.exportDataLoss'), JSON.stringify(flat));
     assert(!flat.includes(PLAN_ONLY_EXPORT), 'geen zin');
-  } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
-});
-await check('de ene kopiemelding noemt de laatste kopie en verdwijnt als dat document sluit', async () => {
-  const { store, browser, ids } = await threeCopies();
-  try {
-    const copy = () => store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.ifcForeignDownloadCopy');
-    assert.equal(copy().length, 1, 'hoogstens één kopiemelding');
-    assert.equal(copy()[0].params?.file, `${(await import('@/state/slices/fileSlice')).suggestedFileBase(store.getState())}.ifc`, 'ze noemt de laatste kopie');
-    store.getState().closeDocument(ids[0]);
-    assert.equal(copy().length, 1, 'een ander document sluiten laat haar staan');
-    store.getState().closeDocument(ids[2]);
-    assert.equal(copy().length, 0, 'het document dat ze noemt is gesloten');
-    assert(store.getState().documents.some(d => d.id === ids[1]), 'het tweede document is er nog');
   } finally { handleFaults.clear(); browser.dispose(); await clearRecovery(); }
 });
 

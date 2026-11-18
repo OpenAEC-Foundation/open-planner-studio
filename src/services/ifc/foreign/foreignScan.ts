@@ -129,27 +129,23 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     counts: { ...cls.counts },
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
-    buildingModel: hasBuildingModelEntity(index, bytes),
+    buildingModel: hasBuildingModelEntity(index),
   };
 }
 
 /**
- * Heeft de bron een gebouwmodel (#804, review van #1002 ronde 2)? Een entiteit met een modeltype: dezelfde lijst als de
- * modelweigering bij openen en de doelscan (`IFC_BUILDING_MODEL_TYPES`), uit de index die deze scan al heeft, dus bij
+ * Heeft de bron een gebouwmodel (#804, review van #1002 ronde 2 en 3)? Een entiteit met een modeltype: dezelfde lijst als
+ * de modelweigering bij openen en de doelscan (`IFC_BUILDING_MODEL_TYPES`), uit de index die deze scan al heeft, dus bij
  * openen en bij de controle van de uitvoer. Vreemde inhoud zonder modeltype (alleen een eigenschappenset van een ander
- * programma) is geen gebouwmodel. Van een complexe instantie kent de index alleen `(COMPLEX)`; daar telt elk woord met
- * een modeltype vóór een `(` in de tekst, ook in een string: bij twijfel een gebouwmodel (de veilige kant: het document
- * blijft na een kopie gewijzigd, de exportzin staat erbij).
+ * programma) is geen gebouwmodel. Van een complexe instantie kent de index alleen `(COMPLEX)` en niet haar deeltypen; die
+ * telt daarom altijd als gebouwmodel, zonder de tekst te lezen (de veilige kant: het document blijft na een kopie
+ * gewijzigd, de exportzin staat erbij). Een complexe instantie zonder modeltype krijgt dus ook de zin (knownbug 1845).
  */
-function hasBuildingModelEntity(index: StepIndex, bytes: Uint8Array): boolean {
+function hasBuildingModelEntity(index: StepIndex): boolean {
   for (let i = 0; i < index.count; i++) {
     if (!index.isEntity(i)) continue;
     const type = index.type(i);
-    if (IFC_BUILDING_MODEL_TYPES.has(type)) return true;
-    if (type !== COMPLEX_TYPE) continue;
-    let text = '';
-    for (let k = index.start(i); k < index.end(i); k++) text += String.fromCharCode(bytes[k]);
-    for (const word of text.matchAll(/([A-Z][A-Z0-9_]*)\s*\(/g)) if (IFC_BUILDING_MODEL_TYPES.has(word[1])) return true;
+    if (type === COMPLEX_TYPE || IFC_BUILDING_MODEL_TYPES.has(type)) return true;
   }
   return false;
 }
