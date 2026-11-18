@@ -4,6 +4,7 @@
 // Dit bestand bevat uitsluitend types. Het koppelt geen store, mount geen DOM en voert geen
 // domeinmutatie uit. Zo krijgt elke coördinator een smal contract in plaats van de hele
 // applicatiestaat als gemaksargument.
+import type { SelectedRow } from '@/state/slices/selectionSlice';
 import type { BaselineReach } from '@/types/baseline';
 import type {
   MouseEvent as ReactMouseEvent,
@@ -218,7 +219,7 @@ export interface GanttPointerCoordinatorInput {
    *  dagtaak sleept en splitst (dagenmaat of uren), zoals de Gantt-stukken. */
   workdayDurationMeasure: boolean;
   compressNonWorkdays: boolean;
-  selectTask: (id: string, additive?: boolean, range?: boolean) => void;
+  selectTask: (id: string, additive?: boolean, range?: boolean, row?: SelectedRow) => void;
   selectTasks: (ids: string[], additive: boolean) => void;
   deselectAll: () => void;
   updateTask: (id: string, updates: Partial<Task>, options?: { coalesceKey?: string }) => void;

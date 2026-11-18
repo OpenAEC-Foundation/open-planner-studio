@@ -31,7 +31,7 @@ import { insertTaskRelativeToScope, addTaskNearSelection } from '@/state/taskIns
 import { computeScrollToDate } from '@/utils/ganttViewport';
 // De acties die het lint EN het toetsenbord delen, staan één keer gedefinieerd.
 import { COMMANDS } from '@/state/commands';
-import { linkTasksInChain } from '@/state/relationActions';
+import { linkTasksInChain, selectionInView } from '@/state/relationActions';
 import { isTaskListInView } from '@/state/ganttVisibility';
 import i18n from '@/i18n/config';
 import { isTauri } from '@/utils/platform';
@@ -463,7 +463,9 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'shortcuts.edit.linkSelected',
     // Zelfde poorten als Delete: niet in een dialoog en alleen met de takenlijst in beeld, anders
     // koppelt hij een selectie die de planner niet ziet (review #1004, vanuit Rapport).
-    when: () => useAppStore.getState().selectedTaskIds.length >= 2 && !isEditShortcutBlocked() && !isTaskListOutOfView(),
+    // En alleen als de hele selectie in beeld staat: een weggefilterde taak hoort niet in de keten.
+    when: () => useAppStore.getState().selectedTaskIds.length >= 2 && !isEditShortcutBlocked() && !isTaskListOutOfView()
+      && selectionInView(useAppStore.getState()),
     run: (store) => { linkTasksInChain(store.selectedTaskIds); },
   },
 

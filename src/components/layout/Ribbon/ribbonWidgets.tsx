@@ -52,7 +52,7 @@ import {
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
-import { linkTasksInChain, requestRelationAssign } from '@/state/relationActions';
+import { linkTasksInChain, requestRelationAssign, selectionInView } from '@/state/relationActions';
 import { isGanttWorkspaceVisible, isTaskListInView } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
@@ -350,10 +350,12 @@ export function relationActionAvailability(
   selectedTaskCount: number,
   externalRelationCount: number,
   taskListInView: boolean,
+  selectionVisible: boolean,
 ): RelationActionAvailability {
   return {
-    // Twee of meer: de selectie wordt een keten (issue #1000, Ctrl+F2 in MS Project).
-    linkSelected: taskListInView && selectedTaskCount >= 2,
+    // Twee of meer: de selectie wordt een keten (issue #1000, Ctrl+F2 in MS Project). Alleen als
+    // elke gekozen taak in beeld staat (`selectionInView`).
+    linkSelected: taskListInView && selectionVisible && selectedTaskCount >= 2,
     assign: taskListInView && selectedTaskCount === 1,
     addExternal: selectedTaskCount === 1,
     refreshExternal: externalRelationCount > 0,
@@ -376,6 +378,7 @@ export function RelationDropdown() {
   // Tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
   const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
   const taskListInView = useAppStore(s => isTaskListInView(s.ui));
+  const selectionVisible = useAppStore(selectionInView);
   const externalRelationCount = useAppStore(s => s.tasks.reduce(
     (count, task) => count + (task.externalLinks?.length ?? 0),
     0,
@@ -387,7 +390,7 @@ export function RelationDropdown() {
   // De app onthoudt welke bronnen zonder pad nog openstaan, en hoeveel bronnen met pad niet gelezen zijn.
   const [unreadSources, setUnreadSources] = useState<{ projectIds: string[]; others: number }>({ projectIds: [], others: 0 });
   const canChooseSources = unreadSources.projectIds.length > 0 && !isTauri() && !siteStorageAvailable();
-  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount, taskListInView);
+  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount, taskListInView, selectionVisible);
 
   const items: Array<{
     key: 'draw' | 'linkSelected' | 'assignPredecessors' | 'assignSuccessors' | 'addExternal' | 'refreshExternal' | 'findDependents';
@@ -415,7 +418,8 @@ export function RelationDropdown() {
       disabled: !availability.linkSelected,
       title: availability.linkSelected ? tMenu('ribbon.relationLinkSelectedHint')
         : !taskListInView ? tMenu('ribbon.taskListOnlyHint')
-        : tMenu('ribbon.relationSelectAtLeastTwo'),
+        : selectedTaskIds.length < 2 ? tMenu('ribbon.relationSelectAtLeastTwo')
+        : tMenu('ribbon.relationSelectionHidden'),
       onClick: () => {
         linkTasksInChain(selectedTaskIds);
         setOpen(false);

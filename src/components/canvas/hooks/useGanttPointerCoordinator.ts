@@ -224,20 +224,21 @@ export function useGanttPointerCoordinator(
       deselectAll();
       return;
     }
+    // Shift neemt het bereik tot de aangeklikte RIJ (review #1004): dezelfde taak kan in meer rijen
+    // staan (groeperen op resource).
+    const rowKey = renderer.getRowAtY(y)?.rowKey;
     // Een groepsruitje (#868) kiest alle mijlpalen op die dag; Ctrl/Cmd zet ze samen aan of uit, Shift
-    // neemt ze allemaal mee in het bereik.
+    // neemt ze allemaal mee in het bereik, op hun eigen plek (niet de rest van de reeksrij).
     const group = renderer.getMilestoneGroup(task.id);
     if (group) {
       const ids = group.map(member => member.id);
-      if (event.shiftKey) {
-        selectTask(task.id, false, true);
-        selectTasks(ids, true);
-      } else if (!(event.ctrlKey || event.metaKey)) selectTasks(ids, false);
+      if (event.shiftKey) selectTask(task.id, false, true, rowKey === undefined ? undefined : { rowKey, taskIds: ids });
+      else if (!(event.ctrlKey || event.metaKey)) selectTasks(ids, false);
       else if (ids.every(id => selectedTaskIds.includes(id))) ids.forEach(id => selectTask(id, true, false));
       else selectTasks(ids, true);
       return;
     }
-    if (event.shiftKey) selectTask(task.id, false, true);
+    if (event.shiftKey) selectTask(task.id, false, true, rowKey === undefined ? undefined : { rowKey });
     else if (event.ctrlKey || event.metaKey) selectTask(task.id, true, false);
     else selectTask(task.id, false, false);
   }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, deselectAll, selectTask, selectTasks, selectedTaskIds]);

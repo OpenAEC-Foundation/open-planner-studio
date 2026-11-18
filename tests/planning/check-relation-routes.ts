@@ -33,6 +33,7 @@ import {
   createRelationWithFeedback,
   linkTasksInChain,
   requestRelationAssign,
+  selectionInView,
 } from '@/state/relationActions';
 import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
 import type { RelationSetIntent } from '@/types/taskGrid';
@@ -514,6 +515,76 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setUI({ pendingRelationAssign: null });
   requestRelationAssign('task-bestaat-niet', 'successor');
   eq('12.25 geen verzoek voor een taak die niet bestaat', S().ui.pendingRelationAssign, null);
+}
+
+// ── 13. Het Gantt-bereik werkt op rijen, niet op taak-id's (review #1004, ronde 2) ──────────────
+// Bij groeperen op resource staat een taak in meer rijen, en een ingeklapte mijlpalenreeks is één
+// rij met meer taken. Shift-klik neemt de rijen tussen het anker en de AANGEKLIKTE rij, in de
+// volgorde op het scherm; daarna pas ontdubbelen. En een selectie met een taak die niet (meer) in
+// beeld staat, koppelt niet.
+{
+  fresh();
+  const a = S().addTask({ name: 'A' });
+  const b = S().addTask({ name: 'B' });
+  const c = S().addTask({ name: 'C' });
+  const d = S().addTask({ name: 'D' });
+  const ploeg1 = S().addResource({ name: 'Ploeg 1', type: 'LABOR', description: '', maxUnits: 1 });
+  const ploeg2 = S().addResource({ name: 'Ploeg 2', type: 'LABOR', description: '', maxUnits: 1 });
+  S().assignResource(a, ploeg1, 1, 'UNIFORM');
+  S().assignResource(b, ploeg1, 1, 'UNIFORM');
+  S().assignResource(c, ploeg2, 1, 'UNIFORM');
+  S().assignResource(d, ploeg2, 1, 'UNIFORM');
+  S().assignResource(b, ploeg2, 1, 'UNIFORM');
+  S().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+  S().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
+  const name = (id: string) => S().tasks.find(t => t.id === id)?.name;
+  const shape = () => S().viewRows.map(row => (row.kind === 'task' ? name(row.task.id) : '|'));
+  // Op het scherm: | B A | D C B — B staat in beide ploegen.
+  eq('13.0 B staat in twee rijen', shape(), ['|', 'B', 'A', '|', 'D', 'C', 'B']);
+  S().selectTask(c, false);
+  S().selectTask(b, false, true, { rowKey: S().viewRows[6].rowKey });
+  eq('13.1 het bereik loopt naar de aangeklikte B-rij in ploeg 2', S().selectedTaskIds.map(name), ['C', 'B']);
+  S().selectTask(d, false);
+  S().selectTask(b, false, true, { rowKey: S().viewRows[1].rowKey });
+  eq('13.2 en naar de B-rij in ploeg 1, over de bandkop heen', S().selectedTaskIds.map(name), ['B', 'A', 'D']);
+  S().setSort([]);
+  S().setGroup([]);
+
+  // Een selectie met een weggefilterde taak koppelt niet: het scherm toont A, C, maar de selectie
+  // is A, B, C. Lint en Ctrl+F2 gaan uit; anders ontstond stil A → B → C.
+  S().selectTask(a, false);
+  S().selectTask(b, true);
+  S().selectTask(c, true);
+  S().setFilter({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'B' });
+  ok('13.3 een verborgen geselecteerde taak telt als niet in beeld', !selectionInView(S()));
+  const shortcut = SHORTCUTS.find(entry => entry.id === 'edit.linkSelected');
+  ok('13.4 Ctrl+F2 doet dan niets', shortcut?.when?.() === false);
+  S().setFilter(null);
+  ok('13.5 zonder filter staat de selectie weer in beeld', selectionInView(S()));
+  ok('13.6 en mag Ctrl+F2', shortcut?.when?.() === true);
+}
+
+// Een ingeklapte mijlpalenreeks (#868) is één rij. Shift-klik op een groepsruitje neemt zijn
+// mijlpalen op hun plek in het bereik mee, niet achter de rest; een los ruitje alleen zichzelf, niet
+// de hele reeksrij (review Sol ronde 3 bij #868).
+{
+  fresh();
+  const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
+  const m1 = S().addTask({ name: 'M1', isMilestone: true, time: zero as never });
+  const m3 = S().addTask({ name: 'M3', isMilestone: true, time: zero as never });
+  const na = S().addTask({ name: 'Na' });
+  S().toggleCollapse(m1);
+  const runIndex = S().viewRows.findIndex(row => row.kind === 'milestones');
+  ok(`13.7 M1 en M3 vormen één rij (${S().viewRows.map(row => row.kind).join(', ')})`, runIndex >= 0);
+  if (runIndex >= 0) {
+    const rowKey = S().viewRows[runIndex].rowKey;
+    S().selectTask(na, false);
+    S().selectTask(m1, false, true, { rowKey, taskIds: [m1, m3] });
+    eq('13.8 het groepsruitje staat op zijn eigen plek in het bereik', S().selectedTaskIds, [m1, m3, na]);
+    S().selectTask(na, false);
+    S().selectTask(m3, false, true, { rowKey });
+    eq('13.9 een los ruitje neemt alleen zichzelf uit de reeksrij', S().selectedTaskIds, [m3, na]);
+  }
 }
 
 // Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.

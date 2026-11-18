@@ -995,6 +995,32 @@ en noem het in je rapport of PR-tekst.
      gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
      BEVESTIGD, VERVOLG). — B
 
+1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
+      presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
+      items wel (`GanttCanvas.tsx`, `onAssignRelation`). Kies je er een, dan verschijnt er niets; pas na het
+      verlaten van de presentatie (F11) opent de keuzerij alsnog, want `ui.pendingRelationAssign` bleef staan.
+      Voorstel: de twee items alleen tonen waar het eigenschappenpaneel kan openen. Uit de review van #1004
+      (GPT-6.2-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1871. **VERVOLG (#1004): koppelen als keten wordt traag bij een grote selectie.** `linkTasksInChain`
+      (`src/state/relationActions.ts`) toetst elke schakel via `createRelationDraftWithFeedback` en
+      `addSequence`, die de relatiegraaf per schakel opnieuw opbouwen. In Node kostte een keten van 500 taken
+      427 ms en van 1.000 taken 1,5 s, synchroon (één undo-stap). Voorstel: de graaf één keer voorbereiden en geldige
+      schakels tijdens de toetsing toevoegen. Browsertijden niet gemeten. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1872. **VERVOLG (#1004): `createRelationWithFeedback` heeft alleen nog testaanroepers.** Sinds de lintknop
+      `linkTasksInChain` gebruikt, roept geen app-code de doorgeefwrapper meer aan (`src/state/relationActions.ts`);
+      `check-relation-routes.ts`, `check-notifications.ts` en `check-refusal-notices.ts` wel. Voorstel: de wrapper
+      weghalen en de tests via `createRelationDraftWithFeedback` of `linkTasksInChain` laten lopen. Uit de review
+      van #1004 (GPT-6.2-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1873. **VERVOLG (#1004): toewijzen in het lint blijft actief bij een selectie van een verdwenen taak.** Na een
+      nieuwe taak en Ongedaan wijst `selectedTaskIds` nog naar die taak (geen undo-data), dus *Voorgangers/Opvolgers
+      toewijzen…* in *Relatie ▾* staan aan. Klikken doet niets meer (`requestRelationAssign` weigert een onbekende
+      taak), maar het item had uit moeten staan. *Externe relatie toevoegen…* heeft hetzelfde. Uit de review van
+      #1004 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

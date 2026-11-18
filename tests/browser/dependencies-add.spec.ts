@@ -286,6 +286,46 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.keyboard.press('ControlOrMeta+F2');
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, ruwbouw]);
   await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(2);
+  await page.locator('.ribbon-tab').filter({ hasText: /^(Home|Start)$/ }).click();
+
+  // Review #1004, ronde 2: een taak die NA het selecteren wordt weggefilterd, komt niet in de keten.
+  // Selectie Grondwerk, Fundering, Ruwbouw; daarna Fundering weg (fixture). Ctrl+F2 doet niets.
+  await page.evaluate(() => window.__OPS__!.store.getState().setFilter(null));
+  await cell(grondwerk).click();
+  await cell(fundering).click({ modifiers: ['ControlOrMeta'] });
+  await cell(ruwbouw).click({ modifiers: ['ControlOrMeta'] });
+  await page.evaluate(() => window.__OPS__!.store.getState().setFilter({
+    kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Fundering',
+  }));
+  await expect(cell(fundering)).toHaveCount(0);
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(2);
+
+  // Review #1004, ronde 2: bij groeperen op resource staat Fundering in twee ploegen. Shift-klik op
+  // de naam van Fundering in de TWEEDE ploeg neemt het bereik tot die rij. Fixture: twee ploegen,
+  // groeperen op resource, aflopend op naam ⇒ | Grondwerk Fundering | Ruwbouw Fundering Afbouw.
+  await page.evaluate(([g, f, r, a]) => {
+    const s = window.__OPS__!.store.getState();
+    s.setFilter(null);
+    const p1 = s.addResource({ name: 'Ploeg 1', type: 'LABOR', description: '', maxUnits: 1 });
+    const p2 = s.addResource({ name: 'Ploeg 2', type: 'LABOR', description: '', maxUnits: 1 });
+    for (const [task, res] of [[g, p1], [f, p1], [r, p2], [a, p2], [f, p2]] as const) s.assignResource(task, res, 1, 'UNIFORM');
+    s.setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
+    s.setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
+  }, [grondwerk, fundering, ruwbouw, afbouw]);
+  const rowKeys = await page.evaluate(() => window.__OPS__!.store.getState().viewRows.map(row => row.rowKey));
+  expect(rowKeys).toHaveLength(7);
+  const gridRow = (rowKey: string) => page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key='${rowKey}'][data-grid-column-id="task.name"]`);
+  await gridRow(rowKeys[6]!).click(); // Afbouw in ploeg 2
+  const funderingEnd = await barPoint(page, fundering, 'right');
+  const secondFundering = await gridRow(rowKeys[5]!).boundingBox();
+  await page.keyboard.down('Shift');
+  await page.mouse.click(funderingEnd.x + 16, secondFundering!.y + secondFundering!.height / 2);
+  await page.keyboard.up('Shift');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, afbouw]);
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[fundering, afbouw]]);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

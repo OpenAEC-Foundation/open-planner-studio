@@ -80,29 +80,31 @@ ok('berekend zonder driving: gewone rollen, geen terugval naar sterke nadruk',
     && classifyTraceTask(calculatedEmpty, 'd') === 'successor');
 
 ok('zonder selectie zijn koppelen en extern toevoegen concreet niet beschikbaar', (() => {
-  const availability = relationActionAvailability(0, 0, true);
+  const availability = relationActionAvailability(0, 0, true, true);
   return !availability.linkSelected && !availability.addExternal && !availability.refreshExternal;
 })());
 ok('één selectie opent alleen de externe route', (() => {
-  const availability = relationActionAvailability(1, 0, true);
+  const availability = relationActionAvailability(1, 0, true, true);
   return !availability.linkSelected && availability.addExternal && !availability.refreshExternal;
 })());
 ok('twee selecties koppelen en bestaande externe links laten verversen', (() => {
-  const availability = relationActionAvailability(2, 1, true);
+  const availability = relationActionAvailability(2, 1, true, true);
   return availability.linkSelected && !availability.addExternal && availability.refreshExternal;
 })());
 // Issue #1000: koppelen werkt voor elke selectie van twee of meer taken (als keten), toewijzen
 // (voorgangers/opvolgers kiezen in het paneel, zoals in Primavera) voor precies één taak.
-ok('drie selecties koppelen als keten', relationActionAvailability(3, 0, true).linkSelected);
-ok('toewijzen alleen bij precies één taak', !relationActionAvailability(0, 0, true).assign
-  && relationActionAvailability(1, 0, true).assign && !relationActionAvailability(2, 0, true).assign);
+ok('drie selecties koppelen als keten', relationActionAvailability(3, 0, true, true).linkSelected);
+ok('toewijzen alleen bij precies één taak', !relationActionAvailability(0, 0, true, true).assign
+  && relationActionAvailability(1, 0, true, true).assign && !relationActionAvailability(2, 0, true, true).assign);
 // Review #1004: zonder takenlijst in beeld (volledig resourcepaneel) koppelt en wijst het lint niets
 // toe: de selectie is dan onzichtbaar, en het eigenschappenpaneel staat er niet.
 ok('zonder takenlijst in beeld geen koppelen of toewijzen', (() => {
-  const availability = relationActionAvailability(3, 0, false);
-  const single = relationActionAvailability(1, 0, false);
+  const availability = relationActionAvailability(3, 0, false, true);
+  const single = relationActionAvailability(1, 0, false, true);
   return !availability.linkSelected && !single.assign && single.addExternal;
 })());
+// Review #1004, ronde 2: staat een gekozen taak niet in beeld (filter), dan koppelt het lint niet.
+ok('een verborgen geselecteerde taak zet koppelen uit', !relationActionAvailability(3, 0, true, false).linkSelected);
 
 const beforeUi = useAppStore.getState();
 const selectionBefore = [...beforeUi.selectedTaskIds];

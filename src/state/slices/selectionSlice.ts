@@ -70,6 +70,9 @@ export function pastesGridTaskCopy(clip: TaskClipboard | null, text: string, doc
     && clip.fromGrid.text === sameClipboardText(text);
 }
 
+/** De aangeklikte rij bij Shift-klik in de Gantt (review #1004). */
+export interface SelectedRow { rowKey: string; taskIds?: readonly string[] }
+
 export interface SelectionSlice {
   selectedTaskIds: string[];
   /** Taak van de actieve cel/klik. Kan bewust buiten de meervoudige selectie vallen wanneer de
@@ -78,8 +81,11 @@ export interface SelectionSlice {
   taskClipboard: TaskClipboard | null;
 
   /** Selecteer één taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) breidt uit vanaf de laatst
-   *  geselecteerde. Geen undo: selectie is geen documentdata. */
-  selectTask: (id: string, multi?: boolean, range?: boolean) => void;
+   *  geselecteerde. `row` is de aangeklikte rij: dezelfde taak kan in meer rijen staan (groeperen
+   *  op resource), en een ingeklapte mijlpalenreeks is één rij met meer taken, waarvan alleen
+   *  `row.taskIds` (standaard `[id]`; een groepsruitje: zijn leden) in het bereik komen. Zonder `row`
+   *  de eerste rij met de taak. Geen undo: selectie is geen documentdata. */
+  selectTask: (id: string, multi?: boolean, range?: boolean, row?: SelectedRow) => void;
   deselectAll: () => void;
   /** Ctrl/Cmd+A: selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
    *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
@@ -102,21 +108,35 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
   activeTaskId: null,
   taskClipboard: null,
 
-  selectTask: (id, multi = false, range = false) =>
+  selectTask: (id, multi = false, range = false, row) =>
     set((s) => {
       s.activeTaskId = id;
       if (range && s.selectedTaskIds.length > 0) {
-        // Shift-klik (balk in de Gantt): bereik van de laatst gekozen tot de aangeklikte taak, over de
-        // rijen OP HET SCHERM — met filter, sortering en ingeklapte fasen — net als Shift in de
-        // takenlijst. Nooit de interne taakvolgorde: die nam weggefilterde taken mee (review #1004).
+        // Shift-klik in de Gantt: bereik van de laatst gekozen taak tot de aangeklikte RIJ, over de
+        // rijen OP HET SCHERM — met filter, sortering, groepering en ingeklapte fasen — net als Shift
+        // in de takenlijst; pas daarna ontdubbelen. Nooit de interne taakvolgorde of een id-lijst:
+        // die nam weggefilterde taken mee en koos bij een dubbele rij de verkeerde (review #1004).
+        const rows = s.viewRows;
+        const holds = (index: number, taskId: string) => uniqueTaskIds([rows[index]]).includes(taskId);
+        const toIdx = row !== undefined
+          ? rows.findIndex((viewRow, index) => viewRow.rowKey === row.rowKey && holds(index, id))
+          : rows.findIndex((_row, index) => holds(index, id));
         const lastSelected = s.selectedTaskIds[s.selectedTaskIds.length - 1];
-        const flatIds = uniqueTaskIds(s.viewRows);
-        const fromIdx = flatIds.indexOf(lastSelected);
-        const toIdx = flatIds.indexOf(id);
+        // Het anker staat mogelijk ook in meer rijen: neem het voorkomen het dichtst bij de klik.
+        let fromIdx = -1;
+        rows.forEach((_row, index) => {
+          if (holds(index, lastSelected) && (fromIdx < 0 || Math.abs(index - toIdx) < Math.abs(fromIdx - toIdx))) fromIdx = index;
+        });
         if (fromIdx >= 0 && toIdx >= 0) {
           const start = Math.min(fromIdx, toIdx);
           const end = Math.max(fromIdx, toIdx);
-          const rangeIds = flatIds.slice(start, end + 1);
+          // Van de aangeklikte rij alleen wat aangeklikt is: in een mijlpalenreeks niet de hele rij.
+          // Die rij ligt aan één kant van het bereik; de andere rijen tellen helemaal mee.
+          const clicked = new Set(row?.taskIds ?? [id]);
+          const clickedIds = uniqueTaskIds([rows[toIdx]]).filter(taskId => clicked.has(taskId));
+          const rangeIds = [...new Set(toIdx === start
+            ? [...clickedIds, ...uniqueTaskIds(rows.slice(start + 1, end + 1))]
+            : [...uniqueTaskIds(rows.slice(start, end)), ...clickedIds])];
           // Vereniging met de bestaande selectie, het bereik in de volgorde van de lijst — ook als
           // je naar boven selecteert, net als Shift in de takenlijst. De volgorde telt: koppelen
           // als keten (issue #1000) volgt haar. Eerder aangeklikte taken buiten het bereik blijven vooraan.

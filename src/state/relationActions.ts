@@ -1,4 +1,5 @@
-import { useAppStore } from '@/state/appStore';
+import { useAppStore, type AppState } from '@/state/appStore';
+import { uniqueTaskIds } from '@/engine/view/visibleRows';
 import { relationAddVerdict, type RelationAddRejection } from '@/state/relationRules';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { NotificationMessageKey, RelationAssignDirection } from '@/state/slices/types';
@@ -89,6 +90,16 @@ export function createRelationsWithFeedback(relations: readonly Omit<Sequence, '
   const anyAllowed = relations.some(rel => relationAddVerdict(st.tasks, st.sequences, rel).ok);
   if (!anyAllowed) return relations.map(createRelationDraftWithFeedback);
   return withTransaction(() => relations.map(createRelationDraftWithFeedback), 'Relaties toevoegen');
+}
+
+/**
+ * Staat elke geselecteerde taak in een rij op het scherm? Een filter of een ingeklapte fase kan een
+ * taak verbergen nadat hij gekozen is; koppelen zou dan een keten leggen die de planner niet ziet
+ * (review #1004). Lint en Ctrl+F2 koppelen alleen als dit klopt.
+ */
+export function selectionInView(state: Pick<AppState, 'selectedTaskIds' | 'viewRows'>): boolean {
+  const visible = new Set(uniqueTaskIds(state.viewRows));
+  return state.selectedTaskIds.every(taskId => visible.has(taskId));
 }
 
 /**
