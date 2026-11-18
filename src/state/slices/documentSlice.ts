@@ -816,7 +816,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
         // draait — pariteit by construction, geen tweede implementatie.
         const result = solveProject(
-          solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
+          solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars), payload.tasks);
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van het
         // bezettingsoverzicht blijft dan gelden — het overzicht toont zijn boeking ongeteld met de
         // ⚠) en doorgaan met de rest.

@@ -31,19 +31,15 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
-81. **Voortgang zonder werkelijke datums legt een verkeerde werkelijke start of een verkeerd einde vast.** Bij
-    `completion: 100` zonder `actualFinish` wordt het werkelijke einde de statusdatum (`defaultActualFinish`,
-    `taskMutationRules.ts:29-34`); zonder `actualStart` wordt de werkelijke start de geplande start
-    (`defaultActualStart`, r.44-46); alleen `actualFinish` opgeven zet de start op dezelfde dag
-    (`applyProgressInvariants`). Welke geplande start dat is, hangt af van de route (zie 85): in losse calls
-    heeft de statusdatum niet-gestart werk al naar die datum geschoven, binnen één `planner_batch` niet.
-    Nagespeeld via de echte MCP-dispatcher op Grondwerk (3 wd, gepland 7–9 juni 2027), Fundering storten (2),
-    Metselwerk (5), Dak (3), statusdatum vrijdag 11 juni, baseline-einde 23 juni: losse calls met alleen
-    `completion: 100` ⇒ Grondwerk werkelijk 11–11 juni, +2 werkdagen; in één batch ⇒ werkelijk 7–11 juni.
-    De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het grid en de panelen
-    hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. **Besluit eigenaar (2026-10-07, nog niet
-    gebouwd):** de afgeleide werkelijke start moet het oorspronkelijk geplande begin van vóór de
-    statusdatumverschuiving zijn. — B (MCP), S (UI)
+81. **Op 100% kan een taak eindigen op de statusdatum in plaats van op het geplande einde (#998).**
+    De schuif zet bij ontbrekende statusdatum die datum op vandaag. Op 100% neemt `defaultActualFinish`
+    de statusdatum over als werkelijk einde. Nagespeeld in Chromium: een taak van 3 werkdagen,
+    gepland van 28 t/m 30 oktober 2026, hield tijdens het slepen haar begin en einde bij 23%, 50% en 77%.
+    Bij 100% verschoof het einde naar 18 november. De geplande duur bleef 3 werkdagen.
+    Besluit nodig over het afgeleide einde. Bij invoer van uitsluitend een werkelijk einde en zonder
+    eerder ingevulde werkelijke start zet de voortgangsinvariant beide datums op hetzelfde moment.
+    Bij invoer van een percentage gebruikt OPS sinds #998 de geplande start van vóór de
+    statusdatumverschuiving. — B
 
 114. **De motor plant een lopende taak op 100 % niet met zijn vastgelegde restduur.** Zo'n taak (status
     STARTED, `completion` 1, geen werkelijk einde) komt uit P6 als `TK_Active` op 100 %. In P6 eindigt
@@ -1028,6 +1024,47 @@ en noem het in je rapport of PR-tekst.
      `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
      voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van
      #999, ronde 2. — B (review)
+1850. **VERVOLG: tests gebruiken nog een tweede percentagepad voor de taakdialoog.** `draftWithProgress`
+      in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
+      Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
+      #1003 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+1851. **VERVOLG: één MCP-verzoek berekent de planning opnieuw na voortgang op meerdere voorgangers.**
+      De echte dispatcher deed in een plan met 1.000 taken voor 80 percentage-updates op losse taken
+      2 volledige berekeningen in 0,26 s. Met 80 onafhankelijke FS-paren waren het 81 berekeningen in
+      2,73 s, terwijl het verzoek geen van de opvolgers bewerkte. Beperk het opnieuw berekenen tot
+      opvolgers die in hetzelfde verzoek nog een werkelijke start nodig hebben
+      (`src/services/mcp/tools/taskTools.ts`). Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 4,
+      BEVESTIGD, VERVOLG). — B
+1852. **VERVOLG: de startregel van Taak bewerken ondersteunt nog twee invoervormen.**
+      De app geeft bij bestaande taken een `TaskDialogStartEdit` door. De `string`-tak in
+      `src/state/taskDialogSave.ts` ondersteunt daar alleen tests. Laat die tests dezelfde invoervorm
+      gebruiken en verwijder de aparte tak voor bestaande taken. Uit de review van #1003
+      (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+1853. **VERVOLG: een getypt startanker vervalt als de actuele rekendatum intussen exact gelijk wordt.**
+      Typ in Taak bewerken 22 juni om 07:00 en wijzig in dezelfde dialoog de wachttijd, zodat de
+      berekende start precies daarop uitkomt. Bevestig bij 1% de werkelijke start op 9 juni.
+      Opslaan houdt het oude anker van 8 juni en voegt geen SNET toe. De invoer zonder expliciet
+      tijdstip bewaart beide wel. Bij een vastgelegde `TaskDialogStartEdit` kan de tweede
+      gelijkheidstoets tegen de bijgewerkte rekendatum vervallen (`src/state/taskDialogSave.ts`).
+      Uit de review van #1003 (GPT-6.2-Sol, xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
+1854. **VERVOLG: Taak bewerken legt voortgang vast op basis van een nivelleergat dat Opslaan wist.**
+      Fundering duurt vier werkdagen, heeft een nivelleergat van zeven werkdagen en een harde MFO
+      op 22 juni 2026. Statusdatum 10 juni. Maak de duur drie werkdagen en zet in dezelfde dialoog
+      de voortgang op 1%. Opslaan wist het gat en boekt zonder startvraag 9 juni om 07:00. Main
+      (`6f74f000c`) boekt in dezelfde Chromium-proef 10 juni om 07:00, ook zonder vraag. Als alleen
+      de kortere duur eerst wordt opgeslagen, is de geplande start op beide versies 18 juni om
+      07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets ook de gevolgen van
+      de duurbewerking meenemen (`src/state/taskDialogSave.ts`). Sol ronde 6, BEVESTIGD.
+      Trias (wrakko) deelde dit als VERVOLG in. — B
+1855. **VERVOLG: Voortgang in Taak bewerken negeert de voorganger van de nieuw gekozen fase.**
+      Bouwfase heeft een einde-startrelatie vanaf Grondwerk van tien werkdagen, met projectstart
+      8 juni 2026 en statusdatum 10 juni. Hang Fundering onder Bouwfase en zet in dezelfde dialoog
+      de voortgang op 1%. Opslaan verplaatst Fundering en boekt zonder startvraag 8 juni om 07:00.
+      Main (`6f74f000c`) boekt in dezelfde Chromium-proef 10 juni om 07:00, ook zonder vraag.
+      Als alleen het verhangen eerst wordt opgeslagen, is de geplande start op beide versies
+      24 juni om 07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets de gekozen
+      hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
+      Trias (wrakko) deelde dit als VERVOLG in. — B
 
 ## Kalenders
 

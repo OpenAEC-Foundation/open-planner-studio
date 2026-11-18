@@ -77,6 +77,8 @@ export interface TaskEditPlanEnvironment {
   projectId: string;
   wbsAutoNumber: boolean;
   statusDate?: string;
+  /** Geplande start vóór de statusdatumvloer, alleen bij een ingevoerd voortgangspercentage. */
+  plannedStart?: (task: Task) => string | undefined;
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
@@ -679,7 +681,9 @@ function applyProgressEdit(
     if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
     // Zelfde regel als store (`setTaskProgress`) en MCP: een afgeleide werkelijke start valt
     // nooit ná het werkelijke einde (100% met een statusdatum vóór de geplande start).
-    applyCompletionEdit(task, edit.value, environment.statusDate, calendar);
+    const start = edit.value > 0 && !task.time.actualStart && !isZeroDurationMilestone(task)
+      ? environment.plannedStart?.(task) : undefined;
+    applyCompletionEdit(task, edit.value, environment.statusDate, calendar, () => start);
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value && environment.statusDate
@@ -903,6 +907,9 @@ function applyProgressEdits(
       : (actualDurationEdit.value as number) / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
   }
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
+  const start = completionEdit && desiredCompletion !== undefined && desiredCompletion > 0
+    && !desiredActualStart && !isZeroDurationMilestone(task)
+    ? environment.plannedStart?.(task) : undefined;
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
   if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
   if (desiredCompletion !== undefined) {
@@ -911,7 +918,9 @@ function applyProgressEdits(
     // Pas ná het vastleggen van het einde: een afgeleide werkelijke start valt nooit ná het
     // (opgegeven of straks afgeleide) werkelijke einde — zelfde uitkomst als het enkele-celpad.
     // Een in deze rij opgegeven Actual Start staat er dan al en blijft ongemoeid.
-    if (desiredCompletion > 0) fillMissingActualStart(task, environment.statusDate, calendar);
+    if (desiredCompletion > 0) {
+      fillMissingActualStart(task, environment.statusDate, calendar, () => start);
+    }
   }
   if (desiredStatus === 'NOT_STARTED') {
     task.time.actualStart = undefined;

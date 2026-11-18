@@ -27,6 +27,7 @@ import {
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
+import { progressCanShiftOtherTasks, progressPlannedStarts, taskPlacementChanged } from '@/state/progressPlannedStart';
 import {
   parseProgress,
   parseTaskFields,
@@ -373,13 +374,28 @@ function durationBelowDoneWorkReason(refused: { done: number; unit: 'days' | 'ho
 
 /** Synchrone, transactie-vrije kern van `update_tasks`. */
 function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; progress?: any }[]): MutationOutcome {
-  const statusDate = ctx.app.store.getState().project.statusDate;
+  const initial = ctx.app.store.getState();
+  const statusDate = initial.project.statusDate;
+  let plannedStart = progressPlannedStarts(initial);
+  let canShiftOtherTasks: ((id: string) => boolean) | undefined;
+  const refreshPlannedStart = (before: Task | undefined, progressOnly = false): void => {
+    if (!before) return;
+    const updated = ctx.app.store.getState();
+    const after = updated.tasks.find(task => task.id === before.id);
+    if (!after || !taskPlacementChanged(before, after)) return;
+    if (progressOnly && (after.time.actualStart || !before.time.actualStart)) {
+      canShiftOtherTasks ??= progressCanShiftOtherTasks(updated);
+      if (!canShiftOtherTasks(before.id)) return;
+    } else if (!progressOnly) canShiftOtherTasks = undefined;
+    plannedStart = progressPlannedStarts(updated, true);
+  };
   const rejections: { id: string; reason: string }[] = [];
   const applied: string[] = [];
   const progressAdjusted: ProgressAdjusted[] = [];
   for (const u of updates) {
     const id = u.id;
-    const exists = validate.taskExists(ctx.app.store.getState(), id);
+    const beforeState = ctx.app.store.getState();
+    const exists = validate.taskExists(beforeState, id);
     if (exists) { rejections.push(exists); continue; }
     let touched = false;
     let rejectedHere = false;
@@ -389,7 +405,8 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       else {
         // Eerst de patch: weigert die (duur korter dan het gedane werk van een lopende taak), dan blijft
         // ook het persoonlijke taaktype weg — geen halve merge.
-        const completionBefore = ctx.app.store.getState().tasks.find(t => t.id === id)?.time.completion ?? 0;
+        const before = beforeState.tasks.find(task => task.id === id);
+        const completionBefore = before?.time.completion ?? 0;
         const outcome = ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
         if (outcome && 'refused' in outcome) {
           rejections.push({ id, reason: durationBelowDoneWorkReason(outcome.refused, completionBefore) });
@@ -400,6 +417,7 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
           // `duration` onder de OUDE regel wordt verwerkt en de nieuwe regel het restwerk van dát moment
           // vastlegt).
           if (res.patch.workRule !== undefined) ctx.transactions.draft.setTaskWorkRule(id, res.patch.workRule ?? undefined);
+          refreshPlannedStart(before);
           if (outcome && 'progress' in outcome) {
             const hours = outcome.progress.remainingMinutes !== undefined;
             progressAdjusted.push({
@@ -422,10 +440,15 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       if (!shape.ok) { rejections.push({ id, reason: shape.reason }); rejectedHere = true; }
       else {
         const patch: ProgressPatch = shape.value;
+        const before = ctx.app.store.getState().tasks.find(task => task.id === id);
         let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'not executed' };
-        ctx.app.store.setState((s) => { pr = progress.applyProgressUpdate(s, id, patch, statusDate); });
-        if (pr.applied) touched = true;
-        else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
+        ctx.app.store.setState((s) => {
+          pr = progress.applyProgressUpdate(s, id, patch, statusDate, plannedStart);
+        });
+        if (pr.applied) {
+          touched = true;
+          refreshPlannedStart(before, true);
+        } else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
       }
     }
     if (touched) applied.push(id);
