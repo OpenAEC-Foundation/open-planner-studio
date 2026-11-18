@@ -155,6 +155,21 @@ for (const batch of [false, true]) {
   });
 }
 
+test('#998: een opgegeven werkelijk einde van een voorganger telt mee in hetzelfde verzoek', async () => {
+  const { V } = setup('2026-06-10');
+  const next = S().addTask({ name: 'Opvolger', time: createDefaultTaskTime('2026-06-01', 2) });
+  S().addSequence({ predecessorId: V, successorId: next, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  const res = await rpc('planner_update_tasks', { updates: [
+    { id: V, progress: { actualStart: '2026-06-01', actualFinish: '2026-06-10' } },
+    { id: next, progress: { completion: 50 } },
+  ] });
+  assert(reasons(res).some(reason => /progress\.actualStart/.test(reason) && /2026-06-11/.test(reason)),
+    `de opgegeven werkelijke einddatum verplaatst de start van de opvolger: ${reasons(res)}`);
+  assertEq(timeOf(V).actualFinish, '2026-06-10T16:00', 'opgegeven einde toegepast');
+  assertEq(timeOf(next).completion, 0, 'percentage van opvolger geweigerd');
+});
+
 // F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
 for (const [statusDate, actualFinish, want] of [
   ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],
