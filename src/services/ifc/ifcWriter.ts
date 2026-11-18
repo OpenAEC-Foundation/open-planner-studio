@@ -15,6 +15,7 @@ import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
+import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import {
   canonicalizeBands, clockToMinutes, deriveHoursPerDay, hoursPerDayDiffers, effectiveCalendarByTask, minutesToClock, minutesToIsoDuration,
   taskMinutesForWrite,
@@ -789,9 +790,8 @@ function writeXerSourceArchive(
 function writeTaskTypeMeta(
   ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
 ): void {
-  const used = new Set(tasks.map(t => t.customTaskTypeId).filter((id): id is string => !!id));
-  if (used.size === 0) return;
-  const definitions = customTaskTypes.filter(t => used.has(t.id));
+  if (!tasks.some(t => t.customTaskTypeId)) return;
+  const definitions = savedCustomTaskTypes(tasks, customTaskTypes);
   const taskTypeIds: Record<string, string> = {};
   for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });

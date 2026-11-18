@@ -138,8 +138,9 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const customTaskTypes = rename(snapshot.customTaskTypes);
       return customTaskTypes ? { ...snapshot, customTaskTypes } : snapshot;
     });
+    // Geen `recomputeViewRows`: de rijen lezen de werksoortcatalogus niet (`viewRowInputs`); de Tabel en
+    // het werksoortveld volgen haar rechtstreeks.
     set({ customTaskTypes: rename(state.customTaskTypes)!, historyEvents });
-    get().recomputeViewRows();
     return { status: 'renamed' };
   },
 
