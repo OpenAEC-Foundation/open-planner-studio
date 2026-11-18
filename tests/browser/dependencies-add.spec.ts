@@ -398,9 +398,15 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.evaluate(() => window.__OPS__!.store.getState().selectAllTasks());
   await cell(afbouw).click({ modifiers: ['Shift'] });
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw, afbouw]);
+  // Ronde 9: een bereik vanaf de spookregel "Nieuwe taak" houdt dat beginpunt bij een tweede Shift.
+  await page.locator('[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="ops-ghost-row"][data-grid-column-id="task.name"]').click();
+  await cell(ruwbouw).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
+  await cell(fundering).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw, afbouw]);
 
   await cell(ruwbouw).click();
-  await page.evaluate(() => { window.__OPS__!.store.getState().duplicateDocument(); });
+  const copy = await page.evaluate(() => window.__OPS__!.store.getState().duplicateDocument());
   await cell(ruwbouw).click({ button: 'right' });
   await page.getByRole('button', { name: /^(Assign successors|Opvolgers toewijzen)…$/ }).click();
   await expect(assign.locator('[data-ops-dependency-search]')).toBeFocused();
@@ -412,6 +418,13 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
   await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
     .toEqual([[fundering, afbouw]]);
+  // Ook het rechtsklikmenu van de tijdlijn hoort bij zijn document: een documentwissel sluit het (ronde 9).
+  const grondwerkBar = await barPoint(page, grondwerk);
+  await page.mouse.click(grondwerkBar.x, grondwerkBar.y, { button: 'right' });
+  const assignSuccessors = page.getByRole('button', { name: /^(Assign successors|Opvolgers toewijzen)…$/ });
+  await expect(assignSuccessors).toBeVisible();
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), copy);
+  await expect(assignSuccessors).toHaveCount(0);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

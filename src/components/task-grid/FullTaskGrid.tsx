@@ -74,7 +74,7 @@ import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
-import { pastesGridTaskCopy, shiftAnchor } from '@/state/slices/selectionSlice';
+import { liveSelectionAnchor, pastesGridTaskCopy, shiftAnchor } from '@/state/slices/selectionSlice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -221,13 +221,14 @@ export interface TaskGridSurfaceProps {
   onPlainTaskClick?: (task: Task) => void;
 }
 
-/** Het Shift-anker van de lijst voor de store: de ankerrij en haar taken (een reeksrij: alle). */
+/** Het Shift-anker van de lijst voor de store: de ankerrij en haar taken (een reeksrij: alle; de
+ *  spookregel: geen, maar wel het beginpunt van een bereik in de lijst). */
 function gridAnchor(selection: GridSelectionState, rowIndex: TaskGridRowIndex): SelectionAnchor | undefined {
   const rowKey = selection.anchor?.rowKey;
   if (!rowKey) return undefined;
   const taskRow = rowIndex.taskByRowKey.get(rowKey);
-  const taskIds = taskRow && !isGhostTaskId(taskRow.task.id)
-    ? [taskRow.task.id]
+  const taskIds = taskRow
+    ? (isGhostTaskId(taskRow.task.id) ? [] : [taskRow.task.id])
     : rowIndex.runByRowKey.get(rowKey)?.tasks.map(task => task.id);
   return taskIds ? { rowKey, taskIds } : undefined;
 }
@@ -244,7 +245,11 @@ function extendFromSharedAnchor(
   rowIndex: TaskGridRowIndex,
   columns: readonly TaskColumnId[],
 ): { next: GridSelectionState; anchor?: SelectionAnchor } {
-  const anchor = shiftAnchor(useAppStore.getState());
+  // Het geldende anker als de lijst zijn rij kent (ook de spookregel, die de tijdlijn niet heeft),
+  // anders hetzelfde beginpunt als de tijdlijn.
+  const state = useAppStore.getState();
+  const live = liveSelectionAnchor(state);
+  const anchor = live && rowIndex.absoluteIndexByRowKey.has(live.rowKey) ? live : shiftAnchor(state);
   const from = anchor && rowIndex.absoluteIndexByRowKey.has(anchor.rowKey)
     ? withSelectionAnchor(selection, anchor.rowKey)
     : selection;
@@ -252,7 +257,12 @@ function extendFromSharedAnchor(
   if (!anchor || next.anchor?.rowKey !== anchor.rowKey) return { next };
   const rowTaskIds = gridAnchor(next, rowIndex)?.taskIds ?? [];
   const selectedTaskIds = next.selectedTaskIds.filter(id => !rowTaskIds.includes(id) || anchor.taskIds.includes(id));
-  return { next: { ...next, selectedTaskIds }, anchor };
+  // Eindigt de cursor op de ankerrij (een reeksregel), dan is de actieve taak een gekozen lid, niet
+  // het eerste lid van de reeks (ronde 9).
+  const activeTaskId = next.activeTaskId !== null && !selectedTaskIds.includes(next.activeTaskId)
+    ? anchor.taskIds.find(id => selectedTaskIds.includes(id)) ?? next.activeTaskId
+    : next.activeTaskId;
+  return { next: { ...next, selectedTaskIds, activeTaskId }, anchor };
 }
 
 export function TaskGridSurface({

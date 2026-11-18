@@ -140,6 +140,14 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect.poll(() => selected(page)).toEqual([ids.m2]);
   await page.keyboard.press('Shift+ArrowDown');
   await expect.poll(() => selected(page)).toEqual([ids.m2, ids.next].sort());
+  // Shift naar een andere kolom op dezelfde reeksregel: de actieve taak (het eigenschappenpaneel)
+  // blijft het gekozen ruitje, niet het eerste lid van de reeks (ronde 9).
+  await page.mouse.click(single.x, single.y);
+  await expect.poll(() => selected(page)).toEqual([ids.m2]);
+  const durationCell = ganttRow(page, runKey).locator('[data-grid-data-cell="true"][data-grid-column-id="task.time.scheduleDuration"]');
+  await durationCell.click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([ids.m2]);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeTaskId)).toBe(ids.m2);
   await page.mouse.click(group.x, group.y);
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
   await page.keyboard.press('F2');

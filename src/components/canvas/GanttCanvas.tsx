@@ -799,6 +799,11 @@ export function GanttCanvas({
   }, [secondaryCanvasRef, secondaryRendererRef, headerHeight]);
 
   const { contextMenu, relationPopover, tooltip } = pointer;
+  // Het menu hoort bij het document waarin het openging: een variant draagt dezelfde taak-id's, en
+  // een actie uit een open menu landde na een documentwissel in het andere document (review #1004).
+  const activeDocumentId = useAppStore(s => s.activeDocumentId);
+  const { closeContextMenu } = pointer;
+  useEffect(() => { closeContextMenu(); }, [activeDocumentId, closeContextMenu]);
   const boxSelectState = pointer.overlays.boxSelect;
   const splitOverlay = pointer.overlays.split;
   const splitDragLabel = pointer.overlays.barSplitDrag;
