@@ -55,6 +55,13 @@ export interface SaveTargetFields {
  *
  * `tauri` is injecteerbaar voor de headless test; standaard de echte platformcheck.
  */
+/** Hetzelfde doel? Een handle telt als hetzelfde object (de doelcontrole zelf gebruikt `isSameEntry`). */
+export function sameFileRef(a: FileRef, b: FileRef): boolean {
+  if (a.kind === 'path' && b.kind === 'path') return a.path === b.path;
+  if (a.kind === 'site' && b.kind === 'site') return a.id === b.id;
+  return a.kind === 'handle' && b.kind === 'handle' && a.handle === b.handle;
+}
+
 export function saveTargetRef(doc: SaveTargetFields, tauri: boolean = isTauri()): FileRef | null {
   if (doc.siteFileId) return { kind: 'site', id: doc.siteFileId };
   if (doc.fileHandle) return { kind: 'handle', handle: doc.fileHandle };

@@ -32,9 +32,10 @@ export interface OwnPathReplaceInput {
   source: { bytes: Uint8Array; sha256: string };
   /** Na een geslaagde vervanging: de geschreven versie wordt de bron (`commitSavedDocument` met `prepared`). */
   commit: () => void;
-  /** Na de eerste herstelronde en vóór de eerste schrijfactie in de projectmap: `true` = stoppen (het document, het
-   *  opslagdoel of de bron is intussen veranderd). Meldt zelf; de uitkomst is dan `stopped`. */
-  stopBeforeWrite?: () => boolean;
+  /** Verplicht: na de eerste herstelronde en vóór de eerste schrijfactie in de projectmap opnieuw de doelbewaking
+   *  (dezelfde als vóór de merge): `true` = stoppen (het document, zijn opslagdoel of zijn bron veranderde, of een
+   *  ander open document heeft het bestand intussen als bron). Meldt zelf; de uitkomst is dan `stopped`. */
+  stopBeforeWrite: () => Promise<boolean>;
   fs?: OwnFileReplaceFs;
   records?: ReplaceRecordStore;
   now?: Date;
@@ -44,7 +45,7 @@ export interface OwnPathReplaceInput {
  * Het eigen bestand vervangen, binnen `runProjectFileWrite`. Een gelinkt doel weigert vóór alles (`linkedOwnFile`, de
  * enige voorcontrole). Dan stap 0: het herstelrecord (`replaceRecords.ts`: id, doel, `vorigeSha256`, `pendingSha256`)
  * en in het manifest `pendingSha256`; lukt een van de twee niet, dan `not-recorded` en staat er niets op schijf. Na die
- * eerste herstelronde nog `stopBeforeWrite` (`stopped`: niets in de projectmap aangeraakt). Dan
+ * eerste herstelronde nog de doelbewaking `stopBeforeWrite` (`stopped`: niets in de projectmap aangeraakt). Dan
  * stap 1 tot en met 5 (`replaceOwnFileBytes`) en stap 6: na `replaced` eerst `commit`, dan wist het herstel
  * `pendingSha256`. Het record verdwijnt alleen als er geen hulpbestand van de operatie meer staat; na `unknown`
  * (`source-changed`) blijft het altijd. Een record dat blijft, handelt de volgende start of het openen van het bestand af.
@@ -65,7 +66,7 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
     let outcome: OwnFileReplaceOutcome | { code: 'stopped' } | undefined;
     const recorded = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
       replace: async () => {
-        if (input.stopBeforeWrite?.()) {
+        if (await input.stopBeforeWrite()) {
           outcome = { code: 'stopped' };
           return false;
         }

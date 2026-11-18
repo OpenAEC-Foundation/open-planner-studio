@@ -6,7 +6,7 @@ import { serializeForSave } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { sameIFCSource } from '@/state/ifcSaveInput';
 import {
-  canWriteToRefWithoutPrompt, fileIdentityFs, saveTargetRef, saveToRefWithoutPrompt, writeTargetReaders, type FileRef,
+  canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
@@ -15,13 +15,6 @@ import {
 import {
   AutoSaveTargetUnavailableError, createActualAutoSaveController, type ActualAutoSaveCandidate, type ActualAutoSaveController,
 } from './actualAutoSave';
-
-/** Hetzelfde doel? Een handle telt als hetzelfde object (de doelcontrole zelf gebruikt `isSameEntry`). */
-function sameFileRef(a: FileRef, b: FileRef): boolean {
-  if (a.kind === 'path' && b.kind === 'path') return a.path === b.path;
-  if (a.kind === 'site' && b.kind === 'site') return a.id === b.id;
-  return a.kind === 'handle' && b.kind === 'handle' && a.handle === b.handle;
-}
 
 export function createFileAutoSaveController(deps: {
   getState: () => AppState;

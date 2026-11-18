@@ -172,8 +172,10 @@ export interface DocumentSlice {
    *  (`ui.pendingCloseDocId`), anders sluiten. Zonder lopende opslag in dezelfde beurt, zoals voorheen. */
   requestCloseDocument: (id: string) => void;
   /** Sluit `id` zodra er geen opslag meer loopt of wacht (de keuzes van de sluitvraag). Zonder lopende opslag sluit
-   *  het in dezelfde beurt. */
-  closeDocumentAfterSaves: (id: string) => Promise<void>;
+   *  het in dezelfde beurt. `onlyIfClean` (*Opslaan* in de sluitvraag, fixronde 1 van #1008): sluit alleen als het
+   *  document vlak vóór het sluiten nog bestaat en niet gewijzigd is; een bewerking tijdens of na de opslag houdt het
+   *  open. Geeft terug of het gesloten is. */
+  closeDocumentAfterSaves: (id: string, options?: { onlyIfClean?: boolean }) => Promise<boolean>;
   /** Lijst van geopende documenten met afgeleide titel + dirty/active-status. */
   getOpenDocuments: () => DocumentInfo[];
   /** Alle geopende documenten als payload (actief live, rest uit de registry) —
@@ -606,9 +608,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     else get().closeDocument(id);
   },
 
-  closeDocumentAfterSaves: async (id) => {
+  closeDocumentAfterSaves: async (id, options) => {
     for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+    // Na het wachten, in dezelfde beurt als het sluiten: het moment waarop de beslissing valt.
+    if (options?.onlyIfClean && !get().getOpenDocuments().some((doc) => doc.id === id && !doc.isDirty)) return false;
     get().closeDocument(id);
+    return true;
   },
 
   getOpenDocuments: () => {
