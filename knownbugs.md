@@ -2662,14 +2662,23 @@ en noem het in je rapport of PR-tekst.
         (`mcp-real-app.yml`): het app-log (kanaal `nieuweNaam`) moet voor dat doel `placed` of `dir-not-synced` van
         het echte commando tonen, zonder directe aanmaak; een mutatie die direct aanmaakt maakt die proef rood.
         Opslaan als via de dialoog, Windows, macOS en de terugvalwegen zijn in een echte app niet gemeten.
-     5. Ctrl+S op de desktop: de stappen 0 tot en met 6 van §4.10 met `pendingReplace`, restbestanden bij herstel,
-        herstel- en conflictkopie.
+     5. Ctrl+S op de desktop, in twee delen.
+        a. Gebouwd (stap 5a): de vervanging als functie (`replaceOwnPathWithRecovery` in `state/ownFileReplace.ts`,
+           stap 1–5 in `fileAccess/ownFileReplace.ts`): §4.10 stap 0–6 met een eigen herstelrecord per vervanging in
+           de appDataDir (`fileAccess/replaceRecords.ts`; het manifest blijft versie 5), geen directe terugval, per
+           uitkomst een melding. Het record blijft tot er geen hulpbestand van de operatie meer staat; bij de start en
+           vóór het lezen van een lokaal pad (dialoog, neerzetten, Recent: `readOpenedTauriPath`) handelt de app het af,
+           met eigendom alleen op inhoud, en met de kopie "niet opgeslagen planning". Nog door geen opslagroute
+           aangeroepen.
+        b. Open (stap 5b): Ctrl+S en *Opslaan* in de sluitvraag op een pad aansluiten op de functie, nadat "sluiten
+           wacht op een lopende opslag" (#987) in main staat. Dan vervalt `ifcForeignReplaceBlocked` voor het eigen pad.
      6. Teksten en handleiding, met de eigenaar.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
-     `run-real-app.ts`. Crash, stroomuitval en externe
+     `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
+     stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
@@ -2709,7 +2718,10 @@ en noem het in je rapport of PR-tekst.
      "bron ontbreekt"; er gaat niets van het bestand verloren. Bij een gewone crash van de app speelt het niet. Niet
      gemeten; of de browser standaard "relaxed" schrijft, is VERMOED. Richting: een eigen fsync voor de herstelopslag;
      die van `place_file_exclusive` (1131 stap 3) dekt alleen het verplaatste bestand en zijn map. Gevonden in stap 1
-     van 1131. — S
+     van 1131. Geldt ook voor het vastleggen in stap 0 van de vervanging op de desktop (1131 stap 5a): het herstelrecord
+     (`replaceRecords.ts`) wordt atomair vervangen zonder fsync. Na stroomuitval kan de verplaatsing uit stap 3 op
+     schijf staan terwijl het herstelrecord ontbreekt; dan staat de vorige versie alleen onder `<naam>.ops-vorige-<id>`
+     en meldt de app het niet. Gevonden door de review van #991. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
      Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
@@ -4718,3 +4730,32 @@ en noem het in je rapport of PR-tekst.
      de eigenaar, 17 november 2026). De andere optie is niet gebouwd: de taak krijgt een eigen owner history met
      `LastModifyingApplication` = OPS, terwijl "gemaakt met" van het andere programma blijft en de gedeelde owner
      history heel blijft. Pas bouwen als een gebruiker erom vraagt. — S
+
+1815. **VERVOLG (#804, 1131 stap 5a): een herstelrecord dat niet afgehandeld kan worden, blijft en meldt zich steeds.**
+     Het record van een vervanging (`recovery[.<slug>].replace.<id>.json`) verdwijnt pas als er geen hulpbestand van de
+     operatie meer staat. Een bestand onder een hulpnaam dat herstel niet mag wissen of terugzetten, blijft staan met
+     zijn record: een andere inhoud, iets onleesbaars, een stap die faalt, en ook een `.ops-vorige` met de vorige
+     versie naast een doel dat bestaat (ook na een crash vlak na stap 4, want de doelhash bewijst stap 4 niet; ronde 2
+     van de review van #991). Bij elke start en elke keer dat dat bestand geopend wordt, komt dezelfde rode melding
+     terug, tot de planner het bestand weghaalt of hernoemt. Een record dat
+     zelf niet te lezen of ongeldig is, slaat de app over zonder melding (alleen een regel in de console); de
+     hulpbestanden blijven dan ongemeld staan. Er gaat geen versie verloren. Gevonden bij het bouwen van 1131 stap 5a;
+     aangepast in fixronde 1 van #991. — S (code)
+
+1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
+     De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
+     naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
+     (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
+     planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
+     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
+     Is `<naam>.ops-vorige-<id>` intussen een symlink geworden, dan leest de vergelijking in stap 5
+     (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
+     bij een toegestane verwijdering de linknaam weg. Er verdwijnt hooguit een linknaam, geen inhoud; het vraagt een
+     derde partij die precies tussen stap 3 en stap 5 de hulpnaam vervangt. Richting: een aangetroffen link laten
+     staan via de bestaande `leftOver`-uitkomst (de eindcontrole doet dat al met `lstat`). Gevonden door de review van
+     #991, ronde 3. — B (review)
+1833. **VERVOLG (#804, 1131 stap 5a, test): de Recent-proef leest de bron een keer extra buiten de geteste route.**
+     In `tests/planning/check-ifc-own-file-replace.ts` leest de proef voor Recent met een afwijkende extensie de bron
+     opnieuw met `readBytesFromRef`; die aanroep en haar import kunnen weg. De IPC-lezing, de bronhash in de store en
+     het ruwe byte in de uitvoer bewijzen de regressie al. Gevonden door de review van #991, ronde 3. — B (review)

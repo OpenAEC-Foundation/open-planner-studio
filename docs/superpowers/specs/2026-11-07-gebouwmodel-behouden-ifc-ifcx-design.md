@@ -733,14 +733,19 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     die via een link naar buiten de thuismap wijst), dan blijft de directe
     aanmaak de weg. Die vervangt nooit een bestand, maar is niet crashvast (knownbug 1131). Na een crash kan er een
     `save-<id>.ops-save.tmp` blijven staan; geen opruimronde bij de start.
-  - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
-    (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
-    hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
+  - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
+    appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
+    staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
+    manifest blijft versie 5, dus een oudere app leest haar herstelset zoals altijd en laat het record staan, en de
+    opruiming van gewone snapshots raakt het niet. Kan de app een van de twee niet vastleggen (herstelopslag niet
+    beschikbaar of geblokkeerd), dan stopt opslaan hier: zonder record vindt herstel de restbestanden niet terug. De
+    melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
     sha256 van de inhoud vergelijken; anders stopt opslaan (eerste punt hierboven). 3: het doel exclusief verplaatsen
     naar `<naam>.ops-vorige-<id>`. 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
     `.ops-vorige` narekenen. Gelijk aan `vorigeSha256`: verwijderen. Anders (een programma schreef via een open handle in
     het oude bestand): exclusief verplaatsen naar `<naam> (versie van ander programma <datum tijd>).ifc` en melden. 6:
-    het manifest bijwerken en `pendingReplace` wissen.
+    het manifest bijwerken en `pendingSha256` wissen. Het record verdwijnt pas als er geen hulpbestand van de operatie
+    meer staat; na `source-changed`, na `target-exists` in stap 4 en als ook het terugzetten faalt, blijft het staan.
   - **Namen van de kopieën** (besluit van de eigenaar, 17 november 2026). De naam zegt wiens versie het is: de versie
     die een ander programma intussen schreef heet `<naam> (versie van ander programma <datum tijd>).ifc`, de eigen
     planning na een crash midden in een opslag heet `<naam> (niet opgeslagen planning <datum tijd>).ifc`. De tijd staat
@@ -754,16 +759,31 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     opgeslagen (knownbug 1744). Faalt stap 4 om een andere reden, dan zet de app
     `.ops-vorige` exclusief terug op het doel; faalt ook dat, dan meldt hij meteen waar de bron nu staat. Faalt stap 3
     (Windows: het doel is open in een ander programma), dan stopt opslaan zonder iets te verplaatsen.
-  - **Restbestanden na een crash.** Bij herstel, en bij het openen van een bestand waarvoor het manifest
-    `pendingReplace` heeft, zoekt de app alleen naar `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` met het id uit
-    het manifest; een bestand met een ander id raakt hij niet aan. Heeft het doel `pendingSha256` (opslaan was klaar) en
-    `.ops-vorige` de `vorigeSha256`, dan verwijdert hij `.ops-vorige`. Ontbreekt het doel (crash tussen stap 3 en 4), dan
-    zet hij `.ops-vorige` exclusief terug; herstel neemt dan de oude bron met de oude `sha256`. Het tijdelijke bestand
-    bevat de volledige nieuwe planning, en de herstelsnapshot kan tot 10 s achterlopen (`useAutoSave.ts:19-27`). Daarom
-    verplaatst de app het exclusief naar `<naam> (niet opgeslagen planning <datum tijd>).ifc`, meldt het pad, en laat het staan tot
-    de planner na herstel weer heeft opgeslagen of de kopie zelf weggooit (Sol, ronde 4). Een `.ops-vorige` met een andere sha256 wordt een conflictkopie, met een melding. Het tijdelijke
-    bestand (eigen id, met `createNew` gemaakt) verwijdert hij in de andere gevallen zodra het doel `sha256` of
-    `pendingSha256` heeft.
+  - **Restbestanden na een crash.** Bij de start, en vóór de app een lokaal pad leest om het te openen (de dialoog,
+    neerzetten en Recent gaan door één kern, `readOpenedTauriPath`), handelt hij de records af; voor een pad alleen het
+    record van dat pad, en zonder record raakt dat de projectmap niet. Het record van een vervanging die in deze sessie
+    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` met het id
+    uit het record; een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
+    app leest de inhoud en vergelijkt de sha256 met het record.
+    - `.ops-vorige` heeft `vorigeSha256` en het doel ontbreekt: dit is de versie die stap 3 opzijzette en stap 4 kwam
+      niet op het doel. Exclusief terug op het doel; herstel neemt dan de oude bron.
+    - `.ops-vorige` heeft `vorigeSha256` en het doel bestaat (met welke inhoud ook, ook `pendingSha256`): blijft staan,
+      met een melding, en het record ook. De inhoud van het doel bewijst niet dat stap 4 slaagde: een ander programma
+      kan dezelfde bytes daar gezet hebben (stap 4 gaf dan `target-exists`), of de plaatsing gaf een fout terwijl de
+      hernoeming toch gebeurde (knownbug 1795). Review van #991, ronde 2. Alleen stap 5 van een lopende operatie, na een
+      bevestigde plaatsing in stap 4, wist de gecontroleerde vorige versie.
+    - Het tijdelijke bestand heeft `pendingSha256` en het doel ook: een dubbel. Verwijderen.
+    - Het tijdelijke bestand heeft `pendingSha256` en het doel niet: de volledige nieuwe planning, en de herstelsnapshot
+      kan tot 10 s achterlopen (`useAutoSave.ts:19-27`). Exclusief verplaatsen naar `<naam> (niet opgeslagen planning
+      <datum tijd>).ifc` en het pad melden; de kopie blijft tot de planner haar zelf weggooit (Sol, ronde 4).
+    - Al het andere blijft staan en de app meldt het pad: een andere inhoud (ook een `.ops-vorige` die een ander
+      programma na stap 3 veranderde, of een vreemd bestand onder de tijdelijke naam), een onvolledig tijdelijk bestand
+      na een crash in stap 1, iets onleesbaars, of een stap die faalt. Het record blijft dan ook, en de volgende start of
+      het openen van het bestand probeert het opnieuw.
+    Het record verdwijnt pas als beide hulpnamen aantoonbaar afwezig zijn: de naam zelf wordt getoetst (`lstat`, geen
+    link volgen), en elke fout bij die controle telt als "staat er nog". Herstel leidt nergens uit af of een plaatsing
+    slaagde; het kijkt alleen per hulpnaam of die er staat en of de inhoud de vastgelegde vorige versie (terugzetten)
+    of een dubbel van de nieuwe uitvoer (wissen) is.
   - **Garantie.** Met het commando vervangt of verwijdert de app geen versie van het bestand die hij niet zelf
     gecontroleerd heeft: elke versie die op het doelpad stond, staat daarna nog als bestand (op het doel, als
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
@@ -841,8 +861,10 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Herstel zet nu ook het bestandspad en het site-doel terug (`useRecoveryRestore.ts:90`). Zonder bron zou Ctrl+S het
   modelbestand overschrijven met alleen planning.
 - Het herstelmanifest krijgt per document een verwijzing `ifcSource: { sha256, size, foreign, foreignTokens, idExceptions,
-  pendingSha256?, pendingIdExceptions?, pendingReplace? }` (`pendingReplace`: §4.10) (manifest
-  versie 6, `recoveryManifest.ts:4`). De sha256 is die van de huidige bron: het bestand zoals het na het laatste opslaan op
+  pendingSha256?, pendingIdExceptions? }`, als optionele velden binnen manifest versie 5 (besluit 16 november 2026; een
+  oudere app negeert ze). Een lopende vervanging op de desktop staat niet in het manifest maar in een eigen herstelrecord
+  (§4.10, stap 0; besluit 18 november 2026): één document met een lopende vervanging maakte anders de hele herstelset
+  onleesbaar voor een oudere app. De sha256 is die van de huidige bron: het bestand zoals het na het laatste opslaan op
   schijf staat. Opruimen houdt rekening met die verwijzing, zoals nu met `xerArchive` (`recoveryStore.ts:378`).
 - **Opslaan en herstel in twee stappen**: vóór het wegschrijven zet de app `pendingSha256` = de sha256 van de nieuwe
   uitvoer in het manifest, samen met `pendingIdExceptions` (hieronder). Na het wegschrijven zet hij `sha256` en
@@ -852,7 +874,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Het manifest is **best effort**, zoals nu: is de herstelopslag niet beschikbaar (`RecoveryStorageUnavailableError`,
   #582, bijvoorbeeld in een sandbox-iframe) of geblokkeerd, dan slaat de app toch op, zonder de twee stappen. Een crash
   direct daarna kan dan tot "bron ontbreekt" leiden. Uitzondering: het vervangen van een bestand met een vreemd deel in
-  Tauri stopt zonder `pendingReplace` (§4.10, stap 0).
+  Tauri stopt zonder herstelrecord (§4.10, stap 0).
 - **Uitzonderingen op de id-kaart, per sha256 in het manifest** (Terra ronde 1; Sol en Terra ronde 2: een kaart in de
   herstelsnapshot liep achter, want na opslaan komt er geen nieuwe snapshot). Herstel bouwt de kaart domein-id →
   bron-`#id` opnieuw op door de bron te scannen; de lezer leidt het domein-id af uit de GlobalId of `OPS_TaskIdentity`.
@@ -1711,7 +1733,7 @@ Na fixronde 4 van de review van PR #839 (versie 19; Sol en Terra, 9 november): d
 geschrapt, want die liet een nieuw bestand verdwijnen; zonder atomaire exclusieve hernoemstap laat de app het doel
 staan en biedt hij *Opslaan als*. Na een crash tussen stap 3 en 4 blijft de nieuwe planning als herstelkopie staan.
 Bewerkingen die een lijst opnieuw opbouwen, geven het herkomstmerk door, en MCP en export laten het weg. Het commando
-eist dat precies één pad een eigen hulpbestand is. Zonder vastgelegd `pendingReplace` stopt het vervangen vóór stap 3.
+eist dat precies één pad een eigen hulpbestand is. Zonder vastgelegd herstelrecord (§4.10, stap 0) stopt het vervangen vóór stap 3.
 
 Na de merge van #839 en na fase 0 (versie 20; PR #863, 9 november): de testeis "de manifeststap faalt: opslaan lukt
 toch" geldt alleen waar het manifest vrijblijvend is (VERVOLG uit ronde 5); de eis voor herstelkandidaten staat in §8

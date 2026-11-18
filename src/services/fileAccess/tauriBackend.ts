@@ -6,6 +6,7 @@ import {
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
+import type { RemnantEvent } from './ownFileReplace';
 
 /** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
 export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
@@ -84,31 +85,50 @@ export async function sourceTargetContentOfPathTauri(path: string, expected: Uin
 export interface TauriOpenIO {
   readTextFile(path: string): Promise<string>;
   readFile(path: string): Promise<Uint8Array>;
+  /** Knownbug 1131 stap 5: een onafgeronde vervanging van dit pad afhandelen vóór het lezen (`settlePendingReplaces`). */
+  settle(path: string): Promise<RemnantEvent[]>;
 }
 
-/** Injecteerbare kern van de Tauri-openroute: bewaakt vooral dat binaire bronformaten nooit via
- * `readTextFile` lopen en hun oorspronkelijke bytes dus behouden. */
-export async function readOpenedTauriPath(
-  path: string,
-  opts: OpenDialogOpts | undefined,
-  io: TauriOpenIO,
-): Promise<OpenedFile> {
-  const isBinary = (opts?.binaryExtensions ?? []).includes(extensionOf(path));
-  if (isBinary) {
-    const bytes = await io.readFile(path);
-    return { name: basename(path), content: '', bytes, ref: { kind: 'path', path } };
+/** De bytes-of-tekstkeuze van de dialoog en neerzetten: de extensie van het pad staat in de lijst van binaire
+ *  leesformaten (`binaryExtensions`). Recent kiest zelf, met `readsAsBytes` op de naam (met de IFC-terugval). */
+export function readsPathAsBytes(path: string, opts: OpenDialogOpts | undefined): boolean {
+  return (opts?.binaryExtensions ?? []).includes(extensionOf(path));
+}
+
+/** Lezen mislukte nadat het afhandelen van een onafgeronde vervanging iets deed: de gebeurtenissen gaan mee, zodat de
+ *  melding met hun pad niet verloren gaat (`openFailureNotices`). `cause` is de oorspronkelijke leesfout. */
+export class ReadAfterSettleError extends Error {
+  constructor(readonly cause: unknown, readonly replaceRemnants: RemnantEvent[]) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'ReadAfterSettleError';
   }
-  const content = await io.readTextFile(path);
-  return { name: basename(path), content, ref: { kind: 'path', path } };
 }
 
-export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
+/** Injecteerbare kern van de Tauri-openroute, de enige plek waar de desktop een lokaal pad leest om het te openen
+ * (de dialoog, neerzetten en Recent). Eerst een onafgeronde vervanging van dat pad afhandelen (zonder herstelrecord
+ * voor het pad raakt dat de projectmap niet), dan pas lezen. `asBytes` kiest de aanroeper, zoals voorheen per route
+ * (`readsPathAsBytes`, of `readsAsBytes` voor Recent); binaire bronformaten lopen dus nooit via `readTextFile` en
+ * houden hun oorspronkelijke bytes. */
+export async function readOpenedTauriPath(path: string, asBytes: boolean, io: TauriOpenIO): Promise<OpenedFile> {
+  const remnants = await io.settle(path);
+  const replaceRemnants = remnants.length > 0 ? { replaceRemnants: remnants } : {};
+  try {
+    if (asBytes) {
+      const bytes = await io.readFile(path);
+      return { name: basename(path), content: '', bytes, ref: { kind: 'path', path }, ...replaceRemnants };
+    }
+    const content = await io.readTextFile(path);
+    return { name: basename(path), content, ref: { kind: 'path', path }, ...replaceRemnants };
+  } catch (error) {
+    throw remnants.length > 0 ? new ReadAfterSettleError(error, remnants) : error;
+  }
+}
+
+/** De dialoog kiest alleen het pad; lezen gaat via `readOpenedTauriPath` (`tauriOpenPath.ts`). */
+export async function pickOpenPathTauri(filters: FileFilter[]): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const selected = await open({ multiple: false, filters });
-  if (!selected) return null;
-  const path = selected as string;
-  const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
-  return readOpenedTauriPath(path, opts, { readTextFile, readFile });
+  return selected ? selected as string : null;
 }
 
 /**

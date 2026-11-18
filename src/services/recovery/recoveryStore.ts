@@ -5,7 +5,7 @@ import { IndexedDbUpgradeBlockedError, openDbStores } from '@/utils/idb';
 import {
   ownRecoveryNames, recoveryTmpSuffix,
   type RecoveryNames, type RecoveryManifest, type RecoveryManifestDoc,
-} from '@/hooks/recoveryPaths';
+} from '@/services/recovery/recoveryPaths';
 import { writeBytesFileAtomic, writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { parseForeignSourceTarget, sameForeignSourceTarget, type ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
@@ -186,7 +186,7 @@ export interface LoadedRecovery {
 // Tauri-backend — appDataDir + plugin-fs (met dev-slug-isolatie).
 // ---------------------------------------------------------------------------
 
-// Padnamen + manifestvorm komen uit `@/hooks/recoveryPaths` — één bron voor de dev-slug-isolatie
+// Padnamen + manifestvorm komen uit `@/services/recovery/recoveryPaths` — één bron voor de dev-slug-isolatie
 // (zie daar), gedeeld met de auto-save-/herstel-hooks.
 const names = ownRecoveryNames;
 const manifestName = names.manifest;

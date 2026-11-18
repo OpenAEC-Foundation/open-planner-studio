@@ -16,9 +16,11 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
+import { remnantNotices } from '../ownFileReplace';
+import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -295,6 +297,13 @@ export function xerImportNotice(
  * onherkende CSV-datum zijn rij/kolom/celwaarde; andere fouten de bestaande sleutel
  * (`importErrorMessageKey`) met de technische tekst als detail.
  */
+/** Een mislukt openen van een lokaal pad: eerst wat het afhandelen van een onafgeronde vervanging vóór het lezen deed
+ *  (knownbug 1131 stap 5; anders gaat het pad van een teruggevonden planning verloren), dan de leesfout zelf. */
+export function openFailureNotices(err: unknown): NotifyInput[] {
+  if (!(err instanceof ReadAfterSettleError)) return [importFailureNotice(err, saveErrorDetail(err))];
+  return [...remnantNotices(err.replaceRemnants), importFailureNotice(err.cause, saveErrorDetail(err.cause))];
+}
+
 export function importFailureNotice(err: unknown, detail: string): NotifyInput {
   if (err instanceof CsvDateImportError) {
     return {
@@ -2031,7 +2040,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(formatReadOptions()) });
       } catch (err) {
         console.error('Failed to open file:', err);
-        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
       if (opened) await get().openOpenedFile(opened, labels);
@@ -2039,6 +2048,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openOpenedFile: async (opened, labels, options) => {
       try {
+        // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
+        for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
@@ -2755,30 +2766,28 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
         // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
         const readOptions = formatReadOptions();
+        // De bytekeuze van Recent: op de naam, met de IFC-terugval voor een onbekende extensie (`readsAsBytes`).
         const isBinary = readsAsBytes(entry.name, readOptions);
-        const content = isBinary ? null : await readFromRef(entry.ref);
-        const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-        if (isBinary ? bytes === null : content === null) {
-          get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
-          return;
+        let opened: OpenedFile;
+        if (entry.ref.kind === 'path' && isTauri()) {
+          // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen
+          // (knownbug 1131 stap 5), dan lezen, met de eigen bytekeuze van Recent.
+          opened = { ...await readOpenedPath(entry.ref.path, isBinary), name: entry.name };
+        } else {
+          const content = isBinary ? null : await readFromRef(entry.ref);
+          const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
+          if (isBinary ? bytes === null : content === null) {
+            get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
+            return;
+          }
+          opened = { name: entry.name, content: content ?? '', ...(bytes ? { bytes } : {}), ref: entry.ref };
         }
-        const parsed = await parseOpenedFile(
-          { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
-          labels,
-          readOptions,
-        );
-
-        // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`) en gekoppeld
-        // laden komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
-        get().openAsDocument(parsed, { name: entry.name, ref: entry.ref });
-        offerFormatNotice(entry.name, content ?? undefined);
-
-        // MRU verversen: het net-geopende bestand naar boven (óók bij een niet-IFC bronformaat —
-        // alleen het opslagdoel blijft leeg, zie `saveTargetFor` in `openAsDocument`).
-        await pushRecent(entry.ref, entry.name);
+        // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`), gekoppeld laden en het
+        // verversen van Recent komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
+        await get().openOpenedFile(opened, labels);
       } catch (err) {
         console.error('Failed to open recent file:', err);
-        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        for (const notice of openFailureNotices(err)) get().notify(notice);
       }
     },
 

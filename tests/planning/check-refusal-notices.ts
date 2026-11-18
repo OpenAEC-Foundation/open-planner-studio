@@ -170,6 +170,8 @@ const REFUSAL_KEYS = [
   'ifcForeignSaveBlocked', 'ifcForeignSourceMissing',
   'ifcForeignReplaceBlocked',
   'ifcForeignTargetChanged', 'ifcForeignTargetGone', 'ifcForeignReplaceNotRecorded',
+  // Knownbug 1131 stap 5: vervangen kan hier niet veilig (gelinkt doel, buiten de scope, geen exclusieve stap).
+  'ifcForeignReplaceSaveAsOnly',
   'ifcForeignMergeRefused',
   'ifcSaveChangedWhileWaiting',
   'ifcForeignTargetSave',
@@ -186,6 +188,8 @@ const NOT_A_REFUSAL: Record<string, string> = {
   ifcSourceCopyFailed: 'opslagfout van de bronkopie; de planner kan doorwerken, geen geweigerde bewerking',
   ifcForeignReplaceFailed: 'storing (het eigen bestand kon niet worden geschreven, knownbug 1131 stap 2), echte fout',
   ifcForeignDownloadCopy: 'het werk staat heel in een gedownloade kopie (knownbug 1768); blijvende info zoals siteSaveConflictCopy, het document blijft gewijzigd',
+  ifcForeignReplaceTargetTaken: 'storing met drie bestanden op schijf (knownbug 1131 stap 5); de paden moeten blijven staan',
+  ifcForeignReplacePreviousStranded: 'storing: de vorige versie staat niet meer op het doel (knownbug 1131 stap 5); het pad moet blijven staan',
   recoveryReadFailed: 'storing bij herstel', recoveryDocumentsSkipped: 'storing bij herstel',
   scheduleFailed: 'storing (planning onberekenbaar)', ifcParseFailed: 'storing (bestand onleesbaar)',
   librarySaveFailed: 'storing (opslag)', schedulingTemplateStorageFailed: 'storing (opslag vol)',
