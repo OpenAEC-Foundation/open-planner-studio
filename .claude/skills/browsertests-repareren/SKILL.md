@@ -204,7 +204,7 @@ Vorm gekozen door de orkestrator, 2026-10-31.
 Dit is de geplande reparatie van de browsertests van Open Planner Studio (besluit van de eigenaar, 2026-10-31). Jij bent alleen de doorgever. Doe het werk NIET zelf, lees geen code en stel geen vragen; het Claude-budget van de eigenaar is laag.
 
 Stap 1. Roep `delegate_task` aan (t3-code MCP) met:
-- target: providerInstanceId `codex`, model `gpt-6.1-sol`, options `{"reasoningEffort":"xhigh"}`. Is dat model "at capacity", probeer dan `gpt-6-sol` met dezelfde options.
+- target: providerInstanceId `codex`, model `gpt-6.2-sol`, options `{"reasoningEffort":"xhigh"}`. Is dat model "at capacity", probeer dan `gpt-6-sol` met dezelfde options.
 - isolation `worktree`, mode `async`, role `implementation`, title `Browsertests repareren`, clientRequestId `ops-browsertests-repareren-<datum van vandaag JJJJ-MM-DD>`.
 - task: de tekst tussen de lijnen hieronder, letterlijk.
 
@@ -226,7 +226,7 @@ Repareer alles wat rood is. Kleinste fix-PR vanaf main, met het label browsertes
 Een haperende test telt ook als rood. gh run rerun --failed is alleen diagnose. Wordt de test bij opnieuw
 draaien groen, dan is hij nog niet gerepareerd: maak de test of de code stabiel, met een fix-PR.
 Geen test overslaan, geen check verzwakken, geen retries erbij om het rood te verbergen.
-Review door een tweede Sol: je mag daarvoor delegate_task gebruiken, met codex/gpt-6.1-sol en reasoningEffort xhigh.
+Review door een tweede Sol: je mag daarvoor delegate_task gebruiken, met codex/gpt-6.2-sol en reasoningEffort xhigh.
 De reviewbrief bevat de letterlijke body van ~/.claude/agents/reviewer.md en BLOKKEERT/VERVOLG; elke ronde is een
 nieuwe taak. Alleen BLOKKEERT vraagt een nieuwe fixronde. Delegeer verder niets.
 Merge na reviewakkoord en groene PR-CI met --merge --admin. Schrijf bevindingen als VERVOLG in knownbugs.md.
