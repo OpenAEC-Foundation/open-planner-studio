@@ -12,7 +12,7 @@ import {
   existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import i18next from 'i18next';
 import nlCommon from '@/i18n/locales/nl/common.json';
@@ -1678,6 +1678,28 @@ for (const flag of [true, false]) {
     assert(readFileSync(target).toString('latin1').includes('Gewoon Opslaan als'), 'het bestaande bestand is vervangen, zoals op main');
   });
 }
+
+await check('Opslaan als zonder vreemd deel over een bestand dat in een ander tabblad open staat: zoals main, overschreven zonder melding', async () => {
+  const dir = join(work, `geval-${++cases}`);
+  mkdirSync(dir);
+  const path = join(dir, 'model.ifc'), target = join(dir, 'ander.ifc');
+  writeFileSync(path, plain); writeFileSync(target, changedPlain);
+  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  const open = (p: string, data: Uint8Array) => store.getState().openOpenedFile({
+    name: basename(p), content: Buffer.from(data).toString('utf8'), bytes: data, ref: { kind: 'path', path: p } });
+  await open(path, plain);
+  const firstId = store.getState().activeDocumentId;
+  await open(target, changedPlain);
+  store.getState().switchDocument(firstId);
+  const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+  store.getState().updateTask(task.id, { name: 'Over het open tabblad' });
+  store.setState(s => { s.ui.notifications = []; });
+  await saveAsTo(store, target);
+  assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+  assert(readFileSync(target).toString('latin1').includes('Over het open tabblad'), 'main vervangt het bestand van het andere tabblad');
+  assert.deepEqual([store.getState().filePath, store.getState().isDirty], [target, false]);
+});
 
 await check('Opslaan als met een gebouwmodel en de flag uit (na het openen uitgezet): dezelfde weigering als main, niets aan de bestandsrand', async () => {
   const c = await opened();

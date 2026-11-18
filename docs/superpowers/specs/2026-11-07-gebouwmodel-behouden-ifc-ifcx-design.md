@@ -759,7 +759,10 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `vorigeSha256`). Stap 2 vergelijkt het doel daarmee; staat er iets anders, dan stopt de opslag met de melding van
     Ctrl+S en blijft het doel zoals het is. De doelbewaking na de eerste herstelronde scant die gelezen inhoud, niet het
     pad opnieuw: wat stap 5 weghaalt, liet de doelbescherming toe. De doelbescherming zelf verandert niet: een bestaand
-    doel met een gebouwmodel of C/A/V-inhoud blijft geweigerd, net als de bron van een open document. Waar de vervanging
+    doel met een gebouwmodel of C/A/V-inhoud blijft geweigerd, net als de bron van een open document. Daarbij weigert
+    deze route ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel (fixronde 1
+    van #1019), in de bestandskiezer en opnieuw na de herstelronde. Of er een bestand staat, stelt de app direct na de
+    terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
     niet kan (buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
     nieuwe naam kan; geen terugval. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de

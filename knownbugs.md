@@ -2732,7 +2732,10 @@ en noem het in je rapport of PR-tekst.
         scant die gelezen inhoud zelf, dus wat stap 5 weghaalt, liet de doelbescherming toe. Na een geslaagde
         vervanging is het document hetzelfde als na een nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft
         weigeren zoals voorheen: het doel is de bron van een open document (`ifcForeignReplaceBlocked`), het doel bevat
-        zelf een gebouwmodel of C/A/V-inhoud (`ifcForeignTargetSave`, de doelscan, onveranderd), en waar de vervanging
+        zelf een gebouwmodel of C/A/V-inhoud (`ifcForeignTargetSave`, de doelscan, onveranderd). Nieuw (fixronde 1
+        van #1019): het doel staat in een ander tabblad open, ook als gewone planning zonder vreemd deel
+        (`ifcForeignTargetOpenInTab`; `openDocumentPaths` in `refusedWriteTarget`, in de kiezer en na de herstelronde).
+        Of er een bestand staat, stelt de kiezer direct na zijn terugkeer vast (1890). En waar de vervanging
         niet kan (`save-as-only`: buiten de thuismap, een link, `unsupported`, `refused`) dezelfde zin als een
         bestaande naam voorheen (`ifcForeignNewTargetOnly`), zonder terugval. Blijft open: Exporteren → IFC en
         `planner_export_ifc` over een bestaande naam (weigeren nog), en de bestandskiezer van Ctrl+S bij een document
@@ -4914,3 +4917,26 @@ en noem het in je rapport of PR-tekst.
      door de wijzigingsvlag van het actieve document of die in de gevonden payload, volstaat; de volgorde (afronden,
      controleren, verwijderen) en de uitkomst blijven gelijk. De venstercontrole vóór `destroyWindow`
      (`appQuitController.ts`) blijft nodig. Sol-review ronde 3 van #1008: [BEVESTIGD] VERVOLG. — B
+
+1890. **VERVOLG (#804 keuze 4, desktop): een bestand dat verschijnt tussen de bevestiging in de bestandskiezer en de terugkeer van de kiezer, kan Opslaan als vervangen.**
+     *Opslaan als* met een gebouwmodel stelt direct na de terugkeer van de bestandskiezer vast of er op het gekozen pad
+     een gewoon bestand staat (`isRegularFileTauri` in `saveNewBytesDialogTauri`, fixronde 1 van #1019). Was het pad
+     toen leeg, dan blijft het de exclusieve aanmaakroute houden; verschijnt er daarna iets, dan geeft die
+     `target-exists` en de zin van een bestaande naam. Blijft open: de kiezer geeft alleen een pad door, geen bewijs van
+     wat de planner bevestigde. Komt er tussen de bevestiging in het venster ("Vervangen?", of geen vraag bij een vrije
+     naam) en de terugkeer van de kiezer een gewoon bestand op het pad, dan ziet de app het als bevestigd en vervangt ze
+     het langs de veilige weg (de doelbescherming blijft gelden: geen gebouwmodel, geen open tabblad). Het venster is
+     kort (de terugkeer van de dialoog over IPC). Richting: de kiezer laat weten of hij de vervangvraag stelde, of de app
+     vraagt zelf na de keuze nog eens als het pad bij de terugkeer bestaat. Gevonden door de review van #1019 (Sol,
+     ronde 1). — S
+
+1891. **VERVOLG (#804 keuze 4, opruimen): de documentroute van Opslaan als kan de keuze tussen nieuw en vervangen zelf dragen.**
+     Nu geeft `saveNewBytesDialogTauri` een bestaand doel via de algemene haak `SaveDialogOpts.replaceExisting` aan
+     `replaceExistingPath` en geeft dan `null` terug, ook na een geslaagde vervanging. Het doel wordt twee keer gescand
+     (de doelcontrole in de kiezer op het pad, de tweede controle op de gelezen bytes) en helemaal in het geheugen
+     gelezen. Richting van de reviewer: laat Tauri het pad kiezen en de bestandslaag de verwachte doelbytes leveren,
+     laat *Opslaan als* zelf kiezen tussen exclusieve aanmaak en de gedeelde vervanging; dan kunnen de haak en de
+     `null`-uitkomst eruit, en volstaat één scan van de vastgelegde bytes. Behoud de hercontrole van document en open
+     paden na de herstelronde en de bytevergelijking vlak vóór het opzijzetten. Bewust niet in #1019: de eigenaar beslist
+     nog of een doel met een gebouwmodel vervangen mag worden; de vorm van de route volgt daarna. Review van #1019 (Sol,
+     ronde 1). — B (code)

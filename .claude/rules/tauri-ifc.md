@@ -272,14 +272,18 @@ bestaand pad met een vreemd deel). Proeven: `check-ifc-own-file-replace.ts` (ond
 `check-app-quit-lifecycle.ts`.
 
 **Opslaan als over een andere bestaande naam (stap 8, #1019, keuze 4).** Alleen desktop, flag aan, vreemd deel (de
-merge). `saveNewBytesDialogTauri` doet na de padkeuze de gewone doelcontrole (`refuseTarget`, regels onveranderd: de
-bron van een open document ⇒ `ifcForeignReplaceBlocked`, een doel met gebouwmodel of C/A/V ⇒ `ifcForeignTargetSave`) en
-leest dan, alleen als de aanroeper `replaceExisting` meegeeft (alleen *Opslaan als*, niet de exports), een gewoon bestand
-op dat pad (`lstat`, geen link volgen). Is er een, dan gaat het pad met die inhoud naar `replaceExistingPath`
+merge). `saveNewBytesDialogTauri` stelt, alleen als de aanroeper `replaceExisting` meegeeft (alleen *Opslaan als*, niet
+de exports), direct na de terugkeer van de kiezer vast of er een gewoon bestand staat (`lstat`, geen link volgen; een
+toen leeg pad houdt de exclusieve aanmaakroute, 1890). Dan de gewone doelcontrole (`refuseTarget`: de bron van een open
+document ⇒ `ifcForeignReplaceBlocked`, een doel met gebouwmodel of C/A/V ⇒ `ifcForeignTargetSave`), met daarbij
+`openDocumentPaths`: een pad dat een open document als bestand heeft, ook een gewone planning ⇒
+`ifcForeignTargetOpenInTab` (`refusedWriteTarget`, dezelfde padvergelijking `sameLocalFile` als de bronkenmerken;
+fixronde 1 van #1019). Daarna leest hij het gewone bestand op dat pad. Is er een, dan gaat het pad met die inhoud naar `replaceExistingPath`
 (`fileSlice.ts`) en geeft de dialoog `null`; anders (niets, een link) de nieuwe-naamroute zoals voorheen.
 `replaceExistingPath` roept dezelfde `replaceOwnPathWithRecovery` aan, met `source` = die inhoud (dus `vorigeSha256` in
-het record) en `stopBeforeWrite` = `documentTargetCheck(momentopname, write, false, readers)` waarin `scanPath` die
-gelezen inhoud scant: wat stap 5 weghaalt, liet de doelbescherming toe. `commit` legt het nieuwe pad, de bron en het
+het record) en `stopBeforeWrite` = `documentTargetCheck(momentopname, write, false, { readers, openDocumentPaths: true })` waarin `scanPath` die
+gelezen inhoud scant (en weer `openDocumentPaths`, voor een tabblad dat intussen opende): wat stap 5 weghaalt, liet
+de doelbescherming toe. `commit` legt het nieuwe pad, de bron en het
 kenmerk vast zoals Opslaan als naar een nieuwe naam; daarna Recent. `save-as-only` ⇒ `ifcForeignNewTargetOnly` (de zin
 van een bestaande naam van voorheen); de andere uitkomsten de meldingen van Ctrl+S. Afhandelen na een crash gaat via het
 record, ook als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-own-file-replace.ts` deel c.
