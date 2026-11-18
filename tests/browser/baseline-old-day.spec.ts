@@ -90,8 +90,23 @@ test('oude baseline: ⚠ met uitleg in Baselineduur en Duurafwijking; een nieuwe
   // Het venster heeft geen toegankelijke naam; herken het aan zijn blok "Nieuwe baseline opslaan".
   const dialog = page.getByRole('dialog').filter({ hasText: /(Save new baseline|Nieuwe baseline opslaan)/ });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('textbox', { name: /^(Name|Naam)$/ }).last().fill('Nieuw');
-  await dialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
+  const name = dialog.getByRole('textbox', { name: /^(Name|Naam)$/ }).last();
+  await name.fill('Nieuw');
+  const save = dialog.getByRole('button', { name: /^(Save|Opslaan)$/ });
+  // #804 stap 3, fixronde 2: in de laatste fase van afsluiten (`ui.appClosing`; afsluiten bestaat alleen op desktop, hier
+  // gezet via de bridge) is ook een dialoog die al openstond niet te bedienen. Een echte klik op Opslaan en Escape doen
+  // niets; breekt het afsluiten af, dan staat de dialoog er nog met de getypte naam.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ appClosing: true }));
+  await expect(page.locator('[data-ops-app-root]')).toHaveAttribute('inert', '');
+  const box = (await save.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().baselines.map(b => b.name))).toEqual(['Oud']);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ appClosing: false }));
+  await expect(name).toHaveValue('Nieuw');
+  await save.click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().baselines.map(b => b.name))).toEqual(['Oud', 'Nieuw']);
   await dialog.getByRole('button', { name: /^(Close|Sluiten)$/ }).last().click();
   await expect(dialog).toHaveCount(0);

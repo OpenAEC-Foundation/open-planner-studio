@@ -10,7 +10,9 @@
 
 import { isTauri } from '@/utils/platform';
 import { GITHUB_REPO } from '@/services/githubRepo';
-import { closeWritesAndFlushRecovery } from '@/services/recovery/recoveryFlush';
+import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
+import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
+import { claimShutdownWhenFree } from '@/services/appQuit/shutdownPhase';
 
 export interface UpdateInfo {
   version: string;
@@ -122,7 +124,8 @@ export async function downloadAndInstall(
     return;
   }
 
-  /** De poort voor projectopslag weer openen als de laatste fase afbreekt (#804 stap 3). */
+  /** De afsluitfase en de poort voor projectopslag weer vrijgeven als de laatste fase afbreekt (#804 stap 3). */
+  let releaseShutdown: (() => void) | undefined;
   let reopenWrites: (() => void) | undefined;
   try {
     // Ook buiten de dialoog om nooit een pakketbeheerinstallatie overschrijven.
@@ -169,12 +172,16 @@ export async function downloadAndInstall(
       }
     });
 
-    // Geen normale afsluiting (geen sluitvraag). De laatste fase (#804 stap 3): geen nieuwe projectopslag meer, een
-    // lopende afwachten, en vóór de installatie nog één herstelsnapshot, zodat bewerkingen van de laatste seconden na
-    // de update via het herstel-venster terugkomen. De poort blijft dicht tot en met de herstart.
+    // Geen normale afsluiting (geen sluitvraag). De laatste fase (#804 stap 3): eerst de afsluitfase nemen; loopt het
+    // gewone afsluiten (de sluitvraag staat open), dan wacht de updater tot dat klaar of afgebroken is. Daarna geen nieuwe
+    // projectopslag meer, een lopende afwachten, en vóór de installatie nog één herstelsnapshot, zodat bewerkingen van de
+    // laatste seconden na de update via het herstel-venster terugkomen. Fase en poort blijven tot en met de herstart.
+    // Een Alt+F4 intussen vangt de afsluitcontroller op zonder vraag (`shutdownPhase.ts`).
     // Een afgewezen flush blokkeert de installatie: die kan de app al afsluiten.
-    // De bestaande buitenste catch toont de fout en laat opnieuw proberen toe; `finally` zet de poort weer open.
-    reopenWrites = await closeWritesAndFlushRecovery();
+    // De bestaande buitenste catch toont de fout en laat opnieuw proberen toe; `finally` geeft fase en poort terug.
+    releaseShutdown = await claimShutdownWhenFree('update');
+    reopenWrites = await closeProjectFileWrites();
+    await flushRecoveryNow();
     // Pas na de geslaagde download (inclusief handtekeningcontrole) en het herstelwerk installeren.
     onStatus?.({ kind: 'installing' });
     await update.install();
@@ -184,7 +191,9 @@ export async function downloadAndInstall(
     const message = err instanceof Error ? err.message : String(err);
     onStatus?.({ kind: 'error', message });
   } finally {
-    // Na een mislukte installatie of herstart werkt opslaan weer. Na een geslaagde bestaat dit proces niet meer.
+    // Na een mislukte installatie of herstart werken opslaan en afsluiten weer. Na een geslaagde bestaat dit proces niet
+    // meer.
     reopenWrites?.();
+    releaseShutdown?.();
   }
 }

@@ -24,6 +24,12 @@
 // Na `destroyWindow` gaat de poort weer open (in de echte app bestaat het venster dan niet meer). Gaat het venster niet
 // dicht (`destroyWindow` mislukt), dan is het afsluiten afgebroken: ook crashherstel weer aan, en de app werkt verder
 // zoals voorheen.
+//
+// Fixronde 2: de controller bezit de afsluitfase (`claimShutdown`, `shutdownPhase.ts`) van de eerste sluitpoging tot hij
+// afbreekt of het venster weg is. Heeft de updater hem (een installatie loopt), dan vangt de controller de sluitpoging op
+// zonder vraag: Opslaan zou daar niets kunnen schrijven, en de app herstart zo. En vlak vóór `destroyWindow` kijkt hij
+// nog één keer: is er toch een gewijzigd document (een dialoog die al openstond, of een andere weg), dan gaat het venster
+// niet dicht, komen poort, schil en herstel terug en begint de gewone ronde opnieuw, met de sluitvraag.
 
 export interface AppQuitDocument {
   id: string;
@@ -52,6 +58,8 @@ export interface AppQuitDependencies {
   waitForSaves: () => Promise<void> | null;
   /** Begint te kijken; de teruggegeven functie zegt of er sindsdien een foutmelding kwam. */
   watchFailures: () => () => boolean;
+  /** Neemt de afsluitfase (`claimShutdown('quit')`); `null` als de updater hem heeft. */
+  claimShutdown: () => (() => void) | null;
 }
 
 export interface AppQuitController {
@@ -69,11 +77,15 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
   let waiting = false;
   /** Het document waarvoor we nu de bevestiging tonen. */
   let prompting: string | null = null;
+  /** Geeft de afsluitfase terug; gezet zolang de controller hem bezit. */
+  let releaseShutdown: (() => void) | null = null;
 
   const abort = () => {
     active = false;
     prompting = null;
     deps.setQuitPending(false);
+    releaseShutdown?.();
+    releaseShutdown = null;
   };
 
   const finish = async () => {
@@ -88,18 +100,30 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
       // hoogstens een overbodig herstel aan. Nooit het afsluiten tegenhouden.
       console.warn('Herstelsnapshots opruimen bij afsluiten mislukt:', error);
     }
+    const reopen = () => {
+      resumeRecovery();
+      reopenWrites();
+      finishing = false;
+    };
+    // Het vangnet: met een gewijzigd document gaat het venster nooit dicht nadat het herstel gewist is.
+    if (deps.listDocuments().some((doc) => doc.isDirty)) {
+      reopen();
+      step();
+      return;
+    }
     try {
       await deps.destroyWindow();
     } catch (error) {
       // Het venster ging niet dicht: het afsluiten is afgebroken en de app blijft bruikbaar, met opslaan en
       // crashherstel. Een nieuwe sluitpoging begint opnieuw.
       console.error('Venster sluiten bij afsluiten mislukt:', error);
-      resumeRecovery();
-      finishing = false;
+      reopen();
       abort();
-    } finally {
-      reopenWrites();
+      return;
     }
+    reopenWrites();
+    releaseShutdown?.();
+    releaseShutdown = null;
   };
 
   const waitThenStep = async (saving: Promise<void>) => {
@@ -148,6 +172,11 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
   return {
     requestQuit: () => {
       if (finishing) return false;
+      if (!active) {
+        // De updater heeft de fase: het venster blijft open, zonder vraag (zie de kop van dit bestand).
+        releaseShutdown = deps.claimShutdown();
+        if (!releaseShutdown) return true;
+      }
       deps.finishPendingInput();
       if (!active) {
         active = true;

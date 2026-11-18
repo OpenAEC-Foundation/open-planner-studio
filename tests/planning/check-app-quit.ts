@@ -62,6 +62,7 @@ function harness(initial: AppQuitDocument[]) {
       const seen = world.errors;
       return () => world.errors > seen;
     },
+    claimShutdown: () => () => undefined,
   });
   /** Laat een opslag lopen tot `release()`. */
   const hold = () => {
@@ -163,6 +164,10 @@ function harness(initial: AppQuitDocument[]) {
   eq('6 sluitvraag voor het actieve document', s().ui.pendingCloseDocId, s().activeDocumentId);
   eq('6 de getypte inzet staat in de store', s().assignments[0]!.unitsPerDay, 3);
   eq('6 eigen rekenblokkade vrijgegeven', released, 1);
+  // Annuleren: het afsluiten breekt af en geeft de afsluitfase terug (anders hield deze ronde hem voor de rest vast).
+  s().setUI({ pendingCloseDocId: null });
+  controller.step();
+  eq('6 geannuleerd', [s().ui.appQuitPending, controller.active], [false, false]);
 }
 
 // 7. Review #401 (vervolg 3): het register hoort bij één storecontext. Een documentactie in een
@@ -313,7 +318,8 @@ function harness(initial: AppQuitDocument[]) {
 //     opslag niet uit: tijdens het wissen van het herstel en het sluiten van het venster kon nog een Ctrl+S of een ronde
 //     van Automatisch opslaan beginnen. De echte store, de echte opslagroute en de echte bestands-AutoSave op een echt
 //     bestand, met dezelfde subscription als `useAppCloseGuard`; alleen het venster en de bestandsbrug van Tauri zijn
-//     nagebootst. Gaat het venster daarna niet dicht, dan is het afsluiten afgebroken en werkt opslaan weer.
+//     nagebootst. Fixronde 2: dan is het document gewijzigd terwijl het herstel gewist is; het venster gaat dan niet
+//     dicht, maar de gewone ronde begint opnieuw met de sluitvraag, en opslaan werkt weer.
 {
   const ipc = installNodeFileIpc();
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
@@ -343,14 +349,13 @@ function harness(initial: AppQuitDocument[]) {
   const destroyed = deferred();
   let recoveryOn = true;
   let phase = { calls: 0, hash: '' };
-  let atDestroy: unknown = null;
+  const destroys: unknown[] = [];
   const controller = createAppQuitController(appQuitDependencies(ctx, {
     stopRecovery: () => { recoveryOn = false; return () => { recoveryOn = true; }; },
     clearRecovery: async () => { clearEntered.resolve(); await allowClear.promise; },
     destroyWindow: async () => {
-      atDestroy = { busy: isProjectFileWriteBusy(), dirty: s().isDirty, written: mutating(phase.calls), same: fileHash() === phase.hash };
+      destroys.push({ busy: isProjectFileWriteBusy(), dirty: s().isDirty, closing: s().ui.appClosing });
       destroyed.resolve();
-      throw new Error('Het venster weigert te sluiten');
     },
   }));
   const off = ctx.store.subscribe(() => { if (controller.active) controller.step(); });
@@ -376,15 +381,19 @@ function harness(initial: AppQuitDocument[]) {
     eq('14 geen kiezer, geen melding, niets geschreven, document gewijzigd',
       [dialogs, s().ui.notifications.length, mutating(phase.calls), fileHash() === phase.hash, s().isDirty], [0, 0, [], true, true]);
     allowClear.resolve();
-    await destroyed.promise;
     await new Promise((r) => setTimeout(r, 0));
-    eq('14 bij destroyWindow: geen schrijfactie, niets geschreven, document nog gewijzigd', atDestroy,
-      { busy: false, dirty: true, written: [], same: true });
-    // Het venster ging niet dicht: afsluiten afgebroken, alles weer open.
-    eq('14 afgebroken: schil, afsluiten en herstel terug', [s().ui.appClosing, s().ui.appQuitPending, controller.active, recoveryOn],
-      [false, false, false, true]);
+    // Het vangnet: het venster gaat niet dicht met een gewijzigd document; de gewone ronde begint opnieuw.
+    eq('14 geen destroyWindow met een gewijzigd document', destroys, []);
+    eq('14 de sluitvraag; schil, poort en herstel weer open',
+      [s().ui.pendingCloseDocId, s().ui.appClosing, s().ui.appQuitPending, controller.active, recoveryOn],
+      [s().activeDocumentId, false, true, true, true]);
+    eq('14 nog steeds niets geschreven', [mutating(phase.calls), fileHash() === phase.hash], [[], true]);
+    // Opslaan uit de sluitvraag werkt weer; daarna sluit de app.
     eq('14 opslaan werkt weer', await s().saveFileForDocument(s().activeDocumentId), true);
     eq('14 en schreef het bestand', [s().isDirty, fileHash() !== phase.hash], [false, true]);
+    s().setUI({ pendingCloseDocId: null });
+    await destroyed.promise;
+    eq('14 daarna dicht, zonder gewijzigd document', destroys, [{ busy: false, dirty: false, closing: true }]);
   } finally {
     console.error = realError;
     allowFirst.resolve();

@@ -165,7 +165,7 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
       });
     }`,
     recovery: `import { waitFor } from '/__updater_probe__/gates.js';
-      export const closeWritesAndFlushRecovery = async () => { await waitFor('recovery'); return () => undefined; };`,
+      export const flushRecoveryNow = () => waitFor('recovery');`,
     core: `export async function invoke() {
       const probe = window.updaterProbe;
       if (!probe.delayed) return probe.kind;

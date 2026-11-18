@@ -12,11 +12,12 @@ import type * as Ts from 'typescript';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { RecoveryDeltaTracker } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
-import { clearRecovery, loadRecovery, recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
+import { clearOwnRecovery, clearRecovery, loadRecovery, recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
-import { registerRecoveryFlush, closeWritesAndFlushRecovery } from '@/services/recovery/recoveryFlush';
-import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { registerRecoveryClear, registerRecoveryFlush, flushRecoveryNow } from '@/services/recovery/recoveryFlush';
+import { closeProjectFileWrites, isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { claimShutdownWhenFree } from '@/services/appQuit/shutdownPhase';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
@@ -68,7 +69,7 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     '@/state/ifcSaveInput': {},
     '@/services/recovery/recoveryDelta': { RecoveryDeltaTracker },
     '@/services/recovery/recoverySnapshot': { runRecoveryTick },
-    '@/services/recovery/recoveryStore': { recoveryStorageUnavailable },
+    '@/services/recovery/recoveryStore': { clearOwnRecovery, recoveryStorageUnavailable },
     '@/services/recovery/recoverySnapshotSerializer': { createRecoverySnapshotSerializer: () => {
       const serializer = createRecoverySnapshotSerializer(() => null);
       return { dispose: () => serializer.dispose(), serialize: async (...args: Parameters<typeof serializer.serialize>) => {
@@ -78,7 +79,7 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
       } };
     } },
     '@/services/recovery/recoveryTickQueue': { createRecoveryTickQueue },
-    '@/services/recovery/recoveryFlush': { registerRecoveryFlush },
+    '@/services/recovery/recoveryFlush': { registerRecoveryClear, registerRecoveryFlush },
     // Knownbug 1131 stap 1: een lopende vervanging vraagt een ronde, ook in een schone sessie.
     '@/services/recovery/recoveryPendingSource': { hasPendingIfcSource },
     '@/services/fileAccess': {},
@@ -105,7 +106,9 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     'src/services/updater/updaterService.ts', {
       '@/utils/platform': { isTauri: () => true },
       '@/services/githubRepo': { GITHUB_REPO: 'geen-netwerk' },
-      '@/services/recovery/recoveryFlush': { closeWritesAndFlushRecovery },
+      '@/services/recovery/recoveryFlush': { flushRecoveryNow },
+      '@/services/fileAccess/writeCoordinator': { closeProjectFileWrites },
+      '@/services/appQuit/shutdownPhase': { claimShutdownWhenFree },
       '@tauri-apps/api/core': { invoke: async () => 'native' },
       '@tauri-apps/plugin-updater': { check: async () => ({
         download: async () => { calls.push('download'); },
@@ -270,7 +273,9 @@ export async function checkUpdaterFinalPhase(): Promise<void> {
     'src/services/updater/updaterService.ts', {
       '@/utils/platform': { isTauri: () => true },
       '@/services/githubRepo': { GITHUB_REPO: 'geen-netwerk' },
-      '@/services/recovery/recoveryFlush': { closeWritesAndFlushRecovery },
+      '@/services/recovery/recoveryFlush': { flushRecoveryNow },
+      '@/services/fileAccess/writeCoordinator': { closeProjectFileWrites },
+      '@/services/appQuit/shutdownPhase': { claimShutdownWhenFree },
       '@tauri-apps/api/core': { invoke: async () => 'native' },
       '@tauri-apps/plugin-updater': { check: async () => ({
         download: async () => undefined,
