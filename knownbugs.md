@@ -2880,6 +2880,38 @@ en noem het in je rapport of PR-tekst.
      export op een eerdere opslag wacht, dan meldt de app "het document veranderde" en schrijft niets; opnieuw
      exporteren werkt. Richting: dezelfde binding aan het document van de momentopname als bij Opslaan. Gevonden bij
      #804 stap 3, uit de code. — S
+1819. **Tijdens de laatste fase van afsluiten blijft een keuzevenster aan `document.body` bedienbaar, en de laatste
+     controle staat vóór een wachtstap.** De wortel van de app is dan `inert` (`App.tsx`), maar de datumkiezer hangt
+     aan `document.body` (`DatePicker.tsx`) en de statusdatum in het lint gebruikt zijn dagkeuze voor een directe
+     documentbewerking (`ribbonWidgets.tsx`). De laatste controle op een gewijzigd document
+     (`appQuitController.ts`) staat vóór het wachten op de MCP-ontdekking (`useAppCloseGuard.ts`, hoogstens 1,5 s). In
+     de proef van de review werd in dat venster de actie voor de statusdatum aangeroepen: bij de native sluitaanroep
+     was het document gewijzigd, stonden er nul herstelsnapshots en waren de IFC-bytes onveranderd. De echte klik in
+     de desktopwebview is niet uitgevoerd; de wijziging moet precies tussen de laatste controle en `destroy` vallen.
+     Richting: interactieve portals onder dezelfde inerte grens, en de bestaande controle verplaatsen tot na het
+     wachten op MCP, direct vóór `destroy`; één controle volstaat. Gevonden door de review van #987 (Sol, ronde 3).
+     — B (proef van de review)
+1824. **Tijdens het downloaden van een update kan F11 de sluitvraag verbergen waarop de updater wacht.** F11 blijft
+     toegestaan bij een updatedialoog (`shortcutRegistry.ts`), en in de presentatieweergave rendert `App` de sluitvraag
+     niet (`App.tsx`, `CloseDocumentDialogControl.tsx`). In de proef van de review: update gestart, F11, een
+     sluitverzoek van het venster, download klaar. De sluitvraag stond in de store en de installatie wachtte, zonder
+     dat er iets te zien was; na Escape kwam de gewone weergave terug en liet Annuleren de installatie doorgaan.
+     Richting: de bestaande sluitvraag in beide weergaven tonen, met één gedeelde mount. Gevonden door de review van
+     #987 (Sol, ronde 3). — B (proef van de review)
+1825. **Afsluiten met *Niet opslaan* wacht op een herstelronde die nog serialiseert en waarvan het resultaat wordt
+     weggegooid.** Het wissen van het herstel wacht onder het deltaslot (`clearRecoveryNow` in `useAutoSave.ts`), ook
+     al heeft afsluiten het crashherstel al stilgezet. Met gecontroleerd vertraagde serialisatie bleef de app inert tot
+     de vrijgave; met de hooks van vóór #987 fixronde 2 bereikte de app de native sluitaanroep eerder. Een echte worker
+     heeft een antwoordtermijn van 60 seconden per verzoek (`recoverySnapshotSerializer.ts`), daarna synchrone terugval;
+     de duur bij een echte grote planning is niet gemeten. Richting: de volgorde voor schijfacties houden en de
+     deltabasis ongeldig maken vóór de eerstvolgende hervatte ronde, zodat sluiten niet wacht op serialisatie die nog
+     niets aan de opslag heeft aangeboden. Gevonden door de review van #987 (Sol, ronde 3). — B (proef van de review)
+1826. **`shutdownPhase.ts` kan eenvoudiger, en de Enter-stap in de browserproef toetst niets.** De code vraagt alleen
+     of de afsluitfase bezet is: de naam van de eigenaar en de lijst met wachtenden kunnen eruit; één belofte per
+     bezetting volstaat, met een eenmalige vrijgave en een nieuwe poging na het wachten. In
+     `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
+     want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
+     geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
 
 ## Rondleiding, Help en extensie-gidsen
 
