@@ -77,8 +77,38 @@ export async function handleIfcSaveRequest(request: IfcSaveRequest): Promise<{ r
   }
 }
 
+const isStringList = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) && value.every(item => typeof item === 'string');
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+/** Past dit antwoord bij het verzoek, met alle verplichte velden van zijn soort? Een antwoord dat niet past, mag nooit
+ *  een uitkomst worden die een schrijfroute kan gebruiken (review van #1016): de bediening maakt er een transportfout van.
+ *  Alleen de vorm; de inhoud rekende de worker met dezelfde functies als de hoofdthread. */
+export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveResult {
+  if (!isRecord(result)) return false;
+  if (result.kind === 'writer') return job.kind === 'writer' && result.bytes instanceof Uint8Array && isStringList(result.literalCalendarIds);
+  if (job.kind !== 'merge') return false;
+  if (result.kind === 'merge-unchanged') return isStringList(result.literalCalendarIds);
+  if (result.kind !== 'merge' || !isRecord(result.prepared)) return false;
+  const { bytes, sha256, source, literalCalendarIds } = result.prepared;
+  return bytes instanceof Uint8Array && typeof sha256 === 'string' && isStringList(literalCalendarIds) && isRecord(source)
+    && source.bytes === bytes && source.sha256 === sha256 && typeof source.schemaName === 'string'
+    && source.chunkStarts instanceof Uint32Array && source.chunkIds instanceof Int32Array && source.classes instanceof Uint8Array
+    && isRecord(source.stepIds) && Array.isArray(source.foreignMembers) && typeof source.foreign === 'boolean'
+    && typeof source.foreignObjectCount === 'number' && typeof source.buildingModel === 'boolean'
+    && (source.lineEnding === '\n' || source.lineEnding === '\r\n') && (source.opened === undefined || isRecord(source.opened));
+}
+
+/** Een fout van een bekende soort, met tekst, naam en velden. Anders: een transportfout. */
+export function wireErrorFits(error: unknown): error is IfcSaveWireError {
+  return isRecord(error) && typeof error.type === 'string' && Object.hasOwn(CONTENT_ERRORS, error.type)
+    && typeof error.name === 'string' && typeof error.message === 'string' && isRecord(error.data)
+    && (error.stack === undefined || typeof error.stack === 'string');
+}
+
 /** De uitkomst aan de kant van de aanroeper: dezelfde `IfcOutput` als `prepareIfcOutput` op deze thread. */
 export function outputFromResult(job: IfcSaveJob, result: IfcSaveResult): IfcOutput {
+  // Alleen na `resultFits`: een writerantwoord hoort dan bij een writerverzoek.
   if (result.kind === 'writer') return writerOutput(result.bytes, result.literalCalendarIds);
   if (job.kind !== 'merge') throw new Error('Opslagworker: een merge-antwoord op een writer-verzoek.');
   if (result.kind === 'merge-unchanged') {

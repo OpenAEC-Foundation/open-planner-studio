@@ -5,18 +5,19 @@
  * (stap 5 en 6 sluiten hem aan via `prepareIfcOutput(…, compute)`).
  *
  * De terugvalregel (besluit technisch beslisser, 16 november 2026): alleen als de worker niet start, rekent de
- * hoofdthread zelf, met dezelfde functies (`runIfcSaveJob`). "Gestart" betekent: de worker meldde `started` (zijn script
- * en imports zijn geladen). Daarvóór zijn een ontbrekende `Worker`, een fout in de constructor (de sandbox van de
- * SuperCloud-werkplek, zie `backgroundLeveling.ts`), een fout bij het laden of geen start binnen
- * `IFC_SAVE_START_TIMEOUT_MS` een startprobleem: terugval, en de rest van de sessie rekent de hoofdthread. Daarna is
- * sterven, de tijd overschrijden of een onleesbaar antwoord een fout (`IfcSaveWorkerError`) die de aanroeper als
- * mislukte opslag krijgt; de hoofdthread rekent dan nooit opnieuw (een merge die de worker liet sterven, kan het tabblad
- * laten vastlopen). De volgende opslag start een nieuwe worker. Een inhoudelijke fout (een weigering van de merge, een
- * fout van de writer) komt als dezelfde foutsoort aan en laat de worker staan.
+ * hoofdthread zelf, met `computeIfcOutputHere` (zoals `prepareIfcOutput` zonder worker). "Gestart" betekent: de worker
+ * meldde `started` (zijn script en imports zijn geladen). Daarvóór zijn een ontbrekende `Worker`, een fout in de
+ * constructor (de sandbox van de SuperCloud-werkplek, zie `backgroundLeveling.ts`), een fout bij het laden of geen
+ * start binnen `IFC_SAVE_START_TIMEOUT_MS` een startprobleem: terugval, en de rest van de sessie rekent de hoofdthread.
+ * Daarna is sterven, de tijd overschrijden of een onleesbaar antwoord een fout (`IfcSaveWorkerError`) die de aanroeper
+ * als mislukte opslag krijgt; de hoofdthread rekent dan nooit opnieuw (een merge die de worker liet sterven, kan het
+ * tabblad laten vastlopen). Een antwoord dat niet bij het verzoek past (`resultFits`), is ook zo'n fout. De volgende
+ * opslag start een nieuwe worker. Een inhoudelijke fout (een weigering van de merge, een fout van de writer) komt als
+ * dezelfde foutsoort aan en laat de worker staan.
  */
-import type { IfcOutputCompute, IfcSaveJob } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
 import {
-  errorFromWire, outputFromResult, runIfcSaveJob, type IfcSaveRequest, type IfcSaveResponse, type IfcSaveResult,
+  errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequest, type IfcSaveResponse, type IfcSaveResult,
 } from './ifcSaveProtocol';
 
 export type IfcSaveWorkerPort = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
@@ -80,7 +81,6 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     started = false;
   };
   const disposedError = () => new IfcSaveWorkerError('disposed', 'De opslagworker is gestopt.');
-  const onThisThread = async (job: IfcSaveJob) => outputFromResult(job, await runIfcSaveJob(job));
 
   const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob): Promise<IfcSaveResult> => {
     const id = ++nextId;
@@ -99,8 +99,10 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
           return;
         }
         if (data.id !== id) return;
-        if ('error' in data) reject(errorFromWire(data.error));
-        else resolve(data.result);
+        // Het juiste nummer, maar een antwoord dat niet bij dit verzoek past: transport, nooit een uitkomst.
+        if ('error' in data && wireErrorFits(data.error)) reject(errorFromWire(data.error));
+        else if ('result' in data && resultFits(job, data.result)) resolve(data.result);
+        else reject(new IfcSaveWorkerError('transport', 'De opslagworker gaf een antwoord dat niet bij het verzoek past.'));
       };
       port.onerror = (event) => {
         event.preventDefault();
@@ -132,7 +134,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
         started = false;
         if (!worker) unavailable = true;
       }
-      if (!worker) return onThisThread(job);
+      if (!worker) return computeIfcOutputHere(job);
       const port = worker;
       try {
         return outputFromResult(job, await ask(port, job));
@@ -141,7 +143,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
           if (worker === port) stopWorker();
           if (disposed) throw disposedError();
           unavailable = true;
-          return onThisThread(job);
+          return computeIfcOutputHere(job);
         }
         // Gestorven, verlopen of onleesbaar: deze worker niet meer gebruiken, en niet opnieuw rekenen.
         if (error instanceof IfcSaveWorkerError && worker === port) stopWorker();

@@ -111,8 +111,9 @@ function sameOutcome(viaWorker: Outcome, main: Outcome, label: string): 'writer'
   const a = viaWorker.output, b = main.output;
   assert.deepEqual([...a.literalCalendarIds], [...b.literalCalendarIds], `${label}: dezelfde letterlijke kalenders`);
   if (!b.prepared) {
-    assert.ok(!a.prepared && a.bytes, `${label}: de gewone writer geeft bytes terug`);
-    assert.equal(sha(a.bytes!), sha(new TextEncoder().encode(b.content)), `${label}: dezelfde sha256`);
+    assert.ok(!a.prepared, `${label}: de gewone writer`);
+    // De worker geeft bytes; de terugval op de hoofdthread geeft tekst, zoals `prepareIfcOutput` zonder worker.
+    if (a.bytes) assert.equal(sha(a.bytes), sha(new TextEncoder().encode(b.content)), `${label}: dezelfde sha256`);
     assert.equal(a.content, b.content, `${label}: dezelfde tekst`);
     return 'writer';
   }
@@ -283,7 +284,7 @@ await check('de worker start niet: de hoofdthread rekent en geeft hetzelfde', as
   }
 });
 
-await check('de worker sterft tijdens het rekenen of overschrijdt de tijd: een fout, de hoofdthread rekent niet opnieuw', async () => {
+await check('de worker sterft, overschrijdt de tijd of antwoordt verkeerd: een fout, de hoofdthread rekent niet opnieuw', async () => {
   for (const [label, act, reason] of [
     ['sterft', (w: InProcessWorker) => w.fail('Out of memory'), 'crashed'],
     ['geen antwoord', () => undefined, 'timeout'],
@@ -315,6 +316,43 @@ await check('de worker sterft tijdens het rekenen of overschrijdt de tijd: een f
   await assert.rejects(client.compute({ kind: 'writer', input: { ...writerJob.input, kanNiet: () => 1 } as never }),
     (error: unknown) => error instanceof IfcSaveWorkerError && error.reason === 'transport');
   client.dispose();
+  // Een antwoord met het juiste nummer dat niet bij het verzoek past, of een verplicht veld mist: een transportfout,
+  // de worker gestopt, en nooit een uitkomst die een schrijfroute kan gebruiken (review van #1016, blokkade 1).
+  const changed = await handleIfcSaveRequest({ id: 1, job: { ...mergeJob, input: { ...await lengthen(fixtureInput, lengthenedTask(fixtureInput).id), writeMode: 'merge' } } });
+  assert.ok('result' in changed.response && changed.response.result.kind === 'merge');
+  const prepared = changed.response.result.prepared;
+  const wrong: Array<[string, IfcSaveJob, unknown]> = [
+    ['een writerantwoord op een mergeverzoek', mergeJob, { result: { kind: 'writer', bytes: new Uint8Array([35]), literalCalendarIds: [] } }],
+    ['een writerantwoord zonder bytes', writerJob, { result: { kind: 'writer', literalCalendarIds: [] } }],
+    ['een ongewijzigde merge op een writerverzoek', writerJob, { result: { kind: 'merge-unchanged', literalCalendarIds: [] } }],
+    ['een merge op een writerverzoek', writerJob, { result: { kind: 'merge', prepared } }],
+    ['een merge zonder bron', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: undefined } } }],
+    ['een merge waarvan de bron andere bytes heeft', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, bytes: new Uint8Array(prepared.bytes) } } }],
+    ['een merge zonder indexarrays', mergeJob, { result: { kind: 'merge', prepared: { ...prepared, source: { ...prepared.source, classes: [] } } } }],
+    ['een onbekende antwoordsoort', writerJob, { result: { kind: 'iets', bytes: new Uint8Array([35]), literalCalendarIds: [] } }],
+    ['letterlijke kalenders geen lijst', writerJob, { result: { kind: 'writer', bytes: new Uint8Array([35]), literalCalendarIds: 'cal' } }],
+    ['een fout van een onbekende soort', writerJob, { error: { type: 'BestaatNiet', name: 'X', message: 'x', data: {} } }],
+    ['een fout zonder tekst', writerJob, { error: { type: 'Error', name: 'Error', data: {} } }],
+    ['geen uitkomst en geen fout', writerJob, {}],
+  ];
+  for (const [label, job, body] of wrong) {
+    const port = new InProcessWorker('manual');
+    let created = 0;
+    const client = createIfcSaveWorker({ createWorker: () => { created++; return port; } });
+    const run = client.compute(job);
+    await turn();
+    port.start();
+    port.emit({ id: port.requests[0]!.id, ...(body as object) } as IfcSaveResponse);
+    await assert.rejects(run, (error: unknown) => error instanceof IfcSaveWorkerError && error.reason === 'transport', label);
+    assert.equal(port.terminated, true, `${label}: de worker is gestopt`);
+    // De volgende opslag krijgt een nieuwe worker.
+    const next = client.compute(writerJob);
+    await turn();
+    assert.equal(created, 2, `${label}: een nieuwe worker`);
+    port.start();
+    client.dispose();
+    await assert.rejects(next);
+  }
 });
 
 await check('dispose tijdens een verzoek: een fout, en een laat antwoord doet niets', async () => {
