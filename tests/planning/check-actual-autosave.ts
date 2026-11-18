@@ -120,9 +120,9 @@ const manual = runProjectFileWrite(async () => {
   writeOrder.push('manual-start');
   await new Promise<void>(resolve => { releaseManual = resolve; });
   writeOrder.push('manual-eind');
-});
+}, () => undefined);
 await Promise.resolve();
-const automatic = runProjectFileWrite(async () => { writeOrder.push('auto'); });
+const automatic = runProjectFileWrite(async () => { writeOrder.push('auto'); }, () => undefined);
 eq('14 een lopende handmatige write blokkeert de timer', isProjectFileWriteBusy(), true);
 eq('15 file-writes lopen niet parallel', writeOrder, ['manual-start']);
 const releaseManualWrite = releaseManual as (() => void) | null;

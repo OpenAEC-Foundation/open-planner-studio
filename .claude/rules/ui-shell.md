@@ -39,3 +39,15 @@ The active tab is in `ui.activeRibbonTab`. De rechterrail bevat conditioneel `Ta
 Enter en Escape annuleren). Het is een wachtende modale vraag: `isGlobalShortcutFrozen` bevriest de sneltoetsen, de
 schil is inert, `isBlockingDialogOpen` en `BLOCKING_UI_FLAGS` (MCP) blokkeren. Het vinkje "Zonder gebouwmodel" op de
 IFC-kaart van Bestand → Exporteren staat er alleen bij een document met gebouwmodel en de flag `ifcForeignContent` aan.
+
+### "Wordt nog opgeslagen…" (#804 stap 3)
+
+Afsluiten, het kruisje van een tabblad (`requestCloseDocument`) en de keuzes van de sluitvraag (`closeDocumentAfterSaves`)
+wachten op een lopende opslag. Intussen staat `SavingBeforeCloseNotice` (`src/components/layout/DocumentChrome/`, gedeelde
+`Dialog` op `z-[95]`, boven de sluitvraag) met één zin, zonder knop en zonder Escape; `ui.savingBeforeClose` bevriest de
+sneltoetsen en de schil zoals een wachtende vraag, en `isBlockingDialogOpen`/`BLOCKING_UI_FLAGS` blokkeren. Wacht de opslag
+op een vraag aan de planner (`saveQuestionOpen`), dan staat die vraag en niet de aanduiding. In de laatste fase van
+afsluiten (niets meer ongeopgeslagen, de poort voor projectopslag dicht) maakt `ui.appClosing` de hele app inert (de
+wortel in `App.tsx`, `data-ops-app-root`), ook een dialoog die al openstond en het werkvlak, zonder eigen melding, tot
+het venster weg is; `useDialogKeys` negeert Escape en Enter zolang de wortel inert is. Alles blijft gemount, dus na
+afbreken staat een dialoog er nog met zijn invoer.

@@ -9,6 +9,7 @@ check-adapters-hours.ts matrix
 check-advanced-cpm.ts matrix
 check-alap-chain.ts matrix
 check-alap-maatplaatsing.ts matrix
+check-app-quit-lifecycle.ts matrix
 check-app-quit.ts matrix
 check-apply-leveling-scope.ts matrix
 check-arrow-hour-anchor.ts matrix
