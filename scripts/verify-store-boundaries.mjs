@@ -108,6 +108,17 @@ for (const file of coreFiles) {
   }
 }
 
+// De opslagworker (#804 stap 4, `src/services/ifc/saveWorker/`) laadt de storefabriek voor de heropening van de merge,
+// nooit de app-singleton. Transitieve lekken vangt de bundelproef in `tests/planning/check-save-worker.ts`.
+const saveWorkerFiles = sourceFiles(resolve(root, 'src/services/ifc/saveWorker'));
+for (const file of saveWorkerFiles) {
+  const sourceFile = parse(file);
+  for (const binding of importsOf(sourceFile, (specifier) => appStoreModule(file, specifier))) {
+    report(file, sourceFile, binding.declaration,
+      `waarde-import '${binding.imported}' uit appStore in de opslagworker (gebruik appStoreFactory)`);
+  }
+}
+
 // De headless MCP-server (`headless/mcp-server/src/`, issue #570) en de MCP-modules die hij bundelt
 // buiten `tools/` om, bouwen op een eigen storecontext. Elke waarde-import uit `appStore` laadt de
 // app-singleton mee, dus die is daar verboden; transitieve lekken vangt `npm run build:mcp-server`.
@@ -212,7 +223,7 @@ for (const relativeAdapter of ['src/state/batchTransaction.ts', 'src/state/mcpTr
 }
 
 if (violations.length === 0) {
-  console.log(`OK — store-runtimegrenzen bewaakt in ${strictFiles.length} storegebonden modules, ${coreFiles.length} kernmodules en ${headlessMcpFiles.length} modules van de headless MCP-server.`);
+  console.log(`OK — store-runtimegrenzen bewaakt in ${strictFiles.length} storegebonden modules, ${coreFiles.length} kernmodules, ${saveWorkerFiles.length} modules van de opslagworker en ${headlessMcpFiles.length} modules van de headless MCP-server.`);
   process.exit(0);
 }
 

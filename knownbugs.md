@@ -3888,6 +3888,12 @@ en noem het in je rapport of PR-tekst.
       dan kan de mergecontrole om de verkeerde reden weigeren. Nu geven beide dezelfde selectie. Richting: de lokale
       set en filter vervangen door één aanroep van `savedCustomTaskTypes`, met de bestaande terugval naar een lege
       catalogus. Sol-review ronde 2 van #1007: [BEVESTIGD] VERVOLG. — B
+1848. **Een lokale run van `settings-tabs.spec.ts` overschrijft twee bewaarde schermafbeeldingen.** De spec schrijft
+      bij elke run `artifacts/uren-f4a/duurweergave-ops-{light,dark}.png` (`tests/browser/settings-tabs.spec.ts:74`); die
+      staan in git, dus na een lokale run staan ze als gewijzigd in `git status` en kan een blinde commit ze meenemen.
+      `gantt-hour-drag.spec.ts:187` doet hetzelfde met `artifacts/uren-f4a/tijdkop-*.png`. Richting: naar `qa/` of
+      `test-results/` schrijven, of alleen met een expliciete omgevingsvariabele. Gezien bij #804 stap 4 (opslagworker):
+      na `node scripts/run-browser-tests.mjs tests/browser/settings-tabs.spec.ts` waren beide bestanden gewijzigd. — B
 
 ## Wensen en open taken (geen bug)
 
