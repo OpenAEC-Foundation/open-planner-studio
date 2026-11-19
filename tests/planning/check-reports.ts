@@ -178,6 +178,24 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('progress: 1 in uitvoering', s.counts.inProgress, 1);
   eq('progress: totaal = alle bladtaken', s.counts.total, 7);
   ok('progress: A voltooid in de periode', r.completedInPeriod.some(x => x.taskId === A));
+
+  // Knownbug 58: de taak behoudt haar opgeslagen TF, maar een voltooide rij
+  // krijgt geen actuele kritiek-/near-critical-markering; open taken blijven meetellen.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const done = clone.find(t => t.id === A)!;
+    done.time.totalFloat = 1; done.time.isCritical = false; done.time.isNearCritical = false;
+    const open = clone.find(t => t.id === B)!;
+    open.time.totalFloat = 1; open.time.isCritical = false; open.time.isNearCritical = false;
+    const report = computeProgressReport({ ...ctx, tasks: clone }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+    const row = report.completedInPeriod.find(x => x.taskId === A)!;
+    eq('58: opgeslagen TF blijft behouden', row.totalFloat, 1);
+    eq('58: voltooide rij is niet near-critical', row.isNearCritical, false);
+    eq('58: open taak blijft near-critical', report.inProgress.find(x => x.taskId === B)?.isNearCritical, true);
+    done.time.isCritical = true;
+    const critical = computeProgressReport({ ...ctx, tasks: clone }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+    eq('58: voltooide rij toont ook geen kritieklabel', critical.completedInPeriod.find(x => x.taskId === A)?.isCritical, false);
+  }
   ok('progress: B in uitvoering', r.inProgress.some(x => x.taskId === B));
   ok('progress: baseline-einde bekend', !!s.baselineFinish);
   ok('progress: prognose-einde bekend', !!s.forecastFinish);
