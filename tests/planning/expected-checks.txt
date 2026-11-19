@@ -318,6 +318,7 @@ check-print-report.ts matrix
 check-print-screen-parity.ts matrix
 check-print-working-exceptions.ts matrix
 check-profile-switch-dates.ts matrix
+check-progress-actual-start-floor.ts matrix
 check-progress-entry.ts matrix
 check-progress-import-ronde.ts matrix
 check-progress-import-xlsx.ts matrix
