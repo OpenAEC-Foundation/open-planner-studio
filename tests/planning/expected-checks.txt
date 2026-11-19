@@ -230,6 +230,7 @@ check-import-unique-ids.ts matrix
 check-just-updated.ts matrix
 check-kalender-ms-randen.ts matrix
 check-kalender-ms-wandeling.ts matrix
+check-knownbug-3-diagnose.ts matrix
 check-keyboard-event-routing.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
