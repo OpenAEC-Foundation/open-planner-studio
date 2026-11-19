@@ -242,7 +242,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
-  `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
+  `commitSavedDocument(ref, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
   bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
@@ -394,17 +394,34 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
-- **Save worker (#804 step 4, not wired yet).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput`
-  computes (the plain writer, or the merge with a foreign part) in one reusable Web Worker; no save route, export or
-  MCP tool uses it yet. `prepareIfcOutput` keeps the decision (mode, flag, guard, plan-only question) and takes the
-  computation as an optional `compute` argument (default: this thread); later steps pass `createIfcSaveWorker().compute`.
-  The source goes over as a copy (the main thread keeps the bytes), output buffers come back transferred, content errors
-  arrive as the same error class, transport failures as `IfcSaveWorkerError`. The main thread computes only when the
-  worker does not start (no `started` message); after a crash, timeout or unreadable answer it is an error, never a
-  retry on the main thread; neither is an answer that does not fit the request (`resultFits`). The worker loads
-  `appStoreFactory.ts`, never `appStore.ts`; worker bundles get the headless-core boundary (`vite.config.ts`: `zustand`
-  without React, `STUBBED` modules as throwing stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime) and
-  `save-worker-production.spec.ts` (the worker from the real production config, its modules incl. dynamic chunks).
+- **Save worker (#804 steps 4 and 5).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
+  plain writer, or the merge with a foreign part) in one reusable Web Worker. The mounted app owns one client
+  (`appStore.ts`) and hands only its compute function to the save routes, through
+  `StoreRuntimeOptions.ifcSaveCompute` (`mergesInWorker`): today only a merge (a document with a foreign part, flag
+  `ifcForeignContent`) runs in the worker, for Ctrl+S, Save As and Export → IFC; the plain writer stays on the main
+  thread (step 6), and so do headless, scratch and test contexts and `planner_export_ifc`. `prepareIfcOutput` keeps the
+  decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
+  output buffers come back transferred, content errors arrive as the same error class, transport failures as
+  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
+  `started` message); after a crash, timeout or unreadable answer it is an error, never a retry on the main thread;
+  neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
+  bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
+  stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
+  injected worker), `save-worker-production.spec.ts` (the production config, its modules incl. dynamic chunks) and
+  `settings-tabs.spec.ts` (the app starts the worker itself on a real Ctrl+S).
+- **Save status in the status bar** (#804 step 5, every document): "Saving…" from the request (Ctrl+S, Save As, *Save*
+  in the close question) through the end of the whole save, then "Saved 14:32", and "Unsaved" once the document changes
+  again. It lives on the document registry (`DocumentEntry.saveState`, `src/state/documentSaveState.ts`), not in
+  `DOCUMENT_FIELDS`; `commitSavedDocument` stamps the time. A failure is a normal notice, never a status.
+- **Document content identity** (#1020 fix round 1): a save belongs to the content it was requested for
+  (`DocumentContentRef`: document id plus `DocumentEntry.content`), not to the tab. Only `replaceDocumentContent`
+  changes it: another project in the same tab (`applyLoadedProject` without edit and with another project id, which
+  includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
+  read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
+  for the plain writer and in `stopBeforeWrite`), `commitSavedDocument` takes the ref and commits nothing to replaced
+  content, and the waiting Ctrl+S, the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
+  not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both

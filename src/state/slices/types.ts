@@ -257,6 +257,8 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignReplaceSaveAsOnly'
   | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
+  // #804 stap 5: de opslagworker faalde (`IfcSaveWorkerError`); niets geschreven.
+  | 'notifications.ifcSaveWorkerFailed'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
   | 'notifications.ifcExportChangedWhileWaiting'

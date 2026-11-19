@@ -13,6 +13,7 @@ import { markDocumentEdited } from '@/state/documentEdited';
 import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 import type { RecomputedRemainingWork } from '@/engine/work/workRuleApply';
 import { createPendingTextEdits, type PendingTextEdits } from '../pendingTextEdits';
+import type { IfcOutputCompute } from '../prepareIfcOutput';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
 export const MAX_UNDO = MAX_SESSION_HISTORY_EVENTS_PER_SCOPE;
@@ -30,6 +31,10 @@ export interface StoreRuntimeOptions {
    *  Default een eigen, leeg register: een scratch- of testcontext rondt nooit de invoer van de
    *  zichtbare app af. Alleen `appStoreContext` krijgt `mountedPendingTextEdits`. */
   pendingTextEdits?: PendingTextEdits;
+  /** Het rekenen van de IFC-opslag van DEZE context (#804 stap 5, `prepareIfcOutput`). Default deze thread. Alleen
+   *  `appStoreContext` krijgt de opslagworker van de gemounte app; headless-, scratch- en testcontexten (en de app-MCP,
+   *  die `prepareIfcOutput` zelf aanroept) rekenen op deze thread. */
+  ifcSaveCompute?: IfcOutputCompute;
 }
 
 interface ActiveMcpLease extends McpTransactionLease {
@@ -77,6 +82,8 @@ export interface StoreRuntime {
   /** Rond open tekstinvoer van deze context af (commit, dan de eigen rekenblokkade vrij). Elke
    *  actie die de actieve documentpayload vastlegt of vervangt, roept dit EERST aan. */
   finishPendingTextEdits(): void;
+  /** Zie `StoreRuntimeOptions.ifcSaveCompute`; `undefined` = deze thread. */
+  readonly ifcSaveCompute: IfcOutputCompute | undefined;
   /**
    * Open een bewerksessie (de taakdialoog). Zolang hij open staat krijgt elk
    * event dat via de interactieve route (`finishUndoable`, dus buiten batch en MCP-lease) ontstaat
@@ -308,6 +315,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     finishPendingTextEdits() {
       pendingTextEdits.finish();
     },
+    ifcSaveCompute: opts?.ifcSaveCompute,
     resetUndoCoalescing() {
       coalesce = null;
     },

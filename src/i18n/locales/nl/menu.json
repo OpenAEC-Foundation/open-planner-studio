@@ -321,6 +321,8 @@
     "scale": "Schaal:",
     "zoom": "Zoom: {{level}}px/dag",
     "unsaved": "Niet opgeslagen",
+    "saving": "Opslaan…",
+    "saved": "Opgeslagen {{time}}",
     "scheduleStale": "Verouderd — herbereken (F5)"
   },
   "backstage": {

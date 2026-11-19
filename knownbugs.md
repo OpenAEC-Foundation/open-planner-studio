@@ -3949,20 +3949,54 @@ en noem het in je rapport of PR-tekst.
       `gantt-hour-drag.spec.ts:187` doet hetzelfde met `artifacts/uren-f4a/tijdkop-*.png`. Richting: naar `qa/` of
       `test-results/` schrijven, of alleen met een expliciete omgevingsvariabele. Gezien bij #804 stap 4 (opslagworker):
       na `node scripts/run-browser-tests.mjs tests/browser/settings-tabs.spec.ts` waren beide bestanden gewijzigd. — B
-1849. **VERVOLG (#1016, opslagworker): de productieproef start de worker via een testmodule, niet via de constructor
-      van de client.** `tests/browser/fixtures/saveWorkerProof.ts` onderschept in `defaultCreateIfcSaveWorker` alleen de
-      door Vite ingevulde URL en start die als module via een blob die eerst de vaste schrijfklok zet. Een fout in de
-      constructoropties van de productieclient valt daardoor buiten `save-worker-production.spec.ts`. De stap in
-      `settings-tabs.spec.ts` start de gewone constructor wel, maar op de dev-server. Richting: bij stap 5 (het
-      gebouwmodel via de worker) een korte startcontrole in de echte opslagroute opnemen en dan de overlappende
-      dev-stap schrappen; de proef met de vaste klok blijft voor de bytevergelijking. Sol-review ronde 2 van #1016:
-      [BEVESTIGD] VERVOLG. — B
 1892. **VERVOLG (#1016, opslagworker): de terugvalproef laat de verwijderde encode-decodeomweg nog toe.** De terugval
       roept `computeIfcOutputHere` rechtstreeks aan (`ifcSaveWorker.ts`), maar de vergelijking in
       `tests/planning/check-save-worker.ts` accepteert writeruitvoer met en zonder `bytes`, dus ook de oude omweg zou
       slagen; het terugvalblok gebruikt bovendien twee geldige opdrachten, en de foutproef loopt via een werkende
       worker. Richting: één assert op afwezige writerbytes bij terugval en één mislukte opdracht in datzelfde blok,
       zodat de directe terugval en de foutsoort vastliggen. Sol-review ronde 2 van #1016: [BEVESTIGD] VERVOLG. — B
+1894. **VERVOLG (#1020, opslagworker): sluiten ziet een lopende IFC-export pas zodra die in de schrijfrij staat.**
+      *Exporteren → IFC* rekent zijn uitvoer (met een gebouwmodel in de opslagworker) vóór `runProjectFileWrite`, zoals
+      op main, en telt niet mee in `trackSave`. Sluit de planner tijdens dat rekenen het tabblad, dan geeft
+      `waitForSavesBeforeClose()` meteen `null` en komt de gewone sluitvraag; de versheidscontrole
+      (`refuseChangedExport`) laat de export daarna veilig stoppen. Geen verlies van planningsdata of vastloper
+      vastgesteld. Richting: deze IFC-route vanaf het voorbereiden in dezelfde schrijfrij laten lopen en de doelcontrole
+      vlak vóór I/O behouden; één bestaande wachtrij, geen tweede mechanisme voor sluiten. Sol-review ronde 1 van #1020:
+      [BEVESTIGD] VERVOLG. — B
+1895. **Een ander project via `api.data.loadProject` erft de IFC-bron van het vorige project.** `loadExtensionProject`
+      laadt een ander project-id via `loadState`; `applyLoadedProject` geeft het zonder eigen bron dezelfde
+      `ifcSource` en hetzelfde `foreignSourceMark` als het document had (`inheritsTarget`), en daarna wist
+      `loadExtensionProject` alleen het opslagdoel. Het nieuwe project draagt dus het gebouwmodel van het vorige; een
+      latere *Opslaan als* zou de planning van het nieuwe project in dat model zetten. Dat het de bron erft, legt
+      `check-ifc-document-save.ts` vast (fixronde 1 van #1020); wat de merge er daarna van maakt, is niet beproefd. Ook
+      op main. Richting: bij een ander project-id de bron en het kenmerk niet erven, of de eigenaar laten kiezen of een
+      extensie een gebouwmodel mag overnemen. Gezien in de review van #1020 (Sol, ronde 1). — S
+
+1896. **VERVOLG (#1020, opslaan in de achtergrond): een opslag plaatst het bestand nog nadat een extensie de inhoud van het tabblad verving.**
+      Een opslag hoort bij de inhoud waarvoor ze gevraagd werd (`DocumentEntry.content`, fixronde 1 van #1020): de
+      controle draait vlak vóór de schrijfactie (`refuseChangedDocumentWrite`) en bij de commit
+      (`commitSavedDocument`). Laadt een extensie met `api.data.loadProject` een ander project in hetzelfde tabblad ná
+      die eerste controle, terwijl de nieuwe bytes alleen nog tijdelijk staan, dan plaatst de opslag het bestand
+      alsnog. Het bestand komt waar de planner om vroeg, met de inhoud die hij wilde opslaan; het nieuwe project
+      krijgt geen pad, geen bron en geen *Opgeslagen* (de commitcontrole werkt). Er gaat geen planningsdata verloren;
+      de opslag had alleen nog veilig kunnen stoppen. Drie routes, elk met een proef van de reviewer die project B
+      laadt op het moment dat het einddoel nog ongewijzigd is:
+      1. **Ctrl+S via een browserhandle**: B laden in de schrijfstap van de handle, vóór `close()`. De callback vlak
+         vóór `close()` vergelijkt alleen de doelbytes met de oude bron; `close()` plaatst daarna de planning van A.
+         Verwacht na de fix: het doel houdt zijn oorspronkelijke hash, via het bestaande `abort()`.
+      2. **Opslaan als over een andere bestaande naam (desktop)**: B laden tijdens de tweede doelvergelijking, als het
+         hulpbestand klaar is en er nog niets verplaatst is. De app zet daarna de bestaande versie opzij, plaatst de
+         berekende versie en zet het doel in Recent. Verwacht na de fix: geen verplaatsing, het doel houdt zijn bytes,
+         het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg.
+      3. **Opslaan als naar een vrije naam (desktop)**: B laden als het hulpbestand compleet is en het doel nog niet
+         bestaat. De volgende aanroep plaatst het bestand onder de gekozen naam. Verwacht na de fix: het doel bestaat
+         niet, ook niet via de directe exclusieve aanmaak na een terugval.
+      Richting van de reviewer: dezelfde inhoudscontrole (`refuseChangedDocumentWrite`) op het laatste veilige punt van
+      elke schrijfroute: vóór `close()`, vóór het opzijzetten van een bestaande naam, vóór de exclusieve plaatsing of
+      aanmaak; "de bestaande afbreekpunten en herstelafhandeling volstaan". Besluit van Trias (19 november 2026): dit
+      is VERVOLG en geen blokkade voor #1020 (alleen via een extensie precies tijdens de bestandsbewerking; geen
+      verlies), en de fix gaat mee in de volgende stap, het opslaan van gewone bestanden in de achtergrond, die
+      dezelfde schrijfroutes raakt. Gevonden door de review van #1020 (Sol, ronde 2). — B (proef)
 
 ## Wensen en open taken (geen bug)
 
