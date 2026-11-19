@@ -588,7 +588,7 @@ export interface FileSlice {
    * zelf een gebouwmodel bevat; met de melding voor `purpose` ("op te slaan" of "naar te exporteren"). Ook voor de
    * dialogen buiten de store (bibliotheek, rapport).
    */
-  foreignTargetCheck: (purpose: 'save' | 'export') => SaveTargetCheck;
+  foreignTargetCheck: (purpose: 'save' | 'export', ownDocumentId?: string) => SaveTargetCheck;
   /** App-globale MRU-lijst van recente bestanden. Async gehydrateerd bij opstart. */
   recentFiles: RecentEntry[];
   /** De recents zijn gelezen (ook als dat mislukte). Tot dan toont Bestand een laadstand en niet "geen
@@ -914,10 +914,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Fixronde 1 en 2: weigert het doel als het de bron is van een open document met een vreemd deel, of (met de flag) als
    *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). */
-  const foreignTargetCheck = (purpose: 'save' | 'export'): SaveTargetCheck => async (target) => {
-    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders });
+  const foreignTargetCheck = (purpose: 'save' | 'export', ownDocumentId = get().activeDocumentId): SaveTargetCheck => async (target) => {
+    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders,
+      openDocumentPaths: purpose === 'export', excludeOpenDocumentId: ownDocumentId });
     if (!reason) return false;
-    if (reason === 'unreadable-target') {
+    if (reason === 'open-document') {
+      get().notify(IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE);
+    } else if (reason === 'unreadable-target') {
       get().notify(purpose === 'save' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_UNREADABLE_TARGET_EXPORT_NOTICE);
     } else get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
     return true;
@@ -2472,7 +2475,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
       // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel.
-      const foreignCheck = foreignTargetCheck('export');
+      const foreignCheck = foreignTargetCheck('export', ext === 'ifc' ? state.activeDocumentId : undefined);
       // Een IFC-export wacht op de schrijflock (hieronder): direct vóór de write ook kijken of het document nog gelijk is.
       const refuseTarget: SaveTargetCheck = ext === 'ifc'
         ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)

@@ -514,6 +514,29 @@ for (const flag of [false, true]) {
     eq('Tauri Opslaan als: een ander bestand mag', [S().filePath, readFileSync(join(dir, 'eigen.ifc'), 'utf8').includes('Eigen werk')],
       [join(dir, 'eigen.ifc'), true]);
 
+    // Een gewoon open document heeft geen foreignSourceMark. Ook dat bestand mag niet door een export uit een ander
+    // tabblad worden vervangen. Het eigen IFC-bestand blijft voor een IFC-export toegestaan.
+    const ownId = S().activeDocumentId, ownPath = join(dir, 'eigen.ifc');
+    const ownHash = sha(readFileSync(ownPath));
+    S().newDocument();
+    S().addTask({ name: 'Andere planning' });
+    dialogAnswer = ownPath;
+    const otherExport = await S().exportAs('ifc');
+    eq('Tauri export naar gewoon bestand van ander tabblad geweigerd',
+      [otherExport, sha(readFileSync(ownPath))], [{ ok: true, warnings: [], cancelled: true }, ownHash]);
+    ok('Tauri export naar ander tabblad meldt de reden',
+      S().ui.notifications.some(n => n.messageKey === 'notifications.ifcForeignTargetOpenInTab'));
+    symlinkSync(ownPath, join(dir, 'eigen-link.csv'));
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: false }; });
+    dialogAnswer = join(dir, 'eigen-link.csv');
+    const linkExport = await S().exportAs('csv');
+    eq('Tauri export via link ook zonder vlag geweigerd',
+      [linkExport, sha(readFileSync(ownPath))], [{ ok: true, warnings: [], cancelled: true }, ownHash]);
+    S().switchDocument(ownId);
+    dialogAnswer = ownPath;
+    const ownExport = await S().exportAs('ifc');
+    ok('Tauri IFC-export naar eigen bestand blijft toegestaan', ownExport.ok && !('cancelled' in ownExport && ownExport.cancelled));
+
     // Na crashherstel: het pad komt uit het manifest, de vingerafdruk uit de snapshot.
     const parsed = await readIfcFromText(recoveryText, {}, { ifcBytes: true });
     const restored = createAppStoreContext().store;

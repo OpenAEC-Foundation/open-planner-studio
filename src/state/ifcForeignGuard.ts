@@ -202,8 +202,10 @@ export async function isOpenForeignSourceTarget(
  *  vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken (`sameLocalFile`). */
 async function isOpenDocumentPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
+  excludeDocumentId?: string,
 ): Promise<boolean> {
   const paths = s.getOpenDocumentPayloads()
+    .filter(({ id }) => id !== excludeDocumentId)
     .flatMap(({ payload }) => (payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
   if (paths.length === 0) return false;
   let fs: FileIdentityFs | undefined;
@@ -240,6 +242,8 @@ export interface WriteTargetDeps {
   /** Alleen *Opslaan als* over een bestaande naam op de desktop (#804 keuze 4, fixronde 1 van #1019): weiger ook een
    *  pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
   openDocumentPaths?: boolean;
+  /** Bij een IFC-export mag het eigen document zijn eigen bestand blijven kiezen; andere tabbladen niet. */
+  excludeOpenDocumentId?: string;
 }
 
 /**
@@ -285,7 +289,7 @@ export async function refusedWriteTarget(
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;
-  if (deps.openDocumentPaths && target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs)) {
+  if (deps.openDocumentPaths && target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.excludeOpenDocumentId)) {
     return 'open-document';
   }
   if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
