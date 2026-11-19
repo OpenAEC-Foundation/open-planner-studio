@@ -31,3 +31,43 @@ for (const profile of ['ops','p6','msproject'] as const) {
     console.log('OK knownbug 311', profile, unit, lag, bResult.ef);
   }
 }
+
+// Binnen een werkblok, op het begin en einde van de middagband en bij een afwijkende opvolgerkalender.
+// Daarna een FS-opvolger en een harde MFO die vóór de relatiedruk blijft gelden.
+for (const profile of ['ops','p6','msproject'] as const) {
+  for (const [mins, expected] of [[-60,'2026-06-08T15:00'],[-180,'2026-06-08T13:00'],
+    [-240,'2026-06-08T12:00']] as const) {
+    const a=task('A',2880), b=task('B',1920), c=task('C',480);
+    const links:Sequence[]=[
+      {id:'ff',predecessorId:'A',successorId:'B',type:'FINISH_FINISH',lagDays:0,lagMinutes:mins,lagUnit:'ELAPSEDTIME'},
+      {id:'fs',predecessorId:'B',successorId:'C',type:'FINISH_START',lagDays:0}];
+    const r=new CPMSolver([a,b,c],links,cal,[],{projectStartDate:'2026-06-01',
+      schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})}).solve();
+    const bt=r.tasks.get('B')!, ct=r.tasks.get('C')!;
+    if (bt.earlyFinish !== expected || !ct.earlyStart || ct.earlyStart < bt.earlyFinish) {
+      throw new Error(`311 band/keten ${profile} ${mins}: ${JSON.stringify({bt,ct,expected})}`);
+    }
+    console.log('OK 311 band/keten', profile, mins, bt.earlyFinish, ct.earlyStart);
+  }
+  {
+    const a=task('A',2880), b=task('B',1920);
+    const alt:WorkCalendar={...cal,id:'alt',holidays:[{name:'vrij',startDate:'2026-06-08',endDate:'2026-06-08'}]};
+    b.calendarId=alt.id;
+    const ff:Sequence={id:'ff',predecessorId:'A',successorId:'B',type:'FINISH_FINISH',lagDays:-2,lagUnit:'ELAPSEDTIME'};
+    const r=new CPMSolver([a,b],[ff],cal,[alt],{projectStartDate:'2026-06-01',
+      schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})}).solve();
+    const bt=r.tasks.get('B')!;
+    if (bt.earlyFinish !== '2026-06-09T07:00') throw new Error(`311 kalender ${profile}: ${JSON.stringify(bt)}`);
+    console.log('OK 311 eigen kalender',profile,bt.earlyFinish);
+  }
+  {
+    const a=task('A',2880), b=task('B',1920);
+    b.constraint={type:'MFO',date:'2026-06-05T16:00',hard:true};
+    const ff:Sequence={id:'ff',predecessorId:'A',successorId:'B',type:'FINISH_FINISH',lagDays:-2,lagUnit:'ELAPSEDTIME'};
+    const r=new CPMSolver([a,b],[ff],cal,[],{projectStartDate:'2026-06-01',
+      schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})}).solve();
+    const bt=r.tasks.get('B')!;
+    if (bt.earlyFinish !== '2026-06-05T16:00') throw new Error(`311 harde MFO ${profile}: ${JSON.stringify(bt)}`);
+    console.log('OK 311 harde MFO',profile,bt.earlyFinish);
+  }
+}
