@@ -18,6 +18,7 @@
 //      en zonder het veld byte-gelijk, en een voorbeeld zonder `LiteralTimes` krijgt geen veld.
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
+import { documentContentOf } from '@/state/documentSaveState';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
@@ -231,7 +232,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     const id = addHourTask(store);
     const source = S().getOpenDocumentPayloads().find(d => d.id === S().activeDocumentId)!.payload;
     const written = serializeForSave(source);
-    S().markAutoSaveVersionSaved(S().activeDocumentId, source);
+    S().markAutoSaveVersionSaved(documentContentOf(S(), S().activeDocumentId)!, source);
     eq('6c AutoSave: LiteralTimes in de geschreven tekst, de keuze vastgelegd', [written.includes(LITERAL), S().ifcLiteralCalendarIds], [true, [S().calendar.id]]);
     S().deleteTask(id);
     S().runCPM();

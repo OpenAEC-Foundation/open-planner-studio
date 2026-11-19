@@ -103,7 +103,7 @@ andere aanmaakfout (ook `EEXIST` op de hulpnaam) geeft geen eigendom: niets verw
 `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (1795): opruimen verbergt de fout nooit en het
 doel wordt niet teruggelezen. Nooit `rename` van plugin-fs (die vervangt). De directe aanmaak is niet crashvast, en na
 een crash kan een `save-<id>.ops-save.tmp` blijven staan (1131). Meldingen: `ifcForeignNewTargetOnly` (Opslaan als en
-Exporteren, 1760) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
+Exporteren, 1760; Opslaan als over een bestaand gewoon bestand vervangt het sinds stap 8, zie hieronder) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
 `check-file-ifc-bytes.ts` (nagebootst commando op echte bestanden in `nodeFileIpc.ts`), `check-ifc-document-save.ts` en
 `cases-doc-file.ts`. Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
 hieronder); de webdialoog
@@ -141,6 +141,24 @@ de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer 
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel, dev-bridge en AutoSave blijven geblokkeerd.
+
+**De opslagworker** (#804 stap 4 en 5, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de gewone
+writer of `prepareIfcWrite`) in één herbruikbare Web Worker. De gemounte app bezit één client (`appStore.ts`) en geeft
+alleen de berekenfunctie door, via `StoreRuntimeOptions.ifcSaveCompute` en `mergesInWorker`: nu rekent alleen een merge
+(vreemd deel, flag aan) in de worker, voor Ctrl+S, Opslaan als en Exporteren → IFC; de gewone writer blijft op de
+hoofdthread (stap 6), net als headless-, scratch- en testcontexten en `planner_export_ifc`. `prepareIfcOutput` houdt de
+beslissing. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
+fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Terugval op
+de hoofdthread alleen als de worker niet start (geen `started`); sterft hij daarna, of verloopt de tijd (60 s plus 1 s per
+MiB bron), dan is het een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
+mislukte opslag of export van vóór elke I/O, met één melding (`ifcSaveWorkerFailed`). De worker laadt
+`appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`). Een antwoord dat niet bij het verzoek past
+(`resultFits`), is een transportfout. Workerbundels krijgen de grens van de headless kern (`vite.config.ts`: `zustand`
+zonder React, de modules uit `STUBBED` als stub). Bewijs: `check-save-worker.ts` (bytes, fouten, levensduur),
+`check-ifc-document-save.ts` (de routes met een geïnjecteerde worker: typen, tweede Ctrl+S, tabbladwissel, fouten),
+`save-worker-production.spec.ts` (de worker uit de echte productieconfiguratie, met zijn modules, ook dynamisch) en
+`settings-tabs.spec.ts` (de app start de worker zelf bij een echte Ctrl+S). De opslagstand in de statusbalk staat in
+`state.md`.
 
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij
@@ -264,12 +282,31 @@ van #1008): document en bron ongewijzigd (`refuseChangedDocumentWrite`), `saveTa
 bewaking en uitkomst `stopped`, niets in de projectmap. Volgorde met openen: `readOpenedTauriPath` (`tauriBackend.ts`,
 waar dialoog, neerzetten en Recent samenkomen) wacht vóór het lezen op `whenProjectFileWritesIdle`; geen opslagroute
 leest erdoor, dus de schrijfrij wacht nooit op zichzelf. Een lezing die al vóór de opslag liep: knownbug 1837. `commit` is
-`commitSavedDocument(id, momentopname, undefined, prepared)`; zijn boolean is de uitkomst van de opslag en dus de
+`commitSavedDocument(ref, momentopname, undefined, prepared)`; zijn boolean is de uitkomst van de opslag en dus de
 sluitbeslissing (een bewerking tijdens de opslag: de geschreven versie wordt de bron, het document blijft gewijzigd).
 Elke andere uitkomst meldt via `ownPathReplaceNotices` en stopt; nooit de gewone schrijfroutine (die schrijft op naam).
 Automatisch opslaan en `planner_export_ifc` nemen deze route niet (zie `settings-autosave.md`; de export weigert een
 bestaand pad met een vreemd deel). Proeven: `check-ifc-own-file-replace.ts` (onderaan), `check-ifc-document-save.ts`,
 `check-app-quit-lifecycle.ts`.
+
+**Opslaan als over een andere bestaande naam (stap 8, #1019, keuze 4).** Alleen desktop, flag aan, vreemd deel (de
+merge). `saveNewBytesDialogTauri` stelt, alleen als de aanroeper `replaceExisting` meegeeft (alleen *Opslaan als*, niet
+de exports), direct na de terugkeer van de kiezer vast of er een gewoon bestand staat (`lstat`, geen link volgen; een
+toen leeg pad houdt de exclusieve aanmaakroute, 1890). Dan de gewone doelcontrole (`refuseTarget`: de bron van een open
+document ⇒ `ifcForeignReplaceBlocked`, een doel met gebouwmodel of C/A/V ⇒ `ifcForeignTargetSave`); die kijkt niet
+naar de paden van open documenten, want ze draait ook voor een vrije naam (een pad dat een ander tabblad nog onthoudt
+terwijl het bestand weg is, is vrij; fixronde 2 van #1019). Daarna leest hij het gewone bestand op dat pad. Is er een,
+dan gaat het pad met die inhoud naar `replaceExistingPath` (`fileSlice.ts`) en geeft de dialoog `null`; anders (niets,
+een link) de nieuwe-naamroute zoals voorheen. `replaceExistingPath` roept dezelfde `replaceOwnPathWithRecovery` aan,
+met `source` = die inhoud (dus `vorigeSha256` in het record) en `stopBeforeWrite` =
+`documentTargetCheck(momentopname, write, false, { readers, openDocumentPaths: true })`, na de eerste herstelronde en
+vóór de eerste schrijfactie in de map. Daarin scant `scanPath` die gelezen inhoud (wat stap 5 weghaalt, liet de
+doelbescherming toe) en weigert `openDocumentPaths` een pad dat een open document als bestand heeft, ook een gewone
+planning en ook een tabblad dat intussen opende ⇒ `ifcForeignTargetOpenInTab` (`refusedWriteTarget`, dezelfde
+padvergelijking `sameLocalFile` als de bronkenmerken; fixronde 1 van #1019). `commit` legt het nieuwe pad, de bron en het
+kenmerk vast zoals Opslaan als naar een nieuwe naam; daarna Recent. `save-as-only` ⇒ `ifcForeignNewTargetOnly` (de zin
+van een bestaande naam van voorheen); de andere uitkomsten de meldingen van Ctrl+S. Afhandelen na een crash gaat via het
+record, ook als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-own-file-replace.ts` deel c.
 
 **De vervanging (5a).** `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
 §4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, een snelle voorcontrole; op Windows ziet die een harde

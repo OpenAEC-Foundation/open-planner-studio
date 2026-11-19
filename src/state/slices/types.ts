@@ -245,6 +245,8 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignMergeRefused'
   // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
   | 'notifications.ifcForeignNewTargetOnly'
+  // Fixronde 1 van #1019: Opslaan als over een bestaande naam koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.ifcForeignTargetOpenInTab'
   | 'notifications.ifcForeignPlaceUnknown'
   // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
   // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).
@@ -255,6 +257,8 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignReplaceSaveAsOnly'
   | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
+  // #804 stap 5: de opslagworker faalde (`IfcSaveWorkerError`); niets geschreven.
+  | 'notifications.ifcSaveWorkerFailed'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
   | 'notifications.ifcExportChangedWhileWaiting'

@@ -2786,14 +2786,32 @@ en noem het in je rapport of PR-tekst.
      6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
         feitelijk bijgewerkt; zie ook 1836).
      7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
-     8. Open: Opslaan als over een andere bestaande naam (keuze 4).
+     8. Gebouwd (stap 8, #1019): *Opslaan als* over een andere bestaande naam op de desktop (keuze 4), voor een
+        document met een vreemd deel, met de flag aan. Staat er op het gekozen pad na de doelcontrole een gewoon
+        bestand, dan schrijft de bestandskiezer niet zelf (`SaveDialogOpts.replaceExisting`) maar geeft hij het pad en
+        de inhoud van dat moment aan `replaceExistingPath` (`fileSlice.ts`): dezelfde vervanging als Ctrl+S
+        (`replaceOwnPathWithRecovery`, stap 0–6, hetzelfde herstelrecord), met die inhoud als verwachte inhoud
+        (`vorigeSha256`), binnen de ene `runProjectFileWrite` van de opslag. De doelbewaking na de eerste herstelronde
+        scant die gelezen inhoud zelf, dus wat stap 5 weghaalt, liet de doelbescherming toe. Na een geslaagde
+        vervanging is het document hetzelfde als na een nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft
+        weigeren zoals voorheen: het doel is de bron van een open document (`ifcForeignReplaceBlocked`), het doel bevat
+        zelf een gebouwmodel of C/A/V-inhoud (`ifcForeignTargetSave`, de doelscan, onveranderd). Nieuw (fixronde 1
+        van #1019): het doel staat in een ander tabblad open, ook als gewone planning zonder vreemd deel
+        (`ifcForeignTargetOpenInTab`; `openDocumentPaths` in `refusedWriteTarget`, in de kiezer en na de herstelronde).
+        Of er een bestand staat, stelt de kiezer direct na zijn terugkeer vast (1890). En waar de vervanging
+        niet kan (`save-as-only`: buiten de thuismap, een link, `unsupported`, `refused`) dezelfde zin als een
+        bestaande naam voorheen (`ifcForeignNewTargetOnly`), zonder terugval. Blijft open: Exporteren → IFC en
+        `planner_export_ifc` over een bestaande naam (weigeren nog), en de bestandskiezer van Ctrl+S bij een document
+        zonder opslagdoel (schrijft alleen naar een nieuwe naam). Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
      commando op echte bestanden, `nodeFileIpc.ts`), `check-ifc-document-save.ts`, `cases-doc-file.ts` en
      `run-real-app.ts`; van stap 5a: `check-ifc-own-file-replace.ts` (elke uitkomst, een ander programma tussen de
      stappen, een onderbreking na elke stap gevolgd door herstel, op echte bestanden); van stap 5b: hetzelfde bestand
-     onderaan, `check-ifc-document-save.ts` en `check-app-quit-lifecycle.ts`, vanaf de productie-ingang. Crash, stroomuitval en externe
+     onderaan, `check-ifc-document-save.ts` en `check-app-quit-lifecycle.ts`, vanaf de productie-ingang; van stap 8:
+     `check-ifc-own-file-replace.ts` deel c (vanaf `saveFileAs`, ook een crash na elke stap met een nooit geopend doel)
+     en `check-ifc-document-save.ts` (zonder herstelronde). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
 
 1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
@@ -3988,6 +4006,60 @@ en noem het in je rapport of PR-tekst.
       dan kan de mergecontrole om de verkeerde reden weigeren. Nu geven beide dezelfde selectie. Richting: de lokale
       set en filter vervangen door één aanroep van `savedCustomTaskTypes`, met de bestaande terugval naar een lege
       catalogus. Sol-review ronde 2 van #1007: [BEVESTIGD] VERVOLG. — B
+1848. **Een lokale run van `settings-tabs.spec.ts` overschrijft twee bewaarde schermafbeeldingen.** De spec schrijft
+      bij elke run `artifacts/uren-f4a/duurweergave-ops-{light,dark}.png` (`tests/browser/settings-tabs.spec.ts:74`); die
+      staan in git, dus na een lokale run staan ze als gewijzigd in `git status` en kan een blinde commit ze meenemen.
+      `gantt-hour-drag.spec.ts:187` doet hetzelfde met `artifacts/uren-f4a/tijdkop-*.png`. Richting: naar `qa/` of
+      `test-results/` schrijven, of alleen met een expliciete omgevingsvariabele. Gezien bij #804 stap 4 (opslagworker):
+      na `node scripts/run-browser-tests.mjs tests/browser/settings-tabs.spec.ts` waren beide bestanden gewijzigd. — B
+1892. **VERVOLG (#1016, opslagworker): de terugvalproef laat de verwijderde encode-decodeomweg nog toe.** De terugval
+      roept `computeIfcOutputHere` rechtstreeks aan (`ifcSaveWorker.ts`), maar de vergelijking in
+      `tests/planning/check-save-worker.ts` accepteert writeruitvoer met en zonder `bytes`, dus ook de oude omweg zou
+      slagen; het terugvalblok gebruikt bovendien twee geldige opdrachten, en de foutproef loopt via een werkende
+      worker. Richting: één assert op afwezige writerbytes bij terugval en één mislukte opdracht in datzelfde blok,
+      zodat de directe terugval en de foutsoort vastliggen. Sol-review ronde 2 van #1016: [BEVESTIGD] VERVOLG. — B
+1894. **VERVOLG (#1020, opslagworker): sluiten ziet een lopende IFC-export pas zodra die in de schrijfrij staat.**
+      *Exporteren → IFC* rekent zijn uitvoer (met een gebouwmodel in de opslagworker) vóór `runProjectFileWrite`, zoals
+      op main, en telt niet mee in `trackSave`. Sluit de planner tijdens dat rekenen het tabblad, dan geeft
+      `waitForSavesBeforeClose()` meteen `null` en komt de gewone sluitvraag; de versheidscontrole
+      (`refuseChangedExport`) laat de export daarna veilig stoppen. Geen verlies van planningsdata of vastloper
+      vastgesteld. Richting: deze IFC-route vanaf het voorbereiden in dezelfde schrijfrij laten lopen en de doelcontrole
+      vlak vóór I/O behouden; één bestaande wachtrij, geen tweede mechanisme voor sluiten. Sol-review ronde 1 van #1020:
+      [BEVESTIGD] VERVOLG. — B
+1895. **Een ander project via `api.data.loadProject` erft de IFC-bron van het vorige project.** `loadExtensionProject`
+      laadt een ander project-id via `loadState`; `applyLoadedProject` geeft het zonder eigen bron dezelfde
+      `ifcSource` en hetzelfde `foreignSourceMark` als het document had (`inheritsTarget`), en daarna wist
+      `loadExtensionProject` alleen het opslagdoel. Het nieuwe project draagt dus het gebouwmodel van het vorige; een
+      latere *Opslaan als* zou de planning van het nieuwe project in dat model zetten. Dat het de bron erft, legt
+      `check-ifc-document-save.ts` vast (fixronde 1 van #1020); wat de merge er daarna van maakt, is niet beproefd. Ook
+      op main. Richting: bij een ander project-id de bron en het kenmerk niet erven, of de eigenaar laten kiezen of een
+      extensie een gebouwmodel mag overnemen. Gezien in de review van #1020 (Sol, ronde 1). — S
+
+1896. **VERVOLG (#1020, opslaan in de achtergrond): een opslag plaatst het bestand nog nadat een extensie de inhoud van het tabblad verving.**
+      Een opslag hoort bij de inhoud waarvoor ze gevraagd werd (`DocumentEntry.content`, fixronde 1 van #1020): de
+      controle draait vlak vóór de schrijfactie (`refuseChangedDocumentWrite`) en bij de commit
+      (`commitSavedDocument`). Laadt een extensie met `api.data.loadProject` een ander project in hetzelfde tabblad ná
+      die eerste controle, terwijl de nieuwe bytes alleen nog tijdelijk staan, dan plaatst de opslag het bestand
+      alsnog. Het bestand komt waar de planner om vroeg, met de inhoud die hij wilde opslaan; het nieuwe project
+      krijgt geen pad, geen bron en geen *Opgeslagen* (de commitcontrole werkt). Er gaat geen planningsdata verloren;
+      de opslag had alleen nog veilig kunnen stoppen. Drie routes, elk met een proef van de reviewer die project B
+      laadt op het moment dat het einddoel nog ongewijzigd is:
+      1. **Ctrl+S via een browserhandle**: B laden in de schrijfstap van de handle, vóór `close()`. De callback vlak
+         vóór `close()` vergelijkt alleen de doelbytes met de oude bron; `close()` plaatst daarna de planning van A.
+         Verwacht na de fix: het doel houdt zijn oorspronkelijke hash, via het bestaande `abort()`.
+      2. **Opslaan als over een andere bestaande naam (desktop)**: B laden tijdens de tweede doelvergelijking, als het
+         hulpbestand klaar is en er nog niets verplaatst is. De app zet daarna de bestaande versie opzij, plaatst de
+         berekende versie en zet het doel in Recent. Verwacht na de fix: geen verplaatsing, het doel houdt zijn bytes,
+         het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg.
+      3. **Opslaan als naar een vrije naam (desktop)**: B laden als het hulpbestand compleet is en het doel nog niet
+         bestaat. De volgende aanroep plaatst het bestand onder de gekozen naam. Verwacht na de fix: het doel bestaat
+         niet, ook niet via de directe exclusieve aanmaak na een terugval.
+      Richting van de reviewer: dezelfde inhoudscontrole (`refuseChangedDocumentWrite`) op het laatste veilige punt van
+      elke schrijfroute: vóór `close()`, vóór het opzijzetten van een bestaande naam, vóór de exclusieve plaatsing of
+      aanmaak; "de bestaande afbreekpunten en herstelafhandeling volstaan". Besluit van Trias (19 november 2026): dit
+      is VERVOLG en geen blokkade voor #1020 (alleen via een extensie precies tijdens de bestandsbewerking; geen
+      verlies), en de fix gaat mee in de volgende stap, het opslaan van gewone bestanden in de achtergrond, die
+      dezelfde schrijfroutes raakt. Gevonden door de review van #1020 (Sol, ronde 2). — B (proef)
 
 ## Wensen en open taken (geen bug)
 
@@ -4962,3 +5034,58 @@ en noem het in je rapport of PR-tekst.
      door de wijzigingsvlag van het actieve document of die in de gevonden payload, volstaat; de volgorde (afronden,
      controleren, verwijderen) en de uitkomst blijven gelijk. De venstercontrole vóór `destroyWindow`
      (`appQuitController.ts`) blijft nodig. Sol-review ronde 3 van #1008: [BEVESTIGD] VERVOLG. — B
+
+1890. **VERVOLG (#804 keuze 4, desktop): een bestand dat verschijnt tussen de bevestiging in de bestandskiezer en de terugkeer van de kiezer, kan Opslaan als vervangen.**
+     *Opslaan als* met een gebouwmodel stelt direct na de terugkeer van de bestandskiezer vast of er op het gekozen pad
+     een gewoon bestand staat (`isRegularFileTauri` in `saveNewBytesDialogTauri`, fixronde 1 van #1019). Was het pad
+     toen leeg, dan blijft het de exclusieve aanmaakroute houden; verschijnt er daarna iets, dan geeft die
+     `target-exists` en de zin van een bestaande naam. Blijft open: de kiezer geeft alleen een pad door, geen bewijs van
+     wat de planner bevestigde. Komt er tussen de bevestiging in het venster ("Vervangen?", of geen vraag bij een vrije
+     naam) en de terugkeer van de kiezer een gewoon bestand op het pad, dan ziet de app het als bevestigd en vervangt ze
+     het langs de veilige weg (de doelbescherming blijft gelden: geen gebouwmodel, geen open tabblad). Het venster is
+     kort (de terugkeer van de dialoog over IPC). Richting: de kiezer laat weten of hij de vervangvraag stelde, of de app
+     vraagt zelf na de keuze nog eens als het pad bij de terugkeer bestaat. Gevonden door de review van #1019 (Sol,
+     ronde 1). — S
+
+1891. **VERVOLG (#804 keuze 4, opruimen): de documentroute van Opslaan als kan de keuze tussen nieuw en vervangen zelf dragen.**
+     Nu geeft `saveNewBytesDialogTauri` een bestaand doel via de algemene haak `SaveDialogOpts.replaceExisting` aan
+     `replaceExistingPath` en geeft dan `null` terug, ook na een geslaagde vervanging. Het doel wordt twee keer gescand
+     (de doelcontrole in de kiezer op het pad, de tweede controle op de gelezen bytes) en helemaal in het geheugen
+     gelezen. Richting van de reviewer: laat Tauri het pad kiezen en de bestandslaag de verwachte doelbytes leveren,
+     laat *Opslaan als* zelf kiezen tussen exclusieve aanmaak en de gedeelde vervanging; dan kunnen de haak en de
+     `null`-uitkomst eruit, en volstaat één scan van de vastgelegde bytes. Behoud de hercontrole van document en open
+     paden na de herstelronde en de bytevergelijking vlak vóór het opzijzetten. Bewust niet in #1019: de eigenaar beslist
+     nog of een doel met een gebouwmodel vervangen mag worden; de vorm van de route volgt daarna. Review van #1019 (Sol,
+     ronde 1). — B (code)
+
+1893. **Opslaan als overschrijft stil een bestand dat in een ander tabblad open staat (gewone planning; OPS #1022).**
+     Bij een document zonder gebouwmodel, of met de featureflag `ifcForeignContent` uit, overschrijft *Opslaan als* een
+     bestaand bestand dat in een ander tabblad open staat zonder melding (de gewone atomaire opslag). Daarna wijzen
+     beide tabbladen naar hetzelfde bestand; slaat de planner het andere tabblad later op, dan is de eerste opslag weg.
+     Bestaand gedrag op main, niet van #804. #1019 weigert dit alleen voor een document met een gebouwmodel
+     (`refusedWriteTarget` met `openDocumentPaths` bij de vervanging, de melding `notifications.ifcForeignTargetOpenInTab`) en legt het
+     gedrag voor gewone planningen vast met een proef in `check-ifc-own-file-replace.ts` ("Opslaan als zonder vreemd
+     deel over een bestand dat in een ander tabblad open staat: zoals main, overschreven zonder melding"). Richting:
+     dezelfde controle op open paden voor elk document, op elke opslagroute met een bestandskiezer (ook de browser via
+     een handle en de site), en die proef omdraaien. Bewust niet in #1019 (besluit Trias, 19 november 2026): de fix
+     komt los, na #1019, onder issue #1022. Gevonden bij fixronde 1 van #1019. — B (proef)
+
+1897. **VERVOLG (#804 keuze 4, tekst): Opslaan als over de eigen naam geeft een te brede melding.**
+     Kiest de planner bij een document met een gebouwmodel in *Opslaan als* het bestand dat hij open heeft, dan weigert
+     de app (de bron van een open document, `open-source`) met `notifications.ifcForeignReplaceBlocked`: "Niet
+     opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies
+     een nieuwe naam." Zo ook op main. Direct daarna slaagt Ctrl+S in hetzelfde tabblad, met behoud van het
+     gebouwmodel; de zin stuurt de planner dus de verkeerde kant op. Richting van de reviewer: de weigering mag
+     blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
+     nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
+     doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
+
+1898. **VERVOLG (#804 keuze 4, tekst): zonder werkende herstelronde krijgt een doel dat in een ander tabblad open staat de herstelmelding.**
+     *Opslaan als* over een bestaand bestand dat in een ander tabblad open staat, weigert bij de vervanging zelf, na de
+     eerste herstelronde (`stopBeforeWrite` in `replaceExistingPath`, fixronde 2 van #1019). Kan het herstelrecord of het
+     manifest niet worden bijgewerkt, dan stopt de opslag al eerder met `notifications.ifcForeignReplaceNotRecorded`
+     ("…omdat het crashherstel niet kan worden bijgewerkt…") en hoort de planner niet dat het bestand in een ander
+     tabblad open staat. Beide bestanden houden hun bytes en beide tabbladen hun wijzigingen; het verschil zit alleen in
+     de melding. Richting van de reviewer: dezelfde controle ook eerder laten draaien zodra de route een bestaand
+     bestand gaat vervangen (de vaststelling bij de bestandskiezer); de controle na herstel blijft nodig voor een
+     tabblad dat intussen opengaat. Past bij 1891 (de route draagt de keuze zelf). Review van #1019 (Sol, ronde 3). — B (proef)

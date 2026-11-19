@@ -504,6 +504,26 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-featureFlags') ?? '{}').ifcForeignContent)).toBe(true);
   await gearDialog.locator('.modal-close-btn').click();
 
+  // #804 stap 5 (knownbug 1849): de app start de opslagworker zelf, via zijn eigen constructor, bij de eerste opslag met
+  // een gebouwmodel. De proef kijkt alleen mee: welke workers de app maakt en wat de opslagworker terugstuurt.
+  await page.evaluate(() => {
+    const Native = window.Worker;
+    const log: Array<{ url: string; type?: string; messages: string[] }> = [];
+    (window as unknown as { __saveWorkerLog: typeof log }).__saveWorkerLog = log;
+    window.Worker = class extends Native {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        if (!String(url).includes('ifcSave.worker')) return;
+        const entry = { url: String(url), type: options?.type, messages: [] as string[] };
+        log.push(entry);
+        this.addEventListener('message', (event: MessageEvent) => {
+          const data = event.data as Record<string, { kind?: string }>;
+          entry.messages.push('started' in data ? 'started' : 'result' in data ? `result:${data.result.kind}` : 'error');
+        });
+      }
+    };
+  });
+
   // De brug zet alleen een geopende bestandsfixture. Ctrl+S is de echte gebruikershandeling.
   // De eigen planning wordt na openen niet bewerkt: ook dan moet de doelcontrole schrijven toelaten.
   // Knownbug 1131 stap 2: de handle uit OPFS is een echte bestandshandle van Chromium. Ctrl+S op het eigen bestand
@@ -568,8 +588,33 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       await page.keyboard.press('F5');
       // Knownbug 1131 stap 2: Ctrl+S na de bewerking schrijft het volledige bestand via de echte handle. Teruglezen via
       // dezelfde handle en heropenen via de bestandskiezer: de nieuwe duur, het vreemde deel byte voor byte.
+      // #804 stap 5: de merge rekent in de opslagworker van de app, en de statusbalk toont "Opslaan…" en daarna
+      // "Opgeslagen <tijd>". Een waarnemer noteert elke stand, want "Opslaan…" kan kort zijn.
+      await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
+      await page.evaluate(() => {
+        const bar = document.querySelector('[data-tour-anchor="status-bar"]')!;
+        const seen: string[] = [];
+        (window as unknown as { __saveStatusSeen: string[] }).__saveStatusSeen = seen;
+        const note = () => {
+          const shown = bar.querySelector('[data-ops-save-status]');
+          const value = shown ? `${shown.getAttribute('data-ops-save-status')}|${shown.textContent}` : '';
+          if (seen.at(-1) !== value) seen.push(value);
+        };
+        note();
+        new MutationObserver(note).observe(bar, { subtree: true, childList: true, characterData: true, attributes: true });
+      });
       await page.keyboard.press('Control+s');
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+      await expect(page.locator('[data-ops-save-status="saved"]')).toHaveText(/^(Opgeslagen|Saved) \d{1,2}:\d{2}( [AP]M)?$/);
+      const seen = await page.evaluate(() => (window as unknown as { __saveStatusSeen: string[] }).__saveStatusSeen);
+      expect(seen[0]).toMatch(/^unsaved\|/);
+      expect(seen.some(v => /^saving\|(Opslaan…|Saving…)$/.test(v)), seen.join(' → ')).toBe(true);
+      expect(seen.at(-1)).toMatch(/^saved\|(Opgeslagen|Saved) \d/);
+      const saveWorkers = await page.evaluate(() => (window as unknown as { __saveWorkerLog: Array<{ url: string; type?: string; messages: string[] }> }).__saveWorkerLog);
+      expect(saveWorkers.length, 'één opslagworker, door de app zelf gestart').toBe(1);
+      expect(saveWorkers[0]!.type).toBe('module');
+      expect(saveWorkers[0]!.messages[0]).toBe('started');
+      expect(saveWorkers[0]!.messages.at(-1), 'de bewerkte merge kwam uit de worker').toBe('result:merge');
       const saved = await page.evaluate(async () => {
         const state = window.__OPS__!.store.getState();
         const file = await state.fileHandle!.getFile();

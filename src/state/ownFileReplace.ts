@@ -2,7 +2,9 @@
 // functie (ontwerp §4.10 stappen 0 tot en met 6), plus de meldingen bij het afhandelen van restbestanden. Deel b sluit
 // Ctrl+S en *Opslaan* in de sluitvraag erop aan (`replaceOwnPath` in `fileSlice.ts`), binnen de ene `runProjectFileWrite`
 // van die opslag. Het afhandelen na een crash loopt los daarvan (`settlePendingReplaces`, bij de start en vóór het lezen
-// van een lokaal pad).
+// van een lokaal pad). Keuze 4 (knownbug 1131 stap 8): *Opslaan als* over een andere bestaande naam gebruikt dezelfde
+// functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat bij het begin van de opslag op dat doel
+// stond.
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
   linkedOwnFile, replaceHelpersGone, replaceOwnFileBytes, tauriOwnFileReplaceFs,
@@ -24,11 +26,13 @@ export type OwnPathReplaceResult = OwnFileReplaceOutcome | { code: 'not-recorded
 
 export interface OwnPathReplaceInput {
   documentId: string;
-  /** Het eigen bestand van het document (`saveTargetRef` van de soort `path`). */
+  /** Het doel: het eigen bestand van het document (`saveTargetRef` van de soort `path`), of bij Opslaan als over een
+   *  bestaande naam het gekozen bestand. */
   path: string;
   /** De voorbereide merge: één buffer en haar sha256 (`PreparedIfcWrite`). */
   prepared: { bytes: Uint8Array; sha256: string };
-  /** De bron in het geheugen (`ifcSource`): wat op het doel hoort te staan. */
+  /** Wat op het doel hoort te staan (`vorigeSha256` in het herstelrecord): bij Ctrl+S de bron in het geheugen
+   *  (`ifcSource`), bij Opslaan als over een bestaande naam de inhoud van dat bestand bij het begin van de opslag. */
   source: { bytes: Uint8Array; sha256: string };
   /** Na een geslaagde vervanging: de geschreven versie wordt de bron (`commitSavedDocument` met `prepared`). */
   commit: () => void;

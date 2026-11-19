@@ -56,7 +56,26 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 
 Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overleeft hij geen documentwissel, geen undo, geen crashherstel en geen opslaan. `tests/planning/check-document-contract.ts` bewaakt de keten.
 
-Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(id, savedSource, destination?, prepared?)`.
+**De opslagstand** (#804 stap 5, besluit eigenaar 17 november 2026, voor elk document): de statusbalk toont "Opslaan…"
+zolang een gevraagde opslag van het document loopt of wacht (`trackSave` in `fileSlice.ts`, van de vraag tot en met het
+einde van de hele werkgang, ook na annuleren, weigering of fout weg), daarna "Opgeslagen 14:32" en "Niet opgeslagen"
+zodra het weer gewijzigd is. Hij leeft op `DocumentEntry.saveState` (`documentSaveState.ts`), sessie-UI zoals
+`pendingWorkRuleSettle`, niet in `DOCUMENT_FIELDS`; `commitSavedDocument` zet de tijd, en een nieuwe inhoud in hetzelfde
+tabblad wist hem (zie de inhoudsidentiteit hieronder).
+
+**De identiteit van de inhoud** (fixronde 1 van #1020, `documentSaveState.ts`): een opslag hoort bij de inhoud waarvoor
+ze gevraagd werd (`DocumentContentRef`: document-id plus `DocumentEntry.content`), niet bij het tabblad. Alleen
+`replaceDocumentContent` laat haar wisselen: een ander project in hetzelfde tabblad (`applyLoadedProject` zonder
+bewerking met een ander project-id, dus ook `api.data.loadProject`, openen in het lege tabblad en een voorbeeld),
+`newProject` en `createNewProject`. Een lees-wijzig-laad van hetzelfde project houdt haar (en dus ook "Opslaan…"); dan
+beslist de bestaande inhoudsvergelijking (`sameIFCSource`) of het document schoon is. `refuseChangedDocumentWrite` toetst
+haar vlak vóór elke schrijfactie, ook voor de gewone writer en in `stopBeforeWrite`; `commitSavedDocument(ref, …)` legt
+niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de nieuwe inhoud krijgt geen doel, bron,
+"opgeslagen" of tijd). De wachtende Ctrl+S (`waitingSaves`), de opslagstand en `markAutoSaveVersionSaved` (de kandidaat
+van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
+`DOCUMENT_FIELDS`: het hoort bij het open tabblad, niet bij het bestand, en hoeft geen undo, herstel of opslag te overleven.
+
+Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?)`.
 Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes samen vastgelegd, voor actief of slapend
 document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
 de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.

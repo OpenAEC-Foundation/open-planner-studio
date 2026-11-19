@@ -175,6 +175,8 @@ const REFUSAL_KEYS = [
   'ifcForeignMergeRefused',
   'ifcSaveChangedWhileWaiting',
   'ifcForeignTargetSave',
+  // Fixronde 1 van #1019: Opslaan als over een bestand dat in een ander tabblad open staat.
+  'ifcForeignTargetOpenInTab',
   'ifcForeignTargetExport',
   'ifcForeignTargetAutoSave',
 ];
