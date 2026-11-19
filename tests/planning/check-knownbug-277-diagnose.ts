@@ -12,16 +12,17 @@ const cal24:WorkCalendar={id:'all',name:'all',description:'',workDays:[1,2,3,4,5
  workEndHour:24,hoursPerDay:24,holidays:[],workTime:{byWeekday:{1:full,2:full,3:full,4:full,5:full,6:full,7:full}}};
 const task=(id:string,days:number):Task=>({id,name:id,description:'',wbsCode:'',taskType:'CONSTRUCTION',status:'NOT_STARTED',
  isMilestone:false,priority:500,parentId:null,childIds:[],resourceIds:[],time:createDefaultTaskTime('2026-06-01',days)});
-for(const calendarForm of ['scalar','blocks'] as const) for(const profile of ['ops','p6','msproject'] as const) for(const kind of ['none','START','FINISH'] as const){
- const p=task('P',1);p.calendarId='all';p.time.durationUnit='hours';p.time.durationMinutes=1440;
+for(const dayForm of ['scalar','blocks'] as const) for(const pUnit of ['days','hours'] as const) for(const calendarForm of ['scalar','blocks'] as const) for(const profile of ['ops','p6','msproject'] as const) for(const kind of ['none','START','FINISH'] as const){
+ const p=task('P',1);p.calendarId='all';if(pUnit==='hours'){p.time.durationUnit='hours';p.time.durationMinutes=1440;}
  const r=task('R',1);const tasks=[p,r],links:Sequence[]=[];
  if(kind!=='none'){
    const m=task('M',0);m.calendarId='all';m.isMilestone=true;m.milestoneKind=kind;
    tasks.push(m);links.push({id:'fs',predecessorId:'P',successorId:'M',type:'FINISH_START',lagDays:0});
  }
  const all = calendarForm === 'scalar' ? { ...cal24, workTime: undefined } : cal24;
- const result=new CPMSolver(tasks,links,cal,[all],{projectStartDate:'2026-06-01',
+ const day = dayForm === 'scalar' ? { ...cal, workTime: undefined } : cal;
+ const result=new CPMSolver(tasks,links,day,[all],{projectStartDate:'2026-06-01',
   schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})}).solve();
  const pick=(id:string)=>{const x=result.tasks.get(id);return x?{es:x.earlyStart,ef:x.earlyFinish,ls:x.lateStart,lf:x.lateFinish,tf:x.totalFloat,ff:x.freeFloat,crit:x.isCritical}:null;};
- console.log('KNOWNBUG277',JSON.stringify({calendarForm,profile,kind,P:pick('P'),R:pick('R'),M:pick('M')}));
+ console.log('KNOWNBUG277',JSON.stringify({dayForm,pUnit,calendarForm,profile,kind,P:pick('P'),R:pick('R'),M:pick('M')}));
 }
