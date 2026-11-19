@@ -4982,3 +4982,13 @@ en noem het in je rapport of PR-tekst.
      blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
      nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
      doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
+
+1898. **VERVOLG (#804 keuze 4, tekst): zonder werkende herstelronde krijgt een doel dat in een ander tabblad open staat de herstelmelding.**
+     *Opslaan als* over een bestaand bestand dat in een ander tabblad open staat, weigert bij de vervanging zelf, na de
+     eerste herstelronde (`stopBeforeWrite` in `replaceExistingPath`, fixronde 2 van #1019). Kan het herstelrecord of het
+     manifest niet worden bijgewerkt, dan stopt de opslag al eerder met `notifications.ifcForeignReplaceNotRecorded`
+     ("…omdat het crashherstel niet kan worden bijgewerkt…") en hoort de planner niet dat het bestand in een ander
+     tabblad open staat. Beide bestanden houden hun bytes en beide tabbladen hun wijzigingen; het verschil zit alleen in
+     de melding. Richting van de reviewer: dezelfde controle ook eerder laten draaien zodra de route een bestaand
+     bestand gaat vervangen (de vaststelling bij de bestandskiezer); de controle na herstel blijft nodig voor een
+     tabblad dat intussen opengaat. Past bij 1891 (de route draagt de keuze zelf). Review van #1019 (Sol, ronde 3). — B (proef)
