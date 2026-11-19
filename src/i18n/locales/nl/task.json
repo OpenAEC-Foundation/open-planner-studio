@@ -405,7 +405,7 @@
     "scheduleStartHint": "Geplande ankerdatum — de berekende start volgt uit de planninglogica.",
     "duration": "Duur (dagen)",
     "constraint": "Constraint",
-    "summaryConstraintWarning": "Constraints en deadlines op een fase worden niet meegenomen in de berekening. Stel ze zo nodig in op de onderliggende taken.",
+    "summaryConstraintWarning": "Constraints en deadlines op een fase worden niet meegenomen in de berekening. Controleer de fasedatums en de planning handmatig.",
     "constraintDate": "Constraint-datum",
     "hardPin": "Verplicht (pin logica)",
     "hardPinTip": "Alleen bij MSO/MFO — pint de datum hard en overschrijft de relatie-logica (P6 Mandatory).",
