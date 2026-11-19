@@ -11,7 +11,7 @@ import type { AppState } from '@/state/appStore';
 import type { DocumentPayload } from '@/state/documentContract';
 import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
-import { buildWriteIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
+import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
 import { computeIfcOutputHere, prepareIfcOutput, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
@@ -95,12 +95,15 @@ export function createFileAutoSaveController(deps: {
   // vreemd deel, of een bestaand bestand met een gebouwmodel). AutoSave probeert daar niet opnieuw naartoe tot de
   // planner zelf opslaat (het document is dan niet meer gewijzigd) of een ander doel kiest. De melding één keer per
   // document per sessie (zolang deze controller leeft).
-  const refusedTarget = new Map<string, FileRef>();
+  // Stap 8: met de bron van dat moment. Een handmatige opslag van een document met een gebouwmodel maakt de geschreven
+  // versie de bron (een nieuw object); ook als de planner meteen weer typt, doet het document dan weer mee. Zonder
+  // gebouwmodel verandert de bron bij opslaan niet, dus daar beslissen alleen de twee eerdere voorwaarden.
+  const refusedTarget = new Map<string, { ref: FileRef; source: IFCSaveSource['ifcSource'] }>();
   const targetNotified = new Set<string>();
   /** #804 stap 8: stoppen voor dit document tot de planner zelf opslaat of een ander doel kiest, met hoogstens één
    *  melding per document per sessie (`null`: de melding kwam al van de vervanging zelf). */
   const stopFor = (id: string, ref: FileRef, notice: NotifyInput | null) => {
-    refusedTarget.set(id, ref);
+    refusedTarget.set(id, { ref, source: payloadOf(id)?.ifcSource ?? null });
     if (targetNotified.has(id)) return;
     targetNotified.add(id);
     if (notice) getState().notify(notice);
@@ -254,7 +257,9 @@ export function createFileAutoSaveController(deps: {
           getState().notify(ifcWriteBlockedNotice(payload));
         }
         const refused = refusedTarget.get(id);
-        if (refused && (!payload.isDirty || !ref || !sameFileRef(refused, ref))) refusedTarget.delete(id);
+        if (refused && (!payload.isDirty || !ref || !sameFileRef(refused.ref, ref) || payload.ifcSource !== refused.source)) {
+          refusedTarget.delete(id);
+        }
         // Stap 8: een document met een gebouwmodel alleen op zijn eigen ritme, en nooit waar Ctrl+S een vraag zou stellen.
         const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !foreignBlocked
           && !refusedTarget.has(id) && (!model || (rhythm.isDue(id) && !dependentQuestionPossible(state, id, payload)));
@@ -288,7 +293,7 @@ export function createFileAutoSaveController(deps: {
       // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
       const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
       if (reason) {
-        refusedTarget.set(candidate.id, candidate.ref!);
+        refusedTarget.set(candidate.id, { ref: candidate.ref!, source: current.ifcSource });
         if (!targetNotified.has(candidate.id)) {
           targetNotified.add(candidate.id);
           getState().notify(reason === 'unreadable-target'

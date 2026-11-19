@@ -4,7 +4,13 @@
 import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
 import { useAppStore } from '@/state/appStore';
 import { freshPayload } from '@/state/documentContract';
-import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import {
+  closeProjectFileWrites, isProjectFileWriteBusy, runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFileWritesIdle,
+  YieldedToManualWrite,
+} from '@/services/fileAccess/writeCoordinator';
+import {
+  createModelAutoSaveRhythm, MODEL_AUTOSAVE_DUTY_FACTOR, MODEL_AUTOSAVE_MAX_DELAY_MS, MODEL_AUTOSAVE_REST_MS,
+} from '@/services/actualAutosave/modelAutoSaveRhythm';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -157,6 +163,128 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   await staleController.flush();
   eq('18d aanhoudend stale is begrensd (1 + 3 rondes), geen eindeloze lus', staleWrites.length, 4);
   eq('18e ook dan geen valse foutmelding', staleFailures, []);
+}
+
+// 19. #804 stap 8: het ritme van een document met een gebouwmodel (besluit eigenaar 17 november 2026), met een nagebootste
+//     klok: 30 s rust, uiterlijk 5 minuten na de eerste niet-opgeslagen wijziging, en een ondergrens van tien keer de duur
+//     van de vorige ronde. Per document.
+{
+  eq('19a de rust is 30 s, de bovengrens 5 min, de ondergrens tien keer de rondeduur',
+    [MODEL_AUTOSAVE_REST_MS, MODEL_AUTOSAVE_MAX_DELAY_MS, MODEL_AUTOSAVE_DUTY_FACTOR], [30_000, 300_000, 10]);
+  let clock = 1_000_000;
+  const rhythm = createModelAutoSaveRhythm(() => clock);
+  const at = (ms: number) => { clock = 1_000_000 + ms; };
+  // Elke wijziging is een nieuwe bron (andere takenlijst); `sameIFCSource` vergelijkt per veld op identiteit.
+  const edit = () => ({ ...(source(1) as object), tasks: [] }) as never;
+  rhythm.observe('m', edit(), true);
+  eq('19b na één wijziging: aan de beurt na 30 s rust', rhythm.dueAt('m'), 1_000_000 + 30_000);
+  at(29_999);
+  eq('19c niet vóór de rust voorbij is', rhythm.isDue('m'), false);
+  at(30_000);
+  eq('19d na 30 s rust wel', rhythm.isDue('m'), true);
+  // Onafgebroken doorwerken: elke 10 s een wijziging, dus nooit 30 s rust. Uiterlijk 5 minuten na de eerste.
+  const busy = createModelAutoSaveRhythm(() => clock);
+  at(0);
+  busy.observe('m', edit(), true);
+  let firstDue = -1;
+  for (let t = 10_000; t <= 400_000; t += 10_000) {
+    at(t);
+    if (firstDue < 0 && busy.isDue('m')) firstDue = t;
+    busy.observe('m', edit(), true);
+  }
+  eq('19e onafgebroken werk: precies na 5 minuten aan de beurt, niet eerder', firstDue, 300_000);
+  // Dezelfde stand opnieuw gezien (een tabbladwissel, een UI-wijziging) is geen wijziging: de rust loopt door.
+  const same = createModelAutoSaveRhythm(() => clock), stand = edit();
+  at(0); same.observe('m', stand, true);
+  at(20_000); same.observe('m', stand, true);
+  eq('19f een herhaalde stand zonder wijziging verschuift de rust niet', same.dueAt('m'), 1_000_000 + 30_000);
+  // De ondergrens: een ronde van 18 s; de volgende begint niet vóór 180 s na haar begin, ook al is er dan 30 s rust.
+  const duty = createModelAutoSaveRhythm(() => clock);
+  at(0); duty.observe('m', edit(), true);
+  at(30_000); duty.roundStarted('m');
+  at(40_000); duty.observe('m', edit(), true); // getypt tijdens de ronde
+  at(48_000); duty.roundEnded('m', 'written');
+  duty.observe('m', edit(), true); // nog gewijzigd: het latere werk staat er niet in
+  eq('19g ondergrens: tien keer 18 s na het begin van de ronde', duty.dueAt('m'), 1_000_000 + 30_000 + 180_000);
+  at(209_999);
+  eq('19h niet vóór de ondergrens, ook niet na 30 s rust', duty.isDue('m'), false);
+  at(210_000);
+  eq('19i op de ondergrens wel', duty.isDue('m'), true);
+  // Na een geslaagde ronde zonder latere wijziging: het document is schoon, dus niet aan de beurt.
+  const clean = createModelAutoSaveRhythm(() => clock);
+  at(0); clean.observe('m', edit(), true);
+  at(30_000); clean.roundStarted('m'); at(31_000); clean.roundEnded('m', 'written');
+  clean.observe('m', edit(), false);
+  eq('19j schoon na de ronde: geen ronde gepland', [clean.dueAt('m'), clean.nextDueAt()], [null, null]);
+  // Geweken voor een handmatige actie: opnieuw na de volgende rustperiode, ook als de bovengrens al voorbij is.
+  const yielded = createModelAutoSaveRhythm(() => clock);
+  at(0); yielded.observe('m', edit(), true);
+  at(300_000); yielded.roundStarted('m'); at(301_000); yielded.roundEnded('m', 'yielded');
+  eq('19k na wijken: niet vóór 30 s rust na het wijken', yielded.dueAt('m'), 1_000_000 + 331_000);
+  // Per document: twee documenten met een eigen ritme; `nextDueAt` is het vroegste.
+  const two = createModelAutoSaveRhythm(() => clock);
+  at(0); two.observe('a', edit(), true);
+  at(20_000); two.observe('b', edit(), true);
+  eq('19l per document een eigen rust', [two.dueAt('a'), two.dueAt('b'), two.nextDueAt()],
+    [1_030_000, 1_050_000, 1_030_000]);
+  two.forget('a');
+  eq('19m een gesloten document valt weg', [two.dueAt('a'), two.nextDueAt()], [null, 1_050_000]);
+}
+
+// 20. #804 stap 8: voorrang. Een wijkende ronde (Automatisch opslaan met een gebouwmodel) breekt af zodra een handmatige
+//     schrijfactie om de rij vraagt of iemand op de rij wacht (een tabblad sluiten, de laatste fase van afsluiten of de
+//     updater); de handmatige actie wacht dan alleen tot de ronde haar eigen afbraak afhandelt.
+{
+  const order: string[] = [];
+  let reason: unknown;
+  const round = runYieldingProjectFileWrite(async yielded => {
+    order.push('ronde-start');
+    await new Promise<void>(resolve => yielded.addEventListener('abort', () => resolve(), { once: true }));
+    reason = yielded.reason;
+    order.push('ronde-geweken');
+    return 'yielded';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const manual = runProjectFileWrite(async () => { order.push('handmatig'); return 'ok'; }, () => 'dicht');
+  eq('20a Ctrl+S breekt de rekenende ronde af en loopt meteen daarna', [await round, await manual, order],
+    ['yielded', 'ok', ['ronde-start', 'ronde-geweken', 'handmatig']]);
+  truthy('20b de reden is een wijking, geen fout', reason instanceof YieldedToManualWrite);
+  // Wachten op de rij (sluiten van een tabblad) laat de ronde ook wijken.
+  let waited = false;
+  const closing = runYieldingProjectFileWrite(async yielded => {
+    await new Promise<void>(resolve => yielded.addEventListener('abort', () => resolve(), { once: true }));
+    return 'geweken';
+  }, () => 'dicht');
+  await Promise.resolve();
+  await whenProjectFileWritesIdle()?.then(() => { waited = true; });
+  eq('20c een tabblad sluiten laat de ronde wijken', [await closing, waited], ['geweken', true]);
+  // De laatste fase van afsluiten of de updater.
+  const quitting = runYieldingProjectFileWrite(async yielded => {
+    await new Promise<void>(resolve => yielded.addEventListener('abort', () => resolve(), { once: true }));
+    return 'geweken';
+  }, () => 'dicht');
+  await Promise.resolve();
+  const reopen = await closeProjectFileWrites();
+  eq('20d de laatste fase van afsluiten laat de ronde wijken', await quitting, 'geweken');
+  reopen();
+  // Een ronde die al plaatst, kijkt niet meer naar het signaal: de handmatige actie wacht op haar.
+  const placing: string[] = [];
+  let finishPlacing: (() => void) | null = null;
+  const placeRound = runYieldingProjectFileWrite(async () => {
+    placing.push('plaatsen');
+    await new Promise<void>(resolve => { finishPlacing = resolve; });
+    placing.push('geplaatst');
+    return 'geschreven';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const afterPlace = runProjectFileWrite(async () => { placing.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve();
+  eq('20e tijdens het plaatsen wacht de handmatige actie', placing, ['plaatsen']);
+  (finishPlacing as (() => void) | null)?.();
+  eq('20f daarna eerst de ronde, dan de handmatige actie', [await placeRound, await afterPlace, placing],
+    ['geschreven', 'ok', ['plaatsen', 'geplaatst', 'handmatig']]);
+  // Een gewone schrijfactie wijkt nooit: zij krijgt geen signaal en twee gewone acties wachten op elkaar (punt 14–16).
+  truthy('20g de rij is daarna weer vrij', !isProjectFileWriteBusy());
 }
 
 if (diffs.length === 0) {

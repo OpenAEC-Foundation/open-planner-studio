@@ -444,11 +444,13 @@ await check('zonder vreemd deel en flag aan: beide acties bytegelijk aan de gewo
   } finally { ipc.dispose(); }
 });
 
-await check('AutoSave: nul bytes, één bestaande melding per document per sessie', async () => {
+// #804 stap 8: met de flag aan doet een document met een gebouwmodel mee (de proeven onderaan); met de flag uit (na het
+// openen uitgezet) blijft het zoals op main: nul bytes en de bestaande melding.
+await check('AutoSave met de flag uit: nul bytes, één bestaande melding per document per sessie', async () => {
   const ipc = desktop(), original = join(dir, 'autosave-bron.ifc'); writeFileSync(original, bytes);
   try {
     const store = await openAt({ kind: 'path', path: original }); longer(store);
-    store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
+    store.setState(s => { s.autoSaveToFile = true; s.ui.featureFlags = {}; }); clearNotices(store);
     const before = preserved(store), count = ipc.calls.length;
     const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true });
     await controller.flush(); await controller.flush();
@@ -2886,6 +2888,367 @@ for (const withPool of [false, true]) {
     }
   });
 }
+
+// ── #804 stap 8: Automatisch opslaan bij een document met een gebouwmodel ─────────────────────────────────────────────
+// Dezelfde vervanging als Ctrl+S (browser: de handle met herstel in twee stappen; desktop: `replaceOwnPathWithRecovery`),
+// met een eigen ritme per document (30 s rust; de klok is nagebootst) en voorrang voor handmatige acties.
+/** De klok van het ritme: `rest()` laat 31 s rust voorbijgaan. */
+function autoClock() {
+  let t = 5_000_000;
+  return { now: () => t, rest: () => { t += 31_000; }, advance: (ms: number) => { t += ms; } };
+}
+/** Automatisch opslaan aan, met de echte controller zoals `useAutoSave` hem bouwt (de berekenfunctie van de store). */
+function modelAutoSave(store: Store, compute?: IfcOutputCompute) {
+  const clock = autoClock();
+  store.getState().setAutoSaveToFile(true);
+  const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute, now: clock.now });
+  /** Na een wijziging: de store meldt hem (`observe`), dan 31 s rust, dan de ronde. */
+  const round = () => { controller.observe(); clock.rest(); return controller.flush(); };
+  return { controller, clock, round };
+}
+const replaceRecordsIn = (appData: string) => readdirSync(appData).filter(name => name.includes('.replace.'));
+const autoErrors = (store: Store) => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+
+await check('stap 8, browser: een ronde schrijft het eigen bestand via de handle; het model bytegelijk, de bron volgt, het herstelveld weg', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  const browser = browserDownload();
+  try {
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const auto = modelAutoSave(store, sw.compute);
+    auto.controller.observe();
+    await auto.controller.flush();
+    assert.deepEqual(writableLog, [], 'zonder 30 s rust geen ronde');
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    auto.clock.rest();
+    await auto.controller.flush();
+    const output = fileOf(name);
+    assert.equal(hash(output), expected.sha256, 'precies de merge van de momentopname');
+    assert.equal(sw.merges(), 1, 'gerekend in de opslagworker');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
+    assert.deepEqual(mergeProblems(bytes, output), [], 'het vreemde deel bytegelijk');
+    const now = store.getState();
+    assert.equal(now.ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+    assert.equal(now.foreignSourceMark!.sha256, hash(output));
+    assert.equal(now.isDirty, false, 'niet meer gewijzigd');
+    assert.equal(statusOf(store), 'saved');
+    assert.equal(await pendingIn(now.activeDocumentId), undefined, 'het herstelveld is weg');
+    assert.deepEqual(autoErrors(store), []);
+    assert.equal(browser.downloads.length, 0, 'nooit een download');
+  } finally { unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('stap 8, desktop: een ronde vervangt het eigen pad; het model bytegelijk, de bron volgt, geen herstelrecord of hulpbestand', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(dir, 'autosave-eigen.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      const from = ipc.calls.length;
+      await modelAutoSave(store, sw.compute).round();
+      const output = new Uint8Array(readFileSync(own));
+      assert.equal(hash(output), expected.sha256, 'precies de merge van de momentopname');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'plugin:fs|write_file' && c.path?.startsWith(dir))
+        .map(c => [isTemp(c.path), c.options?.createNew]), [[true, true]], 'de hele buffer in het eigen tijdelijke bestand');
+      assert.equal(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive').length, 2, 'stap 3 en 4 van de vervanging');
+      assert.deepEqual(mergeProblems(bytes, output), [], 'het vreemde deel bytegelijk');
+      assert.equal(store.getState().ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+      assert.equal(store.getState().isDirty, false);
+      assert.deepEqual(replaceRecordsIn(appData), [], 'het herstelrecord is weg');
+      assert.deepEqual(tempLeft(), [], 'geen hulpbestand');
+      assert.deepEqual(readdirSync(dir).filter(n => n.startsWith('autosave-eigen.ifc.')), [], 'geen vorige versie');
+      assert.deepEqual(autoErrors(store), []);
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8: typen tijdens de ronde; de momentopname staat in het bestand, het document blijft gewijzigd, de volgende ronde neemt het mee', async () => {
+  const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    const auto = modelAutoSave(store, sw.compute);
+    const first = auto.round();
+    await mergeArrives(sw, 1);
+    assert.equal(isProjectFileWriteBusy(), true, 'de ronde rekent onder het schrijfslot');
+    store.getState().addTask({ name: 'Getypt tijdens de ronde' });
+    await finishMerge(sw);
+    await first;
+    assert.equal(hash(fileOf(name)), expected.sha256, 'de momentopname van de ronde');
+    assert.equal(store.getState().isDirty, true, 'het latere werk is nog niet opgeslagen');
+    assert.equal(store.getState().ifcSource!.sha256, expected.sha256, 'de bron is wel de geschreven versie');
+    const second = auto.round();
+    await mergeArrives(sw, 2); await finishMerge(sw);
+    await second;
+    assert(plainText(fileOf(name)).includes('Getypt tijdens de ronde'), 'de volgende ronde schreef het latere werk');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('stap 8: een slapend document (ander tabblad) wordt opgeslagen en gecommit', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    const model = store.getState().activeDocumentId;
+    longer(store);
+    const auto = modelAutoSave(store, sw.compute);
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    store.getState().newDocument();
+    assert.notEqual(store.getState().activeDocumentId, model);
+    clearNotices(store);
+    await auto.round();
+    assert.equal(hash(fileOf(name)), expected.sha256, 'het slapende document is geschreven');
+    const sleeping = payloadOf(store, model);
+    assert.equal(sleeping.isDirty, false, 'en gecommit');
+    assert.equal(sleeping.ifcSource!.sha256, expected.sha256, 'de bron van het slapende document volgt');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('stap 8: het eigen bestand verschilt van de bron; niets geschreven, één melding, geen tweede poging; na opslaan doet het weer mee', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    handleFiles.set(name, otherProgram);
+    writableLog.length = 0;
+    const auto = modelAutoSave(store, sw.compute);
+    await auto.round();
+    assert.equal(hash(fileOf(name)), hash(otherProgram), 'het bestand van de ander blijft');
+    assert.deepEqual(writableLog, [], 'nul schrijfacties');
+    assert.equal(sw.merges(), 0, 'gestopt vóór het rekenen');
+    assert.equal(store.getState().isDirty, true);
+    assertNotice(store, 'notifications.ifcForeignAutoSaveTargetChanged');
+    longer(store);
+    await auto.round();
+    assert.deepEqual(writableLog, [], 'geen tweede poging');
+    assertNotice(store, 'notifications.ifcForeignAutoSaveTargetChanged');
+    // De planner zet het bestand terug en slaat zelf op: daarna doet het document weer mee.
+    handleFiles.set(name, store.getState().ifcSource!.bytes);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S slaat op');
+    clearNotices(store); writableLog.length = 0;
+    longer(store);
+    await auto.round();
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'na opslaan schrijft Automatisch opslaan weer');
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+for (const backend of ['browser', 'desktop'] as const) {
+  await check(`stap 8, ${backend}: het herstel kan de komende versie niet vastleggen; niets geplaatst, één melding`, async () => {
+    const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+    const ipc = backend === 'desktop' ? desktop(appData) : null, sw = saveWorker();
+    try {
+      const own = join(dir, 'autosave-niet-vastgelegd.ifc'); writeFileSync(own, bytes);
+      const opened = backend === 'browser' ? await openHandle(bytes, sw.compute)
+        : { store: await openAt({ kind: 'path', path: own }, bytes, sw.compute), name: '' };
+      const { store } = opened;
+      // Browser: geen herstelronde (zoals vóór de herstelkeuze), dus niets vast te leggen. Desktop: het record in de
+      // datamap kan niet geschreven worden.
+      const unregister = backend === 'desktop' ? recoveryRounds(store) : () => {};
+      if (ipc) ipc.faults.forbidden = path => path.startsWith(appData) && path.includes('.replace.');
+      try {
+        longer(store); clearNotices(store); writableLog.length = 0;
+        const from = ipc?.calls.length ?? 0;
+        await modelAutoSave(store, sw.compute).round();
+        if (ipc) {
+          assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'het eigen bestand onveranderd');
+          assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive'), [], 'niets geplaatst');
+          assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(dir)), [], 'nul schrijfacties in de map');
+          assert.deepEqual(replaceRecordsIn(appData), []);
+        } else {
+          assert.equal(hash(fileOf(opened.name)), hash(bytes), 'het eigen bestand onveranderd');
+          assert.deepEqual(writableLog, [], 'nul schrijfacties');
+        }
+        assert.equal(store.getState().isDirty, true);
+        assertNotice(store, 'notifications.ifcForeignAutoSaveNotRecorded');
+      } finally { unregister(); await clearRecovery(); }
+    } finally { ipc?.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+  });
+}
+
+await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, geen herstelrecord dat blijft, één melding', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const folder = mkdtempSync(join(dir, 'buiten-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      ipc.faults.forbidden = path => path.startsWith(`${folder}/`) && (isTemp(path) || path.includes('.ops-vorige-'));
+      ipc.faults.forbiddenMeta = true;
+      const from = ipc.calls.length;
+      const auto = modelAutoSave(store, sw.compute);
+      await auto.round();
+      assert.deepEqual(readdirSync(folder), ['model.ifc']);
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
+      assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+      longer(store);
+      await auto.round();
+      assert.equal(sw.merges(), 1, 'geen tweede poging');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8, desktop: een herstelrecord van een eerdere onderbroken vervanging; niets geschreven, één melding', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(dir, 'autosave-restant.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      const { ownRecoveryNames } = await import('@/services/recovery/recoveryPaths');
+      writeFileSync(join(appData, `${ownRecoveryNames.base}.replace.vaneerder1.json`), JSON.stringify({
+        kind: 'ops-replace', version: 1, id: 'vaneerder1', path: own, vorigeSha256: hash(bytes), pendingSha256: hash(otherProgram),
+      }));
+      longer(store); clearNotices(store);
+      const from = ipc.calls.length;
+      await modelAutoSave(store, sw.compute).round();
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive'), [], 'niets geplaatst');
+      assert.deepEqual(replaceRecordsIn(appData), [`${ownRecoveryNames.base}.replace.vaneerder1.json`], 'alleen het oude record');
+      assert.equal(store.getState().isDirty, true);
+      assertNotice(store, 'notifications.ifcForeignAutoSaveRemnant');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+// Besluit technisch beslisser, 19 november 2026: "de ronde wijkt". Elke proef houdt het rekenen van de ronde in de worker
+// vast (die antwoordt nooit): de handmatige actie loopt toch meteen, en de ronde schrijft niets en meldt niets.
+for (const manual of ['Ctrl+S, zelfde document', 'Ctrl+S, ander document', 'een tabblad sluiten', 'de laatste fase van afsluiten'] as const) {
+  await check(`stap 8, voorrang: ${manual} tijdens het rekenen breekt de ronde af; niets geschreven, geen melding, de ronde komt later terug`, async () => {
+    const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      const model = store.getState().activeDocumentId;
+      // Een tweede, gewoon document met een eigen handle (voor Ctrl+S op een ander document) of zonder bestand (sluiten).
+      let other = '', otherName = '';
+      if (manual === 'Ctrl+S, ander document') {
+        otherName = `gewoon-${++handleCount}.ifc`;
+        handleFiles.set(otherName, plainBytes());
+        await store.getState().openOpenedFile({ name: otherName, content: plainText(plainBytes()),
+          ref: { kind: 'handle', handle: new FakeHandle(otherName) as unknown as FileSystemFileHandle } });
+        other = store.getState().activeDocumentId;
+        longer(store);
+        store.getState().switchDocument(model);
+      } else if (manual === 'een tabblad sluiten') {
+        other = store.getState().newDocument();
+        store.getState().switchDocument(model);
+      }
+      longer(store); clearNotices(store); writableLog.length = 0;
+      const auto = modelAutoSave(store, sw.compute);
+      const round = auto.round();
+      await mergeArrives(sw, 1);
+      const roundWorker = sw.workers[0]!;
+      roundWorker.start();
+      let reopen: (() => void) | undefined;
+      let action: Promise<unknown>;
+      if (manual === 'Ctrl+S, zelfde document') action = ctrlS(store);
+      else if (manual === 'Ctrl+S, ander document') action = store.getState().saveFileForDocument((store.getState().switchDocument(other), other));
+      else if (manual === 'een tabblad sluiten') { store.getState().requestCloseDocument(other); action = turnUntil(() => !store.getState().documents.some(d => d.id === other)); }
+      else action = closeProjectFileWrites().then(r => { reopen = r; });
+      await round;
+      assert.equal(roundWorker.terminated, true, 'de worker van de ronde is gestopt, zonder te antwoorden');
+      assert.deepEqual(writableLog, [], 'de ronde schreef niets');
+      assert.equal(hash(fileOf(name)), hash(bytes), 'het eigen bestand onveranderd');
+      assert.equal(payloadOf(store, model).isDirty, true, 'het document blijft gewijzigd');
+      assert.deepEqual(autoErrors(store), [], 'geen melding');
+      if (manual.startsWith('Ctrl+S')) {
+        await mergeArrives(sw, 2);
+        assert.notEqual(sw.workers.at(-1), roundWorker, 'Ctrl+S rekent meteen in een nieuwe worker');
+        await finishMerge(sw);
+        assert.equal(await action, true, 'Ctrl+S slaat op');
+      } else await action;
+      if (manual === 'Ctrl+S, ander document') assert.equal(payloadOf(store, other).isDirty, false, 'het andere document is opgeslagen');
+      if (manual === 'een tabblad sluiten') assert(!store.getState().documents.some(d => d.id === other), 'het tabblad is dicht');
+      reopen?.();
+      if (manual === 'Ctrl+S, zelfde document') return;
+      // De ronde komt terug: niet meteen, wel na de volgende rustperiode.
+      store.getState().switchDocument(model);
+      await auto.controller.flush();
+      assert.equal(sw.requests().length, manual === 'Ctrl+S, ander document' ? 2 : 1, 'niet meteen opnieuw');
+      auto.clock.rest();
+      const again = auto.controller.flush();
+      await mergeArrives(sw, manual === 'Ctrl+S, ander document' ? 3 : 2); await finishMerge(sw);
+      await again;
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), [], 'na de rust schrijft de ronde alsnog');
+      assert.equal(store.getState().isDirty, false);
+      if (otherName) assert.equal(hash(fileOf(otherName)) !== hash(plainBytes()), true);
+    } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('stap 8, voorrang: tijdens het plaatsen breekt niets af; Ctrl+S wacht tot de ronde klaar is', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(dir, 'autosave-plaatsen.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute);
+    const order: string[] = [];
+    let manual: Promise<boolean> | undefined;
+    // De eerste herstelronde in de vervanging: het herstelrecord en het manifest liggen vast. Dan meldt Ctrl+S zich.
+    const unregister = recoveryRounds(store, () => {
+      if (manual || replaceRecordsIn(appData).length === 0) return;
+      store.getState().addTask({ name: 'Na de momentopname' });
+      manual = ctrlS(store).then(saved => { order.push('Ctrl+S'); return saved; });
+    });
+    try {
+      longer(store); clearNotices(store);
+      const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      await modelAutoSave(store, sw.compute).round().then(() => order.push('ronde'));
+      assert(manual, 'Ctrl+S meldde zich tijdens het plaatsen');
+      assert.equal(await manual, true);
+      assert.deepEqual(order, ['ronde', 'Ctrl+S'], 'de ronde liep af, Ctrl+S wachtte');
+      assert.equal(sw.merges(), 2, 'de ronde en Ctrl+S rekenden elk één keer');
+      assert.notEqual(hash(new Uint8Array(readFileSync(own))), expected.sha256, 'Ctrl+S schreef daarna het latere werk');
+      assert(readFileSync(own, 'latin1').includes('Na de momentopname'));
+      assert.deepEqual(mergeProblems(bytes, new Uint8Array(readFileSync(own))), []);
+      assert.equal(store.getState().isDirty, false);
+      assert.deepEqual(replaceRecordsIn(appData), []);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8, ritme per document: een gewoon document ernaast schrijft meteen, het gebouwmodel pas na 30 s rust', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    const model = store.getState().activeDocumentId;
+    longer(store);
+    store.getState().setAutoSaveToFile(true);
+    const plainName = `gewoon-${++handleCount}.ifc`;
+    handleFiles.set(plainName, plainBytes());
+    await store.getState().openOpenedFile({ name: plainName, content: plainText(plainBytes()),
+      ref: { kind: 'handle', handle: new FakeHandle(plainName) as unknown as FileSystemFileHandle } });
+    const plain = store.getState().activeDocumentId;
+    assert.notEqual(plain, model);
+    longer(store);
+    clearNotices(store);
+    const auto = modelAutoSave(store, sw.compute);
+    auto.controller.observe();
+    await auto.controller.flush();
+    assert.equal(payloadOf(store, plain).isDirty, false, 'het gewone document: meteen, op zijn eigen 10 s-ritme van useAutoSave');
+    assert.equal(hash(fileOf(name)), hash(bytes), 'het gebouwmodel wacht op zijn rust');
+    assert.equal(auto.controller.nextModelRoundAt(), auto.clock.now() + 30_000, 'de wekker staat op 30 s');
+    auto.clock.advance(29_000);
+    await auto.controller.flush();
+    assert.equal(hash(fileOf(name)), hash(bytes), 'na 29 s nog niet');
+    auto.clock.advance(1_000);
+    await auto.controller.flush();
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.notEqual(hash(fileOf(name)), hash(bytes), 'na 30 s rust wel');
+    assert.equal(payloadOf(store, model).isDirty, false);
+    assert.equal(auto.controller.nextModelRoundAt(), null, 'niets meer gepland');
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);

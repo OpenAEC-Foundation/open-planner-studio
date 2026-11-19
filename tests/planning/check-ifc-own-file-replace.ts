@@ -54,6 +54,7 @@ import { InProcessWorker } from './inProcessSaveWorker';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createExtensionApi } from '@/extensions/extensionApi';
+import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { saveStatusOf } from '@/state/documentSaveState';
 
 // Een vaste klok: de schrijver zet de tijd in de kop (`FILE_NAME`, `IFCOWNERHISTORY`), en veel proeven vergelijken wat
@@ -2048,6 +2049,75 @@ await check('review 1902: na opslaan verhuist de projectmap en is het herstel ti
     assert.deepEqual(whileForbidden, [], 'tijdelijk niet leesbaar: geen melding');
     assert.deepEqual(after, { 'model.ifc': hash(bytes), [UNSAVED_COPY]: c.prepared.sha256 }, 'na toegang moet herstel beide versies terugvinden');
     assert.deepEqual(afterGrant.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
+  } finally { await tidy(c); }
+});
+
+// ── #804 stap 8: Automatisch opslaan op het eigen pad, langs dezelfde vervanging. ──────────────────────────────────────
+await check('stap 8: wijken vlak vóór het herstelrecord (yielded): geen record, niets in de projectmap, geen commit', async () => {
+  const c = await opened();
+  try {
+    const writes = ipc.calls.length;
+    let committed = false;
+    const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
+      documentId: c.id, path: c.path, prepared: c.prepared, source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
+      commit: () => { committed = true; }, stopBeforeWrite: async () => false, refuseBeforePlace: () => false,
+      yieldBeforeRecord: () => true, now: NOW,
+    }), () => { throw new Error('dicht'); });
+    assert.deepEqual(result, { code: 'yielded' });
+    assert.equal(committed, false);
+    assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord');
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) });
+    assert.equal(ipc.calls.slice(writes).some(call => call.wrote && call.path?.startsWith(c.dir)), false, 'nul schrijfacties in de map');
+    assert.deepEqual(noticeKeys(result, c.path), [], 'geen melding');
+  } finally { await tidy(c); }
+});
+
+await check('stap 8: refuseRemnant stopt bij een record voor dit doel, niet bij een record voor een ander doel', async () => {
+  const c = await opened();
+  const elsewhere: ReplaceRecord = { id: 'eldersvorige1', path: join(c.dir, 'ander.ifc'), vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
+  const here: ReplaceRecord = { id: 'hiervorige1', path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
+  try {
+    const run = () => runProjectFileWrite(() => replaceOwnPathWithRecovery({
+      documentId: c.id, path: c.path, prepared: c.prepared, source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
+      commit: () => {}, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, refuseRemnant: true, now: NOW,
+    }), () => { throw new Error('dicht'); });
+    writeFileSync(join(appData, replaceRecordName(here.id)), serializeReplaceRecord(here));
+    const refused = await run();
+    assert.deepEqual(refused, { code: 'remnant' });
+    assert.deepEqual(noticeKeys(refused, c.path), ['notifications.ifcForeignAutoSaveRemnant']);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) }, 'niets geschreven');
+    assert.deepEqual(recordsOnDisk().map(r => r.id), [here.id], 'alleen het oude record');
+    rmSync(join(appData, replaceRecordName(here.id)));
+    writeFileSync(join(appData, replaceRecordName(elsewhere.id)), serializeReplaceRecord(elsewhere));
+    assert.equal((await run()).code, 'replaced', 'een record van een ander doel houdt de vervanging niet tegen');
+    assert.equal(fileHash(c, 'model.ifc'), c.prepared.sha256);
+  } finally {
+    rmSync(join(appData, replaceRecordName(elsewhere.id)), { force: true });
+    await tidy(c);
+  }
+});
+
+await check('stap 8: een ronde van Automatisch opslaan terwijl een ander programma het bestand wijzigde; niets vervangen, één melding, geen tweede poging', async () => {
+  const c = await opened();
+  try {
+    writeFileSync(c.path, otherProgram);
+    clearNotices(c);
+    let t = 9_000_000;
+    c.store.getState().setAutoSaveToFile(true);
+    const controller = createFileAutoSaveController({ getState: c.store.getState, enabled: () => true, now: () => t });
+    const round = () => { controller.observe(); t += 31_000; return controller.flush(); };
+    const from = ipc.calls.length;
+    await round();
+    assert.deepEqual(disk(c), { 'model.ifc': hash(otherProgram) }, 'de versie van de ander blijft, geen hulpbestand');
+    assert.equal(placesSince(from).length, 0, 'niets verplaatst');
+    assert.deepEqual(recordsOnDisk(), [], 'het herstelrecord is weg');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignAutoSaveTargetChanged']);
+    assert.equal(c.store.getState().isDirty, true);
+    renameTask(c, 'Nog een wijziging');
+    const again = ipc.calls.length;
+    await round();
+    assert.equal(projectWriteFiles(c, again).length, 0, 'geen tweede poging');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignAutoSaveTargetChanged'], 'geen tweede melding');
   } finally { await tidy(c); }
 });
 
