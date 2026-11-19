@@ -56,4 +56,27 @@ for(const profile of ['ops','p6','msproject'] as const){
  equal(`${profile} SF via store`,[t.earlyStart,t.earlyFinish],['2026-06-01T07:00','2026-06-02T16:00']);
 }
 
+// Meerwortelig netwerk: een andere wortel bepaalt de vloer al op maandag; hij blijft leidend.
+for(const profile of ['ops','p6','msproject'] as const){
+ const opts={projectStartDate:'2026-06-01',schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})};
+ const m={...task('M',0,'2026-06-01T16:00'),milestoneKind:'FINISH' as const};
+ const b=task('B',2,'2026-06-01T07:00');b.time.durationUnit='hours';b.time.durationMinutes=960;
+ const root=task('R',1,'2026-06-01T07:00');
+ const r=new CPMSolver([m,b,root],[sf],cal,[],opts).solve();
+ equal(`${profile} tweede wortel`,[r.tasks.get('B')!.earlyStart,r.tasks.get('B')!.earlyFinish],['2026-06-01T07:00','2026-06-02T16:00']);
+ for(const id of ['M','B','R']){ const x=r.tasks.get(id)!;
+  equal(`${profile} ${id} laat niet vóór vroeg`,x.lateStart>=x.earlyStart && x.lateFinish>=x.earlyFinish && x.totalFloat>=0,true);
+ }
+ // Een START-mijlpaal op diezelfde grens valt buiten de nieuwe FINISH-wacht.
+ const start={...m,milestoneKind:'START' as const};
+ const rs=new CPMSolver([start,b],[sf],cal,[],opts).solve();
+ equal(`${profile} START valt buiten de eindmijlpaalcorrectie`,rs.tasks.get('B')!.earlyStart,'2026-06-02T07:00');
+ // Een andere eigen opvolgerkalender mag niet vóór zijn eigen eerste band starten.
+ const other:WorkCalendar={...cal,id:'other',workStartHour:8,workEndHour:17,workTime:{byWeekday:{
+  1:[{start:480,end:720},{start:780,end:1020}],2:[{start:480,end:720},{start:780,end:1020}],3:[{start:480,end:720},{start:780,end:1020}],4:[{start:480,end:720},{start:780,end:1020}],5:[{start:480,end:720},{start:780,end:1020}],6:[],7:[]}}};
+ const own={...b,calendarId:'other'};
+ const mixed=new CPMSolver([m,own],[sf],cal,[other],opts).solve();
+ equal(`${profile} eigen opvolgerkalender`,[mixed.tasks.get('B')!.earlyStart,mixed.tasks.get('B')!.earlyFinish],['2026-06-01T08:00','2026-06-02T17:00']);
+}
+
 console.log(`Knownbug 153: ${errors} fouten`); process.exitCode=errors?1:0;
