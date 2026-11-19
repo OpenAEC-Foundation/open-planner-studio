@@ -1,5 +1,6 @@
 // Knownbug 153: de projectvloer van een eindmijlpaal hoort bij haar eigen werkdag.
 import './domStub';
+import { createAppStoreContext } from '@/state/appStore';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -39,6 +40,20 @@ for(const profile of ['ops','p6','msproject'] as const){
  const friday={...m,time:{...m.time,scheduleStart:'2026-06-05T16:00'}};
  const after=new CPMSolver([friday,b],[sf],holiday,[],{...opts,projectStartDate:'2026-06-05'}).solve();
  equal(`${profile} SF weekend en vrije maandag`,[after.tasks.get('B')!.earlyStart,after.tasks.get('B')!.earlyFinish],['2026-06-05T07:00','2026-06-09T16:00']);
+}
+
+// De gebruikersroute moet dezelfde projectvloer en tijden krijgen als de solverroute.
+for(const profile of ['ops','p6','msproject'] as const){
+ const {store}=createAppStoreContext();const S=store.getState;
+ S().setCalendar(cal); S().setProject({startDate:'2026-06-01',schedulingProfile:builtInProfile(profile)});
+ const m=S().addTask({name:'M',isMilestone:true,milestoneKind:'FINISH'});
+ const b=S().addTask({name:'B'});
+ const tm=S().tasks.find(t=>t.id===m)!,tb=S().tasks.find(t=>t.id===b)!;
+ S().updateTask(m,{time:{...tm.time,scheduleStart:'2026-06-01T16:00',scheduleDuration:0}});
+ S().updateTask(b,{time:{...tb.time,scheduleStart:'2026-06-01T07:00',durationUnit:'hours',durationMinutes:960,scheduleDuration:2}});
+ S().addSequence({predecessorId:m,successorId:b,type:'START_FINISH',lagDays:0}); S().runCPM();
+ const t=S().tasks.find(x=>x.id===b)!.time;
+ equal(`${profile} SF via store`,[t.earlyStart,t.earlyFinish],['2026-06-01T07:00','2026-06-02T16:00']);
 }
 
 console.log(`Knownbug 153: ${errors} fouten`); process.exitCode=errors?1:0;
