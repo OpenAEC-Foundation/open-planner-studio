@@ -19,4 +19,26 @@ for(const profile of ['ops','p6','msproject'] as const) for(const measure of ['d
  if(JSON.stringify(got)!==JSON.stringify(want)){errors++;console.error('XX',profile,measure,JSON.stringify({got,want}));}
 }
 
+function equal(label:string, got:unknown, want:unknown){
+ if(JSON.stringify(got)!==JSON.stringify(want)){errors++;console.error('XX',label,JSON.stringify({got,want}));}
+}
+for(const profile of ['ops','p6','msproject'] as const){
+ const opts={projectStartDate:'2026-06-01',schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})};
+ const m={...task('M',0,'2026-06-01T16:00'),milestoneKind:'FINISH' as const};
+ const b=task('B',2,'2026-06-01T07:00');b.time.durationUnit='hours';b.time.durationMinutes=960;
+ // Een FS/SS blijft door de eindmijlpaal naar de volgende werkdag gedreven.
+ for(const type of ['FINISH_START','START_START'] as const){
+  const r=new CPMSolver([m,b],[{...sf,type}],cal,[],opts).solve();
+  equal(`${profile} ${type} blijft na de eindmijlpaal`,r.tasks.get('B')!.earlyStart,'2026-06-02T07:00');
+ }
+ // De eigen projectstart blijft een harde ondergrens voor opvolgers, óók als het ruwe mijlpaalanker eerder is.
+ const later=new CPMSolver([m,b],[sf],cal,[],{...opts,projectStartDate:'2026-06-02'}).solve();
+ equal(`${profile} latere projectstart wint`,later.tasks.get('B')!.earlyStart,'2026-06-02T07:00');
+ // Vrijdag eindigen gevolgd door een vrije maandag: het weekend en de feestdag niet als werk tellen.
+ const holiday:WorkCalendar={...cal,holidays:[{name:'Vrij',startDate:'2026-06-08',endDate:'2026-06-08'}]};
+ const friday={...m,time:{...m.time,scheduleStart:'2026-06-05T16:00'}};
+ const after=new CPMSolver([friday,b],[sf],holiday,[],{...opts,projectStartDate:'2026-06-05'}).solve();
+ equal(`${profile} SF weekend en vrije maandag`,[after.tasks.get('B')!.earlyStart,after.tasks.get('B')!.earlyFinish],['2026-06-05T07:00','2026-06-09T16:00']);
+}
+
 console.log(`Knownbug 153: ${errors} fouten`); process.exitCode=errors?1:0;
