@@ -64,6 +64,7 @@ test('paneel: de voortgangsschuif is op een fase uitgeschakeld en weigert muis e
   await expect(slider).toBeVisible();
   await expect(slider).toBeDisabled();
   await expect(page.locator('[data-ops-summary-progress-note]')).toBeVisible();
+  await expect(page.locator('[data-ops-summary-constraint-warning]')).toContainText(/not included in the calculation|niet meegenomen in de berekening/);
 
   // Een echte klik rechts op de (uitgeschakelde) schuif, plus End: de fase blijft op 0%.
   const box = await slider.boundingBox();
@@ -76,6 +77,7 @@ test('paneel: de voortgangsschuif is op een fase uitgeschakeld en weigert muis e
   await page.evaluate((id) => window.__OPS__!.store.getState().selectTask(id), ids.a);
   await expect(slider).toBeEnabled();
   await expect(page.locator('[data-ops-summary-progress-note]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-summary-constraint-warning]')).toHaveCount(0);
   await slider.focus();
   await page.keyboard.press('End');
   await expect.poll(() => completionOf(page, ids.a)).toBe(1);

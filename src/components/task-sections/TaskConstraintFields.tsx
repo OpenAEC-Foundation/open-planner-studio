@@ -8,6 +8,7 @@ import { Select } from '@/components/common/Select';
 import { Field } from './shared';
 import { readLocal, writeLocal } from '@/utils/settingsStore';
 import { Icon } from '@/components/icons';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 const PRIMARY_TYPES: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const SECONDARY_TYPES: ConstraintType[] = ['SNET', 'FNET', 'SNLT', 'FNLT'];
@@ -34,6 +35,11 @@ export function TaskConstraintFields({ task, onChange }: {
 
   return (
     <>
+      {isSummaryTask(task) && (
+        <div className="!text-small px-2 py-1.5 rounded" style={{ background: 'var(--theme-surface-alt)', color: 'var(--theme-text)' }} data-ops-summary-constraint-warning>
+          {t('properties.summaryConstraintWarning')}
+        </div>
+      )}
       {/* Constraint & deadline — P6-soft: schendingen worden negatieve float.
           Plus harde Mandatory-pin + secundaire constraint.
           Volle paneelbreedte i.p.v. een 2-koloms grid: de vertaalde
