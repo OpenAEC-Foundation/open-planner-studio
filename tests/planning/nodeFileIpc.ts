@@ -160,6 +160,9 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     beforeOpen: null as ((path: string) => void) | null,
     /** Paden buiten de scope: `open` en `write_file` weigeren ze met de tekst van plugin-fs. */
     forbidden: null as ((path: string) => boolean) | null,
+    /** Ook `stat` en `lstat` toetsen `forbidden`, zoals plugin-fs elke aanroep aan dezelfde scope toetst (knownbug 1902).
+     *  Standaard uit, zodat de oudere proeven hun nabootsing houden. */
+    forbiddenMeta: false,
     writeErrorAfter: null as number | null,
     renameError: null as unknown,
     removeError: null as unknown,
@@ -187,6 +190,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
       case 'plugin:fs|stat':
       case 'plugin:fs|lstat': {
         let st: fs.Stats;
+        if (faults.forbiddenMeta && faults.forbidden?.(String(path))) throw `forbidden path: ${path}`;
         try {
           st = command === 'plugin:fs|stat' ? fs.statSync(String(path)) : fs.lstatSync(String(path));
         } catch (error) {

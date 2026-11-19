@@ -6,7 +6,9 @@
  *
  * 1. De hele uitvoer in één `createNew`-aanroep naar `save-<id>.ops-save.tmp` in dezelfde map (geen directe aanmaak
  *    als terugval: dit is geen nieuwe naam).
- * 2. Het doel opnieuw vergelijken met de bron in het geheugen (`sourceTargetContent`, in stukken van 1 MiB).
+ * 2. Het doel opnieuw vergelijken met de bron in het geheugen (`sourceTargetContent`, in stukken van 1 MiB). Daarna
+ *    de laatste controle van de aanroeper (`refuseBeforePlace`, knownbug 1896): hoort de opslag nog bij de inhoud van
+ *    het document? Zo niet, dan stopt de vervanging hier, met het doel ongemoeid.
  * 3. Het doel met `place_file_exclusive` naar `<naam>.ops-vorige-<id>`.
  * 4. Het tijdelijke bestand met `place_file_exclusive` naar het doel.
  * 5. `.ops-vorige` opnieuw vergelijken met de bron. Gelijk: verwijderen. Anders schreef een ander programma via een al
@@ -18,8 +20,9 @@
  * of de vervanging stopt. Grens: een programma dat via een al open handle schrijft tussen de controle van stap 5 en het
  * verwijderen (één systeemaanroep), en de grens van het commando zelf (knownbugs 1795 en 1799).
  */
-import { createOwnTemp, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
+import { createOwnTemp, isForbiddenPathError, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
 import { missingTarget } from './fileIdentity';
+import type { RefuseBeforePlace } from './index';
 import { sourceTargetContentOfPathTauri } from './tauriBackend';
 import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
 import type { SourceTargetContent } from './sourceTargetContent';
@@ -67,8 +70,13 @@ export type OwnFileReplaceOutcome =
   /** Stap 2: op het doel staat niet meer de bron. Niets veranderd, het eigen tijdelijke bestand is weg. */
   | { code: 'target-changed'; content: Exclude<SourceTargetContent, 'same'> }
   /** Vervangen kan hier niet veilig (gelinkt doel, buiten de scope, het bestandssysteem kent de exclusieve stap niet,
-   *  of het commando weigert): het doel staat er zoals het stond. Alleen Opslaan als. */
-  | { code: 'save-as-only'; why: string }
+   *  of het commando weigert): het doel staat er zoals het stond. Alleen Opslaan als. `nothingWritten` (knownbug 1902):
+   *  stap 1 mocht het tijdelijke bestand niet aanmaken (`forbidden path`, buiten de scope); er staat geen hulpbestand
+   *  van deze operatie, dus het herstelrecord mag meteen weg. */
+  | { code: 'save-as-only'; why: string; nothingWritten?: true }
+  /** De laatste controle van de aanroeper (`refuseBeforePlace`) weigerde na stap 2: niets verplaatst, het eigen
+   *  tijdelijke bestand is weg (of blijft achter als verwijderen mislukte). De controle meldde zelf waarom. */
+  | { code: 'stopped' }
   /** Niet vervangen; het doel staat er zoals het stond (stap 1, stap 3, of stap 4 na het terugzetten). */
   | { code: 'failed'; detail: string }
   /** `source-changed` in stap 3 of 4: de stand op schijf is onbekend. Niets teruggezet, niets opgeruimd. */
@@ -91,6 +99,8 @@ export interface OwnFileReplaceInput {
   /** De modus van het oude bestand voor het nieuwe (Unix); de umask kan haar beperken. */
   mode?: number;
   label: ReplaceCopyLabel;
+  /** Knownbug 1896: vlak vóór stap 3, het opzijzetten van het doel. `true` = stoppen (uitkomst `stopped`). */
+  refuseBeforePlace: RefuseBeforePlace;
 }
 
 /** Is het doel een link (symbolisch, of een harde link met meer namen)? Dan vervangt de app niet (§4.10). Een doel dat
@@ -117,7 +127,7 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
 
   // Stap 1. Geen terugval naar een directe aanmaak: dit is geen nieuwe naam.
   const created = await createOwnTemp(fs, temp, bytes, input.mode);
-  if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path' };
+  if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path', nothingWritten: true };
   if (created.failed) return { code: 'failed', detail: created.cause instanceof Error ? created.cause.message : String(created.cause) };
 
   // Stap 2.
@@ -125,6 +135,10 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
   if (content !== 'same') {
     await removeOwnTemp();
     return { code: 'target-changed', content };
+  }
+  if (input.refuseBeforePlace()) {
+    await removeOwnTemp();
+    return { code: 'stopped' };
   }
 
   // Stap 3. Alleen `source-changed` laat het tijdelijke bestand staan: de stand op schijf is onbekend.
@@ -199,7 +213,8 @@ export type RemnantEvent =
    *  blijft staan, en het herstelrecord ook. */
   | { kind: 'left-over'; target: string; path: string };
 
-type Seen = string | 'missing' | 'unreadable';
+/** `forbidden`: plugin-fs weigert het pad (buiten de scope, knownbug 1902). */
+type Seen = string | 'missing' | 'unreadable' | 'forbidden';
 
 /**
  * De restbestanden van één onderbroken vervanging afhandelen. Alleen `save-<id>.ops-save.tmp` en
@@ -215,6 +230,12 @@ type Seen = string | 'missing' | 'unreadable';
  * - Het tijdelijke bestand met `pendingSha256` en het doel niet: de eigen nieuwe planning, die niet op het doel kwam
  *   (de herstelsnapshot kan tot 10 s achterlopen). Exclusief naar "niet opgeslagen planning"; niets gewist.
  * - Al het andere (een andere inhoud, onleesbaar, of een stap die faalde) blijft staan en wordt gemeld (`left-over`).
+ * - Een hulpnaam die plugin-fs buiten de scope weigert (`forbidden`, knownbug 1902) telt als afwezig: niet gemeld, en
+ *   het record mag weg. Er kan daar geen hulpbestand van de app staan. De scope geldt voor elke aanroep gelijk (lezen,
+ *   `lstat` en de aanmaak in stap 1 toetsen hetzelfde bereik, en `fs:allow-home-read-recursive` en
+ *   `-write-recursive` dekken dezelfde map) en wordt binnen een installatie alleen groter (de kiezer voegt alleen het
+ *   gekozen bestand toe, en `persisted-scope` bewaart dat over herstarts). Mag de app de naam nu niet lezen, dan mocht
+ *   ze hem ook toen niet aanmaken. Het record wissen raakt geen bestand: wat er buiten de scope staat, blijft staan.
  * `resolved`: er staat geen hulpbestand van de operatie meer; het record mag weg.
  */
 export async function settleReplaceRemnants(
@@ -227,10 +248,11 @@ export async function settleReplaceRemnants(
     try {
       const data = await fs.read(file);
       return data === null ? 'missing' : await sha256(data);
-    } catch {
-      return 'unreadable';
+    } catch (error) {
+      return isForbiddenPathError(error) ? 'forbidden' : 'unreadable';
     }
   };
+  const absent = (seen: Seen) => seen === 'missing' || seen === 'forbidden';
   const leave = (file: string) => { events.push({ kind: 'left-over', target: path, path: file }); };
   const removeOrLeave = async (file: string) => {
     try { await fs.remove(file); } catch { leave(file); }
@@ -241,7 +263,7 @@ export async function settleReplaceRemnants(
   if (before === vorigeSha256 && target === 'missing') {
     if (placedOk(await fs.place(previous, path))) target = before;
     else leave(previous);
-  } else if (before !== 'missing') leave(previous);
+  } else if (!absent(before)) leave(previous);
 
   const written = await see(temp);
   if (written === pendingSha256 && target === pendingSha256) {
@@ -250,7 +272,7 @@ export async function settleReplaceRemnants(
     const copy = replaceCopyPath(path, label('unsaved-schedule'));
     if (placedOk(await fs.place(temp, copy))) events.push({ kind: 'unsaved-schedule', target: path, copy });
     else leave(temp);
-  } else if (written !== 'missing') leave(temp);
+  } else if (!absent(written)) leave(temp);
   return { events, resolved: !events.some(event => event.kind === 'left-over') };
 }
 

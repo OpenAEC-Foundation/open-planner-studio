@@ -2,16 +2,19 @@
 // schrijfcoördinatie. `useAutoSave` plant de rondes; deze module staat los van React, zodat een test hem met de echte
 // store en bestandslaag kan draaien (#804 fase 1a, fixronde 2).
 import type { AppState } from '@/state/appStore';
-import { serializeForSave } from '@/state/savedLiteralCalendars';
+import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
-import { sameIFCSource } from '@/state/ifcSaveInput';
-import { documentContentOf } from '@/state/documentSaveState';
+import { buildWriteIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
+import { documentContentOf, sameDocumentContent } from '@/state/documentSaveState';
+import { computeIfcOutputHere, prepareIfcOutput, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
+  ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE, IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE,
+  ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
 } from '@/state/ifcForeignGuard';
 import {
   AutoSaveTargetUnavailableError, createActualAutoSaveController, type ActualAutoSaveCandidate, type ActualAutoSaveController,
@@ -23,8 +26,12 @@ export function createFileAutoSaveController(deps: {
   enabled: () => boolean;
   /** Alleen voor tests: andere naden voor de doelcontrole. */
   targetDeps?: WriteTargetDeps;
+  /** Het rekenen van de IFC-uitvoer (#804 stap 6): in de gemounte app de opslagworker (`useAutoSave` geeft
+   *  `appStoreContext.runtime.ifcSaveCompute`), standaard deze thread. */
+  compute?: IfcOutputCompute;
 }): ActualAutoSaveController {
   const { getState } = deps;
+  const compute = deps.compute ?? computeIfcOutputHere;
   const targetDeps: WriteTargetDeps = deps.targetDeps ?? { identityFs: fileIdentityFs, readers: writeTargetReaders };
   // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
   const foreignNotified = new Set<string>();
@@ -63,12 +70,11 @@ export function createFileAutoSaveController(deps: {
         return { id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty, ref, source: payload };
       });
     },
-    serialize: candidate => serializeForSave(candidate.source),
     canWrite: canWriteToRefWithoutPrompt,
     // #804 stap 3, fixronde 1: de ronde koos haar kandidaten vóór het slot. Begon intussen de laatste fase van afsluiten
     // of van de updater (`closeProjectFileWrites`), dan schrijft ze niet meer: `'refused'`, niets te melden, het
     // document blijft gewijzigd.
-    write: (candidate, content) => runProjectFileWrite<boolean | 'stale' | 'refused'>(async () => {
+    write: candidate => runProjectFileWrite<boolean | 'stale' | 'refused'>(async () => {
       // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock, vóór de write.
       const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
       if (reason) {
@@ -81,15 +87,38 @@ export function createFileAutoSaveController(deps: {
         return 'refused';
       }
       // Wachten op een handmatige write (of op de doelcontrole) mag nooit alsnog een inmiddels oude autosave-inhoud
-      // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock, vlak vóór de write.
+      // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock, vóór het voorbereiden.
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
       if (!current) return false;
+      const document = { id: candidate.id, content: candidate.content };
+      if (!sameDocumentContent(getState(), document)) return 'stale';
       if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
-      return saveToRefWithoutPrompt(candidate.ref!, content);
+      // Een document met een vreemd deel schrijft AutoSave nog niet (stap 8); de kandidatenlijst sloot het al uit.
+      if (ifcSaveBlocked(current)) return 'refused';
+      // #804 stap 6: de momentopname en het rekenen onder het schrijfslot, via dezelfde berekenfunctie als Ctrl+S
+      // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
+      // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
+      const output = await prepareIfcOutput({ ...current, ui: getState().ui }, buildWriteIFCInput(current, 'merge'), undefined, compute);
+      if (output.prepared) return 'refused';
+      rememberLiteralCalendarsWritten(current, output.literalCalendarIds);
+      // Knownbug 1896: de laatste controle, vlak vóór de hernoeming of `close()`: hoort de ronde nog bij deze inhoud?
+      let replaced = false;
+      const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
+      if (contentReplaced()) return 'stale';
+      const written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+      if (replaced) return 'stale';
+      if (!written) return false;
+      // Binnen dezelfde schrijfbeurt vastleggen, zoals Ctrl+S: dirty alleen weg als precies deze versie nog actueel is.
+      getState().markAutoSaveVersionSaved(document, current);
+      return true;
     }, () => 'refused'),
-    markSavedIfUnchanged: candidate => getState().markAutoSaveVersionSaved({ id: candidate.id, content: candidate.content }, candidate.source),
     onFailure: (_candidate, error) => {
       console.error('Werkelijke AutoSave mislukt:', error);
+      // #804 stap 6: de opslagworker stierf of verliep; niets geschreven, dezelfde melding als bij Ctrl+S.
+      if (error instanceof IfcSaveWorkerError) {
+        getState().notify(IFC_SAVE_WORKER_FAILED_NOTICE);
+        return;
+      }
       getState().notify({
         severity: 'error',
         messageKey: error instanceof AutoSaveTargetUnavailableError

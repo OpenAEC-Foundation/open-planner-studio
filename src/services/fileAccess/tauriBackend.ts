@@ -1,7 +1,7 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
+import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import {
-  isForbiddenPathError, writeUserBytesTauri, writeUserTextFileTauri, writeNewUserBytesTauri,
+  isForbiddenPathError, writeUserFileTauri, writeNewUserBytesTauri,
 } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
@@ -190,7 +190,7 @@ export async function saveFileDialogTauri(
   if (!savedPath) return null;
   // #804 fixronde 1: het gekozen pad vóór het schrijven controleren (bijv. het bronbestand van een gebouwmodel).
   if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  await writeUserTextFileTauri(savedPath, content);
+  if (!(await writeUserFileTauri(savedPath, content, opts?.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
@@ -202,14 +202,13 @@ export async function saveBytesDialogTauri(
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
   if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  await writeUserBytesTauri(savedPath, bytes);
+  if (!(await writeUserFileTauri(savedPath, bytes, opts?.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
-export async function saveToRefTauri(ref: FileRef, content: string): Promise<boolean> {
+export async function saveToRefTauri(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind !== 'path') return false;
-  await writeUserTextFileTauri(ref.path, content);
-  return true;
+  return writeUserFileTauri(ref.path, data, refuseBeforePlace);
 }
 
 /** Strikte byte-ingang: dezelfde kiezer/doelcontrole, uitsluitend exclusieve nieuwe aanmaak. */
@@ -230,7 +229,7 @@ export async function saveNewBytesDialogTauri(
       return null;
     }
   }
-  await writeNewUserBytesTauri(savedPath, bytes);
+  if (!(await writeNewUserBytesTauri(savedPath, bytes, opts.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
@@ -250,10 +249,9 @@ async function existingRegularFileTauri(path: string): Promise<Uint8Array | null
   return info.isFile ? readFile(path) : null;
 }
 
-export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array): Promise<boolean> {
+export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind !== 'path') return false;
-  await writeNewUserBytesTauri(ref.path, bytes);
-  return true;
+  return writeNewUserBytesTauri(ref.path, bytes, refuseBeforePlace);
 }
 
 export async function readFromRefTauri(ref: FileRef): Promise<string | null> {

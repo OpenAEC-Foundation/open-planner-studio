@@ -12,6 +12,7 @@ import {
 } from '@/services/fileAccess/ownFileReplace';
 import { tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore } from '@/services/fileAccess/replaceRecords';
 import { userFileHelperId } from '@/services/fileAccess/atomicWrite';
+import type { RefuseBeforePlace } from '@/services/fileAccess';
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
 import {
   IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE, IFC_FOREIGN_TARGET_CHANGED_NOTICE,
@@ -40,6 +41,10 @@ export interface OwnPathReplaceInput {
    *  (dezelfde als vóór de merge): `true` = stoppen (het document, zijn opslagdoel of zijn bron veranderde, of een
    *  ander open document heeft het bestand intussen als bron). Meldt zelf; de uitkomst is dan `stopped`. */
   stopBeforeWrite: () => Promise<boolean>;
+  /** Verplicht (knownbug 1896): de laatste controle, vlak vóór het opzijzetten van het doel (na de tweede doellezing,
+   *  `replaceOwnFileBytes`): hoort de opslag nog bij de inhoud van het document (`refuseChangedDocumentWrite`)? `true` =
+   *  stoppen; het tijdelijke bestand en het record gaan langs het gewone opruimpad weg. Meldt zelf. */
+  refuseBeforePlace: RefuseBeforePlace;
   fs?: OwnFileReplaceFs;
   records?: ReplaceRecordStore;
   now?: Date;
@@ -50,9 +55,12 @@ export interface OwnPathReplaceInput {
  * enige voorcontrole). Dan stap 0: het herstelrecord (`replaceRecords.ts`: id, doel, `vorigeSha256`, `pendingSha256`)
  * en in het manifest `pendingSha256`; lukt een van de twee niet, dan `not-recorded` en staat er niets op schijf. Na die
  * eerste herstelronde nog de doelbewaking `stopBeforeWrite` (`stopped`: niets in de projectmap aangeraakt). Dan
- * stap 1 tot en met 5 (`replaceOwnFileBytes`) en stap 6: na `replaced` eerst `commit`, dan wist het herstel
- * `pendingSha256`. Het record verdwijnt alleen als er geen hulpbestand van de operatie meer staat; na `unknown`
- * (`source-changed`) blijft het altijd. Een record dat blijft, handelt de volgende start of het openen van het bestand af.
+ * stap 1 tot en met 5 (`replaceOwnFileBytes`, met vlak vóór stap 3 de laatste controle `refuseBeforePlace`) en stap 6:
+ * na `replaced` eerst `commit`, dan wist het herstel `pendingSha256`. Het record verdwijnt alleen als er geen
+ * hulpbestand van de operatie meer staat: meteen als stap 1 aantoonbaar niets schreef (`not-recorded`, `stopped` door
+ * `stopBeforeWrite`, en `save-as-only` met `nothingWritten`: de aanmaak buiten de scope geweigerd, knownbug 1902),
+ * anders na `replaceHelpersGone`; na `unknown` (`source-changed`) blijft het altijd. Een record dat blijft, handelt de
+ * volgende start of het openen van het bestand af.
  */
 export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Promise<OwnPathReplaceResult> {
   const fs = input.fs ?? await tauriOwnFileReplaceFs();
@@ -67,25 +75,31 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
       console.error('Herstelrecord van de vervanging niet vastgelegd:', input.path, error);
       return { code: 'not-recorded' };
     }
-    let outcome: OwnFileReplaceOutcome | { code: 'stopped' } | undefined;
+    let outcome: OwnFileReplaceOutcome | undefined;
+    /** Stap 1 schreef aantoonbaar niets: ze begon nooit, of de aanmaak van het tijdelijke bestand werd geweigerd. */
+    let nothingWritten = false;
     const recorded = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
       replace: async () => {
         if (await input.stopBeforeWrite()) {
           outcome = { code: 'stopped' };
+          nothingWritten = true;
           return false;
         }
         outcome = await replaceOwnFileBytes(fs, {
           path: input.path, id, bytes: input.prepared.bytes, source: input.source.bytes,
           ...(target.mode === undefined ? {} : { mode: target.mode }), label: replaceCopyLabel(input.now),
+          refuseBeforePlace: input.refuseBeforePlace,
         });
+        nothingWritten = outcome.code === 'save-as-only' && outcome.nothingWritten === true;
         return outcome.code === 'replaced';
       },
       commit: input.commit,
     });
-    if (recorded === 'not-recorded' || outcome!.code === 'stopped'
+    if (recorded === 'not-recorded' || nothingWritten
       || (outcome!.code !== 'unknown' && await replaceHelpersGone(fs, input.path, id))) {
-      // Niets meer op schijf van deze operatie (bij `not-recorded` en `stopped` begon stap 1 nooit). Een mislukt wissen
-      // is geen fout: de volgende start vindt dan geen hulpbestand en wist het record alsnog.
+      // Niets meer op schijf van deze operatie. Bij `not-recorded`, `stopped` vóór stap 1 en een geweigerde aanmaak
+      // (buiten de scope, waar ook `lstat` op de hulpnamen geweigerd wordt) staat er aantoonbaar niets. Een mislukt
+      // wissen is geen fout: de volgende start vindt dan geen hulpbestand en wist het record alsnog.
       await records.remove(id).catch(error => console.error('Herstelrecord van de vervanging niet gewist:', error));
     }
     return recorded === 'not-recorded' ? { code: 'not-recorded' } : outcome!;

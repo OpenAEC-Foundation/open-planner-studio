@@ -468,8 +468,9 @@ for (const kind of ['text', 'bytes'] as const) {
   const read = (rel: string) => readFileSync(join(here, '..', '..', 'src', rel), 'utf8');
   const backend = read('services/fileAccess/tauriBackend.ts');
   truthy('8a tauriBackend: geen kale writeTextFile( of writeFile(', !/\b(writeTextFile|writeFile)\(/.test(backend));
-  truthy('8b tauriBackend: Opslaan, Opslaan als en export via writeUser…Tauri',
-    (backend.match(/writeUserTextFileTauri\(/g) ?? []).length >= 2 && backend.includes('writeUserBytesTauri('));
+  // #804 stap 6: tekst en bytes gaan door één hulp met de laatste controle (`writeUserFileTauri`).
+  truthy('8b tauriBackend: Opslaan, Opslaan als en export via writeUserFileTauri',
+    (backend.match(/writeUserFileTauri\(/g) ?? []).length >= 3);
   const fileTools = read('services/mcp/tools/fileTools.ts');
   truthy('8c MCP export_ifc (overwrite) via writeUserTextFileTauri', fileTools.includes('writeUserTextFileTauri(')
     && !/\bwriteTextFile\(p,/.test(fileTools));

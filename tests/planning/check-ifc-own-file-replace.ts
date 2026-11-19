@@ -51,7 +51,7 @@ import { createCloseDocumentDialogActions } from '@/components/layout/DocumentCh
 import { castDraft } from 'immer';
 import { mergeProblems } from './ifcMergeKern';
 import { InProcessWorker } from './inProcessSaveWorker';
-import { createIfcSaveWorker, mergesInWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import { saveStatusOf } from '@/state/documentSaveState';
@@ -123,7 +123,7 @@ async function replace(
       : { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
     commit: () => { committed = c.store.getState().commitSavedDocument(documentContentOf(c.state, c.id)!, c.state, destination, c.prepared); },
     // De doelbewaking na de eerste herstelronde is van de route (`replaceOwnPath`); de proeven onderaan dekken haar.
-    stopBeforeWrite: async () => false,
+    stopBeforeWrite: async () => false, refuseBeforePlace: () => false,
     now: NOW, ...(fs ? { fs } : {}), ...(records ? { records } : {}),
   }), () => { throw new Error('de schrijfpoort is dicht (afsluitfase); deze proef sluit hem nooit'); });
   return { result, committed };
@@ -170,7 +170,8 @@ async function aroundPlace(n: number, when: 'before' | 'after', act: () => void)
 }
 const reject = (code: string, extra: Record<string, string> = {}): { reject: Record<string, string> } => ({ reject: { code, ...extra } });
 const tidy = async (c: Case) => {
-  ipc.faults.place = null; ipc.faults.writeErrorAfter = null; ipc.faults.forbidden = null; ipc.faults.beforeOpen = null;
+  ipc.faults.place = null; ipc.faults.writeErrorAfter = null; ipc.faults.forbidden = null; ipc.faults.forbiddenMeta = false;
+  ipc.faults.beforeOpen = null;
   c.unregister(); await clearRecovery();
   for (const name of readdirSync(appData)) if (replaceRecordId(name) !== null) rmSync(join(appData, name));
 };
@@ -1761,7 +1762,7 @@ for (const moment of ['rekenen', 'herstelronde', 'plaatsing'] as const) {
   await check(`Opslaan als over een bestaande naam; een extensie laadt een ander project bij ${moment}: het nieuwe project krijgt niets van deze opslag`, async () => {
     const workers: InProcessWorker[] = [];
     const client = createIfcSaveWorker({ createWorker: () => { const w = new InProcessWorker('manual'); workers.push(w); return w; } });
-    const c = await opened(bytes, mergesInWorker(client.compute));
+    const c = await opened(bytes, client.compute);
     const loadOther = () => {
       const { data } = createExtensionApi('merge-1019', [], undefined, c.context, { app: c.context, showNotification() {} });
       data.loadProject({
@@ -1807,6 +1808,188 @@ for (const moment of ['rekenen', 'herstelronde', 'plaatsing'] as const) {
     } finally { round?.unregister(); client.dispose(); await tidy(c); }
   });
 }
+
+// ── #804 stap 6: knownbug 1896. Dezelfde inhoudscontrole (`refuseChangedDocumentWrite`) beslist op het laatste veilige
+// punt van elke schrijfroute: vóór het opzijzetten van een bestaande naam, vóór de exclusieve plaatsing of aanmaak van
+// een vrije naam, en vóór de hernoeming van de gewone atomaire opslag. De twee proeven met een gebouwmodel zijn die van
+// de review van #1020 (ronde 2); daarna dezelfde voor een gewoon document via de opslagworker. ──────────────────────
+function replaceThroughExtension(c: { context: Case['context']; store: Case['store']; id: string; state: Case['state'] }) {
+  const { data } = createExtensionApi('review-r2', [], undefined, c.context, { app: c.context, showNotification() {} });
+  data.loadProject({
+    project: { ...data.getProject(), id: 'review-r2-ander-project', name: 'Ander project' },
+    calendar: data.getCalendar(), tasks: [], sequences: [], resources: [], assignments: [],
+  });
+  assert.equal(c.store.getState().activeDocumentId, c.id);
+  assert.notEqual(c.store.getState().project.id, c.state.project.id);
+}
+const autoWorker = () => createIfcSaveWorker({ createWorker: () => new InProcessWorker('auto') });
+const inRecent = (store: Case['store'], path: string) =>
+  store.getState().recentFiles.some(item => item.ref.kind === 'path' && item.ref.path === path);
+
+await check('1896: ander project tijdens de tweede doellezing van Opslaan als over een bestaande naam: niets verplaatst, het doel houdt zijn bytes', async () => {
+  const client = autoWorker();
+  const c = await opened(bytes, client.compute);
+  try {
+    const target = otherFile(c);
+    const originalHash = hash(readFileSync(target.path));
+    assert.notEqual(c.prepared.sha256, originalHash);
+    let hashAtReplacement: string | undefined, movesAtReplacement: number | undefined;
+    const from = ipc.calls.length;
+    ipc.faults.beforeOpen = p => {
+      if (p !== target.path || !readdirSync(c.dir).some(f => isTempPath(join(c.dir, f)))) return;
+      ipc.faults.beforeOpen = null;
+      hashAtReplacement = hash(readFileSync(target.path));
+      movesAtReplacement = placesSince(from).length;
+      replaceThroughExtension(c);
+    };
+    clearNotices(c);
+    await saveAsTo(c.store, target.path);
+    assert.equal(hashAtReplacement, originalHash, 'het doel was ongewijzigd bij de projectwissel');
+    assert.equal(movesAtReplacement, 0, 'het doel stond nog op zijn plaats');
+    assert.equal(hash(readFileSync(target.path)), originalHash, 'de oude planning vervangt het doel niet meer');
+    assert.deepEqual(placesSince(from), [], 'niets opzijgezet of geplaatst');
+    assert.deepEqual(disk(c), { 'ander.ifc': originalHash, 'model.ifc': hash(bytes) }, 'het tijdelijke bestand is weg');
+    assert.deepEqual(recordsOnDisk(), [], 'het herstelrecord is weg');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcSaveChangedWhileWaiting'], 'de bestaande melding');
+    assert.equal(inRecent(c.store, target.path), false, 'niets in Recent');
+    assert.notEqual(c.store.getState().filePath, target.path);
+  } finally { ipc.faults.beforeOpen = null; client.dispose(); await tidy(c); }
+});
+
+await check('1896: ander project terwijl Opslaan als naar een vrije naam het hulpbestand schreef: de naam ontstaat niet', async () => {
+  const client = autoWorker();
+  const c = await opened(bytes, client.compute);
+  const invoke = internal.invoke;
+  try {
+    const target = join(c.dir, 'vrije-naam.ifc');
+    const from = ipc.calls.length;
+    let atReplacement: { targetExists: boolean; tempHash: string } | undefined;
+    internal.invoke = async (command, ...args) => {
+      const result = await invoke(command, ...args);
+      if (command !== 'plugin:fs|write_file' || atReplacement) return result;
+      const temp = readdirSync(c.dir).find(f => isTempPath(join(c.dir, f)));
+      if (!temp) return result;
+      atReplacement = { targetExists: existsSync(target), tempHash: hash(readFileSync(join(c.dir, temp))) };
+      replaceThroughExtension(c);
+      return result;
+    };
+    clearNotices(c);
+    await saveAsTo(c.store, target);
+    assert.deepEqual(atReplacement, { targetExists: false, tempHash: c.prepared.sha256 });
+    assert.equal(existsSync(target), false, 'de oude planning verschijnt niet onder de vrije naam');
+    assert.deepEqual(placesSince(from), [], 'geen plaatsing');
+    assert.deepEqual(files(c), ['model.ifc'], 'het tijdelijke bestand is weg');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcSaveChangedWhileWaiting']);
+    assert.equal(inRecent(c.store, target), false, 'niets in Recent');
+  } finally { internal.invoke = invoke; client.dispose(); await tidy(c); }
+});
+
+/** Een gewone planning (geen vreemd deel) op een eigen pad, één bewerking, met de opslagworker zoals in de app. */
+async function openedPlain(flag: boolean, ifcSaveCompute: IfcOutputCompute) {
+  const dir = join(work, `geval-${++cases}`);
+  mkdirSync(dir);
+  const path = join(dir, 'model.ifc');
+  writeFileSync(path, plain);
+  const { createAppStoreContext } = await loadStore();
+  const context = createAppStoreContext({ ifcSaveCompute }), { store } = context;
+  store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
+  await store.getState().openOpenedFile({ name: 'model.ifc', content: Buffer.from(plain).toString('utf8'), bytes: plain, ref: { kind: 'path', path } });
+  assert.equal(!!store.getState().ifcSource?.foreign, false, 'geen vreemd deel');
+  const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+  store.getState().updateTask(task.id, { name: 'Gewone planning van project A' });
+  store.setState(s => { s.ui.notifications = []; });
+  return { dir, path, context, store, state: store.getState(), id: store.getState().activeDocumentId };
+}
+type PlainCase = Awaited<ReturnType<typeof openedPlain>>;
+const plainFiles = (p: PlainCase) => readdirSync(p.dir).sort();
+const plainErrors = (p: PlainCase) => p.store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+
+for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande naam', 'Opslaan als naar een vrije naam'] as const) {
+  for (const flag of [false, true]) {
+    await check(`1896, gewoon document (flag ${flag ? 'aan' : 'uit'}), ${route}: ander project terwijl het tijdelijke bestand klaar is: het doel blijft zoals het was`, async () => {
+      const client = autoWorker();
+      const p = await openedPlain(flag, client.compute);
+      const invoke = internal.invoke;
+      try {
+        const target = route === 'Ctrl+S op het eigen pad' ? p.path : join(p.dir, route === 'Opslaan als naar een vrije naam' ? 'vrij.ifc' : 'bestaand.ifc');
+        if (route === 'Opslaan als over een bestaande naam') writeFileSync(target, changedPlain);
+        const before = existsSync(target) ? hash(readFileSync(target)) : null;
+        let loaded = false;
+        internal.invoke = async (command, ...args) => {
+          const result = await invoke(command, ...args);
+          if (loaded || !(command === 'plugin:fs|write_file' || command === 'plugin:fs|write_text_file')) return result;
+          if (!readdirSync(p.dir).some(f => isTempPath(join(p.dir, f)))) return result;
+          loaded = true;
+          replaceThroughExtension(p);
+          return result;
+        };
+        const from = ipc.calls.length, recentBefore = p.store.getState().recentFiles.map(item => item.id);
+        if (route === 'Ctrl+S op het eigen pad') await p.store.getState().saveFile();
+        else await saveAsTo(p.store, target);
+        assert.equal(loaded, true, 'het andere project kwam toen het tijdelijke bestand er stond');
+        assert.equal(existsSync(target) ? hash(readFileSync(target)) : null, before, 'het doel is niet gewijzigd');
+        assert.deepEqual(ipc.calls.slice(from).filter(call => call.command === 'plugin:fs|rename'), [], 'geen hernoeming');
+        assert.equal(plainFiles(p).some(f => isTempPath(join(p.dir, f))), false, 'het tijdelijke bestand is weg');
+        assert.deepEqual(plainErrors(p), ['notifications.ifcSaveChangedWhileWaiting'], 'de bestaande melding');
+        assert.deepEqual(p.store.getState().recentFiles.map(item => item.id), recentBefore, 'niets nieuws in Recent');
+        if (route !== 'Ctrl+S op het eigen pad') assert.notEqual(p.store.getState().filePath, target, 'het nieuwe project krijgt het doel niet');
+        assert.equal(p.store.getState().isDirty, true, 'het nieuwe project is niet als opgeslagen vastgelegd');
+      } finally { internal.invoke = invoke; client.dispose(); }
+    });
+  }
+}
+
+// ── #804 stap 6: knownbug 1902. Buiten het bereik van plugin-fs (buiten de thuismap) weigert plugin-fs zowel de aanmaak
+// van een hulpbestand als `lstat` erop (`forbiddenMeta`): één scope voor elke aanroep. ───────────────────────────────
+const outsideHome = (c: { dir: string }) => {
+  ipc.faults.forbidden = path => path.startsWith(`${c.dir}/`) && (isTempPath(path) || path.includes('.ops-vorige-'));
+  ipc.faults.forbiddenMeta = true;
+};
+
+for (const route of ['Opslaan als over een bestaande naam', 'Ctrl+S op het eigen pad'] as const) {
+  await check(`1902, ${route} buiten de thuismap: alleen Opslaan als, niets geschreven, het herstelrecord meteen weg; de volgende start meldt niets`, async () => {
+    const c = await opened();
+    try {
+      const target = route === 'Ctrl+S op het eigen pad' ? null : otherFile(c);
+      outsideHome(c);
+      clearNotices(c);
+      const from = ipc.calls.length;
+      if (target) await saveAsTo(c.store, target.path);
+      else await c.store.getState().saveFile();
+      assert.deepEqual(errorKeys(c), [target ? 'notifications.ifcForeignNewTargetOnly' : 'notifications.ifcForeignReplaceSaveAsOnly'],
+        'de melding van alleen Opslaan als');
+      assert.deepEqual(disk(c), target ? { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) } : { 'model.ifc': hash(bytes) }, 'niets geschreven');
+      assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote && call.path?.startsWith(c.dir)), [], 'nul schrijfacties in de map');
+      assert.deepEqual(recordsOnDisk(), [], 'het herstelrecord is meteen weg');
+      assert.deepEqual(await nextRound(), [], 'de volgende start meldt geen achtergebleven bestanden');
+    } finally { await tidy(c); }
+  });
+}
+
+await check('1902: een record van vóór de fix met hulpnamen buiten het bereik verdwijnt bij de eerstvolgende start, zonder melding', async () => {
+  const c = await opened();
+  try {
+    const record: ReplaceRecord = { id: 'vandevorigeversie1', path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
+    writeFileSync(join(appData, replaceRecordName(record.id)), serializeReplaceRecord(record));
+    outsideHome(c);
+    assert.deepEqual(await nextRound(), [], 'geen melding over bestanden die de app niet mag lezen');
+    assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+    assert.deepEqual(await nextRound(), [], 'en komt niet terug');
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) }, 'het doel is niet aangeraakt');
+  } finally { await tidy(c); }
+});
+
+await check('1902: binnen het bereik blijft een echt achtergebleven hulpbestand gemeld, met zijn record', async () => {
+  const c = await opened();
+  try {
+    const record: ReplaceRecord = { id: 'echtachtergebleven1', path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
+    writeFileSync(join(appData, replaceRecordName(record.id)), serializeReplaceRecord(record));
+    writeFileSync(userFileTempPath(c.path, record.id), new Uint8Array([1, 2, 3]));
+    ipc.faults.forbiddenMeta = true; // de scope toetst ook lstat, maar dit pad valt erbinnen
+    assert.deepEqual((await nextRound()).map(n => n.messageKey), ['notifications.ifcForeignReplaceLeftOver']);
+    assert.equal(recordsOnDisk().length, 1, 'het record blijft');
+  } finally { rmSync(userFileTempPath(c.path, 'echtachtergebleven1'), { force: true }); await tidy(c); }
+});
 
 ipc.dispose();
 rmSync(work, { recursive: true, force: true });

@@ -120,10 +120,31 @@ export interface SaveDialogOpts {
    * geweigerd (`target-exists`). Een link of iets anders dan een gewoon bestand gaat niet hierheen.
    */
   replaceExisting?: ((path: string, current: Uint8Array) => Promise<void>) | null;
+  /**
+   * Knownbug 1896 (#804 stap 6): de laatste controle van de aanroeper, op het laatste punt waar de opslag nog kan
+   * stoppen zonder het einddoel te wijzigen. Zie `RefuseBeforePlace`. De dialoog geeft bij een weigering `null`, zoals
+   * bij annuleren.
+   */
+  refuseBeforePlace?: RefuseBeforePlace | null;
 }
 
 /** Controle op het gekozen doel van een opslag of export; `true` = weigeren. Zie `SaveDialogOpts.refuseTarget`. */
 export type SaveTargetCheck = (target: FileRef) => Promise<boolean>;
+
+/**
+ * Knownbug 1896 (#804 stap 6): de laatste controle van de aanroeper, synchroon, vlak vóór de definitieve
+ * bestandsbewerking: vóór `close()` van een browserhandle, vóór de hernoeming van het eigen tijdelijke bestand (of de
+ * directe schrijfactie die daar de terugval is), vóór de exclusieve plaatsing of aanmaak van een nieuwe naam en vóór het
+ * opzijzetten van een bestaande naam. `true` = stoppen: het einddoel blijft zoals het was, een eigen tijdelijk bestand
+ * gaat weg en de functie meldt "niet geschreven" (`false` of `null`). De controle meldt zelf waarom; de bestandslaag
+ * kent de store niet. De documentroutes geven hier `refuseChangedDocumentWrite` (`fileSlice.ts`).
+ */
+export type RefuseBeforePlace = () => boolean;
+
+/** Wat een schrijfroute wegschrijft: tekst, of bytes (de opslagworker codeert de gewone writer zelf, #804 stap 6). Op
+ *  schijf is het hetzelfde: tekst gaat als UTF-8 (`TextEncoder` in plugin-fs, een `Blob` of de schrijfstroom van de
+ *  browser). */
+export type FileData = string | Uint8Array;
 
 /** De opties van `saveFileDialog`/`saveBytesDialog`: de doelcontrole is verplicht, zodat geen route haar vergeet (een
  *  aanroeper zonder controle geeft expliciet `null`). */
@@ -195,6 +216,15 @@ export function replaceHandleWithBytes(
   return replaceHandleWithBytesWeb(ref.handle, bytes, stillSource);
 }
 
+/** Opslaan-als / export via picker, met tekst of bytes (#804 stap 6: de bytes van de opslagworker gaan zonder omweg via
+ *  tekst naar de byteroute). Overschrijft een bestaand doel atomair (`replaceUserFile`), zoals altijd. `null` =
+ *  geannuleerd of geweigerd. */
+export function saveDataDialog(
+  defaultName: string, data: FileData, filters: FileFilter[], opts: CheckedSaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return typeof data === 'string' ? saveFileDialog(defaultName, data, filters, opts) : saveBytesDialog(defaultName, data, filters, opts);
+}
+
 /** Opslaan-als / export via picker. `null` = geannuleerd. */
 export function saveFileDialog(
   defaultName: string, content: string, filters: FileFilter[], opts: CheckedSaveDialogOpts,
@@ -231,10 +261,11 @@ export function saveNewBytesDialog(
 }
 
 /** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.
- * Geen permissieprompt of terugval. Een site-ref geeft false: daar is de basisversie nodig. */
-export function saveNewBytesToRef(ref: FileRef, bytes: Uint8Array): Promise<boolean> {
+ * Geen permissieprompt of terugval. Een site-ref geeft false: daar is de basisversie nodig. `false` ook als
+ * `refuseBeforePlace` weigerde. */
+export function saveNewBytesToRef(ref: FileRef, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind === 'site') return Promise.resolve(false);
-  return isTauri() ? saveNewBytesToRefTauri(ref, bytes) : saveNewBytesToRefWeb(ref, bytes);
+  return isTauri() ? saveNewBytesToRefTauri(ref, bytes, refuseBeforePlace) : saveNewBytesToRefWeb(ref, bytes);
 }
 
 // Een site-ref gaat hieronder NOOIT naar de Tauri- of webbackend. Schrijven naar de site kan via
@@ -242,12 +273,13 @@ export function saveNewBytesToRef(ref: FileRef, bytes: Uint8Array): Promise<bool
 // alleen de opslaanroute van de store (`saveSiteFileVersion` in `siteBackend.ts`). Ze geven voor een
 // site-ref dus `false`. Lezen mag wel. Zonder site-refs verandert er niets.
 
-/** In-place opslaan naar een bestaande ref. `false` als onmogelijk (fallback-web, geweigerde
- *  permissie of annulering) → de aanroeper kan terugvallen op `saveFileDialog`. Echte schrijffouten
- *  gooien: de aanroeper meldt ze vóór een eventuele terugval. Een site-ref: altijd `false` (zie boven). */
-export function saveToRef(ref: FileRef, content: string): Promise<boolean> {
+/** In-place opslaan naar een bestaande ref, met tekst of bytes. `false` als onmogelijk (fallback-web, geweigerde
+ *  permissie of annulering) → de aanroeper kan terugvallen op `saveFileDialog`. Ook `false` als `refuseBeforePlace`
+ *  weigerde; dan weet de aanroeper zelf dat hij moet stoppen. Echte schrijffouten gooien: de aanroeper meldt ze vóór
+ *  een eventuele terugval. Een site-ref: altijd `false` (zie boven). */
+export function saveToRef(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind === 'site') return Promise.resolve(false);
-  return isTauri() ? saveToRefTauri(ref, content) : saveToRefWeb(ref, content);
+  return isTauri() ? saveToRefTauri(ref, data, refuseBeforePlace) : saveToRefWeb(ref, data, refuseBeforePlace);
 }
 
 /** Stille precheck voor timerwerk: browser-FSA mag hier nooit permissie vragen. Een site-ref: `false`
@@ -257,11 +289,11 @@ export function canWriteToRefWithoutPrompt(ref: FileRef): Promise<boolean> {
   return isTauri() ? Promise.resolve(ref.kind === 'path') : canWriteToRefWithoutPromptWeb(ref);
 }
 
-/** Schrijf naar een bestaand doel zonder dialoog, download-terugval of permissieprompt. Een site-ref:
- *  altijd `false` (zie boven). */
-export function saveToRefWithoutPrompt(ref: FileRef, content: string): Promise<boolean> {
+/** Schrijf naar een bestaand doel zonder dialoog, download-terugval of permissieprompt, met tekst of bytes. `false`
+ *  ook als `refuseBeforePlace` weigerde. Een site-ref: altijd `false` (zie boven). */
+export function saveToRefWithoutPrompt(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind === 'site') return Promise.resolve(false);
-  return isTauri() ? saveToRefTauri(ref, content) : saveToRefWithoutPromptWeb(ref, content);
+  return isTauri() ? saveToRefTauri(ref, data, refuseBeforePlace) : saveToRefWithoutPromptWeb(ref, data, refuseBeforePlace);
 }
 
 /** Inhoud van een bewaarde ref herlezen. `null` bij onbruikbare ref/geweigerd; leesfouten gooien. Een site-ref: altijd `null`; een

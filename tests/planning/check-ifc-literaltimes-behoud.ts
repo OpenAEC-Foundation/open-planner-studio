@@ -18,7 +18,6 @@
 //      en zonder het veld byte-gelijk, en een voorbeeld zonder `LiteralTimes` krijgt geen veld.
 // Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
-import { documentContentOf } from '@/state/documentSaveState';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
@@ -32,7 +31,6 @@ console.warn = () => {};
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
-const { serializeForSave } = await import('@/state/savedLiteralCalendars');
 const { readIFC } = await import('@/services/ifc/ifcReader');
 const { loadExtensionProject } = await import('@/extensions/retainActiveDocument');
 const { toExtProject, toExtCalendar, toExtTask, toExtSequence, toExtResource, toExtAssignment } = await import('@/extensions/extMappers');
@@ -227,13 +225,16 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     sameFinishes('6b na undo opgeslagen', first, second, 'Uurtaak');
   }
   {
-    // 6c. AutoSave naar het bestand legt de keuze ook vast (`serializeForSave` + `markAutoSaveVersionSaved`).
-    const { store, S } = await openOwn();
+    // 6c. AutoSave naar het bestand legt de keuze ook vast, via de echte ronde (#804 stap 6: voorbereiden, schrijven
+    //     en vastleggen in één schrijfbeurt).
+    const { store, file, S } = await openOwn();
     const id = addHourTask(store);
-    const source = S().getOpenDocumentPayloads().find(d => d.id === S().activeDocumentId)!.payload;
-    const written = serializeForSave(source);
-    S().markAutoSaveVersionSaved(documentContentOf(S(), S().activeDocumentId)!, source);
-    eq('6c AutoSave: LiteralTimes in de geschreven tekst, de keuze vastgelegd', [written.includes(LITERAL), S().ifcLiteralCalendarIds], [true, [S().calendar.id]]);
+    S().setAutoSaveToFile(true);
+    const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+    await createFileAutoSaveController({ getState: S, enabled: () => true }).flush();
+    const written = file.text();
+    eq('6c AutoSave: LiteralTimes in de geschreven tekst, de keuze vastgelegd, niet meer gewijzigd',
+      [written.includes(LITERAL), S().ifcLiteralCalendarIds, S().isDirty], [true, [S().calendar.id], false]);
     S().deleteTask(id);
     S().runCPM();
     sameFinishes('6c na AutoSave en wissen', written, save(store), 'Uurtaak');
