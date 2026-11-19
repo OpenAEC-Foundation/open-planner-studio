@@ -2565,9 +2565,13 @@ export class CPMSolver {
           // kale vlag).
           const isElapsedTask = work.measure === 'elapsed';
           const remainingElapsedMinutes = isElapsedTask ? CPMSolver.elapsedWorkMinutes(remaining, task) : 0;
-          // De statusdatum kan vóór de werkelijk vastgelegde start liggen (bijvoorbeeld
-          // dezelfde dag na werktijd). Restwerk mag nooit eerder dan dat feit beginnen.
-          let remStart = dataDate && dataDate > actualES ? dataDate : actualES;
+          // Knownbug 232: een statusdatum op dezelfde kalenderdag maar vóór de werkelijke
+          // start (bv. start na werktijd) mag het restwerk niet terugtrekken. Een start op
+          // een latere dag laten we ongemoeid: P6's gepinde restwerk-as kan dan juist op de
+          // statusdatum beginnen (X12 F3). Die bredere semantiek is hier niet vastgesteld.
+          let remStart = dataDate ?? actualES;
+          if (dataDate && dataDate < actualES
+              && utcDayStart(dataDate).getTime() === utcDayStart(actualES).getTime()) remStart = actualES;
           // `true` zodra `remStart` hieronder uit het RESUME-veld komt i.p.v. de gewone
           // voorganger-druk/elapsed-vloer — stuurt de ef<es-inversiecorrectie ná de gedeelde
           // ef-berekening (zie die toelichting verderop).
