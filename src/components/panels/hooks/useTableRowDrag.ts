@@ -282,27 +282,28 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    // Annuleren ZONDER mutatie: bij Escape, en bij een documentwissel (review #1004, ronde 12), want de
+    // Stoppen ZONDER mutatie: bij Escape, en bij een documentwissel (review #1004, ronde 12), want de
     // verplaatsing hoort bij het document waarin de sleep begon.
-    const cancel = () => {
+    const stop = () => {
       if (frame) cancelAnimationFrame(frame);
       frame = 0;
       pending = null;
-      optionsRef.current.justDraggedRef.current = true;
-      armJustDraggedClear();
       setDragState(null);
     };
 
-    // Capture-fase + stopImmediatePropagation, net als bij het canvas: anders kan een globale
-    // Escape-sneltoets er eerst tussen komen.
+    // Escape: capture-fase + stopImmediatePropagation, net als bij het canvas: anders kan een globale
+    // Escape-sneltoets er eerst tussen komen. De muis is nog ingedrukt; de click van het loslaten
+    // mag niets selecteren.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();
-      cancel();
+      optionsRef.current.justDraggedRef.current = true;
+      armJustDraggedClear();
+      stop();
     };
 
     const stopListening = listenWindowDrag({
-      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true, onDocumentSwitch: cancel,
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true, onDocumentSwitch: stop,
     });
     return () => {
       if (frame) cancelAnimationFrame(frame);

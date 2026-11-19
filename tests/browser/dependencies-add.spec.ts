@@ -451,11 +451,14 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.mouse.down();
   await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 3 });
   await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  const selectedAtSwitch = (await state(page)).selectedTaskIds;
   await page.mouse.move(to.x, to.y, { steps: 3 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
   await page.waitForTimeout(300);
   await expect(popover).toHaveCount(0);
+  // De click van dat loslaten hoort bij het afgebroken gebaar: geen andere selectie in de bron (ronde 13).
+  expect((await state(page)).selectedTaskIds).toEqual(selectedAtSwitch);
   await page.keyboard.down('Shift');
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
@@ -578,6 +581,36 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await page.mouse.up();
   await expect.poll(() => perDocument().then(docs => docs[copy].order)).not.toEqual(beforeRowDrag[copy].order);
   expect((await perDocument())[source].order).toEqual(beforeRowDrag[source].order);
+
+  // Ronde 13: Shift vervangt het lopende bereik, in de tijdlijn net als in de takenlijst. Afbouw,
+  // Shift Grondwerk, Shift Ruwbouw ⇒ Ruwbouw en Afbouw; Ctrl+F2 legt in beide precies Ruwbouw → Afbouw.
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  const added = async (pick: (id: string, shift: boolean) => Promise<void>) => {
+    const before = (await state(page)).sequences.map(q => q.id);
+    await pick(afbouw, false);
+    await pick(grondwerk, true);
+    await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, fundering, ruwbouw, afbouw]);
+    await pick(ruwbouw, true);
+    await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
+    await page.keyboard.press('ControlOrMeta+F2');
+    await expect.poll(() => state(page).then(s => s.sequences.filter(q => !before.includes(q.id)).length)).toBe(1);
+    const fresh = (await state(page)).sequences.filter(q => !before.includes(q.id))
+      .map(q => [q.predecessorId, q.successorId, q.type, q.lagDays]);
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect.poll(() => state(page).then(s => s.sequences.map(q => q.id))).toEqual(before);
+    return fresh;
+  };
+  const viaTimeline = await added(async (id, shift) => {
+    const point = await barPoint(page, id);
+    if (shift) await page.keyboard.down('Shift');
+    await page.mouse.click(point.x, point.y);
+    if (shift) await page.keyboard.up('Shift');
+  });
+  expect(viaTimeline).toEqual([[ruwbouw, afbouw, 'FINISH_START', 0]]);
+  const viaList = await added(async (id, shift) => {
+    await cell(id).click(shift ? { modifiers: ['Shift'] } : undefined);
+  });
+  expect(viaList).toEqual(viaTimeline);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

@@ -481,10 +481,28 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(d, false);
   S().selectTask(b, false, true);
   eq('12.16 een Shift-bereik volgt de lijst, ook naar boven', S().selectedTaskIds, [b, c, d]);
-  S().selectTask(a, false);
-  S().selectTask(c, true);
-  S().selectTask(b, false, true);
-  eq('12.17 eerder aangeklikte taken buiten het bereik blijven vooraan', S().selectedTaskIds, [a, b, c]);
+  // De tijdlijn geeft altijd de aangeklikte rij mee.
+  const rowOf = (taskId: string) => ({ rowKey: S().viewRows.find(row => row.kind === 'task' && row.task.id === taskId)!.rowKey });
+  S().selectTask(a, false, false, rowOf(a));
+  S().selectTask(c, true, false, rowOf(c));
+  S().selectTask(b, false, true, rowOf(b));
+  eq('12.17 eerder met Ctrl gekozen taken buiten het bereik blijven vooraan', S().selectedTaskIds, [a, b, c]);
+  // Ronde 13: Shift vervangt het lopende bereik, zoals in de takenlijst. A, Shift D, Shift B ⇒ A en
+  // B; Ctrl+F2 koppelt dan alleen A → B.
+  S().selectTask(a, false, false, rowOf(a));
+  S().selectTask(d, false, true, rowOf(d));
+  eq('12.17a A, Shift D', S().selectedTaskIds, [a, b, c, d]);
+  S().selectTask(b, false, true, rowOf(b));
+  eq('12.17b een kleiner bereik laat C en D los', S().selectedTaskIds, [a, b]);
+  S().selectTask(c, true, false, rowOf(c));
+  S().selectTask(d, false, true, rowOf(d));
+  eq('12.17c na Ctrl C blijven A en B naast het bereik C–D', S().selectedTaskIds, [a, b, c, d]);
+  S().selectTask(c, false, true, rowOf(c));
+  eq('12.17d en een kleiner bereik vanaf C houdt A en B', S().selectedTaskIds, [a, b, c]);
+  S().selectTask(a, false, false, rowOf(a));
+  S().selectTask(b, false, true, rowOf(b));
+  S().selectTask(d, true, true, rowOf(d));
+  eq('12.17e Ctrl+Shift zet het bereik bij de selectie', S().selectedTaskIds, [a, b, c, d]);
 
   // Review #1004: het bereik volgt de rijen OP HET SCHERM, niet de interne taakvolgorde. Een
   // weggefilterde taak hoort er niet bij, en bij een aflopende sortering loopt de keten mee.

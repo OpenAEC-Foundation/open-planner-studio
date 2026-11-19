@@ -42,5 +42,21 @@ export function listenWindowDrag({ onMove, onUp, onKeyDown, keyCapture = false, 
 /** Een documentwissel: beëindig elk lopend gebaar. Eén aanroeper, het storeabonnement in `App.tsx`,
  *  dat synchroon binnen de wissel loopt, vóór er nog een muisgebeurtenis binnenkomt. */
 export function endWindowDragsForDocumentSwitch(): void {
+  if (active.size === 0) return;
   for (const end of [...active]) end();
+  swallowReleaseClick();
+}
+
+/** De click van het loslaten hoort nog bij het afgebroken gebaar, dus bij het oude document: anders
+ *  koos hij een taak in het nieuwe (review #1004, ronde 13). Komt er geen click, omdat de muis buiten
+ *  het element werd losgelaten, dan vervalt dit bij de volgende mousedown. */
+function swallowReleaseClick(): void {
+  const swallow = (event: MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+  };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  window.addEventListener('mousedown', () => window.removeEventListener('click', swallow, { capture: true }), {
+    capture: true, once: true,
+  });
 }

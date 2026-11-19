@@ -55,14 +55,7 @@ export function usePan({ setScroll, justBoxSelectedRef }: UsePanOptions) {
       setPanState(null);
     };
 
-    // Een documentwissel stopt het pannen (review #1004, ronde 12). De click van het loslaten valt dan
-    // in het andere document; slik hem in zoals na gewoon loslaten.
-    const handleDocumentSwitch = () => {
-      if (panned && panState.button === 0) justBoxSelectedRef.current = true;
-      setPanState(null);
-    };
-
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: handleDocumentSwitch });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: () => setPanState(null) });
   }, [panState, setScroll, justBoxSelectedRef]);
 
   return { panState, startPan: setPanState, active: !!panState };

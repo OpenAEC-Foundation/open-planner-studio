@@ -127,10 +127,13 @@ export function liveSelectionAnchor(s: AnchorState): StoredSelectionAnchor | nul
 }
 
 /** Leg het anker vast bij `selection`: de lijst die de aanroeper net als selectie neerzette (of de
- *  ongewijzigde basis). Zo wijzen anker en selectie na de producer naar dezelfde lijst. */
-function rememberAnchor(s: AnchorState, anchor: SelectionAnchor | null, selection: readonly string[]): void {
+ *  ongewijzigde basis). Zo wijzen anker en selectie na de producer naar dezelfde lijst. `base`: wat
+ *  naast het bereik vanaf dit anker gekozen blijft (`StoredSelectionAnchor.base`). */
+function rememberAnchor(
+  s: AnchorState, anchor: SelectionAnchor | null, selection: readonly string[], base: readonly string[],
+): void {
   s.ui.selectionAnchor = anchor
-    ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds], selection }
+    ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds], selection, base: [...base] }
     : null;
 }
 
@@ -162,8 +165,8 @@ export interface SelectionSlice {
   activeTaskId: string | null;
   taskClipboard: TaskClipboard | null;
 
-  /** Selecteer een taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) breidt uit vanaf het anker
-   *  (`shiftRange`). `row` is wat er in de tijdlijn is aangeklikt: dezelfde taak kan in meer rijen
+  /** Selecteer een taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) kiest het bereik vanaf het anker
+   *  (`shiftRange`); met `multi` erbij komt dat bereik bij de selectie. `row` is wat er in de tijdlijn is aangeklikt: dezelfde taak kan in meer rijen
    *  staan (groeperen op resource), en een groepsruitje (#868) kiest al zijn leden (`row.taskIds`).
    *  Met `row.rowKey` wordt die rij de cursorrij (`ui.gridActiveRowKey`) en, zonder Shift, het anker.
    *  Geen undo: selectie is geen documentdata. */
@@ -195,17 +198,23 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
   selectTask: (id, multi = false, range = false, row) =>
     set((s) => {
       const clicked = row?.taskIds ?? [id];
+      const live = liveSelectionAnchor(s);
       const anchor = range ? shiftAnchor(s) : null;
       const rangeIds = anchor ? shiftRange(s.viewRows, anchor, id, clicked, row?.rowKey) : null;
       s.activeTaskId = id;
       if (row?.rowKey !== undefined) s.ui.gridActiveRowKey = row.rowKey;
       if (anchor && rangeIds) {
-        // Vereniging met de bestaande selectie, zoals op main; het bereik in de volgorde van het
-        // scherm, ook naar boven. Het anker blijft staan.
+        // Shift vervangt het lopende bereik, zoals in de takenlijst: wat vóór dit anker met Ctrl gekozen
+        // was (`base`) blijft, het vorige bereik niet. Anders hield een verkleind bereik zijn oude taken
+        // vast en koppelde Ctrl+F2 ze mee (review #1004, ronde 13). Met Ctrl erbij komt het bereik bij
+        // de hele selectie. Zonder geldend anker (Ctrl+A, MCP) is er geen basis. Het bereik staat in de
+        // volgorde van het scherm, ook naar boven; het anker blijft staan.
         const inRange = new Set(rangeIds);
-        const next = [...s.selectedTaskIds.filter(taskId => !inRange.has(taskId)), ...rangeIds];
+        const kept = multi ? s.selectedTaskIds : live && anchor === live ? live.base : [];
+        const base = kept.filter(taskId => !inRange.has(taskId));
+        const next = [...base, ...rangeIds];
         s.selectedTaskIds = next;
-        rememberAnchor(s, anchor, next);
+        rememberAnchor(s, anchor, next, base);
         return;
       }
       // Een groepsruitje gaat met Ctrl samen aan of uit. Altijd een nieuwe lijst: het anker wijst
@@ -215,9 +224,13 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
           ? s.selectedTaskIds.filter(taskId => !clicked.includes(taskId))
           : [...s.selectedTaskIds, ...clicked.filter(taskId => !s.selectedTaskIds.includes(taskId))];
       s.selectedTaskIds = next;
-      // Een klik zonder (bruikbaar) Shift is het nieuwe anker, ook bij uitvinken met Ctrl. Zonder rij
-      // valt Shift terug op de actieve taak (`shiftAnchor`).
-      rememberAnchor(s, row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: clicked } : null, next);
+      // Een klik zonder (bruikbaar) Shift is het nieuwe anker, ook bij uitvinken met Ctrl; de rest van
+      // de selectie blijft dan naast een volgend bereik staan. Zonder rij valt Shift terug op de
+      // actieve taak (`shiftAnchor`).
+      rememberAnchor(
+        s, row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: clicked } : null, next,
+        next.filter(taskId => !clicked.includes(taskId)),
+      );
     }),
 
   deselectAll: () =>
@@ -250,7 +263,11 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         s.selectedTaskIds = nextSelectedTaskIds;
         s.activeTaskId = nextActiveTaskId;
       }
-      rememberAnchor(s, anchor ?? null, unchanged ? baseList(s.selectedTaskIds) : nextSelectedTaskIds);
+      // Een kader met Ctrl laat de selectie van daarvoor naast een volgend Shift-bereik staan.
+      rememberAnchor(
+        s, anchor ?? null, unchanged ? baseList(s.selectedTaskIds) : nextSelectedTaskIds,
+        additive ? nextSelectedTaskIds.filter(taskId => !uniqueIds.includes(taskId)) : [],
+      );
     }),
 
   copyTasks: (ids, gridText) =>

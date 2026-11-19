@@ -886,8 +886,6 @@ export function useBarDrag({
       startRuleRef.current = null;
       companionsRef.current = [];
       actualLockRef.current = null;
-      // De click van het loslaten hoort bij het oude document.
-      suppressClickRef.current = true;
       setSplitLabel(null);
       setDragState(null);
     };

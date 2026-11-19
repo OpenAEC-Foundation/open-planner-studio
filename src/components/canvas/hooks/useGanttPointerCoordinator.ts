@@ -331,9 +331,11 @@ export function useGanttPointerCoordinator(
    * 8 iedere overige achtergrondroute start kaderselectie.
    */
   const onMouseDown = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
-    // Een nieuwe mousedown is onmiskenbaar een nieuwe interactie: een eventueel blijven hangen
-    // rijsleep-vlag (sleep geëindigd boven de grid, dus zonder canvas-click) vervalt hier.
+    // Een nieuwe mousedown is onmiskenbaar een nieuwe interactie: een blijven hangen vlag (sleep
+    // geëindigd buiten het canvas, dus zonder canvas-click) vervalt hier. Dat geldt ook voor die van
+    // kader en pan, die bij een documentwissel kan blijven staan (review #1004, ronde 13).
     justRowDraggedRef.current = false;
+    justBoxSelectedRef.current = false;
     // 1–2. Middelklik pant alleen wanneer geen enkel ander gebaar actief is.
     if (event.button === 1) {
       event.preventDefault();
