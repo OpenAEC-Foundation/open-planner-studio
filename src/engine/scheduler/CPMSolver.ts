@@ -2565,7 +2565,9 @@ export class CPMSolver {
           // kale vlag).
           const isElapsedTask = work.measure === 'elapsed';
           const remainingElapsedMinutes = isElapsedTask ? CPMSolver.elapsedWorkMinutes(remaining, task) : 0;
-          let remStart = dataDate ?? actualES;                      // ondergrens: statusdatum, anders de eigen actualStart
+          // De statusdatum kan vóór de werkelijk vastgelegde start liggen (bijvoorbeeld
+          // dezelfde dag na werktijd). Restwerk mag nooit eerder dan dat feit beginnen.
+          let remStart = dataDate && dataDate > actualES ? dataDate : actualES;
           // `true` zodra `remStart` hieronder uit het RESUME-veld komt i.p.v. de gewone
           // voorganger-druk/elapsed-vloer — stuurt de ef<es-inversiecorrectie ná de gedeelde
           // ef-berekening (zie die toelichting verderop).
