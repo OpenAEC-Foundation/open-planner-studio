@@ -2503,13 +2503,6 @@ export class CPMSolver {
           // D3/D7: kalendertijd en een voltooide mijlpaal bewaren het genormaliseerde feit.
           // Een eindmijlpaal op vrijdag 16:00 mag niet naar maandag 07:00 snappen.
           let ef = preserveActualInstants ? actualFinish : this.snapOnOrBefore(progressCal, actualFinish);
-          // Een datum zonder tijd duidt de hele einddag aan, niet middernacht aan het begin
-          // ervan. Anders schuift een voltooide urentaak op een werkdag naar gisteren.
-          // Voor een niet-werkdag blijft de bestaande terugwaartse snap gelden; expliciete
-          // tijdstippen en bronconventies die actuals bewaren blijven ongemoeid.
-          if (!preserveActualInstants && !t.actualFinish.includes('T')) {
-            ef = this.dayLastBandEnd(progressCal, actualFinish) ?? ef;
-          }
           // Behoud de expliciete eindtijd bij een snap binnen dezelfde dag; weekend en bouwvak
           // houden hun bestaande terugwaartse grens. Relatieconventies volgen pas na dit venster.
           if (t.actualFinish.includes('T')
