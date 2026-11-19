@@ -187,12 +187,6 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
-317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
-     `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
-     het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
-     met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
-     ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
-     mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
 
 358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
      `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
