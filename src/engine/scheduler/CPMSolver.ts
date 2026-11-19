@@ -3210,7 +3210,10 @@ export class CPMSolver {
     const preserveMilestoneInstant =
       this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
       && isZeroDurationMilestone(task) && eng.hasOwnWorkBlocks && c.date?.includes('T');
-    const dW = preserveMilestoneInstant ? d : this.snapOnOrBefore(eng, d);
+    // Een expliciete FNLT op kalendertijd begrenst een klokmoment, ook buiten werktijd.
+    // Kale datums houden D2 en MFO/harde pins hun bestaande snapconventie.
+    const elapsedFinishBound = c.type === 'FNLT' && isElapsedTask(task) && c.date?.includes('T');
+    const dW = preserveMilestoneInstant || elapsedFinishBound ? d : this.snapOnOrBefore(eng, d);
     if (c.type === 'FNLT' || c.type === 'MFO') return dW;
     if (c.type === 'SNLT' || c.type === 'MSO') {
       // Een afgeleide startgrens op een blokbegin hoort bij die werkdag, ook bij dagenmaat (145).
