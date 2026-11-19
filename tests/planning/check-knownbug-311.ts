@@ -28,7 +28,7 @@ for (const profile of ['ops','p6','msproject'] as const) {
     if (aResult.ef !== '2026-06-08T16:00' || bResult.ef !== expected) {
       throw new Error(`knownbug 311 ${profile} ${unit} ${lag}: ${JSON.stringify({aResult,bResult,expected})}`);
     }
-    console.log('OK knownbug 311', profile, unit, lag, bResult.ef);
+    console.log('KNOWNBUG311_WINDOW', JSON.stringify({profile,unit,lag,A:aResult,B:bResult}));
   }
 }
 
@@ -70,4 +70,16 @@ for (const profile of ['ops','p6','msproject'] as const) {
     if (bt.earlyFinish !== '2026-06-05T16:00') throw new Error(`311 harde MFO ${profile}: ${JSON.stringify(bt)}`);
     console.log('OK 311 harde MFO',profile,bt.earlyFinish);
   }
+}
+
+for (const profile of ['ops','p6','msproject'] as const) {
+  const a=task('A',2880), d=task('D',3840), b=task('B',1920);
+  const links:Sequence[]=[
+    {id:'ff1',predecessorId:'A',successorId:'B',type:'FINISH_FINISH',lagDays:-2,lagUnit:'ELAPSEDTIME'},
+    {id:'ff2',predecessorId:'D',successorId:'B',type:'FINISH_FINISH',lagDays:0,lagUnit:'WORKTIME'}];
+  const r=new CPMSolver([a,d,b],links,cal,[],{projectStartDate:'2026-06-01',
+    schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})}).solve();
+  const bt=r.tasks.get('B')!, dt=r.tasks.get('D')!;
+  if (bt.earlyFinish < dt.earlyFinish) throw new Error(`311 meerdere voorgangers ${profile}: ${JSON.stringify({bt,dt})}`);
+  console.log('KNOWNBUG311_MULTIPLE',JSON.stringify({profile,B:bt,D:dt}));
 }
