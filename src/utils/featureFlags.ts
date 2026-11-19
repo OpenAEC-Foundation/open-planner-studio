@@ -54,6 +54,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcForeignTargetChanged',
       'common:notifications.ifcForeignTargetExport',
       'common:notifications.ifcForeignTargetGone',
+      'common:notifications.ifcForeignTargetOpenInTab',
       'common:notifications.ifcForeignTargetSave',
       'common:notifications.ifcSaveChangedWhileWaiting',
       'common:notifications.ifcSourceCopyFailed',

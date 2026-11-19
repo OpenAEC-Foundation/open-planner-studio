@@ -182,9 +182,13 @@ await check('Ctrl+S en sluitvraag: origineel en zojuist gemaakte naam worden ver
   } finally { ipc.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
-await check('Opslaan als bestaand eigen bestand: de plaatsing weigert, oude bytes intact, dezelfde zin als Exporteren', async () => {
+// #804 keuze 4 (knownbug 1131 stap 8): Opslaan als over een bestaand bestand vervangt het langs de weg van Ctrl+S; de
+// proeven daarvan staan in `check-ifc-own-file-replace.ts` (deel c). Hier de grens van 1764 op die route: zonder
+// vastgelegde herstelronde schrijft de app niet, zoals bij Ctrl+S.
+await check('Opslaan als over een bestaand bestand zonder herstelronde: niets geschreven, de melding van Ctrl+S', async () => {
   const { store } = await openInStore(bytes); longer(store);
-  const ipc = desktop(), target = join(dir, 'bestaand.ifc');
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), target = join(dir, 'bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
   writeFileSync(target, plain); ipc.choose(target);
   const before = preserved(store);
@@ -192,11 +196,11 @@ await check('Opslaan als bestaand eigen bestand: de plaatsing weigert, oude byte
     const calls = ipc.calls.length;
     clearNotices(store); await store.getState().saveFileAs(); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), hash(plain));
-    // Knownbug 1760: geen interne tekst ("Byte-delen … (create-new)"), maar de zin van Exporteren.
-    assertNotice(store, 'notifications.ifcForeignNewTargetOnly');
-    tookTempRoute(ipc.calls.slice(calls), target);
-    assert.deepEqual(tempLeft(), [], 'het eigen hulpbestand is weg');
-  } finally { ipc.dispose(); }
+    assertNotice(store, 'notifications.ifcForeignReplaceNotRecorded');
+    assert.deepEqual(ipc.calls.slice(calls).filter(c => c.wrote && c.path?.startsWith(dir)), [], 'nul schrijfacties in de map');
+    assert.deepEqual(ipc.calls.slice(calls).filter(c => c.command === 'place_file_exclusive'), [], 'niets verplaatst');
+    assert.deepEqual(tempLeft(), []);
+  } finally { ipc.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
 for (const fault of ['annuleren', 'I/O-fout', 'document-gesloten', 'nieuwe-bron', 'flag-uit-na-kiezer'] as const) {
