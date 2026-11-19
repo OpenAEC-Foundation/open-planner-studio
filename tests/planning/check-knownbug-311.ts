@@ -28,6 +28,11 @@ for (const profile of ['ops','p6','msproject'] as const) {
     if (aResult.ef !== '2026-06-08T16:00' || bResult.ef !== expected) {
       throw new Error(`knownbug 311 ${profile} ${unit} ${lag}: ${JSON.stringify({aResult,bResult,expected})}`);
     }
+    if (unit === 'ELAPSEDTIME' && lag < 0
+      && (aResult.tf !== 0 || bResult.ls !== '2026-06-03T07:00'
+        || bResult.lf !== '2026-06-08T16:00' || bResult.tf !== 1 || bResult.ff !== 1)) {
+      throw new Error(`311 speling ${profile} ${lag}: ${JSON.stringify({aResult,bResult})}`);
+    }
     console.log('KNOWNBUG311_WINDOW', JSON.stringify({profile,unit,lag,A:aResult,B:bResult}));
   }
 }
@@ -80,6 +85,8 @@ for (const profile of ['ops','p6','msproject'] as const) {
   const r=new CPMSolver([a,d,b],links,cal,[],{projectStartDate:'2026-06-01',
     schedulingOptions:effectiveSchedulingOptions({schedulingProfile:builtInProfile(profile)})}).solve();
   const bt=r.tasks.get('B')!, dt=r.tasks.get('D')!;
-  if (bt.earlyFinish < dt.earlyFinish) throw new Error(`311 meerdere voorgangers ${profile}: ${JSON.stringify({bt,dt})}`);
+  if (bt.earlyFinish !== '2026-06-10T16:00' || dt.earlyFinish !== bt.earlyFinish
+    || bt.lateFinish !== bt.earlyFinish || bt.totalFloat !== 0 || bt.freeFloat !== 0
+    || dt.totalFloat !== 0) throw new Error(`311 meerdere voorgangers ${profile}: ${JSON.stringify({bt,dt})}`);
   console.log('KNOWNBUG311_MULTIPLE',JSON.stringify({profile,B:bt,D:dt}));
 }
