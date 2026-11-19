@@ -45,7 +45,7 @@ function modelDocument(state: Pick<AppState, 'ui'>, payload: Pick<DocumentPayloa
     && !ifcFullWriteBlocked({ ...payload, ui: state.ui });
 }
 
-/** Zou Ctrl+S voor dit document eerst vragen naar de afhankelijke projecten (`settleDependentAnchors` in `fileSlice.ts`)?
+/** Zou Ctrl+S voor dit document eerst vragen naar de afhankelijke projecten (de vraag bij opslaan in `fileSlice.ts`)?
  *  Dan slaat een stille ronde met een gebouwmodel het over: ze stelt nooit een vraag. */
 function dependentQuestionPossible(state: Pick<AppState, 'ui'>, id: string, payload: Pick<DocumentPayload, 'project'>): boolean {
   return state.ui.dependentProjects.some(r => r.documentId === id && r.projectId === payload.project.id && r.links.length > 0);

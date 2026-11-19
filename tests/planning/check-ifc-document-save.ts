@@ -3250,6 +3250,38 @@ await check('stap 8, ritme per document: een gewoon document ernaast schrijft me
   } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
 });
 
+// Waar Ctrl+S een vraag zou stellen, slaat de ronde het document over: geen vraag, geen venster, geen melding. (Een
+// schemavraag ontstaat bij een gebouwmodel niet: `ifcSchemaQuestionFor` houdt de kop van de bron.)
+for (const question of ['schrijftoestemming voor de handle', 'afhankelijke projecten'] as const) {
+  await check(`stap 8: ${question}; de ronde slaat het document over zonder vraag`, async () => {
+    const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+    const browser = browserDownload();
+    let asked = 0;
+    try {
+      longer(store); clearNotices(store); writableLog.length = 0;
+      if (question === 'schrijftoestemming voor de handle') handleFaults.set(name, { permission: 'denied' });
+      else {
+        const s = store.getState();
+        store.setState(st => { st.ui.dependentProjects = [{ documentId: s.activeDocumentId, projectId: s.project.id,
+          links: [{} as never] }]; });
+        const { setDependentAnchorAsker } = await import('@/state/dependentAnchorQuestion');
+        setDependentAnchorAsker(async () => { asked++; return true; });
+      }
+      await modelAutoSave(store, sw.compute).round();
+      assert.deepEqual(writableLog, [], 'niets geschreven');
+      assert.equal(sw.merges(), 0, 'niet gerekend');
+      assert.equal(asked, 0, 'niets gevraagd');
+      assert.equal(browser.downloads.length, 0, 'geen download');
+      assert.equal(hash(fileOf(name)), hash(bytes));
+      assert.equal(store.getState().isDirty, true);
+      assert.deepEqual(autoErrors(store), [], 'geen melding');
+    } finally {
+      (await import('@/state/dependentAnchorQuestion')).resetDependentAnchorAsker();
+      handleFaults.delete(name); unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery();
+    }
+  });
+}
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;
