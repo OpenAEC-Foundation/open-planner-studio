@@ -166,7 +166,7 @@ opslagstand in de statusbalk staat in `state.md`.
 
 **De laatste controle in de schrijflaag** (knownbug 1896, #804 stap 6 en fixronde 1 van #1027): elke documentopslag en
 elke IFC-export geeft `refuseBeforePlace` (`RefuseBeforePlace` in `fileAccess/index.ts`; `refuseChangedDocumentWrite`
-of `refuseChangedExport`) mee tot het laatste veilige punt: vóór `close()` van een bestaande browserhandle (anders
+of `refuseExportBeforePlace`) mee tot het laatste veilige punt: vóór `close()` van een bestaande browserhandle (anders
 `abort()`; bij de mergehandle synchroon direct na de bronvergelijking, zonder `await` ertussen), vóór de hernoeming en
 elke directe schrijfactie van `replaceUserFile`, vóór de exclusieve plaatsing of aanmaak van `writeNewUserBytes`, vóór
 het opzijzetten in `replaceOwnFileBytes` (uitkomst `stopped`) en vlak vóór de site-opslag. Een weigering laat het doel
@@ -176,7 +176,9 @@ zonder doel) krijgt geen late controle (`saveDataDialogWeb`): Chromium maakt een
 dus `abort()` liet 0 bytes staan (knownbug 1899). De opslag maakt het gevraagde bestand af; bij een intussen vervangen
 inhoud legt de commit niets vast en komt er niets in Recent, en een export meldt geen succes en legt geen kalenderkeuze
 vast (`exportContentReplaced`). De native kiezer van Tauri geeft alleen een pad (plugin-dialog `save`), dus op de
-desktop geldt de late controle overal. Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
+desktop geldt de late controle overal. De late controle van een export kijkt naar het geëxporteerde document, ook als
+dat intussen in een ander tabblad staat (`refuseExportBeforePlace`, review van #1027 ronde 2): een tabbladwissel is geen
+wijziging van de planning, dus de export rondt af zolang het document zijn inhoud en bron hield. Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
 in dezelfde schrijfbeurt, zoals Ctrl+S.
 
 **Herstel bij de start** (knownbug 1902, fixronde 1 van #1027, besluit Trias): een vervanging die aantoonbaar niets

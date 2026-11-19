@@ -1289,6 +1289,27 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
+  /** De laatste controle van een IFC-export, vlak vóór de plaatsing op de desktop (knownbug 1896; review van #1027,
+   *  ronde 2). Staat het geëxporteerde document nog in het actieve tabblad, dan dezelfde controle als vóór de
+   *  bestandskiezer (`refuseChangedExport`). Staat het intussen in een ander tabblad, dan is dat geen wijziging van de
+   *  planning: de export gaat door zolang het document zijn inhoud hield (`sameDocumentContent`) en die inhoud en haar
+   *  bron nog die van de momentopname zijn. `true` = weigeren, met de melding. */
+  const refuseExportBeforePlace = (snapshot: AppState): boolean => {
+    const now = get();
+    if (now.activeDocumentId === snapshot.activeDocumentId) return refuseChangedExport(snapshot);
+    const exported = sameDocumentContent(now, snapshotContent(snapshot)) ? saveSourceForDocument(now, snapshot.activeDocumentId) : null;
+    if (exported && sameIFCSource(snapshot, exported)
+      && (!hasForeignContent(snapshot.ifcSource) || exported.ifcSource === snapshot.ifcSource)) {
+      if (!hasForeignContent(snapshot.ifcSource)) return false;
+      const doc = { ifcSource: exported.ifcSource, foreignSourceMark: exported.foreignSourceMark, ui: now.ui };
+      if (!ifcFullWriteBlocked(doc)) return false;
+      now.notify(ifcWriteBlockedNotice(doc));
+      return true;
+    }
+    now.notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
+    return true;
+  };
+
   /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
    *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
    *  export bouwt daarop, en `refuseChangedExport(state)` weigert onder het schrijfslot, vóór de bestandskiezer, als het
@@ -2459,7 +2480,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Review #872 ronde 7 (Terra): ook de download-terugval na een geweigerde kiezer controleert de bron nog eens.
       const refuseDownload = ext === 'ifc' ? () => refuseChangedExport(state) : null;
       // Knownbug 1896 (review van #1027): op de desktop dezelfde controle vlak vóór de plaatsing.
-      const refuseBeforePlace = ext === 'ifc' ? () => refuseChangedExport(state) : null;
+      const refuseBeforePlace = ext === 'ifc' ? () => refuseExportBeforePlace(state) : null;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
         : { refuseTarget, refuseDownload, refuseBeforePlace };
@@ -2582,7 +2603,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await runProjectFileWrite(async () => {
         if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveDataDialog(`${base}.ifc`, projectData, [{ name: 'IFC Files', extensions: ['ifc'] }],
-          { refuseTarget, refuseDownload: () => refuseChangedExport(state), refuseBeforePlace: () => refuseChangedExport(state) });
+          { refuseTarget, refuseDownload: () => refuseChangedExport(state), refuseBeforePlace: () => refuseExportBeforePlace(state) });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         if (written && exportContentReplaced(state)) return null; // zie `exportAs`
         return written;

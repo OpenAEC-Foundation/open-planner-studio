@@ -2805,6 +2805,88 @@ await check('review 1896: gebouwmodel, laadactie tussen de asynchrone broncontro
   }
 });
 
+// Review van #1027, ronde 2: een tabbladwissel is geen wijziging van de planning. De late controle van een IFC-export
+// (knownbug 1896) kijkt naar het geëxporteerde document, ook als dat intussen in een ander tabblad staat: de export van
+// A rondt af met de volledige bytes. De proef van de reviewer, vanaf de echte exportacties.
+for (const withPool of [false, true]) {
+  const route = withPool ? 'met resourcebibliotheek' : 'IFC';
+  await check(`review van #1027 ronde 2: desktopexport ${route} na een gewone tabbladwissel rondt af`, async () => {
+    const { sameIFCSource } = await import('@/state/ifcSaveInput');
+    const { createAppStoreContext } = await loadStore();
+    const sw = saveWorker();
+    const { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
+    const ipc = desktop();
+    const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
+    const internal = win.__TAURI_INTERNALS__;
+    const invoke = internal.invoke;
+    const target = join(dir, `export-tabwissel-${withPool}.ifc`);
+    const pool = join(dir, 'export-tabwissel-bibliotheek.ifc');
+    const previous = new TextEncoder().encode('Bestaande projectexport');
+    let tempWritten!: () => void;
+    const atTemp = new Promise<void>(resolve => { tempWritten = resolve; });
+    let finishWrite!: () => void;
+    const waitToPlace = new Promise<void>(resolve => { finishWrite = resolve; });
+    let entered = false;
+    try {
+      await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+      const first = store.getState().activeDocumentId;
+      const second = store.getState().newDocument();
+      store.getState().switchDocument(first);
+      if (withPool) {
+        const companyId = store.getState().seedDemoLibrary();
+        store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+      }
+      longer(store);
+      clearNotices(store);
+      const snapshot = store.getState();
+      const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(snapshot, withPool ? 'planOnly' : 'merge')));
+      const originalContent = documentContentOf(snapshot, first);
+      writeFileSync(target, previous);
+      ipc.choose(target);
+      ipc.onPick(() => { if (ipc.picks() === 2) ipc.choose(pool); });
+      internal.invoke = async (...args) => {
+        const result = await invoke(...args);
+        if (!entered && (args[0] === 'plugin:fs|write_file' || args[0] === 'plugin:fs|write_text_file') && tempLeft().length > 0) {
+          entered = true;
+          tempWritten();
+          await waitToPlace;
+        }
+        return result;
+      };
+
+      const saving = withPool ? snapshot.exportProjectWithPool() : snapshot.exportAs('ifc');
+      await Promise.race([atTemp, saving.then(() => assert.fail('de actie kwam nooit bij het hulpbestand'))]);
+      assert(entered);
+      assert.equal(hash(readFileSync(target)), hash(previous), 'het bestaande doel staat nog op zijn plaats');
+      assert.equal(hash(readFileSync(join(dir, tempLeft()[0]!))), hash(expected), 'in het hulpbestand staan alle bytes van A');
+      store.getState().switchDocument(second);
+      assert.equal(store.getState().activeDocumentId, second);
+      assert.deepEqual(documentContentOf(store.getState(), first), originalContent, 'de identiteit van A bleef gelijk');
+      assert(sameIFCSource(snapshot, payloadOf(store, first)), 'de te schrijven inhoud van A bleef gelijk');
+      finishWrite();
+      const result = await saving;
+      const actual = readFileSync(target);
+      const observation = {
+        route, cancelled: result.ok && result.cancelled === true, existingHash: hash(previous), expectedHash: hash(expected),
+        actualHash: hash(actual), actualLength: actual.length, expectedLength: expected.length, picks: ipc.picks(),
+        recent: store.getState().recentFiles.some(file => file.name === target.split('/').at(-1)),
+        errors: store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey),
+        poolWritten: existsSync(pool), tempLeft: tempLeft().length,
+      };
+      console.log('REVIEW-TABWISSEL', JSON.stringify(observation));
+      assert(result.ok && !result.cancelled, 'de export van A hoort bij een gewone tabbladwissel af te ronden');
+      assert.equal(hash(actual), hash(expected));
+      assert.equal(ipc.picks(), withPool ? 2 : 1);
+      assert.equal(observation.poolWritten, withPool);
+    } finally {
+      finishWrite();
+      internal.invoke = invoke;
+      ipc.dispose();
+      sw.client.dispose();
+    }
+  });
+}
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;
