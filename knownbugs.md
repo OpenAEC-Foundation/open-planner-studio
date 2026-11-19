@@ -3998,6 +3998,23 @@ en noem het in je rapport of PR-tekst.
       verlies), en de fix gaat mee in de volgende stap, het opslaan van gewone bestanden in de achtergrond, die
       dezelfde schrijfroutes raakt. Gevonden door de review van #1020 (Sol, ronde 2). — B (proef)
 
+1902. **VERVOLG (#804, desktop, alleen met de featureflag aan): na een geweigerde vervanging buiten de thuismap blijft het herstelrecord staan en meldt de app bij elke start bestanden die niet bestaan.**
+      Een document met een gebouwmodel via *Opslaan als* over een bestaand bestand buiten de thuismap eindigt terecht
+      in `save-as-only` (`forbidden path`): de aanmaak van het tijdelijke bestand is geweigerd en er staat niets in die
+      map. Toch blijft `recovery.replace.<id>.json` in de app-gegevensmap staan. Bij elke volgende start toont de app
+      twee rode meldingen ("Van een onderbroken opslag van … bleef dit bestand staan: …ops-vorige-<id>" en
+      "…save-<id>.ops-save.tmp. Kijk of je het nog nodig hebt.") over bestanden die er niet zijn; de planner kan het
+      record niet zelf wissen. Oorzaak: `replaceOwnPathWithRecovery` (`src/state/ownFileReplace.ts`) wist het record
+      alleen als `replaceHelpersGone` waar geeft; die doet `lstat` op de twee hulpbestanden, en buiten het bereik van
+      plugin-fs is dat een weigering, geen "bestaat niet" (`src/services/fileAccess/ownFileReplace.ts`). De
+      opruimronde bij de start kan de paden om dezelfde reden niet lezen en meldt ze als achtergebleven. Vermoed:
+      hetzelfde bij Ctrl+S op een model buiten de thuismap (1762), dezelfde functie en dezelfde uitkomst; niet in de
+      app geprobeerd. Richting: een uitkomst waarbij stap 1 nooit iets schreef wist het record meteen; de opruimronde
+      meldt een pad dat ze niet mag lezen niet als achtergebleven; een record van vóór de fix verdwijnt bij de
+      eerstvolgende start. **Voorwaarde (besluit van Trias, 19 november 2026): de featureflag gaat niet aan voordat dit
+      punt en het geval met Ctrl+S buiten de thuismap (1762) zijn opgelost.** Gezien in de desktopcontrole van #1020
+      (twee starts, schermafbeelding van de meldingen). — B (app, *Opslaan als*), S (Ctrl+S)
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
