@@ -785,6 +785,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   type DocumentWrite = IfcOutput & { readonly missingSourceSaveAs?: true };
+  /** De uitvoer met de bevestigde keuze erbij, zonder de luie tekst van een workeruitvoer op te vragen (een spread zou
+   *  de getter `content` aanroepen en de bytes alsnog decoderen; review van #1027). */
+  const withMissingSourceSaveAs = (output: IfcOutput): DocumentWrite => Object.defineProperties({}, {
+    ...Object.getOwnPropertyDescriptors(output), missingSourceSaveAs: { value: true, enumerable: true },
+  }) as DocumentWrite;
   /** #804 stap 6: wat een schrijfroute van de gewone writer wegschrijft. De bytes van de opslagworker gaan rechtstreeks
    *  naar de schrijflaag (bestand, handle, download, site); de tekst alleen als het rekenen op deze thread gebeurde
    *  (de worker startte niet). Nooit eerst tekst van de bytes maken: dat zou de UTF-8 een tweede keer omzetten. */
@@ -1261,10 +1266,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  zoals Opslaan (`exportHitsOwnFile`). Een export naar een ander bestand verandert de keuze niet. */
   const recordOwnFileExport = async (state: AppState, outcome: SaveOutcome, ids: readonly string[]): Promise<void> => {
     if (ids.length === 0) return;
-    if (await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs())) {
-      get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
-    }
+    const hitsOwnFile = await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs());
+    // Review van #1027: na de asynchrone doelvergelijking alleen nog op dezelfde inhoud vastleggen.
+    if (hitsOwnFile && !exportContentReplaced(state)) get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
   };
+
+  /** Kreeg het tabblad van de export intussen een andere inhoud (`documentSaveState.ts`)? Dan zet de export daar niets
+   *  op vast: geen Recent, geen kalenderkeuze en geen succesmelding (review van #1027). Zonder melding: op dat moment
+   *  staat het bestand er al (een handle uit de opslaankiezer van de browser, knownbug 1899). */
+  const exportContentReplaced = (state: AppState): boolean => !sameDocumentContent(get(), snapshotContent(state));
 
   /** Review #872 ronde 5 (Terra): een IFC-export maakt zijn tekst vóór hij op de schrijflock wacht. Veranderde het
    *  document intussen (een opslag in de wachtrij legde de letterlijke kalenders vast, of de planner wijzigde iets), dan
@@ -1476,9 +1486,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return replaceHandleWithBytes(ref, prepared.bytes, async () => {
             const content = await sourceTargetContent(ref, expected);
             if (content !== 'same') seen.refused = content;
-            // Knownbug 1896: na de bytevergelijking, vlak vóór `close()`, ook de inhoud van het document.
-            return content === 'same' && !refuseChangedDocumentWrite(state, write);
-          });
+            return content === 'same';
+          // Knownbug 1896: de inhoud van het document, in de schrijflaag direct naast `close()` (review van #1027).
+          }, () => refuseChangedDocumentWrite(state, write));
         },
         commit: () => { seen.committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
       });
@@ -1633,6 +1643,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // zoals bij een gewoon bestand.
       let ownHandle: Extract<FileRef, { kind: 'handle' }> | null = null;
       let ownPath: Extract<FileRef, { kind: 'path' }> | null = null;
+      // Review van #1027: ook voor een gewoon bestand achter een handle de schrijftoestemming vóór het rekenen, zoals de
+      // merge: de vraag van de browser hoort bij het gebaar van de planner, en dat kan na een trage workerstart verlopen
+      // zijn. Zonder toestemming de bestaande uitweg (de opslaankiezer of een download).
+      // Een echte fout van de toestemmingsvraag: melden en dezelfde uitweg, zoals voorheen in `saveToRef`.
+      let handleRefused = false;
+      if (!hasForeignContent(state.ifcSource) && ref?.kind === 'handle') {
+        try { handleRefused = !(await handleWritePermission(ref)); } catch (err) {
+          handleRefused = handleWriteFailed = true;
+          notifyWriteError(err);
+        }
+      }
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
         if (ref.kind === 'path') ownPath = ref;
@@ -1680,7 +1701,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       // Een site-ref geeft hier altijd `false` (zie `saveToRef`): dan loopt de route hieronder. Een merge naar een
       // handle zonder schrijftoestemming gaat naar de download hieronder.
-      if (ref && !(write.prepared && ref.kind === 'handle')) {
+      if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
@@ -1724,6 +1745,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
         : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared);
+      // Een handle uit de opslaankiezer van de browser maakt het bestand af, ook als het tabblad intussen een andere
+      // inhoud kreeg (knownbug 1899); dan legde de commit niets vast, en komt het ook niet in Recent.
+      if (!sameDocumentContent(get(), snapshotContent(state))) return false;
       await pushRecent(outcome.ref, outcome.name);
       // Een geslaagde kopie na een schrijffout bewijst geen browserbeperking. De echte fout is al
       // gemeld; alleen een download vraagt dan nog om uitleg over de nieuwe locatie.
@@ -1778,7 +1802,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     try {
       // De bevestiging geldt uitsluitend voor deze planOnly-momentopname (`prepareIfcOutput`). De globale guard blijft dicht.
       const output = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
-      const write: DocumentWrite | null = output && missingSourceSaveAs ? { ...output, missingSourceSaveAs: true } : output;
+      const write: DocumentWrite | null = output && missingSourceSaveAs ? withMissingSourceSaveAs(output) : output;
       if (!write || refuseChangedDocumentWrite(state, write)) return;
       // Site-opslag aanwezig: "Opslaan op de site" maakt altijd een NIEUW site-bestand (opslaan
       // als); "Op deze pc…" valt door naar de bestaande route hieronder.
@@ -1796,6 +1820,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
       else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, write.missingSourceSaveAs);
+      // Zie `writeActiveDocument`: een vervangen inhoud krijgt geen pad, bron of Recent (knownbug 1899).
+      if (!sameDocumentContent(get(), snapshotContent(state))) return;
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
     } catch (err) {
@@ -2431,9 +2457,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         : foreignCheck;
       // Review #872 ronde 7 (Terra): ook de download-terugval na een geweigerde kiezer controleert de bron nog eens.
       const refuseDownload = ext === 'ifc' ? () => refuseChangedExport(state) : null;
+      // Knownbug 1896 (review van #1027): op de desktop dezelfde controle vlak vóór de plaatsing.
+      const refuseBeforePlace = ext === 'ifc' ? () => refuseChangedExport(state) : null;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
-        : { refuseTarget, refuseDownload };
+        : { refuseTarget, refuseDownload, refuseBeforePlace };
       const writeAndRecord = async () => {
         // Review #872 ronde 6 (Terra): zonder bestandskiezer (Firefox, Safari) gaat de export als download, zonder
         // doel en dus zonder `refuseTarget`. Daarom ook meteen na het wachten op de lock: is het document veranderd, dan
@@ -2450,6 +2478,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             ?? refusalNotice({ messageKey: 'notifications.saveFailed', dedupeKey: 'ifc-export-write-failed' }));
           return null;
         }
+        if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         // Na een ja op "alleen de planning" is het eigen bestand nooit het doel (het bevat het gebouwmodel).
         if (written && !preparedExport && !planOnly) await recordOwnFileExport(state, written, exportedLiteral);
         return written;
@@ -2551,7 +2580,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await runProjectFileWrite(async () => {
         if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveDataDialog(`${base}.ifc`, projectData, [{ name: 'IFC Files', extensions: ['ifc'] }],
-          { refuseTarget, refuseDownload: () => refuseChangedExport(state) });
+          { refuseTarget, refuseDownload: () => refuseChangedExport(state), refuseBeforePlace: () => refuseChangedExport(state) });
+        if (written && exportContentReplaced(state)) return null;
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         return written;
       }, () => null);

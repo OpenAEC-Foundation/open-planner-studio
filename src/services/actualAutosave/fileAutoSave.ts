@@ -75,19 +75,8 @@ export function createFileAutoSaveController(deps: {
     // of van de updater (`closeProjectFileWrites`), dan schrijft ze niet meer: `'refused'`, niets te melden, het
     // document blijft gewijzigd.
     write: candidate => runProjectFileWrite<boolean | 'stale' | 'refused'>(async () => {
-      // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock, vóór de write.
-      const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
-      if (reason) {
-        refusedTarget.set(candidate.id, candidate.ref!);
-        if (!targetNotified.has(candidate.id)) {
-          targetNotified.add(candidate.id);
-          getState().notify(reason === 'unreadable-target'
-            ? IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE : IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
-        }
-        return 'refused';
-      }
-      // Wachten op een handmatige write (of op de doelcontrole) mag nooit alsnog een inmiddels oude autosave-inhoud
-      // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock, vóór het voorbereiden.
+      // Wachten op een handmatige write mag nooit alsnog een inmiddels oude autosave-inhoud laten overschrijven. Kijk
+      // dus OPNIEUW onder de exclusieve lock, vóór het voorbereiden.
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
       if (!current) return false;
       const document = { id: candidate.id, content: candidate.content };
@@ -100,6 +89,19 @@ export function createFileAutoSaveController(deps: {
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.
       const output = await prepareIfcOutput({ ...current, ui: getState().ui }, buildWriteIFCInput(current, 'merge'), undefined, compute);
       if (output.prepared) return 'refused';
+      // #804 fixronde 2: dezelfde doelcontrole als Opslaan, onder dezelfde lock. Fixronde 1 van #1027 (review Sol): ná het
+      // rekenen, vlak vóór het schrijven, zoals Ctrl+S: een gebouwmodel dat tijdens het rekenen op het doel verscheen,
+      // wordt niet overschreven. Eén doelscan; daarna beslist alleen nog de synchrone inhoudscontrole hieronder.
+      const reason = await refusedWriteTarget(getState(), candidate.ref!, targetDeps);
+      if (reason) {
+        refusedTarget.set(candidate.id, candidate.ref!);
+        if (!targetNotified.has(candidate.id)) {
+          targetNotified.add(candidate.id);
+          getState().notify(reason === 'unreadable-target'
+            ? IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE : IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
+        }
+        return 'refused';
+      }
       rememberLiteralCalendarsWritten(current, output.literalCalendarIds);
       // Knownbug 1896: de laatste controle, vlak vóór de hernoeming of `close()`: hoort de ronde nog bij deze inhoud?
       let replaced = false;

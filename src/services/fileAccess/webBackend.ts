@@ -188,11 +188,14 @@ export async function handleWritePermissionWeb(handle: FileSystemFileHandle): Pr
  * Knownbug 1131 stap 2: het eigen bestand achter een handle vervangen door de voorbereide buffer.
  * `createWritable()` schrijft naar een tijdelijk bestand van de browser; pas `close()` zet de inhoud op zijn plek.
  * Vlak vóór `close()` vraagt deze functie `stillSource()`: staat op het doel nog de bron? Zo niet, dan `abort()` en
- * `false`: het bestand blijft ongemoeid. Een wijziging tussen die controle en `close()` gaat verloren; de browser kent
- * geen voorwaardelijk opslaan (ontwerp §4.10, §4.15). Een schrijf- of sluitfout gooit `ByteWriteError`.
+ * `false`: het bestand blijft ongemoeid. Daarna, zonder `await` ertussen, de synchrone laatste controle van de
+ * aanroeper (`refuseBeforePlace`, knownbug 1896, review van #1027): hoort de opslag nog bij de inhoud van het document?
+ * Een wijziging tussen die controle en `close()` kan dan niet meer; een wijziging op schijf ná de bronvergelijking gaat
+ * verloren, want de browser kent geen voorwaardelijk opslaan (ontwerp §4.10, §4.15). Een schrijf- of sluitfout gooit
+ * `ByteWriteError`.
  */
 export async function replaceHandleWithBytesWeb(
-  handle: FileSystemFileHandle, bytes: Uint8Array, stillSource: () => Promise<boolean>,
+  handle: FileSystemFileHandle, bytes: Uint8Array, stillSource: () => Promise<boolean>, refuseBeforePlace: RefuseBeforePlace,
 ): Promise<boolean> {
   const writable = await handle.createWritable();
   try {
@@ -204,7 +207,7 @@ export async function replaceHandleWithBytesWeb(
   let same: boolean;
   try { same = await stillSource(); }
   catch (error) { await writable.abort().catch(() => {}); throw error; }
-  if (!same) {
+  if (!same || refuseBeforePlace()) {
     await writable.abort();
     return false;
   }
@@ -310,7 +313,7 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
  * twee kopieën zijn, dan drift de foutafhandeling van het byte-pad onvermijdelijk weg van die van
  * het tekstpad.
  */
-async function saveDataDialogWeb(
+export async function saveDataDialogWeb(
   defaultName: string, data: FileData, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
@@ -327,7 +330,10 @@ async function saveDataDialogWeb(
       });
       // #804 fixronde 1: het gekozen bestand vóór `createWritable()` controleren (bijv. de bron van een gebouwmodel).
       if (await opts?.refuseTarget?.({ kind: 'handle', handle })) return null;
-      if (!(await writeThroughHandle(handle, data, opts?.refuseBeforePlace))) return null;
+      // Geen late controle (`refuseBeforePlace`) op een handle uit de kiezer: Chromium heeft een bestaand doel bij het
+      // kiezen al leeggemaakt, dus `abort()` bracht het oude bestand niet terug maar liet 0 bytes staan (knownbug 1899).
+      // De opslag maakt het gevraagde bestand af; de aanroeper legt niets vast als de inhoud intussen verving.
+      await writeThroughHandle(handle, data);
       const file = await handle.getFile();
       return { ref: { kind: 'handle', handle }, name: file.name };
     } catch (err) {
@@ -347,18 +353,6 @@ async function saveDataDialogWeb(
   if (opts?.refuseDownload?.()) return null;
   downloadBlob(defaultName, data, opts?.mime);
   return { ref: null, name: defaultName, viaDownload: true };
-}
-
-export function saveFileDialogWeb(
-  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
-): Promise<SaveOutcome | null> {
-  return saveDataDialogWeb(defaultName, content, filters, opts);
-}
-
-export function saveBytesDialogWeb(
-  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
-): Promise<SaveOutcome | null> {
-  return saveDataDialogWeb(defaultName, bytes, filters, opts);
 }
 
 /**

@@ -1,6 +1,6 @@
 import { isTauri } from '@/utils/platform';
 import {
-  saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
+  saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
   saveNewBytesDialogTauri, saveNewBytesToRefTauri,
 } from './tauriBackend';
@@ -10,7 +10,7 @@ import type { RemnantEvent } from './ownFileReplace';
 import type { TargetReaders } from './foreignSourceTarget';
 import { readSiteSourceFile } from './siteBackend';
 import {
-  openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
+  openFileDialogWeb, saveDataDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
   saveNewBytesDialogWeb, saveNewBytesToRefWeb, handleWritePermissionWeb, replaceHandleWithBytesWeb,
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
@@ -123,7 +123,8 @@ export interface SaveDialogOpts {
   /**
    * Knownbug 1896 (#804 stap 6): de laatste controle van de aanroeper, op het laatste punt waar de opslag nog kan
    * stoppen zonder het einddoel te wijzigen. Zie `RefuseBeforePlace`. De dialoog geeft bij een weigering `null`, zoals
-   * bij annuleren.
+   * bij annuleren. Niet op een handle uit de opslaankiezer van de browser: die heeft een bestaand doel al leeggemaakt
+   * (knownbug 1899), dus daar maakt de dialoog het bestand af en beslist de aanroeper alleen nog over de commit.
    */
   refuseBeforePlace?: RefuseBeforePlace | null;
 }
@@ -212,8 +213,9 @@ export function handleWritePermission(ref: Extract<FileRef, { kind: 'handle' }>)
 }
 export function replaceHandleWithBytes(
   ref: Extract<FileRef, { kind: 'handle' }>, bytes: Uint8Array, stillSource: () => Promise<boolean>,
+  refuseBeforePlace: RefuseBeforePlace,
 ): Promise<boolean> {
-  return replaceHandleWithBytesWeb(ref.handle, bytes, stillSource);
+  return replaceHandleWithBytesWeb(ref.handle, bytes, stillSource, refuseBeforePlace);
 }
 
 /** Opslaan-als / export via picker, met tekst of bytes (#804 stap 6: de bytes van de opslagworker gaan zonder omweg via
@@ -222,16 +224,14 @@ export function replaceHandleWithBytes(
 export function saveDataDialog(
   defaultName: string, data: FileData, filters: FileFilter[], opts: CheckedSaveDialogOpts,
 ): Promise<SaveOutcome | null> {
-  return typeof data === 'string' ? saveFileDialog(defaultName, data, filters, opts) : saveBytesDialog(defaultName, data, filters, opts);
+  return isTauri() ? saveDataDialogTauri(defaultName, data, filters, opts) : saveDataDialogWeb(defaultName, data, filters, opts);
 }
 
-/** Opslaan-als / export via picker. `null` = geannuleerd. */
+/** Opslaan-als / export van tekst via picker. `null` = geannuleerd. */
 export function saveFileDialog(
   defaultName: string, content: string, filters: FileFilter[], opts: CheckedSaveDialogOpts,
 ): Promise<SaveOutcome | null> {
-  return isTauri()
-    ? saveFileDialogTauri(defaultName, content, filters, opts)
-    : saveFileDialogWeb(defaultName, content, filters, opts);
+  return saveDataDialog(defaultName, content, filters, opts);
 }
 
 /**
@@ -242,9 +242,7 @@ export function saveFileDialog(
 export function saveBytesDialog(
   defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts: CheckedSaveDialogOpts,
 ): Promise<SaveOutcome | null> {
-  return isTauri()
-    ? saveBytesDialogTauri(defaultName, bytes, filters, opts)
-    : saveBytesDialogWeb(defaultName, bytes, filters, opts);
+  return saveDataDialog(defaultName, bytes, filters, opts);
 }
 
 /**

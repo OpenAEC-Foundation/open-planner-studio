@@ -157,4 +157,3 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     },
   };
 }
-

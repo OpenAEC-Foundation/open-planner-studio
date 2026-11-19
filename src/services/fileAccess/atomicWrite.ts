@@ -234,11 +234,6 @@ export async function writeUserTextFileTauri(path: string, text: string): Promis
   await writeUserFileTauri(path, text);
 }
 
-/** Tauri: een binair bestand van de gebruiker (PDF-export) veilig vervangen. */
-export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
-  await writeUserFileTauri(path, bytes);
-}
-
 /** Tauri: tekst of bytes (#804 stap 6: de bytes van de opslagworker) via dezelfde veilige vervanging; dezelfde bytes op
  *  schijf. Met `refuseBeforePlace` de laatste controle van een documentopslag (knownbug 1896): `false` als die weigerde,
  *  het doel is dan onveranderd. */

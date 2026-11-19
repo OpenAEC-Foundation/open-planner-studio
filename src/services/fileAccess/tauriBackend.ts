@@ -183,26 +183,17 @@ async function needsOwnDialogRound(path: string): Promise<boolean> {
   }
 }
 
-export async function saveFileDialogTauri(
-  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+/** Opslaan als / export via de kiezer, met tekst of bytes (`writeUserFileTauri` kiest het commando van plugin-fs). Geen
+ *  `viaDownload`: op de desktop bestaat die route niet. De native kiezer geeft alleen een pad terug en opent het bestand
+ *  niet (plugin-dialog `save`), dus de late controle (`refuseBeforePlace`) laat een bestaand doel echt ongewijzigd. */
+export async function saveDataDialogTauri(
+  defaultName: string, data: FileData, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
   // #804 fixronde 1: het gekozen pad vóór het schrijven controleren (bijv. het bronbestand van een gebouwmodel).
   if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  if (!(await writeUserFileTauri(savedPath, content, opts?.refuseBeforePlace))) return null;
-  return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
-}
-
-/** Binaire tegenhanger van `saveFileDialogTauri`: zelfde kiezer, `writeFile` i.p.v.
- *  `writeTextFile`. Geen `viaDownload` — op desktop bestaat die route niet. */
-export async function saveBytesDialogTauri(
-  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
-): Promise<SaveOutcome | null> {
-  const savedPath = await pickSavePathTauri(defaultName, filters, opts);
-  if (!savedPath) return null;
-  if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  if (!(await writeUserFileTauri(savedPath, bytes, opts?.refuseBeforePlace))) return null;
+  if (!(await writeUserFileTauri(savedPath, data, opts?.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 

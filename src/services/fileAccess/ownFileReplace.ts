@@ -213,7 +213,7 @@ export type RemnantEvent =
    *  blijft staan, en het herstelrecord ook. */
   | { kind: 'left-over'; target: string; path: string };
 
-/** `forbidden`: plugin-fs weigert het pad (buiten de scope, knownbug 1902). */
+/** `forbidden`: plugin-fs weigert het pad nu (buiten de scope). */
 type Seen = string | 'missing' | 'unreadable' | 'forbidden';
 
 /**
@@ -230,12 +230,13 @@ type Seen = string | 'missing' | 'unreadable' | 'forbidden';
  * - Het tijdelijke bestand met `pendingSha256` en het doel niet: de eigen nieuwe planning, die niet op het doel kwam
  *   (de herstelsnapshot kan tot 10 s achterlopen). Exclusief naar "niet opgeslagen planning"; niets gewist.
  * - Al het andere (een andere inhoud, onleesbaar, of een stap die faalde) blijft staan en wordt gemeld (`left-over`).
- * - Een hulpnaam die plugin-fs buiten de scope weigert (`forbidden`, knownbug 1902) telt als afwezig: niet gemeld, en
- *   het record mag weg. Er kan daar geen hulpbestand van de app staan. De scope geldt voor elke aanroep gelijk (lezen,
- *   `lstat` en de aanmaak in stap 1 toetsen hetzelfde bereik, en `fs:allow-home-read-recursive` en
- *   `-write-recursive` dekken dezelfde map) en wordt binnen een installatie alleen groter (de kiezer voegt alleen het
- *   gekozen bestand toe, en `persisted-scope` bewaart dat over herstarts). Mag de app de naam nu niet lezen, dan mocht
- *   ze hem ook toen niet aanmaken. Het record wissen raakt geen bestand: wat er buiten de scope staat, blijft staan.
+ * - Weigert plugin-fs het doel of een hulpnaam (`forbidden`), dan doet deze ronde niets: geen stap, geen melding, en
+ *   het record blijft voor een latere start met toegang (uitgesteld herstel, review van #1027). Een weigering bewijst
+ *   niet dat er niets staat: plugin-fs toetst het pad waar het nu werkelijk naartoe wijst (een verplaatste map achter
+ *   een link valt erbuiten), een map die Afhankelijke projecten vrijgaf kan na een herstart ontbreken, en
+ *   `persisted-scope` start bij een onleesbaar scopebestand zonder de bewaarde rechten. De melding "bleef staan" komt
+ *   alleen voor een bestand dat de app zag staan. Een vervanging die aantoonbaar niets schreef, wist haar record al
+ *   zelf (`nothingWritten`, `replaceOwnPathWithRecovery`).
  * `resolved`: er staat geen hulpbestand van de operatie meer; het record mag weg.
  */
 export async function settleReplaceRemnants(
@@ -252,27 +253,28 @@ export async function settleReplaceRemnants(
       return isForbiddenPathError(error) ? 'forbidden' : 'unreadable';
     }
   };
-  const absent = (seen: Seen) => seen === 'missing' || seen === 'forbidden';
   const leave = (file: string) => { events.push({ kind: 'left-over', target: path, path: file }); };
   const removeOrLeave = async (file: string) => {
     try { await fs.remove(file); } catch { leave(file); }
   };
 
+  // Eerst alles zien, dan pas handelen: een weigering op een van de drie namen stelt de hele afhandeling uit.
   let target = await see(path);
   const before = await see(previous);
+  const written = await see(temp);
+  if ([target, before, written].includes('forbidden')) return { events: [], resolved: false };
   if (before === vorigeSha256 && target === 'missing') {
     if (placedOk(await fs.place(previous, path))) target = before;
     else leave(previous);
-  } else if (!absent(before)) leave(previous);
+  } else if (before !== 'missing') leave(previous);
 
-  const written = await see(temp);
   if (written === pendingSha256 && target === pendingSha256) {
     await removeOrLeave(temp);
   } else if (written === pendingSha256) {
     const copy = replaceCopyPath(path, label('unsaved-schedule'));
     if (placedOk(await fs.place(temp, copy))) events.push({ kind: 'unsaved-schedule', target: path, copy });
     else leave(temp);
-  } else if (!absent(written)) leave(temp);
+  } else if (written !== 'missing') leave(temp);
   return { events, resolved: !events.some(event => event.kind === 'left-over') };
 }
 

@@ -2417,6 +2417,393 @@ await check('Automatisch opslaan, gewoon document: de ronde rekent via de bereke
   } finally { ipc.dispose(); sw.client.dispose(); }
 });
 
+// ── Fixronde 1 van #1027: de proeven van de review (Sol), aangepast aan de besluiten van Trias (19 november 2026) ──────
+// Blokkade 4 (knownbug 1896): de late controle op beide IFC-exports. Desktop: vóór de plaatsing, het doel blijft. Een
+// handle uit de opslaankiezer van de browser: die kiezer heeft een bestaand doel al leeggemaakt (knownbug 1899), dus de
+// export maakt het gevraagde bestand af, maar meldt geen succes en zet niets vast (geen Recent, geen kalenderkeuze).
+for (const route of ['Exporteren → IFC', 'export met bibliotheek'] as const) {
+  for (const backend of ['desktop', 'handle'] as const) {
+    await check(`review 1896: ${route}, ${backend}, projectwissel met de uitvoer nog in het hulpbestand`, async () => {
+      const sw = saveWorker();
+      const { createAppStoreContext } = await loadStore();
+      const context = createAppStoreContext({ ifcSaveCompute: sw.compute }), { store } = context;
+      const ipc = backend === 'desktop' ? desktop() : null;
+      const browser = backend === 'handle' ? browserDownload() : null;
+      const win = window as unknown as Record<string, unknown>;
+      const internal = win.__TAURI_INTERNALS__ as { invoke: (...args: unknown[]) => Promise<unknown> } | undefined;
+      const invoke = internal?.invoke;
+      const name = `review-export-${++handleCount}.ifc`, path = join(dir, name);
+      const previous = new TextEncoder().encode('Versie vóór export');
+      const readTarget = () => ipc ? new Uint8Array(readFileSync(path)) : fileOf(name);
+      const beforeHash = hash(previous);
+      let loaded = false;
+      try {
+        await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+        longer(store);
+        const projectId = store.getState().project.id;
+        const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), route === 'Exporteren → IFC' ? 'merge' : 'planOnly')));
+        const replaceProject = () => {
+          if (ipc) assert.equal(hash(readTarget()), beforeHash, 'de oude versie stond nog op het doel');
+          else assert.equal(readTarget().byteLength, 0, 'de opslaankiezer had het doel al leeggemaakt');
+          loadThroughExtension(context, false);
+          assert.notEqual(store.getState().project.id, projectId);
+          loaded = true;
+        };
+        if (ipc && internal && invoke) {
+          writeFileSync(path, previous);
+          ipc.choose(path);
+          internal.invoke = async (...args) => {
+            const answer = await invoke(...args);
+            if (!loaded && args[0] === 'plugin:fs|write_file' && tempLeft().length > 0) replaceProject();
+            return answer;
+          };
+        } else {
+          handleFiles.set(name, previous);
+          win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+          // Chromium kapt een gekozen bestaand bestand af vóór de kiezer de handle teruggeeft.
+          win.showSaveFilePicker = async () => { handleFiles.set(name, new Uint8Array()); return new FakeHandle(name); };
+          handleFaults.set(name, { onWrite: replaceProject });
+          writableLog.length = 0;
+        }
+        clearNotices(store);
+        const result = route === 'Exporteren → IFC' ? await store.getState().exportAs('ifc') : await store.getState().exportProjectWithPool();
+        const recent = store.getState().recentFiles.some(file => file.name === name);
+        assert(loaded, 'de laadactie vond plaats terwijl plaatsen nog kon worden afgebroken');
+        assert.equal(result.ok && result.cancelled, true, 'geen geslaagde export voor het nieuwe project');
+        assert.equal(recent, false, 'geen export in Recent');
+        if (ipc) {
+          assert.equal(hash(readTarget()), beforeHash, 'desktop: het doelbestand blijft ongewijzigd');
+          assert.deepEqual(tempLeft(), [], 'desktop: geen tijdelijk bestand');
+          assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+        } else {
+          assert(Buffer.from(readTarget()).equals(Buffer.from(expected)), 'handle: het volledige exportbestand, nooit 0 bytes');
+          assert.deepEqual(writableLog.map(entry => entry.split(' ')[0]), ['create', 'close'], 'handle: afgeschreven, niet afgebroken');
+          assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), [], 'handle: geen foutmelding');
+        }
+        assert.deepEqual(store.getState().ifcLiteralCalendarIds, null, 'geen kalenderkeuze vastgelegd op het nieuwe project');
+      } finally {
+        if (internal && invoke) internal.invoke = invoke;
+        handleFaults.delete(name);
+        delete win.showOpenFilePicker;
+        ipc?.dispose();
+        browser?.dispose();
+        sw.client.dispose();
+      }
+    });
+  }
+}
+
+// Blokkade 1: Automatisch opslaan controleert het doel ná het rekenen, in dezelfde schrijfbeurt.
+await check('review AutoSave: nieuw gebouwmodel op het doel bij het einde van de writer', async () => {
+  const sw = saveWorker('manual');
+  const path = join(dir, 'review-autosave-doel.ifc');
+  const own = plainBytes();
+  writeFileSync(path, own);
+  const ipc = desktop();
+  try {
+    const { createAppStoreContext } = await loadStore();
+    const { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    await store.getState().openOpenedFile({ name: 'review-autosave-doel.ifc', content: plainText(own), bytes: own, ref: { kind: 'path', path } });
+    assert(!hasForeignContent(store.getState().ifcSource));
+    longer(store);
+    store.getState().setAutoSaveToFile(true);
+    clearNotices(store);
+    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: sw.compute });
+    const writing = controller.flush();
+    await mergeArrives(sw, 1);
+    assert.equal(hash(readFileSync(path)), hash(own));
+    writeFileSync(path, bytes); // een ander programma zet tijdens het rekenen een model op het doel
+    await finishMerge(sw);
+    await writing;
+    assert.equal(hash(readFileSync(path)), hash(bytes), 'AutoSave moet het nieuwe gebouwmodel weigeren');
+    assert.equal(store.getState().isDirty, true);
+    assert(store.getState().ui.notifications.map(n => n.messageKey).includes('notifications.ifcForeignTargetAutoSave'));
+  } finally {
+    ipc.dispose();
+    sw.client.dispose();
+  }
+});
+
+// Blokkade 3 (besluit Trias, knownbug 1899): na de opslaankiezer van de browser maakt de opslag het gekozen bestand af
+// met de inhoud waar de planner om vroeg, zoals main; alleen de commit weigert. Nooit 0 bytes.
+await check('review 1899: Opslaan als via de opslaankiezer van Chromium, projectwissel tijdens het schrijven: het volledige bestand, B krijgt niets', async () => {
+  const sw = saveWorker();
+  const { createAppStoreContext } = await loadStore();
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute });
+  const { store } = context;
+  const win = window as unknown as Record<string, unknown>;
+  const browser = browserDownload();
+  const name = `review-native-kiezer-${++handleCount}.ifc`;
+  const before = plainBytes();
+  handleFiles.set(name, before);
+  win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+  win.showSaveFilePicker = async () => {
+    // Chromium CreateAndTruncateLocalFile/CreateAndTruncateFile loopt vóór het teruggeven van de handle.
+    handleFiles.set(name, new Uint8Array());
+    return new FakeHandle(name);
+  };
+  let loaded = false;
+  handleFaults.set(name, { onWrite: () => {
+    assert.equal(fileOf(name).byteLength, 0, 'de kiezer heeft het bestand al afgekapt');
+    loadThroughExtension(context, false);
+    loaded = true;
+  } });
+  try {
+    await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(before), ref: null });
+    longer(store);
+    const expected = new TextEncoder().encode(writeIFC(buildWriteIFCInput(store.getState(), 'merge')));
+    writableLog.length = 0;
+    await store.getState().saveFileAs();
+    const after = fileOf(name);
+    assert(loaded);
+    assert(after.byteLength > 0 && Buffer.from(after).equals(Buffer.from(expected)), `het volledige bestand van A (${after.byteLength} bytes)`);
+    assert.deepEqual(writableLog.map(entry => entry.split(' ')[0]), ['create', 'close']);
+    assert.equal(store.getState().filePath, null, 'B krijgt geen pad');
+    assert.equal(store.getState().fileHandle, null, 'B krijgt geen handle');
+    assert.equal(store.getState().isDirty, true, 'B is niet als opgeslagen vastgelegd');
+    assert.notEqual(statusOf(store), 'saved', 'B krijgt geen Opgeslagen');
+    assert.equal(store.getState().recentFiles.some(file => file.name === name), false, 'niets in Recent');
+    assert.equal(browser.downloads.length, 0, 'geen download ernaast');
+  } finally {
+    browser.dispose();
+    delete win.showOpenFilePicker;
+    handleFaults.delete(name);
+    sw.client.dispose();
+  }
+});
+
+for (const flag of [false, true]) {
+  await check(`review pariteit gewone browserdownload en site (flag ${flag})`, async () => {
+    const plain = plainBytes();
+    const sw = saveWorker();
+    const counted = countingDecodes(sw.compute);
+    const { createAppStoreContext } = await loadStore();
+    const { store } = createAppStoreContext({ ifcSaveCompute: counted.compute });
+    const win = window as unknown as Record<string, unknown>;
+    const browser = browserDownload();
+    const requests: { id?: string; data: Blob; baseVersion?: string }[] = [];
+    const renameLeaf = (name: string) => {
+      const state = store.getState(), task = state.tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+      state.updateTask(task.id, { name });
+      store.getState().runCPM();
+    };
+    const output = () => new TextEncoder().encode(writeIFC(buildWriteIFCInput(store.getState(), 'merge')));
+    try {
+      store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
+      await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plain), ref: null });
+      renameLeaf('Één – in download 🚧');
+      const expectedDownload = output();
+      await store.getState().saveFileAs();
+      assert.equal(browser.downloads.length, 1);
+      assert.equal(hash(new Uint8Array(await browser.downloads[0]!.arrayBuffer())), hash(expectedDownload));
+      win.openaecHost = { storage: {
+        list: async () => [], versions: async () => [],
+        open: async () => ({ data: new Blob([plain.buffer]), name: 'review-site.ifc', version: 'v1' }),
+        save: async (request: { id?: string; data: Blob; baseVersion?: string }) => {
+          requests.push(request);
+          return { id: request.id ?? 'sitebestand', name: 'review-site.ifc', version: `v${requests.length + 1}` };
+        },
+      } };
+      setSiteSaveAsker(async () => ({ kind: 'site', name: 'review-site.ifc' }));
+      renameLeaf('Één – op de site 🏗');
+      const expectedNew = output();
+      await store.getState().saveFileAs();
+      assert.equal(store.getState().siteFileVersion, 'v2');
+      renameLeaf('Twee – op de site 🏗');
+      const expectedVersion = output();
+      assert.equal(await ctrlS(store), true);
+      assert.deepEqual(requests.map(r => [r.id, r.baseVersion]), [[undefined, undefined], ['sitebestand', 'v2']]);
+      const siteHashes = await Promise.all(requests.map(async r => hash(new Uint8Array(await r.data.arrayBuffer()))));
+      assert.deepEqual(siteHashes, [hash(expectedNew), hash(expectedVersion)]);
+      assert.equal(counted.decodes(), 0);
+      assert.equal(sw.requests().length, 3);
+    } finally {
+      resetSiteAskers();
+      delete win.openaecHost;
+      browser.dispose();
+      sw.client.dispose();
+    }
+  });
+}
+
+// Vervolgpunt 5: de schrijftoestemming voor een bekende handle vóór het rekenen, zoals de merge. De handle onthoudt de
+// toestemming, zoals Chromium (`queryPermission` geeft daarna `granted`).
+await check('review browserpermissie: de eerste gewone Ctrl+S wacht op een worker die niet start', async () => {
+  const sw = saveWorker('manual');
+  const platform = browserDownload();
+  const win = window as unknown as Record<string, unknown>;
+  const { createAppStoreContext } = await loadStore();
+  const { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
+  const name = `review-permissie-${++handleCount}.ifc`, before = plainBytes(), handle = new FakeHandle(name);
+  handleFiles.set(name, before);
+  let expiresAt = 0, granted = false;
+  const requireGesture = () => {
+    if (performance.now() >= expiresAt) throw new DOMException('Gebruikersactivatie verlopen', 'SecurityError');
+  };
+  handle.queryPermission = async () => granted ? 'granted' : 'prompt';
+  handle.requestPermission = async () => { requireGesture(); granted = true; return 'granted'; };
+  win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+  win.showSaveFilePicker = async () => { requireGesture(); return handle; };
+  try {
+    await store.getState().openOpenedFile({ name, content: plainText(before), ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+    longer(store);
+    expiresAt = performance.now() + 5000;
+    assert.equal(await ctrlS(store), true);
+    assert.notEqual(hash(fileOf(name)), hash(before), 'met verse schrijftoestemming moet Ctrl+S het eigen bestand bijwerken');
+    assert.equal(platform.downloads.length, 0);
+    assert.equal(store.getState().fileHandle, handle as unknown as FileSystemFileHandle, 'de handle blijft');
+  } finally {
+    platform.dispose();
+    delete win.showOpenFilePicker;
+    sw.client.dispose();
+  }
+});
+
+// Vervolgpunt 7: Opslaan als met een ontbrekende bron gebruikt alleen de bytes van de worker.
+await check('review bytes: Opslaan als met ontbrekende bron leest de werkervariant ook als tekst', async () => {
+  const sw = saveWorker();
+  const counted = countingDecodes(sw.compute);
+  const { store } = await openHandle(bytes, counted.compute);
+  const browser = browserDownload();
+  try {
+    store.setState(s => { s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true }; s.ifcSource = null; });
+    setPlanOnlyAsker(async () => true);
+    await store.getState().saveFileAs();
+    assert.equal(sw.requests().length, 1);
+    assert.equal(sw.requests()[0]!.job.kind, 'writer');
+    assert.equal(browser.downloads.length, 1);
+    assert.equal(counted.decodes(), 0, 'de route gebruikt alleen de bytes');
+  } finally {
+    resetPlanOnlyAsker();
+    browser.dispose();
+    sw.client.dispose();
+  }
+});
+
+// Voor stap 8 (knownbug 1900): de gedeelde schrijfrij zoals die nu is.
+await check('review wachtrij: handmatig opslaan en sluiten wachten op AutoSave, AutoSave kiest geen kandidaat tijdens Ctrl+S', async () => {
+  const sw = saveWorker('manual');
+  const path = join(dir, 'review-autosave-wachtrij.ifc'), plain = plainBytes();
+  writeFileSync(path, plain);
+  const ipc = desktop();
+  try {
+    const store = await openAt({ kind: 'path', path }, plain, sw.compute);
+    const id = store.getState().activeDocumentId;
+    store.getState().newDocument();
+    const otherId = store.getState().activeDocumentId;
+    assert.equal(store.getState().isDirty, false);
+    store.getState().switchDocument(id);
+    longer(store);
+    store.getState().setAutoSaveToFile(true);
+    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: sw.compute });
+    const auto = controller.flush();
+    await mergeArrives(sw, 1);
+    store.getState().addTask({ name: 'Alleen in de nieuwere handmatige opslag' });
+    const manual = ctrlS(store);
+    store.getState().requestCloseDocument(otherId);
+    assert.equal(store.getState().ui.savingBeforeClose, true);
+    assert.equal(sw.requests().length, 1);
+    assert(store.getState().documents.some(d => d.id === otherId), 'zelfs het andere tabblad wacht');
+    assert.equal(hash(readFileSync(path)), hash(plain), 'er is nog niet geschreven');
+    await finishMerge(sw);
+    await auto;
+    await mergeArrives(sw, 2);
+    assert(!readFileSync(path, 'utf8').includes('Alleen in de nieuwere handmatige opslag'));
+    await controller.flush();
+    assert.equal(sw.requests().length, 2, 'de AutoSave-tik slaat de kandidaat over terwijl Ctrl+S bezig is');
+    assert(store.getState().documents.some(d => d.id === otherId));
+    await finishMerge(sw);
+    assert.equal(await manual, true);
+    await turnUntil(() => !store.getState().documents.some(d => d.id === otherId));
+    assert(readFileSync(path, 'utf8').includes('Alleen in de nieuwere handmatige opslag'));
+    assert.equal(isProjectFileWriteBusy(), false);
+    assert.equal(store.getState().ui.savingBeforeClose, false);
+  } finally {
+    sw.client.dispose();
+    ipc.dispose();
+  }
+});
+
+// Vervolgpunt 6 (besluit Trias): typen tijdens het rekenen van een gewone export weigert die export (knownbug 1894).
+await check('review exportbewerking: verder typen tijdens een gewone workerexport weigert de gekozen momentopname', async () => {
+  const sw = saveWorker('manual');
+  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
+  const ipc = desktop();
+  const target = join(dir, 'review-export-bewerking.ifc');
+  ipc.choose(target);
+  try {
+    await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+    longer(store);
+    clearNotices(store);
+    const exporting = store.getState().exportAs('ifc');
+    await mergeArrives(sw, 1);
+    store.getState().addTask({ name: 'Getypt tijdens de export' });
+    await finishMerge(sw);
+    const result = await exporting;
+    assert.equal(result.ok && result.cancelled, true);
+    assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+    assert.equal(ipc.picks(), 0);
+    assert.equal(existsSync(target), false);
+    assert.equal(store.getState().isDirty, true);
+  } finally {
+    sw.client.dispose();
+    ipc.dispose();
+  }
+});
+
+// Blokkade 4: bij de bestaande mergehandle beslist de inhoudscontrole synchroon, direct naast `close()`.
+await check('review 1896: gebouwmodel, laadactie tussen de asynchrone broncontrole en close', async () => {
+  const sw = saveWorker();
+  const { createAppStoreContext } = await loadStore();
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute }), { store } = context;
+  const name = `review-close-${++handleCount}.ifc`;
+  handleFiles.set(name, bytes);
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+  const unregister = recoveryRounds(store), original = FakeHandle.prototype.getFile;
+  let late = false, ran = false;
+  FakeHandle.prototype.getFile = async function() {
+    const file = await original.call(this);
+    if (this.name !== name || !late) return file;
+    late = false;
+    const slice = file.slice.bind(file);
+    file.slice = (...args) => {
+      const blob = slice(...args), buffer = blob.arrayBuffer.bind(blob);
+      blob.arrayBuffer = async () => {
+        const read = await buffer();
+        let remaining = 6;
+        const load = () => {
+          if (--remaining > 0) { queueMicrotask(load); return; }
+          assert.equal(hash(fileOf(name)), hash(bytes), 'plaatsing was nog te voorkomen');
+          loadThroughExtension(context, false);
+          ran = true;
+        };
+        queueMicrotask(load);
+        return read;
+      };
+      return blob;
+    };
+    return file;
+  };
+  handleFaults.set(name, { onWrite: () => { late = true; } });
+  try {
+    longer(store);
+    clearNotices(store);
+    writableLog.length = 0;
+    await ctrlS(store);
+    assert(ran);
+    assert.equal(hash(fileOf(name)), hash(bytes), 'close moet direct na de synchrone inhoudscontrole beslissen');
+    assert.deepEqual(writableLog.map(entry => entry.split(' ')[0]), ['create', 'abort']);
+  } finally {
+    FakeHandle.prototype.getFile = original;
+    handleFaults.delete(name);
+    unregister();
+    sw.client.dispose();
+    await clearRecovery();
+  }
+});
+
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;

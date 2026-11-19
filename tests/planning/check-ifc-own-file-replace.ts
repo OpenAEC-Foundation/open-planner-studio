@@ -1940,7 +1940,8 @@ for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande 
 }
 
 // ── #804 stap 6: knownbug 1902. Buiten het bereik van plugin-fs (buiten de thuismap) weigert plugin-fs zowel de aanmaak
-// van een hulpbestand als `lstat` erop (`forbiddenMeta`): één scope voor elke aanroep. ───────────────────────────────
+// van een hulpbestand als `lstat` erop (`forbiddenMeta`). Een geweigerde aanmaak wist het record meteen; een weigering
+// bij de start stelt het herstel uit (fixronde 1 van #1027, besluit Trias): record blijft, geen melding. ────────────
 const outsideHome = (c: { dir: string }) => {
   ipc.faults.forbidden = path => path.startsWith(`${c.dir}/`) && (isTempPath(path) || path.includes('.ops-vorige-'));
   ipc.faults.forbiddenMeta = true;
@@ -1966,16 +1967,21 @@ for (const route of ['Opslaan als over een bestaande naam', 'Ctrl+S op het eigen
   });
 }
 
-await check('1902: een record van vóór de fix met hulpnamen buiten het bereik verdwijnt bij de eerstvolgende start, zonder melding', async () => {
+await check('1902: een record met hulpnamen buiten het bereik blijft stil staan (uitgesteld herstel); met toegang ruimt de start het op', async () => {
   const c = await opened();
   try {
     const record: ReplaceRecord = { id: 'vandevorigeversie1', path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
     writeFileSync(join(appData, replaceRecordName(record.id)), serializeReplaceRecord(record));
     outsideHome(c);
     assert.deepEqual(await nextRound(), [], 'geen melding over bestanden die de app niet mag lezen');
-    assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
-    assert.deepEqual(await nextRound(), [], 'en komt niet terug');
+    assert.equal(recordsOnDisk().length, 1, 'het record blijft');
+    assert.deepEqual(await nextRound(), [], 'ook de volgende start meldt niets');
+    assert.equal(recordsOnDisk().length, 1, 'en het record staat er nog');
     assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) }, 'het doel is niet aangeraakt');
+    ipc.faults.forbidden = null;
+    ipc.faults.forbiddenMeta = false;
+    assert.deepEqual(await nextRound(), [], 'met toegang: geen hulpbestand, niets te melden');
+    assert.deepEqual(recordsOnDisk(), [], 'met toegang verdwijnt het record');
   } finally { await tidy(c); }
 });
 
@@ -1989,6 +1995,49 @@ await check('1902: binnen het bereik blijft een echt achtergebleven hulpbestand 
     assert.deepEqual((await nextRound()).map(n => n.messageKey), ['notifications.ifcForeignReplaceLeftOver']);
     assert.equal(recordsOnDisk().length, 1, 'het record blijft');
   } finally { rmSync(userFileTempPath(c.path, 'echtachtergebleven1'), { force: true }); await tidy(c); }
+});
+
+// Review van #1027 (Sol), blokkade 2: een scopeweigering bij de start is uitgesteld herstel, geen afwezigheid.
+await check('review 1902: na opslaan verhuist de projectmap en is het herstel tijdelijk buiten bereik', async () => {
+  const { realpathSync, renameSync } = await import('node:fs');
+  const c = await opened();
+  try {
+    placeCalls({ 2: () => reject('source-changed') });
+    await c.store.getState().saveFile();
+    const record = oneRecord(c);
+    const stranded = {
+      [basename(previousVersionPath(c.path, record.id))]: hash(bytes),
+      [basename(userFileTempPath(c.path, record.id))]: c.prepared.sha256,
+    };
+    assert.deepEqual(disk(c), stranded, 'het doel stond opzij en de nieuwe planning was nog niet geplaatst');
+
+    const relocated = join(work, 'map-buiten-de-thuismap');
+    renameSync(c.dir, relocated);
+    symlinkSync(relocated, c.dir, 'dir');
+    ipc.faults.place = null;
+    ipc.faults.forbiddenMeta = true;
+    let directoryGranted = false;
+    const denied: string[] = [];
+    ipc.faults.forbidden = path => {
+      if (!path.startsWith(c.dir + '/') || directoryGranted) return false;
+      const resolved = existsSync(path) ? realpathSync(path) : join(realpathSync(dirname(path)), basename(path));
+      if (resolved.startsWith(c.dir + '/')) return false;
+      denied.push(basename(path));
+      return true;
+    };
+
+    const whileForbidden = await nextRound();
+    const countWhileForbidden = recordsOnDisk().length;
+    assert(denied.includes(basename(userFileTempPath(c.path, record.id))), 'de herstelronde kreeg forbidden op het bestaande hulpbestand');
+    assert.deepEqual(disk(c), stranded, 'beide versies staan nog fysiek op schijf');
+    directoryGranted = true;
+    const afterGrant = await nextRound();
+    const after = disk(c);
+    assert.equal(countWhileForbidden, 1, 'tijdelijk niet leesbaar: het herstelrecord moet blijven');
+    assert.deepEqual(whileForbidden, [], 'tijdelijk niet leesbaar: geen melding');
+    assert.deepEqual(after, { 'model.ifc': hash(bytes), [UNSAVED_COPY]: c.prepared.sha256 }, 'na toegang moet herstel beide versies terugvinden');
+    assert.deepEqual(afterGrant.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
+  } finally { await tidy(c); }
 });
 
 ipc.dispose();
