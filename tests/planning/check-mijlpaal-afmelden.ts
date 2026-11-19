@@ -28,6 +28,7 @@
 // Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
 
 import './domStub';
+import { actualStartQuestionFor, planProgressEntry } from '@/engine/progressEntry';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { isTaskActualPastStatusDate, normalizeActualDate, normalizeLoadedActualDate } from '@/engine/taskMutationRules';
@@ -1278,4 +1279,25 @@ console.log(`Vaste gevallen: ${FIXED.length} op helperniveau, ${FIXED_LITERAL.le
 
 for (const failure of failures) console.log('XX ' + failure);
 console.log(`Mijlpaal afmelden met de geplande tijd: ${checks} controles, ${failures.length} fouten`);
+// Knownbug 317: de startvraag gebruikt de werkdagzijde van de mijlpaalsoort.
+for (const [label, cal, moment] of [
+  ['24 uur', day24, '2026-06-04T00:00'],
+  ['nacht', night, '2026-06-04T06:00'],
+] as const) {
+  const f = fixture('ops', cal, { midden: false, los: false, taak: false });
+  const id = f.milestone('Test einde', 'FINISH');
+  const original = f.taskOf(id);
+  const before: Task = { ...original, time: { ...original.time, earlyStart: moment, scheduleStart: moment, completion: 0, actualStart: undefined, actualFinish: undefined } };
+  const after: Task = { ...before, time: { ...before.time, completion: 1, actualStart: moment, actualFinish: moment } };
+  const status = '2026-06-03';
+  eq(`317 ${label}: FINISH op einde statuswerkdag vraagt geen start`,
+    actualStartQuestionFor(before, after, status, {}, f.calendar()), null);
+  const start: Task = { ...after, milestoneKind: 'START' };
+  eq(`317 ${label}: START op volgende klokdag blijft vragen`,
+    actualStartQuestionFor(before, start, status, {}, f.calendar()) !== null, true);
+  const result = planProgressEntry(before, { field: 'completion', value: 1 },
+    { statusDate: status, today: '2026-06-05', calendar: f.calendar() });
+  eq(`317 ${label}: 100 procent UI-invoer wordt niet geweigerd`, result.ok, true);
+}
+
 if (failures.length) process.exit(1);
