@@ -1525,6 +1525,30 @@ await check('Opslaan als over een gewone planning die in een ander tabblad open 
   } finally { internal.invoke = invoke; await tidy(c); }
 });
 
+// Knownbug 1898 (#1022): zonder werkende herstelronde gaf dezelfde keuze de melding van het crashherstel, omdat de controle
+// op open tabbladen pas na de eerste herstelronde draaide. Nu weigert de doelcontrole direct na de bestandskiezer al.
+await check('Opslaan als over een gewone planning die in een ander tabblad open staat, zonder herstelronde: de melding van een open tabblad', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    c.unregister();
+    const target = otherFile(c);
+    internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(target.path) : invoke(command, ...args);
+    await c.store.getState().openFile();
+    internal.invoke = invoke;
+    assert.notEqual(c.store.getState().activeDocumentId, c.id, 'het bestand staat in een eigen tabblad');
+    c.store.getState().switchDocument(c.id);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetOpenInTab']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel houdt zijn bytes');
+    documentUnchanged(c, source);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
 await check('Opslaan als: een tabblad dat tijdens de eerste herstelronde op de gewone planning opengaat, stopt de vervanging', async () => {
   const c = await opened();
   const target = otherFile(c);

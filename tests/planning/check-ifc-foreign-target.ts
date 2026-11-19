@@ -285,6 +285,33 @@ for (const action of ['saveFile', 'saveFileAs'] as const) {
   pick = null;
 }
 
+// ── 2a'. #1022, browser: Opslaan als over het bestand van een ander tabblad (knownbug 1893) ──────────────────────────
+// De opslaankiezer van Chromium maakt een gekozen bestaand bestand al leeg vóór de handle terugkomt (knownbug 1899);
+// weigeren zou het andere tabblad dan een leeg bestand nalaten. Daarom vergelijkt de doelcontrole hier geen handles met
+// de open tabbladen, en maakt Opslaan als het bestand af. Deze proef legt vast wat de planner dan overhoudt: een
+// volledig bestand met de planning van A (niet leeg), en twee tabbladen op hetzelfde bestand. Met de flag uit en aan.
+for (const flag of [false, true]) {
+  const label = `#1022 browser, flag ${flag ? 'aan' : 'uit'}`;
+  const fileB = fakeHandle('planning-b.ifc', showcase);
+  const store = await open('planning-a.ifc', showcase, null, undefined, flag);
+  const S = () => store.getState();
+  const idA = S().activeDocumentId;
+  S().addTask({ name: 'Werk in tabblad A' });
+  await open('planning-b.ifc', showcase, { kind: 'handle', handle: fileB.handle }, store, flag);
+  const idB = S().activeDocumentId;
+  S().addTask({ name: 'Werk in tabblad B' });
+  S().switchDocument(idA);
+  store.setState(s => { s.ui.notifications = []; });
+  pick = fileB;
+  await S().saveFileAs();
+  pick = null;
+  const docB = S().getOpenDocumentPayloads().find(d => d.id === idB)!.payload;
+  eq(`${label}: geen weigering, één volledige schrijfactie`, [S().ui.notifications.filter(n => n.severity === 'error').length, fileB.writes.length], [0, 1]);
+  ok(`${label}: het bestand is niet leeg en bevat de planning van A`, fileB.text().length > 1000 && fileB.text().includes('Werk in tabblad A'));
+  ok(`${label}: A wijst nu naar het bestand van B`, !!S().fileHandle && await S().fileHandle!.isSameEntry(fileB.handle));
+  eq(`${label}: B wijst er nog naar, met zijn wijzigingen`, [docB.fileHandle === fileB.handle, docB.isDirty], [true, true]);
+}
+
 // ── 2b. BLOKKEERT 2, site (SuperCloud / `window.openaecHost`) ──────────────────────────────────────────────────
 {
   const saves: { id?: string; name: string }[] = [];

@@ -321,20 +321,29 @@ bestaand pad met een vreemd deel). Proeven: `check-ifc-own-file-replace.ts` (ond
 merge). `saveNewBytesDialogTauri` stelt, alleen als de aanroeper `replaceExisting` meegeeft (alleen *Opslaan als*, niet
 de exports), direct na de terugkeer van de kiezer vast of er een gewoon bestand staat (`lstat`, geen link volgen; een
 toen leeg pad houdt de exclusieve aanmaakroute, 1890). Dan de gewone doelcontrole (`refuseTarget`: de bron van een open
-document ⇒ `ifcForeignReplaceBlocked`, een doel met gebouwmodel of C/A/V ⇒ `ifcForeignTargetSave`); die kijkt niet
-naar de paden van open documenten, want ze draait ook voor een vrije naam (een pad dat een ander tabblad nog onthoudt
-terwijl het bestand weg is, is vrij; fixronde 2 van #1019). Daarna leest hij het gewone bestand op dat pad. Is er een,
+document ⇒ `ifcForeignReplaceBlocked`, een doel met gebouwmodel of C/A/V ⇒ `ifcForeignTargetSave`, een bestaand pad
+van een ander open document ⇒ `ifcForeignTargetOpenInTab`, zie hieronder). Daarna leest hij het gewone bestand op dat pad. Is er een,
 dan gaat het pad met die inhoud naar `replaceExistingPath` (`fileSlice.ts`) en geeft de dialoog `null`; anders (niets,
 een link) de nieuwe-naamroute zoals voorheen. `replaceExistingPath` roept dezelfde `replaceOwnPathWithRecovery` aan,
 met `source` = die inhoud (dus `vorigeSha256` in het record) en `stopBeforeWrite` =
 `documentTargetCheck(momentopname, write, false, { readers, openDocumentPaths: true })`, na de eerste herstelronde en
 vóór de eerste schrijfactie in de map. Daarin scant `scanPath` die gelezen inhoud (wat stap 5 weghaalt, liet de
-doelbescherming toe) en weigert `openDocumentPaths` een pad dat een open document als bestand heeft, ook een gewone
-planning en ook een tabblad dat intussen opende ⇒ `ifcForeignTargetOpenInTab` (`refusedWriteTarget`, dezelfde
-padvergelijking `sameLocalFile` als de bronkenmerken; fixronde 1 van #1019). `commit` legt het nieuwe pad, de bron en het
+doelbescherming toe) en toetst `openDocumentPaths` opnieuw de open tabbladen, voor een tabblad dat intussen opende. `commit` legt het nieuwe pad, de bron en het
 kenmerk vast zoals Opslaan als naar een nieuwe naam; daarna Recent. `save-as-only` ⇒ `ifcForeignNewTargetOnly` (de zin
 van een bestaande naam van voorheen); de andere uitkomsten de meldingen van Ctrl+S. Afhandelen na een crash gaat via het
 record, ook als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-own-file-replace.ts` deel c.
+
+**Opslaan als over het bestand van een ander tabblad (#1022).** De doelcontrole direct na de bestandskiezer van een
+document (`documentSaveDialog`: Opslaan als, en Ctrl+S zonder bruikbaar doel) geeft `openDocumentPaths` mee, voor elk
+document en met de flag aan en uit. `refusedWriteTarget` weigert dan een bestaand pad dat een ander open document (niet
+het document dat opslaat) als bestand heeft ⇒ `ifcForeignTargetOpenInTab`, met dezelfde padvergelijking als de
+bronkenmerken (`sameLocalFile`: pad of bestandsidentiteit, dus ook via een link). Na regel 1: de bron van een document
+met een vreemd deel houdt haar eigen reden. Staat er op het pad geen bestand meer, dan is de naam vrij, ook als een ander
+tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
+geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
+controle niets en maakt Opslaan als het bestand af (knownbug 1893). Opslaan als op de site maakt altijd een nieuw
+sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Exports kijken niet naar open tabbladen
+(knownbug 1907). Proeven: `check-ifc-own-file-replace.ts` (#1022) en `check-ifc-foreign-target.ts` (#1022 browser).
 
 **De vervanging (5a).** `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
 §4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, een snelle voorcontrole; op Windows ziet die een harde

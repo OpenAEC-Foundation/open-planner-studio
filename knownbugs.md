@@ -5023,17 +5023,35 @@ en noem het in je rapport of PR-tekst.
      nog of een doel met een gebouwmodel vervangen mag worden; de vorm van de route volgt daarna. Review van #1019 (Sol,
      ronde 1). — B (code)
 
-1893. **Opslaan als overschrijft stil een bestand dat in een ander tabblad open staat (gewone planning; OPS #1022).**
-     Bij een document zonder gebouwmodel, of met de featureflag `ifcForeignContent` uit, overschrijft *Opslaan als* een
-     bestaand bestand dat in een ander tabblad open staat zonder melding (de gewone atomaire opslag). Daarna wijzen
-     beide tabbladen naar hetzelfde bestand; slaat de planner het andere tabblad later op, dan is de eerste opslag weg.
-     Bestaand gedrag op main, niet van #804. #1019 weigert dit alleen voor een document met een gebouwmodel
-     (`refusedWriteTarget` met `openDocumentPaths` bij de vervanging, de melding `notifications.ifcForeignTargetOpenInTab`) en legt het
-     gedrag voor gewone planningen vast met een proef in `check-ifc-own-file-replace.ts` ("Opslaan als zonder vreemd
-     deel over een bestand dat in een ander tabblad open staat: zoals main, overschreven zonder melding"). Richting:
-     dezelfde controle op open paden voor elk document, op elke opslagroute met een bestandskiezer (ook de browser via
-     een handle en de site), en die proef omdraaien. Bewust niet in #1019 (besluit Trias, 19 november 2026): de fix
-     komt los, na #1019, onder issue #1022. Gevonden bij fixronde 1 van #1019. — B (proef)
+1893. **Browser: Opslaan als over het bestand van een ander tabblad maakt dat bestand af; daarna wijzen beide tabbladen ernaar (OPS #1022).**
+     Op de desktop weigert *Opslaan als* sinds #1022 een bestand dat in een ander tabblad open staat (de doelcontrole
+     direct na de bestandskiezer, `openDocumentPaths` in `refusedWriteTarget`). In de browser (Chromium, een handle uit
+     `showSaveFilePicker`) niet: die kiezer maakt een bestaand doel al leeg bij het kiezen (1899), dus een weigering liet
+     het andere tabblad een leeg bestand na. De doelcontrole vergelijkt daar dus geen handles met de open tabbladen, en
+     Opslaan als schrijft het bestand helemaal (niet leeg) met de planning van dit tabblad. Daarna wijzen beide tabbladen
+     naar hetzelfde bestand (`isSameEntry`); slaat de planner het andere tabblad op, dan is deze opslag weg. Wat er in
+     het bestand van het andere tabblad stond, is weg zodra de kiezer terugkomt. Proef "#1022 browser" in
+     `check-ifc-foreign-target.ts` (een nep-kiezer die niet afkapt). Voorstel: na het schrijven niets weigeren (het
+     bestand is al vervangen), maar het andere tabblad laten weten dat zijn bestand nu de planning van dit tabblad bevat,
+     of het andere tabblad zijn bestand laten loslaten zodat zijn Ctrl+S Opslaan als wordt; of de keuze in de browser
+     anders laten lopen (de richting van 1899). Een nieuwe vraag of melding is een keuze voor de eigenaar. — B (proef)
+
+1907. **Exporteren over het bestand van een ander tabblad vervangt dat bestand zonder melding.**
+     *Exporteren → IFC* (en elk ander exportformaat met dezelfde naam) kijkt niet naar de open tabbladen
+     (`foreignTargetCheck('export')` in `fileSlice.ts`, zonder `openDocumentPaths`). Kiest de planner het bestand van een
+     ander open tabblad, dan vervangt de export het zonder melding; het andere tabblad wijst er nog naar. Slaat de planner
+     dat tabblad daarna op, dan is de export weg; had dat tabblad geen wijzigingen en sluit hij het, dan vraagt de app
+     niets en staat de planning van dat tabblad nergens meer. Hetzelfde verlies als 1893 vóór #1022. Op de desktop
+     kan dezelfde controle als bij Opslaan als veilig weigeren (de kiezer wijzigt het bestand niet). Proef "Knownbug 1907"
+     in `check-ifc-own-file-replace.ts` legt het gedrag vast. Bewust niet in #1022. — B (proef)
+
+1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
+     Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
+     van #1019, en zo gehouden in #1022). Daarna wijzen beide tabbladen naar hetzelfde nieuwe bestand; slaat de planner
+     het andere tabblad op, dan overschrijft hij deze opslag zonder melding. Zeldzaam (het bestand moet buiten de app
+     verdwenen zijn). Richting: bij een geslaagde opslag het andere tabblad zijn verdwenen bestand laten loslaten, of de
+     naam ook dan weigeren; een keuze voor de eigenaar. Proef "naar een naam die tabblad B nog onthoudt" in
+     `check-ifc-own-file-replace.ts`. — B (proef)
 
 1897. **VERVOLG (#804 keuze 4, tekst): Opslaan als over de eigen naam geeft een te brede melding.**
      Kiest de planner bij een document met een gebouwmodel in *Opslaan als* het bestand dat hij open heeft, dan weigert
@@ -5045,12 +5063,3 @@ en noem het in je rapport of PR-tekst.
      nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
      doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
 
-1898. **VERVOLG (#804 keuze 4, tekst): zonder werkende herstelronde krijgt een doel dat in een ander tabblad open staat de herstelmelding.**
-     *Opslaan als* over een bestaand bestand dat in een ander tabblad open staat, weigert bij de vervanging zelf, na de
-     eerste herstelronde (`stopBeforeWrite` in `replaceExistingPath`, fixronde 2 van #1019). Kan het herstelrecord of het
-     manifest niet worden bijgewerkt, dan stopt de opslag al eerder met `notifications.ifcForeignReplaceNotRecorded`
-     ("…omdat het crashherstel niet kan worden bijgewerkt…") en hoort de planner niet dat het bestand in een ander
-     tabblad open staat. Beide bestanden houden hun bytes en beide tabbladen hun wijzigingen; het verschil zit alleen in
-     de melding. Richting van de reviewer: dezelfde controle ook eerder laten draaien zodra de route een bestaand
-     bestand gaat vervangen (de vaststelling bij de bestandskiezer); de controle na herstel blijft nodig voor een
-     tabblad dat intussen opengaat. Past bij 1891 (de route draagt de keuze zelf). Review van #1019 (Sol, ronde 3). — B (proef)
