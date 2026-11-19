@@ -1128,6 +1128,17 @@ en noem het in je rapport of PR-tekst.
       de andere documentwissels zonder muis annuleren het venster wel (#1004). Mogelijke oplossing: een
       uitzondering voor de documentknoppen in de klik-buiten-handler. Uit de review van #1004 (GPT-6.2-Sol,
       xhigh, ronde 11, BEVESTIGD, VERVOLG). — B
+1910. **VERVOLG (#1004): De takenlijst gebruikt een Shift-beginpunt waarvan de taak inmiddels op een andere rij
+      staat.** Klap drie mijlpalen in tot één regel, kies het laatste ruitje (*Oplevering*) en zet het met
+      *Mijlpaal aan/uit* om naar een gewone taak; de reeks blijft staan met twee ruitjes. Shift-klik in de
+      takenlijst op *Grondwerk* kiest dan alleen Grondwerk en Fundering, en Ctrl+F2 schrijft
+      `Grondwerk → Fundering`. Dezelfde Shift-klik in de tijdlijn kiest alle vijf taken, en Ctrl+F2 weigert daar
+      terecht, omdat twee gekozen mijlpalen één regel delen. Op main kiezen beide alle vijf. Oorzaak: de lijst
+      toetst het gedeelde beginpunt voor een gewone taakrij alleen op de rijsleutel (`FullTaskGrid.tsx`,
+      `extendFromSharedAnchor`). Fix: laat de lijst dezelfde regel gebruiken als `shiftAnchor` in de store
+      (`selectionSlice.ts`): de rij moet nog een taak uit het beginpunt bevatten, anders geldt de actieve taak.
+      Houd daarbij de uitzondering voor de spookregel. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 17,
+      BEVESTIGD); Trias (wrakko) heeft het als VERVOLG ingedeeld. — B
 
 ## Kalenders
 
