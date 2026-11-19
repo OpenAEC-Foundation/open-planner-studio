@@ -19,6 +19,9 @@ export function actualAutoSaveDelay(lastRunAt: number, now: number): number {
 
 export interface ActualAutoSaveCandidate {
   id: string;
+  /** De identiteit van de inhoud bij het kiezen (fixronde 1 van #1020, `documentSaveState.ts`): de commit legt alleen
+   *  vast als het document die inhoud nog heeft. */
+  content: number;
   enabled: boolean;
   dirty: boolean;
   ref: FileRef | null;

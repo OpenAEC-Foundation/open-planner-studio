@@ -41,9 +41,9 @@ eq('0b throttle wacht alleen de resterende tijd', actualAutoSaveDelay(20_000, 25
 // Recovery is een andere laag: alleen kandidaten met enabled + bestaand schrijfdoel worden hier
 // aangeraakt. Een naamloos document blijft dus wel recovery krijgen, maar geen echte overschrijving.
 candidates = [
-  { id: 'naamloos', enabled: true, dirty: true, ref: null, source: source(1) },
-  { id: 'uit', enabled: false, dirty: true, ref: { kind: 'path', path: '/uit.ifc' }, source: source(1) },
-  { id: 'aan', enabled: true, dirty: true, ref: { kind: 'path', path: '/aan.ifc' }, source: source(2) },
+  { id: 'naamloos', content: 0, enabled: true, dirty: true, ref: null, source: source(1) },
+  { id: 'uit', content: 0, enabled: false, dirty: true, ref: { kind: 'path', path: '/uit.ifc' }, source: source(1) },
+  { id: 'aan', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/aan.ifc' }, source: source(2) },
 ];
 await controller.flush();
 eq('1 echte autosave slaat alleen enabled bestaand bestand op', writes, ['aan:ifc-2']);
@@ -52,13 +52,13 @@ eq('2 alleen de werkelijk geschreven versie wordt schoon gemarkeerd', marked, ['
 // Een schrijfbeurt mag nooit parallel lopen. Een tweede aanvraag tijdens de eerste onthoudt de
 // nieuwste run; pas ná de write volgt precies één vervolgrun.
 writes = []; marked = []; blockWrites = true;
-candidates = [{ id: 'race', enabled: true, dirty: true, ref: { kind: 'path', path: '/race.ifc' }, source: source(1) }];
+candidates = [{ id: 'race', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/race.ifc' }, source: source(1) }];
 const first = controller.flush();
 for (let i = 0; i < 4 && !releaseWrite; i++) await Promise.resolve();
 const second = controller.flush();
 for (let i = 0; i < 4 && writes.length === 0; i++) await Promise.resolve();
 eq('3 single-flight: tweede run start niet parallel', writes, ['race:ifc-1']);
-candidates = [{ id: 'race', enabled: true, dirty: true, ref: { kind: 'path', path: '/race.ifc' }, source: source(2) }];
+candidates = [{ id: 'race', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/race.ifc' }, source: source(2) }];
 blockWrites = false;
 const release = releaseWrite as (() => void) | null;
 if (release) release();
@@ -71,8 +71,8 @@ eq('5 dirty-race laat de nieuwe versie pas na zijn eigen write schoon markeren',
 writes = []; marked = []; failures = [];
 const failing = createActualAutoSaveController({
   listCandidates: () => [
-    { id: 'kapot', enabled: true, dirty: true, ref: { kind: 'path', path: '/kapot.ifc' }, source: source(1) },
-    { id: 'goed', enabled: true, dirty: true, ref: { kind: 'path', path: '/goed.ifc' }, source: source(1) },
+    { id: 'kapot', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/kapot.ifc' }, source: source(1) },
+    { id: 'goed', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/goed.ifc' }, source: source(1) },
   ],
   serialize: () => 'ifc', canWrite: async () => true,
   write: async candidate => { if (candidate.id === 'kapot') throw new Error('EACCES'); return true; },
@@ -86,7 +86,7 @@ truthy('8 controller houdt geen stille, onafgehandelde write vast', !controller.
 
 failures = [];
 const unavailable = createActualAutoSaveController({
-  listCandidates: () => [{ id: 'weg', enabled: true, dirty: true, ref: { kind: 'path', path: '/weg.ifc' }, source: source(1) }],
+  listCandidates: () => [{ id: 'weg', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/weg.ifc' }, source: source(1) }],
   serialize: () => 'ifc', canWrite: async () => true, write: async () => false,
   markSavedIfUnchanged: () => { throw new Error('mag niet schoon worden'); },
   onFailure: (c, e) => {
@@ -141,7 +141,7 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   const staleMarked: string[] = [];
   let staleAnswers = 1;
   const staleController = createActualAutoSaveController({
-    listCandidates: () => [{ id: 'd', enabled: true, dirty: true, ref: { kind: 'path', path: '/d.ifc' }, source: source(version) }],
+    listCandidates: () => [{ id: 'd', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/d.ifc' }, source: source(version) }],
     serialize: candidate => `ifc-${(candidate.source as unknown as { project: { version: number } }).project.version}`,
     canWrite: async () => true,
     write: async (_candidate, content) => {

@@ -15,7 +15,7 @@ import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import { prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createIfcSaveWorker, mergesInWorker, type IfcSaveWorkerOptions } from '@/services/ifc/saveWorker/ifcSaveWorker';
-import { saveStatusOf } from '@/state/documentSaveState';
+import { documentContentOf, saveStatusOf } from '@/state/documentSaveState';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
@@ -33,6 +33,7 @@ import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
 import { installDeterminism } from './ifcPariteitKern';
 import { canon, firstDiff, mergeProblems, openForeign, shownAfterOpen } from './ifcMergeKern';
 import { InProcessWorker } from './inProcessSaveWorker';
+import { createExtensionApi } from '@/extensions/extensionApi';
 
 const reseed = installDeterminism();
 await loadStore();
@@ -212,7 +213,7 @@ for (const fault of ['annuleren', 'I/O-fout', 'document-gesloten', 'nieuwe-bron'
     if (fault === 'nieuwe-bron') {
       const other = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!);
       expectedSource = other.source;
-      ipc.onPick(() => { store.getState().commitSavedDocument(id, store.getState(), undefined, other); });
+      ipc.onPick(() => { store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other); });
     }
     try {
       await store.getState().saveFileAs();
@@ -637,7 +638,7 @@ for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-br
       ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!) : null;
     ipc.onPick(() => {
       if (cause === 'documentwissel') store.getState().newDocument();
-      else if (other) store.getState().commitSavedDocument(id, store.getState(), undefined, other);
+      else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
       else store.setState(s => {
         if (cause === 'flag-uit-na-kiezer') s.ui.featureFlags = {};
         else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
@@ -801,7 +802,7 @@ for (const change of ['documentwissel', 'bewerking', 'nieuwe-bron', 'ander-kenme
     answer(true, () => {
       if (change === 'documentwissel') store.getState().newDocument();
       else if (change === 'bewerking') longer(store);
-      else if (other) store.getState().commitSavedDocument(id, store.getState(), undefined, other);
+      else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
       else store.setState(s => {
         if (change === 'flag-uit') s.ui.featureFlags = {};
         else s.foreignSourceMark = { ...s.foreignSourceMark! };
@@ -1526,7 +1527,7 @@ for (const cause of ['document gesloten', 'bron vervangen'] as const) {
       const replacement = cause === 'bron vervangen'
         ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!) : null;
       hook.set(() => {
-        if (replacement) store.getState().commitSavedDocument(id, store.getState(), undefined, replacement);
+        if (replacement) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, replacement);
         else { store.getState().newDocument(); store.getState().closeDocument(id); }
       });
       clearNotices(store); writableLog.length = 0;
@@ -1855,6 +1856,150 @@ await check('opslagstand: "Opslaan…" tot en met de laatste herstelronde na de 
     plain.getState().newProject();
     assert.equal(statusOf(plain), null, 'nieuw project in hetzelfde tabblad: geen "Opgeslagen"');
   } finally { ipc.dispose(); }
+});
+
+// ── Fixronde 1 van #1020: vervangt een laadactie de inhoud van het tabblad tijdens de opslag, dan hoort haar uitkomst
+// niet bij die nieuwe inhoud. De route van de review: `api.data.loadProject` van een extensie met een ander project. ──
+/** `api.data.loadProject` van een extensie op deze context: hetzelfde project (lees-wijzig-laad) of een ander. */
+function loadThroughExtension(context: ReturnType<Awaited<ReturnType<typeof loadStore>>['createAppStoreContext']>, sameProject: boolean) {
+  const { data } = createExtensionApi('fixronde-1020', [], undefined, context, { app: context, showNotification() {} });
+  data.loadProject({
+    project: sameProject ? data.getProject() : { ...data.getProject(), id: 'ander-project-uit-extensie', name: 'Ander project uit extensie' },
+    calendar: data.getCalendar(),
+    tasks: sameProject ? data.getTasks() : [], sequences: sameProject ? data.getSequences() : [],
+    resources: sameProject ? data.getResources() : [], assignments: sameProject ? data.getAssignments() : [],
+  });
+}
+/** Een document met gebouwmodel zonder opslagdoel (desktop, Opslaan als), met de opslagworker zoals in de app. */
+async function openForSaveAs(sw: SaveWorker) {
+  const { createAppStoreContext } = await loadStore();
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute });
+  context.store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await context.store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes, ref: null });
+  const task = leaf(context.store);
+  context.store.getState().updateTask(task.id, { name: 'Wijziging van project A' });
+  context.store.getState().runCPM();
+  return { context, store: context.store };
+}
+
+await check('extensie laadt een ander project tijdens de merge van Opslaan als: niets geschreven, het nieuwe project krijgt geen pad, bron of "Opgeslagen"', async () => {
+  const sw = saveWorker('manual'), { context, store } = await openForSaveAs(sw), ipc = desktop();
+  const target = join(dir, 'ander-project-tijdens-merge.ifc');
+  try {
+    const before = store.getState(), id = before.activeDocumentId;
+    clearNotices(store); ipc.choose(target);
+    const saving = store.getState().saveFileAs();
+    await mergeArrives(sw, 1);
+    loadThroughExtension(context, false);
+    assert.equal(store.getState().activeDocumentId, id, 'hetzelfde tabblad');
+    assert.notEqual(store.getState().project.id, before.project.id, 'een ander project');
+    assert.equal(statusOf(store), 'unsaved', 'het nieuwe project toont niet de opslag van het vorige');
+    await finishMerge(sw);
+    await saving;
+    const after = store.getState();
+    assert.equal(ipc.picks(), 0, 'geen bestandskiezer');
+    assert.equal(existsSync(target), false, 'niets geschreven');
+    assert.equal(after.filePath, null, 'geen pad op het nieuwe project');
+    assert.equal(after.ifcSource?.sha256, before.ifcSource!.sha256, 'geen nieuwe bron op het nieuwe project');
+    assert.equal(after.isDirty, true);
+    assert.equal(saveStateOf(store), undefined, 'geen "Opslaan…" en geen "Opgeslagen"');
+    assertNotice(store, 'notifications.ifcSaveChangedWhileWaiting');
+  } finally { ipc.dispose(); sw.client.dispose(); }
+});
+
+await check('nieuw project in hetzelfde tabblad ná het plaatsen en vóór de commit: het bestand staat er, de nieuwe inhoud krijgt niets', async () => {
+  const sw = saveWorker(), { store } = await openForSaveAs(sw), ipc = desktop();
+  const target = join(dir, 'nieuw-project-tijdens-plaatsen.ifc');
+  try {
+    const id = store.getState().activeDocumentId;
+    ipc.choose(target);
+    ipc.faults.place = (_from, _to, place) => { const placed = place(); store.getState().newProject(); return placed; };
+    await store.getState().saveFileAs();
+    const after = store.getState();
+    assert(existsSync(target) && readFileSync(target, 'utf8').includes('Wijziging van project A'), 'de opgeslagen inhoud staat in het bestand');
+    assert.equal(after.activeDocumentId, id);
+    assert.equal(after.tasks.length, 0, 'het nieuwe, lege project');
+    assert.equal(after.filePath, null, 'geen pad');
+    assert.equal(after.ifcSource, null, 'geen bron');
+    assert.equal(after.isDirty, false, 'zoals een nieuw project');
+    assert.equal(saveStateOf(store), undefined, 'geen "Opgeslagen"');
+    assert.equal(statusOf(store), null);
+  } finally { ipc.dispose(); sw.client.dispose(); }
+});
+
+await check('handle Ctrl+S, ander project geladen tussen schrijven en commit: het bestand is vervangen, het herstelrecord afgerond, de nieuwe inhoud niet vastgelegd', async () => {
+  const sw = saveWorker();
+  const { createAppStoreContext } = await loadStore();
+  const name = `model-${++handleCount}.ifc`, handle = new FakeHandle(name);
+  handleFiles.set(name, bytes);
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute });
+  const store = context.store;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await store.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+  const unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    const id = store.getState().activeDocumentId, opened = store.getState().ifcSource!;
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), opened);
+    handleFaults.set(name, { afterClose: async () => { loadThroughExtension(context, false); } });
+    assert.equal(await ctrlS(store), false, 'niet vastgelegd');
+    assert.equal(hash(fileOf(name)), expected.sha256, 'het bestand kreeg de opgeslagen inhoud');
+    const after = store.getState();
+    assert.equal(after.activeDocumentId, id);
+    assert(after.ifcSource === opened, 'de nieuwe inhoud kreeg de geschreven bron niet');
+    assert.equal(after.isDirty, true);
+    assert.equal(saveStateOf(store), undefined, 'geen "Opgeslagen"');
+    assert.equal(await pendingIn(id), undefined, 'het herstelrecord is afgerond');
+  } finally { handleFaults.clear(); unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('extensie laadt hetzelfde project tijdens de merge: de opslag loopt door zoals bij doorwerken, "Opslaan…" blijft staan', async () => {
+  const sw = saveWorker('manual');
+  const { createAppStoreContext } = await loadStore();
+  const name = `model-${++handleCount}.ifc`, handle = new FakeHandle(name);
+  handleFiles.set(name, bytes);
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute });
+  const store = context.store;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await store.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+  const unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    const saving = ctrlS(store);
+    await mergeArrives(sw, 1);
+    loadThroughExtension(context, true);
+    assert.equal(statusOf(store), 'saving', '"Opslaan…" blijft bij een laadactie binnen hetzelfde project');
+    await finishMerge(sw);
+    assert.equal(await saving, false, 'opgeslagen, maar niet schoon (de extensie wijzigde het document)');
+    assert.equal(hash(fileOf(name)), expected.sha256, 'de momentopname is geschreven');
+    const after = store.getState();
+    assert.equal(after.ifcSource!.sha256, hash(fileOf(name)), 'de geschreven momentopname is de bron');
+    assert.equal(after.isDirty, true, 'het latere werk blijft gewijzigd');
+    assert.equal(after.filePath, 'bron.ifc', 'het opslagdoel blijft');
+    assert.equal(statusOf(store), 'unsaved');
+    assert.equal(store.getState().ui.notifications.filter(n => n.severity === 'error').length, 0);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('een wachtende Ctrl+S hoort bij de inhoud waarvoor hij gevraagd werd: na een ander project doet hij niets, en een nieuwe Ctrl+S sluit er niet bij aan', async () => {
+  const sw = saveWorker('manual'), { context, store } = await openForSaveAs(sw), ipc = desktop();
+  const target = join(dir, 'wachtende-opslag-ander-project.ifc');
+  try {
+    ipc.choose(target);
+    const running = ctrlS(store);
+    await mergeArrives(sw, 1);
+    const waiting = ctrlS(store);
+    loadThroughExtension(context, false);
+    const forNew = ctrlS(store);
+    assert.notEqual(forNew, waiting, 'het nieuwe project wacht niet mee met de opslag van het vorige');
+    await finishMerge(sw);
+    assert.equal(await running, false);
+    assert.equal(await waiting, false, 'de wachtende opslag van het vorige project schrijft niets');
+    await mergeArrives(sw, 2); await finishMerge(sw);
+    await forNew;
+    assert.equal(sw.merges(), 2, 'één merge voor het vorige project, één voor het nieuwe; geen voor de wachtende');
+  } finally { ipc.dispose(); sw.client.dispose(); }
 });
 
 rmSync(dir, { recursive: true, force: true });

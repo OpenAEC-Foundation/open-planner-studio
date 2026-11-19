@@ -110,11 +110,14 @@ export function StatusBar() {
   // "Opslaan…" tijdens een opslag van dit document, daarna "Opgeslagen 14:32" (de tijd van die opslag, in de tijdnotatie
   // van de app), en "Niet opgeslagen" zodra het weer gewijzigd is. Een fout is een gewone melding, geen stand hier.
   const saveStatus = saveStatusOf(saveState, isDirty);
-  const savedAt = saveStatus?.kind === 'saved' ? new Date(saveStatus.at) : null;
+  const savedText = (at: number) => {
+    const savedAt = new Date(at);
+    return t('status.saved', { time: formatClock(savedAt.getHours() * 60 + savedAt.getMinutes(), timeNotation) });
+  };
   const saveStateText = saveStatus === null ? ''
     : saveStatus.kind === 'saving' ? t('status.saving')
       : saveStatus.kind === 'unsaved' ? t('status.unsaved')
-        : t('status.saved', { time: formatClock(savedAt!.getHours() * 60 + savedAt!.getMinutes(), timeNotation) });
+        : savedText(saveStatus.at);
   const baselineNames = baselineLayers.map(l => l.name);
 
   const level = useStatusFold(barRef, FOLD_ORDER.length, [
@@ -162,10 +165,10 @@ export function StatusBar() {
       <BaselineLegend layers={baselineLayers} namesHidden={folded('baselineNames')} />
       {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{scaleText}</span>}
       {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{zoomText}</span>}
-      {saveStateText && !folded('saveState') && (
+      {saveStatus && !folded('saveState') && (
         <span
-          data-ops-save-status={saveStatus!.kind}
-          style={saveStatus!.kind === 'unsaved' ? { color: 'var(--theme-warning-text)' } : undefined}
+          data-ops-save-status={saveStatus.kind}
+          style={saveStatus.kind === 'unsaved' ? { color: 'var(--theme-warning-text)' } : undefined}
         >
           {saveStateText}
         </span>

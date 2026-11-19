@@ -7,6 +7,7 @@
 // ingelezen toestand. Bewijst niet dat de stap van het commando werkelijk exclusief en atomair is (dat doet
 // `cargo test place_file`), en niets van een echte desktopapp.
 import assert from 'node:assert/strict';
+import { documentContentOf } from '@/state/documentSaveState';
 import { createHash } from 'node:crypto';
 import {
   existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync,
@@ -106,7 +107,7 @@ async function replace(c: Case, fs?: OwnFileReplaceFs, records?: ReplaceRecordSt
   const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
     documentId: c.id, path: c.path, prepared: c.prepared,
     source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
-    commit: () => { committed = c.store.getState().commitSavedDocument(c.id, c.state, undefined, c.prepared); },
+    commit: () => { committed = c.store.getState().commitSavedDocument(documentContentOf(c.state, c.id)!, c.state, undefined, c.prepared); },
     // De doelbewaking na de eerste herstelronde is van de route (`replaceOwnPath`); de proeven onderaan dekken haar.
     stopBeforeWrite: async () => false,
     now: NOW, ...(fs ? { fs } : {}), ...(records ? { records } : {}),

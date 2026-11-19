@@ -5,6 +5,7 @@ import type { AppState } from '@/state/appStore';
 import { serializeForSave } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { sameIFCSource } from '@/state/ifcSaveInput';
+import { documentContentOf } from '@/state/documentSaveState';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
@@ -38,7 +39,8 @@ export function createFileAutoSaveController(deps: {
       // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
       // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
       if (!deps.enabled() || isProjectFileWriteBusy()) return [];
-      return getState().getOpenDocumentPayloads().map(({ id, payload }) => {
+      const state = getState();
+      return state.getOpenDocumentPayloads().map(({ id, payload }) => {
         // Eén afleiding van het opslagdoel, dezelfde als Opslaan. Een site-bestand valt hier
         // bewust af: automatisch opslaan naar de site staat uit (elke ronde zou een nieuwe versie
         // maken, besluit #309). Alleen Opslaan schrijft naar de site; crashherstel loopt gewoon door.
@@ -58,7 +60,7 @@ export function createFileAutoSaveController(deps: {
         if (refused && (!payload.isDirty || !ref || !sameFileRef(refused, ref))) refusedTarget.delete(id);
         const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !foreignBlocked
           && !refusedTarget.has(id);
-        return { id, enabled, dirty: payload.isDirty, ref, source: payload };
+        return { id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty, ref, source: payload };
       });
     },
     serialize: candidate => serializeForSave(candidate.source),
@@ -85,7 +87,7 @@ export function createFileAutoSaveController(deps: {
       if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
       return saveToRefWithoutPrompt(candidate.ref!, content);
     }, () => 'refused'),
-    markSavedIfUnchanged: candidate => getState().markAutoSaveVersionSaved(candidate.id, candidate.source),
+    markSavedIfUnchanged: candidate => getState().markAutoSaveVersionSaved({ id: candidate.id, content: candidate.content }, candidate.source),
     onFailure: (_candidate, error) => {
       console.error('Werkelijke AutoSave mislukt:', error);
       getState().notify({
