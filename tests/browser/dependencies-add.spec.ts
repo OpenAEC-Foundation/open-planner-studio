@@ -171,6 +171,8 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
 });
 
 test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd, toewijzen via rechtsklik en Ctrl+F2', async ({ page, ops: _ops }) => {
+  // Een lange route met twee documenten en elk sleepgebaar over een documentwissel.
+  test.setTimeout(60_000);
   const [grondwerk, fundering, ruwbouw, afbouw] = await seedProject(page, [
     { name: 'Grondwerk', start: '2026-09-07', finish: '2026-09-18' },
     { name: 'Fundering', start: '2026-09-21', finish: '2026-10-02' },
@@ -514,6 +516,68 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect.poll(() => ruwbouwPerDocument().then(docs => docs[copy].gaps)).not.toBeNull();
   expect((await ruwbouwPerDocument())[source]).toEqual(beforeSplit[source]);
   await page.keyboard.press('Escape');
+
+  // Elk sleepgebaar stopt bij een wissel (ronde 12), ook pannen, een selectiekader (met Ctrl, want op de
+  // achtergrond pant slepen) en een verticale balksleep (de rijsleep van de takenlijst): de bron houdt
+  // haar selectie en haar volgorde.
+  const perDocument = () => page.evaluate(() => Object.fromEntries(window.__OPS__!.store.getState()
+    .getOpenDocumentPayloads().map(doc => [doc.id, {
+      selection: doc.payload.selectedTaskIds,
+      order: doc.payload.tasks.map(task => `${task.wbsCode} ${task.name}`),
+    }])));
+  const first = await barPoint(page, grondwerk);
+  const last = await barPoint(page, afbouw);
+  const beforeBox = await perDocument();
+  await page.mouse.move(last.x + 40, last.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(first.x - 20, first.y - 4, { steps: 8 });
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  expect((await perDocument())[source]).toEqual(beforeBox[source]);
+  const box = page.locator('[data-testid=box-select-rect]');
+  await page.keyboard.down('Control');
+  await page.mouse.move(last.x + 40, last.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(first.x - 20, first.y - 4, { steps: 8 });
+  await expect(box).toBeVisible();
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), copy);
+  await expect(box).toHaveCount(0);
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  await page.waitForTimeout(300);
+  expect((await perDocument())[copy].selection).toEqual(beforeBox[copy].selection);
+  expect((await perDocument())[source].selection).toEqual(beforeBox[source].selection);
+
+  // Het pannen verschoof de kopie; zet beide weer op hetzelfde beeld en meet opnieuw.
+  await page.evaluate(([src, cp]) => {
+    const s = () => window.__OPS__!.store.getState();
+    for (const id of [src, cp]) {
+      s().switchDocument(id);
+      s().setScroll(0, 0);
+    }
+  }, [source, copy]);
+  const top = await barPoint(page, grondwerk);
+  const bottom = await barPoint(page, afbouw);
+  const beforeRowDrag = await perDocument();
+  await page.mouse.move(top.x, top.y);
+  await page.mouse.down();
+  await page.mouse.move(top.x, bottom.y + 8, { steps: 8 });
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  // Indrukken op de balk koos Grondwerk nog in de kopie; de volgorde blijft in beide gelijk.
+  const afterRowDrag = await perDocument();
+  expect(afterRowDrag[source]).toEqual(beforeRowDrag[source]);
+  expect(afterRowDrag[copy].order).toEqual(beforeRowDrag[copy].order);
+  // Zonder wissel verplaatst hetzelfde gebaar Grondwerk wel, alleen in de kopie.
+  await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), copy);
+  await page.mouse.move(top.x, top.y);
+  await page.mouse.down();
+  await page.mouse.move(top.x, bottom.y + 8, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => perDocument().then(docs => docs[copy].order)).not.toEqual(beforeRowDrag[copy].order);
+  expect((await perDocument())[source].order).toEqual(beforeRowDrag[source].order);
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

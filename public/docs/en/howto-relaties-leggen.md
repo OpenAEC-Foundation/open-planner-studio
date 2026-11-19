@@ -22,8 +22,8 @@ There are four ways to add a relation. They create the same relation; pick whate
 
 Useful when you work in the task list, or want to put a series of tasks in a row in one go.
 
-1. In the task list, click the task that comes first: the predecessor.
-2. Hold Ctrl (⌘ on a Mac) and click the task that comes next: the successor. You can click more tasks this way. Tasks that are listed one below the other can also be selected with Shift.
+1. Make sure the task list shows the tasks in the order of the chain: the predecessor above the successor.
+2. Click the first task, hold Ctrl (⌘ on a Mac) and click the other tasks. Tasks that are listed one below the other can also be selected with Shift.
 3. Press Ctrl+F2 (⌘+F2 on a Mac), or choose *Home › Tasks › Link ▾ › Link selected tasks*. The same button is also on *Planning › Relations*.
 
 The app creates a Finish-Start relation without lag between each task and the next, in the order of the list on your screen: the top one becomes the predecessor of the next, that one of the one after, and so on. The order in which you click does not count. You see them as arrows in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses a relation. If one of the relations already exists, the app says so and adds the others anyway. One *Undo* removes them all. The button works from two selected tasks.

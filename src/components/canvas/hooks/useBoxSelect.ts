@@ -61,7 +61,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, setGridActiv
 
     const handleMouseUp = () => setBoxSelectCandidate(null);
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: () => setBoxSelectCandidate(null) });
   }, [boxSelectCandidate]);
 
   // Het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
@@ -105,18 +105,23 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, setGridActiv
       setBoxSelectState(null);
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Annuleren: geen selectie-wijziging. De globale Escape-sneltoets (edit.deselect in
-      // shortcutRegistry.ts) luistert ook op window (bubble-fase) en zou anders ALSNOG
-      // deselectAll() aanroepen — capture-fase + stopImmediatePropagation wint gegarandeerd van
-      // die bubble-fase-listener (ongeacht registratievolgorde), zodat de selectie echt onaangeroerd
-      // blijft. De muis is nog ingedrukt, dus onderdruk ook de eerstvolgende click (anders verandert
-      // de selectie alsnog als gevolg van de geannuleerde sleep).
-      e.stopImmediatePropagation();
+    // Annuleren: geen selectie-wijziging. De muis is nog ingedrukt, dus onderdruk ook de eerstvolgende
+    // click (anders verandert de selectie alsnog als gevolg van de geannuleerde sleep). Ook bij een
+    // documentwissel (review #1004, ronde 12): het kader hoort bij het document waarin het begon.
+    const cancel = () => {
       justBoxSelectedRef.current = true;
       armJustBoxSelectedClear();
       setBoxSelectState(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // De globale Escape-sneltoets (edit.deselect in shortcutRegistry.ts) luistert ook op window
+      // (bubble-fase) en zou anders ALSNOG deselectAll() aanroepen — capture-fase +
+      // stopImmediatePropagation wint gegarandeerd van die bubble-fase-listener (ongeacht
+      // registratievolgorde), zodat de selectie echt onaangeroerd blijft.
+      e.stopImmediatePropagation();
+      cancel();
     };
 
     // Dode-klik-vangnet (zelfde gat als bij de rijsleep): eindigt de sleep buiten
@@ -127,7 +132,9 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, setGridActiv
       window.addEventListener('click', () => { justBoxSelectedRef.current = false; }, { once: true });
     }
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    return listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true, onDocumentSwitch: cancel,
+    });
   }, [boxSelectState, canvasRef, rendererRef, selectTasks, setGridActiveRowKey, deselectAll, justBoxSelectedRef]);
 
   return {

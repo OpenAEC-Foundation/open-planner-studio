@@ -276,8 +276,8 @@ export interface GanttPointerCoordinatorOutput {
   tooltip: GanttTooltipState | null;
   closeContextMenu: () => void;
   closeRelationPopover: () => void;
-  /** Sluit menu en relatiepopover en beëindigt een relatiesleep, balksleep of splitsgebaar: ze houden
-   *  taak-id's vast, en een variant draagt dezelfde id's. Na een documentwissel landde hun actie anders
-   *  in het andere document (review #1004, rondes 10 en 11). */
+  /** Sluit menu en relatiepopover: ze houden taak-id's vast, en een variant draagt dezelfde id's. Na
+   *  een documentwissel landde hun actie anders in het andere document (review #1004, ronde 10). Lopende
+   *  sleepgebaren stopt `listenWindowDrag` zelf. */
   closeForDocumentSwitch: () => void;
 }

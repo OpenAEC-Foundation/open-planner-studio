@@ -181,7 +181,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
     const handleMouseUp = () => setCandidate(null);
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: handleMouseUp });
   }, [candidateActive, candidateRef, optionsRef, computeHover]);
 
   // Opruimen van de "net-gesleept"-vlag, met een EXTRA vangnet dat een canvas niet nodig zou
@@ -282,17 +282,28 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    // Escape annuleert ZONDER mutatie. Capture-fase + stopImmediatePropagation, net als bij het
-    // canvas: anders kan een globale Escape-sneltoets er eerst tussen komen.
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopImmediatePropagation();
+    // Annuleren ZONDER mutatie: bij Escape, en bij een documentwissel (review #1004, ronde 12), want de
+    // verplaatsing hoort bij het document waarin de sleep begon.
+    const cancel = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      pending = null;
       optionsRef.current.justDraggedRef.current = true;
       armJustDraggedClear();
       setDragState(null);
     };
 
-    const stopListening = listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    // Capture-fase + stopImmediatePropagation, net als bij het canvas: anders kan een globale
+    // Escape-sneltoets er eerst tussen komen.
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      cancel();
+    };
+
+    const stopListening = listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true, onDocumentSwitch: cancel,
+    });
     return () => {
       if (frame) cancelAnimationFrame(frame);
       stopListening();

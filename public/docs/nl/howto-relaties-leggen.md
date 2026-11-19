@@ -22,8 +22,8 @@ Er zijn vier manieren om een relatie te leggen. Ze maken dezelfde relatie; kies 
 
 Handig als je in de takenlijst werkt, of een reeks taken in één keer achter elkaar wilt zetten.
 
-1. Klik in de takenlijst op de taak die eerst moet: de voorganger.
-2. Houd Ctrl (op een Mac ⌘) ingedrukt en klik op de taak die daarna komt: de opvolger. Zo kun je meer taken aanklikken. Taken die onder elkaar staan, selecteer je ook met Shift.
+1. Zet de taken in de takenlijst in de volgorde van de keten: de voorganger boven de opvolger.
+2. Klik op de eerste taak, houd Ctrl (op een Mac ⌘) ingedrukt en klik op de andere taken. Taken die onder elkaar staan, selecteer je ook met Shift.
 3. Druk op Ctrl+F2 (op een Mac ⌘+F2), of kies *Start › Taken › Relatie ▾ › Geselecteerde taken koppelen*. Dezelfde knop staat ook op *Planning › Relaties*.
 
 De app legt tussen elke taak en de volgende een Eind-Start-relatie zonder lag, in de volgorde van de lijst op je scherm: de bovenste wordt voorganger van de volgende, die van de daaropvolgende, enzovoort. De volgorde waarin je klikt telt niet. Je ziet ze als pijlen in de Gantt en in de kolom *Voorgangers*; een melding komt er alleen als de app een relatie weigert. Bestaat een van de relaties al, dan meldt de app dat en komen de andere er wel bij. Eén keer *Ongedaan* haalt ze allemaal weg. De knop werkt vanaf twee geselecteerde taken.

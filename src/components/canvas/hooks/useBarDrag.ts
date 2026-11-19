@@ -401,23 +401,6 @@ export function useBarDrag({
     gestureMarkRef.current = null;
   }, [endHistorySession]);
 
-  /** Documentwissel midden in het gebaar (review #1004, ronde 11): stop zonder nog te schrijven, zoals
-   *  loslaten. Wat al geschreven was blijft in het startdocument, als één undo-stap daar. Terugdraaien
-   *  zoals Escape kan niet: `revertHistorySince` werkt op het actieve document, en dat is het nieuwe.
-   *  De listeners van het effect leven tot de volgende render; de lege `undoKeyRef` houdt ze stil. */
-  const endForDocumentSwitch = useCallback(() => {
-    if (undoKeyRef.current === null) return;
-    if (gestureMarkRef.current) endHistorySession(gestureMarkRef.current);
-    gestureMarkRef.current = null;
-    undoKeyRef.current = null;
-    startRuleRef.current = null;
-    companionsRef.current = [];
-    actualLockRef.current = null;
-    // De click van het loslaten hoort bij het oude document.
-    suppressClickRef.current = true;
-    setSplitLabel(null);
-    setDragState(null);
-  }, [endHistorySession, suppressClickRef]);
 
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
@@ -714,8 +697,6 @@ export function useBarDrag({
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Afgebroken (documentwissel) terwijl deze listener nog leeft: niets meer schrijven.
-      if (undoKeyRef.current !== undoKey) return;
       if (dragState.split) {
         handleSplitDrag(e, dragState.split);
         return;
@@ -895,7 +876,26 @@ export function useBarDrag({
       setDragState(null);
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    // Documentwissel midden in het gebaar (review #1004, ronde 11): stoppen zoals loslaten, zonder
+    // meldingen. Wat al geschreven was blijft in het startdocument, als één undo-stap daar. Terugdraaien
+    // zoals Escape kan niet: `revertHistorySince` werkt op het actieve document, en dat is het nieuwe.
+    const handleDocumentSwitch = () => {
+      if (gestureMarkRef.current) endHistorySession(gestureMarkRef.current);
+      gestureMarkRef.current = null;
+      undoKeyRef.current = null;
+      startRuleRef.current = null;
+      companionsRef.current = [];
+      actualLockRef.current = null;
+      // De click van het loslaten hoort bij het oude document.
+      suppressClickRef.current = true;
+      setSplitLabel(null);
+      setDragState(null);
+    };
+
+    return listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true,
+      onDocumentSwitch: handleDocumentSwitch,
+    });
   }, [
     dragState,
     zoom,
@@ -922,5 +922,5 @@ export function useBarDrag({
     workdayDurationMeasure,
   ]);
 
-  return { dragState, startBarDrag, splitLabel, endForDocumentSwitch, active: !!dragState };
+  return { dragState, startBarDrag, splitLabel, active: !!dragState };
 }

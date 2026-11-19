@@ -558,16 +558,10 @@ export function useGanttPointerCoordinator(
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
-  const { startDepDraw } = dependencyDraw;
-  const { endForDocumentSwitch: endBarDrag } = barDrag;
-  const { endForDocumentSwitch: endSplitGesture } = splitGesture;
   const closeForDocumentSwitch = useCallback(() => {
     setContextMenu(null);
     setRelationPopover(null);
-    startDepDraw(null);
-    endBarDrag();
-    endSplitGesture();
-  }, [startDepDraw, endBarDrag, endSplitGesture]);
+  }, []);
 
   const cursor = pan.panState
       ? 'grabbing'
