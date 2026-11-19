@@ -274,10 +274,13 @@ export function saveNewBytesToRef(ref: FileRef, bytes: Uint8Array, refuseBeforeP
 /** In-place opslaan naar een bestaande ref, met tekst of bytes. `false` als onmogelijk (fallback-web, geweigerde
  *  permissie of annulering) → de aanroeper kan terugvallen op `saveFileDialog`. Ook `false` als `refuseBeforePlace`
  *  weigerde; dan weet de aanroeper zelf dat hij moet stoppen. Echte schrijffouten gooien: de aanroeper meldt ze vóór
- *  een eventuele terugval. Een site-ref: altijd `false` (zie boven). */
-export function saveToRef(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
+ *  een eventuele terugval. Een site-ref: altijd `false` (zie boven). `writeGranted`: de aanroeper kreeg voor deze
+ *  handle al schrijftoestemming (`handleWritePermission`, vóór het rekenen); de browser vraagt dan niet opnieuw. */
+export function saveToRef(
+  ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null, writeGranted = false,
+): Promise<boolean> {
   if (ref.kind === 'site') return Promise.resolve(false);
-  return isTauri() ? saveToRefTauri(ref, data, refuseBeforePlace) : saveToRefWeb(ref, data, refuseBeforePlace);
+  return isTauri() ? saveToRefTauri(ref, data, refuseBeforePlace) : saveToRefWeb(ref, data, refuseBeforePlace, writeGranted);
 }
 
 /** Stille precheck voor timerwerk: browser-FSA mag hier nooit permissie vragen. Een site-ref: `false`

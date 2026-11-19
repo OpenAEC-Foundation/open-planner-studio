@@ -380,7 +380,9 @@ async function readwriteGranted(handle: FileSystemFileHandle): Promise<boolean> 
   return (await handle.requestPermission?.(opts)) === 'granted';
 }
 
-export async function saveToRefWeb(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
+export async function saveToRefWeb(
+  ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null, writeGranted = false,
+): Promise<boolean> {
   if (ref.kind !== 'handle') return false;
   // Weet de omgeving al dat schrijven via handles hier niet kan? Dan de permissievraag overslaan:
   // die levert alleen een prompt op die tóch nergens toe leidt. `false` stuurt de aanroeper naar
@@ -388,7 +390,7 @@ export async function saveToRefWeb(ref: FileRef, data: FileData, refuseBeforePla
   if (platformRefusesWrites) return false;
   const { handle } = ref;
   try {
-    if (!(await readwriteGranted(handle))) return false;
+    if (!writeGranted && !(await readwriteGranted(handle))) return false;
     return await writeThroughHandle(handle, data, refuseBeforePlace);
   } catch (err) {
     // Weigert de omgeving blijvend (`NotAllowedError`, grant niet en nooit `granted`), onthoud dat

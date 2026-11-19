@@ -1706,7 +1706,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const saved = write.prepared
-            ? await saveNewBytesToRef(ref, write.prepared.bytes, last.refuse) : await saveToRef(ref, writerData(write), last.refuse);
+            ? await saveNewBytesToRef(ref, write.prepared.bytes, last.refuse)
+            : await saveToRef(ref, writerData(write), last.refuse, ref.kind === 'handle');
           if (last.refused()) return false;
           if (saved) return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared);
         } catch (err) {
