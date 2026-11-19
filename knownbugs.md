@@ -3937,6 +3937,22 @@ en noem het in je rapport of PR-tekst.
       slagen; het terugvalblok gebruikt bovendien twee geldige opdrachten, en de foutproef loopt via een werkende
       worker. Richting: één assert op afwezige writerbytes bij terugval en één mislukte opdracht in datzelfde blok,
       zodat de directe terugval en de foutsoort vastliggen. Sol-review ronde 2 van #1016: [BEVESTIGD] VERVOLG. — B
+1894. **VERVOLG (#1020, opslagworker): sluiten ziet een lopende IFC-export pas zodra die in de schrijfrij staat.**
+      *Exporteren → IFC* rekent zijn uitvoer (met een gebouwmodel in de opslagworker) vóór `runProjectFileWrite`, zoals
+      op main, en telt niet mee in `trackSave`. Sluit de planner tijdens dat rekenen het tabblad, dan geeft
+      `waitForSavesBeforeClose()` meteen `null` en komt de gewone sluitvraag; de versheidscontrole
+      (`refuseChangedExport`) laat de export daarna veilig stoppen. Geen verlies van planningsdata of vastloper
+      vastgesteld. Richting: deze IFC-route vanaf het voorbereiden in dezelfde schrijfrij laten lopen en de doelcontrole
+      vlak vóór I/O behouden; één bestaande wachtrij, geen tweede mechanisme voor sluiten. Sol-review ronde 1 van #1020:
+      [BEVESTIGD] VERVOLG. — B
+1895. **Een ander project via `api.data.loadProject` erft de IFC-bron van het vorige project.** `loadExtensionProject`
+      laadt een ander project-id via `loadState`; `applyLoadedProject` geeft het zonder eigen bron dezelfde
+      `ifcSource` en hetzelfde `foreignSourceMark` als het document had (`inheritsTarget`), en daarna wist
+      `loadExtensionProject` alleen het opslagdoel. Het nieuwe project draagt dus het gebouwmodel van het vorige; een
+      latere *Opslaan als* zou de planning van het nieuwe project in dat model zetten. Dat het de bron erft, legt
+      `check-ifc-document-save.ts` vast (fixronde 1 van #1020); wat de merge er daarna van maakt, is niet beproefd. Ook
+      op main. Richting: bij een ander project-id de bron en het kenmerk niet erven, of de eigenaar laten kiezen of een
+      extensie een gebouwmodel mag overnemen. Gezien in de review van #1020 (Sol, ronde 1). — S
 
 ## Wensen en open taken (geen bug)
 

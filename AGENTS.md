@@ -242,7 +242,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
-  `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
+  `commitSavedDocument(ref, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
   bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
@@ -414,6 +414,14 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   in the close question) through the end of the whole save, then "Saved 14:32", and "Unsaved" once the document changes
   again. It lives on the document registry (`DocumentEntry.saveState`, `src/state/documentSaveState.ts`), not in
   `DOCUMENT_FIELDS`; `commitSavedDocument` stamps the time. A failure is a normal notice, never a status.
+- **Document content identity** (#1020 fix round 1): a save belongs to the content it was requested for
+  (`DocumentContentRef`: document id plus `DocumentEntry.content`), not to the tab. Only `replaceDocumentContent`
+  changes it: another project in the same tab (`applyLoadedProject` without edit and with another project id, which
+  includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
+  read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
+  for the plain writer and in `stopBeforeWrite`), `commitSavedDocument` takes the ref and commits nothing to replaced
+  content, and the waiting Ctrl+S, the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
+  not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both

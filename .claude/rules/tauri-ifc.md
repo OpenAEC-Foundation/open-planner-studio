@@ -282,7 +282,7 @@ van #1008): document en bron ongewijzigd (`refuseChangedDocumentWrite`), `saveTa
 bewaking en uitkomst `stopped`, niets in de projectmap. Volgorde met openen: `readOpenedTauriPath` (`tauriBackend.ts`,
 waar dialoog, neerzetten en Recent samenkomen) wacht vóór het lezen op `whenProjectFileWritesIdle`; geen opslagroute
 leest erdoor, dus de schrijfrij wacht nooit op zichzelf. Een lezing die al vóór de opslag liep: knownbug 1837. `commit` is
-`commitSavedDocument(id, momentopname, undefined, prepared)`; zijn boolean is de uitkomst van de opslag en dus de
+`commitSavedDocument(ref, momentopname, undefined, prepared)`; zijn boolean is de uitkomst van de opslag en dus de
 sluitbeslissing (een bewerking tijdens de opslag: de geschreven versie wordt de bron, het document blijft gewijzigd).
 Elke andere uitkomst meldt via `ownPathReplaceNotices` en stopt; nooit de gewone schrijfroutine (die schrijft op naam).
 Automatisch opslaan en `planner_export_ifc` nemen deze route niet (zie `settings-autosave.md`; de export weigert een
