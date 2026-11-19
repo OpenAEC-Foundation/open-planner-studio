@@ -61,6 +61,38 @@ fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
+/// Schaduw en sleeprand voor het randloze venster op Linux.
+///
+/// Een GTK-venster zonder decoraties (`"decorations": false`) krijgt van de compositor geen schaduw en
+/// geen rand om het formaat te slepen. Daarom houdt GTK hier zijn client-side decoraties, maar met een
+/// lege titelbalk: GTK tekent de schaduw en de sleeprand, en de titelbalk van de webview
+/// (`TitleBar.tsx`) blijft de enige titelbalk. Dit moet gebeuren voordat het venster voor het eerst
+/// zichtbaar wordt; het start verborgen (#895), dus `setup` is op tijd.
+#[cfg(target_os = "linux")]
+fn linux_window_shadow(app: &tauri::App) {
+    use gtk::prelude::*;
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    let Ok(gtk_window) = window.gtk_window() else {
+        return;
+    };
+    let titlebar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    // Thema's geven de `.titlebar`-plek de hoogte en opvulling van een headerbar; zonder deze regel
+    // blijft er een doorzichtige strook boven de titelbalk van de webview.
+    let css = gtk::CssProvider::new();
+    let _ = css.load_from_data(
+        b"* { min-height: 0; padding: 0; margin: 0; border: none; background: none; box-shadow: none; }",
+    );
+    titlebar
+        .style_context()
+        .add_provider(&css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+    titlebar.set_size_request(-1, 0);
+    titlebar.show();
+    gtk_window.set_titlebar(Some(&titlebar));
+    gtk_window.set_decorated(true);
+}
+
 fn main() {
     // Installatietype één keer per proces bepalen, vroeg en buiten de UI-thread (zie
     // `commands::install_kind`): later kan het programmapad al vervangen zijn door een pakketupdate.
@@ -109,6 +141,8 @@ fn main() {
         // MCP-bridge-state (fase 1, Tauri-only): één actieve bridge of geen.
         .manage(mcp_bridge::BridgeState::default())
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            linux_window_shadow(app);
             reveal_window_fallback(app.handle().clone());
             Ok(())
         })
