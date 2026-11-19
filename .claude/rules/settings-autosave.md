@@ -34,8 +34,9 @@ De zware IFC-serialisatie loopt op één herbruikbare Web Worker (`recoverySnaps
 Voor #804 fase 1c gebruikt de inhoudsvergelijking `IFC_DIRTY_KEYS`: een vervangen `ifcSource` maakt geen nieuwe
 herstelsnapshot of bestands-AutoSave nodig. Een bestaande AutoSave-kandidaat toetst die bronidentiteit juist wél,
 onder het schrijfslot vóór I/O. Sinds #804 stap 6 is de hele ronde één schrijfbeurt (`write` in `actualAutoSave.ts`):
-onder het slot de doelcontrole, de inhouds- en bronidentiteit, de momentopname en het rekenen via dezelfde
-berekenfunctie als Ctrl+S (de opslagworker, `compute` van `useAutoSave`), de laatste controle in de schrijflaag en het
+onder het slot de inhouds- en bronidentiteit, de momentopname en het rekenen via dezelfde berekenfunctie als Ctrl+S
+(de opslagworker, `compute` van `useAutoSave`), daarna de doelcontrole (fixronde 1 van #1027: ná het rekenen, zodat een
+gebouwmodel dat intussen op het doel verscheen niet overschreven wordt), de laatste controle in de schrijflaag en het
 vastleggen. Typt de planner tijdens de ronde, dan schrijft ze de momentopname en blijft het document gewijzigd; een
 workerfout is een mislukte ronde met `ifcSaveWorkerFailed`, zonder terugval. `markAutoSaveVersionSaved(id, savedSource, prepared?)` gebruikt dezelfde
 `commitSavedDocument` als handmatige opslag: bron en kalenderkeuzes volgen de geschreven versie, ook als een latere

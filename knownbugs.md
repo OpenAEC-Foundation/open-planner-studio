@@ -3964,7 +3964,9 @@ en noem het in je rapport of PR-tekst.
       (`refuseChangedExport`) laat de export daarna veilig stoppen. Geen verlies van planningsdata of vastloper
       vastgesteld. Richting: deze IFC-route vanaf het voorbereiden in dezelfde schrijfrij laten lopen en de doelcontrole
       vlak vóór I/O behouden; één bestaande wachtrij, geen tweede mechanisme voor sluiten. Sol-review ronde 1 van #1020:
-      [BEVESTIGD] VERVOLG. — B
+      [BEVESTIGD] VERVOLG. Sinds #804 stap 6 (#1027) geldt het ook tijdens het rekenen van een gewone IFC-export: die
+      rekent nu in de opslagworker, en typen tijdens dat rekenen laat de export weigeren met
+      `ifcExportChangedWhileWaiting` (besluit Trias: zo laten; review van #1027, punt 6). — B
 1895. **Een ander project via `api.data.loadProject` erft de IFC-bron van het vorige project.** `loadExtensionProject`
       laadt een ander project-id via `loadState`; `applyLoadedProject` geeft het zonder eigen bron dezelfde
       `ifcSource` en hetzelfde `foreignSourceMark` als het document had (`inheritsTarget`), en daarna wist
@@ -3973,6 +3975,35 @@ en noem het in je rapport of PR-tekst.
       `check-ifc-document-save.ts` vast (fixronde 1 van #1020); wat de merge er daarna van maakt, is niet beproefd. Ook
       op main. Richting: bij een ander project-id de bron en het kenmerk niet erven, of de eigenaar laten kiezen of een
       extensie een gebouwmodel mag overnemen. Gezien in de review van #1020 (Sol, ronde 1). — S
+
+1899. **VERVOLG (browser, Chromium): de opslaankiezer maakt een bestaand doel al leeg bij het kiezen, vóór de doelcontrole en vóór elke late controle van de app.**
+      `showSaveFilePicker()` kapt een gekozen bestaand bestand af voordat de handle terugkomt (Chromium
+      `CreateAndTruncateFile`, volgens de review van #1027; niet zelf in een echte browser gemeten). Een weigering
+      daarna kan het oude bestand niet meer terugbrengen; dat gold al op main:
+      1. de inhoudscontrole van `refuseTarget` (met de flag aan) leest het lege bestand: `scanForeignTargetBlob` geeft
+         `not-ifc` en `targetRefusal` weigert niet (gemeten). Een gebouwmodel dat daar stond, is dan al weg;
+      2. een weigering op identiteit (de bron van een ander open document via `isSameEntry`, of `refuseChangedExport`
+         bij een export) geeft `null` terug en laat het bestand op 0 bytes staan (uit de code; niet in een browser
+         geprobeerd).
+      Sinds fixronde 1 van #1027 (besluit Trias) krijgt een handle uit de kiezer geen late controle vóór `close()`
+      (`saveDataDialogWeb`): de opslag maakt het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
+      de commit niets vast (geen pad, bron, *Opgeslagen* of Recent); een export meldt dan geen succes. Ctrl+S en
+      Automatisch opslaan op een bestaande handle houden de late controle, want daar bewaart de browser de oude bytes
+      tot `close()`. Richting van de reviewer: "Kies bestaande doelen via een handeling die de oude bytes bewaart,
+      bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
+      een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
+
+1900. **VERVOLG (#804 stap 8): de schrijftijd van Automatisch opslaan telt mee voor Ctrl+S en sluiten.**
+      Een ronde van Automatisch opslaan rekent en schrijft onder hetzelfde schrijfslot als Ctrl+S. Een Ctrl+S, ook van
+      een ander tabblad, en het sluiten van een tabblad wachten tot die ronde klaar is; tijdens een Ctrl+S slaat de tik
+      zijn beurt over (proef `review wachtrij` in `check-ifc-document-save.ts`). Bij gewone plannen is de wachttijd niet
+      gemeten (starttimeout 10 s, rekentimeout 60 s). Advies van de reviewer voor stap 8, letterlijk: "Stap 8 moet
+      dezelfde gecontroleerde vervanging gebruiken als handmatig opslaan, met bronvergelijking na de merge en een
+      herstelrecord vóór plaatsing. Alleen de huidige uitsluiting opheffen is onveilig. De stille ronde heeft voor een
+      model apart 30 s rust en een bovengrens van 5 min per document nodig. Zet een achtergrondmerge van 18 s zonder
+      voorrang voor handmatige acties in deze gedeelde rij en beide sluitpaden wachten die hele tijd. Ontwerp de
+      voorrang vóór het aanzetten en meet ook een handmatige opslag van een ander document. Gebruik dezelfde
+      schrijfcoördinatie voor plaatsing en commit." Review van #1027 (Sol): [BEVESTIGD] VERVOLG. — B (proef)
 
 ## Wensen en open taken (geen bug)
 

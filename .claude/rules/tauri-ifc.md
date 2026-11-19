@@ -164,15 +164,27 @@ zonder React, de modules uit `STUBBED` als stub). Bewijs: `check-save-worker.ts`
 `settings-tabs.spec.ts` (de app start de worker zelf bij een echte Ctrl+S, met een model en met een gewoon bestand). De
 opslagstand in de statusbalk staat in `state.md`.
 
-**De laatste controle in de schrijflaag** (knownbug 1896, #804 stap 6): elke documentopslag geeft `refuseBeforePlace`
-(`RefuseBeforePlace` in `fileAccess/index.ts`, met `refuseChangedDocumentWrite`) mee tot het laatste veilige punt: vóór
-`close()` van een browserhandle (anders `abort()`), vóór de hernoeming en elke directe schrijfactie van `replaceUserFile`,
-vóór de exclusieve plaatsing of aanmaak van `writeNewUserBytes`, vóór het opzijzetten in `replaceOwnFileBytes` (uitkomst
-`stopped`) en vlak vóór de site-opslag. Een weigering laat het doel onveranderd; het tijdelijke bestand en het
-herstelrecord gaan langs het bestaande opruimpad weg; de bestaande melding, niets in Recent. Knownbug 1902: een
-vervanging die aantoonbaar niets schreef (`nothingWritten`), wist haar record meteen; de opruimronde bij de start telt
-een pad buiten het bereik van plugin-fs (`forbidden`) als afwezig, want een hulpbestand ontstaat alleen waar de app mag
-schrijven, en aanmaken, lezen en `lstat` toetsen dezelfde scope (die alleen groeit).
+**De laatste controle in de schrijflaag** (knownbug 1896, #804 stap 6 en fixronde 1 van #1027): elke documentopslag en
+elke IFC-export geeft `refuseBeforePlace` (`RefuseBeforePlace` in `fileAccess/index.ts`; `refuseChangedDocumentWrite`
+of `refuseChangedExport`) mee tot het laatste veilige punt: vóór `close()` van een bestaande browserhandle (anders
+`abort()`; bij de mergehandle synchroon direct na de bronvergelijking, zonder `await` ertussen), vóór de hernoeming en
+elke directe schrijfactie van `replaceUserFile`, vóór de exclusieve plaatsing of aanmaak van `writeNewUserBytes`, vóór
+het opzijzetten in `replaceOwnFileBytes` (uitkomst `stopped`) en vlak vóór de site-opslag. Een weigering laat het doel
+onveranderd; het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg; de bestaande melding,
+niets in Recent. **Uitzondering: een handle uit de opslaankiezer van de browser** (Opslaan als, de exports, Ctrl+S
+zonder doel) krijgt geen late controle (`saveDataDialogWeb`): Chromium maakt een bestaand doel bij het kiezen al leeg,
+dus `abort()` liet 0 bytes staan (knownbug 1899). De opslag maakt het gevraagde bestand af; bij een intussen vervangen
+inhoud legt de commit niets vast en komt er niets in Recent, en een export meldt geen succes en legt geen kalenderkeuze
+vast (`exportContentReplaced`). De native kiezer van Tauri geeft alleen een pad (plugin-dialog `save`), dus op de
+desktop geldt de late controle overal. Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
+in dezelfde schrijfbeurt, zoals Ctrl+S.
+
+**Herstel bij de start** (knownbug 1902, fixronde 1 van #1027, besluit Trias): een vervanging die aantoonbaar niets
+schreef (`nothingWritten`), wist haar record meteen. Weigert plugin-fs bij de start het doel of een hulpnaam
+(`forbidden`), dan doet `settleReplaceRemnants` niets: geen melding, het record blijft voor een latere start met toegang.
+Een weigering bewijst niet dat er niets staat: plugin-fs toetst het pad waar het nu werkelijk naartoe wijst, een map uit
+Afhankelijke projecten kan na een herstart ontbreken, en `persisted-scope` start bij een onleesbaar scopebestand zonder
+de bewaarde rechten. "Bleef staan" meldt de app alleen voor een bestand dat ze zag staan.
 
 Controle (c) (PR 12a, `ownOutputProblem` in `mergeWriter.ts`) komt als laatste in die uitvoercontrole: de eigen groepen
 op projectniveau (`foreign/ownGroups.ts`: psets op het `IfcProject` of het eigen live werkschema met hun relatie, bij

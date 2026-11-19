@@ -2478,9 +2478,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             ?? refusalNotice({ messageKey: 'notifications.saveFailed', dedupeKey: 'ifc-export-write-failed' }));
           return null;
         }
-        if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         // Na een ja op "alleen de planning" is het eigen bestand nooit het doel (het bevat het gebouwmodel).
         if (written && !preparedExport && !planOnly) await recordOwnFileExport(state, written, exportedLiteral);
+        // Na de laatste `await`: een vervangen inhoud krijgt geen succes en geen Recent.
+        if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
@@ -2581,8 +2582,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveDataDialog(`${base}.ifc`, projectData, [{ name: 'IFC Files', extensions: ['ifc'] }],
           { refuseTarget, refuseDownload: () => refuseChangedExport(state), refuseBeforePlace: () => refuseChangedExport(state) });
-        if (written && exportContentReplaced(state)) return null;
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
+        if (written && exportContentReplaced(state)) return null; // zie `exportAs`
         return written;
       }, () => null);
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout

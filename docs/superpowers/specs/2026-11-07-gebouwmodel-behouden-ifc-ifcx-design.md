@@ -813,6 +813,12 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
       programma na stap 3 veranderde, of een vreemd bestand onder de tijdelijke naam), een onvolledig tijdelijk bestand
       na een crash in stap 1, iets onleesbaars, of een stap die faalt. Het record blijft dan ook, en de volgende start of
       het openen van het bestand probeert het opnieuw.
+    - Weigert plugin-fs het doel of een van de hulpnamen (`forbidden path`), dan doet de app voor dat record niets: geen
+      stap en geen melding, en het record blijft voor een latere start met toegang (uitgesteld herstel; review van #1027,
+      besluit Trias 19 november 2026). Een weigering bewijst niet dat er niets staat: plugin-fs toetst het pad waar het
+      nu werkelijk naartoe wijst, een map die Afhankelijke projecten vrijgaf kan na een herstart ontbreken, en
+      `persisted-scope` start bij een onleesbaar scopebestand zonder de bewaarde rechten. Een vervanging die aantoonbaar
+      niets schreef (stap 1 geweigerd), wist haar record meteen zelf (knownbug 1902).
     Het record verdwijnt pas als beide hulpnamen aantoonbaar afwezig zijn: de naam zelf wordt getoetst (`lstat`, geen
     link volgen), en elke fout bij die controle telt als "staat er nog". Herstel leidt nergens uit af of een plaatsing
     slaagde; het kijkt alleen per hulpnaam of die er staat en of de inhoud de vastgelegde vorige versie (terugzetten)

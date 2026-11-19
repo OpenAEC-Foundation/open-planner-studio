@@ -2527,7 +2527,7 @@ await check('review AutoSave: nieuw gebouwmodel op het doel bij het einde van de
 
 // Blokkade 3 (besluit Trias, knownbug 1899): na de opslaankiezer van de browser maakt de opslag het gekozen bestand af
 // met de inhoud waar de planner om vroeg, zoals main; alleen de commit weigert. Nooit 0 bytes.
-await check('review 1899: Opslaan als via de opslaankiezer van Chromium, projectwissel tijdens het schrijven: het volledige bestand, B krijgt niets', async () => {
+for (const route of ['Opslaan als', 'Ctrl+S zonder doel'] as const) await check(`review 1899: ${route} via de opslaankiezer van Chromium, projectwissel tijdens het schrijven: het volledige bestand, B krijgt niets`, async () => {
   const sw = saveWorker();
   const { createAppStoreContext } = await loadStore();
   const context = createAppStoreContext({ ifcSaveCompute: sw.compute });
@@ -2554,7 +2554,8 @@ await check('review 1899: Opslaan als via de opslaankiezer van Chromium, project
     longer(store);
     const expected = new TextEncoder().encode(writeIFC(buildWriteIFCInput(store.getState(), 'merge')));
     writableLog.length = 0;
-    await store.getState().saveFileAs();
+    if (route === 'Opslaan als') await store.getState().saveFileAs();
+    else await store.getState().saveFile();
     const after = fileOf(name);
     assert(loaded);
     assert(after.byteLength > 0 && Buffer.from(after).equals(Buffer.from(expected)), `het volledige bestand van A (${after.byteLength} bytes)`);

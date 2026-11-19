@@ -361,6 +361,31 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [true, true, true, [S().calendar.id]]);
     }
     {
+      // 7h. Review van #1027 (Sol): de export schreef het eigen bestand en kijkt nog of het het eigen bestand is
+      //     (`isSameEntry`); in die opening laadt een extensie een ander project in het tabblad. De kalenderkeuze hoort
+      //     bij de inhoud van de export: het nieuwe project krijgt haar niet, en de export telt niet als geslaagd.
+      const { store, file, S } = await openOwn();
+      addHourTask(store);
+      let written = false, loaded = false;
+      hooks.afterClose = () => { written = true; };
+      hooks.beforeSameEntry = async () => {
+        if (!written || loaded) return;
+        loaded = true;
+        const s = S();
+        loadExtensionProject(store, {
+          project: { ...toExtProject(s.project), id: 'ander-project-7h', name: 'Ander project' }, calendar: toExtCalendar(s.calendar),
+          tasks: [], sequences: [], resources: [], assignments: [],
+        });
+      };
+      win.showSaveFilePicker = async () => file.handle;
+      const result = await run(S);
+      delete hooks.afterClose;
+      delete hooks.beforeSameEntry;
+      eq(`7h ${route}: een ander project tijdens de doelvergelijking krijgt geen kalenderkeuze; geen geslaagde export`,
+        [loaded, file.text().includes(LITERAL), S().project.id, S().ifcLiteralCalendarIds, 'cancelled' in result && result.cancelled === true],
+        [true, true, 'ander-project-7h', null, true]);
+    }
+    {
       // 7f. Review #872 ronde 5 (Sol): de opslag die de lock vasthoudt, legt tijdens het wachten de letterlijke keuze vast
       //     (zoals een opslag met een urentaak doet). De export maakte zijn tekst daarvoor, zonder `LiteralTimes`: hij mag
       //     die ankertekst nu niet meer over het eigen bestand schrijven.

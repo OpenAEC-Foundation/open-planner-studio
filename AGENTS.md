@@ -399,7 +399,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
   `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
   close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
-  (`fileAutoSave.ts`, `compute` from `useAutoSave`). Headless, scratch and test contexts, crash recovery and
+  (`fileAutoSave.ts`, `compute` from `useAutoSave`; it checks its target after the computation, in the same write turn,
+  like Ctrl+S). Headless, scratch and test contexts, crash recovery and
   `planner_export_ifc` stay on the main thread. A plain writer answer carries the worker's bytes; they go straight to
   the write layer (`FileData`, `saveDataDialog`, `saveToRef`), never through text; the text only exists when the main
   thread computed (the worker did not start). The plain writer keeps its right to overwrite (`saveFileDialog` /
@@ -424,9 +425,12 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
   read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
   for the plain writer and in `stopBeforeWrite`) and again at the last safe point of the write layer
-  (`RefuseBeforePlace`: before `close()` of a browser handle, before setting an existing name aside, before the
-  exclusive placement, before the atomic rename and the site write; a refusal leaves the target unchanged and returns
-  "not written"), `commitSavedDocument` takes the ref and commits nothing to replaced content, and the waiting Ctrl+S,
+  (`RefuseBeforePlace`: before `close()` of an existing browser handle, directly next to `close()` for the merge
+  handle, before setting an existing name aside, before the exclusive placement, before the atomic rename and the site
+  write, also for both IFC exports; a refusal leaves the target unchanged and returns "not written"). A handle fresh
+  from the browser's save picker gets no late check: Chromium already emptied an existing target when it was picked
+  (knownbug 1899), so the save finishes the requested file and only the commit, Recent and an export's success and
+  calendar choice are withheld, `commitSavedDocument` takes the ref and commits nothing to replaced content, and the waiting Ctrl+S,
   the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
   not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
