@@ -1277,8 +1277,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
 for (const profile of PROFILES) mondayHealth('gedeelde rand', profile, () => mondayFixture(profile, sol5Cal, 'START_START'), SHARED_EDGE);
 console.log(`Vaste gevallen: ${FIXED.length} op helperniveau, ${FIXED_LITERAL.length} letterlijk, ${fixedRouteCases} langs de routes`);
 
-for (const failure of failures) console.log('XX ' + failure);
-console.log(`Mijlpaal afmelden met de geplande tijd: ${checks} controles, ${failures.length} fouten`);
 // Knownbug 317: de startvraag gebruikt de werkdagzijde van de mijlpaalsoort.
 for (const [label, cal, moment] of [
   ['24 uur', day24, '2026-06-04T00:00'],
@@ -1300,4 +1298,6 @@ for (const [label, cal, moment] of [
   eq(`317 ${label}: 100 procent UI-invoer wordt niet geweigerd`, result.ok, true);
 }
 
+for (const failure of failures) console.log('XX ' + failure);
+console.log(`Mijlpaal afmelden met de geplande tijd: ${checks} controles, ${failures.length} fouten`);
 if (failures.length) process.exit(1);
