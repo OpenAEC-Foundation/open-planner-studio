@@ -330,9 +330,13 @@ for (const variant of ['p6-c1', 'harde-pin'] as const) {
   } as Task['time'] });
   f.S().addSequence({ predecessorId: f.id, successorId: id, type: 'FINISH_FINISH',
     lagDays: 0, lagMinutes: 0, lagUnit: 'ELAPSEDTIME' });
-  if (variant === 'harde-pin') f.S().updateTask(id, {
-    constraint: { type: 'MFO', date: '2026-06-02T14:00', hard: true },
-  });
+  if (variant === 'harde-pin') {
+    f.S().updateTask(id, { constraint: { type: 'MFO', date: '2026-06-02T14:00', hard: true } });
+    // De afzonderlijke statusdatumvloer kan een harde pin vóór die datum overschrijven;
+    // test hier uitsluitend de interactie tussen de FF-vloer en de pin.
+    f.context.store.setState(s => { s.project.statusDate = undefined; });
+    eq(label + ': pin opgeslagen', f.S().tasks.find(t => t.id === id)!.constraint?.hard, true);
+  }
   f.S().runCPM();
   eq(label + ': geen rekenfout', f.S().cpmResult?.error, undefined);
   const result = f.S().tasks.find(t => t.id === id)!.time;
