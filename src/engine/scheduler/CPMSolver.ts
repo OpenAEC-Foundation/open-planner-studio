@@ -2293,9 +2293,8 @@ export class CPMSolver {
           if (constraintDate > earlyStart) {
             earlyStart = constraintDate;
           }
-          // SF-vereiste-finish als aparte ondergrens (zie de toelichting bij `sfFinishFloor`s
-          // declaratie hierboven) — `null` voor alle andere relatietypes, dus deze regel is een
-          // no-op zonder SF-voorganger.
+          // Vereiste finish als aparte ondergrens: SF en de beperkte FF-uitzondering
+          // van knownbug 231. Andere relaties geven null.
           const finishFloor = forwardFinishFloor(
             this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),

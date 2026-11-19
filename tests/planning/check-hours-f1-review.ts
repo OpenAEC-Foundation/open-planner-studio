@@ -262,6 +262,30 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Knownbug 231: FF +0 elapsed mag een gewone opvolger niet vóór het werkelijk
+// einde van een voltooide voorganger laten eindigen, ook niet buiten werktijd.
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  const f = fixture();
+  f.S().setProject({ schedulingProfile: { id: profile, baseId: profile, name: '', overrides: {} } });
+  const label = `231 ${profile} FF +0eu na werktijd`;
+  eq(label + ': werkelijke start toegestaan', f.S().enterTaskProgress(f.id,
+    { field: 'actualStart', value: '2026-06-03T18:00' }, { today: '2026-06-03' }).ok, true);
+  eq(label + ': 100% toegestaan', f.S().enterTaskProgress(f.id,
+    { field: 'completion', value: 1 }, { today: '2026-06-03' }).ok, true);
+  const successor = f.S().addTask({ name: 'FF na werktijd', time: {
+    scheduleStart: '2026-06-01T08:00', scheduleDuration: 0.25,
+    durationUnit: 'hours', durationMinutes: 120, durationType: 'WORKTIME',
+  } as Task['time'] });
+  f.S().addSequence({ predecessorId: f.id, successorId: successor, type: 'FINISH_FINISH',
+    lagDays: 0, lagMinutes: 0, lagUnit: 'ELAPSEDTIME' });
+  f.S().runCPM();
+  eq(label + ': geen rekenfout', f.S().cpmResult?.error, undefined);
+  eq(label + ': werkelijk einde en relatievenster',
+    [f.task().time.actualFinish, f.task().time.earlyFinish], ['2026-06-03T18:00', '2026-06-03T18:00']);
+  const finish = f.S().tasks.find(t => t.id === successor)!.time.earlyFinish;
+  eq(label + ': eindigt niet vóór relatiegrens', finish >= '2026-06-03T18:00', true);
+}
+
 // Vier bestaande minutenmodelgevallen: een snap over een daggrens blijft gelden.
 for (const [name, start, finish, es, ef, holiday, milestone] of [
   ['bouwvak-einde', '2026-07-29T08:00', '2026-08-04T16:00', '2026-07-29T08:00', '2026-07-31T16:00', true, false],
