@@ -6,6 +6,7 @@ on:
 jobs:
   compare:
     runs-on: ubuntu-22.04
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v5
         with:
@@ -25,3 +26,9 @@ jobs:
           git show 45fd1982d03df8fe2c9d60a6901dcbacb13b0f05:src/engine/scheduler/CPMSolver.ts > src/engine/scheduler/CPMSolver.ts
           bash tests/planning/run.sh check-progress-actual-start-floor.ts > /tmp/base.log 2>&1 || true
           grep -E 'XX |ROOD|GROEN|EINDOORDEEL|Error' /tmp/base.log | tail -40 || true
+      - name: Zoek alle fouten volledige planning
+        shell: bash
+        run: |
+          git show a4336e008aa8b27d19832590d0fd176e0dfceab8:src/engine/scheduler/CPMSolver.ts > src/engine/scheduler/CPMSolver.ts
+          npm run test:planning > /tmp/full.log 2>&1 || true
+          grep -E 'XX |ROOD|EINDOORDEEL|Error|ontbreekt|ontbreken' /tmp/full.log | tail -150 || true
