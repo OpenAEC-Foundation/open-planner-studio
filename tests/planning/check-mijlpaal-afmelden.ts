@@ -37,7 +37,7 @@ import {
 } from '@/engine/calendar/workdayRules';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { progress } from '@/state/mcpValidation';
-import { createTaskDialogSave, draftWithActualFinish, draftWithActualStart } from '@/state/taskDialogSave';
+import { createTaskDialogSave, draftWithActualFinish, draftWithActualStart, draftWithProgress } from '@/state/taskDialogSave';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { makeBands } from '@/utils/effectiveWorkTime';
 import { calendarClock, taskDateLabel } from '@/utils/taskDateLabel';
@@ -1302,6 +1302,14 @@ for (const [label, cal, moment, nextStart] of [
   const draft = structuredClone({ tasks: f.S().tasks, sequences: f.S().sequences, assignments: f.S().assignments, resources: f.S().resources, calendars: f.S().calendars, calendar: f.S().calendar, project: f.S().project });
   eq(`317 ${label}: MCP 100 procent slaagt`, progress.applyProgressUpdate(draft, id, { completion: 100 }, status).applied, true);
   eq(`317 ${label}: echte UI-invoer slaagt`, f.S().enterTaskProgress(id, { field: 'completion', value: 1 }, { today: '2026-06-05' }).ok, true);
+  const reset = () => f.context.store.setState(state => { const target = state.tasks.find(t => t.id === id)!; target.time = { ...before.time }; target.status = before.status; });
+  reset();
+  const grid = f.S().runGridMutation([{ kind: 'cell-edit', taskId: id, columnId: 'task.time.completion' as CellEditIntent['columnId'], route: 'task-progress', value: 1 }], { progressEntry: { today: '2026-06-05' } });
+  eq(`317 ${label}: raster 100 procent slaagt`, grid.ok, true);
+  reset();
+  const dialogDraft = draftWithProgress(f.taskOf(id), 1, status, f.calendar());
+  const dialogSaved = createTaskDialogSave(f.context)({ editingTaskId: id, draft: dialogDraft, startDate: moment });
+  eq(`317 ${label}: dialoog 100 procent slaagt`, dialogSaved, true);
 }
 
 for (const failure of failures) console.log('XX ' + failure);
