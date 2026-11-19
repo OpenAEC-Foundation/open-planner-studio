@@ -248,7 +248,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
-  Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
+  Pool, planOnly, paneel en dev-bridge blijven bij vreemde inhoud geblokkeerd; bestands-AutoSave schrijft sinds #804
+  stap 8 met de flag aan via de vervanging van Ctrl+S (zie *Auto-save with a building model*).
 - **IFC-bytes naar een nieuw doel (#804, T1; 1131 stap 4).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
   accepteert één `Uint8Array`. Tauri (`writeNewUserBytes`, ook voor `planner_export_ifc`) schrijft die met `createNew`
   in één aanroep naar een eigen `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de
@@ -290,7 +291,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane and dev-bridge blocked, and file AutoSave with the flag off or the source missing. Local existing targets remain refused (1131), except Ctrl+S and Auto-save (#804 step 8) on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark
@@ -456,6 +457,23 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   and `recoveryStore.ts`; upgrade/blocking/error limits are in `docs/xer-recovery-guardrails.md`.
   A blocked web upgrade completes startup with a persistent storage warning; recovery refuses further DB
   access until reload, even after unblocking. There is no fallback to writing an older DB version.
+- **Auto-save with a building model (#804 step 8).** With `ifcForeignContent` on and the source present, a document with
+  a foreign part takes part in Auto-save through the same replacement as Ctrl+S on its own target
+  (`replaceOwnHandleWithRecovery` / `replaceOwnPathWithRecovery` in `src/state/ownFileReplace.ts`, never
+  `saveToRefWithoutPrompt`, never the site or a download), inside one `runYieldingProjectFileWrite`
+  (`writeCoordinator.ts`): content check, target and source check, merge in the save worker, the check again, the
+  replacement with its recovery record, and the commit. Its own rhythm per document (`modelAutoSaveRhythm.ts`, clock
+  injectable): 30 s of rest, at most 5 min after the first unsaved change, and never sooner than ten times the measured
+  duration of the previous round after its start. Every other request for the write queue (`runProjectFileWrite`:
+  Ctrl+S, Save As, exports, MCP) and every wait on it (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit
+  or the updater) makes a computing round yield: the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  nothing is written, no notice, the document stays dirty, and the round returns after the next rest. Once the recovery
+  record (desktop) or the pending version in the recovery manifest (browser) is written, the round runs to its end.
+  It never asks a question (no write permission, schema or dependent-projects question: it skips the document). A
+  changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
+  stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
+  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.
+  Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,
   see `src/state/immerDraft.ts`). Bumping is a deliberate, separately reviewed change.

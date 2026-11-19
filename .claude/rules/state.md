@@ -87,7 +87,7 @@ naam van een ongebruikte werksoort (`renameUnusedProjectTaskType`, #804 keuze 7)
 PR 11a sluit documentroutes aan en PR 11b IFC-export en app-MCP, via `ifcFullWriteBlocked`.
 `state/prepareIfcOutput.ts` bewaakt de modus en deelt één voorbereiding zonder I/O of documentcommit.
 De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalenderkeuzes; exports doen dit niet.
-`ifcSaveBlocked` houdt paneel, dev-bridge en AutoSave dicht.
+`ifcSaveBlocked` houdt paneel en dev-bridge dicht, en AutoSave met de flag uit of zonder bron; met de flag aan schrijft AutoSave via de vervanging van Ctrl+S (#804 stap 8, `settings-autosave.md`).
 **De vraag "alleen de planning"** (#804 PR 9e en 13) is één vraag met een reden (`PlanOnlyReason` in
 `services/ifc/planOnlyQuestion.ts`): Opslaan als bij een ontbrekend gebouwmodel (`missingSourceSaveAs`), Exporteren → IFC
 met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliotheek (`exportWithPool`). Alleen

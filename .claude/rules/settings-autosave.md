@@ -74,10 +74,30 @@ via `flushRecoveryNow` tot de gepersisteerde basis van `runRecoveryTick` het noe
 slagen eerst de nieuwe bron en wist dan het veld; na mislukken alleen wissen. Herstel aanvaardt een bron met `sha256`
 of `pendingSha256` en neemt de gevonden versie. Een oudere app negeert het veld. Ctrl+S via de browserhandle roept
 het aan (stap 2, `tauri-ifc.md`); zonder vastgelegd manifest schrijft hij niet (1764).
-PR 11a sluit de voorbereide documentwrites aan. Bestands-AutoSave blijft bij een vreemd deel geweigerd,
-met de bestaande ene melding per document per sessie; site-AutoSave blijft uit. Ook sinds Ctrl+S op het eigen pad via
-de vervanging loopt (1131 stap 5b): AutoSave schrijft een document met een vreemd deel niet (`ifcSaveBlocked`, geen
-kandidaat); het aanzetten via de vervanging is een later stuk.
+PR 11a sluit de voorbereide documentwrites aan. Site-AutoSave blijft uit. Met de flag uit, of als de bron ontbreekt,
+blijft bestands-AutoSave bij een vreemd deel geweigerd (`ifcSaveBlocked`, geen kandidaat), met de bestaande ene
+melding per document per sessie.
+
+**AutoSave met een gebouwmodel** (#804 stap 8, flag aan, bron aanwezig; `fileAutoSave.ts`). Dezelfde vervanging als
+Ctrl+S op het eigen doel, nooit `saveToRefWithoutPrompt`: in de browser `replaceOwnHandleWithRecovery`, op de desktop
+`replaceOwnPathWithRecovery` (beide in `src/state/ownFileReplace.ts`, gedeeld met `fileSlice.ts`), ook voor een slapend
+document. Eén schrijfbeurt (`runYieldingProjectFileWrite`): inhoudscontrole, doel- en bronvergelijking (dezelfde
+doelbewaking als `documentTargetCheck` met het eigen doel), de merge in de opslagworker, de doelbewaking opnieuw, de
+vervanging met herstelrecord en de commit (`markAutoSaveVersionSaved` met `prepared`). Ritme per document
+(`modelAutoSaveRhythm.ts`, besluit eigenaar 17 november 2026): 30 s rust na de laatste wijziging, uiterlijk 5 minuten na
+de eerste niet-opgeslagen wijziging, en nooit eerder dan tien keer de gemeten rondeduur na het begin van de vorige
+ronde (die ondergrens gaat vóór de 5 minuten). `useAutoSave` voedt het ritme bij elke storewijziging (`observe`) en zet
+er een eigen wekker op (`nextModelRoundAt`); een gewoon document houdt zijn 10 s-throttle. Voorrang (besluit technisch
+beslisser 19 november 2026): elke `runProjectFileWrite` en elke `whenProjectFileWritesIdle` (ook `closeProjectFileWrites`)
+laat een ronde wijken zolang het herstelrecord (desktop) of de komende versie in het manifest (browser) niet geschreven
+is; de worker stopt dat ene verzoek (`stop` van `IfcOutputCompute`), niets geschreven, geen melding, opnieuw na de
+volgende rust. Daarna loopt de ronde af. De ronde vraagt nooit iets: zonder schrijftoestemming of met een open vraag over
+afhankelijke projecten slaat ze het document over. Veilig stoppen, met één melding per document per sessie en geen
+nieuwe poging tot de planner zelf opslaat (een nieuwe bron) of een ander doel kiest: eigen bestand gewijzigd of weg,
+buiten de thuismap (`save-as-only`), geen herstelrecord of manifest vast te leggen, een record van een eerdere
+onderbroken vervanging (`refuseRemnant`), en de bestaande doelweigeringen. Een workerfout is een mislukte ronde met
+`ifcSaveWorkerFailed`. Proeven: `check-actual-autosave.ts` 19–20, de blokken "stap 8" in `check-ifc-document-save.ts`
+en `check-ifc-own-file-replace.ts`, en `settings-tabs.spec.ts`.
 
 ### Afsluiten van de app (schone exit)
 

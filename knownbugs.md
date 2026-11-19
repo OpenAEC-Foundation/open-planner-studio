@@ -3993,18 +3993,6 @@ en noem het in je rapport of PR-tekst.
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
 
-1900. **VERVOLG (#804 stap 8): de schrijftijd van Automatisch opslaan telt mee voor Ctrl+S en sluiten.**
-      Een ronde van Automatisch opslaan rekent en schrijft onder hetzelfde schrijfslot als Ctrl+S. Een Ctrl+S, ook van
-      een ander tabblad, en het sluiten van een tabblad wachten tot die ronde klaar is; tijdens een Ctrl+S slaat de tik
-      zijn beurt over (proef `review wachtrij` in `check-ifc-document-save.ts`). Bij gewone plannen is de wachttijd niet
-      gemeten (starttimeout 10 s, rekentimeout 60 s). Advies van de reviewer voor stap 8, letterlijk: "Stap 8 moet
-      dezelfde gecontroleerde vervanging gebruiken als handmatig opslaan, met bronvergelijking na de merge en een
-      herstelrecord vóór plaatsing. Alleen de huidige uitsluiting opheffen is onveilig. De stille ronde heeft voor een
-      model apart 30 s rust en een bovengrens van 5 min per document nodig. Zet een achtergrondmerge van 18 s zonder
-      voorrang voor handmatige acties in deze gedeelde rij en beide sluitpaden wachten die hele tijd. Ontwerp de
-      voorrang vóór het aanzetten en meet ook een handmatige opslag van een ander document. Gebruik dezelfde
-      schrijfcoördinatie voor plaatsing en commit." Review van #1027 (Sol): [BEVESTIGD] VERVOLG. — B (proef)
-
 1901. **VERVOLG (#1027, opruimen en proeven): drie kleine punten uit de review van de late exportcontrole.**
       (a) De regressieproef in de repo dekt alleen de geslaagde tabbladwissel ("review van #1027 ronde 2" in
       `check-ifc-document-save.ts`): er ontbreekt een weigering nadat het exportdocument inactief werd (A bewerkt of
@@ -4025,6 +4013,16 @@ en noem het in je rapport of PR-tekst.
       gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
       Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
       `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
+
+1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
+      Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het
+      sluiten van een tabblad en de laatste fase van afsluiten (`runYieldingProjectFileWrite` in `writeCoordinator.ts`;
+      besluit technisch beslisser 19 november 2026: "Zolang een ronde van een gebouwmodel nog rekent"). Een gewone ronde
+      houdt de schrijfrij vast tot ze klaar is; de handmatige actie wacht dan op haar (proef `review wachtrij` in
+      `check-ifc-document-save.ts`). Bij gewone plannen is die wachttijd niet gemeten (starttimeout van de worker 10 s,
+      rekentimeout 60 s). Was het tweede deel van de oude 1900; het eerste deel (de voorrang bij een gebouwmodel) is met
+      stap 8 opgelost. Richting, als een meting het nodig maakt: de gewone ronde ook via `runYieldingProjectFileWrite`,
+      met de grens vóór `saveToRefWithoutPrompt`. — S
 
 ## Wensen en open taken (geen bug)
 

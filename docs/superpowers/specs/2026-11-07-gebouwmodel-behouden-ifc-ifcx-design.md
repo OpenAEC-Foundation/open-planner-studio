@@ -750,8 +750,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     veld getypt is, houdt het tabblad en het venster open); Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
     melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
     als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
-    sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd) en
-    Ctrl+S buiten de thuismap (alleen *Opslaan als*).
+    sluitvraag sluit dan niet. Automatisch opslaan naar het bestand gebruikt sinds #804 stap 8 dezelfde vervanging
+    (§4.12). Nog niet via de vervanging: Ctrl+S buiten de thuismap (alleen *Opslaan als*).
   - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
     vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
     als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
@@ -876,7 +876,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 | Exporteren → IFC zonder gebouwmodel | `fileSlice.ts`, nieuw | Modus `planOnly`: alleen P (de huidige uitvoer). Vraag vooraf die dat zegt. |
 | `exportProjectWithPool` | `fileSlice.ts:1474` | Een export voor uitwisseling van resources: alleen planning en pool, zonder model, met een vraag vooraf. |
 | Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER) | `fileSlice.ts` | Alleen planning; het model gaat niet mee. STEP↔IFCX: met een vraag vooraf. CSV, MSPDI, XER en het voortgangsblad: geen vraag; de melding na afloop zegt dat alleen de planning is geëxporteerd (besluit van de eigenaar, 16 november 2026; knownbug 1740). |
-| Echte AutoSave naar het bestand | `useAutoSave.ts:148` | Volledig bestand, in de achtergrond (besluit van de eigenaar, 16 november 2026; tot opslaan in de achtergrond er is, stopt AutoSave bij een vreemd deel met één melding, §4.10). Ritme met een vreemd deel (besluit van de eigenaar, 17 november 2026): opslaan na 30 s rust, en bij onafgebroken doorwerken uiterlijk na 5 minuten. Technische ondergrens: een opslag neemt nooit meer dan ongeveer een tiende van de tijd in. |
+| Echte AutoSave naar het bestand | `fileAutoSave.ts`, gepland door `useAutoSave.ts` | Volledig bestand, in de achtergrond (besluit van de eigenaar, 16 november 2026; gebouwd in #804 stap 8, achter de flag), via dezelfde vervanging als Ctrl+S (§4.10): browser via de handle, desktop via `replaceOwnPathWithRecovery`. Nooit naar de site en nooit als download. Ritme met een vreemd deel, per document (besluit van de eigenaar, 17 november 2026): opslaan na 30 s rust, en bij onafgebroken doorwerken uiterlijk 5 minuten na de eerste niet-opgeslagen wijziging. Technische ondergrens: een ronde neemt nooit meer dan een tiende van de tijd in; de volgende begint niet vóór tien keer de gemeten duur na het begin van de vorige (die gaat vóór de 5 minuten). Voorrang (besluit technisch beslisser, 19 november 2026): zolang het herstelrecord niet geschreven is, wijkt de ronde voor Ctrl+S, Opslaan als, een export, het sluiten van een tabblad en de laatste fase van afsluiten of de updater; er is dan niets geschreven, het document blijft gewijzigd, en de ronde probeert het na de volgende rustperiode opnieuw. Waar Ctrl+S een vraag zou stellen, slaat de ronde het document over. Een gewoon document houdt 10 s. |
 | Crashherstel (10 s) | `recoverySnapshotInput.ts` | Alleen P + verwijzing naar de bron (§4.14). |
 | MCP-backup | `backupService.ts:312` | P + de sha256 van de bron, geen modelkopie. Terugzetten = de planning uit de backup + het vreemde deel van de **huidige** bron van het open document; dat verandert tussen opslagrondes alleen via §4.6–4.7. D-objecten koppelen via de kaart van de huidige bron; een object dat daar niet meer staat, geldt als nieuw. Is er geen open document met een bron, dan zet de app alleen de planning terug, als nieuw document, met een melding. (Fable, ronde 5: met twee bewaarde bronnen was een backup van vóór een agentfout na twee AutoSaves zijn model kwijt.) |
 | MCP-bestandstools, `planner_export_ifc` | `mcp/tools/fileTools.ts` | Volledig bestand, zelfde controles. |
@@ -1508,8 +1508,7 @@ profiel); daar geldt deze lijst.
    de thuismap; daarbuiten verwijst de app naar *Opslaan als*. De uitbreiding is de laatste bouwtaak vóór de
    featureflag standaard aan gaat.
 2. **Automatisch opslaan** bij een bestand met een gebouwmodel: aan, met opslaan in de achtergrond, ook voor gewone
-   bestanden. Tot dat er is, blijft de melding dat automatisch opslaan gestopt is (§4.10, §4.12). Het ritme staat in
-   §4.12.
+   bestanden. Gebouwd in #804 stap 8 (achter de flag); het ritme en de voorrang staan in §4.12.
 3. **Het bestand is intussen door een ander programma gewijzigd.** Na een onderzoek (16 november 2026): het gewone
    geval is een nieuwe export van de architect, zonder planning. Besloten:
    - de planner slaat standaard op in een eigen bestand, met het bestand van de architect als modelbron en een knop

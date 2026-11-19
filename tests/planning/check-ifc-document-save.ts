@@ -2684,7 +2684,8 @@ await check('review bytes: Opslaan als met ontbrekende bron leest de werkervaria
   }
 });
 
-// Voor stap 8 (knownbug 1900): de gedeelde schrijfrij zoals die nu is.
+// Een gewone ronde van Automatisch opslaan houdt de schrijfrij vast (knownbug 1904); die van een gebouwmodel wijkt (stap 8,
+// de voorrangsproeven onderaan).
 await check('review wachtrij: handmatig opslaan en sluiten wachten op AutoSave, AutoSave kiest geen kandidaat tijdens Ctrl+S', async () => {
   const sw = saveWorker('manual');
   const path = join(dir, 'review-autosave-wachtrij.ifc'), plain = plainBytes();

@@ -27,6 +27,8 @@ Chrome and Edge first let you only read a file that you opened. The switch does 
 
 **A crash still costs the last seconds.** The app writes at most once every ten seconds, so what you did in between is not in your file yet. Crash recovery has the same limit.
 
+**A file with a building model has its own rhythm.** This only applies when the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)). Such a file is large, so the app only writes it after you made no change for 30 seconds, and if you keep working without a pause, at most 5 minutes after your first change. If saving takes long, the app waits longer afterwards, so that saving takes at most a tenth of the time. If you press Ctrl+S, choose *Save As*, export, or close a tab or the app in the meantime, that goes first: auto-save then stops without writing anything and tries again after the next 30 seconds of rest. If another program changed the file in the meantime, or the app cannot replace it safely in that location, one message says that auto-save has stopped; it starts again when you save yourself or choose another file.
+
 **After a recovery in the browser the switch is grey again.** A project that you get back in the browser after a crash is no longer linked to its file. Save it once, and the switch works again. See [Recovering after a crash](docs://howto-herstellen-na-een-crash).
 
 **A project from another format has no file.** A CSV, XML, `.mpp` or `.xer` file only gets an IFC file when you save. After that you can turn on AutoSave.

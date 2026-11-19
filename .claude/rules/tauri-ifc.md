@@ -140,7 +140,7 @@ schrijfinvoer, en de letterlijke kalender-ids. De bestaande uitvoercontrole leve
 de bron krijgt geen domein-ids uit herindeling. Bij ongewijzigde vreemde invoer gaan de bronbytes
 door dezelfde controle en komt dezelfde bron terug. Zonder vreemd deel blijven de bytes van de
 gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor niet ook de oude buffer vast. PR 8b legt na geslaagde opslag de bron vast, PR 9 herstelt
-haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel, dev-bridge en AutoSave blijven geblokkeerd.
+haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery` met `yieldBeforeRecord` en `refuseRemnant`); zie `settings-autosave.md`.
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
 gewone writer of `prepareIfcWrite`) in één herbruikbare Web Worker. De gemounte app bezit één client (`appStore.ts`) en

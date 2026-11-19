@@ -27,6 +27,8 @@ Chrome en Edge laten een bestand dat je opende eerst alleen lezen. De schakelaar
 
 **Een crash kost nog steeds de laatste seconden.** De app schrijft hoogstens eens per tien seconden, dus wat je in die tussentijd deed, staat nog niet in je bestand. Crashherstel heeft dezelfde grens.
 
+**Een bestand met een gebouwmodel heeft een eigen ritme.** Dat geldt alleen als de experimentele instelling *IFC met gebouwmodel openen* aan staat (zie [App-instellingen](docs://ref-instellingen)). Zo'n bestand is groot, dus de app schrijft het pas als je 30 seconden niets wijzigde, en werk je onafgebroken door, dan uiterlijk 5 minuten na je eerste wijziging. Duurt het opslaan lang, dan wacht de app daarna langer, zodat het opslaan hoogstens een tiende van de tijd kost. Druk je intussen op Ctrl+S, kies je *Opslaan als*, exporteer je of sluit je een tabblad of de app, dan gaat dat voor: het automatisch opslaan stopt dan zonder iets te schrijven en probeert het na de volgende 30 seconden rust opnieuw. Is het bestand intussen door een ander programma gewijzigd, of kan de app het op die plek niet veilig vervangen, dan verschijnt één melding dat automatisch opslaan gestopt is; het begint weer als je zelf opslaat of een ander bestand kiest.
+
 **Na een herstel in de browser is de schakelaar weer grijs.** Een project dat je na een crash in de browser terughaalt, is niet meer aan zijn bestand gekoppeld. Sla het één keer op, dan werkt de schakelaar weer. Zie [Herstellen na een crash](docs://howto-herstellen-na-een-crash).
 
 **Een project uit een ander formaat heeft geen bestand.** Een CSV-, XML-, `.mpp`- of `.xer`-bestand krijgt pas een IFC-bestand als je opslaat. Daarna kun je automatisch opslaan aanzetten.
