@@ -56,6 +56,17 @@ import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import { saveStatusOf } from '@/state/documentSaveState';
 
+// Een vaste klok: de schrijver zet de tijd in de kop (`FILE_NAME`, `IFCOWNERHISTORY`), en veel proeven vergelijken wat
+// de opslag zelf rekende met `c.prepared` uit `opened()`. Met een echte klok valt daar onder CI-last soms een seconde
+// tussen (PR #1027, run 44462634098). `new Date(...)` met argumenten blijft gewoon werken.
+{
+  const RealDate = Date, FIXED = new RealDate(2026, 10, 17, 14, 32, 5).getTime();
+  globalThis.Date = class extends RealDate {
+    constructor(...a: unknown[]) { if (a.length === 0) super(FIXED); else super(...(a as [number])); }
+    static now(): number { return FIXED; }
+  } as unknown as DateConstructor;
+}
+
 await i18next.init({ lng: 'nl', fallbackLng: 'en', resources: { nl: { common: nlCommon }, en: { common: enCommon } } });
 await loadStore();
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
