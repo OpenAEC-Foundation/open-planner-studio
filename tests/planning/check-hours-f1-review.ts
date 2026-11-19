@@ -289,6 +289,22 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Ook een worteltaak houdt een harde pin; een zachte constraint blijft wel onder de
+// gewone statusdatumregel vallen. Zonder statusdatum blijft de harde pin eveneens staan.
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  for (const mode of ['hard', 'zonder-status', 'zacht'] as const) {
+    const f = fixture();
+    f.S().setProject({ schedulingProfile: { id: profile, baseId: profile, name: '', overrides: {} } });
+    const label = `statuspin wortel ${profile} ${mode}`;
+    f.S().updateTask(f.id, { constraint: { type: 'MSO', date: '2026-06-02T08:00', hard: mode !== 'zacht' } });
+    if (mode === 'zonder-status') f.context.store.setState(s => { s.project.statusDate = undefined; });
+    f.S().runCPM();
+    eq(label + ': geen rekenfout', f.S().cpmResult?.error, undefined);
+    const expected = mode === 'zacht' && profile !== 'msproject' ? '2026-06-03T08:00' : '2026-06-02T08:00';
+    eq(label + ': vroege start', f.task().time.earlyStart, expected);
+  }
+}
+
 // Vier bestaande minutenmodelgevallen: een snap over een daggrens blijft gelden.
 for (const [name, start, finish, es, ef, holiday, milestone] of [
   ['bouwvak-einde', '2026-07-29T08:00', '2026-08-04T16:00', '2026-07-29T08:00', '2026-07-31T16:00', true, false],
