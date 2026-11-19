@@ -728,7 +728,9 @@ export function TaskGridSurface({
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
     const extended = gesture === 'extend' ? extendFromSharedAnchor(selection, cell, rowIndex, visibleColumnIds) : null;
     const next = extended?.next ?? updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
-    if (next !== selection) applySelection(next, extended?.anchor);
+    // Een gewone klik is altijd het nieuwe beginpunt van Shift, ook op de al actieve cel waar de
+    // rasterselectie gelijk blijft (review #1004, ronde 16).
+    if (next !== selection || gesture === 'replace') applySelection(next, extended?.anchor);
     if (gesture === 'replace' && onPlainTaskClick) {
       const meta = adapter.rowMetaByKey.get(cell.rowKey);
       const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;

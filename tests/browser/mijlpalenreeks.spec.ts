@@ -209,3 +209,46 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await page.locator('[data-ops-ribbon-item="expandTasks"]').click();
   await expect(ganttRow(page, ids.m3)).toBeVisible();
 });
+
+// Een gewone klik op de al actieve cel is ook het nieuwe beginpunt van Shift (#1004, ronde 16). Alleen
+// als de tijdlijn de hele reeks koos in de volgorde van de regel, blijft de rasterselectie gelijk; dan
+// moest de klik toch het beginpunt verzetten, anders nam Shift in de lijst één ruitje mee en legde
+// Ctrl+F2 een relatie op een regel zonder vaste volgorde.
+test('mijlpalenreeks: gewone klik op de actieve reeksregel wordt het beginpunt van Shift', async ({ page, ops: _ops }) => {
+  const [phase] = await seedProject(page, [
+    { name: 'Woningbouw', start: '2026-09-07', finish: '2026-10-02', durationDays: 20 },
+  ]);
+  const ids = await page.evaluate((parentId) => {
+    const api = () => window.__OPS__!.store.getState();
+    const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
+    const work = api().addTask({ name: 'Fundering', parentId });
+    const first = api().addTask({ name: 'Keuring', parentId, isMilestone: true, time: zero as never });
+    const last = api().addTask({ name: 'Start montage', parentId, isMilestone: true, time: zero as never });
+    const next = api().addTask({ name: 'Montage', parentId });
+    api().addSequence({ predecessorId: work, successorId: first, type: 'FINISH_START', lagDays: 0 });
+    api().addSequence({ predecessorId: work, successorId: last, type: 'FINISH_START', lagDays: 4 });
+    api().runCPM();
+    return { work, first, last, next };
+  }, phase);
+  const runKey = `milestones:${ids.first}`;
+  const relationCount = () => page.evaluate(() => window.__OPS__!.store.getState().sequences.length);
+  await nameCell(page, ids.first).locator('.full-task-grid-disclosure').click();
+  await nameCell(page, ids.work).click();
+  const first = await barPoint(page, ids.first);
+  const last = await barPoint(page, ids.last);
+  await page.mouse.click(last.x, last.y);
+  await expect.poll(() => selected(page)).toEqual([ids.last]);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(first.x, first.y);
+  await page.keyboard.up('Shift');
+  const series = [ids.first, ids.last].sort();
+  await expect.poll(() => selected(page)).toEqual(series);
+  await expect(nameCell(page, runKey)).toHaveAttribute('data-grid-active', 'true');
+  await nameCell(page, runKey).click();
+  await nameCell(page, ids.next).click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([...series, ids.next].sort());
+  const relationsBefore = await relationCount();
+  await page.keyboard.press('ControlOrMeta+F2');
+  await page.waitForTimeout(300);
+  expect(await relationCount()).toBe(relationsBefore);
+});
