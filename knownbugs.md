@@ -2755,7 +2755,9 @@ en noem het in je rapport of PR-tekst.
      De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
      (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
      schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Richting:
-     productkeuze 1 uit het onderzoek naar 1131. — B (code), geen proef in de app
+     productkeuze 1 uit het onderzoek naar 1131. **Voorwaarde (besluit van Trias, 19 november 2026): de featureflag
+     gaat niet aan voordat dit punt is opgelost.** Het achterblijvende herstelrecord na zo'n weigering (was 1902) is
+     opgelost in #804 stap 6. — B (code), geen proef in de app
 
 1752. **VERVOLG (plugin-fs 2.7.1, desktop): in een map in de thuismap die via een link naar buiten wijst, schrijft Opslaan direct over het bestand.**
      Bijvoorbeeld `~/projecten` → `/data/projecten`. Sinds plugin-fs 2.7.0 toetst de scope het echte pad: de dialoog
@@ -3962,7 +3964,9 @@ en noem het in je rapport of PR-tekst.
       (`refuseChangedExport`) laat de export daarna veilig stoppen. Geen verlies van planningsdata of vastloper
       vastgesteld. Richting: deze IFC-route vanaf het voorbereiden in dezelfde schrijfrij laten lopen en de doelcontrole
       vlak vóór I/O behouden; één bestaande wachtrij, geen tweede mechanisme voor sluiten. Sol-review ronde 1 van #1020:
-      [BEVESTIGD] VERVOLG. — B
+      [BEVESTIGD] VERVOLG. Sinds #804 stap 6 (#1027) geldt het ook tijdens het rekenen van een gewone IFC-export: die
+      rekent nu in de opslagworker, en typen tijdens dat rekenen laat de export weigeren met
+      `ifcExportChangedWhileWaiting` (besluit Trias: zo laten; review van #1027, punt 6). — B
 1895. **Een ander project via `api.data.loadProject` erft de IFC-bron van het vorige project.** `loadExtensionProject`
       laadt een ander project-id via `loadState`; `applyLoadedProject` geeft het zonder eigen bron dezelfde
       `ifcSource` en hetzelfde `foreignSourceMark` als het document had (`inheritsTarget`), en daarna wist
@@ -3972,31 +3976,55 @@ en noem het in je rapport of PR-tekst.
       op main. Richting: bij een ander project-id de bron en het kenmerk niet erven, of de eigenaar laten kiezen of een
       extensie een gebouwmodel mag overnemen. Gezien in de review van #1020 (Sol, ronde 1). — S
 
-1896. **VERVOLG (#1020, opslaan in de achtergrond): een opslag plaatst het bestand nog nadat een extensie de inhoud van het tabblad verving.**
-      Een opslag hoort bij de inhoud waarvoor ze gevraagd werd (`DocumentEntry.content`, fixronde 1 van #1020): de
-      controle draait vlak vóór de schrijfactie (`refuseChangedDocumentWrite`) en bij de commit
-      (`commitSavedDocument`). Laadt een extensie met `api.data.loadProject` een ander project in hetzelfde tabblad ná
-      die eerste controle, terwijl de nieuwe bytes alleen nog tijdelijk staan, dan plaatst de opslag het bestand
-      alsnog. Het bestand komt waar de planner om vroeg, met de inhoud die hij wilde opslaan; het nieuwe project
-      krijgt geen pad, geen bron en geen *Opgeslagen* (de commitcontrole werkt). Er gaat geen planningsdata verloren;
-      de opslag had alleen nog veilig kunnen stoppen. Drie routes, elk met een proef van de reviewer die project B
-      laadt op het moment dat het einddoel nog ongewijzigd is:
-      1. **Ctrl+S via een browserhandle**: B laden in de schrijfstap van de handle, vóór `close()`. De callback vlak
-         vóór `close()` vergelijkt alleen de doelbytes met de oude bron; `close()` plaatst daarna de planning van A.
-         Verwacht na de fix: het doel houdt zijn oorspronkelijke hash, via het bestaande `abort()`.
-      2. **Opslaan als over een andere bestaande naam (desktop)**: B laden tijdens de tweede doelvergelijking, als het
-         hulpbestand klaar is en er nog niets verplaatst is. De app zet daarna de bestaande versie opzij, plaatst de
-         berekende versie en zet het doel in Recent. Verwacht na de fix: geen verplaatsing, het doel houdt zijn bytes,
-         het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg.
-      3. **Opslaan als naar een vrije naam (desktop)**: B laden als het hulpbestand compleet is en het doel nog niet
-         bestaat. De volgende aanroep plaatst het bestand onder de gekozen naam. Verwacht na de fix: het doel bestaat
-         niet, ook niet via de directe exclusieve aanmaak na een terugval.
-      Richting van de reviewer: dezelfde inhoudscontrole (`refuseChangedDocumentWrite`) op het laatste veilige punt van
-      elke schrijfroute: vóór `close()`, vóór het opzijzetten van een bestaande naam, vóór de exclusieve plaatsing of
-      aanmaak; "de bestaande afbreekpunten en herstelafhandeling volstaan". Besluit van Trias (19 november 2026): dit
-      is VERVOLG en geen blokkade voor #1020 (alleen via een extensie precies tijdens de bestandsbewerking; geen
-      verlies), en de fix gaat mee in de volgende stap, het opslaan van gewone bestanden in de achtergrond, die
-      dezelfde schrijfroutes raakt. Gevonden door de review van #1020 (Sol, ronde 2). — B (proef)
+1899. **VERVOLG (browser, Chromium): de opslaankiezer maakt een bestaand doel al leeg bij het kiezen, vóór de doelcontrole en vóór elke late controle van de app.**
+      `showSaveFilePicker()` kapt een gekozen bestaand bestand af voordat de handle terugkomt (Chromium
+      `CreateAndTruncateFile`, volgens de review van #1027; niet zelf in een echte browser gemeten). Een weigering
+      daarna kan het oude bestand niet meer terugbrengen; dat gold al op main:
+      1. de inhoudscontrole van `refuseTarget` (met de flag aan) leest het lege bestand: `scanForeignTargetBlob` geeft
+         `not-ifc` en `targetRefusal` weigert niet (gemeten). Een gebouwmodel dat daar stond, is dan al weg;
+      2. een weigering op identiteit (de bron van een ander open document via `isSameEntry`, of `refuseChangedExport`
+         bij een export) geeft `null` terug en laat het bestand op 0 bytes staan (uit de code; niet in een browser
+         geprobeerd).
+      Sinds fixronde 1 van #1027 (besluit Trias) krijgt een handle uit de kiezer geen late controle vóór `close()`
+      (`saveDataDialogWeb`): de opslag maakt het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
+      de commit niets vast (geen pad, bron, *Opgeslagen* of Recent); een export meldt dan geen succes. Ctrl+S en
+      Automatisch opslaan op een bestaande handle houden de late controle, want daar bewaart de browser de oude bytes
+      tot `close()`. Richting van de reviewer: "Kies bestaande doelen via een handeling die de oude bytes bewaart,
+      bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
+      een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
+
+1900. **VERVOLG (#804 stap 8): de schrijftijd van Automatisch opslaan telt mee voor Ctrl+S en sluiten.**
+      Een ronde van Automatisch opslaan rekent en schrijft onder hetzelfde schrijfslot als Ctrl+S. Een Ctrl+S, ook van
+      een ander tabblad, en het sluiten van een tabblad wachten tot die ronde klaar is; tijdens een Ctrl+S slaat de tik
+      zijn beurt over (proef `review wachtrij` in `check-ifc-document-save.ts`). Bij gewone plannen is de wachttijd niet
+      gemeten (starttimeout 10 s, rekentimeout 60 s). Advies van de reviewer voor stap 8, letterlijk: "Stap 8 moet
+      dezelfde gecontroleerde vervanging gebruiken als handmatig opslaan, met bronvergelijking na de merge en een
+      herstelrecord vóór plaatsing. Alleen de huidige uitsluiting opheffen is onveilig. De stille ronde heeft voor een
+      model apart 30 s rust en een bovengrens van 5 min per document nodig. Zet een achtergrondmerge van 18 s zonder
+      voorrang voor handmatige acties in deze gedeelde rij en beide sluitpaden wachten die hele tijd. Ontwerp de
+      voorrang vóór het aanzetten en meet ook een handmatige opslag van een ander document. Gebruik dezelfde
+      schrijfcoördinatie voor plaatsing en commit." Review van #1027 (Sol): [BEVESTIGD] VERVOLG. — B (proef)
+
+1901. **VERVOLG (#1027, opruimen en proeven): drie kleine punten uit de review van de late exportcontrole.**
+      (a) De regressieproef in de repo dekt alleen de geslaagde tabbladwissel ("review van #1027 ronde 2" in
+      `check-ifc-document-save.ts`): er ontbreekt een weigering nadat het exportdocument inactief werd (A bewerkt of
+      vervangen, dan naar B) en de geslaagde wissel met een IFC met gebouwmodel. De reviewer bewees beide met eigen
+      proeven (ronde 3, `proef-late-export.ts` in het sessiearchief); "dezelfde opstelling met één schrijfpauze
+      volstaat". (b) `refuseExportBeforePlace` (`fileSlice.ts`) vraagt op het geslaagde pad twee keer
+      `hasForeignContent(snapshot.ifcSource)`: één keer bewaren. (c) `withMissingSourceSaveAs` kopieert
+      eigenschapsbeschrijvingen (`Object.getOwnPropertyDescriptors`, `Object.defineProperties`, een typecast) om de
+      luie tekst niet te decoderen: geef de bevestiging apart door aan de opslagbewaking. Review van #1027 (Sol,
+      ronde 2 en 3): [BEVESTIGD] VERVOLG. — B (code)
+
+1903. **VERVOLG (desktop, bestaand): een tabbladwissel vlak na de bestandskiezer laat een IFC-export weigeren.**
+      Exporteer een planning naar IFC en ga binnen ongeveer een halve seconde na het bevestigen van de bestandsnaam
+      naar een ander tabblad: de export weigert met "De planning veranderde terwijl de export op een andere opslag
+      wachtte. Er is niets geëxporteerd. Exporteer opnieuw.", terwijl er niets veranderde. De doelcontrole na de kiezer
+      (`refuseTarget` in `exportAs` en in de export met de resourcebibliotheek) roept `refuseChangedExport` aan, die
+      eist dat het geëxporteerde document nog het actieve tabblad is. Zo ook op de build van vóór #1027 (twee keer
+      gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
+      Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
+      `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
 
 ## Wensen en open taken (geen bug)
 

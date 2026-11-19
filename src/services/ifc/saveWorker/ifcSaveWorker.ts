@@ -1,8 +1,9 @@
 /**
  * De bediening van de opslagworker (#804 stap 4), op het patroon van `recoverySnapshotSerializer.ts`: één herbruikbare
  * worker, hoogstens één verzoek tegelijk (een volgend verzoek wacht zijn beurt af), een verzoeknummer, een time-out die
- * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. Stap 5: de gemounte app bezit één
- * client (`appStore.ts`) en geeft via `mergesInWorker` alleen de merge aan de worker; stap 6 ook de gewone writer.
+ * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. De gemounte app bezit één client
+ * (`appStore.ts`, stap 5) en geeft zijn berekenfunctie onvoorwaardelijk aan de opslagroutes: de merge én de gewone
+ * writer rekenen hier (stap 6, besluit technisch beslisser 16 november 2026, zonder flag).
  *
  * De terugvalregel (besluit technisch beslisser, 16 november 2026): alleen als de worker niet start, rekent de
  * hoofdthread zelf, met `computeIfcOutputHere` (zoals `prepareIfcOutput` zonder worker). "Gestart" betekent: de worker
@@ -155,13 +156,4 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       abort?.(disposedError());
     },
   };
-}
-
-/**
- * #804 stap 5: wat de gemounte app aan de opslagroutes geeft (`appStore.ts`). Alleen een merge (een document met een
- * vreemd deel, dus met de flag `ifcForeignContent`) rekent in de worker; de gewone writer blijft op deze thread tot
- * stap 6. De keuze valt op het al besliste `job.kind`, dus na de bewaking van `prepareIfcOutput`.
- */
-export function mergesInWorker(compute: IfcOutputCompute): IfcOutputCompute {
-  return job => job.kind === 'merge' ? compute(job) : computeIfcOutputHere(job);
 }

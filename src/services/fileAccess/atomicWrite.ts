@@ -19,6 +19,7 @@ import { generateId } from '@/utils/id';
 import { appLog } from '@/services/debug/appLog';
 import { ByteWriteError } from './byteWrite';
 import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
+import type { FileData, RefuseBeforePlace } from './index';
 
 /** De drie bestandsoperaties die de schrijf-en-vervang nodig heeft — injecteerbaar voor tests. */
 export interface AtomicWriteFs {
@@ -136,8 +137,13 @@ export function isForbiddenPathError(err: unknown): boolean {
 
 /** Schrijf eerst via een exclusief aangemaakt, eigen halffabricaat; een schrijffout laat het doel
  *  dan onaangeroerd. Scope, gelinkte doelen en rename-fouten houden de directe terugval.
- *  Dit vergrendelt geen paden tegen latere link-/directorywissels of concurrerende doelwijzigingen. */
-export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: D): Promise<void> {
+ *  Dit vergrendelt geen paden tegen latere link-/directorywissels of concurrerende doelwijzigingen.
+ *  Knownbug 1896: `refuseBeforePlace` beslist vlak vóór de hernoeming en vóór elke directe schrijfactie; weigert hij,
+ *  dan gaat het eigen halffabricaat weg, blijft het doel zoals het was en geeft de functie `false`. */
+export async function replaceUserFile<D>(
+  fs: UserFileFs<D>, path: string, data: D, refuseBeforePlace?: RefuseBeforePlace | null,
+): Promise<boolean> {
+  const refused = () => refuseBeforePlace?.() === true;
   let info: Awaited<ReturnType<UserFileFs<D>['lstat']>> | null = null;
   try {
     info = await fs.lstat(path);
@@ -145,8 +151,9 @@ export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: 
     // Bestaat nog niet (Opslaan als naar een nieuwe naam) of geen metarecht: geen link bekend.
   }
   if (info && (info.isSymlink || (info.nlink ?? 1) > 1)) {
+    if (refused()) return false;
     await fs.write(path, data);
-    return;
+    return true;
   }
   // Het oude vaste pad blijft geheel met rust, ook als daar een link of een andere save staat.
   // Een verse naam voorkomt normale botsingen; createNew beslist, niet de willekeur of een lstat.
@@ -167,17 +174,24 @@ export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: 
     // Geen eigendom bij een mislukte aanmaak: niets verwijderen. Ook EEXIST is géén reden om
     // direct te schrijven (of het bestaande halffabricaat te hergebruiken).
     if (isForbiddenPathError(err)) {
+      if (refused()) return false;
       await fs.write(path, data);
-      return;
+      return true;
     }
     throw err;
+  }
+  if (refused()) {
+    await removeOwnTemp();
+    return false;
   }
   try {
     await fs.rename(tmp, path);
   } catch {
     await removeOwnTemp();
+    if (refused()) return false;
     await fs.write(path, data);
   }
+  return true;
 }
 
 type TauriFs = typeof import('@tauri-apps/plugin-fs');
@@ -214,16 +228,20 @@ export function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, o
   };
 }
 
-/** Tauri: een tekstbestand van de gebruiker veilig vervangen (zie `replaceUserFile`). */
+/** Tauri: een tekstbestand van de gebruiker veilig vervangen (zie `replaceUserFile`). `false`: `refuseBeforePlace`
+ *  weigerde. */
 export async function writeUserTextFileTauri(path: string, text: string): Promise<void> {
-  const fs = await import('@tauri-apps/plugin-fs');
-  await replaceUserFile(tauriUserFileFs<string>(fs, (p, t, o) => fs.writeTextFile(p, t, o)), path, text);
+  await writeUserFileTauri(path, text);
 }
 
-/** Tauri: een binair bestand van de gebruiker (PDF-export) veilig vervangen. */
-export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
+/** Tauri: tekst of bytes (#804 stap 6: de bytes van de opslagworker) via dezelfde veilige vervanging; dezelfde bytes op
+ *  schijf. Met `refuseBeforePlace` de laatste controle van een documentopslag (knownbug 1896): `false` als die weigerde,
+ *  het doel is dan onveranderd. */
+export async function writeUserFileTauri(path: string, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   const fs = await import('@tauri-apps/plugin-fs');
-  await replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, bytes);
+  return typeof data === 'string'
+    ? replaceUserFile(tauriUserFileFs<string>(fs, (p, t, o) => fs.writeTextFile(p, t, o)), path, data, refuseBeforePlace)
+    : replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, data, refuseBeforePlace);
 }
 
 /** De bestandsoperaties van `writeNewUserBytes`: exclusief aanmaken, opruimen en exclusief plaatsen. */
@@ -284,32 +302,50 @@ export async function createOwnTemp(
   }
 }
 
-export async function writeNewUserBytes(fs: NewUserBytesFs, path: string, bytes: Uint8Array): Promise<void> {
+/** Knownbug 1896: `refuseBeforePlace` beslist vlak vóór de plaatsing en vóór elke directe exclusieve aanmaak; weigert
+ *  hij, dan gaat het eigen tijdelijke bestand weg, ontstaat de naam niet en geeft de functie `false`. */
+export async function writeNewUserBytes(
+  fs: NewUserBytesFs, path: string, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null,
+): Promise<boolean> {
   const tmp = userFileTempPath(path);
   const removeOwnTemp = () => removeQuietly(fs, tmp);
+  const stopped = () => {
+    if (refuseBeforePlace?.() !== true) return false;
+    logWay(path, 'niet geplaatst (gestopt vóór de plaatsing)');
+    return true;
+  };
+  const directly = async (why: string) => {
+    if (stopped()) return false;
+    await createNewDirectly(fs, path, bytes, why);
+    return true;
+  };
   const created = await createOwnTemp(fs, tmp, bytes);
-  if (created.failed === 'forbidden') return createNewDirectly(fs, path, bytes, 'forbidden path');
+  if (created.failed === 'forbidden') return directly('forbidden path');
   if (created.failed) throw new ByteWriteError('write', created.cause);
+  if (stopped()) {
+    await removeOwnTemp();
+    return false;
+  }
   const outcome = await fs.place(tmp, path);
   switch (outcome.code) {
     case 'placed':
       logWay(path, 'geplaatst (placed)');
-      return;
+      return true;
     case 'dir-not-synced':
       logWay(path, 'geplaatst (dir-not-synced)');
       console.warn(`Opgeslagen, maar de map is niet vastgelegd: ${outcome.message}`);
-      return;
+      return true;
     case 'target-exists':
       logWay(path, 'niet geplaatst (target-exists)');
       await removeOwnTemp();
       throw new ByteWriteError('create-new');
     case 'unsupported':
       await removeOwnTemp();
-      return createNewDirectly(fs, path, bytes, 'unsupported');
+      return directly('unsupported');
     case 'refused':
       if (outcome.reason === 'scope') {
         await removeOwnTemp();
-        return createNewDirectly(fs, path, bytes, 'refused/scope');
+        return directly('refused/scope');
       }
       logWay(path, `niet geplaatst (refused/${outcome.reason})`);
       if (outcome.reason !== 'not-regular-file') await removeOwnTemp();
@@ -338,11 +374,12 @@ async function createNewDirectly(fs: Pick<NewUserBytesFs, 'createNew' | 'remove'
   }
 }
 
-/** Tauri: een nieuw doel via het eigen tijdelijke bestand en `place_file_exclusive`; bytes als rauwe body. */
-export async function writeNewUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
+/** Tauri: een nieuw doel via het eigen tijdelijke bestand en `place_file_exclusive`; bytes als rauwe body. `false`:
+ *  `refuseBeforePlace` weigerde. */
+export async function writeNewUserBytesTauri(path: string, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   const fs = await import('@tauri-apps/plugin-fs');
-  await writeNewUserBytes({
+  return writeNewUserBytes({
     ...tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)),
     place: placeFileExclusive,
-  }, path, bytes);
+  }, path, bytes, refuseBeforePlace);
 }

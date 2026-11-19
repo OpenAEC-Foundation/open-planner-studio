@@ -133,6 +133,8 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     const controller = createFileAutoSaveController({
       getState: () => useAppStore.getState(),
       enabled: () => autoSaveEnabled.current,
+      // #804 stap 6: dezelfde berekenfunctie als Ctrl+S, dus de opslagworker.
+      compute: appStoreContext.runtime.ifcSaveCompute,
     });
 
     let timer: ReturnType<typeof setTimeout> | null = null;

@@ -24,14 +24,14 @@ let blockWrites = false;
 
 const controller = createActualAutoSaveController({
   listCandidates: () => candidates,
-  serialize: candidate => `ifc-${(candidate.source as unknown as { project: { version: number } }).project.version}`,
   canWrite: async () => true,
-  write: async (candidate, content) => {
-    writes.push(`${candidate.id}:${content}`);
+  // #804 stap 6: `write` is de hele ronde (voorbereiden, schrijven, vastleggen); de inhoud volgt uit de bron.
+  write: async candidate => {
+    writes.push(`${candidate.id}:ifc-${(candidate.source as unknown as { project: { version: number } }).project.version}`);
     if (blockWrites) await new Promise<void>(resolve => { releaseWrite = resolve; });
+    marked.push(candidate.id);
     return true;
   },
-  markSavedIfUnchanged: (candidate) => { marked.push(candidate.id); },
   onFailure: (candidate, error) => { failures.push(`${candidate.id}:${String(error)}`); },
 });
 
@@ -74,9 +74,8 @@ const failing = createActualAutoSaveController({
     { id: 'kapot', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/kapot.ifc' }, source: source(1) },
     { id: 'goed', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/goed.ifc' }, source: source(1) },
   ],
-  serialize: () => 'ifc', canWrite: async () => true,
-  write: async candidate => { if (candidate.id === 'kapot') throw new Error('EACCES'); return true; },
-  markSavedIfUnchanged: c => { marked.push(c.id); },
+  canWrite: async () => true,
+  write: async candidate => { if (candidate.id === 'kapot') throw new Error('EACCES'); marked.push(candidate.id); return true; },
   onFailure: (c, e) => { failures.push(`${c.id}:${(e as Error).message}`); },
 });
 await failing.flush();
@@ -87,8 +86,7 @@ truthy('8 controller houdt geen stille, onafgehandelde write vast', !controller.
 failures = [];
 const unavailable = createActualAutoSaveController({
   listCandidates: () => [{ id: 'weg', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/weg.ifc' }, source: source(1) }],
-  serialize: () => 'ifc', canWrite: async () => true, write: async () => false,
-  markSavedIfUnchanged: () => { throw new Error('mag niet schoon worden'); },
+  canWrite: async () => true, write: async () => false,
   onFailure: (c, e) => {
     truthy('9a niet-schrijfbaar heeft een herkenbaar fouttype voor vertaling', e instanceof AutoSaveTargetUnavailableError);
     failures.push(`${c.id}:${(e as Error).message}`);
@@ -142,14 +140,13 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   let staleAnswers = 1;
   const staleController = createActualAutoSaveController({
     listCandidates: () => [{ id: 'd', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/d.ifc' }, source: source(version) }],
-    serialize: candidate => `ifc-${(candidate.source as unknown as { project: { version: number } }).project.version}`,
     canWrite: async () => true,
-    write: async (_candidate, content) => {
-      staleWrites.push(content);
+    write: async candidate => {
+      staleWrites.push(`ifc-${(candidate.source as unknown as { project: { version: number } }).project.version}`);
       if (staleAnswers > 0) { staleAnswers--; version++; return 'stale'; }
+      staleMarked.push(candidate.id);
       return true;
     },
-    markSavedIfUnchanged: (candidate) => { staleMarked.push(candidate.id); },
     onFailure: (candidate, error) => { staleFailures.push(`${candidate.id}:${String(error)}`); },
   });
   await staleController.flush();

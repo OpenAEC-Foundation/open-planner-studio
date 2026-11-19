@@ -40,20 +40,19 @@ export interface ActualAutoSaveController {
  *
  * Eén controller verwerkt kandidaten serieel. Kandidaten worden pas aan het begin van iedere
  * ronde opgehaald; een mutatie tijdens een write ziet daardoor altijd een verse tweede ronde.
+ * #804 stap 6: voorbereiden, schrijven en vastleggen horen bij één schrijfbeurt (`write`), zoals bij Ctrl+S.
  */
 export function createActualAutoSaveController(deps: {
   listCandidates: () => ActualAutoSaveCandidate[];
-  serialize: (candidate: ActualAutoSaveCandidate) => string;
   /** Zonder permissieprompt nagaan of een bestaand doel nog schrijfbaar is. */
   canWrite: (ref: FileRef) => Promise<boolean>;
-  /** Stil naar het bestaande doel schrijven; false betekent geen beschikbaar schrijfdoel,
-   *  `'stale'` dat de inhoud intussen gewijzigd is (niets geschreven, geen fout — een nieuwe ronde
-   *  pakt de actuele inhoud op), `'refused'` dat de doelcontrole het doel weigerde (#804 fixronde 2: niets
-   *  geschreven, het document blijft gewijzigd; de aanroeper heeft het al gemeld) of dat de laatste fase van
+  /** De hele ronde voor één kandidaat: voorbereiden, stil naar het bestaande doel schrijven en de geschreven versie
+   *  vastleggen (dirty alleen wissen als precies die versie nog actueel is). `true`: geschreven en vastgelegd; `false`
+   *  betekent geen beschikbaar schrijfdoel, `'stale'` dat de inhoud intussen gewijzigd is (niets geschreven, geen fout —
+   *  een nieuwe ronde pakt de actuele inhoud op), `'refused'` dat de doelcontrole het doel weigerde (#804 fixronde 2:
+   *  niets geschreven, het document blijft gewijzigd; de aanroeper heeft het al gemeld) of dat de laatste fase van
    *  afsluiten of van de updater al begonnen was (#804 stap 3: niets geschreven, niets te melden). */
-  write: (candidate: ActualAutoSaveCandidate, content: string) => Promise<boolean | 'stale' | 'refused'>;
-  /** Wist dirty uitsluitend wanneer exact deze bronversie nog actueel is. */
-  markSavedIfUnchanged: (candidate: ActualAutoSaveCandidate) => void;
+  write: (candidate: ActualAutoSaveCandidate) => Promise<boolean | 'stale' | 'refused'>;
   onFailure: (candidate: ActualAutoSaveCandidate, error: unknown) => void;
 }): ActualAutoSaveController {
   let saving = false;
@@ -70,8 +69,7 @@ export function createActualAutoSaveController(deps: {
         if (!candidate.enabled || !candidate.dirty || !candidate.ref) continue;
         try {
           if (!await deps.canWrite(candidate.ref)) continue;
-          const content = deps.serialize(candidate);
-          const written = await deps.write(candidate, content);
+          const written = await deps.write(candidate);
           if (written === 'refused') {
             // Geweigerd doel: geen write, geen "opgeslagen", geen tweede foutmelding.
             continue;
@@ -81,9 +79,7 @@ export function createActualAutoSaveController(deps: {
             // geen onschrijfbaar bestand (audit 2026-09-26 — het gaf een valse foutmelding), maar
             // een reden voor nog een ronde met de actuele inhoud.
             if (staleRounds++ < 3) pending = true;
-          } else if (written) {
-            deps.markSavedIfUnchanged(candidate);
-          } else {
+          } else if (!written) {
             // Geen stille "opgeslagen"-indruk bij een verdwenen/vergrendeld doel. De UI-laag
             // dedupliceert deze fout, zodat een aanhoudend probleem geen notificatiestorm wordt.
             deps.onFailure(candidate, new AutoSaveTargetUnavailableError());

@@ -394,13 +394,18 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
-- **Save worker (#804 steps 4 and 5).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
+- **Save worker (#804 steps 4 to 6).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
   plain writer, or the merge with a foreign part) in one reusable Web Worker. The mounted app owns one client
-  (`appStore.ts`) and hands only its compute function to the save routes, through
-  `StoreRuntimeOptions.ifcSaveCompute` (`mergesInWorker`): today only a merge (a document with a foreign part, flag
-  `ifcForeignContent`) runs in the worker, for Ctrl+S, Save As and Export → IFC; the plain writer stays on the main
-  thread (step 6), and so do headless, scratch and test contexts and `planner_export_ifc`. `prepareIfcOutput` keeps the
-  decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
+  (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
+  `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
+  close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
+  (`fileAutoSave.ts`, `compute` from `useAutoSave`; it checks its target after the computation, in the same write turn,
+  like Ctrl+S). Headless, scratch and test contexts, crash recovery and
+  `planner_export_ifc` stay on the main thread. A plain writer answer carries the worker's bytes; they go straight to
+  the write layer (`FileData`, `saveDataDialog`, `saveToRef`), never through text; the text only exists when the main
+  thread computed (the worker did not start). The plain writer keeps its right to overwrite (`saveFileDialog` /
+  `saveBytesDialog`, the atomic replace); `saveNewBytesDialog` stays the merge's exclusive route. `prepareIfcOutput`
+  keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
   output buffers come back transferred, content errors arrive as the same error class, transport failures as
   `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
   `started` message); after a crash, timeout or unreadable answer it is an error, never a retry on the main thread;
@@ -409,7 +414,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
   stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
   injected worker), `save-worker-production.spec.ts` (the production config, its modules incl. dynamic chunks) and
-  `settings-tabs.spec.ts` (the app starts the worker itself on a real Ctrl+S).
+  `settings-tabs.spec.ts` (the app starts the worker itself on a real Ctrl+S, for a model and a plain file).
 - **Save status in the status bar** (#804 step 5, every document): "Saving…" from the request (Ctrl+S, Save As, *Save*
   in the close question) through the end of the whole save, then "Saved 14:32", and "Unsaved" once the document changes
   again. It lives on the document registry (`DocumentEntry.saveState`, `src/state/documentSaveState.ts`), not in
@@ -419,8 +424,14 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   changes it: another project in the same tab (`applyLoadedProject` without edit and with another project id, which
   includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
   read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
-  for the plain writer and in `stopBeforeWrite`), `commitSavedDocument` takes the ref and commits nothing to replaced
-  content, and the waiting Ctrl+S, the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
+  for the plain writer and in `stopBeforeWrite`) and again at the last safe point of the write layer
+  (`RefuseBeforePlace`: before `close()` of an existing browser handle, directly next to `close()` for the merge
+  handle, before setting an existing name aside, before the exclusive placement, before the atomic rename and the site
+  write, also for both IFC exports; a refusal leaves the target unchanged and returns "not written"). A handle fresh
+  from the browser's save picker gets no late check: Chromium already emptied an existing target when it was picked
+  (knownbug 1899), so the save finishes the requested file and only the commit, Recent and an export's success and
+  calendar choice are withheld, `commitSavedDocument` takes the ref and commits nothing to replaced content, and the waiting Ctrl+S,
+  the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
   not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive

@@ -69,7 +69,8 @@ ze gevraagd werd (`DocumentContentRef`: document-id plus `DocumentEntry.content`
 bewerking met een ander project-id, dus ook `api.data.loadProject`, openen in het lege tabblad en een voorbeeld),
 `newProject` en `createNewProject`. Een lees-wijzig-laad van hetzelfde project houdt haar (en dus ook "Opslaan…"); dan
 beslist de bestaande inhoudsvergelijking (`sameIFCSource`) of het document schoon is. `refuseChangedDocumentWrite` toetst
-haar vlak vóór elke schrijfactie, ook voor de gewone writer en in `stopBeforeWrite`; `commitSavedDocument(ref, …)` legt
+haar vlak vóór elke schrijfactie, ook voor de gewone writer en in `stopBeforeWrite`, en nog eens op het laatste veilige
+punt van de schrijflaag (`refuseBeforePlace`, knownbug 1896, zie `tauri-ifc.md`); `commitSavedDocument(ref, …)` legt
 niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de nieuwe inhoud krijgt geen doel, bron,
 "opgeslagen" of tijd). De wachtende Ctrl+S (`waitingSaves`), de opslagstand en `markAutoSaveVersionSaved` (de kandidaat
 van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
