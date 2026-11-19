@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync,
+  existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -1527,6 +1527,37 @@ await check('Opslaan als: een tabblad dat tijdens de eerste herstelronde op de g
     assert.deepEqual(placesSince(from), []);
     assert.deepEqual(recordsOnDisk(), []);
   } finally { round.unregister(); await tidy(c); }
+});
+
+// Fixronde 2 van #1019 (review Sol ronde 2, BLOKKEERT): de controle op open tabbladen hoort alleen bij een vervanging.
+// Onthoudt een ander tabblad een pad waar geen bestand meer staat, dan is die naam vrij en maakt Opslaan als het
+// bestand exclusief aan, zoals main.
+await check('Opslaan als naar een vrije naam die een ander tabblad nog als pad onthoudt (bestand buiten de app verwijderd): exclusief aangemaakt, zoals main', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    const target = otherFile(c);
+    internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(target.path) : invoke(command, ...args);
+    await c.store.getState().openFile();
+    internal.invoke = invoke;
+    const secondId = c.store.getState().activeDocumentId;
+    assert.notEqual(secondId, c.id, 'het bestand staat in een eigen tabblad');
+    renameTask(c, 'Werk in het tweede tabblad');
+    c.store.getState().switchDocument(c.id);
+    unlinkSync(target.path);
+    clearNotices(c);
+    const from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    const state = c.store.getState();
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.deepEqual([state.filePath, state.isDirty], [target.path, false], 'het document staat op de nieuwe naam en is opgeslagen');
+    assert(latin1(target.path).includes('IFCWALL'), 'het nieuwe bestand bevat het gebouwmodel');
+    assert.equal(fileHash(c, 'model.ifc'), hash(bytes), 'het oude bestand is onaangeroerd');
+    assert.deepEqual(placesSince(from).map(call => call.path), [target.path], 'alleen de exclusieve plaatsing, geen vervanging');
+    const second = state.getOpenDocumentPayloads().find(d => d.id === secondId)!.payload;
+    assert.deepEqual([second.filePath, second.isDirty], [target.path, true], 'het tweede tabblad houdt zijn pad en wijzigingen');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; await tidy(c); }
 });
 
 // Vervolgpunt 1 van dezelfde review: was het gekozen pad leeg toen de bestandskiezer terugkwam, dan blijft het de

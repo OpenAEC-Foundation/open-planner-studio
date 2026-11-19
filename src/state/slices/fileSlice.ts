@@ -825,9 +825,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad).
    *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
    *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
-   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor Opslaan als
-   *  over een bestaande naam (#804 keuze 4): `readers` scant de inhoud die als verwacht is vastgelegd in plaats van het
-   *  pad, en `openDocumentPaths` weigert ook een pad dat een open document als bestand heeft (fixronde 1 van #1019). */
+   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor de vervanging
+   *  bij Opslaan als over een bestaande naam (#804 keuze 4, `replaceExistingPath`): `readers` scant de inhoud die als
+   *  verwacht is vastgelegd in plaats van het pad, en `openDocumentPaths` weigert ook een pad dat een open document als
+   *  bestand heeft (fixronde 1 en 2 van #1019). */
   const documentTargetCheck = (
     snapshot: AppState, write?: DocumentWrite, ownTarget = false,
     { readers = writeTargetReaders, openDocumentPaths = false }: { readers?: () => TargetReaders; openDocumentPaths?: boolean } = {},
@@ -858,11 +859,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  /** `replaceExisting`: alleen Opslaan als (#804 keuze 4); zie `SaveDialogOpts.replaceExisting`. */
+  /** `replaceExisting`: alleen Opslaan als (#804 keuze 4); zie `SaveDialogOpts.replaceExisting`. De doelcontrole van de
+   *  bestandskiezer kijkt niet naar de paden van open documenten: ze draait ook voor een vrije naam, en een pad dat een
+   *  ander tabblad nog onthoudt terwijl het bestand weg is, is vrij (fixronde 2 van #1019). Die controle hoort bij de
+   *  vervanging zelf (`replaceExistingPath`, vóór de eerste schrijfactie in de map). */
   const documentSaveDialog = (
     snapshot: AppState, write: DocumentWrite, name: string, replaceExisting?: (path: string, current: Uint8Array) => Promise<void>,
   ) => {
-    const options = { refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentPaths: !!replaceExisting }),
+    const options = { refuseTarget: documentTargetCheck(snapshot, write),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write), replaceExisting };
     return write.prepared
       ? saveNewBytesDialog(name, write.prepared.bytes, [{ name: 'IFC Files', extensions: ['ifc'] }], options)

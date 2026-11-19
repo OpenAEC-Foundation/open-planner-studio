@@ -4960,3 +4960,25 @@ en noem het in je rapport of PR-tekst.
      paden na de herstelronde en de bytevergelijking vlak vóór het opzijzetten. Bewust niet in #1019: de eigenaar beslist
      nog of een doel met een gebouwmodel vervangen mag worden; de vorm van de route volgt daarna. Review van #1019 (Sol,
      ronde 1). — B (code)
+
+1893. **Opslaan als overschrijft stil een bestand dat in een ander tabblad open staat (gewone planning; OPS #1022).**
+     Bij een document zonder gebouwmodel, of met de featureflag `ifcForeignContent` uit, overschrijft *Opslaan als* een
+     bestaand bestand dat in een ander tabblad open staat zonder melding (de gewone atomaire opslag). Daarna wijzen
+     beide tabbladen naar hetzelfde bestand; slaat de planner het andere tabblad later op, dan is de eerste opslag weg.
+     Bestaand gedrag op main, niet van #804. #1019 weigert dit alleen voor een document met een gebouwmodel
+     (`refusedWriteTarget` met `openDocumentPaths` bij de vervanging, de melding `notifications.ifcForeignTargetOpenInTab`) en legt het
+     gedrag voor gewone planningen vast met een proef in `check-ifc-own-file-replace.ts` ("Opslaan als zonder vreemd
+     deel over een bestand dat in een ander tabblad open staat: zoals main, overschreven zonder melding"). Richting:
+     dezelfde controle op open paden voor elk document, op elke opslagroute met een bestandskiezer (ook de browser via
+     een handle en de site), en die proef omdraaien. Bewust niet in #1019 (besluit Trias, 19 november 2026): de fix
+     komt los, na #1019, onder issue #1022. Gevonden bij fixronde 1 van #1019. — B (proef)
+
+1897. **VERVOLG (#804 keuze 4, tekst): Opslaan als over de eigen naam geeft een te brede melding.**
+     Kiest de planner bij een document met een gebouwmodel in *Opslaan als* het bestand dat hij open heeft, dan weigert
+     de app (de bron van een open document, `open-source`) met `notifications.ifcForeignReplaceBlocked`: "Niet
+     opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies
+     een nieuwe naam." Zo ook op main. Direct daarna slaagt Ctrl+S in hetzelfde tabblad, met behoud van het
+     gebouwmodel; de zin stuurt de planner dus de verkeerde kant op. Richting van de reviewer: de weigering mag
+     blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
+     nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
+     doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
