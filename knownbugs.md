@@ -3972,6 +3972,32 @@ en noem het in je rapport of PR-tekst.
       op main. Richting: bij een ander project-id de bron en het kenmerk niet erven, of de eigenaar laten kiezen of een
       extensie een gebouwmodel mag overnemen. Gezien in de review van #1020 (Sol, ronde 1). — S
 
+1896. **VERVOLG (#1020, opslaan in de achtergrond): een opslag plaatst het bestand nog nadat een extensie de inhoud van het tabblad verving.**
+      Een opslag hoort bij de inhoud waarvoor ze gevraagd werd (`DocumentEntry.content`, fixronde 1 van #1020): de
+      controle draait vlak vóór de schrijfactie (`refuseChangedDocumentWrite`) en bij de commit
+      (`commitSavedDocument`). Laadt een extensie met `api.data.loadProject` een ander project in hetzelfde tabblad ná
+      die eerste controle, terwijl de nieuwe bytes alleen nog tijdelijk staan, dan plaatst de opslag het bestand
+      alsnog. Het bestand komt waar de planner om vroeg, met de inhoud die hij wilde opslaan; het nieuwe project
+      krijgt geen pad, geen bron en geen *Opgeslagen* (de commitcontrole werkt). Er gaat geen planningsdata verloren;
+      de opslag had alleen nog veilig kunnen stoppen. Drie routes, elk met een proef van de reviewer die project B
+      laadt op het moment dat het einddoel nog ongewijzigd is:
+      1. **Ctrl+S via een browserhandle**: B laden in de schrijfstap van de handle, vóór `close()`. De callback vlak
+         vóór `close()` vergelijkt alleen de doelbytes met de oude bron; `close()` plaatst daarna de planning van A.
+         Verwacht na de fix: het doel houdt zijn oorspronkelijke hash, via het bestaande `abort()`.
+      2. **Opslaan als over een andere bestaande naam (desktop)**: B laden tijdens de tweede doelvergelijking, als het
+         hulpbestand klaar is en er nog niets verplaatst is. De app zet daarna de bestaande versie opzij, plaatst de
+         berekende versie en zet het doel in Recent. Verwacht na de fix: geen verplaatsing, het doel houdt zijn bytes,
+         het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg.
+      3. **Opslaan als naar een vrije naam (desktop)**: B laden als het hulpbestand compleet is en het doel nog niet
+         bestaat. De volgende aanroep plaatst het bestand onder de gekozen naam. Verwacht na de fix: het doel bestaat
+         niet, ook niet via de directe exclusieve aanmaak na een terugval.
+      Richting van de reviewer: dezelfde inhoudscontrole (`refuseChangedDocumentWrite`) op het laatste veilige punt van
+      elke schrijfroute: vóór `close()`, vóór het opzijzetten van een bestaande naam, vóór de exclusieve plaatsing of
+      aanmaak; "de bestaande afbreekpunten en herstelafhandeling volstaan". Besluit van Trias (19 november 2026): dit
+      is VERVOLG en geen blokkade voor #1020 (alleen via een extensie precies tijdens de bestandsbewerking; geen
+      verlies), en de fix gaat mee in de volgende stap, het opslaan van gewone bestanden in de achtergrond, die
+      dezelfde schrijfroutes raakt. Gevonden door de review van #1020 (Sol, ronde 2). — B (proef)
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
