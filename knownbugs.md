@@ -4005,6 +4005,27 @@ en noem het in je rapport of PR-tekst.
       voorrang vóór het aanzetten en meet ook een handmatige opslag van een ander document. Gebruik dezelfde
       schrijfcoördinatie voor plaatsing en commit." Review van #1027 (Sol): [BEVESTIGD] VERVOLG. — B (proef)
 
+1901. **VERVOLG (#1027, opruimen en proeven): drie kleine punten uit de review van de late exportcontrole.**
+      (a) De regressieproef in de repo dekt alleen de geslaagde tabbladwissel ("review van #1027 ronde 2" in
+      `check-ifc-document-save.ts`): er ontbreekt een weigering nadat het exportdocument inactief werd (A bewerkt of
+      vervangen, dan naar B) en de geslaagde wissel met een IFC met gebouwmodel. De reviewer bewees beide met eigen
+      proeven (ronde 3, `proef-late-export.ts` in het sessiearchief); "dezelfde opstelling met één schrijfpauze
+      volstaat". (b) `refuseExportBeforePlace` (`fileSlice.ts`) vraagt op het geslaagde pad twee keer
+      `hasForeignContent(snapshot.ifcSource)`: één keer bewaren. (c) `withMissingSourceSaveAs` kopieert
+      eigenschapsbeschrijvingen (`Object.getOwnPropertyDescriptors`, `Object.defineProperties`, een typecast) om de
+      luie tekst niet te decoderen: geef de bevestiging apart door aan de opslagbewaking. Review van #1027 (Sol,
+      ronde 2 en 3): [BEVESTIGD] VERVOLG. — B (code)
+
+1903. **VERVOLG (desktop, bestaand): een tabbladwissel vlak na de bestandskiezer laat een IFC-export weigeren.**
+      Exporteer een planning naar IFC en ga binnen ongeveer een halve seconde na het bevestigen van de bestandsnaam
+      naar een ander tabblad: de export weigert met "De planning veranderde terwijl de export op een andere opslag
+      wachtte. Er is niets geëxporteerd. Exporteer opnieuw.", terwijl er niets veranderde. De doelcontrole na de kiezer
+      (`refuseTarget` in `exportAs` en in de export met de resourcebibliotheek) roept `refuseChangedExport` aan, die
+      eist dat het geëxporteerde document nog het actieve tabblad is. Zo ook op de build van vóór #1027 (twee keer
+      gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
+      Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
+      `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
