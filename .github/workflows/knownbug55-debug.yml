@@ -1,0 +1,27 @@
+name: Knownbug 55 diagnostiek (tijdelijk)
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/knownbug55-debug.yml']
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Test zonder oplossing
+        shell: bash
+        run: |
+          bash tests/planning/run.sh check-docs-dagen-en-uren.ts > /tmp/red.log 2>&1 || true
+          grep -E 'XX |ROOD|EINDOORDEEL' /tmp/red.log | tail -40 || true
+      - name: Test met oplossing
+        shell: bash
+        run: |
+          git show cde95e0fe515c15d8dbae354a09ae170e41bf5bd:src/engine/scheduler/CPMSolver.ts > src/engine/scheduler/CPMSolver.ts
+          bash tests/planning/run.sh check-docs-dagen-en-uren.ts > /tmp/green.log 2>&1 || true
+          grep -E 'XX |ROOD|GROEN|EINDOORDEEL' /tmp/green.log | tail -40 || true
