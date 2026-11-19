@@ -284,6 +284,18 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     [f.task().time.actualFinish, f.task().time.earlyFinish], ['2026-06-03T18:00', '2026-06-03T18:00']);
   const finish = f.S().tasks.find(t => t.id === successor)!.time.earlyFinish;
   eq(label + ': eindigt niet vóór relatiegrens', finish >= '2026-06-03T18:00', true);
+  const next = f.S().addTask({ name: 'FS na FF', time: {
+    scheduleStart: '2026-06-01T08:00', scheduleDuration: 0.25,
+    durationUnit: 'hours', durationMinutes: 120, durationType: 'WORKTIME',
+  } as Task['time'] });
+  f.S().addSequence({ predecessorId: successor, successorId: next, type: 'FINISH_START',
+    lagDays: 0, lagMinutes: 0, lagUnit: 'ELAPSEDTIME' });
+  f.S().runCPM();
+  eq(label + ': keten heeft geen rekenfout', f.S().cpmResult?.error, undefined);
+  const after = f.S().tasks.find(t => t.id === successor)!.time.earlyFinish;
+  const nextStart = f.S().tasks.find(t => t.id === next)!.time.earlyStart;
+  eq(label + ': FF-grens blijft behouden met FS-opvolger', after >= '2026-06-03T18:00', true);
+  eq(label + ': FS-opvolger start niet vóór FF-einde', nextStart >= after, true);
 }
 
 // Dezelfde FF-grens met een andere opvolgerkalender en een geïmporteerd, ouder
