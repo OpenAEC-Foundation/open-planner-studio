@@ -103,7 +103,7 @@ andere aanmaakfout (ook `EEXIST` op de hulpnaam) geeft geen eigendom: niets verw
 `target-exists` kan de hernoeming op een netwerkschijf toch gebeurd zijn (1795): opruimen verbergt de fout nooit en het
 doel wordt niet teruggelezen. Nooit `rename` van plugin-fs (die vervangt). De directe aanmaak is niet crashvast, en na
 een crash kan een `save-<id>.ops-save.tmp` blijven staan (1131). Meldingen: `ifcForeignNewTargetOnly` (Opslaan als en
-Exporteren, 1760) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
+Exporteren, 1760; Opslaan als over een bestaand gewoon bestand vervangt het sinds stap 8, zie hieronder) en `ifcForeignPlaceUnknown` via `newTargetWriteNotice` (`ifcForeignGuard.ts`). Proeven:
 `check-file-ifc-bytes.ts` (nagebootst commando op echte bestanden in `nodeFileIpc.ts`), `check-ifc-document-save.ts` en
 `cases-doc-file.ts`. Browserhandles missen exclusieve aanmaak en weigeren vóór schrijven (behalve Ctrl+S op het eigen bestand,
 hieronder); de webdialoog
@@ -282,6 +282,25 @@ Elke andere uitkomst meldt via `ownPathReplaceNotices` en stopt; nooit de gewone
 Automatisch opslaan en `planner_export_ifc` nemen deze route niet (zie `settings-autosave.md`; de export weigert een
 bestaand pad met een vreemd deel). Proeven: `check-ifc-own-file-replace.ts` (onderaan), `check-ifc-document-save.ts`,
 `check-app-quit-lifecycle.ts`.
+
+**Opslaan als over een andere bestaande naam (stap 8, #1019, keuze 4).** Alleen desktop, flag aan, vreemd deel (de
+merge). `saveNewBytesDialogTauri` stelt, alleen als de aanroeper `replaceExisting` meegeeft (alleen *Opslaan als*, niet
+de exports), direct na de terugkeer van de kiezer vast of er een gewoon bestand staat (`lstat`, geen link volgen; een
+toen leeg pad houdt de exclusieve aanmaakroute, 1890). Dan de gewone doelcontrole (`refuseTarget`: de bron van een open
+document ⇒ `ifcForeignReplaceBlocked`, een doel met gebouwmodel of C/A/V ⇒ `ifcForeignTargetSave`); die kijkt niet
+naar de paden van open documenten, want ze draait ook voor een vrije naam (een pad dat een ander tabblad nog onthoudt
+terwijl het bestand weg is, is vrij; fixronde 2 van #1019). Daarna leest hij het gewone bestand op dat pad. Is er een,
+dan gaat het pad met die inhoud naar `replaceExistingPath` (`fileSlice.ts`) en geeft de dialoog `null`; anders (niets,
+een link) de nieuwe-naamroute zoals voorheen. `replaceExistingPath` roept dezelfde `replaceOwnPathWithRecovery` aan,
+met `source` = die inhoud (dus `vorigeSha256` in het record) en `stopBeforeWrite` =
+`documentTargetCheck(momentopname, write, false, { readers, openDocumentPaths: true })`, na de eerste herstelronde en
+vóór de eerste schrijfactie in de map. Daarin scant `scanPath` die gelezen inhoud (wat stap 5 weghaalt, liet de
+doelbescherming toe) en weigert `openDocumentPaths` een pad dat een open document als bestand heeft, ook een gewone
+planning en ook een tabblad dat intussen opende ⇒ `ifcForeignTargetOpenInTab` (`refusedWriteTarget`, dezelfde
+padvergelijking `sameLocalFile` als de bronkenmerken; fixronde 1 van #1019). `commit` legt het nieuwe pad, de bron en het
+kenmerk vast zoals Opslaan als naar een nieuwe naam; daarna Recent. `save-as-only` ⇒ `ifcForeignNewTargetOnly` (de zin
+van een bestaande naam van voorheen); de andere uitkomsten de meldingen van Ctrl+S. Afhandelen na een crash gaat via het
+record, ook als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-own-file-replace.ts` deel c.
 
 **De vervanging (5a).** `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
 §4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, een snelle voorcontrole; op Windows ziet die een harde

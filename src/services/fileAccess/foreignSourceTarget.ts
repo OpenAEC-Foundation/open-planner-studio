@@ -93,6 +93,13 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
   }
 }
 
+/** Wijzen twee lokale paden naar hetzelfde bestand? Hetzelfde genormaliseerde pad, of (met `identityFs`) dezelfde
+ *  bestandsidentiteit. Eén vergelijking voor de bronkenmerken en de paden van open documenten. */
+export async function sameLocalFile(a: string, b: string, deps: ForeignSourceTargetDeps = {}): Promise<boolean> {
+  if (samePath(a, b)) return true;
+  return !!deps.identityFs && (await compareFilePaths(deps.identityFs, a, b)) === 'same';
+}
+
 /** Is `target` de bron van een van de `marks`? */
 export async function isForeignSourceTarget(
   target: FileRef,
@@ -106,9 +113,7 @@ export async function isForeignSourceTarget(
         if (mark.siteFileId !== null && mark.siteFileId === target.id) return true;
         break;
       case 'path':
-        if (mark.filePath === null) break;
-        if (samePath(target.path, mark.filePath)) return true;
-        if (deps.identityFs && (await compareFilePaths(deps.identityFs, target.path, mark.filePath)) === 'same') return true;
+        if (mark.filePath !== null && await sameLocalFile(target.path, mark.filePath, deps)) return true;
         break;
       case 'handle':
         if (mark.handle) {

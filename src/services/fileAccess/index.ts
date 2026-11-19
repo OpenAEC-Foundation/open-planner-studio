@@ -112,6 +112,14 @@ export interface SaveDialogOpts {
    * dialoog geeft dan `null`, zoals bij annuleren. De controle meldt zelf waarom.
    */
   refuseDownload?: (() => boolean) | null;
+  /**
+   * #804 keuze 4 (knownbug 1131 stap 8): alleen de strikte byte-ingang op de desktop (`saveNewBytesDialog`), voor Opslaan
+   * als. Staat er op het gekozen pad na de doelcontrole al een gewoon bestand, dan schrijft de dialoog niet zelf: hij
+   * geeft het pad en de inhoud van dat moment hieraan, en de aanroeper vervangt het bestand, legt het document vast en
+   * meldt wat er gebeurde. De dialoog geeft dan `null`. Zonder deze functie (exports) blijft een bestaand doel
+   * geweigerd (`target-exists`). Een link of iets anders dan een gewoon bestand gaat niet hierheen.
+   */
+  replaceExisting?: ((path: string, current: Uint8Array) => Promise<void>) | null;
 }
 
 /** Controle op het gekozen doel van een opslag of export; `true` = weigeren. Zie `SaveDialogOpts.refuseTarget`. */

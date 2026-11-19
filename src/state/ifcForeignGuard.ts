@@ -7,7 +7,7 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, sameEntry, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, sameEntry, sameLocalFile, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
@@ -99,7 +99,9 @@ export function recoverySaveTarget(p: {
 // weigering blijft ook na fase 1c bestaan: dan bewaart Opslaan het vreemde deel wel, maar alleen in het eigen document.
 
 /** Knownbug 1131 stap 4 (en 1760): een nieuwe naam voor een bestand met een gebouwmodel (Opslaan als, Exporteren →
- *  IFC) kon niet exclusief ontstaan, meestal omdat er al een bestand met die naam staat. Eén zin voor beide routes. */
+ *  IFC) kon niet exclusief ontstaan, meestal omdat er al een bestand met die naam staat. Eén zin voor beide routes.
+ *  Sinds stap 8 vervangt Opslaan als een bestaand gewoon bestand; daar geldt de zin nog waar die vervanging niet kan
+ *  (`save-as-only`: buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap). */
 export const IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignNewTargetOnly',
   dedupeKey: 'ifc-foreign-new-target-only',
@@ -125,6 +127,12 @@ export function newTargetWriteNotice(error: unknown): NotifyInput | null {
 export const IFC_FOREIGN_TARGET_SAVE_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignTargetSave',
   dedupeKey: 'ifc-foreign-target-save',
+});
+
+/** Fixronde 1 van #1019: Opslaan als over een bestaande naam koos een bestand dat in een ander tabblad open staat. */
+export const IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetOpenInTab',
+  dedupeKey: 'ifc-foreign-target-open-in-tab',
 });
 
 /** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
@@ -185,6 +193,20 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
+/** Fixronde 1 van #1019: is het lokale pad `path` het bestand van een open document, ook een gewone planning zonder
+ *  vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken (`sameLocalFile`). */
+async function isOpenDocumentPath(
+  s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
+): Promise<boolean> {
+  const paths = s.getOpenDocumentPayloads()
+    .flatMap(({ payload }) => (payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
+  if (paths.length === 0) return false;
+  let fs: FileIdentityFs | undefined;
+  try { fs = await identityFs(); } catch { fs = undefined; }
+  for (const other of paths) if (await sameLocalFile(path, other, fs ? { identityFs: fs } : {})) return true;
+  return false;
+}
+
 /** Het eigen lokale bestand van een document (zie de uitzondering "eigen doel" bij `refusedWriteTarget`). */
 async function isOwnLocalFile(
   own: Pick<DocumentPayload, 'foreignSourceMark' | 'fileHandle' | 'filePath'>, target: FileRef,
@@ -210,6 +232,9 @@ export interface WriteTargetDeps {
   protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
+  /** Alleen *Opslaan als* over een bestaande naam op de desktop (#804 keuze 4, fixronde 1 van #1019): weiger ook een
+   *  pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
+  openDocumentPaths?: boolean;
 }
 
 /**
@@ -221,6 +246,9 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
+ *  3. alleen met `deps.openDocumentPaths` (Opslaan als over een bestaande naam): een pad dat een open document als
+ *     bestand heeft, ook zonder vreemd deel ('open-document'; fixronde 1 van #1019). Na regel 1, dus de bron van een
+ *     document met een vreemd deel houdt haar eigen reden.
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
  *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
@@ -236,7 +264,7 @@ export async function refusedWriteTarget(
   target: FileRef,
   deps: WriteTargetDeps,
   ownVersion?: { readonly documentId: string; readonly baseVersion?: string | null; readonly source: IfcSource },
-): Promise<'open-source' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
+): Promise<'open-source' | 'open-document' | 'building-model' | 'foreign-content' | 'unreadable-target' | null> {
   const own = ownVersion && s.getOpenDocumentPayloads().find(d => d.id === ownVersion.documentId)?.payload;
   const ownSource = !!own && own.ifcSource === ownVersion.source && hasForeignContent(own.ifcSource)
     && ifcForeignContentEnabled(s.ui.featureFlags)
@@ -252,6 +280,9 @@ export async function refusedWriteTarget(
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;
+  if (deps.openDocumentPaths && target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs)) {
+    return 'open-document';
+  }
   if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
   const refusal = await targetRefusal(target, deps.readers());
   return refusal === 'model' ? 'building-model' : refusal === 'foreign' ? 'foreign-content'

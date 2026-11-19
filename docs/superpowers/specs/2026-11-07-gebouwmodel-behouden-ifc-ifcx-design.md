@@ -750,8 +750,22 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     veld getypt is, houdt het tabblad en het venster open); Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
     melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
     als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
-    sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd),
-    Ctrl+S buiten de thuismap (alleen *Opslaan als*) en *Opslaan als* over een bestaande naam.
+    sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd) en
+    Ctrl+S buiten de thuismap (alleen *Opslaan als*).
+  - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
+    vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
+    als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
+    wat er bij het begin van de opslag op het doel stond (gelezen na de bestandskiezer en de doelcontrole; de sha256 is
+    `vorigeSha256`). Stap 2 vergelijkt het doel daarmee; staat er iets anders, dan stopt de opslag met de melding van
+    Ctrl+S en blijft het doel zoals het is. De doelbewaking na de eerste herstelronde scant die gelezen inhoud, niet het
+    pad opnieuw: wat stap 5 weghaalt, liet de doelbescherming toe. De doelbescherming zelf verandert niet: een bestaand
+    doel met een gebouwmodel of C/A/V-inhoud blijft geweigerd, net als de bron van een open document. Daarbij weigert
+    de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
+    (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
+    ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
+    terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
+    niet kan (buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
+    nieuwe naam kan; geen terugval. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -1507,7 +1521,7 @@ profiel); daar geldt deze lijst.
    desktop eerst met de eenvoudige weigering, daarna bijwerken en samenvoegen, de modelbron daarna.
 4. ***Opslaan als* over een andere bestaande naam** (knownbug 1130): de desktopapp vervangt het bestand langs de
    veilige weg van §4.10, gebouwd na Ctrl+S op de desktop; tot dan de weigering. In de browser blijft *Opslaan als* met
-   een gebouwmodel een download.
+   een gebouwmodel een download. Gebouwd in PR #1019.
 5. **Na een download omdat de browser schrijftoestemming weigert** (knownbug 1768): het document blijft gewijzigd tot
    het geopende bestand is bijgewerkt; de melding noemt de kopie in Downloads. Gebouwd in PR #1002.
 6. **Exporteren naar CSV, MSPDI of XER**: geen vraag vooraf, wel een zin in de melding na afloop (§4.12). Gebouwd in
