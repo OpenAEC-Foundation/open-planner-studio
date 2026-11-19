@@ -912,8 +912,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       : saveDataDialog(name, writerData(write), [{ name: 'IFC Files', extensions: ['ifc'] }], options);
   };
 
-  /** Fixronde 1 en 2: weigert het doel als het de bron is van een open document met een vreemd deel, of (met de flag) als
-   *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). */
+  /** Bescherm ook gewone bestanden van andere open tabbladen bij desktopexport. Het uitvoerende document-id wordt bij
+   *  het maken vastgelegd, zodat een latere tabwissel niet het verkeerde document uitzondert. */
   const foreignTargetCheck = (purpose: 'save' | 'export', ownDocumentId = get().activeDocumentId): SaveTargetCheck => async (target) => {
     const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders,
       openDocumentPaths: purpose === 'export', excludeOpenDocumentId: ownDocumentId });
@@ -2475,7 +2475,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
       // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel.
-      const foreignCheck = foreignTargetCheck('export', ext === 'ifc' ? state.activeDocumentId : undefined);
+      const foreignCheck = foreignTargetCheck('export', state.activeDocumentId);
       // Een IFC-export wacht op de schrijflock (hieronder): direct vóór de write ook kijken of het document nog gelijk is.
       const refuseTarget: SaveTargetCheck = ext === 'ifc'
         ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)

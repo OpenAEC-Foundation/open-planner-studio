@@ -239,10 +239,9 @@ export interface WriteTargetDeps {
   protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
-  /** Alleen *Opslaan als* over een bestaande naam op de desktop (#804 keuze 4, fixronde 1 van #1019): weiger ook een
-   *  pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
+  /** Weiger op de desktop ook een pad dat een open document als bestand heeft, ook zonder vreemd deel. */
   openDocumentPaths?: boolean;
-  /** Bij een IFC-export mag het eigen document zijn eigen bestand blijven kiezen; andere tabbladen niet. */
+  /** Het uitvoerende document mag zijn eigen bestand blijven kiezen; andere tabbladen niet. */
   excludeOpenDocumentId?: string;
 }
 
@@ -255,8 +254,8 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
- *  3. alleen met `deps.openDocumentPaths` (Opslaan als over een bestaande naam): een pad dat een open document als
- *     bestand heeft, ook zonder vreemd deel ('open-document'; fixronde 1 van #1019). Na regel 1, dus de bron van een
+ *  3. alleen met `deps.openDocumentPaths`: een pad dat een open document als bestand heeft, ook zonder vreemd deel
+ *     ('open-document'), met een eventuele uitzondering voor het uitvoerende document. Na regel 1, dus de bron van een
  *     document met een vreemd deel houdt haar eigen reden.
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.

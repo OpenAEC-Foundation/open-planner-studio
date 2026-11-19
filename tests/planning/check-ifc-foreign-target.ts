@@ -532,6 +532,14 @@ for (const flag of [false, true]) {
     const linkExport = await S().exportAs('csv');
     eq('Tauri export via link ook zonder vlag geweigerd',
       [linkExport, sha(readFileSync(ownPath))], [{ ok: true, warnings: [], cancelled: true }, ownHash]);
+    const secondPath = join(dir, 'tweede.ifc');
+    dialogAnswer = secondPath;
+    await S().saveFileAs();
+    const checkFromFirst = S().foreignTargetCheck('export', ownId);
+    eq('Tauri exportcontrole houdt het uitvoerende document vast na een tabwissel', [
+      await checkFromFirst({ kind: 'path', path: secondPath }),
+      await checkFromFirst({ kind: 'path', path: ownPath }),
+    ], [true, false]);
     S().switchDocument(ownId);
     dialogAnswer = ownPath;
     const ownExport = await S().exportAs('ifc');
