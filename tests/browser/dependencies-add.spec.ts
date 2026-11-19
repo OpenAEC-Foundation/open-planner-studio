@@ -620,6 +620,21 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
     await pick(afbouw, 'Shift');
     await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
   }
+  // Ronde 15: is het beginpunt weggefilterd (Fundering, de laatste Ctrl-keuze), dan heeft geen van beide
+  // oppervlakken een beginpunt: Shift kiest alleen Afbouw. De takenlijst nam eerst haar eigen anker,
+  // dat naar Ruwbouw was geschoven, en koos Ruwbouw en Afbouw.
+  for (const pick of [onBar, onCell]) {
+    await page.evaluate(() => window.__OPS__!.store.getState().setFilter(null));
+    await pick(grondwerk);
+    await pick(fundering, 'ControlOrMeta');
+    await page.evaluate(() => window.__OPS__!.store.getState().setFilter({
+      kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Fundering',
+    }));
+    await expect(cell(fundering)).toHaveCount(0);
+    await pick(afbouw, 'Shift');
+    await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([afbouw]);
+  }
+  await page.evaluate(() => window.__OPS__!.store.getState().setFilter(null));
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

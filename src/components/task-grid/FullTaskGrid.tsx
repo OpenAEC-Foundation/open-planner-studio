@@ -246,13 +246,15 @@ function extendFromSharedAnchor(
   columns: readonly TaskColumnId[],
 ): { next: GridSelectionState; anchor?: SelectionAnchor } {
   // Het geldende anker als de lijst zijn rij kent (ook de spookregel, die de tijdlijn niet heeft),
-  // anders hetzelfde beginpunt als de tijdlijn.
+  // anders hetzelfde beginpunt als de tijdlijn. Is er geen (bv. de ankerrij en de actieve taak zijn
+  // weggefilterd), dan ook hier niet het eigen rasteranker maar geen beginpunt: Shift kiest dan alleen
+  // de aangeklikte regel, net als in de tijdlijn (review #1004, ronde 15).
   const state = useAppStore.getState();
   const live = liveSelectionAnchor(state);
   const anchor = live && rowIndex.absoluteIndexByRowKey.has(live.rowKey) ? live : shiftAnchor(state);
   const from = anchor && rowIndex.absoluteIndexByRowKey.has(anchor.rowKey)
     ? withSelectionAnchor(selection, anchor.rowKey)
-    : selection;
+    : { ...selection, anchor: null };
   const next = updateGridSelection(from, cell, rowIndex, columns, 'extend');
   if (!anchor || next.anchor?.rowKey !== anchor.rowKey) return { next };
   const rowTaskIds = gridAnchor(next, rowIndex)?.taskIds ?? [];
