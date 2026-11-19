@@ -1,0 +1,21 @@
+name: Diagnostic knownbug 317
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Targeted milestone check
+        run: |
+          ./node_modules/.bin/esbuild tests/planning/check-mijlpaal-afmelden.ts --log-level=error --bundle --platform=node --format=esm --alias:@="$PWD/src" --external:react-dom/server --define:import.meta.env.DEV=false --define:import.meta.env.PROD=true --define:import.meta.env.MODE='"production"' --define:__OPS_DEV_INSTANCE__='"test"' --outfile=tests/planning/.knownbug317.mjs
+          node tests/planning/.knownbug317.mjs
