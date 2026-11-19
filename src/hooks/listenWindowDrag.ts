@@ -48,15 +48,20 @@ export function endWindowDragsForDocumentSwitch(): void {
 }
 
 /** De click van het loslaten hoort nog bij het afgebroken gebaar, dus bij het oude document: anders
- *  koos hij een taak in het nieuwe (review #1004, ronde 13). Komt er geen click, omdat de muis buiten
- *  het element werd losgelaten, dan vervalt dit bij de volgende mousedown. */
+ *  koos hij een taak in het nieuwe (review #1004, ronde 13). Komt er geen click (losgelaten buiten het
+ *  element, of de middelste knop), dan vervalt dit bij de volgende mousedown. Een click uit Enter of
+ *  spatie (`detail` 0) is geen loslaten en gaat door (ronde 14). */
 function swallowReleaseClick(): void {
+  const done = () => {
+    window.removeEventListener('click', swallow, true);
+    window.removeEventListener('mousedown', done, true);
+  };
   const swallow = (event: MouseEvent) => {
+    if (event.detail === 0) return;
     event.stopPropagation();
     event.preventDefault();
+    done();
   };
-  window.addEventListener('click', swallow, { capture: true, once: true });
-  window.addEventListener('mousedown', () => window.removeEventListener('click', swallow, { capture: true }), {
-    capture: true, once: true,
-  });
+  window.addEventListener('click', swallow, true);
+  window.addEventListener('mousedown', done, true);
 }

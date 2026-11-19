@@ -712,13 +712,8 @@ export interface SelectionAnchor { rowKey: string; taskIds: readonly string[] }
 
 /** Het anker zoals de store het bewaart: met de selectie waarvoor het geldt. Verandert de selectie
  *  langs een andere weg (plakken, inklappen, Ctrl+A, MCP), dan geldt het niet meer
- *  (`liveSelectionAnchor`); zo hoeft niet elke schrijver van de selectie het anker te kennen.
- *  `base` is wat naast het bereik vanaf dit anker gekozen blijft: eerdere Ctrl-keuzes, zoals in de
- *  takenlijst. Een volgende Shift-klik geeft `base` plus het nieuwe bereik (review #1004, ronde 13). */
-export interface StoredSelectionAnchor extends SelectionAnchor {
-  selection: readonly string[];
-  base: readonly string[];
-}
+ *  (`liveSelectionAnchor`); zo hoeft niet elke schrijver van de selectie het anker te kennen. */
+export interface StoredSelectionAnchor extends SelectionAnchor { selection: readonly string[] }
 
 /** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
 export type RelationAssignDirection = 'predecessor' | 'successor';

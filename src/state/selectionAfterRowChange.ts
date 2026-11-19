@@ -122,6 +122,6 @@ export function selectNeighbourAfterRemoval(
   // Die rij is ook het nieuwe beginpunt van Shift, zoals na een klik: het oude anker hoorde bij de
   // verwijderde rij, en de tijdlijn viel dan terug op het eerste voorkomen van de taak (review #1004).
   s.ui.selectionAnchor = s.ui.gridActiveRowKey
-    ? { rowKey: s.ui.gridActiveRowKey, taskIds: [neighbour.task.id], selection, base: [] }
+    ? { rowKey: s.ui.gridActiveRowKey, taskIds: [neighbour.task.id], selection }
     : null;
 }

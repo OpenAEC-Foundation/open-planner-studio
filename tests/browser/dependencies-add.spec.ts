@@ -585,12 +585,22 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   // Ronde 13: Shift vervangt het lopende bereik, in de tijdlijn net als in de takenlijst. Afbouw,
   // Shift Grondwerk, Shift Ruwbouw ⇒ Ruwbouw en Afbouw; Ctrl+F2 legt in beide precies Ruwbouw → Afbouw.
   await page.evaluate((id) => window.__OPS__!.store.getState().switchDocument(id), source);
-  const added = async (pick: (id: string, shift: boolean) => Promise<void>) => {
+  type Pick = (id: string, key?: 'Shift' | 'ControlOrMeta') => Promise<void>;
+  const onBar: Pick = async (id, key) => {
+    const point = await barPoint(page, id);
+    if (key) await page.keyboard.down(key);
+    await page.mouse.click(point.x, point.y);
+    if (key) await page.keyboard.up(key);
+  };
+  const onCell: Pick = async (id, key) => {
+    await cell(id).click(key ? { modifiers: [key] } : undefined);
+  };
+  const added = async (pick: Pick) => {
     const before = (await state(page)).sequences.map(q => q.id);
-    await pick(afbouw, false);
-    await pick(grondwerk, true);
+    await pick(afbouw);
+    await pick(grondwerk, 'Shift');
     await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([grondwerk, fundering, ruwbouw, afbouw]);
-    await pick(ruwbouw, true);
+    await pick(ruwbouw, 'Shift');
     await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
     await page.keyboard.press('ControlOrMeta+F2');
     await expect.poll(() => state(page).then(s => s.sequences.filter(q => !before.includes(q.id)).length)).toBe(1);
@@ -600,17 +610,16 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
     await expect.poll(() => state(page).then(s => s.sequences.map(q => q.id))).toEqual(before);
     return fresh;
   };
-  const viaTimeline = await added(async (id, shift) => {
-    const point = await barPoint(page, id);
-    if (shift) await page.keyboard.down('Shift');
-    await page.mouse.click(point.x, point.y);
-    if (shift) await page.keyboard.up('Shift');
-  });
+  const viaTimeline = await added(onBar);
   expect(viaTimeline).toEqual([[ruwbouw, afbouw, 'FINISH_START', 0]]);
-  const viaList = await added(async (id, shift) => {
-    await cell(id).click(shift ? { modifiers: ['Shift'] } : undefined);
-  });
-  expect(viaList).toEqual(viaTimeline);
+  expect(await added(onCell)).toEqual(viaTimeline);
+  // Ronde 14: ook na een Ctrl-keuze kiest Shift precies het bereik, in beide oppervlakken gelijk.
+  for (const pick of [onBar, onCell]) {
+    await pick(grondwerk);
+    await pick(ruwbouw, 'ControlOrMeta');
+    await pick(afbouw, 'Shift');
+    await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
+  }
 });
 
 // Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben

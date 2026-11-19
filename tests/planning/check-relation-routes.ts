@@ -483,26 +483,27 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('12.16 een Shift-bereik volgt de lijst, ook naar boven', S().selectedTaskIds, [b, c, d]);
   // De tijdlijn geeft altijd de aangeklikte rij mee.
   const rowOf = (taskId: string) => ({ rowKey: S().viewRows.find(row => row.kind === 'task' && row.task.id === taskId)!.rowKey });
+  // Shift kiest precies het bereik vanaf het anker, zoals de takenlijst (`'extend'`) en een
+  // bestandsverkenner (rondes 13 en 14): een verkleind bereik laat de rest los, en Ctrl+F2 koppelt
+  // alleen wat gekozen is.
   S().selectTask(a, false, false, rowOf(a));
   S().selectTask(c, true, false, rowOf(c));
   S().selectTask(b, false, true, rowOf(b));
-  eq('12.17 eerder met Ctrl gekozen taken buiten het bereik blijven vooraan', S().selectedTaskIds, [a, b, c]);
-  // Ronde 13: Shift vervangt het lopende bereik, zoals in de takenlijst. A, Shift D, Shift B ⇒ A en
-  // B; Ctrl+F2 koppelt dan alleen A → B.
+  eq('12.17 na Ctrl C kiest Shift B het bereik C–B', S().selectedTaskIds, [b, c]);
   S().selectTask(a, false, false, rowOf(a));
   S().selectTask(d, false, true, rowOf(d));
   eq('12.17a A, Shift D', S().selectedTaskIds, [a, b, c, d]);
   S().selectTask(b, false, true, rowOf(b));
   eq('12.17b een kleiner bereik laat C en D los', S().selectedTaskIds, [a, b]);
-  S().selectTask(c, true, false, rowOf(c));
-  S().selectTask(d, false, true, rowOf(d));
-  eq('12.17c na Ctrl C blijven A en B naast het bereik C–D', S().selectedTaskIds, [a, b, c, d]);
-  S().selectTask(c, false, true, rowOf(c));
-  eq('12.17d en een kleiner bereik vanaf C houdt A en B', S().selectedTaskIds, [a, b, c]);
-  S().selectTask(a, false, false, rowOf(a));
-  S().selectTask(b, false, true, rowOf(b));
   S().selectTask(d, true, true, rowOf(d));
-  eq('12.17e Ctrl+Shift zet het bereik bij de selectie', S().selectedTaskIds, [a, b, c, d]);
+  S().selectTask(b, true, true, rowOf(b));
+  eq('12.17c Ctrl+Shift kiest ook precies het bereik, zoals de takenlijst', S().selectedTaskIds, [a, b]);
+  clearNotes();
+  const before1217 = S().sequences.map(q => q.id);
+  linkTasksInChain(S().selectedTaskIds);
+  eq('12.17d Ctrl+F2 koppelt alleen dat bereik', S().sequences.filter(q => !before1217.includes(q.id))
+    .map(q => [q.predecessorId, q.successorId]), [[a, b]]);
+  S().undo();
 
   // Review #1004: het bereik volgt de rijen OP HET SCHERM, niet de interne taakvolgorde. Een
   // weggefilterde taak hoort er niet bij, en bij een aflopende sortering loopt de keten mee.
@@ -590,12 +591,12 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
   eq('13.21 Shift na het kader begint op die rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
   // Shift begint bij de laatste klik zonder Shift, ook als die klik iets uitvinkte, zoals in de
-  // takenlijst (en een bestandsverkenner): B, Ctrl D aan, Ctrl D uit, Shift C ⇒ D en C erbij.
+  // takenlijst (en een bestandsverkenner): B, Ctrl D aan, Ctrl D uit, Shift C ⇒ D en C.
   S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
   S().selectTask(d, true, false, { rowKey: S().viewRows[4].rowKey });
   S().selectTask(d, true, false, { rowKey: S().viewRows[4].rowKey });
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
-  eq('13.22 na uitvinken begint Shift op de uitgevinkte rij', S().selectedTaskIds.map(name), ['B', 'D', 'C']);
+  eq('13.22 na uitvinken begint Shift op de uitgevinkte rij', S().selectedTaskIds.map(name), ['D', 'C']);
   // Met het anker op de ONDERSTE B (niet het eerste voorkomen): klik en kader.
   S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
   S().selectTask(a, false, true, { rowKey: S().viewRows[2].rowKey });
