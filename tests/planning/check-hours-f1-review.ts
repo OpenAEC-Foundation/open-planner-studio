@@ -313,6 +313,34 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     f.S().tasks.find(t => t.id === id)!.time.earlyFinish >= '2026-06-03T18:00', true);
 }
 
+// C1 gebruikt het effectieve relatievenster, niet de latere echte finish. Met een harde
+// finishpin wint de eigen pin juist van de relatievloer (de relatie kan dan conflicteren).
+for (const variant of ['p6-c1', 'harde-pin'] as const) {
+  const f = fixture();
+  f.S().setProject({ schedulingProfile: { id: 'p6', baseId: 'p6', name: '',
+    overrides: variant === 'p6-c1' ? { p6CompletedPredecessorAtDataDate: true } : {} } });
+  const label = `231 ${variant}`;
+  eq(label + ': start toegestaan', f.S().enterTaskProgress(f.id,
+    { field: 'actualStart', value: '2026-06-03T18:00' }, { today: '2026-06-03' }).ok, true);
+  eq(label + ': voltooid', f.S().enterTaskProgress(f.id,
+    { field: 'completion', value: 1 }, { today: '2026-06-03' }).ok, true);
+  const id = f.S().addTask({ name: label, time: {
+    scheduleStart: '2026-06-01T08:00', scheduleDuration: 0.25,
+    durationUnit: 'hours', durationMinutes: 120, durationType: 'WORKTIME',
+  } as Task['time'] });
+  f.S().addSequence({ predecessorId: f.id, successorId: id, type: 'FINISH_FINISH',
+    lagDays: 0, lagMinutes: 0, lagUnit: 'ELAPSEDTIME' });
+  if (variant === 'harde-pin') f.S().updateTask(id, {
+    constraint: { type: 'MFO', date: '2026-06-02T14:00', hard: true },
+  });
+  f.S().runCPM();
+  eq(label + ': geen rekenfout', f.S().cpmResult?.error, undefined);
+  const result = f.S().tasks.find(t => t.id === id)!.time;
+  if (variant === 'p6-c1') eq(label + ': effectieve grens wint van daadwerkelijke finish',
+    result.earlyFinish < '2026-06-03T18:00', true);
+  else eq(label + ': harde pin wint van de vloer', result.earlyFinish, '2026-06-02T14:00');
+}
+
 // Vier bestaande minutenmodelgevallen: een snap over een daggrens blijft gelden.
 for (const [name, start, finish, es, ef, holiday, milestone] of [
   ['bouwvak-einde', '2026-07-29T08:00', '2026-08-04T16:00', '2026-07-29T08:00', '2026-07-31T16:00', true, false],
