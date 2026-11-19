@@ -1277,12 +1277,10 @@ for (const profile of PROFILES) for (const route of ROUTES) {
 for (const profile of PROFILES) mondayHealth('gedeelde rand', profile, () => mondayFixture(profile, sol5Cal, 'START_START'), SHARED_EDGE);
 console.log(`Vaste gevallen: ${FIXED.length} op helperniveau, ${FIXED_LITERAL.length} letterlijk, ${fixedRouteCases} langs de routes`);
 
-for (const failure of failures) console.log('XX ' + failure);
-console.log(`Mijlpaal afmelden met de geplande tijd: ${checks} controles, ${failures.length} fouten`);
 // Knownbug 317: de startvraag gebruikt de werkdagzijde van de mijlpaalsoort.
-for (const [label, cal, moment] of [
-  ['24 uur', day24, '2026-06-04T00:00'],
-  ['nacht', night, '2026-06-04T06:00'],
+for (const [label, cal, moment, nextStart] of [
+  ['24 uur', day24, '2026-06-04T00:00', '2026-06-04T00:00'],
+  ['nacht', night, '2026-06-04T06:00', '2026-06-04T22:00'],
 ] as const) {
   const f = fixture('ops', cal, { midden: false, los: false, taak: false });
   const id = f.milestone('Test einde', 'FINISH');
@@ -1292,12 +1290,20 @@ for (const [label, cal, moment] of [
   const status = '2026-06-03';
   eq(`317 ${label}: FINISH op einde statuswerkdag vraagt geen start`,
     actualStartQuestionFor(before, after, status, {}, f.calendar()), null);
-  const start: Task = { ...after, milestoneKind: 'START' };
+  const start: Task = { ...after, milestoneKind: 'START', time: { ...after.time, earlyStart: nextStart, scheduleStart: nextStart } };
   eq(`317 ${label}: START op volgende klokdag blijft vragen`,
     actualStartQuestionFor(before, start, status, {}, f.calendar()) !== null, true);
+  eq(`317 ${label}: status met tijd vóór moment vraagt wél start`,
+    actualStartQuestionFor(before, after, '2026-06-03T23:59', {}, f.calendar()) !== null, true);
   const result = planProgressEntry(before, { field: 'completion', value: 1 },
     { statusDate: status, today: '2026-06-05', calendar: f.calendar() });
   eq(`317 ${label}: 100 procent UI-invoer wordt niet geweigerd`, result.ok, true);
+  f.context.store.setState(state => { const target = state.tasks.find(t => t.id === id)!; target.time = { ...before.time }; state.project.statusDate = status; });
+  const draft = structuredClone({ tasks: f.S().tasks, sequences: f.S().sequences, assignments: f.S().assignments, resources: f.S().resources, calendars: f.S().calendars, calendar: f.S().calendar, project: f.S().project });
+  eq(`317 ${label}: MCP 100 procent slaagt`, progress.applyProgressUpdate(draft, id, { completion: 100 }, status).applied, true);
+  eq(`317 ${label}: echte UI-invoer slaagt`, f.S().enterTaskProgress(id, { field: 'completion', value: 1 }, { today: '2026-06-05' }).ok, true);
 }
 
+for (const failure of failures) console.log('XX ' + failure);
+console.log(`Mijlpaal afmelden met de geplande tijd: ${checks} controles, ${failures.length} fouten`);
 if (failures.length) process.exit(1);
