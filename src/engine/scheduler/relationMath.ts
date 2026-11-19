@@ -205,10 +205,12 @@ export function forwardConstraint(
  * dat een bandSTART (het `(start,end)`-forward-anker) — `startFromFinish` (terug) gevolgd door
  * `addDuration` (weer vooruit) is dan NIET inverteerbaar (zie het scenario hierboven: terug landt op
  * de vorige werkdag-START, vooruit vanaf díe START landt op diens EIND, niet terug op `reqFinish`).
- * FF ankert op `predResult.ef`, een bandEIND (het `(start,end]`-finish-anker) — daar ROND-TRIPT
+ * Voor gewone FF ankert dit op `predResult.ef`, een bandEIND (het `(start,end]`-finish-anker) — daar ROND-TRIPT
  * `startFromFinish`/`addDuration` WEL exact (het finish-anker is zelf al het punt waar de
  * duur-optelling normaliter uitkomt), dus een FF-vloer zou daar sowieso nooit vuren: geen
- * gedragswijziging, geen risico, maar ook geen enkele reden om 'm er toch bij te bouwen. De
+ * gedragswijziging, geen risico, maar ook geen enkele reden om 'm er toch bij te bouwen. Bij een
+ * negatieve kalenderlag kan de grens echter buiten werktijd vallen: daarvoor geldt hieronder een
+ * beperkte FF-vloer (knownbug 311). De
  * UITZONDERING die dit bewust doorbreekt is EXPLICIET geklemd, niet stilzwijgend: `CPMSolver.
  * forwardPass` slaat de vloer over zodra de taak een HARDE finish-pin heeft (MFO/MSO hard,
  * `hardPinFinish`) — dát pad belooft een EIGEN, hardere invariant (EF=LF=pin, tf=0) die vóór de
@@ -239,6 +241,21 @@ export function forwardFinishFloor(
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
 ): Date | null {
+  // Een negatieve kalenderlag kan op een niet-werkmoment uitkomen. Het terugrekenen vanaf de
+  // eerstvolgende werkgrens en weer vooruit tellen landt dan op het vorige blokeinde, dus vóór
+  // de kalendergrens (knownbug 311). Bewaar de grens over dat nul-werkgat, zoals bij SF.
+  // Beperk dit tot gewone urentaken met een negatieve kalenderlag; bestaande dag-, mijlpaal-,
+  // kalendertijd- en werk-lagconventies blijven ongemoeid.
+  if (seq.type === 'FINISH_FINISH' && seq.lagUnit === 'ELAPSEDTIME'
+    && !isZeroDurationMilestone(successor) && !isElapsedTask(successor)
+    && successor.time.durationUnit === 'hours') {
+    const minutes = deps.resolveElapsedMinutes(seq, predTask);
+    if (minutes < 0) {
+      const raw = new Date(predResult.ef.getTime() + elapsedMilliseconds(minutes));
+      return deps.snapOnOrBefore(succEng, raw).getTime() === raw.getTime()
+        ? raw : deps.snapOnOrAfter(succEng, raw);
+    }
+  }
   if (seq.type !== 'START_FINISH') return null;
   const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
   return sfReqFinishHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
