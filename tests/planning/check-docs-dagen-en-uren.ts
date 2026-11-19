@@ -195,6 +195,18 @@ same('lag 1,5 blijft 1,5 werkdag', parseLagInput('1,5')?.lagDays, 1.5);
   same('2d op 75 % heeft 0,5d rest', f.taskOf(id).time.remainingTime, 0.5);
 }
 
+// Knownbug 55: voer legacy-datums bewust RAUW in. setActualFinish zou de datum al
+// normaliseren en de regressie niet door de te testen solvertak sturen.
+for (const profile of ['ops', 'msproject'] as const) {
+  const f = fixture(profile, '2027-06-21');
+  const id = f.hour('Voltooid', 8);
+  const time = f.taskOf(id).time;
+  f.S().updateTask(id, { time: { ...time, completion: 1, actualStart: '2027-06-21', actualFinish: '2027-06-21' } });
+  same(`${profile}: werkelijke einddatum is rauw`, f.taskOf(id).time.actualFinish, '2027-06-21');
+  f.S().runCPM();
+  same(`${profile}: voltooide urentaak blijft op de werkdag`, f.span(id), ['2027-06-21T07:00', '2027-06-21T16:00']);
+}
+
 if (failures.length > 0) {
   for (const line of failures) console.log(`XX ${line}`);
   console.log(`check-docs-dagen-en-uren: ${failures.length} van ${checks} controles ROOD`);
