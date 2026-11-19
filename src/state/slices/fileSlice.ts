@@ -16,10 +16,9 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileData, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
-import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
-import { ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery } from '../ownFileReplace';
+import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -1487,35 +1486,30 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
 
   /**
-   * Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle, bij een document met een gebouwmodel. In het
-   * herstel in twee stappen (`replaceWithRecoveryPending`): eerst staat de komende versie in het herstelmanifest, dan
-   * schrijft de browser de buffer, vlak vóór `close()` volgt de tweede inhoudscontrole, en pas na `close()` wordt de
-   * geschreven versie de bron (`commitSavedDocument` met `prepared`). Kan het herstel de komende versie niet vastleggen
-   * (`'not-recorded'`: geen herstelronde, de herstelvraag bij de start nog open, of IndexedDB geweigerd), dan schrijft
-   * de app niet (knownbug 1764). Bij elke weigering of fout blijft het document zoals het was.
+   * Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle, bij een document met een gebouwmodel, via
+   * `replaceOwnHandleWithRecovery` (`ownFileReplace.ts`, ook de route van Automatisch opslaan, #804 stap 8): eerst staat
+   * de komende versie in het herstelmanifest, dan schrijft de browser de buffer, vlak vóór `close()` volgt de tweede
+   * inhoudscontrole, en pas na `close()` wordt de geschreven versie de bron (`commitSavedDocument` met `prepared`). Kan
+   * het herstel de komende versie niet vastleggen (`'not-recorded'`: geen herstelronde, de herstelvraag bij de start nog
+   * open, of IndexedDB geweigerd), dan schrijft de app niet (knownbug 1764). Bij elke weigering of fout blijft het
+   * document zoals het was.
    */
   const replaceOwnHandle = async (
     documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
     ref: Extract<FileRef, { kind: 'handle' }>, failureNoticeKey: string,
   ): Promise<boolean> => {
-    const expected = state.ifcSource!.bytes;
-    const seen: { refused?: Exclude<SourceTargetContent, 'same'>; committed?: boolean } = {};
+    let committed = false;
     try {
-      const outcome = await replaceWithRecoveryPending(documentId, prepared.sha256, {
-        replace: async () => {
-          if (refuseChangedDocumentWrite(state, write)) return false;
-          return replaceHandleWithBytes(ref, prepared.bytes, async () => {
-            const content = await sourceTargetContent(ref, expected);
-            if (content !== 'same') seen.refused = content;
-            return content === 'same';
-          // Knownbug 1896: de inhoud van het document, in de schrijflaag direct naast `close()` (review van #1027).
-          }, () => refuseChangedDocumentWrite(state, write));
-        },
-        commit: () => { seen.committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
+      const result = await replaceOwnHandleWithRecovery({
+        documentId, ref, prepared, source: state.ifcSource!.bytes,
+        stopBeforeWrite: () => refuseChangedDocumentWrite(state, write),
+        // Knownbug 1896: de inhoud van het document, in de schrijflaag direct naast `close()` (review van #1027).
+        refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
+        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
       });
-      if (outcome === 'replaced') return seen.committed === true;
-      if (outcome === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
-      else if (seen.refused) get().notify(ownTargetContentNotice(seen.refused));
+      if (result.code === 'replaced') return committed;
+      if (result.code === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
+      else if (result.code === 'target-changed') get().notify(ownTargetContentNotice(result.content));
       return false;
     } catch (err) {
       console.error('Save failed:', err);

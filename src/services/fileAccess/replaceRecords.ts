@@ -113,6 +113,12 @@ export async function whileReplaceRuns<T>(id: string, action: () => Promise<T>):
   try { return await action(); } finally { running.delete(id); }
 }
 
+/** #804 stap 8: staat er voor dit doel een record van een onderbroken vervanging (niet van een lopende in deze sessie)?
+ *  Een niet te lezen map telt als geen record (`list`). */
+export async function pendingReplaceFor(records: ReplaceRecordStore, path: string): Promise<boolean> {
+  return (await records.list()).some(record => record.path === path && !running.has(record.id));
+}
+
 export interface SettleOptions {
   /** Alleen de records voor dit doel (vóór het lezen van een lokaal pad); zonder: alle (bij de start). */
   path?: string;

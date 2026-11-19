@@ -5,6 +5,22 @@ let busy = false;
 let tail: Promise<void> = Promise.resolve();
 /** Hoeveel afsluitfasen de poort dicht houden (afsluiten en de updater kunnen elkaar overlappen). */
 let closers = 0;
+/** #804 stap 8: de rondes van Automatisch opslaan met een gebouwmodel die in de rij staan of lopen
+ *  (`runYieldingProjectFileWrite`). Elke andere vraag om de rij laat ze wijken. */
+const yielding = new Set<AbortController>();
+
+/** De reden waarmee een wijkende ronde afbreekt: een handmatige actie meldde zich. Geen fout. */
+export class YieldedToManualWrite extends Error {
+  constructor() {
+    super('Automatisch opslaan wijkt voor een handmatige actie.');
+    this.name = 'YieldedToManualWrite';
+  }
+}
+
+/** Besluit technisch beslisser, 19 november 2026: "Een handmatige actie gaat altijd voor." */
+function yieldBackgroundWrites(): void {
+  for (const controller of yielding) controller.abort(new YieldedToManualWrite());
+}
 
 export function isProjectFileWriteBusy(): boolean {
   return busy;
@@ -16,6 +32,9 @@ export function isProjectFileWriteBusy(): boolean {
  * updater wachten. Nooit aanroepen en afwachten binnen `runProjectFileWrite`: dan wacht de rij op zichzelf.
  */
 export function whenProjectFileWritesIdle(): Promise<void> | null {
+  // #804 stap 8: wie op de rij wacht (een tabblad sluiten, de laatste fase van afsluiten of de updater, een pad openen
+  // op de desktop), wacht niet op het rekenen van een ronde van Automatisch opslaan.
+  yieldBackgroundWrites();
   if (!busy) return null;
   const last = tail;
   return last.then(() => whenProjectFileWritesIdle() ?? undefined);
@@ -46,6 +65,29 @@ export async function closeProjectFileWrites(): Promise<() => void> {
  * opgeslagen gemarkeerd). Elke route kiest die uitkomst zelf, zodat een weigering nooit als mislukte opslag meldt.
  */
 export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
+  // #804 stap 8: een handmatige schrijfactie (Ctrl+S, Opslaan als, een export, ook van een ander tabblad) gaat voor.
+  yieldBackgroundWrites();
+  return enqueue(work, closed);
+}
+
+/**
+ * #804 stap 8: een ronde van Automatisch opslaan met een gebouwmodel, in dezelfde rij. `yielded` gaat af zodra een andere
+ * schrijfactie om de rij vraagt (`runProjectFileWrite`) of iemand op de rij wacht (`whenProjectFileWritesIdle`, ook
+ * `closeProjectFileWrites`), ook als de ronde zelf nog op haar beurt wacht. De ronde beslist zelf tot waar ze wijkt:
+ * zolang ze nog rekent of controleert, stopt ze zonder te schrijven; is het herstelrecord geschreven, dan loopt ze af en
+ * wacht de handmatige actie op haar beurt. Een gewone ronde (zonder gebouwmodel) gebruikt `runProjectFileWrite`.
+ */
+export async function runYieldingProjectFileWrite<T>(work: (yielded: AbortSignal) => Promise<T>, closed: () => T): Promise<T> {
+  const controller = new AbortController();
+  yielding.add(controller);
+  try {
+    return await enqueue(() => work(controller.signal), closed);
+  } finally {
+    yielding.delete(controller);
+  }
+}
+
+async function enqueue<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
   if (closers > 0) return closed();
   busy = true;
   let release: (() => void) | undefined;

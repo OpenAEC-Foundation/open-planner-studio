@@ -4,26 +4,36 @@
 // van die opslag. Het afhandelen na een crash loopt los daarvan (`settlePendingReplaces`, bij de start en vóór het lezen
 // van een lokaal pad). Keuze 4 (knownbug 1131 stap 8): *Opslaan als* over een andere bestaande naam gebruikt dezelfde
 // functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat bij het begin van de opslag op dat doel
-// stond.
+// stond. #804 stap 8: Automatisch opslaan gebruikt dezelfde twee vervangingen (`replaceOwnPathWithRecovery`, en
+// `replaceOwnHandleWithRecovery` voor de browser), met een eigen afhandeling van de uitkomsten (`fileAutoSave.ts`).
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
   linkedOwnFile, replaceHelpersGone, replaceOwnFileBytes, tauriOwnFileReplaceFs,
   type OwnFileReplaceFs, type OwnFileReplaceOutcome, type RemnantEvent,
 } from '@/services/fileAccess/ownFileReplace';
-import { tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore } from '@/services/fileAccess/replaceRecords';
+import {
+  pendingReplaceFor, tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore,
+} from '@/services/fileAccess/replaceRecords';
 import { userFileHelperId } from '@/services/fileAccess/atomicWrite';
-import type { RefuseBeforePlace } from '@/services/fileAccess';
+import { replaceHandleWithBytes, sourceTargetContent, type FileRef, type RefuseBeforePlace } from '@/services/fileAccess';
+import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
 import {
   IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE, IFC_FOREIGN_TARGET_CHANGED_NOTICE,
   IFC_FOREIGN_TARGET_GONE_NOTICE,
 } from './ifcForeignGuard';
+import { MODEL_AUTOSAVE_REMNANT_NOTICE } from './modelAutoSaveNotices';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
 export type OwnPathReplaceResult = OwnFileReplaceOutcome | { code: 'not-recorded' }
   /** `stopBeforeWrite` stopte de vervanging na de eerste herstelronde; niets in de projectmap aangeraakt. */
-  | { code: 'stopped' };
+  | { code: 'stopped' }
+  /** #804 stap 8, alleen Automatisch opslaan: `yieldBeforeRecord` gaf `true`; er is niets vastgelegd of geschreven. */
+  | { code: 'yielded' }
+  /** #804 stap 8, alleen met `refuseRemnant`: voor dit doel staat nog een herstelrecord van een eerdere, onderbroken
+   *  vervanging; er is niets vastgelegd of geschreven. */
+  | { code: 'remnant' };
 
 export interface OwnPathReplaceInput {
   documentId: string;
@@ -45,6 +55,12 @@ export interface OwnPathReplaceInput {
    *  `replaceOwnFileBytes`): hoort de opslag nog bij de inhoud van het document (`refuseChangedDocumentWrite`)? `true` =
    *  stoppen; het tijdelijke bestand en het record gaan langs het gewone opruimpad weg. Meldt zelf. */
   refuseBeforePlace: RefuseBeforePlace;
+  /** #804 stap 8, alleen Automatisch opslaan: vlak vóór het herstelrecord. `true` = wijken voor een handmatige actie
+   *  (uitkomst `yielded`). Daarna loopt de vervanging af. */
+  yieldBeforeRecord?: () => boolean;
+  /** #804 stap 8, alleen Automatisch opslaan: niet vervangen zolang er voor dit doel nog een herstelrecord van een eerdere,
+   *  onderbroken vervanging staat (uitkomst `remnant`). Ctrl+S gaat daar wel door (met een eigen id). */
+  refuseRemnant?: boolean;
   fs?: OwnFileReplaceFs;
   records?: ReplaceRecordStore;
   now?: Date;
@@ -67,6 +83,8 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
   const target = await linkedOwnFile(fs, input.path);
   if (target.linked) return { code: 'save-as-only', why: 'linked target' };
   const records = input.records ?? await tauriReplaceRecords();
+  if (input.refuseRemnant && await pendingReplaceFor(records, input.path)) return { code: 'remnant' };
+  if (input.yieldBeforeRecord?.()) return { code: 'yielded' };
   const id = userFileHelperId();
   return whileReplaceRuns(id, async () => {
     try {
@@ -106,6 +124,49 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
   });
 }
 
+export type OwnHandleReplaceResult = { code: 'replaced' } | { code: 'not-recorded' }
+  /** Op het doel staat niet meer precies de bron (vlak vóór `close()`); het bestand bleef ongemoeid. */
+  | { code: 'target-changed'; content: Exclude<SourceTargetContent, 'same'> }
+  /** `stopBeforeWrite` of `refuseBeforePlace` stopte de vervanging; het bestand bleef ongemoeid. */
+  | { code: 'stopped' };
+
+/**
+ * Knownbug 1131 stap 2: het eigen bestand achter een handle (browser) vervangen, bij een document met een gebouwmodel.
+ * In het herstel in twee stappen (`replaceWithRecoveryPending`): eerst staat de komende versie in het herstelmanifest,
+ * dan schrijft de browser de buffer (na `stopBeforeWrite`), vlak vóór `close()` volgt de tweede inhoudscontrole en
+ * daarna, zonder `await`, de laatste controle `refuseBeforePlace` (knownbug 1896); pas na `close()` volgt `commit`. Kan
+ * het herstel de komende versie niet vastleggen, dan schrijft de app niet (`not-recorded`, knownbug 1764). Binnen
+ * `runProjectFileWrite`. Een schrijf- of sluitfout gooit (`ByteWriteError`). Meldt niets; Ctrl+S (`fileSlice.ts`) en
+ * Automatisch opslaan (`fileAutoSave.ts`, #804 stap 8) kiezen hun eigen melding.
+ */
+export async function replaceOwnHandleWithRecovery(input: {
+  documentId: string;
+  ref: Extract<FileRef, { kind: 'handle' }>;
+  prepared: { bytes: Uint8Array; sha256: string };
+  /** Wat op het doel hoort te staan: de bron in het geheugen (`ifcSource.bytes`). */
+  source: Uint8Array;
+  /** Na het vastleggen in het herstelmanifest, vóór `createWritable()`: `true` = stoppen. */
+  stopBeforeWrite: () => boolean;
+  refuseBeforePlace: RefuseBeforePlace;
+  commit: () => void;
+}): Promise<OwnHandleReplaceResult> {
+  let changed: Exclude<SourceTargetContent, 'same'> | undefined;
+  const outcome = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
+    replace: async () => {
+      if (input.stopBeforeWrite()) return false;
+      return replaceHandleWithBytes(input.ref, input.prepared.bytes, async () => {
+        const content = await sourceTargetContent(input.ref, input.source);
+        if (content !== 'same') changed = content;
+        return content === 'same';
+      }, input.refuseBeforePlace);
+    },
+    commit: input.commit,
+  });
+  if (outcome === 'replaced') return { code: 'replaced' };
+  if (outcome === 'not-recorded') return { code: 'not-recorded' };
+  return changed ? { code: 'target-changed', content: changed } : { code: 'stopped' };
+}
+
 /** De meldingen bij een uitkomst; leeg bij een gewone geslaagde vervanging. */
 export function ownPathReplaceNotices(result: OwnPathReplaceResult, path: string): NotifyInput[] {
   switch (result.code) {
@@ -115,6 +176,8 @@ export function ownPathReplaceNotices(result: OwnPathReplaceResult, path: string
     ];
     case 'not-recorded': return [IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE];
     case 'stopped': return []; // `stopBeforeWrite` meldde zelf
+    case 'yielded': return []; // geen fout: een handmatige actie ging voor
+    case 'remnant': return [MODEL_AUTOSAVE_REMNANT_NOTICE];
     case 'target-changed': return [result.content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE];
     case 'save-as-only': return [refusalNotice({
       messageKey: 'notifications.ifcForeignReplaceSaveAsOnly', detail: result.why, dedupeKey: 'ifc-foreign-replace-save-as-only',
