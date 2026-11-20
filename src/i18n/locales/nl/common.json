@@ -367,6 +367,8 @@
     "ifcSaveWorkerFailed": "Het IFC-bestand is niet geschreven: het voorbereiden in de achtergrond is onderbroken. Je wijzigingen staan nog in de app. Probeer het opnieuw.",
     "ifcForeignNewTargetOnly": "Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geschreven. Kies een naam die nog niet bestaat.",
     "ifcForeignTargetOpenInTab": "Niet opgeslagen. Dit bestand staat open in een ander tabblad. Sluit dat tabblad of kies een andere naam.",
+    "exportTargetOpenInTab": "Niet geëxporteerd. Dit bestand staat open in een ander tabblad. Sluit dat tabblad of kies een andere naam.",
+    "exportTargetOpenDocument": "Niet geëxporteerd. Dit bestand staat open in een tabblad. Kies een andere naam, of sluit eerst dat tabblad.",
     "ifcForeignPlaceUnknown": "De app weet niet of het bestand goed is opgeslagen: tijdens het opslaan veranderde er iets in de map. Je wijzigingen staan nog in de app. Kijk of het bestand klopt, of sla opnieuw op onder een nieuwe naam.",
     "ifcForeignReplaceOtherVersion": "Een ander programma heeft {{file}} gewijzigd terwijl de app het opsloeg. Die versie is bewaard als {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Een eerdere opslag van {{file}} is niet afgemaakt. De planning die toen werd opgeslagen, staat in {{copy}}. Gooi dat bestand weg als je het niet meer nodig hebt.",

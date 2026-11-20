@@ -550,6 +550,37 @@ test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vla
   assertEq(again.overwritten, true, 'een bestaand bestand vervangen ⇒ overwritten:true');
 });
 
+// Knownbug 1907 (vervolg op #1022): met `overwrite: true` verving export_ifc het bestand van een ander open document
+// zonder melding; dat tabblad wees er nog naar. Nu dezelfde doelcontrole als Opslaan als in de app: geweigerd, ook via een
+// andere schrijfwijze van hetzelfde bestand. Het eigen bestand van het actieve document en een vrije naam blijven gewoon.
+test('export_ifc met overwrite: true over het bestand van een ander open document: geweigerd, doel bytegelijk (knownbug 1907)', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Tabblad B');
+  const other = `${HOME}/tabblad-b.ifc`;
+  const otherText = 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n';
+  files.set(other, otherText);
+  useAppStore.setState({ filePath: other });
+  S().newDocument();
+  loadSmallProject('Tabblad A');
+  const own = `${HOME}/tabblad-a.ifc`;
+  files.set(own, 'ISO-10303-21;\n');
+  useAppStore.setState({ filePath: own });
+  aliases.set(`${HOME}/Tabblad-B.ifc`, other);
+  for (const path of [other, `${HOME}/Tabblad-B.ifc`]) {
+    const error = await callErr('planner_export_ifc', { path, overwrite: true });
+    assertEq(error.code, 'VALIDATION', `${path}: het bestand van een ander open document ⇒ validatiefout`);
+    assert(error.error.includes('another open document') && error.error.includes('another path'),
+      `${path}: de Engelse fout zegt waarom en wat wel kan (${error.error})`);
+    assertEq(files.get(other), otherText, `${path}: het bestand van het andere document is bytegelijk`);
+  }
+  const ownExport = await callOk('planner_export_ifc', { path: own, overwrite: true });
+  assertEq(ownExport.overwritten, true, 'het eigen bestand van het actieve document: vervangen zoals main');
+  await callOk('planner_export_ifc', { path: `${HOME}/vrij.ifc` });
+  assert(files.get(`${HOME}/vrij.ifc`)?.startsWith('ISO-10303-21') === true, 'een vrije naam: geschreven');
+  assertEq(files.get(other), otherText, 'het bestand van het andere document blijft bytegelijk');
+});
+
 test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (knownbug 1026, review #872 ronde 3)', async () => {
   const fs = installFakeFs();
   resetToSingleEmptyDocument();

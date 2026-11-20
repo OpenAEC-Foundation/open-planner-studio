@@ -367,6 +367,8 @@
     "ifcSaveWorkerFailed": "The IFC file was not written: preparing it in the background was interrupted. Your changes are still in the app. Please try again.",
     "ifcForeignNewTargetOnly": "This IFC file can only be written to a new file name. Choose a name that does not exist yet.",
     "ifcForeignTargetOpenInTab": "Not saved. This file is open in another tab. Close that tab or choose another name.",
+    "exportTargetOpenInTab": "Not exported. This file is open in another tab. Close that tab or choose another name.",
+    "exportTargetOpenDocument": "Not exported. This file is open in a tab. Choose another name, or close that tab first.",
     "ifcForeignPlaceUnknown": "The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.",
     "ifcForeignReplaceOtherVersion": "Another program changed {{file}} while the app was saving it. That version has been kept as {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "An earlier save of {{file}} did not finish. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.",
