@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  latestReportSettings, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  latestReportSettings, legacyPeriodPatch, periodChoicePatch, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -40,12 +40,19 @@ import {
 } from './reportLayouts';
 import { useReportLayouts } from './useReportLayouts';
 import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/engine/reports/layoutReport';
+import { leavesOutsidePeriod, taskInPeriod, treeRowsInPeriod } from '@/engine/reports/reportPeriodRows';
+import type { ReportingPeriod } from '@/engine/reports/reportingPeriod';
+import { computeViewRows, type ViewRow } from '@/engine/view/visibleRows';
+import type { Task } from '@/types/task';
+import { evaluate } from '@/engine/view/filterEval';
+import { viewRowInputs } from '@/state/viewRows';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import { layoutIcon } from '@/components/viewControls/layoutIcons';
 import { ReportingPeriodField, useResolvedPeriod } from '@/components/panels/reports/ReportingPeriodField';
 import { useResourceTypeLabels } from '@/components/panels/reports/useResourceGanttLabels';
 import type { ResourceGanttReportOptions } from '@/utils/reportSettings';
 import { useReportColumnDomain } from './useReportColumnDomain';
+import { useDisplayDate } from '@/hooks/displayDate';
 import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, reportColumnsFromGrid, reportColumnsNeedBuild, resolveReportColumns } from './reportColumns';
 import type { PaperPick, PaperTarget } from './ReportPaperView';
 import { samePaperInfo, StudioPaper, type PaperInfo } from './StudioPaper';
@@ -86,8 +93,8 @@ const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM 
 /** Welke velden "Herstel standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   // De keuze (alle taken, weergave of layout; een oude `reportType: 'resourceGantt'` hoort bij de layout
-  // Resourcediagram) en de opties van het Resourcediagram.
-  tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
+  // Resourcediagram), het tijdvak en de opties van het Resourcediagram.
+  tasks: ['followView', 'layoutId', 'reportType', 'period', 'legacyResourcePeriod', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
   bars: ['showTaskNames', 'showBarDates', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
   page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
@@ -143,7 +150,9 @@ export function GanttReportStudio() {
   const calendar = useAppStore(s => s.calendar);
   const project = useAppStore(s => s.project);
   const viewRows = useAppStore(s => s.viewRows);
-  const viewGroup = useAppStore(s => s.view.group);
+  const view = useAppStore(s => s.view);
+  const viewGroup = view.group;
+  const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const scheduleStale = useAppStore(s => s.scheduleStale);
   // "Datums zoals opgeslagen": het rapport kent de cel "niet vastgelegd" niet. Dezelfde melding als boven de
   // andere rapporten zegt dat het papier de datums uit het bestand toont.
@@ -168,6 +177,7 @@ export function GanttReportStudio() {
   const fileBase = documentFileBase(project.name, projectCode);
   const rtl = RTL_LOCALES.includes(i18n.language as Locale);
   const listSep = t('studio.listSep');
+  const dd = useDisplayDate();
 
   // De rapportletter (#770). Meten en tekenen gebeuren op de letter die al geladen is; na een wissel
   // blijft het papier op de vorige letter staan tot de nieuwe geladen is (beide laders wijzen nooit af).
@@ -261,31 +271,74 @@ export function GanttReportStudio() {
   }, [layoutsLoaded, source, chosenLayout, remember]);
 
   const resourceOptions = settings.resourceGantt;
-  const resolvedPeriod = useResolvedPeriod(resourceOptions.period);
+  // Het tijdvak (#997) geldt voor elke bron, vóór groeperen en inklappen (zie `reportPeriodRows.ts`). Hele
+  // project = geen venster, dus het papier van vóór #997.
+  const resolvedPeriod = useResolvedPeriod(settings.period);
   const bandShape = chosenLayout ? resourceBandShape(chosenLayout.group) : null;
-  const periodWindow = bandShape && resourceOptions.period.preset !== 'project' ? resolvedPeriod : undefined;
+  const periodWindow = settings.period.preset !== 'project' ? resolvedPeriod : undefined;
+  // Een opslag van vóór #997 met een eigen layout als bron: de oude periode van het resourcediagram stond alleen op
+  // het papier als die layout op resource groepeert. Beslissen zodra de eigen layouts gelezen zijn.
+  // Een eigen keuze van een tijdvak wist de overgang in dezelfde schrijfactie (`choosePeriod`); hier beslist de
+  // nieuwste opslag met haar eigen bron, niet de stand van deze render.
+  const { legacyResourcePeriod } = settings;
+  useEffect(() => {
+    if (!layoutsLoaded || !legacyResourcePeriod) return;
+    const latest = latestReportSettings();
+    const latestSource = reportTaskSource(latest);
+    const latestLayout = latestSource.kind === 'layout' ? layouts.find(layout => layout.id === latestSource.id) : undefined;
+    const next = legacyPeriodPatch(latest, !!latestLayout && !!resourceBandShape(latestLayout.group));
+    if (next) remember(next);
+  }, [layoutsLoaded, legacyResourcePeriod, layouts, remember]);
+  const choosePeriod = useCallback(
+    (next: ReportingPeriod) => patch(periodChoicePatch(next), 'period'), [patch]);
   const noneLabel = tTask('structure.none');
   const resourceTypeLabels = useResourceTypeLabels();
   const locale = i18n.language;
-  const layoutRows = useMemo(() => (chosenLayout ? computeLayoutReportRows(chosenLayout, {
-    tasks,
-    ctx: { activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels },
-  }, {
+  const layoutCtx = useMemo(() => ({ activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels }),
+    [activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels]);
+  const layoutRows = useMemo(() => (chosenLayout ? computeLayoutReportRows(chosenLayout, { tasks, ctx: layoutCtx }, {
     includeUnassigned: resourceOptions.includeUnassigned, groupByType: resourceOptions.groupByType,
     window: periodWindow, locale, typeLabels: resourceTypeLabels,
-  }) : null), [chosenLayout, tasks, activityCodeTypes, customFieldDefs, resources, assignments, noneLabel,
-    resourceTypeLabels, resourceOptions.includeUnassigned, resourceOptions.groupByType, periodWindow, locale]);
-  const rowSource = useMemo<StudioRowSource>(() => (layoutRows ? {
-    rows: layoutRows.rows,
-    multiBand: layoutRows.multiBand,
-    resource: layoutRows.resource ? { result: layoutRows.resource, options: resourceOptions, window: periodWindow } : null,
-  } : {
-    // Zoals de weergave: precies de rijen van het scherm. Groepeert het scherm op resource, dan staan de
-    // relatielijnen ook hier uit, net als bij een layout.
-    rows: source.kind === 'view' ? viewRows : undefined,
-    multiBand: source.kind === 'view' && groupIsMultiBand(viewGroup),
-    resource: null,
-  }), [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup]);
+  }) : null), [chosenLayout, tasks, layoutCtx, resourceTypeLabels, resourceOptions.includeUnassigned,
+    resourceOptions.groupByType, periodWindow, locale]);
+  const { rowSource, outsidePeriod } = useMemo(() => {
+    const base: Omit<StudioRowSource, 'window'> = layoutRows ? {
+      rows: layoutRows.rows,
+      multiBand: layoutRows.multiBand,
+      resource: layoutRows.resource ? { result: layoutRows.resource, options: resourceOptions } : null,
+    } : {
+      // Zoals de weergave: precies de rijen van het scherm. Groepeert het scherm op resource, dan staan de
+      // relatielijnen ook hier uit, net als bij een layout.
+      rows: source.kind === 'view' ? viewRows : undefined,
+      multiBand: source.kind === 'view' && groupIsMultiBand(viewGroup),
+      resource: null,
+    };
+    if (!periodWindow) return { rowSource: { ...base, window: undefined }, outsidePeriod: 0 };
+    // Het resourcediagram filtert zelf en telt in zijn eigen blok (`counts.outsidePeriod`).
+    if (base.resource) return { rowSource: { ...base, window: periodWindow }, outsidePeriod: 0 };
+    // Een layout kreeg het tijdvak al mee. *Zoals de weergave* bouwt de rijen van het scherm opnieuw, met het
+    // tijdvak vóór groeperen en inklappen, zodat banden, tellingen en ingeklapte rijen alleen over het tijdvak gaan.
+    // De melding telt de bladtaken die het filter van de bron halen.
+    const within = (task: Task) => taskInPeriod(task, periodWindow);
+    let rows: ViewRow[];
+    let passes: ((leaf: Task) => boolean) | undefined;
+    if (chosenLayout && layoutRows) {
+      rows = layoutRows.rows;
+      const filter = chosenLayout.filter;
+      passes = filter ? leaf => evaluate(filter, leaf, layoutCtx) : undefined;
+    } else if (source.kind === 'view') {
+      const { opts, ctx } = viewRowInputs({
+        tasks, view, ui: { collapsedTaskIds }, activityCodeTypes, customFieldDefs, resources, assignments,
+      });
+      rows = computeViewRows(tasks, { ...opts, within }, ctx);
+      const filter = opts.filter;
+      passes = filter ? leaf => evaluate(filter, leaf, ctx) : undefined;
+    } else {
+      rows = treeRowsInPeriod(tasks, periodWindow);
+    }
+    return { rowSource: { ...base, rows, window: periodWindow }, outsidePeriod: leavesOutsidePeriod(tasks, periodWindow, passes) };
+  }, [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup, tasks, view, collapsedTaskIds,
+    activityCodeTypes, customFieldDefs, resources, assignments, chosenLayout, layoutCtx]);
   const multiBand = rowSource.multiBand;
   const resourceResult = rowSource.resource?.result ?? null;
   const fileName = `${fileBase}-${t(resourceResult ? 'fileSuffix.resourceGantt' : 'fileSuffix.gantt')}.pdf`;
@@ -569,9 +622,13 @@ export function GanttReportStudio() {
     paper: settings.paperSize,
     orientation: t(settings.orientation === 'landscape' ? 'studio.page.landscape' : 'studio.page.portrait').toLocaleLowerCase(i18n.language),
   });
-  const shownRows = layoutRows ? layoutRows.rows.length : source.kind === 'view' ? viewRows.length : tasks.length;
-  const rowsSummary = chosenLayout ? t('studio.tasks.summaryLayout', { layout: chosenLayout.name, count: shownRows })
+  const shownRows = rowSource.rows ? rowSource.rows.length : tasks.length;
+  const sourceSummary = chosenLayout ? t('studio.tasks.summaryLayout', { layout: chosenLayout.name, count: shownRows })
     : source.kind === 'view' ? t('studio.tasks.summaryView', { count: shownRows }) : t('studio.tasks.summaryAll', { count: shownRows });
+  // Met een tijdvak staat het ook in de samenvatting: dicht of ingeklapt moet je zien dat het papier niet alles toont.
+  const rowsSummary = periodWindow
+    ? [sourceSummary, `${dd.date(periodWindow.from)} – ${dd.date(periodWindow.to)}`].join(listSep)
+    : sourceSummary;
   // Bij een groepering waarin een taak onder meer banden staat, gelden de geforceerde waarden (zie
   // `useStudioPrintOptions`): geen relaties, Kritiek pad aan.
   const effectiveDeps = multiBand ? false : settings.showDeps;
@@ -734,6 +791,27 @@ export function GanttReportStudio() {
                 {t(layoutDiff.columns && layoutDiff.bars ? 'studio.tasks.layoutOwnBoth' : layoutDiff.columns ? 'studio.tasks.layoutOwnColumns' : 'studio.tasks.layoutOwnBars')}
               </StudioNotice>
             )}
+            <div className="flex flex-col gap-1.5" data-rs-period>
+              <ReportingPeriodField
+                id="rs-period"
+                value={settings.period}
+                onChange={choosePeriod}
+                onReselect={legacyResourcePeriod ? choosePeriod : undefined}
+                dataKey="ganttPeriod"
+                compact
+              />
+              {periodWindow && (
+                <>
+                  <p className="rs-hint">{t('studio.period.hint')}</p>
+                  {outsidePeriod > 0 && (
+                    <p className="rs-hint" data-rs-period-outside>{t('studio.period.outside', { count: outsidePeriod })}</p>
+                  )}
+                  <button type="button" className="ops-textlink self-start" onClick={() => choosePeriod({ preset: 'project' })} data-rs-period-all>
+                    {t('studio.period.showAll')}
+                  </button>
+                </>
+              )}
+            </div>
             {resourceResult && bandShape && (
               <StudioGroup label={t('studio.tasks.resourceGroup')}>
                 {RESOURCE_TOGGLES.map(key => {
@@ -751,13 +829,6 @@ export function GanttReportStudio() {
                     />
                   );
                 })}
-                <ReportingPeriodField
-                  id="rs-resource-period"
-                  value={resourceOptions.period}
-                  onChange={next => patchResourceOptions({ period: next }, 'period')}
-                  dataKey="resourceGanttPeriod"
-                  compact
-                />
                 <p className="rs-hint" data-rs-resource-counts>
                   {[
                     `${t('resourceGantt.resources')} ${resourceResult.counts.resources}`,

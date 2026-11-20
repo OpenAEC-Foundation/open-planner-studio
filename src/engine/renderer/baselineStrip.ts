@@ -45,6 +45,16 @@ export interface BaselineSpan {
 /** Plaats van één baseline op de tijdas: een strook of een mijlpaal. */
 export type BaselineSpanX = { kind: 'bar'; x1: number; x2: number } | { kind: 'milestone'; x: number; moment: string };
 
+/** Het begin van een baseline: een tijdstip (`hourMode`), of het begin van een dag. Voor een mijlpaal haar moment. */
+export function baselineStart(span: BaselineSpan): { date: Date; hourMode: boolean } | null {
+  const startStr = span.start || span.finish;
+  const finishStr = span.finish || span.start;
+  if (!startStr) return null;
+  const hourMode = startStr.includes('T') || finishStr.includes('T');
+  const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
+  return Number.isNaN(date.getTime()) ? null : { date, hourMode };
+}
+
 /**
  * Zet één baseline om naar x, met dezelfde regel als de taakbalk (`barGeometry` in de renderer):
  *  - datum mét tijd (urentaak, bv. een MSPDI-baseline van een urentaak): `[start, einde)` op het
@@ -61,12 +71,10 @@ export function baselineSpanX(
   dateToX: (date: Date) => number,
   dayWidth: number,
 ): BaselineSpanX | null {
-  const startStr = span.start || span.finish;
+  const begin = baselineStart(span);
+  if (!begin) return null;
+  const { date: start, hourMode } = begin;
   const finishStr = span.finish || span.start;
-  if (!startStr) return null;
-  const hourMode = startStr.includes('T') || finishStr.includes('T');
-  const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-  if (Number.isNaN(start.getTime())) return null;
   if (span.isMilestone) {
     // Moment: een tijdstip, of een hele dag (dagmijlpaal). Twee mijlpalen met hetzelfde moment delen een ruit.
     const moment = `${hourMode ? 'T' : 'D'}${start.getTime()}`;

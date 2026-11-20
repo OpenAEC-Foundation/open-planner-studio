@@ -34,13 +34,14 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 **Welke taken** — welke rijen op papier komen. Keuze uit *Alle taken*, *Zoals de weergave* en een layout. Standaard: *Alle taken*. Effect: *Alle taken* geeft de hele takenboom. *Zoals de weergave* neemt het filter, de groepering, de sortering, de ingeklapte groepen, de kolommen en de balkkleuren van je Gantt-diagram over. Een layout bepaalt de rijen met zijn filter, groepering en sortering; je Gantt-diagram verandert niet.
 
-**Per resource** — alleen bij een layout die op resource groepeert, zoals het meegeleverde *Resourcediagram*. Elke resource krijgt een eigen band, daaronder zijn taken op start. Het blok telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). De relatielijnen staan dan uit, want een taak kan onder meer banden staan, en *Kritiek pad* staat vast aan. Met deze vier schakelaars en de periode:
+**Rapportageperiode** — het tijdvak op papier, voor elke keuze bij *Welke taken*. Standaard: *Hele project*. Effect: alleen de taken die de periode raken, en de tijdas loopt exact over de periode; een balk of relatielijn die erbuiten doorloopt, wordt aan de rand afgekapt. Een fase blijft staan zolang een van haar taken erin valt. Eronder staat hoeveel taken buiten de periode vallen en de knop *Hele project tonen*. Is er niets in de periode, dan staat er *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
+
+**Per resource** — alleen bij een layout die op resource groepeert, zoals het meegeleverde *Resourcediagram*. Elke resource krijgt een eigen band, daaronder zijn taken op start. Het blok telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). De relatielijnen staan dan uit, want een taak kan onder meer banden staan, en *Kritiek pad* staat vast aan. Met deze vier schakelaars:
 
 - **Elke resource op een nieuwe pagina** — Standaard: uit. Effect: elke resource begint op een nieuwe pagina, zodat je een blad per ploeg of medewerker kunt uitdelen.
 - **Taken zonder resource meenemen** — Standaard: uit. Effect: de taken zonder resource komen als laatste band, om te zien wat nog niemand heeft.
 - **Groeperen op resourcetype** — Standaard: uit. Effect: eerst een band per resourcetype (arbeid, ploeg, onderaannemer, materieel, materiaal), daarbinnen per resource.
 - **Eenheden/dag en curve tonen** — Standaard: aan. Effect: de kolommen *Eenh./d* en *Curve* achter de taaknaam. Is er te weinig ruimte voor de tijdlijn, dan laat het rapport de kolommen weg en meldt *De kolommen Eenh./d en Curve zijn weggelaten: …*.
-- **Rapportageperiode** — Standaard: *Hele project*. Effect: alleen de taken die de periode raken, en de tijdas loopt exact over de periode. Is er niets in de periode, dan staat er *Geen taken in de rapportageperiode — kies een andere periode of Hele project.*
 
 ### Kolommen
 

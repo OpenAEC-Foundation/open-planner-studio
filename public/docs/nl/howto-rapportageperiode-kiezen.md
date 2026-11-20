@@ -4,7 +4,7 @@ Doel: bepalen over welk stuk van de tijd een rapport gaat, bijvoorbeeld de komen
 
 ## Wanneer je dit nodig hebt
 
-Het weekoverleg wil weten wat er de komende vier weken gebeurt. De maandrapportage gaat over juni. Zonder periode krijg je de hele planning op papier. Vijf rapporten werken daarom met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en het *Resourcediagram*. De andere rapporten hebben geen periode.
+Het weekoverleg wil weten wat er de komende vier weken gebeurt. De maandrapportage gaat over juni. Zonder periode krijg je de hele planning op papier. Vijf rapporten werken daarom met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en de *Gantt-afdruk*, ook met de layout *Resourcediagram*. De andere rapporten hebben geen periode.
 
 De periode hangt niet aan een kalendermaand, maar aan een **referentiedag**: de statusdatum van je project (de dag waarop je de voortgang peilt, zie [Voortgang bijwerken](docs://howto-voortgang-bijwerken)), of vandaag als het project geen statusdatum heeft. *Volgende 4 weken* telt vanaf die dag. Schuif je de statusdatum op, dan schuift het venster mee.
 
@@ -16,13 +16,13 @@ Werk je met een relatieve keuze, zoals *Volgende 4 weken* of *Afgelopen maand*, 
 
 ### 2. Kies een rapport met een periode
 
-Open het tabblad *Rapport* en kies bij *Rapporttype* een van de vier tabelrapporten met een periode. De keuzelijst *Rapportageperiode:* staat onder *Rapportopties*. Voor het Resourcediagram kies je de *Gantt-afdruk* met de layout *Resourcediagram*: de periode staat dan in de stap *Taken en groepering*, onder *Per resource*. Dat geldt ook voor een andere layout per resource.
+Open het tabblad *Rapport* en kies bij *Rapporttype* een van de vier tabelrapporten met een periode. De keuzelijst *Rapportageperiode:* staat onder *Rapportopties*. Bij de *Gantt-afdruk* staat *Rapportageperiode* in de stap *Taken en groepering*, onder de keuze van de rijen. Die periode geldt voor elke keuze daar: *Alle taken*, *Zoals de weergave* en elke layout, ook het *Resourcediagram*.
 
 Elk rapport onthoudt zijn eigen periode. Dit zijn de beginwaarden:
 
 - *Look-ahead*: *Volgende maand*.
 - *Voortgangsrapport*: *Afgelopen maand*.
-- *Resourcebelasting*, *Resourcetoewijzingen* en *Resourcediagram*: *Hele project*.
+- *Resourcebelasting*, *Resourcetoewijzingen* en *Gantt-afdruk*: *Hele project*.
 
 ### 3. Kies een periode uit de lijst
 
@@ -41,7 +41,7 @@ Bij *Aangepast* worden *Van* en *Tot* twee datumvelden. Ze beginnen met de datum
 
 ### 5. Lees de periode af in het rapport
 
-Bij de Look-ahead, de Resourcebelasting en de Resourcetoewijzingen staat de periode onder de titel, bijvoorbeeld *Periode: 20-05-2027 – 19-06-2027*. Kies je *Hele project*, dan staat er ook *Hele project* achter. Het Voortgangsrapport toont de periode in het overzicht bij *Periode*. Het Resourcediagram laat de tijdas exact over de periode lopen.
+Bij de Look-ahead, de Resourcebelasting en de Resourcetoewijzingen staat de periode onder de titel, bijvoorbeeld *Periode: 20-05-2027 – 19-06-2027*. Kies je *Hele project*, dan staat er ook *Hele project* achter. Het Voortgangsrapport toont de periode in het overzicht bij *Periode*. De Gantt-afdruk laat de tijdas exact over de periode lopen en noemt de periode in de dichte stap *Taken en groepering*.
 
 ### Wat de periode per rapport doet
 
@@ -51,13 +51,13 @@ De periode werkt niet in elk rapport hetzelfde.
 - **Voortgangsrapport** gebruikt de periode voor *Voltooid in de afgelopen periode*. De sectie *Start in de komende periode* kijkt vanaf de statusdatum vooruit, tot de datum bij *Vooruitblik t/m* in het overzicht. Kies je een *Afgelopen*-periode, dan kijkt het rapport even ver vooruit als het terugkijkt: bij *Afgelopen 2 weken* met statusdatum 20 mei staat er *Vooruitblik t/m* 3 juni. Een aangepaste periode of *Hele project* die helemaal in het verleden ligt, wordt niet gespiegeld.
 - **Resourcebelasting** toont elke week of maand die de periode raakt, in zijn geheel. Loopt je periode van woensdag tot woensdag, dan zie je dus hele weken, zodat een rij altijd hetzelfde getal toont als het histogram.
 - **Resourcetoewijzingen** toont de toewijzingen van activiteiten die de periode raken. Bij *Hele project* wordt er niet op datum gefilterd.
-- **Resourcediagram** toont alleen de taken die de periode raken. In het overzicht telt *Buiten de periode:* hoeveel taken zijn weggelaten.
+- **Gantt-afdruk** toont alleen de taken die de periode raken; een balk die buiten de periode doorloopt, wordt aan de rand afgekapt, net als een relatielijn. Een fase blijft staan zolang een van haar taken in de periode valt. Onder de keuze staat hoeveel taken buiten de periode vallen, met *Hele project tonen* om de hele planning terug te zetten. Bij het *Resourcediagram* telt *Buiten de periode:* in het overzicht hoeveel taken zijn weggelaten.
 
 ## Valkuilen en wat de app dan doet
 
-**Er is geen statusdatum.** De app rekent dan met vandaag. Bij de vier tabelrapporten met een periode (*Look-ahead*, *Voortgangsrapport*, *Resourcebelasting* en *Resourcetoewijzingen*) staat bij een relatieve periode bovenaan *Geen statusdatum ingesteld — het rapport rekent met vandaag (29-09-2026).*, met je eigen datum van vandaag. Het Resourcediagram meldt dit niet. Kijk dus naar *Van* en *Tot*: die staan dan rond vandaag, niet rond je planning.
+**Er is geen statusdatum.** De app rekent dan met vandaag. Bij de vier tabelrapporten met een periode (*Look-ahead*, *Voortgangsrapport*, *Resourcebelasting* en *Resourcetoewijzingen*) staat bij een relatieve periode bovenaan *Geen statusdatum ingesteld — het rapport rekent met vandaag (29-09-2026).*, met je eigen datum van vandaag. De Gantt-afdruk meldt dit niet. Kijk dus naar *Van* en *Tot*: die staan dan rond vandaag, niet rond je planning.
 
-**De periode ligt buiten je planning.** Dan is het rapport leeg. Het Resourcediagram zegt dat met *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Bij de andere rapporten zie je nul activiteiten of geen regels.
+**De periode ligt buiten je planning.** Dan is het rapport leeg. De Gantt-afdruk zegt dat met *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Bij de andere rapporten zie je nul activiteiten of geen regels.
 
 **De datums staan in je eigen notatie.** *Van* en *Tot* volgen de datumnotatie uit je instellingen, ook in de datumvelden van *Aangepast*. Je typt de datum of klikt hem aan in de kalender, net als bij de statusdatum (zie [Een datum invoeren](docs://howto-datum-invoeren)).
 

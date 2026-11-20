@@ -646,6 +646,12 @@
       "chart": "Bars and timeline",
       "footer": "Legend and footer",
       "page": "Page"
+    },
+    "period": {
+      "hint": "Only tasks in this period are in the report. The timeline covers exactly the period; a bar that runs beyond it is cut off at the edge.",
+      "showAll": "Show the whole project",
+      "outside_one": "{{count}} task falls outside the period and is not in the report.",
+      "outside_other": "{{count}} tasks fall outside the period and are not in the report."
     }
   },
   "customFont": {

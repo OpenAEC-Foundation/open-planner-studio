@@ -5,8 +5,9 @@ import type { ResourceGanttReportOptions, ReportSettings } from '@/utils/reportS
 
 /**
  * Waar de rijen van de afdruk vandaan komen (stap Taken, #861): `rows` (afwezig = alle taken als WBS-boom),
- * of een taak onder meer banden kan staan (dan geen relatielijnen), en bij een resourcegroepering de
- * uitkomst en opties van het oude rapporttype Resourcediagram.
+ * of een taak onder meer banden kan staan (dan geen relatielijnen), bij een resourcegroepering de
+ * uitkomst en opties van het oude rapporttype Resourcediagram, en het tijdvak (#997). Bij een tijdvak staan in
+ * `rows` al alleen de rijen die het raken.
  */
 export interface StudioRowSource {
   rows: ViewRow[] | undefined;
@@ -14,9 +15,9 @@ export interface StudioRowSource {
   resource: {
     result: ResourceGanttRowsResult;
     options: ResourceGanttReportOptions;
-    /** De rapportageperiode als tijdvenster; afwezig bij "Hele project". */
-    window: ResolvedPeriod | undefined;
   } | null;
+  /** Het tijdvak als tijdvenster; afwezig bij de hele planning. */
+  window: ResolvedPeriod | undefined;
 }
 
 /** De velden van `PrintOptions` die uit de rijenbron volgen. */
@@ -28,7 +29,8 @@ export type StudioRowPrintFields = Pick<PrintOptions,
  * rapporttype Resourcediagram (vóór #817) legt.
  * - Een taak onder meer banden: geen relatielijnen, en Kritiek pad aan. Dat vinkje kleurt alleen relatielijnen
  *   en de legendaregel; de balken blijven rood.
- * - Resourcegroepering: een blad per resource, de tijdas op de periode, de toewijzingskolommen.
+ * - Resourcegroepering: een blad per resource en de toewijzingskolommen.
+ * - Een tijdvak: de tijdas precies op het tijdvak, voor elke bron.
  */
 export function studioRowPrintFields(
   source: StudioRowSource,
@@ -41,7 +43,7 @@ export function studioRowPrintFields(
     showDeps: source.multiBand ? false : settings.showDeps,
     showCritical: source.multiBand ? true : settings.showCritical,
     pageBreakBeforeGroups: !!resource && resource.options.pageBreakPerResource,
-    timeWindow: resource?.window,
+    timeWindow: source.window,
     assignmentColumns,
     rowAssignments: resource?.result.assignmentByRowKey,
   };

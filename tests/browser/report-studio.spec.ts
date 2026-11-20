@@ -513,6 +513,34 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(rowSource).toEqual(['gantt', '', false]);
 
+  // Zelf het tijdvak kiezen (#997): van 21 tot en met 30 september. Fundering storten (7–18 september) valt erbuiten
+  // en staat niet op het papier; Wanden metselen loopt door tot 9 oktober en blijft, afgekapt aan de rand.
+  // "Hele project tonen" zet de hele planning in één klik terug.
+  const ganttPeriod = page.locator('[data-ops-report-period="ganttPeriod"]');
+  await page.getByLabel(/^(Reporting period|Rapportageperiode)$/).click();
+  await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
+  const fillPeriodDay = async (which: RegExp, day: string, month: string) => {
+    const parts = ganttPeriod.getByRole('group', { name: which }).getByRole('textbox');
+    await parts.nth(0).fill(day);
+    await parts.nth(1).fill(month);
+    await parts.nth(2).fill('2026');
+    await page.keyboard.press('Enter');
+  };
+  await fillPeriodDay(/^(From|Van)$/, '21', '09');
+  await fillPeriodDay(/^(To|Tot)$/, '30', '09');
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'custom', from: '2026-09-21', to: '2026-09-30' });
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ })).toHaveCount(0);
+  await expect(page0.locator('text', { hasText: /^Wanden metselen$/ }).first()).toBeAttached();
+  await expect(page.locator('[data-rs-period-outside]')).toHaveText(/1/);
+  // Dicht noemt de stap het tijdvak, zodat je ook zonder de stap te openen ziet dat het papier niet alles toont.
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await expect(page.locator('[data-rs-summary="tasks"]')).toContainText(/21.*30/);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-period-all]').click();
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'project' });
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
+  await expect(page.locator('[data-rs-period-all]')).toHaveCount(0);
+
   // Voet op elke pagina, ook als de tijdlijn over twee vellen loopt: één rij hoog en twee vellen breed krijgt op
   // beide vellen de volle voetstrook. Zonder de optie heeft geen vel een los voetvenster, wel kop en body.
   await openStep(page, 'page');
@@ -602,7 +630,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-head="tasks"]').click();
   await periodPicker.click();
   await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
-  const periodTo = page.locator('[data-ops-report-period="resourceGanttPeriod"]').getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
+  const periodTo = page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
   await periodTo.nth(0).fill('18');
   await periodTo.nth(1).fill('09');
   await periodTo.nth(2).fill('2026');
@@ -619,7 +647,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page0.locator('text', { hasText: /^Ploeg A \(1\)$/ }).first()).toBeAttached();
   await expect(page0.locator('text', { hasText: /^Kraan/ })).toHaveCount(0);
   expect(await saved()).toMatchObject({
-    reportType: 'gantt', layoutId: 'builtin:resource-diagram', resourceGantt: { period: { preset: 'custom', to: '2026-09-18' } },
+    reportType: 'gantt', layoutId: 'builtin:resource-diagram', period: { preset: 'custom', to: '2026-09-18' },
   });
   await periodPicker.click();
   await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
@@ -640,7 +668,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await writeStored({ resourceGantt: { ...(await saved()).resourceGantt, groupByType: true } });
   await page.locator('[data-rs-step="tasks"] [data-rs-reset="tasks"]').click();
   await expect.poll(async () => (await saved()).resourceGantt).toEqual({
-    pageBreakPerResource: false, includeUnassigned: false, groupByType: false, period: { preset: 'project' }, showAssignmentColumns: true,
+    pageBreakPerResource: false, includeUnassigned: false, groupByType: false, showAssignmentColumns: true,
   });
   expect(await rowSource()).toEqual(['gantt', '', false]);
   await page.locator('[data-rs-undo-button]').click();

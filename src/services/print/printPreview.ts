@@ -13,7 +13,7 @@ import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
-import { milestoneAnchorX, taskBarSpan } from '@/engine/renderer/barSpan';
+import { milestoneAnchorX, milestoneMoment, taskBarSpan, type TaskBarSpan } from '@/engine/renderer/barSpan';
 import { taskDateLabel } from '@/utils/taskDateLabel';
 import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
 import { snapToChoice } from '@/utils/numberChoice';
@@ -36,10 +36,11 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
+import { taskTreeRows } from '@/engine/reports/reportPeriodRows';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { baselineReach, type BaselineOverlay } from '@/types/baseline';
 import {
-  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, paintBaselineStrip, widenBars,
+  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStart, paintBaselineStrip, widenBars,
   type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from '@/engine/renderer/baselineStrip';
 
@@ -452,7 +453,7 @@ export interface PrintRow {
 /**
  * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (volg-weergave) tekent het rapport
  * precies die rijen — filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders:
- * de volledige takenboom (self-flatten), met wezen zonder gevonden ouder achteraan.
+ * de volledige takenboom (`taskTreeRows`), met wezen zonder gevonden ouder achteraan.
  * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
  */
 export function buildPrintRows(
@@ -461,38 +462,11 @@ export function buildPrintRows(
   rowAssignments?: ReadonlyMap<string, RowAssignment>,
 ): PrintRow[] {
   const printRows: PrintRow[] = [];
-  if (rows) {
-    for (const row of rows) {
-      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
-      // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
-      else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
-      else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
-    }
-    return printRows;
-  }
-  // Eén keer indexeren i.p.v. per taak `tasks.filter` + per taak `printRows.some`: dat was O(n²) en
-  // draait per render-venster (1–3 per pagina) plus bij meten — seconden per pagina bij 10k taken.
-  // Kindvolgorde = arrayvolgorde, dus dezelfde rijen als voorheen.
-  const childrenOf = new Map<string, Task[]>();
-  for (const t of tasks) {
-    if (!t.parentId) continue;
-    const list = childrenOf.get(t.parentId);
-    if (list) list.push(t);
-    else childrenOf.set(t.parentId, [t]);
-  }
-  const placed = new Set<string>();
-  const addRecursive = (task: Task, depth: number) => {
-    if (placed.has(task.id)) return;
-    placed.add(task.id);
-    printRows.push({ kind: 'task', task, depth });
-    for (const child of childrenOf.get(task.id) ?? []) addRecursive(child, depth + 1);
-  };
-  for (const root of tasks) if (!root.parentId) addRecursive(root, 0);
-  for (const task of tasks) {
-    if (!placed.has(task.id)) {
-      placed.add(task.id);
-      printRows.push({ kind: 'task', task, depth: 0 });
-    }
+  for (const row of rows ?? taskTreeRows(tasks)) {
+    if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
+    // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
+    else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
+    else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
   }
   return printRows;
 }
@@ -943,15 +917,15 @@ export interface PrintOptions {
    */
   timelineColumns?: number;
   /**
-   * OPTIONEEL — rapportageperiode als TIJDVENSTER (resourcediagram): de
-   * tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de gebruikelijke marge van
-   * 7/14 dagen, en balken, mijlpalen, speling, voortgang en baseline worden op de chartrand
-   * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd (ook de 3 px-
-   * minimumbreedte van een balk en het middelpunt van een ruit; relatiepijlen worden bij een
-   * venster helemaal niet getekend). Welke rijen in het
-   * venster horen beslist de rijenbron (`computeResourceGanttRows`), niet de render; een rij die
-   * er toch buiten valt tekent gewoon geen balk. Relatiepijlen worden niet geklemd: het venster
-   * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ geen venster.
+   * OPTIONEEL — het TIJDVAK van de Gantt-afdruk (#997; eerder alleen de rapportageperiode van het
+   * resourcediagram): de tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de
+   * gebruikelijke marge van 7/14 dagen, en balken, mijlpalen, speling, voortgang, baseline en
+   * relatielijnen worden op de chartrand afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf
+   * wordt geklemd (ook de 3 px-minimumbreedte van een balk en het middelpunt van een ruit; een
+   * relatielijn per recht stuk, een pijlpunt alleen als hij helemaal in het venster valt). Welke
+   * rijen in het venster horen beslist de rijenbron (`within` van `computeViewRows`, `treeRowsInPeriod` of `computeResourceGanttRows`
+   * bij het resourcediagram), niet de render; een rij die er toch buiten valt tekent gewoon geen
+   * balk. Afwezig ⇒ geen venster.
    */
   timeWindow?: { from: string; to: string };
   /**
@@ -1073,10 +1047,6 @@ export interface PrintOptions {
     criticalOutline: string;
     categoriesMore?: (n: number) => string;
   };
-}
-
-interface PrintTask extends Task {
-  _depth?: number;
 }
 
 /**
@@ -1350,11 +1320,11 @@ export function renderReport(
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen die
   // als samenvattings-strook tekenen.
   const printRows = buildPrintRows(tasks, options.rows, assignmentColumns ? options.rowAssignments : undefined);
-  const flatTasks: PrintTask[] = printRows
-    .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
-    .map(r => ({ ...r.task, _depth: r.depth }));
+  const printedTasks = printRows.flatMap(r => (r.kind === 'task' && r.task ? [r.task] : []));
 
-  if (flatTasks.length === 0) {
+  // Met een tijdvak kan er een ingeklapte groepsband zonder taakrij op papier staan (#997): dan is er wel iets te
+  // tekenen, en de tijdas komt uit het tijdvak.
+  if (printedTasks.length === 0 && !(options.timeWindow && printRows.length > 0)) {
     const d2d = makeDraw2D(600, 200);
     d2d.fillStyle = PRINT_COLORS.bg;
     d2d.fillRect(0, 0, 600, 200);
@@ -1375,8 +1345,7 @@ export function renderReport(
   // Compute date range
   let minMs = 8640000000000000;
   let maxMs = 0;
-  // Over de taken uit de store, niet over de kopieën in `flatTasks`: alleen een bevroren taak komt uit
-  // de cache van `taskDayRange`.
+  // Over de taken uit de store (een bevroren taak komt uit de cache van `taskDayRange`).
   for (const row of printRows) {
     if (row.kind !== 'task' || !row.task) continue;
     const days = taskDayRange(row.task);
@@ -1398,7 +1367,7 @@ export function renderReport(
     // Alleen de baselines van de afgedrukte taken; per taak hooguit drie opzoekingen.
     const reach = baselineReach(overlays.map(o => {
       const own: BaselineOverlay = new Map();
-      for (const t of flatTasks) { const e = o.get(t.id); if (e) own.set(t.id, e); }
+      for (const t of printedTasks) { const e = o.get(t.id); if (e) own.set(t.id, e); }
       return own;
     }));
     if (reach.earliest) { const d = parseDate(reach.earliest); if (d < minDate) minDate = d; }
@@ -1449,10 +1418,8 @@ export function renderReport(
   });
   // Tijdvenster zonder één werkdag (b.v. een weekend) op de gecomprimeerde as: de as zou dan naar
   // de eerstvolgende werkdag búiten het venster kleven. Val voor dít venster terug op de kalender-as.
-  let windowOnCalendarAxis = false;
   if (options.timeWindow && compressed && measureAxis.daySpan(minDate, maxDate) < 1) {
     compressed = false;
-    windowOnCalendarAxis = true;
     measureAxis = resolveGanttAxis({
       calendar: calEngine, compressNonWorkdays: false,
       origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
@@ -1475,6 +1442,18 @@ export function renderReport(
   // is dit de identiteit.
   const windowed = !!options.timeWindow;
   const clampX = (x: number) => (windowed ? Math.min(canvasWidth, Math.max(m.tableWidth, x)) : x);
+  // Tijdvenster: valt een stuk [start, einde) in de TIJD binnen het venster? Beslis dat niet op de geklemde x:
+  // op de werkdagas valt een stuk in niet-werktijd (een zondagtaak op een weekendkalender) tot één punt samen.
+  // Het hoort dan wel in het venster en krijgt de minimumbreedte, net als zonder venster.
+  const windowFromMs = minDate.getTime();
+  const windowToMs = maxDate.getTime();
+  const inWindowTime = (start: Date, endExclusive: Date) => endExclusive.getTime() > windowFromMs && start.getTime() < windowToMs;
+  const barInWindow = (bar: TaskBarSpan | null) => !!bar && inWindowTime(bar.start, bar.hourMode ? bar.end : addCalendarDays(bar.end, 1));
+  // Een mijlpaal: een tijdstip in [van, tot), of een dag die in het venster valt. Ook hier beslist de tijd: op de
+  // werkdagas valt een zondag samen met de rand, en het dagmidden ligt dan buiten het chartgebied.
+  const momentInWindow = (moment: { date: Date; hourMode: boolean } | null) => !!moment && (moment.hourMode
+    ? moment.date.getTime() >= windowFromMs && moment.date.getTime() < windowToMs
+    : inWindowTime(moment.date, addCalendarDays(moment.date, 1)));
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
   const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
 
@@ -1662,8 +1641,18 @@ export function renderReport(
     const statusUsesTime = isHourModeCalendar(calendar);
     const statusDay = parseDate(options.statusDate);
     const statusInstant = statusDateInstant(options.statusDate, statusUsesTime);
-    statusLineX = dateToX(statusInstant);
-    if (statusLineX > m.tableWidth && statusLineX < canvasWidth) {
+    const rawStatusX = dateToX(statusInstant);
+    // Bij een tijdvak beslist de datum, niet de x: op de werkdagas valt een zondag samen met de maandag erna, dus een
+    // statusdatum vlak vóór het tijdvak lag op de linkerrand en een zondag als laatste dag op de rechterrand. Een
+    // statusdatum in het tijdvak staat er altijd, op de rand geklemd. Zonder tijdvak de zichtbaarheidsregel van vandaag.
+    const statusVisible = windowed
+      ? momentInWindow({ date: statusUsesTime ? statusInstant : statusDay, hourMode: statusUsesTime })
+      : rawStatusX > m.tableWidth && rawStatusX < canvasWidth;
+    // Geklemd met de halve lijndikte (1,5) plus de halve tabelrand (1) naar binnen: de tabel en haar rand worden ná
+    // de lijn getekend en overschilderden een lijn precies op de rand (statusdatum op de eerste dag).
+    const statusInset = 1.25;
+    statusLineX = windowed ? Math.min(canvasWidth - statusInset, Math.max(m.tableWidth + statusInset, rawStatusX)) : rawStatusX;
+    if (statusVisible) {
       drawStatusReferenceLine = () => {
         d2d.strokeStyle = PRINT_COLORS.today;
         d2d.lineWidth = 1.5;
@@ -1798,12 +1787,11 @@ export function renderReport(
       const x = milestoneAnchorX(task, dateToX, zoom) ?? Number.NaN;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
-      // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
-      // rand wordt met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of
-      // over de rechterrand hangt.
-      // Middelpunt buiten het chartgebied ⇒ niet tekenen (een naar binnen geklemde ruit zou
-      // een dag suggereren waarop de mijlpaal niet valt).
-      const inWindow = !windowed || (x >= m.tableWidth && x <= canvasWidth);
+      // Tijdvenster: valt het moment van de mijlpaal buiten het venster, dan geen ruit (een naar binnen
+      // geklemde ruit zou een dag suggereren waarop ze niet valt). Valt het erin, dan wordt een ruit op de
+      // rand met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of over de
+      // rechterrand hangt; op de werkdagas ligt een zondag op de rand en haar dagmidden erbuiten.
+      const inWindow = !windowed || momentInWindow(milestoneMoment(task));
       const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
       if (inWindow) {
@@ -1835,11 +1823,19 @@ export function renderReport(
       const rawX1 = bar?.x1 ?? Number.NaN;
       const rawX2 = bar?.x2 ?? Number.NaN;
       // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
-      // een echt begin/einde suggereren). Valt de hele haak buiten het venster, dan niets.
+      // een echt begin/einde suggereren). Valt de hele haak in de tijd buiten het venster, dan niets.
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
-      if (windowed && x2 <= x1) continue;
-      const width = Math.max(x2 - x1, 3);
+      if (windowed && !barInWindow(bar)) continue;
+      // Bij een venster dezelfde minimumbreedte als een gewone balk: naar binnen geschoven, niet afgeknepen. De
+      // haakjes blijven ook binnen het chartgebied.
+      let sx1 = x1;
+      let width = windowed ? x2 - x1 : Math.max(x2 - x1, 3);
+      if (windowed && width < 3) {
+        width = Math.min(3, canvasWidth - m.tableWidth);
+        sx1 = Math.max(m.tableWidth, Math.min(x1, canvasWidth - width));
+      }
+      const hook = windowed ? Math.min(6, canvasWidth - sx1, sx1 + width - m.tableWidth) : 6;
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
 
@@ -1849,15 +1845,15 @@ export function renderReport(
       const sumCompletion = options.showCompletion ? Math.max(0, Math.min(1, task.time.completion || 0)) : 0;
       const sumProgressX = sumCompletion >= 1 ? Infinity : sumCompletion > 0 ? rawX1 + (rawX2 - rawX1) * sumCompletion : -Infinity;
       const sumGrey = doneBarTones(PRINT_COLORS.summary, false).fill;
-      paintProgressBarPiece(d2d, x1, x1 + width, barY, barH, 0, PRINT_COLORS.summary, sumProgressX, false);
+      paintProgressBarPiece(d2d, sx1, sx1 + width, barY, barH, 0, PRINT_COLORS.summary, sumProgressX, false);
 
       // Left triangle
       d2d.fillStyle = sumCompletion > 0 ? sumGrey : PRINT_COLORS.summary;
       if (x1 === rawX1) {
         d2d.beginPath();
-        d2d.moveTo(x1, barY);
-        d2d.lineTo(x1, barY + barH + 5);
-        d2d.lineTo(x1 + 6, barY + barH);
+        d2d.moveTo(sx1, barY);
+        d2d.lineTo(sx1, barY + barH + 5);
+        d2d.lineTo(sx1 + hook, barY + barH);
         d2d.closePath();
         d2d.fill();
       }
@@ -1866,16 +1862,16 @@ export function renderReport(
       d2d.fillStyle = sumCompletion >= 1 ? sumGrey : PRINT_COLORS.summary;
       if (x2 === rawX2) {
         d2d.beginPath();
-        d2d.moveTo(x1 + width, barY);
-        d2d.lineTo(x1 + width, barY + barH + 5);
-        d2d.lineTo(x1 + width - 6, barY + barH);
+        d2d.moveTo(sx1 + width, barY);
+        d2d.lineTo(sx1 + width, barY + barH + 5);
+        d2d.lineTo(sx1 + width - hook, barY + barH);
         d2d.closePath();
         d2d.fill();
       }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
       if (wantBarLabel) {
-        barLabelJobs.push(barLabel(task, { barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true }));
+        barLabelJobs.push(barLabel(task, { barRightX: sx1 + width, barLeftX: sx1, y: y + barHeight / 2 + m.s(3), bold: true }));
       }
     } else {
       // Normal task bar, met de balkgrenzen van het scherm (`taskBarSpan`): met momenten van het startmoment
@@ -1887,11 +1883,11 @@ export function renderReport(
       const rawX2 = bar?.x2 ?? Number.NaN;
       const width = Math.max(rawX2 - rawX1, 3);
       // Tijdvenster: de balkuiteinden geklemd op het chartgebied; de voortgangsgrens en de
-      // speling hieronder klemmen op dezelfde manier. Een balk die helemaal buiten het venster
-      // valt tekent niets (ook geen label).
+      // speling hieronder klemmen op dezelfde manier. Een balk die in de tijd helemaal buiten het
+      // venster valt tekent niets (ook geen label).
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
-      if (windowed && x2 <= x1) continue;
+      if (windowed && !barInWindow(bar)) continue;
 
       // Kleurmodi en onderbroken balken zijn onafhankelijke dimensies: dezelfde
       // kleurverhouding komt terug in elk werkblok van één taak.
@@ -1904,20 +1900,28 @@ export function renderReport(
         ? taskSplitSegments(task, effectiveCalendarOf(task, calendar, options.calendars ?? []), options.workdayDurationMeasure ?? true)
           ?? [{ start, end }]
         : [{ start, end }];
-      const segs = segments.map((s, i) => {
+      const allSegs = segments.map((s, i) => {
         const rx1 = i === 0 ? rawX1 : dateToX(s.start);
         const rx2 = i === segments.length - 1 ? rawX2 : dateToX(s.end);
         return { rx1, rx2, x1: clampX(rx1), x2: clampX(rx2) };
-      }).filter(s => !windowed || s.x2 > s.x1);
-      const split = segs.length > 1;
+      });
+      // Bij één stuk besliste `barInWindow` al; een werkblok van een onderbroken balk telt in de tijd.
+      const segs = allSegs.filter((s, i) => !windowed || segments.length === 1 || s.x2 > s.x1 || inWindowTime(segments[i].start, segments[i].end));
+      const split = allSegs.length > 1;
 
+      // De verbindingslijn loopt van het eerste tot het laatste werkblok van de hele taak, en wordt bij een venster
+      // apart afgekapt: een tijdvak dat in een onderbreking begint of eindigt, houdt het zichtbare stuk ervan.
       if (split) {
-        d2d.strokeStyle = baseColor + '80';
-        d2d.lineWidth = 1;
-        d2d.beginPath();
-        d2d.moveTo(segs[0].x2, y + barHeight / 2);
-        d2d.lineTo(segs[segs.length - 1].x1, y + barHeight / 2);
-        d2d.stroke();
+        const lineFrom = allSegs[0].x2;
+        const lineTo = allSegs[allSegs.length - 1].x1;
+        if (!windowed || lineTo > lineFrom) {
+          d2d.strokeStyle = baseColor + '80';
+          d2d.lineWidth = 1;
+          d2d.beginPath();
+          d2d.moveTo(lineFrom, y + barHeight / 2);
+          d2d.lineTo(lineTo, y + barHeight / 2);
+          d2d.stroke();
+        }
       }
 
       // Voortgang zoals op het scherm (één tekenregel, `paintProgressBarPiece`): het voltooide deel
@@ -2002,7 +2006,7 @@ export function renderReport(
         const pos = baselineSpanX(entry, dateToX, zoom);
         if (!pos) continue;
         if (pos.kind === 'milestone') {
-          if (!windowed || (pos.x >= m.tableWidth && pos.x <= canvasWidth)) milestones.push({ slot: layer.slot, x: pos.x, moment: pos.moment });
+          if (!windowed || momentInWindow(baselineStart(entry))) milestones.push({ slot: layer.slot, x: clampX(pos.x), moment: pos.moment });
           continue;
         }
         // Echte grenzen, ook in een rapportvenster: de lijnen delen de hoogte zoals op het scherm, en
@@ -2037,9 +2041,8 @@ export function renderReport(
   // In de vector-PDF staat tekst sowieso boven alle vormen (vormen gaan in het gedeelde
   // Form-XObject, tekst wordt daarná per tegel geëmit); deze volgorde brengt de RASTER-preview
   // daarmee in lijn, want die twee horen WYSIWYG te zijn.
-  // Bij een tijdvenster worden relaties nooit getekend: `drawDependencies` klemt niet, en het
-  // venster wordt alleen op het resourcediagram aangeboden, dat sowieso geen relaties tekent.
-  if (options.showDeps && !windowed) {
+  // Bij een tijdvenster kapt `drawDependencies` elke lijn af op het chartgebied (#997).
+  if (options.showDeps) {
     // Volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
     // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
     // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus zijn alle taken
@@ -2050,7 +2053,8 @@ export function renderReport(
       if (r.kind === 'task' && r.task) { rowIndexOf.set(r.task.id, idx); tasksById.set(r.task.id, r.task); }
     });
     drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf,
-      win ? (lo, hi) => rowDrawn(lo) || rowDrawn(hi) || (rowToY(lo) < win.y1 + m.rowHeight && rowToY(hi) + m.rowHeight > win.y0 - m.rowHeight) : undefined);
+      win ? (lo, hi) => rowDrawn(lo) || rowDrawn(hi) || (rowToY(lo) < win.y1 + m.rowHeight && rowToY(hi) + m.rowHeight > win.y0 - m.rowHeight) : undefined,
+      windowed ? [m.tableWidth, canvasWidth] : undefined);
   }
 
   for (const job of barLabelJobs) {
@@ -2065,7 +2069,8 @@ export function renderReport(
   // ---- TIMELINE HEADER ----
   drawTimelineHeader(
     d2d, m, canvasWidth, minDate, calendarDays, timelineDates, compressed, zoom, dateToX, options,
-    todayVisible ? todayX : null, statusLineX, windowOnCalendarAxis, isHourModeCalendar(calendar),
+    // Bij een tijdvak ook de weekenddagcijfers: anders zijn een afdruk van alleen zaterdag en van alleen zondag gelijk.
+    todayVisible ? todayX : null, statusLineX, !!options.timeWindow, isHourModeCalendar(calendar),
   );
 
   // ---- TASK TABLE ----
@@ -2740,6 +2745,8 @@ function drawDependencies(
   rowIndexOf: Map<string, number>,
   /** Rijvenster: tekent de relatie tussen de rijen `lo` en `hi` (lo ≤ hi)? Ontbreekt ⇒ alles. */
   spanDrawn?: (lo: number, hi: number) => boolean,
+  /** Tijdvenster: de x-grenzen van het chartgebied; elke lijn wordt daarop afgekapt. Ontbreekt ⇒ niet afkappen. */
+  clipX?: readonly [number, number],
 ) {
   d2d.lineWidth = 1.2;
 
@@ -2810,31 +2817,26 @@ function drawDependencies(
     //    "omheen" via de rijgoot: de horizontale scheiding tussen twee rijen (bovenrand van de
     //    opvolger-rij als die eronder ligt, onderrand als hij erboven ligt), een paar px de rij in
     //    zodat de lijn nét naast de rasterlijn valt.
-    d2d.beginPath();
     // Voorwaarts (knik volstaat) als `outX` ruim buiten de opvolgerbalk ligt aan de aankomstkant:
     // bij start-aankomst (dirIn −1) rechts ervan, bij finish-aankomst (dirIn +1) links ervan.
+    let route: [number, number][];
     if ((outX - toX) * dirIn >= DEP_STUB) {
-      d2d.moveTo(fromX, predY);
-      d2d.lineTo(outX, predY);
-      d2d.lineTo(outX, succY);
-      d2d.lineTo(toX, succY);
+      route = [[fromX, predY], [outX, predY], [outX, succY], [toX, succY]];
     } else {
       const gutterInset = 2;
       const gutterY = succIdx > predIdx
         ? rowToY(succIdx) + gutterInset            // opvolger eronder ⇒ goot = bovenrand opvolger-rij
         : rowToY(succIdx) + m.rowHeight - gutterInset; // opvolger erboven ⇒ goot = onderrand opvolger-rij
       const inX = toX + dirIn * DEP_STUB;
-      d2d.moveTo(fromX, predY);
-      d2d.lineTo(outX, predY);
-      d2d.lineTo(outX, gutterY);
-      d2d.lineTo(inX, gutterY);
-      d2d.lineTo(inX, succY);
-      d2d.lineTo(toX, succY);
+      route = [[fromX, predY], [outX, predY], [outX, gutterY], [inX, gutterY], [inX, succY], [toX, succY]];
     }
-    d2d.stroke();
+    if (!strokeRoute(d2d, route, clipX)) continue;
 
     // Arrowhead (filled triangle) — een `fill` negeert het dash-patroon, dus ook een niet-bepalende
-    // relatie houdt een massieve pijlpunt (net als op het scherm).
+    // relatie houdt een massieve pijlpunt (net als op het scherm). Bij een tijdvenster alleen als hij
+    // er helemaal in valt: een halve pijlpunt aan de rand wijst nergens heen.
+    const headX = toX + dirIn * 5;
+    if (clipX && (Math.min(toX, headX) < clipX[0] || Math.max(toX, headX) > clipX[1])) continue;
     d2d.beginPath();
     d2d.moveTo(toX, succY);
     d2d.lineTo(toX + dirIn * 5, succY - 3);
@@ -2849,6 +2851,39 @@ function drawDependencies(
   d2d.setLineDash([]);
 }
 
+
+/**
+ * Tekent een relatieroute: een reeks rechte stukken, elk horizontaal of verticaal. Met `clipX` (tijdvenster) wordt
+ * elk stuk op [x0, x1] afgekapt: een verticaal stuk erbuiten valt weg, een horizontaal stuk wordt ingekort. Waar
+ * de route het venster verlaat en weer binnenkomt, begint een nieuw subpad. Geeft `false` als er niets in het
+ * venster viel (dan ook geen pijlpunt).
+ */
+function strokeRoute(d2d: Draw2D, route: readonly [number, number][], clipX: readonly [number, number] | undefined): boolean {
+  d2d.beginPath();
+  let pen: [number, number] | null = null;
+  let drawn = false;
+  for (let i = 1; i < route.length; i++) {
+    let [ax, ay] = route[i - 1];
+    let [bx, by] = route[i];
+    if (clipX) {
+      const [lo, hi] = clipX;
+      if (ax === bx) {
+        if (ax < lo || ax > hi) continue;
+      } else {
+        const l = Math.max(lo, Math.min(ax, bx));
+        const r = Math.min(hi, Math.max(ax, bx));
+        if (l > r) continue;
+        if (ax < bx) { ax = l; bx = r; } else { ax = r; bx = l; }
+      }
+    }
+    if (!pen || !Object.is(pen[0], ax) || !Object.is(pen[1], ay)) d2d.moveTo(ax, ay);
+    d2d.lineTo(bx, by);
+    pen = [bx, by];
+    drawn = true;
+  }
+  if (drawn) d2d.stroke();
+  return drawn;
+}
 
 /** Draw the footer with project info, legend, and page number */
 function drawFooter(

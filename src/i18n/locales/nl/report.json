@@ -646,6 +646,12 @@
       "chart": "Balken en tijdlijn",
       "footer": "Legenda en voet",
       "page": "Pagina"
+    },
+    "period": {
+      "hint": "Alleen taken in deze periode staan in het rapport. De tijdlijn loopt precies over de periode; een balk die erbuiten doorloopt, wordt aan de rand afgekapt.",
+      "showAll": "Hele project tonen",
+      "outside_one": "{{count}} taak valt buiten de periode en staat niet in het rapport.",
+      "outside_other": "{{count}} taken vallen buiten de periode en staan niet in het rapport."
     }
   },
   "customFont": {

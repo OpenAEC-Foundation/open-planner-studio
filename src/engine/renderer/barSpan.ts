@@ -57,10 +57,16 @@ export function taskBarSpan(task: Task, dateToX: (date: Date) => number, zoom: n
  * startmijlpaal op het dagbegin, een eindmijlpaal op het dageinde, anders midden in de dag.
  */
 export function milestoneAnchorX(task: Task, dateToX: (date: Date) => number, zoom: number): number | null {
+  const moment = milestoneMoment(task);
+  if (!moment) return null;
+  const anchor = moment.hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
+  return dateToX(moment.date) + anchor;
+}
+
+/** Het moment van een mijlpaal: een tijdstip, of het begin van haar dag (`hourMode` onwaar). */
+export function milestoneMoment(task: Task): { date: Date; hourMode: boolean } | null {
   const startStr = shownStart(task) || shownFinish(task);
   if (!startStr) return null;
   const hourMode = startStr.includes('T');
-  const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
-  const anchor = hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
-  return dateToX(date) + anchor;
+  return { date: hourMode ? parseInstant(startStr) : parseDate(startStr), hourMode };
 }

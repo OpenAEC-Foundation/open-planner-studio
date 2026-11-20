@@ -34,13 +34,14 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Which tasks** — which rows go on paper. Choose from *All tasks*, *As in the view* and a layout. Default: *All tasks*. Effect: *All tasks* gives the whole task tree. *As in the view* takes the filter, grouping, sorting, collapsed groups, columns and bar colours of your Gantt chart. A layout sets the rows with its filter, grouping and sorting; your Gantt chart does not change.
 
-**Per resource** — only with a layout that groups by resource, like the built-in *Resource diagram*. Each resource gets its own band, with its tasks below it by start. The block counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The relation lines are then off, because a task can appear under more than one band, and *Critical path* stays on. With these four switches and the period:
+**Reporting period** — the time span on paper, for every choice at *Which tasks*. Default: *Project duration*. Effect: only the tasks that touch the period, and the time axis runs exactly over the period; a bar or relation line that runs beyond it is cut off at the edge. A phase stays as long as one of its tasks falls in it. Below it says how many tasks fall outside the period, with the button *Show the whole project*. If nothing is in the period, it says *No tasks in the reporting period — choose another period or Project duration.* See [Choosing the reporting period](docs://howto-rapportageperiode-kiezen).
+
+**Per resource** — only with a layout that groups by resource, like the built-in *Resource diagram*. Each resource gets its own band, with its tasks below it by start. The block counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The relation lines are then off, because a task can appear under more than one band, and *Critical path* stays on. With these four switches:
 
 - **Each resource on a new page** — Default: off. Effect: each resource starts on a new page, so you can hand out one sheet per crew or employee.
 - **Include tasks without a resource** — Default: off. Effect: the tasks without a resource come as the last band, to see what nobody has yet.
 - **Group by resource type** — Default: off. Effect: first a band per resource type (labour, crew, subcontractor, equipment, material), within it per resource.
 - **Show units/day and curve** — Default: on. Effect: the *Units/d* and *Curve* columns after the task name. If there is too little room for the timeline, the report leaves the columns out and says *The Units/d and Curve columns were left out: …*.
-- **Reporting period** — Default: *Project duration*. Effect: only the tasks that touch the period, and the time axis runs exactly over the period. If nothing is in the period, it says *No tasks in the reporting period — choose another period or Project duration.*
 
 ### Columns
 
