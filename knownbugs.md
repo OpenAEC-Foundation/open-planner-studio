@@ -5090,13 +5090,18 @@ en noem het in je rapport of PR-tekst.
      nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
      doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
 
-1940. **VERVOLG (review #1074, test): de proef van #1050 toetst geen regelafbreking en geen glyphplaatsing.**
-     `check-custom-report-font.ts` deel G leest uit de echte PDF de tekst (ToUnicode) en de breedte van de door GSUB
-     gekozen glyphs (`/W`) terug, voor Noto Sans Coptic en Carlito. Niet getoetst: een naam die precies op de grens van
-     zijn kolom afbreekt of afkapt (de meting telt advance-breedtes zonder GSUB op, de PDF tekent de glyphs van
-     `layout`), en de plaats van elke glyph op het blad. Voorstel: een rij op de kolomgrens met een ligatuur en met
-     een Koptische afkorting, en de getekende breedte uit `/W` naast de meting leggen. Review #1074 ronde 1
-     (GPT-6.2-Sol, xhigh). — B (code)
+1940. **VERVOLG (review #1074, test): de proef van #1050 toetst geen regelafbreking, geen verticale offset en geen
+     kerning.** `check-custom-report-font.ts` deel G leest uit de echte PDF de tekst (ToUnicode), de breedte van de door
+     GSUB gekozen glyphs (`/W`) en de x van elke glyph (G6) terug, voor Noto Sans Coptic en Carlito. Niet getoetst:
+     - een naam die precies op de grens van zijn kolom afbreekt of afkapt (de meting telt advance-breedtes zonder GSUB
+       op, de PDF tekent de glyphs van `layout`);
+     - een verticale GPOS-offset: G6 toetst alleen horizontale offsets;
+     - kerning: G6 rekent met de nominale breedtes van de tekenaar (`/W`), niet met die van fontkit. Bij `A̅V` in
+       Liberation Serif staat de V 264 fonteenheden verder dan fontkit met kerning berekent; dat zat al op main
+       (de PDF en de meting negeren kerning allebei).
+     Voorstel: een rij op de kolomgrens met een ligatuur en met een Koptische afkorting, de getekende breedte uit `/W`
+     naast de meting; een proef met een verticale offset; en een regel met kerning plus een bovenstreep. Review #1074
+     ronde 1 en 3 (GPT-6.2-Sol, xhigh). — B (code)
 
 1941. **VERVOLG (review #1074): een andere leesfout van fontkit maakt de PDF nog stil raster.** Sinds #1050 leest
      fontkit 3 de GSUB-regel van type 8, maar elke andere fout in `layout` of bij het inbedden (bijvoorbeeld een
@@ -5119,3 +5124,15 @@ en noem het in je rapport of PR-tekst.
      gemengde tekst van rechts naar links missen de Koptische bovenstrepen hun ToUnicode (het glyph-voor-glyph-pad
      van de shaping, zie 934). Richting van de reviewer: ActualText per tekstcluster. Review #1074 ronde 2
      (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+
+1944. **VERVOLG (review #1074 ronde 3): het paginanummer kiest te vroeg Helvetica.** `paginateVector.ts` (rond regel
+     420, `pageNumberFont`) eist dat de rapportletter alle tien cijfers, de spatie en `/` heeft. Een letter met alleen
+     `1`, spatie en `/` dekt `1 / 1` volledig, maar het nummer komt toch in Helvetica. Richting van de reviewer: toets
+     de cijfers die werkelijk voorkomen in 1 tot en met het aantal bladen, of leg vast dat alle tien cijfers nodig zijn.
+     Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)
+
+1945. **VERVOLG (review #1074 ronde 3, opruimen): de paginavoet leest de rapportletter dubbel.** Voor het
+     paginanummer maakt `paginateVector.ts` een tweede fontkit-letter uit dezelfde bytes (`fontkit.create`), en per
+     label doet pdf-lib twee layouts (`widthOfTextAtSize` en `encodeText`). Richting van de reviewer: de ingebedde
+     letter en dezelfde layout gebruiken als de rapporttekst (`layoutPdfText`); dan kan ook de vervanging van
+     `encodeText` in `embedReportFont.ts` weg. Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)
