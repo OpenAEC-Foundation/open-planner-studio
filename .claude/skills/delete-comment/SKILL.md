@@ -57,9 +57,6 @@ gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test 
 `tests/`). Is er geen test, dan neem je de regel op onder *Gevolgen* van de ADR van dat onderwerp. Een ontbrekende
 test is geen punt voor `knownbugs.md`.
 
-Een bronvermelding van overgenomen werk met een licentie (MPXJ, LGPL-2.1) blijft als één regel staan; de poort
-telt die niet als commentaar.
-
 ## Stap 3. Besluiten vastleggen
 
 Eén ADR per besluit, niet per commentaar: meerdere blokken over hetzelfde onderwerp worden één ADR. Vorm en
@@ -84,8 +81,9 @@ het aan Trias.
 node scripts/verify-comments.mjs --strip <pad>
 ```
 
-Een bron- of licentievermelding die moet blijven en meer dan één regel beslaat, zet je vóór `--strip` om naar één
-`//`-regel; anders gaat hij mee weg.
+Een blok dat een licentie of copyright noemt, laat `--strip` staan en meldt het als handwerk. Schrijf zo'n
+vermelding daarna als één regel in de vorm die de poort herkent: `// Bron: <werk> (<licentie-id>, <vindplaats>).`
+Draai dan `--list <bestand>`: de regel hoort er niet meer in te staan.
 
 `--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code-tokens of de
 regeleindes tussen tokens erdoor zouden veranderen. Aanwijzingen voor gereedschap blijven staan. Wat het meldt als

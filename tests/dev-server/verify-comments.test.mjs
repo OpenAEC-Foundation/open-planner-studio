@@ -171,6 +171,17 @@ test('JSDoc in JavaScript met uitleg onder een typedef of overload telt als comm
   assert.equal(scan('/** @extends {Base} */\nclass A extends Base {}\n', 'scripts/x.mjs').commentLines, 0);
 });
 
+test('strip laat elk blok staan dat een licentie of copyright noemt', () => {
+  for (const notice of [
+    '// Afgeleid van de MPXJ-broncode (github.com/joniles/mpxj, LGPL-2.1).\n',
+    '/**\n * Afgeleid van MPXJ, © Jon Iles e.a.\n */\n',
+  ]) {
+    const result = stripComments(`${notice}const a = 1;\n`, 'src/x.ts');
+    assert.deepEqual(result.manual, [1]);
+    assert.equal(result.text, `${notice}const a = 1;\n`);
+  }
+});
+
 test('de voorspelde regelwinst is wat strip echt weghaalt', () => {
   const text = 'const a = 1;\n\n// weg\n\nfunction f() {\n  /** doc */\n\n  return 1; // staart\n}\n';
   assert.equal(stripComments(text, 'src/x.ts').shedLines, scan(text).shedLines);

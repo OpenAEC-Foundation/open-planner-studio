@@ -29,6 +29,7 @@ const LINT_OR_BUNDLER_DIRECTIVE = new RegExp('^(?:' + [
 ].join('|') + ')');
 
 const LICENCE_ID = String.raw`\b(?:LGPL|AGPL|GPL|MPL|Apache|BSD|MIT)-\d[\w.+-]*`;
+const NAMES_LICENCE = new RegExp(`${LICENCE_ID}|©|\\bCopyright\\b|SPDX-License-Identifier`);
 const NOTICE_LINE = new RegExp('^//\\s*(?:' + [
   String.raw`SPDX-License-Identifier:\s*\S+`,
   String.raw`(?:Copyright|©)\s*(?:\(c\)\s*)?\d{4}\b.{0,80}`,
@@ -143,7 +144,7 @@ function scanBlocks(text, path) {
     const jsx = /\.(?:tsx|jsx)$/.test(path) && open >= 0 && close !== null;
     blocks.push({
       line, endLine, alone, pos: range.pos, end: range.end, text: raw,
-      carriesTag: tagged.has(range.pos),
+      keep: tagged.has(range.pos) || NAMES_LICENCE.test(raw),
       kind: jsx ? 'jsx' : raw.startsWith('/**') ? 'jsdoc' : raw.startsWith('//') ? 'line' : 'block',
       ...(jsx ? { wrapper: [open, range.end + close[0].length] } : {}),
     });
@@ -157,7 +158,7 @@ function scanBlocks(text, path) {
 const splitLines = text => text.split(AFTER_LINE_BREAK);
 
 function removableLines(block, lineOf) {
-  if (block.carriesTag) return null;
+  if (block.keep) return null;
   if (block.kind === 'jsx') return block.wrapperAlone ? [lineOf(block.wrapper[0]), lineOf(block.wrapper[1] - 1)] : null;
   return block.alone ? [block.line, block.endLine] : null;
 }
@@ -247,7 +248,7 @@ export function stripComments(text, path) {
     const span = removableLines(block, lineOf);
     if (span) {
       for (let line = span[0]; line <= span[1]; line++) removedLines.add(line);
-    } else if (block.carriesTag || block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
+    } else if (block.keep || block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
       manual.push(block.line + 1);
     } else {
       const lineStart = lineStarts[block.line];
