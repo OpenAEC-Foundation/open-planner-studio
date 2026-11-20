@@ -83,7 +83,8 @@ convention registry, provenance data gates pinned), `npm run verify:cycles` (cir
 `npm run verify:core-package` (builds the headless core package, `npm pack`, installs it in a temporary copy of
 `headless/consumer-example/`, runs and type-checks that consumer),
 `npm run verify:comments` (no new code comments: every comment line in a changed file must already exist on the base
-commit, the merge base with `origin/main` locally and the first parent of the merge commit in CI; see *Conventions*),
+commit, the merge base with `origin/main` locally and the first parent of the merge commit in CI; it fails on a PR and
+locally, and only reports on a push to `main` and in the scheduled run; see *Conventions*),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:icons` (app icons match the approved logo in `docs/branding/`: source hash, sizes, web icons), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated

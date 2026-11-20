@@ -82,15 +82,15 @@ het aan Trias.
 
 ```bash
 node scripts/verify-comments.mjs --strip <pad>
-node scripts/verify-comments.mjs --strip <bestand> --only 12,48
 ```
 
 `--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code-tokens of de
 regeleindes tussen tokens erdoor zouden veranderen. Aanwijzingen voor gereedschap blijven staan. Wat het meldt als
 "met de hand" (JSX-commentaar tussen tekst, commentaar met een regeleinde midden in een regel code, JSDoc met
-types en uitleg in een JavaScript-bestand) pas je zelf aan: in JSDoc haal je alleen de uitleg weg en laat je de
-typetags staan. Controleer handwerk met de gerichte test. `--only` neemt de
-beginregels uit `--list`, voor als je een onderdeel in delen doet.
+een tag in een JavaScript-bestand, JSDoc met `@deprecated` of `@internal` in TypeScript) pas je zelf aan: in JSDoc
+haal je alleen de uitleg weg en laat je de tag staan die het gereedschap leest. Controleer handwerk met de gerichte
+test. `--strip` neemt altijd alle blokken van het pad; moet een blok blijven tot een latere ronde, zet het dan met
+de hand terug uit `git diff`. Een onderdeel in delen doe je per bestand of map, niet per regelnummer.
 
 Zoek daarna naar verwijzingen die nu nergens meer heen wijzen ("zie het docblok bij", "zie de kop van") in de
 rest van de repo en in `.claude/rules/`, en laat ze naar de ADR wijzen of haal ze weg.

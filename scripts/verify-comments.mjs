@@ -62,23 +62,32 @@ function compilerDirectives(sourceFile) {
   return starts;
 }
 
-function typeTags(sourceFile, path) {
-  const typed = new Set();
+const TOOL_TAG = /@(?:deprecated|internal)\b/;
+const ANY_TAG = /(?:^|[\s*])@[a-z]/i;
+
+function hasProse(node) {
+  if (node.comment) return true;
+  let found = false;
+  ts.forEachChild(node, (child) => {
+    found ||= isJsDocNode(child) && hasProse(child);
+  });
+  return found;
+}
+
+function typeOnlyDocs(sourceFile, path) {
   const typeOnly = new Set();
-  if (!JS_FILE.test(path)) return { typed, typeOnly };
-  const carriesType = tag => Boolean(tag.typeExpression || tag.constraint
+  if (!JS_FILE.test(path)) return typeOnly;
+  const carriesType = tag => Boolean(tag.typeExpression || tag.constraint || tag.class
     || tag.kind === ts.SyntaxKind.JSDocTemplateTag || tag.kind === ts.SyntaxKind.JSDocImportTag);
   const visit = (node) => {
     for (const doc of node.jsDoc ?? []) {
       const tags = doc.tags ?? [];
-      if (!tags.some(carriesType)) continue;
-      typed.add(doc.pos);
-      if (!doc.comment && tags.every(tag => carriesType(tag) && !tag.comment)) typeOnly.add(doc.pos);
+      if (tags.length > 0 && tags.every(carriesType) && !hasProse(doc)) typeOnly.add(doc.pos);
     }
     if (!isJsDocNode(node)) node.getChildren(sourceFile).forEach(visit);
   };
   visit(sourceFile);
-  return { typed, typeOnly };
+  return typeOnly;
 }
 
 function commentRanges(sourceFile, text) {
@@ -110,7 +119,8 @@ function scanBlocks(text, path) {
   const blankAround = (pos, end) => text.slice(lineStarts[lineOf(pos)], pos).trim() === ''
     && text.slice(end, lineEnd(lineOf(Math.max(pos, end - 1)))).trim() === '';
   const directives = compilerDirectives(sourceFile);
-  const { typed, typeOnly } = typeTags(sourceFile, path);
+  const typeOnly = typeOnlyDocs(sourceFile, path);
+  const tagToKeep = JS_FILE.test(path) ? ANY_TAG : TOOL_TAG;
   const isExempt = (range, raw) => directives.has(range.pos) || typeOnly.has(range.pos)
     || LINT_OR_BUNDLER_DIRECTIVE.test(raw) || NOTICE_LINE.test(raw);
 
@@ -133,7 +143,7 @@ function scanBlocks(text, path) {
     const jsx = /\.(?:tsx|jsx)$/.test(path) && open >= 0 && close !== null;
     blocks.push({
       line, endLine, alone, pos: range.pos, end: range.end, text: raw,
-      carriesType: typed.has(range.pos),
+      carriesTag: raw.startsWith('/**') && tagToKeep.test(raw),
       kind: jsx ? 'jsx' : raw.startsWith('/**') ? 'jsdoc' : raw.startsWith('//') ? 'line' : 'block',
       ...(jsx ? { wrapper: [open, range.end + close[0].length] } : {}),
     });
@@ -147,7 +157,7 @@ function scanBlocks(text, path) {
 const splitLines = text => text.split(AFTER_LINE_BREAK);
 
 function removableLines(block, lineOf) {
-  if (block.carriesType) return null;
+  if (block.carriesTag) return null;
   if (block.kind === 'jsx') return block.wrapperAlone ? [lineOf(block.wrapper[0]), lineOf(block.wrapper[1] - 1)] : null;
   return block.alone ? [block.line, block.endLine] : null;
 }
@@ -190,8 +200,8 @@ export function scanComments(text, path) {
 }
 
 export function commentLineEntries(text, path) {
-  return scanComments(text, path).blocks.flatMap(block => block.text.split(LINE_BREAKS)
-    .map((line, offset) => ({ path, line: block.line + offset, text: line.trim() })));
+  return scanBlocks(text, path).blocks.flatMap(block => block.text.split(LINE_BREAKS)
+    .map((line, offset) => ({ path, line: block.line + 1 + offset, text: line.trim() })));
 }
 
 export function addedCommentLines(now, base) {
@@ -228,9 +238,8 @@ function codeSignature(text, path) {
   return parts.join(String.fromCharCode(0));
 }
 
-export function stripComments(text, path, onlyLines) {
-  const { blocks, lineStarts, lineOf, lineEnd } = scanBlocks(text, path);
-  const chosen = blocks.filter(block => !onlyLines || onlyLines.has(block.line + 1));
+export function stripComments(text, path) {
+  const { blocks: chosen, lineStarts, lineOf, lineEnd } = scanBlocks(text, path);
   const removedLines = new Set();
   const cuts = [];
   const manual = [];
@@ -238,7 +247,7 @@ export function stripComments(text, path, onlyLines) {
     const span = removableLines(block, lineOf);
     if (span) {
       for (let line = span[0]; line <= span[1]; line++) removedLines.add(line);
-    } else if (block.carriesType || block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
+    } else if (block.carriesTag || block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
       manual.push(block.line + 1);
     } else {
       const lineStart = lineStarts[block.line];
@@ -289,6 +298,10 @@ function baseCommit() {
   throw new Error('geen basiscommit gevonden: haal origin/main op of zet VERIFY_COMMENTS_BASE');
 }
 
+function reportsOnly() {
+  return Boolean(process.env.GITHUB_ACTIONS) && process.env.GITHUB_EVENT_NAME !== 'pull_request';
+}
+
 function atCommit(commit, path) {
   try {
     return git(['show', `${commit}:${path}`], { stdio: ['ignore', 'pipe', 'ignore'] });
@@ -320,17 +333,14 @@ function main(argv) {
     return 0;
   }
   if (mode === '--strip') {
-    const only = rest.indexOf('--only');
-    const paths = only < 0 ? rest : rest.slice(0, only);
-    const onlyLines = only < 0 ? undefined : new Set(rest.slice(only + 1).flatMap(arg => arg.split(',')).map(Number));
-    if (paths.length === 0 || (onlyLines && paths.length !== 1)) {
-      console.error('--strip vraagt een pad; --only werkt op precies één bestand');
+    if (rest.length === 0 || rest.some(arg => arg.startsWith('--'))) {
+      console.error('--strip vraagt een of meer paden en kent geen opties');
       return 2;
     }
     let shed = 0;
-    for (const path of selectFiles(paths)) {
+    for (const path of selectFiles(rest)) {
       const full = join(ROOT, path);
-      const result = stripComments(readFileSync(full, 'utf8'), path, onlyLines);
+      const result = stripComments(readFileSync(full, 'utf8'), path);
       if (result.removed > 0) writeFileSync(full, result.text);
       shed += result.shedLines;
       const manual = result.manual.length > 0 ? `; met de hand: regel ${result.manual.join(', ')}` : '';
@@ -365,6 +375,10 @@ function main(argv) {
   const before = changed.flatMap(path => commentLineEntries(atCommit(base, path), path));
   const added = addedCommentLines(now, before);
   for (const { path, line, text } of added) console.log(`XX  ${path}:${line}  ${text}`);
+  if (added.length > 0 && reportsOnly()) {
+    console.log(`\nLET OP  ${added.length} nieuwe commentaarregel(s) op een branch waar de poort alleen meldt; de PR had ze moeten weigeren.`);
+    return 0;
+  }
   if (added.length > 0) {
     console.log(`\nXX  ${added.length} nieuwe commentaarregel(s) ten opzichte van ${base.slice(0, 9)}. Commentaar in code is verboden`);
     console.log('    (docs/adr/0001-geen-commentaar-in-code.md): zeg het in de code (naam, type, test), leg een besluit vast');

@@ -117,11 +117,6 @@ test('strip haalt eigen regels, staartcommentaar en de lege regel op de naad weg
   assert.equal(scan(result.text).commentLines, 0);
 });
 
-test('strip met --only raakt alleen de genoemde blokken', () => {
-  const result = stripComments('// a\nconst x = 1;\n// b\nconst y = 2;\n', 'src/x.ts', new Set([3]));
-  assert.equal(result.text, '// a\nconst x = 1;\nconst y = 2;\n');
-});
-
 test('strip haalt JSX-commentaar op eigen regels weg en laat JSX-commentaar tussen tekst voor de hand', () => {
   const own = stripComments('const a = (\n  <div>\n    {/* uitleg\n        verder */}\n    <b />\n  </div>\n);\n', 'src/x.tsx');
   assert.equal(own.text, 'const a = (\n  <div>\n    <b />\n  </div>\n);\n');
@@ -151,6 +146,26 @@ test('strip laat aanwijzingen staan en JSDoc met types in JavaScript voor de han
   const result = stripComments(typed, 'scripts/x.mjs');
   assert.deepEqual(result.manual, [1]);
   assert.equal(result.text, typed);
+});
+
+test('strip laat JSDoc staan met een tag die het gereedschap leest', () => {
+  const deprecated = 'interface R {\n  /** @deprecated gebruik availabilitySteps */\n  availability?: number;\n}\n';
+  const result = stripComments(deprecated, 'src/x.ts');
+  assert.deepEqual(result.manual, [2]);
+  assert.equal(result.text, deprecated);
+  const plain = '/**\n * Uitleg.\n * @param a de naam\n */\nexport function f(a: string) { return a; }\n';
+  assert.equal(stripComments(plain, 'src/x.ts').text, 'export function f(a: string) { return a; }\n');
+  const extended = '/** @extends {Base} met uitleg */\nclass A extends Base {}\n';
+  assert.deepEqual(stripComments(extended, 'scripts/x.mjs').manual, [1]);
+});
+
+test('JSDoc in JavaScript met uitleg onder een typedef of overload telt als commentaar', () => {
+  const typedef = '/**\n * @typedef {object} Opties\n * @property {string} naam de naam\n */\nexport const a = 1;\n';
+  assert.equal(scan(typedef, 'scripts/x.mjs').commentLines, 4);
+  assert.equal(scan(typedef.replace(' de naam', ''), 'scripts/x.mjs').commentLines, 0);
+  const overload = '/**\n * @overload\n * @param {string} a uitleg\n * @returns {string}\n */\nexport function f(a) { return a; }\n';
+  assert.equal(scan(overload, 'scripts/x.mjs').commentLines, 5);
+  assert.equal(scan('/** @extends {Base} */\nclass A extends Base {}\n', 'scripts/x.mjs').commentLines, 0);
 });
 
 test('de voorspelde regelwinst is wat strip echt weghaalt', () => {

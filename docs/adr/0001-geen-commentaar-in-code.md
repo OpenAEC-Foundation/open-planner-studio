@@ -10,15 +10,21 @@ aanname is.
 De poort `npm run verify:comments` keurt nieuw commentaar af. Bestaand commentaar mag blijven tot het is
 beoordeeld. De poort vergelijkt daarvoor met de basis: elke commentaarregel in een gewijzigd bestand moet al op de
 basiscommit staan, ergens in de gewijzigde bestanden en even vaak. Weghalen en met de code mee verhuizen mag dus,
-schrijven en herschrijven niet. De basis is lokaal de merge-base met `origin/main` en in CI de eerste ouder van de
-merge-commit. De skill `/delete-comment` beschrijft het beoordelen en opruimen per onderdeel.
+schrijven en herschrijven niet. De basis is lokaal de merge-base met `origin/main` (in een ondiepe checkout zet je
+`VERIFY_COMMENTS_BASE=origin/main`) en in CI de eerste ouder van de merge-commit. De skill `/delete-comment`
+beschrijft het beoordelen en opruimen per onderdeel.
+
+De poort keurt alleen af op een PR en lokaal. Op een push naar `main` en in de geplande run meldt hij de regels en
+blijft hij groen: een rode `main` houdt de deploy en de release tegen, en dat weegt zwaarder dan een paar regels
+commentaar. Een PR die al groen was voordat de poort bestond en zonder nieuwe CI-run wordt samengevoegd, kan dus
+commentaar meenemen; de eerstvolgende PR die dat bestand raakt, mag het alleen nog weghalen.
 
 ## Wat geen commentaar is
 
 Aanwijzingen die het gereedschap zelf herkent: wat de TypeScript-parser als pragma of als `@ts-ignore` en
 `@ts-expect-error` leest (ook `/// <reference … />` en `@jsxImportSource`), `eslint-disable` en verwanten,
 `@vite-ignore`, `@__PURE__` en de markering `text-roles:`. Verder JSDoc in JavaScript-bestanden die alleen typetags
-bevat, en een bron- of licentievermelding van één regel (`// Bron: … (LGPL-2.1 …)`, een SPDX-kenmerk, een
+bevat (ook onder `@typedef` en `@overload` staat dan geen uitleg), en een bron- of licentievermelding van één regel (`// Bron: … (LGPL-2.1 …)`, een SPDX-kenmerk, een
 copyrightregel). Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
 TypeScript of JavaScript is.
 
@@ -30,5 +36,11 @@ zijn `verify:*`-scripts op de TypeScript-AST. Eén script dekt alle mappen, toet
 Een telbestand met commentaarregels per bestand. Gebouwd en verworpen in de review: een commentaar kon ongezien
 door een even lang ander worden vervangen, twee opruimingen in hetzelfde bestand maakten main rood na het samenvoegen,
 en elke PR op main met nieuw commentaar maakte de branch met de poort rood. Vergelijken met de basis heeft geen
-bestand nodig en kan main niet achteraf rood maken.
+bestand nodig.
+
+Een poort die ook op `main` afkeurt. Verworpen in de review: een open PR met groene CI van vóór de poort maakte
+`main` rood na het samenvoegen, en de branchbeveiliging eist geen nieuwe run.
+
+Weghalen per regelnummer (`--strip --only`). Verworpen in de review: na de eerste aanroep schuiven de regels op en
+wijst een nummer uit de oude lijst een ander blok aan.
 
