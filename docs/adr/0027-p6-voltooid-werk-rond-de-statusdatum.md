@@ -42,7 +42,10 @@ doet de conventie niets: een ongemeten geval valt terug op het gewone pad in pla
   restwerk heeft (R2 met lag: 1796 van 2036; de drie uitzonderingen op R1 hebben elk een niet-voltooide maatgevende
   opvolger). Een procentlag wordt eerst tegen de echte duur vastgezet, omdat de rekenstap daarna voor SS en SF de
   duur op 0 zet en de lag anders stil verdwijnt. Die nul-duur zorgt dat SS en SF de late start zelf teruggeven;
-  alleen FS en FF gaan nog door de omzetting naar een start.
+  alleen FS en FF gaan nog door de omzetting naar een start. De nul-duurkopie heeft geen mijlpaalsoort, zodat een
+  voltooide eindmijlpaal met duur geen extra sprong naar de volgende werkdag krijgt die een gewone voltooide taak
+  niet krijgt. Via de XER-lezer is dat pad onbereikbaar (alleen TT_Mile en TT_FinMile krijgen een soort, en die
+  komen niet door de poort); geen test raakt het.
 - Een voltooide opvolger die niet door die poort kwam, draagt nog haar werkelijke datums: dat is historie, en ze
   trekt een open voorganger niet terug. Een opvolger op de poort heeft een zinvolle late kant en drukt gewoon.
 - XER-uitvoer (vroege, late datums en speling uit het bestand) is op geen enkel pad solverinvoer.
