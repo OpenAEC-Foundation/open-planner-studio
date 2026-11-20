@@ -257,7 +257,7 @@ test('website: beide unieke liveblokken moeten de exacte versie noemen', () => {
 
 test('website: livecontrole beïnvloedt de echte beslissing, zonder schrijfstap', () => {
   const url = 'https://open-aec.com/open-planner-studio/';
-  const gh = [...GH_BASIS, [/pr list .*--head release\\//, [{ state: 'CLOSED', url: 'https://voorbeeld/pr' }]]];
+  const gh = [...GH_BASIS, ['--head release/', [{ state: 'CLOSED', url: 'https://voorbeeld/pr' }]]];
   for (const [html, open] of [
     [HTTP[url], false],
     ['<footer>v2026.47.0</footer>', true],
