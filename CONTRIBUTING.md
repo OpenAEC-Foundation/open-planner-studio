@@ -56,7 +56,7 @@ gate on a draft PR. The steps, in this order:
 | `npm run verify:cycles` | circular imports within `src/` |
 | `npm run verify:text-roles` | interface text sizes only via the six text roles (`text-caption` … `text-title`, `var(--text-…)`) — no bare px/rem, `text-[Npx]` or Tailwind default sizes |
 | `npm run verify:icons` | app icons match the approved logo in `docs/branding/`: source hash, size of every generated file, web icons named in `index.html` and the manifest |
-| `npm run verify:comments` | no new code comments: every file stays at or below its comment-line count in `scripts/verify-comments.baseline.json` (`docs/adr/0001-geen-commentaar-in-code.md`) |
+| `npm run verify:comments` | no new code comments: every comment line in a changed file must already exist on the base commit (`docs/adr/0001-geen-commentaar-in-code.md`) |
 | `npm run verify:core-package` | builds the headless core package `@openaec/open-planner-core`, packs it with `npm pack`, installs it in a temporary copy of `headless/consumer-example/` and runs and type-checks that consumer (see `docs/headless-kern.md`) |
 
 `npm run verify:audit` (`npm audit --audit-level=high`) exists as a separate command but is

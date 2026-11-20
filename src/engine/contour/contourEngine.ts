@@ -53,17 +53,8 @@ export function isFlatCurveValues(values: readonly number[]): boolean {
 }
 
 export function matchCurveValues(values: readonly number[]): ResourceCurve | undefined {
-  if (values.length !== CURVE_VALUE_COUNT) return undefined;
-  if (isFlatCurveValues(values)) return 'UNIFORM';
-  for (const shape of Object.keys(CONTOUR_SHAPE_VALUES) as ContourShape[]) {
-    const table = CONTOUR_SHAPE_VALUES[shape];
-    let same = true;
-    for (let i = 0; i < CURVE_VALUE_COUNT; i++) {
-      if (Math.abs(table[i] - values[i]) > 1e-6) { same = false; break; }
-    }
-    if (same) return SHAPE_TO_CURVE[shape];
-  }
-  return undefined;
+  const shape = matchContourShape(values);
+  return shape && SHAPE_TO_CURVE[shape];
 }
 
 export function matchContourShape(values: readonly number[]): ContourShape | undefined {
