@@ -533,21 +533,6 @@ await check('1816: andere programmaversie krijgt een vrije naam zonder bestaande
   } finally { await tidy(c); }
 });
 
-await check('1816: niet opgeslagen planning krijgt bij botsing een vrije naam', async () => {
-  const c = await opened();
-  try {
-    const second = 'model (niet opgeslagen planning 2026-11-17 14.32 2).ifc';
-    writeFileSync(join(c.dir, UNSAVED_COPY), otherProgram);
-    await crashAt(c, (_b, crash) => ({ content: crash }));
-    const { notices } = await recover(c);
-    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: hash(otherProgram), [second]: c.prepared.sha256 });
-    assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
-      ['notifications.ifcForeignReplaceUnsavedCopy', { file: c.path, copy: join(c.dir, second) }],
-    ]);
-    assert.deepEqual(recordsOnDisk(), []);
-  } finally { await tidy(c); }
-});
-
 await check('1816: alleen botsing herhalen, andere uitkomsten stoppen en aantal pogingen is begrensd', async () => {
   let attempts = 0;
   const collision = { place: async () => { attempts++; return { code: 'target-exists' as const }; } };
@@ -642,6 +627,21 @@ function fullVersionOnTarget(c: Case, restored: Awaited<ReturnType<typeof recove
   assert.equal(restored.filePath, c.path, 'en geeft het doel terug');
 }
 const sourceNow = (c: Case) => c.state.ifcSource!.sha256;
+
+await check('1816: niet opgeslagen planning krijgt bij botsing een vrije naam', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (niet opgeslagen planning 2026-11-17 14.32 2).ifc';
+    writeFileSync(join(c.dir, UNSAVED_COPY), otherProgram);
+    await crashAt(c, (_b, crash) => ({ content: crash }));
+    const { notices } = await recover(c);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: hash(otherProgram), [second]: c.prepared.sha256 });
+    assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
+      ['notifications.ifcForeignReplaceUnsavedCopy', { file: c.path, copy: join(c.dir, second) }],
+    ]);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
 
 await check('crash na stap 0: herstel vindt de oude versie; er is niets op te ruimen en het record gaat weg', async () => {
   const c = await opened();
