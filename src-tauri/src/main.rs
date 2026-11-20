@@ -64,10 +64,14 @@ fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Schaduw voor het randloze venster op Linux.
 ///
 /// Een GTK-venster zonder decoraties (`"decorations": false`) krijgt van de compositor geen schaduw.
-/// Daarom houdt GTK hier zijn client-side decoraties, maar met een lege titelbalk: GTK tekent de
-/// schaduw, en de titelbalk van de webview
-/// (`TitleBar.tsx`) blijft de enige titelbalk. Dit moet gebeuren voordat het venster voor het eerst
-/// zichtbaar wordt; het start verborgen (#895), dus `setup` is op tijd.
+/// Daarom houdt GTK hier zijn client-side decoraties, met een verborgen titelbalk: GTK tekent de
+/// schaduw, en de titelbalk van de webview (`TitleBar.tsx`) blijft de enige titelbalk. De titelbalk
+/// moet verborgen blijven (`set_no_show_all`): een getoonde widget krijgt van GTK 3 minstens 1 px
+/// hoogte boven de webview, ook gemaximaliseerd, en vangt dan de klikken op de bovenste rij van de
+/// vensterknoppen. Een verborgen widget in `set_titlebar` zet de client-side decoraties al aan; tao
+/// doet hetzelfde op Wayland (`platform_impl/linux/window.rs`). Op X11 zonder compositor valt GTK
+/// terug op `solid-csd`: een effen rand, geen schaduw. Dit moet gebeuren voordat het venster voor
+/// het eerst zichtbaar wordt; het start verborgen (#895), dus `setup` is op tijd.
 #[cfg(target_os = "linux")]
 fn linux_window_shadow(app: &tauri::App) {
     use gtk::prelude::*;
@@ -78,17 +82,8 @@ fn linux_window_shadow(app: &tauri::App) {
         return;
     };
     let titlebar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    // Thema's geven de `.titlebar`-plek de hoogte en opvulling van een headerbar; zonder deze regel
-    // blijft er een doorzichtige strook boven de titelbalk van de webview.
-    let css = gtk::CssProvider::new();
-    let _ = css.load_from_data(
-        b"* { min-height: 0; padding: 0; margin: 0; border: none; background: none; box-shadow: none; }",
-    );
-    titlebar
-        .style_context()
-        .add_provider(&css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
-    titlebar.set_size_request(-1, 0);
-    titlebar.show();
+    // `show_all` van het venster mag deze widget niet zichtbaar maken.
+    titlebar.set_no_show_all(true);
     gtk_window.set_titlebar(Some(&titlebar));
     gtk_window.set_decorated(true);
 }
