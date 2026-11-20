@@ -26,6 +26,7 @@ vallen op een ontbrekende taak, en `openFile` slokt die fout op zodat de plannin
   `droppedSequenceIds`) laten `error` leeg; de andere taken rekenen gewoon door. Een optioneel veld is afwezig als
   het leeg zou zijn. `cappedTaskIds` meldt een taak die tegen de scangrens van de kalender liep (bijvoorbeeld een
   aaneengesloten blok feestdagen); de kalenderwijziging is legitiem, de melding wijst de taak aan.
+- `projectDuration` is een aantal werkdagen op de projectkalender (`projectDurationOf`).
 - `criticalPaths` is er altijd en heeft minstens één element; zonder `floatPaths` is het precies `[criticalPath]`.
 - Een solverinstantie is herbruikbaar: `prepareSolve` zet alle per-berekening verzamelde toestand terug, zodat een
   tweede `solve()` gelijk is aan een verse instantie. De enginecache blijft staan; die is deterministisch per
