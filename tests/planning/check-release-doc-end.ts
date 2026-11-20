@@ -10,6 +10,8 @@ const cases: Array<[string, boolean]> = [
   ['De release stopt om 14:00.', true],
   ['The release deadline is 14:00.', true],
   ['De release heeft geen deadline, maar de release stopt om 14:00.', true],
+  ['De release heeft geen deadline, maar stopt om 14:00.', true],
+  ['De release heeft geen deadline, maar de reparatie stopt om 14:00.', false],
   ['De release stopt niet vóór 14:00.', true],
 ];
 for (const [line, expected] of cases) {
