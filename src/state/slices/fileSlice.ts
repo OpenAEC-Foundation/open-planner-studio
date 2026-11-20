@@ -1644,7 +1644,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * (`newTargetWriteNotice`).
    */
   const saveAsOnDesktop = async (
-    documentId: string, state: AppState, write: DocumentWrite, name: string, missingSourceSaveAs?: true,
+    documentId: string, state: AppState, write: DocumentWrite, name: string,
   ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
     const picked = await pickSaveTarget(name, IFC_FILE_FILTERS);
     if (!picked) return null;
@@ -1656,13 +1656,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // De doelcontrole weigert een onleesbaar doel al (met haar melding); dit houdt de route er ook zonder haar vanaf.
     if (picked.current === 'unreadable') return null;
     if (picked.current) {
-      const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref), missingSourceSaveAs);
+      const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref));
       return replaced && { outcome, committed: replaced.committed };
     }
     if (!(await saveNewBytesToRef(ref, writeBytes(write), () => refuseChangedDocumentWrite(state, write)))) return null;
     return {
       outcome,
-      committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, missingSourceSaveAs),
+      committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, write.missingSourceSaveAs),
     };
   };
 
@@ -1693,7 +1693,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    */
   const replaceExistingPath = async (
     documentId: string, state: AppState, write: DocumentWrite, path: string, current: Uint8Array,
-    stopBeforeWrite: () => Promise<boolean>, missingSourceSaveAs?: true,
+    stopBeforeWrite: () => Promise<boolean>,
   ): Promise<{ committed: boolean } | null> => {
     let committed = false;
     try {
@@ -1705,7 +1705,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
         commit: () => {
           committed = commitSavedDocument(snapshotContent(state), state,
-            { filePath: path, fileHandle: null, siteFileId: null, siteFileVersion: null }, write.prepared ?? undefined, missingSourceSaveAs);
+            localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, write.missingSourceSaveAs);
         },
       });
       for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
@@ -1956,7 +1956,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Met de flag ook een gewone planning: de toestemming van de kiezer hoort bij het gekozen doel en zijn gelezen
       // versie (fixronde 1 van #1071, A). Met de flag uit de route van main hieronder.
       if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
-        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, write.missingSourceSaveAs);
+        const saved = await saveAsOnDesktop(documentId, state, write, defaultName);
         // Zie hieronder: een vervangen inhoud krijgt geen Recent (knownbug 1899).
         if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
         return;

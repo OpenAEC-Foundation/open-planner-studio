@@ -223,15 +223,9 @@ export async function pickSaveTargetTauri(defaultName: string, filters: FileFilt
  *  of als `lstat` faalt (dan de exclusieve aanmaakroute, zoals main); `'unreadable'` als een gewoon bestand niet te lezen
  *  is (de doelcontrole weigert dat, zoals voorheen de doelscan van het pad). */
 async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | null> {
-  if (!(await isRegularFileTauri(path))) return null;
-  const { readFile } = await import('@tauri-apps/plugin-fs');
+  const { lstat, readFile } = await import('@tauri-apps/plugin-fs');
+  try { if (!(await lstat(path)).isFile) return null; } catch { return null; }
   try { return await readFile(path); } catch { return 'unreadable'; }
-}
-
-/** Staat er op `path` een gewoon bestand (`lstat`, geen link gevolgd)? Elke fout telt als nee. */
-async function isRegularFileTauri(path: string): Promise<boolean> {
-  const { lstat } = await import('@tauri-apps/plugin-fs');
-  try { return (await lstat(path)).isFile; } catch { return false; }
 }
 
 export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
