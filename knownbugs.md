@@ -4952,12 +4952,6 @@ en noem het in je rapport of PR-tekst.
      hulpbestanden blijven dan ongemeld staan. Er gaat geen versie verloren. Gevonden bij het bouwen van 1131 stap 5a;
      aangepast in fixronde 1 van #991. — S (code)
 
-1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
-     De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
-     naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
-     (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
-     planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
-     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
 1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
      Is `<naam>.ops-vorige-<id>` intussen een symlink geworden, dan leest de vergelijking in stap 5
      (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
