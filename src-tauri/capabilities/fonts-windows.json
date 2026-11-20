@@ -1,0 +1,46 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "fonts-windows",
+  "description": "System font read access for windows",
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "C:/Windows/Fonts"
+        },
+        {
+          "path": "C:/Windows/Fonts/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [
+        {
+          "path": "C:/Windows/Fonts"
+        },
+        {
+          "path": "C:/Windows/Fonts/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        {
+          "path": "C:/Windows/Fonts"
+        },
+        {
+          "path": "C:/Windows/Fonts/**"
+        }
+      ]
+    }
+  ]
+}
