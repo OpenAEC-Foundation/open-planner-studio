@@ -283,6 +283,10 @@ export function createFileAutoSaveController(deps: {
     return payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !refusedTarget.has(id);
   };
 
+  /** Doet dit document zonder gebouwmodel mee met de gewone tik? Dezelfde toets bij de keuze (`listPlain`) en bij de beurt
+   *  in de rij (`write`, fixronde 4 van de review van #1033): een document met een vreemd deel schrijft deze route nooit. */
+  const plainTakesPart = (id: string, payload: DocumentPayload): boolean => takesPart(id, payload) && !ifcSaveBlocked(payload);
+
   /** Fixronde 2 van de review van #1033: is dit document met een gebouwmodel nu (nog) aan de beurt? */
   const stillDue = (id: string): boolean => {
     observe();
@@ -312,7 +316,7 @@ export function createFileAutoSaveController(deps: {
         foreignNotified.add(id);
         getState().notify(ifcWriteBlockedNotice(payload));
       }
-      const enabled = takesPart(id, payload) && !foreignBlocked;
+      const enabled = plainTakesPart(id, payload);
       candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
         ref: autoSaveRef(payload), source: payload });
     }
@@ -346,12 +350,15 @@ export function createFileAutoSaveController(deps: {
       // dus OPNIEUW onder de exclusieve lock, vóór het voorbereiden.
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
       if (!current) return false;
+      // Fixronde 4 van de review van #1033: een tik die achter een modelronde wachtte, toetst bij zijn beurt of zijn document
+      // nog meedoet (dezelfde toets als bij de keuze), nog gewijzigd is en nog naar hetzelfde doel zonder vraag mag
+      // schrijven. Zette de planner Automatisch opslaan intussen uit, dan schrijft hij niets en meldt hij niets.
+      const target = autoSaveRef(current);
+      if (!deps.enabled() || !current.isDirty || !plainTakesPart(candidate.id, current)
+        || !target || !sameFileRef(target, candidate.ref!) || !await canWriteToRefWithoutPrompt(target)) return 'refused';
       const document = { id: candidate.id, content: candidate.content };
       if (!sameDocumentContent(getState(), document)) return 'stale';
       if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
-      // Een document met een vreemd deel schrijft deze route nooit: met de flag aan en de bron aanwezig gaat het langs
-      // `writeModel` (stap 8, zijn eigen wekker), anders sloot de kandidatenlijst het al uit.
-      if (ifcSaveBlocked(current)) return 'refused';
       // #804 stap 6: de momentopname en het rekenen onder het schrijfslot, via dezelfde berekenfunctie als Ctrl+S
       // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
       // gewijzigd (`commitSavedDocument`); de volgende ronde neemt het latere werk mee.

@@ -3704,6 +3704,60 @@ for (const computeMs of [8_500, 15_000, 25_000]) {
   });
 }
 
+// Fixronde 4 van de review van #1033 (bevinding 1): een gewone tik die achter een modelronde wacht, toetst bij zijn beurt
+// of zijn document nog meedoet. Zette de planner Automatisch opslaan intussen uit en kwam er een andere versie op het
+// bestand, dan schrijft de tik niets: die versie blijft byte voor byte staan, zoals op main en met de flag uit.
+for (const flag of ['aan', 'uit'] as const) {
+  await check(`stap 8, fixronde 4: een wachtende gewone tik schrijft niet meer nadat Automatisch opslaan uit ging (flag ${flag})`, async () => {
+    const sw = saveWorker('manual');
+    const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    const { store, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    try {
+      await timed.until(2_000);
+      store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+      // Een wekker die een wijziging zet, gaat af bij de volgende `until`; daarom na elke wijziging `until` op hetzelfde moment.
+      await timed.until(22_000); longer(store); await timed.until(22_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 22 s');
+      await timed.until(32_000);
+      if (flag === 'aan') { await mergeArrives(sw, 1); sw.workers[0]!.start(); }
+      await timed.until(35_000);
+      const edited = longer(store);
+      await timed.until(35_000);
+      await timed.until(42_000);
+      await someTurns();
+      if (flag === 'uit') await turnUntil(() => !dirty(plain), 'flag uit: de tik van 42 s schrijft meteen, zoals main');
+      else {
+        assert.equal(timed.controller.isSaving(), true, 'de gewone tik wacht achter de modelronde');
+        assert.equal(dirty(plain), true);
+      }
+      // De planner zet Automatisch opslaan voor het gewone document uit; een ander programma zet een eigen versie neer.
+      await timed.until(43_000);
+      store.getState().setAutoSaveToFile(false);
+      const input = buildWriteIFCInput(store.getState(), 'merge');
+      const external = new TextEncoder().encode(writeIFC({ ...input, tasks: input.tasks.map(task =>
+        task.id === edited ? { ...task, name: 'Extern toegevoegde taaknaam' } : task) }));
+      handleFiles.set(plainName, external);
+      const writesBefore = writableLog.filter(entry => entry.startsWith(`close ${plainName} `)).length;
+      await timed.until(45_000);
+      if (flag === 'aan') {
+        await sw.workers[0]!.answer(sw.workers[0]!.requests.length - 1);
+        await turnUntil(() => !dirty(model), 'de modelronde schrijft');
+      }
+      await turnUntil(() => !isProjectFileWriteBusy() && !timed.controller.isSaving(), 'de rij is leeg');
+      assert.equal(writableLog.filter(entry => entry.startsWith(`close ${plainName} `)).length, writesBefore,
+        'na het uitzetten schrijft de gewone tik niets');
+      assert.equal(hash(fileOf(plainName)), hash(external), 'de andere versie blijft byte voor byte staan');
+      assert((await reopenOrdinary(fileOf(plainName), true)).tasks.some(task => task.name === 'Extern toegevoegde taaknaam'));
+      assert.equal(payloadOf(store, plain).autoSaveToFile, false);
+      // Met de flag uit meldt main dat het gebouwmodel niet automatisch opgeslagen wordt; verder geen melding.
+      if (flag === 'aan') assert.deepEqual(autoErrors(store), [], 'geen melding');
+    } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
 // Fixronde 3 (bevinding 2 van de review): plaatst de modelronde al, dan gaat de verschuldigde gewone tik niet verloren: hij
 // wacht in de rij en schrijft zodra de plaatsing klaar is. Met de flag uit (geen modelronde) schrijft hij op 40 s, zoals main.
 for (const flag of ['aan', 'uit'] as const) {
