@@ -160,6 +160,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   // Eenmalige relatie-index voor bronregels die onderscheid maken tussen een echt netwerkeinde
   // en een volledig geïsoleerde mijlpaal. Geen per-taak-scan over `sequences` (O(T+E), niet O(T×E)).
   const tasksWithPredecessor = new Set(sequences.map(sequence => sequence.successorId));
+  const truncatedLeadSet = new Set(truncatedLeadIds);
   let scheduleProjectEnd = new Date(0);
   for (const { ef } of earlyDates.values()) {
     if (ef > scheduleProjectEnd) scheduleProjectEnd = ef;
@@ -231,6 +232,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         && cal.hasOwnWorkBlocks && taskObj.time.completion < 1;
       const lagOnOwnCalendar = so?.lagCalendar === undefined || so.lagCalendar === 'predecessor';
       const ownCalendarStarted = !!taskObj.time.actualStart || taskObj.time.completion > 0;
+      let hasTruncatedFsLead = false;
       for (const seq of succs) {
         let ff = sequenceFreeFloat[seq.id];
         let ffMinutes = sequenceFreeFloatMinutes[seq.id];
@@ -275,8 +277,23 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
           const point = completedPhysicalPoints?.get(seq.successorId);
           if (point) ({ days: ff, minutes: ffMinutes } = ownCalendarSpan(early.ef, point));
         }
+        if (ff !== undefined && seq.type === 'FINISH_START' && truncatedLeadSet.has(seq.id)) {
+          hasTruncatedFsLead = true;
+        }
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
         if (ff !== undefined && ffMinutes !== undefined && ffMinutes < freeFloatMinutes) freeFloatMinutes = ffMinutes;
+      }
+      // Bij een tegen de projectstart afgekapte FS-lead kan de relatie ruimte overhouden
+      // terwijl de voorganger zelf het projecteinde bepaalt. Begrens alleen de taakspeling:
+      // de relatie blijft non-driving. Gebruik het geplande einde, niet de late pass:
+      // deadlines en andere late grenzen mogen totale en vrije speling laten verschillen.
+      if (hasTruncatedFsLead) {
+        if (freeFloat > 0 && Number.isFinite(freeFloat)) {
+          freeFloat = Math.min(freeFloat, signedFloat(early.ef, scheduleProjectEnd, cal, taskObj));
+        }
+        if (freeFloatMinutes > 0 && Number.isFinite(freeFloatMinutes)) {
+          freeFloatMinutes = Math.min(freeFloatMinutes, signedFloatMinutes(early.ef, scheduleProjectEnd, cal, taskObj));
+        }
       }
     }
     if (freeFloat === Infinity) freeFloat = 0;
