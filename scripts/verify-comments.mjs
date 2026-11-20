@@ -266,7 +266,7 @@ export function trackedCodeFiles() {
 }
 
 function firstParentInCi() {
-  const [parent] = git(['show', '-s', '--format=%P', 'HEAD']).trim().split(' ');
+  const parent = /^parent ([0-9a-f]+)$/m.exec(git(['cat-file', '-p', 'HEAD']))?.[1];
   if (!parent) throw new Error('HEAD heeft geen oudercommit');
   try {
     execFileSync('git', ['cat-file', '-e', `${parent}^{commit}`], { cwd: ROOT, stdio: 'ignore' });
