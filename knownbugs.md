@@ -615,6 +615,11 @@ en noem het in je rapport of PR-tekst.
      toestemmingsvraag in de browser), dan telt die bron als niet gelezen, waar de app vroeger de momentopname
      las. Niet nagespeeld; het gevolg is een eerlijke melding "niet gelezen". Voorstel: de geopende documenten
      weer vóór de eerste `await` vastleggen. — S
+1960. **De herschaalregel van een contour bij een duurwijziging is niet tegen MS Project nagemeten.**
+      `rescaleContourForDuration` (`src/engine/contour/contourEngine.ts`) rekt de contour proportioneel mee en
+      behoudt het werk alleen bij vast werk; dat is overgenomen als gedrag van MS Project bij een toewijzing met
+      *Contoured* (`docs/adr/0003-contour-herschalen-bij-duurwijziging.md`), zonder meting op een MSP-bestand.
+      Gezien in het commentaar dat de regel zo beschreef. — S
 
 1965. **Een werkelijke datum na het laatste werkblok van haar dag blijft rauw staan, buiten werktijd.**
      `snapActualForward` (`src/engine/scheduler/CPMSolver.ts:633`) snapt een werkelijke start vooruit, maar verwerpt
@@ -5216,3 +5221,50 @@ en noem het in je rapport of PR-tekst.
      blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
      nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
      doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
+
+1940. **VERVOLG (review #1074, test): de proef van #1050 toetst geen regelafbreking, geen verticale offset en geen
+     kerning.** `check-custom-report-font.ts` deel G leest uit de echte PDF de tekst (ToUnicode), de breedte van de door
+     GSUB gekozen glyphs (`/W`) en de x van elke glyph (G6) terug, voor Noto Sans Coptic en Carlito. Niet getoetst:
+     - een naam die precies op de grens van zijn kolom afbreekt of afkapt (de meting telt advance-breedtes zonder GSUB
+       op, de PDF tekent de glyphs van `layout`);
+     - een verticale GPOS-offset: G6 toetst alleen horizontale offsets;
+     - kerning: G6 rekent met de nominale breedtes van de tekenaar (`/W`), niet met die van fontkit. Bij `A̅V` in
+       Liberation Serif staat de V 264 fonteenheden verder dan fontkit met kerning berekent; dat zat al op main
+       (de PDF en de meting negeren kerning allebei).
+     Voorstel: een rij op de kolomgrens met een ligatuur en met een Koptische afkorting, de getekende breedte uit `/W`
+     naast de meting; een proef met een verticale offset; en een regel met kerning plus een bovenstreep. Review #1074
+     ronde 1 en 3 (GPT-6.2-Sol, xhigh). — B (code)
+
+1941. **VERVOLG (review #1074): een andere leesfout van fontkit maakt de PDF nog stil raster.** Sinds #1050 leest
+     fontkit 3 de GSUB-regel van type 8, maar elke andere fout in `layout` of bij het inbedden (bijvoorbeeld een
+     onleesbare GPOS-tabel bij een bepaald paar) laat `paginateVectorToPdfBytes` nog steeds stuklopen, en dan valt de
+     export zonder melding terug op raster (`exportGanttReportPdf.ts`, `ReportPanel.tsx`: alleen een `console.warn`).
+     De planner ziet niet dat de tekst een plaatje werd. Over 293 systeemletters op aia09-mp50 trad zo een fout niet
+     meer op. Voorstel: bij een terugval op raster één melding met de reden (en het lettertype), via het gewone
+     meldkanaal. Review #1074 ronde 1 (GPT-6.2-Sol, xhigh). — S
+
+1942. **VERVOLG (#1050): PostScript-contouren (CFF) met fontkit 3 niet getoetst.** Het eigen lettertype weigert een
+     `.otf` met CFF-contouren (`faceRefusal`, reden `postscriptOutlines`), omdat pdf-lib 1.17 met `@pdf-lib/fontkit`
+     zo'n letter als TrueType inbedde (`isCFF` leest `font.cff`, dat die fork niet had). fontkit 3 heeft `font.cff`
+     wel, dus pdf-lib kiest dan `CIDFontType0C`. Voorstel: een CFF-letter door de vector-PDF halen, in Poppler, pdfium
+     en MuPDF bekijken, en bij succes de weigering en zijn tekst weghalen. Gevonden bij fixronde 1 van #1074. — S
+
+1943. **VERVOLG (review #1074 ronde 2): de tekstlaag kiest per lettertype één brontekst voor een glyph.**
+     `embedReportFont` (`src/services/pdf/embedReportFont.ts`) zet voor elke gebruikte glyph de bronteken(s) van het
+     eerste gebruik in ToUnicode. Komt dezelfde glyph uit verschillende tekst (de ligatuur "fi" uit `fi` en uit `ﬁ`),
+     dan leest de PDF hem overal zoals de eerste: `fi ﬁ` wordt bij uitlezen `fi fi`, en `ﬁ fi` wordt `ﬁ ﬁ`. In
+     gemengde tekst van rechts naar links missen de Koptische bovenstrepen hun ToUnicode (het glyph-voor-glyph-pad
+     van de shaping, zie 934). Richting van de reviewer: ActualText per tekstcluster. Review #1074 ronde 2
+     (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)
+
+1944. **VERVOLG (review #1074 ronde 3): het paginanummer kiest te vroeg Helvetica.** `paginateVector.ts` (rond regel
+     420, `pageNumberFont`) eist dat de rapportletter alle tien cijfers, de spatie en `/` heeft. Een letter met alleen
+     `1`, spatie en `/` dekt `1 / 1` volledig, maar het nummer komt toch in Helvetica. Richting van de reviewer: toets
+     de cijfers die werkelijk voorkomen in 1 tot en met het aantal bladen, of leg vast dat alle tien cijfers nodig zijn.
+     Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)
+
+1945. **VERVOLG (review #1074 ronde 3, opruimen): de paginavoet leest de rapportletter dubbel.** Voor het
+     paginanummer maakt `paginateVector.ts` een tweede fontkit-letter uit dezelfde bytes (`fontkit.create`), en per
+     label doet pdf-lib twee layouts (`widthOfTextAtSize` en `encodeText`). Richting van de reviewer: de ingebedde
+     letter en dezelfde layout gebruiken als de rapporttekst (`layoutPdfText`); dan kan ook de vervanging van
+     `encodeText` in `embedReportFont.ts` weg. Review #1074 ronde 3 (GPT-6.2-Sol, xhigh). — B (code)

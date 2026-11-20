@@ -143,9 +143,10 @@ export async function readFontFaces(read: ByteReader): Promise<FontFaceInfo[]> {
  * - fsType bit 1 (Restricted License) of bit 9 (alleen bitmaps): inbedden verboden.
  * - `fvar`: een variabel lettertype; pdf-lib bedt alleen de standaardstand in, dus vet zou in de PDF niet vet zijn.
  * - Geen `glyf` en geen `CFF `: geen contouren om in te bedden.
- * - `CFF ` (PostScript-contouren, veel `.otf`): pdf-lib 1.17 herkent ze niet (`isCFF` leest `font.cff`, dat
- *   @pdf-lib/fontkit niet heeft) en schrijft ze als TrueType-letter in; Poppler meldt dan een verkeerd
- *   lettertypetype. Tot dat werkt weigert de app ze met een eigen reden.
+ * - `CFF ` (PostScript-contouren, veel `.otf`): pdf-lib 1.17 herkende ze niet (`isCFF` leest `font.cff`, dat
+ *   @pdf-lib/fontkit niet had) en schreef ze als TrueType-letter in; Poppler meldde dan een verkeerd
+ *   lettertypetype. fontkit 3 (#1050) heeft `font.cff` wel, maar dat pad is niet getoetst (knownbug 1942); tot
+ *   dan weigert de app ze met een eigen reden.
  */
 export function faceRefusal(face: FontFaceInfo): FontRefusal | null {
   if ((face.fsType & 0x0002) !== 0 || (face.fsType & 0x0200) !== 0) return 'embeddingRestricted';
