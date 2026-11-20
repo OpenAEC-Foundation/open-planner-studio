@@ -4,6 +4,7 @@ import { Select } from '@/components/common/Select';
 import { latestReportSettings, patchReportSettings, type ReportOrientation, type ReportPaperSize } from '@/utils/reportSettings';
 import { isReportFontId, REPORT_FONT_IDS, type ReportFontChoice, type ReportFontId } from '@/services/pdf/reportFont';
 import { getCustomFont, saveCustomFont } from '@/services/pdf/customFontStore';
+import { fontReadIsCurrent } from '@/services/pdf/customFontGuard';
 import type { PickedFont } from '@/services/pdf/systemFonts';
 import { useReportSettings } from '@/hooks/useReportSettings';
 import { useAppStore } from '@/state/appStore';
@@ -151,7 +152,7 @@ export function useCustomReportFontGuard(value: ReportFontChoice): void {
       const current = latestReportSettings();
       // De keuze kan al gewijzigd zijn voordat React de vorige effectopruiming uitvoert.
       // Een oude opslaglezing mag een nieuwere keuze of revisie niet overschrijven.
-      if (current.reportFontFamily !== 'custom' || current.customReportFont?.rev !== rev) return;
+      if (!fontReadIsCurrent(rev, current)) return;
       const ref = current.customReportFont;
       if (!font) {
         patchReportSettings({ reportFontFamily: 'inter', customReportFont: null });
