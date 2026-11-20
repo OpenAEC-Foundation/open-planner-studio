@@ -16,13 +16,18 @@ weergave telt dan elke taak als verschoven. De selector `OPS_XerDocument` kiest 
 - Het werkt ook bij opslaan buiten de modus: `runCPM` wist `recordedDates` bij het verlaten van de modus, en een
   pset zou de vastlegging dan verliezen. Taak-id's passen vanzelf: een XER-taak-id is de rauwe `task_id`, en
   `OPS_TaskIdentity` draagt die id's door de opslag. Er verandert geen documentcontract en er is geen extra parse.
-- Een compact archief (schema 2) of een crashherstelverwijzing (schema 3) zonder reconstructor is geen archieffout
-  maar een fout van de aanroeper: `readIFC` gooit `IfcParseError` `xer-source-archive` in plaats van het archief stil
-  weg te laten. Een fout in de reconstructie zelf wordt wel een `xerArchiveIssue` (`metadata-invalid`). De
-  hashcontrole geldt daarmee ook voor `recordedTimesByProject`.
+- Een compact archief (schema 2) zonder reconstructor is geen archieffout maar een fout van de aanroeper: `readIFC`
+  gooit `IfcParseError` `xer-source-archive` in plaats van het archief stil weg te laten. Een fout in de reconstructie
+  zelf wordt wel een `xerArchiveIssue` (`metadata-invalid`). De reconstructie krijgt alleen bytes die al op lengte en
+  SHA-256 gecontroleerd zijn, en haar archief moet daar weer op passen; zo geldt de hashcontrole ook voor
+  `recordedTimesByProject`.
+- Crashherstel schrijft een verwijzing (schema 3, zie `docs/xer-recovery-guardrails.md`); de bronbytes komen dan uit
+  `IfcReadOptions.resolveXerArchiveReference`. Ontbreekt die blob, dan volgt `bytes-missing` nog vóór de reconstructor;
+  past hij niet op lengte of hash, dan `truncated` of `hash-mismatch`. Pas met passende bytes geldt de regel van
+  schema 2, ook de fout van de aanroeper zonder reconstructor.
 - Historische archieven in schema 1 krijgen geen `recordedTimes` terug: het leesmodel bewaart de TASK-bronrijen wel,
   maar de omrekening vraagt de kalender- en getallaag van de XER-lezer, en dat pad loopt bewust zonder die chunk. De
-  huidige writer schrijft alleen schema 2.
+  writer schrijft alleen schema 2, en voor crashherstel schema 3.
 - Archief, selector en de selectorweergave van de metadata vallen samen weg als één ervan niet valideert ("openen
   met melding", zie `docs/xer-recovery-guardrails.md`). Ook een onverwachte fout in de validatie wordt een issue
   (`structure`, met de melding als detail), zodat de sidecar het project niet gijzelt. Het detail is begrensd op

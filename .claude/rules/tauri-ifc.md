@@ -126,7 +126,7 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 Besluiten van de lezer: `docs/adr/0040-ifc-lezen-integriteitspoort.md`, `0041-step-tekstscan-quote-bewust.md`,
 `0042-ifc-lezen-leeg-is-een-uitspraak.md`, `0043-ifc-lezen-uurmodus-kalender.md`,
 `0044-ifc-lezen-welke-taken-en-kalenders.md`, `0045-ifc-lezen-toewijzingen.md`,
-`0046-ifc-lezen-verwijzingen-terugvinden.md`, `0047-ifc-lezen-ops-metadata-is-inert.md`,
+`0046-ifc-lezen-verwijzingen-terugvinden.md`, `0047-ifc-lezen-ops-sequences-een-bron.md`,
 `0048-xer-vastlegging-via-bronreconstructie.md`, `0049-ifc-lezen-opties-van-de-bytesroute.md` en
 `0050-ifc-lezen-oude-en-vreemde-vormen.md`. `src/services/ifc/ifcReader.ts` heeft geen commentaar meer.
 

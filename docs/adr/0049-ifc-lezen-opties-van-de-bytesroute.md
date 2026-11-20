@@ -10,7 +10,9 @@ aanroeper) leest `readIFC` precies zoals vóór #804. Ontwerp: `docs/superpowers
 ## Gevolgen
 
 - `literalStepIds`: de codering per entiteit. De lezer decodeert de STEP-strings van elke entiteit die hier niet in
-  staat; de keuze voor het hele bestand (eigen versie `'0.1'` letterlijk, de rest gecodeerd) vervalt dan.
+  staat. De keuze voor het hele bestand vervalt dan: zonder deze optie leest de lezer een eigen bestand met versie
+  `'0.1'`, en een oud bestand met `OPS_`-psets zonder `IFCAPPLICATION` van OPS, letterlijk en de rest gecodeerd (ADR
+  0041).
 - `planningTaskStepIds`: de taken van `selectPlanning` als STEP-ids. De lezer leest precies die taken, in plaats van
   zelf de bomen onder een baselineschema uit te sluiten (ADR 0044). Met deze optie kiest de lezer ook de eigen
   owner history voor auteur en bedrijf (zie *Auteur en bedrijf* in `.claude/rules/tauri-ifc.md`).

@@ -1,11 +1,12 @@
-# Bij het lezen van IFC is leeg een uitspraak en verzint de lezer geen data
+# Bij het lezen van IFC is een leeg tekst- of projectveld een uitspraak
 
-Een IFC-slot kan een waarde dragen, leeg zijn (`$` of `''`) of ontbreken. De writer schrijft een leeg veld als `$`.
-De lezer behandelt leeg daarom als wat het bestand zegt, niet als "onbekend", en vult geen datum of tekst in die
-niet in het bestand staat. Een verzonnen waarde is geen invoer van de planner: een projectstart van vandaag tilt via
-de projectstartvloer van de solver taken met voorgangers naar de leesdatum, en een standaardtekst van deze machine
-maakt van een bewust lege omschrijving na heropenen een afwijking. `ifcSlotText` leest een tekstslot (`$`, leeg of
-afwezig geeft `''`, nooit de letterlijke `$`).
+Een IFC-slot kan een waarde dragen, `$` zijn, een gequote lege string `''` zijn of ontbreken. De writer schrijft een
+leeg veld als `$`. Voor tekstvelden en voor de projectdatums behandelt de lezer leeg als wat het bestand zegt, niet
+als "onbekend", en vult hij geen tekst of projectdatum in die niet in het bestand staat. Een verzonnen waarde is geen
+invoer van de planner: een projectstart van vandaag tilt via de projectstartvloer van de solver taken met voorgangers
+naar de leesdatum, en een standaardtekst van deze machine maakt van een bewust lege omschrijving na heropenen een
+afwijking. `ifcSlotText` leest een tekstslot: `$`, `''` en een afwezig slot geven alle drie `''`, nooit de letterlijke
+`$`.
 
 ## Gevolgen
 
@@ -16,15 +17,21 @@ afwezig geeft `''`, nooit de letterlijke `$`).
   kunnen komen. De dienstlaag heeft geen `t(...)`; de aanroeper geeft de tekst mee.
 - De omschrijving komt uit `IFCWORKPLAN.Description`, met terugval op `IFCPROJECT.Description`. Een kalender met
   `$` als omschrijving krijgt geen standaardomschrijving.
-- Projectstart en -einde: een leeg `StartTime` of `FinishTime` van het werkplan blijft leeg. Zonder projectstart in
-  het bestand wordt het anker de vroegste ingelezen `ScheduleStart`, en pas zonder enige taakstart vandaag (een leeg
-  project). Zegt `OPS_ProjectSettings` het veld, ook als bewust leeg (NominalValue `$`), dan wint dat en blijft het
-  leeg; afleiden zou de rondgang van een leeggemaakte startdatum breken. Toets: `check-recorded-dates.ts` 9A en 9B.
-- Lege rekenslots (Early/Late Start/Finish) krijgen de eigen geplande datum van de taak, niet vandaag, zoals de
-  CSV-lezer. Het laden rekent ze opnieuw uit, maar `normalizeImportedProgress` en slapende herstelde documenten lezen
-  ze eerder. Een `IFCTASK` zonder `IfcTaskTime` krijgt de standaardtijd. Toets: `check-ifc-empty-date-slots.ts`.
-  Welke slots het bestand echt vulde, staat in `recordedFields`; een taak zonder `IfcTaskTime` krijgt een lege lijst.
-- Een leeg actualslot blijft `undefined`. Een kalenderuitzondering zonder enige datum is geen uitzondering; met één
+- Projectstart: een leeg `StartTime` van het werkplan is geen datum en wordt niet vandaag. Zonder projectstart in het
+  bestand wordt de projectstart de vroegste ingelezen `ScheduleStart`, en pas zonder enige taakstart vandaag (een leeg
+  project). Een leeg `FinishTime` blijft leeg. Zegt `OPS_ProjectSettings` het veld, ook als bewust leeg (NominalValue
+  `$`), dan wint dat en blijft het leeg; afleiden zou de rondgang van een leeggemaakte startdatum breken. Toets:
+  `check-recorded-dates.ts` 9A en 9B.
+- Taakdatums volgen een andere regel. `parseDateFromIFC` leest `$` of een afwezig slot als vandaag; daarom onthoudt
+  `recordedFields` per taak welke slots van `IfcTaskTime` het bestand vulde. `$` en een afwezig slot tellen daar niet,
+  een gequote lege string `''` telt wel als aanwezig en leest als lege datum. Een ontbrekende `ScheduleStart` of
+  `ScheduleFinish` volgt daarna de gedeelde regel `resolveMissingScheduleDates`. Rekenslots (Early/Late Start/Finish)
+  met `$` of zonder waarde krijgen de eigen geplande datum van de taak, zoals de CSV-lezer: het laden rekent ze opnieuw uit, maar
+  `normalizeImportedProgress` en slapende herstelde documenten lezen ze eerder. Toets:
+  `check-ifc-empty-date-slots.ts`.
+- Een `IFCTASK` zonder `IfcTaskTime` krijgt `createDefaultTaskTime` (vandaag, 5 dagen) en een lege lijst in
+  `recordedFields`, zodat start en einde daarna als ontbrekend gelden.
+- Een actualslot met `$` of zonder waarde blijft `undefined`. Een kalenderuitzondering zonder enige datum is geen uitzondering; met één
   datum is het die ene dag.
 - `calendar.holidays` is altijd de gelezen lijst, ook leeg: anders kreeg een `.mpp` met nul feestdagen bij de eerste
   IFC-opslag de Nederlandse standaardfeestdagen. `generation` geldt alleen als `OPS_Calendar` het zegt.
@@ -36,4 +43,4 @@ afwezig geeft `''`, nooit de letterlijke `$`).
   werkelijk einde voorkomen); haar voortgang, actuals en rest blijven staan, en haar status wordt afgeleid uit
   werkelijk einde, werkelijk begin of voortgang, zonder datums te verzinnen. Toets: `check-ifc-lopend-100.ts`.
 - De datumlezer van IFC (`parseDateFromIFC`) is niet gedeeld met MSPDI, P6 of CSV: hij handelt de STEP-quoting en
-  `$` af, en een gequote lege string geeft `''`.
+  `$` af op de manier hierboven.
