@@ -2206,7 +2206,7 @@ await check('stap 8: een ronde van Automatisch opslaan terwijl een ander program
     let t = 9_000_000;
     c.store.getState().setAutoSaveToFile(true);
     const controller = createFileAutoSaveController({ getState: c.store.getState, enabled: () => true, now: () => t });
-    const round = () => { controller.observe(); t += 31_000; return controller.flush(); };
+    const round = () => { controller.observe(); t += 31_000; return controller.flushModels(); };
     const from = ipc.calls.length;
     await round();
     assert.deepEqual(disk(c), { 'model.ifc': hash(otherProgram) }, 'de versie van de ander blijft, geen hulpbestand');

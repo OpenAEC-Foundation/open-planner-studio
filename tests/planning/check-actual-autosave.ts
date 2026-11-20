@@ -5,7 +5,8 @@ import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSa
 import { useAppStore } from '@/state/appStore';
 import { freshPayload } from '@/state/documentContract';
 import {
-  closeProjectFileWrites, isProjectFileWriteBusy, runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFileWritesIdle,
+  claimProjectFileWrite, closeProjectFileWrites, isProjectFileWriteBusy, isProjectFileWriteHeld, runProjectFileWrite,
+  runYieldingProjectFileWrite, whenProjectFilePlacementsSettled, whenProjectFileWritesIdle,
   YieldedToManualWrite,
 } from '@/services/fileAccess/writeCoordinator';
 import {
@@ -251,7 +252,7 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
 {
   const order: string[] = [];
   let reason: unknown;
-  const round = runYieldingProjectFileWrite(async yielded => {
+  const round = runYieldingProjectFileWrite(async ({ yielded }) => {
     order.push('ronde-start');
     await new Promise<void>(resolve => yielded.addEventListener('abort', () => resolve(), { once: true }));
     reason = yielded.reason;
@@ -265,7 +266,7 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   truthy('20b de reden is een wijking, geen fout', reason instanceof YieldedToManualWrite);
   // Wachten op de rij (sluiten van een tabblad) laat de ronde ook wijken.
   let waited = false;
-  const closing = runYieldingProjectFileWrite(async yielded => {
+  const closing = runYieldingProjectFileWrite(async ({ yielded }) => {
     await new Promise<void>(resolve => yielded.addEventListener('abort', () => resolve(), { once: true }));
     return 'geweken';
   }, () => 'dicht');
@@ -273,7 +274,7 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   await whenProjectFileWritesIdle()?.then(() => { waited = true; });
   eq('20c een tabblad sluiten laat de ronde wijken', [await closing, waited], ['geweken', true]);
   // De laatste fase van afsluiten of de updater.
-  const quitting = runYieldingProjectFileWrite(async yielded => {
+  const quitting = runYieldingProjectFileWrite(async ({ yielded }) => {
     await new Promise<void>(resolve => yielded.addEventListener('abort', () => resolve(), { once: true }));
     return 'geweken';
   }, () => 'dicht');
@@ -299,6 +300,60 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
     ['geschreven', 'ok', ['plaatsen', 'geplaatst', 'handmatig']]);
   // Een gewone schrijfactie wijkt nooit: zij krijgt geen signaal en twee gewone acties wachten op elkaar (punt 14–16).
   truthy('20g de rij is daarna weer vrij', !isProjectFileWriteBusy());
+}
+
+// 21. Fixronde 2 van de review van #1033: een wijkende ronde vóór haar grens houdt de rij niet vast (een gewoon document
+//     schrijft op zijn eigen tik, zoals main), na `pass()` wel; een IFC-export wacht op een ronde die al plaatst
+//     (`whenProjectFilePlacementsSettled`), en een ronde die bij haar grens een claim ziet, wijkt (`pass()` geeft false).
+{
+  let toBoundary: (() => void) | null = null;
+  let afterPass: (() => void) | null = null;
+  let passed: boolean | null = null;
+  const round = runYieldingProjectFileWrite(async turn => {
+    await new Promise<void>(resolve => { toBoundary = resolve; });
+    passed = turn.pass();
+    await new Promise<void>(resolve => { afterPass = resolve; });
+    return 'geschreven';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  eq('21a een rekenende ronde is bezig, maar houdt de rij niet vast', [isProjectFileWriteBusy(), isProjectFileWriteHeld(),
+    whenProjectFilePlacementsSettled()], [true, false, null]);
+  (toBoundary as (() => void) | null)?.();
+  await Promise.resolve(); await Promise.resolve();
+  const settled = whenProjectFilePlacementsSettled();
+  eq('21b na de grens houdt zij de rij vast en plaatst zij', [passed, isProjectFileWriteHeld(), settled !== null],
+    [true, true, true]);
+  let placementsDone = false;
+  void settled?.then(() => { placementsDone = true; });
+  await Promise.resolve();
+  truthy('21c het plaatsen is nog niet af', !placementsDone);
+  (afterPass as (() => void) | null)?.();
+  eq('21d de ronde schrijft en het plaatsen is daarna af', [await round, await settled?.then(() => placementsDone)],
+    ['geschreven', true]);
+  eq('21e en de rij is weer vrij', [isProjectFileWriteBusy(), isProjectFileWriteHeld(), whenProjectFilePlacementsSettled()],
+    [false, false, null]);
+  // Een claim (de export) vóór de grens: de ronde wijkt bij `pass()`.
+  let reach: (() => void) | null = null;
+  let passedAfterClaim: boolean | null = null;
+  const claimed = runYieldingProjectFileWrite(async turn => {
+    await new Promise<void>(resolve => { reach = resolve; });
+    passedAfterClaim = turn.pass();
+    return passedAfterClaim ? 'geschreven' : 'yielded';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const release = claimProjectFileWrite();
+  (reach as (() => void) | null)?.();
+  eq('21f een claim vóór de grens laat de ronde wijken', [await claimed, passedAfterClaim, whenProjectFilePlacementsSettled()],
+    ['yielded', false, null]);
+  release();
+  // Een gewone schrijfactie houdt de rij vast zolang zij loopt of wacht.
+  let finishPlain: (() => void) | null = null;
+  const plain = runProjectFileWrite(async () => { await new Promise<void>(resolve => { finishPlain = resolve; }); return 'ok'; },
+    () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  truthy('21g een gewone schrijfactie houdt de rij vast', isProjectFileWriteHeld());
+  (finishPlain as (() => void) | null)?.();
+  eq('21h en laat haar daarna los', [await plain, isProjectFileWriteHeld()], ['ok', false]);
 }
 
 if (diffs.length === 0) {

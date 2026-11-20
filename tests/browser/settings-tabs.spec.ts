@@ -704,20 +704,26 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect((await saveWorkerLog())[0]!.messages.at(-1), 'de merge van Automatisch opslaan kwam uit de worker').toBe('result:merge');
       // Fixronde 1 van de review van #1033 (punt 6): typen in een cel van de taakgrid telt als werken, ook vóór Enter. Een
       // vastgelegde wijziging, 28 s later een taaknaam typen zonder Enter: 31 s na die wijziging schrijft de ronde nog
-      // niet. Na Escape (niets vastgelegd) en 30 s rust wel.
+      // niet. Na Escape (niets vastgelegd) en 30 s rust wel. Fixronde 2: de eerste letter op een geselecteerde cel opent de
+      // editor met die letter (zonder F2) en telt ook; daarna verder typen, en 28 s later nog steeds niets geschreven.
       const autoSavedText = saved.text;
       await editFirstLeafDuration();
       task.duration += 1;
       await page.clock.fastForward(28_000);
       const nameCell = page.locator(`[data-grid-data-row="true"][data-grid-row-key="${task.id}"] [data-grid-data-cell="true"][data-grid-column-id="task.name"]`).first();
       await nameCell.click();
-      await page.keyboard.press('F2');
+      await page.keyboard.press('X');
       const nameInput = nameCell.locator('input');
       await expect(nameInput).toBeVisible();
-      await nameInput.pressSequentially(' en verder');
+      await expect(nameInput).toHaveValue('X');
       await page.clock.fastForward(3_000);
       await page.waitForTimeout(2_000);
-      expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'typen in de cel houdt de ronde tegen').toBe(true);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'de eerste letter in de cel houdt de ronde tegen').toBe(true);
+      expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
+      await nameInput.pressSequentially(' en verder');
+      await page.clock.fastForward(28_000);
+      await page.waitForTimeout(2_000);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'verder typen in de cel houdt de ronde tegen').toBe(true);
       expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
       await nameInput.press('Escape');
       await page.clock.fastForward(31_000);

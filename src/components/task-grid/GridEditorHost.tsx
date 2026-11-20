@@ -2,6 +2,7 @@ import { useContext, useEffect, useState, type KeyboardEvent, type ReactNode } f
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import { TaskGridContext, type DataGridError } from './taskGridContext';
 import { noteTextEntry } from '@/state/textEntryActivity';
+import { isTextEntry } from '@/hooks/useTextEntryAutoCalcHold';
 
 export type GridEditorCommitResult =
   | { ok: true; nextCell?: GridCellAddress }
@@ -68,7 +69,7 @@ export function GridEditorHost({
     <div
       className="task-grid-editor-host"
       data-grid-editor-cell={`${cell.rowKey}\u0000${cell.columnId}`}
-      onInputCapture={noteTextEntry}
+      onInputCapture={event => { if (isTextEntry(event.target)) noteTextEntry(); }}
     >
       {children({
         'aria-invalid': currentError ? true : undefined,

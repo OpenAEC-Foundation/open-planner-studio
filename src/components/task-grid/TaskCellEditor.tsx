@@ -23,6 +23,7 @@ import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { Icon } from '@/components/icons';
 import { DATE_PICKER_ICONS, DatePickerPanel } from '@/components/common/DatePicker';
+import { noteTextEntry } from '@/state/textEntryActivity';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -231,6 +232,12 @@ export function TaskCellEditor({
       if (initialText === undefined) node.select();
       else node.setSelectionRange(node.value.length, node.value.length);
     }
+  }, [cell.rowKey, cell.columnId, initialText]);
+  // De eerste letter die vanuit een geselecteerde cel de editor start (`initialText`), is een gewone toetsaanslag: hij
+  // komt niet als `input`-event binnen, dus meldt de editor hem zelf aan de rustklok van Automatisch opslaan
+  // (`textEntryActivity.ts`, fixronde 2 van de review van #1033).
+  useEffect(() => {
+    if (initialText !== undefined) noteTextEntry();
   }, [cell.rowKey, cell.columnId, initialText]);
 
   const commit = useCallback((shiftKey = false): GridEditorCommitResult => {

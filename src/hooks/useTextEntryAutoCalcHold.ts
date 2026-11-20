@@ -5,7 +5,8 @@ import { noteTextEntry } from '@/state/textEntryActivity';
 
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'range', 'button', 'submit', 'reset', 'color', 'file']);
 
-function isTextEntry(target: EventTarget | null): boolean {
+/** Een tekstveld of tekstvak; vinkjes, schuiven, kleur- en bestandskeuze tellen niet als typen. */
+export function isTextEntry(target: EventTarget | null): boolean {
   if (target instanceof HTMLTextAreaElement) return true;
   return target instanceof HTMLInputElement && !NON_TEXT_INPUTS.has(target.type);
 }
@@ -39,7 +40,10 @@ export function useTextEntryAutoCalcHold() {
   }, [done]);
   useEffect(() => done, [done]);
   // Een toetsaanslag telt ook als werken voor Automatisch opslaan met een gebouwmodel (`textEntryActivity.ts`): een veld
-  // met een draft legt pas bij Enter of blur vast.
-  const onInput = useCallback((event: FormEvent) => { noteTextEntry(); hold(event); }, [hold]);
+  // met een draft legt pas bij Enter of blur vast. Alleen typen in een tekstveld telt (knownbug 1921).
+  const onInput = useCallback((event: FormEvent) => {
+    if (isTextEntry(event.target)) noteTextEntry();
+    hold(event);
+  }, [hold]);
   return { onFocus: hold, onInput, onBlur: done, onKeyDown };
 }

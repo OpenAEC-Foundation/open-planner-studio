@@ -30,7 +30,8 @@ export function scheduleFileAutoSave(controller: FileAutoSaveController, timers:
   // ondergrens van tien keer de duur van zijn vorige ronde; `modelAutoSaveRhythm.ts`). Die wekker gaat ook af zonder
   // nieuwe wijziging: na de rust. Zonder zo'n document (ook met de flag uit) staat hij nooit. Hij start alleen de rondes
   // van de documenten met een gebouwmodel (`flushModels`, fixronde 1 van de review van #1033): een gewoon document houdt
-  // zijn eigen 10 s.
+  // zijn eigen 10 s. Sinds fixronde 2 is hij ook de enige die een gebouwmodel aan de beurt zet: de gewone wekker (`flush`)
+  // kent alleen documenten zonder gebouwmodel.
   let modelTimer: unknown = null;
   let modelTimerAt: number | null = null;
   const armModelRound = () => {

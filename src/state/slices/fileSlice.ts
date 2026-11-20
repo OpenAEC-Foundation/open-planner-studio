@@ -89,7 +89,7 @@ import {
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
-import { claimProjectFileWrite, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementsSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
@@ -813,13 +813,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
-  /** #804 stap 8, fixronde 1 van de review van #1033: een IFC-export rekent vóór hij om de schrijfrij vraagt. Een ronde
-   *  van Automatisch opslaan met een gebouwmodel wijkt al vanaf dat rekenen (`claimProjectFileWrite`), zodat de export
-   *  niet op de opslagworker van de ronde wacht en de ronde de bron niet onder de export verandert; daarna geeft
-   *  `runProjectFileWrite` de export dezelfde voorrang. */
-  const prepareExportIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
+  /**
+   * #804 stap 8, fixronde 2 van de review van #1033: één volgorde voor een IFC-export, van de bronkeuze via de vraag
+   * "alleen de planning" en het rekenen tot en met het schrijven. Vanaf het begin houdt de export voorrang
+   * (`claimProjectFileWrite`): een ronde van Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt
+   * meteen, en zolang de export loopt wijkt elke nieuwe ronde ook, ook terwijl de vraag open staat. Een ronde die al
+   * plaatst, maakt dat eerst af (`whenProjectFilePlacementsSettled`); pas daarna neemt de export zijn bron op. Een
+   * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseChangedExport`). Zonder zo'n ronde
+   * (ook met de flag uit) begint de export zonder wachten, zoals vóór stap 8.
+   */
+  const withIfcExportPriority = async (run: () => Promise<ExportResult>): Promise<ExportResult> => {
     const release = claimProjectFileWrite();
-    try { return await prepareAppIfcWrite(state, input, planOnly); } finally { release(); }
+    try {
+      const placements = whenProjectFilePlacementsSettled();
+      if (placements) await placements;
+      return await run();
+    } finally { release(); }
   };
   const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<DocumentWrite | null> => {
     const write = await prepareAppIfcWrite(state, input, planOnly);
@@ -1878,7 +1887,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return save;
   };
 
-  return {
+  const slice: FileSlice = {
     commitSavedDocument,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
@@ -2458,7 +2467,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
           {
-            const written = await prepareExportIfcWrite(state, buildExportIFCInput(state, withoutModel ? 'planOnly' : 'merge'), planOnly);
+            const written = await prepareAppIfcWrite(state, buildExportIFCInput(state, withoutModel ? 'planOnly' : 'merge'), planOnly);
             if (!written) return { ok: true, warnings: [], cancelled: true };
             preparedExport = written.prepared;
             // #804 stap 6: de bytes van de opslagworker gaan zo naar de byteroute (`saveBytesDialog`), zonder tekst.
@@ -2593,7 +2602,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const planOnly = await askPlanOnlyExport(state, 'exportWithPool');
       if (planOnly === null) return { ok: true, warnings: [], cancelled: true };
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
-      const project = await prepareExportIfcWrite(state, buildExportIFCInput(state, 'planOnly'), planOnly);
+      const project = await prepareAppIfcWrite(state, buildExportIFCInput(state, 'planOnly'), planOnly);
       if (!project || project.prepared) return { ok: true, warnings: [], cancelled: true };
       const projectData = writerData(project);
       const base = suggestedFileBase(state);
@@ -3062,5 +3071,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         return false;
       }
     },
+  };
+  // Fixronde 2 van de review van #1033: de IFC-exports in één volgorde met voorrang (`withIfcExportPriority`).
+  return {
+    ...slice,
+    exportAs: (format, options) => format === 'ifc'
+      ? withIfcExportPriority(() => slice.exportAs(format, options)) : slice.exportAs(format, options),
+    exportProjectWithPool: () => withIfcExportPriority(slice.exportProjectWithPool),
   };
 };

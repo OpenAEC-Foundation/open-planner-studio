@@ -19,7 +19,9 @@ import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
   writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
-import { isProjectFileWriteBusy, runProjectFileWrite, runYieldingProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import {
+  isProjectFileWriteBusy, isProjectFileWriteHeld, runProjectFileWrite, runYieldingProjectFileWrite, type YieldingTurn,
+} from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
 import {
@@ -112,7 +114,6 @@ export function createFileAutoSaveController(deps: {
     if (notice) getState().notify(notice);
   };
   const payloadOf = (id: string) => getState().getOpenDocumentPayloads().find(d => d.id === id)?.payload;
-  const modelPayload = (id: string) => { const payload = payloadOf(id); return !!payload && modelDocument(getState(), payload); };
 
   /**
    * #804 stap 8: de ronde van een document met een gebouwmodel, binnen één schrijfbeurt die wijkt: de controle dat de
@@ -121,22 +122,28 @@ export function createFileAutoSaveController(deps: {
    * (`writeActiveDocument` in `fileSlice.ts`), zonder vraag of venster en met de meldingen van Automatisch opslaan. Tot
    * het herstelrecord (desktop) of de komende versie in het herstelmanifest (browser) geschreven is, stopt de ronde
    * zodra `yielded` afgaat: niets geschreven, het document blijft gewijzigd, geen melding (`'yielded'`). Daarna loopt ze
-   * af en wacht de handmatige actie.
+   * af en wacht de handmatige actie. Die grens is `turn.pass()` (fixronde 2 van de review van #1033): vanaf daar telt de
+   * ronde als plaatsend, en een IFC-export neemt zijn bron pas op als ze klaar is.
    */
-  const writeModel = (candidate: ActualAutoSaveCandidate) => runYieldingProjectFileWrite<ActualAutoSaveWrite>(async yielded => {
+  const writeModel = (candidate: ActualAutoSaveCandidate) => runYieldingProjectFileWrite<ActualAutoSaveWrite>(async turn => {
+    // Fixronde 2 van de review van #1033: het ritme geldt op het moment van de beurt, niet alleen bij het kiezen. Typte de
+    // planner intussen (de rust begon opnieuw), wijzigde hij iets, of doet het document niet meer mee, dan begint de
+    // ronde niet: niets gerekend, het ritme onveranderd, geen melding; de wekker plant de volgende beurt.
+    if (!stillDue(candidate.id)) return 'refused';
     // De duur van de ronde: vanaf de beurt in de rij, tot en met de commit en de laatste herstelronde. Week ze al terwijl
     // ze op haar beurt wachtte, dan telt dat ook als geweken (opnieuw na de volgende rustperiode).
     rhythm.roundStarted(candidate.id);
     let outcome: ActualAutoSaveWrite | undefined;
     try {
-      outcome = yielded.aborted ? 'yielded' : await modelRound(candidate, yielded);
+      outcome = turn.yielded.aborted ? 'yielded' : await modelRound(candidate, turn);
       return outcome;
     } finally {
       rhythm.roundEnded(candidate.id, outcome === true ? 'written' : outcome === 'yielded' ? 'yielded' : 'other');
     }
   }, () => 'refused');
 
-  const modelRound = async (candidate: ActualAutoSaveCandidate, yielded: AbortSignal): Promise<ActualAutoSaveWrite> => {
+  const modelRound = async (candidate: ActualAutoSaveCandidate, turn: YieldingTurn): Promise<ActualAutoSaveWrite> => {
+    const { yielded } = turn;
     const current = payloadOf(candidate.id);
     if (!current) return false;
     const document: DocumentContentRef = { id: candidate.id, content: candidate.content };
@@ -200,7 +207,8 @@ export function createFileAutoSaveController(deps: {
     if (ref.kind === 'handle') {
       const result = await replaceOwnHandleWithRecovery({
         documentId: candidate.id, ref, prepared, source: source.bytes,
-        stopBeforeWrite: () => yielded.aborted || changed(), refuseBeforePlace: changed, commit,
+        // De grens: na het vastleggen van het herstel, vlak vóór `createWritable()`. `pass` laat de ronde daarna aflopen.
+        stopBeforeWrite: () => changed() || !turn.pass(), refuseBeforePlace: changed, commit,
       });
       if (result.code === 'replaced') return true;
       if (result.code === 'not-recorded') stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE);
@@ -221,7 +229,8 @@ export function createFileAutoSaveController(deps: {
       documentId: candidate.id, path: ref.path, prepared, source: { bytes: source.bytes, sha256: source.sha256 },
       stopBeforeWrite: async () => {
         stoppedBy = yielded.aborted ? 'yielded' : await guard();
-        if (stoppedBy === null && yielded.aborted) stoppedBy = 'yielded';
+        // De grens: na het vastleggen van het herstel, vlak vóór de eerste schrijfactie in de projectmap.
+        if (stoppedBy === null && !turn.pass()) stoppedBy = 'yielded';
         return stoppedBy !== null;
       },
       refuseBeforePlace: () => { if (changed()) stoppedBy = 'stale'; return stoppedBy !== null; },
@@ -273,29 +282,53 @@ export function createFileAutoSaveController(deps: {
     return payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !refusedTarget.has(id);
   };
 
-  /** De kandidaten van één ronde; `onlyModels`: alleen de documenten met een gebouwmodel (hun eigen wekker). */
-  const listCandidates = (onlyModels: boolean) => (): ActualAutoSaveCandidate[] => {
+  /** Fixronde 2 van de review van #1033: is dit document met een gebouwmodel nu (nog) aan de beurt? */
+  const stillDue = (id: string): boolean => {
+    observe();
+    const payload = payloadOf(id);
+    return !!payload && modelDocument(getState(), payload) && takesPart(id, payload) && rhythm.isDue(id);
+  };
+
+  /**
+   * De gewone ronde (het ritme van 10 s): elk document zonder gebouwmodel, precies zoals vóór stap 8. Een document met een
+   * gebouwmodel hoort hier niet bij (fixronde 2 van de review van #1033); dat zet alleen zijn eigen wekker aan de beurt
+   * (`listModels`). Een ronde met een gebouwmodel die nog vóór haar grens is, houdt de gewone ronde niet tegen: die vraagt
+   * om de rij en laat haar wijken (`isProjectFileWriteHeld`), zodat een gewoon document zijn tik niet verliest.
+   */
+  const listPlain = (): ActualAutoSaveCandidate[] => {
     // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
     // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
+    if (!deps.enabled() || isProjectFileWriteHeld()) return [];
+    const state = getState();
+    const candidates: ActualAutoSaveCandidate[] = [];
+    for (const { id, payload } of state.getOpenDocumentPayloads()) {
+      if (modelDocument(state, payload)) continue;
+      // #804 fase 1a: een document met een vreemd deel schrijft niet naar het bestand (de writer laat het model
+      // nog weg). Crashherstel loopt door. Stap 8: behalve met de flag aan en de bron aanwezig (`listModels`).
+      const foreignBlocked = ifcSaveBlocked(payload);
+      if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
+        foreignNotified.add(id);
+        getState().notify(ifcWriteBlockedNotice(payload));
+      }
+      const enabled = takesPart(id, payload) && !foreignBlocked;
+      candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
+        ref: autoSaveRef(payload), source: payload });
+    }
+    return candidates;
+  };
+
+  /** De ronde van de wekker met een gebouwmodel: alleen de documenten met een gebouwmodel die aan de beurt zijn. Bij hun
+   *  beurt in de rij toetst `writeModel` het ritme opnieuw. Waar Ctrl+S een vraag zou stellen, beslist de ronde zelf
+   *  (`modelRound`): ze stelt nooit een vraag. */
+  const listModels = (): ActualAutoSaveCandidate[] => {
     if (!deps.enabled() || isProjectFileWriteBusy()) return [];
     observe();
     const state = getState();
     const candidates: ActualAutoSaveCandidate[] = [];
     for (const { id, payload } of state.getOpenDocumentPayloads()) {
-      // #804 fase 1a: een document met een vreemd deel schrijft niet naar het bestand (de writer laat het model
-      // nog weg). Crashherstel loopt door. Stap 8: behalve met de flag aan en de bron aanwezig (`modelDocument`).
-      const model = modelDocument(state, payload);
-      if (onlyModels && !model) continue;
-      const foreignBlocked = !model && ifcSaveBlocked(payload);
-      if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
-        foreignNotified.add(id);
-        getState().notify(ifcWriteBlockedNotice(payload));
-      }
-      // Stap 8: een document met een gebouwmodel alleen op zijn eigen ritme. Waar Ctrl+S een vraag zou stellen, beslist
-      // de ronde zelf (`modelRound`): ze stelt nooit een vraag.
-      const enabled = takesPart(id, payload) && !foreignBlocked && (!model || rhythm.isDue(id));
-      candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
-        ref: autoSaveRef(payload), source: payload });
+      if (!modelDocument(state, payload)) continue;
+      candidates.push({ id, content: documentContentOf(state, id)!.content, enabled: takesPart(id, payload) && rhythm.isDue(id),
+        dirty: payload.isDirty, ref: autoSaveRef(payload), source: payload });
     }
     return candidates;
   };
@@ -305,9 +338,7 @@ export function createFileAutoSaveController(deps: {
     // #804 stap 3, fixronde 1: de ronde koos haar kandidaten vóór het slot. Begon intussen de laatste fase van afsluiten
     // of van de updater (`closeProjectFileWrites`), dan schrijft ze niet meer: `'refused'`, niets te melden, het
     // document blijft gewijzigd.
-    // Stap 8: de route kiest het document zoals het nu is; `writeModel` en de gewone route toetsen het daarna opnieuw onder
-    // het schrijfslot.
-    write: candidate => modelPayload(candidate.id) ? writeModel(candidate) : runProjectFileWrite<ActualAutoSaveWrite>(async () => {
+    write: (candidate: ActualAutoSaveCandidate) => runProjectFileWrite<ActualAutoSaveWrite>(async () => {
       // Wachten op een handmatige write mag nooit alsnog een inmiddels oude autosave-inhoud laten overschrijven. Kijk
       // dus OPNIEUW onder de exclusieve lock, vóór het voorbereiden.
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
@@ -316,7 +347,7 @@ export function createFileAutoSaveController(deps: {
       if (!sameDocumentContent(getState(), document)) return 'stale';
       if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
       // Een document met een vreemd deel schrijft deze route nooit: met de flag aan en de bron aanwezig gaat het langs
-      // `writeModel` (stap 8), anders sloot de kandidatenlijst het al uit.
+      // `writeModel` (stap 8, zijn eigen wekker), anders sloot de kandidatenlijst het al uit.
       if (ifcSaveBlocked(current)) return 'refused';
       // #804 stap 6: de momentopname en het rekenen onder het schrijfslot, via dezelfde berekenfunctie als Ctrl+S
       // (de opslagworker). Typt de planner intussen, dan schrijft de ronde deze momentopname en blijft het document
@@ -364,15 +395,15 @@ export function createFileAutoSaveController(deps: {
       });
     },
   } satisfies Omit<Parameters<typeof createActualAutoSaveController>[0], 'listCandidates'>;
-  // Fixronde 1 van de review van #1033: twee ingangen naar dezelfde schrijfcoördinatie. De gewone (het ritme van 10 s)
-  // neemt elk document dat meedoet, een gebouwmodel alleen als het aan de beurt is; de wekker van een gebouwmodel neemt
-  // alleen de documenten met een gebouwmodel, zodat een gewoon document nooit vóór zijn eigen 10 s geschreven wordt.
-  const everyDocument = createActualAutoSaveController({ ...roundDeps, listCandidates: listCandidates(false) });
-  const modelsOnly = createActualAutoSaveController({ ...roundDeps, listCandidates: listCandidates(true) });
+  // Fixronde 2 van de review van #1033: twee gescheiden ingangen naar dezelfde schrijfrij. De gewone (het ritme van 10 s)
+  // kent alleen documenten zonder gebouwmodel; de wekker van een gebouwmodel is de enige die een gebouwmodel aan de beurt
+  // zet. Zo kiezen twee ingangen nooit hetzelfde document.
+  const plain = createActualAutoSaveController({ ...roundDeps, listCandidates: listPlain });
+  const models = createActualAutoSaveController({ ...roundDeps, listCandidates: listModels, write: writeModel });
   return {
-    flush: everyDocument.flush,
-    flushModels: modelsOnly.flush,
-    isSaving: () => everyDocument.isSaving() || modelsOnly.isSaving(),
+    flush: plain.flush,
+    flushModels: models.flush,
+    isSaving: () => plain.isSaving() || models.isSaving(),
     observe,
     noteTextEntry: () => {
       const id = getState().activeDocumentId;

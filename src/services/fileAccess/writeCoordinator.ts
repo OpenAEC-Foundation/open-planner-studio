@@ -20,6 +20,12 @@ export class YieldedToManualWrite extends Error {
 /** Fixronde 1 van de review van #1033: zoveel handmatige acties houden voorrang vóór ze de rij bereiken
  *  (`claimProjectFileWrite`). Zolang er één is, wijkt elke ronde meteen, ook een die nu pas om de rij vraagt. */
 let claims = 0;
+/** Fixronde 2 van de review van #1033: zoveel schrijfacties staan in de rij of lopen, en zoveel daarvan zijn wijkende
+ *  rondes die nog vóór hun grens zijn (`YieldingTurn.pass`). Het verschil is wat niet meer wijkt. */
+let queued = 0;
+let soft = 0;
+/** Fixronde 2: de wijkende rondes die over hun grens gingen en nog plaatsen; klaar als de ronde klaar is. */
+const placing = new Set<Promise<void>>();
 
 /** Besluit technisch beslisser, 19 november 2026: "Een handmatige actie gaat altijd voor." */
 function yieldBackgroundWrites(): void {
@@ -45,6 +51,23 @@ export function claimProjectFileWrite(): () => void {
 
 export function isProjectFileWriteBusy(): boolean {
   return busy;
+}
+
+/**
+ * Fixronde 2 van de review van #1033: staat er een schrijfactie in de rij die niet meer wijkt? Een ronde van Automatisch
+ * opslaan met een gebouwmodel die nog vóór haar grens is, telt niet: wie nu om de rij vraagt, laat haar wijken. Zonder
+ * zo'n ronde (ook met de flag uit) is dit gelijk aan `isProjectFileWriteBusy`.
+ */
+export function isProjectFileWriteHeld(): boolean {
+  return queued > soft;
+}
+
+/**
+ * Fixronde 2 van de review van #1033: `null` als geen wijkende ronde over haar grens is; anders een belofte die klaar is
+ * zodra die rondes hun plaatsing en commit afmaakten. Een IFC-export neemt zijn bron pas daarna op.
+ */
+export function whenProjectFilePlacementsSettled(): Promise<void> | null {
+  return placing.size === 0 ? null : Promise.all(placing).then(() => undefined);
 }
 
 /**
@@ -91,6 +114,18 @@ export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () 
   return enqueue(work, closed);
 }
 
+/** De beurt van een wijkende ronde (`runYieldingProjectFileWrite`). */
+export interface YieldingTurn {
+  /** Gaat af zodra een andere schrijfactie om de rij vraagt, iemand op de rij wacht of een export voorrang claimt. */
+  yielded: AbortSignal;
+  /**
+   * De grens: vlak vóór de eerste schrijfactie op het doel. `false`: de ronde week al (niets schrijven). `true`: vanaf nu
+   * wijkt de ronde niet meer; ze loopt af, een export wacht op haar (`whenProjectFilePlacementsSettled`) en wie om de rij
+   * vraagt, wacht op zijn beurt. Synchroon, dus niets kan tussen de toets en de belofte komen.
+   */
+  pass: () => boolean;
+}
+
 /**
  * #804 stap 8: een ronde van Automatisch opslaan met een gebouwmodel, in dezelfde rij. `yielded` gaat af zodra een andere
  * schrijfactie om de rij vraagt (`runProjectFileWrite`) of iemand op de rij wacht (`whenProjectFileWritesIdle`, ook
@@ -98,32 +133,60 @@ export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () 
  * zolang ze nog rekent of controleert, stopt ze zonder te schrijven; is het herstelrecord geschreven, dan loopt ze af en
  * wacht de handmatige actie op haar beurt. Een gewone ronde (zonder gebouwmodel) gebruikt `runProjectFileWrite`.
  */
-export async function runYieldingProjectFileWrite<T>(work: (yielded: AbortSignal) => Promise<T>, closed: () => T): Promise<T> {
+export async function runYieldingProjectFileWrite<T>(work: (turn: YieldingTurn) => Promise<T>, closed: () => T): Promise<T> {
   const controller = new AbortController();
   yielding.add(controller);
   if (claims > 0) controller.abort(new YieldedToManualWrite());
+  let settle: (() => void) | undefined;
+  /** In de rij en nog vóór de grens (telt in `soft`). */
+  const entry = { soft: false };
+  const turn: YieldingTurn = {
+    yielded: controller.signal,
+    pass: () => {
+      if (controller.signal.aborted) return false;
+      if (!settle) {
+        yielding.delete(controller);
+        leaveSoft(entry);
+        const settled = new Promise<void>(resolve => { settle = resolve; });
+        placing.add(settled);
+        void settled.then(() => { placing.delete(settled); });
+      }
+      return true;
+    },
+  };
   try {
-    return await enqueue(() => work(controller.signal), closed);
+    return await enqueue(() => work(turn), closed, entry);
   } finally {
     yielding.delete(controller);
+    settle?.();
   }
 }
 
-async function enqueue<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
+function leaveSoft(entry: { soft: boolean }): void {
+  if (!entry.soft) return;
+  entry.soft = false;
+  soft--;
+}
+
+async function enqueue<T>(work: () => Promise<T>, closed: () => T, yieldingEntry?: { soft: boolean }): Promise<T> {
   if (closers > 0) return closed();
   busy = true;
+  queued++;
+  if (yieldingEntry) { yieldingEntry.soft = true; soft++; }
   let release: (() => void) | undefined;
   const turn = new Promise<void>((resolve) => { release = resolve; });
   const previous = tail;
-  const queued = previous.then(() => turn);
-  tail = queued;
+  const mine = previous.then(() => turn);
+  tail = mine;
   await previous;
   try {
     return await work();
   } finally {
     release!();
+    if (yieldingEntry) leaveSoft(yieldingEntry);
+    queued--;
     // Een volgende wachtrijhouder houdt de vlag terecht hoog; pas als dit de staart was is de
     // volgende timer-run weer toegestaan.
-    if (tail === queued) busy = false;
+    if (tail === mine) busy = false;
   }
 }
