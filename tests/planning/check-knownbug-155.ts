@@ -20,6 +20,7 @@ function task(id: string, minutes: number): Task {
     isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [], time };
 }
 let cases = 0;
+const failures: string[] = [];
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   for (const type of ['WORKTIME', 'ELAPSEDTIME'] as const) {
     for (const lagDays of [-1, 0, 1]) {
@@ -36,8 +37,19 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       if (result.error || !ar || !br) throw new Error('Knownbug 155: no result: ' + (result.error ?? profile));
       console.log('KNOWNBUG155', JSON.stringify({ profile, type, lagDays, predFinish: ar.earlyFinish,
         succStart: br.earlyStart, succFinish: br.earlyFinish, driving: result.drivingSequenceIds }));
+      // Alleen de positieve kloklag buiten de werkband is hier het bekende defect.
+      // De negatieve lag wordt in deze fixture door de projectstart begrensd.
+      const wantStart = type === 'ELAPSEDTIME' && lagDays === 1 ? '2026-06-06T16:00'
+        : lagDays === -1 ? '2026-06-05T07:00' : '2026-06-08T07:00';
+      const wantFinish = type === 'ELAPSEDTIME' && lagDays === 1 ? '2026-06-07T00:00'
+        : wantStart.slice(0, 10) + (type === 'ELAPSEDTIME' ? 'T15:00' : 'T16:00');
+      if (ar.earlyFinish !== '2026-06-05T16:00' || br.earlyStart !== wantStart || br.earlyFinish !== wantFinish) {
+        failures.push(JSON.stringify({ profile, type, lagDays, wantStart, wantFinish,
+          predFinish: ar.earlyFinish, succStart: br.earlyStart, succFinish: br.earlyFinish }));
+      }
       cases++;
     }
   }
 }
-console.log('KNOWNBUG155_SUMMARY', JSON.stringify({ cases }));
+console.log('KNOWNBUG155_SUMMARY', JSON.stringify({ cases, failures: failures.length }));
+if (failures.length) throw new Error('KNOWNBUG155: ' + failures.join('\n'));
