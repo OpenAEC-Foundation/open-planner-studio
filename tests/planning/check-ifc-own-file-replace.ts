@@ -538,6 +538,22 @@ await check('1816: alleen botsing herhalen, andere uitkomsten stoppen en aantal 
   const collision = { place: async () => { attempts++; return { code: 'target-exists' as const }; } };
   assert.equal(await placeUniqueReplaceCopy(collision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
   assert.equal(attempts, 100);
+  attempts = 0;
+  const syncWarning = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const }
+      : { code: 'dir-not-synced' as const, message: 'test' };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(syncWarning, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'),
+    '/map/model (kopie 2).ifc');
+  assert.equal(attempts, 2, 'een geplaatste kopie niet opnieuw verplaatsen');
+  attempts = 0;
+  const uncertainAfterCollision = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const } : { code: 'source-changed' as const };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(uncertainAfterCollision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 2, 'onzekere toestand na botsing niet opnieuw proberen');
   for (const code of ['source-changed', 'io', 'refused', 'unsupported'] as const) {
     attempts = 0;
     const fs = { place: async () => {
