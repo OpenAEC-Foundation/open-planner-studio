@@ -465,11 +465,14 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   replacement with its recovery record, and the commit. Its own rhythm per document (`modelAutoSaveRhythm.ts`, clock
   injectable): 30 s of rest, at most 5 min after the first unsaved change, and never sooner than ten times the measured
   duration of the previous round after its start; typing in open field input (`state/textEntryActivity.ts`) restarts the
-  rest. The timers live in `fileAutoSaveTimers.ts`; the model timer starts only model candidates (`flushModels`). Every
+  rest. The timers live in `fileAutoSaveTimers.ts`; only the model timer puts a model up for its turn (`flushModels`),
+  the ordinary 10 s round knows no model, and the rhythm is checked again at the turn in the queue. Every
   other request for the write queue (`runProjectFileWrite`: Ctrl+S, Save As, exports, MCP), every wait on it
-  (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export from its
-  computing on (`claimProjectFileWrite`) makes a round yield up to the boundary in the shared replacement
-  (`stopBeforeWrite`, once recovery is recorded): the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export over its whole
+  sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
+  is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
+  `YieldingTurn.pass()`, once recovery is recorded); an export waits for a round past that boundary
+  (`whenProjectFilePlacementsSettled`), and a round before it does not hold the queue (`isProjectFileWriteHeld`): the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
   nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
   Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A

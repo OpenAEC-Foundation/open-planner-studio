@@ -179,7 +179,11 @@ vast (`exportContentReplaced`). De native kiezer van Tauri geeft alleen een pad 
 desktop geldt de late controle overal. De late controle van een export kijkt naar het geëxporteerde document, ook als
 dat intussen in een ander tabblad staat (`refuseExportBeforePlace`, review van #1027 ronde 2): een tabbladwissel is geen
 wijziging van de planning, dus de export rondt af zolang het document zijn inhoud en bron hield. Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
-in dezelfde schrijfbeurt, zoals Ctrl+S.
+in dezelfde schrijfbeurt, zoals Ctrl+S. Een IFC-export (`exportAs('ifc')`, ook zonder gebouwmodel, en
+`exportProjectWithPool`) loopt als één volgorde met voorrang (`withIfcExportPriority`, fixronde 2 van de review van
+#1033): `claimProjectFileWrite` van de bronkeuze via de vraag "alleen de planning" tot en met het schrijven, en een ronde
+van Automatisch opslaan die al plaatst, maakt dat af vóór de export zijn bron opneemt (`whenProjectFilePlacementsSettled`;
+zie `settings-autosave.md`).
 
 **Herstel bij de start** (knownbug 1902, fixronde 1 van #1027, besluit Trias): een vervanging die aantoonbaar niets
 schreef (`nothingWritten`), wist haar record meteen. Weigert plugin-fs bij de start het doel of een hulpnaam

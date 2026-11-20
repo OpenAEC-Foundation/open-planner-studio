@@ -4024,6 +4024,20 @@ en noem het in je rapport of PR-tekst.
       stap 8 opgelost. Richting, als een meting het nodig maakt: de gewone ronde ook via `runYieldingProjectFileWrite`,
       met de grens vóór `saveToRefWithoutPrompt`. — S
 
+1906. **VERVOLG (review #1033): wijken kan herstelmetadata achterlaten, alleen na een schrijffout tijdens het
+      opruimen.** "De gedeelde grens `stopBeforeWrite`, na het vastleggen van herstel en vóór de eerste schrijfactie in
+      de projectmap of op de handle, is de juiste plek. Met werkende opslag bleef Ctrl+S buiten de rij tot de lopende
+      herstelhandeling en het opruimen klaar waren. Toen zagen beide proeven de originele bestandshash, een gewijzigd
+      document en nul hulpbestanden, herstelrecords of komende versies. Alleen Ctrl+S schreef daarna. Bij één geweigerde
+      desktopverwijdering bleef na wijken één record staan, zonder projectwrite of hulpbestand. De export werd
+      geannuleerd en de volgende modelronde zette AutoSave stil op het eigen achtergebleven record, terwijl de
+      verwijderfout al voorbij was. Bij één geweigerde browserwrite tijdens opruimen bleef `pendingSha256` in het
+      manifest staan tot een volgende geslaagde flush. Daarmee faalt de expliciete eis dat een geweken ronde haar
+      herstelmetadata opruimt. Geef mislukte opruiming een eigen uitkomst in de bestaande vervanging en laat een
+      herstelpoging het onderscheid bewaren tussen een bewust afgebroken ronde zonder projectwrite en een werkelijk
+      onderbroken vervanging." (`ownFileReplace.ts`, `recoveryPendingSource.ts`.) Besluit technisch beslisser: VERVOLG,
+      het treedt alleen op na een schrijffout tijdens het opruimen. — B (proef van de reviewer)
+
 1922. **VERVOLG (review #1033): de tijdgrenzen van Automatisch opslaan met een gebouwmodel kunnen botsen.**
       De ondergrens (de volgende ronde niet vóór tien keer de duur van de vorige, na haar begin) gaat vóór de bovengrens
       van 5 minuten (`modelAutoSaveRhythm.ts`). Begint op 30 s een ronde van 40 s en volgt op 40 s een nieuwe wijziging,
@@ -4065,7 +4079,33 @@ en noem het in je rapport of PR-tekst.
       invoerscript de cel ongeveer een seconde vóór elke vastlegging. Vermoeden, niet nagegaan: de ronde begon op de
       grens van 5 minuten (316,3 s) en eindigde ongeveer 2,6 s later zonder te schrijven (bijvoorbeeld omdat de inhoud
       tijdens de ronde veranderde); de ondergrens van tien keer de rondeduur zette de volgende dan op 316,3 + 26 = 342,3 s.
-      Dat klopt met de gemeten 342,2 s. Waarom die ronde niet schreef, is niet gevonden. — S
+      Dat klopt met de gemeten 342,2 s. Waarom die ronde niet schreef, is niet gevonden.
+      Aanvulling uit de tweede review van #1033 (reviewer, letterlijk): "Knownbug 1928 heeft een reproduceerbaar
+      mechanisme, met onbekende oorzaak in de oorspronkelijke run. Een modelronde begon bij 300 s. Na een opgewekte
+      workerfout op 302,6 s had ze niets geschreven en kwam de volgende ronde pas op 326 s aan de beurt. `roundEnded`
+      telt ook rondes zonder write mee voor de factor tien. De fout gaf in mijn proef een melding. Gewoon typen met
+      behoud van de documentinhoudsidentiteit laat een al rekenende ronde haar momentopname opslaan. De historische
+      325,9 s volgt dus niet uit het openen van de cel alleen. Om die run te verklaren zijn het start- en eindmoment en
+      de uitkomst van de eerste ronde nodig." (`fileAutoSave.ts`, `roundEnded` in `modelAutoSaveRhythm.ts`.) — S
+
+1929. **VERVOLG (review #1033): met een afhankelijk project beoordeelt Automatisch opslaan het anker op de hoofdthread,
+      bij elke beurt opnieuw.** "Met een gevonden afhankelijk project schrijft, leest en berekent AutoSave eerst de
+      planning op de hoofdthread, onder het schrijfslot. Een te krap anker kan dat bij elke volgende beurt laten
+      herhalen, ook met dezelfde invoer. De kosten voor een normale grote planning zijn hier niet gemeten. Hergebruik de
+      beoordeling zolang de planningsinvoer en het zoekresultaat gelijk blijven." (`fileAutoSave.ts`,
+      `tightAnchorsIfSaved` in `dependentCandidates.ts`.) — B
+
+1930. **VERVOLG (fixronde 2 van de review van #1033): een gewoon document dat steeds wijzigt, kan een lange modelronde
+      steeds laten wijken.** Een gewoon document schrijft met de flag aan op zijn eigen tik van 10 s, ook terwijl een
+      modelronde nog rekent: die ronde wijkt dan (`isProjectFileWriteHeld` in `writeCoordinator.ts`, proef `eigen tik
+      van 40 s` in `check-ifc-document-save.ts`). Zo bleef de gewone tik gelijk aan main. Werkt de planner onafgebroken
+      in een gewoon document, met elke 10 s een nieuwe ronde, terwijl een ronde van het gebouwmodel langer dan die 10 s
+      rekent, dan wijkt die ronde elke keer. Na elke wijking telt ook de ondergrens (tien keer de duur van de geweken
+      ronde na haar begin; na een geweken ronde van 8 s begint de volgende pas 80 s na het begin van de geweken ronde).
+      Het gebouwmodel kan dan langer dan 5 minuten achterlopen. Er gaat niets verloren: het document blijft gewijzigd,
+      en crashherstel loopt door. Niet gemeten met echte plannen. Richting, als een meting het nodig maakt: na de grens
+      van 5 minuten de gewone ronde laten wachten tot de modelronde klaar is, of een geweken ronde niet meetellen voor
+      de ondergrens. — S
 
 ## Wensen en open taken (geen bug)
 
