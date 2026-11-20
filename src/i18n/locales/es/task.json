@@ -47,6 +47,8 @@
     "recentColumns": "Usadas recientemente",
     "noColumns": "Añada una columna con +.",
     "toggleSummary": "Expandir o contraer tarea de resumen",
+    "toggleMilestones": "Expandir o contraer hitos",
+    "milestonesRun": "Hitos ({{n}})",
     "calculatedReadOnly": "Esta columna calculada no se puede editar."
   },
   "taskGrid": {

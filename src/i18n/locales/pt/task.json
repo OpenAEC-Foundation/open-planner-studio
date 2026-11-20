@@ -47,6 +47,8 @@
     "recentColumns": "Usadas recentemente",
     "noColumns": "Adicione uma coluna com +.",
     "toggleSummary": "Expandir ou recolher tarefa de resumo",
+    "toggleMilestones": "Expandir ou recolher marcos",
+    "milestonesRun": "Marcos ({{n}})",
     "calculatedReadOnly": "Esta coluna calculada não pode ser editada."
   },
   "taskGrid": {

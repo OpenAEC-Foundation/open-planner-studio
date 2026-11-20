@@ -47,6 +47,8 @@
     "recentColumns": "최근 사용한 열",
     "noColumns": "+로 열을 추가하세요.",
     "toggleSummary": "요약 작업 펼치기 또는 접기",
+    "toggleMilestones": "마일스톤 펼치기 또는 접기",
+    "milestonesRun": "마일스톤 ({{n}})",
     "calculatedReadOnly": "이 계산 열은 편집할 수 없습니다."
   },
   "taskGrid": {

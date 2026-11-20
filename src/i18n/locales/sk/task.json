@@ -47,6 +47,8 @@
     "recentColumns": "Naposledy použité",
     "noColumns": "Pridajte stĺpec pomocou tlačidla +.",
     "toggleSummary": "Rozbaliť alebo zbaliť súhrnnú úlohu",
+    "toggleMilestones": "Rozbaliť alebo zbaliť medzníky",
+    "milestonesRun": "Medzníky ({{n}})",
     "calculatedReadOnly": "Tento vypočítaný stĺpec sa nedá upraviť."
   },
   "taskGrid": {

@@ -47,6 +47,8 @@
     "recentColumns": "Senast använda",
     "noColumns": "Lägg till en kolumn med +.",
     "toggleSummary": "Fälla ut eller fälla ihop sammanfattningsuppgift",
+    "toggleMilestones": "Expandera eller komprimera milstolpar",
+    "milestonesRun": "Milstolpar ({{n}})",
     "calculatedReadOnly": "Den här beräknade kolumnen kan inte redigeras."
   },
   "taskGrid": {

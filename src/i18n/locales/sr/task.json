@@ -47,6 +47,8 @@
     "recentColumns": "Недавно коришћено",
     "noColumns": "Додајте колону помоћу +.",
     "toggleSummary": "Прошири или скупи збирни задатак",
+    "toggleMilestones": "Прошири или скупи контролне тачке",
+    "milestonesRun": "Контролне тачке ({{n}})",
     "calculatedReadOnly": "Ову израчунату колону није могуће уређивати."
   },
   "taskGrid": {

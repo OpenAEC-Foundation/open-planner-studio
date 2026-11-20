@@ -862,8 +862,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
    *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor de vervanging
    *  bij Opslaan als over een bestaande naam (#804 keuze 4, `replaceExistingPath`): `readers` scant de inhoud die als
-   *  verwacht is vastgelegd in plaats van het pad, en `openDocumentPaths` weigert ook een pad dat een open document als
-   *  bestand heeft (fixronde 1 en 2 van #1019). */
+   *  verwacht is vastgelegd in plaats van het pad (fixronde 2 van #1019). `openDocumentPaths` (de bestandskiezer van
+   *  Opslaan als en die vervanging) weigert ook een bestaand pad dat een ander open document als bestand heeft
+   *  (fixronde 1 van #1019, #1022). */
   const documentTargetCheck = (
     snapshot: AppState, write?: DocumentWrite, ownTarget = false,
     { readers = writeTargetReaders, openDocumentPaths = false }: { readers?: () => TargetReaders; openDocumentPaths?: boolean } = {},
@@ -874,7 +875,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers, openDocumentPaths }, ownVersion);
+    const reason = await refusedWriteTarget(get(), target, {
+      identityFs: fileIdentityFs, readers,
+      ...(openDocumentPaths ? { openDocumentPaths: { exceptDocumentId: snapshot.activeDocumentId } } : {}),
+    }, ownVersion);
     if (reason) {
       get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
         : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
@@ -894,14 +898,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  /** `replaceExisting`: alleen Opslaan als (#804 keuze 4); zie `SaveDialogOpts.replaceExisting`. De doelcontrole van de
-   *  bestandskiezer kijkt niet naar de paden van open documenten: ze draait ook voor een vrije naam, en een pad dat een
-   *  ander tabblad nog onthoudt terwijl het bestand weg is, is vrij (fixronde 2 van #1019). Die controle hoort bij de
-   *  vervanging zelf (`replaceExistingPath`, vóór de eerste schrijfactie in de map). */
+  /** De bestandskiezer van een document: Opslaan als, en Ctrl+S zonder bruikbaar doel. `replaceExisting`: alleen Opslaan
+   *  als (#804 keuze 4); zie `SaveDialogOpts.replaceExisting`. De doelcontrole direct na de kiezer weigert, voor elk
+   *  document, ook een bestaand pad dat een ander open document als bestand heeft (#1022): op de desktop wijzigt de kiezer
+   *  het bestand niet, dus dan is er niets geschreven. Een handle uit de opslaankiezer van de browser vergelijkt ze niet:
+   *  die kiezer heeft een bestaand doel al leeggemaakt, en weigeren liet het andere tabblad dan een leeg bestand na
+   *  (knownbug 1899, 1893). De vervanging bij een document met een gebouwmodel toetst hetzelfde nog eens vlak vóór haar
+   *  eerste schrijfactie in de map (`replaceExistingPath`). */
   const documentSaveDialog = (
     snapshot: AppState, write: DocumentWrite, name: string, replaceExisting?: (path: string, current: Uint8Array) => Promise<void>,
   ) => {
-    const options = { refuseTarget: documentTargetCheck(snapshot, write),
+    const options = { refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentPaths: true }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write), replaceExisting,
       refuseBeforePlace: () => refuseChangedDocumentWrite(snapshot, write) };
     // De merge: alleen een nieuwe naam (of de vervanging van #1019 via `replaceExisting`). De gewone writer overschrijft

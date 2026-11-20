@@ -47,6 +47,8 @@
     "recentColumns": "ໃຊ້ຫວ່າງມໍ່ໆນີ້",
     "noColumns": "ກົດ + ເພື່ອເພີ່ມຖັນ.",
     "toggleSummary": "ຂະຫຍາຍ ຫຼື ຫຍໍ້ໜ້າວຽກສະຫຼຸບ",
+    "toggleMilestones": "ຂະຫຍາຍ ຫຼື ຫຍໍ້ ຫຼັກໝາຍ",
+    "milestonesRun": "ຫຼັກໝາຍ ({{n}})",
     "calculatedReadOnly": "ຖັນທີ່ຄິດໄລ່ແລ້ວນີ້ບໍ່ສາມາດດັດແກ້ໄດ້."
   },
   "taskGrid": {

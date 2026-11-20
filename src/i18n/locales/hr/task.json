@@ -47,6 +47,8 @@
     "recentColumns": "Nedavno korišteno",
     "noColumns": "Dodajte stupac pomoću +.",
     "toggleSummary": "Proširi ili sažmi zadatak sažetka",
+    "toggleMilestones": "Proširi ili skupi kontrolne točke",
+    "milestonesRun": "Kontrolne točke ({{n}})",
     "calculatedReadOnly": "Ovaj izračunati stupac ne može se uređivati."
   },
   "taskGrid": {

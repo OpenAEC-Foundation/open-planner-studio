@@ -47,6 +47,8 @@
     "recentColumns": "Senest brugt",
     "noColumns": "Brug + til at tilføje en kolonne.",
     "toggleSummary": "Fold hovedopgaven ud eller sammen",
+    "toggleMilestones": "Fold milepæle ud eller sammen",
+    "milestonesRun": "Milepæle ({{n}})",
     "calculatedReadOnly": "Denne beregnede kolonne kan ikke redigeres."
   },
   "taskGrid": {

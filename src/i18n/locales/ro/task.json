@@ -47,6 +47,8 @@
     "recentColumns": "Utilizate recent",
     "noColumns": "Adăugați o coloană cu +.",
     "toggleSummary": "Extindere sau restrângere activitate rezumat",
+    "toggleMilestones": "Extindere sau restrângere jaloane",
+    "milestonesRun": "Jaloane ({{n}})",
     "calculatedReadOnly": "Această coloană calculată nu poate fi editată."
   },
   "taskGrid": {

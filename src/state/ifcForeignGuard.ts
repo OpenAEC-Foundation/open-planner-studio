@@ -9,7 +9,7 @@ import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSou
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import { isForeignSourceTarget, sameEntry, sameLocalFile, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
-import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
+import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import type { DocumentPayload } from './documentContract';
@@ -198,18 +198,28 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
-/** Fixronde 1 van #1019: is het lokale pad `path` het bestand van een open document, ook een gewone planning zonder
- *  vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken (`sameLocalFile`). */
+/** Is het bestaande bestand op `path` het bestand van een ANDER open document (niet `exceptDocumentId`), ook een gewone
+ *  planning zonder vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken
+ *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
+ *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
+ *  #1019). */
 async function isOpenDocumentPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
+  exceptDocumentId: string,
 ): Promise<boolean> {
-  const paths = s.getOpenDocumentPayloads()
-    .flatMap(({ payload }) => (payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
+  const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
+    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
   if (paths.length === 0) return false;
   let fs: FileIdentityFs | undefined;
   try { fs = await identityFs(); } catch { fs = undefined; }
+  if (fs && await missingFile(fs, path)) return false;
   for (const other of paths) if (await sameLocalFile(path, other, fs ? { identityFs: fs } : {})) return true;
   return false;
+}
+
+/** Staat er aantoonbaar niets op `path`? Een andere fout van `stat` telt als nee: de veilige kant. */
+async function missingFile(fs: FileIdentityFs, path: string): Promise<boolean> {
+  try { await fs.stat(path); return false; } catch (error) { return missingTarget(error); }
 }
 
 /** Het eigen lokale bestand van een document (zie de uitzondering "eigen doel" bij `refusedWriteTarget`). */
@@ -237,9 +247,10 @@ export interface WriteTargetDeps {
   protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
-  /** Alleen *Opslaan als* over een bestaande naam op de desktop (#804 keuze 4, fixronde 1 van #1019): weiger ook een
-   *  pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
-  openDocumentPaths?: boolean;
+  /** Alleen de bestandskiezer van een document (Opslaan als, #1022) en de vervanging bij Opslaan als over een bestaande
+   *  naam (#804 keuze 4, fixronde 1 van #1019): weiger ook een bestaand pad dat een ander open document dan
+   *  `exceptDocumentId` (het document dat opslaat) als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
+  openDocumentPaths?: { readonly exceptDocumentId: string };
 }
 
 /**
@@ -251,9 +262,9 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
- *  3. alleen met `deps.openDocumentPaths` (Opslaan als over een bestaande naam): een pad dat een open document als
- *     bestand heeft, ook zonder vreemd deel ('open-document'; fixronde 1 van #1019). Na regel 1, dus de bron van een
- *     document met een vreemd deel houdt haar eigen reden.
+ *  3. alleen met `deps.openDocumentPaths` (Opslaan als): een bestaand pad dat een ander open document als bestand
+ *     heeft, ook zonder vreemd deel en ook met de flag uit ('open-document'; fixronde 1 van #1019, #1022). Na regel 1,
+ *     dus de bron van een document met een vreemd deel houdt haar eigen reden.
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
  *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
@@ -285,7 +296,8 @@ export async function refusedWriteTarget(
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;
-  if (deps.openDocumentPaths && target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs)) {
+  if (deps.openDocumentPaths && target.kind === 'path'
+    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentPaths.exceptDocumentId)) {
     return 'open-document';
   }
   if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
