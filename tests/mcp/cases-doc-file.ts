@@ -570,7 +570,7 @@ test('export_ifc met overwrite: true over het bestand van een ander open documen
   for (const path of [other, `${HOME}/Tabblad-B.ifc`]) {
     const error = await callErr('planner_export_ifc', { path, overwrite: true });
     assertEq(error.code, 'VALIDATION', `${path}: het bestand van een ander open document ⇒ validatiefout`);
-    assert(error.error.includes('open in another tab') && error.error.includes('another path'),
+    assert(error.error.includes('another open document') && error.error.includes('another path'),
       `${path}: de Engelse fout zegt waarom en wat wel kan (${error.error})`);
     assertEq(files.get(other), otherText, `${path}: het bestand van het andere document is bytegelijk`);
   }

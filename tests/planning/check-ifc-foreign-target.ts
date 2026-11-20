@@ -275,8 +275,8 @@ for (const action of ['saveFile', 'saveFileAs'] as const) {
   eq('FSA Opslaan als: een ander bestand mag', [saveTarget.writes.length, S().fileHandle === saveTarget.handle], [1, true]);
   // De controle voor de dialogen buiten de store (bibliotheek, rapport).
   eq('FSA: de store-controle weigert de bron en laat een ander bestand door', [
-    await S().foreignTargetCheck('export')({ kind: 'handle', handle: source.handle }),
-    await S().foreignTargetCheck('export')({ kind: 'handle', handle: other.handle }),
+    await S().foreignTargetCheck(null)({ kind: 'handle', handle: source.handle }),
+    await S().foreignTargetCheck(null)({ kind: 'handle', handle: other.handle }),
   ], [true, false]);
   // Een kopie met dezelfde inhoud op een andere plek is een ander bestand (de handle van de bron is bekend).
   const copy = fakeHandle('kopie-van-model.ifc', bonsai);
@@ -2023,7 +2023,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   internals.invoke = async (command, args, options) => command === 'plugin:dialog|save'
     ? answers.shift() ?? null : invoke(command, args, options);
   try {
-    const { saveFileDialog, fileIdentityFs, writeTargetReaders } = await import('@/services/fileAccess');
+    const { fileIdentityFs, writeTargetReaders } = await import('@/services/fileAccess');
     const { writeUserTextFileTauri } = await import('@/services/fileAccess/atomicWrite');
     const { saveToPathWithIO } = await import('@/utils/devBridge');
     const { useAppStore } = await import('@/state/appStore');
@@ -2054,10 +2054,8 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         else if (route === 'CSV-export') await S().exportAs('csv');
         else if (route.startsWith('pool-')) await S().exportProjectWithPool();
         else if (route === 'bibliotheek') {
-          const content = S().exportPoolIFC(companyId);
-          ok(`1c ${name}: bibliotheek heeft echte IFC-uitvoer`, content !== null);
-          await saveFileDialog('bibliotheek.ifc', content!, [{ name: 'IFC', extensions: ['ifc'] }],
-            { refuseTarget: S().foreignTargetCheck('export') });
+          ok(`1c ${name}: bibliotheek heeft echte IFC-uitvoer`, S().exportPoolIFC(companyId) !== null);
+          await S().exportLibrary(companyId);
         } else {
           // De echte dev-functie is aan de singleton gebonden; alleen de invoer komt uit dezelfde open-route.
           await open('eigen.ifc', showcase, null, useAppStore);
@@ -2081,9 +2079,8 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     writeFileSync(libraryPath, library);
     answers = [libraryPath];
     const libraryWrites = ipc.calls.length;
-    const libraryResult = await saveFileDialog('bibliotheek.ifc', library, [{ name: 'IFC', extensions: ['ifc'] }],
-      { refuseTarget: libraryStore.getState().foreignTargetCheck('export') });
-    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', libraryResult !== null);
+    await libraryStore.getState().exportLibrary(libraryId);
+    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', !libraryStore.getState().ui.notifications.some(n => n.refusal));
     ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.wrote && byteWrite(c)));
     eq('1c: gewone bibliotheekwriter blijft bytegelijk', readFileSync(libraryPath, 'utf8'), library);
     eq('1c: alle echte bestanden gesloten', ipc.openHandles(), 0);
