@@ -112,6 +112,20 @@ for (const chained of [false, true]) {
   }
 }
 
+// Knownbug 271: de eindwerkdag van een nachttaak kan op de volgende kalenderdag
+// vallen, inclusief zaterdagochtend. Test de oorspronkelijke twee-dagenketen.
+for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+  const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+  const a = task('A', 2, '2026-06-01T22:00');
+  const b = task('B', 2, '2026-06-01T22:00');
+  const result = new CPMSolver([a, b], [{ ...fs, predecessorId: 'A', successorId: 'B', lagDays: 1 }], night, [], opts).solve();
+  const r = result.tasks.get('B')!;
+  eq(`271 ${baseId}: venster`, [r.earlyStart, r.earlyFinish, r.lateStart, r.lateFinish],
+    ['2026-06-04T22:00', '2026-06-06T06:00', '2026-06-04T22:00', '2026-06-06T06:00']);
+  eq(`271 ${baseId}: totale speling`, r.totalFloat, 0);
+  if (baseId !== 'p6') eq(`271 ${baseId}: vrije speling`, r.freeFloat, 0);
+}
+
 // Ronde 2A, punt 1: de opvolgergrens di 00:00 is ook het geldige einde van maandag. De wacht voor
 // hele dagen mag A daarom niet nog een dag terugzetten (eerder: laat zo 00:00–ma 00:00, speling −1).
 for (const baseId of ['ops', 'p6', 'msproject'] as const) {
