@@ -44,7 +44,7 @@ import {
   IFC_FOREIGN_REPLACE_BLOCKED_NOTICE, IFC_FOREIGN_MERGE_REFUSED_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice, IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE,
-  IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE,
+  IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE, EXPORT_TARGET_OPEN_IN_TAB_NOTICE,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -585,10 +585,11 @@ export interface FileSlice {
   /**
    * #804 fase 1a, fixronde 1: de doelcontrole voor elke opslag- of exportdialoog (`CheckedSaveDialogOpts.refuseTarget`).
    * Weigert het bronbestand van een open document met een vreemd deel, en (fixronde 2, met de flag) een bestaand doel dat
-   * zelf een gebouwmodel bevat; met de melding voor `purpose` ("op te slaan" of "naar te exporteren"). Ook voor de
+   * zelf een gebouwmodel bevat; met de melding voor `purpose` ("op te slaan" of "naar te exporteren"). Knownbug 1907: ook
+   * een bestaand pad dat een ander open document dan `documentId` (standaard het actieve) als bestand heeft. Ook voor de
    * dialogen buiten de store (bibliotheek, rapport).
    */
-  foreignTargetCheck: (purpose: 'save' | 'export') => SaveTargetCheck;
+  foreignTargetCheck: (purpose: 'save' | 'export', documentId?: string) => SaveTargetCheck;
   /** App-globale MRU-lijst van recente bestanden. Async gehydrateerd bij opstart. */
   recentFiles: RecentEntry[];
   /** De recents zijn gelezen (ook als dat mislukte). Tot dan toont Bestand een laadstand en niet "geen
@@ -863,12 +864,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
    *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor de vervanging
    *  bij Opslaan als over een bestaande naam (#804 keuze 4, `replaceExistingPath`): `readers` scant de inhoud die als
-   *  verwacht is vastgelegd in plaats van het pad (fixronde 2 van #1019). `openDocumentPaths` (de bestandskiezer van
-   *  Opslaan als en die vervanging) weigert ook een bestaand pad dat een ander open document als bestand heeft
-   *  (fixronde 1 van #1019, #1022). */
+   *  verwacht is vastgelegd in plaats van het pad (fixronde 2 van #1019). `openDocumentsExcept` (de bestandskiezer van
+   *  Opslaan als en die vervanging, met de id van het document dat opslaat) weigert ook een bestaand pad dat een ander
+   *  open document als bestand heeft (fixronde 1 van #1019, #1022). */
   const documentTargetCheck = (
     snapshot: AppState, write?: DocumentWrite, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentPaths = false }: { readers?: () => TargetReaders; openDocumentPaths?: boolean } = {},
+    { readers = writeTargetReaders, openDocumentsExcept }: { readers?: () => TargetReaders; openDocumentsExcept?: string } = {},
   ): SaveTargetCheck => async target => {
     if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
     const ownLocal = ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource);
@@ -876,10 +877,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const reason = await refusedWriteTarget(get(), target, {
-      identityFs: fileIdentityFs, readers,
-      ...(openDocumentPaths ? { openDocumentPaths: { exceptDocumentId: snapshot.activeDocumentId } } : {}),
-    }, ownVersion);
+    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers, openDocumentsExcept }, ownVersion);
     if (reason) {
       get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
         : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
@@ -909,7 +907,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const documentSaveDialog = (
     snapshot: AppState, write: DocumentWrite, name: string, replaceExisting?: (path: string, current: Uint8Array) => Promise<void>,
   ) => {
-    const options = { refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentPaths: true }),
+    const options = { refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write), replaceExisting,
       refuseBeforePlace: () => refuseChangedDocumentWrite(snapshot, write) };
     // De merge: alleen een nieuwe naam (of de vervanging van #1019 via `replaceExisting`). De gewone writer overschrijft
@@ -920,11 +918,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /** Fixronde 1 en 2: weigert het doel als het de bron is van een open document met een vreemd deel, of (met de flag) als
-   *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). */
-  const foreignTargetCheck = (purpose: 'save' | 'export'): SaveTargetCheck => async (target) => {
-    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders });
+   *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). Knownbug 1907: ook een bestaand pad dat
+   *  een ander open document dan `documentId` (het document dat exporteert) als bestand heeft, zoals Opslaan als (#1022).
+   *  Een handle uit de opslaankiezer van de browser vergelijkt ze niet (knownbug 1899, 1893). */
+  const foreignTargetCheck = (
+    purpose: 'save' | 'export', documentId = get().activeDocumentId,
+  ): SaveTargetCheck => async (target) => {
+    const reason = await refusedWriteTarget(get(), target,
+      { identityFs: fileIdentityFs, readers: writeTargetReaders, openDocumentsExcept: documentId });
     if (!reason) return false;
-    if (reason === 'unreadable-target') {
+    if (reason === 'open-document') {
+      get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE : EXPORT_TARGET_OPEN_IN_TAB_NOTICE);
+    } else if (reason === 'unreadable-target') {
       get().notify(purpose === 'save' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_UNREADABLE_TARGET_EXPORT_NOTICE);
     } else get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
     return true;
@@ -1600,7 +1605,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentId, path, prepared, source: { bytes: current, sha256: await precomputeSha256(current) },
         stopBeforeWrite: () => documentTargetCheck(state, write, false, {
           readers: () => ({ ...writeTargetReaders(), scanPath: () => scanForeignTargetBytesAsync(current) }),
-          openDocumentPaths: true,
+          openDocumentsExcept: state.activeDocumentId,
         })(ref),
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
         commit: () => {
@@ -2479,7 +2484,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
       // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel.
-      const foreignCheck = foreignTargetCheck('export');
+      const foreignCheck = foreignTargetCheck('export', state.activeDocumentId);
       // Een IFC-export wacht op de schrijflock (hieronder): direct vóór de write ook kijken of het document nog gelijk is.
       const refuseTarget: SaveTargetCheck = ext === 'ifc'
         ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)
@@ -2603,7 +2608,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!project || project.prepared) return { ok: true, warnings: [], cancelled: true };
       const projectData = writerData(project);
       const base = suggestedFileBase(state);
-      const foreignCheck = foreignTargetCheck('export');
+      const foreignCheck = foreignTargetCheck('export', state.activeDocumentId);
       const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);
       // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`); ronde 5:
       // direct vóór de write kijken of het document nog gelijk is (`refuseChangedExport`).

@@ -1802,7 +1802,7 @@ function refusedOpenInTab(
   assert.deepEqual(t.errors(), [notice], 'de melding van een open tabblad');
   assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is bytegelijk');
   assert.equal(hash(readFileSync(t.path)), hash(t.own), 'het bestand van tabblad A is onaangeroerd');
-  assert.deepEqual(readdirSync(t.dir).filter(f => f !== 'link.ifc').sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
+  assert.deepEqual(readdirSync(t.dir).filter(f => !f.startsWith('link.')).sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
   assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
   assert.deepEqual([s.activeDocumentId, s.filePath, s.isDirty], [t.firstId, ownPath, true], 'A houdt zijn bestand en blijft gewijzigd');
   assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'B houdt zijn bestand en zijn wijzigingen');
@@ -1881,14 +1881,22 @@ async function exportTo(store: Case['store'], path: string, format: ExportFormat
 const EXPORT_OPEN_IN_TAB = 'notifications.exportTargetOpenInTab';
 for (const flag of [false, true]) {
   const label = `flag ${flag ? 'aan' : 'uit'}`;
-  for (const format of ['ifc', 'csv'] as const) {
-    await check(`Knownbug 1907, ${label}: Exporteren → ${format.toUpperCase()} van een gewone planning over het bestand van een ander tabblad: geweigerd, niets geschreven`, async () => {
-      const t = await twoPlainTabs(flag);
-      const from = ipc.calls.length;
-      await exportTo(t.store, t.target, format);
-      refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
-    });
-  }
+  await check(`Knownbug 1907, ${label}: Exporteren → IFC van een gewone planning over het bestand van een ander tabblad: geweigerd, niets geschreven`, async () => {
+    const t = await twoPlainTabs(flag);
+    const from = ipc.calls.length;
+    await exportTo(t.store, t.target);
+    refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
+  });
+  // De kiezer vult de extensie van het formaat aan (`ander.ifc` wordt `ander.ifc.csv`, een nieuw bestand); een ander
+  // formaat komt dus bij het bestand van tabblad B via een naam met die extensie, hier een link.
+  await check(`Knownbug 1907, ${label}: Exporteren → CSV over het bestand van een ander tabblad (via link.csv): geweigerd, niets geschreven`, async () => {
+    const t = await twoPlainTabs(flag);
+    const link = join(t.dir, 'link.csv');
+    symlinkSync(t.target, link);
+    const from = ipc.calls.length;
+    await exportTo(t.store, link, 'csv');
+    refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
+  });
   for (const via of ['een symbolische link', 'een harde link'] as const) {
     await check(`Knownbug 1907, ${label}: Exporteren → IFC over hetzelfde bestand via ${via}: ook geweigerd`, async () => {
       const t = await twoPlainTabs(flag);
