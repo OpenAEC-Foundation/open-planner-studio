@@ -1,21 +1,26 @@
-import { hasReleaseEndClaim } from '../../scripts/lib/release-docs-check';
+import { readFileSync } from 'node:fs';
+import { REPAIR_SKILL, staleReleaseDocLine } from '../../scripts/lib/release-docs-check';
 
-const cases: Array<[string, boolean]> = [
-  ['De release heeft geen deadline.', false],
-  ['The release has no deadline.', false],
-  ['De reparatie stopt om 14:00.', false],
-  ['Wees klaar voor de release. Lukt dat niet, ga door tot 14:00.', false],
-  ['Een deadline voor de vertaling staat om 14:00.', false],
-  ['Om 14:00 stopt ook de release.', true],
-  ['De release stopt om 14:00.', true],
-  ['The release deadline is 14:00.', true],
-  ['De release heeft geen deadline, maar de release stopt om 14:00.', true],
-  ['De release heeft geen deadline, maar stopt om 14:00.', true],
-  ['De release heeft geen deadline, maar de reparatie stopt om 14:00.', false],
-  ['De release stopt niet vóór 14:00.', true],
+const release = '.claude/skills/release/referentie.md';
+const repair = readFileSync(REPAIR_SKILL, 'utf8');
+const cases: Array<[string, string, number | undefined]> = [
+  [release, '# Release\nStop om 14:00.', 2],
+  [release, '# Release\nStel de deadline vast.', 2],
+  [release, 'De release heeft geen deadline.', undefined],
+  [release, 'The release has no fixed deadline.', undefined],
+  [release, 'De browserreparatie stopt om 14:00.', undefined],
+  [release, 'De release heeft geen deadline, maar stopt om 14:00.', 1],
+  [release, 'De release heeft geen deadline. Stop om 14:00.', 1],
+  [release, 'De release draait op zaterdag.', 1],
+  [REPAIR_SKILL, repair, undefined],
+  [REPAIR_SKILL, '# Release\nOm 14:00 stopt ook de release.', 2],
+  [REPAIR_SKILL, '# Release\nStop om 14:00.', 2],
+  [REPAIR_SKILL, '## Stoppen om 14:00, ook voor de release', 1],
+  [release, '## Stoppen om 14:00', 1],
+  [REPAIR_SKILL, '## Stoppen om 14:00\nStop om 14:00.', 2],
 ];
-for (const [line, expected] of cases) {
-  const actual = hasReleaseEndClaim(line);
-  if (actual !== expected) throw new Error(`release-eindtijd: ${JSON.stringify(line)}: ${actual}, verwacht ${expected}`);
+for (const [path, text, expected] of cases) {
+  const actual = staleReleaseDocLine(path, text);
+  if (actual !== expected) throw new Error(`release-eindtijd ${path}: ${actual}, verwacht ${expected}`);
 }
 console.log('OK release-eindtijd vangrail', cases.length);
