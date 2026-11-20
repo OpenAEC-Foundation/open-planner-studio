@@ -2033,8 +2033,14 @@ export class CPMSolver {
       // telt als "root-elapsed" (spiegelt `snapSuccessorEarlyStart` hierboven).
       // D7 geeft een eindmijlpaal een eindmoment. De projectvloer blijft startachtig (D1),
       // anders duwt het normaliseren van dat einde alle opvolgers een extra werkdag op.
-      const anchor = isZeroDurationMilestone(t) && !eng.hasOwnWorkBlocks && taskDurationUnit(t) !== 'hours'
-        ? this.dayFirstBandStart(eng, parseInstant(t.time.scheduleStart))?.toISOString().slice(0, 16) ?? t.time.scheduleStart
+      const milestone = isZeroDurationMilestone(t);
+      const rawAnchor = parseInstant(t.time.scheduleStart);
+      // Een expliciete FINISH op de laatste bandgrens is de eindmarkering van die werkdag,
+      // geen projectbegin op de volgende werkdag. Laat de mijlpaal zelf ongemoeid; alleen
+      // de projectvloer voor opvolgers krijgt het begin van dezelfde werkdag (knownbug 153).
+      const finishAtDayEnd = milestone && t.milestoneKind === 'FINISH' && this.isExactBandEnd(eng, rawAnchor);
+      const anchor = milestone && ((!eng.hasOwnWorkBlocks && taskDurationUnit(t) !== 'hours') || finishAtDayEnd)
+        ? this.dayFirstBandStart(eng, rawAnchor)?.toISOString().slice(0, 16) ?? t.time.scheduleStart
         : t.time.scheduleStart;
       const s = this.rootFloor(eng, anchor, isElapsedTask(t));
       if (!projectStart || s < projectStart) projectStart = s;
