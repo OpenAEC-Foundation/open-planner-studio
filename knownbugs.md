@@ -1341,6 +1341,23 @@ en noem het in je rapport of PR-tekst.
      in de code nagelopen. Voorstel: het veld in `CAL_READONLY_KEYS` opnemen (meegestuurd, gemeld in
      `ignoredFields`, niet geschreven, want de bronklokken horen bij het bronbestand), en de proef het veld laten
      meesturen. — B
+1970. **`planner_update_calendar` meldt `taskDurationsPreserved: true` terwijl de duur verandert.** De rij met
+     `modeChangedFrom` (`updateCalendarCore` in `src/services/mcp/tools/calendarResourceTools.ts`) en de waarschuwing
+     over de moduswissel zeggen dat alleen de planning kan verschuiven. `draft.updateCalendar`
+     (`src/state/runtime/createMcpTransactions.ts`) past de werkregel toe: onder Vast werk of Vaste inzet verandert
+     de duur zodra de daglengte verandert. In de review van #1083 (GPT-6.2-Sol, proef via de MCP-dispatcher) ging een
+     taak met Vaste inzet van 4 naar 8 dagen bij een wissel van dagkalender naar uurbanden van vier uur. Een agent
+     die het veld gelooft, meldt de planner een verkeerde duur. — B
+1971. **`planner_level_resources` antwoordt los anders dan als batchstap.** De losse aanroep, ook met `dryRun`, laat
+     `delayMinutes`, `gaps` en `intrinsicOverruns` weg (`levelingData` in
+     `src/services/mcp/tools/calendarResourceTools.ts`); een agent die eerst een proefrun doet, ziet de ingevoegde
+     pauzes en een vertraging onder een dag dus niet. Een batchstap geeft die velden wel, maar mist `projectEnd` en
+     de waarschuwingen. Gezien in de review van #1083 (GPT-6.2-Sol) en in de code nagelopen. — B
+1972. **`statusDateNote` klopt niet onder het MS Project-profiel.** De tekst (`STATUS_DATE_NOTE` in
+     `src/services/mcp/tools/calendarResourceTools.ts`) belooft dat al het niet gestarte werk naar de statusdatum
+     schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
+     (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
+     terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
 
 ## Bestanden en herstel
 
