@@ -2763,10 +2763,10 @@ export class CPMSolver {
         // vloer minuut-exact, mét de vloer ~8 jaar afwijkend). Zie het docblok bij de sleutel in
         // `src/types/project.ts`.
         if (
-          dataDate && t.completion === 0 && earlyStart < dataDate
+          dataDate && t.completion === 0 && earlyStart < dataDate && !hardFinishPin
           && !this.options.schedulingOptions?.unstartedIgnoresStatusDate
         ) {
-          // (3) NIET GESTART: statusdatum als ondergrens (remaining werk nooit in het verleden).
+          // (3) NIET GESTART: statusdatum als ondergrens, behalve bij een harde MSO/MFO-pin.
           earlyStart = dataDate;
           driver = DRIVER.statusDate;
         }
