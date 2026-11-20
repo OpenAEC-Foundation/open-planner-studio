@@ -269,9 +269,9 @@ function firstParentInCi() {
   const [parent] = git(['show', '-s', '--format=%P', 'HEAD']).trim().split(' ');
   if (!parent) throw new Error('HEAD heeft geen oudercommit');
   try {
-    git(['cat-file', '-e', `${parent}^{commit}`], { stdio: 'ignore' });
+    execFileSync('git', ['cat-file', '-e', `${parent}^{commit}`], { cwd: ROOT, stdio: 'ignore' });
   } catch {
-    git(['fetch', '--quiet', '--depth=1', 'origin', parent], { stdio: 'ignore' });
+    execFileSync('git', ['fetch', '--quiet', '--depth=1', 'origin', parent], { cwd: ROOT, stdio: 'inherit' });
   }
   return parent;
 }
