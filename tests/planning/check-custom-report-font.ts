@@ -22,7 +22,8 @@ import { PDFDocument, PDFDict, PDFName } from 'pdf-lib';
 import {
   bytesReader, extractFace, faceRefusal, groupFontFamilies, readFontFaces, type ByteReader, type FontFaceInfo,
 } from '@/services/pdf/customReportFont';
-import { reportFontStack } from '@/services/pdf/reportFont';
+import { reportFontStack, type ReportFontChoice } from '@/services/pdf/reportFont';
+import { fontReadIsCurrent } from '@/services/pdf/customFontGuard';
 import { makeSectionedRenderReport } from '@/services/pdf/pdfTable';
 import { paginateVectorToPdfBytes } from '@/services/print/paginateVector';
 import { parseReportFontChoice } from '@/utils/reportSettings';
@@ -233,6 +234,27 @@ console.log('── F. de rapportinstelling');
   ok(parseReportFontChoice('custom', null) === 'inter', 'F2 custom zonder opgeslagen lettertype ⇒ Inter');
   ok(parseReportFontChoice('carlito', custom) === 'carlito', 'F3 een vaste letter blijft staan');
   ok(parseReportFontChoice('Arial', custom) === 'inter', 'F4 onbekende waarde ⇒ Inter');
+}
+
+// Een vertraagde opslaglezing mag een nieuwe keuze of revisie niet terugdraaien.
+console.log('── G. late lettertypelezing');
+{
+  type Stand = { reportFontFamily: ReportFontChoice; customReportFont: { rev: number } | null };
+  for (const [label, nieuweStand, verwacht] of [
+    ['ongewijzigd', { reportFontFamily: 'custom', customReportFont: { rev: 3 } }, true],
+    ['andere letter', { reportFontFamily: 'carlito', customReportFont: { rev: 3 } }, false],
+    ['nieuwere revisie', { reportFontFamily: 'custom', customReportFont: { rev: 4 } }, false],
+    ['kopie verwijderd', { reportFontFamily: 'custom', customReportFont: null }, false],
+  ] as Array<[string, Stand, boolean]>) {
+    let resolve!: (value: null) => void;
+    const read = new Promise<null>(done => { resolve = done; });
+    let stand: Stand = { reportFontFamily: 'custom', customReportFont: { rev: 3 } };
+    const result = read.then(() => fontReadIsCurrent(3, stand));
+    stand = nieuweStand;
+    resolve(null);
+    ok(await result === verwacht, `G ${label}: controle na vertraagd antwoord`);
+  }
+  ok(fontReadIsCurrent(undefined, { reportFontFamily: 'custom', customReportFont: null }), 'G ontbrekende referentie mag worden hersteld');
 }
 
 if (failures > 0) {
