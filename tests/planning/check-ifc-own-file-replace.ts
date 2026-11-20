@@ -27,7 +27,8 @@ import {
   previousVersionPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
 import {
-  parseReplaceRecord, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces, tauriReplaceRecords,
+  parseReplaceRecord, pendingReplaceFor, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces,
+  tauriReplaceRecords,
   type ReplaceRecord, type ReplaceRecordStore,
 } from '@/services/fileAccess/replaceRecords';
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
@@ -55,6 +56,7 @@ import { InProcessWorker } from './inProcessSaveWorker';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createExtensionApi } from '@/extensions/extensionApi';
+import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { saveStatusOf } from '@/state/documentSaveState';
 
 // Een vaste klok: de schrijver zet de tijd in de kop (`FILE_NAME`, `IFCOWNERHISTORY`), en veel proeven vergelijken wat
@@ -2345,6 +2347,51 @@ await check('review 1902: na opslaan verhuist de projectmap en is het herstel ti
     assert.deepEqual(whileForbidden, [], 'tijdelijk niet leesbaar: geen melding');
     assert.deepEqual(after, { 'model.ifc': hash(bytes), [UNSAVED_COPY]: c.prepared.sha256 }, 'na toegang moet herstel beide versies terugvinden');
     assert.deepEqual(afterGrant.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
+  } finally { await tidy(c); }
+});
+
+// ── #804 stap 8: Automatisch opslaan op het eigen pad, langs dezelfde vervanging. ──────────────────────────────────────
+// Fixronde 1 van de review van #1033: wijken is geen optie van de vervanging meer; Automatisch opslaan stopt op de
+// gewone grens `stopBeforeWrite` (na het vastleggen van het herstel; check-ifc-document-save.ts). Het beleid voor een
+// record van een eerdere, onderbroken vervanging ligt bij Automatisch opslaan zelf (`pendingReplaceFor`).
+await check('stap 8: pendingReplaceFor ziet een record voor dit doel, niet een record voor een ander doel', async () => {
+  const c = await opened();
+  const elsewhere: ReplaceRecord = { id: 'eldersvorige1', path: join(c.dir, 'ander.ifc'), vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
+  const here: ReplaceRecord = { id: 'hiervorige1', path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
+  try {
+    const records = await tauriReplaceRecords();
+    writeFileSync(join(appData, replaceRecordName(here.id)), serializeReplaceRecord(here));
+    assert.equal(await pendingReplaceFor(records, c.path), true, 'een record voor dit doel');
+    rmSync(join(appData, replaceRecordName(here.id)));
+    writeFileSync(join(appData, replaceRecordName(elsewhere.id)), serializeReplaceRecord(elsewhere));
+    assert.equal(await pendingReplaceFor(records, c.path), false, 'een record van een ander doel telt niet');
+  } finally {
+    rmSync(join(appData, replaceRecordName(elsewhere.id)), { force: true });
+    await tidy(c);
+  }
+});
+
+await check('stap 8: een ronde van Automatisch opslaan terwijl een ander programma het bestand wijzigde; niets vervangen, één melding, geen tweede poging', async () => {
+  const c = await opened();
+  try {
+    writeFileSync(c.path, otherProgram);
+    clearNotices(c);
+    let t = 9_000_000;
+    c.store.getState().setAutoSaveToFile(true);
+    const controller = createFileAutoSaveController({ getState: c.store.getState, enabled: () => true, now: () => t });
+    const round = () => { controller.observe(); t += 31_000; return controller.flushModels(); };
+    const from = ipc.calls.length;
+    await round();
+    assert.deepEqual(disk(c), { 'model.ifc': hash(otherProgram) }, 'de versie van de ander blijft, geen hulpbestand');
+    assert.equal(placesSince(from).length, 0, 'niets verplaatst');
+    assert.deepEqual(recordsOnDisk(), [], 'het herstelrecord is weg');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignAutoSaveTargetChanged']);
+    assert.equal(c.store.getState().isDirty, true);
+    renameTask(c, 'Nog een wijziging');
+    const again = ipc.calls.length;
+    await round();
+    assert.equal(projectWriteFiles(c, again).length, 0, 'geen tweede poging');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignAutoSaveTargetChanged'], 'geen tweede melding');
   } finally { await tidy(c); }
 });
 
