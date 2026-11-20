@@ -1888,6 +1888,37 @@ await check('fixronde 1, punt 2: Ctrl+S van een nieuw project, in de kiezer een 
   assert(readFileSync(target).toString('latin1').includes('Nieuw project over het modelbestand'), 'vervangen');
   assert(s.recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target), 'Recent');
 });
+await check('fixronde 1, punt 2 met A: Ctrl+S van een nieuw project zonder opslagdoel: harde link geweigerd, een andere versie blijft staan', async () => {
+  const t = await twoPlainTabs(true);
+  const original = join(t.dir, 'origineel-architect.ifc'), picked = join(t.dir, 'gekozen.ifc');
+  writeFileSync(original, otherWithModel);
+  linkSync(original, picked);
+  t.store.getState().newDocument();
+  t.store.getState().addTask({ name: 'Nieuw project via Ctrl+S' });
+  t.store.setState(s => { s.ui.notifications = []; s.recentFiles = []; });
+  const from = ipc.calls.length;
+  assert.equal(await saveWithPick(t.store, picked), false, 'niet opgeslagen');
+  assert.deepEqual(t.errors(), ['notifications.ifcForeignNewTargetOnly']);
+  assert.deepEqual([hash(readFileSync(picked)), hash(readFileSync(original))], [hash(otherWithModel), hash(otherWithModel)], 'beide namen bytegelijk');
+  assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+  // Dezelfde kiezer over een gewoon modelbestand dat na de kiezer een andere versie krijgt.
+  const target = join(t.dir, 'model-van-vorige-week.ifc'), next = new Uint8Array([...otherWithModel, 10]);
+  writeFileSync(target, otherWithModel);
+  let swapped = false;
+  ipc.faults.beforeOpen = path => {
+    if (swapped || !path.startsWith(t.dir) || !path.endsWith('.ops-save.tmp')) return;
+    writeFileSync(target, next);
+    swapped = true;
+  };
+  t.store.setState(s => { s.ui.notifications = []; });
+  try { assert.equal(await saveWithPick(t.store, target), false, 'niet opgeslagen'); } finally { ipc.faults.beforeOpen = null; }
+  const s = t.store.getState();
+  assert.equal(swapped, true);
+  assert.deepEqual(t.errors(), ['notifications.ifcForeignTargetChanged']);
+  assert.equal(hash(readFileSync(target)), hash(next), 'de nieuwe versie blijft staan');
+  assert.deepEqual([s.filePath, s.isDirty, s.recentFiles.length], [null, true, 0], 'het nieuwe project blijft gewijzigd, zonder pad');
+  assert.deepEqual(readdirSync(t.dir).filter(name => name.includes('.ops-')), [], 'geen hulpbestand');
+});
 await check('fixronde 1, punt 2: Ctrl+S van een document met een gebouwmodel zonder opslagdoel, in de kiezer een modelbestand: de veilige vervanging', async () => {
   const c = await opened();
   try {
