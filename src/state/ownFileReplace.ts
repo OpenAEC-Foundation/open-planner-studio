@@ -3,8 +3,9 @@
 // Ctrl+S en *Opslaan* in de sluitvraag erop aan (`replaceOwnPath` in `fileSlice.ts`), binnen de ene `runProjectFileWrite`
 // van die opslag. Het afhandelen na een crash loopt los daarvan (`settlePendingReplaces`, bij de start en vóór het lezen
 // van een lokaal pad). Keuze 4 (knownbug 1131 stap 8): *Opslaan als* over een andere bestaande naam gebruikt dezelfde
-// functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat bij het begin van de opslag op dat doel
-// stond. #804 stap 8: Automatisch opslaan gebruikt dezelfde twee vervangingen (`replaceOwnPathWithRecovery`, en
+// functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat de bestandskiezer op dat doel vond
+// (`pickSaveTarget`); sinds fixronde 2 van #1071 ook voor een document zonder vreemd deel (zonder de manifeststap).
+// #804 stap 8: Automatisch opslaan gebruikt dezelfde twee vervangingen (`replaceOwnPathWithRecovery`, en
 // `replaceOwnHandleWithRecovery` voor de browser), met een eigen afhandeling van de uitkomsten (`fileAutoSave.ts`).
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
@@ -28,14 +29,18 @@ export type OwnPathReplaceResult = OwnFileReplaceOutcome | { code: 'not-recorded
   | { code: 'stopped' };
 
 export interface OwnPathReplaceInput {
-  documentId: string;
+  /** Het document met een vreemde bron: zijn herstelmanifest krijgt `pendingSha256` (`replaceWithRecoveryPending`).
+   *  `null` voor een document zonder vreemd deel (fixronde 2 van #1071): dat heeft geen bronverwijzing in het manifest
+   *  (`recoveryIfcSource.ts`), dus alleen het herstelrecord dekt de hulpnamen; zijn crashherstel blijft de gewone
+   *  herstelsnapshot. */
+  documentId: string | null;
   /** Het doel: het eigen bestand van het document (`saveTargetRef` van de soort `path`), of bij Opslaan als over een
    *  bestaande naam het gekozen bestand. */
   path: string;
-  /** De voorbereide merge: één buffer en haar sha256 (`PreparedIfcWrite`). */
+  /** De uitvoer: één buffer en haar sha256 (`PreparedIfcWrite`, of de bytes van de gewone writer). */
   prepared: { bytes: Uint8Array; sha256: string };
   /** Wat op het doel hoort te staan (`vorigeSha256` in het herstelrecord): bij Ctrl+S de bron in het geheugen
-   *  (`ifcSource`), bij Opslaan als over een bestaande naam de inhoud van dat bestand bij het begin van de opslag. */
+   *  (`ifcSource`), bij Opslaan als over een bestaande naam wat de bestandskiezer op dat doel vond. */
   source: { bytes: Uint8Array; sha256: string };
   /** Na een geslaagde vervanging: de geschreven versie wordt de bron (`commitSavedDocument` met `prepared`). */
   commit: () => void;
@@ -57,7 +62,8 @@ export interface OwnPathReplaceInput {
 /**
  * Het eigen bestand vervangen, binnen `runProjectFileWrite`. Een gelinkt doel weigert vóór alles (`linkedOwnFile`, de
  * enige voorcontrole). Dan stap 0: het herstelrecord (`replaceRecords.ts`: id, doel, `vorigeSha256`, `pendingSha256`)
- * en in het manifest `pendingSha256`; lukt een van de twee niet, dan `not-recorded` en staat er niets op schijf. Na die
+ * en, voor een document met een vreemde bron (`documentId`), in het manifest `pendingSha256`; lukt een van de twee
+ * niet, dan `not-recorded` en staat er niets op schijf. Na die
  * eerste herstelronde nog de doelbewaking `stopBeforeWrite` (`stopped`: niets in de projectmap aangeraakt). Dan
  * stap 1 tot en met 5 (`replaceOwnFileBytes`, met vlak vóór stap 3 de laatste controle `refuseBeforePlace`) en stap 6:
  * na `replaced` eerst `commit`, dan wist het herstel `pendingSha256`. Het record verdwijnt alleen als er geen
@@ -82,7 +88,7 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
     let outcome: OwnFileReplaceOutcome | undefined;
     /** Stap 1 schreef aantoonbaar niets: ze begon nooit, of de aanmaak van het tijdelijke bestand werd geweigerd. */
     let nothingWritten = false;
-    const recorded = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
+    const steps = {
       replace: async () => {
         if (await input.stopBeforeWrite()) {
           outcome = { code: 'stopped' };
@@ -98,7 +104,10 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
         return outcome.code === 'replaced';
       },
       commit: input.commit,
-    });
+    };
+    const recorded = input.documentId !== null
+      ? await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, steps)
+      : await steps.replace() ? (steps.commit(), 'replaced' as const) : 'not-replaced' as const;
     if (recorded === 'not-recorded' || nothingWritten
       || (outcome!.code !== 'unknown' && await replaceHelpersGone(fs, input.path, id))) {
       // Niets meer op schijf van deze operatie. Bij `not-recorded`, `stopped` vóór stap 1 en een geweigerde aanmaak

@@ -107,6 +107,10 @@ const externalPset = enc.encode(dec(showcase).replace('ENDSEC;\nEND-ISO-10303-21
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
 const SOURCE_MISSING = 'notifications.ifcForeignSourceMissing';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
+/** Een eigen app-datamap voor de nagebootste bestandslaag: Opslaan als over een bestaand bestand legt met de flag aan
+ *  het herstelrecord van de vervanging daar vast (fixronde 2 van #1071). */
+const tempAppData = () => mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
+const OPEN_IN_TAB_SAVE = 'notifications.ifcForeignTargetOpenInTab';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
@@ -268,7 +272,8 @@ for (const action of ['saveFile', 'saveFileAs'] as const) {
   pick = source;
   await S().saveFileAs();
   eq('FSA Opslaan als: naar de bron van het andere document geweigerd', [source.writables(), S().filePath], [0, 'showcase.ifc']);
-  ok('FSA Opslaan als: met de melding "op te slaan"', modelNotices(store).some(n => n.messageKey === TARGET_SAVE && n.refusal === true));
+  // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad (was "op te slaan").
+  ok('FSA Opslaan als: met de melding van een open tabblad', store.getState().ui.notifications.some(n => n.messageKey === OPEN_IN_TAB_SAVE && n.refusal === true));
   const saveTarget = fakeHandle('kopie.ifc', new Uint8Array());
   pick = saveTarget;
   await S().saveFileAs();
@@ -499,7 +504,7 @@ for (const flag of [false, true]) {
   symlinkSync(modelPath, join(dir, 'link.csv'));
   symlinkSync(modelPath, join(dir, 'link.ifc'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -535,7 +540,8 @@ for (const flag of [false, true]) {
       await S().saveFileAs();
       eq(`Tauri Opslaan als ${answer.slice(dir.length)}: geweigerd, niets geschreven`, [unchanged(), S().filePath], [sha(bonsai), null]);
     }
-    ok('Tauri Opslaan als: met de melding "op te slaan"', modelNotices(store).some(n => n.messageKey === TARGET_SAVE));
+    // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad (was "op te slaan").
+    ok('Tauri Opslaan als: met de melding van een open tabblad', store.getState().ui.notifications.some(n => n.messageKey === OPEN_IN_TAB_SAVE));
     dialogAnswer = join(dir, 'eigen.ifc');
     await S().saveFileAs();
     eq('Tauri Opslaan als: een ander bestand mag', [S().filePath, readFileSync(join(dir, 'eigen.ifc'), 'utf8').includes('Eigen werk')],
@@ -761,7 +767,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   const ownPath = join(dir, 'eigen.ifc');
   writeFileSync(ownPath, showcase);
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -778,21 +784,23 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
     const S = () => store.getState();
     eq('Tauri 2: een eigen bestand, zonder vreemd deel', [S().filePath, S().foreignSourceMark], [ownPath, null]);
+    // #804 keuze 4: Opslaan als vervangt een bevestigd modelbestand (onderaan); Exporteren → IFC blijft weigeren.
     dialogAnswer = modelPath;
-    await S().saveFileAs();
-    eq('Tauri 2: Opslaan als naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), S().filePath],
-      [sha(modelIfc4), ownPath]);
-    ok('Tauri 2: met de melding "op te slaan"', noticeCount(store, TARGET_SAVE) > 0);
+    const modelExport = await S().exportAs('ifc');
+    eq('Tauri 2: Exporteren → IFC naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), modelExport],
+      [sha(modelIfc4), { ok: true, warnings: [], cancelled: true }]);
+    ok('Tauri 2: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) > 0);
+    const bigBefore = sha(readFileSync(bigPath));
     const before = ipc.bytesRead();
     dialogAnswer = bigPath;
     const t0 = performance.now();
-    await S().saveFileAs();
+    await S().exportAs('ifc');
     const ms = performance.now() - t0;
     const read = ipc.bytesRead() - before;
     const bigSize = statSync(bigPath).size;
     eq('Tauri 2: een groot modelbestand geweigerd na één stuk van 1 MiB', [read > 0 && read <= (1 << 20), bigSize > (4 << 20),
-      S().filePath], [true, true, ownPath]);
-    console.log(`..  Tauri: Opslaan als naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
+      sha(readFileSync(bigPath))], [true, true, bigBefore]);
+    console.log(`..  Tauri: Exporteren naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
       + `${ms.toFixed(0)} ms (${read} bytes gelezen)`);
     dialogAnswer = csvPath;
     const csv = await S().exportAs('csv');
@@ -810,6 +818,18 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     ipc.faults.readError = null;
     eq('Tauri 2: onleesbaar bestaand doel weigert', [sha(readFileSync(ownPath)), S().isDirty, noticeCount(store, UNREADABLE_SAVE)],
       [sha(modelIfc4), true, 1]);
+    // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als over een bevestigd modelbestand vervangt het.
+    // Fixronde 1 en 2 van #1071: de toestemming hoort bij de versie die de kiezer las, dus de kiezer leest het hele doel
+    // (`pickSaveTarget`); de vervanging van Ctrl+S vergelijkt het doel vóór het opzijzetten met die bytes en de opzijgezette
+    // versie daarna nog eens (was: de doelscan las hoogstens één stuk van 1 MiB).
+    const bigSaveAsSize = statSync(bigPath).size;
+    const beforeSaveAs = ipc.bytesRead();
+    dialogAnswer = bigPath;
+    await S().saveFileAs();
+    const readSaveAs = ipc.bytesRead() - beforeSaveAs;
+    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, na het hele doel drie keer te lezen (vastleggen, twee vergelijkingen)',
+      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs === 3 * bigSaveAsSize],
+      [bigPath, false, true, true]);
     eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
     ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));
   } finally {
@@ -943,7 +963,7 @@ eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
   const ownPath = join(dir, 'eigen.ifc');
   writeFileSync(ownPath, showcase);
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -960,20 +980,20 @@ eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
     const S = () => store.getState();
     S().addTask({ name: 'Eigen werk' });
+    // #804 keuze 4: Opslaan als op de desktop vervangt een bevestigd doel met een model (`check-ifc-own-file-replace.ts`);
+    // de doelscan van een pad meet hier daarom via Exporteren → IFC.
     dialogAnswer = solPath;
     const before = ipc.bytesRead();
-    await S().saveFileAs();
-    const readForSol = ipc.bytesRead() - before;
     const ifcExport = await S().exportAs('ifc');
+    const readForSol = ipc.bytesRead() - before;
     dialogAnswer = solCsvPath;
     const csvExport = await S().exportAs('csv');
-    eq('lange kop, Tauri: Opslaan als en export (IFC, CSV) geweigerd, het model is er nog',
+    eq('lange kop, Tauri: export (IFC, CSV) geweigerd, het model is er nog',
       [sha(readFileSync(solPath)), sha(readFileSync(solCsvPath)), ifcExport, csvExport, S().filePath],
       [sha(solBytes), sha(solBytes), { ok: true, warnings: [], cancelled: true }, { ok: true, warnings: [], cancelled: true }, ownPath]);
     eq('lange kop, Tauri: de lezer las voorbij de kop (meer dan één stuk), hoogstens het hele bestand',
       [readForSol > (1 << 20), readForSol <= solBytes.length], [true, true]);
-    eq('lange kop, Tauri: met de meldingen "op te slaan" en "naar te exporteren"',
-      [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) >= 2], [true, true]);
+    eq('lange kop, Tauri: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) >= 2, true);
     // Een lange kop zonder model: het hele bestand gelezen, dan mag het.
     dialogAnswer = longOwnPath;
     const beforeOwn = ipc.bytesRead();
@@ -1097,7 +1117,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   const backupPath = join(dir, 'backup.ifc');
   const otherPath = join(dir, 'ander.ifc');
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -1156,7 +1176,7 @@ for (const route of ['handle', 'pad'] as const) for (const foreign of [true, fal
   const orig = fakeHandle('bron.ifc', bytes), backupFile = fakeHandle('backup.ifc', new Uint8Array());
   const other = fakeHandle('ander.ifc', new Uint8Array());
   writeFileSync(sourcePath, bytes);
-  const ipc = route === 'pad' ? installNodeFileIpc() : null;
+  const ipc = route === 'pad' ? installNodeFileIpc({ appDataDir: tempAppData() }) : null;
   const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
   activeWindow.parent = activeWindow;
   let dialogAnswer = otherPath, dialogs = 0;
@@ -1302,7 +1322,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   const sourcePath = join(dir, 'oorspronkelijk.ifc'), newPath = join(dir, 'alleen-planning.ifc');
   const orig = fakeHandle('oorspronkelijk.ifc', eigenPlus), fresh = fakeHandle('alleen-planning.ifc', new Uint8Array());
   writeFileSync(sourcePath, eigenPlus);
-  const ipc = route === 'pad' ? installNodeFileIpc() : null;
+  const ipc = route === 'pad' ? installNodeFileIpc({ appDataDir: tempAppData() }) : null;
   const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
   activeWindow.parent = activeWindow;
   let target: string | null = newPath;
@@ -1711,7 +1731,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   // 9b. Tauri-pad: dezelfde doelen via de echte plugin-JS (`open`, `read`, `seek`) met nep-IPC naar Node-fs.
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-r4-'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -1739,11 +1759,12 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       const seeks = ipc.seeks();
       dialogAnswer = targetPath;
       await S().saveFileAs();
-      const saveKey = t.refuse === 'unreadable' ? UNREADABLE_SAVE : TARGET_SAVE;
       const autoKey = t.refuse === 'unreadable' ? UNREADABLE_AUTOSAVE : TARGET_AUTOSAVE;
-      if (t.refuse) {
+      // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als op de desktop vervangt een bevestigd doel
+      // met een model of C/A/V; alleen een onleesbaar doel blijft weigeren.
+      if (t.refuse === 'unreadable') {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd, melding ${t.refuse}`,
-          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, saveKey) > 0],
+          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, UNREADABLE_SAVE) > 0],
           [sha(t.bytes), ownPath, true, true]);
       } else {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft`,
@@ -2014,7 +2035,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
 {
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-1c-doelen-'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let answers: string[] = [];

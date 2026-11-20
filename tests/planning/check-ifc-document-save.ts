@@ -69,8 +69,10 @@ function tookTempRoute(calls: readonly { command: string; path?: string; options
     'de hele buffer in het eigen tijdelijke bestand, niet in het doel');
   assert.deepEqual(calls.filter(c => c.command === 'place_file_exclusive').map(c => c.path), [target], 'één plaatsing op het doel');
 }
-function desktop(appDataDir?: string) {
-  const ipc = installNodeFileIpc(appDataDir === undefined ? {} : { appDataDir });
+/** `appDataDir`: zonder een eigen map een verse tijdelijke; Opslaan als over een bestaand bestand legt met de flag aan het
+ *  herstelrecord van de vervanging daar vast (fixronde 2 van #1071). */
+function desktop(appDataDir: string = mkdtempSync(join(tmpdir(), 'ops-804-appdata-'))) {
+  const ipc = installNodeFileIpc({ appDataDir });
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null, picks = 0;
@@ -534,7 +536,9 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     // Een bestaand doel: alleen het eigen tijdelijke bestand werd geschreven, de plaatsing weigerde en het is weer weg.
     assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), kind === 'bestaand' ? [true] : []);
     assert.deepEqual(tempLeft(), []);
-    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly' : 'notifications.ifcForeignTargetExport');
+    // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
+    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly'
+      : kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
   } finally { ipc.dispose(); }
 });
 
@@ -799,7 +803,8 @@ for (const kind of ['eigen-bron', 'andere-bron', 'bestaand-model'] as const) for
       assert(result.ok && result.cancelled); assert.equal(asked.length, 1);
       assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash, 'het bestand met gebouwmodel blijft heel');
       assert.equal(writeCalls(ipc), 0); unchanged(store, before);
-      assertNotice(store, 'notifications.ifcForeignTargetExport');
+      // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
+      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
     } finally { ipc.dispose(); resetPlanOnlyAsker(); }
   });
 }
@@ -1429,11 +1434,12 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
     longer(store); clearNotices(store); writableLog.length = 0;
     const before = preserved(store);
     assert.equal(await ctrlS(store), false);
-    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
+    // Fixronde 1 van #1071, punt 3: de melding noemt het open tabblad (was `ifcForeignReplaceBlocked`, de reden 'open-source').
+    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignTargetOpenInTab');
     assert.deepEqual(writableLog, []); assert.equal(hash(fileOf(name)), hash(bytes));
     const s = store.getState(), deps = { identityFs: async () => undefined, readers: () => ({}) };
     const own = { documentId: s.activeDocumentId, source: s.ifcSource! };
-    assert.equal(await refusedWriteTarget(s, { kind: 'handle', handle: s.fileHandle! }, deps, own), 'open-source');
+    assert.equal(await refusedWriteTarget(s, { kind: 'handle', handle: s.fileHandle! }, deps, own), 'open-document');
   } finally { unregister(); await clearRecovery(); }
 });
 
@@ -1464,8 +1470,9 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
   onPath.getState().newDocument();
   await onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
   const twice = onPath.getState();
+  // Fixronde 1 van #1071, punt 3: de reden noemt het open tabblad (was 'open-source').
   assert.equal(await refusedWriteTarget(twice, { kind: 'path', path }, deps, { documentId: twice.activeDocumentId, source: twice.ifcSource! }),
-    'open-source', 'een ander open document met dit bestand als bron blijft geweigerd');
+    'open-document', 'een ander open document met dit bestand als bron blijft geweigerd');
 });
 
 for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`handle ${cause}: Ctrl+S weigert zoals nu, nul bytes`, async () => {
@@ -2156,11 +2163,16 @@ await check('pariteit over de echte routes: elk voorbeeld en elke opslagfixture,
       }
       assert.deepEqual(sw.requests().map(r => r.job.kind), PLAIN_ROUTES.map(() => 'writer'), `${file}, flag ${flag}: elke route rekende in de worker`);
       assert.equal(counted.decodes(), 0, `${file}, flag ${flag}: geen route maakte de bytes eerst tot tekst`);
+      // Fixronde 2 van #1071: met de flag aan gaat Opslaan als op de desktop langs de vervanging (een bestaande naam: twee
+      // plaatsingen) of de exclusieve aanmaak (een vrije naam: één), altijd met bytes, ook zonder worker.
+      const desktopSaveAs = (route: PlainRoute) => flag && (route === 'Opslaan als over een bestaande naam' || route === 'Opslaan als');
       for (const route of PLAIN_ROUTES) {
         assert.equal(viaWorker.writes[route], 'plugin:fs|write_file', `${file}, flag ${flag}, ${route}: de bytes als rauwe body`);
-        assert.equal(main.writes[route], 'plugin:fs|write_text_file', `${file}, flag ${flag}, ${route}: zonder worker de tekst, zoals main`);
+        assert.equal(main.writes[route], desktopSaveAs(route) ? 'plugin:fs|write_file' : 'plugin:fs|write_text_file',
+          `${file}, flag ${flag}, ${route}: zonder worker ${desktopSaveAs(route) ? 'ook de bytes' : 'de tekst, zoals main'}`);
       }
-      assert.equal(viaWorker.places, 0, `${file}, flag ${flag}: geen exclusieve plaatsing; de gewone atomaire opslag`);
+      assert.deepEqual([viaWorker.places, main.places], flag ? [3, 3] : [0, 0],
+        `${file}, flag ${flag}: ${flag ? 'de plaatsingen van Opslaan als' : 'geen exclusieve plaatsing; de gewone atomaire opslag'}`);
       compared++;
       if (file.startsWith('public/')) examplesCompared.add(file);
     } finally { sw.client.dispose(); }
