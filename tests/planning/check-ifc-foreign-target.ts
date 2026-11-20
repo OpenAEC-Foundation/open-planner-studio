@@ -107,6 +107,9 @@ const externalPset = enc.encode(dec(showcase).replace('ENDSEC;\nEND-ISO-10303-21
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
 const SOURCE_MISSING = 'notifications.ifcForeignSourceMissing';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
+/** Een eigen app-datamap voor de nagebootste bestandslaag: Opslaan als over een bestaand bestand legt met de flag aan
+ *  het herstelrecord van de vervanging daar vast (fixronde 2 van #1071). */
+const tempAppData = () => mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
 const OPEN_IN_TAB_SAVE = 'notifications.ifcForeignTargetOpenInTab';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
@@ -501,7 +504,7 @@ for (const flag of [false, true]) {
   symlinkSync(modelPath, join(dir, 'link.csv'));
   symlinkSync(modelPath, join(dir, 'link.ifc'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -764,7 +767,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   const ownPath = join(dir, 'eigen.ifc');
   writeFileSync(ownPath, showcase);
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -816,16 +819,16 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     eq('Tauri 2: onleesbaar bestaand doel weigert', [sha(readFileSync(ownPath)), S().isDirty, noticeCount(store, UNREADABLE_SAVE)],
       [sha(modelIfc4), true, 1]);
     // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als over een bevestigd modelbestand vervangt het.
-    // Fixronde 1 van #1071, A: de toestemming hoort bij de versie die de kiezer las, dus de kiezer leest het hele doel
-    // (`pickSaveTarget`) en de vervanging vergelijkt vlak vóór de plaatsing het hele doel met die bytes (was: de doelscan
-    // las hoogstens één stuk van 1 MiB).
+    // Fixronde 1 en 2 van #1071: de toestemming hoort bij de versie die de kiezer las, dus de kiezer leest het hele doel
+    // (`pickSaveTarget`); de vervanging van Ctrl+S vergelijkt het doel vóór het opzijzetten met die bytes en de opzijgezette
+    // versie daarna nog eens (was: de doelscan las hoogstens één stuk van 1 MiB).
     const bigSaveAsSize = statSync(bigPath).size;
     const beforeSaveAs = ipc.bytesRead();
     dialogAnswer = bigPath;
     await S().saveFileAs();
     const readSaveAs = ipc.bytesRead() - beforeSaveAs;
-    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, na het hele doel twee keer te lezen (vastleggen, vergelijken)',
-      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs === 2 * bigSaveAsSize],
+    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, na het hele doel drie keer te lezen (vastleggen, twee vergelijkingen)',
+      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs === 3 * bigSaveAsSize],
       [bigPath, false, true, true]);
     eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
     ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));
@@ -960,7 +963,7 @@ eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
   const ownPath = join(dir, 'eigen.ifc');
   writeFileSync(ownPath, showcase);
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -1114,7 +1117,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   const backupPath = join(dir, 'backup.ifc');
   const otherPath = join(dir, 'ander.ifc');
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -1173,7 +1176,7 @@ for (const route of ['handle', 'pad'] as const) for (const foreign of [true, fal
   const orig = fakeHandle('bron.ifc', bytes), backupFile = fakeHandle('backup.ifc', new Uint8Array());
   const other = fakeHandle('ander.ifc', new Uint8Array());
   writeFileSync(sourcePath, bytes);
-  const ipc = route === 'pad' ? installNodeFileIpc() : null;
+  const ipc = route === 'pad' ? installNodeFileIpc({ appDataDir: tempAppData() }) : null;
   const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
   activeWindow.parent = activeWindow;
   let dialogAnswer = otherPath, dialogs = 0;
@@ -1319,7 +1322,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   const sourcePath = join(dir, 'oorspronkelijk.ifc'), newPath = join(dir, 'alleen-planning.ifc');
   const orig = fakeHandle('oorspronkelijk.ifc', eigenPlus), fresh = fakeHandle('alleen-planning.ifc', new Uint8Array());
   writeFileSync(sourcePath, eigenPlus);
-  const ipc = route === 'pad' ? installNodeFileIpc() : null;
+  const ipc = route === 'pad' ? installNodeFileIpc({ appDataDir: tempAppData() }) : null;
   const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
   activeWindow.parent = activeWindow;
   let target: string | null = newPath;
@@ -1728,7 +1731,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   // 9b. Tauri-pad: dezelfde doelen via de echte plugin-JS (`open`, `read`, `seek`) met nep-IPC naar Node-fs.
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-r4-'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -2032,7 +2035,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
 {
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-1c-doelen-'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let answers: string[] = [];

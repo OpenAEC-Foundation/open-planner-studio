@@ -68,8 +68,10 @@ function tookTempRoute(calls: readonly { command: string; path?: string; options
     'de hele buffer in het eigen tijdelijke bestand, niet in het doel');
   assert.deepEqual(calls.filter(c => c.command === 'place_file_exclusive').map(c => c.path), [target], 'één plaatsing op het doel');
 }
-function desktop(appDataDir?: string) {
-  const ipc = installNodeFileIpc(appDataDir === undefined ? {} : { appDataDir });
+/** `appDataDir`: zonder een eigen map een verse tijdelijke; Opslaan als over een bestaand bestand legt met de flag aan het
+ *  herstelrecord van de vervanging daar vast (fixronde 2 van #1071). */
+function desktop(appDataDir: string = mkdtempSync(join(tmpdir(), 'ops-804-appdata-'))) {
+  const ipc = installNodeFileIpc({ appDataDir });
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null, picks = 0;
@@ -2158,11 +2160,16 @@ await check('pariteit over de echte routes: elk voorbeeld en elke opslagfixture,
       }
       assert.deepEqual(sw.requests().map(r => r.job.kind), PLAIN_ROUTES.map(() => 'writer'), `${file}, flag ${flag}: elke route rekende in de worker`);
       assert.equal(counted.decodes(), 0, `${file}, flag ${flag}: geen route maakte de bytes eerst tot tekst`);
+      // Fixronde 2 van #1071: met de flag aan gaat Opslaan als op de desktop langs de vervanging (een bestaande naam: twee
+      // plaatsingen) of de exclusieve aanmaak (een vrije naam: één), altijd met bytes, ook zonder worker.
+      const desktopSaveAs = (route: PlainRoute) => flag && (route === 'Opslaan als over een bestaande naam' || route === 'Opslaan als');
       for (const route of PLAIN_ROUTES) {
         assert.equal(viaWorker.writes[route], 'plugin:fs|write_file', `${file}, flag ${flag}, ${route}: de bytes als rauwe body`);
-        assert.equal(main.writes[route], 'plugin:fs|write_text_file', `${file}, flag ${flag}, ${route}: zonder worker de tekst, zoals main`);
+        assert.equal(main.writes[route], desktopSaveAs(route) ? 'plugin:fs|write_file' : 'plugin:fs|write_text_file',
+          `${file}, flag ${flag}, ${route}: zonder worker ${desktopSaveAs(route) ? 'ook de bytes' : 'de tekst, zoals main'}`);
       }
-      assert.equal(viaWorker.places, 0, `${file}, flag ${flag}: geen exclusieve plaatsing; de gewone atomaire opslag`);
+      assert.deepEqual([viaWorker.places, main.places], flag ? [3, 3] : [0, 0],
+        `${file}, flag ${flag}: ${flag ? 'de plaatsingen van Opslaan als' : 'geen exclusieve plaatsing; de gewone atomaire opslag'}`);
       compared++;
       if (file.startsWith('public/')) examplesCompared.add(file);
     } finally { sw.client.dispose(); }

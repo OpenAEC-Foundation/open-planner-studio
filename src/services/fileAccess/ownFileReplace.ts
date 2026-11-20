@@ -181,66 +181,6 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
   return { code: 'replaced', otherVersion: null, leftOver: previous };
 }
 
-// ── Opslaan als van een gewone planning over een bevestigd doel (#804 keuze 4, fixronde 1 van #1071, A) ─────────────
-
-/** De bestandsbewerkingen van `replaceObservedFileBytes`. */
-export type ObservedReplaceFs = Pick<OwnFileReplaceFs, 'lstat' | 'createNew' | 'remove' | 'content'> & {
-  rename(from: string, to: string): Promise<void>;
-};
-
-/** De uitkomsten van `replaceObservedFileBytes`; dezelfde vormen als bij de vervanging van het eigen bestand. */
-export type ObservedReplaceOutcome = Extract<OwnFileReplaceOutcome, { code: 'replaced' | 'target-changed' | 'save-as-only' | 'stopped' | 'failed' }>;
-
-/**
- * *Opslaan als* van een document zonder vreemd deel over een bestaand bestand met een gebouwmodel of gegevens van een
- * ander programma, dat de planner in de bestandskiezer bevestigde (`WriteTargetDeps.replaceConfirmed`). De bevestiging
- * geldt alleen voor de versie die de kiezer daar las (`observed`), dus:
- * - een doel met meer dan één naam (een harde link) of een symbolische link: niet vervangen (`save-as-only`), vóór en
- *   vlak vóór de plaatsing; nooit rechtstreeks in het bestaande bestand schrijven;
- * - de hele uitvoer eerst in één `createNew` naar het eigen tijdelijke bestand naast het doel; mag dat daar niet
- *   (`forbidden path`) of faalt de hernoeming, dan ook `save-as-only`, zonder terugval;
- * - vlak vóór de hernoeming staat op het doel nog precies `observed` (anders `target-changed`), en hoort de opslag nog
- *   bij het document (`refuseBeforePlace`, anders `stopped`). Dan pas de hernoeming over het doel.
- * Het doel blijft bij elke uitkomst behalve `replaced` zoals het was; het eigen tijdelijke bestand gaat weg.
- * Grens: een schrijfactie op het doel tussen de vergelijking en de hernoeming (één systeemaanroep), en op Windows geeft
- * plugin-fs geen `nlink`, dan ziet de controle een harde link niet (de hernoeming geeft dan de gekozen naam de nieuwe
- * inhoud; de andere naam houdt de oude).
- */
-export async function replaceObservedFileBytes(
-  fs: ObservedReplaceFs, input: { path: string; bytes: Uint8Array; observed: Uint8Array; refuseBeforePlace: RefuseBeforePlace },
-): Promise<ObservedReplaceOutcome> {
-  const { path } = input;
-  const before = await linkedOwnFile(fs, path);
-  if (before.linked) return { code: 'save-as-only', why: 'linked target' };
-  const temp = userFileTempPath(path);
-  const removeOwnTemp = async () => {
-    try { await fs.remove(temp); } catch { /* het eigen tijdelijke bestand blijft mogelijk achter; het doel niet geraakt */ }
-  };
-  const created = await createOwnTemp(fs, temp, input.bytes, before.mode);
-  if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path' };
-  if (created.failed) return { code: 'failed', detail: created.cause instanceof Error ? created.cause.message : String(created.cause) };
-  const content = await fs.content(path, input.observed);
-  if (content !== 'same') {
-    await removeOwnTemp();
-    return { code: 'target-changed', content };
-  }
-  if ((await linkedOwnFile(fs, path)).linked) {
-    await removeOwnTemp();
-    return { code: 'save-as-only', why: 'linked target' };
-  }
-  if (input.refuseBeforePlace()) {
-    await removeOwnTemp();
-    return { code: 'stopped' };
-  }
-  try {
-    await fs.rename(temp, path);
-  } catch (error) {
-    await removeOwnTemp();
-    return { code: 'save-as-only', why: `rename: ${error instanceof Error ? error.message : String(error)}` };
-  }
-  return { code: 'replaced', otherVersion: null, leftOver: null };
-}
-
 // ── Restbestanden na een crash (§4.10) ──────────────────────────────────────────────────────────────────────────
 
 /** Staan beide hulpnamen van de vervanging met dit id aantoonbaar niet meer op schijf? Alleen dan mag het herstelrecord
@@ -340,12 +280,11 @@ export async function settleReplaceRemnants(
 
 // ── Tauri ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** De vervanging op plugin-fs en `place_file_exclusive`; bytes als rauwe body (zie `atomicWrite.ts`). Ook de
- *  bewerkingen van `replaceObservedFileBytes` (`rename`). */
-export async function tauriOwnFileReplaceFs(): Promise<OwnFileReplaceFs & ObservedReplaceFs> {
+/** De vervanging op plugin-fs en `place_file_exclusive`; bytes als rauwe body (zie `atomicWrite.ts`). */
+export async function tauriOwnFileReplaceFs(): Promise<OwnFileReplaceFs> {
   const fs = await import('@tauri-apps/plugin-fs');
-  const { lstat, createNew, remove, rename } = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
-  return { lstat, createNew, remove, rename, place: placeFileExclusive, content: sourceTargetContentOfPathTauri };
+  const { lstat, createNew, remove } = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
+  return { lstat, createNew, remove, place: placeFileExclusive, content: sourceTargetContentOfPathTauri };
 }
 
 /** Het opruimen op plugin-fs: een ontbrekend bestand is `null`, een link wordt niet gelezen. */

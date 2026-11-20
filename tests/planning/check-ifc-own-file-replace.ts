@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { documentContentOf } from '@/state/documentSaveState';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -1638,14 +1638,19 @@ await check('Opslaan als naar een vrije naam waar na de bestandskiezer een besta
 const MAIN_SAVE_AS_CALLS = {
   uit: ['plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
 };
-// Fixronde 1 van #1071, A: met de flag aan legt de bestandskiezer van Opslaan als het gekozen doel vast (`pickSaveTarget`:
-// `lstat` en de hele inhoud); de doelcontrole scant die bytes. Op main las de doelcontrole het pad in stukken.
-const PICKED_TARGET_READ = ['plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|read_file <map>/ander.ifc'];
-// De vervanging van alleen die gelezen versie (`replaceObservedFileBytes`): geen link, het eigen tijdelijke bestand, vlak
-// vóór de hernoeming dezelfde bytes en nog steeds geen link. Nooit een schrijfactie op het doel zelf.
-const OBSERVED_REPLACE_CALLS = [...PICKED_TARGET_READ, 'plugin:fs|lstat <map>/ander.ifc',
-  'plugin:fs|write_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|stat <map>/ander.ifc', 'plugin:fs|open <map>/ander.ifc',
-  'plugin:fs|read ', 'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|rename '];
+// Fixronde 2 van #1071: met de flag aan vervangt Opslaan als op de desktop elk bestaand gewoon bestand langs de vervanging
+// van Ctrl+S (`replaceOwnFileBytes`), met wat de kiezer las als verwachte versie: het eigen tijdelijke bestand, het doel
+// opzij en het tijdelijke bestand exclusief op het doel (twee plaatsingen), nooit een schrijfactie op het doel zelf, en
+// daarna geen hulpbestand en geen herstelrecord.
+function safeReplace(dir: string, target: string, from: number): void {
+  const calls = ipc.calls.slice(from);
+  assert.deepEqual(calls.filter(call => call.wrote && call.path?.startsWith(dir)).map(call => basename(call.path!).replace(/^save-[0-9a-z]+\./, 'save-<id>.')),
+    ['save-<id>.ops-save.tmp'], 'alleen het eigen tijdelijke bestand geschreven');
+  assert.equal(calls.filter(call => call.command === 'place_file_exclusive' && call.path?.startsWith(dir)).length, 2, 'opzijzetten en plaatsen');
+  assert.equal(calls.some(call => call.wrote && call.path === target), false, 'geen schrijfactie op het doel zelf');
+  assert.deepEqual(readdirSync(dir).filter(name => name.includes('.ops-')), [], 'geen hulpbestand');
+  assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord');
+}
 
 // ── #804 keuze 4, tweede deel (besluit van de eigenaar, 19 november 2026) ───────────────────────────────────────────
 // "Vervangen. De app stelt geen tweede vraag. Geen melding." De bevestiging in de bestandskiezer van Opslaan als geldt
@@ -1724,9 +1729,10 @@ for (const [label, content] of FOREIGN_TARGETS) {
       const from = ipc.calls.length;
       await saveAsTo(p.store, p.target);
       const seen = callsAtEdge(p.dir, from), s = p.store.getState();
-      // Met de flag uit de route van main (`MAIN_SAVE_AS_CALLS.uit`). Met de flag aan (fixronde 1 van #1071, A; was de
-      // route van de flag uit): de toestemming hoort bij de versie die de kiezer las, dus de vervanging van alleen die.
-      assert.deepEqual(seen, flag ? OBSERVED_REPLACE_CALLS : MAIN_SAVE_AS_CALLS.uit, JSON.stringify(seen));
+      // Met de flag uit de route van main (`MAIN_SAVE_AS_CALLS.uit`). Met de flag aan de vervanging van Ctrl+S met de
+      // gelezen versie (fixronde 2 van #1071; was in fixronde 1 een eigen vervangroute).
+      if (flag) safeReplace(p.dir, p.target, from);
+      else assert.deepEqual(seen, MAIN_SAVE_AS_CALLS.uit, JSON.stringify(seen));
       assert.deepEqual(s.ui.notifications.map(n => n.messageKey), [], 'geen melding');
       assert.deepEqual([s.filePath, s.isDirty], [p.target, false], 'het nieuwe pad, schoon');
       assert(readFileSync(p.target).toString('latin1').includes('Gewone planning over een modelbestand'), 'het bestand is vervangen');
@@ -1776,13 +1782,14 @@ await check('fixronde 1: Opslaan als met een gebouwmodel over notities.ifc (lees
     assert.deepEqual(recordsOnDisk(), []);
   } finally { await tidy(c); }
 });
-await check('fixronde 1: gewone planning, flag aan, Opslaan als over notities.ifc (leesbaar, geen IFC): vervangen zoals main', async () => {
+await check('fixronde 1: gewone planning, flag aan, Opslaan als over notities.ifc (leesbaar, geen IFC): vervangen langs de vervanging van Ctrl+S', async () => {
   const p = await plainWithTarget(true, notesFile);
   const from = ipc.calls.length;
   await saveAsTo(p.store, p.target);
   const seen = callsAtEdge(p.dir, from), s = p.store.getState();
-  // Geen weigering op inhoud, dus geen toestemming nodig: na het vastleggen de route van main.
-  assert.deepEqual(seen, [...PICKED_TARGET_READ, ...MAIN_SAVE_AS_CALLS.uit], JSON.stringify(seen));
+  // Fixronde 2 van #1071: elk bestaand gewoon bestand langs de vervanging van Ctrl+S (was de route van main).
+  assert.deepEqual(seen.slice(0, 2), ['plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|read_file <map>/ander.ifc'], 'de kiezer las het doel');
+  safeReplace(p.dir, p.target, from);
   assert.deepEqual(s.ui.notifications.map(n => n.messageKey), [], 'geen melding');
   assert.deepEqual([s.filePath, s.isDirty], [p.target, false]);
   assert(readFileSync(p.target).toString('latin1').includes('Gewone planning over een modelbestand'), 'vervangen');
@@ -1870,6 +1877,180 @@ await check('fixronde 1, A: gewone planning, flag aan, Opslaan als over een mode
   assert.equal(hash(readFileSync(p.target)), hash(next), 'de nieuwe versie blijft staan');
   assert.deepEqual([s.filePath, s.isDirty, s.recentFiles.length], [p.path, true, 0], 'het document blijft gewijzigd, geen Recent');
   assert.deepEqual(readdirSync(p.dir).sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
+});
+
+// ── Fixronde 2 van #1071 (besluit van de technisch beslisser, 20 november 2026): één vervangroute ─────────────────
+// Met de flag aan bepaalt één doelwaarneming van de kiezer (pad plus wat er stond) wat er gebeurt, voor elk document en
+// elke inhoud van het doel: een bestaand gewoon bestand ⇒ de vervanging van Ctrl+S met die bytes als verwachte versie;
+// een vrije naam (ook een link of een map) ⇒ de exclusieve aanmaak; onleesbaar ⇒ geweigerd.
+/** Een ander programma zet `content` op `target` (nieuw bestand, hernoemd over het doel). */
+function putAt(dir: string, target: string, content: Uint8Array): void {
+  const staged = join(dir, 'van-een-ander-programma.ifc');
+  writeFileSync(staged, content);
+  renameSync(staged, target);
+}
+/** `plainWithTarget` plus een tweede open tabblad, zodat de doelcontrole de open tabbladen langsloopt (`stat`). */
+async function plainWithTargetAndTab(content: Uint8Array) {
+  const p = await plainWithTarget(true, content);
+  const id = p.store.getState().activeDocumentId, third = join(p.dir, 'derde.ifc');
+  writeFileSync(third, plain);
+  await p.store.getState().openOpenedFile({ name: 'derde.ifc', content: Buffer.from(plain).toString('utf8'), bytes: plain, ref: { kind: 'path', path: third } });
+  p.store.getState().switchDocument(id);
+  p.store.setState(s => { s.ui.notifications = []; s.recentFiles = []; });
+  return p;
+}
+const plainErrorKeys = (store: Case['store']) => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+/** Het document bleef zoals het was: oud pad, gewijzigd, niets in Recent. */
+function plainUnchanged(p: Awaited<ReturnType<typeof plainWithTarget>>) {
+  const s = p.store.getState();
+  assert.deepEqual([s.filePath, s.isDirty, s.recentFiles.length], [p.path, true, 0], 'het document blijft gewijzigd, geen Recent');
+}
+const noHelpers = (dir: string) => assert.deepEqual(readdirSync(dir).filter(name => name.includes('.ops-')), [], 'geen hulpbestand');
+
+await check('fixronde 2: gewone planning over een gewone planning die tijdens de controle op open tabbladen een model wordt: het model blijft', async () => {
+  const p = await plainWithTargetAndTab(plain);
+  let arrived = false;
+  const invoke = internal.invoke;
+  internal.invoke = (command, ...args) => {
+    if (!arrived && command === 'plugin:fs|stat' && (args[0] as { path?: string })?.path === p.target) {
+      putAt(p.dir, p.target, otherWithModel);
+      arrived = true;
+    }
+    return invoke(command, ...args);
+  };
+  try { await saveAsTo(p.store, p.target); } finally { internal.invoke = invoke; }
+  assert.equal(arrived, true, 'het model kwam tijdens de controle op open tabbladen');
+  assert.deepEqual(plainErrorKeys(p.store), ['notifications.ifcForeignTargetChanged']);
+  assert.equal(hash(readFileSync(p.target)), hash(otherWithModel), 'het model staat er nog, bytegelijk');
+  plainUnchanged(p);
+  noHelpers(p.dir);
+});
+await check('fixronde 2: Opslaan als over een modelbestand dat tijdens de eindvergelijking een andere versie krijgt: die versie blijft bewaard', async () => {
+  const p = await plainWithTarget(true, otherWithModel);
+  const next = new Uint8Array([...otherWithModel, 10]);
+  let rid: unknown, arrived = false;
+  const invoke = internal.invoke;
+  internal.invoke = async (command, ...args) => {
+    const a = args[0] as { path?: string; rid?: number } | undefined;
+    if (!arrived && command === 'plugin:fs|open' && a?.path === p.target) {
+      rid = await invoke(command, ...args);
+      return rid;
+    }
+    if (!arrived && rid !== undefined && command === 'plugin:fs|read' && a?.rid === rid) {
+      putAt(p.dir, p.target, next);
+      arrived = true;
+    }
+    return invoke(command, ...args);
+  };
+  try { await saveAsTo(p.store, p.target); } finally { internal.invoke = invoke; }
+  assert.equal(arrived, true, 'de andere versie kwam terwijl de app het doel las');
+  const kept = readdirSync(p.dir).filter(name => hash(readFileSync(join(p.dir, name))) === hash(next));
+  assert.equal(kept.length, 1, `de andere versie staat nog als bestand (${readdirSync(p.dir).join(', ')})`);
+  assert.notEqual(kept[0], 'ander.ifc', 'naast het doel, als kopie');
+  assert.deepEqual(plainErrorKeys(p.store), ['notifications.ifcForeignReplaceOtherVersion']);
+  assert(readFileSync(p.target).toString('latin1').includes('Gewone planning over een modelbestand'), 'het doel heeft de planning');
+  noHelpers(p.dir);
+});
+// De vier gevallen die al op main bestonden (review van #1071, ronde 2): met de ene route dicht.
+await check('fixronde 2 (al op main): de kiezer las een gewone planning, bij het tijdelijke bestand verschijnt een model: het model blijft', async () => {
+  const p = await plainWithTarget(true, plain);
+  let arrived = false;
+  ipc.faults.beforeOpen = path => {
+    if (arrived || !path.startsWith(p.dir) || !path.endsWith('.ops-save.tmp')) return;
+    putAt(p.dir, p.target, otherWithModel);
+    arrived = true;
+  };
+  try { await saveAsTo(p.store, p.target); } finally { ipc.faults.beforeOpen = null; }
+  assert.equal(arrived, true);
+  assert.deepEqual(plainErrorKeys(p.store), ['notifications.ifcForeignTargetChanged']);
+  assert.equal(hash(readFileSync(p.target)), hash(otherWithModel), 'het model staat er nog, bytegelijk');
+  plainUnchanged(p);
+  noHelpers(p.dir);
+});
+await check('fixronde 2 (al op main): een vrije naam waar bij het tijdelijke bestand een model verschijnt: het model blijft', async () => {
+  const p = await plainWithTarget(true, plain);
+  unlinkSync(p.target);
+  let arrived = false;
+  ipc.faults.beforeOpen = path => {
+    if (arrived || !path.startsWith(p.dir) || !path.endsWith('.ops-save.tmp')) return;
+    putAt(p.dir, p.target, otherWithModel);
+    arrived = true;
+  };
+  try { await saveAsTo(p.store, p.target); } finally { ipc.faults.beforeOpen = null; }
+  assert.equal(arrived, true);
+  assert.deepEqual(plainErrorKeys(p.store), ['notifications.ifcForeignNewTargetOnly']);
+  assert.equal(hash(readFileSync(p.target)), hash(otherWithModel), 'het model staat er nog, bytegelijk');
+  plainUnchanged(p);
+  noHelpers(p.dir);
+});
+await check('fixronde 2 (al op main): Opslaan als over een harde link naar een gewone planning: geweigerd, beide namen bytegelijk', async () => {
+  const p = await plainWithTarget(true, plain);
+  const original = join(p.dir, 'origineel.ifc'), picked = join(p.dir, 'gekozen.ifc');
+  writeFileSync(original, changedPlain);
+  linkSync(original, picked);
+  const from = ipc.calls.length;
+  await saveAsTo(p.store, picked);
+  assert.deepEqual(plainErrorKeys(p.store), ['notifications.ifcForeignNewTargetOnly']);
+  assert.deepEqual([hash(readFileSync(picked)), hash(readFileSync(original))], [hash(changedPlain), hash(changedPlain)], 'beide namen bytegelijk');
+  assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+  plainUnchanged(p);
+  noHelpers(p.dir);
+});
+await check('fixronde 2 (al op main): Opslaan als over een symbolische link naar notities: geweigerd, de notities bytegelijk', async () => {
+  const p = await plainWithTarget(true, plain);
+  const notes = join(p.dir, 'notities.txt'), picked = join(p.dir, 'notities.ifc');
+  writeFileSync(notes, notesFile);
+  symlinkSync(notes, picked);
+  await saveAsTo(p.store, picked);
+  assert.deepEqual(plainErrorKeys(p.store), ['notifications.ifcForeignNewTargetOnly']);
+  assert.equal(hash(readFileSync(notes)), hash(notesFile), 'de notities bytegelijk');
+  assert.equal(lstatSync(picked).isSymbolicLink(), true, 'de link staat er nog');
+  plainUnchanged(p);
+  noHelpers(p.dir);
+});
+// Een gewone planning heeft geen bron in het herstelmanifest; haar vervanging (`documentId: null`) legt alleen het
+// herstelrecord vast. Een crash na het opzijzetten: de volgende start zet de vorige versie terug op het doel en bewaart de
+// nieuwe planning als "niet opgeslagen planning".
+await check('fixronde 2: gewone planning over een bestaand bestand, crash na het opzijzetten: de vorige versie terug, de nieuwe planning als kopie', async () => {
+  const dir = join(work, `geval-${++cases}`);
+  mkdirSync(dir);
+  const target = join(dir, 'ander.ifc'), output = new Uint8Array([...plain, 10, 10]);
+  writeFileSync(target, otherWithModel);
+  const base = await tauriOwnFileReplaceFs();
+  let places = 0, committed = false;
+  const fs: OwnFileReplaceFs = { ...base, place: async (from, to) => (++places === 2 ? Promise.reject(new Crash('crash')) : base.place(from, to)) };
+  await runProjectFileWrite(() => replaceOwnPathWithRecovery({
+    documentId: null, path: target, prepared: { bytes: output, sha256: hash(output) },
+    source: { bytes: otherWithModel, sha256: hash(otherWithModel) },
+    commit: () => { committed = true; }, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, now: NOW, fs,
+  }), () => { throw new Error('de schrijfpoort is dicht'); }).catch(error => { if (!(error instanceof Crash)) throw error; });
+  assert.deepEqual([committed, existsSync(target), recordsOnDisk().length], [false, false, 1], 'het doel staat opzij, het record ligt vast');
+  const notices = await nextRound();
+  const after = Object.fromEntries(readdirSync(dir).sort().map(name => [name, hash(readFileSync(join(dir, name)))]));
+  assert.deepEqual(after, { 'ander.ifc': hash(otherWithModel), 'ander (niet opgeslagen planning 2026-11-17 14.32).ifc': hash(output) },
+    JSON.stringify(after));
+  assert.deepEqual(notices.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
+  assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+});
+
+// Bevinding 3 van ronde 2: met de flag uit precies main, ook als er nog een modeltabblad open staat.
+await check('fixronde 2, flag uit: Opslaan als en Exporteren over het bestand van een open modeltabblad: de reden en aanroepen van main', async () => {
+  const c = await opened();
+  try {
+    c.store.getState().newDocument();
+    c.store.getState().addTask({ name: 'Gewone planning naast het model' });
+    c.store.setState(s => { s.ui.featureFlags = {}; s.ui.notifications = []; });
+    let from = ipc.calls.length;
+    await saveAsTo(c.store, c.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetSave'], 'Opslaan als: de melding van main');
+    assert.deepEqual(ipc.calls.slice(from).map(call => call.command), [], 'Opslaan als: geen bestandsaanroep, zoals main');
+    clearNotices(c);
+    from = ipc.calls.length;
+    await exportTo(c.store, c.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetExport'], 'Exporteren: de melding van main');
+    assert.deepEqual(ipc.calls.slice(from).map(call => call.command), [], 'Exporteren: geen bestandsaanroep, zoals main');
+    assert.equal(hash(readFileSync(c.path)), hash(bytes), 'het modelbestand bytegelijk');
+  } finally { await tidy(c); }
 });
 
 // Fixronde 1 van #1071, punt 2: de bestandskiezer van Ctrl+S bij een document zonder opslagdoel is Opslaan als en gedraagt
@@ -2138,7 +2319,7 @@ await check('Opslaan als, crash na stap 3: openen van het doel (dialoog of neerz
 // als over een bestaand bestand zonder gebouwmodel schrijft zoals op main. De reeksen aanroepen aan de bestandsrand zijn vastgelegd op main
 // (`62e7786d4`), met dezelfde proef.
 for (const flag of [true, false]) {
-  await check(`Opslaan als over een bestaand bestand zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde aanroepen als main`, async () => {
+  await check(`Opslaan als over een bestaand bestand zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: ${flag ? 'de vervanging van Ctrl+S' : 'dezelfde aanroepen als main'}`, async () => {
     const dir = join(work, `geval-${++cases}`);
     mkdirSync(dir);
     const path = join(dir, 'model.ifc'), target = join(dir, 'ander.ifc');
@@ -2153,9 +2334,10 @@ for (const flag of [true, false]) {
     const from = ipc.calls.length;
     await saveAsTo(store, target);
     const seen = ipc.calls.slice(from).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    // Met de flag aan (fixronde 1 van #1071, A) leest de kiezer het doel eerst in zijn geheel in plaats van de padscan
-    // van main; het schrijven is dat van main.
-    assert.deepEqual(seen, flag ? [...PICKED_TARGET_READ, ...MAIN_SAVE_AS_CALLS.uit] : MAIN_SAVE_AS_CALLS.uit, JSON.stringify(seen));
+    // Met de flag aan (fixronde 2 van #1071) leest de kiezer het doel en vervangt de app het langs de vervanging van
+    // Ctrl+S; met de flag uit de aanroepen van main.
+    if (flag) safeReplace(dir, target, from);
+    else assert.deepEqual(seen, MAIN_SAVE_AS_CALLS.uit, JSON.stringify(seen));
     assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
     assert.deepEqual([store.getState().filePath, store.getState().isDirty], [target, false]);
     assert(readFileSync(target).toString('latin1').includes('Gewoon Opslaan als'), 'het bestaande bestand is vervangen, zoals op main');
@@ -2644,7 +2826,10 @@ for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande 
         else await saveAsTo(p.store, target);
         assert.equal(loaded, true, 'het andere project kwam toen het tijdelijke bestand er stond');
         assert.equal(existsSync(target) ? hash(readFileSync(target)) : null, before, 'het doel is niet gewijzigd');
-        assert.deepEqual(ipc.calls.slice(from).filter(call => call.command === 'plugin:fs|rename'), [], 'geen hernoeming');
+        // Fixronde 2 van #1071: met de flag aan gaat een bestaande naam langs de vervanging van Ctrl+S; haar herstelrecord
+        // in de app-datamap wordt zelf atomair (met een hernoeming daar) geschreven, dus daar telt de plaatsing.
+        if (flag && route === 'Opslaan als over een bestaande naam') assert.deepEqual(placesSince(from), [], 'geen plaatsing');
+        else assert.deepEqual(ipc.calls.slice(from).filter(call => call.command === 'plugin:fs|rename'), [], 'geen hernoeming');
         assert.equal(plainFiles(p).some(f => isTempPath(join(p.dir, f))), false, 'het tijdelijke bestand is weg');
         assert.deepEqual(plainErrors(p), ['notifications.ifcSaveChangedWhileWaiting'], 'de bestaande melding');
         assert.deepEqual(p.store.getState().recentFiles.map(item => item.id), recentBefore, 'niets nieuws in Recent');
