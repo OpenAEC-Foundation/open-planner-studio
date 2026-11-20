@@ -53,6 +53,7 @@ import { castDraft } from 'immer';
 import { mergeProblems } from './ifcMergeKern';
 import { InProcessWorker } from './inProcessSaveWorker';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
 import type { IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import { saveStatusOf } from '@/state/documentSaveState';
@@ -1452,31 +1453,31 @@ await check('Opslaan als: het doel verandert tussen het begin van de opslag en d
   } finally { await tidy(c); }
 });
 
-await check('Opslaan als: een gebouwmodel op het doel na de bestandskiezer: de tweede doelcontrole weigert het, het model blijft', async () => {
+// #804 keuze 4, tweede deel: een gebouwmodel op het doel is geen reden meer om te weigeren (zie onder). Wat wel blijft:
+// wat er na de keuze op het doel verschijnt, weigert de bytevergelijking vlak vóór het opzijzetten (stap 2). Hier zet
+// een ander programma direct na het vastleggen van de verwachte inhoud een gebouwmodel op het doel.
+await check('Opslaan als: een gebouwmodel dat na de keuze op het doel verschijnt: de bytevergelijking weigert, het model blijft', async () => {
   const c = await opened();
   const invoke = internal.invoke;
   try {
     const target = otherFile(c);
     clearNotices(c);
     const source = c.store.getState().ifcSource, from = ipc.calls.length;
-    // Na de doelcontrole in de bestandskiezer, vlak voordat de app de verwachte inhoud leest, zet een ander programma een
-    // gebouwmodel op het doel. Die inhoud wordt de verwachte inhoud; zonder tweede controle zou stap 5 haar weghalen.
-    // De eerste `lstat` op het doel stelt direct na de kiezer vast dat er een bestand staat; de tweede gaat aan het lezen
-    // van de verwachte inhoud vooraf.
-    let swapped = false, lstats = 0;
-    internal.invoke = (command, ...args) => {
-      if (!swapped && command === 'plugin:fs|lstat' && (args[0] as { path?: string })?.path === target.path && ++lstats === 2) {
+    let swapped = false;
+    internal.invoke = async (command, ...args) => {
+      const result = await invoke(command, ...args);
+      if (!swapped && command === 'plugin:fs|read_file' && (args[0] as { path?: string })?.path === target.path) {
         swapped = true;
         writeFileSync(target.path, otherWithModel);
       }
-      return invoke(command, ...args);
+      return result;
     };
     await saveAsTo(c.store, target.path);
-    assert(swapped, 'de wissel gebeurde');
-    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetSave']);
+    assert(swapped, 'de wissel gebeurde direct na het lezen van de verwachte inhoud');
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetChanged']);
     assert.deepEqual(disk(c), { 'ander.ifc': hash(otherWithModel), 'model.ifc': hash(bytes) }, 'het gebouwmodel van de ander staat er nog');
     documentUnchanged(c, source);
-    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties in de map');
+    assert.deepEqual(placesSince(from), [], 'niets verplaatst');
     assert.deepEqual(recordsOnDisk(), []);
   } finally { internal.invoke = invoke; await tidy(c); }
 });
@@ -1631,19 +1632,191 @@ await check('Opslaan als naar een vrije naam waar na de bestandskiezer een besta
   } finally { internal.invoke = invoke; await tidy(c); }
 });
 
-await check('Opslaan als over een bestand met een gebouwmodel van een ander: de doelbescherming weigert, zoals voorheen', async () => {
+// De reeksen aanroepen aan de bestandsrand van Opslaan als zonder vreemd deel, vastgelegd op main (`62e7786d4`); zie
+// de proeven daarvan verderop.
+const MAIN_SAVE_AS_CALLS: Record<'aan' | 'uit', string[]> = {
+  // Met de flag aan leest de doelcontrole eerst het bestaande doel, dan de gewone atomaire opslag over het doel.
+  aan: ['plugin:fs|open <map>/ander.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
+    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/ander.ifc',
+    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+  uit: ['plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+};
+
+// ── #804 keuze 4, tweede deel (besluit van de eigenaar, 19 november 2026) ───────────────────────────────────────────
+// "Vervangen. De app stelt geen tweede vraag. Geen melding." De bevestiging in de bestandskiezer van Opslaan als geldt
+// voor wat er op het doel staat, ook een gebouwmodel of gegevens van een ander programma. Een document met een vreemd
+// deel vervangt langs de veilige vervanging van Ctrl+S, een document zonder vreemd deel langs de gewone atomaire opslag,
+// zoals met de flag uit. De doelbescherming blijft voor elke andere route.
+/** Een gewone planning met gegevens van een ander programma en zonder gebouwmodel: een vreemde pset (C/A/V). */
+const externalPset = new Uint8Array(Buffer.from(Buffer.from(plain).toString('latin1').replace(/ENDSEC;\nEND-ISO-10303-21;\n?$/,
+  "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n"
+  + "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;\n"), 'latin1'));
+const FOREIGN_TARGETS = [
+  ['een gebouwmodel', otherWithModel, 'model'],
+  ['gegevens van een ander programma (C/A/V)', externalPset, 'foreign'],
+] as const;
+
+for (const [label, content, scan] of FOREIGN_TARGETS) {
+  await check(`keuze 4: Opslaan als over een bestaand bestand met ${label}: vervangen, geen melding, het document volgt`, async () => {
+    const c = await opened();
+    try {
+      assert.equal(scanForeignTargetBytes(content), scan, 'het doel bevat zelf een vreemd deel');
+      const target = otherFile(c, content);
+      renameTask(c, 'Planning over de kopie van vorige week');
+      clearNotices(c);
+      const from = ipc.calls.length;
+      await saveAsTo(c.store, target.path);
+      const output = new Uint8Array(readFileSync(target.path)), s = c.store.getState();
+      assert.deepEqual(s.ui.notifications.map(n => n.messageKey), [], 'geen melding');
+      assert.notEqual(hash(output), hash(content), 'het oude bestand is vervangen');
+      assert(latin1(target.path).includes('Planning over de kopie van vorige week'), 'het nieuwe bestand bevat de planning');
+      assert.deepEqual(mergeProblems(bytes, output), [], 'en het gebouwmodel van het open document, bytegelijk');
+      assert.deepEqual(disk(c), { 'ander.ifc': hash(output), 'model.ifc': hash(bytes) }, 'geen hulpbestand; het geopende bestand ongewijzigd');
+      assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord achtergebleven');
+      assert.deepEqual([s.filePath, s.isDirty, s.foreignSourceMark?.filePath], [target.path, false, target.path], 'het nieuwe pad, schoon');
+      assert.equal(s.ifcSource!.sha256, hash(output), 'de geschreven bytes zijn de bron');
+      assert(s.recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target.path), 'Recent kent het nieuwe pad');
+      assert.equal(projectWriteFiles(c, from).length, 1, 'één schrijfactie, in het eigen tijdelijke bestand');
+      assert.equal(placesSince(from).length, 2, 'de veilige vervanging: opzijzetten en plaatsen');
+    } finally { await tidy(c); }
+  });
+  await check(`keuze 4, flag uit (na het openen uitgezet): Opslaan als over ${label}: dezelfde weigering als main, niets aan de bestandsrand`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c, content);
+      c.store.setState(s => { s.ui.featureFlags = {}; });
+      clearNotices(c);
+      const from = ipc.calls.length;
+      await saveAsTo(c.store, target.path);
+      assert.deepEqual(ipc.calls.slice(from).map(call => call.command), [], 'zoals main: niets aan de bestandsrand');
+      assert.deepEqual(errorKeys(c), ['notifications.ifcForeignSaveBlocked']);
+      assert.deepEqual(disk(c), { 'ander.ifc': hash(content), 'model.ifc': hash(bytes) });
+    } finally { await tidy(c); }
+  });
+}
+
+/** Een gewone planning (geen vreemd deel) op `model.ifc` en een bestaand `ander.ifc` met `content`, één bewerking. */
+async function plainWithTarget(flag: boolean, content: Uint8Array) {
+  const dir = join(work, `geval-${++cases}`);
+  mkdirSync(dir);
+  const path = join(dir, 'model.ifc'), target = join(dir, 'ander.ifc');
+  writeFileSync(path, plain); writeFileSync(target, content);
+  const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+  store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
+  await store.getState().openOpenedFile({ name: 'model.ifc', content: Buffer.from(plain).toString('utf8'), bytes: plain, ref: { kind: 'path', path } });
+  assert.equal(!!store.getState().ifcSource?.foreign, false, 'geen vreemd deel');
+  const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+  store.getState().updateTask(task.id, { name: 'Gewone planning over een modelbestand' });
+  store.setState(s => { s.ui.notifications = []; s.recentFiles = []; });
+  return { dir, path, target, store };
+}
+const callsAtEdge = (dir: string, from: number) => ipc.calls.slice(from)
+  .map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
+for (const [label, content] of FOREIGN_TARGETS) {
+  for (const flag of [true, false]) {
+    await check(`keuze 4: gewone planning, flag ${flag ? 'aan' : 'uit'}, Opslaan als over een bestand met ${label}: vervangen langs de route van de flag uit`, async () => {
+      const p = await plainWithTarget(flag, content);
+      const from = ipc.calls.length;
+      await saveAsTo(p.store, p.target);
+      const seen = callsAtEdge(p.dir, from), s = p.store.getState();
+      // Met de flag aan leest de doelcontrole het doel eerst (een onleesbaar doel blijft weigeren); de schrijfroute is
+      // daarna dezelfde als met de flag uit (vastgelegd op main, `MAIN_SAVE_AS_CALLS.uit`).
+      if (flag) assert.deepEqual(seen.slice(-3), MAIN_SAVE_AS_CALLS.uit, JSON.stringify(seen));
+      else assert.deepEqual(seen, MAIN_SAVE_AS_CALLS.uit, JSON.stringify(seen));
+      assert.deepEqual(s.ui.notifications.map(n => n.messageKey), [], 'geen melding');
+      assert.deepEqual([s.filePath, s.isDirty], [p.target, false], 'het nieuwe pad, schoon');
+      assert(readFileSync(p.target).toString('latin1').includes('Gewone planning over een modelbestand'), 'het bestand is vervangen');
+      assert.equal(scanForeignTargetBytes(new Uint8Array(readFileSync(p.target))), 'no-model', 'zonder het vreemde deel van het oude bestand');
+      assert(s.recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === p.target), 'Recent');
+      assert.deepEqual(readdirSync(p.dir).sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
+    });
+  }
+}
+
+await check('keuze 4: gewone planning, flag aan, Opslaan als via een symbolische link naar een modelbestand: geweigerd zoals voorheen', async () => {
+  const p = await plainWithTarget(true, otherWithModel);
+  const link = join(p.dir, 'link.ifc');
+  symlinkSync(p.target, link);
+  const from = ipc.calls.length;
+  await saveAsTo(p.store, link);
+  const s = p.store.getState();
+  assert.deepEqual(s.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), ['notifications.ifcForeignTargetSave']);
+  assert.equal(hash(readFileSync(p.target)), hash(otherWithModel), 'het modelbestand is bytegelijk');
+  assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+  assert.deepEqual([s.filePath, s.isDirty], [p.path, true]);
+});
+
+// Wat blijft weigeren, elk met het doel bytegelijk.
+await check('keuze 4: gewone planning over het modelbestand van een ander open tabblad: geweigerd, niets geschreven', async () => {
+  const t = await twoPlainTabs(true);
+  const modelTab = join(t.dir, 'tweede-model.ifc');
+  writeFileSync(modelTab, bytes);
+  await t.store.getState().openOpenedFile({ name: 'tweede-model.ifc', content: '', bytes, ref: { kind: 'path', path: modelTab } });
+  assert(t.store.getState().ifcSource?.foreign, 'het tweede tabblad heeft een gebouwmodel');
+  t.store.getState().switchDocument(t.firstId);
+  t.store.setState(s => { s.ui.notifications = []; });
+  const from = ipc.calls.length;
+  await saveAsTo(t.store, modelTab);
+  // Bewust de bestaande melding (`open-source` bij een document zonder vreemd deel); zie het rapport van deze PR.
+  assert.deepEqual(t.errors(), ['notifications.ifcForeignTargetSave']);
+  assert.equal(hash(readFileSync(modelTab)), hash(bytes), 'het modelbestand is bytegelijk');
+  assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+  assert.deepEqual([t.store.getState().filePath, t.store.getState().isDirty], [t.path, true]);
+});
+
+await check('keuze 4: Opslaan als over het bronbestand van een ander open document dat zelf geen pad meer heeft: geweigerd', async () => {
   const c = await opened();
   try {
-    const target = otherFile(c, otherWithModel);
+    const second = otherFile(c, bytes, 'tweede.ifc');
+    await c.store.getState().openOpenedFile({ name: 'tweede.ifc', content: '', bytes, ref: { kind: 'path', path: second.path } });
+    // Zoals na crashherstel: het document onthoudt zijn bron (het kenmerk), maar heeft geen opslagdoel meer.
+    c.store.setState(s => { s.filePath = null; });
+    assert.deepEqual([c.store.getState().filePath, c.store.getState().foreignSourceMark?.filePath], [null, second.path]);
+    c.store.getState().switchDocument(c.id);
     clearNotices(c);
     const source = c.store.getState().ifcSource, from = ipc.calls.length;
-    await saveAsTo(c.store, target.path);
-    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetSave']);
-    assert.deepEqual(disk(c), { 'ander.ifc': hash(otherWithModel), 'model.ifc': hash(bytes) });
+    await saveAsTo(c.store, second.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignReplaceBlocked']);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), 'tweede.ifc': hash(bytes) });
     documentUnchanged(c, source);
     assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
   } finally { await tidy(c); }
 });
+
+for (const via of ['een symbolische link', 'een harde link'] as const) {
+  // Een symbolische link is geen gewoon bestand: geen toestemming, dus de doelbescherming van voorheen. Een harde link is
+  // een gewoon bestand met twee namen: de vervanging weigert hem (`save-as-only`).
+  await check(`keuze 4: Opslaan als over een modelbestand via ${via}: niet vervangen`, async () => {
+    const c = await opened();
+    try {
+      const target = otherFile(c, otherWithModel);
+      const link = join(c.dir, 'link.ifc');
+      if (via === 'een symbolische link') symlinkSync(target.path, link); else linkSync(target.path, link);
+      clearNotices(c);
+      const source = c.store.getState().ifcSource, from = ipc.calls.length;
+      await saveAsTo(c.store, link);
+      assert.deepEqual(errorKeys(c), [via === 'een harde link' ? 'notifications.ifcForeignNewTargetOnly' : 'notifications.ifcForeignTargetSave']);
+      assert.equal(hash(readFileSync(target.path)), hash(otherWithModel), 'het modelbestand is bytegelijk');
+      assert.deepEqual(files(c), ['ander.ifc', 'link.ifc', 'model.ifc'], 'geen hulpbestand');
+      documentUnchanged(c, source);
+      assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { await tidy(c); }
+  });
+}
+
+for (const [who, own] of [['een gewone planning', plain], ['een document met een gebouwmodel', bytes]] as const) {
+  await check(`keuze 4: Exporteren → IFC van ${who} over een bestand met een gebouwmodel: blijft weigeren`, async () => {
+    const t = await twoPlainTabs(true, own);
+    const target = join(t.dir, 'model-van-ander.ifc');
+    writeFileSync(target, otherWithModel);
+    const from = ipc.calls.length;
+    await exportTo(t.store, target);
+    assert.deepEqual(t.errors(), ['notifications.ifcForeignTargetExport']);
+    assert.equal(hash(readFileSync(target)), hash(otherWithModel), 'het modelbestand is bytegelijk');
+    assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+  });
+}
 
 for (const [label, prepare] of [
   ['een map waar het tijdelijke bestand niet mag ontstaan (forbidden path)', () => { ipc.faults.forbidden = isTempPath; }],
@@ -1724,13 +1897,6 @@ await check('Opslaan als, crash na stap 3: openen van het doel (dialoog of neerz
 // Een document zonder vreemd deel, met de flag aan of uit, en een document met een gebouwmodel met de flag uit: Opslaan
 // als over een bestaand bestand loopt zoals op main. De reeksen aanroepen aan de bestandsrand zijn vastgelegd op main
 // (`62e7786d4`), met dezelfde proef.
-const MAIN_SAVE_AS_CALLS: Record<'aan' | 'uit', string[]> = {
-  // Met de flag aan leest de doelcontrole eerst het bestaande doel, dan de gewone atomaire opslag over het doel.
-  aan: ['plugin:fs|open <map>/ander.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
-    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/ander.ifc',
-    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
-  uit: ['plugin:fs|lstat <map>/ander.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
-};
 for (const flag of [true, false]) {
   await check(`Opslaan als over een bestaand bestand zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde aanroepen als main`, async () => {
     const dir = join(work, `geval-${++cases}`);

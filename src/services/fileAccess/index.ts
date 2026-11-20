@@ -2,7 +2,7 @@ import { isTauri } from '@/utils/platform';
 import {
   saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
-  saveNewBytesDialogTauri, saveNewBytesToRefTauri,
+  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri, isRegularFileTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
 import type { FileIdentityFs } from './fileIdentity';
@@ -112,14 +112,6 @@ export interface SaveDialogOpts {
    * dialoog geeft dan `null`, zoals bij annuleren. De controle meldt zelf waarom.
    */
   refuseDownload?: (() => boolean) | null;
-  /**
-   * #804 keuze 4 (knownbug 1131 stap 8): alleen de strikte byte-ingang op de desktop (`saveNewBytesDialog`), voor Opslaan
-   * als. Staat er op het gekozen pad na de doelcontrole al een gewoon bestand, dan schrijft de dialoog niet zelf: hij
-   * geeft het pad en de inhoud van dat moment hieraan, en de aanroeper vervangt het bestand, legt het document vast en
-   * meldt wat er gebeurde. De dialoog geeft dan `null`. Zonder deze functie (exports) blijft een bestaand doel
-   * geweigerd (`target-exists`). Een link of iets anders dan een gewoon bestand gaat niet hierheen.
-   */
-  replaceExisting?: ((path: string, current: Uint8Array) => Promise<void>) | null;
   /**
    * Knownbug 1896 (#804 stap 6): de laatste controle van de aanroeper, op het laatste punt waar de opslag nog kan
    * stoppen zonder het einddoel te wijzigen. Zie `RefuseBeforePlace`. De dialoog geeft bij een weigering `null`, zoals
@@ -256,6 +248,30 @@ export function saveNewBytesDialog(
   return isTauri()
     ? saveNewBytesDialogTauri(defaultName, bytes, filters, opts)
     : saveNewBytesDialogWeb(defaultName, bytes, opts);
+}
+
+/** Het doel van *Opslaan als* op de desktop (#804 keuze 4, knownbug 1891): het pad uit de bestandskiezer en wat er direct
+ *  na zijn terugkeer op stond. `current`: de inhoud van een gewoon bestand (de verwachte inhoud van de vervanging en het
+ *  enige wat de doelcontrole scant), `'unreadable'` als dat bestand niet te lezen was, `null` als er geen gewoon bestand
+ *  stond (een vrije naam, een link of een map: de exclusieve aanmaak, die een bestaande naam weigert). */
+export interface PickedSaveTarget {
+  path: string;
+  current: Uint8Array | 'unreadable' | null;
+}
+
+/** Desktop: de bestandskiezer van Opslaan als, zonder te schrijven; `null` = geannuleerd. De aanroeper kiest zelf
+ *  tussen de exclusieve aanmaak (`saveNewBytesToRef`) en de vervanging van het bestaande bestand. De kiezer opent het
+ *  bestand niet (plugin-dialog `save`), dus `current` is wat er stond toen de planner het vervangen bevestigde, op het
+ *  venster van knownbug 1890 na. */
+export function pickSaveTarget(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
+  if (!isTauri()) return Promise.reject(new Error('De bestandskiezer zonder schrijven bestaat alleen op de desktop.'));
+  return pickSaveTargetTauri(defaultName, filters);
+}
+
+/** Desktop: staat er op `path` een gewoon bestand (geen link gevolgd)? Elke fout, en de browser, geeft nee. Alleen
+ *  een gewoon bestand krijgt de toestemming van Opslaan als (#804 keuze 4, `WriteTargetDeps.replaceConfirmed`). */
+export function isRegularFile(path: string): Promise<boolean> {
+  return isTauri() ? isRegularFileTauri(path) : Promise.resolve(false);
 }
 
 /** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.

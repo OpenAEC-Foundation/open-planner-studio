@@ -778,21 +778,23 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
     const S = () => store.getState();
     eq('Tauri 2: een eigen bestand, zonder vreemd deel', [S().filePath, S().foreignSourceMark], [ownPath, null]);
+    // #804 keuze 4: Opslaan als vervangt een bevestigd modelbestand (onderaan); Exporteren → IFC blijft weigeren.
     dialogAnswer = modelPath;
-    await S().saveFileAs();
-    eq('Tauri 2: Opslaan als naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), S().filePath],
-      [sha(modelIfc4), ownPath]);
-    ok('Tauri 2: met de melding "op te slaan"', noticeCount(store, TARGET_SAVE) > 0);
+    const modelExport = await S().exportAs('ifc');
+    eq('Tauri 2: Exporteren → IFC naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), modelExport],
+      [sha(modelIfc4), { ok: true, warnings: [], cancelled: true }]);
+    ok('Tauri 2: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) > 0);
+    const bigBefore = sha(readFileSync(bigPath));
     const before = ipc.bytesRead();
     dialogAnswer = bigPath;
     const t0 = performance.now();
-    await S().saveFileAs();
+    await S().exportAs('ifc');
     const ms = performance.now() - t0;
     const read = ipc.bytesRead() - before;
     const bigSize = statSync(bigPath).size;
     eq('Tauri 2: een groot modelbestand geweigerd na één stuk van 1 MiB', [read > 0 && read <= (1 << 20), bigSize > (4 << 20),
-      S().filePath], [true, true, ownPath]);
-    console.log(`..  Tauri: Opslaan als naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
+      sha(readFileSync(bigPath))], [true, true, bigBefore]);
+    console.log(`..  Tauri: Exporteren naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
       + `${ms.toFixed(0)} ms (${read} bytes gelezen)`);
     dialogAnswer = csvPath;
     const csv = await S().exportAs('csv');
@@ -810,6 +812,15 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     ipc.faults.readError = null;
     eq('Tauri 2: onleesbaar bestaand doel weigert', [sha(readFileSync(ownPath)), S().isDirty, noticeCount(store, UNREADABLE_SAVE)],
       [sha(modelIfc4), true, 1]);
+    // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als over een bevestigd modelbestand vervangt het;
+    // de doelscan (alleen nog voor een onleesbaar doel) stopt ook dan na het eerste stuk.
+    const beforeSaveAs = ipc.bytesRead();
+    dialogAnswer = bigPath;
+    await S().saveFileAs();
+    const readSaveAs = ipc.bytesRead() - beforeSaveAs;
+    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, de scan las hoogstens één stuk van 1 MiB',
+      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs > 0 && readSaveAs <= (1 << 20)],
+      [bigPath, false, true, true]);
     eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
     ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));
   } finally {
@@ -960,20 +971,20 @@ eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
     const S = () => store.getState();
     S().addTask({ name: 'Eigen werk' });
+    // #804 keuze 4: Opslaan als op de desktop vervangt een bevestigd doel met een model (`check-ifc-own-file-replace.ts`);
+    // de doelscan van een pad meet hier daarom via Exporteren → IFC.
     dialogAnswer = solPath;
     const before = ipc.bytesRead();
-    await S().saveFileAs();
-    const readForSol = ipc.bytesRead() - before;
     const ifcExport = await S().exportAs('ifc');
+    const readForSol = ipc.bytesRead() - before;
     dialogAnswer = solCsvPath;
     const csvExport = await S().exportAs('csv');
-    eq('lange kop, Tauri: Opslaan als en export (IFC, CSV) geweigerd, het model is er nog',
+    eq('lange kop, Tauri: export (IFC, CSV) geweigerd, het model is er nog',
       [sha(readFileSync(solPath)), sha(readFileSync(solCsvPath)), ifcExport, csvExport, S().filePath],
       [sha(solBytes), sha(solBytes), { ok: true, warnings: [], cancelled: true }, { ok: true, warnings: [], cancelled: true }, ownPath]);
     eq('lange kop, Tauri: de lezer las voorbij de kop (meer dan één stuk), hoogstens het hele bestand',
       [readForSol > (1 << 20), readForSol <= solBytes.length], [true, true]);
-    eq('lange kop, Tauri: met de meldingen "op te slaan" en "naar te exporteren"',
-      [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) >= 2], [true, true]);
+    eq('lange kop, Tauri: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) >= 2, true);
     // Een lange kop zonder model: het hele bestand gelezen, dan mag het.
     dialogAnswer = longOwnPath;
     const beforeOwn = ipc.bytesRead();
@@ -1739,11 +1750,12 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       const seeks = ipc.seeks();
       dialogAnswer = targetPath;
       await S().saveFileAs();
-      const saveKey = t.refuse === 'unreadable' ? UNREADABLE_SAVE : TARGET_SAVE;
       const autoKey = t.refuse === 'unreadable' ? UNREADABLE_AUTOSAVE : TARGET_AUTOSAVE;
-      if (t.refuse) {
+      // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als op de desktop vervangt een bevestigd doel
+      // met een model of C/A/V; alleen een onleesbaar doel blijft weigeren.
+      if (t.refuse === 'unreadable') {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd, melding ${t.refuse}`,
-          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, saveKey) > 0],
+          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, UNREADABLE_SAVE) > 0],
           [sha(t.bytes), ownPath, true, true]);
       } else {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft`,
