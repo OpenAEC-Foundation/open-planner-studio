@@ -1,19 +1,3 @@
-// MCP-toolmodule: kalender-, toewijzings-, nivelleer-, project- en baseline-mutaties. Zelfde
-// bouwwijze als `taskTools.ts`: `planner_`-prefix, verplichte description, de vier MCP-annotaties, een
-// JSON-schema met EXPLICIETE eenheden, en alle échte mutaties via `runMutateTool` →
-// `runInMcpTransaction` (één undo-stap, één herberekening, geen bestands-/save-side-effects).
-//
-// Drie doorlopende conventies (zie ook `taskTools.ts`):
-//   1. ZACHTE per-item-weigeringen (`itemRejections`) — één rotte regel rolt nooit de hele bulk terug;
-//      structurele fouten van een ENKELVOUDIGE tool zijn hard via `McpStepError`.
-//   2. LEGE-BATCH-SNELPAD — een bulk met statisch nul uitvoerbare items betreedt géén transactie
-//      (geen spurious undo-snapshot, geen redo-wipe door een AI-no-op). De classificatie draait
-//      daarom in een GEDEELDE helper die zowel het snelpad als de transactie-fn voedt.
-//   3. `enrichOk` — de respons-`data` wordt ná de transactie opnieuw uit de VERSE store opgebouwd.
-//
-// SCHRIJFKANT SPREEKT DE LEESKANT (harde eis): de veldnamen zijn identiek aan de leestools —
-// `assignmentId`, `unitsPerDay`, `curve`. Een AI die `get_task` leest kan die id's/velden dus
-// rechtstreeks in `manage_assignments` terugstoppen.
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { workRuleApplies } from '@/engine/work/workRuleApply';
 import type { McpContext, McpToolDef, McpToolOk } from '../contracts';
@@ -24,7 +8,6 @@ import {
   toolError,
   type MutationOutcome,
 } from './runtime';
-// Alleen als TYPE: wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
 import {
   booleanArgReason, enrichOk, okDirect, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS,
@@ -54,40 +37,17 @@ import {
   calendarScalarBreakIssue, effectiveWorkTimeBands, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
 } from '@/utils/effectiveWorkTime';
 
-/**
- * Curve-toets (`isResourceCurve`, `types/resource.ts`). DIT IS EEN VEILIGHEIDSGUARD, GEEN COMFORT: de
- * schemapoort laat de binnenkant van array-items aan de tool (DIEPTE-REGEL in `schemaValidate.ts`).
- * Een onbekende curve (`"bell"` i.p.v. `"BELL"`) maakt `ResourceLoad.CURVE_POINTS[curve]`
- * `undefined` en klapt in `recomputeResourceLoad()`, dat in `runInMcpTransaction` BUITEN de
- * try/catch draait: uncaught TypeError, corrupte waarde gecommit én een undo-stap erbij. Vandaar:
- * filteren vóór de mutatie, als ZACHTE per-item-weigering die de geldige waarden noemt.
- */
 const curveReason = (v: unknown): string =>
   `unknown curve '${String(v)}'; valid values are ${RESOURCE_CURVES.join(', ')} (case-sensitive)`;
 
 type Rejection = { id: string; reason: string };
 type StoreState = AppState;
 
-/** Kalenderdagen tussen twee ISO-datums; 0 zodra één van beide ontbreekt (leeg projecteinde). */
 function safeDiffDays(a: string, b: string): number {
   if (!a || !b) return 0;
   const d = diffDays(a, b);
   return Number.isFinite(d) ? d : 0;
 }
-
-// =================================================================================================
-// planner_update_calendar
-//
-// Dispatch per item:
-//   - id staat in de bibliotheek                     ⇒ wijzigen (draft.updateCalendar);
-//   - id is de PROJECTKALENDER maar staat er nog niet ⇒ eerst `ensureProjectCalendarInLibrary`
-//     (promotie: op een vers document leeft de projectkalender alleen als cache `s.calendar`),
-//     dán wijzigen — de respons meldt `promoted: true`;
-//   - onbekend id + `create: true`                    ⇒ aanmaken (draft.addCalendar);
-//   - onbekend id zónder `create`                     ⇒ ZACHTE weigering.
-// Holidays lopen altijd via `resolveCalendarHolidays` (meng-semantiek): generator-basis en/of
-// rauwe uitzonderingen, met `becameLiteral` per item terug zodra `generation` daardoor vervalt.
-// =================================================================================================
 
 interface CalendarItem {
   id: string;
@@ -98,103 +58,40 @@ interface CalendarItem {
   workStartHour?: number;
   workEndHour?: number;
   hoursPerDay?: number;
-  /** UUR-kalender: werktijdbanden per ISO-weekdag in MINUTEN-vanaf-middernacht. `null` ⇒ terug naar
-   *  een DAG-kalender. Exact de leesvorm van `get_calendars`. */
   workTime?: WorkTimeBands | null;
-  /** Ploeg-classificatie (IFC `PredefinedType`). `null` ⇒ wissen. Leesvorm van `get_calendars`. */
   shift?: WorkCalendar['shift'] | null;
-  /** Eenvoudig pauzepatroon van een DAG-kalender, in MINUTEN (begin vanaf middernacht, duur). Leesvorm
-   *  van `get_calendars`; de netto uren worden eruit afgeleid zoals in de kalenderdialoog. */
   simpleBreakStartMinute?: number;
   simpleBreakDurationMinutes?: number;
-  /** Dagen die WERKEND worden (MS Project "werkende uitzondering"), optioneel met eigen banden. De
-   *  volledige lijst; vervangt de bestaande exact (`[]` wist ze). Leesvorm van `get_calendars`. */
   workingExceptions?: WorkingException[];
-  /** Herkomst-metadata IN DE LEESVORM (`ruleSetId`/`breakChoice`/jaren). `null` ⇒ wissen. */
   generation?: CalendarGeneration | null;
-  /** De VOLLEDIGE feestdagenlijst in de leesvorm van `get_calendars`; vervangt de lijst exact. */
   holidays?: Holiday[];
   generate?: HolidayGenParams;
   rawHolidays?: Holiday[];
-  /** `merge` (default) = rauwe dagen TOEVOEGEN; `replace` = de lijst exact vervangen (verwijderen). */
   holidaysMode?: 'merge' | 'replace';
 }
 
-/** Velden die een item BETEKENISVOL maken; een update-item zonder één hiervan is een no-op-weigering.
- *  `holidaysMode` staat er BEWUST niet bij: een modus zonder `rawHolidays` verandert niets. */
 const CAL_FIELD_KEYS: (keyof CalendarItem)[] = [
   'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
   'simpleBreakStartMinute', 'simpleBreakDurationMinutes',
   'workTime', 'shift', 'generation', 'holidays', 'generate', 'rawHolidays', 'workingExceptions',
 ];
 
-/**
- * Elke sleutel die een kalender-item KENT (allowlist, patroon `PROJECT_KEYS`). Een onbekende
- * sleutel wordt zacht geweigerd MÉT de lijst erbij — nooit stil weggegooid.
- */
 const CAL_ITEM_KEYS: string[] = ['id', 'create', ...(CAL_FIELD_KEYS as string[]), 'holidaysMode'];
 
-/**
- * AFGELEIDE, ALLEEN-LEES velden uit `get_calendars`. Ze zijn geen kalenderdata maar een berekening
- * over het BRONdocument (is het de projectdefault? hoeveel taken/resources hangen eraan?), dus ze
- * betekenen niets in het doeldocument. Ze worden geaccepteerd — anders zou een lezing niet
- * LETTERLIJK terug te schrijven zijn — maar expliciet gemeld als `ignoredFields` per rij, nooit stil
- * geslikt. Wisselen van projectkalender doe je met de app; `update_project.calendarId` weigert dat
- * met een verwijzing (zie PROJECT_REFUSED).
- *
- * `libraryOrigin` hoort in dezelfde groep: het is de bibliotheekstempel van de kalender in HET
- * BRONdocument (welk bibliotheekitem, welke versie, welke hash). Letterlijk overschrijven zou in een
- * ander document een koppeling vervalsen die de bibliotheek nooit gemaakt heeft; koppelen loopt via de
- * bibliotheek zelf. Dus: mag mee, doet niets, wordt gemeld.
- *
- * De P6-herkomstvelden (`p6Source`, `p6NonWorkPenaltyDates`, `p6NonWorkPenaltyDatesState`)
- * horen om dezelfde reden in deze groep: alleen de XER-reader mag de stempel
- * zetten (`types/calendar.ts`). `get_calendars` geeft ze letterlijk mee, dus ze moeten mee terug
- * kunnen, maar een MCP-schrijfactie mag in een ander document geen XER-herkomst vervalsen.
- */
 const CAL_READONLY_KEYS: string[] = [
   'isProjectDefault', 'usedByTasks', 'usedByResources', 'libraryOrigin',
   'p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState',
 ];
 
-// ── Invoervalidatie ─────────────────────────────────────────────────────────────────────────────
-//
-// Waarom hier, en niet alleen in het JSON-schema: de schemapoort laat de binnenkant van array-items
-// aan de tool (DIEPTE-REGEL in `schemaValidate.ts`). Een foute waarde die er toch doorheen komt,
-// moet een LEESBARE weigering geven — nooit een kale TypeError diep in de generator (die belandt
-// binnen `runInMcpTransaction` en rolt de hele call terug met "Cannot read properties of undefined").
-
-/** Het ECHTE domein van `generate.country` (holidays.ts + generateCalendarHolidays.ts). */
 const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
-
-// ── DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ────────────────────────────────────────────────────────
-//
-// `get_calendars` belooft "de VOLLEDIGE WorkCalendar-definitie … genoeg om een kalender in een ANDER
-// document te herbouwen" (spread van `...cal`). De schrijfkant accepteert dus ook `workTime`
-// (uurbanden), `shift` (ploeg) en `generation` — anders bouwt een uurkalender in het doeldocument
-// stil op als DAG-kalender.
-//
-//   RICHTING VAN DE NAAMDRIFT — de SCHRIJFKANT accepteert de LEESVORM, de leeskant blijft zoals hij
-//   is. `generation` IS het opgeslagen modelveld (`WorkCalendar.generation`, round-trippend door
-//   IFC); de leeskant hernoemen zou liegen over het model. `generate` is geen veld maar een
-//   ACTIE-parameter: "draai de generator hier, over de spanne van DIT project". Ze betekenen ook
-//   iets anders — `generate` materialiseert nieuwe dagen over de doel-projectspanne, `generation`
-//   schrijft alleen de herkomst van de dagen die je meestuurt. Beide bestaan dus naast elkaar; ze
-//   samen opgeven is tegenstrijdig en wordt geweigerd.
-//
-// Zelfde redenering voor `holidays`: dat is de leesvorm van de GEMATERIALISEERDE lijst en betekent
-// hier "zet de lijst exact hierop" (mergen zou bij een `create` de app-default-feestdagen met de
-// bronlijst verenigen — stille corruptie).
 
 const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '7'];
 const MIN_PER_DAY = 1440;
 const SHIFT_VALUES = ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED'];
-/** `CalendarGeneration.ruleSetId` is een HolidayCountry — dus ZONDER de generator-waarde 'none'. */
 const GEN_RULESETS = GEN_COUNTRIES.filter((c) => c !== 'none');
 const BREAK_CHOICES = ['noord', 'midden', 'zuid'];
 
-/** `minuten-vanaf-middernacht` leesbaar maken in een foutmelding (1800 ⇒ '06:00 van de volgende dag'). */
 function clockLabel(min: number): string {
   const wrapped = min >= MIN_PER_DAY;
   const m = ((min % MIN_PER_DAY) + MIN_PER_DAY) % MIN_PER_DAY;
@@ -203,9 +100,6 @@ function clockLabel(min: number): string {
   return `${hh}:${mm}${wrapped ? ' (next day)' : ''}`;
 }
 
-/** Vormvalidatie van een feestdagenlijst (gedeeld door `rawHolidays` en `holidays`). De leesvorm eist
- *  een expliciete `endDate`; of de regel bruikbaar is (einde niet vóór begin) is dezelfde regel als
- *  in de kalenderdialogen (`holidayIssue`). */
 function holidayListReason(list: unknown, field: string): string | null {
   if (!Array.isArray(list)) return `\`${field}\` must be an array`;
   for (const h of list as unknown[]) {
@@ -224,19 +118,6 @@ function holidayListReason(list: unknown, field: string): string | null {
   return null;
 }
 
-/**
- * Vormvalidatie van `workTime` (uurbanden). STRENG met opzet: een half toegepaste uurkalender is
- * erger dan een weigering, want elke duur van elke taak op deze kalender hangt eraan.
- *
- * Regels (spiegelen `WorkTimeBands` in `src/types/calendar.ts` en `canonicalizeBands`):
- *   - `byWeekday` bevat ALLE dagen 1..7 — een gedeeltelijke opgave zou de ontbrekende dagen stil
- *     niet-werkend maken (dit is de gevaarlijkste stille no-op die dit veld kan hebben);
- *   - band = `[start, end)` in minuten-vanaf-middernacht van de STARTdag: `0 ≤ start < 1440`,
- *     `start < end ≤ 2880`. Een dienst over middernacht telt DOOR (22:00→06:00 = 1320→1800); een
- *     niet-oplopende band wordt NIET stil als wrap geïnterpreteerd maar geweigerd;
- *   - banden per dag oplopend en niet-overlappend, en de staart van een wrap-band mag niet over de
- *     eerste band van de volgende dag heen lopen.
- */
 function workTimeReason(wt: unknown): string | null {
   if (!wt || typeof wt !== 'object' || Array.isArray(wt)) {
     return '`workTime` must be an object with `byWeekday` (or `null` to go back to a DAY calendar)';
@@ -270,7 +151,6 @@ function workTimeReason(wt: unknown): string | null {
     const bad = bandListReason(list, `workTime.byWeekday.${key}`);
     if (bad) return bad;
     const prevEnd = list.length > 0 ? (list[list.length - 1] as { end: number }).end : -1;
-    // Wrap-staart mag niet over de eerste band van de VOLGENDE dag heen lopen (7 wrapt naar 1).
     if (prevEnd > MIN_PER_DAY) {
       const nextKey = key === '7' ? '1' : String(Number(key) + 1);
       const next = firstBandOf(nextKey);
@@ -282,11 +162,6 @@ function workTimeReason(wt: unknown): string | null {
   return null;
 }
 
-/**
- * Vorm van één lijst banden `[start, end)` in minuten-vanaf-middernacht van de STARTdag: gedeeld door
- * `workTime.byWeekday.<dag>` en `workingExceptions[].bands` (zelfde canonieke vorm, `WorkTimeBands`).
- * `label` is het veldpad in de melding.
- */
 function bandListReason(list: unknown[], label: string): string | null {
   let prevEnd = -1;
   for (const raw of list) {
@@ -321,8 +196,6 @@ function bandListReason(list: unknown[], label: string): string | null {
   return null;
 }
 
-/** Vormvalidatie van `workingExceptions` (leesvorm): datums en volgorde zoals feestdagen
- *  (`holidayListReason`, dus ook `holidayIssue`), optioneel `bands` in de vorm van `workTime`. */
 function workingExceptionsReason(list: unknown): string | null {
   const field = 'workingExceptions';
   const shape = holidayListReason(list, field);
@@ -343,7 +216,6 @@ function workingExceptionsReason(list: unknown): string | null {
   return null;
 }
 
-/** Leesbare reden bij een ongeldig pauzepatroon (zelfde regels als de kalenderdialoog). */
 function scalarBreakReason(issue: ScalarBreakIssue, cal: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>): string {
   const day = `${clockLabel(cal.workStartHour * 60)}–${clockLabel(cal.workEndHour * 60)}`;
   const pause = `break from ${clockLabel(cal.simpleBreakStartMinute ?? 12 * 60)}, ${String(cal.simpleBreakDurationMinutes ?? 0)} min`;
@@ -357,7 +229,6 @@ function scalarBreakReason(issue: ScalarBreakIssue, cal: Pick<WorkCalendar, 'wor
   }
 }
 
-/** Vormvalidatie van `generation` (de LEESVORM van de herkomst-metadata). */
 function generationReason(gen: unknown): string | null {
   if (!gen || typeof gen !== 'object' || Array.isArray(gen)) {
     return '`generation` must be an object as get_calendars returns it (`ruleSetId`, optionally ' +
@@ -395,13 +266,7 @@ function generationReason(gen: unknown): string | null {
   return null;
 }
 
-/**
- * Vormvalidatie van één kalender-item. Retourneert een leesbare weigeringsreden of `null`.
- * Elke weigering NOEMT de geldige verzameling, zodat de AI zich in één ronde kan corrigeren.
- */
 function calendarItemReason(item: CalendarItem): string | null {
-  // Allowlist-patroon: onbekende sleutels ketsen af MÉT de toegestane lijst; de afgeleide leesvelden van
-  // get_calendars worden geaccepteerd (en verderop als `ignoredFields` gemeld).
   for (const key of Object.keys(item)) {
     if (CAL_ITEM_KEYS.includes(key) || CAL_READONLY_KEYS.includes(key)) continue;
     return `unknown field \`${key}\`; a calendar item only knows: ${CAL_ITEM_KEYS.join(', ')} (the derived ` +
@@ -430,7 +295,6 @@ function calendarItemReason(item: CalendarItem): string | null {
     if (bad) return bad;
   }
 
-  // ── Uur-kalender: banden + ploeg ──────────────────────────────────────────────────────────────
   if (item.workTime !== undefined && item.workTime !== null) {
     const bad = workTimeReason(item.workTime);
     if (bad) return bad;
@@ -440,7 +304,6 @@ function calendarItemReason(item: CalendarItem): string | null {
       '(case-sensitive; `null` clears the shift classification)';
   }
 
-  // ── Herkomst + feestdagen: één bron tegelijk ──────────────────────────────────────────────────
   if (item.generation !== undefined && item.generation !== null) {
     const bad = generationReason(item.generation);
     if (bad) return bad;
@@ -491,9 +354,6 @@ function calendarItemReason(item: CalendarItem): string | null {
 
   if (item.rawHolidays !== undefined) {
     if (!Array.isArray(item.rawHolidays)) return '`rawHolidays` must be an array';
-    // DE stille no-op: een lege lijst in de (default) TOEVOEG-modus verandert per definitie niets en
-    // mag dus geen geslaagde wijziging heten. Een agent die een feestdag wil VERWIJDEREN stuurt
-    // precies dit (de overblijvende dagen ⇒ vaak leeg).
     if (item.rawHolidays.length === 0 && (item.holidaysMode ?? 'merge') === 'merge') {
       return 'an empty `rawHolidays` changes nothing in the default ADD mode; use `holidaysMode: "replace"` ' +
         'to replace or clear the holiday list';
@@ -502,10 +362,6 @@ function calendarItemReason(item: CalendarItem): string | null {
     if (bad) return bad;
   }
 
-  // ── Dag↔uur-consistentie: `workDays` volgt de banden (zoals de kalenderdialoog) ────────────────
-  // De banden-editor leidt `workDays` áltijd af uit de banden (`CalendarForm.applyBands`). Twee
-  // tegenstrijdige bronnen in één item zouden een kalender opleveren waarin de solver op dag k wél
-  // een werkdag ziet (`isWorkDay` leest `workDays`) maar geen enkele band kan materialiseren.
   if (item.workTime !== undefined && item.workTime !== null && item.workDays !== undefined) {
     const derived = workDaysFromBands(item.workTime).join(',');
     const given = [...item.workDays].sort((a, b) => a - b).join(',');
@@ -521,11 +377,6 @@ type CalendarPlan =
   | { mode: 'update'; item: CalendarItem; targetId: string; needsPromotion: boolean }
   | { mode: 'create'; item: CalendarItem };
 
-/**
- * Statische classificatie van een kalender-batch (bestaan / projectkalender-promotie / create /
- * leeg-item). GEDEELD door het lege-batch-snelpad en de transactie-fn, zodat beide exact dezelfde
- * weigeringen produceren.
- */
 function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: CalendarPlan[]; rejections: Rejection[] } {
   const plans: CalendarPlan[] = [];
   const rejections: Rejection[] = [];
@@ -535,8 +386,6 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
       rejections.push({ id: label, reason: 'every calendar item requires a non-empty string `id`' });
       continue;
     }
-    // Vormvalidatie vóór élke dispatch-beslissing: een item met een onbruikbare `generate`/
-    // `rawHolidays` mag nooit een transactie openen (het zou daarbinnen klappen of stil niets doen).
     const badShape = calendarItemReason(item);
     if (badShape) {
       rejections.push({ id: item.id, reason: badShape });
@@ -580,10 +429,6 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
   return { plans, rejections };
 }
 
-/** Spanne voor `computeGenerateSpan` (via resolveCalendarHolidays). Bij wijzigen telt het latere van
- *  het ingevoerde en het berekende projecteinde. Bij AANMAAK geven we bewust een
- *  LEEG projecteinde door: dan geldt de create-spanne (startjaar−1 t/m startjaar+3) i.p.v. een
- *  spanne rond een einddatum die nog niets met deze nieuwe kalender te maken heeft. */
 function calendarSpan(s: StoreState, forCreate: boolean): { projectStart: string; projectEnd: string } {
   const endDate = s.project.endDate || '';
   const calculatedEnd = s.cpmResult?.projectEnd || '';
@@ -593,8 +438,6 @@ function calendarSpan(s: StoreState, forCreate: boolean): { projectStart: string
   };
 }
 
-/** Diepe kopie van de banden (alle zeven dagsleutels; de validatie eist ze) — er belandt nooit een
- *  door de aanroeper vastgehouden object in de store. */
 function cloneBands(wt: WorkTimeBands): WorkTimeBands {
   const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
   for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
@@ -603,18 +446,12 @@ function cloneBands(wt: WorkTimeBands): WorkTimeBands {
   return { byWeekday };
 }
 
-/** Basis van een nieuwe kalender (`create: true`): de gedeelde fabriek, met de naam van het item. */
 function newCalendarBase(item: CalendarItem): Omit<WorkCalendar, 'id'> {
   return createNewCalendar(item.name ?? 'New calendar');
 }
 
 type CalendarBase = Omit<WorkCalendar, 'id'>;
 
-/**
- * Zou dit item, samengevoegd met `existing`, een ongeldig pauzepatroon opleveren? Zelfde regels als
- * de kalenderdialoog (`calendarScalarBreakIssue`), alleen getoetst als het item de werkdag of de
- * pauze raakt — een naamswijziging op een kalender met oude, ongeldige data blijft mogelijk.
- */
 function mergedBreakReason(item: CalendarItem, existing: CalendarBase): string | null {
   const touches = item.workStartHour !== undefined || item.workEndHour !== undefined
     || item.simpleBreakStartMinute !== undefined || item.simpleBreakDurationMinutes !== undefined;
@@ -624,24 +461,10 @@ function mergedBreakReason(item: CalendarItem, existing: CalendarBase): string |
   return issue ? scalarBreakReason(issue, merged) : null;
 }
 
-/** Uren leesbaar in een reden, zoals de dialoog ze toont (twee decimalen): 8, 8.5, 8.33. */
 function hoursLabel(hours: number): string {
   return String(Math.round(hours * 100) / 100);
 }
 
-/**
- * NETTO UREN OP EEN KALENDER MET PAUZE ("MCP doet wat de kalenderdialoog doet"). In de dialoog is
- * "Standaard werkdag" een afleiding uit werkdag − pauze (`simpleBreakPatch` → `simpleBreakNetHours`).
- * Een meegegeven `hoursPerDay` voor een DAG-kalender met (na samenvoegen) een pauzepatroon moet dus
- * gelijk zijn aan werkdag − pauze; afwijkend ⇒ zachte weigering met de velden die de AI wél moet
- * wijzigen, gelijk ⇒ no-op (`calendarFieldPatch` neemt de afgeleide waarde).
- *
- * "Gelijk" is gelijk op de MINUUT: werkdag en pauze zijn hele minuten, en de dialoog toont twee
- * decimalen (8,33 voor 8 u 20 min), wat hoogstens 0,3 min afwijkt.
- *
- * Hier buiten: een legacy-kalender zonder pauzevelden (daar is `hoursPerDay` de
- * opgave en leidt de engine juist de impliciete pauze eruit af) en een uurkalender (banden leidend).
- */
 function netHoursReason(item: CalendarItem, existing: CalendarBase): string | null {
   if (item.hoursPerDay === undefined) return null;
   const merged: CalendarBase = { ...existing, ...calendarFieldPatch(item, existing) };
@@ -650,8 +473,6 @@ function netHoursReason(item: CalendarItem, existing: CalendarBase): string | nu
   if (merged.simpleBreakStartMinute === undefined && merged.simpleBreakDurationMinutes === undefined) return null;
   const net = simpleBreakNetHours(merged);
   if (net === undefined) {
-    // Alleen bij oude/externe data met een ongeldige pauze (een item dat werkdag of pauze raakt, is
-    // al door `mergedBreakReason` getoetst). De dialoog laat dan ook niets toepassen.
     const issue = calendarScalarBreakIssue(merged);
     return `${issue ? scalarBreakReason(issue, merged) : 'the break pattern is invalid'}; the net hours ` +
       '(`hoursPerDay`) follow from working day minus break, so fix the break first ' +
@@ -664,12 +485,9 @@ function netHoursReason(item: CalendarItem, existing: CalendarBase): string | nu
   const end = merged.workEndHour * 60;
   const pause = merged.simpleBreakDurationMinutes ?? 0;
   const wanted = item.hoursPerDay * 60;
-  // Twee concrete uitwegen, alleen als ze zelf geldig zijn: de werkdag later/eerder laten eindigen, of
-  // de pauze aanpassen (begin en pauzebegin gelijk).
   const examples: string[] = [];
   if (Number.isInteger(wanted)) {
     const altEnd = start + wanted + pause;
-    // Alleen als het label (twee decimalen) exact die minuut is: 15.25 wel, 15.33 (= 15:19,8) niet.
     const endLabel = hoursLabel(altEnd / 60);
     if (altEnd > start && altEnd <= MIN_PER_DAY && Math.abs(Number(endLabel) * 60 - altEnd) < 1e-6
       && !calendarScalarBreakIssue({ ...merged, workEndHour: altEnd / 60 })) {
@@ -689,8 +507,6 @@ function netHoursReason(item: CalendarItem, existing: CalendarBase): string | nu
     `${(examples.length > 0 ? ` (e.g. ${examples.join(' or ')})` : '')}`;
 }
 
-/** De scalaire (niet-holiday) velden van een item als `Partial<WorkCalendar>`. `existing` levert de
- *  fallback voor de afgeleide `hoursPerDay` (bij `create` de basis uit `newCalendarBase`). */
 function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial<WorkCalendar> {
   const patch: Partial<WorkCalendar> = {};
   if (item.name !== undefined) patch.name = item.name;
@@ -702,28 +518,9 @@ function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial
   if (item.workTime !== undefined && item.workTime !== null) {
     const bands = cloneBands(item.workTime);
     patch.workTime = bands;
-    // Spiegelt `CalendarForm.applyBands` (de kalenderdialoog): de werkdagen volgen de banden. `hoursPerDay`
-    // volgt ze met dezelfde regel als het venster: één call is één sessie, met `existing` (de kalender vóór
-    // de call) als beginstand. Hij volgt dus alleen als hij gelijk was aan de modale dagsom van de blokken
-    // van vóór de call; een bewuste afwijking (P6 `day_hr_cnt`, bv. Late ploeg 14–24 met 8) blijft staan.
-    // Een dagkalender (ook `create`) heeft geen blokken en volgt (`hoursPerDayForBlocks` in `subdayIo.ts`).
-    // Zijn ze expliciet meegegeven (een letterlijke lezing stuurt ze mee), dan is die opgave leidend —
-    // `calendarItemReason` heeft dan al vastgesteld dat `workDays` de banden niet tegenspreekt.
     if (item.workDays === undefined) patch.workDays = workDaysFromBands(bands);
     if (item.hoursPerDay === undefined) patch.hoursPerDay = hoursPerDayForBlocks(existing, existing, bands);
   }
-  // ALLEEN `workDays` OP EEN UURKALENDER (review PR #351): de blokken gaan mee via dezelfde functie als de
-  // werkdagknoppen in het kalendervenster (`workDaysSetPatch`, één regel). Eerst gaan de nieuwe dagen aan,
-  // daarna de andere uit. Een nieuwe werkdag krijgt een kopie van de eerste werkdag met blokken (volgorde
-  // zondag, maandag … zaterdag; `firstBlockedDay`); is er geen, dan de blokken van de eigen enkelvoudige
-  // werkdag (begin, einde, pauze), en pas daarna 07–12 + 13–16. Een vervallen werkdag verliest zijn blokken.
-  // `hoursPerDay` volgt de nieuwe blokken alleen als hij gelijk was aan de modale dagsom van de blokken van
-  // vóór de call; een bewuste afwijking (P6 `day_hr_cnt`, bv. Late ploeg 14–24 met 8) blijft staan
-  // (`hoursPerDayForBlocks` in `subdayIo.ts`). Een `hoursPerDay` in het item zelf wint altijd. Zonder dit bleef een werkdag
-  // zonder blokken achter, en na een IFC-rondgang kreeg die dag stil de blokken van maandag.
-  // Gelijk aan het venster geldt alleen voor een geldige kalender. Startpunt zijn hier de werkdagen volgens
-  // de BLOKKEN, niet de opgeslagen `workDays`: op een kalender die al tegenstrijdig was, ruimt MCP dus
-  // bewust op (een werkdag zonder blokken krijgt alsnog blokken).
   if (item.workDays !== undefined && item.workTime === undefined && existing.workTime !== undefined) {
     const fromBands = { ...existing, workDays: workDaysFromBands(existing.workTime) };
     Object.assign(patch, workDaysSetPatch(fromBands, item.workDays));
@@ -738,12 +535,6 @@ function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial
       ...(w.bands !== undefined ? { bands: w.bands.map((b) => ({ start: b.start, end: b.end })) } : {}),
     }));
   }
-  // PAUZE ↔ NETTO UREN, zoals de kalenderdialoog (`simpleBreakPatch`, één definitie): raakt het item
-  // de pauze, of de werkdag van een kalender die al een expliciete pauze heeft, dan wordt een legacy-
-  // pauze eerst expliciet en volgt `hoursPerDay` uit werkdag + pauze — anders zegt het veld (en de
-  // respons) 8 terwijl de engine 9 rekent. Niet op een UURkalender (daar zijn de banden leidend en
-  // leidt de banden-tak hierboven `hoursPerDay` af). Werkdag wijzigen op een legacy-kalender zonder
-  // pauzevelden blijft zoals het was.
   const touchesBreak = item.simpleBreakStartMinute !== undefined || item.simpleBreakDurationMinutes !== undefined;
   const touchesDay = item.workStartHour !== undefined || item.workEndHour !== undefined;
   const hasExplicitBreak = existing.simpleBreakStartMinute !== undefined || existing.simpleBreakDurationMinutes !== undefined;
@@ -755,10 +546,6 @@ function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial
     }
     Object.assign(patch, simpleBreakPatch(existing, scalar));
   }
-  // Een meegegeven `hoursPerDay` op een DAG-kalender met pauzepatroon is geen opgave maar een
-  // afleiding, net als in de dialoog: `netHoursReason` heeft een afwijkende waarde al geweigerd, dus
-  // wat hier aankomt is gelijk en geldt de exacte afgeleide waarde (no-op). Legacy zonder pauzevelden:
-  // `simpleBreakNetHours` geeft `undefined` en de opgave blijft staan.
   if (item.hoursPerDay !== undefined && !hourCalendar) {
     const net = simpleBreakNetHours({ ...existing, ...patch });
     if (net !== undefined) patch.hoursPerDay = net;
@@ -766,36 +553,15 @@ function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial
   return patch;
 }
 
-// ── Dag↔uur-kalenderomschakeling ────────────────────────────────────────────────────────────────
-// Een kalender bepaalt alleen de plaatsing. Een moduswissel mag dus uitsluitend als planningseffect
-// worden gemeld; `durationUnit`, `scheduleDuration` en `durationMinutes` blijven onaangeroerd.
-
 function calendarMode(cal: Pick<WorkCalendar, 'workTime'>): 'hour' | 'day' {
   return isHourModeCalendar(cal) ? 'hour' : 'day';
 }
 
-/**
- * Los de definitieve feestdagenlijst op voor één item, inclusief de VERVANG-modus.
- *
- * ONTWERPKEUZE. `resolveCalendarHolidays` (calendarGenerate.ts) is bewust alleen-toevoegend: het
- * MERGET rauwe uitzonderingen in de bestaande lijst. `holidaysMode: 'replace'` maakt VERWIJDEREN
- * mogelijk zónder die semantiek te breken:
- *   - default (`merge`)  ⇒ dedup-merge met wat er stond;
- *   - `replace`          ⇒ de lijst wordt EXACT de opgegeven `rawHolidays` (leeg = alles wissen).
- * De vervangmodus wordt hier afgehandeld i.p.v. in `calendarGenerate.ts`, omdat `generate` al
- * vervangend werkt (de generator negeert `existing.holidays`): alleen het generator-LOZE pad hoefde
- * een vervangvariant. Bij `replace` vervalt een bestaande `generation` — anders zou een latere
- * regenerate de bewust gewiste dagen terugbrengen.
- */
 function resolveHolidaysForItem(
   item: CalendarItem,
   span: { projectStart: string; projectEnd: string },
   existing: Pick<WorkCalendar, 'holidays' | 'generation'>,
 ): { holidays: Holiday[]; generation?: WorkCalendar['generation']; becameLiteral: boolean } {
-  // LETTERLIJKE OVERDRACHT — `holidays` is de leesvorm van get_calendars en betekent "zet de
-  // lijst exact hierop". Bewust NIET mergend: bij een `create` zou de app-default-feestdagenset zich
-  // stil met de bronlijst verenigen. Komt er een `generation` mee, dan blijft de kalender
-  // gegenereerd (de herkomst reist mee); anders is de overgezette lijst per definitie letterlijk.
   if (item.holidays !== undefined) {
     const holidays = [...item.holidays].sort((a, b) => a.startDate.localeCompare(b.startDate));
     if (item.generation !== undefined) return { holidays, becameLiteral: false };
@@ -808,7 +574,6 @@ function resolveHolidaysForItem(
   return resolveCalendarHolidays({ generate: item.generate, rawHolidays: item.rawHolidays }, span, existing);
 }
 
-/** Vormvalidatie van `update_calendar`; string = foutboodschap. */
 function parseUpdateCalendar(args: unknown): CalendarItem[] | string {
   const a = (args ?? {}) as { calendars?: unknown };
   if (!Array.isArray(a.calendars) || a.calendars.length === 0) {
@@ -817,7 +582,6 @@ function parseUpdateCalendar(args: unknown): CalendarItem[] | string {
   return a.calendars as CalendarItem[];
 }
 
-/** Synchrone, transactie-vrije kern van `update_calendar` (zie de batchStep-noot in taskTools.ts). */
 function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOutcome {
     const { plans, rejections } = classifyCalendars(ctx.app.store.getState(), items);
     const rows: Record<string, unknown>[] = [];
@@ -825,20 +589,14 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       const item = plan.item;
       const wantsHolidays =
         item.generate !== undefined || item.rawHolidays !== undefined || item.holidays !== undefined;
-      // De afgeleide leesvelden van get_calendars mogen mee, maar worden gemeld i.p.v. stil geslikt.
       const ignoredFields = CAL_READONLY_KEYS.filter((k) => k in (item as unknown as Record<string, unknown>));
 
       if (plan.mode === 'create') {
-        // Basis = de gedeelde fabriek voor een nieuwe kalender (app-default ma-vr 07-16, dezelfde
-        // als "+" in de kalenderdialoog en de resourcerij); de opgegeven velden overschrijven hem.
-        // Zonder id: draft.addCalendar genereert een vers, document-lokaal id.
         const base = newCalendarBase(item);
         const cal: Omit<WorkCalendar, 'id'> = {
           ...base,
           ...calendarFieldPatch(item, base),
         };
-        // Een verse kalender erft de dag-vorm van de app-default; een expliciete `workTime: null`
-        // (of het ontbreken van banden in de lezing) hoort geen uur-kalender op te leveren.
         if (item.workTime === null) delete cal.workTime;
         if (item.shift === null) delete cal.shift;
         let becameLiteral = false;
@@ -849,21 +607,13 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
             { holidays: base.holidays, generation: base.generation },
           );
           cal.holidays = r.holidays;
-          // `delete` i.p.v. `= undefined`: een sleutel-met-undefined is niet hetzelfde als een
-          // afwezige sleutel (codebase-conventie, zie ook setStatusDate) — een letterlijke
-          // kalender hoort geen `generation`-sleutel te dragen.
           if (r.generation !== undefined) cal.generation = r.generation;
           else delete cal.generation;
           becameLiteral = r.becameLiteral;
         }
-        // Expliciete herkomst (de leesvorm) wint altijd — ook zonder feestdagen-opgave.
         if (item.generation === null) delete cal.generation;
         else if (item.generation !== undefined) cal.generation = { ...item.generation };
         const newId = ctx.transactions.draft.addCalendar(cal);
-        // MAAK DE GEËRFDE FEESTDAGEN ZICHTBAAR. De basis is `createNewCalendar()`, en die levert in
-        // bouwmodus (de default) een VOLLEDIGE NL-feestdagenset mét `generation`. Een agent die "een
-        // lege kalender" aanmaakt krijgt dus ~30 NL-feestdagen mee; de herkomst staat daarom per rij en
-        // de handler zet er een waarschuwing bij.
         const holidaysFrom = item.generate !== undefined
           ? 'generate'
           : item.holidays !== undefined
@@ -883,9 +633,6 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         continue;
       }
 
-      // Doel is de projectkalender die nog niet in de bibliotheek staat ⇒ eerst promoveren.
-      // `ensureProjectCalendarInLibrary` is puur additief (geen undo-snapshot, geen recompute) en
-      // dus transactie-veilig.
       let promoted = false;
       if (plan.needsPromotion) {
         ctx.app.store.getState().ensureProjectCalendarInLibrary();
@@ -893,15 +640,11 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       }
       const existing = ctx.app.store.getState().calendars.find((c) => c.id === plan.targetId);
       if (!existing) {
-        // Kan alleen bij een defect in de promotie — harde stap-fout i.p.v. stil doorgaan.
         throw new McpStepError('NOT_FOUND', `calendar '${plan.targetId}' does not exist (after promotion)`);
       }
-      // Modus-ijkpunt vóór de mutatie; native taakduren worden nooit geconverteerd.
       const beforeMode = calendarMode(existing);
       const updates = calendarFieldPatch(item, existing) as Partial<WorkCalendar>;
       let becameLiteral = false;
-      // `draft.updateCalendar` doet een Object.assign en kan dus geen sleutel VERWIJDEREN; alles wat
-      // weg moet (herkomst, banden, ploeg) verzamelen we hier en wissen we in één gerichte producer.
       const dropKeys: ('generation' | 'workTime' | 'shift' | 'workingExceptions')[] = [];
       let dropGeneration = false;
       if (wantsHolidays) {
@@ -912,15 +655,9 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         );
         updates.holidays = r.holidays;
         if (r.generation !== undefined) updates.generation = r.generation;
-        // Bij `becameLiteral` MOET de bestaande herkomst weg (anders zou een regenerate later de
-        // rauwe dagen wegvagen).
         else dropGeneration = existing.generation !== undefined;
         becameLiteral = r.becameLiteral;
       }
-      // Expliciete herkomst (leesvorm) wint van wat de holiday-resolutie afleidde. LET OP de
-      // volgorde: dit moet de `dropGeneration` van hierboven kunnen HERROEPEN — anders wist de
-      // wis-producer verderop de zojuist meegestuurde herkomst weer (de letterlijke overdracht
-      // `holidays` + `generation` viel precies in dat gat).
       if (item.generation === null) {
         dropGeneration = existing.generation !== undefined;
         delete updates.generation;
@@ -931,11 +668,8 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       if (dropGeneration) dropKeys.push('generation');
       if (item.workTime === null && existing.workTime !== undefined) dropKeys.push('workTime');
       if (item.shift === null && existing.shift !== undefined) dropKeys.push('shift');
-      // Een lege lijst wist de werkende uitzonderingen; afwezig (niet `[]`) is de opslagvorm van de lezers.
       if (item.workingExceptions?.length === 0 && existing.workingExceptions !== undefined) dropKeys.push('workingExceptions');
 
-      // Een urentaak heeft effectieve werkblokken nodig; die mogen ook uit de scalaire kalender
-      // volgen. Toets de uiteindelijke kalender vóór de mutatie, inclusief verwijderde sleutels.
       if (dropKeys.includes('workTime')) {
         const state = ctx.app.store.getState();
         const resultingCalendar = { ...existing, ...updates };
@@ -955,15 +689,11 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         ctx.app.store.setState((s) => {
           const idx = s.calendars.findIndex((c) => c.id === plan.targetId);
           if (idx >= 0) for (const k of dropKeys) delete s.calendars[idx][k];
-          // De gedenormaliseerde projectkalender-cache moet de entry blijven volgen;
-          // `draft.updateCalendar` synct zelf, maar deze extra producer maakt een nieuw
-          // entry-object en zou de cache anders op het oude object laten wijzen.
           syncProjectCalendar(s);
           markDocumentEdited(s);
         });
       }
 
-      // Alleen planningseffecten ná de mutatie; de taken zelf zijn onaangeroerd.
       const sAfter = ctx.app.store.getState();
       const updated = sAfter.calendars.find((c) => c.id === plan.targetId)!;
       const afterMode = calendarMode(updated);
@@ -981,11 +711,6 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
     return { data: { calendars: rows }, itemRejections: rejections };
 }
 
-/** Eén weekdag in het `workTime.byWeekday`-schema (`[]` = niet-werkende dag). Staat twee keer in het schema: als
- *  `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands`. Daarom zo kaal mogelijk:
- *  `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818). De schemapoort toetst array-items niet
- *  (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven weigert ongeldige banden met een reden
- *  (`cases-uurkalender.ts`, test 3), maar laat een gebroken minuut door (knownbug 961). */
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
   items: { type: 'object', required: ['start', 'end'] },
@@ -1000,14 +725,11 @@ const WORKTIME_SCHEMA = {
       description:
         'All keys "1" (Mon)–"7" (Sun) required. Per day: ascending, non-overlapping {start,end} bands in ' +
         'minutes from midnight; [] = off. 0 ≤ start ≤ 1439; start < end ≤ 2880 (22:00–06:00 = 1320–1800).',
-      // Eén dagschema voor elke sleutel in plaats van zeven gelijke `properties` (#818). De handler toetst de
-      // sleutels "1".."7" zelf (`workTimeReason`).
       additionalProperties: WORKTIME_DAY_SCHEMA,
     },
   },
 } as const;
 
-/** Feestdag-item; gedeeld door `rawHolidays` (toevoegen) en `holidays` (exact vervangen). */
 const HOLIDAY_ITEM_SCHEMA = {
   type: 'object',
   required: ['name', 'startDate', 'endDate'],
@@ -1030,7 +752,6 @@ const updateCalendar: BatchStepTool = {
     'durations. Holiday and exception `endDate`s are inclusive.',
   kind: 'mutate',
   batchable: true,
-  // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
@@ -1049,8 +770,6 @@ const updateCalendar: BatchStepTool = {
             workDays: {
               type: 'array',
               items: { type: 'integer', minimum: 1, maximum: 7 },
-              // Kopieerregel: `calendarFieldPatch` → `workDaysSetPatch` → `workDayTogglePatch` (`subdayIo.ts`) →
-              // `firstBlockedDay`. Het antwoord toont geen banden, dus de agent moet dit vooraf weten (#818).
               description: '1 = Monday … 7 = Sunday. On an HOUR calendar, `workDays` alone clears removed days ' +
                 'and gives new days the bands of the first day with bands (Sun, Mon … Sat); use `workTime` to ' +
                 'choose hours.',
@@ -1118,17 +837,11 @@ const updateCalendar: BatchStepTool = {
               type: ['string', 'null'],
               enum: ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED', null],
             },
-            // Alleen de buitenvorm (#818): de binnenkant toetst de schemapoort niet (kalenders zijn array-items,
-            // DIEPTE-REGEL), en `generationReason` weigert een foute vorm met een reden die de sleutels en waarden
-            // noemt. Een agent schrijft het object letterlijk terug zoals planner_get_calendars het gaf.
             generation: {
               type: ['object', 'null'],
               description:
                 'Provenance only, as read from planner_get_calendars; does NOT generate; null clears it. Not with `generate`.',
             },
-            // De afgeleide leesvelden van get_calendars (`CAL_READONLY_KEYS`) staan bewust NIET in het schema: ze
-            // zijn niet schrijfbaar. `items` heeft geen `additionalProperties: false`, dus een teruggestuurd object
-            // blijft geldig; de handler meldt ze als `ignoredFields` (#818).
           },
         },
       },
@@ -1141,8 +854,6 @@ const updateCalendar: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const items = parsed;
 
-    // Lege-batch-snelpad: statisch nul uitvoerbare items ⇒ direct Ok mét de weigeringen, zónder
-    // transactie/backup/snapshot/redo-wipe.
     {
       const state = ctx.app.store.getState();
       const pre = classifyCalendars(state, items);
@@ -1156,8 +867,6 @@ const updateCalendar: BatchStepTool = {
     return enrichOk(res, () => {
       const rows = ((res as McpToolOk).data as { calendars: Record<string, unknown>[] }).calendars;
       const { projectEnd, cappedTaskIds } = projectEndInfo(ctx.app.store.getState());
-      // Beleid: een onwerkbaar venster is een WAARSCHUWING, geen fout — de kalenderwijziging
-      // blijft gecommit; de AI hoort dit prominent aan de user te melden.
       const warnings: string[] = [];
       if (cappedTaskIds) {
         warnings.push(
@@ -1165,8 +874,6 @@ const updateCalendar: BatchStepTool = {
           '(see cappedTaskIds). The calendar change HAS been applied — check working days and holidays.',
         );
       }
-      // Een "leeg" aangemaakte kalender erft de feestdagen van de app-standaardkalender. Dat is
-      // een bewuste app-default, maar het mag niet STIL gebeuren — zeg het hardop.
       const inherited = rows.filter((r) => r.created === true && r.holidaysFrom === 'app-default' && (r.holidayCount as number) > 0);
       if (inherited.length > 0) {
         warnings.push(
@@ -1176,7 +883,6 @@ const updateCalendar: BatchStepTool = {
           '"none" }`.',
         );
       }
-      // Een moduswissel kan de planning verschuiven, maar nooit een taakeenheid/hoeveelheid wijzigen.
       const switched = rows.filter((r) => r.modeChangedFrom !== undefined);
       if (switched.length > 0) {
         warnings.push(
@@ -1191,23 +897,12 @@ const updateCalendar: BatchStepTool = {
   },
 };
 
-// =================================================================================================
-// planner_manage_assignments
-//
-// Bulk over vier acties. De pre-validatie draait `validate.assignmentAllowed` INCREMENTEEL tegen een
-// gesimuleerde, meegroeiende toewijzingsverzameling: een tweede identieke `add` binnen dezelfde call
-// wordt daardoor zacht geweigerd (zonder simulatie zou de dubbeltelling-guard hem missen, want de
-// store bevat de eerste toewijzing pas ná de transactie-stap). Move/remove werken de simulatie
-// eveneens bij, zodat "verplaats weg en wijs opnieuw toe" binnen één call gewoon kan.
-// =================================================================================================
-
 type AssignmentAction =
   | { action: 'add'; taskId: string; resourceId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number; costAmount?: number | null }
   | { action: 'update'; assignmentId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number; costAmount?: number | null }
   | { action: 'move'; assignmentId: string; taskId: string }
   | { action: 'remove'; assignmentId: string };
 
-/** Gesimuleerde toewijzing tijdens de pre-validatie (alleen de velden die de guards lezen). */
 interface SimAssignment { id: string; taskId: string; resourceId: string; unitsPerDay: number }
 
 function classifyAssignments(
@@ -1219,7 +914,6 @@ function classifyAssignments(
   let sim: SimAssignment[] = s.assignments.map((a) => ({
     id: a.id, taskId: a.taskId, resourceId: a.resourceId, unitsPerDay: a.unitsPerDay,
   }));
-  /** De vorm die `validate.assignmentAllowed` leest, met de GESIMULEERDE toewijzingen. */
   const simState = () => ({ tasks: s.tasks, sequences: s.sequences, assignments: sim });
 
   actions.forEach((act, index) => {
@@ -1239,7 +933,6 @@ function classifyAssignments(
           rejections.push({ id: label, reason: `resource '${act.resourceId}' does not exist` });
           return;
         }
-        // Kostenresource (issue #815): alleen `costAmount`; inzet, curve en werk horen er niet bij.
         const costBad = costAssignmentReason(resource.type === 'COST', act);
         if (costBad) { rejections.push({ id: label, reason: costBad }); return; }
         if (resource.type !== 'COST' && act.unitsPerDay === undefined) {
@@ -1255,8 +948,6 @@ function classifyAssignments(
           rejections.push({ id: label, reason: guard.reason });
           return;
         }
-        // Werk direct bij `add` — nodig binnen planner_batch, want een
-        // nieuwe toewijzing heeft daar nog geen tempId-resolveerbaar `assignmentId`.
         if (act.remainingWorkMinutes !== undefined) {
           if (!(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
             rejections.push({ id: label, reason: `invalid remainingWorkMinutes ${String(act.remainingWorkMinutes)} (work minutes, strictly positive required)` });
@@ -1268,7 +959,6 @@ function classifyAssignments(
             return;
           }
         }
-        // Simulatie bijwerken: een volgende identieke `add` botst nu op de dubbeltelling-guard.
         sim = [...sim, { id: `sim-${index}`, taskId: act.taskId, resourceId: act.resourceId, unitsPerDay: act.unitsPerDay ?? 1 }];
         plans.push({ index, action: act });
         return;
@@ -1297,7 +987,6 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: 'no `unitsPerDay`, `curve` or `remainingWorkMinutes` given' });
           return;
         }
-        // Resterend werk loopt via de werkdriehoek (`draft.setAssignmentWork`).
         if (hasWork && !(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
           rejections.push({ id: act.assignmentId, reason: `invalid remainingWorkMinutes ${String(act.remainingWorkMinutes)} (work minutes, strictly positive required)` });
           return;
@@ -1337,9 +1026,6 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: `target task '${act.taskId}' is a milestone/summary task; those carry no resources (a milestone only carries a COST resource)` });
           return;
         }
-        // Move naar de taak waar hij (gesimuleerd) al staat: de dubbelcheck hieronder sluit `cur`
-        // zelf uit en zou dit doorlaten, waarna `draft.moveAssignment` gooit en de HELE call
-        // terugrolt. Net als een dubbele `add` dus zacht weigeren — alleen dit item vervalt.
         if (cur.taskId === act.taskId) {
           rejections.push({ id: act.assignmentId, reason: `assignment '${act.assignmentId}' is already on task '${act.taskId}' (resource '${cur.resourceId}'); moving to the same task changes nothing` });
           return;
@@ -1368,11 +1054,6 @@ function classifyAssignments(
   return { plans, rejections };
 }
 
-/**
- * De kostenregels van één `add`/`update` (issue #815). Op een kostenresource: alleen `costAmount`
- * (eindig, ≥ 0, of `null` om te wissen); `unitsPerDay`, `curve` en `remainingWorkMinutes` worden
- * geweigerd. Op een werk-/materiaalresource: geen `costAmount`. `null` ⇒ in orde.
- */
 function costAssignmentReason(
   isCost: boolean,
   act: { unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number; costAmount?: number | null },
@@ -1393,7 +1074,6 @@ function costAssignmentReason(
   return null;
 }
 
-/** Vormvalidatie van `manage_assignments`; string = foutboodschap. */
 function parseAssignments(args: unknown): AssignmentAction[] | string {
   const a = (args ?? {}) as { actions?: unknown };
   if (!Array.isArray(a.actions) || a.actions.length === 0) {
@@ -1402,7 +1082,6 @@ function parseAssignments(args: unknown): AssignmentAction[] | string {
   return a.actions as AssignmentAction[];
 }
 
-/** Synchrone, transactie-vrije kern van `manage_assignments`. */
 function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): MutationOutcome {
     const { plans, rejections } = classifyAssignments(ctx.app.store.getState(), actions);
     const added: Record<string, unknown>[] = [];
@@ -1427,7 +1106,6 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
         }
         case 'update': {
           if (action.costAmount !== undefined) {
-            // Kostentoewijzing: alleen het bedrag (`null` wist het). Geen datum, geen werkregel.
             ctx.transactions.draft.setAssignmentCost(action.assignmentId, action.costAmount ?? undefined);
             updated.push(action.assignmentId);
             break;
@@ -1436,9 +1114,6 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
           if (action.unitsPerDay !== undefined) patch.unitsPerDay = action.unitsPerDay;
           if (action.curve !== undefined) patch.curve = action.curve;
           if (Object.keys(patch).length > 0) ctx.transactions.draft.updateAssignment(action.assignmentId, patch);
-          // Ná de inzet: een gelijktijdige `unitsPerDay` + `remainingWorkMinutes` betekent "deze inzet,
-          // dít werk" — de duur volgt dan uit beide (FIXED_WORK/FIXED_RATE) of de inzet wordt door
-          // het werk overschreven (duurbeschermende regels: I = W / R).
           if (action.remainingWorkMinutes !== undefined) ctx.transactions.draft.setAssignmentWork(action.assignmentId, action.remainingWorkMinutes);
           updated.push(action.assignmentId);
           break;
@@ -1500,15 +1175,12 @@ const manageAssignments: BatchStepTool = {
     },
     required: ['actions'],
   },
-  // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
-  // dus overbodig binnen een batch (die bezit de transactie al).
   batchStep: parsedBatchStep(parseAssignments, manageAssignmentsCore),
   async handler(args, ctx) {
     const parsedActions = parseAssignments(args);
     if (typeof parsedActions === 'string') return toolError(ctx, 'VALIDATION', parsedActions);
     const actions = parsedActions;
 
-    // Lege-batch-snelpad (zie de conventies bovenaan).
     {
       const state = ctx.app.store.getState();
       const pre = classifyAssignments(state, actions);
@@ -1529,18 +1201,6 @@ const manageAssignments: BatchStepTool = {
     }));
   },
 };
-
-// =================================================================================================
-// planner_level_resources
-//
-// Volgorde: guards → `ensureFreshSchedule` (een stale planning maakt de before/after-delta's onzin)
-// → preview → optioneel commit. `ensureFreshSchedule` draait BUITEN elke transactie en kost toch
-// geen undo-stap: `runCPM` raakt de undo-stack alleen bij het verlaten van "datums zoals
-// opgeslagen", en modus-aan-én-stale is onbereikbaar (zie staleGuard.ts). Daarop rust de belofte
-// "er ontstaat geen ongedaan-maak-stap" in de `dryRun`-beschrijving. `dryRun` gaat NIET door een
-// transactie: er valt niets te backuppen of terug te rollen (`levelResources` is een pure
-// preview-berekening op de store). De respons draagt ALTIJD het volledige LevelingResult.
-// =================================================================================================
 
 function levelingData(
   state: AppState,
@@ -1571,9 +1231,6 @@ function levelingData(
       'Pinned tasks are not moved or searched for a new window, so their conflict dates may have no search reason.',
     );
   }
-  // `projectEndAfter` is de VOORSPELLING van de nivelleerder; `projectEnd` is wat er ná de
-  // eind-runCPM daadwerkelijk in de store staat. Bij `dryRun` is dat per definitie de ONgewijzigde
-  // planning (== projectEndBefore) — beide meegeven maakt het verschil expliciet i.p.v. impliciet.
   const { projectEnd, cappedTaskIds } = projectEndInfo(state);
   if (cappedTaskIds) {
     warnings.push(
@@ -1597,7 +1254,6 @@ function levelingData(
   };
 }
 
-/** Args-vorm van `level_resources`; string = foutboodschap. */
 function parseLeveling(
   args: unknown,
   state: AppState,
@@ -1606,19 +1262,12 @@ function parseLeveling(
   if (a.constrainToFloat !== undefined && typeof a.constrainToFloat !== 'boolean') {
     return '`constrainToFloat` must be a boolean';
   }
-  // `dryRun` streng typechecken: met `a.dryRun === true` zou elke niet-boolean (`"true"`, `1`) stil
-  // `false` betekenen, dus een ECHTE nivellering terwijl de aanroeper dacht te previewen. Juist die
-  // parameter wordt in de beschrijving verkocht als de veilige manier om eerst te kijken ⇒ hard
-  // weigeren.
   if (a.dryRun !== undefined && typeof a.dryRun !== 'boolean') {
     return `${booleanArgReason(a.dryRun, 'dryRun')} — a non-boolean would silently count as \`false\` and so ` +
       'run a REAL leveling';
   }
   if (a.resourceIds !== undefined) {
     if (!Array.isArray(a.resourceIds)) return '`resourceIds` must be an array of resource ids';
-    // Een selectie die (deels) niet bestaat, geeft anders een stille nul-effect-run: de leveler
-    // filtert onbekende id's weg, waarna `delays: {}` / `shifts: []` leest als "er hoefde niets
-    // genivelleerd te worden". Een lege selectie is om dezelfde reden nooit bedoeld.
     if (a.resourceIds.length === 0) {
       return '`resourceIds` is empty; leave the parameter out to level ALL renewable resources';
     }
@@ -1630,7 +1279,6 @@ function parseLeveling(
       return `unknown resource id(s): ${unknown.join(', ')} — leveling would then silently do nothing; get ` +
         'valid ids with planner_list_resources';
     }
-    // Een kostenresource heeft geen belasting en wordt nooit genivelleerd (issue #815).
     const costIds = new Set(state.resources.filter((r) => r.type === 'COST').map((r) => r.id));
     const cost = (a.resourceIds as string[]).filter((id) => costIds.has(id));
     if (cost.length > 0) {
@@ -1638,7 +1286,7 @@ function parseLeveling(
         'leave them out of `resourceIds`';
     }
   }
-  const constrainToFloat = a.constrainToFloat !== false; // default true (de hoofdroute)
+  const constrainToFloat = a.constrainToFloat !== false;
   return {
     options: {
       constrainToFloat,
@@ -1649,20 +1297,12 @@ function parseLeveling(
   };
 }
 
-/**
- * Synchrone, transactie-vrije kern van `level_resources`. Draait ZELF `ensureFreshSchedule` (nodig
- * voor kloppende before/after-delta's; kost geen undo-stap omdat modus-aan-én-stale onbereikbaar is —
- * zie de kop van deze tool en staleGuard.ts, NIET omdat er een transactie omheen zou staan). Dat
- * overlapt met de `recomputeMidBatch` die `planner_batch` vóór een levelingstap doet — bewust: de
- * kern moet ook kloppen als de leveling de EERSTE stap van de batch is en de store al stale de batch in ging.
- */
 function levelResourcesCore(ctx: McpContext, p: { options: LevelingOptions; dryRun: boolean }): MutationOutcome {
   const fresh = ensureFreshSchedule(ctx.app);
   if (fresh.error) {
     throw new McpStepError('VALIDATION', `the schedule could not be recalculated before leveling: ${fresh.error}`);
   }
   const preview = ctx.app.store.getState().levelResources(p.options);
-  // `dryRun` muteert per contract niets — binnen een batch dus een pure preview-stap.
   if (!p.dryRun) ctx.transactions.draft.applyLeveling(preview);
   return { data: preview };
 }
@@ -1690,8 +1330,6 @@ const levelResources: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const { options, constrainToFloat, dryRun } = parsed;
 
-    // Guards vóór de (potentieel dure) herberekening; `runMutateTool` draait ze zo dadelijk nogmaals
-    // plus de backup — dat is bewust: een gepauzeerde bridge mag ook geen recompute uitlokken.
     const g = guardNonTransactional(ctx);
     if (g) return g;
 
@@ -1719,16 +1357,10 @@ const levelResources: BatchStepTool = {
   },
 };
 
-// =================================================================================================
-// planner_clear_leveling
-// =================================================================================================
-/** Hoeveel taken nivelleeruitvoer dragen — dezelfde `hasLevelingOutput` als de no-op-guard van de
- *  store-`clearLeveling` en de ribbonknop, dus ook uitsluitend sub-dag-precisie of pauzedagen. */
 function levelingOutputCount(state: Pick<AppState, 'tasks'>): number {
   return state.tasks.filter(hasLevelingOutput).length;
 }
 
-/** Synchrone, transactie-vrije kern van `clear_leveling`; niets te wissen ⇒ geen mutatie. */
 function clearLevelingCore(ctx: McpContext): MutationOutcome {
   const count = levelingOutputCount(ctx.app.store.getState());
   if (count === 0) return { data: { cleared: 0 } };
@@ -1742,9 +1374,6 @@ const clearLeveling: BatchStepTool = {
     'Remove all leveling delays.',
   kind: 'mutate',
   batchable: true,
-  // GEEN destructiveHint: die annotatie staat op een GESLOTEN lijst (delete_tasks,
-  // remove_dependencies, import_schedule, update_calendar). Nivellerings-vertragingen zijn afgeleide,
-  // herberekenbare waarden — ze wissen vernietigt geen ingevoerde data.
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: { type: 'object', properties: {} },
   batchStep(_args, ctx) {
@@ -1753,8 +1382,6 @@ const clearLeveling: BatchStepTool = {
   async handler(_args, ctx) {
     const state = ctx.app.store.getState();
     const count = levelingOutputCount(state);
-    // No-op-snelpad (spiegelt de store-`clearLeveling`-guard): niets te wissen ⇒ geen transactie,
-    // geen undo-snapshot, geen redo-wipe.
     if (count === 0) {
       return okDirectGuarded(ctx, { cleared: 0, projectEnd: projectEndInfo(state).projectEnd }, []);
     }
@@ -1763,12 +1390,6 @@ const clearLeveling: BatchStepTool = {
   },
 };
 
-// =================================================================================================
-// planner_update_project
-// =================================================================================================
-/** Datumvorm van `update_project`: `JJJJ-MM-DD`, en met `allowTime` ook `JJJJ-MM-DDTHH:mm` (de
- *  store-vorm van een uur-instant; alleen de statusdatum mag een tijd dragen, uurplanning). De datum
- *  moet bestaan (geen 31 februari); een willekeurige staart na de datum wordt geweigerd. */
 function isProjectDateValue(v: unknown, allowTime: boolean): v is string {
   if (typeof v !== 'string') return false;
   const m = /^(\d{4}-\d{2}-\d{2})(T\d{2}:\d{2})?$/.exec(v);
@@ -1777,14 +1398,11 @@ function isProjectDateValue(v: unknown, allowTime: boolean): v is string {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, v.length) === v;
 }
 
-/** Elke sleutel die `update_project` KENT — de allowlist waartegen onbekende sleutels afketsen. */
 const PROJECT_KEYS = [
   'name', 'description', 'author', 'company', 'startDate', 'endDate', 'statusDate', 'progressMode',
   'defaultWorkRule',
 ] as const;
 
-/** Projectvelden die de bridge BEWUST niet schrijft, mét een reden. Een expliciete weigering is
- *  oneindig veel bruikbaarder dan stilte. */
 const PROJECT_REFUSED: Record<string, string> = {
   schedulingOptions:
     'the calculation options (`schedulingOptions`, including `floatPaths`, `criticalDefinition`, ' +
@@ -1816,12 +1434,6 @@ const PROJECT_REFUSED: Record<string, string> = {
   modifiedAt: 'timestamps are managed by the app.',
 };
 
-/** Vormvalidatie van `update_project`; string = foutboodschap. Levert de veld-merge, de
- *  wis-vlaggen voor `statusDate`/`progressMode` en de lijst geraakte velden.
- *
- *  ONBEKENDE SLEUTELS KETSEN AF: elke onbekende sleutel wordt bij naam geweigerd, mét de toegestane
- *  lijst erbij — nooit stil laten vallen.
- */
 function parseUpdateProject(
   args: unknown,
 ): { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; clearDefaultWorkRule: boolean; touched: string[] } | string {
@@ -1844,19 +1456,12 @@ function parseUpdateProject(
     }
     updates.startDate = a.startDate;
   }
-  // `endDate` is een ECHT projectveld (Backstage-invoer, IFC-round-trip, MSPDI `FinishDate`, P6
-  // `MustFinishByDate`, en het voedt de generatie-spanne van `update_calendar`). De leeskant geeft hem
-  // terug, dus hij is ook schrijfbaar. `''` = geen einddatum (de app-conventie:
-  // `moveProject` laat '' bewust '' en de exporteurs slaan het veld dan over) — géén `null`, want
-  // het veld is in het type een verplichte string.
   if (a.endDate !== undefined) {
     if (a.endDate !== '' && !isProjectDateValue(a.endDate, false)) {
       return '`endDate` must be an existing ISO date (YYYY-MM-DD, without time) or an empty string to clear it';
     }
     updates.endDate = a.endDate;
   }
-  // `progressMode` is een documentinstelling die de solver leest (out-of-sequence-afhandeling) en
-  // die `get_project_info` teruggeeft. Enum + wissen naar de default (RETAINED_LOGIC).
   let clearProgressMode = false;
   if (a.progressMode !== undefined) {
     if (a.progressMode === null || a.progressMode === '') {
@@ -1868,8 +1473,6 @@ function parseUpdateProject(
       updates.progressMode = a.progressMode;
     }
   }
-  // De projectstandaard-werkregel; wissen = terug naar FIXED_DURATION_RATE. Raakt geen enkel getal
-  // op bestaande taken.
   let clearDefaultWorkRule = false;
   if (a.defaultWorkRule !== undefined) {
     if (a.defaultWorkRule === null || a.defaultWorkRule === '') {
@@ -1880,9 +1483,6 @@ function parseUpdateProject(
       updates.defaultWorkRule = a.defaultWorkRule as WorkRule;
     }
   }
-  // Wissen loopt NIET via de veld-merge: `Object.assign({ statusDate: undefined })` laat de sleutel
-  // met waarde `undefined` achter, terwijl de store-actie `setStatusDate` hem echt `delete`t. Die
-  // vorm houden we aan (IFC-serialisatie en de statusdatum-guards lezen op sleutel-aanwezigheid).
   let clearStatusDate = false;
   if (a.statusDate !== undefined) {
     if (a.statusDate === null || a.statusDate === '') {
@@ -1906,27 +1506,16 @@ function parseUpdateProject(
   return { updates, clearStatusDate, clearProgressMode, clearDefaultWorkRule, touched };
 }
 
-/** De mechanisme-uitleg die MEE MOET zodra er een statusdatum wordt GEZET. Staat bewust in de
- *  payload en niet alleen in de tool-beschrijving: de AI leest data vaak eerder dan de beschrijving,
- *  en dit gevolg (de hele planning schuift op) is groot genoeg om niet stil te mogen blijven. Het
- *  batch-pad krijgt hem hierdoor óók — daar is er geen `enrichOk` en dus geen voor/na-getal. */
 const STATUS_DATE_NOTE =
   'The status date is the DATA DATE: work with completion 0 can never start before this date and is pushed ' +
   'forward to it. Even WITHOUT any recorded progress the whole schedule (including the first milestone) ' +
   'therefore shifts to the status date and the project end moves by the same amount; `startDate` stays ' +
   'untouched. Clear the status date (null) to undo that.';
 
-/** Synchrone, transactie-vrije kern van `update_project`. */
 function updateProjectCore(
   ctx: McpContext,
   p: { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; clearDefaultWorkRule: boolean; touched: string[] },
 ): MutationOutcome {
-  // `draft.setProject` levert het aantal wortel-ankers dat het klemde (zelfde
-  // bewerkbescherming als de UI, `projectSlice.setProject`) — meegeven in `data` zodat óók het
-  // `planner_batch`-pad (dat rechtstreeks `updateProjectCore` gebruikt, zonder `enrichOk`) dit ziet.
-  // `delete` i.p.v. `= undefined` voor een gewist veld: de IFC-serialisatie en de solver-defaults
-  // lezen op sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`). Het wissen
-  // gaat door dezelfde patch, zodat ook een gewiste projectstandaard de taken omzet die hem erven.
   const clear: ClearableProjectKey[] = [
     ...(p.clearStatusDate ? ['statusDate' as const] : []),
     ...(p.clearProgressMode ? ['progressMode' as const] : []),
@@ -1937,7 +1526,6 @@ function updateProjectCore(
     data: {
       updated: p.touched,
       ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
-      // B1a: een nieuwe standaard *Vast werk* zette deze taken (zonder eigen `workRule`) om naar de urenmaat.
       ...(measureChangedTaskIds.length > 0 ? { hourMeasureTaskIds: measureChangedTaskIds } : {}),
       ...(p.updates.statusDate ? { statusDateNote: STATUS_DATE_NOTE } : {}),
     },
@@ -1989,21 +1577,12 @@ const updateProject: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const touched = parsed.touched;
 
-    // Voor/ná-meting van het projecteinde — vóór de mutatie gelezen, want de transactie sluit af met
-    // een `runCPM` en dan is de oude stand weg. Alleen zinvol wanneer de call de STATUSDATUM raakt:
-    // dat is de enige metadata-wijziging hier die de gerekende datums verzet (data-date-vloer).
-    // `staleBefore` reist mee omdat een verouderd `cpmResult` het voor-getal onbetrouwbaar maakt —
-    // dan is het verschil geen zuiver statusdatum-effect en moet de AI dat kunnen zien.
     const statusDateTouched = touched.includes('statusDate');
     const before = ctx.app.store.getState();
     const projectEndBefore = statusDateTouched ? (before.cpmResult?.projectEnd ?? null) : null;
     const staleBefore = before.scheduleStale;
 
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateProjectCore(ctx, parsed));
-    // `enrichOk` hieronder OVERSCHRIJFT `res.data` met wat `build()` teruggeeft — dus
-    // het `anchorsClamped`-getal dat `updateProjectCore` er net inzette moet er vóór die overschrijving
-    // uit gelezen worden (binnen `build()`'s closure heeft `res.data` op dat moment nog de OUDE,
-    // niet-verrijkte waarde — `enrichOk` roept `build()` immers aan vóórdat het toewijst).
     const anchorsClamped =
       res.ok && res.data && typeof res.data === 'object' && 'anchorsClamped' in res.data
         ? (res.data as { anchorsClamped: number }).anchorsClamped
@@ -2023,9 +1602,6 @@ const updateProject: BatchStepTool = {
           statusDate: p.statusDate ?? null, progressMode: p.progressMode ?? null,
           defaultWorkRule: p.defaultWorkRule ?? null,
         },
-        // Herinnering in de payload zelf: de AI leest data vaak eerder dan de beschrijving. "Geen
-        // bestaande taak verschuift" geldt niet onvoorwaardelijk: zie de uitzondering hieronder
-        // (`anchorsClamped`, bewerkbescherming).
         note: '`startDate` is the anchor for NEW tasks and does not shift the REST of the existing schedule. ' +
           'Exception (edit protection, not a Δ shift): with a LATER startDate, root tasks without ' +
           'predecessor/constraint that lie before the new date move along TO that date — see ' +
@@ -2050,41 +1626,17 @@ const updateProject: BatchStepTool = {
   },
 };
 
-// =================================================================================================
-// planner_move_project — wrapt de bestaande slice-actie `moveProject` binnen de transactie.
-//
-// ROUTE-KEUZE (zelfde als `move_task` in taskTools.ts): we roepen de slice-actie DIRECT aan i.p.v.
-// een eigen draft-primitief te bouwen. De verschuif-logica (project-, taak-, resource- en baseline-datums,
-// exacte-datum-pinning i.p.v. Δ-drift) leeft in `moveProject` en mag niet gedupliceerd worden. De
-// transactie-suppressievlag dekt de interne `beginUndoable`, zodat het één undo-stap blijft.
-//
-// DUBBELE runCPM — BEWUST GEACCEPTEERD: `moveProject` draait zelf `runCPM()` en de transactie aan
-// het eind nóg eens. Nabouwen zonder die trailing recompute zou de enige bron van waarheid
-// dupliceren; `runCPM` is idempotent en pusht binnen de transactie geen undo-snapshot, dus het is
-// puur rekenwerk.
-// =================================================================================================
-/** Vormvalidatie van `move_project`; string = foutboodschap. */
 function parseMoveProject(args: unknown): { newStartDate: string; shiftBaselines: boolean } | string {
   const a = (args ?? {}) as { newStartDate?: unknown; shiftBaselines?: unknown };
-  // Strikt, net als `update_project`: de prefix-regex liet `2026-02-30`/`2026-13-45`/`2026-03-01xyz`
-  // door; `parseDate` rolde die stil door (Δ klopt niet) en de ruwe string belandde in
-  // `project.startDate` en dus in het IFC-bestand.
   if (!isProjectDateValue(a.newStartDate, false)) {
     return '`newStartDate` must be an existing ISO date (YYYY-MM-DD)';
   }
-  // Zelfde patroon als `dryRun`, lagere inzet: een niet-boolean zou stil als `false` gelden, dus
-  // baselines blijven staan terwijl de aanroeper denkt ze mee te verschuiven.
   if (a.shiftBaselines !== undefined && typeof a.shiftBaselines !== 'boolean') {
     return booleanArgReason(a.shiftBaselines, 'shiftBaselines');
   }
   return { newStartDate: a.newStartDate, shiftBaselines: a.shiftBaselines === true };
 }
 
-/**
- * Synchrone, transactie-vrije kern van `move_project`. Draagt het Δ-snelpad ZELF (anders zou een
- * verschuiving naar de datum waar het project al staat een hele batch laten terugrollen op een
- * no-op): Δ=0 ⇒ `moved: false` zonder enige mutatie, precies zoals de losse call.
- */
 function moveProjectCore(ctx: McpContext, p: { newStartDate: string; shiftBaselines: boolean }): MutationOutcome {
   const s0 = ctx.app.store.getState();
   const delta = computeMoveDelta(s0.project.startDate, p.newStartDate);
@@ -2127,7 +1679,6 @@ const moveProject: BatchStepTool = {
     if (!Number.isFinite(delta)) {
       return toolError(ctx, 'VALIDATION', `cannot determine the shift from project start '${s0.project.startDate}'`);
     }
-    // No-op-snelpad: Δ=0 ⇒ `moveProject` muteert niets; dan ook geen transactie/undo-stap.
     if (delta === 0) {
       return okDirectGuarded(
         ctx,
@@ -2159,18 +1710,6 @@ const moveProject: BatchStepTool = {
   },
 };
 
-// =================================================================================================
-// planner_save_baseline (staleness-guard; UITGESLOTEN van batch)
-//
-// ROUTE-KEUZE (zelfde als `move_task`/`move_project`): de slice-actie `saveBaseline` wordt DIRECT
-// binnen de transactie aangeroepen — er is geen draft-variant en de snapshot-logica (leaf-taken,
-// early-datums met schedule-fallback, actief zetten) hoort niet gedupliceerd te worden. De
-// suppressievlag dekt de interne `beginUndoable`, dus het blijft één undo-stap.
-//
-// `batchable: false` is normatief: een baseline hoort een losse, bewuste
-// nulmeting op een vers schema te zijn; binnen een batch-snapshot zou een rollback hem mee-wissen
-// en is de volgorde-semantiek onbepaald.
-// =================================================================================================
 const saveBaseline: McpToolDef = {
   name: 'planner_save_baseline',
   description:
@@ -2191,8 +1730,6 @@ const saveBaseline: McpToolDef = {
     const g = guardNonTransactional(ctx);
     if (g) return g;
 
-    // Eerst herrekenen bij een stale planning (runCPM pusht hier geen undo-snapshot: "modus
-    // aan én stale" is onbereikbaar, zie de kop van readTools.ts).
     const fresh = ensureFreshSchedule(ctx.app);
     if (fresh.error) {
       return toolError(ctx, 'VALIDATION', `the schedule could not be recalculated before the baseline: ${fresh.error}`);
@@ -2219,7 +1756,6 @@ const saveBaseline: McpToolDef = {
   },
 };
 
-/** Alle tools van deze module als vlakke array (registreer via één regel in toolRegistry.MODULES). */
 export const calendarResourceTools: McpToolDef[] = [
   updateCalendar,
   manageAssignments,
