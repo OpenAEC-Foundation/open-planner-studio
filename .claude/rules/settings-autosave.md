@@ -86,16 +86,22 @@ doelbewaking als `documentTargetCheck` met het eigen doel), de merge in de opsla
 vervanging met herstelrecord en de commit (`markAutoSaveVersionSaved` met `prepared`). Ritme per document
 (`modelAutoSaveRhythm.ts`, besluit eigenaar 17 november 2026): 30 s rust na de laatste wijziging, uiterlijk 5 minuten na
 de eerste niet-opgeslagen wijziging, en nooit eerder dan tien keer de gemeten rondeduur na het begin van de vorige
-ronde (die ondergrens gaat vóór de 5 minuten). `useAutoSave` voedt het ritme bij elke storewijziging (`observe`) en zet
-er een eigen wekker op (`nextModelRoundAt`); een gewoon document houdt zijn 10 s-throttle. Voorrang (besluit technisch
-beslisser 19 november 2026): elke `runProjectFileWrite` en elke `whenProjectFileWritesIdle` (ook `closeProjectFileWrites`)
-laat een ronde wijken zolang het herstelrecord (desktop) of de komende versie in het manifest (browser) niet geschreven
-is; de worker stopt dat ene verzoek (`stop` van `IfcOutputCompute`), niets geschreven, geen melding, opnieuw na de
-volgende rust. Daarna loopt de ronde af. De ronde vraagt nooit iets: zonder schrijftoestemming of met een open vraag over
-afhankelijke projecten slaat ze het document over. Veilig stoppen, met één melding per document per sessie en geen
+ronde (die ondergrens gaat vóór de 5 minuten). De wekkers staan in `fileAutoSaveTimers.ts` (`useAutoSave` bedraadt ze):
+elke storewijziging voedt het ritme (`observe`), elke toetsaanslag in open veldinvoer ook (`noteTextEntry` uit
+`state/textEntryActivity.ts`, gemeld door `GridEditorHost` en `useTextEntryAutoCalcHold`: de rust begint opnieuw, de
+bovengrens telt door), en de wekker van een gebouwmodel (`nextModelRoundAt`, alleen documenten die meedoen) start alleen
+modelkandidaten (`flushModels`); de gewone ingang (`flush`, 10 s-throttle) neemt elk document, een gebouwmodel alleen
+als het aan de beurt is. Voorrang (besluit technisch beslisser 19 november 2026): elke `runProjectFileWrite`, elke
+`whenProjectFileWritesIdle` (ook `closeProjectFileWrites`) en een IFC-export vanaf zijn rekenen (`claimProjectFileWrite`)
+laat een ronde wijken tot de grens in de gedeelde vervanging (`stopBeforeWrite`: het herstel ligt vast, browser de
+komende versie in het manifest, desktop ook het herstelrecord; nog niets op het doel geschreven). De worker stopt dat ene
+verzoek (`stop` van `IfcOutputCompute`); een geweken ronde laat niets achter (record en komende versie weer weg), geen
+melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. De ronde vraagt nooit iets: zonder
+schrijftoestemming slaat ze het document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou
+vragen ook (dezelfde beoordeling, `tightAnchorsIfSaved` in `dependentCandidates.ts`; een ruim anker houdt niets tegen). Veilig stoppen, met één melding per document per sessie en geen
 nieuwe poging tot de planner zelf opslaat (een nieuwe bron) of een ander doel kiest: eigen bestand gewijzigd of weg,
 buiten de thuismap (`save-as-only`), geen herstelrecord of manifest vast te leggen, een record van een eerdere
-onderbroken vervanging (`refuseRemnant`), en de bestaande doelweigeringen. Een workerfout is een mislukte ronde met
+onderbroken vervanging (`pendingReplaceFor`, het beleid van Automatisch opslaan zelf), en de bestaande doelweigeringen. Een workerfout is een mislukte ronde met
 `ifcSaveWorkerFailed`. Proeven: `check-actual-autosave.ts` 19–20, de blokken "stap 8" in `check-ifc-document-save.ts`
 en `check-ifc-own-file-replace.ts`, en `settings-tabs.spec.ts`.
 

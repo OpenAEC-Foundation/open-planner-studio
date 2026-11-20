@@ -464,12 +464,15 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (`writeCoordinator.ts`): content check, target and source check, merge in the save worker, the check again, the
   replacement with its recovery record, and the commit. Its own rhythm per document (`modelAutoSaveRhythm.ts`, clock
   injectable): 30 s of rest, at most 5 min after the first unsaved change, and never sooner than ten times the measured
-  duration of the previous round after its start. Every other request for the write queue (`runProjectFileWrite`:
-  Ctrl+S, Save As, exports, MCP) and every wait on it (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit
-  or the updater) makes a computing round yield: the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
-  nothing is written, no notice, the document stays dirty, and the round returns after the next rest. Once the recovery
-  record (desktop) or the pending version in the recovery manifest (browser) is written, the round runs to its end.
-  It never asks a question (no write permission, schema or dependent-projects question: it skips the document). A
+  duration of the previous round after its start; typing in open field input (`state/textEntryActivity.ts`) restarts the
+  rest. The timers live in `fileAutoSaveTimers.ts`; the model timer starts only model candidates (`flushModels`). Every
+  other request for the write queue (`runProjectFileWrite`: Ctrl+S, Save As, exports, MCP), every wait on it
+  (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export from its
+  computing on (`claimProjectFileWrite`) makes a round yield up to the boundary in the shared replacement
+  (`stopBeforeWrite`, once recovery is recorded): the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
+  Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
+  a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
   changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
   stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
   picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.

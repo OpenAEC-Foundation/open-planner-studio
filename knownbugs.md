@@ -4024,6 +4024,49 @@ en noem het in je rapport of PR-tekst.
       stap 8 opgelost. Richting, als een meting het nodig maakt: de gewone ronde ook via `runYieldingProjectFileWrite`,
       met de grens vóór `saveToRefWithoutPrompt`. — S
 
+1922. **VERVOLG (review #1033): de tijdgrenzen van Automatisch opslaan met een gebouwmodel kunnen botsen.**
+      De ondergrens (de volgende ronde niet vóór tien keer de duur van de vorige, na haar begin) gaat vóór de bovengrens
+      van 5 minuten (`modelAutoSaveRhythm.ts`). Begint op 30 s een ronde van 40 s en volgt op 40 s een nieuwe wijziging,
+      dan is de volgende ronde pas op 430 s aan de beurt, 90 s na de grens van vijf minuten voor die wijziging. De
+      belofte "het bestand loopt nooit meer dan 5 minuten achter" geldt dan niet. De afweging tussen tijdgrens en
+      belasting ligt bij de eigenaar; het ritme is bewust niet veranderd. — B (rekenproef van de reviewer)
+
+1923. **VERVOLG (review #1033): ook een desktopopenactie en `planner_export_ifc` laten een ronde van Automatisch opslaan
+      wijken.** Een desktopopenactie breekt de ronde af via het bestaande wachten op de rij (`readOpenedTauriPath` →
+      `whenProjectFileWritesIdle`); `planner_export_ifc` doet dat bij toegang tot de rij, na zijn eigen voorbereiding.
+      De afgebroken ronde komt na de volgende rust terug; er gaat niets verloren. Het besluit noemt alleen Ctrl+S,
+      Opslaan als, een export, een tabblad sluiten en afsluiten. Richting: maak de voorrang een expliciete keuze van de
+      aanroeper als hij alleen voor bepaalde acties bedoeld is. — B
+
+1924. **VERVOLG (review #1033): een tweede stop van Automatisch opslaan kan stil zijn.** De melding bij een stop komt één
+      keer per document per sessie (`targetNotified` in `fileAutoSave.ts`). Een geslaagde handmatige opslag heft de stop
+      op (een nieuwe bron), maar de registratie van de melding blijft. Stopt Automatisch opslaan later opnieuw, ook om een
+      andere reden, dan ziet de planner geen melding. Richting: koppel de melding aan de actieve weigering als opnieuw
+      melden na herstel gewenst is. — B
+
+1925. **VERVOLG (review #1033, opruimen): een document zonder schrijftoestemming houdt de wekker van een gebouwmodel elke
+      seconde wakker.** Fixronde 1 liet de wekker alleen documenten tellen die meedoen (Automatisch opslaan aan, geen
+      stop, geen schemavraag; `nextModelRoundAt` in `fileAutoSave.ts`, proef `wekkers` in `check-ifc-document-save.ts`).
+      Eén geval blijft: een handle zonder schrijftoestemming in de browser. De ronde slaat dat document over vóór ze
+      begint (`canWrite`), dus het ritme blijft "aan de beurt" en de wekker gaat elke seconde af, zonder iets te doen.
+      Richting: na een overgeslagen kandidaat de rust opnieuw laten beginnen. — S
+
+1927. **VERVOLG (review #1033): Automatisch opslaan uitzetten stopt een rekenende ronde niet.** "Ik zette Automatisch
+      opslaan uit vóór de worker antwoordde. De ronde schreef alsnog het bestand en maakte het document schoon. De
+      schakelaar telt alleen bij kandidaatselectie. Laat de modelronde bij uitschakelen hetzelfde stopsignaal gebruiken
+      als bij handmatige voorrang en houd de afgesproken plaatsingsgrens aan." (`TitleBar.tsx`, `fileAutoSave.ts`.)
+      Besluit technisch beslisser: zeldzaam, en er gaat geen data verloren (de ronde schrijft wat er is). — B (proef van
+      de reviewer)
+
+1928. **Waarneming (review #1033, desktopapp, één keer): bij onafgebroken doorwerken schreef Automatisch opslaan pas
+      325,9 s na de eerste wijziging.** Een vastgelegde wijziging elke 25,3 s (de eerste op 16,3 s na de start, de
+      twaalfde op 294,3 s, de dertiende op 319,6 s); het bestand werd op 342,2 s geschreven. Twee andere runs (een
+      wijziging elke 23 s, en elke 10 s) schreven op 301 s na de eerste wijziging. In de afwijkende run opende het
+      invoerscript de cel ongeveer een seconde vóór elke vastlegging. Vermoeden, niet nagegaan: de ronde begon op de
+      grens van 5 minuten (316,3 s) en eindigde ongeveer 2,6 s later zonder te schrijven (bijvoorbeeld omdat de inhoud
+      tijdens de ronde veranderde); de ondergrens van tien keer de rondeduur zette de volgende dan op 316,3 + 26 = 342,3 s.
+      Dat klopt met de gemeten 342,2 s. Waarom die ronde niet schreef, is niet gevonden. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
