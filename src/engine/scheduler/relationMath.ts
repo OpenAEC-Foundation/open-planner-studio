@@ -196,8 +196,7 @@ export function forwardConstraint(
  * ES-kandidaat van elke relatie een ondergrens is) — `CPMSolver.forwardPass` neemt 'm mee als extra
  * `max()`-term NAAST de gewone `ES + duur`-berekening, ZONDER de ES-berekening zelf aan te raken.
  *
- * WAAROM ALLEEN `START_FINISH` (`null` voor alle andere typen, nadrukkelijk óók niet voor
- * `FINISH_FINISH`). De vloer verschuift `earlyFinish` uitsluitend over een
+ * WAAROM IN HET ALGEMEEN ALLEEN `START_FINISH`: de vloer verschuift `earlyFinish` uitsluitend over een
  * NUL-WERK-gat (het hele punt van de vloer is dat `ES + duur` daar precies op vastloopt) — binnen
  * dat gat verandert geen enkele werkminuut, dus elke WERKMINUUT-gebaseerde grootheid (float, tf/ff,
  * kritiek-pad) is INVARIANT onder de vloer, zelf als de vloer vuurt. Het verschil tussen SF en FF
@@ -208,7 +207,9 @@ export function forwardConstraint(
  * FF ankert op `predResult.ef`, een bandEIND (het `(start,end]`-finish-anker) — daar ROND-TRIPT
  * `startFromFinish`/`addDuration` WEL exact (het finish-anker is zelf al het punt waar de
  * duur-optelling normaliter uitkomt), dus een FF-vloer zou daar sowieso nooit vuren: geen
- * gedragswijziging, geen risico, maar ook geen enkele reden om 'm er toch bij te bouwen. De
+ * gedragswijziging bij een normale voorganger. Een voltooide voorganger met een werkelijk einde
+ * buiten werktijd is hierop een uitzondering: knownbug 231 bewaart voor FF +0 kalendertijd
+ * de onbewerkte relatiegrens voor een gewone urentaak als aparte vloer. De
  * UITZONDERING die dit bewust doorbreekt is EXPLICIET geklemd, niet stilzwijgend: `CPMSolver.
  * forwardPass` slaat de vloer over zodra de taak een HARDE finish-pin heeft (MFO/MSO hard,
  * `hardPinFinish`) — dát pad belooft een EIGEN, hardere invariant (EF=LF=pin, tf=0) die vóór de
@@ -239,6 +240,15 @@ export function forwardFinishFloor(
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
 ): Date | null {
+  // FF +0 kalendertijd bij een voltooide voorganger kan buiten werktijd ankeren.
+  // Terugtellen en vooruitrekenen over de opvolgerkalender verliest dan het gat, waardoor
+  // EF vóór de relatiegrens uitkomt. Bewaar het effectieve voorgangervenster (incl. P6-C1),
+  // niet blind de actualFinish. Overige lag- en dag/mijlpaalgevallen blijven ongewijzigd.
+  if (seq.type === 'FINISH_FINISH' && seq.lagUnit === 'ELAPSEDTIME'
+      && deps.resolveElapsedMinutes(seq, predTask) === 0
+      && predTask.time.actualFinish && predTask.time.completion >= 1
+      && !isZeroDurationMilestone(successor) && !isElapsedTask(successor)
+      && !isDayTaskOnBands(deps, successor)) return predResult.ef;
   if (seq.type !== 'START_FINISH') return null;
   const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
   return sfReqFinishHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
