@@ -408,6 +408,11 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
   }
   eq('knownbug 276: alle profiel-/kalender-/netwerkcombinaties doorgerekend', observed.length, 24);
   console.log('KNOWNBUG276_SUMMARY', JSON.stringify(observed));
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const outcomes = observed.map(([label, es, ls, float]) =>
+      `${label}=${es}/${ls}/${float}`).join('; ');
+    console.log(`::notice title=Knownbug 276 (ES/LS/TF)::${outcomes}`);
+  }
 }
 
 // B6 blijft gelden voor een losse mijlpaal met een andere constraint (SNET): einde van de werkdag.
