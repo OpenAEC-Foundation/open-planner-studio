@@ -1,4 +1,4 @@
-// Knownbug 5: meet float rond een FS-lead die tegen de projectstart wordt afgeknipt.
+// Knownbug 5: een afgekapte FS-lead geeft geen vrije taakspeling voorbij het projecteinde.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -21,7 +21,7 @@ function task(id: string, days: number, hours: boolean): Task {
 }
 
 let clippedCount = 0;
-let inversions = 0;
+const failures: string[] = [];
 let cases = 0;
 for (const [label, calendar, hours] of [['dagen', base, false], ['banddagen', withBands, false], ['uren', withBands, true]] as const) {
   for (const profile of ['ops', 'p6', 'msproject'] as const) {
@@ -35,16 +35,24 @@ for (const [label, calendar, hours] of [['dagen', base, false], ['banddagen', wi
       const a = res.tasks.get('a'), b = res.tasks.get('b');
       if (res.error || !a || !b) throw new Error(`knownbug 5: geen resultaat ${res.error ?? ''}`);
       const clipped = res.truncatedLeadSequenceIds.includes(link.id);
-      const inversion = a.freeFloat > a.totalFloat;
       if (clipped) clippedCount++;
-      if (clipped && inversion) inversions++;
-      if (lag === 0 && clipped) throw new Error('Nul-lag is onverwacht afgeknipt');
+      const expectClipped = lag < 0 && ad < -lag;
+      const expectRelationFloat = expectClipped ? -lag - ad : 0;
+      const expectTaskFloat = expectClipped ? Math.min(expectRelationFloat, Math.max(0, bd - ad)) : 0;
+      const expectStart = lag === 0 ? '2026-06-04T08:00' : '2026-06-01T08:00';
+      if (clipped !== expectClipped || b.earlyStart !== expectStart
+        || res.sequenceFreeFloat[link.id] !== expectRelationFloat
+        || res.drivingSequenceIds.includes(link.id) !== !expectClipped
+        || a.totalFloat !== expectTaskFloat || a.totalFloatMinutes !== expectTaskFloat * 480
+        || a.freeFloat !== expectTaskFloat || a.freeFloatMinutes !== expectTaskFloat * 480) {
+        failures.push(JSON.stringify({ label, profile, ad, bd, lag, clipped, expectTaskFloat, expectRelationFloat,
+          a: { total: a.totalFloat, free: a.freeFloat, tm: a.totalFloatMinutes, fm: a.freeFloatMinutes },
+          bStart: b.earlyStart, relationFloat: res.sequenceFreeFloat[link.id], driving: res.drivingSequenceIds }));
+      }
       cases++;
-      console.log('KNOWNBUG5', JSON.stringify({ label, profile, ad, bd, lag, clipped,
-        a: { total: a.totalFloat, free: a.freeFloat, tm: a.totalFloatMinutes, fm: a.freeFloatMinutes },
-        bStart: b.earlyStart, relationFloat: res.sequenceFreeFloat[link.id] }));
     }
   }
 }
 if (clippedCount === 0) throw new Error('De diagnose heeft geen afgekapte lead bereikt');
-console.log('KNOWNBUG5_SUMMARY', JSON.stringify({ cases, clippedCount, inversions }));
+if (failures.length) throw new Error(`KNOWNBUG5 ${failures.length}/${cases} mislukt:\n${failures.join('\n')}`);
+console.log('KNOWNBUG5_SUMMARY', JSON.stringify({ cases, clippedCount, failures: failures.length }));
