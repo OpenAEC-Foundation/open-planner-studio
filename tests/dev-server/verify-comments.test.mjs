@@ -175,6 +175,7 @@ test('strip laat elk blok staan dat een licentie of copyright noemt', () => {
   for (const notice of [
     '// Afgeleid van de MPXJ-broncode (github.com/joniles/mpxj, LGPL-2.1).\n',
     '/**\n * Afgeleid van MPXJ, © Jon Iles e.a.\n */\n',
+    '// Leest het containerformaat.\n// Tweede regel.\n// Afgeleid van MPXJ (LGPL-2.1).\n',
   ]) {
     const result = stripComments(`${notice}const a = 1;\n`, 'src/x.ts');
     assert.deepEqual(result.manual, [1]);

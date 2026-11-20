@@ -144,12 +144,13 @@ function scanBlocks(text, path) {
     const jsx = /\.(?:tsx|jsx)$/.test(path) && open >= 0 && close !== null;
     blocks.push({
       line, endLine, alone, pos: range.pos, end: range.end, text: raw,
-      keep: tagged.has(range.pos) || NAMES_LICENCE.test(raw),
+      keep: tagged.has(range.pos),
       kind: jsx ? 'jsx' : raw.startsWith('/**') ? 'jsdoc' : raw.startsWith('//') ? 'line' : 'block',
       ...(jsx ? { wrapper: [open, range.end + close[0].length] } : {}),
     });
   }
   for (const block of blocks) {
+    block.keep ||= NAMES_LICENCE.test(block.text);
     if (block.wrapper) block.wrapperAlone = blankAround(block.wrapper[0], block.wrapper[1]);
   }
   return { lineStarts, lineOf, lineEnd, blocks };
