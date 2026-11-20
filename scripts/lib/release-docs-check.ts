@@ -11,8 +11,9 @@ export function hasReleaseEndClaim(line: string): boolean {
     const end = /14:00|\bdeadline\b/i;
     if (!release.test(sentence) || !end.test(sentence)) return false;
     // Alleen expliciete ontkenningen van een release-deadline, niet elke zin met "niet".
-    if (/\brelease(?:\s+zelf)?\s+(?:heeft|kent)\s+geen\s+(?:vaste\s+)?deadline\b/i.test(sentence)
-      || /\brelease\s+has\s+no\s+(?:fixed\s+)?deadline\b/i.test(sentence)) return false;
-    return true;
+    const remaining = sentence
+      .replace(/\brelease(?:\s+zelf)?\s+(?:heeft|kent)\s+geen\s+(?:vaste\s+)?deadline\b/gi, '')
+      .replace(/\brelease\s+has\s+no\s+(?:fixed\s+)?deadline\b/gi, '');
+    return release.test(remaining) && end.test(remaining);
   });
 }
