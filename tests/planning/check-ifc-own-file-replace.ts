@@ -24,7 +24,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  previousVersionPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
+  previousVersionPath, replaceCopyPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
 import {
   parseReplaceRecord, pendingReplaceFor, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces,
@@ -84,6 +84,10 @@ const hash = (data: Uint8Array) => createHash('sha256').update(data).digest('hex
 const otherProgram = new Uint8Array(bytes); otherProgram[Buffer.from(otherProgram).indexOf("FILE_NAME('") + 11] ^= 1;
 const otherNew = new Uint8Array([...otherProgram, 10]);
 const NOW = new Date(2026, 10, 17, 14, 32);
+/** Een geldige naam van 240 bytes, zoals de lengteproef in `check-user-file-write.ts` (R1). */
+const LONG_NAME = `${'a'.repeat(236)}.ifc`;
+/** De hulpnaam van de vorige versie in stap 3 (fixronde 3 van #1071): kort en los van de doelnaam. */
+const previousName = (id: string) => `save-${id}.ops-vorige-${id}`;
 const OTHER_COPY = 'model (versie van ander programma 2026-11-17 14.32).ifc';
 const UNSAVED_COPY = 'model (niet opgeslagen planning 2026-11-17 14.32).ifc';
 
@@ -96,15 +100,15 @@ async function check(name: string, action: () => Promise<void>) {
 const ipc = installNodeFileIpc({ appDataDir: appData });
 
 /** Een geopend bestand met een gebouwmodel op een eigen pad, één bewerking, en de herstelronde van `useAutoSave`. */
-async function opened(content: Uint8Array = bytes, ifcSaveCompute?: IfcOutputCompute) {
+async function opened(content: Uint8Array = bytes, ifcSaveCompute?: IfcOutputCompute, name = 'model.ifc') {
   const dir = join(work, `geval-${++cases}`);
   mkdirSync(dir);
-  const path = join(dir, 'model.ifc');
+  const path = join(dir, name);
   writeFileSync(path, content);
   const { createAppStoreContext } = await loadStore();
   const context = createAppStoreContext(ifcSaveCompute ? { ifcSaveCompute } : {}), { store } = context;
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  await store.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: content, ref: { kind: 'path', path } });
+  await store.getState().openOpenedFile({ name, content: '', bytes: content, ref: { kind: 'path', path } });
   assert(store.getState().ifcSource?.foreign, 'geopend met een vreemd deel');
   assert.equal(store.getState().filePath, path);
   const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
@@ -195,7 +199,7 @@ const noticeKeys = (result: OwnPathReplaceResult, path: string) => ownPathReplac
 const tempOf = (c: Case, id: string) => userFileTempPath(c.path, id);
 const helperId = (c: Case) => {
   const name = files(c).find(n => /^save-[0-9a-z]+\.ops-save\.tmp$/.test(n)) ?? files(c).find(n => n.includes('.ops-vorige-'))!;
-  return name.startsWith('save-') ? name.slice(5, -'.ops-save.tmp'.length) : name.slice(name.indexOf('.ops-vorige-') + 12);
+  return name.endsWith('.ops-save.tmp') ? name.slice(5, -'.ops-save.tmp'.length) : name.slice(name.lastIndexOf('.ops-vorige-') + 12);
 };
 /** Een volgende ronde zoals bij de start: de records van schijf afhandelen, met de meldingen. */
 const nextRound = async (fs?: ReplaceRemnantsFs) => remnantNotices(await settlePendingReplaces({ now: NOW, ...(fs ? { fs } : {}) }));
@@ -453,7 +457,7 @@ await check('stap 4 target-exists: alle drie blijven staan, en het record ook, o
     assert.equal(result.code, 'target-taken'); assert.equal(committed, false);
     const id = helperId(c);
     assert.deepEqual(disk(c), {
-      'model.ifc': hash(otherNew), [`model.ifc.ops-vorige-${id}`]: hash(bytes), [`save-${id}.ops-save.tmp`]: c.prepared.sha256,
+      'model.ifc': hash(otherNew), [previousName(id)]: hash(bytes), [`save-${id}.ops-save.tmp`]: c.prepared.sha256,
     }, 'de versie van de ander, de vorige versie en de eigen uitvoer staan er alle drie');
     assert.equal(oneRecord(c).id, id, 'het record noemt de twee hulpbestanden nog');
     const [notice] = ownPathReplaceNotices(result, c.path);
@@ -463,7 +467,7 @@ await check('stap 4 target-exists: alle drie blijven staan, en het record ook, o
     // planning wordt een kopie onder een leesbare naam.
     const notices = await nextRound();
     assert.deepEqual(disk(c), {
-      'model.ifc': hash(otherNew), [`model.ifc.ops-vorige-${id}`]: hash(bytes), [UNSAVED_COPY]: c.prepared.sha256,
+      'model.ifc': hash(otherNew), [previousName(id)]: hash(bytes), [UNSAVED_COPY]: c.prepared.sha256,
     });
     assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
       ['notifications.ifcForeignReplaceLeftOver', { file: c.path, path: previousVersionPath(c.path, id) }],
@@ -480,7 +484,7 @@ await check('stap 4 source-changed: onbekende stand, niets teruggezet of opgerui
     const { result } = await replace(c);
     assert.deepEqual(result, { code: 'unknown' });
     const id = helperId(c);
-    assert.deepEqual(disk(c), { [`model.ifc.ops-vorige-${id}`]: hash(bytes), [`save-${id}.ops-save.tmp`]: c.prepared.sha256 });
+    assert.deepEqual(disk(c), { [previousName(id)]: hash(bytes), [`save-${id}.ops-save.tmp`]: c.prepared.sha256 });
     assert.equal(oneRecord(c).id, id);
   } finally { await tidy(c); }
 });
@@ -507,7 +511,7 @@ await check('stap 4 faalt en terugzetten ook: het record blijft, en de volgende 
     const { result } = await replace(c);
     assert.equal(result.code, 'previous-stranded');
     const id = helperId(c);
-    assert.deepEqual(disk(c), { [`model.ifc.ops-vorige-${id}`]: hash(bytes) });
+    assert.deepEqual(disk(c), { [previousName(id)]: hash(bytes) });
     const [notice] = ownPathReplaceNotices(result, c.path);
     assert.equal(notice.messageKey, 'notifications.ifcForeignReplacePreviousStranded');
     assert.deepEqual(notice.params, { previous: previousVersionPath(c.path, id) });
@@ -682,15 +686,15 @@ await check('crash na stap 3 (doel weg): de vorige versie gaat terug, de nieuwe 
     let calls = 0;
     const record = await crashAt(c, (base, crash) => ({ place: async (f, t) => (++calls === 2 ? crash() : base.place(f, t)) }));
     const id = record.id;
-    assert.deepEqual(disk(c), { [`model.ifc.ops-vorige-${id}`]: hash(bytes), [`save-${id}.ops-save.tmp`]: c.prepared.sha256 });
+    assert.deepEqual(disk(c), { [previousName(id)]: hash(bytes), [`save-${id}.ops-save.tmp`]: c.prepared.sha256 });
     // Restbestanden van een andere vervanging (een ander id): herstel raakt ze niet aan.
     writeFileSync(join(c.dir, 'save-anderid1.ops-save.tmp'), otherNew);
-    writeFileSync(join(c.dir, 'model.ifc.ops-vorige-anderid1'), otherProgram);
+    writeFileSync(join(c.dir, 'save-anderid1.ops-vorige-anderid1'), otherProgram);
     const { notices, restored } = await recover(c);
     fullVersionOnTarget(c, restored, sourceNow(c));
     assert.deepEqual(disk(c), {
       'model.ifc': hash(bytes), [UNSAVED_COPY]: c.prepared.sha256,
-      'model.ifc.ops-vorige-anderid1': hash(otherProgram), 'save-anderid1.ops-save.tmp': hash(otherNew),
+      'save-anderid1.ops-vorige-anderid1': hash(otherProgram), 'save-anderid1.ops-save.tmp': hash(otherNew),
     });
     assert.deepEqual(notices.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
     assert.deepEqual(recordsOnDisk(), []);
@@ -720,7 +724,7 @@ await check('crash na stap 4: de vorige versie blijft staan met een melding (de 
     const record = await crashAt(c, (base, crash) => ({ content: async (p, e) => (++calls === 2 ? crash() : base.content(p, e)) }));
     const { notices, restored } = await recover(c);
     fullVersionOnTarget(c, restored, c.prepared.sha256);
-    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [previousName(record.id)]: hash(bytes) });
     assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
       ['notifications.ifcForeignReplaceLeftOver', { file: c.path, path: previousVersionPath(c.path, record.id) }],
     ]);
@@ -738,10 +742,10 @@ await check('stap 4 target-exists terwijl een ander de nieuwe bytes op het doel 
     assert.equal(committed, false);
     const record = oneRecord(c);
     assert.deepEqual(disk(c), {
-      'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes), [`save-${record.id}.ops-save.tmp`]: c.prepared.sha256,
+      'model.ifc': c.prepared.sha256, [previousName(record.id)]: hash(bytes), [`save-${record.id}.ops-save.tmp`]: c.prepared.sha256,
     });
     const notices = await nextRound();
-    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) },
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [previousName(record.id)]: hash(bytes) },
       'alleen het exacte dubbel van de nieuwe uitvoer ging weg');
     assert.deepEqual(notices.map(n => n.params), [{ file: c.path, path: previousVersionPath(c.path, record.id) }]);
     assert.deepEqual(recordsOnDisk(), [record]);
@@ -759,10 +763,10 @@ await check('stap 4 io ná een geslaagde hernoeming (1795), terugzetten faalt: d
     assert.equal(result.code, 'previous-stranded');
     assert.equal(committed, false);
     const record = oneRecord(c);
-    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [previousName(record.id)]: hash(bytes) });
     ipc.faults.place = null;
     const notices = await nextRound();
-    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(bytes) });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [previousName(record.id)]: hash(bytes) });
     assert.deepEqual(notices.map(n => n.params), [{ file: c.path, path: previousVersionPath(c.path, record.id) }]);
     assert.deepEqual(recordsOnDisk(), [record]);
   } finally { await tidy(c); }
@@ -797,7 +801,7 @@ await check('crash na stap 4 met een gewijzigde vorige versie: die blijft onder 
     } }));
     const { notices, restored } = await recover(c);
     fullVersionOnTarget(c, restored, c.prepared.sha256);
-    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [`model.ifc.ops-vorige-${record.id}`]: hash(otherProgram) });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [previousName(record.id)]: hash(otherProgram) });
     assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
       ['notifications.ifcForeignReplaceLeftOver', { file: c.path, path: previousVersionPath(c.path, record.id) }],
     ]);
@@ -2012,30 +2016,115 @@ await check('fixronde 2 (al op main): Opslaan als over een symbolische link naar
 });
 // Een gewone planning heeft geen bron in het herstelmanifest; haar vervanging (`documentId: null`) legt alleen het
 // herstelrecord vast. Een crash na het opzijzetten: de volgende start zet de vorige versie terug op het doel en bewaart de
-// nieuwe planning als "niet opgeslagen planning".
-await check('fixronde 2: gewone planning over een bestaand bestand, crash na het opzijzetten: de vorige versie terug, de nieuwe planning als kopie', async () => {
+// nieuwe planning als "niet opgeslagen planning". Fixronde 3: de vorige versie staat opzij onder de korte hulpnaam
+// `save-<id>.ops-vorige-<id>`, ook naast een doel met een naam van 240 bytes; de kopie houdt de naam onder 255 bytes.
+for (const name of ['ander.ifc', LONG_NAME]) {
+  await check(`fixronde 2 en 3: gewone planning over een bestaand bestand (${Buffer.byteLength(name)} bytes), crash na het opzijzetten: de vorige versie terug, de nieuwe planning als kopie`, async () => {
+    const dir = join(work, `geval-${++cases}`);
+    mkdirSync(dir);
+    const target = join(dir, name), output = new Uint8Array([...plain, 10, 10]);
+    writeFileSync(target, otherWithModel);
+    const base = await tauriOwnFileReplaceFs();
+    let places = 0, committed = false;
+    const fs: OwnFileReplaceFs = { ...base, place: async (from, to) => (++places === 2 ? Promise.reject(new Crash('crash')) : base.place(from, to)) };
+    await runProjectFileWrite(() => replaceOwnPathWithRecovery({
+      documentId: null, path: target, prepared: { bytes: output, sha256: hash(output) },
+      source: { bytes: otherWithModel, sha256: hash(otherWithModel) },
+      commit: () => { committed = true; }, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, now: NOW, fs,
+    }), () => { throw new Error('de schrijfpoort is dicht'); }).catch(error => { if (!(error instanceof Crash)) throw error; });
+    // Alleen de records van dit doel: een record dat een eerder geval achterliet, telt hier niet mee.
+    const mine = () => recordsOnDisk().filter(record => record.path === target);
+    assert.deepEqual([committed, existsSync(target), mine().map(r => [r.vorigeSha256, r.pendingSha256])],
+      [false, false, [[hash(otherWithModel), hash(output)]]], 'het doel staat opzij, het record ligt vast');
+    const id = mine()[0].id;
+    assert.deepEqual(readdirSync(dir).sort(), [`save-${id}.ops-save.tmp`, previousName(id)].sort(), 'de twee korte hulpnamen');
+    const notices = await nextRound();
+    const after = Object.fromEntries(readdirSync(dir).sort().map(n => [n, hash(readFileSync(join(dir, n)))]));
+    const copy = basename(replaceCopyPath(target, 'niet opgeslagen planning 2026-11-17 14.32'));
+    assert(Buffer.byteLength(copy) <= 255, `de naam van de kopie past (${Buffer.byteLength(copy)} bytes)`);
+    assert(copy.endsWith(' (niet opgeslagen planning 2026-11-17 14.32).ifc'), copy);
+    assert.deepEqual(after, { [name]: hash(otherWithModel), [copy]: hash(output) }, JSON.stringify(after));
+    assert.deepEqual(notices.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
+    assert.deepEqual(mine(), [], 'het record is weg');
+  });
+}
+
+// Fixronde 3 van #1071 (review Sol ronde 3, bevinding 1): de hulpnaam van de vorige versie hangt niet af van de lengte
+// van de doelnaam. Een naam van 240 bytes (zoals `check-user-file-write.ts`, R1) is geldig; `<naam>.ops-vorige-<id>`
+// erachter was dat niet meer (ENAMETOOLONG in stap 3).
+await check('fixronde 3: gewone planning, flag aan, Opslaan als over een bestaand bestand met een naam van 240 bytes: vervangen', async () => {
+  const p = await plainWithTarget(true, plain);
+  const target = join(p.dir, LONG_NAME);
+  writeFileSync(target, plain);
+  const from = ipc.calls.length;
+  await saveAsTo(p.store, target);
+  const s = p.store.getState();
+  assert.deepEqual(plainErrorKeys(p.store), [], 'geen melding');
+  assert.deepEqual([s.filePath, s.isDirty], [target, false], 'het document volgt en is schoon');
+  assert(s.recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target), 'in Recent');
+  assert(readFileSync(target, 'latin1').includes('Gewone planning over een modelbestand'), 'de planning staat op het doel');
+  safeReplace(p.dir, target, from);
+  assert.deepEqual(await nextRound(), [], 'de volgende herstelronde heeft niets te melden');
+});
+await check('fixronde 3: modeldocument, Opslaan als over een modelbestand met een naam van 240 bytes: vervangen', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c, otherWithModel, LONG_NAME);
+    await saveAsTo(c.store, target.path);
+    const s = c.store.getState();
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.deepEqual([s.filePath, s.isDirty, s.foreignSourceMark?.filePath], [target.path, false, target.path], 'het document volgt en is schoon');
+    assert(s.recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target.path), 'in Recent');
+    assert.equal(fileHash(c, LONG_NAME), c.prepared.sha256, 'de merge staat op het doel');
+    assert.deepEqual(files(c), [LONG_NAME, 'model.ifc'], 'geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord');
+    assert.deepEqual(await nextRound(), [], 'de volgende herstelronde heeft niets te melden');
+  } finally { await tidy(c); }
+});
+await check('fixronde 3: Ctrl+S van een modeldocument waarvan het eigen bestand een naam van 240 bytes heeft: vervangen', async () => {
+  const c = await opened(bytes, undefined, LONG_NAME);
+  try {
+    await c.store.getState().saveFile();
+    const s = c.store.getState();
+    assert.deepEqual(errorKeys(c), [], 'geen melding');
+    assert.deepEqual([s.filePath, s.isDirty], [c.path, false], 'schoon');
+    assert.deepEqual(disk(c), { [LONG_NAME]: c.prepared.sha256 }, 'de merge op het eigen bestand, geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord');
+    assert.deepEqual(await nextRound(), [], 'de volgende herstelronde heeft niets te melden');
+  } finally { await tidy(c); }
+});
+// Stap 3 faalt zeker zonder dat er een hulpbestand ontstaat: dan blijft er geen record achter dat een volgende ronde als
+// achtergebleven hulpbestand meldt (in de proef van de reviewer: `left-over` voor een bestand dat nooit bestond).
+await check('fixronde 3: stap 3 mislukt zonder hulpbestand naast een doel van 240 bytes: geen record, de volgende ronde meldt niets', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c, otherWithModel, LONG_NAME);
+    placeCalls({ 1: () => reject('io', { message: 'gedeeld met een ander programma' }) });
+    await saveAsTo(c.store, target.path);
+    ipc.faults.place = null;
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignReplaceFailed']);
+    assert.equal(fileHash(c, LONG_NAME), hash(otherWithModel), 'het doel bytegelijk');
+    assert.deepEqual(files(c), [LONG_NAME, 'model.ifc'], 'geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord');
+    assert.deepEqual(await nextRound(), [], 'geen melding van een achtergebleven hulpbestand');
+  } finally { await tidy(c); }
+});
+// Een record dat een oudere versie schreef (record versie 1): de vorige versie heet daar `<naam>.ops-vorige-<id>`. Een
+// onderbreking tussen stap 3 en 4: het herstel zet die terug op het doel en bewaart de nieuwe planning als kopie.
+await check('fixronde 3: een record van een oudere versie (`<naam>.ops-vorige-<id>`), onderbroken tussen stap 3 en 4: hersteld', async () => {
   const dir = join(work, `geval-${++cases}`);
   mkdirSync(dir);
-  const target = join(dir, 'ander.ifc'), output = new Uint8Array([...plain, 10, 10]);
-  writeFileSync(target, otherWithModel);
-  const base = await tauriOwnFileReplaceFs();
-  let places = 0, committed = false;
-  const fs: OwnFileReplaceFs = { ...base, place: async (from, to) => (++places === 2 ? Promise.reject(new Crash('crash')) : base.place(from, to)) };
-  await runProjectFileWrite(() => replaceOwnPathWithRecovery({
-    documentId: null, path: target, prepared: { bytes: output, sha256: hash(output) },
-    source: { bytes: otherWithModel, sha256: hash(otherWithModel) },
-    commit: () => { committed = true; }, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, now: NOW, fs,
-  }), () => { throw new Error('de schrijfpoort is dicht'); }).catch(error => { if (!(error instanceof Crash)) throw error; });
-  // Alleen de records van dit doel: een record dat een eerder geval achterliet, telt hier niet mee.
-  const mine = () => recordsOnDisk().filter(record => record.path === target);
-  assert.deepEqual([committed, existsSync(target), mine().map(r => [r.vorigeSha256, r.pendingSha256])],
-    [false, false, [[hash(otherWithModel), hash(output)]]], 'het doel staat opzij, het record ligt vast');
+  const id = 'oudevorm1', target = join(dir, 'ander.ifc'), output = new Uint8Array([...plain, 10, 10, 10]);
+  writeFileSync(`${target}.ops-vorige-${id}`, otherWithModel);
+  writeFileSync(userFileTempPath(target, id), output);
+  writeFileSync(join(appData, replaceRecordName(id)), JSON.stringify({
+    kind: 'ops-replace', version: 1, id, path: target, vorigeSha256: hash(otherWithModel), pendingSha256: hash(output),
+  }));
   const notices = await nextRound();
-  const after = Object.fromEntries(readdirSync(dir).sort().map(name => [name, hash(readFileSync(join(dir, name)))]));
-  assert.deepEqual(after, { 'ander.ifc': hash(otherWithModel), 'ander (niet opgeslagen planning 2026-11-17 14.32).ifc': hash(output) },
-    JSON.stringify(after));
+  const after = Object.fromEntries(readdirSync(dir).sort().map(n => [n, hash(readFileSync(join(dir, n)))]));
+  assert.deepEqual(after, { 'ander.ifc': hash(otherWithModel), 'ander (niet opgeslagen planning 2026-11-17 14.32).ifc': hash(output) }, JSON.stringify(after));
   assert.deepEqual(notices.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
-  assert.deepEqual(mine(), [], 'het record is weg');
+  assert.deepEqual(recordsOnDisk().filter(r => r.id === id), [], 'het record is weg');
 });
 
 // Bevinding 3 van ronde 2: met de flag uit precies main, ook als er nog een modeltabblad open staat.
@@ -2281,7 +2370,7 @@ for (const [label, where, expected] of [
   ['na stap 4', (base: OwnFileReplaceFs, crash: () => Promise<never>) => {
     let calls = 0;
     return { content: async (p: string, e: Uint8Array) => (++calls === 2 ? crash() : base.content(p, e)) };
-  }, (c: Case, id: string) => ({ 'ander.ifc': c.prepared.sha256, [`ander.ifc.ops-vorige-${id}`]: hash(plain) })],
+  }, (c: Case, id: string) => ({ 'ander.ifc': c.prepared.sha256, [previousName(id)]: hash(plain) })],
 ] as const) {
   await check(`Opslaan als, crash ${label}: na afhandelen een volledig bestand, de oude inhoud terug te vinden`, async () => {
     const c = await opened();
@@ -2297,7 +2386,7 @@ for (const [label, where, expected] of [
       } else assert(Object.values(after).includes(hash(plain)), 'de oude inhoud is terug te vinden');
       // Het herstelde document: het eigen bestand met zijn bron (Opslaan als had het nog niet vastgelegd).
       assert.deepEqual([restored.filePath, restored.ifcSource?.sha256], [c.path, hash(bytes)]);
-      const kept = after[`ander.ifc.ops-vorige-${record.id}`] !== undefined;
+      const kept = after[previousName(record.id)] !== undefined;
       assert.deepEqual(recordsOnDisk().length, kept ? 1 : 0, kept ? 'het record blijft zolang de vorige versie er staat' : 'het record is weg');
       assert.deepEqual(notices.map(n => n.messageKey), kept ? ['notifications.ifcForeignReplaceLeftOver']
         : after[SAVE_AS_UNSAVED_COPY] ? ['notifications.ifcForeignReplaceUnsavedCopy'] : []);
