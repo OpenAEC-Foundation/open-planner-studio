@@ -46,8 +46,11 @@ commentaar een herhaling.
 Verouderd toets je mechanisch: elke naam tussen backticks en elk genoemd bestand zoek je op (`grep -rw`,
 `git ls-files`). Een knownbug-nummer zoek je op in `knownbugs.md`.
 
-Gedrag dat alleen in commentaar vastlag ("de som is exact", "nooit afgerond") hoort in een test. Staat die test er
-niet, dan is dat een punt voor `knownbugs.md` onder *Tests* (ontbrekende test), en het besluit zelf gaat in de ADR.
+Een ADR is voor een besluit dat moeilijk terug te draaien is, dat verrast zonder uitleg en waar een echte afweging
+achter zat. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") is geen ADR: houdt een test dat
+gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test op (`grep` op de functienaam in
+`tests/`). Is er geen test, dan meld je dat als ontbrekende test in `knownbugs.md` onder *Tests* en neem je de regel
+op onder *Gevolgen* van de ADR van dat onderwerp.
 
 Een bronvermelding van overgenomen werk met een licentie (MPXJ, LGPL-2.1) blijft als één regel staan; de poort
 telt die niet als commentaar.
