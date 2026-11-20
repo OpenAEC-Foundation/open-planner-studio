@@ -1,12 +1,20 @@
-# Een lezing van planner_get_calendars is letterlijk terug te schrijven
+# Een lezing van planner_get_calendars is terug te schrijven, op de IFC-bronklokken na
 
-`planner_get_calendars` geeft de volledige kalenderdefinitie, genoeg om een kalender in een ander document te
-herbouwen. `planner_update_calendar` neemt die leesvorm daarom letterlijk aan, ook `workTime`, `shift`, `generation`,
-`workingExceptions` en de pauzevelden; anders bouwt een uurkalender in het doeldocument stil op als dagkalender. Waar
-de namen verschillen, volgt de schrijfkant de leeskant en niet andersom: `generation` is het opgeslagen veld
-(`WorkCalendar.generation`, het reist mee door IFC), en de leeskant hernoemen zou over het model liegen.
+`planner_get_calendars` geeft de hele `WorkCalendar` plus drie afgeleide velden, bedoeld om een kalender in een ander
+document te herbouwen. `planner_update_calendar` neemt die leesvorm daarom aan, ook `workTime`, `shift`,
+`generation`, `workingExceptions` en de pauzevelden; anders bouwt een uurkalender in het doeldocument stil op als
+dagkalender. Waar de namen verschillen, volgt de schrijfkant de leeskant en niet andersom: `generation` is het
+opgeslagen veld (`WorkCalendar.generation`, het reist mee door IFC), en de leeskant hernoemen zou over het model
+liegen.
 
 ## Gevolgen
+
+- Overdraagbaar zijn `name`, `description`, `workDays`, `workStartHour`, `workEndHour`, `hoursPerDay`,
+  `simpleBreakStartMinute`, `simpleBreakDurationMinutes`, `workTime`, `shift`, `workingExceptions`, `holidays` en
+  `generation`. Mee mogen, maar zonder effect, de velden van de lijst hieronder. `ifcTimePeriods` (de klokken van een
+  geopende IFC met tijdzone of fijnere bronprecisie) staat op geen van beide lijsten: een lezing van zo'n kalender
+  wordt met `unknown field` geweigerd en maakt of wijzigt niets, los en in een batch (knownbug 1969). Een agent moet
+  dat veld weglaten. De tool zet `ifcTimePeriods` nooit en laat het veld op een bestaande kalender staan.
 
 - `generate` en `generation` bestaan naast elkaar en betekenen iets anders. `generate` is een actie: draai de
   generator over de spanne van dit project. `generation` schrijft alleen de herkomst van de dagen die meekomen. Samen

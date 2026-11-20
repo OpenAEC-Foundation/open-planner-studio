@@ -1,16 +1,16 @@
 # Acties in één aanroep worden getoetst tegen een meegroeiende simulatie
 
-`planner_manage_resources` en `planner_manage_assignments` voeren een lijst acties uit in één transactie. De store ziet
-het effect van een actie pas als de transactie loopt, maar de weigeringen worden vooraf bepaald (zie ADR 0100). De
-classificatie werkt daarom op een eigen kopie van de resources of toewijzingen die na elke goedgekeurde actie wordt
-bijgewerkt. Zo toetst elke actie tegen de stand ná de acties ervoor in dezelfde aanroep, en niet tegen de stand van
-vóór de aanroep.
+`planner_manage_resources` en `planner_manage_assignments` voeren een lijst acties in volgorde uit, in één
+transactie. De weigeringen worden vooraf bepaald (zie ADR 0100), maar de store ziet het effect van een actie pas als
+de transactie loopt. Toetsen tegen de store zou elke actie beoordelen op de stand van vóór de aanroep. De classificatie
+werkt daarom op een eigen kopie van de resources of toewijzingen die na elke goedgekeurde actie wordt bijgewerkt. Zo
+toetst elke actie tegen de stand na de acties ervoor in dezelfde aanroep.
 
 ## Gevolgen
 
-- Een resource die met `tempId` wordt aangemaakt, kan een volgende actie in dezelfde aanroep als `parentId` gebruiken.
-  Een aangemaakte resource zonder `tempId` krijgt in de simulatie een id waar niets naar kan verwijzen. Een resource
-  die in dezelfde aanroep wordt aangemaakt, kan daarin niet worden verwijderd. Na een verwijdering wordt een latere
+- Een resource die met `tempId` wordt aangemaakt, kan een volgende actie in dezelfde aanroep als `parentId` gebruiken;
+  in een latere stap van `planner_batch` dient dezelfde `tempId` als `resourceId` (via `created`). Een resource die in
+  dezelfde aanroep wordt aangemaakt, kan daarin niet worden verwijderd. Na een verwijdering wordt een latere
   verwijzing ernaar geweigerd.
 - Een tweede identieke `add` in dezelfde aanroep botst op de controle op dubbele toewijzing
   (`validate.assignmentAllowed`) en wordt zacht geweigerd; zonder simulatie zou die controle de eerste nog niet zien.

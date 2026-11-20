@@ -16,16 +16,21 @@ automatische WBS-nummering, `id` en de tijdstempels.
   patch maar als te verwijderen sleutel (`ClearableProjectKey`), zoals de store-actie `setStatusDate`: IFC en de
   standaarden van de solver kijken of de sleutel er is. Wissen loopt door dezelfde patch als zetten, zodat ook een
   gewiste standaardwerkregel de taken omzet die hem erven.
-- Een statusdatum verschuift de hele planning, ook zonder voortgang. Het antwoord legt dat uit in de data zelf
-  (`statusDateNote`, ook in een batchstap), want een agent leest de data vaak eerder dan de beschrijving. Raakt een
-  losse aanroep de statusdatum, dan meet de handler het projecteinde vóór en na (`statusDateEffect`), met
+- Of een statusdatum niet gestart werk verschuift, hangt af van het rekenprofiel. Met P6 en OPS is ze een ondergrens
+  voor werk met voltooiing 0, ook zonder voortgang; met MS Project, of een eigen profiel met die conventie aan, niet
+  (conventie A23 `unstartedIgnoresStatusDate`, `CPMSolver.ts`). Het antwoord geeft bij het zetten een uitleg in de data zelf
+  (`statusDateNote`, ook in een batchstap), want een agent leest de data vaak eerder dan de beschrijving; die tekst
+  beschrijft alleen de ondergrens en noemt het profiel niet. Wat er werkelijk gebeurde, meet de losse aanroep: raakt
+  hij de statusdatum, dan vergelijkt de handler het projecteinde vóór en na (`statusDateEffect` met `shifted`), met
   `staleBefore` omdat een verouderde berekening het getal van vóór onbetrouwbaar maakt.
 - Datums worden streng getoetst (`isProjectDateValue`): de datum moet bestaan en er mag niets achter staan; alleen de
   statusdatum mag een tijd dragen. Zo komt een onmogelijke datum zoals `2026-02-30` nooit in het project en het
   IFC-bestand.
 - `planner_move_project` en `planner_save_baseline` roepen de slice-actie (`moveProject`, `saveBaseline`) direct
   binnen de transactie aan, zonder eigen draftvariant: de logica van verschuiven en van de nulmeting staat op één plek.
-  Binnen de MCP-lease doet hun eigen `beginUndoable` niets, zodat het één undo-stap blijft.
+  Binnen de MCP-lease doet hun eigen `beginUndoable` niets, zodat het één undo-stap blijft. Bij
+  `planner_move_project` rekenen daardoor de slice-actie en de transactie allebei de planning door; die dubbele
+  herberekening is aanvaard om de verschuiflogica niet na te bouwen.
 - `planner_save_baseline` mag niet in `planner_batch`. Een baseline is een losse, bewuste nulmeting op een verse
   planning; binnen een batch zou een terugrol hem meewissen en is de volgorde onbepaald. Hij rekent eerst bij met
   `ensureFreshSchedule`.

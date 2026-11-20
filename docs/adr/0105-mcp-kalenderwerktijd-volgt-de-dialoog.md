@@ -14,11 +14,8 @@ waar het venster invoer niet toelaat, weigert de tool met een reden die de te wi
   1320 tot 1800); een band die niet oploopt, wordt geweigerd en niet als nachtdienst gelezen. De banden van een dag
   lopen op zonder overlap, en het deel van een nachtband na middernacht mag niet over de eerste band van de volgende
   dag lopen (zondag gaat over in maandag). `workingExceptions[].bands` heeft dezelfde vorm.
-- Die regels toetst de handler (`workTimeReason`, `bandListReason`), want de schemapoort toetst de binnenkant van de
-  kalenderitems niet. Het schema blijft daarom klein: `WORKTIME_SCHEMA` beschrijft de banden en hun grenzen één keer
-  in tekst, en één kaal dagschema (`WORKTIME_DAY_SCHEMA`) geldt via `additionalProperties` voor elke dagsleutel en
-  voor `workingExceptions[].bands`, in plaats van zeven gelijke `properties`. Van `generation` staat alleen de
-  buitenvorm in het schema; `generationReason` weigert een foute vorm met de geldige sleutels en waarden.
+- Die regels toetst de tool zelf (`workTimeReason`, `bandListReason`) vóór de mutatie, want de schemapoort toetst de
+  binnenkant van de kalenderitems niet, en een foute band die de mutatie bereikt, rolt de hele aanroep terug.
 - `workDays` volgt de banden, zoals in het venster (`CalendarForm.applyBands`). Met `workTime` erbij wordt `workDays`
   afgeleid; een opgegeven `workDays` die de banden tegenspreekt, wordt geweigerd. Anders ziet de solver een werkdag
   waarop geen band werktijd geeft.
@@ -37,13 +34,19 @@ waar het venster invoer niet toelaat, weigert de tool met een reden die de te wi
   een gelijke waarde verandert niets. De grens is een minuut omdat de dialoog twee decimalen toont. Een kalender
   zonder pauzevelden houdt `hoursPerDay` als opgave. Het pauzepatroon wordt alleen getoetst als het item de werkdag of
   de pauze raakt, zodat een naamswijziging op een kalender met oude, ongeldige gegevens mogelijk blijft.
-- Een wissel tussen dag- en uurkalender verandert alleen de plaatsing: `durationUnit`, `scheduleDuration` en
-  `durationMinutes` van de taken blijven staan. De rij meldt `modeChangedFrom` en het antwoord waarschuwt dat datums
-  kunnen schuiven. `workTime: null` faalt als er een urentaak op de kalender staat en de kalender daarna geen
-  effectieve werkblokken meer heeft.
+- Een wissel tussen dag- en uurkalender zet geen taakeenheid om: `durationUnit` blijft staan, en de rij meldt
+  `modeChangedFrom`. De duur blijft daarmee niet altijd gelijk. `draft.updateCalendar` legt elke kalenderwijziging
+  langs de werkregel (`captureCalendarChange` en `settleCalendarChange`, zoals de kalenderdialoog): verandert de
+  effectieve daglengte, dan krijgt een taak met Vast werk of Vaste inzet een andere duur, een taak met Vaste duur en
+  werk een andere inzet, en houdt een taak met de standaardregel haar duur. Het veld `taskDurationsPreserved: true`
+  in de rij en de waarschuwing over de moduswissel zeggen meer dan dat: ze zijn alleen waar voor de eenheid. Het
+  verwijderen van `workTime` zelf (met `null`) gebeurt in een eigen producer na `draft.updateCalendar` en loopt niet
+  langs de werkregel (`taaktypes.md`). `workTime: null` faalt als er een urentaak op de kalender staat en de kalender
+  daarna geen effectieve werkblokken meer heeft.
 - `draft.updateCalendar` voegt samen en kan geen sleutel verwijderen. Wat weg moet (`generation`, `workTime`, `shift`,
   een lege `workingExceptions`), verwijdert een eigen producer, die daarna `syncProjectCalendar` en
   `markDocumentEdited` aanroept: hij maakt een nieuw kalenderobject, en de projectkalender in de cache zou anders naar
   het oude object wijzen. Een gewist veld is een afwezige sleutel, geen sleutel met `undefined`.
-- Valt een taak na de wijziging buiten elk werkbaar venster, dan is dat een waarschuwing met `cappedTaskIds`, geen
-  fout: de kalenderwijziging blijft staan.
+- Valt een taak na de wijziging buiten elk werkbaar venster, dan is dat geen fout: de kalenderwijziging blijft staan.
+  De losse aanroep meldt het met `cappedTaskIds` en een waarschuwing, net als de waarschuwing over een moduswissel en
+  over geërfde feestdagen; een batchstap geeft die niet (ADR 0100).

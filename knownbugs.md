@@ -1331,6 +1331,16 @@ en noem het in je rapport of PR-tekst.
      bepaal de oorzaak per taak. Uit de blinde proef van fixronde 6 op #838 (BEVESTIGD met de echte dispatcher,
      VERVOLG). Sinds #797 toont `planner_get_task` de koppelingen (`externalLinks`), dus een agent kan de
      ankerdatum nu wel lezen. — B
+1969. **Een kalender uit een IFC met bewaarde bronklokken is via MCP niet over te zetten.** `planner_get_calendars`
+     geeft de hele kalender terug, dus ook `ifcTimePeriods` (`getCalendars` in `src/services/mcp/tools/readTools.ts`).
+     `planner_update_calendar` kent dat veld niet: het staat niet in `CAL_ITEM_KEYS` en niet in `CAL_READONLY_KEYS`
+     (`src/services/mcp/tools/calendarResourceTools.ts`, `calendarItemReason`), dus de hele rij wordt geweigerd met
+     `unknown field ifcTimePeriods` en er komt geen kalender bij. Dat raakt precies de route die de tool belooft:
+     een lezing letterlijk terugschrijven in een ander document (ADR 0104). `tests/mcp/cases-kalender-roundtrip.ts`
+     zet het veld op `ignored` maar stuurt het in de proef niet mee. Gezien in de review van #1083 (GPT-6.2-Sol) en
+     in de code nagelopen. Voorstel: het veld in `CAL_READONLY_KEYS` opnemen (meegestuurd, gemeld in
+     `ignoredFields`, niet geschreven, want de bronklokken horen bij het bronbestand), en de proef het veld laten
+     meesturen. — B
 
 ## Bestanden en herstel
 
