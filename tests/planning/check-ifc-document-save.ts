@@ -3758,6 +3758,91 @@ for (const flag of ['aan', 'uit'] as const) {
   });
 }
 
+// Fixronde 5 van de review van #1033: de toets bij de beurt wacht nergens op. Een gewone tik vraagt de schrijftoestemming
+// zoals main (de controller, vlak vóór de write; geen extra vraag bij de beurt), dus uitzetten tijdens een
+// toestemmingsvraag geeft dezelfde uitkomst als op main: de tik schreef al, daarna niets meer, en een andere versie op het
+// bestand blijft byte voor byte staan. Naar `probe-round5.ts` van de reviewer.
+for (const flag of ['uit', 'aan'] as const) {
+  await check(`stap 8, fixronde 5: een gewone tik vraagt de schrijftoestemming zoals main; uitzetten tijdens die vraag laat een andere versie staan (flag ${flag})`, async () => {
+    const events: string[] = [];
+    const compute: IfcOutputCompute = job => { events.push('voorbereiding'); return computeIfcOutputHere(job); };
+    const { store, name, handle } = await openHandle(plainBytes(), compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    store.getState().setAutoSaveToFile(true);
+    const timed = fakeSchedule(store, compute);
+    const permission = gate(), query = handle.queryPermission.bind(handle);
+    let queries = 0, held = false;
+    (handle as unknown as { queryPermission: () => Promise<string> }).queryPermission = async () => {
+      queries++;
+      events.push(`toestemming ${queries}`);
+      // De reviewer hield de tweede vraag vast als die vóór de voorbereiding kwam: dat is de extra vraag bij de beurt.
+      if (queries === 2 && !events.includes('voorbereiding')) { held = true; await permission.held; }
+      return query();
+    };
+    const count = () => writableLog.filter(entry => entry.startsWith(`close ${name} `)).length;
+    try {
+      const taskId = longer(store);
+      await timed.until(0);
+      await turnUntil(() => held || count() === 1, 'een toestemmingsvraag bij de beurt of een voltooide schrijfbeurt');
+      const before = count();
+      store.getState().setAutoSaveToFile(false);
+      const input = buildWriteIFCInput(store.getState(), 'merge');
+      const marker = 'Externe taaknaam tijdens de toestemmingsvraag';
+      const external = new TextEncoder().encode(writeIFC({ ...input, tasks: input.tasks.map(task =>
+        task.id === taskId ? { ...task, name: marker } : task) }));
+      handleFiles.set(name, external);
+      permission.release();
+      await turnUntil(() => !isProjectFileWriteBusy() && !timed.controller.isSaving(), 'de rij is leeg');
+      await timed.until(10_000);
+      await someTurns();
+      assert.equal(count() - before, 0, 'na het uitzetten niets meer');
+      assert.equal(hash(fileOf(name)), hash(external), 'de andere versie byte voor byte');
+      assert((await reopenOrdinary(fileOf(name), false)).tasks.some(task => task.name === marker));
+      assert.equal(before, 1, 'de tik schreef al vóór het uitzetten, zoals main');
+      const second = events.indexOf('toestemming 2');
+      assert(second === -1 || second > events.indexOf('voorbereiding'), `geen extra vraag vóór de voorbereiding: ${events.join(' → ')}`);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { permission.release(); timed.dispose(); await clearRecovery(); }
+  });
+}
+
+// Fixronde 5 (bevinding 2): is de schrijftoestemming bij de beurt ingetrokken, dan meldt de tik dat zoals main
+// (`autoSaveNotWritable`) en blijft het bestand byte voor byte staan; komt de toestemming terug en bewerkt de planner
+// opnieuw, dan plaatst de eerstvolgende tik precies één versie.
+for (const flag of ['uit', 'aan'] as const) {
+  await check(`stap 8, fixronde 5: ingetrokken schrijftoestemming bij de beurt geeft de melding van main; daarna één versie (flag ${flag})`, async () => {
+    const compute: IfcOutputCompute = job => computeIfcOutputHere(job);
+    const { store, name, handle } = await openHandle(plainBytes(), compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    store.getState().setAutoSaveToFile(true);
+    clearNotices(store);
+    const timed = fakeSchedule(store, compute);
+    const query = handle.queryPermission.bind(handle);
+    let queries = 0, denied = true;
+    (handle as unknown as { queryPermission: () => Promise<string> }).queryPermission = async () =>
+      ++queries >= 2 && denied ? 'prompt' : query();
+    const fileCalls = () => writableLog.filter(entry => entry.split(' ')[1] === name);
+    try {
+      const initial = hash(fileOf(name));
+      longer(store);
+      await timed.until(0);
+      await turnUntil(() => queries >= 2 && !isProjectFileWriteBusy() && !timed.controller.isSaving(), 'de tik met ingetrokken toestemming');
+      assert.equal(hash(fileOf(name)), initial, 'het bestand byte voor byte');
+      assert.deepEqual(fileCalls(), [], 'niets op het bestand');
+      assert.equal(store.getState().isDirty, true);
+      assert.deepEqual(autoErrors(store), ['notifications.autoSaveNotWritable'], 'de melding van main');
+      denied = false;
+      await timed.until(5_000);
+      const taskId = longer(store);
+      store.getState().updateTask(taskId, { name: 'Gewone tik na herstel van het schrijfrecht' });
+      await timed.until(10_000);
+      await turnUntil(() => !store.getState().isDirty && !isProjectFileWriteBusy(), 'de volgende tik schrijft');
+      assert((await reopenOrdinary(fileOf(name), false)).tasks.some(task => task.name === 'Gewone tik na herstel van het schrijfrecht'));
+      assert.deepEqual(fileCalls(), [`create ${name}`, `close ${name} 1`], 'precies één versie');
+    } finally { timed.dispose(); await clearRecovery(); }
+  });
+}
+
 // Fixronde 3 (bevinding 2 van de review): plaatst de modelronde al, dan gaat de verschuldigde gewone tik niet verloren: hij
 // wacht in de rij en schrijft zodra de plaatsing klaar is. Met de flag uit (geen modelronde) schrijft hij op 40 s, zoals main.
 for (const flag of ['aan', 'uit'] as const) {

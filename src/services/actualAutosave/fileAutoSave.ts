@@ -351,11 +351,12 @@ export function createFileAutoSaveController(deps: {
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
       if (!current) return false;
       // Fixronde 4 van de review van #1033: een tik die achter een modelronde wachtte, toetst bij zijn beurt of zijn document
-      // nog meedoet (dezelfde toets als bij de keuze), nog gewijzigd is en nog naar hetzelfde doel zonder vraag mag
-      // schrijven. Zette de planner Automatisch opslaan intussen uit, dan schrijft hij niets en meldt hij niets.
+      // nog meedoet (dezelfde toets als bij de keuze), nog gewijzigd is en nog hetzelfde doel heeft. Zette de planner
+      // Automatisch opslaan intussen uit, dan schrijft hij niets en meldt hij niets. Fixronde 5: synchroon, zonder wachten
+      // tussen deze toets en het voorbereiden; de schrijftoestemming vraagt de controller zoals vóór stap 8 (`canWrite`).
       const target = autoSaveRef(current);
       if (!deps.enabled() || !current.isDirty || !plainTakesPart(candidate.id, current)
-        || !target || !sameFileRef(target, candidate.ref!) || !await canWriteToRefWithoutPrompt(target)) return 'refused';
+        || !target || !sameFileRef(target, candidate.ref!)) return 'refused';
       const document = { id: candidate.id, content: candidate.content };
       if (!sameDocumentContent(getState(), document)) return 'stale';
       if (candidate.source.ifcSource !== current.ifcSource || !sameIFCSource(candidate.source, current)) return 'stale';
