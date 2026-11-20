@@ -47,7 +47,7 @@ import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegio
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ARABIC_REPORT_UNICODE_RANGE, reportFontStack } from '@/services/pdf/reportFont';
 import { layoutRuns } from '@/services/pdf/bidiShape';
-import fontkit from '@pdf-lib/fontkit';
+import { fontkit } from '@/services/pdf/fontkit';
 import {
   assembleReportMeasureFonts, createReportTextMetrics, fontVerticalMetrics, parseReportFont,
   type ReportFontFiles, type ReportFontkitFont, type ReportMeasureFonts,

@@ -56,8 +56,8 @@ resourcenaam, `data-ops-assignment-expand`) — in FASEN (aaneengesloten
 werkdagen met één inzet, `src/engine/contour/contourPhases.ts`: run-length over de werkdagslots,
 splitsen/samenvoegen/grens/inzet), als sleepbare SVG-strook (`ContourPhaseStrip.tsx`, in het venster,
 dus buiten de Gantt-renderergrenzen) én als tabel; vorm-als-data, toepassen/loslaten — op het pure
-bewerkmodel `contourEdit.ts` (dagslots ↔ periodes met gat-herinvoeging; de OPSLAGvorm blijft één periode
-per werkdag) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
+bewerkmodel `contourEdit.ts` (dagslots ↔ periodes met gat-herinvoeging; de OPSLAGvorm blijft per werkdag:
+aaneensluitende stukken van een dag zijn één periode, een onderbreking midden op de dag geeft er twee) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
 `scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur;
 een aanwezig werkveld van de toewijzing volgt de contoursom, `syncAssignmentWorkToContour`).
 Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
