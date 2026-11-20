@@ -157,25 +157,6 @@ export function ownGroupMembers(view: OwnLinesView): Map<number, string> {
   return out;
 }
 
-/**
- * De groepen met een vreemd lid: een eigen regel van de groep wijst (buiten tekst) naar een stuk dat niet eigen is en geen
- * `IfcProject` is, zoals een property van een ander programma in een eigen pset. Zo'n lid schrijft de writer niet; de merge
- * zet het erbij. De writer schrijft uit de lezing van de bron dus niet precies de bronregels van die groep (PR 12b,
- * voorwaarde a).
- *
- * Een owner history is geen lid (PR 12c): in een eigen bestand met een gebouwmodel deelt het `IfcProject` zijn owner
- * history met het model, en dan is die owner history in de indeling context (C), niet eigen. Telde hij mee, dan had elke
- * groep van zo'n bestand een "vreemd lid" en gold de andere toets daar nooit. De boomvorm telt hem ook niet (`ROOT_TYPES`).
- */
-export function groupsWithForeignMembers(view: OwnLinesView, members: ReadonlyMap<number, string>): Set<string> {
-  const foreign = (r: number) => view.line(r) === undefined && view.typeOf(r) !== 'IFCPROJECT' && view.typeOf(r) !== 'IFCOWNERHISTORY';
-  const out = new Set<string>();
-  for (const [id, group] of members) {
-    if (view.line(id)?.args.some(a => refsOutsideText(a).some(foreign))) out.add(group);
-  }
-  return out;
-}
-
 /** De groep die een herstelde bronwaarde (b) raakt: argument `arg` van eigen regel `line`, of niets. */
 export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLine, arg: number): string | undefined {
   if (line.type === 'IFCTASK') return arg === 4 || arg === 12 ? TASK_OBJECT_TYPES : undefined;
