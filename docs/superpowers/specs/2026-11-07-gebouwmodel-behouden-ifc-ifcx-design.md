@@ -759,11 +759,12 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     doel daarmee; staat er iets anders, dan stopt de opslag met de melding van Ctrl+S en blijft het doel zoals het is.
     De bevestiging in de kiezer geldt voor wat er op het doel staat (besluit van de eigenaar, 19 november 2026): ook een
     gewoon bestand met een gebouwmodel of C/A/V-inhoud wordt vervangen, zonder tweede vraag of melding. Ze hoort bij het
-    gekozen pad en de versie die de kiezer daar las (fixronde 1 van #1071): met de flag aan vervangt ook een document
-    zonder vreemd deel zo'n bestand, maar alleen die versie. Een doel met meer dan één naam of een link vervangt het niet,
-    vlak vóór de hernoeming staat er nog dezelfde inhoud (anders de melding van Ctrl+S, het doel ongemoeid), en er is
-    geen terugval op direct schrijven. Elk ander doel van zo'n document gaat langs de gewone opslag, zoals met de flag
-    uit. De bestandskiezer van Ctrl+S bij een document zonder opslagdoel is dezelfde route. Van de doelscan blijft alleen
+    gekozen pad en de versie die de kiezer daar las (fixronde 1 van #1071). Met de flag aan is er één route voor elk
+    document en elke inhoud van het doel (fixronde 2 van #1071): een gewoon bestand dat de kiezer las, gaat langs deze
+    vervanging, met die versie als verwachte inhoud; een vrije naam, een link of een map langs de exclusieve aanmaak;
+    een onleesbaar doel wordt geweigerd. Een document zonder vreemd deel heeft geen bron in het herstelmanifest: zijn
+    vervanging legt alleen het herstelrecord vast (stap 0 zonder `pendingSha256` in het manifest, stap 6 vervalt). De
+    bestandskiezer van Ctrl+S bij een document zonder opslagdoel is dezelfde route. Van de doelscan blijft alleen
     een onleesbaar doel over (ook een leesfout; besluit van de technisch beslisser, 20 november 2026: vervangen alleen
     van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
     bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
@@ -774,8 +775,9 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
-    niet kan (buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
-    nieuwe naam kan; geen terugval. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
+    exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -836,7 +838,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - **Garantie.** Met het commando vervangt of verwijdert de app geen versie van het bestand die hij niet zelf
     gecontroleerd heeft: elke versie die op het doelpad stond, staat daarna nog als bestand (op het doel, als
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
-    bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Op een
+    bestand schrijft na de controle in stap 5 en vóór het verwijderen; daartussen sluit de app alleen nog de leeshandle.
+    Op een
     bestandssysteem zonder atomaire exclusieve hernoemstap overschrijft de app het bestand niet; daar is alleen
     *Opslaan als* mogelijk. Dat een bestand met een harde link niet vervangen wordt, geldt waar het bestandssysteem het
     aantal namen eerlijk meldt (besluit van de technisch beslisser, 18 november 2026; knownbug 1823): op SSHFS en

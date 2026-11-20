@@ -18,7 +18,8 @@
  * als een stap faalt, schrijft de app niet en biedt hij Opslaan als aan). Garantie: elke versie die op het doelpad
  * stond, staat daarna nog als bestand (op het doel, als `.ops-vorige` of onder de naam "versie van ander programma"),
  * of de vervanging stopt. Grens: een programma dat via een al open handle schrijft tussen de controle van stap 5 en het
- * verwijderen (één systeemaanroep), en de grens van het commando zelf (knownbugs 1795 en 1799).
+ * verwijderen (daartussen sluit de app alleen nog de leeshandle), en de grens van het commando zelf (knownbugs
+ * 1795 en 1799).
  */
 import { createOwnTemp, isForbiddenPathError, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
 import { missingTarget } from './fileIdentity';

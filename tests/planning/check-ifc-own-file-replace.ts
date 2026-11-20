@@ -2024,13 +2024,16 @@ await check('fixronde 2: gewone planning over een bestaand bestand, crash na het
     source: { bytes: otherWithModel, sha256: hash(otherWithModel) },
     commit: () => { committed = true; }, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, now: NOW, fs,
   }), () => { throw new Error('de schrijfpoort is dicht'); }).catch(error => { if (!(error instanceof Crash)) throw error; });
-  assert.deepEqual([committed, existsSync(target), recordsOnDisk().length], [false, false, 1], 'het doel staat opzij, het record ligt vast');
+  // Alleen de records van dit doel: een record dat een eerder geval achterliet, telt hier niet mee.
+  const mine = () => recordsOnDisk().filter(record => record.path === target);
+  assert.deepEqual([committed, existsSync(target), mine().map(r => [r.vorigeSha256, r.pendingSha256])],
+    [false, false, [[hash(otherWithModel), hash(output)]]], 'het doel staat opzij, het record ligt vast');
   const notices = await nextRound();
   const after = Object.fromEntries(readdirSync(dir).sort().map(name => [name, hash(readFileSync(join(dir, name)))]));
   assert.deepEqual(after, { 'ander.ifc': hash(otherWithModel), 'ander (niet opgeslagen planning 2026-11-17 14.32).ifc': hash(output) },
     JSON.stringify(after));
   assert.deepEqual(notices.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
-  assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+  assert.deepEqual(mine(), [], 'het record is weg');
 });
 
 // Bevinding 3 van ronde 2: met de flag uit precies main, ook als er nog een modeltabblad open staat.
