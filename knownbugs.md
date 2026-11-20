@@ -5053,6 +5053,29 @@ en noem het in je rapport of PR-tekst.
      naam ook dan weigeren; een keuze voor de eigenaar. Proef "naar een naam die tabblad B nog onthoudt" in
      `check-ifc-own-file-replace.ts`. — B (proef)
 
+1909. **VERVOLG (review #1034): een Openen dat al loopt, komt langs de controle op open tabbladen van Opslaan als.**
+     Begint de planner *Openen* van `B.ifc` en kiest hij, terwijl dat lezen nog loopt, in een ander tabblad *Opslaan
+     als* over `B.ifc`, dan staat B nog niet als open document geregistreerd: de doelcontrole (`refusedWriteTarget` met
+     `openDocumentPaths`) ziet niets en de opslag vervangt het bestand. Het nieuwe tabblad toont daarna de oude inhoud
+     van B, en beide tabbladen wijzen naar hetzelfde pad; wie het tabblad van B opslaat, overschrijft de opslag van het
+     andere. Begint het openen pas tijdens de opslag, dan wacht de leesroute (`tauriBackend.ts`) wel en leest ze de
+     nieuwe versie. Zeldzaam: een leesactie en een opslag naar hetzelfde bestand moeten elkaar kruisen. Richting: laat
+     een leesactie die een opslag kruiste het bestand opnieuw lezen vóór het document actief wordt. Proef van de
+     reviewer: `proeven.ts` bij het rapport van review #1034. — B (proef van de reviewer)
+
+1841. **VERVOLG (review #1034, tekst): de hulp bij de instellingen noemt de weigering voor een open tabblad niet.**
+     `public/docs/nl/ref-instellingen.md` en `public/docs/en/ref-instellingen.md` (rond regel 98) beschrijven dat
+     *Opslaan als* bij een document met een gebouwmodel een bestaand bestand vervangt. Er ontbreekt dat een bestand dat
+     in een ander tabblad open staat altijd geweigerd wordt, sinds #1022 voor elk document. Eén aanvulling in de
+     bestaande zin volstaat (nl en en, `npm run verify:docs`). — B (gelezen)
+
+1905. **VERVOLG (review #1034, opruimen): de controle op open tabbladen kan met één optionele document-id.**
+     `documentSaveDialog` in `src/state/slices/fileSlice.ts` (rond regel 869) geeft de uitzondering voor het eigen
+     document door met een booleaans veld, een object met één veld en een conditionele spread naar
+     `refusedWriteTarget` (`src/state/ifcForeignGuard.ts`, rond regel 244). De twee aanroepen kunnen de uit te sluiten
+     document-id rechtstreeks meegeven; de drie tussenvormen kunnen weg. De twee beslismomenten blijven dezelfde
+     doelcontrole gebruiken. Geen gedragsverandering. — B (gelezen)
+
 1897. **VERVOLG (#804 keuze 4, tekst): Opslaan als over de eigen naam geeft een te brede melding.**
      Kiest de planner bij een document met een gebouwmodel in *Opslaan als* het bestand dat hij open heeft, dan weigert
      de app (de bron van een open document, `open-source`) met `notifications.ifcForeignReplaceBlocked`: "Niet
