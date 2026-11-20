@@ -442,7 +442,8 @@ const WHATSNEW = /<section\b[^>]*\bid="whats-new"[^>]*>[\s\S]*?<\/section>/g;
 export function websiteBlokkenLive(html, versie) {
   const nieuw = html.match(WHATSNEW) ?? [];
   const tijdlijn = html.match(RN_BLOK) ?? [];
-  const veilig = versie.replace(/[.*+?^${}()|[\]\\]/g, '\\const WEBSITE_PAGINAS =');
+  if (!/^\d+\.\d+\.\d+$/.test(versie)) return false;
+  const veilig = versie.replaceAll('.', '\\.');
   const versietekst = new RegExp(`v${veilig}(?![0-9.])`);
   return nieuw.length === 1 && tijdlijn.length === 1
     && versietekst.test(nieuw[0]) && versietekst.test(tijdlijn[0]);
