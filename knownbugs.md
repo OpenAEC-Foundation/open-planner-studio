@@ -5089,3 +5089,25 @@ en noem het in je rapport of PR-tekst.
      blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
      nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
      doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
+
+1940. **VERVOLG (review #1074, test): de proef van #1050 toetst geen regelafbreking en geen glyphplaatsing.**
+     `check-custom-report-font.ts` deel G leest uit de echte PDF de tekst (ToUnicode) en de breedte van de door GSUB
+     gekozen glyphs (`/W`) terug, voor Noto Sans Coptic en Carlito. Niet getoetst: een naam die precies op de grens van
+     zijn kolom afbreekt of afkapt (de meting telt advance-breedtes zonder GSUB op, de PDF tekent de glyphs van
+     `layout`), en de plaats van elke glyph op het blad. Voorstel: een rij op de kolomgrens met een ligatuur en met
+     een Koptische afkorting, en de getekende breedte uit `/W` naast de meting leggen. Review #1074 ronde 1
+     (GPT-6.2-Sol, xhigh). — B (code)
+
+1941. **VERVOLG (review #1074): een andere leesfout van fontkit maakt de PDF nog stil raster.** Sinds #1050 leest
+     fontkit 3 de GSUB-regel van type 8, maar elke andere fout in `layout` of bij het inbedden (bijvoorbeeld een
+     onleesbare GPOS-tabel bij een bepaald paar) laat `paginateVectorToPdfBytes` nog steeds stuklopen, en dan valt de
+     export zonder melding terug op raster (`exportGanttReportPdf.ts`, `ReportPanel.tsx`: alleen een `console.warn`).
+     De planner ziet niet dat de tekst een plaatje werd. Over 293 systeemletters op aia09-mp50 trad zo een fout niet
+     meer op. Voorstel: bij een terugval op raster één melding met de reden (en het lettertype), via het gewone
+     meldkanaal. Review #1074 ronde 1 (GPT-6.2-Sol, xhigh). — S
+
+1942. **VERVOLG (#1050): PostScript-contouren (CFF) met fontkit 3 niet getoetst.** Het eigen lettertype weigert een
+     `.otf` met CFF-contouren (`faceRefusal`, reden `postscriptOutlines`), omdat pdf-lib 1.17 met `@pdf-lib/fontkit`
+     zo'n letter als TrueType inbedde (`isCFF` leest `font.cff`, dat die fork niet had). fontkit 3 heeft `font.cff`
+     wel, dus pdf-lib kiest dan `CIDFontType0C`. Voorstel: een CFF-letter door de vector-PDF halen, in Poppler, pdfium
+     en MuPDF bekijken, en bij succes de weigering en zijn tekst weghalen. Gevonden bij fixronde 1 van #1074. — S

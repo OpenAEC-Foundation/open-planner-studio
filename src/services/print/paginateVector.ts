@@ -22,8 +22,8 @@ import {
   concatTransformationMatrix, drawObject, rectangle, clip, endPath,
   setFillingRgbColor, beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
-import { readableLayoutBytes } from '@/services/pdf/fontLayoutTables';
+import { fontkit } from '@/services/pdf/fontkit';
+import { embedReportFont } from '@/services/pdf/embedReportFont';
 import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts, type CjkVectorFont } from '@/services/pdf/pdfVectorDraw2d';
 import { getCjkFontProviders, type CjkFontProvider } from '@/services/pdf/fontRegistry';
 import { appLog } from '@/services/debug/appLog';
@@ -146,19 +146,14 @@ export async function paginateVectorToPdfBytes(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
-  // BEWUST `subset: false` (volledige glyf-embed). pdf-lib 1.17.1's subsetter (via @pdf-lib/fontkit)
+  // BEWUST `subset: false` (volledige glyf-embed, `embedReportFont`). pdf-lib 1.17.1's subsetter (via fontkit)
   // levert een subset waarvan de glyphs in pdfium/Chrome NIET renderen (tekst wordt deels onzichtbaar),
   // hoewel de ToUnicode-extractie klopt — empirisch aangetoond (pdfium + Chromium-screenshots). Volledig
   // inbedden rendert correct in álle viewers. Inter-Regular+Bold ≈ 0,4 MB (Flate) in de PDF; voor een
   // print-artefact (geen app-bundle) acceptabel. CJK-fonts (5–16 MB) worden wél gesubset, maar via
   // HarfBuzz (`subsetFont`), niet via pdf-lib.
-  // Een layouttabel die fontkit niet leest (issue #1050) gaat er vooraf uit; anders liep elke `drawText` stuk en
-  // werd de hele PDF raster. Zonder vet zijn de vette bytes de gewone: één keer bekijken.
-  const readable = (bytes: Uint8Array) => readableLayoutBytes(bytes, b => fontkit.create(b));
-  const mainRegular = readable(fontBytes.regular);
-  const mainBold = fontBytes.bold === fontBytes.regular ? mainRegular : readable(fontBytes.bold);
-  const regular = await doc.embedFont(mainRegular, { subset: false });
-  const bold = await doc.embedFont(mainBold, { subset: false });
+  const regular = await embedReportFont(doc, fontBytes.regular);
+  const bold = await embedReportFont(doc, fontBytes.bold);
 
   const pool = createResourcePool(doc, regular, bold);
 
@@ -276,8 +271,8 @@ export async function paginateVectorToPdfBytes(
   let notoRegular: PDFFont | undefined;
   let notoBold: PDFFont | undefined;
   if (d2d.usedArabic) {
-    notoRegular = await doc.embedFont(arabicBytes.regular, { subset: false });
-    notoBold = await doc.embedFont(arabicBytes.bold, { subset: false });
+    notoRegular = await embedReportFont(doc, arabicBytes.regular);
+    notoBold = await embedReportFont(doc, arabicBytes.bold);
     pool.setArabicFonts(notoRegular, notoBold);
   }
 
@@ -295,8 +290,8 @@ export async function paginateVectorToPdfBytes(
         const keyBold = `F${5 + 2 * i}`;
         const subReg = await opts.subsetFont(cjkPreload[i].regBytes, cps);
         const subBold = await opts.subsetFont(cjkPreload[i].boldBytes, cps);
-        const embReg = await doc.embedFont(subReg, { subset: false });
-        const embBold = await doc.embedFont(subBold, { subset: false });
+        const embReg = await embedReportFont(doc, subReg);
+        const embBold = await embedReportFont(doc, subBold);
         pool.setCjkFont(keyRegular, embReg);
         pool.setCjkFont(keyBold, embBold);
         base.embed = { regular: embReg, bold: embBold, keyRegular, keyBold };

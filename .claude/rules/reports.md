@@ -154,7 +154,14 @@ IndexedDB `ops-report-font`); `ops-reportSettings` krijgt alleen naam en versie 
 zijn de vette bytes de gewone, op het scherm (`@font-face` 700 met hetzelfde bestand) en in de PDF. Is de kopie weg,
 dan zet `useCustomReportFontGuard` de keuze terug op Inter met één melding. Een ander eigen lettertype heeft
 dezelfde id en familie (`OpsReportCustom`) maar een andere `reportFontKey`; laad- en meetcaches gaan op die sleutel.
-Een layouttabel (GDEF, GSUB, GPOS) die @pdf-lib/fontkit 1.1.1 niet leest, zoals een GSUB-regel van type 8 (issue
-#1050, Noto Sans Coptic), liet elke `drawText` stuklopen en maakte de hele PDF raster. `readableLayoutBytes`
-(`fontLayoutTables.ts`) leest die tabellen tot op elke subtabel en haalt een onleesbare tabel uit een kopie; de
-pagineerder en `assembleReportMeasureFonts` gebruiken allebei die bytes. Een gezond lettertype komt ongewijzigd terug.
+
+**fontkit 3 en GSUB-vervangingen in de PDF** (issue #1050). De lettertypelezer is `fontkit` 3.0.0 (exact
+vastgezet), altijd via `src/services/pdf/fontkit.ts`; `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8
+(Noto Sans Coptic), en dan werd de hele PDF raster. Elke letter in de vector-PDF gaat via `embedReportFont`
+(`embedReportFont.ts`): pdf-lib gaf een glyph die GSUB koos (Carlito "ti", de doorlopende Koptische bovenstreep) geen
+eigen breedte in `/W` (een gat) en geen ToUnicode (`bouwlogis ek`); de functie registreert elke glyph die
+`encodeText` gebruikt, met zijn bronteken(s). Dat leunt op interne velden van pdf-lib 1.17.1. Het glyph-voor-glyph-pad
+van de shaping (`bidiShape.ts`) gaat er buiten om (knownbug 934). Op Node leest `unicode-properties` (onder fontkit 3)
+zijn tabel van schijf naast zijn bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de
+browservariant. Proef: `check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/`
+en Carlito, tekst en `/W` uit de PDF teruggelezen).

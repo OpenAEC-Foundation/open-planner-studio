@@ -48,8 +48,19 @@ BUNDLES=()
 # hieronder zet hem, en die wordt al aangeroepen vóór dat punt.
 STATUS=0
 
+# fontkit 3 (#1050) gebruikt `unicode-properties`, dat op Node zijn tabel naast zijn eigen bron leest
+# (`readFileSync(new URL('./data.trie', import.meta.url))`). In een bundel wijst dat pad naar de map van de bundel.
+# De browservariant van die ene interne import draagt dezelfde tabel in de code; de bundel neemt die. Het pad komt
+# van de fontkit die de bundel echt gebruikt.
+UNICODE_TRIE="$(node -e "
+const { createRequire } = require('node:module'); const path = require('node:path');
+const fontkit = createRequire(path.join(process.argv[1], 'x.js')).resolve('fontkit');
+console.log(path.join(path.dirname(createRequire(fontkit).resolve('unicode-properties')), 'binaryTrie.browser.js'));
+" "$DIR")"
+
 # De ene definitie van de bundel: run.sh gebruikt hem hier, planning-pool.mjs krijgt hem via het plan.
 ESBUILD_ARGS=(
+  --alias:#binary-trie="$UNICODE_TRIE"
   --log-level=error
   --bundle --platform=node --format=esm --alias:@="$ROOT/src"
   --external:react-dom/server
