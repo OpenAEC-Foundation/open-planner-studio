@@ -6,49 +6,34 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const BASELINE_PATH = join(ROOT, 'scripts', 'verify-comments.baseline.json');
 
 const CODE_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+const JS_FILE = /\.(?:js|jsx|mjs|cjs)$/;
 const OUT_OF_SCOPE = [/^docs\//, /^examples\//, /^node_modules\//, /\.generated\.[a-z]+$/];
 
-const TOOL_DIRECTIVE = new RegExp('^(?:' + [
-  String.raw`//\s*@ts-(?:check|nocheck)\s*$`,
-  String.raw`//\s*@ts-(?:ignore|expect-error)\b`,
-  String.raw`//\s*eslint-(?:disable|enable)(?:-next-line|-line)?(?:\s|$)`,
-  String.raw`/\*\s*eslint-(?:disable|enable|env)(?:\s|\*)`,
+const SEPARATORS = String.fromCharCode(0x2028, 0x2029);
+const LINE_BREAK = new RegExp(`[\\n\\r${SEPARATORS}]`);
+const LINE_BREAKS = new RegExp(`\\r\\n|[\\n\\r${SEPARATORS}]`);
+const AFTER_LINE_BREAK = new RegExp(`(?<=\\n|\\r(?!\\n)|[${SEPARATORS}])`);
+const FINAL_LINE_BREAK = new RegExp(`(?:\\r\\n|[\\n\\r${SEPARATORS}])$`);
+
+const LINT_OR_BUNDLER_DIRECTIVE = new RegExp('^(?:' + [
+  String.raw`(?://|/\*)\s*eslint-(?:disable|enable)(?:-next-line|-line)?(?:\s|\*/|$)`,
+  String.raw`/\*\s*eslint-env\s+[\w-]+`,
   String.raw`/\*\s*eslint\s+[\w@/-]+\s*:`,
   String.raw`/\*\s*globals?\s+[\w$]+\s*[:,*]`,
-  String.raw`///\s*<(?:reference|amd-module|amd-dependency)\s[^>]*/>\s*$`,
   String.raw`/\*\s*@vite-ignore\s*\*/`,
   String.raw`/\*\s*[@#]__(?:PURE|NO_SIDE_EFFECTS)__\s*\*/`,
-  String.raw`/\*\*?\s*@jsx(?:ImportSource|Runtime|Frag)?\s+\S+\s*\*/`,
   String.raw`//#\s*sourceMappingURL=\S+\s*$`,
   String.raw`(?://|/\*)\s*text-roles:\s*\S`,
 ].join('|') + ')');
 
-const LICENCE_NOTICE = /SPDX-License-Identifier:\s*\S|(?:Copyright|©)\s*(?:\(c\)\s*)?\d{4}|\b(?:LGPL|AGPL|GPL|MPL|Apache|BSD|MIT)-\d/;
-const LINE_BREAK = /[\n\r\u2028\u2029]/;
-
-const JSDOC_TYPE_TAGS = 'type|param|returns?|typedef|template|satisfies|callback|property|this|enum|extends|implements|overload';
-
-function withoutBalancedBraces(text) {
-  let out = '';
-  let depth = 0;
-  for (const char of text) {
-    if (char === '{') depth++;
-    else if (char === '}' && depth > 0) depth--;
-    else if (depth === 0) out += char;
-  }
-  return out;
-}
-
-function isTypeOnlyJsDoc(text) {
-  const body = text.replace(/^\/\*\*/, '').replace(/\*\/$/, '').replace(/^\s*\*/gm, '');
-  if (!new RegExp(`@(?:${JSDOC_TYPE_TAGS}|import)\\b`).test(body)) return false;
-  const rest = withoutBalancedBraces(body.replace(/@import\s[^@]*?from\s+['"][^'"]+['"]/g, ''))
-    .replace(new RegExp(`@(?:${JSDOC_TYPE_TAGS})\\b\\s*(?:\\[?[\\w$.]+(?:=[^\\]\\s]*)?\\]?)?`, 'g'), '');
-  return rest.trim() === '';
-}
+const LICENCE_ID = String.raw`\b(?:LGPL|AGPL|GPL|MPL|Apache|BSD|MIT)-\d[\w.+-]*`;
+const NOTICE_LINE = new RegExp('^//\\s*(?:' + [
+  String.raw`SPDX-License-Identifier:\s*\S+`,
+  String.raw`(?:Copyright|©)\s*(?:\(c\)\s*)?\d{4}\b.{0,80}`,
+  String.raw`(?:Bron|Source|Licentie|License)(?: [^:]{1,40})?:\s.{0,160}${LICENCE_ID}.{0,80}`,
+].join('|') + ')$');
 
 export function inScope(path) {
   const rel = path.split(sep).join('/');
@@ -60,17 +45,47 @@ function scriptKind(path) {
   return /\.(?:ts|mts|cts)$/.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
 }
 
-function isExempt(text, path) {
-  if (TOOL_DIRECTIVE.test(text)) return true;
-  if (!LINE_BREAK.test(text) && LICENCE_NOTICE.test(text)) return true;
-  return /\.(?:js|jsx|mjs|cjs)$/.test(path) && text.startsWith('/**') && isTypeOnlyJsDoc(text);
+function parse(text, path) {
+  return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, scriptKind(path));
+}
+
+function isJsDocNode(node) {
+  return node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode;
+}
+
+function compilerDirectives(sourceFile) {
+  const starts = new Set();
+  for (const pragma of sourceFile.pragmas?.values() ?? []) {
+    for (const entry of Array.isArray(pragma) ? pragma : [pragma]) starts.add(entry.range.pos);
+  }
+  for (const directive of sourceFile.commentDirectives ?? []) starts.add(directive.range.pos);
+  return starts;
+}
+
+function typeTags(sourceFile, path) {
+  const typed = new Set();
+  const typeOnly = new Set();
+  if (!JS_FILE.test(path)) return { typed, typeOnly };
+  const carriesType = tag => Boolean(tag.typeExpression || tag.constraint
+    || tag.kind === ts.SyntaxKind.JSDocTemplateTag || tag.kind === ts.SyntaxKind.JSDocImportTag);
+  const visit = (node) => {
+    for (const doc of node.jsDoc ?? []) {
+      const tags = doc.tags ?? [];
+      if (!tags.some(carriesType)) continue;
+      typed.add(doc.pos);
+      if (!doc.comment && tags.every(tag => carriesType(tag) && !tag.comment)) typeOnly.add(doc.pos);
+    }
+    if (!isJsDocNode(node)) node.getChildren(sourceFile).forEach(visit);
+  };
+  visit(sourceFile);
+  return { typed, typeOnly };
 }
 
 function commentRanges(sourceFile, text) {
   const ranges = new Map();
   const jsxText = [];
   const visit = (node) => {
-    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return;
+    if (isJsDocNode(node)) return;
     if (node.kind === ts.SyntaxKind.JsxText) {
       jsxText.push([node.pos, node.end]);
       return;
@@ -88,17 +103,21 @@ function commentRanges(sourceFile, text) {
 }
 
 function scanBlocks(text, path) {
-  const sourceFile = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, scriptKind(path));
+  const sourceFile = parse(text, path);
   const lineStarts = sourceFile.getLineStarts();
   const lineOf = pos => sourceFile.getLineAndCharacterOfPosition(pos).line;
   const lineEnd = line => (line + 1 < lineStarts.length ? lineStarts[line + 1] : text.length);
   const blankAround = (pos, end) => text.slice(lineStarts[lineOf(pos)], pos).trim() === ''
     && text.slice(end, lineEnd(lineOf(Math.max(pos, end - 1)))).trim() === '';
+  const directives = compilerDirectives(sourceFile);
+  const { typed, typeOnly } = typeTags(sourceFile, path);
+  const isExempt = (range, raw) => directives.has(range.pos) || typeOnly.has(range.pos)
+    || LINT_OR_BUNDLER_DIRECTIVE.test(raw) || NOTICE_LINE.test(raw);
 
   const blocks = [];
   for (const range of commentRanges(sourceFile, text)) {
     const raw = text.slice(range.pos, range.end);
-    if (isExempt(raw, path)) continue;
+    if (isExempt(range, raw)) continue;
     const line = lineOf(range.pos);
     const endLine = lineOf(range.end - 1);
     const previous = blocks.at(-1);
@@ -114,6 +133,7 @@ function scanBlocks(text, path) {
     const jsx = /\.(?:tsx|jsx)$/.test(path) && open >= 0 && close !== null;
     blocks.push({
       line, endLine, alone, pos: range.pos, end: range.end, text: raw,
+      carriesType: typed.has(range.pos),
       kind: jsx ? 'jsx' : raw.startsWith('/**') ? 'jsdoc' : raw.startsWith('//') ? 'line' : 'block',
       ...(jsx ? { wrapper: [open, range.end + close[0].length] } : {}),
     });
@@ -121,12 +141,13 @@ function scanBlocks(text, path) {
   for (const block of blocks) {
     if (block.wrapper) block.wrapperAlone = blankAround(block.wrapper[0], block.wrapper[1]);
   }
-  return { sourceFile, lineStarts, lineOf, lineEnd, blocks };
+  return { lineStarts, lineOf, lineEnd, blocks };
 }
 
-const splitLines = text => text.split(/(?<=\n|\r(?!\n)|\u2028|\u2029)/);
+const splitLines = text => text.split(AFTER_LINE_BREAK);
 
 function removableLines(block, lineOf) {
+  if (block.carriesType) return null;
   if (block.kind === 'jsx') return block.wrapperAlone ? [lineOf(block.wrapper[0]), lineOf(block.wrapper[1] - 1)] : null;
   return block.alone ? [block.line, block.endLine] : null;
 }
@@ -142,8 +163,8 @@ function withoutLines(lines, removed) {
     const before = previousKept(first);
     const after = nextKept(first);
     if (after >= lines.length || !isBlank(after)) {
-      const opensBlock = after < lines.length && /^\s*[)\]}]/.test(lines[after]);
-      if (opensBlock && before >= 0 && isBlank(before)) extra.add(before);
+      const closesBlock = after < lines.length && /^\s*[)\]}]/.test(lines[after]);
+      if (closesBlock && before >= 0 && isBlank(before)) extra.add(before);
       continue;
     }
     if (before < 0 || isBlank(before) || /[{[(]\s*$/.test(lines[before])) extra.add(after);
@@ -168,11 +189,27 @@ export function scanComments(text, path) {
   };
 }
 
+export function commentLineEntries(text, path) {
+  return scanComments(text, path).blocks.flatMap(block => block.text.split(LINE_BREAKS)
+    .map((line, offset) => ({ path, line: block.line + offset, text: line.trim() })));
+}
+
+export function addedCommentLines(now, base) {
+  const available = new Map();
+  for (const { text } of base) available.set(text, (available.get(text) ?? 0) + 1);
+  return now.filter(({ text }) => {
+    const left = available.get(text) ?? 0;
+    if (left === 0) return true;
+    available.set(text, left - 1);
+    return false;
+  });
+}
+
 function codeSignature(text, path) {
-  const sourceFile = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, scriptKind(path));
+  const sourceFile = parse(text, path);
   const parts = [];
   const visit = (node) => {
-    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return;
+    if (isJsDocNode(node)) return;
     if (node.kind === ts.SyntaxKind.JsxExpression && !node.expression) return;
     if (node.kind === ts.SyntaxKind.JsxText) {
       const words = node.getText(sourceFile).replace(/\s+/g, ' ').trim();
@@ -188,7 +225,7 @@ function codeSignature(text, path) {
     parts.push((onNewLine ? '\n' : '') + node.getText(sourceFile));
   };
   visit(sourceFile);
-  return parts.join('\u0000');
+  return parts.join(String.fromCharCode(0));
 }
 
 export function stripComments(text, path, onlyLines) {
@@ -201,13 +238,13 @@ export function stripComments(text, path, onlyLines) {
     const span = removableLines(block, lineOf);
     if (span) {
       for (let line = span[0]; line <= span[1]; line++) removedLines.add(line);
-    } else if (block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
+    } else if (block.carriesType || block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
       manual.push(block.line + 1);
     } else {
       const lineStart = lineStarts[block.line];
       const before = text.slice(lineStart, block.pos);
       const after = text.slice(block.end, lineEnd(block.endLine));
-      if (after.trim() === '') cuts.push([lineStart + before.trimEnd().length, block.end + after.replace(/(?:\r\n|[\n\r\u2028\u2029])$/, '').length]);
+      if (after.trim() === '') cuts.push([lineStart + before.trimEnd().length, block.end + after.replace(FINAL_LINE_BREAK, '').length]);
       else cuts.push([block.pos, block.end + (/^\s*/.exec(after)[0].length > 0 && /\s$/.test(before) ? /^[ \t]*/.exec(after)[0].length : 0)]);
     }
   }
@@ -221,97 +258,55 @@ export function stripComments(text, path, onlyLines) {
   return { text: next, removed: chosen.length - manual.length, shedLines: removedLines.size + extraBlank, manual };
 }
 
-export function trackedCodeFiles(root = ROOT) {
-  const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, maxBuffer: 1 << 28 });
-  return out.toString('utf8').split('\0').filter(path => path && inScope(path) && existsSync(join(root, path))).sort();
+const git = (args, options = {}) => execFileSync('git', args, { cwd: ROOT, maxBuffer: 1 << 28, ...options }).toString('utf8');
+
+export function trackedCodeFiles() {
+  return git(['ls-files', '-z', '--cached', '--others', '--exclude-standard']).split('\0')
+    .filter(path => path && inScope(path) && existsSync(join(ROOT, path))).sort();
 }
 
-export function countAll(root = ROOT, files = trackedCodeFiles(root)) {
-  const counts = {};
-  let shedLines = 0;
-  let blocks = 0;
-  let totalLines = 0;
-  for (const path of files) {
-    const text = readFileSync(join(root, path), 'utf8');
-    const scan = scanComments(text, path);
-    totalLines += text.split('\n').length;
-    shedLines += scan.shedLines;
-    blocks += scan.blocks.length;
-    if (scan.commentLines > 0) counts[path] = scan.commentLines;
-  }
-  return { counts, shedLines, blocks, totalLines, files: files.length };
-}
-
-export function compare(baseline, counts) {
-  const over = [];
-  const under = [];
-  for (const [path, count] of Object.entries(counts)) {
-    const allowed = baseline[path] ?? 0;
-    if (count > allowed) over.push({ path, count, allowed });
-    else if (count < allowed) under.push({ path, count, allowed });
-  }
-  for (const [path, allowed] of Object.entries(baseline)) {
-    if (!(path in counts)) under.push({ path, count: 0, allowed });
-  }
-  return { over, under };
-}
-
-export function tighten(baseline, counts) {
-  const next = {};
-  for (const [path, allowed] of Object.entries(baseline)) {
-    const count = Math.min(allowed, counts[path] ?? 0);
-    if (count > 0) next[path] = count;
-  }
-  return next;
-}
-
-export function moveAllowance(baseline, counts, from, to) {
-  const kept = Math.min(baseline[from] ?? 0, counts[from] ?? 0);
-  const freed = (baseline[from] ?? 0) - kept;
-  if (freed <= 0) throw new Error(`"${from}" heeft geen vrijgekomen ruimte om te verhuizen`);
-  const wanted = (counts[to] ?? 0) - (baseline[to] ?? 0);
-  if (wanted <= 0) throw new Error(`"${to}" heeft geen ruimte nodig`);
-  if (wanted > freed) throw new Error(`"${to}" vraagt ${wanted} regels, "${from}" gaf er ${freed} vrij`);
-  const next = { ...baseline, [from]: kept, [to]: counts[to] };
-  if (kept === 0) delete next[from];
-  return next;
-}
-
-export function commentLines(text, path) {
-  return scanComments(text, path).blocks.flatMap(block => block.text.split(/\r\n|[\n\r\u2028\u2029]/).map(line => line.trim()));
-}
-
-export function newCommentLines(target, sources) {
-  const known = new Set(sources.flat());
-  return target.filter(line => !known.has(line));
-}
-
-function committed(path) {
+function firstParentInCi() {
+  const [parent] = git(['show', '-s', '--format=%P', 'HEAD']).trim().split(' ');
+  if (!parent) throw new Error('HEAD heeft geen oudercommit');
   try {
-    return execFileSync('git', ['show', `HEAD:${path}`], { cwd: ROOT, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] }).toString('utf8');
+    git(['cat-file', '-e', `${parent}^{commit}`], { stdio: 'ignore' });
+  } catch {
+    git(['fetch', '--quiet', '--depth=1', 'origin', parent], { stdio: 'ignore' });
+  }
+  return parent;
+}
+
+function baseCommit() {
+  if (process.env.VERIFY_COMMENTS_BASE) return git(['rev-parse', '--verify', `${process.env.VERIFY_COMMENTS_BASE}^{commit}`]).trim();
+  if (process.env.GITHUB_ACTIONS) return firstParentInCi();
+  for (const ref of ['origin/main', 'main']) {
+    try {
+      return git(['merge-base', 'HEAD', ref], { stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+      continue;
+    }
+  }
+  throw new Error('geen basiscommit gevonden: haal origin/main op of zet VERIFY_COMMENTS_BASE');
+}
+
+function atCommit(commit, path) {
+  try {
+    return git(['show', `${commit}:${path}`], { stdio: ['ignore', 'pipe', 'ignore'] });
   } catch {
     return '';
   }
 }
 
-const sum = record => Object.values(record).reduce((total, n) => total + n, 0);
-
-export function readBaseline(path = BASELINE_PATH) {
-  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
-}
-
-export function writeBaseline(baseline, path = BASELINE_PATH) {
-  const rows = Object.entries(baseline)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([file, count]) => `${JSON.stringify(file)}: ${count}`);
-  writeFileSync(path, `{\n${rows.join(',\n')}\n}\n`);
+function changedSince(commit) {
+  const changed = git(['diff', '--no-renames', '--name-only', '-z', commit]).split('\0');
+  const untracked = git(['ls-files', '-z', '--others', '--exclude-standard']).split('\0');
+  return [...new Set([...changed, ...untracked])].filter(path => path && inScope(path)).sort();
 }
 
 function selectFiles(args) {
-  const all = trackedCodeFiles();
-  if (args.length === 0) return all;
   const wanted = args.map(arg => relative(ROOT, resolve(arg)).split(sep).join('/'));
-  return all.filter(path => wanted.some(want => path === want || path.startsWith(want.replace(/\/?$/, '/'))));
+  return trackedCodeFiles().filter(path => wanted.length === 0
+    || wanted.some(want => path === want || path.startsWith(want.replace(/\/?$/, '/'))));
 }
 
 function main(argv) {
@@ -328,8 +323,8 @@ function main(argv) {
     const only = rest.indexOf('--only');
     const paths = only < 0 ? rest : rest.slice(0, only);
     const onlyLines = only < 0 ? undefined : new Set(rest.slice(only + 1).flatMap(arg => arg.split(',')).map(Number));
-    if (onlyLines && paths.length !== 1) {
-      console.error('--only werkt op precies één bestand');
+    if (paths.length === 0 || (onlyLines && paths.length !== 1)) {
+      console.error('--strip vraagt een pad; --only werkt op precies één bestand');
       return 2;
     }
     let shed = 0;
@@ -345,55 +340,38 @@ function main(argv) {
     return 0;
   }
   if (mode === '--stats') {
-    const { counts, shedLines, blocks, totalLines, files } = countAll(ROOT, selectFiles(rest));
-    console.log(JSON.stringify({
-      bestanden: files, regels: totalLines, commentaarblokken: blocks, commentaarregels: sum(counts),
-      regelsDieVerdwijnen: shedLines, aandeel: totalLines ? Number((shedLines / totalLines).toFixed(4)) : 0,
-    }, null, 1));
-    return 0;
-  }
-
-  const { counts } = countAll();
-  const baseline = readBaseline();
-  if (mode === '--move') {
-    const [from, to] = rest.map(arg => relative(ROOT, resolve(arg)).split(sep).join('/'));
-    const added = newCommentLines(
-      commentLines(readFileSync(join(ROOT, to), 'utf8'), to),
-      [commentLines(committed(from), from), commentLines(committed(to), to)],
-    );
-    if (added.length > 0) {
-      console.error(`XX  ${to} bevat commentaar dat niet uit ${from} komt:\n${added.map(line => `    ${line}`).join('\n')}`);
-      return 1;
+    const totals = { bestanden: 0, regels: 0, commentaarblokken: 0, commentaarregels: 0, regelsDieVerdwijnen: 0 };
+    for (const path of selectFiles(rest)) {
+      const text = readFileSync(join(ROOT, path), 'utf8');
+      const scan = scanComments(text, path);
+      totals.bestanden++;
+      totals.regels += text.split('\n').length;
+      totals.commentaarblokken += scan.blocks.length;
+      totals.commentaarregels += scan.commentLines;
+      totals.regelsDieVerdwijnen += scan.shedLines;
     }
-    writeBaseline(moveAllowance(baseline, counts, from, to));
-    console.log(`OK  ruimte verhuisd van ${from} naar ${to}`);
+    console.log(JSON.stringify(totals, null, 1));
     return 0;
   }
-  if (mode === '--update') {
-    const next = tighten(baseline, counts);
-    writeBaseline(next);
-    console.log(`OK  baseline aangescherpt: ${sum(baseline)} → ${sum(next)} commentaarregels`);
-  } else if (mode !== undefined) {
+  if (mode !== undefined) {
     console.error(`onbekende optie: ${mode}`);
     return 2;
   }
 
-  const { over, under } = compare(readBaseline(), counts);
-  for (const { path, count, allowed } of over) {
-    console.log(`XX  ${path}: ${count} commentaarregels, toegestaan ${allowed}`);
-  }
-  if (over.length > 0) {
-    console.log(`\nXX  ${over.length} bestand(en) met nieuw commentaar. Commentaar in code is verboden (docs/adr/0001-geen-commentaar-in-code.md):`);
-    console.log('    zeg het in de code (naam, type, test), leg een besluit vast in docs/adr/ en een noodgreep in knownbugs.md.');
-    console.log('    Bestand verplaatst of gesplitst: node scripts/verify-comments.mjs --move <oud> <nieuw>');
+  const base = baseCommit();
+  const changed = changedSince(base);
+  const now = changed.filter(path => existsSync(join(ROOT, path)))
+    .flatMap(path => commentLineEntries(readFileSync(join(ROOT, path), 'utf8'), path));
+  const before = changed.flatMap(path => commentLineEntries(atCommit(base, path), path));
+  const added = addedCommentLines(now, before);
+  for (const { path, line, text } of added) console.log(`XX  ${path}:${line}  ${text}`);
+  if (added.length > 0) {
+    console.log(`\nXX  ${added.length} nieuwe commentaarregel(s) ten opzichte van ${base.slice(0, 9)}. Commentaar in code is verboden`);
+    console.log('    (docs/adr/0001-geen-commentaar-in-code.md): zeg het in de code (naam, type, test), leg een besluit vast');
+    console.log('    in docs/adr/ en een bekende grens in knownbugs.md. Bestaand commentaar mag je weghalen, niet herschrijven.');
     return 1;
   }
-  if (under.length > 0) {
-    for (const { path, count, allowed } of under) console.log(`XX  ${path}: ${count} commentaarregels, baseline ${allowed}`);
-    console.log(`\nXX  ${under.length} bestand(en) staan onder de baseline. Leg de winst vast: \`npm run comments:ratchet\``);
-    return 1;
-  }
-  console.log(`OK  geen nieuw commentaar (${sum(counts)} commentaarregels over, baseline gelijk)`);
+  console.log(`OK  geen nieuw commentaar in ${changed.length} gewijzigde bestand(en) ten opzichte van ${base.slice(0, 9)}`);
   return 0;
 }
 

@@ -8,22 +8,27 @@ map als het een besluit is dat verrast zonder uitleg, en `knownbugs.md` als het 
 aanname is.
 
 De poort `npm run verify:comments` keurt nieuw commentaar af. Bestaand commentaar mag blijven tot het is
-beoordeeld: `scripts/verify-comments.baseline.json` telt de commentaarregels per bestand, en dat getal gaat alleen
-omlaag. De telling moet precies kloppen: wie commentaar weghaalt, legt dat vast met `npm run comments:ratchet`,
-anders is de poort rood. Zo kan vrijgekomen ruimte niet later met nieuw commentaar worden gevuld. De skill `/delete-comment` beschrijft het beoordelen en opruimen per onderdeel.
+beoordeeld. De poort vergelijkt daarvoor met de basis: elke commentaarregel in een gewijzigd bestand moet al op de
+basiscommit staan, ergens in de gewijzigde bestanden en even vaak. Weghalen en met de code mee verhuizen mag dus,
+schrijven en herschrijven niet. De basis is lokaal de merge-base met `origin/main` en in CI de eerste ouder van de
+merge-commit. De skill `/delete-comment` beschrijft het beoordelen en opruimen per onderdeel.
 
 ## Wat geen commentaar is
 
-Aanwijzingen voor gereedschap in hun geldige vorm (`@ts-expect-error`, `eslint-disable`, `/// <reference … />`,
-`@vite-ignore`, `@__PURE__`, `@jsxImportSource`, de markering `text-roles:`), JSDoc in JavaScript-bestanden die
-alleen typetags bevat en geen uitleg, en een licentie- of bronvermelding van één regel met een licentienaam,
-een SPDX-kenmerk of een copyrightjaar. Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
+Aanwijzingen die het gereedschap zelf herkent: wat de TypeScript-parser als pragma of als `@ts-ignore` en
+`@ts-expect-error` leest (ook `/// <reference … />` en `@jsxImportSource`), `eslint-disable` en verwanten,
+`@vite-ignore`, `@__PURE__` en de markering `text-roles:`. Verder JSDoc in JavaScript-bestanden die alleen typetags
+bevat, en een bron- of licentievermelding van één regel (`// Bron: … (LGPL-2.1 …)`, een SPDX-kenmerk, een
+copyrightregel). Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
 TypeScript of JavaScript is.
 
 ## Overwogen
 
 Een ESLint-regel. `npm run lint` kijkt alleen naar `src/` en is bewust klein; de structurele poorten van deze repo
-zijn `verify:*`-scripts op de TypeScript-AST. Eén script dekt alle mappen, telt, haalt weg en houdt de baseline bij.
+zijn `verify:*`-scripts op de TypeScript-AST. Eén script dekt alle mappen, toetst, telt en haalt weg.
 
-Een baseline per commentaar (hash) in plaats van per bestand. Strenger, maar elke PR die een commentaar raakt, zou
-dan botsen in één groot bestand.
+Een telbestand met commentaarregels per bestand. Gebouwd en verworpen in de review: een commentaar kon ongezien
+door een even lang ander worden vervangen, twee opruimingen in hetzelfde bestand maakten main rood na het samenvoegen,
+en elke PR op main met nieuw commentaar maakte de branch met de poort rood. Vergelijken met de basis heeft geen
+bestand nodig en kan main niet achteraf rood maken.
+

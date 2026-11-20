@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compare, inScope, moveAllowance, newCommentLines, scanComments, stripComments, tighten } from '../../scripts/verify-comments.mjs';
+import { addedCommentLines, commentLineEntries, inScope, scanComments, stripComments } from '../../scripts/verify-comments.mjs';
 
 const scan = (text, path = 'src/x.ts') => scanComments(text, path);
+const lines = (text, path = 'src/x.ts') => commentLineEntries(text, path);
 
 test('tekst in een string, regex, template of JSX-tekst is geen commentaar', () => {
   const text = [
@@ -19,73 +20,99 @@ test('aaneengesloten regelcommentaar is één blok, een staartcommentaar een eig
   assert.equal(shedLines, 3);
 });
 
-test('een lege regel die door het weghalen dubbel wordt, telt mee als verdwenen regel', () => {
-  assert.equal(scan('const a = 1;\n\n// weg\n\nconst b = 2;\n').shedLines, 2);
-});
-
 test('JSX-commentaar telt en krijgt de soort jsx', () => {
   const { blocks } = scan('const a = <div>{/* uitleg */}<b /></div>;', 'src/x.tsx');
   assert.deepEqual(blocks.map(b => b.kind), ['jsx']);
 });
 
-test('aanwijzingen voor gereedschap zijn geen commentaar', () => {
+test('aanwijzingen die de compiler, ESLint of de bundler herkent, zijn geen commentaar', () => {
   const text = [
     '// @ts-check',
     '/// <reference types="vite/client" />',
     '// eslint-disable-next-line no-control-regex -- NUL is hier bedoeld',
-    'const a = 1; // @ts-expect-error de reden',
-    'const b = import(/* @vite-ignore */ a);',
-    'const c = /* @__PURE__ */ f();',
-    'const d = 12; // text-roles: volgt de schaal van de screenshot',
+    '/* eslint-disable-next-line no-control-regex */',
+    'const a = 1;',
+    '// @ts-expect-error de reden',
+    'const b: number = "x";',
+    '/* @ts-ignore */',
+    'const c: number = "y";',
+    'const d = import(/* @vite-ignore */ a);',
+    'const e = /* @__PURE__ */ f();',
+    'const g = 12; // text-roles: volgt de schaal van de screenshot',
   ].join('\n');
-  assert.equal(scan(text).commentLines, 0);
+  assert.deepEqual(lines(text).map(entry => entry.text), []);
+  assert.equal(scan('/**\n * @jsxImportSource local-jsx\n */\nconst a = 1;\n', 'src/x.tsx').commentLines, 0);
 });
 
-test('JSDoc met typetags telt alleen in JavaScript niet mee', () => {
-  const text = '/** @param {string} a */\nexport function f(a) { return a; }\n';
-  assert.equal(scan(text, 'scripts/x.mjs').commentLines, 0);
-  assert.equal(scan(text, 'src/x.ts').commentLines, 1);
+test('proza die op een aanwijzing of licentie lijkt, telt als commentaar', () => {
+  const prose = [
+    '// Het veld Copyright komt uit de kop van het bestand.',
+    '// Deze uitleg noemt Copyright 2026 maar is geen vermelding.',
+    '/* eslint is here for linting. */',
+    '/// <dit-is-proza>',
+    '/// <amd-module alleen uitleg />',
+    '/* Lange uitleg over de bron,',
+    '   overgenomen onder LGPL-2.1, en nog veel meer tekst. */',
+  ];
+  assert.equal(scan('const a = 1;\n' + prose.join('\n') + '\nconst b = 2;\n').commentLines, prose.length);
+  assert.equal(scan('const a = 1;\n// @ts-check staat hier te laat\n').commentLines, 1);
+});
+
+test('een bron- of licentievermelding van één regel blijft staan', () => {
+  assert.equal(scan('// Bron van de tabel: MPXJ `org.mpxj.WorkContour` (LGPL-2.1, github.com/joniles/mpxj).\nconst a = 1;\n').commentLines, 0);
+  assert.equal(scan('// SPDX-License-Identifier: LGPL-3.0-or-later\nconst a = 1;\n').commentLines, 0);
+  assert.equal(scan('// Copyright (c) 2026 OpenAEC Foundation\nconst a = 1;\n').commentLines, 0);
+});
+
+test('JSDoc in JavaScript: alleen types is geen commentaar, met uitleg wel', () => {
+  const typesOnly = '/**\n * @param {string} a\n * @returns {{ b: number }}\n */\nexport function f(a) { return a; }\n';
+  assert.equal(scan(typesOnly, 'scripts/x.mjs').commentLines, 0);
+  assert.equal(scan(typesOnly, 'src/x.ts').commentLines, 4);
+  assert.equal(scan('/** @param {string} a de naam */\nexport function f(a) { return a; }\n', 'scripts/x.mjs').commentLines, 1);
+  assert.equal(scan('/** @param value */\nexport function f(value) { return value; }\n', 'scripts/x.mjs').commentLines, 1);
   assert.equal(scan('/** Uitleg zonder types. */\nexport const a = 1;\n', 'scripts/x.mjs').commentLines, 1);
 });
 
 test('bereik: code in src, tests en scripts wel; docs, voorbeelden en gegenereerde bestanden niet', () => {
   assert.equal(inScope('src/a/b.tsx'), true);
   assert.equal(inScope('scripts/x.mjs'), true);
+  assert.equal(inScope('src/vite-env.d.ts'), true);
   assert.equal(inScope('docs/superpowers/evidence/x.mjs'), false);
   assert.equal(inScope('examples/extensions/x/main.js'), false);
   assert.equal(inScope('src/components/icons/b2/icons.generated.ts'), false);
   assert.equal(inScope('src/styles/globals.css'), false);
 });
 
-test('compare: meer dan de baseline of een nieuw bestand met commentaar staat in over, minder in under', () => {
-  const { over, under } = compare({ 'a.ts': 3, 'b.ts': 2, 'weg.ts': 4 }, { 'a.ts': 4, 'b.ts': 1, 'nieuw.ts': 1 });
-  assert.deepEqual(over.map(o => o.path), ['a.ts', 'nieuw.ts']);
-  assert.deepEqual(under.map(u => u.path), ['b.ts', 'weg.ts']);
+test('nieuw commentaar is elke regel die niet al op de basis stond', () => {
+  const base = lines('// oud\n// blijft\nconst a = 1;\n');
+  assert.deepEqual(addedCommentLines(lines('// blijft\nconst a = 1;\n'), base), []);
+  assert.deepEqual(addedCommentLines(lines('  // oud\nconst a = 1;\n    // blijft\n'), base), []);
+  assert.deepEqual(addedCommentLines(lines('// nieuw\n// blijft\nconst a = 1;\n'), base).map(e => [e.line, e.text]), [[1, '// nieuw']]);
 });
 
-test('tighten gaat alleen omlaag en laat lege en verdwenen bestanden vallen', () => {
-  assert.deepEqual(tighten({ 'a.ts': 3, 'b.ts': 2, 'c.ts': 5, 'weg.ts': 4 }, { 'a.ts': 9, 'b.ts': 1, 'nieuw.ts': 7 }), { 'a.ts': 3, 'b.ts': 1 });
+test('bestaande tekst telt zo vaak als hij op de basis stond', () => {
+  const base = lines('// oud\nconst a = 1;\n');
+  assert.equal(addedCommentLines(lines('// oud\nconst a = 1;\n// oud\n'), base).length, 1);
 });
 
-test('moveAllowance verhuist alleen ruimte die bij de bron echt vrijkwam', () => {
-  assert.deepEqual(moveAllowance({ 'oud.ts': 10 }, { 'nieuw.ts': 10 }, 'oud.ts', 'nieuw.ts'), { 'nieuw.ts': 10 });
-  assert.deepEqual(moveAllowance({ 'oud.ts': 10 }, { 'oud.ts': 6, 'deel.ts': 3 }, 'oud.ts', 'deel.ts'), { 'oud.ts': 6, 'deel.ts': 3 });
-  assert.throws(() => moveAllowance({ 'oud.ts': 10 }, { 'oud.ts': 6, 'deel.ts': 5 }, 'oud.ts', 'deel.ts'), /gaf er 4 vrij/);
-  assert.throws(() => moveAllowance({ 'oud.ts': 10 }, { 'oud.ts': 10, 'deel.ts': 5 }, 'oud.ts', 'deel.ts'), /geen vrijgekomen ruimte/);
+test('commentaar mag met zijn code naar een ander bestand verhuizen', () => {
+  const base = [...lines('// a\nconst a = 1;\n', 'src/oud.ts'), ...lines('// b\nconst b = 1;\n', 'src/ander.ts')];
+  const now = [...lines('// a\nconst a = 1;\n', 'src/nieuw.ts'), ...lines('const b = 1;\n', 'src/ander.ts')];
+  assert.deepEqual(addedCommentLines(now, base), []);
 });
 
-test('een licentie- of bronvermelding met licentie blijft staan', () => {
-  assert.equal(scan('// Bron: MPXJ org.mpxj.WorkContour (LGPL-2.1, github.com/joniles/mpxj)\nconst a = 1;\n').commentLines, 0);
-  assert.equal(scan('// SPDX-License-Identifier: LGPL-3.0-or-later\nconst a = 1;\n').commentLines, 0);
+test('twee opruimingen in hetzelfde bestand tellen op zonder dat iets rood wordt', () => {
+  const base = lines('// een\nconst a = 1;\n// twee\nconst b = 2;\n');
+  assert.deepEqual(addedCommentLines(lines('const a = 1;\nconst b = 2;\n'), base), []);
 });
 
 test('strip haalt eigen regels, staartcommentaar en de lege regel op de naad weg', () => {
   const text = [
     '// kop', '', 'function f() {', '  // uitleg', '', '  const a = 1; // staart', '  const b = /* midden */ 2;', '',
-    '  // slot', '}', '', '/** doc */', 'const c = 3; // @ts-expect-error blijft', '',
+    '  // slot', '}', '', '/** doc */', '// @ts-expect-error blijft', 'const c: number = "x";', '',
   ].join('\n');
   const result = stripComments(text, 'src/x.ts');
-  assert.equal(result.text, ['function f() {', '  const a = 1;', '  const b = 2;', '}', '', 'const c = 3; // @ts-expect-error blijft', ''].join('\n'));
+  assert.equal(result.text, ['function f() {', '  const a = 1;', '  const b = 2;', '}', '', '// @ts-expect-error blijft', 'const c: number = "x";', ''].join('\n'));
   assert.equal(result.removed, 6);
   assert.equal(scan(result.text).commentLines, 0);
 });
@@ -103,30 +130,6 @@ test('strip haalt JSX-commentaar op eigen regels weg en laat JSX-commentaar tuss
   assert.equal(inline.text, 'const a = <div>a {/* b */} c</div>;\n');
 });
 
-test('de voorspelde regelwinst is wat strip echt weghaalt', () => {
-  const text = 'const a = 1;\n\n// weg\n\nfunction f() {\n  /** doc */\n\n  return 1; // staart\n}\n';
-  assert.equal(stripComments(text, 'src/x.ts').shedLines, scan(text).shedLines);
-  assert.equal(text.split('\n').length - stripComments(text, 'src/x.ts').text.split('\n').length, scan(text).shedLines);
-});
-
-test('proza die op een aanwijzing of licentie lijkt, telt als commentaar', () => {
-  const prose = [
-    '// Het veld Copyright komt uit de kop van het bestand.',
-    '/* eslint is here for linting. */',
-    '/// <dit-is-proza>',
-    '// @ts-check en nog wat uitleg',
-    '/* Lange uitleg over de bron,',
-    '   overgenomen onder LGPL-2.1, en nog veel meer tekst. */',
-  ];
-  assert.equal(scan(prose.join('\n') + '\nconst a = 1;\n').commentLines, prose.length);
-  assert.equal(scan('/** @param a de naam van het ding */\nexport function f(a) { return a; }\n', 'scripts/x.mjs').commentLines, 1);
-  assert.equal(scan('/**\n * @param {string} a\n * @returns {{ b: number }}\n */\nexport function f(a) { return a; }\n', 'scripts/x.mjs').commentLines, 0);
-});
-
-test('een JSX-pragma is een aanwijzing voor de compiler', () => {
-  assert.equal(scan('/** @jsxImportSource local-jsx */\nconst a = 1;\n', 'src/x.tsx').commentLines, 0);
-});
-
 test('strip laat commentaar staan waarvan het weghalen een regeleinde tussen tokens zou opheffen', () => {
   const text = 'function f() {\n  return /* uitleg\n*/ 42;\n}\n';
   const result = stripComments(text, 'src/x.ts');
@@ -135,20 +138,23 @@ test('strip laat commentaar staan waarvan het weghalen een regeleinde tussen tok
 });
 
 test('strip behoudt elk soort regeleinde na een staartcommentaar', () => {
-  for (const eol of ['\n', '\r\n', '\r', '\u2028', '\u2029']) {
+  for (const eol of ['\n', '\r\n', '\r', String.fromCharCode(0x2028), String.fromCharCode(0x2029)]) {
     const result = stripComments(`const a = f // staart${eol}(1);${eol}`, 'src/x.ts');
     assert.equal(result.text, `const a = f${eol}(1);${eol}`);
   }
 });
 
-test('moveAllowance raakt alleen bron en doel', () => {
-  assert.deepEqual(
-    moveAllowance({ 'a.ts': 2, 'b.ts': 4 }, { 'renamed.ts': 2, 'b.ts': 3 }, 'a.ts', 'renamed.ts'),
-    { 'b.ts': 4, 'renamed.ts': 2 },
-  );
+test('strip laat aanwijzingen staan en JSDoc met types in JavaScript voor de hand', () => {
+  const pragma = '/**\n * @jsxImportSource local-jsx\n */\n/* @ts-ignore */\nconst a: number = "x";\n';
+  assert.equal(stripComments(pragma, 'src/x.tsx').text, pragma);
+  const typed = '/** @type {number} Positief getal */\nconst a = 1;\n';
+  const result = stripComments(typed, 'scripts/x.mjs');
+  assert.deepEqual(result.manual, [1]);
+  assert.equal(result.text, typed);
 });
 
-test('een verplaatsing neemt alleen bestaande commentaartekst mee', () => {
-  assert.deepEqual(newCommentLines(['// oud', '// nieuw'], [['// oud'], []]), ['// nieuw']);
-  assert.deepEqual(newCommentLines(['// oud'], [['// oud', '// meer'], []]), []);
+test('de voorspelde regelwinst is wat strip echt weghaalt', () => {
+  const text = 'const a = 1;\n\n// weg\n\nfunction f() {\n  /** doc */\n\n  return 1; // staart\n}\n';
+  assert.equal(stripComments(text, 'src/x.ts').shedLines, scan(text).shedLines);
+  assert.equal(text.split('\n').length - stripComments(text, 'src/x.ts').text.split('\n').length, scan(text).shedLines);
 });

@@ -1,12 +1,12 @@
 ---
 name: delete-comment
-description: Use ONLY when the user explicitly invokes /delete-comment, or in their own words asks to judge and remove the code comments of a part of Open Planner Studio. Classifies every comment in the given path (tautology, stale, excuse, decision record), removes them, moves decisions to docs/adr/ and workarounds to knownbugs.md, and lowers the comment baseline. NEVER auto-trigger, and never as a side job inside another PR.
+description: Use ONLY when the user explicitly invokes /delete-comment, or in their own words asks to judge and remove the code comments of a part of Open Planner Studio. Classifies every comment in the given path (tautology, stale, excuse, decision record), removes them, and moves decisions to docs/adr/ and known limits to knownbugs.md. NEVER auto-trigger, and never as a side job inside another PR.
 ---
 
 # Delete-comment: het commentaar van één onderdeel beoordelen en weghalen
 
-Code in deze repo heeft geen commentaar (`docs/adr/0001-geen-commentaar-in-code.md`). Wat er nog staat, staat in
-`scripts/verify-comments.baseline.json` en wacht op deze skill. Je doet per keer één onderdeel: een map of een
+Code in deze repo heeft geen commentaar (`docs/adr/0001-geen-commentaar-in-code.md`). Wat er nog staat, wacht op
+deze skill. Je doet per keer één onderdeel: een map of een
 paar bestanden die bij elkaar horen. Eén onderdeel is één PR.
 
 Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootste staan bovenaan in
@@ -19,6 +19,10 @@ Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootst
   de code staan.
 - Je beoordeelt elk blok zelf, met de code erbij. Weghalen zonder lezen is geen uitvoering van deze skill.
 - Kennis gaat niet verloren. Een besluit dat nergens anders staat, staat in een ADR vóór het commentaar weg is.
+- Een ADR beweert alleen wat je in de code hebt gezien, met de grens erbij: dag of moment, eerste of laatste, welke
+  tak, welke route. Tien precieze commentaren samenvatten tot één algemene regel geeft een regel die net niet
+  klopt. Liever een smalle, ware regel dan een algemene garantie; toets elke stellige zin aan de code en aan de test
+  die het gedrag vasthoudt.
 - Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
 
 ## Stap 1. Meten en lezen
@@ -82,8 +86,10 @@ node scripts/verify-comments.mjs --strip <bestand> --only 12,48
 ```
 
 `--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code-tokens of de
-regeleindes tussen tokens erdoor zouden veranderen. Wat het meldt als "met de hand" (JSX-commentaar tussen tekst,
-of commentaar met een regeleinde midden in een regel code) haal je zelf weg en controleer je met de gerichte test. `--only` neemt de
+regeleindes tussen tokens erdoor zouden veranderen. Aanwijzingen voor gereedschap blijven staan. Wat het meldt als
+"met de hand" (JSX-commentaar tussen tekst, commentaar met een regeleinde midden in een regel code, JSDoc met
+types en uitleg in een JavaScript-bestand) pas je zelf aan: in JSDoc haal je alleen de uitleg weg en laat je de
+typetags staan. Controleer handwerk met de gerichte test. `--only` neemt de
 beginregels uit `--list`, voor als je een onderdeel in delen doet.
 
 Zoek daarna naar verwijzingen die nu nergens meer heen wijzen ("zie het docblok bij", "zie de kop van") in de
@@ -92,14 +98,11 @@ rest van de repo en in `.claude/rules/`, en laat ze naar de ADR wijzen of haal z
 ## Stap 6. Controleren en vastleggen
 
 ```bash
-npm run comments:ratchet
 npm run verify:comments
 npm run verify:docs
 ```
 
-Plus de gerichte test van het onderdeel uit de tabel *Which check after which change* in `AGENTS.md`. De baseline
-gaat alleen omlaag; staat een bestand na een verplaatsing boven zijn getal, gebruik dan `--move <oud> <nieuw>`. Dat
-neemt alleen commentaar mee dat al in de vastgelegde versie van bron of doel stond.
+Plus de gerichte test van het onderdeel uit de tabel *Which check after which change* in `AGENTS.md`.
 
 ## Stap 7. Rapport
 

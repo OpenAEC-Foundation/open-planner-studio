@@ -50,7 +50,6 @@
     "verify:icons": "node scripts/verify-approved-icons.mjs",
     "verify:core-package": "node scripts/verify-core-package.mjs",
     "verify:comments": "node scripts/verify-comments.mjs",
-    "comments:ratchet": "node scripts/verify-comments.mjs --update",
     "verify:audit": "npm audit --audit-level=high",
     "publish:wiki": "node scripts/publish-wiki.mjs",
     "stats:downloads": "node scripts/download-stats.mjs",

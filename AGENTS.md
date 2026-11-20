@@ -82,8 +82,8 @@ plural forms + no cast on a key + fixed formatting), `npm run verify:store-bound
 convention registry, provenance data gates pinned), `npm run verify:cycles` (circular imports after type erasure),
 `npm run verify:core-package` (builds the headless core package, `npm pack`, installs it in a temporary copy of
 `headless/consumer-example/`, runs and type-checks that consumer),
-`npm run verify:comments` (no new code comments: `scripts/verify-comments.baseline.json` holds the comment lines per file
-and only goes down, `npm run comments:ratchet` lowers it after a clean-up; see *Conventions*),
+`npm run verify:comments` (no new code comments: every comment line in a changed file must already exist on the base
+commit, the merge base with `origin/main` locally and the first parent of the merge commit in CI; see *Conventions*),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:icons` (app icons match the approved logo in `docs/branding/`: source hash, sizes, web icons), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
@@ -533,12 +533,11 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **No comments in code** (`docs/adr/0001-geen-commentaar-in-code.md`). Do not write a comment in TypeScript or
   JavaScript: say it with a name, a type or a test; record a decision that would surprise a reader in `docs/adr/`;
-  put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on a file whose comment
-  lines differ from its baseline (more: remove the comment; fewer: run `npm run comments:ratchet`), and on any comment in
-  a new file. Tool directives (`@ts-expect-error`, `eslint-disable`,
-  `/// <reference`, `@vite-ignore`, `@jsxImportSource`, `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, and a
-  one-line licence or source notice that names a licence are not comments. Existing comments stay until the `delete-comment` skill has judged them; do
-  not grow one. Moved or split a file: `node scripts/verify-comments.mjs --move <old> <new>`.
+  put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on every comment line
+  that was not on the base commit: you may delete or move an existing comment, never write or rewrite one. Directives the
+  tools themselves recognise (`@ts-expect-error`, `eslint-disable`, `/// <reference`, `@vite-ignore`, `@jsxImportSource`,
+  `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, and a one-line licence or source notice are not
+  comments. Existing comments stay until the `delete-comment` skill has judged them.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
