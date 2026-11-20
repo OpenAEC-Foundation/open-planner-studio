@@ -17,7 +17,7 @@
  * `hbSubset.ts`), zodat deze module ook headless bundelbaar is.
  */
 import {
-  PDFDocument, PDFName, PDFRef, type PDFFont, type PDFOperator,
+  PDFDocument, PDFName, PDFRef, StandardFonts, type PDFFont, type PDFOperator,
   pushGraphicsState, popGraphicsState,
   concatTransformationMatrix, drawObject, rectangle, clip, endPath,
   setFillingRgbColor, beginText, endText, setFontAndSize, setTextMatrix, showText,
@@ -101,6 +101,9 @@ export interface ArabicFontBytes {
   regular: Uint8Array;
   bold: Uint8Array;
 }
+
+/** Font-sleutel van het paginanummer (Helvetica) in de pagina-resources, naast F0/F1 (rapportletter) en verder. */
+const PAGE_NUMBER_FONT_KEY = 'FP';
 
 /**
  * Gegooid door {@link paginateVectorToPdfBytes} zodra de te tekenen tekst codepoints bevat die de
@@ -271,8 +274,9 @@ export async function paginateVectorToPdfBytes(
   let notoRegular: PDFFont | undefined;
   let notoBold: PDFFont | undefined;
   if (d2d.usedArabic) {
-    notoRegular = await embedReportFont(doc, arabicBytes.regular);
-    notoBold = await embedReportFont(doc, arabicBytes.bold);
+    // Gewone volledige embedding: het RTL-pad zet de geshapte glyphs zelf neer, niet via `layoutPdfText`.
+    notoRegular = await doc.embedFont(arabicBytes.regular, { subset: false });
+    notoBold = await doc.embedFont(arabicBytes.bold, { subset: false });
     pool.setArabicFonts(notoRegular, notoBold);
   }
 
@@ -410,6 +414,7 @@ export async function paginateVectorToPdfBytes(
   const bodyTopYUp = pageH - bodyTopPt;
   const footerTopYUp = pageH - footerTopPt;
 
+  const pageNumberFont = await doc.embedFont(StandardFonts.Helvetica);
   let pageIndex = 0;
   for (const row of layout.bodyRows) {
     for (const column of layout.columns) {
@@ -448,17 +453,20 @@ export async function paginateVectorToPdfBytes(
         drawTile(pageOps, footerWindow.srcX, repeatFooterSrcY, footerWindow.srcW, repeatFooterPx, footerWindow.pageX, footerTopYUp);
       }
 
-      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject.
+      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject. In Helvetica,
+      // niet in de rapportletter: een eigen lettertype hoeft geen cijfers of '/' te hebben (Noto Sans Coptic heeft ze
+      // niet; issue #1050), en dit vaste label loopt niet door de dekkingscontrole van de tekenaar.
       const label = `${pageIndex} / ${totalPages}`;
-      const labelW = regular.widthOfTextAtSize(label, 8);
+      const labelW = pageNumberFont.widthOfTextAtSize(label, 8);
       const labelX = (pageW - marginPt) - labelW;
       const labelYUp = marginPt * 0.5;
+      leaf.setFontDictionary(PDFName.of(PAGE_NUMBER_FONT_KEY), pageNumberFont.ref);
       pageOps.push(
         setFillingRgbColor(0.6, 0.6, 0.6),
         beginText(),
-        setFontAndSize('F0', 8),
+        setFontAndSize(PAGE_NUMBER_FONT_KEY, 8),
         setTextMatrix(1, 0, 0, 1, labelX, labelYUp),
-        showText(regular.encodeText(label)),
+        showText(pageNumberFont.encodeText(label)),
         endText(),
       );
 

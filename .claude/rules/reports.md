@@ -157,11 +157,16 @@ dezelfde id en familie (`OpsReportCustom`) maar een andere `reportFontKey`; laad
 
 **fontkit 3 en GSUB-vervangingen in de PDF** (issue #1050). De lettertypelezer is `fontkit` 3.0.0 (exact
 vastgezet), altijd via `src/services/pdf/fontkit.ts`; `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8
-(Noto Sans Coptic), en dan werd de hele PDF raster. Elke letter in de vector-PDF gaat via `embedReportFont`
-(`embedReportFont.ts`): pdf-lib gaf een glyph die GSUB koos (Carlito "ti", de doorlopende Koptische bovenstreep) geen
-eigen breedte in `/W` (een gat) en geen ToUnicode (`bouwlogis ek`); de functie registreert elke glyph die
-`encodeText` gebruikt, met zijn bronteken(s). Dat leunt op interne velden van pdf-lib 1.17.1. Het glyph-voor-glyph-pad
-van de shaping (`bidiShape.ts`) gaat er buiten om (knownbug 934). Op Node leest `unicode-properties` (onder fontkit 3)
-zijn tabel van schijf naast zijn bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de
-browservariant. Proef: `check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/`
-en Carlito, tekst en `/W` uit de PDF teruggelezen).
+(Noto Sans Coptic), en dan werd de hele PDF raster. De rapportletter, de terugval- en de CJK-letters gaan via
+`embedReportFont` (`embedReportFont.ts`); tekst gaat via `layoutPdfText`, één `layout` per tekst. pdf-lib gaf een glyph
+die GSUB koos (Carlito "ti", de doorlopende Koptische bovenstreep) geen eigen breedte in `/W` (een gat) en geen
+ToUnicode (`bouwlogis ek`); elke gebruikte glyph komt nu met zijn bronteken(s) in beide (eerste gebruik wint, knownbug
+1943). Een glyph met een GPOS-verschuiving (de bovenstreep: −319 eenheden) krijgt een eigen tekstmatrix op de pen plus
+die verschuiving (`laidOutTextOps` in `pdfVectorDraw2d.ts`); zonder verschuiving blijft het één `Tj`. De pen loopt op
+de breedtes uit `/W`, net als de meting. Dat leunt op interne velden van pdf-lib, dat daarom exact op 1.17.1 staat.
+Noto Sans Arabic bedt gewoon in: het glyph-voor-glyph-pad van de shaping (`bidiShape.ts`) zet zijn glyphs zelf neer
+(knownbug 934). Het paginanummer staat in Helvetica (`PAGE_NUMBER_FONT_KEY` in `paginateVector.ts`): een eigen letter
+hoeft geen cijfers te hebben. Op Node leest `unicode-properties` (onder fontkit 3) zijn tabel van schijf naast zijn
+bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de browservariant. Proef:
+`check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/` en Carlito: tekst,
+`/W`, de plaats van elke glyph en het paginanummer uit de PDF teruggelezen).

@@ -5111,3 +5111,11 @@ en noem het in je rapport of PR-tekst.
      zo'n letter als TrueType inbedde (`isCFF` leest `font.cff`, dat die fork niet had). fontkit 3 heeft `font.cff`
      wel, dus pdf-lib kiest dan `CIDFontType0C`. Voorstel: een CFF-letter door de vector-PDF halen, in Poppler, pdfium
      en MuPDF bekijken, en bij succes de weigering en zijn tekst weghalen. Gevonden bij fixronde 1 van #1074. — S
+
+1943. **VERVOLG (review #1074 ronde 2): de tekstlaag kiest per lettertype één brontekst voor een glyph.**
+     `embedReportFont` (`src/services/pdf/embedReportFont.ts`) zet voor elke gebruikte glyph de bronteken(s) van het
+     eerste gebruik in ToUnicode. Komt dezelfde glyph uit verschillende tekst (de ligatuur "fi" uit `fi` en uit `ﬁ`),
+     dan leest de PDF hem overal zoals de eerste: `fi ﬁ` wordt bij uitlezen `fi fi`, en `ﬁ fi` wordt `ﬁ ﬁ`. In
+     gemengde tekst van rechts naar links missen de Koptische bovenstrepen hun ToUnicode (het glyph-voor-glyph-pad
+     van de shaping, zie 934). Richting van de reviewer: ActualText per tekstcluster. Review #1074 ronde 2
+     (GPT-6.2-Sol, xhigh). — B (proef van de reviewer)

@@ -241,18 +241,21 @@ console.log('── F. de rapportinstelling');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-console.log('── G. GSUB-vervangingen in de PDF: Koptisch met een regel van type 8, Carlito "ti" (issue #1050)');
+console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8, Carlito "ti" (issue #1050)');
 {
   // `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8 (reverse chaining), zoals in Noto Sans Coptic:
-  // dan viel elke PDF met dat eigen lettertype terug op raster. fontkit 3 voert die regel uit. En pdf-lib gaf een
-  // glyph die GSUB koos geen breedte en geen tekst (een gat na de glyph, `bouwlogis ek` bij uitlezen), ook bij het
-  // meegeleverde Carlito; `embedReportFont` registreert ze. Deze proef leest de tekst en de breedtes uit de PDF terug.
+  // dan viel elke PDF met dat eigen lettertype terug op raster. fontkit 3 voert die regel uit. pdf-lib gaf een glyph
+  // die GSUB koos geen breedte en geen tekst (een gat, `bouwlogis ek` bij uitlezen), ook bij het meegeleverde Carlito,
+  // en één `Tj` per tekst liet de GPOS-verschuiving van de bovenstreep weg. Deze proef leest tekst, breedtes en de
+  // plaats van elke glyph terug uit de PDF. Noto Sans Coptic heeft geen cijfers: het paginanummer moet toch leesbaar
+  // terugkomen.
   const COPTIC = new Uint8Array(readFileSync(join(ROOT, 'tests/planning/fixtures/fonts/NotoSansCoptic-Regular.ttf')));
   const CARLITO = font('Carlito-Regular.ttf');
   const ABBREVIATION = 'Ⲁ̅ⲁ̅';
   const coptic = fontkit.create(COPTIC);
-  const laidOut = coptic.layout(ABBREVIATION).glyphs.map(g => g.id);
-  ok(laidOut.join(',') === '33,196,34,199', `G1 de bovenstreep volgt de upstream-proef (glyph 196 en 199): ${laidOut.join(',')}`);
+  const laidOut = coptic.layout(ABBREVIATION);
+  ok(laidOut.glyphs.map(g => g.id).join(',') === '33,196,34,199',
+    `G1 de bovenstreep volgt de upstream-proef (glyph 196 en 199): ${laidOut.glyphs.map(g => g.id).join(',')}`);
 
   const report = (rows: string[]) => makeSectionedRenderReport({
     title: 'Planning', subtitle: 'Eigen lettertype', notes: [], summary: [], kpis: [],
@@ -267,7 +270,8 @@ console.log('── G. GSUB-vervangingen in de PDF: Koptisch met een regel van t
     // De glyphs die GSUB koos en die niet rechtstreeks in de cmap staan (Koptisch 196 en 199, Carlito de ligatuur "ti").
     const fk = fontkit.create(bytes);
     const direct = new Set([...row].map(c => fk.glyphForCodePoint(c.codePointAt(0)!).id));
-    const glyphs = fk.layout(row).glyphs.map(g => g.id).filter(id => !direct.has(id));
+    const run = fk.layout(row);
+    const glyphs = run.glyphs.map(g => g.id).filter(id => !direct.has(id));
     let pdf: Uint8Array | null = null;
     try {
       pdf = await paginateVectorToPdfBytes(report([row]), opts, { regular: bytes, bold: bytes }, ARABIC);
@@ -275,13 +279,27 @@ console.log('── G. GSUB-vervangingen in de PDF: Koptisch met een regel van t
       ok(false, `G2 ${name}: de vector-PDF loopt stuk: ${String(err)}`);
     }
     if (!pdf) continue;
-    const read = await readPdfText(pdf);
+    const read = await readPdf(pdf);
     ok(read.images === 0, `G2 ${name}: de PDF bevat ${read.images} beeld(en); verwacht vector`);
     ok(read.text.includes(row), `G2 ${name}: "${row}" is niet als tekst uit te lezen; gelezen: ${JSON.stringify(read.text.slice(0, 200))}`);
+    ok(read.text.endsWith('1 / 1'), `G5 ${name}: het paginanummer komt niet leesbaar terug; gelezen: ${JSON.stringify(read.text.slice(-40))}`);
     const fontWidths = [...read.widths.values()].find(w => glyphs.every(id => w.has(id)));
     ok(glyphs.length > 0 && fontWidths !== undefined
       && glyphs.every(id => Math.abs(fontWidths.get(id)! - fk.getGlyph(id).advanceWidth * 1000 / fk.unitsPerEm) < 0.01),
       `G3 ${name}: de vervangen glyph(s) ${glyphs.join(',')} missen hun eigen breedte in /W (dan staat er een gat)`);
+
+    // G6: elke glyph op zijn plaats. In de PDF staat de pen van de tekst op de breedtes uit /W; een glyph met een
+    // GPOS-verschuiving (de bovenstreep: −319 en −291 eenheden) staat op die pen plus zijn verschuiving.
+    const start = read.draws.findIndex((_, i) => run.glyphs.every((g, j) => read.draws[i + j]?.gid === g.id));
+    const scale = (start >= 0 ? read.draws[start].size : 0) / fk.unitsPerEm;
+    let pen = 0;
+    const misplaced = start < 0 ? ['niet gevonden'] : run.glyphs.flatMap((g, j) => {
+      const dx = read.draws[start + j].x - read.draws[start].x;
+      const want = (pen + run.positions[j].xOffset) * scale;
+      pen += g.advanceWidth;
+      return Math.abs(dx - want) < 0.01 ? [] : [`glyph ${g.id} op ${dx.toFixed(2)} in plaats van ${want.toFixed(2)}`];
+    });
+    ok(misplaced.length === 0, `G6 ${name}: de glyphs van "${row}" staan niet op hun plaats: ${misplaced.join('; ')}`);
   }
 
   // De meting van papier en paneel leest dezelfde letter, ook met de shaping van rechts naar links.
@@ -295,49 +313,73 @@ console.log('── G. GSUB-vervangingen in de PDF: Koptisch met een regel van t
 }
 
 /**
- * De tekst van alle pagina's zoals een PDF-lezer hem uitleest (ToUnicode per lettertype, `<hex> Tj` per run, in
- * volgorde), plus de breedtetabel (`/W`) per lettertype en het aantal beelden.
+ * Een PDF zoals een lezer hem ziet: de tekst van alle pagina's (ToUnicode bij een CID-letter, WinAnsi bij een
+ * standaardletter; `Tj` in volgorde), de breedtetabel (`/W`) per CID-letter, het aantal beelden, en per getekende
+ * glyph zijn x in tekstruimte: de x van de tekstmatrix plus de `/W`-breedtes van de glyphs ervoor in dezelfde `Tj`,
+ * zoals een PDF-lezer hem neerzet.
  */
-async function readPdfText(pdf: Uint8Array): Promise<{ text: string; widths: Map<string, Map<number, number>>; images: number }> {
+async function readPdf(pdf: Uint8Array): Promise<{
+  text: string; widths: Map<string, Map<number, number>>; images: number;
+  draws: { gid: number; x: number; size: number }[];
+}> {
   const doc = await PDFDocument.load(pdf);
   const streamText = (obj: unknown) => (obj instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(obj).decode()).toString('latin1') : '');
-  const utf16 = (hex: string) => String.fromCharCode(...(hex.match(/.{4}/g) ?? []).map(h => parseInt(h, 16)));
+  const chunks = (hex: string, n: number) => hex.toUpperCase().match(new RegExp(`.{${n}}`, 'g')) ?? [];
   const widths = new Map<string, Map<number, number>>();
   let images = 0;
   for (const [, obj] of doc.context.enumerateIndirectObjects()) {
     if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Image')) images++;
   }
   let text = '';
+  const draws: { gid: number; x: number; size: number }[] = [];
   for (const page of doc.getPages()) {
     const fonts = page.node.Resources()?.lookupMaybe(PDFName.of('Font'), PDFDict);
-    const toUnicode = new Map<string, Map<string, string>>();
+    const decoders = new Map<string, { w?: Map<number, number>; decode: (hex: string) => string }>();
     for (const [key, ref] of fonts?.entries() ?? []) {
-      const type0 = doc.context.lookup(ref, PDFDict);
-      const map = new Map<string, string>();
-      for (const m of streamText(doc.context.lookup(type0.get(PDFName.of('ToUnicode')))).matchAll(/<([0-9A-Fa-f]{4})> <([0-9A-Fa-f]*)>/g)) {
-        map.set(m[1].toUpperCase(), utf16(m[2]));
+      const dict = doc.context.lookup(ref, PDFDict);
+      if (dict.get(PDFName.of('Subtype')) !== PDFName.of('Type0')) {
+        decoders.set(key.asString(), { decode: hex => chunks(hex, 2).map(c => String.fromCharCode(parseInt(c, 16))).join('') });
+        continue;
       }
-      toUnicode.set(key.asString(), map);
-      const cid = doc.context.lookup(type0.get(PDFName.of('DescendantFonts')), PDFArray).lookup(0, PDFDict);
+      const map = new Map<string, string>();
+      for (const m of streamText(doc.context.lookup(dict.get(PDFName.of('ToUnicode')))).matchAll(/<([0-9A-Fa-f]{4})> <([0-9A-Fa-f]*)>/g)) {
+        map.set(m[1].toUpperCase(), String.fromCharCode(...chunks(m[2], 4).map(h => parseInt(h, 16))));
+      }
+      const cid = doc.context.lookup(dict.get(PDFName.of('DescendantFonts')), PDFArray).lookup(0, PDFDict);
       const w = new Map<number, number>();
       const list = cid.lookup(PDFName.of('W'), PDFArray).asArray();
       for (let i = 0; i + 1 < list.length; i += 2) {
         const first = (list[i] as PDFNumber).asNumber();
         (list[i + 1] as PDFArray).asArray().forEach((n, j) => w.set(first + j, (n as PDFNumber).asNumber()));
       }
-      widths.set(String(type0.get(PDFName.of('BaseFont'))), w);
+      widths.set(String(dict.get(PDFName.of('BaseFont'))), w);
+      decoders.set(key.asString(), { w, decode: hex => chunks(hex, 4).map(gid => map.get(gid) ?? '�').join('') });
     }
     const contents = page.node.Contents();
     const parts = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
-    let current: Map<string, string> | undefined;
+    let current: { w?: Map<number, number>; decode: (hex: string) => string } | undefined;
+    let size = 0;
+    let x = NaN;
     for (const part of parts) {
-      for (const m of streamText(part instanceof PDFRef ? doc.context.lookup(part) : part).matchAll(/(\/\S+) [\d.]+ Tf|<([0-9A-Fa-f]*)> Tj/g)) {
-        if (m[1]) current = toUnicode.get(m[1]);
-        else text += (m[2].toUpperCase().match(/.{4}/g) ?? []).map(gid => current?.get(gid) ?? '�').join('');
+      const ops = streamText(part instanceof PDFRef ? doc.context.lookup(part) : part)
+        .matchAll(/(\/\S+) (-?[\d.]+) Tf|1 0 0 1 (-?[\d.]+) -?[\d.]+ Tm|<([0-9A-Fa-f]*)> Tj/g);
+      for (const m of ops) {
+        if (m[1]) { current = decoders.get(m[1]); size = Number(m[2]); } else if (m[3]) x = Number(m[3]);
+        else {
+          text += current?.decode(m[4]) ?? '�';
+          const w = current?.w;
+          if (w) {
+            let pen = x;
+            for (const gid of chunks(m[4], 4).map(h => parseInt(h, 16))) {
+              draws.push({ gid, x: pen, size });
+              pen += (w.get(gid) ?? 1000) / 1000 * size; // zonder /W-regel de standaardbreedte (/DW 1000)
+            }
+          }
+        }
       }
     }
   }
-  return { text, widths, images };
+  return { text, widths, images, draws };
 }
 
 if (failures > 0) {
