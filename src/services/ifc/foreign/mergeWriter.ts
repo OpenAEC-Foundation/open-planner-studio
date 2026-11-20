@@ -1015,7 +1015,7 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
  *
  * Voorwaarde (a), "de groep is in de bron gedragen", toetst de verliescontrole: geen stuk van de groep had de herleestoets (b)
  * nodig (`lossCheck`, `ownGroups`). Een vreemd lid (zoals een property van een ander programma in een eigen pset) sluit de
- * groep niet uit (stap 5 deel 1, knownbug 1707): de boomvorm telt alleen eigen leden, dus de writer schrijft de groep uit de
+ * groep niet uit (stap 5 deel 1, was knownbug 1707): de boomvorm telt alleen eigen leden, dus de writer schrijft de groep uit de
  * lezing van de bron precies zoals ze in de bron staat; de merge hangt het lid weer aan de pset, of zet een pset met alleen
  * de vreemde leden neer als de writer de pset niet meer schrijft (stap 6 van `writeIfcMerge`), en controle 1
  * (`validateMergeOutput`) toetst dat het lid aan hetzelfde object en dezelfde psetnaam blijft. Een vreemde verwijzing in een

@@ -15,7 +15,7 @@
 // 2. Wat blijft weigeren: 1588 en een onbekend definitieveld (de groep is niet gedragen; een typedefinitie hernoemen
 //    schrijft sinds PR 12d, blok 6), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
 //    volgorde in `IfcRelNests`).
-// 3. Een vreemd lid in een eigen pset.
+// 3. Een vreemd lid in een eigen pset: het blijft staan, ook als het laatste eigen lid wegvalt (stap 5 deel 1, was knownbug 1707).
 // 4. De klok: de reeksen en de sessieketen ook met een lopende klok.
 // 5. PR 12c, de baselinekop (E1): een kop in de aggregatie van het werkplan beweegt mee met zijn baseline (1581, 1700, de
 //    baselinestappen van de reeksen en de sessieketen); de rest van die aggregatie blijft exact en in volgorde, ook in de
@@ -29,6 +29,9 @@
 //    opslaan en heropenen, en `OPS_Baselines` blijft daarna gedragen; daardoor schrijft de keten op het oude bestand nu ook
 //    de stappen na "taak wissen". Op de oude showcase houdt de weesrij haar GlobalId (haar taak-id wordt één keer de interne
 //    id uit de bron, knownbug 1770), en blijft `OPS_Baselines` niet gedragen, zoals op het onbewerkte bestand.
+// 8. Stap 5 deel 1 (was knownbug 1707): na "het laatste eigen lid weg" heropenen, zonder bewerking (dezelfde bytes) en met de
+//    handeling andersom (het vreemde lid weer in de eigen pset); het vreemde lid niet achteraan in de ledenlijst (weigert,
+//    zoals op de basis); een vreemde `Creators`-verwijzing in een kop.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
@@ -395,7 +398,7 @@ const lastOwnGoneOutputs: { label: string; bytes: Uint8Array; pset: string; reve
   await kept('vreemd lid in OPS_Baselines: projectbeschrijving', bl, PSET.Baselines, beschrijving, 'schrijft');
   await kept('vreemd lid in OPS_Baselines: baseline erbij', bl, PSET.Baselines, se(s => s.saveBaseline('Met vreemd lid')), 'schrijft');
   await kept('vreemd lid in OPS_StructureMeta: tweede code', meta, PSET.StructureMeta, se(s => { const c = s.addActivityCodeType('Code met vreemd lid'); s.addActivityCodeValue(c, { code: 'V', description: 'V' }); }), 'schrijft');
-  // Het laatste eigen lid valt weg (knownbug 1707, stap 5 deel 1): een vreemd lid maakt een groep niet meer ongedragen;
+  // Het laatste eigen lid valt weg (was knownbug 1707, stap 5 deel 1): een vreemd lid maakt een groep niet meer ongedragen;
   // (a) is alleen nog "geen stuk had (b) nodig". De writer schrijft de pset niet meer, en de merge zet een pset met alleen
   // het vreemde lid neer, met de GlobalIds van de bron (`extraPsets` in `mergeWriter.ts`, zoals bij een notitie per taak).
   // De vervolgstap op de uitvoer (heropenen en de handeling andersom) staat in blok 8.
@@ -505,7 +508,7 @@ await one('1708 arity met koppen in writervorm: alle baselines wissen (a′ op d
   const omschrijving = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 3 ? "'Omschrijving van een ander programma'" : a) }]);
   await one('kop: omschrijving van een ander programma op een kop, projectbeschrijving', omschrijving, beschrijving, 'schrijft');
   await one('kop: omschrijving van een ander programma op een kop, de andere baseline wissen', omschrijving, wisEen, 'weigert');
-  // Een vreemd lid in `OPS_Baselines` maakt de groep niet meer ongedragen (stap 5 deel 1, knownbug 1707): de kop beweegt
+  // Een vreemd lid in `OPS_Baselines` maakt de groep niet meer ongedragen (stap 5 deel 1, was knownbug 1707): de kop beweegt
   // mee, en het vreemde lid blijft in de pset.
   const vreemdePset = withForeignMember(cat, PSET.Baselines);
   await one('kop: vreemd lid in OPS_Baselines, projectbeschrijving', vreemdePset, beschrijving, 'schrijft');
@@ -880,7 +883,7 @@ await settleMeasured();
   await settleMeasured();
 }
 
-// ── 8. Stap 5 deel 1 (knownbug 1707): de vervolgstap na "het laatste eigen lid weg", het vreemde lid in het midden van de
+// ── 8. Stap 5 deel 1 (was knownbug 1707): de vervolgstap na "het laatste eigen lid weg", het vreemde lid in het midden van de
 // ledenlijst, en een vreemde verwijzing in een kop ──
 /** Het vreemde lid staat in een pset `pset` met minstens één eigen lid, en er is maar één pset met die naam. */
 const inOwnPset = (text: string, pset: string) => {
@@ -939,8 +942,10 @@ function withForeignMemberInMiddle(bytes: Uint8Array, pset: string): Uint8Array 
   }
 }
 // Een vreemde verwijzing in een kop (`Creators`, slot 7, naar een persoon van een ander programma): de lezer leest dat slot
-// niet, dus (b) zet het terug en de koppen zijn in de bron niet gedragen, zoals bij een omschrijving van een ander programma
-// (blok 5). Tot stap 5 deel 1 sloot ook de voorwaarde "geen vreemd lid" deze vorm uit; nu draagt (b) het alleen.
+// niet. Bij een opslag die de baselines niet raakt, zet (b) het terug (de verwijzing blijft staan), en dan beweegt de kop niet
+// mee, zoals bij een omschrijving van een ander programma (blok 5). Wist de planner een baseline, dan zet (b) het slot niet
+// terug en zou de verwijzing wegvallen: dat weigert de controle op de kop zelf, ook als de vorm wel mee zou bewegen (gemeten
+// met een mutatie in de PR). Tot stap 5 deel 1 sloot ook de voorwaarde "geen vreemd lid" deze vorm uit.
 {
   const ls = parsedLines(cat), m = membersOf(planAggregate(ls)), head = ls.find(l => `#${l.id}` === m[2])!;
   const creators = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 7 ? '(#95300)' : a) }],

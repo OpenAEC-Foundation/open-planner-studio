@@ -16,6 +16,9 @@
 //    tegenproeven van de reviews van #960 en #962.
 // 8. Fixronde 1 van PR 12e: de merge neemt de GlobalId van een weesrij uit de lezing van de bron, ook als `TaskGuids` daar een
 //    getal heeft of de sleutel mist.
+// 9. Stap 5 deel 1 (was knownbug 1707): een eigen groep met een vreemd lid. Fouten in het lidmaatschap van de pset met alleen het
+//    vreemde lid vangt controle 1; een fout in de eigen leden van zo'n groep vangt (c). Een andere GlobalId op die pset vangt
+//    geen controle (knownbug 1952).
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
@@ -187,7 +190,7 @@ async function foreignMember() {
     ok('vreemd lid in het codetemplate: niets bewerkt geeft de bronbytes terug', same.ok && sameBytes(same.bytes, tmpl));
   }
   // Het laatste eigen lid valt weg, alleen het vreemde lid blijft (review van #953, ronde 2): een pset met uitsluitend
-  // vreemde leden is geen groep van (c). Sinds stap 5 deel 1 (knownbug 1707) schrijft dit: de merge zet een pset met alleen
+  // vreemde leden is geen groep van (c). Sinds stap 5 deel 1 (was knownbug 1707) schrijft dit: de merge zet een pset met alleen
   // het vreemde lid neer. Wat het lidmaatschap bewaakt, staat in blok 9.
   {
     const { o } = await edited('vreemd lid in OPS_Baselines: alle baselines weg', bl, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), true);
@@ -719,7 +722,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   }
 }
 
-// ── 9. Stap 5 deel 1 (knownbug 1707): een eigen groep met een vreemd lid, op de echte uitvoer ──
+// ── 9. Stap 5 deel 1 (was knownbug 1707): een eigen groep met een vreemd lid, op de echte uitvoer ──
 // Valt het laatste eigen lid weg, dan zet de merge een pset met alleen het vreemde lid neer, met de GlobalIds van de bron.
 // (c) toetst die pset niet (uitsluitend vreemde leden is geen groep); controle 1 (`validateMergeOutput`: vreemd deel en
 // lidmaatschap) moet een fout erin vangen. Per tegenproef: zonder (c) en met (c). En een groep met een vreemd lid valt nu
