@@ -148,7 +148,11 @@ export function useCustomReportFontGuard(value: ReportFontChoice): void {
     let cancelled = false;
     void getCustomFont({ fresh: true }).then(font => {
       if (cancelled) return;
-      const ref = latestReportSettings().customReportFont;
+      const current = latestReportSettings();
+      // De keuze kan al gewijzigd zijn voordat React de vorige effectopruiming uitvoert.
+      // Een oude opslaglezing mag een nieuwere keuze of revisie niet overschrijven.
+      if (current.reportFontFamily !== 'custom' || current.customReportFont?.rev !== rev) return;
+      const ref = current.customReportFont;
       if (!font) {
         patchReportSettings({ reportFontFamily: 'inter', customReportFont: null });
         if (missingNoticeShown) return;
