@@ -1525,6 +1525,30 @@ await check('Opslaan als over een gewone planning die in een ander tabblad open 
   } finally { internal.invoke = invoke; await tidy(c); }
 });
 
+// Knownbug 1898 (#1022): zonder werkende herstelronde gaf dezelfde keuze de melding van het crashherstel, omdat de controle
+// op open tabbladen pas na de eerste herstelronde draaide. Nu weigert de doelcontrole direct na de bestandskiezer al.
+await check('Opslaan als over een gewone planning die in een ander tabblad open staat, zonder herstelronde: de melding van een open tabblad', async () => {
+  const c = await opened();
+  const invoke = internal.invoke;
+  try {
+    c.unregister();
+    const target = otherFile(c);
+    internal.invoke = (command, ...args) => command === 'plugin:dialog|open' ? Promise.resolve(target.path) : invoke(command, ...args);
+    await c.store.getState().openFile();
+    internal.invoke = invoke;
+    assert.notEqual(c.store.getState().activeDocumentId, c.id, 'het bestand staat in een eigen tabblad');
+    c.store.getState().switchDocument(c.id);
+    clearNotices(c);
+    const source = c.store.getState().ifcSource, from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcForeignTargetOpenInTab']);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel houdt zijn bytes');
+    documentUnchanged(c, source);
+    assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; await tidy(c); }
+});
+
 await check('Opslaan als: een tabblad dat tijdens de eerste herstelronde op de gewone planning opengaat, stopt de vervanging', async () => {
   const c = await opened();
   const target = otherFile(c);
@@ -1729,26 +1753,126 @@ for (const flag of [true, false]) {
   });
 }
 
-await check('Opslaan als zonder vreemd deel over een bestand dat in een ander tabblad open staat: zoals main, overschreven zonder melding', async () => {
+// #1022 (knownbug 1893): Opslaan als van een document zonder vreemd deel over het bestand van een ander open tabblad.
+// Op main overschreef de gewone atomaire opslag het bestand zonder melding; daarna wezen beide tabbladen naar hetzelfde
+// bestand. Nu weigert de doelcontrole direct na de bestandskiezer dat doel, met de flag uit en aan, voor elk pad naar
+// hetzelfde bestand (ook via een link). Het eigen bestand en een bestand dat niet open staat, blijven gewoon.
+/** Twee gewone planningen in twee tabbladen: A (`model.ifc`, gewijzigd en actief) en B (`ander.ifc`, ook gewijzigd). */
+async function twoPlainTabs(flag: boolean) {
   const dir = join(work, `geval-${++cases}`);
   mkdirSync(dir);
   const path = join(dir, 'model.ifc'), target = join(dir, 'ander.ifc');
   writeFileSync(path, plain); writeFileSync(target, changedPlain);
   const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
-  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
   const open = (p: string, data: Uint8Array) => store.getState().openOpenedFile({
     name: basename(p), content: Buffer.from(data).toString('utf8'), bytes: data, ref: { kind: 'path', path: p } });
+  const rename = (name: string) => {
+    const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    store.getState().updateTask(task.id, { name });
+  };
   await open(path, plain);
   const firstId = store.getState().activeDocumentId;
   await open(target, changedPlain);
+  const secondId = store.getState().activeDocumentId;
+  assert.notEqual(secondId, firstId, 'het tweede bestand staat in een eigen tabblad');
+  rename('Werk in tabblad B');
   store.getState().switchDocument(firstId);
-  const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
-  store.getState().updateTask(task.id, { name: 'Over het open tabblad' });
-  store.setState(s => { s.ui.notifications = []; });
-  await saveAsTo(store, target);
-  assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
-  assert(readFileSync(target).toString('latin1').includes('Over het open tabblad'), 'main vervangt het bestand van het andere tabblad');
-  assert.deepEqual([store.getState().filePath, store.getState().isDirty], [target, false]);
+  rename('Werk in tabblad A');
+  assert.equal(!!store.getState().ifcSource?.foreign, false, 'geen vreemd deel');
+  store.setState(s => { s.ui.notifications = []; s.recentFiles = []; });
+  const errors = () => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+  const docB = () => store.getState().getOpenDocumentPayloads().find(d => d.id === secondId)!.payload;
+  return { dir, path, target, store, firstId, secondId, errors, docB };
+}
+/** De bestandskiezer van Ctrl+S kiest `path` (Ctrl+S zonder bruikbaar doel). */
+async function saveWithPick(store: Case['store'], path: string): Promise<boolean> {
+  const invoke = internal.invoke;
+  internal.invoke = (command, ...args) => command === 'plugin:dialog|save' ? Promise.resolve(path) : invoke(command, ...args);
+  try { return await store.getState().saveFileForDocument(store.getState().activeDocumentId); } finally { internal.invoke = invoke; }
+}
+/** Geweigerd met de melding van een open tabblad: niets geschreven, het doel bytegelijk, A houdt zijn pad en blijft
+ *  gewijzigd, B ongemoeid, niets in Recent. */
+function refusedOpenInTab(t: Awaited<ReturnType<typeof twoPlainTabs>>, from: number, ownPath: string | null) {
+  const s = t.store.getState();
+  assert.deepEqual(t.errors(), ['notifications.ifcForeignTargetOpenInTab'], 'de melding van een open tabblad');
+  assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is bytegelijk');
+  assert.equal(hash(readFileSync(t.path)), hash(plain), 'het bestand van tabblad A is onaangeroerd');
+  assert.deepEqual(readdirSync(t.dir).filter(f => f !== 'link.ifc').sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
+  assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+  assert.deepEqual([s.activeDocumentId, s.filePath, s.isDirty], [t.firstId, ownPath, true], 'A houdt zijn bestand en blijft gewijzigd');
+  assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'B houdt zijn bestand en zijn wijzigingen');
+  assert.deepEqual(s.recentFiles, [], 'niets in Recent');
+}
+for (const flag of [false, true]) {
+  const label = `flag ${flag ? 'aan' : 'uit'}`;
+  await check(`#1022, ${label}: Opslaan als van een gewone planning over het bestand van een ander tabblad: geweigerd, niets geschreven`, async () => {
+    const t = await twoPlainTabs(flag);
+    const from = ipc.calls.length;
+    await saveAsTo(t.store, t.target);
+    refusedOpenInTab(t, from, t.path);
+  });
+  for (const via of ['een symbolische link', 'een harde link'] as const) {
+    await check(`#1022, ${label}: Opslaan als over hetzelfde bestand via ${via}: ook geweigerd`, async () => {
+      const t = await twoPlainTabs(flag);
+      const link = join(t.dir, 'link.ifc');
+      if (via === 'een symbolische link') symlinkSync(t.target, link); else linkSync(t.target, link);
+      const from = ipc.calls.length;
+      await saveAsTo(t.store, link);
+      refusedOpenInTab(t, from, t.path);
+    });
+  }
+  await check(`#1022, ${label}: Ctrl+S van een nieuw document, in de bestandskiezer het bestand van een ander tabblad: geweigerd`, async () => {
+    const t = await twoPlainTabs(flag);
+    t.store.getState().newDocument();
+    const newId = t.store.getState().activeDocumentId;
+    t.store.getState().addTask({ name: 'Nieuw werk' });
+    t.store.setState(s => { s.ui.notifications = []; });
+    const from = ipc.calls.length;
+    assert.equal(await saveWithPick(t.store, t.target), false);
+    refusedOpenInTab({ ...t, firstId: newId }, from, null);
+  });
+  await check(`#1022, ${label}: Opslaan als over het eigen bestand terwijl een ander tabblad open staat: gewoon opgeslagen`, async () => {
+    const t = await twoPlainTabs(flag);
+    await saveAsTo(t.store, t.path);
+    const s = t.store.getState();
+    assert.deepEqual(t.errors(), [], 'geen melding');
+    assert(readFileSync(t.path).toString('latin1').includes('Werk in tabblad A'), 'het eigen bestand is bijgewerkt');
+    assert.deepEqual([s.filePath, s.isDirty], [t.path, false]);
+    assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is onaangeroerd');
+  });
+  await check(`#1022, ${label}: Opslaan als over een bestaand bestand dat niet open staat, met een ander tabblad open: vervangen zoals main`, async () => {
+    const t = await twoPlainTabs(flag);
+    const free = join(t.dir, 'derde.ifc');
+    writeFileSync(free, changedPlain);
+    await saveAsTo(t.store, free);
+    const s = t.store.getState();
+    assert.deepEqual(t.errors(), [], 'geen melding');
+    assert(readFileSync(free).toString('latin1').includes('Werk in tabblad A'), 'het bestaande bestand is vervangen');
+    assert.deepEqual([s.filePath, s.isDirty], [free, false]);
+    assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is onaangeroerd');
+  });
+  await check(`#1022, ${label}: Opslaan als naar een naam die tabblad B nog onthoudt maar waar geen bestand meer staat: aangemaakt zoals main`, async () => {
+    const t = await twoPlainTabs(flag);
+    unlinkSync(t.target);
+    await saveAsTo(t.store, t.target);
+    const s = t.store.getState();
+    assert.deepEqual(t.errors(), [], 'geen melding');
+    assert(readFileSync(t.target).toString('latin1').includes('Werk in tabblad A'), 'het bestand is aangemaakt');
+    assert.deepEqual([s.filePath, s.isDirty], [t.target, false]);
+  });
+}
+
+// Knownbug 1907: Exporteren → IFC kijkt niet naar de open tabbladen. Een export over het bestand van een ander tabblad
+// vervangt dat bestand zonder melding; tabblad B wijst er nog naar. Deze proef legt het gedrag van main vast.
+await check('Knownbug 1907: Exporteren → IFC over het bestand van een ander tabblad: zoals main, vervangen zonder melding', async () => {
+  const t = await twoPlainTabs(true);
+  const invoke = internal.invoke;
+  internal.invoke = (command, ...args) => command === 'plugin:dialog|save' ? Promise.resolve(t.target) : invoke(command, ...args);
+  try { await t.store.getState().exportAs('ifc'); } finally { internal.invoke = invoke; }
+  assert.deepEqual(t.errors(), [], 'geen melding');
+  assert(readFileSync(t.target).toString('latin1').includes('Werk in tabblad A'), 'de export vervangt het bestand van tabblad B');
+  assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'tabblad B wijst nog naar het bestand');
 });
 
 await check('Opslaan als met een gebouwmodel en de flag uit (na het openen uitgezet): dezelfde weigering als main, niets aan de bestandsrand', async () => {
