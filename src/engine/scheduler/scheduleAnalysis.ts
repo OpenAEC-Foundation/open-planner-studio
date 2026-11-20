@@ -463,7 +463,9 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (!cd) continue;
         // Een MSO/MFO/SNLT op een nulduurmijlpaal toetst tegen hetzelfde moment als de late pass.
         const moment = milestoneLateMoment(task, cc, cal);
-        const dW = moment ?? snapOnOrBefore(cal, cd);
+        // Spiegel de backward-pass: een expliciete FNLT van een kalendertijdtaak is een klokmoment.
+        const elapsedFinishBound = cc.type === 'FNLT' && isElapsedTask(task) && cc.date?.includes('T');
+        const dW = moment ?? (elapsedFinishBound ? cd : snapOnOrBefore(cal, cd));
         // N3: vergelijk de equivalente startgrens; dagenmaat gebruikt dezelfde grens (145).
         // Kalendertijd en nulduurmijlpalen houden hun letterlijke moment buiten werktijd.
         const dS = moment ?? (!isElapsedTask(task) && !isZeroDurationMilestone(task)
