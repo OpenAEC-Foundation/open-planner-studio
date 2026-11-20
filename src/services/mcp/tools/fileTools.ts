@@ -65,9 +65,10 @@ const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source
   'contains a building model or data from other programs. Writing here would replace that content with only the ' +
   'schedule. Export to another path.';
 
-/** Knownbug 1907: het pad is het bestand van een ander open document (zoals Opslaan als in de app, #1022). */
-const OPEN_DOCUMENT_TARGET_REFUSAL = (path: string) => `'${path}' is the file of another document that is open in ` +
-  'another tab. Writing here would replace that document\'s file. Export to another path, or ask the user to close that tab.';
+/** Knownbug 1907: het pad is het bestand van een ander open document (zoals Opslaan als in de app, #1022). Geldt in de
+ *  app en in de headless server, die ook meerdere documenten open kan hebben (review van #1064). */
+const OPEN_DOCUMENT_TARGET_REFUSAL = (path: string) => `'${path}' is the file of another open document. Writing here ` +
+  'would replace that document\'s file. Export to another path, or close that document first.';
 
 /** #804 fixronde 2: het bestaande bestand op het pad bevat zelf een gebouwmodel (flag `ifcForeignContent` aan). */
 const BUILDING_MODEL_TARGET_REFUSAL = (path: string) => `'${path}' already contains a building model. Writing here ` +
@@ -367,7 +368,7 @@ export const fileTools: McpToolDef[] = [
       // Fixronde 1: niet over het bronbestand van een document met een vreemd deel (ook een ander open document, en ook
       // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven. Fixronde 2: met
       // de flag aan ook niet over een bestaand bestand met een gebouwmodel (dezelfde doelcontrole als Opslaan als).
-      // Knownbug 1907: ook niet over het bestand van een ander open document (headless heeft er maar één).
+      // Knownbug 1907: ook niet over het bestand van een ander open document, in de app en headless.
       const foreignTarget = await refusedWriteTarget(checked, { kind: 'path', path }, {
         identityFs: async () => fs, openDocumentsExcept: checked.activeDocumentId,
         protectExistingTargets: fs.protectExistingTargets,

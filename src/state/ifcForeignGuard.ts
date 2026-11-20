@@ -146,6 +146,13 @@ export const EXPORT_TARGET_OPEN_IN_TAB_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'export-target-open-in-tab',
 });
 
+/** Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open
+ *  staat, ook het actieve. */
+export const EXPORT_TARGET_OPEN_DOCUMENT_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOpenDocument',
+  dedupeKey: 'export-target-open-document',
+});
+
 /** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
 export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignTargetExport',
@@ -204,14 +211,14 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
-/** Is het bestaande bestand op `path` het bestand van een ANDER open document (niet `exceptDocumentId`), ook een gewone
+/** Is het bestaande bestand op `path` het bestand van een open document (niet `exceptDocumentId`), ook een gewone
  *  planning zonder vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken
  *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
  *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
  *  #1019). */
 async function isOpenDocumentPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
-  exceptDocumentId: string,
+  exceptDocumentId: string | null,
 ): Promise<boolean> {
   const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
     id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
@@ -253,11 +260,12 @@ export interface WriteTargetDeps {
   protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
-  /** De id van het document dat schrijft. Dan weigert de controle ook een bestaand pad dat een ander open document als
-   *  bestand heeft, ook zonder vreemd deel (`'open-document'`): de bestandskiezer van een document (Opslaan als, #1022),
-   *  de vervanging bij Opslaan als over een bestaande naam (#804 keuze 4, fixronde 1 van #1019), Exporteren en
-   *  `planner_export_ifc` (knownbug 1907). */
-  openDocumentsExcept?: string;
+  /** Weiger ook een bestaand pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`),
+   *  behalve het document met deze id: het document dat opslaat of waarvan de planning in de uitvoer staat. `null`: geen
+   *  uitzondering, voor uitvoer zonder de planning (bibliotheek, rapport; review van #1064). Voor de bestandskiezer van
+   *  een document (Opslaan als, #1022), de vervanging bij Opslaan als over een bestaande naam (#804 keuze 4, fixronde 1
+   *  van #1019), elke export en `planner_export_ifc` (knownbug 1907). */
+  openDocumentsExcept?: string | null;
 }
 
 /**

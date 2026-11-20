@@ -335,19 +335,24 @@ record, ook als het doel in deze sessie nooit geopend was. Proeven: `check-ifc-o
 
 **Opslaan als en Exporteren over het bestand van een ander tabblad (#1022, knownbug 1907).** De doelcontrole direct na
 de bestandskiezer van een document (`documentSaveDialog`: Opslaan als, en Ctrl+S zonder bruikbaar doel) en die van elke
-export (`foreignTargetCheck`: elk formaat, ook de bibliotheek- en rapportexport) geven `openDocumentsExcept` mee, de id
-van het document dat schrijft (bij een export standaard het actieve), voor elk document en met de flag aan en uit;
-`planner_export_ifc` ook (headless heeft één document, dus daar verandert niets). `refusedWriteTarget` weigert dan een bestaand pad dat een ander open document (niet
-het document dat schrijft) als bestand heeft ⇒ `ifcForeignTargetOpenInTab` (Opslaan als), `exportTargetOpenInTab`
-(Exporteren) of een `VALIDATION`-fout (`planner_export_ifc`, ook met `overwrite: true`), met dezelfde padvergelijking als de
+export (`foreignTargetCheck`) geven `openDocumentsExcept` mee, voor elk document en met de flag aan en uit. Dat is de id
+van het document waarvan de planning in de uitvoer staat: het document dat opslaat, en bij `exportAs` en het
+projectbestand van de export met de resourcebibliotheek het document van het begin van de export (een tabbladwissel
+tijdens de kiezer verandert dat niet). Uitvoer zonder de planning geeft `null`, geen uitzondering: het bibliotheekbestand
+(`exportLibrary` en de tweede kiezer van `exportProjectWithPool`, via `saveLibraryFile`) en de rapporten (PDF); daar
+weigert ook het bestand van het actieve document (review van #1064). `planner_export_ifc` geeft het actieve document mee,
+in de app én in de headless server (die kan ook meerdere IFC's open hebben). `refusedWriteTarget` weigert dan een
+bestaand pad dat een open document (behalve de uitzondering) als bestand heeft ⇒ `ifcForeignTargetOpenInTab` (Opslaan
+als), `exportTargetOpenInTab` (Exporteren met uitzondering), `exportTargetOpenDocument` (zonder uitzondering) of een
+`VALIDATION`-fout (`planner_export_ifc`, ook met `overwrite: true`), met dezelfde padvergelijking als de
 bronkenmerken (`sameLocalFile`: pad of bestandsidentiteit, dus ook via een link). Na regel 1: de bron van een document
 met een vreemd deel houdt haar eigen reden. Staat er op het pad geen bestand meer, dan is de naam vrij, ook als een ander
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document
-blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907), `check-ifc-foreign-target.ts`
-(#1022 browser) en `cases-doc-file.ts` (`planner_export_ifc`).
+blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907, de bibliotheek),
+`check-ifc-foreign-target.ts` (#1022 browser), `cases-doc-file.ts` en `cases-headless-server.ts` (`planner_export_ifc`).
 
 **De vervanging (5a).** `replaceOwnPathWithRecovery` (`state/ownFileReplace.ts`, binnen `runProjectFileWrite`) doet ontwerp
 §4.10 stap 0–6. Een gelinkt doel weigert vooraf (`linkedOwnFile`, een snelle voorcontrole; op Windows ziet die een harde

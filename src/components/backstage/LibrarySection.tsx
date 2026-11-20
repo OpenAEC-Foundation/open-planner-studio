@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
-import { saveFileDialog } from '@/services/fileAccess';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import type { WorkCalendar } from '@/types/calendar';
 import './LibrarySection.css';
@@ -26,7 +25,6 @@ export function LibrarySection() {
   const removePoolCalendar = useAppStore(s => s.removePoolCalendar);
   const updatePoolCalendar = useAppStore(s => s.updatePoolCalendar);
   const promoteCalendarToPool = useAppStore(s => s.promoteCalendarToPool);
-  const exportPoolIFC = useAppStore(s => s.exportPoolIFC);
   const setUI = useAppStore(s => s.setUI);
   // Actieve document: bron voor "+ Uit project" (kalender-promoveren).
   const projectCalendars = useAppStore(s => s.calendars);
@@ -70,25 +68,8 @@ export function LibrarySection() {
     setEditingCalendarId(null);
   };
 
-  const onExport = async () => {
-    const content = exportPoolIFC(selected.id);
-    if (!content) return;
-    // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel.
-    const outcome = await saveFileDialog(`bibliotheek-${selected.name}.ifc`, content, [{ name: 'IFC', extensions: ['ifc'] }], {
-      refuseTarget: useAppStore.getState().foreignTargetCheck('export'),
-    });
-    // Kwam het bestand via de download-terugval binnen (omgeving zonder schrijfrechten op
-    // File System Access-handles), dan staat het in de downloadmap en niet waar de gebruiker het
-    // aanwees — zeg dat, anders zoekt hij het op de verkeerde plek.
-    if (outcome?.viaDownload) {
-      useAppStore.getState().notify({
-        severity: 'info',
-        messageKey: 'notifications.savedViaDownload',
-        params: { name: outcome.name },
-        dedupeKey: 'saved-via-download',
-      });
-    }
-  };
+  // De doelcontrole (geen open document als doel, ook het actieve niet) en de downloadmelding: `exportLibrary`.
+  const onExport = () => useAppStore.getState().exportLibrary(selected.id);
 
   // Lokale bevestigings-state i.p.v. `window.confirm()` — zelfde patroon als
   // `LayoutsDialog.tsx`/`BaselineDialog.tsx`. Geen globale singleton; `onConfirm` draagt de

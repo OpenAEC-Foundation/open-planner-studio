@@ -5065,14 +5065,3 @@ en noem het in je rapport of PR-tekst.
      blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
      nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
      doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
-
-
-1920. **VERVOLG (#1064, randgeval): de rapportexport legt het exporterende document pas vast nadat de PDF klaar is.**
-     De export van een rapport (`GanttReportStudio.tsx` en `ReportPanel.tsx`, `writePdf`) maakt de doelcontrole
-     `foreignTargetCheck('export')` pas na het opbouwen van de PDF (een `await`), dus met het tabblad dat dan actief is.
-     Wisselt de planner tijdens dat opbouwen van tabblad A naar B en kiest hij daarna via een naam op `.pdf` (een link)
-     het bestand van B, dan weigert de controle dat niet en vervangt het rapport van A het bestand van B; het eigen
-     bestand van A weigert ze dan juist wel. `exportAs`, de export met de resourcebibliotheek en de
-     bibliotheekexport leggen het document vast vóór ze wachten. Zeldzaam: het vraagt een tabbladwissel tijdens het
-     opbouwen en een link met de extensie `.pdf`. Richting: het document-id vastleggen bij het begin van de export en
-     meegeven aan `foreignTargetCheck('export', id)`. Gevonden bij #1064. — B (code gelezen)

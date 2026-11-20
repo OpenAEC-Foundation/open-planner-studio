@@ -2023,7 +2023,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
   internals.invoke = async (command, args, options) => command === 'plugin:dialog|save'
     ? answers.shift() ?? null : invoke(command, args, options);
   try {
-    const { fileIdentityFs, writeTargetReaders } = await import('@/services/fileAccess');
+    const { saveFileDialog, fileIdentityFs, writeTargetReaders } = await import('@/services/fileAccess');
     const { writeUserTextFileTauri } = await import('@/services/fileAccess/atomicWrite');
     const { saveToPathWithIO } = await import('@/utils/devBridge');
     const { useAppStore } = await import('@/state/appStore');
@@ -2079,8 +2079,11 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     writeFileSync(libraryPath, library);
     answers = [libraryPath];
     const libraryWrites = ipc.calls.length;
-    await libraryStore.getState().exportLibrary(libraryId);
-    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', !libraryStore.getState().ui.notifications.some(n => n.refusal));
+    // Rechtstreeks met de schrijver en de doelcontrole van `exportLibrary`: elke uitvoer krijgt nieuwe GlobalIds, dus
+    // bytegelijk is alleen te toetsen met dezelfde inhoud.
+    const libraryResult = await saveFileDialog('bibliotheek.ifc', library, [{ name: 'IFC', extensions: ['ifc'] }],
+      { refuseTarget: libraryStore.getState().foreignTargetCheck(null) });
+    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', libraryResult !== null);
     ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.wrote && byteWrite(c)));
     eq('1c: gewone bibliotheekwriter blijft bytegelijk', readFileSync(libraryPath, 'utf8'), library);
     eq('1c: alle echte bestanden gesloten', ipc.openHandles(), 0);
