@@ -403,6 +403,31 @@ function solveWith(overrides?: Partial<SchedulingOptions>, remainingLag = false)
     w(on, 'FSL')[0] !== w(off, 'FSL')[0], true);
 }
 
+// Knownbug 186: keep imported task provenance but remove explicit work bands from every calendar.
+{
+  for (const useWindow of [false, true]) {
+    const imported = importFixture();
+    setConvention(imported, 'p6CompletedDataDateWindow', useWindow);
+    const calendar = { ...imported.calendar, workTime: undefined };
+    const calendars = (imported.resourceCalendars ?? []).map(cal => ({ ...cal, workTime: undefined }));
+    try {
+      const result = solveProject({
+        tasks: imported.tasks, sequences: imported.sequences, calendar, calendars,
+        dataDate: imported.project.statusDate, progressMode: imported.project.progressMode,
+        schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
+        projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
+      });
+      const row = result.tasks.get('A');
+      console.log('KNOWNBUG186', JSON.stringify({ useWindow, statusDate: imported.project.statusDate,
+        taskCount: result.tasks.size, error: result.error, row: row && [row.earlyStart, row.earlyFinish,
+          row.lateStart, row.lateFinish, row.totalFloat] }));
+    } catch (error) {
+      console.log('KNOWNBUG186', JSON.stringify({ useWindow, exception: String(error),
+        stack: error instanceof Error ? error.stack : undefined }));
+    }
+  }
+}
+
 if (diffs.length > 0) {
   console.error(`XER COMPLETED LATE RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);
