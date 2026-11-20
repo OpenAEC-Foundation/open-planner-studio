@@ -21,6 +21,7 @@ import {
   beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
 import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
+import { layoutPdfText } from './embedReportFont';
 import {
   shapeAndPlace, isArabicScriptCp, isNeutralCp,
   type ShapingFonts, type ShapedRun, type FontKey,
@@ -113,7 +114,7 @@ export interface ArabicShapingFonts {
  * `PdfVectorDraw2D` aanreikt. `fk`/`fkBold` (fontkit) zijn ALTIJD aanwezig — nodig voor coverage én
  * breedte-meting (`measureText`) in de eerste pass, vóór er iets ingebed is. `embed` is er pas in de
  * TWEEDE pass (ná HarfBuzz-subset + `embedFont`): dán bevat het de ingebedde `PDFFont`s + hun
- * resource-sleutels (F4/F5, F6/F7, … per provider), waarmee CJK-tekst via `encodeText`+`showText`
+ * resource-sleutels (F4/F5, F6/F7, … per provider), waarmee CJK-tekst via `layoutPdfText`+`showText`
  * geëmit wordt. Zonder `embed` (pass 1) verzamelt de backend alleen de gebruikte codepoints.
  */
 export interface CjkVectorFont {
@@ -138,6 +139,28 @@ export interface CjkVectorFont {
 function fontkitOf(font: PDFFont): FontkitFont {
   // De CustomFontEmbedder (subset:false) houdt de fontkit-font in `.embedder.font`.
   return (font as unknown as { embedder: { font: FontkitFont } }).embedder.font;
+}
+
+/**
+ * Tekst in één letter vanaf (x, y) in PDF-punten (y omhoog), na `setFontAndSize`. Eén `layout` per tekst
+ * (`layoutPdfText`): zonder GPOS-verschuiving één `Tj` (de pen schuift op met `/W`); heeft een glyph een
+ * verschuiving (de Koptische bovenstreep, issue #1050), dan krijgt elke glyph een eigen matrix op dezelfde
+ * pen plus zijn verschuiving, zoals het RTL-pad. De pen loopt in beide gevallen op de breedtes uit `/W`, dus
+ * de getekende breedte blijft die van de meting (`fontAdvanceWidth`).
+ */
+function laidOutTextOps(font: PDFFont, text: string, x: number, y: number, size: number): PDFOperator[] {
+  const { glyphs, unitsPerEm } = layoutPdfText(font, text);
+  if (glyphs.every(g => g.xOffset === 0 && g.yOffset === 0)) {
+    return [setTextMatrix(1, 0, 0, 1, x, y), showText(PDFHexString.of(glyphs.map(g => g.hex).join('')))];
+  }
+  const scale = size / unitsPerEm;
+  const ops: PDFOperator[] = [];
+  let pen = 0;
+  for (const g of glyphs) {
+    ops.push(setTextMatrix(1, 0, 0, 1, x + (pen + g.xOffset) * scale, y + g.yOffset * scale), showText(PDFHexString.of(g.hex)));
+    pen += g.advance;
+  }
+  return ops;
 }
 
 /** Dezelfde maten als het papier (`reportBaselineShift`): één bron in `reportTextMeasure.ts`. */
@@ -487,8 +510,7 @@ export class PdfVectorDraw2D implements Draw2D {
     this.pushText(place, width, [
       beginText(),
       setFontAndSize(bold ? 'F1' : 'F0', size),
-      setTextMatrix(1, 0, 0, 1, place.tx, this.flipY(place.baselineY)),
-      showText(pdfFont.encodeText(text)),
+      ...laidOutTextOps(pdfFont, text, place.tx, this.flipY(place.baselineY), size),
       endText(),
     ]);
   }
@@ -540,7 +562,7 @@ export class PdfVectorDraw2D implements Draw2D {
   /**
    * Complex (RTL/gemengd) tekst-pad: shape via de bidi/shaping-kern en emit ELKE glyph op z'n eigen
    * tekst-matrix (`setTextMatrix` + `showText(<hex>)`) — bewust NIET één `showText` per run, want de
-   * `/W`-breedtetabel van pdf-lib dekt alleen via `encodeText` geregistreerde glyphs; rauwe geshapte
+   * `/W`-breedtetabel van pdf-lib dekt alleen geregistreerde glyphs (`layoutPdfText`); rauwe geshapte
    * GID's zouden op `/DW=1000` vallen en de Arabische letters losgekoppeld tekenen (RTL-1 bewees dit).
    * Per run een `setFontAndSize(fontKey,…)` (F0/F1 Latijn, F2/F3 Noto); de kleur/alpha net als het snelpad.
    */
@@ -573,7 +595,7 @@ export class PdfVectorDraw2D implements Draw2D {
 
   /**
    * CJK-tekst-pad (LTR, niet-bidi): splits `text` in maximale runs van gelijke font-toewijzing (Inter
-   * vs. één CJK-provider), emit per run een `setFontAndSize(fontKey) + Tm + encodeText`-blok op de
+   * vs. één CJK-provider), emit per run een `setFontAndSize(fontKey) + Tm + layoutPdfText`-blok op de
    * cumulatieve x. Zelfde baseline-omrekening + kleur/alpha-wrapping + bron-bbox-model als het snelpad,
    * zodat de pagineerder 'm identiek per tegel plaatst. Alleen aangeroepen als de providerfonts ingebed
    * zijn (pass 2), dus elke CJK-run heeft gegarandeerd een `embed`.
@@ -598,11 +620,7 @@ export class PdfVectorDraw2D implements Draw2D {
     for (let i = 0; i < runs.length; i++) {
       const r = runs[i];
       const { fontKey, pdfFont } = this.cjkRunFont(r, bold);
-      textOps.push(
-        setFontAndSize(fontKey, size),
-        setTextMatrix(1, 0, 0, 1, cursor, pdfBaselineY),
-        showText(pdfFont.encodeText(r.str)),
-      );
+      textOps.push(setFontAndSize(fontKey, size), ...laidOutTextOps(pdfFont, r.str, cursor, pdfBaselineY, size));
       cursor += widths[i];
     }
     textOps.push(endText());

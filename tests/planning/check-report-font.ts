@@ -38,7 +38,7 @@ import {
 } from '@/services/print/printPreview';
 import { makeSectionedRenderReport, makeTableRenderReport, type PdfSectionedReportSpec } from '@/services/pdf/pdfTable';
 import { paginateVectorToPdfBytes, VectorUnsupportedError, type ReportFontBytes } from '@/services/print/paginateVector';
-import fontkit from '@pdf-lib/fontkit';
+import { fontkit } from '@/services/pdf/fontkit';
 import {
   DEFAULT_REPORT_FONT_ID, DEFAULT_REPORT_FONT_STACK, REPORT_FONT_IDS, REPORT_FONTS, reportFontStack,
 } from '@/services/pdf/reportFont';
