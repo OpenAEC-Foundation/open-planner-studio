@@ -143,6 +143,19 @@ export const IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE: NotifyInput = refusalNotice(
   dedupeKey: 'ifc-foreign-target-open-in-tab',
 });
 
+/** Knownbug 1907: Exporteren koos een bestand dat in een ander tabblad open staat. */
+export const EXPORT_TARGET_OPEN_IN_TAB_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOpenInTab',
+  dedupeKey: 'export-target-open-in-tab',
+});
+
+/** Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open
+ *  staat, ook het actieve. */
+export const EXPORT_TARGET_OPEN_DOCUMENT_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOpenDocument',
+  dedupeKey: 'export-target-open-document',
+});
+
 /** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
 export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignTargetExport',
@@ -201,14 +214,14 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
-/** Is het bestaande bestand op `path` het bestand van een ANDER open document (niet `exceptDocumentId`), ook een gewone
+/** Is het bestaande bestand op `path` het bestand van een open document (niet `exceptDocumentId`), ook een gewone
  *  planning zonder vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken
  *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
  *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
  *  #1019). */
 async function isOpenDocumentPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
-  exceptDocumentId: string,
+  exceptDocumentId: string | null,
 ): Promise<boolean> {
   const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
     id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
@@ -250,10 +263,12 @@ export interface WriteTargetDeps {
   protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
-  /** Alleen de bestandskiezer van een document (Opslaan als, #1022) en de vervanging bij Opslaan als over een bestaande
-   *  naam (#804 keuze 4, fixronde 1 van #1019): weiger ook een bestaand pad dat een ander open document dan
-   *  `exceptDocumentId` (het document dat opslaat) als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
-  openDocumentPaths?: { readonly exceptDocumentId: string };
+  /** Weiger ook een bestaand pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`),
+   *  behalve het document met deze id: het document dat opslaat of waarvan de planning in de uitvoer staat. `null`: geen
+   *  uitzondering, voor uitvoer zonder de planning (bibliotheek, rapport; review van #1064). Voor de bestandskiezer van
+   *  een document (Opslaan als, #1022), de vervanging bij Opslaan als over een bestaande naam (#804 keuze 4, fixronde 1
+   *  van #1019), elke export en `planner_export_ifc` (knownbug 1907). */
+  openDocumentsExcept?: string | null;
 }
 
 /**
@@ -265,8 +280,8 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
- *  3. alleen met `deps.openDocumentPaths` (Opslaan als): een bestaand pad dat een ander open document als bestand
- *     heeft, ook zonder vreemd deel en ook met de flag uit ('open-document'; fixronde 1 van #1019, #1022). Na regel 1,
+ *  3. alleen met `deps.openDocumentsExcept` (Opslaan als, Exporteren): een bestaand pad dat een ander open document als
+ *     bestand heeft, ook zonder vreemd deel en ook met de flag uit ('open-document'; #1022, knownbug 1907). Na regel 1,
  *     dus de bron van een document met een vreemd deel houdt haar eigen reden.
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
@@ -299,8 +314,8 @@ export async function refusedWriteTarget(
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;
-  if (deps.openDocumentPaths && target.kind === 'path'
-    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentPaths.exceptDocumentId)) {
+  if (deps.openDocumentsExcept !== undefined && target.kind === 'path'
+    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
     return 'open-document';
   }
   if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;

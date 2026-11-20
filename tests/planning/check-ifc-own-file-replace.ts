@@ -34,7 +34,8 @@ import {
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import { userFileTempPath } from '@/services/fileAccess/atomicWrite';
-import { readsAsBytes } from '@/services/formatRegistry';
+import { readsAsBytes, type ExportFormat } from '@/services/formatRegistry';
+import type { ExportResult } from '@/state/slices/fileSlice';
 import { readBytesFromRef } from '@/services/fileAccess';
 import {
   ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery, type OwnPathReplaceResult,
@@ -1759,12 +1760,13 @@ for (const flag of [true, false]) {
 // Op main overschreef de gewone atomaire opslag het bestand zonder melding; daarna wezen beide tabbladen naar hetzelfde
 // bestand. Nu weigert de doelcontrole direct na de bestandskiezer dat doel, met de flag uit en aan, voor elk pad naar
 // hetzelfde bestand (ook via een link). Het eigen bestand en een bestand dat niet open staat, blijven gewoon.
-/** Twee gewone planningen in twee tabbladen: A (`model.ifc`, gewijzigd en actief) en B (`ander.ifc`, ook gewijzigd). */
-async function twoPlainTabs(flag: boolean) {
+/** Twee gewone planningen in twee tabbladen: A (`model.ifc`, gewijzigd en actief) en B (`ander.ifc`, ook gewijzigd).
+ *  `own`: de inhoud van A; met `bytes` is A een document met een gebouwmodel (knownbug 1907, alleen met de flag aan). */
+async function twoPlainTabs(flag: boolean, own: Uint8Array = plain) {
   const dir = join(work, `geval-${++cases}`);
   mkdirSync(dir);
   const path = join(dir, 'model.ifc'), target = join(dir, 'ander.ifc');
-  writeFileSync(path, plain); writeFileSync(target, changedPlain);
+  writeFileSync(path, own); writeFileSync(target, changedPlain);
   const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
   const open = (p: string, data: Uint8Array) => store.getState().openOpenedFile({
@@ -1773,7 +1775,7 @@ async function twoPlainTabs(flag: boolean) {
     const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
     store.getState().updateTask(task.id, { name });
   };
-  await open(path, plain);
+  await open(path, own);
   const firstId = store.getState().activeDocumentId;
   await open(target, changedPlain);
   const secondId = store.getState().activeDocumentId;
@@ -1781,11 +1783,11 @@ async function twoPlainTabs(flag: boolean) {
   rename('Werk in tabblad B');
   store.getState().switchDocument(firstId);
   rename('Werk in tabblad A');
-  assert.equal(!!store.getState().ifcSource?.foreign, false, 'geen vreemd deel');
+  assert.equal(!!store.getState().ifcSource?.foreign, own !== plain, own === plain ? 'geen vreemd deel' : 'een vreemd deel');
   store.setState(s => { s.ui.notifications = []; s.recentFiles = []; });
   const errors = () => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
   const docB = () => store.getState().getOpenDocumentPayloads().find(d => d.id === secondId)!.payload;
-  return { dir, path, target, store, firstId, secondId, errors, docB };
+  return { dir, path, own, target, store, firstId, secondId, errors, docB };
 }
 /** De bestandskiezer van Ctrl+S kiest `path` (Ctrl+S zonder bruikbaar doel). */
 async function saveWithPick(store: Case['store'], path: string): Promise<boolean> {
@@ -1795,12 +1797,15 @@ async function saveWithPick(store: Case['store'], path: string): Promise<boolean
 }
 /** Geweigerd met de melding van een open tabblad: niets geschreven, het doel bytegelijk, A houdt zijn pad en blijft
  *  gewijzigd, B ongemoeid, niets in Recent. */
-function refusedOpenInTab(t: Awaited<ReturnType<typeof twoPlainTabs>>, from: number, ownPath: string | null) {
+function refusedOpenInTab(
+  t: Awaited<ReturnType<typeof twoPlainTabs>>, from: number, ownPath: string | null,
+  notice = 'notifications.ifcForeignTargetOpenInTab',
+) {
   const s = t.store.getState();
-  assert.deepEqual(t.errors(), ['notifications.ifcForeignTargetOpenInTab'], 'de melding van een open tabblad');
+  assert.deepEqual(t.errors(), [notice], 'de melding van een open tabblad');
   assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is bytegelijk');
-  assert.equal(hash(readFileSync(t.path)), hash(plain), 'het bestand van tabblad A is onaangeroerd');
-  assert.deepEqual(readdirSync(t.dir).filter(f => f !== 'link.ifc').sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
+  assert.equal(hash(readFileSync(t.path)), hash(t.own), 'het bestand van tabblad A is onaangeroerd');
+  assert.deepEqual(readdirSync(t.dir).filter(f => !f.startsWith('link.')).sort(), ['ander.ifc', 'model.ifc'], 'geen hulpbestand');
   assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
   assert.deepEqual([s.activeDocumentId, s.filePath, s.isDirty], [t.firstId, ownPath, true], 'A houdt zijn bestand en blijft gewijzigd');
   assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'B houdt zijn bestand en zijn wijzigingen');
@@ -1865,16 +1870,184 @@ for (const flag of [false, true]) {
   });
 }
 
-// Knownbug 1907: Exporteren → IFC kijkt niet naar de open tabbladen. Een export over het bestand van een ander tabblad
-// vervangt dat bestand zonder melding; tabblad B wijst er nog naar. Deze proef legt het gedrag van main vast.
-await check('Knownbug 1907: Exporteren → IFC over het bestand van een ander tabblad: zoals main, vervangen zonder melding', async () => {
-  const t = await twoPlainTabs(true);
+// Knownbug 1907 (vervolg op #1022): Exporteren over het bestand van een ander open tabblad. Op main vervangt de export
+// dat bestand zonder melding; tabblad B wijst er nog naar, en sluit de planner B zonder wijzigingen, dan staat zijn planning
+// nergens meer. Nu weigert dezelfde doelcontrole als bij Opslaan als (`refusedWriteTarget` met de open tabbladen) direct na
+// de bestandskiezer, voor elk formaat en elk document, met de flag uit en aan. Het eigen bestand en een bestand dat niet
+// open staat, blijven zoals main.
+/** Exporteren → `format`; de bestandskiezer kiest `path`. */
+async function exportTo(store: Case['store'], path: string, format: ExportFormat = 'ifc'): Promise<void> {
   const invoke = internal.invoke;
-  internal.invoke = (command, ...args) => command === 'plugin:dialog|save' ? Promise.resolve(t.target) : invoke(command, ...args);
-  try { await t.store.getState().exportAs('ifc'); } finally { internal.invoke = invoke; }
+  internal.invoke = (command, ...args) => command === 'plugin:dialog|save' ? Promise.resolve(path) : invoke(command, ...args);
+  try { await store.getState().exportAs(format); } finally { internal.invoke = invoke; }
+}
+const EXPORT_OPEN_IN_TAB = 'notifications.exportTargetOpenInTab';
+for (const flag of [false, true]) {
+  const label = `flag ${flag ? 'aan' : 'uit'}`;
+  await check(`Knownbug 1907, ${label}: Exporteren → IFC van een gewone planning over het bestand van een ander tabblad: geweigerd, niets geschreven`, async () => {
+    const t = await twoPlainTabs(flag);
+    const from = ipc.calls.length;
+    await exportTo(t.store, t.target);
+    refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
+  });
+  // De kiezer vult de extensie van het formaat aan (`ander.ifc` wordt `ander.ifc.csv`, een nieuw bestand); een ander
+  // formaat komt dus bij het bestand van tabblad B via een naam met die extensie, hier een link.
+  await check(`Knownbug 1907, ${label}: Exporteren → CSV over het bestand van een ander tabblad (via link.csv): geweigerd, niets geschreven`, async () => {
+    const t = await twoPlainTabs(flag);
+    const link = join(t.dir, 'link.csv');
+    symlinkSync(t.target, link);
+    const from = ipc.calls.length;
+    await exportTo(t.store, link, 'csv');
+    refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
+  });
+  for (const via of ['een symbolische link', 'een harde link'] as const) {
+    await check(`Knownbug 1907, ${label}: Exporteren → IFC over hetzelfde bestand via ${via}: ook geweigerd`, async () => {
+      const t = await twoPlainTabs(flag);
+      const link = join(t.dir, 'link.ifc');
+      if (via === 'een symbolische link') symlinkSync(t.target, link); else linkSync(t.target, link);
+      const from = ipc.calls.length;
+      await exportTo(t.store, link);
+      refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
+    });
+  }
+  await check(`Knownbug 1907, ${label}: Exporteren → IFC over het eigen bestand terwijl een ander tabblad open staat: zoals main`, async () => {
+    const t = await twoPlainTabs(flag);
+    await exportTo(t.store, t.path);
+    const s = t.store.getState();
+    assert.deepEqual(t.errors(), [], 'geen melding');
+    assert(readFileSync(t.path).toString('latin1').includes('Werk in tabblad A'), 'de export schrijft het eigen bestand');
+    assert.deepEqual([s.filePath, s.isDirty], [t.path, true], 'een export, geen opslag: het document blijft gewijzigd');
+    assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is onaangeroerd');
+  });
+  await check(`Knownbug 1907, ${label}: Exporteren → IFC over een bestaand bestand dat niet open staat, met een ander tabblad open: vervangen zoals main`, async () => {
+    const t = await twoPlainTabs(flag);
+    const free = join(t.dir, 'derde.ifc');
+    writeFileSync(free, changedPlain);
+    await exportTo(t.store, free);
+    assert.deepEqual(t.errors(), [], 'geen melding');
+    assert(readFileSync(free).toString('latin1').includes('Werk in tabblad A'), 'het bestaande bestand is vervangen');
+    assert.deepEqual(t.store.getState().recentFiles.map(r => r.ref), [{ kind: 'path', path: free }], 'in Recent');
+    assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is onaangeroerd');
+  });
+}
+// Knownbug 1907 (uit #1047): de export legt bij het begin vast welk document exporteert. Wisselt de planner (of een
+// extensie of de AI-assistent) van tabblad terwijl de bestandskiezer open staat, dan blijft het bestand van tabblad B
+// geweigerd en het eigen bestand van A toegestaan, voor IFC en voor een ander formaat.
+/** Exporteren → `format` vanuit A; tijdens de bestandskiezer wordt tabblad B actief, daarna kiest de kiezer `path`. */
+async function exportWithSwitch(t: Awaited<ReturnType<typeof twoPlainTabs>>, path: string, format: ExportFormat): Promise<void> {
+  const invoke = internal.invoke;
+  internal.invoke = (command, ...args) => {
+    if (command !== 'plugin:dialog|save') return invoke(command, ...args);
+    t.store.getState().switchDocument(t.secondId);
+    return Promise.resolve(path);
+  };
+  try { await t.store.getState().exportAs(format); } finally { internal.invoke = invoke; }
+  assert.equal(t.store.getState().activeDocumentId, t.secondId, 'tabblad B is actief geworden tijdens de kiezer');
+}
+for (const format of ['ifc', 'csv'] as const) {
+  await check(`Knownbug 1907: Exporteren → ${format.toUpperCase()} vanuit A, tabbladwissel naar B tijdens de kiezer, doel het bestand van B: geweigerd`, async () => {
+    const t = await twoPlainTabs(false);
+    const link = join(t.dir, `link.${format}`);
+    symlinkSync(t.target, link);
+    const from = ipc.calls.length;
+    await exportWithSwitch(t, format === 'ifc' ? t.target : link, format);
+    assert.deepEqual(t.errors(), [EXPORT_OPEN_IN_TAB], 'de melding van een open tabblad');
+    assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is bytegelijk');
+    assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+    assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'B houdt zijn bestand en zijn wijzigingen');
+    assert.deepEqual(t.store.getState().recentFiles, [], 'niets in Recent');
+  });
+}
+await check('Knownbug 1907: Exporteren → CSV vanuit A, tabbladwissel naar B tijdens de kiezer, doel het eigen bestand van A (via link.csv): zoals main', async () => {
+  const t = await twoPlainTabs(false);
+  const link = join(t.dir, 'link.csv');
+  symlinkSync(t.path, link);
+  await exportWithSwitch(t, link, 'csv');
   assert.deepEqual(t.errors(), [], 'geen melding');
-  assert(readFileSync(t.target).toString('latin1').includes('Werk in tabblad A'), 'de export vervangt het bestand van tabblad B');
-  assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'tabblad B wijst nog naar het bestand');
+  assert.notEqual(hash(readFileSync(t.path)), hash(plain), 'de export schrijft over het eigen bestand van A, zoals main');
+  assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van tabblad B is onaangeroerd');
+});
+// Knownbug 1907, review van #1064 ronde 1 (BLOKKEERT): een bibliotheekbestand bevat alleen de resourcebibliotheek, nooit
+// de planning. Daarom zondert de bibliotheekexport geen document uit: de tweede kiezer van Exporteren → IFC met de
+// resourcebibliotheek en de losse knop Bibliotheek → Exporteren weigeren elk bestand dat een open document als bestand
+// heeft, ook dat van het actieve tabblad A. Op main verving de bibliotheek `A.ifc` zonder melding; A bleef schoon en kon
+// zonder vraag sluiten. De eerste kiezer schrijft de planning van A en houdt de uitzondering voor A.
+const EXPORT_OPEN_DOCUMENT = 'notifications.exportTargetOpenDocument';
+/** Kiest bij elke bestandskiezer het volgende pad uit `picks`; geeft terug hoeveel kiezers er kwamen. */
+async function withPicks(picks: string[], action: () => Promise<unknown>): Promise<number> {
+  const invoke = internal.invoke, queue = [...picks];
+  let asked = 0;
+  internal.invoke = (command, ...args) => {
+    if (command !== 'plugin:dialog|save') return invoke(command, ...args);
+    asked++;
+    return Promise.resolve(queue.shift() ?? null);
+  };
+  try { await action(); } finally { internal.invoke = invoke; }
+  return asked;
+}
+/** Twee tabbladen; het project van A hoort bij een bedrijf met een resourcebibliotheek. */
+async function tabsWithLibrary(flag: boolean) {
+  const t = await twoPlainTabs(flag);
+  const companyId = t.store.getState().addCompany('Bibliotheek 1907');
+  t.store.getState().bindProjectToCompany(companyId);
+  assert(t.store.getState().exportPoolIFC(companyId)?.includes('OPS_Library'), 'de bibliotheek heeft uitvoer');
+  t.store.setState(s => { s.ui.notifications = []; s.recentFiles = []; });
+  return { ...t, companyId };
+}
+/** Geweigerd met de melding van een open document: het doel bytegelijk, A en B ongemoeid. */
+function libraryRefused(t: Awaited<ReturnType<typeof tabsWithLibrary>>, target: string, before: string) {
+  const s = t.store.getState();
+  assert.deepEqual(t.errors(), [EXPORT_OPEN_DOCUMENT], 'de melding van een open document');
+  assert.equal(hash(readFileSync(target)), before, 'het doel is bytegelijk');
+  assert(!readFileSync(target).toString('latin1').includes('OPS_Library'), 'er staat geen bibliotheek in het doel');
+  assert.deepEqual([s.activeDocumentId, s.filePath, s.isDirty], [t.firstId, t.path, true], 'A houdt zijn bestand en blijft gewijzigd');
+  assert.deepEqual([t.docB().filePath, t.docB().isDirty], [t.target, true], 'B houdt zijn bestand en zijn wijzigingen');
+}
+for (const flag of [false, true]) {
+  const label = `flag ${flag ? 'aan' : 'uit'}`;
+  for (const which of ['A', 'B'] as const) {
+    const name = which === 'A' ? 'het bestand van het actieve tabblad A' : 'het bestand van tabblad B';
+    await check(`Knownbug 1907, ${label}: Exporteren → IFC met de resourcebibliotheek, tweede kiezer ${name}: geweigerd`, async () => {
+      const t = await tabsWithLibrary(flag);
+      const projectPath = join(t.dir, 'uitgewisseld.ifc'), target = which === 'A' ? t.path : t.target;
+      const before = hash(readFileSync(target));
+      let outcome: ExportResult | undefined;
+      assert.equal(await withPicks([projectPath, target], async () => { outcome = await t.store.getState().exportProjectWithPool(); }), 2, 'twee kiezers');
+      assert(readFileSync(projectPath).toString('latin1').includes('Werk in tabblad A'), 'het eerste bestand is de planning van A');
+      assert.deepEqual(outcome, { ok: true, warnings: [], cancelled: true }, 'geen voltooide export');
+      libraryRefused(t, target, before);
+      assert.deepEqual(t.store.getState().recentFiles.map(r => r.ref), [{ kind: 'path', path: projectPath }], 'alleen de planning in Recent');
+    });
+    await check(`Knownbug 1907, ${label}: Bibliotheek → Exporteren naar ${name}: geweigerd, niets geschreven`, async () => {
+      const t = await tabsWithLibrary(flag);
+      const target = which === 'A' ? t.path : t.target;
+      const before = hash(readFileSync(target)), from = ipc.calls.length;
+      assert.equal(await withPicks([target], () => t.store.getState().exportLibrary(t.companyId)), 1, 'één kiezer');
+      libraryRefused(t, target, before);
+      assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'plugin:fs|rename'), [], 'nul schrijfacties');
+      assert.deepEqual(t.store.getState().recentFiles, [], 'niets in Recent');
+    });
+  }
+  await check(`Knownbug 1907, ${label}: Exporteren → IFC met de resourcebibliotheek en Bibliotheek → Exporteren naar vrije namen: geschreven zoals main`, async () => {
+    const t = await tabsWithLibrary(flag);
+    const projectPath = join(t.dir, 'uitgewisseld.ifc'), poolPath = join(t.dir, 'bibliotheek.ifc'), loose = join(t.dir, 'los.ifc');
+    writeFileSync(loose, changedPlain);
+    let outcome: ExportResult | undefined;
+    await withPicks([projectPath, poolPath], async () => { outcome = await t.store.getState().exportProjectWithPool(); });
+    assert.deepEqual(outcome, { ok: true, warnings: [] }, 'een voltooide export');
+    await withPicks([loose], () => t.store.getState().exportLibrary(t.companyId));
+    assert.deepEqual(t.errors(), [], 'geen melding');
+    for (const path of [poolPath, loose]) assert(readFileSync(path).toString('latin1').includes('OPS_Library'), `${basename(path)}: de bibliotheek`);
+    assert.equal(hash(readFileSync(t.path)), hash(plain), 'het bestand van A is onaangeroerd');
+    assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van B is onaangeroerd');
+  });
+}
+
+await check('Knownbug 1907, flag aan: Exporteren → IFC van een document met een gebouwmodel over het bestand van een ander tabblad: geweigerd, niets geschreven', async () => {
+  const t = await twoPlainTabs(true, bytes);
+  const from = ipc.calls.length;
+  await exportTo(t.store, t.target);
+  refusedOpenInTab(t, from, t.path, EXPORT_OPEN_IN_TAB);
 });
 
 await check('Opslaan als met een gebouwmodel en de flag uit (na het openen uitgezet): dezelfde weigering als main, niets aan de bestandsrand', async () => {
