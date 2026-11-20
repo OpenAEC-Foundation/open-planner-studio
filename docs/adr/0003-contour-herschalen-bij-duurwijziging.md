@@ -3,7 +3,8 @@
 Verandert de duur van een taak met een contour, dan rekt of krimpt de contour mee over de as: begin en lengte van
 elke periode maal dezelfde factor, de gaten ook. Het werk schaalt mee, behalve als de taak werk behoudt (vast werk):
 dan blijft het werk staan en verandert alleen de inzet per dag. We volgen hiermee MS Project bij een toewijzing met
-*Contoured*; dat gedrag is als ontwerpregel overgenomen en niet tegen MS Project nagemeten.
+*Contoured*; dat gedrag is als ontwerpregel overgenomen en niet tegen MS Project nagemeten
+(knownbug 1960).
 
 ## Gevolgen
 

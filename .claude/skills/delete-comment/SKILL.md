@@ -14,8 +14,9 @@ Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootst
 
 ## Regels
 
-- Je verandert geen gedrag. Alleen commentaar verdwijnt. Vind je een bug of een noodgreep, dan gaat die naar
-  `knownbugs.md`, niet in deze PR.
+- Je verandert geen gedrag. Een kleine opruiming die een smoes overbodig maakt (een dubbele functie samenvoegen,
+  een ongebruikte hulpfunctie weg) doe je in dezelfde PR, met de gerichte test erbij. Is het niet klein, dan laat je
+  de code staan.
 - Je beoordeelt elk blok zelf, met de code erbij. Weghalen zonder lezen is geen uitvoering van deze skill.
 - Kennis gaat niet verloren. Een besluit dat nergens anders staat, staat in een ADR vóór het commentaar weg is.
 - Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
@@ -36,7 +37,7 @@ helemaal, met de regel van het onderdeel in `.claude/rules/` en de ADR's in `doc
 |---|---|---|
 | **Herhaling** | zegt wat de naam, het type of de regel eronder al zegt; sectiekoppen en lijnen; een JSDoc die de signatuur naspreekt | weg |
 | **Verouderd** | noemt een naam, bestand of gedrag dat niet meer bestaat; vertelt de geschiedenis ("fixronde 3", "eerst deed dit X", "niet meer nodig") | weg |
-| **Smoes** | legt uit waarom een noodgreep mag: een benadering, een dubbele kopie, een ingeslikte fout, "niet nagemeten", "tijdelijk", "voor nu" | weg, en een punt in `knownbugs.md` |
+| **Smoes** | legt uit waarom een noodgreep mag: een benadering, een dubbele kopie, een ingeslikte fout, "niet nagemeten", "tijdelijk", "voor nu" | weg; klein: opruimen in deze PR; een bekende grens of zeldzaam geval: een punt in `knownbugs.md` |
 | **Besluit** | een keuze die een lezer zonder uitleg zou terugdraaien, met een echte afweging erachter | naar een ADR, dan weg |
 
 Twijfel tussen herhaling en besluit: zou een goede collega de code "verbeteren" naar het tegendeel als de zin er
@@ -49,8 +50,8 @@ Verouderd toets je mechanisch: elke naam tussen backticks en elk genoemd bestand
 Een ADR is voor een besluit dat moeilijk terug te draaien is, dat verrast zonder uitleg en waar een echte afweging
 achter zat. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") is geen ADR: houdt een test dat
 gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test op (`grep` op de functienaam in
-`tests/`). Is er geen test, dan meld je dat als ontbrekende test in `knownbugs.md` onder *Tests* en neem je de regel
-op onder *Gevolgen* van de ADR van dat onderwerp.
+`tests/`). Is er geen test, dan neem je de regel op onder *Gevolgen* van de ADR van dat onderwerp. Een ontbrekende
+test is geen punt voor `knownbugs.md`.
 
 Een bronvermelding van overgenomen werk met een licentie (MPXJ, LGPL-2.1) blijft als één regel staan; de poort
 telt die niet als commentaar.
@@ -65,9 +66,11 @@ dragen.
 
 Zet in de regel van het onderdeel (`.claude/rules/<onderdeel>.md`) een verwijzing naar de nieuwe ADR's.
 
-## Stap 4. Smoezen melden
+## Stap 4. Smoezen afhandelen
 
-Elk punt in `knownbugs.md` volgens de kop van dat bestand: wat er misgaat, waar, en **B** (zelf nagegaan in de
+Op `knownbugs.md` komt alleen een zeldzaam geval of een bekende grens die je onderweg vindt (besluit eigenaar
+2026-11-20). Testwensen en opruimpunten komen er niet op: klein doe je ze in deze PR, anders vervallen ze. Elk punt
+volgens de kop van dat bestand: wat er misgaat, waar, en **B** (zelf nagegaan in de
 code of met een test) of **S** (alleen gelezen). Nummers komen uit het blok van je sessie; heb je er geen, vraag
 het aan Trias.
 
