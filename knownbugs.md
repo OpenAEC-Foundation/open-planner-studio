@@ -4094,17 +4094,14 @@ en noem het in je rapport of PR-tekst.
       beoordeling zolang de planningsinvoer en het zoekresultaat gelijk blijven." (`fileAutoSave.ts`,
       `tightAnchorsIfSaved` in `dependentCandidates.ts`.) — B
 
-1930. **VERVOLG (fixronde 2 van de review van #1033): een gewoon document dat steeds wijzigt, kan een lange modelronde
-      steeds laten wijken.** Een gewoon document schrijft met de flag aan op zijn eigen tik van 10 s, ook terwijl een
-      modelronde nog rekent: die ronde wijkt dan (`isProjectFileWriteHeld` in `writeCoordinator.ts`, proef `eigen tik
-      van 40 s` in `check-ifc-document-save.ts`). Zo bleef de gewone tik gelijk aan main. Werkt de planner onafgebroken
-      in een gewoon document, met elke 10 s een nieuwe ronde, terwijl een ronde van het gebouwmodel langer dan die 10 s
-      rekent, dan wijkt die ronde elke keer. Na elke wijking telt ook de ondergrens (tien keer de duur van de geweken
-      ronde na haar begin; na een geweken ronde van 8 s begint de volgende pas 80 s na het begin van de geweken ronde).
-      Het gebouwmodel kan dan langer dan 5 minuten achterlopen. Er gaat niets verloren: het document blijft gewijzigd,
-      en crashherstel loopt door. Niet gemeten met echte plannen. Richting, als een meting het nodig maakt: na de grens
-      van 5 minuten de gewone ronde laten wachten tot de modelronde klaar is, of een geweken ronde niet meetellen voor
-      de ondergrens. — S
+1931. **VERVOLG (review #1033): de ondergrens na één geweken ronde verlengt het uitstel.** "Een ronde die op 32 s begint
+      en op 40 s wijkt, krijgt op zijn vroegst op 112 s weer een beurt. Alleen de dertig seconden rust zouden uitkomen
+      op 70 s. Dit volgt uit de bestaande factor tien over alle rondes. Op zichzelf is die extra wachttijd een vervolg
+      bij de bekende spanning tussen de tijdgrenzen. Voor 1930 volstaat schrappen van de ondergrens voor geweken rondes
+      niet. De volgende gewone schrijfactie kan de modelronde nog steeds weer afbreken." (`roundEnded` in
+      `modelAutoSaveRhythm.ts`.) Sinds fixronde 3 wijkt een ronde alleen nog voor een handmatige actie (Ctrl+S, Opslaan
+      als, een export, een tabblad of de app sluiten), niet meer voor een gewone tik; de verlenging geldt dan na zo'n
+      actie. Hoort bij 1922. — B (proef van de reviewer)
 
 ## Wensen en open taken (geen bug)
 

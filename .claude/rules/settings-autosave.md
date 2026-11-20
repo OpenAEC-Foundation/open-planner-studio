@@ -100,18 +100,24 @@ technisch beslisser 19 november 2026): elke `runProjectFileWrite`, elke `whenPro
 `claimProjectFileWrite` vanaf de bronkeuze, ook terwijl de vraag "alleen de planning" open staat) laat een ronde wijken
 tot de grens in de gedeelde vervanging (`stopBeforeWrite` met `YieldingTurn.pass()`: het herstel ligt vast, browser de
 komende versie in het manifest, desktop ook het herstelrecord; nog niets op het doel geschreven). Een ronde die de grens
-passeerde, plaatst: een IFC-export neemt zijn bron pas op als ze klaar is (`whenProjectFilePlacementsSettled`). Een
-ronde vóór haar grens houdt de rij niet vast (`isProjectFileWriteHeld`): de gewone ronde vraagt om de rij en laat haar
-wijken, zodat een gewoon document zijn tik houdt (keerzijde: knownbug 1930). De worker stopt dat ene verzoek (`stop` van
-`IfcOutputCompute`); een geweken ronde laat niets achter (record en komende versie weer weg), geen melding, opnieuw na
-de volgende rust. Na de grens loopt de ronde af. De ronde vraagt nooit iets: zonder schrijftoestemming slaat ze het
-document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou vragen ook (dezelfde beoordeling,
-`tightAnchorsIfSaved` in `dependentCandidates.ts`; een ruim anker houdt niets tegen). Veilig stoppen, met één melding
-per document per sessie en geen nieuwe poging tot de planner zelf opslaat (een nieuwe bron) of een ander doel kiest:
-eigen bestand gewijzigd of weg, buiten de thuismap (`save-as-only`), geen herstelrecord of manifest vast te leggen, een
-record van een eerdere onderbroken vervanging (`pendingReplaceFor`, het beleid van Automatisch opslaan zelf), en de
-bestaande doelweigeringen. Een workerfout is een mislukte ronde met `ifcSaveWorkerFailed`. Proeven:
-`check-actual-autosave.ts` 19–21, de blokken "stap 8" in `check-ifc-document-save.ts` en
+passeerde, plaatst: een IFC-export neemt zijn bron pas op als ze klaar is (`whenProjectFilePlacementSettled`), en legt
+bij de aanroep vast voor welk document hij is (staat daarna een ander document of een andere inhoud in het tabblad, dan
+weigert hij met `ifcExportChangedWhileWaiting`). De schrijfbeurten wijst één plek toe (`writeCoordinator.ts`, fixronde 3
+van de review van #1033): een handmatige actie (`runProjectFileWrite`) gaat voor; een gewone tik
+(`runAutoSaveTickWrite`) wacht op zijn beurt en laat niets wijken; een modelronde krijgt zo haar beurt, ook als de
+planner in een gewoon document doorwerkt. Beide ingangen slaan alleen over als er een handmatige actie in de rij staat
+(`isManualProjectFileWriteQueued`), zoals vóór stap 8 met een bezette rij. Bewuste keuze (besluit technisch beslisser,
+20 november 2026): valt de tik van een gewoon document samen met een modelronde, dan schrijft het hoogstens één
+modelronde later (bij een groot model tot ongeveer 20 s); met de flag uit verandert er niets. De worker stopt dat ene
+verzoek (`stop` van `IfcOutputCompute`); een geweken ronde laat niets achter (record en komende versie weer weg), geen
+melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. De ronde vraagt nooit iets: zonder
+schrijftoestemming slaat ze het document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou
+vragen ook (dezelfde beoordeling, `tightAnchorsIfSaved` in `dependentCandidates.ts`; een ruim anker houdt niets tegen).
+Veilig stoppen, met één melding per document per sessie en geen nieuwe poging tot de planner zelf opslaat (een nieuwe
+bron) of een ander doel kiest: eigen bestand gewijzigd of weg, buiten de thuismap (`save-as-only`), geen herstelrecord
+of manifest vast te leggen, een record van een eerdere onderbroken vervanging (`pendingReplaceFor`, het beleid van
+Automatisch opslaan zelf), en de bestaande doelweigeringen. Een workerfout is een mislukte ronde met
+`ifcSaveWorkerFailed`. Proeven: `check-actual-autosave.ts` 19–21, de blokken "stap 8" in `check-ifc-document-save.ts` en
 `check-ifc-own-file-replace.ts`, en `settings-tabs.spec.ts`.
 
 ### Afsluiten van de app (schone exit)

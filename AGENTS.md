@@ -471,8 +471,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export over its whole
   sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
   is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
-  `YieldingTurn.pass()`, once recovery is recorded); an export waits for a round past that boundary
-  (`whenProjectFilePlacementsSettled`), and a round before it does not hold the queue (`isProjectFileWriteHeld`): the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  `YieldingTurn.pass()`, once recovery is recorded); an export pins its document at the call and waits for a round past
+  that boundary (`whenProjectFilePlacementSettled`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a
+  round yield: it waits its turn and writes right after the model round, so a model round always gets its turn. The
+  write coordinator is the one place that assigns these turns. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
   nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
   Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A

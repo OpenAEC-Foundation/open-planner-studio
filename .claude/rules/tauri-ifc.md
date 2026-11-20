@@ -182,8 +182,10 @@ wijziging van de planning, dus de export rondt af zolang het document zijn inhou
 in dezelfde schrijfbeurt, zoals Ctrl+S. Een IFC-export (`exportAs('ifc')`, ook zonder gebouwmodel, en
 `exportProjectWithPool`) loopt als één volgorde met voorrang (`withIfcExportPriority`, fixronde 2 van de review van
 #1033): `claimProjectFileWrite` van de bronkeuze via de vraag "alleen de planning" tot en met het schrijven, en een ronde
-van Automatisch opslaan die al plaatst, maakt dat af vóór de export zijn bron opneemt (`whenProjectFilePlacementsSettled`;
-zie `settings-autosave.md`).
+van Automatisch opslaan die al plaatst, maakt dat af vóór de export zijn bron opneemt (`whenProjectFilePlacementSettled`;
+zie `settings-autosave.md`). Fixronde 3: de export legt bij de aanroep vast voor welk document en welke inhoud hij is;
+staat na het wachten een ander document of een andere inhoud in het tabblad, dan weigert hij met de bestaande melding
+(`ifcExportChangedWhileWaiting`), vóór de bestandskiezer.
 
 **Herstel bij de start** (knownbug 1902, fixronde 1 van #1027, besluit Trias): een vervanging die aantoonbaar niets
 schreef (`nothingWritten`), wist haar record meteen. Weigert plugin-fs bij de start het doel of een hulpnaam
