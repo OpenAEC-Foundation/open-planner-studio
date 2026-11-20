@@ -1,4 +1,4 @@
-// Knownbug 4: meet projectstart, taakanker en harde finish-pin afzonderlijk.
+// Knownbug 4: documenteer dat een harde MFO vóór de projectstart kan uitkomen.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -34,10 +34,17 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
         }).solve();
         const row = res.tasks.get(b.id);
         if (res.error || !row) throw new Error('Knownbug 4: geen resultaat: ' + (res.error ?? b.id));
-        console.log('KNOWNBUG4', JSON.stringify({ profile, hours, linked, mode, projectStart,
-          date: b.constraint?.date, es: row.earlyStart, ef: row.earlyFinish, tf: row.totalFloat,
-          beforeProject: row.earlyStart.slice(0, 10) < projectStart,
-          violations: res.violatedConstraintTaskIds }));
+        const beforeProject = row.earlyStart.slice(0, 10) < projectStart;
+        const details = JSON.stringify({ profile, hours, linked, mode, es: row.earlyStart, ef: row.earlyFinish });
+        if (beforeProject !== (mode === 'voor-harde')) throw new Error('Knownbug 4: ' + details);
+        if ((mode === 'voor-harde' || mode === 'na-harde') && row.earlyFinish !== date) {
+          throw new Error('Harde MFO is verplaatst: ' + details);
+        }
+        if (linked && mode === 'voor-harde' && !res.violatedConstraintTaskIds.includes(b.id)) {
+          throw new Error('De relatie botst met de harde MFO, maar er is geen waarschuwing: ' + details);
+        }
+        // Geen assert over afwezigheid van een projectstartwaarschuwing bij een worteltaak:
+        // het toevoegen van zo'n waarschuwing moet deze test niet breken.
         cases++;
       }
     }
