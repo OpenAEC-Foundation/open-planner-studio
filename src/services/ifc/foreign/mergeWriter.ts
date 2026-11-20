@@ -63,7 +63,7 @@ import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
-import { SECOND_FORMS, editedOwnGroup, groupsWithForeignMembers, indexView, linesView, ownGroupDifference, ownGroupMembers, ownGroupTrees } from './ownGroups';
+import { SECOND_FORMS, editedOwnGroup, indexView, linesView, ownGroupDifference, ownGroupMembers, ownGroupTrees } from './ownGroups';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -1010,12 +1010,17 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
  * groep die het openen zelf veranderde (een herstelkenmerk dat bij openen verdwijnt, knownbug 1703) terug op de
  * verliescontrole van main. Een groep die het openen nieuw maakt, staat niet in de bron en telt dus niet. De tweede vormen
  * buiten de psets (`SECOND_FORMS`: de baselinekoppen, PR 12c, en de typenaam op de taak, PR 12d) staan niet in `ownGroups`:
- * zij zijn geen pset, en wat er met hen mag, beslist de verliescontrole apart. Hier alleen per vorm: hij staat in de bron,
- * heeft geen vreemd lid, en het openen veranderde hem niet, in dezelfde bronvorm (`secondFormsUnchanged`, op de pset).
+ * zij zijn geen pset, en wat er met hen mag, beslist de verliescontrole apart. Hier alleen per vorm: hij staat in de bron, en
+ * het openen veranderde hem niet, in dezelfde bronvorm (`secondFormsUnchanged`, op de pset).
  *
- * Voorwaarde (a), "de groep is in de bron gedragen": een groep met een vreemd lid is het niet (`groupsWithForeignMembers`:
- * dat lid schrijft de writer niet), en verder toetst de verliescontrole dat geen stuk van de groep de herleestoets (b) nodig
- * had (`lossCheck`, `ownGroups`).
+ * Voorwaarde (a), "de groep is in de bron gedragen", toetst de verliescontrole: geen stuk van de groep had de herleestoets (b)
+ * nodig (`lossCheck`, `ownGroups`). Een vreemd lid (zoals een property van een ander programma in een eigen pset) sluit de
+ * groep niet uit (stap 5 deel 1, was knownbug 1707): de boomvorm telt alleen eigen leden, dus de writer schrijft de groep uit de
+ * lezing van de bron precies zoals ze in de bron staat; de merge hangt het lid weer aan de pset, of zet een pset met alleen
+ * de vreemde leden neer als de writer de pset niet meer schrijft (stap 6 van `writeIfcMerge`), en controle 1
+ * (`validateMergeOutput`) toetst dat het lid aan hetzelfde object en dezelfde psetnaam blijft. Een vreemde verwijzing in een
+ * baselinekop (zoals `Creators`) staat in een slot dat de lezer niet leest: (b) zet het terug, en dan beweegt de kop niet mee
+ * (`SECOND_FORMS` in `lossCheck.ts`).
  *
  * Geëxporteerd voor de proeven van de verliescontrole (`check-ifc-foreign-eigen-toets.ts`).
  */
@@ -1025,7 +1030,6 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
   const members = ownGroupMembers(source);
   const out = new Map<number, string>(), forms = new Set<string>();
   if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms };
-  const withForeign = groupsWithForeignMembers(source, members);
   const rowGuid = assumedRowGuid(pristine);
   const trees = (d: WriteIFCInput) => {
     const lines = writeIfcMergeLines(withOrphanRowGuids(d, rowGuid), sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
@@ -1036,12 +1040,12 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
   const unchanged = (g: string) => (read.get(g) ?? []).join('\n') === (shown.get(g) ?? []).join('\n');
   const secondForms = new Set(SECOND_FORMS.values());
   for (const [id, group] of members) {
-    if (secondForms.has(group) || withForeign.has(group) || !unchanged(group)) continue;
+    if (secondForms.has(group) || !unchanged(group)) continue;
     const chunk = index.chunkOf(String(id));
     if (chunk >= 0) out.set(chunk, group);
   }
   const inSource = ownGroupTrees(source);
-  for (const [pset, form] of SECOND_FORMS) if (inSource.has(form) && !withForeign.has(form) && unchanged(form)) forms.add(pset);
+  for (const [pset, form] of SECOND_FORMS) if (inSource.has(form) && unchanged(form)) forms.add(pset);
   return { ownGroups: out, secondFormsUnchanged: forms };
 }
 

@@ -2280,15 +2280,6 @@ en noem het in je rapport of PR-tekst.
      een blijvende staat) weigeren om dezelfde reden; dat (c) ze zelf ook ziet, toetst die check apart. Niet uitgezocht
      waarom `classify` die regels dan anders indeelt. Richting: nagaan in `classify.ts`; geen dataverlies, de merge weigert. — S
 
-1707. **VERVOLG (#804, de andere toets): een eigen groep met een vreemd lid valt terug op de controle van main.**
-     Een property van een ander programma in `OPS_Baselines`, `OPS_TaskTypes` of `OPS_StructureMeta` maakt de groep in
-     PR 12b niet gedragen (`groupsWithForeignMembers` in `ownGroups.ts`): dat lid schrijft de writer niet. Daar weigert de
-     merge dus wat main weigert, ook als alleen het laatste eigen lid wegvalt (type weghalen bij de laatste taak, de
-     laatste code wissen). Zonder die regel schreven die twee, heel (vreemd deel bytegelijk, heropend zoals getoond), met
-     een pset die alleen het vreemde lid houdt; (c) ziet zo'n pset sinds de review van #953 niet als groep. Gemaakt geval:
-     een eigen pset met een vreemd lid ontstaat alleen met de hand. Richting: laten zoals het is, tenzij een ander
-     programma echt in OPS-psets schrijft; dan eerst bepalen wat een pset met alleen vreemde leden is. — B
-
 1745. **VERVOLG (#804, gebouwmodel): op `ifc-arity-oude-writer.ifc` beweegt de baselinekop niet mee.**
      De koppen in dat bestand (een oude writer, 15 argumenten) hebben geen StartTime; de writer schrijft er een, dus de
      herleestoets (b) zet `$` terug en de koppen zijn in de bron niet gedragen. Dan geldt voor de aggregatie van het
@@ -2308,6 +2299,41 @@ en noem het in je rapport of PR-tekst.
      mee met een hernoeming (E2 eist dat (b) geen typenaam terugzette), dus PR 12d maakt het niet groter. Alleen een fout van
      de writer kan dit geven: de gewone writer schrijft de naam uit de definitie van het type van de taak. Richting: in (c)
      alleen de taken overslaan waarvan (b) een slot terugzette, niet de hele groep. — B
+
+1952. **VERVOLG (#804 stap 5, controle 1): de GlobalId van een pset met alleen vreemde leden toetst geen controle.**
+     Schrijft de writer een eigen pset niet meer (het laatste eigen lid viel weg), dan zet de merge een pset met alleen de
+     vreemde leden neer, met de GlobalIds van de pset en de relatie uit de bron (`extraPsets` in `mergeWriter.ts`, stap 6).
+     Dat gebeurt goed (`onlyForeignMember` in `check-ifc-foreign-eigen-toets.ts`), maar een fout daarin zou geen controle
+     vangen: controle 1 (`bindings` in `mergeValidation.ts`) toetst object en psetnaam, en (c) ziet een pset met alleen
+     vreemde leden niet als groep. Tegenproeven in `check-ifc-foreign-eigen-uitvoer.ts`, blok 9: een andere GlobalId op die
+     pset of op haar relatie laat elke controle door. Uit de code (niet gedraaid): voor een per-taak-pset (de laatste notitie
+     wissen bij een vreemd lid) geldt hetzelfde op main. Alleen een fout van de merge kan dit geven. Richting: in controle 1
+     ook de GlobalId van een pset en relatie zonder eigen leden met de bron vergelijken. De review van #1087 (Sol,
+     ronde 1) bevestigde beide: de echte uitvoer houdt de GlobalIds van pset, relatie en eigenaar, een achteraf
+     gewijzigde GlobalId komt door alle uitvoercontroles, en dezelfde grens is op main gereproduceerd bij het wissen
+     van de laatste taaknotitie. — B
+
+1953. **VERVOLG (#804 stap 5 deel 2): lijst A en de nacontrole kunnen nog niet in één keer weg.**
+     Gevonden door de review van #1087 (Sol, ronde 1), met een proef op de echte schrijfroute: een vreemde omschrijving
+     op de pset `OPS_StructureMeta`, daarna via de store een tweede code toevoegen. De opslag slaagt doordat de oude
+     verklaringen in `lossCheck.ts` de JSON en de nieuwe codedefinitie toelaten. De herleestoets zet de omschrijving
+     terug, waarna de uitvoercontrole (c) heel `OPS_StructureMeta` overslaat. Haal je uit de echte uitvoer alleen het
+     nieuwe codetemplate weg, dan weigert nu de nacontrole ("verwachte wijziging ontbreekt"); zonder die nacontrole
+     komen dezelfde bytes door de controles, en bij heropenen blijft het ontbrekende template onzichtbaar omdat de lezer
+     de codes uit het JSON haalt. Voor deel 2 betekent dat: de oude controle blijft voor deze route tot (c) de templates
+     ook bij een teruggezette bronwaarde bewaakt; meet de verklaringen per functie en per geslaagde opslag, met dit
+     geval erbij, vóór er iets weggaat (zie ook 1591). Meenemen in deel 2: twee commentaarregels die de eigen groepen
+     te absoluut beschrijven (`ownGroups.ts` rond regel 5: "niemand anders schrijft in zo'n groep"; `lossCheck.ts` rond
+     regel 370: "de writer schrijft de groep precies zoals de bron"); sinds #1087 mag een ander programma er een lid in
+     hebben gezet en hangt de merge dat lid terug. — B (review)
+
+1954. **Test hapert: `check-ifc-foreign-target.ts` gaf op main één afwijking in de tijdzonerun America/New_York.**
+     CI-run 44805342053 op main `1e360f508`, job *verify (planning 3-5)* (ook de verzameljob `test` rood): "XX
+     ifc-foreign-target: 1 afwijking(en) van 1984" in de run met `TZ America/New_York`; dezelfde check was in de run
+     zonder tijdzone en op de PR's van die avond groen (1984). Het log toont de afwijkende regel zelf niet; de regels
+     ervoor zijn de tijdmetingen van blok 9 (9d "stille Worker: weigering na 3024 ms", 9e "vroege stop"). Vermoeden:
+     een tijdgrens in blok 9 die op een drukke runner net niet gehaald wordt; niet uitgezocht. De review van #1087
+     ging na dat die PR het pad van deze check niet raakt. Een rode run op main houdt deploy en release tegen. — S
 
 1828. **VERVOLG (#804 keuze 7, MCP): `planner_*` weigert een andere naam bij hetzelfde id van een eigen werksoort.**
      In de app vraagt *Werksoorten beheren…* sinds keuze 7 of een nieuwe naam ook in het project moet (store-actie
@@ -4977,7 +5003,7 @@ en noem het in je rapport of PR-tekst.
      `IFCPROPERTYENUMERATION`) alleen als terugval, dus volledig heropenen ziet een fout in die tweede vorm niet. Sinds
      PR 12a vangt controle (c) zo'n fout in de echte uitvoer (`eigen-uitvoer`, `check-ifc-foreign-eigen-uitvoer.ts`), en
      sinds PR 12b bereikt de verliescontrole `explainCodeDefinitions` in een gedragen `OPS_StructureMeta` niet meer. In een
-     niet-gedragen `OPS_StructureMeta` (een bronwaarde van (b), of een vreemd lid) bewaakt hij de vorm nog. Open: hem
+     niet-gedragen `OPS_StructureMeta` (een bronwaarde van (b)) bewaakt hij de vorm nog. Open: hem
      weghalen in stap 5 van de overstap, als een meting laat zien dat main hem in een niet-gedragen groep niet meer nodig
      heeft. — B
 

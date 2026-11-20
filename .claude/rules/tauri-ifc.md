@@ -215,8 +215,9 @@ Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren.
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
-verklaren als de groep in de bron gedragen is (a: geen vreemd lid, `groupsWithForeignMembers`, waarbij een owner history
-geen lid is, en geen stuk dat de herleestoets (b) nodig had) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
+verklaren als de groep in de bron gedragen is (a: geen stuk dat de herleestoets (b) nodig had; een vreemd lid sluit de groep
+niet uit, stap 5 deel 1: de merge houdt het lid, ook in een pset met alleen vreemde leden als de writer de pset niet meer
+schrijft, en controle 1 bewaakt het lidmaatschap) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
 schrijft in die groep hetzelfde, in de bronvorm van `sourceFormWhereUnchanged`; alleen met `opened`). Dan toetsen (c) en
 de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. De baselinekop (PR 12c,
 E1, `headsFollowBaselines`): valt `OPS_Baselines` onder de toets, veranderde het openen ook de koppen
