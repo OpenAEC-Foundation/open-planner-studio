@@ -27,7 +27,8 @@ import {
   previousVersionPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
 import {
-  parseReplaceRecord, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces, tauriReplaceRecords,
+  parseReplaceRecord, pendingReplaceFor, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces,
+  tauriReplaceRecords,
   type ReplaceRecord, type ReplaceRecordStore,
 } from '@/services/fileAccess/replaceRecords';
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
@@ -2177,44 +2178,20 @@ await check('review 1902: na opslaan verhuist de projectmap en is het herstel ti
 });
 
 // ── #804 stap 8: Automatisch opslaan op het eigen pad, langs dezelfde vervanging. ──────────────────────────────────────
-await check('stap 8: wijken vlak vóór het herstelrecord (yielded): geen record, niets in de projectmap, geen commit', async () => {
-  const c = await opened();
-  try {
-    const writes = ipc.calls.length;
-    let committed = false;
-    const result = await runProjectFileWrite(() => replaceOwnPathWithRecovery({
-      documentId: c.id, path: c.path, prepared: c.prepared, source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
-      commit: () => { committed = true; }, stopBeforeWrite: async () => false, refuseBeforePlace: () => false,
-      yieldBeforeRecord: () => true, now: NOW,
-    }), () => { throw new Error('dicht'); });
-    assert.deepEqual(result, { code: 'yielded' });
-    assert.equal(committed, false);
-    assert.deepEqual(recordsOnDisk(), [], 'geen herstelrecord');
-    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) });
-    assert.equal(ipc.calls.slice(writes).some(call => call.wrote && call.path?.startsWith(c.dir)), false, 'nul schrijfacties in de map');
-    assert.deepEqual(noticeKeys(result, c.path), [], 'geen melding');
-  } finally { await tidy(c); }
-});
-
-await check('stap 8: refuseRemnant stopt bij een record voor dit doel, niet bij een record voor een ander doel', async () => {
+// Fixronde 1 van de review van #1033: wijken is geen optie van de vervanging meer; Automatisch opslaan stopt op de
+// gewone grens `stopBeforeWrite` (na het vastleggen van het herstel; check-ifc-document-save.ts). Het beleid voor een
+// record van een eerdere, onderbroken vervanging ligt bij Automatisch opslaan zelf (`pendingReplaceFor`).
+await check('stap 8: pendingReplaceFor ziet een record voor dit doel, niet een record voor een ander doel', async () => {
   const c = await opened();
   const elsewhere: ReplaceRecord = { id: 'eldersvorige1', path: join(c.dir, 'ander.ifc'), vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
   const here: ReplaceRecord = { id: 'hiervorige1', path: c.path, vorigeSha256: hash(bytes), pendingSha256: c.prepared.sha256 };
   try {
-    const run = () => runProjectFileWrite(() => replaceOwnPathWithRecovery({
-      documentId: c.id, path: c.path, prepared: c.prepared, source: { bytes: c.state.ifcSource!.bytes, sha256: c.state.ifcSource!.sha256 },
-      commit: () => {}, stopBeforeWrite: async () => false, refuseBeforePlace: () => false, refuseRemnant: true, now: NOW,
-    }), () => { throw new Error('dicht'); });
+    const records = await tauriReplaceRecords();
     writeFileSync(join(appData, replaceRecordName(here.id)), serializeReplaceRecord(here));
-    const refused = await run();
-    assert.deepEqual(refused, { code: 'remnant' });
-    assert.deepEqual(noticeKeys(refused, c.path), ['notifications.ifcForeignAutoSaveRemnant']);
-    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) }, 'niets geschreven');
-    assert.deepEqual(recordsOnDisk().map(r => r.id), [here.id], 'alleen het oude record');
+    assert.equal(await pendingReplaceFor(records, c.path), true, 'een record voor dit doel');
     rmSync(join(appData, replaceRecordName(here.id)));
     writeFileSync(join(appData, replaceRecordName(elsewhere.id)), serializeReplaceRecord(elsewhere));
-    assert.equal((await run()).code, 'replaced', 'een record van een ander doel houdt de vervanging niet tegen');
-    assert.equal(fileHash(c, 'model.ifc'), c.prepared.sha256);
+    assert.equal(await pendingReplaceFor(records, c.path), false, 'een record van een ander doel telt niet');
   } finally {
     rmSync(join(appData, replaceRecordName(elsewhere.id)), { force: true });
     await tidy(c);

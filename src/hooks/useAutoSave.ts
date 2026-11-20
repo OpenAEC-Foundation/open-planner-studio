@@ -10,8 +10,9 @@ import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySn
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryClear, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
-import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
+import { onTextEntry } from '@/state/textEntryActivity';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
@@ -137,41 +138,13 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       compute: appStoreContext.runtime.ifcSaveCompute,
     });
 
-    // #804 stap 8: een document met een gebouwmodel heeft een eigen ritme (30 s rust, uiterlijk 5 minuten, en een
-    // ondergrens van tien keer de duur van zijn vorige ronde; `modelAutoSaveRhythm.ts`). Die wekker gaat ook af zonder
-    // nieuwe wijziging: na de rust. Zonder zo'n document (ook met de flag uit) staat hij nooit.
-    let modelTimer: ReturnType<typeof setTimeout> | null = null;
-    let modelTimerAt: number | null = null;
-    const armModelRound = () => {
-      const at = controller.nextModelRoundAt();
-      if (at === modelTimerAt) return;
-      if (modelTimer) clearTimeout(modelTimer);
-      modelTimer = null;
-      modelTimerAt = at;
-      if (at === null) return;
-      modelTimer = setTimeout(() => {
-        modelTimer = null;
-        modelTimerAt = null;
-        void controller.flush().finally(armModelRound);
-      // Hoogstens eens per seconde: een ronde die aan de beurt is terwijl een handmatige opslag loopt, wacht zo zonder te
-      // draaien op haar beurt.
-      }, Math.max(1_000, at - Date.now()));
-    };
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let lastRunAt = 0;
-    const request = () => {
-      controller.observe();
-      armModelRound();
-      if (timer) return;
-      timer = setTimeout(() => {
-        timer = null;
-        lastRunAt = Date.now();
-        void controller.flush().finally(armModelRound);
-      }, actualAutoSaveDelay(lastRunAt, Date.now()));
-    };
-    const unsub = useAppStore.subscribe(request);
-    return () => { if (timer) clearTimeout(timer); if (modelTimer) clearTimeout(modelTimer); unsub(); };
+    // De wekkers (het gewone ritme van 10 s en, #804 stap 8, dat van een document met een gebouwmodel) staan in
+    // `fileAutoSaveTimers.ts`, zodat een test ze met een nagebootste klok kan draaien.
+    const schedule = scheduleFileAutoSave(controller);
+    const unsub = useAppStore.subscribe(schedule.request);
+    // Typen in een cel van de taakgrid staat pas bij Enter in de store; het telt wel als werken (fixronde 1 van #1033).
+    const unsubTextEntry = onTextEntry(schedule.textEntry);
+    return () => { schedule.dispose(); unsub(); unsubTextEntry(); };
   }, [autoSaveEnabled]);
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er

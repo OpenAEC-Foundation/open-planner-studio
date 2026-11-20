@@ -229,6 +229,20 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
     [1_030_000, 1_050_000, 1_030_000]);
   two.forget('a');
   eq('19m een gesloten document valt weg', [two.dueAt('a'), two.nextDueAt()], [null, 1_050_000]);
+  // Fixronde 1 van de review van #1033: typen in een cel (nog niet vastgelegd) begint de rust opnieuw, maar is geen
+  // wijziging: de bovengrens van 5 minuten telt door vanaf de eerste vastgelegde wijziging.
+  const typing = createModelAutoSaveRhythm(() => clock);
+  at(0); typing.observe('m', edit(), true);
+  at(28_000); typing.touch('m');
+  eq('19n typen na 28 s: op 30 s nog niet aan de beurt, wel 30 s na de laatste toets', [typing.isDue('m'), typing.dueAt('m')],
+    [false, 1_058_000]);
+  for (let t = 50_000; t <= 320_000; t += 20_000) { at(t); typing.touch('m'); }
+  eq('19o onafgebroken typen: na 5 minuten toch aan de beurt', typing.dueAt('m'), 1_000_000 + 300_000);
+  const cleanTyping = createModelAutoSaveRhythm(() => clock);
+  at(0); cleanTyping.observe('m', edit(), false); cleanTyping.touch('m');
+  eq('19p typen in een schoon document plant niets', cleanTyping.dueAt('m'), null);
+  // De wekker telt alleen de documenten die meedoen (knownbug 1925).
+  eq('19q nextDueAt met een filter', [two.nextDueAt(id => id !== 'b'), two.nextDueAt(id => id === 'b')], [null, 1_050_000]);
 }
 
 // 20. #804 stap 8: voorrang. Een wijkende ronde (Automatisch opslaan met een gebouwmodel) breekt af zodra een handmatige

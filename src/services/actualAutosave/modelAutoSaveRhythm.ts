@@ -20,13 +20,16 @@ export type ModelRoundOutcome = 'written' | 'yielded' | 'other';
 export interface ModelAutoSaveRhythm {
   /** Na elke wijziging in de store: de stand van één document met een gebouwmodel. */
   observe(id: string, source: IFCSaveSource, dirty: boolean): void;
+  /** Fixronde 1 van de review van #1033: de planner typt in dit document een waarde die nog niet vastligt (een cel van
+   *  de taakgrid). Dat telt als werken: de rust begint opnieuw. Geen wijziging: de bovengrens telt door. */
+  touch(id: string): void;
   /** Het document is dicht, of heeft geen gebouwmodel meer. */
   forget(id: string): void;
   /** Wanneer dit document aan de beurt is (ms, de klok van het ritme); `null`: niets op te slaan. */
   dueAt(id: string): number | null;
   isDue(id: string): boolean;
-  /** Het vroegste moment over alle documenten, voor de wekker; `null`: geen. */
-  nextDueAt(): number | null;
+  /** Het vroegste moment over de documenten waarvoor `include` geldt (die meedoen), voor de wekker; `null`: geen. */
+  nextDueAt(include?: (id: string) => boolean): number | null;
   /** De ronde van dit document begint (onder het schrijfslot); de klok loopt. */
   roundStarted(id: string): void;
   /** De ronde van dit document is klaar; de duur is de tijd sinds `roundStarted`. */
@@ -74,13 +77,17 @@ export function createModelAutoSaveRhythm(now: () => number = Date.now): ModelAu
         if (doc.round) doc.round.firstChangeAfter ??= at;
       }
     },
+    touch: id => {
+      const doc = docs.get(id);
+      if (doc?.dirty) doc.lastChangeAt = now();
+    },
     forget: id => { docs.delete(id); },
     dueAt: id => { const doc = docs.get(id); return doc ? dueOf(doc) : null; },
     isDue: id => { const doc = docs.get(id), due = doc ? dueOf(doc) : null; return due !== null && due <= now(); },
-    nextDueAt: () => {
+    nextDueAt: include => {
       let next: number | null = null;
-      for (const doc of docs.values()) {
-        const due = doc.round ? null : dueOf(doc);
+      for (const [id, doc] of docs) {
+        const due = doc.round || (include && !include(id)) ? null : dueOf(doc);
         if (due !== null && (next === null || due < next)) next = due;
       }
       return next;

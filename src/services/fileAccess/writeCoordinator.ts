@@ -17,9 +17,30 @@ export class YieldedToManualWrite extends Error {
   }
 }
 
+/** Fixronde 1 van de review van #1033: zoveel handmatige acties houden voorrang vóór ze de rij bereiken
+ *  (`claimProjectFileWrite`). Zolang er één is, wijkt elke ronde meteen, ook een die nu pas om de rij vraagt. */
+let claims = 0;
+
 /** Besluit technisch beslisser, 19 november 2026: "Een handmatige actie gaat altijd voor." */
 function yieldBackgroundWrites(): void {
   for (const controller of yielding) controller.abort(new YieldedToManualWrite());
+}
+
+/**
+ * Fixronde 1 van de review van #1033: een handmatige actie die al rekent vóór ze om de rij vraagt (een IFC-export vraagt
+ * de opslagworker vóór `runProjectFileWrite`), krijgt haar voorrang vanaf dit moment: een lopende ronde van Automatisch
+ * opslaan met een gebouwmodel wijkt meteen (en stopt de worker), en tot de teruggegeven functie loopt wijkt elke nieuwe
+ * ronde ook. Een gewone ronde merkt hier niets van.
+ */
+export function claimProjectFileWrite(): () => void {
+  claims++;
+  yieldBackgroundWrites();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    claims--;
+  };
 }
 
 export function isProjectFileWriteBusy(): boolean {
@@ -80,6 +101,7 @@ export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () 
 export async function runYieldingProjectFileWrite<T>(work: (yielded: AbortSignal) => Promise<T>, closed: () => T): Promise<T> {
   const controller = new AbortController();
   yielding.add(controller);
+  if (claims > 0) controller.abort(new YieldedToManualWrite());
   try {
     return await enqueue(() => work(controller.signal), closed);
   } finally {

@@ -5,7 +5,7 @@
 // #804 stap 8: een document met een gebouwmodel (flag `ifcForeignContent` aan, de bron aanwezig) doet mee, via dezelfde
 // gecontroleerde vervanging als Ctrl+S (`replaceOwnHandleWithRecovery` in de browser, `replaceOwnPathWithRecovery` op de
 // desktop), met een eigen ritme per document (`modelAutoSaveRhythm.ts`), en zijn ronde wijkt voor elke handmatige
-// actie (`runYieldingProjectFileWrite`) zolang het herstelrecord niet geschreven is. Een gewoon document en elk document
+// actie (`runYieldingProjectFileWrite`) tot het herstel van de vervanging vastligt. Een gewoon document en elk document
 // met de flag uit houden hun route en hun ritme van vóór stap 8.
 import type { AppState } from '@/state/appStore';
 import type { DocumentPayload } from '@/state/documentContract';
@@ -20,6 +20,8 @@ import {
   writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
 import { isProjectFileWriteBusy, runProjectFileWrite, runYieldingProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
+import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
@@ -45,17 +47,18 @@ function modelDocument(state: Pick<AppState, 'ui'>, payload: Pick<DocumentPayloa
     && !ifcFullWriteBlocked({ ...payload, ui: state.ui });
 }
 
-/** Zou Ctrl+S voor dit document eerst vragen naar de afhankelijke projecten (de vraag bij opslaan in `fileSlice.ts`)?
- *  Dan slaat een stille ronde met een gebouwmodel het over: ze stelt nooit een vraag. */
-function dependentQuestionPossible(state: Pick<AppState, 'ui'>, id: string, payload: Pick<DocumentPayload, 'project'>): boolean {
-  return state.ui.dependentProjects.some(r => r.documentId === id && r.projectId === payload.project.id && r.links.length > 0);
-}
-
 export interface FileAutoSaveController extends ActualAutoSaveController {
   /** #804 stap 8: na elke wijziging in de store; houdt het ritme van de documenten met een gebouwmodel bij. */
   observe: () => void;
-  /** Het vroegste moment (de klok `now`) waarop een document met een gebouwmodel aan de beurt is; `null`: geen. */
+  /** Fixronde 1 van de review van #1033: een toetsaanslag in open veldinvoer van het actieve document (`noteTextEntry`);
+   *  telt als werken voor de rust van een document met een gebouwmodel. */
+  noteTextEntry: () => void;
+  /** Het vroegste moment (de klok `now`) waarop een document met een gebouwmodel dat meedoet aan de beurt is; `null`: geen. */
   nextModelRoundAt: () => number | null;
+  /** Fixronde 1 van de review van #1033: een ronde alleen voor de documenten met een gebouwmodel (hun eigen wekker).
+   *  `flush` is de gewone ingang (het ritme van 10 s): elk document dat meedoet, een gebouwmodel alleen als het aan de beurt
+   *  is. */
+  flushModels: () => Promise<void>;
 }
 
 export function createFileAutoSaveController(deps: {
@@ -163,6 +166,10 @@ export function createFileAutoSaveController(deps: {
     const before = await guard();
     if (before) return before;
     if (yielded.aborted) return 'yielded';
+    // Waar Ctrl+S zou vragen (een te krap anker van een afhankelijk project), slaat de ronde het document over: ze stelt
+    // nooit een vraag. Dezelfde beoordeling als Ctrl+S (`tightAnchorsIfSaved`); een ruim anker houdt niets tegen.
+    if ((await tightAnchorsIfSaved(getState().ui.dependentProjects, candidate.id, current)).length > 0) return 'refused';
+    if (yielded.aborted) return 'yielded';
     // De browser: staat er nog precies de bron, vóór de merge (zoals Ctrl+S). De desktop toetst dat in de vervanging zelf.
     if (ref.kind === 'handle' && await sourceTargetContent(ref, source.bytes) !== 'same') {
       stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE);
@@ -183,27 +190,40 @@ export function createFileAutoSaveController(deps: {
     if (!prepared) return 'refused';
     const after = await guard();
     if (after) return after;
+    if (yielded.aborted) return 'yielded';
     const commit = () => getState().markAutoSaveVersionSaved(document, current, prepared);
 
+    // De grens van de voorrang ligt in de gedeelde vervanging (`stopBeforeWrite`): pas als het herstel vastligt (browser:
+    // de komende versie in het herstelmanifest; desktop: het herstelrecord en het manifest) en vóór de eerste schrijfactie
+    // op het doel. Meldt zich tot dan een handmatige actie, ook terwijl het herstel nog geschreven wordt, dan wijkt de
+    // ronde: niets geschreven, het herstel weer opgeruimd. Daarna loopt ze af en wacht de handmatige actie.
     if (ref.kind === 'handle') {
-      // Vlak vóór het vastleggen van de komende versie in het herstelmanifest; daarna loopt de ronde af.
-      if (yielded.aborted) return 'yielded';
       const result = await replaceOwnHandleWithRecovery({
         documentId: candidate.id, ref, prepared, source: source.bytes,
-        stopBeforeWrite: changed, refuseBeforePlace: changed, commit,
+        stopBeforeWrite: () => yielded.aborted || changed(), refuseBeforePlace: changed, commit,
       });
       if (result.code === 'replaced') return true;
       if (result.code === 'not-recorded') stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE);
       else if (result.code === 'target-changed') stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE);
-      else return 'stale';
+      else return yielded.aborted ? 'yielded' : 'stale';
       return 'refused';
     }
 
-    let stoppedBy: 'stale' | 'refused' | null = null;
+    // Het beleid voor een eerdere, onderbroken vervanging van dit doel: Ctrl+S gaat er met een eigen record overheen,
+    // Automatisch opslaan niet (de start van de app of het openen van het bestand handelt het eerst af).
+    if (await pendingReplaceFor(await tauriReplaceRecords(), ref.path)) {
+      stopFor(candidate.id, ref, MODEL_AUTOSAVE_REMNANT_NOTICE);
+      return 'refused';
+    }
+    if (yielded.aborted) return 'yielded';
+    let stoppedBy: 'stale' | 'refused' | 'yielded' | null = null;
     const result = await replaceOwnPathWithRecovery({
       documentId: candidate.id, path: ref.path, prepared, source: { bytes: source.bytes, sha256: source.sha256 },
-      yieldBeforeRecord: () => yielded.aborted, refuseRemnant: true,
-      stopBeforeWrite: async () => (stoppedBy = await guard()) !== null,
+      stopBeforeWrite: async () => {
+        stoppedBy = yielded.aborted ? 'yielded' : await guard();
+        if (stoppedBy === null && yielded.aborted) stoppedBy = 'yielded';
+        return stoppedBy !== null;
+      },
       refuseBeforePlace: () => { if (changed()) stoppedBy = 'stale'; return stoppedBy !== null; },
       commit,
     });
@@ -212,9 +232,7 @@ export function createFileAutoSaveController(deps: {
         // Een versie van een ander programma of een achtergebleven vorige versie: een feit over bestanden op schijf.
         for (const notice of ownPathReplaceNotices(result, ref.path)) getState().notify(notice);
         return true;
-      case 'yielded': return 'yielded';
       case 'stopped': return stoppedBy ?? 'stale';
-      case 'remnant': stopFor(candidate.id, ref, MODEL_AUTOSAVE_REMNANT_NOTICE); return 'refused';
       case 'not-recorded': stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE); return 'refused';
       case 'target-changed': stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE); return 'refused';
       case 'save-as-only': stopFor(candidate.id, ref, MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE); return 'refused';
@@ -232,40 +250,57 @@ export function createFileAutoSaveController(deps: {
     }
   };
 
-  const controller = createActualAutoSaveController({
-    listCandidates: (): ActualAutoSaveCandidate[] => {
-      // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
-      // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
-      if (!deps.enabled() || isProjectFileWriteBusy()) return [];
-      observe();
-      const state = getState();
-      return state.getOpenDocumentPayloads().map(({ id, payload }) => {
-        // Eén afleiding van het opslagdoel, dezelfde als Opslaan. Een site-bestand valt hier
-        // bewust af: automatisch opslaan naar de site staat uit (elke ronde zou een nieuwe versie
-        // maken, besluit #309). Alleen Opslaan schrijft naar de site; crashherstel loopt gewoon door.
-        const target = saveTargetRef(payload);
-        const ref = target?.kind === 'site' ? null : target;
-        // Schemavraag (issue #292): staat die open voor een schema dat de app niet schrijft (IFC2X3),
-        // dan zou automatisch opslaan het bestandstype stil veranderen. Dan wacht het bestand op het
-        // eerste expliciete opslaan, met de vraag. Crashherstel loopt gewoon door.
-        // #804 fase 1a: een document met een vreemd deel schrijft niet naar het bestand (de writer laat het model
-        // nog weg). Crashherstel loopt door. Stap 8: behalve met de flag aan en de bron aanwezig (`modelDocument`).
-        const model = modelDocument(state, payload);
-        const foreignBlocked = !model && ifcSaveBlocked(payload);
-        if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
-          foreignNotified.add(id);
-          getState().notify(ifcWriteBlockedNotice(payload));
-        }
-        const refused = refusedTarget.get(id);
-        if (refused && (!payload.isDirty || !ref || !sameFileRef(refused.ref, ref) || payload.ifcSource !== refused.source)) {
-          refusedTarget.delete(id);
-        }
-        // Stap 8: een document met een gebouwmodel alleen op zijn eigen ritme, en nooit waar Ctrl+S een vraag zou stellen.
-        const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !foreignBlocked
-          && !refusedTarget.has(id) && (!model || (rhythm.isDue(id) && !dependentQuestionPossible(state, id, payload)));
-        return { id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty, ref, source: payload };
-      });
-    },
+  /** Een oude weigering vervalt als de planner zelf opsloeg (niet meer gewijzigd, of bij een gebouwmodel een nieuwe bron)
+   *  of een ander doel koos. */
+  const settleRefusal = (id: string, payload: DocumentPayload, ref: FileRef | null) => {
+    const refused = refusedTarget.get(id);
+    if (refused && (!payload.isDirty || !ref || !sameFileRef(refused.ref, ref) || payload.ifcSource !== refused.source)) {
+      refusedTarget.delete(id);
+    }
+  };
+  /** Eén afleiding van het opslagdoel, dezelfde als Opslaan. Een site-bestand valt hier bewust af: automatisch opslaan
+   *  naar de site staat uit (elke ronde zou een nieuwe versie maken, besluit #309). Alleen Opslaan schrijft naar de site;
+   *  crashherstel loopt gewoon door. */
+  const autoSaveRef = (payload: DocumentPayload): FileRef | null => {
+    const target = saveTargetRef(payload);
+    return target?.kind === 'site' ? null : target;
+  };
+  /** Doet dit document mee, los van zijn ritme? Schemavraag (issue #292): staat die open voor een schema dat de app niet
+   *  schrijft (IFC2X3), dan zou automatisch opslaan het bestandstype stil veranderen. Dan wacht het bestand op het eerste
+   *  expliciete opslaan, met de vraag. Crashherstel loopt gewoon door. */
+  const takesPart = (id: string, payload: DocumentPayload): boolean => {
+    settleRefusal(id, payload, autoSaveRef(payload));
+    return payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project, payload.ifcSource) && !refusedTarget.has(id);
+  };
+
+  /** De kandidaten van één ronde; `onlyModels`: alleen de documenten met een gebouwmodel (hun eigen wekker). */
+  const listCandidates = (onlyModels: boolean) => (): ActualAutoSaveCandidate[] => {
+    // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
+    // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
+    if (!deps.enabled() || isProjectFileWriteBusy()) return [];
+    observe();
+    const state = getState();
+    const candidates: ActualAutoSaveCandidate[] = [];
+    for (const { id, payload } of state.getOpenDocumentPayloads()) {
+      // #804 fase 1a: een document met een vreemd deel schrijft niet naar het bestand (de writer laat het model
+      // nog weg). Crashherstel loopt door. Stap 8: behalve met de flag aan en de bron aanwezig (`modelDocument`).
+      const model = modelDocument(state, payload);
+      if (onlyModels && !model) continue;
+      const foreignBlocked = !model && ifcSaveBlocked(payload);
+      if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
+        foreignNotified.add(id);
+        getState().notify(ifcWriteBlockedNotice(payload));
+      }
+      // Stap 8: een document met een gebouwmodel alleen op zijn eigen ritme. Waar Ctrl+S een vraag zou stellen, beslist
+      // de ronde zelf (`modelRound`): ze stelt nooit een vraag.
+      const enabled = takesPart(id, payload) && !foreignBlocked && (!model || rhythm.isDue(id));
+      candidates.push({ id, content: documentContentOf(state, id)!.content, enabled, dirty: payload.isDirty,
+        ref: autoSaveRef(payload), source: payload });
+    }
+    return candidates;
+  };
+
+  const roundDeps = {
     canWrite: canWriteToRefWithoutPrompt,
     // #804 stap 3, fixronde 1: de ronde koos haar kandidaten vóór het slot. Begon intussen de laatste fase van afsluiten
     // of van de updater (`closeProjectFileWrites`), dan schrijft ze niet meer: `'refused'`, niets te melden, het
@@ -328,6 +363,26 @@ export function createFileAutoSaveController(deps: {
         dedupeKey: 'actual-autosave',
       });
     },
-  });
-  return { ...controller, observe, nextModelRoundAt: () => rhythm.nextDueAt() };
+  } satisfies Omit<Parameters<typeof createActualAutoSaveController>[0], 'listCandidates'>;
+  // Fixronde 1 van de review van #1033: twee ingangen naar dezelfde schrijfcoördinatie. De gewone (het ritme van 10 s)
+  // neemt elk document dat meedoet, een gebouwmodel alleen als het aan de beurt is; de wekker van een gebouwmodel neemt
+  // alleen de documenten met een gebouwmodel, zodat een gewoon document nooit vóór zijn eigen 10 s geschreven wordt.
+  const everyDocument = createActualAutoSaveController({ ...roundDeps, listCandidates: listCandidates(false) });
+  const modelsOnly = createActualAutoSaveController({ ...roundDeps, listCandidates: listCandidates(true) });
+  return {
+    flush: everyDocument.flush,
+    flushModels: modelsOnly.flush,
+    isSaving: () => everyDocument.isSaving() || modelsOnly.isSaving(),
+    observe,
+    noteTextEntry: () => {
+      const id = getState().activeDocumentId;
+      if (tracked.has(id)) rhythm.touch(id);
+    },
+    // Alleen de documenten die meedoen (knownbug 1925): een gewijzigd gebouwmodel met Automatisch opslaan uit, of na een
+    // stop, houdt de wekker niet wakker.
+    nextModelRoundAt: () => {
+      const payloads = new Map(getState().getOpenDocumentPayloads().map(({ id, payload }) => [id, payload]));
+      return rhythm.nextDueAt(id => { const payload = payloads.get(id); return !!payload && takesPart(id, payload); });
+    },
+  };
 }

@@ -10,6 +10,8 @@ import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { payloadFromImport, type DocumentPayload } from './documentContract';
 import type { DependentProjectsResult } from './slices/types';
 import { basename } from '@/utils/filePath';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput, type IFCSaveSource } from './ifcSaveInput';
 
 /**
  * Een IFC-bestand als kandidaat, alleen-lezen: de lezer van het formaat en dezelfde laadgrens als
@@ -87,4 +89,26 @@ export async function dependentAnchorsAsSaved(
   const name = 'opslaan.ifc';
   const source = externalSourceFromImport(activeImportResult(await parseOpenedFile({ name, text: ifcText }, labels)), name);
   return tightDependentAnchors(links, source.tasks, source);
+}
+
+/**
+ * De te krappe ankers als dit document nu opgeslagen wordt: het zoekresultaat *Afhankelijke projecten* van dit document
+ * (`ui.dependentProjects`), per gevonden koppeling opnieuw gerekend op de tekst die opgeslagen gaat worden
+ * (`dependentAnchorsAsSaved`). Leeg zonder zoekresultaat voor dit document en dit project. Eén beoordeling voor twee
+ * routes: Ctrl+S en Opslaan als vragen het de planner bij een te krap anker (`settleDependentAnchors` in `fileSlice.ts`);
+ * Automatisch opslaan met een gebouwmodel slaat het document dan stil over (#804 stap 8, fixronde 1 van de review van
+ * #1033). Een ruim anker houdt geen van beide tegen.
+ */
+export async function tightAnchorsIfSaved(
+  results: readonly DependentProjectsResult[], documentId: string, document: IFCSaveSource,
+): Promise<TightAnchor[]> {
+  const result = results.find(r => r.documentId === documentId);
+  if (!result || result.projectId !== document.project.id || result.links.length === 0) return [];
+  try {
+    return await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(document, 'planOnly')));
+  } catch (err) {
+    // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
+    console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
+    return tightDependentAnchors(result.links, document.tasks);
+  }
 }

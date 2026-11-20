@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import { TaskGridContext, type DataGridError } from './taskGridContext';
+import { noteTextEntry } from '@/state/textEntryActivity';
 
 export type GridEditorCommitResult =
   | { ok: true; nextCell?: GridCellAddress }
@@ -62,7 +63,13 @@ export function GridEditorHost({
   };
 
   return (
-    <div className="task-grid-editor-host" data-grid-editor-cell={`${cell.rowKey}\u0000${cell.columnId}`}>
+    // Elke toetsaanslag in de editor telt als werken voor Automatisch opslaan met een gebouwmodel, ook vóór Enter
+    // (`textEntryActivity.ts`); de invoer zelf blijft hier tot het vastleggen.
+    <div
+      className="task-grid-editor-host"
+      data-grid-editor-cell={`${cell.rowKey}\u0000${cell.columnId}`}
+      onInputCapture={noteTextEntry}
+    >
       {children({
         'aria-invalid': currentError ? true : undefined,
         'aria-describedby': currentError?.id,

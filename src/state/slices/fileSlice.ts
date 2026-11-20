@@ -4,7 +4,7 @@ import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, 
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
-import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
+import { ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
@@ -89,15 +89,14 @@ import {
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
-import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { claimProjectFileWrite, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
-import { tightDependentAnchors } from '@/engine/dependentProjects';
-import { dependentAnchorsAsSaved } from '../dependentCandidates';
+import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
@@ -813,6 +812,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return null;
     }
   };
+
+  /** #804 stap 8, fixronde 1 van de review van #1033: een IFC-export rekent vóór hij om de schrijfrij vraagt. Een ronde
+   *  van Automatisch opslaan met een gebouwmodel wijkt al vanaf dat rekenen (`claimProjectFileWrite`), zodat de export
+   *  niet op de opslagworker van de ronde wacht en de ronde de bron niet onder de export verandert; daarna geeft
+   *  `runProjectFileWrite` de export dezelfde voorrang. */
+  const prepareExportIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
+    const release = claimProjectFileWrite();
+    try { return await prepareAppIfcWrite(state, input, planOnly); } finally { release(); }
+  };
   const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<DocumentWrite | null> => {
     const write = await prepareAppIfcWrite(state, input, planOnly);
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
@@ -1471,16 +1479,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    */
   const settleDependentAnchors = async (): Promise<boolean> => {
     const before = get();
-    const result = before.ui.dependentProjects.find(r => r.documentId === before.activeDocumentId);
-    if (!result || result.projectId !== before.project.id || result.links.length === 0) return true;
-    let tight;
-    try {
-      tight = await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(before, 'planOnly')));
-    } catch (err) {
-      // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
-      console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
-      tight = tightDependentAnchors(result.links, before.tasks);
-    }
+    // Dezelfde beoordeling als Automatisch opslaan (`tightAnchorsIfSaved`); alleen deze route stelt de vraag.
+    const tight = await tightAnchorsIfSaved(before.ui.dependentProjects, before.activeDocumentId, before);
     if (tight.length === 0) return true;
     const documentId = before.activeDocumentId;
     if (!(await askDependentAnchors(tight))) return false;
@@ -2458,7 +2458,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
           {
-            const written = await prepareAppIfcWrite(state, buildExportIFCInput(state, withoutModel ? 'planOnly' : 'merge'), planOnly);
+            const written = await prepareExportIfcWrite(state, buildExportIFCInput(state, withoutModel ? 'planOnly' : 'merge'), planOnly);
             if (!written) return { ok: true, warnings: [], cancelled: true };
             preparedExport = written.prepared;
             // #804 stap 6: de bytes van de opslagworker gaan zo naar de byteroute (`saveBytesDialog`), zonder tekst.
@@ -2593,7 +2593,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const planOnly = await askPlanOnlyExport(state, 'exportWithPool');
       if (planOnly === null) return { ok: true, warnings: [], cancelled: true };
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
-      const project = await prepareAppIfcWrite(state, buildExportIFCInput(state, 'planOnly'), planOnly);
+      const project = await prepareExportIfcWrite(state, buildExportIFCInput(state, 'planOnly'), planOnly);
       if (!project || project.prepared) return { ok: true, warnings: [], cancelled: true };
       const projectData = writerData(project);
       const base = suggestedFileBase(state);

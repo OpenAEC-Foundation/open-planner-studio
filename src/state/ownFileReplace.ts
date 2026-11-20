@@ -11,9 +11,7 @@ import {
   linkedOwnFile, replaceHelpersGone, replaceOwnFileBytes, tauriOwnFileReplaceFs,
   type OwnFileReplaceFs, type OwnFileReplaceOutcome, type RemnantEvent,
 } from '@/services/fileAccess/ownFileReplace';
-import {
-  pendingReplaceFor, tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore,
-} from '@/services/fileAccess/replaceRecords';
+import { tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore } from '@/services/fileAccess/replaceRecords';
 import { userFileHelperId } from '@/services/fileAccess/atomicWrite';
 import { replaceHandleWithBytes, sourceTargetContent, type FileRef, type RefuseBeforePlace } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
@@ -22,18 +20,12 @@ import {
   IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE, IFC_FOREIGN_TARGET_CHANGED_NOTICE,
   IFC_FOREIGN_TARGET_GONE_NOTICE,
 } from './ifcForeignGuard';
-import { MODEL_AUTOSAVE_REMNANT_NOTICE } from './modelAutoSaveNotices';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
 export type OwnPathReplaceResult = OwnFileReplaceOutcome | { code: 'not-recorded' }
   /** `stopBeforeWrite` stopte de vervanging na de eerste herstelronde; niets in de projectmap aangeraakt. */
-  | { code: 'stopped' }
-  /** #804 stap 8, alleen Automatisch opslaan: `yieldBeforeRecord` gaf `true`; er is niets vastgelegd of geschreven. */
-  | { code: 'yielded' }
-  /** #804 stap 8, alleen met `refuseRemnant`: voor dit doel staat nog een herstelrecord van een eerdere, onderbroken
-   *  vervanging; er is niets vastgelegd of geschreven. */
-  | { code: 'remnant' };
+  | { code: 'stopped' };
 
 export interface OwnPathReplaceInput {
   documentId: string;
@@ -49,18 +41,14 @@ export interface OwnPathReplaceInput {
   commit: () => void;
   /** Verplicht: na de eerste herstelronde en vóór de eerste schrijfactie in de projectmap opnieuw de doelbewaking
    *  (dezelfde als vóór de merge): `true` = stoppen (het document, zijn opslagdoel of zijn bron veranderde, of een
-   *  ander open document heeft het bestand intussen als bron). Meldt zelf; de uitkomst is dan `stopped`. */
+   *  ander open document heeft het bestand intussen als bron). Meldt zelf; de uitkomst is dan `stopped`. Dit is de
+   *  grens: tot hier kan de aanroeper stoppen zonder dat er iets van deze opslag blijft staan (#804 stap 8: Automatisch
+   *  opslaan wijkt hier voor een handmatige actie die zich meldde terwijl het herstel werd vastgelegd). */
   stopBeforeWrite: () => Promise<boolean>;
   /** Verplicht (knownbug 1896): de laatste controle, vlak vóór het opzijzetten van het doel (na de tweede doellezing,
    *  `replaceOwnFileBytes`): hoort de opslag nog bij de inhoud van het document (`refuseChangedDocumentWrite`)? `true` =
    *  stoppen; het tijdelijke bestand en het record gaan langs het gewone opruimpad weg. Meldt zelf. */
   refuseBeforePlace: RefuseBeforePlace;
-  /** #804 stap 8, alleen Automatisch opslaan: vlak vóór het herstelrecord. `true` = wijken voor een handmatige actie
-   *  (uitkomst `yielded`). Daarna loopt de vervanging af. */
-  yieldBeforeRecord?: () => boolean;
-  /** #804 stap 8, alleen Automatisch opslaan: niet vervangen zolang er voor dit doel nog een herstelrecord van een eerdere,
-   *  onderbroken vervanging staat (uitkomst `remnant`). Ctrl+S gaat daar wel door (met een eigen id). */
-  refuseRemnant?: boolean;
   fs?: OwnFileReplaceFs;
   records?: ReplaceRecordStore;
   now?: Date;
@@ -83,8 +71,6 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
   const target = await linkedOwnFile(fs, input.path);
   if (target.linked) return { code: 'save-as-only', why: 'linked target' };
   const records = input.records ?? await tauriReplaceRecords();
-  if (input.refuseRemnant && await pendingReplaceFor(records, input.path)) return { code: 'remnant' };
-  if (input.yieldBeforeRecord?.()) return { code: 'yielded' };
   const id = userFileHelperId();
   return whileReplaceRuns(id, async () => {
     try {
@@ -145,7 +131,9 @@ export async function replaceOwnHandleWithRecovery(input: {
   prepared: { bytes: Uint8Array; sha256: string };
   /** Wat op het doel hoort te staan: de bron in het geheugen (`ifcSource.bytes`). */
   source: Uint8Array;
-  /** Na het vastleggen in het herstelmanifest, vóór `createWritable()`: `true` = stoppen. */
+  /** Na het vastleggen in het herstelmanifest, vóór `createWritable()`: `true` = stoppen. Dit is de grens: tot hier kan
+   *  de aanroeper stoppen zonder dat er iets van deze opslag blijft staan (#804 stap 8: Automatisch opslaan wijkt hier
+   *  voor een handmatige actie die zich meldde terwijl het herstel werd vastgelegd). */
   stopBeforeWrite: () => boolean;
   refuseBeforePlace: RefuseBeforePlace;
   commit: () => void;
@@ -176,8 +164,6 @@ export function ownPathReplaceNotices(result: OwnPathReplaceResult, path: string
     ];
     case 'not-recorded': return [IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE];
     case 'stopped': return []; // `stopBeforeWrite` meldde zelf
-    case 'yielded': return []; // geen fout: een handmatige actie ging voor
-    case 'remnant': return [MODEL_AUTOSAVE_REMNANT_NOTICE];
     case 'target-changed': return [result.content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE];
     case 'save-as-only': return [refusalNotice({
       messageKey: 'notifications.ifcForeignReplaceSaveAsOnly', detail: result.why, dedupeKey: 'ifc-foreign-replace-save-as-only',

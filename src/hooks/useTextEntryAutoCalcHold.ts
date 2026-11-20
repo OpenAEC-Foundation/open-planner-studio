@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type FocusEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { holdAutoCalc } from '@/state/editHold';
 import { mountedPendingTextEdits } from '@/state/pendingTextEdits';
+import { noteTextEntry } from '@/state/textEntryActivity';
 
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'range', 'button', 'submit', 'reset', 'color', 'file']);
 
@@ -37,5 +38,8 @@ export function useTextEntryAutoCalcHold() {
     if (event.key === 'Enter' && isTextEntry(event.target)) done();
   }, [done]);
   useEffect(() => done, [done]);
-  return { onFocus: hold, onInput: hold, onBlur: done, onKeyDown };
+  // Een toetsaanslag telt ook als werken voor Automatisch opslaan met een gebouwmodel (`textEntryActivity.ts`): een veld
+  // met een draft legt pas bij Enter of blur vast.
+  const onInput = useCallback((event: FormEvent) => { noteTextEntry(); hold(event); }, [hold]);
+  return { onFocus: hold, onInput, onBlur: done, onKeyDown };
 }
