@@ -915,7 +915,6 @@
 "src/state/slices/baselineSlice.ts": 17,
 "src/state/slices/documentSlice.ts": 262,
 "src/state/slices/extensionSlice.ts": 22,
-"src/state/slices/fileSlice.ts": 942,
 "src/state/slices/historySlice.ts": 36,
 "src/state/slices/librarySlice.ts": 466,
 "src/state/slices/projectSlice.ts": 206,
