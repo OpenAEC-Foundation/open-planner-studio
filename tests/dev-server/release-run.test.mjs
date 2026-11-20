@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { DroogStop, ReleaseStop, ReleaseTaak, slotregel } from '../../scripts/release/uitkomst.mjs';
 import { BEGIN, EIND, inWeekendstop, volgRun, verslagTekst } from '../../scripts/release/github.mjs';
 import {
-  ciCheck, controleerOrigin, gewijzigdePaden, isAfgeschreven, kiesKandidaat, lever, vervolgRun, originTags, release, teksten, vergelijk, vervangBlok, wachtOpReparatie, websiteBlokkenLive, zetCijfers,
+  ciCheck, controleerOrigin, gewijzigdePaden, isAfgeschreven, kiesKandidaat, lever, vervolgRun, originTags, release, teksten, vergelijk, vervangBlok, wachtOpReparatie, website, websiteBlokkenLive, zetCijfers,
 } from '../../scripts/release/stappen.mjs';
 import { claudeArgs, maakContext, neemSlot } from '../../scripts/release/run.mjs';
 import { execFileSync } from 'node:child_process';
@@ -253,6 +253,21 @@ test('website: beide unieke liveblokken moeten de exacte versie noemen', () => {
   assert.equal(websiteBlokkenLive(nieuw + tijdlijn.replace('v2026.47.0', 'v2026.47.01'), '2026.47.0'), false);
   assert.equal(websiteBlokkenLive(nieuw + nieuw + tijdlijn, '2026.47.0'), false);
   assert.equal(websiteBlokkenLive(nieuw + tijdlijn + tijdlijn, '2026.47.0'), false);
+});
+
+test('website: livecontrole beïnvloedt de echte beslissing, zonder schrijfstap', () => {
+  const url = 'https://open-aec.com/open-planner-studio/';
+  const gh = [...GH_BASIS, [/pr list .*--head release\\//, [{ state: 'CLOSED', url: 'https://voorbeeld/pr' }]]];
+  for (const [html, open] of [
+    [HTTP[url], false],
+    ['<footer>v2026.47.0</footer>', true],
+    ['<section id="whats-new">v2026.47.0</section>', true],
+    ['<!-- rn:start -->v2026.47.0<!-- rn:end -->', true],
+  ]) {
+    const { ctx, spoor } = nep({ gh, http: { ...HTTP, [url]: html } });
+    assert.equal(website(ctx, { tag: 'v2026.47.0', versie: '2026.47.0' }).open, open);
+    assert.deepEqual(spoor.acts, []);
+  }
 });
 
 test('website: precies één blok vervangen, anders een fout', () => {
