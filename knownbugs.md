@@ -2722,23 +2722,28 @@ en noem het in je rapport of PR-tekst.
      6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
         feitelijk bijgewerkt; zie ook 1836).
      7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
-     8. Gebouwd (stap 8, #1019): *Opslaan als* over een andere bestaande naam op de desktop (keuze 4), voor een
-        document met een vreemd deel, met de flag aan. Staat er op het gekozen pad na de doelcontrole een gewoon
-        bestand, dan schrijft de bestandskiezer niet zelf (`SaveDialogOpts.replaceExisting`) maar geeft hij het pad en
-        de inhoud van dat moment aan `replaceExistingPath` (`fileSlice.ts`): dezelfde vervanging als Ctrl+S
-        (`replaceOwnPathWithRecovery`, stap 0–6, hetzelfde herstelrecord), met die inhoud als verwachte inhoud
-        (`vorigeSha256`), binnen de ene `runProjectFileWrite` van de opslag. De doelbewaking na de eerste herstelronde
-        scant die gelezen inhoud zelf, dus wat stap 5 weghaalt, liet de doelbescherming toe. Na een geslaagde
-        vervanging is het document hetzelfde als na een nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft
-        weigeren zoals voorheen: het doel is de bron van een open document (`ifcForeignReplaceBlocked`), het doel bevat
-        zelf een gebouwmodel of C/A/V-inhoud (`ifcForeignTargetSave`, de doelscan, onveranderd). Nieuw (fixronde 1
-        van #1019): het doel staat in een ander tabblad open, ook als gewone planning zonder vreemd deel
-        (`ifcForeignTargetOpenInTab`; `openDocumentsExcept` in `refusedWriteTarget`, in de kiezer en na de herstelronde).
-        Of er een bestand staat, stelt de kiezer direct na zijn terugkeer vast (1890). En waar de vervanging
-        niet kan (`save-as-only`: buiten de thuismap, een link, `unsupported`, `refused`) dezelfde zin als een
-        bestaande naam voorheen (`ifcForeignNewTargetOnly`), zonder terugval. Blijft open: Exporteren → IFC en
-        `planner_export_ifc` over een bestaande naam (weigeren nog), en de bestandskiezer van Ctrl+S bij een document
-        zonder opslagdoel (schrijft alleen naar een nieuwe naam). Niet gemeten in een echte desktopapp.
+     8. Gebouwd (stap 8, #1019; tweede deel na het besluit van de eigenaar van 19 november 2026): *Opslaan als* over een
+        andere bestaande naam op de desktop (keuze 4), met de flag aan. *Opslaan als* draagt de keuze zelf
+        (`saveMergeAsOnDesktop` in `fileSlice.ts`): de bestandskiezer geeft het pad en wat er direct na zijn terugkeer
+        stond (`pickSaveTarget`: de inhoud van een gewoon bestand, `'unreadable'`, of `null` voor niets, een link of een
+        map). Een gewoon bestand vervangt hij langs dezelfde vervanging als Ctrl+S (`replaceExistingPath` →
+        `replaceOwnPathWithRecovery`, stap 0–6, hetzelfde herstelrecord), met die inhoud als verwachte inhoud
+        (`vorigeSha256`), binnen de ene `runProjectFileWrite` van de opslag; anders de exclusieve aanmaak. De
+        bevestiging in de kiezer geldt voor wat er staat: ook een gewoon bestand met een gebouwmodel of C/A/V-inhoud
+        wordt vervangen, zonder tweede vraag of melding (`WriteTargetDeps.replaceConfirmed`, alleen van deze route;
+        een document zonder vreemd deel langs de gewone opslag, zoals met de flag uit). De doelcontrole direct na de
+        kiezer en die na de eerste herstelronde delen één scan van de vastgelegde bytes; daarvan telt alleen nog een
+        onleesbaar doel (`ifcUnreadableTargetSave`). Na een geslaagde vervanging is het document hetzelfde als na een
+        nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft weigeren: het doel is de bron van een open document
+        (`ifcForeignReplaceBlocked`, voor een document zonder vreemd deel `ifcForeignTargetSave`), het doel staat in een
+        ander tabblad open (`ifcForeignTargetOpenInTab`; `openDocumentsExcept` in `refusedWriteTarget`, in de kiezer en
+        na de herstelronde), een symbolische link naar een modelbestand (`ifcForeignTargetSave`), en waar de vervanging
+        niet kan (`save-as-only`: buiten de thuismap, een harde link, `unsupported`, `refused`) dezelfde zin als een
+        bestaande naam (`ifcForeignNewTargetOnly`), zonder terugval. Of er een bestand staat, stelt de kiezer direct na
+        zijn terugkeer vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam
+        (weigeren nog; de vraag ligt bij de eigenaar), en de bestandskiezer van Ctrl+S bij een document zonder
+        opslagdoel (schrijft alleen naar een nieuwe naam en weigert een doel met een gebouwmodel). Niet gemeten in een
+        echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
@@ -5001,26 +5006,15 @@ en noem het in je rapport of PR-tekst.
 
 1890. **VERVOLG (#804 keuze 4, desktop): een bestand dat verschijnt tussen de bevestiging in de bestandskiezer en de terugkeer van de kiezer, kan Opslaan als vervangen.**
      *Opslaan als* met een gebouwmodel stelt direct na de terugkeer van de bestandskiezer vast of er op het gekozen pad
-     een gewoon bestand staat (`isRegularFileTauri` in `saveNewBytesDialogTauri`, fixronde 1 van #1019). Was het pad
+     een gewoon bestand staat (`pickSaveTarget`, fixronde 1 van #1019; sinds keuze 4, tweede deel, ook de inhoud). Was het pad
      toen leeg, dan blijft het de exclusieve aanmaakroute houden; verschijnt er daarna iets, dan geeft die
      `target-exists` en de zin van een bestaande naam. Blijft open: de kiezer geeft alleen een pad door, geen bewijs van
      wat de planner bevestigde. Komt er tussen de bevestiging in het venster ("Vervangen?", of geen vraag bij een vrije
      naam) en de terugkeer van de kiezer een gewoon bestand op het pad, dan ziet de app het als bevestigd en vervangt ze
-     het langs de veilige weg (de doelbescherming blijft gelden: geen gebouwmodel, geen open tabblad). Het venster is
-     kort (de terugkeer van de dialoog over IPC). Richting: de kiezer laat weten of hij de vervangvraag stelde, of de app
+     het langs de veilige weg (geen open tabblad, geen bron van een open document; sinds keuze 4, tweede deel, ook een
+     bestand met een gebouwmodel). Het venster is kort (de terugkeer van de dialoog over IPC). Richting: de kiezer laat weten of hij de vervangvraag stelde, of de app
      vraagt zelf na de keuze nog eens als het pad bij de terugkeer bestaat. Gevonden door de review van #1019 (Sol,
      ronde 1). — S
-
-1891. **VERVOLG (#804 keuze 4, opruimen): de documentroute van Opslaan als kan de keuze tussen nieuw en vervangen zelf dragen.**
-     Nu geeft `saveNewBytesDialogTauri` een bestaand doel via de algemene haak `SaveDialogOpts.replaceExisting` aan
-     `replaceExistingPath` en geeft dan `null` terug, ook na een geslaagde vervanging. Het doel wordt twee keer gescand
-     (de doelcontrole in de kiezer op het pad, de tweede controle op de gelezen bytes) en helemaal in het geheugen
-     gelezen. Richting van de reviewer: laat Tauri het pad kiezen en de bestandslaag de verwachte doelbytes leveren,
-     laat *Opslaan als* zelf kiezen tussen exclusieve aanmaak en de gedeelde vervanging; dan kunnen de haak en de
-     `null`-uitkomst eruit, en volstaat één scan van de vastgelegde bytes. Behoud de hercontrole van document en open
-     paden na de herstelronde en de bytevergelijking vlak vóór het opzijzetten. Bewust niet in #1019: de eigenaar beslist
-     nog of een doel met een gebouwmodel vervangen mag worden; de vorm van de route volgt daarna. Review van #1019 (Sol,
-     ronde 1). — B (code)
 
 1893. **Browser: Opslaan als over het bestand van een ander tabblad maakt dat bestand af; daarna wijzen beide tabbladen ernaar (OPS #1022).**
      Op de desktop weigert *Opslaan als* sinds #1022 een bestand dat in een ander tabblad open staat (de doelcontrole

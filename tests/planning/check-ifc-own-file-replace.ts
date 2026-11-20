@@ -1746,6 +1746,34 @@ await check('keuze 4: gewone planning, flag aan, Opslaan als via een symbolische
   assert.deepEqual([s.filePath, s.isDirty], [p.path, true]);
 });
 
+// Een onleesbaar doel (een STEP-bestand zonder DATA-sectie, of een gewoon bestand dat niet te lezen is) blijft weigeren
+// met de melding van een onleesbaar doel, zoals voorheen met de flag aan; met de flag uit schrijft main eroverheen.
+const withoutData = (() => {
+  const text = Buffer.from(plain).toString('latin1');
+  return new Uint8Array(Buffer.from(`${text.slice(0, text.indexOf('\nDATA;') + 1)}END-ISO-10303-21;\n`, 'latin1'));
+})();
+for (const how of ['zonder DATA-sectie', 'niet te lezen'] as const) {
+  await check(`keuze 4: Opslaan als over een onleesbaar bestand (${how}): geweigerd, de melding van een onleesbaar doel`, async () => {
+    const c = await opened();
+    const invoke = internal.invoke;
+    try {
+      const target = otherFile(c, how === 'zonder DATA-sectie' ? withoutData : plain);
+      if (how === 'niet te lezen') {
+        internal.invoke = (command, ...args) => command === 'plugin:fs|read_file' && (args[0] as { path?: string })?.path === target.path
+          ? Promise.reject(new Error('Input/output error (os error 5)')) : invoke(command, ...args);
+      }
+      clearNotices(c);
+      const source = c.store.getState().ifcSource, from = ipc.calls.length;
+      await saveAsTo(c.store, target.path);
+      assert.deepEqual(errorKeys(c), ['notifications.ifcUnreadableTargetSave']);
+      assert.equal(hash(readFileSync(target.path)), hash(target.content), 'het doel is bytegelijk');
+      documentUnchanged(c, source);
+      assert.deepEqual([projectWriteFiles(c, from).length, placesSince(from).length], [0, 0], 'nul schrijfacties');
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { internal.invoke = invoke; await tidy(c); }
+  });
+}
+
 // Wat blijft weigeren, elk met het doel bytegelijk.
 await check('keuze 4: gewone planning over het modelbestand van een ander open tabblad: geweigerd, niets geschreven', async () => {
   const t = await twoPlainTabs(true);

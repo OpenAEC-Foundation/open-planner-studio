@@ -250,7 +250,7 @@ export function saveNewBytesDialog(
     : saveNewBytesDialogWeb(defaultName, bytes, opts);
 }
 
-/** Het doel van *Opslaan als* op de desktop (#804 keuze 4, knownbug 1891): het pad uit de bestandskiezer en wat er direct
+/** Het doel van *Opslaan als* op de desktop (#804 keuze 4; was knownbug 1891): het pad uit de bestandskiezer en wat er direct
  *  na zijn terugkeer op stond. `current`: de inhoud van een gewoon bestand (de verwachte inhoud van de vervanging en het
  *  enige wat de doelcontrole scant), `'unreadable'` als dat bestand niet te lezen was, `null` als er geen gewoon bestand
  *  stond (een vrije naam, een link of een map: de exclusieve aanmaak, die een bestaande naam weigert). */

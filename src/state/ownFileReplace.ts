@@ -3,8 +3,8 @@
 // Ctrl+S en *Opslaan* in de sluitvraag erop aan (`replaceOwnPath` in `fileSlice.ts`), binnen de ene `runProjectFileWrite`
 // van die opslag. Het afhandelen na een crash loopt los daarvan (`settlePendingReplaces`, bij de start en vóór het lezen
 // van een lokaal pad). Keuze 4 (knownbug 1131 stap 8): *Opslaan als* over een andere bestaande naam gebruikt dezelfde
-// functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat bij het begin van de opslag op dat doel
-// stond.
+// functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat de bestandskiezer op dat doel vond
+// (`pickSaveTarget`).
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
   linkedOwnFile, replaceHelpersGone, replaceOwnFileBytes, tauriOwnFileReplaceFs,
@@ -33,7 +33,7 @@ export interface OwnPathReplaceInput {
   /** De voorbereide merge: één buffer en haar sha256 (`PreparedIfcWrite`). */
   prepared: { bytes: Uint8Array; sha256: string };
   /** Wat op het doel hoort te staan (`vorigeSha256` in het herstelrecord): bij Ctrl+S de bron in het geheugen
-   *  (`ifcSource`), bij Opslaan als over een bestaande naam de inhoud van dat bestand bij het begin van de opslag. */
+   *  (`ifcSource`), bij Opslaan als over een bestaande naam wat de bestandskiezer op dat doel vond. */
   source: { bytes: Uint8Array; sha256: string };
   /** Na een geslaagde vervanging: de geschreven versie wordt de bron (`commitSavedDocument` met `prepared`). */
   commit: () => void;

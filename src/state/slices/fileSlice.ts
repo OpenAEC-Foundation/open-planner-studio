@@ -927,7 +927,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       : saveDataDialog(name, writerData(write), IFC_FILE_FILTERS, options);
   };
 
-  /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (knownbug 1891): één scan van de
+  /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
    *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Met
    *  `replaceConfirmed` telt van die scan alleen nog een onleesbaar doel (`'unreadable-target'`). Zonder vastgelegde
    *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. */
@@ -1607,7 +1607,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /**
-   * #804 keuze 4 (knownbug 1131 stap 8, knownbug 1891): *Opslaan als* van een document met een vreemd deel (de merge) op
+   * #804 keuze 4 (knownbug 1131 stap 8; was knownbug 1891): *Opslaan als* van een document met een vreemd deel (de merge) op
    * de desktop. De bestandskiezer geeft het pad en wat er direct na zijn terugkeer op stond (`pickSaveTarget`); deze route
    * kiest zelf. Staat er een gewoon bestand, dan bevestigde de planner het vervangen in de kiezer, en dat geldt voor wat er
    * staat, ook een gebouwmodel of gegevens van een ander programma (besluit van de eigenaar, 19 november 2026): dezelfde

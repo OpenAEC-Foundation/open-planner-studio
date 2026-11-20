@@ -755,11 +755,14 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
     vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
     als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
-    wat er bij het begin van de opslag op het doel stond (gelezen na de bestandskiezer en de doelcontrole; de sha256 is
-    `vorigeSha256`). Stap 2 vergelijkt het doel daarmee; staat er iets anders, dan stopt de opslag met de melding van
-    Ctrl+S en blijft het doel zoals het is. De doelbewaking na de eerste herstelronde scant die gelezen inhoud, niet het
-    pad opnieuw: wat stap 5 weghaalt, liet de doelbescherming toe. De doelbescherming zelf verandert niet: een bestaand
-    doel met een gebouwmodel of C/A/V-inhoud blijft geweigerd, net als de bron van een open document. Daarbij weigert
+    wat de bestandskiezer direct na zijn terugkeer op het doel vond (de sha256 is `vorigeSha256`). Stap 2 vergelijkt het
+    doel daarmee; staat er iets anders, dan stopt de opslag met de melding van Ctrl+S en blijft het doel zoals het is.
+    De bevestiging in de kiezer geldt voor wat er op het doel staat (besluit van de eigenaar, 19 november 2026): ook een
+    gewoon bestand met een gebouwmodel of C/A/V-inhoud wordt vervangen, zonder tweede vraag of melding, en met de flag
+    aan ook voor een document zonder vreemd deel (langs de gewone opslag, zoals met de flag uit). Van de doelscan blijft
+    alleen een onleesbaar doel over; één scan van de vastgelegde bytes, gedeeld door de controle na de kiezer en die na
+    de eerste herstelronde (was knownbug 1891). De bron van een open document blijft geweigerd, net als een link naar een
+    modelbestand. Exporteren, Ctrl+S, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
