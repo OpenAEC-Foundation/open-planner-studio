@@ -1435,7 +1435,7 @@
     {
       "id": "msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay",
       "title": "Z6 acceptatiepunt 4 (invariant-waarschuwing, spiegel-scenario) — ELAPSEDTIME-OPVOLGER (T8's `succElapsed`-bypass in `snapSuccessorEarlyStart`) waarvan de hele-dagen `levelingDelay` het anker over een weekend heen duwt: hetzelfde invariant-gevaar, nu via de opvolger-tak i.p.v. de wortel-tak.",
-      "note": "P (WORKTIME, 2 werkdagen) → A (ELAPSEDTIME, 2 dagen) via FS+0: A.es vóór delay = donderdag 2026-06-04 (een werkdag, GEEN bypass-symptoom op zichzelf — het punt is wat de DELAY ermee doet). `levelingDelay=2` (hele dagen) via `afterCPM.setLevelingDelay`. Met de Z6-fix (taak elapsed ⇒ `addElapsedMinutes`): ES=donderdag+2 kalenderdagen=zaterdag 2026-06-06 — een NIET-werkdag, wat voor een ELAPSEDTIME-taak legitiem is (T8: 24/7 per definitie). Mutatiebewijs (tijdens implementatie, teruggedraaid): zonder de `taskElapsed`-guard normaliseert `addWorkingDaysSigned` EERST naar `nextWorkDay`, dus donderdag (al een werkdag, no-op) +2 WERKdagen (weekend overgeslagen) ⇒ ES=maandag 2026-06-08 — de taak wordt tegen haar eigen ELAPSEDTIME-aard in de werkband geduwd, exact de invariant-schending.",
+      "note": "P (2 werkdagen) eindigt di 2 juni om 16:00. FS +1 kalenderdag geeft A (ELAPSEDTIME, 2 dagen) het klokanker wo 3 juni om 16:00. Met drie kalenderdagen nivelleervertraging start A za 6 juni om 16:00 en eindigt ma 8 juni om 16:00. Een werktijdvertraging zou over het weekend naar een werkmoment springen; deze proef bewaakt dat de opvolgerroute die snap niet toepast.",
       "anchor": "2026-06-01",
       "tasks": [
         { "name": "P", "dur": 2 },
@@ -1443,19 +1443,19 @@
       ],
       "links": [{ "pred": "P", "succ": "A", "type": "FINISH_START", "lag": 1, "lagUnit": "ELAPSEDTIME" }],
       "afterCPM": [
-        { "setLevelingDelay": { "task": "A", "days": 2 } },
+        { "setLevelingDelay": { "task": "A", "days": 3 } },
         { "runCPM": true }
       ],
       "minuteModel": {
         "reason": "KALENDERTIJD-EINDE",
-        "note": "§4.2 D1 en §4.5 T16: na de relatie en twee kalenderdagen vertraging start A za 07:00; twee keer 24 uur eindigt exclusief ma 07:00.",
-        "expect": { "tasks": { "A": { "es": "2026-06-06T07:00", "ef": "2026-06-08T07:00" } } }
+        "note": "§4.2 D1 en §4.5 T16: na de relatie en drie kalenderdagen vertraging start A za 16:00; twee keer 24 uur eindigt exclusief ma 16:00.",
+        "expect": { "tasks": { "A": { "es": "2026-06-06T16:00", "ef": "2026-06-08T16:00" } } }
       },
       "expect": {
         "tasks": {
           "A": {
-            "es": "2026-06-06T07:00",
-            "ef": "2026-06-08T07:00"
+            "es": "2026-06-06T16:00",
+            "ef": "2026-06-08T16:00"
           }
         },
         "error": false

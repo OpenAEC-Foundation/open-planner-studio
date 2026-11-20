@@ -463,8 +463,12 @@ function forwardHour(
         // lag"-situatie als de WORKTIME-tak hieronder, zodat een elapsed-FS-eindmijlpaal op de rauwe
         // instant landt. Geen `lagIsZero`-vergelijking nodig: 0 klok-minuten is geen verschuiving.
         // Anker is het voorgangereinde rechtstreeks (`elapsed-day-to-hour` in cases-hours.json).
-        const target = new Date(predResult.ef.getTime() + elapsedMin());
-        if (succIsFinishMs && elapsedMin() === 0) return target;
+        const lagMinutes = elapsedMin();
+        const target = new Date(predResult.ef.getTime() + lagMinutes);
+        // Een 24/7-taak hoeft na een positieve kloklag niet op de werkband te wachten.
+        // Nul-lag en leads behouden hun bestaande kalendergrenzen (knownbug 155).
+        if (succElapsed && lagMinutes > 0) return target;
+        if (succIsFinishMs && lagMinutes === 0) return target;
         if (succIsFinishMs) {
           const back = deps.snapOnOrBefore(se, target);
           // Kalendertijd bewaart de kloktijdgrens: nul werkminuten maakt ma 16:00 en di 08:00
