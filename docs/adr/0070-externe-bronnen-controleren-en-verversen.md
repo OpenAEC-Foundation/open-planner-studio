@@ -31,6 +31,9 @@ waarmaakt (`fileSlice.ts`).
   de modus na een verversing onherstelbaar weg, en zou een undo van een oudere bewerking de modus terugzetten terwijl
   de ankers al ververst zijn.
 - Is na het lezen een ander document actief, dan schrijft de route niets.
-- De bronnen met pad komen in de keten vóór de bronnen zonder pad. Een bron zonder pad ververst daarna alleen
-  koppelingen zonder pad met hetzelfde project-id.
+- Een koppeling met een site-id ververst alleen uit de bron op de site met datzelfde site-id, ook als ze nog een oud
+  pad draagt. Een bron met pad of uit de browser raakt haar niet, ook niet bij hetzelfde project-id; anders kon ze het
+  anker van een andere kopie met dat project-id overnemen (`check-external-source-update.ts` 11 en 13).
+- Een bron uit de browser, zonder pad en zonder site-id, ververst alleen koppelingen zonder pad en zonder site-id met
+  hetzelfde project-id. In de keten komen de bronnen met pad vóór de bronnen uit de browser.
 - Een onthouden handvat dat inmiddels een ander project bevat, is niet deze bron: lezen geeft dan `null`.
