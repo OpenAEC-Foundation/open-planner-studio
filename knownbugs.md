@@ -2806,7 +2806,11 @@ en noem het in je rapport of PR-tekst.
      van 1131. Geldt ook voor het vastleggen in stap 0 van de vervanging op de desktop (1131 stap 5a): het herstelrecord
      (`replaceRecords.ts`) wordt atomair vervangen zonder fsync. Na stroomuitval kan de verplaatsing uit stap 3 op
      schijf staan terwijl het herstelrecord ontbreekt; dan staat de vorige versie alleen onder `save-<id>.ops-vorige-<id>`
-     en meldt de app het niet. Gevonden door de review van #991. — S
+     en meldt de app het niet. Gevonden door de review van #991. Sinds #1071 noemt die hulpnaam het doel niet meer
+     (de naam is kort en los van de doelnaam, zodat een lange doelnaam geen te lange hulpnaam geeft): wie na
+     stroomuitval zonder record met de hand herstelt, ziet aan de naam niet bij welk bestand de vorige versie hoort. De
+     koppeling staat alleen in het record. De app kan bij een los hulpbestand het doel niet zelf kiezen. Gevonden door
+     de review van #1071, ronde 4. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
      Browser. Is hetzelfde bestand met een gebouwmodel in twee tabbladen geopend, dan weigert Ctrl+S in het tweede met
@@ -5070,14 +5074,25 @@ en noem het in je rapport of PR-tekst.
      terug, tot de planner het bestand weghaalt of hernoemt. Een record dat
      zelf niet te lezen of ongeldig is, slaat de app over zonder melding (alleen een regel in de console); de
      hulpbestanden blijven dan ongemeld staan. Er gaat geen versie verloren. Gevonden bij het bouwen van 1131 stap 5a;
-     aangepast in fixronde 1 van #991. — S (code)
+     aangepast in fixronde 1 van #991. Ook een record van vóór #1071 valt hieronder: tot #1071 mislukte Ctrl+S van
+     een bestand met een gebouwmodel en een naam van ongeveer 230 bytes of meer in stap 3 (de hulpnaam werd te lang),
+     en het record (versie 1) bleef staan zonder dat er een hulpbestand was. Na de update meldt elke herstelronde nog
+     steeds die oude hulpnaam, en Automatisch opslaan slaat dat bestand over zolang het record er is
+     (`pendingReplaceFor`). Richting: alleen voor een record van versie 1, en alleen als beide hulpnamen aantoonbaar
+     ontbreken, het record wissen; een lees- of lengtefout is geen bewijs van afwezigheid. Gevonden door de review van
+     #1071, ronde 4. — S (code)
 
 1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
      De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
      naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
      (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
      planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
-     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
+     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. Sinds #1071 kort de app de doelnaam in de kopienaam
+     in tot het geheel 255 bytes is: twee verschillende lange doelnamen met hetzelfde begin kunnen zo dezelfde kopienaam
+     krijgen, en de planner herkent het doel minder goed aan de ingekorte naam. De bestaande kopie blijft bytegelijk en
+     de andere versie blijft onder de hulpnaam staan. De uitleg bij de instelling, de handleiding en 1890 zeggen nog
+     niet dat de melding bij een bezette kopienaam naar die hulpnaam verwijst. Gevonden door de review van #1071,
+     ronde 4. — S (code)
 1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
      Is de vorige versie (`save-<id>.ops-vorige-<id>`) intussen een symlink geworden, dan leest de vergelijking in stap 5
      (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
@@ -5198,6 +5213,13 @@ en noem het in je rapport of PR-tekst.
      opslagmeldingen. Erbij: de regel `.claude/rules/tauri-ifc.md` eindigt bij dit onderwerp met de te brede zin dat het
      eigen bestand een gewoon doel blijft; dat geldt alleen voor projectuitvoer waarop de overige doelcontroles slagen.
      Review #1064 (Sol, ronde 2). — B (code)
+
+1935. **VERVOLG (#804, alleen commentaar): het Rust-commentaar noemt de hulpnaam van de vorige versie nog in de ruime vorm.**
+     `src-tauri/src/commands/place_file.rs` (rond regel 124–134) zegt dat de vorige versie `<naam>.ops-vorige-<id>`
+     krijgt. Die vorm is wat het commando aanvaardt en klopt; wat de app zelf schrijft is sinds #1071 de korte naam
+     `save-<id>.ops-vorige-<id>`, zoals de regel `tauri-ifc` en het ontwerp §4.10 al zeggen. Bewust niet aangepast in
+     #1071, om Rust daar niet te raken. Meenemen bij de eerstvolgende wijziging in dat bestand. Gevonden door de review
+     van #1071, ronde 4. — S (code)
 
 1940. **VERVOLG (review #1074, test): de proef van #1050 toetst geen regelafbreking, geen verticale offset en geen
      kerning.** `check-custom-report-font.ts` deel G leest uit de echte PDF de tekst (ToUnicode), de breedte van de door
