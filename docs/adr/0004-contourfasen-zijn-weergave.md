@@ -1,8 +1,10 @@
-# De contoureditor bewerkt fasen, de opslag blijft één periode per werkdag
+# De contoureditor bewerkt fasen, de opslag blijft een periode per aaneengesloten stuk van een werkdag
 
 Een planner denkt in fasen: twee weken een halve ploeg, daarna de volle ploeg. De editor toont daarom fasen, reeksen
 werkdagen met één inzet. Een fase van tien dagen zou als één periode kunnen worden opgeslagen, maar dat doen we niet:
-de opslag blijft één periode per werkdag, zodat de uitwisseling met MSPDI, P6 en IFC en de belasting niet veranderen.
+de opslag blijft per werkdag, zodat de uitwisseling met MSPDI, P6 en IFC en de belasting niet veranderen. De schrijver
+neemt aaneensluitende stukken van één dag samen tot één periode (twee werkblokken rond de pauze); een onderbreking
+midden op de dag geeft twee periodes, met het gat ertussen.
 Fasen zijn alleen weergave en komen bij het openen terug door opeenvolgende dagen met dezelfde inzet samen te nemen
 (tot op een honderdste eenheid, de precisie van het scherm).
 

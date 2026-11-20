@@ -3,15 +3,17 @@
 Verandert de duur van een taak met een contour, dan rekt of krimpt de contour mee over de as: begin en lengte van
 elke periode maal dezelfde factor, de gaten ook. Het werk schaalt mee, behalve als de taak werk behoudt (vast werk):
 dan blijft het werk staan en verandert alleen de inzet per dag. We volgen hiermee MS Project bij een toewijzing met
-*Contoured*; dat gedrag is als ontwerpregel overgenomen en niet tegen MS Project nagemeten.
+*Contoured*; dat gedrag is als ontwerpregel overgenomen en niet tegen MS Project nagemeten
+(knownbug 1960).
 
 ## Gevolgen
 
 - Periodes met verricht werk (`kind: 'actual'`) blijven staan. Alleen het deel van de as na het laatste verrichte
   werk herschaalt, met een factor over dat resterende deel. Is er geen bruikbaar restant, dan blijft het profiel
   ongewijzigd.
-- `Task.splitGaps` herschaalt met dezelfde factor en hetzelfde anker, zodat de gaten van de solver en die van de
-  belasting gelijk blijven. Nivelleergaten doen niet mee.
+- Heeft een taak meer contouren, dan herschaalt elke contour met haar eigen anker en factor (haar eigen verrichte
+  werk). `Task.splitGaps` volgt de contour met de langste spanne op de as: die bepaalt de taakduur
+  (`rescaleTaskContours`). Nivelleergaten doen niet mee.
 - Een gat van de gebruiker springt na het herschalen terug op een hele eenheid (in dagmodus een werkdag), met
   minstens één eenheid pauze. Anders rondt de dagafronding het bij een forse krimp weg. Een gat uit een import blijft
   fractioneel: dat is brondata.
