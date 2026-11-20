@@ -2598,13 +2598,12 @@ en noem het in je rapport of PR-tekst.
      vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
      volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
 
-1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock en weigert het eigen projectbestand niet.** Het
-     tweede bestand van `exportProjectWithPool` (`src/state/slices/fileSlice.ts`) en de export in
-     `src/components/backstage/LibrarySection.tsx` schrijven buiten `runProjectFileWrite` en controleren alleen op een
-     vreemd deel (`foreignTargetCheck`). Kiest de planner het eigen projectbestand als doel van de bibliotheek, dan schrijft
-     de app de bibliotheek eroverheen; een AutoSave kan er tussendoor schrijven. Bestond al op main. Richting: het eigen
-     projectbestand als doel van de bibliotheek weigeren, en de write onder dezelfde lock als de andere projectwrites.
-     Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol, BEVESTIGD, VERVOLG). — B
+1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock.** Het tweede bestand van `exportProjectWithPool`
+     en de store-actie `exportLibrary` (`src/state/slices/fileSlice.ts`, gedeelde schrijver `saveLibraryFile`) schrijven
+     buiten `runProjectFileWrite`; een AutoSave kan er tussendoor schrijven. Het andere deel van dit punt is opgelost in
+     #1064: de bibliotheekexport weigert sindsdien het bestand van elk open project, ook van het actieve. Richting: de
+     write onder dezelfde lock als de andere projectwrites. Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol,
+     BEVESTIGD, VERVOLG); ingekort na review #1064 (ronde 2). — B
 
 1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
      `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
@@ -5055,6 +5054,31 @@ en noem het in je rapport of PR-tekst.
      nieuwe versie. Zeldzaam: een leesactie en een opslag naar hetzelfde bestand moeten elkaar kruisen. Richting: laat
      een leesactie die een opslag kruiste het bestand opnieuw lezen vóór het document actief wordt. Proef van de
      reviewer: `proeven.ts` bij het rapport van review #1034. — B (proef van de reviewer)
+
+1932. **VERVOLG (review #1064, tekst): de headless MCP-server adviseert een document te sluiten.** Weigert
+     `planner_export_ifc` het bestand van een ander open document, dan eindigt de fout met "close that document first"
+     (`src/services/mcp/tools/fileTools.ts`). De headless server biedt geen sluitactie aan (`tools/list`: openen,
+     opvragen en wisselen, niet sluiten), dus die aanwijzing is daar niet uitvoerbaar; exporteren naar een ander pad
+     wel. De instructies in het `initialize`-antwoord van de headless server (`headless/mcp-server/src/host.ts`) noemen
+     de weigering nog niet; de toolbeschrijving en `docs/headless-mcp.md` wel. Richting van de reviewer: één gedeelde
+     aanwijzing om een ander pad te kiezen, en de voorwaarde in de headless instructies. Review #1064 (Sol, ronde 2).
+     — B (proef van de reviewer)
+
+1933. **VERVOLG (review #1064, tekst): de knop Bibliotheek → Exporteren geeft een ander filterlabel aan de bestandskiezer.**
+     Tot #1064 gaf de knop (`src/components/backstage/LibrarySection.tsx`) het label `IFC` door, sinds de store-actie
+     `exportLibrary` het label `IFC Files` van de gedeelde schrijver (`saveLibraryFile` in `fileSlice.ts`). Extensie,
+     voorgestelde naam, inhoud, Recent en de downloadmelding zijn gelijk gebleven. Richting van de reviewer: het
+     bestaande label bij de losse knop. Review #1064 (Sol, ronde 2). — B (code)
+
+1934. **VERVOLG (review #1064, opruimen): één melding voor Exporteren volstaat.** `foreignTargetCheck`
+     (`src/state/slices/fileSlice.ts`) kiest bij de reden `open-document` tussen `notifications.exportTargetOpenInTab`
+     ("in een ander tabblad", projectexport) en `notifications.exportTargetOpenDocument` ("in een tabblad", bibliotheek
+     en rapport). De tweede zin klopt voor alle drie en blijft duidelijk als intussen een ander tabblad actief werd.
+     Richting van de reviewer: `exportTargetOpenDocument` voor elke reden `open-document`; dan kunnen één sleutel, één
+     meldconstante en één keuze weg. De document-id voor de doelcontrole blijft; Opslaan als houdt zijn eigen
+     opslagmeldingen. Erbij: de regel `.claude/rules/tauri-ifc.md` eindigt bij dit onderwerp met de te brede zin dat het
+     eigen bestand een gewoon doel blijft; dat geldt alleen voor projectuitvoer waarop de overige doelcontroles slagen.
+     Review #1064 (Sol, ronde 2). — B (code)
 
 1897. **VERVOLG (#804 keuze 4, tekst): Opslaan als over de eigen naam geeft een te brede melding.**
      Kiest de planner bij een document met een gebouwmodel in *Opslaan als* het bestand dat hij open heeft, dan weigert
