@@ -107,6 +107,7 @@ const externalPset = enc.encode(dec(showcase).replace('ENDSEC;\nEND-ISO-10303-21
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
 const SOURCE_MISSING = 'notifications.ifcForeignSourceMissing';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
+const OPEN_IN_TAB_SAVE = 'notifications.ifcForeignTargetOpenInTab';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
@@ -268,7 +269,8 @@ for (const action of ['saveFile', 'saveFileAs'] as const) {
   pick = source;
   await S().saveFileAs();
   eq('FSA Opslaan als: naar de bron van het andere document geweigerd', [source.writables(), S().filePath], [0, 'showcase.ifc']);
-  ok('FSA Opslaan als: met de melding "op te slaan"', modelNotices(store).some(n => n.messageKey === TARGET_SAVE && n.refusal === true));
+  // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad (was "op te slaan").
+  ok('FSA Opslaan als: met de melding van een open tabblad', store.getState().ui.notifications.some(n => n.messageKey === OPEN_IN_TAB_SAVE && n.refusal === true));
   const saveTarget = fakeHandle('kopie.ifc', new Uint8Array());
   pick = saveTarget;
   await S().saveFileAs();
@@ -535,7 +537,8 @@ for (const flag of [false, true]) {
       await S().saveFileAs();
       eq(`Tauri Opslaan als ${answer.slice(dir.length)}: geweigerd, niets geschreven`, [unchanged(), S().filePath], [sha(bonsai), null]);
     }
-    ok('Tauri Opslaan als: met de melding "op te slaan"', modelNotices(store).some(n => n.messageKey === TARGET_SAVE));
+    // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad (was "op te slaan").
+    ok('Tauri Opslaan als: met de melding van een open tabblad', store.getState().ui.notifications.some(n => n.messageKey === OPEN_IN_TAB_SAVE));
     dialogAnswer = join(dir, 'eigen.ifc');
     await S().saveFileAs();
     eq('Tauri Opslaan als: een ander bestand mag', [S().filePath, readFileSync(join(dir, 'eigen.ifc'), 'utf8').includes('Eigen werk')],
@@ -812,14 +815,17 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     ipc.faults.readError = null;
     eq('Tauri 2: onleesbaar bestaand doel weigert', [sha(readFileSync(ownPath)), S().isDirty, noticeCount(store, UNREADABLE_SAVE)],
       [sha(modelIfc4), true, 1]);
-    // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als over een bevestigd modelbestand vervangt het;
-    // de doelscan (alleen nog voor een onleesbaar doel) stopt ook dan na het eerste stuk.
+    // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als over een bevestigd modelbestand vervangt het.
+    // Fixronde 1 van #1071, A: de toestemming hoort bij de versie die de kiezer las, dus de kiezer leest het hele doel
+    // (`pickSaveTarget`) en de vervanging vergelijkt vlak vóór de plaatsing het hele doel met die bytes (was: de doelscan
+    // las hoogstens één stuk van 1 MiB).
+    const bigSaveAsSize = statSync(bigPath).size;
     const beforeSaveAs = ipc.bytesRead();
     dialogAnswer = bigPath;
     await S().saveFileAs();
     const readSaveAs = ipc.bytesRead() - beforeSaveAs;
-    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, de scan las hoogstens één stuk van 1 MiB',
-      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs > 0 && readSaveAs <= (1 << 20)],
+    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, na het hele doel twee keer te lezen (vastleggen, vergelijken)',
+      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs === 2 * bigSaveAsSize],
       [bigPath, false, true, true]);
     eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
     ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));

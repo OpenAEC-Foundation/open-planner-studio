@@ -531,7 +531,9 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     // Een bestaand doel: alleen het eigen tijdelijke bestand werd geschreven, de plaatsing weigerde en het is weer weg.
     assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), kind === 'bestaand' ? [true] : []);
     assert.deepEqual(tempLeft(), []);
-    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly' : 'notifications.ifcForeignTargetExport');
+    // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
+    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly'
+      : kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
   } finally { ipc.dispose(); }
 });
 
@@ -796,7 +798,8 @@ for (const kind of ['eigen-bron', 'andere-bron', 'bestaand-model'] as const) for
       assert(result.ok && result.cancelled); assert.equal(asked.length, 1);
       assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash, 'het bestand met gebouwmodel blijft heel');
       assert.equal(writeCalls(ipc), 0); unchanged(store, before);
-      assertNotice(store, 'notifications.ifcForeignTargetExport');
+      // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
+      assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
     } finally { ipc.dispose(); resetPlanOnlyAsker(); }
   });
 }
@@ -1426,11 +1429,12 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
     longer(store); clearNotices(store); writableLog.length = 0;
     const before = preserved(store);
     assert.equal(await ctrlS(store), false);
-    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignReplaceBlocked');
+    // Fixronde 1 van #1071, punt 3: de melding noemt het open tabblad (was `ifcForeignReplaceBlocked`, de reden 'open-source').
+    unchanged(store, before); assertNotice(store, 'notifications.ifcForeignTargetOpenInTab');
     assert.deepEqual(writableLog, []); assert.equal(hash(fileOf(name)), hash(bytes));
     const s = store.getState(), deps = { identityFs: async () => undefined, readers: () => ({}) };
     const own = { documentId: s.activeDocumentId, source: s.ifcSource! };
-    assert.equal(await refusedWriteTarget(s, { kind: 'handle', handle: s.fileHandle! }, deps, own), 'open-source');
+    assert.equal(await refusedWriteTarget(s, { kind: 'handle', handle: s.fileHandle! }, deps, own), 'open-document');
   } finally { unregister(); await clearRecovery(); }
 });
 
@@ -1461,8 +1465,9 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
   onPath.getState().newDocument();
   await onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path } });
   const twice = onPath.getState();
+  // Fixronde 1 van #1071, punt 3: de reden noemt het open tabblad (was 'open-source').
   assert.equal(await refusedWriteTarget(twice, { kind: 'path', path }, deps, { documentId: twice.activeDocumentId, source: twice.ifcSource! }),
-    'open-source', 'een ander open document met dit bestand als bron blijft geweigerd');
+    'open-document', 'een ander open document met dit bestand als bron blijft geweigerd');
 });
 
 for (const cause of ['flag-uit', 'sourceMissing'] as const) await check(`handle ${cause}: Ctrl+S weigert zoals nu, nul bytes`, async () => {

@@ -246,7 +246,7 @@
     "notifications.ifcForeignOpenSchema": "8a168838cb4a20b7",
     "notifications.ifcForeignOpenUnsafe": "f9382d9df49fd628",
     "notifications.ifc2x3PlanningOnly": "d253d4894d260a33",
-    "notifications.ifcForeignReplaceBlocked": "24eb1f3172b0846d",
+    "notifications.ifcForeignReplaceBlocked": "51a7a30b75f6ca9e",
     "notifications.ifcForeignTargetChanged": "5ee98d3d8e4176ab",
     "notifications.ifcForeignTargetGone": "09c5a7cd5ae27334",
     "notifications.ifcForeignReplaceNotRecorded": "2b2d4291d99c4e5d",

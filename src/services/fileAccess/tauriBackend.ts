@@ -229,7 +229,7 @@ async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unr
 }
 
 /** Staat er op `path` een gewoon bestand (`lstat`, geen link gevolgd)? Elke fout telt als nee. */
-export async function isRegularFileTauri(path: string): Promise<boolean> {
+async function isRegularFileTauri(path: string): Promise<boolean> {
   const { lstat } = await import('@tauri-apps/plugin-fs');
   try { return (await lstat(path)).isFile; } catch { return false; }
 }

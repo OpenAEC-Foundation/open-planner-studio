@@ -16,10 +16,11 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, isRegularFile, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery } from '../ownFileReplace';
+import { replaceObservedFileBytes, tauriOwnFileReplaceFs } from '@/services/fileAccess/ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -868,11 +869,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
    *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
    *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor *Opslaan als*
-   *  van een merge op de desktop (`saveMergeAsOnDesktop`): `readers` scant de inhoud die de bestandskiezer vastlegde in
-   *  plaats van het pad (`capturedTargetReaders`). `openDocumentsExcept` (de bestandskiezer van Opslaan als en de
+   *  op de desktop (`saveAsOnDesktop`): `readers` scant de inhoud die de bestandskiezer vastlegde in plaats van het pad
+   *  (`capturedTargetReaders`). `openDocumentsExcept` (de bestandskiezer van Opslaan als en de
    *  vervanging daarna, met de id van het document dat opslaat) weigert ook een bestaand pad dat een ander open document
-   *  als bestand heeft (fixronde 1 van #1019, #1022). `replaceConfirmed`: alleen *Opslaan als* (#804 keuze 4, zie
-   *  `WriteTargetDeps.replaceConfirmed`). */
+   *  als bestand heeft (fixronde 1 van #1019, #1022). `replaceConfirmed`: alleen *Opslaan als* op de desktop (#804 keuze
+   *  4, zie `WriteTargetDeps.replaceConfirmed`), gebonden aan het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
     snapshot: AppState, write?: DocumentWrite, ownTarget = false,
     { readers = writeTargetReaders, openDocumentsExcept, replaceConfirmed }: {
@@ -906,17 +907,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  /** De bestandskiezer van een document: Opslaan als, en Ctrl+S zonder bruikbaar doel. De doelcontrole direct na de
+  /** De bestandskiezer van een document: Opslaan als, en Ctrl+S zonder bruikbaar doel (die is Opslaan als, fixronde 1
+   *  van #1071). De doelcontrole direct na de
    *  kiezer weigert, voor elk document, ook een bestaand pad dat een ander open document als bestand heeft (#1022): op de
    *  desktop wijzigt de kiezer het bestand niet, dus dan is er niets geschreven. Een handle uit de opslaankiezer van de
    *  browser vergelijkt ze niet: die kiezer heeft een bestaand doel al leeggemaakt, en weigeren liet het andere tabblad
-   *  dan een leeg bestand na (knownbug 1899, 1893). `replaceConfirmed`: alleen *Opslaan als* (#804 keuze 4), voor een
-   *  gekozen pad waar een gewoon bestand staat; de merge op de desktop gaat niet hierlangs maar via
-   *  `saveMergeAsOnDesktop`. */
-  const documentSaveDialog = (snapshot: AppState, write: DocumentWrite, name: string, replaceConfirmed?: true) => {
+   *  dan een leeg bestand na (knownbug 1899, 1893). Hierlangs gaan de browser en, met de flag uit, de gewone planning op
+   *  de desktop (zoals main). De merge op de desktop en met de flag elke planning op de desktop gaan via
+   *  `saveAsOnDesktop`, de enige route met de toestemming van #804 keuze 4. */
+  const documentSaveDialog = (snapshot: AppState, write: DocumentWrite, name: string) => {
     const options = {
-      refuseTarget: documentTargetCheck(snapshot, write, false,
-        { openDocumentsExcept: snapshot.activeDocumentId, ...(replaceConfirmed ? { replaceConfirmed: isRegularFile } : {}) }),
+      refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write),
       refuseBeforePlace: () => refuseChangedDocumentWrite(snapshot, write),
     };
@@ -928,9 +929,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
-   *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Met
-   *  `replaceConfirmed` telt van die scan alleen nog een onleesbaar doel (`'unreadable-target'`). Zonder vastgelegde
-   *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. */
+   *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Zonder vastgelegde
+   *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. Een onleesbaar bestand blijft
+   *  een onleesbaar doel. */
   const capturedTargetReaders = (current: PickedSaveTarget['current']): (() => TargetReaders) => {
     if (current === null) return writeTargetReaders;
     let scan: Promise<TargetForeignScan> | undefined;
@@ -1607,37 +1608,67 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /**
-   * #804 keuze 4 (knownbug 1131 stap 8; was knownbug 1891): *Opslaan als* van een document met een vreemd deel (de merge) op
-   * de desktop. De bestandskiezer geeft het pad en wat er direct na zijn terugkeer op stond (`pickSaveTarget`); deze route
-   * kiest zelf. Staat er een gewoon bestand, dan bevestigde de planner het vervangen in de kiezer, en dat geldt voor wat er
-   * staat, ook een gebouwmodel of gegevens van een ander programma (besluit van de eigenaar, 19 november 2026): dezelfde
-   * vervanging als Ctrl+S (`replaceExistingPath`). Anders (een vrije naam, een link, een map) geen toestemming en de
-   * exclusieve aanmaak van een nieuwe naam, die een bestaande naam weigert (`target-exists`, ook knownbug 1890). De doelcontrole direct na de kiezer en die na de eerste
-   * herstelronde zijn dezelfde (`check`) en delen één scan van de vastgelegde bytes. Na een geslaagde opslag is het
-   * document vastgelegd (pad, bron; niet gewijzigd als er intussen niets veranderde); `null`: niets geschreven
-   * (geannuleerd, geweigerd of mislukt, met de melding). Een fout van de exclusieve aanmaak gooit, zoals bij elke andere route (`newTargetWriteNotice`).
+   * #804 keuze 4 (knownbug 1131 stap 8; was knownbug 1891): *Opslaan als* op de desktop van een document met een vreemd
+   * deel (de merge), en met de flag ook van een gewone planning; ook de bestandskiezer van Ctrl+S bij een document zonder
+   * opslagdoel (fixronde 1 van #1071). De bestandskiezer geeft het pad en wat er direct na zijn terugkeer op stond
+   * (`pickSaveTarget`); deze route kiest zelf. Staat er een gewoon bestand dat de app kon lezen, dan bevestigde de planner
+   * het vervangen van die versie, en dat geldt voor wat er staat, ook een gebouwmodel of gegevens van een ander programma
+   * (besluit van de eigenaar, 19 november 2026): de toestemming hoort bij dit pad en deze bytes (`confirmed`). Een doel
+   * dat de app niet kon lezen, blijft geweigerd (besluit van de technisch beslisser, 20 november 2026). De doelcontrole
+   * direct na de kiezer en die na de eerste herstelronde zijn dezelfde (`check`) en delen één scan van de vastgelegde
+   * bytes. Dan:
+   * - de merge over een bestaand gewoon bestand: dezelfde vervanging als Ctrl+S (`replaceExistingPath`);
+   * - de merge naar een vrije naam, een link of een map: de exclusieve aanmaak van een nieuwe naam, die een bestaande naam
+   *   weigert (`target-exists`, ook knownbug 1890);
+   * - een gewone planning waarvoor de toestemming een weigering ophief: alleen de gelezen versie vervangen
+   *   (`replaceObservedFileBytes`: geen link, vlak vóór de plaatsing dezelfde bytes; fixronde 1 van #1071, A);
+   * - een gewone planning naar elk ander doel: de gewone atomaire opslag, zoals met de flag uit (`saveToRef`).
+   * `null`: niets geschreven (geannuleerd, geweigerd of mislukt, met de melding). Anders is het document vastgelegd (pad,
+   * bron); `committed` is de uitkomst van `commitSavedDocument` (schoon). Een fout van de exclusieve aanmaak of de gewone
+   * opslag gooit, zoals bij elke andere route (`newTargetWriteNotice`).
    */
-  const saveMergeAsOnDesktop = async (
-    documentId: string, state: AppState, write: DocumentWrite, prepared: PreparedIfcWrite, name: string,
-  ): Promise<SaveOutcome | null> => {
+  const saveAsOnDesktop = async (
+    documentId: string, state: AppState, write: DocumentWrite, name: string, missingSourceSaveAs?: boolean,
+  ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
     const picked = await pickSaveTarget(name, IFC_FILE_FILTERS);
     if (!picked) return null;
     const ref = { kind: 'path', path: picked.path } as const, outcome = { ref, name: basename(picked.path) };
+    const observed = picked.current instanceof Uint8Array ? picked.current : null;
+    let confirmed = false;
     const check = documentTargetCheck(state, write, false, {
       readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId,
-      replaceConfirmed: async () => picked.current !== null,
+      replaceConfirmed: async path => (confirmed = observed !== null && path === picked.path),
     });
     if (await check(ref)) return null;
-    if (picked.current instanceof Uint8Array) {
-      return await replaceExistingPath(documentId, state, prepared, write, picked.path, picked.current, () => check(ref)) ? outcome : null;
+    const refuseBeforePlace = () => refuseChangedDocumentWrite(state, write);
+    const commit = (prepared?: PreparedIfcWrite) => ({
+      outcome, committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), prepared, missingSourceSaveAs),
+    });
+    if (write.prepared) {
+      if (observed) {
+        const replaced = await replaceExistingPath(documentId, state, write.prepared, write, picked.path, observed, () => check(ref));
+        return replaced && { outcome, committed: replaced.committed };
+      }
+      if (!(await saveNewBytesToRef(ref, write.prepared.bytes, refuseBeforePlace))) return null;
+      return commit(write.prepared);
     }
-    if (!(await saveNewBytesToRef(ref, prepared.bytes, () => refuseChangedDocumentWrite(state, write)))) return null;
-    commitSavedDocument(snapshotContent(state), state, localDestination(outcome), prepared);
-    return outcome;
+    if (confirmed && observed) {
+      const data = writerData(write);
+      const result = await replaceObservedFileBytes(await tauriOwnFileReplaceFs(), {
+        path: picked.path, observed, refuseBeforePlace,
+        bytes: typeof data === 'string' ? new TextEncoder().encode(data) : data,
+      });
+      for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, picked.path)) {
+        get().notify(notice);
+      }
+      return result.code === 'replaced' ? commit() : null;
+    }
+    if (!(await saveToRef(ref, writerData(write), refuseBeforePlace))) return null;
+    return commit();
   };
 
   /**
-   * De vervanging van een ANDER bestaand bestand bij *Opslaan als* (`saveMergeAsOnDesktop`): dezelfde als Ctrl+S
+   * De vervanging van een ANDER bestaand bestand bij *Opslaan als* (`saveAsOnDesktop`): dezelfde als Ctrl+S
    * (`replaceOwnPathWithRecovery`, §4.10 stap 0–6), binnen dezelfde `runProjectFileWrite` van de opslag; alleen de verwachte
    * inhoud is anders: de app opende dit bestand niet, dus het is wat de bestandskiezer vastlegde (`current`; zijn sha256
    * is `vorigeSha256` in het herstelrecord). Staat er vlak vóór het opzijzetten iets anders (stap 2), dan stopt de opslag
@@ -1648,26 +1679,31 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * link, een bestandssysteem zonder exclusieve stap) blijft de melding van een nieuwe naam. Geen terugval op een routine
    * die het bestand overschrijft. De identiteit van de documentinhoud (#1020) toetst deze route twee keer:
    * `stopBeforeWrite` (vóór het eigen tijdelijke bestand) en de commit met de inhoud van de momentopname
-   * (`snapshotContent`), zodat een intussen geladen ander project geen pad of bron krijgt. `true`: vervangen.
+   * (`snapshotContent`), zodat een intussen geladen ander project geen pad of bron krijgt. `null`: niet vervangen;
+   * anders vervangen, met de uitkomst van de commit (`committed`: het document is schoon).
    */
   const replaceExistingPath = async (
     documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite, path: string, current: Uint8Array,
     stopBeforeWrite: () => Promise<boolean>,
-  ): Promise<boolean> => {
+  ): Promise<{ committed: boolean } | null> => {
+    let committed = false;
     try {
       const result = await replaceOwnPathWithRecovery({
         documentId, path, prepared, source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
-        commit: () => { commitSavedDocument(snapshotContent(state), state, { filePath: path, fileHandle: null, siteFileId: null, siteFileVersion: null }, prepared); },
+        commit: () => {
+          committed = commitSavedDocument(snapshotContent(state), state,
+            { filePath: path, fileHandle: null, siteFileId: null, siteFileVersion: null }, prepared);
+        },
       });
       for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
         get().notify(notice);
       }
-      return result.code === 'replaced';
+      return result.code === 'replaced' ? { committed } : null;
     } catch (err) {
       console.error('Save As failed:', err);
       get().notify({ severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err) });
-      return false;
+      return null;
     }
   };
 
@@ -1814,6 +1850,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Hier is de opslag NIET teruggeschreven naar een bestaand bestand. In de browser legt
       // `browserSaveNotice` één keer per sessie uit waarom er weer een venster of download komt.
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
+      // Fixronde 1 van #1071: de bestandskiezer van Ctrl+S is Opslaan als, op de desktop met dezelfde bevestigde doelroute.
+      if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
+        const saved = await saveAsOnDesktop(documentId, state, write, `${suggestedFileBase(state)}.ifc`);
+        if (!saved || !sameDocumentContent(get(), snapshotContent(state))) return false;
+        await pushRecent(saved.outcome.ref, saved.outcome.name);
+        return saved.committed;
+      }
       const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
       // Knownbug 1768: het geopende bestand met een gebouwmodel kreeg geen schrijftoestemming, dus de app downloadde een
@@ -1898,13 +1941,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
       const defaultName = state.filePath ?? `${suggestedFileBase(state)}.ifc`;
-      if (write.prepared && isTauri()) {
-        const saved = await saveMergeAsOnDesktop(documentId, state, write, write.prepared, defaultName);
+      // Met de flag ook een gewone planning: de toestemming van de kiezer hoort bij het gekozen doel en zijn gelezen
+      // versie (fixronde 1 van #1071, A). Met de flag uit de route van main hieronder.
+      if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
+        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, write.missingSourceSaveAs);
         // Zie hieronder: een vervangen inhoud krijgt geen Recent (knownbug 1899).
-        if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.ref, saved.name);
+        if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
         return;
       }
-      const outcome = await documentSaveDialog(state, write, defaultName, true);
+      const outcome = await documentSaveDialog(state, write, defaultName);
       if (!outcome) return;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
       else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, write.missingSourceSaveAs);

@@ -2,7 +2,7 @@ import { isTauri } from '@/utils/platform';
 import {
   saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
-  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri, isRegularFileTauri,
+  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
 import type { FileIdentityFs } from './fileIdentity';
@@ -266,12 +266,6 @@ export interface PickedSaveTarget {
 export function pickSaveTarget(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
   if (!isTauri()) return Promise.reject(new Error('De bestandskiezer zonder schrijven bestaat alleen op de desktop.'));
   return pickSaveTargetTauri(defaultName, filters);
-}
-
-/** Desktop: staat er op `path` een gewoon bestand (geen link gevolgd)? Elke fout, en de browser, geeft nee. Alleen
- *  een gewoon bestand krijgt de toestemming van Opslaan als (#804 keuze 4, `WriteTargetDeps.replaceConfirmed`). */
-export function isRegularFile(path: string): Promise<boolean> {
-  return isTauri() ? isRegularFileTauri(path) : Promise.resolve(false);
 }
 
 /** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.

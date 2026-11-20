@@ -1188,7 +1188,8 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     // Fixronde 1: niet over het bronbestand van het andere open document met een vreemd deel.
     const sourceError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
     assertEq(sourceError.code, 'VALIDATION', 'het bronbestand van een document met een vreemd deel ⇒ validatiefout');
-    assert(sourceError.error.includes('source file of an open document') && sourceError.error.includes('another path'),
+    // Fixronde 1 van #1071, punt 3: het open tabblad gaat voor (was de fout over het bronbestand van een open document).
+    assert(sourceError.error.includes('file of another open document') && sourceError.error.includes('another path'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
     await callOk('planner_export_ifc', { path: target, overwrite: true });

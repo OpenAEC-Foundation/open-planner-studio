@@ -356,7 +356,7 @@
     "ifcForeignOpenSchema": "Dit IFC-bestand bevat gegevens van een ander programma en heeft een onbekend of ontbrekend schema. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan.",
-    "ifcForeignReplaceBlocked": "Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.",
+    "ifcForeignReplaceBlocked": "Niet opgeslagen. Dit is het bestand dat je open hebt. Gebruik Opslaan om het bij te werken, of Opslaan als met een nieuwe naam voor een kopie.",
     "ifcForeignTargetChanged": "Niet opgeslagen. Het bestand is intussen door een ander programma gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignTargetGone": "Niet opgeslagen. Het bestand is verplaatst, verwijderd of niet meer te lezen. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignReplaceNotRecorded": "Niet opgeslagen. Het bestand kan nu niet veilig worden vervangen, omdat het crashherstel niet kan worden bijgewerkt. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",

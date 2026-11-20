@@ -49,6 +49,8 @@ export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
     || (hasForeignContent(s.ifcSource) && !ifcForeignContentEnabled(s.ui.featureFlags));
 }
 
+/** Knownbug 1897 (fixronde 1 van #1071): *Opslaan als* van een document met een vreemd deel koos zijn eigen bronbestand.
+ *  "Gebruik Opslaan om het bij te werken, of Opslaan als met een nieuwe naam voor een kopie." */
 export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',
 });
@@ -235,6 +237,11 @@ async function missingFile(fs: FileIdentityFs, path: string): Promise<boolean> {
   try { await fs.stat(path); return false; } catch (error) { return missingTarget(error); }
 }
 
+/** De open documenten zonder het document met deze id (`null`: alle). */
+function allBut(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, documentId: string | null): Pick<WriteTargetState, 'getOpenDocumentPayloads'> {
+  return documentId === null ? s : { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== documentId) };
+}
+
 /** Het eigen lokale bestand van een document (zie de uitzondering "eigen doel" bij `refusedWriteTarget`). */
 async function isOwnLocalFile(
   own: Pick<DocumentPayload, 'foreignSourceMark' | 'fileHandle' | 'filePath'>, target: FileRef,
@@ -267,12 +274,14 @@ export interface WriteTargetDeps {
    *  van #1019), elke export en `planner_export_ifc` (knownbug 1907). */
   openDocumentsExcept?: string | null;
   /** #804 keuze 4 (besluit van de eigenaar, 19 november 2026): de planner koos dit pad in de bestandskiezer van *Opslaan
-   *  als* op de desktop en bevestigde daar het vervangen. De functie zegt of er op het pad een gewoon bestand staat
-   *  (geen link): alleen dat valt onder de bevestiging. Die geldt dan voor wat er op het doel staat: regel 2 weigert geen
-   *  gebouwmodel en geen gegevens van een ander programma. Pas gevraagd als regel 2 op inhoud zou weigeren, zodat een
-   *  gewoon doel geen extra bestandsbewerking krijgt. Alleen voor een pad, en alleen van de bestandskiezer van Opslaan
-   *  als en de hercontrole van de vervanging daarna; elke andere route (Ctrl+S, export, AutoSave, MCP, dev-bridge) geeft
-   *  dit niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
+   *  als* op de desktop (ook de kiezer van Ctrl+S bij een document zonder opslagdoel, fixronde 1 van #1071) en bevestigde
+   *  daar het vervangen. De functie zegt of de bevestiging voor dit pad geldt: alleen voor het gekozen pad, en alleen als
+   *  de kiezer daar een gewoon bestand zag en las (`pickSaveTarget`). Die bevestiging geldt dan voor wat er op het doel
+   *  staat: regel 2 weigert geen gebouwmodel en geen gegevens van een ander programma. De schrijfroute vervangt daarna
+   *  alleen die gelezen versie (fixronde 1 van #1071, A): geen bestand met meer dan één naam, en vlak vóór de plaatsing
+   *  dezelfde bytes. Pas gevraagd als regel 2 op inhoud zou weigeren, zodat een gewoon doel geen extra
+   *  bestandsbewerking krijgt. Elke andere route (Ctrl+S met een opslagdoel, export, AutoSave, MCP, dev-bridge) geeft dit
+   *  niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
   replaceConfirmed?: (path: string) => Promise<boolean>;
 }
 
@@ -288,8 +297,10 @@ export interface WriteTargetDeps {
  *  3. alleen met `deps.openDocumentsExcept` (Opslaan als, Exporteren): een bestaand pad dat een ander open document als
  *     bestand heeft, ook zonder vreemd deel en ook met de flag uit ('open-document'; #1022, knownbug 1907). Na regel 1,
  *     dus de bron van een document met een vreemd deel houdt haar eigen reden.
- * Met `deps.replaceConfirmed` (alleen Opslaan als op de desktop, #804 keuze 4) vervalt van regel 2 alleen de weigering
- * op inhoud ('building-model', 'foreign-content'); 'unreadable-target' blijft.
+ * Met `deps.replaceConfirmed` (alleen de bestandskiezer van Opslaan als op de desktop, #804 keuze 4) vervalt van regel 2
+ * alleen de weigering op inhoud ('building-model', 'foreign-content'); 'unreadable-target' blijft.
+ * Met `deps.openDocumentsExcept` gaat regel 3 vóór regel 1 en geldt ze ook voor de bron van een ander open document
+ * (fixronde 1 van #1071): 'open-document' noemt het open tabblad; 'open-source' is dan de bron van het document zelf.
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
  *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
@@ -315,16 +326,20 @@ export async function refusedWriteTarget(
     && !!ownVersion.baseVersion && own.siteFileVersion === ownVersion.baseVersion
     && own.foreignSourceMark!.siteFileId === target.id;
   if (ownSource && !own.siteFileId && await isOwnLocalFile(own, target)) {
-    const others = { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== ownVersion.documentId) };
-    return await isOpenForeignSourceTarget(others, target, deps.identityFs) ? 'open-source' : null;
+    return await isOpenForeignSourceTarget(allBut(s, ownVersion.documentId), target, deps.identityFs) ? 'open-document' : null;
+  }
+  // Fixronde 1 van #1071: het open tabblad gaat voor. Is het doel het bestand of de bron van een ANDER open document,
+  // dan is de reden 'open-document', ook als dat document een gebouwmodel heeft; 'open-source' blijft over voor de bron
+  // van het document zelf (en voor routes die niet zeggen welk document schrijft).
+  if (deps.openDocumentsExcept !== undefined && target.kind !== 'site') {
+    if (target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
+      return 'open-document';
+    }
+    if (await isOpenForeignSourceTarget(allBut(s, deps.openDocumentsExcept), target, deps.identityFs)) return 'open-document';
   }
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;
-  if (deps.openDocumentsExcept !== undefined && target.kind === 'path'
-    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
-    return 'open-document';
-  }
   if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
   const refusal = await targetRefusal(target, deps.readers());
   if (refusal === 'unreadable') return 'unreadable-target';
