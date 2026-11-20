@@ -16,9 +16,12 @@ driving. Driving is rekenuitvoer en wordt niet opgeslagen, ook niet in IFC.
   niet rekent; de driving-vlag van P6 wordt nooit gelezen), zet `drivingUnknown`. `drivingSequenceIds` is dan leeg
   zonder "niets is driving" te betekenen; lees de lijst via `knownDrivingSequenceIds` (`drivingInfo.ts`), die dan
   `undefined` geeft, zodat Gantt en rapport alles neutraal tekenen.
-- Niets eindigt na het projecteinde: dat is de bovengrens van de late finish van elke taak. Opvolgers kunnen de late
-  finish alleen naar voren halen; anders kan een SS-opvolger een late finish voorbij het projecteinde geven en krijgt
-  de voorganger onterecht speling.
+- In de gewone late pass is het projecteinde de beginwaarde van de late finish (voor een mijlpaal met de dagregel
+  van ADR 0014 het begin van de laatste projectwerkdag). Opvolgergrenzen kunnen haar alleen naar voren halen; anders
+  kan een SS-opvolger een late finish voorbij het projecteinde geven en krijgt de voorganger onterecht speling.
+  Daarna gelden de late constraints en de deadline. Eigen paden buiten deze regel: het C5-punt, de A21-route, een
+  voltooide taak met vastgezette werkelijke datums (A12), een hammock, een handmatige taak, het A17-eindpunt
+  en een harde pin, die de late finish op de pin zet.
 - C9 (`p6LateFinishOnOwnCalendar`) zet een late finish buiten de werktijd van de taak op het einde van de vorige
   werkperiode, alleen als een opvolgergrens de late finish bepaalt, ook na de late constraints. Het projecteinde en
   een strakkere constraint of deadline zijn niet gemeten en vallen erbuiten. Een grens op of binnen de werktijd

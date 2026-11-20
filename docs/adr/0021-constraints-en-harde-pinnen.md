@@ -14,10 +14,11 @@ bewegen daar nooit door; een overschrijding wordt negatieve speling.
   Een externe voorganger na de pin of een externe opvolger vóór de pin is dezelfde schending. Elke koppeling wordt
   doorgerekend, ook na een eerste schending, omdat de berekening ook de melding van de lagkalender registreert en
   die niet van de volgorde mag afhangen.
-- Uitzondering, bewust smal: een taak met een werkelijke start (MSO) of finish (MFO) precies op de pin heeft de pin
-  aantoonbaar gerespecteerd. Een later berekende interne voorgangerdruk (bijvoorbeeld een niet-afgemelde
-  startmijlpaal die de statusdatumvloer omhoog schoof) is dan geen schending. Een extern anker is een vaste datum
-  van de bron, dus daar geldt de uitzondering niet.
+- Uitzondering, bewust smal en alleen voor berekende interne voorgangerdruk: heeft een taak met MSO een werkelijke
+  start, of met MFO een werkelijke finish, die na een snap vooruit in de eigen kalender op dezelfde kalenderdag valt
+  als de pin (de vergelijking is op dag, niet op moment, `hardPinRespectedByActual`), dan is een later berekende
+  voorgangerdruk (bijvoorbeeld een niet-afgemelde startmijlpaal die de statusdatumvloer omhoog schoof) geen
+  schending. Een extern anker is een vaste datum van de bron, dus daar geldt de uitzondering niet.
 - De harde finishpin wint van de SF-finishvloer. Anders duwt die vloer EF voorbij de pin terwijl LF op de pin blijft,
   met negatieve speling als gevolg (`msp-36`).
 - Een constraintdatum zonder tijd is dag-verankerd: een startachtige constraint snapt naar het eerste werkmoment van

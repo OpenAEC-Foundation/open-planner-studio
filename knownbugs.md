@@ -616,6 +616,26 @@ en noem het in je rapport of PR-tekst.
      las. Niet nagespeeld; het gevolg is een eerlijke melding "niet gelezen". Voorstel: de geopende documenten
      weer vóór de eerste `await` vastleggen. — S
 
+1965. **Een werkelijke datum na het laatste werkblok van haar dag blijft rauw staan, buiten werktijd.**
+     `snapActualForward` (`src/engine/scheduler/CPMSolver.ts:633`) snapt een werkelijke start vooruit, maar verwerpt
+     de snap als die op een andere kalenderdag landt. Een start om 20:00 op een dag die om 17:00 eindigt, blijft dus
+     20:00: geen werkmoment, wel de dag die MS Project opsloeg. Het oude commentaar noemde dit een ongetoetste
+     voortzetting van de dagregel; geen corpusbestand heeft zo'n datum. Gelezen in de code, niet nagespeeld. — S
+1966. **Met `startToStartLagFrom` = `actualStart` begrenst een SS-relatie de lopende voorganger achterwaarts niet,
+     terwijl P6 hier niet gemeten is.** `src/engine/scheduler/CPMSolver.ts:2511` slaat zo'n relatie in de late pass
+     over, omdat ze voorwaarts aan de statusdatum hangt (`inProgressStartLagAnchor`, `:465`). Geen P6-orakel heeft
+     `sched_lag_early_start_flag` = N; het oude commentaar noemde het "[VERMOED] intern consistent". — S
+1967. **Een hammock die tegelijk mijlpaal is, volgt de MSP-regel voor momenten niet.** `hammockEarlyStart`
+     (`src/engine/scheduler/CPMSolver.ts:1732`) eindigt met de kale `snapOnOrAfter` (`:1751`), niet met de
+     mijlpaalbewuste `snapSuccessorEarlyStart`; een moment op een blokeinde schuift zo naar het volgende blokbegin.
+     Het oude commentaar noemde de combinatie pathologisch en "bewust niet gefixt"; `.mpp` en MSPDI schrijven haar
+     niet. Gelezen in de code, niet nagespeeld. — S
+1968. **De statusdatumvloer van een niet-gestarte taak snapt in de projectkalender, niet in de kalender van de
+     taak.** `prepareSolve` snapt de statusdatum op de projectengine (`src/engine/scheduler/CPMSolver.ts:1075`), en de
+     vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender (`:1657`). Bij een taakkalender met andere
+     werkblokken is die vroege start geen geldig startmoment van de taak (zie `msp-06` in `cases-msp-pariteit.json`).
+     In de code gezien. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

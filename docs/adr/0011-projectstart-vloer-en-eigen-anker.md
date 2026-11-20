@@ -26,8 +26,9 @@ dus een niet-bindende FF of SF laat de opvolger gewoon op de vloer staan.
   werkblokken bij een taak in dagen: daar is het anker een genormaliseerd daganker (D4), geen ingevoerd uuranker,
   en het snapt.
 - Een harde MSO/MFO-pin wint ook bij een wortel.
-- Een lead telt als afgekapt (`truncatedLeadSequenceIds`) alleen als ook de strengste relatie de taak nog vóór de
-  projectstart wilde trekken, en alleen voor de bindende relaties met een negatieve lag (in dezelfde lagresolutie
-  als de relatiewiskunde, ook een lag die alleen in minuten bestaat). Een gedomineerde lead is gewoon niet bepalend.
+- Een lead telt als afgekapt (`truncatedLeadSequenceIds`) alleen als ook de strengste relatiegrens de taak nog vóór
+  de projectstart wilde trekken, en dan voor elke relatie met een negatieve lag (in dezelfde lagresolutie als de
+  relatiewiskunde, ook een lag die alleen in minuten bestaat) waarvan de grens op dezelfde kalenderdag valt als die
+  strengste grens. De vergelijking is op dag (`formatDate`), niet op moment.
 - `snapWorkInstantOnOrAfter` is de ene snapregel voor het anker, gedeeld met `projectStartAnchorClamp.ts`. Een kale
   datum zonder kalendersnap landt in een urenkalender op middernacht in plaats van op het eerste werkblok.

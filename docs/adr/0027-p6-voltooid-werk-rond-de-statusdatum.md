@@ -35,9 +35,15 @@ doet de conventie niets: een ongemeten geval valt terug op het gewone pad in pla
   een C5-voorganger.
 - A21 op de B3-route: een voltooide taak staat ook aan de late kant op nul restduur op de statusdatum: LS is de
   vroegste late grens van haar opvolgers, geklemd op de statusdatum, en LF het werkmoment vlak daarvoor. Gemeten op
-  rehab-2: 2036 voltooide taken, 99,9 % dekking. De late route gebruikt dezelfde poort als de vroege, zodat een taak
-  nooit tussen twee poorten valt; een voltooide taak buiten die poort (CP_Phys, de LOE-uitzondering of een taak
-  zonder werkelijke finish) houdt aan de late kant haar werkelijke datums.
+  rehab-2: 2036 voltooide taken, 99,9 % dekking. De poort is niet die van de vroege kant alleen. Solver
+  (`backwardPass`) en resultaatweergave (`scheduleAnalysis`) delen één functie,
+  `explainP6CompletedLateRemainingWindowEligibilityResolved` (`p6CompletedRouteTrace.ts`), die achter elkaar eist: de
+  poort voor het vastzetten van de werkelijke datums aan de late kant (statusdatum, A12, werkelijke finish,
+  voortgang 100 %), B3 aan, de projectoptie A21 aan, en de vroege B3-vensterpoort. Zo valt een taak nooit tussen de
+  poorten: een geïmporteerde `TK_Complete` zonder `act_end_date` komt door de vroege B3-poort maar niet door de
+  eerste, en blijft dan aan beide kanten buiten A21 (`check-xer-completed-late.ts`, poortpariteit NX). Een voltooide
+  taak die wel door de eerste poort komt maar niet door de rest, houdt aan de late kant haar vroege datums. Een
+  C5-punt valt buiten B3 en krijgt zijn eigen late punt (hierboven).
 - Tussen twee voltooide activiteiten telt de lag niet (R1 zonder lag: 2033 van 2036), wel zolang de opvolger nog
   restwerk heeft (R2 met lag: 1796 van 2036; de drie uitzonderingen op R1 hebben elk een niet-voltooide maatgevende
   opvolger). Een procentlag wordt eerst tegen de echte duur vastgezet, omdat de rekenstap daarna voor SS en SF de
@@ -46,6 +52,6 @@ doet de conventie niets: een ongemeten geval valt terug op het gewone pad in pla
   voltooide eindmijlpaal met duur geen extra sprong naar de volgende werkdag krijgt die een gewone voltooide taak
   niet krijgt. Via de XER-lezer is dat pad onbereikbaar (alleen TT_Mile en TT_FinMile krijgen een soort, en die
   komen niet door de poort); geen test raakt het.
-- Een voltooide opvolger die niet door die poort kwam, draagt nog haar werkelijke datums: dat is historie, en ze
+- Een voltooide opvolger die niet door de gedeelde poort kwam, draagt nog haar werkelijke datums: dat is historie, en ze
   trekt een open voorganger niet terug. Een opvolger op de poort heeft een zinvolle late kant en drukt gewoon.
 - XER-uitvoer (vroege, late datums en speling uit het bestand) is op geen enkel pad solverinvoer.

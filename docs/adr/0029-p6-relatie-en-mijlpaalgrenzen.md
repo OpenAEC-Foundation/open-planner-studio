@@ -14,9 +14,10 @@ staat in de gids `ref-rekenopties-en-conventies.md`.
   aanzet. Dat beschermt niet tegen een vervalst bestand: de conventie reist bewust mee in `OPS_SchedulingProfile`,
   en wie een IFC met de conventie aan opent, kiest die semantiek. De late start van zo'n opvolger is een gewoon
   blokbegin (Hotel HCSWB1Z1240, LS 03-04 08:00); de finishgrens voor de voorganger legt de gewone FS-terugrekening.
-- B2: een positieve lag in werktijd is in P6 een grensafstand. Trekt de late pass hem af vanaf een exact blokeinde
-  en komt ze precies op het eerste blokbegin van een dag, dan wordt het het vorige blokeinde (wo 17:00 min twee
-  werkdagen is ma 17:00, niet di 08:00). Bij FF zonder lag blijft een grens op een blokeinde die grens. Alleen de
+- B2: een positieve lag in werktijd is in P6 een grensafstand. Trekt de late pass hem af vanaf het laatste
+  blokeinde van een dag (`isExactBandEnd`; een pauzegrens zoals 12:00 op een dag 08–12/13–17 voldoet niet) en komt
+  ze precies op het eerste blokbegin van een dag, dan wordt het het vorige blokeinde (wo 17:00 min twee werkdagen is
+  ma 17:00, niet di 08:00). Bij FF zonder lag blijft een grens op het laatste blokeinde van de dag die grens. Alleen de
   projectie van de relatie krijgt deze regel; de duuraftrek en de kalenderprimitieven blijven gewoon.
 - A15: P6 bewaart TT_Mile als één type, maar de geplande grens maakt het verschil: staat de mijlpaal gepland op een
   blokeinde, dan blijft de finish van de voorganger geldig; op een blokbegin start ze op het volgende werkmoment.

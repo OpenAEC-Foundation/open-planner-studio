@@ -13,6 +13,8 @@ hammock nooit via de hammock negatieve speling op een driver leggen.
 
 - Een hammock zonder finish-driver (geen FF- of SF-voorganger) krijgt EF = ES en wordt gemeld in
   `hammockNoFinishDriverTaskIds`.
+- Een hammock die ook als mijlpaal is gemarkeerd, krijgt haar vroege start met de gewone startsnap
+  (`snapOnOrAfter`), niet met de mijlpaalregels van ADR 0014 (knownbug 1967).
 - De relaties van een hammock krijgen geen `seqConstraint` en blijven buiten de analyse van driving en spelingpaden.
 - Een hammockspan in kalendertijd telt in klokminuten (ADR 0016).
 - B4 (`p6CompletedLoeActualFinish`): een voltooide LOE uit P6 met alleen een SS-ingang en zonder opvolger volgt de

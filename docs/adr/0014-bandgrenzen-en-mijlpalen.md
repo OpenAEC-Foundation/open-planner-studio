@@ -33,9 +33,10 @@ zou het een dubbele snap zijn die de relatiewiskunde (de FS-kortsluiting bij lag
 - Een wortel met een bindende constraint her-snapt ná de constraint, omdat een constraint een middernachtmoment kan
   geven terwijl de vroege finish al vanaf het blokbegin rekent. Is de constraint niet bindend, dan blijft de start
   wat `ownAnchor` gaf; de her-snap zou de blokeinde-vrijstelling ongedaan maken.
-- Een losse mijlpaal zonder voorganger, of een eindmijlpaal zonder voorganger, staat onder
-  `milestoneWithoutPredecessorAtDayEnd` (B6) aan het einde van haar werkdag. Een MSO of MFO wint: B6 is alleen de
-  standaardplaats.
+- Een nulduurmijlpaal zonder voorganger die een eindmijlpaal is of geen opvolger heeft, gaat onder
+  `milestoneWithoutPredecessorAtDayEnd` (B6) naar het laatste blokeinde van haar dag, maar alleen als haar vroege
+  start precies op het eerste blokbegin van die dag staat. Staat ze elders op de dag, dan blijft ze staan. Een MSO of
+  MFO wint: B6 is alleen de standaardplaats.
 - In het dagmodel begint de late kant van een START-mijlpaal (zonder B6, of in een keten) en van een mijlpaal zonder
   soort na een FS/SS-voorganger op het begin van de laatste projectwerkdag (`usesLastProjectDayStart`), mits de
   mijlpaal zelf op het begin van haar werkdag staat. Het projecteinde is een eindmoment: op een 24-uurskalender hoort

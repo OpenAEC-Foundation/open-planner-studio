@@ -12,7 +12,9 @@ er wel onder; een echte nulduurmijlpaal niet (`isElapsedTask` sluit die uit).
 - Het constraintpad snapt wel: een SNET-, MSO- of MFO-datum op een kalendertijdtaak snapt naar een werkmoment,
   net als een harde pin. Alleen de duurstap van een pin rekent in kloktijd. Deze afbakening is bewust, maar geen
   test houdt haar vast.
-- De speling van een kalendertijdtaak is de getekende klokspan (`signedElapsedSpan`), omdat haar datums op een
-  niet-werkdag mogen liggen (`msp-14`).
+- De totale speling van een kalendertijdtaak is de getekende klokspan (`signedElapsedSpan`), omdat haar datums op
+  een niet-werkdag mogen liggen (`msp-14`). De vrije speling via een relatie telt niet in kloktijd maar in werktijd:
+  `msp-21` in `cases-msp-pariteit.json` legt voor dezelfde taak een totale speling van 3,29 d in kalendertijd en een
+  vrije speling van 1 werkdag vast.
 - Een lopende kalendertijdtaak houdt haar kalendertijd: zonder die tak zou ze met voortgang stil naar werktijd
   omslaan. Haar rest staat in de eigen eenheid (minuten of dagen) en wordt omgerekend naar klokminuten.

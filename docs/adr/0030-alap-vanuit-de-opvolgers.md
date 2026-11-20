@@ -1,9 +1,11 @@
 # Een ALAP-taak schuift zo laat als haar opvolgers toestaan, opvolgers eerst
 
-Een taak met ALAP (zo laat mogelijk) krijgt na de achterwaartse pass nul vrije speling: haar vroege datums schuiven
-op tot haar opvolgers. De solver loopt daarvoor in omgekeerde topologische volgorde, in elk profiel. In voorwaartse
-volgorde mat een ALAP-voorganger haar speling tegen een nog niet verschoven ALAP-opvolger, zodat van een keten
-A, B, einde alleen B laat kwam; MS Project en P6 zetten de hele keten laat. Na de verschuiving krijgen de uitgaande
+Na de achterwaartse pass schuiven de vroege datums van een taak met ALAP (zo laat mogelijk) op naar de laatste
+grens die haar opvolgers toestaan, maar nooit voorbij haar eigen late finish. Bindt een eigen deadline of FNLT eerder
+dan de opvolger, dan houdt ze dus vrije speling (`check-alap-maatplaatsing.ts`, deel 6: A blijft di 08:00–16:00).
+De solver loopt in omgekeerde topologische volgorde, in elk profiel: in voorwaartse volgorde zou een
+ALAP-voorganger haar speling meten tegen een nog niet verschoven ALAP-opvolger, zodat van een keten A, B, einde
+alleen B laat komt; MS Project en P6 zetten de hele keten laat. Na de verschuiving krijgen de uitgaande
 relaties hun nieuwe grens, zodat vrije speling en driving kloppen (de relatie wordt precies bindend).
 
 ## Gevolgen

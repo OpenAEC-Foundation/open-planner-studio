@@ -9,8 +9,9 @@ verandert geen enkele datum; `check-shift-explanation.ts` houdt vast dat de rest
 ## Gevolgen
 
 - `backwardFloatTrace` staat aan precies als conventie B3 (`p6CompletedDataDateWindow`) aan staat, omdat het spoor
-  die route beschrijft. B3 staat in elk ingebouwd profiel uit; de enige lezer
-  (`check-xer-completed-late.ts`) zet B3 als afwijking aan en houdt vast dat het spoor anders afwezig is.
+  die route beschrijft. B3 staat in elk ingebouwd profiel uit. `check-xer-completed-late.ts` zet B3 als
+  afwijking aan en houdt vast dat het spoor anders afwezig is; de XER-replay (`tests/planning/xerTaskReplayProduct.ts`)
+  leest het spoor ook.
 - De geplande-startvloer wordt alleen gespoord voor een P6-activiteit met een expliciet doelvenster, en alleen als
   één relatie of de projectstart de grens is. Bij meerdere gelijke relaties is er geen unieke bron; dan blijft het
   spoor weg in plaats van een willekeurige relatie te noemen.

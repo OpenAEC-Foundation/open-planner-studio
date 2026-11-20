@@ -66,7 +66,7 @@ projectstart en eigen anker (0011), projecteinde (0012), werkelijke datums (0013
 splitgaten (0015), kalendertijd (0016), nivelleervertraging (0017), de voorwaartse pass voor de nivelleerder (0018),
 zijsporen (0019), late kant, driving en vrije speling (0020), constraints en harde pinnen (0021), externe koppelingen
 (0022), hammocks (0023), handmatig gepland (0024), voortgang zoals MS Project (0025), timephased vensters (0026),
-P6: voltooid werk (0027), lopende taken (0028), relatie- en mijlpaalgrenzen (0029), ALAP (0030), lag en relatiegrenzen
+P6: voltooid werk (0027), lopende taken (0028), relatie- en mijlpaalgrenzen (0029), ALAP (0030), de SF-finishvloer
 (0031).
 
 ### Het nivelleringsfundament (projectoptie `leveling`)
