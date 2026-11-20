@@ -403,14 +403,21 @@ function solveWith(overrides?: Partial<SchedulingOptions>, remainingLag = false)
     w(on, 'FSL')[0] !== w(off, 'FSL')[0], true);
 }
 
-// Knownbug 186: keep imported task provenance but remove explicit work bands from every calendar.
+// Knownbug 186: scalair ingevulde werkuren rekenen na F6 gewoon in minuten;
+// zonder bruikbare werkuren stopt de solver vóór het B3-venster met een foutcode.
 {
   for (const useWindow of [false, true]) {
     const imported = importFixture();
     setConvention(imported, 'p6CompletedDataDateWindow', useWindow);
-    const calendar = { ...imported.calendar, workTime: undefined };
-    const calendars = (imported.resourceCalendars ?? []).map(cal => ({ ...cal, workTime: undefined }));
-    try {
+    for (const usable of [true, false]) {
+      const scalar = (cal: typeof imported.calendar) => ({
+        ...cal, workTime: undefined, hoursPerDay: usable ? cal.hoursPerDay : 0,
+      });
+      const calendar = scalar(imported.calendar);
+      const calendars = (imported.resourceCalendars ?? []).map(scalar);
+      const label = `knownbug 186 B3=${useWindow} bruikbare werkuren=${usable}`;
+      eq(label + ': geen eigen werkblokken', new CalendarEngine(calendar).hasOwnWorkBlocks, false);
+      eq(label + ': effectieve urenroute', new CalendarEngine(calendar).isHourMode, usable);
       const result = solveProject({
         tasks: imported.tasks, sequences: imported.sequences, calendar, calendars,
         dataDate: imported.project.statusDate, progressMode: imported.project.progressMode,
@@ -418,12 +425,17 @@ function solveWith(overrides?: Partial<SchedulingOptions>, remainingLag = false)
         projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
       });
       const row = result.tasks.get('A');
-      console.log('KNOWNBUG186', JSON.stringify({ useWindow, statusDate: imported.project.statusDate,
-        taskCount: result.tasks.size, error: result.error, row: row && [row.earlyStart, row.earlyFinish,
-          row.lateStart, row.lateFinish, row.totalFloat] }));
-    } catch (error) {
-      console.log('KNOWNBUG186', JSON.stringify({ useWindow, exception: String(error),
-        stack: error instanceof Error ? error.stack : undefined }));
+      const code = result.errorInfo?.code;
+      if (usable) {
+        eq(label + ': succes', [result.error, result.tasks.size], [undefined, 19]);
+        eq(label + ': B3-aan/uit is onderscheidend', row?.earlyStart,
+          useWindow ? '2026-09-10T07:00' : '2026-08-03T07:00');
+      } else {
+        eq(label + ': gecontroleerde stop wegens onbruikbare werkuren',
+          code === 'hourTaskWithoutWorkHours' || code === 'taskWithoutWorkHours' || code === 'noWorkingHours', true);
+        eq(label + ': geen datums berekend', result.tasks.size, 0);
+      }
+      console.log('KNOWNBUG186', JSON.stringify({ useWindow, usable, taskCount: result.tasks.size, code }));
     }
   }
 }
