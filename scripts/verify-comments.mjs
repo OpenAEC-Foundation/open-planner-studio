@@ -9,23 +9,46 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const BASELINE_PATH = join(ROOT, 'scripts', 'verify-comments.baseline.json');
 
 const CODE_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
-const OUT_OF_SCOPE = [/^docs\//, /^examples\//, /^node_modules\//, /\.generated\.[a-z]+$/, /\.d\.ts$/];
+const OUT_OF_SCOPE = [/^docs\//, /^examples\//, /^node_modules\//, /\.generated\.[a-z]+$/];
 
 const TOOL_DIRECTIVE = new RegExp('^(?:' + [
-  String.raw`//\s*@ts-(?:check|nocheck|ignore|expect-error)\b`,
-  String.raw`//\s*eslint-(?:disable|enable)\b`,
-  String.raw`/\*\s*eslint(?:-disable|-enable|-env)?\b`,
-  String.raw`/\*\s*globals?\s`,
-  String.raw`///\s*<`,
+  String.raw`//\s*@ts-(?:check|nocheck)\s*$`,
+  String.raw`//\s*@ts-(?:ignore|expect-error)\b`,
+  String.raw`//\s*eslint-(?:disable|enable)(?:-next-line|-line)?(?:\s|$)`,
+  String.raw`/\*\s*eslint-(?:disable|enable|env)(?:\s|\*)`,
+  String.raw`/\*\s*eslint\s+[\w@/-]+\s*:`,
+  String.raw`/\*\s*globals?\s+[\w$]+\s*[:,*]`,
+  String.raw`///\s*<(?:reference|amd-module|amd-dependency)\s[^>]*/>\s*$`,
   String.raw`/\*\s*@vite-ignore\s*\*/`,
   String.raw`/\*\s*[@#]__(?:PURE|NO_SIDE_EFFECTS)__\s*\*/`,
-  String.raw`//#\s*sourceMappingURL=`,
+  String.raw`/\*\*?\s*@jsx(?:ImportSource|Runtime|Frag)?\s+\S+\s*\*/`,
+  String.raw`//#\s*sourceMappingURL=\S+\s*$`,
   String.raw`(?://|/\*)\s*text-roles:\s*\S`,
 ].join('|') + ')');
 
-const LICENCE_NOTICE = /SPDX-License-Identifier:|\bCopyright\b|©|\b(?:LGPL|AGPL|GPL|MPL|Apache|BSD|MIT)-\d/;
+const LICENCE_NOTICE = /SPDX-License-Identifier:\s*\S|(?:Copyright|©)\s*(?:\(c\)\s*)?\d{4}|\b(?:LGPL|AGPL|GPL|MPL|Apache|BSD|MIT)-\d/;
+const LINE_BREAK = /[\n\r\u2028\u2029]/;
 
-const JSDOC_TYPE_TAG = /@(?:type|param|returns?|typedef|template|import|satisfies|callback|property|this|enum|extends|implements|overload)\b/;
+const JSDOC_TYPE_TAGS = 'type|param|returns?|typedef|template|satisfies|callback|property|this|enum|extends|implements|overload';
+
+function withoutBalancedBraces(text) {
+  let out = '';
+  let depth = 0;
+  for (const char of text) {
+    if (char === '{') depth++;
+    else if (char === '}' && depth > 0) depth--;
+    else if (depth === 0) out += char;
+  }
+  return out;
+}
+
+function isTypeOnlyJsDoc(text) {
+  const body = text.replace(/^\/\*\*/, '').replace(/\*\/$/, '').replace(/^\s*\*/gm, '');
+  if (!new RegExp(`@(?:${JSDOC_TYPE_TAGS}|import)\\b`).test(body)) return false;
+  const rest = withoutBalancedBraces(body.replace(/@import\s[^@]*?from\s+['"][^'"]+['"]/g, ''))
+    .replace(new RegExp(`@(?:${JSDOC_TYPE_TAGS})\\b\\s*(?:\\[?[\\w$.]+(?:=[^\\]\\s]*)?\\]?)?`, 'g'), '');
+  return rest.trim() === '';
+}
 
 export function inScope(path) {
   const rel = path.split(sep).join('/');
@@ -38,8 +61,9 @@ function scriptKind(path) {
 }
 
 function isExempt(text, path) {
-  if (TOOL_DIRECTIVE.test(text) || LICENCE_NOTICE.test(text)) return true;
-  return /\.(?:js|jsx|mjs|cjs)$/.test(path) && text.startsWith('/**') && JSDOC_TYPE_TAG.test(text);
+  if (TOOL_DIRECTIVE.test(text)) return true;
+  if (!LINE_BREAK.test(text) && LICENCE_NOTICE.test(text)) return true;
+  return /\.(?:js|jsx|mjs|cjs)$/.test(path) && text.startsWith('/**') && isTypeOnlyJsDoc(text);
 }
 
 function commentRanges(sourceFile, text) {
@@ -61,12 +85,6 @@ function commentRanges(sourceFile, text) {
   visit(sourceFile);
   const insideJsxText = range => jsxText.some(([pos, end]) => range.pos >= pos && range.pos < end);
   return [...ranges.values()].filter(range => !insideJsxText(range)).sort((a, b) => a.pos - b.pos);
-}
-
-function blockKind(text, inJsx) {
-  if (inJsx) return 'jsx';
-  if (text.startsWith('/**')) return 'jsdoc';
-  return text.startsWith('//') ? 'line' : 'block';
 }
 
 function scanBlocks(text, path) {
@@ -162,8 +180,12 @@ function codeSignature(text, path) {
       return;
     }
     const children = node.getChildren(sourceFile);
-    if (children.length === 0) parts.push(node.getText(sourceFile));
-    else children.forEach(visit);
+    if (children.length > 0) {
+      children.forEach(visit);
+      return;
+    }
+    const onNewLine = parts.length > 0 && LINE_BREAK.test(text.slice(node.pos, node.getStart(sourceFile)));
+    parts.push((onNewLine ? '\n' : '') + node.getText(sourceFile));
   };
   visit(sourceFile);
   return parts.join('\u0000');
@@ -179,13 +201,13 @@ export function stripComments(text, path, onlyLines) {
     const span = removableLines(block, lineOf);
     if (span) {
       for (let line = span[0]; line <= span[1]; line++) removedLines.add(line);
-    } else if (block.kind === 'jsx') {
+    } else if (block.kind === 'jsx' || LINE_BREAK.test(block.text)) {
       manual.push(block.line + 1);
     } else {
       const lineStart = lineStarts[block.line];
       const before = text.slice(lineStart, block.pos);
       const after = text.slice(block.end, lineEnd(block.endLine));
-      if (after.trim() === '') cuts.push([lineStart + before.trimEnd().length, block.end + after.replace(/\r?\n$/, '').length]);
+      if (after.trim() === '') cuts.push([lineStart + before.trimEnd().length, block.end + after.replace(/(?:\r\n|[\n\r\u2028\u2029])$/, '').length]);
       else cuts.push([block.pos, block.end + (/^\s*/.exec(after)[0].length > 0 && /\s$/.test(before) ? /^[ \t]*/.exec(after)[0].length : 0)]);
     }
   }
@@ -244,12 +266,32 @@ export function tighten(baseline, counts) {
 }
 
 export function moveAllowance(baseline, counts, from, to) {
-  const freed = (baseline[from] ?? 0) - Math.min(baseline[from] ?? 0, counts[from] ?? 0);
+  const kept = Math.min(baseline[from] ?? 0, counts[from] ?? 0);
+  const freed = (baseline[from] ?? 0) - kept;
   if (freed <= 0) throw new Error(`"${from}" heeft geen vrijgekomen ruimte om te verhuizen`);
   const wanted = (counts[to] ?? 0) - (baseline[to] ?? 0);
   if (wanted <= 0) throw new Error(`"${to}" heeft geen ruimte nodig`);
   if (wanted > freed) throw new Error(`"${to}" vraagt ${wanted} regels, "${from}" gaf er ${freed} vrij`);
-  return tighten({ ...baseline, [to]: (baseline[to] ?? 0) + wanted }, counts);
+  const next = { ...baseline, [from]: kept, [to]: counts[to] };
+  if (kept === 0) delete next[from];
+  return next;
+}
+
+export function commentLines(text, path) {
+  return scanComments(text, path).blocks.flatMap(block => block.text.split(/\r\n|[\n\r\u2028\u2029]/).map(line => line.trim()));
+}
+
+export function newCommentLines(target, sources) {
+  const known = new Set(sources.flat());
+  return target.filter(line => !known.has(line));
+}
+
+function committed(path) {
+  try {
+    return execFileSync('git', ['show', `HEAD:${path}`], { cwd: ROOT, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] }).toString('utf8');
+  } catch {
+    return '';
+  }
 }
 
 const sum = record => Object.values(record).reduce((total, n) => total + n, 0);
@@ -313,17 +355,16 @@ function main(argv) {
 
   const { counts } = countAll();
   const baseline = readBaseline();
-  if (mode === '--init') {
-    if (existsSync(BASELINE_PATH)) {
-      console.error('XX  de baseline bestaat al; die gaat alleen omlaag (--update)');
+  if (mode === '--move') {
+    const [from, to] = rest.map(arg => relative(ROOT, resolve(arg)).split(sep).join('/'));
+    const added = newCommentLines(
+      commentLines(readFileSync(join(ROOT, to), 'utf8'), to),
+      [commentLines(committed(from), from), commentLines(committed(to), to)],
+    );
+    if (added.length > 0) {
+      console.error(`XX  ${to} bevat commentaar dat niet uit ${from} komt:\n${added.map(line => `    ${line}`).join('\n')}`);
       return 1;
     }
-    writeBaseline(counts);
-    console.log(`OK  baseline aangemaakt: ${sum(counts)} commentaarregels in ${Object.keys(counts).length} bestanden`);
-    return 0;
-  }
-  if (mode === '--move') {
-    const [from, to] = rest;
     writeBaseline(moveAllowance(baseline, counts, from, to));
     console.log(`OK  ruimte verhuisd van ${from} naar ${to}`);
     return 0;
@@ -348,10 +389,11 @@ function main(argv) {
     return 1;
   }
   if (under.length > 0) {
-    console.log(`OK  geen nieuw commentaar; ${under.length} bestand(en) staan onder de baseline: draai \`npm run comments:ratchet\``);
-  } else {
-    console.log(`OK  geen nieuw commentaar (${sum(counts)} commentaarregels over, baseline gelijk)`);
+    for (const { path, count, allowed } of under) console.log(`XX  ${path}: ${count} commentaarregels, baseline ${allowed}`);
+    console.log(`\nXX  ${under.length} bestand(en) staan onder de baseline. Leg de winst vast: \`npm run comments:ratchet\``);
+    return 1;
   }
+  console.log(`OK  geen nieuw commentaar (${sum(counts)} commentaarregels over, baseline gelijk)`);
   return 0;
 }
 

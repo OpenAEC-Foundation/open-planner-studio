@@ -9,13 +9,15 @@ aanname is.
 
 De poort `npm run verify:comments` keurt nieuw commentaar af. Bestaand commentaar mag blijven tot het is
 beoordeeld: `scripts/verify-comments.baseline.json` telt de commentaarregels per bestand, en dat getal gaat alleen
-omlaag. De skill `/delete-comment` beschrijft het beoordelen en opruimen per onderdeel.
+omlaag. De telling moet precies kloppen: wie commentaar weghaalt, legt dat vast met `npm run comments:ratchet`,
+anders is de poort rood. Zo kan vrijgekomen ruimte niet later met nieuw commentaar worden gevuld. De skill `/delete-comment` beschrijft het beoordelen en opruimen per onderdeel.
 
 ## Wat geen commentaar is
 
-Aanwijzingen voor gereedschap (`@ts-expect-error`, `eslint-disable`, `/// <reference`, `@vite-ignore`,
-`@__PURE__`, de markering `text-roles:`), JSDoc met typetags in JavaScript-bestanden, en een licentie- of
-bronvermelding met een licentienaam. Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
+Aanwijzingen voor gereedschap in hun geldige vorm (`@ts-expect-error`, `eslint-disable`, `/// <reference … />`,
+`@vite-ignore`, `@__PURE__`, `@jsxImportSource`, de markering `text-roles:`), JSDoc in JavaScript-bestanden die
+alleen typetags bevat en geen uitleg, en een licentie- of bronvermelding van één regel met een licentienaam,
+een SPDX-kenmerk of een copyrightjaar. Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
 TypeScript of JavaScript is.
 
 ## Overwogen

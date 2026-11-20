@@ -533,10 +533,11 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **No comments in code** (`docs/adr/0001-geen-commentaar-in-code.md`). Do not write a comment in TypeScript or
   JavaScript: say it with a name, a type or a test; record a decision that would surprise a reader in `docs/adr/`;
-  put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on a file with more comment
-  lines than its baseline, and on any comment in a new file. Tool directives (`@ts-expect-error`, `eslint-disable`,
-  `/// <reference`, `@vite-ignore`, `text-roles:`), JSDoc with type tags in `.mjs`/`.js` and a licence or source notice
-  that names a licence are not comments. Existing comments stay until the `delete-comment` skill has judged them; do
+  put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on a file whose comment
+  lines differ from its baseline (more: remove the comment; fewer: run `npm run comments:ratchet`), and on any comment in
+  a new file. Tool directives (`@ts-expect-error`, `eslint-disable`,
+  `/// <reference`, `@vite-ignore`, `@jsxImportSource`, `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, and a
+  one-line licence or source notice that names a licence are not comments. Existing comments stay until the `delete-comment` skill has judged them; do
   not grow one. Moved or split a file: `node scripts/verify-comments.mjs --move <old> <new>`.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or

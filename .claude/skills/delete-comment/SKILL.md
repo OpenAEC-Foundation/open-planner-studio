@@ -81,8 +81,9 @@ node scripts/verify-comments.mjs --strip <pad>
 node scripts/verify-comments.mjs --strip <bestand> --only 12,48
 ```
 
-`--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code erdoor zou
-veranderen. Wat het meldt als "met de hand" (JSX-commentaar tussen tekst) haal je zelf weg. `--only` neemt de
+`--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code-tokens of de
+regeleindes tussen tokens erdoor zouden veranderen. Wat het meldt als "met de hand" (JSX-commentaar tussen tekst,
+of commentaar met een regeleinde midden in een regel code) haal je zelf weg en controleer je met de gerichte test. `--only` neemt de
 beginregels uit `--list`, voor als je een onderdeel in delen doet.
 
 Zoek daarna naar verwijzingen die nu nergens meer heen wijzen ("zie het docblok bij", "zie de kop van") in de
@@ -97,7 +98,8 @@ npm run verify:docs
 ```
 
 Plus de gerichte test van het onderdeel uit de tabel *Which check after which change* in `AGENTS.md`. De baseline
-gaat alleen omlaag; staat een bestand na een verplaatsing boven zijn getal, gebruik dan `--move <oud> <nieuw>`.
+gaat alleen omlaag; staat een bestand na een verplaatsing boven zijn getal, gebruik dan `--move <oud> <nieuw>`. Dat
+neemt alleen commentaar mee dat al in de vastgelegde versie van bron of doel stond.
 
 ## Stap 7. Rapport
 
