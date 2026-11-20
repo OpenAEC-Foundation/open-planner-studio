@@ -16,6 +16,10 @@ paths:
 
 ### De contour-engine: werkverdeling-per-dag als data, de curve-formule als terugval
 
+Besluiten van dit onderdeel: `docs/adr/0002-contour-is-data-op-de-taakas.md`,
+`0003-contour-herschalen-bij-duurwijziging.md`, `0004-contourfasen-zijn-weergave.md` en
+`0005-curveweergave-los-van-verdeling.md`. De code van `src/engine/contour/` heeft geen commentaar meer.
+
 `src/engine/contour/contourEngine.ts` (puur, 2026-09) is de rekenkern voor **resource-contouring**:
 een contourprofiel (`Task.timephasedContours`, periodes op de cumulatieve werkminuten-as van de taak
 — dezelfde as als `TaskSplitGap`) wordt per dagslot (`hoursPerDay × 60`) omgerekend naar werkminuten,

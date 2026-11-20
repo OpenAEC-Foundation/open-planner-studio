@@ -1,57 +1,12 @@
-// contourEngine.ts — de contour-engine.
-//
-// WAT DIT IS. Eén pure rekenmodule die de werkverdeling-per-dag van een toewijzing als DATA
-// behandelt in plaats van als formule (`ResourceLoad.ts`'s `distributeUnits`: load × duur,
-// uitgesmeerd volgens een curvevorm). Ze leest de rauwe contourperiodes van de `.mpp`-lezer
-// (`Task.timephasedContours`) en P6-resourcecurves, en levert er drie dingen op:
-//   1. `periodsToSlotWork` — een contourprofiel (periodes op de cumulatieve taak-as) → werkminuten
-//      per dagslot. Dat is de voeding voor het histogram, de overallocatie-detectie, de
-//      nivelleerder en het bezettingsoverzicht (via `ResourceLoad.ts`'s `assignmentDayUnits`).
-//   2. De 21-punts contourtabellen van MS Project (en P6's `<ResourceCurve>`-vorm, die dezelfde
-//      21 waarden draagt) — zodat een curve exact als data kan worden gematerialiseerd, en een
-//      P6-curve die géén OPS-vorm is (`ResourceAssignment.curveValues`) toch precies wordt
-//      uitgerekend in plaats van tot "uniform" te vervallen.
-//   3. `rescaleContourForDuration` — de herschalingsregel bij een duurwijziging: een bewerking op
-//      een gecontourde taak neemt de verdeling mee.
-//
-// DE AS. Alle periodes leven op DEZELFDE cumulatieve werkminuten-as als `TaskSplitGap`
-// (`task.ts`'s docblok bij `TaskSplitGap`/`TimephasedContourPeriod` — lees die eerst): 0 = taakstart,
-// de as loopt door werktijd van de TAAKkalender en telt ook periodes zonder werk (gaten) mee. Een
-// "dagslot" is `hoursPerDay × 60` asminuten (dezelfde `mpd`-conventie als `splitWalk.ts`'s
-// `splitDayPattern`), dus slot k dekt `[k·mpd, (k+1)·mpd)`. In uur-modus met ongelijk lange
-// werkdagen is dat een benadering (een 4-uursvrijdag telt als een half slot) — bewust dezelfde
-// benadering die `enumerateTaskWorkDays` al maakt, zodat de dagen waarop deze module werk legt
-// exact de dagen zijn waarop de lastlezers boeken. Eén as, één slotdefinitie, geen tweede.
-//
-// WAT DIT NIET IS. Geen solverstap: de CPM-datums van een geïmporteerde contourtaak komen uit
-// laag 3/4 van de timephased-beslistabel (`CPMSolver.ts`'s `timephasedFinish`) en uit `splitGaps`;
-// deze module raakt geen enkele taakdatum. Taaktype-semantiek werkt op bewerkingen, nooit op het
-// herberekenen van een vers geopend bestand, anders verschuiven de gepinde importdatums — de
-// fidelity-poort (`check-mpp-fidelity.ts`) bewaakt dat mechanisch.
-//
-// AFRONDING. `distributeUnits` rondt bij een geheel tempo af op hele eenheden per dag om een
-// FORMULE-artefact te onderdrukken. Opgeslagen dagwaarden uit een contour zijn bedoelde data, geen
-// rekenresidu, en worden hier NOOIT afgerond.
-//
-// Pure module: geen store, geen kalender-engine-import (de aanroeper levert `mpd`), geen I/O.
 import type { DurationType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType } from '@/types/task';
 import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { splitDayPattern } from '@/engine/scheduler/splitWalk';
 import { isFiniteNumber } from '@/utils/guards';
 
-// ── 21-punts contourtabellen ────────────────────────────────────────────────────────────────────
-//
-// Bron: MPXJ `org.mpxj.WorkContour` (LGPL-2.1, github.com/joniles/mpxj) — de vaste MS Project-
-// contouren als 21 waarden: index 0 is altijd 0, de indices 1..20 zijn het PERCENTAGE van het
-// totale werk dat in de k-de 5%-slice van de duur valt (de som van 1..20 is ~100). P6 schrijft zijn
-// `<ResourceCurve>`-objecten in exact dezelfde vorm (`Value0`..`Value100`, MPXJ
-// `XmlContextReader.processWorkContour`), dus deze ene tabelvorm dekt beide pakketten.
-// Álle acht vormen zijn ook een OPS-`ResourceCurve`; `ResourceLoad.ts`'s `distributeUnits`
-// bemonstert DOUBLE_PEAK/TURTLE rechtstreeks uit deze tabel, de zes andere curves houden hun
-// controlepunten daar.
 export type ContourShape =
   | 'FLAT' | 'BACK_LOADED' | 'FRONT_LOADED' | 'DOUBLE_PEAK' | 'EARLY_PEAK' | 'LATE_PEAK' | 'BELL' | 'TURTLE';
 
+// Bron van de tabel: MPXJ `org.mpxj.WorkContour` (LGPL-2.1, github.com/joniles/mpxj).
 export const CONTOUR_SHAPE_VALUES: Record<ContourShape, readonly number[]> = {
   FLAT: [0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
   BACK_LOADED: [0, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5],
@@ -63,17 +18,13 @@ export const CONTOUR_SHAPE_VALUES: Record<ContourShape, readonly number[]> = {
   TURTLE: [0, 1.0, 1.0, 3.5, 3.5, 5.5, 5.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 5.5, 5.5, 3.5, 3.5, 1.0, 1.0],
 };
 
-/** MSPDI `<WorkContour>` 8 = Contoured: geen vorm, maar het signaal dat er `<TimephasedData>` meegaat.
- *  De vormcodes 0–7 staan in `mspdiWriter.ts`'s `CURVE_TO_WORKCONTOUR`. */
 export const MSPDI_WORKCONTOUR_CONTOURED = 8;
 
-/** OPS-curve → tabelvorm. `UNIFORM` is FLAT. */
 export const CURVE_TO_SHAPE: Record<ResourceCurve, ContourShape> = {
   UNIFORM: 'FLAT', FRONT_LOADED: 'FRONT_LOADED', BACK_LOADED: 'BACK_LOADED', BELL: 'BELL',
   EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK', DOUBLE_PEAK: 'DOUBLE_PEAK', TURTLE: 'TURTLE',
 };
 
-/** Tabelvorm → OPS-curve (inverse van `CURVE_TO_SHAPE`; bijectief). */
 export const SHAPE_TO_CURVE: Record<ContourShape, ResourceCurve> = {
   FLAT: 'UNIFORM', FRONT_LOADED: 'FRONT_LOADED', BACK_LOADED: 'BACK_LOADED', BELL: 'BELL',
   EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK', DOUBLE_PEAK: 'DOUBLE_PEAK', TURTLE: 'TURTLE',
@@ -81,9 +32,6 @@ export const SHAPE_TO_CURVE: Record<ContourShape, ResourceCurve> = {
 
 export const CURVE_VALUE_COUNT = 21;
 
-/** Valideert een 21-waardenlijst (P6 `<ResourceCurve>`/`ResourceAssignment.curveValues`): precies
- *  21 eindige, niet-negatieve getallen met een positieve som over de indices 1..20. Geeft een
- *  verse, genormaliseerde kopie (index 0 op 0 gezet — MPXJ/P6 dragen daar altijd 0) of `null`. */
 export function normalizeCurveValues(values: unknown): number[] | null {
   if (!Array.isArray(values) || values.length !== CURVE_VALUE_COUNT) return null;
   const out: number[] = [];
@@ -97,7 +45,6 @@ export function normalizeCurveValues(values: unknown): number[] | null {
   return out;
 }
 
-/** Spiegelt MPXJ `WorkContour.isContourFlat`: index 0 is 0 en alle overige waarden zijn gelijk. */
 export function isFlatCurveValues(values: readonly number[]): boolean {
   if (values.length !== CURVE_VALUE_COUNT || values[0] !== 0) return false;
   const first = values[1];
@@ -105,9 +52,6 @@ export function isFlatCurveValues(values: readonly number[]): boolean {
   return true;
 }
 
-/** Herkent een 21-waardenlijst als een van de OPS-curves (exacte tabelmatch met tolerantie 1e-6;
- *  een vlakke lijst met een andere constante dan 5 telt ook als UNIFORM — de dichtheid is
- *  immers gelijk). `undefined` ⇒ geen tabelvorm (een eigen P6-curve). */
 export function matchCurveValues(values: readonly number[]): ResourceCurve | undefined {
   if (values.length !== CURVE_VALUE_COUNT) return undefined;
   if (isFlatCurveValues(values)) return 'UNIFORM';
@@ -122,8 +66,6 @@ export function matchCurveValues(values: readonly number[]): ResourceCurve | und
   return undefined;
 }
 
-/** Herkent een 21-waardenlijst als een van de acht tabelvormen (zelfde match als `matchCurveValues`,
- *  maar als vorm — FLAT in plaats van UNIFORM). */
 export function matchContourShape(values: readonly number[]): ContourShape | undefined {
   if (values.length !== CURVE_VALUE_COUNT) return undefined;
   if (isFlatCurveValues(values)) return 'FLAT';
@@ -138,18 +80,10 @@ export function matchContourShape(values: readonly number[]): ContourShape | und
   return undefined;
 }
 
-/**
- * Gewichten per slot (som exact 1) voor `slotCount` gelijke slots van de duur, uit een 21-punts-
- * tabel: de tabel is een stuksgewijs constante dichtheid over 20 slices van 5% van de duur; slot k
- * dekt `[k/N, (k+1)/N)` van de duur en krijgt de geïntegreerde dichtheid over dat interval. Zo
- * behoudt een korte taak (N < 20) de asymmetrie van de vorm (een FRONT_LOADED 2-daagse taak krijgt
- * 65/35, niet 50/50 — `distributeUnits`' lineaire interpolatie vervlakt daar juist, zie de
- * curve-vervlakkingsnoot aldaar; dit is de DATA-route).
- */
 export function slotWeightsFromValues(values: readonly number[], slotCount: number): number[] {
   if (!(slotCount > 0)) return [];
   const n = Math.ceil(slotCount);
-  const density = values.slice(1, CURVE_VALUE_COUNT); // 20 slices
+  const density = values.slice(1, CURVE_VALUE_COUNT);
   const total = density.reduce((a, b) => a + b, 0);
   if (!(total > 0)) return new Array<number>(n).fill(1 / n);
   const weights: number[] = [];
@@ -166,7 +100,6 @@ export function slotWeightsFromValues(values: readonly number[], slotCount: numb
     }
     weights.push(acc / total);
   }
-  // Exacte som 1 (drijvendekomma-residu op de laatste slot).
   const sum = weights.reduce((a, b) => a + b, 0);
   if (sum > 0 && Math.abs(sum - 1) > 1e-12) {
     const last = weights.length - 1;
@@ -175,37 +108,24 @@ export function slotWeightsFromValues(values: readonly number[], slotCount: numb
   return weights;
 }
 
-// ── Periodes op de taak-as ──────────────────────────────────────────────────────────────────────
-
-/** Defensieve filter (zelfde dreigingsmodel als `splitTotalSpanMinutes`: periodes kunnen via een
- *  handgemaakte IFC/MSPDI/P6 binnenkomen): niet-eindig, negatief of nul-lang wordt overgeslagen. */
 function usablePeriods(periods: readonly TimephasedContourPeriod[]): TimephasedContourPeriod[] {
   return periods.filter((p) =>
     Number.isFinite(p.afterMinutes) && Number.isFinite(p.minutes) && Number.isFinite(p.workMinutes)
     && p.afterMinutes >= 0 && p.minutes > 0 && p.workMinutes >= 0);
 }
 
-/** Einde van de laatste periode op de as (inclusief gaten) — de asspanne van het profiel. 0 ⇒ leeg. */
 export function periodsSpanMinutes(periods: readonly TimephasedContourPeriod[]): number {
   let end = 0;
   for (const p of usablePeriods(periods)) end = Math.max(end, p.afterMinutes + p.minutes);
   return end;
 }
 
-/** Som van het werk over alle bruikbare periodes (minuten). */
 export function periodsWorkMinutes(periods: readonly TimephasedContourPeriod[]): number {
   let sum = 0;
   for (const p of usablePeriods(periods)) sum += p.workMinutes;
   return sum;
 }
 
-/**
- * Contourprofiel → werkminuten per dagslot van `slotMinutes` asminuten. Het werk van een periode is
- * gelijkmatig over haar eigen lengte verdeeld (dat is ook MSP's/MPXJ's model: `amountPerHour` is
- * per periode constant); een periode die een slotgrens kruist wordt naar rato gesplitst. Lengte
- * van de uitkomst = `max(ceil(spanne / slotMinutes), minSlots)`; slots zonder werk zijn 0. De som
- * van de uitkomst is EXACT `periodsWorkMinutes` — een lastlezer verliest nooit stil werk.
- */
 export function periodsToSlotWork(
   periods: readonly TimephasedContourPeriod[],
   slotMinutes: number,
@@ -230,15 +150,6 @@ export function periodsToSlotWork(
   return out;
 }
 
-/**
- * Slotwerk UITGELIJND op de dagenlijst van `enumerateTaskWorkDays(gaps, …)` (splitWalk.ts): die
- * lijst bevat alleen WERKdagen (pauzedagen van `splitGaps` zijn eruit), dus een lastlezer die
- * `slotWork[i]` op `days[i]` boekt heeft een array nodig waaruit de gat-slots verwijderd zijn —
- * precies volgens hetzelfde blokpatroon (`splitDayPattern`) dat die enumeratie gebruikt, zodat
- * index i aan beide kanten dezelfde dag betekent. Werk dat toch in een gat-slot valt (een gat
- * dat niet op een hele dag rondt) wordt naar het eerstvolgende werkslot doorgeschoven, nooit
- * weggegooid. Geen `gaps` ⇒ identiek aan `periodsToSlotWork`.
- */
 export function periodsToWorkDaySlots(
   periods: readonly TimephasedContourPeriod[],
   gaps: readonly TaskSplitGap[] | undefined,
@@ -261,7 +172,6 @@ export function periodsToWorkDaySlots(
     }
     for (let i = 0; i < b.gap && pos < raw.length; i++, pos++) carry += raw[pos];
   }
-  // Restant voorbij het laatste blok (profiel langer dan de blokken dekken) — gewoon aanhangen.
   for (; pos < raw.length; pos++) { out.push(raw[pos] + carry); carry = 0; }
   if (carry > 0) {
     if (out.length > 0) out[out.length - 1] += carry; else out.push(carry);
@@ -270,8 +180,6 @@ export function periodsToWorkDaySlots(
   return out;
 }
 
-/** Inverse voor de exportkant: werkminuten per slot → aaneengesloten periodes (één per slot,
- *  ook 0-werk-slots — die zijn precies de gaten die `deriveSplitGapsFromPeriods` weer herkent). */
 export function periodsFromSlotWork(
   slotWork: readonly number[],
   slotMinutes: number,
@@ -281,16 +189,6 @@ export function periodsFromSlotWork(
   return slotWork.map((w, k) => ({ afterMinutes: k * mpd, minutes: mpd, workMinutes: Math.max(0, w), kind }));
 }
 
-// ── Contour ↔ toewijzing ─────────────────────────────────────────────────────────────────────────
-
-/**
- * Welke contour hoort bij welke toewijzing van de taak. Regel: `contour.resourceId` (het
- * OPS-resource-id, gezet door elke lezer) matcht `assignment.resourceId`, in
- * volgorde en elke contour hooguit één keer (twee toewijzingen van dezelfde resource op één taak
- * krijgen zo elk hun eigen contour). Terugval voor oudere documenten zonder `resourceId` (die
- * dragen alleen MSP's `resourceUid`): precies één contour én precies één toewijzing op
- * de taak ⇒ die horen bij elkaar. Anders `undefined` — de toewijzing valt terug op de formule.
- */
 export function matchContoursToAssignments(
   contours: readonly TaskTimephasedContour[] | undefined,
   assignments: readonly ResourceAssignment[],
@@ -308,13 +206,6 @@ export function matchContoursToAssignments(
   return out;
 }
 
-/**
- * Index (in `contours`) van de contour die volgens `matchContoursToAssignments` bij de toewijzing
- * `assignmentId` hoort — `siblings` zijn álle toewijzingen van de taak (de volgorderegel van de
- * koppeling gaat over de hele lijst). `-1` ⇒ geen gekoppelde contour (de toewijzing volgt de
- * formule). Voor de schrijfkant (`resourceSlice.setAssignmentContour`): vervang precies díe entry,
- * zodat een legacy-contour zonder `resourceId` bij de eerste bewerking zijn `resourceId` krijgt.
- */
 export function contourIndexForAssignment(
   contours: readonly TaskTimephasedContour[] | undefined,
   siblings: readonly ResourceAssignment[],
@@ -325,27 +216,6 @@ export function contourIndexForAssignment(
   return matched ? contours.indexOf(matched) : -1;
 }
 
-// ── Herschaling bij bewerken ─────────────────────────────────────────────────────────────────────
-
-/**
- * Herschaal een contourprofiel wanneer de werkduur van de taak van `oldWorkMinutes` naar
- * `newWorkMinutes` gaat (de duur zoals de solver hem rekent: zuivere werkminuten, zonder gaten).
- *
- * REGEL (MS Project-gedrag bij een duurwijziging op een "Contoured" toewijzing — MSP rekt of
- * krimpt de contour proportioneel mee met de nieuwe duur; hier overgenomen als ontwerpregel, niet
- * tegen MSP zelf nagemeten):
- *  - de as wordt proportioneel gerekt/gekrompen: elke `afterMinutes`/`minutes` × factor, dus ook de
- *    gaten schuiven en groeien mee (ze zijn onderdeel van dezelfde as — `rescaleSplitGaps` doet
- *    hetzelfde met `Task.splitGaps` zodat CPM en lastlezers dezelfde vorm zien);
- *  - `workMinutes` schaalt mee (werk = duur × inzet, het FIXED_UNITS-default van MSP én de
- *    bouwdefault van OPS) — BEHALVE bij `mspTaskType === 'FIXED_WORK'`: dan blijft het werk staan
- *    en daalt/stijgt alleen de dichtheid (de inzet per dag);
- *  - periodes van `kind: 'actual'` (al verricht werk) blijven ONGEWIJZIGD staan; alleen het deel
- *    van de as ná het einde van het laatste actual-record wordt herschaald, met een factor die op
- *    dát resterende deel is berekend (oud restant = `oldWorkMinutes − actual-werktijd`).
- * De factor is `newWork/oldWork` op het herschaalbare deel; is dat oude deel ≤ 0 of zijn de
- * invoerwaarden niet bruikbaar, dan komt het profiel ongewijzigd terug (nooit een NaN-profiel).
- */
 export function rescaleContourForDuration(
   periods: readonly TimephasedContourPeriod[],
   oldWorkMinutes: number,
@@ -370,19 +240,6 @@ export function rescaleContourForDuration(
   });
 }
 
-/** Dezelfde herschaling voor `Task.splitGaps` (alleen IMPORTsplits — gaten zonder `source` — en
- *  GEBRUIKERSsplits; nivelleergaten hebben hun eigen levenscyclus, `clearLevelingGaps`).
- *  `anchor`/`factor` komen uit het contourprofiel van dezelfde taak (`rescaleFactor`) zodat
- *  CPM-gaten en lastlezer-gaten niet uit elkaar lopen. Zonder profiel (geen contour) blijft de
- *  lijst onaangeraakt.
- *
- *  `unitMinutes`: een `source: 'user'`-gat is door de gebruiker
- *  zélf op een hele eenheid gezet (dag-modus: een werkdag). Fractioneel herschalen zou het naar een
- *  ándere dag of — bij een forse krimp — naar 0 laten ronden in `splitWalk`s dag-afronding, waarmee
- *  zijn eigen onderbreking stil verdwijnt. Daarom wordt zo'n gat ná de herschaling teruggesnapt op
- *  een veelvoud van `unitMinutes` (absoluut op de as, dezelfde grid als `splitDayPattern`), met
- *  minimaal één eenheid pauze. Importgaten blijven bewust fractioneel: die zijn brondata en mogen
- *  hun sub-dag-precisie niet verliezen. Geen `unitMinutes` ⇒ geen terugsnappen. */
 export function rescaleSplitGaps(
   gaps: readonly TaskSplitGap[] | undefined,
   periods: readonly TimephasedContourPeriod[],
@@ -397,7 +254,7 @@ export function rescaleSplitGaps(
   const unit = unitMinutes !== undefined && unitMinutes > 0 ? unitMinutes : 0;
   return gaps.map((g) => {
     if (g.source === 'leveling' || !Number.isFinite(g.afterMinutes) || !Number.isFinite(g.gapMinutes)) return { ...g };
-    if (g.afterMinutes < anchor) return { ...g }; // gat in het reeds verrichte deel — blijft staan
+    if (g.afterMinutes < anchor) return { ...g };
     const after = anchor + (g.afterMinutes - anchor) * factor;
     const gapMinutes = g.gapMinutes * factor;
     if (g.source === 'user' && unit > 0) {
@@ -411,8 +268,6 @@ export function rescaleSplitGaps(
   });
 }
 
-/** Anker (aseinde van het laatste actual-record, 0 zonder actuals) en factor voor de herschaling;
- *  `null` wanneer er niets zinnigs te herschalen valt. */
 export function rescaleFactor(
   periods: readonly TimephasedContourPeriod[],
   oldWorkMinutes: number,
@@ -435,9 +290,6 @@ export function rescaleFactor(
   return { anchor, factor };
 }
 
-/** Werkduur van een taak in werkminuten zoals de solver hem rekent (spiegelt `duration.ts`'s
- *  `durationMinutesOf`, maar zonder engine-object: de aanroeper geeft de `hoursPerDay` van de
- *  taakkalender mee). Uren-taak ⇒ `durationMinutes` (bron van waarheid), anders dagen × mpd. */
 export function taskWorkMinutes(
   time: { durationUnit?: 'days' | 'hours'; durationMinutes?: number; scheduleDuration: number },
   hoursPerDay: number,
@@ -448,21 +300,6 @@ export function taskWorkMinutes(
   return Math.max(0, time.scheduleDuration) * Math.max(0, hoursPerDay) * 60;
 }
 
-/**
- * Lengte van de contour- en split-as van een taak: de maat waarmee de herschaling
- * (`rescaleTaskContours`, `rescaleSplitGaps`, het afknippen van gebruikersgaten) de duur VÓÓR en NÁ
- * een bewerking meet. Beide kanten moeten op dezelfde as staan; alleen de verhouding en het
- * actual-anker tellen.
- *
- * Werktijd: gelijk aan {@link taskWorkMinutes} (werkminuten, of dagslots bij een dagtaak).
- *
- * Kalendertijd (`ELAPSEDTIME`): de duur telt in klokdagen van 24 u (`elapsedMinutesOf` in `duration.ts`),
- * maar de as telt per werkdag één slot van `hoursPerDay × 60`, net als bij een dagtaak (de plaatsing
- * en de contourdialoog delen per werkdag). Daarom: klokdagen × `hoursPerDay × 60`, in BEIDE eenheden.
- * Een dagtaak van 2 d en een urentaak van 48 u zijn zo allebei 960 (bij 8 u per dag), en een wissel van
- * eenheid herschaalt niets. `taskWorkMinutes` gaf 960 tegenover 2880 (de klokminuten van de urentaak),
- * waardoor de contour bij de wissel naar uren verdrievoudigde (knownbug 265, aanval a04 na #600).
- */
 export function taskAxisMinutes(
   time: { durationType?: DurationType; durationUnit?: 'days' | 'hours'; durationMinutes?: number; scheduleDuration: number },
   hoursPerDay: number,
