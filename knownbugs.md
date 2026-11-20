@@ -4006,18 +4006,6 @@ en noem het in je rapport of PR-tekst.
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
 
-1900. **VERVOLG (#804 stap 8): de schrijftijd van Automatisch opslaan telt mee voor Ctrl+S en sluiten.**
-      Een ronde van Automatisch opslaan rekent en schrijft onder hetzelfde schrijfslot als Ctrl+S. Een Ctrl+S, ook van
-      een ander tabblad, en het sluiten van een tabblad wachten tot die ronde klaar is; tijdens een Ctrl+S slaat de tik
-      zijn beurt over (proef `review wachtrij` in `check-ifc-document-save.ts`). Bij gewone plannen is de wachttijd niet
-      gemeten (starttimeout 10 s, rekentimeout 60 s). Advies van de reviewer voor stap 8, letterlijk: "Stap 8 moet
-      dezelfde gecontroleerde vervanging gebruiken als handmatig opslaan, met bronvergelijking na de merge en een
-      herstelrecord vóór plaatsing. Alleen de huidige uitsluiting opheffen is onveilig. De stille ronde heeft voor een
-      model apart 30 s rust en een bovengrens van 5 min per document nodig. Zet een achtergrondmerge van 18 s zonder
-      voorrang voor handmatige acties in deze gedeelde rij en beide sluitpaden wachten die hele tijd. Ontwerp de
-      voorrang vóór het aanzetten en meet ook een handmatige opslag van een ander document. Gebruik dezelfde
-      schrijfcoördinatie voor plaatsing en commit." Review van #1027 (Sol): [BEVESTIGD] VERVOLG. — B (proef)
-
 1901. **VERVOLG (#1027, opruimen en proeven): drie kleine punten uit de review van de late exportcontrole.**
       (a) De regressieproef in de repo dekt alleen de geslaagde tabbladwissel ("review van #1027 ronde 2" in
       `check-ifc-document-save.ts`): er ontbreekt een weigering nadat het exportdocument inactief werd (A bewerkt of
@@ -4038,6 +4026,125 @@ en noem het in je rapport of PR-tekst.
       gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
       Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
       `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
+
+1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
+      Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het
+      sluiten van een tabblad en de laatste fase van afsluiten (`runYieldingProjectFileWrite` in `writeCoordinator.ts`;
+      besluit technisch beslisser 19 november 2026: "Zolang een ronde van een gebouwmodel nog rekent"). Een gewone ronde
+      houdt de schrijfrij vast tot ze klaar is; de handmatige actie wacht dan op haar (proef `review wachtrij` in
+      `check-ifc-document-save.ts`). Bij gewone plannen is die wachttijd niet gemeten (starttimeout van de worker 10 s,
+      rekentimeout 60 s). Was het tweede deel van de oude 1900; het eerste deel (de voorrang bij een gebouwmodel) is met
+      stap 8 opgelost. Richting, als een meting het nodig maakt: de gewone ronde ook via `runYieldingProjectFileWrite`,
+      met de grens vóór `saveToRefWithoutPrompt`. — S
+
+1906. **VERVOLG (review #1033): wijken kan herstelmetadata achterlaten, alleen na een schrijffout tijdens het
+      opruimen.** "De gedeelde grens `stopBeforeWrite`, na het vastleggen van herstel en vóór de eerste schrijfactie in
+      de projectmap of op de handle, is de juiste plek. Met werkende opslag bleef Ctrl+S buiten de rij tot de lopende
+      herstelhandeling en het opruimen klaar waren. Toen zagen beide proeven de originele bestandshash, een gewijzigd
+      document en nul hulpbestanden, herstelrecords of komende versies. Alleen Ctrl+S schreef daarna. Bij één geweigerde
+      desktopverwijdering bleef na wijken één record staan, zonder projectwrite of hulpbestand. De export werd
+      geannuleerd en de volgende modelronde zette AutoSave stil op het eigen achtergebleven record, terwijl de
+      verwijderfout al voorbij was. Bij één geweigerde browserwrite tijdens opruimen bleef `pendingSha256` in het
+      manifest staan tot een volgende geslaagde flush. Daarmee faalt de expliciete eis dat een geweken ronde haar
+      herstelmetadata opruimt. Geef mislukte opruiming een eigen uitkomst in de bestaande vervanging en laat een
+      herstelpoging het onderscheid bewaren tussen een bewust afgebroken ronde zonder projectwrite en een werkelijk
+      onderbroken vervanging." (`ownFileReplace.ts`, `recoveryPendingSource.ts`.) Besluit technisch beslisser: VERVOLG,
+      het treedt alleen op na een schrijffout tijdens het opruimen. — B (proef van de reviewer)
+
+1922. **VERVOLG (review #1033): de tijdgrenzen van Automatisch opslaan met een gebouwmodel kunnen botsen.**
+      De ondergrens (de volgende ronde niet vóór tien keer de duur van de vorige, na haar begin) gaat vóór de bovengrens
+      van 5 minuten (`modelAutoSaveRhythm.ts`). Begint op 30 s een ronde van 40 s en volgt op 40 s een nieuwe wijziging,
+      dan is de volgende ronde pas op 430 s aan de beurt, 90 s na de grens van vijf minuten voor die wijziging. De
+      belofte "het bestand loopt nooit meer dan 5 minuten achter" geldt dan niet. De afweging tussen tijdgrens en
+      belasting ligt bij de eigenaar; het ritme is bewust niet veranderd. — B (rekenproef van de reviewer)
+
+1923. **VERVOLG (review #1033): ook een desktopopenactie en `planner_export_ifc` laten een ronde van Automatisch opslaan
+      wijken.** Een desktopopenactie breekt de ronde af via het bestaande wachten op de rij (`readOpenedTauriPath` →
+      `whenProjectFileWritesIdle`); `planner_export_ifc` doet dat bij toegang tot de rij, na zijn eigen voorbereiding.
+      De afgebroken ronde komt na de volgende rust terug; er gaat niets verloren. Het besluit noemt alleen Ctrl+S,
+      Opslaan als, een export, een tabblad sluiten en afsluiten. Richting: maak de voorrang een expliciete keuze van de
+      aanroeper als hij alleen voor bepaalde acties bedoeld is. — B
+
+1924. **VERVOLG (review #1033): een tweede stop van Automatisch opslaan kan stil zijn.** De melding bij een stop komt één
+      keer per document per sessie (`targetNotified` in `fileAutoSave.ts`). Een geslaagde handmatige opslag heft de stop
+      op (een nieuwe bron), maar de registratie van de melding blijft. Stopt Automatisch opslaan later opnieuw, ook om een
+      andere reden, dan ziet de planner geen melding. Richting: koppel de melding aan de actieve weigering als opnieuw
+      melden na herstel gewenst is. — B
+
+1925. **VERVOLG (review #1033, opruimen): een document zonder schrijftoestemming houdt de wekker van een gebouwmodel elke
+      seconde wakker.** Fixronde 1 liet de wekker alleen documenten tellen die meedoen (Automatisch opslaan aan, geen
+      stop, geen schemavraag; `nextModelRoundAt` in `fileAutoSave.ts`, proef `wekkers` in `check-ifc-document-save.ts`).
+      Eén geval blijft: een handle zonder schrijftoestemming in de browser. De ronde slaat dat document over vóór ze
+      begint (`canWrite`), dus het ritme blijft "aan de beurt" en de wekker gaat elke seconde af, zonder iets te doen.
+      Richting: na een overgeslagen kandidaat de rust opnieuw laten beginnen. — S
+
+1927. **VERVOLG (review #1033): Automatisch opslaan uitzetten stopt een rekenende ronde niet.** "Ik zette Automatisch
+      opslaan uit vóór de worker antwoordde. De ronde schreef alsnog het bestand en maakte het document schoon. De
+      schakelaar telt alleen bij kandidaatselectie. Laat de modelronde bij uitschakelen hetzelfde stopsignaal gebruiken
+      als bij handmatige voorrang en houd de afgesproken plaatsingsgrens aan." (`TitleBar.tsx`, `fileAutoSave.ts`.)
+      Besluit technisch beslisser: zeldzaam, en er gaat geen data verloren (de ronde schrijft wat er is). — B (proef van
+      de reviewer)
+
+1928. **Waarneming (review #1033, desktopapp, één keer): bij onafgebroken doorwerken schreef Automatisch opslaan pas
+      325,9 s na de eerste wijziging.** Een vastgelegde wijziging elke 25,3 s (de eerste op 16,3 s na de start, de
+      twaalfde op 294,3 s, de dertiende op 319,6 s); het bestand werd op 342,2 s geschreven. Twee andere runs (een
+      wijziging elke 23 s, en elke 10 s) schreven op 301 s na de eerste wijziging. In de afwijkende run opende het
+      invoerscript de cel ongeveer een seconde vóór elke vastlegging. Vermoeden, niet nagegaan: de ronde begon op de
+      grens van 5 minuten (316,3 s) en eindigde ongeveer 2,6 s later zonder te schrijven (bijvoorbeeld omdat de inhoud
+      tijdens de ronde veranderde); de ondergrens van tien keer de rondeduur zette de volgende dan op 316,3 + 26 = 342,3 s.
+      Dat klopt met de gemeten 342,2 s. Waarom die ronde niet schreef, is niet gevonden.
+      Aanvulling uit de tweede review van #1033 (reviewer, letterlijk): "Knownbug 1928 heeft een reproduceerbaar
+      mechanisme, met onbekende oorzaak in de oorspronkelijke run. Een modelronde begon bij 300 s. Na een opgewekte
+      workerfout op 302,6 s had ze niets geschreven en kwam de volgende ronde pas op 326 s aan de beurt. `roundEnded`
+      telt ook rondes zonder write mee voor de factor tien. De fout gaf in mijn proef een melding. Gewoon typen met
+      behoud van de documentinhoudsidentiteit laat een al rekenende ronde haar momentopname opslaan. De historische
+      325,9 s volgt dus niet uit het openen van de cel alleen. Om die run te verklaren zijn het start- en eindmoment en
+      de uitkomst van de eerste ronde nodig." (`fileAutoSave.ts`, `roundEnded` in `modelAutoSaveRhythm.ts`.) — S
+
+1929. **VERVOLG (review #1033): met een afhankelijk project beoordeelt Automatisch opslaan het anker op de hoofdthread,
+      bij elke beurt opnieuw.** "Met een gevonden afhankelijk project schrijft, leest en berekent AutoSave eerst de
+      planning op de hoofdthread, onder het schrijfslot. Een te krap anker kan dat bij elke volgende beurt laten
+      herhalen, ook met dezelfde invoer. De kosten voor een normale grote planning zijn hier niet gemeten. Hergebruik de
+      beoordeling zolang de planningsinvoer en het zoekresultaat gelijk blijven." (`fileAutoSave.ts`,
+      `tightAnchorsIfSaved` in `dependentCandidates.ts`.) — B
+
+1931. **VERVOLG (review #1033): de ondergrens na één geweken ronde verlengt het uitstel.** "Een ronde die op 32 s begint
+      en op 40 s wijkt, krijgt op zijn vroegst op 112 s weer een beurt. Alleen de dertig seconden rust zouden uitkomen
+      op 70 s. Dit volgt uit de bestaande factor tien over alle rondes. Op zichzelf is die extra wachttijd een vervolg
+      bij de bekende spanning tussen de tijdgrenzen. Voor 1930 volstaat schrappen van de ondergrens voor geweken rondes
+      niet. De volgende gewone schrijfactie kan de modelronde nog steeds weer afbreken." (`roundEnded` in
+      `modelAutoSaveRhythm.ts`.) Sinds fixronde 3 wijkt een ronde alleen nog voor een handmatige actie (Ctrl+S, Opslaan
+      als, een export, een tabblad of de app sluiten), niet meer voor een gewone tik; de verlenging geldt dan na zo'n
+      actie. Hoort bij 1922. — B (proef van de reviewer)
+
+1937. **VERVOLG (review #1033, ronde 4): een gewone tik die nog wacht, gaat vóór Ctrl+S.** "De modelworker begon op 32
+      s, de gewone tik kwam op 40 s in de rij, en Ctrl+S op een ander tabblad liet de modelworker op 43 s meteen wijken.
+      De gewone tik begon toen pas te rekenen en hield Ctrl+S tot 45 s tegen. Op main en met de vlag uit was dezelfde
+      gewone tik al klaar toen ik Ctrl+S aanriep. Die schreef daar op 43 s. De twee seconden rekentijd zijn nagebootst.
+      Dit is een verschuiving van punt 3 uit ronde 3 en zit in de structuur. `runProjectFileWrite` breekt het modelwerk
+      af, waarna de volgorde van aankomst de nog wachtende gewone tik voorlaat. Ook main wacht als een gewone write al
+      loopt (knownbug 1904). Geef de handmatige actie als volgende de beurt vóór wachtend timerwerk. Laat een al
+      begonnen gewone write of plaatsing veilig aflopen." (`writeCoordinator.ts`.) Besluit technisch beslisser: VERVOLG,
+      er gaat niets verloren en het is een zeldzame volgorde; verdwijnt met 1939. — B (proef van de reviewer)
+
+1938. **VERVOLG (review #1033, ronde 4): doortypen kan de gewone tik achter een tweede modelronde zetten.** "Twee
+      gewijzigde modellen kwamen op 30 s aan de beurt. De eerste modelronde liep tot 49 s. Ik bewerkte intussen de
+      gewone planning vóór en na haar tik van 40 s. Toen die tik op 49 s aan de beurt kwam, wees de bronvergelijking de
+      kandidaat van 40 s terecht af. De herkeuze ging achter het tweede model, dat ook 19 s rekende. Het gewone bestand
+      schreef pas op 68 s, 28 s na de eerste verschuldigde tik. Dit is een verschuiving van punt 2 uit ronde 3 en zit in
+      de structuur. De rij bewaart een oude kandidaat. Zodra die afvalt, is ook zijn plaats weg. Bewaar één aangevraagde
+      gewone beurt en lees daarbinnen de actuele kandidaat en bestemming. Zo kan verder typen haar plaats niet kosten."
+      (`fileAutoSave.ts`, `actualAutoSave.ts`.) Besluit technisch beslisser: VERVOLG, er gaat niets verloren en het is
+      een zeldzame volgorde; verdwijnt met 1939. — B (proef van de reviewer)
+
+1939. **VERVOLG (review #1033, ronde 4): toelating en voorrang van timerwerk in de coördinator, één samengevouwen gewone
+      aanvraag.** Structuuradvies van de reviewer: "`writeCoordinator.ts` is de enige toewijzer van schrijfbeurten.
+      `fileAutoSave.ts` beslist echter met `isManualProjectFileWriteQueued()` op twee plekken welke tik niet eens om een
+      beurt vraagt. `fileAutoSaveTimers.ts` zet alleen de wekkers. `fileSlice.ts` meldt een export vóór het rekenen aan
+      en wacht zo nodig op de lopende plaatsing. Laat de coördinator ook de toelating en voorrang van timerwerk bepalen.
+      Dan kunnen de twee voorrangstoetsen in de kandidatenlijsten weg. Eén rij met beurttypen, één samengevouwen gewone
+      aanvraag en één lopende plaatsingsbelofte volstaan." Hiermee verdwijnen 1937 en 1938. Regel van de technisch
+      beslisser: **bouwen vóór de featureflag `ifcForeignContent` standaard aan gaat.** — S
 
 ## Wensen en open taken (geen bug)
 

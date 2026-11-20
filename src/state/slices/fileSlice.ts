@@ -4,7 +4,7 @@ import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, 
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
-import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
+import { ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
@@ -16,10 +16,9 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, replaceHandleWithBytes, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
-import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
-import { ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery } from '../ownFileReplace';
+import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -90,15 +89,14 @@ import {
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
-import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
 import { saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
-import { tightDependentAnchors } from '@/engine/dependentProjects';
-import { dependentAnchorsAsSaved } from '../dependentCandidates';
+import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
@@ -769,6 +767,10 @@ export type ChosenExternalSource =
 const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
 /** De bestandskiezer van een IFC-projectbestand (Opslaan, Opslaan als, de bibliotheek). */
 const IFC_FILE_FILTERS: FileFilter[] = [{ name: 'IFC Files', extensions: ['ifc'] }];
+/** Een IFC-export weigert omdat zijn document veranderde terwijl hij wachtte (`refuseChangedExport`, `withIfcExportPriority`). */
+const IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE = {
+  severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed',
+} as const;
 
 /** Het opslagdoel van een document na een geslaagde opslag (zie `commitSavedDocument`). */
 export interface SaveDestination {
@@ -819,6 +821,36 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       } else throw error;
       return null;
     }
+  };
+
+  /**
+   * #804 stap 8, fixronde 2 van de review van #1033: één volgorde voor een IFC-export, van de bronkeuze via de vraag
+   * "alleen de planning" en het rekenen tot en met het schrijven. Vanaf het begin houdt de export voorrang
+   * (`claimProjectFileWrite`): een ronde van Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt
+   * meteen, en zolang de export loopt wijkt elke nieuwe ronde ook, ook terwijl de vraag open staat. Een ronde die al
+   * plaatst, maakt dat eerst af (`whenProjectFilePlacementSettled`); pas daarna neemt de export zijn bron op. Een
+   * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseChangedExport`). Zonder zo'n ronde
+   * (ook met de flag uit) begint de export zonder wachten, zoals vóór stap 8.
+   * Fixronde 3: de export legt bij de aanroep vast voor welk document en welke inhoud hij bedoeld is, vóór de wachtstap.
+   * Staat na de plaatsing een ander document in het actieve tabblad, of kreeg het tabblad een andere inhoud, dan weigert
+   * hij met de bestaande melding, vóór de bestandskiezer; nooit exporteert hij een ander document. Hetzelfde document
+   * exporteert hij met de bron van ná de plaatsing.
+   */
+  const withIfcExportPriority = async (run: () => Promise<ExportResult>): Promise<ExportResult> => {
+    const requested = snapshotContent(get());
+    const release = claimProjectFileWrite();
+    try {
+      const placement = whenProjectFilePlacementSettled();
+      if (placement) {
+        await placement;
+        const now = get();
+        if (now.activeDocumentId !== requested.id || !sameDocumentContent(now, requested)) {
+          now.notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
+          return { ok: true, warnings: [], cancelled: true };
+        }
+      }
+      return await run();
+    } finally { release(); }
   };
   const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<DocumentWrite | null> => {
     const write = await prepareAppIfcWrite(state, input, planOnly);
@@ -1324,7 +1356,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
     if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
       && (!hasForeignContent(snapshot.ifcSource) || now.ifcSource === snapshot.ifcSource)) return false;
-    get().notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
+    get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
 
@@ -1345,7 +1377,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       now.notify(ifcWriteBlockedNotice(doc));
       return true;
     }
-    now.notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
+    now.notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
 
@@ -1504,16 +1536,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    */
   const settleDependentAnchors = async (): Promise<boolean> => {
     const before = get();
-    const result = before.ui.dependentProjects.find(r => r.documentId === before.activeDocumentId);
-    if (!result || result.projectId !== before.project.id || result.links.length === 0) return true;
-    let tight;
-    try {
-      tight = await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(before, 'planOnly')));
-    } catch (err) {
-      // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
-      console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
-      tight = tightDependentAnchors(result.links, before.tasks);
-    }
+    // Dezelfde beoordeling als Automatisch opslaan (`tightAnchorsIfSaved`); alleen deze route stelt de vraag.
+    const tight = await tightAnchorsIfSaved(before.ui.dependentProjects, before.activeDocumentId, before);
     if (tight.length === 0) return true;
     const documentId = before.activeDocumentId;
     if (!(await askDependentAnchors(tight))) return false;
@@ -1526,35 +1550,30 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
 
   /**
-   * Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle, bij een document met een gebouwmodel. In het
-   * herstel in twee stappen (`replaceWithRecoveryPending`): eerst staat de komende versie in het herstelmanifest, dan
-   * schrijft de browser de buffer, vlak vóór `close()` volgt de tweede inhoudscontrole, en pas na `close()` wordt de
-   * geschreven versie de bron (`commitSavedDocument` met `prepared`). Kan het herstel de komende versie niet vastleggen
-   * (`'not-recorded'`: geen herstelronde, de herstelvraag bij de start nog open, of IndexedDB geweigerd), dan schrijft
-   * de app niet (knownbug 1764). Bij elke weigering of fout blijft het document zoals het was.
+   * Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle, bij een document met een gebouwmodel, via
+   * `replaceOwnHandleWithRecovery` (`ownFileReplace.ts`, ook de route van Automatisch opslaan, #804 stap 8): eerst staat
+   * de komende versie in het herstelmanifest, dan schrijft de browser de buffer, vlak vóór `close()` volgt de tweede
+   * inhoudscontrole, en pas na `close()` wordt de geschreven versie de bron (`commitSavedDocument` met `prepared`). Kan
+   * het herstel de komende versie niet vastleggen (`'not-recorded'`: geen herstelronde, de herstelvraag bij de start nog
+   * open, of IndexedDB geweigerd), dan schrijft de app niet (knownbug 1764). Bij elke weigering of fout blijft het
+   * document zoals het was.
    */
   const replaceOwnHandle = async (
     documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
     ref: Extract<FileRef, { kind: 'handle' }>, failureNoticeKey: string,
   ): Promise<boolean> => {
-    const expected = state.ifcSource!.bytes;
-    const seen: { refused?: Exclude<SourceTargetContent, 'same'>; committed?: boolean } = {};
+    let committed = false;
     try {
-      const outcome = await replaceWithRecoveryPending(documentId, prepared.sha256, {
-        replace: async () => {
-          if (refuseChangedDocumentWrite(state, write)) return false;
-          return replaceHandleWithBytes(ref, prepared.bytes, async () => {
-            const content = await sourceTargetContent(ref, expected);
-            if (content !== 'same') seen.refused = content;
-            return content === 'same';
-          // Knownbug 1896: de inhoud van het document, in de schrijflaag direct naast `close()` (review van #1027).
-          }, () => refuseChangedDocumentWrite(state, write));
-        },
-        commit: () => { seen.committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
+      const result = await replaceOwnHandleWithRecovery({
+        documentId, ref, prepared, source: state.ifcSource!.bytes,
+        stopBeforeWrite: () => refuseChangedDocumentWrite(state, write),
+        // Knownbug 1896: de inhoud van het document, in de schrijflaag direct naast `close()` (review van #1027).
+        refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
+        commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
       });
-      if (outcome === 'replaced') return seen.committed === true;
-      if (outcome === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
-      else if (seen.refused) get().notify(ownTargetContentNotice(seen.refused));
+      if (result.code === 'replaced') return committed;
+      if (result.code === 'not-recorded') get().notify(IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE);
+      else if (result.code === 'target-changed') get().notify(ownTargetContentNotice(result.content));
       return false;
     } catch (err) {
       console.error('Save failed:', err);
@@ -1981,7 +2000,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return save;
   };
 
-  return {
+  const slice: FileSlice = {
     commitSavedDocument,
     applyProjectEdit: (parsed, opts) => get().applyLoadedProject(parsed, {
       intent: 'edit',
@@ -3173,5 +3192,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         return false;
       }
     },
+  };
+  // Fixronde 2 van de review van #1033: de IFC-exports in één volgorde met voorrang (`withIfcExportPriority`).
+  return {
+    ...slice,
+    exportAs: (format, options) => format === 'ifc'
+      ? withIfcExportPriority(() => slice.exportAs(format, options)) : slice.exportAs(format, options),
+    exportProjectWithPool: () => withIfcExportPriority(slice.exportProjectWithPool),
   };
 };

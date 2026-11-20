@@ -670,16 +670,70 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect(saveWorkers[0]!.type).toBe('module');
       expect(saveWorkers[0]!.messages[0]).toBe('started');
       expect(saveWorkers[0]!.messages.at(-1), 'de bewerkte merge kwam uit de worker').toBe('result:merge');
-      const saved = await page.evaluate(async () => {
+      const readSaved = () => page.evaluate(async () => {
         const state = window.__OPS__!.store.getState();
         const file = await state.fileHandle!.getFile();
         return { text: await file.text(), name: file.name, source: state.ifcSource!.sha256, mark: state.foreignSourceMark!.sha256,
           refusals: state.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey) };
       });
+      let saved = await readSaved();
       expect(saved.refusals).toEqual([]);
       expect(saved.text).not.toBe(text);
       expect(saved.text).toContain('IFCWALL(');
       expect(saved.source).toBe(saved.mark);
+      // #804 stap 8: Automatisch opslaan bij dit bestand met een gebouwmodel. De schakelaar in de titelbalk, een echte
+      // bewerking, en de klok vooruit: na 10 s (het ritme van een gewoon document) nog niets, na 30 s rust vervangt de app
+      // het eigen bestand via dezelfde handle, met de merge uit de opslagworker. Het heropenen hieronder leest dat bestand:
+      // de nieuwe duur, en het vreemde deel byte voor byte.
+      const autoSaveToggle = page.locator('[data-ops-autosave]');
+      await autoSaveToggle.click();
+      await expect(autoSaveToggle).toHaveAttribute('aria-checked', 'true');
+      const ctrlSText = saved.text;
+      await editFirstLeafDuration();
+      task.duration += 1;
+      await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
+      await page.clock.fastForward(10_000);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'na 10 s nog niet: het model wacht op 30 s rust').toBe(true);
+      await page.clock.fastForward(21_000);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { timeout: 20_000 }).toBe(false);
+      saved = await readSaved();
+      expect(saved.refusals).toEqual([]);
+      expect(saved.text).not.toBe(ctrlSText);
+      expect(saved.text).toContain('IFCWALL(');
+      expect(saved.source).toBe(saved.mark);
+      expect((await saveWorkerLog())[0]!.messages.at(-1), 'de merge van Automatisch opslaan kwam uit de worker').toBe('result:merge');
+      // Fixronde 1 van de review van #1033 (punt 6): typen in een cel van de taakgrid telt als werken, ook vóór Enter. Een
+      // vastgelegde wijziging, 28 s later een taaknaam typen zonder Enter: 31 s na die wijziging schrijft de ronde nog
+      // niet. Na Escape (niets vastgelegd) en 30 s rust wel. Fixronde 2: de eerste letter op een geselecteerde cel opent de
+      // editor met die letter (zonder F2) en telt ook; daarna verder typen, en 28 s later nog steeds niets geschreven.
+      const autoSavedText = saved.text;
+      await editFirstLeafDuration();
+      task.duration += 1;
+      await page.clock.fastForward(28_000);
+      const nameCell = page.locator(`[data-grid-data-row="true"][data-grid-row-key="${task.id}"] [data-grid-data-cell="true"][data-grid-column-id="task.name"]`).first();
+      await nameCell.click();
+      await page.keyboard.press('X');
+      const nameInput = nameCell.locator('input');
+      await expect(nameInput).toBeVisible();
+      await expect(nameInput).toHaveValue('X');
+      await page.clock.fastForward(3_000);
+      await page.waitForTimeout(2_000);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'de eerste letter in de cel houdt de ronde tegen').toBe(true);
+      expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
+      await nameInput.pressSequentially(' en verder');
+      await page.clock.fastForward(28_000);
+      await page.waitForTimeout(2_000);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'verder typen in de cel houdt de ronde tegen').toBe(true);
+      expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
+      await nameInput.press('Escape');
+      await page.clock.fastForward(31_000);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { timeout: 20_000 }).toBe(false);
+      saved = await readSaved();
+      expect(saved.refusals).toEqual([]);
+      expect(saved.text).not.toBe(autoSavedText);
+      expect(saved.text).toContain('IFCWALL(');
+      await autoSaveToggle.click();
+      await expect(autoSaveToggle).toHaveAttribute('aria-checked', 'false');
       // Eerst wachten tot het heropende document actief is: het bewerkte document heeft dezelfde duur.
       const savedDocument = await page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId);
       const savedChooser = page.waitForEvent('filechooser');

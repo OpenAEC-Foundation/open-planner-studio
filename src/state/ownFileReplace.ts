@@ -5,6 +5,8 @@
 // van een lokaal pad). Keuze 4 (knownbug 1131 stap 8): *Opslaan als* over een andere bestaande naam gebruikt dezelfde
 // functie (`replaceExistingPath` in `fileSlice.ts`), met als verwachte inhoud wat de bestandskiezer op dat doel vond
 // (`pickSaveTarget`); sinds fixronde 2 van #1071 ook voor een document zonder vreemd deel (zonder de manifeststap).
+// #804 stap 8: Automatisch opslaan gebruikt dezelfde twee vervangingen (`replaceOwnPathWithRecovery`, en
+// `replaceOwnHandleWithRecovery` voor de browser), met een eigen afhandeling van de uitkomsten (`fileAutoSave.ts`).
 import { replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import {
   linkedOwnFile, replaceHelpersGone, replaceOwnFileBytes, tauriOwnFileReplaceFs,
@@ -12,7 +14,8 @@ import {
 } from '@/services/fileAccess/ownFileReplace';
 import { tauriReplaceRecords, whileReplaceRuns, type ReplaceRecordStore } from '@/services/fileAccess/replaceRecords';
 import { userFileHelperId } from '@/services/fileAccess/atomicWrite';
-import type { RefuseBeforePlace } from '@/services/fileAccess';
+import { replaceHandleWithBytes, sourceTargetContent, type FileRef, type RefuseBeforePlace } from '@/services/fileAccess';
+import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
 import {
   IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE, IFC_FOREIGN_TARGET_CHANGED_NOTICE,
@@ -43,7 +46,9 @@ export interface OwnPathReplaceInput {
   commit: () => void;
   /** Verplicht: na de eerste herstelronde en vóór de eerste schrijfactie in de projectmap opnieuw de doelbewaking
    *  (dezelfde als vóór de merge): `true` = stoppen (het document, zijn opslagdoel of zijn bron veranderde, of een
-   *  ander open document heeft het bestand intussen als bron). Meldt zelf; de uitkomst is dan `stopped`. */
+   *  ander open document heeft het bestand intussen als bron). Meldt zelf; de uitkomst is dan `stopped`. Dit is de
+   *  grens: tot hier kan de aanroeper stoppen zonder dat er iets van deze opslag blijft staan (#804 stap 8: Automatisch
+   *  opslaan wijkt hier voor een handmatige actie die zich meldde terwijl het herstel werd vastgelegd). */
   stopBeforeWrite: () => Promise<boolean>;
   /** Verplicht (knownbug 1896): de laatste controle, vlak vóór het opzijzetten van het doel (na de tweede doellezing,
    *  `replaceOwnFileBytes`): hoort de opslag nog bij de inhoud van het document (`refuseChangedDocumentWrite`)? `true` =
@@ -112,6 +117,51 @@ export async function replaceOwnPathWithRecovery(input: OwnPathReplaceInput): Pr
     }
     return recorded === 'not-recorded' ? { code: 'not-recorded' } : outcome!;
   });
+}
+
+export type OwnHandleReplaceResult = { code: 'replaced' } | { code: 'not-recorded' }
+  /** Op het doel staat niet meer precies de bron (vlak vóór `close()`); het bestand bleef ongemoeid. */
+  | { code: 'target-changed'; content: Exclude<SourceTargetContent, 'same'> }
+  /** `stopBeforeWrite` of `refuseBeforePlace` stopte de vervanging; het bestand bleef ongemoeid. */
+  | { code: 'stopped' };
+
+/**
+ * Knownbug 1131 stap 2: het eigen bestand achter een handle (browser) vervangen, bij een document met een gebouwmodel.
+ * In het herstel in twee stappen (`replaceWithRecoveryPending`): eerst staat de komende versie in het herstelmanifest,
+ * dan schrijft de browser de buffer (na `stopBeforeWrite`), vlak vóór `close()` volgt de tweede inhoudscontrole en
+ * daarna, zonder `await`, de laatste controle `refuseBeforePlace` (knownbug 1896); pas na `close()` volgt `commit`. Kan
+ * het herstel de komende versie niet vastleggen, dan schrijft de app niet (`not-recorded`, knownbug 1764). Binnen
+ * `runProjectFileWrite`. Een schrijf- of sluitfout gooit (`ByteWriteError`). Meldt niets; Ctrl+S (`fileSlice.ts`) en
+ * Automatisch opslaan (`fileAutoSave.ts`, #804 stap 8) kiezen hun eigen melding.
+ */
+export async function replaceOwnHandleWithRecovery(input: {
+  documentId: string;
+  ref: Extract<FileRef, { kind: 'handle' }>;
+  prepared: { bytes: Uint8Array; sha256: string };
+  /** Wat op het doel hoort te staan: de bron in het geheugen (`ifcSource.bytes`). */
+  source: Uint8Array;
+  /** Na het vastleggen in het herstelmanifest, vóór `createWritable()`: `true` = stoppen. Dit is de grens: tot hier kan
+   *  de aanroeper stoppen zonder dat er iets van deze opslag blijft staan (#804 stap 8: Automatisch opslaan wijkt hier
+   *  voor een handmatige actie die zich meldde terwijl het herstel werd vastgelegd). */
+  stopBeforeWrite: () => boolean;
+  refuseBeforePlace: RefuseBeforePlace;
+  commit: () => void;
+}): Promise<OwnHandleReplaceResult> {
+  let changed: Exclude<SourceTargetContent, 'same'> | undefined;
+  const outcome = await replaceWithRecoveryPending(input.documentId, input.prepared.sha256, {
+    replace: async () => {
+      if (input.stopBeforeWrite()) return false;
+      return replaceHandleWithBytes(input.ref, input.prepared.bytes, async () => {
+        const content = await sourceTargetContent(input.ref, input.source);
+        if (content !== 'same') changed = content;
+        return content === 'same';
+      }, input.refuseBeforePlace);
+    },
+    commit: input.commit,
+  });
+  if (outcome === 'replaced') return { code: 'replaced' };
+  if (outcome === 'not-recorded') return { code: 'not-recorded' };
+  return changed ? { code: 'target-changed', content: changed } : { code: 'stopped' };
 }
 
 /** De meldingen bij een uitkomst; leeg bij een gewone geslaagde vervanging. */

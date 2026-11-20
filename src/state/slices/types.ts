@@ -270,6 +270,11 @@ export type NotificationMessageKey =
   | 'notifications.ifcUnreadableTargetSave'
   | 'notifications.ifcUnreadableTargetExport'
   | 'notifications.ifcUnreadableTargetAutoSave'
+  // #804 stap 8: Automatisch opslaan bij een gebouwmodel stopt veilig (`state/modelAutoSaveNotices.ts`).
+  | 'notifications.ifcForeignAutoSaveTargetChanged'
+  | 'notifications.ifcForeignAutoSaveSaveAsOnly'
+  | 'notifications.ifcForeignAutoSaveNotRecorded'
+  | 'notifications.ifcForeignAutoSaveRemnant'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).

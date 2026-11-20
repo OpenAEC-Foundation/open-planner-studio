@@ -13,11 +13,12 @@ import { askPlanOnly, resetPlanOnlyAsker, setPlanOnlyAsker, type PlanOnlyReason 
 import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
-import { prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, prepareIfcOutput, IfcWriteBlockedError, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { createIfcSaveWorker, type IfcSaveWorkerOptions } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import { documentContentOf, saveStatusOf } from '@/state/documentSaveState';
 import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
 import { closeProjectFileWrites, isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
@@ -446,11 +447,13 @@ await check('zonder vreemd deel en flag aan: beide acties bytegelijk aan de gewo
   } finally { ipc.dispose(); }
 });
 
-await check('AutoSave: nul bytes, één bestaande melding per document per sessie', async () => {
+// #804 stap 8: met de flag aan doet een document met een gebouwmodel mee (de proeven onderaan); met de flag uit (na het
+// openen uitgezet) blijft het zoals op main: nul bytes en de bestaande melding.
+await check('AutoSave met de flag uit: nul bytes, één bestaande melding per document per sessie', async () => {
   const ipc = desktop(), original = join(dir, 'autosave-bron.ifc'); writeFileSync(original, bytes);
   try {
     const store = await openAt({ kind: 'path', path: original }); longer(store);
-    store.setState(s => { s.autoSaveToFile = true; }); clearNotices(store);
+    store.setState(s => { s.autoSaveToFile = true; s.ui.featureFlags = {}; }); clearNotices(store);
     const before = preserved(store), count = ipc.calls.length;
     const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true });
     await controller.flush(); await controller.flush();
@@ -1505,9 +1508,9 @@ function midSave() {
   let action: (() => void) | undefined;
   return { set: (a: () => void) => { action = a; }, run: () => { const a = action; action = undefined; a?.(); } };
 }
-const turnUntil = async (done: () => boolean) => {
+const turnUntil = async (done: () => boolean, what = 'de opslag bereikte het verwachte punt') => {
   for (let i = 0; i < 2000 && !done(); i++) await new Promise(r => setImmediate(r));
-  assert(done(), 'de opslag bereikte het verwachte punt');
+  assert(done(), what);
 };
 
 await check('handle Ctrl+S met een tabbladwissel tijdens de opslag: het slapende document wordt opgeslagen, het actieve blijft onaangeroerd', async () => {
@@ -2694,7 +2697,8 @@ await check('review bytes: Opslaan als met ontbrekende bron leest de werkervaria
   }
 });
 
-// Voor stap 8 (knownbug 1900): de gedeelde schrijfrij zoals die nu is.
+// Een gewone ronde van Automatisch opslaan houdt de schrijfrij vast (knownbug 1904); die van een gebouwmodel wijkt (stap 8,
+// de voorrangsproeven onderaan).
 await check('review wachtrij: handmatig opslaan en sluiten wachten op AutoSave, AutoSave kiest geen kandidaat tijdens Ctrl+S', async () => {
   const sw = saveWorker('manual');
   const path = join(dir, 'review-autosave-wachtrij.ifc'), plain = plainBytes();
@@ -2898,6 +2902,1055 @@ for (const withPool of [false, true]) {
     }
   });
 }
+
+// ── #804 stap 8: Automatisch opslaan bij een document met een gebouwmodel ─────────────────────────────────────────────
+// Dezelfde vervanging als Ctrl+S (browser: de handle met herstel in twee stappen; desktop: `replaceOwnPathWithRecovery`),
+// met een eigen ritme per document (30 s rust; de klok is nagebootst) en voorrang voor handmatige acties.
+/** De klok van het ritme: `rest()` laat 31 s rust voorbijgaan. */
+function autoClock() {
+  let t = 5_000_000;
+  return { now: () => t, rest: () => { t += 31_000; }, advance: (ms: number) => { t += ms; } };
+}
+/** Automatisch opslaan aan, met de echte controller zoals `useAutoSave` hem bouwt (de berekenfunctie van de store). */
+function modelAutoSave(store: Store, compute?: IfcOutputCompute) {
+  const clock = autoClock();
+  store.getState().setAutoSaveToFile(true);
+  const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute, now: clock.now });
+  /** Na een wijziging: de store meldt hem (`observe`), dan 31 s rust, dan de ronde. */
+  const round = () => { controller.observe(); clock.rest(); return controller.flushModels(); };
+  return { controller, clock, round };
+}
+const replaceRecordsIn = (appData: string) => readdirSync(appData).filter(name => name.includes('.replace.'));
+const autoErrors = (store: Store) => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
+
+await check('stap 8, browser: een ronde schrijft het eigen bestand via de handle; het model bytegelijk, de bron volgt, het herstelveld weg', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  const browser = browserDownload();
+  try {
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const auto = modelAutoSave(store, sw.compute);
+    auto.controller.observe();
+    await auto.controller.flushModels();
+    assert.deepEqual(writableLog, [], 'zonder 30 s rust geen ronde');
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    auto.clock.rest();
+    await auto.controller.flushModels();
+    const output = fileOf(name);
+    assert.equal(hash(output), expected.sha256, 'precies de merge van de momentopname');
+    assert.equal(sw.merges(), 1, 'gerekend in de opslagworker');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'één vervanging, de hele buffer in één write');
+    assert.deepEqual(mergeProblems(bytes, output), [], 'het vreemde deel bytegelijk');
+    const now = store.getState();
+    assert.equal(now.ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+    assert.equal(now.foreignSourceMark!.sha256, hash(output));
+    assert.equal(now.isDirty, false, 'niet meer gewijzigd');
+    assert.equal(statusOf(store), 'saved');
+    assert.equal(await pendingIn(now.activeDocumentId), undefined, 'het herstelveld is weg');
+    assert.deepEqual(autoErrors(store), []);
+    assert.equal(browser.downloads.length, 0, 'nooit een download');
+  } finally { unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('stap 8, desktop: een ronde vervangt het eigen pad; het model bytegelijk, de bron volgt, geen herstelrecord of hulpbestand', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(dir, 'autosave-eigen.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      const from = ipc.calls.length;
+      await modelAutoSave(store, sw.compute).round();
+      const output = new Uint8Array(readFileSync(own));
+      assert.equal(hash(output), expected.sha256, 'precies de merge van de momentopname');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'plugin:fs|write_file' && c.path?.startsWith(dir))
+        .map(c => [isTemp(c.path), c.options?.createNew]), [[true, true]], 'de hele buffer in het eigen tijdelijke bestand');
+      assert.equal(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive').length, 2, 'stap 3 en 4 van de vervanging');
+      assert.deepEqual(mergeProblems(bytes, output), [], 'het vreemde deel bytegelijk');
+      assert.equal(store.getState().ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
+      assert.equal(store.getState().isDirty, false);
+      assert.deepEqual(replaceRecordsIn(appData), [], 'het herstelrecord is weg');
+      assert.deepEqual(tempLeft(), [], 'geen hulpbestand');
+      assert.deepEqual(readdirSync(dir).filter(n => n.startsWith('autosave-eigen.ifc.')), [], 'geen vorige versie');
+      assert.deepEqual(autoErrors(store), []);
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8: typen tijdens de ronde; de momentopname staat in het bestand, het document blijft gewijzigd, de volgende ronde neemt het mee', async () => {
+  const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    const auto = modelAutoSave(store, sw.compute);
+    const first = auto.round();
+    await mergeArrives(sw, 1);
+    assert.equal(isProjectFileWriteBusy(), true, 'de ronde rekent onder het schrijfslot');
+    store.getState().addTask({ name: 'Getypt tijdens de ronde' });
+    await finishMerge(sw);
+    await first;
+    assert.equal(hash(fileOf(name)), expected.sha256, 'de momentopname van de ronde');
+    assert.equal(store.getState().isDirty, true, 'het latere werk is nog niet opgeslagen');
+    assert.equal(store.getState().ifcSource!.sha256, expected.sha256, 'de bron is wel de geschreven versie');
+    const second = auto.round();
+    await mergeArrives(sw, 2); await finishMerge(sw);
+    await second;
+    assert(plainText(fileOf(name)).includes('Getypt tijdens de ronde'), 'de volgende ronde schreef het latere werk');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('stap 8: een slapend document (ander tabblad) wordt opgeslagen en gecommit', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    const model = store.getState().activeDocumentId;
+    longer(store);
+    const auto = modelAutoSave(store, sw.compute);
+    const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+    store.getState().newDocument();
+    assert.notEqual(store.getState().activeDocumentId, model);
+    clearNotices(store);
+    await auto.round();
+    assert.equal(hash(fileOf(name)), expected.sha256, 'het slapende document is geschreven');
+    const sleeping = payloadOf(store, model);
+    assert.equal(sleeping.isDirty, false, 'en gecommit');
+    assert.equal(sleeping.ifcSource!.sha256, expected.sha256, 'de bron van het slapende document volgt');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+await check('stap 8: het eigen bestand verschilt van de bron; niets geschreven, één melding, geen tweede poging; na opslaan doet het weer mee', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    handleFiles.set(name, otherProgram);
+    writableLog.length = 0;
+    const auto = modelAutoSave(store, sw.compute);
+    await auto.round();
+    assert.equal(hash(fileOf(name)), hash(otherProgram), 'het bestand van de ander blijft');
+    assert.deepEqual(writableLog, [], 'nul schrijfacties');
+    assert.equal(sw.merges(), 0, 'gestopt vóór het rekenen');
+    assert.equal(store.getState().isDirty, true);
+    assertNotice(store, 'notifications.ifcForeignAutoSaveTargetChanged');
+    longer(store);
+    await auto.round();
+    assert.deepEqual(writableLog, [], 'geen tweede poging');
+    assertNotice(store, 'notifications.ifcForeignAutoSaveTargetChanged');
+    // De planner zet het bestand terug en slaat zelf op: daarna doet het document weer mee.
+    handleFiles.set(name, store.getState().ifcSource!.bytes);
+    assert.equal(await ctrlS(store), true, 'Ctrl+S slaat op');
+    clearNotices(store); writableLog.length = 0;
+    longer(store);
+    await auto.round();
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'na opslaan schrijft Automatisch opslaan weer');
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+for (const backend of ['browser', 'desktop'] as const) {
+  await check(`stap 8, ${backend}: het herstel kan de komende versie niet vastleggen; niets geplaatst, één melding`, async () => {
+    const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+    const ipc = backend === 'desktop' ? desktop(appData) : null, sw = saveWorker();
+    try {
+      const own = join(dir, 'autosave-niet-vastgelegd.ifc'); writeFileSync(own, bytes);
+      const opened = backend === 'browser' ? await openHandle(bytes, sw.compute)
+        : { store: await openAt({ kind: 'path', path: own }, bytes, sw.compute), name: '' };
+      const { store } = opened;
+      // Browser: geen herstelronde (zoals vóór de herstelkeuze), dus niets vast te leggen. Desktop: het record in de
+      // datamap kan niet geschreven worden.
+      const unregister = backend === 'desktop' ? recoveryRounds(store) : () => {};
+      if (ipc) ipc.faults.forbidden = path => path.startsWith(appData) && path.includes('.replace.');
+      try {
+        longer(store); clearNotices(store); writableLog.length = 0;
+        const from = ipc?.calls.length ?? 0;
+        await modelAutoSave(store, sw.compute).round();
+        if (ipc) {
+          assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'het eigen bestand onveranderd');
+          assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive'), [], 'niets geplaatst');
+          assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(dir)), [], 'nul schrijfacties in de map');
+          assert.deepEqual(replaceRecordsIn(appData), []);
+        } else {
+          assert.equal(hash(fileOf(opened.name)), hash(bytes), 'het eigen bestand onveranderd');
+          assert.deepEqual(writableLog, [], 'nul schrijfacties');
+        }
+        assert.equal(store.getState().isDirty, true);
+        assertNotice(store, 'notifications.ifcForeignAutoSaveNotRecorded');
+      } finally { unregister(); await clearRecovery(); }
+    } finally { ipc?.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+  });
+}
+
+await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, geen herstelrecord dat blijft, één melding', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const folder = mkdtempSync(join(dir, 'buiten-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      ipc.faults.forbidden = path => path.startsWith(`${folder}/`) && (isTemp(path) || path.includes('.ops-vorige-'));
+      ipc.faults.forbiddenMeta = true;
+      const from = ipc.calls.length;
+      const auto = modelAutoSave(store, sw.compute);
+      await auto.round();
+      assert.deepEqual(readdirSync(folder), ['model.ifc']);
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
+      assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+      longer(store);
+      await auto.round();
+      assert.equal(sw.merges(), 1, 'geen tweede poging');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8, desktop: een herstelrecord van een eerdere onderbroken vervanging; niets geschreven, één melding', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(dir, 'autosave-restant.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      const { ownRecoveryNames } = await import('@/services/recovery/recoveryPaths');
+      writeFileSync(join(appData, `${ownRecoveryNames.base}.replace.vaneerder1.json`), JSON.stringify({
+        kind: 'ops-replace', version: 1, id: 'vaneerder1', path: own, vorigeSha256: hash(bytes), pendingSha256: hash(otherProgram),
+      }));
+      longer(store); clearNotices(store);
+      const from = ipc.calls.length;
+      await modelAutoSave(store, sw.compute).round();
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive'), [], 'niets geplaatst');
+      assert.deepEqual(replaceRecordsIn(appData), [`${ownRecoveryNames.base}.replace.vaneerder1.json`], 'alleen het oude record');
+      assert.equal(store.getState().isDirty, true);
+      assertNotice(store, 'notifications.ifcForeignAutoSaveRemnant');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+// Besluit technisch beslisser, 19 november 2026: "de ronde wijkt". Elke proef houdt het rekenen van de ronde in de worker
+// vast (die antwoordt nooit): de handmatige actie loopt toch meteen, en de ronde schrijft niets en meldt niets.
+for (const manual of ['Ctrl+S, zelfde document', 'Ctrl+S, ander document', 'een tabblad sluiten', 'de laatste fase van afsluiten'] as const) {
+  await check(`stap 8, voorrang: ${manual} tijdens het rekenen breekt de ronde af; niets geschreven, geen melding, de ronde komt later terug`, async () => {
+    const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      const model = store.getState().activeDocumentId;
+      // Een tweede, gewoon document met een eigen handle (voor Ctrl+S op een ander document) of zonder bestand (sluiten).
+      let other = '', otherName = '';
+      if (manual === 'Ctrl+S, ander document') {
+        otherName = `gewoon-${++handleCount}.ifc`;
+        handleFiles.set(otherName, plainBytes());
+        await store.getState().openOpenedFile({ name: otherName, content: plainText(plainBytes()),
+          ref: { kind: 'handle', handle: new FakeHandle(otherName) as unknown as FileSystemFileHandle } });
+        other = store.getState().activeDocumentId;
+        longer(store);
+        store.getState().switchDocument(model);
+      } else if (manual === 'een tabblad sluiten') {
+        other = store.getState().newDocument();
+        store.getState().switchDocument(model);
+      }
+      longer(store); clearNotices(store); writableLog.length = 0;
+      const auto = modelAutoSave(store, sw.compute);
+      const round = auto.round();
+      await mergeArrives(sw, 1);
+      const roundWorker = sw.workers[0]!;
+      roundWorker.start();
+      let reopen: (() => void) | undefined;
+      let action: Promise<unknown>;
+      if (manual === 'Ctrl+S, zelfde document') action = ctrlS(store);
+      else if (manual === 'Ctrl+S, ander document') action = store.getState().saveFileForDocument((store.getState().switchDocument(other), other));
+      else if (manual === 'een tabblad sluiten') { store.getState().requestCloseDocument(other); action = turnUntil(() => !store.getState().documents.some(d => d.id === other)); }
+      else action = closeProjectFileWrites().then(r => { reopen = r; });
+      await round;
+      assert.equal(roundWorker.terminated, true, 'de worker van de ronde is gestopt, zonder te antwoorden');
+      assert.deepEqual(writableLog, [], 'de ronde schreef niets');
+      assert.equal(hash(fileOf(name)), hash(bytes), 'het eigen bestand onveranderd');
+      assert.equal(payloadOf(store, model).isDirty, true, 'het document blijft gewijzigd');
+      assert.deepEqual(autoErrors(store), [], 'geen melding');
+      if (manual.startsWith('Ctrl+S')) {
+        await mergeArrives(sw, 2);
+        assert.notEqual(sw.workers.at(-1), roundWorker, 'Ctrl+S rekent meteen in een nieuwe worker');
+        await finishMerge(sw);
+        assert.equal(await action, true, 'Ctrl+S slaat op');
+      } else await action;
+      if (manual === 'Ctrl+S, ander document') assert.equal(payloadOf(store, other).isDirty, false, 'het andere document is opgeslagen');
+      if (manual === 'een tabblad sluiten') assert(!store.getState().documents.some(d => d.id === other), 'het tabblad is dicht');
+      reopen?.();
+      if (manual === 'Ctrl+S, zelfde document') return;
+      // De ronde komt terug: niet meteen, wel na de volgende rustperiode.
+      store.getState().switchDocument(model);
+      await auto.controller.flushModels();
+      assert.equal(sw.requests().length, manual === 'Ctrl+S, ander document' ? 2 : 1, 'niet meteen opnieuw');
+      auto.clock.rest();
+      const again = auto.controller.flushModels();
+      await mergeArrives(sw, manual === 'Ctrl+S, ander document' ? 3 : 2); await finishMerge(sw);
+      await again;
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), [], 'na de rust schrijft de ronde alsnog');
+      assert.equal(store.getState().isDirty, false);
+      if (otherName) assert.equal(hash(fileOf(otherName)) !== hash(plainBytes()), true);
+    } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('stap 8, voorrang: tijdens het plaatsen breekt niets af; Ctrl+S wacht tot de ronde klaar is', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(dir, 'autosave-plaatsen.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute);
+    const order: string[] = [];
+    let manual: Promise<boolean> | undefined;
+    // De eerste herstelronde in de vervanging: het herstelrecord en het manifest liggen vast. Dan meldt Ctrl+S zich.
+    const unregister = recoveryRounds(store, () => {
+      if (manual || replaceRecordsIn(appData).length === 0) return;
+      store.getState().addTask({ name: 'Na de momentopname' });
+      manual = ctrlS(store).then(saved => { order.push('Ctrl+S'); return saved; });
+    });
+    try {
+      longer(store); clearNotices(store);
+      const expected = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
+      await modelAutoSave(store, sw.compute).round().then(() => order.push('ronde'));
+      assert(manual, 'Ctrl+S meldde zich tijdens het plaatsen');
+      assert.equal(await manual, true);
+      assert.deepEqual(order, ['ronde', 'Ctrl+S'], 'de ronde liep af, Ctrl+S wachtte');
+      assert.equal(sw.merges(), 2, 'de ronde en Ctrl+S rekenden elk één keer');
+      assert.notEqual(hash(new Uint8Array(readFileSync(own))), expected.sha256, 'Ctrl+S schreef daarna het latere werk');
+      assert(readFileSync(own, 'latin1').includes('Na de momentopname'));
+      assert.deepEqual(mergeProblems(bytes, new Uint8Array(readFileSync(own))), []);
+      assert.equal(store.getState().isDirty, false);
+      assert.deepEqual(replaceRecordsIn(appData), []);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8, ritme per document: een gewoon document ernaast schrijft meteen, het gebouwmodel pas na 30 s rust', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    const model = store.getState().activeDocumentId;
+    longer(store);
+    store.getState().setAutoSaveToFile(true);
+    const plainName = `gewoon-${++handleCount}.ifc`;
+    handleFiles.set(plainName, plainBytes());
+    await store.getState().openOpenedFile({ name: plainName, content: plainText(plainBytes()),
+      ref: { kind: 'handle', handle: new FakeHandle(plainName) as unknown as FileSystemFileHandle } });
+    const plain = store.getState().activeDocumentId;
+    assert.notEqual(plain, model);
+    longer(store);
+    clearNotices(store);
+    const auto = modelAutoSave(store, sw.compute);
+    auto.controller.observe();
+    await auto.controller.flush();
+    await auto.controller.flushModels();
+    assert.equal(payloadOf(store, plain).isDirty, false, 'het gewone document: meteen, op zijn eigen 10 s-ritme van useAutoSave');
+    assert.equal(hash(fileOf(name)), hash(bytes), 'het gebouwmodel wacht op zijn rust');
+    assert.equal(auto.controller.nextModelRoundAt(), auto.clock.now() + 30_000, 'de wekker staat op 30 s');
+    auto.clock.advance(29_000);
+    await auto.controller.flushModels();
+    assert.equal(hash(fileOf(name)), hash(bytes), 'na 29 s nog niet');
+    auto.clock.advance(1_000);
+    await auto.controller.flushModels();
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.notEqual(hash(fileOf(name)), hash(bytes), 'na 30 s rust wel');
+    assert.equal(payloadOf(store, model).isDirty, false);
+    assert.equal(auto.controller.nextModelRoundAt(), null, 'niets meer gepland');
+    assert.deepEqual(autoErrors(store), []);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+// Waar Ctrl+S een vraag zou stellen, slaat de ronde het document over: geen vraag, geen venster, geen melding. (Een
+// schemavraag ontstaat bij een gebouwmodel niet: `ifcSchemaQuestionFor` houdt de kop van de bron.)
+// Afhankelijke projecten: zie de proeven van fixronde 1 hieronder (alleen een te krap anker sluit de ronde uit).
+for (const question of ['schrijftoestemming voor de handle'] as const) {
+  await check(`stap 8: ${question}; de ronde slaat het document over zonder vraag`, async () => {
+    const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+    const browser = browserDownload();
+    try {
+      longer(store); clearNotices(store); writableLog.length = 0;
+      handleFaults.set(name, { permission: 'denied' });
+      await modelAutoSave(store, sw.compute).round();
+      assert.deepEqual(writableLog, [], 'niets geschreven');
+      assert.equal(sw.merges(), 0, 'niet gerekend');
+      assert.equal(browser.downloads.length, 0, 'geen download');
+      assert.equal(hash(fileOf(name)), hash(bytes));
+      assert.equal(store.getState().isDirty, true);
+      assert.deepEqual(autoErrors(store), [], 'geen melding');
+    } finally {
+      handleFaults.delete(name); unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery();
+    }
+  });
+}
+
+// ── Fixronde 1 van de review van #1033 ───────────────────────────────────────────────────────────────────────────────
+/** Een poort die een stap vasthoudt tot de proef hem vrijgeeft. */
+function gate() {
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  return { held, release };
+}
+
+// Punt 1: een IFC-export vraagt de opslagworker vóór hij de schrijfrij bereikt. Hij gaat toch voor: de ronde wijkt
+// meteen, de export rekent in een nieuwe worker en slaagt, en de ronde schrijft niets.
+for (const exporter of ['Exporteren → IFC', 'Exporteren met bibliotheek'] as const) {
+  await check(`stap 8, voorrang: ${exporter} tijdens het rekenen van de ronde; de export rekent meteen en slaagt, de ronde schrijft niets`, async () => {
+    const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+    const browser = browserDownload();
+    try {
+      longer(store); clearNotices(store); writableLog.length = 0;
+      asked.length = 0; answer(true);
+      const auto = modelAutoSave(store, sw.compute);
+      const round = auto.round();
+      await mergeArrives(sw, 1);
+      const roundWorker = sw.workers[0]!;
+      roundWorker.start();
+      const action = exporter === 'Exporteren → IFC' ? store.getState().exportAs('ifc') : store.getState().exportProjectWithPool();
+      await turnUntil(() => roundWorker.terminated);
+      await round;
+      await mergeArrives(sw, 2);
+      assert.notEqual(sw.workers.at(-1), roundWorker, 'de export rekent meteen in een nieuwe worker');
+      await finishMerge(sw);
+      const result = await action;
+      assert(result.ok && !result.cancelled, 'de export slaagt');
+      assert.equal(browser.downloads.length, 1, 'één download');
+      assert.deepEqual(writableLog, [], 'de ronde schreef niets');
+      assert.equal(hash(fileOf(name)), hash(bytes), 'het eigen bestand onveranderd');
+      assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+      assert.deepEqual(autoErrors(store), [], 'geen melding');
+    } finally { resetPlanOnlyAsker(); unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// Punt 2: een handmatige actie die zich meldt terwijl de ronde het herstel nog vastlegt (desktop: het herstelrecord;
+// browser: de komende versie in het herstelmanifest), laat de ronde wijken. Niets geschreven, geen record dat blijft.
+await check('stap 8, voorrang: Ctrl+S terwijl de ronde het desktopherstelrecord schrijft; de ronde schrijft niets, Ctrl+S wel', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (...a: unknown[]) => Promise<unknown> } }).__TAURI_INTERNALS__;
+  const invoke = internals.invoke, started = gate(), finish = gate();
+  try {
+    const own = join(dir, 'autosave-voor-record.ifc'); writeFileSync(own, bytes);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      let held = false;
+      internals.invoke = async (...args: unknown[]) => {
+        const [command, , options] = args as [string, unknown, { headers?: { path?: string } } | undefined];
+        if (!held && command === 'plugin:fs|write_text_file' && decodeURIComponent(options?.headers?.path ?? '').includes('.replace.')) {
+          held = true; started.release(); await finish.held;
+        }
+        return invoke(...args);
+      };
+      const from = ipc.calls.length;
+      const round = modelAutoSave(store, sw.compute).round();
+      await started.held;
+      const save = ctrlS(store);
+      await turnUntil(() => true);
+      finish.release();
+      await round;
+      assert.equal(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive').length, 0, 'de ronde plaatste niets');
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'het eigen bestand onveranderd');
+      assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft');
+      assert.equal(await save, true, 'Ctrl+S slaat op');
+      assert.deepEqual(mergeProblems(bytes, new Uint8Array(readFileSync(own))), []);
+      assert.equal(ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive').length, 2, 'alleen Ctrl+S plaatste');
+      assert.deepEqual(replaceRecordsIn(appData), []);
+      assert.equal(store.getState().isDirty, false);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { unregister(); await clearRecovery(); }
+  } finally { finish.release(); internals.invoke = invoke; sw.client.dispose(); ipc.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('stap 8, voorrang: Ctrl+S terwijl de ronde het browserherstelmanifest schrijft; de ronde schrijft niets, Ctrl+S wel', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute);
+  const tracker = new RecoveryDeltaTracker(), started = gate(), finish = gate();
+  let held = false;
+  const unregister = registerRecoveryFlush(async () => {
+    if (!held) { held = true; started.release(); await finish.held; }
+    const s = store.getState();
+    await runRecoveryTick(tracker, s.activeDocumentId,
+      s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)));
+  });
+  try {
+    longer(store); clearNotices(store); writableLog.length = 0;
+    const round = modelAutoSave(store, sw.compute).round();
+    await started.held;
+    const save = ctrlS(store);
+    await turnUntil(() => true);
+    finish.release();
+    await round;
+    assert.deepEqual(writableLog, [], 'de ronde schreef niets');
+    assert.equal(hash(fileOf(name)), hash(bytes), 'het eigen bestand onveranderd');
+    assert.equal(await save, true, 'Ctrl+S slaat op');
+    assert.deepEqual(writableLog, [`create ${name}`, `close ${name} 1`], 'alleen Ctrl+S schreef');
+    assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+    assert.equal(await pendingIn(store.getState().activeDocumentId), undefined, 'geen komende versie die blijft');
+    assert.equal(store.getState().isDirty, false);
+    assert.deepEqual(autoErrors(store), []);
+  } finally { finish.release(); unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+// Punt 3: de wekkers van `useAutoSave` (`scheduleFileAutoSave`) met de echte store en controller en een nagebootste
+// klok. De wekker van een gebouwmodel start alleen dat document; een gewoon document ernaast houdt zijn 10 s.
+await check('stap 8, wekkers: de wekker van het gebouwmodel schrijft geen gewoon document vóór diens eigen 10 s', async () => {
+  const { store, name } = await openHandle(bytes, computeIfcOutputHere), unregister = recoveryRounds(store);
+  const model = store.getState().activeDocumentId;
+  store.getState().setAutoSaveToFile(true);
+  const plainName = `gewoon-${++handleCount}.ifc`;
+  handleFiles.set(plainName, plainBytes());
+  await store.getState().openOpenedFile({ name: plainName, content: plainText(plainBytes()),
+    ref: { kind: 'handle', handle: new FakeHandle(plainName) as unknown as FileSystemFileHandle } });
+  const plain = store.getState().activeDocumentId;
+  store.getState().setAutoSaveToFile(true);
+  clearNotices(store);
+  const start = 5_000_000;
+  let t = start, serial = 0;
+  const timers = new Map<number, { at: number; fn: () => void }>();
+  const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: computeIfcOutputHere, now: () => t });
+  const schedule = scheduleFileAutoSave(controller, {
+    setTimeout: (fn, ms) => { timers.set(++serial, { at: t + ms, fn }); return serial; },
+    clearTimeout: id => { timers.delete(id as number); },
+    now: () => t,
+  });
+  const unsub = store.subscribe(schedule.request);
+  /** De klok tot `start + ms`, met elke wekker die intussen afgaat (en de ronde die hij start). */
+  const until = async (ms: number) => {
+    for (;;) {
+      const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+      if (!next || next[1].at > start + ms) break;
+      t = next[1].at; timers.delete(next[0]); next[1].fn();
+      await turnUntil(() => !controller.isSaving());
+    }
+    t = start + ms;
+  };
+  const dirty = (id: string) => payloadOf(store, id).isDirty;
+  try {
+    longer(store);
+    await until(0);
+    assert.equal(dirty(plain), false, 'de eerste gewone ronde meteen');
+    await until(2_000);
+    store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+    await until(29_000);
+    longer(store);
+    await until(29_000);
+    assert.equal(dirty(plain), false, 'op 29 s: 10 s na de vorige gewone ronde');
+    await until(31_000);
+    longer(store);
+    const plainFile = hash(fileOf(plainName));
+    await until(32_000);
+    assert.equal(dirty(model), false, 'op 32 s: het gebouwmodel na 30 s rust');
+    assert.notEqual(hash(fileOf(name)), hash(bytes));
+    assert.equal(dirty(plain), true, 'op 32 s: het gewone document wacht op zijn eigen 10 s');
+    assert.equal(hash(fileOf(plainName)), plainFile, 'het gewone bestand nog niet geschreven');
+    await until(39_000);
+    assert.equal(dirty(plain), false, 'op 39 s: de gewone ronde');
+    assert.deepEqual(autoErrors(store), []);
+    // Knownbug 1925: een gewijzigd gebouwmodel met Automatisch opslaan uit houdt de wekker niet wakker.
+    store.getState().switchDocument(model); longer(store); store.getState().setAutoSaveToFile(false);
+    await until(45_000);
+    assert.equal(controller.nextModelRoundAt(), null, 'geen wekker voor een document dat niet meedoet');
+    const modelFile = hash(fileOf(name));
+    await until(400_000);
+    assert.equal(hash(fileOf(name)), modelFile, 'en geen ronde');
+    assert.equal(dirty(model), true);
+  } finally { unsub(); schedule.dispose(); unregister(); await clearRecovery(); }
+});
+
+// Punt 5: een gevonden afhankelijke planning sluit de ronde alleen uit waar Ctrl+S zou vragen: bij een te krap anker.
+for (const anchor of ['ruim', 'te krap'] as const) {
+  await check(`stap 8, afhankelijke projecten met een ${anchor} anker: ${anchor === 'ruim' ? 'de ronde schrijft, zonder vraag' : 'de ronde slaat het document over zonder vraag; Ctrl+S vraagt'}`, async () => {
+    const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+    const { setDependentAnchorAsker, resetDependentAnchorAsker } = await import('@/state/dependentAnchorQuestion');
+    let questions = 0;
+    setDependentAnchorAsker(async () => { questions++; return true; });
+    try {
+      const task = longer(store); clearNotices(store);
+      store.setState(s => { s.ui.dependentProjects = [{ documentId: s.activeDocumentId, projectId: s.project.id,
+        links: [{ projectId: 'afnemer', projectName: 'Afhankelijk', taskId: 'taak', taskName: 'Taak', ownTaskId: task,
+          linkId: 'koppeling', direction: 'predecessor', relType: 'FS', anchorDate: anchor === 'ruim' ? '2099-01-01' : '1900-01-01' }] }]; });
+      await modelAutoSave(store, sw.compute).round();
+      assert.equal(questions, 0, 'de ronde vraagt niets');
+      if (anchor === 'ruim') {
+        assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+        assert.notEqual(hash(fileOf(name)), hash(bytes), 'geschreven');
+        assert.equal(store.getState().isDirty, false);
+      } else {
+        assert.equal(sw.merges(), 0, 'niet gerekend');
+        assert.equal(hash(fileOf(name)), hash(bytes), 'niets geschreven');
+        assert.equal(store.getState().isDirty, true);
+        assert.equal(await ctrlS(store), true);
+        assert.equal(questions, 1, 'Ctrl+S vraagt');
+      }
+      assert.deepEqual(autoErrors(store), []);
+    } finally { resetDependentAnchorAsker(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// ── Fixronde 2 van de review van #1033 ───────────────────────────────────────────────────────────────────────────────
+/** Een paar beurten van de gebeurtenislus: genoeg om een gestarte ronde haar volgende stap te laten zetten. */
+const someTurns = async () => { for (let i = 0; i < 15; i++) await new Promise(resolve => setImmediate(resolve)); };
+/** De wekkers van `useAutoSave` (`scheduleFileAutoSave`) met de echte controller en een nagebootste klok, vanaf `start`. */
+function fakeSchedule(store: Store, compute: IfcOutputCompute) {
+  const start = 5_000_000;
+  let t = start, serial = 0;
+  const timers = new Map<number, { at: number; fn: () => void }>();
+  const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute, now: () => t });
+  const schedule = scheduleFileAutoSave(controller, {
+    setTimeout: (fn, ms) => { timers.set(++serial, { at: t + ms, fn }); return serial; },
+    clearTimeout: id => { timers.delete(id as number); },
+    now: () => t,
+  });
+  const unsub = store.subscribe(schedule.request);
+  return {
+    controller, schedule,
+    /** De klok tot `start + ms`; elke wekker die intussen afgaat, start zijn ronde (die hier niet wordt afgewacht). */
+    until: async (ms: number) => {
+      for (;;) {
+        const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+        if (!next || next[1].at > start + ms) break;
+        t = next[1].at; timers.delete(next[0]); next[1].fn();
+        await someTurns();
+      }
+      t = start + ms;
+    },
+    dispose: () => { unsub(); schedule.dispose(); },
+  };
+}
+
+// Deel A: een IFC-export houdt voorrang over de hele volgorde: de bronkeuze, de planvraag en het schrijven. Een ronde die
+// aan de beurt komt terwijl de vraag "alleen de planning" open staat, wijkt; een ronde die al plaatst, maakt dat af
+// vóór de export zijn bron kiest. De export levert precies één bestand.
+for (const exporter of ['IFC zonder gebouwmodel', 'Exporteren met bibliotheek'] as const) {
+  for (const moment of ['de ronde rekent al', 'de ronde komt aan de beurt terwijl de vraag open staat'] as const) {
+    await check(`stap 8, export (${exporter}): ${moment}; de ronde wijkt, de export levert één bestand`, async () => {
+      const sw = saveWorker('manual'), { store, name } = await openHandle(bytes, sw.compute);
+      const unregister = recoveryRounds(store), browser = browserDownload();
+      const entered = gate(), accept = gate();
+      setPlanOnlyAsker(async () => { entered.release(); await accept.held; return true; });
+      try {
+        longer(store); clearNotices(store); writableLog.length = 0;
+        const auto = modelAutoSave(store, sw.compute);
+        let roundDone = false;
+        let round: Promise<void> | undefined;
+        const startRound = () => { round = auto.round().then(() => { roundDone = true; }); };
+        if (moment === 'de ronde rekent al') { startRound(); await mergeArrives(sw, 1); sw.workers[0]!.start(); }
+        const action = exporter === 'Exporteren met bibliotheek' ? store.getState().exportProjectWithPool()
+          : store.getState().exportAs('ifc', withoutModel);
+        await entered.held;
+        if (moment !== 'de ronde rekent al') startRound();
+        await turnUntil(() => roundDone, 'de ronde wijkt terwijl de vraag open staat');
+        await round;
+        assert.deepEqual(writableLog, [], 'de ronde schreef niets');
+        assert.equal(hash(fileOf(name)), hash(bytes), 'het eigen bestand onveranderd');
+        assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+        accept.release();
+        await mergeArrives(sw, moment === 'de ronde rekent al' ? 2 : 1);
+        await finishMerge(sw);
+        const result = await action;
+        assert(result.ok && !result.cancelled, 'de export slaagt');
+        assert.equal(browser.downloads.length, 1, 'één bestand');
+        assert.deepEqual(autoErrors(store), [], 'geen melding');
+      } finally { accept.release(); resetPlanOnlyAsker(); unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
+    });
+  }
+}
+
+// Fixronde 3 van de review van #1033: de export legt bij de aanroep vast voor welk document hij is. Wisselt de planner van
+// tabblad terwijl de export op de plaatsing wacht, dan exporteert hij nooit het andere document: hij weigert met de
+// bestaande melding, vóór de bestandskiezer.
+for (const exporter of ['Exporteren → IFC', 'IFC zonder gebouwmodel', 'Exporteren met bibliotheek'] as const) for (const moment of ['zelfde tabblad', 'tabbladwissel vóór het einde van de plaatsing'] as const) {
+  await check(`stap 8, export (${exporter}) terwijl de ronde haar tijdelijke bestand al schreef, ${moment}: ${moment === 'zelfde tabblad' ? 'de ronde plaatst, daarna levert de export één bestand' : 'de export weigert, nooit het andere document'}`, async () => {
+    const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+    const ipc = desktop(appData), sw = saveWorker('manual');
+    const own = join(dir, `autosave-export-plaatsen-${++handleCount}.ifc`), dest = join(dir, `autosave-export-uit-${handleCount}.ifc`);
+    const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (...a: unknown[]) => Promise<unknown> } }).__TAURI_INTERNALS__;
+    const invoke = internals.invoke, tempWritten = gate(), releaseTemp = gate();
+    let unregister: (() => void) | undefined;
+    try {
+      writeFileSync(own, bytes); ipc.choose(dest);
+      const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute);
+      unregister = recoveryRounds(store);
+      const original = store.getState().activeDocumentId;
+      const other = moment === 'zelfde tabblad' ? null : otherDocument(store);
+      store.getState().switchDocument(original);
+      // Zoals in de proef van de reviewer: het eigen document heeft een gekoppelde bibliotheek, het andere niet.
+      if (other && exporter === 'Exporteren met bibliotheek') {
+        const companyId = store.getState().seedDemoLibrary();
+        store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+      }
+      longer(store); clearNotices(store);
+      asked.length = 0; answer(true);
+      let held = false;
+      internals.invoke = async (...args: unknown[]) => {
+        const [command, , options] = args as [string, unknown, { headers?: { path?: string } } | undefined];
+        if (!held && command === 'plugin:fs|write_file' && decodeURIComponent(options?.headers?.path ?? '').endsWith('.ops-save.tmp')) {
+          const result = await invoke(...args);
+          held = true; tempWritten.release(); await releaseTemp.held;
+          return result;
+        }
+        return invoke(...args);
+      };
+      const round = modelAutoSave(store, sw.compute).round();
+      await mergeArrives(sw, 1);
+      await finishMerge(sw);
+      await tempWritten.held;
+      const action = exporter === 'Exporteren met bibliotheek' ? store.getState().exportProjectWithPool()
+        : store.getState().exportAs('ifc', exporter === 'IFC zonder gebouwmodel' ? withoutModel : undefined);
+      await someTurns();
+      assert.equal(ipc.picks(), 0, 'de export wacht op de plaatsing');
+      if (other) store.getState().switchDocument(other.id);
+      releaseTemp.release();
+      await round;
+      assert.notEqual(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'de ronde maakte haar plaatsing af');
+      assert.equal(payloadOf(store, original).isDirty, false);
+      if (other) {
+        let settled = false;
+        void action.then(() => { settled = true; });
+        await turnUntil(() => settled, 'de export rondt af zonder te rekenen');
+        const refused = await action;
+        assert(refused.ok && refused.cancelled, 'de export weigert');
+        assert.equal(ipc.picks(), 0, 'geen bestandskiezer');
+        assert.equal(existsSync(dest), false, 'geen bestand');
+        assert.equal(sw.requests().length, 1, 'de export rekende niet');
+        assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+        assert.equal(store.getState().activeDocumentId, other.id, 'het andere tabblad blijft actief');
+        return;
+      }
+      assert.equal(store.getState().isDirty, false);
+      await mergeArrives(sw, 2);
+      await finishMerge(sw);
+      const result = await action;
+      assert(result.ok && !result.cancelled, 'de export slaagt');
+      assert.equal(ipc.picks(), 1, 'één bestandskiezer');
+      assert.equal(existsSync(dest), true, 'één bestand');
+      assert.deepEqual(autoErrors(store), [], 'geen melding');
+    } finally {
+      resetPlanOnlyAsker(); releaseTemp.release(); internals.invoke = invoke; unregister?.(); sw.client.dispose(); ipc.dispose();
+      await clearRecovery(); rmSync(appData, { recursive: true, force: true });
+    }
+  });
+}
+
+// Deel B: één wekker voor modellen, de gewone ronde van 10 s zonder modelkandidaten, en het ritme getoetst bij de beurt.
+await check('stap 8, fixronde 2: de gewone ingang (10 s) start nooit een gebouwmodel; alleen de wekker van het model', async () => {
+  const sw = saveWorker(), { store, name } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  try {
+    longer(store); clearNotices(store);
+    const auto = modelAutoSave(store, sw.compute);
+    auto.controller.observe(); auto.clock.rest();
+    await auto.controller.flush();
+    assert.equal(sw.requests().length, 0, 'de gewone ingang rekent het gebouwmodel niet');
+    assert.equal(hash(fileOf(name)), hash(bytes));
+    await auto.controller.flushModels();
+    assert.notEqual(hash(fileOf(name)), hash(bytes), 'de wekker van het model wel');
+    assert.equal(sw.requests().length, 1);
+  } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
+});
+
+/** Een gebouwmodel en een gewoon document, allebei met Automatisch opslaan aan; het gewone document is actief. */
+async function modelAndPlain(compute: IfcOutputCompute) {
+  const { store, name } = await openHandle(bytes, compute), unregister = recoveryRounds(store);
+  const model = store.getState().activeDocumentId;
+  store.getState().setAutoSaveToFile(true);
+  const plainName = `gewoon-${++handleCount}.ifc`;
+  handleFiles.set(plainName, plainBytes());
+  await store.getState().openOpenedFile({ name: plainName, content: plainText(plainBytes()),
+    ref: { kind: 'handle', handle: new FakeHandle(plainName) as unknown as FileSystemFileHandle } });
+  const plain = store.getState().activeDocumentId;
+  store.getState().setAutoSaveToFile(true);
+  clearNotices(store);
+  return { store, name, model, plain, plainName, unregister };
+}
+
+// Fixronde 3 van de review van #1033 (knownbug 1930, besluit technisch beslisser): een gewone tik breekt een modelronde
+// niet meer af. Hij wacht in de rij en schrijft direct na de modelronde; de modelronde krijgt zo haar beurt, ook als de
+// planner in een gewoon document doorwerkt. Vervangt de proef van fixronde 2 "schrijft op zijn eigen tik van 40 s".
+for (const computeMs of [8_500, 15_000, 25_000]) {
+  await check(`stap 8, fixronde 3: doorwerken in een gewoon document laat een modelronde van ${computeMs / 1000} s niet wijken; de gewone tik wacht en schrijft direct daarna`, async () => {
+    const sw = saveWorker('manual');
+    const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    const { store, name, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    const timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    try {
+      await timed.until(2_000);
+      store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+      // Een wekker die een wijziging zet, gaat af bij de volgende `until`; daarom na elke wijziging `until` op hetzelfde moment.
+      await timed.until(22_000); longer(store); await timed.until(22_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 22 s');
+      await timed.until(32_000);
+      await mergeArrives(sw, 1);
+      const modelWorker = sw.workers[0]!;
+      modelWorker.start();
+      // De planner werkt door in het gewone document: elke 3 s een wijziging, terwijl het model rekent.
+      let ticksDuringRound = 0, plainFile = hash(fileOf(plainName));
+      for (let at = 33_000; at < 32_000 + computeMs; at += 3_000) {
+        await timed.until(at); longer(store); await timed.until(at);
+        await someTurns();
+        assert.equal(modelWorker.terminated, false, `de gewone tik breekt de modelronde niet af (${at / 1000} s)`);
+        assert.equal(hash(fileOf(plainName)), plainFile, `het gewone bestand wacht op de modelronde (${at / 1000} s)`);
+        if (timed.controller.isSaving()) ticksDuringRound++;
+      }
+      // Bij een ronde langer dan de 10 s van de gewone tik valt er een tik in de ronde; die wacht in de rij.
+      if (computeMs > 10_000) assert(ticksDuringRound > 0, 'een gewone tik viel in de modelronde');
+      await timed.until(32_000 + computeMs);
+      await modelWorker.answer(modelWorker.requests.length - 1);
+      await turnUntil(() => !dirty(model), 'de modelronde schrijft');
+      if (computeMs > 10_000) await turnUntil(() => !dirty(plain), 'direct daarna de wachtende gewone tik');
+      assert.equal(sw.requests().length, 1, 'één modelronde, niet afgebroken');
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), [], 'het gebouwmodel byte voor byte');
+      // Daarna weer het gewone ritme van 10 s.
+      plainFile = hash(fileOf(plainName));
+      const after = 32_000 + computeMs + 1_000;
+      await timed.until(after); longer(store); await timed.until(after + 10_000);
+      await turnUntil(() => !dirty(plain), 'daarna weer de gewone tik van 10 s');
+      assert.notEqual(hash(fileOf(plainName)), plainFile);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// Fixronde 4 van de review van #1033 (bevinding 1): een gewone tik die achter een modelronde wacht, toetst bij zijn beurt
+// of zijn document nog meedoet. Zette de planner Automatisch opslaan intussen uit en kwam er een andere versie op het
+// bestand, dan schrijft de tik niets: die versie blijft byte voor byte staan, zoals op main en met de flag uit.
+for (const flag of ['aan', 'uit'] as const) {
+  await check(`stap 8, fixronde 4: een wachtende gewone tik schrijft niet meer nadat Automatisch opslaan uit ging (flag ${flag})`, async () => {
+    const sw = saveWorker('manual');
+    const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    const { store, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    try {
+      await timed.until(2_000);
+      store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+      // Een wekker die een wijziging zet, gaat af bij de volgende `until`; daarom na elke wijziging `until` op hetzelfde moment.
+      await timed.until(22_000); longer(store); await timed.until(22_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 22 s');
+      await timed.until(32_000);
+      if (flag === 'aan') { await mergeArrives(sw, 1); sw.workers[0]!.start(); }
+      await timed.until(35_000);
+      const edited = longer(store);
+      await timed.until(35_000);
+      await timed.until(42_000);
+      await someTurns();
+      if (flag === 'uit') await turnUntil(() => !dirty(plain), 'flag uit: de tik van 42 s schrijft meteen, zoals main');
+      else {
+        assert.equal(timed.controller.isSaving(), true, 'de gewone tik wacht achter de modelronde');
+        assert.equal(dirty(plain), true);
+      }
+      // De planner zet Automatisch opslaan voor het gewone document uit; een ander programma zet een eigen versie neer.
+      await timed.until(43_000);
+      store.getState().setAutoSaveToFile(false);
+      const input = buildWriteIFCInput(store.getState(), 'merge');
+      const external = new TextEncoder().encode(writeIFC({ ...input, tasks: input.tasks.map(task =>
+        task.id === edited ? { ...task, name: 'Extern toegevoegde taaknaam' } : task) }));
+      handleFiles.set(plainName, external);
+      const writesBefore = writableLog.filter(entry => entry.startsWith(`close ${plainName} `)).length;
+      await timed.until(45_000);
+      if (flag === 'aan') {
+        await sw.workers[0]!.answer(sw.workers[0]!.requests.length - 1);
+        await turnUntil(() => !dirty(model), 'de modelronde schrijft');
+      }
+      await turnUntil(() => !isProjectFileWriteBusy() && !timed.controller.isSaving(), 'de rij is leeg');
+      assert.equal(writableLog.filter(entry => entry.startsWith(`close ${plainName} `)).length, writesBefore,
+        'na het uitzetten schrijft de gewone tik niets');
+      assert.equal(hash(fileOf(plainName)), hash(external), 'de andere versie blijft byte voor byte staan');
+      assert((await reopenOrdinary(fileOf(plainName), true)).tasks.some(task => task.name === 'Extern toegevoegde taaknaam'));
+      assert.equal(payloadOf(store, plain).autoSaveToFile, false);
+      // Met de flag uit meldt main dat het gebouwmodel niet automatisch opgeslagen wordt; verder geen melding.
+      if (flag === 'aan') assert.deepEqual(autoErrors(store), [], 'geen melding');
+    } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// Fixronde 5 van de review van #1033: de toets bij de beurt wacht nergens op. Een gewone tik vraagt de schrijftoestemming
+// zoals main (de controller, vlak vóór de write; geen extra vraag bij de beurt), dus uitzetten tijdens een
+// toestemmingsvraag geeft dezelfde uitkomst als op main: de tik schreef al, daarna niets meer, en een andere versie op het
+// bestand blijft byte voor byte staan. Naar `probe-round5.ts` van de reviewer.
+for (const flag of ['uit', 'aan'] as const) {
+  await check(`stap 8, fixronde 5: een gewone tik vraagt de schrijftoestemming zoals main; uitzetten tijdens die vraag laat een andere versie staan (flag ${flag})`, async () => {
+    const events: string[] = [];
+    const compute: IfcOutputCompute = job => { events.push('voorbereiding'); return computeIfcOutputHere(job); };
+    const { store, name, handle } = await openHandle(plainBytes(), compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    store.getState().setAutoSaveToFile(true);
+    const timed = fakeSchedule(store, compute);
+    const permission = gate(), query = handle.queryPermission.bind(handle);
+    let queries = 0, held = false;
+    (handle as unknown as { queryPermission: () => Promise<string> }).queryPermission = async () => {
+      queries++;
+      events.push(`toestemming ${queries}`);
+      // De reviewer hield de tweede vraag vast als die vóór de voorbereiding kwam: dat is de extra vraag bij de beurt.
+      if (queries === 2 && !events.includes('voorbereiding')) { held = true; await permission.held; }
+      return query();
+    };
+    const count = () => writableLog.filter(entry => entry.startsWith(`close ${name} `)).length;
+    try {
+      const taskId = longer(store);
+      await timed.until(0);
+      await turnUntil(() => held || count() === 1, 'een toestemmingsvraag bij de beurt of een voltooide schrijfbeurt');
+      const before = count();
+      store.getState().setAutoSaveToFile(false);
+      const input = buildWriteIFCInput(store.getState(), 'merge');
+      const marker = 'Externe taaknaam tijdens de toestemmingsvraag';
+      const external = new TextEncoder().encode(writeIFC({ ...input, tasks: input.tasks.map(task =>
+        task.id === taskId ? { ...task, name: marker } : task) }));
+      handleFiles.set(name, external);
+      permission.release();
+      await turnUntil(() => !isProjectFileWriteBusy() && !timed.controller.isSaving(), 'de rij is leeg');
+      await timed.until(10_000);
+      await someTurns();
+      assert.equal(count() - before, 0, 'na het uitzetten niets meer');
+      assert.equal(hash(fileOf(name)), hash(external), 'de andere versie byte voor byte');
+      assert((await reopenOrdinary(fileOf(name), false)).tasks.some(task => task.name === marker));
+      assert.equal(before, 1, 'de tik schreef al vóór het uitzetten, zoals main');
+      const second = events.indexOf('toestemming 2');
+      assert(second === -1 || second > events.indexOf('voorbereiding'), `geen extra vraag vóór de voorbereiding: ${events.join(' → ')}`);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { permission.release(); timed.dispose(); await clearRecovery(); }
+  });
+}
+
+// Fixronde 5 (bevinding 2): is de schrijftoestemming bij de beurt ingetrokken, dan meldt de tik dat zoals main
+// (`autoSaveNotWritable`) en blijft het bestand byte voor byte staan; komt de toestemming terug en bewerkt de planner
+// opnieuw, dan plaatst de eerstvolgende tik precies één versie.
+for (const flag of ['uit', 'aan'] as const) {
+  await check(`stap 8, fixronde 5: ingetrokken schrijftoestemming bij de beurt geeft de melding van main; daarna één versie (flag ${flag})`, async () => {
+    const compute: IfcOutputCompute = job => computeIfcOutputHere(job);
+    const { store, name, handle } = await openHandle(plainBytes(), compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    store.getState().setAutoSaveToFile(true);
+    clearNotices(store);
+    const timed = fakeSchedule(store, compute);
+    const query = handle.queryPermission.bind(handle);
+    let queries = 0, denied = true;
+    (handle as unknown as { queryPermission: () => Promise<string> }).queryPermission = async () =>
+      ++queries >= 2 && denied ? 'prompt' : query();
+    const fileCalls = () => writableLog.filter(entry => entry.split(' ')[1] === name);
+    try {
+      const initial = hash(fileOf(name));
+      longer(store);
+      await timed.until(0);
+      await turnUntil(() => queries >= 2 && !isProjectFileWriteBusy() && !timed.controller.isSaving(), 'de tik met ingetrokken toestemming');
+      assert.equal(hash(fileOf(name)), initial, 'het bestand byte voor byte');
+      assert.deepEqual(fileCalls(), [], 'niets op het bestand');
+      assert.equal(store.getState().isDirty, true);
+      assert.deepEqual(autoErrors(store), ['notifications.autoSaveNotWritable'], 'de melding van main');
+      denied = false;
+      await timed.until(5_000);
+      const taskId = longer(store);
+      store.getState().updateTask(taskId, { name: 'Gewone tik na herstel van het schrijfrecht' });
+      await timed.until(10_000);
+      await turnUntil(() => !store.getState().isDirty && !isProjectFileWriteBusy(), 'de volgende tik schrijft');
+      assert((await reopenOrdinary(fileOf(name), false)).tasks.some(task => task.name === 'Gewone tik na herstel van het schrijfrecht'));
+      assert.deepEqual(fileCalls(), [`create ${name}`, `close ${name} 1`], 'precies één versie');
+    } finally { timed.dispose(); await clearRecovery(); }
+  });
+}
+
+// Fixronde 3 (bevinding 2 van de review): plaatst de modelronde al, dan gaat de verschuldigde gewone tik niet verloren: hij
+// wacht in de rij en schrijft zodra de plaatsing klaar is. Met de flag uit (geen modelronde) schrijft hij op 40 s, zoals main.
+for (const flag of ['aan', 'uit'] as const) {
+  await check(`stap 8, fixronde 3: een gewone tik tijdens de plaatsing van een modelronde gaat niet verloren (flag ${flag})`, async () => {
+    const sw = saveWorker('manual');
+    const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    const { store, name, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    const placing = gate(), releasePlacing = gate();
+    handleFaults.set(name, { afterClose: async () => { placing.release(); await releasePlacing.held; } });
+    try {
+      longer(store);
+      await timed.until(0);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 0 s');
+      await timed.until(2_000);
+      store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+      await timed.until(15_000); longer(store);
+      await timed.until(20_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 20 s');
+      await timed.until(29_000); longer(store);
+      await timed.until(30_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 30 s');
+      await timed.until(31_000); longer(store);
+      const plainFile = hash(fileOf(plainName));
+      clearNotices(store);
+      await timed.until(32_000);
+      if (flag === 'aan') {
+        await mergeArrives(sw, 1);
+        await finishMerge(sw);
+        await placing.held;
+      }
+      await timed.until(39_000);
+      assert.equal(hash(fileOf(plainName)), plainFile, 'vóór de tik van 40 s niets');
+      await timed.until(40_000);
+      if (flag === 'uit') {
+        await turnUntil(() => !dirty(plain), 'flag uit: op 40 s, zoals main');
+        assert.equal(sw.requests().length, 0, 'flag uit: geen modelronde');
+        return;
+      }
+      await someTurns();
+      assert.equal(dirty(plain), true, 'de gewone tik wacht op de plaatsing');
+      await timed.until(42_000);
+      releasePlacing.release();
+      await turnUntil(() => !dirty(model), 'de modelronde plaatst');
+      await turnUntil(() => !dirty(plain), 'direct daarna de gewone tik, zonder de volgende tik van 50 s');
+      assert.notEqual(hash(fileOf(plainName)), plainFile);
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { releasePlacing.release(); handleFaults.delete(name); timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen model begint niet als er intussen getypt is', async () => {
+  const sw = saveWorker('manual'), { store, name: firstName } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);
+  const first = store.getState().activeDocumentId;
+  store.getState().setAutoSaveToFile(true);
+  const secondName = `tweede-model-${++handleCount}.ifc`;
+  handleFiles.set(secondName, bytes);
+  await store.getState().openOpenedFile({ name: secondName, content: '', bytes,
+    ref: { kind: 'handle', handle: new FakeHandle(secondName) as unknown as FileSystemFileHandle } });
+  const second = store.getState().activeDocumentId;
+  assert.notEqual(second, first);
+  store.getState().setAutoSaveToFile(true);
+  clearNotices(store);
+  const timed = fakeSchedule(store, sw.compute);
+  try {
+    store.getState().switchDocument(first); longer(store);
+    store.getState().switchDocument(second); longer(store);
+    await timed.until(0);
+    await timed.until(30_000);
+    await mergeArrives(sw, 1);
+    sw.workers[0]!.start();
+    // Typen in een cel van het tweede model (het actieve), zonder vastleggen.
+    await timed.until(40_000);
+    timed.schedule.textEntry();
+    await timed.until(48_000);
+    timed.schedule.textEntry();
+    await timed.until(49_000);
+    await finishMerge(sw);
+    await turnUntil(() => !payloadOf(store, first).isDirty);
+    await someTurns();
+    assert.equal(sw.merges(), 1, 'het tweede model begint niet: het is na het typen niet aan de beurt');
+    assert.equal(hash(fileOf(secondName)), hash(bytes));
+    await timed.until(77_000);
+    assert.equal(sw.merges(), 1, 'ook niet vóór 30 s rust na het laatste typen');
+    await timed.until(78_000);
+    await mergeArrives(sw, 2);
+    await finishMerge(sw);
+    await turnUntil(() => !payloadOf(store, second).isDirty);
+    assert.notEqual(hash(fileOf(firstName)), hash(bytes));
+    assert.notEqual(hash(fileOf(secondName)), hash(bytes), 'op 78 s het tweede model');
+    assert.deepEqual(autoErrors(store), []);
+  } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+});
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`Documentopslag: ${passed} geslaagd, ${failed} mislukt.`);

@@ -75,10 +75,18 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
   };
   const disposedError = () => new IfcSaveWorkerError('disposed', 'De opslagworker is gestopt.');
 
-  const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob): Promise<IfcSaveResult> => {
+  const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob, stop?: AbortSignal): Promise<IfcSaveResult> => {
     const id = ++nextId;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let onStop: (() => void) | undefined;
     return new Promise<IfcSaveResult>((resolve, reject) => {
+      // #804 stap 8: Automatisch opslaan wijkt. Deze worker stopt (het rekenen valt niet anders af te breken); het volgende
+      // verzoek start een nieuwe. Geen fout van de worker, dus de client blijft bruikbaar.
+      onStop = () => {
+        if (worker === port) stopWorker();
+        reject(stop!.reason);
+      };
+      stop?.addEventListener('abort', onStop, { once: true });
       const arm = () => {
         clearTimeout(timer);
         timer = started
@@ -112,6 +120,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       }
     }).finally(() => {
       clearTimeout(timer);
+      if (onStop) stop?.removeEventListener('abort', onStop);
       abortActive = null;
       port.onmessage = null;
       port.onerror = null;
@@ -119,9 +128,11 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     });
   };
 
-  const compute: IfcOutputCompute = (job) => {
+  const compute: IfcOutputCompute = (job, stop) => {
     const run = tail.then(async () => {
       if (disposed) throw disposedError();
+      // Week de ronde al terwijl ze op haar beurt in de worker wachtte, dan rekent ze niet.
+      if (stop?.aborted) throw stop.reason;
       if (!worker && !unavailable) {
         try { worker = createWorker(); } catch { worker = null; }
         started = false;
@@ -130,8 +141,9 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       if (!worker) return computeIfcOutputHere(job);
       const port = worker;
       try {
-        return outputFromResult(job, await ask(port, job));
+        return outputFromResult(job, await ask(port, job, stop));
       } catch (error) {
+        if (stop?.aborted) throw error;
         if (error instanceof IfcSaveWorkerNotStarted) {
           if (worker === port) stopWorker();
           if (disposed) throw disposedError();
