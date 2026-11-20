@@ -47,6 +47,8 @@
     "recentColumns": "Sist brukt",
     "noColumns": "Bruk + for å legge til en kolonne.",
     "toggleSummary": "Utvid eller skjul hovedaktivitet",
+    "toggleMilestones": "Utvid eller skjul milepæler",
+    "milestonesRun": "Milepæler ({{n}})",
     "calculatedReadOnly": "Denne beregnede kolonnen kan ikke redigeres."
   },
   "taskGrid": {

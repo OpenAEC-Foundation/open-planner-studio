@@ -47,6 +47,8 @@
     "recentColumns": "المستخدمة مؤخرًا",
     "noColumns": "أضف عمودًا باستخدام +.",
     "toggleSummary": "توسيع مهمة الملخص أو طيها",
+    "toggleMilestones": "توسيع المعالم أو طيّها",
+    "milestonesRun": "المعالم ({{n}})",
     "calculatedReadOnly": "لا يمكن تحرير هذا العمود المحسوب."
   },
   "taskGrid": {

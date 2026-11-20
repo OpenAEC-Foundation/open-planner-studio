@@ -47,6 +47,8 @@
     "recentColumns": "Son kullanılanlar",
     "noColumns": "+ ile bir sütun ekleyin.",
     "toggleSummary": "Özet görevi genişlet veya daralt",
+    "toggleMilestones": "Kilometre taşlarını genişletin veya daraltın",
+    "milestonesRun": "Kilometre taşları ({{n}})",
     "calculatedReadOnly": "Bu hesaplanan sütun düzenlenemez."
   },
   "taskGrid": {
