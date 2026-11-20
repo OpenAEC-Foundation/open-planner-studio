@@ -24,7 +24,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  previousVersionPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
+  previousVersionPath, tauriOwnFileReplaceFs, placeUniqueReplaceCopy, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
 import {
   parseReplaceRecord, pendingReplaceFor, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces,
@@ -521,6 +521,55 @@ await check('stap 4 faalt en terugzetten ook: het record blijft, en de volgende 
   } finally { await tidy(c); }
 });
 
+
+await check('1816: andere programmaversie krijgt een vrije naam zonder bestaande kopieën te raken', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (versie van ander programma 2026-11-17 14.32 2).ifc';
+    const third = 'model (versie van ander programma 2026-11-17 14.32 3).ifc';
+    writeFileSync(join(c.dir, OTHER_COPY), bytes);
+    writeFileSync(join(c.dir, second), otherNew);
+    const { result } = await replace(c, await aroundPlace(1, 'before', () => writeFileSync(c.path, otherProgram)));
+    assert.deepEqual(result, { code: 'replaced', otherVersion: join(c.dir, third), leftOver: null });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [OTHER_COPY]: hash(bytes), [second]: hash(otherNew), [third]: hash(otherProgram) });
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('1816: alleen botsing herhalen, andere uitkomsten stoppen en aantal pogingen is begrensd', async () => {
+  let attempts = 0;
+  const collision = { place: async () => { attempts++; return { code: 'target-exists' as const }; } };
+  assert.equal(await placeUniqueReplaceCopy(collision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 100);
+  attempts = 0;
+  const syncWarning = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const }
+      : { code: 'dir-not-synced' as const, message: 'test' };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(syncWarning, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'),
+    '/map/model (kopie 2).ifc');
+  assert.equal(attempts, 2, 'een geplaatste kopie niet opnieuw verplaatsen');
+  attempts = 0;
+  const uncertainAfterCollision = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const } : { code: 'source-changed' as const };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(uncertainAfterCollision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 2, 'onzekere toestand na botsing niet opnieuw proberen');
+  for (const code of ['source-changed', 'io', 'refused', 'unsupported'] as const) {
+    attempts = 0;
+    const fs = { place: async () => {
+      attempts++;
+      if (code === 'io' || code === 'unsupported') return { code, message: 'test' };
+      if (code === 'refused') return { code, reason: 'scope' as const };
+      return { code };
+    } };
+    assert.equal(await placeUniqueReplaceCopy(fs, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+    assert.equal(attempts, 1, code);
+  }
+});
+
 // ── Een ander programma schrijft tijdens de vervanging ───────────────────────────────────────────────────────────
 
 await check('het doel verandert tussen stap 2 en 3: de versie van de ander blijft als "versie van ander programma"', async () => {
@@ -597,6 +646,21 @@ function fullVersionOnTarget(c: Case, restored: Awaited<ReturnType<typeof recove
   assert.equal(restored.filePath, c.path, 'en geeft het doel terug');
 }
 const sourceNow = (c: Case) => c.state.ifcSource!.sha256;
+
+await check('1816: niet opgeslagen planning krijgt bij botsing een vrije naam', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (niet opgeslagen planning 2026-11-17 14.32 2).ifc';
+    writeFileSync(join(c.dir, UNSAVED_COPY), otherProgram);
+    await crashAt(c, (_b, crash) => ({ content: crash }));
+    const { notices } = await recover(c);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: hash(otherProgram), [second]: c.prepared.sha256 });
+    assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
+      ['notifications.ifcForeignReplaceUnsavedCopy', { file: c.path, copy: join(c.dir, second) }],
+    ]);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
 
 await check('crash na stap 0: herstel vindt de oude versie; er is niets op te ruimen en het record gaat weg', async () => {
   const c = await opened();
