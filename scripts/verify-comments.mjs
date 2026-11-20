@@ -62,9 +62,6 @@ function compilerDirectives(sourceFile) {
   return starts;
 }
 
-const TOOL_TAG = /@(?:deprecated|internal)\b/;
-const ANY_TAG = /(?:^|[\s*])@[a-z]/i;
-
 function hasProse(node) {
   if (node.comment) return true;
   let found = false;
@@ -74,20 +71,24 @@ function hasProse(node) {
   return found;
 }
 
-function typeOnlyDocs(sourceFile, path) {
-  const typeOnly = new Set();
-  if (!JS_FILE.test(path)) return typeOnly;
+function jsDocTags(sourceFile, path) {
+  const isJs = JS_FILE.test(path);
+  const readByTools = tag => tag.kind === ts.SyntaxKind.JSDocDeprecatedTag || tag.tagName.text === 'internal';
   const carriesType = tag => Boolean(tag.typeExpression || tag.constraint || tag.class
     || tag.kind === ts.SyntaxKind.JSDocTemplateTag || tag.kind === ts.SyntaxKind.JSDocImportTag);
+  const meaningful = tag => readByTools(tag) || (isJs && carriesType(tag));
+  const tagsOnly = new Set();
+  const tagged = new Set();
   const visit = (node) => {
     for (const doc of node.jsDoc ?? []) {
       const tags = doc.tags ?? [];
-      if (tags.length > 0 && tags.every(carriesType) && !hasProse(doc)) typeOnly.add(doc.pos);
+      if (tags.some(tag => isJs || readByTools(tag))) tagged.add(doc.pos);
+      if (tags.length > 0 && tags.every(meaningful) && !hasProse(doc)) tagsOnly.add(doc.pos);
     }
     if (!isJsDocNode(node)) node.getChildren(sourceFile).forEach(visit);
   };
   visit(sourceFile);
-  return typeOnly;
+  return { tagsOnly, tagged };
 }
 
 function commentRanges(sourceFile, text) {
@@ -119,9 +120,8 @@ function scanBlocks(text, path) {
   const blankAround = (pos, end) => text.slice(lineStarts[lineOf(pos)], pos).trim() === ''
     && text.slice(end, lineEnd(lineOf(Math.max(pos, end - 1)))).trim() === '';
   const directives = compilerDirectives(sourceFile);
-  const typeOnly = typeOnlyDocs(sourceFile, path);
-  const tagToKeep = JS_FILE.test(path) ? ANY_TAG : TOOL_TAG;
-  const isExempt = (range, raw) => directives.has(range.pos) || typeOnly.has(range.pos)
+  const { tagsOnly, tagged } = jsDocTags(sourceFile, path);
+  const isExempt = (range, raw) => directives.has(range.pos) || tagsOnly.has(range.pos)
     || LINT_OR_BUNDLER_DIRECTIVE.test(raw) || NOTICE_LINE.test(raw);
 
   const blocks = [];
@@ -143,7 +143,7 @@ function scanBlocks(text, path) {
     const jsx = /\.(?:tsx|jsx)$/.test(path) && open >= 0 && close !== null;
     blocks.push({
       line, endLine, alone, pos: range.pos, end: range.end, text: raw,
-      carriesTag: raw.startsWith('/**') && tagToKeep.test(raw),
+      carriesTag: tagged.has(range.pos),
       kind: jsx ? 'jsx' : raw.startsWith('/**') ? 'jsdoc' : raw.startsWith('//') ? 'line' : 'block',
       ...(jsx ? { wrapper: [open, range.end + close[0].length] } : {}),
     });
@@ -343,7 +343,7 @@ function main(argv) {
       const result = stripComments(readFileSync(full, 'utf8'), path);
       if (result.removed > 0) writeFileSync(full, result.text);
       shed += result.shedLines;
-      const manual = result.manual.length > 0 ? `; met de hand: regel ${result.manual.join(', ')}` : '';
+      const manual = result.manual.length > 0 ? `; met de hand (regels van vóór het weghalen): ${result.manual.join(', ')}` : '';
       console.log(`${path}: ${result.removed} blok(ken) weg, ${result.shedLines} regels minder${manual}`);
     }
     console.log(`OK  ${shed} regels minder`);

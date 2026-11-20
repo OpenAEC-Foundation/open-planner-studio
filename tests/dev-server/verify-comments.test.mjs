@@ -153,6 +153,9 @@ test('strip laat JSDoc staan met een tag die het gereedschap leest', () => {
   const result = stripComments(deprecated, 'src/x.ts');
   assert.deepEqual(result.manual, [2]);
   assert.equal(result.text, deprecated);
+  assert.equal(scan(deprecated).commentLines, 1);
+  assert.equal(scan('interface R {\n  /** @deprecated */\n  a?: number;\n  /** @internal */\n  b?: number;\n}\n').commentLines, 0);
+  assert.equal(scan('/** @param a */\nexport function f(a: string) { return a; }\n').commentLines, 1);
   const plain = '/**\n * Uitleg.\n * @param a de naam\n */\nexport function f(a: string) { return a; }\n';
   assert.equal(stripComments(plain, 'src/x.ts').text, 'export function f(a: string) { return a; }\n');
   const extended = '/** @extends {Base} met uitleg */\nclass A extends Base {}\n';

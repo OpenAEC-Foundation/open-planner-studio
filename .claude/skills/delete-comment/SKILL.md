@@ -84,12 +84,16 @@ het aan Trias.
 node scripts/verify-comments.mjs --strip <pad>
 ```
 
+Een bron- of licentievermelding die moet blijven en meer dan één regel beslaat, zet je vóór `--strip` om naar één
+`//`-regel; anders gaat hij mee weg.
+
 `--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code-tokens of de
 regeleindes tussen tokens erdoor zouden veranderen. Aanwijzingen voor gereedschap blijven staan. Wat het meldt als
 "met de hand" (JSX-commentaar tussen tekst, commentaar met een regeleinde midden in een regel code, JSDoc met
 een tag in een JavaScript-bestand, JSDoc met `@deprecated` of `@internal` in TypeScript) pas je zelf aan: in JSDoc
-haal je alleen de uitleg weg en laat je de tag staan die het gereedschap leest. Controleer handwerk met de gerichte
-test. `--strip` neemt altijd alle blokken van het pad; moet een blok blijven tot een latere ronde, zet het dan met
+haal je alleen de uitleg weg en laat je de tag staan die het gereedschap leest; een kale `/** @deprecated */` of
+`/** @internal */` is voor de poort geen commentaar. De gemelde regelnummers zijn die van vóór het weghalen: draai
+daarna `--list <pad>` voor de plek van nu. Controleer handwerk met de gerichte test. `--strip` neemt altijd alle blokken van het pad; moet een blok blijven tot een latere ronde, zet het dan met
 de hand terug uit `git diff`. Een onderdeel in delen doe je per bestand of map, niet per regelnummer.
 
 Zoek daarna naar verwijzingen die nu nergens meer heen wijzen ("zie het docblok bij", "zie de kop van") in de

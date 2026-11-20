@@ -84,7 +84,7 @@ convention registry, provenance data gates pinned), `npm run verify:cycles` (cir
 `headless/consumer-example/`, runs and type-checks that consumer),
 `npm run verify:comments` (no new code comments: every comment line in a changed file must already exist on the base
 commit, the merge base with `origin/main` locally and the first parent of the merge commit in CI; it fails on a PR and
-locally, and only reports on a push to `main` and in the scheduled run; see *Conventions*),
+locally, and only reports on a push to `main`; see *Conventions*),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:icons` (app icons match the approved logo in `docs/branding/`: source hash, sizes, web icons), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
@@ -537,7 +537,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on every comment line
   that was not on the base commit: you may delete or move an existing comment, never write or rewrite one. Directives the
   tools themselves recognise (`@ts-expect-error`, `eslint-disable`, `/// <reference`, `@vite-ignore`, `@jsxImportSource`,
-  `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, and a one-line licence or source notice are not
+  `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, a bare `/** @deprecated */` or `/** @internal */`, and a one-line licence or source notice are not
   comments. Existing comments stay until the `delete-comment` skill has judged them.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or

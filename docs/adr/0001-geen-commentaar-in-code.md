@@ -14,7 +14,7 @@ schrijven en herschrijven niet. De basis is lokaal de merge-base met `origin/mai
 `VERIFY_COMMENTS_BASE=origin/main`) en in CI de eerste ouder van de merge-commit. De skill `/delete-comment`
 beschrijft het beoordelen en opruimen per onderdeel.
 
-De poort keurt alleen af op een PR en lokaal. Op een push naar `main` en in de geplande run meldt hij de regels en
+De poort keurt alleen af op een PR en lokaal. Op een push naar `main` meldt hij de regels en
 blijft hij groen: een rode `main` houdt de deploy en de release tegen, en dat weegt zwaarder dan een paar regels
 commentaar. Een PR die al groen was voordat de poort bestond en zonder nieuwe CI-run wordt samengevoegd, kan dus
 commentaar meenemen; de eerstvolgende PR die dat bestand raakt, mag het alleen nog weghalen.
@@ -24,8 +24,9 @@ commentaar meenemen; de eerstvolgende PR die dat bestand raakt, mag het alleen n
 Aanwijzingen die het gereedschap zelf herkent: wat de TypeScript-parser als pragma of als `@ts-ignore` en
 `@ts-expect-error` leest (ook `/// <reference … />` en `@jsxImportSource`), `eslint-disable` en verwanten,
 `@vite-ignore`, `@__PURE__` en de markering `text-roles:`. Verder JSDoc in JavaScript-bestanden die alleen typetags
-bevat (ook onder `@typedef` en `@overload` staat dan geen uitleg), en een bron- of licentievermelding van één regel (`// Bron: … (LGPL-2.1 …)`, een SPDX-kenmerk, een
-copyrightregel). Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
+bevat (ook onder `@typedef` en `@overload` staat dan geen uitleg), een kale `/** @deprecated */` of
+`/** @internal */`, en een bron- of licentievermelding van één regel (`// Bron: … (LGPL-2.1 …)`, een SPDX-kenmerk,
+een copyrightregel). Buiten bereik: `docs/`, `examples/`, gegenereerde bestanden en alles wat geen
 TypeScript of JavaScript is.
 
 ## Overwogen
