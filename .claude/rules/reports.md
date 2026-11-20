@@ -165,8 +165,9 @@ ToUnicode (`bouwlogis ek`); elke gebruikte glyph komt nu met zijn bronteken(s) i
 die verschuiving (`laidOutTextOps` in `pdfVectorDraw2d.ts`); zonder verschuiving blijft het één `Tj`. De pen loopt op
 de breedtes uit `/W`, net als de meting. Dat leunt op interne velden van pdf-lib, dat daarom exact op 1.17.1 staat.
 Noto Sans Arabic bedt gewoon in: het glyph-voor-glyph-pad van de shaping (`bidiShape.ts`) zet zijn glyphs zelf neer
-(knownbug 934). Het paginanummer staat in Helvetica (`PAGE_NUMBER_FONT_KEY` in `paginateVector.ts`): een eigen letter
-hoeft geen cijfers te hebben. Op Node leest `unicode-properties` (onder fontkit 3) zijn tabel van schijf naast zijn
+(knownbug 934). Het paginanummer staat in de rapportletter; alleen als die een teken van het label mist (cijfers,
+spatie, '/'; Noto Sans Coptic heeft ze niet), in Helvetica (`pageNumberFont` en `PAGE_NUMBER_FONT_KEY` in
+`paginateVector.ts`). Of elk rapport het nummer in Helvetica krijgt, is een keuze van de eigenaar. Op Node leest `unicode-properties` (onder fontkit 3) zijn tabel van schijf naast zijn
 bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de browservariant. Proef:
 `check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/` en Carlito: tekst,
-`/W`, de plaats van elke glyph en het paginanummer uit de PDF teruggelezen).
+`/W`, de plaats van elke glyph en het paginanummer met zijn letter uit de PDF teruggelezen).

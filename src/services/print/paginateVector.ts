@@ -102,7 +102,7 @@ export interface ArabicFontBytes {
   bold: Uint8Array;
 }
 
-/** Font-sleutel van het paginanummer (Helvetica) in de pagina-resources, naast F0/F1 (rapportletter) en verder. */
+/** Font-sleutel van het paginanummer in Helvetica (alleen als de rapportletter het label niet dekt), naast F0/F1 en verder. */
 const PAGE_NUMBER_FONT_KEY = 'FP';
 
 /**
@@ -414,7 +414,13 @@ export async function paginateVectorToPdfBytes(
   const bodyTopYUp = pageH - bodyTopPt;
   const footerTopYUp = pageH - footerTopPt;
 
-  const pageNumberFont = await doc.embedFont(StandardFonts.Helvetica);
+  // Het paginanummer staat in de rapportletter. Een eigen lettertype hoeft geen cijfers of '/' te hebben (Noto Sans
+  // Coptic heeft ze niet; issue #1050), en dit vaste label loopt niet door de dekkingscontrole van de tekenaar: dan
+  // Helvetica, een standaardletter die elke PDF-lezer heeft. Anders blijft `pageNumberFont` leeg.
+  const regularFk = fontkit.create(fontBytes.regular);
+  const pageNumberFont = [...'0123456789 /'].every(c => regularFk.hasGlyphForCodePoint(c.codePointAt(0)!))
+    ? undefined
+    : await doc.embedFont(StandardFonts.Helvetica);
   let pageIndex = 0;
   for (const row of layout.bodyRows) {
     for (const column of layout.columns) {
@@ -453,20 +459,20 @@ export async function paginateVectorToPdfBytes(
         drawTile(pageOps, footerWindow.srcX, repeatFooterSrcY, footerWindow.srcW, repeatFooterPx, footerWindow.pageX, footerTopYUp);
       }
 
-      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject. In Helvetica,
-      // niet in de rapportletter: een eigen lettertype hoeft geen cijfers of '/' te hebben (Noto Sans Coptic heeft ze
-      // niet; issue #1050), en dit vaste label loopt niet door de dekkingscontrole van de tekenaar.
+      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject. In de
+      // rapportletter (F0); alleen als die een teken van het label mist, in Helvetica (zie `pageNumberFont`).
       const label = `${pageIndex} / ${totalPages}`;
-      const labelW = pageNumberFont.widthOfTextAtSize(label, 8);
+      const labelFont = pageNumberFont ?? regular;
+      const labelW = labelFont.widthOfTextAtSize(label, 8);
       const labelX = (pageW - marginPt) - labelW;
       const labelYUp = marginPt * 0.5;
-      leaf.setFontDictionary(PDFName.of(PAGE_NUMBER_FONT_KEY), pageNumberFont.ref);
+      if (pageNumberFont) leaf.setFontDictionary(PDFName.of(PAGE_NUMBER_FONT_KEY), pageNumberFont.ref);
       pageOps.push(
         setFillingRgbColor(0.6, 0.6, 0.6),
         beginText(),
-        setFontAndSize(PAGE_NUMBER_FONT_KEY, 8),
+        setFontAndSize(pageNumberFont ? PAGE_NUMBER_FONT_KEY : 'F0', 8),
         setTextMatrix(1, 0, 0, 1, labelX, labelYUp),
-        showText(pageNumberFont.encodeText(label)),
+        showText(labelFont.encodeText(label)),
         endText(),
       );
 

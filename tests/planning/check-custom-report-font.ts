@@ -283,6 +283,9 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
     ok(read.images === 0, `G2 ${name}: de PDF bevat ${read.images} beeld(en); verwacht vector`);
     ok(read.text.includes(row), `G2 ${name}: "${row}" is niet als tekst uit te lezen; gelezen: ${JSON.stringify(read.text.slice(0, 200))}`);
     ok(read.text.endsWith('1 / 1'), `G5 ${name}: het paginanummer komt niet leesbaar terug; gelezen: ${JSON.stringify(read.text.slice(-40))}`);
+    // Het nummer blijft in de rapportletter als die cijfers, spatie en '/' heeft (Carlito); anders Helvetica (Koptisch).
+    const numberFont = name === 'Koptisch' ? /^\/Helvetica$/ : /^\/Carlito-Regular-\d+$/;
+    ok(numberFont.test(read.lastTextFont), `G5 ${name}: het paginanummer staat in ${read.lastTextFont}, verwacht ${numberFont}`);
     const fontWidths = [...read.widths.values()].find(w => glyphs.every(id => w.has(id)));
     ok(glyphs.length > 0 && fontWidths !== undefined
       && glyphs.every(id => Math.abs(fontWidths.get(id)! - fk.getGlyph(id).advanceWidth * 1000 / fk.unitsPerEm) < 0.01),
@@ -321,6 +324,8 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
 async function readPdf(pdf: Uint8Array): Promise<{
   text: string; widths: Map<string, Map<number, number>>; images: number;
   draws: { gid: number; x: number; size: number }[];
+  /** De letter (BaseFont) van de laatste tekst in de PDF: het paginanummer. */
+  lastTextFont: string;
 }> {
   const doc = await PDFDocument.load(pdf);
   const streamText = (obj: unknown) => (obj instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(obj).decode()).toString('latin1') : '');
@@ -331,14 +336,15 @@ async function readPdf(pdf: Uint8Array): Promise<{
     if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Image')) images++;
   }
   let text = '';
+  let lastTextFont = '';
   const draws: { gid: number; x: number; size: number }[] = [];
   for (const page of doc.getPages()) {
     const fonts = page.node.Resources()?.lookupMaybe(PDFName.of('Font'), PDFDict);
-    const decoders = new Map<string, { w?: Map<number, number>; decode: (hex: string) => string }>();
+    const decoders = new Map<string, { font: string; w?: Map<number, number>; decode: (hex: string) => string }>();
     for (const [key, ref] of fonts?.entries() ?? []) {
       const dict = doc.context.lookup(ref, PDFDict);
       if (dict.get(PDFName.of('Subtype')) !== PDFName.of('Type0')) {
-        decoders.set(key.asString(), { decode: hex => chunks(hex, 2).map(c => String.fromCharCode(parseInt(c, 16))).join('') });
+        decoders.set(key.asString(), { font: String(dict.get(PDFName.of('BaseFont'))), decode: hex => chunks(hex, 2).map(c => String.fromCharCode(parseInt(c, 16))).join('') });
         continue;
       }
       const map = new Map<string, string>();
@@ -353,11 +359,11 @@ async function readPdf(pdf: Uint8Array): Promise<{
         (list[i + 1] as PDFArray).asArray().forEach((n, j) => w.set(first + j, (n as PDFNumber).asNumber()));
       }
       widths.set(String(dict.get(PDFName.of('BaseFont'))), w);
-      decoders.set(key.asString(), { w, decode: hex => chunks(hex, 4).map(gid => map.get(gid) ?? '�').join('') });
+      decoders.set(key.asString(), { font: String(dict.get(PDFName.of('BaseFont'))), w, decode: hex => chunks(hex, 4).map(gid => map.get(gid) ?? '�').join('') });
     }
     const contents = page.node.Contents();
     const parts = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
-    let current: { w?: Map<number, number>; decode: (hex: string) => string } | undefined;
+    let current: { font: string; w?: Map<number, number>; decode: (hex: string) => string } | undefined;
     let size = 0;
     let x = NaN;
     for (const part of parts) {
@@ -367,6 +373,7 @@ async function readPdf(pdf: Uint8Array): Promise<{
         if (m[1]) { current = decoders.get(m[1]); size = Number(m[2]); } else if (m[3]) x = Number(m[3]);
         else {
           text += current?.decode(m[4]) ?? '�';
+          lastTextFont = current?.font ?? '';
           const w = current?.w;
           if (w) {
             let pen = x;
@@ -379,7 +386,7 @@ async function readPdf(pdf: Uint8Array): Promise<{
       }
     }
   }
-  return { text, widths, images, draws };
+  return { text, widths, images, draws, lastTextFont };
 }
 
 if (failures > 0) {
