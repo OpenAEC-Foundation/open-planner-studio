@@ -405,6 +405,7 @@
     "scheduleStartHint": "Planned anchor date — the calculated start follows from the scheduling logic.",
     "duration": "Duration (days)",
     "constraint": "Constraint",
+    "summaryConstraintWarning": "Constraints and deadlines on a summary task are not included in the calculation. Check the phase dates and schedule manually.",
     "constraintDate": "Constraint date",
     "hardPin": "Mandatory (pin logic)",
     "hardPinTip": "Only for MSO/MFO — hard-pins the date and overrides the relationship logic (P6 Mandatory).",

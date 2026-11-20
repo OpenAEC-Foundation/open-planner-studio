@@ -64,6 +64,7 @@ test('paneel: de voortgangsschuif is op een fase uitgeschakeld en weigert muis e
   await expect(slider).toBeVisible();
   await expect(slider).toBeDisabled();
   await expect(page.locator('[data-ops-summary-progress-note]')).toBeVisible();
+  await expect(page.locator('[data-ops-summary-constraint-warning]')).toContainText(/not included in the calculation|niet meegenomen in de berekening/);
 
   // Een echte klik rechts op de (uitgeschakelde) schuif, plus End: de fase blijft op 0%.
   const box = await slider.boundingBox();
@@ -76,6 +77,7 @@ test('paneel: de voortgangsschuif is op een fase uitgeschakeld en weigert muis e
   await page.evaluate((id) => window.__OPS__!.store.getState().selectTask(id), ids.a);
   await expect(slider).toBeEnabled();
   await expect(page.locator('[data-ops-summary-progress-note]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-summary-constraint-warning]')).toHaveCount(0);
   await slider.focus();
   await page.keyboard.press('End');
   await expect.poll(() => completionOf(page, ids.a)).toBe(1);
@@ -85,6 +87,29 @@ test('Tabel: fasevoortgang is alleen-lezen en volgt na kind-wijziging + F5', asy
   const ids = await seedPhase(page);
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]')).toBeVisible();
+
+  // Een bestaande beperking blijft bewaard; de waarschuwing staat ook in de taakdialoog.
+  await page.evaluate((id) => window.__OPS__!.store.getState().updateTask(id, {
+    constraint: { type: 'SNET', date: '2026-09-15' }, deadline: '2026-09-18',
+  }), ids.phase);
+  const before = await page.evaluate(id => {
+    const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
+    return [t.constraint?.type, t.constraint?.date, t.deadline];
+  }, ids.phase);
+  expect(before[0]).toBe('SNET');
+  expect(before[1]).toMatch(/^2026-09-15/);
+  expect(before[2]).toMatch(/^2026-09-18/);
+  await taskCell(page, ids.phase, 'task.name').click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+  const dialog = page.locator('[data-ops-task-dialog]');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-ops-summary-constraint-warning]')).toContainText(/not included in the calculation|niet meegenomen in de berekening/);
+  await dialog.locator('[data-ops-task-cancel]').click();
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate(id => {
+    const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
+    return [t.constraint?.type, t.constraint?.date, t.deadline];
+  }, ids.phase)).toEqual(before);
 
   const phaseCell = completionCell(page, ids.phase);
   await expect(phaseCell).toHaveText(/^0%$/);
