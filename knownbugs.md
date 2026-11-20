@@ -66,11 +66,6 @@ en noem het in je rapport of PR-tekst.
     het sjabloon zonder lag terug, zonder melding. Gezien in de code (`Sequence.lagMinutes`,
     `types/sequence.ts:23`); niet in de app nagespeeld. Voorstel: `lagMinutes` meenemen in
     `WbsTemplateSequence`. — S
-121. **Nivelleervenster: de piekmelding blijft leeg bij een eigen urenverdeling of capaciteitsstappen.** De
-    nivelleerder kiest `INTRINSIC_OVERRUN` op de echte dagwaarden (`assignmentDayUnits`) en op
-    `maxCapacityOf` met stappen (`ResourceLeveler.ts`); het venster vult de details in met `distributeUnits` en
-    de vlakke `res.maxUnits` (`LevelingDialog.tsx:141-165`, `:293-304`). Dan ontbreken resource, piek en
-    capaciteit in de melding. Niet nagespeeld. Zie ook 9. — S
 122. **Nivelleervenster: onder *Resterende conflicten* staat altijd "Deze taken passen niet binnen hun
     speling"**, ook zonder smoothing (`LevelingDialog.tsx:282`, `resource.leveling.remainingConflictsHint`).
     De tekst noemt een oorzaak die niet voor elk conflict geldt. Zie ook 9. — B
