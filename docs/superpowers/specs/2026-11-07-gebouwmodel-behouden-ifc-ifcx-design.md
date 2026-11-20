@@ -758,11 +758,18 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     wat de bestandskiezer direct na zijn terugkeer op het doel vond (de sha256 is `vorigeSha256`). Stap 2 vergelijkt het
     doel daarmee; staat er iets anders, dan stopt de opslag met de melding van Ctrl+S en blijft het doel zoals het is.
     De bevestiging in de kiezer geldt voor wat er op het doel staat (besluit van de eigenaar, 19 november 2026): ook een
-    gewoon bestand met een gebouwmodel of C/A/V-inhoud wordt vervangen, zonder tweede vraag of melding, en met de flag
-    aan ook voor een document zonder vreemd deel (langs de gewone opslag, zoals met de flag uit). Van de doelscan blijft
-    alleen een onleesbaar doel over; één scan van de vastgelegde bytes, gedeeld door de controle na de kiezer en die na
-    de eerste herstelronde (was knownbug 1891). De bron van een open document blijft geweigerd, net als een link naar een
-    modelbestand. Exporteren, Ctrl+S, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
+    gewoon bestand met een gebouwmodel of C/A/V-inhoud wordt vervangen, zonder tweede vraag of melding. Ze hoort bij het
+    gekozen pad en de versie die de kiezer daar las (fixronde 1 van #1071): met de flag aan vervangt ook een document
+    zonder vreemd deel zo'n bestand, maar alleen die versie. Een doel met meer dan één naam of een link vervangt het niet,
+    vlak vóór de hernoeming staat er nog dezelfde inhoud (anders de melding van Ctrl+S, het doel ongemoeid), en er is
+    geen terugval op direct schrijven. Elk ander doel van zo'n document gaat langs de gewone opslag, zoals met de flag
+    uit. De bestandskiezer van Ctrl+S bij een document zonder opslagdoel is dezelfde route. Van de doelscan blijft alleen
+    een onleesbaar doel over (ook een leesfout; besluit van de technisch beslisser, 20 november 2026: vervangen alleen
+    van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
+    bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
+    blijft geweigerd, met een verwijzing naar *Opslaan*; het bestand of de bron van een ander open document krijgt de
+    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Exporteren,
+    Ctrl+S met een opslagdoel, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de

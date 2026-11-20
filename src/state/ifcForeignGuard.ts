@@ -49,7 +49,7 @@ export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
     || (hasForeignContent(s.ifcSource) && !ifcForeignContentEnabled(s.ui.featureFlags));
 }
 
-/** Knownbug 1897 (fixronde 1 van #1071): *Opslaan als* van een document met een vreemd deel koos zijn eigen bronbestand.
+/** Was knownbug 1897 (fixronde 1 van #1071): *Opslaan als* van een document met een vreemd deel koos zijn eigen bronbestand.
  *  "Gebruik Opslaan om het bij te werken, of Opslaan als met een nieuwe naam voor een kopie." */
 export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',

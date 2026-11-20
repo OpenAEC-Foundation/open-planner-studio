@@ -2723,27 +2723,29 @@ en noem het in je rapport of PR-tekst.
         feitelijk bijgewerkt; zie ook 1836).
      7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
      8. Gebouwd (stap 8, #1019; tweede deel na het besluit van de eigenaar van 19 november 2026): *Opslaan als* over een
-        andere bestaande naam op de desktop (keuze 4), met de flag aan. *Opslaan als* draagt de keuze zelf
-        (`saveMergeAsOnDesktop` in `fileSlice.ts`): de bestandskiezer geeft het pad en wat er direct na zijn terugkeer
-        stond (`pickSaveTarget`: de inhoud van een gewoon bestand, `'unreadable'`, of `null` voor niets, een link of een
-        map). Een gewoon bestand vervangt hij langs dezelfde vervanging als Ctrl+S (`replaceExistingPath` →
-        `replaceOwnPathWithRecovery`, stap 0–6, hetzelfde herstelrecord), met die inhoud als verwachte inhoud
-        (`vorigeSha256`), binnen de ene `runProjectFileWrite` van de opslag; anders de exclusieve aanmaak. De
-        bevestiging in de kiezer geldt voor wat er staat: ook een gewoon bestand met een gebouwmodel of C/A/V-inhoud
-        wordt vervangen, zonder tweede vraag of melding (`WriteTargetDeps.replaceConfirmed`, alleen van deze route;
-        een document zonder vreemd deel langs de gewone opslag, zoals met de flag uit). De doelcontrole direct na de
-        kiezer en die na de eerste herstelronde delen één scan van de vastgelegde bytes; daarvan telt alleen nog een
-        onleesbaar doel (`ifcUnreadableTargetSave`). Na een geslaagde vervanging is het document hetzelfde als na een
-        nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft weigeren: het doel is de bron van een open document
-        (`ifcForeignReplaceBlocked`, voor een document zonder vreemd deel `ifcForeignTargetSave`), het doel staat in een
-        ander tabblad open (`ifcForeignTargetOpenInTab`; `openDocumentsExcept` in `refusedWriteTarget`, in de kiezer en
-        na de herstelronde), een symbolische link naar een modelbestand (`ifcForeignTargetSave`), en waar de vervanging
-        niet kan (`save-as-only`: buiten de thuismap, een harde link, `unsupported`, `refused`) dezelfde zin als een
-        bestaande naam (`ifcForeignNewTargetOnly`), zonder terugval. Of er een bestand staat, stelt de kiezer direct na
-        zijn terugkeer vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam
-        (weigeren nog; de vraag ligt bij de eigenaar), en de bestandskiezer van Ctrl+S bij een document zonder
-        opslagdoel (schrijft alleen naar een nieuwe naam en weigert een doel met een gebouwmodel). Niet gemeten in een
-        echte desktopapp.
+        andere bestaande naam op de desktop (keuze 4), met de flag aan; ook de bestandskiezer van Ctrl+S bij een
+        document zonder opslagdoel (fixronde 1 van #1071). Die route draagt de keuze zelf (`saveAsOnDesktop` in
+        `fileSlice.ts`): de bestandskiezer geeft het pad en wat er direct na zijn terugkeer stond (`pickSaveTarget`: de
+        inhoud van een gewoon bestand, `'unreadable'`, of `null` voor niets, een link of een map). De bevestiging in de
+        kiezer geldt voor die gelezen versie van dat pad: ook een gewoon bestand met een gebouwmodel of C/A/V-inhoud
+        wordt vervangen, zonder tweede vraag of melding (`WriteTargetDeps.replaceConfirmed`, alleen van deze route). De
+        merge vervangt langs dezelfde vervanging als Ctrl+S (`replaceExistingPath` → `replaceOwnPathWithRecovery`, stap
+        0–6, hetzelfde herstelrecord), met die inhoud als verwachte inhoud (`vorigeSha256`), binnen de ene
+        `runProjectFileWrite` van de opslag; naar een vrije naam de exclusieve aanmaak. Een document zonder vreemd deel
+        vervangt zo'n bestand alleen als die gelezen versie (`replaceObservedFileBytes`: geen link, en vlak vóór de
+        hernoeming dezelfde bytes); elk ander doel gaat langs de gewone opslag, zoals met de flag uit. De doelcontrole
+        direct na de kiezer en die na de eerste herstelronde delen één scan van de vastgelegde bytes; daarvan telt alleen
+        nog een onleesbaar doel (`ifcUnreadableTargetSave`, ook een leesfout; besluit van de technisch beslisser, 20
+        november 2026). Een leesbaar bestand dat geen IFC is, is een gewoon doel. Na een geslaagde vervanging is het
+        document hetzelfde als na een nieuwe naam (pad, bron, niet gewijzigd, Recent). Blijft weigeren: de eigen bron
+        (`ifcForeignReplaceBlocked`, die nu naar Opslaan verwijst), het bestand of de bron van een ander open document
+        (`ifcForeignTargetOpenInTab`; `openDocumentsExcept` in `refusedWriteTarget`, in de kiezer en na de
+        herstelronde), een symbolische link naar een modelbestand (`ifcForeignTargetSave`), een doel dat na de kiezer
+        een andere versie kreeg (`ifcForeignTargetChanged`), en waar de vervanging niet kan (`save-as-only`: buiten de
+        thuismap, een harde link, `unsupported`, `refused`) dezelfde zin als een bestaande naam
+        (`ifcForeignNewTargetOnly`), zonder terugval. Of er een bestand staat, stelt de kiezer direct na zijn terugkeer
+        vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam (weigeren nog; de
+        vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
@@ -5012,9 +5014,13 @@ en noem het in je rapport of PR-tekst.
      wat de planner bevestigde. Komt er tussen de bevestiging in het venster ("Vervangen?", of geen vraag bij een vrije
      naam) en de terugkeer van de kiezer een gewoon bestand op het pad, dan ziet de app het als bevestigd en vervangt ze
      het langs de veilige weg (geen open tabblad, geen bron van een open document; sinds keuze 4, tweede deel, ook een
-     bestand met een gebouwmodel). Het venster is kort (de terugkeer van de dialoog over IPC). Richting: de kiezer laat weten of hij de vervangvraag stelde, of de app
-     vraagt zelf na de keuze nog eens als het pad bij de terugkeer bestaat. Gevonden door de review van #1019 (Sol,
-     ronde 1). — S
+     bestand met een gebouwmodel). Het venster is kort (de terugkeer van de dialoog over IPC). Groter gevolg sinds keuze
+     4, tweede deel (review van #1071, bevinding 3): koos de planner een vrije naam en staat daar bij de eerste
+     vastlegging inmiddels een gewoon bestand, dan behandelt de app dat bestand als bevestigd, ook een modelbestand, en
+     met de flag aan ook vanuit een gewone planning. Vanaf de vastlegging is het wel gebonden: vervangen wordt alleen de
+     gelezen versie (fixronde 1 van #1071). Technisch vervolg: nagaan of de native kiezer de bevestiging en de
+     oorspronkelijke doelidentiteit kan teruggeven. Een extra vraag van de app zelf is een productkeuze: de eigenaar koos
+     één bevestiging. Gevonden door de review van #1019 (Sol, ronde 1). — S
 
 1893. **Browser: Opslaan als over het bestand van een ander tabblad maakt dat bestand af; daarna wijzen beide tabbladen ernaar (OPS #1022).**
      Op de desktop weigert *Opslaan als* sinds #1022 een bestand dat in een ander tabblad open staat (de doelcontrole
@@ -5073,13 +5079,3 @@ en noem het in je rapport of PR-tekst.
      opslagmeldingen. Erbij: de regel `.claude/rules/tauri-ifc.md` eindigt bij dit onderwerp met de te brede zin dat het
      eigen bestand een gewoon doel blijft; dat geldt alleen voor projectuitvoer waarop de overige doelcontroles slagen.
      Review #1064 (Sol, ronde 2). — B (code)
-
-1897. **VERVOLG (#804 keuze 4, tekst): Opslaan als over de eigen naam geeft een te brede melding.**
-     Kiest de planner bij een document met een gebouwmodel in *Opslaan als* het bestand dat hij open heeft, dan weigert
-     de app (de bron van een open document, `open-source`) met `notifications.ifcForeignReplaceBlocked`: "Niet
-     opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies
-     een nieuwe naam." Zo ook op main. Direct daarna slaagt Ctrl+S in hetzelfde tabblad, met behoud van het
-     gebouwmodel; de zin stuurt de planner dus de verkeerde kant op. Richting van de reviewer: de weigering mag
-     blijven; maak de melding specifiek voor het eigen pad (verwijs naar *Opslaan* voor het eigen bestand en naar een
-     nieuwe naam voor een kopie). Hoort bij de teksten die de eigenaar in de app beoordeelt, en bij zijn keuze of een
-     doel met een gebouwmodel vervangen mag worden. Review van #1019 (Sol, ronde 2). — B (proef)
