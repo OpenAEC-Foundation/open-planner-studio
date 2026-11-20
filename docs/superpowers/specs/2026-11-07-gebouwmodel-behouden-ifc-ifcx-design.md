@@ -657,7 +657,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
     verdwijnen dat tussen de twee aanroepen op het doel kwam (Sol, review #839, ronde 4, met echte bestanden). Het
     commando controleert beide paden tegen de fs-scope van plugin-fs, en het accepteert alleen twee paden in dezelfde
-    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`): in stap
+    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`; de
+    vervanging gebruikt `save-<id>.ops-vorige-<id>`, zie stap 3): in stap
     3 is dat `to`, in stap 4 `from`. Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*);
     wrakko keurde het goed onder voorwaarden (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
     `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
@@ -755,17 +756,29 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
     vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
     als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
-    wat er bij het begin van de opslag op het doel stond (gelezen na de bestandskiezer en de doelcontrole; de sha256 is
-    `vorigeSha256`). Stap 2 vergelijkt het doel daarmee; staat er iets anders, dan stopt de opslag met de melding van
-    Ctrl+S en blijft het doel zoals het is. De doelbewaking na de eerste herstelronde scant die gelezen inhoud, niet het
-    pad opnieuw: wat stap 5 weghaalt, liet de doelbescherming toe. De doelbescherming zelf verandert niet: een bestaand
-    doel met een gebouwmodel of C/A/V-inhoud blijft geweigerd, net als de bron van een open document. Daarbij weigert
+    wat de bestandskiezer direct na zijn terugkeer op het doel vond (de sha256 is `vorigeSha256`). Stap 2 vergelijkt het
+    doel daarmee; staat er iets anders, dan stopt de opslag met de melding van Ctrl+S en blijft het doel zoals het is.
+    De bevestiging in de kiezer geldt voor wat er op het doel staat (besluit van de eigenaar, 19 november 2026): ook een
+    gewoon bestand met een gebouwmodel of C/A/V-inhoud wordt vervangen, zonder tweede vraag of melding. Ze hoort bij het
+    gekozen pad en de versie die de kiezer daar las (fixronde 1 van #1071). Met de flag aan is er één route voor elk
+    document en elke inhoud van het doel (fixronde 2 van #1071): een gewoon bestand dat de kiezer las, gaat langs deze
+    vervanging, met die versie als verwachte inhoud; een vrije naam, een link of een map langs de exclusieve aanmaak;
+    een onleesbaar doel wordt geweigerd. Een document zonder vreemd deel heeft geen bron in het herstelmanifest: zijn
+    vervanging legt alleen het herstelrecord vast (stap 0 zonder `pendingSha256` in het manifest, stap 6 vervalt). De
+    bestandskiezer van Ctrl+S bij een document zonder opslagdoel is dezelfde route. Van de doelscan blijft alleen
+    een onleesbaar doel over (ook een leesfout; besluit van de technisch beslisser, 20 november 2026: vervangen alleen
+    van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
+    bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
+    blijft geweigerd, met een verwijzing naar *Opslaan*; het bestand of de bron van een ander open document krijgt de
+    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Exporteren,
+    Ctrl+S met een opslagdoel, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
-    niet kan (buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
-    nieuwe naam kan; geen terugval. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
+    exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -774,7 +787,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     beschikbaar of geblokkeerd), dan stopt opslaan hier: zonder record vindt herstel de restbestanden niet terug. De
     melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
     sha256 van de inhoud vergelijken; anders stopt opslaan (eerste punt hierboven). 3: het doel exclusief verplaatsen
-    naar `<naam>.ops-vorige-<id>`. 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
+    naar `save-<id>.ops-vorige-<id>` in dezelfde map: kort en los van de doelnaam, zoals het tijdelijke bestand (fixronde 3
+    van #1071: achter een geldige naam van 240 bytes paste `<naam>.ops-vorige-<id>` niet meer). 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
     `.ops-vorige` narekenen. Gelijk aan `vorigeSha256`: verwijderen. Anders (een programma schreef via een open handle in
     het oude bestand): exclusief verplaatsen naar `<naam> (versie van ander programma <datum tijd>).ifc` en melden. 6:
     het manifest bijwerken en `pendingSha256` wissen. Het record verdwijnt pas als er geen hulpbestand van de operatie
@@ -795,8 +809,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - **Restbestanden na een crash.** Bij de start, en vóór de app een lokaal pad leest om het te openen (de dialoog,
     neerzetten en Recent gaan door één kern, `readOpenedTauriPath`), handelt hij de records af; voor een pad alleen het
     record van dat pad, en zonder record raakt dat de projectmap niet. Het record van een vervanging die in deze sessie
-    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` met het id
-    uit het record; een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
+    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `save-<id>.ops-vorige-<id>` met het id
+    uit het record (een record van versie 1, van een oudere app, noemt de vorige versie nog `<naam>.ops-vorige-<id>`); een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
     app leest de inhoud en vergelijkt de sha256 met het record.
     - `.ops-vorige` heeft `vorigeSha256` en het doel ontbreekt: dit is de versie die stap 3 opzijzette en stap 4 kwam
       niet op het doel. Exclusief terug op het doel; herstel neemt dan de oude bron.
@@ -826,7 +840,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - **Garantie.** Met het commando vervangt of verwijdert de app geen versie van het bestand die hij niet zelf
     gecontroleerd heeft: elke versie die op het doelpad stond, staat daarna nog als bestand (op het doel, als
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
-    bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Op een
+    bestand schrijft na de controle in stap 5 en vóór het verwijderen; daartussen sluit de app alleen nog de leeshandle.
+    Op een
     bestandssysteem zonder atomaire exclusieve hernoemstap overschrijft de app het bestand niet; daar is alleen
     *Opslaan als* mogelijk. Dat een bestand met een harde link niet vervangen wordt, geldt waar het bestandssysteem het
     aantal namen eerlijk meldt (besluit van de technisch beslisser, 18 november 2026; knownbug 1823): op SSHFS en

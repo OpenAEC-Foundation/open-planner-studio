@@ -1188,9 +1188,18 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     // Fixronde 1: niet over het bronbestand van het andere open document met een vreemd deel.
     const sourceError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
     assertEq(sourceError.code, 'VALIDATION', 'het bronbestand van een document met een vreemd deel ⇒ validatiefout');
-    assert(sourceError.error.includes('source file of an open document') && sourceError.error.includes('another path'),
+    // Fixronde 1 van #1071, punt 3: het open tabblad gaat voor (was de fout over het bronbestand van een open document).
+    assert(sourceError.error.includes('file of another open document') && sourceError.error.includes('another path'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
+    // Fixronde 2 van #1071: met de flag uit (het modeltabblad blijft open) de reden en de tekst van main.
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    const offError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    assertEq(offError.code, 'VALIDATION', 'flag uit: validatiefout');
+    assert(offError.error.includes('source file of an open document') && offError.error.includes('another path'),
+      `flag uit: de tekst van main (${offError.error})`);
+    assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'flag uit: het modelbestand is niet veranderd');
     await callOk('planner_export_ifc', { path: target, overwrite: true });
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
 
