@@ -1203,6 +1203,53 @@ console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houd
     [true, 7 * mpd, true]);
 }
 
+// Knownbug 358: positieve bewerking gevolgd door nulduur, met en zonder werkelijke start.
+{
+  const start = '2026-06-01';
+  const outcomes = [];
+  for (const [rule, started, target] of [
+    ['FIXED_WORK', true, 0], ['FIXED_DURATION_WORK', true, 0],
+    ['FIXED_WORK', true, 2], ['FIXED_DURATION_WORK', true, 2],
+    ['FIXED_WORK', false, 0], ['FIXED_DURATION_WORK', false, 0],
+    ['FIXED_DURATION_RATE', true, 0],
+  ] as const) {
+    reset();
+    S().setProject({ startDate: start, statusDate: '2026-06-02' });
+    const id = S().addTask({ name: 'kb358', time: createDefaultTaskTime(start, 4) });
+    const resource = labor('kb358');
+    S().assignResource(id, resource, 1);
+    S().setTaskWorkRule(id, rule);
+    S().runCPM();
+    if (started) ok(`358 ${rule}/${target}: werkelijke start geboekt`, S().setActualStart(id, start));
+    eq(`358 ${rule}/${target}: voortgang voor bewerking is 0`, task(id).time.completion, 0);
+    eq(`358 ${rule}/${target}: startstatus voor bewerking`, !!task(id).time.actualStart, started);
+    const editDays = (days: number) => {
+      const time = task(id).time;
+      S().updateTask(id, { time: { ...time, scheduleDuration: days,
+        ...(time.durationUnit === 'hours' ? { durationMinutes: days * slot() } : {}) } });
+      S().runCPM();
+    };
+    const read = () => {
+      const t = task(id), a = asgOf(id, resource);
+      const booked = assignmentDayUnits(t, a, slot()).reduce((sum, units) => sum + units, 0) * slot();
+      return {
+        d: t.time.scheduleDuration, c: t.time.completion, start: !!t.time.actualStart,
+        rest: a.remainingWorkMinutes ?? null, booked: Math.round(booked * 1e6) / 1e6,
+      };
+    };
+    editDays(6);
+    const before = read();
+    eq(`358 ${rule}/${started}/${target}: 4 → 6 is toegepast`, before.d, 6);
+    editDays(target);
+    const after = read();
+    if (target > 0) eq(`358 ${rule}: positieve verkorting werkt`, after.d, target);
+    outcomes.push({ rule, started, target, before, after });
+  }
+  const summary = JSON.stringify(outcomes);
+  console.log('KNOWNBUG358_SUMMARY', summary);
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=Knownbug 358::${summary}`);
+}
+
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);
