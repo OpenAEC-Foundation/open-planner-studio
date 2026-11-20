@@ -363,6 +363,44 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   eq('21i en daarna niet meer', [await manualWrite, isManualProjectFileWriteQueued()], ['ok', false]);
 }
 
+// 22. Knownbug 1939: de coördinator beslist over voorrang en toelating van timerwerk. Een handmatige actie krijgt als
+//     volgende de beurt, vóór wachtend timerwerk (knownbug 1937); een begonnen beurt loopt af.
+{
+  const order: string[] = [];
+  let finishModel: (() => void) | null = null;
+  const model = runYieldingProjectFileWrite(async turn => {
+    // Na de grens: de ronde plaatst en wijkt niet meer.
+    turn.pass();
+    await new Promise<void>(resolve => { finishModel = resolve; });
+    order.push('model');
+    return 'geschreven';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const tick = runAutoSaveTickWrite(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve();
+  const manualAfter = runProjectFileWrite(async () => { order.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve();
+  (finishModel as (() => void) | null)?.();
+  eq('22a een handmatige actie gaat vóór een wachtende tik', [await model, await manualAfter, await tick, order],
+    ['geschreven', 'ok', 'ok', ['model', 'handmatig', 'tik']]);
+  // Een tik die al loopt, wordt niet onderbroken: de handmatige actie wacht erop (zoals main, knownbug 1904).
+  const started: string[] = [];
+  let finishTick: (() => void) | null = null;
+  const running = runAutoSaveTickWrite(async () => {
+    started.push('tik-start');
+    await new Promise<void>(resolve => { finishTick = resolve; });
+    started.push('tik-eind');
+    return 'ok';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const waiting = runProjectFileWrite(async () => { started.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  eq('22b een begonnen tik loopt af; de handmatige actie wacht', started, ['tik-start']);
+  (finishTick as (() => void) | null)?.();
+  eq('22b daarna de handmatige actie', [await running, await waiting, started], ['ok', 'ok', ['tik-start', 'tik-eind', 'handmatig']]);
+  truthy('22b de rij is daarna weer vrij', !isProjectFileWriteBusy());
+}
+
 if (diffs.length === 0) {
   console.log(`OK  actual-autosave-check: alle checks groen (${checks})`);
   process.exit(0);

@@ -3,17 +3,23 @@
 // een tweede write voorbereiden. Het is app-runtime, geen document- of IFC-data.
 //
 // De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033, besluit technisch beslisser 20 november
-// 2026). Eén rij, op volgorde van aankomst, met drie soorten beurten:
+// 2026). Eén beurt tegelijk; komt het slot vrij, dan krijgt eerst de oudste wachtende handmatige actie het, daarna het
+// timerwerk, elk op volgorde van aankomst (knownbug 1939). Een begonnen beurt loopt af. Drie soorten beurten:
 // - een handmatige actie (`runProjectFileWrite`: Ctrl+S, Opslaan als, een export, MCP) gaat voor: een ronde van
 //   Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt (ook wie op de rij wacht of een export die
 //   voorrang claimt, laat haar wijken);
 // - een gewone tik van Automatisch opslaan (`runAutoSaveTickWrite`) wacht op zijn beurt en laat niets wijken; staat er een
-//   modelronde vóór hem, dan schrijft hij direct daarna;
+//   modelronde vóór hem, dan schrijft hij daarna (een handmatige actie die intussen wacht, gaat voor);
 // - een ronde met een gebouwmodel (`runYieldingProjectFileWrite`) krijgt haar beurt en wijkt alleen voor een handmatige
 //   actie; na haar grens (`YieldingTurn.pass`) loopt ze af.
 // Met de flag uit bestaan er geen modelrondes en is de rij dezelfde als vóór stap 8.
-let busy = false;
-let tail: Promise<void> = Promise.resolve();
+/** Een beurt houdt het slot. */
+let running = false;
+/** Wie op het slot wacht, met de functie die het slot geeft: handmatige acties en timerwerk, elk op volgorde. */
+const manualWaiting: (() => void)[] = [];
+const timerWaiting: (() => void)[] = [];
+/** Wie op een lege rij wacht (`whenProjectFileWritesIdle`); kijkt na elke verandering in de rij opnieuw. */
+let idleWaiters: (() => void)[] = [];
 /** Hoeveel afsluitfasen de poort dicht houden (afsluiten en de updater kunnen elkaar overlappen). */
 let closers = 0;
 /** #804 stap 8: de rondes van Automatisch opslaan met een gebouwmodel die in de rij staan of lopen
@@ -59,8 +65,9 @@ export function claimProjectFileWrite(): () => void {
   };
 }
 
+/** Loopt er een beurt of wacht er een? */
 export function isProjectFileWriteBusy(): boolean {
-  return busy;
+  return running || manualWaiting.length > 0 || timerWaiting.length > 0;
 }
 
 /**
@@ -89,9 +96,8 @@ export function whenProjectFileWritesIdle(): Promise<void> | null {
   // #804 stap 8: wie op de rij wacht (een tabblad sluiten, de laatste fase van afsluiten of de updater, een pad openen
   // op de desktop), wacht niet op het rekenen van een ronde van Automatisch opslaan.
   yieldBackgroundWrites();
-  if (!busy) return null;
-  const last = tail;
-  return last.then(() => whenProjectFileWritesIdle() ?? undefined);
+  if (!isProjectFileWriteBusy()) return null;
+  return new Promise<void>(resolve => { idleWaiters.push(resolve); }).then(() => whenProjectFileWritesIdle() ?? undefined);
 }
 
 /**
@@ -127,10 +133,11 @@ export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () 
 /**
  * Fixronde 3 van de review van #1033: een gewone tik van Automatisch opslaan (een document zonder gebouwmodel). Hij wacht
  * op zijn beurt in de rij en laat geen ronde wijken: staat er een ronde met een gebouwmodel vóór hem (rekenend of
- * plaatsend), dan schrijft hij direct na haar. Verder gelijk aan `runProjectFileWrite`.
+ * plaatsend), dan schrijft hij na haar; een handmatige actie die intussen wacht, gaat voor (knownbug 1937). Verder gelijk
+ * aan `runProjectFileWrite`.
  */
 export async function runAutoSaveTickWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
-  return enqueue(work, closed, 'tick');
+  return enqueue(work, closed, 'timer');
 }
 
 /** De beurt van een wijkende ronde (`runYieldingProjectFileWrite`). */
@@ -172,30 +179,34 @@ export async function runYieldingProjectFileWrite<T>(work: (turn: YieldingTurn) 
     },
   };
   try {
-    return await enqueue(() => work(turn), closed, 'model');
+    return await enqueue(() => work(turn), closed, 'timer');
   } finally {
     yielding.delete(controller);
     settle?.();
   }
 }
 
-async function enqueue<T>(work: () => Promise<T>, closed: () => T, kind: 'manual' | 'tick' | 'model'): Promise<T> {
+/** Geeft het vrije slot aan de oudste wachtende handmatige actie, anders aan het oudste timerwerk, en laat wie op een
+ *  lege rij wacht opnieuw kijken. */
+function pump(): void {
+  if (!running) (manualWaiting.shift() ?? timerWaiting.shift())?.();
+  const waiters = idleWaiters;
+  idleWaiters = [];
+  for (const wake of waiters) wake();
+}
+
+async function enqueue<T>(work: () => Promise<T>, closed: () => T, kind: 'manual' | 'timer'): Promise<T> {
   if (closers > 0) return closed();
-  busy = true;
   if (kind === 'manual') manual++;
-  let release: (() => void) | undefined;
-  const turn = new Promise<void>((resolve) => { release = resolve; });
-  const previous = tail;
-  const mine = previous.then(() => turn);
-  tail = mine;
-  await previous;
+  await new Promise<void>(resolve => {
+    (kind === 'manual' ? manualWaiting : timerWaiting).push(() => { running = true; resolve(); });
+    pump();
+  });
   try {
     return await work();
   } finally {
-    release!();
+    running = false;
     if (kind === 'manual') manual--;
-    // Een volgende wachtrijhouder houdt de vlag terecht hoog; pas als dit de staart was is de
-    // volgende timer-run weer toegestaan.
-    if (tail === mine) busy = false;
+    pump();
   }
 }

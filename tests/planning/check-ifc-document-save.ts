@@ -3509,6 +3509,10 @@ function fakeSchedule(store: Store, compute: IfcOutputCompute) {
   const unsub = store.subscribe(schedule.request);
   return {
     controller, schedule,
+    /** De nagebootste tijd sinds `start`. */
+    at: () => t - start,
+    /** Wacht `ms` op de nagebootste klok (rekentijd nabootsen); gaat af bij een latere `until`. */
+    sleep: (ms: number) => new Promise<void>(resolve => { timers.set(++serial, { at: t + ms, fn: resolve }); }),
     /** De klok tot `start + ms`; elke wekker die intussen afgaat, start zijn ronde (die hier niet wordt afgewacht). */
     until: async (ms: number) => {
       for (;;) {
@@ -3906,6 +3910,150 @@ for (const flag of ['aan', 'uit'] as const) {
       assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
       assert.deepEqual(autoErrors(store), []);
     } finally { releasePlacing.release(); handleFaults.delete(name); timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// ── Knownbug 1939: de coördinator beslist over voorrang en toelating van timerwerk ───────────────────────────────────
+/** Elke plaatsing op deze handles, met het moment op de nagebootste klok (`afterClose` van de dubbel). */
+function placementsOf(timed: ReturnType<typeof fakeSchedule>, names: Record<string, string>) {
+  const placed: string[] = [];
+  for (const [label, name] of Object.entries(names)) {
+    handleFaults.set(name, { afterClose: async () => { placed.push(`${label} ${timed.at()}`); } });
+  }
+  return { placed, dispose: () => { for (const name of Object.values(names)) handleFaults.delete(name); } };
+}
+const MANUAL_TASK = 'Handmatig op te slaan';
+
+// Knownbug 1937 (proef van de reviewer, ronde 4): de modelronde rekent vanaf 32 s, de gewone tik van 40 s wacht erachter
+// (hij rekent twee nagebootste seconden), en op 43 s komt Ctrl+S in een derde tabblad. Ctrl+S laat de modelronde wijken en
+// krijgt als volgende de beurt: hij schrijft op 43 s, de gewone tik daarna. Met de flag uit (geen modelronde) schreef de tik
+// al op 42 s en schrijft Ctrl+S ook op 43 s, zoals main.
+for (const flag of ['aan', 'uit'] as const) {
+  await check(`1939 stap 1: Ctrl+S terwijl een gewone tik achter een modelronde wacht, schrijft meteen; de tik daarna (flag ${flag})`, async () => {
+    const sw = saveWorker('manual');
+    let timed: ReturnType<typeof fakeSchedule> | undefined;
+    const compute: IfcOutputCompute = async (job, stop) => {
+      if (job.kind === 'merge') return sw.compute(job, stop);
+      // De gewone tik rekent vanaf 40 s twee nagebootste seconden; Ctrl+S (het document met de herkenbare taak) niet.
+      if (timed && timed.at() >= 40_000 && !job.input.tasks.some(task => task.name === MANUAL_TASK)) await timed.sleep(2_000);
+      return computeIfcOutputHere(job);
+    };
+    const { store, name, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    const manualName = `handmatig-${++handleCount}.ifc`;
+    handleFiles.set(manualName, plainBytes());
+    await store.getState().openOpenedFile({ name: manualName, content: plainText(plainBytes()),
+      ref: { kind: 'handle', handle: new FakeHandle(manualName) as unknown as FileSystemFileHandle } });
+    const manual = store.getState().activeDocumentId;
+    store.getState().setAutoSaveToFile(false);
+    store.getState().updateTask(longer(store), { name: MANUAL_TASK });
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    timed = fakeSchedule(store, compute);
+    const files = placementsOf(timed, { gewoon: plainName, handmatig: manualName, model: name });
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    try {
+      store.getState().switchDocument(model); longer(store);
+      await timed.until(0);
+      await timed.until(2_000); longer(store);
+      store.getState().switchDocument(plain);
+      for (const at of [5_000, 15_000, 25_000, 35_000]) { await timed.until(at); longer(store); }
+      await timed.until(40_000);
+      if (flag === 'aan') {
+        await mergeArrives(sw, 1);
+        await someTurns();
+        assert.equal(dirty(plain), true, 'de gewone tik van 40 s wacht achter de modelronde');
+      }
+      await timed.until(43_000);
+      store.getState().switchDocument(manual);
+      const saved = store.getState().saveFile();
+      await someTurns();
+      if (flag === 'aan') assert.equal(sw.workers[0]!.terminated, true, 'Ctrl+S laat de modelronde wijken');
+      await timed.until(45_000);
+      await saved;
+      await turnUntil(() => !dirty(plain) && !isProjectFileWriteBusy() && !timed!.controller.isSaving(), 'de rij is leeg');
+      assert.equal(dirty(manual), false);
+      assert.equal(hash(fileOf(name)), hash(bytes), 'het gebouwmodel onveranderd: de ronde week');
+      assert.deepEqual(files.placed, ['gewoon 10000', 'gewoon 20000', 'gewoon 30000',
+        ...flag === 'aan' ? ['handmatig 43000', 'gewoon 45000'] : ['gewoon 42000', 'handmatig 43000']],
+      'Ctrl+S schrijft op 43 s; de gewone tik schrijft daarna (flag aan) of was al klaar (flag uit)');
+    } finally { files.dispose(); timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// Open vraag T3 van knownbug 1939 (besluit technisch beslisser 20 november 2026): ook met de flag uit gaat een handmatige
+// actie vóór een wachtende tik. Het enige verschil met main zit in de browser: komt Ctrl+S tijdens de toestemmingsvraag
+// (`canWrite`) van een tik, dan sluit de tik achter die Ctrl+S aan; een tweede handmatige actie die daarna komt, gaat nu
+// vóór de tik (op main erna). Voorwaarde: het eindbestand is byte voor byte gelijk aan dat van main. Deze proef draaide ook
+// op de ongewijzigde bron van main; `BEWIJS T3` drukt de volgorde en de sha256 van de eindbestanden af om te vergelijken.
+for (const variant of ['hetzelfde document', 'een ander document'] as const) {
+  await check(`1939 T3, flag uit: Ctrl+S tijdens de toestemmingsvraag van een tik, daarna een tweede Ctrl+S (${variant}); het eindbestand als op main`, async () => {
+    reseed(1939);
+    const same = variant === 'hetzelfde document';
+    const tickName = `t3-${same ? 'zelfde' : 'ander'}-tik.ifc`, saveName = same ? tickName : 't3-ander-ctrls.ifc';
+    const permission = gate(), computing = gate();
+    let holdPermission = false, holdCompute = false, permissionHeld = false, computeHeld = false;
+    const compute: IfcOutputCompute = async job => {
+      if (holdCompute) { holdCompute = false; computeHeld = true; await computing.held; }
+      return computeIfcOutputHere(job);
+    };
+    const tickHandle = new FakeHandle(tickName), query = tickHandle.queryPermission.bind(tickHandle);
+    (tickHandle as unknown as { queryPermission: () => Promise<string> }).queryPermission = async () => {
+      if (holdPermission) { holdPermission = false; permissionHeld = true; await permission.held; }
+      return query();
+    };
+    handleFiles.set(tickName, plainBytes());
+    const store = await openAt({ kind: 'handle', handle: tickHandle as unknown as FileSystemFileHandle }, plainBytes(), compute);
+    store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const tickDoc = store.getState().activeDocumentId;
+    store.getState().setAutoSaveToFile(true);
+    const tickTask = longer(store);
+    let saveDoc = tickDoc;
+    if (!same) {
+      handleFiles.set(saveName, plainBytes());
+      await store.getState().openOpenedFile({ name: saveName, content: plainText(plainBytes()),
+        ref: { kind: 'handle', handle: new FakeHandle(saveName) as unknown as FileSystemFileHandle } });
+      saveDoc = store.getState().activeDocumentId;
+      longer(store);
+    }
+    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute });
+    /** Een plaatsing op een van de twee bestanden, in volgorde: 'tik' (het tik-document, alleen als dat een ander document
+     *  is dan dat van Ctrl+S) of 'ctrl+s'. */
+    const placement = (entry: string) => !entry.startsWith('close ') ? null
+      : !same && entry.startsWith(`close ${tickName} `) ? 'tik' : entry.startsWith(`close ${saveName} `) ? 'ctrl+s' : null;
+    const logFrom = writableLog.length;
+    try {
+      // De tik kiest het tik-document en vraagt de schrijftoestemming; die vraag blijft even open.
+      holdPermission = true;
+      const tick = controller.flush();
+      await turnUntil(() => permissionHeld, 'de tik vraagt de schrijftoestemming');
+      // Ctrl+S tijdens die vraag; hij rekent nog als de tik zijn toestemming krijgt en om zijn beurt vraagt.
+      holdCompute = true;
+      const first = ctrlS(store);
+      await turnUntil(() => computeHeld, 'de eerste Ctrl+S rekent');
+      permission.release();
+      await someTurns();
+      // De planner werkt verder en drukt nog eens Ctrl+S, terwijl de eerste nog rekent en de tik wacht.
+      const edited = longer(store);
+      const duration = store.getState().tasks.find(t => t.id === edited)!.time.scheduleDuration;
+      const second = ctrlS(store);
+      await someTurns();
+      computing.release();
+      assert.deepEqual([await first, await second], [false, true], 'de eerste blijft gewijzigd (er kwam werk bij), de tweede slaagt');
+      await tick;
+      await turnUntil(() => !isProjectFileWriteBusy() && !controller.isSaving(), 'de rij is leeg');
+      // Het eindbestand: wat de planner zag, opgeslagen; met hetzelfde document de tweede Ctrl+S, anders ook de tik.
+      assert.equal(payloadOf(store, saveDoc).isDirty, false);
+      assert.equal((await reopenOrdinary(fileOf(saveName), false)).tasks.find(t => t.id === edited)!.time.scheduleDuration, duration);
+      if (!same) {
+        assert.equal(payloadOf(store, tickDoc).isDirty, false, 'de tik schreef zijn document');
+        const tickDuration = payloadOf(store, tickDoc).tasks.find(t => t.id === tickTask)!.time.scheduleDuration;
+        assert.equal((await reopenOrdinary(fileOf(tickName), false)).tasks.find(t => t.id === tickTask)!.time.scheduleDuration, tickDuration);
+      }
+      const order = writableLog.slice(logFrom).map(placement).filter(entry => entry !== null);
+      console.log(`BEWIJS T3 (${variant}): ${JSON.stringify({ volgorde: order,
+        tikbestand: hash(fileOf(tickName)), ctrlsBestand: hash(fileOf(saveName)) })}`);
+      // De volgorde van na de bouw: de tweede Ctrl+S vóór de wachtende tik (op main: de tik ertussen).
+      assert.deepEqual(order, same ? ['ctrl+s', 'ctrl+s'] : ['ctrl+s', 'ctrl+s', 'tik'], 'handmatig gaat vóór de wachtende tik');
+    } finally { permission.release(); computing.release(); await clearRecovery(); }
   });
 }
 
