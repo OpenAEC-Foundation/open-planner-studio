@@ -187,11 +187,11 @@ async function foreignMember() {
     ok('vreemd lid in het codetemplate: niets bewerkt geeft de bronbytes terug', same.ok && sameBytes(same.bytes, tmpl));
   }
   // Het laatste eigen lid valt weg, alleen het vreemde lid blijft (review van #953, ronde 2): een pset met uitsluitend
-  // vreemde leden is geen groep van (c). De verliescontrole weigert dit al, net als op main; (c) voegt niets toe.
+  // vreemde leden is geen groep van (c). Sinds stap 5 deel 1 (knownbug 1707) schrijft dit: de merge zet een pset met alleen
+  // het vreemde lid neer. Wat het lidmaatschap bewaakt, staat in blok 9.
   {
-    const { o } = await edited('vreemd lid in OPS_Baselines: alle baselines weg', bl, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }));
-    ok('vreemd lid in OPS_Baselines: alle baselines weg weigert als niet-gedragen, niet als eigen-uitvoer',
-      !o.ok && o.kinds.includes('niet-gedragen') && !o.kinds.includes('eigen-uitvoer'), summary(o));
+    const { o } = await edited('vreemd lid in OPS_Baselines: alle baselines weg', bl, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), true);
+    if (o.ok) ok('vreemd lid in OPS_Baselines: alle baselines weg: het vreemde lid blijft staan', foreignMemberKept(latin1(o.bytes), PSET.Baselines));
   }
   // Niets bewerkt: de bronbytes terug.
   clockStart();
@@ -715,6 +715,61 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
       if (number || removed in guids) ok(`één afleiding ${label}: ${what}: de merge schrijft wat de lezer aannam`, guids[removed] === fromReader,
         `${JSON.stringify(fromReader)} → ${removed in guids ? JSON.stringify(guids[removed]) : '(geen sleutel)'}`);
       ok(`één afleiding ${label}: ${what}: de lezer van de uitvoer neemt hetzelfde aan`, (await assumed(o.bytes)) === fromReader);
+    }
+  }
+}
+
+// ── 9. Stap 5 deel 1 (knownbug 1707): een eigen groep met een vreemd lid, op de echte uitvoer ──
+// Valt het laatste eigen lid weg, dan zet de merge een pset met alleen het vreemde lid neer, met de GlobalIds van de bron.
+// (c) toetst die pset niet (uitsluitend vreemde leden is geen groep); controle 1 (`validateMergeOutput`: vreemd deel en
+// lidmaatschap) moet een fout erin vangen. Per tegenproef: zonder (c) en met (c). En een groep met een vreemd lid valt nu
+// onder de toets: een fout van de writer in de eigen leden moet (c) vangen.
+{
+  const b = await base('vreemd lid in OPS_Baselines: baseline erbij', withForeignMember(SOURCES.eigen, PSET.Baselines), se(s => s.saveBaseline('Met vreemd lid, tegenproef')));
+  await counterProof(b, 'vreemd lid in OPS_Baselines: TaskGuids één GUID anders', alterJson('TaskGuids', v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), true);
+  await counterProof(b, 'vreemd lid in OPS_Baselines: ActiveBaselineId wijst naar een onbekende', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr('onbekend')})`); });
+}
+{
+  const tryBase = async (label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain) => {
+    try { return await base(label, bytes, edit); } catch (e) {
+      if (!(e instanceof assert.AssertionError)) throw e;
+      ok(`basis ${label} schrijft`, false, e.message); return undefined;
+    }
+  };
+  const cases: [string, Uint8Array, string, (d: Domain) => Promise<Domain>][] = [
+    ['OPS_Baselines: alle baselines weg', withForeignMember(SOURCES.eigen, PSET.Baselines), PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); })],
+    ['OPS_TaskTypes: type weghalen bij de laatste taak', withForeignMember(await savedSequence(SOURCES.eigen), PSET.TaskTypes), PSET.TaskTypes, se(s => {
+      const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7c'); s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    })],
+    ['OPS_StructureMeta: de laatste code wissen', withForeignMember(await savedCatalog(SOURCES.eigen), PSET.StructureMeta), PSET.StructureMeta, se(s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); })],
+  ];
+  for (const [label, bytes, pset, edit] of cases) {
+    const b = await tryBase(`vreemd lid in ${label}`, bytes, edit);
+    if (!b) continue;
+    const ls = linesIn(b.bytes);
+    const psetLine = ls.find(l => new RegExp(`^#\\d+=IFCPROPERTYSET\\('[^']*',#\\d+,'${pset}',\\$,\\(#95000\\)\\);`).test(l));
+    ok(`vreemd lid in ${label}: een pset met alleen het vreemde lid`, !!psetLine);
+    if (!psetLine) continue;
+    const psetId = /^#(\d+)=/.exec(psetLine)![1];
+    const relLine = ls.find(l => /^#\d+=IFCRELDEFINESBYPROPERTIES\(/.test(l) && l.replace(/\r$/, '').endsWith(`,#${psetId});`))!;
+    const without = (bytes: Uint8Array, ...prefixes: string[]) => bytesOf(linesIn(bytes).filter(l => !prefixes.some(p => l.startsWith(p))).join('\n'));
+    const relId = /^#(\d+)=/.exec(relLine)![1];
+    const other = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSET' && l.args[2] === `'${PSET.ProjectSettings}'`)!;
+    const proofs: [string, Uint8Array][] = [
+      ['het vreemde lid valt uit de pset (lege ledenlijst)', mutated(b.bytes, ls => { setArg(ls.find(l => `${l.id}` === psetId)!, 4, '()'); })],
+      ['het vreemde lid valt uit de pset (pset en relatie weg)', without(b.bytes, `#${psetId}=`, `#${relId}=`)],
+      ['het lid verhuist naar een andere pset', without(mutated(b.bytes, ls => { const o = other(ls); setArg(o, 4, o.args[4].replace(/\)$/, ',#95000)')); }), `#${psetId}=`, `#${relId}=`)],
+      ['de pset met alleen het vreemde lid krijgt een andere GlobalId', mutated(b.bytes, ls => { setArg(ls.find(l => `${l.id}` === psetId)!, 0, "'0R1707ANDEREGLOBALID00'"); })],
+      ['de relatie van die pset krijgt een andere GlobalId', mutated(b.bytes, ls => { setArg(ls.find(l => `${l.id}` === relId)!, 0, "'0R1707ANDERERELATIE000'"); })],
+    ];
+    for (const [what, m] of proofs) {
+      const withoutC = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
+      console.log(`TEGENPROEF vreemd lid in ${label}: ${what}: zonder (c) ${withoutC}; met (c) ${withC} (${lastDetail})`);
+      // Een andere GlobalId op die pset of zijn relatie toetst geen controle (knownbug 1952): controle 1 kijkt naar object en
+      // psetnaam, (c) niet naar een pset met alleen vreemde leden. De echte uitvoer houdt de GlobalIds van de bron
+      // (`onlyForeignMember` in `check-ifc-foreign-eigen-toets.ts`); dit legt de grens vast.
+      if (what.includes('GlobalId')) ok(`tegenproef vreemd lid in ${label}: ${what}: laat door (bekend, knownbug 1952)`, withC === 'laat door', `${withC}: ${lastDetail}`);
+      else ok(`tegenproef vreemd lid in ${label}: ${what}: geweigerd door controle 1`, withC === 'uitvoer-controle' && /vreemd lid #95000/.test(lastDetail), `${withC}: ${lastDetail}`);
     }
   }
 }
