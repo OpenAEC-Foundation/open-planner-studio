@@ -359,6 +359,7 @@ check-relation-rules.ts matrix
 check-relation-set-plan.ts matrix
 check-relation-step.ts matrix
 check-relations-panel-parity.ts matrix
+check-release-doc-end.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
 check-renderer-dateless.ts matrix
