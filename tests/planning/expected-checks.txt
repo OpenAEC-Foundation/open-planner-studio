@@ -231,6 +231,7 @@ check-just-updated.ts matrix
 check-kalender-ms-randen.ts matrix
 check-kalender-ms-wandeling.ts matrix
 check-keyboard-event-routing.ts matrix
+check-knownbug-230.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
 check-layout-presets.ts matrix
