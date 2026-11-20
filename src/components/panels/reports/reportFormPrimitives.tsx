@@ -97,7 +97,6 @@ export function ReportFontSelect({ id, className, value, onChange }: {
   const { t } = useTranslation('report');
   const { customReportFont } = useReportSettings();
   const [dialogOpen, setDialogOpen] = useState(false);
-  useCustomReportFontGuard(value);
 
   const picked = async (font: PickedFont) => {
     const saved = await saveCustomFont(font);
@@ -141,7 +140,7 @@ let missingNoticeShown = false;
  * dan valt het rapport terug op Inter, met één melding (besluit Ethan, 14 november 2026). Staat er in de opslag
  * een nieuwere versie dan in de instellingen, dan neemt deze stand die naam en versie over; leest altijd vers.
  */
-function useCustomReportFontGuard(value: ReportFontChoice): void {
+export function useCustomReportFontGuard(value: ReportFontChoice): void {
   const { customReportFont } = useReportSettings();
   const rev = customReportFont?.rev;
   useEffect(() => {
