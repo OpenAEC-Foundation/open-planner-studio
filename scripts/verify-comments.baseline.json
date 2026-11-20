@@ -644,7 +644,6 @@
 "src/services/ifc/ifcLagTimeSlots.ts": 15,
 "src/services/ifc/ifcPsets.ts": 272,
 "src/services/ifc/ifcReadWithXer.ts": 10,
-"src/services/ifc/ifcReader.ts": 1064,
 "src/services/ifc/ifcSchemaQuestion.ts": 50,
 "src/services/ifc/ifcTaskSlots.ts": 165,
 "src/services/ifc/ifcWorkControlSlots.ts": 50,
