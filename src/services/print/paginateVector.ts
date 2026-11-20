@@ -23,6 +23,7 @@ import {
   setFillingRgbColor, beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+import { readableLayoutBytes } from '@/services/pdf/fontLayoutTables';
 import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts, type CjkVectorFont } from '@/services/pdf/pdfVectorDraw2d';
 import { getCjkFontProviders, type CjkFontProvider } from '@/services/pdf/fontRegistry';
 import { appLog } from '@/services/debug/appLog';
@@ -151,8 +152,13 @@ export async function paginateVectorToPdfBytes(
   // inbedden rendert correct in álle viewers. Inter-Regular+Bold ≈ 0,4 MB (Flate) in de PDF; voor een
   // print-artefact (geen app-bundle) acceptabel. CJK-fonts (5–16 MB) worden wél gesubset, maar via
   // HarfBuzz (`subsetFont`), niet via pdf-lib.
-  const regular = await doc.embedFont(fontBytes.regular, { subset: false });
-  const bold = await doc.embedFont(fontBytes.bold, { subset: false });
+  // Een layouttabel die fontkit niet leest (issue #1050) gaat er vooraf uit; anders liep elke `drawText` stuk en
+  // werd de hele PDF raster. Zonder vet zijn de vette bytes de gewone: één keer bekijken.
+  const readable = (bytes: Uint8Array) => readableLayoutBytes(bytes, b => fontkit.create(b));
+  const mainRegular = readable(fontBytes.regular);
+  const mainBold = fontBytes.bold === fontBytes.regular ? mainRegular : readable(fontBytes.bold);
+  const regular = await doc.embedFont(mainRegular, { subset: false });
+  const bold = await doc.embedFont(mainBold, { subset: false });
 
   const pool = createResourcePool(doc, regular, bold);
 

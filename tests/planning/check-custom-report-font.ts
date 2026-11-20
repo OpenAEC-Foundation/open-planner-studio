@@ -12,7 +12,9 @@
  *      een geweigerde vette variant valt weg, een geweigerde gewone variant weigert de familie;
  *   D. één face uit een collectie halen: een los bestand dat fontkit leest, met dezelfde letter;
  *   E. de vector-PDF met een eigen letter zonder vet: vet tekent in de gewone letter, de PDF blijft vector;
- *   F. de rapportinstelling: 'custom' alleen met een opgeslagen eigen lettertype, anders Inter.
+ *   F. de rapportinstelling: 'custom' alleen met een opgeslagen eigen lettertype, anders Inter;
+ *   G. een layouttabel die fontkit niet leest (GSUB type 8, issue #1050): de PDF blijft vector met de eigen
+ *      letter en de meting loopt niet stuk.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -26,6 +28,8 @@ import { reportFontStack } from '@/services/pdf/reportFont';
 import { makeSectionedRenderReport } from '@/services/pdf/pdfTable';
 import { paginateVectorToPdfBytes } from '@/services/print/paginateVector';
 import { parseReportFontChoice } from '@/utils/reportSettings';
+import { readableLayoutBytes } from '@/services/pdf/fontLayoutTables';
+import { assembleReportMeasureFonts, measureReportText, type ReportFontkitFont } from '@/services/pdf/reportTextMeasure';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const font = (file: string) => new Uint8Array(readFileSync(join(ROOT, 'src/services/pdf/fonts', file)));
@@ -233,6 +237,73 @@ console.log('── F. de rapportinstelling');
   ok(parseReportFontChoice('custom', null) === 'inter', 'F2 custom zonder opgeslagen lettertype ⇒ Inter');
   ok(parseReportFontChoice('carlito', custom) === 'carlito', 'F3 een vaste letter blijft staan');
   ok(parseReportFontChoice('Arial', custom) === 'inter', 'F4 onbekende waarde ⇒ Inter');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+console.log('── G. een layouttabel die fontkit niet leest (issue #1050)');
+{
+  // fontkit 1.1.1 (onder pdf-lib) mist bij een GSUB-regel van type 8 (reverse chaining) het veld
+  // `backtrackGlyphCount` en gooit 'Not a fixed size' (bijvoorbeeld Noto Sans Coptic). Dan liep de hele
+  // vector-PDF stuk en werd elk rapport met dat lettertype een plaatje. Proef: Liberation Sans met elke
+  // GSUB-regel als type 8 gemarkeerd; fontkit leest dan precies zo mis.
+  const broken = SANS.slice();
+  const v = view(broken);
+  const gsub = tableOffset(broken, 'GSUB');
+  const lookupList = gsub + v.getUint16(gsub + 8);
+  for (let i = 0; i < v.getUint16(lookupList); i++) v.setUint16(lookupList + v.getUint16(lookupList + 2 + 2 * i), 8);
+  const create = (b: Uint8Array) => fontkit.create(b) as unknown as ReportFontkitFont;
+  let fixtureError = '';
+  try { create(broken).layout('Fundering'); } catch (err) { fixtureError = String(err); }
+  ok(fixtureError.includes('Not a fixed size'), `G1 de proef geeft niet de fout van fontkit: ${fixtureError || 'geen fout'}`);
+
+  const readable = readableLayoutBytes(broken, create);
+  ok(readableLayoutBytes(SANS, create) === SANS, 'G2 een gezond lettertype komt ongewijzigd terug');
+  const tags = (b: Uint8Array) => Array.from({ length: view(b).getUint16(4) }, (_, i) => String.fromCharCode(...b.subarray(12 + i * 16, 16 + i * 16)));
+  ok(!tags(readable).includes('GSUB') && tags(readable).includes('GPOS') && tags(readable).includes('GDEF'),
+    `G2 alleen de onleesbare tabel valt weg: ${tags(readable).join(' ')}`);
+  const ref = create(SANS);
+  const fk = create(readable);
+  ok(fk.layout('Fundering').glyphs.length === 9
+    && [...'Fundering'].every(c => fk.glyphForCodePoint(c.codePointAt(0)!).advanceWidth === ref.glyphForCodePoint(c.codePointAt(0)!).advanceWidth),
+    'G2 zonder die tabel leest fontkit dezelfde letter');
+
+  // De PDF blijft vector met de eigen letter, ook in een rapport van rechts naar links.
+  for (const baseDir of ['ltr', 'rtl'] as const) {
+    let pdfBytes: Uint8Array | null = null;
+    try {
+      pdfBytes = await paginateVectorToPdfBytes(
+        makeSectionedRenderReport({
+          title: 'Planning مرحبا', subtitle: 'Eigen lettertype', notes: [], summary: [], kpis: [],
+          sections: [{ heading: 'Taken', columns: [
+            { header: 'Naam', width: 200, align: 'left' as const, text: (r: unknown) => (r as { n: string }).n },
+          ], rows: [{ n: 'Fundering' }, { n: 'Ruwbouw ✓' }] }],
+        }, undefined, reportFontStack('custom')),
+        { paperSize: 'a4', orientation: 'portrait', mode: 'fit-width', baseDir, subsetFont: async (ttf: Uint8Array) => ttf,
+          fallbackFonts: [{ id: 'inter', bytes: INTER }] },
+        { regular: broken, bold: broken }, ARABIC,
+      );
+    } catch (err) {
+      ok(false, `G3 ${baseDir}: de vector-PDF loopt stuk op de layouttabel: ${String(err)}`);
+    }
+    if (pdfBytes) {
+      const doc = await PDFDocument.load(pdfBytes);
+      const fonts: string[] = [];
+      let images = 0;
+      for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+        if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) fonts.push(String(obj.get(PDFName.of('BaseFont'))));
+        if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Image')) images++;
+      }
+      ok(images === 0 && fonts.filter(f => /^\/LiberationSans-\d+$/.test(f)).length === 2,
+        `G3 ${baseDir}: verwacht vector met de eigen letter, kreeg ${images} beeld(en) en ${fonts.join(', ')}`);
+    }
+  }
+
+  // De meting van papier en paneel gebruikt dezelfde letter, ook met de shaping van rechts naar links.
+  const measured = (main: Uint8Array) => measureReportText(
+    assembleReportMeasureFonts(create, { regular: main, bold: main }, { arabic: ARABIC, baseDir: 'rtl' }), 'مرحبا Fundering', false, 10);
+  let width = NaN;
+  try { width = measured(broken); } catch (err) { ok(false, `G4 de meting loopt stuk op de layouttabel: ${String(err)}`); }
+  ok(Math.abs(width - measured(SANS)) < 1e-9, `G4 de meting wijkt af van de gezonde letter: ${width} tegen ${measured(SANS)}`);
 }
 
 if (failures > 0) {

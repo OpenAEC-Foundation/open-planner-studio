@@ -23,6 +23,7 @@ import {
   isArabicScriptCp, isBidiControlCp, isNeutralCp, shapeAndPlace, stripBidiControls, type ShapeFontkitFont, type ShapingFonts,
 } from './bidiShape';
 import { hasRtlText } from './reportFont';
+import { readableLayoutBytes } from './fontLayoutTables';
 
 /** Het deel van een fontkit-font dat de meting leest. */
 export interface MeasureFont {
@@ -279,8 +280,10 @@ export function assembleReportMeasureFonts(
   main: ReportFontFiles,
   options: { interFallback?: ReportFontFiles; arabic?: ReportFontFiles; baseDir: 'ltr' | 'rtl' },
 ): ReportMeasureFonts {
-  const regular = create(main.regular);
-  const bold = create(main.bold);
+  // Dezelfde bytes als de PDF inbedt: zonder de layouttabellen die fontkit niet leest (`paginateVector.ts`, #1050).
+  const readable = (bytes: Uint8Array) => create(readableLayoutBytes(bytes, create));
+  const regular = readable(main.regular);
+  const bold = main.bold === main.regular ? regular : readable(main.bold);
   const fonts: ReportMeasureFonts = { regular, bold, fallbacks: [], baseDir: options.baseDir };
   if (options.interFallback) {
     const inter = { regular: create(options.interFallback.regular), bold: create(options.interFallback.bold) };

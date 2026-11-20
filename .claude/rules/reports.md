@@ -154,3 +154,7 @@ IndexedDB `ops-report-font`); `ops-reportSettings` krijgt alleen naam en versie 
 zijn de vette bytes de gewone, op het scherm (`@font-face` 700 met hetzelfde bestand) en in de PDF. Is de kopie weg,
 dan zet `useCustomReportFontGuard` de keuze terug op Inter met één melding. Een ander eigen lettertype heeft
 dezelfde id en familie (`OpsReportCustom`) maar een andere `reportFontKey`; laad- en meetcaches gaan op die sleutel.
+Een layouttabel (GDEF, GSUB, GPOS) die @pdf-lib/fontkit 1.1.1 niet leest, zoals een GSUB-regel van type 8 (issue
+#1050, Noto Sans Coptic), liet elke `drawText` stuklopen en maakte de hele PDF raster. `readableLayoutBytes`
+(`fontLayoutTables.ts`) leest die tabellen tot op elke subtabel en haalt een onleesbare tabel uit een kopie; de
+pagineerder en `assembleReportMeasureFonts` gebruiken allebei die bytes. Een gezond lettertype komt ongewijzigd terug.
