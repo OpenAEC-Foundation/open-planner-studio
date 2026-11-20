@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { documentContentOf } from '@/state/documentSaveState';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, lstatSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -515,6 +515,48 @@ await check('stap 4 faalt en terugzetten ook: het record blijft, en de volgende 
     const loaded = await loadRecovery();
     const restored = await readRecoveryDocument(loaded.docs.find(d => d.id === c.id)!, loaded.archives, true);
     assert.equal(restored.ifcSource?.sha256, hash(bytes), 'herstel vindt de bron weer');
+  } finally { await tidy(c); }
+});
+
+
+await check('1832: een aangetroffen link onder de vorige naam blijft staan zonder hem te lezen', async () => {
+  const c = await opened();
+  try {
+    let previous = '', readPrevious = false;
+    const base = await aroundPlace(2, 'after', () => {
+      previous = previousVersionPath(c.path, helperId(c));
+      unlinkSync(previous);
+      symlinkSync(c.path, previous);
+    });
+    const fs: OwnFileReplaceFs = { ...base, content: async (path, expected) => {
+      if (path === previous) readPrevious = true;
+      return base.content(path, expected);
+    } };
+    const { result } = await replace(c, fs);
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: previous });
+    assert.equal(readPrevious, false);
+    assert.equal(lstatSync(previous).isSymbolicLink(), true);
+    assert.equal(hash(new Uint8Array(readFileSync(c.path))), c.prepared.sha256);
+    assert.equal(recordsOnDisk().length, 1);
+  } finally { await tidy(c); }
+});
+
+await check('1832: fout bij lstat laat de vorige naam ongemoeid', async () => {
+  const c = await opened(), base = await tauriOwnFileReplaceFs();
+  try {
+    let denied = '', readPrevious = false;
+    const fs: OwnFileReplaceFs = { ...base, lstat: async path => {
+      if (path.includes('.ops-vorige-')) { denied = path; throw new Error('geen toegang'); }
+      return base.lstat(path);
+    }, content: async (path, expected) => {
+      if (path.includes('.ops-vorige-')) readPrevious = true;
+      return base.content(path, expected);
+    } };
+    const { result } = await replace(c, fs);
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: denied });
+    assert.equal(readPrevious, false);
+    assert.equal(hash(new Uint8Array(readFileSync(denied))), hash(bytes));
+    assert.equal(recordsOnDisk().length, 1);
   } finally { await tidy(c); }
 });
 
