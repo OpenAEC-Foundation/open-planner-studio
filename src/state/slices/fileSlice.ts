@@ -89,7 +89,7 @@ import {
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
-import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementsSettled } from '@/services/fileAccess/writeCoordinator';
+import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
@@ -765,6 +765,10 @@ export type ChosenExternalSource =
 
 /** Het filter van de kiezer voor een bronbestand. */
 const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
+/** Een IFC-export weigert omdat zijn document veranderde terwijl hij wachtte (`refuseChangedExport`, `withIfcExportPriority`). */
+const IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE = {
+  severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed',
+} as const;
 
 /** Het opslagdoel van een document na een geslaagde opslag (zie `commitSavedDocument`). */
 export interface SaveDestination {
@@ -822,15 +826,27 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * "alleen de planning" en het rekenen tot en met het schrijven. Vanaf het begin houdt de export voorrang
    * (`claimProjectFileWrite`): een ronde van Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt
    * meteen, en zolang de export loopt wijkt elke nieuwe ronde ook, ook terwijl de vraag open staat. Een ronde die al
-   * plaatst, maakt dat eerst af (`whenProjectFilePlacementsSettled`); pas daarna neemt de export zijn bron op. Een
+   * plaatst, maakt dat eerst af (`whenProjectFilePlacementSettled`); pas daarna neemt de export zijn bron op. Een
    * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseChangedExport`). Zonder zo'n ronde
    * (ook met de flag uit) begint de export zonder wachten, zoals vóór stap 8.
+   * Fixronde 3: de export legt bij de aanroep vast voor welk document en welke inhoud hij bedoeld is, vóór de wachtstap.
+   * Staat na de plaatsing een ander document in het actieve tabblad, of kreeg het tabblad een andere inhoud, dan weigert
+   * hij met de bestaande melding, vóór de bestandskiezer; nooit exporteert hij een ander document. Hetzelfde document
+   * exporteert hij met de bron van ná de plaatsing.
    */
   const withIfcExportPriority = async (run: () => Promise<ExportResult>): Promise<ExportResult> => {
+    const requested = snapshotContent(get());
     const release = claimProjectFileWrite();
     try {
-      const placements = whenProjectFilePlacementsSettled();
-      if (placements) await placements;
+      const placement = whenProjectFilePlacementSettled();
+      if (placement) {
+        await placement;
+        const now = get();
+        if (now.activeDocumentId !== requested.id || !sameDocumentContent(now, requested)) {
+          now.notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
+          return { ok: true, warnings: [], cancelled: true };
+        }
+      }
       return await run();
     } finally { release(); }
   };
@@ -1320,7 +1336,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
     if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
       && (!hasForeignContent(snapshot.ifcSource) || now.ifcSource === snapshot.ifcSource)) return false;
-    get().notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
+    get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
 
@@ -1341,7 +1357,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       now.notify(ifcWriteBlockedNotice(doc));
       return true;
     }
-    now.notify({ severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed' });
+    now.notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
 

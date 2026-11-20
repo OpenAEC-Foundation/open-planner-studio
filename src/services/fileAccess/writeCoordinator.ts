@@ -1,6 +1,17 @@
 // Eén app-instantie mag nooit twee schrijfroutes tegelijk naar projectbestanden sturen. De lock
 // omvat ook de handmatige opslaan-dialoog: tijdens die blokkerende keuze mag een timer niet nog
 // een tweede write voorbereiden. Het is app-runtime, geen document- of IFC-data.
+//
+// De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033, besluit technisch beslisser 20 november
+// 2026). Eén rij, op volgorde van aankomst, met drie soorten beurten:
+// - een handmatige actie (`runProjectFileWrite`: Ctrl+S, Opslaan als, een export, MCP) gaat voor: een ronde van
+//   Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt (ook wie op de rij wacht of een export die
+//   voorrang claimt, laat haar wijken);
+// - een gewone tik van Automatisch opslaan (`runAutoSaveTickWrite`) wacht op zijn beurt en laat niets wijken; staat er een
+//   modelronde vóór hem, dan schrijft hij direct daarna;
+// - een ronde met een gebouwmodel (`runYieldingProjectFileWrite`) krijgt haar beurt en wijkt alleen voor een handmatige
+//   actie; na haar grens (`YieldingTurn.pass`) loopt ze af.
+// Met de flag uit bestaan er geen modelrondes en is de rij dezelfde als vóór stap 8.
 let busy = false;
 let tail: Promise<void> = Promise.resolve();
 /** Hoeveel afsluitfasen de poort dicht houden (afsluiten en de updater kunnen elkaar overlappen). */
@@ -20,12 +31,11 @@ export class YieldedToManualWrite extends Error {
 /** Fixronde 1 van de review van #1033: zoveel handmatige acties houden voorrang vóór ze de rij bereiken
  *  (`claimProjectFileWrite`). Zolang er één is, wijkt elke ronde meteen, ook een die nu pas om de rij vraagt. */
 let claims = 0;
-/** Fixronde 2 van de review van #1033: zoveel schrijfacties staan in de rij of lopen, en zoveel daarvan zijn wijkende
- *  rondes die nog vóór hun grens zijn (`YieldingTurn.pass`). Het verschil is wat niet meer wijkt. */
-let queued = 0;
-let soft = 0;
-/** Fixronde 2: de wijkende rondes die over hun grens gingen en nog plaatsen; klaar als de ronde klaar is. */
-const placing = new Set<Promise<void>>();
+/** Fixronde 3 van de review van #1033: zoveel handmatige acties staan in de rij of lopen. Zolang er één is, kiest
+ *  Automatisch opslaan geen kandidaten (`isManualProjectFileWriteQueued`), zoals vóór stap 8 met een bezette rij. */
+let manual = 0;
+/** De ronde die over haar grens ging en nog plaatst; de rij is serieel, dus hoogstens één. */
+let placing: Promise<void> | null = null;
 
 /** Besluit technisch beslisser, 19 november 2026: "Een handmatige actie gaat altijd voor." */
 function yieldBackgroundWrites(): void {
@@ -54,20 +64,20 @@ export function isProjectFileWriteBusy(): boolean {
 }
 
 /**
- * Fixronde 2 van de review van #1033: staat er een schrijfactie in de rij die niet meer wijkt? Een ronde van Automatisch
- * opslaan met een gebouwmodel die nog vóór haar grens is, telt niet: wie nu om de rij vraagt, laat haar wijken. Zonder
- * zo'n ronde (ook met de flag uit) is dit gelijk aan `isProjectFileWriteBusy`.
+ * Fixronde 3 van de review van #1033: staat er een handmatige actie in de rij of loopt ze? Dan kiest Automatisch opslaan
+ * (de gewone tik en de wekker van een gebouwmodel) deze keer geen kandidaten, zoals vóór stap 8 met een bezette rij. Een
+ * lopende of wachtende ronde van Automatisch opslaan telt niet: een tik sluit daarachter aan en wacht.
  */
-export function isProjectFileWriteHeld(): boolean {
-  return queued > soft;
+export function isManualProjectFileWriteQueued(): boolean {
+  return manual > 0;
 }
 
 /**
- * Fixronde 2 van de review van #1033: `null` als geen wijkende ronde over haar grens is; anders een belofte die klaar is
- * zodra die rondes hun plaatsing en commit afmaakten. Een IFC-export neemt zijn bron pas daarna op.
+ * Fixronde 2 van de review van #1033: `null` als geen ronde over haar grens is; anders een belofte die klaar is zodra
+ * die ronde haar plaatsing en commit afmaakte. Een IFC-export neemt zijn bron pas daarna op.
  */
-export function whenProjectFilePlacementsSettled(): Promise<void> | null {
-  return placing.size === 0 ? null : Promise.all(placing).then(() => undefined);
+export function whenProjectFilePlacementSettled(): Promise<void> | null {
+  return placing;
 }
 
 /**
@@ -111,7 +121,16 @@ export async function closeProjectFileWrites(): Promise<() => void> {
 export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
   // #804 stap 8: een handmatige schrijfactie (Ctrl+S, Opslaan als, een export, ook van een ander tabblad) gaat voor.
   yieldBackgroundWrites();
-  return enqueue(work, closed);
+  return enqueue(work, closed, 'manual');
+}
+
+/**
+ * Fixronde 3 van de review van #1033: een gewone tik van Automatisch opslaan (een document zonder gebouwmodel). Hij wacht
+ * op zijn beurt in de rij en laat geen ronde wijken: staat er een ronde met een gebouwmodel vóór hem (rekenend of
+ * plaatsend), dan schrijft hij direct na haar. Verder gelijk aan `runProjectFileWrite`.
+ */
+export async function runAutoSaveTickWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
+  return enqueue(work, closed, 'tick');
 }
 
 /** De beurt van een wijkende ronde (`runYieldingProjectFileWrite`). */
@@ -120,15 +139,16 @@ export interface YieldingTurn {
   yielded: AbortSignal;
   /**
    * De grens: vlak vóór de eerste schrijfactie op het doel. `false`: de ronde week al (niets schrijven). `true`: vanaf nu
-   * wijkt de ronde niet meer; ze loopt af, een export wacht op haar (`whenProjectFilePlacementsSettled`) en wie om de rij
+   * wijkt de ronde niet meer; ze loopt af, een export wacht op haar (`whenProjectFilePlacementSettled`) en wie om de rij
    * vraagt, wacht op zijn beurt. Synchroon, dus niets kan tussen de toets en de belofte komen.
    */
   pass: () => boolean;
 }
 
 /**
- * #804 stap 8: een ronde van Automatisch opslaan met een gebouwmodel, in dezelfde rij. `yielded` gaat af zodra een andere
- * schrijfactie om de rij vraagt (`runProjectFileWrite`) of iemand op de rij wacht (`whenProjectFileWritesIdle`, ook
+ * #804 stap 8: een ronde van Automatisch opslaan met een gebouwmodel, in dezelfde rij. `yielded` gaat af zodra een
+ * handmatige actie om de rij vraagt (`runProjectFileWrite`, `claimProjectFileWrite`; een gewone tik niet, fixronde 3 van de
+ * review van #1033) of iemand op de rij wacht (`whenProjectFileWritesIdle`, ook
  * `closeProjectFileWrites`), ook als de ronde zelf nog op haar beurt wacht. De ronde beslist zelf tot waar ze wijkt:
  * zolang ze nog rekent of controleert, stopt ze zonder te schrijven; is het herstelrecord geschreven, dan loopt ze af en
  * wacht de handmatige actie op haar beurt. Een gewone ronde (zonder gebouwmodel) gebruikt `runProjectFileWrite`.
@@ -138,41 +158,31 @@ export async function runYieldingProjectFileWrite<T>(work: (turn: YieldingTurn) 
   yielding.add(controller);
   if (claims > 0) controller.abort(new YieldedToManualWrite());
   let settle: (() => void) | undefined;
-  /** In de rij en nog vóór de grens (telt in `soft`). */
-  const entry = { soft: false };
   const turn: YieldingTurn = {
     yielded: controller.signal,
     pass: () => {
       if (controller.signal.aborted) return false;
       if (!settle) {
         yielding.delete(controller);
-        leaveSoft(entry);
         const settled = new Promise<void>(resolve => { settle = resolve; });
-        placing.add(settled);
-        void settled.then(() => { placing.delete(settled); });
+        placing = settled;
+        void settled.then(() => { if (placing === settled) placing = null; });
       }
       return true;
     },
   };
   try {
-    return await enqueue(() => work(turn), closed, entry);
+    return await enqueue(() => work(turn), closed, 'model');
   } finally {
     yielding.delete(controller);
     settle?.();
   }
 }
 
-function leaveSoft(entry: { soft: boolean }): void {
-  if (!entry.soft) return;
-  entry.soft = false;
-  soft--;
-}
-
-async function enqueue<T>(work: () => Promise<T>, closed: () => T, yieldingEntry?: { soft: boolean }): Promise<T> {
+async function enqueue<T>(work: () => Promise<T>, closed: () => T, kind: 'manual' | 'tick' | 'model'): Promise<T> {
   if (closers > 0) return closed();
   busy = true;
-  queued++;
-  if (yieldingEntry) { yieldingEntry.soft = true; soft++; }
+  if (kind === 'manual') manual++;
   let release: (() => void) | undefined;
   const turn = new Promise<void>((resolve) => { release = resolve; });
   const previous = tail;
@@ -183,8 +193,7 @@ async function enqueue<T>(work: () => Promise<T>, closed: () => T, yieldingEntry
     return await work();
   } finally {
     release!();
-    if (yieldingEntry) leaveSoft(yieldingEntry);
-    queued--;
+    if (kind === 'manual') manual--;
     // Een volgende wachtrijhouder houdt de vlag terecht hoog; pas als dit de staart was is de
     // volgende timer-run weer toegestaan.
     if (tail === mine) busy = false;

@@ -3549,8 +3549,11 @@ for (const exporter of ['IFC zonder gebouwmodel', 'Exporteren met bibliotheek'] 
   }
 }
 
-for (const exporter of ['Exporteren → IFC', 'IFC zonder gebouwmodel', 'Exporteren met bibliotheek'] as const) {
-  await check(`stap 8, export (${exporter}) terwijl de ronde haar tijdelijke bestand al schreef: de ronde plaatst, daarna levert de export één bestand`, async () => {
+// Fixronde 3 van de review van #1033: de export legt bij de aanroep vast voor welk document hij is. Wisselt de planner van
+// tabblad terwijl de export op de plaatsing wacht, dan exporteert hij nooit het andere document: hij weigert met de
+// bestaande melding, vóór de bestandskiezer.
+for (const exporter of ['Exporteren → IFC', 'IFC zonder gebouwmodel', 'Exporteren met bibliotheek'] as const) for (const moment of ['zelfde tabblad', 'tabbladwissel vóór het einde van de plaatsing'] as const) {
+  await check(`stap 8, export (${exporter}) terwijl de ronde haar tijdelijke bestand al schreef, ${moment}: ${moment === 'zelfde tabblad' ? 'de ronde plaatst, daarna levert de export één bestand' : 'de export weigert, nooit het andere document'}`, async () => {
     const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
     const ipc = desktop(appData), sw = saveWorker('manual');
     const own = join(dir, `autosave-export-plaatsen-${++handleCount}.ifc`), dest = join(dir, `autosave-export-uit-${handleCount}.ifc`);
@@ -3561,6 +3564,14 @@ for (const exporter of ['Exporteren → IFC', 'IFC zonder gebouwmodel', 'Exporte
       writeFileSync(own, bytes); ipc.choose(dest);
       const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute);
       unregister = recoveryRounds(store);
+      const original = store.getState().activeDocumentId;
+      const other = moment === 'zelfde tabblad' ? null : otherDocument(store);
+      store.getState().switchDocument(original);
+      // Zoals in de proef van de reviewer: het eigen document heeft een gekoppelde bibliotheek, het andere niet.
+      if (other && exporter === 'Exporteren met bibliotheek') {
+        const companyId = store.getState().seedDemoLibrary();
+        store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+      }
       longer(store); clearNotices(store);
       asked.length = 0; answer(true);
       let held = false;
@@ -3580,9 +3591,25 @@ for (const exporter of ['Exporteren → IFC', 'IFC zonder gebouwmodel', 'Exporte
       const action = exporter === 'Exporteren met bibliotheek' ? store.getState().exportProjectWithPool()
         : store.getState().exportAs('ifc', exporter === 'IFC zonder gebouwmodel' ? withoutModel : undefined);
       await someTurns();
+      assert.equal(ipc.picks(), 0, 'de export wacht op de plaatsing');
+      if (other) store.getState().switchDocument(other.id);
       releaseTemp.release();
       await round;
       assert.notEqual(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'de ronde maakte haar plaatsing af');
+      assert.equal(payloadOf(store, original).isDirty, false);
+      if (other) {
+        let settled = false;
+        void action.then(() => { settled = true; });
+        await turnUntil(() => settled, 'de export rondt af zonder te rekenen');
+        const refused = await action;
+        assert(refused.ok && refused.cancelled, 'de export weigert');
+        assert.equal(ipc.picks(), 0, 'geen bestandskiezer');
+        assert.equal(existsSync(dest), false, 'geen bestand');
+        assert.equal(sw.requests().length, 1, 'de export rekende niet');
+        assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+        assert.equal(store.getState().activeDocumentId, other.id, 'het andere tabblad blijft actief');
+        return;
+      }
       assert.equal(store.getState().isDirty, false);
       await mergeArrives(sw, 2);
       await finishMerge(sw);
@@ -3614,9 +3641,8 @@ await check('stap 8, fixronde 2: de gewone ingang (10 s) start nooit een gebouwm
   } finally { unregister(); sw.client.dispose(); await clearRecovery(); }
 });
 
-await check('stap 8, fixronde 2: terwijl een modelronde rekent, schrijft een gewoon document op zijn eigen tik van 40 s, zoals main', async () => {
-  const sw = saveWorker('manual');
-  const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+/** Een gebouwmodel en een gewoon document, allebei met Automatisch opslaan aan; het gewone document is actief. */
+async function modelAndPlain(compute: IfcOutputCompute) {
   const { store, name } = await openHandle(bytes, compute), unregister = recoveryRounds(store);
   const model = store.getState().activeDocumentId;
   store.getState().setAutoSaveToFile(true);
@@ -3627,48 +3653,110 @@ await check('stap 8, fixronde 2: terwijl een modelronde rekent, schrijft een gew
   const plain = store.getState().activeDocumentId;
   store.getState().setAutoSaveToFile(true);
   clearNotices(store);
-  const timed = fakeSchedule(store, compute);
-  const dirty = (id: string) => payloadOf(store, id).isDirty;
-  try {
-    longer(store);
-    await timed.until(0);
-    await turnUntil(() => !dirty(plain), 'schoon plain (1)');
-    await timed.until(2_000);
-    store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
-    await timed.until(15_000);
-    longer(store);
-    await timed.until(20_000);
-    await turnUntil(() => !dirty(plain), 'schoon plain (2)');
-    await timed.until(29_000);
-    longer(store);
-    await timed.until(30_000);
-    await turnUntil(() => !dirty(plain), 'schoon plain (3)');
-    await timed.until(31_000);
-    longer(store);
-    const plainFile = hash(fileOf(plainName));
-    await timed.until(32_000);
-    await mergeArrives(sw, 1);
-    const modelWorker = sw.workers[0]!;
-    modelWorker.start();
-    await timed.until(39_000);
-    assert.equal(hash(fileOf(plainName)), plainFile, 'vóór de eigen tik niets');
-    await timed.until(40_000);
-    await turnUntil(() => !dirty(plain), 'schoon plain (4)');
-    assert.notEqual(hash(fileOf(plainName)), plainFile, 'op 40 s het gewone bestand');
-    assert.equal(modelWorker.terminated, true, 'de modelronde week voor de verschuldigde gewone ronde');
-    assert.equal(hash(fileOf(name)), hash(bytes), 'het gebouwmodel nog niet geschreven');
-    assert.equal(dirty(model), true);
-    // De geweken ronde rekende 8 s (32–40 s): de ondergrens (tien keer haar duur na haar begin) zet de volgende op 112 s.
-    await timed.until(111_000);
-    assert.equal(sw.requests().length, 1, 'vóór de ondergrens geen nieuwe modelronde');
-    await timed.until(112_000);
-    await mergeArrives(sw, 2);
-    await finishMerge(sw);
-    await turnUntil(() => !dirty(model), 'schoon model (5)');
-    assert.deepEqual(mergeProblems(bytes, fileOf(name)), [], 'na de rust schrijft de modelronde alsnog');
-    assert.deepEqual(autoErrors(store), []);
-  } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
-});
+  return { store, name, model, plain, plainName, unregister };
+}
+
+// Fixronde 3 van de review van #1033 (knownbug 1930, besluit technisch beslisser): een gewone tik breekt een modelronde
+// niet meer af. Hij wacht in de rij en schrijft direct na de modelronde; de modelronde krijgt zo haar beurt, ook als de
+// planner in een gewoon document doorwerkt. Vervangt de proef van fixronde 2 "schrijft op zijn eigen tik van 40 s".
+for (const computeMs of [8_500, 15_000, 25_000]) {
+  await check(`stap 8, fixronde 3: doorwerken in een gewoon document laat een modelronde van ${computeMs / 1000} s niet wijken; de gewone tik wacht en schrijft direct daarna`, async () => {
+    const sw = saveWorker('manual');
+    const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    const { store, name, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    const timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    try {
+      await timed.until(2_000);
+      store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+      // Een wekker die een wijziging zet, gaat af bij de volgende `until`; daarom na elke wijziging `until` op hetzelfde moment.
+      await timed.until(22_000); longer(store); await timed.until(22_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 22 s');
+      await timed.until(32_000);
+      await mergeArrives(sw, 1);
+      const modelWorker = sw.workers[0]!;
+      modelWorker.start();
+      // De planner werkt door in het gewone document: elke 3 s een wijziging, terwijl het model rekent.
+      let ticksDuringRound = 0, plainFile = hash(fileOf(plainName));
+      for (let at = 33_000; at < 32_000 + computeMs; at += 3_000) {
+        await timed.until(at); longer(store); await timed.until(at);
+        await someTurns();
+        assert.equal(modelWorker.terminated, false, `de gewone tik breekt de modelronde niet af (${at / 1000} s)`);
+        assert.equal(hash(fileOf(plainName)), plainFile, `het gewone bestand wacht op de modelronde (${at / 1000} s)`);
+        if (timed.controller.isSaving()) ticksDuringRound++;
+      }
+      // Bij een ronde langer dan de 10 s van de gewone tik valt er een tik in de ronde; die wacht in de rij.
+      if (computeMs > 10_000) assert(ticksDuringRound > 0, 'een gewone tik viel in de modelronde');
+      await timed.until(32_000 + computeMs);
+      await modelWorker.answer(modelWorker.requests.length - 1);
+      await turnUntil(() => !dirty(model), 'de modelronde schrijft');
+      if (computeMs > 10_000) await turnUntil(() => !dirty(plain), 'direct daarna de wachtende gewone tik');
+      assert.equal(sw.requests().length, 1, 'één modelronde, niet afgebroken');
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), [], 'het gebouwmodel byte voor byte');
+      // Daarna weer het gewone ritme van 10 s.
+      plainFile = hash(fileOf(plainName));
+      const after = 32_000 + computeMs + 1_000;
+      await timed.until(after); longer(store); await timed.until(after + 10_000);
+      await turnUntil(() => !dirty(plain), 'daarna weer de gewone tik van 10 s');
+      assert.notEqual(hash(fileOf(plainName)), plainFile);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// Fixronde 3 (bevinding 2 van de review): plaatst de modelronde al, dan gaat de verschuldigde gewone tik niet verloren: hij
+// wacht in de rij en schrijft zodra de plaatsing klaar is. Met de flag uit (geen modelronde) schrijft hij op 40 s, zoals main.
+for (const flag of ['aan', 'uit'] as const) {
+  await check(`stap 8, fixronde 3: een gewone tik tijdens de plaatsing van een modelronde gaat niet verloren (flag ${flag})`, async () => {
+    const sw = saveWorker('manual');
+    const compute: IfcOutputCompute = (job, stop) => job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    const { store, name, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    const timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    const placing = gate(), releasePlacing = gate();
+    handleFaults.set(name, { afterClose: async () => { placing.release(); await releasePlacing.held; } });
+    try {
+      longer(store);
+      await timed.until(0);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 0 s');
+      await timed.until(2_000);
+      store.getState().switchDocument(model); longer(store); store.getState().switchDocument(plain);
+      await timed.until(15_000); longer(store);
+      await timed.until(20_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 20 s');
+      await timed.until(29_000); longer(store);
+      await timed.until(30_000);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 30 s');
+      await timed.until(31_000); longer(store);
+      const plainFile = hash(fileOf(plainName));
+      clearNotices(store);
+      await timed.until(32_000);
+      if (flag === 'aan') {
+        await mergeArrives(sw, 1);
+        await finishMerge(sw);
+        await placing.held;
+      }
+      await timed.until(39_000);
+      assert.equal(hash(fileOf(plainName)), plainFile, 'vóór de tik van 40 s niets');
+      await timed.until(40_000);
+      if (flag === 'uit') {
+        await turnUntil(() => !dirty(plain), 'flag uit: op 40 s, zoals main');
+        assert.equal(sw.requests().length, 0, 'flag uit: geen modelronde');
+        return;
+      }
+      await someTurns();
+      assert.equal(dirty(plain), true, 'de gewone tik wacht op de plaatsing');
+      await timed.until(42_000);
+      releasePlacing.release();
+      await turnUntil(() => !dirty(model), 'de modelronde plaatst');
+      await turnUntil(() => !dirty(plain), 'direct daarna de gewone tik, zonder de volgende tik van 50 s');
+      assert.notEqual(hash(fileOf(plainName)), plainFile);
+      assert.deepEqual(mergeProblems(bytes, fileOf(name)), []);
+      assert.deepEqual(autoErrors(store), []);
+    } finally { releasePlacing.release(); handleFaults.delete(name); timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
 
 await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen model begint niet als er intussen getypt is', async () => {
   const sw = saveWorker('manual'), { store, name: firstName } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);

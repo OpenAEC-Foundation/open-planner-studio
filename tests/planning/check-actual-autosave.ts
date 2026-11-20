@@ -5,8 +5,8 @@ import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSa
 import { useAppStore } from '@/state/appStore';
 import { freshPayload } from '@/state/documentContract';
 import {
-  claimProjectFileWrite, closeProjectFileWrites, isProjectFileWriteBusy, isProjectFileWriteHeld, runProjectFileWrite,
-  runYieldingProjectFileWrite, whenProjectFilePlacementsSettled, whenProjectFileWritesIdle,
+  claimProjectFileWrite, closeProjectFileWrites, isManualProjectFileWriteQueued, isProjectFileWriteBusy, runAutoSaveTickWrite,
+  runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFilePlacementSettled, whenProjectFileWritesIdle,
   YieldedToManualWrite,
 } from '@/services/fileAccess/writeCoordinator';
 import {
@@ -302,36 +302,43 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   truthy('20g de rij is daarna weer vrij', !isProjectFileWriteBusy());
 }
 
-// 21. Fixronde 2 van de review van #1033: een wijkende ronde vóór haar grens houdt de rij niet vast (een gewoon document
-//     schrijft op zijn eigen tik, zoals main), na `pass()` wel; een IFC-export wacht op een ronde die al plaatst
-//     (`whenProjectFilePlacementsSettled`), en een ronde die bij haar grens een claim ziet, wijkt (`pass()` geeft false).
+// 21. De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033): een gewone tik wacht achter een
+//     modelronde en laat haar niet wijken; een handmatige actie wel. Na `pass()` plaatst de ronde en wacht een IFC-export
+//     op haar (`whenProjectFilePlacementSettled`); een claim vóór de grens laat de ronde wijken (`pass()` geeft false).
 {
+  const order: string[] = [];
   let toBoundary: (() => void) | null = null;
   let afterPass: (() => void) | null = null;
   let passed: boolean | null = null;
+  let aborted = false;
   const round = runYieldingProjectFileWrite(async turn => {
+    turn.yielded.addEventListener('abort', () => { aborted = true; }, { once: true });
+    order.push('model-start');
     await new Promise<void>(resolve => { toBoundary = resolve; });
     passed = turn.pass();
     await new Promise<void>(resolve => { afterPass = resolve; });
+    order.push('model-klaar');
     return 'geschreven';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  eq('21a een rekenende ronde is bezig, maar houdt de rij niet vast', [isProjectFileWriteBusy(), isProjectFileWriteHeld(),
-    whenProjectFilePlacementsSettled()], [true, false, null]);
+  eq('21a een rekenende modelronde: de rij is bezet, geen handmatige actie, nog geen plaatsing',
+    [isProjectFileWriteBusy(), isManualProjectFileWriteQueued(), whenProjectFilePlacementSettled()], [true, false, null]);
+  const tick = runAutoSaveTickWrite(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  eq('21b een gewone tik laat de modelronde niet wijken en wacht', [aborted, order, isManualProjectFileWriteQueued()],
+    [false, ['model-start'], false]);
   (toBoundary as (() => void) | null)?.();
   await Promise.resolve(); await Promise.resolve();
-  const settled = whenProjectFilePlacementsSettled();
-  eq('21b na de grens houdt zij de rij vast en plaatst zij', [passed, isProjectFileWriteHeld(), settled !== null],
-    [true, true, true]);
-  let placementsDone = false;
-  void settled?.then(() => { placementsDone = true; });
+  const settled = whenProjectFilePlacementSettled();
+  eq('21c na de grens plaatst de ronde', [passed, settled !== null], [true, true]);
+  let placementDone = false;
+  void settled?.then(() => { placementDone = true; });
   await Promise.resolve();
-  truthy('21c het plaatsen is nog niet af', !placementsDone);
+  truthy('21d het plaatsen is nog niet af', !placementDone);
   (afterPass as (() => void) | null)?.();
-  eq('21d de ronde schrijft en het plaatsen is daarna af', [await round, await settled?.then(() => placementsDone)],
-    ['geschreven', true]);
-  eq('21e en de rij is weer vrij', [isProjectFileWriteBusy(), isProjectFileWriteHeld(), whenProjectFilePlacementsSettled()],
-    [false, false, null]);
+  eq('21e de ronde schrijft, daarna direct de tik', [await round, await tick, order, await settled?.then(() => placementDone)],
+    ['geschreven', 'ok', ['model-start', 'model-klaar', 'tik'], true]);
+  eq('21f en de rij is weer vrij', [isProjectFileWriteBusy(), whenProjectFilePlacementSettled()], [false, null]);
   // Een claim (de export) vóór de grens: de ronde wijkt bij `pass()`.
   let reach: (() => void) | null = null;
   let passedAfterClaim: boolean | null = null;
@@ -343,17 +350,17 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   await Promise.resolve(); await Promise.resolve();
   const release = claimProjectFileWrite();
   (reach as (() => void) | null)?.();
-  eq('21f een claim vóór de grens laat de ronde wijken', [await claimed, passedAfterClaim, whenProjectFilePlacementsSettled()],
+  eq('21g een claim vóór de grens laat de ronde wijken', [await claimed, passedAfterClaim, whenProjectFilePlacementSettled()],
     ['yielded', false, null]);
   release();
-  // Een gewone schrijfactie houdt de rij vast zolang zij loopt of wacht.
-  let finishPlain: (() => void) | null = null;
-  const plain = runProjectFileWrite(async () => { await new Promise<void>(resolve => { finishPlain = resolve; }); return 'ok'; },
+  // Een handmatige actie in de rij: Automatisch opslaan kiest deze keer geen kandidaten.
+  let finishManual: (() => void) | null = null;
+  const manualWrite = runProjectFileWrite(async () => { await new Promise<void>(resolve => { finishManual = resolve; }); return 'ok'; },
     () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  truthy('21g een gewone schrijfactie houdt de rij vast', isProjectFileWriteHeld());
-  (finishPlain as (() => void) | null)?.();
-  eq('21h en laat haar daarna los', [await plain, isProjectFileWriteHeld()], ['ok', false]);
+  truthy('21h een handmatige actie staat in de rij', isManualProjectFileWriteQueued());
+  (finishManual as (() => void) | null)?.();
+  eq('21i en daarna niet meer', [await manualWrite, isManualProjectFileWriteQueued()], ['ok', false]);
 }
 
 if (diffs.length === 0) {
