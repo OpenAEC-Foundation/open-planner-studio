@@ -47,6 +47,8 @@
     "recentColumns": "Naposledy použité",
     "noColumns": "Pomocí + přidejte sloupec.",
     "toggleSummary": "Rozbalit nebo sbalit souhrnný úkol",
+    "toggleMilestones": "Rozbalit nebo sbalit milníky",
+    "milestonesRun": "Milníky ({{n}})",
     "calculatedReadOnly": "Tento vypočítaný sloupec nelze upravit."
   },
   "taskGrid": {

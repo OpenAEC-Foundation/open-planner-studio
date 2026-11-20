@@ -47,6 +47,8 @@
     "recentColumns": "Nemrég használt",
     "noColumns": "Adjon hozzá oszlopot a + gombbal.",
     "toggleSummary": "Összefoglaló tevékenység ki- vagy összecsukása",
+    "toggleMilestones": "Mérföldkövek kibontása vagy összecsukása",
+    "milestonesRun": "Mérföldkövek ({{n}})",
     "calculatedReadOnly": "Ez a számított oszlop nem szerkeszthető."
   },
   "taskGrid": {

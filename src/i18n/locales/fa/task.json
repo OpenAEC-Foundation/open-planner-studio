@@ -47,6 +47,8 @@
     "recentColumns": "استفاده‌شده‌های اخیر",
     "noColumns": "با + یک ستون اضافه کنید.",
     "toggleSummary": "باز یا بسته کردن وظیفه خلاصه",
+    "toggleMilestones": "بازکردن یا بستن نقطه‌های عطف",
+    "milestonesRun": "نقطه‌های عطف ({{n}})",
     "calculatedReadOnly": "این ستون محاسبه‌شده قابل ویرایش نیست."
   },
   "taskGrid": {

@@ -47,6 +47,8 @@
     "recentColumns": "Ostatnio używane",
     "noColumns": "Dodaj kolumnę za pomocą +.",
     "toggleSummary": "Rozwiń lub zwiń zadanie sumaryczne",
+    "toggleMilestones": "Rozwiń lub zwiń kamienie milowe",
+    "milestonesRun": "Kamienie milowe ({{n}})",
     "calculatedReadOnly": "Tej kolumny obliczeniowej nie można edytować."
   },
   "taskGrid": {

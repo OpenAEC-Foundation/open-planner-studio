@@ -47,6 +47,8 @@
     "recentColumns": "Usate di recente",
     "noColumns": "Aggiungi una colonna con +.",
     "toggleSummary": "Espandi o comprimi l’attività di riepilogo",
+    "toggleMilestones": "Espandi o comprimi i cardini",
+    "milestonesRun": "Cardini ({{n}})",
     "calculatedReadOnly": "Questa colonna calcolata non può essere modificata."
   },
   "taskGrid": {

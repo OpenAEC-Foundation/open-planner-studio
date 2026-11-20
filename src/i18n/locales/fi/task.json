@@ -47,6 +47,8 @@
     "recentColumns": "Viimeksi käytetyt",
     "noColumns": "Lisää sarake painikkeella +.",
     "toggleSummary": "Laajenna tai tiivistä yhteenvetotehtävä",
+    "toggleMilestones": "Laajenna tai supista välitavoitteet",
+    "milestonesRun": "Välitavoitteet ({{n}})",
     "calculatedReadOnly": "Tätä laskettua saraketta ei voi muokata."
   },
   "taskGrid": {
