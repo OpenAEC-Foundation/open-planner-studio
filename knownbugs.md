@@ -2805,7 +2805,7 @@ en noem het in je rapport of PR-tekst.
      die van `place_file_exclusive` (1131 stap 3) dekt alleen het verplaatste bestand en zijn map. Gevonden in stap 1
      van 1131. Geldt ook voor het vastleggen in stap 0 van de vervanging op de desktop (1131 stap 5a): het herstelrecord
      (`replaceRecords.ts`) wordt atomair vervangen zonder fsync. Na stroomuitval kan de verplaatsing uit stap 3 op
-     schijf staan terwijl het herstelrecord ontbreekt; dan staat de vorige versie alleen onder `<naam>.ops-vorige-<id>`
+     schijf staan terwijl het herstelrecord ontbreekt; dan staat de vorige versie alleen onder `save-<id>.ops-vorige-<id>`
      en meldt de app het niet. Gevonden door de review van #991. — S
 
 1766. **VERVOLG (#804, tekst): de weigering bij een tweede open document met hetzelfde bestand noemt de verkeerde reden.**
@@ -5079,7 +5079,7 @@ en noem het in je rapport of PR-tekst.
      planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
      de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. — S (code)
 1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
-     Is `<naam>.ops-vorige-<id>` intussen een symlink geworden, dan leest de vergelijking in stap 5
+     Is de vorige versie (`save-<id>.ops-vorige-<id>`) intussen een symlink geworden, dan leest de vergelijking in stap 5
      (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
      bij een toegestane verwijdering de linknaam weg. Er verdwijnt hooguit een linknaam, geen inhoud; het vraagt een
      derde partij die precies tussen stap 3 en stap 5 de hulpnaam vervangt. Richting: een aangetroffen link laten
@@ -5131,9 +5131,11 @@ en noem het in je rapport of PR-tekst.
      vervangt ze het langs de vervanging van Ctrl+S (geen open tabblad, geen bron van een open document). Met de flag aan
      geldt dat sinds keuze 4, tweede deel, ook voor een bestand met een gebouwmodel of C/A/V-inhoud, en vanuit elk
      document. Het venster is kort (de terugkeer van de dialoog over IPC). Vanaf de vastlegging is het gebonden aan de
-     gelezen versie (fixronde 1 en 2 van #1071): stap 2 vergelijkt het hele doel met die bytes vóór het opzijzetten,
-     en wat een ander programma tussen die vergelijking en het opzijzetten schrijft, komt in `.ops-vorige` en blijft
-     bij stap 5 als kopie "(versie van ander programma …)". Na de vergelijking van stap 5 blijft alleen de grens van de
+     gelezen versie (fixronde 1 en 2 van #1071): stap 2 vergelijkt het hele doel met die bytes vóór het opzijzetten.
+     Dat verschil kan zich al tijdens het lezen voordoen: wisselt een ander programma het bestand terwijl stap 2 leest,
+     dan kan de leeshandle nog de oude versie geven en slaagt de vergelijking. Wat dan, of tussen de vergelijking en het
+     opzijzetten, onder de naam staat, komt opzij (`save-<id>.ops-vorige-<id>`); stap 5 vergelijkt die versie opnieuw en
+     bewaart een afwijkende als kopie "(versie van ander programma …)", met een melding. Na de vergelijking van stap 5 blijft alleen de grens van de
      vervanging zelf (ontwerp §4.10: een schrijver met een al open handle, vóór het verwijderen van `.ops-vorige`, en
      knownbugs 1795 en 1799). Technisch vervolg: nagaan of de native kiezer de bevestiging en de oorspronkelijke
      doelidentiteit kan teruggeven. Een extra vraag van de app zelf is een productkeuze: de eigenaar koos één

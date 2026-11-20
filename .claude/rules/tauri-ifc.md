@@ -45,7 +45,8 @@ macOS `renameatx_np` met `RENAME_EXCL`, beide relatief aan de open map; Windows 
 ze toetst (`SafeFilePath`: geen `..`, geen URL; absoluut, gewone bestandsnaam; dan de scope van `from` en daarna van
 `to`), dezelfde map (de map van `from` één keer geopend en vastgehouden, die
 van `to` moet hetzelfde bestand zijn), precies één van beide namen een eigen hulpnaam (`save-<id>.ops-save.tmp` of
-`<naam>.ops-vorige-<id>`, `<id>` kleine letters en cijfers zoals `generateId`, één regel in `place_file.rs`), de scope
+`<naam>.ops-vorige-<id>`, `<id>` kleine letters en cijfers zoals `generateId`, één regel in `place_file.rs`; de vervanging
+gebruikt `save-<id>.ops-vorige-<id>`), de scope
 ook op het echte pad van de open map (`FsRenameScope`: de capability via `Webview::resolve_command_scope` plus de
 runtime-scope; een verbod op de padtekst of op het echte pad wint, de toestemming geldt het echte pad, en het echte pad
 lost ook links in de bovenliggende mappen van een nog niet bestaand pad op, een lus weigert; zoals `resolve_path` en
@@ -388,7 +389,8 @@ link niet, `nlink: null`); de garantie geeft stap 3: `place_file_exclusive` weig
 `not-recorded`, niets geschreven (1764). Stap 1–5 in `replaceOwnFileBytes` (`fileAccess/ownFileReplace.ts`, bewerkingen
 via `OwnFileReplaceFs`, op Tauri `tauriOwnFileReplaceFs`): `createOwnTemp` (gedeeld met `writeNewUserBytes`, zonder de
 directe terugval) naar `save-<id>.ops-save.tmp`, `sourceTargetContent` op het doel, `place_file_exclusive` doel →
-`<naam>.ops-vorige-<id>` en tijdelijk → doel, `.ops-vorige` opnieuw vergelijken met de bron (gelijk: weg; anders
+`save-<id>.ops-vorige-<id>` (`previousVersionPath`: kort en los van de doelnaam, fixronde 3 van #1071; het herstel leest
+de naam uit het record, `recordPreviousPath`, ook de oude vorm `<naam>.ops-vorige-<id>` van record versie 1) en tijdelijk → doel, `.ops-vorige` opnieuw vergelijken met de bron (gelijk: weg; anders
 exclusief naar `<naam> (versie van ander programma <JJJJ-MM-DD UU.mm>).ifc`, `i18n/replaceCopyName.ts`). Per uitkomst
 (`ownPathReplaceNotices`): stap 1 `forbidden path` of een gelinkt doel, stap 3 `unsupported`/`refused` ⇒ `save-as-only`;
 stap 1 een schrijffout, stap 3 `target-exists`/`io` ⇒ `failed`, eigen tijdelijk bestand weg; stap 2 ⇒

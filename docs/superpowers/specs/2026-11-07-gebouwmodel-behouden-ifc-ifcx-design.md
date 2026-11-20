@@ -657,7 +657,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
     verdwijnen dat tussen de twee aanroepen op het doel kwam (Sol, review #839, ronde 4, met echte bestanden). Het
     commando controleert beide paden tegen de fs-scope van plugin-fs, en het accepteert alleen twee paden in dezelfde
-    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`): in stap
+    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`; de
+    vervanging gebruikt `save-<id>.ops-vorige-<id>`, zie stap 3): in stap
     3 is dat `to`, in stap 4 `from`. Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*);
     wrakko keurde het goed onder voorwaarden (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
     `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
@@ -786,7 +787,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     beschikbaar of geblokkeerd), dan stopt opslaan hier: zonder record vindt herstel de restbestanden niet terug. De
     melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
     sha256 van de inhoud vergelijken; anders stopt opslaan (eerste punt hierboven). 3: het doel exclusief verplaatsen
-    naar `<naam>.ops-vorige-<id>`. 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
+    naar `save-<id>.ops-vorige-<id>` in dezelfde map: kort en los van de doelnaam, zoals het tijdelijke bestand (fixronde 3
+    van #1071: achter een geldige naam van 240 bytes paste `<naam>.ops-vorige-<id>` niet meer). 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
     `.ops-vorige` narekenen. Gelijk aan `vorigeSha256`: verwijderen. Anders (een programma schreef via een open handle in
     het oude bestand): exclusief verplaatsen naar `<naam> (versie van ander programma <datum tijd>).ifc` en melden. 6:
     het manifest bijwerken en `pendingSha256` wissen. Het record verdwijnt pas als er geen hulpbestand van de operatie
@@ -807,8 +809,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - **Restbestanden na een crash.** Bij de start, en vóór de app een lokaal pad leest om het te openen (de dialoog,
     neerzetten en Recent gaan door één kern, `readOpenedTauriPath`), handelt hij de records af; voor een pad alleen het
     record van dat pad, en zonder record raakt dat de projectmap niet. Het record van een vervanging die in deze sessie
-    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` met het id
-    uit het record; een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
+    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `save-<id>.ops-vorige-<id>` met het id
+    uit het record (een record van versie 1, van een oudere app, noemt de vorige versie nog `<naam>.ops-vorige-<id>`); een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
     app leest de inhoud en vergelijkt de sha256 met het record.
     - `.ops-vorige` heeft `vorigeSha256` en het doel ontbreekt: dit is de versie die stap 3 opzijzette en stap 4 kwam
       niet op het doel. Exclusief terug op het doel; herstel neemt dan de oude bron.
