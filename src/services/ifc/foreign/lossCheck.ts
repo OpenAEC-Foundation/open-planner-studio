@@ -235,7 +235,21 @@ export interface LossCheckInput {
    * pset meebewegen.
    */
   readonly secondFormsUnchanged?: ReadonlySet<string>;
+  /** METING stap 5 deel 2 (niet mergen): het meetframe van één opslag (`prepareIfcWrite`). Zonder: direct naar het log. */
+  readonly meet?: Meet2Frame;
 }
+
+// ── METING stap 5 deel 2 (niet mergen): tijdelijke meetregels. Ze veranderen geen uitkomst. ──
+export interface Meet2Rec {
+  readonly plek: string; readonly namen: readonly string[]; readonly groep: string; readonly reden: string;
+  readonly why: string; readonly detail: string;
+}
+export interface Meet2Frame { ran: boolean; readonly recs: Meet2Rec[] }
+let meetTrail: string[] | undefined;
+/** Een verklaring uit lijst A liet iets toe (een waar resultaat): onthoud haar naam voor het lopende `explainO1`. */
+function hit<T>(naam: string, v: T): T { if (v) meetTrail?.push(naam); return v; }
+type Meet2Groups = (index: StepIndex, cls: Classification) => ReadonlyMap<number, string>;
+const meet2Groups = () => (globalThis as { __meet2Groups?: Meet2Groups }).__meet2Groups;
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
  *  (`readIFCWithXerReconstruction`, ook voor een compact XER-bronarchief; fixronde 4, BLOKKEERT 3). */
@@ -380,6 +394,34 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`). Anders
   // geldt voor die vorm de controle van main.
   const psets = new Set(input.ownGroups?.values() ?? []);
+  // METING: de eigen groep van een bronstuk in de bron (los van a′), en waarom de toets voor die groep niet gold.
+  const srcGroups = meet2Groups()?.(index, input.cls);
+  const srcGroup = (chunk: number) => srcGroups?.get(Number(index.id(chunk)));
+  const slotsOf = (g: string) => restores.filter(r => srcGroup(r.chunk) === g)
+    .map(r => `${index.type(r.chunk)} #${index.id(r.chunk)}${index.name(r.chunk) ? ` (${index.name(r.chunk)})` : ''} arg ${r.outArg}`);
+  const meetReason = (chunk: number): { groep: string; reden: string } => {
+    const g = srcGroup(chunk);
+    if (g === undefined) return { groep: `(geen: ${index.type(chunk)} ${psetNameOf(index, chunk) || index.name(chunk) || ''})`, reden: 'de groep bestaat niet in de bron' };
+    if (!input.ownGroups) return { groep: g, reden: 'toets uit (geen ownGroups)' };
+    const slots = slotsOf(g);
+    if (!input.ownGroups.has(chunk)) return { groep: g, reden: `(a′) het openen veranderde de groep${slots.length ? `; (b) ook: ${slots.join(', ')}` : ''}` };
+    if (uncarried.has(g)) return { groep: g, reden: `(a) (b) nodig: ${slots.join(', ')}` };
+    return { groep: g, reden: 'anders (toets gold)' };
+  };
+  const meetRecord = (rec: Meet2Rec) => {
+    if (input.meet) input.meet.recs.push(rec);
+    else console.log('MEET2 ' + JSON.stringify({ ...rec, uitkomst: 'proef (lossCheck buiten een opslag)' }));
+  };
+  if (input.meet) input.meet.ran = true;
+  const meetO1 = (plek: string, ctx: O1Context, d: LossDiff): string | undefined => {
+    const prev = meetTrail;
+    meetTrail = [];
+    try {
+      const why = explainO1(ctx, d);
+      if (why !== undefined && meetTrail.length) meetRecord({ plek, namen: [...new Set(meetTrail)], ...meetReason(d.chunk), why, detail: describe(index, d, true).slice(0, 240) });
+      return why;
+    } finally { meetTrail = prev; }
+  };
   const following = SECOND_FORMS.filter(f => input.secondFormsUnchanged?.has(f.pset) === true && psets.has(f.pset)
     && !uncarried.has(f.pset) && !restores.some(r => f.restored(index, r)));
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
@@ -409,7 +451,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (!line1) {
         if (deleted.has(r.chunk)) continue;
         const gone = { chunk: r.chunk, arg: r.arg, source: r.token, out: '', outArg: r.outArg };
-        if (PARTIAL_KINDS.has(r.kind) || explainO1(ctx1, gone) === undefined) lost.add(r.chunk);
+        if (PARTIAL_KINDS.has(r.kind) || meetO1('herstel: stuk weg', ctx1, gone) === undefined) lost.add(r.chunk);
         continue;
       }
       if (line1.type !== line0.type || line1.args.length !== line0.args.length) {
@@ -433,7 +475,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       // Plek 6 (fixronde 5, besluit van Trias): wijzigde de planner het domeinveld waar de writer dit slot uit schrijft
       // (dezelfde tabellen per veld als de uitleg van O1), dan vervalt de bronwaarde en geldt de waarde van de writer, ook
       // als die gelijk bleef. Bij een soort die de lezer deels draagt, gaat dan een deel verloren: weigeren.
-      if (explainO1(ctx1, after) !== undefined) {
+      if (meetO1('herstel: veld gewijzigd', ctx1, after) !== undefined) {
         // Een datum die de planner zelf wijzigde en die de lezer volledig droeg, verliest niets (#886: F5 na een
         // duurwijziging, was knownbug 1102).
         if ((PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r))
@@ -457,7 +499,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
       if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
-      const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
+      const why = lost.has(d.chunk) ? undefined : meetO1('O1', ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
     // Een writerfout kan de verwachte definitie, koppeling of baselinekeuze geheel weglaten.
@@ -473,8 +515,14 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (!line) continue;
       const arg = codes ? 6 : 2;
       const d = { chunk, arg, outArg: arg, source: index.argTokens(chunk)![arg], out: line.args[arg] };
-      if ((codes ? explainCodeDefinitions(ctx, d) : explainOwnMapGrowth(ctx, d, scope.slice(8))) === false
-        || (!codes && explainActiveBaseline(ctx, d, scope.slice(8)) === false)) say(d, true);
+      // METING: zelfde uitkomst als `(a === false) || (!codes && b === false)`, met b alleen als a niet false is.
+      const a = codes ? explainCodeDefinitions(ctx, d) : explainOwnMapGrowth(ctx, d, scope.slice(8));
+      const b = !codes && a !== false ? explainActiveBaseline(ctx, d, scope.slice(8)) : undefined;
+      const refuses = a === false || b === false;
+      meetRecord({ plek: 'nacontrole', namen: [codes ? 'nacontrole (codetemplate)' : `nacontrole (${index.name(chunk)})`], ...meetReason(chunk),
+        why: `${refuses ? 'weigert' : 'geen bezwaar'}; ${codes ? 'explainCodeDefinitions' : 'explainOwnMapGrowth'}=${String(a)}${codes ? '' : `; explainActiveBaseline=${String(b)}`}`,
+        detail: describe(index, d, true).slice(0, 240) });
+      if (refuses) say(d, true);
     }
   }
 
@@ -1788,13 +1836,13 @@ function explainImportProvenance(ctx: O1Context, d: LossDiff): string | undefine
     || owners[0] < 0 || index.type(owners[0]) !== 'IFCWORKSCHEDULE' || isBaselineHead(index, owners[0])
     || !input.fixed.has(Number(index.id(owners[0])))) return undefined;
   if (d.whole === 'ontbreekt') {
-    if (d.chunk === flag || (members.length === 1 && (d.chunk === set || d.chunk === rel))) return 'importPristine vervalt';
+    if (d.chunk === flag || (members.length === 1 && (d.chunk === set || d.chunk === rel))) return hit('explainImportProvenance', 'importPristine vervalt');
   } else if (!d.whole && d.chunk === set && (d.outArg ?? d.arg) === 4) {
     const line = p.out.get(p.pairedOut.get(set)?.[0] ?? -1);
     if (!line) return undefined;
     const before = members.filter(c => c !== flag);
     const after = refList(line.args[4]).map(id => sourceChunkOf(input, id, p));
-    if (before.length === after.length && before.every((c, i) => c === after[i])) return 'importPristine vervalt';
+    if (before.length === after.length && before.every((c, i) => c === after[i])) return hit('explainImportProvenance', 'importPristine vervalt');
   }
   return undefined;
 }
@@ -1862,7 +1910,7 @@ function explainCodeDefinitions(ctx: O1Context, d: LossDiff): string | false | u
       })) return false;
     }
   }
-  return 'nieuwe activiteitscodedefinities';
+  return hit('explainCodeDefinitions', 'nieuwe activiteitscodedefinities');
 }
 /** Lees de echte IFCTASK-regel bij de domeinsleutel van de writer; geen eigen GUID-afleiding. */
 function writtenTaskGuids(ctx: O1Context): ReadonlyMap<string, string> | undefined {
@@ -1910,7 +1958,7 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
       }
     }
     if (!expected.size) return undefined;
-    return ownMapGrows(ctx, d, before, after, expected) ? 'nieuwe baselinekoppelingen' : false;
+    return ownMapGrows(ctx, d, before, after, expected) ? hit('explainOwnMapGrowth (TaskGuids)', 'nieuwe baselinekoppelingen') : false;
   }
   const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
   // Zonder typehandeling is er geen verwachte wijziging. Een gedeeltelijk gedragen bron mag dan
@@ -1947,7 +1995,7 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
   }
   // Dezelfde kaartcontrole bewaakt alle overige paren en de volledige verwachte uitvoer.
   return ownMapGrows(ctx, d, unchanged, after.taskTypeIds, expected)
-    ? 'taaktypedefinities en koppelingen volgens de bewerking' : false;
+    ? hit('explainOwnMapGrowth (TaskTypes)', 'taaktypedefinities en koppelingen volgens de bewerking') : false;
 }
 
 /** Een echte keuze uit de behouden baselines, ook na toevoegen; nooit een vrijstelling voor de hele pset. */
@@ -1961,15 +2009,15 @@ function explainActiveBaseline(ctx: O1Context, d: LossDiff, way: string): string
     const members = index.refsAt(d.chunk, 4), active = members.filter(c => index.name(c) === PROP.Baselines.ActiveBaselineId);
     if (active.length !== 1 || !ctx.carried(d.chunk, 4) || !ctx.carried(active[0], 2)) return false;
     const expected = members.filter(c => c !== active[0]).map(c => p.pairedOut.get(c)?.[0]);
-    return JSON.stringify(refList(d.out)) === JSON.stringify(expected) ? 'actieve baseline uitgezet' : false;
+    return JSON.stringify(refList(d.out)) === JSON.stringify(expected) ? hit('explainActiveBaseline', 'actieve baseline uitgezet') : false;
   }
   if (index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE' || index.name(d.chunk) !== PROP.Baselines.ActiveBaselineId) return undefined;
   if (!ctx.carried(d.chunk, 2)) return false;
   // De gewone writer laat de property weg als de planner de actieve baseline uitzet.
-  if (!id) return input.domain.baselines?.length && d.whole === 'ontbreekt' ? 'actieve baseline uitgezet' : false;
+  if (!id) return input.domain.baselines?.length && d.whole === 'ontbreekt' ? hit('explainActiveBaseline', 'actieve baseline uitgezet') : false;
   if (d.whole || d.arg !== 2 || (d.outArg ?? d.arg) !== 2 || !input.domain.baselines?.some(b => b.id === id)) return false;
   const m = /^IFCTEXT\(('[\s\S]*')\)$/.exec(d.out);
-  return m && decodeStepText(unquote(m[1])) === id ? 'actieve baseline volgens de keuze' : false;
+  return m && decodeStepText(unquote(m[1])) === id ? hit('explainActiveBaseline', 'actieve baseline volgens de keuze') : false;
 }
 /** Eén scope `<object>|<weg>` (zie `sourceScopes`). */
 function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, scope: string): string | undefined {
@@ -1990,9 +2038,9 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
     if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`
       && changed.keys.has('baselines') && addedBaselineIds(ctx).size > 0) {
       const name = index.name(d.chunk);
-      if (name === PROP.Baselines.Baselines) return 'baselinegegevens';
+      if (name === PROP.Baselines.Baselines) return hit('explainScope (baselinegegevens)', 'baselinegegevens');
     }
-    return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
+    return hit('explainScope (project)', explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg));
   }
   if (obj === 'baselines') return changed.keys.has('baselines') ? 'baselines' : undefined;
   const kind = obj.slice(0, obj.indexOf(':'));
@@ -2099,7 +2147,7 @@ function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: num
       if (!sameBut(ra, rb, literal.has(calendarOf(rb.taskId)) ? ['start', 'finish'] : [])) return undefined;
     }
   }
-  return 'baselines op een kalender die letterlijk wordt';
+  return hit('literalBaselineForm', 'baselines op een kalender die letterlijk wordt');
 }
 
 /** De kalender van een scope met datums: de kalender van de taak bij haar taaktijd, of de kalender zelf bij haar werkweek. */
@@ -2415,16 +2463,16 @@ function explainField(ctx: O1Context, d: LossDiff, type: string, arg: number): s
   // OPS_ProjectSettings: een property en het projectveld dat erin staat; de leden van de pset (een veld erbij of eraf).
   if (type === 'IFCPROPERTYSINGLEVALUE' && psetNameOf(index, s) === PSET.ProjectSettings) {
     const f = PROJECT_SETTINGS_FIELDS[name]?.find(field);
-    return f ? `projectveld ${f} (${name})` : undefined;
+    return f ? hit('explainField (OPS_ProjectSettings)', `projectveld ${f} (${name})`) : undefined;
   }
   if (type === 'IFCPROPERTYSET' && name === PSET.ProjectSettings && arg === 4) return explainSettingsMembers(ctx, d);
   if (d.whole) return undefined;
   // De velden en codes van het project: het JSON in `OPS_StructureMeta`, en de waarden van een code (`IfcPropertyEnumeration`
   // met de naam van die code).
   if (type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && psetNameOf(index, s) === PSET.StructureMeta
-    && (changed.keys.has('activityCodeTypes') || changed.keys.has('customFieldDefs'))) return 'velden en codes';
+    && (changed.keys.has('activityCodeTypes') || changed.keys.has('customFieldDefs'))) return hit('explainField (OPS_StructureMeta)', 'velden en codes');
   if (type === 'IFCPROPERTYENUMERATION' && arg === 1 && changedCodeNames(input).has(index.tokenText(s, index.argTokens(s)?.[0]))) {
-    return 'de waarden van een code';
+    return hit('explainField (IFCPROPERTYENUMERATION)', 'de waarden van een code');
   }
   const live = input.fixed.has(Number(index.id(s))) && !isBaselineHead(index, s);
   if ((type === 'IFCPROJECT' || (type === 'IFCWORKPLAN' && live)) && arg === 2 && field('name')) return 'projectnaam';
@@ -2477,7 +2525,7 @@ function explainSettingsMembers(ctx: O1Context, d: LossDiff): string | undefined
     }
     if (!fieldChanged(index.name(c) ?? '')) out.push(c);
   }
-  return src.length === out.length && src.every((c, i) => c === out[i]) ? 'projectvelden' : undefined;
+  return src.length === out.length && src.every((c, i) => c === out[i]) ? hit('explainSettingsMembers', 'projectvelden') : undefined;
 }
 
 /** De domeinobjecten (`task:<id>`, …) waar pset `s` bij hoort, via haar `IfcRelDefinesByProperties`; een eigenaar zonder

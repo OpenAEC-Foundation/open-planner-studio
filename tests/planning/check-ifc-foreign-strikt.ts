@@ -81,7 +81,7 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
   const edited = await edit?.(d, opened);
   if (edited) d = edited;
   let r: MergeOutcome;
-  try { r = await tryMerge(d, opened.ifcSource); } catch (e) {
+  try { r = await tryMerge(d, opened.ifcSource); console.log('MEET2-LABEL ' + JSON.stringify({ check: 'strikt', label })); } catch (e) {
     return { label, outcome: 'fout', kinds: [], details: [`${(e as Error).name}: ${(e as Error).message.slice(0, 160)}`] };
   }
   if (r.ok) {
@@ -306,6 +306,7 @@ const secondRoundSame = async (label: string, r: Result) => {
   if (!r.out) return;
   const o = await openForeign(r.out);
   const second = await tryMerge(cloneDomain(o), o.ifcSource!);
+  console.log('MEET2-LABEL ' + JSON.stringify({ check: 'strikt', label: label + ' (tweede ronde)' }));
   ok(`${label}: een tweede ronde is byte-gelijk aan de eerste`, second.ok && sameBytes(second.bytes, r.out));
 };
 await proof('B2, plek 7', 'Terra m1: alleen minuten op 720, afgeleide dagen blijven 3.5: weigert veilig', p2dt12h, 'ongewijzigd-getal', (x, o) => {
@@ -918,7 +919,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
     rename63(d);
     globalThis.Date = shifted(86_400_000);
     let r: MergeOutcome;
-    try { r = await tryMerge(d, opened.ifcSource!); } finally { globalThis.Date = RealDate; }
+    try { r = await tryMerge(d, opened.ifcSource!); console.log('MEET2-LABEL ' + JSON.stringify({ check: 'strikt', label })); } finally { globalThis.Date = RealDate; }
     const res: Result = r.ok ? { label, outcome: 'schrijft', kinds: [], details: [], out: r.bytes }
       : { label, outcome: 'weigert', kinds: r.kinds, details: r.error.cases.map(c => `${c.kind}: ${c.detail}`) };
     results.push(res);

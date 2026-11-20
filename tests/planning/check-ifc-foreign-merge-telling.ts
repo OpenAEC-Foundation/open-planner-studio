@@ -177,6 +177,7 @@ for (const file of files) {
     if (FULL_RAW) rawTally.set(shown, await runEdits(shown, bytes, raw, RAW, rawOthers, false, max));
     else {
       const r = await tryMerge(cloneDomain(raw), raw.ifcSource!);
+      console.log('MEET2-LABEL ' + JSON.stringify({ check: 'telling', bestand: shown, bewerking: 'oude testroute zonder bewerking', uitkomst: r.ok ? 'schrijft' : 'weigert' })); // METING stap 5 deel 2
       rawOutcome.set(shown, r.ok ? 'schrijft' : `weigert (${r.kinds.join(', ')})`);
     }
   } catch (e) {
@@ -205,6 +206,7 @@ async function runEdits(shown: string, bytes: Uint8Array, opened: Opened, route:
       const d = await applyEdit(edit, cloneDomain(opened));
       if (record) merges++;
       const outcome = await tryMerge(d, source);
+      console.log('MEET2-LABEL ' + JSON.stringify({ check: 'telling', bestand: where, soort: edit.kind, bewerking: edit.label, record, uitkomst: outcome.ok ? 'schrijft' : 'weigert' })); // METING stap 5 deel 2
       if (record) console.log('UITKOMST GEVAL ' + JSON.stringify({ bestand: where, soort: edit.kind, bewerking: edit.label,
         uitkomst: outcome.ok ? 'schrijft' : 'weigert', domeinVerschil: edit.kind === 'niets' ? null : readbackDifference(cloneDomain(opened), d) ?? null }));
       if (edit.kind === 'niets' && !record) rawOutcome.set(shown, outcome.ok ? 'schrijft' : `weigert (${outcome.kinds.join(', ')})`);

@@ -47,7 +47,7 @@ import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
 import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
   changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
-  taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
+  taskTimeSlotFields, type LossCheckInput, type LossDiff, type Meet2Frame, type OutLine,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
@@ -333,8 +333,31 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
   return (await prepareIfcWrite(input, source, probe)).bytes;
 }
 
-/** De ene schrijfingang: gecontroleerde uitvoer in één buffer, digest en bronmetadata van de geschreven versie (§4.8). */
+// ── METING stap 5 deel 2 (niet mergen): per opslag de meetregels van `lossCheck` met de uitkomst. Verandert geen uitkomst. ──
+(globalThis as { __meet2Groups?: (index: StepIndex, cls: Classification) => ReadonlyMap<number, string> }).__meet2Groups =
+  (index, cls) => ownGroupMembers(indexView(index, i => cls.classes[i] === 1));
+let meet2Save = 0;
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<PreparedIfcWrite> {
+  const meet: Meet2Frame = { ran: false, recs: [] };
+  const nr = ++meet2Save;
+  const flush = (uitkomst: string) => {
+    (globalThis as { meet2LastFrame?: Meet2Frame }).meet2LastFrame = meet;
+    if (!meet.ran) return;
+    for (const rec of meet.recs) console.log('MEET2 ' + JSON.stringify({ opslag: nr, ...rec, uitkomst }));
+    console.log('MEET2-OPSLAG ' + JSON.stringify({ opslag: nr, uitkomst, regels: meet.recs.length }));
+  };
+  try {
+    const result = await prepareIfcWriteMeet(input, source, probe, meet);
+    flush('geschreven');
+    return result;
+  } catch (e) {
+    flush(e instanceof MergeNeedsPhase2Error ? `geweigerd (${[...new Set(e.cases.map(c => c.kind))].join(',')})` : `fout (${String(e).slice(0, 80)})`);
+    throw e;
+  }
+}
+
+/** De ene schrijfingang: gecontroleerde uitvoer in één buffer, digest en bronmetadata van de geschreven versie (§4.8). */
+async function prepareIfcWriteMeet(input: WriteIFCInput, source: IfcSource, probe: OpenMergePlanning | undefined, meet: Meet2Frame): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
   if (!source.foreign) {
     const written = writeIFCWithChoices(input);
@@ -778,7 +801,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   const o0 = built0.lines.filter(l => !l.drop);
   const lossInput: LossCheckInput = {
     index, cls, fixed: fixedIds, bySource, o0, o1: lines.filter(l => !l.drop), pristine, domain, opened: source.opened,
-    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral,
+    owner0: built0.owner, owner1: owner, objects1: objects, literalCalendarIds: newlyLiteral, meet,
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
@@ -786,6 +809,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  (globalThis as { meet2LossInput?: (input: LossCheckInput) => void }).meet2LossInput?.(lossInput); // METING stap 5 deel 2
   // De eigen groepen waar (b) bronwaarden terugzette: daar toetst (c) niet, want de writer schrijft ze niet uit het domein.
   // Een verwijzing naar een stuk dat de writer niet schrijft (het `IfcProject` van een ander programma), leest het type uit de bron.
   const o1Members = ownGroupMembers(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }));
