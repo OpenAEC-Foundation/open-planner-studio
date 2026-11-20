@@ -21,7 +21,7 @@ import {
   writeTargetReaders, type FileRef,
 } from '@/services/fileAccess';
 import {
-  isManualProjectFileWriteQueued, runAutoSaveTickWrite, runYieldingProjectFileWrite, type YieldingTurn,
+  runAutoSaveRound, runAutoSaveTickWrite, runYieldingProjectFileWrite, type YieldingTurn,
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
@@ -297,14 +297,13 @@ export function createFileAutoSaveController(deps: {
   /**
    * De gewone ronde (het ritme van 10 s): elk document zonder gebouwmodel, precies zoals vóór stap 8. Een document met een
    * gebouwmodel hoort hier niet bij (fixronde 2 van de review van #1033); dat zet alleen zijn eigen wekker aan de beurt
-   * (`listModels`). Een ronde met een gebouwmodel in de rij houdt de gewone ronde niet tegen: haar tik sluit achter de
-   * modelronde aan en schrijft direct daarna, zonder haar te laten wijken (`runAutoSaveTickWrite`, fixronde 3 van de review
-   * van #1033). Alleen een handmatige actie in de rij laat de tik deze keer overslaan, zoals vóór stap 8.
+   * (`listModels`). Of en wanneer deze lijst gemaakt wordt, beslist de schrijfcoördinatie (`runAutoSaveRound`, knownbug
+   * 1939): achter een modelronde wacht de gewone doorgang op haar plek en maakt ze haar lijst pas als die aan de beurt is.
    */
   const listPlain = (): ActualAutoSaveCandidate[] => {
     // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
     // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
-    if (!deps.enabled() || isManualProjectFileWriteQueued()) return [];
+    if (!deps.enabled()) return [];
     const state = getState();
     const candidates: ActualAutoSaveCandidate[] = [];
     for (const { id, payload } of state.getOpenDocumentPayloads()) {
@@ -327,8 +326,7 @@ export function createFileAutoSaveController(deps: {
    *  beurt in de rij toetst `writeModel` het ritme opnieuw. Waar Ctrl+S een vraag zou stellen, beslist de ronde zelf
    *  (`modelRound`): ze stelt nooit een vraag. */
   const listModels = (): ActualAutoSaveCandidate[] => {
-    // Een gewone tik in de rij houdt de modelronde niet tegen: ze sluit erachter aan en krijgt zo haar beurt.
-    if (!deps.enabled() || isManualProjectFileWriteQueued()) return [];
+    if (!deps.enabled()) return [];
     observe();
     const state = getState();
     const candidates: ActualAutoSaveCandidate[] = [];
@@ -405,12 +403,14 @@ export function createFileAutoSaveController(deps: {
         dedupeKey: 'actual-autosave',
       });
     },
-  } satisfies Omit<Parameters<typeof createActualAutoSaveController>[0], 'listCandidates'>;
+  } satisfies Omit<Parameters<typeof createActualAutoSaveController>[0], 'listCandidates' | 'round'>;
   // Fixronde 2 van de review van #1033: twee gescheiden ingangen naar dezelfde schrijfrij. De gewone (het ritme van 10 s)
   // kent alleen documenten zonder gebouwmodel; de wekker van een gebouwmodel is de enige die een gebouwmodel aan de beurt
   // zet. Zo kiezen twee ingangen nooit hetzelfde document.
-  const plain = createActualAutoSaveController({ ...roundDeps, listCandidates: listPlain });
-  const models = createActualAutoSaveController({ ...roundDeps, listCandidates: listModels, write: writeModel });
+  const plain = createActualAutoSaveController({ ...roundDeps, listCandidates: listPlain, round: pass => runAutoSaveRound('tick', pass) });
+  const models = createActualAutoSaveController({
+    ...roundDeps, listCandidates: listModels, write: writeModel, round: pass => runAutoSaveRound('model', pass),
+  });
   return {
     flush: plain.flush,
     flushModels: models.flush,

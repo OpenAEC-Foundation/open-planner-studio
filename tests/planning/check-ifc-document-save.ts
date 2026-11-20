@@ -2727,7 +2727,10 @@ await check('review wachtrij: handmatig opslaan en sluiten wachten op AutoSave, 
     await auto;
     await mergeArrives(sw, 2);
     assert(!readFileSync(path, 'utf8').includes('Alleen in de nieuwere handmatige opslag'));
-    await controller.flush();
+    // Begrensd gewacht: zonder toelating zou de tik hier op Ctrl+S wachten, en Ctrl+S rekent pas verder na deze stap.
+    let flushed = false;
+    void controller.flush().then(() => { flushed = true; });
+    await turnUntil(() => flushed, 'de AutoSave-tik keert terug terwijl Ctrl+S nog rekent');
     assert.equal(sw.requests().length, 2, 'de AutoSave-tik slaat de kandidaat over terwijl Ctrl+S bezig is');
     assert(store.getState().documents.some(d => d.id === otherId));
     await finishMerge(sw);
@@ -3976,6 +3979,74 @@ for (const flag of ['aan', 'uit'] as const) {
         ...flag === 'aan' ? ['handmatig 43000', 'gewoon 45000'] : ['gewoon 42000', 'handmatig 43000']],
       'Ctrl+S schrijft op 43 s; de gewone tik schrijft daarna (flag aan) of was al klaar (flag uit)');
     } finally { files.dispose(); timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
+  });
+}
+
+// Knownbug 1938 (proef van de reviewer, ronde 4): twee gewijzigde modellen komen op 30 s aan de beurt; het eerste rekent tot
+// 49 s. De planner bewerkt het gewone document op 35 en 45 s; de tik van 35 s wacht achter het eerste model. De gewone
+// doorgang houdt haar plek in de rij: op 49 s maakt ze haar lijst, met de bewerking van 45 s, en schrijft vóór het tweede
+// model. Met de flag uit (geen modelrondes) schrijft het gewone document op zijn eigen tikken, zoals main.
+for (const flag of ['aan', 'uit'] as const) {
+  await check(`1939 stap 2: doortypen zet de gewone tik niet achter een tweede modelronde (flag ${flag})`, async () => {
+    const sw = saveWorker('manual');
+    let timed: ReturnType<typeof fakeSchedule> | undefined;
+    const starts: string[] = [];
+    const compute: IfcOutputCompute = (job, stop) => {
+      starts.push(`${job.kind === 'merge' ? 'model' : 'gewoon'} ${timed?.at() ?? -1}`);
+      return job.kind === 'merge' ? sw.compute(job, stop) : computeIfcOutputHere(job);
+    };
+    const { store, model, plain, plainName, unregister } = await modelAndPlain(compute);
+    const secondName = `tweede-model-${++handleCount}.ifc`;
+    handleFiles.set(secondName, bytes);
+    await store.getState().openOpenedFile({ name: secondName, content: '', bytes,
+      ref: { kind: 'handle', handle: new FakeHandle(secondName) as unknown as FileSystemFileHandle } });
+    const second = store.getState().activeDocumentId;
+    store.getState().setAutoSaveToFile(true);
+    if (flag === 'uit') store.setState(s => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; });
+    // De schrijftoestemming van het gewone bestand duurt even, zoals `queryPermission` in de browser: zolang de gewone
+    // doorgang daarop wacht, begint het tweede model niet.
+    const plainHandle = payloadOf(store, plain).fileHandle as unknown as { queryPermission: () => Promise<string> };
+    const query = plainHandle.queryPermission.bind(plainHandle);
+    plainHandle.queryPermission = async () => { await someTurns(); return query(); };
+    timed = fakeSchedule(store, compute);
+    const dirty = (id: string) => payloadOf(store, id).isDirty;
+    const plainWrites = () => writableLog.filter(entry => entry.startsWith(`close ${plainName} `)).length;
+    try {
+      store.getState().switchDocument(model); longer(store);
+      store.getState().switchDocument(second); longer(store);
+      store.getState().switchDocument(plain); longer(store);
+      await timed.until(0);
+      await turnUntil(() => !dirty(plain), 'gewone tik op 0 s');
+      await timed.until(30_000);
+      if (flag === 'aan') { await mergeArrives(sw, 1); sw.workers[0]!.start(); }
+      await timed.until(35_000); longer(store);
+      await timed.until(40_000);
+      await timed.until(45_000);
+      const edited = longer(store);
+      const duration = store.getState().tasks.find(t => t.id === edited)!.time.scheduleDuration;
+      await timed.until(49_000);
+      if (flag === 'aan') {
+        await finishMerge(sw);
+        await mergeArrives(sw, 2);
+        await someTurns();
+        assert.equal(dirty(model), false, 'het eerste model schreef op 49 s');
+        assert.equal(dirty(plain), false, 'de gewone doorgang schreef vóór het tweede model');
+        assert.equal((await reopenOrdinary(fileOf(plainName), true)).tasks.find(t => t.id === edited)!.time.scheduleDuration,
+          duration, 'met de bewerking van 45 s');
+        await timed.until(68_000);
+        await finishMerge(sw);
+        await turnUntil(() => !dirty(second) && !isProjectFileWriteBusy() && !timed!.controller.isSaving(), 'het tweede model schrijft');
+        assert.deepEqual(starts, ['gewoon 0', 'model 30000', 'gewoon 49000', 'model 49000'], 'hoogstens één modelronde later');
+      } else {
+        // De wekker van 45 s ging af vlak vóór de bewerking van 45 s; die schrijft de volgende tik, 10 s later.
+        await timed.until(55_000);
+        await turnUntil(() => !dirty(plain) && !isProjectFileWriteBusy() && !timed!.controller.isSaving(), 'de gewone tik van 55 s');
+        assert.deepEqual(starts, ['gewoon 0', 'gewoon 35000', 'gewoon 55000'], 'flag uit: de eigen tikken, zoals main');
+        assert.equal((await reopenOrdinary(fileOf(plainName), false)).tasks.find(t => t.id === edited)!.time.scheduleDuration, duration);
+      }
+      assert.equal(plainWrites(), starts.filter(start => start.startsWith('gewoon')).length, 'elke gewone berekening plaatst');
+      assert.equal(dirty(plain), false);
+    } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
   });
 }
 
