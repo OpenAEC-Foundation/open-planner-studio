@@ -35,7 +35,7 @@ ok('oude writer: definities zonder kleurveld', taskTypesLine(oldWriter).includes
 // Een naam met een niet-ASCII-teken: de writer schrijft het als `\u00e9` (`asciiJson`). Die vorm moet de verliescontrole
 // als verliesloos herkennen.
 const accented = bytesOf(latin1(old).replace('"name":"Type 0 7d"', '"name":"Sloop \\\\u00e9n afvoer"')
-  .replaceAll("'Type 0 7d'", "'Sloop \\X2\\00E9\\X0\\n afvoer'")); // ook de typenaam op de taak (ObjectType)
+  .replace(/'Type 0 7d'/g,"'Sloop \\X2\\00E9\\X0\\n afvoer'")); // ook de typenaam op de taak (ObjectType)
 ok('bron met accent: de naam staat er als JSON-escape', latin1(accented).includes('Sloop \\\\u00e9n afvoer'));
 // Een dubbele sleutel in een definitie (een ander programma, of met de hand): de lezer houdt alleen de laatste naam. De
 // aangevulde kleur mag die eerste naam nooit stil laten verdwijnen (review ronde 2 van optie 2, punt 1).
