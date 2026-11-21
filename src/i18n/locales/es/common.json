@@ -1288,7 +1288,9 @@
     },
     "regen": {
       "hint": "Los festivos cubren {{from}}–{{to}}. ¿Desea volver a generar hasta {{year}} inclusive?",
-      "button": "Regenerar"
+      "button": "Regenerar",
+      "confirmMessage": "Tu lista de días no laborables difiere de la lista generada anteriormente. Si la reemplazas, perderás los cambios manuales.",
+      "confirmReplace": "Reemplazar días no laborables"
     },
     "countryName": {
       "NL": "Países Bajos",
@@ -1299,6 +1301,7 @@
       "AT": "Austria",
       "CH": "Suiza",
       "US": "Estados Unidos",
+      "BO": "Bolivia",
       "none": "Sin festivos"
     },
     "preset": {

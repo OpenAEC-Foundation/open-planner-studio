@@ -35,6 +35,7 @@ import { validate } from '@/state/mcpValidation';
 import { resolveCalendarHolidays } from '../calendarGenerate';
 import { ensureFreshSchedule } from '../freshness';
 import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
+import { HOLIDAY_COUNTRIES, HOLIDAY_SETS } from '@/engine/calendar/holidays';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { hoursPerDayForBlocks, workDaysFromBands, workDaysSetPatch } from '@/services/subdayIo';
@@ -165,8 +166,19 @@ const CAL_READONLY_KEYS: string[] = [
 // binnen `runInMcpTransaction` en rolt de hele call terug met "Cannot read properties of undefined").
 
 /** Het ECHTE domein van `generate.country` (holidays.ts + generateCalendarHolidays.ts). */
-const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'];
+const GEN_COUNTRIES: GeneratorCountry[] = [...HOLIDAY_COUNTRIES, 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
+const BOLIVIA_REGIONS = HOLIDAY_SETS.BO.regions ?? [];
+const BOLIVIA_REGION_CODES = BOLIVIA_REGIONS.map(({ id, name }) => `${id} = ${name}`).join(', ');
+
+function calendarRegionReason(country: unknown, region: unknown, field: 'generate.region' | 'generation.region'): string | null {
+  if (region === undefined) return null;
+  if (typeof region !== 'string') return `\`${field}\` must be a string`;
+  if (country === 'BO' && !BOLIVIA_REGIONS.some(({ id }) => id === region)) {
+    return `unknown \`${field}\` '${region}' for Bolivia; use ${BOLIVIA_REGION_CODES}, or omit it for nationwide holidays`;
+  }
+  return null;
+}
 
 // ── DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ────────────────────────────────────────────────────────
 //
@@ -190,8 +202,6 @@ const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
 const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '7'];
 const MIN_PER_DAY = 1440;
 const SHIFT_VALUES = ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED'];
-/** `CalendarGeneration.ruleSetId` is een HolidayCountry — dus ZONDER de generator-waarde 'none'. */
-const GEN_RULESETS = GEN_COUNTRIES.filter((c) => c !== 'none');
 const BREAK_CHOICES = ['noord', 'midden', 'zuid'];
 
 /** `minuten-vanaf-middernacht` leesbaar maken in een foutmelding (1800 ⇒ '06:00 van de volgende dag'). */
@@ -374,12 +384,13 @@ function generationReason(gen: unknown): string | null {
       return `unknown field \`generation.${k}\`; allowed: ${allowed.join(', ')}`;
     }
   }
-  if (!(GEN_RULESETS as string[]).includes(g.ruleSetId as string)) {
+  if (!(HOLIDAY_COUNTRIES as readonly string[]).includes(g.ruleSetId as string)) {
     return `unknown \`generation.ruleSetId\` '${String(g.ruleSetId)}'; valid values are ` +
-      `${GEN_RULESETS.join(', ')} (case-sensitive; 'none' does not exist here — leave \`generation\` out or ` +
+      `${HOLIDAY_COUNTRIES.join(', ')} (case-sensitive; 'none' does not exist here — leave \`generation\` out or ` +
       'give `null` for a literal calendar)';
   }
-  if (g.region !== undefined && typeof g.region !== 'string') return '`generation.region` must be a string';
+  const regionIssue = calendarRegionReason(g.ruleSetId, g.region, 'generation.region');
+  if (regionIssue) return regionIssue;
   if (g.breakChoice !== undefined && !BREAK_CHOICES.includes(g.breakChoice as string)) {
     return `unknown \`generation.breakChoice\` '${String(g.breakChoice)}'; valid values are ` +
       `${BREAK_CHOICES.join(', ')} (NO construction holiday = leave the field out)`;
@@ -474,7 +485,8 @@ function calendarItemReason(item: CalendarItem): string | null {
       return `unknown \`generate.country\` '${String(gen.country)}'; valid values are ` +
         `${GEN_COUNTRIES.join(', ')} (case-sensitive; 'none' = no holiday set, clears the generated days)`;
     }
-    if (gen.region !== undefined && typeof gen.region !== 'string') return '`generate.region` must be a string';
+    const regionIssue = calendarRegionReason(gen.country, gen.region, 'generate.region');
+    if (regionIssue) return regionIssue;
     if (gen.bouwvak !== undefined && !BOUWVAK_CHOICES.includes(gen.bouwvak as string)) {
       return `unknown \`generate.bouwvak\` '${String(gen.bouwvak)}'; valid values are ${BOUWVAK_CHOICES.join(', ')}`;
     }
@@ -1090,10 +1102,13 @@ const updateCalendar: BatchStepTool = {
               properties: {
                 country: {
                   type: 'string',
-                  enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'],
+                  enum: GEN_COUNTRIES,
                   description: '`none` clears the generated days.',
                 },
-                region: { type: 'string', description: 'State/region/canton; omitted = national.' },
+                region: {
+                  type: 'string',
+                  description: `State/region/canton code; omitted = national. Bolivia: ${BOLIVIA_REGION_CODES}.`,
+                },
                 bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL construction holiday; omitted = `geen` (none).' },
               },
             },

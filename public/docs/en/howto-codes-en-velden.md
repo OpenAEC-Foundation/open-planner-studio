@@ -26,7 +26,7 @@ The window has no OK button: every change applies at once. You cannot change a f
 You have two places.
 
 - **In the *Properties* panel** (or in the window you open with F2). At the bottom is the *Codes & fields* block: a pick list per code type, an input per field. The block only appears once there is at least one code type or field.
-- **As a column in the task list.** Click the **+** on the right of the table header (*Add column*) and, under *Custom*, choose the code type or field. A code type's cell is a pick list, like *Codes & fields* in the panel: press Enter or start typing, and pick a value. The list shows the values in the order from the window; *—* clears the cell. Type a letter and the list jumps to the first value that starts with it. If you paste a code that does not exist, you get *Choose a value from this activity code.*
+- **As a column in the task list.** Click the **+** on the right of the table header (*Add column*) and, under *Custom*, choose the code type or field. A code type's cell is a pick list, like *Codes & fields* in the panel: double-click the cell, press Enter or start typing, and pick a value. The list shows the values in the order from the window; *—* clears the cell. Type a letter and the list jumps to the first value that starts with it. If you paste a code that does not exist, you get *Choose a value from this activity code.*
 
 ### Using them
 
