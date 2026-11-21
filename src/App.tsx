@@ -8,6 +8,7 @@ import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { installPlanOnlyAsker } from '@/state/planOnlyQuestionBridge';
+import { endWindowDragsForDocumentSwitch } from '@/hooks/listenWindowDrag';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
@@ -207,6 +208,11 @@ function AppContent() {
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
   useEffect(() => { installIfcSchemaAsker(); installPlanOnlyAsker(); }, []);
+  // Een lopend sleepgebaar hoort bij zijn document (review #1004, ronde 12): een documentwissel
+  // beëindigt het, synchroon binnen de wissel.
+  useEffect(() => useAppStore.subscribe((state, previous) => {
+    if (state.activeDocumentId !== previous.activeDocumentId) endWindowDragsForDocumentSwitch();
+  }), []);
   // De waarschuwing vóór opslaan over te krappe ankers van afhankelijke projecten (stap 1.11). Zonder
   // deze registratie slaat de app zonder vraag op.
   useEffect(() => { installDependentAnchorAsker(); }, []);

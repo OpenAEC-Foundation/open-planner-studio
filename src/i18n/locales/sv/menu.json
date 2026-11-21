@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Endast tillgänglig när Gantt-diagrammet visas",
     "relationLinkSelected": "Länka valda uppgifter",
     "relationLinkSelectedHint": "Första markeringen blir föregående; andra markeringen blir efterföljande (FS, fördröjning 0)",
-    "relationSelectExactlyTwo": "Markera exakt två uppgifter",
     "relationAddExternal": "Lägga till externt samband…",
     "relationAddExternalHint": "Lägg till en extern föregående eller efterföljande till den valda uppgiften",
     "relationSelectOne": "Markera exakt en uppgift",

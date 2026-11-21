@@ -18,15 +18,15 @@ Not sure which type you need? Below the type choice, a sentence with the real ta
 
 There are four ways to add a relation. They create the same relation; pick whatever suits your situation best.
 
-### Linking two selected tasks
+### Linking selected tasks
 
-Useful when you work in the task list.
+Useful when you work in the task list, or want to put a series of tasks in a row in one go.
 
-1. In the task list, click the task that comes first: the predecessor.
-2. Hold Ctrl (⌘ on a Mac) and click the task that comes next: the successor.
-3. Choose *Home › Tasks › Link ▾ › Link selected tasks*. The same button is also on *Planning › Relations*.
+1. Make sure the task list shows the tasks in the order of the chain: the predecessor above the successor.
+2. Click the first task, hold Ctrl (⌘ on a Mac) and click the other tasks. Tasks that are listed one below the other can also be selected with Shift.
+3. Press Ctrl+F2 (⌘+F2 on a Mac), or choose *Home › Tasks › Link ▾ › Link selected tasks*. The same button is also on *Planning › Relations*.
 
-The app creates a Finish-Start relation without lag. You see it as an arrow in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses the relation. The button only works with exactly two selected tasks.
+The app creates a Finish-Start relation without lag between each task and the next, in the order of the list on your screen: the top one becomes the predecessor of the next, that one of the one after, and so on. The order in which you click does not count. You see them as arrows in the Gantt and in the *Predecessors* column; a notification only appears if the app refuses a relation. If one of the relations already exists, the app says so and adds the others anyway. One *Undo* removes them all. The button works from two selected tasks.
 
 ### Drawing a relation in the Gantt
 
@@ -44,8 +44,8 @@ If you press Esc in the *Relation type* window, nothing is recorded. For a singl
 
 Useful when you are looking at one task and want to add its predecessors or successors.
 
-1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
-2. In the *Dependencies* block, click *Add relation*.
+1. Right-click the task, in the task list or on its bar, and choose *Assign predecessors…* or *Assign successors…*. The same two are in *Home › Tasks › Link ▾* when one task is selected. The *Properties* panel opens, the *Dependencies* block scrolls into view and the direction is already set. Continue at step 4.
+2. Or: select the task and click *Add relation* in the *Dependencies* block of the *Properties* panel. If you do not see the panel, turn it on with *View › Panels › Properties*.
 3. Leave the direction on *Predecessor* if the other task comes first, or choose *Successor*.
 4. Type part of the other task's name. Pick the right one with the arrow keys and Enter, or click it.
 5. Choose the type (FS by default) and fill in a lag if needed.
@@ -87,7 +87,7 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 ## Pitfalls and what the app does
 
-**Reversed order.** With *Link selected tasks* the order in which you click counts, not the order in the list. If you click the later task first, the relation is the wrong way round. Delete it in *Dependencies* with the bin icon and add it again.
+**The chain follows the list.** *Link selected tasks* links from top to bottom as the list stands now, also when you sort or group it. If a later task should be the predecessor, sort differently, or choose *Assign predecessors…* or *Assign successors…* in the right-click menu. When you group by resource, a task appears under each crew. If a selected task then appears both above and below another selected task, the order is not fixed and nothing is linked; you get a message instead. The same applies to two selected milestones in one collapsed milestone series: expand the series first.
 
 **Typing in the column wipes what was there.** If the cell holds `3.4 FS; 3.2 FS` and you type only `3.2 FS`, the relation with 3.4 is gone, without a message. Type all predecessors, use Enter or F2 to add to them, or undo with Ctrl+Z.
 

@@ -200,7 +200,6 @@
     "ganttOnlyHint": "ໃຊ້ໄດ້ສະເພາະຕອນທີ່ເປີດແຜນວາດ Gantt ເທົ່ານັ້ນ",
     "relationLinkSelected": "ເຊື່ອມໂຍງວຽກທີ່ເລືອກ",
     "relationLinkSelectedHint": "ວຽກທີ່ເລືອກກ່ອນຈະເປັນວຽກກ່ອນໜ້າ; ວຽກທີ່ເລືອກທີສອງຈະເປັນວຽກຖັດໄປ (FS, ໄລຍະຫ່າງ 0)",
-    "relationSelectExactlyTwo": "ກະລຸນາເລືອກພຽງສອງວຽກເທົ່ານັ້ນ",
     "relationAddExternal": "ເພີ່ມສາຍສຳພັນພາຍນອກ…",
     "relationAddExternalHint": "ເພີ່ມວຽກກ່ອນໜ້າ ຫຼື ວຽກຖັດໄປຈາກພາຍນອກໃສ່ວຽກທີ່ເລືອກ",
     "relationSelectOne": "ກະລຸນາເລືອກພຽງວຽກດຽວເທົ່ານັ້ນ",

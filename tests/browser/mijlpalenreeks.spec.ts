@@ -130,6 +130,24 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect.poll(dialog).toBe(ids.m2);
   await page.keyboard.press('Escape');
   await expect.poll(dialog).toBeNull();
+  // Shift in de lijst vanaf dat ene ruitje neemt van de reeks alleen dat ruitje mee, niet zijn buren
+  // op dezelfde regel (#1004, ronde 7).
+  await nameCell(page, ids.work).click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([ids.work, ids.m2].sort());
+  // Ook met Shift+pijl: terug op de reeksregel blijft alleen dat ruitje over, en een regel verder
+  // komt de volgende taak erbij, niet de andere mijlpalen (ronde 8).
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect.poll(() => selected(page)).toEqual([ids.m2]);
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect.poll(() => selected(page)).toEqual([ids.m2, ids.next].sort());
+  // Shift naar een andere kolom op dezelfde reeksregel: de actieve taak (het eigenschappenpaneel)
+  // blijft het gekozen ruitje, niet het eerste lid van de reeks (ronde 9).
+  await page.mouse.click(single.x, single.y);
+  await expect.poll(() => selected(page)).toEqual([ids.m2]);
+  const durationCell = ganttRow(page, runKey).locator('[data-grid-data-cell="true"][data-grid-column-id="task.time.scheduleDuration"]');
+  await durationCell.click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([ids.m2]);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeTaskId)).toBe(ids.m2);
   await page.mouse.click(group.x, group.y);
   await expect.poll(() => selected(page)).toEqual([ids.m1, ids.m3].sort());
   await page.keyboard.press('F2');
@@ -141,6 +159,9 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect(nameCell(page, runKey)).toHaveAttribute('data-grid-active', 'true');
   // Ctrl+C op de reeksregel kopieert alle mijlpalen van de reeks (review Sol ronde 2).
   await nameCell(page, runKey).click();
+  // Na het ruitje en dan de reeksregel in de lijst is de hele reeks het beginpunt van Shift (#1004).
+  await expect.poll(() => page.evaluate(() => [...(window.__OPS__!.store.getState().ui.selectionAnchor?.taskIds ?? [])].sort()))
+    .toEqual([ids.m1, ids.m2, ids.m3].sort());
   await page.keyboard.press('Control+c');
   await expect.poll(() => page.evaluate(() => (window.__OPS__!.store.getState().taskClipboard?.tasks ?? []).map(t => t.id).sort()))
     .toEqual([ids.m1, ids.m2, ids.m3].sort());
@@ -187,4 +208,47 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await nameCell(page, runKey).click();
   await page.locator('[data-ops-ribbon-item="expandTasks"]').click();
   await expect(ganttRow(page, ids.m3)).toBeVisible();
+});
+
+// Een gewone klik op de al actieve cel is ook het nieuwe beginpunt van Shift (#1004, ronde 16). Alleen
+// als de tijdlijn de hele reeks koos in de volgorde van de regel, blijft de rasterselectie gelijk; dan
+// moest de klik toch het beginpunt verzetten, anders nam Shift in de lijst één ruitje mee en legde
+// Ctrl+F2 een relatie op een regel zonder vaste volgorde.
+test('mijlpalenreeks: gewone klik op de actieve reeksregel wordt het beginpunt van Shift', async ({ page, ops: _ops }) => {
+  const [phase] = await seedProject(page, [
+    { name: 'Woningbouw', start: '2026-09-07', finish: '2026-10-02', durationDays: 20 },
+  ]);
+  const ids = await page.evaluate((parentId) => {
+    const api = () => window.__OPS__!.store.getState();
+    const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
+    const work = api().addTask({ name: 'Fundering', parentId });
+    const first = api().addTask({ name: 'Keuring', parentId, isMilestone: true, time: zero as never });
+    const last = api().addTask({ name: 'Start montage', parentId, isMilestone: true, time: zero as never });
+    const next = api().addTask({ name: 'Montage', parentId });
+    api().addSequence({ predecessorId: work, successorId: first, type: 'FINISH_START', lagDays: 0 });
+    api().addSequence({ predecessorId: work, successorId: last, type: 'FINISH_START', lagDays: 4 });
+    api().runCPM();
+    return { work, first, last, next };
+  }, phase);
+  const runKey = `milestones:${ids.first}`;
+  const relationCount = () => page.evaluate(() => window.__OPS__!.store.getState().sequences.length);
+  await nameCell(page, ids.first).locator('.full-task-grid-disclosure').click();
+  await nameCell(page, ids.work).click();
+  const first = await barPoint(page, ids.first);
+  const last = await barPoint(page, ids.last);
+  await page.mouse.click(last.x, last.y);
+  await expect.poll(() => selected(page)).toEqual([ids.last]);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(first.x, first.y);
+  await page.keyboard.up('Shift');
+  const series = [ids.first, ids.last].sort();
+  await expect.poll(() => selected(page)).toEqual(series);
+  await expect(nameCell(page, runKey)).toHaveAttribute('data-grid-active', 'true');
+  await nameCell(page, runKey).click();
+  await nameCell(page, ids.next).click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([...series, ids.next].sort());
+  const relationsBefore = await relationCount();
+  await page.keyboard.press('ControlOrMeta+F2');
+  await page.waitForTimeout(300);
+  expect(await relationCount()).toBe(relationsBefore);
 });

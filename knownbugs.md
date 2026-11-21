@@ -1066,6 +1066,80 @@ en noem het in je rapport of PR-tekst.
       hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
       Trias (wrakko) deelde dit als VERVOLG in. — B
 
+1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
+      presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
+      items wel (`GanttCanvas.tsx`, `onAssignRelation`). Kies je er een, dan verschijnt er niets; pas na het
+      verlaten van de presentatie (F11) opent de keuzerij alsnog, want `ui.pendingRelationAssign` bleef staan.
+      Voorstel: de twee items alleen tonen waar het eigenschappenpaneel kan openen. Uit de review van #1004
+      (GPT-6.2-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1871. **VERVOLG (#1004): koppelen als keten wordt traag bij een grote selectie.** `linkTasksInChain`
+      (`src/state/relationActions.ts`) toetst elke schakel via `createRelationDraftWithFeedback` en
+      `addSequence`, die de relatiegraaf per schakel opnieuw opbouwen. In Node kostte een keten van 500 taken
+      427 ms en van 1.000 taken 1,5 s, synchroon (één undo-stap). Voorstel: de graaf één keer voorbereiden en geldige
+      schakels tijdens de toetsing toevoegen. Browsertijden niet gemeten. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1872. **VERVOLG (#1004): `createRelationWithFeedback` heeft alleen nog testaanroepers.** Sinds de lintknop
+      `linkTasksInChain` gebruikt, roept geen app-code de doorgeefwrapper meer aan (`src/state/relationActions.ts`);
+      `check-relation-routes.ts`, `check-notifications.ts` en `check-refusal-notices.ts` wel. Voorstel: de wrapper
+      weghalen en de tests via `createRelationDraftWithFeedback` of `linkTasksInChain` laten lopen. Uit de review
+      van #1004 (GPT-6.2-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1873. **VERVOLG (#1004): toewijzen in het lint blijft actief bij een selectie van een verdwenen taak.** Na een
+      nieuwe taak en Ongedaan wijst `selectedTaskIds` nog naar die taak (geen undo-data), dus *Voorgangers/Opvolgers
+      toewijzen…* in *Relatie ▾* staan aan. Klikken doet niets meer (`requestRelationAssign` weigert een onbekende
+      taak), maar het item had uit moeten staan. *Externe relatie toevoegen…* heeft hetzelfde. Uit de review van
+      #1004 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+1874. **VERVOLG (#1004): de scheidingsbalk tussen takenlijst en tijdlijn sleept door na een documentwissel.**
+      Met de muis ingedrukt op de balk en dan Ctrl+1 of Ctrl+2 verandert de breedte daarna alsnog (gemeten
+      375 → 461 px). Die balk start ook voor een gewone muis met `startPointer` (`GanttWorkspace.tsx`), en de
+      pointerlisteners in `useSplitter.ts` vallen buiten `endWindowDragsForDocumentSwitch`. De breedte is
+      een app-instelling, dus er landt niets in het andere document. Laat de pointeropruiming meelopen in
+      dezelfde registratie. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 16, BEVESTIGD, VERVOLG). — B
+
+1875. **VERVOLG (#1004): na Esc houdt de takenlijst haar oude Shift-beginpunt.** A, Shift C in de lijst, Esc, Shift E
+      kiest weer A t/m E: de store wist selectie en anker, maar het raster houdt zijn lokale anker zolang de
+      store er geen nieuw geeft (`withSelectionAnchor` alleen met een anker). Bestond al op main. Het anker bij
+      een selectiewissel van buiten op de cursor zetten brak het bestaande contract van
+      `check-task-grid-published-selection.ts`; dat vraagt een eigen afweging. Uit de review van #1004
+      (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+1876. **VERVOLG (#1004): twee omzettingen van een rasterrij naar haar taken.** `gridAnchor` in
+      `FullTaskGrid.tsx` bepaalt opnieuw welke taken bij een taakrij of mijlpalenreeks horen; `selectableRow`
+      in `src/engine/taskGrid/selection.ts` doet dat al. Eén omzetting volstaat, plus het weglaten van de
+      spookregel bij publiceren naar de store. Opruimen, geen fout. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
+1877. **VERVOLG (#1004): het menu Relatie loopt de zichtbare rijen twee keer door bij elke wijziging.**
+      `RelationDropdown` in `ribbonWidgets.tsx` abonneert zich op `selectionInView` én `chainOrder`, ook
+      bij nul of één gekozen taak en met het menu dicht; `chainOrder` maakt per rij een tijdelijke array.
+      Eén doorloop, alleen bij twee of meer gekozen taken, volstaat. Het effect op scrollen is niet gemeten.
+      Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+1878. **VERVOLG (#1004): in de 26 andere talen belooft de lintuitleg nog de klikvolgorde.** #1004 maakt de
+      keten de volgorde op het scherm en past `menu:ribbon.relationLinkSelectedHint` en de Help aan in nl en
+      en. De andere talen houden de oude tekst ("de eerst gekozen taak wordt voorganger") tot de
+      vertaalstraat ze bijwerkt; de bronhash staat al op verouderd. Een nieuwe sleutel zou tot dan op de
+      Engelse tekst terugvallen. Gezien in het Duits. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 10,
+      BEVESTIGD, VERVOLG). — B
+1879. **Een tabklik of het sluitkruis legt de open relatiepopover eerst vast.** Na een relatiesleep staat het
+      venster *Type relatie* open. Klik je dan op een ander documenttabblad, dan legt de klik buiten het
+      venster de relatie eerst vast in het document dat je verlaat (`RelationTypePopover`, bevestigen bij
+      `mousedown` buiten). Het sluitkruis van het tabblad doet hetzelfde, nog vóór de sluitvraag. Ctrl+1 en
+      de andere documentwissels zonder muis annuleren het venster wel (#1004). Mogelijke oplossing: een
+      uitzondering voor de documentknoppen in de klik-buiten-handler. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 11, BEVESTIGD, VERVOLG). — B
+1910. **VERVOLG (#1004): De takenlijst gebruikt een Shift-beginpunt waarvan de taak inmiddels op een andere rij
+      staat.** Klap drie mijlpalen in tot één regel, kies het laatste ruitje (*Oplevering*) en zet het met
+      *Mijlpaal aan/uit* om naar een gewone taak; de reeks blijft staan met twee ruitjes. Shift-klik in de
+      takenlijst op *Grondwerk* kiest dan alleen Grondwerk en Fundering, en Ctrl+F2 schrijft
+      `Grondwerk → Fundering`. Dezelfde Shift-klik in de tijdlijn kiest alle vijf taken, en Ctrl+F2 weigert daar
+      terecht, omdat twee gekozen mijlpalen één regel delen. Op main kiezen beide alle vijf. Oorzaak: de lijst
+      toetst het gedeelde beginpunt voor een gewone taakrij alleen op de rijsleutel (`FullTaskGrid.tsx`,
+      `extendFromSharedAnchor`). Fix: laat de lijst dezelfde regel gebruiken als `shiftAnchor` in de store
+      (`selectionSlice.ts`): de rij moet nog een taak uit het beginpunt bevatten, anders geldt de actieve taak.
+      Houd daarbij de uitzondering voor de spookregel. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 17,
+      BEVESTIGD); Trias (wrakko) heeft het als VERVOLG ingedeeld. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
