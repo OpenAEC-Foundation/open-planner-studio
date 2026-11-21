@@ -10,10 +10,14 @@ import type { NotifyInput } from './slices/types';
 export const MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignAutoSaveTargetChanged', dedupeKey: 'ifc-foreign-autosave-target-changed',
 });
-/** Vervangen kan op deze plek niet veilig: buiten de thuismap op de desktop in een map die de planner nog niet vrijgaf
- *  (alleen Ctrl+S en Opslaan als vragen erom, knownbug 1762), een link, of een bestandssysteem zonder de exclusieve stap. */
+/** Vervangen kan op deze plek niet veilig: een link, of een bestandssysteem zonder de exclusieve stap. Alleen Opslaan als. */
 export const MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignAutoSaveSaveAsOnly', dedupeKey: 'ifc-foreign-autosave-save-as-only',
+});
+/** Desktop: de app heeft (nog) geen toegang tot de map van het bestand, buiten de thuismap. Automatisch opslaan vraagt
+ *  daar nooit; één keer zelf opslaan wel (knownbug 1762, review van #1124), en daarna gaat Automatisch opslaan verder. */
+export const MODEL_AUTOSAVE_FOLDER_ACCESS_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignAutoSaveFolderAccess', dedupeKey: 'ifc-foreign-autosave-folder-access',
 });
 /** Het herstelrecord of het herstelmanifest kon de komende versie niet vastleggen (knownbug 1764). */
 export const MODEL_AUTOSAVE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotice({

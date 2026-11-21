@@ -1,7 +1,7 @@
 // #804 PR 11a: echte documentacties, volledige heropening of bewijs van nul schrijfacties.
 // Bronobjecten alleen op identiteit vergelijken; nooit een assert-diff van bronbytes maken.
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync, realpathSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, existsSync, linkSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -3342,7 +3342,8 @@ for (const backend of ['browser', 'desktop'] as const) {
   });
 }
 
-await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, geen herstelrecord dat blijft, één melding', async () => {
+// Fixronde 1 van #1124: zonder toegang tot de map een eigen melding (één keer zelf opslaan, dan vraagt de app de map).
+await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, geen herstelrecord dat blijft, één melding over de toegang tot de map', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'buiten-'));
   const ipc = desktop(appData), sw = saveWorker();
@@ -3360,10 +3361,30 @@ await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, g
       assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
       assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
       assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
-      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
       longer(store);
       await auto.round();
       assert.equal(sw.merges(), 1, 'geen tweede poging');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+// De gewone zin blijft waar Opslaan als de uitweg is: een bestand met een tweede naam (harde link).
+await check('stap 8, desktop: het eigen bestand heeft een tweede naam (harde link); niets geschreven, de melding van Opslaan als', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const folder = mkdtempSync(join(dir, 'link-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
+    linkSync(own, join(folder, 'tweede naam.ifc'));
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      await modelAutoSave(store, sw.compute).round();
+      assert.deepEqual(readdirSync(folder).sort(), ['model.ifc', 'tweede naam.ifc']);
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
+      assert.deepEqual(replaceRecordsIn(appData), []);
       assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
     } finally { unregister(); await clearRecovery(); }
   } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
@@ -4361,7 +4382,7 @@ await check('knownbug 1762, Ctrl+S: het tabblad gaat tijdens de vraag dicht; nie
   } finally { resetFolderAccessAsker(); ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
-await check('knownbug 1762, Automatisch opslaan buiten de thuismap vraagt nooit: geen vraag, geen venster, de melding van nu; na Ctrl+S met toegang vervangt het', async () => {
+await check('knownbug 1762, Automatisch opslaan buiten de thuismap vraagt nooit: geen vraag, geen venster, de melding over de toegang tot de map; na Ctrl+S met toegang vervangt het', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'buiten-'));
   const ipc = desktop(appData), sw = saveWorker();
@@ -4380,7 +4401,7 @@ await check('knownbug 1762, Automatisch opslaan buiten de thuismap vraagt nooit:
       assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
       assert.deepEqual(readdirSync(folder), ['model.ifc']);
       assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
-      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
       // De planner slaat zelf op: één vraag, en de map is vrijgegeven.
       clearNotices(store);
       assert.equal(await ctrlS(store), true, 'Ctrl+S slaat op');

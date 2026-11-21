@@ -86,6 +86,7 @@
     "ifcUnreadableTargetAutoSave": "Autosave has stopped: the app cannot read this file properly; it may contain a building model. Choose another file to save to.",
     "ifcForeignAutoSaveTargetChanged": "Auto-save has stopped: the file was changed, moved or deleted in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignAutoSaveSaveAsOnly": "Auto-save has stopped: this file cannot be replaced safely in this location. Your changes are still in the app. Choose Save As to keep them in a new file.",
+    "ifcForeignAutoSaveFolderAccess": "Auto-save has stopped: the app has no access yet to the folder of this file. Your changes are still in the app. Save once yourself and choose that folder in the window; after that, auto-save continues.",
     "ifcForeignAutoSaveNotRecorded": "Auto-save has stopped: the file cannot be replaced safely right now, because crash recovery cannot be updated. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignAutoSaveRemnant": "Auto-save has stopped: an earlier save of this file did not finish. Your changes are still in the app. Save with Ctrl+S; after a restart the app handles that earlier save.",
     "ambiguousThousands": "\"{{text}}\" is ambiguous: do you mean a decimal or thousands? Type decimals with \"{{separator}}\" (1{{separator}}5) and thousands without a separator (1500). The value was not changed.",

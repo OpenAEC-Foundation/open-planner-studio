@@ -35,15 +35,18 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     // meldingen voor een onleesbaar doel uit #870: die geeft alleen de doelcontrole met de flag aan
     // (`refusedWriteTarget` in src/state/ifcForeignGuard.ts).
     texts: [
+      'common:folderAccessQuestion.*',
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
       'common:notifications.ifc2x3PlanningOnly',
+      'common:notifications.ifcForeignAutoSaveFolderAccess',
       'common:notifications.ifcForeignAutoSaveNotRecorded',
       'common:notifications.ifcForeignAutoSaveRemnant',
       'common:notifications.ifcForeignAutoSaveSaveAsOnly',
       'common:notifications.ifcForeignAutoSaveTargetChanged',
       'common:notifications.ifcForeignDownloadCopy',
+      'common:notifications.ifcForeignFolderAccessMissing',
       'common:notifications.ifcForeignMergeRefused',
       'common:notifications.ifcForeignNewTargetOnly',
       'common:notifications.ifcForeignOpenSchema',

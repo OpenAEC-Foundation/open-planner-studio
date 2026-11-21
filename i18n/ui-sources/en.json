@@ -67,6 +67,7 @@
     "notifications.ifcUnreadableTargetAutoSave": "a528beeae180f218",
     "notifications.ifcForeignAutoSaveTargetChanged": "fdfd2fe1688eac6b",
     "notifications.ifcForeignAutoSaveSaveAsOnly": "fcc5f8e626785b3d",
+    "notifications.ifcForeignAutoSaveFolderAccess": "16a7b6d684d319f1",
     "notifications.ifcForeignAutoSaveNotRecorded": "68ea7f289e8128f2",
     "notifications.ifcForeignAutoSaveRemnant": "71637bd3b6be8af5",
     "notifications.ambiguousThousands": "7046ee19ecb23d1c",
