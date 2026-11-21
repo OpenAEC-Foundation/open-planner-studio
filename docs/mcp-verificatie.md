@@ -110,8 +110,8 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    `OPS_MCP_DEV_INSTANCE` op de slug van de dev-build: `tools/list` en `planner_get_project_info` gaan via de echte
    bridge; daarna stopt de bridge, en in dezelfde sessie komt `planner_get_project_info` uit de headless planner, met
    de wisselmelding vooraan en de logregels van de wissel.
-   Script: `tests/mcp/realApp/run.sh` (weigert zonder `CI=true` of `OPS_MCP_REAL_APP=1`, omdat het in de
-   appDataDir schrijft).
+   Script: `tests/mcp/realApp/run.sh` (weigert zonder `CI=true` of `OPS_MCP_REAL_APP=1`, omdat het de app bouwt en
+   start; de app krijgt per run een eigen datamap in `/tmp`).
 3. **Handmatig, 2026-10-21**, tegen de spiegel uit punt 1 (niet tegen de desktop-app). Een loggende proxy
    ervoor liet zien dat Claude Code en `mcp-remote` de `Mcp-Session-Id` na `initialize` bij elk volgend request
    meesturen. Claude Code stuurt vóór `initialize` eerst `server/discover` zonder header; dat krijgt `400` en
@@ -291,9 +291,12 @@ bevat `byteLength` voor deze byte-uitvoer; alleen de gewone tekstroute geeft `ch
 De echte-app-proef (`mcp-real-app.yml`) exporteert een gebouwmodel naar een nieuwe naam in de thuismap en leest via
 het ops-test-kanaal (`log`) de regel van `writeNewUserBytes` in het app-log (kanaal `nieuweNaam`): voor precies dat
 doel moet het echte `place_file_exclusive` `placed` of `dir-not-synced` hebben gegeven, zonder directe aanmaak.
-Voor knownbug 1762 schrijft `run.sh` vóór de start een `.persisted-scope` met een map in `/tmp`, zoals de mapkiezer van
-plugin-dialog die vrijgeeft (niet-recursief); de laatste proef doet daar Ctrl+S met een gebouwmodel en eist het bestand
-met de nieuwe taak en het gebouwmodel, zonder hulpbestand en zonder vraag. De vraag en de mapkiezer zelf toetst ze niet.
+Elke run krijgt een eigen datamap in `/tmp` (`XDG_DATA_HOME`, `realApp/runData.mjs`; proef `cases-real-app-data.ts`),
+die de opruiming na de run weer weghaalt, samen met de vrijgegeven map; een herhaling op dezelfde machine begint zo leeg.
+Voor knownbug 1762 staat daarin vóór de start een `.persisted-scope` met een map in `/tmp`, zoals de mapkiezer van
+plugin-dialog die vrijgeeft (`allow_directory(map, false)`); de laatste proef doet daar Ctrl+S met een gebouwmodel en eist
+het bestand met de nieuwe taak en het gebouwmodel, zonder hulpbestand en zonder vraag. De vraag en de mapkiezer zelf
+toetst ze niet.
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,
 bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang.
 De headless server blijft tekst schrijven; de beperking en richting staan bij knownbug 1136 in `docs/headless-mcp.md`.

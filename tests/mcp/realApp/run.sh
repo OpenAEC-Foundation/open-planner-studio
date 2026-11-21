@@ -5,9 +5,8 @@
 #   bash tests/mcp/realApp/run.sh
 #
 # Vereist: Rust stable, de Tauri-Linux-afhankelijkheden (libwebkit2gtk-4.1-dev …) en xvfb.
-# De app schrijft in de echte appDataDir (`~/.local/share/org.openaec.planner/`); daarom draait dit
-# script alleen met CI=true of OPS_MCP_REAL_APP=1, zodat het lokaal nooit per ongeluk de gegevens van
-# een gebruiker raakt.
+# De app krijgt per run een eigen datamap in /tmp (`XDG_DATA_HOME`, `runData.mjs`), die na de run weer weg is. Het
+# script draait alleen met CI=true of OPS_MCP_REAL_APP=1: het bouwt en start de app.
 #
 # Exit 0 = alle controles groen; anders rood. Het app-log staat in test-results/mcp-real-app/.
 set -euo pipefail
@@ -15,16 +14,31 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../../.." && pwd)"
 
 if [ "${CI:-}" != "true" ] && [ "${OPS_MCP_REAL_APP:-}" != "1" ]; then
-  echo "Weigering: zet CI=true of OPS_MCP_REAL_APP=1 (dit script start de app en schrijft in de appDataDir)." >&2
+  echo "Weigering: zet CI=true of OPS_MCP_REAL_APP=1 (dit script bouwt en start de app)." >&2
   exit 2
 fi
 
-OPS_DIR="${OPS_TEST_DIR:-$HOME/.local/share/org.openaec.planner/ops-test}"
 LOG_DIR="$ROOT/test-results/mcp-real-app"
 LOG="$LOG_DIR/tauri-dev.log"
 BOOT_TIMEOUT="${MCP_REAL_APP_BOOT_TIMEOUT:-1800}"
-mkdir -p "$OPS_DIR" "$LOG_DIR"
-rm -f "$OPS_DIR/ready.json" "$OPS_DIR/cmd.json" "$OPS_DIR/res.json"
+mkdir -p "$LOG_DIR"
+
+# Eén eigen datamap per run (review van #1124): het opdrachtkanaal `ops-test` en een `.persisted-scope` met een map
+# buiten de thuismap die de planner eerder vrijgaf (#804, knownbug 1762; run-real-app.ts doet er Ctrl+S). Een herhaling
+# begint zo leeg; de opruiming hieronder haalt beide mappen weg.
+{ read -r RUN_DATA; read -r OPS_DIR; read -r GRANTED; } < <(node "$DIR/runData.mjs" create)
+[ -n "${GRANTED:-}" ] || { echo "runData.mjs gaf geen datamap" >&2; exit 1; }
+export OPS_TEST_DIR="$OPS_DIR" OPS_REAL_APP_GRANTED_DIR="$GRANTED"
+APP_PID=""
+cleanup() {
+  if [ -n "$APP_PID" ]; then
+    kill -TERM -- "-$APP_PID" 2>/dev/null || true
+    # Eerst de app weg, anders schrijft ze nog in de datamap die hierna verdwijnt.
+    for _ in $(seq 50); do kill -0 -- "-$APP_PID" 2>/dev/null || break; sleep 0.2; done
+  fi
+  node "$DIR/runData.mjs" remove "$RUN_DATA" "$GRANTED"
+}
+trap cleanup EXIT
 
 # De banner: de stdio-client van de SDK (voor de bundeltest) laadt `cross-spawn`, dat `require` gebruikt.
 OUT="$DIR/.run-real-app.mjs"
@@ -46,34 +60,11 @@ if ! node "$ROOT/scripts/build-mcpb.mjs" --out "$MCPB_OUT" >"$LOG_DIR/build-mcpb
 fi
 export OPS_MCPB_SERVER="$MCPB_OUT/bundle/server/index.mjs"
 
-# #804, knownbug 1762: een map buiten de thuismap die de planner eerder vrijgaf. De mapkiezer van plugin-dialog geeft een
-# map vrij als `allow_directory(map, false)` (de patronen `map` en `map/*`), en persisted-scope bewaart die patronen in
-# `.persisted-scope` (bincode: een lijst toegestane en een lijst verboden patronen) en zet ze bij de start terug. Dit
-# schrijft dat bestand vóór de start, zoals het er na zo'n keuze uitziet; run-real-app.ts doet er Ctrl+S. Een bestaand
-# bestand blijft staan (dan meldt die proef dat de map ontbreekt).
-APP_DATA="$(dirname "$OPS_DIR")"
-SCOPE_FILE="$APP_DATA/.persisted-scope"
-if [ -e "$SCOPE_FILE" ]; then
-  echo "let op: $SCOPE_FILE bestaat al; geen vrijgegeven map buiten de thuismap voor de proef van knownbug 1762" >&2
-else
-  GRANTED="$(mktemp -d /tmp/ops-1762-vrijgegeven-XXXXXX)"
-  node -e '
-    const [file, dir] = process.argv.slice(1);
-    const u64 = (n) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
-    const str = (s) => { const b = Buffer.from(s, "utf8"); return Buffer.concat([u64(b.length), b]); };
-    const allowed = [dir, `${dir}/*`];
-    require("node:fs").writeFileSync(file, Buffer.concat([u64(allowed.length), ...allowed.map(str), u64(0)]));
-  ' "$SCOPE_FILE" "$GRANTED"
-  export OPS_REAL_APP_GRANTED_DIR="$GRANTED"
-fi
-
 # Eigen sessie, zodat de opruiming de hele procesboom (npm → tauri → vite + app) stopt.
 cd "$ROOT"
-setsid xvfb-run -a env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+setsid xvfb-run -a env XDG_DATA_HOME="$RUN_DATA" WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
   npm run tauri:dev >"$LOG" 2>&1 &
 APP_PID=$!
-cleanup() { kill -TERM -- "-$APP_PID" 2>/dev/null || true; }
-trap cleanup EXIT
 
 echo "app gestart (pid $APP_PID); wachten op $OPS_DIR/ready.json (max ${BOOT_TIMEOUT}s)"
 start=$(date +%s)
