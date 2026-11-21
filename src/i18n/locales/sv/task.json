@@ -328,7 +328,11 @@
     "rename": "Redigera",
     "remove": "Ta bort",
     "addToMine": "Lägg till i mina arbetskategorier",
-    "confirmRemove": "Den här arbetskategorin används i det öppna projektet. Ta bort den från Mina arbetskategorier? Projektkopian finns kvar."
+    "confirmRemove": "Den här arbetskategorin används i det öppna projektet. Ta bort den från Mina arbetskategorier? Projektkopian finns kvar.",
+    "renameInProjectTitle": "Byt namn även i det här projektet?",
+    "renameInProjectMessage": "Arbetskategorin ”{{oldName}}” används även i det här projektet. Vill du att den även här ska heta ”{{newName}}”?",
+    "renameInProjectYes": "Även i det här projektet",
+    "renameInProjectNo": "Bara i min lista"
   },
   "duration": {
     "label": "Varaktighet",

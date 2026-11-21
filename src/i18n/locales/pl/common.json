@@ -558,8 +558,15 @@
     "ifcForeignReplaceBlocked": "Nie zapisano. Zapis nad istniejącym plikiem z modelem budynku nie jest jeszcze bezpieczny. Użyj „Zapisz jako” i wybierz nową nazwę.",
     "ifcForeignMergeRefused": "Plik IFC nie został zapisany. Model budynku albo dane z innego programu inaczej nie zostałyby w pełni zachowane. Cofnij ostatnią zmianę albo wyeksportuj tylko harmonogram: do IFC z opcją „Bez modelu budynku” albo do innego formatu.",
     "ifcSaveChangedWhileWaiting": "Nie zapisano. Dokument albo źródło modelu budynku zmieniło się podczas przygotowania. Spróbuj zapisać ponownie.",
+    "ifcForeignReplaceOtherVersion": "Inny program zmienił {{file}}, gdy aplikacja go zapisywała. Ta wersja została zachowana jako {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Wcześniejszy zapis {{file}} nie został dokończony. Harmonogram, który wtedy zapisywano, znajduje się w {{copy}}. Usuń ten plik, jeśli nie jest ci już potrzebny.",
+    "ifcForeignReplaceTargetTaken": "Nie zapisano. Podczas zapisywania inny program umieścił nowy plik pod {{target}}. Są teraz trzy pliki: ten nowy plik pod {{target}}, twój harmonogram w {{temp}} i poprzednia wersja w {{previous}}. Twoje zmiany są nadal w aplikacji.",
+    "ifcForeignReplacePreviousStranded": "Nie zapisano, a poprzedniej wersji pliku nie udało się przywrócić na jej miejsce. Znajduje się teraz w {{previous}}. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignReplaceSaveAsOnly": "Nie zapisano. Tego pliku nie można w tej lokalizacji bezpiecznie zastąpić. Plik się nie zmienił. Wybierz Zapisz jako, aby zachować swoje zmiany w nowym pliku.",
+    "ifcForeignReplaceLeftOver": "Z przerwanego zapisu {{file}} pozostał ten plik: {{path}}. Sprawdź, czy jeszcze go potrzebujesz.",
     "ifcSourceCopyFailed": "Harmonogram jest zapisywany na potrzeby odzyskiwania po awarii, ale kopii modelu budynku nie udało się zapisać. Po awarii model budynku może brakować. Zapisz samodzielnie cały projekt jako pełny plik IFC.",
-    "ifcForeignSourceMissing": "Nie zapisano. Nie znaleziono modelu budynku ani danych z innego programu. Użyj „Zapisz jako”, aby zapisać tylko harmonogram w nowym pliku. Otwórz pierwotny plik IFC, aby znów pracować z pełnym plikiem."
+    "ifcForeignSourceMissing": "Nie zapisano. Nie znaleziono modelu budynku ani danych z innego programu. Użyj „Zapisz jako”, aby zapisać tylko harmonogram w nowym pliku. Otwórz pierwotny plik IFC, aby znów pracować z pełnym plikiem.",
+    "taskTypeRenameNameTaken": "W tym projekcie nazwa pozostaje „{{oldName}}”: inny rodzaj robót w tym projekcie nazywa się już „{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -946,7 +953,8 @@
     "confirmClose": "Ten dokument ma niezapisane zmiany. Zamknąć mimo to?",
     "closeTitle": "Niezapisane zmiany",
     "closeBody": "„{{name}}” ma zmiany, które nie zostały jeszcze zapisane.",
-    "dontSave": "Nie zapisuj"
+    "dontSave": "Nie zapisuj",
+    "stillSaving": "Wciąż się zapisuje…"
   },
   "feedback": {
     "buttonTooltip": "Wyślij opinię",
@@ -2276,5 +2284,9 @@
     "bodyWithPool": "Plik projektu będzie zawierać tylko harmonogram; biblioteka zasobów trafi do drugiego pliku. Model budynku i dane z innego programu nie zostaną dołączone. Otwarty plik pozostanie bez zmian. Czy chcesz kontynuować?",
     "continue": "Eksportuj",
     "cancel": "Anuluj"
+  },
+  "replaceCopy": {
+    "otherProgram": "wersja z innego programu {{when}}",
+    "unsavedSchedule": "niezapisany harmonogram {{when}}"
   }
 }

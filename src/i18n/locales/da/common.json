@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "Ikke gemt. Overskrivning af en eksisterende fil med en bygningsmodel er endnu ikke sikker. Brug »Gem som« og vælg et nyt navn.",
     "ifcForeignMergeRefused": "IFC-filen blev ikke skrevet. Bygningsmodellen eller data fra et andet program ville ellers ikke blive fuldt bevaret. Fortryd din sidste ændring, eller eksportér kun tidsplanen: til IFC med »Uden bygningsmodel«, eller til et andet format.",
     "ifcSaveChangedWhileWaiting": "Ikke gemt. Dokumentet eller kilden til bygningsmodellen ændrede sig under forberedelsen. Prøv at gemme igen.",
+    "ifcForeignReplaceOtherVersion": "Et andet program ændrede {{file}}, mens appen gemte den. Den version er gemt som {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "En tidligere lagring af {{file}} blev ikke afsluttet. Tidsplanen, der blev gemt dengang, ligger i {{copy}}. Slet filen, hvis du ikke længere har brug for den.",
+    "ifcForeignReplaceTargetTaken": "Ikke gemt. Mens der blev gemt, lagde et andet program en ny fil på {{target}}. Der er nu tre filer: den nye fil på {{target}}, din tidsplan i {{temp}} og den forrige version i {{previous}}. Dine ændringer er stadig i appen.",
+    "ifcForeignReplacePreviousStranded": "Ikke gemt, og den forrige version af filen kunne ikke lægges tilbage på sin plads. Den ligger nu i {{previous}}. Dine ændringer er stadig i appen. Vælg Gem som for at gemme dem i en ny fil.",
+    "ifcForeignReplaceSaveAsOnly": "Ikke gemt. Denne fil kan ikke sikkert erstattes på dette sted. Filen er ikke ændret. Vælg Gem som for at gemme dine ændringer i en ny fil.",
+    "ifcForeignReplaceLeftOver": "Denne fil blev efterladt af en afbrudt lagring af {{file}}: {{path}}. Tjek, om du stadig har brug for den.",
     "ifcSourceCopyFailed": "Tidsplanen gemmes til genoprettelse efter nedbrud, men kopien af bygningsmodellen kunne ikke gemmes. Efter et nedbrud kan bygningsmodellen mangle. Gem selv dit arbejde som en komplet IFC-fil.",
-    "ifcForeignSourceMissing": "Ikke gemt. Bygningsmodellen eller data fra et andet program blev ikke fundet. Brug »Gem som« for kun at gemme tidsplanen i en ny fil. Åbn den oprindelige IFC-fil for igen at arbejde med hele filen."
+    "ifcForeignSourceMissing": "Ikke gemt. Bygningsmodellen eller data fra et andet program blev ikke fundet. Brug »Gem som« for kun at gemme tidsplanen i en ny fil. Åbn den oprindelige IFC-fil for igen at arbejde med hele filen.",
+    "taskTypeRenameNameTaken": "I dette projekt bliver navnet „{{oldName}}”: en anden arbejdskategori i dette projekt hedder allerede „{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Dette dokument har ikke-gemte ændringer. Luk alligevel?",
     "closeTitle": "Ikke-gemte ændringer",
     "closeBody": "'{{name}}' har ændringer, der endnu ikke er gemt.",
-    "dontSave": "Gem ikke"
+    "dontSave": "Gem ikke",
+    "stillSaving": "Gemmes stadig…"
   },
   "feedback": {
     "buttonTooltip": "Giv feedback",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "Projektfilen indeholder kun tidsplanen; ressourcebiblioteket kommer i en anden fil. Bygningsmodellen og data fra et andet program medtages ikke. Den åbne fil forbliver uændret. Vil du fortsætte?",
     "continue": "Eksportér",
     "cancel": "Annuller"
+  },
+  "replaceCopy": {
+    "otherProgram": "version fra et andet program {{when}}",
+    "unsavedSchedule": "ikke-gemt tidsplan {{when}}"
   }
 }

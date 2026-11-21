@@ -258,8 +258,15 @@
     "ifcForeignReplaceBlocked": "未保存。暂时无法安全地覆盖包含建筑模型的现有文件。请使用“另存为”并选择一个新名称。",
     "ifcForeignMergeRefused": "IFC 文件未写入。否则建筑模型或其他程序的数据将无法完整保留。请撤销上一次更改，或只导出计划：导出为 IFC 时选择“无建筑模型”，或导出为其他格式。",
     "ifcSaveChangedWhileWaiting": "未保存。文档或建筑模型来源在准备期间已更改。请再次尝试保存。",
+    "ifcForeignReplaceOtherVersion": "另一个程序在应用保存时修改了 {{file}}。该版本已另存为 {{copy}}。",
+    "ifcForeignReplaceUnsavedCopy": "{{file}} 之前的一次保存未完成。正在保存的计划位于 {{copy}}。如果不再需要，请删除该文件。",
+    "ifcForeignReplaceTargetTaken": "未保存。保存期间，另一个程序在 {{target}} 上放入了一个新文件。现在有三个文件：{{target}} 上的新文件、{{temp}} 中的你的计划，以及 {{previous}} 中的旧版本。你的更改仍保留在应用中。",
+    "ifcForeignReplacePreviousStranded": "未保存，且文件的旧版本无法放回原位。它现在位于 {{previous}}。你的更改仍保留在应用中。请选择另存为，将其保存到新文件中。",
+    "ifcForeignReplaceSaveAsOnly": "未保存。此文件无法在该位置安全替换。文件未更改。请选择另存为，将你的更改保存到新文件中。",
+    "ifcForeignReplaceLeftOver": "{{file}} 的一次中断保存遗留了此文件：{{path}}。请检查你是否仍需要它。",
     "ifcSourceCopyFailed": "计划正在保存用于崩溃恢复，但建筑模型的副本未能保存。崩溃后建筑模型可能会丢失。请自行将你的工作保存为完整的 IFC 文件。",
-    "ifcForeignSourceMissing": "未保存。找不到建筑模型或其他程序的数据。请使用“另存为”，只将计划保存到新文件中。请打开原始 IFC 文件，以便再次处理完整文件。"
+    "ifcForeignSourceMissing": "未保存。找不到建筑模型或其他程序的数据。请使用“另存为”，只将计划保存到新文件中。请打开原始 IFC 文件，以便再次处理完整文件。",
+    "taskTypeRenameNameTaken": "在此项目中名称仍为“{{oldName}}”：此项目中的另一个工作类别已叫“{{takenName}}”。"
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",
@@ -640,7 +647,8 @@
     "confirmClose": "此文档有未保存的更改。仍要关闭吗？",
     "closeTitle": "未保存的更改",
     "closeBody": "“{{name}}”有尚未保存的更改。",
-    "dontSave": "不保存"
+    "dontSave": "不保存",
+    "stillSaving": "仍在保存…"
   },
   "feedback": {
     "buttonTooltip": "发送反馈",
@@ -1889,5 +1897,9 @@
     "bodyWithPool": "项目文件将只包含计划；资源库会放入第二个文件。建筑模型和其他程序的数据不会包含在内。打开的文件保持不变。要继续吗？",
     "continue": "导出",
     "cancel": "取消"
+  },
+  "replaceCopy": {
+    "otherProgram": "另一程序的版本 {{when}}",
+    "unsavedSchedule": "未保存的计划 {{when}}"
   }
 }
