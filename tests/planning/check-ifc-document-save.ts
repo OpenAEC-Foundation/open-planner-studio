@@ -659,8 +659,12 @@ for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-br
       ? (await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!)).bytes : null;
     const nameOfA = store.getState().project.name;
     ipc.onPick(() => {
-      if (cause === 'documentwissel') store.getState().newDocument();
-      else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
+      if (cause === 'documentwissel') {
+        // Een herkenbaar B: alles hiervan dat in het bestand komt, valt op.
+        store.getState().newDocument();
+        store.getState().setProject({ name: 'ProjectBravo1097' });
+        store.getState().addTask({ name: 'TaakBravo1097' });
+      } else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
       else store.setState(s => {
         if (cause === 'flag-uit-na-kiezer') s.ui.featureFlags = {};
         else s.foreignSourceMark = { ...s.foreignSourceMark!, sourceMissing: true };
@@ -676,9 +680,9 @@ for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-br
         assert.notEqual(fresh.activeDocumentId, id, 'het nieuwe tabblad is actief');
         const text = new TextDecoder().decode(written);
         assert(nameOfA && text.includes(`IFCPROJECT('`) && text.includes(`'${nameOfA}'`), 'het project van A');
-        assert.notEqual(fresh.project.name, nameOfA);
-        if (fresh.project.name) assert(!text.includes(`'${fresh.project.name}'`), 'niets van het nieuwe tabblad');
-        assert.equal(fresh.tasks.length, 0, 'het nieuwe tabblad is leeg');
+        assert.equal(fresh.project.name, 'ProjectBravo1097');
+        assert(fresh.tasks.some(t => t.name === 'TaakBravo1097'), 'B heeft eigen inhoud');
+        assert(!text.includes('ProjectBravo1097') && !text.includes('TaakBravo1097'), 'niets van het nieuwe tabblad');
         store.getState().switchDocument(id);
       } else {
         assert(result.ok && result.cancelled);
