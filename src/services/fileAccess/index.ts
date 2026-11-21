@@ -5,6 +5,7 @@ import {
   saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
+import { requestReplaceFolderAccessTauri, type ReplaceFolderAccess } from './replaceFolderAccess';
 import type { FileIdentityFs } from './fileIdentity';
 import type { RemnantEvent } from './ownFileReplace';
 import type { TargetReaders } from './foreignSourceTarget';
@@ -268,6 +269,13 @@ export interface PickedSaveTarget {
 export function pickSaveTarget(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
   if (!isTauri()) return Promise.reject(new Error('De bestandskiezer zonder schrijven bestaat alleen op de desktop.'));
   return pickSaveTargetTauri(defaultName, filters);
+}
+
+/** Desktop (#804, knownbug 1762): mag de vervanging van het bestaande bestand op `path` haar hulpbestanden ernaast zetten?
+ *  Zo niet, dan vraagt de app de planner eenmalig de map vrij te geven (`replaceFolderAccess.ts`). */
+export function requestReplaceFolderAccess(path: string): Promise<ReplaceFolderAccess> {
+  if (!isTauri()) return Promise.reject(new Error('Toegang tot een map vragen bestaat alleen op de desktop.'));
+  return requestReplaceFolderAccessTauri(path);
 }
 
 /** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.

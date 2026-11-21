@@ -37,7 +37,8 @@ import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import { isForbiddenPathError, userFileTempPath } from '@/services/fileAccess/atomicWrite';
 import { readsAsBytes, type ExportFormat } from '@/services/formatRegistry';
 import type { ExportResult } from '@/state/slices/fileSlice';
-import { readBytesFromRef } from '@/services/fileAccess';
+import { readBytesFromRef, requestReplaceFolderAccess } from '@/services/fileAccess';
+import { replaceFolder, resetFolderAccessAsker, setFolderAccessAsker } from '@/services/fileAccess/replaceFolderAccess';
 import {
   ownPathReplaceNotices, remnantNotices, replaceOwnPathWithRecovery, type OwnPathReplaceResult,
 } from '@/state/ownFileReplace';
@@ -3124,6 +3125,54 @@ await check('1762, de nabootsing: de mapkiezer geeft de map vrij, niet-recursief
     await open({ directory: true, recursive: true, defaultPath: c.dir });
     assert.equal(await refusedByScope(inSub), false, 'ter vergelijking: recursief vrijgegeven mag de submap wel');
   } finally { rmSync(elsewhere, { recursive: true, force: true }); await tidy(c); }
+});
+
+const folderPicks = (from: number) => ipc.calls.slice(from).filter(call => call.command === 'plugin:dialog|open').map(call => call.dialog);
+
+await check('1762, de map in de vraag: zonder het scheidingsteken achteraan, ook voor een stationsletter en een netwerkschijf', async () => {
+  assert.equal(replaceFolder('D:\\Projecten\\Kantoor\\model.ifc'), 'D:\\Projecten\\Kantoor');
+  assert.equal(replaceFolder('\\\\server\\share\\Kantoor\\model.ifc'), '\\\\server\\share\\Kantoor');
+  assert.equal(replaceFolder('/media/schijf/Kantoor/model.ifc'), '/media/schijf/Kantoor');
+  assert.equal(replaceFolder('D:\\model.ifc'), 'D:\\', 'de wortel van een station houdt haar scheidingsteken');
+  assert.equal(replaceFolder('/model.ifc'), '/');
+});
+
+await check('1762, de vraag om toegang: al vrijgegeven geen venster; annuleren in de vraag of in de mapkiezer; een bovenliggende map; daarna nooit meer', async () => {
+  const c = await opened();
+  const questions: string[] = [];
+  let answer = true;
+  setFolderAccessAsker(async folder => { questions.push(folder); return answer; });
+  try {
+    let from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), 'ok', 'binnen de capability');
+    assert.deepEqual([questions, folderPicks(from)], [[], []], 'binnen de capability: geen vraag en geen venster');
+
+    outsideCapability(c);
+    answer = false;
+    from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), 'cancelled', 'annuleren in de vraag');
+    assert.deepEqual(questions, [c.dir], 'de vraag noemt de map van het bestand');
+    assert.deepEqual(folderPicks(from), [], 'na annuleren in de vraag geen mapkiezer');
+
+    answer = true;
+    ipc.dialog.pickFolder = () => null;
+    from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), 'cancelled', 'annuleren in de mapkiezer');
+    assert.deepEqual(folderPicks(from), [{ directory: true, multiple: false, recursive: false, defaultPath: c.dir }],
+      'één mapkiezer, niet-recursief, op de map van het bestand');
+
+    ipc.dialog.pickFolder = () => dirname(c.dir);
+    assert.equal(await requestReplaceFolderAccess(c.path), 'wrong-folder', 'een bovenliggende map geeft deze map niet vrij');
+    assert.equal(await refusedByScope(userFileTempPath(c.path)), true, 'de hulpnaam blijft geweigerd');
+
+    ipc.dialog.pickFolder = () => c.dir;
+    assert.equal(await requestReplaceFolderAccess(c.path), 'ok', 'de map van het bestand gekozen');
+    assert.equal(questions.length, 4);
+    from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), 'ok', 'daarna');
+    assert.deepEqual([questions.length, folderPicks(from)], [4, []], 'daarna geen vraag en geen venster meer');
+    assert.deepEqual(files(c), ['model.ifc'], 'de vraag schreef niets in de map');
+  } finally { resetFolderAccessAsker(); await tidy(c); }
 });
 
 ipc.dispose();
