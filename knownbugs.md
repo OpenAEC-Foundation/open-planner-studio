@@ -1137,6 +1137,14 @@ en noem het in je rapport of PR-tekst.
       werksoorthernoeming in hetzelfde venster. Richting, als het gewenst is: een regel in de dialoog zelf die toont
       wat er bij de anderen verandert (ontwerpvraag voor de eigenaar). — B
 
+2055. **VERVOLG (review van #1120 ronde 5): Ctrl+Z na een bibliotheekverversing zet ook de kalenderkopie van het
+      project terug.** Een verversing uit de bibliotheek (bijvoorbeeld de gekoppelde kalender van 8 naar 6 uur via
+      *Resources → Bibliotheek*, *Toepassen*) maakt geen stap in de geschiedenis (`src/state/slices/librarySlice.ts`,
+      rond regel 1078, wist alleen de redo). Een Ctrl+Z van een bewerking van daarvoor zet de hele momentopname
+      terug, dus ook de kalenderkopie (weer 8 uur), terwijl de bibliotheek op 6 uur blijft. Dat gedrag staat ook op
+      main. De urenmelding van #954 verdwijnt bij zo'n verversing, zodat haar knop dit niet doet. Bevestigd door de
+      review, niet zelf nagespeeld. — B
+
 1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
       presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
       items wel (`GanttCanvas.tsx`, `onAssignRelation`). Kies je er een, dan verschijnt er niets; pas na het
