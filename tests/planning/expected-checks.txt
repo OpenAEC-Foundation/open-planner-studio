@@ -52,6 +52,7 @@ check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
 check-csv-import.ts matrix
 check-custom-report-font.ts matrix
+check-custom-task-type-colors.ts matrix
 check-custom-task-types.ts matrix
 check-dag-is-werktijd.ts matrix
 check-dag-uur-lag.ts matrix
@@ -196,6 +197,7 @@ check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
 check-ifc-foreign-telling-verschil.ts los
+check-ifc-foreign-werksoortkleur.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-kalendertijd.ts matrix
 check-ifc-legacy-arity.ts matrix

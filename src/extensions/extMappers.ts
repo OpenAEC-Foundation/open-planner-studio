@@ -16,6 +16,7 @@
  *   (b) hernoem je een INTERN veld → dat duikt alléén hier op, nooit in extensie-code.
  */
 import { localTodayIso } from '@/utils/dateUtils';
+import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import type { Project } from '@/types/project';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { WorkCalendar, Holiday, WorkTimeBands, WorkingException } from '@/types/calendar';
@@ -776,7 +777,7 @@ export function fromExtImportResult(r: ExtImportResult): ImportResult {
     sequences: r.sequences.map(fromExtSequence),
     resources: r.resources.map(fromExtResource),
     assignments: r.assignments.map(fromExtAssignment),
-    customTaskTypes: [...catalog.values()],
+    customTaskTypes: withTaskTypeColors([...catalog.values()]),
   };
 }
 
