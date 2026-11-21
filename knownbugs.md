@@ -1036,6 +1036,13 @@ en noem het in je rapport of PR-tekst.
       De proef in reviewronde 3 van #1115 (GPT-6.2-Sol, xhigh, BEVESTIGD) telde 181 volledige
       berekeningen in 1,04 s, op main één in 0,06 s. Hergebruik een berekening voor rijen die elkaars
       planning niet sturen, met behoud van de werking van ALAP. — B
+1857. **VERVOLG: plakken van 100% en 0 restduur rekent onnodig per rij.**
+      In een rasterproef met 120 onafhankelijke einde-startparen gaf de gecombineerde plak 120
+      volledige berekeningen in 1,08 s. Op main (`f43e761eb`) waren dat er nul in 0,26 s. Op de
+      beoordeelde commit (`2d2302897`) gaf alleen de percentagekolom plakken ook nul volledige
+      berekeningen. De plak werd telkens aanvaard. Lees bij het voorbereiden van de plak de geplande
+      datums uit de taak vóór die op 100% wordt gezet, zodat de bestaande vooruitberekening bruikbaar
+      blijft. Uit reviewronde 5 van #1115 (GPT-6.2-Sol, xhigh, BEVESTIGD). — B
 
 ## Kalenders
 
