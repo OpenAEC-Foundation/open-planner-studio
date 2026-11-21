@@ -478,9 +478,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
   Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
-  changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
-  stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
-  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.
+  changed or missing own file, a folder outside the scope the planner has not granted yet (only Ctrl+S and Save As
+  ask for it, knownbug 1762), an unrecordable or leftover recovery record stop it for that document with one notice
+  per session (`state/modelAutoSaveNotices.ts`) until the planner saves or picks another target. A plain document
+  keeps its 10 s throttle and its route; with the flag off nothing changes.
   Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,

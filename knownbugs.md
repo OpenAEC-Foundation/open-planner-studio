@@ -2358,9 +2358,10 @@ en noem het in je rapport of PR-tekst.
      weigeren (met een omschrijving op `OPS_StructureMeta` het eerste eigen veld toevoegen, of een activiteitscodetype
      hernoemen; punt 2), en viel daar de nacontrole weg. Dat is teruggedraaid; beide handelingen staan als vaste proef in
      `check-ifc-foreign-eigen-toets.ts` blok 9, en de writerfouten in blok 10 van eigen-uitvoer (de verliescontrole zelf
-     weigert). Lijst A en de nacontrole weghalen is PR B: geparkeerd tot de voorwaarden voor de flag klaar zijn (1939 en
-     1762), en dan met een besluit over punt 2 (mag (a) per slot de opslaggrens verschuiven?) en een onafhankelijke
-     inhoudstoets voor de templates en `TaskGuids` als eis. Lijst B krijgt een eigen stap met een eigen meting. (c) slaat
+     weigert). Lijst A en de nacontrole weghalen is PR B: geparkeerd tot de voorwaarden voor de flag klaar zijn (1939, en
+     1762, dat de vraag om toegang tot de map oplost: 1131 punt 7), en dan met een besluit over punt 2 (mag (a) per
+     slot de opslaggrens verschuiven?) en een onafhankelijke inhoudstoets voor de templates en `TaskGuids` als eis.
+     Lijst B krijgt een eigen stap met een eigen meting. (c) slaat
      een groep nog helemaal over als ze het slot niet eenduidig aanwijst (twee properties of psets met dezelfde naam, het
      slot is de naam of de GlobalId, een verwijzing in de waarde), of als de bronwaarde van een soort is die de lezer deels
      draagt (lijst, JSON, samengestelde tekst: een vreemde `Creators` op een kop, het baseline-JSON van een oud bestand,
@@ -2789,7 +2790,15 @@ en noem het in je rapport of PR-tekst.
            niet; `planner_export_ifc` weigert nog steeds een bestaand pad. Niet gemeten in een echte desktopapp.
      6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
         feitelijk bijgewerkt; zie ook 1836).
-     7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
+     7. Gebouwd (was 1762; besluit van de eigenaar, 21 november 2026: "één keer per map vragen"): Ctrl+S buiten de
+        thuismap, en Opslaan als over een bestaand bestand daar. Mag het tijdelijke bestand naast het doel niet
+        ontstaan, dan vraagt de app eenmalig toegang tot die map (bij Ctrl+S vóór de merge): een korte vraag in de app,
+        dan de gewone mapkiezer op die map, niet-recursief (`replaceFolderAccess.ts`). `persisted-scope` bewaart de map
+        over een herstart; daarna loopt dezelfde vervanging, ook het herstel na een crash. Na annuleren of een andere
+        map: niets geschreven, `ifcForeignFolderAccessMissing`. Alleen met de flag aan; Automatisch opslaan en een
+        nieuwe naam vragen niets. Geen Rust-commando; `place_file_mapkiezer_geeft_de_map_niet_recursief_vrij` toetst de
+        scope van het commando en van plugin-fs `exists`. Niet gemeten in een echte desktopapp (de mapkiezer, een
+        herstart, een netwerkschijf, Windows en macOS).
      8. Gebouwd (stap 8, #1019; tweede deel na het besluit van de eigenaar van 19 november 2026): *Opslaan als* over een
         andere bestaande naam op de desktop (keuze 4), met de flag aan; ook de bestandskiezer van Ctrl+S bij een
         document zonder opslagdoel (fixronde 1 van #1071). Die route draagt de keuze zelf (`saveAsOnDesktop` in
@@ -2812,12 +2821,12 @@ en noem het in je rapport of PR-tekst.
         bestand (de exclusieve aanmaak: `ifcForeignNewTargetOnly`; met de flag uit schrijft de gewone opslag erdoor, zoals
         main), een doel dat na de kiezer een andere versie kreeg (`ifcForeignTargetChanged`; schreef een ander programma
         pas na de vergelijking van stap 2, dan blijft die versie als kopie, `ifcForeignReplaceOtherVersion`), en waar de
-        vervanging niet kan (`save-as-only`: buiten de scope van de kiezer (1762), een harde link, ook op Windows via
-        `nNumberOfLinks` in `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam
-        (`ifcForeignNewTargetOnly`), zonder terugval. Met de flag uit zijn volgorde, meldingen en bestandsaanroepen
-        die van main. Of er een bestand staat, stelt de kiezer direct na zijn terugkeer
-        vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam (weigeren nog; de
-        vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
+        vervanging niet kan (`save-as-only`: een harde link, ook op Windows via `nNumberOfLinks` in
+        `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam (`ifcForeignNewTargetOnly`),
+        zonder terugval. Buiten de thuismap vraagt de app eerst toegang tot de map (punt 7). Met de flag uit zijn
+        volgorde, meldingen en bestandsaanroepen die van main. Of er een bestand staat, stelt de kiezer direct na zijn
+        terugkeer vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam
+        (weigeren nog; de vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
@@ -2828,17 +2837,6 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-own-file-replace.ts` deel c (vanaf `saveFileAs`, ook een crash na elke stap met een nooit geopend doel)
      en `check-ifc-document-save.ts` (zonder herstelronde). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
-
-1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
-     De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
-     (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
-     schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Hetzelfde geldt
-     sinds keuze 4, tweede deel (#1071), voor *Opslaan als* over een bestaand bestand buiten de thuismap: de vervanging
-     kan het tijdelijke bestand niet naast het doel maken, het doel blijft bytegelijk en de melding
-     (`ifcForeignNewTargetOnly`) wijst naar een nieuwe naam (review van #1071, ronde 2, twijfel (c)). Richting:
-     productkeuze 1 uit het onderzoek naar 1131. **Voorwaarde (besluit van Trias, 19 november 2026): de featureflag
-     gaat niet aan voordat dit punt is opgelost.** Het achterblijvende herstelrecord na zo'n weigering (was 1902) is
-     opgelost in #804 stap 6. — B (code), geen proef in de app
 
 1752. **VERVOLG (plugin-fs 2.7.1, desktop): in een map in de thuismap die via een link naar buiten wijst, schrijft Opslaan direct over het bestand.**
      Bijvoorbeeld `~/projecten` → `/data/projecten`. Sinds plugin-fs 2.7.0 toetst de scope het echte pad: de dialoog
@@ -2852,8 +2850,13 @@ en noem het in je rapport of PR-tekst.
      extensie zelf aan en blijft het één venster. Blijft zoals onder 2.5.0: een bestand dat hier ooit zonder eigen
      toestemming voor de naam met extensie ontstond (de eerste opslag zonder extensie vóór #979), kan Ctrl+S niet
      vervangen. Proeven: `check-user-file-write.ts` blok 7 (`link buiten`: route `createNew:geweigerd` →
-     `direct:geschreven`) en `check-save-dialog-extension.ts` (g), per regel van plugin-fs. Richting: dezelfde
-     oplossing als 1762 (Ctrl+S overal via een tijdelijk bestand, later). Gevonden door de review van #978. — B (proef)
+     `direct:geschreven`) en `check-save-dialog-extension.ts` (g), per regel van plugin-fs. Stand sinds de vraag om
+     toegang tot de map (1131 punt 7, was 1762): met de flag `ifcForeignContent` aan vraagt de app hier bij Ctrl+S op een
+     bestand met een gebouwmodel en bij Opslaan als over een bestaand bestand eenmalig toegang tot de map, en vervangt ze
+     het daarna veilig (VERMOED voor zo'n gelinkte map: de scope neemt ook de echte vorm van de gekozen map op, niet
+     gemeten met een echte mapkiezer). Ctrl+S op een gewone planning, en alles met de flag uit, schrijft hier nog direct,
+     zoals main (besluit van de eigenaar, 21 november 2026: apart van 1762). Richting: dezelfde vraag ook voor de gewone
+     opslag, als eigen keuze. Gevonden door de review van #978. — B (proef)
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
