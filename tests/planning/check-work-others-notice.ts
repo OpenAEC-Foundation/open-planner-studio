@@ -209,23 +209,58 @@ console.log('-- (h) eigen urenverdeling: de melding noemt de uren van *Werk (u)*
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- (i) Taak bewerken: Opslaan voegt stappen samen, Annuleren draait terug --');
+console.log('-- (i) Taak bewerken: geen melding tijdens het bewerken, bij Opslaan één melding over de uitkomst --');
 {
-  // Review #1120 ronde 1: na Opslaan is de stap van de melding samengevoegd met de rest van de dialoog
-  // (bijv. een nieuwe naam). De knop mag dan niet meer, anders zet hij ook die naam terug.
+  // Review #1120 ronde 1 en 2: in de dialoog voegt Opslaan alle stappen samen tot één stap "Taak
+  // bewerken", en de melding stond achter de dialoog. Daarom meldt de app pas bij Opslaan, over de
+  // samengevoegde stap (de uitkomst die er werkelijk staat), met een knop die de hele taakbewerking
+  // terugzet en dat ook zegt.
   const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   const mark = S().historyMark();
   S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
-  eq('i1 in de dialoog: melding met knop die nu kan', canRunNotificationUndo(S(), noticeAction()), true);
+  eq('i1 in de dialoog nog geen melding', summary(notice()), null);
   S().updateTask(t, { name: 'Metselwerk gevel' });
   S().squashHistorySince(mark, 'Taak bewerken');
-  eq('i2 na Opslaan: de melding blijft staan, zonder knop', [summary(notice()) !== null, notice()?.action ?? null], [true, null]);
+  eq('i2 na Opslaan: 20 dagen, Anna 80 → 160 u, knop Taakbewerking ongedaan maken', [summary(notice()), notice()?.action?.labelKey], [
+    { key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent' },
+    'notifications.actions.undoTaskEdit',
+  ]);
+  eq('i3 de knop kan nu', canRunNotificationUndo(S(), noticeAction()), true);
+  S().undoHistoryEvent(noticeAction().eventId);
+  eq('i4 de knop zet de hele taakbewerking terug, ook de naam', [task(t).name, task(t).time.scheduleDuration, asg(t, r.Bram).unitsPerDay], ['Metselwerk', 10, 1]);
 
+  // Annuleren: niets gemeld, niets terug te zien.
   const c = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   const mark2 = S().historyMark();
   S().updateAssignment(asg(c.t, c.r.Bram).id, { unitsPerDay: 0.5 });
   S().revertHistorySince(mark2);
-  eq('i3 na Annuleren: duur weer 10 en de melding is weg', [task(c.t).time.scheduleDuration, summary(notice())], [10, null]);
+  eq('i5 na Annuleren: duur weer 10 en geen melding', [task(c.t).time.scheduleDuration, summary(notice())], [10, null]);
+
+  // Eerst het taaktype, dan de inzet: de melding vergelijkt met de stand van vóór de dialoog.
+  const d = seed('FIXED_DURATION_RATE', 10, { Anna: 1, Bram: 1 });
+  const mark3 = S().historyMark();
+  S().setTaskWorkRule(d.t, 'FIXED_RATE');
+  S().updateAssignment(asg(d.t, d.r.Bram).id, { unitsPerDay: 0.5 });
+  S().squashHistorySince(mark3, 'Taak bewerken');
+  eq('i6 eerst taaktype, dan inzet, dan Opslaan: melding met knop', [summary(notice()), canRunNotificationUndo(S(), noticeAction())], [
+    { key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent' }, true,
+  ]);
+
+  // Een duurcorrectie in dezelfde dialoog: de melding noemt de uitkomst na Opslaan.
+  const e = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  const mark4 = S().historyMark();
+  S().updateAssignment(asg(e.t, e.r.Bram).id, { unitsPerDay: 0.5 });
+  S().updateTask(e.t, { time: { ...task(e.t).time, scheduleDuration: 12 } });
+  S().squashHistorySince(mark4, 'Taak bewerken');
+  eq('i7 inzet en dan 12 dagen: de melding zegt 12 dagen, Anna 80 → 96 u', summary(notice()),
+    { key: 'notifications.otherWork.durationDays', duration: 12, lines: [['Anna', 80, 96]], action: 'undoHistoryEvent' });
+
+  // Alleen de naam in de dialoog: geen toewijzing bewerkt, geen melding.
+  const f = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  const mark5 = S().historyMark();
+  S().updateTask(f.t, { name: 'Metselwerk gevel' });
+  S().squashHistorySince(mark5, 'Taak bewerken');
+  eq('i8 alleen een naam: geen melding', summary(notice()), null);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -236,6 +271,16 @@ console.log('-- (j) een ander document: de melding hoort bij het vorige --');
   eq('j0 melding staat', summary(notice()) !== null, true);
   S().newDocument();
   eq('j1 na een documentwissel is de melding weg', summary(notice()), null);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (k) Ctrl+Z zet de stap terug: de melding verdwijnt --');
+{
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  eq('k0 melding staat', summary(notice()) !== null, true);
+  S().undo();
+  eq('k1 na Ctrl+Z: duur 10 en de melding is weg', [task(t).time.scheduleDuration, summary(notice())], [10, null]);
 }
 
 if (diffs.length) {
