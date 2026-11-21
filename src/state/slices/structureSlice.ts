@@ -2,7 +2,7 @@ import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldTy
 import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
 import { customTaskTypeClashes, customTaskTypeInUse, renamedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
-import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
+import { enteringDocument } from '@/services/taskTypes/customTaskTypeColors';
 import { generateId } from '@/utils/id';
 import { rewriteDocumentHistorySnapshots } from '../sessionHistory';
 import type { Snapshot } from '../snapshot';
@@ -107,7 +107,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const { sameId, sameNameOtherId } = customTaskTypeClashes(s.customTaskTypes, { id, name });
       if (sameId || sameNameOtherId || !id || !name) return;
       runtime.beginUndoable(s);
-      s.customTaskTypes.push(...withTaskTypeColors([{ id, name, color: type.color }], s.customTaskTypes));
+      s.customTaskTypes.push(enteringDocument({ id, name, color: type.color }, s.customTaskTypes));
       runtime.finishMutation(s);
     });
   },

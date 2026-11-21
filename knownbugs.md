@@ -1013,6 +1013,12 @@ en noem het in je rapport of PR-tekst.
      van optie 2 op #952. Voorstel: een proef met echte uitvoer van die writer, en de uitzondering ook de oude
      schrijfwijze laten herkennen als die verder teken voor teken gelijk is. — B (code)
 
+1679. **VERVOLG (#856): na de twaalf vaste kleuren hebben sommige berekende werksoortkleuren weinig contrast.** De reeks
+     in `generatedColor` (`customTaskTypeColors.ts`) toetst geen contrast; de zwakste van de eerste zestig haalde
+     1,58:1 in het lichte en 2,20:1 in het donkere thema (hoog contrast haalt 7:1). Ze komen pas bij een dertiende eigen
+     werksoort in één planning in beeld. Gezien in review ronde 4 van optie 2 op #952. Voorstel: elke berekende tint
+     toetsen aan de echte Gantt-achtergronden en een te zwakke overslaan. — B (code)
+
 1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
      `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
      browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt

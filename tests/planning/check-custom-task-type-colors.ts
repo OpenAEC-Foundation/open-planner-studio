@@ -3,6 +3,7 @@
 // veld `color` per definitie). Een bestand zonder dat veld (oud, of van een andere schrijver) opent
 // zoals nu en krijgt een vaste kleur; een bestand met het veld houdt precies die kleur.
 import './domStub';
+import { readFileSync } from 'node:fs';
 import { useAppStore } from '@/state/appStore';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultProject } from '@/state/slices/projectSlice';
@@ -145,9 +146,30 @@ eq('document: een werksoort uit de bibliotheek houdt haar kleur', S().customTask
 S().ensureProjectTaskType({ id: 'doc-x', name: 'Zonder kleur' });
 ok('document: zonder kleur de eerste vrije kleur in dit document',
   S().customTaskTypes[1].color === CUSTOM_TASK_TYPE_COLOR_ORDER.find(color => color !== library[0].color));
+// Een werksoort uit de bibliotheek waarvan de kleur in dit document al bij een andere hoort (bijvoorbeeld een werksoort
+// die een oud bestand bij het openen kreeg), krijgt in het document een vrije kleur; de andere houdt de hare
+// (review ronde 4 van optie 2).
+const clashing = S().customTaskTypes[1].color;
+S().ensureProjectTaskType({ id: 'lib-asbest', name: 'Asbest', color: clashing });
+eq('document: de andere werksoort houdt haar kleur', S().customTaskTypes[1].color, clashing);
+ok('document: een bibliotheekkleur die hier al bezet is, wordt een vrije kleur', S().customTaskTypes[2].color !== clashing
+  && new Set(S().customTaskTypes.map(type => type.color.toUpperCase())).size === 3);
 const storeTask = S().addTask({ name: 'Metselen' });
 S().updateTask(storeTask, { taskType: 'USERDEFINED', customTaskTypeId: library[0].id });
 eq('document: opslaan bewaart de kleur', readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes?.[0]?.color, library[0].color);
+
+// Dezelfde route met het echte oude bestand (review ronde 4): openen geeft *Keuring* een kleur zonder naar de bibliotheek
+// te kijken; kies je daarna een bibliotheekwerksoort met diezelfde kleur, dan houden ze ook na opslaan en heropenen elk
+// een eigen kleur.
+const oldFixture = readFileSync('tests/planning/fixtures/ifc-arity-oude-writer.ifc');
+await S().openOpenedFile({ name: 'oud.ifc', content: oldFixture.toString('latin1'), bytes: new Uint8Array(oldFixture), ref: null });
+const keuring = S().customTaskTypes.find(type => type.name === 'Keuring')!;
+S().ensureProjectTaskType({ id: 'lib-asbest-2', name: 'Asbest', color: keuring.color });
+S().updateTask(S().addTask({ name: 'Asbest saneren' }), { taskType: 'USERDEFINED', customTaskTypeId: 'lib-asbest-2' });
+const reopened = byId(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).customTaskTypes);
+eq('oud bestand plus bibliotheek: Keuring houdt de kleur van het openen', reopened[keuring.id], keuring.color);
+ok(`oud bestand plus bibliotheek: Asbest krijgt een eigen kleur (${reopened['lib-asbest-2']})`,
+  !!reopened['lib-asbest-2'] && reopened['lib-asbest-2'].toUpperCase() !== keuring.color.toUpperCase());
 
 // ── 6. De balk krijgt de bewaarde kleur ───────────────────────────────────────────────────────
 const [value] = resolveBarCategoryValues(taskOf('t9', 'ctt-b'), TASK_TYPE_BAR_COLOR_FIELD, {

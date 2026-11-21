@@ -43,7 +43,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { CustomTaskTypeDraft } from '@/types/taskType';
-import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
+import { enteringDocument } from '@/services/taskTypes/customTaskTypeColors';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { applyProjectPatch, type ClearableProjectKey, type ProjectPatchOutcome } from '../projectPatch';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
@@ -679,7 +679,7 @@ function createMcpDraft(
         return;
       }
       if (sameNameOtherId) throw new Error(`draft.ensureCustomTaskType: name '${normalized.name}' already has id '${sameNameOtherId.id}'`);
-      s.customTaskTypes.push(...withTaskTypeColors([normalized], s.customTaskTypes));
+      s.customTaskTypes.push(enteringDocument(normalized, s.customTaskTypes));
       markDocumentEdited(s);
     });
   },

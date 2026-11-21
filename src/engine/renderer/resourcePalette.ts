@@ -148,7 +148,7 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
 }
 
 /** {h, s, l} → #rrggbb. */
-function hslToHex(h: number, s: number, l: number): string {
+export function hslToHex(h: number, s: number, l: number): string {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = ((h % 360) + 360) % 360 / 60;
   const x = c * (1 - Math.abs((hp % 2) - 1));
