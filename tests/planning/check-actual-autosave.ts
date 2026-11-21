@@ -6,8 +6,7 @@ import { useAppStore } from '@/state/appStore';
 import { freshPayload } from '@/state/documentContract';
 import {
   claimProjectFileWrite, closeProjectFileWrites, isProjectFileWriteBusy, runAutoSaveRound, runAutoSaveTickWrite,
-  runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFilePlacementSettled, whenProjectFileWritesIdle,
-  YieldedToManualWrite,
+  runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFileWritesIdle, YieldedToManualWrite,
 } from '@/services/fileAccess/writeCoordinator';
 import {
   createModelAutoSaveRhythm, MODEL_AUTOSAVE_DUTY_FACTOR, MODEL_AUTOSAVE_MAX_DELAY_MS, MODEL_AUTOSAVE_REST_MS,
@@ -318,7 +317,8 @@ const admitted = async () => {
 
 // 21. De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033): een gewone tik wacht achter een
 //     modelronde en laat haar niet wijken; een handmatige actie wel. Na `pass()` plaatst de ronde en wacht een IFC-export
-//     op haar (`whenProjectFilePlacementSettled`); een claim vóór de grens laat de ronde wijken (`pass()` geeft false).
+//     op haar (de plaatsing in zijn claim, `claimProjectFileWrite().placement`); een claim vóór de grens laat de ronde
+//     wijken (`pass()` geeft false).
 {
   const order: string[] = [];
   let toBoundary: (() => void) | null = null;
@@ -335,16 +335,18 @@ const admitted = async () => {
     return 'geschreven';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  eq('21a een rekenende modelronde: de rij is bezet, Automatisch opslaan maakt zijn lijst, nog geen plaatsing',
-    [isProjectFileWriteBusy(), await admitted(), whenProjectFilePlacementSettled()], [true, true, null]);
+  eq('21a een rekenende modelronde: de rij is bezet, Automatisch opslaan maakt zijn lijst',
+    [isProjectFileWriteBusy(), await admitted()], [true, true]);
   const tick = runAutoSaveTickWrite(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
   eq('21b een gewone tik laat de modelronde niet wijken en wacht', [aborted, order, await admitted()],
     [false, ['model-start'], true]);
   (toBoundary as (() => void) | null)?.();
   await Promise.resolve(); await Promise.resolve();
-  const settled = whenProjectFilePlacementSettled();
-  eq('21c na de grens plaatst de ronde', [passed, settled !== null], [true, true]);
+  // Een claim na de grens laat de ronde niet meer wijken; hij krijgt haar plaatsing mee.
+  const exportClaim = claimProjectFileWrite();
+  const settled = exportClaim.placement;
+  eq('21c na de grens plaatst de ronde; de claim krijgt die plaatsing', [passed, settled instanceof Promise, aborted], [true, true, false]);
   let placementDone = false;
   void settled?.then(() => { placementDone = true; });
   await Promise.resolve();
@@ -352,7 +354,10 @@ const admitted = async () => {
   (afterPass as (() => void) | null)?.();
   eq('21e de ronde schrijft, daarna direct de tik', [await round, await tick, order, await settled?.then(() => placementDone)],
     ['geschreven', 'ok', ['model-start', 'model-klaar', 'tik'], true]);
-  eq('21f en de rij is weer vrij', [isProjectFileWriteBusy(), whenProjectFilePlacementSettled()], [false, null]);
+  exportClaim.release();
+  const later = claimProjectFileWrite();
+  later.release();
+  eq('21f en de rij is weer vrij, zonder plaatsing', [isProjectFileWriteBusy(), later.placement === null], [false, true]);
   // Een claim (de export) vóór de grens: de ronde wijkt bij `pass()`.
   let reach: (() => void) | null = null;
   let passedAfterClaim: boolean | null = null;
@@ -362,11 +367,11 @@ const admitted = async () => {
     return passedAfterClaim ? 'geschreven' : 'yielded';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  const release = claimProjectFileWrite();
+  const claim = claimProjectFileWrite();
   (reach as (() => void) | null)?.();
-  eq('21g een claim vóór de grens laat de ronde wijken', [await claimed, passedAfterClaim, whenProjectFilePlacementSettled()],
-    ['yielded', false, null]);
-  release();
+  eq('21g een claim vóór de grens laat de ronde wijken; geen plaatsing', [await claimed, passedAfterClaim, claim.placement === null],
+    ['yielded', false, true]);
+  claim.release();
   // Een handmatige actie in de rij: Automatisch opslaan kiest deze keer geen kandidaten.
   let finishManual: (() => void) | null = null;
   const manualWrite = runProjectFileWrite(async () => { await new Promise<void>(resolve => { finishManual = resolve; }); return 'ok'; },

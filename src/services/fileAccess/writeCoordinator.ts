@@ -57,34 +57,42 @@ function yieldBackgroundWrites(): void {
   for (const controller of yielding) controller.abort(new YieldedToManualWrite());
 }
 
+/** De voorrang van een handmatige actie die al rekent vóór ze om de rij vraagt (`claimProjectFileWrite`). */
+export interface ProjectFileWriteClaim {
+  /** Geeft de voorrang terug; één keer telt. */
+  release: () => void;
+  /**
+   * Fixronde 2 van de review van #1033: `null` als geen ronde over haar grens is; anders een belofte die klaar is zodra
+   * die ronde haar plaatsing en commit afmaakte. Een IFC-export neemt zijn bron pas daarna op. Zolang de claim loopt, gaat
+   * geen ronde meer over haar grens, dus er komt geen tweede plaatsing bij.
+   */
+  placement: Promise<void> | null;
+}
+
 /**
  * Fixronde 1 van de review van #1033: een handmatige actie die al rekent vóór ze om de rij vraagt (een IFC-export vraagt
  * de opslagworker vóór `runProjectFileWrite`), krijgt haar voorrang vanaf dit moment: een lopende ronde van Automatisch
- * opslaan met een gebouwmodel wijkt meteen (en stopt de worker), en tot de teruggegeven functie loopt wijkt elke nieuwe
- * ronde ook. Een gewone ronde merkt hier niets van.
+ * opslaan met een gebouwmodel wijkt meteen (en stopt de worker), en tot `release` wijkt elke nieuwe ronde ook. Een ronde
+ * die al plaatst, wijkt niet meer; op haar wacht de aanroeper met `placement` (knownbug 1939: één functie, zodat
+ * voorrang en wachten niet los van elkaar te gebruiken zijn). Een gewone ronde merkt hier niets van.
  */
-export function claimProjectFileWrite(): () => void {
+export function claimProjectFileWrite(): ProjectFileWriteClaim {
   claims++;
   yieldBackgroundWrites();
   let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    claims--;
+  return {
+    release: () => {
+      if (released) return;
+      released = true;
+      claims--;
+    },
+    placement: placing,
   };
 }
 
 /** Loopt er een beurt of wacht er een? */
 export function isProjectFileWriteBusy(): boolean {
   return running || manualWaiting.length > 0 || roundWaiting.length > 0 || timerWaiting.length > 0;
-}
-
-/**
- * Fixronde 2 van de review van #1033: `null` als geen ronde over haar grens is; anders een belofte die klaar is zodra
- * die ronde haar plaatsing en commit afmaakte. Een IFC-export neemt zijn bron pas daarna op.
- */
-export function whenProjectFilePlacementSettled(): Promise<void> | null {
-  return placing;
 }
 
 /**
@@ -177,7 +185,7 @@ export interface YieldingTurn {
   yielded: AbortSignal;
   /**
    * De grens: vlak vóór de eerste schrijfactie op het doel. `false`: de ronde week al (niets schrijven). `true`: vanaf nu
-   * wijkt de ronde niet meer; ze loopt af, een export wacht op haar (`whenProjectFilePlacementSettled`) en wie om de rij
+   * wijkt de ronde niet meer; ze loopt af, een export wacht op haar (`placement` in zijn claim) en wie om de rij
    * vraagt, wacht op zijn beurt. Synchroon, dus niets kan tussen de toets en de belofte komen.
    */
   pass: () => boolean;

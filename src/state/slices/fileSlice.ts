@@ -89,7 +89,7 @@ import {
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
-import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
+import { claimProjectFileWrite, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
@@ -828,7 +828,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * "alleen de planning" en het rekenen tot en met het schrijven. Vanaf het begin houdt de export voorrang
    * (`claimProjectFileWrite`): een ronde van Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt
    * meteen, en zolang de export loopt wijkt elke nieuwe ronde ook, ook terwijl de vraag open staat. Een ronde die al
-   * plaatst, maakt dat eerst af (`whenProjectFilePlacementSettled`); pas daarna neemt de export zijn bron op. Een
+   * plaatst, maakt dat eerst af (de plaatsing in de claim); pas daarna neemt de export zijn bron op. Een
    * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseChangedExport`). Zonder zo'n ronde
    * (ook met de flag uit) begint de export zonder wachten, zoals vóór stap 8.
    * Fixronde 3: de export legt bij de aanroep vast voor welk document en welke inhoud hij bedoeld is, vóór de wachtstap.
@@ -838,9 +838,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    */
   const withIfcExportPriority = async (run: () => Promise<ExportResult>): Promise<ExportResult> => {
     const requested = snapshotContent(get());
-    const release = claimProjectFileWrite();
+    const { release, placement } = claimProjectFileWrite();
     try {
-      const placement = whenProjectFilePlacementSettled();
       if (placement) {
         await placement;
         const now = get();
