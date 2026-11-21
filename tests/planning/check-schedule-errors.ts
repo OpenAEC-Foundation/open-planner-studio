@@ -200,9 +200,73 @@ eq('3o de melding noemt de taak', [S().ui.notifications.find((n) => n.dedupeKey 
   S().ui.notifications.find((n) => n.dedupeKey === 'cpm-error')?.detailParams?.task], ['scheduleErrors.taskWithoutWorkHours', 'Uitharden']);
 eq('3p de gewone taak krijgt geen resultaat', S().cpmResult?.tasks.has(gewoon) ?? false, false);
 
+
+// Knownbug 508: een ontbrekende weekstructuur is niet hetzelfde als een opgeslagen,
+// expliciet lege week. Gebruik een geldige ma-vr werkdaglijst en geen feestdagen.
+{
+  const normal: WorkCalendar = { ...createDefaultCalendar(2026), workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [] };
+  const empty: WorkCalendar = { ...normal, id: 'cal-508-empty',
+    workTime: { byWeekday: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } } };
+  const withException: WorkCalendar = { ...empty, id: 'cal-508-exception',
+    workingExceptions: [{ name: 'Projectwerk', startDate: '2026-03-02', endDate: '2026-03-04',
+      bands: [{ start: 480, end: 960 }] }] };
+  const fresh = () => task('t508', 'Taak van 2,5 werkdagen', {
+    ...createDefaultTaskTime('2026-03-02T08:00', 2.5), durationType: 'WORKTIME',
+  });
+  const exact = ['2026-03-02T08:00', '2026-03-04T12:00'];
+  const dates = (result: CPMResult | null | undefined, id: string) => {
+    const t = result?.tasks.get(id);
+    return [t?.earlyStart, t?.earlyFinish];
+  };
+  const capped = (result: CPMResult | null | undefined, id: string) =>
+    (result?.cappedTaskIds ?? []).includes(id);
+
+  const own = (calendar: WorkCalendar) => solveProject(opsSolveInput({
+    tasks: [{ ...fresh(), calendarId: calendar.id }], sequences: [], calendar: normal,
+    calendars: [normal, calendar],
+  }));
+  for (const [label, result] of [
+    ['lege projectkalender', solve([fresh()], [], empty)],
+    ['lege eigen taakkalender', own(empty)],
+  ] as const) {
+    eq(`508 ${label}: geen harde fout`, result.errorInfo, undefined);
+    eq(`508 ${label}: einde valt op begin`, dates(result, 't508'), [exact[0], exact[0]]);
+    eq(`508 ${label}: cap noemt de taak`, result.cappedTaskIds, ['t508']);
+  }
+  const noStructure = own({ ...empty, workTime: undefined, hoursPerDay: 0 });
+  eq('508 bandloze kalender zonder werkweekstructuur: harde fout', noStructure.errorInfo?.code, 'taskWithoutWorkHours');
+  const regular = solve([fresh()], [], normal);
+  eq('508 normale week: 2,5 werkdagen', dates(regular, 't508'), exact);
+  eq('508 normale week: geen cap', capped(regular, 't508'), false);
+  const exception = own(withException);
+  eq('508 lege week met drie werkende uitzonderingsdagen: 2,5 werkdagen', dates(exception, 't508'), exact);
+  eq('508 werkende uitzondering: geen cap', capped(exception, 't508'), false);
+
+  // De F5-route gebruikt dezelfde echte store-actie als de app. De kalender wordt direct in
+  // de teststore gezet; dit zegt niet of het dialoogvenster of een import deze invoer produceert.
+  S().newProject();
+  const id = S().addTask({ name: 'Taak van 2,5 werkdagen' });
+  store.setState((s) => {
+    s.project.startDate = '2026-03-02';
+    s.project.calendarId = normal.id;
+    s.calendar = normal;
+    s.calendars = [normal, empty];
+    const t = s.tasks.find((x) => x.id === id)!;
+    t.calendarId = empty.id;
+    t.time = fresh().time;
+  });
+  S().runCPM();
+  const cpm = S().cpmResult;
+  eq('508 F5: geen harde fout', cpm?.errorInfo, undefined);
+  eq('508 F5: einde valt op begin', dates(cpm, id), [exact[0], exact[0]]);
+  eq('508 F5: cap noemt de taak', cpm?.cappedTaskIds, [id]);
+}
+
 if (diffs.length) {
   console.log(`XX  schedule-errors: ${diffs.length} van de ${checks} checks FOUT`);
   for (const d of diffs) console.log(`    - ${d}`);
   process.exit(1);
 }
 console.log(`OK  schedule-errors: alle checks groen (${checks})`);
+console.log('::notice title=Knownbug 508::Lege week geeft begin=einde en een zachte cap: pure CPM en F5; werkende uitzondering blijft planbaar');
