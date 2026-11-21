@@ -21,7 +21,12 @@ en noem het in je rapport of PR-tekst.
 2. **Dagtaak na urentaak op een kalender met werktijdblokken** eindigt te vroeg (1,6 in plaats van 2
    werkdagen), en de urentaak krijgt −0,5 speling zonder constraint. — B
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
-4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
+4. **Een geïsoleerde taak met harde MFO kan zonder specifieke waarschuwing vóór de projectstart staan.**
+   De pin blijft bewust leidend. Nagespeeld met dag- en urentaken in OPS, P6 en MSP: een harde MFO
+   op 2 juni zet de start vóór de ingestelde projectstart op 8 juni; zonder voorganger rapporteert
+   de solver geen geschonden constraint. Met een conflicterende FS-voorganger is er wél een melding.
+   De taakreferentie beschrijft het gedrag. Voorstel: waarschuw apart voor het projectstartconflict,
+   zonder de pin te verplaatsen. — B
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
@@ -3214,6 +3219,15 @@ en noem het in je rapport of PR-tekst.
 
 ## Teksten en helpteksten
 
+2051. **VERVOLG (tekst, review van #1123): de voorbeelden bij het taaktype zeggen niet welke invoer verandert.**
+      Bij *Vaste duur en werk* zegt de tooltip van het i-icoon eerst "Duur en werk blijven" en daarna dat het werk
+      meegroeit als je de inzet wijzigt (`workRule.hint.FIXED_DURATION_WORK` plus de zinnen uit
+      `workRuleExplanation`). Dat klopt (5 werkdagen van 8 uur, inzet 1 → 2 geeft 80 in plaats van 40 uur), maar het
+      leest als een tegenspraak. De vier voorbeelden in `src/i18n/locales/{nl,en}/task.json` (`workRule.hint.*`)
+      rekenen met werkdagen van 8 uur zonder dat te zeggen; bij *Vaste inzet* op een kalender van 6 uur per dag duurt
+      80 uur kraanwerk 13⅓ werkdagen. Richting: elk voorbeeld als situatie ("je wijzigt …, dan …") en de daglengte
+      noemen. Alleen tekst; de eigenaar vond de huidige tekst "voorlopig prima zo" (21 november 2026). — B
+
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
      de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
@@ -5130,13 +5144,6 @@ en noem het in je rapport of PR-tekst.
      weghalen in stap 5 van de overstap, als een meting laat zien dat main hem in een niet-gedragen groep niet meer nodig
      heeft. — B
 
-1640. **VERVOLG (#770, eigen rapportlettertype): de terugval op Inter bij een verdwenen kopie werkt alleen als de
-     keuzelijst Lettertype zichtbaar is.** De controle (`useCustomReportFontGuard` in
-     `src/components/panels/reports/reportFormPrimitives.tsx`) zit in `ReportFontSelect`. Start met de keuze `custom`,
-     een verdwenen kopie in IndexedDB (`ops-report-font`) en een andere stap open of de zijbalk ingeklapt: de keuze
-     blijft `custom`, de melding ontbreekt en de vector-export valt bij gebrek aan bytes terug op raster. Pas de stap
-     Pagina openen herstelt het. Richting: de controle in de rapportwerkruimte, die altijd gemount is, één keer voor
-     alle rapporten. Gevonden door de review van #946 (Sol, ronde 1). — B
 
 1721. **VERVOLG (#949, controle 7g in `verify:docs`): ze verwart verboden woorden met verboden releasegedrag.**
      `scripts/verify-docs.ts` keurt elke `14:00` of `deadline` buiten de reparatieskill af, en stelt de hele
@@ -5175,12 +5182,6 @@ en noem het in je rapport of PR-tekst.
      release-PR) vernieuwt alleen de cijfers. Fixes die na de eerste tekstronde op main kwamen, ontbreken dan in notes,
      highlights en de documentatiecontrole. Richting: bij een gewijzigde inhoudsbasis de tekstagent de toegevoegde
      commits laten aanvullen. Gevonden door de review van #984 (Sol, ronde 2). — B
-
-1811. **VERVOLG (#984, releasescript): de live websitecontrole bewijst de twee releaseblokken niet.**
-     `scripts/release/stappen.mjs`, `websiteAf`. De livecontrole is alleen `live.includes('v<versie>')`: een pagina die
-     de versie elders noemt (bijvoorbeeld in de footer) en waarin `#whats-new` en de tijdlijn ontbreken, telt als af.
-     Richting: de versie zoeken binnen `<section id="whats-new">` en binnen het `rn:start`–`rn:end`-blok van de live
-     pagina. Gevonden door de review van #984 (Sol, ronde 2). — B
 
 1750. **VERVOLG (#963, fs-scope voor lettertypen): het Windows-pad `C:/Windows/Fonts/**` is op Linux en macOS een
      relatief patroon, en niet gegarandeerd zonder effect.** `src-tauri/capabilities/default.json` (de drie

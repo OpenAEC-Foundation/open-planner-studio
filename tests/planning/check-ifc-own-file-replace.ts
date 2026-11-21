@@ -576,6 +576,47 @@ await check('1816: alleen botsing herhalen, andere uitkomsten stoppen en aantal 
   }
 });
 
+await check('1832: een aangetroffen link onder de vorige naam blijft staan zonder hem te lezen', async () => {
+  const c = await opened();
+  try {
+    let previous = '', readPrevious = false;
+    const base = await aroundPlace(2, 'after', () => {
+      previous = previousVersionPath(c.path, helperId(c));
+      unlinkSync(previous);
+      symlinkSync(c.path, previous);
+    });
+    const fs: OwnFileReplaceFs = { ...base, content: async (path, expected) => {
+      if (path === previous) readPrevious = true;
+      return base.content(path, expected);
+    } };
+    const { result } = await replace(c, fs);
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: previous });
+    assert.equal(readPrevious, false);
+    assert.equal(lstatSync(previous).isSymbolicLink(), true);
+    assert.equal(hash(new Uint8Array(readFileSync(c.path))), c.prepared.sha256);
+    assert.equal(recordsOnDisk().length, 1);
+  } finally { await tidy(c); }
+});
+
+await check('1832: fout bij lstat laat de vorige naam ongemoeid', async () => {
+  const c = await opened(), base = await tauriOwnFileReplaceFs();
+  try {
+    let denied = '', readPrevious = false;
+    const fs: OwnFileReplaceFs = { ...base, lstat: async path => {
+      if (path.includes('.ops-vorige-')) { denied = path; throw new Error('geen toegang'); }
+      return base.lstat(path);
+    }, content: async (path, expected) => {
+      if (path.includes('.ops-vorige-')) readPrevious = true;
+      return base.content(path, expected);
+    } };
+    const { result } = await replace(c, fs);
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: denied });
+    assert.equal(readPrevious, false);
+    assert.equal(hash(new Uint8Array(readFileSync(denied))), hash(bytes));
+    assert.equal(recordsOnDisk().length, 1);
+  } finally { await tidy(c); }
+});
+
 // ── Een ander programma schrijft tijdens de vervanging ───────────────────────────────────────────────────────────
 
 await check('het doel verandert tussen stap 2 en 3: de versie van de ander blijft als "versie van ander programma"', async () => {
