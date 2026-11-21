@@ -3218,6 +3218,16 @@ en noem het in je rapport of PR-tekst.
      onderdeel. Zie ook 1021 (de merge scant de bron opnieuw) en 1922 (het ritme van Automatisch opslaan: een ronde
      duurt bij 52 MB al 24,5 s). — B (meting, desktop Linux)
 
+1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
+     (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
+     het geschatte aantal stukken, en `IntBuf.done()` geeft een `subarray` terug, zodat de hele buffer blijft staan. De
+     index houdt alleen `outArg` vast zolang hij leeft; `refRaw` is tijdelijk en levert `outTarget`. Bij een model van
+     300 MB is `outArg` 62.810.376 bytes voor 6.762.722 verwijzingen, die 27.050.888 bytes gebruiken (gemeten in run
+     44870537504 van `ifc-foreign.yml`, job `meting`, op de meet-branch `meting/804-grote-bestanden`). Bij een opslag
+     met een gebouwmodel bestaan twee zulke indexen tegelijk (bron en uitvoer). Richting: alleen `outArg` na de scan op
+     maat brengen (een kopie van het gebruikte deel). Niet in het algemene `IntBuf.done()`: dat zou ook de andere
+     scannerbuffers kopiëren. Zie ook 1936. — B (meting, Node)
+
 1955. **Herstelvenster op de desktop voor een document dat al was opgeslagen.** Na een geslaagde Ctrl+S en daarna
      stoppen van de app met een gewoon stopsignaal (15 tot 35 s na de opslag) biedt de app het document bij de volgende
      start aan in *Niet-opgeslagen werk herstellen* ("hadden niet-opgeslagen wijzigingen"). Het herstelbestand draagt het

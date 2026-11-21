@@ -315,5 +315,29 @@ await check('zonder vreemd deel: gewone writer met en zonder bewerking, ook op o
   }
 });
 
+// #804, opslag van een groot gebouwmodel (ingreep 3): de sha256 van de uitvoer wordt één keer berekend, op de uitvoerbuffer
+// zelf, en vóór de uitvoercontrole. `observe` loopt in `prepareIfcWrite` direct vóór die controle (en haar uitvoerindex);
+// `crypto.subtle.digest` neemt een kopie van de bytes, die zo niet meer bovenop de controle staat.
+await check('de sha256 van de uitvoer: één keer, op de uitvoerbuffer, vóór de uitvoercontrole', async () => {
+  const opened = await openForeign(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const input = await lengthen(cloneDomain(opened), lengthenedTask(opened).id);
+  const subtle = Object.getPrototypeOf(globalThis.crypto.subtle) as SubtleCrypto;
+  const digest = subtle.digest;
+  const events: (Uint8Array | 'controle')[] = [];
+  subtle.digest = function (this: SubtleCrypto, algorithm: AlgorithmIdentifier, data: BufferSource) {
+    if (data instanceof Uint8Array) events.push(data);
+    return digest.call(this, algorithm, data);
+  } as SubtleCrypto['digest'];
+  let result: PreparedIfcWrite;
+  try { result = await prepareIfcWrite(input, opened.ifcSource!, undefined, () => { events.push('controle'); }); }
+  finally { subtle.digest = digest; }
+  const output = events.filter((e): e is Uint8Array => e !== 'controle' && e.length === result.bytes.length);
+  assert.equal(output.length, 1, 'één berekening over een buffer van de lengte van de uitvoer');
+  assert(output[0] === result.bytes, 'berekend op de uitvoerbuffer zelf, niet op een kopie');
+  assert(events.indexOf(output[0]) < events.indexOf('controle'), 'berekend vóór de uitvoercontrole');
+  assert.equal(result.sha256, hash(result.bytes));
+  assert.equal(result.source.sha256, result.sha256);
+});
+
 console.log(`Voorbereid schrijfresultaat: ${passed} geslaagd, ${failed} mislukt.`);
 if (failed) process.exitCode = 1;
