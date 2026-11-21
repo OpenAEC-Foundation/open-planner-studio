@@ -96,11 +96,6 @@ en noem het in je rapport of PR-tekst.
     FS hier hetzelfde moet doen, is niet vastgesteld. In de minutenmodel-runs van F0 maakt dit `msp-51` rood
     op het vroege einde (ma 07:00 tegen ma 00:00). — S
 
-186. **B3-voltooidvenster met een dagkalender kan een TypeError geven.** Gemeld bij de onafhankelijke
-    review van PR #480 op `620c9e775`: ook op basiscommit `522589202` zou de volledige CPM-route
-    met `p6CompletedDataDateWindow` en een dagkalender falen. Exacte invoer en stack nog niet
-    zelfstandig bevestigd; staat los van de PF-optimalisatie en is daar niet aangepast. — S
-
 311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
     8 juni 2026 16:00; FF −2 kalenderdagen naar B 32 u geeft B di 2 juni 07:00–vr 5 juni 16:00.
