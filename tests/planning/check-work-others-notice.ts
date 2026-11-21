@@ -10,6 +10,7 @@ import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { canRunNotificationUndo, OTHER_WORK_NOTICE_KEY } from '@/state/otherWorkNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
 import type { AppNotification, NotificationAction } from '@/state/slices/types';
 import type { ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
@@ -190,6 +191,51 @@ console.log('-- (g) een tweede bewerking vervangt de melding --');
       key: 'notifications.otherWork.durationDays', duration: 40, lines: [['Anna', 160, 320]], action: 'undoHistoryEvent',
     }, 1]);
   eq('g2 de knop hoort bij de laatste stap', canRunNotificationUndo(S(), noticeAction(notes[0])), true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (h) eigen urenverdeling: de melding noemt de uren van *Werk (u)* --');
+{
+  // Review #1120 ronde 1: zonder opgeslagen werkveld toont het paneel de contoursom; de melding ook.
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  const mpd = S().calendar.hoursPerDay * 60;
+  S().setAssignmentContour(asg(t, r.Anna).id, workDaySlotsToPeriods(Array(10).fill(0.5 * mpd), undefined, mpd));
+  eq('h0 Anna heeft geen werkveld (het paneel leest de contour)', asg(t, r.Anna).remainingWorkMinutes, undefined);
+  clearNotices();
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  eq('h1 Bram 50 %: 20 dagen, Anna 40 → 80 u zoals de urenverdeling', [task(t).time.scheduleDuration, summary(notice())], [20, {
+    key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 40, 80]], action: 'undoHistoryEvent',
+  }]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (i) Taak bewerken: Opslaan voegt stappen samen, Annuleren draait terug --');
+{
+  // Review #1120 ronde 1: na Opslaan is de stap van de melding samengevoegd met de rest van de dialoog
+  // (bijv. een nieuwe naam). De knop mag dan niet meer, anders zet hij ook die naam terug.
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  const mark = S().historyMark();
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  eq('i1 in de dialoog: melding met knop die nu kan', canRunNotificationUndo(S(), noticeAction()), true);
+  S().updateTask(t, { name: 'Metselwerk gevel' });
+  S().squashHistorySince(mark, 'Taak bewerken');
+  eq('i2 na Opslaan: de melding blijft staan, zonder knop', [summary(notice()) !== null, notice()?.action ?? null], [true, null]);
+
+  const c = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  const mark2 = S().historyMark();
+  S().updateAssignment(asg(c.t, c.r.Bram).id, { unitsPerDay: 0.5 });
+  S().revertHistorySince(mark2);
+  eq('i3 na Annuleren: duur weer 10 en de melding is weg', [task(c.t).time.scheduleDuration, summary(notice())], [10, null]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (j) een ander document: de melding hoort bij het vorige --');
+{
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  eq('j0 melding staat', summary(notice()) !== null, true);
+  S().newDocument();
+  eq('j1 na een documentwissel is de melding weg', summary(notice()), null);
 }
 
 if (diffs.length) {
