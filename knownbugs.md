@@ -3241,9 +3241,9 @@ en noem het in je rapport of PR-tekst.
      VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
      grens zonder meting. De meting van 21 november 2026 in de desktopapp staat bij 1936. — B
 
-1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,70 GB, net
-     onder de maat van 4 GB (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux (WebKitGTK),
-     featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan
+1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,44 tot 3,69 GB
+     over drie opslagen, onder de maat van 4 GB, en de piek loopt per opslag nog op (#804, flag aan).** Gemeten op
+     21 november 2026 in de desktopapp op Linux (WebKitGTK), featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan
      Ctrl+S, met modellen uit de generator van `scripts/proef/meet-scanner.mjs`. Stand na de drie ingrepen van #1100 en
      #1103, build van main `cbc998123`: 52 MB in 14,0 s met een piek van 1,81 GB; 157 MB in 33,6 s, geslaagd, met een
      piek van 3,70 GB. Bij 157 MB loopt het rekenen tot 3,13 GB; bij het schrijven van het tijdelijke bestand komt er
@@ -3254,13 +3254,20 @@ en noem het in je rapport of PR-tekst.
      minder (CI-run 44895156035, het werk van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB
      in 16,97 s met 2.239 MB (vóór de ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen
      dus niet of een model in de desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van
-     1,68 GB. De grens voor openen en opslaan staat sinds 21 november 2026 op 150 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`,
-     besluit van de eigenaar; was 300 MiB, zie 1127); of elk model onder die grens op de desktop binnen de maat
-     opslaat, volgt uit een nieuwe desktopmeting. Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
-     en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
+     1,68 GB. Stand na #1111 (de opslagworker stopt na een opslag met gebouwmodel), gemeten op 21 november 2026 in de
+     desktopapp op Linux (WebKitGTK), main `2d585a295`, hetzelfde model van 157 MB (157.290.012 bytes), drie keer een
+     duur gewijzigd en Ctrl+S met telkens 30 s rust: piek van de hele app 3,44 / 3,54 / 3,69 GB (vóór #1111, run W:
+     3,45 / 3,93 / 3,87 GB); dertig seconden na de opslag staat de app op 0,86 / 0,67 / 0,68 GB (vóór #1111 bleef
+     2,5 GB staan); duur 34,6 / 33,3 / 33,5 s. Het schrijven gebeurt nu op ongeveer 1,0 GB; de piek ligt aan het eind
+     van het rekenen. Het Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg),
+     maar telt niet meer mee voor de piek. Bij de derde opslag is er 0,31 GB over tot de maat van 4 GB. **Open punt:**
+     de piek loopt per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
+     niet oploopt; niet verklaard. Het proefmodel is 3,6 KB groter dan 150 MiB. De grens voor openen en opslaan staat
+     sinds 21 november 2026 op 150 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, besluit van de eigenaar; was 300 MiB, zie 1127).
+     Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB, en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
      geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
-     slaat op beide in 0,7 s op. Niet gemeten: 300 MiB op de desktop, een tweede Ctrl+S, Automatisch opslaan, of de
-     3,0 GB later vrijkomt, het model van 87 MB na de ingrepen, een model uit een modelleerprogramma, Windows en macOS.
+     slaat op beide in 0,7 s op. Niet gemeten: een vierde en latere opslag, Automatisch opslaan, Windows en macOS, 300 MiB
+     op de desktop, het model van 87 MB na de ingrepen en een model uit een modelleerprogramma.
      Besluit technisch beslisser (21 november 2026): de maat voor haalbaar is hoogstens 4 GB voor de desktopapp bij de
      grens; dit punt is een voorwaarde voor het standaard aanzetten van de featureflag. Keuze van de eigenaar
      (21 november 2026): "tot 150 mb, later kunnen we dat nog uitbouwen". Zie ook
