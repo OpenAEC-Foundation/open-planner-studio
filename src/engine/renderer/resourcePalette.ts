@@ -61,8 +61,8 @@ export function paletteColorForId(id: string): string {
 // bibliotheek en in het IFC-bestand; besluit Ethan 21 november 2026, toekenning in
 // `src/services/taskTypes/customTaskTypeColors.ts`). Dit is de volgorde waarin die kleuren vrij komen:
 // eerst de paletplekken die geen vaste categorie gebruikt, dan acht eigen tinten die in geen enkel palet
-// hierboven staan (zo zijn er twaalf kleuren voordat een eigen werksoort de kleur van een vaste deelt),
-// en pas daarna de plekken van de vaste categorieën. Plek 1 (rood-700) doet niet mee: in het donkere
+// hierboven staan. Daarna volgt een berekende reeks (`freeTaskTypeColor`); de kleuren van de vaste
+// categorieën krijgt een eigen werksoort nooit. Plek 1 (rood-700) doet niet mee: in het donkere
 // thema is die bijna kritiek-rood (zie de paletkop). Geen van de tinten is kritiek-rood (#DC2626).
 const CRITICAL_LOOKALIKE_SLOT = 1;
 const BUILTIN_TASK_TYPE_SLOTS = new Set(TASK_TYPES.map(type => hashId(type) % RESOURCE_PALETTE.length));
@@ -83,7 +83,6 @@ export const CUSTOM_TASK_TYPE_COLOR_ORDER: readonly string[] = (() => {
   return [
     ...usable.filter(slot => !BUILTIN_TASK_TYPE_SLOTS.has(slot)).map(slot => RESOURCE_PALETTE[slot]),
     ...CUSTOM_TASK_TYPE_EXTRA_COLORS,
-    ...usable.filter(slot => BUILTIN_TASK_TYPE_SLOTS.has(slot)).map(slot => RESOURCE_PALETTE[slot]),
   ];
 })();
 

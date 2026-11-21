@@ -1005,6 +1005,14 @@ en noem het in je rapport of PR-tekst.
      de kleur in het project. Gezien bij #856, dat de kleur alleen in de bibliotheek en het IFC-bestand bewaart (besluit
      21 november 2026). Voorstel: de kleur in de bestaande OPS-marker van MSPDI en P6 meenemen. — B (code)
 
+1678. **VERVOLG (#856, IFC met vreemde inhoud): een oud bestand met een accent in een werksoortnaam kan niet opslaan
+     met een kleur erbij.** De writer van v2026.9.0 schreef `Café` letterlijk in `OPS_TaskTypes`; de writer van nu
+     schrijft `Café` (`asciiJson`). De uitzondering voor de aangevulde kleur in `lossCheck.ts`
+     (`taskTypesWithOpenedColors`) eist de schrijfwijze van nu, en de terugval kan die oude waarde ook niet terugzetten,
+     dus opslaan weigert. Dat laatste geldt al op main. Alleen met de flag `ifcForeignContent`. Gezien in review ronde 3
+     van optie 2 op #952. Voorstel: een proef met echte uitvoer van die writer, en de uitzondering ook de oude
+     schrijfwijze laten herkennen als die verder teken voor teken gelijk is. — B (code)
+
 1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
      `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
      browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt

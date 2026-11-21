@@ -13,20 +13,31 @@ export function isTaskTypeColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
-/** De eerste kleur die nog niet in gebruik is; zijn ze alle in gebruik, dan de minst gebruikte. De kleuren van
- *  de vaste werkcategorieën tellen altijd als in gebruik, ook als geen taak ze nu heeft: zo deelt een eigen werksoort
- *  pas een kleur met een vaste als elke eigen kleur minstens zo vaak gebruikt is (review ronde 3 van #952). */
+/** De eerste kleur die nog niet in gebruik is. De kleuren van de vaste werkcategorieën tellen altijd als in gebruik,
+ *  ook als geen taak ze nu heeft. Na de vaste reeks (`CUSTOM_TASK_TYPE_COLOR_ORDER`) volgt een onbegrensde reeks
+ *  berekende tinten, dus een nieuwe werksoort deelt nooit een kleur (review ronde 3 van optie 2 op #952). */
 export function freeTaskTypeColor(taken: Iterable<string>): string {
-  const uses = new Map<string, number>();
-  for (const color of BUILTIN_TASK_TYPE_COLORS) uses.set(color.toUpperCase(), (uses.get(color.toUpperCase()) ?? 0) + 1);
-  for (const color of taken) uses.set(color.toUpperCase(), (uses.get(color.toUpperCase()) ?? 0) + 1);
-  let best = CUSTOM_TASK_TYPE_COLOR_ORDER[0];
-  let bestUses = Infinity;
-  for (const color of CUSTOM_TASK_TYPE_COLOR_ORDER) {
-    const count = uses.get(color) ?? 0;
-    if (count < bestUses) { best = color; bestUses = count; }
+  const used = new Set([...BUILTIN_TASK_TYPE_COLORS, ...taken].map(color => color.toUpperCase()));
+  const fixed = CUSTOM_TASK_TYPE_COLOR_ORDER.find(color => !used.has(color));
+  if (fixed) return fixed;
+  for (let i = 0; ; i++) {
+    const color = generatedColor(i);
+    if (color && !used.has(color)) return color;
   }
-  return best;
+}
+
+/** Tint `i` van de berekende reeks: de gulden hoek over de kleurcirkel, in drie lichtheden. Tinten bij rood slaan we
+ *  over (`undefined`), want die lijken op de balk van een kritieke taak. */
+function generatedColor(i: number): string | undefined {
+  const hue = (25 + i * 137.508) % 360;
+  if (hue < 15 || hue > 345) return undefined;
+  const s = 0.65, l = [0.42, 0.55, 0.32][i % 3];
+  const a = s * Math.min(l, 1 - l);
+  const channel = (n: number) => {
+    const k = (n + hue / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`.toUpperCase();
 }
 
 /** `drafts` met een kleur per definitie. Een geldige kleur blijft precies zoals ze is; een ontbrekende

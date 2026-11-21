@@ -97,13 +97,26 @@ const broken = readIFC(brokenFile).customTaskTypes!;
 eq('ongeldige kleur: andere werksoorten houden hun kleur', colors(broken).slice(1), [CUSTOM_TASK_TYPE_COLOR_ORDER[0], CUSTOM_TASK_TYPE_COLOR_ORDER[0]]);
 eq('ongeldige kleur: krijgt de eerste vrije kleur', broken[0].color, CUSTOM_TASK_TYPE_COLOR_ORDER[1]);
 
-// ── 2b. Genoeg kleuren: twaalf eigen werksoorten, twaalf kleuren, geen van een vaste werkcategorie ──
+// ── 2b. Genoeg kleuren: elke nieuwe werksoort een vrije kleur, nooit die van een vaste werkcategorie ──
 const twelve = withTaskTypeColors(Array.from({ length: 12 }, (_, i) => ({ id: `w-${String(i).padStart(2, '0')}`, name: `W${i}` })));
 eq('twaalf eigen werksoorten: twaalf verschillende kleuren', new Set(twelve.map(type => type.color)).size, 12);
 ok('twaalf eigen werksoorten: geen kleur van een vaste werkcategorie', twelve.every(type => !builtinColors.has(type.color)));
-// De dertiende: alle twaalf eigen kleuren zijn bezet, maar een vaste kleur (Bouw, Renovatie, …) komt pas als laatste.
-const thirteenth = withTaskTypeColors([{ id: 'w-12', name: 'W12' }], twelve)[0];
-ok(`de dertiende eigen werksoort deelt een eigen kleur, geen vaste (kreeg ${thirteenth.color})`, !builtinColors.has(thirteenth.color));
+// Voorbij de twaalf vaste eigen kleuren blijft elke nieuwe kleur vrij (review ronde 3 van optie 2): zestig werksoorten,
+// één voor één aangemaakt zoals vanuit een taak, krijgen zestig verschillende kleuren, geen vaste en niets bij kritiek-rood.
+let many: CustomTaskType[] = [];
+for (let i = 0; i < 60; i++) many = [...many, ...withTaskTypeColors([{ id: `m-${String(i).padStart(2, '0')}`, name: `M${i}` }], many)];
+eq('zestig eigen werksoorten, één voor één: zestig verschillende kleuren', new Set(many.map(type => type.color.toUpperCase())).size, 60);
+ok('zestig eigen werksoorten: geen kleur van een vaste werkcategorie', many.every(type => !builtinColors.has(type.color)));
+ok('zestig eigen werksoorten: elke kleur is #RRGGBB', many.every(type => /^#[0-9A-F]{6}$/i.test(type.color)));
+const hue = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  if (d === 0) return -1;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+};
+const reddish = many.filter(type => { const h = hue(type.color); return h >= 0 && (h < 12 || h > 348); });
+ok(`zestig eigen werksoorten: geen tint bij kritiek-rood (${reddish.map(type => type.color).join(', ')})`, reddish.length === 0);
 ok('de kleuren zijn geen kritiek-rood', !CUSTOM_TASK_TYPE_COLOR_ORDER.includes('#DC2626') && !CUSTOM_TASK_TYPE_COLOR_ORDER.includes('#B91C1C'));
 
 // ── 3. Import zonder kleur (CSV) ──────────────────────────────────────────────────────────────

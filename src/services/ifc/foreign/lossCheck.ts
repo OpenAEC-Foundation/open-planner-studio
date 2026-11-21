@@ -1852,9 +1852,9 @@ function taskTypesWithOpenedColors(input: LossCheckInput, token: string, decode:
   return { ...value, definitions: withOpenedColors(value.definitions, input.pristine.customTaskTypes ?? []) };
 }
 function mapJson(token: string, decode: (quoted: string) => string): unknown {
-  const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
-  if (!m) return undefined;
-  try { return JSON.parse(decode(m[1])); } catch { return undefined; }
+  const text = jsonText(token, decode);
+  if (text === undefined) return undefined;
+  try { return JSON.parse(text); } catch { return undefined; }
 }
 /** De writer bewaart de domeinvolgorde. Alle bestaande definities blijven exact op hun plaats;
  * alleen werkelijk nieuwe ids mogen achteraan, met precies de domeininhoud. */
