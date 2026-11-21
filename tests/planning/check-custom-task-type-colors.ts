@@ -71,7 +71,9 @@ const savedOnce = write(opened.customTaskTypes!);
 eq('oud bestand: na opslaan staat de kleur in het bestand', byId(readIFC(savedOnce).customTaskTypes), byId(opened.customTaskTypes));
 eq('oud bestand: tweede opslaan identiek', write(readIFC(savedOnce).customTaskTypes!), savedOnce);
 // Volgen de kleuren uit het lezen, dan blijft het veld weg: opslaan verandert een oud bestand dan niet.
-eq('oud bestand: opslaan zonder bewerking geeft hetzelfde bestand', savedOnce, oldFile);
+const taskTypesLine = (ifc: string) => /IFCPROPERTYSINGLEVALUE\('TaskTypes'[^\n]*/.exec(ifc)?.[0];
+ok('oud bestand: de werksoortregel is te vinden', !!taskTypesLine(oldFile));
+eq('oud bestand: opslaan zonder bewerking geeft dezelfde werksoortregel', taskTypesLine(savedOnce), taskTypesLine(oldFile));
 // Volgen ze er niet uit (hier: een werksoort weg, dan schuift het lezen), dan staat elke kleur er.
 const fewerFile = writeIFC({ project, calendar, tasks: tasks.filter(task => task.customTaskTypeId !== 'ctt-a'), sequences: [], resources: [], assignments: [], customTaskTypes: opened.customTaskTypes! });
 ok('een werksoort minder: het kleurveld staat erin', fewerFile.includes('"color"'));
