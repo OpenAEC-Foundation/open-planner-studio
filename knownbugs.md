@@ -3198,7 +3198,39 @@ en noem het in je rapport of PR-tekst.
      de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
      in `ifcBytesRoute.ts` is 300 MiB. PR 2 van fase 1c beveiligt die terugval zonder de grens te veranderen.
      VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
-     grens zonder meting. — B
+     grens zonder meting. De meting van 21 november 2026 in de desktopapp staat bij 1936. — B
+
+1936. **Opslaan van een groot gebouwmodel vraagt op de desktop 24 tot 34 keer de bestandsgrootte aan geheugen; bij
+     157 MB stopt de webview (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux (WebKitGTK),
+     build van main `1830e5e67`, featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens
+     één duur gewijzigd en dan Ctrl+S. Model van 52 MB uit de generator van `scripts/proef/meet-scanner.mjs`: 24,5 s,
+     piek 2,08 GB. Model van 87 MB met vooral losse punten: 22,4 s, piek 2,52 GB (zonder wijziging 16,8 s en 1,97 GB).
+     Model van 157 MB uit de generator: na 51 s stond het proces op 4,09 GB en stopte de kernel de webview, vóór er iets
+     geschreven was. Het bestand bleef byte-gelijk en crashherstel zette de wijziging terug. Openen is het probleem
+     niet: 157 MB opent in 13,1 s met een piek van 1,65 GB en gebruikt in rust 0,49 GB. De grens voor openen staat op
+     300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, zie 1127); een planner kan dus een model openen dat hij daarna niet kan
+     opslaan. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt geweigerd, op main en
+     in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel slaat op beide in 0,7 s
+     op. Niet gemeten: de echte piek bij 157 MB, 300 MiB, een model uit een modelleerprogramma, Windows en macOS, en
+     welk deel van de opslag het geheugen vraagt. Besluit technisch beslisser (21 november 2026): de maat voor haalbaar
+     is hoogstens 4 GB voor de desktopapp bij de grens; dit punt is een voorwaarde voor het standaard aanzetten van de
+     featureflag; de keuze tussen een lagere grens en een zuiniger opslag volgt na een meting van de verdeling per
+     onderdeel. Zie ook 1021 (de merge scant de bron opnieuw) en 1922 (het ritme van Automatisch opslaan: een ronde
+     duurt bij 52 MB al 24,5 s). — B (meting, desktop Linux)
+
+1955. **Herstelvenster op de desktop voor een document dat al was opgeslagen.** Na een geslaagde Ctrl+S en daarna
+     stoppen van de app met een gewoon stopsignaal (15 tot 35 s na de opslag) biedt de app het document bij de volgende
+     start aan in *Niet-opgeslagen werk herstellen* ("hadden niet-opgeslagen wijzigingen"). Het herstelbestand draagt het
+     tijdstip van de opslag. Drie keer gezien op 21 november 2026 (desktop Linux, main `1830e5e67`): twee keer met de
+     flag `ifcForeignContent` aan (document met een gebouwmodel) en één keer met de flag uit (gewone planning; het
+     venster verscheen toen bij de start van v2026.47.0 op hetzelfde profiel). Familie van 36 (hetzelfde in de browser
+     na herladen). Niet uitgezocht: de oorzaak, of v2026.47.0 het herstelbestand zelf ook zo achterlaat, en wat er
+     gebeurt bij afsluiten via het venster. — B (waarneming, desktop Linux)
+
+1956. **De herstelvraag telt taken anders dan de statusbalk.** Voor hetzelfde document noemt *Niet-opgeslagen werk
+     herstellen* "260 taken" en de statusbalk "Taken: 240, Mijlpalen: 17". Het bestand heeft 260 `IFCTASK`-regels.
+     Gezien op 21 november 2026 (desktop Linux, main `1830e5e67`, het voorbeeld De Vaart met een gebouwmodel erbij).
+     Alleen tekst; niet uitgezocht welke telling waar bedoeld is. — B (waarneming)
 
 1129. **VERVOLG: de proef voor het vergrendelde schema in Projectinstellingen toetst broncodetekst.**
      `tests/planning/check-ifc-foreign-open.ts` (het blok "Projectinstellingen: keuze gebonden aan vreemd deel")
