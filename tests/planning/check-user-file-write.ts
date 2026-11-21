@@ -643,7 +643,7 @@ for (const kind of ['text', 'bytes'] as const) {
     //      zonder rest. Tot en met één stuk precies de ene aanroep van main.
     for (const size of [0, 1, C - 1, C, C + 1, 2 * C, 3 * C + 3]) {
       const p = fresh(), data = pattern(size);
-      await chunked.createNew(p, data, 0o640);
+      eq(`10a ${size} bytes: aanmaken slaagt`, String(await caught(chunked.createNew(p, data, 0o640)) ?? ''), '');
       truthy(`10a ${size} bytes: bestand bytegelijk aan de buffer`, sameBytes(p, data));
       eq(`10a ${size} bytes: aanroepen (opties, bytes, buffer)`, shape(),
         size <= C ? [[firstOptions(0o640), size, size]] : chunkShape(size, 0o640));
@@ -670,7 +670,7 @@ for (const kind of ['text', 'bytes'] as const) {
       ipc.faults.wholeBufferBody = true;
       try {
         const p = fresh();
-        await chunked.createNew(p, view);
+        eq('10c hele buffer per view: aanmaken slaagt', String(await caught(chunked.createNew(p, view)) ?? ''), '');
         truthy('10c hele buffer per view: toch bytegelijk', sameBytes(p, view));
         eq('10c hele buffer per view: vier stukken, elk in een eigen buffer', shape(), chunkShape(3 * C + 3));
       } finally { ipc.faults.wholeBufferBody = false; }
@@ -688,7 +688,7 @@ for (const kind of ['text', 'bytes'] as const) {
         eq(`10d modus ${mode.toString(8)}: geen lstat`, lstatsOn(p).length, 0);
       }
       const p = fresh(), data = pattern(3 * C + 3);
-      await chunked.createNew(p, data, 0o200);
+      eq('10d modus 200: aanmaken slaagt', String(await caught(chunked.createNew(p, data, 0o200)) ?? ''), '');
       eq('10d modus 200 (eigenaar mag schrijven): in stukken', shape(), chunkShape(3 * C + 3, 0o200));
       chmodSync(p, 0o600);
       truthy('10d modus 200: bytegelijk', sameBytes(p, data));
@@ -842,13 +842,13 @@ for (const kind of ['text', 'bytes'] as const) {
     for (const size of [USER_FILE_CHUNK_BYTES, USER_FILE_CHUNK_BYTES + 1]) {
       const target = join(routes, `groot-${size}.ifc`), data = pattern(size);
       ipc.calls.length = 0;
-      await writeUserFileTauri(target, data);
-      truthy(`10h ${size} bytes via writeUserFileTauri: bytegelijk`, sameBytes(target, data));
+      eq(`10h ${size} bytes via writeUserFileTauri: opslaan slaagt`, String(await caught(writeUserFileTauri(target, data)) ?? ''), '');
+      truthy(`10h ${size} bytes via writeUserFileTauri: bytegelijk`, existsSync(target) && sameBytes(target, data));
       eq(`10h ${size} bytes via writeUserFileTauri: alleen het doel`, readdirSync(routes), [basename(target)]);
       eq(`10h ${size} bytes via writeUserFileTauri: aanroepen`, writes().map(c => [c.options, c.bodyBytes]),
         size === USER_FILE_CHUNK_BYTES ? [[{ createNew: true }, size]]
           : [[{ createNew: true }, USER_FILE_CHUNK_BYTES], [{ append: true, create: false }, 1]]);
-      rmSync(target);
+      rmSync(target, { force: true });
     }
   } finally {
     ipc.dispose();
