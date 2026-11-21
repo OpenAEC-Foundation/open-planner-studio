@@ -314,6 +314,13 @@ const admitted = async () => {
   await runAutoSaveRound('model', async () => { listed = true; });
   return listed;
 };
+/** Een gewone tik zoals in productie: zijn write binnen een gewone doorgang (`runAutoSaveRound`). Geeft de uitkomst van de
+ *  write. */
+const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T | undefined> => {
+  let result: T | undefined;
+  await runAutoSaveRound('tick', async () => { result = await runAutoSaveTickWrite(work, closed); });
+  return result;
+};
 
 // 21. De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033): een gewone tik wacht achter een
 //     modelronde en laat haar niet wijken; een handmatige actie wel. Na `pass()` plaatst de ronde en wacht een IFC-export
@@ -337,7 +344,7 @@ const admitted = async () => {
   await Promise.resolve(); await Promise.resolve();
   eq('21a een rekenende modelronde: de rij is bezet, Automatisch opslaan maakt zijn lijst',
     [isProjectFileWriteBusy(), await admitted()], [true, true]);
-  const tick = runAutoSaveTickWrite(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
+  const tick = plainTick(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
   eq('21b een gewone tik laat de modelronde niet wijken en wacht', [aborted, order, await admitted()],
     [false, ['model-start'], true]);
@@ -382,8 +389,9 @@ const admitted = async () => {
   eq('21i daarna weer wel', [await manualWrite, await admitted()], ['ok', true]);
 }
 
-// 22. Knownbug 1939: de coördinator beslist over voorrang en toelating van timerwerk. Een handmatige actie krijgt als
-//     volgende de beurt, vóór wachtend timerwerk (knownbug 1937); een begonnen beurt loopt af.
+// 22. Knownbug 1939: de coördinator beslist over voorrang en toelating van timerwerk. Een handmatige actie gaat vóór wat
+//     nog niet begon: een gewone doorgang die op haar plek wacht (knownbug 1937) en een modelronde; een begonnen beurt loopt
+//     af.
 {
   const order: string[] = [];
   let finishModel: (() => void) | null = null;
@@ -395,17 +403,17 @@ const admitted = async () => {
     return 'geschreven';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  const tick = runAutoSaveTickWrite(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
+  const tick = plainTick(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
   await Promise.resolve();
   const manualAfter = runProjectFileWrite(async () => { order.push('handmatig'); return 'ok'; }, () => 'dicht');
   await Promise.resolve();
   (finishModel as (() => void) | null)?.();
-  eq('22a een handmatige actie gaat vóór een wachtende tik', [await model, await manualAfter, await tick, order],
+  eq('22a een handmatige actie gaat vóór een doorgang die op haar plek wacht', [await model, await manualAfter, await tick, order],
     ['geschreven', 'ok', 'ok', ['model', 'handmatig', 'tik']]);
   // Een tik die al loopt, wordt niet onderbroken: de handmatige actie wacht erop (zoals main, knownbug 1904).
   const started: string[] = [];
   let finishTick: (() => void) | null = null;
-  const running = runAutoSaveTickWrite(async () => {
+  const running = plainTick(async () => {
     started.push('tik-start');
     await new Promise<void>(resolve => { finishTick = resolve; });
     started.push('tik-eind');
@@ -420,10 +428,10 @@ const admitted = async () => {
   truthy('22b de rij is daarna weer vrij', !isProjectFileWriteBusy());
 }
 
-// 22c–22e. Knownbug 1938/1939: elke doorgang van de controller (één lijst plus haar writes) loopt via de coördinator
+// 22c–22g. Knownbug 1938/1939: elke doorgang van de controller (één lijst plus haar writes) loopt via de coördinator
 //     (`runAutoSaveRound`). Een gewone doorgang krijgt een plek in de timerrij, maakt haar lijst pas als die plek aan de
-//     beurt is, en houdt zolang ze loopt andere timerbeurten tegen; een handmatige actie mag ertussen. De toelating geldt
-//     per doorgang, ook bij een herhaalronde.
+//     beurt is, en houdt zolang ze loopt andere timerbeurten tegen; een handmatige actie mag ertussen, op volgorde van
+//     aankomst met haar writes. De toelating geldt per doorgang, ook bij een herhaalronde.
 {
   const turns = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve)); };
   const candidate = (id: string, version = 1): ActualAutoSaveCandidate =>
@@ -544,6 +552,38 @@ const admitted = async () => {
   reopen();
   eq('22f na het begin van de laatste fase schrijft de doorgang niets', [events.includes('tik h'), isProjectFileWriteBusy()],
     [false, false]);
+
+  // 22g. Fixronde 1 van de review van #1093: een write die al om het slot vroeg, houdt zijn plek. Handmatige acties en de
+  //      writes van de open gewone doorgang delen één rij, op volgorde van aankomst: een handmatige actie die er al stond,
+  //      gaat vóór een write die later komt, en een write die al wacht, gaat vóór een handmatige actie die later komt.
+  const arrival: string[] = [];
+  let finishFirst: (() => void) | null = null;
+  let finishEarlier: (() => void) | null = null;
+  let secondAsked = false;
+  const pass = runAutoSaveRound('tick', async () => {
+    await runAutoSaveTickWrite(async () => {
+      arrival.push('write 1');
+      await new Promise<void>(resolve => { finishFirst = resolve; });
+      return 'ok';
+    }, () => 'dicht');
+    secondAsked = true;
+    await runAutoSaveTickWrite(async () => { arrival.push('write 2'); return 'ok'; }, () => 'dicht');
+  });
+  await turns();
+  const manualFirst = runProjectFileWrite(async () => {
+    arrival.push('handmatig 1');
+    await new Promise<void>(resolve => { finishEarlier = resolve; });
+    return 'ok';
+  }, () => 'dicht');
+  (finishFirst as (() => void) | null)?.();
+  await turns();
+  eq('22g de handmatige actie die er al stond, gaat vóór de write die later komt', [arrival, secondAsked],
+    [['write 1', 'handmatig 1'], true]);
+  const manualLater = runProjectFileWrite(async () => { arrival.push('handmatig 2'); return 'ok'; }, () => 'dicht');
+  (finishEarlier as (() => void) | null)?.();
+  await Promise.all([pass, manualFirst, manualLater]);
+  eq('22g de write die al wachtte, gaat vóór de handmatige actie die later komt', [arrival, isProjectFileWriteBusy()],
+    [['write 1', 'handmatig 1', 'write 2', 'handmatig 2'], false]);
 }
 
 if (diffs.length === 0) {

@@ -4050,13 +4050,13 @@ for (const flag of ['aan', 'uit'] as const) {
   });
 }
 
-// Open vraag T3 van knownbug 1939 (besluit technisch beslisser 20 november 2026): ook met de flag uit gaat een handmatige
-// actie vóór een wachtende tik. Het enige verschil met main zit in de browser: komt Ctrl+S tijdens de toestemmingsvraag
-// (`canWrite`) van een tik, dan sluit de tik achter die Ctrl+S aan; een tweede handmatige actie die daarna komt, gaat nu
-// vóór de tik (op main erna). Voorwaarde: het eindbestand is byte voor byte gelijk aan dat van main. Deze proef draaide ook
-// op de ongewijzigde bron van main; `BEWIJS T3` drukt de volgorde en de sha256 van de eindbestanden af om te vergelijken.
+// Fixronde 1 van de review van #1093 (besluit technisch beslisser 21 november 2026): een write die al om het slot vroeg,
+// houdt zijn plek tegenover een latere handmatige actie. Komt Ctrl+S tijdens de toestemmingsvraag (`canWrite`) van een tik,
+// dan sluit de tik achter die Ctrl+S aan, en een tweede handmatige actie die daarna komt, achter de tik: de volgorde van
+// main. Deze proef draaide ook op de ongewijzigde bron van main; `BEWIJS T3` drukt de volgorde en de sha256 van de
+// eindbestanden af om te vergelijken.
 for (const variant of ['hetzelfde document', 'een ander document'] as const) {
-  await check(`1939 T3, flag uit: Ctrl+S tijdens de toestemmingsvraag van een tik, daarna een tweede Ctrl+S (${variant}); het eindbestand als op main`, async () => {
+  await check(`1939 T3, flag uit: Ctrl+S tijdens de toestemmingsvraag van een tik, daarna een tweede Ctrl+S (${variant}); volgorde en eindbestand als op main`, async () => {
     reseed(1939);
     const same = variant === 'hetzelfde document';
     const tickName = `t3-${same ? 'zelfde' : 'ander'}-tik.ifc`, saveName = same ? tickName : 't3-ander-ctrls.ifc';
@@ -4122,11 +4122,224 @@ for (const variant of ['hetzelfde document', 'een ander document'] as const) {
       const order = writableLog.slice(logFrom).map(placement).filter(entry => entry !== null);
       console.log(`BEWIJS T3 (${variant}): ${JSON.stringify({ volgorde: order,
         tikbestand: hash(fileOf(tickName)), ctrlsBestand: hash(fileOf(saveName)) })}`);
-      // De volgorde van na de bouw: de tweede Ctrl+S vóór de wachtende tik (op main: de tik ertussen).
-      assert.deepEqual(order, same ? ['ctrl+s', 'ctrl+s'] : ['ctrl+s', 'ctrl+s', 'tik'], 'handmatig gaat vóór de wachtende tik');
+      // De volgorde van main: de tik die al om zijn beurt vroeg, schrijft vóór de tweede Ctrl+S.
+      assert.deepEqual(order, same ? ['ctrl+s', 'ctrl+s'] : ['ctrl+s', 'tik', 'ctrl+s'], 'de tik houdt zijn plek, zoals main');
     } finally { permission.release(); computing.release(); await clearRecovery(); }
   });
 }
+
+/** Het herstel zoals de app het na een herstelronde terugleest: per document (op label) de taak met `prefix`, gewijzigd, de
+ *  wachtende bron en de sha256 van het herstel-IFC. */
+async function recoveryOf(store: Store, tracker: RecoveryDeltaTracker, flag: boolean, labels: Map<string, string>, prefix: string) {
+  const state = store.getState();
+  await runRecoveryTick(tracker, state.activeDocumentId,
+    state.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, flag)));
+  const loaded = await loadRecovery();
+  const restored = await Promise.all(loaded.docs.map(doc => readRecoveryDocument(doc, loaded.archives, flag)));
+  return { active: labels.get(loaded.activeDocumentId ?? ''), docs: loaded.docs.map((doc, index) => ({
+    document: labels.get(doc.id), hash: hash(new TextEncoder().encode(doc.ifc)), dirty: doc.isDirty,
+    task: restored[index]!.tasks.find(task => task.name.startsWith(prefix))?.name ?? null,
+    pendingSource: doc.ifcSource?.pendingSha256 ?? null,
+  })).sort((left, right) => String(left.document).localeCompare(String(right.document))) };
+}
+const withoutHashes = (recovery: Awaited<ReturnType<typeof recoveryOf>>) => ({ active: recovery.active,
+  docs: recovery.docs.map(doc => ({ document: doc.document, dirty: doc.dirty, task: doc.task, pendingSource: doc.pendingSource })) });
+const noticesOf = (store: Store) => store.getState().ui.notifications.map(n => [n.severity, n.messageKey, n.count]);
+
+// Review van #1093, ronde 1, punt 1 (de proef van de reviewer): een write die al om het slot vroeg, houdt zijn plek
+// tegenover een latere handmatige actie. De tik van A wacht op de schrijftoestemming; Ctrl+S in B rekent als de tik om zijn
+// beurt vraagt; daarna kiest de planner vanuit B Opslaan als en bevestigt het bestand van A. Zoals op main schrijft de tik
+// eerst, en blijft de gekozen planning B op dat bestand staan; meldingen en herstel als op main. Zonder modelrondes is dat
+// met de flag aan hetzelfde. `BEWIJS punt 1` drukt de sha256 van eindbestanden en herstel af om met main te vergelijken.
+for (const flag of [false, true]) {
+  await check(`1939 fixronde 1, punt 1: Opslaan als naar het doel van een wachtende tik; de tik schrijft eerst, de gekozen planning blijft staan (flag ${flag ? 'aan' : 'uit'})`, async () => {
+    reseed(1093);
+    const aName = 'fix1093-punt1-a.ifc', bName = 'fix1093-punt1-b.ifc';
+    const permission = gate(), firstCompute = gate();
+    const events: string[] = [];
+    let holdPermission = false, permissionAsked = false, holdCompute = true, computing = false;
+    class DelayedHandle extends FakeHandle {
+      override async queryPermission() {
+        if (holdPermission) { holdPermission = false; permissionAsked = true; await permission.held; }
+        return super.queryPermission();
+      }
+    }
+    const compute: IfcOutputCompute = async job => {
+      if (holdCompute) {
+        assert.equal(job.input.tasks.find(task => task.name.startsWith('Review1093 '))?.name, 'Review1093 B');
+        holdCompute = false; computing = true;
+        await firstCompute.held;
+      }
+      return computeIfcOutputHere(job);
+    };
+    const input = plainBytes();
+    handleFiles.set(aName, input);
+    handleFiles.set(bName, input);
+    const { createAppStoreContext } = await loadStore();
+    const { store } = createAppStoreContext({ ifcSaveCompute: compute });
+    store.setState(state => { state.ui.featureFlags = { ifcForeignContent: flag }; });
+    const add = async (name: string, handle: FakeHandle) => {
+      await store.getState().openOpenedFile({ name, content: plainText(input), ref: { kind: 'handle', handle: handle as unknown as FileSystemFileHandle } });
+      return store.getState().activeDocumentId;
+    };
+    const a = await add(aName, new DelayedHandle(aName));
+    store.getState().setAutoSaveToFile(true);
+    store.getState().updateTask(leaf(store).id, { name: 'Review1093 A' });
+    store.getState().runCPM();
+    const b = await add(bName, new FakeHandle(bName));
+    store.getState().setAutoSaveToFile(false);
+    store.getState().updateTask(leaf(store).id, { name: 'Review1093 B' });
+    store.getState().runCPM();
+    clearNotices(store);
+    const labels = new Map([[a, 'A'], [b, 'B']]);
+    const win = window as unknown as Record<string, unknown>;
+    const browser = browserDownload();
+    // De browser kan bestanden kiezen (`showOpenFilePicker` bestaat), dus Opslaan als vraagt de opslaankiezer.
+    win.showOpenFilePicker = () => { throw new Error('Openen via kiezer hoort hier niet'); };
+    win.showSaveFilePicker = async () => {
+      events.push('kiezer kiest A');
+      handleFiles.set(aName, new Uint8Array());
+      return new FakeHandle(aName);
+    };
+    const tracker = new RecoveryDeltaTracker();
+    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute });
+    const version = (data: Uint8Array) => ['Review1093 A', 'Review1093 B'].find(name => plainText(data).includes(`'${name}'`));
+    for (const [label, target] of [['A', aName], ['B', bName]]) {
+      handleFaults.set(target, { afterClose: async () => { events.push(`plaatsing ${label}: ${version(fileOf(target))}`); } });
+    }
+    try {
+      holdPermission = true;
+      const tick = controller.flush();
+      await turnUntil(() => permissionAsked, 'de tik vraagt de schrijftoestemming van A');
+      const first = ctrlS(store);
+      await turnUntil(() => computing, 'Ctrl+S in B rekent onder het slot');
+      permission.release();
+      await someTurns();
+      assert(isProjectFileWriteBusy() && controller.isSaving(), 'de tik vraagt om zijn beurt terwijl B rekent');
+      const second = store.getState().saveFileAs();
+      const during = await recoveryOf(store, tracker, flag, labels, 'Review1093 ');
+      firstCompute.release();
+      const [firstResult] = await Promise.all([first, second, tick]);
+      await turnUntil(() => !isProjectFileWriteBusy() && !controller.isSaving(), 'alle drie de acties afgelopen');
+      assert.deepEqual(events, ['plaatsing B: Review1093 B', 'plaatsing A: Review1093 A', 'kiezer kiest A', 'plaatsing A: Review1093 B'],
+        'de tik schrijft vóór Opslaan als, zoals main');
+      assert.equal(firstResult, true);
+      assert.equal(browser.downloads.length, 0, 'geen download');
+      assert.deepEqual([payloadOf(store, a).isDirty, payloadOf(store, b).isDirty], [false, false]);
+      assert.equal((await reopenOrdinary(fileOf(aName), false)).tasks.find(task => task.name.startsWith('Review1093 '))?.name,
+        'Review1093 B', 'de gekozen planning B staat op het bestand van A');
+      assert.equal(hash(fileOf(aName)), hash(fileOf(bName)));
+      const final = await recoveryOf(store, tracker, flag, labels, 'Review1093 ');
+      const notices = noticesOf(store);
+      console.log(`BEWIJS punt 1 (flag ${flag ? 'aan' : 'uit'}): ${JSON.stringify({ a: hash(fileOf(aName)), b: hash(fileOf(bName)),
+        notices, during, final })}`);
+      assert.deepEqual(notices, [], 'geen melding, zoals main');
+      assert.deepEqual(withoutHashes(during), { active: 'B', docs: [
+        { document: 'A', dirty: true, task: 'Review1093 A', pendingSource: null },
+        { document: 'B', dirty: true, task: 'Review1093 B', pendingSource: null }] }, 'het herstel tijdens het wachten, zoals main');
+      assert.deepEqual(withoutHashes(final), { active: 'B', docs: [
+        { document: 'A', dirty: false, task: 'Review1093 A', pendingSource: null },
+        { document: 'B', dirty: false, task: 'Review1093 B', pendingSource: null }] }, 'het herstel na afloop, zoals main');
+    } finally {
+      permission.release(); firstCompute.release();
+      for (const target of [aName, bName]) handleFaults.delete(target);
+      delete win.showOpenFilePicker;
+      browser.dispose();
+      await clearRecovery();
+    }
+  });
+}
+
+// Review van #1093, ronde 1, punt 2 (de proef van de reviewer, desktop, flag uit): drie gewone documenten A, C en B. Een tik
+// verwerkt A en C; terwijl A schrijft, vraagt de planner Ctrl+S in B, en C vraagt om zijn beurt terwijl B nog rekent. Daarna
+// nog eens Ctrl+S in B. Zoals op main schrijft C vóór die tweede Ctrl+S: bij het begin daarvan staat de bewerking van C in het
+// bestand, en Automatisch opslaan in C uitzetten verandert daarna niets meer. `BEWIJS punt 2` voor de vergelijking met main.
+await check('1939 fixronde 1, punt 2: desktop, drie gewone documenten (flag uit); de wachtende write van C gaat vóór de tweede Ctrl+S van B', async () => {
+  reseed(1093);
+  const firstTick = gate(), firstManual = gate(), secondManual = gate();
+  const events: string[] = [];
+  let manualCount = 0;
+  const compute: IfcOutputCompute = async job => {
+    const version = job.input.tasks.find(task => task.name.startsWith('Review1093 '))?.name;
+    if (version === 'Review1093 A') {
+      events.push('tik A start');
+      await firstTick.held;
+    } else if (version === 'Review1093 C') {
+      events.push('tik C start');
+    } else if (version === 'Review1093 B') {
+      manualCount++;
+      events.push(`Ctrl+S ${manualCount} start`);
+      await (manualCount === 1 ? firstManual.held : secondManual.held);
+    } else assert.fail(`Onbekende versie: ${version}`);
+    return computeIfcOutputHere(job);
+  };
+  const { createAppStoreContext } = await loadStore();
+  const { store } = createAppStoreContext({ ifcSaveCompute: compute });
+  store.setState(state => { state.ui.featureFlags = { ifcForeignContent: false }; });
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const ipc = desktop(appData);
+  const source = plainBytes();
+  const paths = new Map<string, string>();
+  const ids = new Map<string, string>();
+  try {
+    for (const label of ['A', 'C', 'B']) {
+      const name = `fix1093-punt2-${label}.ifc`;
+      const path = join(dir, name);
+      writeFileSync(path, source);
+      paths.set(label, path);
+      await store.getState().openOpenedFile({ name, content: plainText(source), ref: { kind: 'path', path } });
+      ids.set(label, store.getState().activeDocumentId);
+      store.getState().setAutoSaveToFile(label !== 'B');
+      store.getState().updateTask(leaf(store).id, { name: `Review1093 ${label}` });
+      store.getState().runCPM();
+    }
+    const labels = new Map(Array.from(ids, ([label, id]) => [id, label]));
+    const inspectC = async () => {
+      const data = new Uint8Array(readFileSync(paths.get('C')!));
+      return { hash: hash(data), isOriginal: hash(data) === hash(source), dirty: payloadOf(store, ids.get('C')!).isDirty,
+        task: (await reopenOrdinary(data, false)).tasks.find(task => task.name.startsWith('Review1093 '))?.name ?? null };
+    };
+    clearNotices(store);
+    const tracker = new RecoveryDeltaTracker();
+    const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute });
+    const tick = controller.flush();
+    await turnUntil(() => events.includes('tik A start'), 'de tik rekent A');
+    const first = ctrlS(store);
+    firstTick.release();
+    await turnUntil(() => manualCount === 1, 'de eerste Ctrl+S van B rekent');
+    await someTurns();
+    assert(!events.includes('tik C start'), 'C kan pas na de eerste Ctrl+S schrijven');
+    const second = ctrlS(store);
+    await someTurns();
+    firstManual.release();
+    await turnUntil(() => manualCount === 2, 'de tweede Ctrl+S van B begint');
+    const started = await inspectC();
+    store.getState().switchDocument(ids.get('C')!);
+    store.getState().setAutoSaveToFile(false);
+    events.push('Automatisch opslaan C uit');
+    secondManual.release();
+    assert.deepEqual((await Promise.all([first, second, tick])).slice(0, 2), [true, true]);
+    await turnUntil(() => !isProjectFileWriteBusy() && !controller.isSaving(), 'alle acties afgelopen');
+    const final = await inspectC();
+    const recovery = await recoveryOf(store, tracker, false, labels, 'Review1093 ');
+    const notices = noticesOf(store);
+    const files = Object.fromEntries(Array.from(paths, ([label, path]) => [label, hash(new Uint8Array(readFileSync(path)))]));
+    console.log(`BEWIJS punt 2: ${JSON.stringify({ events, started, final, files, notices, recovery })}`);
+    assert.deepEqual(events, ['tik A start', 'Ctrl+S 1 start', 'tik C start', 'Ctrl+S 2 start', 'Automatisch opslaan C uit'],
+      'C schrijft tussen de twee Ctrl+S van B, zoals main');
+    assert.deepEqual([started.isOriginal, started.dirty, started.task], [false, false, 'Review1093 C'],
+      'bij het begin van de tweede Ctrl+S staat de bewerking van C in het bestand');
+    assert.deepEqual(final, started, 'daarna verandert er niets meer aan C');
+    assert.deepEqual(notices, [], 'geen melding, zoals main');
+    assert.deepEqual(withoutHashes(recovery), { active: 'C', docs: ['A', 'B', 'C'].map(label =>
+      ({ document: label, dirty: false, task: `Review1093 ${label}`, pendingSource: null })) }, 'het herstel na afloop, zoals main');
+  } finally {
+    firstTick.release(); firstManual.release(); secondManual.release();
+    ipc.dispose();
+    await clearRecovery();
+    rmSync(appData, { recursive: true, force: true });
+  }
+});
 
 await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen model begint niet als er intussen getypt is', async () => {
   const sw = saveWorker('manual'), { store, name: firstName } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);

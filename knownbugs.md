@@ -5169,7 +5169,11 @@ en noem het in je rapport of PR-tekst.
      of het andere tabblad zijn bestand laten loslaten zodat zijn Ctrl+S Opslaan als wordt; of de keuze in de browser
      anders laten lopen (de richting van 1899). Een nieuwe vraag of melding is een keuze voor de eigenaar. Hetzelfde geldt
      voor *Exporteren*: op de desktop weigert het sinds 1907 een bestand dat in een ander tabblad open staat, in de
-     browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. — B (proef)
+     browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. Sinds #1093
+     (knownbug 1939) komt er in de browser met de flag aan één geval bij: wacht de gewone doorgang van het andere tabblad
+     achter een modelronde op haar plek, dan komt ze ná deze Opslaan als en schrijft ze de planning van dat tabblad terug
+     over de gekozen versie, zonder melding; vóór #1093 schreef die tik eerst en bleef de gekozen versie staan (gezien met
+     een tijdelijke proef op de PR en op de bron van main). — B (proef)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
