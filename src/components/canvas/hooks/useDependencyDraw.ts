@@ -61,7 +61,7 @@ export function useDependencyDraw({
       setDepDragState(null);
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: () => setDepDragState(null) });
   }, [depDragState, canvasRef, rendererRef, onRelationDrawn]);
 
   // Draw temporary dependency line on overlay canvas

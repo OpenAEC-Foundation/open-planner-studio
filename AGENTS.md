@@ -223,7 +223,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799) and mounts that hide hard links (knownbug 1823), is in the header of
   `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
   one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
-  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent, and the folders granted for saving outside the home folder (knownbug 1131 point 7; such a grant covers every fs command of the capability, also deleting that folder, knownbug 2027, and stays with the flag off, knownbug 2028). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Files passed on the command line, at the first start and by a second start (single-instance callback, its own cwd), go to the webview as the event `ops:open-files` once it emits `ops:open-files-ready` (`src-tauri/src/launch_files.rs`, `src/state/launchFiles.ts`, #1091); they open through the drop route, so like File → Open. No command, and the fs scope is unchanged: a path outside `$HOME` fails (knownbug 2030). The installer associates no file type. The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent, and the folders granted for saving outside the home folder (knownbug 1131 point 7; such a grant covers every fs command of the capability, also deleting that folder, knownbug 2027, and stays with the flag off, knownbug 2028). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
   of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
   `$APPDATA`, plus the files `cookies` and `hsts-storage.sqlite`) and `$APPLOCALDATA/EBWebView/**` on Windows; the
@@ -370,7 +370,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
 - **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
-  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
+  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Every write to a file
+  the app opens goes through it, every export format included: a launch file (#1091) reads again when a turn started
+  since it was read (`projectFileWriteTurns`); what still writes outside it is listed in knownbug 2033. Quitting the app, closing
   a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
   opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
   `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`

@@ -23,7 +23,7 @@ import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc, type PlaceAnswer } from './nodeFileIpc';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
-import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { projectFileWriteTurns, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
   placeUniqueReplaceCopy, previousVersionPath, replaceCopyPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
@@ -2832,15 +2832,36 @@ for (const flag of [false, true]) {
     const projectPath = join(t.dir, 'uitgewisseld.ifc'), poolPath = join(t.dir, 'bibliotheek.ifc'), loose = join(t.dir, 'los.ifc');
     writeFileSync(loose, changedPlain);
     let outcome: ExportResult | undefined;
+    // Review ronde 5 van #1116: beide bibliotheekbestanden in de ene schrijfrij, zodat een startbestand dat intussen
+    // gelezen werd opnieuw gelezen wordt (`projectFileWriteTurns`, `check-launch-files.ts` deel J).
+    const turnsBefore = projectFileWriteTurns();
     await withPicks([projectPath, poolPath], async () => { outcome = await t.store.getState().exportProjectWithPool(); });
     assert.deepEqual(outcome, { ok: true, warnings: [] }, 'een voltooide export');
+    assert.equal(projectFileWriteTurns() - turnsBefore, 2, 'met de resourcebibliotheek: twee beurten in de schrijfrij, ook voor de bibliotheek');
+    const turnsLoose = projectFileWriteTurns();
     await withPicks([loose], () => t.store.getState().exportLibrary(t.companyId));
+    assert.equal(projectFileWriteTurns() - turnsLoose, 1, 'Bibliotheek → Exporteren: één beurt in de schrijfrij');
     assert.deepEqual(t.errors(), [], 'geen melding');
     for (const path of [poolPath, loose]) assert(readFileSync(path).toString('latin1').includes('OPS_Library'), `${basename(path)}: de bibliotheek`);
     assert.equal(hash(readFileSync(t.path)), hash(plain), 'het bestand van A is onaangeroerd');
     assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van B is onaangeroerd');
   });
 }
+
+// Review ronde 6 van #1116: CSV, MSPDI, P6-XML en XER opent de app ook. Hun export loopt door de ene schrijfrij, net als
+// IFC: een startbestand dat tijdens de export gelezen wordt, leest daarna opnieuw (`check-launch-files.ts` deel J en L),
+// en afsluiten en de updater wachten op de export.
+await check('Exporteren naar CSV, MSPDI, P6-XML en XER onder een vrije naam: elke export is één beurt in de schrijfrij', async () => {
+  const t = await twoPlainTabs(false);
+  for (const [format, name] of [['csv', 'plan.csv'], ['mspdi', 'plan-msp.xml'], ['p6', 'plan-p6.xml'], ['xer', 'plan.xer']] as const) {
+    const path = join(t.dir, name);
+    const turns = projectFileWriteTurns();
+    await exportTo(t.store, path, format);
+    assert.equal(projectFileWriteTurns() - turns, 1, `${format}: één beurt in de schrijfrij`);
+    assert(readFileSync(path).toString('latin1').includes('Werk in tabblad A'), `${format}: de planning van A staat in het bestand`);
+  }
+  assert.deepEqual(t.errors(), [], 'geen melding');
+});
 
 await check('Knownbug 1907, flag aan: Exporteren → IFC van een document met een gebouwmodel over het bestand van een ander tabblad: geweigerd, niets geschreven', async () => {
   const t = await twoPlainTabs(true, bytes);

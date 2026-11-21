@@ -21,7 +21,8 @@ import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { useGanttRowDragBridge } from '@/components/canvas/ganttRowDragBridge';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { humanizeTaskGridKey, resolveColumnLabel } from '@/engine/taskGrid/columnLabel';
-import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import { createTaskGridRowIndex, type TaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import type { SelectionAnchor } from '@/state/slices/types';
 import { taskNameFixedWidth, taskNameIndent } from '@/engine/taskGrid/nameIndent';
 import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
@@ -38,7 +39,7 @@ import {
   createEmptyGridSelection,
   reconcileGridSelection,
   sameCellAddress,
-  syncActiveCellToPublishedTask,
+  syncActiveCellToPublishedTask, withSelectionAnchor,
   updateGridSelection,
   type GridCellAddress,
   type GridSelectionState,
@@ -58,6 +59,7 @@ import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { COLUMNS_RIBBON_TOGGLE_SELECTOR } from './ColumnChooser';
 import { withTransaction } from '@/state/batchTransaction';
+import { requestRelationAssign } from '@/state/relationActions';
 import {
   appendGhostRow,
   GHOST_ROW_KEY,
@@ -73,7 +75,7 @@ import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
-import { pastesGridTaskCopy } from '@/state/slices/selectionSlice';
+import { liveSelectionAnchor, pastesGridTaskCopy, shiftAnchor } from '@/state/slices/selectionSlice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -220,6 +222,56 @@ export interface TaskGridSurfaceProps {
   onPlainTaskClick?: (task: Task) => void;
 }
 
+/** Het Shift-anker van de lijst voor de store: de ankerrij en haar taken (een reeksrij: alle; de
+ *  spookregel: geen, maar wel het beginpunt van een bereik in de lijst). */
+function gridAnchor(selection: GridSelectionState, rowIndex: TaskGridRowIndex): SelectionAnchor | undefined {
+  const rowKey = selection.anchor?.rowKey;
+  if (!rowKey) return undefined;
+  const taskRow = rowIndex.taskByRowKey.get(rowKey);
+  const taskIds = taskRow
+    ? (isGhostTaskId(taskRow.task.id) ? [] : [taskRow.task.id])
+    : rowIndex.runByRowKey.get(rowKey)?.tasks.map(task => task.id);
+  return taskIds ? { rowKey, taskIds } : undefined;
+}
+
+/**
+ * Shift in de lijst begint bij het anker van de store, hetzelfde als in de tijdlijn (review #1004,
+ * ronde 8): de lijst houdt geen eigen beginpunt bij dat kan afwijken. Van de ankerrij tellen alleen
+ * de taken van dat anker, ook als de cursor op die rij eindigt: één ruitje uit een ingeklapte reeks
+ * blijft één ruitje. Geeft het anker terug om te publiceren.
+ */
+function extendFromSharedAnchor(
+  selection: GridSelectionState,
+  cell: GridCellAddress,
+  rowIndex: TaskGridRowIndex,
+  columns: readonly TaskColumnId[],
+): { next: GridSelectionState; anchor?: SelectionAnchor } {
+  // Hetzelfde beginpunt als de tijdlijn (`shiftAnchor`), met één uitzondering: de spookregel, die de
+  // tijdlijn niet heeft, zolang die in de lijst staat (een filter verbergt haar, ronde 18). Geen eigen
+  // toets op de ankerrij: een rij die er nog staat maar de taak van het anker niet meer draagt (een
+  // omgezette mijlpaal), is geen beginpunt meer (review #1004, ronde 17). Is er geen beginpunt (bv. de
+  // ankerrij en de actieve taak zijn weggefilterd), dan ook hier niet het eigen rasteranker: Shift kiest
+  // dan alleen de aangeklikte regel, net als in de tijdlijn (ronde 15).
+  const state = useAppStore.getState();
+  const live = liveSelectionAnchor(state);
+  const anchor = live?.rowKey === GHOST_ROW_KEY && rowIndex.absoluteIndexByRowKey.has(GHOST_ROW_KEY)
+    ? live
+    : shiftAnchor(state);
+  const from = anchor && rowIndex.absoluteIndexByRowKey.has(anchor.rowKey)
+    ? withSelectionAnchor(selection, anchor.rowKey)
+    : { ...selection, anchor: null };
+  const next = updateGridSelection(from, cell, rowIndex, columns, 'extend');
+  if (!anchor || next.anchor?.rowKey !== anchor.rowKey) return { next };
+  const rowTaskIds = gridAnchor(next, rowIndex)?.taskIds ?? [];
+  const selectedTaskIds = next.selectedTaskIds.filter(id => !rowTaskIds.includes(id) || anchor.taskIds.includes(id));
+  // Eindigt de cursor op de ankerrij (een reeksregel), dan is de actieve taak een gekozen lid, niet
+  // het eerste lid van de reeks (ronde 9).
+  const activeTaskId = next.activeTaskId !== null && !selectedTaskIds.includes(next.activeTaskId)
+    ? anchor.taskIds.find(id => selectedTaskIds.includes(id)) ?? next.activeTaskId
+    : next.activeTaskId;
+  return { next: { ...next, selectedTaskIds, activeTaskId }, anchor };
+}
+
 export function TaskGridSurface({
   surfaceId,
   baseHeaderHeight = 32,
@@ -267,6 +319,7 @@ export function TaskGridSurface({
   const collapsedTaskIds = useAppStore(state => state.ui.collapsedTaskIds);
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
   const publishedActiveTaskId = useAppStore(state => state.activeTaskId);
+  const publishedRowKey = useAppStore(state => state.ui.gridActiveRowKey);
   const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
@@ -523,6 +576,9 @@ export function TaskGridSurface({
   }), [activityCodeTypes, customFieldDefs, project.id, surfaceId]);
 
   const previousRowsRef = useRef(rowIndex);
+  // De cursorrij die deze lijst zelf in de store zette. Alleen een andere rij is een verzoek van
+  // buiten (de tijdlijn of verwijderen); anders trok een oude waarde de cursor terug na een klik.
+  const ownRowKeyRef = useRef<string | null>(null);
   const previousColumnsRef = useRef<readonly TaskColumnId[]>(visibleColumnIds);
   useEffect(() => {
     // Net vastgelegd op de spookregel. Bleef de cursor in dezelfde kolom (Enter), dan staat hij nu
@@ -554,8 +610,9 @@ export function TaskGridSurface({
     // van een verborgen of verwijderde rij niet en viel hij terug op de bovenste rij (issue #899).
     const previousRows = previousRowsRef.current;
     const previousColumns = previousColumnsRef.current;
-    // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899).
-    const preferredRowKey = useAppStore.getState().ui.gridActiveRowKey;
+    // Na verwijderen in een groepering zet de store de gekozen buurrij hier neer (issue #899), en een
+    // klik in de tijdlijn de aangeklikte rij (review #1004).
+    const preferredRowKey = publishedRowKey === ownRowKeyRef.current ? null : publishedRowKey;
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -593,7 +650,8 @@ export function TaskGridSurface({
         samePublishedSelection = current.selectedTaskIds.every(id => publishedSelectionIds.has(id));
       }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
-      if (samePublishedSelection && samePublishedActiveTask) return reconciled;
+      const samePublishedRow = preferredRowKey === null || preferredRowKey === reconciled.active?.rowKey;
+      if (samePublishedSelection && samePublishedActiveTask && samePublishedRow) return reconciled;
 
       // syncActiveCellToPublishedTask trekt de celcursor
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
@@ -605,13 +663,14 @@ export function TaskGridSurface({
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
-  }, [publishedActiveTaskId, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
+  }, [publishedActiveTaskId, publishedRowKey, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
 
   // De store kent alleen taak-ids; in een groepering staat een taak meer dan eens. Verwijderen kiest
   // de buur vanaf de rij van de celcursor (issue #899). De spookregel is geen taakrij.
   const activeRowKey = selection.active?.rowKey ?? null;
   useEffect(() => {
     const rowKey = activeRowKey === GHOST_ROW_KEY ? null : activeRowKey;
+    ownRowKeyRef.current = rowKey;
     if (useAppStore.getState().ui.gridActiveRowKey !== rowKey) setUI({ gridActiveRowKey: rowKey });
   }, [activeRowKey, setUI]);
   useEffect(() => () => setUI({ gridActiveRowKey: null }), [setUI]);
@@ -652,16 +711,18 @@ export function TaskGridSurface({
     return true;
   }, [editing]);
 
-  const applySelection = useCallback((next: GridSelectionState) => {
+  const applySelection = useCallback((next: GridSelectionState, anchor?: SelectionAnchor) => {
     setSelection(next);
-    // De spookregel is geen taak: die id gaat nooit naar de store-selectie.
+    // De spookregel is geen taak: die id gaat nooit naar de store-selectie. Het anker van de lijst is
+    // ook het beginpunt van Shift in de tijdlijn (review #1004).
     selectTasks(
       next.selectedTaskIds.filter(id => !isGhostTaskId(id)),
       false,
       isGhostTaskId(next.activeTaskId) ? null : next.activeTaskId,
+      anchor ?? gridAnchor(next, rowIndex),
     );
     setSurfaceError(null);
-  }, [selectTasks]);
+  }, [rowIndex, selectTasks]);
 
   const selectCell = useCallback((
     cell: GridCellAddress,
@@ -670,8 +731,11 @@ export function TaskGridSurface({
     if (event.button !== 0) return;
     if (!sameCellAddress(editing?.cell ?? null, cell) && !finishEditing()) return;
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
-    const next = updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
-    if (next !== selection) applySelection(next);
+    const extended = gesture === 'extend' ? extendFromSharedAnchor(selection, cell, rowIndex, visibleColumnIds) : null;
+    const next = extended?.next ?? updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
+    // Een gewone klik is altijd het nieuwe beginpunt van Shift, ook op de al actieve cel waar de
+    // rasterselectie gelijk blijft (review #1004, ronde 16).
+    if (next !== selection || gesture === 'replace') applySelection(next, extended?.anchor);
     if (gesture === 'replace' && onPlainTaskClick) {
       const meta = adapter.rowMetaByKey.get(cell.rowKey);
       const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
@@ -725,14 +789,10 @@ export function TaskGridSurface({
   const handleCommand = useCallback((command: TaskGridCommand) => {
     if (command.kind === 'move') {
       if (!finishEditing()) return;
-      const next = updateGridSelection(
-        selection,
-        command.cell,
-        rowIndex,
-        visibleColumnIds,
-        command.extend ? 'extend' : 'replace',
-      );
-      applySelection(next);
+      const extended = command.extend
+        ? extendFromSharedAnchor(selection, command.cell, rowIndex, visibleColumnIds)
+        : { next: updateGridSelection(selection, command.cell, rowIndex, visibleColumnIds, 'replace') };
+      applySelection(extended.next, extended.anchor);
       if (!command.extend && onPlainTaskClick) {
         const meta = adapter.rowMetaByKey.get(command.cell.rowKey);
         const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
@@ -1392,6 +1452,9 @@ export function TaskGridSurface({
             if (!contextMenu.task) return;
             selectTask(contextMenu.task.id, false);
             setUI({ showDependencyMode: true });
+          }}
+          onAssignRelation={direction => {
+            if (contextMenu.task) requestRelationAssign(contextMenu.task.id, direction);
           }}
           onSaveTemplate={() => {
             if (!contextMenu.task) return;

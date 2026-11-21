@@ -202,7 +202,6 @@
     "ganttOnlyHint": "Доступно само када је Gantt видљив",
     "relationLinkSelected": "Повежи изабране задатке",
     "relationLinkSelectedHint": "Први избор постаје претходник; други избор постаје наследник (FS, кашњење 0).",
-    "relationSelectExactlyTwo": "Изаберите тачно два задатка",
     "relationAddExternal": "Додај спољну везу…",
     "relationAddExternalHint": "Додајте спољног претходника или наследника изабраном задатку.",
     "relationSelectOne": "Изаберите тачно један задатак",

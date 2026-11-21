@@ -1,7 +1,8 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
 import { customTaskTypeClashes, customTaskTypeInUse, renamedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
+import { enteringDocument } from '@/services/taskTypes/customTaskTypeColors';
 import { generateId } from '@/utils/id';
 import { rewriteDocumentHistorySnapshots } from '../sessionHistory';
 import type { Snapshot } from '../snapshot';
@@ -43,7 +44,8 @@ export interface StructureSlice {
   removeCustomField: (id: string) => void;
   /** Zet een veldwaarde op een taak (null = waarde weghalen). */
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
-  ensureProjectTaskType: (type: CustomTaskType) => void;
+  /** Neemt een werksoort op in het document. Haar kleur gaat mee; zonder kleur de eerste vrije (#856). */
+  ensureProjectTaskType: (type: CustomTaskTypeDraft) => void;
   /**
    * Hernoemt de projectkopie van een eigen taaktype (#804 keuze 7): één ongedaan-maakstap, document
    * gewijzigd, de naam gaat mee in het IFC en het herstel. Alleen in `documentId`, het document waarin de
@@ -105,7 +107,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const { sameId, sameNameOtherId } = customTaskTypeClashes(s.customTaskTypes, { id, name });
       if (sameId || sameNameOtherId || !id || !name) return;
       runtime.beginUndoable(s);
-      s.customTaskTypes.push({ id, name });
+      s.customTaskTypes.push(enteringDocument({ id, name, color: type.color }, s.customTaskTypes));
       runtime.finishMutation(s);
     });
   },

@@ -116,6 +116,7 @@
     "relationDuplicate": "Deze relatie bestaat al",
     "relationAncestorEndpoint": "Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.",
     "relationCycle": "Deze relatie zou een kring in de planning maken ({{cycle}}) en is niet aangemaakt.",
+    "relationChainOrderUnclear": "De taken zijn niet gekoppeld: hun volgorde in de lijst ligt niet vast. Een gekozen taak staat vóór én na een andere (groepering), of twee gekozen mijlpalen delen een ingeklapte reeks. Hef de groepering op, klap de reeks uit, of kies de voorganger via Voorgangers toewijzen.",
     "hierarchyCycle": "Deze verplaatsing zou een kring in de planning maken ({{cycle}}): de relaties van een samenvattingstaak gelden ook voor haar subtaken. Er is niets verplaatst.",
     "relationsExcludedByHierarchy_one": "Na het verplaatsen verbindt {{count}} relatie een taak met zijn eigen samenvattingstaak; die telt niet meer mee in de berekening.",
     "relationsExcludedByHierarchy_other": "Na het verplaatsen verbinden {{count}} relaties een taak met zijn eigen samenvattingstaak; die tellen niet meer mee in de berekening.",
@@ -424,6 +425,8 @@
     "addSubtask": "Subtaak toevoegen",
     "addMilestone": "Mijlpaal toevoegen",
     "addRelation": "Relatie toevoegen",
+    "assignPredecessors": "Voorgangers toewijzen…",
+    "assignSuccessors": "Opvolgers toewijzen…",
     "dissolve": "Dissolve (keten behouden)",
     "delete": "Verwijderen",
     "newTask": "Nieuwe taak",
@@ -1418,7 +1421,8 @@
     "edit": {
       "copy": "Kopiëren",
       "deselect": "Selectie opheffen",
-      "selectAll": "Alles selecteren"
+      "selectAll": "Alles selecteren",
+      "linkSelected": "Geselecteerde taken als keten koppelen"
     },
     "structure": {
       "moveUp": "Taak omhoog verplaatsen",

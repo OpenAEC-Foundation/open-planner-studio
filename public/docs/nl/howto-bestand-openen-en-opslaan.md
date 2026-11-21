@@ -32,6 +32,12 @@ Een bestand in een formaat dat de app niet kent, zoals een `.pdf`, opent niet. J
 
 Staat er een venster of vraag open, dan opent slepen niets. Open je een venster terwijl de app een groot bestand nog leest, dan opent dat bestand pas als je het venster sluit. In de browser toont de muisaanwijzer dan een verbodsteken. In de desktopapp verschijnt de melding *Niet geopend: plan.ifc. Sluit eerst het venster dat openstaat.*
 
+### Een bestand openen met een dubbelklik (desktopapp)
+
+De installer koppelt `.ifc` niet aan de app. Wil je een bestand met een dubbelklik openen, koppel het formaat dan zelf: op Windows met de rechtermuisknop op het bestand, *Openen met* en *Een andere app kiezen*. De app opent het bestand dan zoals bij *Openen*, in een eigen tabblad. Staat de app al open, dan opent het bestand in dat venster. Dat werkt ook vanaf de opdrachtregel, met het pad als argument.
+
+Staat er bij het starten een venster open, zoals het welkomstvenster, dan opent het bestand zodra je dat venster sluit. Bestaat het bestand niet, of is het een formaat dat de app niet kent, dan zie je de gewone melding en blijft de app open. Een bestand buiten je thuismap kan de app op deze manier nog niet lezen; open het dan met *Openen*.
+
 ### Een recent project openen
 
 Kies *Start › Bestand › Recent* en klik op een bestand in de lijst, of kies *Bestand › Recent*. De lijst bewaart de laatste tien bestanden die je opende, opsloeg of exporteerde. Ook hier verschijnt na een bestand dat geen IFC is de uitleg over het formaat. De desktopapp toont bij elk bestand het pad, een browser alleen de naam.
