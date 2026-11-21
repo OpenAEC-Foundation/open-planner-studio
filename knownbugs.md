@@ -35,16 +35,6 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
-81. **Op 100% kan een taak eindigen op de statusdatum in plaats van op het geplande einde (#998).**
-    De schuif zet bij ontbrekende statusdatum die datum op vandaag. Op 100% neemt `defaultActualFinish`
-    de statusdatum over als werkelijk einde. Nagespeeld in Chromium: een taak van 3 werkdagen,
-    gepland van 28 t/m 30 oktober 2026, hield tijdens het slepen haar begin en einde bij 23%, 50% en 77%.
-    Bij 100% verschoof het einde naar 18 november. De geplande duur bleef 3 werkdagen.
-    Besluit nodig over het afgeleide einde. Bij invoer van uitsluitend een werkelijk einde en zonder
-    eerder ingevulde werkelijke start zet de voortgangsinvariant beide datums op hetzelfde moment.
-    Bij invoer van een percentage gebruikt OPS sinds #998 de geplande start van vóór de
-    statusdatumverschuiving. — B
-
 114. **De motor plant een lopende taak op 100 % niet met zijn vastgelegde restduur.** Zo'n taak (status
     STARTED, `completion` 1, geen werkelijk einde) komt uit P6 als `TK_Active` op 100 %. In P6 eindigt
     "Duration 100 %" (rest 0) op de statusdatum; "Physical 100 %" (rest > 0) plant de rest in. OPS zet beide
@@ -1064,10 +1054,6 @@ en noem het in je rapport of PR-tekst.
      `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
      voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van
      #999, ronde 2. — B (review)
-1850. **VERVOLG: tests gebruiken nog een tweede percentagepad voor de taakdialoog.** `draftWithProgress`
-      in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
-      Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
-      #1003 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 1851. **VERVOLG: één MCP-verzoek berekent de planning opnieuw na voortgang op meerdere voorgangers.**
       De echte dispatcher deed in een plan met 1.000 taken voor 80 percentage-updates op losse taken
       2 volledige berekeningen in 0,26 s. Met 80 onafhankelijke FS-paren waren het 81 berekeningen in
@@ -1105,6 +1091,18 @@ en noem het in je rapport of PR-tekst.
       24 juni om 07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets de gekozen
       hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
       Trias (wrakko) deelde dit als VERVOLG in. — B
+1856. **VERVOLG: Excel-afmelding rekent bij één ALAP-taak de planning opnieuw door per rij.**
+      Importeer 100% voor 180 onafhankelijke taken die op 50% staan in een project met één ALAP-taak.
+      De proef in reviewronde 3 van #1115 (GPT-6.2-Sol, xhigh, BEVESTIGD) telde 181 volledige
+      berekeningen in 1,04 s, op main één in 0,06 s. Hergebruik een berekening voor rijen die elkaars
+      planning niet sturen, met behoud van de werking van ALAP. — B
+1857. **VERVOLG: plakken van 100% en 0 restduur rekent onnodig per rij.**
+      In een rasterproef met 120 onafhankelijke einde-startparen gaf de gecombineerde plak 120
+      volledige berekeningen in 1,08 s. Op main (`f43e761eb`) waren dat er nul in 0,26 s. Op de
+      beoordeelde commit (`2d2302897`) gaf alleen de percentagekolom plakken ook nul volledige
+      berekeningen. De plak werd telkens aanvaard. Lees bij het voorbereiden van de plak de geplande
+      datums uit de taak vóór die op 100% wordt gezet, zodat de bestaande vooruitberekening bruikbaar
+      blijft. Uit reviewronde 5 van #1115 (GPT-6.2-Sol, xhigh, BEVESTIGD). — B
 
 1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
       presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
