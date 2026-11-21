@@ -21,7 +21,12 @@ en noem het in je rapport of PR-tekst.
 2. **Dagtaak na urentaak op een kalender met werktijdblokken** eindigt te vroeg (1,6 in plaats van 2
    werkdagen), en de urentaak krijgt −0,5 speling zonder constraint. — B
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
-4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
+4. **Een geïsoleerde taak met harde MFO kan zonder specifieke waarschuwing vóór de projectstart staan.**
+   De pin blijft bewust leidend. Nagespeeld met dag- en urentaken in OPS, P6 en MSP: een harde MFO
+   op 2 juni zet de start vóór de ingestelde projectstart op 8 juni; zonder voorganger rapporteert
+   de solver geen geschonden constraint. Met een conflicterende FS-voorganger is er wél een melding.
+   De taakreferentie beschrijft het gedrag. Voorstel: waarschuw apart voor het projectstartconflict,
+   zonder de pin te verplaatsen. — B
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
