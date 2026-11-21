@@ -4071,7 +4071,8 @@ en noem het in je rapport of PR-tekst.
          `not-ifc` en `targetRefusal` weigert niet (gemeten). Een gebouwmodel dat daar stond, is dan al weg;
       2. een weigering op identiteit (de bron van een ander open document via `isSameEntry`, of `refuseChangedExport`
          bij een export) geeft `null` terug en laat het bestand op 0 bytes staan (uit de code; niet in een browser
-         geprobeerd).
+         geprobeerd). Alleen een tabbladwissel is sinds #1097 (knownbug 1903) geen weigering meer: dan krijgt het
+         bestand de bytes van het geëxporteerde document (met een nagebootste handle, `check-ifc-document-save.ts`).
       Sinds fixronde 1 van #1027 (besluit Trias) krijgt een handle uit de kiezer geen late controle vóór `close()`
       (`saveDataDialogWeb`): de opslag maakt het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
       de commit niets vast (geen pad, bron, *Opgeslagen* of Recent); een export meldt dan geen succes. Ctrl+S en
@@ -4079,24 +4080,6 @@ en noem het in je rapport of PR-tekst.
       tot `close()`. Richting van de reviewer: "Kies bestaande doelen via een handeling die de oude bytes bewaart,
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
-
-1903. **VERVOLG (desktop, bestaand): een tabbladwissel vlak na de bestandskiezer laat een IFC-export weigeren.**
-      Exporteer een planning naar IFC en ga binnen ongeveer een halve seconde na het bevestigen van de bestandsnaam
-      naar een ander tabblad: de export weigert met "De planning veranderde terwijl de export op een andere opslag
-      wachtte. Er is niets geëxporteerd. Exporteer opnieuw.", terwijl er niets veranderde. De doelcontrole na de kiezer
-      (`refuseTarget` in `exportAs` en in de export met de resourcebibliotheek) roept `refuseChangedExport` aan, die
-      eist dat het geëxporteerde document nog het actieve tabblad is. Zo ook op de build van vóór #1027 (twee keer
-      gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
-      Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
-      `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
-      Stand na de bouwpoging in de PR van 1901 (21 november 2026): die richting maakt één bestaande verwachting
-      andersom. "IFC-export documentwissel: nul bytes na voorbereiding" (`check-ifc-document-save.ts`, sinds
-      `3ecdeec01`) opent tijdens de kiezer een nieuw tabblad en eist dat de export weigert, met nul schrijfacties. Die
-      proef stamt uit de tijd dat de controle de bron van het actieve tabblad vergeleek; met de reparatie schrijft de
-      export daar de ongewijzigde planning van A. Niet gebouwd tot dat besluit er is. Een uitgewerkte reparatie (één
-      controle voor `refuseTarget` en de plaatsing, de controles vóór de kiezer en vóór een download blijven het
-      actieve tabblad eisen) en drie proeven die op main rood zijn, staan klaar in het sessiearchief
-      (`fase1c/1901-1903-logs/1903-volledig.patch`).
 
 1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
       Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het
