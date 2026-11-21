@@ -2903,6 +2903,108 @@ for (const withPool of [false, true]) {
   });
 }
 
+/** Knownbug 1901 (a): de desktopexport van A met één schrijfpauze, zoals de proef van ronde 2 hierboven. Met de uitvoer
+ *  van A in het hulpbestand, vóór de plaatsing, eerst `change` op A (bewerken, of via de extensie een ander project
+ *  laden), dan naar tabblad B. `foreign`: A is een IFC met gebouwmodel (flag aan) en de export de volledige IFC, dus
+ *  alleen een nieuwe naam. Ongewijzigd rondt de export af met precies de bytes van A; gewijzigd weigert hij met de
+ *  bestaande melding en schrijft hij niets. */
+async function exportWithTabSwitch({ withPool, foreign, change }: {
+  withPool: boolean; foreign: boolean; change: 'none' | 'edit' | 'replace';
+}) {
+  const { createAppStoreContext } = await loadStore();
+  const sw = saveWorker();
+  const context = createAppStoreContext({ ifcSaveCompute: sw.compute }), { store } = context;
+  const ipc = desktop();
+  const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
+  const internal = win.__TAURI_INTERNALS__;
+  const invoke = internal.invoke;
+  const tag = `${withPool ? 'pool' : foreign ? 'model' : 'ifc'}-${change}`;
+  const target = join(dir, `export-wissel-${tag}.ifc`), pool = join(dir, `export-wissel-${tag}-bibliotheek.ifc`);
+  const previous = new TextEncoder().encode('Bestaande projectexport');
+  let tempWritten!: () => void;
+  const atTemp = new Promise<void>(resolve => { tempWritten = resolve; });
+  let finishWrite!: () => void;
+  const waitToPlace = new Promise<void>(resolve => { finishWrite = resolve; });
+  let switched = false;
+  try {
+    if (foreign) store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    await store.getState().openOpenedFile(foreign
+      ? { name: 'model.ifc', content: '', bytes, ref: null }
+      : { name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+    assert.equal(hasForeignContent(store.getState().ifcSource), foreign);
+    const first = store.getState().activeDocumentId;
+    const second = store.getState().newDocument();
+    store.getState().switchDocument(first);
+    if (withPool) store.getState().setProject({ companyId: store.getState().seedDemoLibrary(), companyName: 'Proefbedrijf' });
+    longer(store);
+    clearNotices(store);
+    const snapshot = store.getState();
+    const input = buildExportIFCInput(snapshot, withPool ? 'planOnly' : 'merge');
+    const expected = foreign ? (await prepareIfcWrite(input, snapshot.ifcSource!)).bytes : new TextEncoder().encode(writeIFC(input));
+    const secondFile = payloadOf(store, second).filePath;
+    if (!foreign) writeFileSync(target, previous);
+    const switchAway = () => {
+      switched = true;
+      if (change === 'edit') longer(store);
+      if (change === 'replace') loadThroughExtension(context, false);
+      store.getState().switchDocument(second);
+      assert.equal(store.getState().activeDocumentId, second);
+    };
+    ipc.choose(target);
+    ipc.onPick(() => { if (ipc.picks() === 2) ipc.choose(pool); });
+    internal.invoke = async (...args) => {
+      const result = await invoke(...args);
+      if (!switched && writeFileCallOf({ command: String(args[0]) }) && tempLeft().length > 0) {
+        tempWritten();
+        await waitToPlace;
+      }
+      return result;
+    };
+    const action = withPool ? snapshot.exportProjectWithPool() : snapshot.exportAs('ifc');
+    await Promise.race([atTemp, action.then(() => assert.fail('de export kwam nooit bij het hulpbestand'))]);
+    assert.equal(hash(readFileSync(join(dir, tempLeft()[0]!))), hash(expected), 'in het hulpbestand staan alle bytes van A');
+    switchAway();
+    finishWrite();
+    const result = await action;
+    assert(switched, 'de tabbladwissel vond plaats');
+    assert.equal(store.getState().activeDocumentId, second, 'B blijft het actieve tabblad');
+    assert.equal(store.getState().filePath, secondFile, 'B houdt zijn eigen doel');
+    assert.deepEqual(tempLeft(), [], 'geen hulpbestand achtergebleven');
+    const recent = store.getState().recentFiles.some(file => file.name === target.split('/').at(-1));
+    if (change === 'none') {
+      assert(result.ok && !result.cancelled, 'een gewone tabbladwissel is geen wijziging van de planning');
+      assert.equal(hash(readFileSync(target)), hash(expected), 'precies de planning van A');
+      if (foreign) assert.deepEqual(mergeProblems(bytes, new Uint8Array(readFileSync(target))), []);
+      assert.equal(ipc.picks(), withPool ? 2 : 1);
+      assert.equal(existsSync(pool), withPool);
+      assert.equal(recent, true);
+      assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+    } else {
+      assert(result.ok && result.cancelled, 'een gewijzigde A wordt niet geëxporteerd');
+      if (foreign) assert.equal(existsSync(target), false);
+      else assert.equal(hash(readFileSync(target)), hash(previous), 'het bestaande doel blijft ongewijzigd');
+      assert.equal(ipc.picks(), 1);
+      assert.equal(existsSync(pool), false);
+      assert.equal(recent, false);
+      assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+    }
+  } finally {
+    finishWrite();
+    internal.invoke = invoke;
+    ipc.dispose();
+    sw.client.dispose();
+  }
+}
+
+for (const withPool of [false, true]) {
+  for (const change of ['edit', 'replace'] as const) {
+    await check(`knownbug 1901: desktopexport ${withPool ? 'met resourcebibliotheek' : 'IFC'}, A ${change === 'edit' ? 'bewerkt' : 'vervangen'} en dan naar B, weigert`,
+      () => exportWithTabSwitch({ withPool, foreign: false, change }));
+  }
+}
+await check('knownbug 1901: desktopexport IFC met gebouwmodel, met de uitvoer van A in het hulpbestand naar B, rondt af',
+  () => exportWithTabSwitch({ withPool: false, foreign: true, change: 'none' }));
+
 // ── #804 stap 8: Automatisch opslaan bij een document met een gebouwmodel ─────────────────────────────────────────────
 // Dezelfde vervanging als Ctrl+S (browser: de handle met herstel in twee stappen; desktop: `replaceOwnPathWithRecovery`),
 // met een eigen ritme per document (30 s rust; de klok is nagebootst) en voorrang voor handmatige acties.
