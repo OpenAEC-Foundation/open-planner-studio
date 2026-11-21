@@ -1015,6 +1015,22 @@ en noem het in je rapport of PR-tekst.
      `freeTaskTypeColor` weer de eerste kleur van de reeks (`#DB2777`). De terugval heeft nog geen gerichte test. Gezien
      in review ronde 5 van optie 2 op #952. Voorstel: een test die de terugval vastlegt. — B (code)
 
+1682. **VERVOLG (#1133): de welkomstspec telt hostwrites over een herlaadbeurt heen.** `welcome-dialog.spec.ts` wist zijn
+     `sessionStorage`-log vóór het herladen, dus een write van de vertrekkende pagina (`pagehide`,
+     `siteHostSettings.ts`) kan in de nieuwe sessie meetellen. Op main kwam de gevonden write van `ops-personalTaskTypes`
+     zo bij `pagehide`, nadat de host op tijd had geantwoord; zolang het hostantwoord echt uitstaat, waren er op main en
+     met #1133 nul. Gezien in review ronde 1 van #1133. Voorstel: de log per pagina bijhouden. — B (code)
+
+1683. **VERVOLG (#1133): `withoutTimestamps` in `check-custom-task-type-colors.ts` kan een taakdatum verbergen.** Valt een
+     taakdatum samen met het tijdstip van opslaan, dan maakt de vergelijking die ook leeg. Gezien in review ronde 1 van
+     #1133. Voorstel: `writeIFCForComparison` (`ifcWriter.ts`) voor de vergelijking van de volledige uitvoer, en de
+     functie weghalen. — B (code)
+
+1684. **VERVOLG (#1133): de bibliotheekproef leest na de eerste wijziging de oude werksoorten niet terug.** De controle
+     dat lezen niets schrijft staat er; dat de eerste wijziging de al getoonde kleuren van de bestaande werksoorten
+     ongewijzigd bewaart, nog niet. Gezien in review ronde 1 van #1133. Voorstel: één vergelijking direct na de eerste
+     wijziging. — B (code)
+
 1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
      `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
      browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt
