@@ -10,7 +10,8 @@
 import { levelResources, type LevelingOptions } from '@/engine/scheduler/ResourceLeveler';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { useAppStore } from '@/state/appStore';
-import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
+import { createTaskEngineCache } from '@/engine/scheduler/taskEngineCache';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
@@ -198,6 +199,58 @@ ok('clearLeveling pusht een undo-snapshot (geen stille no-op)',
   historyDepthsForActiveScope(S()).undoDepth > undoDepthBeforeW);
 eq('en meldt het verlies (eerste keer voor dit document)',
   S().ui.notifications.filter(n => n.messageKey === notifKey).length, 1);
+
+// Knownbug 507: toets de verse baseline ook met een bewust geldige maar stale CPMResult.
+{
+  const start = '2026-06-01T08:00';
+  const finish = '2026-06-01T16:00';
+  const staleEnd = '2099-01-01T08:00';
+  const noHours: WorkCalendar = { ...PROJECT_CAL, id: 'no-hours-507', hoursPerDay: 0 };
+  const opts = legacyCpmOptions();
+  const freshTask = (calendarId?: string) => task('t507', start, finish, 1, { calendarId });
+  const level = (t: Task, project: WorkCalendar, registry: WorkCalendar[]) =>
+    levelResources([t], [], [res('r507')], [assign('a507', t.id, 'r507', 1)],
+      project, registry, stubCpmResult(staleEnd), LEVEL_OPTS, opts);
+
+  const hourTask = freshTask(noHours.id);
+  hourTask.time.durationUnit = 'hours';
+  hourTask.time.durationMinutes = 480;
+  const elapsedTask = freshTask(noHours.id);
+  elapsedTask.time.durationType = 'ELAPSEDTIME';
+  for (const [label, t, project, cal, code] of [
+    ['dagtaak', freshTask(noHours.id), PROJECT_CAL, [noHours], 'taskWithoutWorkHours'],
+    ['urentaak', hourTask, PROJECT_CAL, [noHours], 'hourTaskWithoutWorkHours'],
+    ['kalendertijdtaak', elapsedTask, PROJECT_CAL, [noHours], 'taskWithoutWorkHours'],
+    ['taak erft bandloze projectkalender', freshTask(), noHours, [], 'taskWithoutWorkHours'],
+    ['bandloze projectkalender ondanks geldige eigen taakkalender',
+      freshTask(PROJECT_CAL.id), noHours, [PROJECT_CAL], 'noWorkingHours'],
+  ] as const) {
+    eq(`507 ${label}: fout vóór kandidaatselectie`,
+      new CPMSolver([t], [], project, [...cal], opts).solve().error?.code, code);
+    eq(`507 ${label}: leeg nivelleervoorstel met ongewijzigde referentie`,
+      level(t, project, [...cal]), {
+        delays: {}, delayMinutes: {}, unresolved: {}, unresolvedReasons: {}, shifts: {},
+        projectEndBefore: staleEnd, projectEndAfter: staleEnd, gaps: {},
+      });
+  }
+
+  const consistent = freshTask(PROJECT_CAL.id);
+  eq('507 controle: geldige kalender levert wel een proefberekening',
+    level(consistent, PROJECT_CAL, [PROJECT_CAL]).projectEndAfter, finish);
+
+  // Directe aanroep met inconsistente data, GEEN geldige store-invoer: daar wordt de projectcache
+  // op de bibliotheek gesynchroniseerd. CPM gebruikt zijn reeds gecachte projectengine voor
+  // deze id; de nivelleerder resolveert de expliciete taakverwijzing opnieuw via de bibliotheek.
+  const sameIdNoHours = { ...noHours, id: PROJECT_CAL.id };
+  const direct = freshTask(PROJECT_CAL.id);
+  eq('507 directe aanroep: de baseline accepteert een conflicterende kalender met dezelfde id',
+    new CPMSolver([direct], [], PROJECT_CAL, [sameIdNoHours], opts).solve().error?.code, undefined);
+  eq('507 directe aanroep: de taakengine van de nivelleerder heeft toch geen werkblokken',
+    createTaskEngineCache([sameIdNoHours], PROJECT_CAL).forTask(direct).isHourMode, false);
+  eq('507 directe aanroep: de nivelleerder passeert de baseline-stop en doet een proefberekening',
+    level(direct, PROJECT_CAL, [sameIdNoHours]).projectEndAfter, finish);
+  console.log('::notice title=Knownbug 507::Vijf baseline-stops en een synthetische directe aanroep met conflicterende kalender-id gecontroleerd');
+}
 
 // ── Uitkomst ──────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
