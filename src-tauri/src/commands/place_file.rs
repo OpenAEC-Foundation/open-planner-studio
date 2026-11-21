@@ -2264,6 +2264,69 @@ mod tests {
         }
     }
 
+    // Knownbug 1762 (#804, T5 van de technisch beslisser, 20 november 2026): buiten de thuismap geeft de planner de map
+    // van het bestand vrij met de mapkiezer van plugin-dialog, en die doet `allow_directory(map, false)`
+    // (`tauri-plugin-dialog-2.7.0/src/commands.rs:152-181`; `recursive` staat standaard uit). Daarna laten dit commando
+    // en plugin-fs `exists` (de toets van de app vóór en na de mapkiezer, `replaceFolderAccess.ts`) de hulpnamen en de
+    // kopieën in die map toe, en niets in een submap: de vervanging blijft in de map van het doel. Alleen paden, geen
+    // bestanden: de scope toetst een pad dat niet bestaat via de dichtstbijzijnde bestaande map.
+    #[test]
+    fn place_file_mapkiezer_geeft_de_map_niet_recursief_vrij() {
+        use serde_json::json;
+        use tauri_plugin_fs::FsExt;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
+        #[cfg(unix)]
+        let map = PathBuf::from(format!("/ops-place-file-map-{}", std::process::id()));
+        #[cfg(windows)]
+        let map = PathBuf::from(format!(r"C:\ops-place-file-map-{}", std::process::id()));
+        assert!(!map.exists(), "de map bestaat niet: {map:?}");
+        let namen = [
+            DOEL,
+            TMP,
+            "save-mhx1q2k9ab3.ops-vorige-mhx1q2k9ab3",
+            "doel (versie van ander programma 2026-11-21 14.32).ifc",
+            "doel (niet opgeslagen planning 2026-11-21 14.32).ifc",
+        ];
+        let geweigerd = |pad: &Path| {
+            matches!(
+                ipc(&window, "plugin:fs|exists", json!({ "path": text(pad) })),
+                Err(serde_json::Value::String(fout)) if fout.contains("forbidden path")
+            )
+        };
+        for naam in namen {
+            assert!(!scope.allows(&map.join(naam)), "vóór de mapkiezer: {naam}");
+        }
+        assert!(
+            geweigerd(&map.join(TMP)),
+            "vóór de mapkiezer weigert plugin-fs exists de hulpnaam"
+        );
+
+        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
+        runtime.allow_directory(&map, false).unwrap();
+        for naam in namen {
+            assert!(scope.allows(&map.join(naam)), "na de mapkiezer: {naam}");
+        }
+        assert_eq!(
+            ipc(
+                &window,
+                "plugin:fs|exists",
+                json!({ "path": text(&map.join(TMP)) })
+            ),
+            Ok(serde_json::Value::Bool(false)),
+            "na de mapkiezer neemt plugin-fs exists de hulpnaam aan"
+        );
+        let sub = map.join("submap");
+        for naam in [DOEL, TMP] {
+            assert!(!scope.allows(&sub.join(naam)), "in een submap: {naam}");
+        }
+        assert!(
+            geweigerd(&sub.join(TMP)),
+            "plugin-fs exists weigert een hulpnaam in een submap"
+        );
+    }
+
     // De struikeldraad van #975 omgekeerd (knownbug 1797): `fs:default` van tauri-plugin-fs 2.7.1 verbiedt
     // nu zelf wat eronder ligt (`map/x`, en op Linux de twee bestanden), ook zonder het eigen verbod van
     // de app. De map zelf dekt het niet: daarvoor blijft de capability van de app nodig
