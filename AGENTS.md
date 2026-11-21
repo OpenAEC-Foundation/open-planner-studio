@@ -472,12 +472,17 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
   is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
   `YieldingTurn.pass()`, once recovery is recorded); an export pins its document at the call and waits for a round past
-  that boundary (`whenProjectFilePlacementSettled`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a
-  round yield: it waits its turn and writes right after the model round, so a model round always gets its turn. The
-  write coordinator is the one place that assigns these turns. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
-  nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
-  Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
-  a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
+  that boundary (the claim's `placement`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a round
+  yield, so a model round always gets its turn. The write coordinator is the one place that decides turns and admission
+  (knownbug 1939): one queue in arrival order, as on main, so a manual action does not go before waiting plain timer
+  work (knownbug 1937 stays open: with two tabs on the same file it would let one tab's Auto-save silently overwrite the
+  other's manual save). Every Auto-save pass (one list plus its writes) runs through `runAutoSaveRound`, which builds no
+  list while a manual action is queued or running (a pass already waiting for its place still runs); a plain pass keeps
+  its place behind a model round, builds its list only at its turn and then holds the slot until its first write, so
+  the plain file is at most one model round late and later arrivals still come after it. On yielding, the worker stops
+  that one job (`IfcOutputCompute`'s `stop` signal), nothing is written or left behind, no notice, the document stays
+  dirty, and the round returns after the next rest. Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight
+  anchor of a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
   changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
   stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
   picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.

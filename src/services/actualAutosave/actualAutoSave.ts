@@ -42,10 +42,13 @@ export interface ActualAutoSaveController {
  * een totaal andere backend en blijft dus zowel semantisch als technisch onafhankelijk.
  *
  * Eén controller verwerkt kandidaten serieel. Kandidaten worden pas aan het begin van iedere
- * ronde opgehaald; een mutatie tijdens een write ziet daardoor altijd een verse tweede ronde.
+ * doorgang opgehaald; een mutatie tijdens een write ziet daardoor altijd een verse tweede doorgang.
  * #804 stap 6: voorbereiden, schrijven en vastleggen horen bij één schrijfbeurt (`write`), zoals bij Ctrl+S.
  */
 export function createActualAutoSaveController(deps: {
+  /** Knownbug 1939: elke doorgang (één lijst plus haar writes, ook een herhaalronde) loopt via de schrijfcoördinatie
+   *  (`runAutoSaveRound`). Die beslist of de doorgang loopt en wanneer ze haar lijst maakt. */
+  round: (pass: () => Promise<void>) => Promise<void>;
   listCandidates: () => ActualAutoSaveCandidate[];
   /** Zonder permissieprompt nagaan of een bestaand doel nog schrijfbaar is. */
   canWrite: (ref: FileRef) => Promise<boolean>;
@@ -70,29 +73,31 @@ export function createActualAutoSaveController(deps: {
     let staleRounds = 0;
     do {
       pending = false;
-      for (const candidate of deps.listCandidates()) {
-        if (!candidate.enabled || !candidate.dirty || !candidate.ref) continue;
-        try {
-          if (!await deps.canWrite(candidate.ref)) continue;
-          const written = await deps.write(candidate);
-          if (written === 'refused' || written === 'yielded') {
-            // Geweigerd doel of geweken voor een handmatige actie: geen write, geen "opgeslagen", geen tweede melding.
-            continue;
+      await deps.round(async () => {
+        for (const candidate of deps.listCandidates()) {
+          if (!candidate.enabled || !candidate.dirty || !candidate.ref) continue;
+          try {
+            if (!await deps.canWrite(candidate.ref)) continue;
+            const written = await deps.write(candidate);
+            if (written === 'refused' || written === 'yielded') {
+              // Geweigerd doel of geweken voor een handmatige actie: geen write, geen "opgeslagen", geen tweede melding.
+              continue;
+            }
+            if (written === 'stale') {
+              // De bron veranderde terwijl we op een eerdere write of `canWrite` wachtten: dat is
+              // geen onschrijfbaar bestand (audit 2026-09-26 — het gaf een valse foutmelding), maar
+              // een reden voor nog een ronde met de actuele inhoud.
+              if (staleRounds++ < 3) pending = true;
+            } else if (!written) {
+              // Geen stille "opgeslagen"-indruk bij een verdwenen/vergrendeld doel. De UI-laag
+              // dedupliceert deze fout, zodat een aanhoudend probleem geen notificatiestorm wordt.
+              deps.onFailure(candidate, new AutoSaveTargetUnavailableError());
+            }
+          } catch (error) {
+            deps.onFailure(candidate, error);
           }
-          if (written === 'stale') {
-            // De bron veranderde terwijl we op een eerdere write of `canWrite` wachtten: dat is
-            // geen onschrijfbaar bestand (audit 2026-09-26 — het gaf een valse foutmelding), maar
-            // een reden voor nog een ronde met de actuele inhoud.
-            if (staleRounds++ < 3) pending = true;
-          } else if (!written) {
-            // Geen stille "opgeslagen"-indruk bij een verdwenen/vergrendeld doel. De UI-laag
-            // dedupliceert deze fout, zodat een aanhoudend probleem geen notificatiestorm wordt.
-            deps.onFailure(candidate, new AutoSaveTargetUnavailableError());
-          }
-        } catch (error) {
-          deps.onFailure(candidate, error);
         }
-      }
+      });
     } while (pending);
   };
 

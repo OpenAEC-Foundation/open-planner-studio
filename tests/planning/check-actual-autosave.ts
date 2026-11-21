@@ -1,13 +1,12 @@
 // Contract voor echt automatisch opslaan. Deze test gebruikt geen browser- of Tauri-I/O:
 // de controller krijgt die randen geïnjecteerd, zodat timing, single-flight en de dirty-race
 // deterministisch bewaakt blijven.
-import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
+import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate, type ActualAutoSaveWrite } from '@/services/actualAutosave/actualAutoSave';
 import { useAppStore } from '@/state/appStore';
 import { freshPayload } from '@/state/documentContract';
 import {
-  claimProjectFileWrite, closeProjectFileWrites, isManualProjectFileWriteQueued, isProjectFileWriteBusy, runAutoSaveTickWrite,
-  runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFilePlacementSettled, whenProjectFileWritesIdle,
-  YieldedToManualWrite,
+  claimProjectFileWrite, closeProjectFileWrites, isProjectFileWriteBusy, runAutoSaveRound, runAutoSaveTickWrite,
+  runProjectFileWrite, runYieldingProjectFileWrite, whenProjectFileWritesIdle, YieldedToManualWrite,
 } from '@/services/fileAccess/writeCoordinator';
 import {
   createModelAutoSaveRhythm, MODEL_AUTOSAVE_DUTY_FACTOR, MODEL_AUTOSAVE_MAX_DELAY_MS, MODEL_AUTOSAVE_REST_MS,
@@ -29,7 +28,10 @@ let failures: string[] = [];
 let releaseWrite: (() => void) | null = null;
 let blockWrites = false;
 
+/** De unitproeven van de controller zonder schrijfcoördinatie: elke doorgang loopt meteen. */
+const passThrough = (pass: () => Promise<void>) => pass();
 const controller = createActualAutoSaveController({
+  round: passThrough,
   listCandidates: () => candidates,
   canWrite: async () => true,
   // #804 stap 6: `write` is de hele ronde (voorbereiden, schrijven, vastleggen); de inhoud volgt uit de bron.
@@ -77,6 +79,7 @@ eq('5 dirty-race laat de nieuwe versie pas na zijn eigen write schoon markeren',
 // Een fout gaat via de ene aanroeper terug; een volgende kandidaat mag niet stil worden overgeslagen.
 writes = []; marked = []; failures = [];
 const failing = createActualAutoSaveController({
+  round: passThrough,
   listCandidates: () => [
     { id: 'kapot', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/kapot.ifc' }, source: source(1) },
     { id: 'goed', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/goed.ifc' }, source: source(1) },
@@ -92,6 +95,7 @@ truthy('8 controller houdt geen stille, onafgehandelde write vast', !controller.
 
 failures = [];
 const unavailable = createActualAutoSaveController({
+  round: passThrough,
   listCandidates: () => [{ id: 'weg', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/weg.ifc' }, source: source(1) }],
   canWrite: async () => true, write: async () => false,
   onFailure: (c, e) => {
@@ -146,6 +150,7 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   const staleMarked: string[] = [];
   let staleAnswers = 1;
   const staleController = createActualAutoSaveController({
+    round: passThrough,
     listCandidates: () => [{ id: 'd', content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: '/d.ifc' }, source: source(version) }],
     canWrite: async () => true,
     write: async candidate => {
@@ -302,9 +307,25 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   truthy('20g de rij is daarna weer vrij', !isProjectFileWriteBusy());
 }
 
+/** Laat de coördinator nu een doorgang van Automatisch opslaan toe, dus maakt ze haar lijst (knownbug 1939)? De toelating
+ *  is voor de gewone doorgang en de modeldoorgang dezelfde; een modeldoorgang wacht niet op een plek in de rij. */
+const admitted = async () => {
+  let listed = false;
+  await runAutoSaveRound('model', async () => { listed = true; });
+  return listed;
+};
+/** Een gewone tik zoals in productie: zijn write binnen een gewone doorgang (`runAutoSaveRound`). `listed` loopt waar de
+ *  doorgang haar lijst maakt. Geeft de uitkomst van de write. */
+const plainTick = async <T>(work: () => Promise<T>, closed: () => T, listed?: () => void): Promise<T | undefined> => {
+  let result: T | undefined;
+  await runAutoSaveRound('tick', async () => { listed?.(); result = await runAutoSaveTickWrite(work, closed); });
+  return result;
+};
+
 // 21. De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033): een gewone tik wacht achter een
 //     modelronde en laat haar niet wijken; een handmatige actie wel. Na `pass()` plaatst de ronde en wacht een IFC-export
-//     op haar (`whenProjectFilePlacementSettled`); een claim vóór de grens laat de ronde wijken (`pass()` geeft false).
+//     op haar (de plaatsing in zijn claim, `claimProjectFileWrite().placement`); een claim vóór de grens laat de ronde
+//     wijken (`pass()` geeft false).
 {
   const order: string[] = [];
   let toBoundary: (() => void) | null = null;
@@ -321,16 +342,18 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
     return 'geschreven';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  eq('21a een rekenende modelronde: de rij is bezet, geen handmatige actie, nog geen plaatsing',
-    [isProjectFileWriteBusy(), isManualProjectFileWriteQueued(), whenProjectFilePlacementSettled()], [true, false, null]);
-  const tick = runAutoSaveTickWrite(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
+  eq('21a een rekenende modelronde: de rij is bezet, Automatisch opslaan maakt zijn lijst',
+    [isProjectFileWriteBusy(), await admitted()], [true, true]);
+  const tick = plainTick(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  eq('21b een gewone tik laat de modelronde niet wijken en wacht', [aborted, order, isManualProjectFileWriteQueued()],
-    [false, ['model-start'], false]);
+  eq('21b een gewone tik laat de modelronde niet wijken en wacht', [aborted, order, await admitted()],
+    [false, ['model-start'], true]);
   (toBoundary as (() => void) | null)?.();
   await Promise.resolve(); await Promise.resolve();
-  const settled = whenProjectFilePlacementSettled();
-  eq('21c na de grens plaatst de ronde', [passed, settled !== null], [true, true]);
+  // Een claim na de grens laat de ronde niet meer wijken; hij krijgt haar plaatsing mee.
+  const exportClaim = claimProjectFileWrite();
+  const settled = exportClaim.placement;
+  eq('21c na de grens plaatst de ronde; de claim krijgt die plaatsing', [passed, settled instanceof Promise, aborted], [true, true, false]);
   let placementDone = false;
   void settled?.then(() => { placementDone = true; });
   await Promise.resolve();
@@ -338,7 +361,10 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
   (afterPass as (() => void) | null)?.();
   eq('21e de ronde schrijft, daarna direct de tik', [await round, await tick, order, await settled?.then(() => placementDone)],
     ['geschreven', 'ok', ['model-start', 'model-klaar', 'tik'], true]);
-  eq('21f en de rij is weer vrij', [isProjectFileWriteBusy(), whenProjectFilePlacementSettled()], [false, null]);
+  exportClaim.release();
+  const later = claimProjectFileWrite();
+  later.release();
+  eq('21f en de rij is weer vrij, zonder plaatsing', [isProjectFileWriteBusy(), later.placement === null], [false, true]);
   // Een claim (de export) vóór de grens: de ronde wijkt bij `pass()`.
   let reach: (() => void) | null = null;
   let passedAfterClaim: boolean | null = null;
@@ -348,19 +374,277 @@ eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWrite
     return passedAfterClaim ? 'geschreven' : 'yielded';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  const release = claimProjectFileWrite();
+  const claim = claimProjectFileWrite();
   (reach as (() => void) | null)?.();
-  eq('21g een claim vóór de grens laat de ronde wijken', [await claimed, passedAfterClaim, whenProjectFilePlacementSettled()],
-    ['yielded', false, null]);
-  release();
+  eq('21g een claim vóór de grens laat de ronde wijken; geen plaatsing', [await claimed, passedAfterClaim, claim.placement === null],
+    ['yielded', false, true]);
+  claim.release();
   // Een handmatige actie in de rij: Automatisch opslaan kiest deze keer geen kandidaten.
   let finishManual: (() => void) | null = null;
   const manualWrite = runProjectFileWrite(async () => { await new Promise<void>(resolve => { finishManual = resolve; }); return 'ok'; },
     () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  truthy('21h een handmatige actie staat in de rij', isManualProjectFileWriteQueued());
+  eq('21h een handmatige actie in de rij: Automatisch opslaan maakt geen lijst', await admitted(), false);
   (finishManual as (() => void) | null)?.();
-  eq('21i en daarna niet meer', [await manualWrite, isManualProjectFileWriteQueued()], ['ok', false]);
+  eq('21i daarna weer wel', [await manualWrite, await admitted()], ['ok', true]);
+}
+
+// 22. Knownbug 1939 en fixronde 2 van de review van #1093: de coördinator beslist over volgorde en toelating van
+//     timerwerk. Eén rij op aankomst, zoals main: wie eerder om de rij vroeg, gaat eerder, ook een gewone doorgang die op
+//     haar plek wacht (knownbug 1937 blijft daarom open); een begonnen beurt loopt af.
+{
+  const order: string[] = [];
+  let finishModel: (() => void) | null = null;
+  const model = runYieldingProjectFileWrite(async turn => {
+    // Na de grens: de ronde plaatst en wijkt niet meer.
+    turn.pass();
+    await new Promise<void>(resolve => { finishModel = resolve; });
+    order.push('model');
+    return 'geschreven';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const tick = plainTick(async () => { order.push('tik'); return 'ok'; }, () => 'dicht', () => order.push('lijst'));
+  await Promise.resolve();
+  const manualAfter = runProjectFileWrite(async () => { order.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve();
+  (finishModel as (() => void) | null)?.();
+  // Twee meetpunten: de lijst en de write van de doorgang komen allebei vóór de handmatige actie die later kwam.
+  eq('22a de doorgang die op haar plek wacht, maakt haar lijst en schrijft vóór een latere handmatige actie',
+    [await model, await manualAfter, await tick, order], ['geschreven', 'ok', 'ok', ['model', 'lijst', 'tik', 'handmatig']]);
+  // Een tik die al loopt, wordt niet onderbroken: de handmatige actie wacht erop (zoals main, knownbug 1904).
+  const started: string[] = [];
+  let finishTick: (() => void) | null = null;
+  const running = plainTick(async () => {
+    started.push('tik-start');
+    await new Promise<void>(resolve => { finishTick = resolve; });
+    started.push('tik-eind');
+    return 'ok';
+  }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  const waiting = runProjectFileWrite(async () => { started.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await Promise.resolve(); await Promise.resolve();
+  eq('22b een begonnen tik loopt af; de handmatige actie wacht', started, ['tik-start']);
+  (finishTick as (() => void) | null)?.();
+  eq('22b daarna de handmatige actie', [await running, await waiting, started], ['ok', 'ok', ['tik-start', 'tik-eind', 'handmatig']]);
+  truthy('22b de rij is daarna weer vrij', !isProjectFileWriteBusy());
+}
+
+// 22c–22i. Knownbug 1938/1939: elke doorgang van de controller (één lijst plus haar writes) loopt via de coördinator
+//     (`runAutoSaveRound`). Een gewone doorgang krijgt een plek in de rij, op volgorde van aankomst, maakt haar lijst pas
+//     als die plek aan de beurt is, en houdt zolang ze loopt modelbeurten tegen; een handmatige actie mag ertussen, op
+//     volgorde van aankomst met haar writes. De toelating geldt per doorgang, ook bij een herhaalronde.
+{
+  const turns = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve)); };
+  const candidate = (id: string, version = 1): ActualAutoSaveCandidate =>
+    ({ id, content: 0, enabled: true, dirty: true, ref: { kind: 'path', path: `/${id}.ifc` }, source: source(version) });
+  const tickRound = (pass: () => Promise<void>) => runAutoSaveRound('tick', pass);
+  const versionOf = (c: ActualAutoSaveCandidate) => (c.source as unknown as { project: { version: number } }).project.version;
+
+  // 22c. De doorgang is open: haar eerste write is klaar, haar schrijftoestemming voor de tweede kandidaat wacht nog, en er
+  //      wacht een modelbeurt. De tweede write komt vóór het model.
+  const order: string[] = [];
+  let allowSecond: (() => void) | null = null;
+  const open = createActualAutoSaveController({
+    round: tickRound,
+    listCandidates: () => [candidate('a'), candidate('b')],
+    canWrite: async ref => {
+      if (ref.kind === 'path' && ref.path === '/b.ifc') await new Promise<void>(resolve => { allowSecond = resolve; });
+      return true;
+    },
+    write: c => runAutoSaveTickWrite<ActualAutoSaveWrite>(async () => { order.push(c.id); return true; }, () => 'refused'),
+    onFailure: () => {},
+  });
+  const openFlush = open.flush();
+  await turns();
+  const model = runYieldingProjectFileWrite(async () => { order.push('model'); return 'ok'; }, () => 'dicht');
+  await turns();
+  eq('22c terwijl de doorgang op haar tweede toestemming wacht, begint het model niet', order, ['a']);
+  (allowSecond as (() => void) | null)?.();
+  await openFlush;
+  eq('22c de tweede write komt vóór het model', [await model, order], ['ok', ['a', 'b', 'model']]);
+
+  // 22d. Een doorgang die achter een modelronde wacht, maakt haar lijst pas als ze aan de beurt is: de planner typte
+  //      intussen, dus ze schrijft de actuele versie, niet die van het moment van aanvragen.
+  let version = 1;
+  const written: string[] = [];
+  let finishModel: (() => void) | null = null;
+  const placing = runYieldingProjectFileWrite(async turn => {
+    turn.pass();
+    await new Promise<void>(resolve => { finishModel = resolve; });
+    return 'ok';
+  }, () => 'dicht');
+  await turns();
+  const waiting = createActualAutoSaveController({
+    round: tickRound,
+    listCandidates: () => [candidate('d', version)],
+    canWrite: async () => true,
+    write: c => runAutoSaveTickWrite<ActualAutoSaveWrite>(async () => { written.push(`ifc-${versionOf(c)}`); return true; }, () => 'refused'),
+    onFailure: () => {},
+  });
+  const waitingFlush = waiting.flush();
+  await turns();
+  version = 2;
+  (finishModel as (() => void) | null)?.();
+  await placing;
+  await waitingFlush;
+  eq('22d de doorgang maakt haar lijst bij haar beurt', written, ['ifc-2']);
+
+  // 22e. Toelating per herhaalronde: terwijl een doorgang schrijft, komt een tik (die zet `pending`) en daarna een
+  //      handmatige actie in de rij. De herhaalronde maakt dan geen lijst, zoals vóór stap 8 met een bezette rij.
+  let lists = 0;
+  let finishWrite: (() => void) | null = null;
+  let finishManual: (() => void) | null = null;
+  const repeat = createActualAutoSaveController({
+    round: tickRound,
+    listCandidates: () => { lists++; return [candidate('e')]; },
+    canWrite: async () => true,
+    write: () => runAutoSaveTickWrite<ActualAutoSaveWrite>(async () => {
+      if (lists === 1) await new Promise<void>(resolve => { finishWrite = resolve; });
+      return true;
+    }, () => 'refused'),
+    onFailure: () => {},
+  });
+  const firstFlush = repeat.flush();
+  await turns();
+  const secondFlush = repeat.flush();
+  const manualWrite = runProjectFileWrite(async () => {
+    await new Promise<void>(resolve => { finishManual = resolve; });
+    return 'ok';
+  }, () => 'dicht');
+  await turns();
+  (finishWrite as (() => void) | null)?.();
+  await turns();
+  eq('22e de herhaalronde maakt geen lijst terwijl een handmatige actie in de rij staat', lists, 1);
+  (finishManual as (() => void) | null)?.();
+  await manualWrite; await firstFlush; await secondFlush;
+  eq('22e ook niet later in dezelfde run', [lists, isProjectFileWriteBusy()], [1, false]);
+
+  // 22f. Knownbug 1813: een schrijftoestemming die blijft hangen binnen een open gewone doorgang houdt modelbeurten tegen,
+  //      maar geen handmatige actie en niet het afsluiten (de doorgang kreeg haar plek meteen en houdt niets vast): een
+  //      handmatige actie laat de modelronde wijken, en een geweken modelronde maakt haar beurt af zonder te schrijven,
+  //      op haar plek in de rij (ze stond er eerder dan de handmatige actie).
+  let releaseHang: (() => void) | null = null;
+  const events: string[] = [];
+  const hanging = createActualAutoSaveController({
+    round: tickRound,
+    listCandidates: () => [candidate('h')],
+    canWrite: () => new Promise<boolean>(resolve => { releaseHang = () => resolve(true); }),
+    write: c => runAutoSaveTickWrite<ActualAutoSaveWrite>(async () => { events.push(`tik ${c.id}`); return true; }, () => 'refused'),
+    onFailure: () => {},
+  });
+  const hangingFlush = hanging.flush();
+  await turns();
+  const modelRound = () => runYieldingProjectFileWrite(async ({ yielded }) => {
+    events.push(yielded.aborted ? 'model geweken' : 'model schrijft');
+    return yielded.aborted ? 'yielded' : 'ok';
+  }, () => 'dicht');
+  const blocked = modelRound();
+  await turns();
+  eq('22f de modelronde wacht op de open doorgang', events, []);
+  eq('22f een handmatige actie loopt ondanks de hangende vraag',
+    await runProjectFileWrite(async () => { events.push('handmatig'); return 'ok'; }, () => 'dicht'), 'ok');
+  eq('22f de modelronde week en maakte haar beurt af, vóór de handmatige actie die later kwam', [await blocked, events],
+    ['yielded', ['model geweken', 'handmatig']]);
+  const blockedAgain = modelRound();
+  await turns();
+  const reopen = await closeProjectFileWrites();
+  eq('22f de laatste fase van afsluiten wacht niet op de hangende vraag', [await blockedAgain, events.at(-1)],
+    ['yielded', 'model geweken']);
+  (releaseHang as (() => void) | null)?.();
+  await hangingFlush;
+  reopen();
+  eq('22f na het begin van de laatste fase schrijft de doorgang niets', [events.includes('tik h'), isProjectFileWriteBusy()],
+    [false, false]);
+
+  // 22g. Fixronde 1 van de review van #1093: een write die al om het slot vroeg, houdt zijn plek. Handmatige acties en de
+  //      writes van de open gewone doorgang delen één rij, op volgorde van aankomst: een handmatige actie die er al stond,
+  //      gaat vóór een write die later komt, en een write die al wacht, gaat vóór een handmatige actie die later komt.
+  const arrival: string[] = [];
+  let finishFirst: (() => void) | null = null;
+  let finishEarlier: (() => void) | null = null;
+  let secondAsked = false;
+  const pass = runAutoSaveRound('tick', async () => {
+    await runAutoSaveTickWrite(async () => {
+      arrival.push('write 1');
+      await new Promise<void>(resolve => { finishFirst = resolve; });
+      return 'ok';
+    }, () => 'dicht');
+    secondAsked = true;
+    await runAutoSaveTickWrite(async () => { arrival.push('write 2'); return 'ok'; }, () => 'dicht');
+  });
+  await turns();
+  const manualFirst = runProjectFileWrite(async () => {
+    arrival.push('handmatig 1');
+    await new Promise<void>(resolve => { finishEarlier = resolve; });
+    return 'ok';
+  }, () => 'dicht');
+  (finishFirst as (() => void) | null)?.();
+  await turns();
+  eq('22g de handmatige actie die er al stond, gaat vóór de write die later komt', [arrival, secondAsked],
+    [['write 1', 'handmatig 1'], true]);
+  const manualLater = runProjectFileWrite(async () => { arrival.push('handmatig 2'); return 'ok'; }, () => 'dicht');
+  (finishEarlier as (() => void) | null)?.();
+  await Promise.all([pass, manualFirst, manualLater]);
+  eq('22g de write die al wachtte, gaat vóór de handmatige actie die later komt', [arrival, isProjectFileWriteBusy()],
+    [['write 1', 'handmatig 1', 'write 2', 'handmatig 2'], false]);
+
+  // 22h. Fixronde 2 van de review van #1093: de toelating zoals main. Een doorgang die al op haar plek wachtte toen een
+  //      handmatige actie kwam, loopt (op main stond die tik al in de rij); een doorgang die pas om de rij vraagt terwijl
+  //      een handmatige actie in de rij staat, maakt geen lijst.
+  const admission: string[] = [];
+  let finishPlacing: (() => void) | null = null;
+  const placingModel = runYieldingProjectFileWrite(async turn => {
+    turn.pass();
+    await new Promise<void>(resolve => { finishPlacing = resolve; });
+    admission.push('model');
+    return 'ok';
+  }, () => 'dicht');
+  await turns();
+  const waitingPass = runAutoSaveRound('tick', async () => { admission.push('lijst die wachtte'); });
+  await turns();
+  const queuedManual = runProjectFileWrite(async () => { admission.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await runAutoSaveRound('tick', async () => { admission.push('lijst die later vroeg'); });
+  eq('22h een doorgang die pas vraagt terwijl een handmatige actie in de rij staat, maakt geen lijst', admission, []);
+  (finishPlacing as (() => void) | null)?.();
+  await Promise.all([placingModel, waitingPass, queuedManual]);
+  eq('22h de doorgang die al op haar plek wachtte, maakt haar lijst, vóór de handmatige actie', admission,
+    ['model', 'lijst die wachtte', 'handmatig']);
+
+  // 22i. Een doorgang die op haar plek moest wachten, houdt bij haar beurt het slot vast tot haar eerste write: wat na haar
+  //      om de rij vroeg, komt na die write. Blijft haar schrijftoestemming hangen, dan wacht de laatste fase van afsluiten
+  //      daar niet op (knownbug 1813): de plek valt weg, de al toegelaten handmatige actie loopt af en de doorgang schrijft
+  //      niets.
+  const held: string[] = [];
+  let finishHeldModel: (() => void) | null = null;
+  let releaseHeld: (() => void) | null = null;
+  const heldModel = runYieldingProjectFileWrite(async turn => {
+    turn.pass();
+    await new Promise<void>(resolve => { finishHeldModel = resolve; });
+    return 'ok';
+  }, () => 'dicht');
+  await turns();
+  const holding = createActualAutoSaveController({
+    round: tickRound,
+    listCandidates: () => [candidate('v')],
+    canWrite: () => new Promise<boolean>(resolve => { releaseHeld = () => resolve(true); }),
+    write: c => runAutoSaveTickWrite<ActualAutoSaveWrite>(async () => { held.push(`tik ${c.id}`); return true; }, () => 'refused'),
+    onFailure: () => {},
+  });
+  const holdingFlush = holding.flush();
+  await turns();
+  const heldManual = runProjectFileWrite(async () => { held.push('handmatig'); return 'ok'; }, () => 'dicht');
+  (finishHeldModel as (() => void) | null)?.();
+  await heldModel;
+  await turns();
+  eq('22i de handmatige actie wacht op de eerste write van de doorgang die haar plek kreeg', [held, isProjectFileWriteBusy()],
+    [[], true]);
+  const closingReopen = await closeProjectFileWrites();
+  eq('22i de laatste fase van afsluiten wacht niet op de hangende vraag; de toegelaten handmatige actie liep af',
+    [await heldManual, held], ['ok', ['handmatig']]);
+  (releaseHeld as (() => void) | null)?.();
+  await holdingFlush;
+  closingReopen();
+  eq('22i de doorgang schreef niets', [held, isProjectFileWriteBusy()], [['handmatig'], false]);
 }
 
 if (diffs.length === 0) {

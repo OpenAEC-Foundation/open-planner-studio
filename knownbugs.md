@@ -3088,7 +3088,13 @@ en noem het in je rapport of PR-tekst.
      staat zichtbaar: de aanduiding gaat er niet overheen (`SavingBeforeCloseNotice`). De native opslaan-dialoog staat
      als eigen venster bovenop; of `CloseRequested` op Windows, macOS en Linux überhaupt binnenkomt terwijl die open
      is, is niet nagegaan. De updater toont tijdens het wachten "Installatie voorbereiden…" met een draaiend teken en
-     geen eigen aanduiding.
+     geen eigen aanduiding. Sinds knownbug 1939 houdt een schrijftoestemming die blijft hangen (`canWrite`, in de
+     browser `queryPermission`) binnen een open gewone doorgang van Automatisch opslaan ook de rondes met een
+     gebouwmodel tegen; een handmatige actie en het afsluiten niet (wie voorgaat, laat de modelronde wijken, en een
+     geweken modelronde maakt haar beurt af zonder te schrijven; `check-actual-autosave.ts` 22f). Moest die doorgang
+     eerst achter een modelronde op haar plek wachten, dan houdt ze bij haar beurt het slot vast tot haar eerste write
+     (zoals op main de tik die zijn write al had aangevraagd): blijft haar schrijftoestemming dan hangen, dan wachten een
+     latere handmatige actie en het sluiten van een tabblad mee; de laatste fase van afsluiten en de updater niet (22i).
      Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
      tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
 1814. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
@@ -4155,26 +4161,15 @@ en noem het in je rapport of PR-tekst.
       af, waarna de volgorde van aankomst de nog wachtende gewone tik voorlaat. Ook main wacht als een gewone write al
       loopt (knownbug 1904). Geef de handmatige actie als volgende de beurt vóór wachtend timerwerk. Laat een al
       begonnen gewone write of plaatsing veilig aflopen." (`writeCoordinator.ts`.) Besluit technisch beslisser: VERVOLG,
-      er gaat niets verloren en het is een zeldzame volgorde; verdwijnt met 1939. — B (proef van de reviewer)
-
-1938. **VERVOLG (review #1033, ronde 4): doortypen kan de gewone tik achter een tweede modelronde zetten.** "Twee
-      gewijzigde modellen kwamen op 30 s aan de beurt. De eerste modelronde liep tot 49 s. Ik bewerkte intussen de
-      gewone planning vóór en na haar tik van 40 s. Toen die tik op 49 s aan de beurt kwam, wees de bronvergelijking de
-      kandidaat van 40 s terecht af. De herkeuze ging achter het tweede model, dat ook 19 s rekende. Het gewone bestand
-      schreef pas op 68 s, 28 s na de eerste verschuldigde tik. Dit is een verschuiving van punt 2 uit ronde 3 en zit in
-      de structuur. De rij bewaart een oude kandidaat. Zodra die afvalt, is ook zijn plaats weg. Bewaar één aangevraagde
-      gewone beurt en lees daarbinnen de actuele kandidaat en bestemming. Zo kan verder typen haar plaats niet kosten."
-      (`fileAutoSave.ts`, `actualAutoSave.ts`.) Besluit technisch beslisser: VERVOLG, er gaat niets verloren en het is
-      een zeldzame volgorde; verdwijnt met 1939. — B (proef van de reviewer)
-
-1939. **VERVOLG (review #1033, ronde 4): toelating en voorrang van timerwerk in de coördinator, één samengevouwen gewone
-      aanvraag.** Structuuradvies van de reviewer: "`writeCoordinator.ts` is de enige toewijzer van schrijfbeurten.
-      `fileAutoSave.ts` beslist echter met `isManualProjectFileWriteQueued()` op twee plekken welke tik niet eens om een
-      beurt vraagt. `fileAutoSaveTimers.ts` zet alleen de wekkers. `fileSlice.ts` meldt een export vóór het rekenen aan
-      en wacht zo nodig op de lopende plaatsing. Laat de coördinator ook de toelating en voorrang van timerwerk bepalen.
-      Dan kunnen de twee voorrangstoetsen in de kandidatenlijsten weg. Eén rij met beurttypen, één samengevouwen gewone
-      aanvraag en één lopende plaatsingsbelofte volstaan." Hiermee verdwijnen 1937 en 1938. Regel van de technisch
-      beslisser: **bouwen vóór de featureflag `ifcForeignContent` standaard aan gaat.** — S
+      er gaat niets verloren en het is een zeldzame volgorde. Blijft open sinds #1093 (knownbug 1939): het advies
+      hierboven kan zo niet gebouwd worden zonder een toets op een gedeeld doel. Wie een handmatige actie vóór een
+      wachtende tik zet, laat de automatische opslag van een ander tabblad ná de handmatige opslag komen zodra twee
+      tabbladen hetzelfde bestand als doel hebben (Opslaan als naar het bestand van een ander tabblad in de browser,
+      1893; hetzelfde bestand twee keer geopend, 1957); de handmatig gekozen versie wordt dan stil overschreven (review
+      van #1093, ronde 1 en 2). Het is wachttijd, geen verlies. Besluit technisch beslisser, 21 november 2026: "Wachttijd
+      tegen stil verlies wint verlies." De coördinator houdt één rij op aankomst, zoals main; de klokproef
+      (`check-ifc-document-save.ts`, "1937: …") verwacht wat main doet: Ctrl+S op 45 s, na de tik. — B (proef van de
+      reviewer)
 
 ## Wensen en open taken (geen bug)
 
@@ -5196,6 +5191,18 @@ en noem het in je rapport of PR-tekst.
      anders laten lopen (de richting van 1899). Een nieuwe vraag of melding is een keuze voor de eigenaar. Hetzelfde geldt
      voor *Exporteren*: op de desktop weigert het sinds 1907 een bestand dat in een ander tabblad open staat, in de
      browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. — B (proef)
+
+1957. **Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.** Kiest de planner op de
+     desktop via *Openen* een bestand dat al in een tabblad open staat, dan opent de app het nog eens, in een nieuw
+     tabblad, zonder melding en zonder naar het open tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde
+     pad; slaat de planner het ene op (Ctrl+S of Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg.
+     Dezelfde familie als 1893. Gezien met een proef voor de bestandskiezer op de desktop (`check-ifc-document-save.ts`,
+     "1939 fixronde 2 … twee keer Openen"). Uit de code: Recent (`openRecentFile`), een bestand op het venster slepen
+     (`openDroppedFiles`) en `planner_import_schedule` lopen door dezelfde route (`openOpenedFile` of direct
+     `openAsDocument`), en die kijkt niet of het doel al in een tabblad open staat. In de browser evenmin: een handle uit
+     de kiezer of van een sleep wordt niet met de open tabbladen vergeleken (`isSameEntry` dient alleen om de lijst van
+     Recent te ontdubbelen, `recentFiles.ts`); niet met een proef nagegaan. Voorstel: het tweede Openen wisselt naar het
+     open tabblad. Een keuze voor de eigenaar, samen met 1893. — B (proef, bestandskiezer op de desktop)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
