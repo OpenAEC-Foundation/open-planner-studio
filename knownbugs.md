@@ -3478,20 +3478,13 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
-1800. **Twee gidsen zeggen dat dubbelklik een tabelcel bewerkt; dubbelklik opent het eigenschappenpaneel.**
-      `public/docs/{nl,en}/howto-constraint-deadline-zetten.md:23` en `howto-voortgang-bijwerken.md:44-45`.
-      In de taakgrid selecteert dubbelklik de cel en opent het eigenschappenpaneel
-      (`src/components/task-grid/FullTaskGrid.tsx`, `onCellDoubleClick`); bewerken start met Enter, F2 of typen.
-      Gezien in een browserrun voor #970: na `dblclick` op een keuzelijstcel verscheen geen editor, wel het paneel.
-      Voorstel: "Klik op een cel en druk op Enter (of begin te typen)". Wacht op de productvraag over dubbelklik
-      bij #970: verandert dubbelklik, dan vervalt dit punt. — B
-
-1801. **VERVOLG (#970): Alt+↓ opent een keuzelijstcel niet, zoals het issue vraagt.** Alt+↓ is in de hele app al
-      *Taak omlaag verplaatsen* (`src/hooks/keyboard/shortcutRegistry.ts`, `structure.moveDown`); de grid laat de
-      combinatie daarom door (`src/engine/taskGrid/navigation.ts`, `event.altKey`). Een keuzelijstcel (ja/nee,
-      keuze, code) opent met Enter, F2 of typen. Productkeuze voor de eigenaar: Alt+↓ op een keuzelijstcel de
-      lijst laten openen (dan verplaatst Alt+↓ daar geen taak meer), of zo laten. Uit de review van #974
-      (GPT-6.1-Sol, xhigh, op `badd1cfe9`, VERVOLG). — B
+1800. **VERVOLG (#1118): de vertaalde gidsen beschrijven de dubbelklik in de tabel nog zoals vroeger.**
+      In nl en en is het bijgewerkt: een dubbelklik opent alleen op een keuzelijstcel de lijst, op andere cellen
+      het eigenschappenpaneel. De 26 vertalingen van `howto-voortgang-bijwerken.md`, `howto-constraint-deadline-zetten.md`
+      en `howto-codes-en-velden.md` zeggen nog dat je een cel dubbelklikt om te typen, en bij *Status* dat je na de
+      dubbelklik op Enter drukt (de lijst staat dan al open; Enter kiest de gemarkeerde status). Bijvoorbeeld
+      `public/docs/de/howto-voortgang-bijwerken.md:44`. Meenemen in de volgende gidsvertaalronde; niet met de hand
+      gewijzigd. Uit de review van #1118 (GPT-6.2-Sol, xhigh, op `b4aac19d6`, VERVOLG). — B
 
 1802. **VERVOLG (#974): na een geweigerde Shift+Enter in een keuzelijstcel gaat een latere muiskeuze een rij omhoog.**
       `src/components/task-grid/TaskCellEditor.tsx` (`pickedWithShiftEnterRef`, gezet in `onListKeyDownCapture`)
