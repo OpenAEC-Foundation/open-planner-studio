@@ -386,12 +386,25 @@ async function measureBrowser(name, file, fn = '__meet') {
   }
 }
 
-if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', settled: true, node: process.version, mergeRefusal, results }, null, 2)}\n`);
+// Meet-branch #804 stap 1 (niet voor main): de opslag met en zonder wijziging (`meet-opslag.mjs`), in dezelfde handmatige
+// job; de workflow zelf kan vanaf deze branch niet gewijzigd worden. De uitkomst gaat mee in het resultaatbestand.
+const opslagRuns = opts.opslag ?? (process.env.CI === 'true' ? '3' : undefined);
+let opslag;
+if (opslagRuns !== undefined) {
+  const dir = join(process.env.RUNNER_TEMP || tmpdir(), 'meting-opslag');
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts/proef/meet-opslag.mjs'), `--mb=${sizes.join(',')}`, `--runs=${opslagRuns}`,
+    `--dir=${dir}`, ...(opts['opslag-heap'] ? [`--heap=${opts['opslag-heap']}`] : [])], { stdio: ['ignore', 'inherit', 'inherit'] });
+  try { opslag = JSON.parse(readFileSync(join(dir, 'meting-opslag.json'), 'utf8')); } catch (e) { opslag = { error: `geen resultaat: ${e.message}` }; }
+  opslag.exit = r.status;
+  opslag.signal = r.signal;
+}
+if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', settled: true, node: process.version, mergeRefusal, results, ...(opslag ? { opslag } : {}) }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
 
 // Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
 // dan eindigt het script met een foutcode, zodat de job in CI rood wordt (review van #863, Sol en Terra).
 const failed = [
+  ...(opslag && (opslag.exit !== 0 || opslag.error) ? [`opslag: exit ${opslag.exit}${opslag.error ? `, ${opslag.error}` : ''}`] : []),
   // De weigering moet getypeerd zijn (zie boven).
   ...(String(mergeRefusal.outcome ?? '').startsWith('merge-needs-phase2') ? [] : [`weigering: ${mergeRefusal.error ?? mergeRefusal.outcome ?? 'geen resultaat'}`]),
   ...results.flatMap(row => [
