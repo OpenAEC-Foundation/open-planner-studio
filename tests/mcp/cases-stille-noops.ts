@@ -163,7 +163,9 @@ test('H7: onbekend `country` ⇒ ZACHTE weigering die de geldige verzameling noe
 
   let res: McpToolResult;
   try {
-    res = await call('planner_update_calendar', { calendars: [{ id: calId, generate: { country: 'ES' } }] });
+    // 'XX' is bewust geen landcode (ES is sinds PR #1125 wél geldig en mag hier niet als
+    // "onbekend" voorbeeld dienen — dat maakte deze check rood).
+    res = await call('planner_update_calendar', { calendars: [{ id: calId, generate: { country: 'XX' } }] });
   } catch (e) {
     assert(false, `update_calendar gooide een kale exception: ${e instanceof Error ? e.message : String(e)}`);
     return;
