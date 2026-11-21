@@ -4084,7 +4084,7 @@ en noem het in je rapport of PR-tekst.
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
 
-1958. **VERVOLG (browser, bestaand op main): een IFC-export zonder tabbladwissel vóór de doelcontrole schrijft een wijziging tijdens de write niet en meldt toch succes.**
+1958. **VERVOLG (browser, bestaand op main): een IFC-export waarbij het document bij de doelcontrole vooraan staat, schrijft een wijziging tijdens de write niet en meldt toch succes.**
       Exporteer naar een bestand uit de opslaankiezer van de browser terwijl het document bij de doelcontrole na de
       kiezer vooraan staat, en verander de planning tussen die doelcontrole en `close()` (bijvoorbeeld een taak bewerken
       terwijl de browser schrijft, ook als de planner daarna pas naar een ander tabblad gaat). De export plaatst dan de
@@ -4095,7 +4095,17 @@ en noem het in je rapport of PR-tekst.
       ruilt een export met een paar seconden oud werk in voor een leeg bestand, en de oude inhoud van het doel is in
       beide gevallen al weg. Stond het document bij de doelcontrole niet vooraan (de planner wisselde al vóór die
       controle), dan krijgt de export wel een late controle vlak vóór `close()` en breekt hij in dit geval af (keuze
-      (b), #1097). Ook met de flag uit. Vastgelegd voor beide exports, ook met een wissel ná de doelcontrole. — B (proef)
+      (b), #1097). Ook met de flag uit. Vastgelegd voor beide exports, ook met een wissel ná de doelcontrole. Het geldt
+      ook na heen en terug wisselen vóór de doelcontrole: bepalend is alleen waar het document bij die controle staat
+      (proef van de reviewer van #1097, ronde 3). — B (proef)
+
+2020. **VERVOLG (tekst, review van #1097 ronde 3): twee commentaren beschrijven de late browsercontrole van een IFC-export te ruim.**
+      De inleiding van de browserproeven in `tests/planning/check-ifc-document-save.ts` (rond regel 3047) en het
+      commentaar bij `writeThroughHandle` in `src/services/fileAccess/webBackend.ts` (rond regel 333) zeggen "na de
+      kiezer" of "na een tabbladwissel". De exacte voorwaarde is: het geëxporteerde document stond bij de geslaagde
+      doelcontrole niet vooraan (`exportTargetChecks` in `fileSlice.ts`); dan loopt de inhoudscontrole vlak vóór
+      `close()`. De regels in `.claude/rules/tauri-ifc.md`, 1899 en 1958 zeggen het al precies. Alleen tekst; het
+      gedrag klopt. — B
 
 1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
       Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het
