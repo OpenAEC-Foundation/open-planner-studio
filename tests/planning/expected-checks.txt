@@ -240,6 +240,7 @@ check-knownbug-4.ts matrix
 check-knownbug-7.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
+check-launch-files.ts matrix
 check-layout-presets.ts matrix
 check-leveler-candidate-axis.ts matrix
 check-leveler-ceiling.ts matrix

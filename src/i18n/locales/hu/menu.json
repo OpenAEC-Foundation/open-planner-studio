@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Csak akkor érhető el, ha a Gantt-diagram látható",
     "relationLinkSelected": "Kijelöltek összekapcsolása",
     "relationLinkSelectedHint": "Az első kijelölés lesz az előd; a második kijelölés lesz az utód (FS, késleltetés 0)",
-    "relationSelectExactlyTwo": "Válasszon ki pontosan két tevékenységet",
     "relationAddExternal": "Projektközi kapcsolat hozzáadása…",
     "relationAddExternalHint": "Adjon hozzá egy projektközi előd vagy utód kapcsolatot a kijelölt tevékenységhez",
     "relationSelectOne": "Válasszon ki pontosan egy tevékenységet",

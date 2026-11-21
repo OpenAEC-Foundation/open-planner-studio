@@ -24,22 +24,17 @@ function normalize(raw: unknown): CustomTaskType[] {
     ids.add(id);
     result.push({ id, name, ...(isTaskTypeColor(candidate.color) ? { color: candidate.color } : {}) });
   }
-  // Een werksoort van vóór de kleur (#856) krijgt hier de eerste vrije; `load` bewaart haar meteen.
+  // Een werksoort van vóór de kleur (#856) krijgt hier de eerste vrije, op volgorde van id; `save` bewaart haar.
   return withTaskTypeColors(result).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/** Ontbrak er een kleur in de opslag? Dan is de lijst nu anders dan wat er staat. */
-function missedColor(raw: unknown): boolean {
-  return Array.isArray(raw) && raw.some(value => !isTaskTypeColor((value as { color?: unknown } | null)?.color));
 }
 
 function load(): CustomTaskType[] {
   if (cached) return cached;
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+    // Lezen schrijft niets: ingebed zou dat de lijst naar de host sturen voordat die geantwoord heeft (#818). De
+    // toegekende kleur hangt alleen af van de inhoud, dus elk lezen geeft dezelfde; de eerste wijziging bewaart haar.
     cached = normalize(raw);
-    // Eén keer een kleur: wat hier toegekend is, staat daarna vast in de opslag.
-    if (missedColor(raw) && cached.length > 0) persist(cached);
   } catch { cached = []; }
   return cached;
 }

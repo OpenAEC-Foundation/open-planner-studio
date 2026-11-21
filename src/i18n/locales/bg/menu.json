@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Налично само когато диаграмата Gantt е видима",
     "relationLinkSelected": "Свържи избраните задачи",
     "relationLinkSelectedHint": "Първият избор става предшественик; вторият става последовател (FS, време на отстъп 0)",
-    "relationSelectExactlyTwo": "Изберете точно две задачи",
     "relationAddExternal": "Добави междупроектна връзка…",
     "relationAddExternalHint": "Добавете междупроектна връзка с предшественик или последовател към избраната задача",
     "relationSelectOne": "Изберете точно една задача",

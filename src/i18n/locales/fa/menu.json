@@ -201,7 +201,6 @@
     "ganttOnlyHint": "فقط وقتی نمودار گانت نمایش داده می‌شود در دسترس است",
     "relationLinkSelected": "پیوند دادن وظایف انتخاب‌شده",
     "relationLinkSelectedHint": "انتخاب اول پیش‌نیاز و انتخاب دوم پس‌نیاز می‌شود (پایان-شروع (FS)، تأخیر 0)",
-    "relationSelectExactlyTwo": "دقیقاً دو وظیفه را انتخاب کنید",
     "relationAddExternal": "افزودن رابطه خارجی…",
     "relationAddExternalHint": "یک پیش‌نیاز یا پس‌نیاز خارجی به وظیفه انتخاب‌شده بیفزایید",
     "relationSelectOne": "دقیقاً یک وظیفه را انتخاب کنید",
