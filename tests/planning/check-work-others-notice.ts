@@ -134,7 +134,7 @@ console.log('-- (d) Vaste inzet: werk typen bij Bram maakt de taak langer --');
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (e) resource erbij of eraf: de uren van wie er al stond, veranderen --');
 {
-  const { t, r } = seed('FIXED_WORK', 10, { Anna: 1 });
+  const { t } = seed('FIXED_WORK', 10, { Anna: 1 });
   const bram = labor('Bram');
   S().assignResource(t, bram, 1);
   // Vast werk maakt een dagentaak een urentaak (B1a): de melding noemt de duur in de eenheid van de taak.

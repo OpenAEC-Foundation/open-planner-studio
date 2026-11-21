@@ -157,7 +157,8 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   st = await taskState(page, taskId);
   expect(st.duration).toBe(16);
   const notice = page.locator('.ops-toast').filter({ has: undoInNotice });
-  await expect(notice).toContainText('16');
+  // Vast werk maakte de taak eerder in dit scenario een urentaak (B1a): de duur staat in uren, 16 d × 8 u.
+  await expect(notice).toContainText(/128 (hours|uur)/);
   await expect(notice).toContainText(/Anna: 64 → 128 (u|h)/);
   await undoInNotice.click();
   st = await taskState(page, taskId);
