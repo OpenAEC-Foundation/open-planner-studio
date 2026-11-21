@@ -1194,7 +1194,9 @@
     },
     "regen": {
       "hint": "Feestdagen dekken {{from}}–{{to}}; opnieuw genereren tot en met {{year}}?",
-      "button": "Opnieuw genereren"
+      "button": "Opnieuw genereren",
+      "confirmMessage": "Je lijst met vrije dagen wijkt af van de eerder gegenereerde lijst. Als je de lijst vervangt, vervallen je handmatige wijzigingen.",
+      "confirmReplace": "Vrije dagen vervangen"
     },
     "countryName": {
       "NL": "Nederland",
@@ -1205,6 +1207,7 @@
       "AT": "Oostenrijk",
       "CH": "Zwitserland",
       "US": "Verenigde Staten",
+      "BO": "Bolivia",
       "none": "Geen feestdagen"
     },
     "preset": {

@@ -1123,6 +1123,12 @@ en noem het in je rapport of PR-tekst.
      vergelijkt alle acht namen opnieuw. Voor later: die stap in hetzelfde scenario, met de bestaande hulp
      `chooseLocale`. Gevonden door de review van #943. — B
 
+1881. **VERVOLG (#992): een oudere app kan Boliviaanse feestdagen niet opnieuw genereren.** De lezer van
+      v2026.47.0 neemt de nieuwe IFC-herkomstcode `BO` over. Bij hergeneratie heeft die versie geen bijbehorende
+      feestdagenset en geeft `materializeHolidays` een TypeError op `defs`. Bevestigd in reviewronde 1 met de
+      generator uit die release. Richting voor toekomstige uitbreidingen: bied hergeneratie alleen aan voor
+      een bekende set. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -3234,6 +3240,11 @@ en noem het in je rapport of PR-tekst.
       bijgewerkt, maar de tekst van tutorial 5 staat in de tutorials-extensie, buiten deze repo, en is
       niet nagelopen. Richting: de tekst daar controleren op "tabblad Planning" / "Planning tab". — S
 
+1880. **VERVOLG (#992): de Spaanse Help noemt de nieuwe keuze Bolivia nog niet.** Het aanwezige Spaanse
+      artikel `public/docs/es/howto-feestdagen-genereren.md` toont de oude landenlijst. De Help kiest dit
+      artikel boven de bijgewerkte Engelse versie. Bevestigd in reviewronde 1. Werk het bij via de
+      bestaande vertaalroute voor Help. — B
+
 ## Teksten en helpteksten
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
@@ -3480,20 +3491,13 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
-1800. **Twee gidsen zeggen dat dubbelklik een tabelcel bewerkt; dubbelklik opent het eigenschappenpaneel.**
-      `public/docs/{nl,en}/howto-constraint-deadline-zetten.md:23` en `howto-voortgang-bijwerken.md:44-45`.
-      In de taakgrid selecteert dubbelklik de cel en opent het eigenschappenpaneel
-      (`src/components/task-grid/FullTaskGrid.tsx`, `onCellDoubleClick`); bewerken start met Enter, F2 of typen.
-      Gezien in een browserrun voor #970: na `dblclick` op een keuzelijstcel verscheen geen editor, wel het paneel.
-      Voorstel: "Klik op een cel en druk op Enter (of begin te typen)". Wacht op de productvraag over dubbelklik
-      bij #970: verandert dubbelklik, dan vervalt dit punt. — B
-
-1801. **VERVOLG (#970): Alt+↓ opent een keuzelijstcel niet, zoals het issue vraagt.** Alt+↓ is in de hele app al
-      *Taak omlaag verplaatsen* (`src/hooks/keyboard/shortcutRegistry.ts`, `structure.moveDown`); de grid laat de
-      combinatie daarom door (`src/engine/taskGrid/navigation.ts`, `event.altKey`). Een keuzelijstcel (ja/nee,
-      keuze, code) opent met Enter, F2 of typen. Productkeuze voor de eigenaar: Alt+↓ op een keuzelijstcel de
-      lijst laten openen (dan verplaatst Alt+↓ daar geen taak meer), of zo laten. Uit de review van #974
-      (GPT-6.1-Sol, xhigh, op `badd1cfe9`, VERVOLG). — B
+1800. **VERVOLG (#1118): de vertaalde gidsen beschrijven de dubbelklik in de tabel nog zoals vroeger.**
+      In nl en en is het bijgewerkt: een dubbelklik opent alleen op een keuzelijstcel de lijst, op andere cellen
+      het eigenschappenpaneel. De 26 vertalingen van `howto-voortgang-bijwerken.md`, `howto-constraint-deadline-zetten.md`
+      en `howto-codes-en-velden.md` zeggen nog dat je een cel dubbelklikt om te typen, en bij *Status* dat je na de
+      dubbelklik op Enter drukt (de lijst staat dan al open; Enter kiest de gemarkeerde status). Bijvoorbeeld
+      `public/docs/de/howto-voortgang-bijwerken.md:44`. Meenemen in de volgende gidsvertaalronde; niet met de hand
+      gewijzigd. Uit de review van #1118 (GPT-6.2-Sol, xhigh, op `b4aac19d6`, VERVOLG). — B
 
 1802. **VERVOLG (#974): na een geweigerde Shift+Enter in een keuzelijstcel gaat een latere muiskeuze een rij omhoog.**
       `src/components/task-grid/TaskCellEditor.tsx` (`pickedWithShiftEnterRef`, gezet in `onListKeyDownCapture`)

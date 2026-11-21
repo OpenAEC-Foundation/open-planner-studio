@@ -10,6 +10,7 @@ import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
 import {
   formatGridDate,
   formatGridDateTime,
+  opensListEditor,
   parseGridDate,
   parseGridDateTime,
 } from '@/engine/taskGrid/editors';
@@ -144,8 +145,7 @@ export function TaskCellEditor({
   const descriptor = adapter.descriptorsById.get(cell.columnId);
   // Een keuzelijst (ja/nee, keuze, code) start altijd op de huidige waarde; een getypt teken springt
   // in de open lijst naar een passende optie (#970) in plaats van als waarde te gelden.
-  const isListEditor = descriptor?.editorKind === 'boolean'
-    || (descriptor?.editorKind === 'enum' && descriptor.editorOptions !== undefined);
+  const isListEditor = opensListEditor(descriptor);
   const listTypeahead = isListEditor && initialText ? initialText : undefined;
   const [text, setText] = useState(
     () => (isListEditor ? undefined : initialText) ?? initialCell?.editText ?? '',
