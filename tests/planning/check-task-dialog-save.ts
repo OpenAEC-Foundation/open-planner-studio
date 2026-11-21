@@ -112,8 +112,8 @@ for (const durationFirst of [true, false]) {
   eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): het gewiste nivelleergat telt niet mee`,
     [f.task(id).time.actualFinish, f.task(id).splitGaps], ['2026-10-30T16:00', undefined]);
   const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly')));
-  eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): IFC bewaart het afgeleide einde`,
-    reopened.tasks[0]?.time.actualFinish, '2026-10-30T16:00');
+  eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): IFC bewaart de einddag van de dagtaak`,
+    reopened.tasks[0]?.time.actualFinish, '2026-10-30');
 }
 
 // Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.

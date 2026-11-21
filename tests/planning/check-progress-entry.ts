@@ -205,8 +205,8 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere ta
     taskOf(S, B).time.actualFinish, '2026-10-30T16:00');
   if (route === 'andere taken koppelen') {
     const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
-    eq('#998 andere taken koppelen: IFC bewaart het geplande einde',
-      reopened.tasks.find(task => task.name === 'Metselwerk')?.time.actualFinish, '2026-10-30T16:00');
+    eq('#998 andere taken koppelen: IFC bewaart de einddag van de dagtaak',
+      reopened.tasks.find(task => task.name === 'Metselwerk')?.time.actualFinish, '2026-10-30');
   }
   S().undo();
   eq(`#998 ${route}: één Ctrl+Z herstelt de toestand op 50%`, taskOf(S, B).time, before);

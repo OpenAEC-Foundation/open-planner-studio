@@ -247,7 +247,10 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
     } });
     store.runCPM();
   }, taskId);
-  dialog = await openDialogByDoubleClick(page, taskId);
+  await page.locator(`[data-grid-row-key="${taskId}"] [data-grid-column-id="task.name"]`).first().click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+  dialog = page.locator('[data-ops-task-dialog]');
+  await expect(dialog).toBeVisible();
   await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
   await expect(dialog.locator('[data-ops-progress-slider]')).toHaveValue('100');
   const duration = dialog.locator('[data-ops-duration-value]');
