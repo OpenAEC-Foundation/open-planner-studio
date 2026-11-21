@@ -187,11 +187,13 @@ app de volledige IFC weigert. Een tabbladwissel alleen is geen wijziging. De con
 - onder het schrijfslot vóór de kiezer en vóór een download: die controle, en het document moet ook nog vooraan staan
   (`refuseExportBeforePicker`);
 - direct na de kiezer, op het gekozen doel (`refuseTarget`), op elk platform;
-- desktop: vlak vóór de plaatsing (`exportBeforePlace`);
-- browser, op de handle uit de opslaankiezer: alleen als het document na de kiezer niet meer vooraan staat ook vlak vóór
-  `close()` (`exportBeforePlace`, keuze (b) van de technisch beslisser in fixronde 2 van #1097; anders `abort()`, en
-  het bestand blijft leeg). Staat het nog vooraan, dan niet: een wijziging tussen de doelcontrole en `close()` komt dan
-  niet in het bestand en de export meldt succes, zoals op main (knownbug 1958). Een export meldt bij een intussen
+- desktop: vlak vóór de plaatsing, altijd (`exportTargetChecks`);
+- browser, op de handle uit de opslaankiezer (`exportTargetChecks`, keuze (b) van de technisch beslisser, fixronde 3 van
+  #1097). **Gekozen** wordt de late controle bij de geslaagde doelcontrole: stond het geëxporteerde document daar niet
+  vooraan (het punt waar main weigerde), dan geldt ze voor deze export. **Ze loopt** vlak vóór `close()`, welk tabblad
+  dan ook vooraan staat; weigert ze, dan `abort()` en het bestand blijft leeg. Stond het document bij de doelcontrole
+  wel vooraan, dan is er geen late controle, ook niet als de planner daarna wisselt: een wijziging tussen de
+  doelcontrole en `close()` komt dan niet in het bestand en de export meldt succes, zoals op main (knownbug 1958). Een export meldt bij een intussen
   vervangen inhoud geen succes en legt geen kalenderkeuze vast (`exportContentReplaced`). Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
 in dezelfde schrijfbeurt, zoals Ctrl+S. Een IFC-export (`exportAs('ifc')`, ook zonder gebouwmodel, en
 `exportProjectWithPool`) loopt als één volgorde met voorrang (`withIfcExportPriority`, fixronde 2 van de review van
