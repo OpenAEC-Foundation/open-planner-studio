@@ -458,8 +458,15 @@
     "ifcForeignReplaceBlocked": "Non enregistré. Remplacer un fichier existant contenant un modèle de bâtiment n’est pas encore sûr. Utilisez «Enregistrer sous» et choisissez un nouveau nom.",
     "ifcForeignMergeRefused": "Le fichier IFC n’a pas été écrit. Le modèle de bâtiment ou les données d’un autre programme ne seraient pas entièrement conservés. Annulez la dernière modification, ou exportez seulement le planning : en IFC avec «Sans modèle de bâtiment», ou dans un autre format.",
     "ifcSaveChangedWhileWaiting": "Non enregistré. Le document ou le fichier source du modèle de bâtiment a changé pendant la préparation. Réessayez d’enregistrer.",
+    "ifcForeignReplaceOtherVersion": "Un autre programme a modifié {{file}} pendant que l'application l'enregistrait. Cette version a été conservée sous {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Un enregistrement précédent de {{file}} n'a pas abouti. Le planning en cours d'enregistrement se trouve dans {{copy}}. Supprimez ce fichier si vous n'en avez plus besoin.",
+    "ifcForeignReplaceTargetTaken": "Non enregistré. Pendant l'enregistrement, un autre programme a placé un nouveau fichier à {{target}}. Il y a maintenant trois fichiers : ce nouveau fichier à {{target}}, votre planning dans {{temp}} et la version précédente dans {{previous}}. Vos modifications sont également toujours dans l'application.",
+    "ifcForeignReplacePreviousStranded": "Non enregistré, et la version précédente du fichier n'a pas pu être remise à sa place. Elle se trouve maintenant dans {{previous}}. Vos modifications sont toujours dans l'application. Choisissez Enregistrer sous pour les conserver dans un nouveau fichier.",
+    "ifcForeignReplaceSaveAsOnly": "Non enregistré. Ce fichier ne peut pas être remplacé en toute sécurité à cet emplacement. Le fichier n'a pas changé. Choisissez Enregistrer sous pour conserver vos modifications dans un nouveau fichier.",
+    "ifcForeignReplaceLeftOver": "Ce fichier est resté après un enregistrement interrompu de {{file}} : {{path}}. Vérifiez si vous en avez encore besoin.",
     "ifcSourceCopyFailed": "Le planning est enregistré pour la récupération après un plantage, mais la copie du modèle de bâtiment n’a pas pu être enregistrée. Après un plantage, le modèle de bâtiment peut manquer. Enregistrez vous-même votre travail comme fichier IFC complet.",
-    "ifcForeignSourceMissing": "Non enregistré. Le modèle de bâtiment ou les données d’un autre programme n’ont pas été trouvés. Utilisez «Enregistrer sous» pour n’enregistrer que le planning dans un nouveau fichier. Ouvrez le fichier IFC d’origine pour travailler de nouveau avec le fichier complet."
+    "ifcForeignSourceMissing": "Non enregistré. Le modèle de bâtiment ou les données d’un autre programme n’ont pas été trouvés. Utilisez «Enregistrer sous» pour n’enregistrer que le planning dans un nouveau fichier. Ouvrez le fichier IFC d’origine pour travailler de nouveau avec le fichier complet.",
+    "taskTypeRenameNameTaken": "Dans ce projet, le nom reste « {{oldName}} » : une autre catégorie de travaux de ce projet s'appelle déjà « {{takenName}} »."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -844,7 +851,8 @@
     "confirmClose": "Ce document contient des modifications non enregistrées. Fermer quand même ?",
     "closeTitle": "Modifications non enregistrées",
     "closeBody": "« {{name}} » contient des modifications qui n'ont pas encore été enregistrées.",
-    "dontSave": "Ne pas enregistrer"
+    "dontSave": "Ne pas enregistrer",
+    "stillSaving": "Enregistrement…"
   },
   "feedback": {
     "buttonTooltip": "Envoyer un commentaire",
@@ -2147,5 +2155,9 @@
     "bodyWithPool": "Le fichier de projet ne contiendra que le planning ; la bibliothèque de ressources ira dans un second fichier. Le modèle de bâtiment et les données d’un autre programme ne sont pas inclus. Le fichier ouvert restera inchangé. Voulez-vous continuer ?",
     "continue": "Exporter",
     "cancel": "Annuler"
+  },
+  "replaceCopy": {
+    "otherProgram": "version d'un autre programme {{when}}",
+    "unsavedSchedule": "planning non enregistré {{when}}"
   }
 }

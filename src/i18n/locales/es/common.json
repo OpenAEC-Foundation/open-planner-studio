@@ -458,8 +458,15 @@
     "ifcForeignReplaceBlocked": "No se ha guardado. Sobrescribir un archivo existente con un modelo de edificio todavía no es seguro. Use «Guardar como» y elija un nombre nuevo.",
     "ifcForeignMergeRefused": "El archivo IFC no se ha escrito. De otro modo, el modelo de edificio o los datos de otro programa no se conservarían por completo. Deshaga la última modificación, o exporte solo la planificación: a IFC con «Sin modelo de edificio», o a otro formato.",
     "ifcSaveChangedWhileWaiting": "No se ha guardado. El documento o el origen del modelo de edificio cambió durante la preparación. Vuelva a intentar guardar.",
+    "ifcForeignReplaceOtherVersion": "Otro programa cambió {{file}} mientras la aplicación lo guardaba. Esa versión se ha conservado como {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Un guardado anterior de {{file}} no se completó. La planificación que se estaba guardando está en {{copy}}. Elimine ese archivo si ya no lo necesita.",
+    "ifcForeignReplaceTargetTaken": "No guardado. Mientras se guardaba, otro programa colocó un archivo nuevo en {{target}}. Ahora hay tres archivos: ese archivo nuevo en {{target}}, su planificación en {{temp}} y la versión anterior en {{previous}}. Sus cambios también siguen en la aplicación.",
+    "ifcForeignReplacePreviousStranded": "No guardado, y la versión anterior del archivo no pudo volver a su sitio. Ahora está en {{previous}}. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignReplaceSaveAsOnly": "No guardado. Este archivo no se puede reemplazar con seguridad en esta ubicación. El archivo no ha cambiado. Elija «Guardar como» para conservar sus cambios en un archivo nuevo.",
+    "ifcForeignReplaceLeftOver": "De un guardado interrumpido de {{file}} quedó este archivo: {{path}}. Revise si todavía lo necesita.",
     "ifcSourceCopyFailed": "La planificación se guarda para la recuperación tras un cierre inesperado, pero no se pudo guardar la copia del modelo de edificio. Tras un cierre inesperado, el modelo de edificio podría faltar. Guarde usted mismo su trabajo como archivo IFC completo.",
-    "ifcForeignSourceMissing": "No se ha guardado. No se encontró el modelo de edificio ni los datos de otro programa. Use «Guardar como» para guardar solo la planificación en un archivo nuevo. Abra el archivo IFC original para volver a trabajar con el archivo completo."
+    "ifcForeignSourceMissing": "No se ha guardado. No se encontró el modelo de edificio ni los datos de otro programa. Use «Guardar como» para guardar solo la planificación en un archivo nuevo. Abra el archivo IFC original para volver a trabajar con el archivo completo.",
+    "taskTypeRenameNameTaken": "En este proyecto el nombre sigue siendo «{{oldName}}»: otra categoría de trabajo de este proyecto ya se llama «{{takenName}}»."
   },
   "scheduleErrors": {
     "cycle": "Relación circular entre tareas: {{path}}",
@@ -844,7 +851,8 @@
     "confirmClose": "Este documento tiene cambios sin guardar. ¿Cerrar de todos modos?",
     "closeTitle": "Cambios sin guardar",
     "closeBody": "«{{name}}» tiene cambios que aún no se han guardado.",
-    "dontSave": "No guardar"
+    "dontSave": "No guardar",
+    "stillSaving": "Aún guardando…"
   },
   "feedback": {
     "buttonTooltip": "Enviar comentarios",
@@ -2147,5 +2155,9 @@
     "bodyWithPool": "El archivo de proyecto contendrá solo la planificación; la biblioteca de recursos va en un segundo archivo. El modelo de edificio y los datos de otro programa no se incluyen. El archivo abierto no cambiará. ¿Desea continuar?",
     "continue": "Exportar",
     "cancel": "Cancelar"
+  },
+  "replaceCopy": {
+    "otherProgram": "versión de otro programa {{when}}",
+    "unsavedSchedule": "planificación no guardada {{when}}"
   }
 }

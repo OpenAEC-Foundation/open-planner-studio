@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "Ei tallennettu. Olemassa olevan tiedoston korvaaminen, jossa on rakennusmalli, ei ole vielä turvallista. Käytä ”Tallenna nimellä” ja valitse uusi nimi.",
     "ifcForeignMergeRefused": "IFC-tiedostoa ei kirjoitettu. Rakennusmalli tai toisen ohjelman tiedot eivät muuten säilyisi kokonaan. Kumoa viimeisin muutos tai vie vain aikataulu: IFC-muotoon valinnalla ”Ilman rakennusmallia” tai toiseen muotoon.",
     "ifcSaveChangedWhileWaiting": "Ei tallennettu. Asiakirja tai rakennusmallin lähde muuttui valmistelun aikana. Yritä tallentaa uudelleen.",
+    "ifcForeignReplaceOtherVersion": "Toinen ohjelma muutti tiedostoa {{file}} sillä aikaa, kun sovellus tallensi sitä. Se versio on tallennettu nimellä {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Tiedoston {{file}} aiempi tallennus ei valmistunut. Tallennettava aikataulu on tiedostossa {{copy}}. Poista se tiedosto, jos et enää tarvitse sitä.",
+    "ifcForeignReplaceTargetTaken": "Ei tallennettu. Tallennuksen aikana toinen ohjelma kirjoitti uuden tiedoston kohteeseen {{target}}. Nyt tiedostoja on kolme: uusi tiedosto kohteessa {{target}}, aikataulu tiedostossa {{temp}} ja edellinen versio tiedostossa {{previous}}. Muutokset ovat yhä sovelluksessa.",
+    "ifcForeignReplacePreviousStranded": "Ei tallennettu, eikä tiedoston edellistä versiota voitu palauttaa paikalleen. Se on nyt tiedostossa {{previous}}. Muutokset ovat yhä sovelluksessa. Valitse ”Tallenna nimellä”, jos haluat tallentaa ne uuteen tiedostoon.",
+    "ifcForeignReplaceSaveAsOnly": "Ei tallennettu. Tätä tiedostoa ei voi tässä paikassa turvallisesti korvata. Tiedosto ei ole muuttunut. Valitse ”Tallenna nimellä”, jos haluat tallentaa muutokset uuteen tiedostoon.",
+    "ifcForeignReplaceLeftOver": "Keskeytyneen tallennuksen jäljiltä tiedostosta {{file}} jäi tämä tiedosto: {{path}}. Tarkista, tarvitsetko sitä vielä.",
     "ifcSourceCopyFailed": "Aikataulu tallennetaan palautusta varten kaatumisen jälkeen, mutta rakennusmallin kopiota ei voitu tallentaa. Kaatumisen jälkeen rakennusmalli voi puuttua. Tallenna itse kokonaisena IFC-tiedostona.",
-    "ifcForeignSourceMissing": "Ei tallennettu. Rakennusmallia tai toisen ohjelman tietoja ei löytynyt. Käytä ”Tallenna nimellä” ja tallenna vain aikataulu uuteen tiedostoon. Avaa alkuperäinen IFC-tiedosto, niin koko tiedostoa voi taas käsitellä."
+    "ifcForeignSourceMissing": "Ei tallennettu. Rakennusmallia tai toisen ohjelman tietoja ei löytynyt. Käytä ”Tallenna nimellä” ja tallenna vain aikataulu uuteen tiedostoon. Avaa alkuperäinen IFC-tiedosto, niin koko tiedostoa voi taas käsitellä.",
+    "taskTypeRenameNameTaken": "Tässä projektissa nimi säilyy ”{{oldName}}”: toinen työlaji tässä projektissa on jo nimeltään ”{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Kehäriippuvuus tehtävien välillä: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Tässä asiakirjassa on tallentamattomia muutoksia. Suljetaanko silti?",
     "closeTitle": "Tallentamattomat muutokset",
     "closeBody": "'{{name}}' sisältää muutoksia, joita ei ole vielä tallennettu.",
-    "dontSave": "Älä tallenna"
+    "dontSave": "Älä tallenna",
+    "stillSaving": "Tallennetaan vielä…"
   },
   "feedback": {
     "buttonTooltip": "Anna palautetta",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "Projektitiedosto sisältää vain aikataulun; resurssikirjasto menee toiseen tiedostoon. Rakennusmalli ja toisen ohjelman tiedot eivät sisälly siihen. Avattu tiedosto pysyy muuttumattomana. Jatketaanko?",
     "continue": "Vie",
     "cancel": "Peruuta"
+  },
+  "replaceCopy": {
+    "otherProgram": "toisen ohjelman versio {{when}}",
+    "unsavedSchedule": "tallentamaton aikataulu {{when}}"
   }
 }

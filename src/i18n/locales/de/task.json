@@ -328,7 +328,11 @@
     "rename": "Bearbeiten",
     "remove": "Löschen",
     "addToMine": "Zu meinen Arbeitskategorien hinzufügen",
-    "confirmRemove": "Diese Arbeitskategorie wird im geöffneten Projekt verwendet. Soll sie aus „Meine Arbeitskategorien“ entfernt werden? Die Projektkopie bleibt erhalten."
+    "confirmRemove": "Diese Arbeitskategorie wird im geöffneten Projekt verwendet. Soll sie aus „Meine Arbeitskategorien“ entfernt werden? Die Projektkopie bleibt erhalten.",
+    "renameInProjectTitle": "Auch in diesem Projekt umbenennen?",
+    "renameInProjectMessage": "Die Arbeitskategorie „{{oldName}}“ wird auch in diesem Projekt verwendet. Möchten Sie sie hier ebenfalls „{{newName}}“ nennen?",
+    "renameInProjectYes": "Auch in diesem Projekt",
+    "renameInProjectNo": "Nur in meiner Liste"
   },
   "duration": {
     "label": "Dauer",

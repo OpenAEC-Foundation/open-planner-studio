@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "Kaydedilmedi. Yapı modeli içeren mevcut bir dosyanın üzerine yazmak henüz güvenli değil. Farklı kaydet seçeneğini kullanın ve yeni bir ad seçin.",
     "ifcForeignMergeRefused": "IFC-dosyası yazılmadı. Yapı modeli veya başka bir programın verileri aksi halde tam olarak korunmazdı. Son değişikliği geri alın ya da yalnızca planlamayı dışa aktarın: IFC'ye Yapı modeli olmadan seçeneğiyle veya başka bir biçime.",
     "ifcSaveChangedWhileWaiting": "Kaydedilmedi. Belge veya yapı modelinin kaynağı hazırlık sırasında değişti. Yeniden kaydetmeyi deneyin.",
+    "ifcForeignReplaceOtherVersion": "Uygulama kaydederken başka bir program {{file}} dosyasını değiştirdi. Bu sürüm {{copy}} olarak saklandı.",
+    "ifcForeignReplaceUnsavedCopy": "{{file}} dosyasının önceki kaydı tamamlanmadı. Kaydedilmekte olan planlama {{copy}} içinde. Artık ihtiyacınız yoksa bu dosyayı silin.",
+    "ifcForeignReplaceTargetTaken": "Kaydedilmedi. Kaydetme sırasında başka bir program {{target}} konumuna yeni bir dosya koydu. Şu anda üç dosya var: {{target}} konumundaki yeni dosya, {{temp}} içindeki planlamanız ve {{previous}} içindeki önceki sürüm. Değişiklikleriniz hâlâ uygulamada.",
+    "ifcForeignReplacePreviousStranded": "Kaydedilmedi; dosyanın önceki sürümü yerine geri konamadı. Şu anda {{previous}} içinde. Değişiklikleriniz hâlâ uygulamada. Bunları yeni bir dosyada saklamak için “Farklı kaydet” seçin.",
+    "ifcForeignReplaceSaveAsOnly": "Kaydedilmedi. Bu dosya bu konumda güvenli şekilde değiştirilemez. Dosya değişmedi. Değişikliklerinizi yeni bir dosyada saklamak için “Farklı kaydet” seçin.",
+    "ifcForeignReplaceLeftOver": "Yarıda kalan {{file}} kaydından bu dosya kaldı: {{path}}. Hâlâ ihtiyacınız olup olmadığını kontrol edin.",
     "ifcSourceCopyFailed": "Planlama çökme kurtarma için kaydediliyor, ancak yapı modelinin kopyası kaydedilemedi. Bir çökmeden sonra yapı modeli eksik olabilir. Çalışmanızı kendiniz tam bir IFC-dosyası olarak kaydedin.",
-    "ifcForeignSourceMissing": "Kaydedilmedi. Yapı modeli veya başka bir programın verileri bulunamadı. Yalnızca planlamayı yeni bir dosyada kaydetmek için Farklı kaydet kullanın. Dosyayla yeniden tam olarak çalışmak için özgün IFC-dosyasını açın."
+    "ifcForeignSourceMissing": "Kaydedilmedi. Yapı modeli veya başka bir programın verileri bulunamadı. Yalnızca planlamayı yeni bir dosyada kaydetmek için Farklı kaydet kullanın. Dosyayla yeniden tam olarak çalışmak için özgün IFC-dosyasını açın.",
+    "taskTypeRenameNameTaken": "Bu projede “{{oldName}}” adı korunur: bu projedeki başka bir iş kategorisi zaten “{{takenName}}” adını kullanıyor."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Bu belgede kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?",
     "closeTitle": "Kaydedilmemiş değişiklikler",
     "closeBody": "'{{name}}' belgesinde henüz kaydedilmemiş değişiklikler var.",
-    "dontSave": "Kaydetme"
+    "dontSave": "Kaydetme",
+    "stillSaving": "Hâlâ kaydediliyor…"
   },
   "feedback": {
     "buttonTooltip": "Geri bildirim gönder",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "Proje dosyası yalnızca planlamayı içerecek; kaynak kitaplığı ikinci bir dosyaya gidecek. Yapı modeli ve başka bir programın verileri dahil edilmeyecek. Açık dosya değişmeden kalacak. Devam etmek istiyor musunuz?",
     "continue": "Dışa aktar",
     "cancel": "İptal"
+  },
+  "replaceCopy": {
+    "otherProgram": "başka bir programdan sürüm {{when}}",
+    "unsavedSchedule": "kaydedilmemiş planlama {{when}}"
   }
 }

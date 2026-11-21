@@ -458,8 +458,15 @@
     "ifcForeignReplaceBlocked": "Não guardado. Substituir um ficheiro existente com um modelo de edifício ainda não é seguro. Use «Guardar como» e escolha um novo nome.",
     "ifcForeignMergeRefused": "O ficheiro IFC não foi escrito. O modelo de edifício ou os dados de outro programa não ficariam totalmente preservados. Desfaça a última alteração, ou exporte apenas o planeamento: para IFC com «Sem modelo de edifício», ou para outro formato.",
     "ifcSaveChangedWhileWaiting": "Não guardado. O documento ou a fonte do modelo de edifício mudou durante a preparação. Tente guardar novamente.",
+    "ifcForeignReplaceOtherVersion": "Outro programa alterou {{file}} enquanto a aplicação o guardava. Essa versão foi guardada como {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Uma gravação anterior de {{file}} não foi concluída. O planeamento que estava a ser guardado está em {{copy}}. Elimine esse ficheiro se já não precisar dele.",
+    "ifcForeignReplaceTargetTaken": "Não guardado. Enquanto se guardava, outro programa colocou um novo ficheiro em {{target}}. Existem agora três ficheiros: esse novo ficheiro em {{target}}, o seu planeamento em {{temp}} e a versão anterior em {{previous}}. As suas alterações continuam também na aplicação.",
+    "ifcForeignReplacePreviousStranded": "Não guardado, e a versão anterior do ficheiro não pôde ser reposta no seu lugar. Está agora em {{previous}}. As suas alterações continuam na aplicação. Escolha «Guardar como» para as guardar num novo ficheiro.",
+    "ifcForeignReplaceSaveAsOnly": "Não guardado. Este ficheiro não pode ser substituído com segurança neste local. O ficheiro não foi alterado. Escolha «Guardar como» para guardar as suas alterações num novo ficheiro.",
+    "ifcForeignReplaceLeftOver": "Ficou este ficheiro de um guardar interrompido de {{file}}: {{path}}. Verifique se ainda o precisa.",
     "ifcSourceCopyFailed": "O planeamento está a ser guardado para recuperação após falha, mas a cópia do modelo de edifício não pôde ser guardada. Depois de uma falha, o modelo de edifício pode estar em falta. Guarde você mesmo o seu trabalho como ficheiro IFC completo.",
-    "ifcForeignSourceMissing": "Não guardado. O modelo de edifício ou os dados de outro programa não foram encontrados. Use «Guardar como» para guardar apenas o planeamento num novo ficheiro. Abra o ficheiro IFC original para voltar a trabalhar com o ficheiro completo."
+    "ifcForeignSourceMissing": "Não guardado. O modelo de edifício ou os dados de outro programa não foram encontrados. Use «Guardar como» para guardar apenas o planeamento num novo ficheiro. Abra o ficheiro IFC original para voltar a trabalhar com o ficheiro completo.",
+    "taskTypeRenameNameTaken": "Neste projeto o nome mantém-se «{{oldName}}»: outra categoria de trabalho deste projeto já se chama «{{takenName}}»."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -844,7 +851,8 @@
     "confirmClose": "Este documento tem alterações não guardadas. Fechar mesmo assim?",
     "closeTitle": "Alterações não guardadas",
     "closeBody": "«{{name}}» tem alterações que ainda não foram guardadas.",
-    "dontSave": "Não guardar"
+    "dontSave": "Não guardar",
+    "stillSaving": "Ainda a guardar…"
   },
   "feedback": {
     "buttonTooltip": "Enviar feedback",
@@ -2147,5 +2155,9 @@
     "bodyWithPool": "O ficheiro do projeto contém apenas o planeamento; a biblioteca de recursos vai para um segundo ficheiro. O modelo de edifício e os dados de outro programa não são incluídos. O ficheiro aberto permanece inalterado. Deseja continuar?",
     "continue": "Exportar",
     "cancel": "Cancelar"
+  },
+  "replaceCopy": {
+    "otherProgram": "versão de outro programa {{when}}",
+    "unsavedSchedule": "planeamento não guardado {{when}}"
   }
 }

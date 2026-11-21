@@ -558,8 +558,15 @@
     "ifcForeignReplaceBlocked": "Soubor nebyl uložen. Přepsání existujícího souboru s modelem budovy zatím není bezpečné. Použijte „Uložit jako“ a zvolte nový název.",
     "ifcForeignMergeRefused": "Soubor IFC nebyl zapsán. Model budovy nebo data z jiného programu by se jinak nezachovala úplně. Vraťte poslední změnu zpět, nebo exportujte pouze plán: do IFC pomocí „Bez modelu budovy“, nebo do jiného formátu.",
     "ifcSaveChangedWhileWaiting": "Soubor nebyl uložen. Dokument nebo zdroj modelu budovy se během přípravy změnil. Zkuste uložit znovu.",
+    "ifcForeignReplaceOtherVersion": "Jiný program změnil {{file}}, zatímco ho aplikace ukládala. Tato verze byla uchována jako {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Dřívější uložení souboru {{file}} nebylo dokončeno. Plán, který se tehdy ukládal, je v {{copy}}. Pokud tento soubor už nepotřebujete, odstraňte jej.",
+    "ifcForeignReplaceTargetTaken": "Neuloženo. Během ukládání umístil jiný program na {{target}} nový soubor. Nyní jsou k dispozici tři soubory: tento nový soubor na {{target}}, váš plán v {{temp}} a předchozí verze v {{previous}}. Vaše změny jsou stále v aplikaci.",
+    "ifcForeignReplacePreviousStranded": "Neuloženo a předchozí verzi souboru nebylo možné vrátit na její místo. Nyní je v {{previous}}. Vaše změny jsou stále v aplikaci. Vyberte Uložit jako, aby se uchovaly v novém souboru.",
+    "ifcForeignReplaceSaveAsOnly": "Neuloženo. Tento soubor nelze na tomto místě bezpečně nahradit. Soubor se nezměnil. Vyberte Uložit jako, aby se vaše změny uchovaly v novém souboru.",
+    "ifcForeignReplaceLeftOver": "Z přerušeného ukládání souboru {{file}} zůstal tento soubor: {{path}}. Zkontrolujte, zda jej ještě potřebujete.",
     "ifcSourceCopyFailed": "Plán se ukládá pro zotavení systému po chybě, ale kopii modelu budovy se nepodařilo uložit. Po chybě může model budovy chybět. Uložte svou práci sami jako úplný soubor IFC.",
-    "ifcForeignSourceMissing": "Soubor nebyl uložen. Model budovy nebo data z jiného programu nebyla nalezena. Použijte „Uložit jako“ a uložte jen plán do nového souboru. Otevřete původní soubor IFC, abyste znovu pracovali s úplným souborem."
+    "ifcForeignSourceMissing": "Soubor nebyl uložen. Model budovy nebo data z jiného programu nebyla nalezena. Použijte „Uložit jako“ a uložte jen plán do nového souboru. Otevřete původní soubor IFC, abyste znovu pracovali s úplným souborem.",
+    "taskTypeRenameNameTaken": "V tomto projektu zůstane název „{{oldName}}“: jiný druh práce v tomto projektu se již jmenuje „{{takenName}}“."
   },
   "scheduleErrors": {
     "cycle": "Cyklus závislostí mezi úkoly: {{path}}",
@@ -946,7 +953,8 @@
     "confirmClose": "Tento dokument obsahuje neuložené změny. Přesto zavřít?",
     "closeTitle": "Neuložené změny",
     "closeBody": "'{{name}}' obsahuje změny, které ještě nebyly uloženy.",
-    "dontSave": "Neukládat"
+    "dontSave": "Neukládat",
+    "stillSaving": "Ještě se ukládá…"
   },
   "feedback": {
     "buttonTooltip": "Zpětná vazba",
@@ -2276,5 +2284,9 @@
     "bodyWithPool": "Projektový soubor bude obsahovat pouze plán; knihovna zdrojů půjde do druhého souboru. Model budovy a data z jiného programu se nezahrnou. Otevřený soubor zůstane beze změny. Chcete pokračovat?",
     "continue": "Exportovat",
     "cancel": "Zrušit"
+  },
+  "replaceCopy": {
+    "otherProgram": "verze z jiného programu {{when}}",
+    "unsavedSchedule": "neuložený plán {{when}}"
   }
 }
