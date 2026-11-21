@@ -1,4 +1,4 @@
-// Snelheidsmeting van het nieuwe Rapport-tabblad in een grote planning (issue #817, PR #847). Niet in CI,
+// Snelheidsmeting van het Rapport-tabblad in een grote planning (issue #817, PR #847). Niet in CI,
 // niet in `verify`: een handmeting voor de bouwer en de review, zoals `measure:large-plans`.
 //
 // Gebruik (dev-server van deze worktree draait; adres uit de uitvoer van `npm run dev`):
@@ -199,7 +199,7 @@ const openStep = async id => {
 
 try {
   const t0 = Date.now();
-  await page.goto(`${BASE}?open=${PLAN}&tab=report&flag=reportRedesign&theme=light`, { waitUntil: 'commit', timeout: 240000 });
+  await page.goto(`${BASE}?open=${PLAN}&tab=report&theme=light`, { waitUntil: 'commit', timeout: 240000 });
   await page.waitForFunction(() => window.__OPS__?.store.getState().tasks.length === 5000, null, { timeout: 240000 });
   await page.locator('[data-report-page-svg="0"]').waitFor({ timeout: 240000 });
   await ready();

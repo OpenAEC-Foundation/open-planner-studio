@@ -5,8 +5,7 @@ import type { AssignmentCurveState } from '@/engine/contour/curveState';
 
 /**
  * De vertaalde labels van het Resourcediagram: de typebanden en de curvenamen van de toewijzingskolommen.
- * Eén bron voor het oude paneel en het nieuwe Rapport-tabblad (#861), zodat dezelfde layout op beide
- * plekken dezelfde banden en kolommen tekent. Dezelfde sleutels als het resourcepaneel en het taakraster.
+ * Dezelfde sleutels als het resourcepaneel en het taakraster.
  */
 export function useResourceTypeLabels(): Partial<Record<ResourceType, string>> {
   const { t: tCommon } = useTranslation('common');

@@ -19,7 +19,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { payloadFromImport } from '@/state/documentContract';
 import { CsvDateImportError, readCSV } from '@/services/csv/csvReader';
-import { escapeCSV, writeCSV } from '@/services/csv/csvWriter';
+import { escapeCSV, writeCSV as writeCSVForLocale } from '@/services/csv/csvWriter';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -30,6 +30,12 @@ import type { Sequence } from '@/types/sequence';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { ImportResult } from '@/services/importTypes';
+
+// Bestaande puntkomma-fixtures blijven onafhankelijk van de computer van de testrunner.
+const writeCSV: typeof writeCSVForLocale = (...args) => {
+  args[9] = 'nl-NL';
+  return writeCSVForLocale(...args);
+};
 
 const diffs: string[] = [];
 let checks = 0;
@@ -151,7 +157,7 @@ const lagsByLink = (r: ImportResult) => {
   const csv = writeCSV(noProject, noCalendar, tasks, seqs, [], []);
   const predCol = csv.split('\r\n').slice(1, 10).map(r => r.split(';')[7]);
   eq('3a Predecessors-kolom in de korte lag-notatie van de app',
-    predCol, ['', '1FS+2u', '2FS+3eu', '3FS+16u', '"4SS-1,5u"', '5FS+3d', '6SS-1d', '7FF+3ed', '8FS-25e%']);
+    predCol, ['', '1FS+2u', '2FS+3eu', '3FS+16u', '4SS-1.5u', '5FS+3d', '6SS-1d', '7FF+3ed', '8FS-25e%']);
   const back = lagsByLink(readCSV(csv));
   for (const s of seqs) {
     const key = `${s.predecessorId.slice(1)}>${s.successorId.slice(1)}`;
@@ -243,7 +249,6 @@ const lagsByLink = (r: ImportResult) => {
       type: 'FINISH_START', lagDays: 1.25 },
   ];
   const csv = writeCSV(noProject, noCalendar, [source, successor], seqs, [], []);
-  console.log('Issue 873 CSV:\n' + csv);
   const cells = csv.split('\r\n')[1].split(';');
   eq('873 duur 52 / 8 als gequote decimale komma', cells[4], '"6,5"');
   eq('873 negatieve speling met komma', cells[15], '"-1,25"');
@@ -257,17 +262,42 @@ const lagsByLink = (r: ImportResult) => {
     ['WBS', 'Name', 'Duration (days)', 'Total Float'],
     [['1.1.2.4.2', '52 uur', '6.5', '-1.25']],
   )).tasks.map(t => [t.time.scheduleDuration, t.time.totalFloat]), [[6.5, -1.25]]);
-  for (const fields of [
-    { lagDays: 1.25 }, { lagDays: -1.25 },
-    { lagDays: 0, lagMinutes: 90 },
-    { lagDays: 0, lagPercent: 12.5, lagUnit: 'ELAPSEDTIME' as const },
-  ]) {
+  for (const [fields, expected] of [
+    [{ lagDays: 1.25 }, '+1.25d'], [{ lagDays: -1.25 }, '-1.25d'],
+    [{ lagDays: 0, lagMinutes: 90 }, '+1.5u'],
+    [{ lagDays: 0, lagPercent: 12.5, lagUnit: 'ELAPSEDTIME' }, '+12.5e%'],
+  ] as const) {
     const links = [{ ...seqs[0], ...fields }];
     const text = writeCSV(noProject, noCalendar, [source, successor], links, [], [], []);
-    ok('873 lag schrijft komma: ' + JSON.stringify(fields), text.includes(
-      '1.1.2.4.2FS' + formatLagShort(links[0]).replace('.', ',')));
+    ok('1250 lag schrijft punt: ' + expected, text.includes('1.1.2.4.2FS' + expected));
+    const commaLag = text.replace(expected, expected.replace('.', ','));
+    eq('1250 huidige import leest vorige komma-lag: ' + expected,
+      lagOf(readCSV(commaLag).sequences[0]), lagOf(links[0]));
     eq('873 lag rondgang: ' + JSON.stringify(fields), lagOf(readCSV(text).sequences[0]), lagOf(links[0]));
   }
+  for (const [locale, delimiter, duration, float] of [
+    ['nl-NL', ';', '"6,5"', '"-1,25"'],
+    ['de-DE', ';', '"6,5"', '"-1,25"'],
+    ['fr-FR', ';', '"6,5"', '"-1,25"'],
+    ['en-US', ',', '6.5', '-1.25'],
+    ['de-CH', ',', '6.5', '-1.25'],
+  ]) {
+    const text = writeCSVForLocale(noProject, noCalendar, [source, successor], seqs, [], [],
+      [], undefined, 'u', locale);
+    eq('1252 scheidingsteken ' + locale, text.split('\r\n')[0].split(delimiter).length, 17);
+    const values = text.split('\r\n')[1].split(delimiter);
+    eq('1252 duur ' + locale, values[4], duration);
+    eq('1252 speling ' + locale, values[15], float);
+    eq('1252 rondgang ' + locale, readCSV(text).tasks.map(t => t.time.scheduleDuration), [6.5, 5]);
+    const rich = { ...source, name: 'Kraan, groot; "A"', description: 'Regel 1\nRegel 2' };
+    const richText = writeCSVForLocale(noProject, noCalendar, [rich], [], [], [], [], undefined, 'u', locale);
+    eq('1252 tekstvelden ' + locale, readCSV(richText).tasks.map(t => [t.name, t.description]),
+      [[rich.name, rich.description]]);
+  }
+  const systemLocale = new Intl.NumberFormat().resolvedOptions().locale;
+  eq('1252 standaard volgt systeemlocale',
+    writeCSVForLocale(noProject, noCalendar, [source], [], [], []),
+    writeCSVForLocale(noProject, noCalendar, [source], [], [], [], [], undefined, 'u', systemLocale));
   const legacyList = readCSV(csvOf(['WBS', 'Name', 'Predecessors'], [
     ['1', 'A', ''], ['2', 'B', ''], ['3', 'C', '1FS+1,2'],
   ]));
@@ -394,7 +424,7 @@ const lagsByLink = (r: ImportResult) => {
   context.store.getState().applyLoadedProject(readCSV(csv), { recompute: true });
   eq('352 laden en berekenen behoudt echte actuals', actuals(context.store.getState().tasks), expected);
   const reopened = createAppStoreContext();
-  reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(context.store.getState()))), { recompute: true });
+  reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(context.store.getState(), 'planOnly'))), { recompute: true });
   eq('352 IFC opslaan en heropenen behoudt echte actuals', actuals(reopened.store.getState().tasks), expected);
   // 100 % met een starttijd en zonder werkelijk einde: het afgeleide einde (geplande finish, een kale
   // datum) is de hele werkdag en wordt het einde van die dag, niet de starttijd (nulduur).
@@ -418,7 +448,7 @@ const lagsByLink = (r: ImportResult) => {
     loaded.store.getState().applyLoadedProject(parsed, { recompute: true });
     eq(`352 alleen start, ${label}: laden en berekenen`, actuals(loaded.store.getState().tasks), want);
     const back = createAppStoreContext();
-    back.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(loaded.store.getState()))), { recompute: true });
+    back.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(loaded.store.getState(), 'planOnly'))), { recompute: true });
     eq(`352 alleen start, ${label}: IFC opslaan en heropenen`, actuals(back.store.getState().tasks), want);
   }
   const startOnlyContext = createAppStoreContext();
@@ -426,7 +456,7 @@ const lagsByLink = (r: ImportResult) => {
   eq('352 alleen start: laden en berekenen geeft het einde van de werkdag', actuals(startOnlyContext.store.getState().tasks), derived);
   const startOnlyReopened = createAppStoreContext();
   startOnlyReopened.store.getState().applyLoadedProject(
-    readIFC(writeIFC(buildWriteIFCInput(startOnlyContext.store.getState()))), { recompute: true });
+    readIFC(writeIFC(buildWriteIFCInput(startOnlyContext.store.getState(), 'planOnly'))), { recompute: true });
   eq('352 alleen start: IFC opslaan en heropenen houdt het einde van de werkdag',
     actuals(startOnlyReopened.store.getState().tasks), derived);
   const midnight = readCSV(csvOf(['Name', 'Actual Start', 'Actual Finish'],

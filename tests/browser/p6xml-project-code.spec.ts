@@ -101,24 +101,14 @@ test('P6 XML: rapportkop en PDF-naam dragen "Naam (code)"', async ({ page, ops: 
   await openMulti(page);
   // Het tweede tabblad, met een echte klik: de kop volgt het actieve document.
   await page.getByRole('tab', { name: 'Project C (C-AFBOUW)', exact: true }).click();
-  // De kop wordt met canvas-`fillText` in de hoofdthread getekend; we lezen alleen mee.
-  await page.evaluate(() => {
-    const seen: string[] = [];
-    (window as unknown as { __opsFillTexts: string[] }).__opsFillTexts = seen;
-    const proto = CanvasRenderingContext2D.prototype;
-    const original = proto.fillText;
-    proto.fillText = function (this: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth?: number) {
-      seen.push(String(text));
-      return maxWidth === undefined ? original.call(this, text, x, y) : original.call(this, text, x, y, maxWidth);
-    };
-  });
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
-  await expect(page.locator('[data-preview-page]').first().locator('img')).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __opsFillTexts: string[] }).__opsFillTexts
-    .includes('Project C (C-AFBOUW)'))).toBe(true);
+  // De kop staat als tekst op het papier (SVG) van het Rapport-tabblad.
+  const page0 = page.locator('[data-report-page-svg="0"]');
+  await expect(page0).toBeVisible();
+  await expect(page0.locator('text', { hasText: /^Project C \(C-AFBOUW\)$/ }).first()).toBeAttached();
 
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+  await page.locator('[data-rs-export]').click();
   expect((await download).suggestedFilename()).toBe('Project C (C-AFBOUW)-schedule.pdf');
 });
 

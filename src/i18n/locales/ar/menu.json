@@ -24,6 +24,8 @@
     "undo": "تراجع",
     "redo": "إعادة",
     "delete": "حذف",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: تحذف المهام المحددة وتربط كل مهمة سابقة بكل المهام اللاحقة (علاقة نهاية-بداية، بدون تأخير)",
     "undoTitle": "تراجع (Ctrl+Z)",
     "redoTitle": "إعادة (Ctrl+Y)",
     "deleteTitle": "حذف التحديد (Delete)",
@@ -215,6 +217,7 @@
     "columnsHintGoToTable": "اختيار أعمدة عرض الجدول — تظهر في علامة التبويب الجدول",
     "toggleResourceAccent": "لمسة المورد",
     "toggleFloatBand": "شريط الفائض",
+    "toggleBarDates": "التواريخ بجانب أشرطة المهام",
     "screenColors": "ألوان الأعمدة",
     "screenColors_critical": "المسار الحرج",
     "screenColors_auto": "لكل مهمة — تلقائي",
@@ -285,7 +288,8 @@
       "label": "مخطط IFC عند الحفظ",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (افتراضي)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "يحتوي الملف على بيانات من برنامج آخر، لذلك يُحتفظ بالمخطط من ترويسته الأصلية."
     }
   },
   "newProject": {
@@ -293,7 +297,23 @@
     "template": "قالب المراحل",
     "tmplEmpty": "فارغ",
     "tmplWoningbouw": "بناء سكني",
-    "tmplUtiliteit": "بناء تجاري / تجديد"
+    "tmplUtiliteit": "بناء تجاري / تجديد",
+    "phase": {
+      "siteGroundwork": "تجهيز الموقع وأعمال الأرض",
+      "foundation": "الأساسات",
+      "shell": "الهيكل الإنشائي",
+      "roof": "السقف",
+      "facadeFitOut": "الواجهة والتشطيب الداخلي",
+      "services": "التركيبات (الميكانيكية والكهربائية)",
+      "finishes": "التشطيبات",
+      "handover": "التسليم",
+      "demolitionStripOut": "الهدم والإزالة الداخلية",
+      "groundworkFoundation": "أعمال الأرض والأساسات",
+      "mainStructure": "الهيكل الحامل الرئيسي",
+      "facadeRoof": "الواجهة والسقف",
+      "fitOut": "التشطيب الداخلي",
+      "commissioning": "الضبط والاختبار"
+    }
   },
   "status": {
     "tasks": "المهام:",
@@ -323,12 +343,14 @@
     "recentTitle": "المشاريع الأخيرة",
     "recentSubtitle": "انقر للفتح.",
     "recentEmpty": "لا توجد مشاريع مفتوحة مؤخراً.",
+    "recentLoading": "جارٍ تحميل الملفات الأخيرة…",
     "recentUnavailable": "لا يستطيع هذا المتصفح إعادة فتح الملفات المحلية من «الأخيرة». استخدم «فتح» لاختيار ملف المشروع مرة أخرى.",
     "recentOnSite": "على الموقع",
     "examples": "أمثلة",
     "examplesTitle": "مشاريع نموذجية",
     "examplesSubtitle": "جداول بناء مرفقة. انقر للفتح في علامة تبويب جديدة.",
     "examplesLoading": "جارٍ تحميل الأمثلة…",
+    "loading": "جارٍ التحميل…",
     "examplesEmpty": "لا توجد أمثلة متاحة.",
     "examplesError": "تعذّر تحميل الأمثلة.",
     "examplesShowcaseHeading": "جداول العرض الكاملة",
@@ -399,7 +421,7 @@
       "plannedReadOnly": "مخطَّط، لا تُغيّر",
       "summaryRow": "— مهمة تلخيصية: لا تملأ"
     },
-    "csvLabel": "CSV (مفصول بفاصلة منقوطة)",
+    "csvLabel": "CSV",
     "csvDesc": "تصدير جدولي عام. جميع المهام مع التواريخ والمُدد.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "يُفتح في Microsoft Project. هيكل WBS كامل.",
@@ -411,7 +433,7 @@
     "profileHint": "يعمل مشروعك حاليًا بملف التعريف {{name}}. ننصح باستخدام ملف التعريف {{target}} لتحقيق أفضل توافق مع تنسيق الملف هذا.",
     "ifcLabel": "IFC",
     "ifcDesc": "معيار BuildingSMART، وفق مخطط IFC الخاص بالمشروع (افتراضي: IFC 4.3 ADD2). ربط رباعي الأبعاد مع نماذج BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "الإضافات",

@@ -104,7 +104,7 @@ function openInStore(parsed: OpenedImport): DocumentPayload {
   return store.getState().getOpenDocumentPayloads()[0].payload;
 }
 async function reopen(p: DocumentPayload): Promise<DocumentPayload> {
-  return openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(p)) }));
+  return openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(p, 'planOnly')) }));
 }
 const taskDates = (p: DocumentPayload) => p.tasks.map((t) => {
   const x = t.time;

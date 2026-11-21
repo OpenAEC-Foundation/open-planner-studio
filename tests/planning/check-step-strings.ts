@@ -103,7 +103,7 @@ const setDur = (id: string, d: number) => {
   S().updateTask(id, { time: { ...t.time, scheduleDuration: d } });
 };
 /** Exact het auto-save-/opslaan-pad: store → buildWriteIFCInput → writeIFC → readIFC. */
-const save = (): string => writeIFC(buildWriteIFCInput(S()));
+const save = (): string => writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const roundTrip = (): ImportResult => readIFC(save());
 
 // ════════════════════════════════════════════════════════════════════════════

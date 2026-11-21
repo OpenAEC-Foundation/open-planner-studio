@@ -112,7 +112,7 @@ ok('4c geen tekst ⇒ INVALID_INPUT', await codeOf(() => openIfc(42 as unknown a
 ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-10303-21;\nHEADER;')) === 'IFC_READ_FAILED');
 {
   const empty = createAppStoreContext({ emitHostEvents: false }).store.getState();
-  const emptyIfc = writeIFC(buildWriteIFCInput(empty));
+  const emptyIfc = writeIFC(buildWriteIFCInput(empty, 'planOnly'));
   ok('4d IFC zonder taken ⇒ NO_TASKS', await codeOf(() => openIfc(emptyIfc)) === 'NO_TASKS');
 }
 {
@@ -122,7 +122,7 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ctx.store.getState().loadState(readIFC(readFileSync(files[0], 'utf8')));
   const leaves = ctx.store.getState().tasks.filter(t => !t.isSummary && t.childIds.length === 0);
   const [x, y] = [leaves[0].id, leaves[1].id];
-  const input = buildWriteIFCInput(ctx.store.getState());
+  const input = buildWriteIFCInput(ctx.store.getState(), 'planOnly');
   const base = { type: 'FINISH_START' as const, lagDays: 0 };
   input.sequences = [
     ...input.sequences,
@@ -232,7 +232,7 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ok('4g documentwissel behoudt de verwachte span en duur op alle niveaus', hasExpectedSpan(switched.tasks));
   ok('4g documentwissel bewaart WBS, false-vlag en alle zichtbare rijen',
     shape(switched.tasks) === expectedShape && switched.project.wbsAutoNumber === false && switched.viewRows.length === N);
-  const appSaved = readIFC(writeIFC(buildWriteIFCInput(switched)));
+  const appSaved = readIFC(writeIFC(buildWriteIFCInput(switched, 'planOnly')));
   ok('4g laatste IFC-roundtrip bewaart de verwachte span en duur op alle niveaus', hasExpectedSpan(appSaved.tasks));
   ok('4g save na heropenen en documentwissel bewaart structuur en GlobalIds', shape(appSaved.tasks) === expectedShape
     && tasks.every(t => appSaved.ifcGlobalIds?.[`task:${t.id}`] === sourceGuids[`task:${t.id}`]));
@@ -260,12 +260,12 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
     t.time.earlyStart = '2030-01-07';
     t.time.earlyFinish = '2030-01-11';
   });
-  const stale = writeIFC(buildWriteIFCInput(ctx.store.getState()));
+  const stale = writeIFC(buildWriteIFCInput(ctx.store.getState(), 'planOnly'));
   const datesIn = (ifc: string) => JSON.stringify(readIFC(ifc).tasks.map(t => [t.id, t.time.earlyStart, t.time.earlyFinish]));
 
   const app = createAppStoreContext({ emitHostEvents: false });
   app.store.getState().openAsDocument(await readIFCWithXerReconstruction(stale), { name: 'document.ifc', ref: null, saveTarget: false });
-  const appAfterOpen = datesIn(writeIFC(buildWriteIFCInput(app.store.getState())));
+  const appAfterOpen = datesIn(writeIFC(buildWriteIFCInput(app.store.getState(), 'planOnly')));
 
   const doc = await openIfc(stale);
   ok('6 toIfc() vóór schedule() = de app na Bestand → Openen', datesIn(doc.toIfc()) === appAfterOpen);
@@ -306,6 +306,30 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
     && !modern.schedule().warnings.some(x => x.code === 'MINUTE_MODEL_CONVERTED'), JSON.stringify(modern.openWarnings));
   const example = await openIfc(readFileSync(files[0], 'utf8'));
   ok('7f een voorbeeldbestand meldt niets bij het openen', example.openWarnings.length === 0, JSON.stringify(example.openWarnings));
+}
+
+// T3: tekst-API zonder bytesbehoud mag vreemde psets niet stil uit de uitvoer laten verdwijnen.
+{
+  const own = readFileSync(files[0], 'utf8');
+  const foreign = own.replace('ENDSEC;\nEND-ISO-10303-21;',
+    "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+    "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;");
+  ok('8 fixture heeft een externe pset zonder model', foreign !== own && !foreign.includes('IFCWALL('));
+  const doc = await openIfc(foreign);
+  ok('8 kern kan de planning samenvatten', doc.schedule().counts.tasks > 0);
+  let error: unknown;
+  try { doc.toIfc(); } catch (e) { error = e; }
+  ok('8 toIfc weigert met de bestaande vaste code vóór uitvoer',
+    error instanceof PlannerCoreError && error.code === 'IFC_WRITE_FAILED', String(error));
+}
+
+// De blokkade op de historische eigen kop (1132) is weg, ook voor echte kernuitvoer.
+for (const name of ['ohara', 'data']) {
+  const text = readFileSync(join(root, `tests/planning/fixtures/oude-tags/v2026.7.12-${name}-showcase-verbouwing-eengezinswoning.ifc`), 'utf8');
+  const doc = await openIfc(text);
+  const written = doc.toIfc();
+  ok(`8 ${name}: oude eigen planning schrijft en heropent met alle twintig taken`,
+    doc.schedule().counts.tasks === 20 && (await openIfc(written)).schedule().counts.tasks === 20);
 }
 
 if (diffs.length === 0) {

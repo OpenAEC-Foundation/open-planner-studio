@@ -359,7 +359,7 @@ export function build(spec: ProjectSpec): BuildResult {
   const critical = leaves.filter(t => t.time.isCritical).length;
   // Zelfde gedeelde state→IFC-helper als de app-save-paden (pakket R, `state/ifcSaveInput.ts`),
   // zodat de generator nooit stil velden kan weglaten die de app wél wegschrijft.
-  const ifcContent = writeIFC(buildWriteIFCInput(st));
+  const ifcContent = writeIFC(buildWriteIFCInput(st, 'planOnly'));
   return {
     ifc: ifcContent,
     stats: {

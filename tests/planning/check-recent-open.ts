@@ -43,7 +43,7 @@ function documentState() {
 S().newProject();
 S().setProject({ name: 'Źródło Łódź', startDate: '2026-01-05' });
 S().addTask({ name: 'Zażółć gęślą jaźń' });
-const ifc = writeIFC(buildWriteIFCInput(S()));
+const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 let failure: unknown = null;
 const reads: Array<[string, string]> = [];
 win.__TAURI_INTERNALS__ = {

@@ -2,14 +2,32 @@
  * `ifcSource`: waar de IFC-bron woont (#804, ontwerp "Gebouwmodel behouden" §4.8). Een bladmodule met alleen het type
  * en twee kleine vragen, zodat store, documentcontract en meldingen het kunnen lezen zonder de scanner te laden.
  *
- * Fase 1a vult het veld alleen via de bytes-route (`ifcBytesRoute.ts`, achter de flag `ifcForeignContent`). Nog niet in
+ * De bytes-route vult de openingsbron (`ifcBytesRoute.ts`, achter de flag `ifcForeignContent`). `prepareIfcWrite` levert
+ * in fase 1c de bron van de gecontroleerde uitvoer; de store legt die pas na geslaagde opslag vast (PR 8b/11). Nog niet in
  * fase 1a (fase 2): `sourceSlots`, `jsonExtras`, `unusedKeys`, `idExceptions`, herkomstmerken, `elementLinks`,
- * `detached`, de wijzigingstijd op het doel en het manifest 6.
+ * `detached` en de wijzigingstijd op het doel. Bronherstel in 1c gebruikt een optioneel documentveld binnen manifest 5.
  *
  * De bronbytes blijven buiten undo (documentcontract, `snapshot: 'none'`), buiten de herstelsnapshot
- * (`recoverySnapshotInput` neemt alleen `IFC_SAVE_KEYS`) en buiten de MCP-backup (die schrijft
- * `writeIFC(buildWriteIFCInput(…))`, zonder dit veld). `check-ifc-foreign-open.ts` eist dat.
+ * (`recoverySnapshotInput` gebruikt writer-invoer die `ifcSource` weglaat) en buiten de MCP-backup (die schrijft
+ * `writeIFC(buildWriteIFCInput(…))`, zonder dit veld). `check-ifc-foreign-open.ts` eist dat. Dat geldt ook voor
+ * `opened` (vervolg-PR van #867): een verwijzing naar het domein van het document zoals het na openen was.
  */
+import type { WriteIFCInput } from '../ifcWriter';
+import type { StepIndex } from './stepScanner';
+
+/** Eén gecontroleerde schrijfvoorbereiding, nog zonder bestandsschrijf of documentwijziging.
+ * Pas na geslaagde opslag legt de aanroeper `source` en de letterlijke kalender-ids vast.
+ */
+export interface PreparedIfcWrite {
+  /** De volledige uitvoer: dezelfde buffer als `source.bytes`; de aanroeper wijzigt hem nooit. */
+  readonly bytes: Uint8Array;
+  readonly sha256: string;
+  readonly source: IfcSource;
+  readonly literalCalendarIds: readonly string[];
+  /** Ruimte voor PR 6: een bewaarde uitvoerindex. Deze PR bewaart/hergebruikt hem nog niet. */
+  readonly outputIndex?: StepIndex;
+}
+
 export interface IfcSource {
   /** De bronbytes zoals gelezen. Nooit wijzigen: sha256, stukgrenzen en klassen horen erbij. */
   readonly bytes: Uint8Array;
@@ -32,11 +50,31 @@ export interface IfcSource {
   readonly foreign: boolean;
   /** Aantal entiteiten dat niet P is (C, A en V), voor de melding van §4.15. */
   readonly foreignObjectCount: number;
+  /** Heeft de bron een gebouwmodel (een entiteit met een modeltype)? Gezet door de scan die de bron accepteerde: bij
+   *  openen (`ifcBytesRoute.ts`) en na een gecontroleerde merge (`mergeWriter.ts`). Verplicht, dus nooit onbeslist; bij
+   *  twijfel zet de scan `true` (`hasBuildingModelEntity` in `foreignScan.ts`). */
+  readonly buildingModel: boolean;
   /** Regeleinde van de bron. */
   readonly lineEnding: '\r\n' | '\n';
+  /**
+   * Het domein zoals de app het na het openen liet zien, in de vorm van de writer (`buildWriteIFCInput`): na de lezer,
+   * de omzetting naar het minutenmodel en de herberekening bij openen (#886). De store zet het bij het openen
+   * van een bron met een vreemd deel (`applyLoadedProject`). De merge leest er af wat de planner wijzigde: een veld dat
+   * gelijk is aan `opened`, wijzigde hij niet, ook als de omzetting het anders maakte dan de lezing van de bron
+   * (`sourceForm.ts`). Ontbreekt het (de bytes-route zonder store), dan is de lezing van de bron wat de app liet zien.
+   * Bij openen zijn dit dezelfde onveranderlijke objecten als in het document. Een voorbereide opslag draagt een diep
+   * bevroren kopie van haar schrijfinvoer, zodat later doorwerken nooit de momentopname achter de bron verandert.
+   */
+  readonly opened?: WriteIFCInput;
 }
 
 /** Heeft dit document een vreemd deel? Zonder bron (nieuw document, ander formaat, flag uit): nee. */
 export function hasForeignContent(source: IfcSource | null | undefined): boolean {
   return source?.foreign === true;
+}
+
+/** Heeft dit document een gebouwmodel (#804, knownbug 1768 en 1740)? Vreemde inhoud is niet genoeg: een planning met
+ *  alleen een eigenschappenset van een ander programma heeft er geen. De enige plek voor die vraag. */
+export function hasBuildingModel(source: IfcSource | null | undefined): boolean {
+  return hasForeignContent(source) && source!.buildingModel;
 }

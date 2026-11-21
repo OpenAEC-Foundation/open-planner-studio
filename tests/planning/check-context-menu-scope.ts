@@ -32,6 +32,7 @@ import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
 import { RIBBON_TABS, type RibbonGroupSpec } from '@/components/layout/Ribbon/ribbonConfig';
 import type { Task } from '@/types/task';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { answerActualStartQuestion } from '@/state/actualStartQuestion';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -173,6 +174,49 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   S().undo();
   eq('17 voortgang: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => task(id)?.time.completion), [0, 0, 0]);
+}
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+  const a = S().addTask({ name: 'A', time: { scheduleDuration: 1 } as Task['time'] });
+  const b = S().addTask({ name: 'B', time: { scheduleDuration: 2 } as Task['time'] });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  S().selectTasks([b, a], false);
+  const action = contextMenuBulk.setProgress(b, 1);
+  eq('#998 contextmenu vraagt om start van opvolger voordat iets is afgemeld',
+    [S().ui.pendingActualStartQuestion?.items.map(item => item.taskId), task(a)?.time.completion, task(b)?.time.completion],
+    [[b], 0, 0]);
+  answerActualStartQuestion(null);
+  await action;
+  eq('#998 annuleren vanuit contextmenu houdt beide taken open',
+    [task(a)?.time.completion, task(b)?.time.completion], [0, 0]);
+  const confirmed = contextMenuBulk.setProgress(b, 1);
+  answerActualStartQuestion({ [b]: '2026-06-09' });
+  await confirmed;
+  eq('#998 bevestigen meldt beide taken af en bewaart de opgegeven start',
+    [task(a)?.time.actualFinish, task(b)?.time.completion, task(b)?.time.actualStart],
+    ['2026-06-10T16:00', 1, '2026-06-09T07:00']);
+}
+
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+  const a = S().addTask({
+    name: 'A', time: { scheduleDuration: 4 } as Task['time'],
+    splitGaps: [{ afterMinutes: 1440, gapMinutes: 960, source: 'leveling' }],
+  });
+  const b = S().addTask({ name: 'B', time: { scheduleDuration: 2 } as Task['time'] });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: -3 });
+  S().runCPM();
+  S().selectTasks([b, a], false);
+  const action = contextMenuBulk.setProgress(b, 0.5);
+  eq('#998 het gewiste nivelleergat veroorzaakt geen startvraag op de opvolger',
+    S().ui.pendingActualStartQuestion, null);
+  answerActualStartQuestion(null);
+  await action;
+  eq('#998 groepsvoortgang gebruikt de opvolgerstart na het wissen van het nivelleergat',
+    [task(a)?.splitGaps, task(b)?.time.actualStart], [undefined, '2026-06-09T07:00']);
 }
 
 // ── 4) Prioriteit ───────────────────────────────────────────────────────────────────────────

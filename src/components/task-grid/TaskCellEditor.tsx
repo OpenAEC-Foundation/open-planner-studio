@@ -22,6 +22,8 @@ import {
 import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { Icon } from '@/components/icons';
+import { DATE_PICKER_ICONS, DatePickerPanel } from '@/components/common/DatePicker';
+import { noteTextEntry } from '@/state/textEntryActivity';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -139,8 +141,14 @@ export function TaskCellEditor({
   onOpenExternal,
 }: TaskCellEditorProps) {
   const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
+  const descriptor = adapter.descriptorsById.get(cell.columnId);
+  // Een keuzelijst (ja/nee, keuze, code) start altijd op de huidige waarde; een getypt teken springt
+  // in de open lijst naar een passende optie (#970) in plaats van als waarde te gelden.
+  const isListEditor = descriptor?.editorKind === 'boolean'
+    || (descriptor?.editorKind === 'enum' && descriptor.editorOptions !== undefined);
+  const listTypeahead = isListEditor && initialText ? initialText : undefined;
   const [text, setText] = useState(
-    () => initialText ?? initialCell?.editText ?? '',
+    () => (isListEditor ? undefined : initialText) ?? initialCell?.editText ?? '',
   );
   const [assignmentTokens, setAssignmentTokens] = useState<TaskAssignmentToken[]>(() => (
     Array.isArray(initialCell?.value)
@@ -148,19 +156,18 @@ export function TaskCellEditor({
       : []
   ));
   const [resourceQuery, setResourceQuery] = useState('');
-  const descriptor = adapter.descriptorsById.get(cell.columnId);
   const dateNotation = adapter.dateNotation ?? 'dmy';
   const dateEditorKind = descriptor?.editorKind === 'date' || descriptor?.editorKind === 'datetime'
     ? descriptor.editorKind
     : null;
-  const pickerValue = dateEditorKind === 'date'
-    ? parseGridDate(text, dateNotation) ?? ''
-    : dateEditorKind === 'datetime'
-      ? (() => {
-          const parsed = parseGridDateTime(text, dateNotation);
-          return parsed?.length === 10 ? `${parsed}T00:00` : parsed ?? '';
-        })()
-      : '';
+  // De eigen datumkiezer (#904) achter een knop in de datumeditor: hij opent op de getypte datum.
+  const parsedDateText = dateEditorKind === 'date'
+    ? parseGridDate(text, dateNotation)
+    : dateEditorKind === 'datetime' ? parseGridDateTime(text, dateNotation) : null;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const dateEditorRef = useRef<HTMLDivElement>(null);
+  const pickerButtonRef = useRef<HTMLButtonElement>(null);
+  const pickerPanelRef = useRef<HTMLDivElement>(null);
   const relationDirection = String(cell.columnId) === 'relation.predecessors'
     ? 'predecessor'
     : String(cell.columnId) === 'relation.successors' ? 'successor' : null;
@@ -226,6 +233,12 @@ export function TaskCellEditor({
       else node.setSelectionRange(node.value.length, node.value.length);
     }
   }, [cell.rowKey, cell.columnId, initialText]);
+  // De eerste letter die vanuit een geselecteerde cel de editor start (`initialText`), is een gewone toetsaanslag: hij
+  // komt niet als `input`-event binnen, dus meldt de editor hem zelf aan de rustklok van Automatisch opslaan
+  // (`textEntryActivity.ts`, fixronde 2 van de review van #1033).
+  useEffect(() => {
+    if (initialText !== undefined) noteTextEntry();
+  }, [cell.rowKey, cell.columnId, initialText]);
 
   const commit = useCallback((shiftKey = false): GridEditorCommitResult => {
     if (isRelationEditor && initialText === undefined && !relationValid) {
@@ -261,21 +274,38 @@ export function TaskCellEditor({
   // dus dit is de ENIGE plek die de commit voor een gekozen waarde triggert — geen dubbele afhandeling.
   // `Select` roept `onChange` niet aan als de gebruiker de al gekozen optie opnieuw kiest. De cel
   // legt dan via `onReselect` toch vast en sluit, bij klik, Enter en Spatie, net als bij een andere
-  // waarde.
+  // waarde. Shift+Enter gaat zoals overal in de grid een rij omhoog: de capture hieronder onthoudt of
+  // de laatste toets Shift+Enter was, want `Select` geeft bij een keuze alleen de waarde door.
+  const pickedWithShiftEnterRef = useRef(false);
   const commitPickedValue = (value: string, inputProps: GridEditorInputProps) => {
     textRef.current = value;
     setText(value);
     inputProps.onKeyDown({
       key: 'Enter',
-      shiftKey: false,
+      shiftKey: pickedWithShiftEnterRef.current,
       preventDefault: () => {},
       stopPropagation: () => {},
     } as KeyboardEvent<HTMLElement>);
   };
 
+  /** Een dag uit de kiezer: dezelfde tekst als typen, met de getypte tijd erbij, en meteen vastleggen
+   *  (een keuze is één handeling, zoals in een keuzelijst). Zonder getypte tijd blijft het een datum:
+   *  de store zet die op de dagrand van het veld, net als een getypte datum. */
+  const pickGridDate = (iso: string, inputProps: GridEditorInputProps) => {
+    inputRef.current?.focus();
+    setPickerOpen(false);
+    const time = dateEditorKind === 'datetime' && parsedDateText && parsedDateText.length > 10
+      ? parsedDateText.slice(10)
+      : '';
+    commitPickedValue(time
+      ? formatGridDateTime(iso + time, dateNotation, adapter.context.timeNotation ?? '24h')
+      : formatGridDate(iso, dateNotation), inputProps);
+  };
+
   // Escape in een keuzelijst-editor (enum/boolean): annuleer de celbewerking vóórdat `Select` de
   // toets ziet. `Select` stopt Escape in een open lijst; zonder deze capture bleef de editor open.
-  const cancelOnEscapeCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
+  const onListKeyDownCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
+    pickedWithShiftEnterRef.current = e.key === 'Enter' && e.shiftKey;
     if (e.key === 'Escape') inputProps.onKeyDown(e);
   };
 
@@ -457,7 +487,7 @@ export function TaskCellEditor({
           // component (open/highlight/typeahead/Enter-commit/Escape-annuleer) — hier met `autoOpen`
           // zodat de volledige lijst er meteen staat. Select stopt Escape in een open lijst (anders
           // sloot dezelfde toets ook een omringende dialoog). Daarom vangt de WRAPPER Escape al in de
-          // capture-fase af (`cancelOnEscapeCapture`): één Escape sluit de lijst én annuleert de
+          // capture-fase af (`onListKeyDownCapture`): één Escape sluit de lijst én annuleert de
           // celbewerking, zoals vroeger. `onKeyDown={inputProps.onKeyDown}` op de wrapper (niet op
           // Select zelf, dat kent die prop niet) blijft voor de overige toetsen. Enter/klik op een
           // optie roept `onChange` hieronder aan (of `onReselect` bij de al gekozen optie), die de
@@ -466,11 +496,12 @@ export function TaskCellEditor({
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="enum"
-            onKeyDownCapture={e => cancelOnEscapeCapture(e, inputProps)}
+            onKeyDownCapture={e => onListKeyDownCapture(e, inputProps)}
             onKeyDown={inputProps.onKeyDown}
           >
             <Select
               autoOpen
+              initialTypeahead={listTypeahead}
               aria-label={label}
               aria-invalid={inputProps['aria-invalid']}
               aria-describedby={inputProps['aria-describedby']}
@@ -487,11 +518,12 @@ export function TaskCellEditor({
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="boolean"
-            onKeyDownCapture={e => cancelOnEscapeCapture(e, inputProps)}
+            onKeyDownCapture={e => onListKeyDownCapture(e, inputProps)}
             onKeyDown={inputProps.onKeyDown}
           >
             <Select
               autoOpen
+              initialTypeahead={listTypeahead}
               aria-label={label}
               aria-invalid={inputProps['aria-invalid']}
               aria-describedby={inputProps['aria-describedby']}
@@ -506,7 +538,7 @@ export function TaskCellEditor({
             />
           </div>
         ) : dateEditorKind ? (
-          <div className="task-grid-date-editor">
+          <div className="task-grid-date-editor" ref={dateEditorRef}>
             <input
               {...inputProps}
               ref={node => { inputRef.current = node; }}
@@ -514,26 +546,52 @@ export function TaskCellEditor({
               aria-label={label}
               value={text}
               onChange={event => setText(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key === 'ArrowDown' && event.altKey) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setPickerOpen(true);
+                  return;
+                }
+                inputProps.onKeyDown(event);
+              }}
               className="task-grid-editor-input"
               data-task-editor-kind={dateEditorKind}
             />
-            <input
-              {...inputProps}
-              type={dateEditorKind === 'date' ? 'date' : 'datetime-local'}
-              step={dateEditorKind === 'datetime' ? 60 : undefined}
+            <button
+              ref={pickerButtonRef}
+              type="button"
+              tabIndex={-1}
               aria-label={calendarPickerLabel}
-              value={pickerValue}
-              onChange={event => {
-                const value = event.currentTarget.value;
-                setText(value === ''
-                  ? ''
-                  : dateEditorKind === 'date'
-                    ? formatGridDate(value, dateNotation)
-                    : formatGridDateTime(value, dateNotation, adapter.context.timeNotation ?? '24h'));
+              title={calendarPickerLabel}
+              aria-haspopup="dialog"
+              aria-expanded={pickerOpen}
+              aria-keyshortcuts="Alt+ArrowDown"
+              // De focus blijft in het tekstveld (of in het open paneel).
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => {
+                if (pickerOpen) inputRef.current?.focus();
+                setPickerOpen(open => !open);
               }}
               className="task-grid-date-picker"
               data-task-editor-picker={dateEditorKind}
-            />
+            >
+              <Icon id={DATE_PICKER_ICONS.open} size={14} />
+            </button>
+            {pickerOpen && (
+              <DatePickerPanel
+                anchorRef={dateEditorRef}
+                panelRef={pickerPanelRef}
+                ignoreRef={pickerButtonRef}
+                value={parsedDateText?.slice(0, 10) ?? ''}
+                ariaLabel={label}
+                onPick={iso => pickGridDate(iso, inputProps)}
+                onClose={restoreFocus => {
+                  if (restoreFocus) inputRef.current?.focus();
+                  setPickerOpen(false);
+                }}
+              />
+            )}
           </div>
         ) : (
           <>

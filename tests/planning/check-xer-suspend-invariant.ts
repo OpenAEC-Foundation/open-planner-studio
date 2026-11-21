@@ -84,7 +84,7 @@ eq('updateTask naar losse resume wist onmiddellijk de semantische vlag maar bewa
   flag: looseEdited.p6SuspendResume,
 }, { stop: undefined, resume: '2026-08-20T08:00', flag: undefined });
 
-const looseParsed = readIFC(writeIFC(buildWriteIFCInput(looseStore.getState())));
+const looseParsed = readIFC(writeIFC(buildWriteIFCInput(looseStore.getState(), 'planOnly')));
 const recoveryStore = createAppStore();
 recoveryStore.getState().restoreDocuments([
   recoveryInputFromParsed(looseParsed, { id: 'x7-recovery', filePath: '/tmp/x7-recovery.ifc', isDirty: true, datesAsRecorded: false }),

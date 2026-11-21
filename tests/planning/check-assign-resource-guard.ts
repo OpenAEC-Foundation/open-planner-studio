@@ -73,7 +73,7 @@ eq('07 null/undefined resourceId: geen null in assignments', S().assignments.som
 let saveOk = true;
 let ifcAfterGuard = '';
 try {
-  ifcAfterGuard = writeIFC(buildWriteIFCInput(S()));
+  ifcAfterGuard = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 } catch {
   saveOk = false;
 }
@@ -88,7 +88,7 @@ useAppStore.setState((s) => {
 let poisonedOk = true;
 let ifcPoisoned = '';
 try {
-  ifcPoisoned = writeIFC(buildWriteIFCInput(S()));
+  ifcPoisoned = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 } catch {
   poisonedOk = false;
 }

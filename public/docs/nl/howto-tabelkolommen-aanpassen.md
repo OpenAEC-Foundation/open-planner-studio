@@ -31,7 +31,7 @@ Klik op het min-teken in de kop van de kolom (*Verwijderen: Deadline*). Of klik 
 
 Sleep de rand rechts van de kolomkop naar links of rechts. Dubbelklik op die rand, of kies *Automatisch passend maken* in het menu van de kop (rechtermuisknop), om de kolom zo breed te maken dat de inhoud past, tot maximaal 480 pixels. Heeft de rand de focus, dan verbreden of versmallen de pijltoetsen hem stapje voor stapje.
 
-Wil je dat de app dit zelf doet? Zet dan bij *Instellingen › Taakraster* de schakelaar *Kolommen automatisch aanpassen* aan. Alle kolommen passen dan hun breedte aan de waarden aan, na het openen van een project en na elke bevestigde bewerking (niet tijdens het typen). De kolomkop telt dan niet mee: een lange kop wordt afgekapt, net als bij de standaardbreedtes. Een kolom die je zelf sleept, houdt jouw breedte. Dubbelklik op de rand van die kolom om hem weer automatisch te laten aanpassen.
+Wil je dat de app dit zelf doet? Zet dan bij *Instellingen › Project › App-instellingen*, groep *Werkruimte*, [Kolommen automatisch aanpassen](settings://autoFitColumns) aan. Alle kolommen passen dan hun breedte aan de waarden aan, na het openen van een project en na elke bevestigde bewerking (niet tijdens het typen). De kolomkop telt dan niet mee: een lange kop wordt afgekapt, net als bij de standaardbreedtes. Een kolom die je zelf sleept, houdt jouw breedte. Dubbelklik op de rand van die kolom om hem weer automatisch te laten aanpassen.
 
 ### Kolommen vastzetten
 

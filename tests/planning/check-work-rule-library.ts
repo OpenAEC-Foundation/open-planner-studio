@@ -223,7 +223,7 @@ console.log('-- (e) resolveDeviation(company): "Bibliotheekwaarden gebruiken", n
 console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en wisselen naar een achterlopend document --');
 {
   const f = fixture({ hourTask: false });
-  const ifc = writeIFC(buildWriteIFCInput(f.S()));
+  const ifc = writeIFC(buildWriteIFCInput(f.S(), 'planOnly'));
   // Bibliotheek intussen naar 6 u terwijl het document niet gekoppeld open is: los maken, pool wijzigen.
   f.S().newProject();
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
@@ -255,7 +255,7 @@ console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en w
 console.log('-- (g) idempotentie: heropenen zonder opslaan geeft hetzelfde resultaat --');
 {
   const f = fixture({ hourTask: false });
-  const ifc = writeIFC(buildWriteIFCInput(f.S())); // opgeslagen met 8 u, synchroon met de bibliotheek
+  const ifc = writeIFC(buildWriteIFCInput(f.S(), 'planOnly')); // opgeslagen met 8 u, synchroon met de bibliotheek
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   const snap = () => ({
     hpd: f.S().calendar.hoursPerDay,
@@ -298,7 +298,7 @@ console.log('-- (g2) idempotentie over alle vier de regels, een gestarte taak en
   S().setTaskProgress(started, 0.4);
   ids.push(started, f.t, f.q);
   S().runCPM();
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const snap = () => ids.map((id) => {
     const t = taskOf(f, id);
     const a = asgOf(f, id);

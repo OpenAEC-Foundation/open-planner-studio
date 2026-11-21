@@ -106,3 +106,57 @@ test('plakken in een ander document maakt onbekende verwijzingen leeg en meldt d
     return JSON.stringify({ tasks: s.tasks, sequences: s.sequences, assignments: s.assignments });
   })).toBe(branch.data);
 });
+
+// Issue #900: kopiëren met de focus in de kolommen en plakken in een ANDERE planning plakt de taken.
+// Het raster kopieert dan ook naar het app-brede takenklembord. Binnen dezelfde planning, en met tekst
+// van buiten (Excel), blijft plakken in de kolommen celwaarden plakken zoals voorheen.
+test('kopiëren in de kolommen en plakken in een andere planning plakt de taken (issue #900)', async ({ page, ops: _ops }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.setViewportSize({ width: 1400, height: 800 });
+  const nameCell = (rowKey: string) => page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${rowKey}"]`
+    + ' [data-grid-data-cell="true"][data-grid-column-id="task.name"]',
+  );
+  const names = () => page.evaluate(() => window.__OPS__!.store.getState().tasks.map(task => task.name));
+  const { phase, loose } = await page.evaluate(() => {
+    const store = window.__OPS__!.store;
+    store.getState().setProject({ name: 'Project A', startDate: '2026-09-07' });
+    const phase = store.getState().addTask({ name: 'Ruwbouw' });
+    store.getState().addTask({ name: 'Graven', parentId: phase });
+    store.getState().addTask({ name: 'Storten', parentId: phase });
+    const loose = store.getState().addTask({ name: 'Losse taak' });
+    store.getState().runCPM();
+    return { phase, loose };
+  });
+
+  // Ctrl+C in de kolommen: de celtekst op het systeemklembord én de tak op het takenklembord.
+  await page.evaluate(() => navigator.clipboard.writeText(''));
+  await nameCell(phase).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().selectedTaskIds)).toEqual([phase]);
+  await page.keyboard.press('Control+c');
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Ruwbouw');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().taskClipboard?.tasks.length ?? 0))
+    .toBe(3);
+
+  // Zelfde planning: Ctrl+V in de kolommen plakt de celwaarde, er komen geen taken bij.
+  await nameCell(loose).click();
+  await page.keyboard.press('Control+v');
+  await expect.poll(names).toEqual(['Ruwbouw', 'Graven', 'Storten', 'Ruwbouw']);
+
+  // Andere planning (fixture), met één bestaande taak; focus in haar naamcel.
+  const existing = await page.evaluate(() => {
+    const store = window.__OPS__!.store;
+    store.getState().newDocument();
+    store.getState().setProject({ name: 'Project B', startDate: '2026-09-07' });
+    return store.getState().addTask({ name: 'Bestaand' });
+  });
+  await nameCell(existing).click();
+  await page.keyboard.press('Control+v');
+  await expect.poll(names).toEqual(['Bestaand', 'Ruwbouw', 'Graven', 'Storten']);
+
+  // Tekst van buiten (Excel) blijft een celwaarde, ook in de andere planning.
+  await page.evaluate(() => navigator.clipboard.writeText('Uit Excel'));
+  await nameCell(existing).click();
+  await page.keyboard.press('Control+v');
+  await expect.poll(names).toEqual(['Uit Excel', 'Ruwbouw', 'Graven', 'Storten']);
+});

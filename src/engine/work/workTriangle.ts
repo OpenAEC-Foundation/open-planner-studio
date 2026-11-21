@@ -135,7 +135,7 @@ function derivedRemaining(state: TriangleState, assignments: readonly TriangleAs
 }
 
 /** Nadat R is herleid: de ANDERE toewijzingen volgen de beschermde hoek van de regel — werk vast ⇒
- *  inzet = W / R; inzet vast ⇒ een aanwezig werkveld wordt R × I, een afwezig veld blijft afwezig.
+ *  inzet = W / R; inzet vast ⇒ alleen bij een gewijzigde R wordt een aanwezig werkveld R × I.
  *  Een veldloze toewijzing heeft afgeleid werk R × I: verandert een andere toewijzing de duur,
  *  dan volgt dat werk de nieuwe exacte R. De inzet is wat de gebruiker koos. */
 function followRule(
@@ -152,7 +152,8 @@ function followRule(
       if (w <= 0) return { ...a, remainingWorkMinutes: w };
       return { ...a, remainingWorkMinutes: w, unitsPerDay: w / newRemaining };
     }
-    if (a.remainingWorkMinutes === undefined) return a;
+    // Dezelfde duurgrens als applyTriangleResult: rekenruis verandert de taakduur niet (#954).
+    if (Math.abs(newRemaining - state.remainingMinutes) <= 1e-6 || a.remainingWorkMinutes === undefined) return a;
     return { ...a, remainingWorkMinutes: newRemaining * a.unitsPerDay };
   });
 }

@@ -20,8 +20,7 @@ export interface PageWindow {
 
 /**
  * De vensters van één blad, in tekenvolgorde: per tegelkolom eerst de herhaalde kop, dan de body;
- * daarna één keer de herhaalde voet. Precies de volgorde en maten van `renderPrintPreviewPage` en van
- * `paginateVectorToPdfBytes`.
+ * daarna één keer de herhaalde voet. Precies de volgorde en maten van `paginateVectorToPdfBytes`.
  */
 export function pageWindows(layout: TileLayout, pageIndex: number): PageWindow[] {
   const total = layout.rows * layout.cols;

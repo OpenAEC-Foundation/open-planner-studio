@@ -5,8 +5,18 @@ import { minutesToClock } from '@/services/subdayIo';
  * Dezelfde klokprojectie als de writer: middernacht/wrap en bandvolgorde veranderen de sleutel niet.
  * Alleen expliciete OPS-metadata mag deze sleutel als discriminator gebruiken. */
 export function calendarExceptionKey(exception: WorkingException): string {
-  const bands = (exception.bands ?? []).map(b => [
+  return calendarExceptionKeyFromClocks(exception, (exception.bands ?? []).map(b => [
     minutesToClock(b.start), minutesToClock(b.end, true),
-  ]).map(b => JSON.stringify(b)).sort();
+  ]));
+}
+
+/** Dezelfde expliciete inhoudssleutel met de werkelijk gelezen klokteksten.
+ * Oudere writers maakten sleutel én periode met bijvoorbeeld '08:30.5:00'.
+ * Daardoor blijft die markering geldig als de huidige klokformatter verandert. */
+export function calendarExceptionKeyFromClocks(
+  exception: Pick<WorkingException, 'name' | 'startDate' | 'endDate'>,
+  clocks: readonly (readonly [string, string])[],
+): string {
+  const bands = clocks.map(pair => JSON.stringify(pair)).sort();
   return JSON.stringify([exception.name, exception.startDate, exception.endDate, bands]);
 }

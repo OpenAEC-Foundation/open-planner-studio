@@ -77,16 +77,16 @@ Layouts that do not store the same parts can be on together. If you have a layou
 
 **Indent and outdent are off.** As long as a filter, grouping or sorting is on, the displayed order is not the order of the schedule. *Indent* and *Outdent* are then disabled with the tooltip *Not available while filtering/grouping/sorting*. Turn the layout off to adjust the structure again, as described in [Adjusting the structure](docs://howto-structuur-aanpassen).
 
-**A layout on paper does not change your screen.** In the new Report tab you choose a layout in the *Tasks and grouping* step. It then applies to the report only: the layout buttons and your Gantt chart stay as they are. The rows follow the layout: if you change the layout later, the report follows. You take over the layout's columns and bar options only with a button. See [The new Report tab](docs://howto-rapport-maken-en-afdrukken#the-new-report-tab-experimental).
+**A layout on paper does not change your screen.** On the Report tab you choose a layout for the Gantt chart in the *Tasks and grouping* step. It then applies to the report only: the layout buttons and your Gantt chart stay as they are. The rows follow the layout: if you change the layout later, the report follows. You take over the layout's columns and bar options only with a button. See [The Gantt chart](docs://howto-rapport-maken-en-afdrukken#the-gantt-chart).
 
 **The status bar does not follow.** *Tasks:* in the status bar shows the number of tasks of the whole project, even if a filter shows only part of them.
 
 **Layouts are on your device, not in the project.** The app keeps your layouts and the columns for all your projects on this device. The overlays from a layout (baseline, progress line and the rest) apply to all your projects. The filter, grouping and sorting that are on right now belong to the open project, but do not go into the project file: after saving and reopening the view is clean again. They also do not make the project "modified".
 
-**The separate buttons are hidden.** *Columns…*, *Filter…*, *Group…* and *Sort…* as separate buttons on the *View* tab are an old view. You bring them back with *Show classic view buttons* under *Legacy features* on the *Advanced* tab of the *App settings* window (⚙ in the title bar). Prefer layouts.
+**The separate buttons are hidden.** *Columns…*, *Filter…*, *Group…* and *Sort…* as separate buttons on the *View* tab are an old view. You bring them back with [Show classic view buttons](settings://classicViewControls) in the *Advanced* group of the *App settings* window (⚙ in the title bar). Prefer layouts.
 
 ## See also
 
 - [Adjusting table columns](docs://howto-tabelkolommen-aanpassen): choosing, moving and pinning the columns themselves.
-- [Making and printing a report](docs://howto-rapport-maken-en-afdrukken): putting the view on paper with *Follow view*.
+- [Making and printing a report](docs://howto-rapport-maken-en-afdrukken): putting the view on paper with *As in the view* or a layout.
 - [Adjusting the structure](docs://howto-structuur-aanpassen): why you cannot indent while filtering.

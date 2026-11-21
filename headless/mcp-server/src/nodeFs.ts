@@ -47,6 +47,8 @@ import { decodeXmlBytes } from './xmlEncoding';
 import type { McpFileFs } from '@/services/mcp/tools/fileTools';
 import type { FileIdentityInfo } from '@/services/fileAccess/fileIdentity';
 import { noAppLock, type AppLock } from './appLock';
+import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
+import { IFC_FOREIGN_SCAN_MAX_BYTES } from '@/services/ifc/foreign/foreignScan';
 
 /** Is `child` gelijk aan of binnen `parent`? Beide zijn absolute, door `realpath` opgeloste paden.
  *  Exacte vergelijking, ook op Windows en macOS: liever een terechte weigering dan een ontsnapping. */
@@ -286,7 +288,7 @@ export async function createNodeFileFs(
   }
 
   /** Lees een bestaand bestand via een handle die aantoonbaar het gecontroleerde bestand binnen de werkmap is. */
-  async function readChecked(target: string): Promise<Buffer> {
+  async function readChecked(target: string, maxBytes = Infinity): Promise<Buffer> {
     const c = await check(target);
     if (!c.file) {
       const err = new Error(`ENOENT: no such file or directory, open '${target}'`) as Error & { code: string };
@@ -302,6 +304,9 @@ export async function createNodeFileFs(
         const opened = fstatSync(fd, { bigint: true });
         if (!opened.isFile() || opened.nlink > 1n || !sameId(idOf(opened), expected)) throw changed(target);
         assertFdInside(fd, target);
+        if (opened.size > BigInt(Number.isFinite(maxBytes) ? maxBytes : Number.MAX_SAFE_INTEGER)) {
+          throw new Error('The existing target is too large to scan safely');
+        }
         const data = readFileSync(fd);
         // Ná het lezen opnieuw: is de map intussen naar buiten verplaatst, dan geeft de server niets terug.
         assertHere(target);
@@ -455,6 +460,14 @@ export async function createNodeFileFs(
       return path.extname(p).toLowerCase() === '.xml' ? decodeXmlBytes(bytes) : bytes.toString('utf8');
     },
     readFile: async (p) => new Uint8Array(await readChecked(p)),
+    protectExistingTargets: true,
+    scanTarget: async p => {
+      try { return scanForeignTargetBytes(await readChecked(p, IFC_FOREIGN_SCAN_MAX_BYTES)); }
+      catch (e) {
+        if (e instanceof ScopeEscapeError) throw e;
+        return errCode(e) === 'ENOENT' ? null : 'unreadable';
+      }
+    },
     writeTextFile: (p, content) => writeChecked(p, content),
   };
 }

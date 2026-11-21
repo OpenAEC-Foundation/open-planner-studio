@@ -45,7 +45,7 @@ import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
 import { HoverTooltip } from './HoverTooltip';
-import { TaskTooltipContent } from './TaskTooltipContent';
+import { MilestoneGroupTooltipContent, TaskTooltipContent } from './TaskTooltipContent';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { saveHistogramHeight } from '@/utils/settingsStore';
@@ -239,6 +239,7 @@ export function GanttCanvas({
   // tabelweergave — de renderer krijgt alles doorgegeven en leeft buiten de store).
   const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
   const showFloatBand = useAppStore(s => s.ui.showFloatBand);
+  const showBarDates = useAppStore(s => s.ui.showBarDates);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
@@ -651,6 +652,7 @@ export function GanttCanvas({
     showProgressLine,
     showResourceAccent,
     showFloatBand,
+    showBarDates,
     barColorSelection,
     activityCodeTypes,
     customFieldDefs,
@@ -685,7 +687,7 @@ export function GanttCanvas({
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, durationDisplay, workdayDurationMeasure, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, showBarDates, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, durationDisplay, workdayDurationMeasure, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
   // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
@@ -705,6 +707,7 @@ export function GanttCanvas({
       showProgressLine,
       showResourceAccent,
       showFloatBand,
+      showBarDates,
       barColorSelection,
       activityCodeTypes,
       customFieldDefs,
@@ -743,7 +746,7 @@ export function GanttCanvas({
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, workdayDurationMeasure, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, showBarDates, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, workdayDurationMeasure, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
@@ -1021,7 +1024,9 @@ export function GanttCanvas({
           <HoverTooltip left={tooltip.x + 16} top={tooltip.y - 10}>
             {tooltip.baselineSlots !== undefined
               ? <BaselineTooltipContent task={tooltip.task} slots={tooltip.baselineSlots} layers={baselineLayers} />
-              : <TaskTooltipContent task={tooltip.task} />}
+              : tooltip.group
+                ? <MilestoneGroupTooltipContent tasks={tooltip.group} />
+                : <TaskTooltipContent task={tooltip.task} />}
           </HoverTooltip>
         )}
         {secondaryTooltip?.baselineSlots && (
@@ -1149,6 +1154,9 @@ export function GanttCanvas({
           }}
           onDelete={() => {
             if (contextMenu.task) contextMenuBulk.remove(contextMenu.task.id);
+          }}
+          onDissolve={() => {
+            if (contextMenu.task) contextMenuBulk.dissolve(contextMenu.task.id);
           }}
           onAddTask={() => {
             // Alleen in het menu op lege ruimte: onderaan, op de aangeklikte datum.

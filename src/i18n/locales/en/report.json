@@ -18,23 +18,13 @@
   "showTaskNames": "Task names on bars",
   "showCompletion": "Show completion",
   "truncateTaskNames": "Truncate task names",
-  "taskNameColumnWidthLabel": "Name column:",
   "taskNameColumnWidthHint": "The name column adapts to the longest task name",
   "showBaselineOverlay": "Show baseline overlay",
   "autoFit": "Auto-fit to paper",
   "zoom": "Zoom:",
-  "previewQuality": {
-    "label": "Preview quality",
-    "standard": "Standard",
-    "high": "High",
-    "maximum": "Maximum"
-  },
   "repeatHeader": "Repeat header on each page",
   "repeatFooter": "Repeat footer on each page",
-  "reportFontScaleLabel": "Font size:",
   "reportFontFamilyLabel": "Font:",
-  "timelineColumnsLabel": "Timeline over:",
-  "timelineColumnsHint": "Only with auto-fit",
   "timelineColumns_one": "{{count}} page",
   "timelineColumns_other": "{{count}} pages",
   "company": "Company:",
@@ -62,8 +52,6 @@
   "projectEnd": "End:",
   "projectDuration": "Duration:",
   "today": "Today",
-  "previewPageLimit_one": "… and {{count}} more page — export for the full document",
-  "previewPageLimit_other": "… and {{count}} more pages — export for the full document",
   "legend": {
     "criticalPath": "Critical path",
     "normal": "Normal",
@@ -143,13 +131,11 @@
     "mandatoryCount": "Mandatory",
     "lateCount": "Late"
   },
-  "barColorModeLabel": "Bar colors:",
   "barColorMode_critical": "Critical path",
   "barColorMode_auto": "Per task — automatic",
   "barColorMode_category": "By category",
   "barColorFieldLabel": "Category field",
   "barColorMissingField": "This field does not exist in this project. Work category is used temporarily.",
-  "statusLineLabel": "Status line:",
   "statusLine_none": "None",
   "statusLine_statusDate": "Status date line",
   "statusLine_progress": "Progress line",
@@ -440,7 +426,10 @@
     "inter": "Inter (default)",
     "liberationSans": "Liberation Sans (like Arial)",
     "carlito": "Carlito (like Calibri)",
-    "liberationSerif": "Liberation Serif (like Times New Roman)"
+    "liberationSerif": "Liberation Serif (like Times New Roman)",
+    "liberationMono": "Liberation Mono (monospace)",
+    "custom": "{{name}} (own font)",
+    "other": "Other font…"
   },
   "studio": {
     "sidebar": "Report settings",
@@ -545,6 +534,8 @@
     "bars": {
       "onBars": "On the bars",
       "names": "Task names next to the bars",
+      "dates": "Dates next to the bars",
+      "datesSub": "Start date to the left, finish date to the right of the bar",
       "completion": "Progress in the bar",
       "completionSub": "The finished part, dark in the bar",
       "criticalSub": "Critical relation lines in red, and the critical path in the legend. You choose the colour of the bars under Bar colours.",
@@ -562,6 +553,7 @@
         "float": "Float",
         "completion": "Progress",
         "names": "Names",
+        "dates": "Dates",
         "baseline": "Baseline",
         "statusLine": "Status line"
       },
@@ -654,6 +646,31 @@
       "chart": "Bars and timeline",
       "footer": "Legend and footer",
       "page": "Page"
+    }
+  },
+  "customFont": {
+    "title": "Other font",
+    "intro": "Choose a font from this computer or a font file (.ttf or .ttc). The app keeps a copy on this device and puts the font in the PDF, so it prints the same everywhere.",
+    "showList": "Show this computer’s fonts",
+    "loadingList": "Looking for this computer’s fonts…",
+    "noList": "This browser cannot show the computer’s fonts; only Chrome and Edge can. Choose a font file.",
+    "listDenied": "This computer’s fonts cannot be read; the browser gave no permission. Choose a font file.",
+    "search": "Search",
+    "listLabel": "This computer’s fonts",
+    "empty": "No fonts found.",
+    "loadingFont": "Loading font…",
+    "chooseFile": "Choose file…",
+    "cancel": "Cancel",
+    "theFile": "This file",
+    "refused": "{{name}} cannot be used: {{reason}}.",
+    "saveFailed": "The font could not be kept on this device.",
+    "refusal": {
+      "embeddingRestricted": "embedding in a PDF is not allowed",
+      "variable": "variable font; the PDF can only contain fixed weights",
+      "noOutlines": "no glyph outlines to put in the PDF",
+      "postscriptOutlines": "PostScript outlines (.otf); the PDF export cannot contain those yet",
+      "noRegular": "italic only, no regular style",
+      "unreadable": "not a readable font file"
     }
   }
 }

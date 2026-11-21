@@ -497,7 +497,7 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       rows++;
       if (JSON.stringify(state()) !== JSON.stringify(expect)) failures.push(`${label}: redo verliest de rest`);
       const reopened = createAppStoreContext().store;
-      reopened.getState().loadState(readIFC(writeIFC(buildWriteIFCInput(S()))));
+      reopened.getState().loadState(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))));
       reopened.getState().runCPM();
       const saved = reopened.getState().tasks.find(t => t.name === 'Expliciete rest')!.time;
       rows++;

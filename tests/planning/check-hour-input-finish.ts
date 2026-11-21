@@ -192,7 +192,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const id = c.store.getState().addTask({ name: 'IFC' });
   c.store.getState().updateTask(id, { time: part({ durationMinutes: 720, scheduleDuration: 1.5 }) });
   c.store.getState().runCPM();
-  const ifc = writeIFC(buildWriteIFCInput(c.store.getState()));
+  const ifc = writeIFC(buildWriteIFCInput(c.store.getState(), 'planOnly'));
   const taskTime = ifc.match(/IFCTASKTIME\('IFC Time'[^\n]*/)?.[0] ?? '';
   eq('20 IfcTaskTime.ScheduleFinish is het coherente einde', taskTime.split(',')[6], "'2026-09-08T12:00:00'");
   const workplan = ifc.match(/IFCWORKPLAN\([^\n]*/)?.[0] ?? '';
@@ -440,7 +440,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   Sx().setTaskWorkRule(id, 'FIXED_WORK');
   // Een "bronwaarde"-einde dat niet bij start + duur past (zoals een lezer het uit het bestand zet).
   c.store.setState((s) => { s.tasks.find(k => k.id === id)!.time.scheduleFinish = '2026-09-09T10:00'; });
-  const ifc = writeIFC(buildWriteIFCInput(Sx()));
+  const ifc = writeIFC(buildWriteIFCInput(Sx(), 'planOnly'));
   const imported = readIFC(ifc);
   const c2 = freshContext();
   c2.store.getState().applyOpenedImport(imported, { filePath: null, recompute: true });
@@ -452,7 +452,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   // (`payloadFromInput` → `prepareLoadedPayload`, met solve) loopt evenmin door de koppeling. Dezelfde
   // taak, nu mét een nivelleergat: na de herstel-rondgang staan einde én gat er nog precies zo.
   c.store.setState((s) => { s.tasks.find(k => k.id === id)!.splitGaps = [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }]; });
-  const snap = readIFC(writeIFC(buildWriteIFCInput(Sx())));
+  const snap = readIFC(writeIFC(buildWriteIFCInput(Sx(), 'planOnly')));
   const c3 = freshContext();
   const rr = c3.store.getState().restoreDocuments(
     [recoveryInputFromParsed(snap, { id: 'rec-b2', filePath: null, isDirty: true, datesAsRecorded: false })], 'rec-b2');

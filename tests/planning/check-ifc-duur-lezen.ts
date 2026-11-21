@@ -32,7 +32,7 @@ for (const [iso, minutes] of [['PT4,5H', 270], ['PT90S', 1.5], ['PT30S', .5], ['
   check(iso, () => {
     const imported = readIFC(taskSlot(TASKTIME_SLOT.scheduleDuration, iso));
     assert.ok(Math.abs(imported.tasks.find(t => t.name === 'CPT soundings & soil investigation')!.time.durationMinutes! - minutes) < 1e-9);
-    const reread = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(imported, null))));
+    const reread = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(imported, null), 'planOnly')));
     assert.ok(Math.abs(reread.tasks.find(t => t.name === 'CPT soundings & soil investigation')!.time.durationMinutes! - minutes) < 1e-9);
   });
 }

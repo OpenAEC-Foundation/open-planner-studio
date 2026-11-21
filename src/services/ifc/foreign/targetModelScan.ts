@@ -1,3 +1,4 @@
+import { StepStringState, isStepControl, stepString } from '../stepLexical';
 // Bevat een bestaand doel van Opslaan als, een export of AutoSave een gebouwmodel (#804 fase 1a, fixronde 2–4)? Besluit
 // Trias (wrakko, 9 november 2026): de app controleert het gekozen bestaande doel zelf. Is het een IFC met een
 // `IfcProduct` of `IfcTypeProduct` (dezelfde ingecheckte type-inventaris als de modelweigering bij openen,
@@ -18,12 +19,12 @@
 //  4. breekt het bestand, of heeft het meer dan één datasectie, en is het van een ander programma: 'unreadable'. Bij
 //     twijfel weigeren (de regel van #867). `readIFC` leest zoals main alleen de eerste datasectie; wat erna staat zou
 //     opslaan stil wissen (besluit Trias, wrakko 10 november 2026, review van #870 ronde 10);
-//  5. breekt het bestand, of heeft het meer dan één datasectie, en schreef OPS het (de vaste kop van OPS, en de regel met FILE_NAME eindigt met
-//     originating_system 'Open Planner Studio'): de regel van main, zodat de planner kan blijven opslaan. OPS
+//  5. breekt het bestand, of heeft het meer dan één datasectie, en heeft het precies de gemeten oude eigen kop
+//     (`oldOwnHeader.ts`): de bestaande leeslus, zodat de planner kan blijven opslaan. OPS
 //     v2026.2.0 tot en met v2026.7.12 schreef naam, auteur en bedrijf rauw in FILE_NAME (commit 771db15cb), en oudere
 //     versies schreven ook andere dingen buiten de norm (zoals `IFCREAL(NaN)`). De lezer leest dan zoals `readIFC` zo'n
-//     bestand leest: vanaf het begin van de datasectie volgens main (`StepDataSectionFinder`: het eerste `DATA;` op
-//     codeniveau, anders het eerste aan het begin van een regel), met de lus van `parseSTEP`:
+//     bestand leest: vanaf DATA na het vaste kopsjabloon (dus niet bij DATA; in een vrij veld), met de lus van
+//     `parseSTEP`. Voor alle andere bestanden blijft `StepDataSectionFinder` de regel van main gebruiken:
 //      a. commentaar weg, zoals `stripStepComments`;
 //      b. op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen (`#id = TYPE (…) ;`, met haakjes op diepte,
 //         strings en commentaar in de argumenten), tot de eerste `ENDSEC;` op codeniveau. Mislukt een
@@ -49,6 +50,7 @@
 // De lezer stopt bij de eerste modelentiteit. Een groot bestand zonder model leest hij helemaal, maar als stroom.
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { STEP_HEADER, StepDataSectionFinder, startsWithStepHeader } from '../stepDataSection';
+import { OLD_OWN_HEADER_PREFIX_MAX, recognizeOldOwnHeader } from '../oldOwnHeader';
 import { StepFileGrammar } from '../stepFileGrammar';
 
 /** Uitkomst van de controle; zie de kop van dit bestand voor de betekenis. */
@@ -117,13 +119,6 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
 const EMPTY = new Uint8Array(0);
 /** De lengte van `DATA;`. */
 const DATA_SEMI_LENGTH = 5;
-/** Zo begint elk bestand dat OPS schreef (alle versies), tot en met `FILE_NAME(`; regeleinde `\n` (of `\r\n`). */
-const OPS_HEAD = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\nFILE_NAME(";
-/** Zo eindigt de regel met FILE_NAME in elk bestand dat OPS schreef: originating_system 'Open Planner Studio'. */
-const OPS_NAME_END = ",'Open Planner Studio 0.1','Open Planner Studio','');";
-/** Zoveel bytes vooraan houdt de lezer vast voor de herkenning van een eigen bestand. */
-const OPS_PREFIX_MAX = 64 << 10;
-
 const upper = (b: number) => (b >= 0x61 && b <= 0x7a ? b - 0x20 : b);
 /** `isWordCode` en `isSpaceCode` van `ifcReader.ts`. */
 const isWord = (b: number) => WORD[b] === 1;
@@ -142,7 +137,7 @@ const enum Exact { Bom, Space, Collect, Done }
 /** De kop zoals fixronde 3: witruimte en commentaar, dan `ISO-10303-21;` als eerste statement. */
 const enum First { Space, Slash, Comment, CommentStar, Keyword, Done }
 /** Commentaar weghalen (`stripStepComments`). */
-const enum Strip { Code, Slash, Str, StrQuote, Comment, CommentStar }
+const enum Strip { Code, Slash, Str, Comment, CommentStar }
 /** De lus van `parseSTEP`. */
 const enum Loop { Code, Str, StrQuote, Entity }
 /** `readEntity`. */
@@ -181,12 +176,16 @@ export class TargetModelScanner {
   private readonly grammar = new StepFileGrammar(true);
   /** De regels van main voor het begin van de datasectie, voor een eigen bestand dat breekt. */
   private readonly finder = new StepDataSectionFinder(true);
+  private readonly literalFinder = new StepDataSectionFinder(true, true);
+  private literalEnd = -1;
+  private literalStrings = false;
   /** Direct na het eerste `DATA;` op codeniveau (de `;` plus één), of -1. Dat telt meteen; anders aan het einde het
    *  eerste `DATA;` aan het begin van een regel (`finder.anchored`). */
   private mainEnd = -1;
   /** De eerste bytes, voor de herkenning van een eigen bestand. */
-  private readonly prefix = new Uint8Array(OPS_PREFIX_MAX);
+  private prefix = new Uint8Array(256);
   private prefixLength = 0;
+  private ownDataEnd = -1;
   /** Schreef OPS dit bestand? `null` = nog niet bekend. Alleen nodig als de grammatica breekt. */
   private ops: boolean | null = null;
   private modelPending = false;
@@ -194,6 +193,7 @@ export class TargetModelScanner {
   private unreadablePending = false;
   // ── Datasectie lezen ──
   private strip = Strip.Code;
+  private stringState = StepStringState.Text;
   private slashAt = 0;
   private loop = Loop.Code;
   /** Zoveel tekens van `ENDSEC;` staan er nu op codeniveau achter elkaar. */
@@ -348,6 +348,7 @@ export class TargetModelScanner {
       this.headByte(b);
       if (this.result !== null) return false;
     }
+    if (this.literalFinder.step(b, abs) && this.literalEnd < 0) this.literalEnd = abs + 1;
     const hit = this.finder.step(b, abs);
     if (hit && this.mainEnd < 0) this.mainEnd = abs + 1;
     return hit;
@@ -355,7 +356,8 @@ export class TargetModelScanner {
 
   /** Direct na het eerste `DATA;` aan het begin van een regel, of -1. */
   private get lineEnd(): number {
-    return this.finder.anchored < 0 ? -1 : this.finder.anchored + DATA_SEMI_LENGTH;
+    const finder = this.grammar.failed || this.grammar.literalStrings ? this.literalFinder : this.finder;
+    return finder.anchored < 0 ? -1 : finder.anchored + DATA_SEMI_LENGTH;
   }
 
   private headOnly(chunk: Uint8Array, start: number, base: number): void {
@@ -472,9 +474,14 @@ export class TargetModelScanner {
       const abs = base + i;
       this.frontByte(b, abs);
       if (this.result !== null) return;
-      if (this.prefixLength === abs && abs < OPS_PREFIX_MAX) {
+      if (this.ops === null && this.prefixLength === abs) {
+        if (this.prefixLength === this.prefix.length) {
+          const grown = new Uint8Array(this.prefix.length * 2);
+          grown.set(this.prefix);
+          this.prefix = grown;
+        }
         this.prefix[this.prefixLength++] = b;
-        if (this.ops === null && (b === 0x0a || this.prefixLength === OPS_PREFIX_MAX)) this.ops = this.isOwnFile(false);
+        if (b === 0x0a || this.prefixLength <= STEP_HEADER.length || this.prefixLength === OLD_OWN_HEADER_PREFIX_MAX) this.recognizeOwnHead(false);
       }
       if (!grammar.failed) {
         grammar.step(b, abs);
@@ -493,9 +500,9 @@ export class TargetModelScanner {
    * hij 'model' precies als `readIFC` het bestand weigert. `true` als de lezer van plaats verandert of klaar is.
    */
   private brokenFile(atEof: boolean, next: number): boolean {
-    if (this.ops === null) this.ops = this.isOwnFile(atEof);
+    if (this.ops === null && atEof) this.recognizeOwnHead(true);
     if (this.ops === false) { this.unreadable(); this.pos = next; return true; }
-    if (this.ops === null) return false; // de regel met FILE_NAME is nog niet compleet
+    if (this.ops === null) return false; // de vaste kop tot en met DATA is nog niet compleet
     return this.followMain(atEof, false);
   }
 
@@ -503,7 +510,9 @@ export class TargetModelScanner {
    *  'no-model' als de grammatica het hele bestand zonder model las (`valid`), anders 'unreadable'. `true` als de lezer
    *  van plaats verandert of klaar is. */
   private followMain(atEof: boolean, valid: boolean): boolean {
-    const end = this.mainEnd >= 0 ? this.mainEnd : atEof ? this.lineEnd : -1;
+    this.literalStrings = this.grammar.failed || this.grammar.literalStrings;
+    const dataEnd = this.ownDataEnd >= 0 ? this.ownDataEnd : this.literalStrings ? this.literalEnd : this.mainEnd;
+    const end = dataEnd >= 0 ? dataEnd : atEof ? this.lineEnd : -1;
     if (end < 0) {
       if (!atEof) return false; // nog geen `DATA;` op codeniveau: verder lezen (aan het begin van een regel telt pas aan het einde)
       if (valid) this.result = 'no-model';
@@ -516,30 +525,13 @@ export class TargetModelScanner {
     return true;
   }
 
-  /** Schreef OPS dit bestand? Vooraan staat de kop van OPS, en de regel met FILE_NAME eindigt met originating_system
-   *  'Open Planner Studio'. `null`: nog niet te zeggen (de bytes zijn er nog niet). */
-  private isOwnFile(atEof: boolean): boolean | null {
-    let k = 0;
-    const p = this.prefix;
-    const length = this.prefixLength;
-    const complete = atEof || length === OPS_PREFIX_MAX;
-    // Een BOM vooraan: de decoder haalt hem weg.
-    if (length >= 3 && p[0] === BOM[0] && p[1] === BOM[1] && p[2] === BOM[2]) k = 3;
-    // De vaste kop, met `\r\n` of `\n`.
-    for (let h = 0; h < OPS_HEAD.length; h++, k++) {
-      const want = OPS_HEAD.charCodeAt(h);
-      if (want === 0x0a && k < length && p[k] === 0x0d) k++;
-      if (k >= length) return complete ? false : null;
-      if (p[k] !== want) return false;
-    }
-    // De rest van de regel met FILE_NAME.
-    let lineEnd = k;
-    while (lineEnd < length && p[lineEnd] !== 0x0a && p[lineEnd] !== 0x0d) lineEnd++;
-    if (lineEnd === length) return complete ? false : null;
-    const tail = OPS_NAME_END.length;
-    if (lineEnd - k < tail) return false;
-    for (let t = 0; t < tail; t++) if (p[lineEnd - tail + t] !== OPS_NAME_END.charCodeAt(t)) return false;
-    return true;
+  /** Dezelfde exacte kopherkenning als de scan en de lezer, met precies dezelfde 64-KiB-grens als main. Een geweigerd vrij veld behoudt alleen de leeslus van main. */
+  private recognizeOwnHead(atEof: boolean): void {
+    const own = recognizeOldOwnHeader(this.prefix.subarray(0, this.prefixLength), atEof);
+    if (own === undefined) return;
+    this.ops = own !== null;
+    if (own && own !== 'main') this.ownDataEnd = own.dataStart + DATA_SEMI_LENGTH;
+    this.prefix = EMPTY;
   }
 
   /** De grammatica vond geen datasectie: 'unreadable', zodra de kop beslist is (een andere kop is 'not-ifc'). */
@@ -619,7 +611,7 @@ export class TargetModelScanner {
           this.depth = depth;
           if (i === n) break;
           if (b === CLOSE) { this.ent = Ent.End; i++; continue; }
-          if (b === QUOTE) { this.strip = Strip.Str; this.ent = Ent.ArgStr; i++; continue; }
+          if (b === QUOTE) { this.strip = Strip.Str; this.stringState = StepStringState.Text; this.ent = Ent.ArgStr; i++; continue; }
         } else if (ent === Ent.Id) {
           while (i < n && WORD[chunk[i]] === 1) i++;
           if (i === n) break;
@@ -641,20 +633,12 @@ export class TargetModelScanner {
       } else if (this.strip === Strip.Code && this.loop === Loop.Code && this.endsec === 0) {
         while (i < n && CODE_PLAIN[chunk[i]] === 1) i++;
         if (i === n) break;
-      } else if (this.strip === Strip.Str
-        && (this.loop === Loop.Str || (this.loop === Loop.Entity && this.ent === Ent.ArgStr))) {
-        const j = chunk.indexOf(QUOTE, i);
-        if (j < 0) { i = n; break; }
-        if (j + 1 < n) {
-          // `''` blijft in de string; een ander teken sluit hem (zoals `StrQuote`), en dat teken is weer code.
-          if (chunk[j + 1] === QUOTE) { i = j + 2; continue; }
-          this.strip = Strip.Code;
-          if (this.loop === Loop.Str) this.loop = Loop.Code;
-          else this.ent = Ent.Args;
-          i = j + 1;
-          continue;
-        }
-        i = j; // de `'` is de laatste byte van het stuk: de gewone weg
+      } else if (this.strip === Strip.Str && this.stringState === StepStringState.Text) {
+        // In gewone stringinhoud zijn alleen apostrof en backslash een grens.
+        // Eén doorgang tot de eerste grens. Twee losse indexOf-zoekacties zouden
+        // bij iedere korte string zonder backslash de rest van het blok doorzoeken.
+        while (i < n && chunk[i] !== QUOTE && chunk[i] !== 0x5c) i++;
+        if (i === n) break;
       } else if (this.strip === Strip.Comment) {
         const j = chunk.indexOf(STAR, i);
         if (j < 0) { i = n; break; }
@@ -672,11 +656,12 @@ export class TargetModelScanner {
   private dataByte(b: number, abs: number): void {
     switch (this.strip) {
       case Strip.Code:
-        if (b === QUOTE) { this.strip = Strip.Str; this.unit(b, abs); return; }
+        if (b === QUOTE) { this.strip = Strip.Str; this.stringState = StepStringState.Text; this.unit(b, abs); return; }
         if (b === SLASH) { this.strip = Strip.Slash; this.slashAt = abs; return; }
         this.unit(b, abs);
         return;
       case Strip.Slash:
+        if (isStepControl(b)) return;
         if (b === STAR) { this.strip = Strip.Comment; return; }
         this.strip = Strip.Code;
         this.unit(SLASH, this.slashAt);
@@ -684,18 +669,18 @@ export class TargetModelScanner {
         this.dataByte(b, abs);
         return;
       case Strip.Str:
-        if (b === QUOTE) this.strip = Strip.StrQuote;
-        this.unit(b, abs);
-        return;
-      case Strip.StrQuote:
-        if (b === QUOTE) { this.strip = Strip.Str; this.unit(b, abs); return; } // `''` in de string
+        this.stringState = stepString(this.stringState, b, this.literalStrings);
+        if (this.stringState !== StepStringState.End) return;
         this.strip = Strip.Code;
+        // De lus hoeft de inhoud niet te zien: alleen de twee echte omsluitende quotes.
+        this.unit(QUOTE, abs);
         this.dataByte(b, abs);
         return;
       case Strip.Comment:
         if (b === STAR) this.strip = Strip.CommentStar;
         return;
       case Strip.CommentStar:
+        if (isStepControl(b)) return;
         if (b === SLASH) this.strip = Strip.Code;
         else if (b !== STAR) this.strip = Strip.Comment;
         return;
@@ -888,17 +873,33 @@ export class TargetModelScanner {
   }
 }
 
+/** Eén nieuwe scanner als functie: het volgende stuk, of `null` aan het einde. */
+export function targetScanPush(): (chunk: Uint8Array | null) => TargetScanStep {
+  const scanner = new TargetModelScanner();
+  return chunk => (chunk === null ? scanner.end() : scanner.push(chunk));
+}
+
+/**
+ * De lus van de stroomscan: lees stukken en spoel terug zoals de scanner vraagt, tot de uitkomst vaststaat; stopt bij
+ * de eerste modelentiteit. `push` mag async zijn: de scanner kan in de scanworker staan (knownbug 1758). Een leesfout
+ * gaat door; de bron blijft open.
+ */
+export async function driveTargetScan(
+  source: Pick<TargetSource, 'next' | 'seek'>,
+  push: (chunk: Uint8Array | null) => TargetScanStep | Promise<TargetScanStep>,
+): Promise<TargetModelScan> {
+  for (;;) {
+    const step = await push(await source.next());
+    if (step === null) continue;
+    if ('result' in step) return step.result;
+    await source.seek(step.seek);
+  }
+}
+
 /** Lees `source` tot de uitkomst vaststaat; stopt bij de eerste modelentiteit. Een leesfout gaat door; de bron gaat dicht. */
 export async function scanTargetSource(source: TargetSource): Promise<TargetModelScan> {
-  const scanner = new TargetModelScanner();
   try {
-    for (;;) {
-      const chunk = await source.next();
-      const step = chunk === null ? scanner.end() : scanner.push(chunk);
-      if (step === null) continue;
-      if ('result' in step) return step.result;
-      await source.seek(step.seek);
-    }
+    return await driveTargetScan(source, targetScanPush());
   } finally {
     await source.close?.();
   }

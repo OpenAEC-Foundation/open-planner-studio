@@ -12,10 +12,11 @@
  *  - Schrijven loopt alleen via `saveSiteFileVersion`/`saveNewSiteFile`, vanuit de opslaanroute van de
  *    store. De algemene `FileRef`-functies in `fileAccess/index.ts` schrijven nooit naar de site.
  */
-import type { OpenDialogOpts, OpenedFile } from './index';
+import type { FileData, OpenDialogOpts, OpenedFile } from './index';
 import { getSiteStorage, type SiteFileInfo, type SiteStorage, type SiteVersionInfo } from './siteHost';
 import { isConflictCopyAnswer } from './superCloudHost';
 import { extensionOf } from '@/utils/filePath';
+import { bytesBlob, ByteWriteError } from './byteWrite';
 
 /** MIME-type van een opgeslagen IFC-bestand (de tool schrijft altijd IFC). */
 export const SITE_SAVE_MIME = 'application/x-step';
@@ -172,10 +173,29 @@ function checkedSaveAnswer(answer: SiteFileInfo | null | undefined, name: string
   return { id, name: nonEmpty(answer?.name) ?? name, version, ...(conflictCopy ? { conflictCopy: true as const } : {}) };
 }
 
-/** Sla een NIEUW bestand op de site op (geen `id`). Gooit bij een fout of een onvolledig antwoord. */
-export async function saveNewSiteFile(name: string, content: string): Promise<SavedSiteFile> {
-  const answer = await requireStorage().save({ name, data: new Blob([content], { type: SITE_SAVE_MIME }) });
+/** Sla een NIEUW bestand op de site op (geen `id`), als tekst of als de bytes van de opslagworker (#804 stap 6; de
+ *  `Blob` heeft dezelfde bytes). Gooit bij een fout of een onvolledig antwoord. */
+export async function saveNewSiteFile(name: string, data: FileData): Promise<SavedSiteFile> {
+  const answer = await requireStorage().save({ name, data: new Blob([data as BlobPart], { type: SITE_SAVE_MIME }) });
   return checkedSaveAnswer(answer, name);
+}
+
+/** T1: de bytes als Blob naar een nieuw sitebestand, zonder tekstomzetting. */
+export async function saveNewSiteFileBytes(name: string, bytes: Uint8Array): Promise<SavedSiteFile> {
+  const answer = await requireStorage().save({ name, data: bytesBlob(bytes, SITE_SAVE_MIME) });
+  return checkedSaveAnswer(answer, name);
+}
+
+/** T1: een bestaande site-id nooit zonder basisversie schrijven. Het antwoord bewaart de
+ * versie en eventuele conflictkopie van de host, zoals de bestaande tekstingang. */
+export async function saveSiteFileVersionBytes(
+  id: string, name: string, bytes: Uint8Array, baseVersion: string | null,
+): Promise<SavedSiteFile> {
+  if (typeof baseVersion !== 'string' || !baseVersion.length) throw new ByteWriteError('base-version');
+  const answer = await requireStorage().save({
+    id, name, data: bytesBlob(bytes, SITE_SAVE_MIME), baseVersion,
+  });
+  return checkedSaveAnswer(answer, name, id);
 }
 
 /**
@@ -188,13 +208,13 @@ export async function saveNewSiteFile(name: string, content: string): Promise<Sa
 export async function saveSiteFileVersion(
   id: string,
   name: string,
-  content: string,
+  data: FileData,
   baseVersion: string | null,
 ): Promise<SavedSiteFile> {
   const answer = await requireStorage().save({
     id,
     name,
-    data: new Blob([content], { type: SITE_SAVE_MIME }),
+    data: new Blob([data as BlobPart], { type: SITE_SAVE_MIME }),
     ...(baseVersion ? { baseVersion } : {}),
   });
   return checkedSaveAnswer(answer, name, id);

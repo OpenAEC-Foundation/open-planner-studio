@@ -89,7 +89,7 @@ const taskView = (p: DocumentPayload) => Object.fromEntries(p.tasks.map((t) => [
 }]));
 
 const before = openAndRecalc(buildProject());
-const ifc = writeIFC(buildWriteIFCInput(before));
+const ifc = writeIFC(buildWriteIFCInput(before, 'planOnly'));
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §1 Bestandsvorm
@@ -127,7 +127,7 @@ const ifc = writeIFC(buildWriteIFCInput(before));
   const after = openAndRecalc(await parseOpenedFile({ name: 'hele-dag.ifc', text: ifc }));
   same('§2 kalenders gelijk na opslaan als IFC en heropenen', calView(after), calView(before));
   same('§2 taakduur en F5-datums gelijk na opslaan als IFC en heropenen', taskView(after), taskView(before));
-  const again = openAndRecalc(await parseOpenedFile({ name: 'hele-dag-2.ifc', text: writeIFC(buildWriteIFCInput(after)) }));
+  const again = openAndRecalc(await parseOpenedFile({ name: 'hele-dag-2.ifc', text: writeIFC(buildWriteIFCInput(after, 'planOnly')) }));
   same('§2 tweede rondgang: kalenders en taken ongewijzigd', [calView(again), taskView(again)], [calView(before), taskView(before)]);
 }
 

@@ -69,7 +69,7 @@ async function openText(name: string, text: string): Promise<OpenedImport> {
 }
 const codesInTreeOrder = () => flattenOrder(S().tasks).map(t => t.wbsCode);
 
-const ifcExportCodes = () => flattenOrder(readIFC(writeIFC(buildExportIFCInput(S()))).tasks).map(t => t.wbsCode);
+const ifcExportCodes = () => flattenOrder(readIFC(writeIFC(buildExportIFCInput(S(), 'planOnly'))).tasks).map(t => t.wbsCode);
 
 async function main(): Promise<void> {
   // (a) Codes gelijk aan de boom ⇒ vlag true; codes ongewijzigd; geen undo-stap; niet gewijzigd.
@@ -113,13 +113,13 @@ async function main(): Promise<void> {
   // (c) IFC van de app met vlag false ⇒ blijft false. En met vlag true ⇒ blijft true.
   await openText('gelijk.xml', mspdi(TREE_CODES));
   useAppStore.setState(st => { st.project.wbsAutoNumber = false; });
-  const ifcFalse = writeIFC(buildExportIFCInput(S()));
+  const ifcFalse = writeIFC(buildExportIFCInput(S(), 'planOnly'));
   eq('c0 IFC draagt de vlag false', readIFC(ifcFalse).project.wbsAutoNumber, false);
   await openText('eigen-false.ifc', ifcFalse);
   eq('c1 IFC met vlag false ⇒ blijft false', S().project.wbsAutoNumber, false);
   // IFC zonder vlag (zoals uit een ander pakket) met boomcodes ⇒ true.
   useAppStore.setState(st => { st.project.wbsAutoNumber = undefined; });
-  const ifcNone = writeIFC(buildExportIFCInput(S()));
+  const ifcNone = writeIFC(buildExportIFCInput(S(), 'planOnly'));
   eq('c2 IFC zonder vlag', readIFC(ifcNone).project.wbsAutoNumber, undefined);
   await openText('derden.ifc', ifcNone);
   eq('c3 IFC zonder vlag + boomcodes ⇒ true', S().project.wbsAutoNumber, true);

@@ -388,8 +388,9 @@ const SCENES: Record<string, Scene> = {
       await dismissOwnRecovery();
       seedF4bProject('light');
       await dismissLateWelcome();
-      useAppStore.getState().setUI({ showSettingsDialog: true });
-      return tagWhere('.settings-section', el => ['Duurweergave', 'Duration display'].includes(el.querySelector('h3')?.textContent?.trim() ?? ''));
+      // De directe link opent de instellingen op Duurweergave (groep Notatie).
+      useAppStore.getState().setUI({ showSettingsDialog: true, settingsFocusId: 'durationDisplay' });
+      return tagWhere('[data-ops-setting="durationDisplay"]', () => true);
     },
   },
   // Blauwe (nu oranje) infoblokken in Projectinfo › Rekenprofiel.
@@ -469,10 +470,11 @@ const SCENES: Record<string, Scene> = {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
       await clickRibbon('planning', 'moveProject');
-      const input = await waitFor('[role="dialog"] input[type="date"]') as HTMLInputElement;
-      // Gecontroleerd React-veld: de waarde via de native setter, dan een input-event.
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '2025-03-03');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      // Het gedeelde datumveld: een volledige datum plakken vult en commit alle drie de vakjes.
+      const input = await waitFor('[data-ops-move-project-new-start] input') as HTMLInputElement;
+      const data = new DataTransfer();
+      data.setData('text', '2025-03-03');
+      input.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
       return tagWhere('[role="dialog"] div', el => el.style.color === 'var(--theme-warning-text)');
     },
   },

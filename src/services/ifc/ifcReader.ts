@@ -1,6 +1,8 @@
+import { stepStringEnd, skipStepComment, unescapeStepQuotes } from './stepLexical';
 import { parseIfcDuration } from './isoDuration';
+import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
-import { calendarExceptionKey } from './calendarExceptionKey';
+import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
@@ -69,8 +71,8 @@ import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, firstBlockedDay, getCalendarBands, hasNonAnchorTime,
-  isoDurationToMinutes, isSubDayMinutes, minutesToClock, promoteHourCalendar, promoteHourCalendars,
-  registerCalendarBands, scalarHourFromClock, workDayFromBlocks,
+  isoDurationToMinutes, isSubDayMinutes, promoteHourCalendar, promoteHourCalendars,
+  registerCalendarBands, workDayFromBlocks,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (discriminator c) en DEFAULT_PRIORITY wonen in ./ifcConstants zodat reader en
@@ -104,6 +106,9 @@ import {
 export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceReconstruction;
 
 export interface IfcReadOptions {
+  /** Alleen interne merge-herlezingen: ontbrekende projectdatums krijgen de waarden van het openen.
+   * Aanwezige CreatedAt/ModifiedAt uit OPS_ProjectSettings blijven leidend. Gewoon openen geeft dit niet mee. */
+  projectTimestampFallback?: Pick<Project, 'createdAt' | 'modifiedAt'>;
   /** Alleen `readIFCWithXerReconstruction` vult dit. De lage sync-lezer mag schema-2 nooit
    * afhankelijk maken van een toevallig eerder geïmporteerde module. */
   reconstructXerArchive?: XerArchiveReconstructor;
@@ -125,9 +130,9 @@ export interface IfcReadOptions {
   /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
    *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
   stepIdsOut?: Record<string, string>;
-  /** Het `IfcProject` is niet P (§4.4): naam, omschrijving, auteur en bedrijf in `OPS_ProjectSettings` winnen dan van het
-   *  project en de eerste owner history. Zonder deze optie leest de lezer die vier properties niet, zoals main
-   *  (fixronde 1 van #867, BLOKKEERT 1). */
+  /** Het `IfcProject` is niet P (§4.4): naam en omschrijving in `OPS_ProjectSettings` winnen dan van het project.
+   *  Auteur en bedrijf worden op de bytes-route altijd daaruit gelezen als ze aanwezig zijn; deze expliciete optie
+   *  behoudt die lezing ook zonder planningsselectie (fixronde 1 van #867, BLOKKEERT 1). */
   projectDataInSettings?: boolean;
 }
 
@@ -201,10 +206,13 @@ export function readIFC(
     'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
   // #870 (besluit Trias, wrakko 10 november 2026): de grammatica van ISO 10303-21 (`stepFileGrammar.ts`) leest het hele
   // bestand. Ziet zij ergens een modeltype, dan weigeren: ook in een tweede datasectie, in een complexe instantie, na
-  // een string die `parseSTEP` anders leest (knownbug 1050), en vóór het punt waar het bestand breekt. Verder opent
-  // `readIFC` precies zoals main: de grammatica bepaalt niet waar de datasectie begint of eindigt.
-  if (stepFileGrammar(content).model) throw buildingModel();
-  const entities = parseSTEP(content);
+  // een string en vóór het punt waar het bestand breekt. De planningparser behoudt zijn tolerante leesregels;
+  // zijn stringgrenzen deelt hij sinds #1050 met de grammatica en de doelcontrole.
+  const grammar = stepFileGrammar(content);
+  if (grammar.model) throw buildingModel();
+  // Gebroken bestanden behouden de tolerante oude quotelezing. Geldige eigen bestanden volgen hun tekstversie.
+  const literalStrings = grammar.failed || grammar.literalStrings;
+  const entities = parseSTEP(content, literalStrings);
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
@@ -215,8 +223,8 @@ export function readIFC(
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
   if (options.literalStepIds) {
     const literal = options.literalStepIds;
-    decodeEntityStrings(entities.filter(e => !literal.has(e.id)));
-  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
+    decodeEntityStrings(entities.filter(e => !literal.has(e.id)), literalStrings);
+  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities, literalStrings);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -230,12 +238,12 @@ export function readIFC(
   const taskIdentityByStepId = extractTaskIdentityByStepId(entities, entityMap);
 
   // Extract project
-  const project = extractProject(entities, entityMap, labels);
+  const project = extractProject(entities, entityMap, labels, options);
   // Het schema uit de kop (issue #292): de kop is de opslag van `Project.ifcSchema`, zodat een geopend
   // IFC4- of IFC4X3-bestand bij opslaan in zijn eigen schema blijft. Een ander schema (IFC2X3,
   // IFC4X3_ADD1, …) laat het veld weg: dan schrijft opslaan de standaard. Of het eerste opslaan eerst
   // vraagt, volgt hieronder na de psets (`ifcSchemaUnconfirmed`).
-  const fileSchemaName = readFileSchemaName(content);
+  const fileSchemaName = readFileSchemaName(content, literalStrings);
   if (isIfcSchemaId(fileSchemaName)) project.ifcSchema = fileSchemaName;
   // "Openen met melding": het XER-bronarchief is een sidecar, geen
   // fundament. Is het onbruikbaar, dan vallen archief, selector, XER-metadata en de daaruit
@@ -309,6 +317,9 @@ export function readIFC(
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid.
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
+  for (const cal of [calendar, ...resourceCalendars]) {
+    if (cal.ifcTimePeriods?.[0]) cal.ifcTimePeriods[0].layout = ifcCalendarBandLayout(cal);
+  }
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   // Kostenresources (issue #815): geen tarief/kalender/eenheid/ploeg en toewijzingen zonder werkvelden
@@ -350,7 +361,7 @@ export function readIFC(
   remapContourResourceIds(tasks, resourceGuidMap, new Set(resources.map(r => r.id)));
 
   // Baselines: autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
-  const { baselines, activeBaselineId, comparedBaselineIds } = extractBaselines(entities, entityMap, taskStepIdMap);
+  const { baselines, activeBaselineId, comparedBaselineIds, orphanGuids } = extractBaselines(entities, entityMap, taskStepIdMap);
 
   // Scheduling-options en rekenprofiel: eerst het profiel —
   // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
@@ -465,6 +476,7 @@ export function readIFC(
     ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
     ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
+    ...(Object.keys(orphanGuids).length > 0 ? { baselineOrphanGuids: orphanGuids } : {}),
     ...(ifcLiteralCalendarIds.length > 0 ? { ifcLiteralCalendarIds } : {}),
   };
 }
@@ -957,7 +969,6 @@ function reconstructVerifiedXerSource(
 // over de tekst, geen index of terugsprongen.
 
 const CH_QUOTE = 39;   // '
-const CH_STAR = 42;    // *
 const CH_SLASH = 47;   // /
 const CH_HASH = 35;    // #
 const CH_LPAREN = 40;  // (
@@ -981,21 +992,12 @@ function isSpaceCode(c: number): boolean {
  * al aanhouden) of van een `/* … *\/`-commentaar, geef dan de index DIRECT ERNA; anders `-1`.
  * Een niet-afgesloten string/commentaar loopt door tot het einde van de tekst (tolerant).
  */
-function skipQuotedOrComment(text: string, i: number): number {
-  const c = text.charCodeAt(i);
-  if (c === CH_QUOTE) {
-    for (let j = i + 1; j < text.length; j++) {
-      if (text.charCodeAt(j) !== CH_QUOTE) continue;
-      if (text.charCodeAt(j + 1) === CH_QUOTE) { j++; continue; } // '' = ontsnapte apostrof
-      return j + 1;
-    }
-    return text.length;
+function skipQuotedOrComment(text: string, i: number, literalStrings = false): number {
+  if (text.charCodeAt(i) === CH_QUOTE) {
+    const end = stepStringEnd(text, i, literalStrings);
+    return end < 0 ? text.length : end + 1;
   }
-  if (c === CH_SLASH && text.charCodeAt(i + 1) === CH_STAR) {
-    const end = text.indexOf('*/', i + 2);
-    return end < 0 ? text.length : end + 2;
-  }
-  return -1;
+  return skipStepComment(text, i);
 }
 
 /** ASCII-hoofdletterongevoelige match van `token` (zélf in hoofdletters) op positie `i`. Geen
@@ -1013,12 +1015,12 @@ function startsWithTokenCI(text: string, i: number, token: string): boolean {
  *  of commentaar tellen niet mee. ASCII-hoofdletterongevoelig — STEP-sleutelwoorden zijn
  *  case-insensitief, en `assertIfcIntegrity` accepteert kleine letters al (kop/sluitmarkering),
  *  dus de sectiegrens moet dat ook (een bestand met `data;` viel er anders alsnog doorheen). */
-function indexOfCode(text: string, token: string, from: number): number {
+function indexOfCode(text: string, token: string, from: number, literalStrings = false): number {
   const first = token.charCodeAt(0);
   for (let i = from; i < text.length;) {
     let c = text.charCodeAt(i);
     if (c === CH_QUOTE || c === CH_SLASH) {
-      const skip = skipQuotedOrComment(text, i);
+      const skip = skipQuotedOrComment(text, i, literalStrings);
       if (skip >= 0) { i = skip; continue; }
     }
     if (c >= 0x61 && c <= 0x7a) c -= 0x20; // a-z → A-Z
@@ -1031,16 +1033,17 @@ function indexOfCode(text: string, token: string, from: number): number {
 /** Verwijder `/* … *\/`-commentaar, maar uitsluitend BUITEN stringliterals. Geen commentaar in de
  *  tekst (het gangbare geval — onze eigen writer schrijft er geen) ⇒ de tekst gaat onaangeroerd
  *  terug, zonder kopie. */
-function stripStepComments(text: string): string {
-  if (text.indexOf('/*') < 0) return text;
+function stripStepComments(text: string, literalStrings: boolean): string {
+  if (text.indexOf('/') < 0) return text;
   let out = '';
   let copiedFrom = 0;
   for (let i = 0; i < text.length;) {
     const c = text.charCodeAt(i);
-    if (c === CH_QUOTE) { i = skipQuotedOrComment(text, i); continue; } // string verbatim houden
-    if (c === CH_SLASH && text.charCodeAt(i + 1) === CH_STAR) {
+    if (c === CH_QUOTE) { i = skipQuotedOrComment(text, i, literalStrings); continue; } // string verbatim houden
+    const commentEnd = c === CH_SLASH ? skipStepComment(text, i) : -1;
+    if (commentEnd >= 0) {
       out += text.slice(copiedFrom, i);
-      i = skipQuotedOrComment(text, i);
+      i = commentEnd;
       copiedFrom = i;
       continue;
     }
@@ -1055,7 +1058,7 @@ function stripStepComments(text: string): string {
  * tekst. De sluithaak wordt op HAAKDIEPTE gezocht met `skipQuotedOrComment` erlangs, zodat een `);`
  * binnen een taaknaam of notitie de entiteit niet afkapt.
  */
-function readEntity(text: string, at: number, out: StepEntity[]): number {
+function readEntity(text: string, at: number, out: StepEntity[], literalStrings: boolean): number {
   const n = text.length;
   let i = at + 1;
   const idStart = i;
@@ -1082,7 +1085,7 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
   while (i < n) {
     const c = text.charCodeAt(i);
     if (c === CH_QUOTE || c === CH_SLASH) {
-      const skip = skipQuotedOrComment(text, i);
+      const skip = skipQuotedOrComment(text, i, literalStrings);
       if (skip >= 0) { i = skip; continue; }
     }
     if (c === CH_LPAREN) depth++;
@@ -1101,7 +1104,7 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
   out.push({
     id,
     type: type.toUpperCase(),
-    args: splitArgs(text.slice(argsStart, argsEnd)),
+    args: splitArgs(text.slice(argsStart, argsEnd), literalStrings),
     raw: text.slice(at, i),
   });
   return i;
@@ -1125,10 +1128,10 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
  * regeleinde (nul entiteiten zónder fout, of verzonnen entiteiten uit commentaar). Beide gevallen zijn
  * getest in `check-step-strings` (9f–9k).
  */
-function indexOfDataSection(content: string): number {
+function indexOfDataSection(content: string, literalStrings = false): number {
   // #804 fase 1a, fixronde 4 (eis van Trias): de regels voor beide pogingen staan in `stepDataSection.ts`, zodat de
   // doelcontrole (`targetModelScan.ts`) als stroom precies dezelfde datasectie vindt. Wijzig ze daar, niet hier.
-  return indexOfStepDataSection(content);
+  return indexOfStepDataSection(content, literalStrings);
 }
 
 // #804 fase 1a, fixronde 4: de doelcontrole (`foreign/targetModelScan.ts`) volgt `stripStepComments`, deze lus en
@@ -1136,10 +1139,10 @@ function indexOfDataSection(content: string): number {
 // niet zonder deze functies om te bouwen tot een stroomlezer (ze werken op de hele tekst, met terugspringen).
 // `check-ifc-target-model-scan.ts` vergelijkt beide op het corpus, op de randgevallen en op willekeurige invoer.
 // Wijzig je de regels hier (strings, commentaar, `#id = TYPE (…) ;`, `ENDSEC;`), wijzig ze daar ook.
-function parseSTEP(content: string): StepEntity[] {
+function parseSTEP(content: string, literalStrings: boolean): StepEntity[] {
   const entities: StepEntity[] = [];
   // 1. Begin van de datasectie — een `DATA;` binnen de FILE_NAME-string van de header telt niet mee.
-  const dataAt = indexOfDataSection(content);
+  const dataAt = indexOfDataSection(content, literalStrings);
   // Geen sectiegrens ⇒ getypeerde fout, GEEN leeg resultaat. `openFile`/`useRecoveryRestore` tonen
   // dan de leesfout in plaats van een leeg document te openen bovenop het pad van de gebruiker.
   if (dataAt < 0) {
@@ -1152,16 +1155,16 @@ function parseSTEP(content: string): StepEntity[] {
   // 2. Commentaar strippen (buiten strings). Regeleindes NIET normaliseren: de tokenizer behandelt \r al
   //    als witruimte, en een globale \r\n → \n-vervanging veranderde ook de tekst BINNEN strings (een
   //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
-  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length));
+  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length), literalStrings);
 
   // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`). Het afsluitende `ENDSEC;`
   //    van de datasectie wordt hier op CODE-niveau herkend — ongevoelig voor `ENDSEC;` in een
   //    taaknaam. Één pas, geen aparte zoek-pas over de sectie.
   for (let i = 0; i < clean.length;) {
     const c = clean.charCodeAt(i);
-    if (c === CH_QUOTE) { i = skipQuotedOrComment(clean, i); continue; }
+    if (c === CH_QUOTE) { i = skipQuotedOrComment(clean, i, literalStrings); continue; }
     if (c === CH_HASH) {
-      const next = readEntity(clean, i, entities);
+      const next = readEntity(clean, i, entities, literalStrings);
       i = next > 0 ? next : i + 1;
       continue;
     }
@@ -1179,11 +1182,15 @@ function parseSTEP(content: string): StepEntity[] {
  * eigen bestanden met een ongebalanceerde apostrof in `FILE_NAME` (zie `indexOfDataSection`) vallen
  * terug op een regel-verankerde match.
  */
-export function readFileSchemaName(content: string): string | undefined {
-  const dataAt = indexOfDataSection(content);
+export function readFileSchemaName(content: string, literalStrings?: boolean): string | undefined {
+  if (literalStrings === undefined) {
+    const grammar = stepFileGrammar(content);
+    literalStrings = grammar.failed || grammar.literalStrings;
+  }
+  const dataAt = indexOfDataSection(content, literalStrings);
   const header = dataAt >= 0 ? content.slice(0, dataAt) : content;
   let name: string | undefined;
-  const at = indexOfCode(header, 'FILE_SCHEMA', 0);
+  const at = indexOfCode(header, 'FILE_SCHEMA', 0, literalStrings);
   if (at >= 0) {
     const m = /^FILE_SCHEMA\s*\(\s*\(\s*'([^']*)'/i.exec(header.slice(at));
     name = m?.[1];
@@ -1207,23 +1214,16 @@ function isBaselineSchedule(e: StepEntity): boolean {
 }
 
 /** Split IFC arguments respecting nested parentheses and quotes */
-function splitArgs(argsStr: string): string[] {
+function splitArgs(argsStr: string, literalStrings = true): string[] {
   // Elk argument is een aaneengesloten deel van `argsStr` (tekens worden nooit omgezet, ook `''` niet),
   // dus snijden i.p.v. teken voor teken een string opbouwen.
   const args: string[] = [];
   let segStart = 0;
   let depth = 0;
-  let inString = false;
-
   for (let i = 0; i < argsStr.length; i++) {
     const ch = argsStr[i];
-    if (ch === "'" && !inString) {
-      inString = true;
-    } else if (ch === "'" && inString) {
-      if (i + 1 < argsStr.length && argsStr[i + 1] === "'") i++;
-      else inString = false;
-    } else if (inString) {
-      // teken binnen een string
+    if (ch === "'") {
+      i = skipQuotedOrComment(argsStr, i, literalStrings) - 1;
     } else if (ch === '(') {
       depth++;
     } else if (ch === ')') {
@@ -1257,33 +1257,27 @@ function stringsAreStepEncoded(entities: StepEntity[]): boolean {
 /** Decodeer in place elke stringliteral in de argumenten; de apostrof blijft `''`-verdubbeld, zodat
  *  alle bestaande lezers (`stripQuotes`, `splitArgs`) ongewijzigd werken. Alleen argumenten met een
  *  backslash kunnen iets gecodeerd bevatten. */
-function decodeEntityStrings(entities: StepEntity[]): void {
+function decodeEntityStrings(entities: StepEntity[], literalStrings: boolean): void {
   for (const e of entities) {
     const args = e.args;
     for (let k = 0; k < args.length; k++) {
-      if (args[k].indexOf('\\') >= 0) args[k] = decodeQuotedSegments(args[k]);
+      if (args[k].indexOf('\\') >= 0) args[k] = decodeQuotedSegments(args[k], literalStrings);
     }
   }
 }
 
-function decodeQuotedSegments(arg: string): string {
+function decodeQuotedSegments(arg: string, literalStrings: boolean): string {
   let out = '';
   let i = 0;
   while (i < arg.length) {
     const open = arg.indexOf("'", i);
     if (open < 0) { out += arg.slice(i); break; }
     out += arg.slice(i, open + 1);
-    let j = open + 1;
-    for (;;) {
-      const q = arg.indexOf("'", j);
-      if (q < 0) { j = arg.length; break; }
-      if (arg.charCodeAt(q + 1) === CH_QUOTE) { j = q + 2; continue; }
-      j = q;
-      break;
-    }
+    const close = stepStringEnd(arg, open, literalStrings);
+    const j = close < 0 ? arg.length : close;
     const body = arg.slice(open + 1, j);
     out += body.indexOf('\\') >= 0
-      ? decodeStepText(body.replace(/''/g, "'")).replace(/'/g, "''")
+      ? decodeStepText(unescapeStepQuotes(body, literalStrings)).replace(/'/g, "''")
       : body;
     if (j < arg.length) out += "'";
     i = j + 1;
@@ -1365,6 +1359,7 @@ function extractProject(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   labels: ImportLabels,
+  options: IfcReadOptions,
 ): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
@@ -1386,7 +1381,18 @@ function extractProject(
   // of is een slot leeg (`$`) ⇒ ''.
   let author = '';
   let company = '';
-  const owner = entities.find(e => e.type === 'IFCOWNERHISTORY');
+  // E8 / 1022: alleen de bytes-route geeft de selectie van selectPlanning mee. Met de flag uit blijft de eerste
+  // owner history leidend, ook bij een bestand van een ander programma. De writer geeft project/werkplan een eigen
+  // eigenaar; de gedeelde eigenaar van de bron kan als C vóór die nieuwe keten blijven staan.
+  const preferProjectOwner = options.planningTaskStepIds !== undefined;
+  const ownOwner = (object: StepEntity | undefined): StepEntity | undefined => {
+    const history = entityMap.get(parseRef(object?.args[1] ?? '') ?? '');
+    if (history?.type !== 'IFCOWNERHISTORY') return undefined;
+    const app = entityMap.get(parseRef(history.args[1] ?? '') ?? '');
+    return app?.type === 'IFCAPPLICATION' && ifcSlotText(app.args[3]) === 'OPS' ? history : undefined;
+  };
+  const owner = (preferProjectOwner ? ownOwner(proj) ?? ownOwner(wp) : undefined)
+    ?? entities.find(e => e.type === 'IFCOWNERHISTORY');
   if (owner) {
     const po = entityMap.get(parseRef(owner.args[0] || '') || '');
     if (po && po.type === 'IFCPERSONANDORGANIZATION') {
@@ -1394,6 +1400,22 @@ function extractProject(
       if (person && person.type === 'IFCPERSON') author = ifcSlotText(person.args[1]);
       const org = entityMap.get(parseRef(po.args[1] || '') || '');
       if (org && org.type === 'IFCORGANIZATION') company = ifcSlotText(org.args[1]);
+    }
+  }
+  // §4.4: gedragen projectproperties winnen, ook als ze bewust leeg zijn. Alleen auteur en bedrijf; de bestaande
+  // lezing van naam/beschrijving en alle overige projectvelden blijven bij extractStructure.
+  if (preferProjectOwner || options.projectDataInSettings === true) {
+    for (const set of entities) {
+      if (set.type !== 'IFCPROPERTYSET' || stripQuotes(set.args[2] || '') !== PSET.ProjectSettings) continue;
+      for (const ref of parseRefs(set.args[4] || '')) {
+        const prop = entityMap.get(ref);
+        if (prop?.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+        const name = stripQuotes(prop.args[0] || '');
+        if (name !== PROP.ProjectSettings.Author && name !== PROP.ProjectSettings.Organization) continue;
+        const value = parseTypedValue(prop.args[2] || '');
+        if (name === PROP.ProjectSettings.Author) author = typeof value === 'string' ? value : '';
+        else company = typeof value === 'string' ? value : '';
+      }
     }
   }
 
@@ -1430,8 +1452,8 @@ function extractProject(
     calendarId: 'cal-default',
     // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
     // extractStructure als het bestand ze draagt (oude bestanden ⇒ deze default blijft staan).
-    createdAt: new Date().toISOString(),
-    modifiedAt: new Date().toISOString(),
+    createdAt: options.projectTimestampFallback?.createdAt ?? new Date().toISOString(),
+    modifiedAt: options.projectTimestampFallback?.modifiedAt ?? new Date().toISOString(),
     author,
     company,
   };
@@ -2343,16 +2365,12 @@ function extractStructure(
           // Ankers uit geopende documenten halen (spiegel van writeStructure, stap 1.7).
           if (v === true) project.anchorsFromOpenDocuments = true;
         } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectName) {
-          // #804 §4.4: het project is niet P (het project van een model). Deze vier winnen van IfcProject en de eerste
-          // owner history (`extractProject`), ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`
+          // #804 §4.4: het project is niet P (het project van een model). Naam en omschrijving winnen van IfcProject,
+          // ook leeg: de merge-writer schrijft "bewust leeg" als NominalValue `$`
           // (⇒ undefined). Zonder de property blijft wat die gaf. Zonder de optie (main, de flag uit) leest de lezer ze niet.
           project.name = typeof v === 'string' ? v : '';
         } else if (projectDataInSettings && name === PROP.ProjectSettings.ProjectDescription) {
           project.description = typeof v === 'string' ? v : '';
-        } else if (projectDataInSettings && name === PROP.ProjectSettings.Author) {
-          project.author = typeof v === 'string' ? v : '';
-        } else if (projectDataInSettings && name === PROP.ProjectSettings.Organization) {
-          project.company = typeof v === 'string' ? v : '';
         }
       }
       continue;
@@ -3038,14 +3056,32 @@ function buildCalendarFromEntity(
   if (recurrences.length === 0 && datedRecurrences.length > 0) recurrences.push(datedRecurrences[0]);
   const weekRecurrences = recurrences.filter(rec => parseIntList(rec.args[2] || '').length > 0);
   // ALLE TimePeriods van één patroon (`TimePeriods` is native een lijst — pauze/split-shift).
-  const readPeriods = (timePeriodRefs: string[]): { start: number; end: number }[] => {
+  const sourcePeriods: (NonNullable<WorkCalendar['ifcTimePeriods']>[number] & { days: readonly number[] })[] = [];
+  let secondPrecisionWeek = false;
+  let legacyBandWeek = false;
+  const readPeriod = (tp: StepEntity, days: readonly number[] = [], binding = ''): { start: number; end: number } | null => {
+    const startText = stripQuotes(tp.args[0] || '');
+    const endText = stripQuotes(tp.args[1] || '');
+    const start = parseIfcClock(startText);
+    const end = parseIfcClock(endText);
+    const s = start?.minutes ?? clockToMinutes(startText);
+    const e = end?.minutes ?? clockToMinutes(endText);
+    if (s == null || e == null) return null;
+    if (days.length > 0 && (start?.hasSeconds || end?.hasSeconds)) secondPrecisionWeek = true;
+    if (days.length > 0 && (start?.legacyBand || end?.legacyBand)) legacyBandWeek = true;
+    if (!start || !end || start.preserve || end.preserve || start.hasSeconds || end.hasSeconds) {
+      const source = { start: s, end: e <= s ? e + 1440 : e, startText, endText, days, binding };
+      if (!sourcePeriods.some(p => JSON.stringify(p) === JSON.stringify(source))) sourcePeriods.push(source);
+    }
+    return { start: s, end: e };
+  };
+  const readPeriods = (timePeriodRefs: string[], days: readonly number[]): { start: number; end: number }[] => {
     const out: { start: number; end: number }[] = [];
     for (const tpRef of timePeriodRefs) {
       const tp = entityMap.get(tpRef);
       if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-      const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
-      const e = clockToMinutes(stripQuotes(tp.args[1] || ''));
-      if (s != null && e != null) out.push({ start: s, end: e });
+      const period = readPeriod(tp, days);
+      if (period) out.push(period);
     }
     return out;
   };
@@ -3055,7 +3091,7 @@ function buildCalendarFromEntity(
   if (perDayWeek) {
     const listsByDay = new Map<number, { start: number; end: number }[][]>();
     for (const rec of weekRecurrences) {
-      const recPeriods = readPeriods(parseRefs(rec.args[7] || ''));
+      const recPeriods = readPeriods(parseRefs(rec.args[7] || ''), parseIntList(rec.args[2] || ''));
       for (const d of parseIntList(rec.args[2] || '')) {
         if (d < 1 || d > 7) continue;
         const lists = listsByDay.get(d) ?? [];
@@ -3075,10 +3111,9 @@ function buildCalendarFromEntity(
     // (`firstBlockedDay`: zondag, dan maandag t/m zaterdag) — onafhankelijk van de volgorde in de SET.
     periods = (firstBlockedDay({ byWeekday }) ?? []).map(p => ({ ...p }));
     if (periods.length === 1) {
-      // Eén blok: dezelfde afleiding als een enkele periode hieronder, via de klok die de schrijver
-      // voor dit blok schrijft.
-      const startHour = scalarHourFromClock(minutesToClock(periods[0].start));
-      const endHour = scalarHourFromClock(minutesToClock(periods[0].end, true));
+      // Eén blok: dezelfde minuutprecisie als een enkele periode hieronder.
+      const startHour = periods[0].start / 60;
+      const endHour = periods[0].end / 60;
       calendar.workStartHour = startHour;
       calendar.workEndHour = endHour;
       if (endHour > startHour) calendar.hoursPerDay = endHour - startHour;
@@ -3089,22 +3124,17 @@ function buildCalendarFromEntity(
     if (workDays.length > 0) calendar.workDays = workDays;
 
     const timePeriodRefs = parseRefs(rec.args[7] || '');
-    periods = readPeriods(timePeriodRefs);
+    periods = readPeriods(timePeriodRefs, workDays.length > 0 ? workDays : calendar.workDays);
     // Meer periodes: scalar = begin eerste / einde laatste periode (fix werkdag-einde, 2026-10) — zie
     // hieronder. Eén periode: scalar uit die periode, de oude afleiding (ook voor oude klokken als
     // '7.5:00:00'). Houdt de dag-kalender scalair (de post-pass promoveert pas naar uur-modus bij een
     // echte afwijking, discriminator a/b/c).
-    if (timePeriodRefs.length === 1) {
-      const tp = entityMap.get(timePeriodRefs[0]);
-      if (tp && tp.type === 'IFCTIMEPERIOD') {
-        const startHour = scalarHourFromClock(stripQuotes(tp.args[0] || ''));
-        const endHour = scalarHourFromClock(stripQuotes(tp.args[1] || ''));
-        if (Number.isFinite(startHour)) calendar.workStartHour = startHour;
-        if (Number.isFinite(endHour)) calendar.workEndHour = endHour;
-        if (Number.isFinite(startHour) && Number.isFinite(endHour) && endHour > startHour) {
-          calendar.hoursPerDay = endHour - startHour;
-        }
-      }
+    if (timePeriodRefs.length === 1 && periods.length === 1) {
+      const startHour = periods[0].start / 60;
+      const endHour = periods[0].end / 60;
+      calendar.workStartHour = startHour;
+      calendar.workEndHour = endHour;
+      if (endHour > startHour) calendar.hoursPerDay = endHour - startHour;
     }
     // Dezelfde periodes op elke werkdag van het patroon (zonder weekdagen: de standaardwerkdagen).
     const days = (workDays.length > 0 ? workDays : calendar.workDays).filter(d => d >= 1 && d <= 7);
@@ -3182,6 +3212,7 @@ function buildCalendarFromEntity(
     // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
     // zoals de hoofd-werktijdlus hierboven het aan `canonicalizeBands` overlaat.
     const bands: { start: number; end: number }[] = [];
+    const sourceClocks: [string, string][] = [];
     const excRecRef = parseRef(wt.args[3] || '');
     if (excRecRef) {
       const excRec = entityMap.get(excRecRef);
@@ -3189,20 +3220,21 @@ function buildCalendarFromEntity(
         for (const bRef of parseRefs(excRec.args[7] || '')) {
           const tp = entityMap.get(bRef);
           if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
-          const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
-          let e = clockToMinutes(stripQuotes(tp.args[1] || ''));
-          if (s != null && e != null) {
-            if (e <= s) e += 1440;
-            bands.push({ start: s, end: e });
+          const period = readPeriod(tp, [], `exception:${JSON.stringify([range.startDate, range.endDate, ifcSlotText(wt.args[0]) || 'Werkende uitzondering'])}:${bands.length}`);
+          if (period) {
+            bands.push({ start: period.start, end: period.end <= period.start ? period.end + 1440 : period.end });
+            sourceClocks.push([stripQuotes(tp.args[0] || ''), stripQuotes(tp.args[1] || '')]);
           }
         }
       }
     }
     const stableKeys = calendarExceptionMetadata.workingExceptionKeys;
     const recurrence = excRecRef ? entityMap.get(excRecRef) : undefined;
+    const identity = { name: ifcSlotText(wt.args[0]), ...range, bands };
     const isWorking = stableKeys !== undefined
       ? recurrence?.type === 'IFCRECURRENCEPATTERN' && recurrence.args[0] === '.DAILY.'
-        && stableKeys.has(calendarExceptionKey({ name: ifcSlotText(wt.args[0]), ...range, bands }))
+        && (stableKeys.has(calendarExceptionKey(identity))
+          || stableKeys.has(calendarExceptionKeyFromClocks(identity, sourceClocks)))
       : workingExceptionIds?.has(ref);
     if (!isWorking) {
       holidays.push({ name: ifcSlotText(wt.args[0]) || 'Feestdag', ...range });
@@ -3244,7 +3276,16 @@ function buildCalendarFromEntity(
   // property, dan blijft de derivatie hierboven ongewijzigd staan.
   const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
-  if (hourMeta.hourMode === true) {
+  // Seconden veranderen de kalenderidentiteit niet: het scalaire pauzepatroon
+  // blijft effectief. Alleen de werkelijk expliciete oude bandenvorm promoveert.
+  const scalarSeconds = secondPrecisionWeek && !legacyBandWeek && hourMeta.hourMode !== true
+    && periods.length === 1 && !perDayWeek && !deviates;
+  if (scalarSeconds) {
+    // Zonder netto-override of pauze is de enige periode een ononderbroken dag.
+    // Een expliciete nul voorkomt minuutafronding van de impliciete netto-afleiding.
+    if (hpdOverride == null && calendar.simpleBreakDurationMinutes === undefined) calendar.simpleBreakDurationMinutes = 0;
+    declaredScalarCalendars.add(calendar);
+  } else if (hourMeta.hourMode === true || ((secondPrecisionWeek || legacyBandWeek) && hourMeta.hourMode !== false)) {
     // `promoteHourCalendar` zet `hoursPerDay` op de modale dagsom van de blokken; een expliciete
     // `HoursPerDay` wint daarna. Alleen bij deze markering: zie docs/ifc-round-trip.md, "Uren per dag
     // bij een blokkenkalender".
@@ -3261,6 +3302,35 @@ function buildCalendarFromEntity(
       declaredScalarCalendars.add(calendar);
     }
   }
+
+  // Leg de herkomst bij import vast per dag en band. De writer zoekt nooit een
+  // numeriek gelijke klok elders in de kalender op voor een latere bewerking.
+  const bound: NonNullable<WorkCalendar['ifcTimePeriods']> = [];
+  for (const [day, list] of Object.entries(bands.byWeekday)) {
+    list.forEach((band, index) => {
+      const origins = sourcePeriods.filter(p => p.days.includes(Number(day)));
+      const start = origins.find(p => p.start === band.start);
+      const end = origins.find(p => p.end === band.end);
+      if (start || end) bound.push({
+        binding: `week:${day}:${index}`, start: band.start, end: band.end,
+        startText: start?.startText ?? '', endText: end?.endText ?? '',
+      });
+    });
+  }
+  for (const source of sourcePeriods.filter(p => p.binding)) {
+    const { days: _, ...record } = source;
+    bound.push(record);
+  }
+  if (!calendar.workTime && periods.length === 1 && !perDayWeek) {
+    const first = periods[0];
+    const source = sourcePeriods.find(p => p.days.length > 0 && p.start === first.start);
+    if (source) bound.push({
+      binding: 'scalar', start: source.start, end: source.end,
+      startText: source.startText, endText: source.endText,
+      scalarStart: calendar.workStartHour, scalarEnd: calendar.workEndHour,
+    });
+  }
+  if (bound.length > 0) calendar.ifcTimePeriods = bound;
 
   return calendar;
 }
@@ -3684,7 +3754,8 @@ function extractBaselines(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
-): { baselines: Baseline[]; activeBaselineId: string | null; comparedBaselineIds: ComparedBaselineIds } {
+): { baselines: Baseline[]; activeBaselineId: string | null; comparedBaselineIds: ComparedBaselineIds;
+  orphanGuids: Record<string, string> } {
   // GlobalId → nieuwe taak-id (voor de taskId-remap).
   const guidToTaskId = new Map<string, string>();
   for (const e of entities) {
@@ -3731,7 +3802,9 @@ function extractBaselines(
     }
   }
 
-  // taskId-remap via GlobalId.
+  // taskId-remap via GlobalId. Een rij zonder match houdt haar id; de GlobalId waarmee de lezer hem zocht, gaat mee in
+  // `orphanGuids` (`ImportResult.baselineOrphanGuids`, PR 12e van #804).
+  const orphanGuids: Record<string, string> = {};
   for (const b of baselines) {
     if (!Array.isArray(b.tasks)) { b.tasks = []; continue; }
     for (const bt of b.tasks as BaselineTask[]) {
@@ -3740,6 +3813,7 @@ function extractBaselines(
       const guid = taskGuids?.[bt.taskId] ?? ifcGuid(bt.taskId);
       const remapped = guidToTaskId.get(guid);
       if (remapped) bt.taskId = remapped;
+      else orphanGuids[bt.taskId] = guid;
     }
   }
 
@@ -3754,7 +3828,7 @@ function extractBaselines(
     baselines, activeBaselineId,
   );
 
-  return { baselines, activeBaselineId, comparedBaselineIds };
+  return { baselines, activeBaselineId, comparedBaselineIds, orphanGuids };
 }
 
 /**
@@ -3820,7 +3894,8 @@ function extractTimephasedDurationWalksMeta(
  * `profileAfterRead` (in `readIFC`).
  */
 export function readSchedulingProfile(content: string): SchedulingProfile | undefined {
-  const entities = parseSTEP(content);
+  const grammar = stepFileGrammar(content);
+  const entities = parseSTEP(content, grammar.failed || grammar.literalStrings);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) entityMap.set(e.id, e);
   return extractSchedulingProfile(entities, entityMap);

@@ -7,6 +7,7 @@ import { isDocumentLeaveBlocked } from '@/hooks/keyboard/shortcutRegistry';
 import {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, type DroppedFile,
 } from '@/services/fileAccess/fileDrop';
+import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import { openDroppedFiles } from '@/state/fileDrop';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
@@ -48,9 +49,7 @@ export function useFileDrop(): boolean {
       let disposed = false;
       let unlisten: (() => void) | null = null;
       void (async () => {
-        const [{ getCurrentWebview }, { readTextFile, readFile }] = await Promise.all([
-          import('@tauri-apps/api/webview'), import('@tauri-apps/plugin-fs'),
-        ]);
+        const [{ getCurrentWebview }, io] = await Promise.all([import('@tauri-apps/api/webview'), tauriOpenIO()]);
         if (disposed) return;
         const stop = await getCurrentWebview().onDragDropEvent((event) => {
           const payload = event.payload;
@@ -60,7 +59,7 @@ export function useFileDrop(): boolean {
             setActive(false);
           } else if (payload.type === 'drop') {
             setActive(false);
-            openDropped(droppedFilesFromPaths(payload.paths, { readTextFile, readFile }, dropReadOptions()));
+            openDropped(droppedFilesFromPaths(payload.paths, io, dropReadOptions()));
           }
         });
         if (disposed) stop();

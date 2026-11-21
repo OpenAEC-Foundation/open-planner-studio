@@ -24,6 +24,8 @@
     "undo": "Poništi",
     "redo": "Ponovi",
     "delete": "Izbriši",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: uklanja odabrane zadatke i povezuje svaki prethodnik s svakim nasljednikom (završetak-početak, bez vremena odgode)",
     "undoTitle": "Poništi (Ctrl+Z)",
     "redoTitle": "Ponovi (Ctrl+Y)",
     "deleteTitle": "Izbriši odabir (Delete)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Odaberite stupce prikaza Tablica — vidljivi su na kartici Tablica",
     "toggleResourceAccent": "Naglasak resursa",
     "toggleFloatBand": "Traka vremenske rezerve",
+    "toggleBarDates": "Datumi uz trake",
     "screenColors": "Boje traka",
     "screenColors_critical": "Kritični put",
     "screenColors_auto": "Po zadatku — automatski",
@@ -282,7 +285,8 @@
       "label": "IFC shema pri spremanju",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (zadano)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Datoteka sadrži podatke drugog programa, pa se shema iz njezina izvornog zaglavlja zadržava."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Predložak faza",
     "tmplEmpty": "Prazno",
     "tmplWoningbouw": "Stambena gradnja",
-    "tmplUtiliteit": "Poslovna gradnja / obnova"
+    "tmplUtiliteit": "Poslovna gradnja / obnova",
+    "phase": {
+      "siteGroundwork": "Gradilište i zemljani radovi",
+      "foundation": "Temelji",
+      "shell": "Grubi radovi / kostur",
+      "roof": "Krov",
+      "facadeFitOut": "Fasada i završni radovi",
+      "services": "Instalacije (MEP)",
+      "finishes": "Završna obrada",
+      "handover": "Primopredaja",
+      "demolitionStripOut": "Rušenje i uklanjanje",
+      "groundworkFoundation": "Zemljani radovi i temelji",
+      "mainStructure": "Glavna nosiva konstrukcija",
+      "facadeRoof": "Fasada i krov",
+      "fitOut": "Dovršni radovi",
+      "commissioning": "Podešavanje i ispitivanje"
+    }
   },
   "status": {
     "tasks": "Zadaci:",
@@ -317,12 +337,14 @@
     "recentTitle": "Nedavni projekti",
     "recentSubtitle": "Kliknite za otvaranje.",
     "recentEmpty": "Još nema nedavno otvorenih projekata.",
+    "recentLoading": "Učitavanje nedavnih datoteka…",
     "recentUnavailable": "Ovaj preglednik ne može ponovno otvoriti lokalne datoteke iz „Nedavno“. Za ponovni odabir projektne datoteke upotrijebite „Otvori“.",
     "recentOnSite": "Na lokaciji",
     "examples": "Primjeri",
     "examplesTitle": "Primjeri projekata",
     "examplesSubtitle": "Isporučeni rasporedi gradnje. Kliknite za otvaranje u novoj kartici.",
     "examplesLoading": "Učitavanje primjera…",
+    "loading": "Učitavanje…",
     "examplesEmpty": "Nema dostupnih primjera.",
     "examplesError": "Primjeri se nisu mogli učitati.",
     "examplesShowcaseHeading": "Potpuni prikazni rasporedi",
@@ -393,7 +415,7 @@
       "plannedReadOnly": "planirano, ne mijenjajte",
       "summaryRow": "— zadatak sažetka: ne unosite"
     },
-    "csvLabel": "CSV (odvojeno točka-zarezom)",
+    "csvLabel": "CSV",
     "csvDesc": "Univerzalni izvoz tablice. Svi zadaci s datumima i trajanjem.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Otvara se u programu Microsoft Project. Potpuna WBS-struktura.",
@@ -405,7 +427,7 @@
     "profileHint": "Vaš projekt trenutno koristi profil {{name}}. Preporučujemo profil {{target}} za najbolju kompatibilnost s ovim formatom datoteke.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, u IFC shemi projekta (zadano IFC 4.3 ADD2). 4D povezivanje s BIM modelima.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Proširenja",

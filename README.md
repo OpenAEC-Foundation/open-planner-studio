@@ -139,7 +139,7 @@ Found something? [Open an issue](https://github.com/OpenAEC-Foundation/open-plan
 
 ## Under the hood
 
-The desktop app is built with Tauri 2, so the installers are small and use the web view of the system. The Rust part is a thin native shell with three commands. The scheduling engine is written in TypeScript. It is the same code in the browser and on the desktop. The user interface is React 19, and the Gantt timeline is drawn on a Canvas 2D surface.
+The desktop app is built with Tauri 2, so the installers are small and use the web view of the system. The Rust part is a thin native shell with four commands. The scheduling engine is written in TypeScript. It is the same code in the browser and on the desktop. The user interface is React 19, and the Gantt timeline is drawn on a Canvas 2D surface.
 
 ## Contributing
 

@@ -24,6 +24,8 @@
     "undo": "Отмени",
     "redo": "Повтори",
     "delete": "Изтрий",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: изтрива избраните задачи и свързва всеки предшественик с всеки последовател (завършване-начало, без време на отстъп)",
     "undoTitle": "Отмени (Ctrl+Z)",
     "redoTitle": "Повтори (Ctrl+Y)",
     "deleteTitle": "Изтрий избраното (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Изберете колоните на изгледа Таблица — показва се в раздел Таблица",
     "toggleResourceAccent": "Акцент на ресурсите",
     "toggleFloatBand": "Лента на резерва",
+    "toggleBarDates": "Дати до ленти на задачи",
     "screenColors": "Цветове на лентите",
     "screenColors_critical": "Критичен път",
     "screenColors_auto": "По задача — автоматично",
@@ -281,7 +284,8 @@
       "label": "IFC схема при запазване",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (по подразбиране)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Файлът съдържа данни от друга програма. Затова схемата от оригиналния заглавен блок се запазва."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Шаблон за фазиране",
     "tmplEmpty": "Празен",
     "tmplWoningbouw": "Жилищно строителство",
-    "tmplUtiliteit": "Нежилищно строителство / реновация"
+    "tmplUtiliteit": "Нежилищно строителство / реновация",
+    "phase": {
+      "siteGroundwork": "Строителна площадка и земни работи",
+      "foundation": "Фундамент",
+      "shell": "Груб строеж",
+      "roof": "Покрив",
+      "facadeFitOut": "Фасада и вътрешно довършване",
+      "services": "Инсталации (MEP)",
+      "finishes": "Довършителни работи",
+      "handover": "Предаване",
+      "demolitionStripOut": "Събаряне и демонтаж",
+      "groundworkFoundation": "Земни работи и фундамент",
+      "mainStructure": "Основна носеща конструкция",
+      "facadeRoof": "Фасада и покрив",
+      "fitOut": "Вътрешно довършване",
+      "commissioning": "Регулиране и тестване"
+    }
   },
   "status": {
     "tasks": "Задачи:",
@@ -315,12 +335,14 @@
     "recentTitle": "Скорошни проекти",
     "recentSubtitle": "Щракнете, за да отворите.",
     "recentEmpty": "Все още няма скоро отворени проекти.",
+    "recentLoading": "Зареждане на скорошни файлове…",
     "recentUnavailable": "Този браузър не може отново да отвори локални файлове от „Последни“. Използвайте „Отвори“, за да изберете отново файла на проекта.",
     "recentOnSite": "На обекта",
     "examples": "Примери",
     "examplesTitle": "Примерни проекти",
     "examplesSubtitle": "Включени строителни графици. Щракнете, за да отворите в нов раздел.",
     "examplesLoading": "Примерите се зареждат…",
+    "loading": "Зареждане…",
     "examplesEmpty": "Няма налични примери.",
     "examplesError": "Примерите не можаха да се заредят.",
     "examplesShowcaseHeading": "Пълни демонстрационни графици",
@@ -391,7 +413,7 @@
       "plannedReadOnly": "планирано, не променяйте",
       "summaryRow": "— обобщаваща задача: не попълвайте"
     },
-    "csvLabel": "CSV (разделени с точка и запетая)",
+    "csvLabel": "CSV",
     "csvDesc": "Универсален табличен експорт. Всички задачи с дати и продължителност.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "За отваряне в Microsoft Project. Пълна WBS структура.",
@@ -403,7 +425,7 @@
     "profileHint": "Вашият проект в момента използва профила {{name}}. Препоръчваме профила {{target}} за най-добра съвместимост с този файлов формат.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт на buildingSMART, в IFC схемата на проекта (по подразбиране IFC 4.3 ADD2). 4D свързване с BIM модели.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Разширения",

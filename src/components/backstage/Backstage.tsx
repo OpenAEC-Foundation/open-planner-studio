@@ -1,15 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { ExportProfileHint } from '@/components/common/ExportProfileHint';
 import { BackstageSection } from '@/state/slices/types';
-import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/components/settings/ProjectInfoPanelContent';
-import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPanel';
-import { HelpPanel } from '@/components/backstage/HelpPanel';
-import { LibrarySection } from './LibrarySection';
 import { useDocumentActions } from '@/components/layout/DocumentChrome/useDocumentCards';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import type { ExtensionImporter } from '@/state/slices/extensionSlice';
@@ -26,7 +22,41 @@ import { UnappliedChangesDialog } from './UnappliedChangesDialog';
 import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
+import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import './Backstage.css';
+
+// Bestand zelf (navigatie, opmaak, de lichte secties) zit in de eerste bundel, zodat het meteen af
+// staat als je erop klikt (#895). De vier zware secties laden apart, binnen het afgewerkte scherm
+// (`SectionLoading`), en vooraf zodra het venster getoond is (`preloadBackstageSections`).
+const loadSettingsPanel = () => import('@/components/settings/SettingsPanelContent');
+// Platformbouw (#311): geen extensies. De voorwaarde staat hier, zodat de bundelaar de dynamische import (en
+// daarmee de catalogus-URL) weglaat, net als bij de extensiedialogen in App.tsx.
+const loadExtensionManager = EXTENSIONS_ENABLED ? () => import('@/components/backstage/ExtensionManagerPanel') : null;
+const loadHelpPanel = () => import('@/components/backstage/HelpPanel');
+const loadLibrarySection = () => import('./LibrarySection');
+const SettingsPanelContent = lazy(() => loadSettingsPanel().then(m => ({ default: m.SettingsPanelContent })));
+const ExtensionManagerPanel = loadExtensionManager
+  ? lazy(() => loadExtensionManager().then(m => ({ default: m.ExtensionManagerPanel })))
+  : () => null;
+const HelpPanel = lazy(() => loadHelpPanel().then(m => ({ default: m.HelpPanel })));
+const LibrarySection = lazy(() => loadLibrarySection().then(m => ({ default: m.LibrarySection })));
+
+/** Laadt de zware secties van Bestand op de achtergrond. Gooit nooit: mislukt het, dan laadt een sectie
+ *  bij openen opnieuw. */
+export function preloadBackstageSections(): Promise<void> {
+  return Promise.all([loadSettingsPanel(), loadExtensionManager?.(), loadHelpPanel(), loadLibrarySection()])
+    .then(() => undefined, () => undefined);
+}
+
+function SectionLoading({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('menu');
+  return (
+    <Suspense fallback={<div className="backstage-empty" aria-busy="true" data-ops-backstage-loading>{t('backstage.loading')}</div>}>
+      {children}
+    </Suspense>
+  );
+}
 
 export function Backstage() {
   const { t: tMenu } = useTranslation('menu');
@@ -41,7 +71,6 @@ export function Backstage() {
   // sluit-bevestiging, schoon sluit meteen.
   const { closeWithGuard } = useDocumentActions();
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
-  const isDirty = useAppStore(s => s.isDirty); // top-level = het actieve document
 
   const closeBackstage = useCallback(() => {
     // Terug naar Start-tab
@@ -82,7 +111,7 @@ export function Backstage() {
     // Backstage éérst dicht: de sluit-bevestiging hoort boven de gewone werkruimte te staan, niet
     // achter/onder het File-menu dat de hele body overneemt.
     closeBackstage();
-    closeWithGuard({ id: activeDocumentId, isDirty });
+    closeWithGuard({ id: activeDocumentId });
   };
 
   // Esc sluit backstage — niet terwijl er een dialoog boven staat (die handelt zijn eigen Escape af,
@@ -177,7 +206,7 @@ export function Backstage() {
         )}
         {section === 'settings' && <SettingsSection />}
         {EXTENSIONS_ENABLED && section === 'extensions' && <ExtensionsSection />}
-        {section === 'library' && <LibrarySection />}
+        {section === 'library' && <SectionLoading><LibrarySection /></SectionLoading>}
         {section === 'help' && <HelpSection />}
       </main>
 
@@ -256,6 +285,7 @@ function RecentSection() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const allRecentFiles = useAppStore(s => s.recentFiles);
+  const recentFilesLoaded = useAppStore(s => s.recentFilesLoaded);
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
@@ -272,6 +302,8 @@ function RecentSection() {
       {supported && <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>}
       {!supported ? (
         <div className="backstage-empty" data-ops-recent-unavailable>{tMenu('backstage.recentUnavailable')}</div>
+      ) : !recentFilesLoaded ? (
+        <div className="backstage-empty" aria-busy="true" data-ops-recent-loading>{tMenu('backstage.recentLoading')}</div>
       ) : recentFiles.length === 0 ? (
         <div className="backstage-empty">{tMenu('backstage.recentEmpty')}</div>
       ) : (
@@ -433,6 +465,9 @@ function ExportSection() {
   const setUI = useAppStore(s => s.setUI);
   const companyId = useAppStore(s => s.project.companyId);
   const [alsoPool, setAlsoPool] = useState(false);
+  // #804 PR 13: alleen bij een document met een gebouwmodel (of gegevens van een ander programma) en de flag aan.
+  const modelPresent = useAppStore(s => hasForeignContent(s.ifcSource) && ifcForeignContentEnabled(s.ui.featureFlags));
+  const [withoutModel, setWithoutModel] = useState(false);
 
   // Geen stale true laten hangen als het project z'n bedrijfskoppeling verliest (bijv. door te
   // wisselen naar een ongekoppeld document) — anders blijft het vinkje aan staan voor een checkbox
@@ -440,6 +475,9 @@ function ExportSection() {
   useEffect(() => {
     if (!companyId) setAlsoPool(false);
   }, [companyId]);
+  useEffect(() => {
+    if (!modelPresent) setWithoutModel(false);
+  }, [modelPresent]);
 
   const formats: { format: ExportFormat; label: string; desc: string; icon: string; experimental: boolean }[] = EXPORT_FORMATS.map(
     (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon, experimental: 'experimental' in f && f.experimental }),
@@ -454,10 +492,10 @@ function ExportSection() {
   const handleExport = async (format: ExportFormat) => {
     // Pool-ernaast geldt alleen voor de IFC-kaart (het is een IFC-tweede-bestand, geen
     // embed in CSV/MSPDI/P6). Beide paden geven hetzelfde ExportResult terug, dus de
-    // cyclus-foutafhandeling geldt voor allebei.
+    // cyclus-foutafhandeling geldt voor allebei. De export met bibliotheek is altijd zonder gebouwmodel.
     const result = format === 'ifc' && alsoPool
       ? await exportProjectWithPool()
-      : await exportAs(format);
+      : await exportAs(format, format === 'ifc' && modelPresent && withoutModel ? { withoutBuildingModel: true } : undefined);
     if (!result.ok) {
       // Blijf in Backstage zodat de fout zichtbaar is; ga niet terug naar het Start-tab.
       setExportError({ error: result.error, errorInfo: result.errorInfo });
@@ -494,6 +532,13 @@ function ExportSection() {
         <label className="flex items-center gap-2 mt-1 text-small leading-4">
           <input type="checkbox" checked={alsoPool} onChange={e => setAlsoPool(e.target.checked)} className="accent-accent" />
           <span>{tCommon('companyLibrary.exportWithPool')}</span>
+        </label>
+      )}
+      {modelPresent && (
+        <label className="flex items-center gap-2 mt-1 text-small leading-4">
+          <input type="checkbox" checked={withoutModel} onChange={e => setWithoutModel(e.target.checked)}
+            className="accent-accent" data-ops-export-without-model />
+          <span>{tCommon('ifcExportWithoutModel.option')}</span>
         </label>
       )}
     </>
@@ -588,7 +633,7 @@ function SettingsSection() {
     <>
       {/* `ribbon.projectSettings` = App-instellingen; de sleutelnaam bleef bewust gelijk. */}
       <h2 className="backstage-title">{tMenu('ribbon.projectSettings')}</h2>
-      <SettingsPanelContent />
+      <SectionLoading><SettingsPanelContent /></SectionLoading>
     </>
   );
 }
@@ -681,7 +726,7 @@ function ExtensionsSection() {
     <>
       <h2 className="backstage-title">{tMenu('extensions.title')}</h2>
       <p className="backstage-subtitle">{tMenu('extensions.subtitle')}</p>
-      <ExtensionManagerPanel />
+      <SectionLoading><ExtensionManagerPanel /></SectionLoading>
     </>
   );
 }
@@ -696,7 +741,7 @@ function HelpSection() {
     <>
       <h2 className="backstage-title">{tMenu('backstage.help')}</h2>
       <p className="backstage-subtitle">{tMenu('backstage.helpSubtitle')}</p>
-      <HelpPanel />
+      <SectionLoading><HelpPanel /></SectionLoading>
     </>
   );
 }

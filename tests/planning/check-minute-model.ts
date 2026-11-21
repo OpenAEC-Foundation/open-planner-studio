@@ -358,6 +358,9 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
   // T1: uren per dag groter dan de spanne (08:00–16:00 met 10 u) ⇒ einde 18:00, één melding, ook al staat
   // de projectkalender twee keer in de payload. Daarna rekent de normalisatie met het herstelde einde.
   const LONG: WorkCalendar = { ...STD, id: 'cal-long', name: 'Lang', workStartHour: 8, workEndHour: 16, hoursPerDay: 10, holidays: [], workingExceptions: [] };
+  LONG.ifcTimePeriods = [{ binding: 'scalar', start: 480, end: 960, startText: '08:00:00', endText: '16:00:00',
+    scalarStart: 8, scalarEnd: 16, layout: JSON.stringify([LONG.workDays, null, []]) }];
+  const oldSource = JSON.stringify(LONG.ifcTimePeriods);
   const t = task('A', { time: { scheduleStart: '2026-06-02', scheduleFinish: '2026-06-02', earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' } });
   const p = payloadWith([t], { calendar: LONG, calendars: [LONG] });
   const { payload: out, report } = migrateToMinuteModel(p);
@@ -366,6 +369,10 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
     [['cal-long', 'extendEnd', 16, 18]]);
   same('§4 T1: normalisatie rekent met het herstelde einde', [out.tasks[0].time.scheduleStart, out.tasks[0].time.scheduleFinish],
     ['2026-06-02T08:00', '2026-06-02T18:00']);
+  same('1120 T1: alleen de scalar-koppeling volgt het herstel', out.calendar.ifcTimePeriods,
+    LONG.ifcTimePeriods!.map(period => ({ ...period, scalarEnd: 18 })));
+  same('1120 T1: bibliotheek en project dezelfde koppeling', out.calendars[0].ifcTimePeriods, out.calendar.ifcTimePeriods);
+  same('1120 T1: broninvoer blijft intact', JSON.stringify(LONG.ifcTimePeriods), oldSource);
   const withModel = migrateToMinuteModel(p, { timeModel: MINUTE_MODEL_TIME_MODEL });
   same('§4 T1 alleen bij een oud bestand', [withModel.payload.calendar.workEndHour, withModel.report.calendarRepairs.length], [16, 0]);
   same('§4 T1 idempotent', migrateToMinuteModel(out).report.calendarRepairs.length, 0);
@@ -376,6 +383,15 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
   same('§4 T1: ongeldige pauze vervalt', [pb.payload.calendar.simpleBreakStartMinute, pb.payload.calendar.simpleBreakDurationMinutes,
     'simpleBreakStartMinute' in pb.payload.calendar], [undefined, undefined, false]);
   same('§4 T1: melding dropBreak', pb.report.calendarRepairs.map((r) => r.kind), ['dropBreak']);
+
+  const breakOrigin = { binding: 'scalar', start: 420, end: 960, startText: '07:00:00', endText: '16:00:00', scalarStart: 7, scalarEnd: 16 };
+  const breakOnly = migrateToMinuteModel(payloadWith([], { calendar: { ...BADBREAK, ifcTimePeriods: [breakOrigin] } }));
+  same('1120 dropBreak: scalar en klokherkomst veranderen niet',
+    [breakOnly.payload.calendar.workEndHour, breakOnly.payload.calendar.ifcTimePeriods], [16, [breakOrigin]]);
+  const combined = migrateToMinuteModel(payloadWith([], { calendar: { ...LONG, simpleBreakStartMinute: 1200, simpleBreakDurationMinutes: 30 } }));
+  same('1120 dropBreak met extendEnd: beide herstellen op dezelfde plek', combined.report.calendarRepairs.map(r => r.kind), ['dropBreak', 'extendEnd']);
+  same('1120 gecombineerd herstel: nieuwe koppeling, oude bronklok',
+    [combined.payload.calendar.ifcTimePeriods?.[0]?.scalarEnd, combined.payload.calendar.ifcTimePeriods?.[0]?.endText], [18, '16:00:00']);
 
   // Uren per dag past niet vóór middernacht ⇒ geen herstel, wel een melding.
   const LATE: WorkCalendar = { ...STD, id: 'cal-late', name: 'Laat', workStartHour: 20, workEndHour: 22, hoursPerDay: 8, holidays: [], workingExceptions: [] };

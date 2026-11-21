@@ -402,7 +402,7 @@ S().switchDocument(doc1);
 eq(S().comparedBaselineIds, [blB, blC], 'B documentwissel: terug in document 1 is de keuze er weer');
 
 // IFC schrijven en lezen.
-const ifc = writeIFC(buildWriteIFCInput(S()));
+const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 ok(ifc.includes(`'ComparedBaselineIds'`), 'B IFC: OPS_Baselines bevat ComparedBaselineIds');
 const parsed = readIFC(ifc);
 eq(parsed.comparedBaselineIds, [blB, blC], 'B IFC: keuze terug na lezen');
@@ -421,7 +421,7 @@ eq(S().comparedBaselineIds, [blB, blC], 'B crashherstel: keuze terug');
 S().toggleComparedBaseline(blB);
 S().toggleComparedBaseline(blC);
 eq(S().comparedBaselineIds, [null, null], 'B setup oud bestand: niets gekozen');
-const oldIfc = writeIFC(buildWriteIFCInput(S()));
+const oldIfc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 ok(!oldIfc.includes('ComparedBaselineIds'), 'B IFC zonder keuze: geen ComparedBaselineIds (bestand zoals vóór #391)');
 ok(oldIfc.includes(`'ActiveBaselineId'`), 'B IFC zonder keuze: OPS_Baselines staat er wel');
 eq(readIFC(oldIfc).comparedBaselineIds, [null, null], 'B IFC oud bestand: geen vergelijking');

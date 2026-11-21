@@ -27,6 +27,7 @@
 //    niets als een route de bron intussen veranderde, met pad en op de site, ook met het vinkje aan (14, 15); en een
 //    controle tijdens *Later* of *Accepteren* (16, 17).
 import { createAppStoreContext } from '@/state/appStore';
+import { documentContentOf } from '@/state/documentSaveState';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { refreshExternalAnchors, type ExternalSourceLocator } from '@/engine/externalLinks';
@@ -144,7 +145,7 @@ const app = async (kind: 'path' | 'project' = 'path', on = false) => {
   store.setState({ filePath: kind === 'path' ? PATH : 'Installateur.ifc', isDirty: false });
   const sourceDocumentId = S().activeDocumentId;
   const sourceProjectId = S().project.id;
-  const disk = { text: writeIFC(buildWriteIFCInput(S())), version: 'v1', reads: 0 };
+  const disk = { text: writeIFC(buildWriteIFCInput(S(), 'planOnly')), version: 'v1', reads: 0 };
   const readDisk = async (filePath: string): Promise<ExternalSourceRead | null> => {
     disk.reads++;
     const read = await readExternalSource(filePath, { readTextFile: async () => disk.text, readFile: async () => new Uint8Array() });
@@ -203,9 +204,9 @@ const saveSource = (s: App, version: string) => {
   const { S } = s;
   S().switchDocument(s.sourceDocumentId);
   S().runCPM();
-  s.disk.text = writeIFC(buildWriteIFCInput(S()));
+  s.disk.text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   s.disk.version = version;
-  S().markAutoSaveVersionSaved(s.sourceDocumentId, S());
+  S().markAutoSaveVersionSaved(documentContentOf(S(), s.sourceDocumentId)!, S());
   S().switchDocument(s.targetDocumentId);
 };
 
@@ -435,10 +436,10 @@ for (const on of [false, true]) {
   eq('11a ongewijzigd (afwezig ≡ uit) ⇒ lege patch', projectInfoPatch(S().project, form), {});
   eq('11b aan ⇒ alleen het vinkje', projectInfoPatch(S().project, { ...form, anchorsFromOpenDocuments: true }), { anchorsFromOpenDocuments: true });
   eq('11c zonder het veld in het formulier (de wizard) ⇒ niets', projectInfoPatch(S().project, { ...S().project, anchorsFromOpenDocuments: undefined }), {});
-  const off = writeIFC(buildWriteIFCInput(S()));
+  const off = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const steps = applied(S);
   S().applyProjectInfo(projectInfoPatch(S().project, { ...form, anchorsFromOpenDocuments: true }), undefined);
-  const on = writeIFC(buildWriteIFCInput(S()));
+  const on = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   eq('11d Toepassen: één undo-stap, het document gewijzigd', [S().project.anchorsFromOpenDocuments, applied(S) - steps, S().isDirty], [true, 1, true]);
   eq('11e het IFC-bestand: alleen wanneer aan, en het leest terug',
     [off.includes('AnchorsFromOpenDocuments'), on.includes(`'AnchorsFromOpenDocuments',$,IFCBOOLEAN(.T.)`),

@@ -70,12 +70,13 @@ eq('C1 veldkiezer volgt de volgorde', labels(selectOptions({ src: 'activityCode'
 const col = buildTaskColumnRegistry({
   projectId: 'p', activityCodeTypes: S().activityCodeTypes, customFieldDefs: [], baselines: [],
 }).find(c => c.id === activityCodeColumnId('p', typeId));
+// De tabelkolom is een keuzelijst met "—" (wissen) voorop, net als het paneel (#970).
 eq('C2 tabelkolom volgt de volgorde', labels(col?.editorOptions ?? []),
-  ['Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
+  ['—', 'Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
 
 // D: IFC rondreis
 const reopened = createAppStoreContext();
-reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { recompute: true });
+reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), { recompute: true });
 const t2 = reopened.store.getState().activityCodeTypes.find(t => t.name === 'PCS')!;
 eq('D1 IFC opslaan en heropenen behoudt de volgorde', t2.values.map(v => v.code),
   ['Design freeze', 'RFQ issued', 'Quote received', 'Order placed']);
@@ -95,7 +96,7 @@ eq('D2 de taakwaarde wijst na heropenen naar dezelfde code',
   D().setTaskActivityCode(dTask, dType, q1);
   const viaIfc = () => {
     const re = createAppStoreContext();
-    re.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(D()))), { recompute: true });
+    re.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(D(), 'planOnly'))), { recompute: true });
     const st = re.store.getState();
     const ty = st.activityCodeTypes.find(t => t.name === 'Status')!;
     const val = ty.values.find(v => v.id === st.tasks.find(t => t.name === 'Dubbel')!.activityCodes?.[ty.id]);

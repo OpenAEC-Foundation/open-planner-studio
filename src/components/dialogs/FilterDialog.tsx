@@ -11,7 +11,8 @@ import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { generateId } from '@/utils/id';
-import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { ignoreUnreadable, loadLayouts, updateLayouts } from '@/utils/settingsStore';
+import { layoutsNotSaved } from '@/components/viewControls/layoutsNotSaved';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -305,11 +306,11 @@ export function FilterDialog() {
 
   useEffect(() => {
     let cancelled = false;
-    void loadLayouts().then(all => { if (!cancelled) setLayouts(all); });
+    void loadLayouts().then(all => { if (!cancelled) setLayouts(all); }, ignoreUnreadable);
     return () => { cancelled = true; };
   }, []);
   // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
-  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts, ignoreUnreadable); });
 
   const ctx: FieldCatalogCtx = useFieldCatalogCtx();
   const fields = useMemo(() => filterFieldList(ctx), [ctx]);
@@ -325,9 +326,9 @@ export function FilterDialog() {
     setSelectedSavedFilterId('');
   };
 
-  const persistLayouts = (next: Layout[]) => {
-    setLayouts(next);
-    void saveLayouts(next);
+  /** Een wijziging op de vers gelezen lijst, nooit deze kopie terugschrijven (`updateLayouts`, knownbug 1362). */
+  const persistLayouts = (change: (current: Layout[]) => Layout[], onSaved: () => void) => {
+    void updateLayouts(change).then(next => { setLayouts(next); onSaved(); }, layoutsNotSaved);
   };
 
   const selectSavedFilter = (id: string) => {
@@ -346,15 +347,17 @@ export function FilterDialog() {
       name: savedFilterName.trim() || t('view.layout.name'),
       filter: structuredClone(root),
     };
-    persistLayouts([...layouts, saved]);
-    setSelectedSavedFilterId(saved.id);
-    setSavedFilterName('');
+    // Pas na het opslaan selecteren en de naam leegmaken: mislukt het, dan blijft de invoer staan.
+    persistLayouts(current => [...current, saved], () => {
+      setSelectedSavedFilterId(saved.id);
+      setSavedFilterName('');
+    });
   };
 
   const removeSelectedSavedFilter = () => {
     if (!selectedSavedFilterId) return;
-    persistLayouts(layouts.filter(layout => layout.id !== selectedSavedFilterId));
-    setSelectedSavedFilterId('');
+    const id = selectedSavedFilterId;
+    persistLayouts(current => current.filter(layout => layout.id !== id), () => setSelectedSavedFilterId(''));
   };
 
   return (

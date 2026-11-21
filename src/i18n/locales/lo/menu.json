@@ -24,6 +24,8 @@
     "undo": "ກັບຄືນ",
     "redo": "ເຮັດຄືນ",
     "delete": "ລຶບ",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: ລຶບໜ້າວຽກທີ່ເລືອກ ແລະ ເຊື່ອມໂຍງທຸກໜ້າວຽກກ່ອນໜ້າກັບທຸກໜ້າວຽກຖັດໄປ (ສຳເລັດ-ເລີ່ມຕົ້ນ ໂດຍບໍ່ມີ ຄ່າ Lag)",
     "undoTitle": "ກັບຄືນ (Ctrl+Z)",
     "redoTitle": "ເຮັດຄືນ (Ctrl+Y)",
     "deleteTitle": "ລຶບລາຍການທີ່ເລືອກ (Delete)",
@@ -210,6 +212,7 @@
     "columnsHintGoToTable": "ເລືອກຖັນຂອງມຸມມອງຕາຕະລາງ — ສະແດງຢູ່ໃນແຖບຕາຕະລາງ",
     "toggleResourceAccent": "ເນັ້ນສີຊັບພະຍາກອນ",
     "toggleFloatBand": "ແຖບໄລຍະເວລາຜ່ອນຜັນ(Float band)",
+    "toggleBarDates": "ວັນທີຂ້າງແຖບໜ້າວຽກ",
     "screenColors": "ສີຂອງແທ່ງວຽກ",
     "screenColors_critical": "ເສັ້ນທາງວິກິດ",
     "screenColors_auto": "ຕາມແຕ່ລະວຽກ — ອັດຕະໂນມັດ",
@@ -280,7 +283,8 @@
       "label": "ສະກີມ IFC ເມື່ອບັນທຶກ",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (ຄ່າເລີ່ມຕົ້ນ)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "ໄຟລ໌ນີ້ມີຂໍ້ມູນຈາກໂປຣແກຣມອື່ນ. ດັ່ງນັ້ນ ລະບົບຈະຮັກສາ schema ຈາກ header ເດີມໄວ້."
     }
   },
   "newProject": {
@@ -288,7 +292,23 @@
     "template": "ແມ່ແບບຂັ້ນຕອນການເຮັດວຽກ",
     "tmplEmpty": "ວ່າງເປົ່າ",
     "tmplWoningbouw": "ການກໍ່ສ້າງເຮືອນຢູ່ອາໄສ",
-    "tmplUtiliteit": "ການກໍ່ສ້າງອາຄານທຸລະກິດ / ບູລະນະສ້ອມແປງ"
+    "tmplUtiliteit": "ການກໍ່ສ້າງອາຄານທຸລະກິດ / ບູລະນະສ້ອມແປງ",
+    "phase": {
+      "siteGroundwork": "ສະຖານທີ່ກໍ່ສ້າງ & ງານດິນ",
+      "foundation": "ຮາກຖານ",
+      "shell": "ໂຄງຮ່າງອາຄານ",
+      "roof": "ຫຼັງຄາ",
+      "facadeFitOut": "ໜ້າອາຄານ & ຕົບແຕ່ງ",
+      "services": "ລະບົບອາຄານ (MEP)",
+      "finishes": "ການຕົກແຕ່ງ",
+      "handover": "ການມອບຮັບ",
+      "demolitionStripOut": "ການຮື້ຖອນ & ເອົາອອກ",
+      "groundworkFoundation": "ງານດິນ & ຮາກຖານ",
+      "mainStructure": "ໂຄງສ້າງຫຼັກ",
+      "facadeRoof": "ໜ້າອາຄານ & ຫຼັງຄາ",
+      "fitOut": "ການຕົບແຕ່ງພາຍໃນ",
+      "commissioning": "ການປັບຕັ້ງ & ທົດສອບ"
+    }
   },
   "status": {
     "tasks": "ວຽກງານ:",
@@ -313,12 +333,14 @@
     "recentTitle": "ໂຄງການຫຼ້າສຸດ",
     "recentSubtitle": "ກົດເພື່ອເປີດ.",
     "recentEmpty": "ຍັງບໍ່ມີໂຄງການທີ່ເປີດຫຼ້າສຸດເທື່ອ.",
+    "recentLoading": "ກຳລັງໂຫຼດໄຟລ໌ທີ່ໃຊ້ຫຼ້າສຸດ…",
     "recentUnavailable": "ບຣາວເຊີນີ້ບໍ່ສາມາດເປີດໄຟລ໌ໃນເຄື່ອງທີ່ເປີດກ່ອນໜ້ານີ້ຄືນໄດ້ຈາກ “ຫຼ້າສຸດ”. ກະລຸນາໃຊ້ “ເປີດ” ເພື່ອເລືອກໄຟລ໌ໂຄງການຂອງທ່ານອີກຄັ້ງ.",
     "recentOnSite": "ຢູ່ໜ້າງານ",
     "examples": "ຕົວຢ່າງ",
     "examplesTitle": "ໂຄງການຕົວຢ່າງ",
     "examplesSubtitle": "ແຜນງານການກໍ່ສ້າງທີ່ຕິດມານຳ. ກົດເພື່ອເປີດໃນແທັບໃໝ່.",
     "examplesLoading": "ກຳລັງໂຫຼດຕົວຢ່າງ…",
+    "loading": "ກຳລັງໂຫຼດ…",
     "examplesEmpty": "ບໍ່ມີຕົວຢ່າງໃຫ້ໃຊ້.",
     "examplesError": "ບໍ່ສາມາດໂຫຼດຕົວຢ່າງໄດ້.",
     "examplesShowcaseHeading": "ແຜນງານຕົວຢ່າງແບບຄົບຊຸດ",
@@ -389,7 +411,7 @@
       "plannedReadOnly": "ແຜນທີ່ວາງໄວ້, ຫ້າມແກ້ໄຂ",
       "summaryRow": "— ວຽກສະຫຼຸບ: ຫ້າມປ້ອນຂໍ້ມູນ"
     },
-    "csvLabel": "CSV (ຂັ້ນດ້ວຍຈໍ້າຈຸດ ;)",
+    "csvLabel": "CSV",
     "csvDesc": "ການສົ່ງອອກຕາຕະລາງແບບທົ່ວໄປ. ລວມທຸກວຽກພ້ອມວັນທີ ແລະ ໄລຍະເວລາ.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "ເປີດໃນ Microsoft Project ໄດ້. ຮັກສາໂຄງສ້າງ WBS ຄົບຖ້ວນ.",
@@ -401,7 +423,7 @@
     "profileHint": "ໂປຣເຈັກຂອງທ່ານກຳລັງໃຊ້ໂປຣໄຟລ໌ “{{name}}” ຢູ່ຕອນນີ້. ພວກເຮົາແນະນຳໃຫ້ໃຊ້ໂປຣໄຟລ໌ “{{target}}” ເພື່ອຄວາມເຂົ້າກັນໄດ້ທີ່ດີທີ່ສຸດກັບຮູບແບບໄຟລ໌ນີ້.",
     "ifcLabel": "IFC",
     "ifcDesc": "ມາດຕະຖານ BuildingSMART, ໃນ schema IFC ຂອງໂຄງການ (ຄ່າເລີ່ມຕົ້ນ IFC 4.3 ADD2). ການເຊື່ອມໂຍງ 4D ກັບໂມເດວ BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "ສ່ວນເສີມ",

@@ -16,7 +16,7 @@ import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes'
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark, ForeignSourceTarget } from '@/services/ifc/foreign/foreignSourceMark';
-import { foreignSourceMarkFromRecovery } from '@/services/ifc/foreign/foreignSourceMark';
+import { foreignSourceMarkFor, foreignSourceMarkFromRecovery } from '@/services/ifc/foreign/foreignSourceMark';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -102,7 +102,8 @@ export interface DocumentPayload {
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
   /** De IFC-bron met indeling (#804 §4.8), alleen via de bytes-route achter de flag `ifcForeignContent`. Onveranderlijk
-   *  en buiten undo (`snapshot: 'none'`); niet in de herstelsnapshot en niet in de MCP-backup (geen `IFC_SAVE_KEYS`). */
+   *  en buiten undo (`snapshot: 'none'`). Wel schrijfcontext (`IFC_SAVE_KEYS`), geen dirty-veld;
+   *  de writer-invoer laat haar weg, dus geen bronbytes in herstelsnapshot, Worker of MCP-backup. */
   ifcSource: IfcSource | null;
   /** Kwam dit document uit een IFC-bestand met een vreemd deel (#804 fase 1a, fixronde 1)? Dan de vingerafdruk en het doel
    *  van die bron, zodat Opslaan als en een export dat bestand weigeren. Gezet bij het openen (`applyLoadedProject`) en
@@ -158,6 +159,9 @@ export interface DocumentPayload {
  *  `ImportResult` is uitsluitend de document-identiteit (`id`/`filePath`/`isDirty`), net als
  *  `buildWriteIFCInput` op de schrijfkant. */
 export type RecoveryDocInput = ImportResult & {
+  /** Alleen gezet na teruglezen en hashcontrole van de volledige bron. Geen manifestveld. */
+  sourceRestored?: true;
+  fileHandle?: FileSystemFileHandle | null;
   id: string;
   filePath: string | null;
   /** Zie `RecoveryDocMeta.siteFileId`. */
@@ -380,6 +384,7 @@ type AppGlobalKey =
   | 'taskClipboard'
   // Recente bestanden: een eigenschap van de installatie, niet van een project.
   | 'recentFiles'
+  | 'recentFilesLoaded'
   // Multi-document-boekhouding zelf — dit ís de laag die de rest swapt.
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
@@ -477,6 +482,10 @@ export function freshPayload(): DocumentPayload {
   return out as unknown as DocumentPayload;
 }
 
+/** Zonder geverifieerde bron blijft het herstelkenmerk geblokkeerd. Expliciet false is alleen nog doelbescherming na
+ * bewuste planOnly-opslag (9e); geen bron teruglezen en geen nieuwe bronblokkade. Oude metadata blijft veilig dicht. */
+const restoredMark = (mark: ForeignSourceMark | null): ForeignSourceMark | null => mark && { ...mark, sourceMissing: mark.sourceMissing !== false };
+
 /** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
  *
  *  Delegeert naar `payloadFromImport`: een `RecoveryDocInput` ÍS een `ImportResult`
@@ -503,8 +512,12 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   const siteFileId = d.siteFileId ?? null;
   return {
     ...payloadFromImport(d, d.filePath),
-    // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest.
-    foreignSourceMark: foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource),
+    // Het kenmerk van een bron met een vreemd deel: de vingerafdruk uit de herstel-IFC, het doel uit het manifest. De
+    // bronbytes ontbreken, tenzij de herstelroute ze werkelijk heeft teruggelezen en gecontroleerd.
+    foreignSourceMark: d.sourceRestored
+      ? foreignSourceMarkFor(d.ifcSource, { filePath: d.filePath, siteFileId, fileHandle: d.fileHandle ?? null })
+      : restoredMark(foreignSourceMarkFromRecovery(d.recoveryForeignSource, d.foreignSource)),
+    fileHandle: d.sourceRestored ? d.fileHandle ?? null : null,
     siteFileId,
     siteFileVersion: siteFileId ? d.siteFileVersion ?? null : null,
     isDirty: d.isDirty,

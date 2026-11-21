@@ -2,7 +2,7 @@
 // ops-reportSettings. Deze batterij bewaakt de defaults (byte-identiek aan het oude gedrag), de
 // round-trip door de echte opslagroute en het klemmen van een geprutste breedte.
 import './domStub';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN } from '@/services/print/printPreview';
 
 const failures: string[] = [];
@@ -27,7 +27,7 @@ const junk = await loadReportSettings();
 expect('rommel in de breedte valt terug op de default', junk.taskNameColumnWidth, NAME_COLUMN_WIDTH_DEFAULT);
 expect('rommel in de afkap-keuze valt terug op de default', junk.truncateTaskNames, true);
 
-await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, truncateTaskNames: false, taskNameColumnWidth: 300 });
+patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, truncateTaskNames: false, taskNameColumnWidth: 300 });
 const saved = await loadReportSettings();
 expect('afkap-keuze overleeft een round-trip', saved.truncateTaskNames, false);
 expect('kolombreedte overleeft een round-trip', saved.taskNameColumnWidth, 300);

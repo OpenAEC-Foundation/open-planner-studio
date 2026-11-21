@@ -75,9 +75,9 @@ export const TASK_SOURCE_FIELDS = [
 ] as const satisfies readonly (keyof Task)[];
 export const SEQUENCE_SOURCE_FIELDS = ['p6StartAtPredecessorFinishBoundary'] as const satisfies readonly (keyof Sequence)[];
 /** Kalender: de alleen-lezen P6-velden plus de niet-publieke herkomst (`generation`,
- *  `p6NonWorkPenaltyDatesState`). `libraryOrigin` hoort er niet bij: elke niet-gekoppelde load wist hem. */
+ *  `p6NonWorkPenaltyDatesState`, oorspronkelijke IFC-klokken). `libraryOrigin` hoort er niet bij: elke niet-gekoppelde load wist hem. */
 export const CALENDAR_SOURCE_FIELDS = [
-  'p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState', 'generation',
+  'p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState', 'generation', 'ifcTimePeriods',
 ] as const satisfies readonly (keyof WorkCalendar)[];
 /** Toewijzing: het niet-publieke begrote tempo naast een P6-resttempo. */
 export const ASSIGNMENT_SOURCE_FIELDS = ['plannedUnitsPerDay'] as const satisfies readonly (keyof ResourceAssignment)[];

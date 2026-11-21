@@ -155,7 +155,7 @@ console.log('-- (d) heropenen: eigen IFC, bibliotheek intussen gewijzigd --');
 {
   const f = fixture();
   // Opslaan in de modus; daarna wijzigt de bibliotheek (vrijdag vrij) terwijl het bestand dicht is.
-  const ifc = writeIFC(buildWriteIFCInput(f.S()));
+  const ifc = writeIFC(buildWriteIFCInput(f.S(), 'planOnly'));
   f.S().newProject();
   fridayOff(f);
   f.S().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: '/tmp/v1.ifc', recompute: true, fit: false, linkedOpen: true });

@@ -116,7 +116,7 @@ const minutesOf = (iso: string): number => {
 
 // ── (1) De voorbeeldweek: drie relaties naast elkaar ───────────────────────────────────────────────
 const week = weekPayload();
-const weekText = writeIFC(buildWriteIFCInput(week));
+const weekText = writeIFC(buildWriteIFCInput(week, 'planOnly'));
 const weekRead = readIFC(weekText);
 /** De GlobalId van de relatie pred → succ in een gelezen bestand (relaties krijgen bij inlezen een id uit
  *  hun GlobalId; `ifcGlobalIds` is daarop gesleuteld). */
@@ -141,7 +141,7 @@ const guidOf = (id: string) => guidOfPair(weekRead, 'A', SUCCESSOR_OF[id]);
   const loaded = payloadFromImport(readIFC(weekText), null);
   eq('(1) ook na de laadgrens (payloadFromImport)', ['B', 'C', 'D'].map(s => lagFields(seqByPair(loaded, 'A', s))),
     [{ lagDays: 0.5 }, { lagDays: 0, lagMinutes: 240 }, { lagDays: 1.5, lagUnit: 'ELAPSEDTIME' }]);
-  const again = writeIFC(buildWriteIFCInput(loaded));
+  const again = writeIFC(buildWriteIFCInput(loaded, 'planOnly'));
   eq('(1) tweede ronde: dezelfde lagregels en records', [
     lagLineOf(again, guidOf('lag-dagen')).replace(/^#\d+=/, ''), lagLineOf(again, guidOf('lag-ed')).replace(/^#\d+=/, ''),
     dayMeasureLagsOf(again),
@@ -161,7 +161,7 @@ const guidOf = (id: string) => guidOfPair(weekRead, 'A', SUCCESSOR_OF[id]);
     { id: 'procent', predecessorId: 'A', successorId: 'D', type: 'START_START', lagDays: 0, lagPercent: 50 },
     { id: 'lead', predecessorId: 'B', successorId: 'C', type: 'START_START', lagDays: -0.5 },
   ];
-  const text = writeIFC(buildWriteIFCInput(p));
+  const text = writeIFC(buildWriteIFCInput(p, 'planOnly'));
   const r = readIFC(text);
   const line = (pred: string, succ: string) => lagLineOf(text, guidOfPair(r, pred, succ));
   ok('(1b) hele dagen: P2D, werktijd', /IFCDURATION\('P(?:0Y0M)?2D'\),\.WORKTIME\./.test(line('A', 'B')));
@@ -211,7 +211,7 @@ function solvedAfterIfc(text: string): DocumentPayload {
 {
   const p6 = weekPayload();
   p6.project = { ...p6.project, schedulingProfile: builtInProfile('p6') };
-  const p6Text = writeIFC(buildWriteIFCInput(p6));
+  const p6Text = writeIFC(buildWriteIFCInput(p6, 'planOnly'));
   const p6Read = readIFC(p6Text);
   const p6Guid = (id: string) => guidOfPair(p6Read, 'A', SUCCESSOR_OF[id]);
   const body = (text: string, guid: string) => lagLineOf(text, guid).replace(/^#\d+=/, '');
@@ -226,7 +226,7 @@ function solvedAfterIfc(text: string): DocumentPayload {
   for (const base of ['p6', 'ops'] as const) {
     doc = payloadFromImport(readIFC(writeIFC(buildWriteIFCInput({
       ...doc, project: { ...doc.project, schedulingProfile: switchProfile(doc.project.schedulingProfile, base) },
-    }))), null);
+    }, 'planOnly'))), null);
   }
   eq('(4) OPS ⇒ P6 ⇒ OPS door IFC: dezelfde velden', ['B', 'C', 'D'].map(s => lagFields(seqByPair(doc, 'A', s))),
     [{ lagDays: 0.5 }, { lagDays: 0, lagMinutes: 240 }, { lagDays: 1.5, lagUnit: 'ELAPSEDTIME' }]);
@@ -253,7 +253,7 @@ function solvedAfterIfc(text: string): DocumentPayload {
     p.calendars = [...p.calendars, tenCal];
     p.tasks = p.tasks.map(t => (t.name === 'B' ? { ...t, calendarId: tenCal.id } : t));
     p.project = { ...p.project, schedulingOptions: { ...p.project.schedulingOptions, ...(lagCalendar ? { lagCalendar } : {}) } };
-    const text = writeIFC(buildWriteIFCInput(p));
+    const text = writeIFC(buildWriteIFCInput(p, 'planOnly'));
     const r = readIFC(text);
     const guid = guidOfPair(r, 'A', 'B');
     eq(`(5) lagkalender ${label}: 0,5 d ⇒ ${want}`, lagLineOf(text, guid).includes(`'${want}'`), true);
@@ -295,7 +295,7 @@ function durationPayload(): DocumentPayload {
   ];
   return p;
 }
-const durationText = writeIFC(buildWriteIFCInput(durationPayload()));
+const durationText = writeIFC(buildWriteIFCInput(durationPayload(), 'planOnly'));
 const durationFields = (t: Task | undefined) => t && {
   durationUnit: t.time.durationUnit, durationType: t.time.durationType, scheduleDuration: t.time.scheduleDuration,
   durationMinutes: t.time.durationMinutes, remainingTime: t.time.remainingTime, remainingMinutes: t.time.remainingMinutes,
@@ -351,7 +351,7 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     eq(`(6) ${name}: IFC ⇒ OPS dezelfde velden (lezer)`, durationFields(byName(read, name)), want[name]);
     eq(`(6) ${name}: IFC ⇒ OPS dezelfde velden (na de laadgrens)`, durationFields(byName(loaded, name)), want[name]);
   }
-  const again = writeIFC(buildWriteIFCInput(loaded));
+  const again = writeIFC(buildWriteIFCInput(loaded, 'planOnly'));
   eq('(6) tweede ronde: dezelfde IfcTaskTime-duren', ['E', 'F', 'G', 'H'].map(n => [4, 15, 18].map(i => taskTimeLine(again, n).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[i])),
     ['E', 'F', 'G', 'H'].map(n => [4, 15, 18].map(i => slot(n, i))));
 }
@@ -385,7 +385,7 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     task('S3', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: -1.5, freeFloat: 0 }),
     task('S4', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: 3, freeFloat: 1 }),
   ];
-  const text = writeIFC(buildWriteIFCInput(p));
+  const text = writeIFC(buildWriteIFCInput(p, 'planOnly'));
   const slot = (name: string, index: number) => taskTimeLine(text, name).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[index];
   // IfcTaskTime: 11 = FreeFloat, 12 = TotalFloat.
   eq('(8) slots in hele dagen (afgerond)', ['S1', 'S2', 'S3', 'S4'].map(n => [slot(n, 12), slot(n, 11)]), [
@@ -419,12 +419,12 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     args[slotIndex] = replacement;
     const changed = readIFC(text.replace(sourceLine, prefix + args.join(',') + ');'));
     eq(`(8) gewijzigde ${label} in tijd: het oude record telt niet`, floats(changed, 'S1'), expected);
-    const reopened = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(changed, null))));
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(changed, null), 'planOnly')));
     eq(`(8) gewijzigde ${label} in tijd: opslaan en heropenen houdt de externe waarde`, floats(reopened, 'S1'), expected);
   }
 
   // "Datums zoals opgeslagen": een achtergehouden slot krijgt `$` en ook geen record.
-  const withheld = writeIFC({ ...buildWriteIFCInput(p), withheldTaskTimeFields: { [p.tasks[0].id]: ['totalFloat'] } });
+  const withheld = writeIFC({ ...buildWriteIFCInput(p, 'planOnly'), withheldTaskTimeFields: { [p.tasks[0].id]: ['totalFloat'] } });
   const wSlot = taskTimeLine(withheld, 'S1').replace(/^#\d+=IFCTASKTIME\(/, '').split(',');
   eq('(8) achtergehouden TotalFloat: $ en geen TotalFloat-record', [wSlot[12], /"TotalFloat"/.test(withheld.split('\n').find(l => l.includes("'ExactFloat'") && l.includes('0.75')) ?? '')], ['$', false]);
 }
@@ -437,7 +437,7 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   p.calendars = p.calendars.map(c => (c.id === p.calendar.id ? p.calendar : c));
   p.tasks = [task('K', '2026-06-01T07:00', '2026-06-03T12:00', 2.5)];
   const hashBefore = computeCalendarHash(p.calendar);
-  const text = writeIFC(buildWriteIFCInput(p));
+  const text = writeIFC(buildWriteIFCInput(p, 'planOnly'));
   ok('(9) de kalender is letterlijk (LiteralTimes)', text.includes("'LiteralTimes'"));
   ok('(9) de kalender is als scalair gemarkeerd (IsHourCalendar .F.)', text.includes("IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)"));
   const back = payloadFromImport(readIFC(text), null);
@@ -476,7 +476,7 @@ let exactHoursText = '';
   const before = { exact: fields(store.getState().tasks, 'Exact'), running: fields(store.getState().tasks, 'Lopend') };
   ok('(11) opzet: de bron heeft een breuk in minuten', !Number.isInteger(before.exact?.durationMinutes)
     && !Number.isInteger(before.running?.durationMinutes) && !Number.isInteger(before.running?.remainingMinutes));
-  exactHoursText = writeIFC(buildWriteIFCInput(store.getState()));
+  exactHoursText = writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
   const slot = (name: string, index: number) => taskTimeLine(exactHoursText, name).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[index];
   eq('(11) het slot draagt hele minuten', [slot('Exact', 4), slot('Lopend', 4), slot('Lopend', 18)], ["'PT4H34M0S'", "'PT11H26M0S'", "'PT3H26M0S'"]);
   // De records in `OPS_WorkRule.ExactMinutes`, in schrijfvolgorde (Exact, dan Lopend).
@@ -507,14 +507,14 @@ let exactHoursText = '';
     [180, before.running?.durationMinutes]);
   // Hele minuten krijgen geen record (bestaande bestanden blijven byte-gelijk).
   const whole = durationPayload();
-  ok('(11) een urentaak in hele minuten krijgt geen ExactMinutes', !writeIFC(buildWriteIFCInput(whole)).includes("'ExactMinutes'"));
+  ok('(11) een urentaak in hele minuten krijgt geen ExactMinutes', !writeIFC(buildWriteIFCInput(whole, 'planOnly')).includes("'ExactMinutes'"));
   // De werkelijke duur (dagen) van een urentaak gaat via `DayMeasureDurations` met 6 decimalen (§3.14):
   // 100 min op 8 u per dag = 0,208333… d. Terug binnen een duizendste minuut.
   const actual = durationPayload();
   actual.tasks = [task('U', '2026-06-01T07:00', '2026-06-01T15:00', 1, {
     durationUnit: 'hours', durationMinutes: 480, completion: 0.2, actualStart: '2026-06-01T07:00', actualDuration: 100 / 480, remainingMinutes: 380,
   })];
-  const actualBack = byName(readIFC(writeIFC(buildWriteIFCInput(actual))), 'U')?.time.actualDuration ?? NaN;
+  const actualBack = byName(readIFC(writeIFC(buildWriteIFCInput(actual, 'planOnly'))), 'U')?.time.actualDuration ?? NaN;
   ok(`(11) werkelijke duur 100 min terug binnen 0,001 min (kreeg ${actualBack * 480})`, Math.abs(actualBack * 480 - 100) < 1e-3);
 }
 
@@ -532,7 +532,7 @@ let exactHoursText = '';
     ];
     mkdirSync(compatOut, { recursive: true });
     writeFileSync(join(compatOut, 'D0.ifc'), weekText);
-    writeFileSync(join(compatOut, 'D1.ifc'), writeIFC(buildWriteIFCInput(p)));
+    writeFileSync(join(compatOut, 'D1.ifc'), writeIFC(buildWriteIFCInput(p, 'planOnly')));
   }
 }
 
@@ -559,7 +559,7 @@ async function oldReaderChecks(): Promise<void> {
   eq('(10) v2026.9.0: werkelijke duur 0,5 d ⇒ 1 d (afgerond, geen 5)', t('H')?.actualDuration, 1);
   const p = durationPayload();
   p.tasks = [task('S1', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: 2.5, totalFloatMinutes: 1200, freeFloat: 0.75, freeFloatMinutes: 360 })];
-  const s1 = byName(old.readIFC(writeIFC(buildWriteIFCInput(p))), 'S1')?.time;
+  const s1 = byName(old.readIFC(writeIFC(buildWriteIFCInput(p, 'planOnly'))), 'S1')?.time;
   eq('(10) v2026.9.0: speling 2,5 d ⇒ 3 d, 0,75 d ⇒ 1 d (afgerond, geen 5)', [s1?.totalFloat, s1?.freeFloat], [3, 1]);
   // (11) De exacte urenmaat: v2026.9.0 kent `ExactMinutes` niet en leest de hele minuten van het slot.
   const exact = old.readIFC(exactHoursText);

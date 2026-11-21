@@ -15,12 +15,12 @@ Een kraan huur je per uur, een stort duurt zes uur en een nachtploeg werkt buite
 3. Druk op **Bereken** (F5).
 4. Kies bij *Beeld › Tijdschaal* de schaal *Uur* om de uren in de tijdkop te zien.
 
-Bij de schaal *Dag* verschuift een balk per hele dag. Vanaf uurzoom verschuift hij per uur; met *Kwartierzoom* bij voldoende inzoomen per kwartier.
+Bij de schaal *Dag* verschuift een balk per hele dag. Vanaf uurzoom verschuift hij per uur; met [Kwartieren tonen bij ver inzoomen](settings://quarterHourZoom) aan en voldoende inzoomen per kwartier.
 
 ### De eenheidskeuze tonen
 
-1. Open *App-instellingen › Weergave*.
-2. Zet onder *Duurweergave* de instelling *Gemengde dag/uur-planning toestaan* aan.
+1. Open *App-instellingen* en kies links de groep *Planning*.
+2. Zet [Gemengde dag/uur-planning toestaan](settings://mixedDayHour) aan.
 
 Daarmee verschijnt de keuzelijst *Duureenheid*. Zonder die lijst kun je nog steeds een duur met een eenheid typen.
 
@@ -39,7 +39,7 @@ Nieuwe taken krijgen de gekozen maat. Dezelfde keuze staat bij het maken van een
 
 **Een dagtaak na een urentaak.** Een opvolger met een relatie Eind-Start begint op het moment dat de voorganger klaar is, ook midden op een dag. Op de standaardkalender (07:00 tot 16:00): eindigt een urentaak dinsdag om 11:00, dan begint een dagtaak van 2 dagen ook dinsdag om 11:00 en eindigt hij donderdag om 11:00. Eindigt een dagtaak op een hele dag, dan is hij klaar aan het einde van de werktijd, bijvoorbeeld dinsdag 16:00. Een urentaak daarna begint op het volgende werkmoment: woensdag 07:00.
 
-**Duurweergave in OPS.** Deze instelling is grijs: elke taak toont zijn eigen maat. Onder het P6- en MSP-profiel blijft de keuze actief.
+**Duurweergave in OPS.** De instelling [Duurweergave](settings://durationDisplay) (groep *Notatie*) is grijs: elke taak toont zijn eigen maat. Onder het P6- en MSP-profiel blijft de keuze actief.
 
 ## Zie ook
 

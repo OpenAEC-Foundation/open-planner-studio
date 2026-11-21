@@ -58,7 +58,8 @@ if (sizes.some(s => s > 50) && process.env.CI !== 'true') {
 
 const work = mkdtempSync(join(tmpdir(), 'ops-meet-scanner-'));
 const ESBUILD_COMMON = ['--bundle', `--alias:@=${join(ROOT, 'src')}`, '--log-level=error', '--external:react-dom/server',
-  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"'];
+  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"',
+  '--define:__OPS_DEV_INSTANCE__="test"']; // zoals tests/planning/run.sh; de store leest hem in recoveryPaths.ts
 
 // ── Bundels ──────────────────────────────────────────────────────────────────────────────────────────────────────
 writeFileSync(join(work, 'node-entry.ts'), `
@@ -134,34 +135,35 @@ console.log(JSON.stringify({ result, bytesRead, seeks, streamMs, blobResult, blo
 execFileSync(ESBUILD, [join(work, 'target-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-target.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 writeFileSync(join(work, 'merge-entry.ts'), `
 import { readFileSync } from 'node:fs';
+import { loadStore } from '${ROOT}/tests/planning/ifcAppRoute';
 import { readIfcBytesDetailed, IFC_BYTES_ROUTE_MAX_BYTES } from '@/services/ifc/foreign/ifcBytesRoute';
 import { MergeNeedsPhase2Error, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 const file = process.argv[2];
 const t = () => performance.now();
 const mb = (n: number) => Math.round(n / 1048576);
+// E21: de entry initialiseert de bestaande storefabriek; de writer bezit zelf de heropening.
+await loadStore();
 const bytes = new Uint8Array(readFileSync(file));
 let t0 = t();
 const opened = await readIfcBytesDetailed(bytes, {}, { createWorker: () => null });
 const openMs = t() - t0;
 const afterOpen = process.memoryUsage();
-const source = opened.result.ifcSource;
+const { ifcSource: source, ...input } = opened.result;
 const base = { bytes: bytes.length, cap: IFC_BYTES_ROUTE_MAX_BYTES, openMs, heapAfterOpenMB: mb(afterOpen.heapUsed),
   arrayBuffersAfterOpenMB: mb(afterOpen.arrayBuffers) };
 if (!source) {
   console.log(JSON.stringify({ ...base, outcome: 'geen bron (terugval van de bytes-route)', maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 } else {
   let outcome = 'geschreven';
-  let parts: Uint8Array[] = [];
+  let written = new Uint8Array();
   t0 = t();
-  try { parts = await writeIfcMerge(opened.result, source); } catch (e) {
+  try { written = await writeIfcMerge(input, source); } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
   }
   const mergeMs = t() - t0;
   const afterMerge = process.memoryUsage();
-  const outBytes = parts.reduce((a, p) => a + p.length, 0);
-  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, parts: parts.length, outBytes,
-    largestPartMB: mb(Math.max(0, ...parts.map(p => p.length))),
+  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, outBytes: written.length,
     heapAfterMergeMB: mb(afterMerge.heapUsed), arrayBuffersAfterMergeMB: mb(afterMerge.arrayBuffers),
     maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 }

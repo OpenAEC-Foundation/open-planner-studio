@@ -24,6 +24,8 @@
     "undo": "Undo",
     "redo": "Redo",
     "delete": "Delete",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: deletes the selected tasks and links every predecessor to every successor (finish-to-start, no lag)",
     "undoTitle": "Undo (Ctrl+Z)",
     "redoTitle": "Redo (Ctrl+Y)",
     "deleteTitle": "Delete selection (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Choose the columns of the Table view — shown on the Table tab",
     "toggleResourceAccent": "Resource accent",
     "toggleFloatBand": "Float band",
+    "toggleBarDates": "Dates beside bars",
     "screenColors": "Bar colors",
     "screenColors_critical": "Critical path",
     "screenColors_auto": "Per task — automatic",
@@ -281,7 +284,8 @@
       "label": "IFC schema when saving",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (default)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "The file contains data from another application, so the schema from its original header is kept."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Phasing template",
     "tmplEmpty": "Empty",
     "tmplWoningbouw": "Residential construction",
-    "tmplUtiliteit": "Commercial / renovation"
+    "tmplUtiliteit": "Commercial / renovation",
+    "phase": {
+      "siteGroundwork": "Site setup & groundwork",
+      "foundation": "Foundations",
+      "shell": "Structural shell",
+      "roof": "Roof",
+      "facadeFitOut": "Facade & fit-out",
+      "services": "Building services (MEP)",
+      "finishes": "Finishes",
+      "handover": "Handover",
+      "demolitionStripOut": "Demolition & strip-out",
+      "groundworkFoundation": "Groundwork & foundations",
+      "mainStructure": "Primary structure",
+      "facadeRoof": "Facade & roof",
+      "fitOut": "Fit-out",
+      "commissioning": "Commissioning & testing"
+    }
   },
   "status": {
     "tasks": "Tasks:",
@@ -301,6 +321,8 @@
     "scale": "Scale:",
     "zoom": "Zoom: {{level}}px/day",
     "unsaved": "Unsaved",
+    "saving": "Saving…",
+    "saved": "Saved {{time}}",
     "scheduleStale": "Out of date — recalculate (F5)"
   },
   "backstage": {
@@ -315,12 +337,14 @@
     "recentTitle": "Recent projects",
     "recentSubtitle": "Click to open.",
     "recentEmpty": "No recently opened projects yet.",
+    "recentLoading": "Loading recent files…",
     "recentUnavailable": "This browser cannot reopen local files from Recent. Use Open to choose your project file again.",
     "recentOnSite": "On the site",
     "examples": "Examples",
     "examplesTitle": "Example projects",
     "examplesSubtitle": "Bundled construction schedules. Click to open in a new tab.",
     "examplesLoading": "Loading examples…",
+    "loading": "Loading…",
     "examplesEmpty": "No examples available.",
     "examplesError": "Examples could not be loaded.",
     "examplesShowcaseHeading": "Full showcase schedules",
@@ -391,7 +415,7 @@
       "plannedReadOnly": "planned, do not change",
       "summaryRow": "— summary task: do not fill in"
     },
-    "csvLabel": "CSV (semicolon-separated)",
+    "csvLabel": "CSV",
     "csvDesc": "Universal table export. All tasks with dates and durations.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Opens in Microsoft Project. Full WBS structure.",
@@ -403,7 +427,7 @@
     "profileHint": "Your project currently uses the {{name}} profile. We recommend the {{target}} profile for the best compatibility with this file format.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART standard, in the IFC schema of the project (default IFC 4.3 ADD2). 4D link with BIM models.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensions",

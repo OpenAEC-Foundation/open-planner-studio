@@ -66,7 +66,7 @@ function stateSnapshot(s: AppState) {
 /** Niveau 1 — serialiseer de huidige state naar IFC en parse 'm terug; meet dataverlies. Werkt ook in de browser. */
 async function roundTrip() {
   const s = useAppStore.getState();
-  const content = writeIFC(buildWriteIFCInput(s));
+  const content = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   // Geen `labels`: dev-only zelftesthaak (`window.__OPS__`), geen productie-UI — `readIFC` valt
   // terug op de Engelse default voor een bestand zonder IFCPROJECT (zie ImportLabels).
   const parsed = await readIFCWithXerReconstruction(content);
@@ -97,9 +97,9 @@ export async function saveToPathWithIO(
   // #804 fixronde 2: dezelfde doelcontrole als Opslaan als, vóór de write. Het pad is de bron van een open document met
   // een vreemd deel, of een bestaande IFC met een gebouwmodel (flag aan): dan schrijft deze route niet.
   if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
-    throw new Error('saveToPath: dit bestand bevat een gebouwmodel; kies een ander pad.');
+    throw new Error('saveToPath: dit bestand bevat een gebouwmodel of gegevens van een ander programma; kies een ander pad.');
   }
-  const content = writeIFC(buildWriteIFCInput(s));
+  const content = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   await io.writeTextFile(path, content);
   return { path, bytes: content.length };
 }
@@ -177,7 +177,7 @@ async function scanStoredExtensions(): Promise<Array<{
 
 export interface OpsCommand {
   id?: string;
-  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart' | 'mcpStop';
+  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart' | 'mcpStop' | 'log';
   args?: Record<string, unknown>;
 }
 
@@ -239,6 +239,14 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       const { stopMcpServer } = await import('@/services/mcp/server');
       await stopMcpServer();
       return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
+    }
+    case 'log': {
+      // De regels van één kanaal uit het app-log, zoals het debugpaneel ze toont; voor de echte-app-proef die wil zien
+      // welke weg een opslag nam (`tests/mcp/realApp/run-real-app.ts`). Dev-only, zoals `mcpStop`.
+      if (!import.meta.env.DEV) return { ok: false, error: 'log is dev-only' };
+      const channel = cmd.args?.channel as string | undefined;
+      if (!channel) return { ok: false, error: 'missing args.channel' };
+      return { ok: true, result: appLog.snapshot().filter(e => e.channel === channel).map(e => e.text) };
     }
     case 'feedbackTest': {
       // Dev-only desktop-verificatie van de feedback-feature: toetst (1) of

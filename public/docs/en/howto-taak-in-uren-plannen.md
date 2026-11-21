@@ -15,12 +15,12 @@ A crane is hired by the hour, a pour takes six hours and a night crew works outs
 3. Press **Calculate** (F5).
 4. Choose *View › Time Scale › Hour* to see hours in the timeline header.
 
-At the *Day* scale, a bar moves in whole days. At hour zoom it moves by the hour; with *Quarter-hour zoom* and sufficient zoom, by quarter-hours.
+At the *Day* scale, a bar moves in whole days. At hour zoom it moves by the hour; with [Show quarter-hours when zoomed in far](settings://quarterHourZoom) on and sufficient zoom, by quarter-hours.
 
 ### Show the unit selector
 
-1. Open *App settings › Appearance*.
-2. Under *Duration display*, enable *Allow mixed day/hour planning*.
+1. Open *App settings* and choose the group *Scheduling* on the left.
+2. Turn on [Allow mixed day/hour planning](settings://mixedDayHour).
 
 This shows the *Duration unit* selector. Without the selector, you can still type a duration with a unit.
 
@@ -39,7 +39,7 @@ New tasks get the chosen measure. The same choice is available when creating a p
 
 **A day task after an hour task.** A successor with a Finish-Start relation begins the moment the predecessor is finished, even in the middle of a day. On the standard calendar (07:00 to 16:00): if an hour task finishes on Tuesday at 11:00, a day task of 2 days also begins on Tuesday at 11:00 and finishes on Thursday at 11:00. A day task that ends on a whole day is finished at the end of the working time, for example Tuesday 16:00. An hour task after it begins at the next working moment: Wednesday 07:00.
 
-**Duration display in OPS.** This setting is disabled: each task shows its own unit. In the P6 and MSP profiles the choice remains available.
+**Duration display in OPS.** The setting [Duration display](settings://durationDisplay) (group *Formats*) is disabled: each task shows its own unit. In the P6 and MSP profiles the choice remains available.
 
 ## See also
 

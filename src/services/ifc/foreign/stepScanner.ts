@@ -22,7 +22,7 @@
  * `scripts/proef/classify-v9.py` (ontwerp v18): geen `ISO-10303-21;` vooraan of `END-ISO-10303-21;` achteraan,
  * tekst of commentaar zonder einde, een laatste statement zonder `;`, secties in een andere volgorde (HEADER met
  * ENDSEC, dan een of meer DATA-secties met ENDSEC), een onbekend statement, een `#id` dat twee keer voorkomt, of geen
- * entiteiten. Ook een `#id` boven 2147483647 weigert hij, met een eigen reden (`id-te-groot`, knownbug 1007): de index
+ * entiteiten. Ook een `#id` boven `MAX_STEP_ID` (2147483647) weigert hij, met een eigen reden (`id-te-groot`): de index
  * rekent in int32. Sleutelwoorden en typenamen staan in hoofdletters (ISO 10303-21). Daarmee is de scanner strenger dan
  * `parseSTEP` in `ifcReader.ts`: die zoekt `DATA;` hoofdletterongevoelig, valt bij een ongebalanceerde apostrof terug
  * op een regel-verankerde zoektocht, en laat bij een dubbel `#id` de laatste winnen. Quotes (`''`) en commentaar
@@ -30,6 +30,10 @@
  * lezer slaat een complexe instantie over (`readEntity` geeft -1), de scanner maakt er een stuk van.
  */
 import { decodeStepText } from '../stepText';
+
+/** Het grootste `#id` dat de scanner aanneemt (2^31 − 1): de index rekent in int32. Een id erboven weigert hij
+ *  (`id-te-groot`); de merge geeft er geen uit (`mergeWriter.ts`). */
+export const MAX_STEP_ID = 0x7fffffff;
 
 /** Het type van een complexe instantie `#n=(A(..)B(..));`. */
 export const COMPLEX_TYPE = '(COMPLEX)';
@@ -222,7 +226,7 @@ export class StepIndex {
   chunkOf(id: string): number {
     if (!/^\d{1,10}$/.test(id)) return -1;
     const n = Number(id);
-    return n <= 0x7fffffff ? this.#lookupNum(n) : -1;
+    return n <= MAX_STEP_ID ? this.#lookupNum(n) : -1;
   }
   #lookupNum(n: number): number {
     const t = this.#byNum;
@@ -586,8 +590,8 @@ export type StepScanReason =
   /** Een statement dat in deze sectie niet past (geen entiteit in DATA, geen kopentiteit in HEADER). */
   | 'onbekend-statement'
   | 'dubbel-id'
-  /** Een `#id` boven 2147483647 (2^31 − 1): de index rekent in int32 (knownbug 1007). De verwijzing naar zo'n id telt
-   *  als verwijzing naar een stuk dat niet bestaat. */
+  /** Een `#id` boven `MAX_STEP_ID` (2^31 − 1): de index rekent in int32. De verwijzing naar zo'n id telt als verwijzing
+   *  naar een stuk dat niet bestaat. */
   | 'id-te-groot'
   | 'geen-entiteiten';
 
@@ -703,10 +707,10 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     let idValue = 0;
     lastIdTooLarge = false;
     while (i < n && isDigit(b[i])) {
-      if (idValue <= 0x7fffffff) idValue = idValue * 10 + (b[i] - 48);
+      if (idValue <= MAX_STEP_ID) idValue = idValue * 10 + (b[i] - 48);
       i++;
     }
-    if (idValue > 0x7fffffff) { lastIdTooLarge = true; idValue = -1; }
+    if (idValue > MAX_STEP_ID) { lastIdTooLarge = true; idValue = -1; }
     if (i === at + 1 || isWord(b[i])) return -1;
     lastId = idValue;
     i = skipBlank(b, i);
@@ -748,11 +752,11 @@ export function scanStep(bytes: Uint8Array): StepIndex {
         let j = i + 1;
         let refValue = 0;
         while (j < n && isDigit(b[j])) {
-          if (refValue <= 0x7fffffff) refValue = refValue * 10 + (b[j] - 48);
+          if (refValue <= MAX_STEP_ID) refValue = refValue * 10 + (b[j] - 48);
           j++;
         }
         if (j > i + 1) {
-          pendingRefs.push(refValue > 0x7fffffff ? -1 : refValue);
+          pendingRefs.push(refValue > MAX_STEP_ID ? -1 : refValue);
           pendingArgs.push(arg);
         }
         i = j;
@@ -816,7 +820,7 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     if (!skimming && state === S_DATA && b[i] === CH_HASH) {
       const next = readEntity(i);
       if (next > 0 && lastIdTooLarge) {
-        // Knownbug 1007: een eigen reden in plaats van `onbekend-statement`. Het statement is verder goed gevormd.
+        // Een eigen reden in plaats van `onbekend-statement`: het statement is verder goed gevormd.
         sectionIssue = new StepScanError('id-te-groot', 'Een #id is groter dan 2147483647.', st);
         i = next;
         lastIsEnd = false;

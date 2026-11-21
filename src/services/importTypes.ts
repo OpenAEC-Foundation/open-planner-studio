@@ -312,6 +312,12 @@ export interface ImportResult {
    *  een ander formaat) krijgen `ifcGuid128`.
    *  Audit 2026-09-26. */
   ifcGlobalIds?: Readonly<Record<string, string>>;
+  /** Per baselinerij zonder levende taak (de rij houdt haar oude id, een "weesrij"): de GlobalId die `readIFC` ervoor
+   *  aannam, gesleuteld op die id. Precies de waarde waarmee `extractBaselines` de rij probeerde te koppelen. Alleen de
+   *  merge-route leest dit (PR 12e van #804, was knownbug 1702): zo houdt een weesrij bij een merge-opslag de GlobalId
+   *  van de bron, zonder tweede afleiding. Bewust geen documentveld: `payloadFromImport` neemt het niet over, en het gaat
+   *  dus niet naar het document, undo, herstel of de gewone writer. */
+  baselineOrphanGuids?: Readonly<Record<string, string>>;
   /** De kalenders die in het geopende IFC `LiteralTimes = .T.` hadden (`OPS_Calendar`, alleen `readIFC`). Knownbug 1026;
    *  het waarom en de afwijking van T17 staan bij `DocumentPayload.ifcLiteralCalendarIds`. */
   ifcLiteralCalendarIds?: string[];
@@ -338,6 +344,8 @@ export interface ImportResult {
   /** Alleen de IFC-bytes-route (#804 fase 1a, flag `ifcForeignContent`): de bron met indeling (§4.8). Afwezig op de
    *  route zonder flag, bij een ander formaat en als de bytes-route terugvalt op de huidige route (afwijking 7). */
   ifcSource?: IfcSource;
+  /** IFC2X3 zonder model via de bytes-route: §4.11 staat alleen planning toe, met verliesmelding bij openen. */
+  ifcLegacySchemaLoss?: true;
   /** Alleen `readIFC` op een herstel-IFC of MCP-backup (#804 fase 1a, fixronde 1 en 3): de pset
    *  `OPS_RecoveryForeignSource`, de vingerafdruk van een bron met een vreemd deel (in een backup met het doel). Alleen
    *  crashherstel en de MCP-backup schrijven hem; een gewone opslag of export niet. Nooit schrijfinvoer. */

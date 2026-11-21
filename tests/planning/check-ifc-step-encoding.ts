@@ -41,7 +41,7 @@ const taskName = 'Stort 😀 fundering \\ "vloer" \'noord\'';
 const id = S().addTask({ name: taskName });
 S().updateTask(id, { notes: [{ id: 'n1', text: 'regel 1\r\nregel 2 — ë', done: false }] });
 S().saveBaseline('Basis \\ één');
-const text = writeIFC(buildWriteIFCInput(S()));
+const text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const nonAscii = [...text].filter((c) => { const k = c.charCodeAt(0); return k > 0x7E || (k < 0x20 && c !== '\n'); });
 eq('geschreven bestand is zuiver ASCII (alleen \\n als regelscheiding)', nonAscii.length, 0);
 eq('IFCAPPLICATION draagt het formaatteken', /IFCAPPLICATION\([^)]*'0\.2','Open Planner Studio','OPS'\)/.test(text), true);
@@ -57,7 +57,7 @@ eq('baselinenaam (JSON-pset)', back.baselines?.map((b) => b.name), ['Basis \\ é
 S().newProject();
 const oldId = S().addTask({ name: 'PLAATSHOUDER' });
 S().saveBaseline('BASISHOUDER');
-const legacy = writeIFC(buildWriteIFCInput(S()))
+const legacy = writeIFC(buildWriteIFCInput(S(), 'planOnly'))
   .replace("'0.2','Open Planner Studio','OPS'", "'0.1','Open Planner Studio','OPS'")
   .replace("'PLAATSHOUDER'", "'C:\\temp\\né ''t'")
   .split('BASISHOUDER').join('a\\\\b');
@@ -83,7 +83,7 @@ eq('ander pakket: projectnaam gedecodeerd', foreignBack.project.name, 'Café Zui
   const noteText = 'één café 😀 \uD800 los';
   S().updateTask(jid, { notes: [{ id: 'n1', text: noteText, done: false }] });
   S().saveBaseline('Basis één');
-  const jsonText = writeIFC(buildWriteIFCInput(S()));
+  const jsonText = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const jsonLines = jsonText.split('\n').filter((l) => /IFCPROPERTYSINGLEVALUE\('(Notes|Baselines)'/.test(l));
   eq('Notes- en Baselines-pset gevonden', jsonLines.length, 2);
   eq('geen \\X2\\/\\X4\\ binnen een JSON-pset', jsonLines.some((l) => /\\X[24]\\/.test(l)), false);

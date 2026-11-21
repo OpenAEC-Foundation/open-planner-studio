@@ -99,7 +99,7 @@ const open = (parsed: ImportResult): Store => {
   s.getState().applyLoadedProject(parsed, { recompute: true });
   return s;
 };
-const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState())));
+const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState(), 'planOnly')));
 
 // 0. De fixture is echt een bestand van vóór B1a.
 {

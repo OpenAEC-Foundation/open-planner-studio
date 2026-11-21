@@ -1,28 +1,14 @@
 import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
 import { hasRtlText, rtlReportFont } from './reportFont';
 
-/** Eén geclipt venster van het logische rapport op een bestaand pagina-canvas. */
-export interface CanvasDrawWindow {
-  /** Linkerbovenhoek van het logische bronvenster. */
-  sourceX: number;
-  sourceY: number;
-  /** Grootte van het bronvenster in logische px. */
-  sourceWidth: number;
-  sourceHeight: number;
-  /** Linkerbovenhoek van dit venster in fysieke doelpixels. */
-  destinationX: number;
-  destinationY: number;
-}
-
 /**
- * Canvas-backend voor `Draw2D` (preview/raster). Wrapt een `CanvasRenderingContext2D` en forwardt
+ * Canvas-backend voor `Draw2D` (raster). Wrapt een `CanvasRenderingContext2D` en forwardt
  * elke primitief 1:1. De constructor doet de high-DPI-canvas-setup: hij zet de raster- én CSS-maat
  * van het canvas en schaalt de context met `renderScale`, zodat alle teken-aanroepen in
  * LOGISCHE/CSS-px werken.
  */
 export class CanvasDraw2D implements Draw2D {
   private ctx: CanvasRenderingContext2D;
-  private restoreContext = false;
 
   /**
    * @param canvas       het doel-canvas (wordt van maat voorzien)
@@ -35,57 +21,22 @@ export class CanvasDraw2D implements Draw2D {
     logicalW: number,
     logicalH: number,
     renderScale: number,
-    window?: CanvasDrawWindow,
   ) {
-    if (!window) {
-      canvas.width = logicalW * renderScale;
-      canvas.height = logicalH * renderScale;
-      canvas.style.width = logicalW + 'px';
-      canvas.style.height = logicalH + 'px';
-    }
+    canvas.width = logicalW * renderScale;
+    canvas.height = logicalH * renderScale;
+    canvas.style.width = logicalW + 'px';
+    canvas.style.height = logicalH + 'px';
     const ctx = canvas.getContext('2d')!;
-    if (window) {
-      // Elke aanroep van de rapporttekenaar blijft volledige logische coördinaten gebruiken,
-      // maar de canvas bewaart uitsluitend dit ene bronvenster. De fysieke clip voorkomt dat een
-      // brede achtergrond of lijn uit een venster de herhaalde naamkolom ernaast overschrijft.
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(
-        window.destinationX,
-        window.destinationY,
-        window.sourceWidth * renderScale,
-        window.sourceHeight * renderScale,
-      );
-      ctx.clip();
-      ctx.setTransform(
-        renderScale,
-        0,
-        0,
-        renderScale,
-        window.destinationX - window.sourceX * renderScale,
-        window.destinationY - window.sourceY * renderScale,
-      );
-      this.restoreContext = true;
-    } else {
-      ctx.scale(renderScale, renderScale);
-    }
+    ctx.scale(renderScale, renderScale);
     // Kerning uit zodat canvas-`measureText`/rendering pixel-WYSIWYG is t.o.v. de pdf-lib-vector-export,
     // die advances telt zónder kerning (tekst met Arabisch of Hebreeuws: zie `withScreenFont`).
     ctx.fontKerning = 'none';
     // Letterbreedtes zoals het fontbestand ze geeft, zoals op het SVG-papier (review Sol #847). Zonder deze
     // instelling rondt Chromium op Linux bij kleine letters elke letterbreedte af op hele pixels: "Stakeholder
     // management" in 9 px Inter meet dan 115 in plaats van 109,0. De naamkolom is op 109,0 gemeten (de meting
-    // van de PDF), dus dan kapte dit voorbeeld de langste naam af terwijl afkappen uit stond.
+    // van de PDF), dus dan kapte de rasterexport de langste naam af terwijl afkappen uit stond.
     ctx.textRendering = 'geometricPrecision';
     this.ctx = ctx;
-  }
-
-  /** Sluit een geclipt venster af zonder het gedeelde pagina-canvas te wissen. */
-  dispose(): void {
-    if (this.restoreContext) {
-      this.ctx.restore();
-      this.restoreContext = false;
-    }
   }
 
   // ---- stijl: forward 1:1 naar de context ----

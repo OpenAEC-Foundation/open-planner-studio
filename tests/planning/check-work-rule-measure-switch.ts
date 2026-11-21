@@ -74,7 +74,7 @@ function source() {
   app.getState().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   app.getState().updateTask(b, { constraint: { type: 'SNET', date: B_OPGESLAGEN } });
   app.getState().runCPM();
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(app.getState())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')));
   parsed.recordedTimesOrigin = 'ifc';
   for (const t of parsed.tasks) if (t.name === 'B') delete t.constraint;
   return parsed;

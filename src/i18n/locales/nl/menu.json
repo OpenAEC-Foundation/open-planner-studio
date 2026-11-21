@@ -24,6 +24,8 @@
     "undo": "Ongedaan",
     "redo": "Opnieuw",
     "delete": "Verwijder",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: verwijdert de geselecteerde taken en koppelt elke voorganger aan elke opvolger (einde-begin, zonder vertraging)",
     "undoTitle": "Ongedaan maken (Ctrl+Z)",
     "redoTitle": "Opnieuw (Ctrl+Y)",
     "deleteTitle": "Verwijder selectie (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Kolommen van de Tabel-weergave kiezen — te zien op het tabblad Tabel",
     "toggleResourceAccent": "Resource-accent",
     "toggleFloatBand": "Spelingsband",
+    "toggleBarDates": "Datums bij balken",
     "screenColors": "Balkkleuren",
     "screenColors_critical": "Kritiek pad",
     "screenColors_auto": "Per taak — automatisch",
@@ -281,7 +284,8 @@
       "label": "IFC-schema bij opslaan",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (standaard)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Het bestand bevat gegevens van een ander programma. Daarom blijft het schema uit de oorspronkelijke kop behouden."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Fasering-template",
     "tmplEmpty": "Leeg",
     "tmplWoningbouw": "Woningbouw",
-    "tmplUtiliteit": "Utiliteitsbouw / renovatie"
+    "tmplUtiliteit": "Utiliteitsbouw / renovatie",
+    "phase": {
+      "siteGroundwork": "Bouwplaats & grondwerk",
+      "foundation": "Fundering",
+      "shell": "Ruwbouw / casco",
+      "roof": "Dak",
+      "facadeFitOut": "Gevel & afbouw",
+      "services": "Installaties (W/E)",
+      "finishes": "Afwerking",
+      "handover": "Oplevering",
+      "demolitionStripOut": "Sloop & strip-out",
+      "groundworkFoundation": "Grondwerk & fundering",
+      "mainStructure": "Hoofddraagconstructie",
+      "facadeRoof": "Gevel & dak",
+      "fitOut": "Afbouw",
+      "commissioning": "Inregelen & testen"
+    }
   },
   "status": {
     "tasks": "Taken:",
@@ -301,6 +321,8 @@
     "scale": "Schaal:",
     "zoom": "Zoom: {{level}}px/dag",
     "unsaved": "Niet opgeslagen",
+    "saving": "Opslaan…",
+    "saved": "Opgeslagen {{time}}",
     "scheduleStale": "Verouderd — herbereken (F5)"
   },
   "backstage": {
@@ -315,12 +337,14 @@
     "recentTitle": "Recente projecten",
     "recentSubtitle": "Klik om te openen.",
     "recentEmpty": "Nog geen recent geopende projecten.",
+    "recentLoading": "Recente bestanden laden…",
     "recentUnavailable": "Deze browser kan eerder geopende lokale bestanden niet opnieuw openen vanuit Recent. Gebruik Openen om je projectbestand opnieuw te kiezen.",
     "recentOnSite": "Op de site",
     "examples": "Voorbeelden",
     "examplesTitle": "Voorbeeldprojecten",
     "examplesSubtitle": "Meegeleverde bouwplanningen. Klik om te openen in een nieuw tabblad.",
     "examplesLoading": "Voorbeelden laden…",
+    "loading": "Laden…",
     "examplesEmpty": "Geen voorbeelden beschikbaar.",
     "examplesError": "Voorbeelden konden niet worden geladen.",
     "examplesShowcaseHeading": "Volledige showcase-planningen",
@@ -391,7 +415,7 @@
       "plannedReadOnly": "gepland, niet wijzigen",
       "summaryRow": "— verzameltaak: niet invullen"
     },
-    "csvLabel": "CSV (puntkomma-gescheiden)",
+    "csvLabel": "CSV",
     "csvDesc": "Universele tabel-export. Alle taken met datums en duur.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Te openen in Microsoft Project. Volledige WBS-structuur.",
@@ -403,7 +427,7 @@
     "profileHint": "Je project rekent nu met het {{name}}-profiel. We raden aan om het {{target}}-profiel te gebruiken voor de beste compatibiliteit met dit bestandsformaat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standaard, in het IFC-schema van het project (standaard IFC 4.3 ADD2). 4D-koppeling met BIM-modellen.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensies",

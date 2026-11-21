@@ -11,8 +11,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyTaskProgress, storeEdit } from './ifcAppRoute';
 import { installDeterminism } from './ifcPariteitKern';
-import { basicEdits, cloneDomain, mergeProblems, openForeign, plannerEdits, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
+import { basicEdits, canon, cloneDomain, mergeProblems, openForeign, plannerEdits, recalculated, sameBytes, settle, tryMerge, type Domain, type MergeOutcome, type Opened } from './ifcMergeKern';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -22,11 +23,15 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-installDeterminism();
+const reseed = installDeterminism();
 const diffs: string[] = [];
 let checks = 0;
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 const read = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
+// De onderstaande bronbeperkingen gelden bij herschrijven; stuk 1 bewaart ongewijzigde bytes.
+const rewrite = (d: Domain) => storeEdit(d, state => {
+  state.setProject({ description: `${d.project.description} (herschrijfproef)` });
+});
 const latin1 = (s: string) => Uint8Array.from(s, c => c.charCodeAt(0));
 const text = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode(...b.subarray(i, i + 8192)); return s; };
 const lineOf = (bytes: Uint8Array, id: string) => {
@@ -58,10 +63,10 @@ const REVIT_WALL = [
 ];
 
 /** De uitkomst van een merge als tekst: `schrijft`, de gevallen van de weigering, of een andere fout (`fout: …`). */
-type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array };
+type Result = { label: string; outcome: 'schrijft' | 'weigert' | 'open-weigert' | 'fout'; kinds: string[]; details: string[]; out?: Uint8Array; shown?: Domain };
 /** Elk bestand één keer openen; elke merge krijgt een kopie van het domein (de bron blijft gedeeld en onbewerkt). */
 const openedOf = new Map<Uint8Array, Opened>();
-async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void): Promise<Result> {
+async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>): Promise<Result> {
   let opened = openedOf.get(bytes);
   if (!opened) {
     try { opened = await openForeign(bytes); } catch (e) {
@@ -72,8 +77,9 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
     openedOf.set(bytes, opened);
   }
   if (!opened.ifcSource?.foreign) return { label, outcome: 'fout', kinds: [], details: ['geen vreemd deel'] };
-  const d = cloneDomain(opened);
-  edit?.(d, opened);
+  let d = cloneDomain(opened);
+  const edited = await edit?.(d, opened);
+  if (edited) d = edited;
   let r: MergeOutcome;
   try { r = await tryMerge(d, opened.ifcSource); } catch (e) {
     return { label, outcome: 'fout', kinds: [], details: [`${(e as Error).name}: ${(e as Error).message.slice(0, 160)}`] };
@@ -81,13 +87,13 @@ async function merge(label: string, bytes: Uint8Array, edit?: (d: Domain, o: Ope
   if (r.ok) {
     const problems = mergeProblems(bytes, r.bytes);
     if (problems.length > 0) return { label, outcome: 'fout', kinds: [], details: problems.slice(0, 3).map(p => `invariant: ${p}`), out: r.bytes };
-    return { label, outcome: 'schrijft', kinds: [], details: [], out: r.bytes };
+    return { label, outcome: 'schrijft', kinds: [], details: [], out: r.bytes, shown: r.shown };
   }
   return { label, outcome: 'weigert', kinds: r.kinds, details: r.error.cases.map(c => `${c.kind}: ${c.detail}`) };
 }
 const results: Result[] = [];
 /** Een proef met de verwachte uitkomst: `schrijft`, of het geval van de weigering. */
-async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
+async function proof(plek: string, label: string, bytes: Uint8Array, want: string, edit?: (d: Domain, o: Opened) => void | Domain | Promise<void | Domain>, check?: (out: Uint8Array) => string | undefined, only?: RegExp): Promise<Result> {
   const r = await merge(`${plek} · ${label}`, bytes, edit);
   if (only && r.outcome === 'weigert') {
     const other = r.details.filter(x => !only.test(x));
@@ -249,7 +255,7 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
     ['gewoon commentaar', before('/* #888888=IFCWALL($,$,$,$,$,$,$,$,$); */\n')],
     ['een getal boven de grens van de scanner', before('/* #99999999999 */\n')],
   ];
-  const edit = (kind: 'hernoemen' | 'taak-erbij') => (x: Domain, o: Opened) => basicEdits(o).find(e => e.kind === kind)!.apply(x);
+  const edit = (kind: 'hernoemen' | 'taak-erbij') => async (x: Domain, o: Opened) => basicEdits(o).find(e => e.kind === kind)!.apply(x);
   for (const [label, bytes] of variants) {
     ok(`fixronde 8: ${label}: de bron heeft volgens de norm geen dubbel #id`, once(bytes) === undefined);
     await proof('dubbel id', `${label}, zonder bewerking`, bytes, 'schrijft', undefined, once);
@@ -258,17 +264,17 @@ await proof('plek 1', 'fix3: projectnaam (zonder wissen)', fix3, 'schrijft', (x)
   }
   // Na de wand #402 begint het eerste nieuwe id boven 402, na de string boven 999999 (te hoog beginnen kan geen kwaad).
   const firstNew = async (bytes: Uint8Array) => {
-    const r = await merge('dubbel id · eerste nieuwe id', bytes);
+    const r = await merge('dubbel id · eerste nieuwe id na een bewerking', bytes, rewrite);
     const own = new Set(normIds(text(bytes)));
     return r.out ? Math.min(...normIds(text(r.out)).filter(id => !own.has(id))) : -1;
   };
   const afterWall = await firstNew(variants[0][1]);
-  ok(`fixronde 8: na de verstopte wand #402 is het eerste nieuwe id ${afterWall}, verwacht boven 402`, afterWall > 402);
+  ok(`fixronde 8: na de verstopte wand #402 is het eerste nieuwe id ${afterWall}, verwacht boven 402`, Number.isFinite(afterWall) && afterWall > 402);
   const afterString = await firstNew(variants[3][1]);
-  ok(`fixronde 8: na 'zie #999999' is het eerste nieuwe id ${afterString}, verwacht boven 999999`, afterString > 999999);
+  ok(`fixronde 8: na 'zie #999999' is het eerste nieuwe id ${afterString}, verwacht boven 999999`, Number.isFinite(afterString) && afterString > 999999);
   // Een getal net onder de grens: de nieuwe regels passen er niet meer onder. De scanner weigert een groter id (knownbug
   // 1007), dus de merge weigert getypeerd.
-  await proof('dubbel id', 'een getal net onder de grens van de scanner', before('/* #2147483600 */\n'), 'id-te-groot');
+  await proof('dubbel id', 'een getal net onder de grens van de scanner', before('/* #2147483600 */\n'), 'id-te-groot', rewrite);
 }
 
 // ── B2: een duur met dagen vóór T (knownbug 1027, opgelost met #871), en een duur met weken (knownbug 1028) ──
@@ -302,9 +308,9 @@ const secondRoundSame = async (label: string, r: Result) => {
   const second = await tryMerge(cloneDomain(o), o.ifcSource!);
   ok(`${label}: een tweede ronde is byte-gelijk aan de eerste`, second.ok && sameBytes(second.bytes, r.out));
 };
-await proof('B2, plek 7', 'Terra m1: P2DT12H, de duur expliciet op 720 en de taak hernoemd: schrijft de nieuwe duur', p2dt12h, 'schrijft', (x, o) => {
+await proof('B2, plek 7', 'Terra m1: alleen minuten op 720, afgeleide dagen blijven 3.5: weigert veilig', p2dt12h, 'ongewijzigd-getal', (x, o) => {
   const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd';
-}, (out) => has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT12H0M0S'/)(out) ?? has("'P2DT12H'", false)(out));
+}, undefined, /^ongewijzigd-getal: taak .+\.time\.scheduleDuration: 3.5 → 1.5$/);
 await secondRoundSame('regressie 1027 · P2DT12H zonder bewerking',
   await proof('regressie 1027', 'P2DT12H zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk', p2dt12h, 'schrijft', undefined, sameTaskTime(p2dt12h)));
 {
@@ -326,11 +332,12 @@ await proof('B2', 'P1W (weken: de lezer leest geen weken, knownbug 1028)', latin
 const t55 = (dur: string, src = showcase) => latin1(src.replace(T55, T55.replace("'P0Y0M3D'", `'${dur}'`)));
 const rename55 = (x: Domain, o: Opened) => { x.tasks.find(z => z.id === cpt(o).id)!.name = 'Hernoemd'; };
 const m1 = (x: Domain, o: Opened) => { const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 720; q.name = 'Hernoemd'; };
-// Sinds fixronde 5b leest de lezer `P2DT12H` goed (knownbug 1027 opgelost), dus ook de gecodeerde vormen: ze schrijven.
+// Zonder bewerking schrijven ook de gecodeerde vormen. De gemaakte m1-bewerking laat dagen en minuten uiteenlopen;
+// sinds 1107 weigert die veilig op het ongewijzigde dagengetal (geen route van een planner).
 // De toets blijft na de decodering kijken: de komma (BLOKKEERT 2) en de vorm (zoektocht 4) ziet hij ook gecodeerd.
 for (const dur of ['P2\\X2\\0044\\X0\\T12H', 'P2\\X\\44T12H', 'P2\\X4\\00000044\\X0\\T12H']) {
-  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), de duur 720 en de taak hernoemd: schrijft de nieuwe duur`, t55(dur), 'schrijft', m1,
-    has(/IFCTASKTIME\('Hernoemd Time',\.PREDICTED\.,\$,\.WORKTIME\.,'PT12H0M0S'/));
+  await proof('BLOKKEERT 1, plek 7', `Sol en Terra: ${dur} (P2DT12H in STEP-codering), alleen minuten 720 en de taak hernoemd: weigert veilig`, t55(dur), 'ongewijzigd-getal', m1,
+    undefined, /^ongewijzigd-getal: taak .+\.time\.scheduleDuration: 3.5 → 1.5$/);
   await secondRoundSame(`BLOKKEERT 1 · ${dur} zonder bewerking`,
     await proof('BLOKKEERT 1, plek 7', `${dur} zonder bewerking: schrijft, elk argument van de taaktijd byte-gelijk`, t55(dur), 'schrijft', undefined, sameTaskTime(t55(dur))));
 }
@@ -486,9 +493,16 @@ await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('PT-2H'), de taak hernoe
 await proof('fixronde 6, BLOKKEERT 2', "lag IFCDURATION('-PT2H0M0S') (zo schrijft OPS een negatieve lag in uren), de taak hernoemd: schrijft", lag631("IFCDURATION('-PT2H0M0S')"), 'schrijft', rename55);
 // BLOKKEERT 3: een tijddeel dat niet op een hele minuut valt (knownbug 1035). De lezer rondt af: `PT90S` wordt 2 minuten.
 await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
-await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de duur op 2 minuten gezet en de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', (x, o) => {
-  const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 2; q.name = 'Hernoemd';
-}, undefined, NOT_LISTED);
+{
+  const r = await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT90S', de duur op 2 minuten gezet en de taak hernoemd", t55('PT90S'), 'duur-deels-gelezen', (x, o) => {
+    const q = x.tasks.find(z => z.id === cpt(o).id)!; q.time.durationMinutes = 2; q.name = 'Hernoemd';
+  });
+  // 1109 bewaakt nu ook dat een gewijzigde duur volledig gedragen was: de afgeronde 90 seconden mogen niet
+  // als twee minuten worden vervangen. Naast de vormenlijst verwachten we uitsluitend dit ene slotverschil.
+  const other = r.details.filter(x => !NOT_LISTED.test(x));
+  ok('PT90S: vormenlijst en exact het niet-gedragen duurslot weigeren, zonder andere melding', r.details.length === 2
+    && other.length === 1 && other[0] === "niet-gedragen: IFCTASKTIME #55, argument 4 na de bewerking: 'PT90S' → 'PT0H2M0S'");
+}
 await proof('fixronde 6, BLOKKEERT 3', "ScheduleDuration 'PT0.01H' (0,6 minuut), de taak hernoemd", t55('PT0.01H'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 3', "lag IFCDURATION('PT90S'), de taak hernoemd", lag631("IFCDURATION('PT90S')"), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
 await proof('fixronde 6, BLOKKEERT 3', "lag in kalendertijd IFCDURATION('PT1M30S'), de taak hernoemd", lag631("IFCDURATION('PT1M30S')", '.ELAPSEDTIME.'), 'duur-deels-gelezen', rename55, undefined, NOT_LISTED);
@@ -648,8 +662,8 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
 {
   // Plek 26: twee gelijke eigen psets `OPS_Calendar` op de kalender, elk met een eigen relatie.
   const twice = after(eigen, 41, "#9039=IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(8.),$);\n#9040=IFCPROPERTYSET('0yQpbypZj4u9f68zIkoEO1',#6,'OPS_Calendar',$,(#9039));\n#9041=IFCRELDEFINESBYPROPERTIES('0EGdQpeHVqDZMJewwgwnUd',#6,$,$,(#38),#9040);");
-  await proof('B5, plek 26', 'f0: OPS_Calendar twee keer op de kalender', latin1(twice), 'niet-eenduidig');
-  await proof('B5, plek 26', 'f1: de tweede met een andere waarde', latin1(twice.replace("IFCREAL(8.),$);\n#9040", "IFCREAL(8.),'BEWAAR-TWEEDE');\n#9040")), 'niet-eenduidig');
+  await proof('B5, plek 26', 'f0: OPS_Calendar twee keer op de kalender', latin1(twice), 'niet-eenduidig', rewrite);
+  await proof('B5, plek 26', 'f1: de tweede met een andere waarde', latin1(twice.replace("IFCREAL(8.),$);\n#9040", "IFCREAL(8.),'BEWAAR-TWEEDE');\n#9040")), 'niet-eenduidig', rewrite);
 }
 {
   // Plek 27: werktijden met dezelfde naam (een feestdag per jaar). Een bronwaarde die de lezer niet draagt, staat op #21.
@@ -939,8 +953,9 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   ok("plek 6: #63 is 'Build masonry walls' zonder Status", lineOf(latin1(eigen), '63') === "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,$,$,.F.,$,#62,.CONSTRUCTION.);");
   const onHold = latin1(setLine(eigen, 63, "#63=IFCTASK('06AdBvh4v8lXgXlHO1$rfO',#6,'Build masonry walls',$,$,'3.4',$,'ON HOLD',$,.F.,$,#62,.CONSTRUCTION.);"));
   const t63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!;
-  const complete = (x: Domain, o: Opened) => {
-    const q = t63(x, o); q.time.completion = 1; q.status = 'COMPLETED' as never; q.time.actualStart = q.time.scheduleStart; q.time.actualFinish = q.time.scheduleFinish;
+  const complete = async (x: Domain, o: Opened) => {
+    const q = t63(x, o);
+    await applyTaskProgress(x, q.id, [{ field: 'actualStart', value: q.time.scheduleStart }, { field: 'actualFinish', value: q.time.scheduleFinish }]);
   };
   const statusOf = (s: string) => /^#\d+=IFCTASK\('06AdBvh4v8lXgXlHO1\$rfO',#\d+,'Build masonry walls',\$,\$,'[^']*',\$,('[^']*'|\$),/m.exec(s)?.[1];
   await proof('plek 6', "'ON HOLD', zonder bewerking", onHold, 'schrijft', undefined, has("'ON HOLD'"));
@@ -951,7 +966,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   if (done.out) {
     const o = await openForeign(onHold);
     const d = cloneDomain(o);
-    complete(d, o);
+    await complete(d, o);
     const writer = statusOf(writeIFC(d));
     ok(`plek 6: de Status na voltooien is die van de writer (${statusOf(text(done.out))} = ${writer})`, writer !== undefined && statusOf(text(done.out)) === writer);
   }
@@ -965,7 +980,7 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const noAsg = [152, 153, 154, 155].reduce((acc, id) => acc.replace(new RegExp(`^#${id}=.*;\\n`, 'm'), ''), eigen);
   ok('plek 34: #152 tot #155 zijn weg', ![152, 153, 154, 155].some(id => new RegExp(`^#${id}=`, 'm').test(noAsg)));
   const psets = (out: string) => linesOfType(latin1(out), 'IFCPROPERTYSET').filter(l => l.includes("'OPS_Assignments'")).length;
-  await proof('plek 34', 'Trias: OPS_Assignments van #63 weg uit de bron; de writer schrijft haar weer (een registerpset)', latin1(noAsg), 'schrijft', undefined,
+  await proof('plek 34', 'Trias: OPS_Assignments van #63 weg uit de bron; de writer schrijft haar weer (een registerpset)', latin1(noAsg), 'schrijft', rewrite,
     (out) => (psets(text(out)) === psets(noAsg) + 1 ? undefined : `OPS_Assignments: ${psets(text(out))} in de uitvoer, ${psets(noAsg)} in de bron`));
 }
 
@@ -982,32 +997,72 @@ await proof('B4', 'HoursPerDay 9007199254740993 (boven 2^53) blijft', latin1(set
   const time63 = (x: Domain, o: Opened) => x.tasks.find(q => q.id === taskBy(o, 63).id)!.time;
   const other = taskBy(eigenOpened, 65).time;
   await proof('VERVOLG', '.NOTDEFINED., zonder bewerking', notDefined, 'schrijft', undefined, keep);
-  const edits: [string, (x: Domain, o: Opened) => void][] = [
+  const edits: [string, (x: Domain, o: Opened) => void | Domain | Promise<void | Domain>][] = [
     ['het geplande begin', (x, o) => { time63(x, o).scheduleStart = '2027-05-07'; }],
     ['het geplande einde', (x, o) => { time63(x, o).scheduleFinish = '2027-05-14'; }],
     ['de duur', (x, o) => { time63(x, o).scheduleDuration += 1; }],
     ['vroeg en laat', (x, o) => { const t = time63(x, o); t.earlyStart = other.earlyStart; t.earlyFinish = other.earlyFinish; t.lateStart = other.lateStart; t.lateFinish = other.lateFinish; }],
-    ['het werkelijke begin', (x, o) => { time63(x, o).actualStart = '2027-05-06'; }],
+    ['het werkelijke begin', (x, o) => applyTaskProgress(x, taskBy(o, 63).id, [{ field: 'actualStart', value: '2027-05-06' }])],
     ['de resterende duur', (x, o) => { time63(x, o).remainingTime = 2; }],
   ];
   for (const [label, edit] of edits) await proof('VERVOLG', `.NOTDEFINED., de planner wijzigt ${label}`, notDefined, 'schrijft', edit, keep);
-  // Wijzigt de planner het veld zelf, dan vervalt de bronwaarde (plek 6).
-  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
-    has(".PREDICTED.,$,.NOTDEFINED.,", false));
+  // Wijzigt de planner het veld zelf (kalendertijd): na openen via de app heeft de taak de tijdstippen 07:00 en 16:00, en
+  // die vallen op kalendertijd niet op een daggrens, ook niet na doorrekenen. De writer schrijft de kalender dan letterlijk
+  // (zoals een gewone opslag), met elke taak erop als tijdstip; de merge volgt dat (#886, besluit van Trias over de vroegere knownbug
+  // 1102), en herlezen via de app geeft 07:00 tot 16:00, zoals de planner zag.
+  await proof('VERVOLG', '.NOTDEFINED., de planner zet de duur op kalendertijd (kalender letterlijk)', notDefined, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; });
+  const notDefinedOpened = await openForeign(notDefined);
+  const elapsed = cloneDomain(notDefinedOpened);
+  time63(elapsed, notDefinedOpened).durationType = 'ELAPSEDTIME';
+  const elapsedF5 = await recalculated(elapsed);
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd en doorrekenen (kalender letterlijk)', notDefined, 'schrijft', (x) => { x.tasks = structuredClone(elapsedF5.tasks); });
+  // De baselines op die kalender gaan mee in de vorm van de writer (tijdstippen), zoals bij een gewone opslag. De grens: een
+  // sleutel in een rij die niet over datums gaat, blijft staan (de lezer draagt de JSON van een baseline met alle sleutels);
+  // alleen `start` en `finish` mogen een andere vorm krijgen (`literalBaselineForm`).
+  const ownKey = latin1(text(notDefined).replace('"duration":0,"isMilestone":true,"milestoneKind":"START"}',
+    '"duration":0,"isMilestone":true,"milestoneKind":"START","eigen":1}'));
+  ok('VERVOLG: een baselinerij met een eigen sleutel', text(ownKey) !== text(notDefined));
+  await proof('VERVOLG', '.NOTDEFINED., kalendertijd, een baselinerij met een eigen sleutel', ownKey, 'schrijft', (x, o) => { time63(x, o).durationType = 'ELAPSEDTIME'; },
+    has('"milestoneKind":"START","eigen":1}'));
+}
+
+// ── #886 (vervolg-PR van #867): een verstopt stuk vóór een eigen stuk ──
+// De scanner hangt commentaar vóór een entiteit aan het volgende stuk. Volgens de norm vallen stuurtekens overal weg, ook
+// in `*⏎/`; dan staat in `/* a *⏎/ #402=…; /* b */` een stuk. De merge schrijft een P-stuk opnieuw, zonder dat commentaar,
+// dus weigert hij als vóór een P-stuk buiten de tokens een `#` met een getal staat (`verstopt-stuk`). Proeven uit review
+// ronde 8 van #867: het stuk vóór `#47=IFCTASK`, en een V-stuk (de pset van de wand) dat ernaar wijst.
+{
+  const before47 = (src: string, inserted: string) => { const at = src.indexOf('#47=IFCTASK'); return src.slice(0, at) + inserted + src.slice(at); };
+  const hidden = "/* a *\n/ #402=IFCPROPERTYSINGLEVALUE('VerstoptX',$,IFCLABEL('x'),$); /* b */\n";
+  ok('verstopt stuk: de pset van de wand heeft (#397,#398)', eigen.includes('(#397,#398));'));
+  await proof('verstopt stuk', 'een verstopt stuk vóór een eigen taak', latin1(before47(eigen, hidden)), 'verstopt-stuk', rewrite);
+  await proof('verstopt stuk', 'idem, en een V-stuk wijst ernaar', latin1(before47(eigen, hidden).replace('(#397,#398));', '(#397,#398,#402));')), 'verstopt-stuk', rewrite);
+  await proof('verstopt stuk', 'commentaar met #12 vóór een eigen taak', latin1(before47(eigen, '/* zie #12 */\n')), 'verstopt-stuk', rewrite);
+  await proof('verstopt stuk', 'gewoon commentaar vóór een eigen taak', latin1(before47(eigen, '/* gewoon commentaar */\n')), 'schrijft');
+  // `\S\'` in een string van een eigen stuk (VERMOED van review ronde 8, knownbug 1050): de lezer leest het anders dan de
+  // norm, en het bestand opent met de flag niet (de modelweigering op de tekst van de lezer). De merge krijgt het dus niet.
+  const escaped = eigen.replace("'Start of refurbishment',$,", "'Start of refurbishment','a\\S\\'',");
+  ok("verstopt stuk: de bron heeft \\S\\' in de omschrijving van #47", escaped !== eigen);
+  const refused = await openForeign(latin1(escaped)).then(() => 'opent', (e: unknown) => (e instanceof IfcParseError ? e.reason : String(e)));
+  ok(`verstopt stuk: \\S\\' in een eigen string opent met de flag niet (${refused})`, refused === 'building-model');
 }
 
 // ── Combinaties: een bewerking met een wijziging van het project, en twee bewerkingen samen ──
-// Regel: een combinatie schrijft alleen als elk deel apart ook schrijft. Een wijziging van het project verklaart alleen
-// haar eigen velden (B1), en een bewerking nooit het verlies van een andere.
-type Edit = { label: string; apply: (d: Domain) => void };
+// Zonder echte duuractie geldt de oude onafhankelijkheidsproef. Een echte duuractie kan een kale andere bewerking
+// via haar werkregels consistent maken; dan toetsen we de volledige heropening tegen de naad, zonder een weigering
+// te repareren of een uitzondering aan de writer toe te voegen.
+type Edit = { label: string; realDuration?: boolean; apply: (d: Domain) => void | Promise<void | Domain> };
 const projectEdits = (d: Domain): Edit[] => [
   { label: 'projectnaam', apply: (x) => { x.project.name = 'Andere naam'; } },
   { label: 'projectomschrijving', apply: (x) => { x.project.description = 'Andere omschrijving'; } },
   { label: 'statusdatum', apply: (x) => { x.project.statusDate = '2027-04-01'; } },
   { label: 'modifiedAt', apply: (x) => { x.project.modifiedAt = '2026-12-01T10:00:00.000Z'; } },
+  // Zoals de store: de projectkalender is de kopie van haar regel in de bibliotheek (`syncProjectCalendar`). Na openen via
+  // de app staat de oude projectkalender daar al; de nieuwe komt erbij.
   { label: 'kalenderkeuze', apply: (x) => {
     const other = { ...structuredClone(x.calendar), id: `${d.calendar.id}-b4`, name: 'Andere kalender' };
-    x.resourceCalendars = [...(x.resourceCalendars ?? []), structuredClone(x.calendar)];
+    const library = (x.resourceCalendars ?? []).filter(c => c.id !== x.calendar.id);
+    x.resourceCalendars = [...library, structuredClone(x.calendar), other];
     x.calendar = other;
     x.project.calendarId = other.id;
   } },
@@ -1018,9 +1073,9 @@ let combosWritten = 0;
 for (const [name, bytes] of files) {
   const opened = await openForeign(bytes);
   const taskEdits: Edit[] = [
-    ...basicEdits(opened),
+    ...basicEdits(opened).filter(e => !e.notApplicable),
     ...plannerEdits(opened, 2).filter(e => e.kind === 'taak-wissen' || e.kind === 'andere-ouder').slice(0, 2),
-  ].map(e => ({ label: e.label, apply: e.apply }));
+  ].map(e => ({ label: e.label, apply: e.apply, realDuration: e.kind === 'duur' }));
   const projects = projectEdits(opened);
   const alone = new Map<string, Result>();
   for (const e of [...taskEdits, ...projects]) alone.set(e.label, await merge(`${name} · ${e.label}`, bytes, e.apply));
@@ -1028,13 +1083,23 @@ for (const [name, bytes] of files) {
   for (const e of taskEdits) for (const p of projects) pairs.push([e, p]);
   for (let a = 0; a < taskEdits.length; a++) for (let b = a + 1; b < taskEdits.length; b++) pairs.push([taskEdits[a], taskEdits[b]]);
   for (const [e, f] of pairs) {
-    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, (x) => { e.apply(x); f.apply(x); });
+    const r = await merge(`${name} · ${e.label} + ${f.label}`, bytes, async (x) => {
+      const first = await e.apply(x), afterFirst = first ?? x;
+      const second = await f.apply(afterFirst);
+      return second ?? afterFirst; // Een kale tweede patch mag de verse eerste payload niet laten vervallen.
+    });
     combos++;
     if (r.outcome === 'schrijft') combosWritten++;
     const parts = [alone.get(e.label)!, alone.get(f.label)!];
     ok(`combinatie ${r.label}: geen fout (${r.details.slice(0, 2).join(' | ')})`, r.outcome !== 'fout');
-    ok(`combinatie ${r.label}: schrijft alleen als elk deel apart schrijft (delen: ${parts.map(p => p.outcome).join(', ')})`,
-      r.outcome !== 'schrijft' || parts.every(p => p.outcome === 'schrijft'));
+    if (r.outcome === 'schrijft' && !parts.every(p => p.outcome === 'schrijft') && (e.realDuration || f.realDuration)) {
+      const same = canon(await openForeign(r.out!), reseed) === canon(r.shown!, reseed);
+      ok(`combinatie ${r.label}: echte duuractie maakt samenhang consistent; volledige heropening geeft dezelfde planning`, same);
+      console.log(`COMBINATIE ECHTE DUUR ${r.label}: schrijft, volledige heropening ${same ? 'gelijk' : 'verschilt'}; losse delen ${parts.map(p => p.outcome).join(', ')}`);
+    } else {
+      ok(`combinatie ${r.label}: schrijft alleen als elk deel apart schrijft (delen: ${parts.map(p => p.outcome).join(', ')})`,
+        r.outcome !== 'schrijft' || parts.every(p => p.outcome === 'schrijft'));
+    }
   }
   for (const [label, r] of alone) ok(`${name} · ${label}: geen fout (${r.details.slice(0, 2).join(' | ')})`, r.outcome !== 'fout');
 }

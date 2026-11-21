@@ -103,7 +103,7 @@ same('§3 met 12:00 eindigt het restwerk op 21-09', finishOf(store.getState())?.
 const payload = store.getState().getOpenDocumentPayloads()[0].payload;
 
 // ── §4 ──────────────────────────────────────────────────────────────────────
-const ifcText = writeIFC(buildWriteIFCInput(payload));
+const ifcText = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
 same('§4 IFC schrijft IFCDATETIME met 12:00', /IFCPROPERTYSINGLEVALUE\('StatusDate',\$,(.*?),\$\)/.exec(ifcText)?.[1], "IFCDATETIME('2006-09-20T12:00:00')");
 const fromIfc = openStore(await parseOpenedFile({ name: 'rondgang.ifc', text: ifcText }));
 same('§4 IFC heen en terug: 12:00', fromIfc.getState().project.statusDate, '2006-09-20T12:00');
@@ -129,7 +129,7 @@ const msp8 = quiet(() => writeMSPDI(anchor.project, anchor.calendar, anchor.task
   anchor.assignments, anchor.calendars, anchor.baselines, anchor.activeBaselineId, anchor.customTaskTypes));
 const fromMsp8 = openStore(await parseOpenedFile({ name: 'anker.xml', text: msp8 }));
 same('§5 MSPDI 08:00 = dag-anker ⇒ date-only terug (formaatgrens)', fromMsp8.getState().project.statusDate, '2006-09-20');
-const fromIfc8 = openStore(await parseOpenedFile({ name: 'anker.ifc', text: writeIFC(buildWriteIFCInput(anchor)) }));
+const fromIfc8 = openStore(await parseOpenedFile({ name: 'anker.ifc', text: writeIFC(buildWriteIFCInput(anchor, 'planOnly')) }));
 same('§5 IFC 08:00 blijft 08:00', fromIfc8.getState().project.statusDate, '2006-09-20T08:00');
 
 if (failures.length) {

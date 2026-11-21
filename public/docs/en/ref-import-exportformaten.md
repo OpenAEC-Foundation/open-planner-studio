@@ -130,9 +130,9 @@ A filled date cell in an unrecognised format stops the entire CSV from opening. 
 
 **Save** — no.
 
-**Export** — yes, as *CSV (;)* (*Universal table export. All tasks with dates and durations.*), on the card *CSV (semicolon-separated)*. The file uses a semicolon as separator, is in UTF-8 with a BOM and has English column headers.
+**Export** — yes, as *CSV* (*Universal table export. All tasks with dates and durations.*), on the card *CSV*. The separator and decimal mark follow the computer's regional setting, independently of the app language: Dutch uses `;` and a decimal comma (`6,5`); English (US) uses `,` and a decimal point (`6.5`). The file is in UTF-8 with a BOM and has English column headers. Duration stays in days: 52 hours at 8 hours per day is 6.5 days.
 
-**What goes along** — per task these columns: `OPS Task ID`, `WBS`, `Outline Level`, `Name`, `Duration (days)`, `Start`, `Finish`, `Predecessors`, `Task Type`, `OPS Custom Task Type ID`, `Status`, `Completion (%)`, `Actual Start`, `Actual Finish`, `Critical`, `Total Float` and `Description`. The `Task Type` column holds the work category. Completion is in whole percentages. A lag in hours gets the hour sign of the app language: `1.2FS+2h` in English, `1.2FS+2u` in Dutch. Opening reads both.
+**What goes along** — per task these columns: `OPS Task ID`, `WBS`, `Outline Level`, `Name`, `Duration (days)`, `Start`, `Finish`, `Predecessors`, `Task Type`, `OPS Custom Task Type ID`, `Status`, `Completion (%)`, `Actual Start`, `Actual Finish`, `Critical`, `Total Float` and `Description`. The `Task Type` column holds the work category. Completion is in whole percentages. A lag in hours gets the hour sign of the app language: `1.2FS+2h` in English, `1.2FS+2u` in Dutch. Opening reads both. A fractional lag always uses a point, for example `1.2FS+1.5h`, because a comma separates relations in the predecessor list. Use that point for manual input too; `3FS+1,5` can be read as two predecessors.
 
 **What does not go along** — resources, assignments, calendars, constraints, deadlines, baselines and the status date. If the dates are in the view *Dates as recorded*, the export leaves `Critical` and `Total Float` empty for tasks whose source file did not record that.
 

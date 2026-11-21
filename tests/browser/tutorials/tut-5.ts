@@ -117,7 +117,7 @@ export const TUTORIAL_5: TutorialScript = {
       do: [
         { ribbon: 'instellingen:projectSettings', label: l('App-instellingen', 'App settings') },
         { waitFor: dialog },
-        { click: { button: l('Planning', 'Planning'), within: dialog } },
+        { click: { button: l('Planning', 'Scheduling'), within: dialog } },
         { click: { text: l('Taaktypes gebruiken', 'Use task types'), within: dialog } },
         { check: { state: s => (s.ui.showTaskTypes ? [] : ['werkregels niet zichtbaar']) } },
         { click: { button: l('Sluiten', 'Close'), within: dialog } },

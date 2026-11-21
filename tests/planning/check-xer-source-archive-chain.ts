@@ -127,7 +127,7 @@ expect('8 documentspecifieke semantiek blijft geïsoleerd van de duplicate',
   thirteen.find(document => document.id === duplicateId)?.payload.project.description === 'keten-99'
   && thirteen.filter(document => document.id !== duplicateId).every(document => document.payload.project.description === ''));
 
-const ifcs = thirteen.map(document => writeIFC(buildWriteIFCInput(document.payload)));
+const ifcs = thirteen.map(document => writeIFC(buildWriteIFCInput(document.payload, 'planOnly')));
 const independentlyReopened = ifcs.map(ifc => readIFC(ifc));
 expect('9 iedere zelfstandige IFC is zonder siblingstate heropenbaar met exacte bytes en SHA',
   independentlyReopened.every(result => result.xerSourceArchive !== undefined

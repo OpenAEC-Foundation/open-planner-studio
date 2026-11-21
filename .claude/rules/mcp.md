@@ -31,6 +31,13 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
 temp-id-resolutie).
 
+Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
+`ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
+zonder bron, met één melding `notifications.ifcForeignSourceMissing`; andere exportformaten blijven mogelijk.
+PR 9e staat uitsluitend handmatig Opslaan als toe na bevestiging met Annuleren als standaard, naar een ander doel
+met alleen planning. MCP-export stelt die vraag nooit en blijft geblokkeerd tot de handmatige opslag is geslaagd.
+Met de flag uit blijft de bestaande backuproute gelijk. Opnieuw koppelen aan de actuele bron is 9c (1575).
+
 Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)
 is Engels; codecommentaar blijft Nederlands. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
 agentgids `public/agent/planning-guide.md` (per principe de tools, niet het Help-artikel voor mensen) en de skills
@@ -57,7 +64,9 @@ per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
 
 De kern-bouwstenen nemen hun Tauri-randen als injecteerbare functies, zodat alles headless testbaar
 is — zie `tests/mcp/`. **Headless MCP-server** (`headless/mcp-server/`, #570, `docs/headless-mcp.md`): dezelfde
-tools op Node zonder app. Zolang de desktop-app draait, vervangt hij geen bestaand bestand (het register loopt achter
+tools op Node zonder app. De doelcontrole draait daar onafhankelijk van `ifcForeignContent`: `nodeFs.scanTarget`
+leest binnen de bestaande root-/realpath-/`O_NOFOLLOW`-poort; een bestaand model of C/A/V-deel, of een lees-/scanfout,
+weigert ook met `overwrite: true`. Alleen bewezen ontbrekende en volledig eigen doelen mogen door. De gemeten oude eigen kop gebruikt dezelfde herkenning als bij openen. Zolang de desktop-app draait, vervangt hij geen bestaand bestand (het register loopt achter
 op de app): `appLock.ts` leest bij elke schrijfactie `open-files*.json` uit de mappen van de app (`mcpDiscoveryDirs`)
 of `--discovery-dir`, en weigert bij twijfel. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
 (`requestHandler.ts`), `createMcpContext` (`context.ts`), de backupkern (`backupService.ts`), de versheid
@@ -101,3 +110,11 @@ wachtrij, atomair, `0600`), meldingen via `onBridgeStarted`/`onBridgeStopped` in
 register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCloseGuard`. Het proces-id komt
 uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
 test `tests/mcp/cases-discovery.ts` en de echte-app-run.
+
+**IFC-export van de app (#804, 1c PR 11b).** `planner_export_ifc` deelt `state/prepareIfcOutput.ts` met
+de documentroute en Exporteren → IFC. Vreemde inhoud schrijft met de flag aan uitsluitend naar een nieuw doel,
+via de optionele `McpFileFs.writeNewUserBytes` (Tauri: eigen tijdelijk bestand en `place_file_exclusive`, zie
+`tauri-ifc.md`; geen tekstrondgang). Een bestaande naam en `source-changed` krijgen elk een eigen antwoord. Het antwoord bevat
+`byteLength` voor bytes en `characters` alleen voor de gewone tekstuitvoer. De export verandert bron, kenmerk,
+doel, dirty-vlag en letterlijke kalenders niet. Scope, lease, drift, readonly en schrijfslot blijven gelden.
+Headless biedt de nieuwe bytenaad niet en blijft op zijn bestaande tekstgedrag (1136, fase 2).

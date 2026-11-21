@@ -264,7 +264,14 @@ function repairCalendar(cal: WorkCalendar, repairs: CalendarRepair[], unresolved
   if (noBreak && Number.isFinite(target) && endMin > startMin && target > endMin - startMin) {
     const newEnd = startMin + target;
     if (newEnd <= 1440) {
-      const extended: WorkCalendar = { ...next, workEndHour: newEnd / 60 };
+      const workEndHour = newEnd / 60;
+      const extended: WorkCalendar = { ...next, workEndHour,
+        // De bronklok blijft staan; de koppeling volgt het automatische herstel vóór opened.
+        // Een volgende plannerbewerking wijkt hier weer van af en schrijft dan zijn nieuwe klok.
+        ...(next.ifcTimePeriods ? { ifcTimePeriods: next.ifcTimePeriods.map(period =>
+          period.binding === 'scalar' && period.scalarEnd === next.workEndHour
+            ? { ...period, scalarEnd: workEndHour } : period) } : {}),
+      };
       repairs.push({ calendarId: cal.id, calendarName: cal.name, kind: 'extendEnd', before: scalarFields(next), after: scalarFields(extended) });
       next = extended;
     } else {

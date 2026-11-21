@@ -32,16 +32,22 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
-  basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle, tryMerge,
+  applyEdit, fixedCatalogEdits, savedCatalogStart, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
+  lossProbe, reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
-import { MergeNeedsPhase2Error, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
+import { MergeNeedsPhase2Error, prepareIfcWrite, mergeIdPlan, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { changedScopes, lossCheck, parseOutLine, pristineDomain, sameDuration, sameNumber, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import { scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import type { Task } from '@/types/task';
 import { classify } from '@/services/ifc/foreign/classify';
+import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
+import { decodeStepText } from '@/services/ifc/stepText';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const reseed = installDeterminism();
@@ -65,6 +71,12 @@ const text = (b: Uint8Array) => {
   return s;
 };
 const read = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
+
+// Na stuk 1 vraagt een proef op herschrijven om een echte bewerking. De projectbeschrijving
+// veranderen laat de naam/structuur van de getoetste objecten ongemoeid; de hele apppayload komt terug.
+const rewrite = (d: Domain) => storeEdit(d, state => {
+  state.setProject({ description: `${d.project.description} (herschrijfproef)` });
+});
 
 // ── Hulp: lidmaatschappen en tellingen in een bestand ──
 
@@ -95,27 +107,32 @@ function relationsOf(bytes: Uint8Array, type: string, relatingArg: number, relat
 }
 
 /** Eén volledige ronde: openen, merge zonder wijziging (of met `edit`), alle invarianten, herlezen en een tweede ronde. */
-async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) => void): Promise<{ out: Uint8Array; reread: Opened; opened: Opened } | undefined> {
+async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) => void | Promise<Domain | void>): Promise<{ out: Uint8Array; reread: Opened; opened: Opened } | undefined> {
   const opened = await openForeign(bytes);
   const source = opened.ifcSource;
   if (!source?.foreign) { diffs.push(`${label}: geen vreemd deel na openen`); checks++; return undefined; }
-  const d = cloneDomain(opened);
-  edit?.(d);
-  let parts: Uint8Array[];
-  try { parts = await writeIfcMerge(d, source); } catch (e) {
+  let d = cloneDomain(opened);
+  const next = await edit?.(d);
+  if (next) d = next;
+  let out: Uint8Array;
+  try { out = await writeIfcMerge(d, source); } catch (e) {
     diffs.push(`${label}: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => `${c.kind}: ${c.detail}`).slice(0, 3).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
   }
-  ok(`${label}: de uitvoer is een lijst Uint8Array-delen`, Array.isArray(parts) && parts.length > 0 && parts.every(p => p instanceof Uint8Array));
-  const out = concat(parts);
+  ok(`${label}: de uitvoer is één Uint8Array`, out instanceof Uint8Array && out.length > 0);
   eq(`${label}: invarianten`, mergeProblems(bytes, out), []);
   ok(`${label}: geen nieuw dubbel lidmaatschap`, doubleMemberships(out).every(k => doubleMemberships(bytes).includes(k)));
   ok(`${label}: niet meer IfcProject dan de bron`, countType(out, 'IFCPROJECT') <= Math.max(1, countType(bytes, 'IFCPROJECT')));
   const reread = await openForeign(out);
-  const want = edit ? canon(readIFC(writeIFC(d)), reseed) : canon(opened, reseed);
+  // De planning die de planner zag, zoals de app haar na openen toont (vervolg-PR van #867): zonder bewerking het domein na
+  // openen, met een bewerking hetzelfde domein na de herberekening bij openen (`shownAfterOpen`). Of wat een gewone opslag
+  // en heropenen geeft (`reopenPlain`): de lezer leidt bij heropenen soms iets af dat niet in het domein stond (een rest uit
+  // het percentage), en dat doet hij ook na een gewone opslag.
+  const want = canon(edit ? await shownAfterOpen(d) : opened, reseed);
   const got = canon(reread, reseed);
-  ok(`${label}: herlezen geeft dezelfde planning${got === want ? '' : ` (${firstDiff(got, want)})`}`, got === want);
+  const same = got === want || (edit !== undefined && got === canon(await reopenPlain(d), reseed));
+  ok(`${label}: herlezen geeft dezelfde planning${same ? '' : ` (${firstDiff(got, want)})`}`, same);
   if (!edit) {
     const kept = Object.entries(source.stepIds).filter(([k, v]) => reread.ifcSource?.stepIds[k] !== v);
     eq(`${label}: herlezen geeft dezelfde bron-ids (stepIds)`, kept.slice(0, 5), []);
@@ -157,6 +174,11 @@ const OWN_REFUSED: Readonly<Record<string, RegExp>> = {
   'council/r7sol-vreemd-lid-bij-toewijzing.ifc': /^IFCPROPERTYSINGLEVALUE #9110 \(Notes\): ontbreekt in de uitvoer/,
 };
 
+/** Wat de lezer naast de planning geeft (de vorm van het bestand) en de store na openen zet (de omzetting is gedaan, de
+ *  herkomst van een import): geen planning, en de writer leidt het niet uit het domein af. */
+const READ_ONLY_KEYS: ReadonlySet<string> = new Set([
+  'timeModel', 'milestonesAtDayEnd', 'recordedFields', 'recordedTimesOrigin', 'minuteModelPending', 'importPristine',
+]);
 const corpus = [
   ...readdirSync(FOREIGN).filter(f => f.endsWith('.ifc')),
   ...readdirSync(join(FOREIGN, 'council')).filter(f => f.endsWith('.ifc')).map(f => `council/${f}`),
@@ -172,8 +194,10 @@ for (const file of corpus) {
   const foreignWant = REFUSED[file];
   const ownWant = OWN_REFUSED[file];
   if (foreignWant || ownWant) {
-    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource);
-    if (outcome.ok) { diffs.push(`${file}: de merge schrijft, maar weigeren werd verwacht`); checks++; continue; }
+    const unchanged = await tryMerge(cloneDomain(opened), opened.ifcSource);
+    ok(`${file}: zonder bewerking schrijft dezelfde bronbytes`, unchanged.ok && sameBytes(unchanged.bytes, bytes));
+    const outcome = await tryMerge(await rewrite(cloneDomain(opened)), opened.ifcSource);
+    if (outcome.ok) { diffs.push(`${file}: met gewijzigde projectbeschrijving werd weigeren verwacht`); checks++; continue; }
     eq(`${file}: de gevallen van de weigering`, outcome.kinds, foreignWant ?? ['niet-gedragen']);
     eq(`${file}: de vaste code`, outcome.error.code, 'merge-needs-phase2');
     ok(`${file}: elk geval heeft een id en een uitleg`, outcome.error.cases.every(c => c.detail.length > 0));
@@ -186,10 +210,14 @@ for (const file of corpus) {
   if (!await roundTrip(file, bytes)) continue;
   written++;
   if (!WRITES_FOREIGN_PLANNING.has(file)) ownWritten++;
-  // O1 is niet leeg: zonder bewerking is het domein na openen gelijk aan het domein van de toets (`changedScopes`).
+  // O1 is niet leeg: zonder bewerking is het domein dat de merge schrijft (`sourceFormWhereUnchanged`: wat alleen het openen
+  // veranderde, in de vorm van de bron) gelijk aan het domein van de toets (`changedScopes`).
   const index = scanStep(bytes);
-  const changed = changedScopes(cloneDomain(opened), await pristineDomain(index, classify(index), opened.ifcSource));
-  eq(`${file}: zonder bewerking verandert er niets (O1)`, [changed.any, [...changed.keys].slice(0, 3)], [false, []]);
+  const pristine = await pristineDomain(index, classify(index), opened.ifcSource);
+  // Velden van de lezing die geen planning zijn en die de writer niet uit het domein schrijft, tellen niet.
+  const changed = [...changedScopes(sourceFormWhereUnchanged(cloneDomain(opened), opened.ifcSource.opened, pristine).input, pristine).keys]
+    .filter(k => !READ_ONLY_KEYS.has(k));
+  eq(`${file}: zonder bewerking verandert er niets (O1)`, changed.slice(0, 3), []);
 }
 eq('corpus: elk bestand uit REFUSED en OWN_REFUSED bestaat', [...Object.keys(REFUSED), ...Object.keys(OWN_REFUSED)].filter(f => !corpus.includes(f)), []);
 ok(`corpus: minstens negentien eigen bestanden schrijven zonder wijziging (${ownWritten})`, ownWritten >= 19);
@@ -256,7 +284,7 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
     eq(`${label}: heropenen kiest hetzelfde D-schema`, r.reread.ifcSource?.stepIds[Object.keys(r.reread.ifcSource.stepIds).find(k => k.startsWith('ws:')) ?? ''], 54);
   }
   // Een nieuwe taak komt onder het eerste schema.
-  const added = await roundTrip(`${label} + nieuwe taak`, secondSchedule, (d) => basicEdits(d).find(e => e.kind === 'taak-erbij')!.apply(d));
+  const added = await roundTrip(`${label} + nieuwe taak`, secondSchedule, async (d) => basicEdits(d).find(e => e.kind === 'taak-erbij')!.apply(d));
   if (added) {
     const newId = /#(\d+)=IFCTASK\('[^']*',#\d+,'Nieuwe taak 1b'/.exec(text(added.out))?.[1] ?? '';
     ok(`${label} + nieuwe taak: de nieuwe taak staat in de uitvoer`, newId !== '');
@@ -289,7 +317,7 @@ const secondSchedule = enc.encode(withLines(baseText, SECOND_SCHEDULE));
   let projectChunk = -1;
   for (let i = 0; i < sourceIndex.count; i++) if (sourceIndex.isEntity(i) && sourceIndex.type(i) === 'IFCPROJECT') projectChunk = i;
   ok(`${label}: in de bron is het project niet P`, projectChunk >= 0 && sourceCls.classes[projectChunk] !== 1);
-  const r = await roundTrip(label, bytes);
+  const r = await roundTrip(`${label} na een bewerking`, bytes, rewrite);
   if (r) {
     eq(`${label}: na openen`, r.opened.project.name, 'Proj');
     eq(`${label}: één IfcProject, byte-gelijk aan de bron`, [countType(r.out, 'IFCPROJECT'), lineOf(r.out, sourceIndex.id(projectChunk))], [1, lineOf(bytes, sourceIndex.id(projectChunk))]);
@@ -347,7 +375,7 @@ const OLD_VARIANTS: readonly { label: string; src: string; keep: readonly string
 for (const v of OLD_VARIANTS) {
   ok(`${v.label}: de proef verandert de bron`, v === OLD_VARIANTS[0] || v.src !== oldText);
   const bytes = latin1(v.src);
-  const r = await roundTrip(v.label, bytes);
+  const r = await roundTrip(`${v.label} na een bewerking`, bytes, rewrite);
   if (!r) continue;
   eq(`${v.label}: één IfcProject`, countType(r.out, 'IFCPROJECT'), 1);
   // Project, eenheden, context (en het model) byte-gelijk, met hetzelfde #id. Het project is hetzelfde object: de eigen
@@ -366,7 +394,7 @@ for (const v of OLD_VARIANTS) {
 {
   const bytes = latin1(oldText);
   const opened = await openForeign(bytes);
-  for (const edit of basicEdits(opened)) await roundTrip(`v2026.7.2 · ${edit.label}`, bytes, edit.apply);
+  for (const edit of basicEdits(opened).filter(e => !e.notApplicable)) await roundTrip(`v2026.7.2 · ${edit.label}`, bytes, edit.apply);
 }
 
 /** Een tweede taak (#908, met #907) met de GlobalId van taak #57, in dezelfde nest en control. */
@@ -428,7 +456,7 @@ for (const rel of [...EDIT_FILES, 'tweede live-schema']) {
     diffs.push(`${rel}: settle lukt niet (${(e as Error).message.slice(0, 200)})`); checks++; continue;
   }
   const opened = await openForeign(bytes);
-  for (const edit of basicEdits(opened)) {
+  for (const edit of basicEdits(opened).filter(e => !e.notApplicable)) {
     const r = await roundTrip(`${rel.split('/').pop()} · ${edit.label}`, bytes, edit.apply);
     if (!r) continue;
     edited++;
@@ -444,12 +472,13 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   let opened: Opened;
   try { opened = await openForeign(bytes); } catch (e) { diffs.push(`${label}: openen faalt (${(e as Error).message.slice(0, 120)})`); checks++; return; }
   if (!opened.ifcSource?.foreign) { diffs.push(`${label}: geen vreemd deel`); checks++; return; }
-  const d = cloneDomain(opened);
-  edit?.(d);
+  let d = cloneDomain(opened);
+  if (edit) await edit(d);
+  else d = await rewrite(d); // Een weigering betreft gewijzigde invoer; ongewijzigd = bronbytes.
   let error: unknown;
-  let parts: Uint8Array[] | undefined;
-  try { parts = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
-  ok(`${label}: geeft niets terug`, parts === undefined);
+  let written: Uint8Array | undefined;
+  try { written = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
+  ok(`${label}: geeft niets terug`, written === undefined);
   ok(`${label}: MergeNeedsPhase2Error met code merge-needs-phase2`, error instanceof MergeNeedsPhase2Error && error.code === 'merge-needs-phase2');
   if (error instanceof MergeNeedsPhase2Error) {
     eq(`${label}: het geval`, error.cases.some(c => c.kind === kind), true);
@@ -664,9 +693,68 @@ await expectRefusal('een weggelaten property met een Description', enc.encode(wi
   const renamed = await roundTrip("werkplan 'Plan' naast project 'Proj', project hernoemd", src, (d) => { d.project.name = 'Nieuw'; });
   if (renamed) ok("werkplan 'Plan', project hernoemd: het werkplan heet 'Nieuw'", /^#\d+=IFCWORKPLAN\('[^']*',#\d+,'Nieuw',/m.test(text(renamed.out)));
 }
-// BLOKKEERT 1, gevolg: het project is P en de eerste owner history is van de bron (C). De lezer leest auteur en bedrijf
-// daar terug; een gewijzigde auteur komt dus niet terug. Zonder wijziging schrijft de merge gewoon (sectie 1).
-await expectRefusal('auteur wijzigen bij een gedeelde owner history', enc.encode(baseText), 'projectgegevens', (d) => { d.project.author = 'Ethan'; });
+// #804 fase 1c E8 / 1022: Projectgegevens gebruikt applyProjectInfo. Twee echte bewerkingen, elk gevolgd door merge en
+// de normale heropening. De oorspronkelijke gedeelde C-keten blijft ook in de tweede ronde letterlijk gelijk.
+for (const file of ['fix1-leeg-live', 'fix1-leeg-live-bl', 'r4-k2', 'r4-k3', 'r5-eigen-plus-bonsai-baseline',
+  'r5sol-gedeelde-calendar-pset', 'r6sol-twee-werkplannen', 'r7sol-twee-werkplannen-bronplek']) {
+  const original = read(`tests/fixtures/ifc-foreign/council/${file}.ifc`);
+  const index = scanStep(original);
+  const classes = classify(index).classes;
+  const contextTypes = new Set(['IFCOWNERHISTORY', 'IFCPERSONANDORGANIZATION', 'IFCPERSON', 'IFCORGANIZATION', 'IFCAPPLICATION']);
+  const shared = Array.from({ length: index.count }, (_, i) => i)
+    .filter(i => classes[i] === 2 && contextTypes.has(index.type(i)));
+  ok(`${file}: een gedeelde owner history in C`, shared.some(i => index.type(i) === 'IFCOWNERHISTORY'));
+  let bytes: Uint8Array = original;
+  for (const round of [1, 2]) {
+    const { store, snapshot } = await openInStore(bytes, `${file}.ifc`);
+    const source = store.getState().ifcSource;
+    if (!source?.foreign) { ok(`${file}: bron met vreemd deel`, false); break; }
+    const wanted = { author: `Auteur ronde ${round}`, company: `Bedrijf ronde ${round}` };
+    const patch = projectInfoPatch(store.getState().project, { ...store.getState().project, ...wanted });
+    ok(`${file}, ronde ${round}: Projectgegevens past de wijziging toe`, store.getState().applyProjectInfo(patch, undefined).changed);
+    eq(`${file}, ronde ${round}: Projectgegevens wijzigt beide velden`,
+      [store.getState().project.author, store.getState().project.company], [wanted.author, wanted.company]);
+    const merged = await tryMerge(snapshot(store), source);
+    if (!merged.ok) {
+      ok(`${file}, ronde ${round}: auteur en bedrijf schrijven (${merged.kinds.join(', ')})`, false);
+      console.log(`BEWIJS auteur-bedrijf ${file} ronde ${round}: weigert ${merged.kinds.join(', ')}`);
+      break;
+    }
+    bytes = merged.bytes;
+    const reopened = await openForeign(bytes, `${file}.ifc`);
+    eq(`${file}, ronde ${round}: auteur en bedrijf na heropenen`,
+      [reopened.project.author, reopened.project.company], [wanted.author, wanted.company]);
+    eq(`${file}, ronde ${round}: alle vreemde stukken blijven gelijk`, mergeProblems(original, bytes), []);
+    const after = scanStep(bytes);
+    const byId = new Map(Array.from({ length: after.count }, (_, i) => [after.id(i), i]));
+    for (const i of shared) {
+      const j = byId.get(index.id(i));
+      ok(`${file}, ronde ${round}: C-keten #${index.id(i)} bytegelijk`, j !== undefined
+        && sameBytes(original.subarray(index.start(i), index.end(i)), bytes.subarray(after.start(j), after.end(j))));
+    }
+    console.log(`BEWIJS auteur-bedrijf ${file} ronde ${round}: heropend, auteur=${reopened.project.author}, bedrijf=${reopened.project.company}, C-keten=${shared.length}`);
+  }
+}
+
+// §4.4: de aanwezige velden in OPS_ProjectSettings winnen van de eigen werkplaneigenaar, ook bewust leeg.
+{
+  const original = readFileSync(join(ROOT, 'tests/fixtures/ifc-project-owner/vreemde-eerste-eigenaar.ifc'), 'utf8');
+  const selected = await openForeign(enc.encode(original));
+  const context = selected.ifcSource;
+  ok('bytes-route: de eerste OTHER-eigenaar blijft C-context in de leesinvoer', !!context
+    && context.classes[context.chunkIds.indexOf(90006)] === 2);
+  eq('bytes-route: de eigen werkplaneigenaar bepaalt auteur en bedrijf',
+    [selected.project.author, selected.project.company], ['Eigen auteur', 'Eigen bedrijf']);
+  const input = original
+    .replace(/('OPS_ProjectSettings',\$,\()([^)]*)\)/, '$1$2,#90101,#90102)');
+  ok('projectgegevens: de twee voorrangsvelden hangen aan de bestaande settings', input.includes('#90101,#90102'));
+  const settings = await openForeign(enc.encode(withLines(input, [
+    "#90101=IFCPROPERTYSINGLEVALUE('Author',$,$,$);",
+    "#90102=IFCPROPERTYSINGLEVALUE('Organization',$,IFCLABEL('Bedrijf uit settings'),$);",
+  ])));
+  eq('projectgegevens: settings winnen, een lege auteur blijft leeg',
+    [settings.project.author, settings.project.company], ['', 'Bedrijf uit settings']);
+}
 
 // ── 5d. Eigen zoektocht (fixronde 1 van #867): per P-entiteittype dat de writer opnieuw schrijft een proef ──
 // Elke proef zet in een eigen bestand met een vreemd deel één waarde die de writer niet terugschrijft. Tot fixronde 2
@@ -756,7 +844,7 @@ await roundTrip('zoektocht: showcase met een wand van Revit', enc.encode(showcas
   // Een gedeelde persoon (C) blijft byte-gelijk staan, en de eigen owner history wijst naar de persoon van de writer, een
   // kopie (`id`). Sinds fixronde 3 krijgt die kopie de GivenName van de bron terug (b): de persoon staat er twee keer.
   const k1Jan = enc.encode(replaceLine(r4, '#1=', "#1=IFCPERSON($,'','Jan',$,$,$,$,$);"));
-  const r = await roundTrip('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan);
+  const r = await roundTrip('zoektocht: r4-k1 met een GivenName op de gedeelde persoon', k1Jan, rewrite);
   if (r) eq('zoektocht: r4-k1 met een GivenName: de gedeelde persoon en de kopie hebben Jan', text(r.out).split("'','Jan',").length - 1, 2);
 }
 const has = (out: Uint8Array, keep: string | RegExp) => (typeof keep === 'string' ? text(out).includes(keep) : keep.test(text(out)));
@@ -779,7 +867,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   eq(`${label}: de naam komt uit het IfcProject, zoals main`, opened.project.name, plain.project.name);
   ok(`${label}: niet de naam uit OPS_ProjectSettings`, opened.project.name !== 'Naam van een ander programma');
   reseed(0x1b01);
-  const saved = concat(await writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
+  const saved = await writeIfcMerge(cloneDomain(opened), opened.ifcSource!);
   reseed(0x1b01);
   const main = enc.encode(writeIFC(cloneDomain(plain as Opened)));
   ok(`${label}: Opslaan is de gewone writer, gelijk aan de lezer van main`, sameBytes(saved, main));
@@ -789,7 +877,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   // project P (de writer schrijft het opnieuw); in eigen-plus-model is het C (het model hangt eronder).
   for (const [label, src, want] of [['r4-k1 (project P)', r4, false], ['eigen-plus-model (project C)', eigen, true]] as const) {
     const opened = await openForeign(enc.encode(src));
-    const outcome = await tryMerge(cloneDomain(opened), opened.ifcSource!);
+    const outcome = await tryMerge(await rewrite(cloneDomain(opened)), opened.ifcSource!);
     if (!outcome.ok) { diffs.push(`${label}: de merge weigert (${outcome.error.cases.map(c => c.detail).slice(0, 2).join(' | ')})`); checks++; continue; }
     const saved = text(outcome.bytes);
     eq(`${label}: de merge schrijft ProjectName in OPS_ProjectSettings`, saved.includes("IFCPROPERTYSINGLEVALUE('ProjectName'"), want);
@@ -866,8 +954,11 @@ const taskNamed = (d: Domain, name: string) => d.tasks.find(t => t.name === name
   if (r) ok("bewerking: Status: taak #51 krijgt 'STARTED'", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
 }
 {
+  // Kalendertijd: na openen via de app heeft de taak tijdstippen die op kalendertijd niet op een daggrens vallen; de writer
+  // schrijft de kalender dan letterlijk, met elke datum erop in de vorm van de writer (#886, besluit van Trias over de vroegere
+  // knownbug 1102). De merge schrijft, en herlezen geeft de planning die de planner zag (`roundTrip`).
   const r = await roundTrip('bewerking: DurationType', enc.encode(eigen), (d) => { taskNamed(d, 'Set up site').time.durationType = 'ELAPSEDTIME'; });
-  if (r) ok('bewerking: DurationType: de taaktijd van #51 is .ELAPSEDTIME.', /^#\d+=IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\./m.test(text(r.out)));
+  if (r) ok('bewerking: DurationType: kalendertijd in de uitvoer', /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/.test(text(r.out)));
 }
 {
   const r = await roundTrip('bewerking: ScheduleDuration', enc.encode(eigen), (d) => {
@@ -938,14 +1029,17 @@ const renameTask = (from: string) => (d: Domain) => { taskNamed(d, from).name = 
 const T55 = "#55=IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D'";
 const KINDS: readonly {
   kind: string; label: string; bytes: Uint8Array; keep: RegExp;
-  field?: { label: string; edit: (d: Domain) => void; want: RegExp };
+  field?: { label: string; edit: (d: Domain) => void | Promise<void>; want: RegExp };
   other: { label: string; edit: (d: Domain) => void; want: RegExp };
 }[] = [
   {
     kind: 'enumeratie', label: 'IfcTaskTime.DurationType .NOTDEFINED.',
     bytes: enc.encode(replaceIn(eigen, TIME_50, TIME_50.replace('.WORKTIME.', '.NOTDEFINED.'))),
     keep: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.NOTDEFINED\.,'P0Y0M2D'/,
-    field: { label: 'DurationType', edit: (d) => { taskNamed(d, SET_UP).time.durationType = 'ELAPSEDTIME'; }, want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/ },
+    field: {
+      label: 'DurationType', edit: (d) => { taskNamed(d, SET_UP).time.durationType = 'ELAPSEDTIME'; },
+      want: /IFCTASKTIME\('Set up site Time',\.PREDICTED\.,\$,\.ELAPSEDTIME\.,/,
+    },
     other: {
       label: 'de duur',
       edit: (d) => { const t = taskNamed(d, SET_UP).time; t.scheduleDuration += 1; if (t.durationMinutes !== undefined) t.durationMinutes += 480; },
@@ -982,7 +1076,7 @@ const KINDS: readonly {
     kind: 'getal', label: 'IfcTaskTime.Completion 0.00',
     bytes: enc.encode(eigen.replace(/^(#50=IFCTASKTIME\((?:[^,]*,){19})\$/m, '$10.00')),
     keep: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.00\);/,
-    field: { label: 'het percentage', edit: (d) => { taskNamed(d, SET_UP).time.completion = 0.5; }, want: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.50?\);/ },
+    field: { label: 'het percentage', edit: (d) => applyTaskProgress(d, taskNamed(d, SET_UP).id, [{ field: 'completion', value: 0.5 }]), want: /IFCTASKTIME\('Set up site Time'(?:,[^,;]*){18},0\.50?\);/ },
     other: { label: 'de naam (Name van de taaktijd)', edit: renameTask(SET_UP), want: /IFCTASKTIME\('Hernoemd Time'(?:,[^,;]*){18},0\.00\);/ },
   },
   {
@@ -1039,12 +1133,9 @@ await expectRefusal('(b) verwijzing: de writer zet een eenheid in de projecteenh
   const r = await roundTrip("plek 6: Status 'STARTED' zonder bewerking", started);
   if (r) ok("plek 6: Status 'STARTED' blijft staan", lineOf(r.out, '51').includes("'2.1',$,'STARTED',"));
   let edited: Domain | undefined;
-  const done = await roundTrip("plek 6: een taak met Status 'STARTED' afronden zonder werkelijk einde", started, (d) => {
+  const done = await roundTrip("plek 6: een taak met Status 'STARTED' afronden via de echte voortgangsinvoer", started, async (d) => {
     const t = taskNamed(d, SET_UP);
-    t.time.completion = 1;
-    t.time.actualStart = t.time.scheduleStart;
-    delete t.time.actualFinish;
-    t.status = 'COMPLETED';
+    await applyTaskProgress(d, t.id, [{ field: 'actualStart', value: t.time.scheduleStart }, { field: 'completion', value: 1 }]);
     edited = d;
   });
   if (done && edited) {
@@ -1055,13 +1146,14 @@ await expectRefusal('(b) verwijzing: de writer zet een eenheid in de projecteenh
 }
 
 // ── 5i. De GlobalId van een eigen hulpstuk (fixronde 3 van #867, besluit 1) ──
-// Toegestaan als het stuk P is en geen stuk dat niet P is ernaar wijst; de toets gaat beide zelf na (`ownAuxGuid`). De
+// De kale writer mag dit wijzigen als het stuk P is en geen stuk dat niet P is ernaar wijst (`ownAuxGuid`). De
+// behoudstap geeft een eenduidig gekoppelde hulpregel daarna haar bron-GlobalId en bron-id terug. De
 // twee gevallen waarin het niet mag, staan in sectie 5 (een vreemde relatie naar een eigen pset: C; een vreemd stuk dat
 // naar de eigen IfcRelNests #58 wijst: P, maar met een inkomende verwijzing).
 {
   const src = enc.encode(replaceLine(baseText, '#65=', "#65=IFCPROPERTYSET('0andereGuid00000000000',#6,'OPS_ProjectSettings',$,(#60,#61,#62,#63,#64));"));
   const r = await roundTrip('besluit 1: een eigen pset met een andere GlobalId', src);
-  if (r) ok('besluit 1: de writer geeft de pset een eigen GlobalId', !text(r.out).includes("'0andereGuid00000000000'") && /IFCPROPERTYSET\('[^']*',#\d+,'OPS_ProjectSettings'/.test(text(r.out)));
+  if (r) ok('E16: de gekoppelde pset houdt haar bron-GlobalId en bron-id', lineOf(r.out, '65').startsWith("#65=IFCPROPERTYSET('0andereGuid00000000000',"));
 }
 
 // ── 5f. De normalisaties (`lossCheck.ts`, kop): elk met de reden waarom de waarde gelijk blijft ──
@@ -1086,13 +1178,13 @@ eq('normalisatie duur, exact per onderdeel', [
 // tekst: dezelfde tekens na het decoderen; `\X2\00E9\X0\` en een rauw UTF-8-teken leest elk programma als 'é'.
 {
   const cafe = enc.encode(replaceIn(replaceIn(eigen, "'Set up site',$,$,'2.1'", "'Bouwplaats café',$,$,'2.1'"), "'Set up site Time'", "'Bouwplaats café Time'"));
-  const r = await roundTrip('normalisatie tekst: een rauw UTF-8-teken in een taaknaam', cafe);
+  const r = await roundTrip('normalisatie tekst: een rauw UTF-8-teken in een taaknaam na bewerking', cafe, rewrite);
   if (r) ok('normalisatie tekst: de writer schrijft \\X2\\00E9\\X0\\', lineOf(r.out, '51').includes('caf\\X2\\00E9\\X0\\'));
 }
-// id: een hulpstuk krijgt een nieuw `#id` (de taaktijd #50 van taak #51); een `#id` is geen waarde in het bestand.
+// id: de vergelijking staat hernummeren toe; E16 behoudt het bron-id van een gekoppeld hulpstuk.
 {
   const r = await roundTrip('normalisatie id', enc.encode(eigen));
-  if (r) ok('normalisatie id: de taaktijd van #51 heeft een ander #id', !lineOf(r.out, '50').startsWith('#50=IFCTASKTIME') && /#51=IFCTASK\([^;]*,#\d+,\.LOGISTIC\.\);/.test(text(r.out)));
+  if (r) ok('E16: de taaktijd van #51 houdt bron-id #50 en de verwijzing gaat mee', lineOf(r.out, '50').startsWith('#50=IFCTASKTIME') && /#51=IFCTASK\([^;]*,#50,\.LOGISTIC\.\);/.test(text(r.out)));
 }
 // lay-out: een oud werkplan met 15 argumenten (de bron van sectie 2) staat in de uitvoer met 14; elke waarde op haar
 // plek in het schema. Een IfcTask zonder WorkMethod (12 argumenten) idem.
@@ -1124,12 +1216,15 @@ await expectRefusal('toevoeging: een eigen pset met de owner history van Revit k
 // writer (5g), zijn applicatie, en het eigen werkplan en live-schema; de CreationDate van een baselinekop blijft.
 {
   const src = replaceIn(replaceIn(r4, '$,.NOCHANGE.,$,$,$,1787775670);', '$,.NOCHANGE.,$,$,$,1700000000);'), "IFCAPPLICATION(#4,'0.1',", "IFCAPPLICATION(#4,'0.0.9',");
-  const r = await roundTrip('schrijfvelden: CreationDate van de eigen owner history en de versie van de app', enc.encode(src));
+  const r = await roundTrip('schrijfvelden: CreationDate van de eigen owner history en de versie van de app', enc.encode(src), rewrite);
   if (r) ok('schrijfvelden: de uitvoer heeft de tijd van opslaan en de versie van nu', !text(r.out).includes(',1700000000);') && !text(r.out).includes("'0.0.9'"));
-  const ws = await roundTrip('schrijfvelden: CreationDate van het live-schema', enc.encode(eigen.replace(/^(#43=IFCWORKSCHEDULE\((?:[^,]*,){6})'[^']*'/m, "$1'2020-01-01T00:00:00'")));
+  const ws = await roundTrip('schrijfvelden: CreationDate van het live-schema', enc.encode(eigen.replace(/^(#43=IFCWORKSCHEDULE\((?:[^,]*,){6})'[^']*'/m, "$1'2020-01-01T00:00:00'")), rewrite);
   if (ws) ok('schrijfvelden: het live-schema krijgt de tijd van opslaan', /^#43=IFCWORKSCHEDULE\((?:[^,]*,){6}'(?!2020-01-01T00:00:00')[^']*'/m.test(text(ws.out)));
-  const bl = await roundTrip('schrijfvelden: CreationDate van een baselinekop', enc.encode(replaceIn(eigen, "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',", "'Baseline plan',$,$,$,'2020-01-01T00:00:00',")));
-  if (bl) ok('schrijfvelden: de baselinekop houdt zijn CreationDate', text(bl.out).includes("'Baseline plan',$,$,$,'2020-01-01T00:00:00',"));
+  // 1145: deze gemaakte afwijking tussen de standaarddatum en de baselinegegevens leverde op main
+  // twee dubbele GlobalIds op. De onafhankelijke uitvoercontrole moet die weigeren, zonder bytes.
+  await expectRefusal('schrijfvelden: afwijkende CreationDate van een baselinekop (1145)',
+    enc.encode(replaceIn(eigen, "'Baseline plan',$,$,$,'2026-10-26T11:31:06.855Z',", "'Baseline plan',$,$,$,'2020-01-01T00:00:00',")),
+    'uitvoer-controle', undefined, /^nieuwe dubbele GlobalId '/);
 }
 
 // ── 5g. O1: na een bewerking mag de uitvoer alleen afwijken waar het domein veranderde ──
@@ -1138,13 +1233,20 @@ await expectRefusal('toevoeging: een eigen pset met de owner history van Revit k
 // `niet-gedragen` "na de bewerking"; op de taak die hij wel bewerkte, of op haar taaktijd → niets.
 /** `lossCheck` op een bestand, met de uitvoer van de merge als O0 (die is gelijk aan de bron). */
 async function lossSetup(bytes: Uint8Array) {
+  // O0 voor deze eenheidstoets is een actuele writerlay-out. Stuk 1 normaliseert een
+  // ongewijzigde oude bron niet meer: maak de baseline via een echte bewerking en opslag.
+  const initial = await openForeign(bytes);
+  const baseline = await rewrite(cloneDomain(initial));
+  // Deze fixture toetst juist de importvlag: behoud haar als expliciete proefinvoer.
+  if (initial.importPristine !== undefined) baseline.importPristine = initial.importPristine;
+  bytes = await writeIfcMerge(baseline, initial.ifcSource!);
   const opened = await openForeign(bytes);
   const source = opened.ifcSource!;
   const index = scanStep(bytes);
   const cls = classify(index);
   const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id, bytes);
   let out: Uint8Array;
-  try { out = concat(await writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
+  try { out = await writeIfcMerge(cloneDomain(opened), source); } catch (e) {
     diffs.push(`lossSetup: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.detail).slice(0, 2).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
@@ -1160,12 +1262,14 @@ async function lossSetup(bytes: Uint8Array) {
   const owner = Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1));
   const pristine = await pristineDomain(index, cls, source);
   const run = (lines0: OutLine[], lines1: OutLine[], edit: (d: Domain) => void, ownerOut: number | undefined = owner) => {
-    const domain = cloneDomain(opened);
-    edit(domain);
+    const edited = cloneDomain(opened);
+    edit(edited);
+    // Zoals de merge: wat alleen het openen veranderde, in de vorm van de bron (`sourceForm.ts`, #886).
+    const domain = sourceFormWhereUnchanged(edited, source.opened, pristine).input;
     const found: string[] = [];
     const { edits } = lossCheck({
       index, cls, fixed: new Set([...ids.bySource.keys(), ...ids.baselineHeads.values()]), bySource: ids.bySource, o0: lines0, o1: lines1,
-      pristine, domain, sourceOwnerHistory: ids.sourceOwnerHistory, projectWritten: ids.plan.projectSourceId === undefined,
+      pristine, domain, opened: source.opened, plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
       owner0: ownerOut, owner1: ownerOut,
     }, f => found.push(f.detail));
     return { found, edits };
@@ -1173,6 +1277,35 @@ async function lossSetup(bytes: Uint8Array) {
   const withArg = (lines: OutLine[], line: OutLine, k: number, v: string) => lines.map(l => (l === line ? { ...l, args: l.args.map((a, j) => (j === k ? v : a)) } : l));
   return { opened, o0, owner, run, withArg, lineFor: (pred: (l: OutLine) => boolean) => o0.find(pred)! };
 }
+// 1116: de uitzondering verklaart alleen de vervallen importvlag, nooit andere herkomstgegevens.
+{
+  const raw = withLines(text(read('tests/planning/fixtures/ifc-arity-oude-writer.ifc')), REVIT_WALL);
+  for (const extraProperty of [false, true]) {
+    const src = extraProperty ? withLines(raw.replace('(#412));', '(#412,#89999));'), [
+      "#89999=IFCPROPERTYSINGLEVALUE('ExtraHerkomst',$,IFCLABEL('mspdi'),$);",
+    ]) : raw;
+    const setup = await lossSetup(latin1(src));
+    if (!setup) continue;
+    const { o0, run, withArg, lineFor } = setup;
+    const flag = lineFor(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'UnchangedSinceImport'");
+    const set = lineFor(l => l.type === 'IFCPROPERTYSET' && l.args[2] === "'OPS_ImportProvenance'");
+    const rel = lineFor(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.args[5] === `#${set.id}`);
+    const ids = new Set([flag.id, set.id, rel.id]);
+    const removed = o0.filter(l => !ids.has(l.id));
+    const unchanged = run(o0, removed, () => {}).found;
+    ok(`1116 ${extraProperty}: zonder vlagwijziging blijft verlies geweigerd`, unchanged.some(f => f.includes('UnchangedSinceImport'))
+      && unchanged.some(f => f.includes('OPS_ImportProvenance')));
+    const edited = run(o0, removed, d => { delete d.importPristine; }).found;
+    if (!extraProperty) eq('1116: alleen de vlag, lege pset en koppeling mogen vervallen', edited, []);
+    else {
+      ok('1116: verdwijnen van ExtraHerkomst blijft geweigerd', edited.some(f => f.includes('OPS_ImportProvenance')));
+      const source = lineFor(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'ExtraHerkomst'");
+      const withoutFlag = withArg(o0.filter(l => l.id !== flag.id), set, 4, `(#${source.id})`);
+      eq('1116: met ExtraHerkomst mag alleen de vlag uit de pset verdwijnen', run(o0, withoutFlag, d => { delete d.importPristine; }).found, []);
+    }
+  }
+}
+
 const setupEigen = await lossSetup(enc.encode(eigen));
 if (setupEigen) {
   const { o0, run: runLoss, withArg: withArgIn, lineFor } = setupEigen;
@@ -1349,6 +1482,313 @@ if (setupEigen) {
     ok(`invariant: ${label} geeft een afwijking`, mutated !== s && mergeProblems(secondSchedule, latin1(mutated)).length > 0);
   }
   eq('invariant: de echte uitvoer is schoon', mergeProblems(secondSchedule, out), []);
+}
+
+// 1571: echte bytes → acties → voorbereiden → volledige bytes heropenen, met behoud van alle baselinerijen en typen.
+const kaartBronnen = [
+  ['eigen', read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc')],
+  ['kantoor', latin1(withLines(text(read('public/examples/03-kantoorgebouw-zuidas.ifc')), REVIT_WALL))],
+  ['oud', read('tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc')],
+] as const;
+async function kaartRonde(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const original = bytes.slice();
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    const prepared = await prepareIfcWrite(input, opened.ifcSource!);
+    const output = prepared.bytes, reread = await openForeign(output);
+    eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
+    eq(`${label}: alle oude en nieuwe baselinerijen`, reread.baselines, input.baselines);
+    ok(`${label}: bronbytes ongewijzigd`, sameBytes(bytes, original) && sameBytes(opened.ifcSource!.bytes, original));
+    eq(`${label}: actieve baseline`, reread.activeBaselineId, input.activeBaselineId);
+    eq(`${label}: vergelijkingsbaselines`, reread.comparedBaselineIds, input.comparedBaselineIds);
+    eq(`${label}: codedefinities`, reread.activityCodeTypes, input.activityCodeTypes);
+    eq(`${label}: codekoppelingen`, reread.tasks.map(t => [t.id, t.activityCodes]), input.tasks.map(t => [t.id, t.activityCodes]));
+    eq(`${label}: taaktypedefinities`, reread.customTaskTypes, input.customTaskTypes);
+    eq(`${label}: taaktypen`, reread.tasks.map(t => [t.id, t.customTaskTypeId]), input.tasks.map(t => [t.id, t.customTaskTypeId]));
+    console.log(`BEWIJS ${label}: geschreven, volledig heropend, baselinerijen/typen en vreemd deel behouden`);
+    return { opened, input, prepared, output };
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: schrijft, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+    return undefined;
+  }
+}
+for (const [name, raw] of kaartBronnen) {
+  const saved = await savedSequenceStart(raw), opened = await openForeign(saved);
+  for (const edit of fixedSequenceEdits(opened)) await kaartRonde(`${name}: ${edit.label}`, saved, d => applyEdit(edit, d));
+}
+const eigenKaart = kaartBronnen[0][1];
+const taakBaseline = async (d: Domain) => applyEdit(fixedSequenceEdits(d)[0], d);
+await kaartRonde('oorspronkelijke eigen bron: taak → baseline', eigenKaart, taakBaseline);
+await kaartRonde('baselines wissen → taak → nieuwe baseline', eigenKaart, async d => taakBaseline(await storeEdit(d, s => {
+  for (const b of s.baselines) s.deleteBaseline(b.id);
+})));
+const metTaak = await kaartRonde('taak tussentijds opslaan', eigenKaart, async d => applyEdit(basicEdits(d).find(e => e.kind === 'taak-erbij')!, d));
+if (metTaak) await kaartRonde('heropenen → baseline', metTaak.output, d => storeEdit(d, s => { s.saveBaseline('Na tussentijdse opslag'); }));
+
+// Uitvoermutaties: de echte O1 van een geslaagde voorbereiding, direct door dezelfde verliespoort als de merge.
+// O0 is de opgeslagen actuele beginstand; de ongemuteerde O1 moet eerst zonder bevindingen slagen.
+const regelsVan = (bytes: Uint8Array) => text(bytes).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
+const jsonVan = (line: OutLine): any => {
+  const quoted = /^IFCTEXT\(('[\s\S]*')\)$/.exec(line.args[2])![1];
+  return JSON.parse(decodeStepText(quoted.slice(1, -1).replace(/''/g, "'")));
+};
+const vervangJson = (lines: OutLine[], target: OutLine, value: unknown) => lines.map(l => l === target
+  ? { ...l, args: l.args.map((a, k) => k === 2 ? `IFCTEXT(${ifcJson(value)})` : a) } : l);
+const verliesProef = (bytes: Uint8Array, input: Domain, output: Uint8Array) => lossProbe(bytes, input, output);
+const opgeslagenKaarten = await savedSequenceStart(eigenKaart);
+for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
+  const opened = await openForeign(opgeslagenKaarten), source = opened.ifcSource!;
+  const edit = fixedSequenceEdits(opened)[kind === 'TaskGuids' ? 0 : 2];
+  const input = await applyEdit(edit, cloneDomain(opened));
+  let prepared;
+  try { prepared = await prepareIfcWrite(input, source); } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${kind}: voorbereiding voor uitvoermutaties schrijft`, false); continue;
+  }
+  const { index, o0, o1, run } = await verliesProef(opgeslagenKaarten, input, prepared.bytes);
+  eq(`${kind}: echte O1 slaagt door verliespoort`, run(o1), []);
+  const target = o1.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === `'${kind}'`)!;
+  const original = jsonVan(target), oldLine = o0.find(l => l.type === target.type && l.args[0] === target.args[0])!;
+  const oldMap = kind === 'TaskGuids' ? jsonVan(oldLine) : jsonVan(oldLine).taskTypeIds;
+  const getMap = (v: any): Record<string, string> => kind === 'TaskGuids' ? v : v.taskTypeIds;
+  const oldKey = Object.keys(oldMap)[0], newKey = Object.keys(getMap(original)).find(k => !Object.prototype.hasOwnProperty.call(oldMap, k))!;
+  ok(`${kind}: echte O1 breidt de kaart uit`, !!newKey);
+  const variants: [string, (v: any) => void][] = [
+    ['oude koppeling weg', v => { delete getMap(v)[oldKey]; }],
+    ['oude koppeling gewijzigd', v => { getMap(v)[oldKey] = 'verkeerde-waarde'; }],
+    ['nieuwe koppeling weg', v => { delete getMap(v)[newKey]; }],
+    ['nieuwe GUID verkeerd', v => {
+      if (kind === 'TaskGuids') getMap(v)[newKey] = 'verkeerde-guid';
+      else { getMap(v)['verkeerde-guid'] = getMap(v)[newKey]; delete getMap(v)[newKey]; }
+    }],
+    ['onverwachte nieuwe sleutel', v => { getMap(v)['onverwacht'] = getMap(v)[newKey]; }],
+  ];
+  if (kind === 'TaskTypes') variants.push(['definitie gewijzigd', v => { v.definitions[0].name = 'Ongevraagde naam'; }],
+    ['nieuw type verkeerd', v => { getMap(v)[newKey] = 'onbekend-type'; }]);
+  for (const [label, mutate] of variants) {
+    const value = structuredClone(original); mutate(value);
+    const found = run(vervangJson(o1, target, value));
+    const refused = found.includes(index.chunkOf(String(oldLine.id)));
+    ok(`${kind}: uitvoermutatie ${label} weigert op de kaart`, refused);
+    console.log(`BEWIJS ${kind} uitvoermutatie ${label}: ${refused ? 'geweigerd' : 'FOUT'}`);
+  }
+  // Vier bronmutaties, zonder bewerking exact terug; bij groei getypeerd geweigerd.
+  for (const mutation of ['extra-koppeling', 'ongeldige-json', 'verkeerde-jsonvorm', 'verkeerde-bestaande-guid']) {
+    const value = jsonVan(oldLine), map = getMap(value);
+    if (mutation === 'extra-koppeling') map['bewaar-onbekende-koppeling'] = Object.values(map)[0];
+    if (mutation === 'verkeerde-bestaande-guid') map[oldKey] = kind === 'TaskGuids' ? Object.values(map)[1] : 'onbekend-type';
+    const token = mutation === 'ongeldige-json' ? ifcStr('{') : ifcJson(mutation === 'verkeerde-jsonvorm' ? 'geen kaart' : value);
+    const raw = text(opgeslagenKaarten), line = lineOf(opgeslagenKaarten, String(oldLine.id));
+    const changed = { ...oldLine, args: oldLine.args.map((a, k) => k === 2 ? `IFCTEXT(${token})` : a) };
+    const bytes = latin1(raw.replace(line, `#${changed.id}=${changed.type}(${changed.args.join(',')});`));
+    const broken = await openForeign(bytes);
+    const unchanged = await prepareIfcWrite(cloneDomain(broken), broken.ifcSource!);
+    ok(`${kind}: bronmutatie ${mutation} zonder bewerking bytegelijk`, sameBytes(unchanged.bytes, bytes));
+    const d = await applyEdit(fixedSequenceEdits(broken)[kind === 'TaskGuids' ? 0 : 2], cloneDomain(broken));
+    let refused = false;
+    try { await prepareIfcWrite(d, broken.ifcSource!); } catch (e) {
+      if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+      refused = e.cases.some(c => c.sourceId === oldLine.id && c.kind === 'niet-gedragen');
+    }
+    ok(`${kind}: bronmutatie ${mutation} bij groei weigert op de kaart`, refused);
+    console.log(`BEWIJS ${kind} bronmutatie ${mutation}: ${refused ? 'geweigerd' : 'FOUT'}`);
+  }
+}
+
+// Afbakening: deze bestaande weigeringen blijven buiten de twee groeiende kaarten.
+async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    await prepareIfcWrite(input, opened.ifcSource!);
+    ok(`${label}: blijft getypeerd weigeren`, false);
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: blijft getypeerd weigeren`, true);
+    console.log(`BEWIJS blijvende weigering ${label}: ${e.cases.map(c => c.detail).join(' | ')}`);
+  }
+}
+/**
+ * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen), PR 12c (de baselinekop beweegt
+ * mee met zijn baseline) of PR 12d (de typenaam op de taak beweegt mee met een hernoemd type) schrijft de merge. Het vreemde deel blijft byte voor byte, en de codes, typen en baselines heropenen
+ * zoals na een gewone opslag zonder vreemd deel (die laat bijvoorbeeld een ongebruikte taaktypedefinitie ook weg).
+ */
+async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    const output = (await prepareIfcWrite(input, opened.ifcSource!)).bytes;
+    const reread = await openForeign(output), plain = await reopenPlain(input);
+    eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
+    const fields = (x: Domain) => [x.activityCodeTypes, x.customTaskTypes, x.baselines, x.activeBaselineId,
+      x.tasks.map(t => [t.id, t.customTaskTypeId ?? null, t.activityCodes ?? null])];
+    eq(`${label}: heropend zoals een gewone opslag`, fields(reread), fields(plain));
+    console.log(`BEWIJS opgeloste weigering ${label}: geschreven, vreemd deel bytegelijk`);
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: schrijft sinds PR 12b/12c/12d, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+  }
+}
+await opgelosteWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
+  for (const b of s.baselines) s.deleteBaseline(b.id);
+}));
+for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
+  await opgelosteWeigering(`1582 taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
+    const t = s.tasks.find(t => t.customTaskTypeId === 'type-7c')!;
+    if (action === 'laatste-taak-wissen') s.deleteTask(t.id);
+    else s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+  }));
+}
+for (const [name, raw] of kaartBronnen) {
+  const saved = await savedCatalogStart(raw), opened = await openForeign(saved), edits = fixedCatalogEdits(opened);
+  const single = await savedCatalogStart(raw, false);
+  for (const [i, edit] of edits.entries()) await kaartRonde(`7d ${name}: ${edit.label}`, i === 1 ? single : saved, d => applyEdit(edit, d));
+  await kaartRonde(`7d ${name}: code + nieuw type + nieuwe taak + typewissel`, single, async d => {
+    for (const edit of edits.slice(0, 2)) d = await applyEdit(edit, d);
+    return storeEdit(d, s => {
+      s.updateTask(s.tasks.find(t => t.customTaskTypeId === 'type-7d-a')!.id, { customTaskTypeId: 'type-7d-c' });
+      const id = s.addTask({ name: 'Nieuwe taak 7d' }, { phaseAssignments: 'move', answered: true });
+      if (!id) throw new Error('7d: geen nieuwe taak');
+      s.updateTask(id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7d-c' });
+    });
+  });
+  await kaartRonde(`7d ${name}: actieve baseline uitzetten`, saved, d => storeEdit(d, s => { s.setActiveBaseline(null); }));
+  await kaartRonde(`7d ${name}: baseline erbij en bestaande actief`, saved, d => storeEdit(d, s => {
+    const id = s.baselines[0].id; s.saveBaseline('Nieuw 7d'); s.setActiveBaseline(id);
+  }));
+  await kaartRonde(`7d ${name}: type verliezen met andere getypeerde taken`, saved, d => storeEdit(d, s => {
+    s.updateTask(s.tasks.find(t => t.customTaskTypeId === 'type-7d-a')!.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+  }));
+  const second = await kaartRonde(`7d ${name}: tweede code opslaan`, saved, d => applyEdit(edits[0], d));
+  if (second) await kaartRonde(`7d ${name}: heropenen en derde code`, second.output, d => storeEdit(d, s => {
+    const id = s.addActivityCodeType('Code C 7d'); s.addActivityCodeValue(id, { code: 'C', description: 'Derde waarde' });
+  }));
+}
+
+// 7d: een volledige gewijzigde waarde moet verklaard zijn; ook als de writer haar geheel op de bron laat staan.
+const catalogusBron = await savedCatalogStart(eigenKaart);
+for (const [i, property] of ['OPS_ActivityCodes', 'TaskTypes', 'TaskTypes', 'ActiveBaselineId'].entries()) {
+  const bytes = i === 1 ? await savedCatalogStart(eigenKaart, false) : catalogusBron;
+  const opened = await openForeign(bytes), input = await applyEdit(fixedCatalogEdits(opened)[i], cloneDomain(opened));
+  let prepared;
+  try { prepared = await prepareIfcWrite(input, opened.ifcSource!); } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`7d ${i}: voorbereiding tegenproeven schrijft`, false); continue;
+  }
+  const { index, o0, o1, run } = await verliesProef(bytes, input, prepared.bytes);
+  eq(`7d ${i}: echte uitvoer door verliespoort`, run(o1), []);
+  const template = property === 'OPS_ActivityCodes';
+  const target = o1.find(l => l.type === (template ? 'IFCPROPERTYSETTEMPLATE' : 'IFCPROPERTYSINGLEVALUE')
+    && l.args[template ? 2 : 0] === `'${property}'`)!;
+  const oldLine = o0.find(l => l.type === target.type && l.args[template ? 2 : 0] === `'${property}'`)!;
+  const chunk = index.chunkOf(String(oldLine.id));
+  const changeArg = (line: OutLine, arg: number, value: string) => o1.map(l => l === line ? { ...l, args: l.args.map((a, k) => k === arg ? value : a) } : l);
+  const refuses = (label: string, lines: OutLine[], edited = input, lines0 = o0) => {
+    const rejected = run(lines, edited, lines0).includes(chunk);
+    ok(`7d ${i} ${property}: ${label} weigert`, rejected);
+    console.log(`BEWIJS 7d ${i} ${label}: ${rejected ? 'geweigerd' : 'FOUT'}`);
+  };
+  const slot = template ? 6 : 2;
+  // Gebruik de echte O0-tegenhangers voor bronverwijzingen; ids veranderen op de mergeroute.
+  const unchanged = template ? `(${index.refsAt(chunk, 6).map(c => {
+    const name = index.name(c); return '#' + o1.find(l => l.type === 'IFCSIMPLEPROPERTYTEMPLATE' && decodeStepText(l.args[2].slice(1, -1)) === name)!.id;
+  }).join(',')})` : oldLine.args[2];
+  refuses('verwachte wijziging ontbreekt', changeArg(target, slot, unchanged));
+  if (template) {
+    const refs = target.args[6].slice(1, -1).split(',');
+    refuses('oude definitie weg', changeArg(target, 6, `(${refs.slice(1).join(',')})`));
+    refuses('verwijzing naar andere template', changeArg(target, 6, `(${refs[0]},${refs[0]})`));
+    refuses('extra definitie zonder handeling', changeArg(target, 6, `(${refs.join(',')},${refs[0]})`));
+    const added = o1.find(l => `#${l.id}` === refs[1])!;
+    refuses('nieuwe definitie verkeerde inhoud', changeArg(added, 2, "'Ongevraagde code'"));
+    const oldTemplate = o1.find(l => `#${l.id}` === refs[0])!;
+    refuses('oude definitie gewijzigd', changeArg(oldTemplate, 2, "'Verloren oude code'"));
+    refuses('codedefinitie zonder plannerhandeling', o1, cloneDomain(opened));
+  } else if (property === 'TaskTypes') {
+    const original = jsonVan(target), before = jsonVan(oldLine);
+    const changed = Object.keys(original.taskTypeIds).find(k => before.taskTypeIds[k] !== original.taskTypeIds[k])!;
+    const other = Object.keys(before.taskTypeIds).find(k => k !== changed)!;
+    const variants: [string, (v: any) => void][] = [
+      ['oude definitie weg', v => { v.definitions.shift(); }],
+      ['oude definitie gewijzigd', v => { v.definitions[0].name = 'Verloren naam'; }],
+      ['extra definitie zonder handeling', v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }],
+      ['onaangeraakte koppeling gewijzigd', v => { v.taskTypeIds[other] = 'type-7d-b'; if (v.taskTypeIds[other] === before.taskTypeIds[other]) v.taskTypeIds[other] = 'type-7d-a'; }],
+      ['gewijzigde koppeling verkeerde waarde', v => { v.taskTypeIds[changed] = 'type-7d-a'; }],
+      ['koppeling naar onbekende definitie', v => { v.taskTypeIds[changed] = 'onbekend'; }],
+    ];
+    if (i === 1) variants.push(['nieuwe definitie verkeerde inhoud', v => { v.definitions[v.definitions.length - 1].name = 'Verkeerd'; }],
+      ['nieuwe definitie ontbreekt', v => { v.definitions.pop(); }]);
+    for (const [label, mutate] of variants) {
+      const value = structuredClone(original); mutate(value); refuses(label, vervangJson(o1, target, value));
+    }
+    refuses('koppeling zonder plannerhandeling', o1, cloneDomain(opened));
+    // De nieuwe verklaringen mogen de bestaande gedragen-bronvoorwaarde niet omzeilen.
+    refuses('O0 draagt de bron niet', o1, input, vervangJson(o0, oldLine, { ...before, taskTypeIds: {} }));
+  } else {
+    for (const id of ['onbekend', opened.activeBaselineId!]) refuses(`actief wijst naar ${id}`, changeArg(target, 2, `IFCTEXT(${ifcStr(id)})`));
+    refuses('actieve baseline zonder handeling', o1, cloneDomain(opened));
+    const other = input.baselines!.find(b => b.id !== input.activeBaselineId)!.id;
+    refuses('bestaande baseline anders dan domein', changeArg(target, 2, `IFCTEXT(${ifcStr(other)})`));
+    refuses('O0 draagt actieve baseline niet', o1, input, o0.map(l => l === oldLine ? { ...l, args: l.args.map((a, k) => k === 2 ? "IFCTEXT('onbekend')" : a) } : l));
+  }
+}
+// De grenzen van 7d met echte acties: sinds PR 12b schrijft de merge ze (geen extra verklaringen in de verliescontrole).
+for (const [label, edit] of [
+  ['codedefinitie hernoemen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Andere codenaam')],
+  ['laatste codedefinitie wissen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.removeActivityCodeType(s.activityCodeTypes[0].id)],
+] as const) await opgelosteWeigering(`7d grens ${label}`, catalogusBron, d => storeEdit(d, edit));
+await kaartRonde('7d waarde bij bestaande codedefinitie', catalogusBron, d => storeEdit(d, s => {
+  s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' });
+}));
+await kaartRonde('7d actieve baseline uitzetten', catalogusBron, d => storeEdit(d, s => { s.setActiveBaseline(null); }));
+
+const tweeCodes = await kaartRonde('7d grenzen: tweede code voorbereiden', catalogusBron, d => applyEdit(fixedCatalogEdits(d)[0], d));
+if (tweeCodes) {
+  await opgelosteWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+    s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code');
+  }));
+  await opgelosteWeigering('1585 code wissen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+    s.removeActivityCodeType(s.activityCodeTypes[0].id);
+  }));
+}
+await opgelosteWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
+  for (const t of s.tasks.filter(t => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
+}));
+// De projectkopie van een taaktype hernoemen kan sinds #804 keuze 7 via de store-actie `renameProjectTaskType` (de vraag in
+// Werksoorten beheren); deze proef meet de writergrens op domeininvoer, met hetzelfde resultaat. Sinds PR 12d schrijft het (E2).
+await opgelosteWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
+  d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d;
+});
+// Uitzetten mag geen andere property uit de baseline-pset laten verdwijnen.
+{
+  const opened = await openForeign(catalogusBron), input = await storeEdit(cloneDomain(opened), s => { s.setActiveBaseline(null); });
+  const prepared = await prepareIfcWrite(input, opened.ifcSource!);
+  const { index, o0, o1, run } = await verliesProef(catalogusBron, input, prepared.bytes);
+  const set = o1.find(l => l.type === 'IFCPROPERTYSET' && l.args[2] === "'OPS_Baselines'")!;
+  const oldSet = o0.find(l => l.type === set.type && l.args[2] === set.args[2])!;
+  const broken = o1.map(l => l === set ? { ...l, args: l.args.map((a, k) => k === 4 ? `(${a.slice(1, -1).split(',').slice(1).join(',')})` : a) } : l);
+  ok('7d actieve baseline uitzetten: rest van de pset blijft bewaakt', run(broken).includes(index.chunkOf(String(oldSet.id))));
+}
+
+// De nacontrole geldt alleen voor verwachte wijzigingen; onbekende broninhoud blijft bij ander werk via (b) staan.
+{
+  const original = regelsVan(catalogusBron).find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === "'TaskTypes'")!;
+  const value = jsonVan(original); value.definitions[0].onbekend = 'bewaar-mij';
+  const changed = vervangJson([original], original, value)[0];
+  const bytes = latin1(text(catalogusBron).replace(lineOf(catalogusBron, String(original.id)), `#${changed.id}=${changed.type}(${changed.args.join(',')});`));
+  const written = await kaartRonde('7d onbekend definitieveld bij alleen projectbeschrijving', bytes, d => storeEdit(d, s => {
+    s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' });
+  }));
+  if (written) {
+    const after = regelsVan(written.output).find(l => l.type === original.type && l.args[0] === original.args[0])!;
+    eq('7d onbekend definitieveld letterlijk behouden', jsonVan(after).definitions[0].onbekend, 'bewaar-mij');
+  }
+  await blijvendeWeigering('7d onbekend definitieveld bij typegroei', bytes, d => applyEdit(fixedCatalogEdits(d)[1], d));
+  const unused = jsonVan(original); unused.definitions.push({ id: 'ongebruikt', name: 'Ongebruikt bron-type' });
+  const unusedLine = vervangJson([original], original, unused)[0];
+  const unusedBytes = latin1(text(catalogusBron).replace(lineOf(catalogusBron, String(original.id)), `#${unusedLine.id}=${unusedLine.type}(${unusedLine.args.join(',')});`));
+  await blijvendeWeigering('1588 ongebruikte brondefinitie bij alleen projectbeschrijving', unusedBytes, d => storeEdit(d, s => {
+    s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' });
+  }));
 }
 
 if (diffs.length > 0) {

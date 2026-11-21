@@ -170,13 +170,13 @@ test('de gemengde voorkeur regelt beide gedeelde duurvelden zonder taakdata te h
   await assertControls(true);
 });
 
-test('gemengde dag/uur-planning staat onder Duurweergave en blijft bewaard', async ({ page, ops: _ops }) => {
+test('gemengde dag/uur-planning staat in de groep Planning en blijft bewaard', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     localStorage.setItem('ops-allowMixedDayHour', 'false');
     window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false, showSettingsDialog: true });
   });
   const settings = page.getByRole('dialog', { name: /^(App settings|App-instellingen)$/ });
-  await settings.getByRole('button', { name: /^(Appearance|Weergave)$/, exact: true }).click();
+  await settings.locator('[data-ops-settings-group="planning"]').click();
   const mixed = settings.getByLabel(/^(Allow mixed day\/hour planning|Gemengde dag\/uur-planning toestaan)$/);
   await expect(mixed).not.toBeChecked();
   await mixed.check();

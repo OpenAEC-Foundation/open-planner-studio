@@ -1,14 +1,16 @@
-# Task: translate one UI package
+# Task: translate UI packages
 
-You get ONE package: `{{PACKAGE}}` (`"kind": "ui"`, language `lang`, namespace `namespace`). It holds
+You get one or more packages: `{{PACKAGES}}` (a list of paths, all `"kind": "ui"` and the same
+language `lang`; each has its own `namespace`). Translate each package on its own. They hold
 UI texts of Open Planner Studio, a construction scheduling app. Each item has a `key` (its path gives
 context), the Dutch source `nl` and the English reading `en`. With `"plural": true` both are objects
 per plural category.
 
 ## Rules
-- Read only the package. Do not open, search or list any other file. Do not edit `knownbugs.md`.
-- Write only `{{PACKAGE_DIR}}/{{ID}}.out.json`: `{ "<key>": "<text>" }`, and for a plural item
-  `{ "<key>": { "<category>": "<text>", ... } }`. Exactly the keys of the package, no others.
+- Read only the listed packages. Do not open, search or list any other file. Do not edit `knownbugs.md`.
+- For each package `<dir>/<id>.json`, write only `<dir>/<id>.out.json`: `{ "<key>": "<text>" }`, and
+  for a plural item `{ "<key>": { "<category>": "<text>", ... } }`. Exactly the keys of that package, no
+  others. Never put a key of one package in the output of another.
 - Meaning: **`nl` decides** when `nl` and `en` differ. `en` is a second reading.
 - Terms: where a text contains a concept from `terms`, use its `target` or one of its `forms`. Never a
   variant from `avoid`. Use a term only where the source word has the concept's meaning (see
@@ -40,9 +42,10 @@ per plural category.
 - With `previous` (an older translation): change only what the new `nl` requires.
 
 ## Check (you approve your own work)
-Run `{{NODE}} {{CHECK}} {{PACKAGE}}`.
+For each package, run `{{NODE}} {{CHECK}} <package>`.
 - `XX` lines are errors: fix exactly those and run again.
 - `WW` lines are warnings for the reviewer: fix them only if they are real mistakes.
-- At most 3 runs. If it is still red after the third run, stop and report the remaining `XX` lines.
+- At most 3 runs per package. If one is still red after its third run, leave it and report its
+  remaining `XX` lines.
 
-End with one line: `GROEN` or `ROOD` and the number of warnings.
+End with one line per package: `<id> GROEN` or `<id> ROOD`, and the number of warnings.

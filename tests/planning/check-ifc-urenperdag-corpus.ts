@@ -145,7 +145,7 @@ for (const target of TARGETS) {
   same(`${target.name}: uurkalenders met afwijkende uren per dag`, [...deviating].sort(), [...target.deviating].sort());
   for (const [i, doc] of before.entries()) {
     const label = `${target.name} document ${i + 1}`;
-    const [after] = openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(doc)) }));
+    const [after] = openInStore(await parseOpenedFile({ name: 'rondgang.ifc', text: writeIFC(buildWriteIFCInput(doc, 'planOnly')) }));
     same(`${label}: kalenders gelijk na opslaan en heropenen`, calendarList(after), calendarList(doc));
     const tb = taskView(doc);
     const ta = taskView(after);

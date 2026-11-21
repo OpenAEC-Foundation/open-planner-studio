@@ -24,6 +24,8 @@
     "undo": "元に戻す",
     "redo": "やり直し",
     "delete": "削除",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: 選択したタスクを削除し、各先行タスクを各後続タスクにリンクします（終了-開始、ラグなし）",
     "undoTitle": "元に戻す (Ctrl+Z)",
     "redoTitle": "やり直し (Ctrl+Y)",
     "deleteTitle": "選択を削除 (Delete)",
@@ -210,6 +212,7 @@
     "columnsHintGoToTable": "テーブル ビューの列を選択 — テーブル タブに表示されます",
     "toggleResourceAccent": "リソースアクセント",
     "toggleFloatBand": "フロート帯",
+    "toggleBarDates": "バーの横の日付",
     "screenColors": "バーの色",
     "screenColors_critical": "クリティカルパス",
     "screenColors_auto": "タスクごと — 自動",
@@ -280,7 +283,8 @@
       "label": "保存時のIFCスキーマ",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (既定)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "このファイルには別のアプリケーションのデータが含まれています。そのため、元のヘッダーにあるスキーマが保持されます。"
     }
   },
   "newProject": {
@@ -288,7 +292,23 @@
     "template": "フェーズテンプレート",
     "tmplEmpty": "空",
     "tmplWoningbouw": "住宅建築",
-    "tmplUtiliteit": "非住宅建築 / 改修"
+    "tmplUtiliteit": "非住宅建築 / 改修",
+    "phase": {
+      "siteGroundwork": "現場準備・土工",
+      "foundation": "基礎",
+      "shell": "躯体工事",
+      "roof": "屋根",
+      "facadeFitOut": "外装・内装仕上げ",
+      "services": "設備工事",
+      "finishes": "仕上げ",
+      "handover": "引き渡し",
+      "demolitionStripOut": "解体・撤去",
+      "groundworkFoundation": "土工・基礎",
+      "mainStructure": "主要構造",
+      "facadeRoof": "外装・屋根",
+      "fitOut": "内装工事",
+      "commissioning": "調整・試験"
+    }
   },
   "status": {
     "tasks": "タスク：",
@@ -313,12 +333,14 @@
     "recentTitle": "最近のプロジェクト",
     "recentSubtitle": "クリックして開きます。",
     "recentEmpty": "最近開いたプロジェクトはありません。",
+    "recentLoading": "最近のファイルを読み込んでいます…",
     "recentUnavailable": "このブラウザーでは、最近使ったローカルファイルを再度開けません。「開く」を使って、プロジェクトファイルを選び直してください。",
     "recentOnSite": "サイト上",
     "examples": "サンプル",
     "examplesTitle": "サンプルプロジェクト",
     "examplesSubtitle": "同梱の建設工程表です。クリックすると新しいタブで開きます。",
     "examplesLoading": "サンプルを読み込み中…",
+    "loading": "読み込んでいます…",
     "examplesEmpty": "利用可能なサンプルがありません。",
     "examplesError": "サンプルを読み込めませんでした。",
     "examplesShowcaseHeading": "フルショーケース工程表",
@@ -389,7 +411,7 @@
       "plannedReadOnly": "予定値、変更しないでください",
       "summaryRow": "— 要約タスク：入力しないでください"
     },
-    "csvLabel": "CSV（セミコロン区切り）",
+    "csvLabel": "CSV",
     "csvDesc": "汎用テーブルエクスポート。日付と期間を含むすべてのタスク。",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Microsoft Project で開けます。完全な WBS 構造。",
@@ -401,7 +423,7 @@
     "profileHint": "現在のプロジェクトは {{name}} プロファイルを使用しています。このファイル形式との互換性を最も高めるには、{{target}} プロファイルの使用をお勧めします。",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 標準。プロジェクトの IFC スキーマ（既定は IFC 4.3 ADD2）。BIM モデルとの 4D 連携。",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "拡張機能",

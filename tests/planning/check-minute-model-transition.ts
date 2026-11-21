@@ -64,17 +64,17 @@ const bStart = () => store.getState().tasks.find(t => t.id === bId)!.time.earlyS
 eq('laadroute rekent B', bStart(), '2026-03-09T07:00');
 eq('laadroute één event', store.getState().historyEvents.length, 1);
 eq('laadroute één omzettingsmelding', store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.minuteModelConverted').length, 1);
-eq('nieuwe save markeert minutenmodel', readIFC(writeIFC(buildWriteIFCInput(store.getState()))).timeModel, 'MINUTES-1');
+eq('nieuwe save markeert minutenmodel', readIFC(writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'))).timeModel, 'MINUTES-1');
 store.getState().undo();
 eq('undo geeft geladen B terug', bStart(), '2026-03-16T07:00');
 eq('undo staat in modus', store.getState().datesAsRecorded, true);
 eq('undo houdt vlag', store.getState().minuteModelPending, true);
 eq('undo is niet verouderd', store.getState().scheduleStale, false);
-eq('save na undo zonder markering', readIFC(writeIFC(buildWriteIFCInput(store.getState()))).timeModel, undefined);
-eq('save na undo zonder bronformaat', readIFC(writeIFC(buildWriteIFCInput(store.getState()))).recordedSourceFormat, undefined);
+eq('save na undo zonder markering', readIFC(writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'))).timeModel, undefined);
+eq('save na undo zonder bronformaat', readIFC(writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'))).recordedSourceFormat, undefined);
 // Knownbug 340: crashherstel hervat de expliciete modus na B5-undo, ook zonder bronformaat.
 {
-  const recoveredIfc = writeIFC(buildWriteIFCInput(store.getState()));
+  const recoveredIfc = writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
   for (const active of [true, false]) {
     const app = createAppStoreContext().store;
     const restored = { ...readIFC(recoveredIfc), id: 'b5-herstel', filePath: null, isDirty: true, datesAsRecorded: true };
@@ -87,7 +87,7 @@ eq('save na undo zonder bronformaat', readIFC(writeIFC(buildWriteIFCInput(store.
     eq(`340 ${label}: getoonde datum behouden`, state.tasks.find(t => t.name === 'B')!.time.earlyStart, '2026-03-16T07:00');
     eq(`340 ${label}: geen bronformaat verzonnen`, state.recordedDates?.sourceFormat, undefined);
     eq(`340 ${label}: vastlegging bestaat`, Boolean(state.recordedDates?.times[state.tasks.find(t => t.name === 'B')!.id]), true);
-    const again = readIFC(writeIFC(buildWriteIFCInput(state)));
+    const again = readIFC(writeIFC(buildWriteIFCInput(state, 'planOnly')));
     eq(`340 ${label}: opslaan houdt omzetting open`, again.timeModel, undefined);
     eq(`340 ${label}: opslaan verzint geen bron`, again.recordedSourceFormat, undefined);
     if (!active) {
@@ -118,7 +118,7 @@ eq('F5 rekent opnieuw', bStart(), '2026-03-09T07:00');
 eq('F5 rondt vlag af', store.getState().minuteModelPending, false);
 store.getState().undo();
 eq('F5 undo geeft opgeslagen modus', bStart(), '2026-03-16T07:00');
-const saved = writeIFC(buildWriteIFCInput(store.getState()));
+const saved = writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
 store.getState().applyLoadedProject(readIFC(saved), { recompute: true });
 eq('heropenen na undo rondt opnieuw af', bStart(), '2026-03-09T07:00');
 
@@ -240,7 +240,7 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
 // Geen daadwerkelijke verschuiving: geen melding, event of vuile toestand.
 {
   const app = createAppStoreContext().store;
-  const text = writeIFC(buildWriteIFCInput({ ...computed, minuteModelPending: false }));
+  const text = writeIFC(buildWriteIFCInput({ ...computed, minuteModelPending: false }, 'planOnly'));
   const source = readIFC(text);
   delete source.timeModel;
   app.getState().applyLoadedProject(source, { recompute: true });

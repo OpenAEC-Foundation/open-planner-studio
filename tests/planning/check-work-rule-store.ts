@@ -373,6 +373,34 @@ console.log('-- (j) FIXED_RATE en de 8-B-cel effortDriven:false --');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (#954) Vaste inzet: andere uren blijven bij gelijke duur, ook na F5 en undo/redo --');
+{
+  reset();
+  const t = S().addTask({ name: '#954', time: createDefaultTaskTime('2026-06-01', 10) });
+  const people = ['p1', 'p2', 'p3'].map(name => labor(name));
+  for (const r of people) S().assignResource(t, r, 1);
+  S().setTaskWorkRule(t, 'FIXED_RATE');
+  S().runCPM();
+  S().setAssignmentWork(asgOf(t, people[0]).id, 16 * 60);
+  const p1Before = JSON.stringify(asgOf(t, people[0]));
+  const p3Before = JSON.stringify(asgOf(t, people[2]));
+  S().setAssignmentWork(asgOf(t, people[1]).id, 40 * 60);
+  eq('#954 werk: duur blijft 10 dagen', task(t).time.scheduleDuration, 10);
+  eq('#954 werk: P1 houdt eerder ingevoerde 16 uur en overige velden', JSON.stringify(asgOf(t, people[0])), p1Before);
+  eq('#954 werk: P3 blijft afgeleid en volledig gelijk', JSON.stringify(asgOf(t, people[2])), p3Before);
+  eq('#954 werk: P2 krijgt 40 uur', asgOf(t, people[1]).remainingWorkMinutes, 40 * 60);
+  S().undo();
+  eq('#954 undo: P1 houdt 16 uur, P2 weer afgeleid', [asgOf(t, people[0]).remainingWorkMinutes, asgOf(t, people[1]).remainingWorkMinutes], [16 * 60, undefined]);
+  S().redo();
+  S().runCPM();
+  eq('#954 redo en F5: duur en beide werkvelden blijven staan',
+    [task(t).time.scheduleDuration, asgOf(t, people[0]).remainingWorkMinutes, asgOf(t, people[1]).remainingWorkMinutes], [10, 16 * 60, 40 * 60]);
+  S().updateAssignment(asgOf(t, people[1]).id, { unitsPerDay: 2 });
+  eq('#954 inzet: duur blijft 10 dagen, P2 krijgt inzet 2', [task(t).time.scheduleDuration, asgOf(t, people[1]).unitsPerDay], [10, 2]);
+  eq('#954 inzet: P1 blijft volledig gelijk', JSON.stringify(asgOf(t, people[0])), p1Before);
+  eq('#954 inzet: P3 blijft volledig gelijk', JSON.stringify(asgOf(t, people[2])), p3Before);
+}
+
 console.log('-- (k) raster: materiaal, gemengde Resources-cel (K6), datums-zoals-opgeslagen --');
 {
   reset();

@@ -83,7 +83,7 @@ for (let i = 0; i < 9; i++) {
   S().addSequence({ predecessorId: ids[i], successorId: ids[i + 1], type: 'FINISH_START', lagDays: 0 });
 }
 S().runCPM();
-const VOLLEDIG = writeIFC(buildWriteIFCInput(S()));
+const VOLLEDIG = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 
 const rt = readIFC(VOLLEDIG);
 eq('1a volledige snapshot: 10 taken', rt.tasks.length, 10);
@@ -150,7 +150,7 @@ eistFout('5c volledig bestand met alleen het slot eraf',
 S().newProject();
 S().addResource({ name: 'Ploeg A', type: 'LABOR', description: '', maxUnits: 2 });
 S().setStatusDate('2030-06-01');
-const LEEG_MAAR_ECHT = writeIFC(buildWriteIFCInput(S()));
+const LEEG_MAAR_ECHT = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const rtLeeg = readIFC(LEEG_MAAR_ECHT);
 eq('6a leeg-maar-geldig project (0 taken) parst gewoon door', rtLeeg.tasks.length, 0);
 eq('6b … met zijn resources', rtLeeg.resources.length, 1);

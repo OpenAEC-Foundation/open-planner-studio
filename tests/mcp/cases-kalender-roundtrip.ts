@@ -97,6 +97,7 @@ const FIELD_ROLE: Record<keyof WorkCalendar, 'id' | 'content' | 'ignored'> = {
   libraryOrigin: 'ignored',
   workingExceptions: 'content',
   // P6-herkomst (rekenprofielen-etappe): alleen de XER-reader zet hem; MCP accepteert en meldt.
+  ifcTimePeriods: 'ignored',
   p6Source: 'ignored',
   p6NonWorkPenaltyDates: 'ignored',
   p6NonWorkPenaltyDatesState: 'ignored',

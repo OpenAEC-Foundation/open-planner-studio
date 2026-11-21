@@ -43,6 +43,7 @@ import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { StepDataSectionFinder, indexOfStepDataSection } from '@/services/ifc/stepDataSection';
 import { stepFileGrammar } from '@/services/ifc/stepFileGrammar';
 import { IFC_BUILDING_MODEL_TYPES } from '@/services/ifc/ifcBuildingModelTypes';
+import { oudeKop } from './ifcOudeKop';
 import { brokenHeader, brokenHeaderDataFiles, commentFile, DATA_KOP_VORMEN, metDataKop, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -87,10 +88,12 @@ const readOutcome = (bytes: Uint8Array): string => {
 };
 /** Past het hele bestand (de tekst die `readIFC` krijgt) in de grammatica van `stepFileGrammar.ts`? */
 const fileValid = (bytes: Uint8Array) => stepFileGrammar(decode(bytes)).state === 'valid';
-/** Schreef OPS dit bestand (de vaste kop, en originating_system 'Open Planner Studio' aan het einde van de regel met
- *  FILE_NAME)? Met de hand, als reguliere expressie op de tekst: een tweede beschrijving van de regel in de scanner. */
-const ownFile = (bytes: Uint8Array) => /^ISO-10303-21;\r?\nHEADER;\r?\nFILE_DESCRIPTION\(\('ViewDefinition \[SchedulingView\]'\),'2;1'\);\r?\nFILE_NAME\([^\r\n]*,'Open Planner Studio 0\.1','Open Planner Studio',''\);\r?\n/
-  .test(decode(bytes));
+/** Onafhankelijke verwachting voor het gemeten sjabloon; de byte- en ankermutaties staan in de indelingscheck. */
+const ownFile = (bytes: Uint8Array): boolean => {
+  const m = /^ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION\(\('ViewDefinition \[SchedulingView\]'\),'2;1'\);\nFILE_NAME\('(.*)\.ifc','(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})',\('(.*)'\),\('(.*)'\),'Open Planner Studio 0\.1','Open Planner Studio',''\);\nFILE_SCHEMA\(\('IFC4X3'\)\);\nENDSEC;\nDATA;\n/.exec(decode(bytes));
+  return !!m && [m[1], m[3], m[4]].every(f => !f.includes("',") && !f.includes("')") && !f.includes("('")
+    && !Array.from(f).some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127));
+};
 /**
  * De regel voor een STEP-bestand (besluit Trias, wrakko 10 november 2026; voor "not-ifc" staat de verwachting altijd met
  * de hand in de test):
@@ -213,11 +216,12 @@ const MODEL = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc
 const OWN = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
 /** De kop van een eigen bestand, tot en met `DATA;`: een gebroken datasectie volgt dan de regel van main (de lus van
  *  `parseSTEP`, met terugspoelen). */
-const OWN_HEAD = OWN.slice(0, OWN.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
+const OWN_HEAD = oudeKop('Eigen planning');
+const OLD_OWN = OWN_HEAD + OWN.slice(OWN.indexOf('\nDATA;\n') + '\nDATA;\n'.length);
 const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
 {
   const model = MODEL;
-  const own = OWN;
+  const own = OLD_OWN;
   const longComment = `/*${'x'.repeat((2 << 20) + 1)}*/`;
   const afterHeader = (t: string, insert: string) => t.replace('HEADER;', `HEADER;${insert}`);
   const afterData = (t: string, insert: string) => t.replace('DATA;', `DATA;${insert}`);
@@ -404,7 +408,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   eq('commentaar met #900000=IFCWALL(, geldige kop: readIFC opent het', readOutcome(comment), 'ok');
   every('commentaar met #900000=IFCWALL( na DATA;, geldige kop', comment, 'no-model');
   // Een eigen bestand met een kapotte kop: de regel van main (zoals `readIFC`).
-  const commentBroken = enc.encode(commentFile(brokenHeader(OWN)));
+  const commentBroken = enc.encode(commentFile(brokenHeader(OLD_OWN)));
   eq('commentaar met #900000=IFCWALL(, kapotte kop: readIFC opent het', readOutcome(commentBroken), 'ok');
   every('commentaar met #900000=IFCWALL( na DATA;, kapotte kop van een eigen bestand', commentBroken, 'no-model');
   every('commentaar met #900000=IFCWALL(, kleine kop', ifc("/*\n#900000=IFCWALL(\n*/\n#1=IFCTASK('1',$);\n"), 'no-model');
@@ -413,7 +417,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   const string = enc.encode(stringFile(OWN));
   eq('meerregelige string met #9=IFCWALL(, geldige kop: readIFC opent het', readOutcome(string), 'ok');
   every('meerregelige string met #9=IFCWALL(, geldige kop', string, 'no-model');
-  const brokenString = enc.encode(stringFile(brokenHeader(OWN)));
+  const brokenString = enc.encode(stringFile(brokenHeader(OLD_OWN)));
   eq('meerregelige string met #9=IFCWALL(, kapotte kop: readIFC opent het (zoals main)', readOutcome(brokenString), 'ok');
   every('meerregelige string met #9=IFCWALL(, kapotte kop van een eigen bestand', brokenString, 'no-model');
   // De randen van de lus van `parseSTEP` en `readEntity`: wat `readIFC` doet, doet de scanner ook.
@@ -493,7 +497,7 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
   parity.push({ label: 'kapotte kop, 3 MiB', bytes: brokenLong });
   // Een eigen bestand zonder model met een kapotte kop: `readIFC` opent het zoals main; de doelcontrole volgt de regel
   // van main (poging 3: `DATA;` aan het begin van een regel). Dat deel hield de lezer vast: hij leest niet opnieuw.
-  const brokenOwn = enc.encode(brokenHeader(OWN));
+  const brokenOwn = enc.encode(brokenHeader(OLD_OWN));
   eq('kapotte kop zonder model: readIFC opent het (zoals main)', readOutcome(brokenOwn), 'ok');
   const stats = { seeks: 0, pushed: 0 };
   eq('eigen bestand, kapotte kop zonder model: no-model, zonder de bron opnieuw te lezen',
@@ -581,22 +585,25 @@ const kopGrens = (text: string, kop: Kop): { at: number; end: number } | null =>
   if (at < 0) throw new Error(`kop ${JSON.stringify(kop[0])} staat niet in de tekst`);
   return { at, end: at + kop[0].length };
 };
-/** Tekst en bytes geven dezelfde grens, gelijk aan de regel van main (het orakel hierboven, de code van main als
- *  tekst); met `kop` ook de vaste verwachting (review van #870, ronde 5: geen tweede beschrijving als enig orakel).
- *  Ronde 10 (besluit Trias): openen is precies main, dus ook het begin van de datasectie. */
-const sameDataSection = (label: string, bytes: Uint8Array, kop?: Kop) => {
+/** Tekst en bytes geven dezelfde grens; `kop` legt die ook onafhankelijk vast. Het oude orakel blijft gelden
+ *  buiten de gerepareerde lexergevallen. Daar legt `legacyKop` de oorspronkelijke grens afzonderlijk vast,
+ *  terwijl `kop` de nieuwe grens toetst: geen ruimere verzameling toegestane uitkomsten. */
+const sameDataSection = (label: string, bytes: Uint8Array, kop?: Kop, legacyKop?: Kop) => {
   dataSectionCases++;
   const text = decode(bytes);
   const bounds = mainBounds(text);
   if (kop !== undefined) eq(`DATA; (${label}): de vaste verwachting`, bounds, kopGrens(text, kop));
-  eq(`DATA; (${label}): de regel van main`, bounds?.at ?? -1, oldIndexOfDataSection(text));
+  // Alleen de expliciet gerepareerde lexergevallen hebben een eigen oude verwachting.
+  // Het oude orakel blijft ook daar getoetst; tekst en bytes volgen de nieuwe vaste grens.
+  const legacyAt = legacyKop === undefined ? bounds?.at ?? -1 : kopGrens(text, legacyKop)?.at ?? -1;
+  eq(`DATA; (${label}): de regel van main`, legacyAt, oldIndexOfDataSection(text));
   eq(`DATA; (${label}): de gedeelde regel als bytes`, byteDataSection(bytes), bounds);
 };
 for (const file of files) sameDataSection(file, new Uint8Array(readFileSync(join(ROOT, file))));
 for (const c of parity) sameDataSection(c.label, c.bytes);
 // Elk geval met een vaste verwachting (`Kop`, zie `kopGrens`): met de hand afgeleid uit de twee regels van main in
 // `stepDataSection.ts` (het eerste `DATA;` op codeniveau, anders regel-verankerd), niet uit de code zelf.
-for (const [label, text, kop] of [
+for (const [label, text, kop, legacyKop] of [
   ['DATA; in een string van de kop (FILE_NAME met 1 parameter: regel van main)', "ISO-10303-21;\nHEADER;\nFILE_NAME('DATA;');\nENDSEC;\nDATA;\n", ['DATA;', 1]],
   ['DATA; in commentaar van de kop', 'ISO-10303-21;\nHEADER;\n/* DATA; */\nENDSEC;\ndata;\n', ['data;']],
   ['alleen regel-verankerd, met spaties en tabs', "ISO-10303-21;\nFILE_NAME('a);\n \t DaTa;\n", ['DaTa;']],
@@ -654,17 +661,17 @@ for (const [label, text, kop] of [
   ['DATA, regeleinde, ENDSEC, regeleinde, DATA;', "ISO-10303-21;\nFILE_NAME('a);\nDATA\nENDSEC\nDATA;\n", ['DATA;']],
   ['DATA, U+2028, DATA;', "ISO-10303-21;\nFILE_NAME('a);\nDATA\n DATA;\n", ['DATA;']],
   // Ronde 5 (Sol en Terra): stuurtekens vallen weg vóór de lexicale regels, ook in de grenzen van commentaar en in `''`.
-  // Ronde 10 (besluit Trias): ook een bestand dat helemaal in de grammatica past, opent precies zoals main. Main kent
-  // `/⏎*` niet als commentaar (knownbug 1061). Elk geval staat twee keer: als heel bestand, en kapot.
-  ['regeleinde tussen / en * (Terra), heel bestand', `ISO-10303-21;\nHEADER;\n${KOP3}ENDSEC;/\n* DATA; ' */DATA('deel',('IFC4'));\n#1=IFCWALL($);\nENDSEC;\nEND-ISO-10303-21;\n`, ['DATA;']],
-  ['regeleinde tussen / en * (Terra), kapot: main', "ISO-10303-21;\nHEADER;\nENDSEC;/\n* DATA; ' */DATA('deel',('IFC4'));\n#1=IFCWALL($);\nENDSEC;\n", ['DATA;']],
+  // De lexerfix herkent `/⏎*` als commentaar. Het DATA; daarin is geen sectiekop. De oude vinder zag hem wel;
+  // beide verwachtingen staan expliciet vast, voor een heel bestand en voor een kapotte kop.
+  ['regeleinde tussen / en * (Terra), heel bestand', `ISO-10303-21;\nHEADER;\n${KOP3}ENDSEC;/\n* DATA; ' */DATA('deel',('IFC4'));\n#1=IFCWALL($);\nENDSEC;\nEND-ISO-10303-21;\n`, null, ['DATA;']],
+  ['regeleinde tussen / en * (Terra), kapot: main', "ISO-10303-21;\nHEADER;\nENDSEC;/\n* DATA; ' */DATA('deel',('IFC4'));\n#1=IFCWALL($);\nENDSEC;\n", null, ['DATA;']],
   ['regeleinde tussen * en / (Sol), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC; /* a *\n/ DATA('deel 1',('IFC4'));\n", null],
   ["regeleinde tussen de apostroffen van '' (Sol), kapot: geen DATA; (main)", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('it'\n's'),'3;1');\nENDSEC;DATA('a',('IFC4'));\n", null],
   ['U+007F midden in DATA (Sol), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nDA\x7fTA('a',('IFC4'));\n", null],
   // Ronde 6 (Sol): `\S\'` is één teken in de string (§6.4.3), ook in de sectiekop; de `'` erna sluit de string.
   ["\\S\\' in de naam van de sectiekop (Sol), kapot: geen DATA; (main)", "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA('deel \\S\\'',('IFC4'));\n#1=IFCWALL($);\n", null],
-  ["\\S\\' in de kop (Sol), heel bestand", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nFILE_NAME('a','',(''),(''),'','','');\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n#1=IFCWALL($);\nENDSEC;\nEND-ISO-10303-21;\n", ['DATA;']],
-  ["\\S\\' in de kop (Sol), kapot: main", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nENDSEC;\nDATA;\n#1=IFCWALL($);\n", ['DATA;']],
+  ["\\S\\' in de kop (Sol), heel bestand", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nFILE_NAME('a','',(''),(''),'','','');\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n#1=IFCWALL($);\nENDSEC;\nEND-ISO-10303-21;\n", ['DATA;', 1], ['DATA;']],
+  ["\\S\\' in de kop (Sol), kapot: main", "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('a\\S\\'); DATA;'),'2;1');\nENDSEC;\nDATA;\n#1=IFCWALL($);\n", ['DATA;', 1], ['DATA;']],
   // Ronde 5 (Sol): een ANCHOR- of REFERENCE-sectie vóór de eerste datasectie, met strings en URI's (tabel 3).
   ['ANCHOR met een string (Sol), kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nANCHOR;\n<a>='tekst';\n<b>=#1{x:'y'};\nENDSEC;DATA('deel 1',('IFC4'));\n", null],
   ['REFERENCE met een URI vol leestekens, kapot: geen DATA; (main)', "ISO-10303-21;\nHEADER;\nENDSEC;\nREFERENCE;\n#5=<http://x/a'b;c(>;\nENDSEC;DATA('d',('IFC4'));\n", null],
@@ -678,7 +685,7 @@ for (const [label, text, kop] of [
   ["'Van ', $, $, $, $, $, $); ENDSEC; DATA ( (Sol)", "ISO-10303-21;\nHEADER;\nFILE_NAME('Van ', $, $, $, $, $, $); ENDSEC; DATA (bouw).ifc');\nENDSEC;\nDATA;\n", ['DATA;']],
   // Ronde 6 (Sol): een regeleinde in de kapotte naam vóór `DATA (`. Main zocht alleen `DATA;` aan het begin van een regel.
   ["'Van 't Hof⏎ DATA (bouw).ifc' (Sol)", "ISO-10303-21;\nHEADER;\nFILE_NAME('Van 't Hof\n DATA (bouw).ifc');\nENDSEC;\nDATA;\n", ['DATA;']],
-] as const satisfies ReadonlyArray<readonly [string, string, Kop]>) sameDataSection(label, enc.encode(text), kop);
+] as const satisfies ReadonlyArray<readonly [string, string, Kop, Kop?]>) sameDataSection(label, enc.encode(text), kop, legacyKop);
 // Ronde 8 (Terra) en ronde 10 (besluit Trias): elke kopvorm hierboven ook als heel bestand (de drie kopentiteiten, en
 // `ENDSEC;` en `END-ISO-10303-21;` aan het einde). Ook dan opent `readIFC` precies zoals main: alleen `DATA;` is een
 // sectiekop. Deze geldige bestanden zonder model openen dus niet (`no-data-section`), net als op main; de doelcontrole
@@ -798,18 +805,20 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   for (const vorm of DATA_KOP_VORMEN) {
     for (const [file, text, outcome, scan] of [
       ['fix3', twoData, 'building-model', 'model'], ['eigen-plus-model', eigenPlus, 'building-model', 'model'],
-      // Ronde 10 (besluit Trias): openen is precies main, en main kent alleen `DATA;` als sectiekop (het orakel
-      // `oldIndexOfDataSection`). Een geldige planning zonder model met een andere kopvorm opent dus niet
-      // (`no-data-section`), net als op main. Het doel mag wel: het hele bestand past in de grammatica, met één
-      // datasectie en zonder model.
-      ['showcase', showcase, oldIndexOfDataSection(metDataKop(showcase, vorm)) >= 0 ? 'ok' : 'no-data-section', 'no-model'],
+      // De planningparser kent alleen DATA; als sectiekop. De gerepareerde commentaaropening verbergt de
+      // schijnbare DATA; vóór de echte kop met parameters: dan is er geen leesbare planningsectie (1061).
+      // Andere vormen houden het oude orakel. Een geldig doel zonder model mag wel beschreven worden.
+      ['showcase', showcase, vorm.id === 'regeleinde-in-commentaaropening' ? 'no-data-section'
+        : oldIndexOfDataSection(metDataKop(showcase, vorm)) >= 0 ? 'ok' : 'no-data-section', 'no-model'],
     ] as const) {
       for (const alleen of [undefined, 'eerste'] as const) {
         if (alleen && file !== 'fix3') continue;
         const label = `kopvorm ${vorm.id}${alleen ? ' (alleen de eerste)' : ''} op ${file}`;
         const formed = metDataKop(text, vorm, alleen);
         const bytes2 = enc.encode(formed);
-                sameDataSection(label, bytes2);
+        const changedLexer = vorm.id === 'regeleinde-in-commentaaropening';
+        sameDataSection(label, bytes2, changedLexer ? alleen ? ['DATA;', 1] : null : undefined,
+          changedLexer ? ['DATA;'] : undefined);
         eq(`${label}: readIFC`, readOutcome(bytes2), outcome);
         every(`${label}: de scanner`, bytes2, scan);
       }
@@ -877,10 +886,11 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   eq('ronde 8, Terra: wand na de laatste ENDSEC;: buiten de grammatica', fileValid(enc.encode(tussen)), false);
   eq('ronde 8, Terra: wand na de laatste ENDSEC;: readIFC opent alle taken (zoals main)', [readOutcome(enc.encode(tussen)), tasks(tussen)], ['ok', allTasks]);
   // De showcase is een eigen bestand (de kop van OPS): de doelcontrole leest het zoals main, en stopt ook bij `ENDSEC;`.
-  every('ronde 8, Terra: wand na de laatste ENDSEC;: de scanner (eigen bestand, zoals main)', enc.encode(tussen), 'no-model');
+  // #916: de huidige IFC4X3_ADD2-kop is geen gemeten oude kop; gebroken DATA geeft geen vrijbrief meer.
+  every('ronde 8, Terra: wand na de laatste ENDSEC;: huidige kop weigert', enc.encode(tussen), 'unreadable');
   // Een eigen bestand met een kapotte naam en een wand na `ENDSEC;`: de doelcontrole leest zoals main, en stopt ook daar.
   {
-    const eigen = OWN.replace(/^FILE_NAME\('/m, "FILE_NAME('Van 't Hof ");
+    const eigen = OLD_OWN.replace(/^FILE_NAME\('/m, "FILE_NAME('Van 't Hof ");
     const metWand = eigen.slice(0, eigen.lastIndexOf('END-ISO-10303-21;')) + "#999999=IFCWALL('x',$);\n" + eigen.slice(eigen.lastIndexOf('END-ISO-10303-21;'));
     eq('ronde 8, eigen kapot bestand met een wand na ENDSEC;: herkend, buiten de grammatica',
       [ownFile(enc.encode(metWand)), fileValid(enc.encode(metWand))], [true, false]);
@@ -920,8 +930,9 @@ sameDataSection('E2 80 A8 midden in ongeldige UTF-8', new Uint8Array([0x27, 0xe2
   eq('ronde 10: twee secties met DATA;: geldig, opent alleen de eerste (zoals main)',
     [fileValid(enc.encode(tweeKaal)), readOutcome(enc.encode(tweeKaal)), tasks(tweeKaal)], [true, 'ok', allTasks - 1]);
   eq('ronde 10: twee secties met DATA;: eigen bestand; van een ander programma niet',
-    [ownFile(enc.encode(tweeKaal)), ownFile(enc.encode(vreemd(tweeKaal)))], [true, false]);
-  every('ronde 10: twee secties met DATA;, eigen bestand: de scanner (zoals main)', enc.encode(tweeKaal), 'no-model');
+    [ownFile(enc.encode(tweeKaal)), ownFile(enc.encode(vreemd(tweeKaal)))], [false, false]);
+  // #916: de huidige kop valt buiten de ene oude herkenning; meer secties blijven geweigerd.
+  every('ronde 10: twee secties met DATA;, huidige eigen kop weigert', enc.encode(tweeKaal), 'unreadable');
   every('ronde 10: twee secties met DATA;, ander programma: de scanner weigert', enc.encode(vreemd(tweeKaal)), 'unreadable');
   every('ronde 10: één sectie, ander programma: de scanner', enc.encode(vreemd(showcase)), 'no-model');
   const tweeWand = tweeKaal.replace(/\nENDSEC;\nEND-ISO/, "\n#999999=IFCWALL('x',$);\nENDSEC;\nEND-ISO");

@@ -24,7 +24,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 S().newProject();
 S().addTask({ name: 'Bestaand werk' });
-const ifc = writeIFC(buildWriteIFCInput(S()));
+const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const originalOpen = S().openAsDocument;
 const originalApply = S().applyLoadedProject;
 let failure: unknown = 'Permission denied (os error 13)';

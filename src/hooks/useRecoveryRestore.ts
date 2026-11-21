@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { readIfcFromText } from '@/services/formatRegistry';
+import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { documentTitle } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
-import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
+import { type RecoveryDocInput } from '@/state/documentContract';
 import { loadRecovery, clearRecovery, holdRecoveryForLater } from '@/services/recovery/recoveryStore';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
+import { remnantNotices } from '@/state/ownFileReplace';
+import { settlePendingReplaces } from '@/services/fileAccess/replaceRecords';
 
 // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
 // recovery-payload + de callbacks om te herstellen/verwerpen/uitstellen. Lokale
@@ -60,6 +62,13 @@ export function useRecoveryRestore(): RecoveryRestore {
       // Poort opent zodra de keuze is gemaakt (of er niets te herstellen valt);
       // pas dan mag de auto-save de snapshots overschrijven.
       const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
+      // Knownbug 1131 stap 5: eerst de onafgeronde vervangingen op de desktop afhandelen (een eigen herstelrecord, los
+      // van het manifest en van de herstelkeuze), zodat het doel weer een volledige versie heeft vóór herstel de bron leest.
+      try {
+        for (const notice of remnantNotices(await settlePendingReplaces())) useAppStore.getState().notify(notice);
+      } catch (error) {
+        console.error('Onafgeronde vervangingen niet afgehandeld:', error);
+      }
       try {
         const loaded = await loadRecovery();
         const readFailures = loaded.readFailures ?? [];
@@ -79,40 +88,14 @@ export function useRecoveryRestore(): RecoveryRestore {
         let failed = readFailures.length;
         for (const d of loaded.docs) {
           try {
-            // Een snapshot met archiefVERWIJZING (eigenaarsbesluit plan (9)) haalt de bronbytes uit
-            // de crashherstelopslag. Ontbreekt de blob, dan opent het document zonder archief en
-            // met de `xerArchiveIssue`-melding ("openen met melding"), net als elk onbruikbaar archief.
-            // #804 fase 1a: met de flag `ifcForeignContent` via de bytes-route (de herstelkopie is eigen tekst, dus
-            // `TextEncoder`). De kopie heeft nooit een vreemd deel: dat zat niet in de snapshot, en het herstelmanifest
-            // gaf zo'n document geen opslagdoel (`recoverySaveTarget`). Wel het kenmerk (fixronde 1): zie `foreignSource`.
-            const parsed = await readIfcFromText(
-              d.ifc, buildImportLabels(startupTRef.current),
-              {
-                ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags),
-                resolveXerArchiveReference: (sha256) => loaded.archives.get(sha256),
-              },
-            );
-            // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` — deze hook
-            // houdt bewust geen veldkennis.
-            restored.push(recoveryInputFromParsed(parsed, {
-              id: d.id,
-              filePath: d.filePath,
-              // Het site-opslagdoel van vóór de crash (issue #309) en de versie waarop dit document
-              // rustte: Ctrl+S schrijft na herstel weer naar de site, mét conflictcontrole. Ouder
-              // manifest ⇒ `null`.
-              siteFileId: d.siteFileId ?? null,
-              siteFileVersion: d.siteFileVersion ?? null,
-              // #804 fase 1a, fixronde 1: het doel van een bron met een vreemd deel; met de vingerafdruk uit de snapshot
-              // wordt dat het kenmerk (`payloadFromInput`). Ouder manifest ⇒ `null`.
-              foreignSource: d.foreignSource ?? null,
-              isDirty: d.isDirty,
-              datesAsRecorded: d.datesAsRecorded,
-            }));
+            const input = await readRecoveryDocument(d, loaded.archives,
+              ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags), buildImportLabels(startupTRef.current));
+            restored.push(input);
             entries.push({
               id: d.id,
-              name: documentTitle(d.filePath, parsed.project.name, documentProjectCode(parsed.project, parsed.xer)),
+              name: documentTitle(d.filePath, input.project.name, documentProjectCode(input.project, input.xer)),
               filePath: d.filePath,
-              taskCount: parsed.tasks.length,
+              taskCount: input.tasks.length,
               mtime: d.mtime,
             });
           } catch (err) {

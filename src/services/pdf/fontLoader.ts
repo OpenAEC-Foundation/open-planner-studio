@@ -1,4 +1,5 @@
-import { ARABIC_REPORT_FAMILY, ARABIC_REPORT_UNICODE_RANGE, REPORT_FONTS, type ReportFontId } from './reportFont';
+import { ARABIC_REPORT_FAMILY, ARABIC_REPORT_UNICODE_RANGE, CUSTOM_REPORT_FAMILY, REPORT_FONTS, type ReportFontChoice, type ReportFontId } from './reportFont';
+import { getCustomFont, type CustomFontRecord } from './customFontStore';
 import { assembleReportMeasureFonts, createReportTextMetrics, type ReportFontkitFont, type ReportTextMetrics } from './reportTextMeasure';
 import { createCanvasTextMetrics } from './canvasTextMetrics';
 
@@ -52,11 +53,24 @@ function cachedBytes(file: string): Promise<Uint8Array> {
   return pending;
 }
 
+/** De bytes van het eigen lettertype voor een gewicht; zonder vette variant de gewone (besluit 3a). */
+function customBytes(font: CustomFontRecord, weight: 400 | 700): Uint8Array {
+  return weight === 700 ? font.bold ?? font.regular : font.regular;
+}
+
+async function requireCustomFont(): Promise<CustomFontRecord> {
+  const font = await getCustomFont();
+  if (!font) throw new Error('Eigen lettertype ontbreekt');
+  return font;
+}
+
 /**
  * Rauwe TTF-bytes van een rapportletter voor een gewicht (400 = Regular, 700 = Bold). Bedoeld voor
- * de pdf-lib-embedding in `paginateVector.ts` (`embedFont(bytes, { subset: false })`).
+ * de pdf-lib-embedding in `paginateVector.ts` (`embedFont(bytes, { subset: false })`). Voor `custom` de
+ * kopie van het eigen lettertype; ontbreekt die, dan wijst de Promise af (de export valt dan terug op raster).
  */
-export function getReportFontBytes(id: ReportFontId, weight: 400 | 700): Promise<Uint8Array> {
+export function getReportFontBytes(id: ReportFontChoice, weight: 400 | 700): Promise<Uint8Array> {
+  if (id === 'custom') return requireCustomFont().then(font => customBytes(font, weight));
   const { files } = REPORT_FONTS[id];
   return cachedBytes(weight === 700 ? files.bold : files.regular);
 }
@@ -79,10 +93,10 @@ export function getArabicFontBytes(weight: 400 | 700): Promise<Uint8Array> {
   return cachedBytes(weight === 700 ? ARABIC_FILES.bold : ARABIC_FILES.regular);
 }
 
-/** Wat `ensureFaces` per letter registreert: de familie, de bestanden en eventueel een `unicode-range`. */
+/** Wat `ensureFaces` per letter registreert: de familie, de URL's per gewicht en eventueel een `unicode-range`. */
 interface FaceSpec {
   family: string;
-  files: { regular: string; bold: string };
+  urls: { regular: string; bold: string };
   unicodeRange?: string;
   /** Een teken uit de `unicode-range`: `document.fonts.load` laadt alleen een face die de tekst raakt. */
   sample?: string;
@@ -94,7 +108,7 @@ interface FaceSpec {
  * (`reportTextFont` in `reportFont.ts`). De `unicode-range` houdt cijfers en Latijn in de rapportletter.
  */
 const ARABIC_FACES: FaceSpec = {
-  family: ARABIC_REPORT_FAMILY, files: ARABIC_FILES, unicodeRange: ARABIC_REPORT_UNICODE_RANGE, sample: '\u0627\u0628',
+  family: ARABIC_REPORT_FAMILY, urls: { regular: fontUrl(ARABIC_FILES.regular), bold: fontUrl(ARABIC_FILES.bold) }, unicodeRange: ARABIC_REPORT_UNICODE_RANGE, sample: '\u0627\u0628',
 };
 
 const faceLoads = new Map<string, Promise<void>>();
@@ -109,13 +123,13 @@ const faceLoads = new Map<string, Promise<void>>();
  * losse `FontFace` toonde de opname dus een andere letter dan de preview. Een CSS-regel staat ook in
  * `document.fonts`, dus het canvas meet en tekent er net zo op.
  */
-function ensureFaces(key: string, { family, files, unicodeRange, sample }: FaceSpec): Promise<void> {
+function ensureFaces(key: string, { family, urls, unicodeRange, sample }: FaceSpec): Promise<void> {
   let pending = faceLoads.get(key);
   if (pending) return pending;
   const style = document.createElement('style');
   style.dataset.opsReportFont = key;
-  style.textContent = ([[files.regular, 400], [files.bold, 700]] as const).map(([file, weight]) => (
-    `@font-face { font-family: "${family}"; src: url("${fontUrl(file)}") format("truetype"); `
+  style.textContent = ([[urls.regular, 400], [urls.bold, 700]] as const).map(([url, weight]) => (
+    `@font-face { font-family: "${family}"; src: url("${url}") format("truetype"); `
     + `font-weight: ${weight}; font-style: normal; font-display: block;${unicodeRange ? ` unicode-range: ${unicodeRange};` : ''} }`
   )).join('\n');
   document.head.appendChild(style);
@@ -137,7 +151,34 @@ function ensureFaces(key: string, { family, files, unicodeRange, sample }: FaceS
 }
 
 function ensureReportFaces(id: ReportFontId): Promise<void> {
-  return ensureFaces(id, REPORT_FONTS[id]);
+  const { family, files } = REPORT_FONTS[id];
+  return ensureFaces(id, { family, urls: { regular: fontUrl(files.regular), bold: fontUrl(files.bold) } });
+}
+
+/** De blob-URL's van de versie van het eigen lettertype die nu als `@font-face` geregistreerd is. */
+let customFaceUrls: { key: string; regular: string; bold: string } | null = null;
+
+/**
+ * Registreert het eigen lettertype onder {@link CUSTOM_REPORT_FAMILY}, met blob-URL's van dezelfde bytes die de
+ * PDF inbedt. Zonder vette variant staat de gewone letter ook als gewicht 700: dan tekent de browser vet in de
+ * gewone letter, zonder kunstmatig te verdikken, net als de PDF (besluit 3a). Een nieuwe versie haalt de
+ * vorige regel en URL's weg; de familienaam blijft gelijk, zodat de stack (`reportFontStack('custom')`) vast is.
+ */
+async function ensureCustomFaces(): Promise<void> {
+  const font = await requireCustomFont();
+  const key = `custom:${font.rev}`;
+  if (customFaceUrls?.key !== key) {
+    if (customFaceUrls) {
+      faceLoads.delete(customFaceUrls.key);
+      document.head.querySelector(`style[data-ops-report-font="${customFaceUrls.key}"]`)?.remove();
+      URL.revokeObjectURL(customFaceUrls.regular);
+      URL.revokeObjectURL(customFaceUrls.bold);
+    }
+    const toUrl = (bytes: Uint8Array) => URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'font/ttf' }));
+    const regular = toUrl(font.regular);
+    customFaceUrls = { key, regular, bold: font.bold ? toUrl(font.bold) : regular };
+  }
+  return ensureFaces(key, { family: CUSTOM_REPORT_FAMILY, urls: customFaceUrls });
 }
 
 /**
@@ -152,11 +193,11 @@ function ensureReportFaces(id: ReportFontId): Promise<void> {
  * stack; de vector-export haalt de bytes zelf op en valt bij een fout terug op raster. Een volgende
  * aanroep probeert het opnieuw.
  */
-export async function ensureReportFontLoaded(id: ReportFontId = 'inter'): Promise<void> {
+export async function ensureReportFontLoaded(id: ReportFontChoice = 'inter'): Promise<void> {
   try {
     await Promise.all([
       ensureReportFaces('inter'),
-      ...(id === 'inter' ? [] : [ensureReportFaces(id)]),
+      ...(id === 'inter' ? [] : [id === 'custom' ? ensureCustomFaces() : ensureReportFaces(id)]),
       ensureFaces('arabic', ARABIC_FACES),
     ]);
     await document.fonts.ready;
@@ -182,14 +223,21 @@ const metricLoads = new Map<string, Promise<ReportTextMetrics>>();
  * schrijfrichting. Wijst nooit af: lukt het laden niet (bijvoorbeeld offline in de browser), dan meet
  * het canvas, zoals vóór deze meting. De PDF-export haalt de bytes zelf op en valt dan terug op raster.
  */
-export function loadReportTextMetrics(id: ReportFontId = 'inter', baseDir: 'ltr' | 'rtl' = 'ltr'): Promise<ReportTextMetrics> {
-  const key = `${id}|${baseDir}`;
+export function loadReportTextMetrics(id: ReportFontChoice = 'inter', baseDir: 'ltr' | 'rtl' = 'ltr'): Promise<ReportTextMetrics> {
+  if (id === 'custom') {
+    // Per versie van het eigen lettertype een eigen meting; zonder lettertype meet het canvas.
+    return getCustomFont().then(font => (font ? loadMetrics(`custom:${font.rev}|${baseDir}`, 'custom', baseDir) : createCanvasTextMetrics()));
+  }
+  return loadMetrics(`${id}|${baseDir}`, id, baseDir);
+}
+
+function loadMetrics(key: string, id: ReportFontChoice, baseDir: 'ltr' | 'rtl'): Promise<ReportTextMetrics> {
   let pending = metricLoads.get(key);
   if (pending) return pending;
   pending = (async () => {
     try {
-      const [{ default: fontkit }, regular, bold, arabicRegular, arabicBold, interRegular, interBold] = await Promise.all([
-        import('@pdf-lib/fontkit'),
+      const [{ fontkit }, regular, bold, arabicRegular, arabicBold, interRegular, interBold] = await Promise.all([
+        import('@/services/pdf/fontkit'),
         getReportFontBytes(id, 400),
         getReportFontBytes(id, 700),
         getArabicFontBytes(400),

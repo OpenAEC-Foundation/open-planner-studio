@@ -592,7 +592,7 @@ test('IFC-round-trip: generation, shift en per-weekdag-verschillende banden over
   });
   addTask('Iets', 2);
 
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const terug = readIFC(ifc);
   const cal = terug.calendar;
 
@@ -628,7 +628,7 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   // (>1 band of een wrap) óf bij een sub-dag-signaal elders in het bestand (`subdayIo`,
   // discriminator a/b/c). Eén band 08:00-16:00 wijkt niet af — maar de taken van een uur-kalender
   // worden mét tijd-van-de-dag weggeschreven, en dát is signaal (c). Dus: overleeft.
-  const terug = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   assert(!!terug.calendar.workTime, 'de uur-modus overleeft dankzij de uur-taken in hetzelfde bestand');
   assertEq(terug.calendar.workTime!.byWeekday[1], [{ start: 480, end: 960 }], 'de band komt exact terug');
 
@@ -646,7 +646,7 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   });
   const losId = okData(res).calendars[0].id;
   assert(!!calById(losId)!.workTime, 'testvoorwaarde: in de store is het een uur-kalender');
-  const zonderGebruikers = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const zonderGebruikers = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const ongebruikt = zonderGebruikers.resourceCalendars?.find((c) => c.name === 'Ongebruikte uurkalender');
   assert(!!ongebruikt, 'een bibliotheek-kalender ZONDER taak/resource komt sinds de A2-fix terug uit IFC');
   assertEq(ongebruikt!.workTime?.byWeekday[1], [{ start: 480, end: 960 }], 'ongebruikte kalender behoudt ook zijn uurbanden');
@@ -658,7 +658,7 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   // MÉT een taak eraan overleeft hij volledig — inclusief de uurbanden.
   const t = addTask('Werk op de ploegenkalender', 2);
   S().updateTask(t, { calendarId: losId });
-  const metGebruiker = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const metGebruiker = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const los = metGebruiker.resourceCalendars?.find((c) => c.name === 'Ongebruikte uurkalender');
   assert(!!los, 'met een taak eraan komt de bibliotheek-kalender wél terug');
   assertEq(los!.workTime?.byWeekday[1], [{ start: 480, end: 960 }], 'inclusief de uurbanden');

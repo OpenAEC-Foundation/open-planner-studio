@@ -46,7 +46,7 @@ for (const variant of ['W0', 'W1', 'W2']) {
     }
   }
   const hashBefore = computeCalendarHash(payload.calendar);
-  const input = buildWriteIFCInput(payload);
+  const input = buildWriteIFCInput(payload, 'planOnly');
   const view = minuteModelWriteView(input);
   const text = writeIFC(input);
   const compatOut = process.env.OPS_MINUTE_MODEL_COMPAT_OUT;
@@ -74,7 +74,7 @@ for (const variant of ['W0', 'W1', 'W2']) {
   const ms = task('mijlpaal', '2026-06-01T16:00', '2026-06-01T16:00');
   ms.isMilestone = true; ms.time.scheduleDuration = 0;
   payload.tasks = [ms];
-  const text = writeIFC(buildWriteIFCInput(payload));
+  const text = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
   eq('D7 hint geschreven', text.includes("'AtDayEnd'"), true);
   const back = payloadFromImport(readIFC(text), null).tasks[0];
   eq('D7 begin en einde één moment', [back.time.earlyStart, back.time.earlyFinish], ['2026-06-01T16:00', '2026-06-01T16:00']);
@@ -121,7 +121,7 @@ for (const variant of ['literal', 'blokken'] as const) {
   const uur = task('Uur', `2026-06-01T${begin}`, `2026-06-01T${eind}`);
   uur.time = { ...uur.time, durationUnit: 'hours', durationMinutes: 480 };
   p.tasks = [dag, uur];
-  const own = writeIFC(buildWriteIFCInput(p));
+  const own = writeIFC(buildWriteIFCInput(p, 'planOnly'));
   if (variant === 'literal') eq('datumloze actuals: kalender is letterlijk', own.includes("'LiteralTimes'"), true);
   // Alleen het tijdslot van de dagtaak verliest zijn tijden.
   const external = own.replace(/^(#\d+=IFCTASKTIME\('Dag Time'.*)$/m,
@@ -139,7 +139,7 @@ for (const variant of ['literal', 'blokken'] as const) {
   const loaded = createAppStoreContext().store;
   loaded.getState().applyLoadedProject(readIFC(external), { recompute: true });
   eq(`${variant} na openen (met berekening)`, actuals(loaded.getState().tasks), want);
-  const reopened = payloadFromImport(readIFC(writeIFC(buildWriteIFCInput(loaded.getState()))), null);
+  const reopened = payloadFromImport(readIFC(writeIFC(buildWriteIFCInput(loaded.getState(), 'planOnly'))), null);
   eq(`${variant} na opslaan en heropenen`, actuals(reopened.tasks), want);
 }
 

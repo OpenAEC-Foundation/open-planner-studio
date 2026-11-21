@@ -237,6 +237,32 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Zonder gepubliceerde actieve taak is activeTaskId null', deselected.activeTaskId, null);
 }
 
+// Review #947: in een groepering staat een taak meer dan eens. Staat de cursor al op een voorkomen
+// van de gepubliceerde taak, dan blijft hij daar; anders gaat hij naar het voorkomen dat het
+// dichtst bij de cursor ligt, niet naar het eerste (na verwijderen in groep 2 bleef hij anders niet
+// in groep 2).
+{
+  const rows = [
+    groupRow('g1'), taskRow(ids[0], 'g1/0'), taskRow(ids[2], 'g1/2'),
+    groupRow('g2'), taskRow(ids[1], 'g2/1'), taskRow(ids[3], 'g2/3'), taskRow(ids[2], 'g2/2'),
+  ];
+  const rowIndex = indexed(rows);
+  const onSecond = updateGridSelection(createEmptyGridSelection(), cell('g2/2', 1), rowIndex, columns, 'replace');
+  eq('Groep: de cursor op het tweede voorkomen blijft daar',
+    syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns).active, cell('g2/2', 1));
+  const onG2 = updateGridSelection(createEmptyGridSelection(), cell('g2/3', 1), rowIndex, columns, 'replace');
+  eq('Groep: de cursor gaat naar het dichtstbijzijnde voorkomen (in groep 2)',
+    syncActiveCellToPublishedTask(onG2, ids[2], [ids[2]], rowIndex, columns).active, cell('g2/2', 1));
+  const onG1 = updateGridSelection(createEmptyGridSelection(), cell('g1/0', 1), rowIndex, columns, 'replace');
+  eq('Groep: vanuit groep 1 is het voorkomen in groep 1 het dichtst',
+    syncActiveCellToPublishedTask(onG1, ids[2], [ids[2]], rowIndex, columns).active, cell('g1/2', 1));
+  // De store gaf een concrete buurrij door: die wint, ook als de cursor al op een ander voorkomen staat.
+  eq('Groep: de doorgegeven buurrij wint van een verschoven cursor',
+    syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns, 'g1/2').active, cell('g1/2', 1));
+  eq('Groep: een doorgegeven rij van een andere taak telt niet',
+    syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns, 'g2/1').active, cell('g2/2', 1));
+}
+
 // De rij-index wordt buiten het commando gememoized: een gewone klik mag geen 50.000 rijen scannen.
 {
   const rows: ViewRow[] = Array.from({ length: 50_000 }, (_, index) => ({

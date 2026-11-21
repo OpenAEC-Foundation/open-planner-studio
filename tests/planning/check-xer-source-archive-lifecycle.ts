@@ -107,7 +107,7 @@ expect('4 honderd undo-stappen veranderen de snapshot-none archive-ref niet',
 store().redo();
 expect('5 redo verandert evenmin de archive-ref', store().xerSourceArchive === archive);
 
-const serializedSnapshots = thirteen.map(doc => writeIFC(buildWriteIFCInput(doc.payload)));
+const serializedSnapshots = thirteen.map(doc => writeIFC(buildWriteIFCInput(doc.payload, 'planOnly')));
 await clearRecovery();
 await saveRecovery(fullRecoverySave(thirteen[0]!.id, thirteen.map((doc, index) => ({
   id: doc.id,

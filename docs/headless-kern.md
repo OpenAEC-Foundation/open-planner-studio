@@ -49,6 +49,15 @@ const ifc = doc.toIfc();              // IFC-tekst met de berekende datums
 | `VERSION` | De versie van het pakket (gelijk aan de appversie). |
 | typen | `ScheduleSummary`, `ScheduleTaskSummary`, `ScheduleWarning`, `PlannerDocument`, `CoreErrorCode` |
 
+**Vreemde invoer en de tekstgrens (T3, #804 fase 1c).** De kern en HTTP-API schrijven geen bestand; zij kunnen geen
+opslagdoel van hun afnemer bewaken. Voorheen verdween een externe pset zonder model stil uit `toIfc()`. De kernproef
+legt dat vast en eist nu een `PlannerCoreError` met de bestaande code `IFC_WRITE_FAILED` vóór uitvoer wanneer de
+C/A/V-indeling vreemde inhoud of een scanfout meldt. `schedule()` blijft de planning kunnen samenvatten; modellen
+blijven door de lezer geweigerd. `src/core/api.ts` verandert niet. HTTP gebruikt dezelfde kern via zijn worker en
+krijgt daardoor dezelfde weigering bij IFC-uitvoer; de echte HTTP-integratie is voor deze tussenstand niet uitgevoerd.
+Volledige byte-invoer/-uitvoer blijft fase 2. De twee echte oude v2026.7.12-koppen met een apostrof of DATA; in de
+naam blijven zonder vreemd deel gewoon schrijven; afwijkende, niet betrouwbaar te scannen invoer krijgt geen uitvoer.
+
 **Openen rekent al door.** De kern volgt de app: Bestand → Openen rekent het project meteen door.
 Wijkt die uitkomst af van de datums in het bestand, dan kan het document (zoals in de app) de datums
 uit het bestand tonen ("datums zoals opgeslagen", `docs`-rule `state`). `toIfc()` direct na

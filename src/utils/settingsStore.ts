@@ -10,6 +10,7 @@ import type {
   TimeNotation,
   DurationDisplay,
   BarSplitMode,
+  DissolveSummaryMode,
   FilterNode,
   SavedFilter,
   UIFontFamily,
@@ -54,10 +55,20 @@ export function localStorageAvailable(): boolean {
 }
 
 export function readLocal(key: string): string | null {
+  const value = tryReadLocal(key);
+  return value === false ? null : value;
+}
+
+/**
+ * Als `readLocal`, maar een opslag die niet te lezen is geeft `false`, niet `null`. Voor wie een
+ * ontbrekende sleutel anders behandelt dan een tijdelijke leesfout: die mag niet tot standaardwaarden
+ * leiden die daarna over de bewaarde waarde heen gaan.
+ */
+export function tryReadLocal(key: string): string | null | false {
   try {
     return localStorage.getItem(key);
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -96,6 +107,41 @@ export function removeLocal(key: string, origin: SettingWriteOrigin = 'user'): v
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = readLocal(`ops-${key}`);
+  if (raw === null) return undefined;
+  try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
+}
+
+/** De opslag is nu niet te lezen (geblokkeerd). Dat is iets anders dan een sleutel die ontbreekt. */
+export class SettingsUnreadableError extends Error {
+  constructor(key: string) {
+    super(`Instelling niet te lezen: ${key}`);
+    this.name = 'SettingsUnreadableError';
+  }
+}
+
+/** De wijziging van de layouts kwam niet in de opslag (vol, geblokkeerd, of de host hield haar tegen). */
+export class LayoutsNotSavedError extends Error {
+  constructor() {
+    super('Layouts niet opgeslagen');
+    this.name = 'LayoutsNotSavedError';
+  }
+}
+
+/**
+ * Afwijzing van `loadLayouts().then(set, ignoreUnreadable)`: bij een leesfout blijft de vorige lijst staan (of
+ * blijft de lijst ongeladen, zodat er niets op te slaan valt). Een andere fout gaat door.
+ */
+export function ignoreUnreadable(error: unknown): void {
+  if (!(error instanceof SettingsUnreadableError)) throw error;
+}
+
+/**
+ * Als `getSetting`, maar een leesfout gooit `SettingsUnreadableError` in plaats van "niet ingesteld". Voor een
+ * lijst die de aanroeper later in zijn geheel terugschrijft: een leesfout als lege lijst zou dan alles wissen.
+ */
+async function getSettingOrThrow<T>(key: string): Promise<T | undefined> {
+  const raw = tryReadLocal(`ops-${key}`);
+  if (raw === false) throw new SettingsUnreadableError(key);
   if (raw === null) return undefined;
   try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
 }
@@ -159,6 +205,11 @@ function devSessionTheme(): UITheme | null {
  *  zoals altijd); bij de volgende start wint de host weer, net als bij de taal. */
 function sessionTheme(): UITheme | null {
   return devSessionTheme() ?? siteHostTheme();
+}
+
+/** Het thema van een eerste start, zonder bewaarde voorkeur: de standaard van de instelling Thema. */
+export function startTheme(): UITheme {
+  return sessionTheme() ?? 'dark';
 }
 
 /** Kiest de volgende start het thema van de host (#818)? Dat is zo als de host nu een geldig `thema`
@@ -325,6 +376,11 @@ export async function saveShowFloatBand(value: boolean): Promise<void> {
   await setSetting('showFloatBand', value);
 }
 
+/** Begin- en einddatum naast de Gantt-balken (#868) — view-state, zelfde model als hierboven. */
+export async function saveShowBarDates(value: boolean): Promise<void> {
+  await setSetting('showBarDates', value);
+}
+
 export async function saveShowResourceAccent(value: boolean): Promise<void> {
   await setSetting('showResourceAccent', value);
 }
@@ -477,7 +533,7 @@ function normalizeLayouts(raw: unknown): Layout[] | null {
 }
 
 async function loadStoredLayouts(): Promise<Layout[]> {
-  const current = await getSetting<unknown>('taskGridLayouts');
+  const current = await getSettingOrThrow<unknown>('taskGridLayouts');
   if (current && typeof current === 'object') {
     const wrapper = current as Record<string, unknown>;
     if (wrapper.version === TASK_GRID_LAYOUTS_VERSION) {
@@ -487,7 +543,7 @@ async function loadStoredLayouts(): Promise<Layout[]> {
   }
   // Lazy legacy-read: de oude sleutel blijft ongewijzigd staan totdat de gebruiker expliciet
   // opslaat/bijwerkt. Dynamische refs worden hier opaque, zonder actief project te raden.
-  const legacy = await getSetting<unknown>('layouts');
+  const legacy = await getSettingOrThrow<unknown>('layouts');
   return normalizeLayouts(legacy) ?? [];
 }
 
@@ -496,14 +552,23 @@ async function loadStoredLayouts(): Promise<Layout[]> {
  * die alleen een filter dragen. De vlag voorkomt dat een daarna verwijderde filter-layout bij de
  * volgende start terugkomt. `ops-savedFilters` zelf blijft bewust staan: wie terugvalt naar een
  * oudere versie houdt zijn filters.
+ *
+ * Is een van de sleutels niet te lezen, dan gooit dit `SettingsUnreadableError` en schrijft het niets: de
+ * aanroepers schrijven de hele lijst terug, dus een leesfout mag geen lege lijst worden (knownbug 1362).
  */
 export async function loadLayouts(): Promise<Layout[]> {
   const layouts = await loadStoredLayouts();
-  if (await getSetting<boolean>('savedFiltersMigrated')) return layouts;
+  if (await getSettingOrThrow<boolean>('savedFiltersMigrated')) return layouts;
   const savedFilters = await loadSavedFilters();
   const merged = migrateSavedFilters(layouts, savedFilters);
   // Een eenmalige migratie, ook als een dialoog dit pas later aanroept: geen keuze van de gebruiker.
-  if (merged.length !== layouts.length) await saveLayouts(merged, 'start');
+  if (merged.length !== layouts.length) {
+    await saveLayouts(merged, 'start');
+    // Kwam de samengevoegde lijst niet in de opslag (vol, geblokkeerd), dan nog geen vlag: anders las de app de
+    // oude filters nooit meer (review Sol #905). De volgende lezing probeert het opnieuw.
+    const stored = await loadStoredLayouts();
+    if (stored.map(l => l.id).join('\n') !== merged.map(l => l.id).join('\n')) return merged;
+  }
   await setSetting('savedFiltersMigrated', true, 'start');
   return merged;
 }
@@ -514,6 +579,26 @@ export async function saveLayouts(layouts: Layout[], origin: SettingWriteOrigin 
   const payload: PersistedTaskGridLayoutsV1 = { version: 1, layouts: normalized };
   await setSetting('taskGridLayouts', payload, origin);
 }
+
+/**
+ * Wijzig de eigen layouts: lees de lijst vers, pas `change` toe en schrijf het resultaat terug. Een scherm schrijft
+ * nooit zijn eigen kopie van de lijst terug: die mist wat intussen elders is opgeslagen (een filter uit de
+ * filterdialoog, een ander venster), en na een leesfout is ze leeg (knownbug 1362). Gooit
+ * `SettingsUnreadableError` en schrijft niets als de opslag niet te lezen is. Geeft de nieuwe lijst.
+ */
+export function updateLayouts(change: (current: Layout[]) => Layout[]): Promise<Layout[]> {
+  // Eén wijziging tegelijk: twee die tegelijk starten, lazen anders dezelfde lijst en de tweede wiste de eerste.
+  const run = layoutUpdates.then(async () => {
+    const next = change(await loadLayouts());
+    await saveLayouts(next);
+    // `writeLocal` slikt een schrijffout in: lees terug of de lijst er echt staat, anders telt het niet als opgeslagen.
+    if (JSON.stringify(await loadStoredLayouts()) !== JSON.stringify(normalizeLayouts(next))) throw new LayoutsNotSavedError();
+    return next;
+  });
+  layoutUpdates = run.catch(() => undefined);
+  return run;
+}
+let layoutUpdates: Promise<unknown> = Promise.resolve();
 
 // Opgeslagen filters: net als layouts app-breed op dit apparaat, maar bewust alleen
 // de filterboom. Daardoor blijft de rest van de actuele weergave onaangetast bij snel wisselen.
@@ -544,7 +629,7 @@ function isValidSavedFilter(value: unknown): value is SavedFilter {
 }
 
 export async function loadSavedFilters(): Promise<SavedFilter[]> {
-  const raw = await getSetting<unknown>('savedFilters');
+  const raw = await getSettingOrThrow<unknown>('savedFilters');
   return Array.isArray(raw) ? raw.filter(isValidSavedFilter) : [];
 }
 
@@ -634,6 +719,10 @@ export async function saveDurationDisplay(value: DurationDisplay): Promise<void>
 
 export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
   await setSetting('barSplitMode', value);
+}
+
+export async function saveDissolveSummaryMode(value: DissolveSummaryMode): Promise<void> {
+  await setSetting('dissolveSummaryMode', value);
 }
 
 // «alleen werkbare dagen tonen» — globale weergavevoorkeur, zelfde

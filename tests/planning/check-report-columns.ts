@@ -27,7 +27,7 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effHoursPerDay, effectiveCalendarOf, effectiveDurationDisplay } from '@/utils/taskDuration';
 import {
   DEFAULT_REPORT_SETTINGS, REPORT_DEFAULT_COLUMNS, REPORT_MAX_COLUMNS, REPORT_REQUIRED_COLUMN,
-  loadReportSettings, parseReportColumns, saveReportSettings,
+  loadReportSettings, parseReportColumns, patchReportSettings, reportSettingsSnapshot, subscribeReportSettings,
 } from '@/utils/reportSettings';
 import {
   addReportColumn, isDefaultReportColumns, moveReportColumn, placeReportColumn, removeReportColumn,
@@ -268,17 +268,80 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(parseReportColumns(Array.from({ length: 40 }, (_, i) => `c${i}`))?.length, REPORT_MAX_COLUMNS, 'parse: hoogstens het maximum');
   ok(parseReportColumns(Array.from({ length: 40 }, (_, i) => `c${i}`))?.includes(REPORT_REQUIRED_COLUMN) === true, 'parse: taaknaam blijft ook bij het maximum');
 
-  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, columns: ['task.name', CAL_DAYS, 'task.wbsCode'], sidebar: 'rail', studioStep: 'page', paperHintSeen: true });
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, columns: ['task.name', CAL_DAYS, 'task.wbsCode'], sidebar: 'rail', studioStep: 'page', paperHintSeen: true });
   const saved = await loadReportSettings();
   eq(saved.studioStep, 'page', 'round-trip: laatst gebruikte stap');
   eq(saved.paperHintSeen, true, 'round-trip: aanwijzing gezien');
   eq(saved.columns, ['task.name', CAL_DAYS, 'task.wbsCode'], 'round-trip: kolomlijst met volgorde');
   eq(saved.sidebar, 'rail', 'round-trip: zijbalkstand');
   eq(saved.barColors, { mode: 'critical' }, 'round-trip: standaard balkkleuren');
-  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, barColors: { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } } });
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, barColors: { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } } });
   eq((await loadReportSettings()).barColors, { mode: 'category', field: { src: 'builtin', key: 'taskType' }, colors: { critical: '#112233' } }, 'round-trip: eigen balkkleuren');
   localStorage.setItem('ops-reportSettings', JSON.stringify({ barColors: { mode: 'regenboog' } }));
   eq((await loadReportSettings()).barColors, { mode: 'critical' }, 'onbekende balkkleur ⇒ de standaard (kritiek pad)');
+
+  // Eén gedeelde stand en één schrijfroute (review Terra #893): een patch leest de opslag op het moment van
+  // schrijven, zodat een wijziging van elders in een ander veld blijft staan, en zet alleen zijn eigen velden.
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS });
+  const stale = await loadReportSettings();
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stale, columns: ['task.name', CAL_DAYS] }));
+  patchReportSettings({ paperSize: 'A4' });
+  const merged = await loadReportSettings();
+  eq(merged.paperSize, 'A4', 'patch: het eigen veld staat erin');
+  eq(merged.columns, ['task.name', CAL_DAYS], 'patch: de kolommen van elders blijven staan');
+  // De optiegroepen per optie: een tabeloptie of resourceoptie van elders blijft staan.
+  localStorage.setItem('ops-reportSettings', JSON.stringify({
+    ...merged,
+    tableReports: { ...merged.tableReports, nearCriticalDays: 11 },
+    resourceGantt: { ...merged.resourceGantt, groupByType: !merged.resourceGantt.groupByType },
+  }));
+  patchReportSettings({ tableReports: { wbsSummaryLevel: 3 } });
+  patchReportSettings({ resourceGantt: { includeUnassigned: !merged.resourceGantt.includeUnassigned } });
+  const groups = await loadReportSettings();
+  eq([groups.tableReports.nearCriticalDays, groups.tableReports.wbsSummaryLevel], [11, 3], 'patch: tabeloptie van elders blijft, de eigen staat erin');
+  eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!merged.resourceGantt.groupByType, !merged.resourceGantt.includeUnassigned],
+    'patch: resourceoptie van elders blijft, de eigen staat erin');
+  // De patch geeft de nieuwe gedeelde stand terug, en de stand is precies wat er opgeslagen staat.
+  const afterA2 = patchReportSettings({ paperSize: 'A2' });
+  eq(afterA2, await loadReportSettings(), 'patch: geeft de opgeslagen stand terug');
+  ok(reportSettingsSnapshot() === afterA2, 'de gedeelde stand is de stand van de laatste patch');
+  // Komt een schrijfactie niet in de opslag (vol, geblokkeerd), dan blijft de keuze in de gedeelde stand en bouwt
+  // de volgende patch daarop voort; het rapporttype wisselt dus ook zonder opslag (was knownbug 1355).
+  const setItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+  patchReportSettings({ reportType: 'lookAhead' });
+  patchReportSettings({ orientation: 'portrait' });
+  eq([reportSettingsSnapshot().reportType, reportSettingsSnapshot().orientation], ['lookAhead', 'portrait'], 'zonder opslag: beide keuzes in de gedeelde stand');
+  eq((await loadReportSettings()).reportType, afterA2.reportType, 'zonder opslag: de opslag zelf is ongewijzigd');
+  localStorage.setItem = setItem;
+  patchReportSettings({ paperSize: 'A1' });
+  const back = await loadReportSettings();
+  eq([back.reportType, back.orientation, back.paperSize], ['lookAhead', 'portrait', 'A1'], 'opslag weer beschikbaar: de keuzes uit de sessie komen erin');
+  // Een opslag die tijdelijk niet te lezen is, is geen lege opslag (review Sol #893): een keuze in die tijd zet
+  // geen standaardwaarden over de bewaarde stand, ook niet bij de eerstvolgende schrijfactie na herstel.
+  const getItem = localStorage.getItem.bind(localStorage);
+  localStorage.getItem = () => { throw new Error('SecurityError'); };
+  localStorage.setItem = () => { throw new Error('SecurityError'); };
+  patchReportSettings({ showLegend: !back.showLegend });
+  eq([reportSettingsSnapshot().paperSize, reportSettingsSnapshot().showLegend], ['A1', !back.showLegend], 'onleesbare opslag: de stand houdt het papier, met de nieuwe keuze');
+  localStorage.getItem = getItem;
+  localStorage.setItem = setItem;
+  eq((await loadReportSettings()).showLegend, back.showLegend, 'onleesbare opslag: er is niets geschreven');
+  patchReportSettings({ showFloat: !back.showFloat });
+  const healed = await loadReportSettings();
+  eq([healed.paperSize, healed.orientation, healed.showLegend, healed.showFloat], ['A1', 'portrait', !back.showLegend, !back.showFloat],
+    'na herstel: de bewaarde keuzes blijven, de keuzes uit de sessie komen erbij');
+  // Zonder lezer luistert niemand naar `storage`: wie zich daarna weer aanmeldt, krijgt wat een ander venster
+  // intussen schreef (review Terra #893 ronde 7, was knownbug 1359).
+  const g = globalThis as { window?: unknown };
+  const hadWindow = 'window' in g;
+  if (!hadWindow) g.window = { addEventListener() {}, removeEventListener() {} };
+  subscribeReportSettings(() => {})();
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ ...healed, paperSize: 'A4' }));
+  const unsubscribe = subscribeReportSettings(() => {});
+  eq(reportSettingsSnapshot().paperSize, 'A4', 'opnieuw aangemeld: de stand leest de opslag opnieuw');
+  unsubscribe();
+  if (!hadWindow) delete g.window;
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ studioStep: 'export', customZoom: 0.2034567 }));
   const older = await loadReportSettings();

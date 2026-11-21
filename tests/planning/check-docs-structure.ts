@@ -73,6 +73,7 @@ eq('20 structureOf', structureOf(doc), {
   listItems: 3,
 });
 eq('21 project://-links tellen mee, in volgorde', structureOf('[b](examples://b.ifc) [a](project://a)').links, ['examples://b.ifc', 'project://a']);
+eq('21b settings://-links tellen mee: een vertaling houdt dezelfde instelling', structureOf('[Planning](settings://autoCalc)').links, ['settings://autoCalc']);
 const translated = doc
   .replace('# Titel', '# Title').replace('## Eerste', '## First').replace('## Tweede', '## Second')
   .replace('docs://howto-a#stap-1', 'docs://howto-a#step-1').replace('punt een', 'item one');
@@ -92,6 +93,7 @@ ok('44 genest lijstitem', subsetErrors('- a\n  - b').some(e => e.startsWith('2 i
 ok('45 raw HTML', subsetErrors('tekst <b>vet</b>').some(e => e.includes('raw HTML')));
 eq('46 HTML in inline code mag', subsetErrors('`<Notes>`'), []);
 ok('47 http-link niet toegestaan', subsetErrors('[x](https://example.org)').some(e => e.includes('linkschema')));
+eq('47b settings://-link toegestaan (opent één app-instelling)', subsetErrors('[Tijdlijn](settings://compressNonWorkdays)'), []);
 ok('48 afbeelding zonder alt', subsetErrors('![](img/x.webp)').some(e => e.includes('zonder alt-tekst')));
 ok('49 onbekende placeholder', subsetErrors('![a](img/{taal}/x.webp)').some(e => e.includes('onbekende placeholder {taal}')));
 ok('50 pad buiten public/docs', subsetErrors('![a](../x.webp)').some(e => e.includes('relatief binnen public/docs')));

@@ -3,7 +3,7 @@
 // de echte opslagroute en de tolerantie voor een ontbrekende of geprutste waarde (per veld terug op
 // de default; een opslag van vóór deze optie krijgt dus stil de nieuwe default en verliest niets).
 import './domStub';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 
 const failures: string[] = [];
 const expect = (label: string, got: unknown, want: unknown) => {
@@ -25,7 +25,7 @@ expect('… en de overige voorkeuren blijven staan', ouder.showLegend, false);
 localStorage.setItem('ops-reportSettings', JSON.stringify({ repeatFooter: 'nee' }));
 expect('rommel ⇒ default', (await loadReportSettings()).repeatFooter, true);
 
-await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, repeatFooter: false });
+patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, repeatFooter: false });
 expect('voetkeuze overleeft een round-trip', (await loadReportSettings()).repeatFooter, false);
 
 if (failures.length > 0) {

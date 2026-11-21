@@ -167,7 +167,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   eq('6a tegenproef: verse MSPDI-import staat in de modus, B mist vier assen',
     [S().datesAsRecorded, unrecordedAxes(S().recordedDates?.times[idOf('1.2')])], [true, ['ls', 'lf', 'tf', 'ff']]);
-  const saved = writeIFC(buildWriteIFCInput(S()));
+  const saved = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const reopened = readIFC(saved);
   const bReopened = reopened.tasks.find(t => t.wbsCode === '1.2')!.id;
   const aReopened = reopened.tasks.find(t => t.wbsCode === '1.1')!.id;
@@ -191,7 +191,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('6g …en geeft GEEN openingsmelding (ook niet in de automatisch-aan-tak)', meldingen() - voorHeropen, 0);
   // Buiten de modus staat onze eigen berekening: dan wordt er niets achtergehouden.
   S().runCPM();
-  const savedOutside = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const savedOutside = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const bOutside = savedOutside.tasks.find(t => t.wbsCode === '1.2')!.id;
   eq('6h buiten de modus opgeslagen: alle negen slots (echte CPM-uitvoer)', savedOutside.recordedFields?.[bOutside]?.length, 9);
 }
@@ -234,7 +234,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   S().setProject({ description: 'bewerkt, zonder datumwijziging' });
-  const savedEdited = writeIFC(buildWriteIFCInput(S()));
+  const savedEdited = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   truthy('8c het opgeslagen bestand noemt zijn bron (SourceFormat mspdi)', savedEdited.includes("IFCPROPERTYSINGLEVALUE('SourceFormat',$,IFCLABEL('mspdi'),$)"));
   const reopenedEdited = readIFC(savedEdited);
   eq('8c2 …en dat leest terug', [reopenedEdited.recordedTimesOrigin, reopenedEdited.recordedSourceFormat, reopenedEdited.importPristine], ['ifc-own', 'mspdi', false]);
@@ -249,7 +249,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   // solve tegen de nieuwe, geen pakketuitvoer.
   S().newProject();
   S().applyOpenedImport(readIFC(writeIFC({ ...readMSPDI(MSPDI_FIXTURE), recordedTimes: undefined, recordedTimesOrigin: undefined })), { filePath: null, recompute: true });
-  const eigenZonderBron = writeIFC(buildWriteIFCInput(S()));
+  const eigenZonderBron = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   truthy('8e0 het eigen bestand zonder bron draagt geen SourceFormat', !eigenZonderBron.includes("'SourceFormat'"));
   const bStart = S().tasks.find(t => t.wbsCode === '1.2')!.time.earlyStart;
   const verschoven = eigenZonderBron.replace(new RegExp(`'${bStart.slice(0, 10)}T`, 'g'), "'2026-03-23T");
@@ -273,7 +273,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   eq('9a0 tegenproef: verse import legt 2 taken vast (A, B), C niet', S().recordedDates?.total, 2);
-  const savedInMode = writeIFC(buildWriteIFCInput(S()));
+  const savedInMode = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const re = readIFC(savedInMode);
   eq('9a C (geen vastlegging) wordt zonder rekenslots opgeslagen', re.recordedFields?.[wbsId(re, '1.3')], ['scheduleStart', 'scheduleFinish']);
   S().newProject();
@@ -315,7 +315,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().newProject();
   S().applyOpenedImport(readMSPDI(withSummary), { filePath: null, recompute: true });
   eq('9d0 voorwaarde: met samenvatting in de modus, alleen de bladen vastgelegd', [S().datesAsRecorded, S().recordedDates?.total], [true, 2]);
-  const savedSummary = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const savedSummary = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   eq('9d0b de samenvatting (geen eigen vastlegging) wordt zonder rekenslots opgeslagen',
     savedSummary.recordedFields?.[savedSummary.tasks.find(t => t.name === 'S')!.id], ['scheduleStart', 'scheduleFinish']);
   S().newProject();
@@ -327,7 +327,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   S().setProject({ description: 'bewerkt, zonder datumwijziging' });
-  const bewerkt = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const bewerkt = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   S().newProject();
   S().applyOpenedImport(bewerkt, { filePath: null, recompute: true });
   // In de modus opgeslagen ⇒ heropent in de modus (8d). De datumbewerking hieronder verlaat de modus.
@@ -336,7 +336,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   // die bij heropenen afwijkt van de nieuwe — precies het geval waar een geclaimde bron zou liegen.
   bump('1.1');
   eq('9e1 voorwaarde: buiten de modus, planning verouderd', [S().recordedDates, S().datesAsRecorded, S().scheduleStale], [null, false, true]);
-  const aanbodOpslag = writeIFC(buildWriteIFCInput(S()));
+  const aanbodOpslag = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   truthy('9e opslaan buiten de modus schrijft GEEN SourceFormat', !aanbodOpslag.includes("'SourceFormat'"));
   S().newProject();
   S().applyOpenedImport(readIFC(aanbodOpslag), { filePath: null, recompute: true });
@@ -348,11 +348,11 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   bump('1.1');
   eq('9g0 voorwaarde: de datumbewerking verliet de modus en wiste de vastlegging', [S().datesAsRecorded, S().recordedDates], [false, null]);
-  truthy('9g na een datumbewerking schrijft opslaan geen SourceFormat', !writeIFC(buildWriteIFCInput(S())).includes("'SourceFormat'"));
+  truthy('9g na een datumbewerking schrijft opslaan geen SourceFormat', !writeIFC(buildWriteIFCInput(S(), 'planOnly')).includes("'SourceFormat'"));
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   S().runCPM();
-  truthy('9h na F5 in de modus schrijft opslaan geen SourceFormat', !writeIFC(buildWriteIFCInput(S())).includes("'SourceFormat'"));
+  truthy('9h na F5 in de modus schrijft opslaan geen SourceFormat', !writeIFC(buildWriteIFCInput(S(), 'planOnly')).includes("'SourceFormat'"));
 }
 
 // ── (5-0) .mpp-kritiekgrens uit de projecteigenschappen (corpusloos) ────────────────────────────

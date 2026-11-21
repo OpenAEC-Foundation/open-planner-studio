@@ -1,7 +1,7 @@
 import { createContext, Fragment, useContext, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon, type IconId } from '@/components/icons';
 
-// Bouwstenen van de stappen in de zijbalk van het nieuwe Rapport-tabblad. Elk onderdeel is een
+// Bouwstenen van de stappen in de zijbalk van het Rapport-tabblad. Elk onderdeel is een
 // gewoon formulierelement (checkbox, radiogroep) met toetsenbordbediening: Tab, Spatie/Enter en de
 // pijltjes in een keuzegroep.
 

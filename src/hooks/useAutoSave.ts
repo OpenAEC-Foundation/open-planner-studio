@@ -1,16 +1,19 @@
+import { recoverySourceDocument } from '@/state/recoverySourceDocument';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { useEffect, type MutableRefObject } from 'react';
 import { appStoreContext, useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
-import { recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
+import { clearOwnRecovery, recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
-import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
-import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
+import { registerRecoveryClear, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
+import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
+import { onTextEntry } from '@/state/textEntryActivity';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
-import { recoverySaveTarget } from '@/state/ifcForeignGuard';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
@@ -48,26 +51,20 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       // echte save blijven actieve-tab- en metadatawijzigingen echter wél bewaard, ook als geen
       // document op dat moment dirty is. `isDirty` is dus hoogstens een eerste-eligibilityflag,
       // nooit de identiteit van IFC-inhoud.
-      if (!docs.some((d) => d.payload.isDirty) && !recoveryDelta.hasPersistedSnapshot) return;
+      // Een lopende vervanging (knownbug 1131) wacht op haar manifest, ook in een schone sessie.
+      if (!docs.some((d) => d.payload.isDirty) && !recoveryDelta.hasPersistedSnapshot && !hasPendingIfcSource()) return;
       try {
         // Vergelijk de echte IFC-bronvelden (Immer-referenties) en niet `isDirty`: zo krijgt één
         // taakbewerking één volledige IFC-upsert, terwijl een actieve-tabwissel manifest-only is.
-        const recoveryDocs: RecoverySourceDocument[] = docs.map(({ id, payload }) => ({
-          id,
-          source: payload,
-          // Pad, site-doel en de versie waarop DIT document rust: crashherstel zet ze terug, zodat
-          // Ctrl+S na herstel weer naar hetzelfde doel schrijft (site: mét conflictcontrole). Met een
-          // vreemd deel (#804 fase 1a) geen doel: de snapshot heeft het gebouwmodel niet.
-          ...recoverySaveTarget(payload),
-          isDirty: payload.isDirty,
-          // "Datums zoals opgeslagen" is een weergavestand, geen IFC-inhoud: hij reist als
-          // manifestmetadata mee zodat crashherstel hem terugzet i.p.v. hem te raden.
-          datesAsRecorded: payload.datesAsRecorded,
-        }));
+        const recoveryDocs: RecoverySourceDocument[] = docs.map(({ id, payload }) =>
+          recoverySourceDocument(id, payload, ifcForeignContentEnabled(state.ui.featureFlags)));
         // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore. De volledige
         // documentlijst is manifestmetadata; alleen `upserts` bevat IFC-teksten, en die dragen het
         // XER-bronarchief alleen als verwijzing (eigenaarsbesluit plan (9), `serializeRecoverySnapshot`).
-        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, enabled);
+        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, enabled, id => {
+          useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.ifcSourceCopyFailed',
+            dedupeKey: `ifc-source-copy-${id}` });
+        });
       } catch (err) {
         if (!enabled()) return;
         if (!notifyRecoveryError(err, useAppStore.getState().notify)) {
@@ -98,6 +95,15 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     // Directe ronde op verzoek (updater vóór `relaunch`): wacht een lopende save af en schrijft
     // daarna de actuele staat, buiten de throttle om.
     const unregisterFlush = registerRecoveryFlush(runAutoSave);
+    // Schone exit (`useAppCloseGuard`): wissen in dezelfde volgorde als de rondes, en daarna geldt er geen opgeslagen basis
+    // meer. Gaat het venster toch niet dicht, dan schrijft de hervatte ronde alles opnieuw (knownbug 1819).
+    const unregisterClear = registerRecoveryClear(() => recoveryDelta.runExclusive(async () => {
+      try {
+        await clearOwnRecovery();
+      } finally {
+        recoveryDelta.forgetPersisted();
+      }
+    }));
     const unsub = useAppStore.subscribe(() => {
       if (timer) return; // er staat al een save gepland binnen dit interval
       const wait = Math.max(0, AUTOSAVE_INTERVAL_MS - (Date.now() - lastSaveAt));
@@ -116,6 +122,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       if (timer) clearTimeout(timer);
       unsub();
       unregisterFlush();
+      unregisterClear();
     };
   }, [autoSaveEnabled]);
 
@@ -127,20 +134,17 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     const controller = createFileAutoSaveController({
       getState: () => useAppStore.getState(),
       enabled: () => autoSaveEnabled.current,
+      // #804 stap 6: dezelfde berekenfunctie als Ctrl+S, dus de opslagworker.
+      compute: appStoreContext.runtime.ifcSaveCompute,
     });
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let lastRunAt = 0;
-    const request = () => {
-      if (timer) return;
-      timer = setTimeout(() => {
-        timer = null;
-        lastRunAt = Date.now();
-        void controller.flush();
-      }, actualAutoSaveDelay(lastRunAt, Date.now()));
-    };
-    const unsub = useAppStore.subscribe(request);
-    return () => { if (timer) clearTimeout(timer); unsub(); };
+    // De wekkers (het gewone ritme van 10 s en, #804 stap 8, dat van een document met een gebouwmodel) staan in
+    // `fileAutoSaveTimers.ts`, zodat een test ze met een nagebootste klok kan draaien.
+    const schedule = scheduleFileAutoSave(controller);
+    const unsub = useAppStore.subscribe(schedule.request);
+    // Typen in een cel van de taakgrid staat pas bij Enter in de store; het telt wel als werken (fixronde 1 van #1033).
+    const unsubTextEntry = onTextEntry(schedule.textEntry);
+    return () => { schedule.dispose(); unsub(); unsubTextEntry(); };
   }, [autoSaveEnabled]);
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er

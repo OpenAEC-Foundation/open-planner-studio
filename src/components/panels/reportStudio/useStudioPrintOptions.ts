@@ -16,19 +16,20 @@ import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import type { ReportSettings } from '@/utils/reportSettings';
-import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
+import { reportFontStack, type ReportFontChoice } from '@/services/pdf/reportFont';
 import { reportBarColors } from './reportLayouts';
 
 /** De rapportletter die geladen is, met zijn meting (dezelfde als de vector-PDF, `loadReportTextMetrics`). */
 export interface StudioFont {
-  id: ReportFontId;
+  id: ReportFontChoice;
+  /** `reportFontKey`: verschilt ook tussen twee eigen lettertypen. */
+  key: string;
   metrics: ReportTextMetrics;
 }
 
 /**
- * De `PrintOptions` van de Gantt-afdruk voor het nieuwe Rapport-tabblad. Dezelfde velden en dezelfde
- * vertaalde teksten als het oude paneel (`ReportPanel.tsx`, type `gantt`), plus de kolomlijst
- * (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
+ * De `PrintOptions` van de Gantt-afdruk voor het Rapport-tabblad, met de vertaalde teksten van de
+ * printlaag en de kolomlijst (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
  * gemeten op de geladen rapportletter — meten hoort in het paneel, niet in de printlaag (`reports.md`).
  *
  * `font`: de rapportletter die geladen is (#770), met de meting van de PDF; `null` zolang er nog geen
@@ -115,7 +116,7 @@ export function useStudioPrintOptions(
     [tasks, reportRows, assignmentColumns, rowAssignments],
   );
 
-  // De curvekolom zo breed als de langste curvenaam die dít rapport toont (zoals het oude paneel).
+  // De curvekolom zo breed als de langste curvenaam die dít rapport toont.
   const curveColumnWidth = useMemo(() => {
     if (!metrics || !assignmentColumns || !rowAssignments) return undefined;
     const cellLabels = new Set<string>();
@@ -167,6 +168,7 @@ export function useStudioPrintOptions(
       showLegend: settings.showLegend,
       showTaskNames: settings.showTaskNames,
       showCompletion: settings.showCompletion,
+      showBarDates: settings.showBarDates,
       showBaselineOverlay: settings.showBaselineOverlay,
       autoFit: settings.autoFit,
       customZoom: settings.customZoom,
@@ -175,7 +177,7 @@ export function useStudioPrintOptions(
       companyName,
       taskNameColumnWidth: settings.truncateTaskNames ? settings.taskNameColumnWidth : (autoNameWidth ?? settings.taskNameColumnWidth),
       labels: {
-        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt (zelfde teksten als het oude paneel).
+        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt, niet "geen taken".
         noTasks: resource && tasks.length > 0
           ? (resource.result.counts.inPeriod === 0 && resource.result.counts.outsidePeriod > 0 ? t('resourceGantt.emptyPeriod') : t('resourceGantt.empty'))
           : t('noTasks'),
@@ -245,7 +247,7 @@ export function useStudioPrintOptions(
     // Alleen de velden die op het papier staan: de zijbalkstand of de kolomlijst zelf (die via
     // `tableColumns` binnenkomt) mag geen nieuwe opname veroorzaken.
   }, [fontReady, settings.showFloat, settings.showWeekends, settings.showLegend,
-    settings.showTaskNames, settings.showCompletion, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
+    settings.showTaskNames, settings.showCompletion, settings.showBarDates, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
     settings.paperSize, settings.orientation, settings.truncateTaskNames, settings.taskNameColumnWidth,
     settings.compressNonWorkdays, settings.timelineColumns, settings.reportFontScale, settings.statusLine,
     companyName, autoNameWidth, t, tTask, tableHeaders, daySuffix, locale, project.startDate,

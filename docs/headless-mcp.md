@@ -85,7 +85,7 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   opent een bestand als document; `planner_new_document`, `planner_switch_document` en de andere
   documenttools werken zoals in de app.
 - **Opslaan.** Er is geen opslagcommando en geen automatisch opslaan. De agent schrijft het actieve
-  document met `planner_export_ifc`; `overwrite: true` vervangt het geopende bestand. Wat niet
+  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma, en nooit het bestand van een ander open document (knownbug 1907). Wat niet
   geëxporteerd is, is weg als de server stopt.
 - **Paden.** In de toolbeschrijvingen staat "home folder". In de headless server is dat de werkmap:
   `~/plan.ifc` is `<werkmap>/plan.ifc`. Een absoluut pad moet in de werkmap liggen. Een relatief pad
@@ -142,6 +142,19 @@ logging gaat naar stderr.
    Een andere schrijfwijze van een bestaand pad wordt dus geweigerd, nooit toegelaten. De server weigert
    met `SCOPE`: een symlink of junction naar buiten, een dode link, en een bestand met meer dan één harde
    link (dan is niet te bewijzen dat elke naam in de werkmap ligt).
+De gedeelde doelcontrole beschermt een bestaand IFC met model of vreemde gegevens ook zonder appflag en zonder
+lopende desktop-app. `createNodeFileFs` levert daarvoor `scanTarget` en `protectExistingTargets`; de scan leest
+via dezelfde root-, realpath-, mapobject- en `O_NOFOLLOW`-grenzen als de gewone leesroute. `overwrite: true` heft
+de inhoudsweigering niet op. Nieuwe bestanden en volledig eigen IFC-uitvoer blijven schrijfbaar. Een lees-/scanfout
+weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanForeign` (C/A/V), met de bestaande
+300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. De gemeten oude eigen kop gebruikt de
+gedeelde herkenning; de ongewijzigde v2026.7.12-fixtures met een apostrof of DATA; in de naam blijven gewone doelen.
+De zestien gemaakte kopvormen die de bestaande scanner niet ondersteunt, weigeren veilig (knownbug 1134).
+De headless server leest IFC als tekst; gegevens van een ander programma zonder gebouwmodel (bijvoorbeeld een externe pset) komen bij `planner_export_ifc` naar een nieuwe naam nu nog niet mee; de bron blijft ongewijzigd (knownbug 1136). Richting voor fase 2, vóór de flag eraf gaat: export naar een nieuwe naam weigert bij ongedragen vreemde invoer. De app met de flag aan exporteert volledige bytes; dit is nog geen belofte voor de headless tekstserver.
+
+Lokaal kan `OPS_HEADLESS_SOURCE_ONLY=1 bash tests/mcp/run.sh cases-headless-server.ts` de bron-/HTTP-proeven uitvoeren
+zonder de zelfstandige bundel te bouwen. Zonder die variabele blijft deel B volledig onderdeel van CI.
+
 3. Slot, alleen bij schrijven (`headless/mcp-server/src/appLock.ts`, aangeroepen in `writeChecked`):
    zolang de desktop-app draait, vervangt de server geen bestaand bestand. Lezen blijft mogen, en een nieuw
    bestand schrijven ook. Bij elke

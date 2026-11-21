@@ -67,7 +67,7 @@ for (const route of ROUTES) {
     eq(`${route} (1) einde blijft 4 juni 16:00`, t.time.earlyFinish, '2026-06-04T16:00');
     eq(`${route} (1) één undo-stap`, historyDepthsForActiveScope(f.S()).undoDepth, depth + 1);
     // Opslaan en heropenen: de pauze staat ook in het bestand.
-    const back = readIFC(writeIFC(buildWriteIFCInput(f.S()))).tasks.find(x => x.id === f.id);
+    const back = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly'))).tasks.find(x => x.id === f.id);
     eq(`${route} (1) pauze na IFC-rondgang`, back?.splitGaps, [GAP]);
     eq(`${route} (1) SNET na IFC-rondgang`, back?.constraint?.date?.slice(0, 10), '2026-06-01');
   }

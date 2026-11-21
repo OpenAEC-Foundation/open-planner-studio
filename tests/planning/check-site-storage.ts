@@ -72,9 +72,10 @@ function fakeRequest(compute: () => unknown) {
   queueMicrotask(() => { request.result = compute(); request.onsuccess?.(); });
   return request;
 }
-function fakeDb(name: string) {
+function fakeDb(name: string, version = 1) {
   const indexes = new Map<string, string>();
   return {
+    version,
     objectStoreNames: { contains: () => true },
     createObjectStore: () => undefined,
     close: () => undefined,
@@ -110,10 +111,16 @@ function fakeDb(name: string) {
   };
 }
 g.indexedDB = {
-  open: (name: string) => {
-    const db = fakeDb(name);
-    const request = { result: db, transaction: db.transaction(), error: null, onupgradeneeded: null as (() => void) | null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-    queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
+  open: (name: string, version?: number) => {
+    const existed = databases.has(name), db = fakeDb(name, version);
+    let aborted = false;
+    const transaction = { ...db.transaction(), abort: () => { aborted = true; } };
+    const request = { result: db, transaction, error: null as unknown, onupgradeneeded: null as (() => void) | null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+    queueMicrotask(() => {
+      if (!existed || version !== undefined) request.onupgradeneeded?.();
+      if (aborted) { request.error = new Error('AbortError'); request.onerror?.(); }
+      else request.onsuccess?.();
+    });
     return request;
   },
 };
@@ -135,7 +142,7 @@ const {
   saveRecovery, loadRecovery, clearRecovery, fullRecoverySave, planTauriV3RecoverySave, parseRecoveryManifest, recoverySiteMeta,
 } = await import('@/services/recovery/recoveryStore');
 const { planRecoveryDelta, persistedRecoveryState } = await import('@/services/recovery/recoveryDelta');
-const { recoveryNames } = await import('@/hooks/recoveryPaths');
+const { recoveryNames } = await import('@/services/recovery/recoveryPaths');
 const { setSiteOpenAsker, setSiteSaveAsker, resetSiteAskers } = await import('@/services/fileAccess/siteDialogs');
 const { useAppStore } = await import('@/state/appStore');
 const { isActivePristine, siteSaveDefaultName, siteVersionCopyName } = await import('@/state/slices/fileSlice');
@@ -514,7 +521,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().newProject();
   S().setProject({ name: 'Herstel-site', startDate: '2026-08-03' });
   S().addTask({ name: 'Werk' });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'merge'));
   const parsed = readIFC(ifc);
   S().restoreDocuments([
     recoveryInputFromParsed(parsed, { id: 'rs-1', filePath: 'Herstel.ifc', siteFileId: 'site-r', siteFileVersion: 'v4', isDirty: true, datesAsRecorded: false }),
@@ -561,7 +568,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().newProject();
   S().setProject({ name: 'Site-project', startDate: '2026-08-03' });
   S().addTask({ name: 'Fundering' });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'merge'));
   site.put('p1', 'Site-project.ifc', [ifc, ifc]);
 
   // G1 — Openen van de site (nieuwste versie).
@@ -917,7 +924,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().newProject();
   S().setProject({ name: 'Super', startDate: '2026-08-03' });
   S().addTask({ name: 'Fundering' });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'merge'));
   st.put('p1', 'Super.ifc', [ifc, ifc]);
   setHost({ ...st.host, initialFileId: 'p1' });
   S().newProject();

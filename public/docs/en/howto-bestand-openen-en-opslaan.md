@@ -13,7 +13,7 @@ You start the day with yesterday's project, you get a file from a colleague or f
 1. Choose *Home › File › Open*, or *File › Open*, or press Ctrl+O (⌘+O on a Mac). The *File* group is also on the *Table* tab.
 2. Choose the file. You open one file at a time. On the desktop and in browsers with file access, such as Chrome and Edge, the window shows a list of file types: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* and *Primavera XER Files*.
 3. The project opens in a new tab. If the current tab was still empty and unchanged, the project opens in it.
-4. If the file was not IFC, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in [App settings](docs://ref-instellingen), on the *Advanced* tab.
+4. If the file was not IFC, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in the app settings, in the [Notices](settings://formatNotices) group.
 
 An IFC file gives its file name to the tab. A project from another format gets its project name.
 
@@ -51,7 +51,7 @@ Choose *Home › File › Save* or *File › Save*, or press Ctrl+S. What happen
 3. If your browser only saves through a download (such as Firefox), the file lands in your downloads folder, and every save creates a new download. The first time in a session you see the message *Saved as a download: 'name.ifc' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.*
 4. If limited file access prevents your browser from writing back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
 
-After saving, the *Unsaved* marker disappears: the dot on the tab, the asterisk before the project name at the top and the text *Unsaved* at the bottom right of the status bar.
+While saving, the status bar shows *Saving…* at the bottom right; you can keep working in the meantime. After saving, the *Unsaved* marker disappears: the dot on the tab and the asterisk before the project name at the top. The status bar then shows *Saved* with the time, for example *Saved 14:32*. Anything you changed while saving is not in the file: after that it shows *Unsaved* again.
 
 ### Saving under another name
 

@@ -2,7 +2,8 @@ import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
-import { taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { carryLiveProgressPlan, liveProgressPlannedStarts, progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -21,15 +22,18 @@ import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import {
   actualStartQuestionFor, hasRecordedProgress, planProgressEntry, progressEntryStatusDate,
-  type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
+  type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan, type ProgressEntryResult,
 } from '@/engine/progressEntry';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
 } from '@/state/taskTree';
+import { selectNeighbourAfterRemoval } from '@/state/selectionAfterRowChange';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
-import { refusalNotice } from '@/state/refusalNotice';
+import { refusalNotice, refusedNamesLine, refusedSetKey } from '@/state/refusalNotice';
+import { headerTransfers, planDissolve } from '@/state/dissolveTasks';
+import { relationAddVerdict } from '@/state/relationRules';
 import {
   applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseAssignmentQuestion, phaseRefusalNotice,
   phaseTransitionNotices, planPhaseTransitions, type PendingChild, type PhaseAssignmentChoice,
@@ -111,6 +115,9 @@ export interface TaskSlice {
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
   deleteTasksBulk: (ids: readonly string[]) => void;
+  /** Hef taken op (issue #887): ze gaan weg zoals bij `deleteTasksBulk`, en elke voorganger wordt
+   *  einde-begin zonder vertraging gekoppeld aan elke opvolger (`planDissolve`). Eén undo-stap. */
+  dissolveTasksBulk: (ids: readonly string[]) => void;
   /** Verplaats `id` onder een nieuwe ouder (null = root). `position` afwezig ⇒ achteraan, in
    *  childIds én in de rauwe array (zie `moveTaskEdit`). `position` aanwezig ⇒ insert op die
    *  index — consistent in childIds (zichtbare volgorde niet-root, visibleRows.ts) ÉN in de rauwe
@@ -193,7 +200,7 @@ export interface TaskSlice {
   enterTaskProgress: (
     taskId: string,
     edit: ProgressEdit,
-    opts: { today: string; actualStart?: string; coalesceKey?: string },
+    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedStart?: () => string | undefined },
   ) => ProgressEntryResult;
   /**
    * De ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
@@ -261,16 +268,19 @@ export interface ProgressImportEntryOptions {
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
 function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
   const statusDate = progressEntryStatusDate(s.project.statusDate, today);
+  const baseStart = progressPlannedStarts(s);
   return {
-    planEdits: (task, edits) => {
-      const environment = buildTaskEditPlanEnvironment(s, task);
+    preparePlacement: ids => progressPlacementForBatch(s, ids, statusDate),
+    planEdits: (task, edits, plannedStart = baseStart) => {
+      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedStart };
       const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
       if (!planned.ok || !today) return planned;
       const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
       const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
-      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar),
+      wrote('task.time.completion') ? () => plannedStart(task) : undefined);
       if (!question) return planned;
       return {
         ok: false,
@@ -411,6 +421,60 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
     if (anchorRawIdx >= 0) tasks.splice(anchorRawIdx, 0, node);
     else tasks.push(node);
   }
+}
+
+/**
+ * Dissolve in de stand "alleen de kopregel" (issue #887, eigenaarsbesluit 2026-11-14): de
+ * subtaken van `id` schuiven een niveau omhoog, op de plek van de kopregel en in hun volgorde
+ * (dezelfde plaatsing als uitspringen), de kopregel gaat weg, en haar relaties gaan over naar de
+ * begin- en eindsubtaken (`headerTransfers`). Een overgezette relatie die er al is vervalt stil;
+ * een die de relatieregels weigeren komt in de teruggegeven lijst. Muteert de draft; de aanroeper
+ * doet snapshot, WBS en `finishMutation`.
+ */
+function dissolveSummaryHeader(s: AppState, id: string): string[] {
+  const before = currentAppState(s);
+  const transfers = headerTransfers(before.tasks, before.sequences, id);
+  const summary = s.tasks.find(task => task.id === id);
+  if (!summary) return [];
+  // Externe relaties van de kopregel gaan net zo naar de eerste en laatste subtaken, met soort,
+  // vertraging, anker en bron; anders verdwenen ze met de kopregel (review #937 ronde 2).
+  for (const link of summary.externalLinks ?? []) {
+    const targets = link.direction === 'predecessor' ? transfers.first : transfers.last;
+    for (const targetId of targets) {
+      const target = s.tasks.find(task => task.id === targetId);
+      if (!target) continue;
+      target.externalLinks = [...(target.externalLinks ?? []), { ...link, id: generateId('extlink') }];
+      Object.assign(target, normalizeTaskDates(target, s));
+    }
+  }
+  const parentId = summary.parentId ?? null;
+  const siblings = parentId
+    ? (s.tasks.find(task => task.id === parentId)?.childIds ?? [])
+    : s.tasks.filter(task => !task.parentId).map(task => task.id);
+  let childIndex = siblings.indexOf(id) + 1;
+  for (const childId of [...summary.childIds]) {
+    const plan = planTaskPlacement(s.tasks, childId, { parentId, childIndex }, { rejectNoOp: false });
+    if (!plan) continue; // alleen bij een kapotte boom.
+    applyTaskPlacement(s.tasks, childId, plan);
+    childIndex += 1;
+  }
+  removeTaskSubtrees(s, [id]);
+
+  const after = currentAppState(s);
+  const sequences = [...after.sequences];
+  const name = (taskId: string) => after.tasks.find(task => task.id === taskId)?.name ?? '?';
+  const refused: string[] = [];
+  for (const relation of transfers.relations) {
+    const verdict = relationAddVerdict(after.tasks, sequences, relation);
+    if (verdict.ok) {
+      const added = { ...relation, id: generateId('seq') };
+      sequences.push(added);
+      s.sequences.push(added);
+    } else if (verdict.reason !== 'duplicate') {
+      refused.push(`${name(relation.predecessorId)} → ${name(relation.successorId)}`);
+    }
+  }
+  return refused;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -799,6 +863,23 @@ function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): Phase
 // Compatibele export voor bestaande MCP-aanroepers; de ene implementatie leeft in taskEditPlan.
 export { applyProgressInvariants };
 
+/** De taak zoals een voortgangssetter haar bewaart. Ook het contextmenu toetst opvolgers op deze
+ * uitkomst, met datumnormalisatie en zonder de nivelleergaten die door de bewerking vervallen. */
+export function planStoredProgressEdit(
+  state: Pick<AppState, 'project' | 'calendar' | 'calendars'>,
+  task: Task, edit: ProgressEdit, ctx: Omit<ProgressEntryContext, 'statusDate' | 'calendar'>,
+): ProgressEntryPlan {
+  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: state.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar) });
+  if (!plan.ok || !plan.change) return plan;
+  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
+  // geen undo-stap of verlies van nivelleergaten veroorzaken.
+  const normalized = normalizeTaskDates(plan.change.task, state);
+  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true, change: null };
+  clearLevelingGaps(normalized);
+  return { ok: true, change: { ...plan.change, task: normalized } };
+}
+
 /**
  * De ene commit van de voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`)
  * en van de UI-invoer (`enterTaskProgress`), binnen hun producer. Wat de bewerking doet,
@@ -833,30 +914,24 @@ function commitProgressEdit(
   // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
-  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
-    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar) });
+  const base = originalAppState(s);
+  const plan = planStoredProgressEdit(s, task, edit, { ...ctx,
+    plannedStart: ctx.plannedStart ?? (() => base ? liveProgressPlannedStarts(base)(task) : progressPlannedStarts(s)(task)) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
-  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
-  // geen undo-stap of verlies van nivelleergaten veroorzaken.
-  const normalized = normalizeTaskDates(plan.change.task, s);
-  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
   // Voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de ongewijzigde
   // taak, settle ná de mutatie. Ná de no-op-check, zodat een no-op ook het werk niet raakt.
   const progressWork = captureProgressWork(task, s);
-  const { statusDateToday } = plan.change;
+  const { task: updated, statusDateToday } = plan.change;
   if (statusDateToday) {
     s.project.statusDate = statusDateToday;
     s.project.modifiedAt = new Date().toISOString();
   }
-  task.time = normalized.time;
-  task.status = plan.change.task.status;
+  task.time = updated.time;
+  task.status = updated.status;
+  if (task.splitGaps !== updated.splitGaps) task.splitGaps = updated.splitGaps;
   settleProgressWork(task, taskAssignmentDrafts(s, task.id), progressWork); // eigen toewijzingen, zonder proxy per stuk
-  // Invalidatie van nivelleergaten, klasse voortgang. Voortgang loopt buiten `updateTask` om, dus
-  // deze setters hebben hun eigen aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor
-  // het waarom.
-  clearLevelingGaps(task);
   // ALTIJD stale: elke voortgangsmutatie is datum-beïnvloedend, met of zonder statusdatum
   // (`applyProgressInvariants` pint completion===1 op actuals/eigen finish, en de IN-PROGRESS-tak
   // in CPMSolver leunt evenmin op de statusdatum).
@@ -961,6 +1036,22 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     pendingPhaseChoice = onChoice;
     recheckPhaseQuestion = recheck;
     set((s) => { s.ui.pendingPhaseAssignmentQuestion = question; });
+  };
+
+  const writeProgress = (
+    taskId: string, edit: ProgressEdit, ctx: Omit<ProgressEntryContext, 'statusDate'>,
+    opts?: { coalesceKey?: string },
+  ): ProgressEntryResult => {
+    const before = get();
+    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
+    set(s => { result = commitProgressEdit(runtime, s, taskId, edit, ctx, opts); });
+    if (!result.ok) return result;
+    get().recomputeViewRows();
+    if (result.statusDateToday) {
+      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
+    }
+    carryLiveProgressPlan(before, get(), taskId);
+    return { ok: true };
   };
 
   return {
@@ -1409,6 +1500,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   deleteTask: (id) => {
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
@@ -1418,6 +1510,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie: planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    // Na de nieuwe rijen: de buur moet zichtbaar zijn (issue #899).
+    set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); });
   },
 
   deleteTasksBulk: (ids) => {
@@ -1428,6 +1522,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       return;
     }
 
+    const { viewRows: rowsBefore, selectedTaskIds: selectedBefore, ui: { gridActiveRowKey } } = get();
     set((s) => {
       const existing = new Set(s.tasks.map((task) => task.id)); // één keer, niet per wortel
       const roots = frozen.filter((id) => existing.has(id));
@@ -1438,6 +1533,54 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
+    set((s) => { selectNeighbourAfterRemoval(s, rowsBefore, selectedBefore, gridActiveRowKey); }); // zie deleteTask
+  },
+
+  dissolveTasksBulk: (ids) => {
+    const existing = new Set(get().tasks.map(task => task.id));
+    const known = ids.filter(id => existing.has(id));
+    if (known.length === 0) return; // niets bekends: geen snapshot, geen loze undo-stap.
+    const headerOnly = get().ui.dissolveSummaryMode === 'header';
+    const refused: string[] = [];
+    set((s) => {
+      runtime.beginUndoable(s);
+      let roots = known;
+      if (headerOnly) {
+        // Bovenste kopregel eerst: een geselecteerde subfase is daarna nog een kopregel en volgt.
+        const position = new Map(flattenOrder(s.tasks).map((task, index) => [task.id, index] as const));
+        const isSummary = (id: string) => (s.tasks.find(task => task.id === id)?.childIds.length ?? 0) > 0;
+        const headers = known.filter(isSummary).sort((x, y) => (position.get(x) ?? 0) - (position.get(y) ?? 0));
+        for (const id of headers) refused.push(...dissolveSummaryHeader(s, id));
+        roots = known.filter(id => !headers.includes(id));
+      }
+      if (roots.length > 0) {
+        // De kringtoets per brug leest de hele graaf: op een gewone momentopname, niet door de draft.
+        const plain = currentAppState(s);
+        const plan = planDissolve(plain.tasks, plain.sequences, roots);
+        removeTaskSubtrees(s, roots);
+        for (const bridge of plan.bridges) s.sequences.push({ ...bridge, id: generateId('seq') });
+        for (const { taskId, link } of plan.externalBridges) {
+          const target = s.tasks.find(task => task.id === taskId);
+          if (!target) continue;
+          target.externalLinks = [...(target.externalLinks ?? []), { ...link, id: generateId('extlink') }];
+          Object.assign(target, normalizeTaskDates(target, s));
+        }
+        refused.push(...plan.refused);
+      }
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      runtime.finishMutation(s, { stale: true });
+    });
+    get().recomputeViewRows();
+    if (refused.length > 0) {
+      // Deels gelukt is een weigering (eigenaarsbesluit 2026-10-17): de taken zijn weg, deze
+      // relaties niet aangemaakt. De detailregel noemt ze.
+      get().notify(refusalNotice({
+        messageKey: 'notifications.relationsSkippedOnDissolve',
+        params: { count: refused.length },
+        detailLines: refusedNamesLine(refused, 'relations'),
+        dedupeKey: refusedSetKey('dissolve', refused),
+      }));
+    }
   },
 
   // Alle verhangroutes lopen via `applyHierarchyEdit`: eerst de proef met de kringtoets
@@ -1624,45 +1767,17 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     return newRootId;
   },
 
-  setTaskProgress: (taskId, raw, opts) => {
-    let accepted = true;
-    // % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
-    // onder 100% ⇒ actualFinish vervalt. Dezelfde regel als de concept in "Taak bewerken"
-    // (`draftWithProgress`). Verzameltaak (alleen-lezen), snapshot, nivelleergaten, stale, de
-    // no-op-regel en de werknazorg: zie `commitProgressEdit`.
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'completion', value: raw }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setTaskProgress: (taskId, raw, opts) =>
+    writeProgress(taskId, { field: 'completion', value: raw }, {}, opts).ok,
 
-  setActualStart: (taskId, date, opts) => {
-    let accepted = true;
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualStart', value: date }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setActualStart: (taskId, date, opts) =>
+    writeProgress(taskId, { field: 'actualStart', value: date }, {}, opts).ok,
 
-  setActualFinish: (taskId, date, opts) => {
-    let accepted = true;
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualFinish', value: date }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setActualFinish: (taskId, date, opts) =>
+    writeProgress(taskId, { field: 'actualFinish', value: date }, {}, opts).ok,
 
-  enterTaskProgress: (taskId, edit, opts) => {
-    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
-    set((s) => {
-      result = commitProgressEdit(
-        runtime, s, taskId, edit, { today: opts.today, actualStart: opts.actualStart }, { coalesceKey: opts.coalesceKey },
-      );
-    });
-    get().recomputeViewRows();
-    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
-    if (result.ok && result.statusDateToday) {
-      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
-    }
-    return result.ok ? { ok: true } : result;
-  },
+  enterTaskProgress: (taskId, edit, opts) =>
+    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart }, opts),
 
   previewProgressImport: (rows, overrides, opts) => {
     const s = get();
@@ -1678,7 +1793,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     let plan!: ProgressImportPlan;
     let statusDateToday: string | undefined;
     set((s) => {
-      plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides, opts?.conflictChoices);
+      const live = originalAppState(s) ?? s;
+      plan = buildProgressImportPlan(rows, live.tasks, progressImportDeps(live, opts?.today), overrides, opts?.conflictChoices);
       if (plan.appliedCount === 0 || plan.unresolvedConflictCount > 0) return;
       runtime.beginUndoable(s);
       // Met `ProgressImportEntryOptions`: houdt een toegepaste rij voortgang over en was er geen

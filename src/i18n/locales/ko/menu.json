@@ -24,6 +24,8 @@
     "undo": "실행 취소",
     "redo": "다시 실행",
     "delete": "삭제",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: 선택한 작업을 삭제하고 각 선행 작업을 각 후속 작업에 연결합니다(완료-시작, 지연 없음)",
     "undoTitle": "실행 취소 (Ctrl+Z)",
     "redoTitle": "다시 실행 (Ctrl+Y)",
     "deleteTitle": "선택 삭제 (Delete)",
@@ -210,6 +212,7 @@
     "columnsHintGoToTable": "테이블 보기의 열 선택 — 테이블 탭에 표시됩니다",
     "toggleResourceAccent": "리소스 강조",
     "toggleFloatBand": "여유 시간 띠",
+    "toggleBarDates": "막대 옆 날짜",
     "screenColors": "막대 색상",
     "screenColors_critical": "주공정 경로",
     "screenColors_auto": "작업별 — 자동",
@@ -280,7 +283,8 @@
       "label": "저장 시 IFC 스키마",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (기본)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "이 파일에는 다른 프로그램의 데이터가 들어 있습니다. 따라서 원래 헤더의 스키마가 유지됩니다."
     }
   },
   "newProject": {
@@ -288,7 +292,23 @@
     "template": "공정 단계 템플릿",
     "tmplEmpty": "비어 있음",
     "tmplWoningbouw": "주택 건설",
-    "tmplUtiliteit": "비주거용 건축 / 리노베이션"
+    "tmplUtiliteit": "비주거용 건축 / 리노베이션",
+    "phase": {
+      "siteGroundwork": "현장 준비 & 토공",
+      "foundation": "기초",
+      "shell": "구조 골조",
+      "roof": "지붕",
+      "facadeFitOut": "외벽 & 내부 마감",
+      "services": "건축 설비 (MEP)",
+      "finishes": "마감",
+      "handover": "인도",
+      "demolitionStripOut": "철거 & 스트립아웃",
+      "groundworkFoundation": "토공 & 기초",
+      "mainStructure": "주요 구조체",
+      "facadeRoof": "외벽 & 지붕",
+      "fitOut": "내부 마감",
+      "commissioning": "시운전 & 시험"
+    }
   },
   "status": {
     "tasks": "작업:",
@@ -313,12 +333,14 @@
     "recentTitle": "최근 프로젝트",
     "recentSubtitle": "클릭하여 열기.",
     "recentEmpty": "최근에 열린 프로젝트가 없습니다.",
+    "recentLoading": "최근 파일 불러오는 중…",
     "recentUnavailable": "이 브라우저에서는 최근 항목의 로컬 파일을 다시 열 수 없습니다. 열기를 사용해 프로젝트 파일을 다시 선택하세요.",
     "recentOnSite": "사이트에 있음",
     "examples": "예제",
     "examplesTitle": "예제 프로젝트",
     "examplesSubtitle": "함께 제공되는 건설 일정입니다. 클릭하면 새 탭에서 열립니다.",
     "examplesLoading": "예제를 불러오는 중…",
+    "loading": "불러오는 중…",
     "examplesEmpty": "사용 가능한 예제가 없습니다.",
     "examplesError": "예제를 불러올 수 없습니다.",
     "examplesShowcaseHeading": "전체 쇼케이스 일정",
@@ -389,7 +411,7 @@
       "plannedReadOnly": "계획값, 변경하지 마세요",
       "summaryRow": "— 요약 작업: 입력하지 마세요"
     },
-    "csvLabel": "CSV (세미콜론 구분)",
+    "csvLabel": "CSV",
     "csvDesc": "범용 테이블 내보내기. 날짜 및 기간이 포함된 모든 작업.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Microsoft Project에서 열 수 있습니다. 전체 WBS 구조.",
@@ -401,7 +423,7 @@
     "profileHint": "현재 프로젝트는 {{name}} 프로필을 사용하고 있습니다. 이 파일 형식과 가장 잘 호환되도록 {{target}} 프로필을 사용하는 것을 권장합니다.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 표준, 프로젝트의 IFC 스키마 기준 (기본값 IFC 4.3 ADD2). BIM 모델과의 4D 연동.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "확장 프로그램",

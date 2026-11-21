@@ -357,12 +357,16 @@ export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSo
 
 /**
  * De sleutels van de tabbladnamen: de linttabbladen (`RibbonTab` in `src/state/slices/types.ts`; Ribbon.tsx
- * toont `menu:ribbon.<tab>`, met `beeld` → `view` en `instellingen` → `settings`) en de tabbladen van het
- * instellingenvenster (`SettingsPanelContent.tsx`). check-translate-docs.ts bewaakt dat deze lijst de code volgt.
+ * toont `menu:ribbon.<tab>`, met `beeld` → `view` en `instellingen` → `settings`) en de groepen van het
+ * instellingenvenster (`SETTINGS_GROUP_IDS` in `src/utils/settingIds.ts`). check-translate-docs.ts bewaakt dat deze lijst de code volgt.
  */
 export const RIBBON_TABS = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'] as const;
 export const ribbonTabKey = (tab: string): string => `menu:ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`;
-export const SETTINGS_TAB_KEYS = ['common:settings.appearanceTab', 'common:settings.planningTab', 'common:settings.advancedTab'] as const;
+export const SETTINGS_TAB_KEYS = [
+  'common:settings.groups.appearance', 'common:settings.groups.notation', 'common:settings.groups.timeline',
+  'common:settings.groups.workspace', 'common:settings.groups.planning', 'common:settings.groups.notices',
+  'common:settings.groups.advanced', 'common:settings.groups.about',
+] as const;
 export const TAB_KEYS: ReadonlySet<string> = new Set([...RIBBON_TABS.map(ribbonTabKey), ...SETTINGS_TAB_KEYS]);
 
 interface Classified {

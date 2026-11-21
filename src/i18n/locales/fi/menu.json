@@ -24,6 +24,8 @@
     "undo": "Kumoa",
     "redo": "Tee uudelleen",
     "delete": "Poista",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: poistaa valitut tehtävät, ja jokainen edeltäjä linkitään jokaiseen seuraajaan (lopusta alkuun, ilman viivettä)",
     "undoTitle": "Kumoa (Ctrl+Z)",
     "redoTitle": "Tee uudelleen (Ctrl+Y)",
     "deleteTitle": "Poista valinta (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Valitse Taulukko-näkymän sarakkeet — näkyy Taulukko-välilehdellä",
     "toggleResourceAccent": "Resurssikorostus",
     "toggleFloatBand": "Pelivaranauha",
+    "toggleBarDates": "Päivät palkkien vieressä",
     "screenColors": "Palkkien värit",
     "screenColors_critical": "Kriittinen polku",
     "screenColors_auto": "Tehtävittäin — automaattinen",
@@ -281,7 +284,8 @@
       "label": "IFC-skeema tallennettaessa",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (oletus)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Tiedosto sisältää toisen sovelluksen tietoja, joten alkuperäisen otsikon skeema säilytetään."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Vaihemalli",
     "tmplEmpty": "Tyhjä",
     "tmplWoningbouw": "Asuntorakentaminen",
-    "tmplUtiliteit": "Toimitilarakentaminen / saneeraus"
+    "tmplUtiliteit": "Toimitilarakentaminen / saneeraus",
+    "phase": {
+      "siteGroundwork": "Työmaa & maanrakennus",
+      "foundation": "Perustukset",
+      "shell": "Runkotyöt",
+      "roof": "Katto",
+      "facadeFitOut": "Julkisivu & sisätyöt",
+      "services": "Talotekniikka (MEP)",
+      "finishes": "Pintatyöt",
+      "handover": "Luovutus",
+      "demolitionStripOut": "Purku & strip-out",
+      "groundworkFoundation": "Maanrakennus & perustukset",
+      "mainStructure": "Pääkantava rakenne",
+      "facadeRoof": "Julkisivu & katto",
+      "fitOut": "Sisäviimeistely",
+      "commissioning": "Säätö & testaus"
+    }
   },
   "status": {
     "tasks": "Tehtävät:",
@@ -315,12 +335,14 @@
     "recentTitle": "Viimeisimmät projektit",
     "recentSubtitle": "Avaa napsauttamalla.",
     "recentEmpty": "Ei vielä viimeksi avattuja projekteja.",
+    "recentLoading": "Viimeisimpiä tiedostoja ladataan…",
     "recentUnavailable": "Tämä selain ei voi avata paikallisia tiedostoja uudelleen kohdasta Viimeisimmät. Valitse Avaa, jotta projektitiedosto valitaan uudelleen.",
     "recentOnSite": "Sivustolla",
     "examples": "Esimerkit",
     "examplesTitle": "Esimerkkiprojektit",
     "examplesSubtitle": "Mukana toimitetut rakennusaikataulut. Avaa napsauttamalla uudessa välilehdessä.",
     "examplesLoading": "Ladataan esimerkkejä…",
+    "loading": "Ladataan…",
     "examplesEmpty": "Esimerkkejä ei ole saatavilla.",
     "examplesError": "Esimerkkejä ei voitu ladata.",
     "examplesShowcaseHeading": "Täydet esittelyaikataulut",
@@ -391,7 +413,7 @@
       "plannedReadOnly": "suunniteltu, ei muuteta",
       "summaryRow": "— yhteenvetotehtävä: ei täytetä"
     },
-    "csvLabel": "CSV (puolipisteillä erotettu)",
+    "csvLabel": "CSV",
     "csvDesc": "Yleinen taulukkovienti. Kaikki tehtävät päivämäärineen ja kestoineen.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Avattavissa ohjelmassa Microsoft Project. Täysi WBS-rakenne.",
@@ -403,7 +425,7 @@
     "profileHint": "Projektissa käytetään tällä hetkellä profiilia {{name}}. Tämän tiedostomuodon kanssa parhaaseen yhteensopivuuteen suositellaan profiilia {{target}}.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standardi, projektin IFC-skeemassa (oletuksena IFC 4.3 ADD2). 4D-yhteys BIM-malleihin.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Laajennukset",

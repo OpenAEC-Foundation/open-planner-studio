@@ -24,6 +24,8 @@
     "undo": "Anulare",
     "redo": "Refacere",
     "delete": "Ștergere",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: șterge activitățile selectate și leagă fiecare predecesor de fiecare succesor (sfârșit-început, fără decalaj)",
     "undoTitle": "Anulare (Ctrl+Z)",
     "redoTitle": "Refacere (Ctrl+Y)",
     "deleteTitle": "Ștergere selecție (Delete)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Alegeți coloanele vizualizării Tabel — apar pe fila Tabel",
     "toggleResourceAccent": "Accent resursă",
     "toggleFloatBand": "Bandă de marjă",
+    "toggleBarDates": "Date lângă bare",
     "screenColors": "Culori bare",
     "screenColors_critical": "Drum critic",
     "screenColors_auto": "Pe activitate — automat",
@@ -282,7 +285,8 @@
       "label": "Schema IFC la salvare",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (implicit)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Fișierul conține date de la un alt program. De aceea schema din antetul original este păstrată."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Șablon de etapizare",
     "tmplEmpty": "Gol",
     "tmplWoningbouw": "Construcție de locuințe",
-    "tmplUtiliteit": "Clădiri nerezidențiale / renovare"
+    "tmplUtiliteit": "Clădiri nerezidențiale / renovare",
+    "phase": {
+      "siteGroundwork": "Șantier & lucrări de pământ",
+      "foundation": "Fundații",
+      "shell": "Structură de rezistență",
+      "roof": "Acoperiș",
+      "facadeFitOut": "Fațadă & amenajare",
+      "services": "Instalații (MEP)",
+      "finishes": "Finisaje",
+      "handover": "Predare",
+      "demolitionStripOut": "Demolare & dezafectare",
+      "groundworkFoundation": "Lucrări de pământ & fundații",
+      "mainStructure": "Structură principală",
+      "facadeRoof": "Fațadă & acoperiș",
+      "fitOut": "Amenajări interioare",
+      "commissioning": "Punere în funcțiune & testare"
+    }
   },
   "status": {
     "tasks": "Activități:",
@@ -317,12 +337,14 @@
     "recentTitle": "Proiecte recente",
     "recentSubtitle": "Faceți clic pentru a deschide.",
     "recentEmpty": "Încă nu ați deschis proiecte recente.",
+    "recentLoading": "Se încarcă fișierele recente…",
     "recentUnavailable": "Acest browser nu poate redeschide fișiere locale din „Recente”. Folosiți „Deschidere” pentru a alege din nou fișierul de proiect.",
     "recentOnSite": "Pe șantier",
     "examples": "Exemple",
     "examplesTitle": "Proiecte exemplu",
     "examplesSubtitle": "Planificări de construcții incluse. Faceți clic pentru a deschide într-o filă nouă.",
     "examplesLoading": "Se încarcă exemplele…",
+    "loading": "Se încarcă…",
     "examplesEmpty": "Niciun exemplu disponibil.",
     "examplesError": "Exemplele nu au putut fi încărcate.",
     "examplesShowcaseHeading": "Planificări complete de prezentare",
@@ -393,7 +415,7 @@
       "plannedReadOnly": "planificat, nu modificați",
       "summaryRow": "— activitate rezumat: nu completați"
     },
-    "csvLabel": "CSV (separat prin punct și virgulă)",
+    "csvLabel": "CSV",
     "csvDesc": "Export universal de tabel. Toate activitățile cu date și durate.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Se deschide în Microsoft Project. Structură WBS completă.",
@@ -405,7 +427,7 @@
     "profileHint": "Proiectul dumneavoastră utilizează în prezent profilul {{name}}. Vă recomandăm profilul {{target}} pentru cea mai bună compatibilitate cu acest format de fișier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, în schema IFC a proiectului (implicit IFC 4.3 ADD2). Legătură 4D cu modele BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensii",

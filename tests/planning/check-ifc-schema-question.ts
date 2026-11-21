@@ -241,7 +241,7 @@ truthy('0 oude fixture: geen schemamarkering', !hasProp(OLD_FILE, 'IfcSchemaConf
   // C9 — crashherstel en MCP-backup schrijven via dezelfde invoer zonder vraag; de vraag blijft bewaard.
   await open(withHeader(OLD_FILE, 'IFC2X3'), 'oud-2x3.ifc');
   asked.length = 0;
-  const snapshot = writeIFC(buildWriteIFCInput(S()));
+  const snapshot = writeIFC(buildWriteIFCInput(S(), 'merge'));
   eq('C9 herstelsnapshot: geen vraag gesteld', asked.length, 0);
   eq('C9 herstelsnapshot: kop is de standaard', header(snapshot), 'IFC4X3_ADD2');
   eq('C9 herstelsnapshot: de vraag IFC2X3 blijft bewaard', readIFC(snapshot).project.ifcSchemaUnconfirmed, 'IFC2X3');
@@ -250,7 +250,7 @@ truthy('0 oude fixture: geen schemamarkering', !hasProp(OLD_FILE, 'IfcSchemaConf
 // ═══ D. Ongedaan maken verandert het schema nooit (review #336 punt 2) ═══════════════════════
 {
   // Wat AutoSave naar het bestand zou schrijven (`useAutoSave` gebruikt dezelfde invoer).
-  const autoSave = () => ({ header: header(writeIFC(buildWriteIFCInput(S()))), blocked: ifcSchemaBlocksSilentWrite(S().project) });
+  const autoSave = () => ({ header: header(writeIFC(buildWriteIFCInput(S(), 'merge'))), blocked: ifcSchemaBlocksSilentWrite(S().project) });
   const schemaState = () => [S().project.ifcSchema, S().project.ifcSchemaUnconfirmed];
   const hasTask = (name: string) => S().tasks.some(t => t.name === name);
 

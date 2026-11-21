@@ -95,6 +95,9 @@ export function useDialogKeys({
     const id = idRef.current!;
     const onKey = (e: KeyboardEvent) => {
       if (dialogStack[dialogStack.length - 1] !== id) return; // niet de bovenste — negeren
+      // De laatste fase van afsluiten (#804 stap 3, fixronde 2): de app is inert (`App.tsx`). Deze toetsen hangen aan
+      // `document` en zouden een dialoog die al openstond anders nog bedienen.
+      if (document.querySelector('[data-ops-app-root][inert]')) return;
       if (e.key === 'Escape') {
         const onCancel = cancelRef.current;
         if (onCancel) { e.preventDefault(); onCancel(); }

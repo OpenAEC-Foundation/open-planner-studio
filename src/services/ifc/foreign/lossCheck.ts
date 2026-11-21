@@ -92,18 +92,25 @@
  *   - `CreationDate` van het eigen werkplan en het eigen live-werkschema (een vast id): het moment van opslaan (een
  *     baselinekop draagt haar eigen datum en valt hier niet onder).
  */
+import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
-import { PER_TASK_PSET_BY_NAME, PROP, PSET } from '../ifcPsets';
+import { PER_TASK_PSET_BY_NAME, PROP, PSET, ifcJson } from '../ifcPsets';
 import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
 import { hasOwnOrigin, REGISTER_PSET_NAMES, type Classification } from './classify';
-import { type DurationSlot } from './durationForms';
+import { durationForm, type DurationSlot } from './durationForms';
+import { parseIfcDuration } from '../isoDuration';
+import { taskMinutesPerDay } from '../dayMeasureIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { foreignScanFrom, readerBytes, readerOptions, type ForeignScanResult } from './foreignScan';
 import type { IfcSource } from './ifcSource';
+import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
 
@@ -148,6 +155,21 @@ export interface LossDiff {
 export type SlotKind = 'enumeratie' | 'duur' | 'tekst' | 'samengesteld' | 'getal' | 'verwijzing' | 'lijst' | 'json' | 'leeg';
 /** Properties waarvan de waarde een lijst STEP-ids van de writer is (`ifcWriter.ts`, `writeCalendarGenerationMeta`). */
 const ID_LIST_PROPS: ReadonlySet<string> = new Set([PROP.Calendar.WorkingExceptionIds]);
+/** Is dit slot de waarde van zo'n property? */
+const isIdListSlot = (index: StepIndex, chunk: number, type: string, outArg: number) =>
+  type === 'IFCPROPERTYSINGLEVALUE' && outArg === 2 && ID_LIST_PROPS.has(index.name(chunk) ?? '');
+/** De ids in de waarde van zo'n property (`IFCTEXT('["40","41"]')`), of `undefined` als het geen lijst ids is.
+ *  `decode` leest de string (met de quotes). */
+function textIdList(token: string, decode: (quoted: string) => string): number[] | undefined {
+  const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/i.exec(token.trim());
+  if (!m) return undefined;
+  try {
+    const v: unknown = JSON.parse(decode(m[1]));
+    return Array.isArray(v) && v.every(x => typeof x === 'string' && /^\d{1,10}$/.test(x)) ? v.map(Number) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 /** De soorten waarbij een wijziging van de planner weigert in plaats van de bron te vervangen. */
 const PARTIAL_KINDS: ReadonlySet<SlotKind> = new Set<SlotKind>(['lijst', 'json', 'samengesteld']);
 
@@ -163,8 +185,10 @@ export interface SlotRestore {
   readonly kind: SlotKind;
 }
 
-/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. */
-export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number }
+/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. `partial`: de
+ *  bronwaarde is van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst); zo'n slot toetst (c) niet per
+ *  slot (`restoredOwnSlots` in `ownGroups.ts`). */
+export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number; readonly partial?: true }
 
 export interface LossCheckInput {
   readonly index: StepIndex;
@@ -179,10 +203,8 @@ export interface LossCheckInput {
   /** Het domein zoals gelezen (`pristineDomain`) en het domein dat de merge schrijft. */
   readonly pristine: ImportResult;
   readonly domain: WriteIFCInput;
-  /** De eerste owner history die de lezer ziet, als die van de bron is (C of A, vóór het eerste P-stuk); anders -1. */
-  readonly sourceOwnerHistory: number;
-  /** Schrijft de writer het project zelf (het project van de bron is P)? */
-  readonly projectWritten: boolean;
+  /** Wat de app na openen liet zien; zonder store geldt de lezing van de bron. */
+  readonly opened?: WriteIFCInput;
   /** De eigen owner history van de writer in O0 en in O1 (`_owner`): alleen daar zijn CreationDate en de versie van
    *  de applicatie schrijfvelden. */
   readonly owner0?: number;
@@ -196,6 +218,25 @@ export interface LossCheckInput {
   readonly objects1?: ReadonlyMap<number, string>;
   /** Meetstand: elk verschil in O1 dat een bewerking verklaart, met de regel (`explainO1`). */
   readonly explainedO1?: (diff: LossDiff, why: string) => void;
+  /** De kalenders die bij deze opslag letterlijk worden: letterlijk in O1 en niet in O0 (was knownbug 1102,
+   *  `literalWriterForm`). */
+  readonly literalCalendarIds?: ReadonlySet<string>;
+  /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
+   *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
+  readonly plannerChanged?: ReadonlySet<string>;
+  /**
+   * De andere toets (PR 12b): per bronstuk de eigen groep op projectniveau waarvan het openen niets veranderde (a′,
+   * `openedOwnGroups` in `mergeWriter.ts`). Een verschil in O1 in zo'n groep hoeft geen bewerking te verklaren als de groep
+   * ook gedragen is (a): geen stuk ervan had (b) nodig. Zonder dit veld: de controle van main.
+   */
+  readonly ownGroups?: ReadonlyMap<number, string>;
+  /**
+   * De tweede vormen buiten de psets (PR 12c en 12d, `SECOND_FORMS`): de psets waarvan het openen ook de tweede vorm niet
+   * veranderde (a′ voor die vorm, in dezelfde bronvorm als `ownGroups`). `OPS_Baselines`: de baselinekoppen in de aggregatie
+   * van het werkplan (E1); `OPS_TaskTypes`: de typenaam (`ObjectType`) op de taak (E2). Alleen dan mag die vorm met zijn
+   * pset meebewegen.
+   */
+  readonly secondFormsUnchanged?: ReadonlySet<string>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -204,9 +245,10 @@ export function pristineDomain(index: StepIndex, cls: Classification, source: If
   return pristineFromScan(foreignScanFrom(index, cls, source.bytes), source.bytes);
 }
 /** Idem, met een scan die er al is. */
-export function pristineFromScan(scan: ForeignScanResult, bytes: Uint8Array): Promise<ImportResult> {
+export function pristineFromScan(scan: ForeignScanResult, bytes: Uint8Array,
+  projectTimestampFallback?: Pick<WriteIFCInput['project'], 'createdAt' | 'modifiedAt'>): Promise<ImportResult> {
   const text = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
-  return readIFCWithXerReconstruction(text, {}, readerOptions(scan));
+  return readIFCWithXerReconstruction(text, {}, { ...readerOptions(scan), projectTimestampFallback });
 }
 
 /**
@@ -321,16 +363,38 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const p0 = pairOutput(input, input.o0);
   const restores = planRestores(input, p0, compareOutput(input, p0, input.owner0));
   for (const r of restores) input.restored?.(r);
+  // Gedragen (fixronde 1 van #886): een slot is volledig gedragen als de writer op de lezing van de bron (O0) dezelfde
+  // waarde teruggeeft als de bron. Zonder (b) is dat zo (O0 is dan gelijk aan de bron); met (b) alleen bij een datum, tijd of duur
+  // met dezelfde betekenis in een andere vorm (`sameMeaning`). Wat niet gedragen is, krijgt nooit de waarde van de writer.
+  const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
+    .map(r => `${r.chunk}:${r.outArg}`));
+  const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
+  // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
+  // veranderde (a′, `input.ownGroups`) en die in de bron gedragen is (a: geen stuk ervan had (b) nodig), schrijft de writer
+  // uit de lezing van de bron zoals hij in de bron staat. Dat geldt voor de eigen regels; een lid van een ander programma
+  // telt in geen groep mee, en de merge hangt het terug (stap 6 van `writeIfcMerge`; controle 1 toetst het). Een verschil in
+  // O1 in die groep is dan wat de writer uit de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven
+  // groep terugleest tot precies wat de writer ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in
+  // `mergeWriter.ts`), en de controle na openen dat de planning gelijk blijft. Elke andere groep (ook een groep met één slot
+  // van (b): die valt hier helemaal buiten, ook als (c) haar per slot toetst), en alles buiten de eigen groepen, blijft onder
+  // de controle hieronder.
+  const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
+  const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
+  // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
+  // hierboven (in de bron, gedragen, niet door het openen veranderd), veranderde het openen ook de vorm zelf niet, en zette
+  // (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`). Anders
+  // geldt voor die vorm de controle van main.
+  const psets = new Set(input.ownGroups?.values() ?? []);
+  const following = SECOND_FORMS.filter(f => input.secondFormsUnchanged?.has(f.pset) === true && psets.has(f.pset)
+    && !uncarried.has(f.pset) && !restores.some(r => f.restored(index, r)));
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
   for (const d of first) { input.collect?.(d); say(d, false); }
   if (first.length === 0) {
-    const changed = changedScopes(input.domain, input.pristine);
-    const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
-    const p1 = pairOutput(input, input.o1, exact);
-    unstableLists(input, p0, p1);
-    const ctx1 = o1Context(input, p1, changed);
+    const changed = changedScopes(input.domain, input.pristine, input.opened);
+    const p1 = pairEditedOutput(input, input.o1, p0, changed);
+    const ctx1 = o1Context(input, p1, changed, carried);
     const deleted = deletedExceptionItems(input, p1, changed);
     /** Stukken met een bronwaarde zonder regel in O1, terwijl hun object blijft (fixronde 4, plek 5; fixronde 5, BLOKKEERT
      *  4): het wissen van een bekende waarde verklaart niet het wissen van een slot ernaast dat de lezer niet draagt, van
@@ -361,6 +425,10 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       const after = { chunk: r.chunk, arg: r.arg, source: r.token, out: now, outArg: r.outArg };
       // Na de bewerking is de koppeling van het stuk (of van een stuk waar de bronwaarde naar wijst) niet eenduidig:
       // dan is niet te zeggen bij welke regel de bronwaarde hoort (BLOKKEERT 5).
+      // Was knownbug 1102 (#886, besluit van Trias): wordt de kalender van dit slot bij deze opslag letterlijk, dan geldt de vorm
+      // van de writer, ook als het stuk niet eenduidig paart (een werkweek met één periode wordt blokken). De herleestoets
+      // (`sourceFormProblems`) gaat na dat herlezen geeft wat de planner zag; de toets van O1 hieronder verklaart het verschil.
+      if (inLiteralWriterForm(ctx1, after)) continue;
       if (p1.ambiguous[r.chunk] || refsOutsideText(r.token).some(id => p1.ambiguous[index.chunkOf(String(id))] === 1)) {
         // Behalve een kale sleutel die alleen de vorm van de writer kreeg: die hoeft niet terug (fixronde 7).
         if (bareKeyInWriterForm(input, p1, r, now)) continue;
@@ -371,13 +439,16 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       // (dezelfde tabellen per veld als de uitleg van O1), dan vervalt de bronwaarde en geldt de waarde van de writer, ook
       // als die gelijk bleef. Bij een soort die de lezer deels draagt, gaat dan een deel verloren: weigeren.
       if (explainO1(ctx1, after) !== undefined) {
-        if (PARTIAL_KINDS.has(r.kind)) say(after, true);
+        // Een datum die de planner zelf wijzigde en die de lezer volledig droeg, verliest niets (#886: F5 na een
+        // duurwijziging, was knownbug 1102).
+        if ((PARTIAL_KINDS.has(r.kind) && !plannerReplacedDate(ctx1, r))
+          || (r.kind === 'duur' && !ctx1.carried(r.chunk, r.outArg))) say(after, true);
         continue;
       }
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
         const token = mapToken(input, r.token, p1);
         if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
-        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
+        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk, ...(PARTIAL_KINDS.has(r.kind) ? { partial: true as const } : {}) });
       } else if (PARTIAL_KINDS.has(r.kind)) {
         say(after, true); // de writer schrijft hier iets anders, zonder dat het veld veranderde: weigeren
       }
@@ -386,26 +457,34 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // bewerking aantoonbaar verklaren, per veld (`explainO1`); anders weigert de merge. De toets draait altijd, ook als
     // `changedScopes` niets ziet (een veld dat JSON niet ziet: plek 4). Een stuk dat niet eenduidig paarde, gaat ook door
     // `explainO1`: een bronwaarde van zo'n stuk weigert al hierboven, en de rest moet een bewerking verklaren.
-    const p1b = pairOutput(input, applyEdits(input.o1, edits), exact);
-    unstableLists(input, p0, p1b);
-    const ctx = o1Context(input, p1b, changed);
-    for (const d of compareOutput(input, p1b, input.owner1)) {
+    const p1b = pairEditedOutput(input, applyEdits(input.o1, edits), p0, changed);
+    const ctx = o1Context(input, p1b, changed, carried);
+    const differences = compareOutput(input, p1b, input.owner1);
+    for (const d of differences) {
+      if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
-  }
-
-  // Auteur en bedrijf (§4.4). Schrijft de writer het project zelf, dan leest de lezer ze uit de eerste owner history die
-  // hij ziet. Is die van de bron, dan komt een wijziging niet terug.
-  if (input.sourceOwnerHistory >= 0 && input.projectWritten) {
-    const want = input.domain.project;
-    if ((want.author ?? '') !== (input.pristine.project.author ?? '') || (want.company ?? '') !== (input.pristine.project.company ?? '')) {
-      report({
-        kind: 'projectgegevens', chunk: input.sourceOwnerHistory,
-        detail: `auteur of bedrijf veranderde, maar de lezer leest ze uit ${index.type(input.sourceOwnerHistory)} #${index.id(input.sourceOwnerHistory)} van de bron`,
-      });
+    // Een writerfout kan de verwachte definitie, koppeling of baselinekeuze geheel weglaten.
+    // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
+    const different = new Set(differences.map(d => d.chunk));
+    for (const [chunk, scopes] of ctx.scopes) {
+      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk)) continue;
+      const scope = [...scopes][0];
+      const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
+      if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'
+        || (scope !== `project|pset:${PSET.Baselines}` && scope !== `project|pset:${PSET.TaskTypes}`))) continue;
+      const line = p1b.out.get(p1b.pairedOut.get(chunk)?.[0] ?? -1);
+      if (!line) continue;
+      const arg = codes ? 6 : 2;
+      const d = { chunk, arg, outArg: arg, source: index.argTokens(chunk)![arg], out: line.args[arg] };
+      if ((codes ? explainCodeDefinitions(ctx, d) : explainOwnMapGrowth(ctx, d, scope.slice(8))) === false
+        || (!codes && explainActiveBaseline(ctx, d, scope.slice(8)) === false)) say(d, true);
     }
   }
+
+  // E8 / 1022: de bytes-lezer kiest de project-/werkplaneigenaar na OPS_ProjectSettings. De oude onvoorwaardelijke
+  // weigering 'projectgegevens' vervalt; de onafhankelijke heropening controleert de werkelijk geschreven velden.
   return { edits };
 }
 
@@ -683,6 +762,57 @@ function pairOutput(input: LossCheckInput, lines: readonly OutLine[], exactAssig
   return { out, pairs, pairedOut, sourceOf, matched, ambiguous, shared };
 }
 
+/** Dezelfde bewerkings- en dubbelzinnigheidsregels voor verliesbewaking en identiteitsbehoud. */
+function pairEditedOutput(input: LossCheckInput, lines: readonly OutLine[], p0: Pairing,
+  changed = changedScopes(input.domain, input.pristine, input.opened)): Pairing {
+  const exact = (pset: number) => psetOwners(input, pset).every(key => !['assignments', '*', '@'].some(f => changed.keys.has(`${key}#${f}`)));
+  const paired = pairOutput(input, lines, exact);
+  unstableLists(input, p0, paired);
+  return paired;
+}
+
+/** Eén stap ná de writer: eenduidig gekoppelde P-hulpregels houden hun bronidentiteit.
+ * D en de bestaande vaste ids blijven staan. De regelvolgorde blijft die van de writer;
+ * er gaan geen bronregels letterlijk terug. De werkelijke uitvoercontrole beslist daarna.
+ */
+export function preserveAuxiliaryIdentities(input: LossCheckInput, lines: readonly OutLine[]): readonly OutLine[] {
+  const { index, cls, fixed } = input;
+  const paired = pairEditedOutput(input, lines, pairOutput(input, input.o0));
+  const ids = new Map<number, number>();
+  const guids = new Map<number, string>();
+  for (const [s, oldId] of paired.pairs) {
+    if (cls.classes[s] !== 1 || cls.selection.inD[s] || fixed.has(Number(index.id(s)))) continue;
+    if (paired.ambiguous[s] || paired.pairedOut.get(s)?.length !== 1 || paired.sourceOf.get(oldId) !== s) continue;
+    ids.set(oldId, Number(index.id(s)));
+    const line = paired.out.get(oldId)!;
+    const args = index.argTokens(s);
+    if (hasOwnOrigin(index, s) && args && args.length >= 5 && isRootLine(line) && isRootLine({ args })) {
+      guids.set(oldId, args[0]);
+    }
+  }
+  // Alleen nieuwe/ongepaarde regels krijgen een nieuw nummer. Geen daarvan raakt een bron-id;
+  // ook niet wanneer de kale writer dat nummer toevallig al voor een ander stuk gebruikte.
+  let next = 0;
+  for (let s = 0; s < index.count; s++) if (index.isEntity(s)) next = Math.max(next, Number(index.id(s)));
+  for (const line of lines) next = Math.max(next, line.id);
+  for (const line of lines) if (!ids.has(line.id)) ids.set(line.id, fixed.has(line.id) ? line.id : ++next);
+  const remap = (id: number) => ids.get(id) ?? id;
+  let changed = false;
+  const kept = lines.map(line => {
+    const args = line.args.map(token => replaceRefsOutsideText(token, id => `#${remap(id)}`));
+    if (guids.has(line.id)) args[0] = guids.get(line.id)!;
+    // Deze bestaande native property bewaart STEP-ids als JSON-tekst, niet als #verwijzingen.
+    if (line.type === 'IFCPROPERTYSINGLEVALUE' && ID_LIST_PROPS.has(decodeStepText(unquote(line.args[0])))) {
+      const list = textIdList(line.args[2], token => decodeStepText(unquote(token)));
+      if (list) args[2] = `IFCTEXT(${ifcJson(list.map(id => String(remap(id))))})`;
+    }
+    const id = remap(line.id);
+    changed ||= id !== line.id || args.some((arg, k) => arg !== line.args[k]);
+    return { id, type: line.type, args };
+  });
+  return changed ? kept : lines;
+}
+
 /** Het enige stuk van de bron dat naar `t` wijst, of -1 (geen of meer dan één). */
 function onlyParent(index: StepIndex, t: number): number {
   let parent = -1;
@@ -831,6 +961,9 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
   };
   /** GlobalId van een eigen hulpstuk (besluit 1): het stuk is P, heeft geen vast id, heeft eigen herkomst, en geen stuk dat
    *  niet P is, wijst ernaar (de inkomende verwijzingen uit de index). De toets gaat dat zelf na. */
+  // De verliesbewaking toetst de kale O0/O1 vóór het identiteitsbehoud. Deze bestaande
+  // uitzondering blijft ook nodig voor ongepaarde/dubbelzinnige hulpregels en de veilige
+  // terugval naar de kale uitvoer; de behoudstap en de uitvoercontrole volgen hierna.
   const ownAuxGuid = (s: number): boolean => {
     if (!isP(s) || fixed.has(sid(s)) || !hasOwnOrigin(index, s)) return false;
     for (let k = index.inStart(s); k < index.inEnd(s); k++) {
@@ -875,6 +1008,15 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
         && same(s, ta[2], tb[2], duration || ta[1].toUpperCase() === 'IFCDURATION');
     }
     return sameNumber(a, b);
+  };
+
+  /** Een lijst STEP-ids in een tekst (`ID_LIST_PROPS`): de ids zijn verwijzingen. De merge geeft elk eigen stuk een nieuw
+   *  id; elk id van de bron moet in de uitvoer als zijn tegenhanger staan, in dezelfde volgorde (#886). */
+  const sameIdList = (s: number, a: string, b: string): boolean => {
+    const xs = textIdList(a, q => index.tokenText(s, q));
+    const ys = textIdList(b, outDecode);
+    if (!xs || !ys) return same(s, a, b, false);
+    return xs.length === ys.length && xs.every((x, i) => allowed(index.chunkOf(String(x))).includes(ys[i]));
   };
 
   /** Toevoeging (smal): de properties van een pset (`HasProperties`). Elke property van de bron moet erin staan, in
@@ -924,7 +1066,9 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       if (saveField(s, o, type, k2)) continue;
       const bt = b[k2].trim();
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
-      const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt) : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
+      const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
+        : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
+        : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
     // Een slot dat alleen de nieuwe lay-out heeft, moet leeg zijn (of (b) zet er `$` terug).
@@ -1078,9 +1222,11 @@ function planRestores(input: LossCheckInput, p0: Pairing, diffs: readonly LossDi
     const composite = COMPOSITE_SLOTS[line.type]?.includes(d.outArg) === true
       || (line.type === 'IFCPROPERTYSINGLEVALUE' && d.outArg === 2 && !!props && (props.includes('*') || props.includes(index.name(d.chunk) ?? '')));
     // Een lijst STEP-ids die de writer uit zijn eigen nummering schrijft (`WorkingExceptionIds`), is geen waarde die de
-    // lezer deels draagt: de merge nummert die stukken opnieuw, dus de bronwaarde is na een bewerking van het veld nooit
-    // de goede (fixronde 5, plek 6). Ze vervalt dan; zonder bewerking zet (b) haar terug zoals tot nu.
-    const idList = line.type === 'IFCPROPERTYSINGLEVALUE' && d.outArg === 2 && ID_LIST_PROPS.has(index.name(d.chunk) ?? '');
+    // lezer deels draagt. Wijst elk id naar de tegenhanger van hetzelfde stuk, dan is er geen verschil (`sameIdList`) en
+    // geldt de lijst van de writer, met de nieuwe ids (#886). Komt hij hier toch, dan wijst de bron naar een stuk zonder
+    // tegenhanger; (b) zet de bronwaarde terug zolang de planner het veld niet wijzigde, en bij een bewerking van het veld
+    // vervalt ze (fixronde 5, plek 6).
+    const idList = isIdListSlot(index, d.chunk, line.type, d.outArg);
     const kind = idList ? 'tekst' : slotKind(line.type, d.outArg, token, line.args[d.outArg], text(d.chunk), composite);
     const sourceRefs = new Set(refsOutsideText(token).map(id => index.chunkOf(String(id))));
     const writerRefsKept = refsOutsideText(line.args[d.outArg]).every(r => {
@@ -1149,7 +1295,7 @@ export function refsOutsideText(token: string): number[] {
   return out;
 }
 /** Vervang elke `#id` buiten tekst (`'…'`, met `''` als aanhalingsteken erin). `f` krijgt het id en geeft de vervanging. */
-function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
+export function replaceRefsOutsideText(token: string, f: (id: number) => string): string {
   let res = '';
   let i = 0;
   while (i < token.length) {
@@ -1176,7 +1322,7 @@ function replaceRefsOutsideText(token: string, f: (id: number) => string): strin
 }
 
 /** Een regel van een `IfcRoot`: een GlobalId op 0 en een owner history (of `$`) op 1. */
-function isRootLine(line: OutLine): boolean {
+export function isRootLine(line: Pick<OutLine, 'args'>): boolean {
   return isGuidToken(line.args[0] ?? '') && /^(#\d+|\$)$/.test((line.args[1] ?? '').trim());
 }
 function isGuidToken(token: string): boolean {
@@ -1197,11 +1343,24 @@ const OBJECT_KINDS: ReadonlySet<string> = new Set(['task', 'res', 'seq', 'cal'])
  *  - `order:task`, `order:seq`, `order:res`, `order:cal`, `order:assignment`: alleen de volgorde veranderde;
  *  - `project.<veld>`: een veld van het project (`project.name`, `project.modifiedAt`, `project.calendarId`, …);
  *  - de naam van elk ander veld van het domein dat veranderde (`activityCodeTypes`, `baselines`, …).
- * `ifcSource` telt niet: dat is de bron zelf. Zonder sleutel is het domein gelijk aan het gelezen domein, en schrijft de
- * writer hetzelfde als in O0.
+ * `ifcSource` (bron) en `writeMode` (schrijfroute) zijn geen planning en tellen niet. Zonder sleutel is het domein gelijk
+ * aan het gelezen domein, en schrijft de writer hetzelfde als in O0.
  */
-export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): ChangedScopes {
+export function changedScopes(originalDomain: WriteIFCInput, originalPristine: ImportResult, session?: ImportResult): ChangedScopes {
+  const domain = planningIdentityInput(originalDomain), pristine = planningIdentityInput(originalPristine);
   const keys = new Set<string>();
+  // Vergelijk op IFC-identiteit, maar houd ook de sessiesleutels voor objectKey/bySource beschikbaar.
+  const aliases = new Map<string, Set<string>>();
+  for (const input of [originalDomain, originalPristine, ...(session ? [session] : [])]) {
+    const ids = planningIdentities(input);
+    for (const [kind, objects, mapped] of [['res', input.resources, ids.resource],
+      ['cal', [input.calendar, ...(input.resourceCalendars ?? [])], ids.calendar]] as const) {
+      for (const object of objects) {
+        const key = `${kind}:${mapped.get(object.id) ?? object.id}`, list = aliases.get(key) ?? new Set([key]);
+        list.add(`${kind}:${object.id}`); aliases.set(key, list);
+      }
+    }
+  }
   const json = (x: unknown) => JSON.stringify(x) ?? 'undefined';
   /** De toewijzingen per taak, zonder hun `id`: dat staat niet in het bestand (de lezer maakt het bij elk lezen nieuw). */
   const byTask = (list: readonly { id: string; taskId: string }[]) => {
@@ -1224,16 +1383,19 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       }
       return m;
     };
+    const add = (id: string, suffix = '') => {
+      const key = `${kind}:${id}`;
+      for (const alias of aliases.get(key) ?? [key]) keys.add(alias + suffix);
+    };
     const ma = byId(a);
     const mb = byId(b);
     for (const id of new Set([...ma.keys(), ...mb.keys()])) {
       const xs = ma.get(id) ?? [];
       const ys = mb.get(id) ?? [];
-      const key = `${kind}:${id}`;
       if (xs.length !== 1 || ys.length !== 1) {
         if (json(xs.map(x => [x, extraA?.(x)])) !== json(ys.map(y => [y, extraB?.(y)]))) {
-          keys.add(key);
-          keys.add(xs.length === 0 || ys.length === 0 ? `${key}#@` : `${key}#*`);
+          add(id);
+          add(id, xs.length === 0 || ys.length === 0 ? '#@' : '#*');
         }
         continue;
       }
@@ -1242,19 +1404,19 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
       const plain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
       for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
         if (json(x[k]) === json(y[k])) continue;
-        keys.add(key);
-        keys.add(`${key}#${k}`);
+        add(id);
+        add(id, `#${k}`);
         // Een veld dat zelf een object is (`time` van een taak): ook per deel, `kind:id#time.scheduleStart` (fixronde 5,
         // VERVOLG: een tijdslot volgt uit zijn eigen delen van `time`, niet uit het hele object).
         const a = x[k];
         const b = y[k];
         if (plain(a) && plain(b)) {
-          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) keys.add(`${key}#${k}.${s}`);
+          for (const s of new Set([...Object.keys(a), ...Object.keys(b)])) if (json(a[s]) !== json(b[s])) add(id, `#${k}.${s}`);
         } else if (plain(a) || plain(b)) {
-          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) keys.add(`${key}#${k}.${s}`);
+          for (const s of Object.keys((plain(a) ? a : b) as Record<string, unknown>)) add(id, `#${k}.${s}`);
         }
       }
-      if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { keys.add(key); keys.add(`${key}#assignments`); }
+      if (extraA && json(extraA(xs[0])) !== json(extraB?.(ys[0]))) { add(id); add(id, '#assignments'); }
     }
     if (a.map(x => x.id).join('\n') !== b.map(x => x.id).join('\n')) keys.add(`order:${kind}`);
   };
@@ -1265,11 +1427,16 @@ export function changedScopes(domain: WriteIFCInput, pristine: ImportResult): Ch
   if (order(domain.assignments) !== order(pristine.assignments)) keys.add('order:assignment');
   diff('seq', domain.sequences, pristine.sequences);
   diff('res', domain.resources, pristine.resources);
-  diff('cal', [domain.calendar, ...(domain.resourceCalendars ?? [])], [pristine.calendar, ...(pristine.resourceCalendars ?? [])]);
+  // De kalenders zoals de writer ze schrijft: de projectkalender, en de bibliotheek zonder de kopie onder het id van de
+  // projectkalender (`ifcWriter.ts`). Na openen via de store staat die kopie er altijd in (`promoteProjectCalendarToLibrary`).
+  const calendars = (x: ImportResult) => [x.calendar, ...(x.resourceCalendars ?? []).filter(c => c.id !== x.project.calendarId)];
+  diff('cal', calendars(domain), calendars(pristine));
   const pa = domain.project as unknown as Record<string, unknown>;
   const pb = pristine.project as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(pa), ...Object.keys(pb)])) if (json(pa[k]) !== json(pb[k])) keys.add(`project.${k}`);
-  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource']);
+  // `baselineOrphanGuids` is geen planning maar wat de lezer voor een weesrij aannam (PR 12e); de baselines zelf tellen hier wel.
+  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource', 'writeMode',
+    'baselineOrphanGuids']);
   const a = domain as unknown as Record<string, unknown>;
   const b = pristine as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!skip.has(k) && json(a[k]) !== json(b[k])) keys.add(k);
@@ -1397,35 +1564,48 @@ const TASK_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   7: ['status', 'time.completion', 'time.actualFinish', 'isSummary', 'childIds'], 9: ['isMilestone'],
   10: ['priority'], 12: ['customTaskTypeId', 'taskType'],
 };
-/** Per slot van `IfcTaskTime` de delen van `time` waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
+/** Per slot van `IfcTaskTime` de velden van de taak waar de writer het uit schrijft (`IFC_TASKTIME_SLOTS` en `writeTask` in
  *  `ifcWriter.ts`; fixronde 5, VERVOLG van Terra). Een datum hangt ook af van de eenheid van de taak (de formatter,
- *  `taskDateTimeFormatter`); een duur ook van het type en de eenheid (minuten per dag, `PT…` of `P…D`). De rekenslots kunnen
- *  achtergehouden zijn ("datums zoals opgeslagen", `withheldTaskTimeFields`). */
+ *  `taskDateTimeFormatter`); een duur ook van het type, de eenheid en de kalender van de taak (minuten per dag, `PT…` of
+ *  `P…D`); een speling ook van haar minuten (het record in `ExactFloat`). De rekenslots kunnen achtergehouden zijn ("datums
+ *  zoals opgeslagen", `withheldTaskTimeFields`). Dit is de ene definitie van "de planner wijzigde het veld van dit slot":
+ *  ook de merge-writer leest haar (`taskTimeSlotFields`, vervolg-PR van #867). */
 const T = (...parts: string[]) => parts.map(p => `time.${p}`);
 const DATE_FORMAT = T('durationUnit', 'durationMinutes');
 const WITHHELD = '@withheldTaskTimeFields';
 const TASKTIME_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   0: ['name'],
   3: T('durationType'),
-  4: T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType', 'remainingTime'),
+  4: [...T('scheduleDuration', 'durationMinutes', 'durationUnit', 'durationType'), 'calendarId'],
   5: [...T('scheduleStart'), ...DATE_FORMAT],
   6: [...T('scheduleFinish'), ...DATE_FORMAT],
   7: [...T('earlyStart'), ...DATE_FORMAT, WITHHELD],
   8: [...T('earlyFinish'), ...DATE_FORMAT, WITHHELD],
   9: [...T('lateStart'), ...DATE_FORMAT, WITHHELD],
   10: [...T('lateFinish'), ...DATE_FORMAT, WITHHELD],
-  11: [...T('freeFloat'), WITHHELD],
-  12: [...T('totalFloat'), WITHHELD],
+  11: [...T('freeFloat', 'freeFloatMinutes'), WITHHELD],
+  12: [...T('totalFloat', 'totalFloatMinutes'), WITHHELD],
   13: [...T('isCritical'), WITHHELD],
   14: [...T('actualStart', 'actualFinish'), ...DATE_FORMAT],
-  15: T('actualDuration', 'durationType'),
+  15: [...T('actualDuration', 'durationType'), 'calendarId'],
   16: [...T('actualStart'), ...DATE_FORMAT],
   17: [...T('actualFinish'), ...DATE_FORMAT],
-  18: T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationMinutes', 'durationType', 'scheduleDuration'),
+  18: [...T('remainingTime', 'remainingMinutes', 'durationUnit', 'durationType'), 'calendarId'],
   19: T('completion'),
 };
-/** `IfcRelSequence` en zijn `IfcLagTime` (`writeSequence`). */
-const LAG_FIELDS = ['lagDays', 'lagMinutes', 'lagPercent', 'lagUnit'];
+/** De velden waar de writer deze slots van `IfcTaskTime` uit schrijft, als pad (`time.scheduleDuration`, `calendarId`),
+ *  zonder de achtergehouden velden. */
+export function taskTimeSlotFields(...slots: number[]): string[] {
+  return [...new Set(slots.flatMap(slot => TASKTIME_SLOT_FIELDS[slot] ?? []).filter(f => !f.startsWith('@')))];
+}
+/** De waarde van een veld van een taak op zijn pad uit `taskTimeSlotFields`. */
+export function taskField(task: unknown, path: string): unknown {
+  const t = task as Record<string, unknown>;
+  return path.startsWith('time.') ? (t.time as Record<string, unknown> | undefined)?.[path.slice(5)] : t[path];
+}
+/** `IfcRelSequence` en zijn `IfcLagTime` (`writeSequence`); ook de merge-writer leest dit (`sourceDayLagIds`). */
+export const LAG_VALUE_FIELDS: readonly string[] = ['lagDays', 'lagMinutes', 'lagPercent'];
+export const LAG_FIELDS: readonly string[] = [...LAG_VALUE_FIELDS, 'lagUnit'];
 const SEQ_SLOT_FIELDS: Readonly<Record<number, readonly string[]>> = {
   4: ['predecessorId'], 5: ['successorId'], 6: LAG_FIELDS, 7: ['type'],
 };
@@ -1505,13 +1685,18 @@ interface O1Context {
   /** De taken van het gelezen en van het bewerkte domein, per id. */
   readonly tasks0: ReadonlyMap<string, Task>;
   readonly tasks1: ReadonlyMap<string, Task>;
+  /** Draagt de lezing van de bron dit slot volledig (zie `lossCheck`, "Gedragen")? Per bronstuk en uitvoerslot. */
+  readonly carried: (chunk: number, outArg: number) => boolean;
+  /** Wat de planner wijzigde (`LossCheckInput.plannerChanged`, anders `changed`). */
+  readonly plannerChanged: ReadonlySet<string>;
 }
 
-function o1Context(input: LossCheckInput, p: Pairing, changed: ChangedScopes): O1Context {
+function o1Context(input: LossCheckInput, p: Pairing, changed: ChangedScopes, carried: O1Context['carried']): O1Context {
   const pao = p.out.get(refOf(p.out.get(input.owner1 ?? -1)?.args[0]));
   return {
     input, p, scopes: sourceScopes(input), changed, ownPerson: refOf(pao?.args[0]), ownOrg: refOf(pao?.args[1]),
     tasks0: new Map(input.pristine.tasks.map(t => [t.id, t])), tasks1: new Map(input.domain.tasks.map(t => [t.id, t])),
+    carried, plannerChanged: input.plannerChanged ?? changed.keys,
   };
 }
 
@@ -1535,6 +1720,8 @@ function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   // Een slot dat de writer altijd als dezelfde constante schrijft, volgt uit geen enkel veld (fixronde 5, plek 6 en
   // BLOKKEERT 4): geen bewerking verklaart een verschil daar.
   if (!d.whole && CONSTANT_SLOTS[type]?.includes(arg)) return undefined;
+  const provenance = explainImportProvenance(ctx, d);
+  if (provenance !== undefined) return provenance;
   const rel = memberRelation(type);
   if (!d.whole && rel?.related === arg) return explainMembers(ctx, d);
   if (OWNER_CHAIN.has(type)) return explainField(ctx, d, type, arg);
@@ -1563,6 +1750,232 @@ function explainO1(ctx: O1Context, d: LossDiff): string | undefined {
   return [...whys].join('; ');
 }
 
+/**
+ * 1116: de eerste bewerking wist importPristine. Alleen de bijbehorende vlagproperty mag dan weg; de lege pset en
+ * haar koppeling volgen mee. Andere bronproperties, beschrijvingen en koppelingen blijven onder de gewone bewaking.
+ * Met SourceFormat blijft de pset bestaan en mag haar ledenlijst uitsluitend deze vlag verliezen.
+ */
+function explainImportProvenance(ctx: O1Context, d: LossDiff): string | undefined {
+  const { input, p } = ctx;
+  if ((input.opened ?? input.pristine).importPristine !== true || input.domain.importPristine === true
+    || !ctx.plannerChanged.has('importPristine')) return undefined;
+  const { index } = input;
+  const type = index.type(d.chunk);
+  const parents = (chunk: number, type: string, arg: number) => {
+    const found = new Set<number>();
+    for (let k = index.inStart(chunk); k < index.inEnd(chunk); k++) {
+      const from = index.inSource(k);
+      if (from >= 0 && index.type(from) === type && index.inArg(k) === arg) found.add(from);
+    }
+    return [...found];
+  };
+  const sets = type === 'IFCPROPERTYSINGLEVALUE' ? parents(d.chunk, 'IFCPROPERTYSET', 4)
+    : type === 'IFCPROPERTYSET' ? [d.chunk]
+    : type === 'IFCRELDEFINESBYPROPERTIES' ? [index.refAt(d.chunk, 5)] : [];
+  if (sets.length !== 1) return undefined;
+  const set = sets[0];
+  if (set < 0 || index.type(set) !== 'IFCPROPERTYSET' || index.name(set) !== PSET.ImportProvenance) return undefined;
+  const setArgs = index.argTokens(set) ?? [];
+  if (setArgs.length !== 5 || setArgs[3].trim() !== '$') return undefined;
+  const members = index.refsAt(set, 4);
+  const flags = members.filter(c => c >= 0 && index.name(c) === PROP.ImportProvenance.UnchangedSinceImport);
+  if (flags.length !== 1) return undefined;
+  const flag = flags[0];
+  const flagArgs = (index.argTokens(flag) ?? []).map(t => t.trim());
+  if (index.type(flag) !== 'IFCPROPERTYSINGLEVALUE' || flagArgs.length !== 4 || flagArgs[1] !== '$'
+    || flagArgs[2] !== 'IFCBOOLEAN(.T.)' || flagArgs[3] !== '$' || parents(flag, 'IFCPROPERTYSET', 4).length !== 1) return undefined;
+  const rels = parents(set, 'IFCRELDEFINESBYPROPERTIES', 5);
+  if (rels.length !== 1) return undefined;
+  const rel = rels[0];
+  const relArgs = index.argTokens(rel) ?? [];
+  const owners = index.refsAt(rel, 4);
+  if (relArgs.length !== 6 || relArgs[2].trim() !== '$' || relArgs[3].trim() !== '$' || owners.length !== 1
+    || owners[0] < 0 || index.type(owners[0]) !== 'IFCWORKSCHEDULE' || isBaselineHead(index, owners[0])
+    || !input.fixed.has(Number(index.id(owners[0])))) return undefined;
+  if (d.whole === 'ontbreekt') {
+    if (d.chunk === flag || (members.length === 1 && (d.chunk === set || d.chunk === rel))) return 'importPristine vervalt';
+  } else if (!d.whole && d.chunk === set && (d.outArg ?? d.arg) === 4) {
+    const line = p.out.get(p.pairedOut.get(set)?.[0] ?? -1);
+    if (!line) return undefined;
+    const before = members.filter(c => c !== flag);
+    const after = refList(line.args[4]).map(id => sourceChunkOf(input, id, p));
+    if (before.length === after.length && before.every((c, i) => c === after[i])) return 'importPristine vervalt';
+  }
+  return undefined;
+}
+
+/** Eén regel voor beide eigen kaarten: volledig gedragen bron, alle oude paren exact behouden,
+ * uitsluitend de door de aanroeper bewezen nieuwe koppelingen. Geen gedeeltelijke JSON-samenvoeging. */
+function ownMapGrows(ctx: O1Context, d: LossDiff, before: unknown, after: unknown, expected: ReadonlyMap<string, string>): boolean {
+  if (!ctx.carried(d.chunk, 2) || !stringMap(before) || !stringMap(after)) return false;
+  const old = Object.keys(before);
+  return old.every(k => Object.prototype.hasOwnProperty.call(after, k) && after[k] === before[k])
+    && Object.keys(after).length === old.length + expected.size
+    && [...expected].every(([k, value]) => !Object.prototype.hasOwnProperty.call(before, k) && Object.prototype.hasOwnProperty.call(after, k) && after[k] === value);
+}
+function jsonObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function stringMap(value: unknown): value is Record<string, string> {
+  return jsonObject(value) && Object.values(value).every(v => typeof v === 'string');
+}
+function mapJson(token: string, decode: (quoted: string) => string): unknown {
+  const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
+  if (!m) return undefined;
+  try { return JSON.parse(decode(m[1])); } catch { return undefined; }
+}
+/** De writer bewaart de domeinvolgorde. Alle bestaande definities blijven exact op hun plaats;
+ * alleen werkelijk nieuwe ids mogen achteraan, met precies de domeininhoud. */
+function ownDefinitionsGrow(before: readonly unknown[], domain: readonly { id: string }[], after: unknown): boolean {
+  if (!Array.isArray(after) || domain.length <= before.length || after.length !== domain.length) return false;
+  const ids = new Set<string>();
+  for (let i = 0; i < domain.length; i++) {
+    const v = domain[i];
+    if (ids.has(v.id) || JSON.stringify(after[i]) !== JSON.stringify(v)
+      || (i < before.length && JSON.stringify(before[i]) !== JSON.stringify(v))) return false;
+    ids.add(v.id);
+  }
+  return true;
+}
+/** Alleen de templatelijst van onze activiteitscodes; een nieuwe verwijzing bewijst haar echte template en enumeratie. */
+function explainCodeDefinitions(ctx: O1Context, d: LossDiff): string | false | undefined {
+  const { input, p } = ctx, { index } = input;
+  if (d.whole || d.slotless || d.ambiguous || p.ambiguous[d.chunk] || d.arg !== 6 || (d.outArg ?? d.arg) !== 6
+    || index.type(d.chunk) !== 'IFCPROPERTYSETTEMPLATE' || index.name(d.chunk) !== PSET.ActivityCodes
+    || ctx.scopes.get(d.chunk)?.size !== 1) return undefined;
+  const before = (input.opened ?? input.pristine).activityCodeTypes ?? [], domain = input.domain.activityCodeTypes ?? [];
+  if (!ctx.plannerChanged.has('activityCodeTypes') || domain.length <= before.length) return undefined;
+  if (!ctx.carried(d.chunk, 6) || !ownDefinitionsGrow(before, domain, domain)) return false;
+  const oldRefs = index.refsAt(d.chunk, 6), refs = refList(d.out);
+  if (oldRefs.length !== before.length || refs.length !== domain.length || new Set(refs).size !== refs.length) return false;
+  for (let i = 0; i < domain.length; i++) {
+    const code = domain[i], line = p.out.get(refs[i]);
+    if (i < oldRefs.length && p.pairedOut.get(oldRefs[i])?.[0] !== refs[i]) return false;
+    if (!line || line.type !== 'IFCSIMPLEPROPERTYTEMPLATE' || line.args.length !== 12
+      || decodeStepText(unquote(line.args[2])) !== code.name || line.args[3] !== '$' || line.args[4] !== '.P_ENUMERATEDVALUE.'
+      || [5, 6, 8, 9, 10, 11].some(k => line.args[k] !== '$')) return false;
+    if (!code.values.length) { if (line.args[7] !== '$') return false; }
+    else {
+      const enumeration = p.out.get(refOf(line.args[7]));
+      if (!enumeration || enumeration.type !== 'IFCPROPERTYENUMERATION' || enumeration.args.length !== 3
+        || decodeStepText(unquote(enumeration.args[0])) !== code.name || enumeration.args[2] !== '$') return false;
+      // Vergelijk getypeerde labels na STEP-decodering, ook voor oude letterlijk geschreven bronnen.
+      const labels = splitStepArgs(enumeration.args[1].slice(1, -1));
+      if (labels.length !== code.values.length || labels.some((token, k) => {
+        const m = /^IFCLABEL\(('[\s\S]*')\)$/.exec(token);
+        return !m || decodeStepText(unquote(m[1])) !== code.values[k].code;
+      })) return false;
+    }
+  }
+  return 'nieuwe activiteitscodedefinities';
+}
+/** Lees de echte IFCTASK-regel bij de domeinsleutel van de writer; geen eigen GUID-afleiding. */
+function writtenTaskGuids(ctx: O1Context): ReadonlyMap<string, string> | undefined {
+  const guids = new Map<string, string>();
+  for (const [id, key] of ctx.input.objects1 ?? []) if (key.startsWith('task:')) {
+    const line = ctx.p.out.get(id), taskId = key.slice(5);
+    if (line?.type !== 'IFCTASK' || guids.has(taskId)) return undefined;
+    guids.set(taskId, unquote(line.args[0]));
+  }
+  return guids;
+}
+/** Alleen deze twee properties in hun ene eigen project/live-schema-pset, eenduidig gepaard op waardeslot 2. */
+function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string | false | undefined {
+  const { input, p } = ctx, { index } = input;
+  if (d.whole || d.slotless || d.ambiguous || p.ambiguous[d.chunk] || index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE'
+    || d.arg !== 2 || (d.outArg ?? d.arg) !== 2 || ctx.scopes.get(d.chunk)?.size !== 1) return undefined;
+  const name = index.name(d.chunk);
+  const baseline = way === `pset:${PSET.Baselines}` && name === PROP.Baselines.TaskGuids;
+  const taskTypes = way === `pset:${PSET.TaskTypes}` && name === PROP.TaskTypes.TaskTypes;
+  if (!baseline && !taskTypes) return undefined;
+  const parents = new Set<number>();
+  for (let k = index.inStart(d.chunk); k < index.inEnd(d.chunk); k++) {
+    const parent = index.inSource(k);
+    if (parent >= 0) {
+      if (index.type(parent) !== 'IFCPROPERTYSET' || index.inArg(k) !== 4) return undefined;
+      parents.add(parent);
+    }
+  }
+  const ids = p.pairedOut.get(d.chunk);
+  const line = ids?.length === 1 ? p.out.get(ids[0]) : undefined;
+  if (parents.size !== 1 || index.name([...parents][0]) !== (baseline ? PSET.Baselines : PSET.TaskTypes)
+    || !line || line.type !== 'IFCPROPERTYSINGLEVALUE' || line.args.length !== 4 || unquote(line.args[0]) !== name) return undefined;
+  const before = mapJson(d.source, q => index.tokenText(d.chunk, q));
+  const after = mapJson(d.out, q => decodeStepText(unquote(q)));
+  const expected = new Map<string, string>(), taskGuids = writtenTaskGuids(ctx);
+  if (!taskGuids) return undefined;
+  if (baseline) {
+    const added = addedBaselineIds(ctx);
+    if (!added.size || !stringMap(before)) return undefined;
+    for (const b of input.domain.baselines ?? []) if (added.has(b.id)) {
+      for (const row of b.tasks) if (!Object.prototype.hasOwnProperty.call(before, row.taskId)) {
+        const guid = taskGuids.get(row.taskId);
+        if (!guid) return undefined;
+        expected.set(row.taskId, guid);
+      }
+    }
+    if (!expected.size) return undefined;
+    return ownMapGrows(ctx, d, before, after, expected) ? 'nieuwe baselinekoppelingen' : false;
+  }
+  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
+  // Zonder typehandeling is er geen verwachte wijziging. Een gedeeltelijk gedragen bron mag dan
+  // haar onbekende inhoud via (b) behouden; een werkelijk uitvoerverschil blijft gewoon onverklaard.
+  if (!ctx.plannerChanged.has('customTaskTypes')
+    && !input.domain.tasks.some(t => t.customTaskTypeId !== oldTasks.get(t.id)?.customTaskTypeId)) return undefined;
+  if (!jsonObject(before) || !jsonObject(after)
+    || Object.keys(before).sort().join(',') !== 'definitions,taskTypeIds'
+    || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
+    || !Array.isArray(before.definitions) || !stringMap(before.taskTypeIds) || !stringMap(after.taskTypeIds)) return undefined;
+  const used = new Set(input.domain.tasks.map(t => t.customTaskTypeId).filter(Boolean));
+  const definitions = (input.domain.customTaskTypes ?? []).filter(t => used.has(t.id));
+  const grows = definitions.length > before.definitions.length;
+  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(before.definitions, definitions, after.definitions)
+    : JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
+      || JSON.stringify(definitions) !== JSON.stringify(after.definitions)) return false;
+  const valid = new Set(definitions.map(t => t.id));
+  const replacements = new Map<string, string | undefined>();
+  for (const task of input.domain.tasks) {
+    const typeId = task.customTaskTypeId, oldType = oldTasks.get(task.id)?.customTaskTypeId;
+    const guid = taskGuids.get(task.id);
+    if (!guid) return undefined;
+    if (typeId === oldType) continue;
+    if (!(ctx.plannerChanged.has(`task:${task.id}#@`) || ctx.plannerChanged.has(`task:${task.id}#customTaskTypeId`))
+      || (typeId && !valid.has(typeId))) return false;
+    if (Object.prototype.hasOwnProperty.call(before.taskTypeIds, guid)) replacements.set(guid, typeId);
+    else if (typeId) expected.set(guid, typeId);
+  }
+  if (!grows && !replacements.size && !expected.size) return undefined;
+  const unchanged: Record<string, string> = { ...before.taskTypeIds };
+  for (const [guid, type] of replacements) {
+    delete unchanged[guid];
+    if (type) expected.set(guid, type);
+  }
+  // Dezelfde kaartcontrole bewaakt alle overige paren en de volledige verwachte uitvoer.
+  return ownMapGrows(ctx, d, unchanged, after.taskTypeIds, expected)
+    ? 'taaktypedefinities en koppelingen volgens de bewerking' : false;
+}
+
+/** Een echte keuze uit de behouden baselines, ook na toevoegen; nooit een vrijstelling voor de hele pset. */
+function explainActiveBaseline(ctx: O1Context, d: LossDiff, way: string): string | false | undefined {
+  const { input, p } = ctx, { index } = input;
+  if (way !== `pset:${PSET.Baselines}` || d.slotless || d.ambiguous || p.ambiguous[d.chunk]
+    || ctx.scopes.get(d.chunk)?.size !== 1 || !ctx.plannerChanged.has('activeBaselineId')) return undefined;
+  const id = input.domain.activeBaselineId;
+  if (index.type(d.chunk) === 'IFCPROPERTYSET' && index.name(d.chunk) === PSET.Baselines && !id
+    && !d.whole && d.arg === 4 && (d.outArg ?? d.arg) === 4 && input.domain.baselines?.length) {
+    const members = index.refsAt(d.chunk, 4), active = members.filter(c => index.name(c) === PROP.Baselines.ActiveBaselineId);
+    if (active.length !== 1 || !ctx.carried(d.chunk, 4) || !ctx.carried(active[0], 2)) return false;
+    const expected = members.filter(c => c !== active[0]).map(c => p.pairedOut.get(c)?.[0]);
+    return JSON.stringify(refList(d.out)) === JSON.stringify(expected) ? 'actieve baseline uitgezet' : false;
+  }
+  if (index.type(d.chunk) !== 'IFCPROPERTYSINGLEVALUE' || index.name(d.chunk) !== PROP.Baselines.ActiveBaselineId) return undefined;
+  if (!ctx.carried(d.chunk, 2)) return false;
+  // De gewone writer laat de property weg als de planner de actieve baseline uitzet.
+  if (!id) return input.domain.baselines?.length && d.whole === 'ontbreekt' ? 'actieve baseline uitgezet' : false;
+  if (d.whole || d.arg !== 2 || (d.outArg ?? d.arg) !== 2 || !input.domain.baselines?.some(b => b.id === id)) return false;
+  const m = /^IFCTEXT\(('[\s\S]*')\)$/.exec(d.out);
+  return m && decodeStepText(unquote(m[1])) === id ? 'actieve baseline volgens de keuze' : false;
+}
 /** Eén scope `<object>|<weg>` (zie `sourceScopes`). */
 function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, scope: string): string | undefined {
   const { input, changed } = ctx;
@@ -1570,7 +1983,22 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   const bar = scope.indexOf('|');
   const obj = scope.slice(0, bar);
   const way = scope.slice(bar + 1);
-  if (obj === 'project') return explainField(ctx, d, type, arg);
+  if (obj === 'project') {
+    const codes = explainCodeDefinitions(ctx, d);
+    if (codes) return codes;
+    const active = explainActiveBaseline(ctx, d, way);
+    if (active) return active;
+    const mapGrowth = explainOwnMapGrowth(ctx, d, way);
+    if (mapGrowth) return mapGrowth;
+    // De live-schema-pset hoort bij project; de baselinerijen volgen uit de baselineactie.
+    // Alleen hun waardeslot; andere properties, namen en beschrijvingen krijgen geen vrijstelling.
+    if (!d.whole && type === 'IFCPROPERTYSINGLEVALUE' && arg === 2 && way === `pset:${PSET.Baselines}`
+      && changed.keys.has('baselines') && addedBaselineIds(ctx).size > 0) {
+      const name = index.name(d.chunk);
+      if (name === PROP.Baselines.Baselines) return 'baselinegegevens';
+    }
+    return explainField(ctx, d, type, arg) ?? literalBaselineForm(ctx, d, type, arg);
+  }
   if (obj === 'baselines') return changed.keys.has('baselines') ? 'baselines' : undefined;
   const kind = obj.slice(0, obj.indexOf(':'));
   const has = (f: string) => changed.keys.has(`${obj}#${f}`) || changed.keys.has(`${obj}#*`);
@@ -1585,7 +2013,7 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
     if (type === 'IFCTASKTIME' && way.startsWith('slot:')) {
       if (d.whole) return undefined;
       if (arg === 14 && changed.keys.has('project.statusDate')) return 'statusdatum';
-      return any(TASKTIME_SLOT_FIELDS[arg]);
+      return any(TASKTIME_SLOT_FIELDS[arg]) ?? literalWriterForm(ctx, d, type, arg, scope);
     }
     if (way.startsWith('pset:')) return explainTaskPset(ctx, d, type, arg, obj.slice(5), way.slice(5), prop);
     return undefined;
@@ -1602,12 +2030,172 @@ function explainScope(ctx: O1Context, d: LossDiff, type: string, arg: number, sc
   }
   if (kind === 'cal') {
     if (way === 'self') return type === 'IFCWORKCALENDAR' && !d.whole ? any(CAL_SLOT_FIELDS[arg]) : undefined;
-    if (way === 'slot:6') return any(WEEK_FIELDS);
+    if (way === 'slot:6') return any(WEEK_FIELDS) ?? literalWriterForm(ctx, d, type, arg, scope);
     if (way === 'slot:7') return any(EXCEPTION_FIELDS);
     if (way === `pset:${PSET.Calendar}`) return any(prop !== undefined ? CAL_PROP_FIELDS[prop] : Object.values(CAL_PROP_FIELDS).flat());
     return undefined;
   }
   return undefined;
+}
+
+/** De slots die de writer op een letterlijke kalender in zijn eigen vorm schrijft: de datums en tijden (`DATETIME_SLOTS`)
+ *  en de lijst periodes van een patroon (een werkweek met één periode wordt blokken). Of de lezer de waarde draagt, zegt
+ *  deze lijst niet; dat doet `carried`. */
+const writerFormSlot = (type: string, arg: number) =>
+  DATETIME_SLOTS[type]?.slots.includes(arg) === true || (type === 'IFCRECURRENCEPATTERN' && arg === 7);
+
+/**
+ * Was knownbug 1102 (#886, besluit van Trias, 10 november 2026). Wordt de kalender van `scope` (`scopeCalendar`) bij
+ * deze opslag letterlijk (`literalCalendarIds`), dan schrijft de writer elke datum en werktijd op die kalender als tijdstip, ook waar de planner
+ * niets wijzigde; dat doet een gewone opslag op main ook (`minuteModelPending`). Zo'n datum is een vorm van OPS zelf, die
+ * de lezer volledig draagt. Verklaard alleen als: het stuk P is (alleen P-stukken hebben een scope, `sourceScopes`); het
+ * slot een datum of tijd is (`writerFormSlot`); en de lezing van deze bron de waarde van dat slot volledig draagt
+ * (`carried`: de writer op de lezing geeft dezelfde waarde als de bron). Fixronde 1 van #886: een geldige schrijfwijze
+ * bewijst dat niet; `'07:30:00'` in de enige periode van een scalaire kalender leest de lezer als 07:00. Zo'n slot houdt
+ * de bronwaarde via (b), of de merge weigert.
+ * De herleestoets (`sourceFormProblems`) vergelijkt met het domein waarin de lezer een waarde al kan zijn kwijtgeraakt;
+ * de bewaking rekent er hier niet op.
+ */
+function literalWriterForm(ctx: O1Context, d: LossDiff, type: string, arg: number, scope: string): string | undefined {
+  const { input } = ctx;
+  const calendarId = scopeCalendar(ctx, scope, type);
+  if (calendarId === undefined || !input.literalCalendarIds?.has(calendarId)) return undefined;
+  if (d.whole) return undefined;
+  if (!writerFormSlot(type, arg) || !ctx.carried(d.chunk, arg)) return undefined;
+  return `kalender ${calendarId} wordt letterlijk`;
+}
+
+/**
+ * De baselines (`OPS_Baselines.Baselines`, een pset van het live-schema: scope `project`) als een kalender bij deze opslag letterlijk wordt (#886, besluit van Trias): de
+ * writer schrijft de datums van een rij op zo'n kalender, en het einde van het project op een letterlijke projectkalender,
+ * als tijdstip (`minuteModelWriteView`), zoals een gewone opslag op main. Verklaard alleen als de JSON verder gelijk is:
+ * dezelfde baselines en rijen in dezelfde volgorde, met alleen `start`/`finish` (en `projectEnd`) anders. En alleen als de
+ * lezing van de bron de JSON volledig draagt (`carried`: O0 is hier gelijk aan de bron) en de planner de baselines niet
+ * wijzigde tegenover wat de app na het openen liet zien (`plannerChanged`): dan is elk verschil de vorm van de writer voor
+ * een waarde die de planner zag (fixronde 1 van #886). Sectie 1 ziet de datums in deze JSON niet. De herleestoets gaat de
+ * baselines na (`sourceForm.ts`).
+ */
+function literalBaselineForm(ctx: O1Context, d: LossDiff, type: string, arg: number): string | undefined {
+  const { input } = ctx;
+  const literal = input.literalCalendarIds;
+  if (!literal?.size || d.whole || type !== 'IFCPROPERTYSINGLEVALUE' || arg !== 2 || input.index.name(d.chunk) !== PROP.Baselines.Baselines
+    || psetNameOf(input.index, d.chunk) !== PSET.Baselines) return undefined;
+  if (!ctx.carried(d.chunk, arg) || ctx.plannerChanged.has('baselines')) return undefined;
+  const src = mapJson(d.source, q => input.index.tokenText(d.chunk, q));
+  const out = mapJson(d.out, q => decodeStepText(unquote(q)));
+  type Obj = Record<string, unknown>;
+  const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+  /** Gelijk, op `free` na: daar mag een datum een andere vorm krijgen. `tasks` vergelijkt de aanroeper. */
+  const sameBut = (a: Obj, b: Obj, free: readonly string[]) => [...new Set([...Object.keys(a), ...Object.keys(b)])].every(k =>
+    k === 'tasks' || JSON.stringify(a[k]) === JSON.stringify(b[k]) || (free.includes(k) && typeof a[k] === 'string' && typeof b[k] === 'string'));
+  const { domain } = input;
+  const calendarOf = (taskId: unknown) =>
+    resolveCalendar(ctx.tasks1.get(String(taskId))?.calendarId, domain.resourceCalendars ?? [], domain.calendar).id;
+  if (!Array.isArray(src) || !Array.isArray(out) || src.length !== out.length) return undefined;
+  const ends = literal.has(domain.calendar.id) ? ['projectEnd'] : [];
+  for (let i = 0; i < src.length; i++) {
+    const a: unknown = src[i], b: unknown = out[i];
+    if (!isObj(a) || !isObj(b) || !sameBut(a, b, ends) || !Array.isArray(a.tasks) || !Array.isArray(b.tasks)) return undefined;
+    const rowsA: unknown[] = a.tasks, rowsB: unknown[] = b.tasks;
+    if (rowsA.length !== rowsB.length) return undefined;
+    for (let k = 0; k < rowsA.length; k++) {
+      const ra = rowsA[k], rb = rowsB[k];
+      if (!isObj(ra) || !isObj(rb) || ra.taskId !== rb.taskId) return undefined;
+      if (!sameBut(ra, rb, literal.has(calendarOf(rb.taskId)) ? ['start', 'finish'] : [])) return undefined;
+    }
+  }
+  return 'baselines op een kalender die letterlijk wordt';
+}
+
+/** De kalender van een scope met datums: de kalender van de taak bij haar taaktijd, of de kalender zelf bij haar werkweek. */
+function scopeCalendar(ctx: O1Context, scope: string, type: string): string | undefined {
+  const { domain } = ctx.input;
+  if (type === 'IFCTASKTIME' && /^task:.*\|slot:\d+$/.test(scope)) {
+    const task = ctx.tasks1.get(scope.slice(5, scope.lastIndexOf('|')));
+    return task && resolveCalendar(task.calendarId, domain.resourceCalendars ?? [], domain.calendar).id;
+  }
+  return scope.startsWith('cal:') && scope.endsWith('|slot:6') ? scope.slice(4, scope.lastIndexOf('|')) : undefined;
+}
+
+/** Schrijft de merge dit verschil in de vorm van de writer omdat zijn kalender letterlijk wordt (`literalWriterForm`), voor
+ *  elke scope van het stuk? Dan zet (b) de bronwaarde daar niet terug. */
+function inLiteralWriterForm(ctx: O1Context, d: LossDiff): boolean {
+  const scopes = ctx.scopes.get(d.chunk);
+  if (!scopes || scopes.size === 0 || d.whole) return false;
+  const type = ctx.input.index.type(d.chunk);
+  const arg = d.outArg ?? d.arg;
+  return [...scopes].every(scope => literalWriterForm(ctx, d, type, arg, scope) !== undefined);
+}
+
+/**
+ * Verving de planner deze datum van een taaktijd zelf (fixronde 1 van #886)? Alleen dan geldt de waarde van de writer in
+ * een slot dat bij de samengestelde soorten staat (`COMPOSITE_SLOTS`): het datumveld van dat slot wijkt af van wat de app
+ * na het openen liet zien (`plannerChanged`; een andere duur van dezelfde taak telt niet), en de lezing van de bron droeg
+ * de waarde volledig (`carried`). Anders blijft de bronwaarde staan of weigert de merge.
+ */
+function plannerReplacedDate(ctx: O1Context, r: SlotRestore): boolean {
+  const type = ctx.input.index.type(r.chunk);
+  if (type !== 'IFCTASKTIME' || r.outArg === 14 || !DATETIME_SLOTS[type].slots.includes(r.outArg) || !ctx.carried(r.chunk, r.outArg)) return false;
+  const field = TASKTIME_SLOT_FIELDS[r.outArg]?.[0];
+  const scopes = ctx.scopes.get(r.chunk);
+  if (!field || !scopes || scopes.size === 0) return false;
+  return [...scopes].every(scope => {
+    const bar = scope.indexOf('|');
+    return scope.startsWith('task:') && ctx.plannerChanged.has(`${scope.slice(0, bar)}#${field}`);
+  });
+}
+
+/** Minuten per dag van de bron-taak van dit slot; gedeelde slots moeten dezelfde maat hebben. */
+function taskTimeMinutesPerDay(input: LossCheckInput, chunk: number): number | undefined {
+  const { index, pristine } = input;
+  if (index.type(chunk) !== 'IFCTASKTIME') return undefined;
+  const values = new Set<number>();
+  for (let k = index.inStart(chunk); k < index.inEnd(chunk); k++) {
+    const from = index.inSource(k);
+    if (from < 0 || index.type(from) !== 'IFCTASK') continue;
+    const owner = input.bySource.get(Number(index.id(from)));
+    const task = owner?.kind === 'task' ? pristine.tasks.find(t => t.id === owner.id) : undefined;
+    if (!task) return undefined;
+    const cal = resolveCalendar(task.calendarId, pristine.resourceCalendars ?? [], pristine.calendar);
+    values.add(taskMinutesPerDay(task, effHoursPerDay(cal)));
+  }
+  return values.size === 1 ? [...values][0] : undefined;
+}
+
+/**
+ * Heeft het brontoken van een datum-, tijd- of duurslot dezelfde betekenis als het token van de writer in O0 (fixronde 1 van
+ * #886)? De betekenis van de tekst, niet hoe de lezer haar in dit slot leest (die kan een deel weglaten): een moment of
+ * klok zoals de ISO-norm het leest (`parseInstant`, vaste tijdas, met seconden en expliciete tijdzone; een klok op een vaste dag), de oude uurbreuk
+ * `'7.25:00:00'` die de lezer in de enige periode van het enige patroon exact leest (`scalarHourFromClock`), een datum als
+ * tekst. Een duur telt alleen binnen de bestaande vormenlijst, met de parser en kalendermaat van de lezer.
+ * Een tekst zonder betekenis, of een ander slot: niet gedragen (de writer schreef iets anders).
+ */
+export function sameMeaning(index: StepIndex, r: SlotRestore, o0Token: string | undefined, minutesPerDay?: number): boolean {
+  if (r.kind === 'duur') {
+    const slot = index.type(r.chunk) === 'IFCTASKTIME' ? TASK_TIME_DURATION_SLOTS.get(r.arg) : undefined;
+    if (!slot || !minutesPerDay || !Number.isFinite(minutesPerDay) || minutesPerDay <= 0) return false;
+    const src = index.tokenText(r.chunk, r.token);
+    const out = decodeStepText(unquote(o0Token));
+    if (!durationForm(src, slot) || !durationForm(out, slot)) return false;
+    // Dezelfde parser en kalendermaat als de lezer. Geen tolerantie en geen afronding; de vormenlijst bepaalt of
+    // deze parser dit slot volledig leest. Een gewijzigde rest mag zo van P…D naar PT… gaan.
+    const days = (text: string) => { const d = parseIfcDuration(text); return d.days + (d.timeMinutes ?? 0) / minutesPerDay; };
+    return days(src) === days(out);
+  }
+  const at = DATETIME_SLOTS[index.type(r.chunk)];
+  const src = r.token.trim(), out = o0Token?.trim() ?? '';
+  if (!at || !at.slots.includes(r.arg) || !src.startsWith("'") || !out.startsWith("'")) return false;
+  const oldClock = at.kind === 'tijd' && onlyPeriodOfOnlyPattern(index, r.chunk);
+  const DAY = '1970-01-01T';
+  const meaning = (text: string): number | string | undefined => {
+    if (!existingDateTime(text, at.kind, oldClock)) return undefined;
+    if (at.kind === 'datum') return text;
+    const ms = at.kind === 'tijd' ? parseInstant(DAY + text).getTime() - parseInstant(`${DAY}00:00:00`).getTime() : parseInstant(text).getTime();
+    if (Number.isFinite(ms)) return ms;
+    return oldClock && OLD_FRACTIONAL_CLOCK.test(text) ? scalarHourFromClock(text) * 3_600_000 : undefined;
+  };
+  const a = meaning(index.tokenText(r.chunk, src)), b = meaning(decodeStepText(unquote(out)));
+  return a !== undefined && a === b;
 }
 
 /**
@@ -1676,11 +2264,98 @@ function membersGone(ctx: O1Context, r: number, type: string): string | undefine
   return members.length > 0 && members.every(c => memberMoved(ctx, type, objectKey(ctx.input, c))) ? 'leden weg' : undefined;
 }
 
+/** Nieuwe baseline-ids tegenover de toestand bij openen; geen automatische wijziging van bestaande baselinerijen. */
+function addedBaselineIds(ctx: O1Context): ReadonlySet<string> {
+  if (!ctx.plannerChanged.has('baselines')) return new Set();
+  const before = new Set(((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).map(b => b.id));
+  return new Set((ctx.input.domain.baselines ?? []).filter(b => !before.has(b.id)).map(b => b.id));
+}
+
 /**
- * Is het object van een lid (per veld, fixronde 4): verdwenen of erbij gekomen (`#@`), of veranderde het veld dat bepaalt
- * of het in de relatie staat: de ouder (`parentId`) bij `IfcRelNests`, de kalender (`calendarId`) bij
- * `IfcRelAssignsToControl`. Bij een andere relatie alleen verdwijnen of erbij komen.
+ * E1 (PR 12c; onderzoek van 14 november 2026, vraag 7, stap 3): de leden van de aggregatie van het eigen werkplan, waar de
+ * baselinekoppen in staan (de tweede vorm van `OPS_Baselines`). Een kop van de bron die niet meer in O1 staat (zijn baseline
+ * is weg), valt uit de bronlijst; een nieuwe kop (een baseline die erbij kwam) valt uit de lijst van O1. Wat overblijft,
+ * moet exact gelijk zijn, in dezelfde volgorde: elk ander lid (het live schema, of een lid van een ander programma) staat er
+ * nog, op zijn plek. Hooguit zoveel koppen weg als de planner baselines wiste, en hooguit zoveel erbij als hij er maakte.
+ * Welke kop bij welke baseline hoort en wat erin staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: elke kop
+ * met zijn naam, datums en de aggregatie waarin hij staat). Alleen als `following` in `lossCheck` deze vorm bevat.
  */
+function headsFollowBaselines(ctx: O1Context, d: LossDiff): boolean {
+  const { input, p } = ctx;
+  const { index } = input;
+  const s = d.chunk;
+  if (index.type(s) !== 'IFCRELAGGREGATES' || d.whole || d.arg !== 5 || (d.outArg ?? d.arg) !== 5) return false;
+  const whole = index.refAt(s, 4);
+  if (whole < 0 || index.type(whole) !== 'IFCWORKPLAN' || input.cls.classes[whole] !== 1 || !input.fixed.has(Number(index.id(whole)))) return false;
+  const line = p.out.get(p.pairedOut.get(s)?.[0] ?? -1);
+  const members = index.refsAt(s, 5);
+  if (!line || members.some(c => c < 0)) return false;
+  const isBaselineLine = (l: OutLine | undefined) => l?.type === 'IFCWORKSCHEDULE' && l.args[workControlSlots(l.args).predefinedType]?.trim() === '.BASELINE.';
+  const dropped = new Set(members.filter(c => input.fixed.has(Number(index.id(c))) && isBaselineHead(index, c) && !p.out.has(Number(index.id(c)))));
+  if (dropped.size > removedBaselineCount(ctx)) return false;
+  const kept = members.filter(c => !dropped.has(c));
+  const out: number[] = [];
+  let added = 0;
+  for (const id of refList(line.args[5])) {
+    // Een nieuwe kop heeft geen vast id (een kop van de bron houdt het zijne via zijn GlobalId); het paren kan hem op zijn
+    // plek aan een gewiste kop koppelen, dus eerst dit.
+    if (!input.fixed.has(id) && input.objects1?.get(id) === 'baselines' && isBaselineLine(p.out.get(id))) { added++; continue; }
+    const c = sourceChunkOf(input, id, p);
+    if (c === undefined) return false;
+    out.push(c);
+  }
+  return added <= addedBaselineIds(ctx).size && kept.length === out.length && kept.every((c, i) => c === out[i]);
+}
+
+/**
+ * E2 (PR 12d; onderzoek van 14 november 2026, vraag 7, stap 4): de typenaam op de taak, de tweede vorm van `OPS_TaskTypes`.
+ * Hernoemt de planner een eigen taaktype, dan verandert `ObjectType` (slot 4) van elke taak met dat type, terwijl geen veld
+ * van die taak veranderde. Dat verschil is in orde als het precies dat is: slot 4 van een eigen taak die in de bron en in O1
+ * `PredefinedType .USERDEFINED.` heeft, met hetzelfde eigen type als bij openen, en de definitie van dat type heeft nu een
+ * andere naam dan bij openen. Elk ander slot van de taakregel, en slot 4 van elke andere taak, gaat door de controle van main.
+ * Welke naam er op de taak staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: per taak GlobalId, typenaam en
+ * PredefinedType). Alleen als `following` in `lossCheck` deze vorm bevat.
+ */
+function typeNameFollowsDefinition(ctx: O1Context, d: LossDiff): boolean {
+  const { input, p } = ctx;
+  const { index } = input;
+  if (index.type(d.chunk) !== 'IFCTASK' || d.whole || d.arg !== 4 || (d.outArg ?? d.arg) !== 4) return false;
+  const userDefined = (t: string | undefined) => t?.trim() === '.USERDEFINED.';
+  const source = index.argTokens(d.chunk) ?? [];
+  const line = p.out.get(p.pairedOut.get(d.chunk)?.[0] ?? -1);
+  if (!userDefined(source[source.length - 1]) || !userDefined(line?.args[12])) return false;
+  const key = objectKey(input, d.chunk);
+  if (!key?.startsWith('task:') || !ctx.plannerChanged.has('customTaskTypes')) return false;
+  const before = input.opened ?? input.pristine;
+  const typeId = ctx.tasks1.get(key.slice(5))?.customTaskTypeId;
+  if (!typeId || before.tasks.find(t => t.id === key.slice(5))?.customTaskTypeId !== typeId) return false;
+  const name = (x: Pick<WriteIFCInput, 'customTaskTypes'>) => x.customTaskTypes?.find(t => t.id === typeId)?.name;
+  return name(input.domain) !== undefined && name(before) !== undefined && name(input.domain) !== name(before);
+}
+
+/**
+ * De tweede vormen buiten de psets (onderzoek, vraag 2, tegenvoorbeeld 5): twee eigen gegevens staan ook op een object dat
+ * andere gegevens draagt. Per vorm: de pset waar hij bij hoort, of een slot dat (b) terugzette in die vorm ligt (zoals
+ * `editedOwnGroup` in `ownGroups.ts` het afbakent), en welk verschil in O1 de vorm mag dragen. De namen van de vormen staan
+ * in `ownGroups.ts` (`SECOND_FORMS`); daar toetst (c) ze.
+ */
+const SECOND_FORMS: readonly {
+  readonly pset: string;
+  readonly restored: (index: StepIndex, r: SlotRestore) => boolean;
+  readonly follows: (ctx: O1Context, d: LossDiff) => boolean;
+}[] = [
+  { pset: PSET.Baselines, restored: (index, r) => isBaselineHead(index, r.chunk), follows: headsFollowBaselines },
+  { pset: PSET.TaskTypes, restored: (index, r) => index.type(r.chunk) === 'IFCTASK' && (r.outArg === 4 || r.outArg === 12), follows: typeNameFollowsDefinition },
+];
+
+/** Hoeveel baselines de planner wiste, tegenover de toestand bij openen. */
+function removedBaselineCount(ctx: O1Context): number {
+  if (!ctx.plannerChanged.has('baselines')) return 0;
+  const after = new Set((ctx.input.domain.baselines ?? []).map(b => b.id));
+  return ((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).filter(b => !after.has(b.id)).length;
+}
+
+/** Is het object van een lid verdwenen/erbij gekomen, of wisselde het zijn ouder/kalender? */
 function memberMoved(ctx: O1Context, type: string, key: string | undefined): boolean {
   if (key === undefined) return false;
   const has = (f: string) => ctx.changed.keys.has(`${key}#${f}`) || ctx.changed.keys.has(`${key}#*`);
@@ -1714,10 +2389,17 @@ function explainMembers(ctx: O1Context, d: LossDiff): string | undefined {
   }
   const src = index.refsAt(s, d.arg).filter(c => c >= 0 && !memberMoved(ctx, type, keyOf(c)));
   const out: number[] = [];
+  const newHeads = type === 'IFCRELAGGREGATES' && relating >= 0 && index.type(relating) === 'IFCWORKPLAN'
+    && input.cls.classes[relating] === 1 && input.fixed.has(Number(index.id(relating))) ? addedBaselineIds(ctx).size : 0;
+  let addedHeads = 0;
   for (const id of refList(line.args[d.outArg])) {
     const known = input.objects1?.get(id);
     if (known !== undefined && memberMoved(ctx, type, known)) continue; // een object dat erbij kwam of hierheen ging
     const c = sourceChunkOf(input, id, p);
+    // Alleen de toegevoegde koppen; bestaande baselineleden blijven exact en in volgorde vergeleken.
+    const head = p.out.get(id);
+    if (c === undefined && known === 'baselines' && addedHeads < newHeads && head?.type === 'IFCWORKSCHEDULE'
+      && head.args[workControlSlots(head.args).predefinedType]?.trim() === '.BASELINE.') { addedHeads++; continue; }
     if (c === undefined) return undefined; // een lid zonder bronstuk dat geen nieuw object is
     if (!memberMoved(ctx, type, keyOf(c))) out.push(c);
   }
@@ -1942,11 +2624,28 @@ export type PartialDateTime = 'zone' | 'vorm';
  *  `${String(cal.workStartHour).padStart(2, '0')}:00:00`, dus `7.5:00:00` voor half acht. */
 export const OLD_FRACTIONAL_CLOCK = /^\d+\.\d+:00:00$/;
 
+/** Kalendergeldigheid vóór de vormcontrole én de betekenisvergelijking. JavaScript mag een onmogelijke datum
+ *  niet doorschuiven en zo alsnog gedragen laten heten. De bestaande ISO-toets bewaakt ook de klok en offset;
+ *  Alleen in een tijdslot is precies 24:00 een bestaande daggrens; een datum-tijd met T24:00 weigert.
+ *  De oude uurbreuk blijft alleen geldig
+ *  op de plek waar de lezer haar exact draagt, binnen dezelfde klokdag. */
+function existingDateTime(text: string, kind: DateTimeKind, oldClock: boolean): boolean {
+  if (kind === 'tijd' && /^24:00(?::00(?:\.0+)?)?$/.test(text)) return true;
+  if (oldClock && kind === 'tijd' && OLD_FRACTIONAL_CLOCK.test(text)) {
+    const hour = scalarHourFromClock(text);
+    return Number.isFinite(hour) && hour >= 0 && hour < 24;
+  }
+  return (kind !== 'datum' || text.length === 10)
+    && isStrictIsoDateTime(kind === 'tijd' ? `1970-01-01T${text}` : text,
+      { maxFractionDigits: text.length, offsetColonOptional: true });
+}
+
 /** Leest de lezer deze waarde anders dan haar tekst zegt? Een lijst van vormen die mogen; zie `PartialDateTime`.
  *  `oldClock`: de tijd staat waar de lezer een oude klok als uurbreuk exact leest (`dateTimeTexts`); daar mag ook die vorm
  *  (`OLD_FRACTIONAL_CLOCK`, fixronde 7 van #867). */
 export function partialDateTime(text: string, kind: DateTimeKind, oldClock = false): PartialDateTime | undefined {
   const t = text.trim();
+  if (!existingDateTime(t, kind, oldClock)) return 'vorm';
   const clock = '\\d\\d:\\d\\d(?::00(?:\\.0+)?)?';
   const date = '\\d{4}-\\d\\d-\\d\\d';
   const allowed = kind === 'tijd' ? `^${clock}$` : kind === 'datum' ? `^${date}$` : `^${date}(?:T${clock})?$`;

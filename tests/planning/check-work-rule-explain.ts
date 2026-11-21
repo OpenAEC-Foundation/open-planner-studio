@@ -194,6 +194,27 @@ for (const rule of WORK_RULES) {
   ok('extra resource behoudt de inzet per resource', state !== null && state.assignments.every(a => a.unitsPerDay === 1));
 }
 
+// #954: de gids mag eigen werkinvoer niet langer als oorzaak uitsluiten. Het concrete voorbeeld
+// wordt zowel in nl/en gelezen als tegen beide genoemde werkregels doorgerekend.
+const guideExample = {
+  nl: 'Bij een taak van 10 werkdagen van 8 uur kan één resource na eigen invoer 40 uur werk hebben bij inzet 1, terwijl een andere resource de duur op 10 werkdagen houdt.',
+  en: 'On a task of 10 working days of 8 hours, one resource can have 40 hours of work after your own input at units of 1, while another resource keeps the duration at 10 working days.',
+};
+for (const lang of ['nl', 'en'] as const) {
+  const guide = readFileSync(join(here, '../../public/docs', lang, 'howto-werkregel-kiezen.md'), 'utf8');
+  ok(`#954 ${lang}: gids legt afwijkend werk na eigen invoer uit met het rekenvoorbeeld`, guide.includes(guideExample[lang]));
+}
+for (const rule of ['FIXED_WORK', 'FIXED_RATE'] as const) {
+  const initial = base(rule, undefined, 10);
+  initial.assignments = [...initial.assignments, { id: 'b', unitsPerDay: 1, drivesDuration: true }];
+  const after = stateOf(applyWorkEdit(initial, 'b', 40 * 60), `#954 gids ${rule}`);
+  if (!after) continue;
+  const b = after.assignments.find(a => a.id === 'b')!;
+  ok(`#954 gids ${rule}: 40 uur bij inzet 1 over 10 dagen wijkt af van de afgeleide 80 uur`,
+    after.remainingMinutes === 80 * 60 && b.unitsPerDay === 1 && b.remainingWorkMinutes === 40 * 60
+    && after.remainingMinutes * b.unitsPerDay === 80 * 60);
+}
+
 if (diffs.length) {
   for (const d of diffs) console.log(`XX  werkregel-uitleg: ${d}`);
   console.log(`XX  check-work-rule-explain: ${diffs.length} van ${checks} controles rood`);

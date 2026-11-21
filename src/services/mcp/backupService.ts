@@ -314,7 +314,7 @@ function realDeps(app: AppStoreContext): BackupDeps {
       // weigert Opslaan als of een export naar die bron nog steeds (`applyLoadedProject`).
       const recoveryForeignSource = foreignSourceBackupRecord(found.payload.foreignSourceMark);
       return {
-        ifc: writeIFC({ ...buildWriteIFCInput(found.payload), ...(recoveryForeignSource ? { recoveryForeignSource } : {}) }),
+        ifc: writeIFC({ ...buildWriteIFCInput(found.payload, 'planOnly'), ...(recoveryForeignSource ? { recoveryForeignSource } : {}) }),
         projectName: found.payload.project.name,
         filePath: found.payload.filePath,
       };

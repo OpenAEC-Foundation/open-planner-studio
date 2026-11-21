@@ -2,6 +2,8 @@
 paths:
   - "src/engine/reports/**"
   - "src/components/panels/ReportPanel.tsx"
+  - "src/components/panels/ReportWorkspace.tsx"
+  - "src/components/panels/reportStudio/**"
   - "src/components/panels/reports/**"
   - "src/services/pdf/**"
   - "src/services/print/**"
@@ -13,14 +15,19 @@ paths:
 
 ### Rapporten: één kolomspec voor DOM én PDF
 
-Het Rapport-tabblad (`ReportPanel.tsx`) kent twaalf rapporttypen (`ReportType` in
-`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het **resourcediagram**
-(issue #113: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
+Het tabblad Rapport (`ReportWorkspace.tsx`) kent elf rapporten (`ReportType` in
+`src/utils/reportSettings.ts`). De Gantt-afdruk staat op het Rapport-tabblad in `reportStudio/` (issue #817:
+zijbalk met stappen, SVG-papier, PDF via `exportGanttReportPdf.ts`); de tien andere staan in `ReportPanel.tsx`.
+Beide schermen en de werkruimte lezen één gedeelde stand (`useReportSettings`, zonder eigen kopie) en schrijven
+alleen de velden die ze wijzigen via `patchReportSettings` (in `tableReports`/`resourceGantt` per optie). `reportType:
+'resourceGantt'` bestaat alleen nog als oude opslag: die opent de Gantt-afdruk met de layout Resourcediagram
+(`reportTaskSource`). Het **resourcediagram**
+(issue #113, sinds #861 een layout: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
 `src/engine/reports/resourceGantt.ts` — per resource-IDENTITEIT een band (niet per naam, zoals de
 schermgroepering: gelijknamigen krijgen `#n`, naamlozen een surrogaat), daaronder zijn bladtaken op
-start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan, en het vinkje
-*Kritiek pad* is er verborgen en geforceerd aan (`reportTypeShowsCriticalToggle`: het vinkje kleurt alleen
-relatielijnen en legendaregel, de balken volgen `barColorSelection` via `criticalFill`); optie "blad
+start; relaties staan bij een groepering met meer banden per taak uit, en *Kritiek pad* staat er vast aan
+(`studioRowPrintFields`: het vinkje kleurt alleen relatielijnen en legendaregel, de balken volgen de
+balkkleuren van het rapport via `criticalFill`); optie "blad
 per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
 positie zonder vulgraaddrempel wint — een band direct onder een band (de optionele typelaag
@@ -30,10 +37,9 @@ geen eigen gedwongen positie; optie *Rapportageperiode* = de gedeelde `Reporting
 `Draw2D` kent geen clip; de rijenbron filtert op overlap en telt `counts.outsidePeriod`); optie
 *Eenheden/dag en curve tonen* = `PrintOptions.assignmentColumns` + `rowAssignments` (per `rowKey`
 uit `assignmentByRowKey`: eenheden opgeteld, curve alleen bij eensluidende records) als twee
-tabelkolommen achter de naam; `isGanttReportType()` bundelt beide Gantt-achtige typen; de voet
+tabelkolommen achter de naam; de voet
 met legenda is sinds #113 net als de kop een herhaalbaar blok — `RenderReportResult.footerHeight` →
-`repeatFooterHeightPx`/`repeatFooter`, instelling `repeatFooter` standaard aan; let op: de preview
-rendert per pagina één volledige `renderReport`-pass extra voor die strook, net als voor de kop), het
+`repeatFooterHeightPx`/`repeatFooter`, instelling `repeatFooter` standaard aan), het
 mijlpalen- en variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
 uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
 resourcebelasting (per week of maand), resourcetoewijzingen en WBS-samenvatting. Die zeven hebben
@@ -60,8 +66,8 @@ nieuwe grafiek of een nieuw blok hoort op dezelfde manier: één ligging, twee t
 alleen wat de laatste berekening op de taken zette; het rekent niets door.
 
 **Kolombreedtes zijn gemeten, niet vast.** De datakolommen van de Gantt-/resourcediagram-tabel (WBS,
-Duur, Start, Einde, Volt., Eenh./d) worden — net als de naam- en de curvekolom — door `ReportPanel`
-op de echte koppen én cellen van dít rapport gemeten (`measureTableColumnWidths`) en via
+Duur, Start, Einde, Volt., Eenh./d) worden — net als de naam- en de curvekolom — door het Rapport-tabblad
+(`useStudioPrintOptions`) op de echte koppen én cellen van dít rapport gemeten (`measureTableColumnWidths`) en via
 `PrintOptions.columnWidths` doorgegeven; zonder meting gelden de oude vaste breedtes uit `COL`, dus
 elk pad zonder canvas blijft byte-identiek. Meten hoort in het paneel en niet in de printlaag:
 `measurePrintReport` (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen
@@ -72,7 +78,7 @@ haar eigen vertaalde kop niet kwijt kan groeit mee, versmallen niet — `mode: '
 smallere tabel juist gróter, en celinhoud hoort in een vrije-tekstkolom wél af te kappen.
 
 **Eén tekstmeting voor papier, paneel en vector-PDF** (issue #817, `src/services/pdf/reportTextMeasure.ts`).
-`PdfVectorDraw2D.measureText`, het SVG-papier van het nieuwe tabblad en de kolommeting in beide panelen
+`PdfVectorDraw2D.measureText`, het SVG-papier van het Rapport-tabblad en de kolommeting van beide kanten
 (`loadReportTextMetrics` in `fontLoader.ts`) tellen de advance-breedtes uit het fontbestand op
 (`measureReportText`: shaping-kern voor RTL, stukken per terugvalletter, anders de rapportletter). Niet
 het canvas: dat rondt bij kleine letters af (Chromium op Linux: "Stakeholder management" 115 tegen 109,0)
@@ -98,9 +104,9 @@ CJK-extensie, Lao, Hebreeuws in Inter) meet met het canvas (`createCanvasTextMet
 `createReportTextMetrics`): het scherm tekent hem in een systeemletter en de PDF valt dan terug op raster.
 (4) Canvas en browsermeting zetten `textRendering = 'geometricPrecision'`, net als het papier: zonder die
 instelling rondt Chromium op Linux elke letterbreedte af ("Stakeholder management" 115 tegen 109,0) en kapte
-het oude voorbeeld de langste naam af terwijl afkappen uit stond. Bewaking op de werkelijk getekende tekst:
-`tests/browser/report-studio.spec.ts` (SVG `getBBox` tegen de getekende kolomlijn, canvas `fillText`
-meegelezen; Arabisch, een lange Latijnse, een Chinese en gemengde Latijns-Arabische namen in Inter en Carlito).
+de rasterpreview van vóór #817 de langste naam af terwijl afkappen uit stond. Bewaking op de werkelijk
+getekende tekst: `tests/browser/report-studio.spec.ts` (SVG `getBBox` tegen de getekende kolomlijn; Arabisch,
+een lange Latijnse, een Chinese en gemengde Latijns-Arabische namen in Inter en Carlito).
 WebKit (de desktopapp op Linux en macOS) kent canvas-`textRendering` en -`fontKerning` niet; daar kernt het canvas
 Latijnse tekst, dus tekent het smaller dan de meting. Het canvas kapt nog af met zijn eigen meting
 (GSUB-verschillen zoals Carlito "ti", knownbug 968); een CJK-extensie tekent alleen in de PDF (knownbug 967).
@@ -124,7 +130,8 @@ terugval valt de hele PDF om één `≤` of één Cyrillische naam terug op rast
 uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bundelen is; bewaking:
 `tests/planning/check-report-font.ts`. De keuzelijst *Lettertype* (`ReportFontSelect`, naast Papier en
 Oriëntatie, dus ook in `TableReportOptionsBlock`) kiest één id uit het vaste setje `REPORT_FONTS` in
-`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07), bewaard
+`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07; plus Liberation Mono met vaste
+breedte, vraag in #770), bewaard
 als `reportFontFamily` in `ops-reportSettings` — nooit in het IFC-bestand. Uit die id volgen de
 fontstack (`reportFontStack`: de letter, dan `InterPDF`; dezelfde stack voor het canvas en, via
 `reportFontStyle`, voor de DOM-kaarten van mijlpalen, variance en tabelrapporten) en de bytes
@@ -132,6 +139,35 @@ fontstack (`reportFontStack`: de letter, dan `InterPDF`; dezelfde stack voor het
 registreert elke letter als CSS-`@font-face`-regel (een `<style data-ops-report-font>`), geen losse
 `FontFace`: de raster-terugval van de tabelrapporten is een DOM-opname met `modern-screenshot`, en die
 neemt alleen `@font-face`-regels uit de stylesheets mee. Een export wacht tot de naam-, curve- en
-datakolommen op de gekozen letter gemeten zijn (`measuredOnChosenFont` in `ReportPanel`): direct na
+datakolommen op de gekozen letter gemeten zijn (`fontPending` in `GanttReportStudio`): direct na
 een wissel staan er nog breedtes van de vorige letter, en dan kapt de PDF namen af die wel passen.
 Een nieuwe letter: zie `src/services/pdf/fonts/README.md`.
+
+**Eigen lettertype** (besluit Ethan 2026-11-14). Naast het vaste setje kent de keuzelijst `custom` (`ReportFontChoice`):
+*Ander lettertype…* opent `CustomReportFontDialog` met de lijst van de computer (`systemFonts.ts`: desktop leest de
+lettertypemappen via plugin-fs, met een scope per opdracht (`read_dir`, `open`, `read_file`) in `src-tauri/capabilities/default.json`; browser alleen
+`queryLocalFonts` in Chrome/Edge op een beveiligde pagina) en *Bestand kiezen…* (overal). `customReportFont.ts`
+leest en beoordeelt de bestanden zonder DOM (`check-custom-report-font.ts`): weigert inbedden verboden (fsType),
+variabel (`fvar`), zonder contouren en CFF-contouren (pdf-lib 1.17 bedt die als TrueType in), kiest gewoon en vet
+per familie en haalt een face uit een `.ttc`. De app bewaart een kopie van de bytes (`customFontStore.ts`,
+IndexedDB `ops-report-font`); `ops-reportSettings` krijgt alleen naam en versie (`customReportFont`). Zonder vet
+zijn de vette bytes de gewone, op het scherm (`@font-face` 700 met hetzelfde bestand) en in de PDF. Is de kopie weg,
+dan zet `useCustomReportFontGuard` de keuze terug op Inter met één melding. Een ander eigen lettertype heeft
+dezelfde id en familie (`OpsReportCustom`) maar een andere `reportFontKey`; laad- en meetcaches gaan op die sleutel.
+
+**fontkit 3 en GSUB-vervangingen in de PDF** (issue #1050). De lettertypelezer is `fontkit` 3.0.0 (exact
+vastgezet), altijd via `src/services/pdf/fontkit.ts`; `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8
+(Noto Sans Coptic), en dan werd de hele PDF raster. De rapportletter, de terugval- en de CJK-letters gaan via
+`embedReportFont` (`embedReportFont.ts`); tekst gaat via `layoutPdfText`, één `layout` per tekst. pdf-lib gaf een glyph
+die GSUB koos (Carlito "ti", de doorlopende Koptische bovenstreep) geen eigen breedte in `/W` (een gat) en geen
+ToUnicode (`bouwlogis ek`); elke gebruikte glyph komt nu met zijn bronteken(s) in beide (eerste gebruik wint, knownbug
+1943). Een glyph met een GPOS-verschuiving (de bovenstreep: −319 eenheden) krijgt een eigen tekstmatrix op de pen plus
+die verschuiving (`laidOutTextOps` in `pdfVectorDraw2d.ts`); zonder verschuiving blijft het één `Tj`. De pen loopt op
+de breedtes uit `/W`, net als de meting. Dat leunt op interne velden van pdf-lib, dat daarom exact op 1.17.1 staat.
+Noto Sans Arabic bedt gewoon in: het glyph-voor-glyph-pad van de shaping (`bidiShape.ts`) zet zijn glyphs zelf neer
+(knownbug 934). Het paginanummer staat in de rapportletter; alleen als die een teken van het label mist (cijfers,
+spatie, '/'; Noto Sans Coptic heeft ze niet), in Helvetica (`pageNumberFont` en `PAGE_NUMBER_FONT_KEY` in
+`paginateVector.ts`). Of elk rapport het nummer in Helvetica krijgt, is een keuze van de eigenaar. Op Node leest `unicode-properties` (onder fontkit 3) zijn tabel van schijf naast zijn
+bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de browservariant. Proef:
+`check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/` en Carlito: tekst,
+`/W`, de plaats van elke glyph en het paginanummer met zijn letter uit de PDF teruggelezen).

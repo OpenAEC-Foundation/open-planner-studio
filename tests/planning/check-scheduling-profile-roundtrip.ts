@@ -341,7 +341,7 @@ function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
 const optionsJsonOf = (ifc: string): string | undefined => OPTIONS_LINE.exec(ifc)?.[1];
 function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSchedulingOptions | SchedulingOptions | undefined) {
   const base = freshPayload();
-  const written = writeIFC(buildWriteIFCInput({ ...base, project: { ...base.project, schedulingProfile: profile, schedulingOptions: options } }));
+  const written = writeIFC(buildWriteIFCInput({ ...base, project: { ...base.project, schedulingProfile: profile, schedulingOptions: options } }, 'planOnly'));
   return { written, read: readIFC(written).project };
 }
 {
@@ -442,7 +442,7 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   const rbase = freshPayload();
   const recovered = readIFC(writeIFC(buildWriteIFCInput({
     ...rbase, project: { ...rbase.project, schedulingProfile: p6WithOldOverride },
-  }))).project.schedulingProfile;
+  }, 'planOnly'))).project.schedulingProfile;
   same('A19-09 crashherstel met oude Y-override: overrides leeg', recovered?.overrides, {});
   eq('A19-10 crashherstel → wissel naar OPS ⇒ A19 uit',
     resolveConventions(switchProfile(recovered, 'ops')).p6UseRemainingStartForProgress, false);

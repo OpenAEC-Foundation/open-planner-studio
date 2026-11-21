@@ -24,7 +24,7 @@ S().newProject();
 S().addTask({ name: 'Eerste' });
 S().addTask({ name: 'Tweede' });
 S().addTask({ name: 'Derde' });
-const clean = readIFC(writeIFC(buildWriteIFCInput(S())));
+const clean = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
 
 // 1. Zonder dubbelen: hetzelfde object terug, niets gemeld.
 const same = ensureUniqueImportIds(clean);

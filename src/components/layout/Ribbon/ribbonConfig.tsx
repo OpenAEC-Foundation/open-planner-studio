@@ -10,6 +10,8 @@ import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab, UIState } from '@/state/slices/types';
 import { BaselineOverlaySplitButton } from './BaselineOverlaySplitButton';
+import { applySetting } from '@/components/settings/applySetting';
+import { saveShowBarDates } from '@/utils/settingsStore';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -285,6 +287,27 @@ const editGroup: RibbonGroupSpec = {
         },
       ],
     },
+    {
+      // Dissolve (issue #887) naast Verwijderen: dezelfde selectie, maar de keten blijft heel.
+      // Alleen een lintknop en een menu-item, geen sneltoets; daarom niet in `COMMANDS`.
+      kind: 'stack', id: 'editStack2', items: [
+        {
+          kind: 'small', id: 'dissolve', icon: <Icon id="planning.relations-menu" size={16} />, labelKey: 'menu:ribbon.dissolve',
+          use: () => {
+            const { t } = useTranslation('menu');
+            const hasSelection = useAppStore(s => s.selectedTaskIds.length > 0);
+            return {
+              title: t('ribbon.dissolveTitle'),
+              disabled: !hasSelection,
+              onClick: () => {
+                const s = useAppStore.getState();
+                s.dissolveTasksBulk(s.selectedTaskIds);
+              },
+            };
+          },
+        },
+      ],
+    },
   ],
 };
 
@@ -373,12 +396,12 @@ const progressExportButton: RibbonButtonSpec = {
   },
 };
 
-/** `progressImportButton` in zijn EIGEN groep, gedeeld door Planning, Tabel en Rapport — niet als
+/** `progressImportButton` in zijn EIGEN groep, gedeeld door Planning en Tabel — niet als
  *  losse knop náást een `kind: 'component'`-item: een `RibbonButtonSpec` rendert zijn
  *  label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een component
  *  gemengd wordt hij een kaal icoontje zonder label of knopvormgeving.
  *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
- *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab`/`reportTab` toegevoegd.
+ *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd.
  *  `progressExportButton` staat VÓÓR de importknop: eerst het blad eraf, dan terug erin. */
 const progressGroup: RibbonGroupSpec = {
   id: 'progress', labelKey: 'menu:ribbon.progressGroup',
@@ -830,6 +853,15 @@ const beeldTab: RibbonTabConfig = [
               return { active: showRelations, onClick: () => setShowRelations(!showRelations) };
             },
           },
+          {
+            // Issue #868: begindatum links en einddatum rechts van elke balk. Een instelling van de
+            // planner (`ops-showBarDates`), standaard uit; geen layoutdeel.
+            kind: 'small', id: 'toggleBarDates', icon: <Icon id="status.recorded-dates" size={16} />, labelKey: 'menu:ribbon.toggleBarDates',
+            use: () => {
+              const showBarDates = useAppStore(s => s.ui.showBarDates);
+              return { active: showBarDates, onClick: () => applySetting('showBarDates', !showBarDates, saveShowBarDates) };
+            },
+          },
         ],
       },
     ],
@@ -891,9 +923,10 @@ const ifcTab: RibbonTabConfig = [
   { id: 'ifc', labelKey: 'menu:ribbon.ifc', items: [{ kind: 'component', id: 'ifcInfo', Component: IfcInfo }] },
 ];
 
-// Geen knop Afdruk meer (Ethan, 29 oktober en 2 november 2026): die deed hetzelfde als Exporteer PDF in het
-// rapportpaneel. Ctrl+P en Bestand › Afdruk openen dit tabblad.
-const reportTab: RibbonTabConfig = [progressGroup];
+// Het tabblad Rapport heeft geen lintinhoud (besluit eigenaar 7 november 2026; `Ribbon.tsx` toont het lint daar
+// niet): het rapport heeft zijn eigen zijbalk. De groep Voortgang staat op Planning en Tabel. Ctrl+P en
+// Bestand › Afdruk openen dit tabblad.
+const reportTab: RibbonTabConfig = [];
 
 /** AI-tab — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
  *  groepen, alle component-escape-hatches (eigen state, inputs, popover/confirm): verbinding,

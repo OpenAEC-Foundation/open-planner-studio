@@ -1,4 +1,3 @@
-import { isFeatureEnabled, REPORT_REDESIGN_FLAG } from '@/utils/featureFlags';
 import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
@@ -475,10 +474,6 @@ export function Ribbon() {
   // debug-terminal een paneel toont). Uitzetten verwijdert de tab; de reducer valt dan terug op
   // 'start' als dit tabblad actief was.
   const aiMode = useAppStore(s => s.ui.aiMode);
-  // Nieuw Rapport-tabblad (feature flag `reportRedesign`, besluit eigenaar 7 november 2026): het tabblad
-  // Rapport heeft geen lintinhoud. Het lint klapt in tot de tabnamen, zodat het papier de hoogte krijgt.
-  // De groep Voortgang staat ook op Planning en Tabel; er gaat dus niets verloren.
-  const reportWithoutRibbon = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, REPORT_REDESIGN_FLAG));
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -534,8 +529,9 @@ export function Ribbon() {
       </div>
 
       {/* Content — verborgen wanneer File-tab actief is (Backstage neemt de hele body over), en op het
-          nieuwe Rapport-tabblad (zie `reportWithoutRibbon`). */}
-      {activeTab !== 'file' && !(activeTab === 'report' && reportWithoutRibbon) && (
+          tabblad Rapport (besluit eigenaar 7 november 2026): dat heeft geen lintinhoud, het lint klapt in tot de
+          tabnamen, zodat het papier de hoogte krijgt. */}
+      {activeTab !== 'file' && activeTab !== 'report' && (
         <div className="ribbon-content">
           <RibbonDensityContext.Provider value={density}>
             <div ref={scrollRef} className="ribbon-content-scroll">

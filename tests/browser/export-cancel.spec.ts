@@ -22,7 +22,7 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
   await page.getByRole('button', { name: /^(File|Bestand)$/ }).first().click();
   await page.locator('.backstage-sidebar').getByRole('button', { name: /^(Export|Exporteren)$/ }).click();
   const cards = page.locator('.backstage-export-card');
-  const csv = cards.filter({ has: page.getByRole('heading', { name: 'CSV (semicolon-separated)', exact: true }) });
+  const csv = cards.filter({ has: page.getByRole('heading', { name: 'CSV', exact: true }) });
   const xlsx = cards.filter({ has: page.getByRole('heading', { name: 'Progress sheet (Excel)', exact: true }) });
   const ifc = cards.filter({ has: page.getByRole('heading', { name: 'IFC', exact: true }) });
   const inExport = () => page.evaluate(() => {

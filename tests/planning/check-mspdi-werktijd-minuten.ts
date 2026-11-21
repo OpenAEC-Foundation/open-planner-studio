@@ -167,7 +167,7 @@ const calView = (p: DocumentPayload) => Object.fromEntries([p.calendar, ...p.cal
   .map((c) => [c.name, { ...scalar(c), ma: blocks(c, 1), za: blocks(c, 6) }]));
 const exportMSPDI = (p: DocumentPayload) => quiet(() => writeMSPDI(p.project, p.calendar, p.tasks, p.sequences,
   p.resources, p.assignments, p.calendars, p.baselines, p.activeBaselineId, p.customTaskTypes));
-const exportIFC = (p: DocumentPayload) => quiet(() => writeIFC(buildWriteIFCInput(p)));
+const exportIFC = (p: DocumentPayload) => quiet(() => writeIFC(buildWriteIFCInput(p, 'planOnly')));
 {
   const before = openAndRecalc(await parseOpenedFile({ name: 'werktijd-minuten.xml', text: XML }));
   // §2: T15 maakt ook de taak van 85 u een urentaak. Sinds F5b (I8) is 08:00 in een bestand zonder

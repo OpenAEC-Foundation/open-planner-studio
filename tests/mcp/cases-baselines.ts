@@ -457,7 +457,7 @@ test('15. baselines (meerdere, namen met apostrof) + actief-markering overleven 
   const b = await save('Tweede meting');
   await callOk('planner_activate_baseline', { baselineId: a });
 
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const back = prepareLoadedPayload(payloadFromImport(readIFC(ifc), null), { recompute: false });
   assertEq(back.baselines?.length, 2, 'beide baselines komen terug');
   assertEq(back.baselines?.map((x) => x.name), ["Nulmeting 'A', v2", 'Tweede meting'], 'namen (incl. apostrof/komma) intact');
@@ -472,7 +472,7 @@ test('15b. "geen actieve baseline" round-trippt óók (activate null blijft null
   reset(2);
   await save('Eén');
   await callOk('planner_activate_baseline', { baselineId: null });
-  const back = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const back = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   assertEq(back.baselines?.length, 1, 'de baseline blijft bestaan');
   assertEq(back.activeBaselineId, null, 'en er is nog steeds geen actieve');
 });

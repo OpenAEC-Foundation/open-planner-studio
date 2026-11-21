@@ -25,9 +25,9 @@ export type StudioRowPrintFields = Pick<PrintOptions,
 
 /**
  * De printvelden van een rijenbron. Puur, zodat `check-report-layouts.ts` precies deze regel naast het oude
- * rapporttype Resourcediagram (`ReportPanel`) legt.
+ * rapporttype Resourcediagram (vóór #817) legt.
  * - Een taak onder meer banden: geen relatielijnen, en Kritiek pad aan. Dat vinkje kleurt alleen relatielijnen
- *   en de legendaregel; de balken blijven rood (`reportTypeShowsCriticalToggle`).
+ *   en de legendaregel; de balken blijven rood.
  * - Resourcegroepering: een blad per resource, de tijdas op de periode, de toewijzingskolommen.
  */
 export function studioRowPrintFields(

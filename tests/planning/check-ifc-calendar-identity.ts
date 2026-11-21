@@ -77,7 +77,7 @@ async function scalarScenario(label: string, patch: Partial<WorkCalendar>): Prom
   const tasksBefore = { dag: taskShape(byName(S().tasks, 'Dagtaak')), uren: taskShape(byName(S().tasks, 'Urentaak')) };
   same(`${label}: uitgangspunt is een scalaire kalender`, before.workTime, null);
 
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const parsed = readIFC(ifc);
   same(`${label}: readIFC geeft dezelfde scalaire kalender terug`, calendarShape(parsed.calendar), before);
   same(`${label}: bibliotheekkopie is na heropenen in sync (pool ongewijzigd)`,
@@ -86,7 +86,7 @@ async function scalarScenario(label: string, patch: Partial<WorkCalendar>): Prom
   same(`${label}: urentaak houdt minuten en tijden`, taskShape(byName(parsed.tasks, 'Urentaak')), tasksBefore.uren);
 
   // Idempotentie: een tweede ronde (write→read→write→read) verschuift niets.
-  const again = readIFC(writeIFC({ ...buildWriteIFCInput(S()), calendar: parsed.calendar, tasks: parsed.tasks }));
+  const again = readIFC(writeIFC({ ...buildWriteIFCInput(S(), 'planOnly'), calendar: parsed.calendar, tasks: parsed.tasks }));
   same(`${label}: tweede round-trip is identiek`, calendarShape(again.calendar), before);
 
   // De pool beweegt ná het opslaan ⇒ de onbewerkte kopie "loopt achter" (stil verversen), niet "wijkt af".
@@ -117,7 +117,7 @@ await scalarScenario('§4 07:30-16:00 + pauze 12:00/30m', {
   const S = () => store.getState();
   S().setProject({ startDate: '2026-06-01' });
   S().addTask({ name: 'Urentaak', time: createDefaultTaskTime('2026-06-01', 10, 'hours', S().calendar) });
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   same('§5 export materialiseert nog steeds de effectieve lunchbanden',
     ifc.includes("IFCTIMEPERIOD('07:00:00','12:00:00')") && ifc.includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
 }
@@ -136,7 +136,7 @@ await scalarScenario('§4 07:30-16:00 + pauze 12:00/30m', {
   S().updateTask(id, { calendarId: calId });
   S().runCPM();
   const before = calendarShape(S().calendars.find((c) => c.id === calId)!);
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   same('§6 scalaire bibliotheekkalender met urentaak blijft scalair en 06-15',
     calendarShape((parsed.resourceCalendars ?? []).find((c) => c.name === 'Vroege ploeg')!), before);
 }
@@ -160,7 +160,7 @@ for (const [label, patch] of [
   S().bindProjectToCompany(cid);
   S().promoteCalendarToPool(cid, S().calendars.find((c) => c.id === S().project.calendarId)!);
   const before = calendarShape(S().calendar);
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   same(`${label}: kalender ongewijzigd na round-trip`, calendarShape(parsed.calendar), before);
   same(`${label}: bibliotheekkopie in sync`, classifyCalendarOnOpen(parsed.calendar, S().pools[cid]), 'in-sync');
 }

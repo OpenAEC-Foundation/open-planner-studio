@@ -56,7 +56,7 @@ const ALL_TOUR_STEPS: TourStep[] = [
     },
   },
   {
-    // Stap 5 — rapporten. 'report'-tab triggert de full-panel-tak in App.tsx (ReportPanel).
+    // Stap 5 — rapporten. 'report'-tab triggert de full-panel-tak in App.tsx (ReportWorkspace).
     anchor: 'report-panel',
     titleKey: 'tour.step5Title',
     bodyKey: 'tour.step5Body',

@@ -40,7 +40,7 @@ If you close the last project, an empty schedule called *New schedule* remains.
 
 ### Choosing the switch style
 
-The tabs are a choice. Open the *App settings* window with the gear in the title bar, go to the *Appearance* tab and choose at *Document switch style*:
+The tabs are a choice. Open the *App settings* window with the gear in the title bar, choose the group *Workspace* on the left and choose at [Document switch style](settings://documentChrome):
 
 - *Horizontal tabs*: the default. A row of tabs under the ribbon.
 - *Vertical tabs*: a narrow bar on the left with a button per project (the first letters of the name) and a plus. If you hover over a button you see name, file name, number of tasks, number of critical tasks and end date. The button at the top opens the overview.

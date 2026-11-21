@@ -95,11 +95,16 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
 
-test('taak die volgens plan al begonnen is: voortgang zonder actualStart werkt zoals altijd', async () => {
-  const { V } = setup('2026-06-10');
-  const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 40 } }] });
+test('knownbug 81: voltooien na F5 gebruikt het geplande begin van vóór de statusdatumverschuiving', async () => {
+  const { V } = setup(undefined);
+  const originalStart = timeOf(V).earlyStart;
+  await rpc('planner_update_project', { statusDate: '2026-06-10' });
+  S().runCPM();
+  assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
+  const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 100 } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  assertEq(timeOf(V).actualStart, timeOf(V).earlyStart, 'afgeleide start = geplande start');
+  assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
+  assertEq(timeOf(V).actualFinish, '2026-06-10T16:00', 'afgeleid einde = statusdatum');
 });
 
 test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', async () => {
@@ -111,6 +116,87 @@ test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', asy
   assert(res.ok === true, `batch gaf een fout: ${JSON.stringify(res)}`);
   assertEq(JSON.stringify(timeOf(L)), before, 'taak ongewijzigd (batch)');
 });
+
+test('#998: nieuwe startbeperking en percentage in één item vragen om actualStart', async () => {
+  const { V } = setup('2026-06-10');
+  const result = await rpc('planner_update_tasks', { updates: [{ id: V,
+    fields: { constraint: { type: 'SNET', date: '2026-06-22' } }, progress: { completion: 50 },
+  }] });
+  assert(reasons(result).some(reason => /progress\.actualStart/.test(reason) && /2026-06-22/.test(reason)),
+    `weigering noemt de nieuwe geplande start en vraagt om actualStart: ${reasons(result)}`);
+  assertEq(timeOf(V).completion, 0, 'percentage geweigerd');
+  assertEq(S().tasks.find(t => t.id === V)?.constraint?.date?.slice(0, 10), '2026-06-22', 'beperking toegepast');
+  const earlier = await rpc('planner_update_tasks', { updates: [{ id: V,
+    fields: { constraint: { type: 'SNET', date: '2026-06-04' } }, progress: { completion: 50 },
+  }] });
+  assertEq(reasons(earlier), [], 'de nieuwe beperking ligt nu vóór de statusdatum');
+  assertEq(timeOf(V).actualStart, '2026-06-04T07:00', 'het percentage gebruikt de nieuw geplande start');
+});
+
+for (const batch of [false, true]) {
+  test(`#998: een eerder gewijzigd voorgangeritem telt mee (batch: ${batch})`, async () => {
+    const { V } = setup('2026-06-10');
+    const next = S().addTask({ name: 'Opvolger', time: createDefaultTaskTime('2026-06-01', 2) });
+    S().addSequence({ predecessorId: V, successorId: next, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    const args = { updates: [
+      { id: V, fields: { constraint: { type: 'SNET', date: '2026-06-22' } } },
+      { id: next, progress: { completion: 50 } },
+    ] };
+    if (batch) {
+      await rpc('planner_batch', { steps: [{ tool: 'planner_update_tasks', args }] });
+    } else {
+      const res = await rpc('planner_update_tasks', args);
+      assert(reasons(res).some(reason => /progress\.actualStart/.test(reason) && /2026-06-29/.test(reason)),
+        `weigering noemt de herberekende begindatum: ${reasons(res)}`);
+    }
+    assertEq(timeOf(next).completion, 0, 'percentage van opvolger geweigerd');
+    assertEq(S().tasks.find(t => t.id === V)?.constraint?.date?.slice(0, 10), '2026-06-22', 'beperking toegepast');
+  });
+}
+
+test('#998: een opgegeven werkelijk einde van een voorganger telt mee in hetzelfde verzoek', async () => {
+  const { V } = setup('2026-06-10');
+  const next = S().addTask({ name: 'Opvolger', time: createDefaultTaskTime('2026-06-01', 2) });
+  S().addSequence({ predecessorId: V, successorId: next, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  const res = await rpc('planner_update_tasks', { updates: [
+    { id: V, progress: { actualStart: '2026-06-01', actualFinish: '2026-06-10' } },
+    { id: next, progress: { completion: 50 } },
+  ] });
+  assert(reasons(res).some(reason => /progress\.actualStart/.test(reason) && /2026-06-11/.test(reason)),
+    `de opgegeven werkelijke einddatum verplaatst de start van de opvolger: ${reasons(res)}`);
+  assertEq(timeOf(V).actualFinish, '2026-06-10T16:00', 'opgegeven einde toegepast');
+  assertEq(timeOf(next).completion, 0, 'percentage van opvolger geweigerd');
+});
+
+for (const batch of [false, true]) {
+  for (const change of ['completion', 'milestoneKind'] as const) {
+    test(`#998: ${change} van voorganger telt mee (batch: ${batch})`, async () => {
+      S().newProject();
+      S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+      const milestone = change === 'milestoneKind';
+      const A = S().addTask({ name: 'A', isMilestone: milestone, ...(milestone ? { milestoneKind: 'START' } : {}),
+        time: createDefaultTaskTime(milestone ? '2026-06-10' : '2026-06-08', milestone ? 0 : 1) });
+      const B = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-06-08', 2) });
+      S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+      S().runCPM();
+      const args = { updates: [
+        milestone ? { id: A, fields: { milestoneKind: 'FINISH' } } : { id: A, progress: { completion: 100 } },
+        { id: B, progress: { completion: 50 } },
+      ] };
+      if (batch) await rpc('planner_batch', { steps: [{ tool: 'planner_update_tasks', args }] });
+      else {
+        const res = await rpc('planner_update_tasks', args);
+        assert(reasons(res).some(reason => /progress\.actualStart/.test(reason) && /2026-06-11/.test(reason)),
+          `weigering noemt de nieuwe begindatum: ${reasons(res)}`);
+      }
+      assertEq(timeOf(B).completion, 0, 'percentage van opvolger geweigerd');
+      if (milestone) assertEq(S().tasks.find(task => task.id === A)?.milestoneKind, 'FINISH', 'mijlpaalsoort gewijzigd');
+      else assertEq(timeOf(A).actualFinish, '2026-06-10T16:00', 'voorganger afgemeld');
+    });
+  }
+}
 
 // F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
 for (const [statusDate, actualFinish, want] of [

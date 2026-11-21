@@ -8,7 +8,7 @@ import type { DateNotation, DurationDisplay, TimeNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 import { DEFAULT_REPORT_FONT_STACK } from '@/services/pdf/reportFont';
-import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
+import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
@@ -74,14 +74,12 @@ const FOOTER_HEIGHT = 50;
 const MAX_DAILY_GRID_STEPS = 5_000;
 const MAX_DAILY_WEEKEND_STEPS = 5_000;
 
-/** Handmatige rapportzoom in logische pixels per dag. Eén pixel is de kleinste stand van de schuif in het
- *  oude Rapport-paneel. */
-export const REPORT_MIN_ZOOM = 1;
+/** Grootste handmatige rapportzoom in logische pixels per dag. */
 export const REPORT_MAX_ZOOM = 40;
 /**
- * De kleinste breedte per dag die een rapport kan hebben (logische px). Het nieuwe Rapport-tabblad (#817)
+ * De kleinste breedte per dag die een rapport kan hebben (logische px). Het Rapport-tabblad (#817)
  * start "Vaste schaal" op de breedte die "passen" gaf; bij een lange planning is dat minder dan 1 px per
- * dag (5000 taken op A3: ±0,2). Met {@link REPORT_MIN_ZOOM} als ondergrens sprong het rapport bij die wissel
+ * dag (5000 taken op A3: ±0,2). Met 1 px per dag als ondergrens sprong het rapport bij die wissel
  * van 139 naar 695 pagina's. De opgeslagen instelling (`customZoom`) mag daarom tot deze grens.
  */
 export const REPORT_MIN_DAY_WIDTH = 0.01;
@@ -466,6 +464,8 @@ export function buildPrintRows(
   if (rows) {
     for (const row of rows) {
       if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
+      // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
+      else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
       else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
     }
     return printRows;
@@ -871,6 +871,12 @@ export interface PrintOptions {
   showTaskNames: boolean;
   showCompletion: boolean;
   /**
+   * Issue #868: begindatum links vóór en einddatum rechts achter elke balk, met precies de tekst van de
+   * kolommen Start en Einde; een mijlpaal krijgt één datum tussen ruit en naam. Eigen rapportoptie,
+   * los van de scherminstelling (besluit Ethan 14-11-2026). Ontbreekt ⇒ uit.
+   */
+  showBarDates?: boolean;
+  /**
    * Breedte van de naamkolom in de taaktabel, ongeschaald (schaalt mee met `reportFontScale`).
    * Ontbreekt ⇒ {@link NAME_COLUMN_WIDTH_DEFAULT}; buiten bereik ⇒ geklemd. Een naam die er niet in
    * past wordt met een ellipsis afgekapt. "Niet afkappen" is géén aparte modus van de printlaag:
@@ -1175,6 +1181,60 @@ function drawBarLabel(
   }
 }
 
+/** Ruimte tussen de einddatum en de naam erachter (#868), ongeschaald zoals `BAR_LABEL_GAP`. */
+const BAR_DATE_GAP = 6;
+
+/**
+ * Ruimte in px die de datums bij de balken (#868) links en rechts van de tijdas nodig hebben. De
+ * breedte van een datum is die van de gemeten kolom Start of Einde (dezelfde teksten, in de iets
+ * grotere tabelletter, dus een bovengrens); zonder meting de grootste vaste breedte.
+ */
+function barDateReservePx(m: ReportMetrics, columnWidths: TableColumnWidths | undefined): { left: number; right: number } {
+  const width = (key: 'start' | 'end') => m.s(columnWidths?.[key] ?? COL[key].max);
+  return { left: width('start') + BAR_LABEL_PAD_LEFT, right: BAR_LABEL_GAP + width('end') + 10 };
+}
+
+
+/**
+ * Naam met datums bij een staaf (`showBarDates`, issue #868). De begindatum staat rechts uitgelijnd
+ * links vóór de staaf (alleen als hij binnen het chartgebied past), de einddatum direct achter de
+ * staaf zelf (`barEndX`, niet achter de spelingsband: daar zou hij een ander einde suggereren) en de
+ * naam erachter. Wat rechts niet past wordt afgekapt met '…' (besluit Ethan 14-11-2026); de naam gaat
+ * nooit naar links. Past de einddatum rechts niet (de staaf loopt tot de papierrand), dan vervalt hij
+ * en wordt de naam afgekapt op wat er rechts nog over is. Datums in de gedempte tekstkleur, één punt
+ * kleiner dan de naam.
+ */
+function drawBarLabelWithDates(
+  d2d: Draw2D,
+  m: ReportMetrics,
+  name: string,
+  dates: { start: string; finish: string },
+  barEndX: number,
+  barLeftX: number,
+  y: number,
+  canvasWidth: number,
+  bold: boolean,
+) {
+  const rightMargin = 10;
+  d2d.textBaseline = 'alphabetic';
+  d2d.font = m.font(8);
+  const leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
+  const startW = dates.start ? d2d.measureText(dates.start).width : 0;
+  if (dates.start && startW <= leftEnd - m.tableWidth) {
+    fillLabelText(d2d, dates.start, leftEnd, y, 'right', PRINT_COLORS.textSecondary);
+  }
+  const x = barEndX + BAR_LABEL_GAP;
+  const edge = canvasWidth - rightMargin;
+  const finishW = dates.finish ? d2d.measureText(dates.finish).width : 0;
+  const finishFits = dates.finish !== '' && x + finishW <= edge;
+  if (finishFits) fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
+  if (!name) return;
+  const nameX = finishFits ? x + finishW + BAR_DATE_GAP : x;
+  d2d.font = m.font(9, bold);
+  const label = ellipsize(d2d, name, edge - nameX);
+  if (label) fillLabelText(d2d, label, nameX, y, 'left', PRINT_COLORS.text);
+}
+
 /**
  * Het resultaat van een print-render: de logische (CSS-px) afmetingen + de bevroren-kolombreedte.
  */
@@ -1345,6 +1405,32 @@ export function renderReport(
     if (reach.latest) { const d = parseDate(reach.latest); if (d > maxDate) maxDate = d; }
   }
 
+  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
+  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
+  // werkdag valt gecontroleerd terug op de gewone kalender-as).
+  const calEngine = new CalendarEngine(calendar);
+  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  // Calculate zoom: auto-fit or custom
+  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
+  const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
+  // Beschikbare chart-breedte over N papierbreedtes.
+  //
+  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
+  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
+  // zet. Daardoor geldt voor N kolommen:
+  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
+  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
+  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
+  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
+  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
+  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
+  // Issue #868: met datums bij de balken een vaste strook in px vóór en achter de tijdas, voor de
+  // begindatum van de vroegste en de einddatum van de laatste balk. In px en niet in dagen: dan is de
+  // breedte bij passend maken en bij de overgenomen vaste schaal dezelfde (zelfde aantal pagina's).
+  // Past de strook niet ruim op het blad, dan vervalt hij; een datum die dan niet past, valt weg.
+  const reserve = options.showBarDates && !options.timeWindow ? barDateReservePx(m, options.columnWidths) : null;
+  const datePad = reserve && reserve.left + reserve.right <= availableChartWidth / 2 ? reserve : { left: 0, right: 0 };
+
   if (options.timeWindow) {
     // Tijdvenster: de as is precies het venster (einde exclusief, dus `to` + 1), zonder marge.
     minDate = parseDate(options.timeWindow.from);
@@ -1357,11 +1443,6 @@ export function renderReport(
 
   const calendarDays = diffCalendarDays(minDate, maxDate);
 
-  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
-  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
-  // werkdag valt gecontroleerd terug op de gewone kalender-as).
-  const calEngine = new CalendarEngine(calendar);
-  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
   let measureAxis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
     origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
@@ -1381,29 +1462,14 @@ export function renderReport(
     ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
     : calendarDays;
 
-  // Calculate zoom: auto-fit or custom
-  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
-  const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
-  // Beschikbare chart-breedte over N papierbreedtes.
-  //
-  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
-  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
-  // zet. Daardoor geldt voor N kolommen:
-  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
-  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
-  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
-  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
-  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
-  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
-
   let zoom: number;
   if (options.autoFit && timelineDays > 0) {
-    zoom = availableChartWidth / timelineDays;
+    zoom = (availableChartWidth - datePad.left - datePad.right) / timelineDays;
   } else {
     zoom = options.customZoom || 22;
   }
 
-  const chartWidth = timelineDays * zoom;
+  const chartWidth = datePad.left + timelineDays * zoom + datePad.right;
   const canvasWidth = m.tableWidth + chartWidth;
   // Tijdvenster: chart-x klemmen op het chartgebied (zie `PrintOptions.timeWindow`). Zonder venster
   // is dit de identiteit.
@@ -1420,7 +1486,7 @@ export function renderReport(
   // Daarmee kan een PDF nooit andere werkdagen overslaan dan de scherm-Gantt of raster-preview.
   const axis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
-    origin: minDate, chartOriginX: m.tableWidth, zoom, scrollX: 0,
+    origin: minDate, chartOriginX: m.tableWidth + datePad.left, zoom, scrollX: 0,
   });
   const dateToX = (date: Date) => axis.dateToX(date);
   const firstTimelineIndex = Math.ceil(axis.dayIndexOf(minDate));
@@ -1660,8 +1726,25 @@ export function renderReport(
     y: number;
     /** Vetgedrukt (alleen samenvattingstaken). */
     bold: boolean;
+    /** Met `showBarDates` (#868): begindatum links vóór de balk (leeg bij een mijlpaal) en einddatum
+     *  vóór de naam. */
+    dates?: { start: string; finish: string };
+    /** Rechterrand van de staaf zelf, zonder spelingsband: daar begint de einddatum (#868). Ontbreekt
+     *  ⇒ `barRightX`. */
+    barEndX?: number;
   }
   const barLabelJobs: BarLabelJob[] = [];
+  // Naam en/of datums naast een balk (#868). Met alleen de datums aan blijft de naam leeg.
+  const barCellOptions: CellTextOptions = { ...options, calendar };
+  const wantBarLabel = options.showTaskNames || options.showBarDates === true;
+  const barLabel = (task: Task, job: Omit<BarLabelJob, 'name' | 'dates'>, milestone = false): BarLabelJob => {
+    const cells = options.showBarDates ? taskOwnCellTexts(task, barCellOptions) : undefined;
+    return {
+      ...job,
+      name: options.showTaskNames ? task.name : '',
+      ...(cells ? { dates: { start: milestone ? '' : cells.start, finish: milestone ? (cells.end || cells.start) : cells.end } } : {}),
+    };
+  };
 
   // Kleurmodi-context: resources + toewijzingen komen binnen via options; de printlaag
   // houdt zelf geen state. Eén palet-object voor alle balken van deze render.
@@ -1741,8 +1824,8 @@ export function renderReport(
         if (advies.outline) d2d.stroke();
 
         // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
-        if (options.showTaskNames) {
-          barLabelJobs.push({ name: task.name, barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false });
+        if (wantBarLabel) {
+          barLabelJobs.push(barLabel(task, { barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false }, true));
         }
       }
     } else if (isSummaryTask(task)) {
@@ -1791,8 +1874,8 @@ export function renderReport(
       }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
-        barLabelJobs.push({ name: task.name, barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true });
+      if (wantBarLabel) {
+        barLabelJobs.push(barLabel(task, { barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true }));
       }
     } else {
       // Normal task bar, met de balkgrenzen van het scherm (`taskBarSpan`): met momenten van het startmoment
@@ -1896,9 +1979,9 @@ export function renderReport(
       }
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
+      if (wantBarLabel) {
         const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
-        barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
+        barLabelJobs.push(barLabel(task, { barRightX, barEndX: x2, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false }));
       }
     }
 
@@ -1971,7 +2054,8 @@ export function renderReport(
   }
 
   for (const job of barLabelJobs) {
-    drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
+    if (job.dates) drawBarLabelWithDates(d2d, m, job.name, job.dates, job.barEndX ?? job.barRightX, job.barLeftX, job.y, canvasWidth, job.bold);
+    else drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
   }
 
   // De referentielijn is bewust de laatste chart-laag: staven, relatiepijlen en taaklabels mogen
@@ -2021,153 +2105,8 @@ export function renderPrintCanvas(
   );
 }
 
-/** Eén logische bronuitsnede die direct in een fysiek pagina-venster wordt getekend. */
-export interface PrintReportWindow {
-  sourceX: number;
-  sourceY: number;
-  sourceWidth: number;
-  sourceHeight: number;
-  destinationX: number;
-  destinationY: number;
-  /** Doelpixels per logische rapportpixel. */
-  rasterScale: number;
-}
-
 /**
- * Teken één begrensd logisch rapportvenster direct naar een bestaand pagina-canvas.
- *
- * Dit is uitsluitend voor de live preview: de volledige rapportlay-out wordt nog steeds door
- * {@link renderReport} berekend en {@link TileLayout} blijft de bron van waarheid voor vensters,
- * marges en kopherhaling. Er ontstaat alleen geen tijdelijk canvas voor alle rapportpagina's samen.
- * Export blijft via {@link renderPrintCanvas} en de bestaande pagineerder lopen.
- */
-export function renderPrintReportWindow(
-  canvas: HTMLCanvasElement,
-  tasks: Task[],
-  sequences: Sequence[],
-  calendar: WorkCalendar,
-  projectName: string,
-  options: PrintOptions,
-  window: PrintReportWindow,
-): RenderReportResult {
-  let draw: CanvasDraw2D | undefined;
-  try {
-    return renderReport(
-      (logicalW, logicalH) => {
-        draw = new CanvasDraw2D(canvas, logicalW, logicalH, window.rasterScale, window);
-        return draw;
-      },
-      tasks, sequences, calendar, projectName, options,
-    );
-  } finally {
-    draw?.dispose();
-  }
-}
-
-/** Invoer voor één direct gerasterde live-previewpagina. */
-export interface PrintPreviewPageInput {
-  layout: TileLayout;
-  pageIndex: number;
-  /** Exacte rasterbreedte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
-  rasterWidth: number;
-  /** Exacte rasterhoogte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
-  rasterHeight: number;
-  /** Fysieke pixels per PDF-punt van de zichtbare pagina. */
-  supersample: number;
-}
-
-/**
- * Raster één zichtbare rapportpagina rechtstreeks vanuit de gedeelde logische renderer.
- *
- * De kop- en bodyvensters zijn bewust dezelfde uit {@link TileLayout} als de exportpagineerder.
- * Daardoor blijven pagina-aantal, volgorde, herhaalde kop en bevroren kolommen exact gelijk,
- * terwijl een lange planning nooit eerst een volledig hoog-res broncanvas hoeft op te bouwen.
- */
-export function renderPrintPreviewPage(
-  canvas: HTMLCanvasElement,
-  tasks: Task[],
-  sequences: Sequence[],
-  calendar: WorkCalendar,
-  projectName: string,
-  options: PrintOptions,
-  input: PrintPreviewPageInput,
-): void {
-  const { layout, pageIndex, rasterWidth, rasterHeight, supersample } = input;
-  const totalPages = layout.rows * layout.cols;
-  if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) return;
-  const row = layout.bodyRows[Math.floor(pageIndex / layout.cols)];
-  const column = layout.columns[pageIndex % layout.cols];
-  if (!row || !column) return;
-
-  const pxPt = Math.max(1 / Math.max(layout.pageWidthPt, layout.pageHeightPt), supersample);
-  const pageWidth = Math.max(1, Math.round(rasterWidth));
-  const pageHeight = Math.max(1, Math.round(rasterHeight));
-  canvas.width = pageWidth;
-  canvas.height = pageHeight;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('renderPrintPreviewPage: kon 2D-context niet verkrijgen');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, pageWidth, pageHeight);
-
-  const rasterScale = layout.scale * pxPt;
-  const renderWindow = (sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number, destinationX: number, destinationY: number) => {
-    if (sourceWidth <= 0 || sourceHeight <= 0) return;
-    renderPrintReportWindow(canvas, tasks, sequences, calendar, projectName, options, {
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      destinationX,
-      destinationY,
-      rasterScale,
-    });
-  };
-
-  for (const win of column.xWindows) {
-    const destinationX = win.pageX * pxPt;
-    if (layout.repeatHeaderPx > 0) {
-      renderWindow(
-        win.srcX,
-        0,
-        win.srcW,
-        layout.repeatHeaderPx,
-        destinationX,
-        layout.marginPt * pxPt,
-      );
-    }
-    renderWindow(
-      win.srcX,
-      row.srcY,
-      win.srcW,
-      row.srcH,
-      destinationX,
-      layout.bodyTopPt * pxPt,
-    );
-  }
-  // Voetstrook: één keer per pagina uit het vaste `footerWindow` (zie tileLayout), niet per kolomvenster.
-  if (layout.repeatFooterPx > 0) {
-    renderWindow(
-      layout.footerWindow.srcX,
-      layout.repeatFooterSrcY,
-      layout.footerWindow.srcW,
-      layout.repeatFooterPx,
-      layout.footerWindow.pageX * pxPt,
-      layout.footerTopPt * pxPt,
-    );
-  }
-
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#999999';
-  ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText(`${pageIndex + 1} / ${totalPages}`, (layout.pageWidthPt - layout.marginPt) * pxPt,
-    (layout.pageHeightPt - layout.marginPt * 0.5) * pxPt);
-}
-
-/**
- * Meet een rapport zonder een HTML-canvas of GPU-/systeembuffer te reserveren. De preview gebruikt
- * dit vóór zijn echte rasterrender om zijn geheugenbudget te bepalen. Tekstbreedtes hoeven hier
+ * Meet een rapport zonder een HTML-canvas of GPU-/systeembuffer te reserveren. Tekstbreedtes hoeven hier
  * niet pixelprecies te zijn: de teruggegeven afmetingen bestaan uitsluitend uit de vaste tabel-,
  * kop- en rijmaten; de echte render meet daarna met het geladen font.
  */
@@ -2762,7 +2701,7 @@ function drawTaskTable(
  *  2. `options.showCritical` stuurt hier alléén de lijnkleur (en de legendaregel). De balken
  *     volgen de balkkleurkeuze `computeBarColors` (barColors.ts: `criticalFill` in de modus
  *     *Kritiek pad*, een rode rand daarbuiten) en kijken niet naar het vinkje — een rapporttype
- *     zonder lijnen verbergt het vinkje daarom (`reportTypeShowsCriticalToggle`).
+ *     zonder lijnen zet het vinkje daarom vast aan (`studioRowPrintFields`).
  *  3. TRACE-DIMMING wordt NIET overgenomen: dat is interactieve state (het gedimd tonen van alles
  *     buiten een aangeklikt pad) waar een statisch papieren rapport niets aan heeft.
  *

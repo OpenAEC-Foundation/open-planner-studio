@@ -1,4 +1,4 @@
-// Snelheidsmeting van het nieuwe Rapport-tabblad (issue #817: "je moet niet eens merken dat je klikt").
+// Snelheidsmeting van het Rapport-tabblad (issue #817: "je moet niet eens merken dat je klikt").
 //
 // Elke bediening zet een beginmerk (`markReportInput`). Twee metingen hangen eraan, als
 // `performance.measure` (lees ze met `performance.getEntriesByName(...)`, bijv. vanuit Playwright):

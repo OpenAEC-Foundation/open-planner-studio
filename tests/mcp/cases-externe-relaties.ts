@@ -101,7 +101,7 @@ B().addSequence({ predecessorId: installId, successorId: testId, type: 'FINISH_S
 let sourceWrites = 0;
 function writeSource(): void {
   B().runCPM();
-  files.set(SOURCE, writeIFC(buildWriteIFCInput(B())));
+  files.set(SOURCE, writeIFC(buildWriteIFCInput(B(), 'planOnly')));
   mtimes.set(SOURCE, new Date(Date.UTC(2027, 1, 1, 9, ++sourceWrites)));
 }
 
@@ -396,7 +396,7 @@ sourceA.getState().newProject();
 sourceA.getState().setProject({ startDate: '2027-03-01', name: 'Installateur' });
 const installA = sourceA.getState().addTask({ name: 'Installatie', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
 sourceA.getState().runCPM();
-files.set(SOURCE_A, writeIFC(buildWriteIFCInput(sourceA.getState())));
+files.set(SOURCE_A, writeIFC(buildWriteIFCInput(sourceA.getState(), 'planOnly')));
 const readA = await readExternalSource(SOURCE_A, io);
 const installAId = readA.tasks.find(t => t.name === 'Installatie')!.id;
 assert(installAId === installA || !!installAId, 'bron A heeft Installatie');

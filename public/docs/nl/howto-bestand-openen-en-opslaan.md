@@ -13,7 +13,7 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 1. Kies *Start › Bestand › Openen*, of *Bestand › Openen*, of druk op Ctrl+O (⌘+O op een Mac). De groep *Bestand* staat ook op het tabblad *Tabel*.
 2. Kies het bestand. Je opent één bestand per keer. Op de desktop en in browsers met bestandstoegang, zoals Chrome en Edge, toont het venster een lijst met bestandstypen: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* en *Primavera XER Files*.
 3. Het project opent in een nieuw tabblad. Was het huidige tabblad nog leeg en ongewijzigd, dan opent het project daarin.
-4. Was het bestand geen IFC, dan verschijnt een venster met een korte uitleg over dat formaat. Een groen blok zegt wat de app overnam, een amber blok wat niet of maar deels meekwam, en een blauw blok hoe opslaan en terugschrijven werken. *Lees meer* opent de gids over dat formaat. Klik op *Begrepen* om het venster te sluiten. Vink eerst *Niet meer tonen voor …* aan als je deze uitleg voor dat formaat niet meer wilt zien. Je zet hem weer aan in [App-instellingen](docs://ref-instellingen), op het tabblad *Geavanceerd*.
+4. Was het bestand geen IFC, dan verschijnt een venster met een korte uitleg over dat formaat. Een groen blok zegt wat de app overnam, een amber blok wat niet of maar deels meekwam, en een blauw blok hoe opslaan en terugschrijven werken. *Lees meer* opent de gids over dat formaat. Klik op *Begrepen* om het venster te sluiten. Vink eerst *Niet meer tonen voor …* aan als je deze uitleg voor dat formaat niet meer wilt zien. Je zet hem weer aan in de app-instellingen, in de groep [Meldingen](settings://formatNotices).
 
 Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een ander formaat krijgt zijn projectnaam.
 
@@ -51,7 +51,7 @@ Kies *Start › Bestand › Opslaan* of *Bestand › Opslaan*, of druk op Ctrl+S
 3. Bewaart je browser alleen via een download (zoals Firefox), dan komt het bestand in je downloadmap, en elke keer opslaan maakt een nieuwe download. De eerste keer in een sessie zie je de melding *Opgeslagen als download: 'naam.ifc' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.*
 4. Kan je browser door beperkte bestandstoegang niet terugschrijven naar het bestand van het project, dan vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. Dat lijkt op *Opslaan als*, maar het is een grens van de browser. De eerste keer in een sessie legt de melding *Deze browser laat de app niet terugschrijven naar 'naam.ifc'.* dat uit, met een link naar [Bestanden](docs://uitleg-bestanden).
 
-Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad, de asterisk voor de projectnaam bovenaan en de tekst *Niet opgeslagen* rechtsonder in de statusbalk.
+Tijdens het opslaan staat rechtsonder in de statusbalk *Opslaan…*; je kunt intussen doorwerken. Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad en de asterisk voor de projectnaam bovenaan. In de statusbalk staat dan *Opgeslagen* met de tijd, bijvoorbeeld *Opgeslagen 14:32*. Wat je tijdens het opslaan nog wijzigde, staat niet in het bestand: daarna staat er weer *Niet opgeslagen*.
 
 ### Opslaan onder een andere naam
 

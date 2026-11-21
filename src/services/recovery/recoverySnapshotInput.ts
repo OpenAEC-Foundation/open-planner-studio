@@ -9,7 +9,7 @@ export interface RecoverySnapshotInput {
 }
 
 export function recoverySnapshotInput(source: IFCSaveSource): RecoverySnapshotInput {
-  const { xerSourceArchive: archive, xer, ...input } = buildWriteIFCInput(source);
+  const { xerSourceArchive: archive, xer, ...input } = buildWriteIFCInput(source, 'planOnly');
   const selector = xer?.sourceProjectId ?? input.xerSourceProjectId;
   // #804 fase 1a, fixronde 1: kwam het document uit een bestand met een vreemd deel, dan alleen de vingerafdruk (twee
   // getallen), nooit de bronbytes of de handle: deze invoer gaat naar de Worker.

@@ -138,7 +138,7 @@ function openInStore(parsed: OpenedImport): DocumentPayload {
 {
   const stable = CASES.filter((c) => !c.written);
   const before = openInStore(buildProject(stable));
-  const after = openInStore(await parseOpenedFile({ name: 'urenperdag.ifc', text: writeIFC(buildWriteIFCInput(before)) }));
+  const after = openInStore(await parseOpenedFile({ name: 'urenperdag.ifc', text: writeIFC(buildWriteIFCInput(before, 'planOnly')) }));
   const calView = (p: DocumentPayload) => Object.fromEntries(calendarsOf({ calendar: p.calendar, resourceCalendars: p.calendars })
     .map((c) => [c.name, { ...shape(c), motor: new CalendarEngine(c).hoursPerDay }]));
   same('§4 kalenders (en de uren per dag van de motor) gelijk na opslaan en heropenen', calView(after), calView(before));

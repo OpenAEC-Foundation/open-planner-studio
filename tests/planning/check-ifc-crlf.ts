@@ -21,14 +21,14 @@ S().newProject();
 const id = S().addTask({ name: 'Regel 1\r\nRegel 2' });
 S().addTask({ name: 'Gewoon' });
 S().updateTask(id, { notes: [{ id: 'n1', text: 'eerste\r\ntweede\nderde\rvierde', done: false }] });
-const text = writeIFC(buildWriteIFCInput(S()));
+const text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 const back = readIFC(text);
 const t = back.tasks.find((x) => x.name.startsWith('Regel 1'));
 eq('taaknaam met CRLF ongewijzigd', t?.name, 'Regel 1\r\nRegel 2');
 eq('notitie met CRLF, LF en CR ongewijzigd', t?.notes?.[0]?.text, 'eerste\r\ntweede\nderde\rvierde');
 
 // Een bestand dat als geheel CRLF-regeleinden heeft (Windows-editor, ander programma) blijft leesbaar.
-const crlfFile = S().tasks.length > 0 ? writeIFC(buildWriteIFCInput(S())).replace(/\n/g, '\r\n') : '';
+const crlfFile = S().tasks.length > 0 ? writeIFC(buildWriteIFCInput(S(), 'planOnly')).replace(/\n/g, '\r\n') : '';
 const back2 = readIFC(crlfFile);
 eq('CRLF-bestand: alle taken gelezen', back2.tasks.map((x) => x.name.replace(/\r/g, '')).sort(), ['Gewoon', 'Regel 1\nRegel 2']);
 

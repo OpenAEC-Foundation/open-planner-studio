@@ -79,7 +79,7 @@ S().newProject();
 S().setProject({ name: 'Uitleg-bron', startDate: '2026-08-03' });
 S().addTask({ name: 'Werkje' });
 const src = S();
-const ifcText = writeIFC(buildWriteIFCInput(src));
+const ifcText = writeIFC(buildWriteIFCInput(src, 'planOnly'));
 const csvText = writeCSV(src.project, src.calendar, src.tasks, src.sequences, src.resources, src.assignments);
 const xmlText = writeMSPDI(src.project, src.calendar, src.tasks, src.sequences, src.resources, src.assignments,
   src.calendars, src.baselines, src.activeBaselineId);

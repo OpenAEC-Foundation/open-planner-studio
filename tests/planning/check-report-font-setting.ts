@@ -4,7 +4,7 @@
 // na een herstart — en de tolerantie voor een ontbrekende of onbekende waarde (per veld terug op
 // Inter; een opslag van vóór deze optie verliest niets).
 import './domStub';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 import { REPORT_FONT_IDS } from '@/services/pdf/reportFont';
 
 const failures: string[] = [];
@@ -19,7 +19,7 @@ expect('verse installatie ⇒ Inter', (await loadReportSettings()).reportFontFam
 
 // Elke keuze uit de lijst overleeft opslaan en opnieuw laden (zoals bij een herstart van de app).
 for (const id of REPORT_FONT_IDS) {
-  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportFontFamily: id });
+  patchReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportFontFamily: id });
   const raw = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}') as Record<string, unknown>;
   expect(`'${id}' staat als id in ops-reportSettings`, raw.reportFontFamily, id);
   expect(`'${id}' overleeft een herstart`, (await loadReportSettings()).reportFontFamily, id);

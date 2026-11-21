@@ -253,7 +253,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
 // 17 maart rekenen. De planner ziet einde 19 maart. Het voorstel begint daar, niet bij een nieuwe berekening.
 {
   const { S } = plan();
-  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   const times = captureRecordedDates(parsed.tasks, parsed.recordedFields).times;
   const idB = parsed.tasks.find(t => t.name === 'B')!.id;
   times[idB] = { ...times[idB], start: '2027-03-17T07:00', finish: '2027-03-19T16:00' };
@@ -392,7 +392,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
 {
   const { S } = plan();
   S().setProject({ id: 'proj-bron', name: 'Bron' });
-  const text = writeIFC(buildWriteIFCInput(S()));
+  const text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const lastModified = Date.UTC(2026, 10, 9, 8, 30);
   const read = await readExternalSourceFile({
     name: 'Bron.ifc', lastModified, text: async () => text, arrayBuffer: async () => new TextEncoder().encode(text).buffer,
@@ -412,7 +412,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   const sourceText = (id: string) => {
     const { S } = plan();
     S().setProject({ id, name: id });
-    return writeIFC(buildWriteIFCInput(S()));
+    return writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   };
   const sourceTaskId = (text: string) => readIFC(text).tasks.find(t => t.name === 'B')!.id;
   let clickAt = 0;
@@ -647,7 +647,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
 {
   const { S } = plan();
   S().setProject({ id: 'proj-bron', name: 'Bron' });
-  const text = writeIFC(buildWriteIFCInput(S()));
+  const text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const read = await readExternalSiteSource({
     id: 'site-7', name: 'Bron.ifc', version: '12', text: async () => text, bytes: async () => new TextEncoder().encode(text),
   });

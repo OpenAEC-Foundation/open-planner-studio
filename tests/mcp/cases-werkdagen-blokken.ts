@@ -87,7 +87,7 @@ function assertConsistent(cal: WorkCalendar, label: string): void {
 
 /** IFC-rondgang: werktijd, werkdagen en uren per dag komen gelijk terug. */
 function assertIfcStable(cal: WorkCalendar, label: string): void {
-  const terug = readIFC(writeIFC(buildWriteIFCInput(S()))).calendar;
+  const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   assert(!!terug.workTime, `${label}: de uurkalender overleeft IFC`);
   for (let d = 1; d <= 7; d++) {
     assertEq(terug.workTime!.byWeekday[d as 1] ?? [], cal.workTime!.byWeekday[d as 1] ?? [],

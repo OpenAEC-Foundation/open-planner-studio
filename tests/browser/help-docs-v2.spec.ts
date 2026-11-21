@@ -158,7 +158,7 @@ test('dev toont drafts, aliassen openen het nieuwe artikel en zoeken vindt artik
   await expect(page.locator('.help-toc-item')).toHaveAttribute('data-help-article', 'uitleg-fixture');
 });
 
-test('docs://id#anker scrolt naar de kop; een gewone artikelwissel begint bovenaan', async ({ page, ops: _ops }) => {
+test('docs://id#anker scrolt naar de kop; een gewone artikelwissel begint bovenaan; settings:// opent de instelling', async ({ page, ops: _ops }) => {
   await page.setViewportSize({ width: 1280, height: 600 });
   await withFixtureManifest(page);
   await openHelp(page);
@@ -181,6 +181,16 @@ test('docs://id#anker scrolt naar de kop; een gewone artikelwissel begint bovena
   await page.locator('[data-help-article="howto-fixture"]').click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
   await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(0);
+
+  // settings://<id> verlaat de Help: Backstage gaat naar App-instellingen, op precies die instelling.
+  // Het artikel openen is de fixture; de klik op de link is de geteste handeling.
+  await page.evaluate(() => window.__OPS__!.store.getState().openHelpArticle('ref-instellingen'));
+  await expect(current(page)).toHaveAttribute('data-help-current', 'ref-instellingen');
+  await current(page).locator('[data-help-setting="compressNonWorkdays"]').click();
+  const setting = page.locator('.backstage-main [data-ops-setting="compressNonWorkdays"]');
+  await expect(page.locator('.backstage-main [data-ops-settings-group="timeline"]')).toHaveAttribute('aria-current', 'page');
+  await expect(setting).toHaveClass(/is-highlighted/);
+  await expect(setting.getByRole('checkbox')).toBeFocused();
 });
 
 test('Prompt kopiëren zet het promptblok van het artikel letterlijk op het klembord, ook zonder klembord-API', async ({ page, context, ops: _ops }) => {

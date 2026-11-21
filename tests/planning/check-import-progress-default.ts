@@ -121,7 +121,7 @@ function open(parsed: ImportResult, name: string): void {
     && !byName(S().tasks, 'A').time.actualFinish);
 
   const s = S();
-  const ifc = writeIFC(buildWriteIFCInput(s));
+  const ifc = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   const mspdi = writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars);
 
   // Referentie: wat de store zelf zou kiezen voor dezelfde taak (setTaskProgress → applyProgressInvariants).
@@ -184,7 +184,7 @@ function open(parsed: ImportResult, name: string): void {
     && byName(S().tasks, 'F').time.earlyStart === '2015-01-12T07:00');
   const s = S();
   const routes: [string, ImportResult][] = [
-    ['IFC', readIFC(writeIFC(buildWriteIFCInput(s)))],
+    ['IFC', readIFC(writeIFC(buildWriteIFCInput(s, 'planOnly')))],
     ['MSPDI', readMSPDI(writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars))],
     ['P6', readP6XML(writeP6XML(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars))],
   ];

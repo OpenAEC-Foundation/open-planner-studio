@@ -24,6 +24,8 @@
     "undo": "Поништи",
     "redo": "Понови",
     "delete": "Избриши",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: брише изабране задатке и ствара повезивање сваког претходника са сваким наследником (завршетак-почетак, без кашњења)",
     "undoTitle": "Поништи (Ctrl+Z)",
     "redoTitle": "Понови (Ctrl+Y)",
     "deleteTitle": "Избриши селекцију (Delete)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Изаберите колоне приказа Табела — приказују се на картици Табела",
     "toggleResourceAccent": "Акцент ресурса",
     "toggleFloatBand": "Трака временске резерве",
+    "toggleBarDates": "Датуми уз траке задатака",
     "screenColors": "Боје трака",
     "screenColors_critical": "Критична путања",
     "screenColors_auto": "По задатку — аутоматски",
@@ -282,7 +285,8 @@
       "label": "IFC шема при чувању",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (подразумевано)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Датотека садржи податке друге апликације. Зато се шема из оригиналног заглавља задржава."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Шаблон фазирања",
     "tmplEmpty": "Празно",
     "tmplWoningbouw": "Стамбена градња",
-    "tmplUtiliteit": "Пословна градња / реновирање"
+    "tmplUtiliteit": "Пословна градња / реновирање",
+    "phase": {
+      "siteGroundwork": "Градилиште и земљани радови",
+      "foundation": "Темељи",
+      "shell": "Груба градња / конструкција",
+      "roof": "Кров",
+      "facadeFitOut": "Фасада и унутрашње уређење",
+      "services": "Инсталације (машинске/електро)",
+      "finishes": "Завршна обрада",
+      "handover": "Примопредаја",
+      "demolitionStripOut": "Рушење и уклањање",
+      "groundworkFoundation": "Земљани радови и темељи",
+      "mainStructure": "Носећа конструкција",
+      "facadeRoof": "Фасада и кров",
+      "fitOut": "Унутрашње уређење",
+      "commissioning": "Подешавање и испитивање"
+    }
   },
   "status": {
     "tasks": "Задаци:",
@@ -317,12 +337,14 @@
     "recentTitle": "Недавни пројекти",
     "recentSubtitle": "Кликните за отварање.",
     "recentEmpty": "Још нема недавно отворених пројеката.",
+    "recentLoading": "Учитавање недавних датотека…",
     "recentUnavailable": "Овај прегледач не може поново да отвори локалне датотеке са списка „Скорашње“. Користите „Отвори“ да поново изаберете датотеку пројекта.",
     "recentOnSite": "На сајту",
     "examples": "Примери",
     "examplesTitle": "Примери пројеката",
     "examplesSubtitle": "Испоручени распореди градње. Кликните за отварање у новој картици.",
     "examplesLoading": "Учитавање примера…",
+    "loading": "Учитавање…",
     "examplesEmpty": "Нема доступних примера.",
     "examplesError": "Примери нису могли да се учитају.",
     "examplesShowcaseHeading": "Потпуни примери распореда",
@@ -393,7 +415,7 @@
       "plannedReadOnly": "планирано, не мењати",
       "summaryRow": "— збирни задатак: не попуњавајте"
     },
-    "csvLabel": "CSV (раздвојено тачка-зарезом)",
+    "csvLabel": "CSV",
     "csvDesc": "Универзални извоз у табели. Сви задаци са датумима и трајањем.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Отвара се у програму Microsoft Project. Потпуна структура САП.",
@@ -405,7 +427,7 @@
     "profileHint": "Ваш пројекат тренутно користи профил {{name}}. Препоручујемо профил {{target}} за најбољу компатибилност са овим форматом датотеке.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART стандард, у IFC шеми пројекта (подразумевано IFC 4.3 ADD2). 4D повезивање са BIM моделима.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Проширења",

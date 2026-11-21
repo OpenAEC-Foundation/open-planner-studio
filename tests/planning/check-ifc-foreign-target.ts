@@ -7,8 +7,10 @@
 //      deel weigert, met de rode melding, vóór het schrijven; elke route herkent dat bestand (handle: `isSameEntry`; pad:
 //      hetzelfde pad of dezelfde bestandsidentiteit; site: hetzelfde `siteFileId`), en een ander bestand mag;
 //   3. BLOKKEERT 3: na crashherstel (snapshot, manifest, lezen, herstellen) heeft het document het kenmerk van de bron,
-//      zonder bronbytes en zonder handle; Opslaan als en een export naar het oude bestand weigeren, een ander bestand
-//      krijgt alleen de planning; een oude snapshot zonder kenmerk werkt zoals altijd;
+//      zonder bronbytes en zonder handle; een export naar het oude bestand weigert. Fixronde 2 van #886 (Sol, besluit
+//      Trias): elke IFC-uitvoer weigert, ook naar een nieuw bestand en ook met de flag uit, en de volgende snapshot draagt
+//      het kenmerk nog; een eigen planning zonder model herstelt en slaat op (flag uit en aan); een oude snapshot zonder
+//      kenmerk werkt zoals altijd;
 //   4. het kenmerk in het documentcontract: buiten undo, mee bij wissel en kopie, niet in een gewone opslag;
 //   5. fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf. Een IFC met een gebouwmodel
 //      krijgt geen planning eroverheen: na herstel ook een gewijzigde modelversie (Sol: één ander byte, een extra
@@ -22,6 +24,7 @@
 //   7. fixronde 3, BLOKKEERT 2: een MCP-backup houdt het kenmerk (vingerafdruk en doel in de pset). De backup openen in
 //      een nieuwe sessie: Ctrl+S wordt Opslaan als, de bron als doel weigert (handle: inhoud; Tauri: pad, ook na een
 //      wijziging van de bron), een ander bestand mag en krijgt de pset nooit; de pset telt als eigen planning (100 % P);
+//      fase 1c PR 9d: met de flag aan is de bron ontbrekend, iedere IFC-route weigert en CSV blijft mogelijk;
 //   8. fixronde 3: hoogstens één `getFile()` en één SHA-256 van het doel per controle;
 //   9. fixronde 4: Terra's bestand (kapotte kop, alles op één regel) en Sol's bestand (kapotte kop, `#30=\nIFCWALL(`)
 //      als doel: Opslaan als, CSV-export en AutoSave schrijven niet, de bestaande tekst blijft, A blijft gewijzigd; per
@@ -31,6 +34,16 @@
 //      meerregelige string als doel: er komt een write.
 //      Ook `council/fix3-twee-data.ifc` (een wand in de tweede DATA-sectie) als doel, ook met parameters bij beide
 //      sectiekoppen (`DATA('…',(…));`): geen write.
+//  10. opslaan in de achtergrond, stap 2 (9c): de indeling van het doel draait in de scanworker. Bytes, stroom en
+//      FSA-bestand geven met een geïnjecteerde Worker (ook een die niet start, niet antwoordt of een fout geeft) precies de
+//      uitkomst van de synchrone weg van de kern; boven 300 MiB 'unreadable' zonder Worker; `targetRefusal` gebruikt de
+//      module-Worker van `globalThis`;
+//  11. fixronde 1 van #985 (9d): een Worker die niet start, houdt de doelcontrole en het schrijfslot hoogstens de korte
+//      starttijd op (productiewaarde); na een startbevestiging geldt de ruime rekentijd; late berichten doen niets; de
+//      echte handler van `foreignScan.worker.ts` antwoordt in de matrix van 9c;
+//  12. knownbug 1758 (9c, 9e): ook de modelscan van het doel draait in de scanworker. Een Worker die halverwege breekt,
+//      geeft de uitkomst van de hoofdthread (opnieuw vanaf het begin); het antwoord van de modelscan komt aantoonbaar uit
+//      de Worker; de vroege stop leest in de Worker dezelfde stukken als op de hoofdthread.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -39,7 +52,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
-import { installNodeFileIpc } from './nodeFileIpc';
+import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
+import { fakeScanWorker, fakeScanWorkerStats, LATE_MS } from './fakeScanWorker';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -54,6 +68,7 @@ console.warn = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { readsAsBytes, readIfcFromText } = await import('@/services/formatRegistry');
+const { IfcForeignOpenError, readIfcBytesDetailed } = await import('@/services/ifc/foreign/ifcBytesRoute');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { recoverySnapshotInput, serializeRecoverySnapshot } = await import('@/services/recovery/recoverySnapshotInput');
@@ -85,13 +100,22 @@ const dec = (b: Uint8Array) => new TextDecoder('utf-8').decode(b);
 const bonsai = fileBytes('tests/fixtures/ifc-foreign/bonsai-4d.ifc');
 const eigenPlus = fileBytes('tests/fixtures/ifc-foreign/eigen-plus-model.ifc');
 const showcase = fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc');
+// Gesloten bron: alleen een externe pset en haar property, zonder gebouwmodel.
+const externalPset = enc.encode(dec(showcase).replace('ENDSEC;\nEND-ISO-10303-21;',
+  "#99001=IFCPROPERTYSINGLEVALUE('ExternVeld',$,IFCTEXT('behouden'),$);\n" +
+  "#99002=IFCPROPERTYSET('0abcdefghijkmnopqrstuv',$,'ExternPset',$,(#99001));\nENDSEC;\nEND-ISO-10303-21;"));
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
+const SOURCE_MISSING = 'notifications.ifcForeignSourceMissing';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
+/** Een eigen app-datamap voor de nagebootste bestandslaag: Opslaan als over een bestaand bestand legt met de flag aan
+ *  het herstelrecord van de vervanging daar vast (fixronde 2 van #1071). */
+const tempAppData = () => mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
+const OPEN_IN_TAB_SAVE = 'notifications.ifcForeignTargetOpenInTab';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
 const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
-const MODEL_KEYS = [SAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
+const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een
@@ -159,16 +183,22 @@ win.showSaveFilePicker = async () => {
 };
 
 /** Open `bytes` als Bestand → Openen (met de flag), in een verse store of `into`. */
-async function open(name: string, bytes: Uint8Array, ref: import('@/services/fileAccess').FileRef | null, into?: Store): Promise<Store> {
+async function open(name: string, bytes: Uint8Array, ref: import('@/services/fileAccess').FileRef | null, into?: Store, flag = true): Promise<Store> {
   reseed(0x804);
   const store = into ?? createAppStoreContext().store;
-  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  const asBytes = readsAsBytes(name, { ifcBytes: true });
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; });
+  const asBytes = readsAsBytes(name, { ifcBytes: flag });
   await store.getState().openOpenedFile({ name, content: asBytes ? '' : dec(bytes), ...(asBytes ? { bytes } : {}), ref });
   return store;
 }
 const modelNotices = (store: Store) => store.getState().ui.notifications.filter(n => MODEL_KEYS.includes(n.messageKey));
 const noticeKeys = (store: Store) => modelNotices(store).map(n => [n.messageKey, n.severity, n.refusal === true]);
+const noticeCount = (store: Store, key: string) =>
+  store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
+
+const { setPlanOnlyAsker, resetPlanOnlyAsker } = await import('@/services/ifc/planOnlyQuestion');
+const { readRecoveryDocument } = await import('@/state/readRecoveryDocument');
+const { recoverySourceDocument } = await import('@/state/recoverySourceDocument');
 
 // ── 1. BLOKKEERT 1: documentwissel tijdens het wachten ─────────────────────────────────────────────────────────
 // De wachttijd is die van de afhankelijke projecten (`settleDependentAnchors`: schrijven, lezen en doorrekenen op een
@@ -242,21 +272,49 @@ for (const action of ['saveFile', 'saveFileAs'] as const) {
   pick = source;
   await S().saveFileAs();
   eq('FSA Opslaan als: naar de bron van het andere document geweigerd', [source.writables(), S().filePath], [0, 'showcase.ifc']);
-  ok('FSA Opslaan als: met de melding "op te slaan"', modelNotices(store).some(n => n.messageKey === TARGET_SAVE && n.refusal === true));
+  // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad (was "op te slaan").
+  ok('FSA Opslaan als: met de melding van een open tabblad', store.getState().ui.notifications.some(n => n.messageKey === OPEN_IN_TAB_SAVE && n.refusal === true));
   const saveTarget = fakeHandle('kopie.ifc', new Uint8Array());
   pick = saveTarget;
   await S().saveFileAs();
   eq('FSA Opslaan als: een ander bestand mag', [saveTarget.writes.length, S().fileHandle === saveTarget.handle], [1, true]);
   // De controle voor de dialogen buiten de store (bibliotheek, rapport).
   eq('FSA: de store-controle weigert de bron en laat een ander bestand door', [
-    await S().foreignTargetCheck('export')({ kind: 'handle', handle: source.handle }),
-    await S().foreignTargetCheck('export')({ kind: 'handle', handle: other.handle }),
+    await S().foreignTargetCheck(null)({ kind: 'handle', handle: source.handle }),
+    await S().foreignTargetCheck(null)({ kind: 'handle', handle: other.handle }),
   ], [true, false]);
   // Een kopie met dezelfde inhoud op een andere plek is een ander bestand (de handle van de bron is bekend).
   const copy = fakeHandle('kopie-van-model.ifc', bonsai);
   eq('FSA: een andere handle met dezelfde inhoud mag als de bronhandle bekend is',
     await isForeignSourceTarget({ kind: 'handle', handle: copy.handle }, [S().getOpenDocumentPayloads().find(d => d.id === modelId)!.payload.foreignSourceMark!]), false);
   pick = null;
+}
+
+// ── 2a'. #1022, browser: Opslaan als over het bestand van een ander tabblad (knownbug 1893) ──────────────────────────
+// De opslaankiezer van Chromium maakt een gekozen bestaand bestand al leeg vóór de handle terugkomt (knownbug 1899);
+// weigeren zou het andere tabblad dan een leeg bestand nalaten. Daarom vergelijkt de doelcontrole hier geen handles met
+// de open tabbladen, en maakt Opslaan als het bestand af. Deze proef legt vast wat de planner dan overhoudt: een
+// volledig bestand met de planning van A (niet leeg), en twee tabbladen op hetzelfde bestand. Met de flag uit en aan.
+for (const flag of [false, true]) {
+  const label = `#1022 browser, flag ${flag ? 'aan' : 'uit'}`;
+  const fileB = fakeHandle('planning-b.ifc', showcase);
+  const store = await open('planning-a.ifc', showcase, null, undefined, flag);
+  const S = () => store.getState();
+  const idA = S().activeDocumentId;
+  S().addTask({ name: 'Werk in tabblad A' });
+  await open('planning-b.ifc', showcase, { kind: 'handle', handle: fileB.handle }, store, flag);
+  const idB = S().activeDocumentId;
+  S().addTask({ name: 'Werk in tabblad B' });
+  S().switchDocument(idA);
+  store.setState(s => { s.ui.notifications = []; });
+  pick = fileB;
+  await S().saveFileAs();
+  pick = null;
+  const docB = S().getOpenDocumentPayloads().find(d => d.id === idB)!.payload;
+  eq(`${label}: geen weigering, één volledige schrijfactie`, [S().ui.notifications.filter(n => n.severity === 'error').length, fileB.writes.length], [0, 1]);
+  ok(`${label}: het bestand is niet leeg en bevat de planning van A`, fileB.text().length > 1000 && fileB.text().includes('Werk in tabblad A'));
+  ok(`${label}: A wijst nu naar het bestand van B`, !!S().fileHandle && await S().fileHandle!.isSameEntry(fileB.handle));
+  eq(`${label}: B wijst er nog naar, met zijn wijzigingen`, [docB.fileHandle === fileB.handle, docB.isDirty], [true, true]);
 }
 
 // ── 2b. BLOKKEERT 2, site (SuperCloud / `window.openaecHost`) ──────────────────────────────────────────────────
@@ -340,33 +398,68 @@ let oldRecoveryText = '';
   const R = () => restored.getState();
   eq('herstel: het document heeft het kenmerk, zonder handle, zonder vreemd deel en zonder doel',
     [R().foreignSourceMark, R().ifcSource?.foreign === true, R().filePath],
-    [{ sha256: sha(bonsai), byteLength: bonsai.length, filePath: 'bonsai-4d.ifc', siteFileId: null, handle: null }, false, null]);
+    [{ sha256: sha(bonsai), byteLength: bonsai.length, filePath: 'bonsai-4d.ifc', siteFileId: null, handle: null, sourceMissing: true }, false, null]);
   ok('herstel: de planning van voor de crash is er', R().tasks.some(t => t.name === 'Werk van voor de crash'));
   eq('herstel: geen melding bij het herstel', noticeKeys(restored), []);
 
+  // #886 fixronde 2 (Sol, BLOKKEERT; besluit Trias 11 november 2026): de bronbytes zijn weg, dus weigert elke IFC-uitvoer,
+  // zoals vóór de crash, met de bestaande melding. Eerst schreef Opslaan als naar een nieuw bestand de planning zonder
+  // model en zonder kenmerk, en was het document daarna niet meer gewijzigd.
   // Na een herstart is de handle van het oude bestand een nieuw object: de app herkent het aan de inhoud.
   const oldFile = fakeHandle('bonsai-4d.ifc', bonsai);
   pick = oldFile;
   pickerCalls = 0;
   await R().saveFile();
-  eq('herstel: Opslaan wordt Opslaan als, naar het oude bestand geweigerd', [pickerCalls, oldFile.writables(), sha(oldFile.text())], [1, 0, sha(bonsai)]);
-  ok('herstel: met de melding "op te slaan"', modelNotices(restored).some(n => n.messageKey === TARGET_SAVE && n.refusal === true));
-  await R().saveFileAs();
-  eq('herstel: Opslaan als naar het oude bestand geweigerd', oldFile.writables(), 0);
+  eq('herstel: Opslaan geweigerd, geen dialoog, het oude bestand blijft', [pickerCalls, oldFile.writables(), sha(oldFile.text())], [0, 0, sha(bonsai)]);
+  ok('herstel: met de melding van een vreemd deel', modelNotices(restored).some(n => n.messageKey === SOURCE_MISSING && n.refusal === true));
   const csv = await R().exportAs('csv');
   eq('herstel: export naar het oude bestand geweigerd', [csv, oldFile.writables()], [{ ok: true, warnings: [], cancelled: true }, 0]);
   ok('herstel: met de melding "naar te exporteren"', modelNotices(restored).some(n => n.messageKey === TARGET_EXPORT));
   const fresh = fakeHandle('nieuw.ifc', new Uint8Array());
   pick = fresh;
+  pickerCalls = 0;
   await R().saveFileAs();
-  const written = fresh.writes[0] ?? '';
-  ok('herstel: een ander bestand krijgt de planning', written.includes('Werk van voor de crash') && R().isDirty === false);
-  ok('herstel: alleen de planning: geen model en geen herstelkenmerk', !written.includes('IFCWALL') && !written.includes('OPS_RecoveryForeignSource'));
-  // Daarna is het nieuwe bestand het doel; Ctrl+S schrijft er weer naar (de inhoud verschilt van de bron).
-  R().addTask({ name: 'Na herstel' });
-  await R().saveFile();
-  eq('herstel: Ctrl+S naar het nieuwe bestand', [fresh.writes.length, R().isDirty], [2, false]);
+  const ifcExport = await R().exportAs('ifc');
+  eq('herstel (Sol): Opslaan als en de IFC-export naar een nieuw bestand geweigerd, nul writes, het document blijft gewijzigd',
+    [pickerCalls, fresh.writables(), ifcExport, R().isDirty, R().filePath, R().fileHandle],
+    [0, 0, { ok: true, warnings: [], cancelled: true }, true, null, null]);
+  ok('herstel (Sol): met de melding van een vreemd deel, als één melding',
+    noticeCount(restored, SOURCE_MISSING) === 2 && modelNotices(restored).filter(n => n.messageKey === SOURCE_MISSING).length === 1);
+  // Twee keer crashen verliest de bescherming niet: de volgende herstelsnapshot draagt het kenmerk nog.
+  const again = serializeRecoverySnapshot(R());
+  ok('herstel: de snapshot ná herstel draagt het kenmerk', again.includes("'OPS_RecoveryForeignSource'") && again.includes(sha(bonsai)));
+  const twice = createAppStoreContext().store;
+  twice.getState().restoreDocuments([recoveryInputFromParsed(await readIfcFromText(again, {}, { ifcBytes: true }), {
+    id: 'twee', filePath: null, foreignSource: { filePath: 'bonsai-4d.ifc', siteFileId: null }, isDirty: true, datesAsRecorded: false,
+  })], 'twee');
+  await twice.getState().saveFileAs();
+  eq('herstel, tweede keer: het kenmerk blijft en Opslaan als weigert (ook met de flag uit)',
+    [twice.getState().foreignSourceMark?.sourceMissing, fresh.writables(), noticeCount(twice, SOURCE_MISSING)], [true, 0, 1]);
   ok('herstel: het kenmerk blijft tot het document sluit', R().foreignSourceMark?.sha256 === sha(bonsai));
+  pick = null;
+}
+
+// ── 3a. Fixronde 2 (eis van Trias): een eigen planning zonder model herstelt en slaat gewoon op, flag uit en aan ─────
+for (const flag of [false, true]) {
+  const label = flag ? 'flag aan' : 'flag uit';
+  reseed(0x804);
+  const own = createAppStoreContext().store;
+  if (flag) own.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  await own.getState().openOpenedFile({ name: 'showcase.ifc', content: dec(showcase), ref: null });
+  own.getState().addTask({ name: 'Eigen werk van voor de crash' });
+  const snapshot = serializeRecoverySnapshot(own.getState());
+  ok(`eigen planning (${label}): geen kenmerk in de snapshot`, !snapshot.includes('OPS_RecoveryForeignSource'));
+  const back = createAppStoreContext().store;
+  if (flag) back.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  back.getState().restoreDocuments([recoveryInputFromParsed(await readIfcFromText(snapshot, {}, { ifcBytes: flag }), {
+    id: 'eigen', filePath: null, isDirty: true, datesAsRecorded: false,
+  })], 'eigen');
+  const target = fakeHandle('eigen-na-herstel.ifc', new Uint8Array());
+  pick = target;
+  await back.getState().saveFileAs();
+  eq(`eigen planning (${label}): na herstel schrijft Opslaan als, zonder melding`,
+    [back.getState().foreignSourceMark, target.writes.length, back.getState().isDirty, noticeKeys(back)], [null, 1, false, []]);
+  ok(`eigen planning (${label}): de planning staat erin`, target.text().includes('Eigen werk van voor de crash'));
   pick = null;
 }
 
@@ -411,7 +504,7 @@ let oldRecoveryText = '';
   symlinkSync(modelPath, join(dir, 'link.csv'));
   symlinkSync(modelPath, join(dir, 'link.ifc'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -447,7 +540,8 @@ let oldRecoveryText = '';
       await S().saveFileAs();
       eq(`Tauri Opslaan als ${answer.slice(dir.length)}: geweigerd, niets geschreven`, [unchanged(), S().filePath], [sha(bonsai), null]);
     }
-    ok('Tauri Opslaan als: met de melding "op te slaan"', modelNotices(store).some(n => n.messageKey === TARGET_SAVE));
+    // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad (was "op te slaan").
+    ok('Tauri Opslaan als: met de melding van een open tabblad', store.getState().ui.notifications.some(n => n.messageKey === OPEN_IN_TAB_SAVE));
     dialogAnswer = join(dir, 'eigen.ifc');
     await S().saveFileAs();
     eq('Tauri Opslaan als: een ander bestand mag', [S().filePath, readFileSync(join(dir, 'eigen.ifc'), 'utf8').includes('Eigen werk')],
@@ -462,7 +556,11 @@ let oldRecoveryText = '';
     dialogAnswer = modelPath;
     await restored.getState().saveFileAs();
     eq('Tauri herstel: Opslaan als naar het oude pad geweigerd', [unchanged(), restored.getState().filePath], [sha(bonsai), null]);
-    ok('Tauri herstel: met de melding "op te slaan"', modelNotices(restored).some(n => n.messageKey === TARGET_SAVE));
+    ok('Tauri herstel: met de melding van een vreemd deel (fixronde 2 van #886)', modelNotices(restored).some(n => n.messageKey === SOURCE_MISSING));
+    dialogAnswer = join(dir, 'link.csv');
+    const tauriCsv = await restored.getState().exportAs('csv');
+    eq('Tauri herstel: export via een link naar het oude pad geweigerd', [tauriCsv, unchanged()], [{ ok: true, warnings: [], cancelled: true }, sha(bonsai)]);
+    ok('Tauri herstel: met de melding "naar te exporteren"', modelNotices(restored).some(n => n.messageKey === TARGET_EXPORT));
     const restoredMarks = [restored.getState().foreignSourceMark].filter((m): m is ForeignSourceMark => m !== null);
     eq('Tauri: de route herkent een pad met dezelfde identiteit, en niet een ander bestand', [
       await isForeignSourceTarget({ kind: 'path', path: join(dir, 'link.ifc') }, restoredMarks,
@@ -488,8 +586,8 @@ let oldRecoveryText = '';
   S().addTask({ name: 'Bewerking' });
   S().undo();
   ok('contract: bewerking plus undo houdt het kenmerk', S().foreignSourceMark === mark);
-  ok('contract: een gewone opslag schrijft het kenmerk niet', !writeIFC(buildWriteIFCInput(S())).includes('OPS_RecoveryForeignSource')
-    && !('recoveryForeignSource' in buildWriteIFCInput(S())));
+  ok('contract: een gewone opslag schrijft het kenmerk niet', !writeIFC(buildWriteIFCInput(S(), 'merge')).includes('OPS_RecoveryForeignSource')
+    && !('recoveryForeignSource' in buildWriteIFCInput(S(), 'merge')));
   ok('contract: de herstelsnapshot wel', serializeRecoverySnapshot(S()).includes('OPS_RecoveryForeignSource'));
   S().duplicateDocument();
   ok('contract: een kopie deelt het kenmerk', S().foreignSourceMark === mark);
@@ -505,7 +603,7 @@ let oldRecoveryText = '';
 
 // ── 5. Fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf ─────────────────────────
 // Besluit Trias (wrakko, 9 november 2026): bevat een bestaand doel dat de app kan lezen een gebouwmodel (een IFC met
-// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. Niet leesbaar ⇒ schrijven mag. Alleen met de flag aan.
+// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. PR 4: ook C/A/V of onleesbaar ⇒ weigeren; alleen met de flag aan.
 const modelIfc4 = fileBytes('tests/fixtures/ifc-foreign/model-ifc4.ifc');
 /** Sol's twee scenario's na herstel: dezelfde lengte met één ander byte, en een extra commentaarregel. */
 const oneByteChanged = (() => {
@@ -519,8 +617,6 @@ const extraComment = (() => {
   const at = text.indexOf('DATA;') + 'DATA;'.length;
   return enc.encode(`${text.slice(0, at)}\n/* een extra regel van een ander programma */${text.slice(at)}`);
 })();
-const noticeCount = (store: Store, key: string) =>
-  store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
 const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
 
 // ── 5a. Na herstel (browser): een gewijzigde modelversie, een ander modelbestand, CSV, een eigen IFC, niet leesbaar ──
@@ -541,17 +637,17 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
       await isForeignSourceTarget({ kind: 'handle', handle: target.handle }, [mark]),
     ], [true, true, false]);
     pick = target;
-    await R().saveFileAs();
     const csv = await R().exportAs('csv');
-    eq(`herstel 2, ${label}: Opslaan als en export geweigerd, het model is er nog`,
+    eq(`herstel 2, ${label}: export geweigerd, het model is er nog`,
       [target.writables(), csv, target.text() === dec(bytes)], [0, { ok: true, warnings: [], cancelled: true }, true]);
   }
-  eq('herstel 2: met de meldingen "op te slaan" en "naar te exporteren"',
-    [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) > 0], [true, true]);
+  // Sinds fixronde 2 van #886 weigert na herstel elke IFC-opslag al vóór het doel; de doelcontrole na herstel loopt hier
+  // via de export naar CSV.
+  eq('herstel 2: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) > 0, true);
   const otherModel = fakeHandle('ander-model.ifc', modelIfc4);
   pick = otherModel;
-  await R().saveFileAs();
-  eq('herstel 2: een modelbestand dat niet open is, geweigerd', [otherModel.writables(), R().fileHandle], [0, null]);
+  const otherCsv = await R().exportAs('csv');
+  eq('herstel 2: een modelbestand dat niet open is, geweigerd', [otherModel.writables(), otherCsv], [0, { ok: true, warnings: [], cancelled: true }]);
   const csvFile = fakeHandle('planning.csv', enc.encode(OLD_CONTENT));
   pick = csvFile;
   const csvAllowed = await R().exportAs('csv');
@@ -559,14 +655,14 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     csvFile.writes.length, csvFile.text().includes('OUDE-INHOUD')], [true, 1, false]);
   const ownIfc = fakeHandle('eigen.ifc', showcase);
   pick = ownIfc;
-  await R().saveFileAs();
-  eq('herstel 2: een bestaande eigen IFC (geen model) mag', [ownIfc.writes.length, R().fileHandle === ownIfc.handle], [1, true]);
-  // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+  await R().exportAs('csv');
+  eq('herstel 2: een bestaande eigen IFC (geen model) als doel mag', ownIfc.writes.length, 1);
+  // PR 4: niet leesbaar is met de flag aan geen bewijs voor een veilig doel.
   const locked = fakeHandle('vergrendeld.ifc', modelIfc4);
   locked.unreadableUntilWrite();
   pick = locked;
-  await R().saveFileAs();
-  eq('herstel 2: een doel dat de app niet kan lezen, mag', [locked.writes.length, R().fileHandle === locked.handle], [1, true]);
+  await R().exportAs('csv');
+  eq('herstel 2: onleesbaar doel weigert zonder write', [locked.writes.length, locked.writables(), noticeCount(store, 'notifications.ifcUnreadableTargetExport')], [0, 0, 1]);
   pick = null;
 }
 
@@ -634,7 +730,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   await createFileAutoSaveController({ getState: () => store.getState(), enabled: () => true }).flush();
   eq('AutoSave: een eigen doel dat nu een model bevat: niets geschreven, gewijzigd, één melding',
     [own.writables(), own.text() === dec(modelIfc4), store.getState().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [0, true, true, 1]);
-  // Niet leesbaar ⇒ AutoSave mag.
+  // PR 4: ook AutoSave weigert een onleesbaar bestaand doel.
   const locked = fakeHandle('eigen-3.ifc', showcase);
   const store3 = await open('eigen-3.ifc', showcase, { kind: 'handle', handle: locked.handle });
   store3.getState().setAutoSaveToFile(true);
@@ -642,7 +738,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   locked.unreadableUntilWrite();
   store3.getState().addTask({ name: 'Werk' });
   await createFileAutoSaveController({ getState: () => store3.getState(), enabled: () => true }).flush();
-  eq('AutoSave: een doel dat de app niet kan lezen, mag', [locked.writes.length, store3.getState().isDirty, noticeKeys(store3)], [1, false, []]);
+  eq('AutoSave: onleesbaar doel weigert zonder write', [locked.writes.length, store3.getState().isDirty, noticeCount(store3, UNREADABLE_AUTOSAVE)], [0, true, 1]);
   // Met de flag uit: AutoSave schrijft zoals op main.
   const plainTarget = fakeHandle('eigen-2.ifc', showcase);
   reseed(0x804);
@@ -671,7 +767,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   const ownPath = join(dir, 'eigen.ifc');
   writeFileSync(ownPath, showcase);
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -688,21 +784,23 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
     const S = () => store.getState();
     eq('Tauri 2: een eigen bestand, zonder vreemd deel', [S().filePath, S().foreignSourceMark], [ownPath, null]);
+    // #804 keuze 4: Opslaan als vervangt een bevestigd modelbestand (onderaan); Exporteren → IFC blijft weigeren.
     dialogAnswer = modelPath;
-    await S().saveFileAs();
-    eq('Tauri 2: Opslaan als naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), S().filePath],
-      [sha(modelIfc4), ownPath]);
-    ok('Tauri 2: met de melding "op te slaan"', noticeCount(store, TARGET_SAVE) > 0);
+    const modelExport = await S().exportAs('ifc');
+    eq('Tauri 2: Exporteren → IFC naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), modelExport],
+      [sha(modelIfc4), { ok: true, warnings: [], cancelled: true }]);
+    ok('Tauri 2: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) > 0);
+    const bigBefore = sha(readFileSync(bigPath));
     const before = ipc.bytesRead();
     dialogAnswer = bigPath;
     const t0 = performance.now();
-    await S().saveFileAs();
+    await S().exportAs('ifc');
     const ms = performance.now() - t0;
     const read = ipc.bytesRead() - before;
     const bigSize = statSync(bigPath).size;
     eq('Tauri 2: een groot modelbestand geweigerd na één stuk van 1 MiB', [read > 0 && read <= (1 << 20), bigSize > (4 << 20),
-      S().filePath], [true, true, ownPath]);
-    console.log(`..  Tauri: Opslaan als naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
+      sha(readFileSync(bigPath))], [true, true, bigBefore]);
+    console.log(`..  Tauri: Exporteren naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
       + `${ms.toFixed(0)} ms (${read} bytes gelezen)`);
     dialogAnswer = csvPath;
     const csv = await S().exportAs('csv');
@@ -714,12 +812,24 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     await S().saveFile();
     eq('Tauri 2: Ctrl+S naar het eigen bestand met nu een model geweigerd', [sha(readFileSync(ownPath)), S().isDirty],
       [sha(modelIfc4), true]);
-    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    // PR 4: niet leesbaar is met de flag aan geen bewijs voor een veilig doel.
     ipc.faults.readError = new Error('Input/output error (os error 5)');
     await S().saveFile();
     ipc.faults.readError = null;
-    eq('Tauri 2: een doel dat de app niet kan lezen, mag', [readFileSync(ownPath, 'utf8').includes('Werk na de wissel'), S().isDirty],
-      [true, false]);
+    eq('Tauri 2: onleesbaar bestaand doel weigert', [sha(readFileSync(ownPath)), S().isDirty, noticeCount(store, UNREADABLE_SAVE)],
+      [sha(modelIfc4), true, 1]);
+    // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als over een bevestigd modelbestand vervangt het.
+    // Fixronde 1 en 2 van #1071: de toestemming hoort bij de versie die de kiezer las, dus de kiezer leest het hele doel
+    // (`pickSaveTarget`); de vervanging van Ctrl+S vergelijkt het doel vóór het opzijzetten met die bytes en de opzijgezette
+    // versie daarna nog eens (was: de doelscan las hoogstens één stuk van 1 MiB).
+    const bigSaveAsSize = statSync(bigPath).size;
+    const beforeSaveAs = ipc.bytesRead();
+    dialogAnswer = bigPath;
+    await S().saveFileAs();
+    const readSaveAs = ipc.bytesRead() - beforeSaveAs;
+    eq('Tauri 2: Opslaan als over een groot modelbestand: vervangen, na het hele doel drie keer te lezen (vastleggen, twee vergelijkingen)',
+      [S().filePath, S().isDirty, readFileSync(bigPath, 'utf8').includes('Werk na de wissel'), readSaveAs === 3 * bigSaveAsSize],
+      [bigPath, false, true, true]);
     eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
     ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));
   } finally {
@@ -732,7 +842,7 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
 // ── 5e. Site: het bestaande site-bestand lezen ───────────────────────────────────────────────────────────────────
 {
   const saves: string[] = [];
-  const siteData: Record<string, Uint8Array> = { M1: modelIfc4, O1: showcase };
+  const siteData: Record<string, Uint8Array> = { M1: modelIfc4, O1: showcase, P1: externalPset };
   win.openaecHost = { storage: {
     list: async () => [],
     open: async (id: string) => {
@@ -755,10 +865,14 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   store.setState(s => { s.siteFileId = 'O1'; s.siteFileVersion = 'v1'; s.filePath = 'O1.ifc'; });
   await S().saveFile();
   eq('site 2: een site-bestand zonder model krijgt de nieuwe versie', saves, ['O1']);
+  store.setState(s => { s.siteFileId = 'P1'; s.siteFileVersion = 'v1'; s.filePath = 'P1.ifc'; });
+  S().addTask({ name: 'Werk voor pset' });
+  await S().saveFile();
+  eq('site 2: gesloten externe pset weigert op inhoud, ander id', [saves, noticeCount(store, TARGET_SAVE)], [['O1'], 2]);
   store.setState(s => { s.siteFileId = 'X1'; s.siteFileVersion = 'v1'; s.filePath = 'X1.ifc'; });
   S().addTask({ name: 'Meer werk' });
   await S().saveFile();
-  eq('site 2: een site-bestand dat de app niet kan lezen, mag', saves, ['O1', 'X1']);
+  eq('site 2: een site-bestand dat de app niet kan lezen weigert', [saves, noticeCount(store, UNREADABLE_SAVE)], [['O1'], 1]);
   delete win.openaecHost;
 }
 
@@ -849,7 +963,7 @@ eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
   const ownPath = join(dir, 'eigen.ifc');
   writeFileSync(ownPath, showcase);
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -866,20 +980,20 @@ eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
     const S = () => store.getState();
     S().addTask({ name: 'Eigen werk' });
+    // #804 keuze 4: Opslaan als op de desktop vervangt een bevestigd doel met een model (`check-ifc-own-file-replace.ts`);
+    // de doelscan van een pad meet hier daarom via Exporteren → IFC.
     dialogAnswer = solPath;
     const before = ipc.bytesRead();
-    await S().saveFileAs();
-    const readForSol = ipc.bytesRead() - before;
     const ifcExport = await S().exportAs('ifc');
+    const readForSol = ipc.bytesRead() - before;
     dialogAnswer = solCsvPath;
     const csvExport = await S().exportAs('csv');
-    eq('lange kop, Tauri: Opslaan als en export (IFC, CSV) geweigerd, het model is er nog',
+    eq('lange kop, Tauri: export (IFC, CSV) geweigerd, het model is er nog',
       [sha(readFileSync(solPath)), sha(readFileSync(solCsvPath)), ifcExport, csvExport, S().filePath],
       [sha(solBytes), sha(solBytes), { ok: true, warnings: [], cancelled: true }, { ok: true, warnings: [], cancelled: true }, ownPath]);
     eq('lange kop, Tauri: de lezer las voorbij de kop (meer dan één stuk), hoogstens het hele bestand',
       [readForSol > (1 << 20), readForSol <= solBytes.length], [true, true]);
-    eq('lange kop, Tauri: met de meldingen "op te slaan" en "naar te exporteren"',
-      [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) >= 2], [true, true]);
+    eq('lange kop, Tauri: met de melding "naar te exporteren"', noticeCount(store, TARGET_EXPORT) >= 2, true);
     // Een lange kop zonder model: het hele bestand gelezen, dan mag het.
     dialogAnswer = longOwnPath;
     const beforeOwn = ipc.bytesRead();
@@ -938,7 +1052,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
 }
 // 7a. Het kenmerk in de pset: heen en terug, met een lastig pad en een site-bestand.
 {
-  const parsed = readIFC(writeIFC({ ...buildWriteIFCInput(createAppStoreContext().store.getState()), recoveryForeignSource: {
+  const parsed = readIFC(writeIFC({ ...buildWriteIFCInput(createAppStoreContext().store.getState(), 'planOnly'), recoveryForeignSource: {
     sha256: sha(externBytes), byteLength: externBytes.length,
     target: { filePath: "C:\\Users\\Jan's map\\modèl één.ifc", siteFileId: 'S-1' },
   } }));
@@ -946,7 +1060,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     sha256: sha(externBytes), byteLength: externBytes.length, target: { filePath: "C:\\Users\\Jan's map\\modèl één.ifc", siteFileId: 'S-1' },
   });
 }
-// 7b. Handle-route (browser).
+// 7b. Handle-route (browser), flag uit: bestaand gedrag blijft gelijk.
 {
   const orig = fakeHandle('extern.ifc', externBytes);
   const ctxA = createAppStoreContext();
@@ -959,13 +1073,13 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       backup.includes('ExternInformatie')], [true, true, true, false]);
   // Een nieuwe sessie: een verse store opent de backup.
   const backupFile = fakeHandle('backup.ifc', enc.encode(backup));
-  const store = await open('backup.ifc', enc.encode(backup), { kind: 'handle', handle: backupFile.handle });
+  const store = await open('backup.ifc', enc.encode(backup), { kind: 'handle', handle: backupFile.handle }, undefined, false);
   const S = () => store.getState();
   const mark = S().foreignSourceMark;
   eq('backup geopend: het kenmerk van de bron, zonder handle; geen opslagdoel',
     [mark?.sha256, mark?.byteLength, mark?.filePath, mark?.handle, S().filePath, S().fileHandle],
     [sha(externBytes), externBytes.length, 'extern.ifc', null, null, null]);
-  eq('backup geopend: de pset is eigen planning (100 % P, geen vreemd deel)', S().ifcSource?.foreign, false);
+  eq('backup geopend: de pset is eigen planning (100 % P, geen vreemd deel)', S().ifcSource?.foreign ?? false, false);
   // Ctrl+S wordt Opslaan als; de bron als doel weigert.
   S().addTask({ name: 'Werk in de backup' });
   pick = orig;
@@ -992,10 +1106,10 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       other.writes.some(w => w.includes(PSET_NAME)), S().fileHandle === other.handle, S().isDirty], [true, 3, false, true, false]);
   eq('backup: het kenmerk blijft na Opslaan als in een ander bestand', S().foreignSourceMark?.sha256, sha(externBytes));
   // Een gewone opslag van de bron zelf (met een kenmerk) schrijft de pset ook niet.
-  const plainSave = writeIFC(buildWriteIFCInput(ctxA.store.getState()));
+  const plainSave = writeIFC(buildWriteIFCInput(ctxA.store.getState(), 'merge'));
   ok('backup: buildWriteIFCInput schrijft de pset nooit', !plainSave.includes(PSET_NAME));
 }
-// 7c. Tauri-pad: het doel uit de pset (`SourcePath`); de bron mag intussen veranderd zijn.
+// 7c. Tauri-pad, flag uit: het doel uit de pset (`SourcePath`); de bron mag intussen veranderd zijn.
 {
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-backup-'));
   const externPath = join(dir, 'extern.ifc');
@@ -1003,7 +1117,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   const backupPath = join(dir, 'backup.ifc');
   const otherPath = join(dir, 'ander.ifc');
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -1019,7 +1133,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     await open('extern.ifc', externBytes, { kind: 'path', path: externPath }, ctxA.store);
     const backup = await backupOf(ctxA);
     writeFileSync(backupPath, backup);
-    const store = await open('backup.ifc', enc.encode(backup), { kind: 'path', path: backupPath });
+    const store = await open('backup.ifc', enc.encode(backup), { kind: 'path', path: backupPath }, undefined, false);
     const S = () => store.getState();
     eq('Tauri, backup geopend: het kenmerk met het pad van de bron; geen opslagdoel',
       [S().foreignSourceMark?.filePath, S().filePath], [externPath, null]);
@@ -1043,6 +1157,398 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     ipc.dispose();
     (globalThis as { window?: unknown }).window = savedWindow;
     rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// 7d. #804 fase 1c: echte MCP-backup met gebouwmodel, openen zonder bronbytes.
+// Dezelfde open- en opslagacties voor handles en paden; flag uit en gewone backups blijven schrijfbaar.
+const { createFileAutoSaveController: backupAutoSave } = await import('@/services/actualAutosave/fileAutoSave');
+const { createCloseDocumentDialogActions: backupCloseActions } = await import('@/components/layout/DocumentChrome/closeDocumentActions');
+const { createMcpContext } = await import('@/services/mcp/context');
+const { createMcpTransactions } = await import('@/state/runtime/createMcpTransactions');
+const { fileTools, fileToolDeps } = await import('@/services/mcp/tools/fileTools');
+const { setSiteSaveAsker, resetSiteAskers } = await import('@/services/fileAccess/siteDialogs');
+for (const route of ['handle', 'pad'] as const) for (const foreign of [true, false]) for (const flag of [true, false]) {
+  const label = `backup 9d, ${route}, ${foreign ? 'gebouwmodel' : 'gewone planning'}, flag ${flag ? 'aan' : 'uit'}`;
+  const bytes = foreign ? eigenPlus : showcase;
+  const dir = mkdtempSync(join(tmpdir(), 'ops-backup-9d-'));
+  const sourcePath = join(dir, 'bron.ifc'), backupPath = join(dir, 'backup.ifc'), otherPath = join(dir, 'ander.ifc');
+  const orig = fakeHandle('bron.ifc', bytes), backupFile = fakeHandle('backup.ifc', new Uint8Array());
+  const other = fakeHandle('ander.ifc', new Uint8Array());
+  writeFileSync(sourcePath, bytes);
+  const ipc = route === 'pad' ? installNodeFileIpc({ appDataDir: tempAppData() }) : null;
+  const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  activeWindow.parent = activeWindow;
+  let dialogAnswer = otherPath, dialogs = 0;
+  if (ipc) {
+    const internals = activeWindow.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+    const invoke = internals.invoke;
+    internals.invoke = async (command, args, options) => {
+      if (command === 'plugin:dialog|save') { dialogs++; return dialogAnswer; }
+      return invoke(command, args, options);
+    };
+  }
+  try {
+    const ctxA = createAppStoreContext();
+    await open('bron.ifc', bytes, route === 'pad' ? { kind: 'path', path: sourcePath }
+      : { kind: 'handle', handle: orig.handle }, ctxA.store, foreign || flag);
+    eq(`${label}: de echte bron geopend`, ctxA.store.getState().ifcSource?.foreign === true, foreign);
+    const backup = await backupOf(ctxA);
+    writeFileSync(backupPath, backup);
+    backupFile.replace(enc.encode(backup));
+    eq(`${label}: backup bevat planning en alleen bij vreemd deel het kenmerk`,
+      [readIFC(backup).tasks.length > 0, backup.includes(PSET_NAME), backup.includes('IFCWALL(')], [true, foreign, false]);
+    const ctxB = createAppStoreContext();
+    const store = await open('backup.ifc', enc.encode(backup), route === 'pad' ? { kind: 'path', path: backupPath }
+      : { kind: 'handle', handle: backupFile.handle }, ctxB.store, flag);
+    const S = () => store.getState();
+    const blocked = foreign && flag;
+    eq(`${label}: ontbrekende bron alleen met flag aan en bronkenmerk`, S().foreignSourceMark?.sourceMissing === true, blocked);
+    eq(`${label}: gewoon openen meldt niets`, noticeKeys(store), []);
+    S().addTask({ name: 'Werk uit de backup 9d' });
+    pick = other;
+    const pickerBefore = pickerCalls;
+    const writesBefore = ipc?.calls.length ?? 0;
+    if (blocked) {
+      await S().saveFile();
+      await S().saveFileAs();
+      const exported = await S().exportAs('ifc');
+      eq(`${label}: IFC-export geweigerd`, exported, { ok: true, warnings: [], cancelled: true });
+      // Een bestaand schrijfrecht/doel mag de bestands-AutoSave evenmin vrijgeven.
+      store.setState(s => {
+        s.filePath = route === 'pad' ? otherPath : 'ander.ifc';
+        s.fileHandle = route === 'handle' ? other.handle : null;
+      });
+      S().setAutoSaveToFile(true);
+      const autosave = backupAutoSave({ getState: S, enabled: () => true });
+      await autosave.flush();
+      await autosave.flush();
+      let closed = false;
+      await backupCloseActions({
+        pendingId: S().activeDocumentId, getActiveDocumentId: () => S().activeDocumentId,
+        switchDocument: S().switchDocument, closeDocument: () => { closed = true; },
+        saveFile: () => S().saveFileForDocument(S().activeDocumentId),
+        clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {},
+      }).save();
+      eq(`${label}: sluitvraag laat gewijzigd document open`, [closed, S().isDirty], [false, true]);
+      if (route === 'handle') {
+        let siteWrites = 0;
+        activeWindow.openaecHost = { storage: {
+          list: async () => [], versions: async () => [],
+          open: async () => ({ file: { id: 'backup-site', name: 'backup.ifc', version: 'v1' }, data: enc.encode(backup) }),
+          save: async (request: { name: string }) => { siteWrites++; return { id: 'backup-site', name: request.name, version: 'v2' }; },
+        } };
+        setSiteSaveAsker(async () => ({ kind: 'site', name: 'nieuwe-backup.ifc' }));
+        try {
+          store.setState(s => { s.siteFileId = 'backup-site'; s.siteFileVersion = 'v1'; s.fileHandle = null; });
+          await S().saveFile();
+          await S().saveFileAs();
+          eq(`${label}: site schrijft niets`, siteWrites, 0);
+        } finally { delete activeWindow.openaecHost; resetSiteAskers(); }
+        // Ook zonder FSA-kiezer mag geen Blob voor download ontstaan.
+        const createUrl = URL.createObjectURL;
+        const savedDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+        Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ click() {} }) } });
+        let downloads = 0;
+        URL.createObjectURL = () => { downloads++; return 'blob:backup-9d'; };
+        delete win.showSaveFilePicker;
+        delete win.showOpenFilePicker;
+        try {
+          await S().saveFileAs();
+          await S().exportAs('ifc');
+          eq(`${label}: download schrijft niets`, downloads, 0);
+        } finally {
+          URL.createObjectURL = createUrl;
+          if (savedDocument) Object.defineProperty(globalThis, 'document', savedDocument);
+          else Reflect.deleteProperty(globalThis, 'document');
+          win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
+          win.showSaveFilePicker = async () => { pickerCalls++; return other.handle; };
+        }
+      }
+      const oldFs = fileToolDeps.getFs;
+      let mcpWrites = 0;
+      fileToolDeps.getFs = async () => ({
+        homeDir: async () => '/home/proef', exists: async () => false,
+        stat: async () => { throw new Error('bestaat niet'); },
+        scanTarget: async () => null,
+        writeTextFile: async () => { mcpWrites++; },
+        readTextFile: async () => '', readFile: async () => new Uint8Array(),
+      });
+      try {
+        const result = await fileTools.find(t => t.name === 'planner_export_ifc')!.handler({ path: '/home/proef/nieuw.ifc' },
+          createMcpContext(ctxB, createMcpTransactions(ctxB), { ensureBackup: async () => null, markDuplicateBorn: () => {} }));
+        eq(`${label}: MCP-export weigert vóór schrijven`, [result.ok, !result.ok && result.code, mcpWrites], [false, 'VALIDATION', 0]);
+      } finally { fileToolDeps.getFs = oldFs; }
+      eq(`${label}: nergens een schrijfpoging of dialoog`,
+        [orig.writables(), backupFile.writables(), other.writables(), existsSync(otherPath), pickerCalls - pickerBefore, dialogs,
+          ipc?.calls.slice(writesBefore).some(c => c.options?.write || ['plugin:fs|write', 'plugin:fs|write_text_file', 'plugin:fs|write_file'].includes(c.command)) ?? false],
+        [0, 0, 0, false, 0, 0, false]);
+      eq(`${label}: één rode melding voor alle opslagweigeringen`, noticeKeys(store), [[SOURCE_MISSING, 'error', true]]);
+      ok(`${label}: herhalingen tellen op in diezelfde melding`, noticeCount(store, SOURCE_MISSING) >= 4);
+      // Een niet-IFC-export blijft mogelijk; hij krijgt een ander doel.
+      store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
+      dialogAnswer = join(dir, 'planning.csv');
+      const csv = await S().exportAs('csv');
+      const csvText = route === 'pad' ? readFileSync(dialogAnswer, 'utf8') : other.text();
+      eq(`${label}: CSV schrijft de bewerkte planning`, [csv.ok, csvText.includes('Werk uit de backup 9d')], [true, true]);
+    } else {
+      await S().saveFileAs();
+      await S().exportAs('ifc');
+      S().addTask({ name: 'Meer werk uit de backup 9d' });
+      await S().saveFile();
+      const output = route === 'pad' ? readFileSync(otherPath, 'utf8') : other.text();
+      eq(`${label}: Opslaan als, export en Ctrl+S blijven werken`,
+        [S().isDirty, output.includes('Meer werk uit de backup 9d'), output.includes(PSET_NAME), noticeKeys(store)], [false, true, false, []]);
+    }
+    eq(`${label}: bron en backup blijven sha256-gelijk`,
+      [sha(readFileSync(sourcePath)), sha(orig.text()), sha(readFileSync(backupPath)), sha(backupFile.text())],
+      [sha(bytes), sha(bytes), sha(backup), sha(backup)]);
+  } finally {
+    ipc?.dispose();
+    pick = null;
+    win.showSaveFilePicker = async () => {
+      pickerCalls++;
+      if (!pick) throw new DOMException('geannuleerd', 'AbortError');
+      return pick.handle;
+    };
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 7e. Opslaan als zonder gevonden gebouwmodel, na herstel en bij een MCP-backup. ──────────────────────────────
+for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle', 'pad'] as const) {
+  const label = `9e ${entry}, ${route}`;
+  const dir = mkdtempSync(join(tmpdir(), 'ops-9e-'));
+  const sourcePath = join(dir, 'oorspronkelijk.ifc'), newPath = join(dir, 'alleen-planning.ifc');
+  const orig = fakeHandle('oorspronkelijk.ifc', eigenPlus), fresh = fakeHandle('alleen-planning.ifc', new Uint8Array());
+  writeFileSync(sourcePath, eigenPlus);
+  const ipc = route === 'pad' ? installNodeFileIpc({ appDataDir: tempAppData() }) : null;
+  const activeWindow = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  activeWindow.parent = activeWindow;
+  let target: string | null = newPath;
+  let dialogs = 0, questions = 0, answer = false;
+  if (ipc) {
+    const internals = activeWindow.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+    const invoke = internals.invoke;
+    internals.invoke = async (c, a, o) => {
+      if (c === 'plugin:dialog|save') { dialogs++; return target; }
+      return invoke(c, a, o);
+    };
+  }
+  const tick = async (store: Store) => {
+    const docs = store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true));
+    const internals = activeWindow.__TAURI_INTERNALS__;
+    delete activeWindow.__TAURI_INTERNALS__;
+    try { await runRecoveryTick(new RecoveryDeltaTracker(), store.getState().activeDocumentId, docs); return await loadRecovery(); }
+    finally { if (internals) activeWindow.__TAURI_INTERNALS__ = internals; }
+  };
+  const restore = async (loaded: Awaited<ReturnType<typeof loadRecovery>>): Promise<Store> => {
+    const inputs = [];
+    for (const d of loaded.docs) inputs.push(await readRecoveryDocument(d, loaded.archives, true));
+    const restored = createAppStoreContext().store;
+    restored.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    restored.getState().restoreDocuments(inputs, loaded.activeDocumentId);
+    return restored;
+  };
+  try {
+    const ctx = createAppStoreContext();
+    await open('oorspronkelijk.ifc', eigenPlus, route === 'pad' ? { kind: 'path', path: sourcePath }
+      : entry === 'herstel' ? null : { kind: 'handle', handle: orig.handle }, ctx.store);
+    ctx.store.getState().addTask({ name: 'Werk vóór de crash of backup 9e' });
+    let store: Store;
+    if (entry === 'backup') store = await open('backup.ifc', enc.encode(await backupOf(ctx)), null);
+    else {
+      const loaded = await tick(ctx.store);
+      const { SOURCE_COPY_DB } = await import('@/services/recovery/recoverySourceCopies');
+      idb.store('sources', SOURCE_COPY_DB).clear(); // De bewaarde kopie is niet terug te vinden.
+      if (ipc) ipc.faults.readError = new Error('geen toegang tot de bron');
+      store = await restore(loaded);
+      if (ipc) ipc.faults.readError = null;
+    }
+    let S = () => store.getState();
+    eq(`${label}: de werkelijke ingang geeft bron ontbreekt`, S().foreignSourceMark?.sourceMissing, true);
+    ok(`${label}: de eerdere bewerking is hersteld`, S().tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
+    const beforeMark = S().foreignSourceMark;
+    setPlanOnlyAsker(async () => { questions++; return answer; });
+    pick = fresh; pickerCalls = 0;
+    await S().saveFileAs();
+    eq(`${label}: annuleren stelt één vraag, geen kiezer of write`, [questions, pickerCalls, dialogs, fresh.writables(), existsSync(newPath)], [1, 0, 0, 0, false]);
+    eq(`${label}: annuleren bewaart de toestand`, [S().foreignSourceMark === beforeMark, S().filePath], [true, null]);
+    // Geen andere IFC-route stelt de vraag, ook niet met een bestaand doel of een site.
+    const beforeQuestions = questions;
+    await S().saveFile();
+    await S().exportAs('ifc');
+    store.setState(s => { s.filePath = route === 'pad' ? newPath : fresh.handle.name; s.fileHandle = route === 'handle' ? fresh.handle : null; });
+    S().setAutoSaveToFile(true);
+    await backupAutoSave({ getState: S, enabled: () => true }).flush();
+    let closed = false;
+    await backupCloseActions({ pendingId: S().activeDocumentId, getActiveDocumentId: () => S().activeDocumentId,
+      switchDocument: S().switchDocument, closeDocument: () => { closed = true; }, saveFile: () => S().saveFileForDocument(S().activeDocumentId),
+      clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {} }).save();
+    let siteWrites = 0;
+    activeWindow.openaecHost = { storage: {
+      list: async () => [], versions: async () => [],
+      open: async () => ({ file: { id: 'origineel', name: 'model.ifc', version: 'v1' }, data: eigenPlus }),
+      save: async () => { siteWrites++; return { id: 'origineel', name: 'model.ifc', version: 'v2' }; },
+    } };
+    store.setState(s => { s.siteFileId = 'origineel'; s.siteFileVersion = 'v1'; });
+    await S().saveFile();
+    delete activeWindow.openaecHost;
+    eq(`${label}: andere opslag weigert zonder vraag of bytes`, [questions, closed, siteWrites, fresh.writables(), existsSync(newPath)], [beforeQuestions, false, 0, 0, false]);
+    const mcpContext = { ...createAppStoreContext(), store };
+    const oldFs = fileToolDeps.getFs;
+    let mcpWrites = 0;
+    fileToolDeps.getFs = async () => ({ homeDir: async () => '/home/proef', exists: async () => false,
+      stat: async () => { throw new Error('bestaat niet'); }, scanTarget: async () => null,
+      writeTextFile: async () => { mcpWrites++; }, readTextFile: async () => '', readFile: async () => new Uint8Array() });
+    try {
+      const result = await fileTools.find(t => t.name === 'planner_export_ifc')!.handler({ path: '/home/proef/9e.ifc' },
+        createMcpContext(mcpContext, createMcpTransactions(mcpContext), { ensureBackup: async () => null, markDuplicateBorn: () => {} }));
+      eq(`${label}: MCP-export weigert zonder vraag`, [result.ok, mcpWrites, questions], [false, 0, beforeQuestions]);
+    } finally { fileToolDeps.getFs = oldFs; }
+    if (route === 'handle') {
+      const createUrl = URL.createObjectURL, picker = win.showSaveFilePicker, opener = win.showOpenFilePicker;
+      // Een download die er toch komt, telt (en breekt de check niet af).
+      const doc = (globalThis as unknown as { document: Record<string, unknown> }).document;
+      const createElement = doc.createElement;
+      let downloads = 0;
+      URL.createObjectURL = () => { downloads++; return 'blob:9e'; };
+      doc.createElement = () => ({ click() {} });
+      delete win.showSaveFilePicker; delete win.showOpenFilePicker;
+      try {
+        await S().saveFile(); await S().exportAs('ifc');
+        eq(`${label}: de downloadroute weigert zonder vraag`, [downloads, questions], [0, beforeQuestions]);
+      } finally {
+        URL.createObjectURL = createUrl; doc.createElement = createElement;
+        win.showSaveFilePicker = picker; win.showOpenFilePicker = opener;
+      }
+    }
+    store.setState(s => { s.filePath = null; s.fileHandle = null; s.siteFileId = null; s.siteFileVersion = null; });
+    store = await restore(await tick(store)); S = () => store.getState();
+    eq(`${label}: tweede crash houdt bron ontbreekt`, S().foreignSourceMark?.sourceMissing, true);
+    answer = true;
+    pick = null; target = null;
+    await S().saveFileAs();
+    eq(`${label}: kiezer annuleren houdt de toestand en schrijft niets`, [S().foreignSourceMark?.sourceMissing, fresh.writables(), existsSync(newPath)], [true, 0, false]);
+    pick = orig; target = sourcePath;
+    await S().saveFileAs();
+    eq(`${label}: oorspronkelijk doel geweigerd na bevestigen`, [orig.writables(), sha(readFileSync(sourcePath)), S().foreignSourceMark?.sourceMissing], [0, sha(eigenPlus), true]);
+    pick = fresh; target = newPath;
+    await S().saveFileAs();
+    const written = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
+    ok(`${label}: nieuwe planning geschreven`, !!written && readIFC(written).tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
+    ok(`${label}: geen gebouwmodel of herstelkenmerk in uitvoer`, !!written && !written.includes('IFCWALL(') && !written.includes('OPS_RecoveryForeignSource'));
+    const reopened = written ? await open('alleen-planning.ifc', enc.encode(written), null) : null;
+    ok(`${label}: echte heropening houdt de bewerking zonder vreemd deel`, !!reopened && !reopened.getState().ifcSource?.foreign
+      && reopened.getState().tasks.some(t => t.name === 'Werk vóór de crash of backup 9e'));
+    eq(`${label}: gewoon document met bescherming van het oorspronkelijke doel`, [S().foreignSourceMark?.sourceMissing, S().ifcSource?.foreign === true, S().isDirty], [false, false, false]);
+    const ordinaryContext = { ...createAppStoreContext(), store };
+    ok(`${label}: een nieuwe MCP-backup is alleen gewone planning`, !(await backupOf(ordinaryContext)).includes(PSET_NAME));
+    S().addTask({ name: 'Ctrl+S na gewone opslag 9e' });
+    await S().saveFile();
+    const latest = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
+    ok(`${label}: Ctrl+S schrijft het nieuwe doel`, latest.includes('Ctrl+S na gewone opslag 9e'));
+    S().setAutoSaveToFile(true); S().addTask({ name: 'AutoSave na gewone opslag 9e' });
+    await backupAutoSave({ getState: S, enabled: () => true }).flush();
+    const autoText = route === 'pad' && existsSync(newPath) ? readFileSync(newPath, 'utf8') : fresh.text();
+    ok(`${label}: AutoSave schrijft het nieuwe doel`, autoText.includes('AutoSave na gewone opslag 9e'));
+    S().addTask({ name: 'Sluitvraag na gewone opslag 9e' });
+    closed = false;
+    await backupCloseActions({ pendingId: S().activeDocumentId, getActiveDocumentId: () => S().activeDocumentId,
+      switchDocument: S().switchDocument, closeDocument: () => { closed = true; }, saveFile: () => S().saveFileForDocument(S().activeDocumentId),
+      clearPending: () => {}, restoreOpenerFocus: () => {}, onSavePendingChange: () => {} }).save();
+    eq(`${label}: de sluitvraag kan het gewone document opslaan en sluiten`, [closed, S().isDirty], [true, false]);
+    pick = orig; target = sourcePath;
+    await S().saveFileAs();
+    eq(`${label}: latere Opslaan als beschermt het oorspronkelijke doel`, [orig.writables(), sha(readFileSync(sourcePath))], [0, sha(eigenPlus)]);
+    store = await restore(await tick(store)); S = () => store.getState();
+    eq(`${label}: crash erna is een gewoon document`, S().foreignSourceMark?.sourceMissing, false);
+    await S().saveFileAs();
+    eq(`${label}: ook na crash blijft het oorspronkelijke doel beschermd`, [orig.writables(), sha(readFileSync(sourcePath))], [0, sha(eigenPlus)]);
+  } finally {
+    resetPlanOnlyAsker(); ipc?.dispose();
+    (globalThis as { window?: unknown }).window = win;
+    delete win.openaecHost; pick = null; rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 7f. 9e op de site: het oorspronkelijke sitebestand blijft beschermd, Opslaan als maakt een nieuw sitebestand ──
+// Herstel van een document dat van de site kwam; de bewaarde kopie is weg, dus het gebouwmodel ontbreekt.
+{
+  const label = '9e site';
+  const siteData: Record<string, Uint8Array> = { origineel: eigenPlus };
+  const saves: (string | null)[] = [];
+  win.openaecHost = { storage: {
+    list: async () => [],
+    versions: async () => [{ version: 'v1' }],
+    open: async (id: string) => {
+      if (!(id in siteData)) throw new Error('niet gevonden');
+      return { file: { id, name: 'model.ifc', version: 'v1' }, data: siteData[id] };
+    },
+    save: async (request: { id?: string; name: string; data: Blob }) => {
+      const id = request.id ?? `nieuw${saves.length + 1}`;
+      saves.push(request.id ?? null);
+      siteData[id] = new Uint8Array(await request.data.arrayBuffer());
+      return { id, name: request.name, version: `v${saves.length + 1}` };
+    },
+  } };
+  const tick = async (store: Store) => {
+    const docs = store.getState().getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true));
+    await runRecoveryTick(new RecoveryDeltaTracker(), store.getState().activeDocumentId, docs);
+    return loadRecovery();
+  };
+  const restore = async (loaded: Awaited<ReturnType<typeof loadRecovery>>): Promise<Store> => {
+    const inputs = [];
+    for (const d of loaded.docs) inputs.push(await readRecoveryDocument(d, loaded.archives, true));
+    const restored = createAppStoreContext().store;
+    restored.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    restored.getState().restoreDocuments(inputs, loaded.activeDocumentId);
+    return restored;
+  };
+  let questions = 0;
+  try {
+    const ctx = createAppStoreContext();
+    await open('model.ifc', eigenPlus, { kind: 'site', id: 'origineel' }, ctx.store);
+    eq(`${label}: het kenmerk kent het oorspronkelijke sitebestand`, ctx.store.getState().foreignSourceMark?.siteFileId, 'origineel');
+    ctx.store.getState().addTask({ name: 'Werk vóór de crash 9e site' });
+    const loaded = await tick(ctx.store);
+    const { SOURCE_COPY_DB } = await import('@/services/recovery/recoverySourceCopies');
+    idb.store('sources', SOURCE_COPY_DB).clear();
+    let store = await restore(loaded);
+    let S = () => store.getState();
+    eq(`${label}: herstel geeft bron ontbreekt zonder sitedoel`, [S().foreignSourceMark?.sourceMissing, S().siteFileId], [true, null]);
+    setPlanOnlyAsker(async () => { questions++; return true; });
+    // Dezelfde naam als het oorspronkelijke sitebestand: Opslaan op de site maakt toch een nieuw bestand.
+    setSiteSaveAsker(async () => ({ kind: 'site', name: 'model.ifc' }));
+    await S().saveFileAs();
+    eq(`${label}: na bevestigen één nieuw sitebestand, het oorspronkelijke ongewijzigd`,
+      [questions, saves, sha(siteData.origineel), S().siteFileId], [1, [null], sha(eigenPlus), 'nieuw1']);
+    const written = dec(siteData.nieuw1 ?? new Uint8Array());
+    ok(`${label}: het nieuwe sitebestand heeft de planning zonder gebouwmodel`,
+      readIFC(written).tasks.some(t => t.name === 'Werk vóór de crash 9e site') && !written.includes('IFCWALL(')
+      && !written.includes(PSET_NAME));
+    eq(`${label}: gewoon document dat het oorspronkelijke sitebestand blijft kennen`,
+      [S().foreignSourceMark?.sourceMissing, S().foreignSourceMark?.siteFileId], [false, 'origineel']);
+    S().addTask({ name: 'Ctrl+S op de site 9e' });
+    await S().saveFile();
+    eq(`${label}: Ctrl+S schrijft een nieuwe versie van het nieuwe sitebestand`, saves, [null, 'nieuw1']);
+    ok(`${label}: met de nieuwe taak`, dec(siteData.nieuw1).includes('Ctrl+S op de site 9e'));
+    // Het oorspronkelijke sitebestand als doel: weigert op de inhoud (flag aan) én op het kenmerk (flag uit).
+    for (const flag of [true, false]) {
+      store.setState(s => { s.ui.featureFlags = { ifcForeignContent: flag }; s.siteFileId = 'origineel'; s.siteFileVersion = 'v1'; });
+      S().addTask({ name: `Naar het oorspronkelijke sitebestand 9e ${flag}` });
+      const notices = noticeCount(store, TARGET_SAVE);
+      await S().saveFile();
+      eq(`${label}: oorspronkelijk sitebestand als doel geweigerd (flag ${flag ? 'aan' : 'uit'})`,
+        [saves, sha(siteData.origineel), noticeCount(store, TARGET_SAVE) > notices], [[null, 'nieuw1'], sha(eigenPlus), true]);
+    }
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; s.siteFileId = 'nieuw1'; s.siteFileVersion = 'v3'; });
+    store = await restore(await tick(store)); S = () => store.getState();
+    eq(`${label}: crash erna houdt het nieuwe sitedoel en de bescherming`,
+      [S().foreignSourceMark?.sourceMissing, S().foreignSourceMark?.siteFileId, S().siteFileId], [false, 'origineel', 'nieuw1']);
+    eq(`${label}: geen vraag meer voor het gewone document`, questions, 1);
+  } finally {
+    resetPlanOnlyAsker(); resetSiteAskers(); delete win.openaecHost;
   }
 }
 
@@ -1083,8 +1589,9 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
 {
   const modelText = dec(modelIfc4);
   const ownText = dec(showcase);
-  type Refuse = 'model' | 'unreadable' | null;
-  const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse }> = [
+  type Refuse = 'model' | 'foreign' | 'unreadable' | null;
+  const targets: Array<{ name: string; bytes: Uint8Array; refuse: Refuse; openRefusal?: true }> = [
+    { name: 'externe-pset-zonder-model', bytes: externalPset, refuse: 'foreign' },
     { name: 'terra', bytes: enc.encode(terraFile(modelText)), refuse: 'unreadable' },
     { name: 'sol', bytes: enc.encode(solFile(modelText)), refuse: 'unreadable' },
     { name: 'sol-alles', bytes: enc.encode(solFileAllSplit(modelText)), refuse: 'unreadable' },
@@ -1092,7 +1599,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     // Ronde 6 (besluit Trias): een STEP-bestand waarin de app geen DATA-sectie vindt, weigert als doel.
     { name: 'zonder-data', bytes: enc.encode(`${ownText.slice(0, ownText.indexOf('\nDATA;') + 1)}END-ISO-10303-21;\n`), refuse: 'unreadable' },
     { name: 'commentaar', bytes: enc.encode(commentFile(ownText)), refuse: null },
-    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: null },
+    { name: 'string', bytes: enc.encode(stringFile(ownText)), refuse: 'foreign' },
     // Meer DATA-secties: de wand #99999 staat in de tweede sectie. Vóór de fix las de doelcontrole (zoals `readIFC`) maar
     // tot de eerste `ENDSEC;` en gaf hij "no-model": Opslaan als schreef de planning over het model heen.
     { name: 'twee-data', bytes: new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'))), refuse: 'model' as const },
@@ -1105,16 +1612,20 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
     ...dataKopBestanden(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8'))
       .map(([name, text]) => ({ name: `twee-data-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
     ...dataKopBestanden(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'model' as const })),
-    ...dataKopBestanden(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
-    // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam. In ronde 3 gaf de doelcontrole hier "no-model" en
-    // schreven Opslaan als, CSV en AutoSave over het model heen. De eigen planning met zo'n naam blijft een doel.
-    // Ronde 6: de kapotte naam breekt de grammatica; dan weigert het doel als niet leesbaar.
-    // Ronde 8 (besluit Trias, wrakko 10 november 2026): OPS v2026.2.0 tot en met v2026.7.12 schreef de naam rauw (commit
-    // 771db15cb). Voor een eigen bestand geldt daarom de regel van main: het blijft een doel. Alleen een naam met een
-    // regeleinde valt daarbuiten (de regel met FILE_NAME eindigt dan niet met originating_system 'Open Planner Studio').
+    // PR 4: de hele C/A/V-indeling moet slagen. De 26 ondersteunde eigen kopvormen blijven schrijfbaar;
+    // de 16 al als scannerWeigert benoemde vormen krijgen 'unreadable' (96 routeasserties, knownbug 1134).
+    // Dit zijn gemaakte vormen: kleine letters buiten de norm, of de bestaande scannergrens bij afdruk-/stuurtekens
+    // en ANCHOR. De gewone lezer en de route met de flag uit veranderen niet.
+    ...dataKopBestanden(ownText, 'scanner').map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: null })),
+    ...dataKopBestanden(ownText, 'scannerWeigert').map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
+    // #916: alle 13 kapotte naamvormen onder de huidige IFC4X3_ADD2-kop vallen buiten het exact gemeten oude
+    // LF/IFC4X3-sjabloon. De 12 eerder toegestane vormen worden unreadable; het regeleinde bleef al geweigerd.
+    // De echte oude fixtures en de geldige DATA-kopvormen hierboven blijven doelen.
     ...brokenNameFiles(modelText).map(([name, text]) => ({ name: `model-${name}`, bytes: enc.encode(text), refuse: 'unreadable' as const })),
     ...brokenNameFiles(ownText).map(([name, text]) => ({ name: `eigen-${name}`, bytes: enc.encode(text),
-      refuse: name === 'naam-regeleinde' ? 'unreadable' as const : null })),
+      refuse: 'unreadable' as const, openRefusal: true as const })),
+    // #916 fixronde 1: alle kapotte naamvarianten van de huidige IFC4X3_ADD2-kop vallen buiten het gemeten oude
+    // LF/IFC4X3-sjabloon, dus van toegestaan (behalve regeleinde) naar unreadable. De echte oude fixtures blijven doelen.
     // Ronde 8 (Trias): echte bestanden van de writer van v2026.7.12 (`scripts/proef/maak-oude-uitvoer.mjs`), met de
     // projectnaam `O'Hara Tower` (kapotte kop) en `Fase DATA; Noord`. Ze blijven een doel.
     // Ronde 8 (Sol, BLOKKEERT): een wand in een binaire waarde, een URI-parameter of een REFERENCE-sectie na DATA, in een
@@ -1127,26 +1638,48 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   // 9a. Handle-route (browser): Opslaan als, CSV-export en AutoSave, de doelen als stroom in stukken van 64 KiB.
   const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
   for (const t of targets) {
-    // Ronde 6 (besluit Trias): hetzelfde bestand opent zoals main (de eigen planning met al haar 20 taken). Als doel
-    // (hieronder): de regel van main, behalve met een regeleinde in de naam (ronde 8).
+    // E6: de 13 gemaakte namen onder een huidige kop weigeren bij openen; ze vallen buiten #916.
+    // De twee echte oude releasebestanden blijven openen en naar zichzelf opslaan zoals main.
     if (t.name.startsWith('eigen-naam')) {
-      const opened = await open(`${t.name}.ifc`, t.bytes, null);
-      eq(`fixronde 4, ${t.name}: opent zoals main, met 20 taken en zonder modelweigering`,
-        [opened.getState().tasks.length, modelNotices(opened).length], [20, 0]);
-      // Ronde 8 (besluit Trias): Ctrl+S en AutoSave naar dat eigen bestand zelf werken (de regel van main), behalve met
-      // een regeleinde in de naam: dan weigert de doelcontrole en blijft het document gewijzigd.
-      for (const route of ['Ctrl+S', 'AutoSave'] as const) {
+      if (t.openRefusal) {
+        const error: unknown = await readIfcBytesDetailed(t.bytes).catch((e: unknown) => e);
+        ok(`E6 ${t.name}: getypeerd geweigerd met vaste scannerreden`, error instanceof IfcForeignOpenError
+          && error.code === 'IFC_FOREIGN_OPEN_REFUSED' && error.fallback.kind === 'scanner'
+          && error.fallback.reason === 'tekst-zonder-einde');
         const self = fakeHandle(`${t.name}-zelf.ifc`, t.bytes);
-        const selfStore = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
-        const D = () => selfStore.getState();
-        D().addTask({ name: 'Nieuw werk' });
-        if (route === 'Ctrl+S') await D().saveFile();
-        else {
-          D().setAutoSaveToFile(true);
-          await createFileAutoSaveController({ getState: D, enabled: () => true }).flush();
+        const refused = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
+        const state = refused.getState();
+        eq(`E6 ${t.name}: geen document, nul writes en bron intact`,
+          [state.tasks.length, state.filePath, state.fileHandle, self.writables(), sha(self.text())],
+          [0, null, null, 0, sha(t.bytes)]);
+        eq(`E6 ${t.name}: scannerweigering via het meldingenkanaal`,
+          state.ui.notifications.map(n => [n.messageKey, n.severity, n.detail]),
+          [['notifications.ifcForeignOpenUnsafe', 'error', 'IFC open refused: unsafe scanner fallback']]);
+        // Flag uit houdt de gewone route: twintig taken en één gewone opslag, zoals vóór E6.
+        const offSource = fakeHandle(`${t.name}-uit.ifc`, t.bytes);
+        const off = createAppStoreContext().store;
+        off.setState(s => { s.ui.featureFlags = {}; });
+        await off.getState().openOpenedFile({ name: `${t.name}-uit.ifc`, content: dec(t.bytes),
+          ref: { kind: 'handle', handle: offSource.handle } });
+        await off.getState().saveFile();
+        eq(`E6 ${t.name}: flag uit opent en slaat op zoals main`,
+          [off.getState().tasks.length, offSource.writes.length, noticeCount(off, 'notifications.ifcForeignOpenUnsafe')], [20, 1, 0]);
+      } else {
+        const opened = await open(`${t.name}.ifc`, t.bytes, null);
+        eq(`fixronde 4, ${t.name}: opent zoals main, met 20 taken en zonder modelweigering`,
+          [opened.getState().tasks.length, modelNotices(opened).length], [20, 0]);
+        for (const route of ['Ctrl+S', 'AutoSave'] as const) {
+          const self = fakeHandle(`${t.name}-zelf.ifc`, t.bytes);
+          const selfStore = await open(`${t.name}-zelf.ifc`, t.bytes, { kind: 'handle', handle: self.handle });
+          const D = () => selfStore.getState();
+          D().addTask({ name: 'Nieuw werk' });
+          if (route === 'Ctrl+S') await D().saveFile();
+          else {
+            D().setAutoSaveToFile(true);
+            await createFileAutoSaveController({ getState: D, enabled: () => true }).flush();
+          }
+          eq(`ronde 8, ${t.name}: ${route} naar het eigen bestand schrijft`, [self.writes.length, D().isDirty], [1, false]);
         }
-        eq(`ronde 8, ${t.name}: ${route} naar het eigen bestand ${t.refuse ? 'weigert' : 'schrijft'}`,
-          [self.writes.length, D().isDirty], t.refuse ? [0, true] : [1, false]);
       }
       // En een IFC-export over dat bestand, vanuit een andere planning.
       const other = await open('ander.ifc', showcase, null);
@@ -1198,7 +1731,7 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
   // 9b. Tauri-pad: dezelfde doelen via de echte plugin-JS (`open`, `read`, `seek`) met nep-IPC naar Node-fs.
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-r4-'));
   const savedWindow = (globalThis as { window?: unknown }).window;
-  const ipc = installNodeFileIpc();
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
   const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
   tauriWin.parent = tauriWin;
   let dialogAnswer: string | null = null;
@@ -1226,11 +1759,12 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
       const seeks = ipc.seeks();
       dialogAnswer = targetPath;
       await S().saveFileAs();
-      const saveKey = t.refuse === 'unreadable' ? UNREADABLE_SAVE : TARGET_SAVE;
       const autoKey = t.refuse === 'unreadable' ? UNREADABLE_AUTOSAVE : TARGET_AUTOSAVE;
-      if (t.refuse) {
+      // #804 keuze 4 (besluit van de eigenaar, 19 november 2026): Opslaan als op de desktop vervangt een bevestigd doel
+      // met een model of C/A/V; alleen een onleesbaar doel blijft weigeren.
+      if (t.refuse === 'unreadable') {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft niet, de bestaande tekst, A blijft gewijzigd, melding ${t.refuse}`,
-          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, saveKey) > 0],
+          [sha(readFileSync(targetPath)), S().filePath, S().isDirty, noticeCount(store, UNREADABLE_SAVE) > 0],
           [sha(t.bytes), ownPath, true, true]);
       } else {
         eq(`fixronde 4, Tauri, ${t.name}: Opslaan als schrijft`,
@@ -1262,6 +1796,323 @@ async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<
         t.refuse ? [sha(t.bytes), true, 1] : [true, false, 0]);
     }
     eq('fixronde 4, Tauri: de lezer sluit elk bestand', ipc.openHandles(), 0);
+  } finally {
+    ipc.dispose();
+    (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // 9c. Stap 2 van achtergrond opslaan en knownbug 1758: de modelscan en de indeling van het doel draaien in de
+  // scanworker (`withScanWorker`), niet op de hoofdthread. Elke asynchrone ingang (bytes, stroom, FSA-bestand) geeft met
+  // een geïnjecteerde Worker (de echte handler) precies wat de synchrone weg van de kern geeft, ook als de Worker niet
+  // start, niet antwoordt, halverwege breekt of een fout geeft (dan rekent de hoofdthread vanaf het begin). Geen
+  // scanuitkomst is nooit 'no-model'.
+  {
+    const { scanForeignTargetBytes, scanForeignTargetBytesAsync, scanForeignTargetSource, scanForeignTargetBlob } =
+      await import('@/services/ifc/foreign/targetForeignScan');
+    const { scanTargetBytes } = await import('@/services/ifc/foreign/targetModelScan');
+    const { IFC_FOREIGN_SCAN_MAX_BYTES } = await import('@/services/ifc/foreign/foreignScan');
+    const { targetRefusal } = await import('@/services/fileAccess/foreignSourceTarget');
+    type RunOptions = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanRunOptions;
+    type Scan = Awaited<ReturnType<typeof scanForeignTargetSource>>;
+    /** Een bron uit losse stukken, met terugspoelen naar elke positie (de stukken mogen dezelfde buffer delen). */
+    const segmentSource = (segments: Uint8Array[]) => {
+      let index = 0;
+      let skip = 0;
+      let closed = 0;
+      return {
+        source: {
+          next: async () => {
+            if (index >= segments.length) return null;
+            const chunk = segments[index++].subarray(skip);
+            skip = 0;
+            return chunk;
+          },
+          seek: async (offset: number) => {
+            index = 0;
+            while (index < segments.length && offset >= segments[index].length) offset -= segments[index++].length;
+            skip = offset;
+          },
+          close: async () => { closed++; },
+        },
+        closed: () => closed,
+      };
+    };
+    const chunked = (bytes: Uint8Array, size = 64 << 10) => {
+      const segments: Uint8Array[] = [];
+      for (let at = 0; at < bytes.length; at += size) segments.push(bytes.subarray(at, at + size));
+      return segmentSource(segments);
+    };
+    const stats = fakeScanWorkerStats();
+    const modes = [
+      ['ok', () => fakeScanWorker('ok', stats)],
+      ['transport', () => fakeScanWorker('transport', stats)],
+      ['halverwege', () => fakeScanWorker('halverwege', stats)],
+      ['stil', () => fakeScanWorker('stil', stats)],
+      ['gestart-stil', () => fakeScanWorker('gestart-stil', stats)],
+      ['laat', () => fakeScanWorker('laat', stats)],
+      ['indeling', () => fakeScanWorker('indeling', stats)],
+      ['start gooit', () => { throw new Error('CSP'); }],
+      ['geen Worker', () => null],
+    ] as const;
+    const csv = enc.encode('Naam;Duur\nFundering;5\n');
+    const cases: Array<{ name: string; bytes: Uint8Array; want?: Scan }> = [
+      { name: 'eigen planning', bytes: showcase, want: 'no-model' },
+      { name: 'vreemde inhoud', bytes: externalPset, want: 'foreign' },
+      { name: 'vreemde inhoud in een string', bytes: enc.encode(stringFile(dec(showcase))), want: 'foreign' },
+      { name: 'gebouwmodel', bytes: modelIfc4, want: 'model' },
+      { name: 'kapotte kop (Terra)', bytes: enc.encode(terraFile(dec(modelIfc4))), want: 'unreadable' },
+      { name: 'leeg bestand', bytes: new Uint8Array(0), want: 'not-ifc' },
+      { name: 'CSV', bytes: csv, want: 'not-ifc' },
+      // De STEP-scanner van de indeling weigert, de modelscan niet: 'unreadable' uit de indeling zelf.
+      ...dataKopBestanden(dec(showcase), 'scannerWeigert').slice(0, 2)
+        .map(([name, text]) => ({ name: `indeling weigert ${name}`, bytes: enc.encode(text), want: 'unreadable' as const })),
+    ];
+    for (const c of cases) {
+      const sync = scanForeignTargetBytes(c.bytes);
+      eq(`9c ${c.name}: synchrone uitkomst`, sync, c.want);
+      const classifies = scanTargetBytes(c.bytes) === 'no-model';
+      for (const [mode, createWorker] of modes) {
+        // Korte grenzen alleen waar de modus erop wacht; 9d toetst de productiewaarde van de starttimer.
+        const opts: RunOptions = { createWorker, startTimeoutMs: mode === 'stil' || mode === 'laat' ? 20 : 2_000,
+          timeoutMs: mode === 'gestart-stil' ? 40 : 10_000 };
+        const workers = stats.workers;
+        const terminated = stats.terminated;
+        const classify = stats.classify;
+        const steps = stats.steps;
+        const viaBytes = await scanForeignTargetBytesAsync(c.bytes, opts);
+        const stream = chunked(c.bytes);
+        const viaSource = await scanForeignTargetSource(stream.source, opts);
+        const viaBlob = await scanForeignTargetBlob(new Blob([c.bytes as BlobPart]), opts);
+        eq(`9c ${c.name}, Worker ${mode}: bytes, stroom en bestand gelijk aan de synchrone weg`, [viaBytes, viaSource, viaBlob], [sync, sync, sync]);
+        eq(`9c ${c.name}, Worker ${mode}: de stroom is gesloten`, stream.closed(), 1);
+        const made = mode === 'start gooit' || mode === 'geen Worker' ? 0 : 3;
+        eq(`9c ${c.name}, Worker ${mode}: één Worker per scan, daarna gestopt`,
+          [stats.workers - workers, stats.terminated - terminated], [made, made]);
+        if (mode === 'ok') {
+          eq(`9c ${c.name}, Worker ok: de modelscan in de Worker, de indeling ${classifies ? 'ook' : 'niet nodig'}`,
+            [stats.steps - steps >= 3, stats.classify - classify], [true, classifies ? 3 : 0]);
+        }
+      }
+    }
+    // Boven de grens van 300 MiB: 'unreadable', zonder Worker. De stroom deelt één buffer van 1 MiB (geen 300 MiB in het
+    // geheugen): een eigen planning met een lang commentaar na `DATA;`, dus de modelscan leest alles en zegt 'no-model'.
+    {
+      const own = dec(showcase);
+      const data = own.indexOf('\nDATA;\n') + '\nDATA;\n'.length;
+      const spaces = new Uint8Array(1 << 20).fill(0x20);
+      const segments = [enc.encode(`${own.slice(0, data)}/*`), ...Array.from({ length: 301 }, () => spaces), enc.encode(`*/\n${own.slice(data)}`)];
+      ok('9c te groot: de stroom is groter dan de grens', segments.reduce((n, s) => n + s.length, 0) > IFC_FOREIGN_SCAN_MAX_BYTES);
+      const classify = stats.classify;
+      const big = segmentSource(segments);
+      eq('9c te groot: stroom unreadable, bron gesloten', [await scanForeignTargetSource(big.source, { createWorker: () => fakeScanWorker('ok', stats) }), big.closed()], ['unreadable', 1]);
+      const hugeBlob = { size: IFC_FOREIGN_SCAN_MAX_BYTES + 1, stream: () => { throw new Error('niet lezen'); } } as unknown as Blob;
+      eq('9c te groot: bestand unreadable zonder te lezen', await scanForeignTargetBlob(hugeBlob, { createWorker: () => fakeScanWorker('ok', stats) }), 'unreadable');
+      eq('9c te groot: geen indeling gevraagd', stats.classify - classify, 0);
+    }
+    // De app zelf (`targetRefusal`, site en handle) gebruikt de module-Worker als die er is: met een nep-`Worker` op
+    // `globalThis` (zoals de webview) gaat de indeling erdoor, met dezelfde weigering als zonder Worker.
+    const originalWorker = globalThis.Worker;
+    try {
+      for (const c of cases) {
+        const refusal = (scan: Scan) => (scan === 'model' || scan === 'foreign' || scan === 'unreadable' ? scan : null);
+        const want = refusal(scanForeignTargetBytes(c.bytes));
+        const classifies = scanTargetBytes(c.bytes) === 'no-model';
+        globalThis.Worker = class { constructor() { return fakeScanWorker('ok', stats); } } as unknown as typeof Worker;
+        const workers = stats.workers;
+        const classify = stats.classify;
+        const site = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
+        const handle = await targetRefusal({ kind: 'handle', handle: fakeHandle('doel.ifc', c.bytes).handle });
+        eq(`9c ${c.name}: site en handle weigeren gelijk, modelscan en indeling via de Worker`,
+          [site, handle, stats.workers - workers, stats.classify - classify], [want, want, 2, classifies ? 2 : 0]);
+        globalThis.Worker = class { constructor() { return fakeScanWorker('indeling', stats); } } as unknown as typeof Worker;
+        const failing = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => c.bytes });
+        eq(`9c ${c.name}: een fout uit de Worker geeft dezelfde weigering`, failing, want);
+      }
+    } finally { globalThis.Worker = originalWorker; }
+  }
+  // 9d. Fixronde 1 van #985 (Sol): een Worker die niet start, houdt de opslag niet twee minuten op. De runner wacht kort
+  // op de startbevestiging (`FOREIGN_SCAN_START_TIMEOUT_MS`) en daarna pas de ruime rekentijd.
+  {
+    const { scanForeignTargetBytes, scanForeignTargetBytesAsync } = await import('@/services/ifc/foreign/targetForeignScan');
+    const { FOREIGN_SCAN_START_TIMEOUT_MS } = await import('@/services/ifc/foreign/foreignScanRunner');
+    const { targetRefusal } = await import('@/services/fileAccess/foreignSourceTarget');
+    const { runProjectFileWrite, isProjectFileWriteBusy } = await import('@/services/fileAccess/writeCoordinator');
+    const stats = fakeScanWorkerStats();
+    const wait = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms); });
+    // Start en antwoord: het antwoord van de Worker geldt, zonder terugval (de 'vals-indeling'-Worker telt een C extra).
+    let before = stats.workers;
+    eq('9d start en antwoord: het antwoord van de Worker geldt, één scan in één Worker',
+      [await scanForeignTargetBytesAsync(showcase, { createWorker: () => fakeScanWorker('vals-indeling', stats) }), stats.workers - before],
+      ['foreign', 1]);
+    // Gestart, daarna stil: de ruime rekentijd geldt (hier 200 ms), niet de starttimer (hier 20 ms); daarna de terugval.
+    before = stats.terminated;
+    let t0 = performance.now();
+    const silentAfterStart = await scanForeignTargetBytesAsync(externalPset,
+      { createWorker: () => fakeScanWorker('gestart-stil', stats), startTimeoutMs: 20, timeoutMs: 200 });
+    const afterStart = performance.now() - t0;
+    eq('9d gestart en stil: na de rekentijd dezelfde uitkomst, Worker gestopt', [silentAfterStart, stats.terminated - before], ['foreign', 1]);
+    ok(`9d gestart en stil: de rekentijd gold, niet de starttimer (${Math.round(afterStart)} ms)`, afterStart >= 190);
+    // Een late start en een laat antwoord na de terugval doen niets: de uitkomst van de hoofdthread geldt, de Worker is
+    // gestopt en zijn berichten hebben geen luisteraar meer.
+    const ignored = stats.ignored;
+    before = stats.terminated;
+    const late = await scanForeignTargetBytesAsync(externalPset, { createWorker: () => fakeScanWorker('laat', stats), startTimeoutMs: 20 });
+    const stoppedBeforeLate = stats.terminated - before;
+    await wait(LATE_MS + 100);
+    eq('9d late start: terugval, Worker gestopt vóór zijn start, beide late berichten zonder luisteraar',
+      [late, stoppedBeforeLate, stats.ignored - ignored], ['foreign', 1, 2]);
+    // De route van de reviewer, met de PRODUCTIEWAARDE van de starttimer: `targetRefusal` onder het schrijfslot met een
+    // Worker die nooit iets meldt. De weigering komt binnen de starttijd, het slot komt vrij en de volgende opslag wacht
+    // niet langer.
+    ok(`9d de starttijd is kort (${FOREIGN_SCAN_START_TIMEOUT_MS} ms)`, FOREIGN_SCAN_START_TIMEOUT_MS > 0 && FOREIGN_SCAN_START_TIMEOUT_MS <= 5000);
+    const originalWorker = globalThis.Worker;
+    try {
+      globalThis.Worker = class { constructor() { return fakeScanWorker('stil', stats); } } as unknown as typeof Worker;
+      before = stats.terminated;
+      t0 = performance.now();
+      let refusedAt = 0;
+      let queuedAt = 0;
+      // Het meetpunt ligt ín de beurt, vóór het slot vrijkomt. Een `.then` op de belofte van de beurt loopt pas als de
+      // gebeurtenislus eraan toekomt, en dat kan ná de start van de volgende beurt zijn (knownbug 1954: 3018 tegen 3021 ms).
+      const save = runProjectFileWrite(async () => {
+        const r = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset });
+        refusedAt = performance.now() - t0;
+        return r;
+      }, () => null);
+      await new Promise<void>(resolve => { setImmediate(resolve); });
+      const queued = runProjectFileWrite(async () => { queuedAt = performance.now() - t0; }, () => undefined);
+      ok('9d stille Worker: het schrijfslot is bezet tijdens de doelcontrole', isProjectFileWriteBusy());
+      const refusal = await save;
+      await queued;
+      eq('9d stille Worker: dezelfde weigering als zonder Worker, Worker gestopt, slot vrij',
+        [refusal, refusal === scanForeignTargetBytes(externalPset), stats.terminated - before, isProjectFileWriteBusy()], ['foreign', true, 1, false]);
+      ok(`9d stille Worker: weigering na de starttijd en ruim binnen een seconde erna (${Math.round(refusedAt)} ms)`,
+        refusedAt >= FOREIGN_SCAN_START_TIMEOUT_MS - 5 && refusedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
+      console.log(`..  9d stille Worker: weigering na ${Math.round(refusedAt)} ms, volgende opslag na ${Math.round(queuedAt)} ms (starttijd ${FOREIGN_SCAN_START_TIMEOUT_MS} ms); gestart en stil: ${Math.round(afterStart)} ms`);
+      ok(`9d stille Worker: de volgende opslag liep direct daarna (${Math.round(queuedAt)} ms)`,
+        queuedAt >= refusedAt && queuedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
+    } finally { globalThis.Worker = originalWorker; }
+  }
+  // 9e. Knownbug 1758: de modelscan in de Worker. Het antwoord van de modelscan komt uit de Worker, en de vroege stop
+  // blijft: de hoofdthread leest in de Worker-route precies de stukken die hij op de hoofdthread zou lezen.
+  {
+    const { scanForeignTargetBytesAsync, scanForeignTargetSource, scanForeignTargetBlob } = await import('@/services/ifc/foreign/targetForeignScan');
+    const stats = fakeScanWorkerStats();
+    // De 'vals-model'-Worker noemt elke planning een model: zo komt de uitkomst aantoonbaar uit de Worker.
+    const vals = { createWorker: () => fakeScanWorker('vals-model', stats) };
+    eq('9e de modelscan antwoordt uit de Worker (bytes en bestand), zonder indeling',
+      [await scanForeignTargetBytesAsync(showcase, vals), await scanForeignTargetBlob(new Blob([showcase as BlobPart]), vals), stats.classify],
+      ['model', 'model', 0]);
+    // Een gebouwmodel met 2 MiB commentaar achter de laatste entiteit, in stukken van 64 KiB.
+    const text = dec(modelIfc4);
+    const end = text.lastIndexOf('ENDSEC;');
+    const longModel = enc.encode(`${text.slice(0, end)}${longComment}\n${text.slice(end)}`);
+    const size = 64 << 10;
+    const total = Math.ceil(longModel.length / size);
+    const readsWith = async (createWorker: () => ReturnType<typeof fakeScanWorker> | null) => {
+      let at = 0;
+      let reads = 0;
+      let closed = 0;
+      const result = await scanForeignTargetSource({
+        next: async () => {
+          if (at >= longModel.length) return null;
+          reads++;
+          const chunk = longModel.subarray(at, at + size);
+          at += chunk.length;
+          return chunk;
+        },
+        seek: async (offset: number) => { at = offset; },
+        close: async () => { closed++; },
+      }, { createWorker });
+      return [result, reads, closed];
+    };
+    const onMain = await readsWith(() => null);
+    const pushes = stats.pushes;
+    const inWorker = await readsWith(() => fakeScanWorker('ok', stats));
+    eq('9e vroege stop: in de Worker dezelfde uitkomst en dezelfde gelezen stukken als op de hoofdthread, bron dicht', inWorker, onMain);
+    eq('9e vroege stop: de Worker kreeg precies die stukken', stats.pushes - pushes, onMain[1]);
+    console.log(`..  9e vroege stop: model geweigerd na ${String(onMain[1])} van ${total} stukken (hoofdthread), ${String(inWorker[1])} (Worker)`);
+    ok(`9e vroege stop: een model weigert na ${onMain[1]} van ${total} stukken`, onMain[0] === 'model' && onMain[2] === 1 && Number(onMain[1]) < total / 4);
+  }
+}
+
+// ── 9. Fase 1c: gesloten vreemde doelen via elke overige schrijfroute, met echte tijdelijke bestanden ──
+{
+  const dir = mkdtempSync(join(tmpdir(), 'ops-804-1c-doelen-'));
+  const savedWindow = (globalThis as { window?: unknown }).window;
+  const ipc = installNodeFileIpc({ appDataDir: tempAppData() });
+  const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  tauriWin.parent = tauriWin;
+  let answers: string[] = [];
+  const internals = tauriWin.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+  const invoke = internals.invoke;
+  internals.invoke = async (command, args, options) => command === 'plugin:dialog|save'
+    ? answers.shift() ?? null : invoke(command, args, options);
+  try {
+    const { saveFileDialog, fileIdentityFs, writeTargetReaders } = await import('@/services/fileAccess');
+    const { writeUserTextFileTauri } = await import('@/services/fileAccess/atomicWrite');
+    const { saveToPathWithIO } = await import('@/utils/devBridge');
+    const { useAppStore } = await import('@/state/appStore');
+    const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+    const { refusedWriteTarget } = await import('@/state/ifcForeignGuard');
+    const scan = scanForeign(externalPset);
+    ok('1c: de pset is volgens de open-scanner vreemd', scan.ok && scan.counts.V > 0);
+    for (const [name, bytes] of [['pset', externalPset], ['model', modelIfc4]] as const) {
+      const target = join(dir, `${name}.ifc`);
+      const alias = join(dir, `${name}-link.ifc`);
+      writeFileSync(target, bytes);
+      symlinkSync(target, alias);
+      const csvAlias = join(dir, `${name}-link.csv`);
+      symlinkSync(target, csvAlias);
+      for (const route of ['Opslaan als', 'IFC-export', 'CSV-export', 'pool-project', 'pool-bibliotheek', 'bibliotheek', 'dev-bridge'] as const) {
+        const store = await open('eigen.ifc', showcase, null);
+        const S = () => store.getState();
+        S().addTask({ name: 'Wijziging voor export' });
+        const companyId = S().seedDemoLibrary();
+        S().setProject({ companyId, companyName: 'Proefbedrijf' });
+        const projectPath = join(dir, `${name}-${route}-nieuw.ifc`);
+        // De kiezer normaliseert de extensie; ook de CSV-route moet de bestaande IFC-bytes raken.
+        const chosen = route === 'CSV-export' ? csvAlias : alias;
+        answers = route === 'pool-bibliotheek' ? [projectPath, chosen] : [chosen];
+        const before = ipc.calls.length;
+        if (route === 'Opslaan als') await S().saveFileAs();
+        else if (route === 'IFC-export') await S().exportAs('ifc');
+        else if (route === 'CSV-export') await S().exportAs('csv');
+        else if (route.startsWith('pool-')) await S().exportProjectWithPool();
+        else if (route === 'bibliotheek') {
+          ok(`1c ${name}: bibliotheek heeft echte IFC-uitvoer`, S().exportPoolIFC(companyId) !== null);
+          await S().exportLibrary(companyId);
+        } else {
+          // De echte dev-functie is aan de singleton gebonden; alleen de invoer komt uit dezelfde open-route.
+          await open('eigen.ifc', showcase, null, useAppStore);
+          let refused = false;
+          try { await saveToPathWithIO(alias, { writeTextFile: writeUserTextFileTauri }); } catch { refused = true; }
+          ok(`1c ${name}: dev-bridge geeft een weigering`, refused);
+        }
+        eq(`1c ${name} ${route}: doel en link bytegelijk`, [sha(readFileSync(target)), sha(readFileSync(alias))], [sha(bytes), sha(bytes)]);
+        // De tweede pooldialoog mag alleen het nieuwe projectbestand hebben geschreven.
+        const writes = ipc.calls.slice(before).filter(c => c.wrote);
+        ok(`1c ${name} ${route}: nul doelwrites`, route === 'pool-bibliotheek' ? writes.length > 0 && existsSync(projectPath) : writes.length === 0);
+        const reason = await refusedWriteTarget(S(), { kind: 'path', path: alias }, { identityFs: fileIdentityFs, readers: writeTargetReaders });
+        eq(`1c ${name} ${route}: getypeerde weigering`, reason, name === 'pset' ? 'foreign-content' : 'building-model');
+      }
+    }
+    // Ook een bestaand eigen bibliotheekbestand blijft een gewoon doel; geen vrijbrief op bestandsnaam.
+    const libraryStore = await open('eigen.ifc', showcase, null);
+    const libraryId = libraryStore.getState().seedDemoLibrary();
+    const library = libraryStore.getState().exportPoolIFC(libraryId)!;
+    const libraryPath = join(dir, 'eigen-bibliotheek.ifc');
+    writeFileSync(libraryPath, library);
+    answers = [libraryPath];
+    const libraryWrites = ipc.calls.length;
+    // Rechtstreeks met de schrijver en de doelcontrole van `exportLibrary`: elke uitvoer krijgt nieuwe GlobalIds, dus
+    // bytegelijk is alleen te toetsen met dezelfde inhoud.
+    const libraryResult = await saveFileDialog('bibliotheek.ifc', library, [{ name: 'IFC', extensions: ['ifc'] }],
+      { refuseTarget: libraryStore.getState().foreignTargetCheck(null) });
+    ok('1c: bestaande eigen bibliotheek blijft schrijfbaar', libraryResult !== null);
+    ok('1c: bestaande eigen bibliotheek echt geschreven', ipc.calls.slice(libraryWrites).some(c => c.wrote && byteWrite(c)));
+    eq('1c: gewone bibliotheekwriter blijft bytegelijk', readFileSync(libraryPath, 'utf8'), library);
+    eq('1c: alle echte bestanden gesloten', ipc.openHandles(), 0);
   } finally {
     ipc.dispose();
     (globalThis as { window?: unknown }).window = savedWindow;

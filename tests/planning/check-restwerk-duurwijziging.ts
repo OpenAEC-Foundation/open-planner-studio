@@ -329,7 +329,7 @@ console.log('-- (k) IFC opslaan en heropenen houdt de nieuwe rest en het nieuwe 
 openFixture();
 {
   setHours('E-1010', 88);
-  const ifc = writeIFC(buildWriteIFCInput(S()));
+  const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   // Opslaan zoals de app (`buildWriteIFCInput`, met het XER-bronarchief) en heropenen met de
   // archiefreconstructie die productie ook gebruikt.
   const back: ImportResult = readXerArchiveIFC(ifc);
@@ -635,7 +635,7 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
     eq(`r5 ${route}: redo herstelt de voltooide stand exact`, snapshot(name), done);
     S().runCPM();
     completed(name, `r6 ${route} na F5`);
-    const back = readIFC(writeIFC(buildWriteIFCInput(S())));
+    const back = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
     const a = back.assignments.find((x) => x.taskId === back.tasks.find((t) => t.name === name)!.id)!;
     eq(`r7 ${route}: IFC schrijft 960 verricht en 0 restwerk`, [a.actualWorkMinutes, a.remainingWorkMinutes], [960, 0]);
     S().applyLoadedProject(back, { linkedOpen: true, recompute: true, filePath: null });
@@ -693,7 +693,7 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
       eq(`r17 ${name}: redo herstelt exact`, snapshot(name), saved);
       S().runCPM();
       eq(`r18 ${name}: F5 houdt het werkpaar`, pair(name), before);
-      S().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { linkedOpen: true, recompute: true, filePath: null });
+      S().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), { linkedOpen: true, recompute: true, filePath: null });
       eq(`r19 ${name}: IFC-heropening houdt het werkpaar`, pair(name), before);
     }
   }

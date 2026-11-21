@@ -123,7 +123,7 @@ void idB;
 const before = {
   tasks: S().tasks.map(t => structuredClone(t)),
 };
-const ifc = writeIFC(buildWriteIFCInput(S()));
+const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 
 ok('0a opzet: L is lopend op 100 % zonder werkelijk einde',
   byName(before.tasks, 'L').status === 'STARTED' && byName(before.tasks, 'L').time.completion === 1
@@ -135,7 +135,7 @@ async function openIfc(text: string): Promise<{ doc: DocumentPayload; resave: ()
   store.getState().applyOpenedImport(await parseOpenedFile({ name: 'rondgang.ifc', text }), OPEN);
   return {
     doc: store.getState().getOpenDocumentPayloads()[0].payload,
-    resave: () => writeIFC(buildWriteIFCInput(store.getState())),
+    resave: () => writeIFC(buildWriteIFCInput(store.getState(), 'planOnly')),
   };
 }
 const progress = (t: Task) => ({
@@ -199,7 +199,7 @@ const dates = (t: Task) => {
   eq('1e opzet: F1 (taken klaar + niet-gestarte mijlpaal) is STARTED op 1 zonder werkelijk einde', fase(f1), ['STARTED', 1, null]);
   eq('1f opzet: F2 (99,96 %) is STARTED op 1 zonder werkelijk einde', fase(f2), ['STARTED', 1, null]);
   eq('1g opzet: W is STARTED op 1 mét werkelijk einde', fase(w), ['STARTED', 1, "2015-01-06T16:00"]);
-  const fIfc = writeIFC(buildWriteIFCInput(G()));
+  const fIfc = writeIFC(buildWriteIFCInput(G(), 'planOnly'));
   eq('1h F1 (fase): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'F1')[STATUS], '$');
   eq('1i F2 (fase): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'F2')[STATUS], '$');
   eq('1j W (werkelijk einde): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'W')[STATUS], '$');
@@ -332,7 +332,7 @@ const oud = setTaskStatus(ifc, 'L', '$');
 
 // ── 9. Bronfasen: niet normaliseren of uit kinderen herberekenen (knownbug 116) ──────────────────
 {
-  const input = buildWriteIFCInput(createAppStoreContext().store.getState());
+  const input = buildWriteIFCInput(createAppStoreContext().store.getState(), 'planOnly');
   const child: Task = {
     id: 'bron-kind', name: 'bron-kind', description: '', wbsCode: '1.1', taskType: 'CONSTRUCTION',
     status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: 'bron-fase', childIds: [], resourceIds: [],

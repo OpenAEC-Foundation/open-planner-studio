@@ -96,7 +96,7 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   eq(`${profile} 1f Einde: niets veranderd`, snapshot(f.of(id)), before);
   f.S().runCPM();
   eq(`${profile} 1g na herberekenen: de hele dag staat er nog`, [f.of(id).time.earlyStart, f.of(id).time.earlyFinish], ['2026-06-01T00:00', '2026-06-02T00:00']);
-  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S()))).tasks.find(t => t.name === 'Kalendertijd handmatig')!;
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly'))).tasks.find(t => t.name === 'Kalendertijd handmatig')!;
   eq(`${profile} 1h na IFC opslaan en lezen: einde di 2 jun 00:00`, reopened.time.scheduleFinish, '2026-06-02T00:00');
 
   // De gedeelde leesfunctie (bewerken én plakken): de getoonde tekst geeft het opgeslagen moment terug.

@@ -3,10 +3,11 @@ import { projectForIfcExport } from '@/services/ifc/ifcSchemaQuestion';
 import type { WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
 import type { DocumentPayload } from './documentContract';
 import { unrecordedExportFields } from './recordedDatesSelectors';
+import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 
 /**
- * De projectdata-velden die in een IFC-save meeschrijven — precies de round-trip-velden van het
- * documentcontract. Zowel de live (top-level) `AppState` als een `DocumentPayload` voldoen
+ * De round-trip-velden en de bronidentiteit die een IFC-save nodig heeft. De bronbytes staan
+ * nooit in de gewone writer-invoer hieronder. Zowel de live (top-level) `AppState` als een `DocumentPayload` voldoen
  * structureel aan deze vorm, dus alle callsites (canoniek save-pad, IFCPanel, auto-save, devBridge)
  * kunnen dezelfde bron doorgeven.
  */
@@ -30,6 +31,8 @@ export type IFCSaveSource = Pick<
   | 'ifcGlobalIds'
   // Knownbug 1026: verplicht om dezelfde reden als `ifcGlobalIds`.
   | 'ifcLiteralCalendarIds'
+  // De bronidentiteit hoort bij de schrijfkeuze, nooit bij de planningtekst of Worker-invoer.
+  | 'ifcSource'
   | 'minuteModelPending'
 >
   & Partial<Pick<DocumentPayload,
@@ -39,6 +42,11 @@ export type IFCSaveSource = Pick<
     // main. Alleen de herstelsnapshot (`recoverySnapshotInput`) en de MCP-backup (`backupService.ts`, fixronde 3)
     // voegen het kenmerk zelf toe.
     | 'foreignSourceMark'>>;
+
+export type IFCWriteMode = 'merge' | 'planOnly';
+
+/** Clonebare routemetadata; de gewone writer leest alleen de bestaande inhoudsvelden. */
+export type IFCWriteInput = WriteIFCInput & { readonly writeMode: IFCWriteMode };
 
 /**
  * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
@@ -74,10 +82,13 @@ function withheldFieldsFor(src: IFCSaveSource): WriteIFCInput['withheldTaskTimeF
  * meeschrijven, zodat losse callsites niet stil velden kunnen weglaten (stil dataverlies bij
  * opslaan). De enige naamsvertaling: het store-veld `calendars`
  * (de gedeelde kalender-bibliotheek) heet in de writer-invoer `resourceCalendars`.
+ * `mode` is verplicht; `writeMode` reist met spread/structuredClone mee tot de schrijver.
+ * PR 11 gebruikt die keuze voor de doelbewaking; deze builder verandert de uitvoer niet.
  */
-export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
+export function buildWriteIFCInput(src: IFCSaveSource, mode: IFCWriteMode): IFCWriteInput {
   const withheld = withheldFieldsFor(src);
   return {
+    writeMode: mode,
     project: src.project,
     minuteModelPending: src.minuteModelPending,
     calendar: src.calendar,
@@ -114,8 +125,8 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
 /** De writer-invoer voor een EXPORT naar een nieuw bestand: als `buildWriteIFCInput`, maar zonder een open
  *  schemavraag die niet bij de kop van de export past (`projectForIfcExport`, review #336 punt 4).
  *  Opslaan, AutoSave, crashherstel en de MCP-backup gebruiken `buildWriteIFCInput`. */
-export function buildExportIFCInput(src: IFCSaveSource): WriteIFCInput {
-  const input = buildWriteIFCInput(src);
+export function buildExportIFCInput(src: IFCSaveSource, mode: IFCWriteMode): IFCWriteInput {
+  const input = buildWriteIFCInput(src, mode);
   return { ...input, project: projectForIfcExport(input.project) };
 }
 
@@ -126,6 +137,7 @@ const IFC_SAVE_KEYS = [
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId', 'comparedBaselineIds',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
   'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds', 'ifcLiteralCalendarIds', 'foreignSourceMark',
+  'ifcSource',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;
@@ -135,11 +147,34 @@ const _assertSaveKeysNoExtras: ExtraSaveKey extends never ? true : ['IFC_SAVE_KE
 void _assertSaveKeysComplete;
 void _assertSaveKeysNoExtras;
 
+/** Een nieuwe bron is opslagmetadata, geen bewerking en geen reden voor een nieuwe herstelsnapshot. */
+const IFC_DIRTY_KEYS = IFC_SAVE_KEYS.filter(
+  (key): key is Exclude<typeof IFC_SAVE_KEYS[number], 'ifcSource'> => key !== 'ifcSource',
+);
+type DirtyKey = Exclude<keyof IFCSaveSource, 'ifcSource'>;
+type MissingDirtyKey = Exclude<DirtyKey, typeof IFC_DIRTY_KEYS[number]>;
+type ExtraDirtyKey = Exclude<typeof IFC_DIRTY_KEYS[number], DirtyKey>;
+const _assertDirtyKeysComplete: MissingDirtyKey extends never ? true : ['IFC_DIRTY_KEYS mist:', MissingDirtyKey] = true;
+const _assertDirtyKeysNoExtras: ExtraDirtyKey extends never ? true : ['IFC_DIRTY_KEYS bevat onbekende sleutels:', ExtraDirtyKey] = true;
+void _assertDirtyKeysComplete;
+void _assertDirtyKeysNoExtras;
+
 /** Is de op te slaan documentinhoud nog dezelfde? Referentievergelijking volstaat: Immer geeft
- *  elk gemuteerd veld een NIEUWE referentie, dus ongelijkheid = "er is iets gewijzigd". Gebruikt
+ *  elk gemuteerd inhoudsveld een NIEUWE referentie, dus ongelijkheid = "er is iets gewijzigd".
+ *  `ifcSource` telt niet mee; de AutoSave-kandidaat bewaakt haar identiteit afzonderlijk. Gebruikt
  *  door `saveFile`/`saveFileAs` om te bepalen of `isDirty` gewist mag worden ná een opslaan-dialoog
  *  die minuten open kan hebben gestaan (stil `isDirty=false` zetten terwijl de gebruiker intussen
- *  wijzigde, is stil dataverlies). */
+ *  wijzigde, is stil dataverlies), en door AutoSave, het herstel en de MCP-bestandstools.
+ *  Eén uitzondering: een andere werksoortcatalogus telt alleen als de door taken gebruikte definities
+ *  verschillen (`savedCustomTaskTypes`, dezelfde selectie als de IFC-schrijver). Een ongebruikte
+ *  definitie gaat niet mee in het bestand, dus haar stille nieuwe naam (#804 keuze 7) is geen wijziging. */
 export function sameIFCSource(a: IFCSaveSource, b: IFCSaveSource): boolean {
-  return IFC_SAVE_KEYS.every((k) => a[k] === b[k]);
+  return IFC_DIRTY_KEYS.every((k) => a[k] === b[k]
+    || (k === 'customTaskTypes' && a.tasks === b.tasks && sameSavedCustomTaskTypes(a, b)));
+}
+
+/** Zoals de schrijver ze vastlegt (`JSON.stringify` van de definities): elk veld telt mee. */
+function sameSavedCustomTaskTypes(a: IFCSaveSource, b: IFCSaveSource): boolean {
+  return JSON.stringify(savedCustomTaskTypes(a.tasks, a.customTaskTypes))
+    === JSON.stringify(savedCustomTaskTypes(b.tasks, b.customTaskTypes));
 }

@@ -15,6 +15,7 @@ async function chooseTimeFormat(page: Page, option: RegExp): Promise<void> {
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const settings = page.locator('.settings-dialog');
   await expect(settings).toBeVisible();
+  await settings.locator('[data-ops-settings-group="notation"]').click();
   await settings.getByLabel(TIME_FORMAT).click();
   await page.getByRole('option', { name: option }).click();
   await settings.locator('.modal-close-btn').click();
@@ -136,6 +137,7 @@ test('Tijdnotatie: kalendervenster, tabel en Gantt volgen de instelling, ook na 
   await skipWelcome.click();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.timeNotation)).toBe('12h');
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
+  await page.locator('.settings-dialog [data-ops-settings-group="notation"]').click();
   await expect(page.locator('.settings-dialog').getByLabel(TIME_FORMAT)).toContainText(/12/);
   await page.locator('.settings-dialog .modal-close-btn').click();
 

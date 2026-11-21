@@ -1,9 +1,12 @@
 // #804 fase 1a, bijsturing 1 punt 2 van de orkestrator: met de flag `ifcForeignContent` uit gedraagt de app zich
 // byte-gelijk aan main.
+// #804 fase 1c, PR 7: bronidentiteit alleen op de mergeroute; de gewone writer en deze referentie veranderen niet.
 //
 // De verwachting komt uit de code van main zelf: `scripts/proef/maak-main-pariteit.mjs` draaide de kern
-// `ifcPariteitKern.ts` met de src van main (`ccf3ca2a2`, sinds fixronde 6 van 1b, met #871 en #872; daarvoor `14f979755`
-// en in 1a `2a66df33c`) en schreef `fixtures/main-pariteit.json`. Deze check draait
+// `ifcPariteitKern.ts` met de src van main (`20b9af79a74e7d886c2a38f93bba1adbcbb2ba5c`, de merge van #898; daarvoor `2fbbc4ae1`,
+// de merge van #892, en `a4783fc35`, de merge van #867, met de eigen
+// bestanden uit `oude-tags/` en een voorbeeld met `AnchorsFromOpenDocuments`; daarvoor `ccf3ca2a2`, `14f979755` en in 1a
+// `2a66df33c`) en schreef `fixtures/main-pariteit.json`. Deze check draait
 // dezelfde kern met de src van deze branch en eist per bestand:
 //  - dezelfde invoer (anders: de fixture opnieuw maken met het script);
 //  - een eigen voorbeeld: hetzelfde opslagdoel en byte-gelijk wat Opslaan schrijft (SHA-256 en lengte);
@@ -20,11 +23,15 @@
 //    en met het kenmerk (`fileSlice.ts`, `recordMark`; de pset leest `ifcReader.ts` bij `extractRecoveryForeignSource`),
 //    zodat Ctrl+S Opslaan als wordt. In 1a was dat een bewuste afwijking van main `2a66df33c` (aanvaard door wrakko op
 //    10 november 2026); sinds 1a in main staat (`14f979755`), doet main hetzelfde en eist de check gelijkheid.
+// Desktop rauwe bytes (los van #804): de padroute schrijft het halffabricaat met één `writeTextFile` met createNew
+// in plaats van open + `FileHandle.write` + close. In beide referenties zijn alleen die vastgelegde aanroepen met de
+// hand vervangen (48 keer); bytes, doelen en meldingen zijn ongewijzigd.
 // Bij een verschil schrijft de check de uitvoer van de branch naar een tijdelijke map; `--uitvoer <map>` van het script
 // geeft die van main, om te diffen.
 //
 // Eigen regel in run.sh, buiten de tijdzonematrix: de fixture is gemaakt met TZ=Europe/Amsterdam.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,7 +44,7 @@ const fixture = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/main
 // De open-route meldt een weigering ook op de console; dat is hier verwacht.
 const realError = console.error;
 console.error = () => {};
-const { parityFixture } = await import('./ifcPariteitKern');
+const { parityFixture, paritySummary, runParity } = await import('./ifcPariteitKern');
 // De open-route en de opslagacties melden ook op de console; dat is hier verwacht.
 const realWarn = console.warn;
 console.warn = () => {};
@@ -115,7 +122,29 @@ for (const want of fixture.bestanden.filter(b => b.filePath === null && b.pad !=
 }
 // Fixronde 1 van #867: twee eigen voorbeelden met `ProjectName` in OPS_ProjectSettings erbij (34 in plaats van 32).
 // Fixronde 6: een eigen voorbeeld met `P2DT12H` erbij (`fixtures/duur-dagen-en-tijd/`, 35).
-eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [35, 6, 1]);
+// Vervolg-PR van #867 (#886): de 11 bestanden uit `fixtures/oude-tags/` en de villa met `AnchorsFromOpenDocuments`
+// (`fixtures/ankers-uit-open-documenten/`) erbij, 47.
+eq('aantallen (eigen, geweigerd, backup met kenmerk)', [own, refused, markedBackup], [47, 6, 1]);
+
+// E8 / besluit Trias 13 november: óók een vreemd project waarvan de eerste eigenaar niet van OPS is.
+// Apart vastgelegd met src van main 4e01894d7; de oorspronkelijke 47-referentie hierboven blijft ongewijzigd.
+// Het script/bewijs staat in /tmp/fase1c-pr5-bewijs/maak-e8-main.mjs. Zelfde voorgeschiedenis als die meting:
+// runParity start hier na de 47-proef, omdat generateId een modulelokale teller heeft.
+const extra = JSON.parse(readFileSync(join(ROOT, 'tests/planning/fixtures/auteur-bedrijf/main.json'), 'utf8')) as {
+  basis: string; input: string; inputSha256: string; result: ReturnType<typeof paritySummary>;
+};
+const extraText = readFileSync(join(ROOT, extra.input), 'utf8');
+eq('vreemde eerste eigenaar: dezelfde invoer als de main-meting',
+  createHash('sha256').update(extraText).digest('hex'), extra.inputSha256);
+const extraResult = (await runParity([{ name: 'vreemde-eerste-eigenaar.ifc', text: extraText }])).results[0];
+eq(`vreemde eerste eigenaar: auteur en bedrijf gelijk aan main ${extra.basis}`, extraResult.projectInfo, extra.result.projectInfo);
+eq('vreemde eerste eigenaar: opslagbytes, doelen, meldingen en alle echte opslagacties gelijk aan main',
+  paritySummary(extraResult), extra.result);
+eq('vreemde eerste eigenaar: beide opslagacties schrijven werkelijk',
+  extraResult.actions?.map(a => [a.outcome, a.writes.length]), [['klaar', 1], ['klaar', 1]]);
+eq('vreemde eerste eigenaar: alle drie bestaande doelroutes schrijven werkelijk',
+  extraResult.targetActions?.map(a => [a.route, a.outcome, a.writes.length]),
+  [['handle', 'klaar', 1], ['pad', 'klaar', 1], ['site', 'klaar', 1]]);
 
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ifc-foreign-pariteit: ${d}`);
@@ -124,5 +153,5 @@ if (diffs.length > 0) {
 }
 console.log(`OK  ifc-foreign-pariteit: alle checks groen (${checks}; ${own} eigen bestanden byte-gelijk aan main ${fixture.basis}, `
   + `${actions} echte opslagacties en ${targetActions} Ctrl+S naar een bestaand doel gelijk, ${refused} modelbestanden met `
-  + `dezelfde weigering, ${markedBackup} backup met kenmerk gelijk aan main)`);
+  + `dezelfde weigering, ${markedBackup} backup met kenmerk gelijk aan main; extra vreemd bestand met eerste OTHER-eigenaar gelijk aan main ${extra.basis})`);
 process.exit(0);
