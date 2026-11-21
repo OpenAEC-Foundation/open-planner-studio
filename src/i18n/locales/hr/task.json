@@ -332,7 +332,11 @@
     "rename": "Uredi",
     "remove": "Izbriši",
     "addToMine": "Dodaj u moje kategorije radova",
-    "confirmRemove": "Ova kategorija radova koristi se u otvorenom projektu. Želite li je ukloniti iz odjeljka „Moje kategorije radova“? Kopija u projektu ostaje."
+    "confirmRemove": "Ova kategorija radova koristi se u otvorenom projektu. Želite li je ukloniti iz odjeljka „Moje kategorije radova“? Kopija u projektu ostaje.",
+    "renameInProjectTitle": "Promijeniti naziv i u ovom projektu?",
+    "renameInProjectMessage": "Kategorija radova „{{oldName}}” koristi se i u ovom projektu. Želite li je ovdje nazvati „{{newName}}”?",
+    "renameInProjectYes": "I u ovom projektu",
+    "renameInProjectNo": "Samo u mom popisu"
   },
   "duration": {
     "label": "Trajanje",

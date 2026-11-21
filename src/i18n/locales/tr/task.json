@@ -328,7 +328,11 @@
     "rename": "Düzenle",
     "remove": "Sil",
     "addToMine": "İş kategorilerime ekleyin",
-    "confirmRemove": "Bu iş kategorisi açık projede kullanılıyor. “İş kategorilerim” listesinden kaldırmak istiyor musunuz? Proje kopyası korunur."
+    "confirmRemove": "Bu iş kategorisi açık projede kullanılıyor. “İş kategorilerim” listesinden kaldırmak istiyor musunuz? Proje kopyası korunur.",
+    "renameInProjectTitle": "Bu projede de adını değiştirmek ister misiniz?",
+    "renameInProjectMessage": "İş kategorisi “{{oldName}}” bu projede de kullanılıyor. Onu burada da “{{newName}}” olarak adlandırmak ister misiniz?",
+    "renameInProjectYes": "Bu projede de",
+    "renameInProjectNo": "Yalnızca listemde"
   },
   "duration": {
     "label": "Süre",

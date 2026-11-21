@@ -332,7 +332,11 @@
     "rename": "Editar",
     "remove": "Eliminar",
     "addToMine": "Añadir a mis categorías de trabajo",
-    "confirmRemove": "Esta categoría de trabajo se usa en el proyecto abierto. ¿Desea eliminarla de «Mis categorías de trabajo»? La copia del proyecto se conserva."
+    "confirmRemove": "Esta categoría de trabajo se usa en el proyecto abierto. ¿Desea eliminarla de «Mis categorías de trabajo»? La copia del proyecto se conserva.",
+    "renameInProjectTitle": "¿Cambiar también el nombre en este proyecto?",
+    "renameInProjectMessage": "La categoría de trabajo «{{oldName}}» también se usa en este proyecto. ¿Quiere llamarla también «{{newName}}» aquí?",
+    "renameInProjectYes": "También en este proyecto",
+    "renameInProjectNo": "Solo en mi lista"
   },
   "duration": {
     "label": "Duración",

@@ -458,8 +458,15 @@
     "ifcForeignReplaceBlocked": "Non salvato. Sovrascrivere un file esistente con un modello di edificio non è ancora sicuro. Usa «Salva come» e scegli un nuovo nome.",
     "ifcForeignMergeRefused": "Il file IFC non è stato scritto. Il modello di edificio o i dati di un altro programma non verrebbero altrimenti conservati interamente. Annulla l'ultima modifica, oppure esporta solo la pianificazione: in IFC con «Senza modello di edificio», oppure in un altro formato.",
     "ifcSaveChangedWhileWaiting": "Non salvato. Il documento o la fonte del modello di edificio è cambiata durante la preparazione. Riprova a salvare.",
+    "ifcForeignReplaceOtherVersion": "Un altro programma ha modificato {{file}} mentre l'app lo stava salvando. Quella versione è stata conservata come {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Un salvataggio precedente di {{file}} non è stato completato. La pianificazione che si stava salvando è in {{copy}}. Elimina quel file se non ti serve più.",
+    "ifcForeignReplaceTargetTaken": "Non salvato. Durante il salvataggio un altro programma ha messo un nuovo file in {{target}}. Ora ci sono tre file: quel nuovo file in {{target}}, la tua pianificazione in {{temp}} e la versione precedente in {{previous}}. Le tue modifiche sono ancora nell'app.",
+    "ifcForeignReplacePreviousStranded": "Non salvato, e la versione precedente del file non è potuta tornare al suo posto. Ora si trova in {{previous}}. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignReplaceSaveAsOnly": "Non salvato. Questo file non può essere sostituito in sicurezza in questa posizione. Il file non è stato modificato. Scegli Salva come per conservare le tue modifiche in un nuovo file.",
+    "ifcForeignReplaceLeftOver": "Di un salvataggio interrotto di {{file}} è rimasto questo file: {{path}}. Controlla se ti serve ancora.",
     "ifcSourceCopyFailed": "La pianificazione viene salvata per il recupero da crash, ma la copia del modello di edificio non è stata salvata. Dopo un crash il modello di edificio potrebbe mancare. Salva tu stesso il lavoro come file IFC completo.",
-    "ifcForeignSourceMissing": "Non salvato. Il modello di edificio o i dati di un altro programma non sono stati trovati. Usa «Salva come» per salvare solo la pianificazione in un nuovo file. Apri il file IFC originale per lavorare di nuovo con il file completo."
+    "ifcForeignSourceMissing": "Non salvato. Il modello di edificio o i dati di un altro programma non sono stati trovati. Usa «Salva come» per salvare solo la pianificazione in un nuovo file. Apri il file IFC originale per lavorare di nuovo con il file completo.",
+    "taskTypeRenameNameTaken": "In questo progetto il nome resta «{{oldName}}»: un'altra categoria di lavoro in questo progetto si chiama già «{{takenName}}»."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -844,7 +851,8 @@
     "confirmClose": "Questo documento contiene modifiche non salvate. Chiudere comunque?",
     "closeTitle": "Modifiche non salvate",
     "closeBody": "«{{name}}» contiene modifiche non ancora salvate.",
-    "dontSave": "Non salvare"
+    "dontSave": "Non salvare",
+    "stillSaving": "Salvataggio ancora in corso…"
   },
   "feedback": {
     "buttonTooltip": "Invia feedback",
@@ -2147,5 +2155,9 @@
     "bodyWithPool": "Il file di progetto contiene solo la pianificazione; la libreria di risorse va in un secondo file. Il modello di edificio e i dati di un altro programma non vengono inclusi. Il file aperto resta invariato. Vuoi continuare?",
     "continue": "Esporta",
     "cancel": "Annulla"
+  },
+  "replaceCopy": {
+    "otherProgram": "versione di un altro programma {{when}}",
+    "unsavedSchedule": "pianificazione non salvata {{when}}"
   }
 }

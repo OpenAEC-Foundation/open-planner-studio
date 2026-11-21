@@ -328,7 +328,11 @@
     "rename": "Rediger",
     "remove": "Fjern",
     "addToMine": "Tilføj til mine arbejdskategorier",
-    "confirmRemove": "Denne arbejdskategori bruges i det åbne projekt. Skal den fjernes fra Mine arbejdskategorier? Projektkopien bliver bevaret."
+    "confirmRemove": "Denne arbejdskategori bruges i det åbne projekt. Skal den fjernes fra Mine arbejdskategorier? Projektkopien bliver bevaret.",
+    "renameInProjectTitle": "Omdøb også i dette projekt?",
+    "renameInProjectMessage": "Arbejdskategorien „{{oldName}}” bruges også i dette projekt. Vil du også kalde den „{{newName}}” her?",
+    "renameInProjectYes": "Også i dette projekt",
+    "renameInProjectNo": "Kun på min liste"
   },
   "duration": {
     "label": "Varighed",

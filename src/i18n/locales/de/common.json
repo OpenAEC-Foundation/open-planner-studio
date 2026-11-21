@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "Nicht gespeichert. Das Überschreiben einer bestehenden Datei mit einem Gebäudemodell ist noch nicht sicher möglich. Verwenden Sie „Speichern unter“ und wählen Sie einen neuen Namen.",
     "ifcForeignMergeRefused": "Die IFC-Datei wurde nicht geschrieben. Das Gebäudemodell oder die Daten eines anderen Programms würden sonst nicht vollständig erhalten bleiben. Machen Sie die letzte Änderung rückgängig oder exportieren Sie nur den Terminplan: nach IFC mit Ohne Gebäudemodell oder in ein anderes Format.",
     "ifcSaveChangedWhileWaiting": "Nicht gespeichert. Das Dokument oder die Quelle des Gebäudemodells hat sich während der Vorbereitung geändert. Versuchen Sie erneut zu speichern.",
+    "ifcForeignReplaceOtherVersion": "Ein anderes Programm hat {{file}} geändert, während die App sie speicherte. Diese Version wurde als {{copy}} aufbewahrt.",
+    "ifcForeignReplaceUnsavedCopy": "Ein früheres Speichern von {{file}} wurde nicht abgeschlossen. Der Terminplan, der damals gespeichert werden sollte, befindet sich in {{copy}}. Löschen Sie diese Datei, wenn Sie sie nicht mehr brauchen.",
+    "ifcForeignReplaceTargetTaken": "Nicht gespeichert. Während des Speicherns hat ein anderes Programm eine neue Datei unter {{target}} abgelegt. Jetzt gibt es drei Dateien: diese neue Datei unter {{target}}, Ihr Terminplan in {{temp}} und die vorherige Version in {{previous}}. Ihre Änderungen sind außerdem noch in der App.",
+    "ifcForeignReplacePreviousStranded": "Nicht gespeichert, und die vorherige Version der Datei konnte nicht an ihren Platz zurückgebracht werden. Sie befindet sich jetzt in {{previous}}. Ihre Änderungen sind noch in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu behalten.",
+    "ifcForeignReplaceSaveAsOnly": "Nicht gespeichert. Diese Datei kann an dieser Stelle nicht sicher ersetzt werden. Die Datei wurde nicht verändert. Wählen Sie „Speichern unter“, um Ihre Änderungen in einer neuen Datei zu behalten.",
+    "ifcForeignReplaceLeftOver": "Von einem unterbrochenen Speichern von {{file}} ist diese Datei übrig geblieben: {{path}}. Prüfen Sie, ob Sie sie noch brauchen.",
     "ifcSourceCopyFailed": "Der Terminplan wird für die Wiederherstellung nach einem Absturz gespeichert, aber die Kopie des Gebäudemodells konnte nicht gespeichert werden. Nach einem Absturz kann das Gebäudemodell fehlen. Speichern Sie Ihre Arbeit selbst als vollständige IFC-Datei.",
-    "ifcForeignSourceMissing": "Nicht gespeichert. Das Gebäudemodell oder die Daten eines anderen Programms wurden nicht gefunden. Verwenden Sie „Speichern unter“, um nur den Terminplan in einer neuen Datei zu speichern. Öffnen Sie die ursprüngliche IFC-Datei, um wieder mit der vollständigen Datei zu arbeiten."
+    "ifcForeignSourceMissing": "Nicht gespeichert. Das Gebäudemodell oder die Daten eines anderen Programms wurden nicht gefunden. Verwenden Sie „Speichern unter“, um nur den Terminplan in einer neuen Datei zu speichern. Öffnen Sie die ursprüngliche IFC-Datei, um wieder mit der vollständigen Datei zu arbeiten.",
+    "taskTypeRenameNameTaken": "In diesem Projekt bleibt der Name „{{oldName}}“: Eine andere Arbeitskategorie in diesem Projekt heißt bereits „{{takenName}}“."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Dieses Dokument enthält nicht gespeicherte Änderungen. Trotzdem schließen?",
     "closeTitle": "Nicht gespeicherte Änderungen",
     "closeBody": "„{{name}}“ enthält Änderungen, die noch nicht gespeichert wurden.",
-    "dontSave": "Nicht speichern"
+    "dontSave": "Nicht speichern",
+    "stillSaving": "Wird gespeichert…"
   },
   "feedback": {
     "buttonTooltip": "Feedback geben",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "Die Projektdatei enthält nur den Terminplan; die Ressourcenbibliothek kommt in eine zweite Datei. Das Gebäudemodell und die Daten eines anderen Programms werden nicht übernommen. Die geöffnete Datei bleibt unverändert. Möchten Sie fortfahren?",
     "continue": "Exportieren",
     "cancel": "Abbrechen"
+  },
+  "replaceCopy": {
+    "otherProgram": "Version von einem anderen Programm {{when}}",
+    "unsavedSchedule": "nicht gespeicherter Terminplan {{when}}"
   }
 }
