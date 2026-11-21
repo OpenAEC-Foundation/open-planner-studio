@@ -510,6 +510,23 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   // De zin "afgerond op hele dagen" (sleutel `resourceShorterWholeDays`) bestaat daarom niet meer; ook een
   // dagtaak krijgt de korte zin.
   await expect(tip.locator('.ops-tooltip__line').last()).toHaveText(nl ? 'Een extra resource maakt de taak korter.' : 'An extra resource makes the task shorter.');
+
+  // Review #1123: bij 125 % tekst en weinig ruimte onder het veld scrolt de lijst; de rijen met een
+  // voorbeeldzin krimpen niet in elkaar. Anders lag de volgende rij over de voorbeeldzin van Vast werk,
+  // en koos een klik daarop Vaste inzet. Fixture: tekstgrootte via de brug, het scherm net onder het veld.
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontScale: 125 }));
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--ui-font-scale'))).toBe('1.25');
+  const tb = (await trigger.boundingBox())!;
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.ceil(tb.y + tb.height + 170) });
+  await trigger.click();
+  await expect(menu).toBeVisible();
+  const workHint = menu.locator('[data-ops-select-option-hint="FIXED_WORK"]');
+  await workHint.scrollIntoViewIfNeeded();
+  const hb = (await workHint.boundingBox())!;
+  await page.mouse.click(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await expect(menu).toHaveCount(0);
+  expect((await taskState(page, taskId)).workRule).toBe('FIXED_WORK');
 });
 
 // Besluit eigenaar 2026-10-15: "afgerond op hele dagen" alleen bij een dagtaak. Een urentaak rondt af op
