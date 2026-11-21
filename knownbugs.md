@@ -3255,6 +3255,27 @@ en noem het in je rapport of PR-tekst.
      1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
      en 1922 (het ritme van Automatisch opslaan: een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
+2023. **Met het schrijven in stukken kan een link op het tijdelijke bestand de rest van de planning krijgen (#804,
+     1936).** Op de desktop gaat een uitvoer groter dan 16 MiB in stukken naar Rust (`tauriUserBytesFs` in
+     `atomicWrite.ts`). Elk stuk na het eerste opent het pad van het tijdelijke bestand (`save-<id>.ops-save.tmp`)
+     opnieuw en volgt dan een link. Zet een ander programma tussen twee stukken een link op die naam, dan gaat de rest
+     van de planning naar het doel van die link (binnen de scope van plugin-fs; daarbuiten weigert het volgende stuk en
+     gaat de opslag niet door). De plaatsing weigert daarna wel, want het tijdelijke bestand is dan geen gewoon bestand
+     meer (`refused`/`not-regular-file`): het doel van de opslag krijgt geen half bestand, het doel van de link blijft
+     beschadigd. Besluit technisch beslisser (21 november 2026): dit is een tweede schrijver van buiten en telt als
+     vervolg; teruglezen kost de winst en herstelt het beschadigde doel van de link niet; een eigen Rust-commando is voor
+     dit geval te groot. Proef 11d in `check-file-ifc-bytes.ts` legt de grens vast. — S
+
+2026. **Een stuk dat Tauri opnieuw stuurt, komt twee keer in het tijdelijke bestand (#804, 1936).** Faalt in de
+     webview de `fetch` van een aanroep, dan stuurt Tauri dezelfde aanroep nog eens via `postMessage`, met dezelfde kop
+     en de bytes als JSON (tauri 2.12.3, `scripts/ipc-protocol.js:58-67` en `src/ipc/protocol.rs:300-307`). Had Rust het
+     stuk toen al geschreven, dan voegt `{ append: true }` het een tweede keer toe, en de plaatsing zet dat te lange
+     bestand zonder melding op het doel. Op main kon dit niet: een herhaalde exclusieve aanmaak faalt op EEXIST en de
+     opslag meldt een fout. Geen oorzaak bekend waardoor `fetch` faalt nadat Rust de aanvraag verwerkte (de terugval is
+     bedoeld voor een geblokkeerd protocol of een CSP-fout); niet gezien en niet nagebootst. Afdekking als het nodig
+     blijkt: na het laatste stuk met `lstat` nagaan dat het tijdelijke bestand een gewoon bestand van precies de lengte
+     van de buffer is, en anders opruimen als eigen bestand (geen teruglezen van de inhoud). — S
+
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
      het geschatte aantal stukken, en `IntBuf.done()` geeft een `subarray` terug, zodat de hele buffer blijft staan. De
