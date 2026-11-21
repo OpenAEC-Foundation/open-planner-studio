@@ -41,8 +41,8 @@ Bij een mijlpaal staat er één veld, *Werkelijke datum*. Typ je bij een mijlpaa
 **Meerdere taken in de tabel.** Handig als je een hele lijst bijwerkt.
 
 1. Klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en open de categorie *Voortgang*. Voeg de kolommen *Werkelijke start*, *Werkelijk einde*, *Resterend* en *Status* toe. De kolom *Voortgang* staat al op het tabblad *Tabel*.
-2. Dubbelklik op een cel, typ de waarde en druk op Enter. Een percentage typ je als `50` of `50%`, een datum als `25-06-2027`, een resterende duur als `1`.
-3. Bij *Status* druk je na een dubbelklik op Enter en kies je *Niet gestart*, *Bezig* of *Voltooid*.
+2. Klik op een cel, typ de waarde en druk op Enter. Een percentage typ je als `50` of `50%`, een datum als `25-06-2027`, een resterende duur als `1`.
+3. Bij *Status* dubbelklik je op de cel (of druk je op Enter) en kies je *Niet gestart*, *Bezig* of *Voltooid*.
 
 Typ je een resterende duur, dan rekent de app het percentage terug: bij een taak van 2 werkdagen geeft een rest van 1 een percentage van 50. Een rest van 0 maakt de taak voltooid. De kolom *Werkelijke duur* (ook in de categorie *Voortgang*) werkt andersom: typ hoeveel werk al gedaan is, en de app rekent het percentage uit. Bij een taak van 4 werkdagen geeft een werkelijke duur van 1 een percentage van 25. Kies je bij *Status* *Niet gestart*, dan gaat het percentage naar 0 en verdwijnen de werkelijke datums.
 

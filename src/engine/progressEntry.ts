@@ -95,7 +95,7 @@ export interface ActualStartQuestion {
  */
 export function actualStartQuestionFor(
   before: Pick<Task, 'time'>,
-  after: Pick<Task, 'id' | 'isMilestone' | 'time'>,
+  after: Task,
   statusDate: string | undefined,
   supplied: { actualStart?: boolean; actualFinish?: boolean },
   calendar?: WorkCalendar,
@@ -105,7 +105,7 @@ export function actualStartQuestionFor(
   if (after.isMilestone && supplied.actualFinish) return null;
   const originalStart = isZeroDurationMilestone(after) && after.time.completion < 1 ? undefined : plannedStart?.();
   const planned = originalStart ?? (after.time.earlyStart || after.time.scheduleStart);
-  if (!planned || !isActualPastStatusDate(planned, statusDate, calendar, 'start')) return null;
+  if (!planned || !isTaskActualPastStatusDate(after, 'actualStart', planned, statusDate, calendar)) return null;
   const latest = supplied.actualFinish && after.time.actualFinish ? after.time.actualFinish : statusDate;
   return { taskId: after.id, statusDate, latest };
 }
