@@ -505,23 +505,31 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   await gearDialog.locator('.modal-close-btn').click();
 
   // #804 stap 5 (knownbug 1849): de app start de opslagworker zelf, via zijn eigen constructor, bij de eerste opslag met
-  // een gebouwmodel. De proef kijkt alleen mee: welke workers de app maakt en wat de opslagworker terugstuurt.
+  // een gebouwmodel. De proef kijkt alleen mee: welke workers de app maakt, wat de opslagworker terugstuurt en (knownbug
+  // 1936) of de app hem stopt.
   await page.evaluate(() => {
     const Native = window.Worker;
-    const log: Array<{ url: string; type?: string; messages: string[]; writerBytes?: number[] }> = [];
+    const log: Array<{ url: string; type?: string; messages: string[]; writerBytes?: number[]; terminated: boolean }> = [];
     (window as unknown as { __saveWorkerLog: typeof log }).__saveWorkerLog = log;
+    const entries = new WeakMap<Worker, (typeof log)[number]>();
     window.Worker = class extends Native {
       constructor(url: string | URL, options?: WorkerOptions) {
         super(url, options);
         if (!String(url).includes('ifcSave.worker')) return;
-        const entry: (typeof log)[number] = { url: String(url), type: options?.type, messages: [] };
+        const entry: (typeof log)[number] = { url: String(url), type: options?.type, messages: [], terminated: false };
         log.push(entry);
+        entries.set(this, entry);
         this.addEventListener('message', (event: MessageEvent) => {
           const data = event.data as Record<string, { kind?: string; bytes?: Uint8Array }>;
           entry.messages.push('started' in data ? 'started' : 'result' in data ? `result:${data.result.kind}` : 'error');
           // #804 stap 6: wat de worker voor de gewone writer teruggaf, om met het bestand te vergelijken.
           if ('result' in data && data.result.kind === 'writer') entry.writerBytes = Array.from(data.result.bytes!);
         });
+      }
+      override terminate() {
+        const entry = entries.get(this);
+        if (entry) entry.terminated = true;
+        super.terminate();
       }
     };
   });
@@ -548,7 +556,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
     expect(seen.at(-1)).toMatch(/^saved\|(Opgeslagen|Saved) \d/);
   };
   const saveWorkerLog = () => page.evaluate(() => (window as unknown as {
-    __saveWorkerLog: Array<{ url: string; type?: string; messages: string[]; writerBytes?: number[] }>;
+    __saveWorkerLog: Array<{ url: string; type?: string; messages: string[]; writerBytes?: number[]; terminated: boolean }>;
   }).__saveWorkerLog);
   /** Een echte duurbewerking van de eerste bladtaak, via het eigenschappenpaneel; F5 rekent. */
   const editFirstLeafDuration = async () => {
@@ -617,14 +625,18 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       // momentopname hetzelfde bestand, op de aanmaaktijd na.
       const task = await editFirstLeafDuration();
       await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
-      const answersBefore = (await saveWorkerLog())[0]!.messages.length;
+      const workersBefore = await saveWorkerLog();
+      const answersBefore = workersBefore.at(-1)!.messages.length;
       await watchSaveStatus();
       await page.keyboard.press('Control+s');
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
       await expectSavingThenSaved();
       const saveWorkers = await saveWorkerLog();
-      expect(saveWorkers.length, 'nog steeds één opslagworker').toBe(1);
-      expect(saveWorkers[0]!.messages.slice(answersBefore), 'de gewone writer rekende in de worker').toEqual(['result:writer']);
+      // Knownbug 1936: de gewone writer houdt zijn worker; alleen na een merge stopt de app hem.
+      expect(saveWorkers.length, 'dezelfde opslagworker als bij de vorige gewone opslag').toBe(workersBefore.length);
+      const plainWorker = saveWorkers.at(-1)!;
+      expect(plainWorker.messages.slice(answersBefore), 'de gewone writer rekende in de worker').toEqual(['result:writer']);
+      expect(plainWorker.terminated, 'de gewone writer laat de worker staan').toBe(false);
       const plain = await page.evaluate(async () => {
         const state = window.__OPS__!.store.getState();
         const file = new Uint8Array(await (await state.fileHandle!.getFile()).arrayBuffer());
@@ -636,8 +648,8 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
           refusals: state.ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey) };
       });
       expect(plain.refusals).toEqual([]);
-      expect(plain.file.length).toBe(saveWorkers[0]!.writerBytes!.length);
-      expect(Buffer.from(plain.file).equals(Buffer.from(saveWorkers[0]!.writerBytes!)), 'het bestand is de bytes van de worker').toBe(true);
+      expect(plain.file.length).toBe(plainWorker.writerBytes!.length);
+      expect(Buffer.from(plain.file).equals(Buffer.from(plainWorker.writerBytes!)), 'het bestand is de bytes van de worker').toBe(true);
       // Alleen de aanmaaktijd (de kop, de eigenaarsgeschiedenis, werkplan en werkschema) hangt van het rekenmoment af.
       const timeLine = /^(FILE_NAME\(|#\d+=IFC(OWNERHISTORY|WORKPLAN|WORKSCHEDULE)\()/;
       const withoutTime = (text: string) => text.split('\n').map(line => !timeLine.test(line) ? line
@@ -661,15 +673,21 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       // dezelfde handle en heropenen via de bestandskiezer: de nieuwe duur, het vreemde deel byte voor byte.
       // #804 stap 5: de merge rekent in de opslagworker van de app.
       await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
+      const workersBeforeEdit = (await saveWorkerLog()).length;
       await watchSaveStatus();
       await page.keyboard.press('Control+s');
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
       await expectSavingThenSaved();
       const saveWorkers = await saveWorkerLog();
-      expect(saveWorkers.length, 'één opslagworker, door de app zelf gestart').toBe(1);
-      expect(saveWorkers[0]!.type).toBe('module');
-      expect(saveWorkers[0]!.messages[0]).toBe('started');
-      expect(saveWorkers[0]!.messages.at(-1), 'de bewerkte merge kwam uit de worker').toBe('result:merge');
+      // Knownbug 1936: elke opslag met een gebouwmodel rekent in een eigen opslagworker, door de app zelf gestart, en de
+      // app stopt hem na zijn antwoord. Het bestand hieronder komt uit de worker die toen al gestopt was.
+      expect(saveWorkers.length, 'een eigen opslagworker voor deze opslag').toBe(workersBeforeEdit + 1);
+      for (const worker of saveWorkers) {
+        expect(worker.type).toBe('module');
+        expect(worker.messages, 'gestart, één merge, meer niet').toEqual(['started', expect.stringMatching(/^result:merge(-unchanged)?$/)]);
+        expect(worker.terminated, 'na zijn merge gestopt').toBe(true);
+      }
+      expect(saveWorkers.at(-1)!.messages.at(-1), 'de bewerkte merge kwam uit de worker').toBe('result:merge');
       const readSaved = () => page.evaluate(async () => {
         const state = window.__OPS__!.store.getState();
         const file = await state.fileHandle!.getFile();
@@ -685,6 +703,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       // bewerking, en de klok vooruit: na 10 s (het ritme van een gewoon document) nog niets, na 30 s rust vervangt de app
       // het eigen bestand via dezelfde handle, met de merge uit de opslagworker. Het heropenen hieronder leest dat bestand:
       // de nieuwe duur, en het vreemde deel byte voor byte.
+      const workersBeforeAutoSave = (await saveWorkerLog()).length;
       const autoSaveToggle = page.locator('[data-ops-autosave]');
       await autoSaveToggle.click();
       await expect(autoSaveToggle).toHaveAttribute('aria-checked', 'true');
@@ -701,7 +720,10 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect(saved.text).not.toBe(ctrlSText);
       expect(saved.text).toContain('IFCWALL(');
       expect(saved.source).toBe(saved.mark);
-      expect((await saveWorkerLog())[0]!.messages.at(-1), 'de merge van Automatisch opslaan kwam uit de worker').toBe('result:merge');
+      const afterAutoSave = await saveWorkerLog();
+      expect(afterAutoSave.length, 'Automatisch opslaan startte een nieuwe opslagworker').toBeGreaterThan(workersBeforeAutoSave);
+      expect(afterAutoSave.at(-1)!.messages, 'de merge van Automatisch opslaan kwam uit een verse worker').toEqual(['started', 'result:merge']);
+      expect(afterAutoSave.at(-1)!.terminated, 'en die stopte daarna').toBe(true);
       // Fixronde 1 van de review van #1033 (punt 6): typen in een cel van de taakgrid telt als werken, ook vóór Enter. Een
       // vastgelegde wijziging, 28 s later een taaknaam typen zonder Enter: 31 s na die wijziging schrijft de ronde nog
       // niet. Na Escape (niets vastgelegd) en 30 s rust wel. Fixronde 2: de eerste letter op een geselecteerde cel opent de

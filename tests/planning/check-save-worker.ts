@@ -1,5 +1,6 @@
 // #804 stap 4: de opslagworker zelf (bytes, fouten, levensduur). De worker is hier een dubbel in dit proces
-// (`inProcessSaveWorker.ts`) die de echte handler draait en berichten verstuurt zoals een browser.
+// (`inProcessSaveWorker.ts`) die de echte handler draait en berichten verstuurt zoals een browser. Knownbug 1936: na elk
+// antwoord op een merge stopt de worker en krijgt het volgende verzoek een nieuwe; een latere startfout is een fout.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -7,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IfcOutput, IfcSaveJob } from '@/state/prepareIfcOutput';
 import type { IfcSaveResponse } from '@/services/ifc/saveWorker/ifcSaveProtocol';
-import type { IfcSaveWorkerPort } from '@/services/ifc/saveWorker/ifcSaveWorker';
+import type { IfcSaveWorkerOptions, IfcSaveWorkerPort } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { installDeterminism } from './ifcPariteitKern';
 import { lengthen, lengthenedTask, loadStore, openInStore } from './ifcAppRoute';
@@ -85,9 +86,11 @@ function sameOutcome(viaWorker: Outcome, main: Outcome, label: string): 'writer'
   return 'merge';
 }
 
-const shared = new InProcessWorker();
-let sharedStarts = 0;
-const saveWorker = createIfcSaveWorker({ createWorker: () => { sharedStarts++; return shared; } });
+/** De client van de pariteitsproeven, met elke aangemaakte worker op volgorde. */
+const shared: InProcessWorker[] = [];
+const saveWorker = createIfcSaveWorker({ createWorker: () => { const w = new InProcessWorker(); shared.push(w); return w; } });
+/** Een merge die de hoofdthread weigert (`MergeNeedsPhase2Error`), uit de fixtures hieronder. */
+let refusedMergeJob: IfcSaveJob | undefined;
 const counts: Record<string, number> = {};
 const count = (kind: string) => { counts[kind] = (counts[kind] ?? 0) + 1; };
 
@@ -96,6 +99,7 @@ async function compare(state: Parameters<typeof prepareIfcOutput>[0], input: Par
   const sourceBefore = state.ifcSource ? sha(state.ifcSource.bytes) : undefined;
   const lengthBefore = state.ifcSource?.bytes.byteLength;
   const main = await outcome(() => prepareIfcOutput(state, input));
+  if ('error' in main && main.error instanceof MergeNeedsPhase2Error) refusedMergeJob ??= { kind: 'merge', input, source: state.ifcSource! };
   const viaWorker = await outcome(() => prepareIfcOutput(state, input, undefined, saveWorker.compute));
   if ('output' in main && main.output.prepared && 'output' in viaWorker && viaWorker.output.prepared) {
     // Gaf de hoofdthread de bron zelf terug (ongewijzigd), dan de worker ook: dezelfde identiteit.
@@ -165,14 +169,25 @@ await check('pariteit: een gegenereerd plan van 1.000 taken, gewone writer en me
   console.log(`   (1000 taken, merge, twee keer beide routes: ${Math.round(performance.now() - start)} ms)`);
 });
 
-await check('één worker voor alle verzoeken hierboven, na elkaar', () => {
-  assert.equal(sharedStarts, 1, 'dezelfde worker hergebruikt');
-  assert.equal(shared.terminated, false, 'een weigering of fout van de merge laat de worker staan');
-  assert.ok(shared.requests.length >= 20, `${shared.requests.length} verzoeken`);
-  assert.deepEqual(shared.requests.map(r => r.id), shared.requests.map((_r, i) => i + 1), 'oplopende verzoeknummers');
+await check('de levensduur over alle verzoeken hierboven: een gewoon verzoek houdt de worker, na elke merge een nieuwe (knownbug 1936)', () => {
+  const requests = shared.flatMap(w => w.requests);
+  assert.ok(requests.length >= 20, `${requests.length} verzoeken`);
+  assert.deepEqual(requests.map(r => r.id), requests.map((_r, i) => i + 1), 'oplopende verzoeknummers, ook over de workers heen');
+  const merges = requests.filter(r => r.job.kind === 'merge').length;
+  assert.ok(merges >= 6, `${merges} merges`);
+  for (const [i, w] of shared.entries()) {
+    const kinds = w.requests.map(r => r.job.kind);
+    const endsWithMerge = kinds.at(-1) === 'merge';
+    assert.ok(!kinds.slice(0, -1).includes('merge'), `worker ${i + 1}: na een merge geen verzoek meer (${kinds.join(', ')})`);
+    assert.equal(w.terminated, endsWithMerge, `worker ${i + 1}: gestopt precies na een merge, ook na een weigering`);
+    if (i < shared.length - 1) assert.ok(endsWithMerge, `worker ${i + 1}: alleen een merge maakt plaats voor een nieuwe worker`);
+  }
+  assert.equal(shared.length, merges + (requests.at(-1)!.job.kind === 'merge' ? 0 : 1), 'een nieuwe worker na elke merge, en alleen dan');
+  assert.ok(shared[0]!.requests.length >= 8, 'de gewone writer van de voorbeelden hergebruikte één worker');
   // Terug overgedragen, niet gekopieerd: na het versturen is de buffer aan de kant van de worker leeg.
-  assert.ok(shared.sentBack.length > 0 && shared.sentBack.every(view => view.byteLength === 0), 'uitvoer overgedragen');
-  console.log(`   (vergeleken: ${JSON.stringify(counts)})`);
+  const sentBack = shared.flatMap(w => w.sentBack);
+  assert.ok(sentBack.length > 0 && sentBack.every(view => view.byteLength === 0), 'uitvoer overgedragen');
+  console.log(`   (vergeleken: ${JSON.stringify(counts)}; ${shared.length} workers voor ${requests.length} verzoeken)`);
 });
 
 await check('dezelfde weigering van de merge, met dezelfde gevallen', () => {
@@ -183,6 +198,10 @@ const fixtureRoute = await openInStore(read('tests/fixtures/ifc-foreign/eigen-pl
 const fixtureState = fixtureRoute.store.getState();
 const fixtureInput = fixtureRoute.snapshot(fixtureRoute.store);
 const mergeJob: IfcSaveJob = { kind: 'merge', input: fixtureInput, source: fixtureState.ifcSource! };
+/** Dezelfde bron, één taak een dag langer: een merge die nieuwe bytes geeft. */
+const changedMergeJob: IfcSaveJob = {
+  kind: 'merge', input: { ...await lengthen(fixtureInput, lengthenedTask(fixtureInput).id), writeMode: 'merge' }, source: fixtureState.ifcSource!,
+};
 const writerJob: IfcSaveJob = { kind: 'writer', input: { ...plan1000!, writeMode: 'merge' } };
 
 await check('dezelfde fouten over de grens: writer, scanner en de merge zelf', async () => {
@@ -200,8 +219,11 @@ await check('dezelfde fouten over de grens: writer, scanner en de merge zelf', a
     const viaWorker = await outcome(() => saveWorker.compute(job));
     assert.ok('error' in main && main.error instanceof kind, `${label}: de hoofdthread gooit ${kind.name} (${'error' in main ? String(main.error) : 'geen fout'})`);
     sameError('error' in viaWorker ? viaWorker.error : undefined, main.error, label);
+    // Knownbug 1936: een fout van de gewone writer laat de worker staan; na een fout van de merge stopt hij.
+    const worker = shared.at(-1)!;
+    assert.equal(worker.requests.at(-1)!.job.kind, job.kind, `${label}: deze worker rekende het verzoek`);
+    assert.equal(worker.terminated, job.kind === 'merge', `${label}: ${job.kind === 'merge' ? 'gestopt' : 'blijft staan'}`);
   }
-  assert.equal(shared.terminated, false, 'inhoudelijke fouten laten de worker staan');
 });
 
 await check('elke foutsoort van de grens komt terug als zichzelf, met haar gegevens', () => {
@@ -275,7 +297,7 @@ await check('de worker sterft, overschrijdt de tijd of antwoordt verkeerd: een f
   client.dispose();
   // Een antwoord met het juiste nummer dat niet bij het verzoek past, of een verplicht veld mist: een transportfout,
   // de worker gestopt, en nooit een uitkomst die een schrijfroute kan gebruiken (review van #1016, blokkade 1).
-  const changed = await handleIfcSaveRequest({ id: 1, job: { ...mergeJob, input: { ...await lengthen(fixtureInput, lengthenedTask(fixtureInput).id), writeMode: 'merge' } } });
+  const changed = await handleIfcSaveRequest({ id: 1, job: changedMergeJob });
   assert.ok('result' in changed.response && changed.response.result.kind === 'merge');
   const prepared = changed.response.result.prepared;
   const wrong: Array<[string, IfcSaveJob, unknown]> = [
@@ -333,28 +355,161 @@ await check('dispose tijdens een verzoek: een fout, en een laat antwoord doet ni
   assert.equal(created, 1, 'na dispose geen nieuwe worker');
 });
 
-await check('twee verzoeken na elkaar via dezelfde worker: het tweede wacht zijn beurt af', async () => {
-  const port = new InProcessWorker('manual');
+/** Een client met dubbels die de proef zelf start en beantwoordt (`manual`), of die zichzelf beantwoorden (`auto`). Een
+ *  gebroken soort start niet: `silent` meldt nooit `started`, `load-fails` faalt bij het laden, `throws` en `null` maken
+ *  geen worker. De soorten gelden op volgorde van aanmaken; daarna `auto`. */
+type WorkerKind = 'auto' | 'manual' | 'silent' | 'load-fails' | 'throws' | 'null';
+function scriptedClient(kinds: readonly WorkerKind[], options: Omit<IfcSaveWorkerOptions, 'createWorker'> = {}) {
+  const workers: InProcessWorker[] = [];
   let created = 0;
-  const client = createIfcSaveWorker({ createWorker: () => { created++; return port; } });
-  const first = client.compute(mergeJob);
-  const second = client.compute(writerJob);
-  await turn();
-  assert.equal(port.requests.length, 1, 'hoogstens één verzoek tegelijk');
-  port.start();
-  port.emit({ id: 999, result: { kind: 'merge-unchanged', literalCalendarIds: [] } });
-  await turn();
-  assert.equal(port.requests.length, 1, 'een antwoord met een ander nummer telt niet');
-  await port.answer(0);
-  const a = await first;
-  assert.equal(a.prepared?.source, mergeJob.source, 'ongewijzigd: dezelfde bron terug, zoals op de hoofdthread');
-  await turn();
-  assert.equal(port.requests.length, 2);
-  assert.deepEqual(port.requests.map(r => r.id), [1, 2]);
-  await port.answer(1);
-  assert.ok((await second).bytes);
-  assert.equal(created, 1);
-  client.dispose();
+  const client = createIfcSaveWorker({ startTimeoutMs: 30, ...options, createWorker: () => {
+    const kind = kinds[created++] ?? 'auto';
+    if (kind === 'throws') throw new Error('SecurityError');
+    if (kind === 'null') return null;
+    const w = new InProcessWorker(kind === 'load-fails' ? 'manual' : kind);
+    if (kind === 'load-fails') setTimeout(() => w.fail('module laadt niet'), 0);
+    workers.push(w);
+    return w;
+  } });
+  return { client, workers, created: () => created };
+}
+/** De uitkomst van een verzoek, zonder `reseed`: de proef zet de klok zelf vlak voor het antwoord van de worker. */
+const settled = (run: Promise<IfcOutput>): Promise<Outcome> => run.then(output => ({ output }), error => ({ error }));
+const isWorkerError = (result: Outcome, reason: string) =>
+  'error' in result && result.error instanceof IfcSaveWorkerError && result.error.reason === reason;
+
+const mainOf = {
+  merge: await outcome(() => computeIfcOutputHere(mergeJob)),
+  changed: await outcome(() => computeIfcOutputHere(changedMergeJob)),
+  writer: await outcome(() => computeIfcOutputHere(writerJob)),
+};
+
+await check('knownbug 1936: na elk antwoord op een merge stopt de worker, pas als het antwoord binnen is; een gewoon verzoek houdt hem', async () => {
+  assert.ok(refusedMergeJob, 'een geweigerde merge uit de fixtures');
+  const refused = await outcome(() => computeIfcOutputHere(refusedMergeJob!));
+  assert.ok('error' in refused && refused.error instanceof MergeNeedsPhase2Error, 'de hoofdthread weigert die merge');
+  const cases: Array<[string, IfcSaveJob, Outcome]> = [
+    ['geslaagd, nieuwe bytes', changedMergeJob, mainOf.changed],
+    ['geslaagd, ongewijzigd', mergeJob, mainOf.merge],
+    ['geweigerd', refusedMergeJob!, refused],
+  ];
+  for (const [label, job, main] of cases) {
+    const { client, workers } = scriptedClient(['manual', 'manual'], { timeoutMs: () => 5_000 });
+    const run = settled(client.compute(job));
+    await turn();
+    workers[0]!.start();
+    await turn();
+    assert.equal(workers[0]!.terminated, false, `${label}: de worker rekent nog; niet gestopt vóór het antwoord`);
+    reseed(1);
+    await workers[0]!.answer(0);
+    const result = await run;
+    sameOutcome(result, main, label);
+    if (job === mergeJob) assert.equal('output' in result && result.output.prepared?.source, mergeJob.source, `${label}: dezelfde bron terug`);
+    assert.equal(workers[0]!.terminated, true, `${label}: na het antwoord gestopt`);
+    // Het volgende verzoek, een gewoon: een nieuwe worker; daarna blijft die staan, ook voor een tweede gewoon verzoek.
+    for (const n of [1, 2]) {
+      const next = settled(client.compute(writerJob));
+      await turn();
+      assert.equal(workers.length, 2, `${label}: gewoon verzoek ${n} rekent in de tweede worker`);
+      workers[1]!.start();
+      reseed(1);
+      await workers[1]!.answer(n - 1);
+      sameOutcome(await next, mainOf.writer, `${label}, gewoon verzoek ${n}`);
+      assert.equal(workers[1]!.terminated, false, `${label}: na gewoon verzoek ${n} blijft de worker staan`);
+    }
+    // `dispose` doet wat het deed: de worker weg, elk later verzoek een fout, en geen nieuwe worker.
+    client.dispose();
+    assert.equal(workers[1]!.terminated, true, `${label}: dispose stopt de worker`);
+    assert.ok(isWorkerError(await settled(client.compute(mergeJob)), 'disposed'), `${label}: na dispose een fout`);
+    assert.equal(workers.length, 2, `${label}: na dispose geen nieuwe worker`);
+  }
+});
+
+await check('twee verzoeken in de rij: het tweede wacht zijn beurt af, krijgt na een merge een nieuwe worker en zijn eigen uitkomst', async () => {
+  const pairs: Array<[string, IfcSaveJob, Outcome, IfcSaveJob, Outcome]> = [
+    ['merge, dan merge', mergeJob, mainOf.merge, changedMergeJob, mainOf.changed],
+    ['merge, dan gewoon', changedMergeJob, mainOf.changed, writerJob, mainOf.writer],
+    ['gewoon, dan merge', writerJob, mainOf.writer, changedMergeJob, mainOf.changed],
+  ];
+  for (const [label, firstJob, firstMain, secondJob, secondMain] of pairs) {
+    const { client, workers } = scriptedClient(['manual', 'manual']);
+    const first = settled(client.compute(firstJob));
+    const second = settled(client.compute(secondJob));
+    await turn();
+    assert.equal(workers.length, 1, `${label}: één worker`);
+    assert.equal(workers[0]!.requests.length, 1, `${label}: hoogstens één verzoek tegelijk`);
+    workers[0]!.start();
+    workers[0]!.emit({ id: 999, result: { kind: 'merge-unchanged', literalCalendarIds: [] } });
+    await turn();
+    assert.equal(workers[0]!.requests.length, 1, `${label}: een antwoord met een ander nummer telt niet`);
+    reseed(1);
+    await workers[0]!.answer(0);
+    const a = await first;
+    sameOutcome(a, firstMain, `${label}: het eerste`);
+    if (firstJob === mergeJob) assert.equal('output' in a && a.output.prepared?.source, mergeJob.source, 'ongewijzigd: dezelfde bron terug, zoals op de hoofdthread');
+    await turn();
+    const freshWorker: boolean = firstJob.kind === 'merge';
+    assert.equal(workers[0]!.terminated, freshWorker, `${label}: de eerste worker ${freshWorker ? 'gestopt' : 'blijft staan'}`);
+    assert.equal(workers.length, freshWorker ? 2 : 1, `${label}: het tweede verzoek ${freshWorker ? 'in een nieuwe worker' : 'in dezelfde worker'}`);
+    const port = workers.at(-1)!;
+    port.start();
+    reseed(1);
+    await port.answer(port.requests.length - 1);
+    sameOutcome(await second, secondMain, `${label}: het tweede`);
+    assert.equal(port.terminated, secondJob.kind === 'merge', `${label}: na het tweede ${secondJob.kind === 'merge' ? 'gestopt' : 'blijft hij staan'}`);
+    assert.deepEqual(workers.flatMap(w => w.requests).map(r => r.id), [1, 2], `${label}: oplopende nummers`);
+    client.dispose();
+  }
+});
+
+await check('knownbug 1936: startte er al eens een worker, dan is een latere startfout een fout en geen terugval; daarna weer een worker', async () => {
+  const broken: WorkerKind[] = ['silent', 'load-fails', 'throws', 'null'];
+  // Wat er vóór de mislukte start gebeurde: een merge (de worker stopte gewoon), of een verzoek dat stierf, verliep of
+  // afgebroken werd (Automatisch opslaan wijkt). De nieuwe worker daarna start niet.
+  const before: Array<[string, (client: ReturnType<typeof scriptedClient>) => Promise<void>]> = [
+    ['na een merge', async ({ client }) => { sameOutcome(await outcome(() => client.compute(changedMergeJob)), mainOf.changed, 'de merge vooraf'); }],
+    ['na een gestorven verzoek', async ({ client, workers }) => {
+      const run = settled(client.compute(writerJob));
+      await turn(); workers[0]!.start(); workers[0]!.fail('Out of memory');
+      assert.ok(isWorkerError(await run, 'crashed'));
+    }],
+    ['na een verlopen verzoek', async ({ client, workers }) => {
+      const run = settled(client.compute(mergeJob));
+      await turn(); workers[0]!.start();
+      assert.ok(isWorkerError(await run, 'timeout'));
+    }],
+    ['na een afgebroken ronde', async ({ client, workers }) => {
+      const stop = new AbortController();
+      const run = settled(client.compute(mergeJob, stop.signal));
+      await turn(); workers[0]!.start(); stop.abort(new Error('wijkt'));
+      const result = await run;
+      assert.ok('error' in result && result.error instanceof Error && result.error.message === 'wijkt' && !(result.error instanceof IfcSaveWorkerError),
+        'het wijken geeft de reden van het signaal, zoals nu');
+    }],
+  ];
+  for (const [when, act] of before) {
+    for (const kind of broken) {
+      const label = `${when}, dan ${kind}`;
+      const scripted = scriptedClient([when === 'na een merge' ? 'auto' : 'manual', kind, kind],
+        { timeoutMs: () => when === 'na een verlopen verzoek' ? 40 : 60_000 });
+      await act(scripted);
+      assert.equal(scripted.workers[0]!.terminated, true, `${label}: de eerste worker is gestopt`);
+      // Twee mislukte starten op rij, een merge en een gewoon verzoek: elk een fout die de aanroeper als mislukte opslag
+      // krijgt, nooit een berekening op de hoofdthread, en elk een eigen poging.
+      for (const [n, job] of [mergeJob, writerJob].entries()) {
+        const failed = await outcome(() => scripted.client.compute(job));
+        assert.ok(isWorkerError(failed, 'not-started'), `${label}, ${job.kind}: een fout, geen terugval (${'error' in failed ? String(failed.error) : 'een uitkomst'})`);
+        assert.equal(scripted.created(), n + 2, `${label}, ${job.kind}: een eigen poging`);
+        if (kind !== 'throws' && kind !== 'null') assert.equal(scripted.workers.at(-1)!.terminated, true, `${label}: de worker die niet startte is gestopt`);
+      }
+      // De client blijft bruikbaar: het verzoek daarna start weer een worker, en die rekent.
+      sameOutcome(await outcome(() => scripted.client.compute(writerJob)), mainOf.writer, `${label}: daarna weer een worker`);
+      assert.equal(scripted.created(), 4, `${label}: een nieuwe aanmaak`);
+      assert.equal(scripted.workers.at(-1)!.requests.length, 1, `${label}: de nieuwe worker rekende`);
+      scripted.client.dispose();
+    }
+  }
+  assert.equal(sha(mergeJob.source.bytes), mergeJob.source.sha256, 'bron intact');
 });
 
 await check('de bron gaat als kopie heen: de buffers op de hoofdthread blijven bruikbaar', async () => {

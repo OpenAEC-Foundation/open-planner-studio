@@ -1,20 +1,29 @@
 /**
- * De bediening van de opslagworker (#804 stap 4), op het patroon van `recoverySnapshotSerializer.ts`: één herbruikbare
- * worker, hoogstens één verzoek tegelijk (een volgend verzoek wacht zijn beurt af), een verzoeknummer, een time-out die
- * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. De gemounte app bezit één client
- * (`appStore.ts`, stap 5) en geeft zijn berekenfunctie onvoorwaardelijk aan de opslagroutes: de merge én de gewone
- * writer rekenen hier (stap 6, besluit technisch beslisser 16 november 2026, zonder flag).
+ * De bediening van de opslagworker (#804 stap 4), op het patroon van `recoverySnapshotSerializer.ts`: hoogstens één
+ * verzoek tegelijk (een volgend verzoek wacht zijn beurt af), een verzoeknummer, een time-out die met de grootte van de
+ * bron meegroeit, en `dispose` breekt een lopend verzoek af. De gemounte app bezit één client (`appStore.ts`, stap 5) en
+ * geeft zijn berekenfunctie onvoorwaardelijk aan de opslagroutes: de merge én de gewone writer rekenen hier (stap 6,
+ * besluit technisch beslisser 16 november 2026, zonder flag).
  *
- * De terugvalregel (besluit technisch beslisser, 16 november 2026): alleen als de worker niet start, rekent de
- * hoofdthread zelf, met `computeIfcOutputHere` (zoals `prepareIfcOutput` zonder worker). "Gestart" betekent: de worker
- * meldde `started` (zijn script en imports zijn geladen). Daarvóór zijn een ontbrekende `Worker`, een fout in de
- * constructor (de sandbox van de SuperCloud-werkplek, zie `backgroundLeveling.ts`), een fout bij het laden of geen
- * start binnen `IFC_SAVE_START_TIMEOUT_MS` een startprobleem: terugval, en de rest van de sessie rekent de hoofdthread.
- * Daarna is sterven, de tijd overschrijden of een onleesbaar antwoord een fout (`IfcSaveWorkerError`) die de aanroeper
- * als mislukte opslag krijgt; de hoofdthread rekent dan nooit opnieuw (een merge die de worker liet sterven, kan het
- * tabblad laten vastlopen). Een antwoord dat niet bij het verzoek past (`resultFits`), is ook zo'n fout. De volgende
- * opslag start een nieuwe worker. Een inhoudelijke fout (een weigering van de merge, een fout van de writer) komt als
- * dezelfde foutsoort aan en laat de worker staan.
+ * De levensduur (knownbug 1936): na een gewoon verzoek (de gewone writer) blijft de worker staan voor het volgende. Na
+ * elk antwoord op een merge (een uitkomst of een weigering) stopt hij, en het volgende verzoek start een nieuwe. Een
+ * worker ruimt na zijn taak het afval van zijn kopie van de bron en de indexen niet op: op de desktop bij 157 MB bleef de
+ * app daardoor ongeveer 2 GB hoger staan, en een tweede merge in dezelfde worker piekte hoger dan de eerste. Het stoppen
+ * gebeurt pas als het antwoord op deze thread verwerkt is; de buffers van het antwoord zijn overgedragen en horen dan bij
+ * deze thread, dus het stoppen raakt de uitkomst niet.
+ *
+ * De terugvalregel (besluit technisch beslisser, 16 november 2026, aangescherpt 21 november 2026): alleen als de worker
+ * niet start terwijl er in deze sessie nog nooit een startte, rekent de hoofdthread zelf, met `computeIfcOutputHere`
+ * (zoals `prepareIfcOutput` zonder worker), en dan de rest van de sessie. "Gestart" betekent: de worker meldde `started`
+ * (zijn script en imports zijn geladen). Daarvóór zijn een ontbrekende `Worker`, een fout in de constructor (de sandbox
+ * van de SuperCloud-werkplek, zie `backgroundLeveling.ts`), een fout bij het laden of geen start binnen
+ * `IFC_SAVE_START_TIMEOUT_MS` een startprobleem. Startte er in deze sessie al eens een worker, dan is een startprobleem
+ * een fout (`IfcSaveWorkerError`, `not-started`) en nooit een terugval: anders zou één mislukte start midden in de sessie
+ * de hoofdthread een merge van een groot model laten rekenen, en dan loopt het venster vast. Na de start is sterven, de
+ * tijd overschrijden of een onleesbaar antwoord ook zo'n fout, en een antwoord dat niet bij het verzoek past
+ * (`resultFits`) ook. De aanroeper krijgt zo'n fout als mislukte opslag; de hoofdthread rekent dan nooit opnieuw, de
+ * worker stopt en de volgende opslag start een nieuwe. Een inhoudelijke fout (een weigering van de merge, een fout van de
+ * writer) komt als dezelfde foutsoort aan.
  */
 import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
 import {
@@ -24,8 +33,9 @@ import { IfcSaveWorkerError } from './ifcSaveWorkerError';
 
 export type IfcSaveWorkerPort = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
 
-/** Zonder `started` binnen deze tijd: de worker startte niet, dus terugval. Gekozen grens, niet gemeten (zie knownbug
- *  1759 voor de scanner): wie later start, krijgt de terugval, en die is nooit fout, alleen trager. */
+/** Zonder `started` binnen deze tijd: de worker startte niet. Gekozen grens, niet gemeten (zie knownbug 1759 voor de
+ *  scanner). Bij de eerste start van de sessie volgt dan de terugval, en die is nooit fout, alleen trager; startte er al
+ *  eens een worker, dan een mislukte opslag die de planner opnieuw kan proberen. */
 export const IFC_SAVE_START_TIMEOUT_MS = 10_000;
 
 /** De rekentijd: 60 s plus 1 s per begonnen MiB bron (een merge van 300 MB krijgt zo ruim zes minuten). */
@@ -34,7 +44,7 @@ export function ifcSaveTimeoutMs(job: IfcSaveJob): number {
   return 60_000 + mib * 1_000;
 }
 
-/** De worker startte niet: alleen dan rekent de hoofdthread. */
+/** De worker startte niet: alleen dan rekent de hoofdthread, en alleen als er in deze sessie nog nooit een startte. */
 class IfcSaveWorkerNotStarted extends Error {}
 
 export interface IfcSaveWorkerOptions {
@@ -62,6 +72,8 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
   const timeoutMs = opts.timeoutMs ?? ifcSaveTimeoutMs;
   let worker: IfcSaveWorkerPort | null = null;
   let started = false;
+  /** Startte er in deze sessie al eens een worker (`started` ontvangen)? Dan is een startprobleem een fout. */
+  let startedOnce = false;
   let unavailable = false;
   let disposed = false;
   let nextId = 0;
@@ -74,6 +86,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     started = false;
   };
   const disposedError = () => new IfcSaveWorkerError('disposed', 'De opslagworker is gestopt.');
+  const notStartedError = (message: string) => new IfcSaveWorkerError('not-started', message);
 
   const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob, stop?: AbortSignal): Promise<IfcSaveResult> => {
     const id = ++nextId;
@@ -96,7 +109,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       abortActive = reject;
       port.onmessage = ({ data }: MessageEvent<IfcSaveResponse>) => {
         if ('started' in data) {
-          if (!started) { started = true; arm(); }
+          if (!started) { started = true; startedOnce = true; arm(); }
           return;
         }
         if (data.id !== id) return;
@@ -136,7 +149,10 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       if (!worker && !unavailable) {
         try { worker = createWorker(); } catch { worker = null; }
         started = false;
-        if (!worker) unavailable = true;
+        if (!worker) {
+          if (startedOnce) throw notStartedError('De opslagworker kon niet worden aangemaakt.');
+          unavailable = true;
+        }
       }
       if (!worker) return computeIfcOutputHere(job);
       const port = worker;
@@ -147,12 +163,17 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
         if (error instanceof IfcSaveWorkerNotStarted) {
           if (worker === port) stopWorker();
           if (disposed) throw disposedError();
+          if (startedOnce) throw notStartedError(error.message);
           unavailable = true;
           return computeIfcOutputHere(job);
         }
         // Gestorven, verlopen of onleesbaar: deze worker niet meer gebruiken, en niet opnieuw rekenen.
         if (error instanceof IfcSaveWorkerError && worker === port) stopWorker();
         throw error;
+      } finally {
+        // Knownbug 1936: na elk antwoord op een merge stopt de worker, ook na een weigering. Het antwoord is hier al
+        // verwerkt; een verzoek dat op zijn beurt wacht, start daarna een nieuwe worker.
+        if (job.kind === 'merge' && worker === port) stopWorker();
       }
     });
     tail = run.catch(() => undefined);
