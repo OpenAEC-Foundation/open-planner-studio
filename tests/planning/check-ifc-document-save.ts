@@ -3040,6 +3040,57 @@ await check('knownbug 1901: desktopexport IFC met gebouwmodel, met de uitvoer va
 await check('knownbug 1903: desktopexport IFC met gebouwmodel, direct na de kiezer naar B, rondt af',
   () => exportWithTabSwitch({ withPool: false, foreign: true, when: 'picker', change: 'none' }));
 
+// Knownbug 1903 in de browser (met knownbug 1899): de opslaankiezer van Chromium maakt een gekozen bestaand bestand al
+// leeg bij het kiezen. Weigerde de doelcontrole daarna om een tabbladwissel, dan bleef dat bestand leeg. Nu krijgt het de
+// bytes van A. Een intussen bewerkte A schrijft de export nog steeds niet; dan blijft het bestand leeg, zoals bij elke
+// weigering na deze kiezer (1899).
+for (const change of ['none', 'edit'] as const) {
+  await check(`knownbug 1903: browserexport IFC naar een handle, ${change === 'none' ? 'direct na de kiezer naar B, krijgt de bytes van A' : 'na de kiezer A bewerkt en naar B, schrijft A niet'}`, async () => {
+    const { createAppStoreContext } = await loadStore();
+    const sw = saveWorker();
+    const { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
+    const browser = browserDownload();
+    const win = window as unknown as Record<string, unknown>;
+    const name = `browser-wissel-${change}-${++handleCount}.ifc`;
+    try {
+      await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
+      const first = store.getState().activeDocumentId;
+      const second = store.getState().newDocument();
+      store.getState().switchDocument(first);
+      longer(store);
+      clearNotices(store);
+      const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), 'merge')));
+      handleFiles.set(name, new TextEncoder().encode('Versie vóór export'));
+      win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+      win.showSaveFilePicker = async () => {
+        handleFiles.set(name, new Uint8Array()); // Chromium kapt het gekozen bestand af vóór de kiezer terugkomt.
+        if (change === 'edit') longer(store);
+        store.getState().switchDocument(second);
+        return new FakeHandle(name);
+      };
+      writableLog.length = 0;
+      const result = await store.getState().exportAs('ifc');
+      assert.equal(store.getState().activeDocumentId, second);
+      assert.equal(browser.downloads.length, 0, 'geen download ernaast');
+      if (change === 'none') {
+        assert(result.ok && !result.cancelled, 'een tabbladwissel is geen wijziging van de planning');
+        assert(Buffer.from(fileOf(name)).equals(Buffer.from(expected)), 'het gekozen bestand krijgt precies de bytes van A, niet 0 bytes');
+        assert.deepEqual(writableLog.map(entry => entry.split(' ')[0]), ['create', 'close']);
+        assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+      } else {
+        assert(result.ok && result.cancelled, 'een bewerkte A wordt niet geëxporteerd');
+        assert.equal(fileOf(name).byteLength, 0, 'de kiezer had het bestand al leeggemaakt (1899)');
+        assert.deepEqual(writableLog, [], 'niets geschreven');
+        assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
+      }
+    } finally {
+      delete win.showOpenFilePicker;
+      browser.dispose();
+      sw.client.dispose();
+    }
+  });
+}
+
 // ── #804 stap 8: Automatisch opslaan bij een document met een gebouwmodel ─────────────────────────────────────────────
 // Dezelfde vervanging als Ctrl+S (browser: de handle met herstel in twee stappen; desktop: `replaceOwnPathWithRecovery`),
 // met een eigen ritme per document (30 s rust; de klok is nagebootst) en voorrang voor handmatige acties.
