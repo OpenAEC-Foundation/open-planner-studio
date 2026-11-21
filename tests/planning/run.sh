@@ -809,6 +809,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804, knownbug 1936: de grens van 150 MiB met een verlaagde productieconstante door de echte routes (crashherstel,
+  # Ctrl+S, de doelscan als stroom). Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone af: één keer, buiten de
+  # tijdzonematrix.
+  IFCFOREIGNGRENSCHECK="$DIR/.ifc-foreign-grens.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-grens.ts" "$IFCFOREIGNGRENSCHECK"; then
+    node "$IFCFOREIGNGRENSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
   # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.
   XERRESOURCESCHECK="$DIR/.xer-resources.mjs"

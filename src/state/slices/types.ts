@@ -300,6 +300,7 @@ export type NotificationMessageKey =
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
+  | 'notifications.recoveryModelNotRestored'
   // Ingebed (#818): de host heeft `settings`, maar een lokale fout (geen opslag, neerzetten of teruglezen
   // faalde) zet het bewaren deze sessie uit.
   | 'notifications.hostSettingsUnavailable'

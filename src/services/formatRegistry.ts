@@ -304,9 +304,8 @@ export function importErrorMessageKey(
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
   const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string; code?: string; fallback?: { kind?: string } } | null | undefined;
-  if (typed?.code === 'IFC_FOREIGN_TOO_LARGE') return 'notifications.ifcForeignOpenTooLarge';
-  if (typed?.code === 'IFC_FOREIGN_OPEN_REFUSED') return typed.fallback?.kind === 'schema'
-    ? 'notifications.ifcForeignOpenSchema' : 'notifications.ifcForeignOpenUnsafe';
+  if (typed?.code === 'IFC_FOREIGN_OPEN_REFUSED') return typed.fallback?.kind === 'schema' ? 'notifications.ifcForeignOpenSchema'
+    : typed.fallback?.kind === 'te-groot' ? 'notifications.ifcForeignOpenTooLarge' : 'notifications.ifcForeignOpenUnsafe';
   if (typed?.xmlCode === 'XML_UNKNOWN_SCHEDULE') return 'notifications.xmlUnknownSchedule';
   if (typed?.cfbCode === 'CFB_INVALID') return 'notifications.mppInvalidContainer';
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
@@ -333,12 +332,12 @@ export function importErrorMessageKey(
   return 'notifications.openFailed';
 }
 
-/** De invulling bij `importErrorMessageKey`: de grens van een te groot IFC-bestand met een vreemd deel
- *  (`IfcForeignTooLargeError`, duck-typed zoals hierboven) in hele MB, naar beneden afgerond. */
+/** De invulling bij `importErrorMessageKey`: de grens van een te groot IFC-bestand met een vreemd deel (de weigering
+ *  `te-groot` van de bytes-route, duck-typed zoals hierboven) in hele MB, naar beneden afgerond. */
 export function importErrorParams(err: unknown): { params?: Record<string, number> } {
-  const typed = err as { code?: string; limit?: number } | null | undefined;
-  return typed?.code === 'IFC_FOREIGN_TOO_LARGE' && typeof typed.limit === 'number'
-    ? { params: { limit: Math.floor(typed.limit / (1024 * 1024)) } } : {};
+  const typed = err as { code?: string; fallback?: { kind?: string; limit?: number } } | null | undefined;
+  const limit = typed?.code === 'IFC_FOREIGN_OPEN_REFUSED' && typed.fallback?.kind === 'te-groot' ? typed.fallback.limit : undefined;
+  return typeof limit === 'number' ? { params: { limit: Math.floor(limit / (1024 * 1024)) } } : {};
 }
 
 // ── Export-kant ──

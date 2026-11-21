@@ -65,6 +65,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcUnreadableTargetAutoSave',
       'common:notifications.ifcUnreadableTargetExport',
       'common:notifications.ifcUnreadableTargetSave',
+      'common:notifications.recoveryModelNotRestored',
       'menu:projectInfo.ifcSchema.foreignLocked',
     ],
   },

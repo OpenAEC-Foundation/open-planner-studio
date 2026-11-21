@@ -102,6 +102,7 @@
     "recoveryStorageBlocked": "De herstelopslag is tijdelijk geblokkeerd door een andere open verbinding. Bestaande kopieën blijven staan; deze pagina maakt geen nieuwe herstelkopieën. Sla je werk zelf op, sluit andere tabbladen met deze app en laad deze pagina opnieuw om herstel opnieuw te proberen.",
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
     "recoveryRestoreFailed": "Herstellen mislukt",
+    "recoveryModelNotRestored": "Het gebouwmodel van {{name}} is niet hersteld, want het bestand is groter dan {{limit}} MB. Alleen de planning is hersteld. Het bestand zelf is niet gewijzigd. De herstelgegevens blijven bewaard tot je ze bij een volgende start verwerpt.",
     "hostSettingsUnavailable": "De instellingen van de site zijn niet geladen. Wat je deze sessie aan instellingen wijzigt, wordt niet bewaard.",
     "hostThemeUntilRestart": "Dit thema geldt tot je de planner opnieuw start. Daarna volgt de planner weer het thema van de SuperCloud.",
     "settingsLoadedLate": "Je instellingen zijn geladen en toegepast.",

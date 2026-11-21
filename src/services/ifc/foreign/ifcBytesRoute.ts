@@ -27,7 +27,7 @@ import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
 
 /** Grootste bron voor de bytes-route: `IFC_FOREIGN_SCAN_MAX_BYTES` (150 MiB, knownbug 1936). Daarboven alleen de gewone
- *  route als bewezen is dat er geen vreemd deel is; een vreemd deel weigert openen met de grens in de melding. */
+ *  route als bewezen is dat er geen vreemd deel is; anders weigert openen met de grens in de melding (`te-groot`). */
 export { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 import { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 
@@ -36,7 +36,8 @@ const FOREIGN_CONTENT_SCHEMAS: ReadonlySet<string> = new Set(['IFC4', 'IFC4X3', 
 
 /** Waarom de bytes-route terugviel op de huidige route. */
 export type IfcBytesFallback =
-  | { kind: 'te-groot'; size: number }
+  /** Alleen als de bytes-route de bron onder de grens zou bewaren (scanner en schema in orde); `limit` in bytes. */
+  | { kind: 'te-groot'; size: number; limit: number }
   | { kind: 'scanner'; reason: StepScanReason; message: string }
   | { kind: 'schema'; schemaName: string | undefined }
   | { kind: 'selectie'; field: string };
@@ -51,18 +52,10 @@ export interface IfcBytesRead {
 export class IfcForeignOpenError extends Error {
   readonly code = 'IFC_FOREIGN_OPEN_REFUSED';
   constructor(readonly fallback: IfcBytesFallback) {
-    super(`IFC open refused: unsafe ${fallback.kind} fallback`);
+    super(fallback.kind === 'te-groot'
+      ? `IFC open refused: ${fallback.size} bytes is above the limit of ${fallback.limit} bytes`
+      : `IFC open refused: unsafe ${fallback.kind} fallback`);
     this.name = 'IfcForeignOpenError';
-  }
-}
-
-/** Boven de grens geweigerd, terwijl de bytes-route het bestand onder de grens zou openen: de melding noemt de grens. */
-export class IfcForeignTooLargeError extends Error {
-  readonly code = 'IFC_FOREIGN_TOO_LARGE';
-  /** `limit`: de grens die gold, in bytes. */
-  constructor(readonly size: number, readonly limit: number) {
-    super(`IFC open refused: ${size} bytes is above the limit of ${limit} bytes`);
-    this.name = 'IfcForeignTooLargeError';
   }
 }
 
@@ -85,36 +78,22 @@ async function currentRoute(
   knownScan?: ForeignScanOutcome,
 ): Promise<IfcBytesRead> {
   const text = new TextDecoder('utf-8').decode(bytes);
-  const result = await readIFCWithXerReconstruction(text, labels, xerOptions(opts));
+  let result: ImportResult;
+  try {
+    result = await readIFCWithXerReconstruction(text, labels, xerOptions(opts));
+  } catch (error) {
+    // Boven de grens is de grootte de reden, niet het model: onder de grens bewaart de bytes-route de bron.
+    if (fallback.kind === 'te-groot' && error instanceof IfcParseError && error.reason === 'building-model') {
+      throw new IfcForeignOpenError(fallback);
+    }
+    throw error;
+  }
   if (fallback.kind === 'schema' && fallback.schemaName === 'IFC2X3') {
     return { result: { ...result, ifcLegacySchemaLoss: true }, fallback };
   }
   const scan = knownScan ?? await runForeignScan(bytes, opts);
-  // Een weigering van de scanner noemt de scanner, ook boven de grens: dan is de grootte niet de reden.
-  if (!scan.ok) throw new IfcForeignOpenError(fallback.kind === 'te-groot' ? { kind: 'scanner', reason: scan.reason, message: scan.message } : fallback);
-  if (scan.counts.C + scan.counts.A + scan.counts.V > 0) throw new IfcForeignOpenError(fallback);
+  if (!scan.ok || scan.counts.C + scan.counts.A + scan.counts.V > 0) throw new IfcForeignOpenError(fallback);
   return { result, fallback };
-}
-
-/**
- * Boven de grens: de gewone route (`currentRoute`). Weigert die om een gebouwmodel of een vreemd deel in een schema
- * waarvoor de bytes-route de bron bewaart (`FOREIGN_CONTENT_SCHEMAS`), dan zou het bestand onder de grens openen: de
- * weigering noemt de grens. Elke andere weigering blijft zoals onder de grens (IFC2X3, een onbekend schema, de scanner).
- */
-async function tooLargeRoute(bytes: Uint8Array, labels: ImportLabels, opts: IfcBytesRouteOptions, limit: number): Promise<IfcBytesRead> {
-  try {
-    return await currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
-  } catch (error) {
-    const foreign = (error instanceof IfcForeignOpenError && error.fallback.kind === 'te-groot')
-      || (error instanceof IfcParseError && error.reason === 'building-model');
-    if (foreign && FOREIGN_CONTENT_SCHEMAS.has(headerSchemaName(bytes) ?? '')) throw new IfcForeignTooLargeError(bytes.length, limit);
-    throw error;
-  }
-}
-
-/** Het schema uit de kop, gelezen uit de eerste MiB (de kop staat vooraan); `undefined` als het daar niet staat. */
-function headerSchemaName(bytes: Uint8Array): string | undefined {
-  return readFileSchemaName(new TextDecoder('utf-8').decode(bytes.subarray(0, 1 << 20)));
 }
 
 /** Alleen de herstelnaad gaat naar de lezer; de Worker-keuze niet. */
@@ -127,8 +106,6 @@ export async function readIfcBytesDetailed(
   labels: ImportLabels = {},
   opts: IfcBytesRouteOptions = {},
 ): Promise<IfcBytesRead> {
-  const limit = Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES);
-  if (bytes.length > limit) return tooLargeRoute(bytes, labels, opts, limit);
   const scan = await runForeignScan(bytes, opts);
   if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message }, scan);
 
@@ -137,6 +114,10 @@ export async function readIfcBytesDetailed(
   if (schemaName === undefined || !FOREIGN_CONTENT_SCHEMAS.has(schemaName)) {
     return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName }, scan);
   }
+  // De ene plek van de grootteweigering: na de scanner en het schema, met dezelfde uitkomsten als onder de grens. Zo
+  // krijgt alleen een bestand dat de bytes-route met zijn bron zou openen de melding over de grens (knownbug 1936).
+  const limit = Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES);
+  if (bytes.length > limit) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length, limit }, scan);
 
   const stepIdsOut: Record<string, string> = {};
   // Knownbug 1151: de modelweigering draait ook hier, op de tekst van de lezer (zonder V). Ziet de grammatica daar een
