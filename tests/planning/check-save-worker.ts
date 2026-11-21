@@ -1,6 +1,7 @@
 // #804 stap 4: de opslagworker zelf (bytes, fouten, levensduur). De worker is hier een dubbel in dit proces
 // (`inProcessSaveWorker.ts`) die de echte handler draait en berichten verstuurt zoals een browser. Knownbug 1936: na elk
-// antwoord op een merge stopt de worker en krijgt het volgende verzoek een nieuwe; een latere startfout is een fout.
+// antwoord op een merge stopt de worker en krijgt het volgende verzoek een nieuwe. Een latere startfout is bij een merge
+// een fout; een gewoon verzoek valt dan terug zoals op main.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';

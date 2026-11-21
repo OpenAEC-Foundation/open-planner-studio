@@ -410,10 +410,12 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `saveBytesDialog`, the atomic replace); `saveNewBytesDialog` stays the merge's exclusive route. `prepareIfcOutput`
   keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
   output buffers come back transferred, content errors arrive as the same error class, transport failures as
-  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
-  `started` message) and none has started yet in this session; a later start failure (`not-started`; a later worker has
-  the request's time limit to start, not the short start limit), a crash, timeout or unreadable answer is an error, never
-  a retry on the main thread; neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). A worker that sends no `started` within the fixed start limit (10 s,
+  the same for every worker) did not start. A plain request then computes on the main thread, as on main, and plain
+  requests stay there for the rest of the session; with the flag off this is the only kind of request. A merge falls
+  back only while no worker has started yet in this session; after that its start failure is an error (`not-started`),
+  never the main thread. A crash, timeout or unreadable answer after the start is an error, never a retry on the main
+  thread; so is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
   before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
   bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
   stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
