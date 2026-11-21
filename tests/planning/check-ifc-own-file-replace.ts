@@ -3356,6 +3356,42 @@ for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande 
   });
 }
 
+// Fixronde 1 van #1124 (VERVOLG van de reviewer): een tweede Ctrl+S terwijl de eerste al aan de beurt is en de toets op
+// de scope nog loopt. De vraag is dan nog dicht, dus de sneltoets is niet bevroren, en de tweede opslag gaat in de rij.
+// Het antwoord op de vraag geldt ook voor die al wachtende opslag van hetzelfde document en dezelfde map. Een nieuwe
+// Ctrl+S na Annuleren mag opnieuw vragen.
+await check('1762, een tweede Ctrl+S die al wachtte toen de planner annuleerde: geen tweede vraag en één melding; een nieuwe Ctrl+S daarna vraagt wel', async () => {
+  const c = await opened();
+  const asked: string[] = [];
+  setFolderAccessAsker(async folder => { asked.push(folder); return false; });
+  const invoke = internal.invoke;
+  try {
+    outsideCapability(c);
+    clearNotices(c);
+    let second: Promise<void> | null = null;
+    internal.invoke = (command, ...args) => {
+      // De eerste toets op de scope (een hulpnaam naast het doel): de eerste opslag is aan de beurt, de vraag nog dicht.
+      if (second === null && command === 'plugin:fs|exists' && JSON.stringify(args).includes('.ops-save.tmp')) {
+        second = c.store.getState().saveFile();
+      }
+      return invoke(command, ...args);
+    };
+    await c.store.getState().saveFile();
+    assert(second !== null, 'de tweede Ctrl+S kwam tijdens de toets op de scope');
+    await second;
+    assert.deepEqual(asked, [c.dir], 'één vraag voor beide');
+    const notices = () => c.store.getState().ui.notifications.map(n => [n.messageKey, n.count]);
+    assert.deepEqual(notices(), [['notifications.ifcForeignFolderAccessMissing', 1]], 'één melding, zonder ×2');
+    assert.equal(c.store.getState().isDirty, true, 'het document blijft gewijzigd');
+    internal.invoke = invoke;
+    await c.store.getState().saveFile();
+    assert.deepEqual(asked, [c.dir, c.dir], 'een nieuwe Ctrl+S na Annuleren vraagt opnieuw');
+    assert.equal(hash(new Uint8Array(readFileSync(c.path))), hash(bytes), 'niets geschreven');
+    assert.deepEqual(files(c), ['model.ifc'], 'geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { internal.invoke = invoke; resetFolderAccessAsker(); await tidy(c); }
+});
+
 await check('1762, Opslaan als over een bestaand bestand buiten de thuismap: één vraag en één mapkiezer, dan vervangen langs de weg van Ctrl+S; daarna geen vraag meer', async () => {
   const c = await opened();
   const asked: string[] = [];
