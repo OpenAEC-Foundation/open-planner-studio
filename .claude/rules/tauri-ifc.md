@@ -144,7 +144,9 @@ gewone writer. De uitvoer ís de nieuwe bronbuffer; het resultaat houdt daardoor
 haar en PR 11a sluit de documentroutes aan. De bron en het doelkenmerk worden samen gecommit. Een download vervangt die niet. PR 11b deelt de voorbereiding met volledige export naar nieuwe doelen, zonder bron- of kalendercommit. De optionele indexplek is voor PR 6. Pool en planOnly alleen na de vraag "alleen de planning" (PR 13, zie `state.md`); paneel en dev-bridge blijven geblokkeerd. AutoSave schrijft sinds #804 stap 8 (flag aan, bron aanwezig) via dezelfde vervanging van het eigen bestand als Ctrl+S (`replaceOwnHandleWithRecovery`, `replaceOwnPathWithRecovery`, met de grens van de voorrang op `stopBeforeWrite`); zie `settings-autosave.md`. Een IFC-export (ook met bibliotheek) houdt voorrang vanaf het rekenen (`prepareExportIfcWrite` → `claimProjectFileWrite`).
 
 **De opslagworker** (#804 stap 4 tot en met 6, `src/services/ifc/saveWorker/`) rekent wat `prepareIfcOutput` rekent (de
-gewone writer of `prepareIfcWrite`) in één herbruikbare Web Worker. De gemounte app bezit één client (`appStore.ts`) en
+gewone writer of `prepareIfcWrite`) in een Web Worker. De gewone writer hergebruikt hem; na elk antwoord op een merge (een
+uitkomst of een weigering) stopt hij en start het volgende verzoek een nieuwe (knownbug 1936: een worker houdt het afval
+van zijn kopie van de bron en de indexen vast, op de desktop bij 157 MB ongeveer 2 GB). De gemounte app bezit één client (`appStore.ts`) en
 geeft de berekenfunctie onvoorwaardelijk door, via `StoreRuntimeOptions.ifcSaveCompute`: de gewone writer en de merge
 rekenen in de worker voor Ctrl+S (ook *Opslaan* in de sluitvraag), Opslaan als, Exporteren → IFC, de export met de
 resourcebibliotheek en Automatisch opslaan naar het bestand. Headless-, scratch- en testcontexten, het crashherstel en
@@ -153,9 +155,15 @@ uit de worker; die gaan rechtstreeks naar de schrijflaag (`FileData`: `saveDataD
 `saveToRefWithoutPrompt`, de site), nooit eerst naar tekst. Tekst bestaat alleen als de hoofdthread rekende (de worker
 startte niet). De gewone writer houdt zijn recht op overschrijven (`saveFileDialog`/`saveBytesDialog`, de atomaire
 opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
-fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Terugval op
-de hoofdthread alleen als de worker niet start (geen `started`); sterft hij daarna, of verloopt de tijd (60 s plus 1 s per
-MiB bron), dan is het een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
+fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Meldt de
+worker geen `started` binnen de vaste starttijd (10 s, voor elke worker dezelfde), dan startte hij niet. Een gewoon verzoek
+rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; staat de flag de hele
+sessie uit, dan is dit de enige soort verzoek en is het gedrag dat van main. Eén verschil (knownbug 2025): na een eerdere
+merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt, dus start een gewoon verzoek een verse waar
+main de gestarte hergebruikte; start die niet, dan rekent de hoofdthread de rest van de sessie voor gewone verzoeken, en
+blijft hij stil, dan wacht dat verzoek eerst tot de starttijd van 10 s voorbij is. Een merge valt alleen terug zolang er in deze sessie nog nooit een worker startte; daarna is
+een startfout bij een merge een fout (`not-started`), nooit de hoofdthread. Sterft hij na de start, of verloopt de
+rekentijd (60 s plus 1 s per MiB bron), dan is het ook een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
 mislukte opslag of export van vóór elke I/O, met één melding (`ifcSaveWorkerFailed`). De worker laadt
 `appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`). Een antwoord dat niet bij het verzoek past
 (`resultFits`), is een transportfout. Workerbundels krijgen de grens van de headless kern (`vite.config.ts`: `zustand`
