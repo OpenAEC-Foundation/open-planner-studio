@@ -19,8 +19,14 @@ export function psetOwners(index: StepIndex, pset: number): number[] {
   return owners;
 }
 
-const equalBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i]);
-const chunkBytes = (index: StepIndex, bytes: Uint8Array, i: number) => bytes.subarray(index.start(i), index.end(i));
+/** Stuk `i` van `a` en stuk `j` van `b` zijn byte voor byte gelijk. Een gewone lus over beide bereiken: bij een groot model
+ *  kostte `subarray` plus `every` met een functie per stuk het meeste van deze controle (#804). */
+function equalChunks(source: StepIndex, a: Uint8Array, i: number, index: StepIndex, b: Uint8Array, j: number): boolean {
+  const from = source.start(i), at = index.start(j), length = source.end(i) - from;
+  if (index.end(j) - at !== length) return false;
+  for (let k = 0; k < length; k++) if (a[from + k] !== b[at + k]) return false;
+  return true;
+}
 const add = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
 
 /** Een vreemd lid blijft aan hetzelfde object en dezelfde psetnaam, ook als de pset een nieuw id kreeg. */
@@ -207,19 +213,25 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   counting: 'verschil' | 'volledig' } {
   // Ook dubbele #ids en ongeldige STEP worden door de bestaande scanner geweigerd.
   const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
-  const preserved: number[] = [];
-  for (let i = 0; i < source.count; i++) if (sourceClasses.classes[i] !== 1) preserved.push(i);
-  const actual: number[] = [];
+  // De stuknummers van de niet-P-stukken van bron en uitvoer, als `Int32Array`: bij een groot model zijn het er miljoenen
+  // (#804).
+  const preservedAll = new Int32Array(source.count);
+  let preservedCount = 0;
+  for (let i = 0; i < source.count; i++) if (sourceClasses.classes[i] !== 1) preservedAll[preservedCount++] = i;
+  const preserved = preservedAll.subarray(0, preservedCount);
+  const actualAll = new Int32Array(index.count);
+  let actualCount = 0;
   for (let i = 0; i < index.count; i++) {
     const original = index.isEntity(i) ? source.chunkOf(index.id(i)) : -1;
-    if (!index.isEntity(i) || (original >= 0 && sourceClasses.classes[original] !== 1)) actual.push(i);
+    if (!index.isEntity(i) || (original >= 0 && sourceClasses.classes[original] !== 1)) actualAll[actualCount++] = i;
     else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
   }
+  const actual = actualAll.subarray(0, actualCount);
   if (preserved.length !== actual.length) problems.push(`niet-P-stukken: ${preserved.length} → ${actual.length}`);
   for (let j = 0; j < Math.min(preserved.length, actual.length); j++) {
     const before = preserved[j], after = actual[j];
     if (source.id(before) !== index.id(after)
-      || !equalBytes(chunkBytes(source, sourceBytes, before), chunkBytes(index, bytes, after))) {
+      || !equalChunks(source, sourceBytes, before, index, bytes, after)) {
       problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} ontbreekt, is gewijzigd of verplaatst`);
     }
   }
