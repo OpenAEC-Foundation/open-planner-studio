@@ -379,6 +379,37 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
+// Knownbug 378: SF kan het einde van B veranderen zonder zijn start te verplaatsen.
+// Meet beide grenzen apart bij herberekening na ALAP, met SF0 en een FS0-controle.
+{
+  const summary = [];
+  for (const type of ['START_FINISH', 'FINISH_START'] as const) {
+    for (const day of ['2026-06-05', '2026-06-08', '2026-06-09']) {
+      const tasks = [
+        task('A', 0, { alap: true, milestoneKind: 'FINISH' }),
+        { ...task('B', 1), calendarId: TEN.id, constraint: { type: 'SNET', date: `${day}T08:00` } } as Task,
+      ];
+      const seqs: Sequence[] = [{ id: 'ab', predecessorId: 'A', successorId: 'B', type, lagDays: 0 }];
+      const first = run('msproject', tasks, seqs, SCALAR, 'predecessor', [TEN]);
+      const a = first.tasks.get('A')!;
+      const placed = first.tasks.get('B')!;
+      const replay = run('msproject', withoutAlapAt(tasks, 'A', a.earlyStart), seqs, SCALAR, 'predecessor', [TEN]);
+      const replayA = replay.tasks.get('A')!;
+      const replayB = replay.tasks.get('B')!;
+      summary.push({
+        type, day, a: a.earlyStart, replayA: replayA.earlyStart,
+        b: placed.earlyStart, be: placed.earlyFinish, replayB: replayB.earlyStart, replayBe: replayB.earlyFinish,
+        sameAnchor: replayA.earlyStart === a.earlyStart && replayA.earlyFinish === a.earlyFinish,
+      });
+    }
+  }
+  eq('knownbug 378: aantal gevallen', summary.length, 6);
+  console.log(`KNOWNBUG378_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 378::${JSON.stringify(summary)}`);
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  alap-maatplaatsing: alle checks groen (${checks})`);
   process.exit(0);
