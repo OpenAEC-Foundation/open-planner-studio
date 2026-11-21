@@ -346,8 +346,9 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   const summary = [];
   for (const c14 of [false, true]) {
     const project = {
-      startDate: '2026-06-01', schedulingProfile: builtInProfile('p6'),
-      schedulingOptions: { lagCalendar: 'successor', p6AlapPositionedFromSuccessors: c14 },
+      startDate: '2026-06-01',
+      schedulingProfile: { ...builtInProfile('p6'), overrides: { p6AlapPositionedFromSuccessors: c14 } },
+      schedulingOptions: { lagCalendar: 'successor' },
     } as Parameters<typeof solveInputFor>[0];
     const cal = SHORT_FRIDAY_BLOCKS;
     const tasks = [task('A', 2, { alap: true }), task('X', 5), { ...task('B', 1), calendarId: 'ten' } as Task];
