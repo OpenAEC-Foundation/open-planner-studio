@@ -291,6 +291,9 @@ bevat `byteLength` voor deze byte-uitvoer; alleen de gewone tekstroute geeft `ch
 De echte-app-proef (`mcp-real-app.yml`) exporteert een gebouwmodel naar een nieuwe naam in de thuismap en leest via
 het ops-test-kanaal (`log`) de regel van `writeNewUserBytes` in het app-log (kanaal `nieuweNaam`): voor precies dat
 doel moet het echte `place_file_exclusive` `placed` of `dir-not-synced` hebben gegeven, zonder directe aanmaak.
+Voor knownbug 1762 schrijft `run.sh` vóór de start een `.persisted-scope` met een map in `/tmp`, zoals de mapkiezer van
+plugin-dialog die vrijgeeft (niet-recursief); de laatste proef doet daar Ctrl+S met een gebouwmodel en eist het bestand
+met de nieuwe taak en het gebouwmodel, zonder hulpbestand en zonder vraag. De vraag en de mapkiezer zelf toetst ze niet.
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,
 bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang.
 De headless server blijft tekst schrijven; de beperking en richting staan bij knownbug 1136 in `docs/headless-mcp.md`.

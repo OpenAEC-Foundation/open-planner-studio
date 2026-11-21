@@ -46,6 +46,27 @@ if ! node "$ROOT/scripts/build-mcpb.mjs" --out "$MCPB_OUT" >"$LOG_DIR/build-mcpb
 fi
 export OPS_MCPB_SERVER="$MCPB_OUT/bundle/server/index.mjs"
 
+# #804, knownbug 1762: een map buiten de thuismap die de planner eerder vrijgaf. De mapkiezer van plugin-dialog geeft een
+# map vrij als `allow_directory(map, false)` (de patronen `map` en `map/*`), en persisted-scope bewaart die patronen in
+# `.persisted-scope` (bincode: een lijst toegestane en een lijst verboden patronen) en zet ze bij de start terug. Dit
+# schrijft dat bestand vóór de start, zoals het er na zo'n keuze uitziet; run-real-app.ts doet er Ctrl+S. Een bestaand
+# bestand blijft staan (dan meldt die proef dat de map ontbreekt).
+APP_DATA="$(dirname "$OPS_DIR")"
+SCOPE_FILE="$APP_DATA/.persisted-scope"
+if [ -e "$SCOPE_FILE" ]; then
+  echo "let op: $SCOPE_FILE bestaat al; geen vrijgegeven map buiten de thuismap voor de proef van knownbug 1762" >&2
+else
+  GRANTED="$(mktemp -d /tmp/ops-1762-vrijgegeven-XXXXXX)"
+  node -e '
+    const [file, dir] = process.argv.slice(1);
+    const u64 = (n) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+    const str = (s) => { const b = Buffer.from(s, "utf8"); return Buffer.concat([u64(b.length), b]); };
+    const allowed = [dir, `${dir}/*`];
+    require("node:fs").writeFileSync(file, Buffer.concat([u64(allowed.length), ...allowed.map(str), u64(0)]));
+  ' "$SCOPE_FILE" "$GRANTED"
+  export OPS_REAL_APP_GRANTED_DIR="$GRANTED"
+fi
+
 # Eigen sessie, zodat de opruiming de hele procesboom (npm → tauri → vite + app) stopt.
 cd "$ROOT"
 setsid xvfb-run -a env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \

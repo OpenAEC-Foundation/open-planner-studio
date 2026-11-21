@@ -291,4 +291,36 @@ test('echte app: een .xer openen leest de bytes via plugin-fs readFile', async (
   }
 });
 
+// #804, knownbug 1762: Ctrl+S met een gebouwmodel in een map buiten de thuismap die de planner eerder vrijgaf. `run.sh`
+// schreef vóór de start een `.persisted-scope` zoals de mapkiezer van plugin-dialog die achterlaat (de map, niet-recursief);
+// de echte persisted-scope zet hem bij de start terug. Dan vraagt de app niets en vervangt ze het bestand langs de vervanging
+// met hulpbestanden en het echte place_file_exclusive: met een gebouwmodel schrijft Ctrl+S het eigen pad nooit direct, en
+// zonder de vrijgegeven map zou de vraag openstaan en kwam er binnen 30 s geen antwoord. De vraag en de mapkiezer zelf
+// toetst deze proef niet (geen klik in het venster van het systeem onder xvfb); dat blijft de handmatige controle. Als
+// laatste, zodat een openstaande vraag geen andere proef raakt.
+test('echte app: Ctrl+S met een gebouwmodel in een vrijgegeven map buiten de thuismap (knownbug 1762)', async () => {
+  const dir = process.env.OPS_REAL_APP_GRANTED_DIR;
+  assert(dir, 'run.sh gaf geen vrijgegeven map door (OPS_REAL_APP_GRANTED_DIR)');
+  assert(!resolve(dir).startsWith(`${homedir()}/`), `de map ligt buiten de thuismap: ${dir}`);
+  const model = join(dir, 'model.ifc');
+  await ops('dispatch', { action: 'setUI', args: [{ featureFlags: { ifcForeignContent: true } }] });
+  try {
+    writeFileSync(model, readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+    await ops('open', { path: model });
+    const marker = 'Opslaanproef buiten de thuismap';
+    await ops('dispatch', { action: 'addTask', args: [{ name: marker }] });
+    const saved = (await ops('dispatch', { action: 'saveFile', args: [] })) as { state: { isDirty: boolean } };
+    const written = readFileSync(model, 'latin1');
+    assert(written.includes(marker), 'Ctrl+S schreef de nieuwe taak niet naar het bestand buiten de thuismap');
+    for (const wall of ["IFCWALL('242F3AJ$ylGv3IUzUFH5GZ'", "IFCWALL('2cdMVgOra3Bc6Xi_El57on'"]) {
+      assert(written.includes(wall), `het gebouwmodel is bewaard: ${wall}`);
+    }
+    assertEq(saved.state.isDirty, false, 'het document is opgeslagen');
+    assertEq(readdirSync(dir), ['model.ifc'], 'geen hulpbestand en geen kopie naast het bestand');
+  } finally {
+    await ops('dispatch', { action: 'setUI', args: [{ featureFlags: {} }] });
+    rmSync(model, { force: true });
+  }
+});
+
 await run();
