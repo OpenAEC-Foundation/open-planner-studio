@@ -210,11 +210,13 @@ test('mijlpalenreeks: inklappen tot één regel, kiezen, slepen en weer uitklapp
   await expect(ganttRow(page, ids.m3)).toBeVisible();
 });
 
-// Een gewone klik op de al actieve cel is ook het nieuwe beginpunt van Shift (#1004, ronde 16). Alleen
-// als de tijdlijn de hele reeks koos in de volgorde van de regel, blijft de rasterselectie gelijk; dan
-// moest de klik toch het beginpunt verzetten, anders nam Shift in de lijst één ruitje mee en legde
-// Ctrl+F2 een relatie op een regel zonder vaste volgorde.
-test('mijlpalenreeks: gewone klik op de actieve reeksregel wordt het beginpunt van Shift', async ({ page, ops: _ops }) => {
+// Het Shift-beginpunt van de takenlijst volgt dezelfde regel als dat van de tijdlijn (#1004, rondes 16
+// en 17). Eerst: zet het gekozen ruitje van een ingeklapte reeks om naar een gewone taak; de reeksregel
+// blijft, maar draagt het beginpunt niet meer, dus Shift begint bij die taak op haar eigen regel. Daarna:
+// koos de tijdlijn de hele reeks in de volgorde van de regel, dan blijft de rasterselectie bij een klik op
+// die regel gelijk; de klik moet toch het beginpunt verzetten. Anders nam Shift in de lijst te weinig mee
+// en legde Ctrl+F2 een relatie op een regel zonder vaste volgorde.
+test('mijlpalenreeks: Shift in de lijst begint waar de tijdlijn begint', async ({ page, ops: _ops }) => {
   const [phase] = await seedProject(page, [
     { name: 'Woningbouw', start: '2026-09-07', finish: '2026-10-02', durationDays: 20 },
   ]);
@@ -224,15 +226,46 @@ test('mijlpalenreeks: gewone klik op de actieve reeksregel wordt het beginpunt v
     const work = api().addTask({ name: 'Fundering', parentId });
     const first = api().addTask({ name: 'Keuring', parentId, isMilestone: true, time: zero as never });
     const last = api().addTask({ name: 'Start montage', parentId, isMilestone: true, time: zero as never });
+    const handover = api().addTask({ name: 'Oplevering', parentId, isMilestone: true, time: zero as never });
     const next = api().addTask({ name: 'Montage', parentId });
     api().addSequence({ predecessorId: work, successorId: first, type: 'FINISH_START', lagDays: 0 });
-    api().addSequence({ predecessorId: work, successorId: last, type: 'FINISH_START', lagDays: 4 });
+    api().addSequence({ predecessorId: work, successorId: last, type: 'FINISH_START', lagDays: 2 });
+    api().addSequence({ predecessorId: work, successorId: handover, type: 'FINISH_START', lagDays: 4 });
     api().runCPM();
-    return { work, first, last, next };
+    return { work, first, last, handover, next };
   }, phase);
   const runKey = `milestones:${ids.first}`;
   const relationCount = () => page.evaluate(() => window.__OPS__!.store.getState().sequences.length);
+  const pressLink = async () => {
+    const before = await relationCount();
+    await page.keyboard.press('ControlOrMeta+F2');
+    await page.waitForTimeout(300);
+    expect(await relationCount()).toBe(before);
+  };
   await nameCell(page, ids.first).locator('.full-task-grid-disclosure').click();
+  await expect(nameCell(page, runKey)).toContainText(/Mijlpalen \(3\)|Milestones \(3\)/);
+
+  // 1. Oplevering omzetten: Shift op Fundering in de lijst kiest van Oplevering tot Fundering, net als de
+  //    tijdlijn, en Ctrl+F2 weigert, want Keuring en Start montage delen één regel (ronde 17).
+  // Het ruitje staat pas na de hertekening op de ingeklapte regel.
+  const runRow = (await nameCell(page, runKey).boundingBox())!;
+  await expect.poll(async () => {
+    const { y } = await barPoint(page, ids.handover);
+    return y >= runRow.y && y < runRow.y + runRow.height;
+  }).toBe(true);
+  const handover = await barPoint(page, ids.handover);
+  await page.mouse.click(handover.x, handover.y);
+  await expect.poll(() => selected(page)).toEqual([ids.handover]);
+  await page.mouse.click(handover.x, handover.y, { button: 'right' });
+  await page.getByRole('button', { name: /^(Mijlpaal aan\/uit|Toggle milestone)$/ }).click();
+  await expect(nameCell(page, runKey)).toContainText(/Mijlpalen \(2\)|Milestones \(2\)/);
+  await expect(nameCell(page, ids.handover)).toContainText('Oplevering');
+  await nameCell(page, ids.work).click({ modifiers: ['Shift'] });
+  await expect.poll(() => selected(page)).toEqual([ids.work, ids.first, ids.last, ids.handover].sort());
+  await pressLink();
+
+  // 2. De hele reeks in de tijdlijn, gewone klik op de actieve reeksregel, Shift op Montage: de reeks
+  //    blijft gekozen (ronde 16).
   await nameCell(page, ids.work).click();
   const first = await barPoint(page, ids.first);
   const last = await barPoint(page, ids.last);
@@ -246,9 +279,6 @@ test('mijlpalenreeks: gewone klik op de actieve reeksregel wordt het beginpunt v
   await expect(nameCell(page, runKey)).toHaveAttribute('data-grid-active', 'true');
   await nameCell(page, runKey).click();
   await nameCell(page, ids.next).click({ modifiers: ['Shift'] });
-  await expect.poll(() => selected(page)).toEqual([...series, ids.next].sort());
-  const relationsBefore = await relationCount();
-  await page.keyboard.press('ControlOrMeta+F2');
-  await page.waitForTimeout(300);
-  expect(await relationCount()).toBe(relationsBefore);
+  await expect.poll(() => selected(page)).toEqual([...series, ids.handover, ids.next].sort());
+  await pressLink();
 });

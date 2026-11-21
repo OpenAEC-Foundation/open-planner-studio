@@ -245,13 +245,14 @@ function extendFromSharedAnchor(
   rowIndex: TaskGridRowIndex,
   columns: readonly TaskColumnId[],
 ): { next: GridSelectionState; anchor?: SelectionAnchor } {
-  // Het geldende anker als de lijst zijn rij kent (ook de spookregel, die de tijdlijn niet heeft),
-  // anders hetzelfde beginpunt als de tijdlijn. Is er geen (bv. de ankerrij en de actieve taak zijn
-  // weggefilterd), dan ook hier niet het eigen rasteranker maar geen beginpunt: Shift kiest dan alleen
-  // de aangeklikte regel, net als in de tijdlijn (review #1004, ronde 15).
+  // Hetzelfde beginpunt als de tijdlijn (`shiftAnchor`), met één uitzondering: de spookregel, die de
+  // tijdlijn niet heeft. Geen eigen toets op de ankerrij: een rij die er nog staat maar de taak van het
+  // anker niet meer draagt (een omgezette mijlpaal), is geen beginpunt meer (review #1004, ronde 17).
+  // Is er geen beginpunt (bv. de ankerrij en de actieve taak zijn weggefilterd), dan ook hier niet het
+  // eigen rasteranker: Shift kiest dan alleen de aangeklikte regel, net als in de tijdlijn (ronde 15).
   const state = useAppStore.getState();
   const live = liveSelectionAnchor(state);
-  const anchor = live && rowIndex.absoluteIndexByRowKey.has(live.rowKey) ? live : shiftAnchor(state);
+  const anchor = live?.rowKey === GHOST_ROW_KEY ? live : shiftAnchor(state);
   const from = anchor && rowIndex.absoluteIndexByRowKey.has(anchor.rowKey)
     ? withSelectionAnchor(selection, anchor.rowKey)
     : { ...selection, anchor: null };
