@@ -1265,13 +1265,20 @@ const otherTab = (c: Case) => c.store.getState().getOpenDocumentPayloads()
  *  bytes op een ander pad (zonder de leesroute, dus ook binnen een herstelronde), daarna op `c.path`. */
 const secondTab = (c: Case, content: Uint8Array = bytes) => openSecondTabOn(c.store, { kind: 'path', path: c.path },
   () => c.store.getState().openOpenedFile({ name: basename(c.path), content: '', bytes: content, ref: { kind: 'path', path: `${c.path}.kopie` } }));
-/** Las een openactie `c.path` pas ná de laatste plaatsing van de vervanging? (Het openen wacht op de schrijfactie.) */
-const readAfterLastPlace = (c: Case, from: number) => {
-  const calls = ipc.calls.slice(from);
-  const lastPlace = calls.map(call => call.command).lastIndexOf('place_file_exclusive');
-  const lastRead = calls.map((call, i) => (call.path === c.path && !call.wrote
-    && /^plugin:fs\|(read_file|read_text_file|open)$/.test(call.command) ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
-  return lastPlace >= 0 && lastRead > lastPlace;
+/** De versie die de leesroute aan de openacties op `c.path` gaf (hash van wat `openOpenedFile` binnenkreeg), zodat een
+ *  proef toont welke versie déze openactie las; de leesroute zelf blijft ongemoeid. `stop` zet de actie terug. */
+const openedVersions = (c: Case) => {
+  const original = c.store.getState().openOpenedFile;
+  const versions: string[] = [];
+  c.store.setState({
+    openOpenedFile: (opened, ...rest) => {
+      if (opened.ref?.kind === 'path' && opened.ref.path === c.path) {
+        versions.push(hash(opened.bytes ?? new TextEncoder().encode(opened.content)));
+      }
+      return original(opened, ...rest);
+    },
+  });
+  return { versions, stop: () => c.store.setState({ openOpenedFile: original }) };
 };
 const alreadyOpenNotices = (c: Case) => c.store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.fileAlreadyOpen').length;
 /** De herstelronde van `opened`, met `during` één keer in de eerste ronde binnen de vervanging (`pendingSha256` staat dan
@@ -1311,6 +1318,7 @@ await check('een opening die tijdens de eerste herstelronde begint, wacht tot de
   let opening: Promise<void> | undefined;
   // Niet afwachten in de herstelronde: die loopt binnen de schrijfactie, en het openen wacht juist daarop.
   const round = firstPendingRound(c, () => { opening = openViaDrop(c); });
+  const read = openedVersions(c);
   try {
     clearNotices(c);
     const from = ipc.calls.length;
@@ -1320,10 +1328,10 @@ await check('een opening die tijdens de eerste herstelronde begint, wacht tot de
     const written = fileHash(c, 'model.ifc');
     assert.deepEqual({ result, changed: written !== hash(bytes), places: placesSince(from).length, errors: errorKeys(c) },
       { result: true, changed: true, places: 2, errors: [] }, 'de opslag slaagt');
-    assert.equal(readAfterLastPlace(c, from), true, 'het openen las het bestand pas na de vervanging');
+    assert.deepEqual(read.versions, [written], 'het openen las de geschreven versie, pas na de vervanging');
     assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
     assert.deepEqual([c.store.getState().activeDocumentId, alreadyOpenNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg, met de melding');
-  } finally { round.unregister(); await tidy(c); }
+  } finally { read.stop(); round.unregister(); await tidy(c); }
 });
 
 await check('een tweede tabblad dat er na de eerste herstelronde toch is: de vervanging stopt met nul plaatsingen en de melding van de doelbewaking', async () => {
@@ -1373,18 +1381,19 @@ for (const route of ['dialoog', 'Recent'] as const) {
       await new Promise<void>(resolve => setImmediate(resolve));
       assert.equal(otherTab(c), undefined);
     });
+    const read = openedVersions(c);
     try {
-      const from = ipc.calls.length;
       assert.equal(await c.store.getState().saveFileForDocument(c.id), true);
       assert.ok(opening && round.fired());
       await opening;
       const written = fileHash(c, 'model.ifc');
       assert.notEqual(written, hash(bytes));
-      assert.equal(readAfterLastPlace(c, from), true, 'de opening las het bestand pas na de vervanging');
+      assert.deepEqual(read.versions, [written], 'de opening las de geschreven versie, pas na de vervanging');
       assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
       assert.deepEqual([c.store.getState().activeDocumentId, alreadyOpenNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg, met de melding');
       assert.deepEqual(errorKeys(c), []);
     } finally {
+      read.stop();
       internal.invoke = invoke;
       round.unregister();
       await tidy(c);
@@ -1409,6 +1418,7 @@ await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabbla
     }
     return invoke(command, ...args);
   };
+  const versions = openedVersions(c);
   const opening = throughRecent(c);
   try {
     await Promise.race([read.promise, opening.then(() => { throw new Error('de route heeft de verwachte leesrand niet geraakt'); })]);
@@ -1418,6 +1428,8 @@ await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabbla
     assert.notEqual(written, hash(bytes));
     release.resolve();
     await opening;
+    assert.deepEqual(versions.versions, [hash(bytes)], 'de lezing van vóór Ctrl+S kreeg de oude versie');
+    versions.stop();
     assert.equal(otherTab(c), undefined, 'de oude bron kwam niet in een tabblad');
     assert.deepEqual([c.store.getState().activeDocumentId, alreadyOpenNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg, met de melding');
     const secondId = await secondTab(c, bytes);
@@ -1433,6 +1445,7 @@ await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabbla
   } finally {
     release.resolve();
     await opening;
+    versions.stop();
     internal.invoke = invoke;
     await tidy(c);
   }
