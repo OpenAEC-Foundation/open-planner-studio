@@ -5494,14 +5494,15 @@ en noem het in je rapport of PR-tekst.
      Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg. Dezelfde familie als 1893.
      **Met de flag aan opgelost** (#804, PR 1 van 2, besluit van de eigenaar 21 november 2026 "één bestand, één
      tabblad"): in de gewone routes gaat de app dan naar het tabblad dat al open is, met de melding "Dit bestand staat
-     al open. Je bent naar dat tabblad gegaan."; dat tabblad houdt zijn inhoud (`src/state/openDocumentFor.ts`). Kreeg
-     dat tabblad tijdens de toets of een wachtende neerzetting een ander bestand (*Opslaan als*, sluiten), dan opent het
-     gevraagde bestand gewoon, zoals met de flag uit (review #1121, proef B8). Twee kruisende openacties kunnen nog twee
-     tabbladen geven (2041). Proeven: `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent, slepen; met de
-     flag uit telkens een tweede tabblad), G16 in `check-site-storage.ts` (de site) en `cases-doc-file.ts`
-     (`planner_import_schedule`). Een bestand dat bij het starten is meegegeven (#1091, ook een tweede start) wisselt
-     al met de flag uit naar het open tabblad (`openLaunchFiles`, zonder melding); met de flag aan krijgt het dezelfde
-     melding (proef B10 in `check-one-file-one-tab.ts`).
+     al open. Je bent naar dat tabblad gegaan."; dat tabblad houdt zijn inhoud (`openOrSwitch` in
+     `src/state/openDocumentFor.ts`). De uitkomst van de toets geldt alleen als het bestand van elk tabblad tot het
+     activeren gelijk bleef; anders loopt de toets opnieuw (review #1121 ronde 1 en 2: *Opslaan als* of sluiten tijdens
+     de toets of een wachtende neerzetting, proef B8, R1). Zonder treffer en met een schrijfbeurt sinds het lezen leest de
+     app het bestand opnieuw (R3; niet voor de site: daar geeft een oude basis een conflict of een kopie). Een bestand dat
+     bij het starten is meegegeven (#1091, ook een tweede start) loopt met de flag aan door dezelfde toets (B10, B11);
+     met de flag uit wisselt de startroute zoals main, zonder melding. Proeven: `check-one-file-one-tab.ts` (desktop en
+     browser: Openen, Recent, slepen, startbestand; met de flag uit telkens een tweede tabblad), G16 en G17 in
+     `check-site-storage.ts` (de site) en `cases-doc-file.ts` (`planner_import_schedule`).
      Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
      aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
      2029, 2040, 2041. — B (proef, met de flag uit)
@@ -5541,7 +5542,7 @@ en noem het in je rapport of PR-tekst.
      eigenaar. — S
 
 2040. **Windows: de toets "staat al open" vergelijkt paden alleen lexicaal.** Windows levert in plugin-fs geen
-     `dev`/`ino` (`fileIdentity.ts`), dus `openDocumentPathId` (`ifcForeignGuard.ts`) ziet daar alleen hetzelfde pad
+     `dev`/`ino` (`fileIdentity.ts`), dus `openDocumentIdForPath` (`ifcForeignGuard.ts`) ziet daar alleen hetzelfde pad
      na normalisatie (stationsletter en UNC in kleine letters, `.` en `..` opgelost). Een junction, een gekoppelde
      schijf tegenover hetzelfde UNC-pad of een 8.3-naam ziet hij niet: dan opent het bestand weer in een tweede tabblad,
      zoals met de flag uit. Dezelfde grens geldt al voor de doelcontrole van Opslaan als (knownbug 1907). Alleen in de
@@ -5552,7 +5553,10 @@ en noem het in je rapport of PR-tekst.
      openacties van hetzelfde bestand door elkaar (twee aparte neerzettingen kort na elkaar, of een klik in Recent
      terwijl Openen van hetzelfde bestand nog leest), dan kunnen beide toetsen gebeuren vóór een van beide activeert:
      beide zien niets open en er komen twee tabbladen. Binnen één neerzetting gaan de bestanden na elkaar, dus twee keer
-     hetzelfde bestand in één sleep geeft wel één tabblad (proef B3 in `check-one-file-one-tab.ts`). Alleen in de code
+     hetzelfde bestand in één sleep geeft wel één tabblad (proef B3 in `check-one-file-one-tab.ts`). Sinds ronde 2 van
+     de review van #1121 loopt de toets opnieuw als de tabbladen vóór het activeren veranderden (`openOrSwitch`); dan
+     ziet de tweede openactie het tabblad van de eerste en gaat ze daarheen. VERMOED dat dit de grens sluit: een proef
+     met drie openacties tegelijk liep in de testopzet niet door elkaar en toont het dus niet. Alleen in de code
      gelezen. — S
 
 2042. **De headless MCP-server heeft geen featureflag: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**

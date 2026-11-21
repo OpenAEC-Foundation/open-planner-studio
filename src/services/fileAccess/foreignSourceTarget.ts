@@ -101,8 +101,9 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
  *  bestandsidentiteit. Eén vergelijking voor de bronkenmerken en de paden van open documenten. */
 export async function sameLocalFile(a: string, b: string, deps: ForeignSourceTargetDeps = {}): Promise<boolean> {
   if (deps.identityFirst && deps.identityFs) {
+    // Zonder betrouwbare identiteit lexicaal, zonder de vergelijking hieronder nog eens (review #1121 ronde 2).
     const comparison = await compareFilePaths(deps.identityFs, a, b);
-    if (comparison !== 'unknown') return comparison === 'same';
+    return comparison === 'unknown' ? samePath(a, b) : comparison === 'same';
   }
   if (samePath(a, b)) return true;
   return !!deps.identityFs && (await compareFilePaths(deps.identityFs, a, b)) === 'same';
