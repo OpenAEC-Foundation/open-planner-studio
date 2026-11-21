@@ -49,7 +49,9 @@ const EMPTY_DRAFT: RelationDraft = {
 
 /**
  * Afhankelijkheden (relatietabel: type + lag + driving-badge + verwijderen) — sectie van
- * `TaskPropertiesPanel`. RELATIONEEL/storeful: roept `updateSequence`/
+ * `TaskPropertiesPanel`. Issue #989: de relaties staan in twee aparte lijsten (voorgangers en
+ * opvolgers, elk met een eigen kop), in plaats van één gemengde lijst waarin alleen de kleur van
+ * de markering de richting verraadt. RELATIONEEL/storeful: roept `updateSequence`/
  * `removeSequence` rechtstreeks aan, identiek in paneel én dialoog (dialoog heeft altijd een
  * bestaand `task.id`).
  *
@@ -148,6 +150,15 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   );
   if (taskSequences.length === 0 && !interactive) return null;
 
+  // Issue #989: voorgangers en opvolgers als twee aparte lijsten met elk een eigen kop. De twee
+  // kolommen staan naast elkaar zolang de sectie breed genoeg is; op een smalle rail stapelt de
+  // CSS ze onder elkaar (zie .dependency-cols in globals.css).
+  const COLUMN_KEYS = { predecessor: 'properties.predecessors', successor: 'properties.successors' } as const;
+  const sequenceColumns = (['predecessor', 'successor'] as const).map(role => ({
+    role,
+    seqs: taskSequences.filter(seq => (seq.predecessorId === taskId ? 'successor' : 'predecessor') === role),
+  }));
+
   const pickedTasks = (draft?.picked ?? [])
     .map(id => tasks.find(t => t.id === id))
     .filter((task): task is Task => task !== undefined);
@@ -216,8 +227,14 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           </span>
         )}
       </div>
-      <div className="dependency-list">
-        {taskSequences.map(seq => {
+      <div className="dependency-cols">
+        {sequenceColumns.map(({ role, seqs }) => (
+          <div className="dependency-col" key={role} data-ops-dependency-col={role}>
+            <div className="dependency-col-head" data-ops-dependency-col-head={role}>
+              {t(COLUMN_KEYS[role], { count: seqs.length })}
+            </div>
+            <div className="dependency-list">
+        {seqs.map(seq => {
         const other = seq.predecessorId === taskId
           ? tasks.find(t => t.id === seq.successorId)
           : tasks.find(t => t.id === seq.predecessorId);
@@ -309,6 +326,9 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           </div>
         );
         })}
+            </div>
+          </div>
+        ))}
       </div>
       {interactive && (draft ? (
         <div className="dependency-draft" data-ops-dependency-draft>

@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "A fájl nem lett mentve. Egy épületmodellt tartalmazó meglévő fájl felülírása még nem biztonságos. Használja a „Mentés másként” parancsot, és válasszon új nevet.",
     "ifcForeignMergeRefused": "Az IFC-fájl nem lett megírva. Az épületmodell vagy más program adatai különben nem maradnának teljesen megőrizve. Vonja vissza az utolsó módosítást, vagy csak az ütemezést exportálja: IFC-be az „Épületmodell nélkül” beállítással, vagy más formátumba.",
     "ifcSaveChangedWhileWaiting": "A fájl nem lett mentve. A dokumentum vagy az épületmodell forrása megváltozott az előkészítés alatt. Próbálja meg újra menteni.",
+    "ifcForeignReplaceOtherVersion": "Egy másik program módosította a(z) {{file}} fájlt, miközben az alkalmazás mentette. Ezt a verziót megőriztük itt: {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "A(z) {{file}} korábbi mentése nem fejeződött be. A mentés alatt álló ütemezés a(z) {{copy}} fájlban van. Ha már nincs rá szükség, törölje ezt a fájlt.",
+    "ifcForeignReplaceTargetTaken": "Nem mentve. Mentés közben egy másik program új fájlt helyezett el ezen a helyen: {{target}}. Most három fájl van: az új fájl itt: {{target}}, az ütemezés itt: {{temp}}, az előző verzió itt: {{previous}}. A módosításai továbbra is megvannak az alkalmazásban.",
+    "ifcForeignReplacePreviousStranded": "Nem mentve, és a fájl előző verzióját nem lehetett visszatenni a helyére. Most itt van: {{previous}}. A módosításai továbbra is megvannak az alkalmazásban. Válassza a „Mentés másként” lehetőséget, hogy új fájlban őrizze meg őket.",
+    "ifcForeignReplaceSaveAsOnly": "Nem mentve. Ezt a fájlt nem lehet biztonságosan lecserélni ezen a helyen. A fájl nem változott. Válassza a „Mentés másként” lehetőséget, hogy a módosításait új fájlban őrizze meg.",
+    "ifcForeignReplaceLeftOver": "Egy megszakadt mentés a(z) {{file}} fájlhoz ezt a fájlt hagyta hátra: {{path}}. Ellenőrizze, hogy szükség van-e még rá.",
     "ifcSourceCopyFailed": "Az ütemezés a visszaállás összeomlás után céljából van mentve, de az épületmodell másolatát nem lehetett elmenteni. Összeomlás után az épületmodell hiányozhat. Mentse el maga is a dokumentumot teljes IFC-fájlként.",
-    "ifcForeignSourceMissing": "A fájl nem lett mentve. Az épületmodell vagy más program adatai nem találhatók. Használja a „Mentés másként” parancsot, ha csak az ütemezést szeretné új fájlba menteni. Nyissa meg az eredeti IFC-fájlt, hogy ismét a teljes fájllal dolgozhasson."
+    "ifcForeignSourceMissing": "A fájl nem lett mentve. Az épületmodell vagy más program adatai nem találhatók. Használja a „Mentés másként” parancsot, ha csak az ütemezést szeretné új fájlba menteni. Nyissa meg az eredeti IFC-fájlt, hogy ismét a teljes fájllal dolgozhasson.",
+    "taskTypeRenameNameTaken": "Ebben a projektben a név továbbra is „{{oldName}}” marad: egy másik munkanem már „{{takenName}}” nevet viseli ebben a projektben."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Ennek a dokumentumnak nem mentett módosításai vannak. Mégis bezárja?",
     "closeTitle": "Nem mentett módosítások",
     "closeBody": "„{{name}}” módosításai még nincsenek mentve.",
-    "dontSave": "Mentés nélkül"
+    "dontSave": "Mentés nélkül",
+    "stillSaving": "Mentés folyamatban…"
   },
   "feedback": {
     "buttonTooltip": "Visszajelzés küldése",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "A projektfájl csak az ütemezést tartalmazza; az erőforrástár egy második fájlba kerül. Az épületmodell és más program adatai nem kerülnek bele. A megnyitott fájl változatlan marad. Folytatni szeretné?",
     "continue": "Exportálás",
     "cancel": "Mégse"
+  },
+  "replaceCopy": {
+    "otherProgram": "másik program verziója {{when}}",
+    "unsavedSchedule": "nem mentett ütemezés {{when}}"
   }
 }

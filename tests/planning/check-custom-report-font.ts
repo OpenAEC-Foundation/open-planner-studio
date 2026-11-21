@@ -12,13 +12,18 @@
  *      een geweigerde vette variant valt weg, een geweigerde gewone variant weigert de familie;
  *   D. één face uit een collectie halen: een los bestand dat fontkit leest, met dezelfde letter;
  *   E. de vector-PDF met een eigen letter zonder vet: vet tekent in de gewone letter, de PDF blijft vector;
- *   F. de rapportinstelling: 'custom' alleen met een opgeslagen eigen lettertype, anders Inter.
+ *   F. de rapportinstelling: 'custom' alleen met een opgeslagen eigen lettertype, anders Inter;
+ *   G. GSUB-vervangingen (issue #1050): echt Noto Sans Coptic (een regel van type 8) en Carlito ("ti") geven een
+ *      vector-PDF waarin de vervangen glyphs hun eigen breedte hebben en de tekst trouw uit te lezen is.
+ *   H. een vertraagde lettertypelezing respecteert een nieuwere keuze of revisie.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import fontkit from '@pdf-lib/fontkit';
-import { PDFDocument, PDFDict, PDFName } from 'pdf-lib';
+import { fontkit } from '@/services/pdf/fontkit';
+import {
+  PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef, decodePDFRawStream,
+} from 'pdf-lib';
 import {
   bytesReader, extractFace, faceRefusal, groupFontFamilies, readFontFaces, type ByteReader, type FontFaceInfo,
 } from '@/services/pdf/customReportFont';
@@ -27,6 +32,7 @@ import { fontReadIsCurrent } from '@/services/pdf/customFontGuard';
 import { makeSectionedRenderReport } from '@/services/pdf/pdfTable';
 import { paginateVectorToPdfBytes } from '@/services/print/paginateVector';
 import { parseReportFontChoice } from '@/utils/reportSettings';
+import { assembleReportMeasureFonts, measureReportText, type ReportFontkitFont } from '@/services/pdf/reportTextMeasure';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const font = (file: string) => new Uint8Array(readFileSync(join(ROOT, 'src/services/pdf/fonts', file)));
@@ -137,8 +143,8 @@ ok(faceRefusal(await faceOf(withFsType(SANS, 0x0004))) === null, 'B4 fsType 4 (a
 ok(faceRefusal(await faceOf(withFsType(SANS, 0x0008))) === null, 'B4 fsType 8 (bewerkbaar) geweigerd');
 ok(faceRefusal(await faceOf(renameTable(SANS, 'kern', 'fvar'))) === 'variable', 'B5 variabel lettertype niet geweigerd');
 ok(faceRefusal(await faceOf(renameTable(SANS, 'glyf', 'xxxx'))) === 'noOutlines', 'B6 lettertype zonder contouren niet geweigerd');
-// PostScript-contouren (CFF, veel `.otf`): pdf-lib 1.17 herkent ze niet (`font.cff` bestaat niet in @pdf-lib/fontkit)
-// en schrijft ze als TrueType-letter in; Poppler meldt dan "Mismatch between font type and embedded font file".
+// PostScript-contouren (CFF, veel `.otf`): met @pdf-lib/fontkit schreef pdf-lib 1.17 ze als TrueType-letter in; Poppler
+// meldde dan "Mismatch between font type and embedded font file". Met fontkit 3 niet getoetst (knownbug 1942).
 ok(faceRefusal(await faceOf(renameTable(SANS, 'glyf', 'CFF '))) === 'postscriptOutlines', 'B7 lettertype met CFF-contouren niet geweigerd');
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -236,8 +242,157 @@ console.log('── F. de rapportinstelling');
   ok(parseReportFontChoice('Arial', custom) === 'inter', 'F4 onbekende waarde ⇒ Inter');
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8, Carlito "ti" (issue #1050)');
+{
+  // `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8 (reverse chaining), zoals in Noto Sans Coptic:
+  // dan viel elke PDF met dat eigen lettertype terug op raster. fontkit 3 voert die regel uit. pdf-lib gaf een glyph
+  // die GSUB koos geen breedte en geen tekst (een gat, `bouwlogis ek` bij uitlezen), ook bij het meegeleverde Carlito,
+  // en één `Tj` per tekst liet de GPOS-verschuiving van de bovenstreep weg. Deze proef leest tekst, breedtes en de
+  // plaats van elke glyph terug uit de PDF. Noto Sans Coptic heeft geen cijfers: het paginanummer moet toch leesbaar
+  // terugkomen.
+  const COPTIC = new Uint8Array(readFileSync(join(ROOT, 'tests/planning/fixtures/fonts/NotoSansCoptic-Regular.ttf')));
+  const CARLITO = font('Carlito-Regular.ttf');
+  const ABBREVIATION = 'Ⲁ̅ⲁ̅';
+  const coptic = fontkit.create(COPTIC);
+  const laidOut = coptic.layout(ABBREVIATION);
+  ok(laidOut.glyphs.map(g => g.id).join(',') === '33,196,34,199',
+    `G1 de bovenstreep volgt de upstream-proef (glyph 196 en 199): ${laidOut.glyphs.map(g => g.id).join(',')}`);
+
+  const report = (rows: string[]) => makeSectionedRenderReport({
+    title: 'Planning', subtitle: 'Eigen lettertype', notes: [], summary: [], kpis: [],
+    sections: [{ heading: 'Taken', columns: [
+      { header: 'Naam', width: 300, align: 'left' as const, text: (r: unknown) => (r as { n: string }).n },
+    ], rows: rows.map(n => ({ n })) }],
+  }, undefined, reportFontStack('custom'));
+  const opts = { paperSize: 'a4' as const, orientation: 'portrait' as const, mode: 'actual' as const,
+    subsetFont: async (ttf: Uint8Array) => ttf, fallbackFonts: [{ id: 'inter', bytes: INTER }] };
+
+  for (const [name, bytes, row] of [['Koptisch', COPTIC, ABBREVIATION], ['Carlito', CARLITO, 'bouwlogistiek']] as const) {
+    // De glyphs die GSUB koos en die niet rechtstreeks in de cmap staan (Koptisch 196 en 199, Carlito de ligatuur "ti").
+    const fk = fontkit.create(bytes);
+    const direct = new Set([...row].map(c => fk.glyphForCodePoint(c.codePointAt(0)!).id));
+    const run = fk.layout(row);
+    const glyphs = run.glyphs.map(g => g.id).filter(id => !direct.has(id));
+    let pdf: Uint8Array | null = null;
+    try {
+      pdf = await paginateVectorToPdfBytes(report([row]), opts, { regular: bytes, bold: bytes }, ARABIC);
+    } catch (err) {
+      ok(false, `G2 ${name}: de vector-PDF loopt stuk: ${String(err)}`);
+    }
+    if (!pdf) continue;
+    const read = await readPdf(pdf);
+    ok(read.images === 0, `G2 ${name}: de PDF bevat ${read.images} beeld(en); verwacht vector`);
+    ok(read.text.includes(row), `G2 ${name}: "${row}" is niet als tekst uit te lezen; gelezen: ${JSON.stringify(read.text.slice(0, 200))}`);
+    ok(read.text.endsWith('1 / 1'), `G5 ${name}: het paginanummer komt niet leesbaar terug; gelezen: ${JSON.stringify(read.text.slice(-40))}`);
+    // Het nummer blijft in de rapportletter als die cijfers, spatie en '/' heeft (Carlito); anders Helvetica (Koptisch).
+    const numberFont = name === 'Koptisch' ? /^\/Helvetica$/ : /^\/Carlito-Regular-\d+$/;
+    ok(numberFont.test(read.lastTextFont), `G5 ${name}: het paginanummer staat in ${read.lastTextFont}, verwacht ${numberFont}`);
+    const fontWidths = [...read.widths.values()].find(w => glyphs.every(id => w.has(id)));
+    ok(glyphs.length > 0 && fontWidths !== undefined
+      && glyphs.every(id => Math.abs(fontWidths.get(id)! - fk.getGlyph(id).advanceWidth * 1000 / fk.unitsPerEm) < 0.01),
+      `G3 ${name}: de vervangen glyph(s) ${glyphs.join(',')} missen hun eigen breedte in /W (dan staat er een gat)`);
+
+    // G6: elke glyph op zijn plaats. In de PDF staat de pen van de tekst op de breedtes uit /W; een glyph met een
+    // GPOS-verschuiving (de bovenstreep: −319 en −291 eenheden) staat op die pen plus zijn verschuiving.
+    const start = read.draws.findIndex((_, i) => run.glyphs.every((g, j) => read.draws[i + j]?.gid === g.id));
+    const scale = (start >= 0 ? read.draws[start].size : 0) / fk.unitsPerEm;
+    let pen = 0;
+    const misplaced = start < 0 ? ['niet gevonden'] : run.glyphs.flatMap((g, j) => {
+      const dx = read.draws[start + j].x - read.draws[start].x;
+      const want = (pen + run.positions[j].xOffset) * scale;
+      pen += g.advanceWidth;
+      return Math.abs(dx - want) < 0.01 ? [] : [`glyph ${g.id} op ${dx.toFixed(2)} in plaats van ${want.toFixed(2)}`];
+    });
+    ok(misplaced.length === 0, `G6 ${name}: de glyphs van "${row}" staan niet op hun plaats: ${misplaced.join('; ')}`);
+  }
+
+  // De meting van papier en paneel leest dezelfde letter, ook met de shaping van rechts naar links.
+  const create = (b: Uint8Array) => fontkit.create(b) as unknown as ReportFontkitFont;
+  let width = NaN;
+  try {
+    width = measureReportText(assembleReportMeasureFonts(create, { regular: COPTIC, bold: COPTIC }, { arabic: ARABIC, baseDir: 'rtl' }),
+      `مرحبا ${ABBREVIATION}`, false, 10);
+  } catch (err) { ok(false, `G4 de meting loopt stuk op Noto Sans Coptic: ${String(err)}`); }
+  ok(width > 0, `G4 de meting geeft ${width}`);
+}
+
+/**
+ * Een PDF zoals een lezer hem ziet: de tekst van alle pagina's (ToUnicode bij een CID-letter, WinAnsi bij een
+ * standaardletter; `Tj` in volgorde), de breedtetabel (`/W`) per CID-letter, het aantal beelden, en per getekende
+ * glyph zijn x in tekstruimte: de x van de tekstmatrix plus de `/W`-breedtes van de glyphs ervoor in dezelfde `Tj`,
+ * zoals een PDF-lezer hem neerzet.
+ */
+async function readPdf(pdf: Uint8Array): Promise<{
+  text: string; widths: Map<string, Map<number, number>>; images: number;
+  draws: { gid: number; x: number; size: number }[];
+  /** De letter (BaseFont) van de laatste tekst in de PDF: het paginanummer. */
+  lastTextFont: string;
+}> {
+  const doc = await PDFDocument.load(pdf);
+  const streamText = (obj: unknown) => (obj instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(obj).decode()).toString('latin1') : '');
+  const chunks = (hex: string, n: number) => hex.toUpperCase().match(new RegExp(`.{${n}}`, 'g')) ?? [];
+  const widths = new Map<string, Map<number, number>>();
+  let images = 0;
+  for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Image')) images++;
+  }
+  let text = '';
+  let lastTextFont = '';
+  const draws: { gid: number; x: number; size: number }[] = [];
+  for (const page of doc.getPages()) {
+    const fonts = page.node.Resources()?.lookupMaybe(PDFName.of('Font'), PDFDict);
+    const decoders = new Map<string, { font: string; w?: Map<number, number>; decode: (hex: string) => string }>();
+    for (const [key, ref] of fonts?.entries() ?? []) {
+      const dict = doc.context.lookup(ref, PDFDict);
+      if (dict.get(PDFName.of('Subtype')) !== PDFName.of('Type0')) {
+        decoders.set(key.asString(), { font: String(dict.get(PDFName.of('BaseFont'))), decode: hex => chunks(hex, 2).map(c => String.fromCharCode(parseInt(c, 16))).join('') });
+        continue;
+      }
+      const map = new Map<string, string>();
+      for (const m of streamText(doc.context.lookup(dict.get(PDFName.of('ToUnicode')))).matchAll(/<([0-9A-Fa-f]{4})> <([0-9A-Fa-f]*)>/g)) {
+        map.set(m[1].toUpperCase(), String.fromCharCode(...chunks(m[2], 4).map(h => parseInt(h, 16))));
+      }
+      const cid = doc.context.lookup(dict.get(PDFName.of('DescendantFonts')), PDFArray).lookup(0, PDFDict);
+      const w = new Map<number, number>();
+      const list = cid.lookup(PDFName.of('W'), PDFArray).asArray();
+      for (let i = 0; i + 1 < list.length; i += 2) {
+        const first = (list[i] as PDFNumber).asNumber();
+        (list[i + 1] as PDFArray).asArray().forEach((n, j) => w.set(first + j, (n as PDFNumber).asNumber()));
+      }
+      widths.set(String(dict.get(PDFName.of('BaseFont'))), w);
+      decoders.set(key.asString(), { font: String(dict.get(PDFName.of('BaseFont'))), w, decode: hex => chunks(hex, 4).map(gid => map.get(gid) ?? '�').join('') });
+    }
+    const contents = page.node.Contents();
+    const parts = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
+    let current: { font: string; w?: Map<number, number>; decode: (hex: string) => string } | undefined;
+    let size = 0;
+    let x = NaN;
+    for (const part of parts) {
+      const ops = streamText(part instanceof PDFRef ? doc.context.lookup(part) : part)
+        .matchAll(/(\/\S+) (-?[\d.]+) Tf|1 0 0 1 (-?[\d.]+) -?[\d.]+ Tm|<([0-9A-Fa-f]*)> Tj/g);
+      for (const m of ops) {
+        if (m[1]) { current = decoders.get(m[1]); size = Number(m[2]); } else if (m[3]) x = Number(m[3]);
+        else {
+          text += current?.decode(m[4]) ?? '�';
+          lastTextFont = current?.font ?? '';
+          const w = current?.w;
+          if (w) {
+            let pen = x;
+            for (const gid of chunks(m[4], 4).map(h => parseInt(h, 16))) {
+              draws.push({ gid, x: pen, size });
+              pen += (w.get(gid) ?? 1000) / 1000 * size; // zonder /W-regel de standaardbreedte (/DW 1000)
+            }
+          }
+        }
+      }
+    }
+  }
+  return { text, widths, images, draws, lastTextFont };
+}
+
 // Een vertraagde opslaglezing mag een nieuwe keuze of revisie niet terugdraaien.
-console.log('── G. late lettertypelezing');
+console.log('── H. late lettertypelezing');
 {
   type Stand = { reportFontFamily: ReportFontChoice; customReportFont: { rev: number } | null };
   for (const [label, nieuweStand, verwacht] of [
@@ -252,9 +407,9 @@ console.log('── G. late lettertypelezing');
     const result = read.then(() => fontReadIsCurrent(3, stand));
     stand = nieuweStand;
     resolve(null);
-    ok(await result === verwacht, `G ${label}: controle na vertraagd antwoord`);
+    ok(await result === verwacht, `H ${label}: controle na vertraagd antwoord`);
   }
-  ok(fontReadIsCurrent(undefined, { reportFontFamily: 'custom', customReportFont: null }), 'G ontbrekende referentie mag worden hersteld');
+  ok(fontReadIsCurrent(undefined, { reportFontFamily: 'custom', customReportFont: null }), 'H ontbrekende referentie mag worden hersteld');
 }
 
 if (failures > 0) {

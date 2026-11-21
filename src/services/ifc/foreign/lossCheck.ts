@@ -185,8 +185,10 @@ export interface SlotRestore {
   readonly kind: SlotKind;
 }
 
-/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. */
-export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number }
+/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. `partial`: de
+ *  bronwaarde is van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst); zo'n slot toetst (c) niet per
+ *  slot (`restoredOwnSlots` in `ownGroups.ts`). */
+export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number; readonly partial?: true }
 
 export interface LossCheckInput {
   readonly index: StepIndex;
@@ -369,10 +371,13 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
   // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
   // veranderde (a′, `input.ownGroups`) en die in de bron gedragen is (a: geen stuk ervan had (b) nodig), schrijft de writer
-  // uit de lezing van de bron precies zoals hij in de bron staat. Een verschil in O1 in die groep is dan wat de writer uit
-  // de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven groep terugleest tot precies wat de writer
-  // ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in `mergeWriter.ts`), en de controle na openen
-  // dat de planning gelijk blijft. Elke andere groep, en alles buiten de eigen groepen, blijft onder de controle hieronder.
+  // uit de lezing van de bron zoals hij in de bron staat. Dat geldt voor de eigen regels; een lid van een ander programma
+  // telt in geen groep mee, en de merge hangt het terug (stap 6 van `writeIfcMerge`; controle 1 toetst het). Een verschil in
+  // O1 in die groep is dan wat de writer uit de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven
+  // groep terugleest tot precies wat de writer ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in
+  // `mergeWriter.ts`), en de controle na openen dat de planning gelijk blijft. Elke andere groep (ook een groep met één slot
+  // van (b): die valt hier helemaal buiten, ook als (c) haar per slot toetst), en alles buiten de eigen groepen, blijft onder
+  // de controle hieronder.
   const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
   const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
   // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
@@ -443,7 +448,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
         const token = mapToken(input, r.token, p1);
         if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
-        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
+        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk, ...(PARTIAL_KINDS.has(r.kind) ? { partial: true as const } : {}) });
       } else if (PARTIAL_KINDS.has(r.kind)) {
         say(after, true); // de writer schrijft hier iets anders, zonder dat het veld veranderde: weigeren
       }
