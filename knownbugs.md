@@ -2339,14 +2339,6 @@ en noem het in je rapport of PR-tekst.
      draagt (lijst, JSON, samengestelde tekst: een vreemde `Creators` op een kop, het baseline-JSON van een oud bestand,
      1770). De twee te absolute commentaarregels zijn in PR A rechtgezet. — B (review)
 
-1954. **Test hapert: `check-ifc-foreign-target.ts` gaf op main één afwijking in de tijdzonerun America/New_York.**
-     CI-run 44805342053 op main `1e360f508`, job *verify (planning 3-5)* (ook de verzameljob `test` rood): "XX
-     ifc-foreign-target: 1 afwijking(en) van 1984" in de run met `TZ America/New_York`; dezelfde check was in de run
-     zonder tijdzone en op de PR's van die avond groen (1984). Het log toont de afwijkende regel zelf niet; de regels
-     ervoor zijn de tijdmetingen van blok 9 (9d "stille Worker: weigering na 3024 ms", 9e "vroege stop"). Vermoeden:
-     een tijdgrens in blok 9 die op een drukke runner net niet gehaald wordt; niet uitgezocht. De review van #1087
-     ging na dat die PR het pad van deze check niet raakt. Een rode run op main houdt deploy en release tegen. — S
-
 1828. **VERVOLG (#804 keuze 7, MCP): `planner_*` weigert een andere naam bij hetzelfde id van een eigen werksoort.**
      In de app vraagt *Werksoorten beheren…* sinds keuze 7 of een nieuwe naam ook in het project moet (store-actie
      `renameProjectTaskType`), maar de veldlaag van MCP (`src/services/mcp/tools/taskFields.ts`, "already exists with
