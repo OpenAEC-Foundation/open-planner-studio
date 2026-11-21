@@ -1917,7 +1917,10 @@ en noem het in je rapport of PR-tekst.
      een tweede `buildLines` 0,24 s, de vergelijking 0,09 s). Richting: de index van het openen bewaren of de klassen uit
      `ifcSource` hergebruiken, en alleen de stukken parsen die de merge leest. **Eis voor 1c** (wrakko, 10 november
      2026): 13 s en een piek van 1,7 GB bij 300 MB is te veel voor een tabblad in de browser; doel ongeveer het niveau van
-     ronde 1 (merge 6,7 s, piek 1,2 GB bij 300 MB). Uit #867 (fase 1b). — B
+     ronde 1 (merge 6,7 s, piek 1,2 GB bij 300 MB). Stand op 21 november 2026, na #1100 en #1103 (CI-run 44895156035, main
+     `cbc998123`, het hele werk van de opslagworker): 300 MiB zonder wijziging 12,20 s met een piek van 1.866 MB, met
+     wijziging 16,97 s en 2.239 MB; 150 MiB 6,31 s en 1.021 MB, met wijziging 9,18 s en 1.228 MB. De eis is dus nog
+     niet gehaald; de bron wordt nog steeds opnieuw gescand. Uit #867 (fase 1b). — B
 
 1022. **VERVOLG: met `ifcForeignContent` uit blijft de eerste owner history auteur en bedrijf bepalen.** De tekstroute
      leest dezelfde persoon en organisatie als main, ook als die eerste eigenaar van een ander programma is en het
@@ -3227,23 +3230,30 @@ en noem het in je rapport of PR-tekst.
      VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
      grens zonder meting. De meting van 21 november 2026 in de desktopapp staat bij 1936. — B
 
-1936. **Opslaan van een groot gebouwmodel vraagt op de desktop 24 tot 34 keer de bestandsgrootte aan geheugen; bij
-     157 MB stopt de webview (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux (WebKitGTK),
-     build van main `1830e5e67`, featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens
-     één duur gewijzigd en dan Ctrl+S. Model van 52 MB uit de generator van `scripts/proef/meet-scanner.mjs`: 24,5 s,
-     piek 2,08 GB. Model van 87 MB met vooral losse punten: 22,4 s, piek 2,52 GB (zonder wijziging 16,8 s en 1,97 GB).
-     Model van 157 MB uit de generator: na 51 s stond het proces op 4,09 GB en stopte de kernel de webview, vóór er iets
-     geschreven was. Het bestand bleef byte-gelijk en crashherstel zette de wijziging terug. Openen is het probleem
-     niet: 157 MB opent in 13,1 s met een piek van 1,65 GB en gebruikt in rust 0,49 GB. De grens voor openen staat op
-     300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, zie 1127); een planner kan dus een model openen dat hij daarna niet kan
-     opslaan. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt geweigerd, op main en
-     in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel slaat op beide in 0,7 s
-     op. Niet gemeten: de echte piek bij 157 MB, 300 MiB, een model uit een modelleerprogramma, Windows en macOS, en
-     welk deel van de opslag het geheugen vraagt. Besluit technisch beslisser (21 november 2026): de maat voor haalbaar
-     is hoogstens 4 GB voor de desktopapp bij de grens; dit punt is een voorwaarde voor het standaard aanzetten van de
-     featureflag; de keuze tussen een lagere grens en een zuiniger opslag volgt na een meting van de verdeling per
-     onderdeel. Zie ook 1021 (de merge scant de bron opnieuw) en 1922 (het ritme van Automatisch opslaan: een ronde
-     duurt bij 52 MB al 24,5 s). — B (meting, desktop Linux)
+1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,70 GB, net
+     onder de maat van 4 GB (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux (WebKitGTK),
+     featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan
+     Ctrl+S, met modellen uit de generator van `scripts/proef/meet-scanner.mjs`. Stand na de drie ingrepen van #1100 en
+     #1103, build van main `cbc998123`: 52 MB in 14,0 s met een piek van 1,81 GB; 157 MB in 33,6 s, geslaagd, met een
+     piek van 3,70 GB. Bij 157 MB loopt het rekenen tot 3,13 GB; bij het schrijven van het tijdelijke bestand komt er
+     0,56 GB bij, en na de opslag blijft de app op 3,0 GB staan. Vóór de ingrepen (main `1830e5e67`): 52 MB in 24,5 s
+     met 2,08 GB; een model van 87 MB met vooral losse punten in 22,4 s met 2,52 GB (zonder wijziging 16,8 s en
+     1,97 GB); bij 157 MB stond het proces na 51 s op 4,09 GB en stopte de kernel de webview, vóór er iets geschreven
+     was (het bestand bleef byte-gelijk en crashherstel zette de wijziging terug). In Node kost dezelfde opslag veel
+     minder (CI-run 44895156035, het werk van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB
+     in 16,97 s met 2.239 MB (vóór de ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen
+     dus niet of een model in de desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van
+     1,68 GB. De grens voor openen staat op 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, zie 1127); een planner kan dus nog
+     steeds een model openen dat hij daarna niet kan opslaan. Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
+     en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
+     geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
+     slaat op beide in 0,7 s op. Niet gemeten: 300 MiB op de desktop, een tweede Ctrl+S, Automatisch opslaan, of de
+     3,0 GB later vrijkomt, het model van 87 MB na de ingrepen, een model uit een modelleerprogramma, Windows en macOS.
+     Besluit technisch beslisser (21 november 2026): de maat voor haalbaar is hoogstens 4 GB voor de desktopapp bij de
+     grens; dit punt is een voorwaarde voor het standaard aanzetten van de featureflag. Open: hoe groot een model moet
+     kunnen zijn (keuze van de eigenaar), en daarmee of de grens omlaag gaat of de opslag nog zuiniger moet. Zie ook
+     1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
+     en 1922 (het ritme van Automatisch opslaan: een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
