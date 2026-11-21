@@ -299,8 +299,8 @@ test('echte app: een .xer openen leest de bytes via plugin-fs readFile', async (
 // toetst deze proef niet (geen klik in het venster van het systeem onder xvfb); dat blijft de handmatige controle. Als
 // laatste, zodat een openstaande vraag geen andere proef raakt.
 test('echte app: Ctrl+S met een gebouwmodel in een vrijgegeven map buiten de thuismap (knownbug 1762)', async () => {
-  const dir = process.env.OPS_REAL_APP_GRANTED_DIR;
-  assert(dir, 'run.sh gaf geen vrijgegeven map door (OPS_REAL_APP_GRANTED_DIR)');
+  const dir = process.env.OPS_REAL_APP_GRANTED_DIR ?? '';
+  assert(dir !== '', 'run.sh gaf geen vrijgegeven map door (OPS_REAL_APP_GRANTED_DIR)');
   assert(!resolve(dir).startsWith(`${homedir()}/`), `de map ligt buiten de thuismap: ${dir}`);
   const model = join(dir, 'model.ifc');
   await ops('dispatch', { action: 'setUI', args: [{ featureFlags: { ifcForeignContent: true } }] });
