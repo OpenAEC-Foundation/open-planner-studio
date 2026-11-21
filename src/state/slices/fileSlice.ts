@@ -101,7 +101,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { alreadyOpenDocumentId, switchToOpenDocument } from '../openDocumentFor';
+import { alreadyOpenDocument, switchToOpenDocument } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -1462,8 +1462,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
     if (choice.version === undefined) {
       // Knownbug 1957 (met de flag): staat dit sitebestand al open, dan naar dat tabblad; het houdt zijn eigen basis.
-      const openId = await alreadyOpenDocumentId(get(), opened.ref, fileIdentityFs);
-      if (openId !== null && switchToOpenDocument(get(), openId)) {
+      const lookup = alreadyOpenDocument(get(), opened.ref, fileIdentityFs);
+      const match = lookup && await lookup;
+      if (match && switchToOpenDocument(get(), match)) {
         await pushRecent(opened.ref, opened.name);
         return;
       }
@@ -2416,16 +2417,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
         // Knownbug 1957 (met de flag): staat dit bestand al in een tabblad open? Vóór het wachten, want de toets is
-        // asynchroon en het activeren hieronder moet in één synchrone stap blijven.
-        const openId = await alreadyOpenDocumentId(get(), opened.ref, fileIdentityFs);
+        // asynchroon en het activeren hieronder moet in één synchrone stap blijven. Met de flag uit geen await.
+        const lookup = alreadyOpenDocument(get(), opened.ref, fileIdentityFs);
+        const match = lookup && await lookup;
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
-        // Naar het tabblad dat al open is, zonder het te herladen. Sloot de planner het tijdens het wachten, dan opent
-        // het bestand gewoon.
-        if (openId !== null && switchToOpenDocument(get(), openId)) {
+        // Naar het tabblad dat al open is; het houdt zijn inhoud. Sloot de planner het tijdens het wachten, of heeft het
+        // intussen een ander bestand (Opslaan als), dan opent het gevraagde bestand gewoon.
+        if (match && switchToOpenDocument(get(), match)) {
           await pushRecent(opened.ref, opened.name);
           return;
         }

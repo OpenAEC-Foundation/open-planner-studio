@@ -5,7 +5,8 @@
 //
 //  A. `openDocumentFor`: pad (lexicaal, ook Windows; `dev`/`ino` via een link), handle (`isSameEntry`, ook een ander
 //     object voor hetzelfde bestand; een fout telt als anders), site-id, `null`; een tabblad met een handle telt niet
-//     voor een pad en omgekeerd. `alreadyOpenDocumentId` geeft met de flag uit altijd `null`.
+//     voor een pad en omgekeerd; een betrouwbare `dev`/`ino` gaat voor op het lexicale pad (`maplink/../a.ifc`).
+//     `alreadyOpenDocument` geeft met de flag uit `null` zonder belofte (geen await in de openroute).
 //  B. Desktop, op echte bestanden (plugin-fs-JS met nep-IPC naar Node-fs): Bestand → Openen (`openFile()` met de
 //     kiezer), via een link, Recent, slepen; twee keer hetzelfde bestand in één neerzetting; een kopie met dezelfde
 //     inhoud is een ander bestand; CSV opent opnieuw (vraag P2); het tabblad dat tijdens het wachten van een
@@ -17,7 +18,7 @@
 // `cases-headless-server.ts`.
 //
 // Draait via run.sh. Exit 0 = alles groen; alleen de exitcode telt.
-import { copyFileSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
@@ -32,7 +33,7 @@ const realError = console.error;
 console.error = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
-const { openDocumentFor, alreadyOpenDocumentId } = await import('@/state/openDocumentFor');
+const { openDocumentFor, alreadyOpenDocument } = await import('@/state/openDocumentFor');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { writeCSV } = await import('@/services/csv/csvWriter');
@@ -110,7 +111,9 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       payload: { filePath: null, fileHandle: null, siteFileId: null, foreignSourceMark: null, ifcSource: null, siteFileVersion: null, ...p },
     })),
     ui: { featureFlags: { ifcForeignContent: true } },
-  }) as unknown as Parameters<typeof alreadyOpenDocumentId>[0];
+  }) as unknown as Parameters<typeof alreadyOpenDocument>[0];
+  /** De id van de match, of `null`. */
+  const findId = async (...args: Parameters<typeof openDocumentFor>) => (await openDocumentFor(...args))?.id ?? null;
   const ids = new Map<string, [number, number]>([['/plan/a.ifc', [1, 10]], ['/plan/link-a.ifc', [1, 10]], ['/plan/b.ifc', [1, 11]]]);
   const fs = {
     stat: async (path: string): Promise<FileIdentityInfo> => {
@@ -132,28 +135,34 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ['doc-gooit', { filePath: 'g.ifc', fileHandle: handleFor('g.ifc', { throws: true }) }],
     ['doc-csv', { filePath: null }],
   ]);
-  eq('A1 hetzelfde pad', await openDocumentFor(docs, path('/plan/a.ifc'), noFs), 'doc-pad');
-  eq('A2 ander pad, zelfde dev/ino (link)', await openDocumentFor(docs, path('/plan/link-a.ifc'), withFs), 'doc-pad');
-  eq('A2b zonder bestandsidentiteit ziet de link niet', await openDocumentFor(docs, path('/plan/link-a.ifc'), noFs), null);
-  eq('A3 ander bestand', await openDocumentFor(docs, path('/plan/b.ifc'), withFs), null);
-  eq('A4 POSIX is hoofdlettergevoelig', await openDocumentFor(docs, path('/plan/A.ifc'), noFs), null);
-  eq('A5 Windows: stationsletter en . lexicaal', await openDocumentFor(docs, path('c:\\Werk\\.\\Plan.ifc'), noFs), 'doc-win');
-  eq('A6 handle: isSameEntry waar, ander object', await openDocumentFor(docs, { kind: 'handle', handle: handleFor('a.ifc') }, noFs), 'doc-handle');
-  eq('A7 handle: isSameEntry onwaar', await openDocumentFor(docs, { kind: 'handle', handle: handleFor('x.ifc') }, noFs), null);
-  eq('A8 handle: isSameEntry gooit ⇒ anders', await openDocumentFor(docs, { kind: 'handle', handle: handleFor('g.ifc') }, noFs), null);
-  eq('A9 site: hetzelfde id', await openDocumentFor(docs, { kind: 'site', id: 'site-1' }, noFs), 'doc-site');
-  eq('A9b site: ander id', await openDocumentFor(docs, { kind: 'site', id: 'site-9' }, noFs), null);
-  eq('A9c site wint van de handle van hetzelfde document', await openDocumentFor(docs, { kind: 'handle', handle: handleFor('sh.ifc') }, noFs), null);
-  eq('A10 ref null', await openDocumentFor(docs, null, withFs), null);
-  eq('A11 een tabblad met een handle telt niet voor een pad', await openDocumentFor(docs, path('h.ifc'), noFs), null);
-  eq('A12 een tabblad met een pad telt niet voor een handle', await openDocumentFor(docs, { kind: 'handle', handle: handleFor('/plan/a.ifc') }, noFs), null);
-  eq('A13 een pad dat niet meer bestaat', await openDocumentFor(state([['d', { filePath: '/plan/weg.ifc' }]]), path('/plan/weg.ifc'), withFs), null);
-  eq('A14 met de flag aan', await alreadyOpenDocumentId(docs, path('/plan/a.ifc'), noFs), 'doc-pad');
+  eq('A1 hetzelfde pad', await findId(docs, path('/plan/a.ifc'), noFs), 'doc-pad');
+  eq('A2 ander pad, zelfde dev/ino (link)', await findId(docs, path('/plan/link-a.ifc'), withFs), 'doc-pad');
+  eq('A2b zonder bestandsidentiteit ziet de link niet', await findId(docs, path('/plan/link-a.ifc'), noFs), null);
+  eq('A3 ander bestand', await findId(docs, path('/plan/b.ifc'), withFs), null);
+  eq('A4 POSIX is hoofdlettergevoelig', await findId(docs, path('/plan/A.ifc'), noFs), null);
+  eq('A5 Windows: stationsletter en . lexicaal', await findId(docs, path('c:\\Werk\\.\\Plan.ifc'), noFs), 'doc-win');
+  eq('A6 handle: isSameEntry waar, ander object', await findId(docs, { kind: 'handle', handle: handleFor('a.ifc') }, noFs), 'doc-handle');
+  eq('A7 handle: isSameEntry onwaar', await findId(docs, { kind: 'handle', handle: handleFor('x.ifc') }, noFs), null);
+  eq('A8 handle: isSameEntry gooit ⇒ anders', await findId(docs, { kind: 'handle', handle: handleFor('g.ifc') }, noFs), null);
+  eq('A9 site: hetzelfde id', await findId(docs, { kind: 'site', id: 'site-1' }, noFs), 'doc-site');
+  eq('A9b site: ander id', await findId(docs, { kind: 'site', id: 'site-9' }, noFs), null);
+  eq('A9c site wint van de handle van hetzelfde document', await findId(docs, { kind: 'handle', handle: handleFor('sh.ifc') }, noFs), null);
+  eq('A10 ref null', await findId(docs, null, withFs), null);
+  eq('A11 een tabblad met een handle telt niet voor een pad', await findId(docs, path('h.ifc'), noFs), null);
+  eq('A12 een tabblad met een pad telt niet voor een handle', await findId(docs, { kind: 'handle', handle: handleFor('/plan/a.ifc') }, noFs), null);
+  eq('A13 een pad dat niet meer bestaat', await findId(state([['d', { filePath: '/plan/weg.ifc' }]]), path('/plan/weg.ifc'), withFs), null);
+  eq('A14 met de flag aan: de match met het bestand van dat moment', await alreadyOpenDocument(docs, path('/plan/a.ifc'), noFs),
+    { id: 'doc-pad', file: { filePath: '/plan/a.ifc', fileHandle: null, siteFileId: null } });
+  // Review #1121: `/plan/x/../a.ifc` is lexicaal `/plan/a.ifc`, maar via een maplink een ander bestand. Een betrouwbare
+  // bestandsidentiteit gaat voor; zonder identiteit (Windows, een stat-fout) blijft de lexicale vergelijking.
+  ids.set('/plan/x/../a.ifc', [1, 12]);
+  eq('A16 lexicaal gelijk, andere dev/ino: een ander bestand', await findId(docs, path('/plan/x/../a.ifc'), withFs), null);
+  eq('A16b zonder identiteit: lexicaal', await findId(docs, path('/plan/x/../a.ifc'), noFs), 'doc-pad');
   const off = { ...docs, getOpenDocumentPayloads: docs.getOpenDocumentPayloads, ui: { featureFlags: {} } };
-  eq('A15 met de flag uit altijd null', await alreadyOpenDocumentId(off, path('/plan/a.ifc'), noFs), null);
+  eq('A15 met de flag uit null, zonder belofte', alreadyOpenDocument(off, path('/plan/a.ifc'), noFs), null);
   eq('A15b ook voor een handle en de site', [
-    await alreadyOpenDocumentId(off, { kind: 'handle', handle: handleFor('a.ifc') }, noFs),
-    await alreadyOpenDocumentId(off, { kind: 'site', id: 'site-1' }, noFs),
+    alreadyOpenDocument(off, { kind: 'handle', handle: handleFor('a.ifc') }, noFs),
+    alreadyOpenDocument(off, { kind: 'site', id: 'site-1' }, noFs),
   ], [null, null]);
 }
 
@@ -290,6 +299,98 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq('B7 1909: geen tweede tabblad met de oude inhoud', [S().documents.length, S().activeDocumentId], [countBefore, saver]);
     eq('B7 1909: het tabblad dat opsloeg, met zijn werk', tab(store, saver), { project: 'Opslaander', tasks: ['Nieuw werk'], isDirty: false, filePath: doel });
     eq('B7 1909: één melding', notices(store), [['info', ALREADY_OPEN]]);
+
+    // Review #1121 ronde 1 (BLOKKEERT): *Opslaan als* zet het gevonden tabblad op een ander bestand terwijl de toets of
+    // de wachtende neerzetting nog loopt. De wissel kijkt vlak vóór het activeren of dat tabblad nog naar het gevraagde
+    // bestand wijst; zo niet, dan opent het gevraagde bestand gewoon, zoals main. Twee volgordes: (1) een neerzetting
+    // die wacht op de dialoogpoort, (2) een trage `stat` in de toets zelf, zonder wachtlus.
+    for (const during of ['wachtende neerzetting', 'trage stat'] as const) {
+      const st = newStore(true);
+      const T = () => st.getState();
+      dialogAnswer = kantoor;
+      await T().openFile(labels);
+      const a = T().activeDocumentId;
+      T().addTask({ name: 'Nieuwe versie' });
+      T().newDocument();
+      dialogAnswer = school;
+      await T().openFile(labels);
+      const b = T().activeDocumentId;
+      const renamed = join(dir, during === 'trage stat' ? 'nieuwe-naam-stat.ifc' : 'nieuwe-naam-wacht.ifc');
+      // De trage `stat` moet die van de toets zijn: het bestand is dan al gelezen en geparst wordt daarna.
+      const preRead = during === 'trage stat' ? await readOpenedPath(kantoor, true) : null;
+      let opening: Promise<void>;
+      let release: () => void = () => undefined;
+      const halted = new Promise<void>((resolve) => {
+        if (during === 'wachtende neerzetting') {
+          let calls = 0;
+          let blocked = true;
+          release = () => { blocked = false; };
+          opening = openDroppedFiles(st, droppedFilesFromPaths([kantoor], io, readOptions(st)), labels, () => {
+            if (++calls === 1) return false; // de poort bij het neerzetten
+            resolve();
+            return blocked;
+          });
+        } else {
+          let statMayReturn: () => void = () => undefined;
+          const gate = new Promise<void>((r) => { statMayReturn = r; });
+          release = () => statMayReturn();
+          const outer = internals.invoke;
+          internals.invoke = async (command, args, options) => {
+            if (command === 'plugin:fs|stat' && (args as { path?: string }).path === kantoor) {
+              internals.invoke = outer;
+              resolve();
+              await gate;
+            }
+            return outer(command, args, options);
+          };
+          opening = T().openOpenedFile(preRead!, labels);
+        }
+      });
+      await halted;
+      T().switchDocument(a);
+      saveAnswer = renamed;
+      await T().saveFileAs();
+      eq(`B8 ${during}: voorwaarde, Opslaan als zette A op een nieuwe naam`, T().filePath, renamed);
+      T().switchDocument(b);
+      clearNotices(st);
+      release();
+      await opening!;
+      eq(`B8 ${during}: het gevraagde bestand opent in een eigen tabblad`, [
+        ![a, b].includes(T().activeDocumentId), T().filePath, T().project.name, T().tasks.map(t => t.name), T().documents.length,
+      ], [true, kantoor, 'Kantoor', ['Fundering'], 3]);
+      eq(`B8 ${during}: geen melding "staat al open"`, notices(st).filter(n => n[1] === ALREADY_OPEN), []);
+      eq(`B8 ${during}: A houdt zijn nieuwe naam en zijn werk`, tab(st, a), {
+        project: 'Kantoor', tasks: ['Fundering', 'Nieuwe versie'], isDirty: false, filePath: renamed,
+      });
+    }
+
+    // Review #1121 ronde 1 (VERVOLG): een pad met `..` door een maplink wijst op POSIX naar een ander bestand dan wat
+    // er lexicaal staat. Bij het openen gaat een betrouwbare bestandsidentiteit (`dev`/`ino`) voor op de lexicale
+    // gelijkheid: `maplink/../kantoor.ifc` is hier een ander bestand (planning School) en opent in een eigen tabblad.
+    {
+      const st = newStore(true);
+      const T = () => st.getState();
+      const outside = join(dir, 'andere-map');
+      mkdirSync(join(outside, 'sub'), { recursive: true });
+      symlinkSync(join(outside, 'sub'), join(dir, 'maplink'));
+      writeFileSync(join(outside, 'kantoor.ifc'), schoolIfc);
+      const viaLink = `${dir}/maplink/../kantoor.ifc`;
+      dialogAnswer = kantoor;
+      await T().openFile(labels);
+      const first = T().activeDocumentId;
+      T().addTask({ name: 'Werk in kantoor' });
+      clearNotices(st);
+      dialogAnswer = viaLink;
+      await T().openFile(labels);
+      eq('B9 maplink/..: een ander bestand, een eigen tabblad', [
+        statSync(viaLink).ino !== statSync(kantoor).ino, T().activeDocumentId !== first, T().project.name, T().documents.length,
+      ], [true, true, 'School', 2]);
+      eq('B9 maplink/..: geen melding "staat al open"', notices(st).filter(n => n[1] === ALREADY_OPEN), []);
+      // Wijst het pad wel naar hetzelfde bestand (hier `.` en een overbodige `/`), dan nog steeds het open tabblad.
+      dialogAnswer = `${dir}/./kantoor.ifc`;
+      await T().openFile(labels);
+      eq('B9 ./kantoor.ifc: hetzelfde bestand, naar het open tabblad', [T().activeDocumentId, T().documents.length], [first, 2]);
+    }
 
     // Met de flag uit: precies main, elke weg geeft een tweede tabblad op hetzelfde bestand.
     const offStore = newStore(false);

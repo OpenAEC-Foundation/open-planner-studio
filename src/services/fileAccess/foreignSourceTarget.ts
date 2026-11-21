@@ -27,6 +27,10 @@ import type { FileRef } from './index';
 export interface ForeignSourceTargetDeps {
   /** Bestandsidentiteit voor paden (Tauri: plugin-fs `stat`). Zonder: alleen het genormaliseerde pad. */
   identityFs?: FileIdentityFs;
+  /** Een betrouwbare bestandsidentiteit gaat voor op het lexicale pad: `maplink/../a.ifc` kan op POSIX een ander bestand
+   *  zijn dan `a.ifc`. Alleen voor de toets "staat al open" bij het openen (review #1121); de doelcontrole van de
+   *  schrijfroutes houdt de lexicale gelijkheid als veilige kant, ook met de flag uit. */
+  identityFirst?: boolean;
 }
 
 /** Hetzelfde pad, lexicaal: dezelfde regel als de externe bronnen (`normalizeExternalSourcePath`). */
@@ -96,6 +100,10 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
 /** Wijzen twee lokale paden naar hetzelfde bestand? Hetzelfde genormaliseerde pad, of (met `identityFs`) dezelfde
  *  bestandsidentiteit. Eén vergelijking voor de bronkenmerken en de paden van open documenten. */
 export async function sameLocalFile(a: string, b: string, deps: ForeignSourceTargetDeps = {}): Promise<boolean> {
+  if (deps.identityFirst && deps.identityFs) {
+    const comparison = await compareFilePaths(deps.identityFs, a, b);
+    if (comparison !== 'unknown') return comparison === 'same';
+  }
   if (samePath(a, b)) return true;
   return !!deps.identityFs && (await compareFilePaths(deps.identityFs, a, b)) === 'same';
 }

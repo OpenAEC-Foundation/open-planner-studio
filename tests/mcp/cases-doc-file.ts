@@ -1087,7 +1087,7 @@ test('import_schedule: niet-pristine tabblad ⇒ NIEUW document + drift-anker ve
 });
 
 test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de flag het bestaande document, met de flag uit een nieuw', async () => {
-  installFakeFs();
+  const fs = installFakeFs();
   resetToSingleEmptyDocument();
   loadSmallProject('Kantoor');
   const path = `${HOME}/kantoor.ifc`;
@@ -1125,11 +1125,31 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
       assertEq(S().ui.notifications.at(-1)?.messageKey, 'notifications.fileAlreadyOpen', `${label}: de app toont de melding`);
     }
 
+    // Review #1121 ronde 1: krijgt het gevonden tabblad tijdens de toets een ander bestand (zoals de commit van *Opslaan
+    // als*), dan opent de import het gevraagde pad gewoon, zonder `alreadyOpen`.
+    const elsewhere = `${HOME}/kantoor-nieuwe-naam.ifc`;
+    const stat = fs.stat;
+    fs.stat = async (p) => {
+      fs.stat = stat;
+      S().switchDocument(kantoorId);
+      useAppStore.setState((st) => { st.filePath = elsewhere; });
+      S().switchDocument(masterId);
+      return stat(p);
+    };
+    S().switchDocument(masterId);
+    const moved = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
+    assertEq(S().documents.length, docsBefore + 1, 'ander bestand tijdens de toets: een nieuw document');
+    assert(moved.documentId !== kantoorId && !('alreadyOpen' in moved), 'een ander document, zonder alreadyOpen');
+    assertEq([S().filePath, S().tasks.some(t => t.name === 'Onopgeslagen werk')], [path, false], 'de inhoud van het gevraagde bestand');
+    assertEq(S().getOpenDocumentPayloads().find(d => d.id === kantoorId)?.payload.filePath, elsewhere, 'het oude tabblad houdt zijn nieuwe naam');
+    S().closeDocument(moved.documentId as string);
+
     // Met de flag uit: zoals main, een tweede document en geen veld `alreadyOpen`.
     useAppStore.setState((s) => { s.ui.featureFlags = {}; });
     S().switchDocument(masterId);
     const off = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
     assertEq(S().documents.length, docsBefore + 1, 'flag uit: een nieuw document');
+    assertEq(S().filePath, path, 'flag uit: het gevraagde pad');
     assert(off.documentId !== kantoorId && !('alreadyOpen' in off), 'flag uit: een ander document, zonder alreadyOpen');
     assertEq(S().tasks.some(t => t.name === 'Onopgeslagen werk'), false, 'flag uit: de inhoud van het bestand');
   } finally {

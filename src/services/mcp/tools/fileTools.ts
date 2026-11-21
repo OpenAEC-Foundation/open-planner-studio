@@ -54,7 +54,7 @@ import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
-import { alreadyOpenDocumentId, switchToOpenDocument } from '@/state/openDocumentFor';
+import { alreadyOpenDocument, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -473,7 +473,7 @@ export const fileTools: McpToolDef[] = [
     description:
       'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
       'new active tab (an empty, unchanged active tab is reused); nothing is merged. If the app has the file already open ' +
-      'in a tab, it may switch to that tab instead and return it with `alreadyOpen: true` (nothing is read again). Tell the user what is lost: CSV has no calendar (dates can ' +
+      'in a tab, it may switch to that tab instead and return it with `alreadyOpen: true`; that tab keeps its own content. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
       'document; rebuild calendars with planner_update_calendar.',
@@ -558,12 +558,15 @@ export const fileTools: McpToolDef[] = [
       // (`format`, voor de respons en de notices).
       // Knownbug 1957 (met de flag `ifcForeignContent`, besluit T2 van de technisch beslisser): staat dit pad al in
       // een tabblad open, dan geen tweede document maar dat tabblad, zoals Bestand → Openen (`openDocumentFor.ts`).
-      const openId = await alreadyOpenDocumentId(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
+      // Met de flag uit geen await, zodat het antwoord en de volgorde gelijk blijven aan main.
+      const lookup = alreadyOpenDocument(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
+      const match = lookup && await lookup;
       // Lezen en parsen kunnen seconden duren: controleer pauze/alleen-lezen/dialoog opnieuw vlak
       // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
-      const alreadyOpen = openId !== null && switchToOpenDocument(ctx.app.store.getState(), openId);
+      // Synchroon na de late controle: is het gevonden tabblad intussen op een ander bestand gezet, dan gewoon openen.
+      const alreadyOpen = !!match && switchToOpenDocument(ctx.app.store.getState(), match);
       const opened = alreadyOpen ? null : ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
         ref: { kind: 'path', path },
@@ -602,8 +605,8 @@ export const fileTools: McpToolDef[] = [
       if (alreadyOpen) {
         notices.push(
           'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
-          `(document '${after.activeDocumentId}'). It was not read again: the tab keeps its own state, including ` +
-          'unsaved changes. Tell the user.',
+          `(document '${after.activeDocumentId}'). That tab keeps its own content, including unsaved changes; ` +
+          'what is in the file now was not loaded into it. Tell the user.',
         );
       }
       for (const document of documents) {
@@ -617,23 +620,24 @@ export const fileTools: McpToolDef[] = [
           'new dates; planner_undo restores the recorded dates (Dates as recorded). Tell the user.',
         );
       }
-      if (alreadyOpen) {
-        // Geen formaatuitleg: er is niets geïmporteerd.
-      } else if (format === 'CSV') {
-        notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
-      } else if (format === 'P6-XML') {
-        notices.push('P6 XML: Nonlabor resources were imported as EQUIPMENT.');
-      } else if (format === 'MPP14') {
-        notices.push('MPP import is read-only (best effort; baselines and custom fields are not included). Saving writes IFC; export to MS Project = MSPDI XML.');
-      } else if (format === 'XER') {
-        notices.push(
-          `XER import is read-only; this step imports ${documents.length} non-empty P6 project` +
-          `${documents.length === 1 ? '' : 's'} as ${documents.length} document` +
-          `${documents.length === 1 ? '' : 's'}. Saving writes IFC.`,
-        );
-      }
-      if (!alreadyOpen && format !== 'IFC') {
-        notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving.');
+      // De formaatuitleg hoort alleen bij een echte import; een tabblad dat al open stond, kreeg niets nieuws.
+      if (!alreadyOpen) {
+        if (format === 'CSV') {
+          notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
+        } else if (format === 'P6-XML') {
+          notices.push('P6 XML: Nonlabor resources were imported as EQUIPMENT.');
+        } else if (format === 'MPP14') {
+          notices.push('MPP import is read-only (best effort; baselines and custom fields are not included). Saving writes IFC; export to MS Project = MSPDI XML.');
+        } else if (format === 'XER') {
+          notices.push(
+            `XER import is read-only; this step imports ${documents.length} non-empty P6 project` +
+            `${documents.length === 1 ? '' : 's'} as ${documents.length} document` +
+            `${documents.length === 1 ? '' : 's'}. Saving writes IFC.`,
+          );
+        }
+        if (format !== 'IFC') {
+          notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving.');
+        }
       }
       return {
         ok: true,

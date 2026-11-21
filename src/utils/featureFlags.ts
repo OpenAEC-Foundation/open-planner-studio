@@ -38,6 +38,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
       'common:notifications.exportPlanOnly',
+      'common:notifications.fileAlreadyOpen',
       'common:notifications.ifc2x3PlanningOnly',
       'common:notifications.ifcForeignAutoSaveNotRecorded',
       'common:notifications.ifcForeignAutoSaveRemnant',

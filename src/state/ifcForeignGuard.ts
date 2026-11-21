@@ -221,10 +221,11 @@ export async function isOpenForeignSourceTarget(
  *  planning zonder vreemd deel (die heeft geen bronkenmerk), of `null`. Dezelfde padvergelijking als de bronkenmerken
  *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
  *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
- *  #1019). Ook de toets "staat al open" bij het openen gebruikt deze lus (`openDocumentFor`, knownbug 1957). */
+ *  #1019). Ook de toets "staat al open" bij het openen gebruikt deze lus (`openDocumentFor`, knownbug 1957), met
+ *  `identityFirst` (zie `ForeignSourceTargetDeps`). */
 export async function openDocumentPathId(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
-  exceptDocumentId: string | null,
+  exceptDocumentId: string | null, { identityFirst = false }: { identityFirst?: boolean } = {},
 ): Promise<string | null> {
   const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
     id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [{ id, path: payload.filePath }] : []));
@@ -232,7 +233,7 @@ export async function openDocumentPathId(
   let fs: FileIdentityFs | undefined;
   try { fs = await identityFs(); } catch { fs = undefined; }
   if (fs && await missingFile(fs, path)) return null;
-  for (const other of paths) if (await sameLocalFile(path, other.path, fs ? { identityFs: fs } : {})) return other.id;
+  for (const other of paths) if (await sameLocalFile(path, other.path, fs ? { identityFs: fs, identityFirst } : {})) return other.id;
   return null;
 }
 
