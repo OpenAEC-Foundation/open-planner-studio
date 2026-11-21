@@ -464,7 +464,13 @@ console.log(`2: ${seconds(corpusStarted)}`);
 
 console.log(`3: ${seconds(routeStarted)}; samen ${seconds(started)}`);
 if (diffs.length) {
-  for (const d of diffs.slice(0, 40)) console.log(`XX ${d}`);
+  // Per deel (1a, 1b, 2, 3) de eerste regels en het aantal.
+  const parts = new Map<string, string[]>();
+  for (const d of diffs) { const part = d.slice(0, d.indexOf(' ')); parts.set(part, [...(parts.get(part) ?? []), d]); }
+  for (const [part, list] of parts) {
+    for (const d of list.slice(0, 8)) console.log(`XX ${d}`);
+    console.log(`XX deel ${part}: ${list.length} rood`);
+  }
   console.log(`XX telling op het verschil: ${diffs.length} van ${checks} checks rood`);
   process.exitCode = 1;
 } else console.log(`telling op het verschil: ${checks} checks groen`);

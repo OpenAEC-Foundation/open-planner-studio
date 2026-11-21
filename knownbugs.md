@@ -2305,6 +2305,16 @@ en noem het in je rapport of PR-tekst.
      en oude-eigen niets omslaan. Richting: een eigen PR, met die vier gevallen als bedoelde omslag en de telling ernaast;
      net als bij 1953 verschuift dat de opslaggrens, dus met een eigen besluit. — B
 
+1951. **De scanner ziet een verwijzing met commentaar ertegenaan niet, en deelt het stuk daardoor in als V in plaats van A.**
+     In `#5=IFCWALL(…,#/*c*/53,$);` ziet de scanner (`readEntity` in `stepScanner.ts`) geen verwijzing: hij slaat het
+     commentaar over, maar plakt de delen ervoor en erna niet aan elkaar. De tekstregel van de uitvoercontrole (`argTokens`
+     met `stripComments`, dan `refsOutsideText`) doet dat wel en ziet `#53`; bij `#5/*c*/3` ziet de scanner `#5` en de
+     tekstregel `#53`. Wijst een modelstuk zo naar een taak, dan deelt de indeling het in als V in plaats van A
+     (`classify.ts`): de merge weet niet dat het stuk aan de taak hangt. Wist de planner die taak, dan weigert opslaan met
+     een technische melding (`uitvoer-controle: nieuwe loze verwijzing 354|7|53` op `eigen-plus-model.ifc`); er gaat
+     niets verloren. De telling op het verschil (1936) telt een bewaard stuk met `/*` in zijn bytes daarom altijd aan beide kanten mee.
+     Proeven in `check-ifc-foreign-telling-verschil.ts` (deel 1a en 3). — B
+
 1952. **VERVOLG (#804 stap 5, controle 1): de GlobalId van een pset met alleen vreemde leden toetst geen controle.**
      Schrijft de writer een eigen pset niet meer (het laatste eigen lid viel weg), dan zet de merge een pset met alleen de
      vreemde leden neer, met de GlobalIds van de pset en de relatie uit de bron (`extraPsets` in `mergeWriter.ts`, stap 6).
