@@ -1152,6 +1152,12 @@ en noem het in je rapport of PR-tekst.
       de andere documentwissels zonder muis annuleren het venster wel (#1004). Mogelijke oplossing: een
       uitzondering voor de documentknoppen in de klik-buiten-handler. Uit de review van #1004 (GPT-6.2-Sol,
       xhigh, ronde 11, BEVESTIGD, VERVOLG). — B
+1910. **VERVOLG (#1004): stap 6 van *Relaties leggen* belooft te veel van Enter.** In
+      `public/docs/{nl,en}/howto-relaties-leggen.md`, sectie *Een relatie toevoegen in het paneel Eigenschappen*,
+      staat "Druk op Enter of klik op het vinkje". Na het invullen van een lag verwerkt Enter in het
+      lagveld alleen die waarde (`SequenceLagInput.tsx`), en met de zoeklijst nog open kiest Enter eerst de
+      gemarkeerde treffer. Laat stap 6 in beide talen naar het vinkje verwijzen. Staat ook zo op main.
+      Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 20, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
