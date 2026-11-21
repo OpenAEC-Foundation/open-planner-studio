@@ -182,7 +182,14 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     return { code: 'failed', detail: describePlace(placed) };
   }
 
-  // Stap 5.
+  // Stap 5. Een aangetroffen symlink niet volgen of verwijderen. Dit is geen atomaire
+  // check: een wissel ná lstat blijft mogelijk (knownbug 1832).
+  try {
+    if ((await fs.lstat(previous)).isSymlink) return { code: 'replaced', otherVersion: null, leftOver: previous };
+  } catch (error) {
+    if (missingTarget(error)) return { code: 'replaced', otherVersion: null, leftOver: null };
+    return { code: 'replaced', otherVersion: null, leftOver: previous };
+  }
   const before = await fs.content(previous, source);
   if (before === 'missing') return { code: 'replaced', otherVersion: null, leftOver: null };
   if (before === 'same') {
