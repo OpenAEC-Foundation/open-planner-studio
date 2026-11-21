@@ -41,8 +41,8 @@ A milestone has one field, *Actual date*. If you type only a date for a mileston
 **Several tasks in the table.** Useful when you update a whole list.
 
 1. Click the **+** at the right of the task list header (*Add column*) and open the category *Progress*. Add the columns *Actual start*, *Actual finish*, *Remaining* and *Status*. The column *Progress* is already on the *Table* tab.
-2. Double-click a cell, type the value and press Enter. You type a percentage as `50` or `50%`, a date as `25-06-2027`, a remaining duration as `1`.
-3. For *Status*, after a double-click press Enter and choose *Not started*, *In progress* or *Completed*.
+2. Click a cell, type the value and press Enter. You type a percentage as `50` or `50%`, a date as `25-06-2027`, a remaining duration as `1`.
+3. For *Status*, double-click the cell (or press Enter) and choose *Not started*, *In progress* or *Completed*.
 
 If you type a remaining duration, the app works back to the percentage: for a task of 2 work days a remainder of 1 gives a percentage of 50. A remainder of 0 completes the task. The *Actual duration* column (also in the category *Progress*) works the other way round: type how much work is already done and the app calculates the percentage. For a task of 4 work days, an actual duration of 1 gives 25%. If you choose *Not started* at *Status*, the percentage goes to 0 and the actual dates disappear.
 
