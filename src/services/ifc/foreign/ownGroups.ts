@@ -252,11 +252,11 @@ export function ownGroupTrees(view: OwnLinesView): Map<string, string[]> {
 
 /**
  * Een slot dat (b) terugzette en dat (c) apart toetst (#804 stap 5, PR A): zijn groep, zijn plaats in de boom
- * (`<plaats>#<argument>`, `groupTrees`), en de regel, het argument en de bronwaarde die (b) daar zette. Het id is dat van O1
+ * (`<plaats>#<argument>`, `groupTrees`), en de regel en de bronwaarde die (b) daar zette. Het id is dat van O1
  * (`restoredOwnSlots`); in de uitvoercontrole dat van de uitvoer, door de hernummering van de merge (`OwnOutputCheck` in
  * `mergeWriter.ts`).
  */
-export interface RestoredOwnSlot { readonly group: string; readonly place: string; readonly id: number; readonly arg: number; readonly token: string }
+export interface RestoredOwnSlot { readonly group: string; readonly place: string; readonly id: number; readonly token: string }
 /** Wat (c) doet met de slots die (b) terugzette: `skip`, de groepen die (c) helemaal overslaat (zoals vóór PR A), en
  *  `slots`, de slots die (c) apart toetst in de andere groepen. */
 export interface RestoredOwnSlots {
@@ -291,7 +291,7 @@ export function restoredOwnSlots(view: OwnLinesView, edits: readonly Pick<SlotEd
     const [at, ...more] = placesOf.get(e.id) ?? [];
     const inPlace = e.arg === NAME_ARG[line.type] || ((isBaselineHead(line) || line.type === 'IFCTASK') && e.arg === 0);
     if (!e.partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace && plain(e.token) && plain(line.args[e.arg])) {
-      slots.push({ group, place: `${at}#${e.arg}`, id: e.id, arg: e.arg, token: e.token });
+      slots.push({ group, place: `${at}#${e.arg}`, id: e.id, token: e.token });
     } else skip.add(group);
   }
   return { skip, slots: slots.filter(s => !skip.has(s.group)) };
