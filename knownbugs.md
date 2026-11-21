@@ -5225,17 +5225,13 @@ en noem het in je rapport of PR-tekst.
      ontbreken, het record wissen; een lees- of lengtefout is geen bewijs van afwezigheid. Gevonden door de review van
      #1071, ronde 4. — S (code)
 
-1816. **VERVOLG (#804, 1131 stap 5a): twee kopieën van hetzelfde bestand in dezelfde minuut krijgen geen tweede naam.**
-     De namen "versie van ander programma" en "niet opgeslagen planning" dragen de tijd tot op de minuut. Bestaat die
-     naam al, dan weigert `place_file_exclusive` (`target-exists`) en blijft het bestand onder zijn hulpnaam staan
-     (`.ops-vorige-<id>` of `save-<id>.ops-save.tmp`), met de melding dat het bleef staan. Niets gaat verloren, maar de
-     planner ziet een technische naam, en het herstelrecord blijft tot dat bestand weg is (1815). Een volgnummer achter
-     de tijd lost het op. Gevonden bij het bouwen van 1131 stap 5a. Sinds #1071 kort de app de doelnaam in de kopienaam
-     in tot het geheel 255 bytes is: twee verschillende lange doelnamen met hetzelfde begin kunnen zo dezelfde kopienaam
-     krijgen, en de planner herkent het doel minder goed aan de ingekorte naam. De bestaande kopie blijft bytegelijk en
-     de andere versie blijft onder de hulpnaam staan. De uitleg bij de instelling, de handleiding en 1890 zeggen nog
-     niet dat de melding bij een bezette kopienaam naar die hulpnaam verwijst. Gevonden door de review van #1071,
-     ronde 4. — S (code)
+1816. **VERVOLG (#804, 1131 stap 5a; #1057): een ingekorte kopienaam is minder goed te herkennen.**
+     Sinds #1071 kort de app de doelnaam in de kopienaam ("versie van ander programma", "niet opgeslagen planning")
+     in tot het geheel 255 bytes is. Sinds #1057 krijgt een bezette kopienaam een volgnummer, zodat twee kopieën in
+     dezelfde minuut of twee lange doelnamen met hetzelfde begin elk een eigen naam krijgen. Wat open blijft: aan de
+     ingekorte naam herkent de planner het doel minder goed. Lukt na 100 volgnummers geen vrije naam, dan blijft de
+     versie onder zijn hulpnaam staan (1815). Gevonden door de review van #1071, ronde 4; bijgewerkt na de review van
+     #1057. — S (code)
 1832. **VERVOLG (#804, 1131 stap 5a): stap 5 van de vervanging volgt een symlink bij de vergelijking van de vorige versie.**
      Is de vorige versie (`save-<id>.ops-vorige-<id>`) intussen een symlink geworden, dan leest de vergelijking in stap 5
      (`replaceOwnFileBytes` in `src/services/fileAccess/ownFileReplace.ts`) de bytes achter die link, en haalt plugin-fs
