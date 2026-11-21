@@ -57,10 +57,14 @@ const SEQ_TYPE = { FS: 'FINISH_START', SS: 'START_START', FF: 'FINISH_FINISH', S
 type Rel = keyof typeof SEQ_TYPE;
 type LagCal = NonNullable<SchedulingOptions['lagCalendar']>;
 
-const solve = (tasks: Task[], sequences: Sequence[], base: 'ops' | 'p6' | 'msproject', lagCalendar: LagCal) => {
+const solve = (
+  tasks: Task[], sequences: Sequence[], base: 'ops' | 'p6' | 'msproject', lagCalendar: LagCal,
+  overrides: Partial<SchedulingOptions> = {},
+) => {
   const schedulingOptions = {
     ...effectiveSchedulingOptions({ schedulingProfile: { baseId: base, id: base, name: '', overrides: {} } }),
     lagCalendar,
+    ...overrides,
   };
   const result = new CPMSolver(tasks, sequences, project, [short], { schedulingOptions }).solve();
   if (result.error) throw new Error(result.error);
@@ -360,8 +364,66 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+
+// Knownbug 877: schakel alleen B6 om; andere profielkeuzes blijven identiek.
+const b6Results: Record<string, unknown> = {};
+{
+  const P = () => task('P', '2026-06-08', 5, 'project');
+  const sample = (
+    rel: 'FS' | 'SS', anchor: string, lag: Pick<Sequence, 'lagDays' | 'lagMinutes'>,
+    kind: Task['milestoneKind'], cal: CalId,
+  ) => {
+    const ms = (links: ExternalLink[] = []) => task('M', '2026-06-01', 0, cal, {
+      isMilestone: true, milestoneKind: kind, externalLinks: links,
+    });
+    const link: ExternalLink = {
+      id: 'x', relType: rel, direction: 'predecessor', anchorDate: anchor,
+      sourceRef: { projectId: 'ander', taskId: 'P' }, sourceMissing: false, ...lag,
+    };
+    const seq: Sequence = { id: 's', predecessorId: 'P', successorId: 'M', type: SEQ_TYPE[rel], ...lag };
+    const of = (r: ReturnType<typeof solve>) => r.tasks.get('M')?.earlyFinish;
+    const ops = (b6: boolean, links: ExternalLink[] = [link]) =>
+      of(solve([head(), ms(links), tail()], [], 'ops', 'projectDefault', { milestoneWithoutPredecessorAtDayEnd: b6 }));
+    return {
+      internal: of(solve([head(), P(), ms(), tail()], [seq], 'ops', 'projectDefault')),
+      on: ops(true),
+      off: ops(false),
+      missingWithSavedAnchor: ops(true, [{ ...link, sourceMissing: true }]),
+      p6: of(solve([head(), ms([link]), tail()], [], 'p6', 'projectDefault')),
+      msp: of(solve([head(), ms([link]), tail()], [], 'msproject', 'projectDefault')),
+    };
+  };
+  const fs = sample('FS', '2026-06-12T16:00', { lagDays: 0, lagMinutes: 360 }, undefined, 'short');
+  const ss = sample('SS', '2026-06-08T08:00', { lagDays: 2 }, 'FINISH', 'project');
+  eq('877 FS zonder mijlpaalsoort: externe OPS-mijlpaal alleen met B6 aan naar 14:00',
+    [fs.internal, fs.off, fs.on], ['2026-06-16T08:00', '2026-06-16T08:00', '2026-06-16T14:00']);
+  eq('877 SS naar FINISH: externe OPS-mijlpaal alleen met B6 aan naar 16:00',
+    [ss.internal, ss.off, ss.on], ['2026-06-10T08:00', '2026-06-10T08:00', '2026-06-10T16:00']);
+  for (const [rel, result] of [['FS', fs], ['SS', ss]] as const) {
+    eq(`877 ${rel}: het bewaarde anker blijft gelden als de externe bron ontbreekt`, result.missingWithSavedAnchor, result.on);
+    b6Results[rel] = result;
+  }
+
+  // START met een echte opvolger hoort niet in de B6-eindtak. De externe SS blijft wel meetellen.
+  const startAndNext = (b6: boolean) => {
+    const link: ExternalLink = {
+      id: 'ss', relType: 'SS', direction: 'predecessor', anchorDate: '2026-06-08T08:00', lagDays: 2,
+      sourceRef: { projectId: 'ander', taskId: 'P' },
+    };
+    const start = task('S', '2026-06-01', 0, 'project', {
+      isMilestone: true, milestoneKind: 'START', externalLinks: [link],
+    });
+    return solve([head(), start, task('N', '2026-06-01', 1, 'project'), tail()],
+      [{ id: 's-n', predecessorId: 'S', successorId: 'N', type: 'FINISH_START', lagDays: 0 }],
+      'ops', 'projectDefault', { milestoneWithoutPredecessorAtDayEnd: b6 }).tasks.get('S')?.earlyFinish;
+  };
+  eq('877 START met opvolger: 08:00 met B6 aan én uit', [startAndNext(true), startAndNext(false)],
+    ['2026-06-10T08:00', '2026-06-10T08:00']);
+}
+
 if (failures.length) {
   console.error(`XX external-lag-calendar: ${failures.length}/${checks}\n${failures.slice(0, 40).join('\n')}`);
   process.exit(1);
 }
 console.log(`OK external-lag-calendar: ${checks} checks`);
+console.log(`::notice title=Knownbug 877::B6 aan/uit en bewaard anker: ${JSON.stringify(b6Results)}`);
