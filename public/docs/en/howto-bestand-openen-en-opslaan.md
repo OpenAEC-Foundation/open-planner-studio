@@ -17,6 +17,8 @@ You start the day with yesterday's project, you get a file from a colleague or f
 
 An IFC file gives its file name to the tab. A project from another format gets its project name.
 
+If the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)) and the IFC file is already open in a tab, the app does not open it again. It goes to the tab that is already open, with the message *This file is already open. You have been taken to that tab.* That tab stays as it was, including changes you have not saved yet: the app does not read the file again. This way two tabs cannot overwrite each other's saves. The same goes for dragging and *Recent*. A file in another format, such as `.csv` or `.xer`, does open again in a tab of its own, as does every file in browsers that only download, such as Firefox. If the setting is off, an IFC file that is already open also opens in a new tab.
+
 The app opens `.ifc`, `.csv`, `.xml` (MS Project XML or Primavera P6 XML), `.mpp` and `.xer`. For the last two there are separate steps in [Opening an MS Project file (.mpp)](docs://howto-mpp-openen) and [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
 ### Dragging a file into the app

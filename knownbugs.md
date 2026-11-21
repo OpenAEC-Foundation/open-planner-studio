@@ -5305,18 +5305,19 @@ en noem het in je rapport of PR-tekst.
      voor *Exporteren*: op de desktop weigert het sinds 1907 een bestand dat in een ander tabblad open staat, in de
      browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. — B (proef)
 
-1957. **Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.** Kiest de planner op de
-     desktop via *Openen* een bestand dat al in een tabblad open staat, dan opent de app het nog eens, in een nieuw
-     tabblad, zonder melding en zonder naar het open tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde
-     pad; slaat de planner het ene op (Ctrl+S of Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg.
-     Dezelfde familie als 1893: twee tabbladen, één bestand. Gezien met een proef voor de bestandskiezer op de desktop,
-     via de echte store-actie `openFile()` (review van #1093, ronde 2; de proef staat op de geparkeerde branch
-     `feat/804-coordinator-toelating`, `check-ifc-document-save.ts`, "twee keer Openen"). Alleen in de code gelezen, niet
-     met een proef: Recent (`openRecentFile`), een bestand op het venster slepen en `planner_import_schedule` lopen door
-     dezelfde open-route (`openOpenedFile` of direct `openAsDocument`), en die kijkt niet of het doel al in een tabblad
-     open staat. De browser is niet nagegaan. Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
-     de eigenaar, samen met 1893. Besluit technisch beslisser (21 november 2026): 1893 en 1957 gaan vóór 1939, en vóór de
-     featureflag `ifcForeignContent` standaard aan gaat. — B (proef, bestandskiezer op de desktop)
+1957. **Met de featureflag `ifcForeignContent` uit: Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.**
+     Kiest de planner via *Openen* (of Recent, slepen, de site, `planner_import_schedule`) een bestand dat al in een
+     tabblad open staat, dan opent de app het nog eens, in een nieuw tabblad, zonder melding en zonder naar het open
+     tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde bestand; slaat de planner het ene op (Ctrl+S of
+     Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg. Dezelfde familie als 1893.
+     **Met de flag aan opgelost** (#804, PR 1 van 2, besluit van de eigenaar 21 november 2026 "één bestand, één
+     tabblad"): elke weg gaat dan naar het tabblad dat al open is, met de melding "Dit bestand staat al open. Je bent
+     naar dat tabblad gegaan."; dat tabblad houdt zijn werk en wordt niet herladen (`src/state/openDocumentFor.ts`).
+     Proeven: `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent, slepen; met de flag uit telkens een
+     tweede tabblad), G16 in `check-site-storage.ts` (de site) en `cases-doc-file.ts` (`planner_import_schedule`).
+     Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
+     aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
+     2029, 2040, 2041. — B (proef, met de flag uit)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
@@ -5334,7 +5335,44 @@ en noem het in je rapport of PR-tekst.
      andere. Begint het openen pas tijdens de opslag, dan wacht de leesroute (`tauriBackend.ts`) wel en leest ze de
      nieuwe versie. Zeldzaam: een leesactie en een opslag naar hetzelfde bestand moeten elkaar kruisen. Richting: laat
      een leesactie die een opslag kruiste het bestand opnieuw lezen vóór het document actief wordt. Proef van de
-     reviewer: `proeven.ts` bij het rapport van review #1034. — B (proef van de reviewer)
+     reviewer: `proeven.ts` bij het rapport van review #1034. Met de featureflag `ifcForeignContent` aan (#804, knownbug
+     1957) toetst het openen ná het lezen of het bestand al in een tabblad open staat: was de opslag van het andere
+     tabblad intussen klaar, dan gaat de app naar dat tabblad, met zijn nieuwe inhoud, en komt er geen tweede tabblad met
+     de oude inhoud (desktop, slepen; proef B7 in `check-one-file-one-tab.ts`). Niet met een proef nagegaan: Openen via
+     de kiezer en Recent (dezelfde route `openOpenedFile`, dus VERMOED hetzelfde), en een opslag die pas klaar is ná die
+     toets (dan blijft het zoals hierboven). Met de flag uit zoals hierboven. — B (proef van de reviewer)
+
+2029. **Hetzelfde bestand in twee browsertabbladen van de website, of in de desktopapp en de website tegelijk: wie het laatst opslaat, wint.**
+     De toets "staat al open" van #804 (knownbug 1957, met de featureflag `ifcForeignContent`) kijkt alleen naar de
+     tabbladen binnen één app. Elk browsertabblad of -venster van de website heeft een eigen store; er is geen
+     afstemming over open bestanden (geen `BroadcastChannel`; `navigator.locks` alleen voor de herstelsessies,
+     `recoveryStore.ts`). Open je kantoor.ifc in twee browservensters, of in de desktopapp en in de browser, dan slaat
+     elk zijn eigen versie op en overschrijft de laatste stil de andere. Gevonden bij het bouwen van #804 PR 1, alleen
+     in de code gelezen. Richting: een melding als een ander venster hetzelfde bestand open heeft; een keuze voor de
+     eigenaar. — S
+
+2040. **Windows: de toets "staat al open" vergelijkt paden alleen lexicaal.** Windows levert in plugin-fs geen
+     `dev`/`ino` (`fileIdentity.ts`), dus `openDocumentPathId` (`ifcForeignGuard.ts`) ziet daar alleen hetzelfde pad
+     na normalisatie (stationsletter en UNC in kleine letters, `.` en `..` opgelost). Een junction, een gekoppelde
+     schijf tegenover hetzelfde UNC-pad of een 8.3-naam ziet hij niet: dan opent het bestand weer in een tweede tabblad,
+     zoals met de flag uit. Dezelfde grens geldt al voor de doelcontrole van Opslaan als (knownbug 1907). Alleen in de
+     code gelezen; niet op Windows gemeten. — S
+
+2041. **Twee keer tegelijk openen van hetzelfde bestand kan nog twee tabbladen geven.** De toets "staat al open"
+     (knownbug 1957) loopt ná het parsen en is asynchroon; het activeren is de synchrone stap daarna. Lopen twee
+     openacties van hetzelfde bestand door elkaar (twee aparte neerzettingen kort na elkaar, of een klik in Recent
+     terwijl Openen van hetzelfde bestand nog leest), dan kunnen beide toetsen gebeuren vóór een van beide activeert:
+     beide zien niets open en er komen twee tabbladen. Binnen één neerzetting gaan de bestanden na elkaar, dus twee keer
+     hetzelfde bestand in één sleep geeft wel één tabblad (proef B3 in `check-one-file-one-tab.ts`). Alleen in de code
+     gelezen. — S
+
+2042. **De headless MCP-server heeft geen featureflag: `planner_import_schedule` opent daar een bestand dat al open is opnieuw.**
+     De toets "staat al open" (knownbug 1957) staat achter de flag `ifcForeignContent`, en de headless server zet geen
+     flags (`headless/mcp-server/`). Dezelfde code draait daar, dus `planner_import_schedule` op een pad dat al open is
+     geeft daar een tweede document, zoals main. Gaat de flag standaard aan, dan geldt het daar ook; de proef
+     "B stdio … opslaan, heropenen, vergelijken" in `tests/mcp/cases-headless-server.ts` heropent hetzelfde pad om de
+     round-trip te toetsen en moet dan een eigen manier krijgen (een tweede pad of een nieuw document). In de code
+     gelezen. — B (code)
 
 1932. **VERVOLG (review #1064, tekst): de headless MCP-server adviseert een document te sluiten.** Weigert
      `planner_export_ifc` het bestand van een ander open document, dan eindigt de fout met "close that document first"

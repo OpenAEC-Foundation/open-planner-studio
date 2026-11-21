@@ -17,6 +17,8 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 
 Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een ander formaat krijgt zijn projectnaam.
 
+Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en staat het IFC-bestand al open in een tabblad, dan opent de app het niet nog eens. Ze gaat naar het tabblad dat al open is, met de melding *Dit bestand staat al open. Je bent naar dat tabblad gegaan.* Dat tabblad blijft zoals het was, ook met wijzigingen die je nog niet opsloeg: de app leest het bestand niet opnieuw. Zo kunnen twee tabbladen elkaars opslag niet overschrijven. Dat geldt ook voor slepen en *Recent*. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad, net als elk bestand in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad.
+
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
 ### Een bestand naar de app slepen
