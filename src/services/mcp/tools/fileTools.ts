@@ -54,6 +54,7 @@ import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
+import { alreadyOpenDocumentId, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -471,7 +472,8 @@ export const fileTools: McpToolDef[] = [
     name: 'planner_import_schedule',
     description:
       'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
-      'new active tab (an empty, unchanged active tab is reused); nothing is merged. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'new active tab (an empty, unchanged active tab is reused); nothing is merged. If the app has the file already open ' +
+      'in a tab, it may switch to that tab instead and return it with `alreadyOpen: true` (nothing is read again). Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
       'document; rebuild calendars with planner_update_calendar.',
@@ -554,11 +556,15 @@ export const fileTools: McpToolDef[] = [
       // herkomststempels uit het bronbestand wissen (`tests/mcp/cases-import-bibliotheek.ts`).
       // `formatOf` blijft puur het AI-facing label
       // (`format`, voor de respons en de notices).
+      // Knownbug 1957 (met de flag `ifcForeignContent`, besluit T2 van de technisch beslisser): staat dit pad al in
+      // een tabblad open, dan geen tweede document maar dat tabblad, zoals Bestand → Openen (`openDocumentFor.ts`).
+      const openId = await alreadyOpenDocumentId(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
       // Lezen en parsen kunnen seconden duren: controleer pauze/alleen-lezen/dialoog opnieuw vlak
       // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
-      const opened = ctx.app.store.getState().openAsDocument(parsed, {
+      const alreadyOpen = openId !== null && switchToOpenDocument(ctx.app.store.getState(), openId);
+      const opened = alreadyOpen ? null : ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
         ref: { kind: 'path', path },
       });
@@ -573,8 +579,8 @@ export const fileTools: McpToolDef[] = [
       ]));
       // B5: het meldingenkanaal van de app bereikt een MCP-client niet. Dezelfde telling en grootste
       // verschuiving als `notifications.minuteModelConverted`, per document in de inventaris.
-      const conversionById = new Map(opened.minuteModelConversions.map(c => [c.documentId, c]));
-      const documents = opened.documentIds.map(documentId => {
+      const conversionById = new Map((opened?.minuteModelConversions ?? []).map(c => [c.documentId, c]));
+      const documents = (opened ? opened.documentIds : [after.activeDocumentId]).map(documentId => {
         const payload = payloadById.get(documentId);
         if (!payload) throw new Error(`Opened document '${documentId}' is missing after the import`);
         const conversion = conversionById.get(documentId);
@@ -593,6 +599,13 @@ export const fileTools: McpToolDef[] = [
         };
       });
       const notices: string[] = [];
+      if (alreadyOpen) {
+        notices.push(
+          'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
+          `(document '${after.activeDocumentId}'). It was not read again: the tab keeps its own state, including ` +
+          'unsaved changes. Tell the user.',
+        );
+      }
       for (const document of documents) {
         if (!document.minuteModelConversion) continue;
         const { shiftedTasks, maxShiftWorkdays } = document.minuteModelConversion;
@@ -604,7 +617,9 @@ export const fileTools: McpToolDef[] = [
           'new dates; planner_undo restores the recorded dates (Dates as recorded). Tell the user.',
         );
       }
-      if (format === 'CSV') {
+      if (alreadyOpen) {
+        // Geen formaatuitleg: er is niets geïmporteerd.
+      } else if (format === 'CSV') {
         notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
       } else if (format === 'P6-XML') {
         notices.push('P6 XML: Nonlabor resources were imported as EQUIPMENT.');
@@ -617,7 +632,7 @@ export const fileTools: McpToolDef[] = [
           `${documents.length === 1 ? '' : 's'}. Saving writes IFC.`,
         );
       }
-      if (format !== 'IFC') {
+      if (!alreadyOpen && format !== 'IFC') {
         notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving.');
       }
       return {
@@ -625,11 +640,13 @@ export const fileTools: McpToolDef[] = [
         envelope: buildEnvelope(ctx),
         data: {
           documentId: after.activeDocumentId,
-          documentsOpened: documents.length,
+          documentsOpened: opened ? documents.length : 0,
           documents,
           path,
           format,
-          reusedActiveTab: opened.reusedActiveTab,
+          reusedActiveTab: opened?.reusedActiveTab ?? false,
+          // Alleen als het pad al open stond (knownbug 1957); met de flag uit nooit, zodat het antwoord gelijk blijft.
+          ...(alreadyOpen ? { alreadyOpen: true } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */
           filePath: after.filePath,
           tasks: after.tasks.length,
