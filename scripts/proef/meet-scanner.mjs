@@ -21,7 +21,8 @@
 // de flag, en `writeIfcMerge` zonder wijziging. Tijd, piekgeheugen, uitkomst (geschreven of `merge-needs-phase2`) en de
 // grootte van de uitvoer. Boven `IFC_BYTES_ROUTE_MAX_BYTES` (150 MiB sinds 21 november 2026, knownbug 1936) valt de
 // route terug zonder bron; een meting boven de grens gebruikt voor de merge daarom een bestand net onder die grens
-// (`mergeSize` in de uitvoer). Het script leest de grens uit de constante; de handmatige job meet 50 en 149,5 MB.
+// (`mergeSize` in de uitvoer). Het script leest de grens uit de constante. De handmatige job in ifc-foreign.yml meet
+// standaard nog 50, 150 en 300 MB; de aanpassing aan de grens van 150 MiB staat in #1130.
 //
 // #804 fase 1b, fixronde 2: de merge toetst nu of de lezer elk veld van de bron draagt (de leesverliestoets). Het
 // voorbeeld is met een oudere writer gemaakt en weigert daarom al zonder bewerking (`niet-gedragen`). Het script zet het

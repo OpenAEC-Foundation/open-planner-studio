@@ -550,7 +550,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 
 1. **Openen als bytes.** Elke open-route voor IFC leest bytes: Openen (`tauriBackend.ts:22`, `webBackend.ts:124`,
    `siteBackend.ts:43`), Recent (`tauriBackend.ts:87-90`, `fileSlice.ts:1658`) en externe bronnen
-   (`parseExternalSource`, `fileSlice.ts:1500`). De grootte wordt vóór het lezen gecontroleerd (§4.13).
+   (`parseExternalSource`, `fileSlice.ts:1500`). Hoe de grootte telt, staat in §4.13.
    `openExampleFromString` (voorbeelden, `helpApi.ts:104`, `useDemoStartExample.ts:49`, `qaScenes.ts:89`) blijft tekst:
    het zijn eigen bestanden in UTF-8. Een voorbeeld met een model (`bouwmodel-ifc4.ifc` in de QA-scènes) gaat via
    dezelfde route met `TextEncoder`; dat is byte-gelijk voor geldige UTF-8.
@@ -912,9 +912,17 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   voor openen en de doelscan bij opslaan (besluit van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen";
   knownbug 1936). Fase 0 liet 300 MiB toe; opslaan van 157 MB piekte op de desktop op 3,45 tot 3,93 GB. Bij openen kent
   de bytes-route de grootte pas nadat de bestandslaag het bestand heeft gelezen; de grens begrenst de bewaarde bron,
-  niet het inlezen. Boven de grens weigert openen een bestand dat de bytes-route met zijn bron zou openen, met een
-  melding die de grens noemt; elke andere uitkomst is die van onder de grens. Crashherstel van een bron boven de grens
-  geeft de planning terug, meldt dat het model niet is hersteld en houdt de herstelset vast. De uitvoer van opslaan
+  niet het inlezen. De bytes-route vergelijkt de grootte eerst: boven de grens start geen indeling voor bronbehoud en
+  geen tekst voor de lezer, en de gewone route doet wat main boven de oude grens deed. Weigert de lezer een gebouwmodel,
+  of vindt de scan na het lezen van een gewone planning een vreemd deel, dan weigert openen met een melding die de grens
+  noemt (ook in het zeldzame geval dat een kleiner bestand evenmin zou openen, zoals knownbug 1151; besluit van
+  21 november 2026: een minder precieze reden is daar aanvaard). Anders opent de planning zonder bron.
+- Crashherstel leest zijn eigen bron zonder de grens voor openen (besluit van 21 november 2026), maar alleen de bron die
+  het op lengte en SHA-256 controleert: de bronkopie uit de herstelopslag, of op de desktop en met een handle het bestand
+  waarvan het vastgelegde kenmerk klopt. Het geeft model en planning terug zoals main. Reden: de app aanvaardde die
+  bytes zelf al, en een herstel kost het geheugen dat het document vóór de crash ook kostte. De grens blijft één
+  constante voor openen en de doelscan; herstel is geen van beide. Het herstel leest de bron vóór de herstelvraag; komt
+  de crash door geheugen, dan kan hij zich herhalen (knownbug 2047). De uitvoer van opslaan
   heeft geen grens (knownbug 2043); een bestaand doel of een tekstbron boven de grens is onleesbaar (2044).
 
 ### 4.14 Herstel en een ontbrekende bron

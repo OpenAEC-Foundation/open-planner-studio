@@ -3483,7 +3483,9 @@ en noem het in je rapport of PR-tekst.
      main. Er gaat niets verloren: het bestand bevat model en planning. Een volgende Ctrl+S in dezelfde sessie lukt nog
      (de opslag neemt de nieuwe bytes als bron over; in de code nagegaan door de reviewer van #1127). Met één bestand,
      één tabblad (PR #1121) wisselt opnieuw kiezen van zo'n in dezelfde sessie boven de grens gegroeid model ook niet
-     naar zijn open tabblad: de toets op een open tabblad komt na het parsen, en het parsen weigert. Richting:
+     naar zijn open tabblad: de toets op een open tabblad komt na het parsen, en het parsen weigert. Een crash daarna
+     herstelt wel volledig: het herstel leest zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder de grens
+     (fixronde 2 van #1127, ontwerp §4.13; `check-ifc-foreign-grens.ts` deel 1, zie ook 2047). Richting:
      vóór het schrijven de uitvoer tegen de grens houden, of de grens bij openen ruimer dan bij opslaan. — B (code
      gelezen; niet met een bestand van 150 MiB nagespeeld)
 
@@ -3510,6 +3512,13 @@ en noem het in je rapport of PR-tekst.
        `openIfc()` en `schedule()` werken, maar `toIfc()` geeft `IFC_WRITE_FAILED` met `reason: unreadable`
        (`src/core/index.ts`, de scan van de invoer), en de HTTP-API geeft dan 500 `IFC_WRITE_FAILED` bij `output=ifc`.
        De standaard uploadgrens van de HTTP-API is 20 MiB, dus daar alleen met een verhoogde `OPS_API_MAX_BODY_BYTES`.
+     De volgorde verschilt per route. De browser-Blob (`scanForeignTargetBlob`) en de headless server toetsen de grootte
+     vóór het lezen. De Tauri-stroom en de sitebytes (`scanForeignTargetSource`, `scanForeignTargetBytesAsync`) zoeken
+     eerst als stroom naar een model en vergelijken de grootte pas daarna in `readWhole`: een bestand boven de grens met
+     een herkend model geeft daar `model`, niet `unreadable`. Op de desktop staat de kiezer van *Opslaan als* zo'n als
+     model herkend doel na de bevestigde doelkeuze toe, net als onder de grens (besluit van 19 november 2026, met de
+     expliciete overschrijfbevestiging); alleen `unreadable` weigert vóór die toestemming. Door de reviewer van #1127
+     met echte tijdelijke bestanden en nagebootste Tauri-IPC op main en op de PR bevestigd.
      Een planning zonder gebouwmodel van 150 MiB is uitzonderlijk groot (de grootste opgeslagen IFC in de repo is
      481752 bytes). — B (code gelezen; `check-ifc-foreign-target.ts` deel 9c en `check-ifc-foreign-grens.ts`; de
      kern door de reviewer van #1127 beproefd)
@@ -3520,10 +3529,29 @@ en noem het in je rapport of PR-tekst.
      het pad of de handle, en een bron die de open-route weigert (bijvoorbeeld een scannerweigering, een onbekend schema
      of een gewijzigde regel na een update). Herstellen meldt dat niet, en in de browser wist de opruimactie daarna de
      herstelkopie van de bron als er niets anders misging. Bij een browserdocument zonder handle kan dat de enige kopie
-     zijn. Op main gelijk. Alleen een bron boven de grens heeft sinds fixronde 1 van #1127 een eigen uitkomst
-     (`sourceNotRestored`): een melding en een vastgehouden herstelset. Richting: dezelfde uitkomst voor elke gevonden
-     bron die niet opent (niet voor een bron die echt weg is). — B (code gelezen; hetzelfde pad als de herstelproef
-     van de reviewer van #1127)
+     zijn. Op main gelijk. De grootte is hier geen reden: het herstel leest zijn eigen, gecontroleerde bron zonder de
+     grens voor openen (fixronde 2 van #1127). Richting: een eigen uitkomst voor elke gevonden bron die niet opent (niet
+     voor een bron die echt weg is). — B (code gelezen; hetzelfde pad als de herstelproef van de reviewer van #1127)
+
+2047. **Crashherstel leest een groot gebouwmodel vóór de herstelvraag; komt de crash door geheugen, dan kan hij zich bij
+     elke start herhalen (#804, flag aan).** Het herstel leest zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder
+     de grens voor openen (besluit van 21 november 2026, ontwerp §4.13). Reden: de app aanvaardde die bytes zelf al, en
+     een herstel kost het geheugen dat het document vóór de crash ook kostte. Wat er bij de volgende start gebeurt, in de
+     code nagegaan: `useRecoveryRestore` leest elk document vóór het de vraag *Niet-opgeslagen werk herstellen* toont,
+     om naam en aantal taken te tonen. Daarbij opent `recoveryDocumentWithSource` de hele bron in een tijdelijke store
+     (scan, lezer, bron in het geheugen), voor alle documenten van de set na elkaar. De keuze *Verwerpen* komt pas daarna.
+     Wat de app zelf heeft: een fout bij dat lezen (ook een mislukte toewijzing die als fout terugkomt) vangt
+     `readRecoveryDocument` af; dan komt de vraag met alleen de planning (zie 2046), dus geen lus. Automatisch opslaan
+     blijft dicht tot de keuze, zodat de set niet wordt overschreven. Een noodrem op het geheugen heeft de app niet (de
+     rem van 2 GB zat alleen in het meetscript). Wat overblijft: stopt het webproces of de browsertab hard op geheugen
+     tijdens dat lezen, dan komt de vraag niet en leest de volgende start dezelfde bron opnieuw; *Verwerpen* is dan niet
+     bereikbaar. Uitwegen buiten de app: op de desktop het bronbestand verplaatsen (het herstel valt dan terug op de
+     planning, er is geen kopie), of de herstelbestanden in de appmap wissen; in de browser alleen de sitegegevens wissen.
+     Het herstel van één document vraagt ongeveer wat het openen ervan vroeg; opslaan piekt hoger (1936). Een lus
+     ontstaat dus vooral als er bij de start minder geheugen vrij is, of als de set meer grote tabbladen heeft (die leest
+     het herstel allemaal vóór de vraag). Op main gelijk voor bronnen tot 300 MiB. Richting: de bron pas na
+     *Herstellen* lezen, of een start zonder herstel aanbieden na een herstel dat niet afkwam. — S (code gelezen; geen
+     crash op geheugen nagespeeld)
 
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer

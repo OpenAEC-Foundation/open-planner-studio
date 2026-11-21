@@ -287,11 +287,13 @@ bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkin
 `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`) is de enige plek van de grens: 150 MiB (binair, sinds 21 november 2026,
 besluit van de eigenaar). Openen (`ifcBytesRoute.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`), de doelscan bij opslaan
 (`targetForeignScan.ts`) en de headless MCP-server lezen hem; een bestand van precies de grens valt eronder (`>`).
-De grootte telt pas na de scanner en het schema, op één plek in `readIfcBytesDetailed`: alleen een bestand dat de
-bytes-route met zijn bron zou openen, weigert boven de grens met `IfcForeignOpenError` en reden `te-groot` (melding
-`ifcForeignOpenTooLarge`, de grens in MB); een gewone planning opent dan via de gewone route. Elke andere uitkomst is die
-van onder de grens. Crashherstel van zo'n bron geeft de planning terug met `sourceNotRestored`; *Herstellen*
-(`restoreRecoveredDocuments`) meldt `recoveryModelNotRestored` en houdt de herstelset vast. De uitvoer van opslaan heeft
+De grootte telt eerst, in `readIfcBytesDetailed`: boven de grens start geen indeling voor bronbehoud en geen tekst
+voor de lezer, en de gewone route doet wat main boven de oude grens deed. Weigert de lezer een gebouwmodel, of vindt de
+scan na het lezen van een gewone planning een vreemd deel, dan weigert openen met `IfcForeignOpenError` en reden
+`te-groot` (melding `ifcForeignOpenTooLarge`, de grens in MB); anders opent de planning zonder bron. Crashherstel leest
+zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder de grens (`readRecoveryDocument` geeft `openOpenedFile`
+`ifcMaxBytes: Infinity`, naar `maxBytes` van de bytes-route) en geeft model en planning terug zoals main; de prijs staat
+in knownbug 2047. De uitvoer van opslaan heeft
 geen grens (knownbug 2043); een bestaand doel of een tekstbron boven de grens is onleesbaar (2044, bekende grens).
 Bewaakt in `check-ifc-foreign-open.ts` (deel 7a), `check-ifc-foreign-target.ts` (deel 9c) en `check-ifc-foreign-grens.ts`
 (een verlaagde productiegrens door de echte routes).
