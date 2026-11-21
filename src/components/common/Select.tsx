@@ -21,6 +21,9 @@ export type SelectOption = {
    *  `aria-describedby` naar de uitleg, zodat een schermlezer hem voorleest. Zonder `description`
    *  verandert er niets aan de keuzelijst. */
   description?: string;
+  /** Optioneel een korte, ALTIJD zichtbare regel onder het label in de open lijst (bv. een
+   *  taaktype in gewone taal met een voorbeeld). Zonder `hint` blijft de optie precies zoals ze was. */
+  hint?: string;
 };
 
 interface SelectProps {
@@ -468,7 +471,14 @@ export function Select({
         }}
         onClick={() => selectAt(i)}
       >
-        <span className="ops-select__option-label">{opt.label}</span>
+        {opt.hint ? (
+          <span className="ops-select__option-text">
+            <span className="ops-select__option-label">{opt.label}</span>
+            <span className="ops-select__option-hint" data-ops-select-option-hint={opt.value}>{opt.hint}</span>
+          </span>
+        ) : (
+          <span className="ops-select__option-label">{opt.label}</span>
+        )}
         {opt.description && (
           <>
             {/* i-icoon: alleen voor muis en tik (de focus blijft op de trigger); een klik

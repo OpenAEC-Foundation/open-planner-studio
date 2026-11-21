@@ -54,8 +54,11 @@ export function TaskWorkRuleField({ task, onChange }: {
                 value: '',
                 label: t('workRule.projectDefault', { rule: t(`workRule.${projectRule}`) }),
                 description: explain(projectRule),
+                hint: t('workRule.hint.projectDefault'),
               },
-              ...WORK_RULES.map(rule => ({ value: rule, label: t(`workRule.${rule}`), description: explain(rule) })),
+              ...WORK_RULES.map(rule => ({
+                value: rule, label: t(`workRule.${rule}`), description: explain(rule), hint: t(`workRule.hint.${rule}`),
+              })),
             ]}
           />
         </div>
@@ -76,6 +79,11 @@ export function TaskWorkRuleField({ task, onChange }: {
             <Icon id="help.context-hint" size={14} aria-hidden="true" />
           </button>
         </span>
+      </div>
+      {/* Voorstel #954 deel 2: in gewone taal wat een taaktype is, en een voorbeeld van het taaktype dat nu geldt. */}
+      <div className="flex flex-col gap-0.5 !text-small leading-4" style={{ color: 'var(--theme-text-muted)' }} data-ops-work-rule-hint={effective}>
+        <span>{t('workRule.hint.intro')}</span>
+        <span>{t(`workRule.hint.${effective}`)}</span>
       </div>
     </Field>
   );

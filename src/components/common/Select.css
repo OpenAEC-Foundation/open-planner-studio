@@ -144,6 +144,25 @@
   white-space: nowrap;
 }
 
+.ops-select__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding-block: var(--sp-1);
+}
+
+.ops-select__option-hint {
+  font-size: var(--text-small);
+  line-height: 1.35;
+  white-space: normal;
+  color: var(--theme-text-muted);
+}
+
+.ops-select__option.is-selected .ops-select__option-hint {
+  color: var(--theme-accent-on);
+}
+
 .ops-select__option-info {
   display: inline-flex;
   flex-shrink: 0;
