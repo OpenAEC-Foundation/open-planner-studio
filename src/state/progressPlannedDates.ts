@@ -4,7 +4,7 @@ import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/ex
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { durationCompletionDates, durationEditProgress, settleDurationAftermath } from '@/engine/work/workRuleApply';
+import { durationCompletionDates, settleDurationAftermath } from '@/engine/work/workRuleApply';
 import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import type { Task } from '@/types/task';
 import { clearLevelingGaps, hourInputFinishBasis, taskCalendarHoursPerDay, taskTriggerChanges, taskWorkMinutesOf } from '@/utils/taskDefaults';
@@ -183,7 +183,9 @@ export function progressPlacementForBatch(
 }
 
 /** Bij gecombineerde invoer telt de bewerkte plaatsing mee, vóór de conceptvoortgang. */
-export function progressPlannedDatesAfterEdit(state: AppState, before: Task, edited: Task): PlannedProgressDates | undefined {
+export function progressPlannedDatesAfterEdit(
+  state: AppState, before: Task, edited: Task, completing: boolean,
+): PlannedProgressDates | undefined {
   const { completion, actualStart, actualFinish } = before.time;
   const placement = !actualStart && edited.time.actualStart
     ? { ...edited, status: before.status, time: { ...edited.time, completion, actualStart, actualFinish } }
@@ -194,11 +196,11 @@ export function progressPlannedDatesAfterEdit(state: AppState, before: Task, edi
   if (changes.timeBase) {
     const hoursPerDay = taskCalendarHoursPerDay(before, state.calendars, state.calendar);
     settleDurationAftermath(updated, state, taskWorkMinutesOf(before, hoursPerDay), hourInputFinishBasis(before));
-    const shortened = durationEditProgress(updated, before.time, updated.time,
-      taskCalendarHoursPerDay(updated, state.calendars, state.calendar));
-    if (shortened && !shortened.refused && shortened.completion >= 1) {
-      return durationCompletionDates(updated, resolveCalendar(updated.calendarId, state.calendars, state.calendar),
+    if (completing) {
+      const dates = durationCompletionDates(updated, before.time,
+        resolveCalendar(updated.calendarId, state.calendars, state.calendar),
         effectiveSchedulingOptions(state.project).workdayDurationMeasure === true);
+      if (dates) return dates;
     }
   } else if (changes.levelingGaps) clearLevelingGaps(updated);
   const tasks = state.tasks.map(task => task.id === updated.id ? updated : task);

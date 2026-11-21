@@ -1041,11 +1041,18 @@ export function durationEditRefusal(
   return change?.refused ? change : null;
 }
 
-/** Een taak die door inkorten haar restwerk kwijt is, eindigt na de nieuwe duur vanaf haar start.
- *  De kalenderwandeling is dezelfde als in CPM. De statusdatum wordt bij de afmelding getoetst. */
+/** Bij afmelden met een gewijzigde duur op een lopende taak telt het definitieve taakvenster.
+ *  Roep dit aan na het verwerken van actuals en het aanpassen van de splits op de nieuwe duur.
+ *  De kalenderwandeling is dezelfde als in CPM. De statusdatum blijft de bovengrens. */
 export function durationCompletionDates(
-  task: Task, calendar: WorkCalendar, workdayDurationMeasure: boolean,
+  task: Task, before: TaskTime, calendar: WorkCalendar | undefined, workdayDurationMeasure: boolean,
 ): PlannedProgressDates | undefined {
+  if (!calendar || task.isMilestone || task.isHammock || task.childIds.length > 0
+    || !(before.completion > 0 || before.actualStart) || before.completion >= 1 || before.actualFinish) return;
+  const unit = timeUnit(task.time);
+  if (unit === timeUnit(before) && (unit === 'hours'
+    ? task.time.durationMinutes === before.durationMinutes
+    : task.time.scheduleDuration === before.scheduleDuration)) return;
   const earlyStart = task.time.actualStart ?? defaultActualStart(task.time);
   const start = parseInstant(earlyStart);
   if (!Number.isFinite(start.getTime())) return undefined;
@@ -1055,13 +1062,21 @@ export function durationCompletionDates(
   return { earlyStart, earlyFinish: formatInstant(finish, 'hour') };
 }
 
+/** Sluit een duurbewerking af als zij zelf de taak voltooide en er geen andere voortgang volgt. */
+export function finishDurationProgress(
+  task: Task, before: TaskTime, statusDate: string | undefined, calendar: WorkCalendar | undefined,
+  workdayDurationMeasure: boolean,
+): void {
+  applyProgressInvariants(task, statusDate, calendar, durationCompletionDates(task, before, calendar, workdayDurationMeasure));
+}
+
 /** Verwerk restwerk, splits en afmelding van één duurbewerking vóór de werkdriehoek de rest leest.
  *  Bij weigering blijft de taak ongemoeid. De afmelding volgt de nieuwe duur en de behouden splits. */
 export function settleEditedDuration(
   task: Task, before: TaskTime, workHoursPerDay: number,
-  { statusDate, calendar, workdayDurationMeasure, keepWork, rescaleContours }: {
+  { statusDate, calendar, workdayDurationMeasure, keepWork, rescaleContours, deferCompletion }: {
     statusDate?: string; calendar?: WorkCalendar; workdayDurationMeasure: boolean;
-    keepWork?: boolean; rescaleContours?: boolean;
+    keepWork?: boolean; rescaleContours?: boolean; deferCompletion?: boolean;
   },
 ): { progress: DurationEditProgress | null; timephasedLost: boolean } {
   const change = durationEditProgress(task, before, task.time, workHoursPerDay);
@@ -1077,9 +1092,8 @@ export function settleEditedDuration(
   const timephasedLost = applyDurationChangeRules(task, taskAxisMinutes(before, workHoursPerDay), workHoursPerDay, {
     keepWork, rescaleContours,
   });
-  if (progress && progress.completion >= 1) {
-    const planned = calendar ? durationCompletionDates(task, calendar, workdayDurationMeasure) : undefined;
-    applyProgressInvariants(task, statusDate, calendar, planned);
+  if (progress && progress.completion >= 1 && !deferCompletion) {
+    finishDurationProgress(task, before, statusDate, calendar, workdayDurationMeasure);
   }
   return { progress, timephasedLost };
 }

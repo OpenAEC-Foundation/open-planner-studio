@@ -133,7 +133,7 @@ export interface ProgressEntryContext {
   /** Effectieve taakkalender voor D1/D2 en de statuswerkdag. */
   calendar?: WorkCalendar;
   /** Geplande datums vóór de vloer voor open werk, indien beschikbaar. */
-  plannedDates?: () => PlannedProgressDates | undefined;
+  plannedDates?: (task: Task) => PlannedProgressDates | undefined;
 }
 
 /** Waarom voortgang invullen geweigerd wordt, in de vorm die de UI toont of beantwoordt. */
@@ -192,10 +192,12 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
       return { ok: false, reason: 'afterStatusDate' };
     }
   }
+  const actualStart = edit.field === 'actualStart' ? edit.value : answer ?? task.time.actualStart;
+  const plannedTask = actualStart === task.time.actualStart ? task : { ...task, time: { ...task.time, actualStart } };
   const planned = edit.field === 'completion'
-    ? datesForProgress(task, edit.value, ctx.plannedDates)
+    ? datesForProgress(task, edit.value, () => ctx.plannedDates?.(plannedTask))
     : edit.field === 'actualStart' && task.time.completion >= 1 && !task.time.actualFinish
-      ? ctx.plannedDates?.() : undefined;
+      ? ctx.plannedDates?.(plannedTask) : undefined;
   const run = (date: string | undefined): Task => {
     const next: Task = { ...task, time: { ...task.time } };
     applyProgressEdit(next, edit, date, answer, ctx.calendar, planned);

@@ -159,9 +159,9 @@ export function planTaskDialogProgress(
     ...context,
     statusDate: state.project.statusDate,
     calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
-    plannedDates: live ? () => progressPlannedDatesAfterEdit(state, live, {
-      ...task, status: live.status, time: { ...time, completion: live.time.completion },
-    }) : undefined,
+    plannedDates: live ? candidate => progressPlannedDatesAfterEdit(state, live, {
+      ...candidate, status: live.status, time: { ...candidate.time, completion: live.time.completion },
+    }, (edit.field === 'completion' ? edit.value : time.completion) >= 1) : undefined,
   });
   if (!plan.ok) return plan;
   const next = plan.change?.task ?? task;

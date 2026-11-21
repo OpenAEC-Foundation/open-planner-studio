@@ -116,6 +116,40 @@ for (const completionValues of [[100], [50, 100]]) {
   });
 }
 
+for (const scenario of [
+  { label: 'startdatum', progress: { actualStart: '2026-11-04' }, dates: ['2026-11-04', '2026-11-05'] },
+  { label: 'startdatum en 100%', progress: { actualStart: '2026-11-04', completion: 100 }, dates: ['2026-11-04', '2026-11-05'] },
+  { label: 'twee geldige datums', progress: { actualStart: '2026-11-04', actualFinish: '2026-11-06' }, dates: ['2026-11-04', '2026-11-06'] },
+  { label: 'ongeldig datumpaar', progress: { actualStart: '2026-11-04', actualFinish: '2026-11-03' }, dates: ['2026-10-28', '2026-10-29'], refusal: /before actualStart/ },
+  { label: 'ongeldig voortgangsveld', progress: { percent: 100 }, dates: ['2026-10-28', '2026-10-29'], refusal: /percent/ },
+]) {
+  test(`#998: inkorten in één MCP-item met ${scenario.label}`, async () => {
+    S().newProject();
+    const today = '2026-11-18';
+    S().setProject({ startDate: '2026-10-28', statusDate: today });
+    const id = S().addTask({ name: 'Montage', time: createDefaultTaskTime('2026-10-28', 4) });
+    S().runCPM();
+    S().enterTaskProgress(id, { field: 'completion', value: 0.5 }, { today });
+    S().runCPM();
+    const result = await rpc('planner_update_tasks', { updates: [{ id,
+      fields: { duration: 2, durationUnit: 'days' }, progress: scenario.progress,
+    }] });
+    const facts = () => {
+      const { actualStart, actualFinish, completion, scheduleDuration } = S().tasks.find(task => task.name === 'Montage')!.time;
+      return [actualStart?.slice(0, 10), actualFinish?.slice(0, 10), completion, scheduleDuration];
+    };
+    const expected = [...scenario.dates, 1, 2];
+    const recorded = facts();
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+    S().applyLoadedProject(reopened, { linkedOpen: true, recompute: true, filePath: null });
+    const refusals = reasons(result);
+    assertEq({ recorded, reopened: facts() }, { recorded: expected, reopened: expected },
+      'aanvaarde datums en duur blijven na IFC-heropening');
+    assertEq(refusals.length, scenario.refusal ? 1 : 0, `weigeringen: ${refusals.join(', ')}`);
+    if (scenario.refusal) assert(scenario.refusal.test(refusals[0]), `verwachte reden: ${refusals[0]}`);
+  });
+}
+
 test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', async () => {
   const { L } = setup('2026-06-10');
   const before = JSON.stringify(timeOf(L));

@@ -537,6 +537,7 @@ function createMcpDraft(
     id: string,
     top: Partial<Task>,
     timePatch?: { scheduleDuration?: number; durationUnit?: 'days' | 'hours'; durationMinutes?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
+    deferCompletion?: boolean,
   ): McpDurationProgressOutcome {
     let outcome: McpDurationProgressOutcome = null;
     store.setState((s) => {
@@ -611,6 +612,7 @@ function createMcpDraft(
           calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
           workdayDurationMeasure: effectiveSchedulingOptions(s.project).workdayDurationMeasure === true,
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
+          deferCompletion,
         });
         if (duration.progress && !duration.progress.refused) outcome = { progress: duration.progress };
         lost = duration.timephasedLost || lost;

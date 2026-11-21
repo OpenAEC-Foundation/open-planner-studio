@@ -115,6 +115,33 @@ for (const durationFirst of [true, false]) {
     reopened.tasks[0]?.time.actualFinish, '2026-10-30');
 }
 
+for (const durationFirst of [true, false]) {
+  const f = fixture(['Lopende montage']);
+  const [id] = f.ids;
+  const today = '2026-11-18';
+  f.S().setProject({ startDate: '2026-10-28', statusDate: today });
+  f.S().setUI({ autoCalcCPM: false });
+  f.S().updateTask(id, { time: { ...f.task(id).time, scheduleStart: '2026-10-28', scheduleDuration: 4 } });
+  f.S().runCPM();
+  f.S().enterTaskProgress(id, { field: 'completion', value: 0.5 }, { today });
+  const input = f.open(id);
+  const initialDuration = { unit: 'days', scheduleDuration: 4 } as const;
+  const shorten = (task: Task) => ({ ...task, time: { ...task.time, scheduleDuration: 3 } });
+  const draft = durationFirst ? shorten(input.draft) : input.draft;
+  const plan = planTaskDialogProgress(f.S(), draft, undefined, { field: 'completion', value: 1 }, { today, initialDuration });
+  if (plan.ok && plan.change) f.save({ ...input, today, initialDuration,
+    draft: durationFirst ? plan.change.task : shorten(plan.change.task) });
+  const facts = () => {
+    const { actualStart, actualFinish, completion, scheduleDuration } = f.S().tasks[0].time;
+    return [actualStart?.slice(0, 10), actualFinish?.slice(0, 10), completion, scheduleDuration];
+  };
+  const expected = ['2026-10-28', '2026-10-30', 1, 3];
+  eq(`#998 lopende taak inkorten en afmelden (duur eerst: ${durationFirst}): einde volgt de nieuwe duur`, facts(), expected);
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly')));
+  f.S().applyLoadedProject(reopened, { linkedOpen: true, recompute: true, filePath: null });
+  eq(`#998 lopende taak inkorten en afmelden (duur eerst: ${durationFirst}): dezelfde feiten na IFC-heropening`, facts(), expected);
+}
+
 // Een later opgegeven werkelijke start begrenst het voorlopige einde in beide invoervolgordes.
 for (const completionFirst of [true, false]) {
   const f = fixture(['Montage']);

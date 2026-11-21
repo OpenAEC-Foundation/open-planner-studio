@@ -91,6 +91,36 @@ function referenceB(): { es?: string; ef?: string; tf?: number } {
 }
 const REF = referenceB();
 
+for (const withSuccessor of [false, true]) {
+  const { S } = fresh();
+  const today = '2026-11-18';
+  S().setProject({ startDate: '2026-10-28', statusDate: today });
+  S().setUI({ autoCalcCPM: false });
+  const id = S().addTask({ name: 'Montage', time: { scheduleDuration: 4 } as Task['time'] });
+  const next = withSuccessor ? S().addTask({ name: 'Controle' }) : undefined;
+  if (next) S().addSequence({ predecessorId: id, successorId: next, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  S().enterTaskProgress(id, { field: 'completion', value: 0.5 }, { today });
+  S().runCPM();
+  const result = S().runGridMutation([{ kind: 'paste', writes: [
+    ...(next ? [cell(next, 'task.time.completion', 0.5)] : []),
+    { ...cell(id, 'task.time.scheduleDuration', { unit: 'days', scheduleDuration: 2, explicitUnit: true }), route: 'task-schedule' },
+    cell(id, 'task.time.actualStart', '2026-11-04'),
+  ] }], { progressEntry: { today } });
+  eq('#998 raster aanvaardt de geplakte duur én werkelijke start', result.ok ? 'ok' : result.errors.map(error => error.code), 'ok');
+  const facts = () => {
+    const { actualStart, actualFinish, completion, scheduleDuration } = S().tasks.find(task => task.name === 'Montage')!.time;
+    return [actualStart?.slice(0, 10), actualFinish?.slice(0, 10), completion, scheduleDuration];
+  };
+  const expected = ['2026-11-04', '2026-11-05', 1, 2];
+  eq('#998 raster leidt het einde af vanaf de opgegeven werkelijke start', facts(), expected);
+  if (next) eq('#998 dezelfde plak gebruikt het nieuwe werkelijke einde voor de opvolger',
+    taskOf(S, next).time.actualStart, '2026-11-06T07:00');
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+  S().applyLoadedProject(reopened, { linkedOpen: true, recompute: true, filePath: null });
+  eq('#998 raster behoudt beide datums en de nieuwe duur na IFC-heropening', facts(), expected);
+}
+
 /** Wat elke UI-route na "B op 50 %" moet opleveren. */
 function expectRule1(label: string, S: () => AppState, B: string, depthBefore: number): void {
   eq(`${label}: statusdatum = vandaag (datum zonder tijd)`, S().project.statusDate, TODAY);

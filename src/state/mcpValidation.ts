@@ -20,13 +20,14 @@ import { isElapsedTask } from '@/engine/scheduler/duration';
 // =================================================================================================
 
 import type { AppState } from './appStore';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import {
   applyProgressInvariants, datesForProgress, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
   normalizeActualDate, rememberProgressBeforeRecalculation,
   type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
-import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
+import { captureProgressWork, durationCompletionDates, settleProgressWork } from '@/engine/work/workRuleApply';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { actualStartQuestionFor } from '@/engine/progressEntry';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
@@ -174,6 +175,7 @@ export const progress = {
     update: { completion?: number; actualStart?: string; actualFinish?: string },
     statusDate: string | undefined,
     getPlannedDates?: (task: Task) => PlannedProgressDates | undefined,
+    beforeDuration?: TaskTime,
   ): ProgressResult {
     const task = draftState.tasks.find((t) => t.id === taskId) as Task | undefined;
     if (!task) return { applied: false, reason: `task '${taskId}' does not exist` };
@@ -211,14 +213,6 @@ export const progress = {
     //     taak die nog op 0% staat) die finish meteen weer wissen — terwijl een opgegeven finish juist
     //     completion=1 hoort af te dwingen via de invarianten.
     if (update.completion !== undefined && time.completion < 1) time.actualFinish = undefined;
-
-    // (4) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
-    //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
-    //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
-    //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
-    const planned = update.completion === undefined
-      ? undefined : datesForProgress(scratch, time.completion, () => getPlannedDates?.(task));
-    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, planned);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
@@ -260,7 +254,13 @@ export const progress = {
       return { applied: false, reason: `task '${taskId}' is a summary task (has children); progress, status and actual dates are derived from the leaf tasks below it, not set directly — set the progress on those leaf tasks` };
     }
 
-    // (10) invarianten.
+    // (10) Leid ontbrekende datums pas af uit de aanvaarde datums, duur en splits.
+    const afterDuration = beforeDuration && time.completion >= 1 && !time.actualFinish
+      ? durationCompletionDates(scratch, beforeDuration, calendar,
+        effectiveSchedulingOptions(draftState.project).workdayDurationMeasure === true) : undefined;
+    const planned = afterDuration ?? (update.completion === undefined
+      ? undefined : datesForProgress(scratch, time.completion, () => getPlannedDates?.(task)));
+    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, planned);
     applyProgressInvariants(scratch, statusDate, calendar, planned);
     // (11) Geen verzonnen werkelijke start — de AI geeft hem zelf op.
     const question = actualStartQuestionFor(task, scratch, statusDate, {
