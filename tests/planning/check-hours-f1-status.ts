@@ -84,11 +84,20 @@ for (const c of cases) for (const route of ['dialoog', 'paneel', 'raster', 'plak
     }
   }
 }
+for (const [plannedFinish, finish] of [
+  ['2026-06-01T16:00', '2026-06-01T16:00'],
+  ['2026-06-04T16:00', '2026-06-03T16:00'],
+] as const) {
+  const f = fixture('2026-06-03');
+  const plan = planProgressEntry(f.task(), { field: 'completion', value: 1 }, {
+    statusDate: '2026-06-03', calendar: f.calendar,
+    plannedDates: () => ({ earlyStart: f.task().time.earlyStart, earlyFinish: plannedFinish }),
+  });
+  eq(`100% gebruikt gepland einde ${plannedFinish} tot de statusgrens (D6)`,
+    plan.ok && plan.change?.task.time.actualFinish, finish);
+}
 {
   const f = fixture('2026-06-03');
-  const plan = planProgressEntry(f.task(), { field: 'completion', value: 1 },
-    { statusDate: '2026-06-03', calendar: f.calendar });
-  eq('100% leidt D6 af', plan.ok && plan.change?.task.time.actualFinish, '2026-06-03T16:00');
   eq('Nachtfeit hoort bij statuswerkdag', isActualPastStatusDate('2026-06-04T02:00',
     '2026-06-03', { ...f.calendar, workTime: makeBands([1, 2, 3, 4, 5], [{ start: 1320, end: 1800 }]) }, 'end'), false);
 }
