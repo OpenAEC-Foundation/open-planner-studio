@@ -1,0 +1,21 @@
+--- a/src/services/ifc/foreign/mergeValidation.ts	2026-11-21 10:05:16.136113987 +0100
++++ b/src/services/ifc/foreign/mergeValidation.ts	2026-11-21 10:05:16.139491048 +0100
+@@ -107,15 +107,14 @@
+  * Aanroepen met oplopende `i`: de zoektocht naar `/*` loopt één keer door de bytes.
+  */
+ export function danglingMayChange(index: StepIndex, classes: ArrayLike<number>, bytes: Uint8Array): (i: number) => boolean {
+-  let comment = nextCommentOpen(bytes, 0);
++  // METING (alleen in de meet-branch, patch zonder-commentaarregel.diff): zonder de regel voor commentaar (knownbug 1951).
++  void nextCommentOpen; void bytes;
+   return (i: number) => {
+     for (let k = index.outStart(i); k < index.outEnd(i); k++) {
+       const target = index.outTarget(k);
+       if (target < 0 || classes[target] === 1) return true;
+     }
+-    const from = index.entityStart(i), to = index.end(i);
+-    while (comment >= 0 && comment < from) comment = nextCommentOpen(bytes, comment + 1);
+-    return comment >= 0 && comment + 1 < to;
++    return false;
+   };
+ }
+ 

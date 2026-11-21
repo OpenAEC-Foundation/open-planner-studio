@@ -55,9 +55,10 @@ const proefRuns = Number(opts['proef-runs'] ?? 2);
 // voor alle commits; een afwijking komt in het resultaat (`shaGelijk: false`) en maakt de run rood, maar de meting
 // gaat door. `node_modules` wordt gedeeld via een link in de map van elke commit.
 const refs = (opts.refs ?? '').split(',').filter(Boolean).map(r => {
-  const m = /^([\w-]+):([0-9a-f]{7,40})$/.exec(r);
-  if (!m) throw new Error(`--refs verwacht naam:sha, kreeg ${r}`);
-  return { name: m[1], sha: m[2] };
+  // naam:sha, of naam:sha@pad/naar.diff: dan na het uitpakken die patch (pad vanaf de root van deze branch) op de bron.
+  const m = /^([\w-]+):([0-9a-f]{7,40})(?:@(.+))?$/.exec(r);
+  if (!m) throw new Error(`--refs verwacht naam:sha of naam:sha@patch, kreeg ${r}`);
+  return { name: m[1], sha: m[2], patch: m[3] };
 });
 const refsRuns = Number(opts['refs-runs'] ?? 2);
 // --terugval=150,…: met --refs bij deze groottes ook de weg "late weigering van de eerste kandidaat, geslaagde terugval"
@@ -323,10 +324,11 @@ for (const ref of refs) {
   mkdirSync(ref.dir, { recursive: true });
   const tar = execFileSync('git', ['archive', '--format=tar', ref.sha, 'src', 'tests/planning', 'tsconfig.json', 'package.json'], { cwd: ROOT, maxBuffer: 1 << 30 });
   execFileSync('tar', ['-x', '-C', ref.dir], { input: tar });
+  if (ref.patch) execFileSync('git', ['apply', '--verbose', join(ROOT, ref.patch)], { cwd: ref.dir, stdio: 'inherit' });
   symlinkSync(join(ROOT, 'node_modules'), join(ref.dir, 'node_modules'));
   ref.bundle = bundle(ref.dir, `opslag-${ref.name}`);
   ref.commit = git(['log', '-1', '--format=%H %s', ref.sha]).trim();
-  console.error(`# commit ${ref.name}: ${ref.commit}`);
+  console.error(`# commit ${ref.name}: ${ref.commit}${ref.patch ? ` + patch ${ref.patch}` : ''}`);
 }
 
 // ── De generator: letterlijk `makeFile` uit meet-scanner.mjs (zoals ifcGeneratedModel.ts) ─────────────────────────
@@ -447,7 +449,7 @@ for (const mb of sizes) {
     }
     rmSync(file, { force: true });
     results.push(row);
-    writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, refs: refs.map(({ name, sha, commit }) => ({ name, sha, commit })), refsRuns, heap, results }, null, 2)}\n`);
+    writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, refs: refs.map(({ name, sha, commit, patch }) => ({ name, sha, commit, patch })), refsRuns, heap, results }, null, 2)}\n`);
     continue;
   }
   if (geheugen) {
@@ -497,7 +499,7 @@ for (const mb of sizes) {
   results.push(row);
   writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, runs, heap, results }, null, 2)}\n`);
 }
-if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ node: process.version, runs, heap, ...(refs.length ? { refs: refs.map(({ name, sha, commit }) => ({ name, sha, commit })), refsRuns } : {}), results }, null, 2)}\n`);
+if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ node: process.version, runs, heap, ...(refs.length ? { refs: refs.map(({ name, sha, commit, patch }) => ({ name, sha, commit, patch })), refsRuns } : {}), results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
 const failed = results.flatMap(row => row.refs
   ? Object.entries(row.refs).flatMap(([mode, v]) => [...(v.shaGelijk ? [] : [`${row.mb} MB ${mode}: sha256 verschilt tussen de commits`]),
