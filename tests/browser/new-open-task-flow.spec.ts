@@ -171,6 +171,44 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   expect(afterDrop.activeDocumentId).not.toBe(beforeDrop.activeDocumentId);
   expect(afterDrop.tasks.length).toBeGreaterThan(0);
   await expect(page.locator('[data-ops-tabstrip]')).toContainText('gesleept');
+
+  // #804, knownbug 1957: met de featureflag `ifcForeignContent` opent een bestand dat al open staat geen tweede
+  // tabblad. Een echte bestandshandle uit OPFS; de kiezer geeft elke keer een NIEUW handle-object voor hetzelfde
+  // bestand, zoals Chromium, dus de app moet `isSameEntry` gebruiken. De flag en de kiezer zijn de fixture; Openen
+  // en het wisselen van tabblad zijn echte klikken.
+  await page.evaluate(async (text) => {
+    window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('kantoor.ifc', { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    // De headless shell meldt de kiezer via `featurePolicy` als geblokkeerd; zoals in `ifc-schema.spec.ts`.
+    Object.defineProperty(document, 'featurePolicy', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'showOpenFilePicker', {
+      configurable: true, writable: true,
+      value: async () => [await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc')],
+    });
+  }, planning);
+  const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
+  const tabs = page.locator('[data-ops-tabstrip] [role="tab"]');
+  const tabsBefore = await tabs.count();
+  await openButton.click();
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  const kantoor = page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'kantoor' });
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await page.evaluate(() => window.__OPS__!.store.getState().addTask({ name: 'Onopgeslagen in kantoor', manuallyScheduled: true }));
+  const kantoorWork = await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name));
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'false');
+  await openButton.click();
+  const alreadyOpen = page.locator('.ops-toast', { hasText: 'This file is already open. You have been taken to that tab.' });
+  await expect(alreadyOpen).toBeVisible();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(true);
+  await page.evaluate(() => window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; }));
 });
 
 test('Taak toevoegen selecteert, onthult en richt de nieuwe taak zonder zoomwijziging', async ({ page, ops: _ops }) => {
