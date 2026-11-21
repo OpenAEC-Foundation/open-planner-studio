@@ -379,6 +379,44 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
+// Knownbug 374: C14 kan na een SS-plaatsing bij dezelfde start een latere opvolger opleveren.
+// X van vijf dagen houdt B op maandag; vergelijk dezelfde P6-basis met de gewone ALAP-stap.
+{
+  const summary = [];
+  const cal = SHORT_FRIDAY_BLOCKS;
+  for (const c14 of [false, true]) {
+    for (const lagCalendar of ['successor', 'predecessor'] as const) {
+      const project = {
+        startDate: '2026-06-01',
+        schedulingProfile: { ...builtInProfile('p6'), overrides: { p6AlapPositionedFromSuccessors: c14 } },
+        schedulingOptions: { lagCalendar },
+      } as Parameters<typeof solveInputFor>[0];
+      const tasks = [task('A', 2, { alap: true }), task('X', 5), { ...task('B', 1), calendarId: 'ten' } as Task];
+      const seqs: Sequence[] = [
+        { id: 'ab', predecessorId: 'A', successorId: 'B', type: 'START_START', lagDays: 0.5 }, fs('X', 'B'),
+      ];
+      const input = solveInputFor(project, structuredClone(tasks), seqs, cal, [cal, TEN]);
+      const label = `C14=${c14}/${lagCalendar}`;
+      eq(`${label}: effectieve optie`, input.schedulingOptions.p6AlapPositionedFromSuccessors, c14);
+      const first = solveProject(input);
+      const ar = first.tasks.get('A')!;
+      const replay = solveProject(solveInputFor(project, withoutAlapAt(tasks, 'A', ar.earlyStart), seqs, cal, [cal, TEN]));
+      const replayA = replay.tasks.get('A')!;
+      eq(`${label}: geen rekenfout`, Boolean(first.error || replay.error), false);
+      eq(`${label}: A opnieuw op dezelfde start`, replayA.earlyStart, ar.earlyStart);
+      summary.push({
+        c14, lagCalendar, a: ar.earlyStart, ae: ar.earlyFinish, replayAe: replayA.earlyFinish,
+        b: first.tasks.get('B')!.earlyStart, replayB: replay.tasks.get('B')!.earlyStart,
+      });
+    }
+  }
+  eq('knownbug 374: aantal gevallen', summary.length, 4);
+  console.log(`KNOWNBUG374_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 374::${JSON.stringify(summary)}`);
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  alap-maatplaatsing: alle checks groen (${checks})`);
   process.exit(0);
