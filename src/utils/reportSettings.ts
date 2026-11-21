@@ -31,7 +31,7 @@ import {
 } from '@/engine/reports/reportingPeriod';
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontChoice } from '@/services/pdf/reportFont';
-import { isBuiltinLayoutId, RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
+import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 
 /** De `localStorage`-sleutel van de rapportinstellingen. */
 const LOCAL_KEY = 'ops-reportSettings';
@@ -401,9 +401,11 @@ export function parseTableReportOptions(raw: unknown): TableReportOptions {
 
 /**
  * Het tijdvak van de Gantt-afdruk en, bij een opslag van vóór #997, de oude periode van het resourcediagram. Die
- * stond alleen op het papier als de bron op resource groepeerde. Het meegeleverde Resourcediagram (of het oude
- * rapporttype) neemt haar meteen over; een eigen layout houdt haar apart tot het tabblad weet hoe die groepeert; bij
- * elke andere bron telde ze niet. De oude sleutel `resourceGantt.period` wordt niet meer teruggeschreven.
+ * stond alleen op het papier als de bron op resource groepeerde, maar bleef bewaard bij een andere bron en gold weer
+ * zodra de planner terugschakelde. Het meegeleverde Resourcediagram (of het oude rapporttype) neemt haar meteen over;
+ * anders blijft ze apart bewaard (`legacyResourcePeriod`) tot een bron die op resource groepeert haar overneemt of de
+ * planner zelf een tijdvak kiest (review Sol #1005, ronde 7). De oude sleutel `resourceGantt.period` wordt niet meer
+ * teruggeschreven.
  */
 function parseGanttPeriod(s: Record<string, unknown>): Pick<ReportSettings, 'period' | 'legacyResourcePeriod'> {
   const project: ReportingPeriod = { preset: 'project' };
@@ -415,17 +417,16 @@ function parseGanttPeriod(s: Record<string, unknown>): Pick<ReportSettings, 'per
   const legacy = parseReportingPeriod(rg.period, project);
   if (legacy.preset === 'project') return { period };
   if (s.reportType === 'resourceGantt' || s.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID) return { period: legacy };
-  const ownLayout = typeof s.layoutId === 'string' && s.layoutId !== '' && !isBuiltinLayoutId(s.layoutId);
-  return ownLayout ? { period, legacyResourcePeriod: legacy } : { period };
+  return { period, legacyResourcePeriod: legacy };
 }
 
 /**
- * Wat het tabblad schrijft zodra het weet of de gekozen bron op resource groepeert: de bewaarde oude periode wordt
- * het tijdvak (ja) of vervalt (nee). `null` als er niets te beslissen is.
+ * Wat het tabblad schrijft zodra de gekozen bron op resource groepeert: de bewaarde oude periode wordt het tijdvak.
+ * `null` als er niets over te nemen is; bij een andere bron blijft ze bewaard.
  */
-export function legacyPeriodPatch(settings: Pick<ReportSettings, 'period' | 'legacyResourcePeriod'>, resourceSource: boolean): Partial<ReportSettings> | null {
-  if (!settings.legacyResourcePeriod) return null;
-  return { period: resourceSource ? settings.legacyResourcePeriod : settings.period, legacyResourcePeriod: undefined };
+export function legacyPeriodPatch(settings: Pick<ReportSettings, 'legacyResourcePeriod'>, resourceSource: boolean): Partial<ReportSettings> | null {
+  if (!settings.legacyResourcePeriod || !resourceSource) return null;
+  return { period: settings.legacyResourcePeriod, legacyResourcePeriod: undefined };
 }
 
 /**

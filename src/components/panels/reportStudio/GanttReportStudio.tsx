@@ -276,10 +276,9 @@ export function GanttReportStudio() {
   const resolvedPeriod = useResolvedPeriod(settings.period);
   const bandShape = chosenLayout ? resourceBandShape(chosenLayout.group) : null;
   const periodWindow = settings.period.preset !== 'project' ? resolvedPeriod : undefined;
-  // Een opslag van vóór #997 met een eigen layout als bron: de oude periode van het resourcediagram stond alleen op
-  // het papier als die layout op resource groepeert. Beslissen zodra de eigen layouts gelezen zijn.
-  // Een eigen keuze van een tijdvak wist de overgang in dezelfde schrijfactie (`choosePeriod`); hier beslist de
-  // nieuwste opslag met haar eigen bron, niet de stand van deze render.
+  // Een opslag van vóór #997: de oude periode van het resourcediagram gaat over zodra de bron op resource groepeert
+  // (ook na een wissel van bron), zodra de eigen layouts gelezen zijn. Een eigen keuze van een tijdvak wist haar in
+  // dezelfde schrijfactie (`choosePeriod`); hier beslist de nieuwste opslag met haar eigen bron, niet deze render.
   const { legacyResourcePeriod } = settings;
   useEffect(() => {
     if (!layoutsLoaded || !legacyResourcePeriod) return;
@@ -288,7 +287,7 @@ export function GanttReportStudio() {
     const latestLayout = latestSource.kind === 'layout' ? layouts.find(layout => layout.id === latestSource.id) : undefined;
     const next = legacyPeriodPatch(latest, !!latestLayout && !!resourceBandShape(latestLayout.group));
     if (next) remember(next);
-  }, [layoutsLoaded, legacyResourcePeriod, layouts, remember]);
+  }, [layoutsLoaded, legacyResourcePeriod, layouts, sourceKey, remember]);
   const choosePeriod = useCallback(
     (next: ReportingPeriod) => patch(periodChoicePatch(next), 'period'), [patch]);
   const noneLabel = tTask('structure.none');

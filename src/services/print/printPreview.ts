@@ -2069,8 +2069,7 @@ export function renderReport(
   // ---- TIMELINE HEADER ----
   drawTimelineHeader(
     d2d, m, canvasWidth, minDate, calendarDays, timelineDates, compressed, zoom, dateToX, options,
-    // Bij een tijdvak ook de weekenddagcijfers: anders zijn een afdruk van alleen zaterdag en van alleen zondag gelijk.
-    todayVisible ? todayX : null, statusLineX, !!options.timeWindow, isHourModeCalendar(calendar),
+    todayVisible ? todayX : null, statusLineX, isHourModeCalendar(calendar),
   );
 
   // ---- TASK TABLE ----
@@ -2308,9 +2307,6 @@ function drawTimelineHeader(
   options: PrintOptions,
   todayX: number | null,
   statusLineX: number | null = null,
-  /** Tijdvenster dat op de kalender-as is teruggevallen (geen werkdag erin): dan óók de
-   *  weekenddagen nummeren, anders staat er geen enkel dagcijfer. */
-  showWeekendDayNumbers = false,
   /** Rekent de projectkalender met de tijd van de statusdatum (`isHourModeCalendar`)? Alleen dan
    *  noemt het statuslabel de tijd. */
   statusUsesTime = false,
@@ -2453,7 +2449,9 @@ function drawTimelineHeader(
       const x = dateToX(date);
       const dow = isoDayOfWeek(date);
       const dayNum = date.getUTCDate();
-      if (compressed || showWeekendDayNumbers || (dow !== 6 && dow !== 7)) { // Weekenddagen staan alleen op de gewone kalender-as.
+      // Weekenddagen krijgen een cijfer op de werkdagas en bij een tijdvak (anders zijn een afdruk van alleen zaterdag
+      // en een van alleen zondag gelijk); op de gewone kalenderas van de hele planning niet.
+      if (compressed || options.timeWindow || (dow !== 6 && dow !== 7)) {
         d2d.fillStyle = PRINT_COLORS.textSecondary;
         d2d.font = m.font(7);
         d2d.textAlign = 'center';

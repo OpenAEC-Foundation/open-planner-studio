@@ -58,9 +58,9 @@ UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePer
 **Tijdvak van de Gantt-afdruk** (issue #997). Eén `ReportingPeriod` voor elke rijenbron van de stap Taken
 (`ReportSettings.period`, in de UI het gedeelde `ReportingPeriodField` onder de keuze van de rijen, met *Hele project
 tonen*); het resourcediagram heeft geen eigen periode meer. Een oude `resourceGantt.period` gaat bij het laden over
-als het meegeleverde Resourcediagram de bron was (`parseGanttPeriod`); bij een eigen layout blijft zij apart bewaard
-(`legacyResourcePeriod`) tot het tabblad de layouts kent, en `legacyPeriodPatch` maakt er dan het tijdvak van (de layout
-in de nieuwste opslag groepeert op resource) of laat haar vallen. Een eigen keuze, ook *Hele project*, wist haar in
+als het meegeleverde Resourcediagram de bron was (`parseGanttPeriod`); anders blijft zij apart bewaard
+(`legacyResourcePeriod`, zoals main haar bij een andere bron bewaarde) en maakt `legacyPeriodPatch` er het tijdvak van
+zodra de bron (in de nieuwste opslag) op resource groepeert, ook na een wissel van bron. Een eigen keuze, ook *Hele project*, wist haar in
 dezelfde schrijfactie (`periodChoicePatch`), ook bij opnieuw dezelfde keuze (`onReselect`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
 tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen clip (ook de minimumbreedte en
 de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het

@@ -837,6 +837,11 @@ en noem het in je rapport of PR-tekst.
     (`printPreview.ts`, 1,25 px binnen de rand) en die van de ruit gaan uit van meer ruimte, dus tabel en rand bedekken
     ze. Richting: eerst de tekenbreedte op de beschikbare ruimte begrenzen, dan het middelpunt bepalen. Gevonden door de
     review van #1005 (Sol, ronde 6). — B
+1868. **VERVOLG (#997): het dagcijfer van een weekenddag in een tijdvak zit vrijwel tegen het weeknummer.** Sinds #997
+    staan bij een tijdvak ook de weekenddagcijfers in de kop van de afdruk. Met zondag als weekstart en 16 px per dag
+    zit er 0,04 px tussen `W40` en `27`, op overlappende x-posities (`drawTimelineHeader` in `printPreview.ts`).
+    Richting: het dagcijfer voorrang geven als het weeknummer op die plek te weinig ruimte heeft. Gevonden door de
+    review van #1005 (Sol, ronde 7). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm

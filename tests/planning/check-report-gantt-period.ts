@@ -48,8 +48,15 @@ const eq = (msg: string, got: unknown, want: unknown) => {
     (await load({ layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, resourceGantt: { period: { preset: 'next4Weeks' } } })).period, { preset: 'next4Weeks' });
   eq('… ook bij het oude rapporttype Resourcediagram',
     (await load({ reportType: 'resourceGantt', resourceGantt: { period: custom } })).period, custom);
-  eq('oude periode bij een andere bron telt niet: die stond niet op papier',
-    (await load({ layoutId: '', resourceGantt: { period: { preset: 'next4Weeks' } } })).period, { preset: 'project' });
+  // Review Sol #1005, ronde 7: bij een andere bron stond de oude periode niet op papier, maar main bewaarde haar en
+  // gebruikte haar weer na terugschakelen. Ze blijft dus apart bewaard, ook als er intussen iets anders wordt opgeslagen.
+  const alleTaken = await load({ layoutId: '', resourceGantt: { period: custom } });
+  eq('alle taken: nog geen tijdvak, de oude periode apart bewaard', [alleTaken.period, alleTaken.legacyResourcePeriod], [{ preset: 'project' }, custom]);
+  patchReportSettings({ showDeps: false });
+  patchReportSettings({ layoutId: RESOURCE_DIAGRAM_LAYOUT_ID });
+  const terug = latestReportSettings();
+  eq('… en na een andere schrijfactie en terugschakelen naar het Resourcediagram wordt zij het tijdvak',
+    legacyPeriodPatch(terug, true), { period: custom, legacyResourcePeriod: undefined });
   eq('een nieuw tijdvak wint van de oude periode',
     (await load({ layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, period: { preset: 'lastMonth' }, resourceGantt: { period: { preset: 'next4Weeks' } } })).period,
     { preset: 'lastMonth' });
@@ -66,11 +73,10 @@ const eq = (msg: string, got: unknown, want: unknown) => {
   eq('groepeert de layout op resource, dan wordt zij het tijdvak', besloten.period, custom);
   ok(besloten.legacyResourcePeriod === undefined && !('legacyResourcePeriod' in JSON.parse(localStorage.getItem('ops-reportSettings')!)),
     '… en daarna staat zij niet meer apart in de opslag');
-  eq('groepeert de layout niet op resource, dan vervalt zij',
-    legacyPeriodPatch({ period: { preset: 'project' }, legacyResourcePeriod: custom as never }, false), { period: { preset: 'project' }, legacyResourcePeriod: undefined });
-  eq('niets te beslissen zonder oude periode', legacyPeriodPatch({ period: { preset: 'project' } }, true), null);
-  eq('een andere meegeleverde layout bewaart niets: daar stond de periode nooit op papier',
-    (await load({ layoutId: 'builtin:anders', resourceGantt: { period: custom } })).legacyResourcePeriod, undefined);
+  eq('groepeert de bron niet op resource, dan blijft zij bewaard', legacyPeriodPatch({ legacyResourcePeriod: custom as never }, false), null);
+  eq('niets over te nemen zonder oude periode', legacyPeriodPatch({}, true), null);
+  eq('ook bij een andere meegeleverde layout blijft zij bewaard',
+    (await load({ layoutId: 'builtin:anders', resourceGantt: { period: custom } })).legacyResourcePeriod, custom);
   // Review Sol #1005, ronde 2: kiest de planner een tijdvak terwijl de overgang nog openstaat (de eigen layouts
   // worden nog gelezen), dan wint die keuze; de overgang leest daarna de nieuwste opslag en heeft niets meer te doen.
   for (const keuze of [{ preset: 'nextMonth' }, { preset: 'project' }] as const) {
@@ -406,14 +412,18 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   const gesplitst = task('sp', 'Onderbroken', '2026-06-01', '2026-06-25', { parentId: undefined,
     time: { ...time('2026-06-01', '2026-06-25'), durationType: 'WORKTIME', scheduleDuration: 1 } as unknown as TaskTime,
     splitGaps: [{ afterMinutes: 1440, gapMinutes: 5760 }] } as Partial<Task>);
+  // De uiteinden van de verbindingslijn, ten opzichte van de randen: 'L' op de linkerrand, 'R' op de rechterrand, 'm'
+  // ertussen (bij een werkblok).
   const verbinding = (window: { from: string; to: string }) => {
     const r = draw([gesplitst], window, {});
+    const at = (x: number) => (Math.abs(x - r.dims.tableWidth) < 1e-6 ? 'L' : Math.abs(x - r.dims.width) < 1e-6 ? 'R' : 'm');
     return r.strokes.filter(st => st.style.endsWith('80')).map(st => st.pts.map(([x]) => x))
-      .filter(xs => xs.every(x => x >= r.dims.tableWidth - 1e-6 && x <= r.dims.width + 1e-6) && Math.abs(xs[xs.length - 1] - xs[0]) > 1);
+      .filter(xs => xs.every(x => x >= r.dims.tableWidth - 1e-6 && x <= r.dims.width + 1e-6) && Math.abs(xs[xs.length - 1] - xs[0]) > 1)
+      .map(xs => `${at(xs[0])}${at(xs[xs.length - 1])}`);
   };
-  eq('de hele taak: één verbindingslijn', verbinding({ from: '2026-06-01', to: '2026-06-30' }).length, 1);
-  eq('een tijdvak helemaal in de onderbreking: de lijn loopt van rand tot rand', verbinding({ from: '2026-06-08', to: '2026-06-10' }).length, 1);
-  eq('een tijdvak dat in de onderbreking begint: de lijn loopt van de linkerrand naar de hervatting', verbinding({ from: '2026-06-15', to: '2026-06-26' }).length, 1);
+  eq('de hele taak: één verbindingslijn tussen de werkblokken', verbinding({ from: '2026-06-01', to: '2026-06-30' }), ['mm']);
+  eq('een tijdvak helemaal in de onderbreking: de lijn loopt van rand tot rand', verbinding({ from: '2026-06-08', to: '2026-06-10' }), ['LR']);
+  eq('een tijdvak dat in de onderbreking begint: de lijn loopt van de linkerrand naar de hervatting', verbinding({ from: '2026-06-15', to: '2026-06-26' }), ['Lm']);
 
   // Mijlpalen op zondag 27 september, de laatste dag van het tijdvak, op de werkdagas: met en zonder tijd.
   const ms = (id: string, at: string) => task(id, id, at, at, { parentId: undefined, isMilestone: true,
