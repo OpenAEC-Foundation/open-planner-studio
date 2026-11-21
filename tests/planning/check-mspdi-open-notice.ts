@@ -18,7 +18,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { activeImportResult, isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import { installDOMParser } from './xmldom-shim';
 
-declare const process: { exitCode?: number };
+declare const process: { exitCode?: number; env: Record<string, string | undefined> };
 installDOMParser();
 const S = () => useAppStore.getState();
 
@@ -305,6 +305,43 @@ async function main(): Promise<void> {
   for (const assignmentNumber of ['', 'NA']) {
     eq(`8 onleesbaar baselinenummer ${JSON.stringify(assignmentNumber)} wordt geen Baseline 0`,
       assignmentBaseline('2026-03-02T08:00:00', '2026-03-05T17:00:00', { assignmentNumber }).msProjectReport, undefined);
+  }
+
+  // Knownbug 441: toets resourcebetekenis ná MSPDI-import, via dezelfde store-actie als Werk.
+  {
+    const summary = [];
+    for (const rule of ['FIXED_WORK', 'FIXED_RATE'] as const) {
+      for (const [key, type, cost] of [
+        ['work', 1, 0], ['material', 0, 0], ['cost-flag-0', 0, 1], ['cost-flag-1', 1, 1], ['cost-type-2', 2, 1],
+      ] as const) {
+        const xml = wrap(`<Tasks>${task(1, 'Taak')}</Tasks>
+          <Resources><Resource><UID>1</UID><ID>1</ID><Name>Bron</Name><Type>${type}</Type>
+          <IsCostResource>${cost}</IsCostResource></Resource></Resources>
+          <Assignments><Assignment><UID>1</UID><TaskUID>1</TaskUID><ResourceUID>1</ResourceUID>
+          <Units>1</Units></Assignment></Assignments>`);
+        const parsed = activeImportResult(await open('kostenresource.xml', xml));
+        eq(`441 ${rule}/${key}: één taak, bron en toewijzing`,
+          [parsed.tasks.length, parsed.resources.length, parsed.assignments.length], [1, 1, 1]);
+        const t = S().tasks.find(row => row.name === 'Taak')!;
+        const a = S().assignments.find(row => row.taskId === t.id)!;
+        S().setTaskWorkRule(t.id, rule);
+        S().runCPM();
+        const snapshot = () => {
+          const row = S().tasks.find(x => x.id === t.id)!;
+          return [row.time.durationMinutes, row.time.earlyFinish,
+            S().assignments.find(x => x.id === a.id)?.remainingWorkMinutes];
+        };
+        const before = snapshot();
+        S().setAssignmentWork(a.id, 600);
+        S().runCPM();
+        summary.push({ rule, key, parsed: parsed.resources[0]?.type, before, after: snapshot() });
+      }
+    }
+    eq('knownbug 441: aantal gevallen', summary.length, 10);
+    console.log(`KNOWNBUG441_SUMMARY ${JSON.stringify(summary)}`);
+    if (process.env.GITHUB_ACTIONS === 'true') {
+      console.log(`::notice title=Knownbug 441::${JSON.stringify(summary)}`);
+    }
   }
 
   // (5) De sleutels bestaan in nl en en (geen lege toast).
