@@ -4,7 +4,7 @@ name: IFC vreemde inhoud (fase 0)
 #   - corpus: IfcOpenShell valideert de geldige corpusbestanden, maak-corpus.py maakt ze byte-gelijk opnieuw, en de
 #     poort check-ifc-foreign-classify.ts draait met de vergelijking met scripts/proef/classify-v9.py (OPS_IFC_PYTHON=1).
 #     Draait op een PR en op main alleen als een pad hieronder wijzigt.
-#   - meting: tijd en geheugen van lezen, scanner, indeling en hashen bij 50/150/300 MB, in Node, Chromium en WebKit.
+#   - meting: tijd en geheugen van lezen, scanner, indeling en hashen bij 50 en 149,5 MB (net onder de grens van 150 MiB), in Node, Chromium en WebKit.
 #     Alleen handmatig (workflow_dispatch): te zwaar voor elke PR en voor aia09-mp50.
 on:
   push:
@@ -27,7 +27,7 @@ on:
     inputs:
       mb:
         description: 'Groottes in MB, met komma'
-        default: '50,150,300'
+        default: '50,149.5'
         required: true
       browsers:
         description: 'Browsers (chromium, webkit), met komma; leeg = alleen Node'
