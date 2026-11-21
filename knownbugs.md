@@ -4071,35 +4071,41 @@ en noem het in je rapport of PR-tekst.
          `not-ifc` en `targetRefusal` weigert niet (gemeten). Een gebouwmodel dat daar stond, is dan al weg;
       2. een weigering op identiteit (de bron van een ander open document via `isSameEntry`, of `refuseChangedExport`
          bij een export) geeft `null` terug en laat het bestand op 0 bytes staan (uit de code; niet in een browser
-         geprobeerd).
+         geprobeerd). Alleen een tabbladwissel is sinds #1097 (knownbug 1903) geen weigering meer: dan krijgt het
+         bestand de bytes van het geëxporteerde document (met een nagebootste handle, `check-ifc-document-save.ts`).
       Sinds fixronde 1 van #1027 (besluit Trias) krijgt een handle uit de kiezer geen late controle vóór `close()`
-      (`saveDataDialogWeb`): de opslag maakt het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
+      (`saveDataDialogWeb`; sinds #1097 met één uitzondering: een IFC-export waarvan het document bij de geslaagde
+      doelcontrole niet vooraan stond, krijgt vlak vóór `close()` de inhoudscontrole, welk tabblad dan ook vooraan
+      staat; verandert het document vóór `close()`, dan breekt de export af en blijven 0 bytes staan): de opslag maakt
+      het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
       de commit niets vast (geen pad, bron, *Opgeslagen* of Recent); een export meldt dan geen succes. Ctrl+S en
       Automatisch opslaan op een bestaande handle houden de late controle, want daar bewaart de browser de oude bytes
       tot `close()`. Richting van de reviewer: "Kies bestaande doelen via een handeling die de oude bytes bewaart,
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
 
-1901. **VERVOLG (#1027, opruimen en proeven): drie kleine punten uit de review van de late exportcontrole.**
-      (a) De regressieproef in de repo dekt alleen de geslaagde tabbladwissel ("review van #1027 ronde 2" in
-      `check-ifc-document-save.ts`): er ontbreekt een weigering nadat het exportdocument inactief werd (A bewerkt of
-      vervangen, dan naar B) en de geslaagde wissel met een IFC met gebouwmodel. De reviewer bewees beide met eigen
-      proeven (ronde 3, `proef-late-export.ts` in het sessiearchief); "dezelfde opstelling met één schrijfpauze
-      volstaat". (b) `refuseExportBeforePlace` (`fileSlice.ts`) vraagt op het geslaagde pad twee keer
-      `hasForeignContent(snapshot.ifcSource)`: één keer bewaren. (c) `withMissingSourceSaveAs` kopieert
-      eigenschapsbeschrijvingen (`Object.getOwnPropertyDescriptors`, `Object.defineProperties`, een typecast) om de
-      luie tekst niet te decoderen: geef de bevestiging apart door aan de opslagbewaking. Review van #1027 (Sol,
-      ronde 2 en 3): [BEVESTIGD] VERVOLG. — B (code)
+1958. **VERVOLG (browser, bestaand op main): een IFC-export waarbij het document bij de doelcontrole vooraan staat, schrijft een wijziging tijdens de write niet en meldt toch succes.**
+      Exporteer naar een bestand uit de opslaankiezer van de browser terwijl het document bij de doelcontrole na de
+      kiezer vooraan staat, en verander de planning tussen die doelcontrole en `close()` (bijvoorbeeld een taak bewerken
+      terwijl de browser schrijft, ook als de planner daarna pas naar een ander tabblad gaat). De export plaatst dan de
+      planning van vóór de wijziging, meldt succes en zet het bestand in Recent; de wijziging staat niet in het bestand. Gezien met de proef van de reviewer van #1097 (Sol, ronde 1) en vastgelegd in
+      de proef "knownbug 1903: browserexport IFC naar een handle, zonder wissel A bewerkt tijdens de write, plaatst de
+      oude bytes zoals main (knownbug 1958)" (`check-ifc-document-save.ts`). Bewust niet veranderd in #1097 (besluit
+      technisch beslisser, 21 november 2026): het gekozen bestand is in de browser al leeg (1899), dus een weigering
+      ruilt een export met een paar seconden oud werk in voor een leeg bestand, en de oude inhoud van het doel is in
+      beide gevallen al weg. Stond het document bij de doelcontrole niet vooraan (de planner wisselde al vóór die
+      controle), dan krijgt de export wel een late controle vlak vóór `close()` en breekt hij in dit geval af (keuze
+      (b), #1097). Ook met de flag uit. Vastgelegd voor beide exports, ook met een wissel ná de doelcontrole. Het geldt
+      ook na heen en terug wisselen vóór de doelcontrole: bepalend is alleen waar het document bij die controle staat
+      (proef van de reviewer van #1097, ronde 3). — B (proef)
 
-1903. **VERVOLG (desktop, bestaand): een tabbladwissel vlak na de bestandskiezer laat een IFC-export weigeren.**
-      Exporteer een planning naar IFC en ga binnen ongeveer een halve seconde na het bevestigen van de bestandsnaam
-      naar een ander tabblad: de export weigert met "De planning veranderde terwijl de export op een andere opslag
-      wachtte. Er is niets geëxporteerd. Exporteer opnieuw.", terwijl er niets veranderde. De doelcontrole na de kiezer
-      (`refuseTarget` in `exportAs` en in de export met de resourcebibliotheek) roept `refuseChangedExport` aan, die
-      eist dat het geëxporteerde document nog het actieve tabblad is. Zo ook op de build van vóór #1027 (twee keer
-      gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
-      Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
-      `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
+2020. **VERVOLG (tekst, review van #1097 ronde 3): twee commentaren beschrijven de late browsercontrole van een IFC-export te ruim.**
+      De inleiding van de browserproeven in `tests/planning/check-ifc-document-save.ts` (rond regel 3047) en het
+      commentaar bij `writeThroughHandle` in `src/services/fileAccess/webBackend.ts` (rond regel 333) zeggen "na de
+      kiezer" of "na een tabbladwissel". De exacte voorwaarde is: het geëxporteerde document stond bij de geslaagde
+      doelcontrole niet vooraan (`exportTargetChecks` in `fileSlice.ts`); dan loopt de inhoudscontrole vlak vóór
+      `close()`. De regels in `.claude/rules/tauri-ifc.md`, 1899 en 1958 zeggen het al precies. Alleen tekst; het
+      gedrag klopt. — B
 
 1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
       Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het
