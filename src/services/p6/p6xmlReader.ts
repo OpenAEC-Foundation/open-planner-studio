@@ -25,7 +25,8 @@ import { childElementNames, childElements, directChildText, startsWithNames, toI
 import type { ImportResult, OpenedImport, P6XmlEmptyReason, P6XmlImportReport } from '@/services/importTypes';
 import type { Baseline } from '@/types/baseline';
 import { baselineTasksFromSource } from '@/services/importBaselines';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskTypeDraft } from '@/types/taskType';
+import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import type { TaskTimephasedContour } from '@/types/task';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
@@ -917,7 +918,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // Parse activities
   const actObjIdToId = new Map<number, string>();
   const leafTasks: Task[] = [];
-  const customTaskTypes = new Map<string, CustomTaskType>();
+  const customTaskTypes = new Map<string, CustomTaskTypeDraft>();
 
   // UDF-waarden per activiteit. Echte P6 (en de writer sinds 2026-10) zet ze IN de activiteit
   // (`<UDF><TypeObjectId/><TextValue/></UDF>`); oudere OPS-exports schreven losse `<UDFValue>`-
@@ -1527,7 +1528,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     resources,
     assignments,
     resourceCalendars,
-    customTaskTypes: [...customTaskTypes.values()],
+    customTaskTypes: withTaskTypeColors([...customTaskTypes.values()]),
     // Rekenprofielen: P6 XML opent als Primavera P6, met de opties uit `<ScheduleOptions>`, net als een XER (#775).
     suggestedProfileId: P6XML_PROFILE_ID,
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'p6xml' as const } : {}),

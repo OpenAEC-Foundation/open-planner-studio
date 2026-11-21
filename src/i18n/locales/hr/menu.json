@@ -202,7 +202,6 @@
     "ganttOnlyHint": "Dostupno samo kada je Gantt prikaz vidljiv",
     "relationLinkSelected": "Poveži odabrane zadatke",
     "relationLinkSelectedHint": "Prvi odabir postaje prethodnik; drugi odabir postaje nasljednik (FS, vrijeme odgode 0)",
-    "relationSelectExactlyTwo": "Odaberite točno dva zadatka",
     "relationAddExternal": "Dodaj međuzavisnost projekata…",
     "relationAddExternalHint": "Dodajte prethodnika ili nasljednika iz drugog projekta odabranom zadatku",
     "relationSelectOne": "Odaberite točno jedan zadatak",

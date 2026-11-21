@@ -12,7 +12,7 @@ import { durationHoursPerDay, effHoursPerDay, formatTaskDurationDisplay } from '
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
-import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
+import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 // Resource-accent: dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
 import { assignmentsForTask, computeBarColors, type BarPalette } from '@/services/print/barColors';
@@ -146,6 +146,8 @@ export interface GanttRenderOptions {
   activityCodeTypes?: ActivityCodeType[];
   customFieldDefs?: CustomFieldDef[];
   taskTypeLabels?: Record<string, string>;
+  /** Eigen werkcategorieën van het project: naam en kleur per categorie (issue #856). */
+  customTaskTypes?: import('@/types/task').CustomTaskType[];
   barColorNoneLabel?: string;
   /** Voor het accent: resources + toewijzingen (de renderer leeft buiten de store). */
   resources?: import('@/types/resource').Resource[];
@@ -430,6 +432,7 @@ export class GanttRenderer {
       resources: opts.resources ?? [],
       assignments: opts.assignments ?? [],
       taskTypeLabels: opts.taskTypeLabels,
+      customTaskTypes: opts.customTaskTypes,
       noneLabel: opts.barColorNoneLabel ?? '(geen)',
     };
     // `opts.axis` (indien meegegeven door GanttCanvas — de gedeelde instantie met
@@ -463,12 +466,24 @@ export class GanttRenderer {
    *  normaal-blauw. `overrideColor` (trace-tint) wint altijd. Near-critical en de
    *  float-path-tint zijn analyse-overlays die alleen bestaan wanneer hun optie aanstaat
    *  (`isNearCritical`/`floatPath` anders afwezig). */
+  private highContrastBackgrounds(): string[] {
+    return [this.colors.bg, this.compressed ? this.colors.gridWeekBand : this.colors.gridWeekend];
+  }
+
+  /** Kleur per categorie (werksoort, resource, code): in hoog contrast dezelfde 7:1-grens als de
+   *  eigen kritiek-padkleuren, anders zichtbaar gemaakt voor het thema (review #952). */
+  private categoryColor(color: string): string {
+    return this.highContrast
+      ? ensureHighContrastBarVisible(color, this.highContrastBackgrounds())
+      : ensureThemeVisible(color, this.opts.darkTheme === true);
+  }
+
   private barColor(task: Task, overrideColor?: string): string {
     if (overrideColor) return overrideColor;
     const selection = this.opts.barColorSelection;
     const custom = selection?.mode === 'critical' ? selection.colors : undefined;
     const visible = (color: string) => this.highContrast
-      ? ensureHighContrastBarVisible(color, [this.colors.bg, this.compressed ? this.colors.gridWeekBand : this.colors.gridWeekend])
+      ? ensureHighContrastBarVisible(color, this.highContrastBackgrounds())
       : ensureCustomBarVisible(color, this.opts.darkTheme === true);
     if (task.time.isCritical) return custom?.critical ? visible(custom.critical) : this.colors.critical;
     if (task.time.isNearCritical) return custom?.nearCritical ? visible(custom.nearCritical) : this.colors.nearCritical;
@@ -1560,7 +1575,7 @@ export class GanttRenderer {
           width,
         );
     const modeColor = modeAdvies && modeAdvies.kind === 'solid'
-      ? ensureThemeVisible(modeAdvies.fill, dark)
+      ? this.categoryColor(modeAdvies.fill)
       : null;
     // Resource-segmenten als x-intervallen over [x1,x2] — buiten de uur-split-lus voorbereid, zodat
     // elk werkblok-segment zijn deel van de kleursegmenten tekent (gaten blijven gaten).
@@ -1570,7 +1585,7 @@ export class GanttRenderer {
       modeAdvies.segments.forEach((seg, si) => {
         const isLast = si === modeAdvies.segments.length - 1;
         const w = isLast ? x2 - cx : (x2 - x1) * seg.weight;
-        modeSegments.push({ cx1: cx, cx2: cx + w, color: ensureThemeVisible(seg.color, dark) });
+        modeSegments.push({ cx1: cx, cx2: cx + w, color: this.categoryColor(seg.color) });
         cx += w;
       });
     }
@@ -1773,7 +1788,7 @@ export class GanttRenderer {
           const w = isLast ? x2 - ax : (x2 - x1) * (r.unitsPerDay / total);
           // Donker thema: te donkere resourcekleuren verlichten — anders is het streepje onzichtbaar
           // tegen de donkere werkruimte (hue/verzadiging intact, dus nog steeds herkenbaar dezelfde).
-          ctx.fillStyle = ensureThemeVisible(r.color, this.opts.darkTheme === true);
+          ctx.fillStyle = this.categoryColor(r.color);
           ctx.fillRect(ax, accentY, Math.max(w, 1), accentH);
           ax += w;
         });
@@ -2030,7 +2045,9 @@ export class GanttRenderer {
           uncategorized: this.colors.ghost,
         });
     const milestoneFill = advice?.kind === 'segments' ? advice.segments[0].color : advice?.fill;
-    ctx.fillStyle = overrideColor ?? ensureThemeVisible(milestoneFill ?? this.colors.milestone, this.opts.darkTheme === true);
+    ctx.fillStyle = overrideColor ?? (milestoneFill
+      ? this.categoryColor(milestoneFill)
+      : ensureThemeVisible(this.colors.milestone, this.opts.darkTheme === true));
     diamond(size);
     ctx.fill();
 
@@ -2769,18 +2786,14 @@ export class GanttRenderer {
     return Math.floor((canvasY - this.opts.headerHeight + this.opts.view.scrollY) / this.opts.rowHeight);
   }
 
-  /** Hit test (box-selection): welke taak-ids liggen met hun rij-band verticaal
-   *  in [y1,y2] (canvas-coördinaten, willekeurige volgorde)? Bandrijen (`kind:'group'`) doen niet
-   *  mee. Zelfde rij-index-wiskunde als getRowAtY, dus consistent met alle andere hit-tests. */
-  getTaskIdsInYRange(y1: number, y2: number): string[] {
+  /** Hit test (box-selection): welke rijen liggen met hun rij-band verticaal in [y1,y2]
+   *  (canvas-coördinaten), van boven naar beneden? Zelfde rij-index-wiskunde als getRowAtY, dus
+   *  consistent met alle andere hit-tests. */
+  getRowsInYRange(y1: number, y2: number): ViewRow[] {
     const lo = Math.max(0, this.getRowIndex(Math.min(y1, y2)));
     const hi = Math.min(this.rows.length - 1, this.getRowIndex(Math.max(y1, y2)));
-    const rows: ViewRow[] = [];
-    for (let i = lo; i <= hi; i++) {
-      const row = this.rows[i];
-      if (row) rows.push(row);
-    }
-    return uniqueTaskIds(rows);
+    // Een band geheel boven de eerste rij: `slice` zou een negatief einde van achteren tellen.
+    return hi < lo ? [] : this.rows.slice(lo, hi + 1);
   }
 
   /** Dev/browser-testnaad: vind de werkelijk getekende sleepbalk zonder geometrie te dupliceren.

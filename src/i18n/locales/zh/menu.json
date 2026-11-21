@@ -200,7 +200,6 @@
     "ganttOnlyHint": "仅在显示甘特图时可用",
     "relationLinkSelected": "链接所选任务",
     "relationLinkSelectedHint": "第一个所选任务作为前置任务，第二个作为后续任务（完成-开始 (FS)，延迟 0）",
-    "relationSelectExactlyTwo": "请恰好选择两个任务",
     "relationAddExternal": "添加外部关系…",
     "relationAddExternalHint": "为所选任务添加外部前置任务或后续任务",
     "relationSelectOne": "请恰好选择一个任务",

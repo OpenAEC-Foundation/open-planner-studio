@@ -202,7 +202,6 @@
     "ganttOnlyHint": "Disponibil doar când diagrama Gantt este vizibilă",
     "relationLinkSelected": "Legare activități selectate",
     "relationLinkSelectedHint": "Prima selecție devine predecesor; a doua selecție devine succesor (FS, decalaj 0)",
-    "relationSelectExactlyTwo": "Selectați exact două activități",
     "relationAddExternal": "Adăugare legătură între proiecte…",
     "relationAddExternalHint": "Adăugați o legătură între proiecte: un predecesor sau un succesor la activitatea selectată",
     "relationSelectOne": "Selectați exact o activitate",

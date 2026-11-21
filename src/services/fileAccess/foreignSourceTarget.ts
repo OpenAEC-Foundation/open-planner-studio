@@ -34,7 +34,7 @@ export interface ForeignSourceTargetDeps {
 }
 
 /** Hetzelfde pad, lexicaal: dezelfde regel als de externe bronnen (`normalizeExternalSourcePath`). */
-function samePath(a: string, b: string): boolean {
+export function samePath(a: string, b: string): boolean {
   if (a === b) return true;
   const na = normalizeExternalSourcePath(a);
   return na !== null && na === normalizeExternalSourcePath(b);

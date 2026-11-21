@@ -9,7 +9,7 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, sameEntry, sameLocalFile, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef, PickedSaveTarget } from '@/services/fileAccess';
@@ -217,24 +217,35 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
-/** Het open document (niet `exceptDocumentId`) waarvan het bestaande bestand op `path` het bestand is, ook een gewone
- *  planning zonder vreemd deel (die heeft geen bronkenmerk), of `null`. Dezelfde padvergelijking als de bronkenmerken
- *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
- *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
- *  #1019). Ook de toets "staat al open" bij het openen gebruikt deze lus (`openDocumentFor`, knownbug 1957), met
- *  `identityFirst` (zie `ForeignSourceTargetDeps`). */
-export async function openDocumentPathId(
+/** Het id van het open document (niet `exceptDocumentId`) waarvan het bestaande bestand op `path` het bestand is, ook
+ *  een gewone planning zonder vreemd deel (die heeft geen bronkenmerk), of `null`. Dezelfde padvergelijking als de
+ *  bronkenmerken (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op
+ *  `path` geen bestand meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt
+ *  (fixronde 2 van #1019). Ook een bestand dat bij het starten is meegegeven (#1091) en de toets "staat al open" bij het
+ *  openen (`openDocumentFor`, knownbug 1957, met `identityFirst`, zie `ForeignSourceTargetDeps`) gebruiken deze lus. */
+export async function openDocumentIdForPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
-  exceptDocumentId: string | null, { identityFirst = false }: { identityFirst?: boolean } = {},
+  exceptDocumentId: string | null = null, { identityFirst = false }: { identityFirst?: boolean } = {},
 ): Promise<string | null> {
-  const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
-    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [{ id, path: payload.filePath }] : []));
-  if (paths.length === 0) return null;
+  const docs = openFileDocuments(s, exceptDocumentId);
+  if (docs.length === 0) return null;
   let fs: FileIdentityFs | undefined;
   try { fs = await identityFs(); } catch { fs = undefined; }
   if (fs && await missingFile(fs, path)) return null;
-  for (const other of paths) if (await sameLocalFile(path, other.path, fs ? { identityFs: fs, identityFirst } : {})) return other.id;
+  for (const doc of docs) if (await sameLocalFile(path, doc.path, fs ? { identityFs: fs, identityFirst } : {})) return doc.id;
   return null;
+}
+
+/** Synchroon, alleen op de padtekst (`samePath`): het open document met dit pad, of `null`. Voor een controle in
+ *  dezelfde stap als het activeren, waar geen `stat` tussen past (#1091). */
+export function openDocumentIdForPathText(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string): string | null {
+  return openFileDocuments(s, null).find((doc) => samePath(path, doc.path))?.id ?? null;
+}
+
+/** De open documenten met een lokaal pad als bestand (geen handle, geen site). */
+function openFileDocuments(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, exceptDocumentId: string | null): { id: string; path: string }[] {
+  return s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
+    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [{ id, path: payload.filePath }] : []));
 }
 
 /** Staat er aantoonbaar niets op `path`? Een andere fout van `stat` telt als nee: de veilige kant. */
@@ -339,7 +350,7 @@ export async function refusedWriteTarget(
   const flagOn = ifcForeignContentEnabled(s.ui.featureFlags);
   if (flagOn && deps.openDocumentsExcept !== undefined && target.kind !== 'site') {
     if (target.kind === 'path'
-      && await openDocumentPathId(s, target.path, deps.identityFs, deps.openDocumentsExcept) !== null) {
+      && await openDocumentIdForPath(s, target.path, deps.identityFs, deps.openDocumentsExcept) !== null) {
       return 'open-document';
     }
     if (await isOpenForeignSourceTarget(allBut(s, deps.openDocumentsExcept), target, deps.identityFs)) return 'open-document';
@@ -349,7 +360,7 @@ export async function refusedWriteTarget(
   if (isOwnVersion) return null;
   // Met de flag uit regel 3 hier, na regel 1, zoals main.
   if (!flagOn && deps.openDocumentsExcept !== undefined && target.kind === 'path'
-    && await openDocumentPathId(s, target.path, deps.identityFs, deps.openDocumentsExcept) !== null) {
+    && await openDocumentIdForPath(s, target.path, deps.identityFs, deps.openDocumentsExcept) !== null) {
     return 'open-document';
   }
   if (!deps.protectExistingTargets && !flagOn) return null;

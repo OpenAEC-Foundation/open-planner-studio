@@ -14,7 +14,7 @@ import type { FileRef } from '@/services/fileAccess';
 import { sameEntry } from '@/services/fileAccess/foreignSourceTarget';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
-import { openDocumentPathId, type WriteTargetState } from './ifcForeignGuard';
+import { openDocumentIdForPath, type WriteTargetState } from './ifcForeignGuard';
 import type { AppState } from './appStoreFactory';
 import type { DocumentPayload } from './documentContract';
 import type { NotifyInput } from './slices/types';
@@ -32,7 +32,7 @@ const fileOf = ({ filePath, fileHandle, siteFileId }: DocumentFile): DocumentFil
 /**
  * Het open document waarvan `ref` het bestand is, of `null`. Het bestand van een document is zijn opslagdoel, dezelfde
  * voorrang als `saveTargetRef`: een site-id, anders een handle, anders een pad.
- *  - pad (desktop, headless MCP-server): de lus van de doelcontrole (`openDocumentPathId`), met een betrouwbare
+ *  - pad (desktop, headless MCP-server): de lus van de doelcontrole (`openDocumentIdForPath`), met een betrouwbare
  *    `dev`/`ino` vóór het lexicale pad (een link is hetzelfde bestand; `maplink/../a.ifc` kan een ander zijn). Windows
  *    levert geen `dev`/`ino`: daar alleen lexicaal.
  *  - handle (browser): `isSameEntry`; een fout telt als een ander bestand.
@@ -47,13 +47,13 @@ export async function openDocumentFor(
   identityFs: () => Promise<FileIdentityFs | undefined>,
 ): Promise<OpenDocumentMatch | null> {
   if (!ref) return null;
-  // Synchroon vóór de eerste await, net als de lus van `openDocumentPathId`: het bestand van elk tabblad bij de start.
+  // Synchroon vóór de eerste await, net als de lus van `openDocumentIdForPath`: het bestand van elk tabblad bij de start.
   const documents = s.getOpenDocumentPayloads();
   const match = (id: string | null) => {
     const found = id === null ? undefined : documents.find(d => d.id === id);
     return found ? { id: found.id, file: fileOf(found.payload) } : null;
   };
-  if (ref.kind === 'path') return match(await openDocumentPathId(s, ref.path, identityFs, null, { identityFirst: true }));
+  if (ref.kind === 'path') return match(await openDocumentIdForPath(s, ref.path, identityFs, null, { identityFirst: true }));
   if (ref.kind === 'site') return match(documents.find(({ payload }) => payload.siteFileId === ref.id)?.id ?? null);
   for (const { id, payload } of documents) {
     if (payload.fileHandle && !payload.siteFileId && await sameEntry(payload.fileHandle, ref.handle)) return match(id);
@@ -93,3 +93,4 @@ export function switchToOpenDocument(
   s.notify(FILE_ALREADY_OPEN_NOTICE);
   return true;
 }
+

@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Käytettävissä vain, kun Gantt-kaavio on näkyvissä",
     "relationLinkSelected": "Linkitä valitut tehtävät",
     "relationLinkSelectedHint": "Ensimmäinen valinta on edeltäjä; toinen valinta on seuraaja (FS, viive 0)",
-    "relationSelectExactlyTwo": "Valitse täsmälleen kaksi tehtävää",
     "relationAddExternal": "Lisää ulkoinen riippuvuus…",
     "relationAddExternalHint": "Lisää valittuun tehtävään ulkoinen edeltäjä tai seuraaja",
     "relationSelectOne": "Valitse täsmälleen yksi tehtävä",

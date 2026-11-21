@@ -34,6 +34,12 @@ A file in a format that the app does not know, such as a `.pdf`, does not open. 
 
 If a dialog or question is open, dragging opens nothing. If you open a dialog while the app is still reading a large file, that file opens only when you close the dialog. In the browser, the mouse pointer then shows a no-entry sign. In the desktop app, the message *Not opened: plan.ifc. Close the open dialog first.* appears.
 
+### Opening a file with a double-click (desktop app)
+
+The installer does not associate `.ifc` with the app. To open a file with a double-click, associate the format yourself: on Windows, right-click the file, choose *Open with* and *Choose another app*. The app then opens the file as with *Open*, in its own tab. If the app is already running, the file opens in that window. This also works from the command line, with the path as an argument.
+
+If a dialog is open when the app starts, such as the welcome dialog, the file opens as soon as you close that dialog. If the file does not exist, or is in a format the app does not know, you see the usual message and the app stays open. The app cannot yet read a file outside your home folder this way; open it with *Open* instead.
+
 ### Opening a recent project
 
 Choose *Home › File › Recent* and click a file in the list, or choose *File › Recent*. The list keeps the last ten files that you opened, saved or exported. Here too, a file that is not IFC is followed by the explanation of its format. The desktop app shows the path for each file, a browser only the name.

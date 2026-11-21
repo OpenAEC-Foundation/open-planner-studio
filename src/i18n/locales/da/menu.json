@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Kun tilgængelig, når Gantt-diagrammet er synligt",
     "relationLinkSelected": "Sammenkæd valgte opgaver",
     "relationLinkSelectedHint": "Det første valg bliver foregående opgave; det andet valg bliver efterfølgende opgave (FS, forsinkelse 0)",
-    "relationSelectExactlyTwo": "Vælg præcis to opgaver",
     "relationAddExternal": "Tilføj ekstern afhængighed…",
     "relationAddExternalHint": "Tilføj en ekstern foregående opgave eller efterfølgende opgave til den valgte opgave",
     "relationSelectOne": "Vælg præcis én opgave",
