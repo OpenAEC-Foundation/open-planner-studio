@@ -28,7 +28,7 @@ import type { OpenedImport } from '@/services/importTypes';
 import type { WorkCalendar } from '@/types/calendar';
 import { installDOMParser } from './xmldom-shim';
 
-declare const process: { exit(code: number): never };
+declare const process: { exit(code: number): never; env: Record<string, string | undefined> };
 
 installDOMParser();
 
@@ -136,6 +136,39 @@ const calView = (p: DocumentPayload) => Object.fromEntries([p.calendar, ...p.cal
   // Tweede ronde: de canonieke vorm is een vast punt.
   const again = openAndRecalc(await parseOpenedFile({ name: 'hele-dag-2.ifc', text: writeIFC(buildWriteIFCInput(after, 'planOnly')) }));
   same('§3 tweede rondgang: kalenders en F5 ongewijzigd', [calView(again), dates(again)], [calView(before), dates(before)]);
+}
+
+// Knownbug 443: dezelfde taak met oude versus herberekende MPP-walks in IFC.
+// Bootst de opgeslagen data na; importeert het oorspronkelijke .mpp-bestand niet.
+{
+  const source = openAndRecalc(await parseOpenedFile({ name: 'walk-basis.xml', text: XML }));
+  const summary = [];
+  for (const [kind, minutes] of [['old', 299.99996875], ['corrected', 2400]] as const) {
+    const payload = structuredClone(source);
+    const task = payload.tasks.find(t => t.name === 'Over de werkende zaterdag (nieuw)')!;
+    const anchor = '2026-10-23T08:00';
+    const cal = payload.calendars.find(c => c.id === task.calendarId) ?? payload.calendar;
+    task.timephasedStartAnchor = anchor;
+    task.timephasedDurationWalks = [
+      { anchor, resourceCalendarId: cal.id, workMinutes: minutes },
+      { anchor, resourceCalendarId: cal.id, workMinutes: minutes },
+    ];
+    let restored: DocumentPayload = payload;
+    const rounds = [];
+    for (const round of [1, 2]) {
+      const text = writeIFC(buildWriteIFCInput(restored, 'planOnly'));
+      restored = openAndRecalc(await parseOpenedFile({ name: `walk-${kind}-${round}.ifc`, text }));
+      const t = restored.tasks.find(x => x.name === task.name)!;
+      const walks = t.timephasedDurationWalks?.map(w => w.workMinutes);
+      same(`443 ${kind}/${round}: opgeslagen waarden behouden`, walks, [minutes, minutes]);
+      rounds.push({ round, walks, start: t.time.earlyStart, finish: t.time.earlyFinish });
+    }
+    summary.push({ kind, rounds });
+  }
+  console.log(`KNOWNBUG443_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 443::${JSON.stringify(summary)}`);
+  }
 }
 
 if (failures.length > 0) {
