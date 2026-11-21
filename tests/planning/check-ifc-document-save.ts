@@ -3053,11 +3053,15 @@ await check('knownbug 1903: desktopexport IFC met gebouwmodel, direct na de kiez
 // - `back-and-edit`: naar B bij de kiezer; tijdens de write terug naar A, een taak bewerkt, weer naar B;
 // - `rename-library`: naar B bij de kiezer; tijdens de write de bibliotheek van A hernoemd terwijl B vooraan blijft
 //   (`renameCompany` wijzigt `project.companyName` in het slapende A, en die naam gaat mee in het IFC);
+// - `back-and-stay` (fixronde 3): naar B bij de kiezer; tijdens de write terug naar A, een taak bewerkt, en op A blijven.
+//   De keuze voor de late controle valt bij de geslaagde doelcontrole (A stond daar niet vooraan), niet bij `close()`;
 // - `no-switch-edit`: geen wissel, A tijdens de write bewerkt. Dat is het late venster van main (knownbug 1958): de
-//   export plaatst de planning van vóór de wijziging en meldt succes. Bewust niet veranderd; deze proef legt main vast.
-const BROWSER_CHANGES = ['none', 'edit-at-picker', 'back-and-edit', 'rename-library', 'no-switch-edit'] as const;
+//   export plaatst de planning van vóór de wijziging en meldt succes. Bewust niet veranderd; deze proef legt main vast;
+// - `edit-then-switch` (fixronde 3): A vooraan tot en met de doelcontrole, tijdens de write A bewerkt en dán pas naar B.
+//   Ook dat is main (knownbug 1958): de eerste wissel kwam na de doelcontrole.
+const BROWSER_CHANGES = ['none', 'edit-at-picker', 'back-and-edit', 'rename-library', 'back-and-stay', 'no-switch-edit', 'edit-then-switch'] as const;
 const browserCases = [false, true].flatMap(withPool => BROWSER_CHANGES
-  .filter(change => !withPool || change === 'none' || change === 'back-and-edit' || change === 'rename-library')
+  .filter(change => !withPool || change !== 'edit-at-picker')
   .map(change => ({ withPool, change })));
 for (const { withPool, change } of browserCases) {
   const label = {
@@ -3065,7 +3069,9 @@ for (const { withPool, change } of browserCases) {
     'edit-at-picker': 'na de kiezer A bewerkt en naar B, schrijft A niet',
     'back-and-edit': 'naar B, tijdens de write A bewerkt, breekt af vóór close',
     'rename-library': 'naar B, tijdens de write de bibliotheek van A hernoemd, breekt af vóór close',
+    'back-and-stay': 'naar B, tijdens de write terug naar A en A bewerkt, breekt af vóór close',
     'no-switch-edit': 'zonder wissel A bewerkt tijdens de write, plaatst de oude bytes zoals main (knownbug 1958)',
+    'edit-then-switch': 'A vooraan bij de doelcontrole, tijdens de write bewerkt en dan naar B, plaatst de oude bytes zoals main (knownbug 1958)',
   }[change];
   await check(`knownbug 1903: browserexport ${withPool ? 'met resourcebibliotheek' : 'IFC'} naar een handle, ${label}`, async () => {
     const { createAppStoreContext } = await loadStore();
@@ -3074,7 +3080,8 @@ for (const { withPool, change } of browserCases) {
     const browser = browserDownload();
     const win = window as unknown as Record<string, unknown>;
     const name = `browser-wissel-${withPool}-${change}-${++handleCount}.ifc`, library = `${name}-bibliotheek.ifc`;
-    const switchAtPicker = change !== 'no-switch-edit';
+    const switchAtPicker = change !== 'no-switch-edit' && change !== 'edit-then-switch';
+    const placed = change === 'none' || change === 'no-switch-edit' || change === 'edit-then-switch';
     try {
       await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
       const first = store.getState().activeDocumentId;
@@ -3109,22 +3116,28 @@ for (const { withPool, change } of browserCases) {
           store.getState().renameCompany(companyId, 'Bibliotheek hernoemd 1097');
           assert.equal(payloadOf(store, first).project.companyName, 'Bibliotheek hernoemd 1097', 'het slapende A veranderde');
         }
-        if (change === 'no-switch-edit') longer(store);
+        if (change === 'back-and-stay') {
+          store.getState().switchDocument(first);
+          longer(store);
+        }
+        if (change === 'no-switch-edit' || change === 'edit-then-switch') longer(store);
+        if (change === 'edit-then-switch') store.getState().switchDocument(second);
       } });
       writableLog.length = 0;
       const result = withPool ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc');
       const projectLog = writableLog.filter(entry => entry.split(' ')[1] === name).map(entry => entry.split(' ')[0]);
       const recent = store.getState().recentFiles.some(file => file.name === name);
-      assert.equal(store.getState().activeDocumentId, switchAtPicker ? second : first);
+      assert.equal(store.getState().activeDocumentId, change === 'no-switch-edit' || change === 'back-and-stay' ? first : second);
       assert.equal(browser.downloads.length, 0, 'geen download ernaast');
-      if (change === 'none' || change === 'no-switch-edit') {
+      if (placed) {
         assert(result.ok && !result.cancelled, change === 'none' ? 'een tabbladwissel is geen wijziging van de planning' : 'main: de export slaagt');
         assert(Buffer.from(fileOf(name)).equals(Buffer.from(expected)), 'het gekozen bestand krijgt precies de bytes van A (van de momentopname)');
         assert.deepEqual(projectLog, ['create', 'close']);
         assert.equal(recent, true);
         assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
         if (withPool) assert(fileOf(library).byteLength > 0, 'de bibliotheek ernaast');
-        if (change === 'no-switch-edit') assert(changedDuringWrite, 'A veranderde tijdens de write');
+        assert.equal(picks, withPool ? 2 : 1);
+        if (change !== 'none') assert(changedDuringWrite, 'A veranderde tijdens de write');
       } else {
         assert(result.ok && result.cancelled, 'een veranderde A wordt niet geëxporteerd');
         assert.equal(fileOf(name).byteLength, 0, 'de kiezer had het bestand al leeggemaakt (1899); niet de oude bytes van A');
@@ -3132,6 +3145,7 @@ for (const { withPool, change } of browserCases) {
         assert.equal(change === 'edit-at-picker' || changedDuringWrite, true);
         assert.equal(recent, false, 'niets in Recent');
         assert.equal(handleFiles.has(library), false, 'geen bibliotheek');
+        assert.equal(picks, 1, 'geen tweede kiezer');
         assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
       }
     } finally {

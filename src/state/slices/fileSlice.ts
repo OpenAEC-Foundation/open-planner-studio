@@ -1350,8 +1350,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  bestandskiezer (`refuseTarget`) en vlak vóór de plaatsing op de desktop (knownbug 1896). Ze kijkt naar het
    *  geëxporteerde document, ook als dat intussen in een ander tabblad staat: een tabbladwissel is geen wijziging van de
    *  planning (review van #1027 ronde 2, knownbug 1903). Weigeren: het document is gesloten of kreeg een andere inhoud
-   *  (`sameDocumentContent`), de te schrijven inhoud of (met een gebouwmodel) de bron is niet meer die van de
-   *  momentopname, of de app weigert nu de volledige IFC van dat document. `true` = weigeren (zoals `SaveTargetCheck`). */
+   *  (`sameDocumentContent`), de te schrijven inhoud of (met een vreemd deel, `hasForeignContent`) het bronobject is niet
+   *  meer dat van de momentopname, of de app weigert nu de volledige IFC van dat document. `true` = weigeren (zoals `SaveTargetCheck`). */
   const refuseChangedExport = (snapshot: AppState): boolean => {
     const now = get();
     const foreign = hasForeignContent(snapshot.ifcSource);
@@ -1373,13 +1373,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
-  /** De late controle van een IFC-export (`refuseBeforePlace`). Desktop: altijd, vlak vóór de plaatsing. Browser, op de
-   *  handle uit de opslaankiezer: die heeft een bestaand doel al leeggemaakt (knownbug 1899), dus een weigering laat daar
-   *  0 bytes staan. Daar alleen als het geëxporteerde document niet meer vooraan staat (fixronde 2 van #1097, keuze (b)
-   *  van de technisch beslisser): na een tabbladwissel moet het tot aan `close()` ongewijzigd blijven. Zonder wissel doet
-   *  de browser wat main deed (knownbug 1958). */
-  const exportBeforePlace = (snapshot: AppState) => () =>
-    (isTauri() || get().activeDocumentId !== snapshot.activeDocumentId) && refuseChangedExport(snapshot);
+  /** De twee controles van één IFC-export na de bestandskiezer. `refuseTarget`: het gekozen doel en `refuseChangedExport`.
+   *  `refuseBeforePlace`, de late controle: op de desktop altijd, vlak vóór de plaatsing. In de browser, op de handle uit
+   *  de opslaankiezer, heeft de kiezer een bestaand doel al leeggemaakt (knownbug 1899) en laat een weigering daar 0 bytes
+   *  staan. Daarom wordt ze daar gekozen bij de geslaagde doelcontrole: stond het geëxporteerde document daar niet
+   *  vooraan (waar main nog weigerde, knownbug 1903), dan loopt ze vlak vóór `close()`, welk tabblad dan ook vooraan
+   *  staat (keuze (b) van de technisch beslisser, fixronde 3 van #1097). Stond het er wel vooraan, dan niet: de browser
+   *  doet wat main deed, ook bij een wissel daarna (knownbug 1958). */
+  const exportTargetChecks = (snapshot: AppState) => {
+    const foreignCheck = foreignTargetCheck(snapshot.activeDocumentId);
+    let inactiveAtTarget = false;
+    const refuseTarget: SaveTargetCheck = async target => {
+      if ((await foreignCheck(target)) || refuseChangedExport(snapshot)) return true;
+      inactiveAtTarget = get().activeDocumentId !== snapshot.activeDocumentId;
+      return false;
+    };
+    return { refuseTarget, refuseBeforePlace: () => (isTauri() || inactiveAtTarget) && refuseChangedExport(snapshot) };
+  };
 
   /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
    *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
@@ -2593,16 +2603,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
-      // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel.
-      const foreignCheck = foreignTargetCheck(state.activeDocumentId);
-      // Een IFC-export wacht op de schrijflock (hieronder): direct vóór de write ook kijken of het document nog gelijk is.
-      const refuseTarget: SaveTargetCheck = ext === 'ifc'
-        ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)
-        : foreignCheck;
+      // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel. Een
+      // IFC-export wacht op de schrijflock (hieronder): na de kiezer ook kijken of het document nog gelijk is, en
+      // (knownbug 1896) vlak vóór de plaatsing (`exportTargetChecks`).
+      const { refuseTarget, refuseBeforePlace } = ext === 'ifc'
+        ? exportTargetChecks(state) : { refuseTarget: foreignTargetCheck(state.activeDocumentId), refuseBeforePlace: null };
       // Review #872 ronde 7 (Terra): ook de download-terugval na een geweigerde kiezer controleert de bron nog eens.
       const refuseDownload = ext === 'ifc' ? () => refuseExportBeforePicker(state) : null;
-      // Knownbug 1896 (review van #1027): op de desktop dezelfde controle vlak vóór de plaatsing.
-      const refuseBeforePlace = ext === 'ifc' ? exportBeforePlace(state) : null;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
         : { refuseTarget, refuseDownload, refuseBeforePlace };
@@ -2718,14 +2725,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!project || project.prepared) return { ok: true, warnings: [], cancelled: true };
       const projectData = writerData(project);
       const base = suggestedFileBase(state);
-      const foreignCheck = foreignTargetCheck(state.activeDocumentId);
-      const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);
+      const { refuseTarget, refuseBeforePlace } = exportTargetChecks(state);
       // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`); ronde 5:
       // direct vóór de write kijken of het document nog gelijk is (`refuseExportBeforePicker`).
       const outcome = await runProjectFileWrite(async () => {
         if (refuseExportBeforePicker(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
-          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace: exportBeforePlace(state) });
+          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         if (written && exportContentReplaced(state)) return null; // zie `exportAs`
         return written;
