@@ -42,7 +42,8 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskTypeDraft } from '@/types/taskType';
+import { enteringDocument } from '@/services/taskTypes/customTaskTypeColors';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { applyProjectPatch, type ClearableProjectKey, type ProjectPatchOutcome } from '../projectPatch';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
@@ -668,7 +669,7 @@ function createMcpDraft(
   },
 
   /** Materialiseer de snapshot tegelijk met de taakmutatie; bestaande ids zijn onveranderlijk. */
-  ensureCustomTaskType(type: CustomTaskType): void {
+  ensureCustomTaskType(type: CustomTaskTypeDraft): void {
     store.setState((s) => {
       const normalized = { id: type.id.trim(), name: type.name.trim() };
       if (!normalized.id || !normalized.name) throw new Error('draft.ensureCustomTaskType: id and name must not be empty');
@@ -678,7 +679,7 @@ function createMcpDraft(
         return;
       }
       if (sameNameOtherId) throw new Error(`draft.ensureCustomTaskType: name '${normalized.name}' already has id '${sameNameOtherId.id}'`);
-      s.customTaskTypes.push(normalized);
+      s.customTaskTypes.push(enteringDocument(normalized, s.customTaskTypes));
       markDocumentEdited(s);
     });
   },

@@ -953,6 +953,16 @@ en noem het in je rapport of PR-tekst.
      (mijlpalen op dezelfde dag) weigert. `tests/browser/mijlpalenreeks.spec.ts` stap 5b controleert dat alleen voor
      F2. Voorstel: Alt+↑ en Alt+↓ op het groepsruitje in stap 5b, met een controle dat de volgorde onder de fase
      gelijk blijft, en een tegenproef op een los ruitje. Bron: review Sol ronde 4 van #956. — B
+1671. **Groeperen en filteren op Werkcategorie zien elke eigen categorie als "Overig".** `src/engine/view/filterEval.ts:139`
+     geeft voor het veld `taskType` alleen `task.taskType` terug, en een eigen categorie is daar `USERDEFINED`;
+     de opties in `fieldCatalog.ts:236` komen alleen uit de vaste labels. Taken met verschillende eigen
+     categorieën vallen dus in één band "Overig", en een filter kan er niet op kiezen. Gezien bij #856 (de
+     balkkleur is daar apart opgelost). Voorstel: dezelfde sleutel `customTaskType:<id>` en naam als de
+     balkkleuring (`resolveBarCategoryValues`). — B (code)
+1672. **Vaste werkcategorieën delen een balkkleur.** De kleur is de hash van de typenaam over twaalf
+     paletkleuren (`paletteColorForId`): Constructie en Renovatie krijgen allebei leisteen (#1E293B), Sloop en
+     Overig allebei violet (#A78BFA). Nagerekend met de FNV-hash uit `resourcePalette.ts`. Voorstel: vaste
+     paletplekken per vaste categorie; dat verandert wel kleuren die gebruikers nu kennen. — B
 1673. **VERVOLG: binnen één gebundelde wijziging kan de selectie na verwijderen op een verborgen fase landen.**
      `selectNeighbourAfterRemoval` (`src/state/selectionAfterRowChange.ts`) kiest de buur uit `viewRows`. Binnen
      een transactie die het herberekenen van de rijen uitstelt (`runtime.deferViewRows`, bijvoorbeeld
@@ -975,6 +985,35 @@ en noem het in je rapport of PR-tekst.
      cursor landt op B/R1 in plaats van B/R2, want B kreeg WBS 1 en geen pad deelt het begin `["2"]`. Voorstel: ook
      gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
      BEVESTIGD, VERVOLG). — B
+1677. **CSV, MS Project XML en P6 XML dragen de kleur van een eigen werksoort niet.** Ze schrijven alleen id en naam
+     (`encodeCustomTaskType`, de CSV-kolom); bij inlezen krijgt de werksoort weer een vrije kleur, die kan afwijken van
+     de kleur in het project. Gezien bij #856, dat de kleur alleen in de bibliotheek en het IFC-bestand bewaart (besluit
+     21 november 2026). Voorstel: de kleur in de bestaande OPS-marker van MSPDI en P6 meenemen. — B (code)
+
+1678. **VERVOLG (#856, IFC met vreemde inhoud): een oud bestand met een accent in een werksoortnaam kan niet opslaan
+     met een kleur erbij.** De writer van v2026.9.0 schreef `Café` letterlijk in `OPS_TaskTypes`; de writer van nu
+     schrijft `Café` (`asciiJson`). De uitzondering voor de aangevulde kleur in `lossCheck.ts`
+     (`taskTypesWithOpenedColors`) eist de schrijfwijze van nu, en de terugval kan die oude waarde ook niet terugzetten,
+     dus opslaan weigert. Dat laatste geldt al op main. Alleen met de flag `ifcForeignContent`. Gezien in review ronde 3
+     van optie 2 op #952. Voorstel: een proef met echte uitvoer van die writer, en de uitzondering ook de oude
+     schrijfwijze laten herkennen als die verder teken voor teken gelijk is. — B (code)
+
+1679. **VERVOLG (#856): na de twaalf vaste kleuren hebben sommige berekende werksoortkleuren weinig contrast.** De reeks
+     in `generatedColor` (`customTaskTypeColors.ts`) toetst geen contrast; de zwakste van de eerste zestig haalde
+     1,58:1 in het lichte en 2,20:1 in het donkere thema (hoog contrast haalt 7:1). Ze komen pas bij een dertiende eigen
+     werksoort in één planning in beeld. Gezien in review ronde 4 van optie 2 op #952. Voorstel: elke berekende tint
+     toetsen aan de echte Gantt-achtergronden en een te zwakke overslaan. — B (code)
+
+1680. **VERVOLG (#856): een werksoort met een expliciete kleur van een vaste werkcategorie houdt die kleur in een nieuw
+     project.** Een bestand mag een eigen werksoort de kleur van *Bouw* (`#1E293B`) geven; die blijft bij openen precies.
+     Zet je haar in *Mijn werksoorten* en kies je haar in een andere planning naast *Bouw*, dan houdt de projectkopie die
+     kleur: `enteringDocument` (`customTaskTypeColors.ts`) kijkt bij een meegegeven kleur alleen naar de eigen
+     werksoorten van het document, niet naar de vaste kleuren. Gezien in review ronde 5 van optie 2 op #952.
+     Voorstel: daar ook de vaste kleuren meetellen; `enteringDocument` kan dan met `some` en één `freeTaskTypeColor`. — B (code)
+
+1681. **VERVOLG (#856): de berekende reeks werksoortkleuren is begrensd.** Na 2.181 verschillende kleuren geeft
+     `freeTaskTypeColor` weer de eerste kleur van de reeks (`#DB2777`). De terugval heeft nog geen gerichte test. Gezien
+     in review ronde 5 van optie 2 op #952. Voorstel: een test die de terugval vastlegt. — B (code)
 
 1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
      `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
