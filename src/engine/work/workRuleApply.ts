@@ -35,7 +35,7 @@ import {
 } from '@/utils/taskDefaults';
 import {
   applyAssignmentAdded, applyAssignmentRemoved, applyDurationEdit, applyRuleChange, applySlotChange,
-  applyUnitsEdit, applyWorkEdit, durationEditKeepsWork, remainingWorkOf, type TriangleAssignment, type TriangleState,
+  applyUnitsEdit, applyWorkEdit, durationEditKeepsWork, type TriangleAssignment, type TriangleState,
 } from '@/engine/work/workTriangle';
 
 export interface WorkRuleContext {
@@ -360,44 +360,6 @@ export function captureTriangle(task: Task, assignments: readonly ResourceAssign
     state, ctx, totalMinutes, actualWork,
     finishBasis: hourInputFinishBasis(task), time: { ...task.time }, assignments: own,
   };
-}
-
-/** Het restwerk van één toewijzing vóór en na een bewerking, in werkminuten. */
-export interface AssignmentWorkChange {
-  assignmentId: string;
-  beforeMinutes: number;
-  afterMinutes: number;
-}
-
-/** Restwerk zoals het paneel het toont (`TaskAssignmentsSection`): uren op twee decimalen. */
-const shownHours = (minutes: number): number => Math.round((minutes / 60) * 100) / 100;
-
-/**
- * De toewijzingen van de taak waarvan het restwerk door een bewerking ZICHTBAAR veranderde
- * (#954, besluit eigenaar 2026-11-21): vóór = de momentopname, na = de taak zoals ze nu is. Alleen
- * werkresources die vóór én na op de taak staan, behalve `editedId`: een toegevoegde of verwijderde
- * toewijzing en de bewerkte zelf zijn geen "andere". Werk zonder veld is afgeleid (R × I). Na =
- * dezelfde afleiding op de geschreven taak, dus wat de planner daarna in *Werk (u)* ziet.
- */
-export function otherWorkChanges(
-  captured: CapturedTriangle | null,
-  task: Task,
-  assignments: readonly ResourceAssignment[],
-  editedId?: string,
-): AssignmentWorkChange[] {
-  if (!captured) return [];
-  const after = triangleStateOf(task, assignments, captured.ctx);
-  const changes: AssignmentWorkChange[] = [];
-  for (const next of after.assignments) {
-    if (!next.drivesDuration || next.id === editedId) continue;
-    const prev = captured.state.assignments.find((a) => a.id === next.id);
-    if (!prev) continue;
-    const beforeMinutes = remainingWorkOf(prev, captured.state.remainingMinutes);
-    const afterMinutes = remainingWorkOf(next, after.remainingMinutes);
-    if (shownHours(beforeMinutes) === shownHours(afterMinutes)) continue;
-    changes.push({ assignmentId: next.id, beforeMinutes, afterMinutes });
-  }
-  return changes;
 }
 
 const NO_CHANGE: TriangleWriteBack = { durationChanged: false, changedAssignmentIds: [] };

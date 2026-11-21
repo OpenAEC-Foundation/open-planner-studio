@@ -43,13 +43,16 @@ zakt de contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). 
 de duur nooit.
 
 Verandert een bewerking aan één toewijzing in de store (`assignResource`, `updateAssignment`,
-`unassignResource`, `setAssignmentWork`) de uren van een ANDERE werkresource op die taak zichtbaar (uren op
-twee decimalen, `otherWorkChanges` in de brug, via `AssignmentChangeOutcome.otherWork`), dan meldt de app
-dat met de nieuwe duur, per resource "oud → nieuw" en de knop Ongedaan maken (`otherWorkNotice.ts`, #954,
-eigenaarsbesluit 2026-11-21). Die knop (`undoHistoryEvent`) hoort bij precies het event van die bewerking en
-staat er alleen zolang dat de stap van Ctrl+Z is (`canRunNotificationUndo`); zonder eigen event (batch,
-extensie) geen melding. MCP, raster en `removeResource`/`moveAssignment` melden niets. Test:
-`check-work-others-notice.ts`.
+`unassignResource`, `setAssignmentWork`) de uren van een ANDERE werkresource op die taak zichtbaar, dan
+meldt de app dat met de nieuwe duur, per resource "oud → nieuw" en de knop Ongedaan maken
+(`otherWorkNotice.ts`, #954, eigenaarsbesluit 2026-11-21). De actie neemt vóór haar `set` een
+momentopname van de taak (`watchOtherWork`) en vergelijkt erna (`notifyOtherWorkChanged`); beide lezen
+het getal van *Werk (u)* (`engine/work/shownWork.ts`, gedeeld met het paneel, dus ook een contoursom), op
+twee decimalen. Die knop (`undoHistoryEvent`) hoort bij precies het event van die bewerking en staat er
+alleen zolang dat de stap van Ctrl+Z is (`canRunNotificationUndo`); zonder eigen event (batch, extensie)
+geen melding. In Taak bewerken haalt Annuleren de melding weg en neemt Opslaan na meer stappen de knop weg
+(`settleUndoNotices` in `historySlice.ts`); een documentwissel haalt haar weg. MCP, raster en
+`removeResource`/`moveAssignment` melden niets (knownbug 2050). Test: `check-work-others-notice.ts`.
 
 Een **kalenderwissel** (taak-/projectkalender of andere uren per dag in een kalender) verandert de
 slotgrootte en loopt daarna óók door de regel (`applySlotChange`/`settleCalendarChange`: Vast werk/Vaste

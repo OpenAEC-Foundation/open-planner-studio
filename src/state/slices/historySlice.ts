@@ -18,6 +18,20 @@ import { overlaysToUi } from '../layoutView';
 import { persistOverlays } from '../overlaySettings';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
 
+/** Een melding met Ongedaan maken (`undoHistoryEvent`, #954) hoort bij precies één event. Draait
+ *  Annuleren dat event terug, dan verdwijnt de melding (`drop`); voegt Opslaan het samen met andere
+ *  stappen van de dialoog, dan blijft de tekst staan maar gaat de knop weg (`strip`): hij zou anders ook
+ *  die andere stappen terugzetten. */
+function settleUndoNotices(s: AppState, eventIds: ReadonlySet<string>, how: 'drop' | 'strip'): void {
+  const bound = (n: AppState['ui']['notifications'][number]) =>
+    n.action?.kind === 'undoHistoryEvent' && eventIds.has(n.action.eventId);
+  if (how === 'drop') {
+    s.ui.notifications = s.ui.notifications.filter((n) => !bound(n));
+    return;
+  }
+  for (const n of s.ui.notifications) if (bound(n)) delete n.action;
+}
+
 export interface HistorySessionMark {
   sequence: number;
   sessionKey: string;
@@ -186,14 +200,20 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
     // Annuleren is geen undo: de teruggedraaide sessiestappen horen niet als redo terug te komen.
     // Sessie-events die onder een vreemd event bleven liggen worden gewone stappen (sleutel weg).
     let stranded = 0;
+    const reverted = new Set<string>();
     const events = get().historyEvents
-      .filter(event => !(event.state === 'undone' && isSessionEvent(event, mark, documentId)))
+      .filter(event => {
+        const gone = event.state === 'undone' && isSessionEvent(event, mark, documentId);
+        if (gone) reverted.add(event.id);
+        return !gone;
+      })
       .map(event => {
         if (event.sessionKey !== mark.sessionKey) return event;
         if (event.state === 'applied') stranded++;
         return withoutSessionKey(event);
       });
     set({ historyEvents: events });
+    if (reverted.size > 0) set((s) => settleUndoNotices(s, reverted, 'drop'));
     runtime.resetUndoCoalescing();
     if (stranded > 0) {
       get().notify(refusalNotice({
@@ -225,7 +245,9 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
 
     const replaced = new Map<string, SessionHistoryEvent>();
     const dropped = new Set<string>();
+    const merged = new Set<string>();
     for (const session of runs) {
+      if (session.length > 1) for (const event of session) merged.add(event.id);
       const first = session[0].deltas[0] as DocumentDataHistoryDelta;
       const last = session[session.length - 1].deltas[0] as DocumentDataHistoryDelta;
       replaced.set(session[0].id, withoutSessionKey({
@@ -235,12 +257,12 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
       }));
       for (const event of session.slice(1)) dropped.add(event.id);
     }
-    set({
-      historyEvents: current.historyEvents
-        .filter(event => !dropped.has(event.id))
-        .map(event => replaced.get(event.id)
-          ?? (event.sessionKey === mark.sessionKey ? withoutSessionKey(event) : event)),
-    });
+    const events = current.historyEvents
+      .filter(event => !dropped.has(event.id))
+      .map(event => replaced.get(event.id)
+        ?? (event.sessionKey === mark.sessionKey ? withoutSessionKey(event) : event));
+    set({ historyEvents: events });
+    if (merged.size > 0) set((s) => settleUndoNotices(s, merged, 'strip'));
     runtime.resetUndoCoalescing();
   },
 });
