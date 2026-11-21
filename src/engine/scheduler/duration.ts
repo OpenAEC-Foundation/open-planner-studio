@@ -43,7 +43,7 @@ export function taskDurationUnit(task: Task): 'days' | 'hours' {
  * `succIsFinishMs`/`succIsStartMs`) gebruiken deze ene definitie: een kale `isMilestone`-check
  * verschuift een ELAPSEDTIME-taak met `milestone:true` + reële duur een dag (msp-30/msp-31).
  */
-export function isZeroDurationMilestone(task: Task): boolean {
+export function isZeroDurationMilestone(task: Pick<Task, 'isMilestone' | 'time'>): boolean {
   return task.isMilestone && task.time.scheduleDuration === 0;
 }
 

@@ -47,6 +47,8 @@
     "recentColumns": "Sist brukt",
     "noColumns": "Bruk + for å legge til en kolonne.",
     "toggleSummary": "Utvid eller skjul hovedaktivitet",
+    "toggleMilestones": "Utvid eller skjul milepæler",
+    "milestonesRun": "Milepæler ({{n}})",
     "calculatedReadOnly": "Denne beregnede kolonnen kan ikke redigeres."
   },
   "taskGrid": {
@@ -326,7 +328,11 @@
     "rename": "Rediger",
     "remove": "Fjern",
     "addToMine": "Legg til i mine arbeidskategorier",
-    "confirmRemove": "Denne arbeidskategorien brukes i det åpne prosjektet. Vil du fjerne den fra Mine arbeidskategorier? Prosjektkopien beholdes."
+    "confirmRemove": "Denne arbeidskategorien brukes i det åpne prosjektet. Vil du fjerne den fra Mine arbeidskategorier? Prosjektkopien beholdes.",
+    "renameInProjectTitle": "Endre navnet også i dette prosjektet?",
+    "renameInProjectMessage": "Arbeidskategorien «{{oldName}}» brukes også i dette prosjektet. Vil du kalle den «{{newName}}» her også?",
+    "renameInProjectYes": "Også i dette prosjektet",
+    "renameInProjectNo": "Bare i min liste"
   },
   "duration": {
     "label": "Varighet",

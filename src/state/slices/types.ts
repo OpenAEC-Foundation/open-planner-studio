@@ -239,12 +239,30 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignTargetChanged'
   | 'notifications.ifcForeignTargetGone'
   | 'notifications.ifcForeignReplaceNotRecorded'
+  | 'notifications.ifcForeignDownloadCopy'
+  | 'notifications.exportPlanOnly'
   | 'notifications.ifcForeignReplaceFailed'
   | 'notifications.ifcForeignMergeRefused'
   // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
   | 'notifications.ifcForeignNewTargetOnly'
+  // Fixronde 1 van #1019: Opslaan als over een bestaande naam koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.ifcForeignTargetOpenInTab'
+  // Knownbug 1907: Exporteren koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.exportTargetOpenInTab'
+  // Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open staat.
+  | 'notifications.exportTargetOpenDocument'
   | 'notifications.ifcForeignPlaceUnknown'
+  // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
+  // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).
+  | 'notifications.ifcForeignReplaceOtherVersion'
+  | 'notifications.ifcForeignReplaceUnsavedCopy'
+  | 'notifications.ifcForeignReplaceTargetTaken'
+  | 'notifications.ifcForeignReplacePreviousStranded'
+  | 'notifications.ifcForeignReplaceSaveAsOnly'
+  | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
+  // #804 stap 5: de opslagworker faalde (`IfcSaveWorkerError`); niets geschreven.
+  | 'notifications.ifcSaveWorkerFailed'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
   | 'notifications.ifcExportChangedWhileWaiting'
@@ -252,6 +270,11 @@ export type NotificationMessageKey =
   | 'notifications.ifcUnreadableTargetSave'
   | 'notifications.ifcUnreadableTargetExport'
   | 'notifications.ifcUnreadableTargetAutoSave'
+  // #804 stap 8: Automatisch opslaan bij een gebouwmodel stopt veilig (`state/modelAutoSaveNotices.ts`).
+  | 'notifications.ifcForeignAutoSaveTargetChanged'
+  | 'notifications.ifcForeignAutoSaveSaveAsOnly'
+  | 'notifications.ifcForeignAutoSaveNotRecorded'
+  | 'notifications.ifcForeignAutoSaveRemnant'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).
@@ -410,6 +433,8 @@ export type NotificationMessageKey =
   | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
+  // Een eigen werksoort ook in het project hernoemen botst met een andere werksoort daar (#804 keuze 7).
+  | 'notifications.taskTypeRenameNameTaken'
   // Nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
@@ -750,6 +775,10 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
+   *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
+   *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */
+  closeQuestionSaving: boolean;
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
    *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
   appQuitPending: boolean;

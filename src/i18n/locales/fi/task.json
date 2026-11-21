@@ -47,6 +47,8 @@
     "recentColumns": "Viimeksi käytetyt",
     "noColumns": "Lisää sarake painikkeella +.",
     "toggleSummary": "Laajenna tai tiivistä yhteenvetotehtävä",
+    "toggleMilestones": "Laajenna tai supista välitavoitteet",
+    "milestonesRun": "Välitavoitteet ({{n}})",
     "calculatedReadOnly": "Tätä laskettua saraketta ei voi muokata."
   },
   "taskGrid": {
@@ -326,7 +328,11 @@
     "rename": "Muokkaa",
     "remove": "Poista",
     "addToMine": "Lisää kohtaan Omat työlajit",
-    "confirmRemove": "Tätä työlajia käytetään avoinna olevassa projektissa. Poistetaanko se kohdasta Omat työlajit? Projektin kopio säilyy."
+    "confirmRemove": "Tätä työlajia käytetään avoinna olevassa projektissa. Poistetaanko se kohdasta Omat työlajit? Projektin kopio säilyy.",
+    "renameInProjectTitle": "Muutetaanko nimi myös tässä projektissa?",
+    "renameInProjectMessage": "Työlaji ”{{oldName}}” on käytössä myös tässä projektissa. Annetaanko sille täälläkin nimi ”{{newName}}”?",
+    "renameInProjectYes": "Myös tässä projektissa",
+    "renameInProjectNo": "Vain omassa luettelossa"
   },
   "duration": {
     "label": "Kesto",

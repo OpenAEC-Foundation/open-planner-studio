@@ -2,7 +2,8 @@ import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
-import { currentAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
+import { carryLiveProgressPlan, liveProgressPlannedStarts, progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -21,7 +22,7 @@ import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import {
   actualStartQuestionFor, hasRecordedProgress, planProgressEntry, progressEntryStatusDate,
-  type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
+  type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan, type ProgressEntryResult,
 } from '@/engine/progressEntry';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
@@ -199,7 +200,7 @@ export interface TaskSlice {
   enterTaskProgress: (
     taskId: string,
     edit: ProgressEdit,
-    opts: { today: string; actualStart?: string; coalesceKey?: string },
+    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedStart?: () => string | undefined },
   ) => ProgressEntryResult;
   /**
    * De ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
@@ -267,16 +268,19 @@ export interface ProgressImportEntryOptions {
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
 function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
   const statusDate = progressEntryStatusDate(s.project.statusDate, today);
+  const baseStart = progressPlannedStarts(s);
   return {
-    planEdits: (task, edits) => {
-      const environment = buildTaskEditPlanEnvironment(s, task);
+    preparePlacement: ids => progressPlacementForBatch(s, ids, statusDate),
+    planEdits: (task, edits, plannedStart = baseStart) => {
+      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedStart };
       const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
       if (!planned.ok || !today) return planned;
       const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
       const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
-      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar),
+      wrote('task.time.completion') ? () => plannedStart(task) : undefined);
       if (!question) return planned;
       return {
         ok: false,
@@ -859,6 +863,23 @@ function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): Phase
 // Compatibele export voor bestaande MCP-aanroepers; de ene implementatie leeft in taskEditPlan.
 export { applyProgressInvariants };
 
+/** De taak zoals een voortgangssetter haar bewaart. Ook het contextmenu toetst opvolgers op deze
+ * uitkomst, met datumnormalisatie en zonder de nivelleergaten die door de bewerking vervallen. */
+export function planStoredProgressEdit(
+  state: Pick<AppState, 'project' | 'calendar' | 'calendars'>,
+  task: Task, edit: ProgressEdit, ctx: Omit<ProgressEntryContext, 'statusDate' | 'calendar'>,
+): ProgressEntryPlan {
+  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: state.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar) });
+  if (!plan.ok || !plan.change) return plan;
+  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
+  // geen undo-stap of verlies van nivelleergaten veroorzaken.
+  const normalized = normalizeTaskDates(plan.change.task, state);
+  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true, change: null };
+  clearLevelingGaps(normalized);
+  return { ok: true, change: { ...plan.change, task: normalized } };
+}
+
 /**
  * De ene commit van de voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`)
  * en van de UI-invoer (`enterTaskProgress`), binnen hun producer. Wat de bewerking doet,
@@ -893,30 +914,24 @@ function commitProgressEdit(
   // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
-  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
-    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar) });
+  const base = originalAppState(s);
+  const plan = planStoredProgressEdit(s, task, edit, { ...ctx,
+    plannedStart: ctx.plannedStart ?? (() => base ? liveProgressPlannedStarts(base)(task) : progressPlannedStarts(s)(task)) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
-  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
-  // geen undo-stap of verlies van nivelleergaten veroorzaken.
-  const normalized = normalizeTaskDates(plan.change.task, s);
-  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
   // Voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de ongewijzigde
   // taak, settle ná de mutatie. Ná de no-op-check, zodat een no-op ook het werk niet raakt.
   const progressWork = captureProgressWork(task, s);
-  const { statusDateToday } = plan.change;
+  const { task: updated, statusDateToday } = plan.change;
   if (statusDateToday) {
     s.project.statusDate = statusDateToday;
     s.project.modifiedAt = new Date().toISOString();
   }
-  task.time = normalized.time;
-  task.status = plan.change.task.status;
+  task.time = updated.time;
+  task.status = updated.status;
+  if (task.splitGaps !== updated.splitGaps) task.splitGaps = updated.splitGaps;
   settleProgressWork(task, taskAssignmentDrafts(s, task.id), progressWork); // eigen toewijzingen, zonder proxy per stuk
-  // Invalidatie van nivelleergaten, klasse voortgang. Voortgang loopt buiten `updateTask` om, dus
-  // deze setters hebben hun eigen aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor
-  // het waarom.
-  clearLevelingGaps(task);
   // ALTIJD stale: elke voortgangsmutatie is datum-beïnvloedend, met of zonder statusdatum
   // (`applyProgressInvariants` pint completion===1 op actuals/eigen finish, en de IN-PROGRESS-tak
   // in CPMSolver leunt evenmin op de statusdatum).
@@ -1021,6 +1036,22 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     pendingPhaseChoice = onChoice;
     recheckPhaseQuestion = recheck;
     set((s) => { s.ui.pendingPhaseAssignmentQuestion = question; });
+  };
+
+  const writeProgress = (
+    taskId: string, edit: ProgressEdit, ctx: Omit<ProgressEntryContext, 'statusDate'>,
+    opts?: { coalesceKey?: string },
+  ): ProgressEntryResult => {
+    const before = get();
+    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
+    set(s => { result = commitProgressEdit(runtime, s, taskId, edit, ctx, opts); });
+    if (!result.ok) return result;
+    get().recomputeViewRows();
+    if (result.statusDateToday) {
+      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
+    }
+    carryLiveProgressPlan(before, get(), taskId);
+    return { ok: true };
   };
 
   return {
@@ -1736,45 +1767,17 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     return newRootId;
   },
 
-  setTaskProgress: (taskId, raw, opts) => {
-    let accepted = true;
-    // % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
-    // onder 100% ⇒ actualFinish vervalt. Dezelfde regel als de concept in "Taak bewerken"
-    // (`draftWithProgress`). Verzameltaak (alleen-lezen), snapshot, nivelleergaten, stale, de
-    // no-op-regel en de werknazorg: zie `commitProgressEdit`.
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'completion', value: raw }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setTaskProgress: (taskId, raw, opts) =>
+    writeProgress(taskId, { field: 'completion', value: raw }, {}, opts).ok,
 
-  setActualStart: (taskId, date, opts) => {
-    let accepted = true;
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualStart', value: date }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setActualStart: (taskId, date, opts) =>
+    writeProgress(taskId, { field: 'actualStart', value: date }, {}, opts).ok,
 
-  setActualFinish: (taskId, date, opts) => {
-    let accepted = true;
-    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualFinish', value: date }, {}, opts).ok; });
-    get().recomputeViewRows();
-    return accepted;
-  },
+  setActualFinish: (taskId, date, opts) =>
+    writeProgress(taskId, { field: 'actualFinish', value: date }, {}, opts).ok,
 
-  enterTaskProgress: (taskId, edit, opts) => {
-    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
-    set((s) => {
-      result = commitProgressEdit(
-        runtime, s, taskId, edit, { today: opts.today, actualStart: opts.actualStart }, { coalesceKey: opts.coalesceKey },
-      );
-    });
-    get().recomputeViewRows();
-    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
-    if (result.ok && result.statusDateToday) {
-      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
-    }
-    return result.ok ? { ok: true } : result;
-  },
+  enterTaskProgress: (taskId, edit, opts) =>
+    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart }, opts),
 
   previewProgressImport: (rows, overrides, opts) => {
     const s = get();
@@ -1790,7 +1793,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     let plan!: ProgressImportPlan;
     let statusDateToday: string | undefined;
     set((s) => {
-      plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides, opts?.conflictChoices);
+      const live = originalAppState(s) ?? s;
+      plan = buildProgressImportPlan(rows, live.tasks, progressImportDeps(live, opts?.today), overrides, opts?.conflictChoices);
       if (plan.appliedCount === 0 || plan.unresolvedConflictCount > 0) return;
       runtime.beginUndoable(s);
       // Met `ProgressImportEntryOptions`: houdt een toegepaste rij voortgang over en was er geen

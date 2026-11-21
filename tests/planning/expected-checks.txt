@@ -192,8 +192,10 @@ check-ifc-foreign-open.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-foreign-preserve.ts matrix
+check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
+check-ifc-foreign-telling-verschil.ts los
 check-ifc-globalid.ts matrix
 check-ifc-kalendertijd.ts matrix
 check-ifc-legacy-arity.ts matrix
@@ -201,6 +203,7 @@ check-ifc-lexical-boundaries.ts matrix
 check-ifc-literaltimes-behoud.ts matrix
 check-ifc-lopend-100.ts matrix
 check-ifc-nesting-index.ts matrix
+check-ifc-own-file-replace.ts matrix
 check-ifc-prepared-write.ts matrix
 check-ifc-projectdatum-corpus.ts los
 check-ifc-projectdatum-tijd.ts matrix
@@ -386,6 +389,7 @@ check-row-drag-intent.ts matrix
 check-run-ts-cleanup.ts matrix
 check-save-dialog-extension.ts matrix
 check-save-failure-status.ts matrix
+check-save-worker.ts matrix
 check-saved-filters.ts matrix
 check-schedule-errors.ts matrix
 check-schedule-warnings.ts matrix

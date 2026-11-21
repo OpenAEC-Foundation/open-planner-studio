@@ -90,13 +90,15 @@ check(!dragCarriesFiles(null), 'geen DataTransfer telt niet');
   const io = {
     readTextFile: async (p: string) => { calls.push(`text:${p}`); return 'tekst'; },
     readFile: async (p: string) => { calls.push(`bytes:${p}`); return new Uint8Array([1, 2]); },
+    settle: async (p: string) => { calls.push(`settle:${p}`); return []; },
   };
   const dropped = droppedFilesFromPaths(['C:\\werk\\Plan.MPP', '/home/a/plan.ifc', 'D:\\x\\tekening.pdf'], io);
   check(same(dropped.map((f) => f.name), ['Plan.MPP', 'plan.ifc', 'tekening.pdf']), 'namen uit Windows- en Unix-paden');
   check(calls.length === 0, 'nog niets gelezen vóór read()');
   const mpp = await dropped[0].read();
   const ifc = await dropped[1].read();
-  check(same(calls, ['bytes:C:\\werk\\Plan.MPP', 'text:/home/a/plan.ifc']), `binair als bytes, IFC als tekst (${calls.join(', ')})`);
+  check(same(calls, ['settle:C:\\werk\\Plan.MPP', 'bytes:C:\\werk\\Plan.MPP', 'settle:/home/a/plan.ifc', 'text:/home/a/plan.ifc']),
+    `eerst een onafgeronde vervanging afhandelen, dan binair als bytes en IFC als tekst (${calls.join(', ')})`);
   check(mpp.ref?.kind === 'path' && mpp.ref.path === 'C:\\werk\\Plan.MPP' && mpp.bytes?.length === 2, '.mpp: het pad als ref');
   check(ifc.ref?.kind === 'path' && ifc.content === 'tekst', '.ifc: het pad als ref');
   const split = splitDroppedFiles(dropped);
