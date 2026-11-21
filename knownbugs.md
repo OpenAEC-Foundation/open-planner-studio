@@ -1186,6 +1186,12 @@ en noem het in je rapport of PR-tekst.
      vergelijkt alle acht namen opnieuw. Voor later: die stap in hetzelfde scenario, met de bestaande hulp
      `chooseLocale`. Gevonden door de review van #943. — B
 
+1881. **VERVOLG (#992): een oudere app kan Boliviaanse feestdagen niet opnieuw genereren.** De lezer van
+      v2026.47.0 neemt de nieuwe IFC-herkomstcode `BO` over. Bij hergeneratie heeft die versie geen bijbehorende
+      feestdagenset en geeft `materializeHolidays` een TypeError op `defs`. Bevestigd in reviewronde 1 met de
+      generator uit die release. Richting voor toekomstige uitbreidingen: bied hergeneratie alleen aan voor
+      een bekende set. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -3284,6 +3290,11 @@ en noem het in je rapport of PR-tekst.
       bijgewerkt, maar de tekst van tutorial 5 staat in de tutorials-extensie, buiten deze repo, en is
       niet nagelopen. Richting: de tekst daar controleren op "tabblad Planning" / "Planning tab". — S
 
+1880. **VERVOLG (#992): de Spaanse Help noemt de nieuwe keuze Bolivia nog niet.** Het aanwezige Spaanse
+      artikel `public/docs/es/howto-feestdagen-genereren.md` toont de oude landenlijst. De Help kiest dit
+      artikel boven de bijgewerkte Engelse versie. Bevestigd in reviewronde 1. Werk het bij via de
+      bestaande vertaalroute voor Help. — B
+
 ## Teksten en helpteksten
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
@@ -3317,6 +3328,37 @@ en noem het in je rapport of PR-tekst.
      kunnen zijn (keuze van de eigenaar), en daarmee of de grens omlaag gaat of de opslag nog zuiniger moet. Zie ook
      1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
      en 1922 (het ritme van Automatisch opslaan: een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
+
+2024. **Na een opslag van een groot gebouwmodel staat de desktopapp ongeveer één bestand hoger, ook met een gestopte
+     opslagworker (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux bij 157 MB (run V van de
+     meting, de worker telkens 10 s na de opslag gestopt): vóór de eerste Ctrl+S 0,45 GB; nadat de worker na de eerste
+     opslag gestopt was 0,60 GB, en na de tweede 0,78 GB. Eén beginstand en twee metingen; verder is niet gemeten. In
+     Node houdt de opslagroute dat niet vast: met dezelfde store, de echte Ctrl+S met `saveFile`, de bediening van de
+     worker, de vervangroute en een herstelronde (de proef `scripts/proef/meet-na-opslag.ts` van de meet-branch, model
+     van 10 MB en 4 MB) staat na drie opslagen en een volledige gc alleen de nieuwe bron met haar indexen. Een
+     heap-snapshot direct na de tweede opslag toont twee bronnen: de nieuwe via de store en de vorige alleen via de stack
+     van de lopende proef zelf (een lusvariabele die `store.getState().ifcSource` leest). De extra kopie die die proef
+     "vanaf de tweede opslag" zag, hoort dus bij de proef. Ongedaan maken neemt de bron niet mee (`snapshot: 'none'` in
+     `documentContract.ts`). Die conclusie geldt alleen voor de route in Node; de React-schermen en de WebKit-kant zitten
+     niet in de proef. Vermoed, voor de desktop: (a) JavaScriptCore ruimt de oude bron op de hoofdthread pas op als daar
+     weer veel wordt aangemaakt, of de vrije ruimte gaat niet terug naar het systeem; (b) `IFCPanel.tsx` en
+     `ProjectInfoPanelContent.tsx` selecteren `ifcSource` als object, en React houdt na een nieuwe stand de vorige waarde
+     in de tweede kopie van het onderdeel tot dat onderdeel weer tekent (hoogstens één oude bron). Richting: op de
+     desktop meer opslagen achter elkaar met de worker gestopt, daarna een paar minuten wachten met af en toe een
+     bewerking en zien of de stand zakt; met de webinspecteur een heap-snapshot na de tweede opslag om te zien of oude
+     bronnen bereikbaar zijn en via wie. — S (meting desktop; de verklaring is vermoed)
+
+2025. **Na een eerdere modelmerge kan een gewoon verzoek met de flag uit trager zijn dan op main, en daarna de rest van
+     de sessie op de hoofdthread rekenen (#804, knownbug 1936).** De opslagworker stopt na elk antwoord op een merge,
+     ook na een weigering (`ifcSaveWorker.ts`). Kwam er in een sessie eerst met de flag aan een modelmerge en staat de
+     flag daarna uit, dan start het volgende gewone verzoek (een planning zonder gebouwmodel, Ctrl+S of
+     Automatisch opslaan) een verse worker; main hergebruikte de gestarte. Start die verse niet, dan rekent de hoofdthread
+     zoals op main, en ook bij alle volgende gewone verzoeken in die sessie (`unavailable`). Blijft hij stil, dan komt
+     er tot 10 s wachttijd bij (de starttijd). Bestandsinhoud en meldingen zijn gelijk aan main. Met de flag de hele
+     sessie uit gebeurt dit niet. Bron: review ronde 2 van #1111, met `tests/planning/check-save-worker.ts` (het blok
+     "een latere startfout", geval "na een merge") en een storeproef van de reviewer met Ctrl+S en Automatisch opslaan
+     (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
+     die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
 
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
@@ -3530,20 +3572,13 @@ en noem het in je rapport of PR-tekst.
       duur ongemoeid. Meenemen via de gidsvertaalstraat bij de release; de 26 bestaande vertalingen zijn
       bewust niet met de hand gewijzigd. — B
 
-1800. **Twee gidsen zeggen dat dubbelklik een tabelcel bewerkt; dubbelklik opent het eigenschappenpaneel.**
-      `public/docs/{nl,en}/howto-constraint-deadline-zetten.md:23` en `howto-voortgang-bijwerken.md:44-45`.
-      In de taakgrid selecteert dubbelklik de cel en opent het eigenschappenpaneel
-      (`src/components/task-grid/FullTaskGrid.tsx`, `onCellDoubleClick`); bewerken start met Enter, F2 of typen.
-      Gezien in een browserrun voor #970: na `dblclick` op een keuzelijstcel verscheen geen editor, wel het paneel.
-      Voorstel: "Klik op een cel en druk op Enter (of begin te typen)". Wacht op de productvraag over dubbelklik
-      bij #970: verandert dubbelklik, dan vervalt dit punt. — B
-
-1801. **VERVOLG (#970): Alt+↓ opent een keuzelijstcel niet, zoals het issue vraagt.** Alt+↓ is in de hele app al
-      *Taak omlaag verplaatsen* (`src/hooks/keyboard/shortcutRegistry.ts`, `structure.moveDown`); de grid laat de
-      combinatie daarom door (`src/engine/taskGrid/navigation.ts`, `event.altKey`). Een keuzelijstcel (ja/nee,
-      keuze, code) opent met Enter, F2 of typen. Productkeuze voor de eigenaar: Alt+↓ op een keuzelijstcel de
-      lijst laten openen (dan verplaatst Alt+↓ daar geen taak meer), of zo laten. Uit de review van #974
-      (GPT-6.1-Sol, xhigh, op `badd1cfe9`, VERVOLG). — B
+1800. **VERVOLG (#1118): de vertaalde gidsen beschrijven de dubbelklik in de tabel nog zoals vroeger.**
+      In nl en en is het bijgewerkt: een dubbelklik opent alleen op een keuzelijstcel de lijst, op andere cellen
+      het eigenschappenpaneel. De 26 vertalingen van `howto-voortgang-bijwerken.md`, `howto-constraint-deadline-zetten.md`
+      en `howto-codes-en-velden.md` zeggen nog dat je een cel dubbelklikt om te typen, en bij *Status* dat je na de
+      dubbelklik op Enter drukt (de lijst staat dan al open; Enter kiest de gemarkeerde status). Bijvoorbeeld
+      `public/docs/de/howto-voortgang-bijwerken.md:44`. Meenemen in de volgende gidsvertaalronde; niet met de hand
+      gewijzigd. Uit de review van #1118 (GPT-6.2-Sol, xhigh, op `b4aac19d6`, VERVOLG). — B
 
 1802. **VERVOLG (#974): na een geweigerde Shift+Enter in een keuzelijstcel gaat een latere muiskeuze een rij omhoog.**
       `src/components/task-grid/TaskCellEditor.tsx` (`pickedWithShiftEnterRef`, gezet in `onListKeyDownCapture`)
