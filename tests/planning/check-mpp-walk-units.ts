@@ -125,6 +125,11 @@ const projectCal = standardCal('cal-project');
 // Elke resource een eigen kalenderobject (zoals de `.mpp`-lezer), inhoud gelijk aan de projectkalender:
 // laag 4 komt hier uit "meer dan één toewijzing", niet uit een kalenderverschil (zoals "Task 8").
 const resourceCals = ['cal-a', 'cal-b', 'cal-cost', 'cal-mat'].map(standardCal);
+const shortBand = [{ start: 480, end: 720 }];
+resourceCals.push({
+  ...standardCal('cal-short'), workEndHour: 12, hoursPerDay: 4,
+  workTime: { byWeekday: { 1: shortBand, 2: shortBand, 3: shortBand, 4: shortBand, 5: shortBand, 6: [], 7: [] } },
+});
 const calResult: CalendarReadResult = {
   calendarByUniqueId: new Map(), projectCalendar: projectCal, resourceCalendars: resourceCals,
   resourceCalendarUniqueIdByResourceUniqueId: new Map(), ownHolidayCountByUniqueId: new Map(),
@@ -135,9 +140,11 @@ const resources: Resource[] = [
   res('r-a', 'LABOR', 'cal-a'), res('r-b', 'LABOR', 'cal-b'),
   res('r-cost', 'LABOR', 'cal-cost'), // MSP-kostenresource: in OPS LABOR (ResourceType kent geen COST)
   res('r-mat', 'MATERIAL', 'cal-mat'),
+  res('r-single-labor', 'LABOR', 'cal-short'), res('r-single-cost', 'LABOR', 'cal-short'),
+  res('r-single-material', 'MATERIAL', 'cal-short'),
 ];
-const resourceIdByUid = new Map<number, string>([[1, 'r-a'], [2, 'r-b'], [3, 'r-cost'], [4, 'r-mat']]);
-const costResourceIds = new Set(['r-cost']);
+const resourceIdByUid = new Map<number, string>([[1, 'r-a'], [2, 'r-b'], [3, 'r-cost'], [4, 'r-mat'], [5, 'r-single-labor'], [6, 'r-single-cost'], [7, 'r-single-material']]);
+const costResourceIds = new Set(['r-cost', 'r-single-cost']);
 
 function makeTask(id: string, durationMinutes: number): Task {
   return {
@@ -168,6 +175,10 @@ const ASSIGNMENTS: [number, number, number, number, number][] = [
   // D — twee werkresources, één met inzet 0 (ruw < 0,1 ⇒ 0, MPXJ FieldMap.java DataType.UNITS).
   [40, 504, 1, 10000, 960_000],
   [41, 504, 2, 0, 480_000],
+  // Knownbug 440: precies één toewijzing, dezelfde vieruurskalender, alleen het resourcetype varieert.
+  [50, 505, 5, 10000, 480_000],
+  [60, 506, 6, 10000, 480_000],
+  [70, 507, 7, 10000, 480_000],
 ];
 const v2 = var2Data(ASSIGNMENTS.map(([, , , , work]) => flatBlock(work)));
 const cfb = new CfbFile(buildNestedCfb({
@@ -185,8 +196,9 @@ const cfb = new CfbFile(buildNestedCfb({
   },
 }));
 
-const tasks = [makeTask('t-units', 2400), makeTask('t-cost', 2400), makeTask('t-material', 960), makeTask('t-zero-units', 960)];
-const taskIdByUid = new Map<number, string>([[501, 't-units'], [502, 't-cost'], [503, 't-material'], [504, 't-zero-units']]);
+const tasks = [makeTask('t-units', 2400), makeTask('t-cost', 2400), makeTask('t-material', 960), makeTask('t-zero-units', 960),
+  ...['single-labor', 'single-cost', 'single-material', 'no-assignment'].map(id => makeTask(id, 480))];
+const taskIdByUid = new Map<number, string>([[501, 't-units'], [502, 't-cost'], [503, 't-material'], [504, 't-zero-units'], [505, 'single-labor'], [506, 'single-cost'], [507, 'single-material'], [508, 'no-assignment']]);
 const windows = deriveTimephasedWindowsForTasks(cfb, asgFieldMap, taskIdByUid, tasks, calResult, resourceIdByUid, resources, costResourceIds);
 const walksOf = (id: string) => windows.get(id)?.durationWalks.map((w) => ({
   anchor: formatInstant(w.anchor, 'hour'), cal: w.resourceCalendarId, minutes: w.workMinutes,
@@ -235,6 +247,14 @@ const finishOf = (id: string) => tasks.find((t) => t.id === id)?.time.earlyFinis
 eq('A "Task 8" eindigt na 2400 werkminuten, zoals MSP (vr 17:00; zonder inzet ma 14:00)', finishOf('t-units'), '2026-01-09T17:00');
 eq('B OzBuild eindigt op vr 17:00 zoals MSP (geen oprekking door de kostenresource)', finishOf('t-cost'), '2026-01-09T17:00');
 eq('C materiaal bepaalt het einde niet: 960 werkminuten ⇒ di 2026-01-06 17:00', finishOf('t-material'), '2026-01-06T17:00');
+
+const summary440 = ['single-labor', 'single-cost', 'single-material', 'no-assignment'].map(id => ({
+  id, walks: walksOf(id), start: tasks.find(t => t.id === id)?.time.earlyStart, finish: finishOf(id),
+}));
+console.log(`KNOWNBUG440_SUMMARY ${JSON.stringify(summary440)}`);
+if (process.env.GITHUB_ACTIONS === 'true') {
+  console.log(`::notice title=Knownbug 440::${JSON.stringify(summary440)}`);
+}
 
 if (diffs.length === 0) {
   console.log(`OK  mpp-walk-units: alle checks groen (${checks})`);
