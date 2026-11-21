@@ -2,7 +2,9 @@ import { solveInputFor } from '@/engine/scheduler/solveInput';
 import { cloneTasksForSolve, plannedDatesBeforeStatusShift, solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
-import { settleDurationAftermath } from '@/engine/work/workRuleApply';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { durationCompletionDates, durationEditProgress, settleDurationAftermath } from '@/engine/work/workRuleApply';
 import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import type { Task } from '@/types/task';
 import { clearLevelingGaps, hourInputFinishBasis, taskCalendarHoursPerDay, taskTriggerChanges, taskWorkMinutesOf } from '@/utils/taskDefaults';
@@ -33,7 +35,8 @@ export function progressPlannedDates(
   let result = solved;
   return task => {
     const before = task.time.progressBeforeRecalculation;
-    if (before && state.scheduleStale && task.time.actualStart && !task.time.actualFinish) {
+    // Een echte berekening wist deze basis. Tijdens een MCP-transactie kan de vlag nog uitstaan.
+    if (before && task.time.actualStart && !task.time.actualFinish) {
       const { status, splitGaps, ...time } = before;
       const projected = { ...task, status, splitGaps, time: { ...task.time, ...time } };
       forward ??= createProgressForwardPass(state);
@@ -191,6 +194,12 @@ export function progressPlannedDatesAfterEdit(state: AppState, before: Task, edi
   if (changes.timeBase) {
     const hoursPerDay = taskCalendarHoursPerDay(before, state.calendars, state.calendar);
     settleDurationAftermath(updated, state, taskWorkMinutesOf(before, hoursPerDay), hourInputFinishBasis(before));
+    const shortened = durationEditProgress(updated, before.time, updated.time,
+      taskCalendarHoursPerDay(updated, state.calendars, state.calendar));
+    if (shortened && !shortened.refused && shortened.completion >= 1) {
+      return durationCompletionDates(updated, resolveCalendar(updated.calendarId, state.calendars, state.calendar),
+        effectiveSchedulingOptions(state.project).workdayDurationMeasure === true);
+    }
   } else if (changes.levelingGaps) clearLevelingGaps(updated);
   const tasks = state.tasks.map(task => task.id === updated.id ? updated : task);
   return progressPlannedDates({ ...state, tasks }, true)(updated);

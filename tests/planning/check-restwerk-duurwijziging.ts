@@ -383,7 +383,7 @@ openFixture();
 console.log('-- (n) contract: de restregel van settleDurationEdit raakt alleen niet-gestarte taken --');
 openFixture();
 {
-  // Een gestarte taak krijgt haar nieuwe rest van `carryRemainingThroughDurationEdit`, vóór deze stap.
+  // Een gestarte taak krijgt haar nieuwe rest van `settleEditedDuration`, vóór deze stap.
   // Roept een route `settleDurationEdit` aan zonder die stap, dan zet de restregel hier niets
   // (geen rest = duur × (1 − %), dat zou het gedane werk verschuiven).
   const t = byCode('E-1050');
@@ -614,6 +614,7 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
   const completed = (name: string, label: string): void => {
     const t = taskNamed(name).time;
     eq(`${label}: 100 % en taakrest 0`, [t.completion, t.remainingTime], [1, 0]);
+    eq(`${label}: afgemeld op het einde van de nieuwe tweedaagse duur`, t.actualFinish, '2026-06-02T16:00');
     eq(`${label}: verricht 960 blijft, restwerk 0`, work(name), [960, 0]);
     eq(`${label}: belasting is het verrichte werk van 16 u`, r4(load(name)), 960);
   };

@@ -1,6 +1,6 @@
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import {
-  carryRemainingThroughDurationEdit, effectiveWorkRule, routeFixedWorkDurationToHours, workRuleApplies,
+  effectiveWorkRule, routeFixedWorkDurationToHours, settleEditedDuration, workRuleApplies,
 } from '@/engine/work/workRuleApply';
 import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
 import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
@@ -38,7 +38,6 @@ import {
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import {
-  applyDurationChangeRules,
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
   clearLevelingGaps,
@@ -50,7 +49,6 @@ import {
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { durationHoursPerDay } from '@/utils/taskDuration';
-import { taskAxisMinutes } from '@/engine/contour/contourEngine';
 import { finishIsActual, shownFinish, shownStart, startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
@@ -192,7 +190,7 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
  *  de aanroeper vóór de mutatie vastlegde; gemeten met dezelfde uren-per-dag. Het raster meet met
  *  `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom); het ingevoerde
  *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`).
- *  Een lopende taak houdt haar gedane werk (`carryRemainingThroughDurationEdit`); een nieuwe duur
+ *  Een lopende taak houdt haar gedane werk (`settleEditedDuration`); een nieuwe duur
  *  korter dan dat werk is een celfout (`durationBelowDoneWork`). */
 function finishDurationEdit(
   task: Task,
@@ -205,25 +203,17 @@ function finishDurationEdit(
   // B1a: vast werk is altijd urenmaat. Een duur in werkdagen ("5d", een kaal getal op een oude
   // dagtaak, een nieuw einde) gaat eerst naar de urenbron; de nazorg hieronder rekent dan in minuten.
   routeFixedWorkDurationToHours(task, before, task.time, environment.defaultWorkRule, hoursPerDay);
-  // Op de contour-as, net als store en MCP (`taskWorkMinutesOf`): bij kalendertijd klokdagen × werktijd
-  // per dag, zodat een eenheidswissel op dezelfde klokuren niets herschaalt (knownbug 265).
-  const oldWorkMinutes = taskAxisMinutes(before, hoursPerDay);
-  // De rest schuift mee met de duurwijziging, het percentage volgt;
-  // korter dan het gedane werk wordt geweigerd. Kalendertijd (24 klokuren per dag) regelt
-  // `durationEditProgress` zelf; hier gaat de werktijd per dag mee, net als in store en MCP.
-  const calendar = environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar;
-  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate, calendar)?.refused) {
+  const duration = settleEditedDuration(task, before, hoursPerDay, {
+    statusDate: environment.statusDate,
+    calendar: environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar,
+    workdayDurationMeasure: environment.workdayDurationMeasure,
+    rescaleContours: usableHours,
+    keepWork: environment.contourKeepsWork,
+  });
+  if (duration.progress?.refused) {
     return failure('durationBelowDoneWork', edit);
   }
-  return {
-    ok: true,
-    value: applyDurationChangeRules(task, oldWorkMinutes, hoursPerDay, {
-      // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
-      // (store en MCP roepen de herschaling onvoorwaardelijk aan).
-      rescaleContours: usableHours,
-      keepWork: environment.contourKeepsWork,
-    }),
-  };
+  return { ok: true, value: duration.timephasedLost };
 }
 
 /**

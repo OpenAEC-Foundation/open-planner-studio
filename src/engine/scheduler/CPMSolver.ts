@@ -14,7 +14,7 @@ import {
 import {
   durationMinutesOf, elapsedMinutesOf, elapsedMilliseconds, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
-  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress, isElapsedTask,
+  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress, isElapsedTask, finishOfTaskDuration,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import { deadlineBound } from './deadlineBound';
@@ -1625,22 +1625,14 @@ export class CPMSolver {
    *
    *  Splits — zelfde as-wandeling, spiegel van `startFromFinish` hierboven. */
   private finishFromStart(eng: CalendarEngine, start: Date, task: Task): Date {
-    if (isZeroDurationMilestone(task)) return new Date(start.getTime());
-    if (task.time.durationType === 'ELAPSEDTIME') {
-      return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
-    }
-    if (this.countsInWorkdays(task)) {
-      // Dagenmaat (§3.14), met de splitgaten zoals `addDurationChecked`.
-      const totalDays = splitTotalSpanDays(task, eng);
-      if (totalDays <= 0) return new Date(start.getTime());
-      return eng.addMeasuredWorkdays(start, totalDays);
-    }
-    const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-    const walkStart = totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
+    const workdays = this.countsInWorkdays(task);
+    const walkStart = !workdays && !isZeroDurationMilestone(task) && !isElapsedTask(task)
+      && this.p6FinishBoundaryStartTaskIds.has(task.id)
       && this.isExactBandEnd(eng, start)
+      && splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng)) > 0
       ? eng.nextWorkInstantAfter(start)
       : start;
-    return eng.addWorkMinutes(walkStart, totalMinutes);
+    return finishOfTaskDuration(task, eng, walkStart, workdays);
   }
   /** Getekende float in eigen-kalender-WERKDAGEN, fractioneel.
    *  ELAPSEDTIME (msp-14): `a`/`b` mogen op een niet-werkdag liggen (24/7-taak), dus een

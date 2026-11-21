@@ -2,7 +2,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { appStoreContext, type AppState, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  applyActualDateEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate, rememberProgressBeforeRecalculation,
+  applyProgressInvariants, rememberProgressBeforeRecalculation,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -18,7 +18,6 @@ import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/p
 import { durationEditRefusal } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
-import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
@@ -62,31 +61,6 @@ import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
  *    de gebruiker hem in deze sessie wijzigde (`initialDuration`) — anders zou Opslaan een duur die de
  *    werkdriehoek intussen via de toewijzingssectie veranderde stil terugdraaien.
  */
-
-function draftWithActualDate(
-  draft: Task,
-  field: 'actualStart' | 'actualFinish',
-  date: string | undefined,
-  statusDate: string | undefined,
-  calendar?: WorkCalendar,
-): Task | null {
-  // Zelfde weigering als de paneelsetters: actuals nooit ná de statusdatum.
-  date = normalizeActualDate(draft, field, date, statusDate, calendar);
-  if (date && statusDate && isTaskActualPastStatusDate(draft, field, date, statusDate, calendar)) return null;
-  const next: Task = { ...draft, time: { ...draft.time } };
-  applyActualDateEdit(next, field, date, statusDate, calendar);
-  return next;
-}
-
-/** Werkelijke start op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualStart`. */
-export function draftWithActualStart(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
-  return draftWithActualDate(draft, 'actualStart', date, statusDate, calendar);
-}
-
-/** Werkelijk einde op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualFinish`. */
-export function draftWithActualFinish(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
-  return draftWithActualDate(draft, 'actualFinish', date, statusDate, calendar);
-}
 
 /** De duur van de taak bij het openen van de dialoog. */
 export interface TaskDialogInitialDuration {
@@ -177,8 +151,10 @@ export function planTaskDialogProgress(
   if (start?.anchor !== undefined) time.scheduleStart = start.anchor;
   if (edit.field === 'completion') {
     if (edit.value > 0 && draft.inferredActualStart) time.actualStart = undefined;
-    if (draft.inferredActualFinish) time.actualFinish = undefined;
   }
+  // Een automatisch einde is nog geen feit. Een gewijzigde werkelijke start wordt getoetst
+  // tegen het opnieuw afgeleide einde, met die start als ondergrens.
+  if (edit.field !== 'actualFinish' && draft.inferredActualFinish) time.actualFinish = undefined;
   const plan = planProgressEntry(task, edit, {
     ...context,
     statusDate: state.project.statusDate,
@@ -333,7 +309,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
           statusDate = today;
         }
         // Met de kalender van de taak: het afgeleide einde wordt eerst een moment (D6), en pas dan
-        // vergeleken met de werkelijke start (zie `carryRemainingThroughDurationEdit`).
+        // vergeleken met de werkelijke start (zoals bij `settleEditedDuration`).
         applyProgressInvariants(merged, statusDate, resolveCalendar(merged.calendarId, S().calendars, S().calendar));
         rememberProgressBeforeRecalculation(editingTask, merged);
         patch.status = merged.status;

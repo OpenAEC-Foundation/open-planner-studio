@@ -61,7 +61,7 @@ export function applyProgressEdit(
     applyCompletionEdit(task, Math.max(0, Math.min(1, edit.value)), statusDate, calendar, planned);
     applyProgressInvariants(task, statusDate, calendar, planned);
   } else {
-    applyActualDateEdit(task, edit.field, edit.value, statusDate, calendar);
+    applyActualDateEdit(task, edit.field, edit.value, statusDate, calendar, planned);
   }
 }
 
@@ -192,7 +192,10 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
       return { ok: false, reason: 'afterStatusDate' };
     }
   }
-  const planned = edit.field === 'completion' ? datesForProgress(task, edit.value, ctx.plannedDates) : undefined;
+  const planned = edit.field === 'completion'
+    ? datesForProgress(task, edit.value, ctx.plannedDates)
+    : edit.field === 'actualStart' && task.time.completion >= 1 && !task.time.actualFinish
+      ? ctx.plannedDates?.() : undefined;
   const run = (date: string | undefined): Task => {
     const next: Task = { ...task, time: { ...task.time } };
     applyProgressEdit(next, edit, date, answer, ctx.calendar, planned);

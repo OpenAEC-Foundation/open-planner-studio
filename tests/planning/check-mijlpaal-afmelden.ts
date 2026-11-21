@@ -37,7 +37,7 @@ import {
 } from '@/engine/calendar/workdayRules';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { progress } from '@/state/mcpValidation';
-import { createTaskDialogSave, draftWithActualFinish, draftWithActualStart, planTaskDialogProgress } from '@/state/taskDialogSave';
+import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { makeBands } from '@/utils/effectiveWorkTime';
 import { calendarClock, taskDateLabel } from '@/utils/taskDateLabel';
@@ -201,11 +201,11 @@ function enter(f: Entry, route: Route, id: string, field: Field, value: string, 
     return result.ok ? f.taskOf(id).time[field] : 'geweigerd';
   }
   if (route === 'dialoog') {
-    const draft = field === 'actualStart'
-      ? draftWithActualStart(task, value, status, calendar)
-      : draftWithActualFinish(task, value, status, calendar);
-    if (!draft) return 'geweigerd';
-    const ok = createTaskDialogSave(f.context)({ editingTaskId: id, draft, startDate: task.time.scheduleStart });
+    const plan = planTaskDialogProgress(S(), task, undefined, { field, value }, { today: '2026-06-10' });
+    if (!plan.ok) return 'geweigerd';
+    const ok = !plan.change || createTaskDialogSave(f.context)({
+      editingTaskId: id, draft: plan.change.task, today: '2026-06-10',
+    });
     return ok ? f.taskOf(id).time[field] : 'geweigerd';
   }
   if (route === 'MCP') {

@@ -279,10 +279,11 @@ export function applyActualDateEdit(
   date: string | undefined,
   statusDate: string | undefined,
   calendar?: WorkCalendar,
+  planned?: PlannedProgressDates,
 ): void {
   task.time[field] = date || undefined;
   if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
-  applyProgressInvariants(task, statusDate, calendar);
+  applyProgressInvariants(task, statusDate, calendar, planned);
 }
 
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */

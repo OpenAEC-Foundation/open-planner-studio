@@ -10,6 +10,9 @@
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { TaskTime } from '@/types/task';
 
@@ -95,17 +98,23 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
 
-test('#998: voltooien na F5 gebruikt het geplande begin en einde van vóór de statusdatumverschuiving', async () => {
-  const { V } = setup(undefined);
-  const { earlyStart: originalStart, earlyFinish: originalFinish } = timeOf(V);
-  await rpc('planner_update_project', { statusDate: '2026-06-10' });
-  S().runCPM();
-  assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
-  const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 100 } }] });
-  assertEq(reasons(res), [], 'geen weigering');
-  assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
-  assertEq(timeOf(V).actualFinish, originalFinish, 'afgeleid einde = geplande einde vóór verschuiven');
-});
+for (const completionValues of [[100], [50, 100]]) {
+  test(`#998: voltooien na F5 bewaart de geplande datums (${completionValues.join(' → ')}%)`, async () => {
+    const { V, L } = setup(undefined);
+    S().addSequence({ predecessorId: V, successorId: L, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    const { earlyStart: originalStart, earlyFinish: originalFinish } = timeOf(V);
+    await rpc('planner_update_project', { statusDate: '2026-06-10' });
+    S().runCPM();
+    assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
+    const res = await rpc('planner_update_tasks', { updates: completionValues.map(completion => ({ id: V, progress: { completion } })) });
+    assertEq(reasons(res), [], 'geen weigering');
+    assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
+    assertEq(timeOf(V).actualFinish, originalFinish, 'afgeleid einde = geplande einde vóór verschuiven');
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks.find(task => task.name === 'Vroeg');
+    assertEq(reopened?.time.actualFinish?.slice(0, 10), originalFinish.slice(0, 10), 'IFC bewaart de oorspronkelijke einddag');
+  });
+}
 
 test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', async () => {
   const { L } = setup('2026-06-10');

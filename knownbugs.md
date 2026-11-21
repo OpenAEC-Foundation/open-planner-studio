@@ -1032,6 +1032,12 @@ en noem het in je rapport of PR-tekst.
       hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
       Trias (wrakko) deelde dit als VERVOLG in. — B
 
+1856. **VERVOLG: Excel-afmelding rekent bij één ALAP-taak de planning opnieuw door per rij.**
+      Importeer 100% voor 180 onafhankelijke taken die op 50% staan in een project met één ALAP-taak.
+      De proef in reviewronde 3 van #1115 (GPT-6.2-Sol, xhigh, BEVESTIGD) telde 181 volledige
+      berekeningen in 1,04 s, op main één in 0,06 s. Hergebruik een berekening voor rijen die elkaars
+      planning niet sturen, met behoud van de werking van ALAP. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

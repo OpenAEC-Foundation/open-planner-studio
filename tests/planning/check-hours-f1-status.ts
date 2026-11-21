@@ -1,7 +1,7 @@
 // F1: dezelfde statusregel in dialoog, paneel, raster en MCP. Werkelijke tijden blijven feiten.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
-import { createTaskDialogSave, draftWithActualFinish } from '@/state/taskDialogSave';
+import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { planProgressEntry } from '@/engine/progressEntry';
 import { isActualPastStatusDate, normalizeActualDate } from '@/engine/taskMutationRules';
 import { cpmResultFromRecorded } from '@/engine/scheduler/recordedDates';
@@ -50,11 +50,11 @@ for (const c of cases) for (const route of ['dialoog', 'paneel', 'raster', 'plak
   const before = JSON.stringify(f.task());
   let accepted: boolean;
   if (route === 'dialoog') {
-    const draft = draftWithActualFinish(f.task(), c.value, c.status, f.calendar);
-    accepted = draft !== null;
-    if (draft) accepted = createTaskDialogSave(f.context)({
-      editingTaskId: f.id, draft, startDate: f.task().time.scheduleStart,
-    });
+    const today = c.status.slice(0, 10);
+    const plan = planTaskDialogProgress(f.S(), f.task(), undefined, { field: 'actualFinish', value: c.value }, { today });
+    accepted = plan.ok && (!plan.change || createTaskDialogSave(f.context)({
+      editingTaskId: f.id, draft: plan.change.task, today,
+    }));
   } else if (route === 'paneel') {
     accepted = f.S().setActualFinish(f.id, c.value);
   } else if (route === 'MCP') {

@@ -1,6 +1,7 @@
 import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { Task, type ExternalLink } from '@/types/task';
 import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
 import { carryLiveProgressPlan, liveProgressPlannedDates, progressPlacementForBatch, progressPlannedDates } from '@/state/progressPlannedDates';
@@ -10,7 +11,7 @@ import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
 import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
   mergeTaskUpdate, taskTriggerChanges, invalidateForTimeBaseChange, clearLevelingGaps,
-  taskCalendarHoursPerDay, taskWorkMinutesOf, applyDurationChangeRules,
+  taskCalendarHoursPerDay,
   contourKeepsWork, hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
@@ -47,7 +48,7 @@ import {
 import type { RelationTree } from '@/engine/scheduler/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, settleCalendarChange,
+  captureCalendarChange, captureTriangle, durationEditRefusal, settleCalendarChange, settleEditedDuration,
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
   hourSourceOf, routeFixedWorkDurationToHours,
 } from '@/engine/work/workRuleApply';
@@ -1258,7 +1259,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Een nieuwe duur korter dan het gedane werk van een
       // lopende taak wordt geweigerd — vóór de snapshot, dus niets veranderd, met een melding
       // (paneel, Gantt, extensie-API). Dezelfde regel die hieronder de rest laat meeschuiven, zie
-      // `durationEditRefusal`/`carryRemainingThroughDurationEdit` in engine/work/workRuleApply.ts.
+      // `durationEditRefusal`/`settleEditedDuration` in engine/work/workRuleApply.ts.
       if (taskTriggerChanges(task, next).timeBase) {
         const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
         if (refusal) {
@@ -1296,7 +1297,6 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // De oude werkduur vóór de merge, voor de herschaling hieronder — ná de kalenderstap, zodat
       // een duur in dezelfde patch tegen de nieuwe slot rekent.
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       // Momentopname van de werkdriehoek VÓÓR de merge —
       // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
@@ -1308,20 +1308,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Een lopende taak houdt haar gedane werk — de rest schuift
-        // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
-        // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
-        // zelf voortgang opgaf: die wint.
-        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
-          resolveCalendar(task.calendarId, s.calendars, s.calendar));
-        // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
-        // afknippen, laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
-        // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in
-        // taskDefaults.ts (de kern van `settleDurationAftermath`). Een kale datumwijziging telt hier
-        // mee; de werkduur blijft dan gelijk, dus meeschalen en afknippen doen niets.
-        lostTimephasedGuidance = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
+        // De werkdriehoek leest de rest ná de gevolgen van de duurwijziging, ook bij afmelding.
+        const duration = settleEditedDuration(task, timeBefore, contourHpd, {
+          statusDate: s.project.statusDate,
+          calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
+          workdayDurationMeasure: effectiveSchedulingOptions(s.project).workdayDurationMeasure === true,
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
-        }) || lostTimephasedGuidance;
+        });
+        lostTimephasedGuidance = duration.timephasedLost || lostTimephasedGuidance;
         // De restduur van een niet-gestarte taak volgt de duur; daarna: werk beschermd ⇒
         // inzet = W / R', anders volgt een aanwezig werkveld de nieuwe restduur (ook een afwijkend
         // werk uit het bestand — dat meldt hij terug). Onder de standaardregel zonder werkvelden

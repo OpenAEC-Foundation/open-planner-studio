@@ -80,7 +80,15 @@ export function TaskDialog() {
   const [saveProgressError, setSaveProgressError] = useState<'afterStatusDate' | 'actualFinishBeforeStart'>();
   const onChange = (patch: Partial<Task>) => {
     setSaveProgressError(undefined);
-    setDraft(d => ({ ...d, ...patch }));
+    const state = useAppStore.getState();
+    setDraft(d => {
+      const next = { ...d, ...patch };
+      if (!patch.time || !next.inferredActualFinish) return next;
+      const plan = planTaskDialogProgress(state, next, startDateEdit, { field: 'completion', value: 1 }, {
+        today: localTodayIso(), initialDuration: initialDurationRef.current,
+      });
+      return plan.ok && plan.change ? plan.change.task : next;
+    });
   };
 
   // Volg de actuele planning totdat het startveld in deze sessie wordt gewijzigd.
