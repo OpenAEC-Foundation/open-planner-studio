@@ -1203,7 +1203,9 @@
     },
     "regen": {
       "hint": "Holidays cover {{from}}–{{to}}; regenerate through {{year}}?",
-      "button": "Regenerate"
+      "button": "Regenerate",
+      "confirmMessage": "Your list of days off differs from the previously generated list. Replacing the list discards your manual changes.",
+      "confirmReplace": "Replace holidays"
     },
     "countryName": {
       "NL": "Netherlands",
@@ -1214,6 +1216,7 @@
       "AT": "Austria",
       "CH": "Switzerland",
       "US": "United States",
+      "BO": "Bolivia",
       "none": "No holidays"
     },
     "preset": {
