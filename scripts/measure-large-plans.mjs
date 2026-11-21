@@ -202,7 +202,6 @@ const INIT_SCRIPT = `(() => {
     loaded: (s, a) => s.tasks.length === a.tasks && s.tasks !== nm.refTasks,
     cpm: s => s.cpmResult !== nm.refCpm,
     clean: s => !s.isDirty,
-    tasksChanged: s => s.tasks !== nm.refTasks,
   };
   const paintAfter = t => nm.paintLog.find(p => p.s >= t && p.e != null) ?? null;
   const conds = {
@@ -433,6 +432,9 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
           if (!applied) {
             const bounds = await ev(() => ({ write: window.__nm.storeAt != null, cpm: window.__nm.cpmAt != null }));
             fail('levelApply', `time-out na Toepassen (taakcommit=${bounds.write}, CPM-commit=${bounds.cpm})`);
+          } else if (!(inApply <= applied.storeAt && applied.storeAt <= applied.cpmAt
+            && applied.cpmAt <= applied.paintStart && applied.paintStart <= applied.paintEnd)) {
+            fail('levelApply', 'ongeldige volgorde van klik, store-commits en Gantt-tekening');
           } else {
             const state = await ev(() => {
               const s = window.__OPS__.store.getState();
