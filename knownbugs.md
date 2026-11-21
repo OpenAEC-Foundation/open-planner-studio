@@ -1065,6 +1065,14 @@ en noem het in je rapport of PR-tekst.
       24 juni om 07:00 en verschijnt bij 1% de startvraag. Laat de voortgangstoets de gekozen
       hiërarchie meenemen (`src/state/progressPlannedStart.ts`). Sol ronde 6, BEVESTIGD.
       Trias (wrakko) deelde dit als VERVOLG in. — B
+2050. **VERVOLG (#954): het taakraster meldt niet dat de uren van anderen veranderen.** In het taakpaneel
+      meldt de app sinds #954 de nieuwe duur en per resource oud → nieuw, met Ongedaan maken
+      (`src/state/otherWorkNotice.ts`). De rastercellen *Resources* en *Resterend werk* lopen via
+      `applyAssignmentSet` in `src/state/gridTransaction.ts` en melden niets: onder *Vaste inzet* maakt
+      werk typen in *Resterend werk* de taak langer en groeien de uren van de anderen stil mee. Daar kan één
+      cel meerdere toewijzingen tegelijk wijzigen en raakt plakken veel rijen, dus "de andere" is niet
+      eenduidig; kies eerst wat de melding dan zegt. MCP, `removeResource` en `moveAssignment` melden
+      evenmin. Gezien in de code, niet nagespeeld in de app. — S
 
 ## Kalenders
 
