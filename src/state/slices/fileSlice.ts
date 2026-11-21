@@ -823,7 +823,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * (`claimProjectFileWrite`): een ronde van Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt
    * meteen, en zolang de export loopt wijkt elke nieuwe ronde ook, ook terwijl de vraag open staat. Een ronde die al
    * plaatst, maakt dat eerst af (`whenProjectFilePlacementSettled`); pas daarna neemt de export zijn bron op. Een
-   * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseChangedExport`). Zonder zo'n ronde
+   * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseExportBeforePicker`). Zonder zo'n ronde
    * (ook met de flag uit) begint de export zonder wachten, zoals vóór stap 8.
    * Fixronde 3: de export legt bij de aanroep vast voor welk document en welke inhoud hij bedoeld is, vóór de wachtstap.
    * Staat na de plaatsing een ander document in het actieve tabblad, of kreeg het tabblad een andere inhoud, dan weigert
@@ -1345,41 +1345,37 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Review #872 ronde 5 (Terra): een IFC-export maakt zijn tekst vóór hij op de schrijflock wacht. Veranderde het
    *  document intussen (een opslag in de wachtrij legde de letterlijke kalenders vast, of de planner wijzigde iets), dan
-   *  zou de export oude inhoud over een nieuwere opslag schrijven. Onder de lock, direct vóór de write: weigeren, met een
-   *  melding. `true` = weigeren (zoals `SaveTargetCheck`). */
+   *  zou de export oude inhoud over een nieuwere opslag schrijven. Daarom weigert deze controle, met een melding, na de
+   *  bestandskiezer (`refuseTarget`) en vlak vóór de plaatsing op de desktop (knownbug 1896). Ze kijkt naar het
+   *  geëxporteerde document, ook als dat intussen in een ander tabblad staat: een tabbladwissel is geen wijziging van de
+   *  planning (review van #1027 ronde 2, knownbug 1903). Weigeren: het document is gesloten of kreeg een andere inhoud
+   *  (`sameDocumentContent`), de te schrijven inhoud of (met een gebouwmodel) de bron is niet meer die van de
+   *  momentopname, of de app weigert nu de volledige IFC van dat document. `true` = weigeren (zoals `SaveTargetCheck`). */
   const refuseChangedExport = (snapshot: AppState): boolean => {
     const now = get();
-    if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
-    if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
-      && (!hasForeignContent(snapshot.ifcSource) || now.ifcSource === snapshot.ifcSource)) return false;
-    get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
-    return true;
-  };
-
-  /** De laatste controle van een IFC-export, vlak vóór de plaatsing op de desktop (knownbug 1896; review van #1027,
-   *  ronde 2). Staat het geëxporteerde document nog in het actieve tabblad, dan dezelfde controle als vóór de
-   *  bestandskiezer (`refuseChangedExport`). Staat het intussen in een ander tabblad, dan is dat geen wijziging van de
-   *  planning: de export gaat door zolang het document zijn inhoud hield (`sameDocumentContent`) en die inhoud en haar
-   *  bron nog die van de momentopname zijn. `true` = weigeren, met de melding. */
-  const refuseExportBeforePlace = (snapshot: AppState): boolean => {
-    const now = get();
-    if (now.activeDocumentId === snapshot.activeDocumentId) return refuseChangedExport(snapshot);
     const foreign = hasForeignContent(snapshot.ifcSource);
     const exported = sameDocumentContent(now, snapshotContent(snapshot)) ? saveSourceForDocument(now, snapshot.activeDocumentId) : null;
-    if (exported && sameIFCSource(snapshot, exported) && (!foreign || exported.ifcSource === snapshot.ifcSource)) {
-      if (!foreign) return false;
-      const doc = { ifcSource: exported.ifcSource, foreignSourceMark: exported.foreignSourceMark, ui: now.ui };
-      if (!ifcFullWriteBlocked(doc)) return false;
+    const doc = exported && { ifcSource: exported.ifcSource, foreignSourceMark: exported.foreignSourceMark, ui: now.ui };
+    if (foreign && doc && ifcFullWriteBlocked(doc)) {
       now.notify(ifcWriteBlockedNotice(doc));
       return true;
     }
+    if (exported && sameIFCSource(snapshot, exported) && (!foreign || exported.ifcSource === snapshot.ifcSource)) return false;
     now.notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
+    return true;
+  };
+  /** Onder het schrijfslot vóór de bestandskiezer, en vóór een download (die komt in plaats van de kiezer):
+   *  `refuseChangedExport`, en het geëxporteerde document moet ook nog het actieve tabblad zijn. De kiezer opent anders
+   *  voor een document dat de planner niet ziet. `true` = weigeren, met de melding. */
+  const refuseExportBeforePicker = (snapshot: AppState): boolean => {
+    if (get().activeDocumentId === snapshot.activeDocumentId) return refuseChangedExport(snapshot);
+    get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
 
   /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
    *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
-   *  export bouwt daarop, en `refuseChangedExport(state)` weigert onder het schrijfslot, vóór de bestandskiezer, als het
+   *  export bouwt daarop, en `refuseExportBeforePicker(state)` weigert onder het schrijfslot, vóór de bestandskiezer, als het
    *  document tijdens de vraag veranderde. */
   const askPlanOnlyExport = (state: AppState, reason: 'export' | 'exportWithPool'): Promise<PlanOnlyConfirmation | null | undefined> =>
     planOnlyQuestionApplies(state, reason) ? askPlanOnly(reason) : Promise.resolve(undefined);
@@ -2596,9 +2592,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)
         : foreignCheck;
       // Review #872 ronde 7 (Terra): ook de download-terugval na een geweigerde kiezer controleert de bron nog eens.
-      const refuseDownload = ext === 'ifc' ? () => refuseChangedExport(state) : null;
+      const refuseDownload = ext === 'ifc' ? () => refuseExportBeforePicker(state) : null;
       // Knownbug 1896 (review van #1027): op de desktop dezelfde controle vlak vóór de plaatsing.
-      const refuseBeforePlace = ext === 'ifc' ? () => refuseExportBeforePlace(state) : null;
+      const refuseBeforePlace = ext === 'ifc' ? () => refuseChangedExport(state) : null;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
         : { refuseTarget, refuseDownload, refuseBeforePlace };
@@ -2606,7 +2602,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Review #872 ronde 6 (Terra): zonder bestandskiezer (Firefox, Safari) gaat de export als download, zonder
         // doel en dus zonder `refuseTarget`. Daarom ook meteen na het wachten op de lock: is het document veranderd, dan
         // niets schrijven of downloaden.
-        if (ext === 'ifc' && refuseChangedExport(state)) return null;
+        if (ext === 'ifc' && refuseExportBeforePicker(state)) return null;
         let written: SaveOutcome | null;
         try {
           written = preparedExport
@@ -2717,11 +2713,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const foreignCheck = foreignTargetCheck(state.activeDocumentId);
       const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);
       // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`); ronde 5:
-      // direct vóór de write kijken of het document nog gelijk is (`refuseChangedExport`).
+      // direct vóór de write kijken of het document nog gelijk is (`refuseExportBeforePicker`).
       const outcome = await runProjectFileWrite(async () => {
-        if (refuseChangedExport(state)) return null; // ook zonder doel (download), zie `exportAs`
+        if (refuseExportBeforePicker(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
-          { refuseTarget, refuseDownload: () => refuseChangedExport(state), refuseBeforePlace: () => refuseExportBeforePlace(state) });
+          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace: () => refuseChangedExport(state) });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         if (written && exportContentReplaced(state)) return null; // zie `exportAs`
         return written;

@@ -645,13 +645,19 @@ for (const cause of ['flag-uit', 'sourceMissing', 'mergeweigering'] as const) aw
   } finally { ipc.dispose(); }
 });
 
+// Knownbug 1903 (besluit technisch beslisser, 21 november 2026): een documentwissel tijdens de kiezer is geen wijziging
+// van A. De export schrijft dan precies wat A zonder wissel schrijft, niets van het nieuwe tabblad. Tot #1097 eiste deze
+// proef nul bytes (`3ecdeec01`, toen de controle de bron van het actieve tabblad vergeleek).
 for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-bron', 'documentwissel'] as const) {
-  await check(`IFC-export ${cause}: nul bytes na voorbereiding`, async () => {
+  await check(`IFC-export ${cause}: ${cause === 'documentwissel' ? 'precies de bytes van A' : 'nul bytes'} na voorbereiding`, async () => {
     const { store } = await openInStore(bytes); longer(store);
     const before = preserved(store), id = store.getState().activeDocumentId, ipc = desktop();
     const target = join(dir, `export-laat-${cause}.ifc`); ipc.choose(target);
     const other = cause === 'nieuwe-bron'
       ? await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), before.source!) : null;
+    const ofA = cause === 'documentwissel'
+      ? (await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!)).bytes : null;
+    const nameOfA = store.getState().project.name;
     ipc.onPick(() => {
       if (cause === 'documentwissel') store.getState().newDocument();
       else if (other) store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, store.getState(), undefined, other);
@@ -661,9 +667,23 @@ for (const cause of ['flag-uit-na-kiezer', 'sourceMissing-na-kiezer', 'nieuwe-br
       });
     });
     try {
-      const result = await store.getState().exportAs('ifc'); assert(result.ok && result.cancelled);
-      assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
-      if (cause === 'documentwissel') store.getState().switchDocument(id);
+      const result = await store.getState().exportAs('ifc');
+      if (ofA) {
+        assert(result.ok && !result.cancelled, 'de export van A rondt af');
+        const written = new Uint8Array(readFileSync(target));
+        assert.equal(hash(written), hash(ofA), 'precies wat A zonder documentwissel schrijft');
+        const fresh = store.getState();
+        assert.notEqual(fresh.activeDocumentId, id, 'het nieuwe tabblad is actief');
+        const text = new TextDecoder().decode(written);
+        assert(nameOfA && text.includes(`IFCPROJECT('`) && text.includes(`'${nameOfA}'`), 'het project van A');
+        assert.notEqual(fresh.project.name, nameOfA);
+        if (fresh.project.name) assert(!text.includes(`'${fresh.project.name}'`), 'niets van het nieuwe tabblad');
+        assert.equal(fresh.tasks.length, 0, 'het nieuwe tabblad is leeg');
+        store.getState().switchDocument(id);
+      } else {
+        assert(result.ok && result.cancelled);
+        assert.equal(existsSync(target), false); assert.equal(ipc.calls.filter(c => c.wrote).length, 0);
+      }
       if (other) assert(store.getState().ifcSource === other.source, 'de nieuwe opslagbron blijft staan');
       else assert(store.getState().ifcSource === before.source, 'de openingsbron blijft staan');
     } finally { ipc.dispose(); }
@@ -2903,13 +2923,14 @@ for (const withPool of [false, true]) {
   });
 }
 
-/** Knownbug 1901 (a): de desktopexport van A met één schrijfpauze, zoals de proef van ronde 2 hierboven. Met de uitvoer
- *  van A in het hulpbestand, vóór de plaatsing, eerst `change` op A (bewerken, of via de extensie een ander project
- *  laden), dan naar tabblad B. `foreign`: A is een IFC met gebouwmodel (flag aan) en de export de volledige IFC, dus
+/** Knownbugs 1901 (a) en 1903: de desktopexport van A, met op één moment eerst `change` op A (bewerken, of via de
+ *  extensie een ander project laden) en dan een wissel naar tabblad B. `temp`: met de uitvoer van A in het hulpbestand,
+ *  vóór de plaatsing (één schrijfpauze, zoals de proef van ronde 2 hierboven); `picker`: vlak na de bestandskiezer,
+ *  vóór de doelcontrole terugkomt. `foreign`: A is een IFC met gebouwmodel (flag aan) en de export de volledige IFC, dus
  *  alleen een nieuwe naam. Ongewijzigd rondt de export af met precies de bytes van A; gewijzigd weigert hij met de
  *  bestaande melding en schrijft hij niets. */
-async function exportWithTabSwitch({ withPool, foreign, change }: {
-  withPool: boolean; foreign: boolean; change: 'none' | 'edit' | 'replace';
+async function exportWithTabSwitch({ withPool, foreign, when, change }: {
+  withPool: boolean; foreign: boolean; when: 'picker' | 'temp'; change: 'none' | 'edit' | 'replace';
 }) {
   const { createAppStoreContext } = await loadStore();
   const sw = saveWorker();
@@ -2918,7 +2939,7 @@ async function exportWithTabSwitch({ withPool, foreign, change }: {
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const internal = win.__TAURI_INTERNALS__;
   const invoke = internal.invoke;
-  const tag = `${withPool ? 'pool' : foreign ? 'model' : 'ifc'}-${change}`;
+  const tag = `${withPool ? 'pool' : foreign ? 'model' : 'ifc'}-${when}-${change}`;
   const target = join(dir, `export-wissel-${tag}.ifc`), pool = join(dir, `export-wissel-${tag}-bibliotheek.ifc`);
   const previous = new TextEncoder().encode('Bestaande projectexport');
   let tempWritten!: () => void;
@@ -2951,8 +2972,11 @@ async function exportWithTabSwitch({ withPool, foreign, change }: {
       assert.equal(store.getState().activeDocumentId, second);
     };
     ipc.choose(target);
-    ipc.onPick(() => { if (ipc.picks() === 2) ipc.choose(pool); });
-    internal.invoke = async (...args) => {
+    ipc.onPick(() => {
+      if (ipc.picks() === 1 && when === 'picker') switchAway();
+      if (ipc.picks() === 2) ipc.choose(pool);
+    });
+    if (when === 'temp') internal.invoke = async (...args) => {
       const result = await invoke(...args);
       if (!switched && writeFileCallOf({ command: String(args[0]) }) && tempLeft().length > 0) {
         tempWritten();
@@ -2961,10 +2985,12 @@ async function exportWithTabSwitch({ withPool, foreign, change }: {
       return result;
     };
     const action = withPool ? snapshot.exportProjectWithPool() : snapshot.exportAs('ifc');
-    await Promise.race([atTemp, action.then(() => assert.fail('de export kwam nooit bij het hulpbestand'))]);
-    assert.equal(hash(readFileSync(join(dir, tempLeft()[0]!))), hash(expected), 'in het hulpbestand staan alle bytes van A');
-    switchAway();
-    finishWrite();
+    if (when === 'temp') {
+      await Promise.race([atTemp, action.then(() => assert.fail('de export kwam nooit bij het hulpbestand'))]);
+      assert.equal(hash(readFileSync(join(dir, tempLeft()[0]!))), hash(expected), 'in het hulpbestand staan alle bytes van A');
+      switchAway();
+      finishWrite();
+    }
     const result = await action;
     assert(switched, 'de tabbladwissel vond plaats');
     assert.equal(store.getState().activeDocumentId, second, 'B blijft het actieve tabblad');
@@ -2983,6 +3009,8 @@ async function exportWithTabSwitch({ withPool, foreign, change }: {
       assert(result.ok && result.cancelled, 'een gewijzigde A wordt niet geëxporteerd');
       if (foreign) assert.equal(existsSync(target), false);
       else assert.equal(hash(readFileSync(target)), hash(previous), 'het bestaande doel blijft ongewijzigd');
+      // Na de kiezer weigert de doelcontrole al, dus vóór er een hulpbestand ontstaat.
+      if (when === 'picker') assert.equal(ipc.calls.filter(c => writeFileCallOf(c) && isTemp(c.path)).length, 0, 'niets geschreven');
       assert.equal(ipc.picks(), 1);
       assert.equal(existsSync(pool), false);
       assert.equal(recent, false);
@@ -2997,13 +3025,20 @@ async function exportWithTabSwitch({ withPool, foreign, change }: {
 }
 
 for (const withPool of [false, true]) {
+  const route = withPool ? 'met resourcebibliotheek' : 'IFC';
   for (const change of ['edit', 'replace'] as const) {
-    await check(`knownbug 1901: desktopexport ${withPool ? 'met resourcebibliotheek' : 'IFC'}, A ${change === 'edit' ? 'bewerkt' : 'vervangen'} en dan naar B, weigert`,
-      () => exportWithTabSwitch({ withPool, foreign: false, change }));
+    await check(`knownbug 1901: desktopexport ${route}, A ${change === 'edit' ? 'bewerkt' : 'vervangen'} en dan naar B, weigert`,
+      () => exportWithTabSwitch({ withPool, foreign: false, when: 'temp', change }));
   }
+  await check(`knownbug 1903: desktopexport ${route}, direct na de kiezer naar B, rondt af`,
+    () => exportWithTabSwitch({ withPool, foreign: false, when: 'picker', change: 'none' }));
+  await check(`knownbug 1903: desktopexport ${route}, na de kiezer A bewerkt en naar B, weigert vóór het schrijven`,
+    () => exportWithTabSwitch({ withPool, foreign: false, when: 'picker', change: 'edit' }));
 }
 await check('knownbug 1901: desktopexport IFC met gebouwmodel, met de uitvoer van A in het hulpbestand naar B, rondt af',
-  () => exportWithTabSwitch({ withPool: false, foreign: true, change: 'none' }));
+  () => exportWithTabSwitch({ withPool: false, foreign: true, when: 'temp', change: 'none' }));
+await check('knownbug 1903: desktopexport IFC met gebouwmodel, direct na de kiezer naar B, rondt af',
+  () => exportWithTabSwitch({ withPool: false, foreign: true, when: 'picker', change: 'none' }));
 
 // ── #804 stap 8: Automatisch opslaan bij een document met een gebouwmodel ─────────────────────────────────────────────
 // Dezelfde vervanging als Ctrl+S (browser: de handle met herstel in twee stappen; desktop: `replaceOwnPathWithRecovery`),
