@@ -306,6 +306,42 @@ for (const profile of PROFILES) {
     ['2026-06-02T08:00', '2026-06-02T16:00', 0, false]);
 }
 
+// Knownbug 384 (was 373): §6 dekt de gewone stap. Vergelijk bij gelijkblijvend P6-profiel
+// C14 aan/uit voor een deadline, FNLT en geen grens, alle op dezelfde eigen werkblokken.
+{
+  const summary = [];
+  const date = '2026-06-02T16:00';
+  for (const c14 of [false, true]) {
+    const project = {
+      startDate: '2026-06-01',
+      schedulingProfile: { ...builtInProfile('p6'), overrides: { p6AlapPositionedFromSuccessors: c14 } },
+      schedulingOptions: {},
+    } as Parameters<typeof solveInputFor>[0];
+    for (const kind of ['deadline', 'FNLT', 'geen'] as const) {
+      const a = task('A', 1, { alap: true });
+      if (kind === 'deadline') a.deadline = date;
+      if (kind === 'FNLT') a.constraint2 = { type: 'FNLT', date };
+      const tasks = [a, task('X', 2.5), task('B', 1)];
+      const seqs = [fs('A', 'B'), fs('X', 'B')];
+      const input = solveInputFor(project, tasks, seqs, OWN_BLOCKS, [OWN_BLOCKS]);
+      const label = `C14=${c14}/${kind}`;
+      eq(`${label}: effectieve optie`, input.schedulingOptions.p6AlapPositionedFromSuccessors, c14);
+      const r = solveProject(input);
+      eq(`${label}: geen rekenfout`, Boolean(r.error), false);
+      const ar = r.tasks.get('A')!;
+      summary.push({
+        c14, kind, es: ar.earlyStart, ef: ar.earlyFinish, lf: ar.lateFinish,
+        tf: ar.totalFloatMinutes, b: r.tasks.get('B')!.earlyStart,
+      });
+    }
+  }
+  eq('knownbug 384: aantal gevallen', summary.length, 6);
+  console.log(`KNOWNBUG384_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 384::${JSON.stringify(summary)}`);
+  }
+}
+
 // ── 7. Een onuitvoerbare eerste plek geeft niet elke verschuiving op ────────────────────────────
 // A 1 d ALAP (08–16) —SS0→ B op 08–18 met SNET vr 5 juni 17:00. Vrijdag is uitvoerbaar (zonder ALAP op
 // vr 08:00 blijft B gelijk). B = 480 min (het projecteinde begrenst A) en B = 2400 min (dan moet de
