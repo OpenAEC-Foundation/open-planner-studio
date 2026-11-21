@@ -192,7 +192,8 @@
     "actions": {
       "openProjectInfo": "Open calculation profile",
       "openHelp": "Open Help",
-      "undo": "Undo"
+      "undo": "Undo",
+      "undoTaskEdit": "Undo task edit"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",

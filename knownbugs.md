@@ -1074,6 +1074,20 @@ en noem het in je rapport of PR-tekst.
       eenduidig; kies eerst wat de melding dan zegt. MCP, `removeResource` en `moveAssignment` melden
       evenmin. Gezien in de code, niet nagespeeld in de app. — S
 
+2052. **VERVOLG (review van #1120 ronde 2): op een gestarte taak met een urenverdeling lopen contour en werkveld
+      uiteen na een inzetwijziging onder Vaste inzet.** In de proef van de review bleef de verrichte periode (20 u)
+      staan en gaven *Werk (u)* en de melding 80 resterende uren, maar telden de resterende contourperiodes op tot
+      160 uur. De rekenroute brengt de contour eerst op het opgeslagen werk (`src/engine/work/workRuleApply.ts`,
+      rond regel 277) en schaalt de werkminuten daarna nog eens met de duur (`src/utils/taskDefaults.ts`, rond
+      regel 773). Dat gedrag staat ook op main; #954 leest alleen. Richting: de werkcorrectie één keer uitvoeren.
+      Bevestigd door de review, niet zelf nagespeeld. — B
+
+2053. **VERVOLG (review van #1120 ronde 2): Opslaan in Taak bewerken overschrijft een omschrijving die intussen
+      van buiten veranderde.** Wijzigt een batch (MCP, extensie) de omschrijving van de taak die in *Taak bewerken*
+      openstaat, dan schrijft *Opslaan* de oude concepttekst terug (`src/state/taskDialogSave.ts`, rond regel 270).
+      Een batch op een andere taak blijft wel staan. Dat gedrag staat ook op main. Richting: alleen de conceptvelden
+      schrijven die in de dialoog bewerkt zijn. Bevestigd door de review, niet zelf nagespeeld. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

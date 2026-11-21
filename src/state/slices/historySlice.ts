@@ -17,20 +17,7 @@ import type { AppSlice, AppSliceFactory } from './types';
 import { overlaysToUi } from '../layoutView';
 import { persistOverlays } from '../overlaySettings';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
-
-/** Een melding met Ongedaan maken (`undoHistoryEvent`, #954) hoort bij precies één event. Draait
- *  Annuleren dat event terug, dan verdwijnt de melding (`drop`); voegt Opslaan het samen met andere
- *  stappen van de dialoog, dan blijft de tekst staan maar gaat de knop weg (`strip`): hij zou anders ook
- *  die andere stappen terugzetten. */
-function settleUndoNotices(s: AppState, eventIds: ReadonlySet<string>, how: 'drop' | 'strip'): void {
-  const bound = (n: AppState['ui']['notifications'][number]) =>
-    n.action?.kind === 'undoHistoryEvent' && eventIds.has(n.action.eventId);
-  if (how === 'drop') {
-    s.ui.notifications = s.ui.notifications.filter((n) => !bound(n));
-    return;
-  }
-  for (const n of s.ui.notifications) if (bound(n)) delete n.action;
-}
+import { notifyOtherWorkOfEvent } from '../otherWorkNotice';
 
 export interface HistorySessionMark {
   sequence: number;
@@ -130,6 +117,10 @@ function applyHistoryEvent(
     // stap nog meldt, komt later binnen en blijft staan (eerst wissen, dan melden). Echte fouten
     // blijven — zie `clearRefusals`.
     clearRefusals(state.ui);
+    // Een melding met Ongedaan maken voor precies deze stap (#954) klopt na het terugzetten niet meer.
+    if (direction === 'undo') {
+      state.ui.notifications = state.ui.notifications.filter(n => !(n.action?.kind === 'undoHistoryEvent' && n.action.eventId === event.id));
+    }
 
     for (const target of targets) {
       if (target.kind === 'document-data') {
@@ -200,20 +191,14 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
     // Annuleren is geen undo: de teruggedraaide sessiestappen horen niet als redo terug te komen.
     // Sessie-events die onder een vreemd event bleven liggen worden gewone stappen (sleutel weg).
     let stranded = 0;
-    const reverted = new Set<string>();
     const events = get().historyEvents
-      .filter(event => {
-        const gone = event.state === 'undone' && isSessionEvent(event, mark, documentId);
-        if (gone) reverted.add(event.id);
-        return !gone;
-      })
+      .filter(event => !(event.state === 'undone' && isSessionEvent(event, mark, documentId)))
       .map(event => {
         if (event.sessionKey !== mark.sessionKey) return event;
         if (event.state === 'applied') stranded++;
         return withoutSessionKey(event);
       });
     set({ historyEvents: events });
-    if (reverted.size > 0) set((s) => settleUndoNotices(s, reverted, 'drop'));
     runtime.resetUndoCoalescing();
     if (stranded > 0) {
       get().notify(refusalNotice({
@@ -245,24 +230,30 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
 
     const replaced = new Map<string, SessionHistoryEvent>();
     const dropped = new Set<string>();
-    const merged = new Set<string>();
     for (const session of runs) {
-      if (session.length > 1) for (const event of session) merged.add(event.id);
       const first = session[0].deltas[0] as DocumentDataHistoryDelta;
       const last = session[session.length - 1].deltas[0] as DocumentDataHistoryDelta;
+      // De bewerkte toewijzingen van de hele sessie (#954): de melding over de uren van de anderen komt
+      // pas nu, over de samengevoegde stap. Taak bewerken bewerkt één taak.
+      const edits = session.flatMap(event => event.editedAssignments ? [event.editedAssignments] : []);
       replaced.set(session[0].id, withoutSessionKey({
         ...session[0],
         label: session.length > 1 ? label : session[0].label,
         deltas: [{ kind: 'document-data', documentId, before: first.before, after: last.after }],
+        ...(edits.length > 0
+          ? { editedAssignments: { taskId: edits[0].taskId, ids: [...new Set(edits.flatMap(edit => edit.ids))] } }
+          : {}),
       }));
       for (const event of session.slice(1)) dropped.add(event.id);
     }
-    const events = current.historyEvents
-      .filter(event => !dropped.has(event.id))
-      .map(event => replaced.get(event.id)
-        ?? (event.sessionKey === mark.sessionKey ? withoutSessionKey(event) : event));
-    set({ historyEvents: events });
-    if (merged.size > 0) set((s) => settleUndoNotices(s, merged, 'strip'));
+    set({
+      historyEvents: current.historyEvents
+        .filter(event => !dropped.has(event.id))
+        .map(event => replaced.get(event.id)
+          ?? (event.sessionKey === mark.sessionKey ? withoutSessionKey(event) : event)),
+    });
     runtime.resetUndoCoalescing();
+    // De knop zet de hele taakbewerking terug (alle stappen van de dialoog), en zegt dat.
+    for (const event of replaced.values()) notifyOtherWorkOfEvent(get(), event, 'notifications.actions.undoTaskEdit');
   },
 });

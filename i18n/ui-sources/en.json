@@ -149,6 +149,7 @@
     "notifications.actions.openProjectInfo": "5b52ffc863f4d255",
     "notifications.actions.openHelp": "a2914559d1909b97",
     "notifications.actions.undo": "22161ff107643c81",
+    "notifications.actions.undoTaskEdit": "eb95e2f62d45b92f",
     "notifications.xerArchiveUnusable": "7431bfadcdd28644",
     "notifications.xerArchiveUnusableLine": "5a442769e971bce0",
     "notifications.xerArchiveUnusableConsequence": "539409e41f33a307",

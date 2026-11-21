@@ -226,7 +226,8 @@ console.log('-- (i) Taak bewerken: geen melding tijdens het bewerken, bij Opslaa
     'notifications.actions.undoTaskEdit',
   ]);
   eq('i3 de knop kan nu', canRunNotificationUndo(S(), noticeAction()), true);
-  S().undoHistoryEvent(noticeAction().eventId);
+  const act = noticeAction();
+  if (act.kind === 'undoHistoryEvent') S().undoHistoryEvent(act.eventId);
   eq('i4 de knop zet de hele taakbewerking terug, ook de naam', [task(t).name, task(t).time.scheduleDuration, asg(t, r.Bram).unitsPerDay], ['Metselwerk', 10, 1]);
 
   // Annuleren: niets gemeld, niets terug te zien.

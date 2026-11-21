@@ -192,7 +192,8 @@
     "actions": {
       "openProjectInfo": "Rekenprofiel openen",
       "openHelp": "Help openen",
-      "undo": "Ongedaan maken"
+      "undo": "Ongedaan maken",
+      "undoTaskEdit": "Taakbewerking ongedaan maken"
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
