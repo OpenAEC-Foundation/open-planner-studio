@@ -67,7 +67,7 @@ import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
 } from './ownGroups';
 import type { ImportResult } from '@/services/importTypes';
-import { METING, METING_DATA } from './meting'; // METING
+import { METING, METING_DATA, PROEF } from './meting'; // METING
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
 export type MergePhase2Kind =
@@ -850,6 +850,21 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // ── 9. Bewaking (eigen zoektocht van 1b): een fout hier is een fout in deze module, geen geval van fase 2; er is dan
   // niets geschreven. Elk vast id is een P-stuk van de bron (anders botst het met een bewaard stuk), en elke verwijzing
   // uit het P-blok gaat naar een stuk dat in de uitvoer staat (geen `#0` en geen verwijzing naar een weggelaten regel).
+  if (PROEF('lijsten')) { // METING proef 'lijsten': dezelfde twee toetsen met de index in plaats van een kaart en een set van alle ids
+    // `index.chunkOf` geeft voor elk `#id` van een entiteit haar stuk (de scanner weigert dubbele ids), anders -1.
+    const chunkOfNumber = (id: number) => (Number.isInteger(id) && id >= 0 ? index.chunkOf(String(id)) : -1);
+    for (const id of [...keep.values(), ...keptHeads]) {
+      const c = chunkOfNumber(id);
+      if (c < 0 || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
+    }
+    for (const line of lines) {
+      if (line.drop) continue;
+      for (const target of refsInText(line.text)) {
+        const c = emitted.has(target) ? -2 : chunkOfNumber(target);
+        if (c === -1 || (c >= 0 && isP(c))) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
+      }
+    }
+  } else { // METING proef
   const chunkOfId = new Map<number, number>();
   for (let i = 0; i < n; i++) if (index.isEntity(i)) chunkOfId.set(sid(i), i);
   for (const id of [...keep.values(), ...keptHeads]) {
@@ -865,10 +880,14 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
   METING_DATA('C9 kaart en set', () => ({ chunkOfId: chunkOfId.size, present: present.size })); // METING
+  } // METING proef
   METING('C9 bewaking (kaart van alle ids, verwijzingen uit P)'); // METING
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
     const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`)));
     METING('D assemble en concatParts (uitvoerbytes)'); // METING
+    // METING proef 'sha': de digest nu, vóór de uitvoerindex er is; `precomputeSha256` onthoudt hem per buffer, dus
+    // `writtenSource` hieronder krijgt dezelfde waarde zonder tweede kopie.
+    if (PROEF('sha')) { await precomputeSha256(assembled); METING('D sha256 vooraf (proef)'); } // METING proef
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
@@ -884,7 +903,16 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
     const written = new Set(candidate.map(line => line.id));
-    const classes = Uint8Array.from(actual.scan.chunkIds, id => {
+    let classes: Uint8Array;
+    if (PROEF('lijsten')) { // METING proef: dezelfde klassen met een gewone lus in plaats van Uint8Array.from met een iterator
+      const ids = actual.scan.chunkIds;
+      classes = new Uint8Array(ids.length);
+      for (let k = 0; k < ids.length; k++) {
+        const id = ids[k];
+        classes[k] = id < 0 ? 0 : written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
+      }
+    } else // METING proef
+    classes = Uint8Array.from(actual.scan.chunkIds, id => {
       if (id < 0) return 0;
       return written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
     });
@@ -1304,7 +1332,12 @@ function psetRel(index: StepIndex, pset: number): number {
 
 /** De bron moet de bron zijn waaruit `ifcSource` kwam: dezelfde stukken met dezelfde ids en klassen. */
 function assertSameSource(index: StepIndex, cls: Classification, source: IfcSource): void {
-  const same = index.count === source.classes.length
+  let same: boolean;
+  if (PROEF('lijsten')) { // METING proef: dezelfde vergelijking zonder lijst van alle stuknummers
+    same = index.count === source.classes.length && cls.classes.every((c, i) => c === source.classes[i]);
+    for (let i = 0; same && i < index.count; i++) same = (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i];
+  } else // METING proef
+  same = index.count === source.classes.length
     && cls.classes.every((c, i) => c === source.classes[i])
     && Array.from({ length: index.count }, (_, i) => i).every(i => (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i]);
   if (!same) throw new Error('mergeWriter: de bronbytes passen niet bij ifcSource');

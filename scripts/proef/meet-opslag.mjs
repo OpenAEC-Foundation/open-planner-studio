@@ -45,6 +45,7 @@ const childTimeoutMs = Number(opts['timeout-min'] ?? 20) * 60_000;
 // sha256 als eis. --runs blijft voor de gewone tijdmeting; met --geheugen geen tijdruns en geen profielen.
 const geheugen = opts.geheugen === '1';
 const proefSets = (opts.proef ?? '').split(',').filter(Boolean).map(s => s.replace(/\+/g, ','));
+const proefSetsSnel = (opts['proef-snel'] ?? '').split(',').filter(Boolean).map(s => s.replace(/\+/g, ','));
 const proefRuns = Number(opts['proef-runs'] ?? 2);
 if (sizes.some(s => !(s > 0)) || !(runs >= 0)) throw new Error('--mb verwacht getallen, --runs minstens 1');
 if (sizes.some(s => s > 10) && process.env.CI !== 'true') {
@@ -67,6 +68,7 @@ import { copyFileSync, createReadStream, readFileSync, rmSync, writeFileSync } f
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
+import { cpus, totalmem } from 'node:os';
 import { openInStore } from ${T('tests/planning/ifcAppRoute.ts')};
 import { applyEdit, cloneDomain, ordinaryEdits, settle } from ${T('tests/planning/ifcMergeKern.ts')};
 import { installNodeFileIpc } from ${T('tests/planning/nodeFileIpc.ts')};
@@ -114,7 +116,7 @@ async function step<R>(name: string, fn: () => R | Promise<R>): Promise<R> {
   return result;
 }
 const hr = () => Number(process.hrtime.bigint() / 1000n);
-emit({ mode, node: process.version, pid: process.pid, meting, proef: Object.keys(proef), ...mem() });
+emit({ mode, node: process.version, pid: process.pid, meting, proef: Object.keys(proef), cpu: cpus()[0]?.model, kernen: cpus().length, geheugenGB: Math.round(totalmem() / 2 ** 30), ...mem() });
 
 // De meetdraad: leest elke 10 ms de RSS van het hele proces en houdt per onderdeel de hoogste stand bij. Een eigen
 // thread, dus ook binnen een lange lus van de hoofdthread. (De draad zelf kost een paar MB RSS.)
@@ -342,9 +344,12 @@ for (const mb of sizes) {
   if (geheugen) {
     row.geheugen = {};
     for (const mode of ['met', 'snel']) {
-      const variants = [['zonder', {}], ['vrij', { OPS_METING: 'vrij' }], ['gc', { OPS_METING: 'gc' }],
-        ...proefSets.flatMap(set => Array.from({ length: proefRuns }, (_, k) => [`proef ${set} #${k + 1}`, { OPS_METING: 'vrij', OPS_PROEF: set }])),
-        ...(proefSets.length ? Array.from({ length: proefRuns - 1 }, (_, k) => [`vrij #${k + 2}`, { OPS_METING: 'vrij' }]) : [])];
+      const sets = mode === 'met' ? proefSets : proefSetsSnel;
+      // Om en om: basis, dan elke proefset, en dat proefRuns keer, zodat een trage periode van de runner alle varianten raakt.
+      const variants = [['zonder', {}], ['gc', { OPS_METING: 'gc' }],
+        ...Array.from({ length: Math.max(1, sets.length ? proefRuns : 1) }, (_, k) => [[k ? `vrij #${k + 1}` : 'vrij', { OPS_METING: 'vrij' }],
+          ...sets.map(set => [`proef ${set} #${k + 1}`, { OPS_METING: 'vrij', OPS_PROEF: set }])]).flat(),
+        ...(sets.length ? [[`proef ${sets.at(-1)} gc`, { OPS_METING: 'gc', OPS_PROEF: sets.at(-1) }]] : [])];
       row.geheugen[mode] = {};
       for (const [name, env] of variants) {
         const res = child(mode, file, [], env);

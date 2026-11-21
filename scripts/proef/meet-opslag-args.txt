@@ -1,1 +1,1 @@
---geheugen
+--geheugen --proef=telling,lijsten,sha,telling+lijsten+sha --proef-snel=telling+lijsten --proef-runs=2
