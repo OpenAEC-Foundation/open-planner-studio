@@ -366,11 +366,6 @@ en noem het in je rapport of PR-tekst.
      `forwardHour` houdt dezelfde twee stappen (`previousBlockEndIfSame`, dan `workdayFinishNotBefore`) apart.
      Voorstel: de interne tak laten aanroepen wat de externe gebruikt, met de batterijen `cases-hours-blokgrenzen`
      en `cases-advanced-cpm` als bewijs. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
-875. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
-     `tests/planning/check-external-lag-calendar.ts` test de vier lagkalenders, alle types, mijlpalen en een korte
-     vrijdag met één koppeling op de solver. Een koppeling verwijderen (de melding verdwijnt), twee koppelingen op
-     één taak en ongedaan maken in de store ontbreken. Uit de review van #808 (GPT-6.1-Sol, xhigh, op
-     `446809cc2`, VERVOLG). — S
 876. **VERVOLG: in een keten in kalendertijd verliest een interne SS-relatie met lag 0 de grens van een externe
      opvolger.** Projectkalender ma–vr 08–16, geen pins. P duurt 1 uur kalendertijd (ELAPSEDTIME) en begint zo 7 juni
      22:00. P heeft een interne SS-relatie met lag 0 naar L. L duurt 24 uur kalendertijd en heeft een externe
