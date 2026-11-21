@@ -521,7 +521,7 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.ceil(tb.y + tb.height + 170) });
   await trigger.click();
   await expect(menu).toBeVisible();
-  const workHint = menu.locator('[data-ops-select-option-hint="FIXED_WORK"]');
+  const workHint = menu.locator('[role="option"][data-value="FIXED_WORK"] .ops-select__option-hint');
   await workHint.scrollIntoViewIfNeeded();
   const hb = (await workHint.boundingBox())!;
   await page.mouse.click(hb.x + hb.width / 2, hb.y + hb.height / 2);

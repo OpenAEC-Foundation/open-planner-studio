@@ -474,7 +474,7 @@ export function Select({
         {opt.hint ? (
           <span className="ops-select__option-text">
             <span className="ops-select__option-label">{opt.label}</span>
-            <span className="ops-select__option-hint" data-ops-select-option-hint={opt.value}>{opt.hint}</span>
+            <span className="ops-select__option-hint">{opt.hint}</span>
           </span>
         ) : (
           <span className="ops-select__option-label">{opt.label}</span>
