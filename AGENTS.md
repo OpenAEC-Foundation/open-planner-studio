@@ -414,8 +414,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   the same for every worker) did not start. A plain request then computes on the main thread, as on main, and plain
   requests stay there for the rest of the session; with the flag off for the whole session this is the only kind of
   request and the behaviour is main's. One difference (knownbug 2025): after an earlier merge in the same session (flag
-  on, a refusal too) that worker is gone, so a plain request starts a fresh one where main reused the started one; if
-  it does not start, plain requests compute on the main thread for the rest of the session, after waiting up to the
+  on, a refusal too) that worker is gone, so after an answer of a merge worker the next plain request can start a fresh
+  one, as long as the plain route is still available, where main reused the started one; if it does not start, plain requests compute on the main thread for the rest of the session, after waiting up to the
   10 s start limit when it stays silent. A merge falls
   back only while no worker has started yet in this session; after that its start failure is an error (`not-started`),
   never the main thread. A crash, timeout or unreadable answer after the start is an error, never a retry on the main
@@ -489,7 +489,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
   changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
   stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
-  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.
+  picks another target. With the flag off a plain document keeps its 10 s throttle and its write route (for the save
+  worker after a model merge see knownbug 2025).
   Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,

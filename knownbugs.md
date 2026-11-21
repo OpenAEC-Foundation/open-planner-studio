@@ -3288,8 +3288,9 @@ en noem het in je rapport of PR-tekst.
 2025. **Na een eerdere modelmerge kan een gewoon verzoek met de flag uit trager zijn dan op main, en daarna de rest van
      de sessie op de hoofdthread rekenen (#804, knownbug 1936).** De opslagworker stopt na elk antwoord op een merge,
      ook na een weigering (`ifcSaveWorker.ts`). Kwam er in een sessie eerst met de flag aan een modelmerge en staat de
-     flag daarna uit, dan start het volgende gewone verzoek (een planning zonder gebouwmodel, Ctrl+S of
-     Automatisch opslaan) een verse worker; main hergebruikte de gestarte. Start die verse niet, dan rekent de hoofdthread
+     flag daarna uit, dan kan na een antwoord van een mergeworker het volgende gewone verzoek (een planning zonder
+     gebouwmodel, Ctrl+S of Automatisch opslaan) een verse worker starten, zolang de gewone route nog beschikbaar is
+     (geen eerdere terugval in die sessie, `unavailable`); main hergebruikte de gestarte. Start die verse niet, dan rekent de hoofdthread
      zoals op main, en ook bij alle volgende gewone verzoeken in die sessie (`unavailable`). Blijft hij stil, dan komt
      er tot 10 s wachttijd bij (de starttijd). Bestandsinhoud en meldingen zijn gelijk aan main. Met de flag de hele
      sessie uit gebeurt dit niet. Bron: review ronde 2 van #1111, met `tests/planning/check-save-worker.ts` (het blok
