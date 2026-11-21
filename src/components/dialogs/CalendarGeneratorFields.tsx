@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
-import { HOLIDAY_SETS, type HolidayCountry } from '@/engine/calendar/holidays';
+import { HOLIDAY_COUNTRIES, HOLIDAY_SETS, type HolidayCountry } from '@/engine/calendar/holidays';
 import {
   materializeHolidays, type HolidayGenParams, type BouwvakChoice, type GeneratorCountry,
 } from '@/engine/calendar/generateCalendarHolidays';
 
-const COUNTRIES: HolidayCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US'];
 const BOUWVAK_CHOICES: BouwvakChoice[] = ['geen', 'noord', 'midden', 'zuid'];
 /** i18n-sleutels gebruiken `none` voor de "geen bouwvak"-keuze; de interne `BouwvakChoice`
  *  gebruikt `'geen'` (matcht `generateRegionalBreak`/`CalendarGeneration.breakChoice`). */
@@ -63,12 +62,12 @@ export function CalendarGeneratorFields({
     }
   }, [constructionMode, value.bouwvak, onChange]);
 
-  const isKnownCountry = value.country === 'none' || (COUNTRIES as string[]).includes(value.country);
+  const isKnownCountry = value.country === 'none' || (HOLIDAY_COUNTRIES as readonly string[]).includes(value.country);
   const set = isKnownCountry && value.country !== 'none' ? HOLIDAY_SETS[value.country as HolidayCountry] : undefined;
   const hasRegions = !!set?.regions && set.regions.length > 0;
 
   const countryOptions = [
-    ...COUNTRIES.map(c => ({ value: c, label: tCommon(`calendar.countryName.${c}`) })),
+    ...HOLIDAY_COUNTRIES.map(c => ({ value: c, label: tCommon(`calendar.countryName.${c}`) })),
     ...(allowNone ? [{ value: 'none', label: noneLabel ?? tCommon('calendar.countryName.none') }] : []),
     ...extraCountryOptions,
   ];

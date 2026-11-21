@@ -50,7 +50,7 @@ git -C "$REPO" fetch --quiet origin
 git -C "$S" switch --quiet --detach origin/main
 LOG=~/.local/state/ops-release/run-$(date +%F-%H%M).log; mkdir -p "$(dirname "$LOG")"
 ( node "$S/scripts/release/run.mjs"; echo "EXIT:$?" ) > "$LOG" 2>&1
-tail -n 1 "$LOG"; grep '^RELEASE-MELDING ' "$LOG"
+tail -n 2 "$LOG"; grep '^RELEASE-MELDING ' "$LOG" || true
 ```
 Het script wacht zelf op CI en runs (uren mogelijk). Draai het in de voorgrond, of start het losgekoppeld en wacht met een
 `until grep -q '^EXIT:' "$LOG"`-lus; beëindig je beurt niet terwijl het loopt. Een tweede run tegelijk stopt met `al-actief`.
@@ -58,7 +58,7 @@ Het script wacht zelf op CI en runs (uren mogelijk). Draai het in de voorgrond, 
 
 ## De uitkomst
 
-De laatste regel van het log beslist. Stuur daarnaast elke regel `RELEASE-MELDING <code>: …` uit het log, bij elke
+De slotregel van het script, direct vóór `EXIT:`, beslist. Ontbreekt die regel, meld dat als een fout; leid de uitkomst niet alleen af uit de exitcode. Stuur daarnaast elke regel `RELEASE-MELDING <code>: …` uit het log, bij elke
 uitkomst, letterlijk door aan wrakko (zie hieronder); een melding stopt de release niet.
 
 - `RELEASE-KLAAR …` (exit 0): stuur wrakko het eindrapport (hieronder).

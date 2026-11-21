@@ -258,8 +258,15 @@
     "ifcForeignReplaceBlocked": "저장되지 않았습니다. 건축 모델이 있는 기존 파일을 덮어쓰는 것은 아직 안전하지 않습니다. “다른 이름으로 저장”을 사용하고 새 이름을 선택하세요.",
     "ifcForeignMergeRefused": "IFC 파일은 저장되지 않았습니다. 건축 모델이나 다른 프로그램의 데이터가 완전히 보존되지 않을 수 있습니다. 마지막 변경을 실행 취소하거나, 일정만 내보내세요: IFC로 “건축 모델 없이”를 선택하거나 다른 형식으로 내보내세요.",
     "ifcSaveChangedWhileWaiting": "저장되지 않았습니다. 준비하는 동안 문서나 건축 모델의 원본이 바뀌었습니다. 다시 저장해 보세요.",
+    "ifcForeignReplaceOtherVersion": "앱이 저장하는 동안 다른 프로그램이 {{file}} 파일을 변경했습니다. 그 버전은 {{copy}}에 보관되었습니다.",
+    "ifcForeignReplaceUnsavedCopy": "{{file}}의 이전 저장이 완료되지 않았습니다. 그때 저장하려던 일정은 {{copy}}에 있습니다. 더 이상 필요하지 않으면 그 파일을 삭제하세요.",
+    "ifcForeignReplaceTargetTaken": "저장되지 않았습니다. 저장하는 동안 다른 프로그램이 {{target}}에 새 파일을 만들었습니다. 이제 파일이 세 개 있습니다: {{target}}의 새 파일, {{temp}}의 일정, {{previous}}의 이전 버전. 변경 사항은 앱에 그대로 남아 있습니다.",
+    "ifcForeignReplacePreviousStranded": "저장되지 않았고, 파일의 이전 버전을 원래 자리로 되돌릴 수 없었습니다. 지금 파일은 {{previous}}에 있습니다. 변경 사항은 아직 앱에 있습니다. 새 파일로 보관하려면 “다른 이름으로 저장”을 선택하세요.",
+    "ifcForeignReplaceSaveAsOnly": "저장되지 않았습니다. 이 위치에서는 이 파일을 안전하게 바꿀 수 없습니다. 파일은 변경되지 않았습니다. 변경 사항을 새 파일로 보관하려면 “다른 이름으로 저장”을 선택하세요.",
+    "ifcForeignReplaceLeftOver": "{{file}}의 중단된 저장에서 이 파일이 남았습니다: {{path}}. 아직 필요한지 확인하세요.",
     "ifcSourceCopyFailed": "일정은 충돌 복구를 위해 보관되지만, 건축 모델의 사본은 보관하지 못했습니다. 충돌 후에는 건축 모델이 없을 수 있습니다. 작업을 완전한 IFC 파일로 직접 저장하세요.",
-    "ifcForeignSourceMissing": "저장되지 않았습니다. 건축 모델이나 다른 프로그램의 데이터를 찾을 수 없습니다. 일정만 새 파일에 저장하려면 “다른 이름으로 저장”을 사용하세요. 전체 파일로 다시 작업하려면 원래 IFC 파일을 여세요."
+    "ifcForeignSourceMissing": "저장되지 않았습니다. 건축 모델이나 다른 프로그램의 데이터를 찾을 수 없습니다. 일정만 새 파일에 저장하려면 “다른 이름으로 저장”을 사용하세요. 전체 파일로 다시 작업하려면 원래 IFC 파일을 여세요.",
+    "taskTypeRenameNameTaken": "이 프로젝트에서 이름은 그대로 “{{oldName}}”입니다. 이 프로젝트의 다른 공종이 이미 “{{takenName}}” 이름을 사용하고 있습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 관계: {{path}}",
@@ -640,7 +647,8 @@
     "confirmClose": "이 문서에 저장되지 않은 변경 사항이 있습니다. 그래도 닫으시겠습니까?",
     "closeTitle": "저장되지 않은 변경 사항",
     "closeBody": "'{{name}}'에 아직 저장되지 않은 변경 사항이 있습니다.",
-    "dontSave": "저장 안 함"
+    "dontSave": "저장 안 함",
+    "stillSaving": "아직 저장 중…"
   },
   "feedback": {
     "buttonTooltip": "피드백 보내기",
@@ -1889,5 +1897,9 @@
     "bodyWithPool": "프로젝트 파일에는 일정만 들어가고 리소스 라이브러리는 두 번째 파일에 저장됩니다. 건축 모델과 다른 프로그램의 데이터는 포함되지 않습니다. 열려 있는 파일은 변경되지 않습니다. 계속하시겠습니까?",
     "continue": "내보내기",
     "cancel": "취소"
+  },
+  "replaceCopy": {
+    "otherProgram": "다른 프로그램의 버전 {{when}}",
+    "unsavedSchedule": "저장되지 않은 일정 {{when}}"
   }
 }

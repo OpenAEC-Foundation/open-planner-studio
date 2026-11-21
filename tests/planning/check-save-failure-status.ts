@@ -328,6 +328,9 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
     });
     eq(`2a Tauri Opslaan, ${naam}: geen halffabricaat`, [...tauri.files.keys()].some(p => dirOf(p) === dirOf(RO) && p.endsWith(USER_FILE_TMP_SUFFIX)), false);
     eq(`2a Tauri Opslaan, ${naam}: geen automatische terugvalkiezer`, tauri.calls.includes('plugin:dialog|save'), false);
+    // #1022: Opslaan als weigert een bestand dat in een ander tabblad open staat. 2b meet de schrijffout, dus het
+    // tabblad van 2a laat het alleen-lezen bestand eerst los.
+    useAppStore.setState({ filePath: null });
 
     // 2b Opslaan als: de gebruiker kiest in de dialoog het alleen-lezen bestand.
     S().newDocument();
@@ -342,6 +345,7 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
     useAppStore.setState({ filePath: RO });
     const ok = await S().saveFileForDocument(S().activeDocumentId);
     eq(`2c Tauri sluitvraag-opslaan, ${naam}: meldt false (sluiten breekt af)`, [ok, S().isDirty], [false, true]);
+    useAppStore.setState({ filePath: null }); // zie 2a: de volgende ronde kiest hetzelfde bestand in Opslaan als
   }
   uninstallTauri();
   tauri.windows = false;

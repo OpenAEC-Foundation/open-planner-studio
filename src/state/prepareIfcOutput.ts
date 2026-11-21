@@ -19,8 +19,10 @@ export type IfcSaveJob =
   | { readonly kind: 'merge'; readonly input: IFCWriteInput; readonly source: IfcSource };
 
 /** Rekent één beslist geval. Standaard op deze thread (`computeIfcOutputHere`); de opslagworker
- *  (`services/ifc/saveWorker/ifcSaveWorker.ts`) geeft dezelfde uitkomst uit de achtergrond. */
-export type IfcOutputCompute = (job: IfcSaveJob) => Promise<IfcOutput>;
+ *  (`services/ifc/saveWorker/ifcSaveWorker.ts`) geeft dezelfde uitkomst uit de achtergrond. `stop` (#804 stap 8, alleen
+ *  Automatisch opslaan): gaat het af, dan breekt de worker dit ene verzoek af en faalt de belofte met `stop.reason`;
+ *  op deze thread valt er niets af te breken en controleert de aanroeper het signaal na afloop. */
+export type IfcOutputCompute = (job: IfcSaveJob, stop?: AbortSignal) => Promise<IfcOutput>;
 
 export async function computeIfcOutputHere(job: IfcSaveJob): Promise<IfcOutput> {
   if (job.kind === 'writer') return writeIFCWithChoices(job.input);

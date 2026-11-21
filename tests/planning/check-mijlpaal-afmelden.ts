@@ -28,6 +28,7 @@
 // Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
 
 import './domStub';
+import { actualStartQuestionFor, planProgressEntry } from '@/engine/progressEntry';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { isTaskActualPastStatusDate, normalizeActualDate, normalizeLoadedActualDate } from '@/engine/taskMutationRules';
@@ -36,7 +37,7 @@ import {
 } from '@/engine/calendar/workdayRules';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { progress } from '@/state/mcpValidation';
-import { createTaskDialogSave, draftWithActualFinish, draftWithActualStart } from '@/state/taskDialogSave';
+import { createTaskDialogSave, draftWithActualFinish, draftWithActualStart, draftWithProgress } from '@/state/taskDialogSave';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { makeBands } from '@/utils/effectiveWorkTime';
 import { calendarClock, taskDateLabel } from '@/utils/taskDateLabel';
@@ -1275,6 +1276,41 @@ for (const profile of PROFILES) for (const route of ROUTES) {
 }
 for (const profile of PROFILES) mondayHealth('gedeelde rand', profile, () => mondayFixture(profile, sol5Cal, 'START_START'), SHARED_EDGE);
 console.log(`Vaste gevallen: ${FIXED.length} op helperniveau, ${FIXED_LITERAL.length} letterlijk, ${fixedRouteCases} langs de routes`);
+
+// Knownbug 317: de startvraag gebruikt de werkdagzijde van de mijlpaalsoort.
+for (const [label, cal, moment, nextStart] of [
+  ['24 uur', day24, '2026-06-04T00:00', '2026-06-04T00:00'],
+  ['nacht', night, '2026-06-04T06:00', '2026-06-04T22:00'],
+] as const) {
+  const f = fixture('ops', cal, { midden: false, los: false, taak: false });
+  const id = f.milestone('Test einde', 'FINISH');
+  const original = f.taskOf(id);
+  const before: Task = { ...original, time: { ...original.time, earlyStart: moment, scheduleStart: moment, completion: 0, actualStart: undefined, actualFinish: undefined } };
+  const after: Task = { ...before, time: { ...before.time, completion: 1, actualStart: moment, actualFinish: moment } };
+  const status = '2026-06-03';
+  eq(`317 ${label}: FINISH op einde statuswerkdag vraagt geen start`,
+    actualStartQuestionFor(before, after, status, {}, f.calendar()), null);
+  const start: Task = { ...after, milestoneKind: 'START', time: { ...after.time, earlyStart: nextStart, scheduleStart: nextStart } };
+  eq(`317 ${label}: START op volgende klokdag blijft vragen`,
+    actualStartQuestionFor(before, start, status, {}, f.calendar()) !== null, true);
+  eq(`317 ${label}: status met tijd vóór moment vraagt wél start`,
+    actualStartQuestionFor(before, after, '2026-06-03T23:59', {}, f.calendar()) !== null, true);
+  const result = planProgressEntry(before, { field: 'completion', value: 1 },
+    { statusDate: status, today: '2026-06-05', calendar: f.calendar() });
+  eq(`317 ${label}: 100 procent UI-invoer wordt niet geweigerd`, result.ok, true);
+  f.context.store.setState(state => { const target = state.tasks.find(t => t.id === id)!; target.time = { ...before.time }; state.project.statusDate = status; });
+  const draft = structuredClone({ tasks: f.S().tasks, sequences: f.S().sequences, assignments: f.S().assignments, resources: f.S().resources, calendars: f.S().calendars, calendar: f.S().calendar, project: f.S().project });
+  eq(`317 ${label}: MCP 100 procent slaagt`, progress.applyProgressUpdate(draft, id, { completion: 100 }, status).applied, true);
+  eq(`317 ${label}: echte UI-invoer slaagt`, f.S().enterTaskProgress(id, { field: 'completion', value: 1 }, { today: '2026-06-05' }).ok, true);
+  const reset = () => f.context.store.setState(state => { const target = state.tasks.find(t => t.id === id)!; target.time = { ...before.time }; target.status = before.status; });
+  reset();
+  const grid = f.S().runGridMutation([{ kind: 'cell-edit', taskId: id, columnId: 'task.time.completion' as CellEditIntent['columnId'], route: 'task-progress', value: 1 }], { progressEntry: { today: '2026-06-05' } });
+  eq(`317 ${label}: raster 100 procent slaagt`, grid.ok, true);
+  reset();
+  const dialogDraft = draftWithProgress(f.taskOf(id), 1, status, f.calendar());
+  const dialogSaved = createTaskDialogSave(f.context)({ editingTaskId: id, draft: dialogDraft, startDate: moment });
+  eq(`317 ${label}: dialoog 100 procent slaagt`, dialogSaved, true);
+}
 
 for (const failure of failures) console.log('XX ' + failure);
 console.log(`Mijlpaal afmelden met de geplande tijd: ${checks} controles, ${failures.length} fouten`);

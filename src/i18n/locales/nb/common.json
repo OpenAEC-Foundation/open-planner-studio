@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "Ikke lagret. Overskriving av en eksisterende fil med en bygningsmodell er ikke trygt ennå. Bruk Lagre som og velg et nytt navn.",
     "ifcForeignMergeRefused": "IFC-filen ble ikke skrevet. Bygningsmodellen eller dataene fra et annet program ville ellers ikke blitt fullt bevart. Angre den siste endringen, eller eksporter bare tidsplanen: til IFC med Uten bygningsmodell, eller til et annet format.",
     "ifcSaveChangedWhileWaiting": "Ikke lagret. Dokumentet eller kilden til bygningsmodellen er endret under forberedelsen. Prøv å lagre på nytt.",
+    "ifcForeignReplaceOtherVersion": "Et annet program endret {{file}} mens appen lagret den. Den versjonen er tatt vare på som {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "En tidligere lagring av {{file}} ble ikke fullført. Tidsplanen som ble lagret da, ligger i {{copy}}. Slett den filen hvis du ikke trenger den lenger.",
+    "ifcForeignReplaceTargetTaken": "Ikke lagret. Under lagringen la et annet program en ny fil på {{target}}. Det finnes nå tre filer: den nye filen på {{target}}, tidsplanen din i {{temp}} og den forrige versjonen i {{previous}}. Endringene dine ligger fortsatt i appen.",
+    "ifcForeignReplacePreviousStranded": "Ikke lagret, og den forrige versjonen av filen kunne ikke legges tilbake på plassen sin. Den ligger nå i {{previous}}. Endringene dine ligger fortsatt i appen. Velg Lagre som for å beholde dem i en ny fil.",
+    "ifcForeignReplaceSaveAsOnly": "Ikke lagret. Denne filen kan ikke trygt erstattes på denne plassen. Filen er ikke endret. Velg Lagre som for å beholde endringene dine i en ny fil.",
+    "ifcForeignReplaceLeftOver": "Denne filen ble igjen etter en avbrutt lagring av {{file}}: {{path}}. Sjekk om du fortsatt trenger den.",
     "ifcSourceCopyFailed": "Tidsplanen lagres for gjenoppretting ved brudd, men kopien av bygningsmodellen kunne ikke lagres. Etter et brudd kan bygningsmodellen mangle. Lagre dokumentet selv som en komplett IFC-fil.",
-    "ifcForeignSourceMissing": "Ikke lagret. Bygningsmodellen eller dataene fra et annet program ble ikke funnet. Bruk Lagre som for bare å lagre tidsplanen i en ny fil. Åpne den opprinnelige IFC-filen for å jobbe med hele filen igjen."
+    "ifcForeignSourceMissing": "Ikke lagret. Bygningsmodellen eller dataene fra et annet program ble ikke funnet. Bruk Lagre som for bare å lagre tidsplanen i en ny fil. Åpne den opprinnelige IFC-filen for å jobbe med hele filen igjen.",
+    "taskTypeRenameNameTaken": "I dette prosjektet forblir navnet «{{oldName}}»: en annen arbeidskategori i dette prosjektet heter allerede «{{takenName}}»."
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Dette dokumentet har ulagrede endringer. Lukk likevel?",
     "closeTitle": "Ulagrede endringer",
     "closeBody": "«{{name}}» har endringer som ikke er lagret ennå.",
-    "dontSave": "Ikke lagre"
+    "dontSave": "Ikke lagre",
+    "stillSaving": "Lagres fortsatt…"
   },
   "feedback": {
     "buttonTooltip": "Gi tilbakemelding",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "Prosjektfilen inneholder bare tidsplanen; ressursbiblioteket går i en andre fil. Bygningsmodellen og dataene fra et annet program tas ikke med. Den åpne filen forblir uendret. Vil du fortsette?",
     "continue": "Eksporter",
     "cancel": "Avbryt"
+  },
+  "replaceCopy": {
+    "otherProgram": "versjon fra et annet program {{when}}",
+    "unsavedSchedule": "ikke lagret tidsplan {{when}}"
   }
 }
