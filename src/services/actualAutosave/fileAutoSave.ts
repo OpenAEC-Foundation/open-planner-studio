@@ -6,8 +6,9 @@
 // gecontroleerde vervanging als Ctrl+S (`replaceOwnHandleWithRecovery` in de browser, `replaceOwnPathWithRecovery` op de
 // desktop), met een eigen ritme per document (`modelAutoSaveRhythm.ts`), en zijn ronde wijkt voor elke handmatige
 // actie (`runYieldingProjectFileWrite`) tot het herstel van de vervanging vastligt. Een gewoon document en elk document
-// met de flag uit houden hun route en hun ritme van vóór stap 8; hun tik wacht in de rij achter een modelronde
-// (`runAutoSaveTickWrite`, fixronde 3 van de review van #1033).
+// met de flag uit houden hun route en hun ritme van vóór stap 8. Welke beurt eerst komt en of een doorgang haar lijst
+// maakt, beslist de schrijfcoördinatie (`runAutoSaveRound`, knownbug 1939); deze module kiest alleen kandidaten en
+// schrijft ze.
 import type { AppState } from '@/state/appStore';
 import type { DocumentPayload } from '@/state/documentContract';
 import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
@@ -348,10 +349,12 @@ export function createFileAutoSaveController(deps: {
       // dus OPNIEUW onder de exclusieve lock, vóór het voorbereiden.
       const current = getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
       if (!current) return false;
-      // Fixronde 4 van de review van #1033: een tik die achter een modelronde wachtte, toetst bij zijn beurt of zijn document
-      // nog meedoet (dezelfde toets als bij de keuze), nog gewijzigd is en nog hetzelfde doel heeft. Zette de planner
-      // Automatisch opslaan intussen uit, dan schrijft hij niets en meldt hij niets. Fixronde 5: synchroon, zonder wachten
-      // tussen deze toets en het voorbereiden; de schrijftoestemming vraagt de controller zoals vóór stap 8 (`canWrite`).
+      // Fixronde 4 van de review van #1033: een tik die op zijn beurt wachtte (tijdens de schrijftoestemming of achter een
+      // handmatige actie; sinds knownbug 1939 maakt de doorgang haar lijst pas bij haar plek, maar tussen lijst en write zit
+      // nog `canWrite`), toetst bij zijn beurt of zijn document nog meedoet (dezelfde toets als bij de keuze), nog gewijzigd
+      // is en nog hetzelfde doel heeft. Zette de planner Automatisch opslaan intussen uit, dan schrijft hij niets en meldt
+      // hij niets. Fixronde 5: synchroon, zonder wachten tussen deze toets en het voorbereiden; de schrijftoestemming vraagt
+      // de controller zoals vóór stap 8 (`canWrite`).
       const target = autoSaveRef(current);
       if (!deps.enabled() || !current.isDirty || !plainTakesPart(candidate.id, current)
         || !target || !sameFileRef(target, candidate.ref!)) return 'refused';

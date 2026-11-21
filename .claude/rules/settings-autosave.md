@@ -100,15 +100,23 @@ technisch beslisser 19 november 2026): elke `runProjectFileWrite`, elke `whenPro
 `claimProjectFileWrite` vanaf de bronkeuze, ook terwijl de vraag "alleen de planning" open staat) laat een ronde wijken
 tot de grens in de gedeelde vervanging (`stopBeforeWrite` met `YieldingTurn.pass()`: het herstel ligt vast, browser de
 komende versie in het manifest, desktop ook het herstelrecord; nog niets op het doel geschreven). Een ronde die de grens
-passeerde, plaatst: een IFC-export neemt zijn bron pas op als ze klaar is (`whenProjectFilePlacementSettled`), en legt
+passeerde, plaatst: een IFC-export neemt zijn bron pas op als ze klaar is (de plaatsing in zijn claim:
+`claimProjectFileWrite` geeft `{ release, placement }`), en legt
 bij de aanroep vast voor welk document hij is (staat daarna een ander document of een andere inhoud in het tabblad, dan
-weigert hij met `ifcExportChangedWhileWaiting`). De schrijfbeurten wijst één plek toe (`writeCoordinator.ts`, fixronde 3
-van de review van #1033): een handmatige actie (`runProjectFileWrite`) gaat voor; een gewone tik
-(`runAutoSaveTickWrite`) wacht op zijn beurt en laat niets wijken; een modelronde krijgt zo haar beurt, ook als de
-planner in een gewoon document doorwerkt. Beide ingangen slaan alleen over als er een handmatige actie in de rij staat
-(`isManualProjectFileWriteQueued`), zoals vóór stap 8 met een bezette rij. Bewuste keuze (besluit technisch beslisser,
-20 november 2026): valt de tik van een gewoon document samen met een modelronde, dan schrijft het hoogstens één
-modelronde later (bij een groot model tot ongeveer 20 s); met de flag uit verandert er niets. De worker stopt dat ene
+weigert hij met `ifcExportChangedWhileWaiting`). Over de schrijfbeurten en de toelating van timerwerk beslist één plek
+(`writeCoordinator.ts`, fixronde 3 van de review van #1033 en knownbug 1939): komt het slot vrij, dan krijgt eerst de
+oudste wachtende handmatige actie (`runProjectFileWrite`) het, daarna het timerwerk; een begonnen beurt loopt af. Elke
+doorgang van de controller (één lijst plus haar writes, ook een herhaalronde) loopt via `runAutoSaveRound`: staat er een
+handmatige actie in de rij of loopt ze, of is de laatste fase begonnen, dan maakt ze geen lijst, zoals vóór stap 8 met een
+bezette rij. Een gewone doorgang wacht op haar plek in de timerrij en maakt haar lijst pas als die aan de beurt is, dus
+verder typen kost haar die plek niet; zolang ze loopt begint geen modelronde, een handmatige actie mag tussen twee writes
+wel voor. Een gewone tik (`runAutoSaveTickWrite`) laat niets wijken; een modelronde krijgt zo haar beurt, ook als de
+planner in een gewoon document doorwerkt. Bewuste keuze (besluit technisch beslisser, 20 november 2026): valt de tik van
+een gewoon document samen met een modelronde, dan schrijft het hoogstens één modelronde later (bij een groot model tot
+ongeveer 20 s), ook bij twee modellen en doortypen. Met de flag uit (besluit T3, 20 november 2026) verschilt alleen de
+volgorde in één race in de browser: komt Ctrl+S tijdens de toestemmingsvraag van een tik en daarna een tweede
+handmatige actie, dan gaat die tweede nu vóór de tik; het eindbestand is byte voor byte hetzelfde
+(`check-ifc-document-save.ts`, "1939 T3"). De worker stopt dat ene
 verzoek (`stop` van `IfcOutputCompute`); een geweken ronde laat niets achter (record en komende versie weer weg), geen
 melding, opnieuw na de volgende rust. Na de grens loopt de ronde af. De ronde vraagt nooit iets: zonder
 schrijftoestemming slaat ze het document over, en waar Ctrl+S naar een te krap anker van een afhankelijk project zou
@@ -117,7 +125,7 @@ Veilig stoppen, met één melding per document per sessie en geen nieuwe poging 
 bron) of een ander doel kiest: eigen bestand gewijzigd of weg, buiten de thuismap (`save-as-only`), geen herstelrecord
 of manifest vast te leggen, een record van een eerdere onderbroken vervanging (`pendingReplaceFor`, het beleid van
 Automatisch opslaan zelf), en de bestaande doelweigeringen. Een workerfout is een mislukte ronde met
-`ifcSaveWorkerFailed`. Proeven: `check-actual-autosave.ts` 19–21, de blokken "stap 8" in `check-ifc-document-save.ts` en
+`ifcSaveWorkerFailed`. Proeven: `check-actual-autosave.ts` 19–22, de blokken "stap 8" en "1939" in `check-ifc-document-save.ts` en
 `check-ifc-own-file-replace.ts`, en `settings-tabs.spec.ts`.
 
 ### Afsluiten van de app (schone exit)

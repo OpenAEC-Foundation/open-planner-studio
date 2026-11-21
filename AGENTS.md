@@ -472,9 +472,13 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
   is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
   `YieldingTurn.pass()`, once recovery is recorded); an export pins its document at the call and waits for a round past
-  that boundary (`whenProjectFilePlacementSettled`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a
-  round yield: it waits its turn and writes right after the model round, so a model round always gets its turn. The
-  write coordinator is the one place that assigns these turns. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  that boundary (the claim's `placement`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a round
+  yield, so a model round always gets its turn. The write coordinator is the one place that decides turns and admission
+  (knownbug 1939): a waiting manual action gets the next turn before waiting timer work; every Auto-save pass (one list
+  plus its writes) runs through `runAutoSaveRound`, which builds no list while a manual action is queued or running; a
+  plain pass keeps its place behind a model round and builds its list only at its turn, so the plain file is at most one
+  model round late. With the flag off only the order in one browser race differs from before step 8, with the same
+  final file. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
   nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
   Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A

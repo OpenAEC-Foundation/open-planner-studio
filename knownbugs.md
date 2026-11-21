@@ -3088,7 +3088,10 @@ en noem het in je rapport of PR-tekst.
      staat zichtbaar: de aanduiding gaat er niet overheen (`SavingBeforeCloseNotice`). De native opslaan-dialoog staat
      als eigen venster bovenop; of `CloseRequested` op Windows, macOS en Linux überhaupt binnenkomt terwijl die open
      is, is niet nagegaan. De updater toont tijdens het wachten "Installatie voorbereiden…" met een draaiend teken en
-     geen eigen aanduiding.
+     geen eigen aanduiding. Sinds knownbug 1939 houdt een schrijftoestemming die blijft hangen (`canWrite`, in de
+     browser `queryPermission`) binnen een open gewone doorgang van Automatisch opslaan ook de rondes met een
+     gebouwmodel tegen; een handmatige actie en het afsluiten niet (wie voorgaat, laat de modelronde wijken, en een
+     geweken modelronde maakt haar beurt af zonder te schrijven; `check-actual-autosave.ts` 22f).
      Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
      tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
 1814. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
@@ -4146,35 +4149,6 @@ en noem het in je rapport of PR-tekst.
       `modelAutoSaveRhythm.ts`.) Sinds fixronde 3 wijkt een ronde alleen nog voor een handmatige actie (Ctrl+S, Opslaan
       als, een export, een tabblad of de app sluiten), niet meer voor een gewone tik; de verlenging geldt dan na zo'n
       actie. Hoort bij 1922. — B (proef van de reviewer)
-
-1937. **VERVOLG (review #1033, ronde 4): een gewone tik die nog wacht, gaat vóór Ctrl+S.** "De modelworker begon op 32
-      s, de gewone tik kwam op 40 s in de rij, en Ctrl+S op een ander tabblad liet de modelworker op 43 s meteen wijken.
-      De gewone tik begon toen pas te rekenen en hield Ctrl+S tot 45 s tegen. Op main en met de vlag uit was dezelfde
-      gewone tik al klaar toen ik Ctrl+S aanriep. Die schreef daar op 43 s. De twee seconden rekentijd zijn nagebootst.
-      Dit is een verschuiving van punt 3 uit ronde 3 en zit in de structuur. `runProjectFileWrite` breekt het modelwerk
-      af, waarna de volgorde van aankomst de nog wachtende gewone tik voorlaat. Ook main wacht als een gewone write al
-      loopt (knownbug 1904). Geef de handmatige actie als volgende de beurt vóór wachtend timerwerk. Laat een al
-      begonnen gewone write of plaatsing veilig aflopen." (`writeCoordinator.ts`.) Besluit technisch beslisser: VERVOLG,
-      er gaat niets verloren en het is een zeldzame volgorde; verdwijnt met 1939. — B (proef van de reviewer)
-
-1938. **VERVOLG (review #1033, ronde 4): doortypen kan de gewone tik achter een tweede modelronde zetten.** "Twee
-      gewijzigde modellen kwamen op 30 s aan de beurt. De eerste modelronde liep tot 49 s. Ik bewerkte intussen de
-      gewone planning vóór en na haar tik van 40 s. Toen die tik op 49 s aan de beurt kwam, wees de bronvergelijking de
-      kandidaat van 40 s terecht af. De herkeuze ging achter het tweede model, dat ook 19 s rekende. Het gewone bestand
-      schreef pas op 68 s, 28 s na de eerste verschuldigde tik. Dit is een verschuiving van punt 2 uit ronde 3 en zit in
-      de structuur. De rij bewaart een oude kandidaat. Zodra die afvalt, is ook zijn plaats weg. Bewaar één aangevraagde
-      gewone beurt en lees daarbinnen de actuele kandidaat en bestemming. Zo kan verder typen haar plaats niet kosten."
-      (`fileAutoSave.ts`, `actualAutoSave.ts`.) Besluit technisch beslisser: VERVOLG, er gaat niets verloren en het is
-      een zeldzame volgorde; verdwijnt met 1939. — B (proef van de reviewer)
-
-1939. **VERVOLG (review #1033, ronde 4): toelating en voorrang van timerwerk in de coördinator, één samengevouwen gewone
-      aanvraag.** Structuuradvies van de reviewer: "`writeCoordinator.ts` is de enige toewijzer van schrijfbeurten.
-      `fileAutoSave.ts` beslist echter met `isManualProjectFileWriteQueued()` op twee plekken welke tik niet eens om een
-      beurt vraagt. `fileAutoSaveTimers.ts` zet alleen de wekkers. `fileSlice.ts` meldt een export vóór het rekenen aan
-      en wacht zo nodig op de lopende plaatsing. Laat de coördinator ook de toelating en voorrang van timerwerk bepalen.
-      Dan kunnen de twee voorrangstoetsen in de kandidatenlijsten weg. Eén rij met beurttypen, één samengevouwen gewone
-      aanvraag en één lopende plaatsingsbelofte volstaan." Hiermee verdwijnen 1937 en 1938. Regel van de technisch
-      beslisser: **bouwen vóór de featureflag `ifcForeignContent` standaard aan gaat.** — S
 
 ## Wensen en open taken (geen bug)
 

@@ -2,17 +2,21 @@
 // omvat ook de handmatige opslaan-dialoog: tijdens die blokkerende keuze mag een timer niet nog
 // een tweede write voorbereiden. Het is app-runtime, geen document- of IFC-data.
 //
-// De ene plek die de schrijfbeurten toewijst (fixronde 3 van de review van #1033, besluit technisch beslisser 20 november
-// 2026). Eén beurt tegelijk; komt het slot vrij, dan krijgt eerst de oudste wachtende handmatige actie het, daarna het
-// timerwerk, elk op volgorde van aankomst (knownbug 1939). Een begonnen beurt loopt af. Drie soorten beurten:
+// De ene plek die over de schrijfbeurten beslist (fixronde 3 van de review van #1033 en knownbug 1939, besluiten technisch
+// beslisser 19 en 20 november 2026): welke beurt eerst komt, en of Automatisch opslaan om een beurt vraagt. Eén beurt
+// tegelijk; komt het slot vrij, dan krijgt eerst de oudste wachtende handmatige actie het, daarna het timerwerk, elk op
+// volgorde van aankomst. Een begonnen beurt loopt af. Drie soorten beurten:
 // - een handmatige actie (`runProjectFileWrite`: Ctrl+S, Opslaan als, een export, MCP) gaat voor: een ronde van
 //   Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt (ook wie op de rij wacht of een export die
 //   voorrang claimt, laat haar wijken);
-// - een gewone tik van Automatisch opslaan (`runAutoSaveTickWrite`) wacht op zijn beurt en laat niets wijken; staat er een
-//   modelronde vóór hem, dan schrijft hij daarna (een handmatige actie die intussen wacht, gaat voor);
+// - een gewone tik van Automatisch opslaan (`runAutoSaveTickWrite`) laat niets wijken; zijn doorgang
+//   (`runAutoSaveRound`) houdt haar plek achter een modelronde en maakt haar lijst pas als die aan de beurt is;
 // - een ronde met een gebouwmodel (`runYieldingProjectFileWrite`) krijgt haar beurt en wijkt alleen voor een handmatige
 //   actie; na haar grens (`YieldingTurn.pass`) loopt ze af.
-// Met de flag uit bestaan er geen modelrondes en is de rij dezelfde als vóór stap 8.
+// De toelating van timerwerk staat ook hier (`runAutoSaveRound`): staat er een handmatige actie in de rij of loopt ze, of
+// is de laatste fase begonnen, dan maakt Automatisch opslaan geen lijst. Met de flag uit bestaan er geen modelrondes; de
+// enige afwijking van vóór stap 8 is dat een handmatige actie ook dan vóór een wachtende tik gaat (alleen in de browser,
+// als Ctrl+S tijdens de toestemmingsvraag van een tik komt; het eindbestand is hetzelfde, besluit T3).
 /** Een wachtende beurt: `grant` geeft haar het slot (een gewone doorgang: haar plek). `yielded`: het signaal van een
  *  modelronde. */
 interface Waiting { grant: () => void; yielded?: AbortSignal }
@@ -58,7 +62,7 @@ function yieldBackgroundWrites(): void {
 }
 
 /** De voorrang van een handmatige actie die al rekent vóór ze om de rij vraagt (`claimProjectFileWrite`). */
-export interface ProjectFileWriteClaim {
+interface ProjectFileWriteClaim {
   /** Geeft de voorrang terug; één keer telt. */
   release: () => void;
   /**
@@ -97,7 +101,7 @@ export function isProjectFileWriteBusy(): boolean {
 
 /**
  * #804 stap 3: `null` als er geen schrijfactie loopt of wacht; anders een belofte die klaar is zodra de rij leeg is
- * (ook een schrijfactie die intussen achteraan aansloot). De ene plek waarop afsluiten, een document sluiten en de
+ * (ook een schrijfactie die intussen aansloot). De ene plek waarop afsluiten, een document sluiten en de
  * updater wachten. Nooit aanroepen en afwachten binnen `runProjectFileWrite`: dan wacht de rij op zichzelf.
  */
 export function whenProjectFileWritesIdle(): Promise<void> | null {
