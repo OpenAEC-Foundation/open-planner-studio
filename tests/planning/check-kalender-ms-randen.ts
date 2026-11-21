@@ -447,6 +447,42 @@ for (const minutes of [0, 0.000001, 0.000008]) {
     [time.lateStart, time.lateFinish, time.totalFloatMinutes], ['2026-05-29T16:00', '2026-05-29T16:00', 0]);
 }
 
+// Knownbug 399: synthetisch sub-ms split-gat in de afgeronde spanne; geen UI-invoerroute.
+{
+  const summary = [];
+  const engine = new CalendarEngine(DAY);
+  const work = 480.000005;
+  const tail = 0.000005;
+  const assignment = { id: 'a', taskId: 't', resourceId: 'r', unitsPerDay: 1 };
+  for (const gapMinutes of [0, 0.000001, 0.000003, 0.0000083334, 1]) {
+    const gaps = gapMinutes ? [{ afterMinutes: 480, gapMinutes }] : [];
+    const placed = workPlacement(engine, { start: MONDAY, duration: work, measure: 'minutes', gaps });
+    const contour = {
+      resourceUid: null, resourceId: 'r',
+      periods: [
+        { afterMinutes: 0, minutes: 480, workMinutes: 480, kind: 'remaining' as const },
+        { afterMinutes: 480 + gapMinutes, minutes: tail, workMinutes: tail, kind: 'remaining' as const },
+      ],
+    };
+    const loads = assignmentPlacementLoad(assignment, placed.days, 480, contour, () => []);
+    const uniform = assignmentPlacementLoad(assignment, placed.days, 480, undefined, () => []);
+    const monday = placed.days.findIndex(d => d.iso === '2026-06-01');
+    ok(`399 ${gapMinutes}: maandag gevonden`, monday >= 0);
+    eq(`399 ${gapMinutes}: zelfde afgeronde eindtijd als kalender`, iso(placed.finish),
+      iso(engine.addWorkMinutes(MONDAY, splitTotalSpanMinutes(gaps, work))));
+    summary.push({
+      gapMinutes, finish: iso(placed.finish), booked: bookedMinutes(placed.days),
+      contourLoad: loads[monday], uniformLoad: uniform[monday],
+      aboveTolerance: loads[monday] > 1 + 1e-9,
+      contourWork: assignmentPlacementWork(loads, placed.days, contour, 480) * 480,
+    });
+  }
+  console.log(`KNOWNBUG399_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 399::${JSON.stringify(summary)}`);
+  }
+}
+
 if (errors.length) {
   for (const e of errors) console.log(`XX kalender-ms-randen: ${e}`);
   console.log(`XX kalender-ms-randen: ${errors.length} van ${checks} controles rood`);
