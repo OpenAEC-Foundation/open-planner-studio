@@ -42,18 +42,16 @@ duurbewerking (de poort is de totale werkduur). Verandert het restwerk van een t
 zakt de contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaalresources sturen
 de duur nooit.
 
-Verandert een bewerking aan één toewijzing in de store (`assignResource`, `updateAssignment`,
+Verandert een losse bewerking aan één toewijzing in de store (`assignResource`, `updateAssignment`,
 `unassignResource`, `setAssignmentWork`) de uren van een ANDERE werkresource op die taak zichtbaar, dan
 meldt de app dat met de nieuwe duur, per resource "oud → nieuw" en de knop Ongedaan maken
-(`otherWorkNotice.ts`, #954, eigenaarsbesluit 2026-11-21). De melding hoort bij een geschiedenisstap: de
-actie stempelt haar stap in de producer met de bewerkte toewijzing (`SessionHistoryEvent.editedAssignments`,
-`stampAssignmentEdit`), en de melding vergelijkt vóór en ná van die stap, met het getal van *Werk (u)*
+(`otherWorkNotice.ts`, #954, eigenaarsbesluit 2026-11-21). De melding hoort bij de geschiedenisstap van de
+bewerking: `notifyOtherWorkChanged` vergelijkt vóór en ná van die stap, met het getal van *Werk (u)*
 (`engine/work/shownWork.ts`, gedeeld met het paneel, dus ook een contoursom) op twee decimalen. De knop
 (`undoHistoryEvent`) staat er alleen zolang die stap de stap van Ctrl+Z is (`canRunNotificationUndo`); een
-undo van de stap haalt de melding weg. Zonder eigen stap (batch, extensie) geen melding. In Taak bewerken
-(een bewerksessie) meldt de app pas bij Opslaan: `squashHistorySince` voegt de bewerkte toewijzingen samen en
-meldt over de samengevoegde stap, met de knop *Taakbewerking ongedaan maken*; Annuleren meldt niets. Een
-documentwissel haalt de melding weg. MCP, raster en `removeResource`/`moveAssignment` melden niets
+undo van de stap en een documentwissel halen de melding weg. Geen eigen stap (batch, extensie) of een stap
+in een bewerksessie ⇒ geen melding: Taak bewerken bundelt meerdere bewerkingen tot één stap en heeft
+Annuleren als weg terug (knownbug 2054). MCP, raster en `removeResource`/`moveAssignment` melden niets
 (knownbug 2050). Test: `check-work-others-notice.ts`.
 
 Een **kalenderwissel** (taak-/projectkalender of andere uren per dag in een kalender) verandert de

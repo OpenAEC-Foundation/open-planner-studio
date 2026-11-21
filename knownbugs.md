@@ -1073,6 +1073,15 @@ en noem het in je rapport of PR-tekst.
       Een batch op een andere taak blijft wel staan. Dat gedrag staat ook op main. Richting: alleen de conceptvelden
       schrijven die in de dialoog bewerkt zijn. Bevestigd door de review, niet zelf nagespeeld. — B
 
+2054. **VERVOLG (#954, review van #1120): Taak bewerken meldt niet dat de uren van anderen veranderen.** In het
+      taakpaneel meldt de app een losse bewerking aan een toewijzing met Ongedaan maken (`src/state/otherWorkNotice.ts`).
+      In *Taak bewerken* niet: die dialoog bundelt meerdere bewerkingen (inzet, werk, duur, naam, een werksoort) tot
+      één stap en heeft *Annuleren* als weg terug. Drie reviewrondes lieten zien waarom een melding met knop daar niet
+      past: de knop zette ook andere wijzigingen terug of verdween, stond achter de dialoog, noemde een oude uitkomst,
+      verborg meeveranderde uren als er twee toewijzingen bewerkt waren, en werd uitgeschakeld door een
+      werksoorthernoeming in hetzelfde venster. Richting, als het gewenst is: een regel in de dialoog zelf die toont
+      wat er bij de anderen verandert (ontwerpvraag voor de eigenaar). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden

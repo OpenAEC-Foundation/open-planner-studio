@@ -128,12 +128,6 @@ export interface SessionHistoryEvent {
    * `revertHistorySince`/`squashHistorySince` het nooit meenemen.
    */
   sessionKey?: string;
-  /**
-   * De toewijzingen die deze stap bewerkte (inzet, werk, erbij of eraf), op één taak. De melding over de
-   * uren van de ANDEREN (`otherWorkNotice.ts`, #954) vergelijkt vóór en ná van de stap en slaat deze over;
-   * `squashHistorySince` voegt ze samen.
-   */
-  editedAssignments?: { taskId: string; ids: readonly string[] };
 }
 
 export type HistoryTargetSide = 'before' | 'after';

@@ -17,7 +17,6 @@ import type { AppSlice, AppSliceFactory } from './types';
 import { overlaysToUi } from '../layoutView';
 import { persistOverlays } from '../overlaySettings';
 import { clearRefusals, refusalNotice } from '@/state/refusalNotice';
-import { notifyOtherWorkOfEvent } from '../otherWorkNotice';
 
 export interface HistorySessionMark {
   sequence: number;
@@ -233,16 +232,10 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
     for (const session of runs) {
       const first = session[0].deltas[0] as DocumentDataHistoryDelta;
       const last = session[session.length - 1].deltas[0] as DocumentDataHistoryDelta;
-      // De bewerkte toewijzingen van de hele sessie (#954): de melding over de uren van de anderen komt
-      // pas nu, over de samengevoegde stap. Taak bewerken bewerkt één taak.
-      const edits = session.flatMap(event => event.editedAssignments ? [event.editedAssignments] : []);
       replaced.set(session[0].id, withoutSessionKey({
         ...session[0],
         label: session.length > 1 ? label : session[0].label,
         deltas: [{ kind: 'document-data', documentId, before: first.before, after: last.after }],
-        ...(edits.length > 0
-          ? { editedAssignments: { taskId: edits[0].taskId, ids: [...new Set(edits.flatMap(edit => edit.ids))] } }
-          : {}),
       }));
       for (const event of session.slice(1)) dropped.add(event.id);
     }
@@ -253,7 +246,5 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
           ?? (event.sessionKey === mark.sessionKey ? withoutSessionKey(event) : event)),
     });
     runtime.resetUndoCoalescing();
-    // De knop zet de hele taakbewerking terug (alle stappen van de dialoog), en zegt dat.
-    for (const event of replaced.values()) notifyOtherWorkOfEvent(get(), event, 'notifications.actions.undoTaskEdit');
   },
 });

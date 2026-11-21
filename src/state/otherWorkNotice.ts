@@ -4,15 +4,14 @@
 // Ongedaan maken die precies die ene stap uit de geschiedenis terugzet (ook de duur). Verandert er
 // bij de anderen niets, dan meldt niemand iets.
 //
-// De melding hoort bij een geschiedenisstap: de store-actie stempelt haar stap met de bewerkte
-// toewijzing (`stampAssignmentEdit`), en de melding vergelijkt vóór en ná van die stap
-// (`notifyOtherWorkChanged`). In Taak bewerken (een bewerksessie) meldt de app pas bij Opslaan, over
-// de samengevoegde stap, dus over de uitkomst die er werkelijk staat (`squashHistorySince`). Het
-// werk is het getal van *Werk (u)* (`shownWork.ts`), dus ook de som van een eigen urenverdeling.
+// De melding hoort bij de geschiedenisstap van één losse bewerking: ze vergelijkt vóór en ná van die
+// stap (`notifyOtherWorkChanged`), met het getal van *Werk (u)* (`shownWork.ts`), dus ook de som van een
+// eigen urenverdeling. In Taak bewerken (een bewerksessie) meldt de app niets: die dialoog bundelt
+// meerdere bewerkingen tot één stap en heeft Annuleren als weg terug (review #1120, knownbug 2054).
 import type { AppState } from './appStore';
-import { selectUndoHistoryEvent, type SessionHistoryEvent } from './sessionHistory';
+import { selectUndoHistoryEvent } from './sessionHistory';
 import type { Snapshot } from './snapshot';
-import type { NotificationAction, NotificationActionLabelKey, NotifyInput } from './slices/types';
+import type { NotificationAction, NotifyInput } from './slices/types';
 import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 import { isHourTask, workRuleApplies } from '@/engine/work/workRuleApply';
 import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
@@ -43,13 +42,12 @@ function shownWorkOfTask(state: WorkState, task: Task): Map<string, number> {
   return out;
 }
 
-/** In de producer van een store-actie, direct na `finishMutation`: stempel de stap die deze actie
- *  vastlegde (`sequence`, het volgnummer van vóór de actie) met de bewerkte toewijzing. Legt een
- *  omvattende transactie (batch, extensie) de stap pas later vast, dan is er niets te stempelen en
- *  komt er geen melding. */
-export function stampAssignmentEdit(s: AppState, sequence: number, taskId: string, assignmentId: string): void {
-  const event = s.historyEvents.find((e) => e.sequence === sequence && e.state === 'applied');
-  if (event) event.editedAssignments = { taskId, ids: [assignmentId] };
+/** Eén bewerking aan toewijzing `assignmentId` op taak `taskId`; `sequence` is `nextHistorySequence`
+ *  vlak vóór de bewerking, dus het volgnummer van haar eigen stap. */
+export interface AssignmentEdit {
+  sequence: number;
+  taskId: string;
+  assignmentId: string;
 }
 
 /** Het event dat Ctrl+Z nu zou terugzetten, of `null`. */
@@ -67,14 +65,16 @@ export function canRunNotificationUndo(
 }
 
 /**
- * Meld de uren van de andere werkresources die vóór én na de stap op de taak staan, als die zichtbaar
- * veranderden. Alleen voor de stap die nu de stap van Ctrl+Z is; een nieuwe melding vervangt de vorige.
- * `labelKey`: na Opslaan van Taak bewerken zet de knop de hele taakbewerking terug, en zegt hij dat.
+ * Na de `set` van een van de vier toewijzingsacties: meld de uren van de andere werkresources die vóór én
+ * na de stap op de taak staan, als die zichtbaar veranderden. Alleen voor de eigen stap van de bewerking
+ * zolang die de stap van Ctrl+Z is; geen eigen stap (batch, extensie, geweigerd) of een stap in een
+ * bewerksessie (Taak bewerken) ⇒ geen melding. Een nieuwe melding vervangt de vorige.
  */
-export function notifyOtherWorkOfEvent(state: AppState, event: SessionHistoryEvent, labelKey: NotificationActionLabelKey): void {
-  const edit = event.editedAssignments;
-  const delta = event.deltas.find((d) => d.kind === 'document-data');
-  if (!edit || !delta || delta.kind !== 'document-data' || event.id !== latestUndoEventId(state)) return;
+export function notifyOtherWorkChanged(state: AppState, edit: AssignmentEdit | null): void {
+  if (!edit) return;
+  const event = state.historyEvents.find((e) => e.sequence === edit.sequence && e.state === 'applied');
+  const delta = event?.deltas.find((d) => d.kind === 'document-data');
+  if (!event || event.sessionKey || !delta || delta.kind !== 'document-data' || event.id !== latestUndoEventId(state)) return;
   const { before, after } = delta;
   const was = before.tasks.find((t) => t.id === edit.taskId);
   const now = after.tasks.find((t) => t.id === edit.taskId);
@@ -82,7 +82,7 @@ export function notifyOtherWorkOfEvent(state: AppState, event: SessionHistoryEve
   const old = shownWorkOfTask(before, was);
   const lines = [...shownWorkOfTask(after, now)].flatMap(([id, minutes]) => {
     const oldMinutes = old.get(id);
-    if (edit.ids.includes(id) || oldMinutes === undefined) return [];
+    if (id === edit.assignmentId || oldMinutes === undefined) return [];
     const from = shownWorkHours(oldMinutes);
     const to = shownWorkHours(minutes);
     if (from === to) return [];
@@ -103,17 +103,10 @@ export function notifyOtherWorkOfEvent(state: AppState, event: SessionHistoryEve
     severity: 'info',
     ...head,
     detailLines: lines,
-    action: { kind: 'undoHistoryEvent', eventId: event.id, labelKey },
+    action: { kind: 'undoHistoryEvent', eventId: event.id, labelKey: 'notifications.actions.undo' },
     helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
     dedupeKey: OTHER_WORK_NOTICE_KEY,
     replaceOnDedupe: true,
     durationMs: OTHER_WORK_NOTICE_MS,
   });
-}
-
-/** Na de `set` van een van de vier toewijzingsacties: meld over haar gestempelde stap. In Taak bewerken
- *  (de stap draagt een `sessionKey`) wacht de melding op Opslaan. */
-export function notifyOtherWorkChanged(state: AppState, sequence: number): void {
-  const event = state.historyEvents.find((e) => e.sequence === sequence && e.state === 'applied');
-  if (event && !event.sessionKey) notifyOtherWorkOfEvent(state, event, 'notifications.actions.undo');
 }

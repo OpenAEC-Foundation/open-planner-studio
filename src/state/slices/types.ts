@@ -543,8 +543,7 @@ export type NotificationActionLabelKey =
   | 'view.filter.clear'
   | 'scheduleShift.why'
   | 'scheduleShift.undo'
-  | 'notifications.actions.undo'
-  | 'notifications.actions.undoTaskEdit';
+  | 'notifications.actions.undo';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
