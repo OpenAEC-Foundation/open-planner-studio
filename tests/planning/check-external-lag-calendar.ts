@@ -80,6 +80,7 @@ const LAGS = [{ lagDays: 2 }, { lagDays: 1.5 }, { lagDays: -0.5 }, { lagMinutes:
 const LAG_CALENDARS: LagCal[] = ['24hour', 'projectDefault', 'predecessor', 'successor'];
 /** Lagkalenders die niet de kalender van de eigen taak zijn. */
 const FOREIGN: LagCal[] = ['24hour', 'projectDefault'];
+const sfFinish = { ops: [0, 0, 0], p6: [0, 0, 0], msproject: [0, 0, 0] }; // extern vroeger/gelijk/later
 
 for (const base of ['ops', 'p6', 'msproject'] as const) {
   for (const lagCalendar of LAG_CALENDARS) {
@@ -106,6 +107,16 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
             sourceRef: { projectId: 'ander', taskId: 'P' },
           };
           const external = solve([head(), task('L', '2026-06-01', 3, 'short', { externalLinks: [link] }), tail()], [], base, lagCalendar);
+          if (rel === 'SF') {
+            const inside = internal.tasks.get('L')?.earlyFinish;
+            const outside = external.tasks.get('L')?.earlyFinish;
+            eq(`846 ${tag}: beide eindtijden zijn berekend`, !!inside && !!outside, true);
+            if (inside && outside) sfFinish[base][outside < inside ? 0 : outside === inside ? 1 : 2]++;
+            if (base === 'p6' && lagCalendar === '24hour' && 'lagDays' in lag && lag.lagDays === 2) {
+              eq('846 P6/24-uurs/SF +2d: zelfde anker, ander einde',
+                [anchorDate, inside, outside], ['2026-06-08T08:00', '2026-06-10T08:00', '2026-06-09T14:00']);
+            }
+          }
           if (FOREIGN.includes(lagCalendar) && rel !== 'SF') {
             eq(`voorganger ${tag}: vroege datums zoals een interne relatie`,
               dates(external, 'L')?.slice(0, 2), dates(internal, 'L')?.slice(0, 2));
@@ -360,8 +371,36 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Knownbug 846: werkt het verschil ook door in een gewone interne FS-opvolger?
+const sfSuccessors = (['ops', 'p6', 'msproject'] as const).map(base => {
+  const seq: Sequence = { id: 'l-n', predecessorId: 'L', successorId: 'N', type: 'FINISH_START', lagDays: 0 };
+  const suffix = () => [task('N', '2026-06-01', 1, 'project'), tail()];
+  const internal = solve(
+    [head(), task('P', '2026-06-08', 5, 'project'), task('L', '2026-06-01', 3, 'short'), ...suffix()],
+    [{ id: 's', predecessorId: 'P', successorId: 'L', type: 'START_FINISH', lagDays: 2 }, seq],
+    base, '24hour',
+  );
+  const link: ExternalLink = {
+    id: 'x', direction: 'predecessor', relType: 'SF', lagDays: 2, sourceMissing: false,
+    anchorDate: internal.tasks.get('P')!.earlyStart, sourceRef: { projectId: 'ander', taskId: 'P' },
+  };
+  const external = solve(
+    [head(), task('L', '2026-06-01', 3, 'short', { externalLinks: [link] }), ...suffix()],
+    [seq], base, '24hour',
+  );
+  const before = [internal.tasks.get('L')?.earlyFinish, internal.tasks.get('N')?.earlyStart];
+  const after = [external.tasks.get('L')?.earlyFinish, external.tasks.get('N')?.earlyStart];
+  eq(`846 ${base}: eind- en vervolgstart berekend`, [...before, ...after].every(Boolean), true);
+  eq(`846 ${base}: controletaak ver achteraan blijft staan`, dates(external, 'D'), dates(internal, 'D'));
+  return [base, before, after];
+});
+for (const [base, counts] of Object.entries(sfFinish)) {
+  eq(`846 ${base}: vier kalenderkeuzes × vier lags`, counts.reduce((a, b) => a + b, 0), 16);
+}
+
 if (failures.length) {
   console.error(`XX external-lag-calendar: ${failures.length}/${checks}\n${failures.slice(0, 40).join('\n')}`);
   process.exit(1);
 }
 console.log(`OK external-lag-calendar: ${checks} checks`);
+console.log(`::notice title=Knownbug 846::Einde extern vroeger/gelijk/later: ${JSON.stringify(sfFinish)}; [profiel, intern, extern] eind L en start FS-opvolger: ${JSON.stringify(sfSuccessors)}`);
