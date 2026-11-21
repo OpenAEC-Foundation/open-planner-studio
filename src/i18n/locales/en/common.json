@@ -192,7 +192,8 @@
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
       "openProjectInfo": "Open calculation profile",
-      "openHelp": "Open Help"
+      "openHelp": "Open Help",
+      "undo": "Undo"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
@@ -383,7 +384,15 @@
     "ifcForeignReplaceLeftOver": "This file was left from an interrupted save of {{file}}: {{path}}. Check whether you still need it.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
     "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
-    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”."
+    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "The task now takes {{days}} day.",
+      "durationDays_other": "The task now takes {{days}} days.",
+      "durationHours_one": "The task now takes {{hours}} hour.",
+      "durationHours_other": "The task now takes {{hours}} hours.",
+      "durationSame": "The duration stays the same. The hours of the others have changed.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
