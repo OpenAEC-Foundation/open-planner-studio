@@ -69,7 +69,8 @@ ze gevraagd werd (`DocumentContentRef`: document-id plus `DocumentEntry.content`
 bewerking met een ander project-id, dus ook `api.data.loadProject`, openen in het lege tabblad en een voorbeeld),
 `newProject` en `createNewProject`. Een lees-wijzig-laad van hetzelfde project houdt haar (en dus ook "Opslaan…"); dan
 beslist de bestaande inhoudsvergelijking (`sameIFCSource`) of het document schoon is. `refuseChangedDocumentWrite` toetst
-haar vlak vóór elke schrijfactie, ook voor de gewone writer en in `stopBeforeWrite`; `commitSavedDocument(ref, …)` legt
+haar vlak vóór elke schrijfactie, ook voor de gewone writer en in `stopBeforeWrite`, en nog eens op het laatste veilige
+punt van de schrijflaag (`refuseBeforePlace`, knownbug 1896, zie `tauri-ifc.md`); `commitSavedDocument(ref, …)` legt
 niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de nieuwe inhoud krijgt geen doel, bron,
 "opgeslagen" of tijd). De wachtende Ctrl+S (`waitingSaves`), de opslagstand en `markAutoSaveVersionSaved` (de kandidaat
 van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
@@ -86,7 +87,7 @@ naam van een ongebruikte werksoort (`renameUnusedProjectTaskType`, #804 keuze 7)
 PR 11a sluit documentroutes aan en PR 11b IFC-export en app-MCP, via `ifcFullWriteBlocked`.
 `state/prepareIfcOutput.ts` bewaakt de modus en deelt één voorbereiding zonder I/O of documentcommit.
 De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalenderkeuzes; exports doen dit niet.
-`ifcSaveBlocked` houdt paneel, dev-bridge en AutoSave dicht.
+`ifcSaveBlocked` houdt paneel en dev-bridge dicht, en AutoSave met de flag uit of zonder bron; met de flag aan schrijft AutoSave via de vervanging van Ctrl+S (#804 stap 8, `settings-autosave.md`).
 **De vraag "alleen de planning"** (#804 PR 9e en 13) is één vraag met een reden (`PlanOnlyReason` in
 `services/ifc/planOnlyQuestion.ts`): Opslaan als bij een ontbrekend gebouwmodel (`missingSourceSaveAs`), Exporteren → IFC
 met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliotheek (`exportWithPool`). Alleen
@@ -94,7 +95,7 @@ met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliot
 `planOnlyQuestionApplies(state, reason)` klopt (flag aan; bij ontbrekend model alleen Opslaan als, de twee exports alleen
 met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel
 geweigerd. De exports vragen vóór de bestandskiezer en schrijven niet als het document tijdens de vraag veranderde
-(`refuseChangedExport` onder het schrijfslot); ze raken het document niet. Een export naar een ander formaat dan IFC vraagt niets vooraf; met een gebouwmodel (`hasBuildingModel` in `ifcSource.ts`, flag aan) krijgt de melding na afloop de regel `exportPlanOnly` via `withPlanOnlyExportSentence` (`fileSlice.ts`, de enige plek; knownbug 1740): onder de laatste melding van de export (die blijft bij de grens `MAX_NOTIFICATIONS` staan), zonder andere melding een eigen melding.
+(`refuseExportBeforePicker` onder het schrijfslot); ze raken het document niet. Een export naar een ander formaat dan IFC vraagt niets vooraf; met een gebouwmodel (`hasBuildingModel` in `ifcSource.ts`, flag aan) krijgt de melding na afloop de regel `exportPlanOnly` via `withPlanOnlyExportSentence` (`fileSlice.ts`, de enige plek; knownbug 1740): onder de laatste melding van de export (die blijft bij de grens `MAX_NOTIFICATIONS` staan), zonder andere melding een eigen melding.
 De uitzondering "eigen doel" in `refusedWriteTarget` (`ownVersion`) bindt document-id, bronidentiteit en kenmerk op één plek; exports en Opslaan als geven haar niet mee. Site: met de basisversie. Handle (1131 stap 2, alleen Ctrl+S via `documentTargetCheck(…, true)`): dezelfde handle als document en kenmerk (`isSameEntry`); een ander open document met dat bestand als bron blijft geweigerd. Pad (1131 stap 5b, alleen Ctrl+S en *Opslaan* in de sluitvraag): precies het pad van document en kenmerk, zonder handle; hetzelfde voor een ander open document. Bij een pad hangt de sluitbeslissing aan de boolean van `commitSavedDocument`, niet aan "geen fout"; na de eerste herstelronde loopt dezelfde `documentTargetCheck` nog een keer (fixronde 1 van #1008). *Opslaan* in de sluitvraag sluit, voor elk document, alleen als de opslag `true` gaf én hetzelfde document vlak vóór het sluiten schoon is. Dat beslist `closeDocument(id, { onlyIfClean: true })` op één plek, in de volgorde open veldinvoer afronden → schooncontrole → verwijderen (fixronde 2; `closeDocumentAfterSaves` wacht alleen en geeft de uitkomst door); `ui.closeQuestionSaving` houdt intussen de knoppen en Escape (`edit.deselect`) tegen. De routes staan in `tauri-ifc.md`. De voorbereiding
 loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd, op het document van
 de momentopname en niet op het actieve document (#804 stap 3): een tabbladwissel tijdens de opslag weigert niet, en de

@@ -47,6 +47,8 @@
     "recentColumns": "Naposledy použité",
     "noColumns": "Pridajte stĺpec pomocou tlačidla +.",
     "toggleSummary": "Rozbaliť alebo zbaliť súhrnnú úlohu",
+    "toggleMilestones": "Rozbaliť alebo zbaliť medzníky",
+    "milestonesRun": "Medzníky ({{n}})",
     "calculatedReadOnly": "Tento vypočítaný stĺpec sa nedá upraviť."
   },
   "taskGrid": {
@@ -334,7 +336,11 @@
     "rename": "Upraviť",
     "remove": "Odstrániť",
     "addToMine": "Pridať do mojich druhov prác",
-    "confirmRemove": "Tento druh prác sa používa v otvorenom projekte. Odstrániť ho z „Moje druhy prác“? Kópia v projekte zostane zachovaná."
+    "confirmRemove": "Tento druh prác sa používa v otvorenom projekte. Odstrániť ho z „Moje druhy prác“? Kópia v projekte zostane zachovaná.",
+    "renameInProjectTitle": "Premenovať aj v tomto projekte?",
+    "renameInProjectMessage": "Druh prác „{{oldName}}“ sa používa aj v tomto projekte. Chcete ho tu nazvať aj „{{newName}}“?",
+    "renameInProjectYes": "Aj v tomto projekte",
+    "renameInProjectNo": "Iba v mojom zozname"
   },
   "duration": {
     "label": "Trvanie",

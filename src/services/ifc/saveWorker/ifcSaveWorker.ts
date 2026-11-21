@@ -1,8 +1,9 @@
 /**
  * De bediening van de opslagworker (#804 stap 4), op het patroon van `recoverySnapshotSerializer.ts`: één herbruikbare
  * worker, hoogstens één verzoek tegelijk (een volgend verzoek wacht zijn beurt af), een verzoeknummer, een time-out die
- * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. Stap 5: de gemounte app bezit één
- * client (`appStore.ts`) en geeft via `mergesInWorker` alleen de merge aan de worker; stap 6 ook de gewone writer.
+ * met de grootte van de bron meegroeit, en `dispose` breekt een lopend verzoek af. De gemounte app bezit één client
+ * (`appStore.ts`, stap 5) en geeft zijn berekenfunctie onvoorwaardelijk aan de opslagroutes: de merge én de gewone
+ * writer rekenen hier (stap 6, besluit technisch beslisser 16 november 2026, zonder flag).
  *
  * De terugvalregel (besluit technisch beslisser, 16 november 2026): alleen als de worker niet start, rekent de
  * hoofdthread zelf, met `computeIfcOutputHere` (zoals `prepareIfcOutput` zonder worker). "Gestart" betekent: de worker
@@ -74,10 +75,18 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
   };
   const disposedError = () => new IfcSaveWorkerError('disposed', 'De opslagworker is gestopt.');
 
-  const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob): Promise<IfcSaveResult> => {
+  const ask = (port: IfcSaveWorkerPort, job: IfcSaveJob, stop?: AbortSignal): Promise<IfcSaveResult> => {
     const id = ++nextId;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let onStop: (() => void) | undefined;
     return new Promise<IfcSaveResult>((resolve, reject) => {
+      // #804 stap 8: Automatisch opslaan wijkt. Deze worker stopt (het rekenen valt niet anders af te breken); het volgende
+      // verzoek start een nieuwe. Geen fout van de worker, dus de client blijft bruikbaar.
+      onStop = () => {
+        if (worker === port) stopWorker();
+        reject(stop!.reason);
+      };
+      stop?.addEventListener('abort', onStop, { once: true });
       const arm = () => {
         clearTimeout(timer);
         timer = started
@@ -111,6 +120,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       }
     }).finally(() => {
       clearTimeout(timer);
+      if (onStop) stop?.removeEventListener('abort', onStop);
       abortActive = null;
       port.onmessage = null;
       port.onerror = null;
@@ -118,9 +128,11 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     });
   };
 
-  const compute: IfcOutputCompute = (job) => {
+  const compute: IfcOutputCompute = (job, stop) => {
     const run = tail.then(async () => {
       if (disposed) throw disposedError();
+      // Week de ronde al terwijl ze op haar beurt in de worker wachtte, dan rekent ze niet.
+      if (stop?.aborted) throw stop.reason;
       if (!worker && !unavailable) {
         try { worker = createWorker(); } catch { worker = null; }
         started = false;
@@ -129,8 +141,9 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       if (!worker) return computeIfcOutputHere(job);
       const port = worker;
       try {
-        return outputFromResult(job, await ask(port, job));
+        return outputFromResult(job, await ask(port, job, stop));
       } catch (error) {
+        if (stop?.aborted) throw error;
         if (error instanceof IfcSaveWorkerNotStarted) {
           if (worker === port) stopWorker();
           if (disposed) throw disposedError();
@@ -155,13 +168,4 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       abort?.(disposedError());
     },
   };
-}
-
-/**
- * #804 stap 5: wat de gemounte app aan de opslagroutes geeft (`appStore.ts`). Alleen een merge (een document met een
- * vreemd deel, dus met de flag `ifcForeignContent`) rekent in de worker; de gewone writer blijft op deze thread tot
- * stap 6. De keuze valt op het al besliste `job.kind`, dus na de bewaking van `prepareIfcOutput`.
- */
-export function mergesInWorker(compute: IfcOutputCompute): IfcOutputCompute {
-  return job => job.kind === 'merge' ? compute(job) : computeIfcOutputHere(job);
 }

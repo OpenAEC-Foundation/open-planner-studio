@@ -47,6 +47,8 @@
     "recentColumns": "最近使用した列",
     "noColumns": "+ で列を追加してください。",
     "toggleSummary": "サマリータスクを展開または折りたたむ",
+    "toggleMilestones": "マイルストーンの展開・折りたたみ",
+    "milestonesRun": "マイルストーン（{{n}}）",
     "calculatedReadOnly": "この計算列は編集できません。"
   },
   "taskGrid": {
@@ -322,7 +324,11 @@
     "rename": "編集",
     "remove": "削除",
     "addToMine": "自分の作業区分に追加",
-    "confirmRemove": "この作業区分は開いているプロジェクトで使われています。「自分の作業区分」から削除しますか？プロジェクト内のコピーは残ります。"
+    "confirmRemove": "この作業区分は開いているプロジェクトで使われています。「自分の作業区分」から削除しますか？プロジェクト内のコピーは残ります。",
+    "renameInProjectTitle": "このプロジェクトでも名前を変更しますか？",
+    "renameInProjectMessage": "作業区分「{{oldName}}」はこのプロジェクトでも使われています。ここでも「{{newName}}」という名前にしますか？",
+    "renameInProjectYes": "このプロジェクトでも",
+    "renameInProjectNo": "自分のリストだけ"
   },
   "duration": {
     "label": "期間",

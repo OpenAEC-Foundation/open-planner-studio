@@ -6,8 +6,11 @@
  *
  * 1. De hele uitvoer in één `createNew`-aanroep naar `save-<id>.ops-save.tmp` in dezelfde map (geen directe aanmaak
  *    als terugval: dit is geen nieuwe naam).
- * 2. Het doel opnieuw vergelijken met de bron in het geheugen (`sourceTargetContent`, in stukken van 1 MiB).
- * 3. Het doel met `place_file_exclusive` naar `<naam>.ops-vorige-<id>`.
+ * 2. Het doel opnieuw vergelijken met de bron in het geheugen (`sourceTargetContent`, in stukken van 1 MiB). Daarna
+ *    de laatste controle van de aanroeper (`refuseBeforePlace`, knownbug 1896): hoort de opslag nog bij de inhoud van
+ *    het document? Zo niet, dan stopt de vervanging hier, met het doel ongemoeid.
+ * 3. Het doel met `place_file_exclusive` naar `save-<id>.ops-vorige-<id>` in dezelfde map (kort en los van de doelnaam,
+ *    zoals het tijdelijke bestand).
  * 4. Het tijdelijke bestand met `place_file_exclusive` naar het doel.
  * 5. `.ops-vorige` opnieuw vergelijken met de bron. Gelijk: verwijderen. Anders schreef een ander programma via een al
  *    open handle in het oude bestand: exclusief naar `<naam> (versie van ander programma <datum tijd>).ifc`.
@@ -16,10 +19,12 @@
  * als een stap faalt, schrijft de app niet en biedt hij Opslaan als aan). Garantie: elke versie die op het doelpad
  * stond, staat daarna nog als bestand (op het doel, als `.ops-vorige` of onder de naam "versie van ander programma"),
  * of de vervanging stopt. Grens: een programma dat via een al open handle schrijft tussen de controle van stap 5 en het
- * verwijderen (één systeemaanroep), en de grens van het commando zelf (knownbugs 1795 en 1799).
+ * verwijderen (daartussen sluit de app alleen nog de leeshandle), en de grens van het commando zelf (knownbugs
+ * 1795 en 1799).
  */
-import { createOwnTemp, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
+import { createOwnTemp, isForbiddenPathError, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
 import { missingTarget } from './fileIdentity';
+import type { RefuseBeforePlace } from './index';
 import { sourceTargetContentOfPathTauri } from './tauriBackend';
 import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
 import type { SourceTargetContent } from './sourceTargetContent';
@@ -36,9 +41,18 @@ export interface OwnFileReplaceFs {
   content(path: string, expected: Uint8Array): Promise<SourceTargetContent>;
 }
 
-/** De vorige versie van het doel tijdens een vervanging: `<naam>.ops-vorige-<id>`, naast het doel. */
+/** De vorige versie van het doel tijdens een vervanging: `save-<id>.ops-vorige-<id>`, naast het doel en naast het
+ *  tijdelijke bestand `save-<id>.ops-save.tmp`. Kort en los van de doelnaam (fixronde 3 van #1071): achter een geldige
+ *  naam van 240 bytes paste `<naam>.ops-vorige-<id>` niet meer. Binnen de regel van `place_file.rs` (`is_helper_name`:
+ *  een niet-lege naam, dan `.ops-vorige-<id>`). */
 export function previousVersionPath(path: string, id: string): string {
-  return `${path}.ops-vorige-${id}`;
+  return `${userFileDir(path)}save-${id}.ops-vorige-${id}`;
+}
+
+/** De vorige versie van `record` op schijf: in een record van vóór fixronde 3 van #1071 (`legacyPreviousName`, record
+ *  versie 1) heette ze nog `<naam>.ops-vorige-<id>`. Alleen het herstel leest die vorm; geen vervanging maakt haar nog. */
+export function recordPreviousPath(record: Pick<ReplaceRecord, 'path' | 'id' | 'legacyPreviousName'>): string {
+  return record.legacyPreviousName ? `${record.path}.ops-vorige-${record.id}` : previousVersionPath(record.path, record.id);
 }
 
 /** De twee kopieën van §4.10, "Namen van de kopieën": de versie van een ander programma en de eigen planning die na
@@ -47,11 +61,19 @@ export type ReplaceCopyKind = 'other-program' | 'unsaved-schedule';
 /** Het deel tussen haakjes, in de taal van de app (`i18n/replaceCopyName.ts`). */
 export type ReplaceCopyLabel = (kind: ReplaceCopyKind) => string;
 
-/** `<map>/<naam> (<label>).<ext>`, in dezelfde map als het doel. */
+/** De langste bestandsnaam die elk ondersteund bestandssysteem aanneemt: 255 bytes in UTF-8 (ext4, APFS), en daarmee
+ *  ook binnen 255 UTF-16-tekens (NTFS). */
+const MAX_NAME_BYTES = 255;
+
+/** `<map>/<naam> (<label>).<ext>`, in dezelfde map als het doel. Past dat niet in `MAX_NAME_BYTES`, dan wordt `<naam>`
+ *  ingekort (op een hele code point), zodat ook naast een doel met een lange naam een kopie kan ontstaan. */
 export function replaceCopyPath(path: string, label: string): string {
   const dir = userFileDir(path), base = path.slice(dir.length), dot = base.lastIndexOf('.');
   const stem = dot > 0 ? base.slice(0, dot) : base, ext = dot > 0 ? base.slice(dot) : '';
-  return `${dir}${stem} (${label})${ext}`;
+  const bytes = (text: string) => new TextEncoder().encode(text).length;
+  const points = Array.from(stem);
+  while (points.length > 0 && bytes(`${points.join('')} (${label})${ext}`) > MAX_NAME_BYTES) points.pop();
+  return `${dir}${points.join('')} (${label})${ext}`;
 }
 
 const placedOk = (outcome: PlaceFileOutcome) => outcome.code === 'placed' || outcome.code === 'dir-not-synced';
@@ -67,8 +89,13 @@ export type OwnFileReplaceOutcome =
   /** Stap 2: op het doel staat niet meer de bron. Niets veranderd, het eigen tijdelijke bestand is weg. */
   | { code: 'target-changed'; content: Exclude<SourceTargetContent, 'same'> }
   /** Vervangen kan hier niet veilig (gelinkt doel, buiten de scope, het bestandssysteem kent de exclusieve stap niet,
-   *  of het commando weigert): het doel staat er zoals het stond. Alleen Opslaan als. */
-  | { code: 'save-as-only'; why: string }
+   *  of het commando weigert): het doel staat er zoals het stond. Alleen Opslaan als. `nothingWritten` (knownbug 1902):
+   *  stap 1 mocht het tijdelijke bestand niet aanmaken (`forbidden path`, buiten de scope); er staat geen hulpbestand
+   *  van deze operatie, dus het herstelrecord mag meteen weg. */
+  | { code: 'save-as-only'; why: string; nothingWritten?: true }
+  /** De laatste controle van de aanroeper (`refuseBeforePlace`) weigerde na stap 2: niets verplaatst, het eigen
+   *  tijdelijke bestand is weg (of blijft achter als verwijderen mislukte). De controle meldde zelf waarom. */
+  | { code: 'stopped' }
   /** Niet vervangen; het doel staat er zoals het stond (stap 1, stap 3, of stap 4 na het terugzetten). */
   | { code: 'failed'; detail: string }
   /** `source-changed` in stap 3 of 4: de stand op schijf is onbekend. Niets teruggezet, niets opgeruimd. */
@@ -86,11 +113,13 @@ export interface OwnFileReplaceInput {
   /** De voorbereide uitvoer (`PreparedIfcWrite.bytes`); de aanroeper wijzigt die niet tot de vervanging klaar is. */
   bytes: Uint8Array;
   /** Wat er op het doel hoort te staan: de bron in het geheugen (`ifcSource.bytes`), of bij Opslaan als over een
-   *  bestaande naam de inhoud van dat bestand bij het begin van de opslag. */
+   *  bestaande naam wat de bestandskiezer op dat doel vond (`pickSaveTarget`). */
   source: Uint8Array;
   /** De modus van het oude bestand voor het nieuwe (Unix); de umask kan haar beperken. */
   mode?: number;
   label: ReplaceCopyLabel;
+  /** Knownbug 1896: vlak vóór stap 3, het opzijzetten van het doel. `true` = stoppen (uitkomst `stopped`). */
+  refuseBeforePlace: RefuseBeforePlace;
 }
 
 /** Is het doel een link (symbolisch, of een harde link met meer namen)? Dan vervangt de app niet (§4.10). Een doel dat
@@ -117,7 +146,7 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
 
   // Stap 1. Geen terugval naar een directe aanmaak: dit is geen nieuwe naam.
   const created = await createOwnTemp(fs, temp, bytes, input.mode);
-  if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path' };
+  if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path', nothingWritten: true };
   if (created.failed) return { code: 'failed', detail: created.cause instanceof Error ? created.cause.message : String(created.cause) };
 
   // Stap 2.
@@ -125,6 +154,10 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
   if (content !== 'same') {
     await removeOwnTemp();
     return { code: 'target-changed', content };
+  }
+  if (input.refuseBeforePlace()) {
+    await removeOwnTemp();
+    return { code: 'stopped' };
   }
 
   // Stap 3. Alleen `source-changed` laat het tijdelijke bestand staan: de stand op schijf is onbekend.
@@ -199,11 +232,13 @@ export type RemnantEvent =
    *  blijft staan, en het herstelrecord ook. */
   | { kind: 'left-over'; target: string; path: string };
 
-type Seen = string | 'missing' | 'unreadable';
+/** `forbidden`: plugin-fs weigert het pad nu (buiten de scope). */
+type Seen = string | 'missing' | 'unreadable' | 'forbidden';
 
 /**
- * De restbestanden van één onderbroken vervanging afhandelen. Alleen `save-<id>.ops-save.tmp` en
- * `<naam>.ops-vorige-<id>` met het id uit het record; een bestand met een ander id raakt dit niet aan. De naam bewijst
+ * De restbestanden van één onderbroken vervanging afhandelen. Alleen `save-<id>.ops-save.tmp` en de vorige versie
+ * (`save-<id>.ops-vorige-<id>`, in een record van een oudere versie `<naam>.ops-vorige-<id>`: `recordPreviousPath`)
+ * met het id uit het record; een bestand met een ander id raakt dit niet aan. De naam bewijst
  * niets: eigendom volgt uit de inhoud (sha256) en de stand van het doel.
  * - `.ops-vorige` met `vorigeSha256` en het doel weg: de versie die stap 3 opzijzette, terwijl stap 4 niet op het doel
  *   kwam. Exclusief terug op het doel.
@@ -215,20 +250,27 @@ type Seen = string | 'missing' | 'unreadable';
  * - Het tijdelijke bestand met `pendingSha256` en het doel niet: de eigen nieuwe planning, die niet op het doel kwam
  *   (de herstelsnapshot kan tot 10 s achterlopen). Exclusief naar "niet opgeslagen planning"; niets gewist.
  * - Al het andere (een andere inhoud, onleesbaar, of een stap die faalde) blijft staan en wordt gemeld (`left-over`).
+ * - Weigert plugin-fs het doel of een hulpnaam (`forbidden`), dan doet deze ronde niets: geen stap, geen melding, en
+ *   het record blijft voor een latere start met toegang (uitgesteld herstel, review van #1027). Een weigering bewijst
+ *   niet dat er niets staat: plugin-fs toetst het pad waar het nu werkelijk naartoe wijst (een verplaatste map achter
+ *   een link valt erbuiten), een map die Afhankelijke projecten vrijgaf kan na een herstart ontbreken, en
+ *   `persisted-scope` start bij een onleesbaar scopebestand zonder de bewaarde rechten. De melding "bleef staan" komt
+ *   alleen voor een bestand dat de app zag staan. Een vervanging die aantoonbaar niets schreef, wist haar record al
+ *   zelf (`nothingWritten`, `replaceOwnPathWithRecovery`).
  * `resolved`: er staat geen hulpbestand van de operatie meer; het record mag weg.
  */
 export async function settleReplaceRemnants(
   fs: ReplaceRemnantsFs, record: ReplaceRecord, label: ReplaceCopyLabel, sha256: (bytes: Uint8Array) => Promise<string>,
 ): Promise<{ events: RemnantEvent[]; resolved: boolean }> {
   const { path, id, vorigeSha256, pendingSha256 } = record;
-  const temp = userFileTempPath(path, id), previous = previousVersionPath(path, id);
+  const temp = userFileTempPath(path, id), previous = recordPreviousPath(record);
   const events: RemnantEvent[] = [];
   const see = async (file: string): Promise<Seen> => {
     try {
       const data = await fs.read(file);
       return data === null ? 'missing' : await sha256(data);
-    } catch {
-      return 'unreadable';
+    } catch (error) {
+      return isForbiddenPathError(error) ? 'forbidden' : 'unreadable';
     }
   };
   const leave = (file: string) => { events.push({ kind: 'left-over', target: path, path: file }); };
@@ -236,14 +278,16 @@ export async function settleReplaceRemnants(
     try { await fs.remove(file); } catch { leave(file); }
   };
 
+  // Eerst alles zien, dan pas handelen: een weigering op een van de drie namen stelt de hele afhandeling uit.
   let target = await see(path);
   const before = await see(previous);
+  const written = await see(temp);
+  if ([target, before, written].includes('forbidden')) return { events: [], resolved: false };
   if (before === vorigeSha256 && target === 'missing') {
     if (placedOk(await fs.place(previous, path))) target = before;
     else leave(previous);
   } else if (before !== 'missing') leave(previous);
 
-  const written = await see(temp);
   if (written === pendingSha256 && target === pendingSha256) {
     await removeOrLeave(temp);
   } else if (written === pendingSha256) {

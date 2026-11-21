@@ -247,6 +247,10 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignNewTargetOnly'
   // Fixronde 1 van #1019: Opslaan als over een bestaande naam koos een bestand dat in een ander tabblad open staat.
   | 'notifications.ifcForeignTargetOpenInTab'
+  // Knownbug 1907: Exporteren koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.exportTargetOpenInTab'
+  // Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open staat.
+  | 'notifications.exportTargetOpenDocument'
   | 'notifications.ifcForeignPlaceUnknown'
   // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
   // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).
@@ -266,6 +270,11 @@ export type NotificationMessageKey =
   | 'notifications.ifcUnreadableTargetSave'
   | 'notifications.ifcUnreadableTargetExport'
   | 'notifications.ifcUnreadableTargetAutoSave'
+  // #804 stap 8: Automatisch opslaan bij een gebouwmodel stopt veilig (`state/modelAutoSaveNotices.ts`).
+  | 'notifications.ifcForeignAutoSaveTargetChanged'
+  | 'notifications.ifcForeignAutoSaveSaveAsOnly'
+  | 'notifications.ifcForeignAutoSaveNotRecorded'
+  | 'notifications.ifcForeignAutoSaveRemnant'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).

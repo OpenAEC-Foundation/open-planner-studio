@@ -51,7 +51,10 @@ export interface GanttRendererHostInput {
   containers: Pick<
     GanttViewportRefs,
     'primaryContainerRef' | 'secondaryContainerRef' | 'histogramContainerRef'
-  >;
+  > & {
+    /** De histogramstrook mount via een portal ná de eerste render; de node zelf, als React-state. */
+    histogramContainer: HTMLDivElement | null;
+  };
   primary: GanttRenderOptionsSourceInput;
   secondary?: GanttRenderOptionsSourceInput;
   histogram?: HistogramRenderInput;
