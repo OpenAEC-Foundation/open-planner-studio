@@ -3230,6 +3230,56 @@ await check('1762, Opslaan als over een bestaand bestand buiten de thuismap, ann
   } finally { resetFolderAccessAsker(); await tidy(c); }
 });
 
+await check('1762, Opslaan als buiten de thuismap: tijdens de vraag bewerkt de planner het document en wisselt hij van tabblad; het doel krijgt de stand van Opslaan als, het andere tabblad blijft ongemoeid', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    outsideCapability(c);
+    ipc.dialog.pickFolder = () => c.dir;
+    const other = c.store.getState().newDocument();
+    c.store.getState().switchDocument(c.id);
+    renameTask(c, 'Bij Opslaan als');
+    const state = c.store.getState(), atSaveAs = await prepareIfcWrite(buildWriteIFCInput(state, 'merge'), state.ifcSource!);
+    setFolderAccessAsker(async () => {
+      renameTask(c, 'Tijdens de vraag');
+      c.store.getState().switchDocument(other);
+      return true;
+    });
+    clearNotices(c);
+    await saveAsTo(c.store, target.path);
+    const payload = (id: string) => c.store.getState().getOpenDocumentPayloads().find(d => d.id === id)!.payload;
+    assert.equal(hash(new Uint8Array(readFileSync(target.path))), atSaveAs.sha256, 'het doel heeft de stand van Opslaan als');
+    assert(!latin1(target.path).includes('Tijdens de vraag'), 'niet de bewerking van tijdens de vraag');
+    assert.equal(c.store.getState().activeDocumentId, other, 'het andere tabblad staat vooraan');
+    assert.deepEqual([payload(c.id).filePath, payload(c.id).isDirty], [target.path, true],
+      'het model volgt het doel en blijft gewijzigd: de bewerking staat nog niet in het bestand');
+    assert.equal(payload(other).filePath, null, 'het andere tabblad kreeg geen bestand');
+    assert.deepEqual(disk(c), { 'ander.ifc': atSaveAs.sha256, 'model.ifc': hash(bytes) }, 'geen hulpbestand');
+    assert.deepEqual(recordsOnDisk(), []);
+    assert.deepEqual(errorKeys(c), []);
+  } finally { resetFolderAccessAsker(); await tidy(c); }
+});
+
+await check('1762, Opslaan als buiten de thuismap: het tabblad gaat tijdens de vraag dicht; het doel bytegelijk, de melding van een veranderde opslag', async () => {
+  const c = await opened();
+  try {
+    const target = otherFile(c);
+    outsideCapability(c);
+    ipc.dialog.pickFolder = () => c.dir;
+    c.store.getState().newDocument();
+    c.store.getState().switchDocument(c.id);
+    renameTask(c, 'Bij Opslaan als');
+    setFolderAccessAsker(async () => { c.store.getState().closeDocument(c.id); return true; });
+    clearNotices(c);
+    const from = ipc.calls.length;
+    await saveAsTo(c.store, target.path);
+    assert.deepEqual(disk(c), { 'ander.ifc': hash(plain), 'model.ifc': hash(bytes) }, 'het doel bytegelijk, geen hulpbestand');
+    assert.deepEqual(ipc.calls.slice(from).filter(call => call.wrote && call.path?.startsWith(c.dir)), [], 'nul schrijfacties in de map');
+    assert.deepEqual(recordsOnDisk(), []);
+    assert.deepEqual(errorKeys(c), ['notifications.ifcSaveChangedWhileWaiting']);
+  } finally { resetFolderAccessAsker(); await tidy(c); }
+});
+
 await check('1762, Opslaan als naar een nieuwe naam buiten de thuismap vraagt niets: de directe aanmaak zoals voorheen', async () => {
   const c = await opened();
   const asked: string[] = [];
@@ -3267,6 +3317,38 @@ await check('1762, met de flag uit: geen vraag, geen venster en geen aanroep aan
     assert.deepEqual(errorKeys(c), ['notifications.ifcForeignSaveBlocked']);
     assert.deepEqual(asked, []);
   } finally { resetFolderAccessAsker(); await tidy(c); }
+});
+
+// Knownbug 1762 (stap 6 van de voorbereiding): het herstel na een crash in een map buiten de thuismap die de planner
+// vrijgaf. `persisted-scope` zet de map bij de start terug; dan handelt de start een onderbroken vervanging af zoals in de
+// thuismap. Zonder de map (bijvoorbeeld een ander apparaat of een gewist `.persisted-scope`) blijft het herstel uitgesteld.
+await check('1762, herstel na een onderbroken vervanging in een vrijgegeven map buiten de thuismap: zonder de map uitgesteld, met de map zoals in de thuismap', async () => {
+  const c = await opened();
+  try {
+    outsideCapability(c);
+    ipc.scope.allowDirectory(c.dir, false);
+    placeCalls({ 2: () => reject('source-changed') });
+    await c.store.getState().saveFile();
+    const record = oneRecord(c);
+    const stranded = {
+      [basename(previousVersionPath(c.path, record.id))]: hash(bytes),
+      [basename(userFileTempPath(c.path, record.id))]: c.prepared.sha256,
+    };
+    assert.deepEqual(disk(c), stranded, 'het doel stond opzij en de nieuwe planning was nog niet geplaatst');
+    ipc.faults.place = null;
+    // Een start zonder de vrijgegeven map: uitgesteld, geen melding, het record blijft.
+    ipc.scope.reset();
+    outsideCapability(c);
+    assert.deepEqual(await nextRound(), [], 'zonder toegang geen melding');
+    assert.equal(recordsOnDisk().length, 1, 'het record blijft');
+    assert.deepEqual(disk(c), stranded, 'beide versies staan nog op schijf');
+    // Een start met de map (persisted-scope): terugzetten en de niet opgeslagen planning als kopie, zoals in de thuismap.
+    ipc.scope.allowDirectory(c.dir, false);
+    const restored = await nextRound();
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: c.prepared.sha256 }, 'het doel terug, de planning als kopie');
+    assert.deepEqual(restored.map(n => n.messageKey), ['notifications.ifcForeignReplaceUnsavedCopy']);
+    assert.deepEqual(recordsOnDisk(), [], 'het record is weg');
+  } finally { await tidy(c); }
 });
 
 ipc.dispose();

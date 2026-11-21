@@ -349,7 +349,8 @@ vergelijking van padteksten. Annuleren of een andere map ⇒ `ifcForeignFolderAc
 mapkiezer geeft de map vrij zoals `allow_directory(map, false)` (de bestanden erin, geen submappen), `persisted-scope`
 bewaart haar en `place_file_exclusive` neemt haar mee, zonder Rust-commando
 (`place_file_mapkiezer_geeft_de_map_niet_recursief_vrij`). Opslaan als over een bestaand bestand vraagt hetzelfde, vlak
-vóór `replaceExistingPath`; Automatisch opslaan en een nieuwe naam vragen nooit. De vraag blokkeert zoals "alleen de
+vóór de doelcontrole na de kiezer (die dus beslist op de stand van ná de vraag); Automatisch opslaan en een nieuwe naam
+vragen nooit. De vraag blokkeert zoals "alleen de
 planning" (`isBlockingDialogOpen`, `saveQuestionOpen`, `isGlobalShortcutFrozen`; bedrading
 `state/folderAccessQuestionBridge.ts`, proef `check-folder-access-question.ts`). Na de eerste herstelronde, vóór de
 eerste schrijfactie in de projectmap, `stopBeforeWrite` = dezelfde `documentTargetCheck(momentopname, write, true)` als

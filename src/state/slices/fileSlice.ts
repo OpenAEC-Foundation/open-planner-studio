@@ -1663,12 +1663,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const check = documentTargetCheck(state, write, false, {
       readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
     });
+    // #804, knownbug 1762: buiten de thuismap eerst eenmalig toegang tot de map van een bestaand doel; de doelcontrole
+    // hieronder beslist daarna, op de stand van ná de vraag.
+    if (picked.current && picked.current !== 'unreadable'
+      && await refusedReplaceFolderAccess(state.ui.featureFlags, picked.path, notice => get().notify(notice))) return null;
     if (await check(ref)) return null;
     // De doelcontrole weigert een onleesbaar doel al (met haar melding); dit houdt de route er ook zonder haar vanaf.
     if (picked.current === 'unreadable') return null;
     if (picked.current) {
-      // #804, knownbug 1762: buiten de thuismap eerst eenmalig toegang tot de map van het doel.
-      if (await refusedReplaceFolderAccess(state.ui.featureFlags, picked.path, notice => get().notify(notice))) return null;
       const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref), missingSourceSaveAs);
       return replaced && { outcome, committed: replaced.committed };
     }
