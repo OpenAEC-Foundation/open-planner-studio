@@ -47,6 +47,8 @@
     "recentColumns": "Utilizate recent",
     "noColumns": "Adăugați o coloană cu +.",
     "toggleSummary": "Extindere sau restrângere activitate rezumat",
+    "toggleMilestones": "Extindere sau restrângere jaloane",
+    "milestonesRun": "Jaloane ({{n}})",
     "calculatedReadOnly": "Această coloană calculată nu poate fi editată."
   },
   "taskGrid": {
@@ -330,7 +332,11 @@
     "rename": "Editare",
     "remove": "Ștergere",
     "addToMine": "Adăugare la categoriile mele de lucrări",
-    "confirmRemove": "Această categorie de lucrări este folosită în proiectul deschis. Ștergeți-o din «Categoriile mele de lucrări»? Copia din proiect rămâne."
+    "confirmRemove": "Această categorie de lucrări este folosită în proiectul deschis. Ștergeți-o din «Categoriile mele de lucrări»? Copia din proiect rămâne.",
+    "renameInProjectTitle": "Doriți să schimbați numele și în acest proiect?",
+    "renameInProjectMessage": "Categoria de lucrări „{{oldName}}” apare și în acest proiect. Doriți să o denumiți și aici „{{newName}}”?",
+    "renameInProjectYes": "Și în acest proiect",
+    "renameInProjectNo": "Doar în lista mea"
   },
   "duration": {
     "label": "Durată",

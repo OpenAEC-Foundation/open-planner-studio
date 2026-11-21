@@ -47,6 +47,8 @@
     "recentColumns": "Ostatnio używane",
     "noColumns": "Dodaj kolumnę za pomocą +.",
     "toggleSummary": "Rozwiń lub zwiń zadanie sumaryczne",
+    "toggleMilestones": "Rozwiń lub zwiń kamienie milowe",
+    "milestonesRun": "Kamienie milowe ({{n}})",
     "calculatedReadOnly": "Tej kolumny obliczeniowej nie można edytować."
   },
   "taskGrid": {
@@ -334,7 +336,11 @@
     "rename": "Edytuj",
     "remove": "Usuń",
     "addToMine": "Dodaj do moich rodzajów robót",
-    "confirmRemove": "Ten rodzaj robót jest używany w otwartym projekcie. Usunąć go z listy „Moje rodzaje robót“? Kopia projektu pozostanie."
+    "confirmRemove": "Ten rodzaj robót jest używany w otwartym projekcie. Usunąć go z listy „Moje rodzaje robót“? Kopia projektu pozostanie.",
+    "renameInProjectTitle": "Zmienić nazwę także w tym projekcie?",
+    "renameInProjectMessage": "Rodzaj robót „{{oldName}}” występuje także w tym projekcie. Czy chcesz nazwać go tu również „{{newName}}”?",
+    "renameInProjectYes": "Także w tym projekcie",
+    "renameInProjectNo": "Tylko na mojej liście"
   },
   "duration": {
     "label": "Czas trwania",

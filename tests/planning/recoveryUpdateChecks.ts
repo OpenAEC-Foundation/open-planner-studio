@@ -86,6 +86,8 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     '@/services/actualAutosave/actualAutoSave': {},
     // #804 fixronde 2: de controller van de werkelijke AutoSave staat in een eigen module; dat effect monteert hier niet.
     '@/services/actualAutosave/fileAutoSave': {},
+    '@/services/actualAutosave/fileAutoSaveTimers': {},
+    '@/state/textEntryActivity': {},
     '@/services/fileAccess/writeCoordinator': {},
     '@/state/recoveryManifestNotice': { notifyRecoveryError },
     // #804 1c: dezelfde momentopname en flagpoort als de echte hook.

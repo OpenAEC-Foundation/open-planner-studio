@@ -47,6 +47,8 @@
     "recentColumns": "Nemrég használt",
     "noColumns": "Adjon hozzá oszlopot a + gombbal.",
     "toggleSummary": "Összefoglaló tevékenység ki- vagy összecsukása",
+    "toggleMilestones": "Mérföldkövek kibontása vagy összecsukása",
+    "milestonesRun": "Mérföldkövek ({{n}})",
     "calculatedReadOnly": "Ez a számított oszlop nem szerkeszthető."
   },
   "taskGrid": {
@@ -326,7 +328,11 @@
     "rename": "Szerkesztés",
     "remove": "Eltávolítás",
     "addToMine": "Hozzáadás a saját munkanemekhez",
-    "confirmRemove": "Ezt a munkanemet használja a megnyitott projekt. Eltávolítja a Saját munkanemek közül? A projekt példánya megmarad."
+    "confirmRemove": "Ezt a munkanemet használja a megnyitott projekt. Eltávolítja a Saját munkanemek közül? A projekt példánya megmarad.",
+    "renameInProjectTitle": "Ebben a projektben is átnevezi?",
+    "renameInProjectMessage": "A(z) „{{oldName}}” munkanem ebben a projektben is szerepel. Szeretné ezt itt is „{{newName}}” névre nevezni?",
+    "renameInProjectYes": "Ebben a projektben is",
+    "renameInProjectNo": "Csak a saját listámban"
   },
   "duration": {
     "label": "Időtartam",
