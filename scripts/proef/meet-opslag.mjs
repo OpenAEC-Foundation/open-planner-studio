@@ -60,6 +60,12 @@ const refs = (opts.refs ?? '').split(',').filter(Boolean).map(r => {
   return { name: m[1], sha: m[2] };
 });
 const refsRuns = Number(opts['refs-runs'] ?? 2);
+// --terugval=150,…: met --refs bij deze groottes ook de weg "late weigering van de eerste kandidaat, geslaagde terugval"
+// (review r1 van #1100). Alleen op te wekken met de foutnabootsing van `prepareIfcWrite` (de parameter `probe`, die
+// `handleIfcSaveRequest` niet doorgeeft): 3b roept daar `prepareIfcWrite(input, source, probe)` rechtstreeks aan; de
+// probe gooit bij zijn eerste aanroep (kandidaat 1, na de hele uitvoercontrole tot en met de heropening) en geeft daarna
+// een kopie terug. Per run ook het aantal en de duur van de digests (`crypto.subtle.digest`). Geen 3c, 3d en vervangroute.
+const terugvalSizes = (opts.terugval ?? '').split(',').filter(Boolean).map(Number);
 if (refs.length && (geheugen || proefSets.length)) throw new Error('--refs niet samen met --geheugen of --proef');
 if (new Set(refs.map(r => r.name)).size !== refs.length) throw new Error('--refs: dubbele naam');
 if (sizes.some(s => !(s > 0)) || !(runs >= 0)) throw new Error('--mb verwacht getallen, --runs minstens 1');
@@ -90,6 +96,7 @@ import { applyEdit, cloneDomain, ordinaryEdits, settle } from ${T('tests/plannin
 import { installNodeFileIpc } from ${T('tests/planning/nodeFileIpc.ts')};
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import { handleIfcSaveRequest, outputFromResult } from '@/services/ifc/saveWorker/ifcSaveProtocol';
+import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { replaceOwnFileBytes, tauriOwnFileReplaceFs, type OwnFileReplaceFs } from '@/services/fileAccess/ownFileReplace';
 import type { IfcSaveJob } from '@/state/prepareIfcOutput';
 
@@ -215,7 +222,31 @@ const window3 = { beginUs: 0, eindUs: 0 };
 const handled = await step('3b werk van de worker (handleIfcSaveRequest)', async () => {
   window3.beginUs = hr();
   startMeting();
-  const r = await handleIfcSaveRequest({ id: 1, job: copy! });
+  let r: Awaited<ReturnType<typeof handleIfcSaveRequest>>;
+  if (mode === 'terugval') {
+    const subtle = Object.getPrototypeOf(crypto.subtle);
+    const original = subtle.digest;
+    const digests: { bytes: number; ms: number }[] = [];
+    subtle.digest = async function (this: unknown, algorithm: unknown, data: ArrayBufferView | ArrayBuffer) {
+      const t0 = performance.now();
+      const out = await original.call(this, algorithm, data);
+      digests.push({ bytes: data.byteLength, ms: Math.round((performance.now() - t0) * 10) / 10 });
+      return out;
+    };
+    let probeCalls = 0;
+    const merge = copy as Extract<IfcSaveJob, { kind: 'merge' }>;
+    try {
+      const prepared = await prepareIfcWrite(merge.input, merge.source, async planning => {
+        if (probeCalls++ === 0) throw new Error('eerste kandidaat geweigerd (meting)');
+        return structuredClone(planning);
+      });
+      r = { response: { id: 1, result: { kind: 'merge', prepared } }, transfer: [] } as unknown as typeof r;
+    } catch (e) {
+      const err = e as { name?: string; message?: string; cases?: unknown[] };
+      r = { response: { id: 1, error: { type: String(err.name), message: String(err.message), data: { cases: err.cases } } }, transfer: [] } as unknown as typeof r;
+    } finally { subtle.digest = original; }
+    emit({ terugval: { probeAanroepen: probeCalls, digests } });
+  } else r = await handleIfcSaveRequest({ id: 1, job: copy! });
   stopMeting();
   window3.eindUs = hr();
   return r;
@@ -229,6 +260,10 @@ if ('error' in response) {
   process.exit(3);
 }
 if (!('result' in response)) throw new Error('onverwacht antwoord');
+if (mode === 'terugval') {
+  const prepared = (response.result as { prepared: { bytes: Uint8Array; sha256: string } }).prepared;
+  emit({ uitkomst: 'terugval geslaagd', uitvoerBytes: prepared.bytes.length, uitvoerSha256: createHash('sha256').update(prepared.bytes).digest('hex'), opgegevenSha256: prepared.sha256 });
+} else {
 const back = await step('3c overdracht terug (structuredClone met transfer)', () => structuredClone(response, { transfer }));
 const output = await step('3d overnemen (outputFromResult)', () => outputFromResult(job, back.result));
 const prepared = output.prepared!;
@@ -264,6 +299,7 @@ if (mode === 'met') {
   emit({ vervanging: outcome.code, doelGelijkAanUitvoer: sha === prepared.sha256, ipcAanroepen: ipc.calls.length });
   ipc.dispose();
   rmSync(target, { force: true });
+}
 }
 emit({ klaar: true, ...mem() });
 `;
@@ -383,7 +419,7 @@ for (const mb of sizes) {
   console.error(`# ${mb} MB: ${row.bytes} bytes, ${walls} wanden`);
   if (refs.length) {
     row.refs = {};
-    for (const mode of ['met', 'snel']) {
+    for (const mode of ['met', 'snel', ...(terugvalSizes.includes(mb) ? ['terugval'] : [])]) {
       const runsByRef = Object.fromEntries(refs.map(r => [r.name, []]));
       for (let k = 0; k < refsRuns; k++) {
         for (const ref of refs) {
@@ -393,10 +429,10 @@ for (const mb of sizes) {
           const run = { ref: ref.name, ronde: k + 1, ok: res.ok, status: res.status, signal: res.signal, wandMs: res.wandMs,
             ms3b: ms('3b '), opslagMs: Math.round(opslagMs * 10) / 10, openenMs: ms('1c '), piekRssMB: res.maxRssMB,
             uitvoerBytes: res.uitvoerBytes, uitvoerSha256: res.uitvoerSha256, shaKlopt: res.opgegevenSha256 === res.uitvoerSha256,
-            uitkomst: res.uitkomst, vervanging: res.vervanging, doelGelijkAanUitvoer: res.doelGelijkAanUitvoer,
+            uitkomst: res.uitkomst, vervanging: res.vervanging, doelGelijkAanUitvoer: res.doelGelijkAanUitvoer, terugval: res.terugval,
             ...(res.ok ? {} : { fout: res.fout, laatsteBegonnenStap: res.laatsteBegonnenStap, stderr: res.stderr }) };
           runsByRef[ref.name].push(run);
-          console.error(`# ${mb} MB ${mode} ${ref.name} ronde ${k + 1}: ${res.ok ? 'ok' : 'MISLUKT'}, 3b ${run.ms3b} ms, opslag ${run.opslagMs} ms, piek ${run.piekRssMB} MB, sha ${run.uitvoerSha256?.slice(0, 12)}`);
+          console.error(`# ${mb} MB ${mode} ${ref.name} ronde ${k + 1}: ${res.ok ? 'ok' : 'MISLUKT ' + (res.fout ?? res.stderr ?? '')}, 3b ${run.ms3b} ms, opslag ${run.opslagMs} ms, piek ${run.piekRssMB} MB, sha ${run.uitvoerSha256?.slice(0, 12)}${res.terugval ? `, probe ${res.terugval.probeAanroepen}x, digests ${res.terugval.digests.map(d => `${d.bytes}B/${d.ms}ms`).join(' + ') || 'geen'}` : ''}`);
           writeFileSync(join(outDir, `ruw-${mb}mb-${mode}-${ref.name}-${k + 1}.json`), `${JSON.stringify({ ...res, ref: ref.name, sha: ref.sha }, null, 2)}\n`);
         }
       }
