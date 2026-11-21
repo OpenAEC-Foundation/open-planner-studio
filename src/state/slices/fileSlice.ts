@@ -19,6 +19,7 @@ import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
+import { refusedReplaceFolderAccess } from '../replaceFolderAccess';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -1666,6 +1667,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // De doelcontrole weigert een onleesbaar doel al (met haar melding); dit houdt de route er ook zonder haar vanaf.
     if (picked.current === 'unreadable') return null;
     if (picked.current) {
+      // #804, knownbug 1762: buiten de thuismap eerst eenmalig toegang tot de map van het doel.
+      if (await refusedReplaceFolderAccess(state.ui.featureFlags, picked.path, notice => get().notify(notice))) return null;
       const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref), missingSourceSaveAs);
       return replaced && { outcome, committed: replaced.committed };
     }
@@ -1795,8 +1798,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
-        if (ref.kind === 'path') ownPath = ref;
-        else if (await handleWritePermission(ref)) {
+        if (ref.kind === 'path') {
+          // #804, knownbug 1762: buiten de thuismap eerst eenmalig toegang tot de map, vóór de merge.
+          if (await refusedReplaceFolderAccess(state.ui.featureFlags, ref.path, notice => get().notify(notice))) return false;
+          ownPath = ref;
+        } else if (await handleWritePermission(ref)) {
           const content = await sourceTargetContent(ref, state.ifcSource!.bytes);
           if (content !== 'same') { get().notify(ownTargetContentNotice(content)); return false; }
           ownHandle = ref;

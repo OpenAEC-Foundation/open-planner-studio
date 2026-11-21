@@ -129,6 +129,7 @@ check-first-start.ts matrix
 check-float-band-end.ts matrix
 check-float-remaining-text.ts matrix
 check-focus-task.ts matrix
+check-folder-access-question.ts matrix
 check-format-notice.ts matrix
 check-full-task-grid-surface.ts matrix
 check-gantt-arrow-clip.ts matrix
