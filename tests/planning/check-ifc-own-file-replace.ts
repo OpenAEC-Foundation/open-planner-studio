@@ -107,11 +107,12 @@ async function opened(content: Uint8Array = bytes, ifcSaveCompute?: IfcOutputCom
   const dir = join(work, `geval-${++cases}`);
   mkdirSync(dir);
   const path = join(dir, name);
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
   const { createAppStoreContext } = await loadStore();
   const context = createAppStoreContext(ifcSaveCompute ? { ifcSaveCompute } : {}), { store } = context;
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  await store.getState().openOpenedFile({ name, content: '', bytes: content, ref: { kind: 'path', path } });
+  await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: content, ref: { kind: 'path', path } });
   assert(store.getState().ifcSource?.foreign, 'geopend met een vreemd deel');
   assert.equal(store.getState().filePath, path);
   const task = store.getState().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
@@ -3252,43 +3253,108 @@ await check('1762, de map in de vraag: zonder het scheidingsteken achteraan, ook
   assert.equal(replaceFolder('/model.ifc'), '/');
 });
 
-await check('1762, de vraag om toegang: al vrijgegeven geen venster; annuleren in de vraag of in de mapkiezer; een bovenliggende map; daarna nooit meer', async () => {
+// Fixronde 1 van #1124: één uitkomst (`true` = verder, `false` = niet vrijgegeven), met een eigen proef per weg.
+const accessCase = async () => {
   const c = await opened();
   const questions: string[] = [];
   let answer = true;
   setFolderAccessAsker(async folder => { questions.push(folder); return answer; });
+  return { c, questions, setAnswer: (a: boolean) => { answer = a; } };
+};
+const PICK = (c: Case) => ({ directory: true, multiple: false, recursive: false, defaultPath: c.dir });
+
+await check('1762, de vraag om toegang: binnen de capability geen vraag en geen venster', async () => {
+  const { c, questions } = await accessCase();
   try {
-    let from = ipc.calls.length;
-    assert.equal(await requestReplaceFolderAccess(c.path), 'ok', 'binnen de capability');
-    assert.deepEqual([questions, folderPicks(from)], [[], []], 'binnen de capability: geen vraag en geen venster');
+    const from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), true);
+    assert.deepEqual([questions, folderPicks(from)], [[], []]);
+  } finally { resetFolderAccessAsker(); await tidy(c); }
+});
 
+await check('1762, de vraag om toegang: annuleren in de vraag; geen mapkiezer, niet vrijgegeven', async () => {
+  const { c, questions, setAnswer } = await accessCase();
+  try {
     outsideCapability(c);
-    answer = false;
-    from = ipc.calls.length;
-    assert.equal(await requestReplaceFolderAccess(c.path), 'cancelled', 'annuleren in de vraag');
+    setAnswer(false);
+    const from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), false);
     assert.deepEqual(questions, [c.dir], 'de vraag noemt de map van het bestand');
-    assert.deepEqual(folderPicks(from), [], 'na annuleren in de vraag geen mapkiezer');
-
-    answer = true;
-    ipc.dialog.pickFolder = () => null;
-    from = ipc.calls.length;
-    assert.equal(await requestReplaceFolderAccess(c.path), 'cancelled', 'annuleren in de mapkiezer');
-    assert.deepEqual(folderPicks(from), [{ directory: true, multiple: false, recursive: false, defaultPath: c.dir }],
-      'één mapkiezer, niet-recursief, op de map van het bestand');
-
-    ipc.dialog.pickFolder = () => dirname(c.dir);
-    assert.equal(await requestReplaceFolderAccess(c.path), 'wrong-folder', 'een bovenliggende map geeft deze map niet vrij');
+    assert.deepEqual(folderPicks(from), [], 'geen mapkiezer');
     assert.equal(await refusedByScope(userFileTempPath(c.path)), true, 'de hulpnaam blijft geweigerd');
+  } finally { resetFolderAccessAsker(); await tidy(c); }
+});
 
+await check('1762, de vraag om toegang: annuleren in de mapkiezer; niet vrijgegeven', async () => {
+  const { c } = await accessCase();
+  try {
+    outsideCapability(c);
+    ipc.dialog.pickFolder = () => null;
+    const from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), false);
+    assert.deepEqual(folderPicks(from), [PICK(c)], 'één mapkiezer, niet-recursief, op de map van het bestand');
+    assert.equal(await refusedByScope(userFileTempPath(c.path)), true, 'de hulpnaam blijft geweigerd');
+  } finally { resetFolderAccessAsker(); await tidy(c); }
+});
+
+await check('1762, de vraag om toegang: een andere map gekozen (de bovenliggende, een submap); niet vrijgegeven voor dit bestand, die andere map blijft wel vrijgegeven (knownbug 2027)', async () => {
+  const { c } = await accessCase();
+  try {
+    outsideCapability(c);
+    ipc.dialog.pickFolder = () => dirname(c.dir);
+    assert.equal(await requestReplaceFolderAccess(c.path), false, 'de bovenliggende map geeft deze map niet vrij (niet-recursief)');
+    const other = join(c.dir, 'andere-map');
+    mkdirSync(other);
+    ipc.dialog.pickFolder = () => other;
+    assert.equal(await requestReplaceFolderAccess(c.path), false, 'een submap ook niet');
+    assert.equal(await refusedByScope(userFileTempPath(c.path)), true, 'de hulpnaam blijft geweigerd');
+    assert.equal(await refusedByScope(join(other, 'iets.ifc')), false, 'de mapkiezer gaf de gekozen map toch vrij');
+  } finally { resetFolderAccessAsker(); await tidy(c); }
+});
+
+await check('1762, de vraag om toegang: de map van het bestand gekozen; daarna geen vraag en geen venster meer', async () => {
+  const { c, questions } = await accessCase();
+  try {
+    outsideCapability(c);
     ipc.dialog.pickFolder = () => c.dir;
-    assert.equal(await requestReplaceFolderAccess(c.path), 'ok', 'de map van het bestand gekozen');
-    assert.equal(questions.length, 4);
-    from = ipc.calls.length;
-    assert.equal(await requestReplaceFolderAccess(c.path), 'ok', 'daarna');
-    assert.deepEqual([questions.length, folderPicks(from)], [4, []], 'daarna geen vraag en geen venster meer');
+    assert.equal(await requestReplaceFolderAccess(c.path), true);
+    const from = ipc.calls.length;
+    assert.equal(await requestReplaceFolderAccess(c.path), true, 'daarna');
+    assert.deepEqual([questions.length, folderPicks(from)], [1, []], 'één vraag in totaal');
     assert.deepEqual(files(c), ['model.ifc'], 'de vraag schreef niets in de map');
   } finally { resetFolderAccessAsker(); await tidy(c); }
 });
+
+// Fixronde 1 van #1124 (VERVOLG van de reviewer): een map waarvan de naam op `**` eindigt (op Unix toegestaan). Tauri
+// bewaart haar letterlijk (`Project[*][*]` en `Project[*][*]/*`), maar persisted-scope 2.4.3 zet bij de start eerst de
+// sterretjes terug en ziet dan aan het achtervoegsel `**` een recursieve map. Na een herstart zou de hele boom eronder
+// vrij zijn. Daarom vraagt de app daar niets: de vervanging weigert zoals vóór de vraag, met de verwijzing naar Opslaan als.
+for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande naam'] as const) {
+  await check(`1762, ${route} in een map waarvan de naam op ** eindigt: geen vraag en geen mapkiezer, de weigering van vóór de vraag`, async () => {
+    const c = await opened(bytes, undefined, 'Project**/model.ifc');
+    const asked: string[] = [];
+    setFolderAccessAsker(async folder => { asked.push(folder); return true; });
+    try {
+      const folder = dirname(c.path);
+      const real = realpathSync(folder);
+      ipc.scope.outside = path => path === real || path.startsWith(`${real}/`);
+      ipc.scope.allowFile(c.path);
+      ipc.dialog.pickFolder = () => folder;
+      const target = route === 'Ctrl+S op het eigen pad' ? null : join(folder, 'ander.ifc');
+      if (target) writeFileSync(target, plain);
+      clearNotices(c);
+      const from = ipc.calls.length;
+      if (target) await saveAsTo(c.store, target);
+      else await c.store.getState().saveFile();
+      assert.deepEqual([asked, folderPicks(from)], [[], []], 'geen vraag en geen mapkiezer');
+      assert.deepEqual(errorKeys(c), [target ? 'notifications.ifcForeignNewTargetOnly' : 'notifications.ifcForeignReplaceSaveAsOnly'],
+        'de melding van vóór de vraag');
+      assert.equal(hash(new Uint8Array(readFileSync(target ?? c.path))), hash(target ? plain : bytes), 'niets geschreven');
+      assert.deepEqual(readdirSync(folder).sort(), target ? ['ander.ifc', 'model.ifc'] : ['model.ifc'], 'geen hulpbestand');
+      assert.deepEqual(recordsOnDisk(), []);
+    } finally { resetFolderAccessAsker(); await tidy(c); }
+  });
+}
 
 await check('1762, Opslaan als over een bestaand bestand buiten de thuismap: één vraag en één mapkiezer, dan vervangen langs de weg van Ctrl+S; daarna geen vraag meer', async () => {
   const c = await opened();

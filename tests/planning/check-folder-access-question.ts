@@ -54,7 +54,7 @@ await check('de vraag staat open met de map; ze zet de app stil zoals de vraag "
   assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'plugin:dialog|open'), [], 'nog geen mapkiezer');
   answerFolderAccessQuestion(true);
   assert.equal(pending(), null, 'de vraag is dicht');
-  assert.equal(await within(answer), 'ok');
+  assert.equal(await within(answer), true);
   assert.equal(ipc.calls.slice(from).filter(c => c.command === 'plugin:dialog|open').length, 1, 'één mapkiezer');
   assert.equal(isGlobalShortcutFrozen(useAppStore.getState().ui), false);
 });
@@ -65,7 +65,7 @@ await check('Annuleren: geen mapkiezer; een tweede klik daarna doet niets', asyn
   await questionOpen();
   answerFolderAccessQuestion(false);
   answerFolderAccessQuestion(true);
-  assert.equal(await within(answer), 'cancelled');
+  assert.equal(await within(answer), false);
   assert.equal(pending(), null);
   assert.deepEqual(ipc.calls.slice(from).filter(c => c.command === 'plugin:dialog|open'), [], 'geen mapkiezer');
 });
@@ -76,9 +76,9 @@ await check('een tweede vraag terwijl de eerste openstaat: de eerste telt als ge
   useAppStore.getState().setUI({ pendingFolderAccessQuestion: null });
   const second = requestReplaceFolderAccess(target);
   await questionOpen();
-  assert.equal(await within(first), 'cancelled', 'de eerste vraag geannuleerd');
+  assert.equal(await within(first), false, 'de eerste vraag geannuleerd');
   answerFolderAccessQuestion(true);
-  assert.equal(await within(second), 'ok');
+  assert.equal(await within(second), true);
   assert.equal(pending(), null);
 });
 

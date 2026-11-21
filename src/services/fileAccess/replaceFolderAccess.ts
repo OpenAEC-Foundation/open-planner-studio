@@ -28,10 +28,6 @@ let asker: FolderAccessAsker = cancel;
 export function setFolderAccessAsker(fn: FolderAccessAsker): void { asker = fn; }
 export function resetFolderAccessAsker(): void { asker = cancel; }
 
-/** `ok`: een hulpnaam naast het doel mag (al vrijgegeven, of de planner gaf de map nu vrij). `cancelled`: de planner
- *  annuleerde de vraag of de mapkiezer. `wrong-folder`: de planner koos een andere map; die blijft wel vrijgegeven. */
-export type ReplaceFolderAccess = 'ok' | 'cancelled' | 'wrong-folder';
-
 /** De map van `path` zoals de planner haar leest en de mapkiezer haar opent: zonder het scheidingsteken achteraan,
  *  behalve bij een wortel (`/`, `D:\`). */
 export function replaceFolder(path: string): string {
@@ -51,14 +47,22 @@ async function helperAllowed(path: string): Promise<boolean> {
   }
 }
 
-/** Tauri: mag de vervanging naast `path`? Zo niet, eerst de vraag in de app, dan de mapkiezer op die map, en dan
- *  dezelfde toets opnieuw. Schrijft niets. */
-export async function requestReplaceFolderAccessTauri(path: string): Promise<ReplaceFolderAccess> {
-  if (await helperAllowed(path)) return 'ok';
+/** Heet de map op `**` uit (op Unix toegestaan)? De mapkiezer bewaart haar letterlijk (`Project[*][*]`), maar
+ *  persisted-scope 2.4.3 zet bij de start eerst de sterretjes terug en leest dan aan het achtervoegsel `**` een recursieve
+ *  map: na een herstart zou de hele boom eronder vrij zijn. Daar vraagt de app niets. */
+const restoredRecursively = (folder: string) => folder.endsWith('**');
+
+/** Tauri: mag de vervanging het naast `path` proberen? `true`: een hulpnaam mag er al, de planner gaf de map nu vrij, of
+ *  de app vraagt hier niets (een map op `**`; de vervanging weigert dan zoals vóór deze vraag). `false`: de planner gaf
+ *  de map niet vrij, door te annuleren (vraag of mapkiezer) of door een andere map te kiezen; die andere map blijft wel
+ *  vrijgegeven (knownbug 2027). Eerst de vraag in de app, dan de mapkiezer op die map, dan dezelfde toets opnieuw.
+ *  Schrijft niets. */
+export async function requestReplaceFolderAccessTauri(path: string): Promise<boolean> {
+  if (await helperAllowed(path)) return true;
   const folder = replaceFolder(path);
-  if (!(await asker(folder))) return 'cancelled';
+  if (restoredRecursively(folder)) return true;
+  if (!(await asker(folder))) return false;
   const { open } = await import('@tauri-apps/plugin-dialog');
   const chosen = await open({ directory: true, multiple: false, recursive: false, defaultPath: folder });
-  if (chosen === null) return 'cancelled';
-  return await helperAllowed(path) ? 'ok' : 'wrong-folder';
+  return chosen !== null && await helperAllowed(path);
 }

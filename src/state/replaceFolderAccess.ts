@@ -23,7 +23,7 @@ export async function refusedReplaceFolderAccess(
   flags: Readonly<FeatureFlagValues>, path: string, notify: (notice: NotifyInput) => void,
 ): Promise<boolean> {
   if (!ifcForeignContentEnabled(flags)) return false;
-  if (await requestReplaceFolderAccess(path) === 'ok') return false;
+  if (await requestReplaceFolderAccess(path)) return false;
   notify(folderAccessMissingNotice(path));
   return true;
 }
