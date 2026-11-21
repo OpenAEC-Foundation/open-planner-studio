@@ -2672,13 +2672,6 @@ en noem het in je rapport of PR-tekst.
      vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
      volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
 
-1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock.** Het tweede bestand van `exportProjectWithPool`
-     en de store-actie `exportLibrary` (`src/state/slices/fileSlice.ts`, gedeelde schrijver `saveLibraryFile`) schrijven
-     buiten `runProjectFileWrite`; een AutoSave kan er tussendoor schrijven. Het andere deel van dit punt is opgelost in
-     #1064: de bibliotheekexport weigert sindsdien het bestand van elk open project, ook van het actieve. Richting: de
-     write onder dezelfde lock als de andere projectwrites. Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol,
-     BEVESTIGD, VERVOLG); ingekort na review #1064 (ronde 2). — B
-
 1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
      `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
      `showcase-verbouwing-eengezinswoning.ifc`, een urentaak toevoegen, via dit pad naar het eigen bestand schrijven, de
@@ -3222,6 +3215,18 @@ en noem het in je rapport of PR-tekst.
      levert plugin-fs geen `dev`/`ino` (`fileIdentity.ts`), dus daar valt elk ander pad buiten de vergelijking. Dan staan
      er twee tabbladen met hetzelfde bestand, zoals bij Bestand → Openen (1957). Richting: dezelfde oplossing als 1957,
      met een identiteit die ook op Windows werkt. Gevonden door de review van #1116 (Sol, ronde 4). — B (review)
+
+2033. **VERVOLG (#1091): een paar schrijvers lopen nog buiten de schrijfrij.** Een startbestand herkent een nieuwere
+     versie alleen aan een beurt in `runProjectFileWrite` (`projectFileWriteTurns`, `src/state/launchFiles.ts`). Sinds
+     #1116 lopen Ctrl+S, Opslaan als, Automatisch opslaan, elke export uit `exportAs` (ook CSV, MSPDI, P6-XML, XER en het
+     voortgangsblad), de bibliotheekexport en `planner_export_ifc` daardoor. Nog buiten de rij: de herstelsnapshots
+     (`recoveryStore.ts`) en de MCP-back-ups (`backupService.ts`) in de datamap van de app, het afronden van een
+     onderbroken vervanging (`ownFileReplace.ts`, `settle`, vóór elk lezen), de ontwikkelbrug (`devBridge.ts`, alleen in
+     dev), de PDF-export (een formaat dat de app niet opent) en de headless MCP-server, die in een eigen proces draait en
+     een bestaand bestand niet vervangt zolang de app loopt (`appLock.ts`). Een startbestand dat precies tijdens zo'n
+     schrijfactie gelezen wordt, kan de oude versie openen; in gewoon werk geeft de planner zo'n bestand niet mee.
+     Richting: een nieuwe schrijver naar een bestand dat de app opent, loopt door `runProjectFileWrite`. Gevonden door de
+     review van #1116 (Sol, ronde 6). — B (review)
 
 ## Rondleiding, Help en extensie-gidsen
 

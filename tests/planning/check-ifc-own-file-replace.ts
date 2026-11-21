@@ -2731,6 +2731,21 @@ for (const flag of [false, true]) {
   });
 }
 
+// Review ronde 6 van #1116: CSV, MSPDI, P6-XML en XER opent de app ook. Hun export loopt door de ene schrijfrij, net als
+// IFC: een startbestand dat tijdens de export gelezen wordt, leest daarna opnieuw (`check-launch-files.ts` deel J en L),
+// en afsluiten en de updater wachten op de export.
+await check('Exporteren naar CSV, MSPDI, P6-XML en XER onder een vrije naam: elke export is één beurt in de schrijfrij', async () => {
+  const t = await twoPlainTabs(false);
+  for (const [format, name] of [['csv', 'plan.csv'], ['mspdi', 'plan-msp.xml'], ['p6', 'plan-p6.xml'], ['xer', 'plan.xer']] as const) {
+    const path = join(t.dir, name);
+    const turns = projectFileWriteTurns();
+    await exportTo(t.store, path, format);
+    assert.equal(projectFileWriteTurns() - turns, 1, `${format}: één beurt in de schrijfrij`);
+    assert(readFileSync(path).toString('latin1').includes('Werk in tabblad A'), `${format}: de planning van A staat in het bestand`);
+  }
+  assert.deepEqual(t.errors(), [], 'geen melding');
+});
+
 await check('Knownbug 1907, flag aan: Exporteren → IFC van een document met een gebouwmodel over het bestand van een ander tabblad: geweigerd, niets geschreven', async () => {
   const t = await twoPlainTabs(true, bytes);
   const from = ipc.calls.length;

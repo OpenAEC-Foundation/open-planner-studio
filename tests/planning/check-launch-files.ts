@@ -19,6 +19,10 @@
 //  I. Gaat het open tabblad dicht terwijl het startbestand wacht (de sluitvraag), dan opent het bestand alsnog.
 //  J. Kiest de planner in die sluitvraag *Opslaan*, dan opent het bestand in de versie die net is opgeslagen, niet in
 //     de versie die de startroute al had gelezen (ronde 4): na elke schrijfbeurt sinds het lezen leest hij opnieuw.
+//  K. Gaat het tabblad van dat bestand tijdens de identiteitscontrole via *Opslaan als* naar een andere naam, dan opent
+//     het startbestand zelf (ronde 5).
+//  L. Begint de opslag terwijl de app een onafgemaakte vervanging van het pad afhandelt (na de controle op een lege
+//     schrijfrij, vóór het lezen), dan opent ook de opgeslagen versie (ronde 6): de teller staat vóór het hele lezen.
 //  De beslissing "openen of wisselen" valt dus bij het activeren, met de tabbladen van dat moment.
 //
 // Draait via run.sh. Exit 0 = alles groen.
@@ -328,6 +332,40 @@ const freshTab = (label: string) => {
   await openLaunchFiles(useAppStore, ['/home/a/link3/orig.ifc'], io, labels, () => false, { identityFs: async () => identity });
   check(S().activeDocumentId !== origId && S().filePath === '/home/a/link3/orig.ifc',
     `opslaan als tijdens de controle: het startbestand opent zelf, niet het tabblad dat nu kopie.ifc is (${S().filePath})`);
+}
+
+// ── L. Opslaan begint tijdens het afhandelen van een onafgemaakte vervanging (review ronde 6 van #1116) ────────────
+{
+  // De startroute ziet een lege schrijfrij en handelt eerst een onafgemaakte vervanging van het pad af (`settle`). Precies
+  // dan begint *Opslaan* van hetzelfde bestand (de sluitvraag). De startroute leest nog de oude versie; daarna schrijft
+  // de opslag de nieuwe. Het bestand moet openen in de opgeslagen versie, anders overschrijft de volgende Ctrl+S die stil.
+  freshTab('opslaan tijdens het afhandelen');
+  const path = '/home/a/afhandelen.ifc';
+  files.set(path, ifcText);
+  let releaseWrite = () => {};
+  let saving: Promise<void> | null = null;
+  const settleIo = {
+    ...io,
+    settle: async (p: string) => {
+      if (p === path && saving === null) {
+        saving = runProjectFileWrite(async () => {
+          await new Promise<void>((resolve) => { releaseWrite = resolve; });
+          files.set(path, ifcSavedText);
+        }, () => undefined);
+        await sleep(0); // de schrijfbeurt is begonnen
+      }
+      return [];
+    },
+    // Het lezen haalt de oude versie op; pas daarna vervangt de opslag het bestand.
+    readTextFile: async (p: string) => { const text = await io.readTextFile(p); releaseWrite(); return text; },
+  };
+  reads.length = 0;
+  await openLaunchFiles(useAppStore, [path], settleIo, labels, () => false);
+  await saving;
+  check(S().filePath === path && S().tasks.some((t) => t.name === 'Opgeslagen taak'),
+    `opslaan tijdens het afhandelen: de opgeslagen versie, met de taak (${S().tasks.map((t) => t.name).join(', ')})`);
+  check(same(reads, [path, path]), `opslaan tijdens het afhandelen: na de schrijfbeurt opnieuw gelezen (${reads.join(', ')})`);
+  check(tabsFor(path) === 1, 'opslaan tijdens het afhandelen: één tabblad');
 }
 
 console.log(failures === 0 ? 'launch-files: alles groen' : `launch-files: ${failures} fout(en)`);

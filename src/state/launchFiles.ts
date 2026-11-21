@@ -74,6 +74,8 @@ export interface LaunchFileOptions {
  * - Begon er sinds het lezen een schrijfbeurt (`projectFileWriteTurns`), dan activeert de app niets en leest ze het
  *   bestand opnieuw: *Opslaan* in de sluitvraag kan intussen een nieuwere versie naar hetzelfde bestand geschreven
  *   hebben, en de oude versie met hetzelfde opslagdoel zou die bij de volgende Ctrl+S stil overschrijven (ronde 4).
+ *   Dat werkt alleen omdat elke schrijver naar een bestand dat de app opent door die ene rij gaat
+ *   (`runProjectFileWrite`); wat er nog buiten schrijft, is intern of zeldzaam (knownbug 2033).
  *
  * Een pad dat het besturingssysteem niet leest (ook een onopgeloste `..`), stopt al bij het lezen.
  */
@@ -89,21 +91,17 @@ export async function openLaunchFiles(
   let pending: readonly string[] = paths;
   while (pending.length > 0) {
     const reread: string[] = [];
-    const files = pending.map((path): DroppedFile => {
+    const files = droppedFilesFromPaths(pending, io, options.readOptions).map((file, index): DroppedFile => {
+      const path = pending[index];
       let writesAtRead = -1;
       let viaIdentity: { id: string; filePath: string } | null = null;
-      // De teller vlak vóór het echte lezen: `readOpenedTauriPath` wacht eerst op een lopende schrijfbeurt, en die
-      // hoeft dan geen tweede lezing te geven.
-      const mark = () => { writesAtRead = projectFileWriteTurns(); };
-      const fileIo: TauriOpenIO = {
-        ...io,
-        readTextFile: (p) => { mark(); return io.readTextFile(p); },
-        readFile: (p) => { mark(); return io.readFile(p); },
-      };
-      const [file] = droppedFilesFromPaths([path], fileIo, options.readOptions);
       return {
         name: file.name,
         read: async () => {
+          // De teller vóór het hele lezen, dus ook vóór het wachten op de schrijfrij en vóór `settle`: een beurt die
+          // daarna begint, kan het bestand vervangen nadat het gelezen is, en geeft dan een tweede lezing (ronde 6). Een
+          // beurt die al liep, wacht `readOpenedTauriPath` eerst af. Liever één lezing te veel dan een oude versie.
+          writesAtRead = projectFileWriteTurns();
           const opened = await file.read();
           // De paden van de tabbladen vóór de controle: wisselt een tabblad tijdens de `stat` van naam, dan telt het niet.
           const pathsBefore = new Map(store.getState().getOpenDocumentPayloads().map((doc) => [doc.id, doc.payload.filePath]));

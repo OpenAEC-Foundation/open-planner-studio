@@ -370,7 +370,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
 - **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
-  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
+  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Every write to a file
+  the app opens goes through it, every export format included: a launch file (#1091) reads again when a turn started
+  since it was read (`projectFileWriteTurns`); what still writes outside it is listed in knownbug 2033. Quitting the app, closing
   a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
   opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
   `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`

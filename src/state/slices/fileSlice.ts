@@ -2659,9 +2659,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       };
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
       // onder dezelfde lock als Opslaan als; anders schreef AutoSave er tussendoor de ankertekst en markeerde hij het
-      // document als opgeslagen (knownbug 1026). De andere formaten raken het eigen bestand niet en blijven zoals ze waren.
-      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een IFC-export niets, net als na annuleren.
-      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord, () => null) : await writeAndRecord();
+      // document als opgeslagen (knownbug 1026). Elk ander formaat loopt door dezelfde rij (review ronde 6 van #1116):
+      // CSV, MSPDI, P6 en XER opent de app ook, en een startbestand dat tijdens de export gelezen wordt, herkent een
+      // nieuwere versie alleen aan een beurt in die rij; afsluiten en de updater wachten ook alleen op die rij.
+      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een export niets, net als na annuleren.
+      const outcome = await runProjectFileWrite(writeAndRecord, () => null);
       // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
