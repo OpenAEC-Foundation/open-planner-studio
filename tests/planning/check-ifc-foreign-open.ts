@@ -35,8 +35,10 @@ console.error = () => {};
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { FEATURE_FLAGS, ifcForeignContentEnabled } = await import('@/utils/featureFlags');
 const { binaryExtensions, readsAsBytes } = await import('@/services/formatRegistry');
-const { readIfcBytesDetailed, readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
-const { scanForeign } = await import('@/services/ifc/foreign/foreignScan');
+const { readIfcBytesDetailed, readIfcBytes, IFC_BYTES_ROUTE_MAX_BYTES, IfcForeignTooLargeError } = await import('@/services/ifc/foreign/ifcBytesRoute');
+const { scanForeign, IFC_FOREIGN_SCAN_MAX_BYTES } = await import('@/services/ifc/foreign/foreignScan');
+const { importFailureNotice, saveErrorDetail } = await import('@/state/slices/fileSlice');
+const { writeIfcMerge } = await import('@/services/ifc/foreign/mergeWriter');
 const { scanStep } = await import('@/services/ifc/foreign/stepScanner');
 const { classify, classOf } = await import('@/services/ifc/foreign/classify');
 const { readIFC } = await import('@/services/ifc/ifcReader');
@@ -45,7 +47,7 @@ const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { recoverySnapshotInput, serializeRecoverySnapshot } = await import('@/services/recovery/recoverySnapshotInput');
 const { createAppBackupService } = await import('@/services/mcp/backupService');
 const { createDefaultTaskTime } = await import('@/utils/taskDefaults');
-const { ifcSaveBlocked, recoverySaveTarget } = await import('@/state/ifcForeignGuard');
+const { ifcSaveBlocked, ifcFullWriteBlocked, recoverySaveTarget } = await import('@/state/ifcForeignGuard');
 const { capturePayload } = await import('@/state/documentContract');
 const { createSnapshot } = await import('@/state/snapshot');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
@@ -92,6 +94,13 @@ async function open(flagOn: boolean, name: string, bytes: Uint8Array, into?: Sto
 const saved = (store: Store) => writeIFC(buildWriteIFCInput(store.getState(), 'merge'));
 const notices = (store: Store) => store.getState().ui.notifications.map(({ id: _id, ...rest }) => rest);
 const opened = (store: Store, name: string) => store.getState().filePath === name;
+/** Een leesresultaat als document in een verse store, zoals de open-route het activeert. */
+function storeOf(result: Awaited<ReturnType<typeof readIfcBytes>>, name: string): Store {
+  const store = createAppStoreContext().store;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  store.getState().openAsDocument(result, { name, ref: null });
+  return store;
+}
 
 /** De planning van een leesresultaat of een store, zonder sessie-id's: alles wat de writer schrijft. */
 function planningOf(r: Parameters<typeof writeIFC>[0]): string {
@@ -614,14 +623,14 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
       }
     }
   }
-  // Verlaag alleen via de bestaande leesopties: geen bestand van 300 MiB nodig. Het integratiebewijs
+  // Verlaag alleen via de bestaande leesopties: geen bestand van 150 MiB nodig. Het integratiebewijs
   // onder /tmp verlaagt daarnaast tijdelijk de constante en opent dezelfde gevallen via openOpenedFile.
   for (const foreign of [false, true]) {
     const bytes = enc.encode(foreign ? withPset(plain) : plain);
     const value = await readIfcBytesDetailed(bytes, {}, { maxBytes: 1 }).catch((e: unknown) => e);
     if (foreign) {
-      const e = value as { code?: string; fallback?: { kind: string } };
-      eq('te groot vreemd: getypeerd geweigerd', [e.code, e.fallback?.kind], ['IFC_FOREIGN_OPEN_REFUSED', 'te-groot']);
+      const e = value as { code?: string; size?: number; limit?: number };
+      eq('te groot vreemd: getypeerd geweigerd met de grens', [e.code, e.size, e.limit], ['IFC_FOREIGN_TOO_LARGE', bytes.length, 1]);
     } else {
       const r = value as Awaited<ReturnType<typeof readIfcBytesDetailed>>;
       eq('te groot eigen: bewezen gewone route', [r.fallback?.kind, r.result?.ifcSource], ['te-groot', undefined]);
@@ -630,6 +639,41 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
       ok('te groot eigen: IFC-opslag toegestaan', !ifcSaveBlocked(store.getState()));
       eq('te groot eigen: zelfde opslag als main', saved(store), saved(await open(false, 'groot-eigen.ifc', bytes)));
     }
+  }
+  // Knownbug 1936, besluit van de eigenaar (21 november 2026): de grens is 150 MiB (binair), op één plek, voor openen en
+  // de doelscan bij opslaan. Op de grens zelf (`>`, niet `>=`) en eronder opent een gebouwmodel met zijn bron; één byte
+  // erboven niet, met een melding die de grens noemt. De grens verlaagt alleen via de leesoptie; geen 150 MiB in het geheugen.
+  eq('grens: 150 MiB, één constante voor openen en de doelscan', [IFC_FOREIGN_SCAN_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES],
+    [150 * 1024 * 1024, 150 * 1024 * 1024]);
+  {
+    const below = await readIfcBytesDetailed(eigenPlus);
+    const belowOut = await writeIfcMerge(buildWriteIFCInput(storeOf(below.result, 'grens.ifc').getState(), 'merge'), below.result.ifcSource!)
+      .then(b => sha(b), (e: unknown) => `weigert: ${(e as Error).message}`);
+    ok(`grens: ver onder de grens schrijft het gebouwmodel (${belowOut.slice(0, 80)})`, !belowOut.startsWith('weigert'));
+    for (const [label, maxBytes] of [['net onder de grens', eigenPlus.length + 1], ['precies op de grens', eigenPlus.length]] as const) {
+      const at = await readIfcBytesDetailed(eigenPlus, {}, { maxBytes });
+      eq(`grens, ${label}: het gebouwmodel opent met zijn bron`, [at.fallback, at.result.ifcSource?.buildingModel], [undefined, true]);
+      const store = storeOf(at.result, 'grens.ifc');
+      ok(`grens, ${label}: opslaan met de flag niet geblokkeerd`, !ifcFullWriteBlocked(store.getState()));
+      const out = await writeIfcMerge(buildWriteIFCInput(store.getState(), 'merge'), at.result.ifcSource!)
+        .then(b => sha(b), (e: unknown) => `weigert: ${(e as Error).message}`);
+      eq(`grens, ${label}: opslaan schrijft hetzelfde als ver onder de grens`, out, belowOut);
+    }
+    const over = await readIfcBytesDetailed(eigenPlus, {}, { maxBytes: eigenPlus.length - 1 }).catch((e: unknown) => e);
+    ok('grens, één byte erboven: geweigerd met de grens', over instanceof IfcForeignTooLargeError
+      && over.size === eigenPlus.length && over.limit === eigenPlus.length - 1);
+    // De melding van de open-route (`importFailureNotice`), met de grens in hele MB uit de constante.
+    const notice = importFailureNotice(over, saveErrorDetail(over));
+    eq('grens, één byte erboven: de melding noemt de grootte', [notice.severity, notice.messageKey], ['error', 'notifications.ifcForeignOpenTooLarge']);
+    const atLimit = new IfcForeignTooLargeError(IFC_BYTES_ROUTE_MAX_BYTES + 1, IFC_BYTES_ROUTE_MAX_BYTES);
+    eq('grens: de melding noemt 150 MB, uit de constante', importFailureNotice(atLimit, '').params, { limit: 150 });
+    // Boven de grens is de grootte alleen de reden als het bestand eronder zou openen: IFC2X3 met een model houdt de
+    // modelweigering van onder de grens.
+    const ifc2x3 = fileBytes(`${FOREIGN}/model-ifc2x3.ifc`);
+    const legacyOver = await readIfcBytesDetailed(ifc2x3, {}, { maxBytes: ifc2x3.length - 1 }).catch((e: unknown) => e);
+    const legacyBelow = await readIfcBytesDetailed(ifc2x3).catch((e: unknown) => e);
+    eq('grens: IFC2X3 met model houdt boven de grens dezelfde weigering', importFailureNotice(legacyOver, saveErrorDetail(legacyOver)),
+      importFailureNotice(legacyBelow, saveErrorDetail(legacyBelow)));
   }
   // Dezelfde hele DATA-staart met een kapotte oude kop: zonder vreemd deel bruikbaar, met vreemd deel geweigerd.
   for (const foreign of [false, true]) {

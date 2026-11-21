@@ -19,8 +19,9 @@
 //
 // #804 fase 1b: ook de merge-writer (`mergeWriter.ts`, `merge` in de uitvoer): openen via de bytes-route zoals de app met
 // de flag, en `writeIfcMerge` zonder wijziging. Tijd, piekgeheugen, uitkomst (geschreven of `merge-needs-phase2`) en de
-// grootte van de uitvoer. Boven `IFC_BYTES_ROUTE_MAX_BYTES` (300 MiB) valt de route terug zonder bron; de meting van
-// 300 MB gebruikt daarom een bestand net onder die grens (`mergeSize` in de uitvoer).
+// grootte van de uitvoer. Boven `IFC_BYTES_ROUTE_MAX_BYTES` (150 MiB sinds 21 november 2026, knownbug 1936) valt de
+// route terug zonder bron; een meting boven de grens gebruikt voor de merge daarom een bestand net onder die grens
+// (`mergeSize` in de uitvoer). Het script leest de grens uit de constante; de handmatige job meet 50 en 149,5 MB.
 //
 // #804 fase 1b, fixronde 2: de merge toetst nu of de lezer elk veld van de bron draagt (de leesverliestoets). Het
 // voorbeeld is met een oudere writer gemaakt en weigert daarom al zonder bewerking (`niet-gedragen`). Het script zet het
@@ -50,7 +51,7 @@ const opts = Object.fromEntries(process.argv.slice(2).map(a => {
 }));
 const sizes = (opts.mb ?? '50').split(',').map(Number);
 const browsers = opts.browser ? opts.browser.split(',') : [];
-if (sizes.some(s => !(s > 0))) throw new Error('--mb verwacht getallen, bijvoorbeeld --mb=50,150,300');
+if (sizes.some(s => !(s > 0))) throw new Error('--mb verwacht getallen, bijvoorbeeld --mb=50,149.5');
 if (sizes.some(s => s > 50) && process.env.CI !== 'true') {
   console.error('Boven 50 MB alleen in CI (AGENTS.md: server load). Gebruik de handmatige job in ifc-foreign.yml.');
   process.exit(2);
@@ -169,6 +170,13 @@ if (!source) {
 }
 `);
 execFileSync(ESBUILD, [join(work, 'merge-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-merge.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+// De grens van de bytes-route uit de constante zelf, zodat dit script geen tweede getal heeft.
+writeFileSync(join(work, 'cap-entry.ts'), `
+import { IFC_FOREIGN_SCAN_MAX_BYTES } from '@/services/ifc/foreign/foreignScan';
+console.log(IFC_FOREIGN_SCAN_MAX_BYTES);
+`);
+execFileSync(ESBUILD, [join(work, 'cap-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'cap.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+const CAP_MB = Number(execFileSync(process.execPath, [join(work, 'cap.mjs')], { encoding: 'utf8' }).trim()) / 1048576;
 // Het voorbeeld zoals de huidige writer het schrijft (fixronde 2): de basis van alle synthetische bestanden.
 writeFileSync(join(work, 'settle-entry.ts'), `
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -324,9 +332,8 @@ for (const mb of sizes) {
   const row = results[results.length - 1];
   for (const browser of browsers) row[browser] = await measureBrowser(browser, file);
   // De merge-writer (fase 1b), in een eigen Node-proces. Net onder de grens van de bytes-route als het bestand erboven zit.
-  const capMb = 300;
-  const mergeFile = size > capMb * 1048576 ? join(work, `synthetisch-${mb}mb-merge.ifc`) : file;
-  if (mergeFile !== file) makeFile(capMb - 0.5, mergeFile);
+  const mergeFile = size > CAP_MB * 1048576 ? join(work, `synthetisch-${mb}mb-merge.ifc`) : file;
+  if (mergeFile !== file) makeFile(CAP_MB - 0.5, mergeFile);
   const m = spawnSync(process.execPath, ['--max-old-space-size=8192', join(work, 'meet-merge.mjs'), mergeFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
   row.merge = m.status === 0 ? JSON.parse(m.stdout.trim().split('\n').pop())
     : { error: (m.stderr || '').trim().split('\n').slice(-3).join(' ') };

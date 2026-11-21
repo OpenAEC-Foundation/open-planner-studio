@@ -11,8 +11,11 @@ import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 
-/** Bestaande grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting; geen nieuwe grens). */
-export const IFC_FOREIGN_SCAN_MAX_BYTES = 300 * 1024 * 1024;
+/** De grens van de bytes-route en de doelindeling: 150 MiB (binair). De enige plek van dit getal: openen
+ *  (`ifcBytesRoute.ts`), de doelscan bij opslaan (`targetForeignScan.ts`) en de headless MCP-server lezen deze constante.
+ *  Besluit van de eigenaar, 21 november 2026 (knownbug 1936): opslaan van een model van 157 MB piekte in de desktopapp
+ *  op 3,45 tot 3,93 GB, 300 MiB vraagt ruim 6 GB. Een hogere grens kan later hier, als het geheugengebruik omlaag is. */
+export const IFC_FOREIGN_SCAN_MAX_BYTES = 150 * 1024 * 1024;
 
 /** De keuze van de lezer (§4.2 stap 1) als stukindexen in bronvolgorde. */
 export interface ForeignScanSelection {

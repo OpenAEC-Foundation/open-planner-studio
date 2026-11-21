@@ -18,6 +18,7 @@
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '../ifcReadWithXer';
+import { IfcParseError } from '../ifcErrors';
 import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
 import { readerBytes, readerOptions, type ForeignScanResult, type ForeignScanOutcome } from './foreignScan';
@@ -25,8 +26,8 @@ import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner'
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
 
-/** Grootste bron voor de bytes-route: 300 MiB. De meting van fase 0 (vraag 4) liep tot 300 MB zonder harde grens;
- *  daarboven alleen de gewone route als bewezen is dat er geen vreemd deel is. Geen nieuwe grens zonder meting. */
+/** Grootste bron voor de bytes-route: `IFC_FOREIGN_SCAN_MAX_BYTES` (150 MiB, knownbug 1936). Daarboven alleen de gewone
+ *  route als bewezen is dat er geen vreemd deel is; een vreemd deel weigert openen met de grens in de melding. */
 export { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 import { IFC_FOREIGN_SCAN_MAX_BYTES as IFC_BYTES_ROUTE_MAX_BYTES } from './foreignScan';
 
@@ -55,6 +56,16 @@ export class IfcForeignOpenError extends Error {
   }
 }
 
+/** Boven de grens geweigerd, terwijl de bytes-route het bestand onder de grens zou openen: de melding noemt de grens. */
+export class IfcForeignTooLargeError extends Error {
+  readonly code = 'IFC_FOREIGN_TOO_LARGE';
+  /** `limit`: de grens die gold, in bytes. */
+  constructor(readonly size: number, readonly limit: number) {
+    super(`IFC open refused: ${size} bytes is above the limit of ${limit} bytes`);
+    this.name = 'IfcForeignTooLargeError';
+  }
+}
+
 /** De Worker-keuze voor tests, en de herstelnaad voor een XER-archiefverwijzing (crashherstel, zoals de huidige route). */
 export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> & {
   /** Proefnaad binnen de bestaande leesopties: alleen lager dan de productiegrens, nooit hoger. */
@@ -79,8 +90,31 @@ async function currentRoute(
     return { result: { ...result, ifcLegacySchemaLoss: true }, fallback };
   }
   const scan = knownScan ?? await runForeignScan(bytes, opts);
-  if (!scan.ok || scan.counts.C + scan.counts.A + scan.counts.V > 0) throw new IfcForeignOpenError(fallback);
+  // Een weigering van de scanner noemt de scanner, ook boven de grens: dan is de grootte niet de reden.
+  if (!scan.ok) throw new IfcForeignOpenError(fallback.kind === 'te-groot' ? { kind: 'scanner', reason: scan.reason, message: scan.message } : fallback);
+  if (scan.counts.C + scan.counts.A + scan.counts.V > 0) throw new IfcForeignOpenError(fallback);
   return { result, fallback };
+}
+
+/**
+ * Boven de grens: de gewone route (`currentRoute`). Weigert die om een gebouwmodel of een vreemd deel in een schema
+ * waarvoor de bytes-route de bron bewaart (`FOREIGN_CONTENT_SCHEMAS`), dan zou het bestand onder de grens openen: de
+ * weigering noemt de grens. Elke andere weigering blijft zoals onder de grens (IFC2X3, een onbekend schema, de scanner).
+ */
+async function tooLargeRoute(bytes: Uint8Array, labels: ImportLabels, opts: IfcBytesRouteOptions, limit: number): Promise<IfcBytesRead> {
+  try {
+    return await currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
+  } catch (error) {
+    const foreign = (error instanceof IfcForeignOpenError && error.fallback.kind === 'te-groot')
+      || (error instanceof IfcParseError && error.reason === 'building-model');
+    if (foreign && FOREIGN_CONTENT_SCHEMAS.has(headerSchemaName(bytes) ?? '')) throw new IfcForeignTooLargeError(bytes.length, limit);
+    throw error;
+  }
+}
+
+/** Het schema uit de kop, gelezen uit de eerste MiB (de kop staat vooraan); `undefined` als het daar niet staat. */
+function headerSchemaName(bytes: Uint8Array): string | undefined {
+  return readFileSchemaName(new TextDecoder('utf-8').decode(bytes.subarray(0, 1 << 20)));
 }
 
 /** Alleen de herstelnaad gaat naar de lezer; de Worker-keuze niet. */
@@ -93,7 +127,8 @@ export async function readIfcBytesDetailed(
   labels: ImportLabels = {},
   opts: IfcBytesRouteOptions = {},
 ): Promise<IfcBytesRead> {
-  if (bytes.length > Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES)) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
+  const limit = Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES);
+  if (bytes.length > limit) return tooLargeRoute(bytes, labels, opts, limit);
   const scan = await runForeignScan(bytes, opts);
   if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message }, scan);
 

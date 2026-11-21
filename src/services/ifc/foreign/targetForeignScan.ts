@@ -6,7 +6,7 @@
 // indeling ongeveer 0,4 s. De asynchrone ingangen van de app laten allebei in de scanworker draaien (`withScanWorker`,
 // één Worker per scan). De hoofdthread leest alleen de stukken en stuurt ze één voor één; de Worker houdt de scanner en
 // antwoordt per stuk met de stap (verder, terugspoelen of de uitkomst). Zo blijven de vroege stop bij een
-// modelentiteit, het terugspoelen en de grens van 300 MiB precies zoals op de hoofdthread. De synchrone
+// modelentiteit, het terugspoelen en de grens (`IFC_FOREIGN_SCAN_MAX_BYTES`) precies zoals op de hoofdthread. De synchrone
 // `scanForeignTargetBytes` blijft voor de headless kern en de headless MCP-server (Node, geen Worker). Alle wegen
 // vertalen de uitkomst met dezelfde functie (`targetOf`).
 import { scanForeign, IFC_FOREIGN_SCAN_MAX_BYTES, type ForeignScanOutcome } from './foreignScan';
@@ -22,7 +22,7 @@ function targetOf(scan: ForeignScanOutcome): TargetForeignScan {
   return C + A + V > 0 ? 'foreign' : 'no-model';
 }
 
-/** Bytes binnen de bestaande 300 MiB-scangrens; geen scanuitkomst is nooit toestemming om te overschrijven. Synchroon,
+/** Bytes binnen de scangrens (`IFC_FOREIGN_SCAN_MAX_BYTES`); geen scanuitkomst is nooit toestemming om te overschrijven. Synchroon,
  *  zonder Worker: voor de headless kern (`src/core/`) en de headless MCP-server. */
 export function scanForeignTargetBytes(bytes: Uint8Array): TargetForeignScan {
   const model = scanTargetBytes(bytes);
@@ -30,7 +30,7 @@ export function scanForeignTargetBytes(bytes: Uint8Array): TargetForeignScan {
   return bytes.length > IFC_FOREIGN_SCAN_MAX_BYTES ? 'unreadable' : targetOf(scanForeign(bytes));
 }
 
-/** De hele bron vanaf het begin; `null` boven de grens van 300 MiB (zonder verder te lezen). */
+/** De hele bron vanaf het begin; `null` boven de scangrens (zonder verder te lezen). */
 async function readWhole(source: Pick<TargetSource, 'next' | 'seek'>): Promise<Uint8Array | null> {
   await source.seek(0);
   const chunks: Uint8Array[] = [];

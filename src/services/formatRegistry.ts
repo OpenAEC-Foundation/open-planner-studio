@@ -283,6 +283,7 @@ export function importErrorMessageKey(
 ):
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
+  | 'notifications.ifcForeignOpenTooLarge'
   | 'notifications.openFailed'
   | 'notifications.xmlUnknownSchedule'
   | 'notifications.mppEncrypted'
@@ -303,6 +304,7 @@ export function importErrorMessageKey(
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
   const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string; code?: string; fallback?: { kind?: string } } | null | undefined;
+  if (typed?.code === 'IFC_FOREIGN_TOO_LARGE') return 'notifications.ifcForeignOpenTooLarge';
   if (typed?.code === 'IFC_FOREIGN_OPEN_REFUSED') return typed.fallback?.kind === 'schema'
     ? 'notifications.ifcForeignOpenSchema' : 'notifications.ifcForeignOpenUnsafe';
   if (typed?.xmlCode === 'XML_UNKNOWN_SCHEDULE') return 'notifications.xmlUnknownSchedule';
@@ -329,6 +331,14 @@ export function importErrorMessageKey(
     return xerKeys[typed.xerCode as keyof typeof xerKeys];
   }
   return 'notifications.openFailed';
+}
+
+/** De invulling bij `importErrorMessageKey`: de grens van een te groot IFC-bestand met een vreemd deel
+ *  (`IfcForeignTooLargeError`, duck-typed zoals hierboven) in hele MB, naar beneden afgerond. */
+export function importErrorParams(err: unknown): { params?: Record<string, number> } {
+  const typed = err as { code?: string; limit?: number } | null | undefined;
+  return typed?.code === 'IFC_FOREIGN_TOO_LARGE' && typeof typed.limit === 'number'
+    ? { params: { limit: Math.floor(typed.limit / (1024 * 1024)) } } : {};
 }
 
 // ── Export-kant ──
