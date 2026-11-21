@@ -8,12 +8,14 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
-import { canRunNotificationUndo, isNotificationCurrent, latestUndoEventId, OTHER_WORK_NOTICE_KEY } from '@/state/otherWorkNotice';
+import { OTHER_WORK_NOTICE_KEY } from '@/state/otherWorkNotice';
+import { selectUndoHistoryEvent } from '@/state/sessionHistory';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
 import type { AppNotification, NotificationAction } from '@/state/slices/types';
 import type { ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import type { WorkRule } from '@/types/workRule';
 
 const S = () => useAppStore.getState();
@@ -37,6 +39,8 @@ const notice = (): AppNotification | undefined => S().ui.notifications.find((n) 
 /** De knop van de melding; zonder melding een knop die bij geen enkel event hoort (de checks erna worden rood, niet fataal). */
 const noticeAction = (n = notice()): NotificationAction => n?.action ?? { kind: 'undoHistoryEvent', eventId: '(geen melding)', labelKey: 'notifications.actions.undo' };
 const clearNotices = () => useAppStore.setState((s) => { s.ui.notifications = []; });
+/** De stap die Ctrl+Z nu terugzet. */
+const latestId = () => selectUndoHistoryEvent(S().historyEvents, S().activeDocumentId)?.id;
 /** Wat de planner leest: hoofdregel, duur, en per regel naam + uren. */
 function summary(n: AppNotification | undefined): unknown {
   if (!n) return null;
@@ -79,22 +83,25 @@ console.log('-- (a) Vaste inzet: Bram 100 % → 50 % maakt de taak 20 dagen, Ann
   eq('a4 Bram zelf staat niet in de melding', (notice()?.detailLines ?? []).some((l) => l.params?.name === 'Bram'), false);
   eq('a5 één stap in de geschiedenis', S().historyEvents.length - events0, 1);
   const action = noticeAction();
-  eq('a6 de knop hoort bij die stap en kan nu', action.kind === 'undoHistoryEvent' && canRunNotificationUndo(S(), action), true);
+  eq('a6 de knop hoort bij die stap, de stap van Ctrl+Z', action.kind === 'undoHistoryEvent' && action.eventId === latestId(), true);
   if (action.kind === 'undoHistoryEvent') S().undoHistoryEvent(action.eventId);
   eq('a7 één keer Ongedaan maken: duur, inzet van Bram en uren van Anna terug',
     [task(t).time.scheduleDuration, asg(t, r.Bram).unitsPerDay, asg(t, r.Anna).remainingWorkMinutes ?? 10 * 8 * 60 * asg(t, r.Anna).unitsPerDay],
     [10, 1, 80 * 60]);
-  eq('a8 na het terugzetten kan de knop niet meer', canRunNotificationUndo(S(), action), false);
+  eq('a8 na het terugzetten is de melding weg', summary(notice()), null);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- (b) een nieuwere bewerking: de knop verdwijnt, hij neemt nooit iets anders mee --');
+console.log('-- (b) een nieuwere bewerking: de melding verdwijnt, ook na Ctrl+Z van die bewerking --');
 {
+  // Review #1120 ronde 4 en 5: de knop zou de nieuwere bewerking meenemen, en de cijfers kunnen niet meer
+  // kloppen. Weg is weg: Ctrl+Z van de nieuwere bewerking brengt de oude melding niet terug.
   const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
-  const action = noticeAction();
   S().updateTask(t, { name: 'Metselwerk gevel' });
-  eq('b1 na een andere bewerking kan de knop niet meer', canRunNotificationUndo(S(), action), false);
+  eq('b1 na een andere bewerking is de melding weg', summary(notice()), null);
+  S().undo();
+  eq('b2 Ctrl+Z van die bewerking: naam terug, de melding blijft weg', [task(t).name, summary(notice())], ['Metselwerk', null]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -190,7 +197,8 @@ console.log('-- (g) een tweede bewerking vervangt de melding --');
     [notes.length, summary(notes[0]), notes[0]?.count], [1, {
       key: 'notifications.otherWork.durationDays', duration: 40, lines: [['Anna', 160, 320]], action: 'undoHistoryEvent',
     }, 1]);
-  eq('g2 de knop hoort bij de laatste stap', canRunNotificationUndo(S(), noticeAction(notes[0])), true);
+  const g = noticeAction(notes[0]);
+  eq('g2 de knop hoort bij de laatste stap', g.kind === 'undoHistoryEvent' && g.eventId === latestId(), true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -262,11 +270,9 @@ console.log('-- (l) een volgende bewerking achterhaalt de cijfers: de hele meldi
   // staan, alleen de knop verdween. De melding staat er zolang haar stap de stap van Ctrl+Z is.
   const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
-  const n = notice();
-  eq('l0 de melding is te zien', n !== undefined && isNotificationCurrent(n, latestUndoEventId(S())), true);
+  eq('l0 de melding staat', summary(notice()) !== null, true);
   S().updateTask(t, { time: { ...task(t).time, scheduleDuration: 12 } });
-  eq('l1 na de duurcorrectie naar 12 dagen is de melding niet meer te zien',
-    [task(t).time.scheduleDuration, n !== undefined && isNotificationCurrent(n, latestUndoEventId(S()))], [12, false]);
+  eq('l1 na de duurcorrectie naar 12 dagen is de melding weg', [task(t).time.scheduleDuration, summary(notice())], [12, null]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -283,6 +289,53 @@ console.log('-- (m) twee toewijzingen van dezelfde resource: dat is geen ander p
   eq('m1 Bram 50 %: 20 dagen, alleen Anna in de melding', [task(t).time.scheduleDuration, summary(notice())], [20, {
     key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent',
   }]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (n) de berekening (F5, Automatisch berekenen) laat de melding staan --');
+{
+  // De berekening schrijft alleen berekende taakvelden en maakt geen eigen stap; de duur en de uren in de
+  // melding blijven gelden. Met Automatisch berekenen draait ze vlak na elke bewerking.
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  S().runCPM();
+  eq('n1 na F5 staat de melding er nog', summary(notice()), {
+    key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent',
+  });
+  const action = noticeAction();
+  if (action.kind === 'undoHistoryEvent') S().undoHistoryEvent(action.eventId);
+  eq('n2 Ongedaan maken zet de bewerking terug: 10 dagen, Bram 100 %', [task(t).time.scheduleDuration, asg(t, r.Bram).unitsPerDay], [10, 1]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (o) een bibliotheekverversing verandert het project buiten de geschiedenis: de melding verdwijnt --');
+{
+  // Review #1120 ronde 5: Resources → Bibliotheek, de gekoppelde kalender van 8 naar 6 u per dag, Toepassen.
+  // De taak werd 26⅔ dagen; de melding bleef op 20 dagen staan, en de knop zette de kalenderkopie mee terug.
+  reset();
+  S().setProject({ startDate: '2026-06-01' });
+  S().ensureProjectCalendarInLibrary();
+  const t = S().addTask({ name: 'Metselwerk', time: createDefaultTaskTime('2026-06-01', 10) });
+  const anna = labor('Anna');
+  const bram = labor('Bram');
+  S().assignResource(t, anna, 1);
+  S().assignResource(t, bram, 1);
+  S().setTaskWorkRule(t, 'FIXED_RATE');
+  S().runCPM();
+  const cid = S().addCompany('Bouwbedrijf');
+  S().bindProjectToCompany(cid);
+  const poolId = S().promoteCalendarToPool(cid, S().calendars.find((c) => c.id === S().project.calendarId)!)!;
+  clearNotices();
+  S().updateAssignment(asg(t, bram).id, { unitsPerDay: 0.5 });
+  eq('o0 de taak duurt 20 dagen en de melding staat', [task(t).time.scheduleDuration, summary(notice()) !== null], [20, true]);
+  const pool = S().pools[cid].calendars.find((c) => c.id === poolId)!;
+  const six: WorkCalendar = { ...structuredClone(pool), workEndHour: 13, hoursPerDay: 6 };
+  S().updatePoolCalendar(cid, poolId, six);
+  eq('o1 kalender 6 u: de taak duurt 26⅔ dagen en de melding is weg',
+    [S().calendar.hoursPerDay, Math.round(task(t).time.scheduleDuration * 100) / 100, summary(notice())], [6, 26.67, null]);
+  S().updateTask(t, { name: 'Metselwerk gevel' });
+  S().undo();
+  eq('o2 een volgende bewerking en Ctrl+Z daarvan brengen de melding niet terug', summary(notice()), null);
 }
 
 if (diffs.length) {
