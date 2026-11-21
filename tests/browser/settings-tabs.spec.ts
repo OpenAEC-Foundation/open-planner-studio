@@ -559,11 +559,17 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
   const saveWorkerLog = () => page.evaluate(() => (window as unknown as {
     __saveWorkerLog: Array<{ url: string; type?: string; messages: string[]; writerBytes?: number[]; terminated: boolean }>;
   }).__saveWorkerLog);
-  /** Knownbug 1936: deze ene opslag met een gebouwmodel rekende in precies één nieuwe opslagworker van de app, die startte,
-   *  één merge-antwoord gaf en daarna door de app gestopt werd. */
-  const expectOneFreshMergeWorker = async (before: number, answer: RegExp, label: string) => {
+  /** Knownbug 1936: de verwachte stand van het workerlog, doorlopend over de opslagen met een gebouwmodel hieronder (van de
+   *  eerste schone Ctrl+S tot de ronde na Escape). Zo telt elke start mee, ook een tussen twee controles. */
+  let expectedSaveWorkers = 0;
+  const expectNoNewSaveWorker = async (label: string) =>
+    expect((await saveWorkerLog()).length, `${label}: geen nieuwe opslagworker`).toBe(expectedSaveWorkers);
+  /** Deze ene opslag met een gebouwmodel rekende in precies één nieuwe opslagworker van de app, die startte, één
+   *  merge-antwoord gaf en daarna door de app gestopt werd. */
+  const expectOneFreshMergeWorker = async (answer: RegExp, label: string) => {
+    expectedSaveWorkers += 1;
     const log = await saveWorkerLog();
-    expect(log.length, `${label}: precies één nieuwe opslagworker`).toBe(before + 1);
+    expect(log.length, `${label}: precies één nieuwe opslagworker`).toBe(expectedSaveWorkers);
     const worker = log.at(-1)!;
     expect(worker.type, label).toBe('module');
     expect(worker.messages, `${label}: gestart en één merge-antwoord`).toEqual(['started', expect.stringMatching(answer)]);
@@ -586,6 +592,9 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
     await page.keyboard.press('F5');
     return task;
   };
+
+  // De stand vóór de eerste opslag met een gebouwmodel; vanaf hier telt de proef door.
+  expectedSaveWorkers = (await saveWorkerLog()).length;
 
   // De brug zet alleen een geopende bestandsfixture. Ctrl+S is de echte gebruikershandeling.
   // De eigen planning wordt na openen niet bewerkt: ook dan moet de doelcontrole schrijven toelaten.
@@ -617,13 +626,12 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
     expect(before.foreign, fixture.path).toBe(fixture.foreign);
     expect(before.blocked, fixture.path).toBe(fixture.foreign);
     if (!fixture.foreign) expect(before.dirty, fixture.path).toBe(false);
-    const workersBeforeClean = (await saveWorkerLog()).length;
     if (fixture.foreign) await watchSaveStatus();
     await page.keyboard.press('Control+s');
     if (fixture.foreign) {
       // De schone opslag liep echt: "Opslaan…" en daarna "Opgeslagen <tijd>", met één eigen worker.
       await expectSavingThenSaved(/^(?!saving\|)/);
-      await expectOneFreshMergeWorker(workersBeforeClean, /^result:merge(-unchanged)?$/, `${fixture.path}: schone Ctrl+S`);
+      await expectOneFreshMergeWorker(/^result:merge(-unchanged)?$/, `${fixture.path}: schone Ctrl+S`);
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
       expect(await page.evaluate(async () => (await window.__OPS__!.store.getState().fileHandle!.getFile()).text())).toBe(text);
       expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
@@ -689,14 +697,13 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       // dezelfde handle en heropenen via de bestandskiezer: de nieuwe duur, het vreemde deel byte voor byte.
       // #804 stap 5: de merge rekent in de opslagworker van de app.
       await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
-      const workersBeforeEdit = (await saveWorkerLog()).length;
       await watchSaveStatus();
       await page.keyboard.press('Control+s');
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
       await expectSavingThenSaved();
       // Knownbug 1936: elke opslag met een gebouwmodel rekent in een eigen opslagworker, door de app zelf gestart, en de
       // app stopt hem na zijn antwoord. Het bestand hieronder komt uit de worker die toen al gestopt was.
-      await expectOneFreshMergeWorker(workersBeforeEdit, /^result:merge$/, 'de bewerkte Ctrl+S');
+      await expectOneFreshMergeWorker(/^result:merge$/, 'de bewerkte Ctrl+S');
       const readSaved = () => page.evaluate(async () => {
         const state = window.__OPS__!.store.getState();
         const file = await state.fileHandle!.getFile();
@@ -719,13 +726,13 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       await autoSaveToggle.click();
       await expect(autoSaveToggle).toHaveAttribute('aria-checked', 'true');
       const ctrlSText = saved.text;
-      const workersBeforeAutoSave = (await saveWorkerLog()).length;
       await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
       await editFirstLeafDuration();
       task.duration += 1;
       await expect(page.locator('[data-ops-save-status]')).toHaveAttribute('data-ops-save-status', 'unsaved');
       await page.clock.fastForward(10_000);
       expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'na 10 s nog niet: het model wacht op 30 s rust').toBe(true);
+      await expectNoNewSaveWorker('na 10 s');
       await page.clock.fastForward(21_000);
       await page.clock.resume();
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { timeout: 20_000 }).toBe(false);
@@ -734,7 +741,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect(saved.text).not.toBe(ctrlSText);
       expect(saved.text).toContain('IFCWALL(');
       expect(saved.source).toBe(saved.mark);
-      await expectOneFreshMergeWorker(workersBeforeAutoSave, /^result:merge$/, 'de eerste ronde van Automatisch opslaan');
+      await expectOneFreshMergeWorker(/^result:merge$/, 'de eerste ronde van Automatisch opslaan');
       // Fixronde 1 van de review van #1033 (punt 6): typen in een cel van de taakgrid telt als werken, ook vóór Enter. Een
       // vastgelegde wijziging, 28 s later een taaknaam typen zonder Enter: 31 s na die wijziging schrijft de ronde nog
       // niet. Na Escape (niets vastgelegd) en 30 s rust wel. Fixronde 2: de eerste letter op een geselecteerde cel opent de
@@ -754,13 +761,14 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       await page.waitForTimeout(2_000);
       expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'de eerste letter in de cel houdt de ronde tegen').toBe(true);
       expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
+      await expectNoNewSaveWorker('de eerste letter in de cel');
       await nameInput.pressSequentially(' en verder');
       await page.clock.fastForward(28_000);
       await page.waitForTimeout(2_000);
       expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty), 'verder typen in de cel houdt de ronde tegen').toBe(true);
       expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
+      await expectNoNewSaveWorker('verder typen in de cel');
       await nameInput.press('Escape');
-      const workersBeforeRound = (await saveWorkerLog()).length;
       await page.clock.fastForward(31_000);
       await page.clock.resume();
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { timeout: 20_000 }).toBe(false);
@@ -768,7 +776,7 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect(saved.refusals).toEqual([]);
       expect(saved.text).not.toBe(autoSavedText);
       expect(saved.text).toContain('IFCWALL(');
-      await expectOneFreshMergeWorker(workersBeforeRound, /^result:merge$/, 'de ronde na Escape');
+      await expectOneFreshMergeWorker(/^result:merge$/, 'de ronde na Escape');
       await autoSaveToggle.click();
       await expect(autoSaveToggle).toHaveAttribute('aria-checked', 'false');
       // Eerst wachten tot het heropende document actief is: het bewerkte document heeft dezelfde duur.
