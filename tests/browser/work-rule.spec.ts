@@ -443,12 +443,13 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   expect(Math.abs(ib.width - ib.height)).toBeLessThanOrEqual(1);
   await info.hover();
   await expect(tip).toBeVisible();
-  await expect(tip.locator('strong')).toHaveText(nl ? 'Het werk volgt uit de duur en de inzet.' : 'Work follows from duration and units.');
+  // Voorstel #954 deel 2: eerst wat een taaktype is (vet), dan het taaktype dat nu geldt met een voorbeeld.
+  await expect(tip.locator('strong')).toHaveText(nl ? 'Het taaktype bepaalt wat de app aanpast als je de duur, de inzet (mensen per dag) of het werk (uren) wijzigt.' : 'The task type decides what the app adjusts when you change the duration, the units (people per day) or the work (hours).');
   await expectTipAtIcon(tip, info);
   // Elke zin een eigen regel: geen spatie als scheiding tussen zinnen (zh/ja, review #359, punt 5).
   await expect(tip.locator('.ops-tooltip__line')).toHaveText(nl
-    ? ['Wijzig je het werk, dan past de inzet zich aan.', 'Een extra resource voegt werk toe.']
-    : ['If you change the work, the units adjust.', 'An extra resource adds work.']);
+    ? ['Duur en inzet blijven, het werk rekent mee. Voorbeeld: 2 mensen, 5 dagen van 8 uur = 80 uur.', 'Wijzig je het werk, dan past de inzet zich aan.', 'Een extra resource voegt werk toe.']
+    : ['Duration and units stay, the work follows. Example: 2 people, 5 days of 8 hours = 80 hours.', 'If you change the work, the units adjust.', 'An extra resource adds work.']);
   await page.mouse.move(0, 0);
   await expect(tip).toHaveCount(0);
 
@@ -564,26 +565,29 @@ test('werkregel: na Ctrl+Z met de tooltip open toont het i-icoon de regel die nu
   const nl = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl');
   const tip = page.locator('.ops-tooltip[role="tooltip"]');
   const info = page.locator('[data-ops-work-rule-info]');
-  const fdr = nl ? 'Het werk volgt uit de duur en de inzet.' : 'Work follows from duration and units.';
-  const fw = nl ? 'De duur volgt uit het werk en de inzet.' : 'Duration follows from work and units.';
+  // Voorstel #954 deel 2: de vette regel is overal dezelfde (wat een taaktype is); de regel daaronder
+  // noemt het taaktype dat nu geldt.
+  const fdr = nl ? 'Duur en inzet blijven, het werk rekent mee. Voorbeeld: 2 mensen, 5 dagen van 8 uur = 80 uur.' : 'Duration and units stay, the work follows. Example: 2 people, 5 days of 8 hours = 80 hours.';
+  const fw = nl ? 'Het werk blijft, de duur rekent mee. Voorbeeld: 80 uur met 2 mensen = 5 dagen, met 4 mensen 2,5 dagen.' : 'The work stays, the duration follows. Example: 80 hours with 2 people = 5 days, with 4 people 2.5 days.';
+  const ruleLine = tip.locator('.ops-tooltip__line').first();
   for (const how of ['hover', 'focus'] as const) {
     await chooseWorkRule(page, page, 'FIXED_WORK');
     expect((await taskState(page, taskId)).workRule).toBe('FIXED_WORK');
     if (how === 'hover') await info.hover(); else await info.focus();
-    await expect(tip.locator('strong')).toHaveText(fw);
+    await expect(ruleLine).toHaveText(fw);
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await taskState(page, taskId)).workRule).toBeUndefined();
     await expect(info).toHaveAttribute('data-ops-work-rule-info', 'FIXED_DURATION_RATE');
     // Zichtbare tooltip volgt meteen; na sluiten staat het nieuwe `title` op de knop.
-    await expect(tip.locator('strong')).toHaveText(fdr);
+    await expect(ruleLine).toHaveText(fdr);
     await page.mouse.move(0, 0);
     // Een tooltip door focus sluit met Escape (TooltipHost slikt die Escape; zonder tooltip zou
     // Escape de selectie opheffen).
     if (how === 'focus') await page.keyboard.press('Escape');
     await expect(tip).toHaveCount(0);
-    await expect.poll(async () => (await info.getAttribute('title'))?.startsWith(fdr)).toBe(true);
+    await expect.poll(async () => (await info.getAttribute('title'))?.includes(fdr)).toBe(true);
     await info.hover();
-    await expect(tip.locator('strong')).toHaveText(fdr);
+    await expect(ruleLine).toHaveText(fdr);
     await page.mouse.move(0, 0);
   }
 });
