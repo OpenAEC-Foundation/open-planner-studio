@@ -2339,6 +2339,17 @@ en noem het in je rapport of PR-tekst.
      draagt (lijst, JSON, samengestelde tekst: een vreemde `Creators` op een kop, het baseline-JSON van een oud bestand,
      1770). De twee te absolute commentaarregels zijn in PR A rechtgezet. — B (review)
 
+2021. **VERVOLG (proeven van de schrijfrij, review van #1105): twee toetsen zijn zwakker dan ze lijken.**
+     (1) De proef voor Ctrl+S tijdens het plaatsen (`tests/planning/check-ifc-document-save.ts`, rond regel 3465)
+     vergelijkt twee `.then`-callbacks op de afgeronde acties. Die volgorde kan kloppen terwijl Ctrl+S al begint te
+     rekenen tijdens de eerste plaatsing en pas daarna schrijft. Richting: meet het einde van de plaatsing en het begin
+     van de handmatige berekening, binnen de callbacks, zoals de directe rijproeven al doen
+     (`check-actual-autosave.ts`, rond regel 285). (2) In proef 9d (`check-ifc-foreign-target.ts`, rond regel 1983)
+     staat de toets "het schrijfslot is bezet tijdens de doelcontrole" ná het aanmelden van de tweede opslag, en die
+     aanmelding zet zelf `busy = true`; één regel hoger is de toets specifiek voor de eerste beurt. Volgorde en
+     vrijgave worden daar al apart getoetst. Geen hapering en geen fout in de app. De bovengrens van een seconde na de
+     starttijd in blok 9 blijft gevoelig voor een zeer trage runner. — B (review)
+
 1828. **VERVOLG (#804 keuze 7, MCP): `planner_*` weigert een andere naam bij hetzelfde id van een eigen werksoort.**
      In de app vraagt *Werksoorten beheren…* sinds keuze 7 of een nieuwe naam ook in het project moet (store-actie
      `renameProjectTaskType`), maar de veldlaag van MCP (`src/services/mcp/tools/taskFields.ts`, "already exists with
