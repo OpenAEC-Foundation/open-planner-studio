@@ -289,6 +289,41 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// (f) Knownbug 392: isoleer de dagenmaat van fysieke werkminuten bij dezelfde exacte kloklag.
+{
+  const start = '2026-06-01T08:00';
+  const storeRows = [];
+  for (const unit of ['days', 'hours'] as const) {
+    for (const type of ['FINISH_START', 'START_START', 'FINISH_FINISH'] as const) {
+      for (const lagDays of [0.166667, 0.125]) {
+        const app = elapsedStore('ops', start);
+        const time = { ...createDefaultTaskTime(start, unit === 'days' ? 1 : 24, unit), durationType: 'WORKTIME' as const };
+        const a = app.getState().addTask({ name: 'A', time });
+        const b = app.getState().addTask({ name: 'B', time: { ...time } });
+        app.getState().addSequence({ predecessorId: a, successorId: b, type, lagUnit: 'ELAPSEDTIME', lagDays });
+        app.getState().runCPM();
+        const result = [a, b].map(id => app.getState().tasks.find(t => t.id === id)!);
+        eq(`392: eenheid ${unit}/${type}/${lagDays}`, result.map(t => t.time.durationUnit), [unit, unit]);
+        const window = (t: (typeof result)[number]) => [t.time.earlyStart, t.time.earlyFinish,
+          t.time.lateStart, t.time.lateFinish, Math.round((t.time.totalFloatMinutes ?? NaN) * 60000)];
+        storeRows.push({ unit, type, lagDays, a: window(result[0]), b: window(result[1]) });
+      }
+    }
+  }
+  const eng = new CalendarEngine(elapsedStore('ops', start).getState().calendar);
+  const walk = [0, 28, 29].map(ms => {
+    const t = new Date(Date.parse('2026-06-02T12:00:00Z') + ms);
+    const end = eng.addMeasuredWorkdays(t, 1);
+    const back = eng.subtractMeasuredWorkdays(end, 1);
+    return { ms, addDelta: end.getTime() - t.getTime() - 86400000, roundTripDelta: back.getTime() - t.getTime() };
+  });
+  const summary = { walk, storeRows };
+  console.log(`KNOWNBUG392_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 392::${JSON.stringify(summary)}`);
+  }
+}
+
 if (errors.length) {
   for (const e of errors) console.log(`XX kalender-ms-wandeling: ${e}`);
   process.exitCode = 1;
