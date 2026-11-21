@@ -15,7 +15,7 @@ import { localTodayIso } from '@/utils/dateUtils';
 import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
-  writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
+  writeLevelingResult, clearLevelingOutput,
   contourKeepsWork, hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish, type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -24,6 +24,7 @@ import { sameValue } from '@/utils/sameValue';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { assignInsertedWbsCodes } from '../insertedBranch';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
@@ -51,7 +52,7 @@ import { isThenable } from '@/utils/guards';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, planWorkEdit, commitTrianglePlan,
+  captureCalendarChange, captureTriangle, durationEditRefusal, planWorkEdit, commitTrianglePlan, settleEditedDuration,
   captureProgressWork, settleProgressWork, syncAssignmentWorkToContour,
   settleCalendarChange, settleDurationAftermath, settleDurationEdit, settleRuleChange,
   hourSourceOf, routeFixedWorkDurationToHours,
@@ -473,7 +474,6 @@ function createMcpDraft(
       const afterRest = mergeTaskUpdate(task, time ? { ...rest, time } : rest);
       const changes = taskTriggerChanges(task, afterRest);
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       // Tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
       const progressWork = time ? captureProgressWork(task, s) : null; // tweeling van `updateTask`
@@ -481,16 +481,14 @@ function createMcpDraft(
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Tweeling van taskSlice.ts: de rest schuift mee, het
-        // percentage volgt, tenzij de patch zelf voortgang opgaf (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
-          resolveCalendar(task.calendarId, s.calendars, s.calendar));
-        if (carried && !carried.refused) outcome = { progress: carried };
-        // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
-        // zie `applyDurationChangeRules` in taskDefaults.ts (kern van `settleDurationAftermath`).
-        lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
+        const duration = settleEditedDuration(task, timeBefore, contourHpd, {
+          statusDate: s.project.statusDate,
+          calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
+          workdayDurationMeasure: effectiveSchedulingOptions(s.project).workdayDurationMeasure === true,
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
-        }) || lost;
+        });
+        if (duration.progress && !duration.progress.refused) outcome = { progress: duration.progress };
+        lost = duration.timephasedLost || lost;
         recordRecomputedWork(settleDurationEdit(task, triangle).recomputedWork);
       }
       settleProgressWork(task, s.assignments, progressWork);
@@ -540,6 +538,7 @@ function createMcpDraft(
     id: string,
     top: Partial<Task>,
     timePatch?: { scheduleDuration?: number; durationUnit?: 'days' | 'hours'; durationMinutes?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
+    deferCompletion?: boolean,
   ): McpDurationProgressOutcome {
     let outcome: McpDurationProgressOutcome = null;
     store.setState((s) => {
@@ -603,23 +602,21 @@ function createMcpDraft(
       // De referentie voor Δ-rest en contourherschaling ná de kalenderstap
       // (die kan de duur al verschoven hebben), precies zoals `updateTaskFields`.
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       // Zelfde momentopname als `updateTaskFields` hierboven.
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
       const timeBefore = { ...task.time };
       Object.assign(task, topRest);
       task.time = patchedTime;
       if (changes.timeBase) {
-        // Zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
-        // dus een aanroeper kan de voortgang zelf zetten; die wint dan (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
-          resolveCalendar(task.calendarId, s.calendars, s.calendar));
-        if (carried && !carried.refused) outcome = { progress: carried };
-        // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
-        // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten).
-        lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
+        const duration = settleEditedDuration(task, timeBefore, contourHpd, {
+          statusDate: s.project.statusDate,
+          calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
+          workdayDurationMeasure: effectiveSchedulingOptions(s.project).workdayDurationMeasure === true,
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
-        }) || lost;
+          deferCompletion,
+        });
+        if (duration.progress && !duration.progress.refused) outcome = { progress: duration.progress };
+        lost = duration.timephasedLost || lost;
         recordRecomputedWork(settleDurationEdit(task, triangle).recomputedWork);
       }
       // `workRule` via de driehoek-bewuste route, ná de duurpatch.
