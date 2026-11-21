@@ -372,10 +372,9 @@ test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één un
   const name = await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.name, taskId);
   expect([st.workRule, st.units, st.work, name]).toEqual([undefined, 1, undefined, 'Metselwerk']);
 
-  // #954, review #1120 ronde 2: in de dialoog meldt de app nog niets over de uren van anderen (de melding
-  // stond achter de dialoog); bij Opslaan komt één melding over de uitkomst, met een knop die de hele
-  // taakbewerking terugzet. Fixture: een tweede resource via de brug; de geteste handelingen zijn de
-  // velden van de dialoog, Opslaan en de knop in de melding.
+  // #954, review #1120 ronde 1 t/m 3: Taak bewerken bundelt meerdere bewerkingen tot één stap; daar komt
+  // geen melding over de uren van anderen (Annuleren is daar de weg terug, knownbug 2054). Fixture: een
+  // tweede resource via de brug; de geteste handelingen zijn de velden van de dialoog, Opslaan en Ctrl+Z.
   await page.evaluate((id) => {
     const s = window.__OPS__!.store.getState();
     s.assignResource(id, s.addResource({ name: 'Anna', type: 'LABOR', description: '', maxUnits: 1 }), 1);
@@ -387,23 +386,15 @@ test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één un
   await crewWork.fill('64');
   await crewWork.press('Enter');
   expect((await taskState(page, taskId)).duration).toBe(8);
-  const undoTaskEdit = page.locator('[data-ops-notification-action="undoHistoryEvent"]');
-  await expect(undoTaskEdit).toHaveCount(0);
-  // Daarna de duur in de dialoog op 6 dagen: onder Vaste inzet volgt het werk, Anna 6 × 8 = 48 u.
-  const duration = dialog.locator('[data-ops-duration-value]');
-  await duration.fill('6');
-  await duration.press('Enter');
+  const undoInNotice = page.locator('[data-ops-notification-action="undoHistoryEvent"]');
+  await expect(undoInNotice).toHaveCount(0);
   await dialog.locator('[data-ops-task-save]').click();
   st = await taskState(page, taskId);
-  expect([st.workRule, st.duration]).toEqual(['FIXED_RATE', 6]);
-  const toast = page.locator('.ops-toast').filter({ has: undoTaskEdit });
-  await expect(toast).toContainText(/6 (dagen|days)/);
-  await expect(toast).toContainText(/Anna: 32 → 48 (u|h)/);
-  await expect(undoTaskEdit).toHaveText(/Taakbewerking ongedaan maken|Undo task edit/);
-  await undoTaskEdit.click();
+  expect([st.workRule, st.duration]).toEqual(['FIXED_RATE', 8]);
+  await expect(undoInNotice).toHaveCount(0);
+  await page.keyboard.press('Control+z');
   st = await taskState(page, taskId);
   expect([st.workRule, st.duration, st.units]).toEqual([undefined, 4, 1]);
-  await expect(undoTaskEdit).toHaveCount(0);
 });
 
 // Gebruikstest #170, E5/G6: de instelling heet "Taaktypes gebruiken" (eigenaar 2026-10-17), staat onder Berekenen

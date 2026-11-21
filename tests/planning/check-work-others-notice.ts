@@ -209,59 +209,30 @@ console.log('-- (h) eigen urenverdeling: de melding noemt de uren van *Werk (u)*
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- (i) Taak bewerken: geen melding tijdens het bewerken, bij Opslaan één melding over de uitkomst --');
+console.log('-- (i) Taak bewerken: geen melding, Annuleren is daar de weg terug --');
 {
-  // Review #1120 ronde 1 en 2: in de dialoog voegt Opslaan alle stappen samen tot één stap "Taak
-  // bewerken", en de melding stond achter de dialoog. Daarom meldt de app pas bij Opslaan, over de
-  // samengevoegde stap (de uitkomst die er werkelijk staat), met een knop die de hele taakbewerking
-  // terugzet en dat ook zegt.
+  // Review #1120 ronde 1 t/m 3: Taak bewerken bundelt meerdere bewerkingen (inzet, werk, duur, naam,
+  // een werksoort) tot één stap. "Eén wijziging aan één persoon" is daar niet eenduidig en een knop past
+  // niet op één stap; de dialoog heeft Annuleren. De melding hoort dus bij een losse bewerking buiten een
+  // bewerksessie (het taakpaneel), niet bij de dialoog (knownbug 2054).
   const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   const mark = S().historyMark();
   S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
-  eq('i1 in de dialoog nog geen melding', summary(notice()), null);
+  eq('i1 in de dialoog geen melding', summary(notice()), null);
   S().updateTask(t, { name: 'Metselwerk gevel' });
   S().squashHistorySince(mark, 'Taak bewerken');
-  eq('i2 na Opslaan: 20 dagen, Anna 80 → 160 u, knop Taakbewerking ongedaan maken', [summary(notice()), notice()?.action?.labelKey], [
-    { key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent' },
-    'notifications.actions.undoTaskEdit',
-  ]);
-  eq('i3 de knop kan nu', canRunNotificationUndo(S(), noticeAction()), true);
-  const act = noticeAction();
-  if (act.kind === 'undoHistoryEvent') S().undoHistoryEvent(act.eventId);
-  eq('i4 de knop zet de hele taakbewerking terug, ook de naam', [task(t).name, task(t).time.scheduleDuration, asg(t, r.Bram).unitsPerDay], ['Metselwerk', 10, 1]);
+  eq('i2 na Opslaan geen melding, en Ctrl+Z zet de hele taakbewerking terug', [summary(notice()), (S().undo(), [task(t).name, task(t).time.scheduleDuration, asg(t, r.Bram).unitsPerDay])], [null, ['Metselwerk', 10, 1]]);
 
-  // Annuleren: niets gemeld, niets terug te zien.
   const c = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   const mark2 = S().historyMark();
   S().updateAssignment(asg(c.t, c.r.Bram).id, { unitsPerDay: 0.5 });
   S().revertHistorySince(mark2);
-  eq('i5 na Annuleren: duur weer 10 en geen melding', [task(c.t).time.scheduleDuration, summary(notice())], [10, null]);
+  eq('i3 na Annuleren: duur weer 10 en geen melding', [task(c.t).time.scheduleDuration, summary(notice())], [10, null]);
 
-  // Eerst het taaktype, dan de inzet: de melding vergelijkt met de stand van vóór de dialoog.
-  const d = seed('FIXED_DURATION_RATE', 10, { Anna: 1, Bram: 1 });
-  const mark3 = S().historyMark();
-  S().setTaskWorkRule(d.t, 'FIXED_RATE');
-  S().updateAssignment(asg(d.t, d.r.Bram).id, { unitsPerDay: 0.5 });
-  S().squashHistorySince(mark3, 'Taak bewerken');
-  eq('i6 eerst taaktype, dan inzet, dan Opslaan: melding met knop', [summary(notice()), canRunNotificationUndo(S(), noticeAction())], [
-    { key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent' }, true,
-  ]);
-
-  // Een duurcorrectie in dezelfde dialoog: de melding noemt de uitkomst na Opslaan.
-  const e = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
-  const mark4 = S().historyMark();
-  S().updateAssignment(asg(e.t, e.r.Bram).id, { unitsPerDay: 0.5 });
-  S().updateTask(e.t, { time: { ...task(e.t).time, scheduleDuration: 12 } });
-  S().squashHistorySince(mark4, 'Taak bewerken');
-  eq('i7 inzet en dan 12 dagen: de melding zegt 12 dagen, Anna 80 → 96 u', summary(notice()),
-    { key: 'notifications.otherWork.durationDays', duration: 12, lines: [['Anna', 80, 96]], action: 'undoHistoryEvent' });
-
-  // Alleen de naam in de dialoog: geen toewijzing bewerkt, geen melding.
-  const f = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
-  const mark5 = S().historyMark();
-  S().updateTask(f.t, { name: 'Metselwerk gevel' });
-  S().squashHistorySince(mark5, 'Taak bewerken');
-  eq('i8 alleen een naam: geen melding', summary(notice()), null);
+  // Na de dialoog werkt het paneel weer gewoon: een losse bewerking meldt.
+  S().updateAssignment(asg(c.t, c.r.Bram).id, { unitsPerDay: 0.5 });
+  eq('i4 daarna in het paneel: wel de melding', summary(notice()),
+    { key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent' });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
