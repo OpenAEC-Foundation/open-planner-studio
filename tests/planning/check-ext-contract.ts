@@ -24,6 +24,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import i18next from 'i18next';
 import nlMenu from '@/i18n/locales/nl/menu.json';
 import enMenu from '@/i18n/locales/en/menu.json';
@@ -1453,17 +1454,20 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   zetDocument();
   useAppStore.setState((s) => {
     s.customTaskTypes = [
-      { id: 'ops-ongebruikt', name: 'Ongebruikt' },
-      { id: 'zelfde-id', name: 'Oude naam' },
-      { id: 'doc-ruwbouw', name: 'Ruwbouw' },
+      { id: 'ops-ongebruikt', name: 'Ongebruikt', color: '#111111' },
+      { id: 'zelfde-id', name: 'Oude naam', color: '#222222' },
+      { id: 'doc-ruwbouw', name: 'Ruwbouw', color: '#333333' },
     ];
   });
   const typen = herladen((r) => {
     r.customTaskTypes = [{ id: 'zelfde-id', name: 'Nieuwe naam' }, { id: 'ext-ruwbouw', name: 'ruwbouw' }];
   });
+  // #856: hetzelfde id houdt de kleur van het document; een nieuwe werksoort krijgt een vrije kleur.
   eq('N3D-17 ongebruikte eigen taaktypes blijven; de extensie wint bij een botsing op id of naam',
     typen.customTaskTypes, [
-      { id: 'zelfde-id', name: 'Nieuwe naam' }, { id: 'ext-ruwbouw', name: 'ruwbouw' }, { id: 'ops-ongebruikt', name: 'Ongebruikt' },
+      { id: 'zelfde-id', name: 'Nieuwe naam', color: '#222222' },
+      { id: 'ext-ruwbouw', name: 'ruwbouw', color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] },
+      { id: 'ops-ongebruikt', name: 'Ongebruikt', color: '#111111' },
     ]);
 
   // Hetzelfde id, maar de extensie wijst naar een kalender die niet bestaat ⇒ terugval op de projectkalender.

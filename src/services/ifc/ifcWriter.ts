@@ -786,7 +786,7 @@ function writeXerSourceArchive(
 }
 
 /** Eigen taaktypen blijven IFC-geldig: de taak zelf is `.USERDEFINED.` met een ObjectType-label;
- * deze project-pset bewaart alleen de stabiele OPS-id en projectkopie. */
+ * deze project-pset bewaart de stabiele OPS-id, de projectkopie en de kleur (`color`, #856). */
 function writeTaskTypeMeta(
   ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
 ): void {
