@@ -24,8 +24,8 @@ Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand
 
 1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
 2. Kies bij *Taaktype* een van de vijf opties: *Projectstandaard (Vaste duur en inzet)*, *Vaste duur en inzet*, *Vaste duur en werk*, *Vast werk* of *Vaste inzet*. Bij *Projectstandaard* volgt de taak de standaard van het project.
-3. Wil je weten wat een keuze doet? In de open keuzelijst staat achter elke keuze een i-icoon. Wijs het aan, klik of tik erop voor de uitleg. Klik je op het i-icoon, dan kiest de app dat taaktype nog niet.
-4. Naast het gesloten veld staat ook een i-icoon. Dat legt het taaktype uit dat nu geldt, bijvoorbeeld *De duur volgt uit het werk en de inzet.* Bij *Projectstandaard* is dat het taaktype tussen de haakjes.
+3. Wil je weten wat een keuze doet? In de open keuzelijst staat onder elke keuze een korte regel met een voorbeeld, zoals *Het werk blijft, de duur rekent mee. Voorbeeld: 80 uur met 2 mensen = 5 dagen, met 4 mensen 2,5 dagen.* Achter elke keuze staat ook een i-icoon met de hele uitleg. Wijs het aan, klik of tik erop. Klik je op het i-icoon, dan kiest de app dat taaktype nog niet.
+4. Naast het gesloten veld staat ook een i-icoon. Dat zegt eerst wat een taaktype is, en legt dan met een voorbeeld het taaktype uit dat nu geldt. Bij *Projectstandaard* is dat het taaktype tussen de haakjes.
 
 *Projectstandaard* is de eerste keuze en staat er standaard. Tussen de haakjes staat het taaktype dat het project nu als standaard heeft. Kies bij *Instellingen › Projectinstellingen › Standaardtaaktype* een van de vier taaktypes en klik op *Toepassen*. Elke bestaande en nieuwe taak op *Projectstandaard* volgt die keuze. Taken met een eigen taaktype behouden hun keuze. De projectstandaard wordt in het IFC-bestand bewaard. Wil je voor één taak een ander taaktype, kies dat dan hier.
 

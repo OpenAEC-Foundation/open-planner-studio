@@ -24,8 +24,8 @@ This is a setting of the app, not of the project file. If a file already contain
 
 1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
 2. At *Task type*, choose one of the five options: *Project default (Fixed duration and units)*, *Fixed duration and units*, *Fixed duration and work*, *Fixed work* or *Fixed units*. With *Project default* the task follows the project's default.
-3. Want to know what an option does? In the open drop-down each option has an i icon. Point at it, click or tap it for the explanation. Clicking the i icon does not choose that task type yet.
-4. Next to the closed field there is an i icon too. It explains the task type that applies now, for example *Duration follows from work and units.* With *Project default* that is the task type between the brackets.
+3. Want to know what an option does? In the open drop-down each option has a short line with an example below it, such as *The work stays, the duration follows. Example: 80 hours with 2 people = 5 days, with 4 people 2.5 days.* Each option also has an i icon with the full explanation. Point at it, click or tap it. Clicking the i icon does not choose that task type yet.
+4. Next to the closed field there is an i icon too. It first says what a task type is, then explains the task type that applies now, with an example. With *Project default* that is the task type between the brackets.
 
 *Project default* is the first choice and is what a task has by default. The task type between the brackets is the one the project currently has as its default. Under *Settings › Project settings › Default task type*, choose one of the four task types and click *Apply*. Every existing and new task set to *Project default* follows that choice. Tasks with their own task type keep their choice. The project default is saved in the IFC file. If you want another task type for one task, choose it here.
 

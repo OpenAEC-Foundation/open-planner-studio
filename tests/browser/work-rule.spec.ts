@@ -503,7 +503,8 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   await expect(info).toHaveAttribute('data-ops-work-rule-info', 'FIXED_RATE');
   await info.focus();
   await expect(tip).toBeVisible();
-  await expect(tip.locator('strong')).toHaveText(nl ? 'De duur volgt uit het werk en de inzet.' : 'Duration follows from work and units.');
+  await expect(tip.locator('strong')).toHaveText(nl ? 'Het taaktype bepaalt wat de app aanpast als je de duur, de inzet (mensen per dag) of het werk (uren) wijzigt.' : 'The task type decides what the app adjusts when you change the duration, the units (people per day) or the work (hours).');
+  await expect(tip.locator('.ops-tooltip__line').first()).toHaveText(nl ? 'De inzet blijft, het werk bepaalt de duur. Voorbeeld: 1 kraan, 40 uur werk = 5 dagen, 80 uur werk = 10 dagen.' : 'The units stay, the work sets the duration. Example: 1 crane, 40 hours of work = 5 days, 80 hours = 10 days.');
   await expect(tip).toContainText(nl ? 'Wijzig je de duur, dan past het werk zich aan.' : 'If you change the duration, the work adjusts.');
   // B1 (spec "alleen uren" T14, F3a): de werkdriehoek rondt een dagtaak niet meer af op hele werkdagen.
   // De zin "afgerond op hele dagen" (sleutel `resourceShorterWholeDays`) bestaat daarom niet meer; ook een
