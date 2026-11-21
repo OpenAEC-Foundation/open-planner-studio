@@ -1208,6 +1208,15 @@
       "CH": "Switzerland",
       "US": "United States",
       "BO": "Bolivia",
+      "ES": "Spain",
+      "IT": "Italy",
+      "PL": "Poland",
+      "PT": "Portugal",
+      "CZ": "Czechia",
+      "SE": "Sweden",
+      "DK": "Denmark",
+      "NO": "Norway",
+      "FI": "Finland",
       "none": "No holidays"
     },
     "preset": {

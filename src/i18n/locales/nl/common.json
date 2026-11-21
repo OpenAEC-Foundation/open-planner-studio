@@ -1208,6 +1208,15 @@
       "CH": "Zwitserland",
       "US": "Verenigde Staten",
       "BO": "Bolivia",
+      "ES": "Spanje",
+      "IT": "Italië",
+      "PL": "Polen",
+      "PT": "Portugal",
+      "CZ": "Tsjechië",
+      "SE": "Zweden",
+      "DK": "Denemarken",
+      "NO": "Noorwegen",
+      "FI": "Finland",
       "none": "Geen feestdagen"
     },
     "preset": {
