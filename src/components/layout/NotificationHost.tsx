@@ -9,7 +9,7 @@ import { subscribeDialogStack } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { clearViewArrangement } from '@/state/viewArrangement';
 import { canUndoScheduleShift, openScheduleShiftPanel } from '@/state/scheduleShift';
-import { canRunNotificationUndo, latestUndoEventId } from '@/state/otherWorkNotice';
+import { canRunNotificationUndo, isNotificationCurrent, latestUndoEventId } from '@/state/otherWorkNotice';
 import {
   measureToastPlacement, samePlacement, subscribeToastLayout, toastAvoidElements, type ToastPlacement,
 } from './toastPlacement';
@@ -122,10 +122,12 @@ export function NotificationHost() {
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
   const { t, i18n } = useTranslation(['common', 'menu']);
-  const placement = useToastPlacement(notifications.length > 0);
-  const canUndoShift = useAppStore(canUndoScheduleShift);
-  // De stap die Ctrl+Z nu terugzet: een knop `undoHistoryEvent` staat er alleen zolang dat de zijne is.
+  // De stap die Ctrl+Z nu terugzet: een melding met `undoHistoryEvent` staat er alleen zolang dat de hare
+  // is; daarna kloppen haar cijfers niet meer (#954, review #1120 ronde 4).
   const latestUndoId = useAppStore(latestUndoEventId);
+  const shown = notifications.filter((n) => isNotificationCurrent(n, latestUndoId));
+  const placement = useToastPlacement(shown.length > 0);
+  const canUndoShift = useAppStore(canUndoScheduleShift);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` en een `sticky`
   // info (openingsmelding met gewijzigde data, `state/openNoticeSticky.ts`) blijven staan tot de
@@ -142,7 +144,7 @@ export function NotificationHost() {
     return () => { for (const tm of timers) clearTimeout(tm); };
   }, [notifications, dismissNotification]);
 
-  if (notifications.length === 0) return null;
+  if (shown.length === 0) return null;
 
   // De serialiseerbare actie uit de store (o.a. rekenprofielen, *Wissen* bij *Taak*); sluit de
   // melding na de actie. *Waarom?* opent het paneel, en dat heeft zijn eigen knop *Ongedaan maken*.
@@ -188,7 +190,6 @@ export function NotificationHost() {
   };
   const actionButton = (n: AppNotification, action: NotificationAction | undefined) => {
     if (!action || (action.kind === 'undoScheduleShift' && !canUndoShift)) return null;
-    if (action.kind === 'undoHistoryEvent' && action.eventId !== latestUndoId) return null;
     return (
       <button
         type="button"
@@ -278,8 +279,8 @@ export function NotificationHost() {
         </div>
   );
 
-  const center = notifications.filter(n => !n.atEnd);
-  const atEnd = notifications.filter(n => n.atEnd);
+  const center = shown.filter(n => !n.atEnd);
+  const atEnd = shown.filter(n => n.atEnd);
   return (
     <>
       {center.length > 0 && (

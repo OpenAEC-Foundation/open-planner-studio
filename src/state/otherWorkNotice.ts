@@ -64,9 +64,11 @@ export function canRunNotificationUndo(
   return action.kind === 'undoHistoryEvent' && latestUndoEventId(state) === action.eventId;
 }
 
-/** Staat de melding nu op het scherm? (Rood bewijs ronde 4: nog het oude gedrag, altijd.) */
-export function isNotificationCurrent(_n: AppNotification, _latestUndoId: string | null): boolean {
-  return true;
+/** Staat de melding op het scherm? Een melding die bij één stap hoort (`undoHistoryEvent`), alleen zolang
+ *  die stap de stap van Ctrl+Z is: na een volgende bewerking kloppen haar cijfers niet meer (review #1120
+ *  ronde 4). `NotificationHost` filtert hierop; de melding zelf blijft tot haar tijd om is. */
+export function isNotificationCurrent(n: AppNotification, latestUndoId: string | null): boolean {
+  return [n.action, n.secondaryAction].every((a) => a?.kind !== 'undoHistoryEvent' || a.eventId === latestUndoId);
 }
 
 /**
@@ -77,21 +79,24 @@ export function isNotificationCurrent(_n: AppNotification, _latestUndoId: string
  */
 export function notifyOtherWorkChanged(state: AppState, edit: AssignmentEdit | null): void {
   if (!edit) return;
-  const event = state.historyEvents.find((e) => e.sequence === edit.sequence && e.state === 'applied');
+  const event = selectUndoHistoryEvent(state.historyEvents, state.activeDocumentId);
   const delta = event?.deltas.find((d) => d.kind === 'document-data');
-  if (!event || event.sessionKey || !delta || delta.kind !== 'document-data' || event.id !== latestUndoEventId(state)) return;
+  if (!event || event.sequence !== edit.sequence || event.sessionKey || delta?.kind !== 'document-data') return;
   const { before, after } = delta;
   const was = before.tasks.find((t) => t.id === edit.taskId);
   const now = after.tasks.find((t) => t.id === edit.taskId);
   if (!was || !now) return;
+  const resourceOf = (id: string) => (after.assignments.find((a) => a.id === id) ?? before.assignments.find((a) => a.id === id))?.resourceId;
+  // Een resource kan twee keer op de taak staan (IFC): haar andere regel is geen ander persoon.
+  const editedResourceId = resourceOf(edit.assignmentId);
   const old = shownWorkOfTask(before, was);
   const lines = [...shownWorkOfTask(after, now)].flatMap(([id, minutes]) => {
     const oldMinutes = old.get(id);
-    if (id === edit.assignmentId || oldMinutes === undefined) return [];
+    const resourceId = resourceOf(id);
+    if (resourceId === editedResourceId || oldMinutes === undefined) return [];
     const from = shownWorkHours(oldMinutes);
     const to = shownWorkHours(minutes);
     if (from === to) return [];
-    const resourceId = after.assignments.find((a) => a.id === id)?.resourceId;
     const name = after.resources.find((r) => r.id === resourceId)?.name || '?';
     return [{ messageKey: 'notifications.otherWork.line' as const, params: { name }, numberParams: { before: from, after: to } }];
   });
