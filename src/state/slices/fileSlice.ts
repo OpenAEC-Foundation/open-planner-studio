@@ -101,6 +101,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
+import { alreadyOpenDocumentId, switchToOpenDocument } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -1460,6 +1461,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return;
     }
     if (choice.version === undefined) {
+      // Knownbug 1957 (met de flag): staat dit sitebestand al open, dan naar dat tabblad; het houdt zijn eigen basis.
+      const openId = await alreadyOpenDocumentId(get(), opened.ref, fileIdentityFs);
+      if (openId !== null && switchToOpenDocument(get(), openId)) {
+        await pushRecent(opened.ref, opened.name);
+        return;
+      }
       // De gelezen versie wordt pas NA een geslaagde parse de basis, en alleen van dít document.
       get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
       offerFormatNotice(opened.name, opened.content);
@@ -2408,10 +2415,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+        // Knownbug 1957 (met de flag): staat dit bestand al in een tabblad open? Vóór het wachten, want de toets is
+        // asynchroon en het activeren hieronder moet in één synchrone stap blijven.
+        const openId = await alreadyOpenDocumentId(get(), opened.ref, fileIdentityFs);
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
+        }
+        // Naar het tabblad dat al open is, zonder het te herladen. Sloot de planner het tijdens het wachten, dan opent
+        // het bestand gewoon.
+        if (openId !== null && switchToOpenDocument(get(), openId)) {
+          await pushRecent(opened.ref, opened.name);
+          return;
         }
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),

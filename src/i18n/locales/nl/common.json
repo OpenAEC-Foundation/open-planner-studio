@@ -13,6 +13,7 @@
     "dismiss": "Melding sluiten",
     "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
+    "fileAlreadyOpen": "Dit bestand staat al open. Je bent naar dat tabblad gegaan.",
     "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, XML, MPP, XER en CSV.",
     "fileDropBlocked": "Niet geopend: {{names}}. Sluit eerst het venster dat openstaat.",
     "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",

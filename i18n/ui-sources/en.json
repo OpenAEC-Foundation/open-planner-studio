@@ -9,6 +9,7 @@
     "notifications.dismiss": "28d0dca60333caa7",
     "notifications.taskEditRevertBlocked": "07ecbebe05c8ac1a",
     "notifications.openFailed": "2d90976b4b1e996e",
+    "notifications.fileAlreadyOpen": "7ab475394b0a43e9",
     "notifications.fileDropRefused": "b893f4dd951e04d0",
     "notifications.fileDropBlocked": "e2a22525222e5139",
     "notifications.csvInvalidDate": "1c1bb6703566a740",

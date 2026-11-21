@@ -295,6 +295,7 @@ check-native-menu.ts matrix
 check-new-project-view-rows.ts matrix
 check-new-task-measure.ts matrix
 check-notifications.ts matrix
+check-one-file-one-tab.ts matrix
 check-open-failure-detail.ts matrix
 check-p6-ff-day-hour.ts matrix
 check-p6-verified-cases-engine.ts matrix
