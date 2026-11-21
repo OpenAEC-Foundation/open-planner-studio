@@ -174,7 +174,8 @@ const NIET_PUBLIEK = {
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
   // Alleen uren §3.4: de speling in minuten is nog geen extensieveld (F3c); de API toont `totalFloat`/`freeFloat`.
-  taskTime: ['totalFloatMinutes', 'freeFloatMinutes'] as readonly string[],
+  // De tijdelijke rekenbasis voor voortgang is sessie-informatie buiten het extensiecontract.
+  taskTime: ['totalFloatMinutes', 'freeFloatMinutes', 'progressBeforeRecalculation'] as readonly string[],
   sequence: [] as readonly string[],
   // Het begrote tempo naast een P6-resttempo (resttempo-besluit 2026-10-15) is bronreferentie voor de
   // P6 XML-export, geen extensie-invoer. Het extensiecontract (apiVersion) blijft ongewijzigd. Een
@@ -234,6 +235,7 @@ const VOL_TIME = {
   completion: 0.6,
   resume: '2026-06-05T10:00',
   stop: '2026-06-04T14:00',
+  progressBeforeRecalculation: { status: 'STARTED', completion: 0.2, actualStart: '2026-06-01' },
 } satisfies Required<TaskTime>;
 
 const VOL_TASK = {
@@ -587,6 +589,9 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   }
   for (const k of NIET_PUBLIEK.resource) {
     eq(`18b resourceveld "${k}" lekt niet naar het contract`, k in toExtResource(VOL_RESOURCE), false);
+  }
+  for (const k of NIET_PUBLIEK.taskTime) {
+    eq(`18b taakveld "${k}" lekt niet naar het contract`, k in toExtTaskTime(VOL_TIME), false);
   }
   // Review #361 punt 1: het veld steekt niet over, maar gaat bij een lees-wijzig-laad op hetzelfde id
   // ook niet verloren. Mutatiebewijs: de `assignments`-regel in `retainActiveDocument` weg ⇒ 18c en 24 rood.
