@@ -13,7 +13,8 @@ import type { AppState } from '@/state/appStoreFactory';
 import type { ImportLabels } from '@/services/importTypes';
 import type { TauriOpenIO } from '@/services/fileAccess/tauriBackend';
 import { droppedFilesFromPaths } from '@/services/fileAccess/fileDrop';
-import type { FormatReadOptions } from '@/services/formatRegistry';
+import { isReadableFileName, type FormatReadOptions } from '@/services/formatRegistry';
+import { basename } from '@/utils/filePath';
 import { openDroppedFiles } from '@/state/fileDrop';
 import { openDocumentIdForPath } from '@/state/ifcForeignGuard';
 import { OPEN_WAIT_POLL_MS } from '@/state/slices/fileSlice';
@@ -50,14 +51,20 @@ interface LaunchFilesStore {
   getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads' | 'switchDocument'>;
 }
 
+/** Een pad met een `..` dat Rust niet kon oplossen (de map bestaat niet, `launch_files.rs`). Het besturingssysteem leest
+ *  het niet; de tekstvergelijking met een open tabblad zou `weg/..` wel wegstrepen. Zo'n pad gaat dus rechtstreeks door
+ *  de leesroute, met de gewone leesfout. */
+const UNRESOLVED_PARENT = /(^|[\\/])\.\.([\\/]|$)/;
+
 /**
- * Open de meegegeven paden door de route van een neergezet bestand. Een dichte poort (het welkomstvenster bij de
- * eerste start, een open dialoog) weigert hier niet: het bestand wacht tot de poort open is.
+ * Open de meegegeven paden, één voor één, door de route van een neergezet bestand. Een dichte poort (het
+ * welkomstvenster bij de eerste start, een open dialoog) weigert hier niet: het bestand wacht tot de poort open is.
+ * Een formaat dat de app niet opent, geeft één melding met alle namen, vóór het openen (zoals bij neerzetten).
  *
  * Staat een bestand al in een tabblad (dezelfde vergelijking als de opslagcontrole: pad of bestandsidentiteit), dan
- * opent de app het niet nog eens: twee tabbladen die naar één bestand schrijven, overschrijven elkaars werk
- * (knownbug 1957, review van #1116). Was het laatste pad zo'n bestand, dan wisselt de app daarna naar zijn tabblad,
- * pas als de poort open is; anders is het laatst geopende bestand actief, zoals bij neerzetten.
+ * opent de app het niet nog eens maar wisselt ze naar dat tabblad, pas als de poort open is: twee tabbladen die naar
+ * één bestand schrijven, overschrijven elkaars werk (knownbug 1957, review van #1116). Omdat de paden één voor één
+ * gaan, ziet elk pad de tabbladen die de paden ervóór openden; [`createLaunchFileOpener`] doet hetzelfde over events heen.
  */
 export async function openLaunchFiles(
   store: LaunchFilesStore,
@@ -65,18 +72,40 @@ export async function openLaunchFiles(
   io: TauriOpenIO,
   labels: ImportLabels,
   isBlocked: () => boolean,
-  options: { readOptions?: FormatReadOptions; identityFs?: () => Promise<FileIdentityFs | undefined> } = {},
+  options: LaunchFileOptions = {},
 ): Promise<void> {
   const identityFs = options.identityFs ?? (async () => undefined);
-  const fresh: string[] = [];
-  let lastOpenId: string | null = null;
-  for (const path of paths) {
-    const openId = await openDocumentIdForPath(store.getState(), path, identityFs);
-    if (openId === null) fresh.push(path);
-    lastOpenId = openId;
+  const route = (some: readonly string[]) => openDroppedFiles(
+    store, droppedFilesFromPaths(some, io, options.readOptions), labels, isBlocked, { waitWhenBlocked: true });
+  const readable = paths.filter((path) => isReadableFileName(basename(path)));
+  if (readable.length < paths.length) await route(paths.filter((path) => !readable.includes(path)));
+  for (const path of readable) {
+    const openId = UNRESOLVED_PARENT.test(path) ? null : await openDocumentIdForPath(store.getState(), path, identityFs);
+    if (openId === null) {
+      await route([path]);
+      continue;
+    }
+    while (isBlocked()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
+    if (store.getState().getOpenDocumentPayloads().some(({ id }) => id === openId)) store.getState().switchDocument(openId);
   }
-  await openDroppedFiles(store, droppedFilesFromPaths(fresh, io, options.readOptions), labels, isBlocked, { waitWhenBlocked: true });
-  if (lastOpenId === null) return;
-  while (isBlocked()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
-  if (store.getState().getOpenDocumentPayloads().some(({ id }) => id === lastOpenId)) store.getState().switchDocument(lastOpenId);
+}
+
+export interface LaunchFileOptions {
+  readOptions?: FormatReadOptions;
+  identityFs?: () => Promise<FileIdentityFs | undefined>;
+}
+
+/**
+ * Eén wachtrij voor alle startevents (de eerste start en elke tweede start): `open` begint pas aan een event als het
+ * vorige helemaal klaar is. Anders zien twee dubbelklikken op hetzelfde bestand, terwijl het eerste nog gelezen wordt of
+ * op het welkomstvenster wacht, allebei nog geen tabblad, en opent het bestand twee keer (review ronde 2 van #1116).
+ */
+export function createLaunchFileOpener(
+  open: (paths: readonly string[]) => Promise<void>,
+): (paths: readonly string[]) => Promise<void> {
+  let tail: Promise<void> = Promise.resolve();
+  return (paths) => {
+    tail = tail.then(() => open(paths)).catch((err: unknown) => console.error('Failed to open launch files:', err));
+    return tail;
+  };
 }

@@ -13,6 +13,8 @@
 //     bestand tot dat dicht is, in plaats van te weigeren zoals bij neerzetten.
 //  F. Staat het bestand al in een tabblad (hetzelfde pad, of via een link dezelfde bestandsidentiteit), dan
 //     wisselt de app naar dat tabblad: geen tweede tabblad dat naar hetzelfde bestand schrijft (review #1116).
+//  G. Ook niet als het bestand nog geopend wordt: hetzelfde pad twee keer in één event, of twee events vlak na
+//     elkaar (review ronde 2). En een pad met een onopgeloste `..` geeft de gewone leesfout, geen wissel.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -21,7 +23,7 @@ g.window = g.window ?? {};
 g.document = { documentElement: { dir: 'ltr', lang: 'en' } };
 
 const {
-  OPEN_FILES_EVENT, OPEN_FILES_READY_EVENT, launchPaths, listenForLaunchFiles, openLaunchFiles,
+  OPEN_FILES_EVENT, OPEN_FILES_READY_EVENT, createLaunchFileOpener, launchPaths, listenForLaunchFiles, openLaunchFiles,
 } = await import('@/state/launchFiles');
 const { OPEN_WAIT_POLL_MS } = await import('@/state/slices/fileSlice');
 const { useAppStore } = await import('@/state/appStore');
@@ -127,33 +129,49 @@ const io = {
   check(S().documents.length === before + 1 && S().filePath === 'C:\\Users\\a\\Plan.ifc', 'venster dicht: het bestand opent');
 }
 
+// ── F. Al open: naar dat tabblad, geen tweede tabblad dat naar hetzelfde bestand schrijft ─────────────────────
+const planDoc = S().getOpenDocumentPayloads().find(({ payload }) => payload.filePath === '/home/a/plan.ifc');
+check(!!planDoc, 'beginstand: /home/a/plan.ifc staat open');
+const planOpen = () => S().getOpenDocumentPayloads().some(({ id, payload }) => id === planDoc?.id && payload.filePath === '/home/a/plan.ifc');
+const tabsFor = (path: string) => S().getOpenDocumentPayloads().filter(({ payload }) => payload.filePath === path).length;
+/** Een nieuw, leeg tabblad vooraan; het IFC-tabblad blijft ongemoeid (niet `newProject`: dat leegt het actieve tabblad). */
+const freshTab = (label: string) => {
+  S().newDocument();
+  check(planOpen() && S().activeDocumentId !== planDoc?.id, `${label}: het IFC staat nog open, een ander tabblad is actief`);
+  return S().activeDocumentId;
+};
+
 {
-  // F. Hetzelfde bestand nog eens (een tweede dubbelklik): geen tweede tabblad, wel naar het open tabblad.
   clearNotices();
-  const planDoc = S().getOpenDocumentPayloads().find(({ payload }) => payload.filePath === '/home/a/plan.ifc');
-  check(!!planDoc, 'beginstand: /home/a/plan.ifc staat open');
-  S().newProject();
+  freshTab('tweede dubbelklik');
   const before = S().documents.length;
   reads.length = 0;
   await openLaunchFiles(useAppStore, ['/home/a/plan.ifc'], io, labels, () => false);
-  check(S().documents.length === before, `al open: geen nieuw tabblad (${before} → ${S().documents.length})`);
+  check(S().documents.length === before && tabsFor('/home/a/plan.ifc') === 1, `al open: geen nieuw tabblad (${before} → ${S().documents.length})`);
   check(S().activeDocumentId === planDoc?.id, 'al open: het tabblad van dat bestand is actief');
   check(reads.length === 0, `al open: niets gelezen (${reads.join(', ')})`);
+}
 
-  // Via een link: een ander pad, dezelfde bestandsidentiteit.
-  S().newProject();
+{
+  // Via een link: een ander pad, dezelfde bestandsidentiteit. Het linkpad zelf is niet leesbaar in de nep-IO, dus
+  // een leesfout of een nieuw tabblad laat deze controle falen.
+  clearNotices();
+  freshTab('via een link');
   const identity = { stat: async (p: string) => {
     if (p === '/home/a/link/plan.ifc' || p === '/home/a/plan.ifc') return { isFile: true, dev: 1, ino: 42 };
     throw new Error(`failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`);
   } };
-  const beforeLink = S().documents.length;
+  const before = S().documents.length;
+  reads.length = 0;
   await openLaunchFiles(useAppStore, ['/home/a/link/plan.ifc'], io, labels, () => false, { identityFs: async () => identity });
-  check(S().documents.length === beforeLink && S().activeDocumentId === planDoc?.id,
-    'via een link: hetzelfde bestand, dus naar het open tabblad');
+  check(S().documents.length === before && S().activeDocumentId === planDoc?.id && reads.length === 0
+    && !S().ui.notifications.some((n) => n.severity === 'error'),
+  'via een link: hetzelfde bestand, dus naar het open tabblad, zonder lezen of foutmelding');
+}
 
+{
   // Met een open venster: eerst wachten, dan pas wisselen (een wissel zou de invoer van het venster weggooien).
-  S().newProject();
-  const waitingId = S().activeDocumentId;
+  const waitingId = freshTab('venster open');
   let blocked = true;
   const done = openLaunchFiles(useAppStore, ['/home/a/plan.ifc'], io, labels, () => blocked);
   await sleep(OPEN_WAIT_POLL_MS * 3);
@@ -161,13 +179,55 @@ const io = {
   blocked = false;
   await done;
   check(S().activeDocumentId === planDoc?.id, 'al open, venster dicht: dan de wissel');
+}
 
+{
   // Een nieuw bestand en een al open bestand samen: het nieuwe opent, het laatste pad bepaalt het actieve tabblad.
+  freshTab('nieuw + al open');
   files.set('/home/a/nieuw.ifc', ifcText);
-  const beforeMix = S().documents.length;
   await openLaunchFiles(useAppStore, ['/home/a/nieuw.ifc', '/home/a/plan.ifc'], io, labels, () => false);
-  check(S().documents.length === beforeMix + 1, 'nieuw + al open: één nieuw tabblad');
+  check(tabsFor('/home/a/nieuw.ifc') === 1 && tabsFor('/home/a/plan.ifc') === 1, 'nieuw + al open: het nieuwe opent één keer, het open bestand niet nog eens');
   check(S().activeDocumentId === planDoc?.id, 'nieuw + al open: het laatst meegegeven bestand is actief');
+}
+
+// ── G. Tijdens een lopende opening (review ronde 2 van #1116) ─────────────────────────────────────────────────
+{
+  // Eén startevent met hetzelfde pad twee keer: één tabblad.
+  freshTab('twee keer in één event');
+  files.set('/home/a/dubbel.ifc', ifcText);
+  await openLaunchFiles(useAppStore, ['/home/a/dubbel.ifc', '/home/a/dubbel.ifc'], io, labels, () => false);
+  check(tabsFor('/home/a/dubbel.ifc') === 1, `twee keer in één event: één tabblad (${tabsFor('/home/a/dubbel.ifc')})`);
+}
+
+{
+  // Twee startevents vlak na elkaar, terwijl het eerste nog op het welkomstvenster wacht: één tabblad.
+  freshTab('twee events');
+  files.set('/home/a/twee.ifc', ifcText);
+  let blocked = true;
+  const open = createLaunchFileOpener((paths) => openLaunchFiles(useAppStore, paths, io, labels, () => blocked));
+  const first = open(['/home/a/twee.ifc']);
+  const second = open(['/home/a/twee.ifc']);
+  await sleep(OPEN_WAIT_POLL_MS * 2);
+  check(tabsFor('/home/a/twee.ifc') === 0, 'twee events, venster open: nog niets geopend');
+  blocked = false;
+  await Promise.all([first, second]);
+  check(tabsFor('/home/a/twee.ifc') === 1, `twee events: één tabblad (${tabsFor('/home/a/twee.ifc')})`);
+  const twee = S().getOpenDocumentPayloads().find(({ payload }) => payload.filePath === '/home/a/twee.ifc');
+  check(S().activeDocumentId === twee?.id, 'twee events: dat tabblad is actief');
+}
+
+{
+  // Een pad met een `..` die Rust niet kon oplossen (de map bestaat niet): het besturingssysteem leest het niet, dus
+  // de gewone leesfout, ook al lijkt de tekst zonder `weg/..` op het open bestand.
+  clearNotices();
+  freshTab('ontbrekende map met ..');
+  const before = S().documents.length;
+  const activeBefore = S().activeDocumentId;
+  reads.length = 0;
+  await openLaunchFiles(useAppStore, ['/home/a/weg/../plan.ifc'], io, labels, () => false);
+  check(same(reads, ['/home/a/weg/../plan.ifc']), `.. in het pad: gelezen zoals gegeven (${reads.join(', ')})`);
+  check(S().documents.length === before && S().activeDocumentId === activeBefore, '.. in het pad: geen wissel, geen tabblad');
+  check(S().ui.notifications.some((n) => n.severity === 'error' && (n.detail ?? '').includes('os error 2')), '.. in het pad: de gewone leesfout');
 }
 
 console.log(failures === 0 ? 'launch-files: alles groen' : `launch-files: ${failures} fout(en)`);

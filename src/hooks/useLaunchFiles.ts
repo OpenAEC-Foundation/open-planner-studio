@@ -6,7 +6,7 @@ import { isTauri } from '@/utils/platform';
 import { isDocumentLeaveBlocked } from '@/hooks/keyboard/shortcutRegistry';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import { fileIdentityFs } from '@/services/fileAccess';
-import { listenForLaunchFiles, openLaunchFiles } from '@/state/launchFiles';
+import { createLaunchFileOpener, listenForLaunchFiles, openLaunchFiles } from '@/state/launchFiles';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { appLog } from '@/services/debug/appLog';
 import type { RecoveryState } from './useRecoveryRestore';
@@ -25,15 +25,15 @@ export function useLaunchFiles(recoveryResolved: boolean, recovery: RecoveryStat
     // Het luisteren blijft zolang de app draait: een tweede start kan op elk moment een bestand sturen.
     void (async () => {
       const [{ listen, emit }, io] = await Promise.all([import('@tauri-apps/api/event'), tauriOpenIO()]);
+      // Eén wachtrij over alle events heen; taal en leeskeuze per event, zoals bij neerzetten.
+      const open = createLaunchFileOpener((paths) => openLaunchFiles(
+        useAppStore, paths, io, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked,
+        { readOptions: { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) }, identityFs: fileIdentityFs },
+      ));
       await listenForLaunchFiles({
         listen: (event, handler) => listen(event, (e) => handler(e.payload)),
         emit: (event) => emit(event),
-      }, (paths) => {
-        void openLaunchFiles(
-          useAppStore, paths, io, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked,
-          { readOptions: { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) }, identityFs: fileIdentityFs },
-        );
-      });
+      }, (paths) => { void open(paths); });
     })().catch((err: unknown) => appLog.emit('error', 'launch-files', 'luisteren naar meegegeven bestanden faalde', err));
   }, [recoveryResolved, recovery]);
 }
