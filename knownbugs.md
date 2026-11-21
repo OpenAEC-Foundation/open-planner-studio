@@ -5485,7 +5485,9 @@ en noem het in je rapport of PR-tekst.
      gevraagde bestand gewoon, zoals met de flag uit (review #1121, proef B8). Twee kruisende openacties kunnen nog twee
      tabbladen geven (2041). Proeven: `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent, slepen; met de
      flag uit telkens een tweede tabblad), G16 in `check-site-storage.ts` (de site) en `cases-doc-file.ts`
-     (`planner_import_schedule`).
+     (`planner_import_schedule`). Een bestand dat bij het starten is meegegeven (#1091, ook een tweede start) wisselt
+     al met de flag uit naar het open tabblad (`openLaunchFiles`, zonder melding); met de flag aan krijgt het dezelfde
+     melding (proef B10 in `check-one-file-one-tab.ts`).
      Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
      aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
      2029, 2040, 2041. — B (proef, met de flag uit)

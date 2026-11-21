@@ -101,7 +101,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { alreadyOpenDocument, switchToOpenDocument } from '../openDocumentFor';
+import { alreadyOpenDocument, switchToExistingDocument, switchToOpenDocument } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -2447,9 +2447,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           return;
         }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
+        // Met de flag aan met de melding van de toets hierboven (knownbug 1957); met de flag uit zoals main.
         const existing = options?.existingDocument?.() ?? null;
         if (existing !== null) {
-          get().switchDocument(existing);
+          switchToExistingDocument(get(), existing);
           return;
         }
         if (options?.stale?.()) return;

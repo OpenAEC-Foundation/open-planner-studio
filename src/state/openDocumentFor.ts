@@ -94,3 +94,14 @@ export function switchToOpenDocument(
   return true;
 }
 
+/**
+ * Ga naar het tabblad `id` dat de startroute vond (`existingDocument`, #1091): met de flag aan met dezelfde melding als
+ * `switchToOpenDocument`, met de flag uit zonder, zoals main.
+ */
+export function switchToExistingDocument(
+  s: Pick<AppState, 'switchDocument' | 'notify' | 'ui'>,
+  id: string,
+): void {
+  s.switchDocument(id);
+  if (ifcForeignContentEnabled(s.ui.featureFlags)) s.notify(FILE_ALREADY_OPEN_NOTICE);
+}

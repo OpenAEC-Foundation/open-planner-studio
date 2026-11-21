@@ -392,6 +392,72 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq('B9 ./kantoor.ifc: hetzelfde bestand, naar het open tabblad', [T().activeDocumentId, T().documents.length], [first, 2]);
     }
 
+    // #1116/#1091: een startbestand (eerste start, of een tweede start: de planner dubbelklikt op een bestand dat al open
+    // staat) loopt door `openLaunchFiles` → `openOpenedFile`, dus door de toets. Met de flag aan: naar het open
+    // tabblad, met de melding en Recent. Een tabblad dat pas tijdens het wachten opengaat, vindt de eigen controle van
+    // de startroute (`existingDocument`); die geeft met de flag aan dezelfde melding. Met de flag uit zoals main: de
+    // startroute wisselt, zonder melding.
+    {
+      const { openLaunchFiles } = await import('@/state/launchFiles');
+      const launchCase = async (flag: boolean) => {
+        const st = newStore(flag);
+        const T = () => st.getState();
+        dialogAnswer = kantoor;
+        await T().openFile(labels);
+        const first = T().activeDocumentId;
+        T().addTask({ name: 'Werk in kantoor' });
+        const before = tab(st, first);
+        T().newDocument();
+        dialogAnswer = school;
+        await T().openFile(labels);
+        const other = T().activeDocumentId;
+        return { st, T, first, before, other };
+      };
+      for (const [how, path] of [['pad', kantoor], ['link', link]] as const) {
+        const { st, T, first, before, other } = await launchCase(true);
+        st.setState(s => { s.recentFiles = []; });
+        clearNotices(st);
+        await openLaunchFiles(st, [path], io, labels, () => false);
+        eq(`B10 tweede start, ${how}: naar het open tabblad, met de melding`, [
+          T().activeDocumentId, T().documents.length, notices(st),
+        ], [first, 2, [['info', ALREADY_OPEN]]]);
+        eq(`B10 tweede start, ${how}: dat tabblad houdt zijn inhoud`, tab(st, first), before);
+        eq(`B10 tweede start, ${how}: Recent bijgewerkt`, T().recentFiles[0]?.ref, { kind: 'path', path });
+        eq(`B10 tweede start, ${how}: het andere tabblad onveranderd`, tab(st, other)?.filePath, school);
+      }
+      {
+        // Het tabblad met kantoor gaat pas open terwijl het startbestand wacht (een dialoog staat open).
+        const st = newStore(true);
+        const T = () => st.getState();
+        dialogAnswer = school;
+        await T().openFile(labels);
+        let blocked = true;
+        let waiting!: () => void;
+        const entered = new Promise<void>((r) => { waiting = r; });
+        const launching = openLaunchFiles(st, [kantoor], io, labels, () => { waiting(); return blocked; });
+        await entered;
+        dialogAnswer = kantoor;
+        await T().openFile(labels);
+        const late = T().activeDocumentId;
+        T().switchDocument(T().documents.find(d => d.id !== late)!.id);
+        clearNotices(st);
+        blocked = false;
+        await launching;
+        eq('B10 tabblad dat tijdens het wachten opende: daarheen, met de melding', [
+          T().activeDocumentId, T().documents.length, notices(st),
+        ], [late, 2, [['info', ALREADY_OPEN]]]);
+      }
+      {
+        const { st, T, first, before } = await launchCase(false);
+        clearNotices(st);
+        await openLaunchFiles(st, [kantoor], io, labels, () => false);
+        eq('B10 flag uit: de startroute wisselt zoals main, zonder melding', [
+          T().activeDocumentId, T().documents.length, notices(st).filter(n => n[1] === ALREADY_OPEN),
+        ], [first, 2, []]);
+        eq('B10 flag uit: dat tabblad houdt zijn inhoud', tab(st, first), before);
+      }
+    }
+
     // Met de flag uit: precies main, elke weg geeft een tweede tabblad op hetzelfde bestand.
     const offStore = newStore(false);
     const O = () => offStore.getState();

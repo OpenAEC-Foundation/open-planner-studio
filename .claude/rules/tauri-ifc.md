@@ -415,8 +415,10 @@ tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzig
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen maakt met de flag aan in de gewone routes geen tweede
 tabblad op hetzelfde bestand: het gaat naar het tabblad dat al open is (`openDocumentFor.ts`, knownbug 1957; de lus
-`openDocumentPathId` met `dev`/`ino` vóór het lexicale pad, `isSameEntry` voor handles). Kreeg dat tabblad tijdens de
-toets een ander bestand (Opslaan als), dan opent het gevraagde bestand gewoon. Een tweede tabblad op hetzelfde bestand
+`openDocumentIdForPath` met `dev`/`ino` vóór het lexicale pad, `isSameEntry` voor handles). Kreeg dat tabblad tijdens de
+toets een ander bestand (Opslaan als), dan opent het gevraagde bestand gewoon. Een startbestand (#1091) heeft daarna nog
+de eigen controle van `openLaunchFiles` (`existingDocument`), die ook met de flag uit wisselt; met de flag aan geeft die
+dezelfde melding (`switchToExistingDocument`). Een tweede tabblad op hetzelfde bestand
 kan er nog zijn (crashherstel, de flag pas later aan, twee kruisende openacties: knownbug 2041), dus de doelbewaking
 blijft nodig. Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document

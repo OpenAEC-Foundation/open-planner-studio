@@ -17,7 +17,7 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 
 Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een ander formaat krijgt zijn projectnaam.
 
-Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en open je een IFC-bestand dat al in een tabblad open staat, dan komt er geen tweede tabblad. De app gaat naar het tabblad dat al open is, met de melding *Dit bestand staat al open. Je bent naar dat tabblad gegaan.* Dat tabblad houdt zijn inhoud, ook wijzigingen die je nog niet opsloeg; wat er nu in het bestand staat, komt er niet in. Dat geldt ook voor slepen en *Recent*. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad. Dat doet ook een bestand van je computer in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad.
+Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en open je een IFC-bestand dat al in een tabblad open staat, dan komt er geen tweede tabblad. De app gaat naar het tabblad dat al open is, met de melding *Dit bestand staat al open. Je bent naar dat tabblad gegaan.* Dat tabblad houdt zijn inhoud, ook wijzigingen die je nog niet opsloeg; wat er nu in het bestand staat, komt er niet in. Dat geldt ook voor slepen, *Recent* en een dubbelklik. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad. Dat doet ook een bestand van je computer in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad; alleen een dubbelklik gaat dan naar het open tabblad, zonder melding.
 
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
@@ -36,7 +36,7 @@ Staat er een venster of vraag open, dan opent slepen niets. Open je een venster 
 
 ### Een bestand openen met een dubbelklik (desktopapp)
 
-De installer koppelt `.ifc` niet aan de app. Wil je een bestand met een dubbelklik openen, koppel het formaat dan zelf: op Windows met de rechtermuisknop op het bestand, *Openen met* en *Een andere app kiezen*. De app opent het bestand dan zoals bij *Openen*, in een eigen tabblad. Staat de app al open, dan opent het bestand in dat venster. Dat werkt ook vanaf de opdrachtregel, met het pad als argument.
+De installer koppelt `.ifc` niet aan de app. Wil je een bestand met een dubbelklik openen, koppel het formaat dan zelf: op Windows met de rechtermuisknop op het bestand, *Openen met* en *Een andere app kiezen*. De app opent het bestand dan zoals bij *Openen*, in een eigen tabblad. Staat de app al open, dan opent het bestand in dat venster. Staat het bestand daar al in een tabblad open, dan gaat de app naar dat tabblad. Dat werkt ook vanaf de opdrachtregel, met het pad als argument.
 
 Staat er bij het starten een venster open, zoals het welkomstvenster, dan opent het bestand zodra je dat venster sluit. Bestaat het bestand niet, of is het een formaat dat de app niet kent, dan zie je de gewone melding en blijft de app open. Een bestand buiten je thuismap kan de app op deze manier nog niet lezen; open het dan met *Openen*.
 

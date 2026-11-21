@@ -17,7 +17,7 @@ You start the day with yesterday's project, you get a file from a colleague or f
 
 An IFC file gives its file name to the tab. A project from another format gets its project name.
 
-If the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)) and you open an IFC file that is already open in a tab, no second tab appears. The app goes to the tab that is already open, with the message *This file is already open. You have been taken to that tab.* That tab keeps its content, including changes you have not saved yet; what is in the file now does not get into it. The same goes for dragging and *Recent*. A file in another format, such as `.csv` or `.xer`, does open again in a tab of its own. So does a file from your computer in browsers that only download, such as Firefox. If the setting is off, an IFC file that is already open also opens in a new tab.
+If the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)) and you open an IFC file that is already open in a tab, no second tab appears. The app goes to the tab that is already open, with the message *This file is already open. You have been taken to that tab.* That tab keeps its content, including changes you have not saved yet; what is in the file now does not get into it. The same goes for dragging, *Recent* and a double-click. A file in another format, such as `.csv` or `.xer`, does open again in a tab of its own. So does a file from your computer in browsers that only download, such as Firefox. If the setting is off, an IFC file that is already open also opens in a new tab; only a double-click then goes to the open tab, without a message.
 
 The app opens `.ifc`, `.csv`, `.xml` (MS Project XML or Primavera P6 XML), `.mpp` and `.xer`. For the last two there are separate steps in [Opening an MS Project file (.mpp)](docs://howto-mpp-openen) and [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
@@ -36,7 +36,7 @@ If a dialog or question is open, dragging opens nothing. If you open a dialog wh
 
 ### Opening a file with a double-click (desktop app)
 
-The installer does not associate `.ifc` with the app. To open a file with a double-click, associate the format yourself: on Windows, right-click the file, choose *Open with* and *Choose another app*. The app then opens the file as with *Open*, in its own tab. If the app is already running, the file opens in that window. This also works from the command line, with the path as an argument.
+The installer does not associate `.ifc` with the app. To open a file with a double-click, associate the format yourself: on Windows, right-click the file, choose *Open with* and *Choose another app*. The app then opens the file as with *Open*, in its own tab. If the app is already running, the file opens in that window. If the file is already open in a tab there, the app goes to that tab. This also works from the command line, with the path as an argument.
 
 If a dialog is open when the app starts, such as the welcome dialog, the file opens as soon as you close that dialog. If the file does not exist, or is in a format the app does not know, you see the usual message and the app stays open. The app cannot yet read a file outside your home folder this way; open it with *Open* instead.
 
