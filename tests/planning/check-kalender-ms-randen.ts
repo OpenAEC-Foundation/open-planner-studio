@@ -447,6 +447,54 @@ for (const minutes of [0, 0.000001, 0.000008]) {
     [time.lateStart, time.lateFinish, time.totalFloatMinutes], ['2026-05-29T16:00', '2026-05-29T16:00', 0]);
 }
 
+// Knownbug 400: BELL-verdeling uit XER met bijna gelijke daginzetten.
+{
+  const summary = [];
+  for (const profile of ['ops', 'p6', 'msproject'] as const) {
+    for (const rule of ['FIXED_WORK', 'FIXED_RATE'] as const) {
+      const store = createAppStoreContext().store;
+      const S = () => store.getState();
+      const opened = await parseOpenedFile({ name: 'bell.xer', bytes: new TextEncoder().encode(hoursXer(['17.777778'])) });
+      S().applyOpenedImport(opened, OPEN);
+      S().applySchedulingSettings({
+        profile: { id: profile, baseId: profile, name: '', overrides: {} },
+        options: S().project.schedulingOptions,
+      });
+      const taskId = S().tasks.find(t => !t.isSummary)!.id;
+      const resource = S().addResource({ name: 'Medewerker', description: '', type: 'LABOR', maxUnits: 1 });
+      S().assignResource(taskId, resource, 0.9);
+      S().setTaskWorkRule(taskId, rule);
+      const assignmentId = S().assignments.find(a => a.taskId === taskId)!.id;
+      const A = () => S().assignments.find(a => a.id === assignmentId)!;
+      S().updateAssignment(assignmentId, { unitsPerDay: 1 });
+      S().updateAssignment(assignmentId, { curve: 'BELL' });
+      S().runCPM();
+      eq(`400 ${profile}/${rule}: BELL ingesteld`, A().curve, 'BELL');
+      const before = A().remainingWorkMinutes ?? NaN;
+      const steps = [];
+      for (const round of [1, 2]) {
+        const task = S().tasks.find(t => t.id === taskId)!;
+        const engine = new CalendarEngine(S().calendars.find(c => c.id === task.calendarId) ?? S().calendar);
+        const a = A();
+        const contour = contourLookup(S().assignments.filter(x => x.taskId === taskId))(task, a);
+        const model = contourDayModel(task, a, contour, engine, effectiveSchedulingOptions(S().project));
+        const phases = fitPhasesToDays(phasesFromSlots(model.remainingRates.map(v => v * model.mpd), model.mpd), model.days.length, a.unitsPerDay);
+        const periods = contourPeriodsFromRates(contour?.periods, slotsFromPhases(phases, 1), model.days, model.mpd);
+        S().setAssignmentContour(assignmentId, periods);
+        S().runCPM();
+        const after = A().remainingWorkMinutes ?? NaN;
+        steps.push({ round, phaseCount: phases.length, after, deltaMs: (after - before) * 60000 });
+      }
+      summary.push({ profile, rule, before, steps });
+    }
+  }
+  eq('knownbug 400: aantal gevallen', summary.length, 6);
+  console.log(`KNOWNBUG400_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 400::${JSON.stringify(summary)}`);
+  }
+}
+
 if (errors.length) {
   for (const e of errors) console.log(`XX kalender-ms-randen: ${e}`);
   console.log(`XX kalender-ms-randen: ${errors.length} van ${checks} controles rood`);
