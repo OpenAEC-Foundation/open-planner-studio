@@ -235,8 +235,10 @@ eq('en meldt het verlies (eerste keer voor dit document)',
   }
 
   const consistent = freshTask(PROJECT_CAL.id);
+  const good = new CPMSolver([consistent], [], PROJECT_CAL, [PROJECT_CAL], opts).solve();
+  ok('507 controle: geldige CPM heeft een projecteinde', !good.error && !!good.projectEnd && good.projectEnd !== staleEnd);
   eq('507 controle: geldige kalender levert wel een proefberekening',
-    level(consistent, PROJECT_CAL, [PROJECT_CAL]).projectEndAfter, finish);
+    level(consistent, PROJECT_CAL, [PROJECT_CAL]).projectEndAfter, good.projectEnd);
 
   // Directe aanroep met inconsistente data, GEEN geldige store-invoer: daar wordt de projectcache
   // op de bibliotheek gesynchroniseerd. CPM gebruikt zijn reeds gecachte projectengine voor
@@ -248,7 +250,7 @@ eq('en meldt het verlies (eerste keer voor dit document)',
   eq('507 directe aanroep: de taakengine van de nivelleerder heeft toch geen werkblokken',
     createTaskEngineCache([sameIdNoHours], PROJECT_CAL).forTask(direct).isHourMode, false);
   eq('507 directe aanroep: de nivelleerder passeert de baseline-stop en doet een proefberekening',
-    level(direct, PROJECT_CAL, [sameIdNoHours]).projectEndAfter, finish);
+    level(direct, PROJECT_CAL, [sameIdNoHours]).projectEndAfter, good.projectEnd);
   console.log('::notice title=Knownbug 507::Vijf baseline-stops en een synthetische directe aanroep met conflicterende kalender-id gecontroleerd');
 }
 
