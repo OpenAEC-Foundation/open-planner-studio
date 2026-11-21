@@ -353,10 +353,16 @@ plugin-fs een hulpnaam naast het doel niet toelaten, dan vraagt de app vóór de
 (`refusedReplaceFolderAccess` in `state/replaceFolderAccess.ts` → `requestReplaceFolderAccess` in
 `fileAccess/replaceFolderAccess.ts`: de toets `exists` op een hulpnaam, de vraag in de app `FolderAccessQuestionDialog`,
 de mapkiezer van plugin-dialog met `recursive: false` en de map als `defaultPath`, dan dezelfde toets opnieuw). Geen
-vergelijking van padteksten. Annuleren of een andere map ⇒ `ifcForeignFolderAccessMissing`, niets geschreven. De
-mapkiezer geeft de map vrij zoals `allow_directory(map, false)` (de bestanden erin, geen submappen), `persisted-scope`
-bewaart haar en `place_file_exclusive` neemt haar mee, zonder Rust-commando
-(`place_file_mapkiezer_geeft_de_map_niet_recursief_vrij`). Opslaan als over een bestaand bestand vraagt hetzelfde, vlak
+vergelijking van padteksten. Eén uitkomst: `true` = verder, `false` = niet vrijgegeven (annuleren of een andere map) ⇒
+`ifcForeignFolderAccessMissing`, niets geschreven. Een Ctrl+S die al wachtte toen de planner annuleerde, krijgt
+hetzelfde antwoord zonder tweede vraag (`SaveAttempt.refusedFolder` in `fileSlice.ts`); een nieuwe Ctrl+S vraagt
+opnieuw. Een map waarvan de naam op `**` eindigt: geen vraag, de weigering van vóór de vraag (`persisted-scope` 2.4.3
+leest zo'n map na een herstart als recursief). De mapkiezer geeft de map vrij zoals `allow_directory(map, false)`
+(namen in de map, geen namen in een submap), `persisted-scope` bewaart haar en `place_file_exclusive` neemt haar mee,
+zonder Rust-commando (`place_file_mapkiezer_geeft_de_map_niet_recursief_vrij`). Die toestemming geldt voor elke
+bestandsopdracht van de capability, ook `remove` op de map zelf met `recursive` (knownbug 2027; de app doet dat nooit,
+`check-fs-remove-calls.ts`), ook voor een verkeerd gekozen map, en ze blijft met de flag uit: dan schrijft ook de gewone
+opslag in die map via het hulpbestand (knownbug 2028). Opslaan als over een bestaand bestand vraagt hetzelfde, vlak
 vóór de doelcontrole na de kiezer (die dus beslist op de stand van ná de vraag); Automatisch opslaan en een nieuwe naam
 vragen nooit. De vraag blokkeert zoals "alleen de
 planning" (`isBlockingDialogOpen`, `saveQuestionOpen`, `isGlobalShortcutFrozen`; bedrading

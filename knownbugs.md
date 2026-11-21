@@ -2784,12 +2784,20 @@ en noem het in je rapport of PR-tekst.
      7. Gebouwd (was 1762; besluit van de eigenaar, 21 november 2026: "één keer per map vragen"): Ctrl+S buiten de
         thuismap, en Opslaan als over een bestaand bestand daar. Mag het tijdelijke bestand naast het doel niet
         ontstaan, dan vraagt de app eenmalig toegang tot die map (bij Ctrl+S vóór de merge): een korte vraag in de app,
-        dan de gewone mapkiezer op die map, niet-recursief (`replaceFolderAccess.ts`). `persisted-scope` bewaart de map
-        over een herstart; daarna loopt dezelfde vervanging, ook het herstel na een crash. Na annuleren of een andere
-        map: niets geschreven, `ifcForeignFolderAccessMissing`. Alleen met de flag aan; Automatisch opslaan en een
-        nieuwe naam vragen niets. Geen Rust-commando; `place_file_mapkiezer_geeft_de_map_niet_recursief_vrij` toetst de
-        scope van het commando en van plugin-fs `exists`. Niet gemeten in een echte desktopapp (de mapkiezer, een
-        herstart, een netwerkschijf, Windows en macOS).
+        dan de gewone mapkiezer op die map met `recursive: false` (`replaceFolderAccess.ts`): namen in de map mogen,
+        namen in een submap niet. De toestemming geldt wel voor elke bestandsopdracht van de app, ook het wissen van de
+        map zelf met alles eronder (2027). `persisted-scope` bewaart de map over een herstart; daarna loopt dezelfde
+        vervanging, ook het herstel na een crash. Na annuleren of een andere map: niets geschreven,
+        `ifcForeignFolderAccessMissing`; een andere map blijft wel vrijgegeven (2027). Een Ctrl+S die al wachtte toen de
+        planner annuleerde, krijgt hetzelfde antwoord, zonder tweede vraag; een nieuwe Ctrl+S vraagt opnieuw. Een map
+        waarvan de naam op `**` eindigt: geen vraag (`persisted-scope` 2.4.3 zou haar na een herstart recursief
+        vrijgeven), de weigering van vóór de vraag. De vraag alleen met de flag aan; een eenmaal vrijgegeven map blijft
+        ook met de flag uit vrij, en dan schrijft ook de gewone opslag daar via het hulpbestand (2028). Automatisch
+        opslaan en een nieuwe naam vragen niets; Automatisch opslaan meldt dan dat één keer zelf opslaan helpt
+        (`ifcForeignAutoSaveFolderAccess`). Geen Rust-commando; `place_file_mapkiezer_geeft_de_map_niet_recursief_vrij`
+        toetst de scope van het commando en van plugin-fs `exists`. Met de hand nagelopen in de echte desktopapp op Linux
+        (21 november 2026: de vraag, de mapkiezer, een herstart, annuleren, Opslaan als over een bestaand bestand); niet
+        gemeten: een netwerkschijf, een andere map in de mapkiezer, Windows en macOS.
      8. Gebouwd (stap 8, #1019; tweede deel na het besluit van de eigenaar van 19 november 2026): *Opslaan als* over een
         andere bestaande naam op de desktop (keuze 4), met de flag aan; ook de bestandskiezer van Ctrl+S bij een
         document zonder opslagdoel (fixronde 1 van #1071). Die route draagt de keuze zelf (`saveAsOnDesktop` in
@@ -2815,7 +2823,8 @@ en noem het in je rapport of PR-tekst.
         vervanging niet kan (`save-as-only`: een harde link, ook op Windows via `nNumberOfLinks` in
         `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam (`ifcForeignNewTargetOnly`),
         zonder terugval. Buiten de thuismap vraagt de app eerst toegang tot de map (punt 7). Met de flag uit zijn
-        volgorde, meldingen en bestandsaanroepen die van main. Of er een bestand staat, stelt de kiezer direct na zijn
+        volgorde, meldingen en bestandsaanroepen die van main, behalve in een map die de planner eerder vrijgaf (2028).
+        Of er een bestand staat, stelt de kiezer direct na zijn
         terugkeer vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam
         (weigeren nog; de vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
@@ -2846,8 +2855,39 @@ en noem het in je rapport of PR-tekst.
      bestand met een gebouwmodel en bij Opslaan als over een bestaand bestand eenmalig toegang tot de map, en vervangt ze
      het daarna veilig (VERMOED voor zo'n gelinkte map: de scope neemt ook de echte vorm van de gekozen map op, niet
      gemeten met een echte mapkiezer). Ctrl+S op een gewone planning, en alles met de flag uit, schrijft hier nog direct,
-     zoals main (besluit van de eigenaar, 21 november 2026: apart van 1762). Richting: dezelfde vraag ook voor de gewone
+     zoals main (besluit van de eigenaar, 21 november 2026: apart van 1762), behalve in een map die de planner eerder
+     vrijgaf: daar loopt ook de gewone opslag via het hulpbestand (2028). Richting: dezelfde vraag ook voor de gewone
      opslag, als eigen keuze. Gevonden door de review van #978. — B (proef)
+
+2027. **De toestemming voor een map (Ctrl+S buiten de thuismap, 1131 punt 7) geldt voor elke bestandsopdracht van de app, ook voor het wissen van die map met alles eronder.**
+     De mapkiezer van plugin-dialog 2.7.0 zet de gekozen map in de gedeelde scope van plugin-fs
+     (`allow_directory(map, false)`: de map zelf en de namen erin). In diezelfde scope staat de thuismap via de capability
+     `fs:allow-home-write-recursive`, en die capability omvat `write-all`: schrijven, aanmaken, kopiëren, hernoemen,
+     afkappen, mappen maken en wissen. `remove` (plugin-fs 2.7.1) toetst alleen het opgegeven pad: op de map zelf met
+     `recursive` wist het de hele boom eronder (`remove_dir_all`), ook submappen die zelf niet vrij zijn. De kiezer zet de
+     map in de scope voordat JavaScript het antwoord krijgt, en `persisted-scope` bewaart haar over een herstart. Ook een
+     verkeerd gekozen map (een andere dan die van het bestand) en een Opslaan als die daarna nog weigert, geven dus
+     blijvende rechten. Heet zo'n verkeerd gekozen map op `**` uit, dan geeft `persisted-scope` 2.4.3 haar na een herstart
+     zelfs recursief vrij; voor de map van het bestand zelf vraagt de app daarom niets (fixronde 1 van #1124). Waarom het
+     zo blijft (besluit van de technisch beslisser, 21 november 2026): de gekozen map krijgt niet meer dan main de hele
+     thuismap al geeft (`fs:allow-home-write-recursive`), en de app wist zelf nooit een map met inhoud. Nergens staat een
+     `remove` met `recursive`, en de enige `remove` op een map wist een lege backupmap in de eigen app-datamap;
+     `check-fs-remove-calls.ts` bewaakt die lijst. Een eigen lijst met vrijgegeven mappen aan de Rust-kant zou nieuw
+     publiek oppervlak zijn, tegen het besluit voor deze PR (T1). Gevonden door de review van #1124. — B (code/proef)
+
+2028. **Na een eerdere toestemming voor een map slaat de app in die map op via het hulpbestand, ook met de flag uit.**
+     De app vraagt de toestemming (1131 punt 7) alleen met de flag `ifcForeignContent` aan. Maar `persisted-scope` bewaart
+     haar over een herstart, en de flag uitzetten haalt haar niet weg. De gewone schrijfroute (Ctrl+S op een planning
+     zonder gebouwmodel; met de flag uit weigert Ctrl+S een document met een gebouwmodel al eerder), de gewone Opslaan
+     als, Exporteren → IFC en Automatisch opslaan delen de bestandslaag (`replaceUserFile` en `writeNewUserBytes` in
+     `atomicWrite.ts`). Mag het tijdelijke bestand naast het doel ontstaan, dan schrijft die laag via dat bestand; anders
+     schrijft ze direct (1752). In een vrijgegeven map is het dus via het tijdelijke bestand. Het zichtbare verschil met main: op Linux en macOS vervangt de app een alleen-lezen
+     bestand in een beschrijfbare map (de hernoeming over het doel mag dan), waar main weigert (direct schrijven in een
+     alleen-lezen bestand faalt). Op Windows weigert ook de hernoeming; daarna schrijft de app direct en weigert, zoals
+     main (VERMOED, niet gemeten). Waarom het zo blijft (besluit van de technisch beslisser, 21 november 2026): het
+     gebeurt alleen na flag aan, map vrijgeven en flag uit; er gaat niets verloren; het is hetzelfde gedrag als in de
+     thuismap op main. Het alternatief, de gewone route zonder hulpbestand als de flag uit staat en het doel buiten de
+     thuismap ligt, maakt de opslag bewust minder veilig. Gevonden door de review van #1124. — B (code)
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen

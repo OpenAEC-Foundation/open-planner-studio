@@ -754,10 +754,12 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     sluitvraag sluit dan niet. Automatisch opslaan naar het bestand gebruikt sinds #804 stap 8 dezelfde vervanging
     (§4.12). Buiten de thuismap (knownbug 1762, besluit van de eigenaar van 21 november 2026): mag het tijdelijke
     bestand naast het doel niet ontstaan, dan vraagt de app vóór de merge eenmalig toegang tot die map, eerst met een
-    korte vraag in de app en dan met de gewone mapkiezer op die map (niet-recursief: de bestanden erin, geen submappen).
+    korte vraag in de app en dan met de gewone mapkiezer op die map (`recursive: false`: namen in de map, geen namen in een
+    submap; wel voor elke bestandsopdracht van de app, ook het wissen van de map zelf, knownbug 2027).
     `persisted-scope` bewaart de map over een herstart. Daarna loopt dezelfde vervanging, ook het herstel na een crash.
-    Na annuleren of een andere map: niet opgeslagen, met een melding die naar *Opslaan als* wijst. Alleen met de flag aan;
-    Automatisch opslaan vraagt nooit.
+    Na annuleren of een andere map: niet opgeslagen, met een melding die naar *Opslaan als* wijst; een andere map blijft
+    wel vrijgegeven (knownbug 2027). De vraag alleen met de flag aan; een vrijgegeven map blijft ook met de flag uit vrij
+    (knownbug 2028). Automatisch opslaan vraagt nooit.
   - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
     vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
     als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
@@ -784,7 +786,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     niet kan (een link of een harde link; een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
     nieuwe naam kan; geen terugval. Buiten de thuismap vraagt de app eerst toegang tot de map, zoals bij Ctrl+S
     (knownbug 1762); een nieuwe naam daar vraagt niets. Met de flag uit is alles zoals
-    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    voorheen, ook de volgorde van de weigerredenen, op een eerder vrijgegeven map na (knownbug 2028). Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -1530,7 +1532,8 @@ profiel); daar geldt deze lijst.
    de thuismap; daarbuiten verwijst de app naar *Opslaan als*. De uitbreiding is de laatste bouwtaak vóór de
    featureflag standaard aan gaat. *Gebouwd na het besluit van 21 november 2026* (de eigenaar koos "één keer per map
    vragen", de technisch beslisser op 20 november T1 tot en met T6): de app vraagt eenmalig per map toegang met de
-   gewone mapkiezer (niet-recursief, bewaard over een herstart), ook voor *Opslaan als* over een bestaand bestand;
+   gewone mapkiezer (`recursive: false`, bewaard over een herstart, ook met de flag uit; knownbugs 2027 en 2028), ook
+   voor *Opslaan als* over een bestaand bestand;
    geen Rust-commando, `place_file_exclusive` neemt de vrijgegeven map mee (§4.10).
 2. **Automatisch opslaan** bij een bestand met een gebouwmodel: aan, met opslaan in de achtergrond, ook voor gewone
    bestanden. Gebouwd in #804 stap 8 (achter de flag); het ritme en de voorrang staan in §4.12.

@@ -223,7 +223,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799) and mounts that hide hard links (knownbug 1823), is in the header of
   `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
   one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
-  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent, and the folders granted for saving outside the home folder (knownbug 1131 point 7; such a grant covers every fs command of the capability, also deleting that folder, knownbug 2027, and stays with the flag off, knownbug 2028). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
   of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
   `$APPDATA`, plus the files `cookies` and `hsts-storage.sqlite`) and `$APPLOCALDATA/EBWebView/**` on Windows; the
@@ -488,9 +488,10 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
   changed or missing own file, a folder outside the scope the planner has not granted yet (only Ctrl+S and Save As
-  ask for it, knownbug 1762), an unrecordable or leftover recovery record stop it for that document with one notice
-  per session (`state/modelAutoSaveNotices.ts`) until the planner saves or picks another target. A plain document
-  keeps its 10 s throttle and its route; with the flag off nothing changes.
+  ask for it, knownbug 1762; its own notice says to save once by hand), an unrecordable or leftover recovery record
+  stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
+  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes,
+  except that a folder granted earlier stays granted (knownbug 2028).
   Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,
