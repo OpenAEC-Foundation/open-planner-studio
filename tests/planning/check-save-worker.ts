@@ -385,14 +385,16 @@ const mainOf = {
 };
 
 await check('knownbug 1936: na elk antwoord op een merge stopt de worker, pas als het antwoord binnen is; een gewoon verzoek houdt hem', async () => {
-  assert.ok(refusedMergeJob, 'een geweigerde merge uit de fixtures');
-  const refused = await outcome(() => computeIfcOutputHere(refusedMergeJob!));
-  assert.ok('error' in refused && refused.error instanceof MergeNeedsPhase2Error, 'de hoofdthread weigert die merge');
   const cases: Array<[string, IfcSaveJob, Outcome]> = [
     ['geslaagd, nieuwe bytes', changedMergeJob, mainOf.changed],
     ['geslaagd, ongewijzigd', mergeJob, mainOf.merge],
-    ['geweigerd', refusedMergeJob!, refused],
   ];
+  // De weigering komt uit de pariteit van de fixtures hierboven; ontbreekt ze, dan faalt deze proef pas na de andere gevallen.
+  const refused = refusedMergeJob && await outcome(() => computeIfcOutputHere(refusedMergeJob!));
+  if (refused) {
+    assert.ok('error' in refused && refused.error instanceof MergeNeedsPhase2Error, 'de hoofdthread weigert die merge');
+    cases.push(['geweigerd', refusedMergeJob!, refused]);
+  }
   for (const [label, job, main] of cases) {
     const { client, workers } = scriptedClient(['manual', 'manual'], { timeoutMs: () => 5_000 });
     const run = settled(client.compute(job));
@@ -423,6 +425,7 @@ await check('knownbug 1936: na elk antwoord op een merge stopt de worker, pas al
     assert.ok(isWorkerError(await settled(client.compute(mergeJob)), 'disposed'), `${label}: na dispose een fout`);
     assert.equal(workers.length, 2, `${label}: na dispose geen nieuwe worker`);
   }
+  assert.ok(refused, 'een geweigerde merge uit de fixtures');
 });
 
 await check('twee verzoeken in de rij: het tweede wacht zijn beurt af, krijgt na een merge een nieuwe worker en zijn eigen uitkomst', async () => {
