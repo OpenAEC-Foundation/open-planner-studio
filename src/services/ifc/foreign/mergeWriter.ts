@@ -336,7 +336,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
 }
 
 /** De ene schrijfingang: gecontroleerde uitvoer in één buffer, digest en bronmetadata van de geschreven versie (§4.8).
- *  `observe`, alleen voor proeven: wat (c) bij deze opslag niet toetst van de slots die (b) terugzette. */
+ *  `observe`, alleen voor proeven: wat (c) bij deze opslag niet toetst van de slots die (b) terugzette, precies zoals de
+ *  opslag het aan (c) geeft. */
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning,
   observe?: (restored: RestoredOwnSlots) => void): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
@@ -793,7 +794,6 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // `restored`: wat (c) niet toetst. Waar (b) een bronwaarde terugzette, schrijft de writer het slot niet uit het domein; per
   // slot op zijn plaats in de boom, of de hele groep als dat slot niet eenduidig aan te wijzen is (`restoredOwnSlots`).
   const { edits, own: restored = { skip: new Set<string>(), mask: new Set<string>() } } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
-  observe?.(restored);
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
@@ -850,8 +850,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
-    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe,
-      { stepIds, writtenAt, skip: restored.skip, mask: restored.mask, sourceRowGuid: rowGuid });
+    const own: OwnOutputCheck = { stepIds, writtenAt, skip: restored.skip, mask: restored.mask, sourceRowGuid: rowGuid };
+    observe?.(own);
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
     const written = new Set(candidate.map(line => line.id));
     const classes = Uint8Array.from(actual.scan.chunkIds, id => {
       if (id < 0) return 0;

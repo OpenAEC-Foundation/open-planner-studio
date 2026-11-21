@@ -401,8 +401,8 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
   // hierboven (in de bron, zonder slot van (b), niet door het openen veranderd), veranderde het openen ook de vorm zelf niet,
   // en zette (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`).
-  // Anders geldt voor die vorm de controle van main. Dit blijft per groep: per slot zou het weigeringen laten schrijven
-  // (PR A, zie de PR).
+  // Anders geldt voor die vorm de controle van main. Dit blijft per groep, zoals vóór PR A: met een slot van (b) in de vorm
+  // per slot uitgesloten, schreven in de proeven vier gevallen die nu weigeren (knownbug 1747).
   const psets = new Set(input.ownGroups?.values() ?? []);
   const following = SECOND_FORMS.filter(f => input.secondFormsUnchanged?.has(f.pset) === true && psets.has(f.pset)
     && !withRestore.has(f.pset) && !restores.some(r => f.restored(index, r)));
