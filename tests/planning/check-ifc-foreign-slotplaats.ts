@@ -1,11 +1,14 @@
-// #804 stap 5, PR A: het aanwijzen van een slot dat de herleestoets (b) terugzette, in de boom van controle (c)
-// (`restoredOwnSlots` en `ownGroupTrees` in `ownGroups.ts`), los op regels die deze proef zelf maakt. De boom is bewust zonder
-// id's; een slot staat op zijn plaats: de groep, de weg via typen en namen vanaf de wortel, en het argument. Per geval: welke
-// plaats het slot krijgt, of dat de groep terugvalt op het gedrag van vóór PR A (de hele groep buiten (c)), en dat het masker
-// alleen dat ene slot verbergt: een verschil in elk ander slot, ook met hetzelfde argument of dezelfde naam elders, blijft
-// zichtbaar. De echte opslagroute staat in `check-ifc-foreign-eigen-toets.ts` (blok 9) en `-eigen-uitvoer.ts` (blok 10).
+// #804 stap 5, PR A: een slot dat de herleestoets (b) terugzette, in controle (c) (`restoredOwnSlots` en
+// `restoredOwnGroupDifference` in `ownGroups.ts`), los op regels die deze proef zelf maakt. De boom is bewust zonder id's;
+// een slot staat op zijn plaats: de groep, de weg via typen en namen vanaf de wortel, en het argument. Per geval: welke plaats
+// het slot krijgt, of dat de groep terugvalt op het gedrag van vóór PR A (de hele groep buiten (c)); dat (c) op die plaats
+// precies de regel en de bronwaarde van (b) eist (een andere waarde, een leeg slot of een andere regel weigert); en dat een
+// verschil in elk ander slot, ook met hetzelfde argument of dezelfde naam elders, zichtbaar blijft. De echte opslagroute staat
+// in `check-ifc-foreign-eigen-toets.ts` (blok 9) en `-eigen-uitvoer.ts` (blok 10).
 import type { OutLine } from '@/services/ifc/foreign/lossCheck';
-import { BASELINE_HEADS, TASK_OBJECT_TYPES, linesView, ownGroupTrees, restoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
+import {
+  BASELINE_HEADS, TASK_OBJECT_TYPES, linesView, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
+} from '@/services/ifc/foreign/ownGroups';
 import { PSET } from '@/services/ifc/ifcPsets';
 
 let passed = 0, failed = 0;
@@ -38,23 +41,27 @@ const BASE: readonly OutLine[] = [
 /** De regels met slot `arg` van regel `id` op `token`. */
 const set = (lines: readonly OutLine[], id: number, arg: number, token: string) =>
   lines.map(l => l.id === id ? { ...l, args: l.args.map((a, k) => k === arg ? token : a) } : l);
-/** Een slot dat (b) terugzette: regel en argument, en `'deels'` bij een soort die de lezer deels draagt. */
-type Edit = [number, number] | [number, number, 'deels'];
+/** Een slot dat (b) terugzette: regel, argument en bronwaarde, en `'deels'` bij een soort die de lezer deels draagt. */
+type Edit = [number, number, string] | [number, number, string, 'deels'];
+/** De slots van (b), aangewezen op `lines`: O1 zoals de writer het schreef, zonder de bronwaarden. */
 const placed = (lines: readonly OutLine[], ...edits: Edit[]) =>
-  restoredOwnSlots(linesView(lines), edits.map(([id, arg, kind]) => ({ id, arg, partial: kind === 'deels' })));
-const text = (r: ReturnType<typeof placed>) => `overslaan: ${[...r.skip].join(', ') || 'niets'}; masker: ${[...r.mask].join(' + ') || 'niets'}`;
-/** De boom van één groep, met masker. */
-const groupOf = (lines: readonly OutLine[], group: string, mask: ReadonlySet<string>) => (ownGroupTrees(linesView(lines), mask).get(group) ?? []).join('\n');
-/** De uitvoer heeft in slot `arg` van `id` de bronwaarde `restored`, de writer schrijft er `$`; het masker uit `restoredOwnSlots`
- *  op de uitvoer. Gelijk met het masker, anders zonder; en een fout in een ander slot (`other`) blijft zichtbaar. */
+  restoredOwnSlots(linesView(lines), edits.map(([id, arg, token, kind]) => ({ id, arg, token, ...(kind === 'deels' ? { partial: true as const } : {}) })));
+const text = (r: RestoredOwnSlots) => `overslaan: ${[...r.skip].join(', ') || 'niets'}; apart: ${r.slots.map(s => `${s.place} (#${s.id})`).join(' + ') || 'niets'}`;
+const NONE: RestoredOwnSlots = { skip: new Set(), slots: [] };
+/** (c) op `output` tegen wat de writer schrijft (`BASE`, of `writer`): de groep van het eerste verschil, of niets. */
+const caught = (output: readonly OutLine[], r: RestoredOwnSlots, writer: readonly OutLine[] = BASE) =>
+  restoredOwnGroupDifference(linesView(output), linesView(writer), r)?.group;
+/** De uitvoer heeft in slot `arg` van `id` de bronwaarde `restored`, de writer schrijft er `$`. Met het slot apart gelijk,
+ *  zonder niet; een andere waarde of een leeg slot daar weigert; een fout in een ander slot (`others`) blijft zichtbaar. */
 function masks(label: string, group: string, id: number, arg: number, restored: string, others: readonly [string, number, number, string, string?][]) {
-  const output = set(BASE, id, arg, restored), r = placed(output, [id, arg]);
-  ok(`${label}: het slot krijgt een plaats`, r.skip.size === 0 && r.mask.size === 1 && r.slots[0]?.group === group && r.slots[0].place !== undefined, text(r));
-  ok(`${label}: zonder masker leest de groep anders`, groupOf(output, group, new Set()) !== groupOf(BASE, group, new Set()));
-  ok(`${label}: met het masker gelijk aan wat de writer schrijft`, groupOf(output, group, r.mask) === groupOf(BASE, group, r.mask));
+  const output = set(BASE, id, arg, restored), r = placed(BASE, [id, arg, restored]);
+  ok(`${label}: het slot krijgt een plaats`, r.skip.size === 0 && r.slots.length === 1 && r.slots[0].group === group && r.slots[0].id === id, text(r));
+  ok(`${label}: zonder het slot apart leest de groep anders`, caught(output, NONE) === group);
+  ok(`${label}: met het slot apart gelijk aan wat de writer schrijft`, caught(output, r) === undefined, caught(output, r));
+  ok(`${label}: een andere waarde op het slot weigert`, caught(set(output, id, arg, "'Andere waarde'"), r) === group);
+  ok(`${label}: het slot leeg weigert`, caught(set(output, id, arg, '$'), r) === group);
   for (const [what, otherId, otherArg, token, otherGroup] of others) {
-    const wrong = set(output, otherId, otherArg, token), g = otherGroup ?? group;
-    ok(`${label}: het masker verbergt ${what} niet`, groupOf(wrong, g, r.mask) !== groupOf(BASE, g, r.mask));
+    ok(`${label}: (c) ziet ${what}`, caught(set(output, otherId, otherArg, token), r) === (otherGroup ?? group));
   }
   return r;
 }
@@ -84,13 +91,21 @@ function masks(label: string, group: string, id: number, arg: number, restored: 
   ok('omschrijving van een codetemplate: de plaats', r.slots[0]?.place
     === `${SM}|IFCRELDECLARES/5:IFCPROPERTYSETTEMPLATE('${PSET.ActivityCodes}')/6:IFCSIMPLEPROPERTYTEMPLATE('Code A')#3`, r.slots[0]?.place);
 }
-// Twee slots in één groep: beide gemaskeerd, een derde niet.
+// Twee slots in één groep: beide apart, een derde slot gewoon getoetst.
 {
   const output = set(set(BASE, 4, 3, "'Van een ander programma'"), 2, 1, "'Ook van een ander programma'");
-  const r = placed(output, [4, 3], [2, 1]);
-  ok('twee slots in één groep: beide krijgen een plaats', r.skip.size === 0 && r.mask.size === 2, text(r));
-  ok('twee slots in één groep: met het masker gelijk', groupOf(output, PS, r.mask) === groupOf(BASE, PS, r.mask));
-  ok('twee slots in één groep: een derde slot blijft zichtbaar', groupOf(set(output, 3, 1, "'Fout'"), PS, r.mask) !== groupOf(BASE, PS, r.mask));
+  const r = placed(BASE, [4, 3, "'Van een ander programma'"], [2, 1, "'Ook van een ander programma'"]);
+  ok('twee slots in één groep: beide krijgen een plaats', r.skip.size === 0 && r.slots.length === 2, text(r));
+  ok('twee slots in één groep: met de slots apart gelijk', caught(output, r) === undefined);
+  ok('twee slots in één groep: een derde slot blijft zichtbaar', caught(set(output, 3, 1, "'Fout'"), r) === PS);
+  ok('twee slots in één groep: het tweede slot met een andere waarde weigert', caught(set(output, 2, 1, "'Andere waarde'"), r) === PS);
+}
+// Een andere regel op de plaats van het slot (de review van #1095, punt 1): de pset met de bronwaarde onder een ander id. De
+// boom ziet geen id's; (c) eist op die plaats de regel waarop (b) de bronwaarde zette.
+{
+  const output = set(BASE, 4, 3, "'Van een ander programma'"), r = placed(BASE, [4, 3, "'Van een ander programma'"]);
+  const moved = output.map(l => l.id === 4 ? { ...l, id: 99 } : l.id === 5 ? { ...l, args: l.args.map((a, k) => k === 5 ? '#99' : a) } : l);
+  ok('een andere regel op de plaats van het slot weigert', caught(moved, r) === PS, text(r));
 }
 
 // ── De tweede vormen: per taak en per kop, op GlobalId ──
@@ -101,9 +116,9 @@ function masks(label: string, group: string, id: number, arg: number, restored: 
   ]);
   ok('typenaam op een taak zonder type: de plaats', r.slots[0]?.place === `${TASK_OBJECT_TYPES}|'taak1'#4`, r.slots[0]?.place);
   ok('typenaam op een taak zonder type: .USERDEFINED. op die taak blijft zichtbaar',
-    groupOf(set(set(BASE, 20, 4, "'Type A'"), 20, 12, '.USERDEFINED.'), TASK_OBJECT_TYPES, r.mask) !== groupOf(BASE, TASK_OBJECT_TYPES, r.mask));
-  const other = placed(BASE, [20, 2]);
-  ok('een ander slot van de taak (de naam) ligt in geen groep', other.slots[0] === undefined && other.skip.size === 0 && other.mask.size === 0, text(other));
+    caught(set(set(BASE, 20, 4, "'Type A'"), 20, 12, '.USERDEFINED.'), r) === TASK_OBJECT_TYPES);
+  const other = placed(BASE, [20, 2, "'Andere naam'"]);
+  ok('een ander slot van de taak (de naam) ligt in geen groep', other.slots.length === 0 && other.skip.size === 0, text(other));
 }
 {
   const r = masks('omschrijving op een kop', BASELINE_HEADS, 30, 3, "'Van een ander programma'", [
@@ -111,41 +126,53 @@ function masks(label: string, group: string, id: number, arg: number, restored: 
     ['de naam van dezelfde kop', 30, 2, "'Fout'"],
   ]);
   ok('omschrijving op een kop: de plaats', r.slots[0]?.place === `${BASELINE_HEADS}|'kop1'#3`, r.slots[0]?.place);
-  // Een verwijzing naar een stuk van een ander programma (`Creators`, 1087): geen eigen regel, dus het slot krijgt hier een
-  // plaats. Op de echte route is `(#…)` een lijst, een soort die de lezer deels draagt: daar valt de groep terug (hieronder,
-  // en blok 9 van `check-ifc-foreign-eigen-toets.ts`).
-  const creators = masks('vreemde Creators op een kop', BASELINE_HEADS, 30, 7, '(#95300)', [['de omschrijving van dezelfde kop', 30, 3, "'Fout'"]]);
-  ok('vreemde Creators op een kop: de plaats', creators.slots[0]?.place === `${BASELINE_HEADS}|'kop1'#7`, creators.slots[0]?.place);
 }
 
 // ── Niet eenduidig: de groep valt terug op het gedrag van vóór PR A (de hele groep buiten (c)) ──
 function fallsBack(label: string, lines: readonly OutLine[], group: string, ...edits: Edit[]) {
   const r = placed(lines, ...edits);
-  ok(`${label}: de hele groep buiten (c), geen masker`, r.skip.has(group) && r.mask.size === 0 && r.slots.every(s => s?.group === group && s.place === undefined), text(r));
+  ok(`${label}: de hele groep buiten (c), geen slot apart`, r.skip.has(group) && r.slots.length === 0, text(r));
 }
-fallsBack('twee properties met dezelfde naam in één pset', set(BASE, 3, 0, "'A'"), PS, [2, 1]);
+const FOREIGN = "'Van een ander programma'";
+fallsBack('twee properties met dezelfde naam in één pset', set(BASE, 3, 0, "'A'"), PS, [2, 1, FOREIGN]);
 fallsBack('twee psets met dezelfde naam', [...BASE,
   line(9, 'IFCPROPERTYSINGLEVALUE', "'C'", '$', "IFCTEXT('d')", '$'),
   line(10, 'IFCPROPERTYSET', "'g5'", '$', `'${PS}'`, '$', '(#9)'),
   line(11, 'IFCRELDEFINESBYPROPERTIES', "'g6'", '$', '$', '$', '(#1)', '#10'),
-], PS, [4, 3]);
-fallsBack('één property in twee psets (twee groepen)', set(BASE, 7, 4, '(#6,#2)'), PS, [2, 1]);
-fallsBack('het slot is de naam van de property', BASE, PS, [2, 0]);
-fallsBack('het slot is de naam van de pset', BASE, PS, [4, 2]);
-fallsBack('het slot verwijst naar een eigen regel in de groep (een eenheid)', [...set(BASE, 2, 3, '#12'), line(12, 'IFCSIUNIT', '*', '.LENGTHUNIT.', '$', '.METRE.')], PS, [2, 3]);
-fallsBack('twee taken met dezelfde GlobalId', [...BASE, line(22, 'IFCTASK', "'taak1'", '$', "'T3'", '$', '$', '$', '$', '$', '$', '.F.', '$', '$', '.NOTDEFINED.')], TASK_OBJECT_TYPES, [20, 4]);
-fallsBack('twee koppen met dezelfde GlobalId', set(BASE, 31, 0, "'kop1'"), BASELINE_HEADS, [30, 3]);
-fallsBack('het slot is de GlobalId van een kop', BASE, BASELINE_HEADS, [30, 0]);
+], PS, [4, 3, FOREIGN]);
+fallsBack('één property in twee psets (twee groepen)', set(BASE, 7, 4, '(#6,#2)'), PS, [2, 1, FOREIGN]);
+fallsBack('het slot is de naam van de property', BASE, PS, [2, 0, "'C'"]);
+fallsBack('het slot is de naam van de pset', BASE, PS, [4, 2, "'Andere pset'"]);
+// Een verwijzing in de bronwaarde of in de waarde van de writer: daar hangt een deel van de boom aan, of de hernummering van
+// de merge verandert de waarde. Ook een verwijzing naar een stuk van een ander programma (`Creators`, 1087).
+const UNIT = line(12, 'IFCSIUNIT', '*', '.LENGTHUNIT.', '$', '.METRE.');
+fallsBack('de bronwaarde verwijst naar een eigen regel in de groep (een eenheid)', [...BASE, UNIT], PS, [2, 3, '#12']);
+fallsBack('de waarde van de writer verwijst naar een eigen regel in de groep (een eenheid)', [...set(BASE, 2, 3, '#12'), UNIT], PS, [2, 3, '$']);
+fallsBack('vreemde Creators op een kop (een verwijzing)', BASE, BASELINE_HEADS, [30, 7, '(#95300)']);
+fallsBack('twee taken met dezelfde GlobalId', [...BASE, line(22, 'IFCTASK', "'taak1'", '$', "'T3'", '$', '$', '$', '$', '$', '$', '.F.', '$', '$', '.NOTDEFINED.')], TASK_OBJECT_TYPES, [20, 4, "'Type A'"]);
+fallsBack('twee koppen met dezelfde GlobalId', set(BASE, 31, 0, "'kop1'"), BASELINE_HEADS, [30, 3, FOREIGN]);
+fallsBack('het slot is de GlobalId van een kop', BASE, BASELINE_HEADS, [30, 0, "'kop9'"]);
 // Een bronwaarde van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst; `partial`): de lezer leest haar
 // mee, dus de rest van de groep kan na heropenen anders teruglezen (de weesrij op een baseline-JSON van de bron, 1770).
-fallsBack('een JSON-waarde die de lezer deels draagt', set(BASE, 2, 2, `IFCTEXT('{"a":1}')`), PS, [2, 2, 'deels']);
-fallsBack('vreemde Creators op een kop (een lijst)', set(BASE, 30, 7, '(#95300)'), BASELINE_HEADS, [30, 7, 'deels']);
+fallsBack('een JSON-waarde die de lezer deels draagt', BASE, PS, [2, 2, `IFCTEXT('{"a":1}')`, 'deels']);
+fallsBack('een lijst die de lezer deels draagt', BASE, BASELINE_HEADS, [30, 7, "('A','B')", 'deels']);
 // Eén slot niet eenduidig maakt de hele groep tot overslag, ook voor een ander slot in die groep dat wel een plaats heeft;
-// een andere groep houdt haar masker.
+// een andere groep houdt haar slot apart.
 {
-  const lines = set(BASE, 3, 0, "'A'"), r = placed(lines, [2, 1], [4, 3], [7, 3]);
+  const lines = set(BASE, 3, 0, "'A'"), r = placed(lines, [2, 1, FOREIGN], [4, 3, FOREIGN], [7, 3, FOREIGN]);
   ok('niet eenduidig in de ene groep: die groep helemaal buiten (c), de andere groep per slot',
-    r.skip.has(PS) && r.skip.size === 1 && [...r.mask].every(m => m.startsWith(`${PR}|`)) && r.mask.size === 1, text(r));
+    r.skip.has(PS) && r.skip.size === 1 && r.slots.length === 1 && r.slots[0].group === PR && r.slots[0].id === 7, text(r));
+}
+// In de herschreven boom (wat de writer schrijft) moet op de plaats precies één regel staan, met een waarde zonder
+// verwijzing; anders slaat (c) de groep over, zoals vóór PR A.
+{
+  const output = set(BASE, 4, 3, FOREIGN), r = placed(BASE, [4, 3, FOREIGN]);
+  const writer = [...BASE, line(9, 'IFCPROPERTYSINGLEVALUE', "'C'", '$', "IFCTEXT('d')", '$'), line(10, 'IFCPROPERTYSET', "'g5'", '$', `'${PS}'`, '$', '(#9)'),
+    line(11, 'IFCRELDEFINESBYPROPERTIES', "'g6'", '$', '$', '$', '(#1)', '#10')];
+  ok('twee tegenhangers in de herschreven boom: de groep buiten (c)', caught(set(output, 2, 1, "'Fout'"), r, writer) === undefined);
+  ok('een verwijzing op de plaats in de herschreven boom: de groep buiten (c)',
+    caught(set(output, 2, 1, "'Fout'"), r, [...set(BASE, 4, 3, '#12'), UNIT]) === undefined);
+  ok('één tegenhanger zonder verwijzing: de groep getoetst', caught(set(output, 2, 1, "'Fout'"), r) === PS);
 }
 
 console.log(`\n${passed} OK, ${failed} XX`);

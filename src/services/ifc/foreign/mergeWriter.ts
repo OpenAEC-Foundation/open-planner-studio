@@ -64,7 +64,7 @@ import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
 import {
-  SECOND_FORMS, indexView, linesView, ownGroupDifference, ownGroupMembers, ownGroupTrees, restoredOwnSlots, type RestoredOwnSlots,
+  SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
 } from './ownGroups';
 import type { ImportResult } from '@/services/importTypes';
 
@@ -336,8 +336,8 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
 }
 
 /** De ene schrijfingang: gecontroleerde uitvoer in één buffer, digest en bronmetadata van de geschreven versie (§4.8).
- *  `observe`, alleen voor proeven: wat (c) bij deze opslag niet toetst van de slots die (b) terugzette, precies zoals de
- *  opslag het aan (c) geeft. */
+ *  `observe`, alleen voor proeven: wat (c) bij deze opslag doet met de slots die (b) terugzette, precies zoals de opslag het
+ *  aan (c) geeft. */
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning,
   observe?: (restored: RestoredOwnSlots) => void): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
@@ -787,13 +787,15 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
-    // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden. De
-    // slots die (b) terugzet, wijst de verliescontrole altijd aan (`ownSlots`): die toetst (c) niet.
-    ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : { ownSlots: ownSlotsIn(index) }),
+    // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
+    ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
-  // `restored`: wat (c) niet toetst. Waar (b) een bronwaarde terugzette, schrijft de writer het slot niet uit het domein; per
-  // slot op zijn plaats in de boom, of de hele groep als dat slot niet eenduidig aan te wijzen is (`restoredOwnSlots`).
-  const { edits, own: restored = { skip: new Set<string>(), mask: new Set<string>() } } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  // Waar (b) een bronwaarde terugzette, schrijft de writer het slot niet uit het domein. (c) toetst zo'n slot apart (de regel
+  // en de bronwaarde), en de rest van de groep gewoon; is het slot niet eenduidig aan te wijzen, dan slaat (c) de hele groep
+  // over (`restoredOwnSlots`, op O1 vóór de bewerkingen). Een verwijzing naar een stuk dat de writer niet schrijft (het
+  // `IfcProject` van een ander programma), leest het type uit de bron.
+  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits);
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
@@ -850,7 +852,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
-    const own: OwnOutputCheck = { stepIds, writtenAt, skip: restored.skip, mask: restored.mask, sourceRowGuid: rowGuid };
+    // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
+    // over, zoals vóór PR A.
+    const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
+    const own: OwnOutputCheck = {
+      stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
+      slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
+    };
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
     const written = new Set(candidate.map(line => line.id));
@@ -909,9 +917,9 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   };
 }
 
-/** Wat de uitvoercontrole (c) nodig heeft: de sessiekaart van de uitvoer, de schrijfklok van O1 en wat (c) niet toetst van
- *  de slots die (b) herstelde (`RestoredOwnSlots`). Zonder (de bronbytes zelf terug, stuk 1) loopt (c) niet: die bytes
- *  schreef deze writer niet. */
+/** Wat de uitvoercontrole (c) nodig heeft: de sessiekaart van de uitvoer, de schrijfklok van O1 en wat (c) doet met de slots
+ *  die (b) herstelde (`RestoredOwnSlots`, met de ids van de uitvoer). Zonder (de bronbytes zelf terug, stuk 1) loopt (c)
+ *  niet: die bytes schreef deze writer niet. */
 export interface OwnOutputCheck extends RestoredOwnSlots {
   readonly stepIds: Readonly<Record<string, number>>;
   readonly writtenAt: Date;
@@ -991,8 +999,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
  * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history van psets en hun
  * leden en zonder vreemde leden; een baselinekop wel met zijn GlobalId, en `TaskGuids` helemaal (PR 12e). Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
  * writer of de lezer zijn. Alleen de stukken die de writer schreef tellen (de regel van `validateMergeOutput`); geen tweede
- * scan of herlezing. De slots in `own.mask` toetst (c) niet: daar zette (b) bronwaarden terug (PR A); de rest van hun groep
- * wel. Groepen in `own.skip` toetst (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
+ * scan of herlezing. Een slot in `own.slots` (daar zette (b) een bronwaarde terug) toetst (c) apart: op die regel staat
+ * precies de bronwaarde (PR A, `restoredOwnGroupDifference`); de rest van zijn groep gewoon. Groepen in `own.skip` toetst
+ * (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
  */
 function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
   parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
@@ -1004,7 +1013,7 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
   const reread = withOrphanRowGuids(parsed, id => domainGuids[ifcObjectSeed('task', id)]);
   const rewritten = writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
     .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
-  return ownGroupDifference(ownGroupTrees(output, own.mask), ownGroupTrees(linesView(rewritten, output.typeOf), own.mask), own.skip)?.detail;
+  return restoredOwnGroupDifference(output, linesView(rewritten, output.typeOf), own)?.detail;
 }
 
 /**
@@ -1019,8 +1028,8 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
  * zij zijn geen pset, en wat er met hen mag, beslist de verliescontrole apart. Hier alleen per vorm: hij staat in de bron, en
  * het openen veranderde hem niet, in dezelfde bronvorm (`secondFormsUnchanged`, op de pset).
  *
- * Voorwaarde (a), "in de bron gedragen", toetst de verliescontrole per slot: een slot dat de herleestoets (b) terugzette,
- * valt buiten de toets, en de rest van zijn groep niet (PR A; `lossCheck`, `ownGroups`, `ownSlots`). Een vreemd lid (zoals een property van een ander programma in een eigen pset) sluit de
+ * Voorwaarde (a), "de groep is in de bron gedragen", toetst de verliescontrole: geen stuk van de groep had de herleestoets (b)
+ * nodig (`lossCheck`, `ownGroups`). Een vreemd lid (zoals een property van een ander programma in een eigen pset) sluit de
  * groep niet uit (stap 5 deel 1, was knownbug 1707): de boomvorm telt alleen eigen leden, dus de writer schrijft de groep uit de
  * lezing van de bron precies zoals ze in de bron staat; de merge hangt het lid weer aan de pset, of zet een pset met alleen
  * de vreemde leden neer als de writer de pset niet meer schrijft (stap 6 van `writeIfcMerge`), en controle 1
@@ -1031,11 +1040,11 @@ function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classificat
  * Geëxporteerd voor de proeven van de verliescontrole (`check-ifc-foreign-eigen-toets.ts`).
  */
 export function openedOwnGroups(index: StepIndex, cls: Classification, plan: WriterMergeIds, pristine: ImportResult, opened: WriteIFCInput,
-  stepIds: Readonly<Record<string, number>>, writtenAt: Date): Required<Pick<LossCheckInput, 'ownGroups' | 'secondFormsUnchanged' | 'ownSlots'>> {
+  stepIds: Readonly<Record<string, number>>, writtenAt: Date): { ownGroups: Map<number, string>; secondFormsUnchanged: Set<string> } {
   const source = indexView(index, i => cls.classes[i] === 1);
   const members = ownGroupMembers(source);
-  const out = new Map<number, string>(), forms = new Set<string>(), ownSlots = ownSlotsIn(index);
-  if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms, ownSlots };
+  const out = new Map<number, string>(), forms = new Set<string>();
+  if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms };
   const rowGuid = assumedRowGuid(pristine);
   const trees = (d: WriteIFCInput) => {
     const lines = writeIfcMergeLines(withOrphanRowGuids(d, rowGuid), sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
@@ -1052,13 +1061,7 @@ export function openedOwnGroups(index: StepIndex, cls: Classification, plan: Wri
   }
   const inSource = ownGroupTrees(source);
   for (const [pset, form] of SECOND_FORMS) if (inSource.has(form) && unchanged(form)) forms.add(pset);
-  return { ownGroups: out, secondFormsUnchanged: forms, ownSlots };
-}
-
-/** De slots die (b) in O1 terugzette, aangewezen in de eigen groepen van O1 (`restoredOwnSlots`). Een verwijzing naar een stuk
- *  dat de writer niet schrijft (het `IfcProject` van een ander programma), leest het type uit de bron. */
-function ownSlotsIn(index: StepIndex): NonNullable<LossCheckInput['ownSlots']> {
-  return (o1, edits) => restoredOwnSlots(linesView(o1, id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits);
+  return { ownGroups: out, secondFormsUnchanged: forms };
 }
 
 /** Het merge-plan met de keuzes voor de bronvorm (fixronde 7 van #867): wat de planner niet wijzigde, in de vorm van de bron. */

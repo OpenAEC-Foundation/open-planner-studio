@@ -258,7 +258,7 @@ for (const [which, raw] of Object.entries(SOURCES)) {
   ok(`${which}: niets bewerkt geeft de bronbytes terug`, o.ok && sameBytes(o.bytes, raw));
   clockStart();
   let verdict = 'ja';
-  try { await checkMergeOutput(raw, input, source, { stepIds: source.stepIds, writtenAt: new Date(), skip: new Set(), mask: new Set() }); }
+  try { await checkMergeOutput(raw, input, source, { stepIds: source.stepIds, writtenAt: new Date(), skip: new Set(), slots: [] }); }
   catch (e) { if (!(e instanceof MergeNeedsPhase2Error)) throw e; verdict = `nee (${e.cases[0].detail.slice(0, 160)})`; }
   console.log(`BEWIJS ${which}: (c) op de bronbytes zelf: ${verdict}`);
 }
@@ -300,7 +300,8 @@ async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: IfcSourc
   catch (e) { if (!(e instanceof MergeNeedsPhase2Error)) throw e; lastDetail = e.cases[0].detail.slice(0, 200); return e.cases[0].kind; }
 }
 /** Een basis: een geslaagde opslag, en wat (c) daarvoor nodig heeft (de sessiekaart en de klok van die opslag). (c) toetst
- *  alle groepen; `real` (PR A): wat (c) niet toetst, zoals de opslag het meldt (`restored`; op de basis: niets). */
+ *  alle groepen; `real` (PR A): wat (c) met de slots van (b) doet, zoals de opslag het meldt (`restored`; op de basis:
+ *  niets). */
 async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, real = false) {
   nextCase();
   const opened = await openForeign(bytes), source = opened.ifcSource!;
@@ -308,7 +309,7 @@ async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promi
   const o = await save(input, source);
   assert(o.ok, `basis ${label} schrijft`);
   if (real) console.log(`UITKOMST ${clock.mode} ${label}: ${summary(o)}`);
-  const own = { stepIds: o.next.stepIds, writtenAt: new Date(BASE), skip: new Set(real ? o.restored?.skip : []), mask: new Set(real ? o.restored?.mask : []) };
+  const own = { stepIds: o.next.stepIds, writtenAt: new Date(BASE), skip: new Set(real ? o.restored?.skip : []), slots: real ? o.restored?.slots ?? [] : [] };
   ok(`basis ${label}: de echte uitvoer slaagt met (c)`, await verdict(o.bytes, input, source, own) === 'laat door', lastDetail);
   return { bytes: o.bytes, input, source, own };
 }
@@ -850,9 +851,10 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     [`het teruggezette slot zelf: ${what} anders`, slotOf(pick, arg, "'Andere omschrijving'"), '(c)'],
     [`het teruggezette slot zelf: ${what} leeg`, slotOf(pick, arg, '$'), '(c)'],
   ];
-  /** In elke groep: een ander slot van de groep vangt (c), en het teruggezette slot zelf ook. */
+  /** In een groep met een slot van (b): een ander slot van de groep vangt (c), en de verliescontrole ook (de groep valt daar
+   *  helemaal buiten de toets, zoals op de basis); het teruggezette slot zelf vangt (c). */
   const inGroup = (pset: string): Proof[] => [
-    [`een ander slot van ${pset}: de omschrijving van een property`, slotOf(firstProperty(pset), 1), 'alleen (c)'],
+    [`een ander slot van ${pset}: de omschrijving van een property`, slotOf(firstProperty(pset), 1), 'ook (c)'],
     ...restoredSlot(`de omschrijving van ${pset}`, psetLine(pset), 3),
   ];
   const tweedeCode = se(s => { const c = s.addActivityCodeType('Code per slot'); s.addActivityCodeValue(c, { code: 'P', description: 'Per slot' }); });
@@ -866,14 +868,14 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     s.ensureProjectTaskType({ id: 'type-slot', name: 'Type per slot' });
     s.updateTask(leaves(s).find((t: any) => !t.customTaskTypeId).id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-slot' });
   }), [
-    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'alleen (c)'],
+    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'ook (c)'],
     ['TaskTypes terug op de bronwaarde', back(TT, PROP.TaskTypes.TaskTypes), 'weigert'],
     ...inGroup(TT),
   ]);
   await perSlotProofs('omschrijving op OPS_TaskTypes, type wisselen', cat, withPsetDescription(cat, TT), se(s => {
     s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-b' });
   }), [
-    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'alleen (c)'],
+    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'ook (c)'],
     ['TaskTypes terug op de bronwaarde', back(TT, PROP.TaskTypes.TaskTypes), 'weigert'],
     ...inGroup(TT),
   ]);
@@ -883,7 +885,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
       added = addTask(s, 'Taak per slot'); s.saveBaseline('Baseline per slot');
     }), [
       ['de nieuwe TaskGuids-regel weg (punt 3 van de review: de nacontrole)', inJson(PROP.Baselines.TaskGuids, v => { delete v[added]; }), 'ook (c)'],
-      ['TaskGuids: de nieuwe GUID verkeerd', inJson(PROP.Baselines.TaskGuids, v => { v[added] = '0000000000000000000001'; }), 'alleen (c)'],
+      ['TaskGuids: de nieuwe GUID verkeerd', inJson(PROP.Baselines.TaskGuids, v => { v[added] = '0000000000000000000001'; }), 'ook (c)'],
       ['Baselines terug op de bronwaarde', back(BL, PROP.Baselines.Baselines), 'weigert'],
       ...inGroup(BL),
     ]);
@@ -891,7 +893,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   await perSlotProofs('omschrijving op OPS_Baselines, andere baseline actief', single, withPsetDescription(single, BL), se(s => {
     s.setActiveBaseline(s.baselines.find((b: any) => b.id !== s.activeBaselineId).id);
   }), [
-    ['TaskGuids: één GUID anders', inJson(PROP.Baselines.TaskGuids, v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), 'alleen (c)'],
+    ['TaskGuids: één GUID anders', inJson(PROP.Baselines.TaskGuids, v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), 'ook (c)'],
     ['ActiveBaselineId terug op de bronwaarde', back(BL, PROP.Baselines.ActiveBaselineId), 'weigert'],
     ...inGroup(BL),
   ]);
@@ -909,7 +911,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   const confirmed = (ls: OutLine[]) => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.IfcSchemaConfirmed}'`)!;
   await perSlotProofs('twee slots in OPS_ProjectSettings, statusdatum zetten', single,
     withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum, [
-      ['een derde slot: de omschrijving van InternalProjectId', slotOf(ls => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.InternalProjectId}'`)!, 1), 'alleen (c)'],
+      ['een derde slot: de omschrijving van InternalProjectId', slotOf(ls => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.InternalProjectId}'`)!, 1), 'ook (c)'],
       ...restoredSlot('de omschrijving van IfcSchemaConfirmed', confirmed, 1),
       ...restoredSlot('de omschrijving van OPS_ProjectSettings', psetLine(PS), 3),
     ]);

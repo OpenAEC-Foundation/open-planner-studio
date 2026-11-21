@@ -89,7 +89,7 @@ export const deleteAll = (s: S) => {
   for (const t of [...s.tasks].filter((t: any) => !t.parentId)) if (s.tasks.some((x: any) => x.id === t.id)) s.deleteTask(t.id);
 };
 
-/** `restored`: wat (c) bij deze opslag niet toetst van de slots die (b) terugzette (#804 stap 5, PR A; `observe` van
+/** `restored`: wat (c) bij deze opslag doet met de slots die (b) terugzette (#804 stap 5, PR A; `observe` van
  *  `prepareIfcWrite`). Ontbreekt als de opslag de bronbytes teruggaf (stuk 1) of als de code het niet meldt (de basis). */
 export type Outcome = { ok: true; bytes: Uint8Array; next: IfcSource; restored?: RestoredOwnSlots } | { ok: false; kinds: string[]; detail: string };
 /** Opslaan zoals de app: `prepareIfcWrite`, met de klok op de begintijd. */

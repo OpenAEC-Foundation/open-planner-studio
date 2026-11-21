@@ -514,9 +514,9 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
 /**
  * De verliescontrole (`lossCheck`) direct op de echte uitvoer van een geslaagde opslag, als O1, met de bron als O0 (zo kan
  * een proef een fout van de writer in O1 nabootsen). `run(lines)` geeft de bronstukken waarop de controle weigert; de
- * ongemuteerde O1 hoort leeg te geven. `toets`: ook met de andere toets voor de eigen groepen (PR 12b), de baselinekop
- * (PR 12c) en de slots van (b) per slot (#804 stap 5, PR A), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`);
- * zonder: de controle van main. `explained`: elk verschil dat een oude verklaring (`explainO1`) toeliet, met de regel.
+ * ongemuteerde O1 hoort leeg te geven. `toets`: ook met de andere toets voor de eigen groepen (PR 12b) en de baselinekop
+ * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main. `explained`: elk verschil
+ * dat een oude verklaring (`explainO1`) toeliet, met de regel.
  */
 export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8Array, toets = false) {
   const lines = (b: Uint8Array) => latin1Text(b).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);

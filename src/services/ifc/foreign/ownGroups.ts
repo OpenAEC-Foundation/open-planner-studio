@@ -15,13 +15,14 @@
  *
  * Gebruik: de uitvoercontrole (c) in `mergeWriter.ts` vergelijkt per groep de boomvorm van de uitvoer met die van de writer
  * op de herlezing (`ownGroupTrees`, `ownGroupDifference`). Een slot waar de herleestoets (b) de bronwaarde terugzette,
- * telt daarin niet mee; de rest van zijn groep wel (#804 stap 5, PR A; `restoredOwnSlots`). De andere toets in de
- * verliescontrole (PR 12b, `openedOwnGroups` in `mergeWriter.ts`) gebruikt dezelfde indeling op de bronregels
- * (`indexView`, `ownGroupMembers`), en sluit per slot uit wat (c) per slot niet toetst.
+ * toetst (c) apart: op die regel moet precies de bronwaarde staan; de rest van zijn groep toetst (c) gewoon (#804 stap 5,
+ * PR A; `restoredOwnSlots`, `restoredOwnGroupDifference`). De andere toets in de verliescontrole (PR 12b, `openedOwnGroups`
+ * in `mergeWriter.ts`) gebruikt dezelfde indeling op de bronregels (`indexView`, `ownGroupMembers`), en laat een groep met
+ * een slot van (b) helemaal buiten de toets.
  */
 import { decodeStepText } from '../stepText';
 import { PSET } from '../ifcPsets';
-import { refsOutsideText, type OutLine } from './lossCheck';
+import { refsOutsideText, type OutLine, type SlotEdit } from './lossCheck';
 import type { StepIndex } from './stepScanner';
 
 /** De tweede vorm van `OPS_Baselines`: de baselinekoppen en de aggregatie waarin ze staan (die van het eigen werkplan). */
@@ -171,20 +172,18 @@ const NAME_ARG: Readonly<Record<string, number>> = {
 };
 /** Een stap in de weg naar een slot: het type, met de naam als het type er een heeft. */
 const stepOf = (l: OutLine) => NAME_ARG[l.type] === undefined ? l.type : `${l.type}(${l.args[NAME_ARG[l.type]]?.trim()})`;
-/** Wat (c) toont op een slot uit `mask` (`ownGroupTrees`). Geen STEP-token kan zo luiden. */
+/** Wat (c) toont op een slot uit `mask` (`groupTrees`). Geen STEP-token kan zo luiden. */
 const MASKED = '«(b)»';
-/** Verwijst het token naar een eigen regel binnen een groep (geen object)? Zo'n slot wijst (c) niet per slot aan. */
-const ownPartRefs = (view: OwnLinesView, token: string | undefined) =>
-  refsOutsideText(token ?? '').some(id => { const l = view.line(id); return !!l && !OBJECT_TYPES.has(l.type); });
 
 /**
- * De boomvorm per groep (`ownGroupTrees`). `mask`: slots die niet meetellen, als `<plaats>#<argument>`; op zo'n slot staat
- * `MASKED`, behalve als het token naar een eigen regel binnen een groep wijst (dan telt het gewoon mee). `place`: per eigen
- * regel elke plaats waarop zij in een boom staat, zonder id's: de groep, dan de wortel en per stap het argument, het type en
- * de naam (`<groep>|<wortel>/<argument>:<type>(<naam>)…`); een baselinekop en een taak op hun GlobalId
- * (`kop:OPS_Baselines|<GlobalId>`, `taak:ObjectType|<GlobalId>`).
+ * De boomvorm per groep (`ownGroupTrees`). `mask`: slots die (c) apart toetst, als `<plaats>#<argument>`; op zo'n slot staat
+ * `MASKED`, en `masked` krijgt de regel en het token dat daar stond. `place`: per eigen regel elke plaats waarop zij in een
+ * boom staat, zonder id's: de groep, dan de wortel en per stap het argument, het type en de naam
+ * (`<groep>|<wortel>/<argument>:<type>(<naam>)…`); een baselinekop en een taak op hun GlobalId (`kop:OPS_Baselines|<GlobalId>`,
+ * `taak:ObjectType|<GlobalId>`).
  */
-function groupTrees(view: OwnLinesView, mask: ReadonlySet<string>, place?: (id: number, at: string) => void): Map<string, string[]> {
+function groupTrees(view: OwnLinesView, mask: ReadonlySet<string>, place?: (id: number, at: string) => void,
+  masked?: (slot: string, id: number, token: string) => void): Map<string, string[]> {
   const tree = (id: number, depth: number, at: string): string => {
     const l = view.line(id);
     if (!l) return view.typeOf(id) ?? `?#${id}`;
@@ -196,7 +195,7 @@ function groupTrees(view: OwnLinesView, mask: ReadonlySet<string>, place?: (id: 
   const below = (at: string, k: number, id: number) => { const c = view.line(id); return `${at}/${k}:${c ? stepOf(c) : '?'}`; };
   const argsOf = (l: OutLine, depth: number, at: string, from = 0) => l.args.slice(from).map((a, i) => {
     const k = i + from;
-    if (mask.has(`${at}#${k}`) && !ownPartRefs(view, a)) return MASKED;
+    if (mask.has(`${at}#${k}`)) { masked?.(`${at}#${k}`, l.id, a); return MASKED; }
     const t = a.trim();
     if (ROOT_TYPES.has(l.type) && k < 2) return k === 0 ? 'G' : 'OH';
     const list = /^\(([\s\S]*)\)$/.exec(t);
@@ -226,6 +225,8 @@ function groupTrees(view: OwnLinesView, mask: ReadonlySet<string>, place?: (id: 
       const at = `${TASK_OBJECT_TYPES}|${l.args[0].trim()}`;
       place?.(l.id, at);
       const masked4 = mask.has(`${at}#4`), masked12 = mask.has(`${at}#12`);
+      if (masked4) masked?.(`${at}#4`, l.id, l.args[4] ?? '');
+      if (masked12) masked?.(`${at}#12`, l.id, l.args[12] ?? '');
       const name = l.args[4]?.trim(), kind = l.args[12]?.trim();
       if ((!masked12 && kind === '.USERDEFINED.') || (!masked4 && (name ?? '$') !== '$')) {
         add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${masked4 ? MASKED : name}|${masked12 ? MASKED : kind}`);
@@ -243,56 +244,88 @@ function groupTrees(view: OwnLinesView, mask: ReadonlySet<string>, place?: (id: 
  * (`withOrphanRowGuids` in `sourceForm.ts`), dus een extra sleutel, een ontbrekende of een andere waarde leest anders dan
  * wat de writer schrijft. Een baselinekop staat er met zijn GlobalId (was knownbug 1746): de writer leidt die af uit het id van
  * zijn baseline, dus twee verwisselde koppen, of de kop van een gewiste baseline in de plaats van een blijvende, lezen ook
- * bij gelijke inhoud anders. `mask`: de slots die (b) terugzette (`restoredOwnSlots`); die tellen niet mee.
+ * bij gelijke inhoud anders.
  */
-export function ownGroupTrees(view: OwnLinesView, mask: ReadonlySet<string> = new Set()): Map<string, string[]> {
-  return groupTrees(view, mask);
+export function ownGroupTrees(view: OwnLinesView): Map<string, string[]> {
+  return groupTrees(view, new Set());
 }
-
-/** Wat (c) niet toetst van de slots die (b) terugzette (#804 stap 5, PR A). */
-export interface RestoredOwnSlots {
-  /** De groepen die (c) helemaal overslaat: daar wees `restoredOwnSlots` een slot niet eenduidig aan. */
-  readonly skip: ReadonlySet<string>;
-  /** De slots die (c) niet toetst, als `<plaats>#<argument>` (`groupTrees`). */
-  readonly mask: ReadonlySet<string>;
-}
-/** Een slot dat (b) terugzette: zijn groep, en zijn plaats in de boom als die eenduidig is. */
-export interface RestoredOwnSlot { readonly group: string; readonly place?: string }
 
 /**
- * Wijs de slots aan die (b) terugzette (`edits`, regel en argument in `view`: O1 met de bronwaarden erin). Elk slot op zijn
- * plaats in de boom van zijn groep: daar telt het in (c) niet mee, de rest van de groep wel. De plaats is eenduidig als de
- * regel op precies één plaats in een boom staat, geen andere regel op die plaats staat (twee properties of twee psets met
- * dezelfde naam, twee koppen of taken met dezelfde GlobalId), het slot niet in die plaats zelf zit (de naam of de
- * GlobalId), en het token niet naar een eigen regel binnen een groep wijst (dan hangt er een deel van de boom aan). Een
- * slot van een soort die de lezer deels draagt (`partial`: lijst, JSON, samengestelde tekst) wijst hij nooit aan: de lezer
- * leest die bronwaarde mee, dus de rest van de groep kan na heropenen anders teruglezen. Anders geldt voor de groep wat er
- * vóór PR A gold: (c) slaat de hele groep over (`skip`). Per edit: de groep en de plaats, of
- * niets als het slot in geen groep ligt.
+ * Een slot dat (b) terugzette en dat (c) apart toetst (#804 stap 5, PR A): zijn groep, zijn plaats in de boom
+ * (`<plaats>#<argument>`, `groupTrees`), en de regel, het argument en de bronwaarde die (b) daar zette. Het id is dat van O1
+ * (`restoredOwnSlots`); in de uitvoercontrole dat van de uitvoer, door de hernummering van de merge (`OwnOutputCheck` in
+ * `mergeWriter.ts`).
  */
-export function restoredOwnSlots(view: OwnLinesView, edits: readonly { readonly id: number; readonly arg: number; readonly partial?: boolean }[]):
-  RestoredOwnSlots & { readonly slots: readonly (RestoredOwnSlot | undefined)[] } {
-  if (edits.length === 0) return { skip: new Set(), mask: new Set(), slots: [] };
+export interface RestoredOwnSlot { readonly group: string; readonly place: string; readonly id: number; readonly arg: number; readonly token: string }
+/** Wat (c) doet met de slots die (b) terugzette: `skip`, de groepen die (c) helemaal overslaat (zoals vóór PR A), en
+ *  `slots`, de slots die (c) apart toetst in de andere groepen. */
+export interface RestoredOwnSlots {
+  readonly skip: ReadonlySet<string>;
+  readonly slots: readonly RestoredOwnSlot[];
+}
+
+/**
+ * Wijs de slots aan die (b) terugzette (`edits`, regel en argument in `view`: O1 zonder de bronwaarden; de plaats hangt niet
+ * aan de waarde van het slot). Een slot krijgt zijn plaats in de boom van zijn groep als de regel op precies één plaats in een
+ * boom staat, geen andere regel op die plaats staat (twee properties of twee psets met dezelfde naam, twee koppen of taken met
+ * dezelfde GlobalId), het slot niet in die plaats zelf zit (de naam of de GlobalId), en de bronwaarde en de waarde van de
+ * writer geen verwijzing bevatten (dan hangt er een deel van de boom aan, of verandert de hernummering de waarde). Een slot
+ * van een soort die de lezer deels draagt (`partial`: lijst, JSON, samengestelde tekst) wijst hij nooit aan: de lezer leest
+ * die bronwaarde mee, dus de rest van de groep kan na heropenen anders teruglezen (knownbug 1770). Eén slot zonder plaats
+ * zet zijn hele groep in `skip`: dan slaat (c) haar over, zoals vóór PR A.
+ */
+export function restoredOwnSlots(view: OwnLinesView, edits: readonly Pick<SlotEdit, 'id' | 'arg' | 'token' | 'partial'>[]): RestoredOwnSlots {
+  if (edits.length === 0) return { skip: new Set(), slots: [] };
   const members = ownGroupMembers(view);
   const placesOf = new Map<number, string[]>(), holders = new Map<string, number>();
   groupTrees(view, new Set(), (id, at) => {
     const a = placesOf.get(id) ?? []; a.push(at); placesOf.set(id, a);
     holders.set(at, (holders.get(at) ?? 0) + 1);
   });
-  const found = edits.map((e): RestoredOwnSlot | undefined => {
+  const plain = (token: string | undefined) => refsOutsideText(token ?? '').length === 0;
+  const skip = new Set<string>(), slots: RestoredOwnSlot[] = [];
+  for (const e of edits) {
     const line = view.line(e.id);
     const group = line && editedOwnGroup(members, line, e.arg);
-    if (!line || group === undefined) return undefined;
+    if (!line || group === undefined) continue;
     const [at, ...more] = placesOf.get(e.id) ?? [];
     const inPlace = e.arg === NAME_ARG[line.type] || ((isBaselineHead(line) || line.type === 'IFCTASK') && e.arg === 0);
-    const unique = !e.partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace
-      && !ownPartRefs(view, line.args[e.arg]);
-    return unique ? { group, place: `${at}#${e.arg}` } : { group };
-  });
-  // Eén slot zonder eenduidige plaats zet de hele groep buiten (c); de andere slots van die groep hoeven dan geen plaats.
-  const skip = new Set(found.filter(s => s && s.place === undefined).map(s => s!.group));
-  const slots = found.map(s => s && skip.has(s.group) ? { group: s.group } : s);
-  return { skip, mask: new Set(slots.map(s => s?.place).filter((p): p is string => p !== undefined)), slots };
+    if (!e.partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace && plain(e.token) && plain(line.args[e.arg])) {
+      slots.push({ group, place: `${at}#${e.arg}`, id: e.id, arg: e.arg, token: e.token });
+    } else skip.add(group);
+  }
+  return { skip, slots: slots.filter(s => !skip.has(s.group)) };
+}
+
+/**
+ * Controle (c) op de eigen groepen (`ownOutputProblem` in `mergeWriter.ts`): het eerste verschil tussen de groepen van de
+ * uitvoer en die van de writer op de herlezing, buiten de groepen in `restored.skip`. Een slot uit `restored.slots` toetst
+ * (c) apart. In de uitvoer staat op zijn plaats precies één regel: de regel waarop (b) de bronwaarde zette (`id`), met op
+ * dat argument precies die bronwaarde; anders weigert (c). In de herschreven boom moet op die plaats precies één regel staan,
+ * met een waarde zonder verwijzing; anders slaat (c) de groep over, zoals vóór PR A. De rest van de groep toetst (c) gewoon.
+ */
+export function restoredOwnGroupDifference(output: OwnLinesView, rewritten: OwnLinesView, restored: RestoredOwnSlots):
+  { group: string; detail: string } | undefined {
+  const mask = new Set(restored.slots.map(s => s.place));
+  const read = (view: OwnLinesView) => {
+    const at = new Map<string, { id: number; token: string }[]>();
+    const trees = groupTrees(view, mask, undefined, (slot, id, token) => { const a = at.get(slot) ?? []; a.push({ id, token }); at.set(slot, a); });
+    return { trees, at };
+  };
+  const out = read(output), again = read(rewritten);
+  const skip = new Set(restored.skip);
+  for (const s of restored.slots) {
+    const there = again.at.get(s.place) ?? [];
+    if (there.length !== 1 || refsOutsideText(there[0].token).length > 0) skip.add(s.group);
+  }
+  for (const s of restored.slots) {
+    if (skip.has(s.group)) continue;
+    const there = out.at.get(s.place) ?? [];
+    if (there.length === 1 && there[0].id === s.id && there[0].token.trim() === s.token.trim()) continue;
+    const found = there.map(t => `#${t.id} ${t.token.trim()}`).join(', ') || 'niets';
+    return { group: s.group, detail: `de eigen groep ${s.group} draagt de bronwaarde niet meer: op ${s.place} hoort #${s.id} met ${s.token.trim()} te staan, de uitvoer heeft ${found}` };
+  }
+  return ownGroupDifference(out.trees, again.trees, skip);
 }
 
 /** Het eerste verschil tussen twee indelingen: de groep en een stukje van beide kanten rond het eerste andere teken. */

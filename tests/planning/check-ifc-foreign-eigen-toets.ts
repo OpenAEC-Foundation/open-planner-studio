@@ -973,31 +973,36 @@ function withForeignMemberInMiddle(bytes: Uint8Array, pset: string): Uint8Array 
 // opslaan) laat in de groep geen verschil meer door een oude verklaring (lijst A) gaan. De tegenproeven op de echte uitvoer
 // staan in `check-ifc-foreign-eigen-uitvoer.ts`, blok 10.
 const restoredText = (r: RestoredOwnSlots | undefined) => r
-  ? `overslaan: ${[...r.skip].join(', ') || 'niets'}; masker: ${[...r.mask].join(' + ') || 'niets'}` : 'niet gemeld';
+  ? `overslaan: ${[...r.skip].join(', ') || 'niets'}; apart: ${r.slots.map(s => s.place).join(' + ') || 'niets'}` : 'niet gemeld';
 const sameSet = (a: ReadonlySet<string> | undefined, b: readonly string[]) => !!a && a.size === b.length && b.every(x => a.has(x));
+/** De plaatsen van de slots die (c) apart toetst. */
+const placesOf = (r: RestoredOwnSlots | undefined) => r && new Set(r.slots.map(s => s.place));
 const descriptions = (b: Uint8Array) => latin1(b).split(DESCRIPTION).length - 1;
 /**
  * Eén geval per slot: `start` in de vorm van de writer, `slotted` met de slots van een ander programma erin (die zet (b)
- * terug), `edit` de handeling. `places`: wat (c) niet mag toetsen; `groups`: de groepen waarin de verliescontrole geen oude
- * verklaring meer mag gebruiken.
+ * terug), `edit` de handeling. `places`: de slots die (c) apart toetst. `perGroup`: de groepen met zo'n slot; daar valt de
+ * groep in de verliescontrole helemaal buiten de toets, zoals op de basis, en draagt een oude verklaring (lijst A) het
+ * verschil. `carried`: groepen zonder zo'n slot; daar draagt de toets, zonder oude verklaring.
  */
-async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, edit: Edit, places: readonly string[], groups: readonly string[]) {
+async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, edit: Edit, places: readonly string[],
+  perGroup: readonly string[], carried: readonly string[] = []) {
   const { o, d } = await one(label, slotted, edit, 'schrijft');
   if (!o.ok) return undefined;
   console.log(`SLOT ${label}: ${restoredText(o.restored)}`);
   ok(`${label}: (c) slaat geen groep over`, o.restored?.skip.size === 0, restoredText(o.restored));
-  ok(`${label}: (c) toetst precies het teruggezette slot niet`, sameSet(o.restored?.mask, places), restoredText(o.restored));
+  ok(`${label}: (c) toetst precies het teruggezette slot apart`, sameSet(placesOf(o.restored), places), restoredText(o.restored));
   ok(`${label}: de omschrijving van het andere programma blijft staan`, descriptions(o.bytes) === descriptions(slotted), `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
   await sameWithoutEdit(`${label}, heropend`, o.bytes);
   const p = await lossProbe(slotted, d, o.bytes, true);
-  const old: string[] = [];
+  const old = new Map<string, string[]>();
   const found = p.run(p.o1, undefined, linesOfBytes(start), (c, why) => {
     const g = p.ownGroups?.get(c);
-    if (g !== undefined && groups.includes(g)) old.push(`${p.index.type(c)} #${p.index.id(c)}: ${why}`);
+    if (g !== undefined) old.set(g, [...old.get(g) ?? [], `${p.index.type(c)} #${p.index.id(c)}: ${why}`]);
   });
   ok(`verliesproef ${label}: de echte O1 slaagt, met (b) zoals bij opslaan`, found.length === 0, found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', '));
-  console.log(`OUDE VERKLARING ${label}: ${old.join(' | ') || 'geen'}`);
-  ok(`verliesproef ${label}: geen oude verklaring in ${groups.join(', ')}`, old.length === 0, old.slice(0, 3).join(' | '));
+  console.log(`OUDE VERKLARING ${label}: ${[...old].map(([g, w]) => `${g}: ${w.join(' | ')}`).join(' || ') || 'geen'}`);
+  for (const g of perGroup) ok(`verliesproef ${label}: in ${g} draagt een oude verklaring het verschil, zoals op de basis`, (old.get(g)?.length ?? 0) > 0);
+  for (const g of carried) ok(`verliesproef ${label}: in ${g} draagt de toets, zonder oude verklaring`, !old.has(g), old.get(g)?.slice(0, 3).join(' | '));
   return o;
 }
 {
@@ -1029,7 +1034,7 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   // Een slot in de ene groep sluit een andere groep niet uit: de omschrijving op `OPS_TaskTypes`, de handeling in
   // `OPS_StructureMeta` (de tegenproef dat (c) die groep helemaal toetst, staat in eigen-uitvoer).
   await perSlot('per slot: omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, PSET.TaskTypes), SEVEN[0][3],
-    [psetDescriptionPlace(PSET.TaskTypes)], [PSET.TaskTypes, PSET.StructureMeta]);
+    [psetDescriptionPlace(PSET.TaskTypes)], [], [PSET.StructureMeta]);
   // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving op een kop. (c) toetst dan alleen
   // dat ene slot van die ene taak of kop niet (was knownbug 1747: de hele vorm). De vorm zelf beweegt niet mee (blok 5 en
   // 6, hierboven): dat blijft per vorm. Een vreemde `Creators` op een kop is een lijst, een soort die de lezer deels draagt:
@@ -1055,7 +1060,7 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
     if (r.ok) {
       console.log(`SLOT vreemde Creators op een kop: ${restoredText(r.restored)}`);
       ok('per slot: vreemde Creators op een kop: een lijst, dus (c) slaat de koppen over zoals op de basis',
-        sameSet(r.restored?.skip ?? new Set(), ['kop:OPS_Baselines']) && r.restored?.mask.size === 0, restoredText(r.restored));
+        sameSet(r.restored?.skip ?? new Set(), ['kop:OPS_Baselines']) && r.restored?.slots.length === 0, restoredText(r.restored));
       ok('per slot: vreemde Creators op een kop: de verwijzing blijft staan', /=IFCWORKSCHEDULE\([^\n]*\(#95300\)/.test(latin1(r.bytes)));
     }
   }
@@ -1104,8 +1109,8 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
       console.log(`SLOT omschrijving op ModifiedAt, statusdatum zetten: ${restoredText(o.restored)}`);
       ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: de omschrijving blijft staan',
         descriptions(slotted) === 1 && descriptions(o.bytes) === 1, `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
-      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: (c) toetst alleen dat slot niet',
-        o.restored?.skip.size === 0 && sameSet(o.restored.mask, [propertyDescriptionPlace(PS, PROP.ProjectSettings.ModifiedAt)]), restoredText(o.restored));
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: (c) toetst alleen dat slot apart',
+        o.restored?.skip.size === 0 && sameSet(placesOf(o.restored), [propertyDescriptionPlace(PS, PROP.ProjectSettings.ModifiedAt)]), restoredText(o.restored));
     }
   }
 }
