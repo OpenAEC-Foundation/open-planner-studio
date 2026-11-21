@@ -465,7 +465,7 @@ for (const minutes of [0, 0.000001, 0.000008]) {
       ],
     };
     const loads = assignmentPlacementLoad(assignment, placed.days, 480, contour, () => []);
-    const uniform = assignmentPlacementLoad(assignment, placed.days, 480, undefined, () => []);
+    const uniform = assignmentPlacementLoad(assignment, placed.days, 480, null, () => []);
     const monday = placed.days.findIndex(d => d.iso === '2026-06-01');
     ok(`399 ${gapMinutes}: maandag gevonden`, monday >= 0);
     eq(`399 ${gapMinutes}: zelfde afgeronde eindtijd als kalender`, iso(placed.finish),
