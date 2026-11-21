@@ -3234,6 +3234,15 @@ en noem het in je rapport of PR-tekst.
 
 ## Teksten en helpteksten
 
+2051. **VERVOLG (tekst, review van #1123): de voorbeelden bij het taaktype zeggen niet welke invoer verandert.**
+      Bij *Vaste duur en werk* zegt de tooltip van het i-icoon eerst "Duur en werk blijven" en daarna dat het werk
+      meegroeit als je de inzet wijzigt (`workRule.hint.FIXED_DURATION_WORK` plus de zinnen uit
+      `workRuleExplanation`). Dat klopt (5 werkdagen van 8 uur, inzet 1 → 2 geeft 80 in plaats van 40 uur), maar het
+      leest als een tegenspraak. De vier voorbeelden in `src/i18n/locales/{nl,en}/task.json` (`workRule.hint.*`)
+      rekenen met werkdagen van 8 uur zonder dat te zeggen; bij *Vaste inzet* op een kalender van 6 uur per dag duurt
+      80 uur kraanwerk 13⅓ werkdagen. Richting: elk voorbeeld als situatie ("je wijzigt …, dan …") en de daglengte
+      noemen. Alleen tekst; de eigenaar vond de huidige tekst "voorlopig prima zo" (21 november 2026). — B
+
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
      de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`

@@ -128,6 +128,9 @@
 
 .ops-select__option {
   display: flex;
+  /* Een rij krimpt niet in de flexkolom van het menu: met `min-height` mag hij anders tot 2rem
+     krimpen, en dan ligt de volgende rij over een tweede tekstregel (`hint`). Het menu scrolt. */
+  flex-shrink: 0;
   align-items: center;
   min-height: 2rem;
   padding: var(--sp-1) var(--sp-3);
