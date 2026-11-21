@@ -553,6 +553,16 @@ export interface AppliedOpenedImport {
   minuteModelConversions: (Pick<MinuteModelTransition, 'shifted' | 'maxWorkdays'> & { documentId: string })[];
 }
 
+/** Opties van `openOpenedFile`. */
+export interface OpenOpenedFileOptions {
+  /** Wacht vóór het activeren zolang dit waar geeft (slepen: een open dialoog, de formaatuitleg van het vorige bestand). */
+  waitWhile?: () => boolean;
+  /** Het open tabblad met dit bestand, of `null`. Gevraagd in dezelfde synchrone stap als het activeren, na het wachten:
+   *  geeft het een tabblad, dan wisselt de app daarheen in plaats van het bestand nog eens te openen (een startbestand,
+   *  #1091; voor Openen, Recent en slepen blijft dat knownbug 1957). */
+  existingDocument?: () => string | null;
+}
+
 export interface FileSlice {
   /** `labels` — vertaalde teksten die de UI aanlevert omdat de store-laag geen `t(...)` heeft (zie
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
@@ -563,7 +573,7 @@ export interface FileSlice {
    *  activeren na het herkennen zolang die waar geeft: slepen wacht daar tot geen dialoog meer
    *  openstaat, want het lezen en herkennen gebeurt terwijl de planner verder werkt. */
   openOpenedFile: (
-    opened: OpenedFile, labels?: ImportLabels, options?: { waitWhile?: () => boolean },
+    opened: OpenedFile, labels?: ImportLabels, options?: OpenOpenedFileOptions,
   ) => Promise<void>;
   saveFile: () => Promise<void>;
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
@@ -2412,6 +2422,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
+        }
+        // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
+        const existing = options?.existingDocument?.() ?? null;
+        if (existing !== null) {
+          get().switchDocument(existing);
+          return;
         }
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),

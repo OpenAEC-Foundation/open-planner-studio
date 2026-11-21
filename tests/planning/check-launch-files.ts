@@ -15,6 +15,9 @@
 //     wisselt de app naar dat tabblad: geen tweede tabblad dat naar hetzelfde bestand schrijft (review #1116).
 //  G. Ook niet als het bestand nog geopend wordt: hetzelfde pad twee keer in één event, of twee events vlak na
 //     elkaar (review ronde 2). En een pad met een onopgeloste `..` geeft de gewone leesfout, geen wissel.
+//  H. Ook niet als een andere route (slepen) hetzelfde bestand opent terwijl de startroute nog leest (ronde 3).
+//  I. Gaat het open tabblad dicht terwijl het startbestand wacht (de sluitvraag), dan opent het bestand alsnog.
+//  De beslissing "openen of wisselen" valt dus bij het activeren, met de tabbladen van dat moment.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -23,9 +26,11 @@ g.window = g.window ?? {};
 g.document = { documentElement: { dir: 'ltr', lang: 'en' } };
 
 const {
-  OPEN_FILES_EVENT, OPEN_FILES_READY_EVENT, createLaunchFileOpener, launchPaths, listenForLaunchFiles, openLaunchFiles,
+  OPEN_FILES_EVENT, OPEN_FILES_READY_EVENT, launchPaths, listenForLaunchFiles, openLaunchFiles,
 } = await import('@/state/launchFiles');
 const { OPEN_WAIT_POLL_MS } = await import('@/state/slices/fileSlice');
+const { droppedFilesFromPaths } = await import('@/services/fileAccess/fileDrop');
+const { openDroppedFiles } = await import('@/state/fileDrop');
 const { useAppStore } = await import('@/state/appStore');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -149,14 +154,14 @@ const freshTab = (label: string) => {
   await openLaunchFiles(useAppStore, ['/home/a/plan.ifc'], io, labels, () => false);
   check(S().documents.length === before && tabsFor('/home/a/plan.ifc') === 1, `al open: geen nieuw tabblad (${before} → ${S().documents.length})`);
   check(S().activeDocumentId === planDoc?.id, 'al open: het tabblad van dat bestand is actief');
-  check(reads.length === 0, `al open: niets gelezen (${reads.join(', ')})`);
+  check(same(reads, ['/home/a/plan.ifc']), `al open: gelezen zoals altijd, de beslissing valt bij het activeren (${reads.join(', ')})`);
 }
 
 {
-  // Via een link: een ander pad, dezelfde bestandsidentiteit. Het linkpad zelf is niet leesbaar in de nep-IO, dus
-  // een leesfout of een nieuw tabblad laat deze controle falen.
+  // Via een link: een ander pad, dezelfde bestandsidentiteit.
   clearNotices();
   freshTab('via een link');
+  files.set('/home/a/link/plan.ifc', ifcText);
   const identity = { stat: async (p: string) => {
     if (p === '/home/a/link/plan.ifc' || p === '/home/a/plan.ifc') return { isFile: true, dev: 1, ino: 42 };
     throw new Error(`failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`);
@@ -164,9 +169,9 @@ const freshTab = (label: string) => {
   const before = S().documents.length;
   reads.length = 0;
   await openLaunchFiles(useAppStore, ['/home/a/link/plan.ifc'], io, labels, () => false, { identityFs: async () => identity });
-  check(S().documents.length === before && S().activeDocumentId === planDoc?.id && reads.length === 0
+  check(S().documents.length === before && S().activeDocumentId === planDoc?.id && tabsFor('/home/a/link/plan.ifc') === 0
     && !S().ui.notifications.some((n) => n.severity === 'error'),
-  'via een link: hetzelfde bestand, dus naar het open tabblad, zonder lezen of foutmelding');
+  'via een link: hetzelfde bestand, dus naar het open tabblad, zonder foutmelding');
 }
 
 {
@@ -204,9 +209,8 @@ const freshTab = (label: string) => {
   freshTab('twee events');
   files.set('/home/a/twee.ifc', ifcText);
   let blocked = true;
-  const open = createLaunchFileOpener((paths) => openLaunchFiles(useAppStore, paths, io, labels, () => blocked));
-  const first = open(['/home/a/twee.ifc']);
-  const second = open(['/home/a/twee.ifc']);
+  const first = openLaunchFiles(useAppStore, ['/home/a/twee.ifc'], io, labels, () => blocked);
+  const second = openLaunchFiles(useAppStore, ['/home/a/twee.ifc'], io, labels, () => blocked);
   await sleep(OPEN_WAIT_POLL_MS * 2);
   check(tabsFor('/home/a/twee.ifc') === 0, 'twee events, venster open: nog niets geopend');
   blocked = false;
@@ -228,6 +232,46 @@ const freshTab = (label: string) => {
   check(same(reads, ['/home/a/weg/../plan.ifc']), `.. in het pad: gelezen zoals gegeven (${reads.join(', ')})`);
   check(S().documents.length === before && S().activeDocumentId === activeBefore, '.. in het pad: geen wissel, geen tabblad');
   check(S().ui.notifications.some((n) => n.severity === 'error' && (n.detail ?? '').includes('os error 2')), '.. in het pad: de gewone leesfout');
+}
+
+// ── H. Een andere route opent hetzelfde bestand terwijl de startroute nog leest (review ronde 3 van #1116) ──────
+{
+  // Dubbelklik, het lezen duurt even, en de planner sleept hetzelfde bestand naar het venster. Het slepen is eerst klaar;
+  // de startroute ziet bij het activeren dat tabblad en wisselt ernaartoe.
+  freshTab('dubbelklik en slepen');
+  files.set('/home/a/sleep.ifc', ifcText);
+  let release: () => void = () => { throw new Error('nog niet gelezen'); };
+  const slowIo = { ...io, readTextFile: (p: string) => new Promise<string>((resolve) => { release = () => resolve(files.get(p)!); }) };
+  const launched = openLaunchFiles(useAppStore, ['/home/a/sleep.ifc'], slowIo, labels, () => false);
+  await sleep(OPEN_WAIT_POLL_MS);
+  await openDroppedFiles(useAppStore, droppedFilesFromPaths(['/home/a/sleep.ifc'], io), labels, () => false);
+  check(tabsFor('/home/a/sleep.ifc') === 1, 'dubbelklik en slepen: het slepen opende het bestand');
+  release();
+  await launched;
+  check(tabsFor('/home/a/sleep.ifc') === 1, `dubbelklik en slepen: één tabblad (${tabsFor('/home/a/sleep.ifc')})`);
+}
+
+// ── I. Het open tabblad gaat dicht terwijl het startbestand wacht (review ronde 3 van #1116) ────────────────────
+{
+  // De planner sluit een gewijzigd tabblad (de sluitvraag staat open), dubbelklikt op de opgeslagen versie en kiest
+  // Niet opslaan. Het startbestand opent daarna alsnog, in een eigen tabblad.
+  freshTab('sluitvraag');
+  files.set('/home/a/sluit.ifc', ifcText);
+  await openLaunchFiles(useAppStore, ['/home/a/sluit.ifc'], io, labels, () => false);
+  const sluitId = S().activeDocumentId;
+  S().addTask({ name: 'Niet opgeslagen' });
+  check(tabsFor('/home/a/sluit.ifc') === 1 && S().isDirty, 'sluitvraag: het bestand staat open, met wijzigingen');
+  let blocked = true; // de sluitvraag
+  reads.length = 0;
+  const launched = openLaunchFiles(useAppStore, ['/home/a/sluit.ifc'], io, labels, () => blocked);
+  await sleep(OPEN_WAIT_POLL_MS * 2);
+  S().closeDocument(sluitId); // Niet opslaan
+  blocked = false;
+  await launched;
+  check(same(reads, ['/home/a/sluit.ifc']) && tabsFor('/home/a/sluit.ifc') === 1, `sluitvraag: het bestand is opnieuw geopend (${tabsFor('/home/a/sluit.ifc')})`);
+  const reopened = S().getOpenDocumentPayloads().find(({ payload }) => payload.filePath === '/home/a/sluit.ifc');
+  check(!!reopened && reopened.id !== sluitId && S().activeDocumentId === reopened.id && !S().isDirty,
+    'sluitvraag: een nieuw tabblad, actief, zonder de weggegooide wijziging');
 }
 
 console.log(failures === 0 ? 'launch-files: alles groen' : `launch-files: ${failures} fout(en)`);
