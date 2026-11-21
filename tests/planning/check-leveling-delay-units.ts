@@ -226,7 +226,7 @@ eq('en meldt het verlies (eerste keer voor dit document)',
       freshTask(PROJECT_CAL.id), noHours, [PROJECT_CAL], 'noWorkingHours'],
   ] as const) {
     eq(`507 ${label}: fout vóór kandidaatselectie`,
-      new CPMSolver([t], [], project, [...cal], opts).solve().error?.code, code);
+      new CPMSolver([t], [], project, [...cal], opts).solve().errorInfo?.code, code);
     eq(`507 ${label}: leeg nivelleervoorstel met ongewijzigde referentie`,
       level(t, project, [...cal]), {
         delays: {}, delayMinutes: {}, unresolved: {}, unresolvedReasons: {}, shifts: {},
@@ -246,7 +246,7 @@ eq('en meldt het verlies (eerste keer voor dit document)',
   const sameIdNoHours = { ...noHours, id: PROJECT_CAL.id };
   const direct = freshTask(PROJECT_CAL.id);
   eq('507 directe aanroep: de baseline accepteert een conflicterende kalender met dezelfde id',
-    new CPMSolver([direct], [], PROJECT_CAL, [sameIdNoHours], opts).solve().error?.code, undefined);
+    new CPMSolver([direct], [], PROJECT_CAL, [sameIdNoHours], opts).solve().errorInfo?.code, undefined);
   eq('507 directe aanroep: de taakengine van de nivelleerder heeft toch geen werkblokken',
     createTaskEngineCache([sameIdNoHours], PROJECT_CAL).forTask(direct).isHourMode, false);
   eq('507 directe aanroep: de nivelleerder passeert de baseline-stop en doet een proefberekening',
