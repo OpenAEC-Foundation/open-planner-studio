@@ -3,7 +3,7 @@ import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteMode
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
-import { carryLiveProgressPlan, liveProgressPlannedStarts, progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
+import { carryLiveProgressPlan, liveProgressPlannedDates, progressPlacementForBatch, progressPlannedDates } from '@/state/progressPlannedDates';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -19,7 +19,7 @@ import { parseDate, localTodayIso } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
-import { applyProgressInvariants } from '@/engine/taskMutationRules';
+import { applyProgressInvariants, type PlannedProgressDates } from '@/engine/taskMutationRules';
 import {
   actualStartQuestionFor, hasRecordedProgress, planProgressEntry, progressEntryStatusDate,
   type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan, type ProgressEntryResult,
@@ -200,7 +200,7 @@ export interface TaskSlice {
   enterTaskProgress: (
     taskId: string,
     edit: ProgressEdit,
-    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedStart?: () => string | undefined },
+    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedDates?: () => PlannedProgressDates | undefined },
   ) => ProgressEntryResult;
   /**
    * De ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
@@ -268,11 +268,11 @@ export interface ProgressImportEntryOptions {
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
 function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
   const statusDate = progressEntryStatusDate(s.project.statusDate, today);
-  const baseStart = progressPlannedStarts(s);
+  const baseDates = progressPlannedDates(s);
   return {
     preparePlacement: ids => progressPlacementForBatch(s, ids, statusDate),
-    planEdits: (task, edits, plannedStart = baseStart) => {
-      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedStart };
+    planEdits: (task, edits, plannedDates = baseDates) => {
+      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedDates };
       const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
       if (!planned.ok || !today) return planned;
       const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
@@ -280,7 +280,7 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
       }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar),
-      wrote('task.time.completion') ? () => plannedStart(task) : undefined);
+      wrote('task.time.completion') ? () => plannedDates(task)?.earlyStart : undefined);
       if (!question) return planned;
       return {
         ok: false,
@@ -906,7 +906,8 @@ function commitProgressEdit(
   ctx: Omit<ProgressEntryContext, 'statusDate'>,
   opts: { coalesceKey?: string } | undefined,
 ): ProgressEntryResult & { statusDateToday?: string } {
-  const task = s.tasks[taskIndexById(s, taskId)] as Task | undefined; // aan het begin van elke producer
+  const index = taskIndexById(s, taskId);
+  const task = s.tasks[index] as Task | undefined; // aan het begin van elke producer
   if (!task) return { ok: true }; // onbekende taak: stille no-op
   // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af uit
   // de bladen. Weigeren vóór elke mutatie, dus zonder snapshot (transaction.ts-patroon).
@@ -915,8 +916,17 @@ function commitProgressEdit(
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
   const base = originalAppState(s);
-  const plan = planStoredProgressEdit(s, task, edit, { ...ctx,
-    plannedStart: ctx.plannedStart ?? (() => base ? liveProgressPlannedStarts(base)(task) : progressPlannedStarts(s)(task)) });
+  const plannedDates = ctx.plannedDates ?? (() => {
+    // Tijdens het slepen wordt de voortgang al geschreven, maar de berekening blijft staan.
+    // Gebruik dan het venster van vóór die schuifstappen, inclusief een eventuele statusdatumvloer.
+    const before = base && opts?.coalesceKey ? runtime.coalescedDocumentBefore(base, opts.coalesceKey) : undefined;
+    const originalTask = before?.tasks[index];
+    if (before && originalTask?.id === taskId) {
+      return progressPlannedDates(before)(originalTask) ?? originalTask.time;
+    }
+    return base ? liveProgressPlannedDates(base)(task) : progressPlannedDates(s)(task);
+  });
+  const plan = planStoredProgressEdit(s, task, edit, { ...ctx, plannedDates });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
@@ -1777,7 +1787,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     writeProgress(taskId, { field: 'actualFinish', value: date }, {}, opts).ok,
 
   enterTaskProgress: (taskId, edit, opts) =>
-    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart }, opts),
+    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedDates: opts.plannedDates }, opts),
 
   previewProgressImport: (rows, overrides, opts) => {
     const s = get();

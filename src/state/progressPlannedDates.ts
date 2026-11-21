@@ -1,7 +1,8 @@
 import { solveInputFor } from '@/engine/scheduler/solveInput';
-import { cloneTasksForSolve, plannedStartBeforeStatusShift, solveProject } from '@/engine/scheduler/solveProject';
+import { cloneTasksForSolve, plannedDatesBeforeStatusShift, solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import type { Task } from '@/types/task';
 import { taskTriggerChanges } from '@/utils/taskDefaults';
 import type { AppState } from './appStore';
@@ -24,17 +25,17 @@ function solveProgressPlacement(state: ProgressPlanning): ReturnType<typeof solv
 }
 
 /** De eerste afleiding rekent zo nodig op een kopie, gedeeld door alle taken in deze invoer. */
-export function progressPlannedStarts(
+export function progressPlannedDates(
   state: ProgressPlanning, placementEdited = false,
-): (task: Task) => string | undefined {
+): (task: Task) => PlannedProgressDates | undefined {
   if (state.datesAsRecorded && !placementEdited) return () => undefined;
   if (!placementEdited && !state.scheduleStale && state.cpmResult) {
-    return task => plannedStartBeforeStatusShift(state.cpmResult, task);
+    return task => plannedDatesBeforeStatusShift(state.cpmResult, task);
   }
   let result: ReturnType<typeof solveProject> | undefined;
   return task => {
     result ??= solveProgressPlacement(state);
-    return result.error ? undefined : result.tasks.get(task.id)?.earlyStart;
+    return result.error ? undefined : result.tasks.get(task.id);
   };
 }
 
@@ -48,7 +49,7 @@ function createProgressForwardPass(state: ProgressPlanning) {
   if (!forward) return;
   return {
     order: forward.order,
-    earlyStart: forward.earlyStart,
+    earlyDates: forward.earlyDates,
     accept(task: Task): boolean {
       const work = byId.get(task.id);
       if (!work || (task.time.completion >= 1 && !task.time.actualFinish)
@@ -67,21 +68,21 @@ function createProgressForwardPass(state: ProgressPlanning) {
 type ProgressForwardPass = NonNullable<ReturnType<typeof createProgressForwardPass>>;
 
 interface LiveProgressPlan {
-  lookup: ReturnType<typeof progressPlannedStarts>;
+  lookup: ReturnType<typeof progressPlannedDates>;
   forward?: ProgressForwardPass;
 }
 
 const liveProgressStarts = new WeakMap<AppState, LiveProgressPlan>();
 
 function lookupWithForward(state: ProgressPlanning, forward?: ProgressForwardPass, placementEdited = false) {
-  const fallback = progressPlannedStarts(state, placementEdited);
-  return (task: Task): string | undefined => (
-    (task.time.completion < 1 ? forward?.earlyStart(task.id) : undefined) ?? fallback(task)
+  const fallback = progressPlannedDates(state, placementEdited);
+  return (task: Task): PlannedProgressDates | undefined => (
+    (task.time.completion < 1 ? forward?.earlyDates(task.id) : undefined) ?? fallback(task)
   );
 }
 
 /** Hergebruik de rekenstand voor dezelfde momentopname. */
-export function liveProgressPlannedStarts(state: AppState): ReturnType<typeof progressPlannedStarts> {
+export function liveProgressPlannedDates(state: AppState): ReturnType<typeof progressPlannedDates> {
   let plan = liveProgressStarts.get(state);
   if (!plan) {
     const forward = !state.datesAsRecorded && (state.scheduleStale || !state.cpmResult)
@@ -140,13 +141,13 @@ export function progressPlacementForBatch(
   const tasks = [...state.tasks];
   const indexes = new Map(tasks.map((task, index) => [task.id, index]));
   let lookup = initial && !state.datesAsRecorded
-    ? (task: Task) => initial.tasks.get(task.id)?.earlyStart
+    ? (task: Task) => initial.tasks.get(task.id)
     : lookupWithForward(state, forward);
   let activeStatusDate = state.project.statusDate;
   const order = (forward?.order ?? [...initial!.tasks.keys()]).filter(id => ids.has(id));
   return {
     order,
-    plannedStart: (task: Task) => lookup(task),
+    plannedDates: (task: Task) => lookup(task),
     accept: (before: Task, after: Task) => {
       const index = indexes.get(before.id);
       if (index === undefined || !taskPlacementChanged(before, after)) return;
@@ -162,9 +163,13 @@ export function progressPlacementForBatch(
   };
 }
 
-/** Bij gecombineerde invoer telt de bewerkte taak mee vóór het percentage haar start vastlegt. */
-export function progressPlannedStartAfterEdit(state: AppState, before: Task, edited: Task): string | undefined {
-  if (!taskPlacementChanged(before, edited)) return progressPlannedStarts(state)(edited);
-  const tasks = state.tasks.map(task => task.id === edited.id ? edited : task);
-  return progressPlannedStarts({ ...state, tasks }, true)(edited);
+/** Bij gecombineerde invoer telt de bewerkte plaatsing mee, vóór de conceptvoortgang. */
+export function progressPlannedDatesAfterEdit(state: AppState, before: Task, edited: Task): PlannedProgressDates | undefined {
+  const { completion, actualStart, actualFinish } = before.time;
+  const placement = !actualStart && edited.time.actualStart
+    ? { ...edited, status: before.status, time: { ...edited.time, completion, actualStart, actualFinish } }
+    : edited;
+  if (!taskPlacementChanged(before, placement)) return progressPlannedDates(state)(placement);
+  const tasks = state.tasks.map(task => task.id === placement.id ? placement : task);
+  return progressPlannedDates({ ...state, tasks }, true)(placement);
 }

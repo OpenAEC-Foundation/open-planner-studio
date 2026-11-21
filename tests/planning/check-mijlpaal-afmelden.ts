@@ -280,16 +280,19 @@ for (const profile of PROFILES) {
   eq(`${profile}: en via MCP op 5-6-2026 ook`, enter(f, 'MCP', f.oplevering, 'actualFinish', '2026-06-05'), '2026-06-05T09:30');
 }
 
-// ── 3. 100 % zonder datum (contextmenu Voltooid, schuif): het afgeleide einde is de statusdatum, met de
-// klokketijd uit de planning.
+// ── 3. 100 % zonder datum: de mijlpaal houdt het oorspronkelijke geplande moment (#998).
 for (const profile of PROFILES) {
   const f = fixture(profile);
   const lone = f.los['zonder soort'];
   const clock = clockOf(f.taskOf(lone).time.earlyStart);
   eq(`${profile}: 100 % op een losse mijlpaal zonder soort`, f.S().setTaskProgress(lone, 1), true);
-  eq(`${profile}: werkelijk einde = statusdatum om ${clock}`, f.taskOf(lone).time.actualFinish, `${STATUS}T${clock}`);
+  eq(`${profile}: losse mijlpaal houdt het geplande moment`,
+    [f.taskOf(lone).time.actualStart, f.taskOf(lone).time.actualFinish],
+    [`2026-06-01T${clock}`, `2026-06-01T${clock}`]);
   eq(`${profile}: 100 % op Oplevering`, f.S().setTaskProgress(f.oplevering, 1), true);
-  eq(`${profile}: werkelijk einde = statusdatum om 16:00`, f.taskOf(f.oplevering).time.actualFinish, `${STATUS}T16:00`);
+  eq(`${profile}: Oplevering houdt het geplande moment`,
+    [f.taskOf(f.oplevering).time.actualStart, f.taskOf(f.oplevering).time.actualFinish],
+    ['2026-06-01T16:00', '2026-06-01T16:00']);
 }
 
 // ── 4. De klem op het statusmoment blijft ───────────────────────────────────────────────────────

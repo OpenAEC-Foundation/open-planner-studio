@@ -13,7 +13,7 @@ import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNo
 import {
   hasRecordedProgress, planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan,
 } from '@/engine/progressEntry';
-import { progressPlannedStartAfterEdit } from '@/state/progressPlannedStart';
+import { progressPlannedDatesAfterEdit } from '@/state/progressPlannedDates';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import { durationEditRefusal } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
@@ -175,12 +175,11 @@ export function planTaskDialogProgress(
   const start = live ? planTaskDialogStart(state, live, draft, startDate) : undefined;
   const task = live ? { ...draft, constraint: start?.constraint, time: savedTime(live, draft, initialDuration) } : draft;
   if (start?.anchor !== undefined) task.time.scheduleStart = start.anchor;
-  let plannedStart: string | undefined;
   const plan = planProgressEntry(task, edit, {
     ...context,
     statusDate: state.project.statusDate,
     calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
-    plannedStart: live ? () => (plannedStart ??= progressPlannedStartAfterEdit(state, live, task)) : undefined,
+    plannedDates: live ? () => progressPlannedDatesAfterEdit(state, live, task) : undefined,
   });
   if (!live || !plan.ok || !plan.change) return plan;
   // Alleen de voortgang gaat terug naar het concept. De actuele duur en de afgeleide SNET

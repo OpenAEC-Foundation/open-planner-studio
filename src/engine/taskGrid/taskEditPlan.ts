@@ -10,8 +10,9 @@ import {
   applyProgressInvariants,
   assignTaskActivityCode,
   assignTaskCustomField,
+  datesForProgress,
   fillMissingActualStart,
-  isTaskActualPastStatusDate, normalizeActualDate,
+  isTaskActualPastStatusDate, normalizeActualDate, type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type {
@@ -77,8 +78,8 @@ export interface TaskEditPlanEnvironment {
   projectId: string;
   wbsAutoNumber: boolean;
   statusDate?: string;
-  /** Geplande start vóór de statusdatumvloer, alleen bij een ingevoerd voortgangspercentage. */
-  plannedStart?: (task: Task) => string | undefined;
+  /** Geplande datums vóór de statusdatumvloer, voor het afleiden van werkelijke datums. */
+  plannedDates?: (task: Task) => PlannedProgressDates | undefined;
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
@@ -607,7 +608,9 @@ function applyMilestoneEdit(
   return scheduleChanged ? finishDurationEdit(task, timeBefore, environment, edit) : { ok: true, value: false };
 }
 
-function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined, calendar?: WorkCalendar): void {
+function applyStatus(
+  task: Task, status: TaskStatus, statusDate: string | undefined, calendar?: WorkCalendar, planned?: PlannedProgressDates,
+): void {
   if (status === 'NOT_STARTED') {
     task.time.completion = 0;
     task.time.actualStart = undefined;
@@ -620,7 +623,7 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
     task.time.completion = 1;
     // Zelfde regel als setTaskProgress en de completion-cel: zonder actualStart geldt de eigen
     // geplande start, niet AS = AF (dan kromp de voltooide balk tot zijn laatste dag).
-    fillMissingActualStart(task, statusDate, calendar);
+    fillMissingActualStart(task, statusDate, calendar, planned);
   }
 }
 
@@ -672,18 +675,17 @@ function applyProgressEdit(
     };
   }
   const id = String(edit.columnId);
+  let planned: PlannedProgressDates | undefined;
   if (id === 'task.status') {
     if (typeof edit.value !== 'string' || !TASK_STATUSES.includes(edit.value as TaskStatus)) {
       return failure('enum', edit);
     }
-    applyStatus(task, edit.value as TaskStatus, environment.statusDate, calendar);
+    if (edit.value === 'COMPLETED') planned = datesForProgress(task, 1, environment.plannedDates);
+    applyStatus(task, edit.value as TaskStatus, environment.statusDate, calendar, planned);
   } else if (id === 'task.time.completion') {
     if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
-    // Zelfde regel als store (`setTaskProgress`) en MCP: een afgeleide werkelijke start valt
-    // nooit ná het werkelijke einde (100% met een statusdatum vóór de geplande start).
-    const start = edit.value > 0 && !task.time.actualStart && !isZeroDurationMilestone(task)
-      ? environment.plannedStart?.(task) : undefined;
-    applyCompletionEdit(task, edit.value, environment.statusDate, calendar, () => start);
+    planned = datesForProgress(task, edit.value, environment.plannedDates);
+    applyCompletionEdit(task, edit.value, environment.statusDate, calendar, planned);
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value && environment.statusDate
@@ -715,17 +717,14 @@ function applyProgressEdit(
     } else {
       if (remaining) writeRemaining(task, edit.value, environment);
       else task.time.actualDuration = edit.value / (hoursPerDay * 60);
-      applyCompletionEdit(
-        task,
-        completionFromDuration(task, edit.value, remaining, environment),
-        environment.statusDate,
-        calendar,
-      );
+      const completion = completionFromDuration(task, edit.value, remaining, environment);
+      if (completion >= 1) planned = datesForProgress(task, completion, environment.plannedDates);
+      applyCompletionEdit(task, completion, environment.statusDate, calendar, planned);
     }
   } else {
     return failure('plannerNotAvailable', edit);
   }
-  applyProgressInvariants(task, environment.statusDate, calendar);
+  applyProgressInvariants(task, environment.statusDate, calendar, planned);
   if (id === 'task.time.remainingTime' && edit.value !== undefined) writeRemaining(task, edit.value as number, environment);
   return { ok: true, value: undefined };
 }
@@ -907,11 +906,11 @@ function applyProgressEdits(
       : (actualDurationEdit.value as number) / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
   }
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
-  const start = completionEdit && desiredCompletion !== undefined && desiredCompletion > 0
-    && !desiredActualStart && !isZeroDurationMilestone(task)
-    ? environment.plannedStart?.(task) : undefined;
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
   if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
+  const planned = completionEdit || desiredCompletion === 1
+    ? datesForProgress(task, desiredCompletion ?? 0, environment.plannedDates)
+    : undefined;
   if (desiredCompletion !== undefined) {
     task.time.completion = desiredCompletion;
     if (desiredCompletion < 1 && !actualFinishEdit) task.time.actualFinish = undefined;
@@ -919,7 +918,7 @@ function applyProgressEdits(
     // (opgegeven of straks afgeleide) werkelijke einde — zelfde uitkomst als het enkele-celpad.
     // Een in deze rij opgegeven Actual Start staat er dan al en blijft ongemoeid.
     if (desiredCompletion > 0) {
-      fillMissingActualStart(task, environment.statusDate, calendar, () => start);
+      fillMissingActualStart(task, environment.statusDate, calendar, planned);
     }
   }
   if (desiredStatus === 'NOT_STARTED') {
@@ -929,7 +928,7 @@ function applyProgressEdits(
     task.time.actualFinish = undefined;
     fillMissingActualStart(task, environment.statusDate, calendar);
   }
-  applyProgressInvariants(task, environment.statusDate, calendar);
+  applyProgressInvariants(task, environment.statusDate, calendar, planned);
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (desiredStatus !== undefined && task.status !== desiredStatus) {
     return failure('conflictingProgressInputs', statusEdit!);

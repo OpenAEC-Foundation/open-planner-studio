@@ -79,6 +79,8 @@ export interface StoreRuntime {
     label?: string,
   ): SessionHistoryEvent | null;
   resetUndoCoalescing(): void;
+  /** De planning vóór de eerste stap van dezelfde, nog actieve bewerking. */
+  coalescedDocumentBefore(state: AppState, key: string): Snapshot | undefined;
   /** Rond open tekstinvoer van deze context af (commit, dan de eigen rekenblokkade vrij). Elke
    *  actie die de actieve documentpayload vastlegt of vervangt, roept dit EERST aan. */
   finishPendingTextEdits(): void;
@@ -186,6 +188,13 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     return activeMcpLease;
   };
 
+  const coalescedMarker = (
+    state: AppState, key: string | null, documentId = state.activeDocumentId,
+  ): CoalesceMarker | undefined => (
+    coalesce && coalesce.key === key && coalesce.documentId === documentId
+      && state.nextHistorySequence === coalesce.sequence + 1 ? coalesce : undefined
+  );
+
   const replaceCoalescedAfter = (
     state: AppState,
     marker: CoalesceMarker,
@@ -251,13 +260,9 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
       // `recordDocumentDataHistoryDelta`) resetten de marker niet; zonder deze check schreef een
       // tweede statusdatumwijziging ná een celbewerking de `after` van het OUDERE event over met een
       // toestand mét die celbewerking — undo draaide dan beide terug en redo verloor de tweede datum.
-      const compatible = pending.coalesceKey !== null
-        && coalesce?.key === pending.coalesceKey
-        && coalesce.documentId === pending.documentId
-        && state.nextHistorySequence === coalesce.sequence + 1
-        && replaceCoalescedAfter(state, coalesce, after);
-      if (compatible) {
-        return state.historyEvents.find(event => event.id === coalesce?.eventId) ?? null;
+      const marker = coalescedMarker(state, pending.coalesceKey, pending.documentId);
+      if (marker && replaceCoalescedAfter(state, marker, after)) {
+        return state.historyEvents.find(event => event.id === marker.eventId) ?? null;
       }
 
       const event = recordSessionHistoryDeltas(state, pending.label, [{
@@ -318,6 +323,14 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     ifcSaveCompute: opts?.ifcSaveCompute,
     resetUndoCoalescing() {
       coalesce = null;
+    },
+    coalescedDocumentBefore(state, key) {
+      const marker = coalescedMarker(state, key);
+      if (!marker) return undefined;
+      const event = state.historyEvents.find(item => item.id === marker.eventId);
+      if (event?.state !== 'applied') return undefined;
+      const delta = event.deltas.find(item => item.kind === 'document-data' && item.documentId === marker.documentId);
+      return delta?.kind === 'document-data' ? delta.before : undefined;
     },
 
     openHistorySession() {

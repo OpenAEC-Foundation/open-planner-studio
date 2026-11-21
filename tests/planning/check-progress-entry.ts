@@ -156,6 +156,26 @@ function expectRule1(label: string, S: () => AppState, B: string, depthBefore: n
   expectRule1('1e Taak bewerken', S, B, d0);
 }
 
+// Vóór de eerste F5 loopt de relatie al mee in de afleiding. Elke schuifstap gebruikt
+// hetzelfde venster, ook nadat de eerste stap de statusdatum op vandaag heeft gezet.
+{
+  const { S } = fresh();
+  const today = '2026-11-18';
+  S().setProject({ startDate: '2026-10-21' });
+  const A = S().addTask({ name: 'Fundering', time: { scheduleDuration: 5 } as Task['time'] });
+  const B = S().addTask({ name: 'Metselwerk', time: { scheduleDuration: 3 } as Task['time'] });
+  S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+  const depth = undoDepth(S);
+  for (const value of [0.25, 0.5, 1]) {
+    const result = S().enterTaskProgress(B, { field: 'completion', value }, { today, coalesceKey: 'schuif' });
+    eq(`#998 vóór F5: ${value * 100}% aanvaard`, result, { ok: true });
+  }
+  const { actualStart, actualFinish, scheduleDuration } = taskOf(S, B).time;
+  eq('#998 vóór F5: op 100% blijft het venster van de volgorde geldig',
+    [actualStart, actualFinish, scheduleDuration, undoDepth(S) - depth],
+    ['2026-10-28T07:00', '2026-10-30T16:00', 3, 1]);
+}
+
 // ── 2. Wat NIET verandert ────────────────────────────────────────────────────────────────────────
 {
   // Geen voortgang over (0 %) ⇒ geen statusdatum en geen melding. (De eerste 0 % legt op een verse
@@ -231,7 +251,11 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
   } else S().runCPM();
   const original = S().tasks;
   const writes = [cell(B, 'task.time.completion', 0.5)];
-  if (scenario === 'voorganger afmelden') writes.unshift(cell(A, 'task.time.completion', 1));
+  if (scenario === 'voorganger afmelden') writes.unshift(
+    cell(A, 'task.time.completion', 1),
+    cell(A, 'task.time.actualStart', '2026-06-08'),
+    cell(A, 'task.time.actualFinish', today),
+  );
   for (const order of [writes, [...writes].reverse()]) {
     const grid = S().runGridMutation([{ kind: 'paste', writes: order }], { progressEntry: { today } });
     eq(`#998 raster ${scenario} vraagt om start van opvolger`, grid.ok ? 'ok' : grid.errors.map(e => [e.code, e.taskId]), [['actualStartRequired', B]]);

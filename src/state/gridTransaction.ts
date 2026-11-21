@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { constraintDateField, DayClockCache, normalizeTaskDateInput, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
 import { workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
 import { normalizeActualDate } from '@/engine/taskMutationRules';
@@ -40,7 +41,7 @@ import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
-import { progressPlacementForBatch, progressPlannedStarts } from './progressPlannedStart';
+import { progressPlacementForBatch, progressPlannedDates } from './progressPlannedDates';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -563,7 +564,7 @@ function applyCellEdits(
   // Bepaalt een voorganger de start van deze taak? Lui en per transactie gedeeld (zie
   // `prepareGridMutation`), want alleen een getypte start heeft het nodig.
   startDrivenByPredecessor: (taskId: string) => boolean,
-  plannedStart: (task: Task) => string | undefined,
+  plannedDates: (task: Task) => PlannedProgressDates | undefined,
   // De toewijzingen van deze taak (uit de callerindex, O(1)), voor de
   // werkdriehoek bij een duurbewerking.
   assignmentsForTask: readonly AppState['assignments'][number][] = [],
@@ -830,7 +831,11 @@ function applyCellEdits(
   let progressStart: string | undefined;
   const planned = planTaskCellEdits(current, remainingEdits, {
     ...environment,
-    plannedStart: edited => (progressStart = plannedStart(edited)),
+    plannedDates: edited => {
+      const dates = plannedDates(edited);
+      progressStart = dates?.earlyStart;
+      return dates;
+    },
   });
   if (!planned.ok) return planned;
   if (planned.value.changed) {
@@ -870,12 +875,12 @@ function applyCellEdits(
 }
 
 /** Bepaal starts met de nieuwe plaatsing en de voortgang van eerdere taken in de relatiegraaf. */
-function plannedStartsForGrid(
+function plannedDatesForGrid(
   state: Readonly<AppState>,
   writes: readonly GridWriteIntent[],
   skipReadOnlyCells: boolean,
   today: string | undefined,
-): (task: Task) => string | undefined {
+): (task: Task) => PlannedProgressDates | undefined {
   const placementWrites = writes.filter(write => write.kind !== 'cell-edit'
     || write.route === 'task-schedule' || write.route === 'task-constraint'
     || write.route === 'task-milestone' || write.route === 'task-hammock'
@@ -884,7 +889,7 @@ function plannedStartsForGrid(
     ? prepareGridWrites(state, [{ kind: 'paste', writes: placementWrites, allowSkippingReadOnlyCells: skipReadOnlyCells }])
     : undefined;
   const placed = placement?.ok ? placement.value.isolated : state;
-  const base = progressPlannedStarts(placed);
+  const base = progressPlannedDates(placed);
   const progressByTask = new Map<string, CellEditIntent[]>();
   for (const write of writes) {
     if (write.kind !== 'cell-edit' || write.route !== 'task-progress') continue;
@@ -896,7 +901,7 @@ function plannedStartsForGrid(
   const batch = progressPlacementForBatch(placed, new Set(progressByTask.keys()), statusDate);
   if (!batch) return base;
 
-  const starts = new Map<string, string | undefined>();
+  const dates = new Map<string, PlannedProgressDates | undefined>();
   const tasksById = new Map(placed.tasks.map(task => [task.id, task]));
   for (const id of batch.order) {
     const edits = progressByTask.get(id)!;
@@ -905,18 +910,18 @@ function plannedStartsForGrid(
     const plan = planTaskCellEdits(before, edits, {
       ...environment,
       statusDate,
-      plannedStart: task => {
-        const start = batch.plannedStart(task);
-        starts.set(id, start);
-        return start;
+      plannedDates: task => {
+        const placement = batch.plannedDates(task);
+        dates.set(id, placement);
+        return placement;
       },
     });
     if (!plan.ok || !plan.value.changed) continue;
     const after = plan.value.task;
-    if (today && progressStartQuestion(before, after, edits, statusDate, placed, starts.get(id))) continue;
+    if (today && progressStartQuestion(before, after, edits, statusDate, placed, dates.get(id)?.earlyStart)) continue;
     batch.accept(before, after);
   }
-  return task => starts.has(task.id) ? starts.get(task.id) : base(task);
+  return task => dates.has(task.id) ? dates.get(task.id) : base(task);
 }
 
 function progressStartQuestion(
@@ -966,9 +971,9 @@ function prepareGridWrites(
     0,
   );
 
-  let lookup: ((task: Task) => string | undefined) | undefined;
-  const plannedStart = (task: Task): string | undefined => {
-    lookup ??= plannedStartsForGrid(state, orderedWrites, skipReadOnlyCells, today);
+  let lookup: ((task: Task) => PlannedProgressDates | undefined) | undefined;
+  const plannedDates = (task: Task): PlannedProgressDates | undefined => {
+    lookup ??= plannedDatesForGrid(state, orderedWrites, skipReadOnlyCells, today);
     return lookup(task);
   };
 
@@ -1033,7 +1038,7 @@ function prepareGridWrites(
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
         const applied = applyCellEdits(
-          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor, plannedStart,
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor, plannedDates,
           draftAssignmentsByTaskId.get(write.taskId) ?? [],
           plansStatusDateToday ? today : undefined,
         );

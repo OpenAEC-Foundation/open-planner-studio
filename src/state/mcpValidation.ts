@@ -1,4 +1,4 @@
-import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isElapsedTask } from '@/engine/scheduler/duration';
 // =================================================================================================
 // MCP-bridge — validatielaag (guards, validaties en relatie-validatie).
 //
@@ -22,8 +22,9 @@ import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/durat
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import {
-  applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
+  applyProgressInvariants, datesForProgress, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
   normalizeActualDate,
+  type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
 import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { actualStartQuestionFor } from '@/engine/progressEntry';
@@ -172,7 +173,7 @@ export const progress = {
     taskId: string,
     update: { completion?: number; actualStart?: string; actualFinish?: string },
     statusDate: string | undefined,
-    getPlannedStart?: (task: Task) => string | undefined,
+    getPlannedDates?: (task: Task) => PlannedProgressDates | undefined,
   ): ProgressResult {
     const task = draftState.tasks.find((t) => t.id === taskId) as Task | undefined;
     if (!task) return { applied: false, reason: `task '${taskId}' does not exist` };
@@ -215,10 +216,9 @@ export const progress = {
     //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
     //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
     //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
-    const originalStart = update.completion !== undefined && time.completion > 0 && !time.actualStart
-      && !isZeroDurationMilestone(task) ? getPlannedStart?.(task) : undefined;
-    const plannedStart = originalStart ? () => originalStart : undefined;
-    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, plannedStart);
+    const planned = update.completion === undefined
+      ? undefined : datesForProgress(scratch, time.completion, () => getPlannedDates?.(task));
+    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar, planned);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
@@ -261,18 +261,18 @@ export const progress = {
     }
 
     // (10) invarianten.
-    applyProgressInvariants(scratch, statusDate, calendar);
+    applyProgressInvariants(scratch, statusDate, calendar, planned);
     // (11) Geen verzonnen werkelijke start — de AI geeft hem zelf op.
     const question = actualStartQuestionFor(task, scratch, statusDate, {
       actualStart: !!update.actualStart,
       actualFinish: !!update.actualFinish,
-    }, isElapsedTask(task) ? undefined : calendar, plannedStart);
+    }, isElapsedTask(task) ? undefined : calendar, () => planned?.earlyStart);
     if (question) {
-      const planned = originalStart ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
+      const plannedStart = planned?.earlyStart ?? (scratch.time.earlyStart || scratch.time.scheduleStart);
       return {
         applied: false,
         reason: `task '${taskId}' has no actual start yet and was planned to start only after the status ` +
-          `date (${question.statusDate}) (planned start ${planned}): progress means it has already started, ` +
+          `date (${question.statusDate}) (planned start ${plannedStart}): progress means it has already started, ` +
           'but only the user knows when. Pass the actual start in `progress.actualStart` (at the latest ' +
           `${question.latest}); the AI connection does not derive it`,
       };

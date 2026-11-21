@@ -424,7 +424,7 @@ export function readIFC(
   if (!project.startDate && !projectStartRecorded.value) project.startDate = startAnchor;
 
   // Alleen bladtaken volgen de voortgang-invarianten — ná extractStructure zodat
-  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
+  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als fallback voor een ontbrekend werkelijk einde bij openen.
   // `runningStatusIds`: taken met `IfcTask.Status` = 'STARTED' — een lopende taak op 100 % blijft
   // dan lopend (eigenaarsbesluit 2026-10-14). Oude bestanden (`$`) lezen als voorheen.
   normalizeImportedProgress(tasks.filter(isLeafTask), project.statusDate, runningStatusIds);

@@ -95,16 +95,16 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
 
-test('knownbug 81: voltooien na F5 gebruikt het geplande begin van vóór de statusdatumverschuiving', async () => {
+test('#998: voltooien na F5 gebruikt het geplande begin en einde van vóór de statusdatumverschuiving', async () => {
   const { V } = setup(undefined);
-  const originalStart = timeOf(V).earlyStart;
+  const { earlyStart: originalStart, earlyFinish: originalFinish } = timeOf(V);
   await rpc('planner_update_project', { statusDate: '2026-06-10' });
   S().runCPM();
   assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
   const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 100 } }] });
   assertEq(reasons(res), [], 'geen weigering');
   assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
-  assertEq(timeOf(V).actualFinish, '2026-06-10T16:00', 'afgeleid einde = statusdatum');
+  assertEq(timeOf(V).actualFinish, originalFinish, 'afgeleid einde = geplande einde vóór verschuiven');
 });
 
 test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', async () => {
@@ -171,7 +171,7 @@ test('#998: een opgegeven werkelijk einde van een voorganger telt mee in hetzelf
 });
 
 for (const batch of [false, true]) {
-  for (const change of ['completion', 'milestoneKind'] as const) {
+  for (const change of ['actualFinish', 'milestoneKind'] as const) {
     test(`#998: ${change} van voorganger telt mee (batch: ${batch})`, async () => {
       S().newProject();
       S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
@@ -182,7 +182,7 @@ for (const batch of [false, true]) {
       S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
       S().runCPM();
       const args = { updates: [
-        milestone ? { id: A, fields: { milestoneKind: 'FINISH' } } : { id: A, progress: { completion: 100 } },
+        milestone ? { id: A, fields: { milestoneKind: 'FINISH' } } : { id: A, progress: { actualStart: '2026-06-08', actualFinish: '2026-06-10' } },
         { id: B, progress: { completion: 50 } },
       ] };
       if (batch) await rpc('planner_batch', { steps: [{ tool: 'planner_update_tasks', args }] });

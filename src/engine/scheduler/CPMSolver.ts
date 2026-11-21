@@ -1802,6 +1802,7 @@ export class CPMSolver {
     order: readonly string[];
     markChanged: (taskId: string) => void;
     earlyStart: (taskId: string) => string | undefined;
+    earlyDates: (taskId: string) => Pick<CPMTaskResult, 'earlyStart' | 'earlyFinish'> | undefined;
   } | null {
     if ([...this.tasks.values()].some(t => t.isHammock
       || t.constraint?.type === 'ALAP' || t.constraint2?.type === 'ALAP'
@@ -1819,29 +1820,39 @@ export class CPMSolver {
       dirty.add(rank);
       queue.push(rank);
     };
+    const readEarly = (taskId: string) => {
+      const target = rankOf.get(taskId);
+      if (target === undefined) return undefined;
+      for (let rank = queue.peek(); rank !== undefined && rank <= target; rank = queue.peek()) {
+        queue.pop();
+        dirty.delete(rank);
+        const id = order[rank];
+        // Deze voorganger-vensters zijn forward-invoer voor opvolgers. Wis alleen de opnieuw
+        // berekende taak; de vensters van onaangeraakte voorgangers blijven geldig.
+        this.completedOutOfSequenceEs.delete(id);
+        this.completedOutOfSequenceRelation.delete(id);
+        this.completedPhysicalPoints.delete(id);
+        for (const seq of this.predecessors.get(id) ?? []) this.seqConstraint.delete(seq.id);
+        this.forwardPass([id], results, projectStart);
+        // Ook bij gelijke ES/EF doorgeven: een voltooid P6-venster kan veranderen zonder dat de
+        // actuals veranderen. Dezelfde forward-logica bepaalt de relatiegrens voor de opvolger.
+        for (const seq of this.successors.get(id) ?? []) markChanged(seq.successorId);
+      }
+      return results.get(taskId);
+    };
     return {
       order,
       markChanged,
-      earlyStart: (taskId: string) => {
-        const target = rankOf.get(taskId);
-        if (target === undefined) return undefined;
-        for (let rank = queue.peek(); rank !== undefined && rank <= target; rank = queue.peek()) {
-          queue.pop();
-          dirty.delete(rank);
-          const id = order[rank];
-          // Deze voorganger-vensters zijn forward-invoer voor opvolgers. Wis alleen de opnieuw
-          // berekende taak; de vensters van onaangeraakte voorgangers blijven geldig.
-          this.completedOutOfSequenceEs.delete(id);
-          this.completedOutOfSequenceRelation.delete(id);
-          this.completedPhysicalPoints.delete(id);
-          for (const seq of this.predecessors.get(id) ?? []) this.seqConstraint.delete(seq.id);
-          this.forwardPass([id], results, projectStart);
-          // Ook bij gelijke ES/EF doorgeven: een voltooid P6-venster kan veranderen zonder dat de
-          // actuals veranderen. Dezelfde forward-logica bepaalt de relatiegrens voor de opvolger.
-          for (const seq of this.successors.get(id) ?? []) markChanged(seq.successorId);
-        }
-        const early = results.get(taskId);
+      earlyStart: taskId => {
+        const early = readEarly(taskId);
         return early ? formatInstant(early.es, 'hour') : undefined;
+      },
+      earlyDates: taskId => {
+        const early = readEarly(taskId);
+        return early && {
+          earlyStart: formatInstant(early.es, 'hour'),
+          earlyFinish: formatInstant(early.ef, 'hour'),
+        };
       },
     };
   }

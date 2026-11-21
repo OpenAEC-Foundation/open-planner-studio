@@ -31,16 +31,6 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
-81. **Op 100% kan een taak eindigen op de statusdatum in plaats van op het geplande einde (#998).**
-    De schuif zet bij ontbrekende statusdatum die datum op vandaag. Op 100% neemt `defaultActualFinish`
-    de statusdatum over als werkelijk einde. Nagespeeld in Chromium: een taak van 3 werkdagen,
-    gepland van 28 t/m 30 oktober 2026, hield tijdens het slepen haar begin en einde bij 23%, 50% en 77%.
-    Bij 100% verschoof het einde naar 18 november. De geplande duur bleef 3 werkdagen.
-    Besluit nodig over het afgeleide einde. Bij invoer van uitsluitend een werkelijk einde en zonder
-    eerder ingevulde werkelijke start zet de voortgangsinvariant beide datums op hetzelfde moment.
-    Bij invoer van een percentage gebruikt OPS sinds #998 de geplande start van vóór de
-    statusdatumverschuiving. — B
-
 114. **De motor plant een lopende taak op 100 % niet met zijn vastgelegde restduur.** Zo'n taak (status
     STARTED, `completion` 1, geen werkelijk einde) komt uit P6 als `TK_Active` op 100 %. In P6 eindigt
     "Duration 100 %" (rest 0) op de statusdatum; "Physical 100 %" (rest > 0) plant de rest in. OPS zet beide
