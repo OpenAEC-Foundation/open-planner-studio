@@ -561,6 +561,9 @@ export interface OpenOpenedFileOptions {
    *  geeft het een tabblad, dan wisselt de app daarheen in plaats van het bestand nog eens te openen (een startbestand,
    *  #1091; voor Openen, Recent en slepen blijft dat knownbug 1957). */
   existingDocument?: () => string | null;
+  /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
+   *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
+  stale?: () => boolean;
 }
 
 export interface FileSlice {
@@ -2429,6 +2432,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           get().switchDocument(existing);
           return;
         }
+        if (options?.stale?.()) return;
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),
         // ook voor de meervoudige XER-vorm.

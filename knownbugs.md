@@ -3214,6 +3214,14 @@ en noem het in je rapport of PR-tekst.
      dus een app die met een bestand gestart was, opent dat bestand na de update opnieuw in een eigen tabblad. Niets
      gaat verloren; het is een tabblad te veel als de planner het intussen sloot. Richting: bij de herstart de
      bestandsargumenten weglaten, als dat zonder een eigen herstartroute kan. — S (code gelezen, niet nagespeeld)
+2032. **VERVOLG (#1091, desktop): een startbestand via een ander pad naar een al open bestand kan een tweede tabblad geven.**
+     Staat een bestand al open en geeft de planner het bij het starten mee via een ander pad (een link, een andere
+     schrijfwijze), dan herkent de startroute het aan de bestandsidentiteit (`openDocumentIdForPath`, plugin-fs `stat`),
+     die direct na het lezen wordt opgezocht (`src/state/launchFiles.ts`). Twee gaten: (1) een tabblad dat pas ná die
+     `stat` via dat andere pad opengaat (slepen tijdens het wachten), ziet alleen de padtekst, dus niet; (2) op Windows
+     levert plugin-fs geen `dev`/`ino` (`fileIdentity.ts`), dus daar valt elk ander pad buiten de vergelijking. Dan staan
+     er twee tabbladen met hetzelfde bestand, zoals bij Bestand → Openen (1957). Richting: dezelfde oplossing als 1957,
+     met een identiteit die ook op Windows werkt. Gevonden door de review van #1116 (Sol, ronde 4). — B (review)
 
 ## Rondleiding, Help en extensie-gidsen
 

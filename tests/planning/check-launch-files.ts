@@ -17,6 +17,8 @@
 //     elkaar (review ronde 2). En een pad met een onopgeloste `..` geeft de gewone leesfout, geen wissel.
 //  H. Ook niet als een andere route (slepen) hetzelfde bestand opent terwijl de startroute nog leest (ronde 3).
 //  I. Gaat het open tabblad dicht terwijl het startbestand wacht (de sluitvraag), dan opent het bestand alsnog.
+//  J. Kiest de planner in die sluitvraag *Opslaan*, dan opent het bestand in de versie die net is opgeslagen, niet in
+//     de versie die de startroute al had gelezen (ronde 4): na elke schrijfbeurt sinds het lezen leest hij opnieuw.
 //  De beslissing "openen of wisselen" valt dus bij het activeren, met de tabbladen van dat moment.
 //
 // Draait via run.sh. Exit 0 = alles groen.
@@ -35,6 +37,7 @@ const { useAppStore } = await import('@/state/appStore');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { buildImportLabels } = await import('@/i18n/importLabels');
+const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
 
 const S = () => useAppStore.getState();
 const labels = buildImportLabels((key) => key);
@@ -77,6 +80,9 @@ S().newProject();
 S().setProject({ name: 'Startbestand', startDate: '2026-08-03' });
 S().addTask({ name: 'Taak uit het bestand' });
 const ifcText = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
+S().addTask({ name: 'Opgeslagen taak' });
+/** Dezelfde planning, met de taak die *Opslaan* in de sluitvraag wegschrijft (J). */
+const ifcSavedText = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 
 const files = new Map<string, string>([['/home/a/plan.ifc', ifcText], ['C:\\Users\\a\\Plan.ifc', ifcText]]);
 const reads: string[] = [];
@@ -272,6 +278,33 @@ const freshTab = (label: string) => {
   const reopened = S().getOpenDocumentPayloads().find(({ payload }) => payload.filePath === '/home/a/sluit.ifc');
   check(!!reopened && reopened.id !== sluitId && S().activeDocumentId === reopened.id && !S().isDirty,
     'sluitvraag: een nieuw tabblad, actief, zonder de weggegooide wijziging');
+}
+
+// ── J. Opslaan in de sluitvraag terwijl het startbestand wacht (review ronde 4 van #1116) ─────────────────────────
+{
+  // Open plan, voeg een taak toe, sluit het tabblad: de sluitvraag staat open. Dubbelklik op hetzelfde bestand; de
+  // startroute leest het (nog de oude versie) en wacht. De planner kiest Opslaan: de nieuwe versie gaat naar schijf en het
+  // tabblad sluit. Daarna moet het bestand openen in de versie mét de opgeslagen taak, anders overschrijft de volgende
+  // Ctrl+S die taak stil.
+  freshTab('opslaan in de sluitvraag');
+  files.set('/home/a/bewaar.ifc', ifcText);
+  await openLaunchFiles(useAppStore, ['/home/a/bewaar.ifc'], io, labels, () => false);
+  const oudId = S().activeDocumentId;
+  check(tabsFor('/home/a/bewaar.ifc') === 1 && !S().tasks.some((t) => t.name === 'Opgeslagen taak'), 'opslaan in de sluitvraag: beginstand zonder de taak');
+  let blocked = true; // de sluitvraag
+  reads.length = 0;
+  const launched = openLaunchFiles(useAppStore, ['/home/a/bewaar.ifc'], io, labels, () => blocked);
+  await sleep(OPEN_WAIT_POLL_MS * 2);
+  check(same(reads, ['/home/a/bewaar.ifc']), `opslaan in de sluitvraag: de startroute las de oude versie (${reads.join(', ')})`);
+  // Opslaan: via de ene schrijfrij van de app, zoals elke opslag; daarna sluit het tabblad.
+  await runProjectFileWrite(async () => { files.set('/home/a/bewaar.ifc', ifcSavedText); }, () => undefined);
+  S().closeDocument(oudId);
+  blocked = false;
+  await launched;
+  check(tabsFor('/home/a/bewaar.ifc') === 1 && S().activeDocumentId !== oudId, 'opslaan in de sluitvraag: het bestand staat weer open, in een nieuw tabblad');
+  check(S().filePath === '/home/a/bewaar.ifc' && S().tasks.some((t) => t.name === 'Opgeslagen taak'),
+    `opslaan in de sluitvraag: de opgeslagen versie, met de taak (${S().tasks.map((t) => t.name).join(', ')})`);
+  check(same(reads, ['/home/a/bewaar.ifc', '/home/a/bewaar.ifc']), `opslaan in de sluitvraag: na de schrijfbeurt opnieuw gelezen (${reads.join(', ')})`);
 }
 
 console.log(failures === 0 ? 'launch-files: alles groen' : `launch-files: ${failures} fout(en)`);

@@ -17,6 +17,7 @@ import type { FormatReadOptions } from '@/services/formatRegistry';
 import { openDroppedFiles } from '@/state/fileDrop';
 import { openDocumentIdForPath, openDocumentIdForPathText } from '@/state/ifcForeignGuard';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
+import { projectFileWriteTurns } from '@/services/fileAccess/writeCoordinator';
 
 /** Rust → webview: een lijst paden om te openen. Dezelfde naam staat in `src-tauri/src/launch_files.rs`. */
 export const OPEN_FILES_EVENT = 'ops:open-files';
@@ -46,7 +47,7 @@ export async function listenForLaunchFiles(bus: LaunchFilesBus, onPaths: (paths:
 }
 
 interface LaunchFilesStore {
-  getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads' | 'switchDocument'>;
+  getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads'>;
 }
 
 export interface LaunchFileOptions {
@@ -59,15 +60,19 @@ export interface LaunchFileOptions {
  * welkomstvenster bij de eerste start, een open dialoog; hier geen weigering), dan activeren. Een formaat dat de app niet
  * opent, krijgt de gewone melding met alle namen.
  *
- * Staat het bestand op het moment van activeren al in een tabblad, dan wisselt de app daarheen in plaats van het nog
- * eens te openen: twee tabbladen die naar één bestand schrijven, overschrijven elkaars werk (knownbug 1957). Die
- * beslissing valt pas in de synchrone stap van het activeren (`existingDocument`), met de tabbladen van dat moment
- * (review van #1116, ronde 3): een tabblad dat tijdens het lezen of wachten openging (een tweede start, slepen) telt
- * mee, een tabblad dat intussen dichtging (Niet opslaan in de sluitvraag) niet. Vergelijken gaat op de padtekst en,
- * voor een link, op de bestandsidentiteit, die direct na het lezen wordt opgezocht (een `stat` past niet in de
- * synchrone stap). Een pad dat het besturingssysteem niet leest (ook een onopgeloste `..`), stopt al bij het lezen.
+ * Twee beslissingen vallen pas in de synchrone stap van het activeren, met de stand van dat moment (review van #1116):
+ * - Staat het bestand dan al in een tabblad, dan wisselt de app daarheen in plaats van het nog eens te openen: twee
+ *   tabbladen die naar één bestand schrijven, overschrijven elkaars werk (knownbug 1957). Een tabblad dat tijdens het
+ *   lezen of wachten openging (een tweede start, slepen) telt mee, een tabblad dat intussen dichtging niet (ronde 3).
+ *   Vergelijken gaat op de padtekst en, voor een link, op de bestandsidentiteit die direct na het lezen is opgezocht
+ *   (een `stat` past niet in de synchrone stap; grens: knownbug 2032).
+ * - Begon er sinds het lezen een schrijfbeurt (`projectFileWriteTurns`), dan activeert de app niets en leest ze het
+ *   bestand opnieuw: *Opslaan* in de sluitvraag kan intussen een nieuwere versie naar hetzelfde bestand geschreven
+ *   hebben, en de oude versie met hetzelfde opslagdoel zou die bij de volgende Ctrl+S stil overschrijven (ronde 4).
+ *
+ * Een pad dat het besturingssysteem niet leest (ook een onopgeloste `..`), stopt al bij het lezen.
  */
-export function openLaunchFiles(
+export async function openLaunchFiles(
   store: LaunchFilesStore,
   paths: readonly string[],
   io: TauriOpenIO,
@@ -76,22 +81,33 @@ export function openLaunchFiles(
   options: LaunchFileOptions = {},
 ): Promise<void> {
   const identityFs = options.identityFs ?? (async () => undefined);
-  const files = droppedFilesFromPaths(paths, io, options.readOptions).map((file, index): DroppedFile => {
-    const path = paths[index];
-    let viaIdentity: string | null = null;
-    return {
-      name: file.name,
-      read: async () => {
-        const opened = await file.read();
-        viaIdentity = await openDocumentIdForPath(store.getState(), path, identityFs).catch(() => null);
-        return opened;
-      },
-      existingDocument: () => {
-        const open = store.getState().getOpenDocumentPayloads();
-        if (viaIdentity !== null && open.some(({ id }) => id === viaIdentity)) return viaIdentity;
-        return openDocumentIdForPathText(store.getState(), path);
-      },
-    };
-  });
-  return openDroppedFiles(store, files, labels, isBlocked, { waitWhenBlocked: true });
+  let pending: readonly string[] = paths;
+  while (pending.length > 0) {
+    const reread: string[] = [];
+    const files = droppedFilesFromPaths(pending, io, options.readOptions).map((file, index): DroppedFile => {
+      const path = pending[index];
+      let viaIdentity: string | null = null;
+      let writesAtRead = -1;
+      return {
+        name: file.name,
+        read: async () => {
+          writesAtRead = projectFileWriteTurns();
+          const opened = await file.read();
+          viaIdentity = await openDocumentIdForPath(store.getState(), path, identityFs).catch(() => null);
+          return opened;
+        },
+        existingDocument: () => {
+          if (viaIdentity !== null && store.getState().getOpenDocumentPayloads().some(({ id }) => id === viaIdentity)) return viaIdentity;
+          return openDocumentIdForPathText(store.getState(), path);
+        },
+        stale: () => {
+          if (projectFileWriteTurns() === writesAtRead) return false;
+          reread.push(path);
+          return true;
+        },
+      };
+    });
+    await openDroppedFiles(store, files, labels, isBlocked, { waitWhenBlocked: true });
+    pending = reread;
+  }
 }

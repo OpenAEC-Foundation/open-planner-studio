@@ -74,6 +74,6 @@ export async function openDroppedFiles(
       continue;
     }
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.
-    await store.getState().openOpenedFile(opened, labels, { waitWhile, existingDocument: file.existingDocument });
+    await store.getState().openOpenedFile(opened, labels, { waitWhile, existingDocument: file.existingDocument, stale: file.stale });
   }
 }
