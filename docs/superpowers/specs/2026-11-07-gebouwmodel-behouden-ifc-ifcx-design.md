@@ -908,11 +908,14 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
-- Voorlopige grens: 150 MB, gecontroleerd vóór het volledig lezen. De echte grens volgt uit de meting in fase 0.
-- Grens sinds 21 november 2026: 150 MiB (binair), één constante (`IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts`) voor
-  openen en de doelscan bij opslaan (besluit van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen"; knownbug
-  1936). Fase 0 liet 300 MiB toe; opslaan van 157 MB piekte op de desktop op 3,45 tot 3,93 GB. Boven de grens weigert
-  openen een bestand met een vreemd deel met een melding die de grens noemt.
+- De grens (sinds 21 november 2026): 150 MiB (binair), één constante (`IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts`)
+  voor openen en de doelscan bij opslaan (besluit van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen";
+  knownbug 1936). Fase 0 liet 300 MiB toe; opslaan van 157 MB piekte op de desktop op 3,45 tot 3,93 GB. Bij openen kent
+  de bytes-route de grootte pas nadat de bestandslaag het bestand heeft gelezen; de grens begrenst de bewaarde bron,
+  niet het inlezen. Boven de grens weigert openen een bestand dat de bytes-route met zijn bron zou openen, met een
+  melding die de grens noemt; elke andere uitkomst is die van onder de grens. Crashherstel van een bron boven de grens
+  geeft de planning terug, meldt dat het model niet is hersteld en houdt de herstelset vast. De uitvoer van opslaan
+  heeft geen grens (knownbug 2043); een bestaand doel of een tekstbron boven de grens is onleesbaar (2044).
 
 ### 4.14 Herstel en een ontbrekende bron
 

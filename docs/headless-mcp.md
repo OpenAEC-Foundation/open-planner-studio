@@ -146,8 +146,10 @@ De gedeelde doelcontrole beschermt een bestaand IFC met model of vreemde gegeven
 lopende desktop-app. `createNodeFileFs` levert daarvoor `scanTarget` en `protectExistingTargets`; de scan leest
 via dezelfde root-, realpath-, mapobject- en `O_NOFOLLOW`-grenzen als de gewone leesroute. `overwrite: true` heft
 de inhoudsweigering niet op. Nieuwe bestanden en volledig eigen IFC-uitvoer blijven schrijfbaar. Een lees-/scanfout
-weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanForeign` (C/A/V), met de bestaande
-300 MiB-grens; er is geen kleinere grens uit het ontwerp overgenomen. De gemeten oude eigen kop gebruikt de
+weigert; alleen bewezen ontbreken is een nieuw doel. De indeling gebruikt `scanForeign` (C/A/V), met de grens
+`IFC_FOREIGN_SCAN_MAX_BYTES` (150 MiB sinds 21 november 2026). Een bestaand doel van meer dan 150 MiB leest de server
+niet: `planner_export_ifc` weigert het met `VALIDATION`, ook zonder gebouwmodel, en het bestand blijft ongewijzigd
+(knownbug 2044, een bekende grens). De gemeten oude eigen kop gebruikt de
 gedeelde herkenning; de ongewijzigde v2026.7.12-fixtures met een apostrof of DATA; in de naam blijven gewone doelen.
 De zestien gemaakte kopvormen die de bestaande scanner niet ondersteunt, weigeren veilig (knownbug 1134).
 De headless server leest IFC als tekst; gegevens van een ander programma zonder gebouwmodel (bijvoorbeeld een externe pset) komen bij `planner_export_ifc` naar een nieuwe naam nu nog niet mee; de bron blijft ongewijzigd (knownbug 1136). Richting voor fase 2, vóór de flag eraf gaat: export naar een nieuwe naam weigert bij ongedragen vreemde invoer. De app met de flag aan exporteert volledige bytes; dit is nog geen belofte voor de headless tekstserver.

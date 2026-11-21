@@ -287,10 +287,14 @@ bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkin
 `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`) is de enige plek van de grens: 150 MiB (binair, sinds 21 november 2026,
 besluit van de eigenaar). Openen (`ifcBytesRoute.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`), de doelscan bij opslaan
 (`targetForeignScan.ts`) en de headless MCP-server lezen hem; een bestand van precies de grens valt eronder (`>`).
-Boven de grens gaat openen via de gewone route; weigert die om een vreemd deel in een schema uit
-`FOREIGN_CONTENT_SCHEMAS`, dan is de fout `IfcForeignTooLargeError` (melding `ifcForeignOpenTooLarge`, de grens in MB).
-De uitvoer van opslaan heeft geen grens (knownbug 2043); een bestaand doel boven de grens is onleesbaar (2044).
-Bewaakt in `check-ifc-foreign-open.ts` (deel 7a) en `check-ifc-foreign-target.ts` (deel 9c).
+De grootte telt pas na de scanner en het schema, op één plek in `readIfcBytesDetailed`: alleen een bestand dat de
+bytes-route met zijn bron zou openen, weigert boven de grens met `IfcForeignOpenError` en reden `te-groot` (melding
+`ifcForeignOpenTooLarge`, de grens in MB); een gewone planning opent dan via de gewone route. Elke andere uitkomst is die
+van onder de grens. Crashherstel van zo'n bron geeft de planning terug met `sourceNotRestored`; *Herstellen*
+(`restoreRecoveredDocuments`) meldt `recoveryModelNotRestored` en houdt de herstelset vast. De uitvoer van opslaan heeft
+geen grens (knownbug 2043); een bestaand doel of een tekstbron boven de grens is onleesbaar (2044, bekende grens).
+Bewaakt in `check-ifc-foreign-open.ts` (deel 7a), `check-ifc-foreign-target.ts` (deel 9c) en `check-ifc-foreign-grens.ts`
+(een verlaagde productiegrens door de echte routes).
 
 ### Auteur en bedrijf (#804 fase 1c)
 

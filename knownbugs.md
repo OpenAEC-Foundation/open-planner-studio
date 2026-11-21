@@ -3269,10 +3269,9 @@ en noem het in je rapport of PR-tekst.
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
-     de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
-     in `ifcBytesRoute.ts` is 300 MiB. PR 2 van fase 1c beveiligt die terugval zonder de grens te veranderen.
-     VERVOLG (docs): versieverwijzing en gemeten grootteafspraak in het ontwerp gelijkzetten; geen nieuwe
-     grens zonder meting. De meting van 21 november 2026 in de desktopapp staat bij 1936. — B
+     de tijdelijke terugval "v21, fase 1a". De grootte is gelijkgezet: §4.13 en `IFC_FOREIGN_SCAN_MAX_BYTES` zeggen
+     sinds 21 november 2026 allebei 150 MiB (was 300 MiB in de code; meting en besluit bij 1936). VERVOLG (docs): de
+     versieverwijzing in het ontwerp gelijkzetten. — B
 
 1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,44 tot 3,69 GB
      over drie opslagen, onder de maat van 4 GB, en de piek loopt per opslag nog op (#804, flag aan).** Gemeten op
@@ -3346,23 +3345,50 @@ en noem het in je rapport of PR-tekst.
      toewijzingen) tot boven `IFC_FOREIGN_SCAN_MAX_BYTES`, dan schrijft de app het bestand gewoon. Ctrl+S naar het eigen
      bestand slaat de doelscan over (de uitzondering "eigen doel" in `refusedWriteTarget`). Openen weigert het daarna, met
      de melding "Dit IFC-bestand is groter dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals
-     main. Er gaat niets verloren: het bestand bevat model en planning. Vermoed, niet nagespeeld: een volgende Ctrl+S
-     in dezelfde sessie lukt nog. Richting:
+     main. Er gaat niets verloren: het bestand bevat model en planning. Een volgende Ctrl+S in dezelfde sessie lukt nog
+     (de opslag neemt de nieuwe bytes als bron over; in de code nagegaan door de reviewer van #1127). Met één bestand,
+     één tabblad (PR #1121) wisselt opnieuw kiezen van zo'n in dezelfde sessie boven de grens gegroeid model ook niet
+     naar zijn open tabblad: de toets op een open tabblad komt na het parsen, en het parsen weigert. Richting:
      vóór het schrijven de uitvoer tegen de grens houden, of de grens bij openen ruimer dan bij opslaan. — B (code
      gelezen; niet met een bestand van 150 MiB nagespeeld)
 
-2044. **Een bestaand IFC-bestand zonder gebouwmodel van meer dan 150 MiB kan niet meer worden overschreven met de flag aan,
-     en niet via de headless MCP-server (#804).** De doelscan leest een bestaand doel boven `IFC_FOREIGN_SCAN_MAX_BYTES`
-     niet en geeft 'unreadable' (`scanForeignTargetBlob`, `readWhole` in `targetForeignScan.ts`; headless `readChecked`
-     met de grens in `headless/mcp-server/src/nodeFs.ts`). Met de flag aan weigert `refusedWriteTarget` dan elke
-     schrijfroute naar dat bestand, ook Ctrl+S van een planning zonder gebouwmodel naar haar eigen bestand: de planner
-     ziet "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te
-     slaan." De headless MCP-server (ook in de Claude Desktop-bundel) controleert bestaande doelen altijd
-     (`protectExistingTargets`), dus daar geldt het ook zonder flag: `planner_export_ifc` over zo'n bestand geeft een
-     VALIDATION-fout. Dit bestond al boven 300 MiB; met de grens van 150 MiB geldt het nu vanaf 150 MiB. Met de flag
-     uit verandert er in de app niets. Openen van zo'n planning werkt met en zonder flag zoals main. Een planning zonder
-     gebouwmodel van 150 MiB is uitzonderlijk groot (de grootste opgeslagen IFC in de repo is 481752 bytes). — B (code
-     gelezen, `check-ifc-foreign-target.ts` deel 9c toont 'unreadable' boven de grens)
+2044. **BEKENDE GRENS: een bestaand IFC-bestand of een IFC-tekstbron van meer dan 150 MiB is voor de doelscan onleesbaar,
+     ook zonder gebouwmodel (#804).** Besluit van de technisch beslisser (21 november 2026): één grens van 150 MiB,
+     ook voor de doelscan; dit blijft zo. De doelscan leest een bestand van meer dan `IFC_FOREIGN_SCAN_MAX_BYTES` niet
+     en geeft 'unreadable' (`scanForeignTargetBlob`, `readWhole` en `scanForeignTargetBytes` in `targetForeignScan.ts`;
+     headless `readChecked` met de grens in `headless/mcp-server/src/nodeFs.ts`, dat vóór het lezen stopt). Dit bestond
+     al boven 300 MiB; het geldt nu boven 150 MiB. De weigering zelf laat het bestand ongewijzigd en verliest niets
+     (zie wel 1899 hieronder). Drie routes:
+     - **De app met de flag aan.** De doelcontrole (`refusedWriteTarget`) weigert zo'n bestaand bestand voor Ctrl+S, ook
+       van een planning zonder gebouwmodel naar haar eigen bestand ("De app kan dit bestand niet goed lezen; het kan een
+       gebouwmodel bevatten. Kies een ander bestand om op te slaan."), voor *Exporteren* ("… Kies een ander bestand om
+       naar te exporteren.") en voor Automatisch opslaan ("Automatisch opslaan is gestopt: …"); het document blijft
+       gewijzigd. Niet geweigerd: de eigen modelversie (Ctrl+S van een document met een gebouwmodel naar zijn eigen
+       bestand slaat de doelscan over, zie 2043) en een nieuw doel. In de browser kan de kiezer van *Opslaan als* een
+       bestaand doel al leegmaken vóór de doelcontrole (1899). Met de flag uit verandert er in de app niets; openen van
+       zo'n planning werkt met en zonder flag zoals main. `check-ifc-foreign-grens.ts` deel 2 toont Ctrl+S met de flag
+       uit (geschreven) en aan (geweigerd, bestand ongewijzigd).
+     - **De headless MCP-server en de Claude Desktop-bundel** controleren bestaande doelen altijd
+       (`protectExistingTargets`), ook zonder flag: `planner_export_ifc` over zo'n bestand geeft een VALIDATION-fout
+       ("… cannot read reliably …") vóór elk schrijfverzoek.
+     - **De headless kern en de HTTP-API** weigeren uitvoer uit een bron van meer dan 150 MiB, ook zonder doelbestand:
+       `openIfc()` en `schedule()` werken, maar `toIfc()` geeft `IFC_WRITE_FAILED` met `reason: unreadable`
+       (`src/core/index.ts`, de scan van de invoer), en de HTTP-API geeft dan 500 `IFC_WRITE_FAILED` bij `output=ifc`.
+       De standaard uploadgrens van de HTTP-API is 20 MiB, dus daar alleen met een verhoogde `OPS_API_MAX_BODY_BYTES`.
+     Een planning zonder gebouwmodel van 150 MiB is uitzonderlijk groot (de grootste opgeslagen IFC in de repo is
+     481752 bytes). — B (code gelezen; `check-ifc-foreign-target.ts` deel 9c en `check-ifc-foreign-grens.ts`; de
+     kern door de reviewer van #1127 beproefd)
+
+2046. **Crashherstel laat een gevonden bron stil vallen als die om een andere reden dan de grootte niet opent (#804, flag
+     aan).** `readRecoveryDocument` (`src/state/readRecoveryDocument.ts`) vangt elke fout bij het teruglezen van de bron
+     af en geeft dan alleen de planning terug, met "bron ontbreekt": een afwijkende SHA-256 of lengte, een leesfout van
+     het pad of de handle, en een bron die de open-route weigert (bijvoorbeeld een scannerweigering, een onbekend schema
+     of een gewijzigde regel na een update). Herstellen meldt dat niet, en in de browser wist de opruimactie daarna de
+     herstelkopie van de bron als er niets anders misging. Bij een browserdocument zonder handle kan dat de enige kopie
+     zijn. Op main gelijk. Alleen een bron boven de grens heeft sinds fixronde 1 van #1127 een eigen uitkomst
+     (`sourceNotRestored`): een melding en een vastgehouden herstelset. Richting: dezelfde uitkomst voor elke gevonden
+     bron die niet opent (niet voor een bron die echt weg is). — B (code gelezen; hetzelfde pad als de herstelproef
+     van de reviewer van #1127)
 
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
