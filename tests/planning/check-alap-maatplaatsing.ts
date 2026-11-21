@@ -379,6 +379,45 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
+// Knownbug 361: de uitzondering raakt de oude ALAP-stap voor gestart werk; #660 dekt
+// alleen niet-gestart werk. Meet dezelfde taak met en zonder ALAP, met en zonder korte vrijdag.
+{
+  const dataDate = '2026-06-01T16:00';
+  const actualStart = '2026-06-01T08:00';
+  const summary = [];
+  for (const profile of PROFILES) {
+    const project = {
+      startDate: '2026-06-01', statusDate: dataDate, schedulingProfile: builtInProfile(profile),
+    } as Parameters<typeof solveInputFor>[0];
+    for (const [calendarName, calendar] of [['kort', SHORT_FRIDAY_EXCEPTION], ['normaal', SCALAR]] as const) {
+      for (const alap of [false, true]) {
+        const a = task('A', 2, { alap });
+        a.status = 'STARTED';
+        a.time = { ...a.time, actualStart, completion: 0.5 };
+        const input = solveInputFor(project, [a, task('E', 5)], [], calendar, [calendar]);
+        const r = solveProject(input);
+        const placed = r.tasks.get('A')!;
+        const label = `${profile}/${calendarName}/${alap ? 'alap' : 'normaal'}`;
+        eq(`${label}: statusdatum doorgespeeld`, input.dataDate, dataDate);
+        eq(`${label}: rekenfout`, Boolean(r.error), false);
+        const finish = placed.earlyFinish;
+        const friday = finish.startsWith('2026-06-05T');
+        const afterShortFriday = calendarName === 'kort' && friday && finish.slice(11, 16) > '14:00';
+        summary.push({
+          label, es: placed.earlyStart, ef: finish, ls: placed.lateStart, lf: placed.lateFinish,
+          tf: placed.totalFloatMinutes, ff: placed.freeFloatMinutes, end: r.tasks.get('E')!.earlyFinish,
+          afterShortFriday,
+        });
+      }
+    }
+  }
+  eq('knownbug 361: aantal gevallen', summary.length, 12);
+  console.log(`KNOWNBUG361_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 361::${JSON.stringify(summary)}`);
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  alap-maatplaatsing: alle checks groen (${checks})`);
   process.exit(0);
