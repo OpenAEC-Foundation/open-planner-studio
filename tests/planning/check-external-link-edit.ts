@@ -1,4 +1,6 @@
 import { useAppStore } from '@/state/appStore';
+import { collectScheduleWarnings } from '@/engine/scheduler/scheduleWarnings';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { buildManualExternalLinkSubmission } from '@/components/dialogs/ExternalLinkDialog';
 import type { ExternalLink, Task } from '@/types/task';
 
@@ -230,9 +232,64 @@ for (const ownCalendar of [false, true]) {
     [linkOf(viaB).anchorDate, linkOf(viaB).sourceRef.filePath], ['2026-05-15T16:00', '/projecten/B.ifc']);
 }
 
+
+// Knownbug 875: twee koppelingen op dezelfde taak. Alleen de voorganger met werkvertraging
+// moet melden dat de lagkalender van die (externe) voorganger niet lokaal beschikbaar is.
+{
+  S().newProject();
+  S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5],
+    workTime: undefined, workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [] });
+  S().setProject({ startDate: '2026-06-01' });
+  S().applySchedulingSettings({ profile: undefined, options: { lagCalendar: 'predecessor' } });
+  const id = S().addTask({ name: 'Taak met twee externe voorgangers' });
+  S().updateTask(id, { time: createDefaultTaskTime('2026-06-01T08:00', 1) });
+  const link = (anchorDate: string, lagDays: number, key: string): Omit<ExternalLink, 'id'> => ({
+    direction: 'predecessor', relType: 'FS', anchorDate, lagDays, sourceMissing: false,
+    sourceRef: { projectId: 'ander-project', taskId: key },
+  });
+  const plain = S().addExternalLink(id, link('2026-06-08T16:00', 0, 'zonder-lag'));
+  const lagged = S().addExternalLink(id, link('2026-06-11T16:00', 1, 'met-lag'));
+  const currentLinks = () => S().tasks.find(t => t.id === id)?.externalLinks ?? [];
+  const solveAndRead = () => {
+    S().runCPM();
+    const { tasks, sequences, resources, cpmResult, resourceLoadResult } = S();
+    eq('875 echte store-herberekening zonder fout', cpmResult?.errorInfo, undefined);
+    ok('875 herberekende taak bestaat', !!cpmResult?.tasks.get(id));
+    const warnings = collectScheduleWarnings({ tasks, sequences, resources, cpmResult, resourceLoadResult })
+      .filter(w => w.kind === 'externalLagCalendar')
+      .map(w => w.target.type === 'task' ? w.target.taskId : w.target.type);
+    return { start: cpmResult?.tasks.get(id)?.earlyStart, warnings,
+      fallback: cpmResult?.externalLagCalendarFallbackTaskIds ?? [] };
+  };
+
+  const linksBefore = currentLinks();
+  eq('875 twee aparte koppelingen blijven op dezelfde taak', linksBefore.map(l => l.id), [plain, lagged]);
+  const before = solveAndRead();
+  eq('875 precies één waarschuwing voor de taak met twee koppelingen', [before.warnings, before.fallback], [[id], [id]]);
+  const historyBefore = S().historyEvents.length;
+  S().removeExternalLink(id, lagged);
+  eq('875 verwijderen is één undo-stap', S().historyEvents.length, historyBefore + 1);
+  eq('875 alleen de lagkoppeling weg', currentLinks(), linksBefore.slice(0, 1));
+  const withoutLag = solveAndRead();
+  eq('875 na verwijderen verdwijnt de waarschuwing', [withoutLag.warnings, withoutLag.fallback], [[], []]);
+  ok('875 zonder de sturende lag schuift de start naar voren', !!withoutLag.start && !!before.start && withoutLag.start < before.start);
+
+  S().undo();
+  eq('875 één Undo herstelt beide links en hun opgeslagen datums', currentLinks(), linksBefore);
+  eq('875 Undo + F5 herstelt de datum en waarschuwing', solveAndRead(), before);
+  S().redo();
+  eq('875 Redo + F5 verwijdert dezelfde link en waarschuwing', solveAndRead(), withoutLag);
+
+  S().undo();
+  S().removeExternalLink(id, plain);
+  eq('875 de lagkoppeling blijft staan als de andere verdwijnt', currentLinks(), linksBefore.slice(1));
+  eq('875 alleen de lagkoppeling is genoeg voor dezelfde datum en waarschuwing', solveAndRead(), before);
+}
+
 if (diffs.length) {
   console.error(`XX external-link-edit: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(` - ${diff}`);
   process.exit(1);
 }
 console.log(`OK external-link-edit: ${checks}/${checks} checks groen`);
+console.log('::notice title=Knownbug 875::Twee externe links: verwijderen, Undo en Redo behouden de juiste datum en waarschuwing na F5');
