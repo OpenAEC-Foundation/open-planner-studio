@@ -382,13 +382,14 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
 // Knownbug 446: losse mijlpalen bij een gedeelde middernachtgrens.
 {
   const wholeDay = [{ start: 0, end: 1440 }];
+  const scalar24: WorkCalendar = { ...SCALAR, workStartHour: 0, workEndHour: 24, hoursPerDay: 24 };
   const full: WorkCalendar = {
-    ...SCALAR, workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+    ...scalar24,
     workTime: { byWeekday: { 1: wholeDay, 2: wholeDay, 3: wholeDay, 4: wholeDay, 5: wholeDay, 6: [], 7: [] } },
   };
   const summary = [];
   for (const profile of PROFILES) {
-    for (const [name, cal] of [['standard', SCALAR], ['continuous-weekdays', full]] as const) {
+    for (const [name, cal] of [['standard', SCALAR], ['scalar-24', scalar24], ['continuous-weekdays', full]] as const) {
       const s = createAppStoreContext().store;
       s.setState(state => {
         state.project.startDate = '2026-06-01';
@@ -397,7 +398,7 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
         state.project.schedulingOptions = {};
         state.calendar = cal;
         state.calendars = [cal];
-        const start = cal === full ? '2026-06-01T00:00' : '2026-06-01T08:00';
+        const start = cal === SCALAR ? '2026-06-01T08:00' : '2026-06-01T00:00';
         state.tasks = [
           task('unspecified', 0, { start }),
           task('start', 0, { start, milestoneKind: 'START' }),
@@ -416,7 +417,7 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
       });
     }
   }
-  eq('knownbug 446: aantal planningen', summary.length, 6);
+  eq('knownbug 446: aantal planningen', summary.length, 9);
   console.log(`KNOWNBUG446_SUMMARY ${JSON.stringify(summary)}`);
   if (process.env.GITHUB_ACTIONS === 'true') {
     console.log(`::notice title=Knownbug 446::${JSON.stringify(summary)}`);
