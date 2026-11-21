@@ -39,7 +39,7 @@ met alleen planning. MCP-export stelt die vraag nooit en blijft geblokkeerd tot 
 Met de flag uit blijft de bestaande backuproute gelijk. Opnieuw koppelen aan de actuele bron is 9c (1575).
 
 Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)
-is Engels; codecommentaar blijft Nederlands. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
+is Engels. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
 agentgids `public/agent/planning-guide.md` (per principe de tools, niet het Help-artikel voor mensen) en de skills
 `public/skills/{goed-plannen,progress-update}/SKILL.md` (byte-identiek in `.claude/skills/`). Verandert een tool iets
 wat daar beschreven staat, werk dan ook die teksten bij; `verify:docs` (poort 9 en 11) bewaakt de kopieën en

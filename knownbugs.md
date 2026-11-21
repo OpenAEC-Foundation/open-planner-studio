@@ -615,6 +615,11 @@ en noem het in je rapport of PR-tekst.
      toestemmingsvraag in de browser), dan telt die bron als niet gelezen, waar de app vroeger de momentopname
      las. Niet nagespeeld; het gevolg is een eerlijke melding "niet gelezen". Voorstel: de geopende documenten
      weer vóór de eerste `await` vastleggen. — S
+1960. **De herschaalregel van een contour bij een duurwijziging is niet tegen MS Project nagemeten.**
+      `rescaleContourForDuration` (`src/engine/contour/contourEngine.ts`) rekt de contour proportioneel mee en
+      behoudt het werk alleen bij vast werk; dat is overgenomen als gedrag van MS Project bij een toewijzing met
+      *Contoured* (`docs/adr/0003-contour-herschalen-bij-duurwijziging.md`), zonder meting op een MSP-bestand.
+      Gezien in het commentaar dat de regel zo beschreef. — S
 
 ## Tabel, invoer en bediening
 
