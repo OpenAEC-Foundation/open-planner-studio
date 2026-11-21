@@ -9,6 +9,7 @@ import { subscribeDialogStack } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { clearViewArrangement } from '@/state/viewArrangement';
 import { canUndoScheduleShift, openScheduleShiftPanel } from '@/state/scheduleShift';
+import { canRunNotificationUndo, latestUndoEventId } from '@/state/otherWorkNotice';
 import {
   measureToastPlacement, samePlacement, subscribeToastLayout, toastAvoidElements, type ToastPlacement,
 } from './toastPlacement';
@@ -123,6 +124,8 @@ export function NotificationHost() {
   const { t, i18n } = useTranslation(['common', 'menu']);
   const placement = useToastPlacement(notifications.length > 0);
   const canUndoShift = useAppStore(canUndoScheduleShift);
+  // De stap die Ctrl+Z nu terugzet: een knop `undoHistoryEvent` staat er alleen zolang dat de zijne is.
+  const latestUndoId = useAppStore(latestUndoEventId);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` en een `sticky`
   // info (openingsmelding met gewijzigde data, `state/openNoticeSticky.ts`) blijven staan tot de
@@ -156,6 +159,13 @@ export function NotificationHost() {
       useAppStore.getState().undoScheduleShift();
       return;
     }
+    if (action.kind === 'undoHistoryEvent') {
+      // Vlak voor het terugzetten nog eens: is het nog precies deze stap (#954)?
+      const state = useAppStore.getState();
+      if (canRunNotificationUndo(state, action)) state.undoHistoryEvent(action.eventId);
+      dismissNotification(n.id);
+      return;
+    }
     if (action.kind === 'showScheduleShift') {
       const { ui } = useAppStore.getState();
       const open = () => {
@@ -178,6 +188,7 @@ export function NotificationHost() {
   };
   const actionButton = (n: AppNotification, action: NotificationAction | undefined) => {
     if (!action || (action.kind === 'undoScheduleShift' && !canUndoShift)) return null;
+    if (action.kind === 'undoHistoryEvent' && action.eventId !== latestUndoId) return null;
     return (
       <button
         type="button"

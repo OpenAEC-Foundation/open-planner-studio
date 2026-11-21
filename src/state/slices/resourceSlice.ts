@@ -13,13 +13,15 @@ import {
   removeAssignment, settleCostResourceFields,
 } from '../assignmentMutations';
 import {
-  commitTrianglePlan, planWorkEdit,
+  commitTrianglePlan, otherWorkChanges, planWorkEdit,
   captureCalendarChange, settleCalendarChange, settleDurationAftermath, syncAssignmentWorkToContour,
 } from '@/engine/work/workRuleApply';
 import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
 import { assignmentsByTask, captureCalendarLibraryChange, settleCalendarLibraryChange, tasksOnCalendar } from '../calendarTasks';
 import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
+import { notifyOtherWorkChanged } from '../otherWorkNotice';
+import type { OtherWorkOutcome } from '../assignmentMutations';
 import type { AppSliceFactory } from './types';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { AppState } from '../appStore';
@@ -173,6 +175,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     // Verlies van MSP-sturing — zie `taskSlice.ts`'s `updateTask` voor de discipline (buiten
     // de Immer-producer, `notify` doet zelf een `set()`).
     let lostTimephasedGuidance = false;
+    let otherWork: OtherWorkOutcome | undefined;
+    const sequenceBefore = get().nextHistorySequence;
     set((s) => {
       // Leaf-only, geen-milestone-assignment-regel: vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
@@ -204,9 +208,11 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         ? { id, taskId, resourceId, unitsPerDay: 1, ...(amount !== undefined ? { costAmount: amount } : {}) }
         : { id, taskId, resourceId, unitsPerDay, curve });
       lostTimephasedGuidance = outcome.lostTaskIds.length > 0;
+      otherWork = outcome.otherWork[0];
       runtime.finishMutation(s, { stale: outcome.durationChanged });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    notifyOtherWorkChanged(get(), otherWork, sequenceBefore);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },
@@ -215,6 +221,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     // Verlies van MSP-sturing — zie `assignResource` hierboven (alleen relevant wanneer de
     // werkdriehoek de taakduur verandert).
     let lostTimephasedGuidance = false;
+    let otherWork: OtherWorkOutcome | undefined;
+    const sequenceBefore = get().nextHistorySequence;
     set((s) => {
       const idx = s.assignments.findIndex(a => a.id === assignmentId);
       if (idx < 0) return;
@@ -223,15 +231,19 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.beginUndoable(s);
       const outcome = applyAssignmentPatch(s, s.assignments[idx], patch);
       lostTimephasedGuidance = outcome.lostTaskIds.length > 0;
+      otherWork = outcome.otherWork[0];
       runtime.finishMutation(s, { stale: outcome.durationChanged });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    notifyOtherWorkChanged(get(), otherWork, sequenceBefore);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },
 
   setAssignmentWork: (assignmentId, remainingWorkMinutes) => {
     let lostTimephasedGuidance = false;
+    let otherWork: OtherWorkOutcome | undefined;
+    const sequenceBefore = get().nextHistorySequence;
     set((s) => {
       const a = s.assignments.find(x => x.id === assignmentId);
       if (!a) return;
@@ -248,9 +260,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const settled = commitTrianglePlan(task, s.assignments, plan);
       s.taskTypesVisible = true; // documentontsluiting.
       if (settled.durationChanged) lostTimephasedGuidance = settleDurationAftermath(task, s, oldWorkMinutes, finishBasis);
+      const changes = otherWorkChanges(plan.captured, task, s.assignments, assignmentId);
+      if (changes.length > 0) otherWork = { taskId: task.id, durationChanged: settled.durationChanged, changes };
       runtime.finishMutation(s, { stale: settled.durationChanged });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    notifyOtherWorkChanged(get(), otherWork, sequenceBefore);
     get().recomputeResourceLoad();
     get().recomputeViewRows();
   },
@@ -289,6 +304,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   unassignResource: (assignmentId) => {
     // Verlies van MSP-sturing — zie `assignResource` hierboven.
     let lostTimephasedGuidance = false;
+    let otherWork: OtherWorkOutcome | undefined;
+    const sequenceBefore = get().nextHistorySequence;
     set((s) => {
       const removed = s.assignments.find(a => a.id === assignmentId);
       if (!removed) return;
@@ -296,9 +313,11 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.beginUndoable(s);
       const outcome = removeAssignment(s, removed);
       lostTimephasedGuidance = outcome.lostTaskIds.length > 0;
+      otherWork = outcome.otherWork[0];
       runtime.finishMutation(s, { stale: outcome.durationChanged });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    notifyOtherWorkChanged(get(), otherWork, sequenceBefore);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },

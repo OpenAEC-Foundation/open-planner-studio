@@ -33,8 +33,8 @@ import {
   type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import {
-  captureTriangle, settleAssignmentAdded, settleAssignmentRemoved, settleDurationAftermath, settleUnitsEdit,
-  type CapturedTriangle, type WorkRuleDeps,
+  captureTriangle, otherWorkChanges, settleAssignmentAdded, settleAssignmentRemoved, settleDurationAftermath, settleUnitsEdit,
+  type AssignmentWorkChange, type CapturedTriangle, type WorkRuleDeps,
 } from '@/engine/work/workRuleApply';
 
 /** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. De
@@ -47,12 +47,22 @@ interface AssignmentState extends WorkRuleDeps {
   calendar: WorkCalendar;
 }
 
+/** De andere toewijzingen op één taak waarvan de werkregel de uren zichtbaar veranderde (#954). */
+export interface OtherWorkOutcome {
+  taskId: string;
+  durationChanged: boolean;
+  changes: AssignmentWorkChange[];
+}
+
 /** Wat een toewijzingswijziging teweegbracht. `lostTaskIds`: taken die MSP-sturing (laag 3/4)
  *  verloren, in bewerkingsvolgorde, zonder dubbelen — de slice meldt het aantal, de MCP-draft
- *  registreert ze op de lease. `durationChanged`: de werkregel veranderde een taakduur. */
+ *  registreert ze op de lease. `durationChanged`: de werkregel veranderde een taakduur.
+ *  `otherWork`: per taak de uren van de ANDERE toewijzingen die veranderden (alleen taken met een
+ *  verandering); de slice meldt dat bij een bewerking op één toewijzing, de MCP-draft niet. */
 export interface AssignmentChangeOutcome {
   lostTaskIds: string[];
   durationChanged: boolean;
+  otherWork: OtherWorkOutcome[];
 }
 
 /** Momentopname van één taak vóór een toewijzingswijziging (werkdriehoek, oude werkminuten en de
@@ -77,12 +87,18 @@ function captureAssignmentTask(s: AssignmentState, task: Task): AssignmentTaskCa
  *  toewijzingen-trigger. */
 class OutcomeBuilder {
   private readonly lost: string[] = [];
+  private readonly otherWork: OtherWorkOutcome[] = [];
   durationChanged = false;
 
-  settled(s: AssignmentState, c: AssignmentTaskCapture, durationChanged: boolean): void {
-    if (!durationChanged) return;
-    this.durationChanged = true;
-    if (settleDurationAftermath(c.task, s, c.oldWorkMinutes, c.finishBasis)) this.markLost(c.task.id);
+  /** Na de settle van de werkregel op toewijzing `editedId`: duurnazorg, daarna de uren van de
+   *  anderen tegen de momentopname. */
+  settled(s: AssignmentState, c: AssignmentTaskCapture, durationChanged: boolean, editedId: string): void {
+    if (durationChanged) {
+      this.durationChanged = true;
+      if (settleDurationAftermath(c.task, s, c.oldWorkMinutes, c.finishBasis)) this.markLost(c.task.id);
+    }
+    const changes = otherWorkChanges(c.triangle, c.task, s.assignments, editedId);
+    if (changes.length > 0) this.otherWork.push({ taskId: c.task.id, durationChanged, changes });
   }
 
   invalidate(task: Task): void {
@@ -94,7 +110,7 @@ class OutcomeBuilder {
   }
 
   build(): AssignmentChangeOutcome {
-    return { lostTaskIds: this.lost, durationChanged: this.durationChanged };
+    return { lostTaskIds: this.lost, durationChanged: this.durationChanged, otherWork: this.otherWork };
   }
 }
 
@@ -215,7 +231,7 @@ export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' |
   s.assignments = s.assignments.filter(a => a.resourceId !== id);
   const out = new OutcomeBuilder();
   for (const c of captured) {
-    out.settled(s, c.capture, settleAssignmentRemoved(c.capture.task, s.assignments, c.capture.triangle, c.assignmentId).durationChanged);
+    out.settled(s, c.capture, settleAssignmentRemoved(c.capture.task, s.assignments, c.capture.triangle, c.assignmentId).durationChanged, c.assignmentId);
   }
   const affected = new Set(captured.map(c => c.capture.task));
   for (const task of s.tasks) {
@@ -248,7 +264,7 @@ export function insertAssignment(s: AssignmentState, task: Task, assignment: Res
   s.assignments.push(assignment);
   if (!task.resourceIds.includes(assignment.resourceId)) task.resourceIds.push(assignment.resourceId);
   const out = new OutcomeBuilder();
-  out.settled(s, capture, settleAssignmentAdded(task, s.assignments, capture.triangle, assignment).durationChanged);
+  out.settled(s, capture, settleAssignmentAdded(task, s.assignments, capture.triangle, assignment).durationChanged, assignment.id);
   // "Toewijzingen" hoort bij de invalidatie-triggerset, zie `taskDefaults.ts` (kosten niet).
   if (!isCostAssignment(s, assignment)) out.invalidate(task);
   return out.build();
@@ -260,7 +276,7 @@ export function removeAssignment(s: AssignmentState, removed: ResourceAssignment
   const capture = task ? captureAssignmentTask(s, task) : null;
   s.assignments = s.assignments.filter(a => a.id !== removed.id);
   const out = new OutcomeBuilder();
-  if (capture) out.settled(s, capture, settleAssignmentRemoved(capture.task, s.assignments, capture.triangle, removed.id).durationChanged);
+  if (capture) out.settled(s, capture, settleAssignmentRemoved(capture.task, s.assignments, capture.triangle, removed.id).durationChanged, removed.id);
   pruneTaskResourceRef(s, removed.taskId, removed.resourceId);
   if (task && !isCostAssignment(s, removed)) out.invalidate(task);
   return out.build();
@@ -277,8 +293,8 @@ export function relocateAssignment(s: AssignmentState, assignment: ResourceAssig
   const newCapture = captureAssignmentTask(s, newTask);
   assignment.taskId = newTask.id;
   const out = new OutcomeBuilder();
-  if (oldCapture) out.settled(s, oldCapture, settleAssignmentRemoved(oldCapture.task, s.assignments, oldCapture.triangle, assignment.id).durationChanged);
-  out.settled(s, newCapture, settleAssignmentAdded(newTask, s.assignments, newCapture.triangle, assignment).durationChanged);
+  if (oldCapture) out.settled(s, oldCapture, settleAssignmentRemoved(oldCapture.task, s.assignments, oldCapture.triangle, assignment.id).durationChanged, assignment.id);
+  out.settled(s, newCapture, settleAssignmentAdded(newTask, s.assignments, newCapture.triangle, assignment).durationChanged, assignment.id);
   pruneTaskResourceRef(s, oldTaskId, assignment.resourceId);
   if (!newTask.resourceIds.includes(assignment.resourceId)) newTask.resourceIds.push(assignment.resourceId);
   if (!isCostAssignment(s, assignment)) {
@@ -316,7 +332,7 @@ export function applyAssignmentPatch(s: AssignmentState, assignment: ResourceAss
   if ('curve' in patch) delete assignment.curveValues;
   const out = new OutcomeBuilder();
   if (capture) {
-    out.settled(s, capture, settleUnitsEdit(capture.task, s.assignments, capture.triangle, assignment.id, assignment.unitsPerDay).durationChanged);
+    out.settled(s, capture, settleUnitsEdit(capture.task, s.assignments, capture.triangle, assignment.id, assignment.unitsPerDay).durationChanged, assignment.id);
   }
   return out.build();
 }

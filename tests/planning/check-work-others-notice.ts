@@ -10,7 +10,7 @@ import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { canRunNotificationUndo, OTHER_WORK_NOTICE_KEY } from '@/state/otherWorkNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import type { AppNotification } from '@/state/slices/types';
+import type { AppNotification, NotificationAction } from '@/state/slices/types';
 import type { ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { WorkRule } from '@/types/workRule';
@@ -33,6 +33,8 @@ const asg = (taskId: string, resourceId: string): ResourceAssignment =>
   S().assignments.find((a) => a.taskId === taskId && a.resourceId === resourceId)!;
 const labor = (name: string): string => S().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 });
 const notice = (): AppNotification | undefined => S().ui.notifications.find((n) => n.dedupeKey === OTHER_WORK_NOTICE_KEY);
+/** De knop van de melding; zonder melding een knop die bij geen enkel event hoort (de checks erna worden rood, niet fataal). */
+const noticeAction = (n = notice()): NotificationAction => n?.action ?? { kind: 'undoHistoryEvent', eventId: '(geen melding)', labelKey: 'notifications.actions.undo' };
 const clearNotices = () => useAppStore.setState((s) => { s.ui.notifications = []; });
 /** Wat de planner leest: hoofdregel, duur, en per regel naam + uren. */
 function summary(n: AppNotification | undefined): unknown {
@@ -75,7 +77,7 @@ console.log('-- (a) Vaste inzet: Bram 100 % → 50 % maakt de taak 20 dagen, Ann
   eq('a3 meervoud volgt de duur', notice()?.params?.count, 20);
   eq('a4 Bram zelf staat niet in de melding', (notice()?.detailLines ?? []).some((l) => l.params?.name === 'Bram'), false);
   eq('a5 één stap in de geschiedenis', S().historyEvents.length - events0, 1);
-  const action = notice()!.action!;
+  const action = noticeAction();
   eq('a6 de knop hoort bij die stap en kan nu', action.kind === 'undoHistoryEvent' && canRunNotificationUndo(S(), action), true);
   if (action.kind === 'undoHistoryEvent') S().undoHistoryEvent(action.eventId);
   eq('a7 één keer Ongedaan maken: duur, inzet van Bram en uren van Anna terug',
@@ -89,7 +91,7 @@ console.log('-- (b) een nieuwere bewerking: de knop verdwijnt, hij neemt nooit i
 {
   const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
   S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
-  const action = notice()!.action!;
+  const action = noticeAction();
   S().updateTask(t, { name: 'Metselwerk gevel' });
   eq('b1 na een andere bewerking kan de knop niet meer', canRunNotificationUndo(S(), action), false);
 }
@@ -135,13 +137,14 @@ console.log('-- (e) resource erbij of eraf: de uren van wie er al stond, verande
   const { t, r } = seed('FIXED_WORK', 10, { Anna: 1 });
   const bram = labor('Bram');
   S().assignResource(t, bram, 1);
-  eq('e1 Vast werk, Bram erbij: duur 5, Anna 80 → 40 u', [task(t).time.scheduleDuration, summary(notice())], [5, {
-    key: 'notifications.otherWork.durationDays', duration: 5, lines: [['Anna', 80, 40]], action: 'undoHistoryEvent',
+  // Vast werk maakt een dagentaak een urentaak (B1a): de melding noemt de duur in de eenheid van de taak.
+  eq('e1 Vast werk, Bram erbij: 40 uur (5 dagen), Anna 80 → 40 u', [task(t).time.scheduleDuration, summary(notice())], [5, {
+    key: 'notifications.otherWork.durationHours', duration: 40, lines: [['Anna', 80, 40]], action: 'undoHistoryEvent',
   }]);
   clearNotices();
   S().unassignResource(asg(t, bram).id);
-  eq('e2 Vast werk, Bram eraf: duur 10, Anna 40 → 80 u', [task(t).time.scheduleDuration, summary(notice())], [10, {
-    key: 'notifications.otherWork.durationDays', duration: 10, lines: [['Anna', 40, 80]], action: 'undoHistoryEvent',
+  eq('e2 Vast werk, Bram eraf: 80 uur (10 dagen), Anna 40 → 80 u', [task(t).time.scheduleDuration, summary(notice())], [10, {
+    key: 'notifications.otherWork.durationHours', duration: 80, lines: [['Anna', 40, 80]], action: 'undoHistoryEvent',
   }]);
 
   // Vaste duur en werk: de duur blijft, het werk wordt verdeeld ⇒ melding zonder duurzin.
@@ -186,7 +189,7 @@ console.log('-- (g) een tweede bewerking vervangt de melding --');
     [notes.length, summary(notes[0]), notes[0]?.count], [1, {
       key: 'notifications.otherWork.durationDays', duration: 40, lines: [['Anna', 160, 320]], action: 'undoHistoryEvent',
     }, 1]);
-  eq('g2 de knop hoort bij de laatste stap', canRunNotificationUndo(S(), notes[0].action!), true);
+  eq('g2 de knop hoort bij de laatste stap', canRunNotificationUndo(S(), noticeAction(notes[0])), true);
 }
 
 if (diffs.length) {

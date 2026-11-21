@@ -138,6 +138,31 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   st = await taskState(page, taskId);
   expect(st.workRule).toBeUndefined();
   expect(st.work).toBe(64 * 60);
+
+  // #954 (besluit eigenaar 2026-11-21): onder Vaste inzet maakt meer werk voor de ploeg de taak langer
+  // en groeien de uren van Anna mee. De app meldt dat, en Ongedaan maken in de melding zet de hele
+  // stap terug, ook de duur. Fixture: een tweede resource via de brug (onder de standaardregel raakt
+  // dat niemand); de geteste handelingen zijn het werkveld en de knop in de melding.
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    s.assignResource(id, s.addResource({ name: 'Anna', type: 'LABOR', description: '', maxUnits: 1 }), 1);
+  }, taskId);
+  await chooseWorkRule(page, page, 'FIXED_RATE');
+  const undoInNotice = page.locator('[data-ops-notification-action="undoHistoryEvent"]');
+  await expect(undoInNotice).toHaveCount(0);
+  // Werk van de ploeg 64 → 128 u bij inzet 1: de taak gaat van 8 naar 16 dagen, Anna van 64 naar 128 u.
+  const crewWork = page.locator('[data-ops-assignment-row]').first().locator('[data-ops-assignment-work] input');
+  await crewWork.fill('128');
+  await crewWork.press('Enter');
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(16);
+  const notice = page.locator('.ops-toast').filter({ has: undoInNotice });
+  await expect(notice).toContainText('16');
+  await expect(notice).toContainText(/Anna: 64 → 128 (u|h)/);
+  await undoInNotice.click();
+  st = await taskState(page, taskId);
+  expect(st).toMatchObject({ duration: 8, work: 64 * 60 });
+  await expect(undoInNotice).toHaveCount(0);
 });
 
 test('taakdialoog: werkregel kiezen commit direct, werk typen in dezelfde dialoog rekent met die regel, Opslaan draait de duur niet terug', async ({ page, ops: _ops }) => {

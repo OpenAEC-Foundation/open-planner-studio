@@ -42,6 +42,15 @@ duurbewerking (de poort is de totale werkduur). Verandert het restwerk van een t
 zakt de contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaalresources sturen
 de duur nooit.
 
+Verandert een bewerking aan één toewijzing in de store (`assignResource`, `updateAssignment`,
+`unassignResource`, `setAssignmentWork`) de uren van een ANDERE werkresource op die taak zichtbaar (uren op
+twee decimalen, `otherWorkChanges` in de brug, via `AssignmentChangeOutcome.otherWork`), dan meldt de app
+dat met de nieuwe duur, per resource "oud → nieuw" en de knop Ongedaan maken (`otherWorkNotice.ts`, #954,
+eigenaarsbesluit 2026-11-21). Die knop (`undoHistoryEvent`) hoort bij precies het event van die bewerking en
+staat er alleen zolang dat de stap van Ctrl+Z is (`canRunNotificationUndo`); zonder eigen event (batch,
+extensie) geen melding. MCP, raster en `removeResource`/`moveAssignment` melden niets. Test:
+`check-work-others-notice.ts`.
+
 Een **kalenderwissel** (taak-/projectkalender of andere uren per dag in een kalender) verandert de
 slotgrootte en loopt daarna óók door de regel (`applySlotChange`/`settleCalendarChange`: Vast werk/Vaste
 inzet ⇒ duur; Vaste duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek); de contour-as herschaalt
