@@ -5196,13 +5196,6 @@ en noem het in je rapport of PR-tekst.
      Richting: de versie zoeken binnen `<section id="whats-new">` en binnen het `rn:start`–`rn:end`-blok van de live
      pagina. Gevonden door de review van #984 (Sol, ronde 2). — B
 
-1812. **VERVOLG (#984, release-skill): het startvoorbeeld verbergt de slotregel.** `.claude/skills/release/SKILL.md`,
-     sectie *Starten*. Het blok schrijft `EXIT:$?` achter de scriptuitvoer en toont daarna `tail -n 1`, dus alleen
-     `EXIT:2` en niet de regel `RELEASE-STOP …` die de thread moet doorgeven; de afsluitende
-     `grep '^RELEASE-MELDING '` geeft exit 1 als er geen meldingen zijn, ook na een geslaagde release. De uitkomst
-     staat wel in het log. Richting: `tail -n 2` en `grep … || true`. Gevonden door de review van #984 (Sol,
-     ronde 3). — B
-
 1750. **VERVOLG (#963, fs-scope voor lettertypen): het Windows-pad `C:/Windows/Fonts/**` is op Linux en macOS een
      relatief patroon, en niet gegarandeerd zonder effect.** `src-tauri/capabilities/default.json` (de drie
      scopes `fs:allow-read-dir`, `fs:allow-open`, `fs:allow-read-file`). Tauri voegt via `push_pattern` en
