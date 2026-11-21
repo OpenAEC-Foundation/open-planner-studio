@@ -5,6 +5,7 @@ import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { isDocumentLeaveBlocked } from '@/hooks/keyboard/shortcutRegistry';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
+import { fileIdentityFs } from '@/services/fileAccess';
 import { listenForLaunchFiles, openLaunchFiles } from '@/state/launchFiles';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { appLog } from '@/services/debug/appLog';
@@ -30,7 +31,7 @@ export function useLaunchFiles(recoveryResolved: boolean, recovery: RecoveryStat
       }, (paths) => {
         void openLaunchFiles(
           useAppStore, paths, io, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked,
-          { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) },
+          { readOptions: { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) }, identityFs: fileIdentityFs },
         );
       });
     })().catch((err: unknown) => appLog.emit('error', 'launch-files', 'luisteren naar meegegeven bestanden faalde', err));

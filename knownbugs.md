@@ -3195,14 +3195,15 @@ en noem het in je rapport of PR-tekst.
      `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
      want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
      geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
-2051. **VERVOLG (#1091, desktop): een bestand buiten de thuismap meegeven bij het starten opent niet.** De paden uit
-     de opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) leest de webview met plugin-fs, dus
-     binnen de bestaande fs-scope (`fs:allow-home-read-recursive`). Een dubbelklik op `D:\Projecten\plan.ifc` of een
-     bestand op een netwerkschijf geeft daardoor de gewone leesfout (`forbidden path`); Bestand → Openen werkt wel,
-     omdat de kiezer het pad zelf toestaat. Bewust zo gelaten (opdracht #1091: de scope niet verbreden). Richting: het
-     meegegeven pad in Rust aan de scope toevoegen, zoals plugin-fs dat bij slepen al doet, zodra het besluit over de
-     toegangsgrens bij #804 valt (1762). — B (code: plugin-fs toetst elk pad tegen de scope)
-2052. **VERVOLG (#1091, desktop): na een herstart door de updater opent het startbestand nog een keer.**
+2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
+     opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
+     fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
+     gewone leesfout (`forbidden path`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf toestaat.
+     Bewust zo gelaten: bij 1762 koos Ethan voor "één keer per map om toegang vragen", zonder Rust-commando, en dat
+     bouwt #804 op branch `feat/804-opslaan-buiten-thuismap`. Richting: een meegegeven pad dat op `forbidden path`
+     stuit, sluit straks aan op die toegangsvraag; #1091 krijgt geen eigen vraag. — B (code: plugin-fs toetst elk
+     pad tegen de scope)
+2031. **VERVOLG (#1091, desktop): na een herstart door de updater opent het startbestand nog een keer.**
      `tauri::process::restart` start de app met dezelfde argumenten als de eerste start (`tauri-2.12.3/src/process.rs`),
      dus een app die met een bestand gestart was, opent dat bestand na de update opnieuw in een eigen tabblad. Niets
      gaat verloren; het is een tabblad te veel als de planner het intussen sloot. Richting: bij de herstart de
@@ -5326,7 +5327,8 @@ en noem het in je rapport of PR-tekst.
      `feat/804-coordinator-toelating`, `check-ifc-document-save.ts`, "twee keer Openen"). Alleen in de code gelezen, niet
      met een proef: Recent (`openRecentFile`), een bestand op het venster slepen en `planner_import_schedule` lopen door
      dezelfde open-route (`openOpenedFile` of direct `openAsDocument`), en die kijkt niet of het doel al in een tabblad
-     open staat. De browser is niet nagegaan. Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
+     open staat. De browser is niet nagegaan. Een bestand dat bij het starten is meegegeven (#1091) wisselt wel naar
+     het open tabblad (`openLaunchFiles`). Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
      de eigenaar, samen met 1893. Besluit technisch beslisser (21 november 2026): 1893 en 1957 gaan vóór 1939, en vóór de
      featureflag `ifcForeignContent` standaard aan gaat. — B (proef, bestandskiezer op de desktop)
 
