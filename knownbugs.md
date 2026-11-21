@@ -4186,7 +4186,18 @@ en noem het in je rapport of PR-tekst.
       en wacht zo nodig op de lopende plaatsing. Laat de coördinator ook de toelating en voorrang van timerwerk bepalen.
       Dan kunnen de twee voorrangstoetsen in de kandidatenlijsten weg. Eén rij met beurttypen, één samengevouwen gewone
       aanvraag en één lopende plaatsingsbelofte volstaan." Hiermee verdwijnen 1937 en 1938. Regel van de technisch
-      beslisser: **bouwen vóór de featureflag `ifcForeignContent` standaard aan gaat.** — S
+      beslisser: **bouwen vóór de featureflag `ifcForeignContent` standaard aan gaat.**
+      Stand 21 november 2026: gebouwd in PR #1093 en na drie reviewrondes geparkeerd (besluit technisch beslisser); de
+      branch `feat/804-coordinator-toelating` blijft staan. Elk blokkerend punt kwam uit een wijziging in wanneer of in
+      welke volgorde een gewone automatische opslag schrijft ten opzichte van main, eerst voor 1937 en daarna voor 1938.
+      Main kiest de kandidaat bij de tik, vraagt de schrijftoestemming en zet dan pas de write in de rij, op aankomst.
+      Wijkt de app daarvan af, dan verandert welke versie wint of welk tabblad als opgeslagen geldt zodra twee tabbladen
+      hetzelfde bestand als doel hebben (1893, 1957) of een schrijftoestemming uitstaat. 1937 en 1938 zijn wachttijd,
+      geen verlies; het besluit: "Wachttijd tegen stil verlies wint verlies." Volgorde: eerst 1893 en 1957, daarna dit
+      punt opnieuw. Uitgangspunt is dan de regel van fixronde 1 van #1093 (een write die al om de rij vroeg houdt zijn
+      plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
+      schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
+      bewezen. — S
 
 ## Wensen en open taken (geen bug)
 
@@ -5208,6 +5219,19 @@ en noem het in je rapport of PR-tekst.
      anders laten lopen (de richting van 1899). Een nieuwe vraag of melding is een keuze voor de eigenaar. Hetzelfde geldt
      voor *Exporteren*: op de desktop weigert het sinds 1907 een bestand dat in een ander tabblad open staat, in de
      browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. — B (proef)
+
+1957. **Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.** Kiest de planner op de
+     desktop via *Openen* een bestand dat al in een tabblad open staat, dan opent de app het nog eens, in een nieuw
+     tabblad, zonder melding en zonder naar het open tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde
+     pad; slaat de planner het ene op (Ctrl+S of Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg.
+     Dezelfde familie als 1893: twee tabbladen, één bestand. Gezien met een proef voor de bestandskiezer op de desktop,
+     via de echte store-actie `openFile()` (review van #1093, ronde 2; de proef staat op de geparkeerde branch
+     `feat/804-coordinator-toelating`, `check-ifc-document-save.ts`, "twee keer Openen"). Alleen in de code gelezen, niet
+     met een proef: Recent (`openRecentFile`), een bestand op het venster slepen en `planner_import_schedule` lopen door
+     dezelfde open-route (`openOpenedFile` of direct `openAsDocument`), en die kijkt niet of het doel al in een tabblad
+     open staat. De browser is niet nagegaan. Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
+     de eigenaar, samen met 1893. Besluit technisch beslisser (21 november 2026): 1893 en 1957 gaan vóór 1939, en vóór de
+     featureflag `ifcForeignContent` standaard aan gaat. — B (proef, bestandskiezer op de desktop)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
