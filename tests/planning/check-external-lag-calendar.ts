@@ -408,6 +408,7 @@ const b6Results: Record<string, unknown> = {};
   const startAndNext = (b6: boolean) => {
     const link: ExternalLink = {
       id: 'ss', relType: 'SS', direction: 'predecessor', anchorDate: '2026-06-08T08:00', lagDays: 2,
+      sourceMissing: false,
       sourceRef: { projectId: 'ander', taskId: 'P' },
     };
     const start = task('S', '2026-06-01', 0, 'project', {
