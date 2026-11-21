@@ -4074,12 +4074,26 @@ en noem het in je rapport of PR-tekst.
          geprobeerd). Alleen een tabbladwissel is sinds #1097 (knownbug 1903) geen weigering meer: dan krijgt het
          bestand de bytes van het geëxporteerde document (met een nagebootste handle, `check-ifc-document-save.ts`).
       Sinds fixronde 1 van #1027 (besluit Trias) krijgt een handle uit de kiezer geen late controle vóór `close()`
-      (`saveDataDialogWeb`): de opslag maakt het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
+      (`saveDataDialogWeb`; sinds #1097 met één uitzondering: een IFC-export waarvan het document na de kiezer niet meer
+      vooraan staat, breekt af als dat document vóór `close()` verandert, en laat dan 0 bytes staan): de opslag maakt
+      het gevraagde bestand af, en bij een intussen vervangen inhoud legt alleen
       de commit niets vast (geen pad, bron, *Opgeslagen* of Recent); een export meldt dan geen succes. Ctrl+S en
       Automatisch opslaan op een bestaande handle houden de late controle, want daar bewaart de browser de oude bytes
       tot `close()`. Richting van de reviewer: "Kies bestaande doelen via een handeling die de oude bytes bewaart,
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
+
+1958. **VERVOLG (browser, bestaand op main): een IFC-export zonder tabbladwissel schrijft een wijziging tijdens de write niet en meldt toch succes.**
+      Exporteer naar een bestand uit de opslaankiezer van de browser en verander de planning tussen de doelcontrole na
+      de kiezer en `close()` terwijl het document vooraan blijft (bijvoorbeeld een taak bewerken terwijl de browser
+      schrijft). De export plaatst dan de planning van vóór de wijziging, meldt succes en zet het bestand in Recent; de
+      wijziging staat niet in het bestand. Gezien met de proef van de reviewer van #1097 (Sol, ronde 1) en vastgelegd in
+      de proef "knownbug 1903: browserexport IFC naar een handle, zonder wissel A bewerkt tijdens de write, plaatst de
+      oude bytes zoals main (knownbug 1958)" (`check-ifc-document-save.ts`). Bewust niet veranderd in #1097 (besluit
+      technisch beslisser, 21 november 2026): het gekozen bestand is in de browser al leeg (1899), dus een weigering
+      ruilt een export met een paar seconden oud werk in voor een leeg bestand, en de oude inhoud van het doel is in
+      beide gevallen al weg. Na een tabbladwissel breekt de export in dit geval wel af (keuze (b), #1097). Ook met de
+      flag uit. — B (proef)
 
 1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
       Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het

@@ -173,16 +173,26 @@ elke directe schrijfactie van `replaceUserFile`, vóór de exclusieve plaatsing 
 het opzijzetten in `replaceOwnFileBytes` (uitkomst `stopped`) en vlak vóór de site-opslag. Een weigering laat het doel
 onveranderd; het tijdelijke bestand en het herstelrecord gaan langs het bestaande opruimpad weg; de bestaande melding,
 niets in Recent. **Uitzondering: een handle uit de opslaankiezer van de browser** (Opslaan als, de exports, Ctrl+S
-zonder doel) krijgt geen late controle (`saveDataDialogWeb`): Chromium maakt een bestaand doel bij het kiezen al leeg,
-dus `abort()` liet 0 bytes staan (knownbug 1899). De opslag maakt het gevraagde bestand af; bij een intussen vervangen
-inhoud legt de commit niets vast en komt er niets in Recent, en een export meldt geen succes en legt geen kalenderkeuze
-vast (`exportContentReplaced`). De native kiezer van Tauri geeft alleen een pad (plugin-dialog `save`), dus op de
-desktop geldt de late controle overal. De doelcontrole na de kiezer en de late controle van een export zijn één controle
-(`refuseChangedExport`): ze kijkt naar het geëxporteerde document, ook als dat intussen in een ander tabblad staat
-(review van #1027 ronde 2, knownbug 1903). Een tabbladwissel is geen wijziging van de planning, dus de export rondt af
-zolang het document zijn inhoud en bron hield; ook de handle uit de opslaankiezer krijgt dan de bytes in plaats van leeg
-te blijven. De controles onder het schrijfslot vóór de kiezer en vóór een download eisen het actieve tabblad nog
-(`refuseExportBeforePicker`). Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
+zonder doel): Chromium maakt een bestaand doel bij het kiezen al leeg, dus `abort()` laat daar 0 bytes staan (knownbug
+1899). `saveDataDialogWeb` geeft `refuseBeforePlace` wel door vóór `close()`, maar de aanroeper geeft hem in de browser
+alleen mee als een leeg bestand beter is dan de uitvoer: Opslaan als en Ctrl+S zonder doel geven er geen
+(`documentSaveDialog`); daar maakt de opslag het gevraagde bestand af, bij een intussen vervangen inhoud legt de commit
+niets vast en komt er niets in Recent. De native kiezer van Tauri geeft alleen een pad (plugin-dialog `save`), dus op de
+desktop geldt de late controle overal.
+De controle van een IFC-export (`exportAs('ifc')` en `exportProjectWithPool`) is één inhoudscontrole,
+`refuseChangedExport`: ze kijkt naar het geëxporteerde document, ook als dat intussen in een ander tabblad staat
+(review van #1027 ronde 2, knownbug 1903), en weigert als dat document gesloten is of een andere inhoud kreeg, als de te
+schrijven inhoud veranderde, of, bij een document met een vreemd deel, als het bronobject niet meer hetzelfde is of de
+app de volledige IFC weigert. Een tabbladwissel alleen is geen wijziging. De controlepunten:
+- onder het schrijfslot vóór de kiezer en vóór een download: die controle, en het document moet ook nog vooraan staan
+  (`refuseExportBeforePicker`);
+- direct na de kiezer, op het gekozen doel (`refuseTarget`), op elk platform;
+- desktop: vlak vóór de plaatsing (`exportBeforePlace`);
+- browser, op de handle uit de opslaankiezer: alleen als het document na de kiezer niet meer vooraan staat ook vlak vóór
+  `close()` (`exportBeforePlace`, keuze (b) van de technisch beslisser in fixronde 2 van #1097; anders `abort()`, en
+  het bestand blijft leeg). Staat het nog vooraan, dan niet: een wijziging tussen de doelcontrole en `close()` komt dan
+  niet in het bestand en de export meldt succes, zoals op main (knownbug 1958). Een export meldt bij een intussen
+  vervangen inhoud geen succes en legt geen kalenderkeuze vast (`exportContentReplaced`). Automatisch opslaan doet de doelcontrole (`refusedWriteTarget`) ná het rekenen,
 in dezelfde schrijfbeurt, zoals Ctrl+S. Een IFC-export (`exportAs('ifc')`, ook zonder gebouwmodel, en
 `exportProjectWithPool`) loopt als één volgorde met voorrang (`withIfcExportPriority`, fixronde 2 van de review van
 #1033): `claimProjectFileWrite` van de bronkeuze via de vraag "alleen de planning" tot en met het schrijven, en een ronde
