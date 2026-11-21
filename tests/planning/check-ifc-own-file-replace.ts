@@ -10,7 +10,8 @@ import assert from 'node:assert/strict';
 import { documentContentOf } from '@/state/documentSaveState';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -33,7 +34,7 @@ import {
 } from '@/services/fileAccess/replaceRecords';
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
-import { userFileTempPath } from '@/services/fileAccess/atomicWrite';
+import { isForbiddenPathError, userFileTempPath } from '@/services/fileAccess/atomicWrite';
 import { readsAsBytes, type ExportFormat } from '@/services/formatRegistry';
 import type { ExportResult } from '@/state/slices/fileSlice';
 import { readBytesFromRef } from '@/services/fileAccess';
@@ -191,7 +192,7 @@ async function aroundPlace(n: number, when: 'before' | 'after', act: () => void)
 const reject = (code: string, extra: Record<string, string> = {}): { reject: Record<string, string> } => ({ reject: { code, ...extra } });
 const tidy = async (c: Case) => {
   ipc.faults.place = null; ipc.faults.writeErrorAfter = null; ipc.faults.forbidden = null; ipc.faults.forbiddenMeta = false;
-  ipc.faults.beforeOpen = null;
+  ipc.faults.beforeOpen = null; ipc.scope.reset(); ipc.dialog.pickFolder = null;
   c.unregister(); await clearRecovery();
   for (const name of readdirSync(appData)) if (replaceRecordId(name) !== null) rmSync(join(appData, name));
 };
@@ -3078,6 +3079,51 @@ await check('stap 8: een ronde van Automatisch opslaan terwijl een ander program
     assert.equal(projectWriteFiles(c, again).length, 0, 'geen tweede poging');
     assert.deepEqual(errorKeys(c), ['notifications.ifcForeignAutoSaveTargetChanged'], 'geen tweede melding');
   } finally { await tidy(c); }
+});
+
+// ── #804, knownbug 1762: Ctrl+S en Opslaan als buiten de thuismap. De planner geeft de map eenmalig vrij met de gewone
+// mapkiezer (oplossing f; besluit van de eigenaar, 21 november 2026), daarna loopt dezelfde vervanging. De scope is hier
+// een toestand (`ipc.scope`): de capability (`$HOME/**`) laat de map van het geval buiten, de bestandskiezer gaf het
+// geopende bestand vrij (`allow_file`) en de nagebootste mapkiezer geeft een map vrij zoals `allow_directory(p, false)`. ──
+/** De map van het geval ligt buiten de capability; het geopende bestand gaf de bestandskiezer vrij, zoals in de app. */
+const outsideCapability = (c: Case) => {
+  const real = realpathSync(c.dir);
+  ipc.scope.outside = path => path === real || path.startsWith(`${real}/`);
+  ipc.scope.allowFile(c.path);
+};
+/** Weigert plugin-fs dit pad (`exists` toetst eerst de scope)? */
+const refusedByScope = async (path: string) => {
+  const { exists } = await import('@tauri-apps/plugin-fs');
+  try { await exists(path); return false; } catch (error) { if (isForbiddenPathError(error)) return true; throw error; }
+};
+
+await check('1762, de nabootsing: de mapkiezer geeft de map vrij, niet-recursief en op het echte pad; een hulpnaam mag erin, in een submap niet', async () => {
+  const c = await opened();
+  const elsewhere = mkdtempSync(join(tmpdir(), 'ops-1762-elders-'));
+  try {
+    outsideCapability(c);
+    ipc.scope.outside = (outside => (path: string) => outside(path) || path.startsWith(`${realpathSync(elsewhere)}/`))(ipc.scope.outside!);
+    mkdirSync(join(c.dir, 'sub'));
+    symlinkSync(elsewhere, join(c.dir, 'naar-elders'), 'dir');
+    const helper = userFileTempPath(c.path), inSub = userFileTempPath(join(c.dir, 'sub', 'model.ifc'));
+    const viaLink = userFileTempPath(join(c.dir, 'naar-elders', 'model.ifc'));
+    assert.equal(await refusedByScope(helper), true, 'buiten de capability: de hulpnaam is geweigerd');
+    assert.equal(await refusedByScope(c.path), false, 'het bestand dat de bestandskiezer gaf, mag');
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const asked: unknown[] = [];
+    ipc.dialog.pickFolder = options => { asked.push(options); return c.dir; };
+    assert.equal(await open({ directory: true, recursive: false, defaultPath: c.dir }), c.dir, 'de mapkiezer geeft de gekozen map');
+    assert.deepEqual(asked, [{ directory: true, recursive: false, defaultPath: c.dir }], 'de opties van de app komen aan');
+    assert.equal(await refusedByScope(helper), false, 'na de mapkiezer: een hulpnaam in de map mag');
+    assert.equal(await refusedByScope(join(c.dir, 'model (versie van ander programma 2026-11-17 14.32).ifc')), false, 'ook een kopienaam');
+    assert.equal(await refusedByScope(inSub), true, 'een hulpnaam in een submap niet (niet-recursief)');
+    assert.equal(await refusedByScope(viaLink), true, 'een naam die via een link buiten de map uitkomt niet (het echte pad telt)');
+    ipc.dialog.pickFolder = () => null;
+    assert.equal(await open({ directory: true, recursive: false, defaultPath: c.dir }), null, 'annuleren geeft null');
+    ipc.dialog.pickFolder = () => c.dir;
+    await open({ directory: true, recursive: true, defaultPath: c.dir });
+    assert.equal(await refusedByScope(inSub), false, 'ter vergelijking: recursief vrijgegeven mag de submap wel');
+  } finally { rmSync(elsewhere, { recursive: true, force: true }); await tidy(c); }
 });
 
 ipc.dispose();
