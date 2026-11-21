@@ -47,6 +47,8 @@
     "recentColumns": "Senest brugt",
     "noColumns": "Brug + til at tilføje en kolonne.",
     "toggleSummary": "Fold hovedopgaven ud eller sammen",
+    "toggleMilestones": "Fold milepæle ud eller sammen",
+    "milestonesRun": "Milepæle ({{n}})",
     "calculatedReadOnly": "Denne beregnede kolonne kan ikke redigeres."
   },
   "taskGrid": {
@@ -326,7 +328,11 @@
     "rename": "Rediger",
     "remove": "Fjern",
     "addToMine": "Tilføj til mine arbejdskategorier",
-    "confirmRemove": "Denne arbejdskategori bruges i det åbne projekt. Skal den fjernes fra Mine arbejdskategorier? Projektkopien bliver bevaret."
+    "confirmRemove": "Denne arbejdskategori bruges i det åbne projekt. Skal den fjernes fra Mine arbejdskategorier? Projektkopien bliver bevaret.",
+    "renameInProjectTitle": "Omdøb også i dette projekt?",
+    "renameInProjectMessage": "Arbejdskategorien „{{oldName}}” bruges også i dette projekt. Vil du også kalde den „{{newName}}” her?",
+    "renameInProjectYes": "Også i dette projekt",
+    "renameInProjectNo": "Kun på min liste"
   },
   "duration": {
     "label": "Varighed",

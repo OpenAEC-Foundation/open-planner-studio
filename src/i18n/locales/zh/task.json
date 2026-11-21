@@ -324,7 +324,11 @@
     "rename": "编辑",
     "remove": "删除",
     "addToMine": "添加到我的工作类别",
-    "confirmRemove": "此工作类别正在打开的项目中使用。要从“我的工作类别”中删除吗？项目副本会保留。"
+    "confirmRemove": "此工作类别正在打开的项目中使用。要从“我的工作类别”中删除吗？项目副本会保留。",
+    "renameInProjectTitle": "也在此项目中重命名吗？",
+    "renameInProjectMessage": "工作类别“{{oldName}}”也用于此项目。你是否想在这里也将其命名为“{{newName}}”？",
+    "renameInProjectYes": "也在此项目中",
+    "renameInProjectNo": "仅在我的列表中"
   },
   "duration": {
     "label": "工期",
