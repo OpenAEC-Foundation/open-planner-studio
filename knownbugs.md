@@ -4048,17 +4048,6 @@ en noem het in je rapport of PR-tekst.
       bijvoorbeeld een bestaande handle of een bestandskeuze vanuit een gekozen map." Dat verandert wat de planner ziet:
       een keuze voor de eigenaar. — B (scan), S (afkappen door de kiezer)
 
-1901. **VERVOLG (#1027, opruimen en proeven): drie kleine punten uit de review van de late exportcontrole.**
-      (a) De regressieproef in de repo dekt alleen de geslaagde tabbladwissel ("review van #1027 ronde 2" in
-      `check-ifc-document-save.ts`): er ontbreekt een weigering nadat het exportdocument inactief werd (A bewerkt of
-      vervangen, dan naar B) en de geslaagde wissel met een IFC met gebouwmodel. De reviewer bewees beide met eigen
-      proeven (ronde 3, `proef-late-export.ts` in het sessiearchief); "dezelfde opstelling met één schrijfpauze
-      volstaat". (b) `refuseExportBeforePlace` (`fileSlice.ts`) vraagt op het geslaagde pad twee keer
-      `hasForeignContent(snapshot.ifcSource)`: één keer bewaren. (c) `withMissingSourceSaveAs` kopieert
-      eigenschapsbeschrijvingen (`Object.getOwnPropertyDescriptors`, `Object.defineProperties`, een typecast) om de
-      luie tekst niet te decoderen: geef de bevestiging apart door aan de opslagbewaking. Review van #1027 (Sol,
-      ronde 2 en 3): [BEVESTIGD] VERVOLG. — B (code)
-
 1903. **VERVOLG (desktop, bestaand): een tabbladwissel vlak na de bestandskiezer laat een IFC-export weigeren.**
       Exporteer een planning naar IFC en ga binnen ongeveer een halve seconde na het bevestigen van de bestandsnaam
       naar een ander tabblad: de export weigert met "De planning veranderde terwijl de export op een andere opslag
@@ -4068,6 +4057,14 @@ en noem het in je rapport of PR-tekst.
       gezien in de desktopapp met een groot gebouwmodel, 0,5 s na Enter); bij een klein bestand is het moment korter.
       Er gaat niets verloren. Richting: ook die controle naar het geëxporteerde document laten kijken, zoals
       `refuseExportBeforePlace` dat vlak vóór de plaatsing doet. Gezien in de desktopcontrole van #1027. — B (app)
+      Stand na de bouwpoging in de PR van 1901 (21 november 2026): die richting maakt één bestaande verwachting
+      andersom. "IFC-export documentwissel: nul bytes na voorbereiding" (`check-ifc-document-save.ts`, sinds
+      `3ecdeec01`) opent tijdens de kiezer een nieuw tabblad en eist dat de export weigert, met nul schrijfacties. Die
+      proef stamt uit de tijd dat de controle de bron van het actieve tabblad vergeleek; met de reparatie schrijft de
+      export daar de ongewijzigde planning van A. Niet gebouwd tot dat besluit er is. Een uitgewerkte reparatie (één
+      controle voor `refuseTarget` en de plaatsing, de controles vóór de kiezer en vóór een download blijven het
+      actieve tabblad eisen) en drie proeven die op main rood zijn, staan klaar in het sessiearchief
+      (`fase1c/1901-1903-logs/1903-volledig.patch`).
 
 1904. **VERVOLG (#804 stap 8, gemeten noch gebouwd): een ronde van Automatisch opslaan bij een gewoon document wijkt niet.**
       Stap 8 laat alleen de ronde van een document met een gebouwmodel wijken voor Ctrl+S, Opslaan als, een export, het
