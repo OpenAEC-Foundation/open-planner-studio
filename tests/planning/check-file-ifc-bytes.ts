@@ -310,6 +310,10 @@ async function main() {
       assert.equal(new Set(writesTo(calls).map(c => c.path)).size, 1, 'alle stukken in hetzelfde tijdelijke bestand');
       assert.deepEqual(placeCalls(calls).map(c => c.path), [target]);
       assert.ok(writesTo(calls).every(c => c.rawBody && !c.bytesInObject && c.bodyBytes === c.bufferBytes));
+      // Knownbug 2026: na het laatste stuk één lstat van het tijdelijke bestand, vóór de plaatsing.
+      assert.deepEqual(calls.filter(c => fileWrite(c) || ['plugin:fs|lstat', 'place_file_exclusive'].includes(c.command))
+        .map(c => fileWrite(c) ? 'stuk' : c.command === 'plugin:fs|lstat' ? `lstat ${isTemp(c.path) ? 'tijdelijk' : c.path}` : 'plaatsing'),
+      ['stuk', 'stuk', 'stuk', 'stuk', 'lstat tijdelijk', 'plaatsing']);
     });
     for (const [what, arrange] of [
       ['schrijven (schijf vol in stuk 2)', () => { ipc.faults.writeErrorAfter = PART + 2; }],
@@ -347,8 +351,8 @@ async function main() {
       assert.deepEqual(removes(callsFrom(from)).map(c => c.path), [failing]);
     });
     if (process.platform !== 'win32') {
-      await check('11d. Tauri in stukken, grens (knownbug 2023): een link op de hulpnaam tussen twee stukken krijgt de rest; de plaatsing weigert', async () => {
-        const d = caseDir(), target = path.join(d, 'link-tussendoor.ifc'), other = path.join(d, 'ander.bin');
+      await check('11d. Tauri in stukken, grens (knownbug 2023): een link op de hulpnaam tussen twee stukken krijgt de rest; de controle na het laatste stuk ziet de link, geen plaatsing', async () => {
+        const d = caseDir(), target = path.join(d, 'link-tussendoor.ifc'), other = path.join(d, 'ander.bin'), before = ipc.calls.length;
         fs.writeFileSync(other, 'ANDER:');
         let opens = 0, temp = '';
         ipc.faults.beforeOpen = p => {
@@ -358,12 +362,34 @@ async function main() {
         try {
           const error = await caught(saveInParts(target));
           assert.ok(reason('write')(error));
-          assert.match(String((error as ByteWriteError).cause), /refused \(not-regular-file\)/);
+          assert.match(String((error as ByteWriteError).cause), /na het laatste stuk geen gewoon bestand van 16 bytes: .*\(een link\)/);
         } finally { ipc.faults.beforeOpen = null; }
         assert.equal(fs.existsSync(target), false, 'geen doel');
-        assert.equal(fs.readlinkSync(temp), other, 'de link onder de hulpnaam blijft (not-regular-file: niets opruimen)');
+        assert.equal(placeCalls(callsFrom(before)).length, 0, 'geen plaatsing');
+        assert.equal(fs.lstatSync(temp, { throwIfNoEntry: false }), undefined, 'de link onder de eigen hulpnaam is weg (alleen de link)');
         assert.equal(fs.readFileSync(other).toString('hex'), hex('ANDER:') + hex(bytes.subarray(PART)),
           'het doel van de link kreeg de stukken na het eerste: de grens van knownbug 2023');
+      });
+    }
+    // Knownbug 2026: een stuk dat Tauri na een mislukte `fetch` opnieuw stuurt, maakt het bestand te lang. Dat ziet de
+    // controle na het laatste stuk: geen plaatsing, het eigen bestand weg. Bij de directe aanmaak is het eigen bestand
+    // het doel zelf: dat bestond vóór de opslag niet (exclusief aangemaakt), dus het weghalen kost de planner niets.
+    for (const [where, forbidTemp] of [['tijdelijk bestand', false], ['directe aanmaak', true]] as const) {
+      await check(`11f. Tauri in stukken, ${where}: een stuk komt twee keer aan: fout write, geen plaatsing, geen bestand`, async () => {
+        const d = caseDir(), target = path.join(d, `herhaald-${forbidTemp}.ifc`), before = ipc.calls.length;
+        let n = 0;
+        ipc.faults.resend = (_p, o) => o?.append === true && ++n === 2;
+        ipc.faults.forbidden = forbidTemp ? (p => isTemp(p)) : null;
+        try {
+          const error = await caught(saveInParts(target));
+          assert.ok(reason('write')(error));
+          assert.match(String((error as ByteWriteError).cause), /na het laatste stuk geen gewoon bestand van 16 bytes: .*\(21 bytes\)/);
+        } finally { ipc.faults.resend = null; ipc.faults.forbidden = null; }
+        assert.deepEqual(onDisk(d), {}, 'geen doel en geen hulpbestand');
+        const calls = callsFrom(before);
+        assert.equal(calls.filter(c => c.resent).length, 1, 'Tauri stuurde één stuk opnieuw');
+        assert.equal(placeCalls(calls).length, 0, 'geen plaatsing');
+        assert.deepEqual(removes(calls).map(c => forbidTemp ? c.path === target : isTemp(c.path)), [true], 'alleen het eigen bestand opgeruimd');
       });
     }
     await check('11e. Tauri: de productie-ingang schrijft 16 MiB + 1 byte in twee stukken naar het tijdelijke bestand', async () => {

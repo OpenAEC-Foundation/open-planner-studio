@@ -20,6 +20,8 @@ interface IpcCall {
   bufferBytes?: number;
   /** Ergens in een object-payload zit een `Uint8Array`/`ArrayBuffer`: Tauri maakt daar JSON van, één getal per byte. */
   bytesInObject: boolean;
+  /** Tauri stuurde deze aanroep opnieuw via `postMessage` (`faults.resend`). */
+  resent?: boolean;
   /** Er is werkelijk een bestand voor schrijven geopend (of via een handle geschreven); een geweigerde
    *  aanmaak of opening telt niet. */
   wrote: boolean;
@@ -183,6 +185,10 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
      *  Tauri geeft de view ongewijzigd aan `fetch` (`process-ipc-message-fn.js`, 2.12.3); de proeven met deze stand
      *  bewijzen dat elk stuk ook dan alleen zijn eigen bytes meestuurt. */
     wholeBufferBody: false,
+    /** `write_file`: na een geslaagde aanroep `true` ⇒ Tauri stuurt dezelfde aanroep nog eens (zie daar). */
+    resend: null as ((path: string, options: OpenOptions | undefined) => boolean) | null,
+    /** Vlak vóór `stat`/`lstat` met het pad: een ander programma verandert iets, of de aanroep faalt (gooien). */
+    beforeMeta: null as ((command: 'stat' | 'lstat', path: string) => void) | null,
   };
   let bytesRead = 0;
   let seeks = 0;
@@ -204,6 +210,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
       case 'plugin:fs|lstat': {
         let st: fs.Stats;
         if (faults.forbiddenMeta && faults.forbidden?.(String(path))) throw `forbidden path: ${path}`;
+        faults.beforeMeta?.(command === 'plugin:fs|lstat' ? 'lstat' : 'stat', String(path));
         try {
           st = command === 'plugin:fs|stat' ? fs.statSync(String(path)) : fs.lstatSync(String(path));
         } catch (error) {
@@ -304,28 +311,39 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
         // afgekapt bestand achter. Daarna write_all.
         if (sent.error !== undefined) throw sent.error;
         const p = String(path), o = writeFileOpenOptions(callOptions);
-        faults.beforeOpen?.(p);
-        if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;
-        if (!o.createNew && !o.append && faults.directWriteError !== null) throw faults.directWriteError;
-        // De fouttekst van `write_file_inner`: openen en schrijven geven elk hun eigen begin.
-        let fd: number;
-        try { fd = fs.openSync(p, openFlags(o), o.mode); }
-        catch (error) { throw `failed to open file at path: ${p} with error: ${error instanceof Error ? error.message : String(error)}`; }
-        call.wrote = true;
-        try {
-          const notByte = Array.isArray(args) ? (args as unknown[]).find(v => !(Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 255)) : undefined;
-          if (notByte !== undefined) throw `invalid byte in the data to write: ${JSON.stringify(notByte)}`;
-          const data = ArrayBuffer.isView(args)
-            ? faults.wholeBufferBody ? new Uint8Array(args.buffer) : new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
-            : args instanceof ArrayBuffer ? new Uint8Array(args)
-              : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
-          if (data === null) throw new Error('unexpected invoke body');
-          const size = fs.fstatSync(fd).size;
-          const room = faults.writeErrorAfter === null ? data.length : Math.max(0, faults.writeErrorAfter - size);
-          const n = Math.min(data.length, room);
-          if (n > 0) fs.writeSync(fd, data, 0, n);
-          if (n < data.length) throw `failed to write bytes to file at path: ${p} with error: No space left on device (os error 28)`;
-        } finally { fs.closeSync(fd); }
+        const writeOnce = (entry: IpcCall) => {
+          faults.beforeOpen?.(p);
+          if (faults.forbidden?.(p)) throw `forbidden path: ${p}`;
+          if (!o.createNew && !o.append && faults.directWriteError !== null) throw faults.directWriteError;
+          // De fouttekst van `write_file_inner`: openen en schrijven geven elk hun eigen begin.
+          let fd: number;
+          try { fd = fs.openSync(p, openFlags(o), o.mode); }
+          catch (error) { throw `failed to open file at path: ${p} with error: ${error instanceof Error ? error.message : String(error)}`; }
+          entry.wrote = true;
+          try {
+            const notByte = Array.isArray(args) ? (args as unknown[]).find(v => !(Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 255)) : undefined;
+            if (notByte !== undefined) throw `invalid byte in the data to write: ${JSON.stringify(notByte)}`;
+            const data = ArrayBuffer.isView(args)
+              ? faults.wholeBufferBody ? new Uint8Array(args.buffer) : new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
+              : args instanceof ArrayBuffer ? new Uint8Array(args)
+                : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
+            if (data === null) throw new Error('unexpected invoke body');
+            const size = fs.fstatSync(fd).size;
+            const room = faults.writeErrorAfter === null ? data.length : Math.max(0, faults.writeErrorAfter - size);
+            const n = Math.min(data.length, room);
+            if (n > 0) fs.writeSync(fd, data, 0, n);
+            if (n < data.length) throw `failed to write bytes to file at path: ${p} with error: No space left on device (os error 28)`;
+          } finally { fs.closeSync(fd); }
+        };
+        writeOnce(call);
+        if (faults.resend?.(p, callOptions) === true) {
+          // Tauri 2.12.3 (`ipc-protocol.js:58-67`): de `fetch` faalde nadat Rust schreef, dus gaat dezelfde aanroep
+          // opnieuw via `postMessage`, met dezelfde kop en de bytes als JSON (`protocol.rs:300-307`). Rust voert hem
+          // gewoon nog eens uit; de webview ziet alleen de uitkomst van die tweede keer.
+          const again: IpcCall = { ...call, rawBody: false, resent: true, wrote: false };
+          calls.push(again);
+          writeOnce(again);
+        }
         return null;
       }
       case 'plugin:fs|rename':
@@ -335,10 +353,17 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
       case 'plugin:fs|mkdir':
         fs.mkdirSync(String(path), { recursive: (a.options as { recursive?: boolean } | undefined)?.recursive === true });
         return null;
-      case 'plugin:fs|remove':
+      case 'plugin:fs|remove': {
+        // plugin-fs 2.7.1 `remove` (`commands.rs:771-830`): de soort van het pad zelf (`symlink_metadata`, een link
+        // wordt niet gevolgd); een bestand of link gaat weg met `remove_file` (bij een link alleen de link), een map
+        // alleen als hij leeg is (`remove_dir`), tenzij `recursive`.
         if (faults.removeError !== null) throw faults.removeError;
-        fs.unlinkSync(String(path));
+        const p = String(path);
+        if (!fs.lstatSync(p).isDirectory()) fs.unlinkSync(p);
+        else if ((a.options as { recursive?: boolean } | undefined)?.recursive === true) fs.rmSync(p, { recursive: true });
+        else fs.rmdirSync(p);
         return null;
+      }
       case 'place_file_exclusive': {
         const from = String(a.from), to = String(a.to);
         call.path = to;

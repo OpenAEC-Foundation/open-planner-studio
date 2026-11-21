@@ -242,10 +242,13 @@ export const USER_FILE_CHUNK_BYTES = 16 * 1024 * 1024;
  * toevoegen, niet afkappen, en geen nieuw bestand als het weg is. Na een geslaagd eerste stuk is het bestand van ons;
  * elke fout van een volgend stuk, ook bij het openen, is dan een `OwnFileWriteError`. Elk stuk is een eigen kopie
  * (`slice`), zodat ook een webview die van een view de hele onderliggende buffer zou sturen alleen dit stuk stuurt.
- * Eén aanroep zoals voorheen blijft het voor een buffer van hoogstens één stuk, en voor een modus zonder schrijfrecht
- * voor de eigenaar (0444, knownbug 162): die modus geldt pas voor latere openingen, dus een volgend stuk zou falen.
- * De directe terugval (`write`) blijft één aanroep. Grens: elk volgend stuk opent het pad opnieuw en volgt een link
- * (knownbug 2023).
+ * Na het laatste stuk volgt één `lstat`: staat er een gewoon bestand van precies de lengte van de buffer (knownbug
+ * 2026)? Alleen type en lengte, geen teruglezen van de inhoud. Omdat de aanroeper pas na `createNew` beslist
+ * (`refuseBeforePlace`) en plaatst, komt een bestand van de verkeerde lengte nooit op een naam.
+ * Eén aanroep zoals voorheen, zonder `lstat`, blijft het voor een buffer van hoogstens één stuk, en voor een modus zonder
+ * schrijfrecht voor de eigenaar (0444, knownbug 162): die modus geldt pas voor latere openingen, dus een volgend stuk zou
+ * falen. De directe terugval (`write`) blijft één aanroep. Grens: elk volgend stuk opent het pad opnieuw en volgt een
+ * link (knownbug 2023).
  */
 export function tauriUserBytesFs(fs: TauriFs, chunkBytes = USER_FILE_CHUNK_BYTES): UserFileFs<Uint8Array> {
   const whole = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
@@ -260,6 +263,21 @@ export function tauriUserBytesFs(fs: TauriFs, chunkBytes = USER_FILE_CHUNK_BYTES
         } catch (error) {
           throw new OwnFileWriteError(error);
         }
+      }
+      // Faalt in de webview de `fetch` van een stuk nadat Rust het schreef, dan stuurt Tauri het opnieuw via
+      // `postMessage` (tauri 2.12.3, `ipc-protocol.js`) en staat het er twee keer: het bestand is dan te lang. Het eerste
+      // stuk was geslaagd, dus het bestand is van ons. Zowel een afwijking als een `lstat` die faalt (dan weet de app niet
+      // wat er staat) is daarom een mislukte schrijfactie van een eigen bestand: de aanroeper ruimt op en plaatst niets.
+      // Opruimen raakt bij een link alleen de link (plugin-fs 2.7.1 `remove`: `symlink_metadata`, dan `remove_file`).
+      let info: Awaited<ReturnType<TauriFs['lstat']>>;
+      try {
+        info = await fs.lstat(p);
+      } catch (error) {
+        throw new OwnFileWriteError(error);
+      }
+      if (!info.isFile || info.size !== bytes.byteLength) {
+        const seen = info.isFile ? `${info.size} bytes` : info.isSymlink ? 'een link' : info.isDirectory ? 'een map' : 'geen gewoon bestand';
+        throw new OwnFileWriteError(new Error(`na het laatste stuk geen gewoon bestand van ${bytes.byteLength} bytes: ${p} (${seen})`));
       }
     },
   };
