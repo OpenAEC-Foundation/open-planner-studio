@@ -184,7 +184,7 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
         s.updateTask(id, { status: 'STARTED', time: {
           ...task.time, scheduleStart: '2026-06-03T08:00', durationUnit: 'hours',
           durationMinutes: 480, scheduleDuration: 1, completion: 0.5,
-          actualStart, actualFinish: undefined,
+          remainingMinutes: 240, remainingTime: 0.5, actualStart, actualFinish: undefined,
         } });
       }
       const after = window.__OPS__!.store.getState();
