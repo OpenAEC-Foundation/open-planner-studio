@@ -39,7 +39,7 @@ const sizes = (opts.mb ?? '10').split(',').map(Number);
 const runs = Number(opts.runs ?? 3);
 const heap = Number(opts.heap ?? 8192);
 const childTimeoutMs = Number(opts['timeout-min'] ?? 20) * 60_000;
-if (sizes.some(s => !(s > 0)) || !(runs >= 1)) throw new Error('--mb verwacht getallen, --runs minstens 1');
+if (sizes.some(s => !(s > 0)) || !(runs >= 0)) throw new Error('--mb verwacht getallen, --runs minstens 1');
 if (sizes.some(s => s > 10) && process.env.CI !== 'true') {
   console.error('Boven 10 MB alleen in CI (gedeelde kantoor-pc). Gebruik de handmatige job in ifc-foreign.yml.');
   process.exit(2);
@@ -68,6 +68,7 @@ import { replaceOwnFileBytes, tauriOwnFileReplaceFs, type OwnFileReplaceFs } fro
 import type { IfcSaveJob } from '@/state/prepareIfcOutput';
 
 const [mode, file, tmp] = process.argv.slice(2);
+const snel = mode === 'snel' || mode === 'profiel-snel';
 if (mode === 'zetten') {
   writeFileSync(tmp, await settle(new Uint8Array(readFileSync(file))));
   process.exit(0);
@@ -93,7 +94,7 @@ const hr = () => Number(process.hrtime.bigint() / 1000n);
 emit({ mode, node: process.version, pid: process.pid, ...mem() });
 
 const bytes = await step('1a bestand lezen', () => new Uint8Array(readFileSync(file)));
-if (mode !== 'snel') {
+if (!snel) {
   let raw: unknown = await step('1b readIfcBytesDetailed (zonder worker)', () => readIfcBytesDetailed(bytes, {}, { createWorker: () => null }));
   raw = null;
 }
@@ -106,7 +107,7 @@ for (const id of source.chunkIds) if (id >= 0) entities++;
 emit({ bron: { bytes: source.bytes.length, stukkenMetId: entities, vreemdeObjecten: source.foreignObjectCount, taken: opened.tasks.length } });
 
 let input = cloneDomain(opened);
-if (mode !== 'snel') {
+if (!snel) {
   const edit = ordinaryEdits(input).find(e => e.kind === 'duur');
   if (!edit) throw new Error('geen duurwijziging');
   input = await step('2 wijziging (duur een dag langer)', () => applyEdit(edit, input));
@@ -201,7 +202,7 @@ function child(mode, file, extra = []) {
 }
 
 // ── De verdeling per functie uit het profiel, alleen binnen het venster van stap 3b ─────────────────────────────
-const WATCH = ['handleIfcSaveRequest', 'prepareIfcWrite', 'scanForeignStep', 'scanStep', 'classify', 'assertSameSource',
+const WATCH = ['structuralCounts', 'equalBytes', 'bindings', 'handleIfcSaveRequest', 'prepareIfcWrite', 'scanForeignStep', 'scanStep', 'classify', 'assertSameSource',
   'pristineDomain', 'buildLines', 'writeIfcMergeLines', 'sourceFormWhereUnchanged', 'lossCheck', 'changedScopes', 'readPlanning',
   'preserveAuxiliaryIdentities', 'assemble', 'concatParts', 'checkedBytes', 'validateMergeOutput', 'foreignScanFrom',
   'pristineFromScan', 'openMergePlanning', 'planningCanon', 'unchangedPlanningNumberProblem', 'ownOutputProblem',
@@ -217,7 +218,7 @@ function summarize(profile, window) {
   for (const d of profile.timeDeltas) { t += d; times.push(t); }
   const inWindow = window && window.beginUs >= profile.startTime && window.eindUs <= profile.endTime;
   const lo = inWindow ? window.beginUs : profile.startTime, hi = inWindow ? window.eindUs : profile.endTime;
-  const incl = new Map(), self = new Map();
+  const incl = new Map(), self = new Map(), inCheck = new Map();
   let total = 0;
   for (let i = 0; i < profile.samples.length; i++) {
     const at = times[i];
@@ -231,13 +232,16 @@ function summarize(profile, window) {
     const onStack = new Set();
     for (let id = leaf.id; id !== undefined; id = parent.get(id)) onStack.add(nameOf(nodes.get(id)));
     for (const name of onStack) incl.set(name, (incl.get(name) ?? 0) + dur);
+    // Dezelfde functie binnen de uitvoercontrole (`validateMergeOutput`) en daarbuiten (o.a. het opnieuw scannen van de bron).
+    if (onStack.has('validateMergeOutput')) for (const name of onStack) inCheck.set(name, (inCheck.get(name) ?? 0) + dur);
   }
   const s = us => Math.round(us / 1000) / 1000;
   const pct = us => Math.round(us / total * 1000) / 10;
   return {
     venster: inWindow ? 'stap 3b' : 'heel het proces (venster viel buiten het profiel)',
     vensterS: s(hi - lo), bemonsterdS: s(total),
-    benoemd: WATCH.filter(n => incl.has(n)).map(n => ({ functie: n, inclusiefS: s(incl.get(n)), deel: pct(incl.get(n)), eigenS: s(self.get(n) ?? 0) })),
+    benoemd: WATCH.filter(n => incl.has(n)).map(n => ({ functie: n, inclusiefS: s(incl.get(n)), deel: pct(incl.get(n)), eigenS: s(self.get(n) ?? 0),
+      binnenUitvoercontroleS: s(inCheck.get(n) ?? 0), buitenUitvoercontroleS: s(incl.get(n) - (inCheck.get(n) ?? 0)) })),
     topInclusief: [...incl].sort((a, b) => b[1] - a[1]).slice(0, 60).map(([n, us]) => ({ functie: n, inclusiefS: s(us), deel: pct(us) })),
     topEigen: [...self].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([n, us]) => ({ functie: n, eigenS: s(us), deel: pct(us) })),
   };
@@ -259,22 +263,24 @@ for (const mb of sizes) {
       writeFileSync(join(outDir, `ruw-${mb}mb-${mode}-${r + 1}.json`), `${JSON.stringify(res, null, 2)}\n`);
     }
   }
-  const profDir = join(outDir, `profiel-${mb}mb`);
-  rmSync(profDir, { recursive: true, force: true });
-  mkdirSync(profDir, { recursive: true });
-  const prof = child('profiel', file, ['--cpu-prof', `--cpu-prof-dir=${profDir}`]);
-  const profFile = readdirSync(profDir).find(f => f.endsWith('.cpuprofile'));
-  row.profiel = { ok: prof.ok, status: prof.status, signal: prof.signal, steps: prof.steps, uitkomst: prof.uitkomst,
-    ...(prof.ok ? {} : { laatsteBegonnenStap: prof.laatsteBegonnenStap, stderr: prof.stderr }),
-    ...(profFile ? { bestand: profFile, verdeling: summarize(JSON.parse(readFileSync(join(profDir, profFile), 'utf8')), prof.venster3b) } : { verdeling: null }) };
-  console.error(`# ${mb} MB profiel: ${prof.ok ? 'ok' : 'MISLUKT'}`);
+  for (const [key, mode] of [['profiel', 'profiel'], ['profielSnel', 'profiel-snel']]) {
+    const profDir = join(outDir, `${mode}-${mb}mb`);
+    rmSync(profDir, { recursive: true, force: true });
+    mkdirSync(profDir, { recursive: true });
+    const prof = child(mode, file, ['--cpu-prof', `--cpu-prof-dir=${profDir}`]);
+    const profFile = readdirSync(profDir).find(f => f.endsWith('.cpuprofile'));
+    row[key] = { mode, ok: prof.ok, status: prof.status, signal: prof.signal, steps: prof.steps, uitkomst: prof.uitkomst,
+      ...(prof.ok ? {} : { laatsteBegonnenStap: prof.laatsteBegonnenStap, stderr: prof.stderr }),
+      ...(profFile ? { bestand: profFile, verdeling: summarize(JSON.parse(readFileSync(join(profDir, profFile), 'utf8')), prof.venster3b) } : { verdeling: null }) };
+    console.error(`# ${mb} MB ${mode}: ${prof.ok ? 'ok' : 'MISLUKT'}`);
+  }
   rmSync(file, { force: true });
   results.push(row);
   writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, runs, heap, results }, null, 2)}\n`);
 }
 if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ node: process.version, runs, heap, results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
-const failed = results.flatMap(row => [...row.met, ...row.snel, row.profiel].filter(r => !r.ok).map(r => `${row.mb} MB ${r.mode ?? 'profiel'}`));
+const failed = results.flatMap(row => [...row.met, ...row.snel, row.profiel, row.profielSnel].filter(r => !r.ok).map(r => `${row.mb} MB ${r.mode}`));
 if (failed.length) {
   console.error(`Mislukte runs (uitkomst, staat in het resultaat): ${failed.join(', ')}`);
   process.exitCode = 1;

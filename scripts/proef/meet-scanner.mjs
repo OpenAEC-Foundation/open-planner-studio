@@ -394,7 +394,8 @@ async function measureBrowser(name, file, fn = '__meet') {
 
 // Meet-branch #804 stap 1 (niet voor main): de opslag met en zonder wijziging (`meet-opslag.mjs`), in dezelfde handmatige
 // job; de workflow zelf kan vanaf deze branch niet gewijzigd worden. De uitkomst gaat mee in het resultaatbestand.
-const opslagRuns = opts.opslag ?? (process.env.CI === 'true' ? '3' : undefined);
+// Tweede ronde: alleen de profielen (met en zonder wijziging), de tijden per stap staan al in de eerste drie runs.
+const opslagRuns = opts.opslag ?? (process.env.CI === 'true' ? '0' : undefined);
 let opslag;
 if (opslagRuns !== undefined) {
   const dir = join(process.env.RUNNER_TEMP || tmpdir(), 'meting-opslag');
