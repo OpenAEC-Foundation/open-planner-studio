@@ -1972,8 +1972,13 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       t0 = performance.now();
       let refusedAt = 0;
       let queuedAt = 0;
-      const save = runProjectFileWrite(() => targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset }), () => null)
-        .then(r => { refusedAt = performance.now() - t0; return r; });
+      // Het meetpunt ligt ín de beurt, vóór het slot vrijkomt. Een `.then` op de belofte van de beurt loopt pas als de
+      // gebeurtenislus eraan toekomt, en dat kan ná de start van de volgende beurt zijn (knownbug 1954: 3018 tegen 3021 ms).
+      const save = runProjectFileWrite(async () => {
+        const r = await targetRefusal({ kind: 'site', id: 'doel' }, { readSite: async () => externalPset });
+        refusedAt = performance.now() - t0;
+        return r;
+      }, () => null);
       await new Promise<void>(resolve => { setImmediate(resolve); });
       const queued = runProjectFileWrite(async () => { queuedAt = performance.now() - t0; }, () => undefined);
       ok('9d stille Worker: het schrijfslot is bezet tijdens de doelcontrole', isProjectFileWriteBusy());
@@ -1985,7 +1990,7 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         refusedAt >= FOREIGN_SCAN_START_TIMEOUT_MS - 5 && refusedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
       console.log(`..  9d stille Worker: weigering na ${Math.round(refusedAt)} ms, volgende opslag na ${Math.round(queuedAt)} ms (starttijd ${FOREIGN_SCAN_START_TIMEOUT_MS} ms); gestart en stil: ${Math.round(afterStart)} ms`);
       ok(`9d stille Worker: de volgende opslag liep direct daarna (${Math.round(queuedAt)} ms)`,
-        queuedAt >= refusedAt - 1 && queuedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
+        queuedAt >= refusedAt && queuedAt < FOREIGN_SCAN_START_TIMEOUT_MS + 1000);
     } finally { globalThis.Worker = originalWorker; }
   }
   // 9e. Knownbug 1758: de modelscan in de Worker. Het antwoord van de modelscan komt uit de Worker, en de vroege stop
