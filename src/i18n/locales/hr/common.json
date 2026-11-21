@@ -458,8 +458,15 @@
     "ifcForeignReplaceBlocked": "Nije spremljeno. Spremanje preko postojeće datoteke s modelom zgrade još nije sigurno. Upotrijebite „Spremi kao“ i odaberite novi naziv.",
     "ifcForeignMergeRefused": "IFC-datoteka nije spremljena. Model zgrade ili podaci drugog programa inače ne bi ostali u potpunosti sačuvani. Poništite posljednju promjenu ili izvezite samo raspored: u IFC s opcijom „Bez modela zgrade“ ili u drugi format.",
     "ifcSaveChangedWhileWaiting": "Nije spremljeno. Dokument ili izvor modela zgrade promijenio se tijekom pripreme. Pokušajte ponovo spremiti.",
+    "ifcForeignReplaceOtherVersion": "Drugi program promijenio je {{file}} dok ga je aplikacija spremala. Ta verzija spremljena je kao {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Prethodno spremanje datoteke {{file}} nije dovršeno. Raspored koji se tada spremao nalazi se u {{copy}}. Izbrišite tu datoteku ako vam više nije potrebna.",
+    "ifcForeignReplaceTargetTaken": "Nije spremljeno. Tijekom spremanja drugi je program na {{target}} stavio novu datoteku. Sada postoje tri datoteke: ta nova datoteka na {{target}}, vaš raspored u {{temp}} i prethodna verzija u {{previous}}. Vaše su promjene i dalje u aplikaciji.",
+    "ifcForeignReplacePreviousStranded": "Nije spremljeno, a prethodna verzija datoteke nije se mogla vratiti na svoje mjesto. Sada se nalazi u {{previous}}. Vaše su promjene i dalje u aplikaciji. Odaberite Spremi kao da biste ih spremili u novu datoteku.",
+    "ifcForeignReplaceSaveAsOnly": "Nije spremljeno. Ova se datoteka na ovom mjestu ne može sigurno zamijeniti. Datoteka nije promijenjena. Odaberite Spremi kao da biste svoje promjene spremili u novu datoteku.",
+    "ifcForeignReplaceLeftOver": "Od prekinutog spremanja datoteke {{file}} ostala je ova datoteka: {{path}}. Provjerite je li vam još potrebna.",
     "ifcSourceCopyFailed": "Raspored se sprema za oporavak od pada, ali kopija modela zgrade nije mogla biti spremljena. Nakon pada model zgrade može nedostajati. Sami spremite svoj dokument kao cjelovitu IFC-datoteku.",
-    "ifcForeignSourceMissing": "Nije spremljeno. Model zgrade ili podaci drugog programa nisu pronađeni. Upotrijebite „Spremi kao“ kako biste spremili samo raspored u novu datoteku. Otvorite izvornu IFC-datoteku da biste ponovo radili s cijelom datotekom."
+    "ifcForeignSourceMissing": "Nije spremljeno. Model zgrade ili podaci drugog programa nisu pronađeni. Upotrijebite „Spremi kao“ kako biste spremili samo raspored u novu datoteku. Otvorite izvornu IFC-datoteku da biste ponovo radili s cijelom datotekom.",
+    "taskTypeRenameNameTaken": "U ovom projektu naziv ostaje „{{oldName}}”: druga kategorija radova u ovom projektu već se zove „{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -844,7 +851,8 @@
     "confirmClose": "Ovaj dokument ima nespremljene promjene. Želite li ga ipak zatvoriti?",
     "closeTitle": "Nespremljene promjene",
     "closeBody": "'{{name}}' ima promjene koje još nisu spremljene.",
-    "dontSave": "Ne spremaj"
+    "dontSave": "Ne spremaj",
+    "stillSaving": "Još se sprema…"
   },
   "feedback": {
     "buttonTooltip": "Pošalji povratne informacije",
@@ -2147,5 +2155,9 @@
     "bodyWithPool": "Datoteka projekta sadržavat će samo raspored; biblioteka resursa spremit će se u drugu datoteku. Model zgrade i podaci drugog programa neće biti uključeni. Otvorena datoteka ostaje nepromijenjena. Želite li nastaviti?",
     "continue": "Izvezi",
     "cancel": "Odustani"
+  },
+  "replaceCopy": {
+    "otherProgram": "verzija drugog programa {{when}}",
+    "unsavedSchedule": "nespremljeni raspored {{when}}"
   }
 }

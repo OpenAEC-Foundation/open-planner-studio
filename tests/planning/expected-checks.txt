@@ -192,8 +192,10 @@ check-ifc-foreign-open.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-foreign-preserve.ts matrix
+check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
+check-ifc-foreign-telling-verschil.ts los
 check-ifc-globalid.ts matrix
 check-ifc-kalendertijd.ts matrix
 check-ifc-legacy-arity.ts matrix
@@ -232,6 +234,7 @@ check-kalender-ms-randen.ts matrix
 check-kalender-ms-wandeling.ts matrix
 check-keyboard-event-routing.ts matrix
 check-knownbug-4.ts matrix
+check-knownbug-7.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
 check-layout-presets.ts matrix

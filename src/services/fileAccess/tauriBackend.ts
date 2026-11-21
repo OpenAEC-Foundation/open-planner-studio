@@ -1,4 +1,4 @@
-import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
+import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, PickedSaveTarget, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import {
   isForbiddenPathError, writeUserFileTauri, writeNewUserBytesTauri,
@@ -208,36 +208,24 @@ export async function saveNewBytesDialogTauri(
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
-  // Direct na de bestandskiezer vastgesteld (fixronde 1 van #1019): was het pad toen leeg, dan blijft het de exclusieve
-  // aanmaakroute houden, ook als er daarna iets verschijnt (dat geeft `target-exists`). Knownbug 1890: het venster
-  // tussen de bevestiging in de kiezer en dit moment.
-  const existedAtPick = !!opts.replaceExisting && await isRegularFileTauri(savedPath);
   if (await opts.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  if (existedAtPick) {
-    const current = await existingRegularFileTauri(savedPath);
-    if (current) {
-      await opts.replaceExisting!(savedPath, current);
-      return null;
-    }
-  }
   if (!(await writeNewUserBytesTauri(savedPath, bytes, opts.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
-/** Staat er op `path` een gewoon bestand (geen link gevolgd)? Elke fout telt als nee: dan blijft de exclusieve
- *  aanmaakroute, zoals main. */
-async function isRegularFileTauri(path: string): Promise<boolean> {
-  const { lstat } = await import('@tauri-apps/plugin-fs');
-  try { return (await lstat(path)).isFile; } catch { return false; }
+/** Zie `PickedSaveTarget` in `index.ts`. */
+export async function pickSaveTargetTauri(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
+  const path = await pickSavePathTauri(defaultName, filters);
+  return path ? { path, current: await existingRegularFileTauri(path) } : null;
 }
 
-/** De inhoud van een gewoon bestand op `path`, zonder een link te volgen; `null` als daar niets staat, of een link of
- *  map. Een leesfout van een gewoon bestand gooit. */
-async function existingRegularFileTauri(path: string): Promise<Uint8Array | null> {
+/** De inhoud van een gewoon bestand op `path`, zonder een link te volgen. `null` als daar niets staat, een link of map,
+ *  of als `lstat` faalt (dan de exclusieve aanmaakroute, zoals main); `'unreadable'` als een gewoon bestand niet te lezen
+ *  is (de doelcontrole weigert dat, zoals voorheen de doelscan van het pad). */
+async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | null> {
   const { lstat, readFile } = await import('@tauri-apps/plugin-fs');
-  let info;
-  try { info = await lstat(path); } catch (error) { if (missingTarget(error)) return null; throw error; }
-  return info.isFile ? readFile(path) : null;
+  try { if (!(await lstat(path)).isFile) return null; } catch { return null; }
+  try { return await readFile(path); } catch { return 'unreadable'; }
 }
 
 export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {

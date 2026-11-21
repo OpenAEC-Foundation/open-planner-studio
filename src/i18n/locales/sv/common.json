@@ -358,8 +358,15 @@
     "ifcForeignReplaceBlocked": "Inte sparad. Att spara över en befintlig fil med en byggnadsmodell är ännu inte säkert. Använd ”Spara som” och välj ett nytt namn.",
     "ifcForeignMergeRefused": "IFC-filen skrevs inte. Byggnadsmodellen eller data från ett annat program skulle annars inte bevaras helt. Ångra den senaste ändringen, eller exportera bara tidsplanen: till IFC med ”Utan byggnadsmodell”, eller till ett annat format.",
     "ifcSaveChangedWhileWaiting": "Inte sparad. Dokumentet eller källan till byggnadsmodellen ändrades under förberedelsen. Försök spara igen.",
+    "ifcForeignReplaceOtherVersion": "Ett annat program ändrade {{file}} medan appen sparade den. Den versionen har sparats som {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "En tidigare sparning av {{file}} blev inte klar. Tidsplanen som skulle sparas finns i {{copy}}. Ta bort den filen om du inte längre behöver den.",
+    "ifcForeignReplaceTargetTaken": "Inte sparat. Medan sparandet pågick placerade ett annat program en ny fil på {{target}}. Nu finns tre filer: den nya filen på {{target}}, din tidsplan i {{temp}} och den föregående versionen i {{previous}}. Dina ändringar finns också kvar i appen.",
+    "ifcForeignReplacePreviousStranded": "Inte sparat, och den föregående versionen av filen kunde inte läggas tillbaka på sin plats. Den finns nu i {{previous}}. Dina ändringar finns fortfarande kvar i appen. Välj ”Spara som” för att spara dem i en ny fil.",
+    "ifcForeignReplaceSaveAsOnly": "Inte sparat. Den här filen kan inte ersättas säkert på den här platsen. Filen har inte ändrats. Välj ”Spara som” för att spara dina ändringar i en ny fil.",
+    "ifcForeignReplaceLeftOver": "Den här filen blev kvar från en avbruten sparning av {{file}}: {{path}}. Kontrollera om du fortfarande behöver den.",
     "ifcSourceCopyFailed": "Tidsplanen sparas för kraschskydd, men kopian av byggnadsmodellen kunde inte sparas. Efter en krasch kan byggnadsmodellen saknas. Spara ditt projekt själv som en fullständig IFC-fil.",
-    "ifcForeignSourceMissing": "Inte sparad. Byggnadsmodellen eller data från ett annat program hittades inte. Använd ”Spara som” för att bara spara tidsplanen i en ny fil. Öppna den ursprungliga IFC-filen för att arbeta med hela filen igen."
+    "ifcForeignSourceMissing": "Inte sparad. Byggnadsmodellen eller data från ett annat program hittades inte. Använd ”Spara som” för att bara spara tidsplanen i en ny fil. Öppna den ursprungliga IFC-filen för att arbeta med hela filen igen.",
+    "taskTypeRenameNameTaken": "I det här projektet behåller namnet ”{{oldName}}”: en annan arbetskategori i projektet heter redan ”{{takenName}}”."
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -742,7 +749,8 @@
     "confirmClose": "Det här dokumentet har osparade ändringar. Vill du stänga det ändå?",
     "closeTitle": "Osparade ändringar",
     "closeBody": "'{{name}}' har ändringar som ännu inte är sparade.",
-    "dontSave": "Spara inte"
+    "dontSave": "Spara inte",
+    "stillSaving": "Sparas fortfarande…"
   },
   "feedback": {
     "buttonTooltip": "Ge feedback",
@@ -2018,5 +2026,9 @@
     "bodyWithPool": "Projektfilen innehåller bara tidsplanen; biblioteket hamnar i en andra fil. Byggnadsmodellen och data från ett annat program tas inte med. Den öppnade filen förblir oförändrad. Vill du fortsätta?",
     "continue": "Exportera",
     "cancel": "Avbryt"
+  },
+  "replaceCopy": {
+    "otherProgram": "version från ett annat program {{when}}",
+    "unsavedSchedule": "osparad tidsplan {{when}}"
   }
 }
