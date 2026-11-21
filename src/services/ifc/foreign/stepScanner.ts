@@ -30,6 +30,7 @@
  * lezer slaat een complexe instantie over (`readEntity` geeft -1), de scanner maakt er een stuk van.
  */
 import { decodeStepText } from '../stepText';
+import { METING_DATA } from './meting'; // METING
 
 /** Het grootste `#id` dat de scanner aanneemt (2^31 − 1): de index rekent in int32. Een id erboven weigert hij
  *  (`id-te-groot`); de merge geeft er geen uit (`mergeWriter.ts`). */
@@ -983,6 +984,10 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const kinds = kind.done();
   for (let k = 0; k < total; k++) kindArr[k] = kinds[k];
 
+  METING_DATA('index', () => { const buf = (a: ArrayBufferView) => a.buffer.byteLength; return { stukken: total, verwijzingen: outTarget.length, // METING
+    kind: kindArr.byteLength, start: buf(start.done()), end: buf(end.done()), entStart: buf(entStartArr), typeCode: buf(typeCode.done()), idNum: buf(idNumArr), // METING
+    byNum: byNum instanceof Int32Array ? byNum.byteLength : -byNum.size, outOff: buf(outOffArr), outTarget: outTarget.byteLength, outArg: buf(outArgArr), // METING
+    inOff: inOff.byteLength, inSource: inSource.byteLength, inArg: inArg.byteLength }; }); // METING
   return new StepIndex({
     bytes: b, kind: kindArr, start: start.done(), end: end.done(), entStart: entStartArr,
     typeCode: typeCode.done(), typeNames, idNum: idNumArr, byNum,

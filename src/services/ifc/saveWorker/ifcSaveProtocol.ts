@@ -16,6 +16,7 @@ import { StepScanError } from '@/services/ifc/foreign/stepScanner';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
+import { METING } from '@/services/ifc/foreign/meting'; // METING
 
 export type IfcSaveRequest = { readonly id: number; readonly job: IfcSaveJob };
 
@@ -50,6 +51,7 @@ export interface IfcSaveWireError {
 /** Rekent één geval zoals `prepareIfcOutput` op deze thread, in de vorm die over de grens gaat. */
 export async function runIfcSaveJob(job: IfcSaveJob): Promise<IfcSaveResult> {
   const output = await computeIfcOutputHere(job);
+  METING('G klaar (uit prepareIfcWrite terug)'); // METING
   if (!output.prepared) {
     return { kind: 'writer', bytes: new TextEncoder().encode(output.content), literalCalendarIds: output.literalCalendarIds };
   }

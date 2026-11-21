@@ -39,6 +39,13 @@ const sizes = (opts.mb ?? '10').split(',').map(Number);
 const runs = Number(opts.runs ?? 3);
 const heap = Number(opts.heap ?? 8192);
 const childTimeoutMs = Number(opts['timeout-min'] ?? 20) * 60_000;
+// --geheugen: per grootte en per weg (met en zonder wijziging) drie kindprocessen: zonder meethaak (de sha256 van de
+// uitvoer zoals de code hem zonder meetregels geeft), met de haak zonder gc (de echte pieken per onderdeel) en met gc op
+// elke grens (wat vastgehouden wordt). --proef=a+b,c: daarnaast per proefset `vrij`-runs met OPS_PROEF, met dezelfde
+// sha256 als eis. --runs blijft voor de gewone tijdmeting; met --geheugen geen tijdruns en geen profielen.
+const geheugen = opts.geheugen === '1';
+const proefSets = (opts.proef ?? '').split(',').filter(Boolean).map(s => s.replace(/\+/g, ','));
+const proefRuns = Number(opts['proef-runs'] ?? 2);
 if (sizes.some(s => !(s > 0)) || !(runs >= 0)) throw new Error('--mb verwacht getallen, --runs minstens 1');
 if (sizes.some(s => s > 10) && process.env.CI !== 'true') {
   console.error('Boven 10 MB alleen in CI (gedeelde kantoor-pc). Gebruik de handmatige job in ifc-foreign.yml.');
@@ -59,6 +66,7 @@ writeFileSync(join(work, 'opslag-entry.ts'), `
 import { copyFileSync, createReadStream, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import { openInStore } from ${T('tests/planning/ifcAppRoute.ts')};
 import { applyEdit, cloneDomain, ordinaryEdits, settle } from ${T('tests/planning/ifcMergeKern.ts')};
 import { installNodeFileIpc } from ${T('tests/planning/nodeFileIpc.ts')};
@@ -69,11 +77,26 @@ import type { IfcSaveJob } from '@/state/prepareIfcOutput';
 
 const [mode, file, tmp] = process.argv.slice(2);
 const snel = mode === 'snel' || mode === 'profiel-snel';
+// Geheugenmeting (deel 1 van opslag-geheugen): een vaste klok en een vaste toevalsreeks, zodat de uitvoerbytes per run
+// gelijk zijn en de sha256 met en zonder meethaak (en met en zonder proef) te vergelijken is.
+{
+  const FIXED = Date.UTC(2026, 10, 21, 6, 0, 0);
+  const RealDate = Date;
+  class FixedDate extends RealDate {
+    constructor(...a: unknown[]) { if (a.length === 0) super(FIXED); else super(...(a as [number])); }
+    static now() { return FIXED; }
+  }
+  (globalThis as { Date: DateConstructor }).Date = FixedDate as unknown as DateConstructor;
+  let seed = 12345;
+  Math.random = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x80000000; };
+}
+const meting = process.env.OPS_METING ?? '';   // '' | 'vrij' | 'gc'
+const proef = Object.fromEntries((process.env.OPS_PROEF ?? '').split(',').filter(Boolean).map(n => [n, true]));
 if (mode === 'zetten') {
   writeFileSync(tmp, await settle(new Uint8Array(readFileSync(file))));
   process.exit(0);
 }
-const gc = (globalThis as { gc?: () => void }).gc ?? (() => {});
+const gc: () => void = (globalThis as { gc?: () => void }).gc ?? (() => {});
 const MB = (n: number) => Math.round(n / 1048576 * 10) / 10;
 const emit = (o: unknown) => process.stdout.write(JSON.stringify(o) + '\\n');
 const mem = () => {
@@ -91,7 +114,63 @@ async function step<R>(name: string, fn: () => R | Promise<R>): Promise<R> {
   return result;
 }
 const hr = () => Number(process.hrtime.bigint() / 1000n);
-emit({ mode, node: process.version, pid: process.pid, ...mem() });
+emit({ mode, node: process.version, pid: process.pid, meting, proef: Object.keys(proef), ...mem() });
+
+// De meetdraad: leest elke 10 ms de RSS van het hele proces en houdt per onderdeel de hoogste stand bij. Een eigen
+// thread, dus ook binnen een lange lus van de hoofdthread. (De draad zelf kost een paar MB RSS.)
+const memFull = () => {
+  const m = process.memoryUsage();
+  return { heapMB: MB(m.heapUsed), heapTotalMB: MB(m.heapTotal), externalMB: MB(m.external), arrayBuffersMB: MB(m.arrayBuffers), rssMB: MB(m.rss) };
+};
+const SECTIONS = 512;
+const sab = new SharedArrayBuffer(8 + 8 * SECTIONS);
+const ctl = new Int32Array(sab, 0, 2);
+const maxRss = new Float64Array(sab, 8, SECTIONS);
+let sampler: Worker | undefined;
+let actief = false;
+let tPrev = 0;
+const grenzen: unknown[] = [];
+if (meting || Object.keys(proef).length) {
+  if (meting) {
+    sampler = new Worker([
+      "const { workerData } = require('node:worker_threads');",
+      'const ctl = new Int32Array(workerData, 0, 2), max = new Float64Array(workerData, 8, 512);',
+      'const pause = new Int32Array(new SharedArrayBuffer(4));',
+      'while (Atomics.load(ctl, 1) === 0) {',
+      '  const r = process.memoryUsage.rss(), s = Atomics.load(ctl, 0);',
+      '  if (r > max[s]) max[s] = r;',
+      '  Atomics.wait(pause, 0, 0, 10);',
+      '}'].join('\\n'), { eval: true, workerData: sab });
+    sampler.unref();
+  }
+  (globalThis as { __opsMeting?: unknown }).__opsMeting = {
+    proef,
+    grens(label: string) {
+      if (!actief || !meting) return;
+      const now = performance.now();
+      const s = Atomics.load(ctl, 0);
+      const a = memFull();
+      const piek = Math.max(maxRss[s] / 1048576, a.rssMB);
+      const row: Record<string, unknown> = { grens: label, ms: Math.round((now - tPrev) * 10) / 10, piekRssMB: Math.round(piek * 10) / 10, ...a };
+      if (meting === 'gc') { gc(); row.naGc = memFull(); }
+      const next = (s + 1) % SECTIONS;
+      maxRss[next] = 0;
+      Atomics.store(ctl, 0, next);
+      grenzen.push(row);
+      emit(row);
+      tPrev = performance.now();
+    },
+    data(label: string, data: Record<string, unknown>) { if (actief && meting) emit({ data: label, ...data }); },
+  };
+}
+const startMeting = () => {
+  if (!meting) return;
+  gc();
+  emit({ grens: '(start 3b)', ...memFull(), naGc: memFull() });
+  maxRss[0] = 0; Atomics.store(ctl, 0, 0);
+  actief = true; tPrev = performance.now();
+};
+const stopMeting = () => { actief = false; Atomics.store(ctl, 1, 1); };
 
 const bytes = await step('1a bestand lezen', () => new Uint8Array(readFileSync(file)));
 if (!snel) {
@@ -117,7 +196,9 @@ let copy: IfcSaveJob | null = await step('3a kopie naar de worker (structuredClo
 const window3 = { beginUs: 0, eindUs: 0 };
 const handled = await step('3b werk van de worker (handleIfcSaveRequest)', async () => {
   window3.beginUs = hr();
+  startMeting();
   const r = await handleIfcSaveRequest({ id: 1, job: copy! });
+  stopMeting();
   window3.eindUs = hr();
   return r;
 });
@@ -133,7 +214,8 @@ if (!('result' in response)) throw new Error('onverwacht antwoord');
 const back = await step('3c overdracht terug (structuredClone met transfer)', () => structuredClone(response, { transfer }));
 const output = await step('3d overnemen (outputFromResult)', () => outputFromResult(job, back.result));
 const prepared = output.prepared!;
-emit({ uitkomst: back.result.kind, uitvoerBytes: prepared.bytes.length, overgedragenMB: MB(transfer.reduce((a, b) => a + b.byteLength, 0)) });
+emit({ uitkomst: back.result.kind, uitvoerBytes: prepared.bytes.length, overgedragenMB: MB(transfer.reduce((a, b) => a + b.byteLength, 0)),
+  uitvoerSha256: createHash('sha256').update(prepared.bytes).digest('hex'), opgegevenSha256: prepared.sha256 });
 
 if (mode === 'met') {
   const target = join(tmp, 'doel-' + process.pid + '.ifc');
@@ -186,17 +268,19 @@ const BASE_TEXT = readFileSync(probe, 'utf8').split('\n')
 rmSync(probe, { force: true });
 
 // ── Een kindproces: alle JSON-regels, en bij een fout de laatste stap en het einde van stderr ─────────────────────
-function child(mode, file, extra = []) {
+function child(mode, file, extra = [], env = {}) {
   const t0 = Date.now();
   const r = spawnSync(process.execPath, ['--expose-gc', `--max-old-space-size=${heap}`, ...extra, join(work, 'opslag.mjs'), mode, file, work],
-    { encoding: 'utf8', maxBuffer: 1 << 26, timeout: childTimeoutMs, killSignal: 'SIGKILL' });
+    { encoding: 'utf8', maxBuffer: 1 << 28, timeout: childTimeoutMs, killSignal: 'SIGKILL', env: { ...process.env, OPS_METING: '', OPS_PROEF: '', ...env } });
   const lines = (r.stdout || '').trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return { tekst: l }; } });
   const steps = lines.filter(l => l.stap);
-  const info = Object.assign({}, ...lines.filter(l => !l.stap && !l.begin));
+  const grenzen = lines.filter(l => l.grens !== undefined);
+  const data = lines.filter(l => l.data !== undefined);
+  const info = Object.assign({}, ...lines.filter(l => !l.stap && !l.begin && l.grens === undefined && l.data === undefined));
   const lastBegin = [...lines].reverse().find(l => l.begin);
   const ok = r.status === 0 && info.klaar === true;
   return {
-    mode, ok, status: r.status, signal: r.signal, wandMs: Date.now() - t0, steps, ...info,
+    mode, env, ok, status: r.status, signal: r.signal, wandMs: Date.now() - t0, steps, ...(grenzen.length ? { grenzen, data } : {}), ...info,
     ...(ok ? {} : { laatsteBegonnenStap: lastBegin ?? null, stderr: (r.stderr || '').trim().split('\n').slice(-8).join('\n') }),
   };
 }
@@ -255,6 +339,27 @@ for (const mb of sizes) {
   const walls = makeFile(fileMb, file, 'model', BASE_TEXT);
   const row = { mb, fileMb, bytes: statSync(file).size, walls, met: [], snel: [] };
   console.error(`# ${mb} MB: ${row.bytes} bytes, ${walls} wanden`);
+  if (geheugen) {
+    row.geheugen = {};
+    for (const mode of ['met', 'snel']) {
+      const variants = [['zonder', {}], ['vrij', { OPS_METING: 'vrij' }], ['gc', { OPS_METING: 'gc' }],
+        ...proefSets.flatMap(set => Array.from({ length: proefRuns }, (_, k) => [`proef ${set} #${k + 1}`, { OPS_METING: 'vrij', OPS_PROEF: set }])),
+        ...(proefSets.length ? Array.from({ length: proefRuns - 1 }, (_, k) => [`vrij #${k + 2}`, { OPS_METING: 'vrij' }]) : [])];
+      row.geheugen[mode] = {};
+      for (const [name, env] of variants) {
+        const res = child(mode, file, [], env);
+        row.geheugen[mode][name] = res;
+        const base = row.geheugen[mode].zonder;
+        res.zelfdeBytes = res.uitvoerSha256 !== undefined && res.uitvoerSha256 === base?.uitvoerSha256;
+        console.error(`# ${mb} MB ${mode} ${name}: ${res.ok ? 'ok' : 'MISLUKT'} in ${res.wandMs} ms, piek ${res.steps.at(-1)?.maxRssMB ?? '?'} MB, sha ${res.zelfdeBytes ? 'gelijk' : 'ANDERS'}`);
+        writeFileSync(join(outDir, `ruw-${mb}mb-${mode}-${name.replace(/[^\w+-]+/g, '_')}.json`), `${JSON.stringify(res, null, 2)}\n`);
+      }
+    }
+    rmSync(file, { force: true });
+    results.push(row);
+    writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, geheugen, proefSets, heap, results }, null, 2)}\n`);
+    continue;
+  }
   for (let r = 0; r < runs; r++) {
     for (const mode of ['met', 'snel']) {
       const res = child(mode, file);
@@ -280,7 +385,9 @@ for (const mb of sizes) {
 }
 if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ node: process.version, runs, heap, results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
-const failed = results.flatMap(row => [...row.met, ...row.snel, row.profiel, row.profielSnel].filter(r => !r.ok).map(r => `${row.mb} MB ${r.mode}`));
+const failed = results.flatMap(row => row.geheugen
+  ? Object.values(row.geheugen).flatMap(v => Object.entries(v)).filter(([, r]) => !r.ok || !r.zelfdeBytes).map(([name, r]) => `${row.mb} MB ${r.mode} ${name}${r.ok ? ' (andere bytes)' : ''}`)
+  : [...row.met, ...row.snel, row.profiel, row.profielSnel].filter(r => !r.ok).map(r => `${row.mb} MB ${r.mode}`));
 if (failed.length) {
   console.error(`Mislukte runs (uitkomst, staat in het resultaat): ${failed.join(', ')}`);
   process.exitCode = 1;

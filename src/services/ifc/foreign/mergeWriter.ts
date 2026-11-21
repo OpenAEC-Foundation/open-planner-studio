@@ -67,6 +67,7 @@ import {
   SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
 } from './ownGroups';
 import type { ImportResult } from '@/services/importTypes';
+import { METING, METING_DATA } from './meting'; // METING
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
 export type MergePhase2Kind =
@@ -340,7 +341,9 @@ export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, pro
  *  aan (c) geeft. */
 export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning,
   observe?: (restored: RestoredOwnSlots) => void): Promise<PreparedIfcWrite> {
+  METING('0 begin prepareIfcWrite'); // METING
   input = freeze(structuredClone(input), true);
+  METING('0 invoer kopiëren en bevriezen'); // METING
   if (!source.foreign) {
     const written = writeIFCWithChoices(input);
     const bytes = new TextEncoder().encode(written.content);
@@ -355,15 +358,20 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     return { bytes, sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
   }
   const index = scanForeignStep(source.bytes);
+  METING('A bron opnieuw scannen'); // METING
   const cls = classify(index);
+  METING('A bron opnieuw indelen'); // METING
   assertSameSource(index, cls, source);
+  METING('A assertSameSource'); // METING
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
   if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
+    METING('B planningCanon (snelle weg: gelijk)'); // METING
     await checkedBytes(source.bytes, input, source, index, cls, source.opened, probe);
     return { bytes: source.bytes, sha256: source.sha256, source,
       literalCalendarIds: input.ifcLiteralCalendarIds ?? [] };
   }
+  METING('B planningCanon (ongelijk)'); // METING
 
   // Eén schrijfklok voor O0, O1 en de uitvoercontrole (c): die herschrijft de herlezing met dezelfde klok.
   const writtenAt = new Date();
@@ -382,6 +390,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
   const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
+  METING('C1 mergeIdPlan'); // METING
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
@@ -420,6 +429,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
   // Een al geweigerde bronklok mag niet alsnog door normalisatie in de writer
   // een andere, ongeclassificeerde precisiefout veroorzaken.
+  METING('C1 lussen over de P-stukken (verstopt, duur, tijd)'); // METING
   if (cases.some(c => c.kind === 'tijd-deels-gelezen')) throw new MergeNeedsPhase2Error(cases);
 
   // ── 2–6. De regels van de writer voor een domein, met de bewaarde en gemengde relaties en de vreemde leden. De merge
@@ -710,7 +720,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // Het domein zoals de lezer het uit de bron las (O0 hieronder), al vóór O1: de writer vergelijkt de taken ermee
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
+  METING('C foreignScanFrom bron'); // METING
   const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project);
+  METING('C pristineFromScan bron (lezing voor O0)'); // METING
   // De GlobalId van een weesrij zoals de lezer hem in de bron aannam (PR 12e, was knownbug 1702): de writer houdt hem, in O0
   // en O1 (`buildLines`), in de andere toets (`openedOwnGroups`) en in de verwachting van (c) (`OwnOutputCheck.sourceRowGuid`).
   const rowGuid = assumedRowGuid(pristine);
@@ -719,6 +731,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
   // O0: het domein zoals de lezer het uit de bron las (de verliesbewaking hieronder).
   const built0 = buildLines(pristine, () => {});
+  METING('C2-6 buildLines O0'); // METING
   const pristineIds = planningIdentities(pristine).calendar, domainIds = planningIdentities(input).calendar;
   const literal0 = new Set(built0.literalCalendarIds.map(id => pristineIds.get(id) ?? id));
   // Was knownbug 1102 (besluit van Trias, 10 november 2026): een kalender die bij deze opslag letterlijk wordt (letterlijk in O1,
@@ -739,6 +752,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     built = buildLines(form.input, (...a) => { pending.push(a); });
   }
   for (const a of pending) caseAt(...a);
+  METING('C2-6 buildLines O1 (met rondes)'); // METING
   const domain = form.input;
   const { lines, byId, keptHeads, owner, taskIds, objects } = built;
 
@@ -775,6 +789,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
 
+  METING('C7 verwijzingen van buiten P, entiteittype'); // METING
   // ── 8. De verliesbewaking (`lossCheck.ts`): O0, het domein zoals de lezer het uit de bron las, moet elk P-stuk van de
   // bron veld voor veld teruggeven; O1 mag daar alleen van afwijken waar het domein veranderde. ──
   // (b), het slotdeel van `sourceSlots` (fixronde 3 van #867): de slots die de lezer niet draagt, krijgen in O1 de
@@ -790,13 +805,16 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
     ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
+  METING('C8 lossInput (changedScopes, openedOwnGroups)'); // METING
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  METING('C8 lossCheck'); // METING
   // Waar (b) een bronwaarde terugzette, schrijft de writer het slot niet uit het domein. (c) toetst zo'n slot apart (de regel
   // en de bronwaarde), en de rest van de groep gewoon; is het slot niet eenduidig aan te wijzen, dan slaat (c) de hele groep
   // over (`restoredOwnSlots`, op O1 vóór de bewerkingen). Een verwijzing naar een stuk dat de writer niet schrijft (het
   // `IfcProject` van een ander programma), leest het type uit de bron.
   const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits);
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
+  METING('C8 restoredOwnSlots'); // METING
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
     for (const e of edits) {
@@ -826,6 +844,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
   }
 
+  METING('C8 herlezen (b) en bronvorm'); // METING
   if (cases.length > 0) throw new MergeNeedsPhase2Error(cases);
 
   // ── 9. Bewaking (eigen zoektocht van 1b): een fout hier is een fout in deze module, geen geval van fase 2; er is dan
@@ -845,8 +864,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (!present.has(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
     }
   }
+  METING_DATA('C9 kaart en set', () => ({ chunkOfId: chunkOfId.size, present: present.size })); // METING
+  METING('C9 bewaking (kaart van alle ids, verwijzingen uit P)'); // METING
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
     const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`)));
+    METING('D assemble en concatParts (uitvoerbytes)'); // METING
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
@@ -867,6 +889,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       return written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
     });
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
+    METING('F klassen en leden van de nieuwe bron'); // METING
     const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
@@ -875,6 +898,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   let preserved: readonly OutLine[] | undefined;
   try {
     preserved = preserveAuxiliaryIdentities(lossInput, block);
+    METING('C10 preserveAuxiliaryIdentities'); // METING
     return await checkedOutput(preserved);
   } catch (error) {
     if (preserved === block) throw error;
@@ -910,8 +934,11 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
+  METING('F schemanaam en telling'); // METING
+  const sha256 = await precomputeSha256(bytes); // METING (zelfde waarde, alleen losgetrokken voor de grens)
+  METING('F sha256'); // METING
   return {
-    bytes, sha256: await precomputeSha256(bytes), schemaName,
+    bytes, sha256, schemaName,
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
@@ -954,13 +981,17 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
   try {
+    METING('E begin checkedBytes'); // METING
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
+    METING('E foreignScanFrom uitvoer'); // METING
     parsed = await pristineFromScan(outputScan, bytes, opened.project) as WriteIFCInput;
+    METING('E heropening: pristineFromScan uitvoer'); // METING
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
+    METING('E heropening: openMergePlanning (uitvoer en domein)'); // METING
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) throw e;
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
@@ -985,11 +1016,14 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   if (planningCanon(wanted) !== planningCanon(shown)) {
     throw new MergeNeedsPhase2Error([{ kind: 'planning-na-openen', detail: planningDifference(wanted, shown) }]);
   }
+  METING('E planningCanon'); // METING
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
+  METING('E unchangedPlanningNumberProblem'); // METING
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
   const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
+  METING('E uitvoercontrole (c) ownOutputProblem'); // METING
   return { bytes, index: actual.index, scan: outputScan };
 }
 

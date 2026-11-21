@@ -307,7 +307,12 @@ const refusalFile = join(work, 'voorbeeld-met-komma.ifc');
 const commaText = BASE_TEXT.replace(/^(#\d+=IFCTASKTIME\(.*?,\.(?:WORK|ELAPSED)TIME\.,)'P0Y0M\d+D'/m, "$1'P1,5D'");
 if (commaText === BASE_TEXT) throw new Error('geen taakduur P0Y0M…D in het voorbeeld');
 makeFile(0, refusalFile, 'model', commaText);
-const refusalRun = spawnSync(process.execPath, [join(work, 'meet-merge.mjs'), refusalFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
+// Meet-branch, opslag-geheugen (21 november 2026): alleen de opslag meten, met deze argumenten voor meet-opslag.mjs;
+// de workflow geeft alleen --mb door en kan vanaf deze branch niet gewijzigd worden. Leeg = de gewone meting van stap 1.
+const OPSLAG_ARGS = (() => { try { return readFileSync(join(ROOT, 'scripts/proef/meet-opslag-args.txt'), 'utf8').trim().split(/\s+/).filter(Boolean); } catch { return []; } })();
+const ALLEEN_OPSLAG = OPSLAG_ARGS.length > 0;
+const refusalRun = ALLEEN_OPSLAG ? { status: 0, stdout: JSON.stringify({ outcome: 'merge-needs-phase2: overgeslagen (alleen opslag)' }) }
+  : spawnSync(process.execPath, [join(work, 'meet-merge.mjs'), refusalFile], { encoding: 'utf8', maxBuffer: 1 << 24 });
 const mergeRefusal = refusalRun.status === 0 ? JSON.parse(refusalRun.stdout.trim().split('\n').pop())
   : { error: (refusalRun.stderr || '').trim().split('\n').slice(-3).join(' ') };
 rmSync(refusalFile, { force: true });
@@ -315,7 +320,7 @@ console.log(JSON.stringify({ mergeRefusal }));
 
 // ── Meten ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const results = [];
-for (const mb of sizes) {
+for (const mb of ALLEEN_OPSLAG ? [] : sizes) {
   const file = join(work, `synthetisch-${mb}mb.ifc`);
   const walls = makeFile(mb, file);
   const size = statSync(file).size;
@@ -400,7 +405,7 @@ let opslag;
 if (opslagRuns !== undefined) {
   const dir = join(process.env.RUNNER_TEMP || tmpdir(), 'meting-opslag');
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts/proef/meet-opslag.mjs'), `--mb=${sizes.join(',')}`, `--runs=${opslagRuns}`,
-    `--dir=${dir}`, ...(opts['opslag-heap'] ? [`--heap=${opts['opslag-heap']}`] : [])], { stdio: ['ignore', 'inherit', 'inherit'] });
+    `--dir=${dir}`, ...(opts['opslag-heap'] ? [`--heap=${opts['opslag-heap']}`] : []), ...OPSLAG_ARGS], { stdio: ['ignore', 'inherit', 'inherit'] });
   try { opslag = JSON.parse(readFileSync(join(dir, 'meting-opslag.json'), 'utf8')); } catch (e) { opslag = { error: `geen resultaat: ${e.message}` }; }
   opslag.exit = r.status;
   opslag.signal = r.signal;

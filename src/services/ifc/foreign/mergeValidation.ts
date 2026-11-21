@@ -6,6 +6,7 @@ import { classify, type Classification } from './classify';
 import { isRootLine, refsOutsideText } from './lossCheck';
 import type { StepIndex } from './stepScanner';
 import { scanForeignStep } from './oldOwnHeader';
+import { METING, METING_DATA } from './meting'; // METING
 
 /** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
@@ -63,7 +64,10 @@ function structuralCounts(index: StepIndex): { dangling: Map<string, number>; gu
 export function validateMergeOutput(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array,
   bytes: Uint8Array): { index: StepIndex; classification: Classification; problems: string[] } {
   // Ook dubbele #ids en ongeldige STEP worden door de bestaande scanner geweigerd.
-  const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
+  const index = scanForeignStep(bytes);
+  METING('E1 uitvoer scannen'); // METING
+  const classification = classify(index), problems: string[] = [];
+  METING('E1 uitvoer indelen'); // METING
   const preserved: number[] = [];
   for (let i = 0; i < source.count; i++) if (sourceClasses.classes[i] !== 1) preserved.push(i);
   const actual: number[] = [];
@@ -72,6 +76,7 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
     if (!index.isEntity(i) || (original >= 0 && sourceClasses.classes[original] !== 1)) actual.push(i);
     else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
   }
+  METING('E2 lijsten niet-P (bron en uitvoer)'); // METING
   if (preserved.length !== actual.length) problems.push(`niet-P-stukken: ${preserved.length} → ${actual.length}`);
   for (let j = 0; j < Math.min(preserved.length, actual.length); j++) {
     const before = preserved[j], after = actual[j];
@@ -80,15 +85,23 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
       problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} ontbreekt, is gewijzigd of verplaatst`);
     }
   }
+  METING('E3 equalBytes (niet-P-stukken byte-gelijk)'); // METING
   for (const member of sourceClasses.foreignMembers) {
     const id = source.id(member), expected = bindings(source, id), shown = bindings(index, id);
     if (expected.size !== shown.size || [...expected].some(([key, count]) => shown.get(key) !== count)) {
       problems.push(`vreemd lid #${id} hangt niet meer aan hetzelfde object en dezelfde psetnaam`);
     }
   }
-  const before = structuralCounts(source), after = structuralCounts(index);
+  METING('E4 bindings van vreemde leden'); // METING
+  const before = structuralCounts(source);
+  METING_DATA('E5 telling bron', () => ({ dangling: before.dangling.size, guids: before.guids.size, members: before.members.size })); // METING
+  METING('E5 structuralCounts bron'); // METING
+  const after = structuralCounts(index);
+  METING_DATA('E6 telling uitvoer', () => ({ dangling: after.dangling.size, guids: after.guids.size, members: after.members.size })); // METING
+  METING('E6 structuralCounts uitvoer'); // METING
   for (const [key, count] of after.dangling) if (count > (before.dangling.get(key) ?? 0)) problems.push(`nieuwe loze verwijzing ${key}`);
   for (const [key, count] of after.guids) if (count > Math.max(1, before.guids.get(key) ?? 0)) problems.push(`nieuwe dubbele GlobalId ${key}`);
   for (const [key, count] of after.members) if (count > Math.max(1, before.members.get(key) ?? 0)) problems.push(`nieuw dubbel lidmaatschap ${key}`);
+  METING('E7 tellingen vergelijken'); // METING
   return { index, classification, problems };
 }
