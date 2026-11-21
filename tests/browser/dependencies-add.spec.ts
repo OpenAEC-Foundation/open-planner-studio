@@ -406,6 +406,27 @@ test('conceptrij: muiskeuze met richting Opvolger, een duplicaat wordt geweigerd
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
   await cell(fundering).click({ modifiers: ['Shift'] });
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw, afbouw]);
+  // Ronde 18: verdwijnt de spookregel (een filter), dan is zij geen beginpunt meer; Shift begint dan
+  // waar de tijdlijn begint, bij de actieve taak Ruwbouw. Ctrl+F2 legt alleen Ruwbouw → Afbouw.
+  const ghostCell = page.locator('[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="ops-ghost-row"][data-grid-column-id="task.name"]');
+  await ghostCell.click();
+  await cell(ruwbouw).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
+  await page.evaluate(() => window.__OPS__!.store.getState().setFilter({
+    kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Grondwerk',
+  }));
+  await expect(ghostCell).toHaveCount(0);
+  await cell(fundering).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([fundering, ruwbouw]);
+  await cell(afbouw).click({ modifiers: ['Shift'] });
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([ruwbouw, afbouw]);
+  await page.keyboard.press('ControlOrMeta+F2');
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[fundering, afbouw], [ruwbouw, afbouw]]);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => state(page).then(s => s.sequences.slice(2).map(q => [q.predecessorId, q.successorId])))
+    .toEqual([[fundering, afbouw]]);
+  await page.evaluate(() => window.__OPS__!.store.getState().setFilter(null));
 
   await cell(ruwbouw).click();
   const copy = await page.evaluate(() => window.__OPS__!.store.getState().duplicateDocument());

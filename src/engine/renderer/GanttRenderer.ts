@@ -2775,7 +2775,8 @@ export class GanttRenderer {
   getRowsInYRange(y1: number, y2: number): ViewRow[] {
     const lo = Math.max(0, this.getRowIndex(Math.min(y1, y2)));
     const hi = Math.min(this.rows.length - 1, this.getRowIndex(Math.max(y1, y2)));
-    return this.rows.slice(lo, hi + 1);
+    // Een band geheel boven de eerste rij: `slice` zou een negatief einde van achteren tellen.
+    return hi < lo ? [] : this.rows.slice(lo, hi + 1);
   }
 
   /** Dev/browser-testnaad: vind de werkelijk getekende sleepbalk zonder geometrie te dupliceren.

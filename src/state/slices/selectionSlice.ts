@@ -98,8 +98,8 @@ function shiftRange(
   };
   const toIdx = rows.findIndex((row, index) => (clickedRowKey === undefined || row.rowKey === clickedRowKey)
     && idsAt(index).includes(clickedId));
-  const fromIdx = rows.findIndex((row, index) => row.rowKey === anchor.rowKey
-    && anchor.taskIds.some(taskId => idsAt(index).includes(taskId)));
+  // Dat de ankerrij nog een taak van het anker draagt, heeft `shiftAnchor` al getoetst.
+  const fromIdx = rows.findIndex(row => row.rowKey === anchor.rowKey);
   if (toIdx < 0 || fromIdx < 0) return null;
   if (fromIdx === toIdx) {
     const ids = drawnIdsAt(toIdx);

@@ -246,13 +246,16 @@ function extendFromSharedAnchor(
   columns: readonly TaskColumnId[],
 ): { next: GridSelectionState; anchor?: SelectionAnchor } {
   // Hetzelfde beginpunt als de tijdlijn (`shiftAnchor`), met één uitzondering: de spookregel, die de
-  // tijdlijn niet heeft. Geen eigen toets op de ankerrij: een rij die er nog staat maar de taak van het
-  // anker niet meer draagt (een omgezette mijlpaal), is geen beginpunt meer (review #1004, ronde 17).
-  // Is er geen beginpunt (bv. de ankerrij en de actieve taak zijn weggefilterd), dan ook hier niet het
-  // eigen rasteranker: Shift kiest dan alleen de aangeklikte regel, net als in de tijdlijn (ronde 15).
+  // tijdlijn niet heeft, zolang die in de lijst staat (een filter verbergt haar, ronde 18). Geen eigen
+  // toets op de ankerrij: een rij die er nog staat maar de taak van het anker niet meer draagt (een
+  // omgezette mijlpaal), is geen beginpunt meer (review #1004, ronde 17). Is er geen beginpunt (bv. de
+  // ankerrij en de actieve taak zijn weggefilterd), dan ook hier niet het eigen rasteranker: Shift kiest
+  // dan alleen de aangeklikte regel, net als in de tijdlijn (ronde 15).
   const state = useAppStore.getState();
   const live = liveSelectionAnchor(state);
-  const anchor = live?.rowKey === GHOST_ROW_KEY ? live : shiftAnchor(state);
+  const anchor = live?.rowKey === GHOST_ROW_KEY && rowIndex.absoluteIndexByRowKey.has(GHOST_ROW_KEY)
+    ? live
+    : shiftAnchor(state);
   const from = anchor && rowIndex.absoluteIndexByRowKey.has(anchor.rowKey)
     ? withSelectionAnchor(selection, anchor.rowKey)
     : { ...selection, anchor: null };

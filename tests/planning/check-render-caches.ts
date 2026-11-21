@@ -255,6 +255,18 @@ for (const count of [1_000, 10_000]) {
   }
 }
 
+// Kaderselectie (`getRowsInYRange`): een band geheel boven de eerste rij raakt geen rij, ook als de
+// rij-index ver negatief wordt (review #1004, ronde 18: `slice` telde een negatief einde van achteren).
+{
+  const opts = scene(8);
+  const { renderer } = rendererFor(opts);
+  const keys = (y1: number, y2: number) => renderer.getRowsInYRange(y1, y2).map(row => row.rowKey);
+  ok('kader boven alle rijen raakt geen rij', keys(-200, -150).length === 0, JSON.stringify(keys(-200, -150)));
+  const mid = renderer.rowToY(2) + opts.rowHeight / 2;
+  ok('kader over rij 2 en 3 raakt die twee', JSON.stringify(keys(mid, mid + opts.rowHeight))
+    === JSON.stringify([opts.rows[2].rowKey, opts.rows[3].rowKey]), JSON.stringify(keys(mid, mid + opts.rowHeight)));
+}
+
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);
   console.log(`check-render-caches: ${fails.length}/${checks} ROOD`);
