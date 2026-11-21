@@ -14,6 +14,10 @@ interface IpcCall {
   command: string; path?: string; options?: OpenOptions;
   /** De payload is zelf een `Uint8Array`/`ArrayBuffer`: Tauri stuurt hem als rauwe body. */
   rawBody: boolean;
+  /** Bij een rauwe body: zoveel bytes heeft de payload (bij een view alleen de view), en zoveel de buffer eronder. Zijn
+   *  ze gelijk, dan stuurt ook een webview die van een view de hele buffer zou sturen alleen deze bytes (#804, 1936). */
+  bodyBytes?: number;
+  bufferBytes?: number;
   /** Ergens in een object-payload zit een `Uint8Array`/`ArrayBuffer`: Tauri maakt daar JSON van, één getal per byte. */
   bytesInObject: boolean;
   /** Er is werkelijk een bestand voor schrijven geopend (of via een handle geschreven); een geweigerde
@@ -98,7 +102,9 @@ function sentWriteOptions(header: string | undefined): { options?: OpenOptions; 
 }
 
 /** Zoals `write_file_inner` in tauri-plugin-fs 2.7.1 (`commands.rs:1125-1210`): uit de opties in de kop;
- *  zijn die er niet, dan gelden de standaarden (aanmaken en afkappen). */
+ *  zijn die er niet, dan gelden de standaarden (aanmaken en afkappen). Met opties: `append` ⇒ toevoegen en niet
+ *  afkappen (`truncate: !append`); `create` staat aan tenzij de kop `false` zegt (`default_create_value`,
+ *  `commands.rs:1106-1123`), dus `{ append: true, create: false }` opent alleen een bestaand bestand, aan het eind. */
 function writeFileOpenOptions(o: OpenOptions | undefined): OpenOptions {
   if (o === undefined) {
     return { read: false, write: true, create: true, truncate: true, append: false, createNew: false };
@@ -173,6 +179,10 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
      *  zodat een proef eerst echt kan plaatsen en dan een fout kan melden; een belofte die nooit afloopt bootst een
      *  crash na. `undefined` laat de echte stap lopen. */
     place: null as ((from: string, to: string, real: () => PlaceAnswer) => PlaceAnswer | undefined | Promise<PlaceAnswer | undefined>) | null,
+    /** `write_file`: schrijf van een view de hele onderliggende buffer, zoals een webview die de view negeert zou doen.
+     *  Tauri geeft de view ongewijzigd aan `fetch` (`process-ipc-message-fn.js`, 2.12.3); de proeven met deze stand
+     *  bewijzen dat elk stuk ook dan alleen zijn eigen bytes meestuurt. */
+    wholeBufferBody: false,
   };
   let bytesRead = 0;
   let seeks = 0;
@@ -185,7 +195,9 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     const path = writeFile ? decodeURIComponent(ipcOptions?.headers?.path ?? '') : typeof a.path === 'string' ? a.path : undefined;
     const sent = writeFile ? sentWriteOptions(ipcOptions?.headers?.options) : {};
     const callOptions = writeFile ? sent.options : a.options as OpenOptions | undefined;
-    const call: IpcCall = { command, path, options: callOptions, optionsError: sent.error, rawBody, bytesInObject, wrote: false };
+    const call: IpcCall = { command, path, options: callOptions, optionsError: sent.error, rawBody, bytesInObject, wrote: false,
+      ...(ArrayBuffer.isView(args) ? { bodyBytes: args.byteLength, bufferBytes: args.buffer.byteLength }
+        : args instanceof ArrayBuffer ? { bodyBytes: args.byteLength, bufferBytes: args.byteLength } : {}) };
     calls.push(call);
     switch (command) {
       case 'plugin:fs|stat':
@@ -303,7 +315,8 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
         try {
           const notByte = Array.isArray(args) ? (args as unknown[]).find(v => !(Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 255)) : undefined;
           if (notByte !== undefined) throw `invalid byte in the data to write: ${JSON.stringify(notByte)}`;
-          const data = ArrayBuffer.isView(args) ? new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
+          const data = ArrayBuffer.isView(args)
+            ? faults.wholeBufferBody ? new Uint8Array(args.buffer) : new Uint8Array(args.buffer, args.byteOffset, args.byteLength)
             : args instanceof ArrayBuffer ? new Uint8Array(args)
               : Array.isArray(args) ? Uint8Array.from(args as number[]) : null;
           if (data === null) throw new Error('unexpected invoke body');
