@@ -9,7 +9,7 @@
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, sameEntry, sameLocalFile, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef, PickedSaveTarget } from '@/services/fileAccess';
@@ -226,14 +226,35 @@ async function isOpenDocumentPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
   exceptDocumentId: string | null,
 ): Promise<boolean> {
-  const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
-    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
-  if (paths.length === 0) return false;
+  return (await openDocumentIdForPath(s, path, identityFs, exceptDocumentId)) !== null;
+}
+
+/** Het id van het open document (niet `exceptDocumentId`) dat het bestaande bestand op `path` als bestand heeft, of
+ *  `null`. De vergelijking van `isOpenDocumentPath`; ook voor een bestand dat bij het starten is meegegeven (#1091):
+ *  staat het al open, dan wisselt de app naar dat tabblad. */
+export async function openDocumentIdForPath(
+  s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
+  exceptDocumentId: string | null = null,
+): Promise<string | null> {
+  const docs = openFileDocuments(s, exceptDocumentId);
+  if (docs.length === 0) return null;
   let fs: FileIdentityFs | undefined;
   try { fs = await identityFs(); } catch { fs = undefined; }
-  if (fs && await missingFile(fs, path)) return false;
-  for (const other of paths) if (await sameLocalFile(path, other, fs ? { identityFs: fs } : {})) return true;
-  return false;
+  if (fs && await missingFile(fs, path)) return null;
+  for (const doc of docs) if (await sameLocalFile(path, doc.path, fs ? { identityFs: fs } : {})) return doc.id;
+  return null;
+}
+
+/** Synchroon, alleen op de padtekst (`samePath`): het open document met dit pad, of `null`. Voor een controle in
+ *  dezelfde stap als het activeren, waar geen `stat` tussen past (#1091). */
+export function openDocumentIdForPathText(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string): string | null {
+  return openFileDocuments(s, null).find((doc) => samePath(path, doc.path))?.id ?? null;
+}
+
+/** De open documenten met een lokaal pad als bestand (geen handle, geen site). */
+function openFileDocuments(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, exceptDocumentId: string | null): { id: string; path: string }[] {
+  return s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
+    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [{ id, path: payload.filePath }] : []));
 }
 
 /** Staat er aantoonbaar niets op `path`? Een andere fout van `stat` telt als nee: de veilige kant. */

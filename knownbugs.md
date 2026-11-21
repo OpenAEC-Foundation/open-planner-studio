@@ -2765,13 +2765,6 @@ en noem het in je rapport of PR-tekst.
      vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
      volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
 
-1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock.** Het tweede bestand van `exportProjectWithPool`
-     en de store-actie `exportLibrary` (`src/state/slices/fileSlice.ts`, gedeelde schrijver `saveLibraryFile`) schrijven
-     buiten `runProjectFileWrite`; een AutoSave kan er tussendoor schrijven. Het andere deel van dit punt is opgelost in
-     #1064: de bibliotheekexport weigert sindsdien het bestand van elk open project, ook van het actieve. Richting: de
-     write onder dezelfde lock als de andere projectwrites. Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol,
-     BEVESTIGD, VERVOLG); ingekort na review #1064 (ronde 2). — B
-
 1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
      `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
      `showcase-verbouwing-eengezinswoning.ifc`, een urentaak toevoegen, via dit pad naar het eigen bestand schrijven, de
@@ -3294,6 +3287,65 @@ en noem het in je rapport of PR-tekst.
      `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
      want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
      geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
+2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
+     opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
+     fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
+     gewone leesfout (`forbidden path`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf toestaat.
+     Bewust zo gelaten: bij 1762 koos Ethan voor "één keer per map om toegang vragen", zonder Rust-commando, en dat
+     bouwt #804 op branch `feat/804-opslaan-buiten-thuismap`. Richting: een meegegeven pad dat op `forbidden path`
+     stuit, sluit straks aan op die toegangsvraag; #1091 krijgt geen eigen vraag. — B (code: plugin-fs toetst elk
+     pad tegen de scope)
+2031. **VERVOLG (#1091, desktop): na een herstart door de updater opent het startbestand nog een keer.**
+     `tauri::process::restart` start de app met dezelfde argumenten als de eerste start (`tauri-2.12.3/src/process.rs`),
+     dus een app die met een bestand gestart was, opent dat bestand na de update opnieuw in een eigen tabblad. Niets
+     gaat verloren; het is een tabblad te veel als de planner het intussen sloot. Richting: bij de herstart de
+     bestandsargumenten weglaten, als dat zonder een eigen herstartroute kan. — S (code gelezen, niet nagespeeld)
+2032. **VERVOLG (#1091, desktop): een startbestand via een ander pad naar een al open bestand kan een tweede tabblad geven.**
+     Staat een bestand al open en geeft de planner het bij het starten mee via een ander pad (een link, een andere
+     schrijfwijze), dan herkent de startroute het aan de bestandsidentiteit (`openDocumentIdForPath`, plugin-fs `stat`),
+     die direct na het lezen wordt opgezocht (`src/state/launchFiles.ts`). Twee gaten: (1) een tabblad dat pas ná die
+     `stat` via dat andere pad opengaat (slepen tijdens het wachten), ziet alleen de padtekst, dus niet; (2) op Windows
+     levert plugin-fs geen `dev`/`ino` (`fileIdentity.ts`), dus daar valt elk ander pad buiten de vergelijking. Dan staan
+     er twee tabbladen met hetzelfde bestand, zoals bij Bestand → Openen (1957). Richting: dezelfde oplossing als 1957,
+     met een identiteit die ook op Windows werkt. Gevonden door de review van #1116 (Sol, ronde 4). — B (review)
+
+2033. **VERVOLG (#1091): een paar schrijvers lopen nog buiten de schrijfrij.** Een startbestand herkent een nieuwere
+     versie alleen aan een beurt in `runProjectFileWrite` (`projectFileWriteTurns`, `src/state/launchFiles.ts`). Sinds
+     #1116 lopen Ctrl+S, Opslaan als, Automatisch opslaan, elke export uit `exportAs` (ook CSV, MSPDI, P6-XML, XER en het
+     voortgangsblad), de bibliotheekexport en `planner_export_ifc` daardoor. Nog buiten de rij: de herstelsnapshots
+     (`recoveryStore.ts`) en de MCP-back-ups (`backupService.ts`) in de datamap van de app, het afronden van een
+     onderbroken vervanging (`ownFileReplace.ts`, `settle`, vóór elk lezen), de ontwikkelbrug (`devBridge.ts`, alleen in
+     dev), de PDF-export (een formaat dat de app niet opent) en de headless MCP-server, die in een eigen proces draait en
+     een bestaand bestand niet vervangt zolang de app loopt (`appLock.ts`). Een startbestand dat precies tijdens zo'n
+     schrijfactie gelezen wordt, kan de oude versie openen; in gewoon werk geeft de planner zo'n bestand niet mee.
+     Richting: een nieuwe schrijver naar een bestand dat de app opent, loopt door `runProjectFileWrite`. Gevonden door de
+     review van #1116 (Sol, ronde 6). — B (review)
+
+2034. **VERVOLG (#1091, desktop): een vervanging van het eigen bestand precies tijdens het lezen geeft een leesfout.**
+     Ctrl+S op het eigen pad van een document met een gebouwmodel zet de oude versie eerst opzij en plaatst dan de
+     nieuwe (`replaceOwnPathWithRecovery`, `src/services/fileAccess/ownFileReplace.ts` stap 3 en 4). Begint zo'n
+     vervanging na `settle` en valt het lezen van een startbestand met hetzelfde pad (`readOpenedTauriPath`) precies
+     tussen die twee stappen, dan staat er even geen bestand en geeft de openroute meteen de gewone leesfout. De
+     startroute toetst de teller pas na een geslaagd lezen en parsen (`src/state/launchFiles.ts`), dus leest ze dan niet
+     opnieuw. Het opgeslagen bestand blijft heel; een tweede dubbelklik opent het. Richting: bij een lees- of parsefout
+     ook toetsen of er sinds het lezen een beurt begon, en dan opnieuw lezen in plaats van melden. Gevonden door de
+     review van #1116 (Sol, ronde 7). — B (review)
+
+2035. **VERVOLG (#1116, browser): een export die lang op de schrijfrij wacht, gaat als download.** Sinds #1116 loopt elke
+     export uit `exportAs` door `runProjectFileWrite`, ook CSV, MSPDI, P6-XML, XER en het voortgangsblad, met de
+     bestandskiezer binnen de beurt (zoals IFC al deed). Houdt een eerdere beurt de rij bezet tot de klikactivatie van
+     Chromium verlopen is, dan weigert `showSaveFilePicker` en gebruikt de app de bestaande downloadroute met melding
+     (`src/services/fileAccess/webBackend.ts`); een andere plek kiezen vraagt dan een nieuwe klik. Hoe vaak dat bij echte
+     planningen gebeurt, is niet gemeten. Richting: de kiezer vóór de beurt openen en het doel in de beurt nog eens
+     controleren, zoals de documentroutes al doen. Gevonden door de review van #1116 (Sol, ronde 7). — B (review)
+
+2036. **VERVOLG (#1091, desktop): de startroute leest zonder bovengrens opnieuw.** Begon er tussen het lezen en het
+     activeren van een startbestand een schrijfbeurt, dan leest de startroute het bestand opnieuw
+     (`src/state/launchFiles.ts`). Begint er bij elke lezing weer een nieuwe beurt (een groot bestand dat lang leest
+     terwijl Automatisch opslaan naar het bestand steeds een ander document schrijft), dan blijft dat doorgaan tot er een
+     keer geen beurt tussen valt; het bestand opent dan later, niet verkeerd. De reviews van #1116 vonden geen geval
+     waarin het niet ophoudt. Richting: na een paar rondes lezen binnen een eigen beurt van de rij. Gevonden door de
+     review van #1116 (Sol, ronde 4 tot en met 7). — S (review)
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -5427,7 +5479,8 @@ en noem het in je rapport of PR-tekst.
      `feat/804-coordinator-toelating`, `check-ifc-document-save.ts`, "twee keer Openen"). Alleen in de code gelezen, niet
      met een proef: Recent (`openRecentFile`), een bestand op het venster slepen en `planner_import_schedule` lopen door
      dezelfde open-route (`openOpenedFile` of direct `openAsDocument`), en die kijkt niet of het doel al in een tabblad
-     open staat. De browser is niet nagegaan. Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
+     open staat. De browser is niet nagegaan. Een bestand dat bij het starten is meegegeven (#1091) wisselt wel naar
+     het open tabblad (`openLaunchFiles`). Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
      de eigenaar, samen met 1893. Besluit technisch beslisser (21 november 2026): 1893 en 1957 gaan vóór 1939, en vóór de
      featureflag `ifcForeignContent` standaard aan gaat. — B (proef, bestandskiezer op de desktop)
 
