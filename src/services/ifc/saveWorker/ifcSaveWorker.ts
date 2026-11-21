@@ -19,7 +19,8 @@
  * van de SuperCloud-werkplek, zie `backgroundLeveling.ts`), een fout bij het laden of geen start binnen
  * `IFC_SAVE_START_TIMEOUT_MS` een startprobleem. Startte er in deze sessie al eens een worker, dan is een startprobleem
  * een fout (`IfcSaveWorkerError`, `not-started`) en nooit een terugval: anders zou één mislukte start midden in de sessie
- * de hoofdthread een merge van een groot model laten rekenen, en dan loopt het venster vast. Na de start is sterven, de
+ * de hoofdthread een merge van een groot model laten rekenen, en dan loopt het venster vast. Zo'n latere worker heeft
+ * de rekentijd van het verzoek om te starten, niet de korte starttijd. Na de start is sterven, de
  * tijd overschrijden of een onleesbaar antwoord ook zo'n fout, en een antwoord dat niet bij het verzoek past
  * (`resultFits`) ook. De aanroeper krijgt zo'n fout als mislukte opslag; de hoofdthread rekent dan nooit opnieuw, de
  * worker stopt en de volgende opslag start een nieuwe. Een inhoudelijke fout (een weigering van de merge, een fout van de
@@ -33,9 +34,10 @@ import { IfcSaveWorkerError } from './ifcSaveWorkerError';
 
 export type IfcSaveWorkerPort = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
 
-/** Zonder `started` binnen deze tijd: de worker startte niet. Gekozen grens, niet gemeten (zie knownbug 1759 voor de
- *  scanner). Bij de eerste start van de sessie volgt dan de terugval, en die is nooit fout, alleen trager; startte er al
- *  eens een worker, dan een mislukte opslag die de planner opnieuw kan proberen. */
+/** Zonder `started` binnen deze tijd: de eerste worker van de sessie startte niet, dus terugval. Gekozen grens, niet
+ *  gemeten (zie knownbug 1759 voor de scanner): wie later start, krijgt de terugval, en die is nooit fout, alleen trager.
+ *  Een latere worker heeft de rekentijd van het verzoek om te starten (`ifcSaveTimeoutMs`); haalt hij die niet, dan is het
+ *  een mislukte opslag die de planner opnieuw kan proberen. */
 export const IFC_SAVE_START_TIMEOUT_MS = 10_000;
 
 /** De rekentijd: 60 s plus 1 s per begonnen MiB bron (een merge van 300 MB krijgt zo ruim zes minuten). */
@@ -102,9 +104,12 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       stop?.addEventListener('abort', onStop, { once: true });
       const arm = () => {
         clearTimeout(timer);
+        // Knownbug 1936: startte er in deze sessie al eens een worker, dan heeft een nieuwe de rekentijd van het verzoek
+        // om te starten. De korte starttijd beslist alleen over de terugval; als fout zou ze een trage start (een druk
+        // venster, de dev-server die elke module opnieuw levert) een mislukte opslag maken.
         timer = started
           ? setTimeout(() => reject(new IfcSaveWorkerError('timeout', `De opslagworker antwoordde niet binnen ${timeoutMs(job)} ms.`)), timeoutMs(job))
-          : setTimeout(() => reject(new IfcSaveWorkerNotStarted('De opslagworker startte niet op tijd.')), startTimeoutMs);
+          : setTimeout(() => reject(new IfcSaveWorkerNotStarted('De opslagworker startte niet op tijd.')), startedOnce ? timeoutMs(job) : startTimeoutMs);
       };
       abortActive = reject;
       port.onmessage = ({ data }: MessageEvent<IfcSaveResponse>) => {

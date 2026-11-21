@@ -493,9 +493,11 @@ await check('knownbug 1936: startte er al eens een worker, dan is een latere sta
   for (const [when, act] of before) {
     for (const kind of broken) {
       const label = `${when}, dan ${kind}`;
-      const scripted = scriptedClient([when === 'na een merge' ? 'auto' : 'manual', kind, kind],
-        { timeoutMs: () => when === 'na een verlopen verzoek' ? 40 : 60_000 });
+      // Een latere worker heeft de rekentijd van het verzoek om te starten; hier kort, zodat een stille worker snel verloopt.
+      let limit = when === 'na een verlopen verzoek' ? 40 : 60_000;
+      const scripted = scriptedClient([when === 'na een merge' ? 'auto' : 'manual', kind, kind], { timeoutMs: () => limit });
       await act(scripted);
+      limit = 40;
       assert.equal(scripted.workers[0]!.terminated, true, `${label}: de eerste worker is gestopt`);
       // Twee mislukte starten op rij, een merge en een gewoon verzoek: elk een fout die de aanroeper als mislukte opslag
       // krijgt, nooit een berekening op de hoofdthread, en elk een eigen poging.
@@ -506,6 +508,7 @@ await check('knownbug 1936: startte er al eens een worker, dan is een latere sta
         if (kind !== 'throws' && kind !== 'null') assert.equal(scripted.workers.at(-1)!.terminated, true, `${label}: de worker die niet startte is gestopt`);
       }
       // De client blijft bruikbaar: het verzoek daarna start weer een worker, en die rekent.
+      limit = 60_000;
       sameOutcome(await outcome(() => scripted.client.compute(writerJob)), mainOf.writer, `${label}: daarna weer een worker`);
       assert.equal(scripted.created(), 4, `${label}: een nieuwe aanmaak`);
       assert.equal(scripted.workers.at(-1)!.requests.length, 1, `${label}: de nieuwe worker rekende`);
@@ -513,6 +516,18 @@ await check('knownbug 1936: startte er al eens een worker, dan is een latere sta
     }
   }
   assert.equal(sha(mergeJob.source.bytes), mergeJob.source.sha256, 'bron intact');
+  // Een latere start die langer duurt dan de korte starttijd (30 ms hier) maar binnen de rekentijd van het verzoek blijft,
+  // rekent gewoon in die worker: de korte starttijd beslist alleen over de terugval bij de eerste start.
+  const slow = scriptedClient(['auto', 'manual'], { timeoutMs: () => 5_000 });
+  sameOutcome(await outcome(() => slow.client.compute(changedMergeJob)), mainOf.changed, 'trage start: de merge vooraf');
+  const run = settled(slow.client.compute(writerJob));
+  await new Promise(resolve => setTimeout(resolve, 120));
+  slow.workers[1]!.start();
+  reseed(1);
+  await slow.workers[1]!.answer(0);
+  sameOutcome(await run, mainOf.writer, 'trage start: rekent in de nieuwe worker');
+  assert.equal(slow.created(), 2, 'trage start: geen andere poging');
+  slow.client.dispose();
 });
 
 await check('de bron gaat als kopie heen: de buffers op de hoofdthread blijven bruikbaar', async () => {

@@ -157,7 +157,7 @@ startte niet). De gewone writer houdt zijn recht op overschrijven (`saveFileDial
 opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
 fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Terugval op
 de hoofdthread alleen als de worker niet start (geen `started`) terwijl er in deze sessie nog nooit een startte; een latere
-startfout is een fout (`not-started`). Sterft hij na de start, of verloopt de tijd (60 s plus 1 s per MiB bron), dan is het
+startfout is een fout (`not-started`), en een latere worker heeft de rekentijd van het verzoek om te starten. Sterft hij na de start, of verloopt de tijd (60 s plus 1 s per MiB bron), dan is het
 ook een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
 mislukte opslag of export van vóór elke I/O, met één melding (`ifcSaveWorkerFailed`). De worker laadt
 `appStoreFactory.ts`, nooit `appStore.ts` (`verify:store-boundaries`). Een antwoord dat niet bij het verzoek past
