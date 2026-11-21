@@ -387,7 +387,7 @@ function websiteAf(ctx, versie) {
   const gedeployd = websiteVersie(ctx, deploy.head_sha);
   if (!gedeployd || vergelijk(gedeployd, versie) < 0) return null;
   const live = ctx.httpText('https://open-aec.com/open-planner-studio/') ?? '';
-  if (!live.includes(`v${gedeployd}`)) return null;
+  if (!websiteBlokkenLive(live, gedeployd)) return null;
   return `Website: v${gedeployd} staat op main, [deploy ${deploy.id}](${deploy.html_url}) groen op \`${deploy.head_sha.slice(0, 12)}\`, live.`;
 }
 
@@ -438,6 +438,17 @@ function websiteAfstammeling(ctx, voorouder, sha) {
 
 const RN_BLOK = /<!-- rn:start[\s\S]*?<!-- rn:end -->/g;
 const WHATSNEW = /<section\b[^>]*\bid="whats-new"[^>]*>[\s\S]*?<\/section>/g;
+/** Alleen de twee bedoelde, unieke liveblokken tellen; een versienummer elders is geen bewijs. */
+export function websiteBlokkenLive(html, versie) {
+  const nieuw = html.match(WHATSNEW) ?? [];
+  const tijdlijn = html.match(RN_BLOK) ?? [];
+  if (!/^\d+\.\d+\.\d+$/.test(versie)) return false;
+  const veilig = versie.replaceAll('.', '\\.');
+  const versietekst = new RegExp(`v${veilig}(?![0-9.])`);
+  return nieuw.length === 1 && tijdlijn.length === 1
+    && versietekst.test(nieuw[0]) && versietekst.test(tijdlijn[0]);
+}
+
 const WEBSITE_PAGINAS = ['open-planner-studio/index.html', ...['en', 'fr', 'tr', 'es'].map(t => `${t}/open-planner-studio/index.html`)];
 const WEBSITE_DATA = ['data/release-notes/open-planner-studio.json', 'data/release-highlights/open-planner-studio.json'];
 

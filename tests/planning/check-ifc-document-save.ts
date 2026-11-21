@@ -1721,7 +1721,9 @@ await check('gebouwmodel via de opslagworker: Ctrl+S, Opslaan als en Exporteren 
     assert.equal(await ctrlS(plain.store), true);
     assert.equal(sw.requests().length, 4, 'de gewone writer ging naar de worker');
     assert.equal(sw.requests()[3]!.job.kind, 'writer');
-    assert.equal(sw.workers.length, 1, 'één worker voor alle opslagen');
+    // Knownbug 1936: elke merge rekende in een eigen worker, die daarna stopte; de gewone writer kreeg er een nieuwe.
+    assert.deepEqual(sw.workers.map(w => [w.requests.map(r => r.job.kind), w.terminated]),
+      [[['merge'], true], [['merge'], true], [['merge'], true], [['writer'], false]], 'een verse worker na elke merge');
   } finally { unregister(); browser.dispose(); sw.client.dispose(); await clearRecovery(); }
 });
 
