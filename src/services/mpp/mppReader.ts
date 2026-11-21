@@ -1291,13 +1291,8 @@ export function deriveTimephasedContoursForTasks(
 //      (geen kalenderwandeling; 0 afwijkingen op de contour-taken in het corpus).
 //   4. Vlak, MAAR de toewijzing draagt een resourcekalender die afwijkt van de effectieve
 //      taakkalender (banden of gematerialiseerde uitzonderingen, `calendarDiffersIncludingExceptions`)
-//      ⇒ `timephasedDurationWalks`: een VERSE herberekening. Bij precies 1 toewijzing wandelt
-//      `CPMSolver.ts` `task.time.durationMinutes` (edit-live) door de resourcekalender. Bij >1
-//      toewijzing wandelt elke toewijzing die de duur STUURT haar eigen werktijd: haar werk ÷ haar
-//      inzet, de term van regel 2 van de werkdriehoek (`assignmentRemainingMinutes`,
-//      `workTriangle.ts`; MS Project: "Duration = Work / Units"). Materiaal- en kostenresources sturen
-//      de duur niet en wandelen niet mee (knownbug 187). De volle taakduur per toewijzing gaf op
-//      "Task A" ~2× te laat. Beide nemen het MAXIMUM ("langste toewijzing bepaalt de finish"). Let op:
+//      ⇒ `timephasedDurationWalks`: verse herberekening. De finalisatielus van
+//      `deriveTimephasedWindowsForTasks` beschrijft de enkele en meervoudige toewijzing. Let op:
 //      de >1-tak wandelt een BEVROREN werktijd uit de import (`workMinutes`); daarom wissen
 //      `updateTask`/`updateTaskFields`/`patchTaskFields` (`taskDefaults.ts`) en elke duurwijziging uit
 //      de werkregelbrug (`settleDurationAftermath`) de lijst (`clearTimephasedDurationWalks`, gepoort
@@ -1359,25 +1354,6 @@ function calendarDiffersIncludingExceptions(a: WorkCalendar, b: WorkCalendar): b
   return false;
 }
 
-/** Het TOTALE per toewijzing gedecodeerde werk in minuten: som van `actualRegularWork` +
- *  `remainingRegularWork` via dezelfde decoders als de laag-3-detectie. Bij >1 gelijktijdige
- *  toewijzing wandelt elke toewijzing die de duur stuurt haar EIGEN werktijd en bepaalt de langste
- *  de finish (corpus: "Task A", `mpp14resource.mpp`: 3 × 1440 werkminuten bij taakduur 2880 — geen
- *  partitie, elke toewijzing draagt een eigen opgeslagen hoeveelheid).
- *
- *  Dit is WERK, geen werktijd: de wandeling deelt het door de inzet van de toewijzing
- *  (`deriveTimephasedWindowsForTasks`, via `assignmentRemainingMinutes` uit `workTriangle.ts`).
- *  Corpus (knownbug 187): `timephased-cost-rollup.mpp` "Task 8", twee werkresources op 12,5% met
- *  elk 300 min werk, eindigt in MSP na 2400 werkminuten (300 ÷ 0,125). In alle 661 gemeten bestanden
- *  geldt bij een werkresource: werk ÷ inzet = de werktijd tussen START en FINISH van de toewijzing.
- *  Een kostenresource (OzBuild Workshop 17/18, "Specialist Consultant": inzet 0,0006, werk 30 min)
- *  stuurt de duur niet en telt daarom niet mee.
- *
- *  `assignmentFinish` is alleen voor de `blockCount===0`-tak van `decodePlannedRegularTimephasedWork`
- *  een verplicht niet-`null` ankerpunt; de werkwaarde zelf hangt er niet van af (gemeten op "Task A"),
- *  dus dit is geen cirkelmeting. Ontbreekt hij, dan de terugval `taskStart + 1 min` (getest in
- *  `check-mpp-import.ts`, waarvoor deze functie geëxporteerd is). Geen gedecodeerd werk ⇒ `null`: de
- *  aanroeper laat de taak dan op laag 5 vallen. */
 /** MS Project bewaart een duur in tienden van een minuut (`RawTaskScan.durationRaw`). Werk en inzet
  *  staan met een kleine drijvendekommafout in het bestand (corpus, `timephased-cost-rollup.mpp`:
  *  inzet 1249,9998779296875 voor 12,5%, werk 299999,96875 voor 300 min), dus werk ÷ inzet geeft
@@ -1387,6 +1363,9 @@ function roundToMspDurationResolution(minutes: number): number {
   return Math.round(minutes * 10) / 10;
 }
 
+/** Decodeer totaalwerk (actual + remaining), niet werktijd; zie de laag-4-finalisatie voor werk ÷ inzet.
+ *  De fallback voor de vlakke remaining-decoder gebruikt `taskStart + 1 min` als het eindanker ontbreekt.
+ *  Geen gedecodeerd werk ⇒ `null`; de aanroeper kiest dan geen gedeeltelijke wandeling. */
 export function decodeAssignmentWorkMinutes(
   raw: AssignmentTimephasedRaw, taskStart: Date, assignmentFinish: Date | null,
 ): number | null {
