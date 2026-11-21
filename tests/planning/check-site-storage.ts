@@ -762,6 +762,42 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().switchDocument(tabA);
   eq('G15 A houdt zijn eigen basis', S().siteFileVersion, 'v1');
 
+  // G16 — #804, knownbug 1957: met de featureflag `ifcForeignContent` opent een sitebestand dat al open staat geen
+  // tweede tabblad. Openen van de site, Recent en het startbestand (`openFromSite`) gaan naar het tabblad dat al open
+  // is, met één melding; dat tabblad houdt zijn werk en zijn eigen basis, ook als een collega intussen opsloeg (geen
+  // herladen, vraag P3). G15 hierboven is dezelfde stap met de flag uit: twee tabbladen, zoals main.
+  useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
+  site.put('y', 'Eén.ifc', [ifc]);
+  setSiteOpenAsker(async () => ({ kind: 'site', id: 'y' }));
+  S().newDocument();
+  await S().openFile();
+  const tabY = S().activeDocumentId;
+  S().addTask({ name: 'Werk in Y' });
+  site.otherUserSaves('y'); // collega slaat v2 op
+  const workY = JSON.stringify([S().tasks.map((t) => t.name), S().isDirty, S().siteFileVersion]);
+  const recentY = () => S().recentFiles.find((e) => e.ref.kind === 'site' && e.ref.id === 'y');
+  const routes: Array<[string, () => Promise<unknown>]> = [
+    ['Openen van de site', () => S().openFile()],
+    ['Recent', () => S().openRecentFile(recentY()!.id)],
+    ['startbestand', () => S().openFromSite('y')],
+  ];
+  for (const [route, open] of routes) {
+    S().switchDocument(tabB);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    await open();
+    eq(`G16 ${route}: geen tweede tabblad, naar het open tabblad`, [S().documents.length, S().activeDocumentId], [count, tabY]);
+    eq(`G16 ${route}: het tabblad houdt zijn werk en basis v1`, JSON.stringify([S().tasks.map((t) => t.name), S().isDirty, S().siteFileVersion]), workY);
+    eq(`G16 ${route}: één melding`, S().ui.notifications.map((n) => [n.severity, n.messageKey]), [['info', 'notifications.fileAlreadyOpen']]);
+    eq(`G16 ${route}: Recent bovenaan`, S().recentFiles[0]?.ref, { kind: 'site', id: 'y' });
+  }
+  // Een oudere versie opent bewust als kopie zonder opslagdoel: geen identiteit, dus een eigen tabblad.
+  setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
+  const countCopy = S().documents.length;
+  await S().openFile();
+  eq('G16 oudere versie: een eigen tabblad zonder doel', [S().documents.length, S().siteFileId], [countCopy + 1, null]);
+  useAppStore.setState((st) => { st.ui.featureFlags = {}; });
+
   resetSiteAskers();
   clearHost();
 }
