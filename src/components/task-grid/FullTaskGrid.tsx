@@ -25,6 +25,7 @@ import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { taskNameFixedWidth, taskNameIndent } from '@/engine/taskGrid/nameIndent';
 import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
+import { opensListEditor } from '@/engine/taskGrid/editors';
 import {
   computeTaskGridAutoFitWidth,
   defaultTaskGridSurfaceColumns,
@@ -1188,6 +1189,12 @@ export function TaskGridSurface({
           if (meta?.kind !== 'task') return;
           const next = updateGridSelection(createEmptyGridSelection(), cell, rowIndex, visibleColumnIds, 'replace');
           applySelection(next);
+          // Besluit 21 nov (#970): een bewerkbare keuzelijstcel opent meteen de lijst in de cel.
+          const model = adapter.getCell(cell.rowKey, cell.columnId);
+          if (model && !model.readOnly && opensListEditor(adapter.descriptorsById.get(cell.columnId))) {
+            startEdit(cell);
+            return;
+          }
           setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
         }}
         onEmptyContextMenu={openEmptyContextMenu}
