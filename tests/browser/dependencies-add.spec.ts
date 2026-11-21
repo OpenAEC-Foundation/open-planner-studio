@@ -743,6 +743,18 @@ test('pijlen lopen de keten af langs de sturende relaties', async ({ page, ops: 
   await left.click();
   await expect.poll(active).toBe(fundering);
   await expect(left).toHaveAttribute('title', new RegExp(`${await label(grondwerk)}$`));
+
+  // Issue #989: de relaties staan in twee aparte lijsten met een eigen kop per richting —
+  // Fundering heeft twee voorgangers en één opvolger.
+  const predCol = page.locator('[data-ops-dependency-col="predecessor"]');
+  const succCol = page.locator('[data-ops-dependency-col="successor"]');
+  await expect(predCol.locator('[data-ops-dependency-col-head]')).toHaveText('2 predecessors');
+  await expect(succCol.locator('[data-ops-dependency-col-head]')).toHaveText('1 successor');
+  await expect(predCol.locator('.dependency-item')).toHaveCount(2);
+  await expect(succCol.locator('.dependency-item')).toHaveCount(1);
+  await expect(predCol.locator('.dependency-wbs-link[data-dependency-role="predecessor"]')).toHaveCount(2);
+  await expect(succCol.locator('.dependency-wbs-link[data-dependency-role="successor"]')).toHaveCount(1);
+
   await left.click();
   await expect.poll(active).toBe(grondwerk);
   await expect(left).toBeDisabled();

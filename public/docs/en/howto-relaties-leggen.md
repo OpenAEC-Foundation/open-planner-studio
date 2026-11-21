@@ -51,7 +51,7 @@ Useful when you are looking at one task and want to add its predecessors or succ
 5. Choose the type (FS by default) and fill in a lag if needed.
 6. Press Enter or click the tick (*Create relation*).
 
-The task's relations are then listed in *Dependencies*, each with the other task's WBS number, the type and the lag.
+The task's relations are then listed in *Dependencies*, in two separate lists: predecessors and successors. Each line shows the other task's WBS number, the type and the lag.
 
 **Several at once.** In step 4 you can tick more tasks. Click a task in the list and it gets a tick while the list stays open; click again to remove the tick. With the keyboard, Enter ticks the task; then type a new search for the next one. The chosen tasks are shown as labels below the list, with a cross to remove one. Type, lag and direction apply to all chosen tasks, and the tick is then called, for example, *Add 2 predecessors*. One *Undo* removes them all. If one of the relations is refused, for example because it already exists, the app says so; the others are still added and the refused one stays ticked.
 

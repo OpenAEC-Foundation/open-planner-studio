@@ -23,7 +23,6 @@ en noem het in je rapport of PR-tekst.
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
 4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
-7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
     allebei af van MSP. — B (code), niet gemeten op bestanden
@@ -97,11 +96,6 @@ en noem het in je rapport of PR-tekst.
     FS hier hetzelfde moet doen, is niet vastgesteld. In de minutenmodel-runs van F0 maakt dit `msp-51` rood
     op het vroege einde (ma 07:00 tegen ma 00:00). — S
 
-186. **B3-voltooidvenster met een dagkalender kan een TypeError geven.** Gemeld bij de onafhankelijke
-    review van PR #480 op `620c9e775`: ook op basiscommit `522589202` zou de volledige CPM-route
-    met `p6CompletedDataDateWindow` en een dagkalender falen. Exacte invoer en stack nog niet
-    zelfstandig bevestigd; staat los van de PF-optimalisatie en is daar niet aangepast. — S
-
 311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
     8 juni 2026 16:00; FF −2 kalenderdagen naar B 32 u geeft B di 2 juni 07:00–vr 5 juni 16:00.
@@ -142,14 +136,6 @@ en noem het in je rapport of PR-tekst.
      `be58ba356`. Voorstel: neem bij een eindmoment de bijbehorende werkdag (`workdayDateOfInstant`,
      eindkant). Gevonden in review F2 ronde 2A. — B
 
-243. **Onder het P6- en MSP-profiel tekent de Gantt de pauzes van een dagtaak in de dagenmaat, de motor
-     rekent ze in werkminuten.** De renderer kent het rekenprofiel niet (`GanttRenderOptions`) en kiest de
-     splitwandeling op de maat van de taak (`GanttRenderer.ts`, `computeSplitSegments`, `'workdays'`). Onder
-     P6/MSP staat de conventie `workdayDurationMeasure` uit, dus telt de motor een dagtaak als uren. Op een
-     kalender met gelijke dagen is de uitkomst gelijk; bij ongelijke dagen (bv. vr 6 u) kan een tussengrens
-     een paar uur verschillen. Het taakeinde klopt altijd (de laatste grens is het taakeinde). Afgeleid uit de
-     code, niet nagespeeld. Voorstel: geef de renderer `workdayDurationMeasure` mee. Gevonden in F3c. — S
-
 276. **Een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.** P 1 d op
      maandag, FS+0 naar START-mijlpaal M, FNET di 18:00 (kalender 7–16). M komt op wo 07:00, ook een
      mijlpaal zonder soort. `forwardBoundOf` laat de tijd 18:00 staan (geen snap voor een mijlpaal met
@@ -187,12 +173,6 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
-317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
-     `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
-     het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
-     met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
-     ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
-     mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
 
 358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
      `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
@@ -3297,6 +3277,15 @@ en noem het in je rapport of PR-tekst.
 
 ## Teksten en helpteksten
 
+2051. **VERVOLG (tekst, review van #1123): de voorbeelden bij het taaktype zeggen niet welke invoer verandert.**
+      Bij *Vaste duur en werk* zegt de tooltip van het i-icoon eerst "Duur en werk blijven" en daarna dat het werk
+      meegroeit als je de inzet wijzigt (`workRule.hint.FIXED_DURATION_WORK` plus de zinnen uit
+      `workRuleExplanation`). Dat klopt (5 werkdagen van 8 uur, inzet 1 → 2 geeft 80 in plaats van 40 uur), maar het
+      leest als een tegenspraak. De vier voorbeelden in `src/i18n/locales/{nl,en}/task.json` (`workRule.hint.*`)
+      rekenen met werkdagen van 8 uur zonder dat te zeggen; bij *Vaste inzet* op een kalender van 6 uur per dag duurt
+      80 uur kraanwerk 13⅓ werkdagen. Richting: elk voorbeeld als situatie ("je wijzigt …, dan …") en de daglengte
+      noemen. Alleen tekst; de eigenaar vond de huidige tekst "voorlopig prima zo" (21 november 2026). — B
+
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
      de tijdelijke terugval "v21, fase 1a". §4.13 noemt voorlopig 150 MB; `IFC_BYTES_ROUTE_MAX_BYTES`
@@ -5264,13 +5253,6 @@ en noem het in je rapport of PR-tekst.
      de versie elders noemt (bijvoorbeeld in de footer) en waarin `#whats-new` en de tijdlijn ontbreken, telt als af.
      Richting: de versie zoeken binnen `<section id="whats-new">` en binnen het `rn:start`–`rn:end`-blok van de live
      pagina. Gevonden door de review van #984 (Sol, ronde 2). — B
-
-1812. **VERVOLG (#984, release-skill): het startvoorbeeld verbergt de slotregel.** `.claude/skills/release/SKILL.md`,
-     sectie *Starten*. Het blok schrijft `EXIT:$?` achter de scriptuitvoer en toont daarna `tail -n 1`, dus alleen
-     `EXIT:2` en niet de regel `RELEASE-STOP …` die de thread moet doorgeven; de afsluitende
-     `grep '^RELEASE-MELDING '` geeft exit 1 als er geen meldingen zijn, ook na een geslaagde release. De uitkomst
-     staat wel in het log. Richting: `tail -n 2` en `grep … || true`. Gevonden door de review van #984 (Sol,
-     ronde 3). — B
 
 1750. **VERVOLG (#963, fs-scope voor lettertypen): het Windows-pad `C:/Windows/Fonts/**` is op Linux en macOS een
      relatief patroon, en niet gegarandeerd zonder effect.** `src-tauri/capabilities/default.json` (de drie
