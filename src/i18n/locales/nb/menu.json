@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Bare tilgjengelig når Gantt-diagrammet vises",
     "relationLinkSelected": "Koble valgte aktiviteter",
     "relationLinkSelectedHint": "Første valg blir forgjenger; andre valg blir etterfølger (FS, forsinkelse 0)",
-    "relationSelectExactlyTwo": "Velg nøyaktig to aktiviteter",
     "relationAddExternal": "Legg til kobling mellom prosjekter…",
     "relationAddExternalHint": "Legg til en forgjenger eller etterfølger i et annet prosjekt på den valgte aktiviteten",
     "relationSelectOne": "Velg nøyaktig én aktivitet",

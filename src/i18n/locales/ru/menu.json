@@ -203,7 +203,6 @@
     "ganttOnlyHint": "Доступно только при показанной диаграмме Gantt",
     "relationLinkSelected": "Связать выбранные задачи",
     "relationLinkSelectedHint": "Первый выбор становится предшественником; второй выбор — последователем (FS, задержка 0)",
-    "relationSelectExactlyTwo": "Выберите ровно две задачи",
     "relationAddExternal": "Добавить внешнюю зависимость…",
     "relationAddExternalHint": "Добавьте внешнего предшественника или последователя к выбранной задаче",
     "relationSelectOne": "Выберите ровно одну задачу",

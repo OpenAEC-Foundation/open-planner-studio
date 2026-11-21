@@ -203,7 +203,6 @@
     "ganttOnlyHint": "Доступно лише тоді, коли видно діаграму Gantt",
     "relationLinkSelected": "Пов'язати вибрані завдання",
     "relationLinkSelectedHint": "Перший вибір стає попередником, другий вибір стає наступником (FS, затримка 0)",
-    "relationSelectExactlyTwo": "Виберіть рівно два завдання",
     "relationAddExternal": "Додати зовнішню залежність…",
     "relationAddExternalHint": "Додайте зовнішнього попередника або наступника до вибраного завдання",
     "relationSelectOne": "Виберіть рівно одне завдання",
