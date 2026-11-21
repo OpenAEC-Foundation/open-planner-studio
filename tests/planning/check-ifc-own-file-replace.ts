@@ -33,7 +33,7 @@ import {
 } from '@/services/fileAccess/replaceRecords';
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
-import { userFileTempPath } from '@/services/fileAccess/atomicWrite';
+import { tauriUserBytesFs, USER_FILE_CHUNK_BYTES, userFileTempPath } from '@/services/fileAccess/atomicWrite';
 import { readsAsBytes, type ExportFormat } from '@/services/formatRegistry';
 import type { ExportResult } from '@/state/slices/fileSlice';
 import { readBytesFromRef } from '@/services/fileAccess';
@@ -381,6 +381,100 @@ await check('stap 1: schrijffout ná de aanmaak ruimt het eigen tijdelijke besta
     assert.equal((await loadRecovery()).docs.find(d => d.id === c.id)?.ifcSource?.pendingSha256, undefined, 'pendingSha256 gewist');
     assert.deepEqual(noticeKeys(result, c.path), ['notifications.ifcForeignReplaceFailed']);
   } finally { await tidy(c); }
+});
+
+// #804, knownbug 1936: stap 1 met de uitvoer in stukken (`tauriUserBytesFs`), hier van 4 KiB: het eerste stuk maakt
+// exclusief aan met de modus van het doel, elk volgend voegt toe zonder aan te maken. Faalt een later stuk, dan is het
+// onvolledige tijdelijke bestand weg en komt er geen plaatsing: het doel blijft zoals het was.
+const pluginFs = await import('@tauri-apps/plugin-fs');
+const PART = 4096;
+const inParts = async (): Promise<OwnFileReplaceFs> => ({ ...await tauriOwnFileReplaceFs(), createNew: tauriUserBytesFs(pluginFs, PART).createNew });
+const tempWrites = (from: number) => ipc.calls.slice(from).filter(c => c.command === 'plugin:fs|write_file' && c.path?.endsWith('.ops-save.tmp'));
+const placesFrom = (from: number) => ipc.calls.slice(from).filter(c => c.command === 'place_file_exclusive');
+
+await check('stap 1 in stukken: het tijdelijke bestand stuk voor stuk, dan de vervanging; het doel is bytegelijk aan de uitvoer', async () => {
+  const c = await opened();
+  try {
+    const mode = lstatSync(c.path).mode & 0o777, from = ipc.calls.length;
+    assert.ok(c.prepared.bytes.length > 3 * PART, 'de uitvoer beslaat meerdere stukken');
+    const { result, committed } = await replace(c, await inParts());
+    assert.deepEqual(result, { code: 'replaced', otherVersion: null, leftOver: null });
+    assert.equal(committed, true);
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256 });
+    assert.deepEqual(recordsOnDisk(), []);
+    const parts = Math.ceil(c.prepared.bytes.length / PART);
+    assert.deepEqual(tempWrites(from).map(w => [w.options, w.bodyBytes]), Array.from({ length: parts }, (_, i) => [
+      i === 0 ? { createNew: true, mode } : { append: true, create: false }, Math.min(PART, c.prepared.bytes.length - i * PART),
+    ]));
+    assert.equal(new Set(tempWrites(from).map(w => w.path)).size, 1, 'alle stukken in hetzelfde tijdelijke bestand');
+    assert.equal(placesFrom(from).length, 2, 'stap 3 en 4');
+    // Knownbug 2026: na het laatste stuk eerst de controle van het tijdelijke bestand, dan pas stap 2 op het doel.
+    const temp = tempWrites(from)[0].path, lastWrite = ipc.calls.lastIndexOf(tempWrites(from)[tempWrites(from).length - 1]);
+    assert.deepEqual(ipc.calls.slice(lastWrite + 1)
+      .filter(call => (call.command === 'plugin:fs|lstat' && call.path === temp) || (call.command === 'plugin:fs|stat' && call.path === c.path))
+      .map(call => call.command).slice(0, 2), ['plugin:fs|lstat', 'plugin:fs|stat']);
+  } finally { await tidy(c); }
+});
+
+for (const [what, arrange] of [
+  ['schrijven (schijf vol in stuk 3)', () => {
+    ipc.faults.beforeOpen = p => { ipc.faults.writeErrorAfter = p.endsWith('.ops-save.tmp') ? 2 * PART + 100 : null; };
+  }],
+  ['openen (tijdelijk bestand weg vóór stuk 3)', () => {
+    let opens = 0;
+    ipc.faults.beforeOpen = p => { if (p.endsWith('.ops-save.tmp') && ++opens === 3) unlinkSync(p); };
+  }],
+] as const) {
+  await check(`stap 1 in stukken: een later stuk faalt bij het ${what}: mislukt, geen plaatsing, het doel blijft, geen restbestand`, async () => {
+    const c = await opened();
+    try {
+      const from = ipc.calls.length;
+      arrange();
+      const { result, committed } = await replace(c, await inParts());
+      ipc.faults.beforeOpen = null; ipc.faults.writeErrorAfter = null;
+      assert.equal(result.code, 'failed'); assert.equal(committed, false);
+      assert.equal(tempWrites(from).length, 3, 'na het mislukte stuk geen volgend stuk');
+      assert.deepEqual(placesFrom(from), [], 'geen plaatsing, ook niet van het doel naar opzij');
+      assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) }, 'het doel ongewijzigd, het onvolledige tijdelijke bestand weg');
+      assert.deepEqual(recordsOnDisk(), []);
+      assert.equal((await loadRecovery()).docs.find(d => d.id === c.id)?.ifcSource?.pendingSha256, undefined, 'pendingSha256 gewist');
+      assert.deepEqual(noticeKeys(result, c.path), ['notifications.ifcForeignReplaceFailed']);
+    } finally { await tidy(c); }
+  });
+}
+
+await check('stap 1 in stukken: een stuk komt twee keer aan (knownbug 2026): mislukt vóór stap 2, geen plaatsing, het doel blijft, geen restbestand', async () => {
+  const c = await opened();
+  try {
+    const from = ipc.calls.length;
+    let n = 0;
+    ipc.faults.resend = (p, o) => p.endsWith('.ops-save.tmp') && o?.append === true && ++n === 1;
+    let result: OwnPathReplaceResult, committed: boolean;
+    try { ({ result, committed } = await replace(c, await inParts())); } finally { ipc.faults.resend = null; }
+    assert.equal(result.code, 'failed'); assert.equal(committed, false);
+    assert.match(result.code === 'failed' ? result.detail : '', /na het laatste stuk geen gewoon bestand van \d+ bytes: .*\(\d+ bytes\)/);
+    assert.equal(ipc.calls.slice(from).filter(c => c.resent).length, 1, 'Tauri stuurde één stuk opnieuw');
+    assert.deepEqual(placesFrom(from), [], 'geen plaatsing, ook niet van het doel naar opzij');
+    const lastWrite = ipc.calls.lastIndexOf(tempWrites(from)[tempWrites(from).length - 1]);
+    assert.equal(ipc.calls.slice(lastWrite).some(call => ['plugin:fs|stat', 'plugin:fs|open'].includes(call.command) && call.path === c.path), false,
+      'stap 2 bekeek het doel niet meer');
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes) }, 'het doel ongewijzigd, het te lange tijdelijke bestand weg');
+    assert.deepEqual(recordsOnDisk(), []);
+    assert.deepEqual(noticeKeys(result, c.path), ['notifications.ifcForeignReplaceFailed']);
+  } finally { await tidy(c); }
+});
+
+await check('stap 1: de productie-ingang (`tauriOwnFileReplaceFs`) schrijft 16 MiB + 1 byte in twee stukken', async () => {
+  const dir = join(work, `geval-${++cases}`);
+  mkdirSync(dir);
+  const temp = join(dir, 'save-groot.ops-save.tmp'), from = ipc.calls.length;
+  const big = new Uint8Array(USER_FILE_CHUNK_BYTES + 1);
+  for (let i = 0; i < big.length; i++) big[i] = (i * 29 + 3) % 241;
+  await (await tauriOwnFileReplaceFs()).createNew(temp, big, 0o640);
+  assert.ok(Buffer.from(readFileSync(temp)).equals(Buffer.from(big)), 'bytegelijk');
+  assert.deepEqual(tempWrites(from).map(w => [w.options, w.bodyBytes]),
+    [[{ createNew: true, mode: 0o640 }, USER_FILE_CHUNK_BYTES], [{ append: true, create: false }, 1]]);
+  rmSync(temp);
 });
 
 await check('stap 1: buiten de scope geen directe terugval, alleen Opslaan als', async () => {

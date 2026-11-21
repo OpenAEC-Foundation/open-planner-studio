@@ -4,8 +4,8 @@
  * de app vervangen", stappen 1 tot en met 5; stap 0 en 6 zijn het herstelrecord (`replaceRecords.ts`), het
  * herstelmanifest en de broncommit, `state/ownFileReplace.ts`).
  *
- * 1. De hele uitvoer in één `createNew`-aanroep naar `save-<id>.ops-save.tmp` in dezelfde map (geen directe aanmaak
- *    als terugval: dit is geen nieuwe naam).
+ * 1. De hele uitvoer via één `createNew` naar `save-<id>.ops-save.tmp` in dezelfde map (geen directe aanmaak als
+ *    terugval: dit is geen nieuwe naam). Op de desktop gaat een grote uitvoer in stukken (`tauriUserBytesFs`).
  * 2. Het doel opnieuw vergelijken met de bron in het geheugen (`sourceTargetContent`, in stukken van 1 MiB). Daarna
  *    de laatste controle van de aanroeper (`refuseBeforePlace`, knownbug 1896): hoort de opslag nog bij de inhoud van
  *    het document? Zo niet, dan stopt de vervanging hier, met het doel ongemoeid.
@@ -22,7 +22,7 @@
  * verwijderen (daartussen sluit de app alleen nog de leeshandle), en de grens van het commando zelf (knownbugs
  * 1795 en 1799).
  */
-import { createOwnTemp, isForbiddenPathError, tauriUserFileFs, userFileDir, userFileTempPath } from './atomicWrite';
+import { createOwnTemp, isForbiddenPathError, tauriUserBytesFs, userFileDir, userFileTempPath } from './atomicWrite';
 import { missingTarget } from './fileIdentity';
 import type { RefuseBeforePlace } from './index';
 import { sourceTargetContentOfPathTauri } from './tauriBackend';
@@ -300,10 +300,10 @@ export async function settleReplaceRemnants(
 
 // ── Tauri ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** De vervanging op plugin-fs en `place_file_exclusive`; bytes als rauwe body (zie `atomicWrite.ts`). */
+/** De vervanging op plugin-fs en `place_file_exclusive`; bytes als rauwe body, in stukken (`tauriUserBytesFs`). */
 export async function tauriOwnFileReplaceFs(): Promise<OwnFileReplaceFs> {
   const fs = await import('@tauri-apps/plugin-fs');
-  const { lstat, createNew, remove } = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
+  const { lstat, createNew, remove } = tauriUserBytesFs(fs);
   return { lstat, createNew, remove, place: placeFileExclusive, content: sourceTargetContentOfPathTauri };
 }
 

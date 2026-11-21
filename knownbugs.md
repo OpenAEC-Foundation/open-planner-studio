@@ -3255,6 +3255,32 @@ en noem het in je rapport of PR-tekst.
      1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
      en 1922 (het ritme van Automatisch opslaan: een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
+2023. **Met het schrijven in stukken kan een link op het tijdelijke bestand de rest van de planning krijgen (#804,
+     1936).** Op de desktop gaat een uitvoer groter dan 16 MiB in stukken naar Rust (`tauriUserBytesFs` in
+     `atomicWrite.ts`). Elk stuk na het eerste opent het pad van het tijdelijke bestand (`save-<id>.ops-save.tmp`)
+     opnieuw en volgt dan een link. Zet een ander programma tussen twee stukken een link op die naam, dan gaat de rest
+     van de planning naar het doel van die link (binnen de scope van plugin-fs; daarbuiten weigert het volgende stuk en
+     gaat de opslag niet door). De controle na het laatste stuk (zie 2026) ziet dan geen gewoon bestand: de opslag
+     mislukt vóór de plaatsing en alleen de link onder de hulpnaam gaat weg. Zet het programma de link pas na die
+     controle, dan weigert de plaatsing (`refused`/`not-regular-file`). Het doel van de opslag krijgt dus geen half
+     bestand; de controle dekt het doel van de link niet af, dat houdt de bytes van de planning. Besluit technisch
+     beslisser (21 november 2026): dit is een tweede schrijver van buiten en telt als vervolg; teruglezen kost de winst
+     en herstelt het beschadigde doel van de link niet; een eigen Rust-commando is voor dit geval te groot. Proef 11d in
+     `check-file-ifc-bytes.ts` legt de grens vast. — S
+
+2026. **Een stuk dat Tauri opnieuw stuurt, laat de opslag nu zichtbaar mislukken (#804, 1936).** Faalt in de
+     webview de `fetch` van een aanroep, dan stuurt Tauri dezelfde aanroep nog eens via `postMessage`, met dezelfde kop
+     en de bytes als JSON (tauri 2.12.3, `scripts/ipc-protocol.js:58-67` en `src/ipc/protocol.rs:300-307`). Had Rust het
+     stuk toen al geschreven, dan voegt `{ append: true }` het een tweede keer toe. Daarom kijkt `tauriUserBytesFs` na het
+     laatste stuk met één `lstat` of er een gewoon bestand van precies de lengte van de buffer staat, zonder de inhoud
+     terug te lezen. Zo niet, of faalt die `lstat`, dan mislukt de opslag als schrijffout van een eigen bestand: opruimen,
+     geen plaatsing, de bestaande foutmelding. Een herhaling maakt het bestand altijd langer, en de stukken gaan één voor
+     één (elk wacht op het vorige), dus een verwisseling met gelijke lengte ontstaat langs deze weg niet. Wat overblijft:
+     (1) waar main na zo'n herhaling op EEXIST faalde, faalt de opslag nu op de lengte, ook zichtbaar; (2) de controle
+     vertrouwt de lengte die het bestandssysteem direct na het schrijven geeft: een netwerk- of FUSE-schijf die dan nog
+     een oude lengte meldt, laat een goede opslag van meer dan 16 MiB mislukken (vermoed, niet gezien). Geen oorzaak
+     bekend waardoor `fetch` faalt nadat Rust de aanvraag verwerkte. — S
+
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
      het geschatte aantal stukken, en `IntBuf.done()` geeft een `subarray` terug, zodat de hele buffer blijft staan. De

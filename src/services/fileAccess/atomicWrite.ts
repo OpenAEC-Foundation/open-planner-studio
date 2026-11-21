@@ -112,10 +112,11 @@ export function userFileDir(path: string): string {
 /** De bestandsoperaties die `replaceUserFile` nodig heeft — injecteerbaar voor tests. */
 export interface UserFileFs<D> {
   lstat(path: string): Promise<{ isSymlink: boolean; nlink: number | null; mode: number | null }>;
-  /** Exclusief aanmaken en `data` erin schrijven, in één stap op één open bestand: weigert ieder
-   *  bestaand bestand, directory of link, ook een dode symlink. Alleen een `OwnFileWriteError` zegt dat
-   *  het bestand wél ontstond en daarna het schrijven mislukte: dan is het (onvolledige) bestand van de
-   *  aanroeper en mag hij het opruimen. Elke andere fout geeft geen eigendom. */
+  /** Exclusief aanmaken en `data` erin schrijven: weigert ieder bestaand bestand, directory of link, ook
+   *  een dode symlink. Op de desktop gaat een grote buffer in stukken (`tauriUserBytesFs`): het eerste
+   *  stuk maakt aan, de volgende voegen toe. Alleen een `OwnFileWriteError` zegt dat het bestand wél
+   *  ontstond en daarna het schrijven mislukte: dan is het (onvolledige) bestand van de aanroeper en mag
+   *  hij het opruimen. Elke andere fout geeft geen eigendom. */
   createNew(path: string, data: D, mode?: number): Promise<void>;
   write(path: string, data: D, mode?: number): Promise<void>;
   rename(from: string, to: string): Promise<void>;
@@ -163,7 +164,8 @@ export async function replaceUserFile<D>(
     try { await fs.remove(tmp); } catch { /* eigen halffabricaat blijft mogelijk achter */ }
   };
   try {
-    // Eén stap: de modus van het oude bestand (ook 0444) geldt pas voor latere openingen.
+    // De modus van het oude bestand (ook 0444) geldt pas voor latere openingen; daarom schrijft
+    // `tauriUserBytesFs` een modus zonder schrijfrecht voor de eigenaar in de aanroep die aanmaakt.
     await fs.createNew(tmp, data, mode);
   } catch (err) {
     // Na een geslaagde aanmaak is het halffabricaat van ons: opruimen, het doel blijft onaangeroerd.
@@ -201,11 +203,12 @@ export const WRITE_AFTER_CREATE_ERROR = 'failed to write bytes to file at path:'
 type TauriWriteOptions = import('@tauri-apps/plugin-fs').WriteFileOptions;
 
 /**
- * Bytes naar Tauri alleen als HELE payload (`writeFile`/`writeTextFile`), nooit in een object.
+ * Bytes naar Tauri per aanroep (`writeFile`/`writeTextFile`) als HELE payload, nooit in een object.
  * Tauri stuurt een kale `Uint8Array` als rauwe body; een `Uint8Array` in een object (zoals
  * `FileHandle.write` doet: `{ rid, data }`) wordt JSON met `Array.from`, één getal per byte, synchroon
  * op de hoofdthread (`process-ipc-message-fn.js` in tauri 2.12.3). Rust opent bij `write_file` met
  * de opties uit de kop `options` en schrijft met `write_all` (tauri-plugin-fs 2.7.1, `write_file_inner`).
+ * Een grote buffer gaat in stukken (`tauriUserBytesFs`): per aanroep één stuk als hele payload.
  * Sinds 2.6.0 faalt de aanroep vóór het openen als die opties niet te lezen zijn; daarvóór vielen ze stil
  * terug op aanmaken en afkappen (ook zonder `createNew`). De opties hieronder zijn altijd leesbaar.
  */
@@ -228,6 +231,58 @@ export function tauriUserFileFs<D>(fs: TauriFs, write: (path: string, data: D, o
   };
 }
 
+/** Hoogstens zoveel bytes gaan in één `writeFile` naar Rust (#804, knownbug 1936). Tauri stuurt de payload als één
+ *  HTTP-body en onderweg ontstaan kopieën: bij 157 MB in één aanroep kostte dat op de desktop 0,4 tot 0,7 GB extra. */
+export const USER_FILE_CHUNK_BYTES = 16 * 1024 * 1024;
+
+/**
+ * De bytes van een gebruikersbestand op plugin-fs (#804, knownbug 1936): `tauriUserFileFs` met `writeFile`, en een
+ * `createNew` die een buffer groter dan `chunkBytes` in stukken schrijft. Het eerste stuk is de exclusieve aanmaak van
+ * `tauriUserFileFs`, met dezelfde herkenning van eigendom. Elk volgend stuk gaat met `{ append: true, create: false }`:
+ * toevoegen, niet afkappen, en geen nieuw bestand als het weg is. Na een geslaagd eerste stuk is het bestand van ons;
+ * elke fout van een volgend stuk, ook bij het openen, is dan een `OwnFileWriteError`. Elk stuk is een eigen kopie
+ * (`slice`), zodat ook een webview die van een view de hele onderliggende buffer zou sturen alleen dit stuk stuurt.
+ * Na het laatste stuk volgt één `lstat`: staat er een gewoon bestand van precies de lengte van de buffer (knownbug
+ * 2026)? Alleen type en lengte, geen teruglezen van de inhoud. Omdat de aanroeper pas na `createNew` beslist
+ * (`refuseBeforePlace`) en plaatst, komt een bestand van de verkeerde lengte nooit op een naam.
+ * Eén aanroep zoals voorheen, zonder `lstat`, blijft het voor een buffer van hoogstens één stuk, en voor een modus zonder
+ * schrijfrecht voor de eigenaar (0444, knownbug 162): die modus geldt pas voor latere openingen, dus een volgend stuk zou
+ * falen. De directe terugval (`write`) blijft één aanroep. Grens: elk volgend stuk opent het pad opnieuw en volgt een
+ * link (knownbug 2023).
+ */
+export function tauriUserBytesFs(fs: TauriFs, chunkBytes = USER_FILE_CHUNK_BYTES): UserFileFs<Uint8Array> {
+  const whole = tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o));
+  return {
+    ...whole,
+    createNew: async (p, bytes, mode) => {
+      if (bytes.byteLength <= chunkBytes || (mode !== undefined && (mode & 0o200) === 0)) return whole.createNew(p, bytes, mode);
+      await whole.createNew(p, bytes.slice(0, chunkBytes), mode);
+      for (let at = chunkBytes; at < bytes.byteLength; at += chunkBytes) {
+        try {
+          await fs.writeFile(p, bytes.slice(at, at + chunkBytes), { append: true, create: false });
+        } catch (error) {
+          throw new OwnFileWriteError(error);
+        }
+      }
+      // Faalt in de webview de `fetch` van een stuk nadat Rust het schreef, dan stuurt Tauri het opnieuw via
+      // `postMessage` (tauri 2.12.3, `ipc-protocol.js`) en staat het er twee keer: het bestand is dan te lang. Het eerste
+      // stuk was geslaagd, dus het bestand is van ons. Zowel een afwijking als een `lstat` die faalt (dan weet de app niet
+      // wat er staat) is daarom een mislukte schrijfactie van een eigen bestand: de aanroeper ruimt op en plaatst niets.
+      // Opruimen raakt bij een link alleen de link (plugin-fs 2.7.1 `remove`: `symlink_metadata`, dan `remove_file`).
+      let info: Awaited<ReturnType<TauriFs['lstat']>>;
+      try {
+        info = await fs.lstat(p);
+      } catch (error) {
+        throw new OwnFileWriteError(error);
+      }
+      if (!info.isFile || info.size !== bytes.byteLength) {
+        const seen = info.isFile ? `${info.size} bytes` : info.isSymlink ? 'een link' : info.isDirectory ? 'een map' : 'geen gewoon bestand';
+        throw new OwnFileWriteError(new Error(`na het laatste stuk geen gewoon bestand van ${bytes.byteLength} bytes: ${p} (${seen})`));
+      }
+    },
+  };
+}
+
 /** Tauri: een tekstbestand van de gebruiker veilig vervangen (zie `replaceUserFile`). `false`: `refuseBeforePlace`
  *  weigerde. */
 export async function writeUserTextFileTauri(path: string, text: string): Promise<void> {
@@ -241,7 +296,7 @@ export async function writeUserFileTauri(path: string, data: FileData, refuseBef
   const fs = await import('@tauri-apps/plugin-fs');
   return typeof data === 'string'
     ? replaceUserFile(tauriUserFileFs<string>(fs, (p, t, o) => fs.writeTextFile(p, t, o)), path, data, refuseBeforePlace)
-    : replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, data, refuseBeforePlace);
+    : replaceUserFile(tauriUserBytesFs(fs), path, data, refuseBeforePlace);
 }
 
 /** De bestandsoperaties van `writeNewUserBytes`: exclusief aanmaken, opruimen en exclusief plaatsen. */
@@ -252,7 +307,8 @@ export type NewUserBytesFs = Pick<UserFileFs<Uint8Array>, 'createNew' | 'remove'
 /**
  * Een NIEUW einddoel (#804, knownbug 1131 stap 4): Opslaan als, Exporteren → IFC en `planner_export_ifc`. Vervangt
  * nooit een bestaand bestand. Eerst het eigen tijdelijke bestand `save-<id>.ops-save.tmp` in dezelfde map, met de hele
- * buffer in één rauwe `createNew`-aanroep; dan zet `place_file_exclusive` het op de naam. Een crash vóór die stap laat
+ * buffer via één `createNew` (rauwe bytes, een grote buffer in stukken: `tauriUserBytesFs`); dan zet
+ * `place_file_exclusive` het op de naam. Een crash vóór die stap laat
  * hoogstens het tijdelijke bestand staan, nooit een half einddoel. Per uitkomst:
  * - `placed`, `dir-not-synced`: klaar (het bestand ís verplaatst; het tweede alleen met een waarschuwing);
  * - `target-exists`: eigen bestand weg, fout `create-new`;
@@ -283,7 +339,8 @@ async function removeQuietly(fs: Pick<UserFileFs<Uint8Array>, 'remove'>, path: s
 
 /**
  * De eerste stap van elke schrijfroute via een eigen hulpnaam (`writeNewUserBytes`, de vervanging van het eigen bestand
- * in `ownFileReplace.ts`): de hele buffer in één `createNew`. Alleen na een `OwnFileWriteError` is het onvolledige
+ * in `ownFileReplace.ts`): de hele buffer via één `createNew` (op de desktop een grote buffer in stukken,
+ * `tauriUserBytesFs`). Alleen na een `OwnFileWriteError` is het onvolledige
  * bestand van ons en gaat het weg. `forbidden`: het tijdelijke bestand mag daar niet ontstaan. Elke andere fout (ook
  * EEXIST op de hulpnaam) geeft geen eigendom: niets verwijderen.
  */
@@ -360,8 +417,8 @@ export async function writeNewUserBytes(
   }
 }
 
-/** De directe exclusieve aanmaak: één `createNew` op het einddoel met de hele buffer. Vervangt nooit een bestaand
- *  bestand, maar een crash halverwege kan een onvolledig einddoel laten staan. */
+/** De directe exclusieve aanmaak: één `createNew` op het einddoel met de hele buffer (op de desktop een grote buffer
+ *  in stukken). Vervangt nooit een bestaand bestand, maar een crash halverwege kan een onvolledig einddoel laten staan. */
 async function createNewDirectly(fs: Pick<NewUserBytesFs, 'createNew' | 'remove'>, path: string, bytes: Uint8Array, why: string): Promise<void> {
   logWay(path, `directe aanmaak (${why})`);
   try {
@@ -374,12 +431,9 @@ async function createNewDirectly(fs: Pick<NewUserBytesFs, 'createNew' | 'remove'
   }
 }
 
-/** Tauri: een nieuw doel via het eigen tijdelijke bestand en `place_file_exclusive`; bytes als rauwe body. `false`:
- *  `refuseBeforePlace` weigerde. */
+/** Tauri: een nieuw doel via het eigen tijdelijke bestand en `place_file_exclusive`; bytes als rauwe body, in stukken
+ *  (`tauriUserBytesFs`). `false`: `refuseBeforePlace` weigerde. */
 export async function writeNewUserBytesTauri(path: string, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   const fs = await import('@tauri-apps/plugin-fs');
-  return writeNewUserBytes({
-    ...tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)),
-    place: placeFileExclusive,
-  }, path, bytes, refuseBeforePlace);
+  return writeNewUserBytes({ ...tauriUserBytesFs(fs), place: placeFileExclusive }, path, bytes, refuseBeforePlace);
 }

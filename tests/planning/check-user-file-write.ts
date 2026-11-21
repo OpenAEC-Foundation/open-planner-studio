@@ -8,18 +8,22 @@
 // hieronder doet precies dat: `write` truncate't eerst en kan daarna "vol raken".
 //
 // Draaien: bundel met esbuild zoals run.sh dat doet en start met node. Exit 0 = alles groen.
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, readlinkSync, symlinkSync, linkSync, lstatSync, readdirSync, rmSync } from 'node:fs';
+import {
+  readFileSync, mkdtempSync, mkdirSync, writeFileSync, readlinkSync, symlinkSync, linkSync, lstatSync, readdirSync, rmSync, chmodSync, unlinkSync,
+  existsSync,
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { installNodeFileIpc, realPath, writeFileCall as fileWrite } from './nodeFileIpc';
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   replaceUserFile, isForbiddenPathError, OwnFileWriteError, USER_FILE_TMP_SUFFIX, writeUserTextFileTauri, writeUserFileTauri,
+  createOwnTemp, tauriUserBytesFs, USER_FILE_CHUNK_BYTES, WRITE_AFTER_CREATE_ERROR,
   type UserFileFs,
 } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityInfo, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 
-declare const process: { exit(code: number): never; umask(): number };
+declare const process: { exit(code: number): never; umask(): number; getuid?(): number };
 
 const diffs: string[] = [];
 let checks = 0;
@@ -593,6 +597,259 @@ for (const kind of ['text', 'bytes'] as const) {
       readFileSync(pad('d.bin'), 'utf8')], [true, 'OUDE INHOUD']);
     eq('9e de opties van de opslagroute (createNew en modus) zijn leesbaar',
       await fout(fs.writeFile(pad('e.bin'), bytes, { createNew: true, mode: 0o640 })), '');
+  } finally {
+    ipc.dispose();
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// 10. #804, knownbug 1936: de bytes van een gebruikersbestand gaan op de desktop in stukken naar Rust
+//     (`tauriUserBytesFs`). Het eerste stuk maakt exclusief aan, met de modus; elk volgend stuk voegt toe zonder aan te
+//     maken (`{ append: true, create: false }`); elk stuk is een eigen kopie. Na een geslaagd eerste stuk is het bestand
+//     van ons. De stukgrootte is hier `C` bytes; 10h toont dat de productie-ingang 16 MiB gebruikt.
+{
+  const root = mkdtempSync(join(tmpdir(), 'ops-user-chunks-'));
+  /** De losse aanmaken van 10a–10f, en de routes van 10g–10h, elk in een eigen map. */
+  const parts = join(root, 'stukken'), routes = join(root, 'routes');
+  mkdirSync(parts); mkdirSync(routes);
+  const ipc = installNodeFileIpc();
+  const C = 8;
+  const chunked = tauriUserBytesFs(await import('@tauri-apps/plugin-fs'), C);
+  /** `n` bytes met een vast patroon dat per stuk anders is, zodat een verwisseld of ontbrekend stuk opvalt. */
+  const pattern = (n: number) => {
+    const data = new Uint8Array(n);
+    for (let i = 0; i < n; i++) data[i] = (i * 37 + 11) % 251;
+    return data;
+  };
+  const writes = () => ipc.calls.filter(fileWrite);
+  /** Per schrijfaanroep: de opties zoals Rust ze leest, de bytes van de payload en die van de buffer eronder. */
+  const shape = () => writes().map(c => [c.options, c.bodyBytes, c.bufferBytes]);
+  /** De `lstat`-aanroepen op `p`, en of ze allemaal na de laatste schrijfaanroep kwamen. */
+  const lstatsOn = (p: string) => ipc.calls.filter(c => c.command === 'plugin:fs|lstat' && c.path === p);
+  const lstatAfterWrites = (p: string) => ipc.calls.findIndex(c => c.command === 'plugin:fs|lstat' && c.path === p)
+    > ipc.calls.map(c => fileWrite(c)).lastIndexOf(true);
+  const firstOptions = (mode?: number) => ({ createNew: true, ...(mode === undefined ? {} : { mode }) });
+  /** De verwachte aanroepen voor `size` bytes in stukken van `C`; met de eerste op `firstOptions(mode)`. */
+  const chunkShape = (size: number, mode?: number) => Array.from({ length: Math.ceil(size / C) }, (_, i) => {
+    const len = Math.min(C, size - i * C);
+    return [i === 0 ? firstOptions(mode) : { append: true, create: false }, len, len];
+  });
+  let fileNo = 0;
+  const fresh = () => { ipc.calls.length = 0; return join(parts, `save-${++fileNo}.ops-save.tmp`); };
+  const sameBytes = (p: string, data: Uint8Array) => Buffer.from(readFileSync(p)).equals(Buffer.from(data));
+  const caught = (run: Promise<unknown>) => run.then(() => null, (e: unknown) => e);
+  try {
+    // 10a. Rond de grens: 0, 1, één stuk min één, precies één stuk, één stuk plus één byte, meerdere stukken met en
+    //      zonder rest. Tot en met één stuk precies de ene aanroep van main.
+    for (const size of [0, 1, C - 1, C, C + 1, 2 * C, 3 * C + 3]) {
+      const p = fresh(), data = pattern(size);
+      eq(`10a ${size} bytes: aanmaken slaagt`, String(await caught(chunked.createNew(p, data, 0o640)) ?? ''), '');
+      truthy(`10a ${size} bytes: bestand bytegelijk aan de buffer`, sameBytes(p, data));
+      eq(`10a ${size} bytes: aanroepen (opties, bytes, buffer)`, shape(),
+        size <= C ? [[firstOptions(0o640), size, size]] : chunkShape(size, 0o640));
+      truthy(`10a ${size} bytes: alles als rauwe body, nooit in een object`, writes().every(c => c.rawBody && !c.bytesInObject));
+      if (sep !== '\\') eq(`10a ${size} bytes: modus van de aanmaak`, lstatSync(p).mode & 0o777, 0o640 & ~process.umask());
+      eq(`10a ${size} bytes: ${size <= C ? 'geen lstat' : 'één lstat na het laatste stuk'}`,
+        [lstatsOn(p).length, size <= C || lstatAfterWrites(p)], [size <= C ? 0 : 1, true]);
+    }
+
+    // 10b. Hoogstens één stuk: de payload is de buffer van de aanroeper zelf, ook als die een view op een grotere is,
+    //      zoals op main. Geen kopie, geen andere opties.
+    {
+      const p = fresh(), big = pattern(5 * C), view = big.subarray(C + 2, 2 * C + 2);
+      await chunked.createNew(p, view);
+      eq('10b één stuk: de ene aanroep van main, met de view zelf als payload', shape(), [[firstOptions(), C, 5 * C]]);
+      truthy('10b één stuk: bytegelijk aan de view', sameBytes(p, view));
+      eq('10b één stuk: geen enkele andere aanroep, ook geen lstat', ipc.calls.map(c => c.command), ['plugin:fs|write_file']);
+    }
+
+    // 10c. Een webview die van een view de hele onderliggende buffer zou sturen: elk stuk heeft een eigen buffer, dus
+    //      ook dan staat er precies de buffer van de aanroeper (hier zelf een view met een offset).
+    {
+      const big = pattern(7 * C), view = big.subarray(3, 3 + 3 * C + 3);
+      ipc.faults.wholeBufferBody = true;
+      try {
+        const p = fresh();
+        eq('10c hele buffer per view: aanmaken slaagt', String(await caught(chunked.createNew(p, view)) ?? ''), '');
+        truthy('10c hele buffer per view: toch bytegelijk', sameBytes(p, view));
+        eq('10c hele buffer per view: vier stukken, elk in een eigen buffer', shape(), chunkShape(3 * C + 3));
+      } finally { ipc.faults.wholeBufferBody = false; }
+    }
+
+    // 10d. Een modus zonder schrijfrecht voor de eigenaar (knownbug 162): een tweede opening zou falen, dus één aanroep
+    //      zoals main. Met schrijfrecht gewoon in stukken.
+    if (sep !== '\\') {
+      for (const mode of [0o444, 0o555, 0o400]) {
+        const p = fresh(), data = pattern(3 * C + 3);
+        eq(`10d modus ${mode.toString(8)}: aanmaken slaagt`, await caught(chunked.createNew(p, data, mode)), null);
+        eq(`10d modus ${mode.toString(8)}: één aanroep met de hele buffer`, shape(), [[firstOptions(mode), 3 * C + 3, 3 * C + 3]]);
+        truthy(`10d modus ${mode.toString(8)}: bytegelijk`, sameBytes(p, data));
+        eq(`10d modus ${mode.toString(8)}: modus behouden`, lstatSync(p).mode & 0o777, mode & ~process.umask());
+        eq(`10d modus ${mode.toString(8)}: geen lstat`, lstatsOn(p).length, 0);
+      }
+      const p = fresh(), data = pattern(3 * C + 3);
+      eq('10d modus 200: aanmaken slaagt', String(await caught(chunked.createNew(p, data, 0o200)) ?? ''), '');
+      eq('10d modus 200 (eigenaar mag schrijven): in stukken', shape(), chunkShape(3 * C + 3, 0o200));
+      chmodSync(p, 0o600);
+      truthy('10d modus 200: bytegelijk', sameBytes(p, data));
+    }
+
+    // 10e. Het eerste stuk faalt: precies zoals main. Bij het openen (hier EEXIST) geen eigendom en geen volgend stuk;
+    //      bij het schrijven de fout van `write_file_inner` als `OwnFileWriteError`.
+    {
+      const p = fresh();
+      ipc.faults.beforeOpen = q => { if (q === p) writeFileSync(q, 'VAN EEN ANDER'); };
+      const err = await caught(chunked.createNew(p, pattern(3 * C)));
+      ipc.faults.beforeOpen = null;
+      truthy('10e eerste stuk, openen: geen eigendom', !(err instanceof OwnFileWriteError) && /^failed to open file at path: .*EEXIST/.test(String(err)));
+      eq('10e eerste stuk, openen: het andere bestand onaangeroerd, geen volgend stuk',
+        [readFileSync(p, 'utf8'), writes().length], ['VAN EEN ANDER', 1]);
+    }
+    {
+      const p = fresh();
+      ipc.faults.writeErrorAfter = 3;
+      const err = await caught(chunked.createNew(p, pattern(3 * C)));
+      ipc.faults.writeErrorAfter = null;
+      truthy('10e eerste stuk, schrijven: eigen bestand', err instanceof OwnFileWriteError
+        && String((err as OwnFileWriteError).cause).startsWith(WRITE_AFTER_CREATE_ERROR));
+      eq('10e eerste stuk, schrijven: geen volgend stuk', writes().length, 1);
+    }
+
+    // 10f. Een later stuk faalt, bij het schrijven of bij het openen: het bestand is dan van ons (`OwnFileWriteError`).
+    //      Is het tijdelijke bestand intussen weg, dan maakt het volgende stuk het niet opnieuw aan.
+    const laterFailures: [string, (p: string) => void, RegExp, boolean][] = [
+      ['schrijven (schijf vol in stuk 2)', () => { ipc.faults.writeErrorAfter = C + 2; }, /^failed to write bytes to file at path: .*No space left/, true],
+      ['openen (bestand weg vóór stuk 2)', p => {
+        let opens = 0;
+        ipc.faults.beforeOpen = q => { if (q === p && ++opens === 2) unlinkSync(q); };
+      }, /^failed to open file at path: .*ENOENT/, false],
+      ['openen (buiten de scope vóór stuk 3)', p => {
+        let opens = 0;
+        ipc.faults.forbidden = q => q === p && ++opens === 3;
+      }, /^forbidden path: /, true],
+    ];
+    if (sep !== '\\' && process.getuid?.() !== 0) {
+      laterFailures.push(['openen (geen schrijfrecht meer vóór stuk 3)', p => {
+        let opens = 0;
+        ipc.faults.beforeOpen = q => { if (q === p && ++opens === 3) chmodSync(q, 0o444); };
+      }, /^failed to open file at path: .*EACCES/, true]);
+    }
+    for (const [what, arrange, cause, stays] of laterFailures) {
+      const p = fresh();
+      arrange(p);
+      const err = await caught(chunked.createNew(p, pattern(3 * C + 3)));
+      ipc.faults.writeErrorAfter = null; ipc.faults.beforeOpen = null; ipc.faults.forbidden = null;
+      truthy(`10f later stuk, ${what}: eigen bestand, met de fout van plugin-fs`, err instanceof OwnFileWriteError
+        && cause.test(String((err as OwnFileWriteError).cause)));
+      eq(`10f later stuk, ${what}: geen stuk meer na de fout`, writes().length, what.includes('stuk 3') ? 3 : 2);
+      eq(`10f later stuk, ${what}: geen nieuw bestand aangemaakt`, existsSync(p), stays);
+    }
+
+    // 10g. Zo komt dat bij de aanroepers aan. `createOwnTemp`: een fout in een later stuk is `write` (nooit `forbidden`,
+    //      dat naar de directe aanmaak zou gaan), en het onvolledige eigen bestand is weg. `replaceUserFile`: het doel
+    //      blijft, geen hernoeming, geen directe terugval, de fout van plugin-fs komt terug.
+    {
+      const p = fresh();
+      let opens = 0;
+      ipc.faults.forbidden = q => q === p && ++opens === 2;
+      const result = await createOwnTemp(chunked, p, pattern(3 * C));
+      ipc.faults.forbidden = null;
+      eq('10g createOwnTemp, later stuk buiten de scope: write, niet forbidden', result.failed, 'write');
+      eq('10g createOwnTemp, later stuk buiten de scope: eigen bestand weg', existsSync(p), false);
+    }
+    for (const failing of [false, true]) {
+      const target = join(routes, `doel-${failing}.ifc`), data = pattern(3 * C + 3);
+      writeFileSync(target, OUD, { mode: 0o640 });
+      ipc.calls.length = 0;
+      if (failing) ipc.faults.writeErrorAfter = 2 * C + 1;
+      const err = await caught(replaceUserFile(chunked, target, data));
+      ipc.faults.writeErrorAfter = null;
+      const label = failing ? 'later stuk faalt' : 'goede weg';
+      if (failing) {
+        truthy(`10g replaceUserFile, ${label}: de schrijffout komt terug`, /^failed to write bytes to file at path: /.test(String(err)));
+        eq(`10g replaceUserFile, ${label}: doel onveranderd`, readFileSync(target, 'utf8'), OUD);
+      } else {
+        eq(`10g replaceUserFile, ${label}: geen fout`, err, null);
+        truthy(`10g replaceUserFile, ${label}: doel bytegelijk`, sameBytes(target, data));
+      }
+      eq(`10g replaceUserFile, ${label}: alleen het doel, geen tijdelijk bestand over`,
+        readdirSync(routes), [basename(target)]);
+      rmSync(target);
+      eq(`10g replaceUserFile, ${label}: hernoemd alleen als alles geschreven is, geen directe terugval`,
+        [ipc.calls.some(c => c.command === 'plugin:fs|rename'), ipc.calls.some(direct)], [!failing, false]);
+    }
+
+    // 10i. Knownbug 2026: na het laatste stuk één `lstat`. Een gewoon bestand van precies de lengte van de buffer gaat
+    //      door (10a); al het andere is een mislukte schrijfactie van een eigen bestand. Via `createOwnTemp`: `write`, en
+    //      het eigen bestand is weg. Een stuk dat Tauri na een mislukte `fetch` opnieuw stuurt (`faults.resend`), maakt
+    //      het bestand te lang; een stuk te weinig, een link of een map onder de naam, en een `lstat` die faalt, ook.
+    const SIZE = 3 * C + 3;
+    const other = join(routes, 'ander.bin');
+    const afterLast: [string, (p: string) => void, RegExp][] = [
+      ['stuk 2 komt twee keer aan', p => { let n = 0; ipc.faults.resend = q => q === p && ++n === 2; }, new RegExp(`van ${SIZE} bytes: .*\\(${SIZE + C} bytes\\)$`)],
+      ['het laatste stuk komt twee keer aan', p => { let n = 0; ipc.faults.resend = q => q === p && ++n === 4; }, new RegExp(`\\(${SIZE + 3} bytes\\)$`)],
+      ['een stuk te weinig', p => { ipc.faults.beforeMeta = (_c, q) => { if (q === p) writeFileSync(q, readFileSync(q).subarray(0, SIZE - C)); }; },
+        new RegExp(`\\(${SIZE - C} bytes\\)$`)],
+      ['een link in plaats van het bestand', p => {
+        writeFileSync(other, 'ANDER');
+        ipc.faults.beforeMeta = (_c, q) => { if (q === p) { unlinkSync(q); symlinkSync(other, q); } };
+      }, /\(een link\)$/],
+      ['een map in plaats van het bestand', p => { ipc.faults.beforeMeta = (_c, q) => { if (q === p) { unlinkSync(q); mkdirSync(q); } }; }, /\(een map\)$/],
+      ['lstat faalt', p => {
+        ipc.faults.beforeMeta = (_c, q) => {
+          if (q === p) throw `failed to get metadata of path: ${q} with error: Permission denied (os error 13)`;
+        };
+      }, /^failed to get metadata of path: .*os error 13/],
+    ];
+    for (const [what, arrange, cause] of afterLast) {
+      const p = fresh();
+      arrange(p);
+      const result = await createOwnTemp(chunked, p, pattern(SIZE));
+      ipc.faults.resend = null; ipc.faults.beforeMeta = null;
+      eq(`10i ${what}: mislukt als schrijffout`, result.failed, 'write');
+      truthy(`10i ${what}: met de reden (${result.failed ? String(result.cause) : '-'})`, result.failed !== null && cause.test(String(result.cause)));
+      eq(`10i ${what}: niets meer onder de naam`, lstatSync(p, { throwIfNoEntry: false }), undefined);
+      eq(`10i ${what}: de controle kwam na het laatste stuk, het opruimen daarna`,
+        ipc.calls.filter(c => c.command === 'plugin:fs|lstat' || c.command === 'plugin:fs|remove').map(c => c.command),
+        ['plugin:fs|lstat', 'plugin:fs|remove']);
+      if (what.includes('twee keer')) {
+        eq(`10i ${what}: Tauri stuurde één aanroep opnieuw`, ipc.calls.filter(c => c.resent).length, 1);
+      }
+      if (what.includes('link')) {
+        eq(`10i ${what}: alleen de link weg, het doel ervan onaangeroerd`, readFileSync(other, 'utf8'), 'ANDER');
+        rmSync(other);
+      }
+    }
+    {
+      const target = join(routes, 'doel-herhaald.ifc');
+      writeFileSync(target, OUD, { mode: 0o640 });
+      ipc.calls.length = 0;
+      let n = 0;
+      ipc.faults.resend = (q, o) => q !== target && o?.append === true && ++n === 1;
+      const err = await caught(replaceUserFile(chunked, target, pattern(SIZE)));
+      ipc.faults.resend = null;
+      truthy('10i replaceUserFile, stuk twee keer: de opslag faalt met de reden', /^na het laatste stuk geen gewoon bestand van /.test(String(
+        err instanceof Error ? err.message : err)));
+      eq('10i replaceUserFile, stuk twee keer: doel onveranderd, geen tijdelijk bestand',
+        [readFileSync(target, 'utf8'), readdirSync(routes)], [OUD, [basename(target)]]);
+      eq('10i replaceUserFile, stuk twee keer: geen hernoeming, geen directe terugval',
+        [ipc.calls.some(c => c.command === 'plugin:fs|rename'), ipc.calls.some(direct)], [false, false]);
+      rmSync(target);
+    }
+
+    // 10h. De productie-ingang gebruikt 16 MiB: precies één stuk is de ene aanroep van main, één byte meer twee.
+    eq('10h stukgrootte 16 MiB', USER_FILE_CHUNK_BYTES, 16 * 1024 * 1024);
+    for (const size of [USER_FILE_CHUNK_BYTES, USER_FILE_CHUNK_BYTES + 1]) {
+      const target = join(routes, `groot-${size}.ifc`), data = pattern(size);
+      ipc.calls.length = 0;
+      eq(`10h ${size} bytes via writeUserFileTauri: opslaan slaagt`, String(await caught(writeUserFileTauri(target, data)) ?? ''), '');
+      truthy(`10h ${size} bytes via writeUserFileTauri: bytegelijk`, existsSync(target) && sameBytes(target, data));
+      eq(`10h ${size} bytes via writeUserFileTauri: alleen het doel`, readdirSync(routes), [basename(target)]);
+      eq(`10h ${size} bytes via writeUserFileTauri: aanroepen`, writes().map(c => [c.options, c.bodyBytes]),
+        size === USER_FILE_CHUNK_BYTES ? [[{ createNew: true }, size]]
+          : [[{ createNew: true }, USER_FILE_CHUNK_BYTES], [{ append: true, create: false }, 1]]);
+      rmSync(target, { force: true });
+    }
   } finally {
     ipc.dispose();
     rmSync(root, { recursive: true, force: true });
