@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { byteWrite, installNodeFileIpc } from './nodeFileIpc';
+import { openSecondTabOn } from './sameFileTabFixture';
 import { fakeScanWorker, fakeScanWorkerStats, LATE_MS } from './fakeScanWorker';
 import { brokenNameFiles, commentFile, dataKopBestanden, paramDataFile, solFile, solFileAllSplit, stringFile, terraFile, verstopteWandBestanden } from './ifcDoelBestanden';
 
@@ -686,9 +687,13 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   const S = () => store.getState();
   const aId = S().activeDocumentId;
   S().setAutoSaveToFile(true);
-  // Een ander programma vervangt het bestand door een versie met model; de planner opent die als document B.
+  // Een ander programma vervangt het bestand door een versie met model, en document B heeft dat bestand ook. Met de flag
+  // opent Openen geen tweede tabblad op dit bestand meer (#804, knownbug 1957); de proef zet B neer zoals het na
+  // crashherstel of twee kruisende openacties nog kan bestaan.
   shared.replace(bonsai);
-  await open('planning.ifc', bonsai, { kind: 'handle', handle: shared.handle }, store);
+  const copyOfB = fakeHandle('planning-kopie.ifc', bonsai);
+  await openSecondTabOn(store, { kind: 'handle', handle: shared.handle, name: 'planning.ifc' },
+    () => open('planning.ifc', bonsai, { kind: 'handle', handle: copyOfB.handle }, store));
   const bId = S().activeDocumentId;
   ok('AutoSave: B is het modelbestand, met een vreemd deel en dezelfde handle',
     bId !== aId && S().ifcSource?.foreign === true && S().foreignSourceMark?.handle === shared.handle);

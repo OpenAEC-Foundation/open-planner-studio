@@ -5253,7 +5253,10 @@ en noem het in je rapport of PR-tekst.
      tabblad pas na die tweede controle in de store, dan opent het met de oude bron terwijl het bestand de nieuwe versie
      krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
      het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
-     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
+     schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code.
+     Met de featureflag `ifcForeignContent` (#804, knownbug 1957) ziet de toets na het lezen dat het bestand al open staat
+     en gaat de app naar het tabblad dat opsloeg; de oude bron komt dan niet in een tabblad (proef "1837: een al begonnen
+     lezing …" in `check-ifc-own-file-replace.ts`, via Recent). Met de flag uit zoals hierboven. — S
 1838. **Het kruisje van een tabblad kijkt naar de wijzigingsvlag vóór het afronden van open veldinvoer.**
      `requestCloseDocument` (`documentSlice.ts`) leest `isDirty` en sluit een schoon document meteen via
      `closeDocument`; die rondt pas daarna de open veldinvoer af. Staat er in een veld een getypte waarde zonder blur
