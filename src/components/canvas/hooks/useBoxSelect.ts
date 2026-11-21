@@ -2,6 +2,8 @@ import { RefObject, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { BOX_SELECT_THRESHOLD } from './constants';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
+import { uniqueTaskIds } from '@/engine/view/visibleRows';
+import type { SelectionAnchor } from '@/state/slices/types';
 
 /** Sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
  *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
@@ -23,7 +25,8 @@ export interface BoxSelectState {
 interface UseBoxSelectOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   rendererRef: RefObject<GanttRenderer | null>;
-  selectTasks: (ids: string[], additive: boolean) => void;
+  selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null, anchor?: SelectionAnchor) => void;
+  setGridActiveRowKey: (rowKey: string) => void;
   deselectAll: () => void;
   /** Gedeelde vlag met pan + click-handler: onderdrukt de eerstvolgende click ná een kader. */
   justBoxSelectedRef: RefObject<boolean>;
@@ -32,7 +35,7 @@ interface UseBoxSelectOptions {
 // Box-selectie (kader-select vanaf lege achtergrond / takentabel). Bezit de twee fases —
 // kandidaat (onder drempel) en gepromoveerd kader — met elk hun eigen window-listeners. Het
 // centrale mousedown-hittest roept `startBoxSelect(...)` aan (zet de kandidaat).
-export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef }: UseBoxSelectOptions) {
+export function useBoxSelect({ canvasRef, rendererRef, selectTasks, setGridActiveRowKey, deselectAll, justBoxSelectedRef }: UseBoxSelectOptions) {
   // Box-selection: kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
   const [boxSelectCandidate, setBoxSelectCandidate] = useState<BoxSelectCandidate | null>(null);
   const [boxSelectState, setBoxSelectState] = useState<BoxSelectState | null>(null);
@@ -58,11 +61,11 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
 
     const handleMouseUp = () => setBoxSelectCandidate(null);
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onDocumentSwitch: () => setBoxSelectCandidate(null) });
   }, [boxSelectCandidate]);
 
   // Het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
-  // (GanttRenderer.getTaskIdsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
+  // (GanttRenderer.getRowsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
   // dus takentabel en chart gedragen zich identiek. Ctrl/Cmd bij mouseup = toevoegen, anders
   // vervangen. Escape annuleert zonder selectie-wijziging.
   useEffect(() => {
@@ -79,10 +82,18 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
         const rect = canvas.getBoundingClientRect();
         const y1 = boxSelectState.startClientY - rect.top;
         const y2 = e.clientY - rect.top;
-        const ids = renderer.getTaskIdsInYRange(Math.min(y1, y2), Math.max(y1, y2));
+        const rows = renderer.getRowsInYRange(Math.min(y1, y2), Math.max(y1, y2));
+        const ids = uniqueTaskIds(rows);
         const additive = e.ctrlKey || e.metaKey;
-        if (ids.length > 0) {
-          selectTasks(ids, additive);
+        // De bovenste taakrij in het kader is het anker voor Shift, op die rij (review #1004): bij
+        // groeperen op resource staat dezelfde taak ook elders.
+        const top = rows.find(row => uniqueTaskIds([row]).length > 0);
+        if (top && ids.length > 0) {
+          const taskIds = uniqueTaskIds([top]);
+          selectTasks(ids, additive, taskIds[0], { rowKey: top.rowKey, taskIds });
+          // Die rij is ook de cursorrij, net als na een klik: verwijderen kiest de buur vanaf daar
+          // (review #1004, ronde 7).
+          setGridActiveRowKey(top.rowKey);
         } else if (!additive) {
           deselectAll();
         }
@@ -116,8 +127,11 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
       window.addEventListener('click', () => { justBoxSelectedRef.current = false; }, { once: true });
     }
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
-  }, [boxSelectState, canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef]);
+    return listenWindowDrag({
+      onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true,
+      onDocumentSwitch: () => setBoxSelectState(null),
+    });
+  }, [boxSelectState, canvasRef, rendererRef, selectTasks, setGridActiveRowKey, deselectAll, justBoxSelectedRef]);
 
   return {
     boxSelectCandidate,

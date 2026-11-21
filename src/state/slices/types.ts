@@ -323,6 +323,9 @@ export type NotificationMessageKey =
   // De store-route weigert een relatie die een kring sluit (net als raster en MCP). Parameter
   // `cycle`: de taaknamen van de kring, "A → B → A".
   | 'notifications.relationCycle'
+  // Ctrl+F2 / Geselecteerde taken koppelen: een gekozen taak staat meer dan eens in de lijst (groeperen op
+  // resource), voor én na een andere gekozen taak. De keten wordt niet gelegd (review #1004, ronde 6).
+  | 'notifications.relationChainOrderUnclear'
   // Verhangen maakte een bestaande relatie tot voorouder-relatie (telt niet meer mee) — zie
   // `hierarchyRelationNotice.ts`. Meervoud, `count`.
   | 'notifications.relationsExcludedByHierarchy'
@@ -725,6 +728,19 @@ export interface ExternalSourceUpdate {
   changedLinks: number;
 }
 
+/** De rij van de laatste klik zonder Shift, in de tijdlijn of de takenlijst, en de taken die daar
+ *  gekozen werden (een groepsruitje #868: zijn leden; een rij in de takenlijst: haar taken). Shift
+ *  begint hier, in beide oppervlakken, ook na uitvinken met Ctrl, zoals in een bestandsverkenner. */
+export interface SelectionAnchor { rowKey: string; taskIds: readonly string[] }
+
+/** Het anker zoals de store het bewaart: met de selectie waarvoor het geldt. Verandert de selectie
+ *  langs een andere weg (plakken, inklappen, Ctrl+A, MCP), dan geldt het niet meer
+ *  (`liveSelectionAnchor`); zo hoeft niet elke schrijver van de selectie het anker te kennen. */
+export interface StoredSelectionAnchor extends SelectionAnchor { selection: readonly string[] }
+
+/** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
+export type RelationAssignDirection = 'predecessor' | 'successor';
+
 export interface UIState {
   showTaskDialog: boolean;
   editingTaskId: string | null;
@@ -750,8 +766,12 @@ export interface UIState {
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
-   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899).
+   *  Een klik in de tijdlijn zet hier de aangeklikte rij, en de takenlijst volgt (review #1004). */
   gridActiveRowKey: string | null;
+  /** Beginpunt van Shift-klik, gedeeld door tijdlijn en takenlijst (review #1004). Sessiestand.
+   *  Lees het via `liveSelectionAnchor`. */
+  selectionAnchor: StoredSelectionAnchor | null;
   showSettingsDialog: boolean;
   /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
    *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */
@@ -805,6 +825,10 @@ export interface UIState {
   showNewOrOpenProjectDialog: boolean;
   /** Een pas gemaakte taak krijgt éénmalig de naamfocus in het eigenschappenpaneel. */
   pendingTaskNameFocusId: string | null;
+  /** Session — "Voorgangers/Opvolgers toewijzen…" (issue #1000, zoals Assign in Primavera): het
+   *  relatiepaneel opent éénmalig de keuzerij bij deze taak, met de richting al gekozen. Alleen via
+   *  `requestRelationAssign` (`state/relationActions.ts`); `TaskDependenciesSection` wist het. */
+  pendingRelationAssign: { taskId: string; direction: RelationAssignDirection } | null;
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
   /** persisted (`ops-feedbackEmail`) — het optionele e-mailadres uit de feedbackdialoog, onthouden na
    *  een geslaagde melding. Geen paneelinstelling: het hoort bij het formulier zelf. */

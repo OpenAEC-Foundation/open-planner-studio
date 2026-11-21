@@ -553,6 +553,19 @@ export interface AppliedOpenedImport {
   minuteModelConversions: (Pick<MinuteModelTransition, 'shifted' | 'maxWorkdays'> & { documentId: string })[];
 }
 
+/** Opties van `openOpenedFile`. */
+export interface OpenOpenedFileOptions {
+  /** Wacht vóór het activeren zolang dit waar geeft (slepen: een open dialoog, de formaatuitleg van het vorige bestand). */
+  waitWhile?: () => boolean;
+  /** Het open tabblad met dit bestand, of `null`. Gevraagd in dezelfde synchrone stap als het activeren, na het wachten:
+   *  geeft het een tabblad, dan wisselt de app daarheen in plaats van het bestand nog eens te openen (een startbestand,
+   *  #1091; voor Openen, Recent en slepen blijft dat knownbug 1957). */
+  existingDocument?: () => string | null;
+  /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
+   *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
+  stale?: () => boolean;
+}
+
 export interface FileSlice {
   /** `labels` — vertaalde teksten die de UI aanlevert omdat de store-laag geen `t(...)` heeft (zie
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
@@ -563,7 +576,7 @@ export interface FileSlice {
    *  activeren na het herkennen zolang die waar geeft: slepen wacht daar tot geen dialoog meer
    *  openstaat, want het lezen en herkennen gebeurt terwijl de planner verder werkt. */
   openOpenedFile: (
-    opened: OpenedFile, labels?: ImportLabels, options?: { waitWhile?: () => boolean },
+    opened: OpenedFile, labels?: ImportLabels, options?: OpenOpenedFileOptions,
   ) => Promise<void>;
   saveFile: () => Promise<void>;
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
@@ -988,8 +1001,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Een bibliotheekbestand naar een gekozen plek (de losse knop en de tweede kiezer van de export met de
    *  resourcebibliotheek). Het bevat alleen de resourcebibliotheek, dus geen open document is een gewoon doel. */
-  const saveLibraryFile = (name: string, content: string) =>
-    saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
+  // In de ene schrijfrij, zoals elke schrijfactie naar een projectbestand (inclusief de kiezer, zoals `exportAs`): een
+  // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
+  const saveLibraryFile = (name: string, content: string) => runProjectFileWrite(
+    () => saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) }), () => null);
 
   // ── Externe bronnen (stap 1.5) ────────────────────────────────────────────────────────────────
   // Per document en bron de versie die de app al las zonder wijziging, of waarop de planner *Later*
@@ -2413,6 +2428,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
+        // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
+        const existing = options?.existingDocument?.() ?? null;
+        if (existing !== null) {
+          get().switchDocument(existing);
+          return;
+        }
+        if (options?.stale?.()) return;
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),
         // ook voor de meervoudige XER-vorm.
@@ -2637,9 +2659,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       };
       // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
       // onder dezelfde lock als Opslaan als; anders schreef AutoSave er tussendoor de ankertekst en markeerde hij het
-      // document als opgeslagen (knownbug 1026). De andere formaten raken het eigen bestand niet en blijven zoals ze waren.
-      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een IFC-export niets, net als na annuleren.
-      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord, () => null) : await writeAndRecord();
+      // document als opgeslagen (knownbug 1026). Elk ander formaat loopt door dezelfde rij (review ronde 6 van #1116):
+      // CSV, MSPDI, P6 en XER opent de app ook, en een startbestand dat tijdens de export gelezen wordt, herkent een
+      // nieuwere versie alleen aan een beurt in die rij; afsluiten en de updater wachten ook alleen op die rij.
+      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een export niets, net als na annuleren.
+      const outcome = await runProjectFileWrite(writeAndRecord, () => null);
       // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
       // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
       if (!outcome) return { ok: true, warnings: [], cancelled: true };

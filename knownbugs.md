@@ -1121,6 +1121,75 @@ en noem het in je rapport of PR-tekst.
       werksoorthernoeming in hetzelfde venster. Richting, als het gewenst is: een regel in de dialoog zelf die toont
       wat er bij de anderen verandert (ontwerpvraag voor de eigenaar). — B
 
+1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
+      presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
+      items wel (`GanttCanvas.tsx`, `onAssignRelation`). Kies je er een, dan verschijnt er niets; pas na het
+      verlaten van de presentatie (F11) opent de keuzerij alsnog, want `ui.pendingRelationAssign` bleef staan.
+      Voorstel: de twee items alleen tonen waar het eigenschappenpaneel kan openen. Uit de review van #1004
+      (GPT-6.2-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1871. **VERVOLG (#1004): koppelen als keten wordt traag bij een grote selectie.** `linkTasksInChain`
+      (`src/state/relationActions.ts`) toetst elke schakel via `createRelationDraftWithFeedback` en
+      `addSequence`, die de relatiegraaf per schakel opnieuw opbouwen. In Node kostte een keten van 500 taken
+      427 ms en van 1.000 taken 1,5 s, synchroon (één undo-stap). Voorstel: de graaf één keer voorbereiden en geldige
+      schakels tijdens de toetsing toevoegen. Browsertijden niet gemeten. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1872. **VERVOLG (#1004): `createRelationWithFeedback` heeft alleen nog testaanroepers.** Sinds de lintknop
+      `linkTasksInChain` gebruikt, roept geen app-code de doorgeefwrapper meer aan (`src/state/relationActions.ts`);
+      `check-relation-routes.ts`, `check-notifications.ts` en `check-refusal-notices.ts` wel. Voorstel: de wrapper
+      weghalen en de tests via `createRelationDraftWithFeedback` of `linkTasksInChain` laten lopen. Uit de review
+      van #1004 (GPT-6.2-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+1873. **VERVOLG (#1004): toewijzen in het lint blijft actief bij een selectie van een verdwenen taak.** Na een
+      nieuwe taak en Ongedaan wijst `selectedTaskIds` nog naar die taak (geen undo-data), dus *Voorgangers/Opvolgers
+      toewijzen…* in *Relatie ▾* staan aan. Klikken doet niets meer (`requestRelationAssign` weigert een onbekende
+      taak), maar het item had uit moeten staan. *Externe relatie toevoegen…* heeft hetzelfde. Uit de review van
+      #1004 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+1874. **VERVOLG (#1004): de scheidingsbalk tussen takenlijst en tijdlijn sleept door na een documentwissel.**
+      Met de muis ingedrukt op de balk en dan Ctrl+1 of Ctrl+2 verandert de breedte daarna alsnog (gemeten
+      375 → 461 px). Die balk start ook voor een gewone muis met `startPointer` (`GanttWorkspace.tsx`), en de
+      pointerlisteners in `useSplitter.ts` vallen buiten `endWindowDragsForDocumentSwitch`. De breedte is
+      een app-instelling, dus er landt niets in het andere document. Laat de pointeropruiming meelopen in
+      dezelfde registratie. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 16, BEVESTIGD, VERVOLG). — B
+
+1875. **VERVOLG (#1004): na Esc houdt de takenlijst haar oude Shift-beginpunt.** A, Shift C in de lijst, Esc, Shift E
+      kiest weer A t/m E: de store wist selectie en anker, maar het raster houdt zijn lokale anker zolang de
+      store er geen nieuw geeft (`withSelectionAnchor` alleen met een anker). Bestond al op main. Het anker bij
+      een selectiewissel van buiten op de cursor zetten brak het bestaande contract van
+      `check-task-grid-published-selection.ts`; dat vraagt een eigen afweging. Uit de review van #1004
+      (GPT-6.2-Sol, xhigh, ronde 5, BEVESTIGD, VERVOLG). — B
+1876. **VERVOLG (#1004): twee omzettingen van een rasterrij naar haar taken.** `gridAnchor` in
+      `FullTaskGrid.tsx` bepaalt opnieuw welke taken bij een taakrij of mijlpalenreeks horen; `selectableRow`
+      in `src/engine/taskGrid/selection.ts` doet dat al. Eén omzetting volstaat, plus het weglaten van de
+      spookregel bij publiceren naar de store. Opruimen, geen fout. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 6, BEVESTIGD, VERVOLG). — B
+1877. **VERVOLG (#1004): het menu Relatie loopt de zichtbare rijen twee keer door bij elke wijziging.**
+      `RelationDropdown` in `ribbonWidgets.tsx` abonneert zich op `selectionInView` én `chainOrder`, ook
+      bij nul of één gekozen taak en met het menu dicht; `chainOrder` maakt per rij een tijdelijke array.
+      Eén doorloop, alleen bij twee of meer gekozen taken, volstaat. Het effect op scrollen is niet gemeten.
+      Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+1878. **VERVOLG (#1004): in de 26 andere talen belooft de lintuitleg nog de klikvolgorde.** #1004 maakt de
+      keten de volgorde op het scherm en past `menu:ribbon.relationLinkSelectedHint` en de Help aan in nl en
+      en. De andere talen houden de oude tekst ("de eerst gekozen taak wordt voorganger") tot de
+      vertaalstraat ze bijwerkt; de bronhash staat al op verouderd. Een nieuwe sleutel zou tot dan op de
+      Engelse tekst terugvallen. Gezien in het Duits. Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 10,
+      BEVESTIGD, VERVOLG). — B
+1879. **Een tabklik of het sluitkruis legt de open relatiepopover eerst vast.** Na een relatiesleep staat het
+      venster *Type relatie* open. Klik je dan op een ander documenttabblad, dan legt de klik buiten het
+      venster de relatie eerst vast in het document dat je verlaat (`RelationTypePopover`, bevestigen bij
+      `mousedown` buiten). Het sluitkruis van het tabblad doet hetzelfde, nog vóór de sluitvraag. Ctrl+1 en
+      de andere documentwissels zonder muis annuleren het venster wel (#1004). Mogelijke oplossing: een
+      uitzondering voor de documentknoppen in de klik-buiten-handler. Uit de review van #1004 (GPT-6.2-Sol,
+      xhigh, ronde 11, BEVESTIGD, VERVOLG). — B
+1910. **VERVOLG (#1004): stap 6 van *Relaties leggen* belooft te veel van Enter.** In
+      `public/docs/{nl,en}/howto-relaties-leggen.md`, sectie *Een relatie toevoegen in het paneel Eigenschappen*,
+      staat "Druk op Enter of klik op het vinkje". Na het invullen van een lag verwerkt Enter in het
+      lagveld alleen die waarde (`SequenceLagInput.tsx`), en met de zoeklijst nog open kiest Enter eerst de
+      gemarkeerde treffer. Laat stap 6 in beide talen naar het vinkje verwijzen. Staat ook zo op main.
+      Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 20, BEVESTIGD, VERVOLG). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -2727,13 +2796,6 @@ en noem het in je rapport of PR-tekst.
      vóór het toepassen houden, plus wat de toegepaste tekst al uit het eigen bestand had; en een test voor deze
      volgorde. Uit #872 (ronde 4, GPT-6.1-Terra, BEVESTIGD, VERVOLG). — B
 
-1053. **VERVOLG: de bibliotheekexport schrijft buiten de schrijflock.** Het tweede bestand van `exportProjectWithPool`
-     en de store-actie `exportLibrary` (`src/state/slices/fileSlice.ts`, gedeelde schrijver `saveLibraryFile`) schrijven
-     buiten `runProjectFileWrite`; een AutoSave kan er tussendoor schrijven. Het andere deel van dit punt is opgelost in
-     #1064: de bibliotheekexport weigert sindsdien het bestand van elk open project, ook van het actieve. Richting: de
-     write onder dezelfde lock als de andere projectwrites. Uit #872 (ronde 6 tot 8, GPT-6.1-Terra en GPT-6.1-Sol,
-     BEVESTIGD, VERVOLG); ingekort na review #1064 (ronde 2). — B
-
 1051. **VERVOLG: het ontwikkelpad `saveToPathWithIO` legt de letterlijke kalenders niet vast.**
      `src/utils/devBridge.ts:89` schrijft met `writeIFC`, zonder `recordLiteralCalendarsWritten`. Gezien (GPT-6.1-Sol):
      `showcase-verbouwing-eengezinswoning.ifc`, een urentaak toevoegen, via dit pad naar het eigen bestand schrijven, de
@@ -3256,6 +3318,65 @@ en noem het in je rapport of PR-tekst.
      `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
      want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
      geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
+2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
+     opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
+     fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
+     gewone leesfout (`forbidden path`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf toestaat.
+     Bewust zo gelaten: bij 1762 koos Ethan voor "één keer per map om toegang vragen", zonder Rust-commando, en dat
+     bouwt #804 op branch `feat/804-opslaan-buiten-thuismap`. Richting: een meegegeven pad dat op `forbidden path`
+     stuit, sluit straks aan op die toegangsvraag; #1091 krijgt geen eigen vraag. — B (code: plugin-fs toetst elk
+     pad tegen de scope)
+2031. **VERVOLG (#1091, desktop): na een herstart door de updater opent het startbestand nog een keer.**
+     `tauri::process::restart` start de app met dezelfde argumenten als de eerste start (`tauri-2.12.3/src/process.rs`),
+     dus een app die met een bestand gestart was, opent dat bestand na de update opnieuw in een eigen tabblad. Niets
+     gaat verloren; het is een tabblad te veel als de planner het intussen sloot. Richting: bij de herstart de
+     bestandsargumenten weglaten, als dat zonder een eigen herstartroute kan. — S (code gelezen, niet nagespeeld)
+2032. **VERVOLG (#1091, desktop): een startbestand via een ander pad naar een al open bestand kan een tweede tabblad geven.**
+     Staat een bestand al open en geeft de planner het bij het starten mee via een ander pad (een link, een andere
+     schrijfwijze), dan herkent de startroute het aan de bestandsidentiteit (`openDocumentIdForPath`, plugin-fs `stat`),
+     die direct na het lezen wordt opgezocht (`src/state/launchFiles.ts`). Twee gaten: (1) een tabblad dat pas ná die
+     `stat` via dat andere pad opengaat (slepen tijdens het wachten), ziet alleen de padtekst, dus niet; (2) op Windows
+     levert plugin-fs geen `dev`/`ino` (`fileIdentity.ts`), dus daar valt elk ander pad buiten de vergelijking. Dan staan
+     er twee tabbladen met hetzelfde bestand, zoals bij Bestand → Openen (1957). Richting: dezelfde oplossing als 1957,
+     met een identiteit die ook op Windows werkt. Gevonden door de review van #1116 (Sol, ronde 4). — B (review)
+
+2033. **VERVOLG (#1091): een paar schrijvers lopen nog buiten de schrijfrij.** Een startbestand herkent een nieuwere
+     versie alleen aan een beurt in `runProjectFileWrite` (`projectFileWriteTurns`, `src/state/launchFiles.ts`). Sinds
+     #1116 lopen Ctrl+S, Opslaan als, Automatisch opslaan, elke export uit `exportAs` (ook CSV, MSPDI, P6-XML, XER en het
+     voortgangsblad), de bibliotheekexport en `planner_export_ifc` daardoor. Nog buiten de rij: de herstelsnapshots
+     (`recoveryStore.ts`) en de MCP-back-ups (`backupService.ts`) in de datamap van de app, het afronden van een
+     onderbroken vervanging (`ownFileReplace.ts`, `settle`, vóór elk lezen), de ontwikkelbrug (`devBridge.ts`, alleen in
+     dev), de PDF-export (een formaat dat de app niet opent) en de headless MCP-server, die in een eigen proces draait en
+     een bestaand bestand niet vervangt zolang de app loopt (`appLock.ts`). Een startbestand dat precies tijdens zo'n
+     schrijfactie gelezen wordt, kan de oude versie openen; in gewoon werk geeft de planner zo'n bestand niet mee.
+     Richting: een nieuwe schrijver naar een bestand dat de app opent, loopt door `runProjectFileWrite`. Gevonden door de
+     review van #1116 (Sol, ronde 6). — B (review)
+
+2034. **VERVOLG (#1091, desktop): een vervanging van het eigen bestand precies tijdens het lezen geeft een leesfout.**
+     Ctrl+S op het eigen pad van een document met een gebouwmodel zet de oude versie eerst opzij en plaatst dan de
+     nieuwe (`replaceOwnPathWithRecovery`, `src/services/fileAccess/ownFileReplace.ts` stap 3 en 4). Begint zo'n
+     vervanging na `settle` en valt het lezen van een startbestand met hetzelfde pad (`readOpenedTauriPath`) precies
+     tussen die twee stappen, dan staat er even geen bestand en geeft de openroute meteen de gewone leesfout. De
+     startroute toetst de teller pas na een geslaagd lezen en parsen (`src/state/launchFiles.ts`), dus leest ze dan niet
+     opnieuw. Het opgeslagen bestand blijft heel; een tweede dubbelklik opent het. Richting: bij een lees- of parsefout
+     ook toetsen of er sinds het lezen een beurt begon, en dan opnieuw lezen in plaats van melden. Gevonden door de
+     review van #1116 (Sol, ronde 7). — B (review)
+
+2035. **VERVOLG (#1116, browser): een export die lang op de schrijfrij wacht, gaat als download.** Sinds #1116 loopt elke
+     export uit `exportAs` door `runProjectFileWrite`, ook CSV, MSPDI, P6-XML, XER en het voortgangsblad, met de
+     bestandskiezer binnen de beurt (zoals IFC al deed). Houdt een eerdere beurt de rij bezet tot de klikactivatie van
+     Chromium verlopen is, dan weigert `showSaveFilePicker` en gebruikt de app de bestaande downloadroute met melding
+     (`src/services/fileAccess/webBackend.ts`); een andere plek kiezen vraagt dan een nieuwe klik. Hoe vaak dat bij echte
+     planningen gebeurt, is niet gemeten. Richting: de kiezer vóór de beurt openen en het doel in de beurt nog eens
+     controleren, zoals de documentroutes al doen. Gevonden door de review van #1116 (Sol, ronde 7). — B (review)
+
+2036. **VERVOLG (#1091, desktop): de startroute leest zonder bovengrens opnieuw.** Begon er tussen het lezen en het
+     activeren van een startbestand een schrijfbeurt, dan leest de startroute het bestand opnieuw
+     (`src/state/launchFiles.ts`). Begint er bij elke lezing weer een nieuwe beurt (een groot bestand dat lang leest
+     terwijl Automatisch opslaan naar het bestand steeds een ander document schrijft), dan blijft dat doorgaan tot er een
+     keer geen beurt tussen valt; het bestand opent dan later, niet verkeerd. De reviews van #1116 vonden geen geval
+     waarin het niet ophoudt. Richting: na een paar rondes lezen binnen een eigen beurt van de rij. Gevonden door de
+     review van #1116 (Sol, ronde 4 tot en met 7). — S (review)
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -5389,7 +5510,8 @@ en noem het in je rapport of PR-tekst.
      `feat/804-coordinator-toelating`, `check-ifc-document-save.ts`, "twee keer Openen"). Alleen in de code gelezen, niet
      met een proef: Recent (`openRecentFile`), een bestand op het venster slepen en `planner_import_schedule` lopen door
      dezelfde open-route (`openOpenedFile` of direct `openAsDocument`), en die kijkt niet of het doel al in een tabblad
-     open staat. De browser is niet nagegaan. Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
+     open staat. De browser is niet nagegaan. Een bestand dat bij het starten is meegegeven (#1091) wisselt wel naar
+     het open tabblad (`openLaunchFiles`). Voorstel: het tweede Openen wisselt naar het open tabblad. Een keuze voor
      de eigenaar, samen met 1893. Besluit technisch beslisser (21 november 2026): 1893 en 1957 gaan vóór 1939, en vóór de
      featureflag `ifcForeignContent` standaard aan gaat. — B (proef, bestandskiezer op de desktop)
 

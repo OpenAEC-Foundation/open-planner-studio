@@ -201,7 +201,6 @@
     "ganttOnlyHint": "Yalnızca Gantt şeması görünürken kullanılabilir",
     "relationLinkSelected": "Seçili görevleri bağla",
     "relationLinkSelectedHint": "İlk seçim öncül, ikinci seçim ardıl olur (FS, gecikme 0)",
-    "relationSelectExactlyTwo": "Tam olarak iki görev seçin",
     "relationAddExternal": "Dış ilişki ekle…",
     "relationAddExternalHint": "Seçili göreve dış bir öncül veya ardıl ekleyin",
     "relationSelectOne": "Tam olarak bir görev seçin",

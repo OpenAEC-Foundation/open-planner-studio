@@ -205,7 +205,6 @@
     "ganttOnlyHint": "متاح فقط عندما يكون مخطط جانت ظاهرًا",
     "relationLinkSelected": "ربط المهام المحددة",
     "relationLinkSelectedHint": "يصبح التحديد الأول سابقًا والثاني لاحقًا (نهاية-بداية FS، تأخير 0)",
-    "relationSelectExactlyTwo": "حدد مهمتين بالضبط",
     "relationAddExternal": "إضافة علاقة خارجية…",
     "relationAddExternalHint": "أضف سابقًا أو لاحقًا خارجيًا إلى المهمة المحددة",
     "relationSelectOne": "حدد مهمة واحدة بالضبط",
