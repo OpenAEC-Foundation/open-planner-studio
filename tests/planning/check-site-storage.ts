@@ -791,6 +791,30 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     eq(`G16 ${route}: één melding`, S().ui.notifications.map((n) => [n.severity, n.messageKey]), [['info', 'notifications.fileAlreadyOpen']]);
     eq(`G16 ${route}: Recent bovenaan`, S().recentFiles[0]?.ref, { kind: 'site', id: 'y' });
   }
+  // G17 — review #1121 ronde 2: krijgt het open tabblad tussen de toets en het activeren een ander sitebestand (de commit
+  // van *Opslaan als* maakt een kopie met een eigen id), dan is de treffer vervallen: de toets loopt opnieuw en het
+  // gevraagde bestand opent in een eigen tabblad, de kopie houdt haar id. (`getOpenDocumentPayloads` gewikkeld: vlak na
+  // de toets, in een microtaak, de commit.)
+  {
+    S().switchDocument(tabY);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    const docs = S().getOpenDocumentPayloads;
+    let committed = false;
+    useAppStore.setState({ getOpenDocumentPayloads: () => {
+      if (!committed && (new Error().stack ?? '').includes('openDocumentFor')) {
+        committed = true;
+        queueMicrotask(() => useAppStore.setState((st) => { st.siteFileId = 'y-kopie'; }));
+      }
+      return docs();
+    } });
+    try { await S().openFromSite('y'); } finally { useAppStore.setState({ getOpenDocumentPayloads: docs }); }
+    eq('G17 Opslaan als tussen toets en wissel: het gevraagde bestand in een eigen tabblad, de kopie houdt haar id', [
+      committed, S().documents.length, S().activeDocumentId !== tabY, S().siteFileId,
+      S().getOpenDocumentPayloads().find((d) => d.id === tabY)?.payload.siteFileId,
+      S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileAlreadyOpen').length,
+    ], [true, count + 1, true, 'y', 'y-kopie', 0]);
+  }
   // Een oudere versie opent bewust als kopie zonder opslagdoel: geen identiteit, dus een eigen tabblad.
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
