@@ -413,9 +413,12 @@ uit precies main (fixronde 2): regel 1, dan de eigen versie, dan het open tabbla
 bestandsaanroepen, ook als er na het uitzetten nog een tabblad met een gebouwmodel open staat. Staat er op het pad geen bestand meer, dan is de naam vrij, ook als een ander
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
-controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen kan met de flag aan geen tweede tabblad
-op hetzelfde bestand meer maken: het gaat naar het tabblad dat al open is (`openDocumentFor.ts`, knownbug 1957; dezelfde
-lus `openDocumentPathId` voor paden, `isSameEntry` voor handles). Opslaan als op de site maakt altijd een
+controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen maakt met de flag aan in de gewone routes geen tweede
+tabblad op hetzelfde bestand: het gaat naar het tabblad dat al open is (`openDocumentFor.ts`, knownbug 1957; de lus
+`openDocumentPathId` met `dev`/`ino` vóór het lexicale pad, `isSameEntry` voor handles). Kreeg dat tabblad tijdens de
+toets een ander bestand (Opslaan als), dan opent het gevraagde bestand gewoon. Een tweede tabblad op hetzelfde bestand
+kan er nog zijn (crashherstel, de flag pas later aan, twee kruisende openacties: knownbug 2041), dus de doelbewaking
+blijft nodig. Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document
 blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907, de bibliotheek),
 `check-ifc-foreign-target.ts` (#1022 browser), `cases-doc-file.ts` en `cases-headless-server.ts` (`planner_export_ifc`).

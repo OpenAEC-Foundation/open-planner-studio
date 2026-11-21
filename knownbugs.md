@@ -5319,10 +5319,13 @@ en noem het in je rapport of PR-tekst.
      tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde bestand; slaat de planner het ene op (Ctrl+S of
      Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg. Dezelfde familie als 1893.
      **Met de flag aan opgelost** (#804, PR 1 van 2, besluit van de eigenaar 21 november 2026 "één bestand, één
-     tabblad"): elke weg gaat dan naar het tabblad dat al open is, met de melding "Dit bestand staat al open. Je bent
-     naar dat tabblad gegaan."; dat tabblad houdt zijn werk en wordt niet herladen (`src/state/openDocumentFor.ts`).
-     Proeven: `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent, slepen; met de flag uit telkens een
-     tweede tabblad), G16 in `check-site-storage.ts` (de site) en `cases-doc-file.ts` (`planner_import_schedule`).
+     tabblad"): in de gewone routes gaat de app dan naar het tabblad dat al open is, met de melding "Dit bestand staat
+     al open. Je bent naar dat tabblad gegaan."; dat tabblad houdt zijn inhoud (`src/state/openDocumentFor.ts`). Kreeg
+     dat tabblad tijdens de toets of een wachtende neerzetting een ander bestand (*Opslaan als*, sluiten), dan opent het
+     gevraagde bestand gewoon, zoals met de flag uit (review #1121, proef B8). Twee kruisende openacties kunnen nog twee
+     tabbladen geven (2041). Proeven: `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent, slepen; met de
+     flag uit telkens een tweede tabblad), G16 in `check-site-storage.ts` (de site) en `cases-doc-file.ts`
+     (`planner_import_schedule`).
      Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
      aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
      2029, 2040, 2041. — B (proef, met de flag uit)
@@ -5354,8 +5357,10 @@ en noem het in je rapport of PR-tekst.
      De toets "staat al open" van #804 (knownbug 1957, met de featureflag `ifcForeignContent`) kijkt alleen naar de
      tabbladen binnen één app. Elk browsertabblad of -venster van de website heeft een eigen store; er is geen
      afstemming over open bestanden (geen `BroadcastChannel`; `navigator.locks` alleen voor de herstelsessies,
-     `recoveryStore.ts`). Open je kantoor.ifc in twee browservensters, of in de desktopapp en in de browser, dan slaat
-     elk zijn eigen versie op en overschrijft de laatste stil de andere. Gevonden bij het bouwen van #804 PR 1, alleen
+     `recoveryStore.ts`). Open je een bestand van je computer (kantoor.ifc) in twee browservensters, of in de desktopapp en
+     in de browser, dan slaat elk zijn eigen versie op en overschrijft de laatste stil de andere. Een sitebestand valt
+     erbuiten: de site-opslag geeft de basisversie mee (`siteFileVersion`); is het bestand intussen verder, dan meldt de
+     site een conflict of maakt ze een kopie (`siteHost.ts`), en overschrijft ze niets stil. Gevonden bij het bouwen van #804 PR 1, alleen
      in de code gelezen. Richting: een melding als een ander venster hetzelfde bestand open heeft; een keuze voor de
      eigenaar. — S
 

@@ -17,7 +17,7 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 
 Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een ander formaat krijgt zijn projectnaam.
 
-Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en staat het IFC-bestand al open in een tabblad, dan opent de app het niet nog eens. Ze gaat naar het tabblad dat al open is, met de melding *Dit bestand staat al open. Je bent naar dat tabblad gegaan.* Dat tabblad blijft zoals het was, ook met wijzigingen die je nog niet opsloeg: de app leest het bestand niet opnieuw. Zo kunnen twee tabbladen elkaars opslag niet overschrijven. Dat geldt ook voor slepen en *Recent*. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad, net als elk bestand in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad.
+Staat de experimentele instelling *IFC met gebouwmodel openen* aan (zie [App-instellingen](docs://ref-instellingen)) en open je een IFC-bestand dat al in een tabblad open staat, dan komt er geen tweede tabblad. De app gaat naar het tabblad dat al open is, met de melding *Dit bestand staat al open. Je bent naar dat tabblad gegaan.* Dat tabblad houdt zijn inhoud, ook wijzigingen die je nog niet opsloeg; wat er nu in het bestand staat, komt er niet in. Dat geldt ook voor slepen en *Recent*. Een bestand in een ander formaat, zoals `.csv` of `.xer`, opent wel opnieuw in een eigen tabblad. Dat doet ook een bestand van je computer in browsers die alleen downloaden, zoals Firefox. Staat de instelling uit, dan opent ook een IFC-bestand dat al open staat in een nieuw tabblad.
 
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
@@ -25,7 +25,7 @@ De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp`
 
 1. Sleep een of meer bestanden vanuit je bestandsbeheer of Finder naar het venster van de app.
 2. Tijdens het slepen ligt er een grijze laag over het venster, met *Laat los om te openen* en *Projectbestand of import*.
-3. Laat de muisknop los. Elk bestand opent zoals bij *Openen*: in een eigen tabblad, in de volgorde waarin je ze sleepte. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
+3. Laat de muisknop los. Elk bestand opent zoals bij *Openen*: in een eigen tabblad, in de volgorde waarin je ze sleepte. Met de experimentele instelling hierboven gaat een IFC-bestand dat al open staat naar zijn tabblad. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
 4. Verschijnt na een bestand de uitleg over zijn formaat, dan opent het volgende bestand pas als je die uitleg sluit met *Begrepen*. Zo krijgt elk bestand zijn eigen uitleg.
 
 Een project met wijzigingen blijft in zijn eigen tabblad staan; slepen vervangt niets. Een gesleept IFC-bestand werkt daarna als een geopend bestand: *Opslaan* schrijft ernaar, behalve in browsers die alleen downloaden, zoals Firefox.
