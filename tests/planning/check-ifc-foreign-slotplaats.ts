@@ -66,7 +66,7 @@ function masks(label: string, group: string, id: number, arg: number, restored: 
   return r;
 }
 
-// ── Eén slot in een pset, in een property, in een template; het masker verbergt alleen dat slot ──
+// ── Eén slot in een pset, in een property, in een template; (c) zet alleen dat slot apart ──
 {
   const r = masks('omschrijving van de pset', PS, 4, 3, "'Van een ander programma'", [
     ['de omschrijving van een property in dezelfde pset', 2, 1, "'Fout'"],

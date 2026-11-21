@@ -2284,26 +2284,26 @@ en noem het in je rapport of PR-tekst.
      De koppen in dat bestand (een oude writer, 15 argumenten) hebben geen StartTime; de writer schrijft er een, dus de
      herleestoets (b) zet `$` terug en de koppen zijn in de bron niet gedragen. Dan geldt voor de aggregatie van het
      werkplan de controle van main (PR 12c, E1 eist dat (b) geen kop terugzette; sinds PR A van stap 5 deel 2 toetst (c)
-     de rest van zo'n kop wel, maar E1 blijft per groep, 1747): een
+     zo'n kop per slot als ze het slot eenduidig aanwijst, maar E1 blijft per groep, 1747): een
      baseline wissen of alles wissen weigert op dat bestand met een wand, net als op de basis. Na één opslag (de
      catalogus in `check-ifc-foreign-eigen-toets.ts`) schrijft het wel. Met de StartTime ingevuld zoals de writer hem
      schrijft, schrijft het wissen ook op de bron (de proef van (a′) op de bronvorm). Richting: alleen als oude bestanden
      zonder StartTime op de kop vaak voorkomen; dan de lege StartTime van een kop als gedragen zien. — B
 
 1747. **VERVOLG (#804, controle (c)): zette (b) ergens een typenaam terug, dan beweegt de typenaam niet mee met een hernoemd type.**
-     Sinds PR A van stap 5 deel 2 (de toets en (c) per slot) slaat (c) bij een typenaam die de herleestoets (b) terugzette
-     op een taak zonder type alleen dat ene slot over (`taak:ObjectType|<GlobalId>#4`, `restoredOwnSlots` in
-     `ownGroups.ts`), niet meer de typenaam van elke taak. Een verkeerde typenaam op een andere taak weigert nu ook bij een
-     typewissel (tegenproef "was knownbug 1747" in `check-ifc-foreign-eigen-uitvoer.ts`). Wat blijft: (1) het teruggezette
-     slot zelf toetst (c) niet; de merge schrijft daar de bronwaarde. (2) De tweede vormen E1 en E2 (`SECOND_FORMS` in
-     `lossCheck.ts`) blijven per groep: zette (b) iets terug in de pset van de vorm (`OPS_TaskTypes`, `OPS_Baselines`) of
-     in de vorm zelf, dan beweegt de typenaam of de baselinekop niet mee, zoals op main (in de proef: een omschrijving op een
-     kop, dan een andere baseline wissen, weigert). Met een slot van (b) in de vorm per slot uitgesloten (het advies van
-     de meting) schreven in `check-ifc-foreign-eigen-toets.ts` vier gevallen die nu weigeren: alles wissen en één baseline
-     wissen op `ifc-arity-oude-writer.ifc`, een andere baseline wissen naast een omschrijving op een kop, en een type
-     hernoemen naast een typenaam op een taak zonder type; PR A mocht geen uitkomst veranderen. Een slot van (b) elders in
-     de pset (niet in de vorm) liet in eigen-toets en oude-eigen niets omslaan. Richting: een eigen PR, met die vier
-     gevallen als bedoelde omslag en de telling ernaast. — B
+     Sinds PR A van stap 5 deel 2 ((c) per slot, verankerd) toetst (c) een typenaam die de herleestoets (b) terugzette op
+     een taak zonder type apart: op die taak moet precies de bronwaarde staan (`taak:ObjectType|<GlobalId>#4`,
+     `restoredOwnSlots` en `restoredOwnGroupDifference` in `ownGroups.ts`). De typenaam van elke andere taak toetst (c)
+     gewoon; een verkeerde typenaam op een andere taak weigert nu ook bij een typewissel (tegenproef "was knownbug 1747" in
+     `check-ifc-foreign-eigen-uitvoer.ts`). Wat blijft: de tweede vormen E1 en E2 (`SECOND_FORMS` in `lossCheck.ts`)
+     blijven per groep: zette (b) iets terug in de pset van de vorm (`OPS_TaskTypes`, `OPS_Baselines`) of in de vorm zelf,
+     dan beweegt de typenaam of de baselinekop niet mee, zoals op main (in de proef: een omschrijving op een kop, dan een
+     andere baseline wissen, weigert). Met een slot van (b) in de vorm per slot uitgesloten (het advies van de meting)
+     schreven in `check-ifc-foreign-eigen-toets.ts` vier gevallen die op main weigeren: alles wissen en één baseline wissen
+     op `ifc-arity-oude-writer.ifc`, een andere baseline wissen naast een omschrijving op een kop, en een type hernoemen
+     naast een typenaam op een taak zonder type. Een slot van (b) elders in de pset (niet in de vorm) liet in eigen-toets
+     en oude-eigen niets omslaan. Richting: een eigen PR, met die vier gevallen als bedoelde omslag en de telling ernaast;
+     net als bij 1953 verschuift dat de opslaggrens, dus met een eigen besluit. — B
 
 1952. **VERVOLG (#804 stap 5, controle 1): de GlobalId van een pset met alleen vreemde leden toetst geen controle.**
      Schrijft de writer een eigen pset niet meer (het laatste eigen lid viel weg), dan zet de merge een pset met alleen de
@@ -2318,19 +2318,26 @@ en noem het in je rapport of PR-tekst.
      gewijzigde GlobalId komt door alle uitvoercontroles, en dezelfde grens is op main gereproduceerd bij het wissen
      van de laatste taaknotitie. — B
 
-1953. **VERVOLG (#804 stap 5 deel 2): lijst A en de nacontrole kunnen nog niet in één keer weg.**
+1953. **VERVOLG (#804 stap 5 deel 2): lijst A en de nacontrole kunnen nog niet weg.**
      Gevonden door de review van #1087 (Sol, ronde 1): een vreemde omschrijving op de pset `OPS_StructureMeta`, daarna via
-     de store een tweede code. Tot PR A van deel 2 viel dan de hele groep buiten de toets en buiten de uitvoercontrole (c),
-     en ving alleen de nacontrole ("verwachte wijziging ontbreekt") een ontbrekend nieuw codetemplate. Sinds PR A sluit een
-     slot dat de herleestoets (b) terugzette alleen zichzelf uit (`restoredOwnSlots` in `ownGroups.ts`): dezelfde fout in
-     de echte uitvoer weigert nu door (c), en de verliescontrole gebruikt in zo'n groep geen oude verklaring meer
-     (`check-ifc-foreign-eigen-uitvoer.ts` blok 10, `-eigen-toets.ts` blok 9, met de zeven gevallen van de meting). Een
-     groep valt nog helemaal terug op het gedrag van vóór PR A als (c) het slot niet eenduidig aanwijst (twee properties of
-     psets met dezelfde naam, het slot is de naam of de GlobalId, de waarde wijst naar een eigen regel), of als de
-     bronwaarde van een soort is die de lezer deels draagt (lijst, JSON, samengestelde tekst: een vreemde `Creators` op een
-     kop, het baseline-JSON van een oud bestand, 1770). Daar dragen lijst A en de nacontrole nog. Ze weghalen is PR B, na
-     een nieuwe meting op de head van PR A (eis: nul treffers). De twee te absolute commentaarregels zijn in PR A
-     rechtgezet. — B (review)
+     de store een tweede code. De herleestoets (b) zet de omschrijving terug, en dan valt de hele groep in de
+     verliescontrole buiten de toets (a): lijst A en de nacontrole beslissen daar, zoals op main. Tot PR A van deel 2 sloeg
+     ook de uitvoercontrole (c) de hele groep over, en ving alleen de nacontrole ("verwachte wijziging ontbreekt") een
+     ontbrekend nieuw codetemplate. Sinds PR A toetst (c) de rest van zo'n groep, en het teruggezette slot apart op regel en
+     bronwaarde (`restoredOwnSlots`, `restoredOwnGroupDifference` in `ownGroups.ts`): dezelfde fout in de echte uitvoer
+     weigert nu ook door (c) (`check-ifc-foreign-eigen-uitvoer.ts` blok 10). Een fout van de writer zelf, die het template
+     of een nieuwe `TaskGuids`-sleutel ook in de herschreven boom van (c) weglaat, vangt alleen de nacontrole (review van
+     #1095, punt 3). De eerste versie van PR A deed ook (a) per slot; daarmee schreven twee handelingen die op main
+     weigeren (met een omschrijving op `OPS_StructureMeta` het eerste eigen veld toevoegen, of een activiteitscodetype
+     hernoemen; punt 2), en viel daar de nacontrole weg. Dat is teruggedraaid; beide handelingen staan als vaste proef in
+     `check-ifc-foreign-eigen-toets.ts` blok 9, en de writerfouten in blok 10 van eigen-uitvoer (de verliescontrole zelf
+     weigert). Lijst A en de nacontrole weghalen is PR B: geparkeerd tot de voorwaarden voor de flag klaar zijn (1939 en
+     1762), en dan met een besluit over punt 2 (mag (a) per slot de opslaggrens verschuiven?) en een onafhankelijke
+     inhoudstoets voor de templates en `TaskGuids` als eis. Lijst B krijgt een eigen stap met een eigen meting. (c) slaat
+     een groep nog helemaal over als ze het slot niet eenduidig aanwijst (twee properties of psets met dezelfde naam, het
+     slot is de naam of de GlobalId, een verwijzing in de waarde), of als de bronwaarde van een soort is die de lezer deels
+     draagt (lijst, JSON, samengestelde tekst: een vreemde `Creators` op een kop, het baseline-JSON van een oud bestand,
+     1770). De twee te absolute commentaarregels zijn in PR A rechtgezet. — B (review)
 
 1954. **Test hapert: `check-ifc-foreign-target.ts` gaf op main één afwijking in de tijdzonerun America/New_York.**
      CI-run 44805342053 op main `1e360f508`, job *verify (planning 3-5)* (ook de verzameljob `test` rood): "XX

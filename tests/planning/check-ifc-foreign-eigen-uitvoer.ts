@@ -20,11 +20,12 @@
 //    vreemde lid vangt controle 1; een fout in de eigen leden van zo'n groep vangt (c). Een andere GlobalId op die pset vangt
 //    geen controle (knownbug 1952).
 // 10. Stap 5, PR A: (c) per slot. Op de echte uitvoer van de gevallen van blok 9 in `check-ifc-foreign-eigen-toets.ts`, met wat
-//    de opslag (c) liet overslaan: een fout in het nieuwe stuk, of in een ander slot van dezelfde groep, vangt (c), en de
-//    verliescontrole zelf (met de toets per slot) laat hem door, dus geen oude verklaring en geen nacontrole draagt de
-//    weigering. Op de koppen en de typenaam (buiten de toets) vangt de verliescontrole zo'n fout ook. Het teruggezette slot
-//    zelf toetst (c) niet (de grens van het masker), en een vreemde `Creators` (een lijst) laat de koppen terugvallen: (c)
-//    slaat ze over en de verliescontrole draagt het, zoals op de basis.
+//    de opslag aan (c) gaf: een fout in het nieuwe stuk, of in een ander slot van dezelfde groep, vangt (c); de verliescontrole
+//    vangt hem ook, want die groep valt daar helemaal buiten de toets (zoals op de basis), en een fout van de writer zelf (een
+//    O1 zonder het nieuwe codetemplate of de nieuwe `TaskGuids`-sleutel) weigert de nacontrole. Het teruggezette slot zelf,
+//    achteraf anders of leeg, vangt (c) op regel en bronwaarde; zo ook twee verwisselde templates met dezelfde naam (de review
+//    van #1095, punt 1, 4 en 5). Een vreemde `Creators` (een lijst) laat de koppen terugvallen: (c) slaat ze over en de
+//    verliescontrole draagt het, zoals op de basis.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
@@ -788,11 +789,12 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
 
 // ── 10. Stap 5, PR A: (c) per slot op de echte uitvoer (knownbugs 1953 en 1747) ──
 // De gevallen van blok 9 in `check-ifc-foreign-eigen-toets.ts`: een slot van een ander programma dat (b) terugzet, dan de
-// gewone handeling. Per tegenproef op de echte uitvoer: wat de verliescontrole zelf zegt (`lossProbe` met de toets per slot,
-// en O0 in de vorm van de writer, zodat (b) het slot terugzet zoals bij opslaan), en de uitvoercontrole zonder en met (c),
-// met de overslag zoals de opslag hem meldde. `alleen (c)`: de verliescontrole en de uitvoercontrole zonder (c) laten hem door
-// en (c) vangt hem; dan draagt geen oude verklaring en geen nacontrole de weigering. Het teruggezette slot zelf toetst (c)
-// niet: daar schrijft de writer niet uit het domein (de grens van het masker; vóór PR A gold dat voor de hele groep).
+// gewone handeling. Per tegenproef op de echte uitvoer: wat de verliescontrole zelf zegt (`lossProbe` met de toets, en O0 in
+// de vorm van de writer, zodat (b) het slot terugzet zoals bij opslaan), en de uitvoercontrole zonder en met (c), met de
+// slots zoals de opslag ze aan (c) gaf. `alleen (c)`: de verliescontrole en de uitvoercontrole zonder (c) laten hem door en
+// (c) vangt hem (een groep zonder slot van (b), die de toets draagt). In een groep met zo'n slot vangt de verliescontrole een
+// fout in de rest van de groep ook (`ook (c)`). Het teruggezette slot zelf toetst (c) apart: daar schrijft de writer niet uit
+// het domein, dus eist (c) op die regel precies de bronwaarde (vóór PR A sloeg (c) daarvoor de hele groep over).
 {
   const eigen = SOURCES.eigen;
   const single = await savedCatalog(eigen, false), cat = await savedCatalog(eigen);
@@ -907,7 +909,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     ['wbsAutoNumber terug op de bronwaarde', back(PS, PROP.ProjectSettings.wbsAutoNumber), 'weigert'],
     ...inGroup(PS),
   ]);
-  // Twee teruggezette slots in één groep: beide gemaskeerd, een derde slot getoetst.
+  // Twee teruggezette slots in één groep: beide apart getoetst, een derde slot gewoon.
   const confirmed = (ls: OutLine[]) => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.IfcSchemaConfirmed}'`)!;
   await perSlotProofs('twee slots in OPS_ProjectSettings, statusdatum zetten', single,
     withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum, [
@@ -915,7 +917,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
       ...restoredSlot('de omschrijving van IfcSchemaConfirmed', confirmed, 1),
       ...restoredSlot('de omschrijving van OPS_ProjectSettings', psetLine(PS), 3),
     ]);
-  // Een slot in de ene groep sluit een andere groep niet uit en maskeert er niets: de omschrijving op `OPS_TaskTypes`, de
+  // Een slot in de ene groep sluit een andere groep niet uit en zet daar niets apart: de omschrijving op `OPS_TaskTypes`, de
   // handeling in `OPS_StructureMeta`; hetzelfde argument (de omschrijving, 3) op de andere pset toetst (c) wel.
   await perSlotProofs('omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, TT), tweedeCode, [
     ['de nieuwe codetemplate weg (andere groep)', templateGone('Code per slot'), 'alleen (c)'],

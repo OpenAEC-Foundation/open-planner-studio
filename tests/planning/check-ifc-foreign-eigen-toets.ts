@@ -32,11 +32,13 @@
 // 8. Stap 5 deel 1 (was knownbug 1707): na "het laatste eigen lid weg" heropenen, zonder bewerking (dezelfde bytes) en met de
 //    handeling andersom (het vreemde lid weer in de eigen pset); het vreemde lid niet achteraan in de ledenlijst (weigert,
 //    zoals op de basis); een vreemde `Creators`-verwijzing in een kop.
-// 9. Stap 5, PR A: de toets en (c) per slot. Een omschrijving van een ander programma op een eigen pset (die zet (b) terug),
-//    dan de gewone handeling: schrijft en is heel, (c) toetst precies dat ene slot niet, en de verliescontrole laat in die groep
-//    geen verschil meer door een oude verklaring gaan. Daarna de slotgevallen: twee slots in één groep, een slot in een
-//    andere groep, een kop, een typenaam, een omschrijving op `ModifiedAt`, en wat terugvalt op de hele groep: wat niet
-//    eenduidig aan te wijzen is, en een bronwaarde van een soort die de lezer deels draagt (een vreemde `Creators`, een lijst).
+// 9. Stap 5, PR A: (c) per slot. Een omschrijving van een ander programma op een eigen pset (die zet (b) terug), dan de
+//    gewone handeling: schrijft en is heel, (c) toetst precies dat ene slot apart (op regel en bronwaarde) en de rest van de
+//    groep gewoon, en in de verliescontrole valt die groep helemaal buiten de toets: een oude verklaring draagt het verschil,
+//    zoals op de basis. Daarna de slotgevallen: twee slots in één groep, een slot in een andere groep, een kop, een typenaam,
+//    een omschrijving op `ModifiedAt`, wat terugvalt op de hele groep (wat niet eenduidig aan te wijzen is, en een bronwaarde
+//    van een soort die de lezer deels draagt: een vreemde `Creators`, een lijst), en de twee handelingen van de review van
+//    #1095 (punt 2) die met een omschrijving op `OPS_StructureMeta` weigeren, zoals op de basis.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
@@ -224,9 +226,8 @@ await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baseli
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'schrijft');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
-// (a) per slot (PR A): de omschrijving op elk codetemplate zet (b) terug; die slots vallen buiten de toets en buiten (c), de
-// rest van `OPS_StructureMeta` niet. Hernoemen of wissen weigert zoals op de basis, maar niet door de toets: het template met
-// de bronwaarde heeft daarna geen regel in O1 (een bronwaarde zonder regel, `lost` in `lossCheck.ts`).
+// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken. (c) toetst de rest van zo'n
+// groep, en het slot zelf apart (PR A).
 await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
 await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
@@ -963,15 +964,16 @@ function withForeignMemberInMiddle(bytes: Uint8Array, pset: string): Uint8Array 
   await one('kop: vreemde Creators op een kop, de andere baseline wissen', creators, wisEen, 'weigert');
 }
 
-// ── 9. Stap 5, PR A: de toets en (c) per slot (knownbugs 1953 en 1747) ──
-// Zette (b) een slot terug, dan valt alleen dat slot buiten de toets en buiten (c); de rest van zijn groep valt eronder. Het
-// slot staat op zijn plaats in de boom van (c): de groep, de weg via typen en namen vanaf de wortel, en het argument, zonder
-// id's (`restoredOwnSlots` in `ownGroups.ts`). Is die plaats niet eenduidig, dan valt de groep helemaal buiten de toets, zoals
-// tot PR A. Per geval: het schrijft en is heel, de omschrijving blijft staan, (c) slaat geen groep over en toetst precies de
-// verwachte slots niet (`restored`, zoals de opslag het meldt), heropenen en zonder bewerking opnieuw opslaan geeft dezelfde
-// bytes, en de verliescontrole zelf (`lossProbe`, met O0 in de vorm van de writer, zodat (b) het slot terugzet zoals bij
-// opslaan) laat in de groep geen verschil meer door een oude verklaring (lijst A) gaan. De tegenproeven op de echte uitvoer
-// staan in `check-ifc-foreign-eigen-uitvoer.ts`, blok 10.
+// ── 9. Stap 5, PR A: (c) per slot (knownbugs 1953 en 1747) ──
+// Zette (b) een slot terug, dan toetst (c) dat slot apart en de rest van zijn groep gewoon. Het slot staat op zijn plaats in de
+// boom van (c): de groep, de weg via typen en namen vanaf de wortel, en het argument, zonder id's (`restoredOwnSlots` in
+// `ownGroups.ts`); daar eist (c) de regel waarop (b) de bronwaarde zette, met precies die bronwaarde. Is die plaats niet
+// eenduidig, dan slaat (c) de groep helemaal over, zoals op de basis. De toets (a) blijft per groep: de groep met het slot valt
+// in de verliescontrole helemaal buiten de toets. Per geval: het schrijft en is heel, de omschrijving blijft staan, (c) slaat
+// geen groep over en toetst precies de verwachte slots apart (`restored`, zoals de opslag het meldt), heropenen en zonder
+// bewerking opnieuw opslaan geeft dezelfde bytes, en de verliescontrole zelf (`lossProbe`, met O0 in de vorm van de writer,
+// zodat (b) het slot terugzet zoals bij opslaan) laat de echte O1 door, met een oude verklaring (lijst A) in de groep met het
+// slot, zoals op de basis. De tegenproeven op de echte uitvoer staan in `check-ifc-foreign-eigen-uitvoer.ts`, blok 10.
 const restoredText = (r: RestoredOwnSlots | undefined) => r
   ? `overslaan: ${[...r.skip].join(', ') || 'niets'}; apart: ${r.slots.map(s => s.place).join(' + ') || 'niets'}` : 'niet gemeld';
 const sameSet = (a: ReadonlySet<string> | undefined, b: readonly string[]) => !!a && a.size === b.length && b.every(x => a.has(x));
@@ -1032,14 +1034,13 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
     withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum,
     [psetDescriptionPlace(PS), propertyDescriptionPlace(PS, PROP.ProjectSettings.IfcSchemaConfirmed)], [PS]);
   // Een slot in de ene groep sluit een andere groep niet uit: de omschrijving op `OPS_TaskTypes`, de handeling in
-  // `OPS_StructureMeta` (de tegenproef dat (c) die groep helemaal toetst, staat in eigen-uitvoer).
+  // `OPS_StructureMeta`; die groep draagt de toets (de tegenproef dat (c) haar helemaal toetst, staat in eigen-uitvoer).
   await perSlot('per slot: omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, PSET.TaskTypes), SEVEN[0][3],
     [psetDescriptionPlace(PSET.TaskTypes)], [], [PSET.StructureMeta]);
-  // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving op een kop. (c) toetst dan alleen
-  // dat ene slot van die ene taak of kop niet (was knownbug 1747: de hele vorm). De vorm zelf beweegt niet mee (blok 5 en
-  // 6, hierboven): dat blijft per vorm. Een vreemde `Creators` op een kop is een lijst, een soort die de lezer deels draagt:
-  // daar valt de groep van de koppen terug op het gedrag van vóór PR A (heel buiten de toets en buiten (c)), en het slot
-  // blijft staan.
+  // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving op een kop. (c) toetst dan dat ene
+  // slot van die ene taak of kop apart (was knownbug 1747: de hele vorm niet). De vorm zelf beweegt niet mee (blok 5 en 6,
+  // hierboven): dat blijft per vorm. Een vreemde `Creators` op een kop is een lijst, een soort die de lezer deels draagt: daar
+  // slaat (c) de koppen over, zoals op de basis, en het slot blijft staan.
   const guidOf = (b: Uint8Array, pick: (l: OutLine) => boolean) => linesOfBytes(b).find(pick)!.args[0].trim();
   {
     const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
@@ -1066,7 +1067,7 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   }
   // Wat (c) niet eenduidig kan aanwijzen, komt niet bij (c): twee eigen properties met dezelfde naam, en twee eigen psets met
   // dezelfde naam, paren in de verliescontrole niet eenduidig of hebben geen tegenhanger in O0. Dat weigert, zoals op de
-  // basis. Wat `restoredOwnSlots` doet als het toch zo ver komt (de hele groep buiten de toets), toetst
+  // basis. Wat `restoredOwnSlots` doet als het toch zo ver komt (de hele groep buiten (c)), toetst
   // `check-ifc-foreign-slotplaats.ts` los.
   {
     const ls = linesOfBytes(single);
@@ -1101,7 +1102,7 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
     }
   }
   // Een omschrijving op een property waarvan de handeling de waarde zet (`ModifiedAt` verandert bij elke bewerking): de
-  // waarde komt van de writer, de omschrijving zet (b) terug en blijft staan (ook op de basis); (c) toetst alleen dat slot niet.
+  // waarde komt van de writer, de omschrijving zet (b) terug en blijft staan (ook op de basis); (c) toetst alleen dat slot apart.
   {
     const slotted = withPropertyDescription(single, PS, PROP.ProjectSettings.ModifiedAt);
     const { o } = await one('per slot: omschrijving op ModifiedAt, statusdatum zetten', slotted, statusdatum, 'schrijft');
