@@ -25,6 +25,9 @@ import { contextMenuBulk } from '@/components/canvas/contextMenuScope';
 import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { answerActualStartQuestion } from '@/state/actualStartQuestion';
 import { planProgressEntry } from '@/engine/progressEntry';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { displayDate } from '@/utils/displayDate';
 import type { CellEditIntent } from '@/types/taskGrid';
@@ -175,13 +178,18 @@ function expectRule1(label: string, S: () => AppState, B: string, depthBefore: n
     ['2026-10-28T07:00', '2026-10-30T16:00', 3, 1]);
 }
 
-for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad'] as const) {
+for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere taken koppelen'] as const) {
   const { ctx, S } = fresh();
   const today = '2026-11-18';
   S().setProject({ startDate: '2026-10-28' });
   const B = S().addTask({ name: 'Metselwerk', time: { scheduleDuration: 3 } as Task['time'] });
+  const otherA = S().addTask({ name: 'Andere taak A' });
+  const otherB = S().addTask({ name: 'Andere taak B' });
   S().runCPM();
   S().enterTaskProgress(B, { field: 'completion', value: 0.5 }, { today });
+  if (route === 'andere taken koppelen') {
+    S().addSequence({ predecessorId: otherA, successorId: otherB, type: 'FINISH_START', lagDays: 0 });
+  }
   const before = taskOf(S, B).time;
   eq(`#998 ${route}: het getoonde einde staat nog op 30 oktober`, before.earlyFinish, '2026-10-30T16:00');
   const edit = { field: 'completion', value: 1 } as const;
@@ -195,6 +203,11 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad'] as const) 
   else S().enterTaskProgress(B, edit, { today });
   eq(`#998 ${route}: losse afmelding zonder F5 houdt het geplande einde`,
     taskOf(S, B).time.actualFinish, '2026-10-30T16:00');
+  if (route === 'andere taken koppelen') {
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+    eq('#998 andere taken koppelen: IFC bewaart het geplande einde',
+      reopened.tasks.find(task => task.name === 'Metselwerk')?.time.actualFinish, '2026-10-30T16:00');
+  }
   S().undo();
   eq(`#998 ${route}: één Ctrl+Z herstelt de toestand op 50%`, taskOf(S, B).time, before);
 }

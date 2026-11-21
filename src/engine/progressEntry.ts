@@ -4,7 +4,8 @@ import type { Task, TaskTime } from '@/types/task';
 import { sameValue } from '@/utils/sameValue';
 import {
   applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, datesForProgress, isActualFinishBeforeStart,
-  isActualPastStatusDate, isTaskActualPastStatusDate, normalizeActualDate, type PlannedProgressDates,
+  isActualPastStatusDate, isTaskActualPastStatusDate, normalizeActualDate, rememberProgressBeforeRecalculation,
+  type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
 
 /**
@@ -213,5 +214,6 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
     next = run(undefined);
     if (sameValue(task, next)) return { ok: true, change: null };
   }
+  rememberProgressBeforeRecalculation(task, next);
   return { ok: true, change: statusDateToday ? { task: next, statusDateToday } : { task: next } };
 }

@@ -23,7 +23,7 @@ import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import {
   applyProgressInvariants, datesForProgress, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
-  normalizeActualDate,
+  normalizeActualDate, rememberProgressBeforeRecalculation,
   type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
 import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
@@ -282,6 +282,7 @@ export const progress = {
     // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
     // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.
     if (sameValue(task, scratch)) return { applied: true };
+    rememberProgressBeforeRecalculation(task, scratch);
     // De voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de
     // ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store). Ná de no-op-check, zodat een
     // no-op ook het werk niet raakt.

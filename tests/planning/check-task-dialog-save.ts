@@ -1,7 +1,7 @@
 // F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // "Taak bewerken" → Opslaan, headless tegen de ECHTE store. Opslaan loopt via `createTaskDialogSave`,
-// net als in `TaskDialog.tsx`. Percentage-invoer doorloopt `planProgressEntry` met dezelfde
-// geplande start als de echte dialoog. De losse datumproeven gebruiken de `draftWith*`-helpers.
+// net als in `TaskDialog.tsx`. Percentage-invoer gebruikt `planTaskDialogProgress`.
+// De losse datumproeven gebruiken de `draftWith*`-helpers.
 //
 // Bevinding 4 (taakmutaties-audit): de dialoog schreef completion/actualStart/actualFinish kaal via
 // `updateTask` weg, zonder de voortgangsregels (`applyProgressInvariants`) die het paneel, het raster
@@ -26,6 +26,9 @@ import {
   type TaskDialogSaveInput,
 } from '@/state/taskDialogSave';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
 import { addPersonalTaskType } from '@/services/taskTypes/personalTaskTypes';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import type { Task } from '@/types/task';
@@ -88,7 +91,7 @@ function draftWithPercentage(f: Fixture, draft: Task, value: number, startDate?:
   return plan.change?.task ?? draft;
 }
 
-{
+for (const durationFirst of [true, false]) {
   const f = fixture(['Genivelleerd']);
   const [id] = f.ids;
   f.S().setProject({ startDate: '2026-10-28', statusDate: '2026-11-18' });
@@ -99,12 +102,18 @@ function draftWithPercentage(f: Fixture, draft: Task, value: number, startDate?:
   f.S().runCPM();
   const input = f.open(id);
   const initialDuration = { unit: 'days', scheduleDuration: 5 } as const;
-  const draft = { ...input.draft, time: { ...input.draft.time, scheduleDuration: 3 } };
+  const shorten = (task: Task) => ({ ...task, time: { ...task.time, scheduleDuration: 3 } });
+  const draft = durationFirst ? shorten(input.draft) : input.draft;
   const plan = planTaskDialogProgress(f.S(), draft, undefined, { field: 'completion', value: 1 },
     { today: '2026-11-18', initialDuration });
-  if (plan.ok && plan.change) f.save({ ...input, draft: plan.change.task, initialDuration });
-  eq('#998 inkorten en afmelden: het gewiste nivelleergat telt niet mee',
+  if (plan.ok && plan.change) f.save({
+    ...input, draft: durationFirst ? plan.change.task : shorten(plan.change.task), initialDuration,
+  });
+  eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): het gewiste nivelleergat telt niet mee`,
     [f.task(id).time.actualFinish, f.task(id).splitGaps], ['2026-10-30T16:00', undefined]);
+  const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly')));
+  eq(`#998 inkorten en afmelden (duur eerst: ${durationFirst}): IFC bewaart het afgeleide einde`,
+    reopened.tasks[0]?.time.actualFinish, '2026-10-30T16:00');
 }
 
 // Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.

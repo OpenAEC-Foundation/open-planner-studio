@@ -1,4 +1,4 @@
-import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
 import { cloneTasksForSolve, plannedDatesBeforeStatusShift, solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -6,14 +6,11 @@ import { settleDurationAftermath } from '@/engine/work/workRuleApply';
 import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import type { Task } from '@/types/task';
 import { clearLevelingGaps, hourInputFinishBasis, taskCalendarHoursPerDay, taskTriggerChanges, taskWorkMinutesOf } from '@/utils/taskDefaults';
-import { sameValue } from '@/utils/sameValue';
-import type { Snapshot } from './snapshot';
 import type { AppState } from './appStore';
 
 type ProgressPlanning = Pick<AppState,
   'tasks' | 'sequences' | 'project' | 'calendar' | 'calendars'
-  | 'cpmResult' | 'datesAsRecorded' | 'scheduleStale'>
-  & Partial<Pick<AppState, 'activeDocumentId' | 'historyEvents'>>;
+  | 'cpmResult' | 'datesAsRecorded' | 'scheduleStale'>;
 
 /** Reken op een kopie zonder de statusdatumvloer voor open werk. */
 function progressSolveInput(state: ProgressPlanning) {
@@ -28,59 +25,6 @@ function solveProgressPlacement(state: ProgressPlanning): ReturnType<typeof solv
   return solveProject(progressSolveInput(state));
 }
 
-/** De taak zoals ze vóór nog niet doorgerekende eigen voortgang stond. De andere taken
- * blijven bij een nieuwe berekening op hun actuele stand, ook als een voorganger veranderde. */
-function earlierProgressTask(state: ProgressPlanning, task: Task): { before: Snapshot; task: Task } | undefined {
-  const events = state.historyEvents;
-  if (!events || !state.scheduleStale || !task.time.actualStart || task.time.actualFinish) return undefined;
-  const index = state.tasks.findIndex(item => item.id === task.id);
-  let current = task;
-  let project = state.project;
-  let earlier: { before: Snapshot; task: Task } | undefined;
-  for (let i = events.length - 1; i >= 0; i--) {
-    const event = events[i];
-    if (event.state !== 'applied') continue;
-    const delta = event.deltas.find(item => item.kind === 'document-data' && item.documentId === state.activeDocumentId);
-    if (delta?.kind !== 'document-data') continue;
-    const { before } = delta;
-    if (before.cpmResult !== state.cpmResult || before.calendar !== state.calendar
-      || before.calendars !== state.calendars || before.sequences !== state.sequences) break;
-    const previous = before.tasks[index];
-    if (previous?.id !== task.id) break;
-    const hasProgressEdit = taskPlacementChanged(previous, current);
-    const placement = { ...previous };
-    if (hasProgressEdit && !sameValue(previous.splitGaps, current.splitGaps)) clearLevelingGaps(placement);
-    if (progressLocationChanged(placement, current)) break;
-    const options = solveOptionsFor(project);
-    const previousOptions = solveOptionsFor(before.project);
-    // De eerste voortgang mag tegelijk automatisch de statusdatum op vandaag hebben gezet.
-    if (hasProgressEdit && !previousOptions.dataDate) options.dataDate = undefined;
-    if (!sameValue(options, previousOptions)) break;
-    if (hasProgressEdit) {
-      earlier = { before, task: previous };
-      if (!previous.time.actualStart) break;
-    }
-    current = previous;
-    project = before.project;
-  }
-  return earlier;
-}
-
-function progressLocationChanged(before: Task, after: Task): boolean {
-  const { actualStart, actualFinish, completion, remainingTime, remainingMinutes } = before.time;
-  const placement = { ...after, time: { ...after.time, actualStart, actualFinish, completion, remainingTime, remainingMinutes } };
-  return taskPlacementChanged(before, placement)
-    || before.parentId !== after.parentId || !sameValue(before.childIds, after.childIds)
-    || before.manuallyScheduled !== after.manuallyScheduled || !sameValue(before.resourceIds, after.resourceIds)
-    || before.time.resume !== after.time.resume
-    || before.levelingDelay !== after.levelingDelay || before.levelingDelayMinutes !== after.levelingDelayMinutes
-    || before.levelingDelayElapsed !== after.levelingDelayElapsed
-    || !sameValue(before.splitGaps, after.splitGaps)
-    || !sameValue(before.externalLinks, after.externalLinks)
-    || !sameValue(before.timephasedDurationWalks, after.timephasedDurationWalks)
-    || before.timephasedStartAnchor !== after.timephasedStartAnchor || before.timephasedFinishFloor !== after.timephasedFinishFloor;
-}
-
 /** De eerste afleiding rekent zo nodig op een kopie, gedeeld door alle taken in deze invoer. */
 export function progressPlannedDates(
   state: ProgressPlanning, placementEdited = false, forward?: ProgressForwardPass, solved?: CPMResult,
@@ -88,19 +32,14 @@ export function progressPlannedDates(
   if (state.datesAsRecorded && !placementEdited) return () => undefined;
   let result = solved;
   return task => {
-    const earlier = earlierProgressTask(state, task);
-    if (earlier) {
-      const { before } = earlier;
-      const othersUnchanged = before.tasks.length === state.tasks.length
-        && before.tasks.every((item, i) => {
-          const latest = state.tasks[i];
-          return item === latest || item.id === latest.id && (item.id === task.id
-            || (!taskPlacementChanged(item, latest) && !progressLocationChanged(item, latest)));
-        });
-      if (othersUnchanged && !placementEdited) {
-        return progressPlannedDates(before)(earlier.task) ?? earlier.task.time;
-      }
-      const tasks = state.tasks.map(item => item.id === task.id ? earlier.task : item);
+    const before = task.time.progressBeforeRecalculation;
+    if (before && state.scheduleStale && task.time.actualStart && !task.time.actualFinish) {
+      const { status, splitGaps, ...time } = before;
+      const projected = { ...task, status, splitGaps, time: { ...task.time, ...time } };
+      forward ??= createProgressForwardPass(state);
+      const placed = forward?.projectedDates(projected);
+      if (placed) return placed;
+      const tasks = state.tasks.map(item => item.id === task.id ? projected : item);
       const result = solveProgressPlacement({ ...state, tasks });
       return result.error ? undefined : result.tasks.get(task.id);
     }
@@ -123,20 +62,30 @@ function createProgressForwardPass(state: ProgressPlanning) {
   const solver = new CPMSolver(tasks, sequences, input.calendar, input.calendars, input);
   const forward = solver.createIncrementalForwardPass();
   if (!forward) return;
+  const accept = (task: Task): boolean => {
+    const work = byId.get(task.id);
+    if (!work || (task.time.completion >= 1 && !task.time.actualFinish)
+      || work.time.scheduleStart !== task.time.scheduleStart || work.time.scheduleFinish !== task.time.scheduleFinish
+      || work.time.scheduleDuration !== task.time.scheduleDuration || work.time.durationMinutes !== task.time.durationMinutes
+      || work.time.durationType !== task.time.durationType || work.time.durationUnit !== task.time.durationUnit) return false;
+    work.time = { ...task.time };
+    work.status = task.status;
+    work.splitGaps = task.splitGaps;
+    forward.markChanged(task.id);
+    return true;
+  };
   return {
     order: forward.order,
     earlyDates: forward.earlyDates,
-    accept(task: Task): boolean {
-      const work = byId.get(task.id);
-      if (!work || (task.time.completion >= 1 && !task.time.actualFinish)
-        || work.time.scheduleStart !== task.time.scheduleStart || work.time.scheduleFinish !== task.time.scheduleFinish
-        || work.time.scheduleDuration !== task.time.scheduleDuration || work.time.durationMinutes !== task.time.durationMinutes
-        || work.time.durationType !== task.time.durationType || work.time.durationUnit !== task.time.durationUnit) return false;
-      work.time = { ...task.time };
-      work.status = task.status;
-      work.splitGaps = task.splitGaps;
-      forward.markChanged(task.id);
-      return true;
+    accept,
+    projectedDates(task: Task): PlannedProgressDates | undefined {
+      const current = byId.get(task.id);
+      if (!current) return undefined;
+      const original = { ...current };
+      if (!accept(task)) return undefined;
+      const dates = forward.earlyDates(task.id);
+      accept(original);
+      return dates;
     },
   };
 }
@@ -237,7 +186,7 @@ export function progressPlannedDatesAfterEdit(state: AppState, before: Task, edi
     ? { ...edited, status: before.status, time: { ...edited.time, completion, actualStart, actualFinish } }
     : edited;
   if (!taskPlacementChanged(before, placement)) return progressPlannedDates(state)(placement);
-  const updated = { ...placement };
+  const updated = { ...placement, time: { ...placement.time } };
   const changes = taskTriggerChanges(before, updated);
   if (changes.timeBase) {
     const hoursPerDay = taskCalendarHoursPerDay(before, state.calendars, state.calendar);

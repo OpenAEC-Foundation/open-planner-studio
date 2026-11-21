@@ -2,7 +2,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { appStoreContext, type AppState, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  applyActualDateEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate,
+  applyActualDateEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate, rememberProgressBeforeRecalculation,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -101,10 +101,19 @@ export interface TaskDialogStartEdit {
   completion: number;
 }
 
+/** Afgeleide conceptdatums worden bij Opslaan opnieuw bepaald met de definitieve invoer. */
+export type TaskDialogDraft = Task & {
+  inferredActualStart?: true;
+  inferredActualFinish?: true;
+};
+
+type TaskDialogProgressPlan = Extract<ProgressEntryPlan, { ok: false }>
+  | { ok: true; change: { task: TaskDialogDraft; statusDateToday?: string } | null };
+
 export interface TaskDialogSaveInput {
   /** De bewerkte taak; `null` (of een inmiddels verdwenen id) ⇒ de "nieuwe taak"-tak. */
   editingTaskId: string | null;
-  draft: Task;
+  draft: TaskDialogDraft;
   /** Een expliciet gewijzigde startdatum. Zonder waarde blijft het anker van een bestaande taak staan. */
   startDate?: string | TaskDialogStartEdit;
   /** De duur bij het openen; afwezig ⇒ de duur uit de concept telt altijd als bewerkt. */
@@ -157,32 +166,68 @@ function planTaskDialogStart(
 
 /** Toets conceptvoortgang met de actuele planning en dezelfde startregel als Opslaan. */
 export function planTaskDialogProgress(
-  state: AppState, draft: Task, startDate: TaskDialogSaveInput['startDate'], edit: ProgressEdit,
+  state: AppState, draft: TaskDialogDraft, startDate: TaskDialogSaveInput['startDate'], edit: ProgressEdit,
   { initialDuration, ...context }: Pick<ProgressEntryContext, 'today' | 'actualStart'>
     & Pick<TaskDialogSaveInput, 'initialDuration'>,
-): ProgressEntryPlan {
+): TaskDialogProgressPlan {
   const live = state.tasks.find(task => task.id === draft.id);
   const start = live ? planTaskDialogStart(state, live, draft, startDate) : undefined;
-  const task = live ? { ...draft, constraint: start?.constraint, time: savedTime(live, draft, initialDuration) } : draft;
-  if (start?.anchor !== undefined) task.time.scheduleStart = start.anchor;
+  const time = live ? savedTime(live, draft, initialDuration) : { ...draft.time };
+  const task = { ...draft, constraint: live ? start?.constraint : draft.constraint, time };
+  if (start?.anchor !== undefined) time.scheduleStart = start.anchor;
+  if (edit.field === 'completion') {
+    if (edit.value > 0 && draft.inferredActualStart) time.actualStart = undefined;
+    if (draft.inferredActualFinish) time.actualFinish = undefined;
+  }
   const plan = planProgressEntry(task, edit, {
     ...context,
     statusDate: state.project.statusDate,
     calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
-    plannedDates: live ? () => progressPlannedDatesAfterEdit(state, live, task) : undefined,
+    plannedDates: live ? () => progressPlannedDatesAfterEdit(state, live, {
+      ...task, status: live.status, time: { ...time, completion: live.time.completion },
+    }) : undefined,
   });
-  if (!live || !plan.ok || !plan.change) return plan;
+  if (!plan.ok) return plan;
+  const next = plan.change?.task ?? task;
+  const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = next.time;
+  // Ook het expliciet aanvaarden van dezelfde datum verandert haar herkomst.
+  const inferredActualStart = actualStart && edit.field !== 'actualStart' && !context.actualStart
+    && (draft.inferredActualStart || (edit.field === 'completion' && !time.actualStart)) ? true : undefined;
+  const inferredActualFinish = actualFinish && edit.field !== 'actualFinish'
+    && (draft.inferredActualFinish || (edit.field === 'completion' && !time.actualFinish)) ? true : undefined;
+  if (!plan.change && draft.inferredActualStart === inferredActualStart
+    && draft.inferredActualFinish === inferredActualFinish) return { ok: true, change: null };
   // Alleen de voortgang gaat terug naar het concept. De actuele duur en de afgeleide SNET
   // zijn invoer voor de berekening, geen door de gebruiker gewijzigde conceptvelden.
-  const { status, time } = plan.change.task;
-  const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = time;
   return {
     ok: true,
     change: {
       ...plan.change,
-      task: { ...draft, status, time: { ...draft.time, completion, actualStart, actualFinish, remainingTime, remainingMinutes } },
+      task: {
+        ...draft, status: next.status, inferredActualStart, inferredActualFinish,
+        time: { ...draft.time, completion, actualStart, actualFinish, remainingTime, remainingMinutes },
+      },
     },
   };
+}
+
+/** Dezelfde afleiding voor de schuif en voor Opslaan, na de laatste plaatsingsbewerking. */
+export function prepareTaskDialogSaveProgress(
+  state: AppState,
+  { draft, startDate, today, initialDuration }: Pick<TaskDialogSaveInput, 'draft' | 'startDate' | 'today' | 'initialDuration'>,
+  actualStart?: string,
+): TaskDialogProgressPlan {
+  if (!draft.inferredActualFinish && (!draft.inferredActualStart || draft.time.completion <= 0)) {
+    return { ok: true, change: null };
+  }
+  const plan = planTaskDialogProgress(state, draft, startDate, { field: 'completion', value: draft.time.completion },
+    { today, initialDuration, actualStart });
+  if (!plan.ok) return plan;
+  const ready = plan.change?.task ?? draft;
+  return { ok: true, change: {
+    ...plan.change,
+    task: { ...ready, inferredActualStart: undefined, inferredActualFinish: undefined },
+  } };
 }
 
 /**
@@ -290,6 +335,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         // Met de kalender van de taak: het afgeleide einde wordt eerst een moment (D6), en pas dan
         // vergeleken met de werkelijke start (zie `carryRemainingThroughDurationEdit`).
         applyProgressInvariants(merged, statusDate, resolveCalendar(merged.calendarId, S().calendars, S().calendar));
+        rememberProgressBeforeRecalculation(editingTask, merged);
         patch.status = merged.status;
       }
       S().updateTask(editingTask.id, patch);
@@ -345,6 +391,11 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         S().notify(durationBelowDoneWorkNotice(current));
         return false;
       }
+    }
+    if (current) {
+      const progress = prepareTaskDialogSaveProgress(S(), input);
+      if (!progress.ok) return false;
+      if (progress.change) input = { ...input, draft: progress.change.task };
     }
     // Meldingen (startregel) pas ná de mutaties en de undo-stap, via het ene kanaal.
     const notices: StartEditNotice[] = [];

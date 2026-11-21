@@ -236,6 +236,26 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   expect(await readTask(page, taskId)).toMatchObject({
     completion: 1, status: 'COMPLETED', actualStart: "2026-03-02T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
+
+  // Het al in de dialoog afgeleide einde moet de daarna getypte duur volgen.
+  await page.evaluate(id => {
+    const store = window.__OPS__!.store.getState();
+    const task = store.tasks.find(candidate => candidate.id === id)!;
+    store.setProject({ statusDate: '2026-03-20' });
+    store.updateTask(id, { status: 'NOT_STARTED', time: {
+      ...task.time, completion: 0, actualStart: undefined, actualFinish: undefined,
+    } });
+    store.runCPM();
+  }, taskId);
+  dialog = await openDialogByDoubleClick(page, taskId);
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+  await expect(dialog.locator('[data-ops-progress-slider]')).toHaveValue('100');
+  const duration = dialog.locator('[data-ops-duration-value]');
+  await duration.fill('3');
+  await duration.press('Tab');
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 1, actualFinish: '2026-03-04T16:00' });
 });
 
 test('Taak bewerken: voortgang en startanker volgen de actuele planning na het verwijderen van een voorganger', async ({ page, ops: _ops }) => {

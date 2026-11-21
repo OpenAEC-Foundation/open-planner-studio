@@ -160,6 +160,24 @@ export function normalizeLoadedActualDate(
 
 export type PlannedProgressDates = Pick<TaskTime, 'earlyStart' | 'earlyFinish'>;
 
+/** Bewaar alleen de voortgang van vóór deze rekenronde. De solver gebruikt verder de actuele
+ * taakplaatsing en actuele relaties. De informatie gaat met de taak mee bij undo en tabwissels. */
+export function rememberProgressBeforeRecalculation(before: Task, after: Task): void {
+  const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = before.time;
+  const time = after.time;
+  if (completion === time.completion && actualStart === time.actualStart && actualFinish === time.actualFinish
+    && remainingTime === time.remainingTime && remainingMinutes === time.remainingMinutes) return;
+  if (time.completion === 0 && !time.actualStart && !time.actualFinish) {
+    if (time.progressBeforeRecalculation) time.progressBeforeRecalculation = undefined;
+    return;
+  }
+  if (time.actualFinish) return;
+  time.progressBeforeRecalculation ??= {
+    status: before.status, completion, actualStart, actualFinish, remainingTime, remainingMinutes,
+    splitGaps: before.splitGaps,
+  };
+}
+
 /** Lees de planning alleen als de voortgang een datum moet afleiden. */
 export function datesForProgress(
   task: Task, completion: number, lookup?: (task: Task) => PlannedProgressDates | undefined,

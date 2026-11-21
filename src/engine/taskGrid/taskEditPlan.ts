@@ -12,7 +12,7 @@ import {
   assignTaskCustomField,
   datesForProgress,
   fillMissingActualStart,
-  isTaskActualPastStatusDate, normalizeActualDate, type PlannedProgressDates,
+  isTaskActualPastStatusDate, normalizeActualDate, rememberProgressBeforeRecalculation, type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type {
@@ -1025,6 +1025,7 @@ function applyOneCellEdit(
     }
   } else result = applyDynamicEdit(next, edit, environment);
   if (!result.ok) return result;
+  if (edit.route === 'task-progress') rememberProgressBeforeRecalculation(task, next);
   // Nivelleergaten — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next`
   // weg. De ROUTE
   // bepaalt welke velden meetellen (ongewijzigd); WANNEER is een echte waardewijziging, met dezelfde
@@ -1160,6 +1161,7 @@ export function planTaskCellEdits(
     const beforeGroup = cloneTaskForEdit(next);
     const applied = applyProgressEdits(next, progressEdits, environment);
     if (!applied.ok) return applied;
+    rememberProgressBeforeRecalculation(beforeGroup, next);
     if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // zie de constraintgroep hierboven.
     scheduleStale = true;
   }

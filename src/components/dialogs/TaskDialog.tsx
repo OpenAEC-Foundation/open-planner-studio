@@ -4,13 +4,15 @@ import type { HistorySessionMark } from '@/state/slices/historySlice';
 import { moveTaskVerdict, phaseAssignmentQuestionForTaskDialog } from '@/state/slices/taskSlice';
 import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
 import { notifyHierarchyCycle } from '@/state/hierarchyRelationNotice';
+import { askActualStart } from '@/state/actualStartQuestion';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { ProgressEdit, ProgressEntryResult } from '@/engine/progressEntry';
 import {
-  planTaskDialogProgress, saveTaskDialog, type TaskDialogInitialDuration, type TaskDialogStartEdit,
+  planTaskDialogProgress, prepareTaskDialogSaveProgress, saveTaskDialog,
+  type TaskDialogDraft, type TaskDialogInitialDuration, type TaskDialogStartEdit,
 } from '@/state/taskDialogSave';
 import { shownStart, startIsActual } from '@/utils/taskDates';
 import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
@@ -74,8 +76,12 @@ export function TaskDialog() {
   // paneel) en raken de draft niet.
   // Standaardmaat voor nieuwe taken (B1a): de gekozen maat, of urenmaat onder P6/MSP (`newTaskMeasure.ts`).
   const newTaskUnit = defaultTaskMeasure(project);
-  const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
-  const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
+  const [draft, setDraft] = useState<TaskDialogDraft>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
+  const [saveProgressError, setSaveProgressError] = useState<'afterStatusDate' | 'actualFinishBeforeStart'>();
+  const onChange = (patch: Partial<Task>) => {
+    setSaveProgressError(undefined);
+    setDraft(d => ({ ...d, ...patch }));
+  };
 
   // Volg de actuele planning totdat het startveld in deze sessie wordt gewijzigd.
   const [startDateEdit, setStartDateEdit] = useState<TaskDialogStartEdit>();
@@ -137,6 +143,7 @@ export function TaskDialog() {
     finishSession();
     historyMarkRef.current = editingTaskId ? historyMark() : null;
     setStartDateEdit(undefined);
+    setSaveProgressError(undefined);
 
     if (editingTask) {
       setDraft({ ...editingTask, time: { ...editingTask.time } });
@@ -166,6 +173,7 @@ export function TaskDialog() {
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
+    setSaveProgressError(undefined);
     const state = useAppStore.getState();
     const plan = planTaskDialogProgress(state, draftRef.current, startDateEdit, edit, {
       today: localTodayIso(), actualStart: opts?.actualStart, initialDuration: initialDurationRef.current,
@@ -188,6 +196,7 @@ export function TaskDialog() {
   const saveWith = (
     phaseAssignments: PhaseAssignmentChoice | undefined,
     afterLaterSave?: () => void,
+    actualStart?: string,
   ): boolean | 'later' => {
     if (!draft.name.trim()) return false;
     // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
@@ -245,15 +254,29 @@ export function TaskDialog() {
     // werk, relaties) plus het Opslaan zelf één undo-stap (`squashHistorySince`).
     // Geweigerd (een duur korter dan het gedane werk van een lopende taak, met een melding): er is
     // niets opgeslagen en de dialoog blijft open, zodat de gebruiker de duur kan corrigeren.
-    const saved = saveTaskDialog({
+    const input = {
       editingTaskId: editingTask ? editingTask.id : null,
-      draft,
+      draft: draftRef.current,
       startDate: editingTask ? startDateEdit : startDate,
       initialDuration: initialDurationRef.current,
       session: historyMarkRef.current,
       today: localTodayIso(),
       phaseAssignments,
-    });
+    };
+    const progress = prepareTaskDialogSaveProgress(useAppStore.getState(), input, actualStart);
+    if (!progress.ok) {
+      if (progress.reason === 'needsActualStart') {
+        const question = progress.question;
+        void askActualStart([{ ...question, taskName: input.draft.name }]).then(answers => {
+          const answer = answers?.[question.taskId];
+          if (answer && saveWith(phaseAssignments, afterLaterSave, answer) === true) afterLaterSave?.();
+        });
+        return 'later';
+      }
+      setSaveProgressError(progress.reason);
+      return false;
+    }
+    const saved = saveTaskDialog({ ...input, draft: progress.change?.task ?? input.draft });
     if (!saved) return false;
     setUI({ showTaskDialog: false, editingTaskId: null });
     return true;
@@ -418,6 +441,13 @@ export function TaskDialog() {
             onSetActualStart={(date, opts) => enterDraftProgress({ field: 'actualStart', value: date }, opts)}
             onSetActualFinish={(date, opts) => enterDraftProgress({ field: 'actualFinish', value: date }, opts)}
           />
+          {saveProgressError && (
+            <div role="alert" className="text-body" style={{ color: 'var(--error)' }}>
+              {saveProgressError === 'afterStatusDate'
+                ? tCommon('progress.actualsAfterStatusDate')
+                : tCommon('progress.actualStartAfterFinish')}
+            </div>
+          )}
 
           {editingTask && (
             <>

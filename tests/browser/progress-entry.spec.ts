@@ -196,8 +196,10 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   const yCenter = box.y + box.height / 2;
   await page.mouse.move(box.x + 2, yCenter);
   await page.mouse.down();
+  const toast = page.locator('.ops-toast', { hasText: shown(today) });
   for (const fraction of [0.25, 0.5, 0.75]) {
     await page.mouse.move(box.x + box.width * fraction, yCenter, { steps: 4 });
+    if (fraction === 0.25) await expect(toast).toBeVisible();
     const step = await readProgressDates(page, B);
     expect(Math.abs(step.percent - fraction * 100)).toBeLessThan(5);
     expect(step).toEqual({ ...original, percent: step.percent });
@@ -213,9 +215,6 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   expect(await readProgressDates(page, B)).toEqual(completed);
 
   await expect.poll(() => readProgress(page, B).then(p => p.statusDate)).toBe(today);
-  // De melding via het ene meldkanaal, met de datum van vandaag.
-  const toast = page.locator('.ops-toast', { hasText: shown(today) });
-  await expect(toast).toBeVisible();
   // Het statusdatumveld in het lint toont hem ook (Planning-tab).
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' }));
   const [y, m, d] = today.split('-');
@@ -231,19 +230,38 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
 
-  // Twee afzonderlijke bedieningen met handmatig rekenen gebruiken hetzelfde geplande venster.
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: false }));
+  // Twee afzonderlijke bedieningen met handmatig rekenen gebruiken hetzelfde geplande venster,
+  // ook als de planner tussendoor twee andere taken aan elkaar koppelt.
+  const [unrelatedA, unrelatedB] = await page.evaluate(() => {
+    const store = window.__OPS__!.store.getState();
+    store.setUI({ autoCalcCPM: false });
+    const ids = [store.addTask({ name: 'Steiger' }), store.addTask({ name: 'Bouwplaats opruimen' })];
+    store.runCPM();
+    return ids;
+  });
   const partialBox = (await slider.boundingBox())!;
   await page.mouse.click(partialBox.x + partialBox.width / 2, partialBox.y + partialBox.height / 2);
   const partial = await readProgressDates(page, B);
   expect(Math.abs(partial.percent - 50)).toBeLessThan(5);
   expect(partial).toEqual({ ...original, percent: partial.percent });
+  const first = await barPoint(page, unrelatedA);
+  const second = await barPoint(page, unrelatedB);
+  await page.mouse.click(first.x, first.y);
+  await page.keyboard.down('Control');
+  await page.mouse.click(second.x, second.y);
+  await page.keyboard.up('Control');
+  await page.getByRole('button', { name: /^(Relatie|Link)$/ }).click();
+  await page.getByRole('menuitem', { name: /^(Geselecteerde taken koppelen|Link selected tasks)$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().sequences.length)).toBe(2);
+  await page.mouse.click(point.x, point.y);
+  await expect(slider).toHaveValue(String(partial.percent));
   await slider.focus();
   await page.keyboard.press('End');
   expect(await readProgressDates(page, B)).toEqual(completed);
   await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
   await page.keyboard.press('Control+z');
   expect(await readProgressDates(page, B)).toEqual(partial);
+  await page.keyboard.press('Control+z'); // De koppeling van de andere taken.
   await page.keyboard.press('Control+z');
   expect(await readProgressDates(page, B)).toEqual(original);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
