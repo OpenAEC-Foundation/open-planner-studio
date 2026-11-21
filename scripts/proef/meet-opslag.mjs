@@ -428,7 +428,7 @@ for (const mb of sizes) {
           const res = child(mode, file, [], {}, ref.bundle);
           const ms = name => res.steps.find(s => s.stap.startsWith(name))?.ms;
           const opslagMs = res.steps.filter(s => /^3[abcd] /.test(s.stap) || s.stap.startsWith('4 vervangroute')).reduce((a, s) => a + s.ms, 0);
-          const run = { ref: ref.name, ronde: k + 1, ok: res.ok, status: res.status, signal: res.signal, wandMs: res.wandMs,
+          const run = { ref: ref.name, ronde: k + 1, cpu: res.cpu, kernen: res.kernen, ok: res.ok, status: res.status, signal: res.signal, wandMs: res.wandMs,
             ms3b: ms('3b '), opslagMs: Math.round(opslagMs * 10) / 10, openenMs: ms('1c '), piekRssMB: res.maxRssMB,
             uitvoerBytes: res.uitvoerBytes, uitvoerSha256: res.uitvoerSha256, shaKlopt: res.opgegevenSha256 === res.uitvoerSha256,
             uitkomst: res.uitkomst, vervanging: res.vervanging, doelGelijkAanUitvoer: res.doelGelijkAanUitvoer, terugval: res.terugval,
