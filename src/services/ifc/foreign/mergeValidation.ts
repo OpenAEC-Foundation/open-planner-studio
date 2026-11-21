@@ -222,8 +222,8 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
   const actualAll = new Int32Array(index.count);
   let actualCount = 0;
   for (let i = 0; i < index.count; i++) {
-    const original = index.isEntity(i) ? source.chunkOf(index.id(i)) : -1;
-    if (!index.isEntity(i) || (original >= 0 && sourceClasses.classes[original] !== 1)) actualAll[actualCount++] = i;
+    const entity = index.isEntity(i), original = entity ? source.chunkOf(index.id(i)) : -1;
+    if (!entity || (original >= 0 && sourceClasses.classes[original] !== 1)) actualAll[actualCount++] = i;
     else if (classification.classes[i] !== 1) problems.push(`extra niet-P-stuk #${index.id(i)}`);
   }
   const actual = actualAll.subarray(0, actualCount);
