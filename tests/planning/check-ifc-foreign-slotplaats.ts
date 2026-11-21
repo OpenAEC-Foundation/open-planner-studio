@@ -38,7 +38,10 @@ const BASE: readonly OutLine[] = [
 /** De regels met slot `arg` van regel `id` op `token`. */
 const set = (lines: readonly OutLine[], id: number, arg: number, token: string) =>
   lines.map(l => l.id === id ? { ...l, args: l.args.map((a, k) => k === arg ? token : a) } : l);
-const placed = (lines: readonly OutLine[], ...edits: [number, number][]) => restoredOwnSlots(linesView(lines), edits.map(([id, arg]) => ({ id, arg })));
+/** Een slot dat (b) terugzette: regel en argument, en `'deels'` bij een soort die de lezer deels draagt. */
+type Edit = [number, number] | [number, number, 'deels'];
+const placed = (lines: readonly OutLine[], ...edits: Edit[]) =>
+  restoredOwnSlots(linesView(lines), edits.map(([id, arg, kind]) => ({ id, arg, partial: kind === 'deels' })));
 const text = (r: ReturnType<typeof placed>) => `overslaan: ${[...r.skip].join(', ') || 'niets'}; masker: ${[...r.mask].join(' + ') || 'niets'}`;
 /** De boom van één groep, met masker. */
 const groupOf = (lines: readonly OutLine[], group: string, mask: ReadonlySet<string>) => (ownGroupTrees(linesView(lines), mask).get(group) ?? []).join('\n');
@@ -108,13 +111,15 @@ function masks(label: string, group: string, id: number, arg: number, restored: 
     ['de naam van dezelfde kop', 30, 2, "'Fout'"],
   ]);
   ok('omschrijving op een kop: de plaats', r.slots[0]?.place === `${BASELINE_HEADS}|'kop1'#3`, r.slots[0]?.place);
-  // Een verwijzing naar een stuk van een ander programma (`Creators`, 1087): geen eigen regel, dus het slot krijgt een plaats.
+  // Een verwijzing naar een stuk van een ander programma (`Creators`, 1087): geen eigen regel, dus het slot krijgt hier een
+  // plaats. Op de echte route is `(#…)` een lijst, een soort die de lezer deels draagt: daar valt de groep terug (hieronder,
+  // en blok 9 van `check-ifc-foreign-eigen-toets.ts`).
   const creators = masks('vreemde Creators op een kop', BASELINE_HEADS, 30, 7, '(#95300)', [['de omschrijving van dezelfde kop', 30, 3, "'Fout'"]]);
   ok('vreemde Creators op een kop: de plaats', creators.slots[0]?.place === `${BASELINE_HEADS}|'kop1'#7`, creators.slots[0]?.place);
 }
 
 // ── Niet eenduidig: de groep valt terug op het gedrag van vóór PR A (de hele groep buiten (c)) ──
-function fallsBack(label: string, lines: readonly OutLine[], group: string, ...edits: [number, number][]) {
+function fallsBack(label: string, lines: readonly OutLine[], group: string, ...edits: Edit[]) {
   const r = placed(lines, ...edits);
   ok(`${label}: de hele groep buiten (c), geen masker`, r.skip.has(group) && r.mask.size === 0 && r.slots.every(s => s?.group === group && s.place === undefined), text(r));
 }
@@ -131,6 +136,10 @@ fallsBack('het slot verwijst naar een eigen regel in de groep (een eenheid)', [.
 fallsBack('twee taken met dezelfde GlobalId', [...BASE, line(22, 'IFCTASK', "'taak1'", '$', "'T3'", '$', '$', '$', '$', '$', '$', '.F.', '$', '$', '.NOTDEFINED.')], TASK_OBJECT_TYPES, [20, 4]);
 fallsBack('twee koppen met dezelfde GlobalId', set(BASE, 31, 0, "'kop1'"), BASELINE_HEADS, [30, 3]);
 fallsBack('het slot is de GlobalId van een kop', BASE, BASELINE_HEADS, [30, 0]);
+// Een bronwaarde van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst; `partial`): de lezer leest haar
+// mee, dus de rest van de groep kan na heropenen anders teruglezen (de weesrij op een baseline-JSON van de bron, 1770).
+fallsBack('een JSON-waarde die de lezer deels draagt', set(BASE, 2, 2, `IFCTEXT('{"a":1}')`), PS, [2, 2, 'deels']);
+fallsBack('vreemde Creators op een kop (een lijst)', set(BASE, 30, 7, '(#95300)'), BASELINE_HEADS, [30, 7, 'deels']);
 // Eén slot niet eenduidig maakt de hele groep tot overslag, ook voor een ander slot in die groep dat wel een plaats heeft;
 // een andere groep houdt haar masker.
 {

@@ -5,8 +5,8 @@
  * Een eigen groep is een pset die de writer op het `IfcProject` of op zijn eigen live werkschema zet, met haar properties
  * (en wat daaronder hangt, zoals een enumeratie) en haar `IfcRelDefinesByProperties`. Bij `OPS_StructureMeta` horen ook de
  * templates, hun enumeraties en de `IfcRelDeclares` van de codes en eigen velden. De indeling volgt uit de vorm van de
- * regels, niet uit een lijst namen: wat de writer daar schrijft, is een groep. Niemand anders schrijft in zo'n groep, en de
- * lezer zet alles wat de writer daar schrijft om in een domeinveld.
+ * regels, niet uit een lijst namen: wat de writer daar schrijft, is een groep. Alleen de eigen regels tellen: een lid van een
+ * ander programma (in een pset, een template of een relatie) hangt de merge terug, en het telt in geen groep mee.
  *
  * Twee gegevens staan daarnaast op een tweede plek buiten de pset, op een object dat ook andere gegevens draagt: de
  * baselinekop (een `.BASELINE.`-werkschema in de aggregatie van het werkplan, bij `OPS_Baselines`) en de typenaam
@@ -14,9 +14,10 @@
  * `BASELINE_HEADS` en `TASK_OBJECT_TYPES`.
  *
  * Gebruik: de uitvoercontrole (c) in `mergeWriter.ts` vergelijkt per groep de boomvorm van de uitvoer met die van de writer
- * op de herlezing (`ownGroupTrees`, `ownGroupDifference`), en slaat de groepen over waar de herleestoets (b) bronwaarden
- * terugzette (`editedOwnGroup`). De andere toets in de verliescontrole (PR 12b, `openedOwnGroups` in `mergeWriter.ts`)
- * gebruikt dezelfde indeling op de bronregels (`indexView`, `ownGroupMembers`).
+ * op de herlezing (`ownGroupTrees`, `ownGroupDifference`). Een slot waar de herleestoets (b) de bronwaarde terugzette,
+ * telt daarin niet mee; de rest van zijn groep wel (#804 stap 5, PR A; `restoredOwnSlots`). De andere toets in de
+ * verliescontrole (PR 12b, `openedOwnGroups` in `mergeWriter.ts`) gebruikt dezelfde indeling op de bronregels
+ * (`indexView`, `ownGroupMembers`), en sluit per slot uit wat (c) per slot niet toetst.
  */
 import { decodeStepText } from '../stepText';
 import { PSET } from '../ifcPsets';
@@ -158,9 +159,81 @@ export function ownGroupMembers(view: OwnLinesView): Map<number, string> {
 }
 
 /** De groep die een herstelde bronwaarde (b) raakt: argument `arg` van eigen regel `line`, of niets. */
-export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLine, arg: number): string | undefined {
+function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLine, arg: number): string | undefined {
   if (line.type === 'IFCTASK') return arg === 4 || arg === 12 ? TASK_OBJECT_TYPES : undefined;
   return members.get(line.id);
+}
+
+/** Het argument met de naam waarop een regel in de weg naar een slot staat (de plaats in `groupTrees`). */
+const NAME_ARG: Readonly<Record<string, number>> = {
+  IFCPROPERTYSET: 2, IFCPROPERTYSETTEMPLATE: 2, IFCSIMPLEPROPERTYTEMPLATE: 2,
+  IFCPROPERTYSINGLEVALUE: 0, IFCPROPERTYENUMERATEDVALUE: 0, IFCPROPERTYENUMERATION: 0,
+};
+/** Een stap in de weg naar een slot: het type, met de naam als het type er een heeft. */
+const stepOf = (l: OutLine) => NAME_ARG[l.type] === undefined ? l.type : `${l.type}(${l.args[NAME_ARG[l.type]]?.trim()})`;
+/** Wat (c) toont op een slot uit `mask` (`ownGroupTrees`). Geen STEP-token kan zo luiden. */
+const MASKED = '«(b)»';
+/** Verwijst het token naar een eigen regel binnen een groep (geen object)? Zo'n slot wijst (c) niet per slot aan. */
+const ownPartRefs = (view: OwnLinesView, token: string | undefined) =>
+  refsOutsideText(token ?? '').some(id => { const l = view.line(id); return !!l && !OBJECT_TYPES.has(l.type); });
+
+/**
+ * De boomvorm per groep (`ownGroupTrees`). `mask`: slots die niet meetellen, als `<plaats>#<argument>`; op zo'n slot staat
+ * `MASKED`, behalve als het token naar een eigen regel binnen een groep wijst (dan telt het gewoon mee). `place`: per eigen
+ * regel elke plaats waarop zij in een boom staat, zonder id's: de groep, dan de wortel en per stap het argument, het type en
+ * de naam (`<groep>|<wortel>/<argument>:<type>(<naam>)…`); een baselinekop en een taak op hun GlobalId
+ * (`kop:OPS_Baselines|<GlobalId>`, `taak:ObjectType|<GlobalId>`).
+ */
+function groupTrees(view: OwnLinesView, mask: ReadonlySet<string>, place?: (id: number, at: string) => void): Map<string, string[]> {
+  const tree = (id: number, depth: number, at: string): string => {
+    const l = view.line(id);
+    if (!l) return view.typeOf(id) ?? `?#${id}`;
+    if (OBJECT_TYPES.has(l.type)) return isBaselineHead(l) ? 'IFCWORKSCHEDULE[BASELINE]' : l.type;
+    if (depth > 12) return `${l.type}(…)`;
+    place?.(id, at);
+    return `${l.type}(${argsOf(l, depth, at).join(',')})`;
+  };
+  const below = (at: string, k: number, id: number) => { const c = view.line(id); return `${at}/${k}:${c ? stepOf(c) : '?'}`; };
+  const argsOf = (l: OutLine, depth: number, at: string, from = 0) => l.args.slice(from).map((a, i) => {
+    const k = i + from;
+    if (mask.has(`${at}#${k}`) && !ownPartRefs(view, a)) return MASKED;
+    const t = a.trim();
+    if (ROOT_TYPES.has(l.type) && k < 2) return k === 0 ? 'G' : 'OH';
+    const list = /^\(([\s\S]*)\)$/.exec(t);
+    if (list && /^#\d+(\s*,\s*#\d+)*$/.test(list[1].trim())) {
+      const members = l.type === 'IFCPROPERTYSET' && k === 4;
+      const parts = refs(view, list[1]).map(x => tree(x, depth + 1, below(at, k, x)));
+      if (members) parts.sort();
+      return `(${parts.join(',')})`;
+    }
+    return /^#\d+$/.test(t) ? tree(Number(t.slice(1)), depth + 1, below(at, k, Number(t.slice(1)))) : t;
+  });
+  const groups = new Map<string, string[]>();
+  const add = (g: string, t: string) => { const a = groups.get(g) ?? []; a.push(t); groups.set(g, a); };
+  for (const [g, roots] of groupRoots(view)) for (const l of roots) add(g, tree(l.id, 0, `${g}|${l.type}`));
+  for (const l of view.lines) {
+    // De kop met de aggregaties waarin hij staat (knownbug 1705): een kop in een andere aggregatie dan die van het eigen
+    // werkplan (die van het project, of een vreemde) leest anders dan wat de writer schrijft.
+    if (isBaselineHead(l)) {
+      const at = `${BASELINE_HEADS}|${l.args[0].trim()}`;
+      place?.(l.id, at);
+      add(BASELINE_HEADS, `${[...view.aggregatedIn.get(l.id) ?? ['los']].sort().join('+')}|${l.args[0].trim()}|${argsOf(l, 0, at, 2).join(',')}`);
+    } else if (l.type === 'IFCTASK') {
+      // De typenaam per taak (op GlobalId), met het PredefinedType erbij (PR 12d): ook een typenaam op een taak zonder
+      // `.USERDEFINED.`, en een `.USERDEFINED.` dat wegviel terwijl de taak haar type houdt, lezen anders dan wat de writer
+      // schrijft (de lezer leest het type per taak uit `OPS_TaskTypes`, niet uit deze twee slots). Een gemaskeerd slot telt
+      // ook niet mee voor de vraag of de taak er staat: aan beide kanten alsof het leeg is.
+      const at = `${TASK_OBJECT_TYPES}|${l.args[0].trim()}`;
+      place?.(l.id, at);
+      const masked4 = mask.has(`${at}#4`), masked12 = mask.has(`${at}#12`);
+      const name = l.args[4]?.trim(), kind = l.args[12]?.trim();
+      if ((!masked12 && kind === '.USERDEFINED.') || (!masked4 && (name ?? '$') !== '$')) {
+        add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${masked4 ? MASKED : name}|${masked12 ? MASKED : kind}`);
+      }
+    }
+  }
+  for (const v of groups.values()) v.sort();
+  return groups;
 }
 
 /**
@@ -170,44 +243,56 @@ export function editedOwnGroup(members: ReadonlyMap<number, string>, line: OutLi
  * (`withOrphanRowGuids` in `sourceForm.ts`), dus een extra sleutel, een ontbrekende of een andere waarde leest anders dan
  * wat de writer schrijft. Een baselinekop staat er met zijn GlobalId (was knownbug 1746): de writer leidt die af uit het id van
  * zijn baseline, dus twee verwisselde koppen, of de kop van een gewiste baseline in de plaats van een blijvende, lezen ook
- * bij gelijke inhoud anders.
+ * bij gelijke inhoud anders. `mask`: de slots die (b) terugzette (`restoredOwnSlots`); die tellen niet mee.
  */
-export function ownGroupTrees(view: OwnLinesView): Map<string, string[]> {
-  const tree = (id: number, depth: number): string => {
-    const l = view.line(id);
-    if (!l) return view.typeOf(id) ?? `?#${id}`;
-    if (OBJECT_TYPES.has(l.type)) return isBaselineHead(l) ? 'IFCWORKSCHEDULE[BASELINE]' : l.type;
-    if (depth > 12) return `${l.type}(…)`;
-    return `${l.type}(${argsOf(l, depth).join(',')})`;
-  };
-  const argsOf = (l: OutLine, depth: number) => l.args.map((a, k) => {
-    const t = a.trim();
-    if (ROOT_TYPES.has(l.type) && k < 2) return k === 0 ? 'G' : 'OH';
-    const list = /^\(([\s\S]*)\)$/.exec(t);
-    if (list && /^#\d+(\s*,\s*#\d+)*$/.test(list[1].trim())) {
-      const members = l.type === 'IFCPROPERTYSET' && k === 4;
-      const parts = refs(view, list[1]).map(x => tree(x, depth + 1));
-      if (members) parts.sort();
-      return `(${parts.join(',')})`;
-    }
-    return /^#\d+$/.test(t) ? tree(Number(t.slice(1)), depth + 1) : t;
+export function ownGroupTrees(view: OwnLinesView, mask: ReadonlySet<string> = new Set()): Map<string, string[]> {
+  return groupTrees(view, mask);
+}
+
+/** Wat (c) niet toetst van de slots die (b) terugzette (#804 stap 5, PR A). */
+export interface RestoredOwnSlots {
+  /** De groepen die (c) helemaal overslaat: daar wees `restoredOwnSlots` een slot niet eenduidig aan. */
+  readonly skip: ReadonlySet<string>;
+  /** De slots die (c) niet toetst, als `<plaats>#<argument>` (`groupTrees`). */
+  readonly mask: ReadonlySet<string>;
+}
+/** Een slot dat (b) terugzette: zijn groep, en zijn plaats in de boom als die eenduidig is. */
+export interface RestoredOwnSlot { readonly group: string; readonly place?: string }
+
+/**
+ * Wijs de slots aan die (b) terugzette (`edits`, regel en argument in `view`: O1 met de bronwaarden erin). Elk slot op zijn
+ * plaats in de boom van zijn groep: daar telt het in (c) niet mee, de rest van de groep wel. De plaats is eenduidig als de
+ * regel op precies één plaats in een boom staat, geen andere regel op die plaats staat (twee properties of twee psets met
+ * dezelfde naam, twee koppen of taken met dezelfde GlobalId), het slot niet in die plaats zelf zit (de naam of de
+ * GlobalId), en het token niet naar een eigen regel binnen een groep wijst (dan hangt er een deel van de boom aan). Een
+ * slot van een soort die de lezer deels draagt (`partial`: lijst, JSON, samengestelde tekst) wijst hij nooit aan: de lezer
+ * leest die bronwaarde mee, dus de rest van de groep kan na heropenen anders teruglezen. Anders geldt voor de groep wat er
+ * vóór PR A gold: (c) slaat de hele groep over (`skip`). Per edit: de groep en de plaats, of
+ * niets als het slot in geen groep ligt.
+ */
+export function restoredOwnSlots(view: OwnLinesView, edits: readonly { readonly id: number; readonly arg: number; readonly partial?: boolean }[]):
+  RestoredOwnSlots & { readonly slots: readonly (RestoredOwnSlot | undefined)[] } {
+  if (edits.length === 0) return { skip: new Set(), mask: new Set(), slots: [] };
+  const members = ownGroupMembers(view);
+  const placesOf = new Map<number, string[]>(), holders = new Map<string, number>();
+  groupTrees(view, new Set(), (id, at) => {
+    const a = placesOf.get(id) ?? []; a.push(at); placesOf.set(id, a);
+    holders.set(at, (holders.get(at) ?? 0) + 1);
   });
-  const groups = new Map<string, string[]>();
-  const add = (g: string, t: string) => { const a = groups.get(g) ?? []; a.push(t); groups.set(g, a); };
-  for (const [g, roots] of groupRoots(view)) for (const l of roots) add(g, tree(l.id, 0));
-  for (const l of view.lines) {
-    // De kop met de aggregaties waarin hij staat (knownbug 1705): een kop in een andere aggregatie dan die van het eigen
-    // werkplan (die van het project, of een vreemde) leest anders dan wat de writer schrijft.
-    if (isBaselineHead(l)) add(BASELINE_HEADS, `${[...view.aggregatedIn.get(l.id) ?? ['los']].sort().join('+')}|${l.args[0].trim()}|${argsOf({ ...l, args: l.args.slice(2) }, 0).join(',')}`);
-    // De typenaam per taak (op GlobalId), met het PredefinedType erbij (PR 12d): ook een typenaam op een taak zonder
-    // `.USERDEFINED.`, en een `.USERDEFINED.` dat wegviel terwijl de taak haar type houdt, lezen anders dan wat de writer
-    // schrijft (de lezer leest het type per taak uit `OPS_TaskTypes`, niet uit deze twee slots).
-    else if (l.type === 'IFCTASK' && (l.args[12]?.trim() === '.USERDEFINED.' || (l.args[4]?.trim() ?? '$') !== '$')) {
-      add(TASK_OBJECT_TYPES, `${l.args[0].trim()}|${l.args[4]?.trim()}|${l.args[12]?.trim()}`);
-    }
-  }
-  for (const v of groups.values()) v.sort();
-  return groups;
+  const found = edits.map((e): RestoredOwnSlot | undefined => {
+    const line = view.line(e.id);
+    const group = line && editedOwnGroup(members, line, e.arg);
+    if (!line || group === undefined) return undefined;
+    const [at, ...more] = placesOf.get(e.id) ?? [];
+    const inPlace = e.arg === NAME_ARG[line.type] || ((isBaselineHead(line) || line.type === 'IFCTASK') && e.arg === 0);
+    const unique = !e.partial && at !== undefined && more.length === 0 && holders.get(at) === 1 && !inPlace
+      && !ownPartRefs(view, line.args[e.arg]);
+    return unique ? { group, place: `${at}#${e.arg}` } : { group };
+  });
+  // Eén slot zonder eenduidige plaats zet de hele groep buiten (c); de andere slots van die groep hoeven dan geen plaats.
+  const skip = new Set(found.filter(s => s && s.place === undefined).map(s => s!.group));
+  const slots = found.map(s => s && skip.has(s.group) ? { group: s.group } : s);
+  return { skip, mask: new Set(slots.map(s => s?.place).filter((p): p is string => p !== undefined)), slots };
 }
 
 /** Het eerste verschil tussen twee indelingen: de groep en een stukje van beide kanten rond het eerste andere teken. */

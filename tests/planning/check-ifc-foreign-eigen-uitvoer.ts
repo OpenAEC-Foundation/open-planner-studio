@@ -22,7 +22,9 @@
 // 10. Stap 5, PR A: (c) per slot. Op de echte uitvoer van de gevallen van blok 9 in `check-ifc-foreign-eigen-toets.ts`, met wat
 //    de opslag (c) liet overslaan: een fout in het nieuwe stuk, of in een ander slot van dezelfde groep, vangt (c), en de
 //    verliescontrole zelf (met de toets per slot) laat hem door, dus geen oude verklaring en geen nacontrole draagt de
-//    weigering. Het teruggezette slot zelf toetst (c) niet (de grens van het masker).
+//    weigering. Op de koppen en de typenaam (buiten de toets) vangt de verliescontrole zo'n fout ook. Het teruggezette slot
+//    zelf toetst (c) niet (de grens van het masker), en een vreemde `Creators` (een lijst) laat de koppen terugvallen: (c)
+//    slaat ze over en de verliescontrole draagt het, zoals op de basis.
 // Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
 // dezelfde invoer heeft.
 import assert from 'node:assert/strict';
@@ -821,7 +823,11 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   };
   const firstProperty = (pset: string) => (ls: OutLine[]) => membersIn(ls, pset)[0];
   const psetLine = (pset: string) => (ls: OutLine[]) => psetOf(ls, pset);
-  type Proof = [string, Fault, 'alleen (c)' | 'weigert' | 'grens'];
+  /** 'alleen (c)': de verliescontrole en de uitvoercontrole zonder (c) laten hem door, (c) vangt hem. 'ook (c)': de
+   *  uitvoercontrole zonder (c) laat hem door en (c) vangt hem; de verliescontrole vangt hem ook (een stuk buiten de toets).
+   *  'grens': het teruggezette slot zelf, dat (c) niet toetst. 'terugval': de groep valt terug op het gedrag van vóór PR A:
+   *  (c) slaat haar over en de verliescontrole vangt hem, zoals op de basis. */
+  type Proof = [string, Fault, 'alleen (c)' | 'ook (c)' | 'weigert' | 'grens' | 'terugval'];
   async function perSlotProofs(label: string, start: Uint8Array, slotted: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, proofs: readonly Proof[]) {
     const b = await base(`per slot: ${label}`, slotted, edit, true);
     const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
@@ -833,6 +839,8 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
       const name = `tegenproef per slot: ${label}: ${what}`;
       if (want === 'alleen (c)') ok(`${name}: alleen (c) vangt hem`, found.length === 0 && withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
       else if (want === 'weigert') ok(`${name}: geweigerd`, withC !== 'laat door', withC);
+      else if (want === 'ook (c)') ok(`${name}: (c) vangt hem, de verliescontrole ook`, found.length > 0 && withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
+      else if (want === 'terugval') ok(`${name}: (c) slaat de groep over, de verliescontrole vangt hem (zoals op de basis)`, found.length > 0 && withC === 'laat door', `${found.length} / ${withC}: ${lastDetail}`);
       else ok(`${name}: laat door (het teruggezette slot zelf, grens van het masker)`, withC === 'laat door', `${withC}: ${lastDetail}`);
     }
   }
@@ -907,6 +915,9 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     ['het teruggezette slot zelf: de omschrijving van OPS_TaskTypes anders', slotOf(psetLine(TT), 3, "'Andere omschrijving'"), 'grens'],
   ]);
   // Een slot op een tweede vorm: een omschrijving of een vreemde `Creators` op één kop, een typenaam op een taak zonder type.
+  // De koppen en de typenaam op de taak vallen niet onder de toets (a), dus daar vangt ook de verliescontrole een fout in een
+  // ander slot ('ook (c)'). `Creators` is een lijst, een soort die de lezer deels draagt: daar slaat (c) de koppen helemaal
+  // over, zoals op de basis (terugval, ook voor een andere kop).
   const ls0 = linesOfBytes(cat), plan = ls0.find(l => l.type === 'IFCWORKPLAN')!;
   const agg = ls0.find(l => l.type === 'IFCRELAGGREGATES' && l.args[4].trim() === `#${plan.id}`)!;
   const heads = refsOutsideText(agg.args[5]).map(id => ls0.find(l => l.id === id)!).filter(l => l.args.some(a => a.trim() === '.BASELINE.'));
@@ -915,20 +926,20 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   const byGuid = (guid: string) => (ls: OutLine[]) => ls.find(l => l.args[0] === guid)!;
   const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving, per slot' }); });
   await perSlotProofs('omschrijving op een kop, projectbeschrijving', cat, withHeadSlot(3, DESCRIPTION), beschrijving, [
-    ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'alleen (c)'],
+    ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'ook (c)'],
     ['het teruggezette slot zelf: de omschrijving van die kop anders', slotOf(byGuid(head.args[0]), 3, "'Andere omschrijving'"), 'grens'],
   ]);
   await perSlotProofs('vreemde Creators op een kop, projectbeschrijving', cat,
     withHeadSlot(7, '(#95300)', ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]), beschrijving, [
-      ['de omschrijving van dezelfde kop', slotOf(byGuid(head.args[0]), 3), 'alleen (c)'],
-      ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'alleen (c)'],
+      ['de omschrijving van dezelfde kop', slotOf(byGuid(head.args[0]), 3), 'terugval'],
+      ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'terugval'],
     ]);
   {
     const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
     const typed = (ls: OutLine[]) => ls.find(l => l.type === 'IFCTASK' && l.args[12]?.trim() === '.USERDEFINED.')!;
     const untyped = (ls: OutLine[]) => ls.find(l => l.type === 'IFCTASK' && l.args[4].trim() === "'Type 0 7d'" && l.args[12]?.trim() !== '.USERDEFINED.')!;
     await perSlotProofs('typenaam op een taak zonder type, projectbeschrijving', cat, labelled, beschrijving, [
-      ['een verkeerde typenaam op een getypeerde taak', slotOf(typed, 4, "'Verkeerde typenaam'"), 'alleen (c)'],
+      ['een verkeerde typenaam op een getypeerde taak', slotOf(typed, 4, "'Verkeerde typenaam'"), 'ook (c)'],
       ['het teruggezette slot zelf: een andere typenaam op die taak', slotOf(untyped, 4, "'Andere typenaam'"), 'grens'],
     ]);
   }

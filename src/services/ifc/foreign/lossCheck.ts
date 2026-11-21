@@ -113,6 +113,7 @@ import type { IfcSource } from './ifcSource';
 import { planningIdentities, planningIdentityInput } from './planningIdentity';
 import { splitStepArgs, type StepIndex } from './stepScanner';
 import type { MergePhase2Kind } from './mergeWriter';
+import type { RestoredOwnSlot, RestoredOwnSlots } from './ownGroups';
 
 /** Een regel van de writer, ontleed. */
 export interface OutLine { readonly id: number; readonly type: string; readonly args: readonly string[] }
@@ -224,10 +225,18 @@ export interface LossCheckInput {
   readonly plannerChanged?: ReadonlySet<string>;
   /**
    * De andere toets (PR 12b): per bronstuk de eigen groep op projectniveau waarvan het openen niets veranderde (a′,
-   * `openedOwnGroups` in `mergeWriter.ts`). Een verschil in O1 in zo'n groep hoeft geen bewerking te verklaren als de groep
-   * ook gedragen is (a): geen stuk ervan had (b) nodig. Zonder dit veld: de controle van main.
+   * `openedOwnGroups` in `mergeWriter.ts`). Een verschil in O1 in zo'n groep hoeft geen bewerking te verklaren als het in
+   * de bron gedragen is (a): het ligt niet in een slot dat (b) terugzette (#804 stap 5, PR A; daarvoor: geen stuk van de
+   * groep had (b) nodig). Zonder dit veld: de controle van main.
    */
   readonly ownGroups?: ReadonlyMap<number, string>;
+  /**
+   * Wijst de slots aan die (b) in O1 terugzette (`restoredOwnSlots` in `ownGroups.ts`, op O1 met de bronwaarden erin), zoals
+   * controle (c) ze niet toetst. (a) sluit per slot uit wat (c) per slot niet toetst, en een hele groep waar (c) de hele
+   * groep overslaat. `partial`: de bronwaarde is van een soort die de lezer deels draagt. Zonder dit veld: elke groep met een slot van (b) valt helemaal buiten de toets, zoals vóór PR A.
+   */
+  readonly ownSlots?: (o1: readonly OutLine[], edits: readonly (SlotEdit & { readonly partial: boolean })[]) =>
+    RestoredOwnSlots & { readonly slots: readonly (RestoredOwnSlot | undefined)[] };
   /**
    * De tweede vormen buiten de psets (PR 12c en 12d, `SECOND_FORMS`): de psets waarvan het openen ook de tweede vorm niet
    * veranderde (a′ voor die vorm, in dezelfde bronvorm als `ownGroups`). `OPS_Baselines`: de baselinekoppen in de aggregatie
@@ -351,13 +360,15 @@ function alignment(type: string, src: readonly string[], outLength: number): num
  * aan de bron, op de benoemde soorten na (`planRestores` zegt welke slots (b) kan terugzetten). Geeft `edits` terug: de
  * slots die de merge in O1 terugzet.
  */
-export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => void): { edits: SlotEdit[] } {
+export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => void): { edits: SlotEdit[]; own?: RestoredOwnSlots } {
   const { index } = input;
   const say = (d: LossDiff, after: boolean) => report({
     kind: d.whole === 'nieuw' ? 'nieuwe-pset' : d.ambiguous ? 'niet-eenduidig' : 'niet-gedragen', chunk: d.chunk,
     detail: describe(index, d, after), diff: d,
   });
   const edits: SlotEdit[] = [];
+  /** De edits van een soort die de lezer deels draagt (PR A): die wijst (c) niet per slot aan. */
+  const partial = new Set<SlotEdit>();
   const p0 = pairOutput(input, input.o0);
   const restores = planRestores(input, p0, compareOutput(input, p0, input.owner0));
   for (const r of restores) input.restored?.(r);
@@ -367,21 +378,35 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
     .map(r => `${r.chunk}:${r.outArg}`));
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
-  // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
-  // veranderde (a′, `input.ownGroups`) en die in de bron gedragen is (a: geen stuk ervan had (b) nodig), schrijft de writer
-  // uit de lezing van de bron precies zoals hij in de bron staat. Een verschil in O1 in die groep is dan wat de writer uit
-  // de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven groep terugleest tot precies wat de writer
+  // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): in een eigen groep op projectniveau die het openen
+  // niet veranderde (a′, `input.ownGroups`), schrijft de writer uit de lezing van de bron elk slot dat de lezer draagt zoals
+  // het in de bron staat. Dat geldt voor de eigen regels; een lid van een ander programma telt in geen groep mee, en de merge
+  // hangt het terug (stap 6 van `writeIfcMerge`; controle 1 toetst het). Een verschil in O1 in zo'n slot is dan wat de writer
+  // uit de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven groep terugleest tot precies wat de writer
   // ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in `mergeWriter.ts`), en de controle na openen
-  // dat de planning gelijk blijft. Elke andere groep, en alles buiten de eigen groepen, blijft onder de controle hieronder.
-  const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
-  const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
+  // dat de planning gelijk blijft.
+  // (a), per slot (#804 stap 5, PR A): een slot dat (b) terugzette, draagt de lezer niet. Een verschil daar (of een heel
+  // stuk met zo'n slot) blijft onder de controle hieronder, en (c) toetst het niet. `whole`: de groepen die helemaal buiten de
+  // toets vallen, zoals vóór PR A. Tot de slots na (b) aangewezen zijn (`input.ownSlots`, hieronder), is dat elke groep met
+  // een slot van (b); daarna alleen een groep waar (c) een slot niet aanwijst. Alles buiten de eigen groepen blijft onder de
+  // controle hieronder.
+  const withRestore = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
+  let whole: ReadonlySet<string> = withRestore;
+  const inRestoredSlot = (d: Pick<LossDiff, 'chunk' | 'arg' | 'whole' | 'slotless'>) =>
+    restores.some(r => r.chunk === d.chunk && (d.whole !== undefined || d.slotless !== undefined || r.arg === d.arg));
+  const ownGroupCarries = (d: Pick<LossDiff, 'chunk' | 'arg' | 'whole' | 'slotless'>) => {
+    const g = input.ownGroups?.get(d.chunk);
+    return g !== undefined && !whole.has(g) && !inRestoredSlot(d);
+  };
   // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
-  // hierboven (in de bron, gedragen, niet door het openen veranderd), veranderde het openen ook de vorm zelf niet, en zette
-  // (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`). Anders
-  // geldt voor die vorm de controle van main.
+  // hierboven (in de bron, zonder slot van (b), niet door het openen veranderd), veranderde het openen ook de vorm zelf niet,
+  // en zette (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`).
+  // Anders geldt voor die vorm de controle van main. Dit blijft per groep: per slot zou het weigeringen laten schrijven
+  // (PR A, zie de PR).
   const psets = new Set(input.ownGroups?.values() ?? []);
   const following = SECOND_FORMS.filter(f => input.secondFormsUnchanged?.has(f.pset) === true && psets.has(f.pset)
-    && !uncarried.has(f.pset) && !restores.some(r => f.restored(index, r)));
+    && !withRestore.has(f.pset) && !restores.some(r => f.restored(index, r)));
+  let own: (RestoredOwnSlots & { readonly slots: readonly (RestoredOwnSlot | undefined)[] }) | undefined;
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
@@ -443,10 +468,30 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
         const token = mapToken(input, r.token, p1);
         if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
-        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
+        else {
+          const edit = { id: o1!, arg: r.outArg, token, chunk: r.chunk };
+          edits.push(edit);
+          if (PARTIAL_KINDS.has(r.kind)) partial.add(edit);
+        }
       } else if (PARTIAL_KINDS.has(r.kind)) {
         say(after, true); // de writer schrijft hier iets anders, zonder dat het veld veranderde: weigeren
       }
+    }
+    // (a) per slot (PR A): de slots die (b) in O1 terugzet, op hun plaats in de boom, zoals (c) ze niet toetst. Een groep met
+    // een slot dat (c) niet eenduidig aanwijst, of dat in een andere groep ligt dan in de bron, valt helemaal buiten de toets
+    // en buiten (c). Zo ook een slot van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst): de lezer
+    // leest de bronwaarde mee, dus de rest van de groep kan na heropenen anders teruglezen (de weesrij op een baseline-JSON
+    // in de vorm van de bron, knownbug 1770).
+    if (input.ownSlots) {
+      const placed = input.ownSlots(applyEdits(input.o1, edits), edits.map(e => ({ ...e, partial: partial.has(e) })));
+      const skip = new Set(placed.skip);
+      edits.forEach((e, i) => {
+        const g = input.ownGroups?.get(e.chunk), slot = placed.slots[i];
+        if (g !== undefined && (slot?.place === undefined || slot.group !== g)) skip.add(g);
+        if (g !== undefined && slot !== undefined && slot.group !== g) skip.add(slot.group);
+      });
+      whole = skip;
+      own = { skip, mask: placed.mask, slots: placed.slots };
     }
     // O1 (fixronde 4, BLOKKEERT 1 en plek 1 tot 4): geen algemene vrijstelling. Elk verschil met de bron moet een
     // bewerking aantoonbaar verklaren, per veld (`explainO1`); anders weigert de merge. De toets draait altijd, ook als
@@ -456,7 +501,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
-      if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
+      if (ownGroupCarries(d) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -464,14 +509,15 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
-      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk)) continue;
+      if (different.has(chunk) || scopes.size !== 1) continue;
       const scope = [...scopes][0];
       const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
       if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'
         || (scope !== `project|pset:${PSET.Baselines}` && scope !== `project|pset:${PSET.TaskTypes}`))) continue;
+      const arg = codes ? 6 : 2;
+      if (ownGroupCarries({ chunk, arg })) continue;
       const line = p1b.out.get(p1b.pairedOut.get(chunk)?.[0] ?? -1);
       if (!line) continue;
-      const arg = codes ? 6 : 2;
       const d = { chunk, arg, outArg: arg, source: index.argTokens(chunk)![arg], out: line.args[arg] };
       if ((codes ? explainCodeDefinitions(ctx, d) : explainOwnMapGrowth(ctx, d, scope.slice(8))) === false
         || (!codes && explainActiveBaseline(ctx, d, scope.slice(8)) === false)) say(d, true);
@@ -480,7 +526,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
 
   // E8 / 1022: de bytes-lezer kiest de project-/werkplaneigenaar na OPS_ProjectSettings. De oude onvoorwaardelijke
   // weigering 'projectgegevens' vervalt; de onafhankelijke heropening controleert de werkelijk geschreven velden.
-  return { edits };
+  return { edits, ...(own ? { own } : {}) };
 }
 
 /** De tekst van een melding: stuk, propertynaam, argument, bronwaarde en uitvoer. */
@@ -2331,7 +2377,7 @@ function typeNameFollowsDefinition(ctx: O1Context, d: LossDiff): boolean {
 /**
  * De tweede vormen buiten de psets (onderzoek, vraag 2, tegenvoorbeeld 5): twee eigen gegevens staan ook op een object dat
  * andere gegevens draagt. Per vorm: de pset waar hij bij hoort, of een slot dat (b) terugzette in die vorm ligt (zoals
- * `editedOwnGroup` in `ownGroups.ts` het afbakent), en welk verschil in O1 de vorm mag dragen. De namen van de vormen staan
+ * `restoredOwnSlots` in `ownGroups.ts` het afbakent), en welk verschil in O1 de vorm mag dragen. De namen van de vormen staan
  * in `ownGroups.ts` (`SECOND_FORMS`); daar toetst (c) ze.
  */
 const SECOND_FORMS: readonly {

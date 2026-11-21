@@ -35,7 +35,8 @@
 // 9. Stap 5, PR A: de toets en (c) per slot. Een omschrijving van een ander programma op een eigen pset (die zet (b) terug),
 //    dan de gewone handeling: schrijft en is heel, (c) toetst precies dat ene slot niet, en de verliescontrole laat in die groep
 //    geen verschil meer door een oude verklaring gaan. Daarna de slotgevallen: twee slots in één groep, een slot in een
-//    andere groep, een kop, een typenaam, en wat niet eenduidig aan te wijzen is.
+//    andere groep, een kop, een typenaam, een omschrijving op `ModifiedAt`, en wat terugvalt op de hele groep: wat niet
+//    eenduidig aan te wijzen is, en een bronwaarde van een soort die de lezer deels draagt (een vreemde `Creators`, een lijst).
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
@@ -223,7 +224,9 @@ await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baseli
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'schrijft');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
-// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken; (c) toetst zo'n groep niet.
+// (a) per slot (PR A): de omschrijving op elk codetemplate zet (b) terug; die slots vallen buiten de toets en buiten (c), de
+// rest van `OPS_StructureMeta` niet. Hernoemen of wissen weigert zoals op de basis, maar niet door de toets: het template met
+// de bronwaarde heeft daarna geen regel in O1 (een bronwaarde zonder regel, `lost` in `lossCheck.ts`).
 await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
 await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
@@ -1027,9 +1030,11 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   // `OPS_StructureMeta` (de tegenproef dat (c) die groep helemaal toetst, staat in eigen-uitvoer).
   await perSlot('per slot: omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, PSET.TaskTypes), SEVEN[0][3],
     [psetDescriptionPlace(PSET.TaskTypes)], [PSET.TaskTypes, PSET.StructureMeta]);
-  // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving of een vreemde `Creators` op een
-  // kop. (c) toetst dan alleen dat ene slot van die ene taak of kop niet (was knownbug 1747: de hele vorm). De vorm zelf
-  // beweegt niet mee (blok 5 en 6, hierboven): dat blijft per vorm.
+  // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving op een kop. (c) toetst dan alleen
+  // dat ene slot van die ene taak of kop niet (was knownbug 1747: de hele vorm). De vorm zelf beweegt niet mee (blok 5 en
+  // 6, hierboven): dat blijft per vorm. Een vreemde `Creators` op een kop is een lijst, een soort die de lezer deels draagt:
+  // daar valt de groep van de koppen terug op het gedrag van vóór PR A (heel buiten de toets en buiten (c)), en het slot
+  // blijft staan.
   const guidOf = (b: Uint8Array, pick: (l: OutLine) => boolean) => linesOfBytes(b).find(pick)!.args[0].trim();
   {
     const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
@@ -1049,8 +1054,8 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
     const r = await attempt('per slot: vreemde Creators op een kop, projectbeschrijving', creators, opened.ifcSource!, await beschrijving(cloneDomain(opened)), 'schrijft');
     if (r.ok) {
       console.log(`SLOT vreemde Creators op een kop: ${restoredText(r.restored)}`);
-      ok('per slot: vreemde Creators op een kop: (c) toetst alleen dat slot van die kop niet',
-        r.restored?.skip.size === 0 && sameSet(r.restored.mask, [`kop:OPS_Baselines|${head.args[0].trim()}#7`]), restoredText(r.restored));
+      ok('per slot: vreemde Creators op een kop: een lijst, dus (c) slaat de koppen over zoals op de basis',
+        sameSet(r.restored?.skip ?? new Set(), ['kop:OPS_Baselines']) && r.restored?.mask.size === 0, restoredText(r.restored));
       ok('per slot: vreemde Creators op een kop: de verwijzing blijft staan', /=IFCWORKSCHEDULE\([^\n]*\(#95300\)/.test(latin1(r.bytes)));
     }
   }
@@ -1076,12 +1081,18 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   // Een slot dat (b) terugzet en dat de planner wijzigde, weigert zoals tot nu: een onbekend veld in de typedefinities (JSON,
   // de lezer draagt een deel) en een nieuw type (blok 2, "grens: onbekend definitieveld, typegroei").
   await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
-  // Meting, geen eis van deze PR: een omschrijving op een property waarvan de handeling de waarde zet (`ModifiedAt` verandert
-  // bij elke bewerking). Dit legt vast wat er met de omschrijving gebeurt, op de basis en hier.
+  // Een omschrijving op een property waarvan de handeling de waarde zet (`ModifiedAt` verandert bij elke bewerking): de
+  // waarde komt van de writer, de omschrijving zet (b) terug en blijft staan (ook op de basis); (c) toetst alleen dat slot niet.
   {
     const slotted = withPropertyDescription(single, PS, PROP.ProjectSettings.ModifiedAt);
-    const { o } = await one('per slot (meting): omschrijving op ModifiedAt, statusdatum zetten', slotted, statusdatum, 'schrijft');
-    if (o.ok) console.log(`MEETGEVAL omschrijving op ModifiedAt, statusdatum zetten: omschrijving ${descriptions(o.bytes)} van ${descriptions(slotted)}; ${restoredText(o.restored)}`);
+    const { o } = await one('per slot: omschrijving op ModifiedAt, statusdatum zetten', slotted, statusdatum, 'schrijft');
+    if (o.ok) {
+      console.log(`SLOT omschrijving op ModifiedAt, statusdatum zetten: ${restoredText(o.restored)}`);
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: de omschrijving blijft staan',
+        descriptions(slotted) === 1 && descriptions(o.bytes) === 1, `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: (c) toetst alleen dat slot niet',
+        o.restored?.skip.size === 0 && sameSet(o.restored.mask, [propertyDescriptionPlace(PS, PROP.ProjectSettings.ModifiedAt)]), restoredText(o.restored));
+    }
   }
 }
 
