@@ -572,6 +572,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804, knownbug 1936: de telling op het verschil tegen de volledige telling, op ruim 3000 gemuteerde uitvoeren. Rekent
+  # niet met datums: één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
+  IFCFOREIGNTELLINGVERSCHIL="$DIR/.ifc-foreign-telling-verschil.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-telling-verschil.ts" "$IFCFOREIGNTELLINGVERSCHIL"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNTELLINGVERSCHIL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

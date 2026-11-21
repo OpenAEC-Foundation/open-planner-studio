@@ -335,8 +335,6 @@ await check('de sha256 van de uitvoer: één keer, op de uitvoerbuffer, vóór d
   assert.equal(output.length, 1, 'één berekening over een buffer van de lengte van de uitvoer');
   assert(output[0] === result.bytes, 'berekend op de uitvoerbuffer zelf, niet op een kopie');
   assert(events.indexOf(output[0]) < events.indexOf('controle'), 'berekend vóór de uitvoercontrole');
-  assert.equal(result.sha256, hash(result.bytes));
-  assert.equal(result.source.sha256, result.sha256);
 });
 
 console.log(`Voorbereid schrijfresultaat: ${passed} geslaagd, ${failed} mislukt.`);

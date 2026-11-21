@@ -2305,6 +2305,30 @@ en noem het in je rapport of PR-tekst.
      en oude-eigen niets omslaan. Richting: een eigen PR, met die vier gevallen als bedoelde omslag en de telling ernaast;
      net als bij 1953 verschuift dat de opslaggrens, dus met een eigen besluit. — B
 
+1951. **De scanner ziet een verwijzing met commentaar tussen `#` en de cijfers of tussen de cijfers zelf niet goed, en deelt het stuk daardoor in als V in plaats van A.**
+     In `#5=IFCWALL(…,#/*c*/53,$);` ziet de scanner (`readEntity` in `stepScanner.ts`) geen verwijzing: hij slaat het
+     commentaar over, maar plakt de delen ervoor en erna niet aan elkaar. De tekstregel van de uitvoercontrole (`argTokens`
+     met `stripComments`, dan `refsOutsideText`) doet dat wel en ziet `#53`; bij `#5/*c*/3` ziet de scanner `#5` en de
+     tekstregel `#53`. Wijst een modelstuk zo naar een taak, dan deelt de indeling het in als V in plaats van A
+     (`classify.ts`): de merge weet niet dat het stuk aan de taak hangt. Wist de planner die taak, dan weigert opslaan met
+     een technische melding (`uitvoer-controle: nieuwe loze verwijzing 354|7|53` op `eigen-plus-model.ifc`); er gaat
+     niets verloren. De telling op het verschil (1936) telt een bewaard stuk met `/*` in zijn bytes daarom altijd aan beide kanten mee.
+     Proeven in `check-ifc-foreign-telling-verschil.ts` (deel 1a en 3). Commentaar ná een volledig id laat de scanner
+     dat id gewoon vinden; de indeling als V geldt alleen als het stuk verder geen zichtbare verwijzing naar een P-stuk
+     heeft. — B
+
+2022. **VERVOLG (review van #1103, de telling op het verschil): drie punten zonder gevolg voor de uitkomst.**
+     (1) Dekkingspoort: `check-ifc-foreign-telling-verschil.ts` (rond regel 404) leest uit het resultaat welke tak
+     liep. Een mutatie die overal de volledige telling afdwingt maar "verschil" blijft melden, houdt de check groen;
+     pas met een eerlijke melding valt de dekking naar nul en slaan de drie ondergrenzen rood. Richting: de gemelde tak
+     koppelen aan de uitvoering van die tak. (2) Uitleg: de stelling "zonder `/*` ziet de scanner dezelfde verwijzingen
+     als de tekstregel" geldt voor entiteiten waarvoor `argTokens` argumenten geeft. Voor een complexe instantie
+     (`#130=(IFCX(#2)IFCY(#12));`) geeft `argTokens` `undefined`; de volledige telling slaat die ook over, dus main en
+     de telling op het verschil melden daar allebei niets. De uitleg in `mergeValidation.ts` (rond regel 102) zegt het
+     te ruim. (3) Opruimen: de twee vlaggenarrays in `differenceCounts` (rond regel 154) kunnen weg; `actual` en
+     `preserved` staan in oplopende stukvolgorde, dus één oplopende positie volstaat (ongeveer 10 MiB bij 5,2 miljoen
+     stukken). — B (review)
+
 1952. **VERVOLG (#804 stap 5, controle 1): de GlobalId van een pset met alleen vreemde leden toetst geen controle.**
      Schrijft de writer een eigen pset niet meer (het laatste eigen lid viel weg), dan zet de merge een pset met alleen de
      vreemde leden neer, met de GlobalIds van de pset en de relatie uit de bron (`extraPsets` in `mergeWriter.ts`, stap 6).
