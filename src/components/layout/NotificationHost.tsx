@@ -9,7 +9,6 @@ import { subscribeDialogStack } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { clearViewArrangement } from '@/state/viewArrangement';
 import { canUndoScheduleShift, openScheduleShiftPanel } from '@/state/scheduleShift';
-import { canRunNotificationUndo, isNotificationCurrent, latestUndoEventId } from '@/state/otherWorkNotice';
 import {
   measureToastPlacement, samePlacement, subscribeToastLayout, toastAvoidElements, type ToastPlacement,
 } from './toastPlacement';
@@ -122,11 +121,7 @@ export function NotificationHost() {
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
   const { t, i18n } = useTranslation(['common', 'menu']);
-  // De stap die Ctrl+Z nu terugzet: een melding met `undoHistoryEvent` staat er alleen zolang dat de hare
-  // is; daarna kloppen haar cijfers niet meer (#954, review #1120 ronde 4).
-  const latestUndoId = useAppStore(latestUndoEventId);
-  const shown = notifications.filter((n) => isNotificationCurrent(n, latestUndoId));
-  const placement = useToastPlacement(shown.length > 0);
+  const placement = useToastPlacement(notifications.length > 0);
   const canUndoShift = useAppStore(canUndoScheduleShift);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` en een `sticky`
@@ -144,7 +139,7 @@ export function NotificationHost() {
     return () => { for (const tm of timers) clearTimeout(tm); };
   }, [notifications, dismissNotification]);
 
-  if (shown.length === 0) return null;
+  if (notifications.length === 0) return null;
 
   // De serialiseerbare actie uit de store (o.a. rekenprofielen, *Wissen* bij *Taak*); sluit de
   // melding na de actie. *Waarom?* opent het paneel, en dat heeft zijn eigen knop *Ongedaan maken*.
@@ -162,9 +157,8 @@ export function NotificationHost() {
       return;
     }
     if (action.kind === 'undoHistoryEvent') {
-      // Vlak voor het terugzetten nog eens: is het nog precies deze stap (#954)?
-      const state = useAppStore.getState();
-      if (canRunNotificationUndo(state, action)) state.undoHistoryEvent(action.eventId);
+      // De melding staat er alleen zolang haar stap de stap van Ctrl+Z is (`otherWorkNotice.ts`, #954).
+      useAppStore.getState().undoHistoryEvent(action.eventId);
       dismissNotification(n.id);
       return;
     }
@@ -279,8 +273,8 @@ export function NotificationHost() {
         </div>
   );
 
-  const center = shown.filter(n => !n.atEnd);
-  const atEnd = shown.filter(n => n.atEnd);
+  const center = notifications.filter(n => !n.atEnd);
+  const atEnd = notifications.filter(n => n.atEnd);
   return (
     <>
       {center.length > 0 && (

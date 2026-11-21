@@ -1,5 +1,4 @@
 import { SCHEDULE_SHIFT_NOTICE_KEY } from '../scheduleShift';
-import { OTHER_WORK_NOTICE_KEY } from '../otherWorkNotice';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
@@ -120,9 +119,7 @@ function resetDocumentScopedUI(s: AppState): void {
   clearRefusals(s.ui);
   // De uitleg na F5 noemt taken van het uitgaande document.
   s.scheduleShift = null;
-  // De uitleg na F5 en de melding over de uren van anderen (#954) horen bij het vorige document; hun
-  // knop zou daar iets terugzetten.
-  s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY && n.dedupeKey !== OTHER_WORK_NOTICE_KEY);
+  s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {

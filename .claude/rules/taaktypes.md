@@ -49,9 +49,10 @@ meldt de app dat met de nieuwe duur, per resource "oud → nieuw" en de knop Ong
 bewerking: `notifyOtherWorkChanged` vergelijkt vóór en ná van die stap, met het getal van *Werk (u)*
 (`engine/work/shownWork.ts`, gedeeld met het paneel, dus ook een contoursom) op twee decimalen; een tweede
 toewijzing van dezelfde resource telt niet als ander persoon. De melding met haar knop (`undoHistoryEvent`)
-staat op het scherm zolang die stap de stap van Ctrl+Z is (`isNotificationCurrent`, filter in
-`NotificationHost`; de knop toetst nog eens met `canRunNotificationUndo`); een undo van de stap en een
-documentwissel halen de melding weg. Geen eigen stap (batch, extensie) of een stap
+blijft precies zo lang als het document in de stand van die stap staat (`watchNotice`, een abonnement op de
+store): haar stap is de stap van Ctrl+Z en de projectdata zijn dezelfde (elk 'data'-veld behalve de taken,
+die ook de berekening schrijft). Een nieuwere stap, Ctrl+Z, een documentwissel of een bibliotheekverversing
+haalt haar definitief weg; F5 laat haar staan. Geen eigen stap (batch, extensie) of een stap
 in een bewerksessie ⇒ geen melding: Taak bewerken bundelt meerdere bewerkingen tot één stap en heeft
 Annuleren als weg terug (knownbug 2054). MCP, raster en `removeResource`/`moveAssignment` melden niets
 (knownbug 2050). Test: `check-work-others-notice.ts`.

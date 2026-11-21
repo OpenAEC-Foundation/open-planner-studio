@@ -110,7 +110,7 @@ export interface ResourceSlice {
 function workMinutesBefore(s: { calendars: WorkCalendar[]; calendar: WorkCalendar }, task: Task): number {
   return taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
 }
-export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => (set, get) => ({
+export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => (set, get, store) => ({
   resources: [],
   assignments: [],
   calendars: [],
@@ -212,7 +212,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       edit = { sequence, taskId, assignmentId: id };
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
-    notifyOtherWorkChanged(get(), edit);
+    notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },
@@ -236,7 +236,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       edit = { sequence, taskId, assignmentId };
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
-    notifyOtherWorkChanged(get(), edit);
+    notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },
@@ -265,7 +265,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       edit = { sequence, taskId: task.id, assignmentId };
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
-    notifyOtherWorkChanged(get(), edit);
+    notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
     get().recomputeViewRows();
   },
@@ -318,7 +318,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       edit = { sequence, taskId, assignmentId };
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
-    notifyOtherWorkChanged(get(), edit);
+    notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },

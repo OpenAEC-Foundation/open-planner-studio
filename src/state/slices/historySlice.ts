@@ -116,10 +116,6 @@ function applyHistoryEvent(
     // stap nog meldt, komt later binnen en blijft staan (eerst wissen, dan melden). Echte fouten
     // blijven — zie `clearRefusals`.
     clearRefusals(state.ui);
-    // Een melding met Ongedaan maken voor precies deze stap (#954) klopt na het terugzetten niet meer.
-    if (direction === 'undo') {
-      state.ui.notifications = state.ui.notifications.filter(n => !(n.action?.kind === 'undoHistoryEvent' && n.action.eventId === event.id));
-    }
 
     for (const target of targets) {
       if (target.kind === 'document-data') {

@@ -6,12 +6,15 @@
 //
 // De melding hoort bij de geschiedenisstap van één losse bewerking: ze vergelijkt vóór en ná van die
 // stap (`notifyOtherWorkChanged`), met het getal van *Werk (u)* (`shownWork.ts`), dus ook de som van een
-// eigen urenverdeling. In Taak bewerken (een bewerksessie) meldt de app niets: die dialoog bundelt
-// meerdere bewerkingen tot één stap en heeft Annuleren als weg terug (review #1120, knownbug 2054).
+// eigen urenverdeling. Ze blijft staan zolang het document in de stand van die stap staat (`watchNotice`).
+// In Taak bewerken (een bewerksessie) meldt de app niets: die dialoog bundelt meerdere bewerkingen tot
+// één stap en heeft Annuleren als weg terug (review #1120, knownbug 2054).
+import type { StoreApi } from 'zustand';
 import type { AppState } from './appStore';
+import { DOCUMENT_FIELDS } from './documentContract';
 import { selectUndoHistoryEvent } from './sessionHistory';
 import type { Snapshot } from './snapshot';
-import type { AppNotification, NotificationAction, NotifyInput } from './slices/types';
+import type { NotifyInput } from './slices/types';
 import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 import { isHourTask, workRuleApplies } from '@/engine/work/workRuleApply';
 import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
@@ -26,6 +29,7 @@ export const OTHER_WORK_NOTICE_KEY = 'other-work-changed';
 const OTHER_WORK_NOTICE_MS = 12000;
 
 type WorkState = Pick<Snapshot, 'tasks' | 'assignments' | 'resources' | 'calendars' | 'calendar'>;
+type NoticeStore = Pick<StoreApi<AppState>, 'getState' | 'subscribe'>;
 
 /** Wat *Werk (u)* per werkresource van de taak toont, in minuten. Materiaal en kosten tonen een
  *  streepje en tellen niet mee; zonder werkregel op de taak (fase, mijlpaal) is de lijst leeg. */
@@ -50,35 +54,41 @@ export interface AssignmentEdit {
   assignmentId: string;
 }
 
-/** Het event dat Ctrl+Z nu zou terugzetten, of `null`. */
-export function latestUndoEventId(state: Pick<AppState, 'historyEvents' | 'activeDocumentId'>): string | null {
-  return selectUndoHistoryEvent(state.historyEvents, state.activeDocumentId)?.id ?? null;
+/** De projectdata waar de melding op rust: elk 'data'-veld van de momentopname behalve de taken. De taken
+ *  schrijft ook de berekening (F5, Automatisch berekenen) zonder eigen stap; die laat duur en uren staan.
+ *  Elke andere wijziging aan taken maakt een stap, of gaat samen met een ander veld (een
+ *  bibliotheekverversing met de kalenders of resources). */
+function noticeData(state: AppState): unknown[] {
+  return DOCUMENT_FIELDS.filter((f) => f.snapshot === 'data' && f.key !== 'tasks').map((f) => f.get(state));
 }
 
-/** Mag de knop Ongedaan maken van een melding nu? Alleen zolang haar stap de laatste is: dan zet hij
- *  precies die bewerking terug en nooit iets wat daarna kwam. */
-export function canRunNotificationUndo(
-  state: Pick<AppState, 'historyEvents' | 'activeDocumentId'>,
-  action: NotificationAction,
-): boolean {
-  return action.kind === 'undoHistoryEvent' && latestUndoEventId(state) === action.eventId;
-}
-
-/** Staat de melding op het scherm? Een melding die bij één stap hoort (`undoHistoryEvent`), alleen zolang
- *  die stap de stap van Ctrl+Z is: na een volgende bewerking kloppen haar cijfers niet meer (review #1120
- *  ronde 4). `NotificationHost` filtert hierop; de melding zelf blijft tot haar tijd om is. */
-export function isNotificationCurrent(n: AppNotification, latestUndoId: string | null): boolean {
-  return [n.action, n.secondaryAction].every((a) => a?.kind !== 'undoHistoryEvent' || a.eventId === latestUndoId);
+/** Houdt de melding van stap `eventId` precies zo lang in de lijst als het document in de stand van die stap
+ *  staat: haar stap is de stap van Ctrl+Z van het actieve document en de projectdata zijn dezelfde. De eerste
+ *  wijziging die dat breekt (een nieuwere stap, Ctrl+Z, een ander document, een bibliotheekverversing) haalt
+ *  haar definitief weg, dus ook Ctrl+Z van wat daarna kwam brengt haar niet terug (review #1120 ronde 4
+ *  en 5). Zo kloppen haar cijfers zolang ze er staat, en zet haar knop alleen haar eigen stap terug. */
+function watchNotice(store: NoticeStore, eventId: string): void {
+  const data = noticeData(store.getState());
+  const stop = store.subscribe((s) => {
+    const notice = s.ui.notifications.find((n) => n.action?.kind === 'undoHistoryEvent' && n.action.eventId === eventId);
+    if (!notice) { stop(); return; } // tijd om, kruisje of vervangen
+    if (selectUndoHistoryEvent(s.historyEvents, s.activeDocumentId)?.id === eventId
+      && noticeData(s).every((value, i) => value === data[i])) return;
+    stop();
+    s.dismissNotification(notice.id);
+  });
 }
 
 /**
  * Na de `set` van een van de vier toewijzingsacties: meld de uren van de andere werkresources die vóór én
  * na de stap op de taak staan, als die zichtbaar veranderden. Alleen voor de eigen stap van de bewerking
  * zolang die de stap van Ctrl+Z is; geen eigen stap (batch, extensie, geweigerd) of een stap in een
- * bewerksessie (Taak bewerken) ⇒ geen melding. Een nieuwe melding vervangt de vorige.
+ * bewerksessie (Taak bewerken) ⇒ geen melding. Een nieuwe melding vervangt de vorige; `watchNotice`
+ * bepaalt hoe lang ze blijft.
  */
-export function notifyOtherWorkChanged(state: AppState, edit: AssignmentEdit | null): void {
+export function notifyOtherWorkChanged(store: NoticeStore, edit: AssignmentEdit | null): void {
   if (!edit) return;
+  const state = store.getState();
   const event = selectUndoHistoryEvent(state.historyEvents, state.activeDocumentId);
   const delta = event?.deltas.find((d) => d.kind === 'document-data');
   if (!event || event.sequence !== edit.sequence || event.sessionKey || delta?.kind !== 'document-data') return;
@@ -119,4 +129,5 @@ export function notifyOtherWorkChanged(state: AppState, edit: AssignmentEdit | n
     replaceOnDedupe: true,
     durationMs: OTHER_WORK_NOTICE_MS,
   });
+  watchNotice(store, event.id);
 }
