@@ -24,6 +24,8 @@
     "undo": "撤销",
     "redo": "重做",
     "delete": "删除",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve：删除所选任务，并将每个前置任务与每个后续任务链接（完成-开始，无延隔）",
     "undoTitle": "撤销 (Ctrl+Z)",
     "redoTitle": "重做 (Ctrl+Y)",
     "deleteTitle": "删除选择 (Delete)",
@@ -210,6 +212,7 @@
     "columnsHintGoToTable": "选择“表格”视图的列 — 在“表格”选项卡中显示",
     "toggleResourceAccent": "资源强调色",
     "toggleFloatBand": "浮时带",
+    "toggleBarDates": "横道旁显示日期",
     "screenColors": "条形图颜色",
     "screenColors_critical": "关键路径",
     "screenColors_auto": "按任务 — 自动",
@@ -280,7 +283,8 @@
       "label": "保存时的 IFC 架构",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2（默认）",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "该文件包含来自其他程序的数据，因此保留原始文件头中的架构。"
     }
   },
   "newProject": {
@@ -288,7 +292,23 @@
     "template": "阶段模板",
     "tmplEmpty": "空白",
     "tmplWoningbouw": "住宅建筑",
-    "tmplUtiliteit": "公共建筑 / 改造"
+    "tmplUtiliteit": "公共建筑 / 改造",
+    "phase": {
+      "siteGroundwork": "施工场地与土方工程",
+      "foundation": "基础",
+      "shell": "主体结构",
+      "roof": "屋面",
+      "facadeFitOut": "外立面与装修",
+      "services": "机电安装（W/E）",
+      "finishes": "收尾装修",
+      "handover": "交付",
+      "demolitionStripOut": "拆除与清理",
+      "groundworkFoundation": "土方与基础",
+      "mainStructure": "主体承重结构",
+      "facadeRoof": "外墙与屋面",
+      "fitOut": "内部装修",
+      "commissioning": "调试与测试"
+    }
   },
   "status": {
     "tasks": "任务：",
@@ -313,12 +333,14 @@
     "recentTitle": "最近项目",
     "recentSubtitle": "点击打开。",
     "recentEmpty": "暂无最近打开的项目。",
+    "recentLoading": "正在加载最近的文件…",
     "recentUnavailable": "此浏览器无法从最近使用中重新打开之前的本地文件。请使用「打开」为你的项目文件重新选择。",
     "recentOnSite": "现场",
     "examples": "示例",
     "examplesTitle": "示例项目",
     "examplesSubtitle": "内置的建筑计划。点击可在新标签页中打开。",
     "examplesLoading": "正在加载示例…",
+    "loading": "加载中…",
     "examplesEmpty": "暂无可用示例。",
     "examplesError": "无法加载示例。",
     "examplesShowcaseHeading": "完整展示计划",
@@ -389,7 +411,7 @@
       "plannedReadOnly": "计划值，请勿更改",
       "summaryRow": "— 摘要任务：请勿填写"
     },
-    "csvLabel": "CSV（分号分隔）",
+    "csvLabel": "CSV",
     "csvDesc": "通用表格导出，包含所有任务的日期和工期。",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "可在 Microsoft Project 中打开，完整 WBS 结构。",
@@ -401,7 +423,7 @@
     "profileHint": "你的项目当前使用 {{name}} 配置。为了与此文件格式获得最佳兼容性，我们建议使用 {{target}} 配置。",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 标准，采用项目的 IFC 模式（默认为 IFC 4.3 ADD2）。与 BIM 模型的 4D 关联。",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "扩展",

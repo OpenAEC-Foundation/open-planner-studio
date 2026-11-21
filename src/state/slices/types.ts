@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from '../appStore';
+import type { SettingId } from '@/utils/settingIds';
 import type { StoreRuntime } from '../runtime/storeRuntime';
 
 /**
@@ -35,6 +36,7 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 // Opslag via de site: de VRAAG van de twee site-dialogen. Type-only import, net als hierboven.
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
+import type { PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
@@ -84,6 +86,10 @@ export const TIME_NOTATIONS: TimeNotation[] = ['24h', '12h'];
 export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
+
+/** Dissolve bij een samenvattingstaak (issue #887): de hele fase met subtaken, of alleen de kopregel. */
+export type DissolveSummaryMode = 'branch' | 'header';
+export const DISSOLVE_SUMMARY_MODES: DissolveSummaryMode[] = ['branch', 'header'];
 
 // 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
 // (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
@@ -203,6 +209,9 @@ export type NotificationMessageKey =
   | 'notifications.openFailed'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
+  // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).
+  | 'notifications.reportFontNoBold'
+  | 'notifications.reportFontMissing'
   | 'notifications.layoutsNotSaved'
   // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
   | 'notifications.fileDropRefused'
@@ -226,9 +235,34 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignSourceMissing'
   | 'notifications.ifcSourceCopyFailed'
   | 'notifications.ifcForeignReplaceBlocked'
+  // Knownbug 1131 stap 2: Ctrl+S op het eigen bestand achter een handle.
+  | 'notifications.ifcForeignTargetChanged'
+  | 'notifications.ifcForeignTargetGone'
+  | 'notifications.ifcForeignReplaceNotRecorded'
+  | 'notifications.ifcForeignDownloadCopy'
+  | 'notifications.exportPlanOnly'
+  | 'notifications.ifcForeignReplaceFailed'
   | 'notifications.ifcForeignMergeRefused'
-  | 'notifications.ifcForeignExportNewTarget'
+  // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
+  | 'notifications.ifcForeignNewTargetOnly'
+  // Fixronde 1 van #1019: Opslaan als over een bestaande naam koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.ifcForeignTargetOpenInTab'
+  // Knownbug 1907: Exporteren koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.exportTargetOpenInTab'
+  // Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open staat.
+  | 'notifications.exportTargetOpenDocument'
+  | 'notifications.ifcForeignPlaceUnknown'
+  // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
+  // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).
+  | 'notifications.ifcForeignReplaceOtherVersion'
+  | 'notifications.ifcForeignReplaceUnsavedCopy'
+  | 'notifications.ifcForeignReplaceTargetTaken'
+  | 'notifications.ifcForeignReplacePreviousStranded'
+  | 'notifications.ifcForeignReplaceSaveAsOnly'
+  | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
+  // #804 stap 5: de opslagworker faalde (`IfcSaveWorkerError`); niets geschreven.
+  | 'notifications.ifcSaveWorkerFailed'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
   | 'notifications.ifcExportChangedWhileWaiting'
@@ -236,6 +270,11 @@ export type NotificationMessageKey =
   | 'notifications.ifcUnreadableTargetSave'
   | 'notifications.ifcUnreadableTargetExport'
   | 'notifications.ifcUnreadableTargetAutoSave'
+  // #804 stap 8: Automatisch opslaan bij een gebouwmodel stopt veilig (`state/modelAutoSaveNotices.ts`).
+  | 'notifications.ifcForeignAutoSaveTargetChanged'
+  | 'notifications.ifcForeignAutoSaveSaveAsOnly'
+  | 'notifications.ifcForeignAutoSaveNotRecorded'
+  | 'notifications.ifcForeignAutoSaveRemnant'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).
@@ -293,6 +332,7 @@ export type NotificationMessageKey =
   | 'notifications.summaryRelationsDropped'
   | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
+  | 'notifications.relationsSkippedOnDissolve'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
@@ -393,6 +433,8 @@ export type NotificationMessageKey =
   | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
+  // Een eigen werksoort ook in het project hernoemen botst met een andere werksoort daar (#804 keuze 7).
+  | 'notifications.taskTypeRenameNameTaken'
   // Nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
@@ -697,7 +739,13 @@ export interface UIState {
   activeRibbonTab: RibbonTab;
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
+  /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+  gridActiveRowKey: string | null;
   showSettingsDialog: boolean;
+  /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
+   *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */
+  settingsFocusId: SettingId | null;
   showCalendarDialog: boolean;
   showUpdateDialog: boolean;
   /** Als de app zojuist naar een nieuwe versie is geüpdatet — of voor het
@@ -727,9 +775,21 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
+   *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
+   *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */
+  closeQuestionSaving: boolean;
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
    *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
   appQuitPending: boolean;
+  /** Session — afsluiten, een document sluiten of de sluitvraag wacht op een lopende of wachtende projectopslag
+   *  (#804 stap 3): "Wordt nog opgeslagen…" (`SavingBeforeCloseNotice`). Zet de schil stil zoals een wachtende vraag.
+   *  Alleen via `waitForSavesBeforeClose` (documentSlice). */
+  savingBeforeClose: boolean;
+  /** Session — de laatste fase van afsluiten (#804 stap 3, fixronde 1): niets meer ongeopgeslagen, de poort voor
+   *  projectopslag is dicht en het venster gaat weg. Zet de schil stil tot het venster weg is, zonder eigen melding.
+   *  Alleen via `appQuitDependencies` (`closeWrites`). */
+  appClosing: boolean;
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
   showNewOrOpenProjectDialog: boolean;
@@ -805,6 +865,7 @@ export interface UIState {
    *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
   showResourceAccent: boolean;               // persisted
   showFloatBand: boolean;                    // persisted — groene spelingsband ná niet-kritieke balken
+  showBarDates: boolean;                     // persisted — begin- en einddatum naast de Gantt-balken (#868)
   /** Canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
   barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus; niet gepersisteerd
@@ -829,6 +890,7 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  dissolveSummaryMode: DissolveSummaryMode;  // persisted — Dissolve bij een samenvattingstaak (default 'branch')
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT
@@ -882,8 +944,9 @@ export interface UIState {
    *  of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
    *  `state/ifcSchemaQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingIfcSchemaQuestion: IfcSchemaQuestion | null;
-  /** Opslaan als zonder het ontbrekende gebouwmodel wacht op een bewuste keuze. */
-  pendingIfcMissingSourceSaveAs: boolean;
+  /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
+   *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
+  pendingPlanOnlyQuestion: PlanOnlyReason | null;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg

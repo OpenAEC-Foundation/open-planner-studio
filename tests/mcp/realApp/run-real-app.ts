@@ -13,7 +13,7 @@ import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PROTOCOL_VERSION, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
-import { externalClientChecks, type AppProbe } from '../externalClient';
+import { connectClient, externalClientChecks, type AppProbe } from '../externalClient';
 import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/services/mcp/discoveryContract';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -212,6 +212,82 @@ test('echte app: de Claude Desktop-bundel gaat via de bridge, en na stoppen erva
   } finally {
     await client.close();
     console.log(`logregels van de bundel:\n${log}`);
+  }
+});
+
+// Gewoon openen en Opslaan in de echte app lopen via plugin-fs `open`/`readFile` (doelscan, atomisch
+// opslaan met createNew, binaire formaten). Een ongeldig scopepatroon in de capability laat die
+// commando's op elk pad weigeren, terwijl `readTextFile`/`writeTextFile` blijven werken (rood na PR #946).
+test('echte app: Opslaan van een geopend IFC-bestand schrijft via de gewone route (plugin-fs open)', async () => {
+  const dir = mkdtempSync(join(homedir(), 'ops-real-app-'));
+  try {
+    const ifc = join(dir, 'plan.ifc');
+    await ops('save', { path: ifc });
+    await ops('open', { path: ifc });
+    const marker = 'Opslaanproef echte app';
+    await ops('dispatch', { action: 'addTask', args: [{ name: marker }] });
+    await ops('dispatch', { action: 'saveFile', args: [] });
+    const written = readFileSync(ifc, 'utf8');
+    assert(written.includes(marker), 'Opslaan schreef de nieuwe taak niet naar het geopende bestand');
+    const leftovers = readdirSync(dir).filter((n) => n.endsWith('.tmp'));
+    assertEq(leftovers, [], 'geen halffabricaten na opslaan');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Knownbug 1131 stap 4: met een gebouwmodel schrijft `planner_export_ifc` naar een nieuwe naam via een eigen
+// tijdelijk bestand en het echte Rust-commando `place_file_exclusive`. De thuismap valt in de scope, dus hier is dat de
+// gewone weg (niet de directe terugval). Welke weg de route nam, staat per doel in het app-log (`writeNewUserBytes`,
+// kanaal `nieuweNaam`): de proef eist voor precies dit doel `placed` of `dir-not-synced` van het echte commando, en
+// geen directe aanmaak. Een terugval na `unsupported` of een scopeweigering zou anders ook een goed bestand geven.
+test('echte app: planner_export_ifc met een gebouwmodel naar een nieuwe naam (place_file_exclusive)', async () => {
+  const dir = mkdtempSync(join(homedir(), 'ops-real-app-'));
+  // De bundeltest hierboven stopte de bridge; start hem weer zoals Stop/Start op het AI-tabblad.
+  await ops('mcpRestart');
+  const live = await waitLive();
+  await ops('dispatch', { action: 'setUI', args: [{ featureFlags: { ifcForeignContent: true } }] });
+  const { client } = await connectClient(`http://127.0.0.1:${live.port}/mcp`, { Authorization: `Bearer ${live.token}` });
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const res = await client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 });
+    return (res.structuredContent ?? {}) as { ok?: boolean; error?: string; data?: Record<string, unknown> };
+  };
+  try {
+    const source = join(dir, 'model.ifc'), target = join(dir, 'export.ifc');
+    const bytes = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+    writeFileSync(source, bytes);
+    const imported = await call('planner_import_schedule', { path: source });
+    assert(imported.ok, `openen met gebouwmodel: ${imported.error}`);
+    const exported = await call('planner_export_ifc', { path: target, overwrite: false });
+    assert(exported.ok, `export naar een nieuwe naam: ${exported.error}`);
+    assertEq(exported.data?.byteLength, bytes.length, 'de bytes-route schreef (byteLength)');
+    assert(readFileSync(target).equals(bytes), 'ongewijzigd document: precies de bronbytes op de nieuwe naam');
+    assert(readFileSync(source).equals(bytes), 'de bron blijft intact');
+    assertEq(readdirSync(dir).sort(), ['export.ifc', 'model.ifc'], 'geen tijdelijk bestand achtergebleven');
+    const lines = (await ops('log', { channel: 'nieuweNaam' })) as string[];
+    const ways = lines.filter(line => line.startsWith(`${target}: `)).map(line => line.slice(target.length + 2));
+    assertEq(ways.length, 1, `precies één weg voor dit doel; het kanaal: ${JSON.stringify(lines)}`);
+    assert(['geplaatst (placed)', 'geplaatst (dir-not-synced)'].includes(ways[0]),
+      `het echte place_file_exclusive plaatste het bestand, geen directe aanmaak: ${ways[0]}`);
+    const again = await call('planner_export_ifc', { path: target, overwrite: true });
+    assert(!again.ok, 'een bestaande naam weigert, ook met overwrite');
+    assert(readFileSync(target).equals(bytes), 'het bestaande exportbestand blijft bytegelijk');
+  } finally {
+    await client.close();
+    await ops('dispatch', { action: 'setUI', args: [{ featureFlags: {} }] });
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('echte app: een .xer openen leest de bytes via plugin-fs readFile', async () => {
+  const dir = mkdtempSync(join(homedir(), 'ops-real-app-'));
+  try {
+    const xer = join(dir, 'plan.xer');
+    copyFileSync(join(ROOT, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer'), xer);
+    const opened = await ops('open', { path: xer }) as { tasks: number };
+    assert(opened.tasks > 0, `geen taken na openen van de .xer: ${JSON.stringify(opened)}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

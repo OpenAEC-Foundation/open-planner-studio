@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Icon } from '@/components/icons';
+import { PORTALED_MENU_SELECTOR } from '@/hooks/useClickOutside';
 import type { ReportStudioStep } from '@/utils/reportSettings';
 
 // De vaste delen rond de stappen van het Rapport-tabblad (issue #817): de kop van een stap met
@@ -231,7 +232,7 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
     const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); } };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (node && !node.contains(target) && !(target as HTMLElement).closest?.('[data-rs-rail-step], [data-rs-fab-export], [data-rs-undo], .rs-page, .ui-select-menu, [role="listbox"], .task-grid-column-chooser')) onCloseRef.current();
+      if (node && !node.contains(target) && !(target as HTMLElement).closest?.(`[data-rs-rail-step], [data-rs-fab-export], [data-rs-undo], .rs-page, .ui-select-menu, [role="listbox"], .task-grid-column-chooser, ${PORTALED_MENU_SELECTOR}`)) onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('mousedown', onDown);

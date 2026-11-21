@@ -14,8 +14,10 @@
 //   hebben die de leesverliestoets doorstaat (fixronde 2 van #867).
 // - `editsFor`: de gewone bewerkingen van een planner op het domein, per taak of per paar (bijsturing 1, punt 2).
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
-import { MergeNeedsPhase2Error, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
-import { StepScanError, type StepIndex } from '@/services/ifc/foreign/stepScanner';
+import { MergeNeedsPhase2Error, mergeIdPlan, openedOwnGroups, prepareIfcWrite, writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
+import { changedScopes, lossCheck, parseOutLine, pristineDomain, type OutLine } from '@/services/ifc/foreign/lossCheck';
+import { sourceFormWhereUnchanged } from '@/services/ifc/foreign/sourceForm';
+import { StepScanError, scanStep, type StepIndex } from '@/services/ifc/foreign/stepScanner';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
@@ -152,13 +154,13 @@ export type MergeOutcome = { ok: true; bytes: Uint8Array; shown: Domain } | { ok
 export async function tryMerge(d: Domain, source: IfcSource): Promise<MergeOutcome> {
   try {
     let shown: Domain | undefined;
-    const parts = await writeIfcMerge(d, source, async (parsed, side) => {
+    const bytes = await writeIfcMerge(d, source, async (parsed, side) => {
       const result = structuredClone(parsed);
       if (side === 'uitvoer') shown = result;
       return result;
     });
     if (!shown) throw new Error('merge gaf geen planning aan de naad');
-    return { ok: true, bytes: concat(parts), shown };
+    return { ok: true, bytes, shown };
   } catch (e) {
     if (e instanceof MergeNeedsPhase2Error) return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), error: e };
     throw e;
@@ -429,7 +431,7 @@ export async function savedSequenceStart(bytes: Uint8Array): Promise<Uint8Array>
   state.updateTask(leaf.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-7c' });
   const input = snapshot(store);
   const prepared = await prepareIfcWrite(input, input.ifcSource!);
-  const output = concat(prepared.parts);
+  const output = prepared.bytes;
   const reopened = await openForeign(output);
   if (!reopened.baselines?.some(b => b.name === 'Opgeslagen beginbaseline 7c')
     || reopened.tasks.find(t => t.id === leaf.id)?.customTaskTypeId !== 'type-7c'
@@ -482,7 +484,7 @@ export async function savedCatalogStart(bytes: Uint8Array, twoTypes = true): Pro
   const code = s.addActivityCodeType('Code A 7d'), value = s.addActivityCodeValue(code, { code: 'A', description: 'Waarde A' });
   s.setTaskActivityCode(leaves[0].id, code, value);
   s.saveBaseline('Baseline A 7d'); s.saveBaseline('Baseline B 7d');
-  const input = snapshot(store), output = concat((await prepareIfcWrite(input, input.ifcSource!)).parts);
+  const input = snapshot(store), output = (await prepareIfcWrite(input, input.ifcSource!)).bytes;
   const reread = await openForeign(output);
   if (JSON.stringify(reread.customTaskTypes) !== JSON.stringify(input.customTaskTypes)
     || JSON.stringify(reread.activityCodeTypes) !== JSON.stringify(input.activityCodeTypes)
@@ -507,4 +509,37 @@ export function fixedCatalogEdits(_d: Domain): Edit[] {
       s.setActiveBaseline(s.baselines.find(b => b.id !== s.activeBaselineId)!.id);
     }), (a, b) => a.activeBaselineId !== b.activeBaselineId),
   ];
+}
+
+/**
+ * De verliescontrole (`lossCheck`) direct op de echte uitvoer van een geslaagde opslag, als O1, met de bron als O0 (zo kan
+ * een proef een fout van de writer in O1 nabootsen). `run(lines)` geeft de bronstukken waarop de controle weigert; de
+ * ongemuteerde O1 hoort leeg te geven. `toets`: ook met de andere toets voor de eigen groepen (PR 12b) en de baselinekop
+ * (PR 12c), zoals `prepareIfcWrite` hem aanzet (`openedOwnGroups`); zonder: de controle van main. `explained`: elk verschil
+ * dat een oude verklaring (`explainO1`) toeliet, met de regel.
+ */
+export async function lossProbe(bytes: Uint8Array, input: Domain, output: Uint8Array, toets = false) {
+  const lines = (b: Uint8Array) => latin1Text(b).split('\n').map(parseOutLine).filter((l): l is OutLine => !!l);
+  const opened = await openForeign(bytes), source = opened.ifcSource!;
+  const index = scanStep(bytes), cls = classify(index);
+  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
+  const o0 = lines(bytes), o1 = lines(output);
+  const reread = await openForeign(output);
+  const objects1 = new Map(Object.entries(reread.ifcSource!.stepIds).map(([key, id]) => [id, key]));
+  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
+  const pristine = await pristineDomain(index, cls, source);
+  const own: Partial<ReturnType<typeof openedOwnGroups>> = toets && source.opened ? openedOwnGroups(index, cls, plan.plan, pristine, source.opened, source.stepIds, new Date()) : {};
+  const run = (o1Lines: OutLine[], edited = input, lines0 = o0, explained?: (chunk: number, why: string) => void) => {
+    const found: number[] = [];
+    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
+      o0: lines0, o1: o1Lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
+      plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
+      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
+      ...own,
+      ...(explained ? { explainedO1: (d: { chunk: number }, why: string) => explained(d.chunk, why) } : {}),
+    }, f => found.push(f.chunk));
+    return found;
+  };
+  return { index, o0, o1, run, opened, ownGroups: own.ownGroups };
 }

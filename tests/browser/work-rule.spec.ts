@@ -360,17 +360,16 @@ test('instelling en paneel: geen blok onder de werkregel, instelling onder Berek
 
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const dlg = page.locator('.settings-dialog');
-  await dlg.locator('.settings-tab').filter({ hasText: /^Planning$/ }).click();
+  await dlg.locator('[data-ops-settings-group="planning"]').click();
   const box = dlg.locator('[data-ops-setting-show-task-types]');
   const row = box.locator('xpath=ancestor::label[1]');
   await expect(row).toHaveText(/^(Use task types|Taaktypes gebruiken)$/);
-  const section = row.locator('xpath=ancestor::div[contains(@class,"settings-section")][1]');
-  await expect(section.locator('> h3')).toHaveText(/^(Calculation|Berekenen)$/);
-  const settingNote = section.locator('[data-ops-setting-show-task-types-note]');
+  const setting = dlg.locator('[data-ops-setting="taskTypes"]');
+  const settingNote = setting.locator('[data-ops-setting-note="taskTypes"]');
   await expect(settingNote).toBeVisible();
   expect(await settingNote.evaluate(el => getComputedStyle(el).boxShadow)).toContain('inset');
-  // Geen los grijs bijschrift direct onder het vinkje.
-  expect(await row.evaluate(el => el.nextElementSibling?.classList.contains('scrollzoom-hint') ?? false)).toBe(false);
+  // De uitleg staat als gekleurd blok, niet als los grijs bijschrift onder het vinkje.
+  await expect(setting.locator('.settings-hint')).toHaveCount(0);
 });
 
 // Gebruikstest #170, G2: "taaktype" betekende drie dingen. Sinds de hernoeming (eigenaar 2026-10-17)

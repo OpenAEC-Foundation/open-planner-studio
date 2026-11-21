@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { MoveProjectPreview } from '@/state/slices/projectSlice';
 import { MOVE_PROJECT_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -43,7 +44,9 @@ export function MoveProjectDialog() {
   const changeShiftBaselines = (v: boolean) => { setShiftBaselines(v); setPreview(null); };
 
   const hasCurrentStart = !!project.startDate && !isNaN(new Date(project.startDate).getTime());
-  const validNewStart = /^\d{4}-\d{2}-\d{2}$/.test(newStart) && !isNaN(new Date(newStart).getTime());
+  // Het veld commit live; een halve of onbestaande datum commit niet, dus `newStart` is dan nog de vorige.
+  const [draftValid, setDraftValid] = useState(true);
+  const validNewStart = draftValid && /^\d{4}-\d{2}-\d{2}$/.test(newStart) && !isNaN(new Date(newStart).getTime());
   const delta = preview?.deltaDays ?? NaN;
   const isZero = validNewStart && hasCurrentStart && newStart === project.startDate.slice(0, 10);
 
@@ -52,7 +55,7 @@ export function MoveProjectDialog() {
     setPreview(previewMoveProject(newStart, { shiftBaselines }));
   };
 
-  const canApply = !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
+  const canApply = validNewStart && !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
 
   /** Toepassen; `false` = niets verplaatst (nog geen geldig voorbeeld, of de actie weigerde). */
   const apply = (): boolean => {
@@ -123,15 +126,20 @@ export function MoveProjectDialog() {
               <span className="font-medium">{fmt(project.startDate)}</span>
             </div>
 
-            <label className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <span style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.newStart')}</span>
-              <input
-                type="date"
-                value={newStart}
-                onChange={e => changeStart(e.target.value)}
-                className="input !text-small !leading-4 !px-2 !py-1 !w-[160px]"
-              />
-            </label>
+              <span className="w-[160px]" data-ops-move-project-new-start>
+                <DateTextInput
+                  value={newStart}
+                  ariaLabel={t('moveProject.newStart')}
+                  required
+                  commitMode="live"
+                  onDraftValidChange={setDraftValid}
+                  onCommit={changeStart}
+                  className="input w-full !text-small !leading-4 !px-2 !py-1"
+                />
+              </span>
+            </div>
 
             {!validNewStart ? (
               <div className="!text-body" style={{ color: 'var(--error)' }}>{t('moveProject.invalidDate')}</div>

@@ -13,7 +13,7 @@ const entry = `
 import { readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { generatedModel } from '${root}/tests/planning/ifcGeneratedModel';
-import { openForeign, cloneDomain, concat, settle, applyEdit, ordinaryEdits } from '${root}/tests/planning/ifcMergeKern';
+import { openForeign, cloneDomain, settle, applyEdit, ordinaryEdits } from '${root}/tests/planning/ifcMergeKern';
 import { writeIfcMerge } from '@/services/ifc/foreign/mergeWriter';
 import { readbackDifference } from '${root}/tests/planning/ifcReadbackEquality';
 import { installDeterminism } from '${root}/tests/planning/ifcPariteitKern';
@@ -35,7 +35,7 @@ if (mode === 'genereren') {
   let probeMs = 0;
   let shown;
   if (mode === 'groot') input = await applyEdit(ordinaryEdits(input).find(e => e.kind === 'duur'), input);
-  const parts = await writeIfcMerge(input, opened.ifcSource, async (parsed, side) => {
+  const written = await writeIfcMerge(input, opened.ifcSource, async (parsed, side) => {
     const start = performance.now();
     // De writer heeft al via de vaste appactie heropend; hier alleen de uitkomst vastleggen.
     const result = structuredClone(parsed);
@@ -48,7 +48,7 @@ if (mode === 'genereren') {
   const mergePeakKiB = process.resourceUsage().maxRSS;
   const t1 = performance.now();
   // Volledige bytes-route alleen voor bewijs en ter vergelijking van de kosten.
-  const reread = await openForeign(concat(parts));
+  const reread = await openForeign(written);
   const reopenMs = performance.now() - t1;
   const afterReopen = process.memoryUsage();
   if (mode === 'groot') {

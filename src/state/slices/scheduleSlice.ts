@@ -121,7 +121,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     const before = get();
     const tasks = cloneTasksForSolve(before.tasks);
     const input = solveInputFor(before.project, tasks, before.sequences, before.calendar, before.calendars);
-    const result = solveProject({ ...input, traceDateDrivers: options?.traceDateDrivers });
+    const result = solveProject({ ...input, traceDateDrivers: options?.traceDateDrivers }, before.tasks);
     // De belasting leest dezelfde maatconventie als de solver (het profiel van het project).
     const resourceLoad = computeReliableResourceLoad(
       result, before.resources, before.assignments, tasks, before.calendar, before.calendars, input.schedulingOptions,

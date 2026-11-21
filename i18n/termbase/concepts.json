@@ -485,6 +485,15 @@
     "definition": "The value a setting has until the user changes it, as in Default: on. Not a standard or norm."
   },
   {
+    "id": "dissolve",
+    "kind": "keep",
+    "nl": "Dissolve",
+    "en": [
+      "Dissolve"
+    ],
+    "definition": "Primavera P6 command that deletes an activity and links its predecessors to its successors; the owner keeps the name untranslated, also in Dutch."
+  },
+  {
     "id": "distribution",
     "kind": "term",
     "nl": "verdeling",

@@ -25,6 +25,8 @@ import { listenWindowDrag } from '@/hooks/listenWindowDrag';
  *  tot mouseup, dan gebeurt er niets en volgt de gewone klik/selectie. */
 export interface TableRowDragCandidate {
   taskId: string;
+  /** Een ingeklapte mijlpalenreeks (#868): de hele reeks verhuist; `taskId` is de kop. */
+  taskIds?: string[];
   startClientX: number;
   startClientY: number;
 }
@@ -33,6 +35,7 @@ export interface TableRowDragCandidate {
  *  geldig doel); `hoverRowIndex`/`hoverZone` voeden de indicator op de rij zelf. */
 export interface TableRowDragState {
   taskId: string;
+  taskIds?: string[];
   hoverRowIndex: number | null;
   hoverZone: 'before' | 'after' | 'nest' | null;
   dropTarget: DropTarget | null;
@@ -169,6 +172,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       const hover = computeHover(e.clientX, e.clientY, currentCandidate.taskId);
       setDragState({
         taskId: currentCandidate.taskId,
+        ...(currentCandidate.taskIds ? { taskIds: currentCandidate.taskIds } : {}),
         hoverRowIndex: hover?.rowIndex ?? null,
         hoverZone: hover?.zone ?? null,
         dropTarget: hover?.target ?? null,
@@ -268,7 +272,8 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
         // `moveTasksTo` doet de groep in één undo-stap.
         const groepssleep = options.selectedTaskIds.length > 1
           && options.selectedTaskIds.includes(current.taskId);
-        if (groepssleep) options.moveTasksTo(options.selectedTaskIds, dropTarget);
+        if (current.taskIds) options.moveTasksTo(current.taskIds, dropTarget);
+        else if (groepssleep) options.moveTasksTo(options.selectedTaskIds, dropTarget);
         else options.moveTaskTo(current.taskId, dropTarget);
       }
       // Geen geldig doel ⇒ stille no-op; de store-actie guardt cykels zelf ook nog eens.

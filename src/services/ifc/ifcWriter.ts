@@ -15,6 +15,7 @@ import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
+import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import {
   canonicalizeBands, clockToMinutes, deriveHoursPerDay, hoursPerDayDiffers, effectiveCalendarByTask, minutesToClock, minutesToIsoDuration,
   taskMinutesForWrite,
@@ -428,10 +429,11 @@ export function writeIFCWithChoices(input: WriteIFCInput): { content: string; li
  * #804 fase 1b: de entiteitregels van de writer (`#id=…`, zonder `;`-regeleinde-scheiding) met een merge-plan
  * (`foreign/mergeWriter.ts`). Kop en staart komen dan uit de bron (§4.1, §4.10).
  */
-export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds): {
+export function writeIfcMergeLines(input: WriteIFCInput, merge: WriterMergeIds, writtenAt?: Date): {
   lines: string[]; idMap: ReadonlyMap<string, number>; literalCalendarIds: readonly string[];
 } {
-  const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge);
+  // `writtenAt`: één schrijfklok voor de hele merge, zodat de uitvoercontrole dezelfde klok kan geven (PR 12a).
+  const { lines, idMap, literalCalendarIds } = writeIfcParts(input, merge, writtenAt);
   return { lines, idMap, literalCalendarIds };
 }
 
@@ -788,9 +790,8 @@ function writeXerSourceArchive(
 function writeTaskTypeMeta(
   ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
 ): void {
-  const used = new Set(tasks.map(t => t.customTaskTypeId).filter((id): id is string => !!id));
-  if (used.size === 0) return;
-  const definitions = customTaskTypes.filter(t => used.has(t.id));
+  if (!tasks.some(t => t.customTaskTypeId)) return;
+  const definitions = savedCustomTaskTypes(tasks, customTaskTypes);
   const taskTypeIds: Record<string, string> = {};
   for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });

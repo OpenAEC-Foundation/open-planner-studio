@@ -130,9 +130,9 @@ Een gevulde datumcel in een onherkende vorm stopt het openen van de hele CSV. De
 
 **Opslaan** — nee.
 
-**Exporteren** — ja, als *CSV (;)* (*Universele tabel-export. Alle taken met datums en duur.*), op de kaart *CSV (puntkomma-gescheiden)*. Het bestand heeft een puntkomma als scheidingsteken, staat in UTF-8 met een BOM en heeft Engelse kolomkoppen.
+**Exporteren** — ja, als *CSV* (*Universele tabel-export. Alle taken met datums en duur.*), op de kaart *CSV*. Het scheidingsteken en het decimaalteken volgen de instelling van de computer, onafhankelijk van de taal van de app: bij Nederlands `;` en een decimale komma (`6,5`), bij Engels (VS) `,` en een decimale punt (`6.5`). Het bestand staat in UTF-8 met een BOM en heeft Engelse kolomkoppen. De duur blijft in dagen: 52 uur bij 8 uur per dag is 6,5 dagen.
 
-**Wat meegaat** — per taak deze kolommen: `OPS Task ID`, `WBS`, `Outline Level`, `Name`, `Duration (days)`, `Start`, `Finish`, `Predecessors`, `Task Type`, `OPS Custom Task Type ID`, `Status`, `Completion (%)`, `Actual Start`, `Actual Finish`, `Critical`, `Total Float` en `Description`. De kolom `Task Type` bevat de werksoort. Voltooiing staat in hele procenten. Een lag in uren krijgt het uurteken van de taal van de app: `1.2FS+2u` in het Nederlands, `1.2FS+2h` in het Engels. Openen leest beide.
+**Wat meegaat** — per taak deze kolommen: `OPS Task ID`, `WBS`, `Outline Level`, `Name`, `Duration (days)`, `Start`, `Finish`, `Predecessors`, `Task Type`, `OPS Custom Task Type ID`, `Status`, `Completion (%)`, `Actual Start`, `Actual Finish`, `Critical`, `Total Float` en `Description`. De kolom `Task Type` bevat de werksoort. Voltooiing staat in hele procenten. Een lag in uren krijgt het uurteken van de taal van de app: `1.2FS+2u` in het Nederlands, `1.2FS+2h` in het Engels. Openen leest beide. Een breuklag krijgt altijd een punt, bijvoorbeeld `1.2FS+1.5u`, omdat een komma in de voorgangerlijst de relaties scheidt. Gebruik bij handinvoer ook die punt; `3FS+1,5` kan als twee voorgangers worden gelezen.
 
 **Wat niet meegaat** — resources, toewijzingen, kalenders, constraints, deadlines, baselines en de statusdatum. Staan de datums in de weergave *Datums zoals opgeslagen*, dan laat de export `Critical` en `Total Float` leeg voor taken waarvan het bronbestand dat niet vastlegde.
 

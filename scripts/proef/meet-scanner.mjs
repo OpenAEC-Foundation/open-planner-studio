@@ -58,7 +58,8 @@ if (sizes.some(s => s > 50) && process.env.CI !== 'true') {
 
 const work = mkdtempSync(join(tmpdir(), 'ops-meet-scanner-'));
 const ESBUILD_COMMON = ['--bundle', `--alias:@=${join(ROOT, 'src')}`, '--log-level=error', '--external:react-dom/server',
-  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"'];
+  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"',
+  '--define:__OPS_DEV_INSTANCE__="test"']; // zoals tests/planning/run.sh; de store leest hem in recoveryPaths.ts
 
 // ── Bundels ──────────────────────────────────────────────────────────────────────────────────────────────────────
 writeFileSync(join(work, 'node-entry.ts'), `
@@ -154,17 +155,15 @@ if (!source) {
   console.log(JSON.stringify({ ...base, outcome: 'geen bron (terugval van de bytes-route)', maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 } else {
   let outcome = 'geschreven';
-  let parts: Uint8Array[] = [];
+  let written = new Uint8Array();
   t0 = t();
-  try { parts = await writeIfcMerge(input, source); } catch (e) {
+  try { written = await writeIfcMerge(input, source); } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     outcome = 'merge-needs-phase2: ' + [...new Set(e.cases.map(c => c.kind))].join(', ');
   }
   const mergeMs = t() - t0;
   const afterMerge = process.memoryUsage();
-  const outBytes = parts.reduce((a, p) => a + p.length, 0);
-  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, parts: parts.length, outBytes,
-    largestPartMB: mb(Math.max(0, ...parts.map(p => p.length))),
+  console.log(JSON.stringify({ ...base, foreign: source.foreign, outcome, mergeMs, outBytes: written.length,
     heapAfterMergeMB: mb(afterMerge.heapUsed), arrayBuffersAfterMergeMB: mb(afterMerge.arrayBuffers),
     maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
 }

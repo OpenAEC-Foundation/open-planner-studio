@@ -27,7 +27,7 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import {
-  latestReportSettings, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+  latestReportSettings, reportFontKey, REPORT_STUDIO_STEPS, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
 } from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioStepScroll, StudioSwitch } from './studioPrimitives';
@@ -89,7 +89,7 @@ const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   // Resourcediagram) en de opties van het Resourcediagram.
   tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
-  bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
+  bars: ['showTaskNames', 'showBarDates', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
   page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
   headerFooter: ['repeatHeader', 'repeatFooter', 'showLegend'],
 };
@@ -173,16 +173,19 @@ export function GanttReportStudio() {
   // blijft het papier op de vorige letter staan tot de nieuwe geladen is (beide laders wijzen nooit af).
   // Twee dingen per letter: de `@font-face` waarmee de browser de SVG-tekst tekent, en de lettermaten
   // uit hetzelfde fontbestand waarmee het papier, de kolombreedtes en de PDF meten (`reportTextMeasure.ts`).
+  // Een ander eigen lettertype heeft dezelfde id (`custom`) maar een andere sleutel (`reportFontKey`): dan laadt
+  // en meet het papier opnieuw.
   const [loadedFont, setLoadedFont] = useState<StudioFont | null>(null);
   const chosenFont = settings.reportFontFamily;
+  const chosenFontKey = reportFontKey(settings);
   useEffect(() => {
     let cancelled = false;
     void Promise.all([ensureReportFontLoaded(chosenFont), loadReportTextMetrics(chosenFont, rtl ? 'rtl' : 'ltr')])
-      .then(([, metrics]) => { if (!cancelled) setLoadedFont({ id: chosenFont, metrics }); });
+      .then(([, metrics]) => { if (!cancelled) setLoadedFont({ id: chosenFont, key: chosenFontKey, metrics }); });
     return () => { cancelled = true; };
-  }, [chosenFont, rtl]);
+  }, [chosenFont, chosenFontKey, rtl]);
   const fontReady = loadedFont !== null;
-  const fontPending = loadedFont?.id !== chosenFont;
+  const fontPending = loadedFont?.key !== chosenFontKey;
 
   // De bedrijfsnaam komt uit het project en wordt bewust niet per apparaat bewaard (zie reportSettings.ts).
   const [companyName, setCompanyName] = useState(project.company || '');
@@ -480,8 +483,9 @@ export function GanttReportStudio() {
       });
       await saveBytesDialog(cur.fileName, bytes, [{ name: 'PDF Document', extensions: ['pdf'] }], {
         mime: 'application/pdf',
-        // Zelfde doelcontrole als het oude rapportpaneel (#804): geen PDF over een geopend bestand heen.
-        refuseTarget: useAppStore.getState().foreignTargetCheck('export'),
+        // Zelfde doelcontrole als het oude rapportpaneel (#804): geen PDF over een geopend bestand heen, ook niet over dat
+        // van het actieve document (review van #1064).
+        refuseTarget: useAppStore.getState().foreignTargetCheck(null),
       });
     } catch (err) {
       useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
@@ -578,6 +582,7 @@ export function GanttReportStudio() {
     settings.showFloat && t('studio.bars.short.float'),
     settings.showCompletion && t('studio.bars.short.completion'),
     settings.showTaskNames && t('studio.bars.short.names'),
+    settings.showBarDates && t('studio.bars.short.dates'),
     settings.showBaselineOverlay && t('studio.bars.short.baseline'),
     settings.statusLine !== 'none' && t('studio.bars.short.statusLine'),
   ].filter((v): v is string => typeof v === 'string');
@@ -611,7 +616,9 @@ export function GanttReportStudio() {
       text: [
         paperLabel,
         !settings.autoFit && t('studio.page.fixedScale').toLocaleLowerCase(i18n.language),
-        settings.reportFontFamily !== DEFAULT_REPORT_FONT_ID && t(`reportFontFamily.${settings.reportFontFamily}`),
+        settings.reportFontFamily !== DEFAULT_REPORT_FONT_ID && (settings.reportFontFamily === 'custom'
+          ? settings.customReportFont?.name
+          : t(`reportFontFamily.${settings.reportFontFamily}`)),
         settings.reportFontScale !== 100 && `${settings.reportFontScale} %`,
       ].filter((v): v is string => typeof v === 'string').join(listSep),
       warn: tableTooWide,
@@ -864,6 +871,7 @@ export function GanttReportStudio() {
           <>
             <StudioGroup label={t('studio.bars.onBars')}>
               <StudioSwitch checked={settings.showTaskNames} onChange={v => patch({ showTaskNames: v }, 'showTaskNames')} label={t('studio.bars.names')} dataKey="showTaskNames" />
+              <StudioSwitch checked={settings.showBarDates} onChange={v => patch({ showBarDates: v }, 'showBarDates')} label={t('studio.bars.dates')} title={t('studio.bars.datesSub')} dataKey="showBarDates" />
               <StudioSwitch checked={settings.showCompletion} onChange={v => patch({ showCompletion: v }, 'showCompletion')} label={t('studio.bars.completion')} title={t('studio.bars.completionSub')} dataKey="showCompletion" />
               <StudioSwitch checked={settings.showFloat} onChange={v => patch({ showFloat: v }, 'showFloat')} label={t('showFloat')} dataKey="showFloat" />
               <StudioSwitch checked={settings.showBaselineOverlay} onChange={v => patch({ showBaselineOverlay: v }, 'showBaselineOverlay')} label={t('showBaselineOverlay')} dataKey="showBaselineOverlay" />

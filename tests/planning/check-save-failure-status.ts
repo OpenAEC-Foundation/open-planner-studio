@@ -49,7 +49,7 @@ g.sessionStorage = storage;
 g.localStorage = storage;
 installFakeRecoveryIndexedDb();
 
-const { replaceUserFile, USER_FILE_TMP_SUFFIX } = await import('@/services/fileAccess/atomicWrite');
+const { replaceUserFile, OwnFileWriteError, USER_FILE_TMP_SUFFIX } = await import('@/services/fileAccess/atomicWrite');
 type UserFileFs<D> = import('@/services/fileAccess/atomicWrite').UserFileFs<D>;
 const { useAppStore } = await import('@/state/appStore');
 const { saveToRefWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests } = await import('@/services/fileAccess/webBackend');
@@ -129,15 +129,10 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
       if (!e) throw `No such file or directory (os error 2)`;
       return { isSymlink: false, nlink: 1, mode: 0o100000 | (e.readonly ? 0o444 : 0o644) };
     },
-    createNew: async (p, mode) => {
+    createNew: async (p, data, mode) => {
       if (files.has(p)) throw 'File exists (os error 17)';
       if (roDirs.includes(dirOf(p))) throw denied(p);
-      const entry: Entry = { data: '', readonly: mode !== undefined && (mode & 0o222) === 0 };
-      files.set(p, entry);
-      return {
-        write: async data => { entry.data = data; },
-        close: async () => {},
-      };
+      files.set(p, { data, readonly: mode !== undefined && (mode & 0o222) === 0 });
     },
     write: async (p, data, mode) => {
       const prev = files.get(p);
@@ -185,12 +180,12 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
         const st = nodeFs.lstatSync(p);
         return { isSymlink: st.isSymbolicLink(), nlink: st.nlink, mode: st.mode };
       },
-      createNew: async (p, mode) => {
+      createNew: async (p, data, mode) => {
+        // Zoals plugin-fs `write_file` met createNew: één opening, schrijven op die opening.
         const fd = nodeFs.openSync(p, 'wx', mode);
-        return {
-          write: async data => { nodeFs.writeFileSync(fd, data); },
-          close: async () => { nodeFs.closeSync(fd); },
-        };
+        try { nodeFs.writeFileSync(fd, data); }
+        catch (error) { throw new OwnFileWriteError(error); }
+        finally { nodeFs.closeSync(fd); }
       },
       write: async (p, data, mode) => { nodeFs.writeFileSync(p, data, mode === undefined ? {} : { mode }); },
       rename: async (a, b) => { nodeFs.renameSync(a, b); },
@@ -237,8 +232,6 @@ const tauri = {
   windows: false,
   dialogAnswer: null as string | null,
   calls: [] as string[],
-  handles: new Map<number, Entry>(),
-  nextRid: 1,
 };
 const dirOf = (p: string) => p.slice(0, p.lastIndexOf('/'));
 const deniedText = (p: string) => (tauri.windows
@@ -259,31 +252,17 @@ function installTauri() {
             mode: 0o100000 | (e.readonly ? 0o444 : 0o644), nlink: 1, uid: 1000, gid: 1000, rdev: 0, blksize: 4096, blocks: 1,
           };
         }
-        case 'plugin:fs|open': {
-          const p = String(args.path);
-          const o = args.options as { createNew?: boolean; write?: boolean; mode?: number };
-          if (!o.createNew || !o.write) throw 'exclusieve aanmaak verwacht';
-          if (tauri.files.has(p)) throw 'File exists (os error 17)';
-          if (tauri.roDirs.includes(dirOf(p))) throw deniedText(p);
-          const entry: Entry = { data: '', readonly: o.mode !== undefined && (o.mode & 0o222) === 0 };
-          tauri.files.set(p, entry);
-          const rid = tauri.nextRid++;
-          tauri.handles.set(rid, entry);
-          return rid;
-        }
-        case 'plugin:fs|write': {
-          const entry = tauri.handles.get(Number(args.rid));
-          if (!entry) throw 'onbekende handle';
-          const bytes = args.data as Uint8Array;
-          entry.data += new TextDecoder().decode(bytes);
-          return bytes.length;
-        }
-        case 'plugin:resources|close': {
-          if (!tauri.handles.delete(Number(args.rid))) throw 'onbekende handle';
-          return null;
-        }
         case 'plugin:fs|write_text_file': {
+          // Zoals `write_file_inner` (plugin-fs 2.7.1): opties uit de kop, de tekst als rauwe body.
           const p = decodeURIComponent(options?.headers?.path ?? '');
+          const o = JSON.parse(options?.headers?.options ?? 'null') as { createNew?: boolean; mode?: number } | null;
+          if (o?.createNew) {
+            if (tauri.files.has(p)) throw `failed to open file at path: ${p} with error: File exists (os error 17)`;
+            if (tauri.roDirs.includes(dirOf(p))) throw deniedText(p);
+            const readonly = o.mode !== undefined && (o.mode & 0o222) === 0;
+            tauri.files.set(p, { data: new TextDecoder().decode(args as unknown as Uint8Array), readonly });
+            return null;
+          }
           const prev = tauri.files.get(p);
           if (prev?.readonly || (!prev && tauri.roDirs.includes(dirOf(p)))) throw deniedText(p);
           tauri.files.set(p, { data: new TextDecoder().decode(args as unknown as Uint8Array), readonly: false });
@@ -330,8 +309,7 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
   truthy('2-controle het bestand heeft de nieuwe IFC-inhoud', tauri.files.get(RW)!.data.includes('Fundering'));
   eq('2-controle geen saveFailed', S().ui.notifications.filter((n) => n.messageKey === 'notifications.saveFailed').length, 0);
   truthy('2-controle de route liep via plugin-fs (halffabricaat + rename)',
-    tauri.calls.includes('plugin:fs|open') && tauri.calls.includes('plugin:fs|write')
-      && tauri.calls.includes('plugin:resources|close') && tauri.calls.includes('plugin:fs|rename'));
+    tauri.calls.includes('plugin:fs|write_text_file') && tauri.calls.includes('plugin:fs|rename'));
 
   for (const windows of [false, true]) {
     const naam = windows ? 'Windows-kenmerk' : 'Unix-rechten';
@@ -350,6 +328,9 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
     });
     eq(`2a Tauri Opslaan, ${naam}: geen halffabricaat`, [...tauri.files.keys()].some(p => dirOf(p) === dirOf(RO) && p.endsWith(USER_FILE_TMP_SUFFIX)), false);
     eq(`2a Tauri Opslaan, ${naam}: geen automatische terugvalkiezer`, tauri.calls.includes('plugin:dialog|save'), false);
+    // #1022: Opslaan als weigert een bestand dat in een ander tabblad open staat. 2b meet de schrijffout, dus het
+    // tabblad van 2a laat het alleen-lezen bestand eerst los.
+    useAppStore.setState({ filePath: null });
 
     // 2b Opslaan als: de gebruiker kiest in de dialoog het alleen-lezen bestand.
     S().newDocument();
@@ -364,6 +345,7 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
     useAppStore.setState({ filePath: RO });
     const ok = await S().saveFileForDocument(S().activeDocumentId);
     eq(`2c Tauri sluitvraag-opslaan, ${naam}: meldt false (sluiten breekt af)`, [ok, S().isDirty], [false, true]);
+    useAppStore.setState({ filePath: null }); // zie 2a: de volgende ronde kiest hetzelfde bestand in Opslaan als
   }
   uninstallTauri();
   tauri.windows = false;

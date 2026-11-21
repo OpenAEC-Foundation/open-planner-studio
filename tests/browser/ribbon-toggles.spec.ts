@@ -68,9 +68,10 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   expect(await duration()).toBe(3);
   await page.locator('[data-ops-ribbon-tab="start"]').click();
 
-  // Instelling uit (echte klik in App-instellingen → Weergave → Lint): het wiel wisselt niet meer.
+  // Instelling uit (echte klik in App-instellingen → Werkruimte): het wiel wisselt niet meer.
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const settings = page.locator('.settings-dialog');
+  await settings.locator('[data-ops-settings-group="workspace"]').click();
   const wheelSetting = settings.locator('[data-ops-ribbon-wheel-setting]');
   await expect(wheelSetting).toBeChecked();
   await wheelSetting.click();

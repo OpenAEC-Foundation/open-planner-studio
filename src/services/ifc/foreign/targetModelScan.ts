@@ -873,17 +873,33 @@ export class TargetModelScanner {
   }
 }
 
+/** Eén nieuwe scanner als functie: het volgende stuk, of `null` aan het einde. */
+export function targetScanPush(): (chunk: Uint8Array | null) => TargetScanStep {
+  const scanner = new TargetModelScanner();
+  return chunk => (chunk === null ? scanner.end() : scanner.push(chunk));
+}
+
+/**
+ * De lus van de stroomscan: lees stukken en spoel terug zoals de scanner vraagt, tot de uitkomst vaststaat; stopt bij
+ * de eerste modelentiteit. `push` mag async zijn: de scanner kan in de scanworker staan (knownbug 1758). Een leesfout
+ * gaat door; de bron blijft open.
+ */
+export async function driveTargetScan(
+  source: Pick<TargetSource, 'next' | 'seek'>,
+  push: (chunk: Uint8Array | null) => TargetScanStep | Promise<TargetScanStep>,
+): Promise<TargetModelScan> {
+  for (;;) {
+    const step = await push(await source.next());
+    if (step === null) continue;
+    if ('result' in step) return step.result;
+    await source.seek(step.seek);
+  }
+}
+
 /** Lees `source` tot de uitkomst vaststaat; stopt bij de eerste modelentiteit. Een leesfout gaat door; de bron gaat dicht. */
 export async function scanTargetSource(source: TargetSource): Promise<TargetModelScan> {
-  const scanner = new TargetModelScanner();
   try {
-    for (;;) {
-      const chunk = await source.next();
-      const step = chunk === null ? scanner.end() : scanner.push(chunk);
-      if (step === null) continue;
-      if ('result' in step) return step.result;
-      await source.seek(step.seek);
-    }
+    return await driveTargetScan(source, targetScanPush());
   } finally {
     await source.close?.();
   }

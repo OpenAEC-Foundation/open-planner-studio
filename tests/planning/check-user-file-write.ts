@@ -3,18 +3,19 @@
 //
 // Waarom deze batterij bestaat. `saveToRefTauri` en de opslaan-als-kiezers schreven met een kale
 // `writeTextFile`/`writeFile`. plugin-fs opent het doel met `truncate: true` en schrijft daarna
-// (tauri-plugin-fs 2.5.0, commands.rs `write_file_inner`), dus een volle schijf, I/O-fout of crash
+// (tauri-plugin-fs 2.5.0 tot en met 2.7.1, commands.rs `write_file_inner`), dus een volle schijf, I/O-fout of crash
 // midden in die write liet het projectbestand van de gebruiker leeg of afgekapt achter. De nep-fs
 // hieronder doet precies dat: `write` truncate't eerst en kan daarna "vol raken".
 //
 // Draaien: bundel met esbuild zoals run.sh dat doet en start met node. Exit 0 = alles groen.
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, readlinkSync, symlinkSync, linkSync, lstatSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { installNodeFileIpc } from './nodeFileIpc';
+import { installNodeFileIpc, realPath, writeFileCall as fileWrite } from './nodeFileIpc';
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  replaceUserFile, isForbiddenPathError, USER_FILE_TMP_SUFFIX, writeUserTextFileTauri, writeUserBytesTauri, type UserFileFs,
+  replaceUserFile, isForbiddenPathError, OwnFileWriteError, USER_FILE_TMP_SUFFIX, writeUserTextFileTauri, writeUserFileTauri,
+  type UserFileFs,
 } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityInfo, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 
@@ -42,7 +43,8 @@ function fakeFs(initial: Record<string, Entry>) {
     diskFullAfter: null as number | null,
     renameFails: false,
     createError: null as unknown,
-    closeError: null as unknown,
+    /** Schrijffout ná een geslaagde aanmaak (de adapter meldt dat als `OwnFileWriteError`). */
+    writeAfterCreateError: null as unknown,
     forbidTemps: false,
   };
   const temps: string[] = [];
@@ -53,7 +55,7 @@ function fakeFs(initial: Record<string, Entry>) {
       if (!e) throw new Error(`No such file or directory: ${p}`);
       return { isSymlink: e.link === 'sym', nlink: e.link === 'hard' ? 2 : 1, mode: 0o100000 | e.mode };
     },
-    createNew: async (p, mode) => {
+    createNew: async (p, data, mode) => {
       calls.push(`createNew ${p}${mode === undefined ? '' : ` mode=${mode.toString(8)}`}`);
       temps.push(p);
       if (opts.forbidTemps || opts.forbidden.has(p)) throw `forbidden path: ${p}`;
@@ -61,20 +63,12 @@ function fakeFs(initial: Record<string, Entry>) {
       if (files.has(p)) throw new Error('File exists (os error 17)');
       const entry: Entry = { data: '', mode: mode ?? 0o644 };
       files.set(p, entry);
-      return {
-        write: async data => {
-          calls.push(`handle.write ${p}`);
-          if (opts.diskFullAfter !== null && data.length > opts.diskFullAfter) {
-            entry.data = data.slice(0, opts.diskFullAfter);
-            throw new Error('No space left on device (os error 28)');
-          }
-          entry.data = data;
-        },
-        close: async () => {
-          calls.push(`close ${p}`);
-          if (opts.closeError !== null) throw opts.closeError;
-        },
-      };
+      if (opts.writeAfterCreateError !== null) throw new OwnFileWriteError(opts.writeAfterCreateError);
+      if (opts.diskFullAfter !== null && data.length > opts.diskFullAfter) {
+        entry.data = data.slice(0, opts.diskFullAfter);
+        throw new OwnFileWriteError(new Error('No space left on device (os error 28)'));
+      }
+      entry.data = data;
     },
     write: async (p, data, mode) => {
       calls.push(`write ${p}${mode === undefined ? '' : ` mode=${mode.toString(8)}`}`);
@@ -209,21 +203,26 @@ for (const error of [new Error('File exists (os error 17)'), new Error('Permissi
 // Ook een scope-achtige schrijffout ná aanmaak mag geen directe truncate op het doel veroorzaken.
 {
   const { fs, files, opts } = fakeFs({ [P]: { data: OUD, mode: 0o600 } });
-  opts.closeError = new Error('forbidden path: sluiten mislukt');
+  opts.writeAfterCreateError = new Error('forbidden path: schrijven mislukt');
   const err = await replaceUserFile(fs, P, NIEUW).catch(e => e);
-  truthy('6b de sluitfout blijft een fout', err === opts.closeError);
+  truthy('6b de schrijffout blijft een fout', err === opts.writeAfterCreateError);
   eq('6b doel ongewijzigd, eigen halffabricaat opgeruimd', [...files.entries()], [[P, { data: OUD, mode: 0o600 }]]);
 }
 
 // 7. ECHTE filesystemgevallen voor CI, door de echte Tauri-JS-adapter voor zowel tekst als bytes.
-// De IPC-rand gebruikt Node-fs: geen Tauri-runtime of capabilitybewijs. Korte writes en fouten
-// worden geïnjecteerd; creatie met O_EXCL, links, inodebehoud en rename draaien op het CI-OS.
+// De IPC-rand gebruikt Node-fs: geen Tauri-runtime of capabilitybewijs. Fouten worden
+// geïnjecteerd; creatie met O_EXCL, links, inodebehoud en rename draaien op het CI-OS.
+/** De eigen exclusieve aanmaak van het tijdelijke bestand (`createNew`, met de inhoud erin). */
+const created = (c: { command: string; options?: { createNew?: boolean } }) => fileWrite(c) && c.options?.createNew === true;
+/** De terugval die het doel zelf afkapt en beschrijft. */
+const direct = (c: { command: string; options?: { createNew?: boolean; append?: boolean } }) =>
+  fileWrite(c) && !c.options?.createNew && !c.options?.append;
 for (const kind of ['text', 'bytes'] as const) {
   const root = mkdtempSync(join(tmpdir(), 'ops-user-write-'));
   const ipc = installNodeFileIpc();
   const payload = kind === 'text' ? new TextEncoder().encode('NIEUW – bouw 🏗\u0000 einde') : new Uint8Array([0, 255, 128, 1, 13, 10, 254, 42]);
   const save = (p: string) => kind === 'text'
-    ? writeUserTextFileTauri(p, new TextDecoder().decode(payload)) : writeUserBytesTauri(p, payload);
+    ? writeUserTextFileTauri(p, new TextDecoder().decode(payload)) : writeUserFileTauri(p, payload);
   const source = join(root, 'bron.ifc');
   const target = join(root, 'kopie.ifc');
   const legacy = target + USER_FILE_TMP_SUFFIX;
@@ -242,7 +241,6 @@ for (const kind of ['text', 'bytes'] as const) {
       if (preplaced === 'hardlink') linkSync(source, legacy);
       if (preplaced === 'dangling') symlinkSync(join(root, 'bestaat-niet.ifc'), legacy);
       const before = preplaced === 'missing' ? null : lstatSync(legacy);
-      ipc.faults.writeChunkSize = 3; // meer dan één write; ook midden in UTF-8-codepoints
       await save(target);
       eq(`7 ${kind}/${preplaced}: bron compleet`, readFileSync(source, 'utf8'), OUD);
       eq(`7 ${kind}/${preplaced}: uitvoer exact`, read(target), [...payload]);
@@ -255,12 +253,31 @@ for (const kind of ['text', 'bytes'] as const) {
           eq(`7 ${kind}/${preplaced}: link zelf behouden`, readlinkSync(legacy), preplaced === 'symlink' ? source : join(root, 'bestaat-niet.ifc'));
         } else eq(`7 ${kind}/${preplaced}: oude tmp-inhoud behouden`, readFileSync(legacy, 'utf8'), preplaced === 'file' ? 'ANDERMANS TMP' : OUD);
       }
-      const opened = ipc.calls.filter(c => c.command === 'plugin:fs|open');
-      truthy(`7 ${kind}/${preplaced}: verse naam exclusief geopend`, opened.length === 1 && opened[0].path !== legacy
-        && opened[0].options?.createNew === true && opened[0].options?.write === true && opened[0].options?.read === false);
-      truthy(`7 ${kind}/${preplaced}: sluit vóór rename`, ipc.calls.findIndex(c => c.command === 'plugin:resources|close')
+      const opened = ipc.calls.filter(created);
+      truthy(`7 ${kind}/${preplaced}: verse naam exclusief aangemaakt`, opened.length === 1 && opened[0].path !== legacy);
+      truthy(`7 ${kind}/${preplaced}: aangemaakt en geschreven vóór rename`, ipc.calls.findIndex(created)
         < ipc.calls.findIndex(c => c.command === 'plugin:fs|rename'));
       eq(`7 ${kind}/${preplaced}: geen open handles`, ipc.openHandles(), 0);
+    }
+
+    // Proef 1 (rauwe bytes): elke aanroep die bytes meegeeft, geeft ze als kale Uint8Array (rauwe body).
+    // In een object maakt Tauri er JSON van met één getal per byte (`process-ipc-message-fn.js`).
+    // Het eigen tijdelijke bestand ontstaat met createNew en de modus van het oude bestand, met de
+    // inhoud in dezelfde aanroep (één open bestand, zoals de handle hiervoor).
+    {
+      reset();
+      writeFileSync(target, OUD, { mode: 0o640 });
+      await save(target);
+      eq(`7 ${kind}/rauw: uitvoer exact`, read(target), [...payload]);
+      truthy(`7 ${kind}/rauw: geen bytes in een object naar Tauri`, !ipc.calls.some(c => c.bytesInObject));
+      truthy(`7 ${kind}/rauw: geen handle-route`, !ipc.calls.some(c => c.command === 'plugin:fs|open' || c.command === 'plugin:fs|write'));
+      const made = ipc.calls.filter(created);
+      truthy(`7 ${kind}/rauw: eigen tijdelijk bestand exclusief aangemaakt met de inhoud als rauwe body`, made.length === 1
+        && made[0].rawBody && dirname(made[0].path!) === root && made[0].path !== target && !made[0].options?.append);
+      if (sep !== '\\') eq(`7 ${kind}/rauw: modus van het oude bestand gaat mee`, made[0]?.options?.mode, 0o640);
+      eq(`7 ${kind}/rauw: precies die ene schrijfaanroep, dan één rename naar het doel`,
+        ipc.calls.filter(c => fileWrite(c) || c.command === 'plugin:fs|rename').map(c => c.command),
+        [made[0]?.command, 'plugin:fs|rename']);
     }
 
     // R1: 236 ASCII-a's + .ifc = 240 bytes; het oude vaste tmp paste met 253 bytes nog op
@@ -280,12 +297,11 @@ for (const kind of ['text', 'bytes'] as const) {
           await save(longTarget);
           eq(`7 ${kind}/lange naam/${existing}: uitvoer exact`, read(longTarget), [...payload]);
           eq(`7 ${kind}/lange naam/${existing}: oud tijdelijk bestand intact`, readFileSync(oldTemp, 'utf8'), 'ANDERMANS LANG TMP');
-          const opens = ipc.calls.filter(c => c.command === 'plugin:fs|open');
-          truthy(`7 ${kind}/lange naam/${existing}: korte basename in dezelfde map exclusief geopend`, opens.length === 1
+          const opens = ipc.calls.filter(created);
+          truthy(`7 ${kind}/lange naam/${existing}: korte basename in dezelfde map exclusief aangemaakt`, opens.length === 1
             && opens[0].path !== undefined && dirname(opens[0].path) === longRoot
-            && new TextEncoder().encode(basename(opens[0].path)).length < 80 && opens[0].options?.createNew === true);
-          truthy(`7 ${kind}/lange naam/${existing}: geen directe terugval`,
-            !ipc.calls.some(c => c.command === 'plugin:fs|write_text_file' || c.command === 'plugin:fs|write_file'));
+            && new TextEncoder().encode(basename(opens[0].path)).length < 80);
+          truthy(`7 ${kind}/lange naam/${existing}: geen directe terugval`, !ipc.calls.some(direct));
           eq(`7 ${kind}/lange naam/${existing}: alleen doel en oud tmp, geen handles`,
             [readdirSync(longRoot).sort(), ipc.openHandles()], [[longName, longName + USER_FILE_TMP_SUFFIX], 0]);
         }
@@ -310,41 +326,41 @@ for (const kind of ['text', 'bytes'] as const) {
       ipc.faults.beforeOpen = null;
       truthy(`7 ${kind}/${collision}: echte aanmaakbotsing gemeld`, /EEXIST/.test(String(err)));
       eq(`7 ${kind}/${collision}: bron en doel ongewijzigd`, [readFileSync(source, 'utf8'), readFileSync(target, 'utf8')], [OUD, OUD]);
-      truthy(`7 ${kind}/${collision}: botsend object bestaat nog`, !!collided && !!lstatSync(collided));
-      if (collision === 'file') eq(`7 ${kind}/botsing: bestandinhoud behouden`, readFileSync(collided, 'utf8'), 'ANDERMANS VERS PAD');
-      if (collision === 'symlink') eq(`7 ${kind}/botsing: bronlink behouden`, readlinkSync(collided), source);
-      truthy(`7 ${kind}/${collision}: geen schrijven, rename of cleanup na botsing`,
-        !ipc.calls.some(c => ['plugin:fs|write', 'plugin:fs|write_file', 'plugin:fs|write_text_file', 'plugin:fs|rename', 'plugin:fs|remove'].includes(c.command)));
+      truthy(`7 ${kind}/${collision}: botsend object bestaat nog`, !!collided && !!lstatSync(collided, { throwIfNoEntry: false }));
+      const still = !!collided && !!lstatSync(collided, { throwIfNoEntry: false });
+      if (collision === 'file') eq(`7 ${kind}/botsing: bestandinhoud behouden`, still && readFileSync(collided, 'utf8'), 'ANDERMANS VERS PAD');
+      if (collision === 'symlink') eq(`7 ${kind}/botsing: bronlink behouden`, still && readlinkSync(collided), source);
+      truthy(`7 ${kind}/${collision}: alleen de ene geweigerde aanmaak; geen schrijven, rename of cleanup na botsing`,
+        ipc.calls.filter(fileWrite).length === 1 && ipc.calls.filter(created).length === 1
+        && !ipc.calls.some(c => ['plugin:fs|write', 'plugin:fs|rename', 'plugin:fs|remove'].includes(c.command)));
     }
 
     // Fouten na geslaagde aanmaak: het originele doel blijft staan; alleen ons eigen pad opruimen.
-    for (const failure of ['write', 'close', 'zero-write', 'cleanup'] as const) {
+    // plugin-fs schrijft met write_all en sluit binnen dezelfde aanroep: korte writes en een aparte
+    // sluitfout bestaan op deze route niet meer; een schijffout halverwege wel.
+    for (const failure of ['write', 'cleanup'] as const) {
       reset();
       writeFileSync(target, OUD, { mode: 0o600 });
       writeFileSync(legacy, 'ANDERMANS TMP');
-      ipc.faults.writeErrorAfter = failure === 'write' || failure === 'cleanup' ? 5 : null;
-      ipc.faults.zeroWrite = failure === 'zero-write';
-      ipc.faults.closeError = failure === 'close' ? new Error('close mislukt') : null;
+      ipc.faults.writeErrorAfter = 5;
       ipc.faults.removeError = failure === 'cleanup' ? new Error('cleanup mislukt') : null;
       const err = await save(target).catch(e => e);
-      truthy(`7 ${kind}/${failure}: de juiste fout komt terug`, (failure === 'close' ? /close mislukt/
-        : failure === 'zero-write' ? /Incomplete/ : /No space left/).test(String(err)));
+      truthy(`7 ${kind}/${failure}: de juiste fout komt terug`, /No space left/.test(String(err)));
       eq(`7 ${kind}/${failure}: oorspronkelijke inhoud behouden`, readFileSync(target, 'utf8'), OUD);
       eq(`7 ${kind}/${failure}: ander tmp behouden`, readFileSync(legacy, 'utf8'), 'ANDERMANS TMP');
       eq(`7 ${kind}/${failure}: resten alleen bij geweigerde cleanup`, readdirSync(root).length, failure === 'cleanup' ? 4 : 3);
-      truthy(`7 ${kind}/${failure}: geen rename of directe terugval`, !ipc.calls.some(c => ['plugin:fs|rename', 'plugin:fs|write_text_file', 'plugin:fs|write_file'].includes(c.command)));
+      truthy(`7 ${kind}/${failure}: geen rename of directe terugval`, !ipc.calls.some(c => c.command === 'plugin:fs|rename' || direct(c)));
       eq(`7 ${kind}/${failure}: handle gesloten`, ipc.openHandles(), 0);
     }
     ipc.faults.writeErrorAfter = null;
-    ipc.faults.zeroWrite = false;
-    ipc.faults.closeError = null;
     ipc.faults.removeError = null;
 
     for (const fallback of ['scope', 'rename', 'rename-and-cleanup'] as const) {
       reset();
       writeFileSync(target, OUD);
       writeFileSync(legacy, 'ANDERMANS TMP');
-      ipc.faults.openError = fallback === 'scope' ? 'forbidden path: tijdelijk pad buiten scope' : null;
+      // Scope: buiten $HOME geeft de kiezer alleen het gekozen bestand vrij, niet een tijdelijk bestand ernaast.
+      ipc.faults.forbidden = fallback === 'scope' ? (p => p !== target) : null;
       ipc.faults.renameError = fallback === 'scope' ? null : new Error('rename geweigerd');
       ipc.faults.removeError = fallback === 'rename-and-cleanup' ? new Error('cleanup geweigerd') : null;
       await save(target);
@@ -353,8 +369,9 @@ for (const kind of ['text', 'bytes'] as const) {
       eq(`7 ${kind}/${fallback}: alleen eigen rest bij cleanupfout`, readdirSync(root).length, fallback === 'rename-and-cleanup' ? 4 : 3);
       if (fallback === 'scope') truthy(`7 ${kind}/scope: niets opgeruimd`, !ipc.calls.some(c => c.command === 'plugin:fs|remove'));
     }
-    ipc.faults.openError = null;
+    ipc.faults.forbidden = null;
     ipc.faults.removeError = null;
+
     reset();
     writeFileSync(target, OUD);
     ipc.faults.directWriteError = new Error('direct schrijven geweigerd');
@@ -364,10 +381,45 @@ for (const kind of ['text', 'bytes'] as const) {
     ipc.faults.directWriteError = null;
     ipc.faults.renameError = null;
 
+    // Knownbug 1797 (plugin-fs 2.7.0): de map van het bestand is een link naar buiten de scope, zoals
+    // `~/projecten` → `/data/projecten`. `root` staat hier voor `$HOME/**`. De dialoog gaf het gekozen
+    // bestand vrij (Tauri neemt ook zijn echte vorm op), het halffabricaat ernaast niet, en 2.7.1 toetst
+    // de toestemming op het echte pad (de map van een nieuw bestand opgelost). Opslaan valt dan terug op
+    // direct schrijven; 2.5.0 toetste de tekst en schreef het halffabricaat buiten de scope. Een link
+    // binnen de scope houdt het halffabricaat.
+    if (sep !== '\\') {
+      const buiten = mkdtempSync(join(tmpdir(), 'ops-user-write-buiten-'));
+      try {
+        for (const link of ['buiten', 'binnen'] as const) {
+          reset();
+          const echteMap = link === 'buiten' ? buiten : join(root, 'echt');
+          if (link === 'binnen') mkdirSync(echteMap);
+          const map = join(root, 'projecten');
+          symlinkSync(echteMap, map);
+          const gekozen = join(map, 'plan.ifc');
+          writeFileSync(gekozen, OUD);
+          const wortel = `${realPath(root)}/`;
+          const vrijgegeven = realPath(gekozen);
+          ipc.faults.forbidden = p => { const echt = realPath(p); return echt !== vrijgegeven && !echt.startsWith(wortel); };
+          await save(gekozen);
+          eq(`7 ${kind}/link ${link}: uitvoer exact`, read(gekozen), [...payload]);
+          eq(`7 ${kind}/link ${link}: geen resten in de echte map`, readdirSync(echteMap), ['plan.ifc']);
+          // Per schrijfaanroep: exclusieve aanmaak of directe terugval, en of er werkelijk geschreven is.
+          const route = ipc.calls.filter(c => fileWrite(c) || c.command === 'plugin:fs|rename' || c.command === 'plugin:fs|remove')
+            .map(c => fileWrite(c) ? `${created(c) ? 'createNew' : direct(c) ? 'direct' : 'anders'}:${c.wrote ? 'geschreven' : 'geweigerd'}` : c.command);
+          eq(`7 ${kind}/link ${link}: route`, route, link === 'buiten'
+            ? ['createNew:geweigerd', 'direct:geschreven'] : ['createNew:geschreven', 'plugin:fs|rename']);
+        }
+      } finally {
+        ipc.faults.forbidden = null;
+        rmSync(buiten, { recursive: true, force: true });
+      }
+    }
+
     reset();
     writeFileSync(target, OUD);
     if (kind === 'text') await writeUserTextFileTauri(target, '');
-    else await writeUserBytesTauri(target, new Uint8Array());
+    else await writeUserFileTauri(target, new Uint8Array());
     eq(`7 ${kind}/leeg: oude inhoud volledig vervangen`, read(target), []);
     eq(`7 ${kind}/leeg: geen resten of handles`, [readdirSync(root).sort(), ipc.openHandles()], [['bron.ifc', 'kopie.ifc'], 0]);
 
@@ -377,6 +429,15 @@ for (const kind of ['text', 'bytes'] as const) {
       await save(target);
       eq(`7 ${kind}/mode: aanmaakmode 0600 begrensd door de CI-umask`, lstatSync(target).mode & 0o777, 0o600 & ~process.umask());
       eq(`7 ${kind}/mode: uitvoer compleet`, read(target), [...payload]);
+      // Knownbug 162 blijft zoals hij is: een alleen-lezen bestand in een schrijfbare map wordt vervangen
+      // en blijft 0444. Aanmaken en schrijven in één aanroep; een tweede opening van het 0444-halffabricaat
+      // zou (behalve als root) met EACCES falen en de opslag laten mislukken.
+      reset();
+      writeFileSync(target, OUD, { mode: 0o444 });
+      eq(`7 ${kind}/mode 0444: opslaan slaagt`, String(await save(target).then(() => '', (e: unknown) => e)), '');
+      eq(`7 ${kind}/mode 0444: uitvoer compleet, zoals vóór de rauwe route`, read(target), [...payload]);
+      eq(`7 ${kind}/mode 0444: blijft alleen-lezen`, lstatSync(target).mode & 0o777, 0o444 & ~process.umask());
+      eq(`7 ${kind}/mode 0444: geen resten`, readdirSync(root).sort(), ['bron.ifc', 'kopie.ifc']);
       // Ook doel-links blijven direct beschreven: link en alle andere namen behouden hun inode.
       for (const link of ['symlink', 'hardlink']) {
         reset();
@@ -385,12 +446,12 @@ for (const kind of ['text', 'bytes'] as const) {
         await save(target);
         eq(`7 ${kind}/${link}doel: bron bijgewerkt`, read(source), [...payload]);
         eq(`7 ${kind}/${link}doel: link-inode behouden`, lstatSync(target).ino, before.ino);
-        truthy(`7 ${kind}/${link}doel: geen tijdelijke aanmaak`, !ipc.calls.some(c => c.command === 'plugin:fs|open'));
+        truthy(`7 ${kind}/${link}doel: geen tijdelijke aanmaak`, !ipc.calls.some(c => c.command === 'plugin:fs|open' || created(c)));
       }
     }
     reset();
-    await Promise.all([save(target), kind === 'text' ? writeUserTextFileTauri(target, 'TWEEDE') : writeUserBytesTauri(target, new Uint8Array([9, 8]))]);
-    const temps = ipc.calls.filter(c => c.command === 'plugin:fs|open').map(c => c.path);
+    await Promise.all([save(target), kind === 'text' ? writeUserTextFileTauri(target, 'TWEEDE') : writeUserFileTauri(target, new Uint8Array([9, 8]))]);
+    const temps = ipc.calls.filter(created).map(c => c.path);
     eq(`7 ${kind}/gelijktijdig: twee eigen tijdelijke paden`, new Set(temps).size, 2);
     truthy(`7 ${kind}/gelijktijdig: één complete save op het doel`, [J([...payload]), J(kind === 'text' ? [...new TextEncoder().encode('TWEEDE')] : [9, 8])].includes(J(read(target))));
     eq(`7 ${kind}/gelijktijdig: geen resten/handles`, [readdirSync(root).sort(), ipc.openHandles()], [['bron.ifc', 'kopie.ifc'], 0]);
@@ -407,8 +468,9 @@ for (const kind of ['text', 'bytes'] as const) {
   const read = (rel: string) => readFileSync(join(here, '..', '..', 'src', rel), 'utf8');
   const backend = read('services/fileAccess/tauriBackend.ts');
   truthy('8a tauriBackend: geen kale writeTextFile( of writeFile(', !/\b(writeTextFile|writeFile)\(/.test(backend));
-  truthy('8b tauriBackend: Opslaan, Opslaan als en export via writeUser…Tauri',
-    (backend.match(/writeUserTextFileTauri\(/g) ?? []).length >= 2 && backend.includes('writeUserBytesTauri('));
+  // #804 stap 6: tekst en bytes gaan door één hulp met de laatste controle (`writeUserFileTauri`).
+  truthy('8b tauriBackend: Opslaan, Opslaan als en export via writeUserFileTauri',
+    (backend.match(/writeUserFileTauri\(/g) ?? []).length >= 2);
   const fileTools = read('services/mcp/tools/fileTools.ts');
   truthy('8c MCP export_ifc (overwrite) via writeUserTextFileTauri', fileTools.includes('writeUserTextFileTauri(')
     && !/\bwriteTextFile\(p,/.test(fileTools));
@@ -483,6 +545,58 @@ for (const kind of ['text', 'bytes'] as const) {
   }
   eq('8j een ontbrekende bron bewijst niet dat een bestaand exportdoel veilig is',
     await compareFilePaths(fs, source, '/volume/verdwenen.ifc'), 'unknown');
+}
+
+// 9. plugin-fs 2.6.0+ (knownbug 1797): `writeFile`/`writeTextFile` falen als de opties in de kop niet te
+//    lezen zijn, vóór het openen; daarvóór vielen ze stil terug op aanmaken en afkappen, ook zonder
+//    `createNew`. Een JSON-lijst als inhoud moet uit bytes bestaan. De adapter volgt 2.7.1; de opslagroutes
+//    van blok 7 slagen er alleen mee als ze leesbare opties sturen.
+{
+  const root = mkdtempSync(join(tmpdir(), 'ops-write-options-'));
+  const ipc = installNodeFileIpc();
+  try {
+    const fs = await import('@tauri-apps/plugin-fs');
+    const invoke = (globalThis as unknown as { window: { __TAURI_INTERNALS__: { invoke(
+      cmd: string, args: unknown, options?: { headers?: Record<string, string> }): Promise<unknown> } } })
+      .window.__TAURI_INTERNALS__.invoke;
+    const bytes = new Uint8Array([1, 2, 3]);
+    const fout = (p: Promise<unknown>) => p.then(() => '', (e: unknown) => String(e));
+    const pad = (naam: string) => join(root, naam);
+    eq('9a de echte client stuurt een verkeerd type mee: geweigerd, geen bestand',
+      [/^invalid write file options /.test(await fout(fs.writeFile(pad('a.bin'), bytes, { append: 'ja' as unknown as boolean }))),
+        readdirSync(root)], [true, []]);
+    for (const kop of ['{kapot', '[]', '5', '{"createNew":1}', '{"mode":-1}', '{"mode":1.5}']) {
+      eq(`9b onleesbare kop ${kop}: geweigerd, geen bestand`,
+        [/^invalid write file options /.test(await fout(invoke('plugin:fs|write_file', bytes,
+          { headers: { path: encodeURIComponent(pad('b.bin')), options: kop } }))), readdirSync(root)], [true, []]);
+    }
+    for (const kop of ['undefined', 'null', '', '{"onbekend":true}']) {
+      eq(`9c kop ${J(kop)}: de standaarden, aanmaken en schrijven`,
+        [await fout(invoke('plugin:fs|write_file', bytes, { headers: { path: encodeURIComponent(pad('c.bin')), options: kop } })),
+          [...readFileSync(pad('c.bin'))]], ['', [1, 2, 3]]);
+    }
+    // In de volgorde van `write_file_inner`: eerst openen met de opties (standaard aanmaken en afkappen), dan
+    // de inhoud omzetten. De fout komt dus ná het openen: een nieuw bestand blijft leeg achter, een bestaand
+    // bestand is afgekapt. Met `createNew` weigert een bestaand doel al bij het openen.
+    for (const vooraf of [null, 'OUDE INHOUD'] as const) {
+      if (vooraf === null) rmSync(pad('d.bin'), { force: true }); else writeFileSync(pad('d.bin'), vooraf);
+      const melding = await fout(invoke('plugin:fs|write_file', [1, 256],
+        { headers: { path: encodeURIComponent(pad('d.bin')), options: 'null' } }));
+      eq(`9d een JSON-lijst met een waarde die geen byte is (${vooraf === null ? 'nieuw' : 'bestaand'} doel): geweigerd ná het openen`,
+        [/^invalid byte in the data to write: 256/.test(melding),
+          lstatSync(pad('d.bin'), { throwIfNoEntry: false }) ? [...readFileSync(pad('d.bin'))] : 'geen bestand'], [true, []]);
+    }
+    writeFileSync(pad('d.bin'), 'OUDE INHOUD');
+    eq('9d met createNew en een bestaand doel: geweigerd bij het openen, inhoud behouden',
+      [/^failed to open file at path: /.test(await fout(invoke('plugin:fs|write_file', [1, 256],
+        { headers: { path: encodeURIComponent(pad('d.bin')), options: '{"createNew":true}' } }))),
+      readFileSync(pad('d.bin'), 'utf8')], [true, 'OUDE INHOUD']);
+    eq('9e de opties van de opslagroute (createNew en modus) zijn leesbaar',
+      await fout(fs.writeFile(pad('e.bin'), bytes, { createNew: true, mode: 0o640 })), '');
+  } finally {
+    ipc.dispose();
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 if (diffs.length === 0) {

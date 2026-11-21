@@ -24,6 +24,8 @@
     "undo": "Angre",
     "redo": "Gjør om",
     "delete": "Slett",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: sletter de valgte aktivitetene og kobler hver forgjenger til hver etterfølger (slutt-til-start, uten forsinkelse)",
     "undoTitle": "Angre (Ctrl+Z)",
     "redoTitle": "Gjør om (Ctrl+Y)",
     "deleteTitle": "Slett valg (Delete)",
@@ -211,6 +213,7 @@
     "columnsHintGoToTable": "Velg kolonnene i tabellvisningen — vises på fanen Tabell",
     "toggleResourceAccent": "Ressursmarkering",
     "toggleFloatBand": "Slakkbånd",
+    "toggleBarDates": "Datoer ved stolper",
     "screenColors": "Stolpefarger",
     "screenColors_critical": "Kritisk linje",
     "screenColors_auto": "Per aktivitet — automatisk",
@@ -281,7 +284,8 @@
       "label": "IFC-skjema ved lagring",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (standard)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Filen inneholder data fra et annet program. Derfor beholdes skjemaet fra det opprinnelige filhodet."
     }
   },
   "newProject": {
@@ -289,7 +293,23 @@
     "template": "Faseringsmal",
     "tmplEmpty": "Tom",
     "tmplWoningbouw": "Boligbygging",
-    "tmplUtiliteit": "Yrkesbygg / rehabilitering"
+    "tmplUtiliteit": "Yrkesbygg / rehabilitering",
+    "phase": {
+      "siteGroundwork": "Byggeplass & grunnarbeid",
+      "foundation": "Fundamentering",
+      "shell": "Råbygg / skall",
+      "roof": "Tak",
+      "facadeFitOut": "Fasade & innredning",
+      "services": "Installasjoner (VVS/el)",
+      "finishes": "Ferdigbehandling",
+      "handover": "Overlevering",
+      "demolitionStripOut": "Riving & strip-out",
+      "groundworkFoundation": "Grunnarbeid & fundamentering",
+      "mainStructure": "Hovedbærekonstruksjon",
+      "facadeRoof": "Fasade & tak",
+      "fitOut": "Innredning",
+      "commissioning": "Innregulering & testing"
+    }
   },
   "status": {
     "tasks": "Aktiviteter:",
@@ -315,12 +335,14 @@
     "recentTitle": "Nylige prosjekter",
     "recentSubtitle": "Klikk for å åpne.",
     "recentEmpty": "Ingen nylig åpnede prosjekter ennå.",
+    "recentLoading": "Laster nylige filer…",
     "recentUnavailable": "Denne nettleseren kan ikke åpne lokale filer fra «Nylige» på nytt. Bruk «Åpne» for å velge prosjektfilen din på nytt.",
     "recentOnSite": "På nettstedet",
     "examples": "Eksempler",
     "examplesTitle": "Eksempelprosjekter",
     "examplesSubtitle": "Medfølgende byggetidsplaner. Klikk for å åpne i en ny fane.",
     "examplesLoading": "Laster eksempler…",
+    "loading": "Laster…",
     "examplesEmpty": "Ingen eksempler tilgjengelig.",
     "examplesError": "Eksemplene kunne ikke lastes.",
     "examplesShowcaseHeading": "Fullstendige showcase-tidsplaner",
@@ -391,7 +413,7 @@
       "plannedReadOnly": "planlagt, ikke endre",
       "summaryRow": "— hovedaktivitet: ikke fyll inn"
     },
-    "csvLabel": "CSV (semikolonseparert)",
+    "csvLabel": "CSV",
     "csvDesc": "Universell tabelleksport. Alle aktiviteter med datoer og varighet.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Åpnes i Microsoft Project. Fullstendig WBS-struktur.",
@@ -403,7 +425,7 @@
     "profileHint": "Prosjektet ditt bruker nå {{name}}-profilen. Vi anbefaler {{target}}-profilen for best kompatibilitet med dette filformatet.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standard, i IFC-skjemaet for prosjektet (standard IFC 4.3 ADD2). 4D-kobling med BIM-modeller.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Utvidelser",

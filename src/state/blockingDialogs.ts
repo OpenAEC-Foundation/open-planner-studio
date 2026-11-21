@@ -28,7 +28,7 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     ui.pendingSiteOpen !== null || ui.pendingSiteSave !== null ||
     // De schemavraag bij opslaan wacht op een keuze; de opslaanroute houdt intussen de
     // schrijfvergrendeling vast.
-    ui.pendingIfcSchemaQuestion !== null || ui.pendingIfcMissingSourceSaveAs ||
+    ui.pendingIfcSchemaQuestion !== null || ui.pendingPlanOnlyQuestion !== null ||
     // De vraag over te krappe ankers van afhankelijke projecten (stap 1.11) wacht op een keuze; de
     // opslaanroute houdt intussen de schrijfvergrendeling vast.
     ui.pendingDependentAnchorWarning !== null ||
@@ -36,9 +36,21 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     // niet op de dialoogstapel. Zonder deze vlag verwijderde Delete een taak terwijl de vraag
     // openstond, en zette *Opslaan* die verwijdering daarna in het bestand.
     ui.pendingCloseDocId !== null ||
+    // "Wordt nog opgeslagen…" (#804 stap 3): afsluiten of sluiten wacht op een opslag; niets mag intussen wijzigen.
+    ui.savingBeforeClose ||
+    // De laatste fase van afsluiten (fixronde 1): de poort voor projectopslag is dicht, het venster gaat weg.
+    ui.appClosing ||
     // Handmatig koppelwerk in de voortgangsimportdialoog hangt aan taak-id's van
     // ÉÉN document en leeft alleen in de dialoog — een documentwissel moet onmogelijk zijn zolang
     // hij openstaat, niet: dat werk over de wissel heen bewaren.
     ui.showProgressImportDialog
   );
+}
+
+/** Een vraag waarop een opslag onder het schrijfslot wacht (site, IFC-schema, alleen de planning, afhankelijke
+ *  projecten). Zolang die openstaat start Ctrl+S geen nieuwe opslag, en staat "Wordt nog opgeslagen…" er niet overheen:
+ *  het wachten hangt dan aan het antwoord van de planner (#804 stap 3). */
+export function saveQuestionOpen(ui: UIState): boolean {
+  return ui.pendingSiteSave !== null || ui.pendingSiteOpen !== null || ui.pendingIfcSchemaQuestion !== null
+    || ui.pendingDependentAnchorWarning !== null || ui.pendingPlanOnlyQuestion !== null;
 }

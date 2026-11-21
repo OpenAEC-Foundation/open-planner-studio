@@ -26,7 +26,7 @@ Het venster heeft geen OK-knop: elke wijziging geldt meteen. Het type van een ve
 Je hebt twee plekken.
 
 - **In het paneel** *Eigenschappen* (of in het venster dat je met F2 opent). Onderaan staat het blok *Codes & velden*: per codetype een keuzelijst, per veld een invoer. Het blok verschijnt pas zodra er minstens één codetype of veld is.
-- **Als kolom in de takenlijst.** Klik op de **+** rechts in de tabelkop (*Kolom toevoegen*) en kies onder *Aangepast* het codetype of veld. In de cel van een codetype typ je de code, bijvoorbeeld `N`, of kies je uit de lijst. Een code die niet bestaat, geeft *Kies een waarde uit deze activiteitencode.*
+- **Als kolom in de takenlijst.** Klik op de **+** rechts in de tabelkop (*Kolom toevoegen*) en kies onder *Aangepast* het codetype of veld. De cel van een codetype is een keuzelijst, net als *Codes & velden* in het paneel: druk op Enter of begin te typen, en kies een waarde. De lijst toont de waarden in de volgorde uit het venster; *—* maakt de cel leeg. Typ je een letter, dan springt de lijst naar de eerste waarde die zo begint. Plak je een code die niet bestaat, dan krijg je *Kies een waarde uit deze activiteitencode.*
 
 ### Gebruiken
 
@@ -38,7 +38,7 @@ Voor de balkkleur kies je *Beeld › Balken › Balkkleuren*, dan *Op categorie*
 
 **Verwijderen haalt de waarden bij de taken weg.** Verwijder je een codetype, een waarde of een veld met het prullenbakje, dan vraagt de app niet om bevestiging, en de toewijzingen op alle taken verdwijnen mee. Een groepering of sortering op dat codetype of veld vervalt ook. *Ongedaan* (Ctrl+Z, sluit eerst het venster) brengt het codetype, de waarde of het veld en de ingevulde waarden terug, maar niet de groepering of sortering: die stel je opnieuw in.
 
-**Twee waarden met dezelfde code.** *Waarde toevoegen* nummert door op het aantal waarden dat er is. Verwijder je er één en voeg je er een toe, dan kan er dus een code dubbel voorkomen. Typ je die code in een kolomcel, dan weigert de app dat met *Deze activiteitencodewaarde komt meerdere keren voor. Kies hem uit de lijst.* Geef elke waarde een eigen code.
+**Twee waarden met dezelfde code.** *Waarde toevoegen* nummert door op het aantal waarden dat er is. Verwijder je er één en voeg je er een toe, dan kan er dus een code dubbel voorkomen. Plak je die code in een kolomcel, dan weigert de app dat met *Deze activiteitencodewaarde komt meerdere keren voor. Kies hem uit de lijst.* Geef elke waarde een eigen code.
 
 **Sjablonen nemen codes en velden niet mee.** Zie [WBS-sjablonen bewaren en invoegen](docs://howto-wbs-sjablonen). Plak je taken in een ander document, dan maakt de app codes en velden leeg die daar niet bestaan en meldt dat.
 

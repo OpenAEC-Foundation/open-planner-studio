@@ -33,7 +33,7 @@ Een nieuwe kalender doet pas iets als een taak hem gebruikt. Er zijn twee manier
 2. Kies *Kalender toewijzen* en dan de kalender, of *Projectkalender* om de eigen kalender weer weg te halen. De kalender die nu geldt, heeft een vinkje.
 3. Wil je één kalender aan meer taken tegelijk geven, selecteer ze dan eerst met Ctrl (op een Mac ⌘) en klik met rechts op één van de geselecteerde taken. De keuze geldt voor alle geselecteerde taken. Klik je met rechts op een taak die niet geselecteerd is, dan geldt hij alleen voor die taak.
 
-Een nieuwe kalenderkeuze maakt de planning nog niet nieuw: de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*. Staat *Automatisch berekenen* aan (*Instellingen › Project › App-instellingen*, tabblad *Planning*, kopje *Berekenen*), dan doet de app dat zelf.
+Een nieuwe kalenderkeuze maakt de planning nog niet nieuw: de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*. Staat [Automatisch berekenen](settings://autoCalc) aan (*Instellingen › Project › App-instellingen*, groep *Planning*), dan doet de app dat zelf.
 
 ### De projectkalender wisselen
 

@@ -8,7 +8,7 @@
 import type { AppState } from '@/state/appStoreFactory';
 import type { ImportLabels } from '@/services/importTypes';
 import { splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
-import { importFailureNotice, saveErrorDetail } from '@/state/slices/fileSlice';
+import { openFailureNotices } from '@/state/slices/fileSlice';
 
 /** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
  *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
@@ -67,7 +67,7 @@ export async function openDroppedFiles(
       opened = await file.read();
     } catch (err) {
       console.error('Failed to read dropped file:', err);
-      store.getState().notify(importFailureNotice(err, saveErrorDetail(err)));
+      for (const notice of openFailureNotices(err)) store.getState().notify(notice);
       continue;
     }
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.

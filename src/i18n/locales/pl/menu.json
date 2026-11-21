@@ -24,6 +24,8 @@
     "undo": "Cofnij",
     "redo": "Ponów",
     "delete": "Usuń",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: usuwa wybrane zadania i łączy każdego poprzednika z każdym następnikiem (zakończenie-rozpoczęcie, bez opóźnienia)",
     "undoTitle": "Cofnij (Ctrl+Z)",
     "redoTitle": "Ponów (Ctrl+Y)",
     "deleteTitle": "Usuń zaznaczenie (Delete)",
@@ -213,6 +215,7 @@
     "columnsHintGoToTable": "Wybierz kolumny widoku Tabela — widoczne na karcie Tabela",
     "toggleResourceAccent": "Akcent zasobu",
     "toggleFloatBand": "Pas zapasu",
+    "toggleBarDates": "Daty przy paskach",
     "screenColors": "Kolory słupków",
     "screenColors_critical": "Ścieżka krytyczna",
     "screenColors_auto": "Na zadanie — automatycznie",
@@ -283,7 +286,8 @@
       "label": "Schemat IFC przy zapisie",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (domyślny)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Plik zawiera dane z innej aplikacji, dlatego schemat z jego oryginalnego nagłówka zostaje zachowany."
     }
   },
   "newProject": {
@@ -291,7 +295,23 @@
     "template": "Szablon faz",
     "tmplEmpty": "Pusty",
     "tmplWoningbouw": "Budownictwo mieszkaniowe",
-    "tmplUtiliteit": "Budownictwo użytkowe / remont"
+    "tmplUtiliteit": "Budownictwo użytkowe / remont",
+    "phase": {
+      "siteGroundwork": "Plac budowy i roboty ziemne",
+      "foundation": "Fundamenty",
+      "shell": "Stan surowy",
+      "roof": "Dach",
+      "facadeFitOut": "Elewacja i wykończenie",
+      "services": "Instalacje (MEP)",
+      "finishes": "Wykończenie",
+      "handover": "Odbiór",
+      "demolitionStripOut": "Rozbiórka i demontaż wnętrz",
+      "groundworkFoundation": "Roboty ziemne i fundamenty",
+      "mainStructure": "Konstrukcja nośna",
+      "facadeRoof": "Elewacja i dach",
+      "fitOut": "Prace wykończeniowe",
+      "commissioning": "Regulacja i testowanie"
+    }
   },
   "status": {
     "tasks": "Zadania:",
@@ -319,12 +339,14 @@
     "recentTitle": "Ostatnie projekty",
     "recentSubtitle": "Kliknij, aby otworzyć.",
     "recentEmpty": "Brak ostatnio otwieranych projektów.",
+    "recentLoading": "Wczytywanie ostatnich plików…",
     "recentUnavailable": "Ta przeglądarka nie może ponownie otworzyć lokalnych plików z listy Ostatnie. Użyj Otwórz, aby ponownie wybrać plik projektu.",
     "recentOnSite": "W witrynie",
     "examples": "Przykłady",
     "examplesTitle": "Przykładowe projekty",
     "examplesSubtitle": "Dołączone harmonogramy budowy. Kliknij, aby otworzyć w nowej karcie.",
     "examplesLoading": "Ładowanie przykładów…",
+    "loading": "Wczytywanie…",
     "examplesEmpty": "Brak dostępnych przykładów.",
     "examplesError": "Nie udało się załadować przykładów.",
     "examplesShowcaseHeading": "Pełne przykładowe harmonogramy",
@@ -395,7 +417,7 @@
       "plannedReadOnly": "zaplanowane, nie zmieniać",
       "summaryRow": "— zadanie sumaryczne: nie wypełniać"
     },
-    "csvLabel": "CSV (rozdzielany średnikiem)",
+    "csvLabel": "CSV",
     "csvDesc": "Uniwersalny eksport tabeli. Wszystkie zadania z datami i czasem trwania.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Otwierane w Microsoft Project. Pełna struktura WBS.",
@@ -407,7 +429,7 @@
     "profileHint": "Twój projekt obecnie korzysta z profilu {{name}}. Zalecamy użycie profilu {{target}}, aby zapewnić najlepszą zgodność z tym formatem pliku.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, w schemacie IFC projektu (domyślnie IFC 4.3 ADD2). Powiązanie 4D z modelami BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Rozszerzenia",

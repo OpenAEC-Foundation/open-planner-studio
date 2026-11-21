@@ -24,6 +24,8 @@
     "undo": "Annuler",
     "redo": "Rétablir",
     "delete": "Supprimer",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve : supprime les tâches sélectionnées ; chaque prédécesseur est lié à chaque successeur (fin-début, sans décalage)",
     "undoTitle": "Annuler (Ctrl+Z)",
     "redoTitle": "Rétablir (Ctrl+Y)",
     "deleteTitle": "Supprimer la sélection (Delete)",
@@ -212,6 +214,7 @@
     "columnsHintGoToTable": "Choisir les colonnes de la vue Tableau — visibles sous l’onglet Tableau",
     "toggleResourceAccent": "Accent ressource",
     "toggleFloatBand": "Bande de marge",
+    "toggleBarDates": "Dates à côté des barres",
     "screenColors": "Couleurs des barres",
     "screenColors_critical": "Chemin critique",
     "screenColors_auto": "Par tâche — automatique",
@@ -282,7 +285,8 @@
       "label": "Schéma IFC à l'enregistrement",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (par défaut)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Ce fichier contient des données d'une autre application. C'est pourquoi le schéma de son en-tête d'origine est conservé."
     }
   },
   "newProject": {
@@ -290,7 +294,23 @@
     "template": "Modèle de phasage",
     "tmplEmpty": "Vide",
     "tmplWoningbouw": "Construction résidentielle",
-    "tmplUtiliteit": "Tertiaire / rénovation"
+    "tmplUtiliteit": "Tertiaire / rénovation",
+    "phase": {
+      "siteGroundwork": "Chantier & terrassement",
+      "foundation": "Fondations",
+      "shell": "Gros œuvre / clos-couvert",
+      "roof": "Toiture",
+      "facadeFitOut": "Façade & second œuvre",
+      "services": "Installations (eau / élec.)",
+      "finishes": "Finitions",
+      "handover": "Livraison",
+      "demolitionStripOut": "Démolition & dépose",
+      "groundworkFoundation": "Terrassement & fondations",
+      "mainStructure": "Structure porteuse",
+      "facadeRoof": "Façade & toiture",
+      "fitOut": "Second œuvre",
+      "commissioning": "Réglage & essais"
+    }
   },
   "status": {
     "tasks": "Tâches :",
@@ -317,12 +337,14 @@
     "recentTitle": "Projets récents",
     "recentSubtitle": "Cliquez pour ouvrir.",
     "recentEmpty": "Aucun projet récemment ouvert.",
+    "recentLoading": "Chargement des fichiers récents…",
     "recentUnavailable": "Ce navigateur ne peut pas rouvrir les fichiers locaux récemment ouverts depuis « Récents ». Utilisez « Ouvrir » pour choisir de nouveau votre fichier de projet.",
     "recentOnSite": "Sur le site",
     "examples": "Exemples",
     "examplesTitle": "Projets d'exemple",
     "examplesSubtitle": "Plannings de construction fournis. Cliquez pour ouvrir dans un nouvel onglet.",
     "examplesLoading": "Chargement des exemples…",
+    "loading": "Chargement…",
     "examplesEmpty": "Aucun exemple disponible.",
     "examplesError": "Impossible de charger les exemples.",
     "examplesShowcaseHeading": "Plannings de démonstration complets",
@@ -393,7 +415,7 @@
       "plannedReadOnly": "prévu, ne pas modifier",
       "summaryRow": "— tâche récapitulative : ne pas remplir"
     },
-    "csvLabel": "CSV (séparé par des points-virgules)",
+    "csvLabel": "CSV",
     "csvDesc": "Export tableau universel. Toutes les tâches avec dates et durées.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "À ouvrir dans Microsoft Project. Structure WBS complète.",
@@ -405,7 +427,7 @@
     "profileHint": "Votre projet utilise actuellement le profil {{name}}. Nous recommandons le profil {{target}} pour une meilleure compatibilité avec ce format de fichier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard buildingSMART, dans le schéma IFC du projet (par défaut IFC 4.3 ADD2). Liaison 4D avec les modèles BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Extensions",

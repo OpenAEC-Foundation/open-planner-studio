@@ -464,6 +464,8 @@ export function buildPrintRows(
   if (rows) {
     for (const row of rows) {
       if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
+      // Een ingeklapte mijlpalenreeks staat op papier uitgeklapt (#868, besluit 14-11-2026 punt 10).
+      else if (row.kind === 'milestones') for (const task of row.tasks) printRows.push({ kind: 'task', task, depth: row.depth });
       else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
     }
     return printRows;
@@ -869,6 +871,12 @@ export interface PrintOptions {
   showTaskNames: boolean;
   showCompletion: boolean;
   /**
+   * Issue #868: begindatum links vóór en einddatum rechts achter elke balk, met precies de tekst van de
+   * kolommen Start en Einde; een mijlpaal krijgt één datum tussen ruit en naam. Eigen rapportoptie,
+   * los van de scherminstelling (besluit Ethan 14-11-2026). Ontbreekt ⇒ uit.
+   */
+  showBarDates?: boolean;
+  /**
    * Breedte van de naamkolom in de taaktabel, ongeschaald (schaalt mee met `reportFontScale`).
    * Ontbreekt ⇒ {@link NAME_COLUMN_WIDTH_DEFAULT}; buiten bereik ⇒ geklemd. Een naam die er niet in
    * past wordt met een ellipsis afgekapt. "Niet afkappen" is géén aparte modus van de printlaag:
@@ -1175,6 +1183,60 @@ function drawBarLabel(
   }
 }
 
+/** Ruimte tussen de einddatum en de naam erachter (#868), ongeschaald zoals `BAR_LABEL_GAP`. */
+const BAR_DATE_GAP = 6;
+
+/**
+ * Ruimte in px die de datums bij de balken (#868) links en rechts van de tijdas nodig hebben. De
+ * breedte van een datum is die van de gemeten kolom Start of Einde (dezelfde teksten, in de iets
+ * grotere tabelletter, dus een bovengrens); zonder meting de grootste vaste breedte.
+ */
+function barDateReservePx(m: ReportMetrics, columnWidths: TableColumnWidths | undefined): { left: number; right: number } {
+  const width = (key: 'start' | 'end') => m.s(columnWidths?.[key] ?? COL[key].max);
+  return { left: width('start') + BAR_LABEL_PAD_LEFT, right: BAR_LABEL_GAP + width('end') + 10 };
+}
+
+
+/**
+ * Naam met datums bij een staaf (`showBarDates`, issue #868). De begindatum staat rechts uitgelijnd
+ * links vóór de staaf (alleen als hij binnen het chartgebied past), de einddatum direct achter de
+ * staaf zelf (`barEndX`, niet achter de spelingsband: daar zou hij een ander einde suggereren) en de
+ * naam erachter. Wat rechts niet past wordt afgekapt met '…' (besluit Ethan 14-11-2026); de naam gaat
+ * nooit naar links. Past de einddatum rechts niet (de staaf loopt tot de papierrand), dan vervalt hij
+ * en wordt de naam afgekapt op wat er rechts nog over is. Datums in de gedempte tekstkleur, één punt
+ * kleiner dan de naam.
+ */
+function drawBarLabelWithDates(
+  d2d: Draw2D,
+  m: ReportMetrics,
+  name: string,
+  dates: { start: string; finish: string },
+  barEndX: number,
+  barLeftX: number,
+  y: number,
+  canvasWidth: number,
+  bold: boolean,
+) {
+  const rightMargin = 10;
+  d2d.textBaseline = 'alphabetic';
+  d2d.font = m.font(8);
+  const leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
+  const startW = dates.start ? d2d.measureText(dates.start).width : 0;
+  if (dates.start && startW <= leftEnd - m.tableWidth) {
+    fillLabelText(d2d, dates.start, leftEnd, y, 'right', PRINT_COLORS.textSecondary);
+  }
+  const x = barEndX + BAR_LABEL_GAP;
+  const edge = canvasWidth - rightMargin;
+  const finishW = dates.finish ? d2d.measureText(dates.finish).width : 0;
+  const finishFits = dates.finish !== '' && x + finishW <= edge;
+  if (finishFits) fillLabelText(d2d, dates.finish, x, y, 'left', PRINT_COLORS.textSecondary);
+  if (!name) return;
+  const nameX = finishFits ? x + finishW + BAR_DATE_GAP : x;
+  d2d.font = m.font(9, bold);
+  const label = ellipsize(d2d, name, edge - nameX);
+  if (label) fillLabelText(d2d, label, nameX, y, 'left', PRINT_COLORS.text);
+}
+
 /**
  * Het resultaat van een print-render: de logische (CSS-px) afmetingen + de bevroren-kolombreedte.
  */
@@ -1345,6 +1407,32 @@ export function renderReport(
     if (reach.latest) { const d = parseDate(reach.latest); if (d > maxDate) maxDate = d; }
   }
 
+  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
+  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
+  // werkdag valt gecontroleerd terug op de gewone kalender-as).
+  const calEngine = new CalendarEngine(calendar);
+  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  // Calculate zoom: auto-fit or custom
+  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
+  const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
+  // Beschikbare chart-breedte over N papierbreedtes.
+  //
+  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
+  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
+  // zet. Daardoor geldt voor N kolommen:
+  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
+  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
+  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
+  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
+  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
+  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
+  // Issue #868: met datums bij de balken een vaste strook in px vóór en achter de tijdas, voor de
+  // begindatum van de vroegste en de einddatum van de laatste balk. In px en niet in dagen: dan is de
+  // breedte bij passend maken en bij de overgenomen vaste schaal dezelfde (zelfde aantal pagina's).
+  // Past de strook niet ruim op het blad, dan vervalt hij; een datum die dan niet past, valt weg.
+  const reserve = options.showBarDates && !options.timeWindow ? barDateReservePx(m, options.columnWidths) : null;
+  const datePad = reserve && reserve.left + reserve.right <= availableChartWidth / 2 ? reserve : { left: 0, right: 0 };
+
   if (options.timeWindow) {
     // Tijdvenster: de as is precies het venster (einde exclusief, dus `to` + 1), zonder marge.
     minDate = parseDate(options.timeWindow.from);
@@ -1357,11 +1445,6 @@ export function renderReport(
 
   const calendarDays = diffCalendarDays(minDate, maxDate);
 
-  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
-  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
-  // werkdag valt gecontroleerd terug op de gewone kalender-as).
-  const calEngine = new CalendarEngine(calendar);
-  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
   let measureAxis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
     origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
@@ -1381,29 +1464,14 @@ export function renderReport(
     ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
     : calendarDays;
 
-  // Calculate zoom: auto-fit or custom
-  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
-  const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
-  // Beschikbare chart-breedte over N papierbreedtes.
-  //
-  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
-  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
-  // zet. Daardoor geldt voor N kolommen:
-  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
-  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
-  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
-  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
-  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
-  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
-
   let zoom: number;
   if (options.autoFit && timelineDays > 0) {
-    zoom = availableChartWidth / timelineDays;
+    zoom = (availableChartWidth - datePad.left - datePad.right) / timelineDays;
   } else {
     zoom = options.customZoom || 22;
   }
 
-  const chartWidth = timelineDays * zoom;
+  const chartWidth = datePad.left + timelineDays * zoom + datePad.right;
   const canvasWidth = m.tableWidth + chartWidth;
   // Tijdvenster: chart-x klemmen op het chartgebied (zie `PrintOptions.timeWindow`). Zonder venster
   // is dit de identiteit.
@@ -1420,7 +1488,7 @@ export function renderReport(
   // Daarmee kan een PDF nooit andere werkdagen overslaan dan de scherm-Gantt of raster-preview.
   const axis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
-    origin: minDate, chartOriginX: m.tableWidth, zoom, scrollX: 0,
+    origin: minDate, chartOriginX: m.tableWidth + datePad.left, zoom, scrollX: 0,
   });
   const dateToX = (date: Date) => axis.dateToX(date);
   const firstTimelineIndex = Math.ceil(axis.dayIndexOf(minDate));
@@ -1660,8 +1728,25 @@ export function renderReport(
     y: number;
     /** Vetgedrukt (alleen samenvattingstaken). */
     bold: boolean;
+    /** Met `showBarDates` (#868): begindatum links vóór de balk (leeg bij een mijlpaal) en einddatum
+     *  vóór de naam. */
+    dates?: { start: string; finish: string };
+    /** Rechterrand van de staaf zelf, zonder spelingsband: daar begint de einddatum (#868). Ontbreekt
+     *  ⇒ `barRightX`. */
+    barEndX?: number;
   }
   const barLabelJobs: BarLabelJob[] = [];
+  // Naam en/of datums naast een balk (#868). Met alleen de datums aan blijft de naam leeg.
+  const barCellOptions: CellTextOptions = { ...options, calendar };
+  const wantBarLabel = options.showTaskNames || options.showBarDates === true;
+  const barLabel = (task: Task, job: Omit<BarLabelJob, 'name' | 'dates'>, milestone = false): BarLabelJob => {
+    const cells = options.showBarDates ? taskOwnCellTexts(task, barCellOptions) : undefined;
+    return {
+      ...job,
+      name: options.showTaskNames ? task.name : '',
+      ...(cells ? { dates: { start: milestone ? '' : cells.start, finish: milestone ? (cells.end || cells.start) : cells.end } } : {}),
+    };
+  };
 
   // Kleurmodi-context: resources + toewijzingen komen binnen via options; de printlaag
   // houdt zelf geen state. Eén palet-object voor alle balken van deze render.
@@ -1742,8 +1827,8 @@ export function renderReport(
         if (advies.outline) d2d.stroke();
 
         // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
-        if (options.showTaskNames) {
-          barLabelJobs.push({ name: task.name, barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false });
+        if (wantBarLabel) {
+          barLabelJobs.push(barLabel(task, { barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false }, true));
         }
       }
     } else if (isSummaryTask(task)) {
@@ -1792,8 +1877,8 @@ export function renderReport(
       }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
-        barLabelJobs.push({ name: task.name, barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true });
+      if (wantBarLabel) {
+        barLabelJobs.push(barLabel(task, { barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true }));
       }
     } else {
       // Normal task bar, met de balkgrenzen van het scherm (`taskBarSpan`): met momenten van het startmoment
@@ -1897,9 +1982,9 @@ export function renderReport(
       }
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
+      if (wantBarLabel) {
         const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
-        barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
+        barLabelJobs.push(barLabel(task, { barRightX, barEndX: x2, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false }));
       }
     }
 
@@ -1972,7 +2057,8 @@ export function renderReport(
   }
 
   for (const job of barLabelJobs) {
-    drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
+    if (job.dates) drawBarLabelWithDates(d2d, m, job.name, job.dates, job.barEndX ?? job.barRightX, job.barLeftX, job.y, canvasWidth, job.bold);
+    else drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
   }
 
   // De referentielijn is bewust de laatste chart-laag: staven, relatiepijlen en taaklabels mogen

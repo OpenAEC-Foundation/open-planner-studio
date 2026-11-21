@@ -261,11 +261,16 @@ test('Backstage: geen Extensies, geen extensie-importers, geen MCP-instellingen'
   await expect(page.locator('[data-ops-progress-import-card]')).toBeVisible();
   await expect(page.locator('.backstage-main')).not.toContainText('Extensions');
 
-  // Instellingen → Geavanceerd: Debug-terminal wel, MCP-koppeling niet.
+  // Instellingen → Geavanceerd: Debug-terminal wel, MCP-koppeling niet (ook niet via zoeken).
   await navItem(page, 'App settings').click();
-  await page.locator('.backstage-main .settings-tab', { hasText: 'Advanced' }).click();
-  await expect(page.locator('.backstage-main').getByText('Debug terminal', { exact: true })).toBeVisible();
-  await expect(page.locator('.backstage-main').getByText('MCP connection', { exact: true })).toHaveCount(0);
+  await page.locator('.backstage-main [data-ops-settings-group="advanced"]').click();
+  await expect(page.locator('.backstage-main [data-ops-setting="debugTerminal"]')).toBeVisible();
+  await expect(page.locator('.backstage-main [data-ops-setting="aiMode"]')).toHaveCount(0);
+  await page.locator('.backstage-main [data-ops-settings-search]').fill('MCP');
+  await expect(page.locator('.backstage-main [data-ops-setting]')).toHaveCount(0);
+  await page.locator('.backstage-main [data-ops-settings-search]').fill('');
+  // Over de app.
+  await page.locator('.backstage-main [data-ops-settings-group="about"]').click();
   // Geen downloadcijfers (#818): die komen van GitHub, en de werkplek laat geen netwerk buiten de bundel toe.
   await expect(page.locator('.backstage-main [data-ops-settings-stats]')).toHaveCount(0);
   // Geen update-check en geen "Wat is er nieuw" (#818, knownbug 868); het versienummer staat er wel.
@@ -686,7 +691,7 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await expect(frame.locator('[data-tour-anchor="feedback-button"]')).toHaveCount(0);
   await frame.locator('.ribbon-tab--file').click();
   await frame.locator('.backstage-sidebar .backstage-nav-item', { hasText: /^App settings$/ }).click();
-  await frame.locator('.backstage-main .settings-tab', { hasText: 'Advanced' }).click();
+  await frame.locator('.backstage-main [data-ops-settings-group="about"]').click();
   await walkTourFromSettings(frame);
 
   // Geen fout, geen CSP-schending en geen verzoek buiten de bundel, over de hele route.

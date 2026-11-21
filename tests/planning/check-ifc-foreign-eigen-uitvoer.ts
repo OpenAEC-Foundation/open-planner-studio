@@ -1,0 +1,989 @@
+// #804 fase 1c, PR 12a: controle (c) op de echte uitvoer. De eigen groepen op projectniveau lezen terug tot wat de writer
+// ervan maakt (`ownGroups.ts`, `ownOutputProblem` in `mergeWriter.ts`). De controle kan alleen extra weigeren.
+//
+// 1. Geen nieuwe weigering: de gevallen van 7c en 7d, de reeksen, de sessieketen en een vreemd lid in een eigen pset
+//    lopen door de echte open-route (bytes, flag aan) en `prepareIfcWrite`; geen enkel geval weigert met `eigen-uitvoer`.
+//    Elke uitkomst staat als `UITKOMST`-regel in het log (lengte en sha256), zodat een run op de basis ernaast kan.
+// 2. Tegenproeven: een fout in de echte uitvoer van een geslaagde opslag, door de volledige uitvoercontrole
+//    (`checkMergeOutput`): zonder (c), zoals de basis, en met (c).
+// 3. Niets veranderd: de bronbytes komen terug, zonder (c).
+// 4. De klok: de gevallen van 1 ook met een lopende klok (elke "nu" een seconde later).
+// 5. PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen"; per tegenproef welke controle hem
+//    vangt, en dat de boomvorm van (c) zelf hem ziet (ook knownbug 1705: de aggregatie waarin een kop staat).
+// 6. PR 12d: fouten rond de typenaam op de taak in de echte uitvoer (een hernoemd type, een taak die haar type verloor);
+//    per tegenproef wat de verliescontrole (met de toets) en wat de uitvoercontrole zonder en met (c) ervan zegt.
+// 7. PR 12e: de identiteit van de weesrij in `TaskGuids` (knownbug 1706) en van de baselinekop (knownbug 1746); de vier
+//    tegenproeven van de reviews van #960 en #962.
+// 8. Fixronde 1 van PR 12e: de merge neemt de GlobalId van een weesrij uit de lezing van de bron, ook als `TaskGuids` daar een
+//    getal heeft of de sleutel mist.
+// 9. Stap 5 deel 1 (was knownbug 1707): een eigen groep met een vreemd lid. Fouten in het lidmaatschap van de pset met alleen het
+//    vreemde lid vangt controle 1; een fout in de eigen leden van zo'n groep vangt (c). Een andere GlobalId op die pset vangt
+//    geen controle (knownbug 1952).
+// 10. Stap 5, PR A: (c) per slot. Op de echte uitvoer van de gevallen van blok 9 in `check-ifc-foreign-eigen-toets.ts`, met wat
+//    de opslag aan (c) gaf: een fout in het nieuwe stuk, of in een ander slot van dezelfde groep, vangt (c); de verliescontrole
+//    vangt hem ook, want die groep valt daar helemaal buiten de toets (zoals op de basis), en een fout van de writer zelf (een
+//    O1 zonder het nieuwe codetemplate of de nieuwe `TaskGuids`-sleutel) weigert de nacontrole. Het teruggezette slot zelf,
+//    achteraf anders of leeg, vangt (c) op regel en bronwaarde; zo ook twee verwisselde templates met dezelfde naam (de review
+//    van #1095, punt 1, 4 en 5). Een vreemde `Creators` (een lijst) laat de koppen terugvallen: (c) slaat ze over en de
+//    verliescontrole draagt het, zoals op de basis.
+// Elk geval krijgt een eigen vaste stand van de teller van `generateId` (`idsAt`), zodat een run op de basis per geval
+// dezelfde invoer heeft.
+import assert from 'node:assert/strict';
+import { writeIFCForComparison, type WriteIFCInput } from '@/services/ifc/ifcWriter';
+import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { checkMergeOutput, MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
+import { parseOutLine, refsOutsideText, type OutLine } from '@/services/ifc/foreign/lossCheck';
+import { BASELINE_HEADS, indexView, linesView, ownGroupMembers, ownGroupTrees } from '@/services/ifc/foreign/ownGroups';
+import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
+import { classify } from '@/services/ifc/foreign/classify';
+import { PROP, PSET, ifcJson, ifcStr } from '@/services/ifc/ifcPsets';
+import { decodeStepText } from '@/services/ifc/stepText';
+import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
+import {
+  applyEdit, cloneDomain, fixedCatalogEdits, fixedSequenceEdits, lossProbe, mergeProblems, openForeign, openInStore, sameBytes,
+  savedCatalogStart, savedSequenceStart, type Domain,
+} from './ifcMergeKern';
+import {
+  BASE, DESCRIPTION, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, linesOfBytes, ok,
+  save, se, summary, templateIn, withForeignMember, withLabelOnUntypedTask, withLines, withPropertyDescription, withPsetDescription,
+  withTemplateDescription, type S,
+} from './ifcEigenKern';
+
+const clockStart = () => clock.start();
+let caseNo = 0;
+/** Een nieuw geval: de teller van `generateId` op zijn eigen vaste stand (`idsAt`), de klok op de begintijd. Zo krijgt een
+ *  geval op de basiscode dezelfde invoer, ook als een eerder geval daar weigerde en hier schrijft (PR 12c). */
+function nextCase() { idsAt(++caseNo * 50_000); clockStart(); }
+/** De opgeslagen beginstanden, elk met een eigen vaste stand van de teller (anders hangen hun nieuwe ids af van de gevallen
+ *  ervoor). */
+const savedCatalog = (raw: Uint8Array, twoTypes = true) => { nextCase(); return savedCatalogStart(raw, twoTypes); };
+const savedSequence = (raw: Uint8Array) => { nextCase(); return savedSequenceStart(raw); };
+
+/** Eén geval: openen, bewerken, opslaan. Geen weigering met `eigen-uitvoer`; `expectWrite`: het schrijft. */
+async function edited(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, expectWrite = false) {
+  nextCase();
+  const opened = await openForeign(bytes);
+  assert(opened.ifcSource?.foreign, `${label}: echte vreemde bytes-openroute`);
+  const d = await edit(cloneDomain(opened));
+  const o = await save(d, opened.ifcSource);
+  console.log(`UITKOMST ${clock.mode} ${label}: ${summary(o)}`);
+  ok(`${clock.mode} ${label}: geen weigering door (c)`, o.ok || !o.kinds.includes('eigen-uitvoer'), o.ok ? '' : o.detail);
+  if (expectWrite) ok(`${clock.mode} ${label}: schrijft`, o.ok, o.ok ? '' : `${o.kinds.join(',')}: ${o.detail}`);
+  if (o.ok) ok(`${clock.mode} ${label}: vreemd deel byte voor byte`, mergeProblems(bytes, o.bytes).length === 0);
+  return { o, d, opened };
+}
+
+// ── 1 en 4. Geen nieuwe weigering, met een vaste en een lopende klok ──
+async function noNewRefusal(which: keyof typeof SOURCES) {
+  const raw = SOURCES[which], tag = which;
+  const saved = await savedCatalog(raw), single = await savedCatalog(raw, false);
+  // 7d: de vier vaste bewerkingen op de catalogus (de tweede op de bron met één type) schrijven op de basis.
+  for (const i of [0, 1, 2, 3]) await edited(`7d ${tag}: ${fixedCatalogEdits({} as Domain)[i].label}`, i === 1 ? single : saved, d => applyEdit(fixedCatalogEdits(d)[i], d), true);
+  await edited(`7d ${tag}: actieve baseline uitzetten`, saved, se(s => { s.setActiveBaseline(null); }));
+  await edited(`7d ${tag}: baseline erbij en bestaande actief`, saved, se(s => { const id = s.baselines[0].id; s.saveBaseline('Nieuw 7d'); s.setActiveBaseline(id); }));
+  await edited(`7d ${tag}: waarde bij bestaande codedefinitie`, saved, se(s => { s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' }); }));
+  await edited(`7d ${tag}: getypeerde taak hernoemen`, saved, se(s => { const t = s.tasks.find((t: any) => t.customTaskTypeId); s.updateTask(t.id, { name: `${t.name} hernoemd` }); }));
+  await edited(`7d ${tag}: één bestaande baseline wissen`, saved, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+  // 7c: de vaste reeksen op een opgeslagen beginstand (alleen op de eigen bron, zoals check-ifc-foreign-preserve).
+  if (which === 'eigen') {
+    const seq = await savedSequence(raw);
+    for (const i of [0, 1, 2, 3]) await edited(`7c ${tag}: vaste reeks ${i}`, seq, d => applyEdit(fixedSequenceEdits(d)[i], d), true);
+  }
+  // Reeksen in één sessie.
+  await edited(`reeks ${tag}: taak + baseline (bron)`, raw, se(s => { addTask(s, 'Reeks taak'); s.saveBaseline('Reeks baseline'); }), true);
+  await edited(`reeks ${tag}: code maken + toewijzen + hernoemen (bron)`, raw, se(s => {
+    const c = s.addActivityCodeType('Reeks code'), v = s.addActivityCodeValue(c, { code: 'R', description: 'Reeks' });
+    s.setTaskActivityCode(leaves(s)[0].id, c, v); s.renameActivityCodeType(c, 'Reeks code hernoemd');
+  }), true);
+  await edited(`reeks ${tag}: type maken + geven + weghalen (catalogus)`, saved, se(s => {
+    s.ensureProjectTaskType({ id: 'type-reeks', name: 'Type reeks' });
+    const t = leaves(s).find((t: any) => !t.customTaskTypeId); s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-reeks' });
+    s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+  }));
+  await edited(`reeks ${tag}: baseline maken + wissen + maken (catalogus)`, saved, se(s => {
+    s.saveBaseline('Reeks X'); s.deleteBaseline(s.baselines.find((b: any) => b.name === 'Reeks X').id); s.saveBaseline('Reeks Y');
+  }));
+  await edited(`reeks ${tag}: alles wissen (bron)`, raw, se(deleteAll));
+  // Keten over opslaan en heropenen: stap 1 schrijft; daarna verder met de uitvoer zolang die schrijft.
+  let bytes = raw;
+  const chain: [string, (s: S) => void][] = [
+    ['1 type, code en baseline maken', s => {
+      s.ensureProjectTaskType({ id: 'type-k', name: 'Type keten' });
+      for (const t of leaves(s).slice(0, 2)) s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-k' });
+      const c = s.addActivityCodeType('Code keten'), v = s.addActivityCodeValue(c, { code: 'K', description: 'Keten' });
+      s.setTaskActivityCode(leaves(s)[0].id, c, v); s.saveBaseline('Keten B1');
+    }],
+    ['2 een taak uit B1 wissen (de weesregel)', s => { s.deleteTask(leaves(s)[2].id); }],
+    ['3 alleen de projectbeschrijving', s => { s.setProject({ description: 'Alleen beschrijving' }); }],
+    ['4 baseline B2 vastleggen', s => { s.saveBaseline('Keten B2'); }],
+  ];
+  for (const [i, [label, f]] of chain.entries()) {
+    const r = await edited(`keten ${tag}: stap ${label}`, bytes, se(f), i < 3);
+    if (!r.o.ok) break;
+    bytes = r.o.bytes;
+  }
+}
+
+async function session(which: 'eigen' | 'kantoor') {
+  const steps: [string, (s: S) => void][] = [
+    ['1 type, code en twee baselines maken', s => {
+      s.ensureProjectTaskType({ id: 'type-s', name: 'Type sessie' });
+      for (const t of leaves(s).slice(0, 2)) s.updateTask(t.id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-s' });
+      const c = s.addActivityCodeType('Code sessie'), v = s.addActivityCodeValue(c, { code: 'S', description: 'Sessie' });
+      s.setTaskActivityCode(leaves(s)[0].id, c, v); s.saveBaseline('Sessie B1'); s.saveBaseline('Sessie B2');
+    }],
+    ['2 code hernoemen en aan tweede taak', s => {
+      const c = s.activityCodeTypes.find((c: any) => c.name === 'Code sessie'); s.renameActivityCodeType(c.id, 'Code sessie hernoemd');
+      s.setTaskActivityCode(leaves(s)[1].id, c.id, c.values[0].id);
+    }],
+    ['7 niets bewerken (opnieuw Ctrl+S)', () => {}],
+  ];
+  nextCase();
+  const opened = await openForeign(SOURCES[which]);
+  let source = opened.ifcSource!, d: Domain = cloneDomain(opened);
+  for (const [label, f] of steps) {
+    const next = await se(f)(d);
+    const o = await save(next, source);
+    console.log(`UITKOMST ${clock.mode} sessie ${which}: stap ${label}: ${summary(o)}`);
+    ok(`${clock.mode} sessie ${which}: stap ${label}: geen weigering door (c)`, o.ok || !o.kinds.includes('eigen-uitvoer'), o.ok ? '' : o.detail);
+    if (!o.ok) break;
+    if (label.startsWith('7')) ok(`${clock.mode} sessie ${which}: niets bewerkt geeft de vorige uitvoer terug`, sameBytes(o.bytes, source.bytes));
+    source = o.next; d = next;
+  }
+}
+
+/** Een onbekende `IfcSimplePropertyTemplate` van een ander programma in de lijst van het codetemplate (review van #953). */
+function withForeignTemplate(bytes: Uint8Array): Uint8Array {
+  let owner = '';
+  let t = latin1(bytes).split('\n').map(s => {
+    const l = parseOutLine(s.replace(/\r$/, ''));
+    if (!l || l.type !== 'IFCPROPERTYSETTEMPLATE' || l.args[2] !== `'${PSET.ActivityCodes}'`) return s;
+    owner = l.args[1];
+    const args = [...l.args]; args[6] = args[6].replace(/\)$/, ',#95001)');
+    return `#${l.id}=${l.type}(${args.join(',')});${s.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(owner, 'codetemplate niet gevonden');
+  const at = t.lastIndexOf('ENDSEC;');
+  t = `${t.slice(0, at)}#95001=IFCSIMPLEPROPERTYTEMPLATE('0MVR953FOREIGNTEMPLATE',${owner},'VendorReviewTemplate',$,.P_SINGLEVALUE.,'IfcText',$,$,$,$,$,$);\n${t.slice(at)}`;
+  return bytesOf(t);
+}
+const foreignTemplateKept = (text: string) => text.includes("#95001=IFCSIMPLEPROPERTYTEMPLATE('0MVR953FOREIGNTEMPLATE'")
+  && new RegExp(`=IFCPROPERTYSETTEMPLATE\\('[^']*',#\\d+,'${PSET.ActivityCodes}',[^\\n]*#95001[,)]`).test(text);
+
+async function foreignMember() {
+  const eigen = SOURCES.eigen;
+  const bl = withForeignMember(eigen, PSET.Baselines);
+  const cat = withForeignMember(await savedCatalog(eigen), PSET.StructureMeta);
+  const cases: [string, Uint8Array, (d: Domain) => Promise<Domain> | Domain][] = [
+    ['vreemd lid in OPS_Baselines: projectbeschrijving', bl, se(s => s.setProject({ description: 'Alleen beschrijving' }))],
+    ['vreemd lid in OPS_Baselines: baseline erbij', bl, se(s => s.saveBaseline('Met vreemd lid'))],
+    ['vreemd lid in OPS_StructureMeta: tweede code', cat, se(s => { const c = s.addActivityCodeType('Code met vreemd lid'); s.addActivityCodeValue(c, { code: 'V', description: 'V' }); })],
+  ];
+  for (const [label, bytes, edit] of cases) {
+    const { o } = await edited(label, bytes, edit, true);
+    if (!o.ok) continue;
+    const text = latin1(o.bytes);
+    ok(`${label}: het vreemde lid blijft staan`, foreignMemberKept(text, label.includes('Baselines') ? PSET.Baselines : PSET.StructureMeta));
+  }
+  // Een vreemd lid in een eigen template (review van #953, ronde 1): de basis schrijft dit met lid en koppeling.
+  const tmpl = withForeignTemplate(await savedCatalog(eigen));
+  {
+    const { o } = await edited('vreemd lid in het codetemplate: projectbeschrijving', tmpl, se(s => s.setProject({ description: 'Alleen de projectbeschrijving door review 953' })), true);
+    if (o.ok) {
+      ok('vreemd lid in het codetemplate: lid en koppeling blijven staan', foreignTemplateKept(latin1(o.bytes)));
+    }
+    clockStart();
+    const opened = await openForeign(tmpl);
+    const same = await save(cloneDomain(opened), opened.ifcSource!);
+    ok('vreemd lid in het codetemplate: niets bewerkt geeft de bronbytes terug', same.ok && sameBytes(same.bytes, tmpl));
+  }
+  // Het laatste eigen lid valt weg, alleen het vreemde lid blijft (review van #953, ronde 2): een pset met uitsluitend
+  // vreemde leden is geen groep van (c). Sinds stap 5 deel 1 (was knownbug 1707) schrijft dit: de merge zet een pset met alleen
+  // het vreemde lid neer. Wat het lidmaatschap bewaakt, staat in blok 9.
+  {
+    const { o } = await edited('vreemd lid in OPS_Baselines: alle baselines weg', bl, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), true);
+    if (o.ok) ok('vreemd lid in OPS_Baselines: alle baselines weg: het vreemde lid blijft staan', foreignMemberKept(latin1(o.bytes), PSET.Baselines));
+  }
+  // Niets bewerkt: de bronbytes terug.
+  clockStart();
+  const opened = await openForeign(bl);
+  const o = await save(cloneDomain(opened), opened.ifcSource!);
+  console.log(`UITKOMST ${clock.mode} vreemd lid in OPS_Baselines: niets: ${summary(o)}`);
+  ok('vreemd lid in OPS_Baselines: niets bewerkt geeft de bronbytes terug', o.ok && sameBytes(o.bytes, bl));
+}
+
+{
+  // Een `#n` in tekst is geen verwijzing (review van #953, ronde 1): #6 hoort via #7/#8 bij OPS_Project.
+  const lines: OutLine[] = [
+    { id: 1, type: 'IFCPROJECT', args: [] },
+    { id: 2, type: 'IFCPROPERTYSINGLEVALUE', args: ["'Author'", '$', "IFCTEXT('#6')", '$'] },
+    { id: 3, type: 'IFCPROPERTYSET', args: ["'g1'", '$', `'${PSET.ProjectSettings}'`, '$', '(#2)'] },
+    { id: 4, type: 'IFCRELDEFINESBYPROPERTIES', args: ["'g2'", '$', '$', '$', '(#1)', '#3'] },
+    { id: 6, type: 'IFCPROPERTYSINGLEVALUE', args: ["'TimeModel'", '$', "IFCLABEL('MINUTES')", '$'] },
+    { id: 7, type: 'IFCPROPERTYSET', args: ["'g3'", '$', `'${PSET.Project}'`, '$', '(#6)'] },
+    { id: 8, type: 'IFCRELDEFINESBYPROPERTIES', args: ["'g4'", '$', '$', '$', '(#1)', '#7'] },
+  ];
+  const m = ownGroupMembers(linesView(lines));
+  ok("indeling: IFCTEXT('#6') verwijst niet; #6 hoort bij OPS_Project", m.get(6) === PSET.Project && m.get(2) === PSET.ProjectSettings, `${m.get(6)} / ${m.get(2)}`);
+}
+{
+  // Review van #953, ronde 2: alleen een niet-lege lijst met uitsluitend vreemde leden maakt een pset of IfcRelDeclares geen groep.
+  const groupsOf = (members: string, declared: string) => new Set(ownGroupMembers(linesView([
+    { id: 1, type: 'IFCPROJECT', args: [] },
+    { id: 2, type: 'IFCPROPERTYSINGLEVALUE', args: ["'Eigen'", '$', "IFCLABEL('x')", '$'] },
+    { id: 3, type: 'IFCPROPERTYSET', args: ["'g1'", '$', `'${PSET.SchedulingProfile}'`, '$', members] },
+    { id: 4, type: 'IFCRELDEFINESBYPROPERTIES', args: ["'g2'", '$', '$', '$', '(#1)', '#3'] },
+    { id: 5, type: 'IFCPROPERTYSETTEMPLATE', args: ["'g3'", '$', `'${PSET.ActivityCodes}'`, '$', '.PSET_TYPEDRIVENOVERRIDE.', '$', '()'] },
+    { id: 6, type: 'IFCRELDECLARES', args: ["'g4'", '$', '$', '$', '#1', declared] },
+  ])).values());
+  const empty = groupsOf('()', '()'), own = groupsOf('(#2,#900)', '(#5,#901)'), foreign = groupsOf('(#900)', '(#901)');
+  ok('indeling: een lege pset en een lege IfcRelDeclares zijn een groep', empty.has(PSET.SchedulingProfile) && empty.has(PSET.StructureMeta), [...empty].join(','));
+  ok('indeling: met minstens één eigen lid een groep', own.has(PSET.SchedulingProfile) && own.has(PSET.StructureMeta), [...own].join(','));
+  ok('indeling: uitsluitend vreemde leden is geen groep', !foreign.has(PSET.SchedulingProfile) && !foreign.has(PSET.StructureMeta), [...foreign].join(','));
+}
+
+for (const mode of ['vast', 'lopend'] as const) {
+  clock.mode = mode;
+  for (const which of mode === 'vast' ? ['eigen', 'kantoor', 'oud'] as const : ['eigen'] as const) await noNewRefusal(which);
+  for (const which of mode === 'vast' ? ['eigen', 'kantoor'] as const : ['eigen'] as const) await session(which);
+  if (mode === 'vast') await foreignMember();
+}
+clock.mode = 'vast';
+
+// ── 3. Niets veranderd: de bronbytes terug, zonder (c). Op die bytes zegt (c) soms "nee": ze zijn niet door deze writer
+// geschreven (een oudere versie, of een bron die niet in de vorm van de writer staat). Dat legt dit vast. ──
+for (const [which, raw] of Object.entries(SOURCES)) {
+  clockStart();
+  const opened = await openForeign(raw), source = opened.ifcSource!, input = cloneDomain(opened);
+  const o = await save(input, source);
+  ok(`${which}: niets bewerkt geeft de bronbytes terug`, o.ok && sameBytes(o.bytes, raw));
+  clockStart();
+  let verdict = 'ja';
+  try { await checkMergeOutput(raw, input, source, { stepIds: source.stepIds, writtenAt: new Date(), skip: new Set(), slots: [] }); }
+  catch (e) { if (!(e instanceof MergeNeedsPhase2Error)) throw e; verdict = `nee (${e.cases[0].detail.slice(0, 160)})`; }
+  console.log(`BEWIJS ${which}: (c) op de bronbytes zelf: ${verdict}`);
+}
+
+// ── 2. Tegenproeven op de echte uitvoer ──
+const linesIn = (bytes: Uint8Array) => latin1(bytes).split('\n');
+type Mutate = (lines: OutLine[]) => void;
+/** Pas de geparste regels van de uitvoer aan en zet ze terug in de bytes; de rest blijft byte voor byte gelijk. */
+function mutated(bytes: Uint8Array, mutate: Mutate): Uint8Array {
+  const raw = linesIn(bytes);
+  const parsed = raw.map(l => parseOutLine(l.replace(/\r$/, '')));
+  const lines = parsed.filter((l): l is OutLine => !!l).map(l => ({ ...l, args: [...l.args] }));
+  const before = lines.map(l => JSON.stringify(l.args));
+  mutate(lines);
+  const byId = new Map(lines.map((l, i) => [l.id, { l, changed: JSON.stringify(l.args) !== before[i] }]));
+  let changed = 0;
+  const out = raw.map(text => {
+    const p = parseOutLine(text.replace(/\r$/, ''));
+    const m = p && byId.get(p.id);
+    if (!m?.changed) return text;
+    changed++;
+    return `#${m.l.id}=${m.l.type}(${m.l.args.join(',')});${text.endsWith('\r') ? '\r' : ''}`;
+  });
+  assert(changed > 0, 'de tegenproef veranderde de uitvoer niet');
+  return bytesOf(out.join('\n'));
+}
+const prop = (ls: OutLine[], name: string) => {
+  const l = ls.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === `'${name}'`);
+  assert(l, `property ${name} niet in de uitvoer`); return l;
+};
+const setArg = (l: OutLine, k: number, v: string) => { (l.args as string[])[k] = v; };
+const jsonOf = (l: OutLine): any => JSON.parse(decodeStepText(/^IFCTEXT\(('[\s\S]*')\)$/.exec(l.args[2].trim())![1].slice(1, -1).replace(/''/g, "'")));
+const alterJson = (name: string, edit: (v: any) => void): Mutate => ls => { const l = prop(ls, name), v = jsonOf(l); edit(v); setArg(l, 2, `IFCTEXT(${ifcJson(v)})`); };
+
+let lastDetail = '';
+async function verdict(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource, own?: Parameters<typeof checkMergeOutput>[3]): Promise<string> {
+  clockStart(); lastDetail = '';
+  try { await checkMergeOutput(bytes, input, source, own); return 'laat door'; }
+  catch (e) { if (!(e instanceof MergeNeedsPhase2Error)) throw e; lastDetail = e.cases[0].detail.slice(0, 200); return e.cases[0].kind; }
+}
+/** Een basis: een geslaagde opslag, en wat (c) daarvoor nodig heeft (de sessiekaart en de klok van die opslag). (c) toetst
+ *  alle groepen; `real` (PR A): wat (c) met de slots van (b) doet, zoals de opslag het meldt (`restored`; op de basis:
+ *  niets). */
+async function base(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, real = false) {
+  nextCase();
+  const opened = await openForeign(bytes), source = opened.ifcSource!;
+  const input = await edit(cloneDomain(opened));
+  const o = await save(input, source);
+  assert(o.ok, `basis ${label} schrijft`);
+  if (real) console.log(`UITKOMST ${clock.mode} ${label}: ${summary(o)}`);
+  const own = { stepIds: o.next.stepIds, writtenAt: new Date(BASE), skip: new Set(real ? o.restored?.skip : []), slots: real ? o.restored?.slots ?? [] : [] };
+  ok(`basis ${label}: de echte uitvoer slaagt met (c)`, await verdict(o.bytes, input, source, own) === 'laat door', lastDetail);
+  return { bytes: o.bytes, input, source, own };
+}
+const caughtOnlyByC: string[] = [];
+async function counterProof(b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate | Uint8Array, onlyC = false) {
+  const m = mutate instanceof Uint8Array ? mutate : mutated(b.bytes, mutate);
+  const without = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
+  console.log(`TEGENPROEF ${label}: zonder (c) ${without}; met (c) ${withC} (${lastDetail})`);
+  const named = /niet-P-stuk #(\d+)/.exec(lastDetail);
+  if (named) console.log(`  dat stuk: ${linesIn(m).find(l => l.startsWith(`#${named[1]}=`))?.slice(0, 200)}`);
+  ok(`tegenproef ${label}: geweigerd`, withC !== 'laat door');
+  if (without === 'laat door' && withC === 'eigen-uitvoer') caughtOnlyByC.push(label);
+  if (onlyC) ok(`tegenproef ${label}: de basis laat hem door, (c) vangt hem`, without === 'laat door' && withC === 'eigen-uitvoer', `${without} / ${withC}`);
+}
+
+{
+  const eigen = SOURCES.eigen;
+  const cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
+  // De twee die de basis doorlaat: een verkeerde typenaam (ObjectType) op de taak waarvan de planner het type veranderde.
+  for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
+    const b = await base(`7d ${label}`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
+    const before = b.source.opened!.tasks, after = b.input.tasks;
+    const changed = after.find(t => t.customTaskTypeId && t.customTaskTypeId !== before.find(o => o.id === t.id)?.customTaskTypeId)!;
+    const guid = b.input.ifcGlobalIds?.[`task:${changed.id}`];
+    assert(guid, `${label}: GlobalId van de gewijzigde taak`);
+    await counterProof(b, `ObjectType ${label}: typenaam op de gewijzigde taak fout`, ls => {
+      const t = ls.find(l => l.type === 'IFCTASK' && l.args[0] === `'${guid}'`)!; setArg(t, 4, "'Verkeerde typenaam'");
+    }, true);
+    await counterProof(b, `TaskTypes ${label}: extra definitie zonder handeling`, alterJson('TaskTypes', v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }));
+  }
+  // Templates en enumeraties (1591), op de tweede code.
+  {
+    const b = await base('7d tweede code', cat, d => applyEdit(fixedCatalogEdits(d)[0], d));
+    const tmpl = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
+    const byRef = (ls: OutLine[], r: string) => ls.find(l => `#${l.id}` === r.trim())!;
+    const refsOf = (ls: OutLine[]) => tmpl(ls).args[6].trim().slice(1, -1).split(',');
+    const enumOf = (ls: OutLine[], k: number) => byRef(ls, byRef(ls, refsOf(ls)[k]).args[7].trim());
+    await counterProof(b, '1591 enumeratielabel nieuwe code B → DAK', ls => { setArg(enumOf(ls, 1), 1, "(IFCLABEL('DAK'))"); }, true);
+    await counterProof(b, '1591 enumeratielabel oude code A → DAK', ls => { setArg(enumOf(ls, 0), 1, "(IFCLABEL('DAK'))"); }, true);
+    await counterProof(b, 'template: oude definitie gewijzigd', ls => { setArg(byRef(ls, refsOf(ls)[0]), 2, "'Verloren oude code'"); });
+    await counterProof(b, 'template: oude definitie weg', ls => { setArg(tmpl(ls), 6, `(${refsOf(ls).slice(1).join(',')})`); });
+    await counterProof(b, 'template: meettype toegevoegd', ls => { setArg(byRef(ls, refsOf(ls)[1]), 5, "'IfcText'"); }, true);
+    await counterProof(b, 'StructureMeta: codewaarde gewijzigd', alterJson('structure', v => { v.activityCodeTypes[0].values[0].code = 'X'; }));
+  }
+  // TaskGuids en de baselinekop, op een andere actieve baseline.
+  {
+    const b = await base('7d actieve baseline', cat, d => applyEdit(fixedCatalogEdits(d)[3], d));
+    await counterProof(b, 'TaskGuids: één GUID anders', alterJson('TaskGuids', v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), true);
+    await counterProof(b, 'baselinekop: naam anders (alleen de kop)', ls => {
+      const h = ls.find(l => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.'))!; setArg(h, 2, "'Andere kopnaam'");
+    });
+    const head = (ls: OutLine[]) => ls.find(l => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.'))!;
+    await counterProof(b, 'baselinekop: omschrijving anders', ls => { setArg(head(ls), 3, "'Andere omschrijving'"); }, true);
+    await counterProof(b, 'baselinekop: aanmaakdatum anders', ls => { setArg(head(ls), 6, "'2001-01-01T00:00:00'"); });
+    await counterProof(b, 'ActiveBaselineId wijst naar een onbekende', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr('onbekend')})`); });
+  }
+  // PR 12c: fouten rond de baselinekop in de echte uitvoer van "één baseline wissen" (sinds PR 12c schrijft die opslag; de
+  // kop in de aggregatie van het werkplan beweegt in de verliescontrole mee met zijn baseline). Elke fout moet de controle
+  // op de echte uitvoer vangen; de regel zegt welke.
+  {
+    const b = await base('kop: één baseline wissen', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+    const ls0 = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+    const planId = ls0.find(l => l.type === 'IFCWORKPLAN')!.id;
+    const agg = (ls: OutLine[]) => ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[4].trim() === `#${planId}`)!;
+    const projectAgg = (ls: OutLine[]) => ls.find(l => l.type === 'IFCRELAGGREGATES' && ls.find(x => `#${x.id}` === l.args[4].trim())?.type === 'IFCPROJECT')!;
+    const members = (l: OutLine) => l.args[5].trim().slice(1, -1).split(',').map(x => x.trim());
+    const heads = ls0.filter(isHead);
+    assert(heads.length === 2 && projectAgg(ls0), 'kop: twee koppen na wissen, en een aggregatie van het project');
+    const [h1] = heads;
+    const gone = linesIn(cat).find(l => /^#\d+=IFCWORKSCHEDULE\(/.test(l) && l.includes('.BASELINE.')
+      && !heads.some(h => l.startsWith(`#${h.id}=`)))!;
+    assert(gone, 'kop: de kop van de gewiste baseline in de bron');
+    const goneId = /^#(\d+)=/.exec(gone)![1];
+    const nextId = Math.max(...ls0.map(l => l.id)) + 1;
+    const dropLine = (bytes: Uint8Array, id: number) => bytesOf(linesIn(bytes).filter(l => !l.startsWith(`#${id}=`)).join('\n'));
+    const moved = mutated(b.bytes, ls => {
+      setArg(agg(ls), 5, `(${members(agg(ls)).filter(id => id !== `#${h1.id}`).join(',')})`);
+      setArg(projectAgg(ls), 5, `(${[...members(projectAgg(ls)), `#${h1.id}`].join(',')})`);
+    });
+    const proofs: [string, Uint8Array][] = [
+      ['een kop te veel', bytesOf(withLines(latin1(mutated(b.bytes, ls => { setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${nextId}`].join(',')})`); })),
+        [`#${nextId}=IFCWORKSCHEDULE('0R12CEXTRAKOP0000000000',${h1.args.slice(1).join(',')});`]))],
+      ['een kop te weinig', dropLine(mutated(b.bytes, ls => { setArg(agg(ls), 5, `(${members(agg(ls)).filter(id => id !== `#${h1.id}`).join(',')})`); }), h1.id)],
+      ['een kop met een verkeerde naam', mutated(b.bytes, ls => { setArg(ls.find(l => l.id === h1.id)!, 2, "'Verkeerde kopnaam'"); })],
+      ['een kop met een verkeerde aanmaakdatum', mutated(b.bytes, ls => { setArg(ls.find(l => l.id === h1.id)!, 6, "'2001-01-01T00:00:00'"); })],
+      ['een kop in de aggregatie van het project (1705)', moved],
+      ['de kop van de gewiste baseline blijft staan', bytesOf(withLines(latin1(mutated(b.bytes, ls => {
+        setArg(agg(ls), 5, `(${[...members(agg(ls)), `#${goneId}`].join(',')})`);
+      })), [gone.replace(/\r$/, '')]))],
+      ['een kop verwisseld (die van de gewiste baseline in plaats van een blijvende)', bytesOf(withLines(latin1(dropLine(mutated(b.bytes, ls => {
+        setArg(agg(ls), 5, `(${members(agg(ls)).map(id => id === `#${h1.id}` ? `#${goneId}` : id).join(',')})`);
+      }), h1.id)), [gone.replace(/\r$/, '')]))],
+    ];
+    // (c) zelf: de boomvorm van de koppen in de uitvoer. De lezer leest de koppen niet (de baselines staan in het JSON), dus
+    // de herschreven kant is voor elke tegenproef dezelfde als voor de goede uitvoer; ziet de boomvorm van de uitvoer een
+    // verschil, dan weigert (c), ook als de volledige uitvoercontrole hem niet eerder had gevangen. Zo ook knownbug 1705: de
+    // boomvorm noemt de aggregatie van elke kop.
+    // Eigen regels zoals in `ownOutputProblem`: een stuk dat in de bron P is, of nieuw.
+    const sourceIndex = scanForeignStep(b.source.bytes), sourceCls = classify(sourceIndex);
+    const headTrees = (bytes: Uint8Array) => {
+      const index = scanForeignStep(bytes);
+      const own = (i: number) => { const c = sourceIndex.chunkOf(index.id(i)); return c < 0 || sourceCls.classes[c] === 1; };
+      return ownGroupTrees(indexView(index, own)).get(BASELINE_HEADS)?.join('\n') ?? '';
+    };
+    const good = headTrees(b.bytes);
+    ok('kop: de koppen staan in de aggregatie van het eigen werkplan', good.split('\n').every(t => t.startsWith('eigen IFCWORKPLAN|')), good);
+    for (const [label, m] of proofs) {
+      await counterProof(b, `kop: ${label}`, m);
+      const tree = headTrees(m);
+      console.log(`BEWIJS (c) kop: ${label}: ${tree === good ? 'GEEN VERSCHIL' : `verschil, «${tree.split('\n').filter(t => !good.split('\n').includes(t)).join(' / ').slice(0, 160) || `${tree.split('\n').length} koppen in plaats van ${good.split('\n').length}`}»`}`);
+      ok(`kop: ${label}: (c) zelf ziet het`, tree !== good);
+    }
+  }
+  // Een fout in een eigen template van een bestand met een vreemd templatelid blijft geweigerd (review van #953).
+  {
+    const b = await base('vreemd templatelid: projectbeschrijving', withForeignTemplate(cat), se(s => s.setProject({ description: 'Alleen beschrijving' })));
+    const own = (ls: OutLine[]) => {
+      const t = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
+      return ls.find(l => `#${l.id}` === t.args[6].trim().slice(1, -1).split(',')[0].trim())!;
+    };
+    await counterProof(b, 'vreemd templatelid: AccessState van een eigen template $ → .READONLY.', ls => { setArg(own(ls), 11, '.READONLY.'); }, true);
+  }
+  // 7c: TaskGuids groeit (taak + baseline).
+  {
+    const seq = await savedSequence(eigen);
+    const b = await base('7c taak + baseline', seq, d => applyEdit(fixedSequenceEdits(d)[0], d));
+    const added = b.input.tasks.find(t => !b.source.opened!.tasks.some(o => o.id === t.id))!;
+    await counterProof(b, 'TaskGuids: nieuwe GUID verkeerd', alterJson('TaskGuids', v => { v[added.id] = 'verkeerde-guid'; }), true);
+    await counterProof(b, 'TaskGuids: oude koppeling weg', alterJson('TaskGuids', v => { delete v[Object.keys(v).find(k => k !== added.id)!]; }), true);
+  }
+  // Een lege eigen pset erbij (review van #953, ronde 2): de writer schrijft geen OPS_SchedulingProfile, (c) moet hem vangen.
+  {
+    const b = await base('lege eigen pset: projectbeschrijving', eigen, se(s => s.setProject({ description: 'Review 953 psetgrens' })));
+    const ls = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    ok('lege eigen pset: de goede uitvoer heeft geen OPS_SchedulingProfile', !ls.some(l => l.type === 'IFCPROPERTYSET' && l.args[2] === `'${PSET.SchedulingProfile}'`));
+    const owner = ls.find(l => l.type === 'IFCPROPERTYSET')!.args[1];
+    const schedule = ls.find(l => l.type === 'IFCWORKSCHEDULE' && !l.args.includes('.BASELINE.'))!;
+    const m = bytesOf(withLines(latin1(b.bytes), [
+      `#95500=IFCPROPERTYSET('0R953REVIEWEMPTYPS0000',${owner},'${PSET.SchedulingProfile}',$,());`,
+      `#95501=IFCRELDEFINESBYPROPERTIES('0R953REVIEWEMPTYREL000',${owner},$,$,(#${schedule.id}),#95500);`,
+    ]));
+    const without = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
+    console.log(`TEGENPROEF lege eigen ${PSET.SchedulingProfile}-pset erbij: zonder (c) ${without}; met (c) ${withC} (${lastDetail})`);
+    ok('tegenproef lege eigen pset erbij: de basis laat hem door, (c) vangt hem', without === 'laat door' && withC === 'eigen-uitvoer', `${without} / ${withC}`);
+    if (without === 'laat door' && withC === 'eigen-uitvoer') caughtOnlyByC.push('lege eigen pset erbij');
+  }
+  console.log(`BEWIJS alleen (c) vangt: ${caughtOnlyByC.length} — ${caughtOnlyByC.join('; ')}`);
+}
+
+// ── De andere tegenproeven van het onderzoek (`proef-mutaties.ts`; PR 12b) ──
+// Sinds PR 12b hoeft een verschil in een gedragen eigen groep in de verliescontrole geen bewerking meer te verklaren. Een
+// fout van de writer in zo'n groep moet dus de controle op de echte uitvoer vangen: (c) of de controle na openen. Op de
+// basis ving de verliescontrole deze fouten al in O1; hier staan ze op de uitvoer van een geslaagde opslag, door de volledige
+// uitvoercontrole met (c). Plus "de echte uitvoer zonder dat de planner iets deed": de uitvoer van een bewerking, getoetst
+// tegen het onbewerkte domein.
+{
+  const eigen = SOURCES.eigen;
+  const seq = await savedSequence(eigen), cat = await savedCatalog(eigen), single = await savedCatalog(eigen, false);
+  const json = (bytes: Uint8Array, name: string) => jsonOf(prop(linesIn(bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l), name));
+  const unedited = async (b: Awaited<ReturnType<typeof base>>, label: string) => {
+    const withC = await verdict(b.bytes, cloneDomain(b.source.opened! as Parameters<typeof cloneDomain>[0]), b.source, b.own);
+    console.log(`TEGENPROEF ${label}: echte uitvoer zonder plannerhandeling: met (c) ${withC} (${lastDetail})`);
+    ok(`tegenproef ${label}: echte uitvoer zonder plannerhandeling geweigerd`, withC !== 'laat door');
+  };
+  // 7c: de twee groeiende kaarten (TaskGuids bij taak + baseline, TaskTypes bij taak + bestaand type).
+  for (const [kind, i] of [['TaskGuids', 0], ['TaskTypes', 2]] as const) {
+    const b = await base(`7c ${kind}`, seq, d => applyEdit(fixedSequenceEdits(d)[i], d));
+    const map = (v: any) => kind === 'TaskGuids' ? v : v.taskTypeIds;
+    const before = json(b.source.bytes, kind), after = json(b.bytes, kind);
+    const oldKey = Object.keys(map(before))[0], newKey = Object.keys(map(after)).find(k => !(k in map(before)))!;
+    assert(oldKey && newKey, `7c ${kind}: een oude en een nieuwe koppeling`);
+    const variants: [string, (v: any) => void][] = [
+      ['oude koppeling gewijzigd', v => { map(v)[oldKey] = 'verkeerde-waarde'; }],
+      ['nieuwe koppeling weg', v => { delete map(v)[newKey]; }],
+    ];
+    // Tot PR 12e liet (c) een extra sleutel zonder taak in `TaskGuids` door (de weesregel van de canon, knownbug 1706).
+    if (kind === 'TaskGuids') await counterProof(b, '7c TaskGuids: onverwachte nieuwe sleutel zonder taak (1706)', alterJson(kind, v => { map(v)['onverwacht'] = map(v)[newKey]; }), true);
+    else variants.push(['onverwachte nieuwe sleutel', v => { map(v)['onverwacht'] = map(v)[newKey]; }]);
+    if (kind === 'TaskTypes') variants.push(['oude koppeling weg', v => { delete map(v)[oldKey]; }],
+      ['nieuwe sleutel verkeerd', v => { map(v)['verkeerde-taak'] = map(v)[newKey]; delete map(v)[newKey]; }],
+      ['definitie gewijzigd', v => { v.definitions[0].name = 'Ongevraagde naam'; }], ['nieuw type verkeerd', v => { map(v)[newKey] = 'onbekend-type'; }]);
+    for (const [label, f] of variants) await counterProof(b, `7c ${kind}: ${label}`, alterJson(kind, f));
+    await unedited(b, `7c ${kind}`);
+  }
+  // 7d: de templates van de codes (tweede code).
+  {
+    const b = await base('7d tweede code (onderzoek)', cat, d => applyEdit(fixedCatalogEdits(d)[0], d));
+    const tmpl = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2] === `'${PSET.ActivityCodes}'`)!;
+    const refsOf = (ls: OutLine[]) => tmpl(ls).args[6].trim().slice(1, -1).split(',');
+    const byRef = (ls: OutLine[], r: string) => ls.find(l => `#${l.id}` === r.trim())!;
+    await counterProof(b, 'template: verwachte wijziging ontbreekt (alleen de oude definitie)', ls => { setArg(tmpl(ls), 6, `(${refsOf(ls)[0]})`); });
+    await counterProof(b, 'template: twee keer dezelfde definitie', ls => { const r = refsOf(ls); setArg(tmpl(ls), 6, `(${r[0]},${r[0]})`); });
+    await counterProof(b, 'template: extra definitie zonder handeling', ls => { const r = refsOf(ls); setArg(tmpl(ls), 6, `(${[...r, r[0]].join(',')})`); });
+    await counterProof(b, 'template: nieuwe definitie verkeerde naam', ls => { setArg(byRef(ls, refsOf(ls)[1]), 2, "'Ongevraagde code'"); });
+    await unedited(b, '7d tweede code');
+  }
+  // 7d: TaskTypes bij een nieuw type en bij een typewissel.
+  for (const [label, bytes, i] of [['nieuw type', single, 1], ['typewissel', cat, 2]] as const) {
+    const b = await base(`7d ${label} (onderzoek)`, bytes, d => applyEdit(fixedCatalogEdits(d)[i], d));
+    const before = json(b.source.bytes, 'TaskTypes'), after = json(b.bytes, 'TaskTypes');
+    const changed = Object.keys(after.taskTypeIds).find(k => before.taskTypeIds[k] !== after.taskTypeIds[k])!;
+    const other = Object.keys(before.taskTypeIds).find(k => k !== changed)!;
+    assert(changed && other, `7d ${label}: een gewijzigde en een andere koppeling`);
+    const variants: [string, (v: any) => void][] = [
+      ['oude definitie weg', v => { v.definitions.shift(); }],
+      ['oude definitie gewijzigd', v => { v.definitions[0].name = 'Verloren naam'; }],
+      ['onaangeraakte koppeling gewijzigd', v => { v.taskTypeIds[other] = v.taskTypeIds[other] === 'type-7d-b' ? 'type-7d-a' : 'type-7d-b'; }],
+      ['gewijzigde koppeling verkeerde waarde', v => { v.taskTypeIds[changed] = before.taskTypeIds[changed] ?? 'type-7d-a'; }],
+      ['koppeling naar een onbekende definitie', v => { v.taskTypeIds[changed] = 'onbekend'; }],
+    ];
+    for (const [l, f] of variants) await counterProof(b, `TaskTypes ${label}: ${l}`, alterJson('TaskTypes', f));
+    await unedited(b, `7d ${label}`);
+  }
+  // 7d: de actieve baseline en de baselinegegevens.
+  {
+    const b = await base('7d actieve baseline (onderzoek)', cat, d => applyEdit(fixedCatalogEdits(d)[3], d));
+    const opened = b.source.opened!, other = b.input.baselines!.find(x => x.id !== b.input.activeBaselineId && x.id !== opened.activeBaselineId);
+    await counterProof(b, 'ActiveBaselineId wijst naar de oude actieve', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr(opened.activeBaselineId!)})`); });
+    if (other) await counterProof(b, 'ActiveBaselineId wijst naar een andere bestaande', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr(other.id)})`); });
+    await counterProof(b, 'Baselines leeg', ls => { setArg(prop(ls, 'Baselines'), 2, "IFCTEXT('[]')"); });
+    await counterProof(b, 'Baselines: één rijdatum anders', alterJson('Baselines', v => {
+      const row = v[0].tasks[0]; const k = Object.keys(row).find(k => /start/i.test(k))!; row[k] = '2001-01-01';
+    }));
+    await unedited(b, '7d actieve baseline');
+  }
+  // Projectinstellingen: een veld dat de lezer leest.
+  {
+    const b = await base('projectbeschrijving (onderzoek)', cat, se(s => { s.setProject({ description: 'Nieuwe omschrijving' }); }));
+    await counterProof(b, 'ProjectSettings: ProjectDescription anders', ls => { setArg(prop(ls, 'ProjectDescription'), 2, "IFCTEXT('Verkeerd')"); });
+  }
+}
+
+// ── De indeling: wat de writer op project en werkschema zet, is een groep; per-taak-psets niet. ──
+{
+  clockStart();
+  const out = await base('indeling', await savedCatalog(SOURCES.eigen), d => d);
+  const lines = linesIn(out.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+  const groups = new Set(ownGroupMembers(linesView(lines)).values());
+  const register = new Set<string>(Object.values(PSET));
+  console.log(`BEWIJS groepen in de catalogusuitvoer: ${[...groups].sort().join(', ')}`);
+  ok('indeling: elke groep is een eigen registerpset of de baselinekop', [...groups].every(g => register.has(g) || g === BASELINE_HEADS));
+  for (const g of [PSET.Project, PSET.ProjectSettings, PSET.StructureMeta, PSET.TaskTypes, PSET.Baselines]) {
+    ok(`indeling: ${g} is een groep`, groups.has(g));
+  }
+  for (const g of [PSET.TaskNotes, PSET.Assignments, PSET.Resource, PSET.Calendar, PSET.WorkRule]) ok(`indeling: ${g} (per object) is geen groep`, !groups.has(g));
+}
+
+// ── 6. PR 12d: de typenaam op de taak (E2) ──
+// Sinds PR 12d mag in de verliescontrole de typenaam (`ObjectType`) van een taak meebewegen als de planner haar type hernoemt
+// (knownbug 1586). Welke naam er staat, toetst (c): per taak (op GlobalId) de typenaam en het PredefinedType. Per
+// tegenproef: wat de verliescontrole met de toets ervan zegt (`lossProbe`), en de uitvoercontrole zonder en met (c). Staan
+// hier als laatste: op de basis schrijft "type A hernoemen" niet.
+{
+  const cat = await savedCatalog(SOURCES.eigen);
+  const isTask = (l: OutLine) => l.type === 'IFCTASK';
+  const named = (ls: OutLine[], name: string) => ls.filter(l => isTask(l) && l.args[4].trim() === `'${name}'`);
+  const typeProof = async (b: Awaited<ReturnType<typeof base>>, label: string, mutate: Mutate, onlyC: boolean) => {
+    const m = mutated(b.bytes, mutate);
+    const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
+    const found = p.run(linesIn(m).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l));
+    console.log(`TEGENPROEF ${label}: verliescontrole met de toets ${found.length ? 'weigert' : 'laat door'}`);
+    await counterProof(b, label, m, onlyC);
+  };
+  {
+    const b = await base('typenaam: type A hernoemen', cat, d => { d.customTaskTypes!.find(t => t.id === 'type-7d-a')!.name = 'Hernoemd type A'; return d; });
+    const ls0 = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const a = named(ls0, 'Hernoemd type A');
+    assert(a.length === 2 && named(ls0, 'Type 0 7d').length === 0, 'typenaam: twee A-taken met de nieuwe naam');
+    const at = (ls: OutLine[], id: number) => ls.find(l => l.id === id)!;
+    await typeProof(b, 'typenaam: een verkeerde naam op één van de twee A-taken', ls => { setArg(at(ls, a[1].id), 4, "'Verkeerde typenaam'"); }, true);
+    await typeProof(b, 'typenaam: de oude naam op één A-taak na hernoemen', ls => { setArg(at(ls, a[0].id), 4, "'Type 0 7d'"); }, true);
+    await typeProof(b, 'typenaam: de oude naam op beide A-taken na hernoemen', ls => { for (const x of a) setArg(at(ls, x.id), 4, "'Type 0 7d'"); }, true);
+    await typeProof(b, 'typenaam: de nieuwe naam van A op de B-taak', ls => { setArg(at(ls, named(ls0, 'Type 1 7d')[0].id), 4, "'Hernoemd type A'"); }, true);
+    await typeProof(b, 'typenaam: een A-taak verliest .USERDEFINED., de naam blijft', ls => { setArg(at(ls, a[0].id), 12, '.NOTDEFINED.'); }, false);
+  }
+  {
+    // De taak verliest haar type: de writer schrijft `$`; een typenaam die blijft staan, hoort er niet.
+    const b = await base('typenaam: het type weghalen bij een A-taak', cat, se(s => {
+      s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    }));
+    const was = b.source.opened!.tasks.find(t => t.customTaskTypeId === 'type-7d-a' && !b.input.tasks.find(x => x.id === t.id)?.customTaskTypeId)!;
+    const guid = b.input.ifcGlobalIds?.[`task:${was.id}`];
+    assert(guid, 'typenaam: GlobalId van de taak die haar type verloor');
+    await typeProof(b, 'typenaam: een typenaam op een taak die geen type meer heeft', ls => {
+      setArg(ls.find(l => isTask(l) && l.args[0] === `'${guid}'`)!, 4, "'Type 0 7d'");
+    }, true);
+  }
+  {
+    // Was het gat van knownbug 1747: zette (b) ergens een typenaam terug, dan toetste (c) de typenamen van geen enkele taak (de
+    // hele groep `taak:ObjectType`), en de verliescontrole van main ziet bij een typewissel alleen dat het slot mocht
+    // veranderen. Sinds PR A toetst (c) alleen het teruggezette slot van die ene taak niet (de overslag zoals de opslag hem
+    // meldt), dus een verkeerde typenaam op de taak die van type wisselde, vangt (c).
+    const b = await base('typenaam: typewissel, (b) zet een typenaam terug', withLabelOnUntypedTask(cat, 'Type 0 7d'), d => applyEdit(fixedCatalogEdits(d)[2], d), true);
+    const changed = b.input.tasks.find(t => t.customTaskTypeId && t.customTaskTypeId !== b.source.opened!.tasks.find(o => o.id === t.id)?.customTaskTypeId)!;
+    const guid = b.input.ifcGlobalIds?.[`task:${changed.id}`];
+    assert(guid, 'typenaam: GlobalId van de taak die van type wisselde');
+    const m = mutated(b.bytes, ls => { setArg(ls.find(l => isTask(l) && l.args[0] === `'${guid}'`)!, 4, "'Verkeerde typenaam'"); });
+    const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
+    const found = p.run(linesIn(m).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l));
+    const withoutC = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
+    console.log(`TEGENPROEF typenaam: (b) zet een typenaam terug, verkeerde naam na typewissel: verliescontrole ${found.length ? 'weigert' : 'laat door'}; zonder (c) ${withoutC}; met (c) ${withC} (was knownbug 1747)`);
+    ok('tegenproef typenaam: (b) zet een typenaam terug, verkeerde naam na typewissel: (c) vangt hem (was knownbug 1747)', withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
+  }
+  console.log(`BEWIJS alleen (c) vangt, met de typenaam: ${caughtOnlyByC.length}`);
+}
+
+const json = (bytes: Uint8Array, name: string) => jsonOf(prop(linesIn(bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l), name));
+/** De taak die de proeven van 7 en 8 wissen: een ongetypeerde taak in een baseline (de proef van de review van #960). */
+const orphanEdit = (keep: (id: string) => void) => se(s => {
+  const t = leaves(s).find((t: any) => !t.customTaskTypeId && s.baselines.some((x: any) => x.tasks.some((r: any) => r.taskId === t.id)));
+  keep(t.id); s.deleteTask(t.id);
+});
+
+// ── 7. PR 12e: (c) toetst de identiteit van de weesrij en van de baselinekop (knownbugs 1706 en 1746) ──
+// De tegenproeven van de reviews van #960 en #962, op de echte uitvoer van een gewone opslag, als nagebootste fout van de
+// writer. Tot PR 12e liet (c) ze alle vier door: een sleutel van `TaskGuids` zonder levende taak telde niet mee (de weesregel),
+// en van een baselinekop telde de GlobalId niet. Nu krijgt een weesrij in de herlezing de GlobalId van het domein
+// (`ownOutputProblem`), telt `TaskGuids` helemaal mee, en staat de kop met zijn GlobalId in de boomvorm (`ownGroupTrees`).
+{
+  const cat = await savedCatalog(SOURCES.eigen);
+  // 1706: een ongetypeerde taak uit de baselines wissen (de proef van de review van #960).
+  {
+    let removed = '';
+    const b = await base('weesrij: een taak uit de baselines wissen', cat, orphanEdit(id => { removed = id; }));
+    assert(json(b.bytes, 'TaskGuids')[removed], 'weesrij: de gewiste taak heeft een sleutel in TaskGuids');
+    await counterProof(b, '1706: een extra sleutel zonder rij in TaskGuids', alterJson('TaskGuids', v => { v['review-960-zonder-taak'] = '0000000000000000000001'; }), true);
+    await counterProof(b, '1706: een verkeerde GlobalId bij de rij van de gewiste taak', alterJson('TaskGuids', v => { v[removed] = '0000000000000000000001'; }), true);
+    await counterProof(b, '1706: de rij van de gewiste taak wijst naar een taak die er nog is', alterJson('TaskGuids', v => {
+      v[removed] = v[Object.keys(v).find(k => b.input.tasks.some(t => t.id === k))!];
+    }));
+    await counterProof(b, '1706: de sleutel van de gewiste taak weg', alterJson('TaskGuids', v => { delete v[removed]; }), true);
+  }
+  // 1746 (de proeven van de review van #962): twee koppen met verwisselde GlobalIds, na één baseline wissen.
+  {
+    const b = await base('kop: één baseline wissen (identiteit)', cat, se(s => { s.deleteBaseline(s.baselines[0].id); }));
+    const heads = (ls: OutLine[]) => ls.filter(l => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.'));
+    await counterProof(b, '1746: de GlobalIds van twee koppen verwisseld', ls => {
+      const [x, y] = heads(ls), g = x.args[0]; setArg(x, 0, y.args[0]); setArg(y, 0, g);
+    }, true);
+  }
+  // 1746: twee inhoudelijk gelijke koppen; de planner wist de eerste, en in de uitvoer blijft die staan in plaats van de
+  // blijvende (met de owner history van de goede uitvoer).
+  {
+    nextCase();
+    const opened = await openForeign(cat);
+    const renamed = await save(await se(s => { s.renameBaseline(s.baselines[2].id, s.baselines[1].name); })(cloneDomain(opened)), opened.ifcSource!);
+    assert(renamed.ok, 'kop: twee baselines met dezelfde naam schrijven');
+    const before = await openForeign(renamed.bytes), removeId = before.baselines![1].id;
+    const isHead = (l: OutLine) => l.type === 'IFCWORKSCHEDULE' && l.args.some(a => a.trim() === '.BASELINE.');
+    const from = linesIn(renamed.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const twins = from.filter(l => isHead(l) && l.args[2] === `'${before.baselines![1].name}'`);
+    assert(twins.length === 2 && twins[0].args.slice(2).join(',') === twins[1].args.slice(2).join(','), 'kop: twee inhoudelijk gelijke koppen');
+    const b = await base('kop: van twee gelijke koppen de eerste wissen', renamed.bytes, se(s => { s.deleteBaseline(removeId); }));
+    const ls = linesIn(b.bytes).map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+    const kept = ls.find(l => isHead(l) && l.args[2] === twins[0].args[2])!, gone = twins.find(l => l.id !== kept.id)!;
+    assert(kept && gone, 'kop: de blijvende en de gewiste kop');
+    const agg = ls.find(l => l.type === 'IFCRELAGGREGATES' && l.args[5].split(/[^\d]+/).includes(String(kept.id)))!;
+    const wrong = bytesOf(linesIn(b.bytes).map(t => {
+      const l = parseOutLine(t.replace(/\r$/, ''));
+      const r = !l ? undefined : l.id === kept.id ? { ...gone, args: gone.args.map((a, k) => k === 1 ? kept.args[1] : a) }
+        : l.id === agg.id ? { ...l, args: l.args.map((a, k) => k === 5 ? a.replace(new RegExp(`#${kept.id}(?=[,)])`), `#${gone.id}`) : a) } : undefined;
+      return r ? `#${r.id}=${r.type}(${r.args.join(',')});${t.endsWith('\r') ? '\r' : ''}` : t;
+    }).join('\n'));
+    await counterProof(b, '1746: bij gelijke koppen blijft de gewiste staan en verdwijnt de blijvende', wrong, true);
+  }
+}
+
+// ── 8. Fixronde 1 van PR 12e: één afleiding van de GlobalId van een weesrij ──
+// De merge neemt de GlobalId van een weesrij over uit de lezing van de bron (`ImportResult.baselineOrphanGuids`, gezet door
+// `extractBaselines`), en leidt hem niet zelf af. De proef zet in `TaskGuids` van een geschreven bron bij de weesrij een
+// waarde die geen tekst is (een getal), of haalt de sleutel weg, en vergelijkt dan de lezer met de merge: wat de lezer van
+// die bron aannam, schrijft de merge in `TaskGuids`, en neemt de lezer van de uitvoer weer aan. Tot de fixronde zocht
+// de merge de kaart zelf op en hashte hij bij een getal, en liepen lezer en merge daar uiteen (review van #968).
+/** Staat `key` ergens als eigen sleutel in `x` (objecten, arrays en Maps; geen bytes)? */
+function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
+  if (!x || typeof x !== 'object' || ArrayBuffer.isView(x) || seen.has(x)) return false;
+  seen.add(x);
+  if (Object.prototype.hasOwnProperty.call(x, key)) return true;
+  return (x instanceof Map ? [...x.values()] : Object.values(x)).some(v => hasKey(v, key, seen));
+}
+{
+  let removed = '';
+  const b = await base('weesrij: één afleiding', await savedCatalog(SOURCES.eigen), orphanEdit(id => { removed = id; }));
+  const assumed = async (bytes: Uint8Array): Promise<unknown> =>
+    (await readIfcBytesDetailed(bytes, {}, { createWorker: () => null })).result.baselineOrphanGuids?.[removed];
+  for (const [label, edit, number] of [
+    ['een getal als waarde', (v: Record<string, unknown>) => { v[removed] = 12345; }, true],
+    ['geen sleutel', (v: Record<string, unknown>) => { delete v[removed]; }, false],
+  ] as const) {
+    const source = mutated(b.bytes, alterJson('TaskGuids', edit));
+    const fromReader = await assumed(source);
+    ok(`één afleiding ${label}: de lezer nam voor de weesrij een GlobalId aan`, fromReader !== undefined && (!number || fromReader === 12345), String(fromReader));
+    // Het veld staat alleen in de lezing: niet in de store na openen (document, undo, herstel), en de gewone writer schrijft
+    // met en zonder het veld dezelfde tekst.
+    {
+      const reading = (await readIfcBytesDetailed(source, {}, { createWorker: () => null })).result as WriteIFCInput;
+      const withoutField = { ...reading };
+      delete (withoutField as { baselineOrphanGuids?: unknown }).baselineOrphanGuids;
+      ok(`één afleiding ${label}: de gewone writer negeert het veld`, writeIFCForComparison(reading) === writeIFCForComparison(withoutField));
+      const { store } = await openInStore(source);
+      ok(`één afleiding ${label}: het veld staat nergens in de store na openen`, !hasKey(store.getState(), 'baselineOrphanGuids'));
+    }
+    for (const [what, change] of [['een taak en een baseline erbij', se(s => { addTask(s, 'Eén afleiding'); s.saveBaseline('Eén afleiding'); })],
+      ['alleen de projectbeschrijving', se(s => { s.setProject({ description: 'Eén afleiding' }); })]] as const) {
+      // Met een getal schrijft de merge het getal zoals de lezer het aannam; (b) hoeft niets terug te zetten, dus ook een
+      // taak en een baseline erbij schrijft. Die geeft `TaskGuids` een nieuwe sleutel, dus daar schrijft de writer de kaart
+      // zelf, en zet (b) haar niet terug: alleen daar ziet de proef een eigen afleiding van de merge (een baseline alleen
+      // geeft dezelfde kaart, en dan zet (b) de bronwaarde terug). Zonder sleutel: de uitkomst wordt hier alleen gemeten.
+      const { o } = await edited(`één afleiding ${label}: ${what}`, source, change, number);
+      if (!o.ok) { console.log(`ÉÉN AFLEIDING ${label}: ${what}: ${o.kinds.join(',')}: ${o.detail.slice(0, 200)}`); continue; }
+      const guids = json(o.bytes, 'TaskGuids') as Record<string, unknown>;
+      ok(`één afleiding ${label}: ${what}: de naam van het veld staat niet in het bestand`, !latin1(o.bytes).includes('baselineOrphanGuids'));
+      console.log(`ÉÉN AFLEIDING ${label}: ${what}: lezer ${JSON.stringify(fromReader)}, TaskGuids ${removed in guids ? JSON.stringify(guids[removed]) : '(geen sleutel)'}`);
+      if (number || removed in guids) ok(`één afleiding ${label}: ${what}: de merge schrijft wat de lezer aannam`, guids[removed] === fromReader,
+        `${JSON.stringify(fromReader)} → ${removed in guids ? JSON.stringify(guids[removed]) : '(geen sleutel)'}`);
+      ok(`één afleiding ${label}: ${what}: de lezer van de uitvoer neemt hetzelfde aan`, (await assumed(o.bytes)) === fromReader);
+    }
+  }
+}
+
+// ── 9. Stap 5 deel 1 (was knownbug 1707): een eigen groep met een vreemd lid, op de echte uitvoer ──
+// Valt het laatste eigen lid weg, dan zet de merge een pset met alleen het vreemde lid neer, met de GlobalIds van de bron.
+// (c) toetst die pset niet (uitsluitend vreemde leden is geen groep); controle 1 (`validateMergeOutput`: vreemd deel en
+// lidmaatschap) moet een fout erin vangen. Per tegenproef: zonder (c) en met (c). En een groep met een vreemd lid valt nu
+// onder de toets: een fout van de writer in de eigen leden moet (c) vangen.
+{
+  const b = await base('vreemd lid in OPS_Baselines: baseline erbij', withForeignMember(SOURCES.eigen, PSET.Baselines), se(s => s.saveBaseline('Met vreemd lid, tegenproef')));
+  await counterProof(b, 'vreemd lid in OPS_Baselines: TaskGuids één GUID anders', alterJson('TaskGuids', v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), true);
+  await counterProof(b, 'vreemd lid in OPS_Baselines: ActiveBaselineId wijst naar een onbekende', ls => { setArg(prop(ls, 'ActiveBaselineId'), 2, `IFCTEXT(${ifcStr('onbekend')})`); });
+}
+{
+  const tryBase = async (label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain) => {
+    try { return await base(label, bytes, edit); } catch (e) {
+      if (!(e instanceof assert.AssertionError)) throw e;
+      ok(`basis ${label} schrijft`, false, e.message); return undefined;
+    }
+  };
+  const cases: [string, Uint8Array, string, (d: Domain) => Promise<Domain>][] = [
+    ['OPS_Baselines: alle baselines weg', withForeignMember(SOURCES.eigen, PSET.Baselines), PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); })],
+    ['OPS_TaskTypes: type weghalen bij de laatste taak', withForeignMember(await savedSequence(SOURCES.eigen), PSET.TaskTypes), PSET.TaskTypes, se(s => {
+      const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7c'); s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    })],
+    ['OPS_StructureMeta: de laatste code wissen', withForeignMember(await savedCatalog(SOURCES.eigen), PSET.StructureMeta), PSET.StructureMeta, se(s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); })],
+  ];
+  for (const [label, bytes, pset, edit] of cases) {
+    const b = await tryBase(`vreemd lid in ${label}`, bytes, edit);
+    if (!b) continue;
+    const ls = linesIn(b.bytes);
+    const psetLine = ls.find(l => new RegExp(`^#\\d+=IFCPROPERTYSET\\('[^']*',#\\d+,'${pset}',\\$,\\(#95000\\)\\);`).test(l));
+    ok(`vreemd lid in ${label}: een pset met alleen het vreemde lid`, !!psetLine);
+    if (!psetLine) continue;
+    const psetId = /^#(\d+)=/.exec(psetLine)![1];
+    const relLine = ls.find(l => /^#\d+=IFCRELDEFINESBYPROPERTIES\(/.test(l) && l.replace(/\r$/, '').endsWith(`,#${psetId});`))!;
+    const without = (bytes: Uint8Array, ...prefixes: string[]) => bytesOf(linesIn(bytes).filter(l => !prefixes.some(p => l.startsWith(p))).join('\n'));
+    const relId = /^#(\d+)=/.exec(relLine)![1];
+    const other = (ls: OutLine[]) => ls.find(l => l.type === 'IFCPROPERTYSET' && l.args[2] === `'${PSET.ProjectSettings}'`)!;
+    const proofs: [string, Uint8Array][] = [
+      ['het vreemde lid valt uit de pset (lege ledenlijst)', mutated(b.bytes, ls => { setArg(ls.find(l => `${l.id}` === psetId)!, 4, '()'); })],
+      ['het vreemde lid valt uit de pset (pset en relatie weg)', without(b.bytes, `#${psetId}=`, `#${relId}=`)],
+      ['het lid verhuist naar een andere pset', without(mutated(b.bytes, ls => { const o = other(ls); setArg(o, 4, o.args[4].replace(/\)$/, ',#95000)')); }), `#${psetId}=`, `#${relId}=`)],
+      ['de pset met alleen het vreemde lid krijgt een andere GlobalId', mutated(b.bytes, ls => { setArg(ls.find(l => `${l.id}` === psetId)!, 0, "'0R1707ANDEREGLOBALID00'"); })],
+      ['de relatie van die pset krijgt een andere GlobalId', mutated(b.bytes, ls => { setArg(ls.find(l => `${l.id}` === relId)!, 0, "'0R1707ANDERERELATIE000'"); })],
+    ];
+    for (const [what, m] of proofs) {
+      const withoutC = await verdict(m, b.input, b.source), withC = await verdict(m, b.input, b.source, b.own);
+      console.log(`TEGENPROEF vreemd lid in ${label}: ${what}: zonder (c) ${withoutC}; met (c) ${withC} (${lastDetail})`);
+      // Een andere GlobalId op die pset of zijn relatie toetst geen controle (knownbug 1952): controle 1 kijkt naar object en
+      // psetnaam, (c) niet naar een pset met alleen vreemde leden. De echte uitvoer houdt de GlobalIds van de bron
+      // (`onlyForeignMember` in `check-ifc-foreign-eigen-toets.ts`); dit legt de grens vast.
+      if (what.includes('GlobalId')) ok(`tegenproef vreemd lid in ${label}: ${what}: laat door (bekend, knownbug 1952)`, withC === 'laat door', `${withC}: ${lastDetail}`);
+      else ok(`tegenproef vreemd lid in ${label}: ${what}: geweigerd door controle 1`, withC === 'uitvoer-controle' && /vreemd lid #95000/.test(lastDetail), `${withC}: ${lastDetail}`);
+    }
+  }
+}
+
+// ── 10. Stap 5, PR A: (c) per slot op de echte uitvoer (knownbugs 1953 en 1747) ──
+// De gevallen van blok 9 in `check-ifc-foreign-eigen-toets.ts`: een slot van een ander programma dat (b) terugzet, dan de
+// gewone handeling. Per tegenproef op de echte uitvoer: wat de verliescontrole zelf zegt (`lossProbe` met de toets, en O0 in
+// de vorm van de writer, zodat (b) het slot terugzet zoals bij opslaan), en de uitvoercontrole zonder en met (c), met de
+// slots zoals de opslag ze aan (c) gaf. `alleen (c)`: de verliescontrole en de uitvoercontrole zonder (c) laten hem door en
+// (c) vangt hem (een groep zonder slot van (b), die de toets draagt). In een groep met zo'n slot vangt de verliescontrole een
+// fout in de rest van de groep ook (`ook (c)`). Het teruggezette slot zelf toetst (c) apart: daar schrijft de writer niet uit
+// het domein, dus eist (c) op die regel precies de bronwaarde (vóór PR A sloeg (c) daarvoor de hele groep over).
+{
+  const eigen = SOURCES.eigen;
+  const single = await savedCatalog(eigen, false), cat = await savedCatalog(eigen);
+  /** Haal regels weg uit de bytes (na `mutate` op de rest); de rest byte voor byte gelijk. */
+  const droppedAfter = (bytes: Uint8Array, mutate: Mutate, gone: (ls: OutLine[]) => number[]) => {
+    const ids = new Set(gone(linesOfBytes(bytes)));
+    return bytesOf(linesIn(mutated(bytes, mutate)).filter(t => { const l = parseOutLine(t.replace(/\r$/, '')); return !l || !ids.has(l.id); }).join('\n'));
+  };
+  const psetOf = (ls: OutLine[], pset: string) => ls.find(l => l.type === 'IFCPROPERTYSET' && l.args[2].trim() === `'${pset}'`)!;
+  const membersIn = (ls: OutLine[], pset: string) => refsOutsideText(psetOf(ls, pset).args[4]).map(id => ls.find(l => l.id === id)!);
+  /** Een property uit de pset weg (lid en regel). */
+  const propertyGone = (pset: string, name: string) => (bytes: Uint8Array) => droppedAfter(bytes, ls => {
+    const p = psetOf(ls, pset);
+    setArg(p, 4, `(${refsOutsideText(p.args[4]).filter(id => ls.find(l => l.id === id)?.args[0].trim() !== `'${name}'`).map(id => `#${id}`).join(',')})`);
+  }, ls => membersIn(ls, pset).filter(l => l.args[0].trim() === `'${name}'`).map(l => l.id));
+  /** Een codetemplate (op naam) met haar enumeratie weg, en uit de lijst van het template van de codes. */
+  const templateGone = (name: string) => (bytes: Uint8Array) => droppedAfter(bytes, ls => {
+    const owner = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${PSET.ActivityCodes}'`)!;
+    setArg(owner, 6, `(${refsOutsideText(owner.args[6]).filter(id => ls.find(l => l.id === id)?.args[2].trim() !== `'${name}'`).map(id => `#${id}`).join(',')})`);
+  }, ls => { const t = ls.find(l => l.type === 'IFCSIMPLEPROPERTYTEMPLATE' && l.args[2].trim() === `'${name}'`)!; return [t.id, ...refsOutsideText(t.args[7])]; });
+  type Fault = (bytes: Uint8Array, source: Uint8Array) => Uint8Array;
+  const onLines = (m: Mutate): Fault => bytes => mutated(bytes, m);
+  /** Slot `arg` van een eigen regel op een andere waarde (zoals een fout van de writer). */
+  const slotOf = (pick: (ls: OutLine[]) => OutLine, arg: number, token = "'Fout van de writer'") => onLines(ls => { setArg(pick(ls), arg, token); });
+  const inJson = (name: string, edit: (v: any) => void) => onLines(alterJson(name, edit));
+  /** De waarde van een property van de pset terug op die in de bron. */
+  const back = (pset: string, name: string): Fault => (bytes, source) => {
+    const was = membersIn(linesOfBytes(source), pset).find(l => l.args[0].trim() === `'${name}'`)!.args[2];
+    return mutated(bytes, ls => { setArg(membersIn(ls, pset).find(l => l.args[0].trim() === `'${name}'`)!, 2, was); });
+  };
+  const firstProperty = (pset: string) => (ls: OutLine[]) => membersIn(ls, pset)[0];
+  const psetLine = (pset: string) => (ls: OutLine[]) => psetOf(ls, pset);
+  /** 'alleen (c)': de verliescontrole en de uitvoercontrole zonder (c) laten hem door, (c) vangt hem. 'ook (c)': de
+   *  uitvoercontrole zonder (c) laat hem door en (c) vangt hem; de verliescontrole vangt hem ook. '(c)': de uitvoercontrole
+   *  zonder (c) laat hem door en (c) vangt hem (wat de verliescontrole zegt, telt hier niet). 'terugval': de groep valt
+   *  terug op het gedrag van vóór PR A: (c) slaat haar over en de verliescontrole vangt hem, zoals op de basis. */
+  type Proof = [string, Fault, 'alleen (c)' | 'ook (c)' | '(c)' | 'weigert' | 'terugval'];
+  async function perSlotProofs(label: string, start: Uint8Array, slotted: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, proofs: readonly Proof[]) {
+    const b = await base(`per slot: ${label}`, slotted, edit, true);
+    const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
+    for (const [what, fault, want] of proofs) {
+      const bytes = fault(b.bytes, slotted);
+      const found = p.run(linesOfBytes(bytes), undefined, linesOfBytes(start));
+      const withoutC = await verdict(bytes, b.input, b.source), withC = await verdict(bytes, b.input, b.source, b.own);
+      console.log(`TEGENPROEF per slot: ${label}: ${what}: verliescontrole ${found.length ? 'weigert' : 'laat door'}; zonder (c) ${withoutC}; met (c) ${withC} (${lastDetail})`);
+      const name = `tegenproef per slot: ${label}: ${what}`;
+      if (want === 'alleen (c)') ok(`${name}: alleen (c) vangt hem`, found.length === 0 && withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
+      else if (want === 'weigert') ok(`${name}: geweigerd`, withC !== 'laat door', withC);
+      else if (want === 'ook (c)') ok(`${name}: (c) vangt hem, de verliescontrole ook`, found.length > 0 && withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
+      else if (want === '(c)') ok(`${name}: (c) vangt hem`, withoutC === 'laat door' && withC === 'eigen-uitvoer', `${withoutC} / ${withC}`);
+      else ok(`${name}: (c) slaat de groep over, de verliescontrole vangt hem (zoals op de basis)`, found.length > 0 && withC === 'laat door', `${found.length} / ${withC}: ${lastDetail}`);
+    }
+  }
+  /** Het teruggezette slot zelf, in de uitvoer achteraf anders of leeg (punt 5 van de review van #1095): (c) vangt het. */
+  const restoredSlot = (what: string, pick: (ls: OutLine[]) => OutLine, arg: number): Proof[] => [
+    [`het teruggezette slot zelf: ${what} anders`, slotOf(pick, arg, "'Andere omschrijving'"), '(c)'],
+    [`het teruggezette slot zelf: ${what} leeg`, slotOf(pick, arg, '$'), '(c)'],
+  ];
+  /** In een groep met een slot van (b): een ander slot van de groep vangt (c), en de verliescontrole ook (de groep valt daar
+   *  helemaal buiten de toets, zoals op de basis); het teruggezette slot zelf vangt (c). */
+  const inGroup = (pset: string): Proof[] => [
+    [`een ander slot van ${pset}: de omschrijving van een property`, slotOf(firstProperty(pset), 1), 'ook (c)'],
+    ...restoredSlot(`de omschrijving van ${pset}`, psetLine(pset), 3),
+  ];
+  const tweedeCode = se(s => { const c = s.addActivityCodeType('Code per slot'); s.addActivityCodeValue(c, { code: 'P', description: 'Per slot' }); });
+  const SM = PSET.StructureMeta, TT = PSET.TaskTypes, BL = PSET.Baselines, PS = PSET.ProjectSettings;
+  await perSlotProofs('omschrijving op OPS_StructureMeta, tweede code (1953)', single, withPsetDescription(single, SM), tweedeCode, [
+    ['de nieuwe codetemplate weg (punt 3 van de review: de nacontrole)', templateGone('Code per slot'), 'ook (c)'],
+    ['structure terug op de bronwaarde', back(SM, PROP.StructureMeta.structure), 'weigert'],
+    ...inGroup(SM),
+  ]);
+  await perSlotProofs('omschrijving op OPS_TaskTypes, nieuw type en toewijzen', single, withPsetDescription(single, TT), se(s => {
+    s.ensureProjectTaskType({ id: 'type-slot', name: 'Type per slot' });
+    s.updateTask(leaves(s).find((t: any) => !t.customTaskTypeId).id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-slot' });
+  }), [
+    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'ook (c)'],
+    ['TaskTypes terug op de bronwaarde', back(TT, PROP.TaskTypes.TaskTypes), 'weigert'],
+    ...inGroup(TT),
+  ]);
+  await perSlotProofs('omschrijving op OPS_TaskTypes, type wisselen', cat, withPsetDescription(cat, TT), se(s => {
+    s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-b' });
+  }), [
+    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'ook (c)'],
+    ['TaskTypes terug op de bronwaarde', back(TT, PROP.TaskTypes.TaskTypes), 'weigert'],
+    ...inGroup(TT),
+  ]);
+  {
+    let added = '';
+    await perSlotProofs('omschrijving op OPS_Baselines, taak en baseline erbij', single, withPsetDescription(single, BL), se(s => {
+      added = addTask(s, 'Taak per slot'); s.saveBaseline('Baseline per slot');
+    }), [
+      ['de nieuwe TaskGuids-regel weg (punt 3 van de review: de nacontrole)', inJson(PROP.Baselines.TaskGuids, v => { delete v[added]; }), 'ook (c)'],
+      ['TaskGuids: de nieuwe GUID verkeerd', inJson(PROP.Baselines.TaskGuids, v => { v[added] = '0000000000000000000001'; }), 'ook (c)'],
+      ['Baselines terug op de bronwaarde', back(BL, PROP.Baselines.Baselines), 'weigert'],
+      ...inGroup(BL),
+    ]);
+  }
+  await perSlotProofs('omschrijving op OPS_Baselines, andere baseline actief', single, withPsetDescription(single, BL), se(s => {
+    s.setActiveBaseline(s.baselines.find((b: any) => b.id !== s.activeBaselineId).id);
+  }), [
+    ['TaskGuids: één GUID anders', inJson(PROP.Baselines.TaskGuids, v => { v[Object.keys(v)[0]] = '0000000000000000000000'; }), 'ook (c)'],
+    ['ActiveBaselineId terug op de bronwaarde', back(BL, PROP.Baselines.ActiveBaselineId), 'weigert'],
+    ...inGroup(BL),
+  ]);
+  const statusdatum = se(s => { s.setStatusDate('2026-12-01'); });
+  await perSlotProofs('omschrijving op OPS_ProjectSettings, statusdatum zetten', single, withPsetDescription(single, PS), statusdatum, [
+    ['StatusDate weg', propertyGone(PS, PROP.ProjectSettings.StatusDate), 'weigert'],
+    ['ModifiedAt terug op de bronwaarde', back(PS, PROP.ProjectSettings.ModifiedAt), 'weigert'],
+    ...inGroup(PS),
+  ]);
+  await perSlotProofs('omschrijving op OPS_ProjectSettings, WBS-nummering uit', single, withPsetDescription(single, PS), se(s => { s.setWbsAutoNumber(false); }), [
+    ['wbsAutoNumber terug op de bronwaarde', back(PS, PROP.ProjectSettings.wbsAutoNumber), 'weigert'],
+    ...inGroup(PS),
+  ]);
+  // Twee teruggezette slots in één groep: beide apart getoetst, een derde slot gewoon.
+  const confirmed = (ls: OutLine[]) => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.IfcSchemaConfirmed}'`)!;
+  await perSlotProofs('twee slots in OPS_ProjectSettings, statusdatum zetten', single,
+    withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum, [
+      ['een derde slot: de omschrijving van InternalProjectId', slotOf(ls => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.InternalProjectId}'`)!, 1), 'ook (c)'],
+      ...restoredSlot('de omschrijving van IfcSchemaConfirmed', confirmed, 1),
+      ...restoredSlot('de omschrijving van OPS_ProjectSettings', psetLine(PS), 3),
+    ]);
+  // Een slot in de ene groep sluit een andere groep niet uit en zet daar niets apart: de omschrijving op `OPS_TaskTypes`, de
+  // handeling in `OPS_StructureMeta`; hetzelfde argument (de omschrijving, 3) op de andere pset toetst (c) wel.
+  await perSlotProofs('omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, TT), tweedeCode, [
+    ['de nieuwe codetemplate weg (andere groep)', templateGone('Code per slot'), 'alleen (c)'],
+    ['de omschrijving van OPS_StructureMeta (hetzelfde argument, andere groep)', slotOf(psetLine(SM), 3), 'alleen (c)'],
+    ...restoredSlot('de omschrijving van OPS_TaskTypes', psetLine(TT), 3),
+  ]);
+  // Een slot op een tweede vorm: een omschrijving of een vreemde `Creators` op één kop, een typenaam op een taak zonder type.
+  // De koppen en de typenaam op de taak vallen niet onder de toets (a), dus daar vangt ook de verliescontrole een fout in een
+  // ander slot ('ook (c)'). `Creators` is een lijst, een soort die de lezer deels draagt: daar slaat (c) de koppen helemaal
+  // over, zoals op de basis (terugval, ook voor een andere kop).
+  const ls0 = linesOfBytes(cat), plan = ls0.find(l => l.type === 'IFCWORKPLAN')!;
+  const agg = ls0.find(l => l.type === 'IFCRELAGGREGATES' && l.args[4].trim() === `#${plan.id}`)!;
+  const heads = refsOutsideText(agg.args[5]).map(id => ls0.find(l => l.id === id)!).filter(l => l.args.some(a => a.trim() === '.BASELINE.'));
+  const [otherHead, head] = heads;
+  const withHeadSlot = (k: number, token: string, extra: string[] = []) => bytesOf(withLines(latin1(mutated(cat, ls => { setArg(ls.find(l => l.id === head.id)!, k, token); })), extra));
+  const byGuid = (guid: string) => (ls: OutLine[]) => ls.find(l => l.args[0] === guid)!;
+  const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving, per slot' }); });
+  await perSlotProofs('omschrijving op een kop, projectbeschrijving', cat, withHeadSlot(3, DESCRIPTION), beschrijving, [
+    ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'ook (c)'],
+    ...restoredSlot('de omschrijving van die kop', byGuid(head.args[0]), 3),
+  ]);
+  await perSlotProofs('vreemde Creators op een kop, projectbeschrijving', cat,
+    withHeadSlot(7, '(#95300)', ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]), beschrijving, [
+      ['de omschrijving van dezelfde kop', slotOf(byGuid(head.args[0]), 3), 'terugval'],
+      ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'terugval'],
+    ]);
+  {
+    const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
+    const typed = (ls: OutLine[]) => ls.find(l => l.type === 'IFCTASK' && l.args[12]?.trim() === '.USERDEFINED.')!;
+    const untyped = (ls: OutLine[]) => ls.find(l => l.type === 'IFCTASK' && l.args[4].trim() === "'Type 0 7d'" && l.args[12]?.trim() !== '.USERDEFINED.')!;
+    await perSlotProofs('typenaam op een taak zonder type, projectbeschrijving', cat, labelled, beschrijving, [
+      ['een verkeerde typenaam op een getypeerde taak', slotOf(typed, 4, "'Verkeerde typenaam'"), 'ook (c)'],
+      ...restoredSlot('de typenaam op die taak', untyped, 4),
+    ]);
+  }
+  // Een activiteitscodetype en een eigen veld met dezelfde naam (de review van #1095, punt 1 en 4): twee templates met
+  // dezelfde naam, onder een ander `IfcPropertySetTemplate`. (b) zet de omschrijving op de codetemplate terug. Een fout in de
+  // omschrijving van de gelijknamige veldtemplate vangt (c) (punt 4). De twee templates verwisseld (elk houdt zijn id en
+  // GlobalId, de lijsten wijzen kruiselings), met een andere omschrijving op de vervangende codetemplate: dan staat de
+  // bronwaarde niet meer op de regel waar (b) haar terugzette, en (c) vangt het (punt 1).
+  const shared = 'Code A 7d';
+  const both = await (async () => {
+    nextCase();
+    const opened = await openForeign(single);
+    const o = await save(await se(s => { s.addCustomField(shared, 'text'); })(cloneDomain(opened)), opened.ifcSource!);
+    assert(o.ok, 'voorbereiding: een eigen veld met de naam van de code schrijft');
+    return o.bytes;
+  })();
+  const codeTemplate = (ls: OutLine[]) => templateIn(ls, PSET.ActivityCodes, shared);
+  const fieldTemplate = (ls: OutLine[]) => templateIn(ls, PSET.CustomFields, shared);
+  const refTo = (token: string, from: number, to: number) => token.replace(new RegExp(`#${from}(?!\\d)`), `#${to}`);
+  const swapped: Fault = bytes => mutated(bytes, ls => {
+    const code = codeTemplate(ls), field = fieldTemplate(ls), codeArgs = [...code.args], fieldArgs = [...field.args];
+    fieldArgs.forEach((a, k) => { if (k > 0) setArg(code, k, a); });
+    codeArgs.forEach((a, k) => { if (k > 0) setArg(field, k, k === 3 ? "'Waarde zonder bewerking'" : a); });
+    const codes = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${PSET.ActivityCodes}'`)!;
+    const fields = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${PSET.CustomFields}'`)!;
+    setArg(codes, 6, refTo(codes.args[6], code.id, field.id));
+    setArg(fields, 6, refTo(fields.args[6], field.id, code.id));
+  });
+  await perSlotProofs('omschrijving op een codetemplate naast een gelijknamig eigen veld, projectbeschrijving', both,
+    withTemplateDescription(both, PSET.ActivityCodes, shared), beschrijving, [
+      ['de omschrijving van de gelijknamige veldtemplate (punt 4)', slotOf(fieldTemplate, 3), '(c)'],
+      ['de twee templates verwisseld, een andere omschrijving op de vervangende codetemplate (punt 1)', swapped, '(c)'],
+      ...restoredSlot('de omschrijving van de codetemplate', codeTemplate, 3),
+    ]);
+}
+
+finish();

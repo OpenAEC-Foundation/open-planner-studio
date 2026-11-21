@@ -261,7 +261,7 @@ function closeActionHarness(options?: {
 }
 {
   const { actions, effects } = closeActionHarness();
-  actions.discard();
+  await actions.discard();
   eq("Don't Save gebruikt uitsluitend de discardtak", effects, ['close:doc-2', 'clear']);
 }
 {
@@ -311,7 +311,7 @@ function closeActionHarness(options?: {
   });
   const firstSave = firstRender.actions.save();
   const secondSave = secondRender.actions.save();
-  secondRender.actions.discard();
+  void secondRender.actions.discard();
   secondRender.actions.cancel();
   releaseSave();
   await Promise.all([firstSave, secondSave]);

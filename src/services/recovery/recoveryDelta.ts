@@ -1,5 +1,5 @@
 import type { RecoverySourceCopy } from './recoverySourceCopies';
-import { ifcSourceMetaFields, sameRecoveryIfcSource } from './recoveryIfcSource';
+import { ifcSourceMetaFields, sameRecoveryIfcSource, type RecoveryIfcSource } from './recoveryIfcSource';
 import { IfcCalendarTimePrecisionError } from '@/services/ifc/ifcErrors';
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { foreignSourceTargetOf } from '@/services/ifc/foreign/foreignSourceMark';
@@ -191,6 +191,16 @@ export class RecoveryDeltaTracker {
 
   get hasPersistedSnapshot(): boolean {
     return this.persisted !== null;
+  }
+
+  /** De snapshots zijn gewist (schone exit): de volgende ronde schrijft weer alles. De serialisatiecache blijft. */
+  forgetPersisted(): void {
+    this.persisted = null;
+  }
+
+  /** De bronverwijzing van een document zoals het laatst geslaagde manifest haar schreef. */
+  persistedIfcSource(documentId: string): RecoveryIfcSource | undefined {
+    return this.persisted?.documents.find(d => d.id === documentId)?.ifcSource;
   }
 
   prepare(

@@ -5,7 +5,7 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 ## How the ribbon behaves
 
 - **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with the MCP connection on, *MCP*.
-- **Switch with the mouse wheel** — turn the mouse wheel over the ribbon, over the tabs or over the buttons. Down goes to the next tab, up to the previous one. It stops at the first and the last tab. *File* is not included. To turn it off: *App settings*, *Appearance* tab, *Ribbon* section.
+- **Switch with the mouse wheel** — turn the mouse wheel over the ribbon, over the tabs or over the buttons. Down goes to the next tab, up to the previous one. It stops at the first and the last tab. *File* is not included. To turn it off: *App settings*, group *Workspace*, [Switch tabs with the mouse wheel](settings://ribbonWheel).
 - **Narrow window** — when the ribbon does not fit, buttons shrink to an icon from right to left. The name is then the tooltip on the button. Every button without its own tooltip shows its name.
 - **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the MCP tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
 - **Extension buttons** — an extension can add its own group at the end of a tab. Such a button does what the extension gave it.
@@ -54,7 +54,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 ### Home › Schedule
 
-- **Calculate** — calculates the schedule: dates, float, critical path and resource load. This never happens by itself, unless you turn on *Calculate automatically* (*App settings*, tab *Planning*, heading *Calculation*). While the schedule is out of date, the status bar says *Out of date — recalculate (F5)*.
+- **Calculate** — calculates the schedule: dates, float, critical path and resource load. This never happens by itself, unless you turn on [Calculate automatically](settings://autoCalc) (*App settings*, group *Scheduling*). While the schedule is out of date, the status bar says *Out of date — recalculate (F5)*.
 
 ### Home › Zoom
 
@@ -153,11 +153,11 @@ This group is also on *Table*.
 
 ### View › Display
 
-- **Columns…**, **Filter…**, **Group…** and **Sort…** — only visible when *Show classic view buttons* is on (*App settings*, tab *Advanced*, heading *Legacy features*). Default: off. *Columns…* takes you to *Table* and opens the column picker there. *Filter…* opens the filter window straight away as long as there is no saved filter; with saved filters it opens a menu with *Filter…*, *Clear* (only when a filter is active) and the saved filters. *Group…* allows two levels. *Sort…* allows more levels. A button lights up when that view setting is active. In the current ribbon you do this with layout buttons; see [Creating and using a layout](docs://howto-layouts-gebruiken).
+- **Columns…**, **Filter…**, **Group…** and **Sort…** — only visible when [Show classic view buttons](settings://classicViewControls) is on (*App settings*, group *Advanced*). Default: off. *Columns…* takes you to *Table* and opens the column picker there. *Filter…* opens the filter window straight away as long as there is no saved filter; with saved filters it opens a menu with *Filter…*, *Clear* (only when a filter is active) and the saved filters. *Group…* allows two levels. *Sort…* allows more levels. A button lights up when that view setting is active. In the current ribbon you do this with layout buttons; see [Creating and using a layout](docs://howto-layouts-gebruiken).
 
 ### View › Outline
 
-- **Collapse** — collapses the selected summary tasks; without a selection all of them. In a grouped view it collapses all groups and a selection has no effect.
+- **Collapse** — collapses the selected summary tasks; without a selection all of them. Series of milestones directly below each other collapse with them into one row. In a grouped view it collapses all groups and a selection has no effect.
 - **Expand** — the reverse.
 
 ### View › Layout
@@ -198,13 +198,14 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.
 - **Relationship lines** — shows or hides the relationship lines between tasks. Default: on. The choice belongs to the document and to the layout.
+- **Dates beside bars** — puts the start date to the left of each bar and the finish date to the right of it, in your date notation. A milestone gets one date, between the diamond and the name. A name behind the bar comes after the finish date; if there is too little room on the right, it is cut off and the finish date is left out if needed. Default: off. The choice applies to the app, not per document.
 
 ## Settings
 
 ### Settings › Project
 
 - **Project settings** — opens the *Project settings* window: the metadata of the project and, in the block *Calculation profile and options*, how the project calculates. See [New project and Project settings](docs://ref-projectinfo).
-- **App settings** — opens the *App settings* window with the tabs *Appearance*, *Planning* and *Advanced*. The same settings are under *File › App settings*.
+- **App settings** — opens the *App settings* window with eight groups on the left and a search bar at the top. The same settings are under *File › App settings*.
 
 ### Settings › Calendar
 
@@ -232,7 +233,7 @@ The tab shows the report screen in the workspace, with the report choices and *E
 
 ## MCP
 
-The *MCP* tab only exists when *Allow MCP connection* is on (*App settings*, tab *Advanced*, heading *MCP connection*). Default: off. Turning it off removes the tab and stops the bridge. An MCP client works with your schedule through an MCP bridge that you start here. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
+The *MCP* tab only exists when [Allow MCP connection](settings://aiMode) is on (*App settings*, group *Advanced*). Default: off. Turning it off removes the tab and stops the bridge. An MCP client works with your schedule through an MCP bridge that you start here. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
 ### MCP › Server
 

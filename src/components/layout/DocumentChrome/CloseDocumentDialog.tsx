@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { documentProjectCode } from '@/utils/documentProjectCode';
@@ -28,19 +28,19 @@ export function CloseDocumentDialog() {
   const filePath = useAppStore((s) => s.filePath);
   const activeCode = useAppStore((s) => documentProjectCode(s.project, s.xerImportMetadata));
   const setUI = useAppStore((s) => s.setUI);
-  const closeDocument = useAppStore((s) => s.closeDocument);
+  const closeDocumentAfterSaves = useAppStore((s) => s.closeDocumentAfterSaves);
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
   const openerRef = useRef<HTMLElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
-  const [savePending, setSavePending] = useState(false);
+  // In de store, niet lokaal: Escape (`edit.deselect`) leest dezelfde vlag (fixronde 1 van #1008).
+  const savePending = useAppStore((s) => s.ui.closeQuestionSaving);
   if (!actionGateRef.current) actionGateRef.current = createCloseDocumentActionGate();
 
   useEffect(() => {
     if (!pendingId) {
       actionGateRef.current = createCloseDocumentActionGate();
-      setSavePending(false);
       return;
     }
     if (actionGateRef.current?.started) return;
@@ -66,11 +66,11 @@ export function CloseDocumentDialog() {
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
     switchDocument,
-    closeDocument,
+    closeDocument: closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
     clearPending: () => { setUI({ pendingCloseDocId: null }); },
     restoreOpenerFocus,
-    onSavePendingChange: setSavePending,
+    onSavePendingChange: (pending) => { setUI({ closeQuestionSaving: pending }); },
   });
 
   return (
@@ -83,7 +83,7 @@ export function CloseDocumentDialog() {
       busy={savePending}
       cancelButtonRef={cancelButtonRef}
       onCancel={actions.cancel}
-      onDiscard={actions.discard}
+      onDiscard={() => { void actions.discard(); }}
       onSave={() => { void actions.save(); }}
     />
   );

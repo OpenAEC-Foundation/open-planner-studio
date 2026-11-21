@@ -19,8 +19,8 @@ def compare(folder: Path, base_sha: str, head_sha: str) -> dict:
     for before, after in zip(base_contract["budgets"], head_contract["budgets"]):
         n = before["count"]
         assert before["outputSha256"] == after["outputSha256"]
-        assert before["rhsReads"] == n * (n + 1) // 2
-        assert after["rhsReads"] <= n
+        assert before["rhsReads"] <= n, f"Basis, {n} ids: {before['rhsReads']} RHS-lezingen"
+        assert after["rhsReads"] <= n, f"Head, {n} ids: {after['rhsReads']} RHS-lezingen"
 
     base = read("base-browser.json")
     head = read("head-browser.json")

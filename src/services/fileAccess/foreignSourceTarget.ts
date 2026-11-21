@@ -19,7 +19,7 @@
 // vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { scanForeignTargetBlob, scanForeignTargetBytes, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
 import type { FileRef } from './index';
@@ -36,7 +36,7 @@ function samePath(a: string, b: string): boolean {
   return na !== null && na === normalizeExternalSourcePath(b);
 }
 
-async function sameEntry(a: FileSystemFileHandle, b: FileSystemFileHandle): Promise<boolean> {
+export async function sameEntry(a: FileSystemFileHandle, b: FileSystemFileHandle): Promise<boolean> {
   try {
     return await a.isSameEntry(b);
   } catch {
@@ -85,12 +85,19 @@ export async function targetRefusal(target: FileRef, readers: TargetReaders = {}
         return readers.scanPath ? refusal(await readers.scanPath(target.path)) : 'unreadable';
       case 'site': {
         const bytes = readers.readSite ? await readers.readSite(target.id) : null;
-        return bytes ? refusal(scanForeignTargetBytes(bytes)) : 'unreadable';
+        return bytes ? refusal(await scanForeignTargetBytesAsync(bytes)) : 'unreadable';
       }
     }
   } catch {
     return 'unreadable';
   }
+}
+
+/** Wijzen twee lokale paden naar hetzelfde bestand? Hetzelfde genormaliseerde pad, of (met `identityFs`) dezelfde
+ *  bestandsidentiteit. Eén vergelijking voor de bronkenmerken en de paden van open documenten. */
+export async function sameLocalFile(a: string, b: string, deps: ForeignSourceTargetDeps = {}): Promise<boolean> {
+  if (samePath(a, b)) return true;
+  return !!deps.identityFs && (await compareFilePaths(deps.identityFs, a, b)) === 'same';
 }
 
 /** Is `target` de bron van een van de `marks`? */
@@ -106,9 +113,7 @@ export async function isForeignSourceTarget(
         if (mark.siteFileId !== null && mark.siteFileId === target.id) return true;
         break;
       case 'path':
-        if (mark.filePath === null) break;
-        if (samePath(target.path, mark.filePath)) return true;
-        if (deps.identityFs && (await compareFilePaths(deps.identityFs, target.path, mark.filePath)) === 'same') return true;
+        if (mark.filePath !== null && await sameLocalFile(target.path, mark.filePath, deps)) return true;
         break;
       case 'handle':
         if (mark.handle) {

@@ -2,6 +2,7 @@ import { useEffect, type MutableRefObject } from 'react';
 import { appStoreContext, useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { clearOwnRecovery } from '@/services/recovery/recoveryStore';
+import { clearRecoveryNow } from '@/services/recovery/recoveryFlush';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
 import { getMcpDiscoveryWriter } from '@/services/mcp/discoveryFiles';
@@ -26,10 +27,16 @@ export function useAppCloseGuard(autoSaveEnabled: MutableRefObject<boolean>): vo
       if (disposed) return;
       const appWindow = getCurrentWindow();
       const controller = createAppQuitController(appQuitDependencies(appStoreContext, {
-        stopRecovery: () => { autoSaveEnabled.current = false; },
+        stopRecovery: () => {
+          // Terug naar de stand van daarvoor als het venster toch niet dichtgaat (de herstelkeuze kan nog open staan).
+          const before = autoSaveEnabled.current;
+          autoSaveEnabled.current = false;
+          return () => { autoSaveEnabled.current = before; };
+        },
         // Alleen de eigen snapshots: wat de gebruiker in het herstelvenster uitstelde, of dat nog
         // niet eens is aangeboden, blijft voor de volgende start staan.
-        clearRecovery: clearOwnRecovery,
+        // Via de herstelronde (`useAutoSave`), die daarna weet dat er niets meer op schijf staat (knownbug 1819).
+        clearRecovery: () => clearRecoveryNow() ?? clearOwnRecovery(),
         destroyWindow: async () => {
           // Ontdekkingsbestanden voor de MCP-plugin weghalen (best effort; de writer vangt zijn
           // eigen fouten). Na een crash herkent de plugin een achtergebleven bestand aan het pid.

@@ -74,7 +74,8 @@ export function uiFixedTextError(lang: string, ns: string, key: string, text: un
     : undefined;
 }
 
-export type Selection = 'missing' | 'stale' | 'all';
+/** `open` = `missing` en `stale` samen, in één ronde (de nachtvertaling). */
+export type Selection = 'missing' | 'stale' | 'open' | 'all';
 
 /**
  * Is de eenheid in de doeltaal vertaald? Compleet (alle CLDR-categorieën), en in een taal zonder
@@ -97,7 +98,10 @@ export function selectUnits(input: NsInput, lang: string, mode: Selection, sourc
     const t = target.get(u.key);
     const complete = isTranslated(t, u, lang, hashes);
     if (mode === 'all') { out.push({ unit: u }); continue; }
-    if (mode === 'missing') { if (!complete) out.push({ unit: u }); continue; }
+    if (mode === 'missing' || mode === 'open') {
+      if (!complete) { out.push({ unit: u }); continue; }
+      if (mode === 'missing') continue;
+    }
     const h = hashes[u.key];
     if (complete && (h === undefined || h !== hashUnit(u.text))) out.push({ unit: u, previous: t!.text });
   }
@@ -317,6 +321,8 @@ export function buildUiPackages(opts: {
   avoid?: boolean;
   /** `--keys`: per namespace precies deze eenheden (uit `resolveKeyList`); `mode` telt dan niet. */
   keys?: Map<string, Set<string>>;
+  /** `--only`: de selectie beperkt tot deze eenheden (doorsnede; een actuele eenheid blijft weg). */
+  only?: Map<string, Set<string>>;
 }): UiPackage[] {
   const labelIndex = buildLabelIndex(opts.inputs, opts.lang, opts.sources, avoidRules(opts.concepts, opts.termbase));
   const size = opts.size ?? 150;
@@ -324,6 +330,7 @@ export function buildUiPackages(opts: {
   const packs: UiPackage[] = [];
   const examples = pluralExamples(opts.lang);
   if (opts.avoid && opts.keys) throw new Error('--avoid en --keys gaan niet samen');
+  if (opts.only && (opts.keys || opts.avoid)) throw new Error('--only gaat niet samen met --keys of --avoid');
   if (opts.avoid && opts.mode === 'all') throw new Error('--avoid gaat alleen samen met --stale');
   // Bij --avoid zonder --stale telt `mode` niet ('missing' is alleen de standaard van de CLI).
   const withStale = opts.avoid === true && opts.mode === 'stale';
@@ -335,7 +342,8 @@ export function buildUiPackages(opts: {
       ? selectKeys(input, opts.lang, opts.keys.get(input.ns) ?? new Set())
       : opts.avoid
         ? selectAvoid(input, opts.lang, opts.sources, rules, withStale)
-        : selectUnits(input, opts.lang, opts.mode, opts.sources);
+        : selectUnits(input, opts.lang, opts.mode, opts.sources)
+          .filter(s => !opts.only || (opts.only.get(input.ns)?.has(s.unit.key) ?? false));
     const all: UiItem[] = selected.map(({ unit, previous, avoidHits, stale }) => {
       const labels = labelsFor(unit.key, input.ns, unit.text, labelIndex);
       const fixedText = fixedUiText(opts.lang, input.ns, unit.key);

@@ -130,7 +130,8 @@ terugval valt de hele PDF om één `≤` of één Cyrillische naam terug op rast
 uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bundelen is; bewaking:
 `tests/planning/check-report-font.ts`. De keuzelijst *Lettertype* (`ReportFontSelect`, naast Papier en
 Oriëntatie, dus ook in `TableReportOptionsBlock`) kiest één id uit het vaste setje `REPORT_FONTS` in
-`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07), bewaard
+`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07; plus Liberation Mono met vaste
+breedte, vraag in #770), bewaard
 als `reportFontFamily` in `ops-reportSettings` — nooit in het IFC-bestand. Uit die id volgen de
 fontstack (`reportFontStack`: de letter, dan `InterPDF`; dezelfde stack voor het canvas en, via
 `reportFontStyle`, voor de DOM-kaarten van mijlpalen, variance en tabelrapporten) en de bytes
@@ -141,3 +142,32 @@ neemt alleen `@font-face`-regels uit de stylesheets mee. Een export wacht tot de
 datakolommen op de gekozen letter gemeten zijn (`fontPending` in `GanttReportStudio`): direct na
 een wissel staan er nog breedtes van de vorige letter, en dan kapt de PDF namen af die wel passen.
 Een nieuwe letter: zie `src/services/pdf/fonts/README.md`.
+
+**Eigen lettertype** (besluit Ethan 2026-11-14). Naast het vaste setje kent de keuzelijst `custom` (`ReportFontChoice`):
+*Ander lettertype…* opent `CustomReportFontDialog` met de lijst van de computer (`systemFonts.ts`: desktop leest de
+lettertypemappen via plugin-fs, met een scope per opdracht (`read_dir`, `open`, `read_file`) in `src-tauri/capabilities/default.json`; browser alleen
+`queryLocalFonts` in Chrome/Edge op een beveiligde pagina) en *Bestand kiezen…* (overal). `customReportFont.ts`
+leest en beoordeelt de bestanden zonder DOM (`check-custom-report-font.ts`): weigert inbedden verboden (fsType),
+variabel (`fvar`), zonder contouren en CFF-contouren (pdf-lib 1.17 bedt die als TrueType in), kiest gewoon en vet
+per familie en haalt een face uit een `.ttc`. De app bewaart een kopie van de bytes (`customFontStore.ts`,
+IndexedDB `ops-report-font`); `ops-reportSettings` krijgt alleen naam en versie (`customReportFont`). Zonder vet
+zijn de vette bytes de gewone, op het scherm (`@font-face` 700 met hetzelfde bestand) en in de PDF. Is de kopie weg,
+dan zet `useCustomReportFontGuard` de keuze terug op Inter met één melding. Een ander eigen lettertype heeft
+dezelfde id en familie (`OpsReportCustom`) maar een andere `reportFontKey`; laad- en meetcaches gaan op die sleutel.
+
+**fontkit 3 en GSUB-vervangingen in de PDF** (issue #1050). De lettertypelezer is `fontkit` 3.0.0 (exact
+vastgezet), altijd via `src/services/pdf/fontkit.ts`; `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8
+(Noto Sans Coptic), en dan werd de hele PDF raster. De rapportletter, de terugval- en de CJK-letters gaan via
+`embedReportFont` (`embedReportFont.ts`); tekst gaat via `layoutPdfText`, één `layout` per tekst. pdf-lib gaf een glyph
+die GSUB koos (Carlito "ti", de doorlopende Koptische bovenstreep) geen eigen breedte in `/W` (een gat) en geen
+ToUnicode (`bouwlogis ek`); elke gebruikte glyph komt nu met zijn bronteken(s) in beide (eerste gebruik wint, knownbug
+1943). Een glyph met een GPOS-verschuiving (de bovenstreep: −319 eenheden) krijgt een eigen tekstmatrix op de pen plus
+die verschuiving (`laidOutTextOps` in `pdfVectorDraw2d.ts`); zonder verschuiving blijft het één `Tj`. De pen loopt op
+de breedtes uit `/W`, net als de meting. Dat leunt op interne velden van pdf-lib, dat daarom exact op 1.17.1 staat.
+Noto Sans Arabic bedt gewoon in: het glyph-voor-glyph-pad van de shaping (`bidiShape.ts`) zet zijn glyphs zelf neer
+(knownbug 934). Het paginanummer staat in de rapportletter; alleen als die een teken van het label mist (cijfers,
+spatie, '/'; Noto Sans Coptic heeft ze niet), in Helvetica (`pageNumberFont` en `PAGE_NUMBER_FONT_KEY` in
+`paginateVector.ts`). Of elk rapport het nummer in Helvetica krijgt, is een keuze van de eigenaar. Op Node leest `unicode-properties` (onder fontkit 3) zijn tabel van schijf naast zijn
+bron; daarom leidt `tests/planning/run.sh` die ene import (`#binary-trie`) naar de browservariant. Proef:
+`check-custom-report-font.ts` deel G (echt Noto Sans Coptic in `tests/planning/fixtures/fonts/` en Carlito: tekst,
+`/W`, de plaats van elke glyph en het paginanummer met zijn letter uit de PDF teruggelezen).

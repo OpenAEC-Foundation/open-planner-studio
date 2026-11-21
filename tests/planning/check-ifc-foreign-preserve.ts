@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { installDeterminism } from './ifcPariteitKern';
 import {
   applyEdit, fixedCatalogEdits, savedCatalogStart, fixedSequenceEdits, savedSequenceStart, basicEdits, canon, cloneDomain, concat, doubleMemberships, firstDiff, mergeProblems, openForeign, plannerEdits, sameBytes, settle,
-  reopenPlain, shownAfterOpen, tryMerge,
+  lossProbe, reopenPlain, shownAfterOpen, tryMerge,
   type Domain, type Opened,
 } from './ifcMergeKern';
 import { applyTaskProgress, openInStore, storeEdit } from './ifcAppRoute';
@@ -114,14 +114,13 @@ async function roundTrip(label: string, bytes: Uint8Array, edit?: (d: Domain) =>
   let d = cloneDomain(opened);
   const next = await edit?.(d);
   if (next) d = next;
-  let parts: Uint8Array[];
-  try { parts = await writeIfcMerge(d, source); } catch (e) {
+  let out: Uint8Array;
+  try { out = await writeIfcMerge(d, source); } catch (e) {
     diffs.push(`${label}: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => `${c.kind}: ${c.detail}`).slice(0, 3).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
   }
-  ok(`${label}: de uitvoer is een lijst Uint8Array-delen`, Array.isArray(parts) && parts.length > 0 && parts.every(p => p instanceof Uint8Array));
-  const out = concat(parts);
+  ok(`${label}: de uitvoer is één Uint8Array`, out instanceof Uint8Array && out.length > 0);
   eq(`${label}: invarianten`, mergeProblems(bytes, out), []);
   ok(`${label}: geen nieuw dubbel lidmaatschap`, doubleMemberships(out).every(k => doubleMemberships(bytes).includes(k)));
   ok(`${label}: niet meer IfcProject dan de bron`, countType(out, 'IFCPROJECT') <= Math.max(1, countType(bytes, 'IFCPROJECT')));
@@ -477,9 +476,9 @@ async function expectRefusal(label: string, bytes: Uint8Array, kind: string, edi
   if (edit) await edit(d);
   else d = await rewrite(d); // Een weigering betreft gewijzigde invoer; ongewijzigd = bronbytes.
   let error: unknown;
-  let parts: Uint8Array[] | undefined;
-  try { parts = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
-  ok(`${label}: geeft niets terug`, parts === undefined);
+  let written: Uint8Array | undefined;
+  try { written = await writeIfcMerge(d, opened.ifcSource); } catch (e) { error = e; }
+  ok(`${label}: geeft niets terug`, written === undefined);
   ok(`${label}: MergeNeedsPhase2Error met code merge-needs-phase2`, error instanceof MergeNeedsPhase2Error && error.code === 'merge-needs-phase2');
   if (error instanceof MergeNeedsPhase2Error) {
     eq(`${label}: het geval`, error.cases.some(c => c.kind === kind), true);
@@ -868,7 +867,7 @@ for (const name of ['showcase-verbouwing-eengezinswoning.ifc', '03-kantoorgebouw
   eq(`${label}: de naam komt uit het IfcProject, zoals main`, opened.project.name, plain.project.name);
   ok(`${label}: niet de naam uit OPS_ProjectSettings`, opened.project.name !== 'Naam van een ander programma');
   reseed(0x1b01);
-  const saved = concat(await writeIfcMerge(cloneDomain(opened), opened.ifcSource!));
+  const saved = await writeIfcMerge(cloneDomain(opened), opened.ifcSource!);
   reseed(0x1b01);
   const main = enc.encode(writeIFC(cloneDomain(plain as Opened)));
   ok(`${label}: Opslaan is de gewone writer, gelijk aan de lezer van main`, sameBytes(saved, main));
@@ -1240,14 +1239,14 @@ async function lossSetup(bytes: Uint8Array) {
   const baseline = await rewrite(cloneDomain(initial));
   // Deze fixture toetst juist de importvlag: behoud haar als expliciete proefinvoer.
   if (initial.importPristine !== undefined) baseline.importPristine = initial.importPristine;
-  bytes = concat(await writeIfcMerge(baseline, initial.ifcSource!));
+  bytes = await writeIfcMerge(baseline, initial.ifcSource!);
   const opened = await openForeign(bytes);
   const source = opened.ifcSource!;
   const index = scanStep(bytes);
   const cls = classify(index);
   const ids = mergeIdPlan(index, cls, source.stepIds, opened.calendar.id, bytes);
   let out: Uint8Array;
-  try { out = concat(await writeIfcMerge(cloneDomain(opened), source)); } catch (e) {
+  try { out = await writeIfcMerge(cloneDomain(opened), source); } catch (e) {
     diffs.push(`lossSetup: de merge weigert (${e instanceof MergeNeedsPhase2Error ? e.cases.map(c => c.detail).slice(0, 2).join(' | ') : (e as Error).message})`);
     checks++;
     return undefined;
@@ -1496,7 +1495,7 @@ async function kaartRonde(label: string, bytes: Uint8Array, edit: (d: Domain) =>
   const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
   try {
     const prepared = await prepareIfcWrite(input, opened.ifcSource!);
-    const output = concat(prepared.parts), reread = await openForeign(output);
+    const output = prepared.bytes, reread = await openForeign(output);
     eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
     eq(`${label}: alle oude en nieuwe baselinerijen`, reread.baselines, input.baselines);
     ok(`${label}: bronbytes ongewijzigd`, sameBytes(bytes, original) && sameBytes(opened.ifcSource!.bytes, original));
@@ -1536,27 +1535,7 @@ const jsonVan = (line: OutLine): any => {
 };
 const vervangJson = (lines: OutLine[], target: OutLine, value: unknown) => lines.map(l => l === target
   ? { ...l, args: l.args.map((a, k) => k === 2 ? `IFCTEXT(${ifcJson(value)})` : a) } : l);
-async function verliesProef(bytes: Uint8Array, input: Domain, output: Uint8Array) {
-  const opened = await openForeign(bytes), source = opened.ifcSource!;
-  const index = scanStep(bytes), cls = classify(index);
-  const plan = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
-  const o0 = regelsVan(bytes), o1 = regelsVan(output);
-  const reread = await openForeign(output);
-  const objects1 = new Map(Object.entries(reread.ifcSource!.stepIds).map(([key, id]) => [id, key]));
-  for (const l of o1) if (l.type === 'IFCWORKSCHEDULE' && l.args[13] === '.BASELINE.') objects1.set(l.id, 'baselines');
-  const pristine = await pristineDomain(index, cls, source);
-  const run = (lines: OutLine[], edited = input, lines0 = o0) => {
-    const found: number[] = [];
-    lossCheck({ index, cls, fixed: new Set([...plan.bySource.keys(), ...plan.baselineHeads.values()]), bySource: plan.bySource,
-      o0: lines0, o1: lines, pristine, domain: sourceFormWhereUnchanged(edited, source.opened, pristine).input, opened: source.opened, objects1,
-      plannerChanged: changedScopes(edited, source.opened ?? pristine).keys,
-      owner0: Number(o0.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-      owner1: Number(o1.find(l => l.type === 'IFCTASK')!.args[1].slice(1)),
-    }, f => found.push(f.chunk));
-    return found;
-  };
-  return { index, o0, o1, run, opened };
-}
+const verliesProef = (bytes: Uint8Array, input: Domain, output: Uint8Array) => lossProbe(bytes, input, output);
 const opgeslagenKaarten = await savedSequenceStart(eigenKaart);
 for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
   const opened = await openForeign(opgeslagenKaarten), source = opened.ifcSource!;
@@ -1567,7 +1546,7 @@ for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     ok(`${kind}: voorbereiding voor uitvoermutaties schrijft`, false); continue;
   }
-  const { index, o0, o1, run } = await verliesProef(opgeslagenKaarten, input, concat(prepared.parts));
+  const { index, o0, o1, run } = await verliesProef(opgeslagenKaarten, input, prepared.bytes);
   eq(`${kind}: echte O1 slaagt door verliespoort`, run(o1), []);
   const target = o1.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0] === `'${kind}'`)!;
   const original = jsonVan(target), oldLine = o0.find(l => l.type === target.type && l.args[0] === target.args[0])!;
@@ -1605,7 +1584,7 @@ for (const kind of ['TaskGuids', 'TaskTypes'] as const) {
     const bytes = latin1(raw.replace(line, `#${changed.id}=${changed.type}(${changed.args.join(',')});`));
     const broken = await openForeign(bytes);
     const unchanged = await prepareIfcWrite(cloneDomain(broken), broken.ifcSource!);
-    ok(`${kind}: bronmutatie ${mutation} zonder bewerking bytegelijk`, sameBytes(concat(unchanged.parts), bytes));
+    ok(`${kind}: bronmutatie ${mutation} zonder bewerking bytegelijk`, sameBytes(unchanged.bytes, bytes));
     const d = await applyEdit(fixedSequenceEdits(broken)[kind === 'TaskGuids' ? 0 : 2], cloneDomain(broken));
     let refused = false;
     try { await prepareIfcWrite(d, broken.ifcSource!); } catch (e) {
@@ -1629,11 +1608,31 @@ async function blijvendeWeigering(label: string, bytes: Uint8Array, edit: (d: Do
     console.log(`BEWIJS blijvende weigering ${label}: ${e.cases.map(c => c.detail).join(' | ')}`);
   }
 }
-await blijvendeWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
+/**
+ * Was een blijvende weigering; sinds PR 12b (de andere toets voor de eigen projectgroepen), PR 12c (de baselinekop beweegt
+ * mee met zijn baseline) of PR 12d (de typenaam op de taak beweegt mee met een hernoemd type) schrijft de merge. Het vreemde deel blijft byte voor byte, en de codes, typen en baselines heropenen
+ * zoals na een gewone opslag zonder vreemd deel (die laat bijvoorbeeld een ongebruikte taaktypedefinitie ook weg).
+ */
+async function opgelosteWeigering(label: string, bytes: Uint8Array, edit: (d: Domain) => Promise<Domain>) {
+  const opened = await openForeign(bytes), input = await edit(cloneDomain(opened));
+  try {
+    const output = (await prepareIfcWrite(input, opened.ifcSource!)).bytes;
+    const reread = await openForeign(output), plain = await reopenPlain(input);
+    eq(`${label}: vreemd deel bytegelijk`, mergeProblems(bytes, output), []);
+    const fields = (x: Domain) => [x.activityCodeTypes, x.customTaskTypes, x.baselines, x.activeBaselineId,
+      x.tasks.map(t => [t.id, t.customTaskTypeId ?? null, t.activityCodes ?? null])];
+    eq(`${label}: heropend zoals een gewone opslag`, fields(reread), fields(plain));
+    console.log(`BEWIJS opgeloste weigering ${label}: geschreven, vreemd deel bytegelijk`);
+  } catch (e) {
+    if (!(e instanceof MergeNeedsPhase2Error)) throw e;
+    ok(`${label}: schrijft sinds PR 12b/12c/12d, maar weigert ${e.cases.map(c => c.detail).join(' | ')}`, false);
+  }
+}
+await opgelosteWeigering('1581 alle baselines wissen', eigenKaart, d => storeEdit(d, s => {
   for (const b of s.baselines) s.deleteBaseline(b.id);
 }));
 for (const action of ['type-verliezen', 'laatste-taak-wissen']) {
-  await blijvendeWeigering(`1582 taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
+  await opgelosteWeigering(`1582 taaktype ${action}`, opgeslagenKaarten, d => storeEdit(d, s => {
     const t = s.tasks.find(t => t.customTaskTypeId === 'type-7c')!;
     if (action === 'laatste-taak-wissen') s.deleteTask(t.id);
     else s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
@@ -1675,7 +1674,7 @@ for (const [i, property] of ['OPS_ActivityCodes', 'TaskTypes', 'TaskTypes', 'Act
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     ok(`7d ${i}: voorbereiding tegenproeven schrijft`, false); continue;
   }
-  const { index, o0, o1, run } = await verliesProef(bytes, input, concat(prepared.parts));
+  const { index, o0, o1, run } = await verliesProef(bytes, input, prepared.bytes);
   eq(`7d ${i}: echte uitvoer door verliespoort`, run(o1), []);
   const template = property === 'OPS_ActivityCodes';
   const target = o1.find(l => l.type === (template ? 'IFCPROPERTYSETTEMPLATE' : 'IFCPROPERTYSINGLEVALUE')
@@ -1732,11 +1731,11 @@ for (const [i, property] of ['OPS_ActivityCodes', 'TaskTypes', 'TaskTypes', 'Act
     refuses('O0 draagt actieve baseline niet', o1, input, o0.map(l => l === oldLine ? { ...l, args: l.args.map((a, k) => k === 2 ? "IFCTEXT('onbekend')" : a) } : l));
   }
 }
-// Meet de bestaande grenzen met echte acties; geen extra verklaringen voor wijzigen of wissen van definities.
+// De grenzen van 7d met echte acties: sinds PR 12b schrijft de merge ze (geen extra verklaringen in de verliescontrole).
 for (const [label, edit] of [
   ['codedefinitie hernoemen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Andere codenaam')],
   ['laatste codedefinitie wissen', (s: Parameters<Parameters<typeof storeEdit>[1]>[0]) => s.removeActivityCodeType(s.activityCodeTypes[0].id)],
-] as const) await blijvendeWeigering(`7d grens ${label}`, catalogusBron, d => storeEdit(d, edit));
+] as const) await opgelosteWeigering(`7d grens ${label}`, catalogusBron, d => storeEdit(d, edit));
 await kaartRonde('7d waarde bij bestaande codedefinitie', catalogusBron, d => storeEdit(d, s => {
   s.addActivityCodeValue(s.activityCodeTypes[0].id, { code: 'EXTRA', description: 'Extra' });
 }));
@@ -1744,26 +1743,26 @@ await kaartRonde('7d actieve baseline uitzetten', catalogusBron, d => storeEdit(
 
 const tweeCodes = await kaartRonde('7d grenzen: tweede code voorbereiden', catalogusBron, d => applyEdit(fixedCatalogEdits(d)[0], d));
 if (tweeCodes) {
-  await blijvendeWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+  await opgelosteWeigering('1585 code hernoemen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
     s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code');
   }));
-  await blijvendeWeigering('1585 code wissen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
+  await opgelosteWeigering('1585 code wissen met andere definitie over', tweeCodes.output, d => storeEdit(d, s => {
     s.removeActivityCodeType(s.activityCodeTypes[0].id);
   }));
 }
-await blijvendeWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
+await opgelosteWeigering('1586 laatste gebruik van een definitie weg terwijl ander type blijft', catalogusBron, d => storeEdit(d, s => {
   for (const t of s.tasks.filter(t => t.customTaskTypeId === 'type-7d-a')) s.updateTask(t.id, { customTaskTypeId: 'type-7d-b' });
 }));
-// Er is geen actie die de projectkopie van een taaktype hernoemt (de beheer-UI hernoemt alleen persoonlijke typen).
-// Meet de writergrens daarom expliciet op domeininvoer; dit is geen geclaimde UI-route.
-await blijvendeWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
+// De projectkopie van een taaktype hernoemen kan sinds #804 keuze 7 via de store-actie `renameProjectTaskType` (de vraag in
+// Werksoorten beheren); deze proef meet de writergrens op domeininvoer, met hetzelfde resultaat. Sinds PR 12d schrijft het (E2).
+await opgelosteWeigering('1586 taaktypedefinitie hernoemen (alleen domeininvoer)', catalogusBron, async d => {
   d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d;
 });
 // Uitzetten mag geen andere property uit de baseline-pset laten verdwijnen.
 {
   const opened = await openForeign(catalogusBron), input = await storeEdit(cloneDomain(opened), s => { s.setActiveBaseline(null); });
   const prepared = await prepareIfcWrite(input, opened.ifcSource!);
-  const { index, o0, o1, run } = await verliesProef(catalogusBron, input, concat(prepared.parts));
+  const { index, o0, o1, run } = await verliesProef(catalogusBron, input, prepared.bytes);
   const set = o1.find(l => l.type === 'IFCPROPERTYSET' && l.args[2] === "'OPS_Baselines'")!;
   const oldSet = o0.find(l => l.type === set.type && l.args[2] === set.args[2])!;
   const broken = o1.map(l => l === set ? { ...l, args: l.args.map((a, k) => k === 4 ? `(${a.slice(1, -1).split(',').slice(1).join(',')})` : a) } : l);

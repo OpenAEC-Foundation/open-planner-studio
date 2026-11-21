@@ -31,7 +31,6 @@ console.warn = () => {};
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
-const { serializeForSave } = await import('@/state/savedLiteralCalendars');
 const { readIFC } = await import('@/services/ifc/ifcReader');
 const { loadExtensionProject } = await import('@/extensions/retainActiveDocument');
 const { toExtProject, toExtCalendar, toExtTask, toExtSequence, toExtResource, toExtAssignment } = await import('@/extensions/extMappers');
@@ -226,13 +225,16 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     sameFinishes('6b na undo opgeslagen', first, second, 'Uurtaak');
   }
   {
-    // 6c. AutoSave naar het bestand legt de keuze ook vast (`serializeForSave` + `markAutoSaveVersionSaved`).
-    const { store, S } = await openOwn();
+    // 6c. AutoSave naar het bestand legt de keuze ook vast, via de echte ronde (#804 stap 6: voorbereiden, schrijven
+    //     en vastleggen in één schrijfbeurt).
+    const { store, file, S } = await openOwn();
     const id = addHourTask(store);
-    const source = S().getOpenDocumentPayloads().find(d => d.id === S().activeDocumentId)!.payload;
-    const written = serializeForSave(source);
-    S().markAutoSaveVersionSaved(S().activeDocumentId, source);
-    eq('6c AutoSave: LiteralTimes in de geschreven tekst, de keuze vastgelegd', [written.includes(LITERAL), S().ifcLiteralCalendarIds], [true, [S().calendar.id]]);
+    S().setAutoSaveToFile(true);
+    const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+    await createFileAutoSaveController({ getState: S, enabled: () => true }).flush();
+    const written = file.text();
+    eq('6c AutoSave: LiteralTimes in de geschreven tekst, de keuze vastgelegd, niet meer gewijzigd',
+      [written.includes(LITERAL), S().ifcLiteralCalendarIds, S().isDirty], [true, [S().calendar.id], false]);
     S().deleteTask(id);
     S().runCPM();
     sameFinishes('6c na AutoSave en wissen', written, save(store), 'Uurtaak');
@@ -332,7 +334,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       const { store, file, S } = await openOwn();
       addHourTask(store);
       let release!: () => void;
-      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
       win.showSaveFilePicker = async () => file.handle;
       const exporting = run(S);
       await new Promise(r => setTimeout(r, 20));
@@ -347,7 +349,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [true, true, true, true]);
       // 7e. Wachten zonder wijziging: de export schrijft na de lock, en legt de keuze vast.
       let release2!: () => void;
-      const hold2 = runProjectFileWrite(() => new Promise<void>(r => { release2 = r; }));
+      const hold2 = runProjectFileWrite(() => new Promise<void>(r => { release2 = r; }), () => undefined);
       const exporting2 = run(S);
       await new Promise(r => setTimeout(r, 20));
       eq(`7e ${route}: tijdens het wachten nog niets geschreven`, file.text() === before, true);
@@ -359,6 +361,31 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [true, true, true, [S().calendar.id]]);
     }
     {
+      // 7h. Review van #1027 (Sol): de export schreef het eigen bestand en kijkt nog of het het eigen bestand is
+      //     (`isSameEntry`); in die opening laadt een extensie een ander project in het tabblad. De kalenderkeuze hoort
+      //     bij de inhoud van de export: het nieuwe project krijgt haar niet, en de export telt niet als geslaagd.
+      const { store, file, S } = await openOwn();
+      addHourTask(store);
+      let written = false, loaded = false;
+      hooks.afterClose = () => { written = true; };
+      hooks.beforeSameEntry = async () => {
+        if (!written || loaded) return;
+        loaded = true;
+        const s = S();
+        loadExtensionProject(store, {
+          project: { ...toExtProject(s.project), id: 'ander-project-7h', name: 'Ander project' }, calendar: toExtCalendar(s.calendar),
+          tasks: [], sequences: [], resources: [], assignments: [],
+        });
+      };
+      win.showSaveFilePicker = async () => file.handle;
+      const result = await run(S);
+      delete hooks.afterClose;
+      delete hooks.beforeSameEntry;
+      eq(`7h ${route}: een ander project tijdens de doelvergelijking krijgt geen kalenderkeuze; geen geslaagde export`,
+        [loaded, file.text().includes(LITERAL), S().project.id, S().ifcLiteralCalendarIds, 'cancelled' in result && result.cancelled === true],
+        [true, true, 'ander-project-7h', null, true]);
+    }
+    {
       // 7f. Review #872 ronde 5 (Sol): de opslag die de lock vasthoudt, legt tijdens het wachten de letterlijke keuze vast
       //     (zoals een opslag met een urentaak doet). De export maakte zijn tekst daarvoor, zonder `LiteralTimes`: hij mag
       //     die ankertekst nu niet meer over het eigen bestand schrijven.
@@ -366,7 +393,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       const { store, file, S } = await openOwn();
       S().addTask({ name: 'Gewone taak' });
       let release!: () => void;
-      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+      const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
       win.showSaveFilePicker = async () => file.handle;
       const exporting = run(S);
       await new Promise(r => setTimeout(r, 20));
@@ -398,7 +425,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
           const { S } = await openOwn();
           S().addTask({ name: 'Gewone taak' });
           let release!: () => void;
-          const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }));
+          const hold = runProjectFileWrite(() => new Promise<void>(r => { release = r; }), () => undefined);
           downloads = 0;
           const exporting = run(S);
           await new Promise(r => setTimeout(r, 20));

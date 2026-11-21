@@ -185,8 +185,10 @@ export interface SlotRestore {
   readonly kind: SlotKind;
 }
 
-/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. */
-export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number }
+/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. `partial`: de
+ *  bronwaarde is van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst); zo'n slot toetst (c) niet per
+ *  slot (`restoredOwnSlots` in `ownGroups.ts`). */
+export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number; readonly partial?: true }
 
 export interface LossCheckInput {
   readonly index: StepIndex;
@@ -222,6 +224,19 @@ export interface LossCheckInput {
   /** Wat de planner wijzigde: de sleutels van `changedScopes` tegenover wat de app na het openen liet zien
    *  (`ifcSource.opened`; fixronde 1 van #886). Zonder: tegenover de lezing van de bron (`changed`). */
   readonly plannerChanged?: ReadonlySet<string>;
+  /**
+   * De andere toets (PR 12b): per bronstuk de eigen groep op projectniveau waarvan het openen niets veranderde (a′,
+   * `openedOwnGroups` in `mergeWriter.ts`). Een verschil in O1 in zo'n groep hoeft geen bewerking te verklaren als de groep
+   * ook gedragen is (a): geen stuk ervan had (b) nodig. Zonder dit veld: de controle van main.
+   */
+  readonly ownGroups?: ReadonlyMap<number, string>;
+  /**
+   * De tweede vormen buiten de psets (PR 12c en 12d, `SECOND_FORMS`): de psets waarvan het openen ook de tweede vorm niet
+   * veranderde (a′ voor die vorm, in dezelfde bronvorm als `ownGroups`). `OPS_Baselines`: de baselinekoppen in de aggregatie
+   * van het werkplan (E1); `OPS_TaskTypes`: de typenaam (`ObjectType`) op de taak (E2). Alleen dan mag die vorm met zijn
+   * pset meebewegen.
+   */
+  readonly secondFormsUnchanged?: ReadonlySet<string>;
 }
 
 /** Het domein zoals de lezer het uit de bron leest: dezelfde bytes, dezelfde opties en dezelfde ingang als de bytes-route
@@ -354,6 +369,24 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const notCarried = new Set(restores.filter(r => !sameMeaning(index, r, p0.out.get(p0.pairedOut.get(r.chunk)![0])!.args[r.outArg], taskTimeMinutesPerDay(input, r.chunk)))
     .map(r => `${r.chunk}:${r.outArg}`));
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
+  // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
+  // veranderde (a′, `input.ownGroups`) en die in de bron gedragen is (a: geen stuk ervan had (b) nodig), schrijft de writer
+  // uit de lezing van de bron zoals hij in de bron staat. Dat geldt voor de eigen regels; een lid van een ander programma
+  // telt in geen groep mee, en de merge hangt het terug (stap 6 van `writeIfcMerge`; controle 1 toetst het). Een verschil in
+  // O1 in die groep is dan wat de writer uit de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven
+  // groep terugleest tot precies wat de writer ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in
+  // `mergeWriter.ts`), en de controle na openen dat de planning gelijk blijft. Elke andere groep (ook een groep met één slot
+  // van (b): die valt hier helemaal buiten, ook als (c) haar per slot toetst), en alles buiten de eigen groepen, blijft onder
+  // de controle hieronder.
+  const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
+  const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
+  // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
+  // hierboven (in de bron, gedragen, niet door het openen veranderd), veranderde het openen ook de vorm zelf niet, en zette
+  // (b) niets in die vorm terug, dan mag de vorm meebewegen met wat de planner in de pset deed (`SECOND_FORMS`). Anders
+  // geldt voor die vorm de controle van main.
+  const psets = new Set(input.ownGroups?.values() ?? []);
+  const following = SECOND_FORMS.filter(f => input.secondFormsUnchanged?.has(f.pset) === true && psets.has(f.pset)
+    && !uncarried.has(f.pset) && !restores.some(r => f.restored(index, r)));
   // De kale schrijfronde met (b): moet gelijk zijn aan de bron, op de benoemde soorten na.
   const o0b = applyEdits(input.o0, restores.map(r => ({ id: p0.pairedOut.get(r.chunk)![0], arg: r.outArg, token: mapToken(input, r.token, p0)!, chunk: r.chunk })));
   const first = compareOutput(input, pairOutput(input, o0b), input.owner0);
@@ -415,7 +448,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
         const token = mapToken(input, r.token, p1);
         if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
-        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
+        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk, ...(PARTIAL_KINDS.has(r.kind) ? { partial: true as const } : {}) });
       } else if (PARTIAL_KINDS.has(r.kind)) {
         say(after, true); // de writer schrijft hier iets anders, zonder dat het veld veranderde: weigeren
       }
@@ -428,6 +461,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     const ctx = o1Context(input, p1b, changed, carried);
     const differences = compareOutput(input, p1b, input.owner1);
     for (const d of differences) {
+      if (ownGroupCarries(d.chunk) || (!lost.has(d.chunk) && following.some(f => f.follows(ctx, d)))) continue;
       const why = lost.has(d.chunk) ? undefined : explainO1(ctx, d);
       if (why === undefined) say(d, true); else input.explainedO1?.(d, why);
     }
@@ -435,7 +469,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
     // Ook zonder slotverschil moet de volledige verwachte wijziging aanwezig zijn.
     const different = new Set(differences.map(d => d.chunk));
     for (const [chunk, scopes] of ctx.scopes) {
-      if (different.has(chunk) || scopes.size !== 1) continue;
+      if (different.has(chunk) || scopes.size !== 1 || ownGroupCarries(chunk)) continue;
       const scope = [...scopes][0];
       const codes = index.type(chunk) === 'IFCPROPERTYSETTEMPLATE' && index.name(chunk) === PSET.ActivityCodes;
       if (!codes && (index.type(chunk) !== 'IFCPROPERTYSINGLEVALUE'
@@ -1400,7 +1434,9 @@ export function changedScopes(originalDomain: WriteIFCInput, originalPristine: I
   const pa = domain.project as unknown as Record<string, unknown>;
   const pb = pristine.project as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(pa), ...Object.keys(pb)])) if (json(pa[k]) !== json(pb[k])) keys.add(`project.${k}`);
-  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource', 'writeMode']);
+  // `baselineOrphanGuids` is geen planning maar wat de lezer voor een weesrij aannam (PR 12e); de baselines zelf tellen hier wel.
+  const skip = new Set(['tasks', 'sequences', 'resources', 'assignments', 'calendar', 'resourceCalendars', 'project', 'ifcSource', 'writeMode',
+    'baselineOrphanGuids']);
   const a = domain as unknown as Record<string, unknown>;
   const b = pristine as unknown as Record<string, unknown>;
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!skip.has(k) && json(a[k]) !== json(b[k])) keys.add(k);
@@ -2233,6 +2269,90 @@ function addedBaselineIds(ctx: O1Context): ReadonlySet<string> {
   if (!ctx.plannerChanged.has('baselines')) return new Set();
   const before = new Set(((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).map(b => b.id));
   return new Set((ctx.input.domain.baselines ?? []).filter(b => !before.has(b.id)).map(b => b.id));
+}
+
+/**
+ * E1 (PR 12c; onderzoek van 14 november 2026, vraag 7, stap 3): de leden van de aggregatie van het eigen werkplan, waar de
+ * baselinekoppen in staan (de tweede vorm van `OPS_Baselines`). Een kop van de bron die niet meer in O1 staat (zijn baseline
+ * is weg), valt uit de bronlijst; een nieuwe kop (een baseline die erbij kwam) valt uit de lijst van O1. Wat overblijft,
+ * moet exact gelijk zijn, in dezelfde volgorde: elk ander lid (het live schema, of een lid van een ander programma) staat er
+ * nog, op zijn plek. Hooguit zoveel koppen weg als de planner baselines wiste, en hooguit zoveel erbij als hij er maakte.
+ * Welke kop bij welke baseline hoort en wat erin staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: elke kop
+ * met zijn naam, datums en de aggregatie waarin hij staat). Alleen als `following` in `lossCheck` deze vorm bevat.
+ */
+function headsFollowBaselines(ctx: O1Context, d: LossDiff): boolean {
+  const { input, p } = ctx;
+  const { index } = input;
+  const s = d.chunk;
+  if (index.type(s) !== 'IFCRELAGGREGATES' || d.whole || d.arg !== 5 || (d.outArg ?? d.arg) !== 5) return false;
+  const whole = index.refAt(s, 4);
+  if (whole < 0 || index.type(whole) !== 'IFCWORKPLAN' || input.cls.classes[whole] !== 1 || !input.fixed.has(Number(index.id(whole)))) return false;
+  const line = p.out.get(p.pairedOut.get(s)?.[0] ?? -1);
+  const members = index.refsAt(s, 5);
+  if (!line || members.some(c => c < 0)) return false;
+  const isBaselineLine = (l: OutLine | undefined) => l?.type === 'IFCWORKSCHEDULE' && l.args[workControlSlots(l.args).predefinedType]?.trim() === '.BASELINE.';
+  const dropped = new Set(members.filter(c => input.fixed.has(Number(index.id(c))) && isBaselineHead(index, c) && !p.out.has(Number(index.id(c)))));
+  if (dropped.size > removedBaselineCount(ctx)) return false;
+  const kept = members.filter(c => !dropped.has(c));
+  const out: number[] = [];
+  let added = 0;
+  for (const id of refList(line.args[5])) {
+    // Een nieuwe kop heeft geen vast id (een kop van de bron houdt het zijne via zijn GlobalId); het paren kan hem op zijn
+    // plek aan een gewiste kop koppelen, dus eerst dit.
+    if (!input.fixed.has(id) && input.objects1?.get(id) === 'baselines' && isBaselineLine(p.out.get(id))) { added++; continue; }
+    const c = sourceChunkOf(input, id, p);
+    if (c === undefined) return false;
+    out.push(c);
+  }
+  return added <= addedBaselineIds(ctx).size && kept.length === out.length && kept.every((c, i) => c === out[i]);
+}
+
+/**
+ * E2 (PR 12d; onderzoek van 14 november 2026, vraag 7, stap 4): de typenaam op de taak, de tweede vorm van `OPS_TaskTypes`.
+ * Hernoemt de planner een eigen taaktype, dan verandert `ObjectType` (slot 4) van elke taak met dat type, terwijl geen veld
+ * van die taak veranderde. Dat verschil is in orde als het precies dat is: slot 4 van een eigen taak die in de bron en in O1
+ * `PredefinedType .USERDEFINED.` heeft, met hetzelfde eigen type als bij openen, en de definitie van dat type heeft nu een
+ * andere naam dan bij openen. Elk ander slot van de taakregel, en slot 4 van elke andere taak, gaat door de controle van main.
+ * Welke naam er op de taak staat, toetst controle (c) op de echte uitvoer (`ownGroupTrees`: per taak GlobalId, typenaam en
+ * PredefinedType). Alleen als `following` in `lossCheck` deze vorm bevat.
+ */
+function typeNameFollowsDefinition(ctx: O1Context, d: LossDiff): boolean {
+  const { input, p } = ctx;
+  const { index } = input;
+  if (index.type(d.chunk) !== 'IFCTASK' || d.whole || d.arg !== 4 || (d.outArg ?? d.arg) !== 4) return false;
+  const userDefined = (t: string | undefined) => t?.trim() === '.USERDEFINED.';
+  const source = index.argTokens(d.chunk) ?? [];
+  const line = p.out.get(p.pairedOut.get(d.chunk)?.[0] ?? -1);
+  if (!userDefined(source[source.length - 1]) || !userDefined(line?.args[12])) return false;
+  const key = objectKey(input, d.chunk);
+  if (!key?.startsWith('task:') || !ctx.plannerChanged.has('customTaskTypes')) return false;
+  const before = input.opened ?? input.pristine;
+  const typeId = ctx.tasks1.get(key.slice(5))?.customTaskTypeId;
+  if (!typeId || before.tasks.find(t => t.id === key.slice(5))?.customTaskTypeId !== typeId) return false;
+  const name = (x: Pick<WriteIFCInput, 'customTaskTypes'>) => x.customTaskTypes?.find(t => t.id === typeId)?.name;
+  return name(input.domain) !== undefined && name(before) !== undefined && name(input.domain) !== name(before);
+}
+
+/**
+ * De tweede vormen buiten de psets (onderzoek, vraag 2, tegenvoorbeeld 5): twee eigen gegevens staan ook op een object dat
+ * andere gegevens draagt. Per vorm: de pset waar hij bij hoort, of een slot dat (b) terugzette in die vorm ligt (zoals
+ * `editedOwnGroup` in `ownGroups.ts` het afbakent), en welk verschil in O1 de vorm mag dragen. De namen van de vormen staan
+ * in `ownGroups.ts` (`SECOND_FORMS`); daar toetst (c) ze.
+ */
+const SECOND_FORMS: readonly {
+  readonly pset: string;
+  readonly restored: (index: StepIndex, r: SlotRestore) => boolean;
+  readonly follows: (ctx: O1Context, d: LossDiff) => boolean;
+}[] = [
+  { pset: PSET.Baselines, restored: (index, r) => isBaselineHead(index, r.chunk), follows: headsFollowBaselines },
+  { pset: PSET.TaskTypes, restored: (index, r) => index.type(r.chunk) === 'IFCTASK' && (r.outArg === 4 || r.outArg === 12), follows: typeNameFollowsDefinition },
+];
+
+/** Hoeveel baselines de planner wiste, tegenover de toestand bij openen. */
+function removedBaselineCount(ctx: O1Context): number {
+  if (!ctx.plannerChanged.has('baselines')) return 0;
+  const after = new Set((ctx.input.domain.baselines ?? []).map(b => b.id));
+  return ((ctx.input.opened ?? ctx.input.pristine).baselines ?? []).filter(b => !after.has(b.id)).length;
 }
 
 /** Is het object van een lid verdwenen/erbij gekomen, of wisselde het zijn ouder/kalender? */

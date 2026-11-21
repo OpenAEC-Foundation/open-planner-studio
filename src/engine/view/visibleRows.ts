@@ -12,11 +12,20 @@ import {
   type FieldValue, type ViewContext,
 } from './filterEval';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 
 export type { ViewContext } from './filterEval';
 
 export type ViewRow =
-  | { kind: 'task'; rowKey: string; task: Task; depth: number; dimmed: boolean }
+  | {
+      kind: 'task'; rowKey: string; task: Task; depth: number; dimmed: boolean;
+      /** Issue #868: deze taak is de eerste van een uitgeklapte mijlpalenreeks van `runSize` mijlpalen
+       *  (het pijltje om de reeks in te klappen). Ontbreekt bij elke andere rij. */
+      runSize?: number;
+    }
+  /** Issue #868: een ingeklapte mijlpalenreeks, één rij met alle ruitjes. `tasks` in lijstvolgorde;
+   *  de eerste is de kop, wiens id in `collapsedTaskIds` staat. */
+  | { kind: 'milestones'; rowKey: string; tasks: Task[]; depth: number; dimmed: boolean }
   | {
       kind: 'group';
       rowKey: string;
@@ -190,6 +199,63 @@ function partition(
   return out;
 }
 
+// --- Mijlpalenreeksen (issue #868) ---
+
+/** Mag deze taak in een reeks: een nulduurmijlpaal zonder kinderen. */
+function isRunMilestone(task: Task): boolean {
+  return isZeroDurationMilestone(task) && isLeafTask(task);
+}
+
+/**
+ * Deelt een rij broers (in lijstvolgorde) op in losse taken en reeksen: twee of meer
+ * nulduurmijlpalen direct achter elkaar. Al het andere breekt een reeks.
+ */
+function splitIntoRuns(siblings: readonly Task[]): (Task | Task[])[] {
+  const out: (Task | Task[])[] = [];
+  let run: Task[] = [];
+  const flush = () => {
+    if (run.length >= 2) out.push(run);
+    else out.push(...run);
+    run = [];
+  };
+  for (const task of siblings) {
+    if (isRunMilestone(task)) run.push(task);
+    else { flush(); out.push(task); }
+  }
+  flush();
+  return out;
+}
+
+/** De kinderen van `task` in lijstvolgorde (onbekende ids vallen weg). */
+function childrenOf(task: Task, byId: ReadonlyMap<string, Task>): Task[] {
+  return task.childIds.map(id => byId.get(id)).filter((t): t is Task => !!t);
+}
+
+/** Ids van de eerste mijlpaal van elke reeks in de boom: wat "alles inklappen" ook inklapt. */
+export function milestoneRunHeads(tasks: readonly Task[]): string[] {
+  const byId = new Map(tasks.map(t => [t.id, t]));
+  const heads: string[] = [];
+  const visit = (siblings: readonly Task[]) => {
+    for (const part of splitIntoRuns(siblings)) if (Array.isArray(part)) heads.push(part[0].id);
+  };
+  visit(tasks.filter(t => !t.parentId));
+  for (const task of tasks) if (task.childIds.length > 0) visit(childrenOf(task, byId));
+  return heads;
+}
+
+/** De kop van de reeks waar `taskId` in zit, of `null` als die taak niet in een reeks staat. */
+export function milestoneRunHeadOf(tasks: readonly Task[], taskId: string): string | null {
+  const byId = new Map(tasks.map(t => [t.id, t]));
+  const task = byId.get(taskId);
+  if (!task || !isRunMilestone(task)) return null;
+  const parent = task.parentId ? byId.get(task.parentId) : undefined;
+  const siblings = parent ? childrenOf(parent, byId) : tasks.filter(t => !t.parentId);
+  for (const part of splitIntoRuns(siblings)) {
+    if (Array.isArray(part) && part.some(t => t.id === taskId)) return part[0].id;
+  }
+  return null;
+}
+
 // --- De pijplijn ---
 
 export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewContext): ViewRow[] {
@@ -256,26 +322,49 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   // Stap 2' — boommodus: behoud de WBS-boom. Ook ingeklapte nakomelingen bezoeken,
   // zodat het wees-vangnet ze niet oppikt. Een expliciete stack bewaart diepte en verborgenheid
   // zonder één JavaScript-aanroep per WBS-niveau.
+  // Reeksen alleen in de zuivere boom (#868, punt 9): bij een filter of sortering staan ze uitgeklapt.
+  const runs = filter === null && sort.length === 0;
   const rows: ViewRow[] = [];
   const seen = new Set<string>();
-  const emitBranch = (root: Task) => {
-    const stack = [{ task: root, depth: 0, hidden: false }];
-    while (stack.length > 0) {
-      const { task, depth, hidden } = stack.pop()!;
-      if (seen.has(task.id)) continue;
-      seen.add(task.id);
-      if (!hidden && visible.has(task.id)) {
-        rows.push({ kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id) ?? false });
-      }
-      const hideChildren = hidden || collapsedTaskIds.has(task.id);
-      const kids = sortTasks(task.childIds.map(id => byId.get(id)).filter((t): t is Task => !!t), sort, ctx);
-      for (let i = kids.length - 1; i >= 0; i--) {
-        stack.push({ task: kids[i], depth: depth + 1, hidden: hideChildren });
+  type Item = { task: Task; depth: number; hidden: boolean; runSize?: number } | { run: Task[]; depth: number; hidden: boolean };
+  const pushSiblings = (stack: Item[], siblings: Task[], depth: number, hidden: boolean) => {
+    const parts = runs ? splitIntoRuns(siblings) : siblings;
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      if (!Array.isArray(part)) { stack.push({ task: part, depth, hidden }); continue; }
+      if (collapsedTaskIds.has(part[0].id)) { stack.push({ run: part, depth, hidden }); continue; }
+      for (let j = part.length - 1; j >= 0; j--) {
+        stack.push({ task: part[j], depth, hidden, ...(j === 0 ? { runSize: part.length } : {}) });
       }
     }
   };
-  const roots = tasks.filter(t => !t.parentId);
-  for (const r of sortTasks(roots, sort, ctx)) emitBranch(r);
+  const emit = (stack: Item[]) => {
+    while (stack.length > 0) {
+      const item = stack.pop()!;
+      if ('run' in item) {
+        for (const t of item.run) seen.add(t.id);
+        if (!item.hidden) {
+          rows.push({ kind: 'milestones', rowKey: `milestones:${item.run[0].id}`, tasks: item.run, depth: item.depth, dimmed: false });
+        }
+        continue;
+      }
+      const { task, depth, hidden } = item;
+      if (seen.has(task.id)) continue;
+      seen.add(task.id);
+      if (!hidden && visible.has(task.id)) {
+        rows.push({
+          kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id) ?? false,
+          ...(item.runSize ? { runSize: item.runSize } : {}),
+        });
+      }
+      const hideChildren = hidden || collapsedTaskIds.has(task.id);
+      pushSiblings(stack, sortTasks(childrenOf(task, byId), sort, ctx), depth + 1, hideChildren);
+    }
+  };
+  // Eén stapel voor alle wortels, zodat ook een reeks bovenaan (broers zonder ouder) herkend wordt.
+  const rootStack: Item[] = [];
+  pushSiblings(rootStack, sortTasks(tasks.filter(t => !t.parentId), sort, ctx), 0, false);
+  emit(rootStack);
   // Wees-vangnet: taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {
@@ -313,6 +402,8 @@ export function firstRowIndexByTask(rows: ViewRow[]): Map<string, number> {
   const map = new Map<string, number>();
   rows.forEach((row, i) => {
     if (row.kind === 'task' && !map.has(row.task.id)) map.set(row.task.id, i);
+    // Een ingeklapte reeks: al haar mijlpalen staan op deze ene rij (#868).
+    if (row.kind === 'milestones') for (const t of row.tasks) if (!map.has(t.id)) map.set(t.id, i);
   });
   return map;
 }
@@ -349,6 +440,7 @@ export function uniqueTaskIds(rows: readonly ViewRow[]): string[] {
   const ids = new Set<string>();
   for (const row of rows) {
     if (row.kind === 'task') ids.add(row.task.id);
+    else if (row.kind === 'milestones') for (const t of row.tasks) ids.add(t.id);
   }
   return [...ids];
 }

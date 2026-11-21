@@ -22,6 +22,7 @@ import {
   shiftedTaskIds,
   type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
+import { documentContentOf } from '@/state/documentSaveState';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -1437,13 +1438,14 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   // andere kolom.
   const kolommen = (csv: string) => {
     const [kop, ...regels] = csv.trim().replace(/^﻿/, '').split('\r\n');
-    const index = new Map(kop.split(';').map((h, i) => [h, i] as const));
+    const delimiter = kop.includes(';') ? ';' : ',';
+    const index = new Map(kop.split(delimiter).map((h, i) => [h, i] as const));
     const kol = (naam: string): number => {
       const i = index.get(naam);
       if (i === undefined) throw new Error(`13B: CSV-kolom '${naam}' ontbreekt in de kopregel`);
       return i;
     };
-    return regels.map(regel => regel.split(';')).map(rij => ({
+    return regels.map(regel => regel.split(delimiter)).map(rij => ({
       start: rij[kol('Start')], critical: rij[kol('Critical')], totalFloat: rij[kol('Total Float')],
     }));
   };
@@ -1731,7 +1733,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc('16w')), { filePath: null, recompute: true });
   S().runCPM();
-  S().markAutoSaveVersionSaved(S().activeDocumentId, S());
+  S().markAutoSaveVersionSaved(documentContentOf(S(), S().activeDocumentId)!, S());
   eq('16w0 na F5 en opslaan: niet vuil, vlag aan, modus uit', [S().isDirty, S().importPristine, S().datesAsRecorded], [false, true, false]);
   S().undo();
   eq('16w Ctrl+Z na opslaan: vuil, vlag aan, modus aan', [S().isDirty, S().importPristine, S().datesAsRecorded], [true, true, true]);

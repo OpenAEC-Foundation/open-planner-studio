@@ -17,12 +17,14 @@ If heavy local work is truly needed, ask the owner first. Owner decision 2026-10
 stricter rule of 2026-10-22.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
-steps in its own release worktree, including package checks by its Haiku translation stations
-(website generators in a temporary copy there); see
+steps in its own release worktrees (the release script and `release-werk`), including package checks by its
+Haiku translation stations (website generators in a temporary copy); see
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
 that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
-dev servers stay CI-only.
+dev servers stay CI-only. The scheduled nightly translation job (Monday to Saturday 01:00,
+[`.claude/skills/nachtvertalingen/SKILL.md`](.claude/skills/nachtvertalingen/SKILL.md)) has the same kind of
+exception for its own list in `referentie.md` (owner decision 2026-11-16).
 
 ## Commands
 
@@ -63,7 +65,7 @@ New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k line
 **`npm run verify` is one definition, in `package.json`** — ci.yml runs its steps in parallel jobs via
 `scripts/verify-parts.mjs`, which reads them from that definition, but not the browser suite on an ordinary PR or
 push (see *Testing pitfalls*). The release gate runs no verify of its own: `scripts/release-ci-check.mjs` checks that
-the CI push run on the tagged commit and the last browser run on `main` since Friday 22:00 Dutch time are green (owner
+the CI push run on the tagged commit and the last browser run on `main` since Friday 22:00 Dutch time (in practice Saturday 22:00) are green (owner
 decision 2026-10-31; what reaches `main` after that gets no browser test). The deploy (live.yml)
 runs no verify of its own: it starts after a green ci.yml run on `main` (`workflow_run`) and only for the commit CI
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
@@ -96,7 +98,8 @@ Translations: `npm run i18n:add` puts one string in `nl` + `en` (required) and a
 `npm run i18n:fmt` puts the locale files in the fixed format (one key per line, `nl` order),
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
 `npm run translate -- <command>` is the translation pipeline (termbase `i18n/termbase/`, UI work packages in
-`build/translate/`, `apply ui`, `status`; the UI for all locales before every release via the `update-ui-lang` skill; design
+`build/translate/`, `apply ui`, `status`; the UI texts that are done every night via the `nachtvertalingen` skill
+(48 hours unchanged on `main`, not of a feature flag), the rest for all locales before every release via the `update-ui-lang` skill; design
 `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`,
 overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18n/ui-sources/` (and drops them
 for locales it did not write, so `prepare ui <locale> --missing`/`--stale` picks them up).
@@ -116,7 +119,8 @@ Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.
 `windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `appimage-im-check.yml`
 (builds only the AppImage and checks it ships the IBus/Fcitx input-method modules, issue #764; `release.yml` runs the
 same `scripts/check-appimage-im-modules.sh` before publishing), `mcp-real-app.yml` (MCP
-bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
+bridge tests against the real Rust bridge), `rust-tests.yml` (`cargo test place_file` on Ubuntu 22.04, macOS and
+Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
 ## Testing pitfalls
 
@@ -184,6 +188,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Tauri guard.** `const isTauri = () => '__TAURI_INTERNALS__' in window;` — anything touching `@tauri-apps/*`
   is imported dynamically inside an `isTauri()` branch. A top-level import breaks the web build.
   Updater and MCP bridge are Tauri-only; the browser does its own file I/O and recovery.
+- **Hidden start window (#895).** The desktop window starts with `visible: false` (also in
+  `tauri.macos.conf.json`, which replaces the whole `windows` list). `src/startup/appWindow.ts` shows it once the
+  first render has committed and fonts are loaded, or with the error screen (`src/startup/fatalError.ts`) when
+  start-up fails; `main.rs` shows it after 10 s as a safety net. Saved settings reach the store before the first
+  render (`src/startup/initialSettings.ts`), so anything you add to start-up before `render` delays the window.
 - **Platform build.** `npm run build:platform -- --base /pad/` builds the bundle the OpenAEC app on Frappe serves
   under a sub-path (Vite mode `platform`, `.env.platform`, `build.manifest`, `dist-platform/`); `npm run build` gets
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start,
@@ -200,30 +209,60 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `config.ts`, `discovery.ts`, `headlessChild.ts`). Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
-- **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
-  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. The command-less
+- **Rust is thin.** Exactly four commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`,
+  `place_file_exclusive`); every new command is public surface. File I/O: extend `src/services/fileAccess/`, not a
+  Rust command. The one exception, `place_file_exclusive` (#804, knownbug 1131), moves one file to a new name in the
+  same real folder and fails if that name exists (`renameat2`/`RENAME_NOREPLACE`, `renameatx_np`/`RENAME_EXCL` on
+  the open folder; Windows `SetFileInformationByHandle` on the open source without replace); it refuses unless
+  exactly one name is an own helper file, the opened source is a regular file with exactly one name (more is `hard-linked`,
+  zero is `source-changed`, read once from the open handle; technical decision 2026-11-18), and plugin-fs `rename` allows both the caller's path texts (`SafeFilePath`,
+  then the scope, as plugin-fs does) and the real open folder (its real scope via `Webview::resolve_command_scope`
+  plus the runtime scope, the rule of plugin-fs 2.7.1: a deny on the path text or on the real path wins, the allow
+  applies to the real path, and the real path resolves symlinks in the ancestors of a path that does not exist yet). A step error stays an error; after the step it checks that
+  the opened source is at the target and otherwise returns `source-changed` without touching anything again (no
+  restore). Its boundary, including the Unix window it leaves open (knownbug 1799) and mounts that hide hard links (knownbug 1823), is in the header of
+  `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
+  one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
+  of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
+  `$APPDATA`, plus the files `cookies` and `hsts-storage.sqlite`) and `$APPLOCALDATA/EBWebView/**` on Windows; the
+  capabilities `webviewgegevens-linux.json` and `webviewgegevens-windows.json` (via `platforms`; macOS needs none) add
+  what upstream does not cover: each protected folder itself in `fs:scope` (`folder/**` does not match the folder, and
+  plugin-fs `rename`/`remove` only check the given paths), and `fs:allow-rename`/`fs:allow-remove` deny
+  `$APPLOCALDATA` itself. Never repeat a rule `fs:default` already supplies (it would appear twice and
+  `place_file_scope_volgt_plugin_fs` fails). `mkdir`, `read_dir`, reading and writing in `$APPLOCALDATA` stay allowed
+  (crash recovery and the MCP files live there, so never deny all of `$APPLOCALDATA`). Out of bounds: renaming or removing a folder above it on Windows
+  (knownbug 1775), and a dot-named file inside a protected folder that the user picks in a file dialog (the
+  matcher's leading-dot rule keeps a deny from matching it; knownbug 1776). `tauri-plugin-fs` is 2.7.1 (lower bound in
+  `Cargo.toml`, npm `@tauri-apps/plugin-fs` the same) and `tauri-plugin-persisted-scope` 2.4.3.
 - **Voorbereid IFC-schrijfresultaat (#804, 1c).** `prepareIfcWrite` in `foreign/mergeWriter.ts`
-  levert delen, sha256, de nieuwe `IfcSource` met sessiekaart en bevroren schrijfinvoer, en
-  `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de delen. Alleen een ongewijzigde
+  levert de uitvoer als één buffer (`bytes`, dezelfde als `source.bytes`), sha256, de nieuwe `IfcSource` met
+  sessiekaart en bevroren schrijfinvoer, en `literalCalendarIds`; `writeIfcMerge` is de adapter voor alleen de bytes. Alleen een ongewijzigde
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
-  `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
+  `commitSavedDocument(ref, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
   bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
-  Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
-- **Byte-delen voor IFC (#804, T1).** De aparte ingang `saveBytePartsDialog`/`saveBytePartsToRef`
-  accepteert `readonly Uint8Array[]`: Tauri opent het einddoel met `createNew`, zonder rename of
-  directe terugval; bestaande lokale doelen weigeren. Web downloadt een Blob; een browserhandle
-  weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130). `saveNewSiteFileParts` en
-  `saveSiteFileVersionParts` schrijven een Blob; de laatste eist een basisversie en bewaart de
+  Pool, planOnly, paneel en dev-bridge blijven bij vreemde inhoud geblokkeerd; bestands-AutoSave schrijft sinds #804
+  stap 8 met de flag aan via de vervanging van Ctrl+S (zie *Auto-save with a building model*).
+- **IFC-bytes naar een nieuw doel (#804, T1; 1131 stap 4).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
+  accepteert één `Uint8Array`. Tauri (`writeNewUserBytes`, ook voor `planner_export_ifc`) schrijft die met `createNew`
+  in één aanroep naar een eigen `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de
+  naam; nooit `rename` van plugin-fs. Een bestaande naam weigert (`notifications.ifcForeignNewTargetOnly`);
+  `source-changed` stopt zonder terugzetten of opruimen (`notifications.ifcForeignPlaceUnknown`). Alleen
+  `unsupported`, een scopeweigering of een tijdelijk bestand buiten de scope (`forbidden path`) vallen terug op één
+  directe `createNew` op de naam; die is niet crashvast. Web downloadt een Blob; een browserhandle
+  weigert getypeerd omdat exclusieve aanmaak ontbreekt (1130); alleen Ctrl+S op het eigen bestand achter een
+  handle vervangt, via `replaceHandleWithBytes` (1131 stap 2). `saveNewSiteFileBytes` en
+  `saveSiteFileVersionBytes` schrijven een Blob; de laatste eist een basisversie en bewaart de
   eventuele conflictkopie in het antwoord. Tekst en bestaande binaire exports houden hun gedrag.
   `ifcSaveBlocked` houdt de overige routes dicht; exclusieve vervanging/bronhash en crashvaste publicatie
-  zijn fase 2 (1131). Bewijs: `check-file-byte-parts.ts`.
+  zijn fase 2 (1131). Bewijs: `check-file-ifc-bytes.ts`.
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a
@@ -252,7 +291,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131).
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane and dev-bridge blocked, and file AutoSave with the flag off or the source missing. Local existing targets remain refused (1131), except Ctrl+S and Auto-save (#804 step 8) on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark
@@ -326,9 +365,22 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `workdayAxis.ts`); interaction in `src/components/canvas/hooks/`. Change visual Gantt behaviour in the
   renderer, not in components.
 - **Notifications go through one channel** from the store — no `alert()` or ad-hoc toasts.
-- **Pending modal questions.** While the actual-start, phase-assignment or missing-model Save As question waits,
-  `isGlobalShortcutFrozen` blocks global app shortcuts and the surrounding shell controls are inert,
+- **Pending modal questions.** While the actual-start, phase-assignment or missing-model Save As question waits, or
+  "Wordt nog opgeslagen…" shows (`ui.savingBeforeClose`), `isGlobalShortcutFrozen` blocks global app shortcuts and the
+  surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
+- **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
+  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
+  a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
+  opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
+  `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`
+  outcome (nothing written, not marked saved, no notice) until `destroy`/`relaunch` is done or fails. Quitting and the
+  updater have one owner of that phase (`claimShutdown`, `src/services/appQuit/shutdownPhase.ts`): during an install a
+  window close is swallowed without a question, and the updater waits for a running quit. In quitting's final phase the
+  whole app is inert (`ui.appClosing` on the app root, also open dialogs and their keys), and it never destroys the
+  window with a dirty document: it reopens and asks the close question. A save belongs to the document it was asked for: its re-checks
+  (`refuseChangedDocumentWrite`) and its commit use that document id, never the active document; at most one waiting
+  Ctrl+S per document.
 - **Tailwind sources.** `src/styles/globals.css` disables automatic detection with `source(none)` and
   registers only `src/` and `index.html` via `@source` (paths relative to that stylesheet). This includes
   extension UI and HTML strings in `src/`; imported component CSS and fonts still build normally.
@@ -339,15 +391,58 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   (`text-caption`…`text-title`); `text-xs`/`text-sm` no longer exist and silently do nothing.
 - **Settings:** `localStorage` under `ops-` keys (no store plugin: the npm dependency `@tauri-apps/plugin-store`
   is gone; the Rust side still registers `tauri-plugin-store`, unused), declared in `settingsRegistry.ts`.
-  A setting in `SettingsPanelContent` automatically appears in all three places (⚙, Settings tab, Backstage);
-  a remembered view choice via a ribbon button or dragging does not belong there.
+  A setting in the panel is one entry in `src/components/settings/catalog/settingsCatalog.tsx` (plus its id in
+  `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
+  the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
+  A remembered view choice via a ribbon button or dragging does not belong there.
+- **Save worker (#804 steps 4 to 6).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
+  plain writer, or the merge with a foreign part) in one reusable Web Worker. The mounted app owns one client
+  (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
+  `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
+  close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
+  (`fileAutoSave.ts`, `compute` from `useAutoSave`; it checks its target after the computation, in the same write turn,
+  like Ctrl+S). Headless, scratch and test contexts, crash recovery and
+  `planner_export_ifc` stay on the main thread. A plain writer answer carries the worker's bytes; they go straight to
+  the write layer (`FileData`, `saveDataDialog`, `saveToRef`), never through text; the text only exists when the main
+  thread computed (the worker did not start). The plain writer keeps its right to overwrite (`saveFileDialog` /
+  `saveBytesDialog`, the atomic replace); `saveNewBytesDialog` stays the merge's exclusive route. `prepareIfcOutput`
+  keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
+  output buffers come back transferred, content errors arrive as the same error class, transport failures as
+  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
+  `started` message); after a crash, timeout or unreadable answer it is an error, never a retry on the main thread;
+  neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
+  bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
+  stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
+  injected worker), `save-worker-production.spec.ts` (the production config, its modules incl. dynamic chunks) and
+  `settings-tabs.spec.ts` (the app starts the worker itself on a real Ctrl+S, for a model and a plain file).
+- **Save status in the status bar** (#804 step 5, every document): "Saving…" from the request (Ctrl+S, Save As, *Save*
+  in the close question) through the end of the whole save, then "Saved 14:32", and "Unsaved" once the document changes
+  again. It lives on the document registry (`DocumentEntry.saveState`, `src/state/documentSaveState.ts`), not in
+  `DOCUMENT_FIELDS`; `commitSavedDocument` stamps the time. A failure is a normal notice, never a status.
+- **Document content identity** (#1020 fix round 1): a save belongs to the content it was requested for
+  (`DocumentContentRef`: document id plus `DocumentEntry.content`), not to the tab. Only `replaceDocumentContent`
+  changes it: another project in the same tab (`applyLoadedProject` without edit and with another project id, which
+  includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
+  read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
+  for the plain writer and in `stopBeforeWrite`) and again at the last safe point of the write layer
+  (`RefuseBeforePlace`: before `close()` of an existing browser handle, directly next to `close()` for the merge
+  handle, before setting an existing name aside, before the exclusive placement, before the atomic rename and the site
+  write, also for both IFC exports; a refusal leaves the target unchanged and returns "not written"). A handle fresh
+  from the browser's save picker gets no late check: Chromium already emptied an existing target when it was picked
+  (knownbug 1899), so the save finishes the requested file and only the commit, Recent and an export's success and
+  calendar choice are withheld, `commitSavedDocument` takes the ref and commits nothing to replaced content, and the waiting Ctrl+S,
+  the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
+  not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
-  1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
-  `ifcSource` reference (sha256, byteLength, foreign and optional browser handle) restores a foreign source through
-  the ordinary bytes-open route after hash verification; the snapshot supplies the edited planning. Foreign documents
+  1–5 plus the historical unversioned web `docIds` form. A desktop replacement of the own file (knownbug 1131 step 5)
+  keeps its own record `recovery[.<slug>].replace.<id>.json` outside the manifest (`replaceRecords.ts`). With `ifcForeignContent`, an optional per-document
+  `ifcSource` reference (sha256, byteLength, foreign, optional browser handle and, while a replacement runs,
+  `pendingSha256`) restores a foreign source through the ordinary bytes-open route after hash verification against
+  either hash; the snapshot supplies the edited planning. Foreign documents
   keep no save target in the manifest, so older readers restore planning with `sourceMissing` and no target.
   Desktop paths and browser handles read the source again. Browser files without a handle and site files use
   best-effort source copies in a separate `ops-ifc-sources.<recoveryBase>` IndexedDB database (created only when needed
@@ -362,6 +457,31 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   and `recoveryStore.ts`; upgrade/blocking/error limits are in `docs/xer-recovery-guardrails.md`.
   A blocked web upgrade completes startup with a persistent storage warning; recovery refuses further DB
   access until reload, even after unblocking. There is no fallback to writing an older DB version.
+- **Auto-save with a building model (#804 step 8).** With `ifcForeignContent` on and the source present, a document with
+  a foreign part takes part in Auto-save through the same replacement as Ctrl+S on its own target
+  (`replaceOwnHandleWithRecovery` / `replaceOwnPathWithRecovery` in `src/state/ownFileReplace.ts`, never
+  `saveToRefWithoutPrompt`, never the site or a download), inside one `runYieldingProjectFileWrite`
+  (`writeCoordinator.ts`): content check, target and source check, merge in the save worker, the check again, the
+  replacement with its recovery record, and the commit. Its own rhythm per document (`modelAutoSaveRhythm.ts`, clock
+  injectable): 30 s of rest, at most 5 min after the first unsaved change, and never sooner than ten times the measured
+  duration of the previous round after its start; typing in open field input (`state/textEntryActivity.ts`) restarts the
+  rest. The timers live in `fileAutoSaveTimers.ts`; only the model timer puts a model up for its turn (`flushModels`),
+  the ordinary 10 s round knows no model, and the rhythm is checked again at the turn in the queue. Every
+  other request for the write queue (`runProjectFileWrite`: Ctrl+S, Save As, exports, MCP), every wait on it
+  (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export over its whole
+  sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
+  is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
+  `YieldingTurn.pass()`, once recovery is recorded); an export pins its document at the call and waits for a round past
+  that boundary (`whenProjectFilePlacementSettled`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a
+  round yield: it waits its turn and writes right after the model round, so a model round always gets its turn. The
+  write coordinator is the one place that assigns these turns. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
+  Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
+  a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
+  changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
+  stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
+  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.
+  Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,
   see `src/state/immerDraft.ts`). Bumping is a deliberate, separately reviewed change.
@@ -399,10 +519,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
   name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
   Flags default to off; `writesNewIfcData` does not hide or disable the experimental switch. The hidden
-  Experimental block in Settings → Advanced is unlocked by activating its version number for
+  Experimental block in Settings → About is unlocked by activating its version number for
   5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
   persist per device; hiding keeps the choices. The PR that enables a feature by default also
-  removes its flag and the corresponding checks.
+  removes its flag and the corresponding checks. List the flag's own UI texts in `texts` (`ns:path` or
+  `ns:path.*`): the nightly translation skips them until the flag is gone, the release translates them.
   Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik 5 seconden snel achter elkaar op het versienummer).
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
@@ -420,11 +541,15 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   Those guides use a limited Markdown subset (no tables/blockquotes/h4/HTML). The GitHub wiki is generated,
   never edited by hand (`wiki` skill).
 - **Releases**: only via the `release` skill; a `v*` tag is irreversible and rolls out to all users
-  (updater + Snap Store). The weekly Saturday job on aia09-mp50 runs that skill automatically,
-  without human approval before the tag (owner, conversation 2026-10-22). Green main CI, a green
-  Friday browser run and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  (updater + Snap Store). The weekly job on aia09-mp50 runs that skill automatically,
+  without human approval before the tag (owner, conversation 2026-10-22). It runs on Monday at 07:00
+  (owner, 2026-11-07) and has no end time: it continues until done, and only a real blocker stops it
+  (owner, 2026-11-09); the weekend stop (Saturday 23:00 to Monday 01:00) and Sunday still apply.
+  When you tell a reporter in an issue comment when a fix ships, name the date of the next Monday release,
+  checked against today's date (`date`). Green main CI, a green
+  last browser run (since Friday 22:00) and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
-  Saturday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
+  Monday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
   neither unfinished work nor a stop reason, also for an older tag; the final report says Arch got no package
   yet and why. A real AUR failure still stops the release (owner decision, 2026-10-31).
   Also resume open release PRs and untagged versions on main without another bump,
@@ -433,7 +558,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   translations for all locales, wiki publication and the two website blocks (the highlights in
   `#whats-new` and the new entry under `#releases`); guide translations beyond nl/en run only on the
   owner's separate request. The job repairs a red CI itself (owner decision 8; route in the `ci-release` rule).
-  The schedule and literal job prompt live in `.claude/skills/release/scheduled-job.md`.
+  The schedule lives in `.claude/skills/release/scheduled-job.md`. The fixed steps run in `scripts/release/run.mjs`
+  (owner, 2026-11-16): the release thread starts it, passes every `RELEASE-STOP <code>` to the orchestrator and
+  never tags itself; release texts come from one `claude -p` text agent inside the script.
   Release text in `docs/release-notes/v<version>.md`; `docs/CHANGELOG.md` only at release.
 - The user term is "resourcebibliotheek"; code/IFC still say `companyId`/`companyName`.
 - Screen evidence in a PR: `artifacts/<topic>/`, PNG ≤ ~150 KB, a handful; local QA screenshots in `qa/`.
@@ -486,7 +613,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `browsertests-repareren` (the Friday-night repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).
@@ -511,5 +638,5 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 | IFC read/write | `src/services/ifc/ifcReader`, `ifcWriter` |
 | File I/O (Tauri↔web↔site) | `src/services/fileAccess/` (+ `recentFiles.ts`; site contract `siteHost.ts`) |
 | Auto-save / recovery | `src/hooks/useAutoSave.ts`, `src/services/recovery/recoveryStore.ts` |
-| Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
+| Rust commands (thin) | `src-tauri/src/commands/mod.rs` (`install_kind`), `src-tauri/src/commands/place_file.rs` (`place_file_exclusive`), `src-tauri/src/mcp_bridge.rs` (`mcp_bridge_start`/`mcp_bridge_stop`) |
 | Tauri config | `src-tauri/tauri.conf.json` (app id `org.openaec.planner`) |

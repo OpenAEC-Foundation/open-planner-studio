@@ -326,7 +326,8 @@ export function useGanttViewportCoordinator(
         }
       : computeFocusTaskHorizontal(durationDays, middleDayOffset, usableWidth);
     const rowIndex = current.rows.findIndex(
-      row => row.kind === 'task' && row.task.id === taskId,
+      row => (row.kind === 'task' && row.task.id === taskId)
+        || (row.kind === 'milestones' && row.tasks.some(t => t.id === taskId)),
     );
     const scrollY = rowIndex >= 0
       ? computeFocusTaskScrollY(rowIndex, current.rowHeight, current.headerHeight, rect.height)

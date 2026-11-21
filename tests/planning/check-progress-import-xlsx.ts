@@ -41,6 +41,7 @@ import {
   type ProgressSheet,
 } from '@/services/progressImport/types';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { createAppStoreContext } from '@/state/appStoreFactory';
 import type { Task } from '@/types/task';
 import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
@@ -791,6 +792,38 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
       { ...PROGRESS_IMPORT_LIMITS, maxRows: 1 },
     )).fileIssue,
     'tooManyRows');
+}
+
+{
+  const today = '2026-06-10';
+  for (const [target, start] of [['A', '2026-06-08T07:00'], ['B', '2026-06-09T07:00'], ['beide', null]] as const) {
+    const { store } = createAppStoreContext();
+    const S = store.getState;
+    S().setProject({ startDate: '2026-06-08', statusDate: today });
+    const A = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-06-08', 1) });
+    const B = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-06-08', 2) });
+    S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    const id = target === 'A' ? A : B;
+    const input = target === 'beide'
+      ? [{ taskId: B, completion: 0.5 }, { taskId: A, completion: 1 }]
+      : [{ taskId: id, completion: 0.5 }];
+    const sheet = await parseProgressXlsx(await progressSheetBytes(input));
+    const rows = finalizeProgressRows(sheet, 'dmy');
+    const preview = S().previewProgressImport(rows, undefined, { today });
+    const applied = S().applyProgressImport(rows, undefined, { today });
+    if (target === 'beide') {
+      eq('#998 Excel weigert de voortgang op B na het afmelden van A, ook als B bovenaan staat',
+        [preview, applied].map(plan => plan.rows.map(row => [row.taskId, row.outcome, row.reason ?? null])),
+        [[[B, 'refused', 'actualStartRequired'], [A, 'apply', null]], [[B, 'refused', 'actualStartRequired'], [A, 'apply', null]]]);
+      eq('#998 Excel slaat alleen de aangebrachte voortgang van A op',
+        S().tasks.map(task => task.time.completion), [1, 0]);
+      continue;
+    }
+    eq(`#998 Excel ${target}: voorvertoning en toepassing geven dezelfde start`,
+      [preview.rows[0]?.plannedTask?.time.actualStart, applied.rows[0]?.plannedTask?.time.actualStart], [start, start]);
+    eq(`#998 Excel ${target}: werkelijke start is opgeslagen`, S().tasks.find(task => task.id === id)?.time.actualStart, start);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════

@@ -32,9 +32,9 @@ De gebouwde app (desktop en de webversie op de site) blokkeert bovendien een aan
 
 ## Bewerken
 
-**Ctrl+C** — *Kopiëren*: kopieert de geselecteerde taken. Alleen met een selectie. Niet in een dialoog. Niet in *Bestand*, niet op de tabbladen *Rapport* en *IFC* en niet als het volledige resourcepaneel openstaat. In het taakraster kopieert Ctrl+C de geselecteerde cellen; dat regelt het raster zelf.
+**Ctrl+C** — *Kopiëren*: kopieert de geselecteerde taken. Alleen met een selectie. Niet in een dialoog. Niet in *Bestand*, niet op de tabbladen *Rapport* en *IFC* en niet als het volledige resourcepaneel openstaat. In het taakraster kopieert Ctrl+C de geselecteerde cellen, en ook de taken van die cellen, zodat je ze in een andere planning kunt plakken.
 
-**Ctrl+V** — *Plakken*: plakt gekopieerde taken. Niet in een dialoog. Niet in *Bestand*, niet op de tabbladen *Rapport* en *IFC* en niet als het volledige resourcepaneel openstaat, want daar staat de takenlijst niet in beeld. In het taakraster plakt het de cellen.
+**Ctrl+V** — *Plakken*: plakt gekopieerde taken. Niet in een dialoog. Niet in *Bestand*, niet op de tabbladen *Rapport* en *IFC* en niet als het volledige resourcepaneel openstaat, want daar staat de takenlijst niet in beeld. In het taakraster plakt het de cellen. Kopieerde je in het taakraster van een andere planning, dan plakt het die taken.
 
 **Ctrl+Z** — *Ongedaan maken*. Niet in een dialoog: sluit eerst het venster.
 
@@ -127,6 +127,26 @@ Deze toetsen werken in het taakraster (op het tabblad *Tabel* en in de tabel lin
 **Esc** (tijdens het bewerken) — breekt het bewerken af zonder de invoer te bewaren.
 
 De resourcetabel heeft een eigen toetsbediening tussen de invoervelden; die staat niet in deze lijst.
+
+## Datumveld en kalender
+
+Deze toetsen staan niet in het venster *Sneltoetsen*. Ze werken in elk datumveld en in een datumcel van de tabel die je aan het bewerken bent. Zie [Een datum invoeren](docs://howto-datum-invoeren).
+
+**Alt+↓** (in een datumveld) — opent de kalender. In een datumveld verplaatst Alt+↓ dus geen taak.
+
+**Pijl links en pijl rechts** (in de kalender) — een dag terug of verder; in een taal die van rechts naar links leest andersom.
+
+**Pijl omhoog en pijl omlaag** (in de kalender) — een week terug of verder.
+
+**Home** en **End** (in de kalender) — de eerste of laatste dag van de week.
+
+**Page Up** en **Page Down** (in de kalender) — een maand terug of verder. Met Shift een jaar.
+
+**Enter** of **spatie** (in de kalender) — kiest de dag. In een dialoog bevestigt Enter dan niet de dialoog.
+
+**Esc** (in de kalender) — sluit de kalender zonder keuze. De dialoog of de cel eromheen blijft open.
+
+**Tab** en **Shift+Tab** (in de kalender) — gaan rond door de knoppen van de kalender en de dag.
 
 ## Dialogen en andere vensters
 

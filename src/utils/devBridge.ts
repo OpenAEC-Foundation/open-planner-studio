@@ -177,7 +177,7 @@ async function scanStoredExtensions(): Promise<Array<{
 
 export interface OpsCommand {
   id?: string;
-  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart' | 'mcpStop';
+  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart' | 'mcpStop' | 'log';
   args?: Record<string, unknown>;
 }
 
@@ -239,6 +239,14 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       const { stopMcpServer } = await import('@/services/mcp/server');
       await stopMcpServer();
       return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
+    }
+    case 'log': {
+      // De regels van één kanaal uit het app-log, zoals het debugpaneel ze toont; voor de echte-app-proef die wil zien
+      // welke weg een opslag nam (`tests/mcp/realApp/run-real-app.ts`). Dev-only, zoals `mcpStop`.
+      if (!import.meta.env.DEV) return { ok: false, error: 'log is dev-only' };
+      const channel = cmd.args?.channel as string | undefined;
+      if (!channel) return { ok: false, error: 'missing args.channel' };
+      return { ok: true, result: appLog.snapshot().filter(e => e.channel === channel).map(e => e.text) };
     }
     case 'feedbackTest': {
       // Dev-only desktop-verificatie van de feedback-feature: toetst (1) of

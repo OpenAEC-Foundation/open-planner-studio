@@ -69,7 +69,9 @@ test('succes zonder screenshot: JSON-body klopt en het bedankscherm verschijnt',
   await dialog.getByRole('button', { name: 'Send', exact: true }).click();
 
   await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'View on GitHub' })).toHaveCount(0);
+  // Zonder issue: geen link en geen belofte van een issue.
+  await expect(dialog.getByRole('link')).toHaveCount(0);
+  await expect(dialog.getByText(/issue on GitHub/)).toHaveCount(0);
 
   expect(seen).toHaveLength(1);
   const body = seen[0].json!;
@@ -110,14 +112,28 @@ test('validatie vooraf: zonder titel of met te weinig tekst blijft Versturen gri
   expect(seen).toHaveLength(0);
 });
 
-test('succes met githubIssueUrl: de knop Bekijk op GitHub verschijnt', async ({ page, ops }) => {
+test('succes met githubIssueUrl: de melder ziet de link naar zijn issue en opent hem', async ({ page, ops }) => {
   void ops;
-  await mockApi(page, ok('https://github.com/OpenAEC-Foundation/open-planner-studio/issues/999'));
+  const issue = 'https://github.com/OpenAEC-Foundation/open-planner-studio/issues/999';
+  await mockApi(page, ok(issue));
   const dialog = await fillForm(page);
   await dialog.getByRole('button', { name: 'Idea' }).click();
   await dialog.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'View on GitHub' })).toBeVisible();
+  await expect(dialog.getByText('Your report is now an issue on GitHub. You can read our reply there:')).toBeVisible();
+  // De link zelf staat in beeld, zodat de melder hem kan terugvinden of overnemen.
+  const link = dialog.getByRole('link', { name: 'github.com/OpenAEC-Foundation/open-planner-studio/issues/999' });
+  await expect(link).toHaveAttribute('href', issue);
+  await expect(dialog.getByRole('button', { name: 'View on GitHub' })).toHaveCount(0);
+
+  await page.context().route('https://github.com/**', route => route.fulfill({ status: 200, body: 'ok' }));
+  const popup = page.waitForEvent('popup');
+  await link.click();
+  const opened = await popup;
+  expect(opened.url()).toBe(issue);
+  await opened.close();
+  // Het bedankscherm blijft staan na het openen.
+  await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible();
 });
 
 test('429: vertaalde fout, de ingevulde tekst blijft staan, geen GitHub-terugval', async ({ page, ops }) => {

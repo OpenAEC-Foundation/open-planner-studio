@@ -4,6 +4,7 @@ import { isAutoCalcHeld } from '@/state/editHold';
 import { isTauri } from '@/utils/platform';
 import { SHORTCUTS, canRunShortcut, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
+import { leaveDatePicker } from '@/utils/datePickerFocus';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
 // voorpoort spiegelt de `file.open`-entry daar, dus spiegelt hij ook hóé het label wordt opgehaald.
 import i18n from '@/i18n/config';
@@ -76,7 +77,8 @@ export function shouldYieldClipboardShortcutToTaskGrid(event: {
  * Typt de gebruiker daarna verder, dan houdt `onInput` de berekening weer vast.
  */
 export function commitPendingTextEdit(target: EventTarget | null, opts: { recalculate: boolean }): void {
-  const el = target as HTMLElement | null;
+  // Vanuit een open datumkiezer: eerst terug naar zijn veld, dan rondt de blur dat veld af.
+  const el = leaveDatePicker(target) as HTMLElement | null;
   if (!el || !(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
   el.blur();
   // Alleen vóór opslaan; F5 rekent zelf al (anders twee solves en bij een kring een melding ×2).

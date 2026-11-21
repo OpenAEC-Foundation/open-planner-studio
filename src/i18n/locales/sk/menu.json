@@ -24,6 +24,8 @@
     "undo": "Vrátiť späť",
     "redo": "Vykonať znova",
     "delete": "Odstrániť",
+    "dissolve": "Dissolve",
+    "dissolveTitle": "Dissolve: odstráni vybrané úlohy a prepojí každú predchádzajúcu úlohu s každou nasledujúcou úlohou (dokončenie-začiatok, bez oneskorenia)",
     "undoTitle": "Vrátiť späť (Ctrl+Z)",
     "redoTitle": "Vykonať znova (Ctrl+Y)",
     "deleteTitle": "Odstrániť výber (Delete)",
@@ -213,6 +215,7 @@
     "columnsHintGoToTable": "Vybrať stĺpce zobrazenia Tabuľka — zobrazia sa na karte Tabuľka",
     "toggleResourceAccent": "Zvýraznenie zdrojov",
     "toggleFloatBand": "Pás časovej rezervy",
+    "toggleBarDates": "Dátumy pri pruhoch",
     "screenColors": "Farby pruhov",
     "screenColors_critical": "Kritická cesta",
     "screenColors_auto": "Podľa úlohy — automaticky",
@@ -283,7 +286,8 @@
       "label": "Schéma IFC pri ukladaní",
       "optionIfc4x3": "IFC 4.3",
       "optionIfc4x3Add2": "IFC 4.3 ADD2 (predvolené)",
-      "optionIfc4": "IFC4"
+      "optionIfc4": "IFC4",
+      "foreignLocked": "Súbor obsahuje údaje z inej aplikácie. Preto sa zachováva schéma z jeho pôvodnej hlavičky."
     }
   },
   "newProject": {
@@ -291,7 +295,23 @@
     "template": "Šablóna fáz",
     "tmplEmpty": "Prázdny",
     "tmplWoningbouw": "Bytová výstavba",
-    "tmplUtiliteit": "Nebytová výstavba / rekonštrukcia"
+    "tmplUtiliteit": "Nebytová výstavba / rekonštrukcia",
+    "phase": {
+      "siteGroundwork": "Stavenisko a zemné práce",
+      "foundation": "Základy",
+      "shell": "Hrubá stavba / kostra",
+      "roof": "Strecha",
+      "facadeFitOut": "Fasáda a dokončovanie",
+      "services": "Technické zariadenia budov (TZB)",
+      "finishes": "Povrchové úpravy",
+      "handover": "Odovzdanie",
+      "demolitionStripOut": "Búranie a demontáž",
+      "groundworkFoundation": "Zemné práce a základy",
+      "mainStructure": "Nosná konštrukcia",
+      "facadeRoof": "Fasáda a strecha",
+      "fitOut": "Dokončovacie práce",
+      "commissioning": "Nastavenie a skúšanie"
+    }
   },
   "status": {
     "tasks": "Úlohy:",
@@ -319,12 +339,14 @@
     "recentTitle": "Nedávne projekty",
     "recentSubtitle": "Kliknutím otvoríte.",
     "recentEmpty": "Zatiaľ nie sú žiadne nedávno otvorené projekty.",
+    "recentLoading": "Načítavanie nedávnych súborov…",
     "recentUnavailable": "Tento prehliadač nemôže znovu otvoriť lokálne súbory z „Nedávne“. Vyberte svoj projektový súbor znova cez „Otvoriť“.",
     "recentOnSite": "Na stavbe",
     "examples": "Príklady",
     "examplesTitle": "Príkladové projekty",
     "examplesSubtitle": "Priložené stavebné plány. Kliknutím otvoríte v novej karte.",
     "examplesLoading": "Načítavajú sa príklady…",
+    "loading": "Načítavanie…",
     "examplesEmpty": "Nie sú k dispozícii žiadne príklady.",
     "examplesError": "Príklady sa nepodarilo načítať.",
     "examplesShowcaseHeading": "Úplné ukážkové plány",
@@ -395,7 +417,7 @@
       "plannedReadOnly": "plánované, nemeňte",
       "summaryRow": "— súhrnná úloha: nevypĺňajte"
     },
-    "csvLabel": "CSV (oddelené bodkočiarkou)",
+    "csvLabel": "CSV",
     "csvDesc": "Univerzálny export tabuľky. Všetky úlohy s dátumami a trvaním.",
     "mspdiLabel": "MS Project XML",
     "mspdiDesc": "Otvára sa v Microsoft Project. Úplná WBS.",
@@ -407,7 +429,7 @@
     "profileHint": "Váš projekt momentálne počíta podľa profilu „{{name}}“. Odporúčame použiť profil „{{target}}“ pre najlepšiu kompatibilitu s týmto formátom súboru.",
     "ifcLabel": "IFC",
     "ifcDesc": "Štandard BuildingSMART v schéme IFC projektu (predvolená verzia IFC 4.3 ADD2). 4D prepojenie s modelmi BIM.",
-    "csvShort": "CSV (;)"
+    "csvShort": "CSV"
   },
   "extensions": {
     "title": "Rozšírenia",

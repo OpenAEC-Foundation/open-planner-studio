@@ -6,8 +6,11 @@ import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { milestoneRunHeadOf, milestoneRunHeads } from '@/engine/view/visibleRows';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { liftSelectionOutOfCollapsed } from '@/state/selectionAfterRowChange';
+import { uniqueTaskIds } from '@/engine/view/visibleRows';
 
 export interface UiSlice {
   ui: UIState;
@@ -86,7 +89,9 @@ export function createDefaultUI(): UIState {
     activeRibbonTab: 'start',
     backstageSection: 'recent',
     collapsedTaskIds: [],
+    gridActiveRowKey: null,
     showSettingsDialog: false,
+    settingsFocusId: null,
     showCalendarDialog: false,
     showUpdateDialog: false,
     justUpdated: null,
@@ -119,7 +124,10 @@ export function createDefaultUI(): UIState {
     ribbonWheelSwitchesTabs: true,
     showProjectOverview: false,
     pendingCloseDocId: null,
+    closeQuestionSaving: false,
     appQuitPending: false,
+    savingBeforeClose: false,
+    appClosing: false,
     showNewProjectDialog: false,
     showNewOrOpenProjectDialog: false,
     pendingTaskNameFocusId: null,
@@ -151,6 +159,7 @@ export function createDefaultUI(): UIState {
     showStatusDateLine: true,
     showResourceAccent: false,   // opt-in: expliciet aanzetten
     showFloatBand: true,         // standaard zichtbaar; uitzetten is een keuze
+    showBarDates: false,         // standaard uit: de Gantt verandert voor niemand ongevraagd (#868)
     barColorSelection: DEFAULT_BAR_COLOR_SELECTION,
     presentationMode: false,
     showMiniMap: false,
@@ -171,6 +180,7 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
+    dissolveSummaryMode: 'branch',
     // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
 
@@ -187,7 +197,7 @@ export function createDefaultUI(): UIState {
     pendingSiteOpen: null,
     pendingSiteSave: null,
     pendingIfcSchemaQuestion: null,
-    pendingIfcMissingSourceSaveAs: false,
+    pendingPlanOnlyQuestion: null,
     pendingFormatNotice: null,
     formatNoticeHidden: [],
     showPoolImportDialog: false,
@@ -438,6 +448,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     }),
 
   toggleCollapse: (taskId) => {
+    const visibleBefore = new Set(uniqueTaskIds(get().viewRows));
     set((s) => {
       const idx = s.ui.collapsedTaskIds.indexOf(taskId);
       if (idx >= 0) {
@@ -447,11 +458,15 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
     });
     get().recomputeViewRows(); // taak-collapse verandert de zichtbaarheid van kinderen.
+    // Een verborgen geselecteerde taak gaat over op de ingeklapte ouder (issue #899).
+    set((s) => { liftSelectionOutOfCollapsed(s, visibleBefore); });
   },
 
   collapseTasks: (taskIds) => {
+    const visibleBefore = new Set(uniqueTaskIds(get().viewRows));
     set((s) => {
-      const summaryIds = s.tasks.filter(isSummaryTask).map((t) => t.id);
+      // Mijlpalenreeksen klappen in als een fase (#868): hun kop telt als inklapbaar.
+      const summaryIds = [...s.tasks.filter(isSummaryTask).map((t) => t.id), ...milestoneRunHeads(s.tasks)];
       if (!taskIds || taskIds.length === 0) {
         // Geen doellijst ⇒ alles. Bewust een VERVANGING (niet toevoegen): zo verdwijnen meteen ook
         // ids van taken die inmiddels geen summary meer zijn.
@@ -460,22 +475,24 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
       const isSummary = new Set(summaryIds);
       const collapsed = new Set(s.ui.collapsedTaskIds);
-      for (const id of taskIds) {
+      // Een gekozen mijlpaal uit een reeks klapt zijn reeks in (#868).
+      for (const id of taskIds.map((taskId) => milestoneRunHeadOf(s.tasks, taskId) ?? taskId)) {
         if (!isSummary.has(id) || collapsed.has(id)) continue; // blad of al ingeklapt ⇒ overslaan
         collapsed.add(id);
         s.ui.collapsedTaskIds.push(id);
       }
     });
     get().recomputeViewRows(); // collapse verandert de zichtbaarheid van kinderen.
+    set((s) => { liftSelectionOutOfCollapsed(s, visibleBefore); }); // zie toggleCollapse
   },
 
   expandTasks: (taskIds) => {
     set((s) => {
-      const summaryIds = new Set(s.tasks.filter(isSummaryTask).map((t) => t.id));
-      // Doellijst beperken tot echte summary-taken; zonder lijst gelden ze allemaal.
+      const summaryIds = new Set([...s.tasks.filter(isSummaryTask).map((t) => t.id), ...milestoneRunHeads(s.tasks)]);
+      // Doellijst beperken tot echte summary-taken en reekskoppen; zonder lijst gelden ze allemaal.
       const targets = !taskIds || taskIds.length === 0
         ? summaryIds
-        : new Set(taskIds.filter((id) => summaryIds.has(id)));
+        : new Set(taskIds.map((id) => milestoneRunHeadOf(s.tasks, id) ?? id).filter((id) => summaryIds.has(id)));
       s.ui.collapsedTaskIds = s.ui.collapsedTaskIds.filter((id) => !targets.has(id));
     });
     get().recomputeViewRows();
@@ -490,6 +507,9 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     // en zonder deze wacht deze lus dan oneindig i.p.v. de vier andere oudersketen-wandelingen in
     // dit project die er wél tegen bewaken.
     const bezocht = new Set<string>();
+    // Staat de taak zelf in een ingeklapte mijlpalenreeks (#868), dan klapt die reeks ook open.
+    const runHead = milestoneRunHeadOf(s.tasks, taskId);
+    if (runHead && s.ui.collapsedTaskIds.includes(runHead)) toExpand.push(runHead);
     let parentId = taskMap.get(taskId)?.parentId ?? null;
     while (parentId && !bezocht.has(parentId)) {
       bezocht.add(parentId);

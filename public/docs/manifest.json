@@ -50,6 +50,14 @@
       "kind": "howto"
     },
     {
+      "id": "howto-datum-invoeren",
+      "title": {
+        "nl": "Een datum invoeren",
+        "en": "Entering a date"
+      },
+      "kind": "howto"
+    },
+    {
       "id": "howto-project-verplaatsen",
       "title": {
         "nl": "Project verplaatsen",

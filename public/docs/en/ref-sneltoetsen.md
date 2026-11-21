@@ -32,9 +32,9 @@ The built app (desktop and the web version on the site) also blocks a number of 
 
 ## Edit
 
-**Ctrl+C** — *Copy*: copies the selected tasks. Only with a selection. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open. In the task grid Ctrl+C copies the selected cells; the grid handles that itself.
+**Ctrl+C** — *Copy*: copies the selected tasks. Only with a selection. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open. In the task grid Ctrl+C copies the selected cells, and also the tasks of those cells, so you can paste them into another plan.
 
-**Ctrl+V** — *Paste*: pastes copied tasks. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open, because the task list is not in view there. In the task grid it pastes the cells.
+**Ctrl+V** — *Paste*: pastes copied tasks. Not in a dialog. Not in *File*, not on the *Report* and *IFC* tabs and not while the full resource panel is open, because the task list is not in view there. In the task grid it pastes the cells. If you copied in the task grid of another plan, it pastes those tasks.
 
 **Ctrl+Z** — *Undo*. Not in a dialog: close the window first.
 
@@ -127,6 +127,26 @@ These keys work in the task grid (on the *Table* tab and in the table to the lef
 **Esc** (while editing) — cancels editing without keeping the input.
 
 The resource table has its own key handling between the input fields; that is not in this list.
+
+## Date field and calendar
+
+These keys are not in the *Keyboard shortcuts* window. They work in every date field and in a date cell of the table that you are editing. See [Entering a date](docs://howto-datum-invoeren).
+
+**Alt+↓** (in a date field) — opens the calendar. So in a date field Alt+↓ does not move a task.
+
+**Left and right arrow** (in the calendar) — a day back or forward; the other way round in a language that reads right to left.
+
+**Up and down arrow** (in the calendar) — a week back or forward.
+
+**Home** and **End** (in the calendar) — the first or last day of the week.
+
+**Page Up** and **Page Down** (in the calendar) — a month back or forward. With Shift a year.
+
+**Enter** or **space** (in the calendar) — picks the day. In a dialog, Enter then does not confirm the dialog.
+
+**Esc** (in the calendar) — closes the calendar without a choice. The dialog or cell around it stays open.
+
+**Tab** and **Shift+Tab** (in the calendar) — go round the buttons of the calendar and the day.
 
 ## Dialogs and other windows
 

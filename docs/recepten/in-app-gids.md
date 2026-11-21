@@ -92,12 +92,14 @@ veiligheidsgarantie, geen aparte escape-stap nodig). Ondersteund:
   `${BASE_URL}docs/<pad>`, en `{lang}` in het pad wordt `nl` of `en`
   (`img/{lang}/<naam>.webp`); ontbreekt het bestand, dan valt de afbeelding terug op een zichtbare
   placeholder met de alt-tekst
-- links, en dan **uitsluitend** twee schema's:
+- links, en dan **uitsluitend** drie schema's:
   - `docs://<article-id>` (of een alias, eventueel met `#anker`) — interne navigatie
   - `examples://<file>` — opent hetzelfde voorbeeld-openpad als Backstage → Voorbeelden
+  - `settings://<id>` — opent de app-instellingen op die ene instelling (ids in `src/utils/settingIds.ts`);
+    op de wiki blijft alleen de linktekst
 
 **Niet ondersteund**: tabellen, blockquotes, horizontale lijnen, voetnoten, reference-style links,
-rauwe HTML (buiten inline-code), en elk ander linkschema dan de twee hierboven (die worden getoond
+rauwe HTML (buiten inline-code), en elk ander linkschema dan de drie hierboven (die worden getoond
 als platte, niet-klikbare tekst — bewust geen externe netwerkaanroepen vanuit help-content).
 
 ## Wat `verify:docs` wel en niet blokkeert
@@ -108,7 +110,8 @@ als platte, niet-klikbare tekst — bewust geen externe netwerkaanroepen vanuit 
    Onder `public/docs` staan alleen `manifest.json`, de taalmappen van de UI-talen en `img/`.
 2. Elke `docs://<id>`-link wijst naar een bestaand artikel of een alias, een `#anker` naar een
    bestaande kop; een gepubliceerd artikel linkt niet naar een draft.
-3. Elke `examples://<file>`-link wijst naar een bestand in `public/examples/manifest.json`.
+3. Elke `examples://<file>`-link wijst naar een bestand in `public/examples/manifest.json`, en elke
+   `settings://<id>`-link naar een instelling uit `src/utils/settingIds.ts`.
 4. Manifest: `version` 2, titels alleen in `nl` + `en` en niet leeg, `kind` ∈
    `{howto, uitleg, referentie}`, geen `layer`/`cluster`/`order`, aliassen alleen voor id's die niet
    meer bestaan en naar een bestaand, niet-draft artikel.

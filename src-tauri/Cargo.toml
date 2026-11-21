@@ -1,24 +1,23 @@
 [package]
 name = "open-planner-studio"
-version = "2026.45.0"
+version = "2026.47.0"
 edition = "2021"
 
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-fs = { version = "2", features = ["watch"] }
-# Past bij de vergrendelde fs 2.5.0; geen fs-upgrade nodig om gekozen paden te onthouden.
-tauri-plugin-persisted-scope = "=2.3.6"
+tauri-plugin-fs = { version = "2.7.1", features = ["watch"] }
+tauri-plugin-persisted-scope = "2.4.3"
 tauri-plugin-store = "2"
 tauri-plugin-os = "2"
-tauri-plugin-updater = "2"
+tauri-plugin-updater = "2.14.1"
 # Directe dependency op de zip-crate om via feature-unification de deflate-
 # backend (pure-Rust flate2/miniz_oxide) te forceren. Zonder deze feature bouwt
 # tauri-plugin-updater's zip zonder deflate-decompressie en faalt de Windows-
 # NSIS-updater met "Compression method not supported" (method=8 / Deflate).
 # deflate-flate2 = flate2 met default backend miniz_oxide (geen C-toolchain).
-zip = { version = "4", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
 # MCP-bridge (fase 1, Tauri-only): een piepklein HTTP-doorgeefluik op 127.0.0.1.
@@ -35,6 +34,24 @@ serde_json = "1"
 # appDataDir en wisten elkaars recovery-snapshots. Zie de registratie in main.rs — die moet
 # vóór alle andere plugins staan en wordt in dev-instanties bewust overgeslagen.
 tauri-plugin-single-instance = "2"
+
+# Voor `place_file_exclusive` (src/commands/place_file.rs): de verbodspatronen van de fs-scope toetsen zoals
+# plugin-fs dat doet (`glob::MatchOptions`; Tauri exporteert alleen `Pattern`). Dezelfde versie als die van tauri.
+glob = "0.3.3"
+
+# Voor `place_file_exclusive` (src/commands/place_file.rs): de exclusieve hernoemstap per platform
+# (`renameat2`/`renameatx_np`, `SetFileInformationByHandle`). Beide crates stonden al in Cargo.lock, als afhankelijkheid
+# van andere crates; dezelfde versies, geen nieuwe crate.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.186"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+
+# Alleen voor `cargo test`: een nep-app van Tauri (`tauri::test`), zodat de proef van `place_file_exclusive` de
+# echte scope van plugin-fs uit de eigen config en capability opvraagt. De feature `test` brengt geen crate mee.
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 
 [features]
 default = ["custom-protocol"]

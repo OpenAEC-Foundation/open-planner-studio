@@ -1,6 +1,6 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
+import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
 import { extensionOf } from '@/utils/filePath';
-import { bytePartsBlob, BytePartsWriteError } from './byteParts';
+import { bytesBlob, ByteWriteError } from './byteWrite';
 
 const hasFSA = (): boolean => typeof window !== 'undefined' && 'showOpenFilePicker' in window;
 
@@ -153,19 +153,66 @@ function downloadBlob(name: string, content: string | Uint8Array | Blob, mime?: 
  * Een browserhandle heeft geen createNew op het uiteindelijke doel. Daarom kiest de nieuwe
  * byte-dialoog in 1c altijd een download, ook wanneer de gewone tekstkiezer beschikbaar is.
  */
-export async function saveBytePartsDialogWeb(
-  defaultName: string, parts: readonly Uint8Array[], opts: SaveDialogOpts,
+export async function saveNewBytesDialogWeb(
+  defaultName: string, bytes: Uint8Array, opts: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   if (opts.refuseDownload?.()) return null;
-  try { downloadBlob(defaultName, bytePartsBlob(parts, opts.mime ?? 'application/octet-stream'), opts.mime); }
-  catch (error) { throw new BytePartsWriteError('download', error); }
+  try { downloadBlob(defaultName, bytesBlob(bytes, opts.mime ?? 'application/octet-stream'), opts.mime); }
+  catch (error) { throw new ByteWriteError('download', error); }
   return { ref: null, name: defaultName, viaDownload: true };
 }
 
 /** Ook een leeg bestand bewijst geen nieuwe naam; vóór createWritable veilig weigeren (1130). */
-export async function saveBytePartsToRefWeb(ref: FileRef, _parts: readonly Uint8Array[]): Promise<boolean> {
+export async function saveNewBytesToRefWeb(ref: FileRef, _bytes: Uint8Array): Promise<boolean> {
   if (ref.kind !== 'handle') return false;
-  throw new BytePartsWriteError('handle-not-exclusive');
+  throw new ByteWriteError('handle-not-exclusive');
+}
+
+/**
+ * Knownbug 1131 stap 2: schrijftoestemming voor het eigen bestand van een document met een gebouwmodel, vóór de merge.
+ * De vraag van de browser hoort bij het gebaar van de planner (Ctrl+S); na een merge van enkele seconden kan dat
+ * gebaar verlopen zijn. Dezelfde weigeringen als `saveToRefWeb`: annuleren of een omgevingsweigering is `false`.
+ */
+export async function handleWritePermissionWeb(handle: FileSystemFileHandle): Promise<boolean> {
+  if (platformRefusesWrites) return false;
+  try {
+    return await readwriteGranted(handle);
+  } catch (err) {
+    if (!isAbort(err) && !isPlatformRefusal(err)) throw err;
+    if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
+    return false;
+  }
+}
+
+/**
+ * Knownbug 1131 stap 2: het eigen bestand achter een handle vervangen door de voorbereide buffer.
+ * `createWritable()` schrijft naar een tijdelijk bestand van de browser; pas `close()` zet de inhoud op zijn plek.
+ * Vlak vóór `close()` vraagt deze functie `stillSource()`: staat op het doel nog de bron? Zo niet, dan `abort()` en
+ * `false`: het bestand blijft ongemoeid. Daarna, zonder `await` ertussen, de synchrone laatste controle van de
+ * aanroeper (`refuseBeforePlace`, knownbug 1896, review van #1027): hoort de opslag nog bij de inhoud van het document?
+ * Een wijziging tussen die controle en `close()` kan dan niet meer; een wijziging op schijf ná de bronvergelijking gaat
+ * verloren, want de browser kent geen voorwaardelijk opslaan (ontwerp §4.10, §4.15). Een schrijf- of sluitfout gooit
+ * `ByteWriteError`.
+ */
+export async function replaceHandleWithBytesWeb(
+  handle: FileSystemFileHandle, bytes: Uint8Array, stillSource: () => Promise<boolean>, refuseBeforePlace: RefuseBeforePlace,
+): Promise<boolean> {
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(bytes as BufferSource);
+  } catch (error) {
+    await writable.abort().catch(() => { /* de schrijffout hieronder telt */ });
+    throw new ByteWriteError('write', error);
+  }
+  let same: boolean;
+  try { same = await stillSource(); }
+  catch (error) { await writable.abort().catch(() => {}); throw error; }
+  if (!same || refuseBeforePlace()) {
+    await writable.abort();
+    return false;
+  }
+  try { await writable.close(); } catch (error) { throw new ByteWriteError('close', error); }
+  return true;
 }
 
 /** Een bestand dat de planner koos, met het handvat als de browser dat geeft (Chromium). */
@@ -266,8 +313,8 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
  * twee kopieën zijn, dan drift de foutafhandeling van het byte-pad onvermijdelijk weg van die van
  * het tekstpad.
  */
-async function saveDataDialogWeb(
-  defaultName: string, data: string | Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
+export async function saveDataDialogWeb(
+  defaultName: string, data: FileData, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
   // weigert) — de catch hieronder vangt dat op via `platformRefusesWrites`/de download-route; de
@@ -283,9 +330,10 @@ async function saveDataDialogWeb(
       });
       // #804 fixronde 1: het gekozen bestand vóór `createWritable()` controleren (bijv. de bron van een gebouwmodel).
       if (await opts?.refuseTarget?.({ kind: 'handle', handle })) return null;
-      const writable = await handle.createWritable();
-      await writable.write(data as FileSystemWriteChunkType);
-      await writable.close();
+      // Chromium heeft een bestaand doel bij het kiezen al leeggemaakt, dus `abort()` brengt het oude bestand niet terug
+      // maar laat 0 bytes staan (knownbug 1899). Daarom geeft de aanroeper hier alleen een late controle mee als een leeg
+      // bestand beter is dan de uitvoer (fixronde 2 van #1097: een IFC-export na een tabbladwissel).
+      if (!(await writeThroughHandle(handle, data, opts?.refuseBeforePlace))) return null;
       const file = await handle.getFile();
       return { ref: { kind: 'handle', handle }, name: file.name };
     } catch (err) {
@@ -307,35 +355,43 @@ async function saveDataDialogWeb(
   return { ref: null, name: defaultName, viaDownload: true };
 }
 
-export function saveFileDialogWeb(
-  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
-): Promise<SaveOutcome | null> {
-  return saveDataDialogWeb(defaultName, content, filters, opts);
+/**
+ * Schrijf `data` via de schrijfstroom van de handle. De browser zet de inhoud pas bij `close()` op het bestand; vlak
+ * daarvóór beslist `refuseBeforePlace` (knownbug 1896). Weigert die, dan `abort()`: het bestand blijft zoals het was,
+ * en de functie geeft `false`. Een schrijf- of sluitfout gooit, zoals voorheen.
+ */
+async function writeThroughHandle(
+  handle: FileSystemFileHandle, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null,
+): Promise<boolean> {
+  const writable = await handle.createWritable();
+  await writable.write(data as FileSystemWriteChunkType);
+  if (refuseBeforePlace?.()) {
+    await writable.abort().catch(() => { /* de weigering telt */ });
+    return false;
+  }
+  await writable.close();
+  return true;
 }
 
-export function saveBytesDialogWeb(
-  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
-): Promise<SaveOutcome | null> {
-  return saveDataDialogWeb(defaultName, bytes, filters, opts);
+/** In-place opslaan vereist readwrite; showOpenFilePicker geeft alleen read. Fouten gaan naar de aanroeper. */
+async function readwriteGranted(handle: FileSystemFileHandle): Promise<boolean> {
+  const opts: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' };
+  if ((await handle.queryPermission?.(opts)) === 'granted') return true;
+  return (await handle.requestPermission?.(opts)) === 'granted';
 }
 
-export async function saveToRefWeb(ref: FileRef, content: string): Promise<boolean> {
+export async function saveToRefWeb(
+  ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null, writeGranted = false,
+): Promise<boolean> {
   if (ref.kind !== 'handle') return false;
   // Weet de omgeving al dat schrijven via handles hier niet kan? Dan de permissievraag overslaan:
   // die levert alleen een prompt op die tóch nergens toe leidt. `false` stuurt de aanroeper naar
   // `saveFileDialog`, die dan meteen de download-route pakt.
   if (platformRefusesWrites) return false;
   const { handle } = ref;
-  const opts: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' };
-  // In-place opslaan vereist readwrite; showOpenFilePicker geeft alleen read.
   try {
-    if ((await handle.queryPermission?.(opts)) !== 'granted') {
-      if ((await handle.requestPermission?.(opts)) !== 'granted') return false;
-    }
-    const writable = await handle.createWritable();
-    await writable.write(content);
-    await writable.close();
-    return true;
+    if (!writeGranted && !(await readwriteGranted(handle))) return false;
+    return await writeThroughHandle(handle, data, refuseBeforePlace);
   } catch (err) {
     // Weigert de omgeving blijvend (`NotAllowedError`, grant niet en nooit `granted`), onthoud dat
     // dan: anders krijgt de gebruiker bij élke opslagpoging eerst een permissieprompt en dan een
@@ -371,13 +427,10 @@ export async function canWriteToRefWithoutPromptWeb(ref: FileRef): Promise<boole
  * al gededupliceerd — geen data gaat verloren (recovery blijft los draaien) en er komt geen
  * browserprompt bij, want dit pad valt nooit terug op een picker.
  */
-export async function saveToRefWithoutPromptWeb(ref: FileRef, content: string): Promise<boolean> {
+export async function saveToRefWithoutPromptWeb(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (!await canWriteToRefWithoutPromptWeb(ref) || ref.kind !== 'handle') return false;
   try {
-    const writable = await ref.handle.createWritable();
-    await writable.write(content);
-    await writable.close();
-    return true;
+    return await writeThroughHandle(ref.handle, data, refuseBeforePlace);
   } catch (err) {
     if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
     return false;

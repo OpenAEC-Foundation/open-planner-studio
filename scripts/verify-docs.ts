@@ -61,6 +61,7 @@ import {
   splitHelpTarget,
 } from '@/utils/helpManifest';
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
+import { isSettingId } from '@/utils/settingIds';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
 import { stripCode, subsetErrors } from './lib/docs-structure';
 import { checkOptionalDocLang, optionalLangReportLine } from './lib/docs-translations';
@@ -142,12 +143,12 @@ function extractHeadingLevels(source: string): number[] {
   return levels;
 }
 
-/** Alle interne link-targets (docs://, examples://) gesorteerd — voor de bron↔vertaling-pariteit:
+/** Alle interne link-targets (docs://, examples://, settings://) gesorteerd — voor de bron↔vertaling-pariteit:
  *  een vertaling mag geen link laten vallen, toevoegen of het target wijzigen (labels mogen wél
  *  vertaald zijn; die staan hier niet in). */
 function extractLinkTargets(source: string): string[] {
   // Het `#anker` telt niet mee: dat volgt de koptekst en verschilt dus per taal.
-  return [...source.matchAll(/(docs|examples):\/\/([^\s)\]#]+)/g)]
+  return [...source.matchAll(/(docs|examples|settings):\/\/([^\s)\]#]+)/g)]
     .map((m) => `${m[1]}://${m[2]}`)
     .sort();
 }
@@ -331,6 +332,38 @@ function checkAgentDocs(diffs: string[]): void {
   const claudeStub = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8').trim();
   if (claudeStub !== '@AGENTS.md') {
     diffs.push('CLAUDE.md hoort alleen `@AGENTS.md` te bevatten — zet nieuwe agentinstructies in AGENTS.md');
+  }
+
+  // 7g. De releasedag. De geplande release draait op maandag (besluit Ethan, 2026-11-07); de docs
+  //     bleven daarna "zaterdag" zeggen en sessies beloofden gebruikers een verkeerde datum. De dag in
+  //     `scheduled-job.md` is de bron; de tekst eromheen mag er niet van afwijken.
+  const releaseDir = join(ROOT, '.claude', 'skills', 'release');
+  const scheduled = readFileSync(join(releaseDir, 'scheduled-job.md'), 'utf8');
+  const scheduleJson = scheduled.match(/Schedule: `(\{[^`]*\})`/)?.[1];
+  let weekdays: unknown;
+  try { weekdays = scheduleJson ? (JSON.parse(scheduleJson) as { weekdays?: unknown }).weekdays : undefined; } catch { /* hieronder gemeld */ }
+  if (JSON.stringify(weekdays) !== '[1]') {
+    diffs.push('scheduled-job.md: de regel `Schedule: {…}` ontbreekt of staat niet op maandag (`weekdays: [1]`)');
+  }
+  const releaseDocs: Record<string, string> = {
+    'AGENTS.md': agents,
+    '.claude/rules/ci-release.md': rules['.claude/rules/ci-release.md'] ?? '',
+    '.claude/skills/browsertests-repareren/SKILL.md': readFileSync(join(ROOT, '.claude', 'skills', 'browsertests-repareren', 'SKILL.md'), 'utf8'),
+  };
+  for (const file of readdirSync(releaseDir)) {
+    if (file.endsWith('.md')) releaseDocs[`.claude/skills/release/${file}`] = readFileSync(join(releaseDir, file), 'utf8');
+  }
+  //     De release heeft geen eindtijd (Ethan, 2026-11-09): buiten de reparatieskill, die haar eigen 14:00-stop
+  //     houdt, mag er dus geen 14:00 of "deadline" meer staan.
+  const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|draait op zaterdag|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
+  const staleReleaseEnd = /14:00|\bdeadline\b/i;
+  for (const [name, text] of Object.entries(releaseDocs)) {
+    const ownRepairStop = name.includes('browsertests-repareren');
+    const hit = text.split('\n').findIndex((line) => staleReleaseDay.test(line) || (!ownRepairStop && staleReleaseEnd.test(line)));
+    if (hit >= 0) diffs.push(`${name}:${hit + 1} noemt nog de zaterdag of een eindtijd (14:00, deadline) voor de release (die draait op maandag en stopt niet op een tijd)`);
+  }
+  if (!/next Monday release/i.test(agents)) {
+    diffs.push('AGENTS.md: mist de regel dat een reactie aan een melder de datum van de eerstvolgende maandagrelease noemt ("next Monday release")');
   }
 }
 
@@ -756,6 +789,11 @@ function main() {
       const exLinks = [...source.matchAll(/examples:\/\/([^\s)\]]+)/g)].map((m) => m[1]);
       for (const file of exLinks) {
         expect(diffs, exampleFiles.has(file), `${lang}: examples://${file} staat niet in public/examples/manifest.json`);
+      }
+
+      // 3b. settings://-links: een bestaande instelling (`SETTING_IDS`), anders opent de link niets.
+      for (const m of source.matchAll(/settings:\/\/([^\s)\]]+)/g)) {
+        expect(diffs, isSettingId(m[1]), `${lang}: settings://${m[1]} is geen instelling uit src/utils/settingIds.ts`);
       }
 
       // 5. Parser-compatibiliteit.

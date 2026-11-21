@@ -24,7 +24,7 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Bij de Gantt-afdruk staat links 
 
 **Oriëntatie:** (bij de Gantt-afdruk *Richting*) — liggend of staand. Keuze uit *Liggend* en *Staand*. Standaard: *Liggend*. Effect: zoals *Papier:*. Waar: dezelfde plek als *Papier:*.
 
-**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)* en *Liberation Serif (zoals Times New Roman)*. Standaard: Inter. Effect: scherm en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
+**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)*, *Liberation Serif (zoals Times New Roman)* en *Liberation Mono (vaste breedte)*, plus je eigen lettertype en *Ander lettertype…*. Standaard: Inter. Effect: scherm en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes; Liberation Mono die van Courier New. Een eigen lettertype kies je met *Ander lettertype…*: van deze computer of uit een bestand; de app bewaart er een kopie van op dit apparaat. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
 
 ## Gantt-afdruk
 
@@ -51,6 +51,8 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 ### Balken en tijdlijn
 
 **Taaknamen bij de balken** — Standaard: aan. Effect: de naam van de taak naast de balk.
+
+**Datums bij de balken** — Standaard: uit. Effect: de begindatum links en de einddatum rechts van de balk, met dezelfde tekst als de kolommen Start en Einde; een mijlpaal krijgt één datum. De naam staat dan achter de einddatum; past hij rechts niet meer op het papier, dan wordt hij afgekapt met … in plaats van links van de balk gezet. Los van de knop *Datums bij balken* op het scherm.
 
 **Voortgang in de balk** — Standaard: aan. Effect: het deel dat klaar is, donker in de balk. Een voltooide taak krijgt geen spelingsband.
 

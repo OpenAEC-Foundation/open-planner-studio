@@ -34,7 +34,7 @@ import {
   splitWorkdayStart, splitWorkdayMinutes, splitWorkMinimum, splitWorkdayUnits,
 } from './timelineSnap';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
-import { finishIsActual, startIsActual, shownStart } from '@/utils/taskDates';
+import { finishIsActual, startIsActual, shownFinish, shownStart } from '@/utils/taskDates';
 import { BASELINES_PROGRESS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { refusalNotice } from '@/state/refusalNotice';
 
@@ -150,6 +150,22 @@ export interface DragState {
   /** Gezet door `startBarDrag` wanneer dit een stuk- of stukrandsleep is; anders ongedefinieerd en
    *  loopt het gebaar over de gewone body/rand-takken. */
   split?: SplitDragContext;
+  /** Issue #868: de andere mijlpalen op hetzelfde groepsruitje. Ze schuiven met dezelfde muisbeweging
+   *  mee, elk volgens zijn eigen kalender en startregel; houdt er één tegen, dan staat de groep stil. */
+  companionIds?: readonly string[];
+}
+
+/** Eén nulduurmijlpaal in een sleepgebaar: de gesleepte, of een die op hetzelfde groepsruitje meeschuift. */
+interface MilestoneMember {
+  taskId: string;
+  /** Het moment bij pointer-down (`shownStart`, anders `shownFinish`). */
+  originalStart: string;
+  /** Landingskant en B6-dageinde, zie `milestoneGestureRef`. */
+  finishSide: boolean;
+  loose: boolean;
+  /** De tijdvelden bij pointer-down; netto geen snapstap zet ze terug. */
+  time: Task['time'];
+  rule: StartRuleGesture | null;
 }
 
 interface UseBarDragOptions {
@@ -254,6 +270,8 @@ export function useBarDrag({
    *  en of B6 hem op het dageinde zet (`looseDayEndMilestone`). Wisselt niet midden in het gebaar en
    *  overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
   const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean; time: Task['time'] } | null>(null);
+  /** De mijlpalen die op hetzelfde groepsruitje meeschuiven (#868, `DragState.companionIds`); hoort bij het GEBAAR. */
+  const companionsRef = useRef<MilestoneMember[]>([]);
   // De bewerksessie van dit gebaar. Leeg zolang het gebaar niets schreef: dan heeft Escape niets terug te draaien.
   const gestureMarkRef = useRef<HistorySessionMark | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
@@ -343,6 +361,31 @@ export function useBarDrag({
         time: original.time,
       }
       : null;
+    // De meeschuivers van een groepsruitje (#868). Werkelijke datums van één van hen leggen de hele groep vast.
+    companionsRef.current = [];
+    if (milestoneGestureRef.current && next.edge === 'body' && !split && next.originalStart.includes('T')) {
+      for (const id of next.companionIds ?? []) {
+        const task = getTask(id);
+        const at = task && (shownStart(task) || shownFinish(task));
+        if (!task || !at?.includes('T') || !isZeroDurationMilestone(task)) continue;
+        if (!actualLockRef.current && (finishIsActual(task) || startIsActual(task))) {
+          actualLockRef.current = { taskId: task.id, name: task.name, kind: finishIsActual(task) ? 'finish' : 'start', tried: false };
+        }
+        const memberDriven = isStartDrivenByPredecessor?.(id) ?? false;
+        const memberLoose = looseDayEndMilestone?.(id) ?? false;
+        companionsRef.current.push({
+          taskId: id,
+          originalStart: at,
+          finishSide: milestoneSitsAtFinish(new CalendarEngine(calendarForEngine(effectiveCalById.get(id) ?? calendar)),
+            parseInstant(at), task.milestoneKind, memberDriven, memberLoose),
+          loose: memberLoose,
+          time: task.time,
+          rule: memberDriven
+            ? { original: task, driven: true, blocking: constraintBlockingStart(task, true), blockedTried: false }
+            : null,
+        });
+      }
+    }
     setDragState({ ...next, pointerStart, split });
   }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor, looseDayEndMilestone, effectiveCalById, calendar]);
 
@@ -417,20 +460,22 @@ export function useBarDrag({
     // De constraint bij een gesleepte start `start` (dezelfde regel als typen): een SNET, of — terug
     // op de oorspronkelijke start — weer de oorspronkelijke constraint. Leeg zonder startregel: dan
     // raakt de sleep de constraint niet.
-    const constraintForStart = (start: string): Partial<Task> => {
-      const rule = startRuleRef.current;
+    const constraintFor = (rule: StartRuleGesture | null, start: string): Partial<Task> => {
       if (!rule) return {};
       const hadSnet = rule.snet !== undefined;
       rule.snet = constraintForDraggedStart(rule.original, start, rule.driven);
       if (rule.snet) return { constraint: rule.snet.constraint };
       return hadSnet ? { constraint: rule.original.constraint } : {};
     };
+    const constraintForStart = (start: string): Partial<Task> => constraintFor(startRuleRef.current, start);
     // Houdt een andere constraint de start tegen? Dan past deze beweging niets toe (ook geen dood
     // anker); na het loslaten volgt één melding.
+    // Bij een groepsruitje (#868) houdt de constraint van elk lid de hele groep tegen.
     const startBlocked = (moved: boolean): boolean => {
-      const rule = startRuleRef.current;
-      if (!rule?.blocking) return false;
-      if (moved) rule.blockedTried = true;
+      const blocking = [startRuleRef.current, ...companionsRef.current.map(member => member.rule)]
+        .filter((rule): rule is StartRuleGesture => !!rule?.blocking);
+      if (blocking.length === 0) return false;
+      if (moved) for (const rule of blocking) rule.blockedTried = true;
       return true;
     };
 
@@ -438,14 +483,12 @@ export function useBarDrag({
     // houdt duur 0. Met momenten rekent hij op zijn eigen moment (`resolveMilestone…Drag`); een mijlpaal met
     // alleen datums loopt via de dagsleep hieronder, die begin en einde gelijk verschuift.
     const milestone = isZeroDurationMilestone(draggedTask) && hasInstants;
-    const handleMilestoneDrag = (event: MouseEvent) => {
-      const baseTime = getTask(dragState.taskId)?.time;
-      if (!baseTime) return;
-      const cal = effectiveCalById.get(dragState.taskId) ?? calendar;
+    // De landing van één mijlpaal bij deze muisbeweging, of `null` als hij netto geen snapstap zette.
+    const milestoneTarget = (member: MilestoneMember, pixelDelta: number): string | null => {
+      const cal = effectiveCalById.get(member.taskId) ?? calendar;
       const engine = new CalendarEngine(calendarForEngine(cal));
-      const original = parseInstant(dragState.originalStart);
-      const finishSide = milestoneGestureRef.current?.finishSide === true;
-      const pixelDelta = event.clientX - dragState.startX;
+      const original = parseInstant(member.originalStart);
+      const { finishSide } = member;
       // Onder compressie staat een mijlpaal op een verborgen vrije dag op de naad: het einde van de werkdag
       // ervoor of het begin van die erna, naar zijn kant. Daar begint het tellen van de kolommen.
       const dayAnchor = compressed && !axisCalEngine.isWorkDay(original)
@@ -465,21 +508,22 @@ export function useBarDrag({
           candidate: axis.xToDate(axis.dateToX(original) + pixelDelta),
           snapMinutes: quantumMin,
         });
-      const gesture = milestoneGestureRef.current;
+      if (at.getTime() === original.getTime()) return null;
+      // Een moment dat F5 laat staan (B6 op een 24/7-middernacht, `milestoneDragLanding`).
+      return formatInstant(milestoneDragLanding(engine, at, member.loose, quantumMin === 1440 ? 60 : quantumMin), 'hour');
+    };
+    const applyMilestoneTarget = (member: MilestoneMember, next: string | null) => {
+      const baseTime = getTask(member.taskId)?.time;
+      if (!baseTime) return;
       // Netto geen snapstap (ook na heen en terug): de oorspronkelijke velden terug, met hun eigen anker.
-      if (at.getTime() === original.getTime()) {
-        if (!gesture || startBlocked(false) || baseTime === gesture.time) return;
-        writeTask(dragState.taskId, { time: gesture.time, ...constraintForStart(dragState.originalStart) },
-          { coalesceKey: undoKey });
+      if (next === null) {
+        if (baseTime === member.time) return;
+        writeTask(member.taskId, { time: member.time, ...constraintFor(member.rule, member.originalStart) }, { coalesceKey: undoKey });
         return;
       }
-      // Een moment dat F5 laat staan (B6 op een 24/7-middernacht, `milestoneDragLanding`).
-      const next = formatInstant(milestoneDragLanding(engine, at, gesture?.loose === true,
-        quantumMin === 1440 ? 60 : quantumMin), 'hour');
-      if (startBlocked(next !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === next && baseTime.scheduleFinish === next
         && baseTime.earlyStart === next && baseTime.earlyFinish === next) return;
-      writeTask(dragState.taskId, {
+      writeTask(member.taskId, {
         time: {
           ...baseTime,
           scheduleStart: next,
@@ -487,8 +531,21 @@ export function useBarDrag({
           earlyStart: next,
           earlyFinish: next,
         },
-        ...constraintForStart(next),
+        ...constraintFor(member.rule, next),
       }, { coalesceKey: undoKey });
+    };
+    const handleMilestoneDrag = (event: MouseEvent) => {
+      const gesture = milestoneGestureRef.current;
+      if (!gesture) return;
+      const pixelDelta = event.clientX - dragState.startX;
+      const members: MilestoneMember[] = [
+        { taskId: dragState.taskId, originalStart: dragState.originalStart, finishSide: gesture.finishSide,
+          loose: gesture.loose, time: gesture.time, rule: startRuleRef.current },
+        ...companionsRef.current,
+      ];
+      const targets = members.map(member => milestoneTarget(member, pixelDelta));
+      if (startBlocked(targets.some((next, k) => next !== null && next !== members[k].originalStart))) return;
+      members.forEach((member, k) => applyMilestoneTarget(member, targets[k]));
     };
 
     const handleHourDrag = (event: MouseEvent) => {
@@ -662,6 +719,7 @@ export function useBarDrag({
           });
           undoKeyRef.current = null;
           startRuleRef.current = null;
+          companionsRef.current = [];
           actualLockRef.current = null;
           setDragState(null);
           return;
@@ -783,14 +841,17 @@ export function useBarDrag({
       }
       // Eén melding per gebaar, over het netto-resultaat: de gezette SNET, of de constraint die de
       // start tegenhield. Dezelfde meldingen als bij typen (`startEditNotifications`).
-      const rule = startRuleRef.current;
+      // Bij een groepsruitje (#868) ook die van de meeschuivers.
+      const rules = [startRuleRef.current, ...companionsRef.current.map(member => member.rule)]
+        .filter((rule): rule is StartRuleGesture => !!rule);
       startRuleRef.current = null;
-      if (rule && notify) {
-        const notices: StartEditNotice[] = rule.blocking
+      companionsRef.current = [];
+      if (rules.length > 0 && notify) {
+        const notices: StartEditNotice[] = rules.flatMap((rule): StartEditNotice[] => rule.blocking
           ? (rule.blockedTried ? [{ kind: 'blocked', name: rule.original.name, constraint: rule.blocking, taskId: rule.original.id }] : [])
           : rule.snet?.constraint.date
             ? [{ kind: 'snet', name: rule.original.name, date: rule.snet.constraint.date, change: rule.snet.change }]
-            : [];
+            : []);
         notifyStartEdit(notify, notices, dateNotation, timeNotation);
       }
       setSplitLabel(null);
@@ -807,6 +868,7 @@ export function useBarDrag({
       gestureMarkRef.current = null;
       undoKeyRef.current = null;
       startRuleRef.current = null;
+      companionsRef.current = [];
       actualLockRef.current = null;
       suppressClickRef.current = true;
       setSplitLabel(null);

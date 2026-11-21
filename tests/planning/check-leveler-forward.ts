@@ -52,7 +52,7 @@ for (const baseId of ['ops', 'msproject', 'p6'] as const satisfies readonly Buil
       schedulingProfile: { baseId, id: baseId, name: '', overrides: {
         p6CompletedDataDateWindow: true, p6CompletedOutOfSequenceWindow: true,
       } } });
-    const forward = new CPMSolver(tasks, sequences, cal, [cal], options).createLevelingForwardPass();
+    const forward = new CPMSolver(tasks, sequences, cal, [cal], options).createIncrementalForwardPass();
     if (!forward) throw new Error('geldige DAG afgewezen');
     const verify = (label: string) => {
       const expected = new CPMSolver(tasks, sequences, cal, [cal], options).solveEarlyStarts();
@@ -78,12 +78,25 @@ for (const baseId of ['ops', 'msproject', 'p6'] as const satisfies readonly Buil
     forward.markChanged('t4');
     forward.markChanged('onbekend');
     verify('teruggenomen');
+    tasks[0].time.actualStart = '2026-06-01T08:00';
+    tasks[0].time.completion = 0.5;
+    forward.markChanged('t0');
+    verify('voorganger gestart');
+    tasks[0].time.actualFinish = '2026-06-03T16:00';
+    tasks[0].time.completion = 1;
+    forward.markChanged('t0');
+    verify('voorganger afgemeld');
+    tasks[0].time.actualStart = undefined;
+    tasks[0].time.actualFinish = undefined;
+    tasks[0].time.completion = 0;
+    forward.markChanged('t0');
+    verify('voortgang voorganger teruggenomen');
     eq('onbekende taak', forward.earlyStart('onbekend'), undefined);
     tasks[0].constraint = { type: 'ALAP' };
-    eq('ALAP blijft volledige solve', new CPMSolver(tasks, sequences, cal, [cal], options).createLevelingForwardPass(), null);
+    eq('ALAP blijft volledige solve', new CPMSolver(tasks, sequences, cal, [cal], options).createIncrementalForwardPass(), null);
     tasks[0].constraint = undefined;
     tasks[0].isHammock = true;
-    eq('hammock blijft volledige solve', new CPMSolver(tasks, sequences, cal, [cal], options).createLevelingForwardPass(), null);
+    eq('hammock blijft volledige solve', new CPMSolver(tasks, sequences, cal, [cal], options).createIncrementalForwardPass(), null);
   }
 }
 // Review P2: een voltooidvenster uit de resultaatpass is geen rauwe forward-start. Zonder
@@ -133,7 +146,7 @@ for (const prefix of [false, true]) {
       eq('P2 eerste boeking op statusdatum', fast.bookings[0], ['pool', '2026-06-10', 1]);
     }
     eq('voltooid zonder einde vereist volledige solve',
-      new CPMSolver(tasks, [], hour, [hour], options).createLevelingForwardPass(), null);
+      new CPMSolver(tasks, [], hour, [hour], options).createIncrementalForwardPass(), null);
   }
 }
 function calendarWork(n: number): number {
@@ -148,7 +161,7 @@ function calendarWork(n: number): number {
   CalendarEngine.prototype.addWorkDaysChecked = function (...args) { calls++; return original.apply(this, args); };
   CalendarEngine.prototype.addMeasuredWorkdaysChecked = function (...args) { calls++; return originalMeasured.apply(this, args); };
   try {
-    const forward = new CPMSolver(tasks, sequences, calendar, [calendar], options).createLevelingForwardPass();
+    const forward = new CPMSolver(tasks, sequences, calendar, [calendar], options).createIncrementalForwardPass();
     if (!forward) throw new Error('keten afgewezen');
     for (let i = 0; i < n - 1; i++) {
       tasks[i].levelingDelay = 1;

@@ -23,6 +23,8 @@ Ontwerp: `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`. Opdrachten
   Werk op de releasebranch en neem de vertalingen mee in de release-PR.
 - Los, als de user erom vraagt (bijvoorbeeld om `main` bij te werken). Werk dan op een eigen branch en
   open een PR.
+- Niet voor de nacht: die heeft zijn eigen skill, [nachtvertalingen](../nachtvertalingen/SKILL.md), met
+  alleen de teksten die af zijn. De release vertaalt daarna wat er nog ligt.
 
 ## Stappen
 

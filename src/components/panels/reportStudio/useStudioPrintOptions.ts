@@ -16,12 +16,14 @@ import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import type { ReportSettings } from '@/utils/reportSettings';
-import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
+import { reportFontStack, type ReportFontChoice } from '@/services/pdf/reportFont';
 import { reportBarColors } from './reportLayouts';
 
 /** De rapportletter die geladen is, met zijn meting (dezelfde als de vector-PDF, `loadReportTextMetrics`). */
 export interface StudioFont {
-  id: ReportFontId;
+  id: ReportFontChoice;
+  /** `reportFontKey`: verschilt ook tussen twee eigen lettertypen. */
+  key: string;
   metrics: ReportTextMetrics;
 }
 
@@ -167,6 +169,7 @@ export function useStudioPrintOptions(
       showLegend: settings.showLegend,
       showTaskNames: settings.showTaskNames,
       showCompletion: settings.showCompletion,
+      showBarDates: settings.showBarDates,
       showBaselineOverlay: settings.showBaselineOverlay,
       autoFit: settings.autoFit,
       customZoom: settings.customZoom,
@@ -246,7 +249,7 @@ export function useStudioPrintOptions(
     // Alleen de velden die op het papier staan: de zijbalkstand of de kolomlijst zelf (die via
     // `tableColumns` binnenkomt) mag geen nieuwe opname veroorzaken.
   }, [fontReady, settings.showFloat, settings.showWeekends, settings.showLegend,
-    settings.showTaskNames, settings.showCompletion, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
+    settings.showTaskNames, settings.showCompletion, settings.showBarDates, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
     settings.paperSize, settings.orientation, settings.truncateTaskNames, settings.taskNameColumnWidth,
     settings.compressNonWorkdays, settings.timelineColumns, settings.reportFontScale, settings.statusLine,
     companyName, autoNameWidth, t, tTask, tableHeaders, daySuffix, locale, project.startDate,

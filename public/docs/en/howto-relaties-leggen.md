@@ -53,6 +53,8 @@ Useful when you are looking at one task and want to add its predecessors or succ
 
 The task's relations are then listed in *Dependencies*, each with the other task's WBS number, the type and the lag.
 
+**Several at once.** In step 4 you can tick more tasks. Click a task in the list and it gets a tick while the list stays open; click again to remove the tick. With the keyboard, Enter ticks the task; then type a new search for the next one. The chosen tasks are shown as labels below the list, with a cross to remove one. Type, lag and direction apply to all chosen tasks, and the tick is then called, for example, *Add 2 predecessors*. One *Undo* removes them all. If one of the relations is refused, for example because it already exists, the app says so; the others are still added and the refused one stays ticked.
+
 ### Typing relations in the Predecessors column
 
 Useful when you work fast with the keyboard and know the WBS numbers.
@@ -81,7 +83,7 @@ Example: the foundation concrete has to cure before the bricklayer can work on i
 
 ### Finally: recalculate
 
-A new relation does not move any bars yet; the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example through *Home › Schedule › Calculate*. Only then do the successors get their new dates. If you want the app to do this for you, turn on *Calculate automatically* under *Settings › Project › App settings*, tab *Planning*.
+A new relation does not move any bars yet; the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example through *Home › Schedule › Calculate*. Only then do the successors get their new dates. If you want the app to do this for you, turn on [Calculate automatically](settings://autoCalc) under *Settings › Project › App settings*, group *Scheduling*.
 
 ## Pitfalls and what the app does
 

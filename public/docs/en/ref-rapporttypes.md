@@ -24,7 +24,7 @@ Open the *Report* tab (or press Ctrl+P). For the Gantt chart, on the left is a s
 
 **Orientation:** — landscape or portrait. Choose from *Landscape* and *Portrait*. Default: *Landscape*. Effect: like *Paper:*. Where: the same place as *Paper:*.
 
-**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)* and *Liberation Serif (like Times New Roman)*. Default: Inter. Effect: screen and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
+**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)*, *Liberation Serif (like Times New Roman)* and *Liberation Mono (monospace)*, plus your own font and *Other font…*. Default: Inter. Effect: screen and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets; Liberation Mono those of Courier New. You choose your own font with *Other font…*: from this computer or from a file; the app keeps a copy on this device. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
 
 ## Gantt chart
 
@@ -51,6 +51,8 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 ### Bars and timeline
 
 **Task names next to the bars** — Default: on. Effect: the name of the task next to the bar.
+
+**Dates next to the bars** — Default: off. Effect: the start date to the left and the finish date to the right of the bar, with the same text as the Start and Finish columns; a milestone gets one date. The name then comes after the finish date; if it no longer fits on the paper to the right, it is cut off with … instead of being placed to the left of the bar. Separate from the *Dates beside bars* button on screen.
 
 **Progress in the bar** — Default: on. Effect: the part that is done, dark in the bar. A completed task gets no float band.
 

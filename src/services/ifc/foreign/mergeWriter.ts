@@ -38,15 +38,15 @@
  *
  * Voorbereiding 1c: alleen tests gebruiken deze ingang. De opslagblokkade blijft dicht tot PR 11.
  */
-import { ifcGuid, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
+import { ifcGuid, ifcObjectSeed, writeIFCWithChoices, writeIfcMergeLines, type SourceTaskTime, type WriteIFCInput, type WriterMergeIds } from '../ifcWriter';
 import { ACTIVITY_CODE_ID_SUFFIX, PSET, ifcStr } from '../ifcPsets';
 import { decodeStepText } from '../stepText';
 import { workCalendarSlots } from '../ifcWorkControlSlots';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 import { DURATION_SLOT_LABEL, durationForm } from './durationForms';
-import { orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged } from './sourceForm';
+import { assumedRowGuid, orphanRowsWithoutId, sourceFormProblems, sourceFormWhereUnchanged, withOrphanRowGuids } from './sourceForm';
 import {
-  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, partialDateTime, preserveAuxiliaryIdentities, pristineFromScan, taskField,
+  changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
@@ -63,6 +63,9 @@ import { sameValue } from '@/utils/sameValue';
 import { freeze } from 'immer';
 import { openMergePlanning } from '@/state/ifcMergePlanning';
 import { psetOwners, validateMergeOutput } from './mergeValidation';
+import {
+  SECOND_FORMS, indexView, linesView, ownGroupMembers, ownGroupTrees, restoredOwnGroupDifference, restoredOwnSlots, type RestoredOwnSlots,
+} from './ownGroups';
 import type { ImportResult } from '@/services/importTypes';
 
 /** De gevallen waarin de writer zonder fase 2 niet veilig kan schrijven. */
@@ -128,6 +131,10 @@ export type MergePhase2Kind =
   | 'verstopt-stuk'
   /** De verplichte open-stappen ontbreken, of openen geeft een andere planning (1107). */
   | 'uitvoer-controle'
+  /** Een eigen groep op projectniveau (`ownGroups.ts`) in de uitvoer leest niet terug tot wat de writer ervan maakt: de
+   *  writer op de herlezing van de uitvoer schrijft daar iets anders (PR 12a, controle (c)). Alleen een fout van de writer of
+   *  de lezer kan dit geven; het is een eigen soort, zodat een telling haar los van de andere uitvoercontroles ziet. */
+  | 'eigen-uitvoer'
   | 'open-stappen-ontbreken'
   | 'planning-na-openen'
   | 'ongewijzigd-getal';
@@ -324,12 +331,15 @@ export function mergeIdPlan(index: StepIndex, cls: Classification, stepIds: Read
  */
 export type OpenMergePlanning = (planning: WriteIFCInput, side: 'uitvoer' | 'domein') => Promise<WriteIFCInput>;
 
-export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<Uint8Array[]> {
-  return [...(await prepareIfcWrite(input, source, probe)).parts];
+export async function writeIfcMerge(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<Uint8Array> {
+  return (await prepareIfcWrite(input, source, probe)).bytes;
 }
 
-/** De ene schrijfingang: gecontroleerde delen, digest en bronmetadata van de geschreven versie (§4.8). */
-export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning): Promise<PreparedIfcWrite> {
+/** De ene schrijfingang: gecontroleerde uitvoer in één buffer, digest en bronmetadata van de geschreven versie (§4.8).
+ *  `observe`, alleen voor proeven: wat (c) bij deze opslag doet met de slots die (b) terugzette, precies zoals de opslag het
+ *  aan (c) geeft. */
+export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, probe?: OpenMergePlanning,
+  observe?: (restored: RestoredOwnSlots) => void): Promise<PreparedIfcWrite> {
   input = freeze(structuredClone(input), true);
   if (!source.foreign) {
     const written = writeIFCWithChoices(input);
@@ -342,7 +352,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // dezelfde nummering vanaf 1 en de sessiekaart, zonder nieuwe indeling tot eigenaar te maken.
     const metadata = writeIfcMergeLines(input, { firstId: 1, keep: new Map(), reserved: new Set(), baselineHeads: new Map() });
     const next = await writtenSource(input, bytes, scan, writerStepIds(input, metadata.idMap), classes, []);
-    return { parts: [bytes], sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
+    return { bytes, sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
   }
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
@@ -350,11 +360,13 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
   if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
-    await checkedParts([source.bytes], input, source, index, cls, source.opened, probe);
-    return { parts: [source.bytes], sha256: source.sha256, source,
+    await checkedBytes(source.bytes, input, source, index, cls, source.opened, probe);
+    return { bytes: source.bytes, sha256: source.sha256, source,
       literalCalendarIds: input.ifcLiteralCalendarIds ?? [] };
   }
 
+  // Eén schrijfklok voor O0, O1 en de uitvoercontrole (c): die herschrijft de herlezing met dezelfde klok.
+  const writtenAt = new Date();
   const cases: MergePhase2Case[] = [];
   const caseAt = (kind: MergePhase2Kind, chunk: number, detail: string, diff?: LossDiff) => {
     const field = diff ? (({ chunk: _, ...rest }) => rest)(diff) : undefined;
@@ -423,11 +435,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
 
     // ── 3. De writer ──
     // Wat de planner niet wijzigde, in de vorm van de bron (fixronde 7, `SourceTaskTime`).
-    const written = writeIfcMergeLines(input, {
-      ...plan, sourceTaskTimes: sourceTaskTimes(pristine, input, index, source), sourceDayLagIds: sourceDayLagIds(pristine, input, index, source),
-      sourceBandCalendarIds: sourceBandCalendarIds(pristine, input, index, source),
-      sourceBaselineHeadGuids: legacyBaselineHeadGuids(input, baselineHeads),
-    });
+    const written = writeIfcMergeLines(withOrphanRowGuids(input, rowGuid), sourceFormPlan(plan, pristine, input, index, source.stepIds), writtenAt);
     const lines = written.lines.map(parseLine);
     const byId = new Map<number, OwnLine>();
     for (const line of lines) {
@@ -703,6 +711,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // (`sourceTaskTimes`, `sourceDayLagIds`, `sourceBandCalendarIds`).
   const scan = foreignScanFrom(index, cls, source.bytes);
   const pristine = await pristineFromScan(scan, source.bytes, (source.opened ?? input).project);
+  // De GlobalId van een weesrij zoals de lezer hem in de bron aannam (PR 12e, was knownbug 1702): de writer houdt hem, in O0
+  // en O1 (`buildLines`), in de andere toets (`openedOwnGroups`) en in de verwachting van (c) (`OwnOutputCheck.sourceRowGuid`).
+  const rowGuid = assumedRowGuid(pristine);
   // "De planner wijzigde dit veld" betekent: het wijkt af van wat de app na het openen liet zien (`source.opened`), niet van
   // de lezing van de bron (#886). Wat alleen het openen veranderde, schrijft de merge in de vorm van de bron
   // (`sourceForm.ts`); de verliesbewaking blijft met de bron vergelijken.
@@ -776,8 +787,15 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // Fixronde 1 van #886: "de planner wijzigde dit" tegenover wat de app na het openen liet zien, met de invoer van de
     // planner (niet `domain`, waarin de bronvorm al staat).
     ...(source.opened ? { plannerChanged: changedScopes(input, source.opened as unknown as ImportResult).keys } : {}),
+    // De andere toets (PR 12b) alleen met wat de app na het openen liet zien: zonder kan (a′) niet getoetst worden.
+    ...(source.opened ? openedOwnGroups(index, cls, plan, pristine, source.opened, source.stepIds, writtenAt) : {}),
   };
   const { edits } = lossCheck(lossInput, f => caseAt(f.kind, f.chunk, f.detail, f.diff));
+  // Waar (b) een bronwaarde terugzette, schrijft de writer het slot niet uit het domein. (c) toetst zo'n slot apart (de regel
+  // en de bronwaarde), en de rest van de groep gewoon; is het slot niet eenduidig aan te wijzen, dan slaat (c) de hele groep
+  // over (`restoredOwnSlots`, op O1 vóór de bewerkingen). Een verwijzing naar een stuk dat de writer niet schrijft (het
+  // `IfcProject` van een ander programma), leest het type uit de bron.
+  const restored = restoredOwnSlots(linesView(lines.filter(l => !l.drop), id => { const c = index.chunkOf(String(id)); return c >= 0 ? index.type(c) : undefined; }), edits);
   const read = (block: readonly string[]) => readPlanning(source, index, cls, scan, block, taskIds);
   if (cases.length === 0 && edits.length > 0) {
     const plain = lines.filter(l => !l.drop).map(l => l.text);
@@ -813,41 +831,56 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // ── 9. Bewaking (eigen zoektocht van 1b): een fout hier is een fout in deze module, geen geval van fase 2; er is dan
   // niets geschreven. Elk vast id is een P-stuk van de bron (anders botst het met een bewaard stuk), en elke verwijzing
   // uit het P-blok gaat naar een stuk dat in de uitvoer staat (geen `#0` en geen verwijzing naar een weggelaten regel).
-  const chunkOfId = new Map<number, number>();
-  for (let i = 0; i < n; i++) if (index.isEntity(i)) chunkOfId.set(sid(i), i);
+  // Het stuk van een id komt uit de index (`chunkOf`: alleen een entiteit, de scanner weigert dubbele ids), niet uit een
+  // kaart van alle ids: bij een groot model is dat 5,2 miljoen sleutels (#804, meting 21 november 2026).
   for (const id of [...keep.values(), ...keptHeads]) {
-    const c = chunkOfId.get(id);
-    if (c === undefined || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
+    const c = index.chunkOf(String(id));
+    if (c < 0 || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
   }
-  const present = new Set<number>(emitted);
-  for (let i = 0; i < n; i++) if (index.isEntity(i) && !isP(i)) present.add(sid(i));
+  // In de uitvoer staat: wat de writer schrijft, en elk niet-P-stuk van de bron.
+  const present = (id: number) => {
+    if (emitted.has(id)) return true;
+    const c = index.chunkOf(String(id));
+    return c >= 0 && !isP(c);
+  };
   for (const line of lines) {
     if (line.drop) continue;
     for (const target of refsInText(line.text)) {
-      if (!present.has(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
+      if (!present(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
     }
   }
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
-    const assembled = assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`));
-    const actual = await checkedParts(assembled, input, source, index, cls, source.opened ?? pristine, probe);
+    const assembled = concatParts(assemble(source, index, cls, candidate.map(line => 'text' in line && typeof line.text === 'string' ? line.text : `#${line.id}=${line.type}(${line.args.join(',')});`)));
+    // De vingerafdruk nu, vóór de uitvoerindex er is: `crypto.subtle.digest` neemt een kopie van de bytes, en als laatste
+    // stap stond die kopie bovenop de hele uitvoercontrole (#804). `precomputeSha256` onthoudt hem per buffer; niets
+    // verandert deze bytes nog, dus `writtenSource` krijgt dezelfde waarde zonder tweede berekening. Bij een weigering
+    // blijft er niets van over: de buffer en zijn plek in die `WeakMap` vallen samen weg.
+    await precomputeSha256(assembled);
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
     const remap = new Map(block.map((line, i) => [line.id, candidate[i].id]));
     const stepIds = writerStepIds(input, built.idMap, id => remap.get(id) ?? id);
+    // De regel van elk slot van (b) in de uitvoer, door dezelfde hernummering. Een regel buiten de kaart: (c) slaat zijn groep
+    // over, zoals vóór PR A.
+    const unmapped = new Set(restored.slots.filter(s => !remap.has(s.id)).map(s => s.group));
+    const own: OwnOutputCheck = {
+      stepIds, writtenAt, sourceRowGuid: rowGuid, skip: new Set([...restored.skip, ...unmapped]),
+      slots: restored.slots.filter(s => !unmapped.has(s.group)).map(s => ({ ...s, id: remap.get(s.id)! })),
+    };
+    observe?.(own);
+    const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
     const written = new Set(candidate.map(line => line.id));
-    const classes = Uint8Array.from(actual.scan.chunkIds, id => {
-      if (id < 0) return 0;
-      return written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
-    });
+    // Een gewone lus: `Uint8Array.from` met een functie maakt bij een groot model miljoenen tijdelijke waarden (#804).
+    const ids = actual.scan.chunkIds, classes = new Uint8Array(ids.length);
+    for (let k = 0; k < ids.length; k++) {
+      const id = ids[k];
+      if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
+    }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
     const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
-    let at = 0;
-    const parts = assembled.map(part => {
-      const view = actual.bytes.subarray(at, at + part.length); at += part.length; return view;
-    });
-    return { parts, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
+    return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
   const block = lines.filter(l => !l.drop);
   let preserved: readonly OutLine[] | undefined;
@@ -891,26 +924,51 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   return {
     bytes, sha256: await precomputeSha256(bytes), schemaName,
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
-    foreign: foreignObjectCount > 0, foreignObjectCount, lineEnding: scan.lineEnding, opened: input,
+    foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
 
+/** Wat de uitvoercontrole (c) nodig heeft: de sessiekaart van de uitvoer, de schrijfklok van O1 en wat (c) doet met de slots
+ *  die (b) herstelde (`RestoredOwnSlots`, met de ids van de uitvoer). Zonder (de bronbytes zelf terug, stuk 1) loopt (c)
+ *  niet: die bytes schreef deze writer niet. */
+export interface OwnOutputCheck extends RestoredOwnSlots {
+  readonly stepIds: Readonly<Record<string, number>>;
+  readonly writtenAt: Date;
+  /** De GlobalId die de lezer in de bron voor een weesrij aannam (`assumedRowGuid` op de lezing van de bron). */
+  readonly sourceRowGuid: (taskId: string) => string | undefined;
+}
+
+/** Alleen voor proeven: de volledige uitvoercontrole van `prepareIfcWrite` op gegeven uitvoerbytes (ook een gemuteerde
+ *  uitvoer). Gooit `MergeNeedsPhase2Error` zoals bij opslaan. */
+export async function checkMergeOutput(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
+  own?: Omit<OwnOutputCheck, 'sourceRowGuid'>): Promise<void> {
+  const index = scanForeignStep(source.bytes), cls = classify(index);
+  assertSameSource(index, cls, source);
+  // Zoals bij opslaan: de GlobalId van een weesrij uit de lezing van de bron.
+  const checked = own && { ...own, sourceRowGuid: assumedRowGuid(await pristineDomain(index, cls, source)) };
+  await checkedBytes(bytes, freeze(structuredClone(input), true), source, index, cls, source.opened ?? input, undefined, checked);
+}
+
+/** Eén buffer uit de stukken van `assemble`: de enige kopie van de hele uitvoer. */
+function concatParts(parts: readonly Uint8Array[]): Uint8Array {
+  const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let at = 0;
+  for (const part of parts) { bytes.set(part, at); at += part.length; }
+  return bytes;
+}
+
 /** De vaste uitvoercontrole van #918, ook voor ongewijzigd teruggegeven bronbytes. */
-async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, source: IfcSource,
-  index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning) {
-  const bytes = parts.length === 1 ? parts[0] : new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
-  if (parts.length !== 1) {
-    let at = 0;
-    for (const part of parts) { bytes.set(part, at); at += part.length; }
-  }
+async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: IfcSource,
+  index: StepIndex, cls: Classification, opened: WriteIFCInput, probe?: OpenMergePlanning, own?: OwnOutputCheck) {
   let actual: ReturnType<typeof validateMergeOutput>;
   let shown: WriteIFCInput, wanted: WriteIFCInput;
+  let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
   try {
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    const parsed = await pristineFromScan(outputScan, bytes, opened.project);
+    parsed = await pristineFromScan(outputScan, bytes, opened.project) as WriteIFCInput;
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
@@ -940,7 +998,91 @@ async function checkedParts(parts: readonly Uint8Array[], input: WriteIFCInput, 
   }
   const numberProblem = unchangedPlanningNumberProblem(input, opened, wanted, shown);
   if (numberProblem) throw new MergeNeedsPhase2Error([{ kind: 'ongewijzigd-getal', detail: numberProblem }]);
+  // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
+  const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
+  if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
   return { bytes, index: actual.index, scan: outputScan };
+}
+
+/**
+ * Controle (c), PR 12a: de eigen groepen op projectniveau in de uitvoer (`ownGroups.ts`) zijn gelijk aan wat de writer
+ * schrijft uit de herlezing van die uitvoer (`parsed`, de lezing die `checkedBytes` al deed), met dezelfde schrijfklok en
+ * dezelfde keuzes voor de bronvorm als bij het schrijven, als boomvorm zonder GlobalId en owner history van psets en hun
+ * leden en zonder vreemde leden; een baselinekop wel met zijn GlobalId, en `TaskGuids` helemaal (PR 12e). Zo leest elke geschreven groep terug tot precies wat de writer ervan maakt; een verschil kan alleen een fout van de
+ * writer of de lezer zijn. Alleen de stukken die de writer schreef tellen (de regel van `validateMergeOutput`); geen tweede
+ * scan of herlezing. Een slot in `own.slots` (daar zette (b) een bronwaarde terug) toetst (c) apart: op die regel staat
+ * precies de bronwaarde (PR A, `restoredOwnGroupDifference`); de rest van zijn groep gewoon. Groepen in `own.skip` toetst
+ * (c) helemaal niet: daar was zo'n slot niet eenduidig aan te wijzen.
+ */
+function ownOutputProblem(bytes: Uint8Array, out: StepIndex, outCls: Classification, sourceIndex: StepIndex, sourceCls: Classification,
+  parsed: WriteIFCInput, input: WriteIFCInput, own: OwnOutputCheck): string | undefined {
+  const output = indexView(out, i => { const original = sourceIndex.chunkOf(out.id(i)); return original < 0 || sourceCls.classes[original] === 1; });
+  const ids = mergeIdPlan(out, outCls, own.stepIds, parsed.calendar.id, bytes);
+  // Een weesrij krijgt in de herlezing de GlobalId die de writer uit het domein had (PR 12e, was knownbug 1706), niet die uit de
+  // uitvoer zelf: zo ziet (c) een verkeerde waarde in `TaskGuids`, net als een sleutel zonder rij.
+  const domainGuids = withOrphanRowGuids(input, own.sourceRowGuid).ifcGlobalIds ?? {};
+  const reread = withOrphanRowGuids(parsed, id => domainGuids[ifcObjectSeed('task', id)]);
+  const rewritten = writeIfcMergeLines(reread, sourceFormPlan(ids.plan, parsed, parsed, out, own.stepIds), own.writtenAt).lines
+    .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
+  return restoredOwnGroupDifference(output, linesView(rewritten, output.typeOf), own)?.detail;
+}
+
+/**
+ * De andere toets, PR 12b (onderzoek van 14 november 2026, vraag 2, voorwaarde a′): per bronstuk de eigen groep op
+ * projectniveau (`ownGroups.ts`, dezelfde indeling als (c), op de bronregels) waarvan het openen in de app niets veranderde.
+ * Het openen veranderde een groep niet als de writer in die groep op de lezing van de bron (`pristine`) hetzelfde schrijft
+ * als op wat de app na het openen liet zien (`opened`), in de bronvorm (`sourceFormWhereUnchanged`, zoals bij het
+ * schrijven: op de ruwe vorm verschilt een oud bestand al door de omzetting, en weigert de toets te veel). Zo valt een
+ * groep die het openen zelf veranderde (een herstelkenmerk dat bij openen verdwijnt, knownbug 1703) terug op de
+ * verliescontrole van main. Een groep die het openen nieuw maakt, staat niet in de bron en telt dus niet. De tweede vormen
+ * buiten de psets (`SECOND_FORMS`: de baselinekoppen, PR 12c, en de typenaam op de taak, PR 12d) staan niet in `ownGroups`:
+ * zij zijn geen pset, en wat er met hen mag, beslist de verliescontrole apart. Hier alleen per vorm: hij staat in de bron, en
+ * het openen veranderde hem niet, in dezelfde bronvorm (`secondFormsUnchanged`, op de pset).
+ *
+ * Voorwaarde (a), "de groep is in de bron gedragen", toetst de verliescontrole: geen stuk van de groep had de herleestoets (b)
+ * nodig (`lossCheck`, `ownGroups`). Een vreemd lid (zoals een property van een ander programma in een eigen pset) sluit de
+ * groep niet uit (stap 5 deel 1, was knownbug 1707): de boomvorm telt alleen eigen leden, dus de writer schrijft de groep uit de
+ * lezing van de bron precies zoals ze in de bron staat; de merge hangt het lid weer aan de pset, of zet een pset met alleen
+ * de vreemde leden neer als de writer de pset niet meer schrijft (stap 6 van `writeIfcMerge`), en controle 1
+ * (`validateMergeOutput`) toetst dat het lid aan hetzelfde object en dezelfde psetnaam blijft. Een vreemde verwijzing in een
+ * baselinekop (zoals `Creators`) staat in een slot dat de lezer niet leest: (b) zet het terug, en dan beweegt de kop niet mee
+ * (`SECOND_FORMS` in `lossCheck.ts`).
+ *
+ * Geëxporteerd voor de proeven van de verliescontrole (`check-ifc-foreign-eigen-toets.ts`).
+ */
+export function openedOwnGroups(index: StepIndex, cls: Classification, plan: WriterMergeIds, pristine: ImportResult, opened: WriteIFCInput,
+  stepIds: Readonly<Record<string, number>>, writtenAt: Date): { ownGroups: Map<number, string>; secondFormsUnchanged: Set<string> } {
+  const source = indexView(index, i => cls.classes[i] === 1);
+  const members = ownGroupMembers(source);
+  const out = new Map<number, string>(), forms = new Set<string>();
+  if (members.size === 0) return { ownGroups: out, secondFormsUnchanged: forms };
+  const rowGuid = assumedRowGuid(pristine);
+  const trees = (d: WriteIFCInput) => {
+    const lines = writeIfcMergeLines(withOrphanRowGuids(d, rowGuid), sourceFormPlan(plan, pristine, d, index, stepIds), writtenAt).lines
+      .map(text => parseOutLine(text)).filter((l): l is OutLine => l !== undefined);
+    return ownGroupTrees(linesView(lines, source.typeOf));
+  };
+  const read = trees(pristine), shown = trees(sourceFormWhereUnchanged(opened, opened, pristine).input);
+  const unchanged = (g: string) => (read.get(g) ?? []).join('\n') === (shown.get(g) ?? []).join('\n');
+  const secondForms = new Set(SECOND_FORMS.values());
+  for (const [id, group] of members) {
+    if (secondForms.has(group) || !unchanged(group)) continue;
+    const chunk = index.chunkOf(String(id));
+    if (chunk >= 0) out.set(chunk, group);
+  }
+  const inSource = ownGroupTrees(source);
+  for (const [pset, form] of SECOND_FORMS) if (inSource.has(form) && unchanged(form)) forms.add(pset);
+  return { ownGroups: out, secondFormsUnchanged: forms };
+}
+
+/** Het merge-plan met de keuzes voor de bronvorm (fixronde 7 van #867): wat de planner niet wijzigde, in de vorm van de bron. */
+function sourceFormPlan(plan: WriterMergeIds, pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex,
+  stepIds: Readonly<Record<string, number>>): WriterMergeIds {
+  return {
+    ...plan, sourceTaskTimes: sourceTaskTimes(pristine, domain, index, stepIds), sourceDayLagIds: sourceDayLagIds(pristine, domain, index, stepIds),
+    sourceBandCalendarIds: sourceBandCalendarIds(pristine, domain, index, stepIds),
+    sourceBaselineHeadGuids: legacyBaselineHeadGuids(domain, plan.baselineHeads),
+  };
 }
 
 /** Trias 1107: gelijk aan opened is ongewijzigd; zonder opened geldt pristine, zoals in de verliesbewaking.
@@ -1139,9 +1281,12 @@ function psetRel(index: StepIndex, pset: number): number {
 
 /** De bron moet de bron zijn waaruit `ifcSource` kwam: dezelfde stukken met dezelfde ids en klassen. */
 function assertSameSource(index: StepIndex, cls: Classification, source: IfcSource): void {
-  const same = index.count === source.classes.length
-    && cls.classes.every((c, i) => c === source.classes[i])
-    && Array.from({ length: index.count }, (_, i) => i).every(i => (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i]);
+  let same = index.count === source.classes.length && cls.classes.every((c, i) => c === source.classes[i]);
+  // Een gewone lus, zonder lijst van alle stuknummers (#804).
+  for (let i = 0; same && i < index.count; i++) {
+    const id = index.id(i);
+    same = (id === '' ? -1 : Number(id)) === source.chunkIds[i];
+  }
   if (!same) throw new Error('mergeWriter: de bronbytes passen niet bij ifcSource');
 }
 
@@ -1155,10 +1300,7 @@ function readPlanning(source: IfcSource, index: StepIndex, cls: Classification, 
   block: readonly string[], taskIds: readonly number[]) {
   const alsoRead = new Set(scan.mixedPsetChunks);
   const skip = (i: number) => cls.classes[i] === 4 && i !== scan.projectContext && !alsoRead.has(i);
-  const parts = assemble(source, index, cls, block, skip);
-  const bytes = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
-  let at = 0;
-  for (const p of parts) { bytes.set(p, at); at += p.length; }
+  const bytes = concatParts(assemble(source, index, cls, block, skip));
   const literalStepIds = new Set<string>();
   for (let i = 0; i < scan.literal.length; i++) if (scan.literal[i] === 1 && cls.classes[i] !== 1) literalStepIds.add(String(scan.chunkIds[i]));
   return readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), {}, {
@@ -1211,7 +1353,7 @@ const TOTAL_FLOAT_FIELDS = taskTimeSlotFields(12);
  * planner het veld niet wijzigde (tegenover `pristine`, het domein zoals de lezer het las). Regel van Trias: wat OPS zelf
  * schreef en de planner niet wijzigde, blijft staan zoals in de bron; wijzigde hij het, dan geldt de writer.
  */
-function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlyMap<string, SourceTaskTime> {
+function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, stepIds: Readonly<Record<string, number>>): ReadonlyMap<string, SourceTaskTime> {
   const before = new Map(pristine.tasks.map(t => [t.id, t]));
   const out = new Map<string, SourceTaskTime>();
   for (const task of domain.tasks) {
@@ -1221,7 +1363,7 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
     // Ook een hele duur/rest blijft in dagvorm. Werkelijke duur en speling houden hun bestaande breukregel;
     // hele spelingen kunnen daarnaast een ExactFloat-record met minuten dragen, dat moet blijven staan.
     const daySlots = new Set<number>();
-    const step = source.stepIds[`task:${task.id}`];
+    const step = stepIds[`task:${task.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     for (let k = 0; chunk >= 0 && k < index.argCount(chunk); k++) {
       for (const tt of index.refsAt(chunk, k)) {
@@ -1246,13 +1388,13 @@ function sourceTaskTimes(pristine: WriteIFCInput, domain: WriteIFCInput, index: 
 
 /** De relaties van `domain` met een lag die de planner niet wijzigde, en die de bron als gebroken dag in de oude vorm had
  *  (`WriterMergeIds.sourceDayLagIds`; fixronde 7 van #867, BLOKKEERT 4). */
-function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlySet<string> {
+function sourceDayLagIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, stepIds: Readonly<Record<string, number>>): ReadonlySet<string> {
   const before = new Map(pristine.sequences.map(q => [q.id, q]));
   const out = new Set<string>();
   for (const seq of domain.sequences) {
     const was = before.get(seq.id);
     if (!was || LAG_VALUE_FIELDS.some(f => (was as unknown as Record<string, unknown>)[f] !== (seq as unknown as Record<string, unknown>)[f])) continue;
-    const step = source.stepIds[`seq:${seq.id}`];
+    const step = stepIds[`seq:${seq.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     const lag = chunk >= 0 ? index.refAt(chunk, 6) : -1;
     if (lag < 0 || index.type(lag) !== 'IFCLAGTIME') continue;
@@ -1284,7 +1426,7 @@ function legacyBaselineHeadGuids(domain: WriteIFCInput, baselineHeads: ReadonlyM
   return out;
 }
 
-function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, source: IfcSource): ReadonlySet<string> {
+function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, index: StepIndex, stepIds: Readonly<Record<string, number>>): ReadonlySet<string> {
   const a = planningIdentityInput(pristine), b = planningIdentityInput(domain), ids = planningIdentities(domain).calendar;
   const before = new Map([a.calendar, ...(a.resourceCalendars ?? [])].map(c => [c.id, c]));
   const after = new Map([b.calendar, ...(b.resourceCalendars ?? [])].map(c => [c.id, c]));
@@ -1292,7 +1434,7 @@ function sourceBandCalendarIds(pristine: WriteIFCInput, domain: WriteIFCInput, i
   for (const cal of [domain.calendar, ...(domain.resourceCalendars ?? [])]) {
     const id = ids.get(cal.id) ?? cal.id, was = before.get(id);
     if (!was || cal.workTime || JSON.stringify(was) !== JSON.stringify(after.get(id))) continue;
-    const step = source.stepIds[`cal:${cal.id}`];
+    const step = stepIds[`cal:${cal.id}`];
     const chunk = step === undefined ? -1 : index.chunkOf(String(step));
     const times = chunk >= 0 ? index.refsAt(chunk, workCalendarSlots(index.argTokens(chunk) ?? []).workingTimes) : [];
     if (times.length !== 1 || index.type(times[0]) !== 'IFCWORKTIME') continue;

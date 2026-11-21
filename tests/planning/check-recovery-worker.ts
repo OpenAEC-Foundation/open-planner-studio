@@ -18,7 +18,7 @@ import { clearRecovery, loadRecovery } from '@/services/recovery/recoveryStore';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush, flushRecoveryNow } from '@/services/recovery/recoveryFlush';
-import { checkRecoveryUpdateFlush } from './recoveryUpdateChecks';
+import { checkRecoveryUpdateFlush, checkUpdaterFinalPhase } from './recoveryUpdateChecks';
 
 const writes: string[] = [];
 let writeError: Error | undefined;
@@ -354,4 +354,6 @@ await checkRecoveryUpdateFlush(error => { writeError = error; });
   parity(old, await next);
   client.dispose();
 }
+// Als laatste: de bestandsbrug van deze proef vervangt `window`.
+await checkUpdaterFinalPhase();
 console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallback, afzonderlijke kalenderweigering en stopraces groen');

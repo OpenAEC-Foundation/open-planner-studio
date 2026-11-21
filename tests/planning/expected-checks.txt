@@ -9,6 +9,7 @@ check-adapters-hours.ts matrix
 check-advanced-cpm.ts matrix
 check-alap-chain.ts matrix
 check-alap-maatplaatsing.ts matrix
+check-app-quit-lifecycle.ts matrix
 check-app-quit.ts matrix
 check-apply-leveling-scope.ts matrix
 check-arrow-hour-anchor.ts matrix
@@ -50,12 +51,14 @@ check-count-labels-i18n.ts matrix
 check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
 check-csv-import.ts matrix
+check-custom-report-font.ts matrix
 check-custom-task-types.ts matrix
 check-dag-is-werktijd.ts matrix
 check-dag-uur-lag.ts matrix
 check-dagenmaat-lopers.ts matrix
 check-date-format.ts matrix
 check-date-input-commit.ts matrix
+check-date-picker-month.ts matrix
 check-datetime.ts matrix
 check-dcma.ts matrix
 check-default-work-rule-switch.ts matrix
@@ -65,6 +68,7 @@ check-dependent-projects.ts matrix
 check-dev-bridge-poller.ts matrix
 check-dev-open-link.ts matrix
 check-dialog-backdrop.ts matrix
+check-dissolve-tasks.ts matrix
 check-docs-dagen-en-uren.ts matrix
 check-docs-resources-voorbeelden.ts matrix
 check-docs-structure.ts matrix
@@ -119,8 +123,8 @@ check-f4b-voortgangsduur.ts matrix
 check-feature-flags.ts matrix
 check-fidelity-cells-gate.ts los
 check-fidelity-core.ts matrix
-check-file-byte-parts.ts matrix
 check-file-drop.ts matrix
+check-file-ifc-bytes.ts matrix
 check-first-start.ts matrix
 check-float-band-end.ts matrix
 check-float-remaining-text.ts matrix
@@ -128,6 +132,7 @@ check-focus-task.ts matrix
 check-format-notice.ts matrix
 check-full-task-grid-surface.ts matrix
 check-gantt-arrow-clip.ts matrix
+check-gantt-bar-dates.ts matrix
 check-gantt-boundaries.ts los
 check-gantt-coordinate-contracts.ts matrix
 check-gantt-coordinator-contracts.ts matrix
@@ -142,6 +147,7 @@ check-gantt-trace-progress.ts matrix
 check-gantt-workspace.ts matrix
 check-grid-nav.ts matrix
 check-grid-resource-load-reuse.ts matrix
+check-grid-task-paste.ts matrix
 check-grid-transaction.ts matrix
 check-guide-placement.ts matrix
 check-header-compress.ts matrix
@@ -175,6 +181,8 @@ check-ifc-duurvormen.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
+check-ifc-foreign-eigen-toets.ts matrix
+check-ifc-foreign-eigen-uitvoer.ts matrix
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
@@ -184,8 +192,10 @@ check-ifc-foreign-open.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los
 check-ifc-foreign-preserve.ts matrix
+check-ifc-foreign-slotplaats.ts matrix
 check-ifc-foreign-strikt.ts matrix
 check-ifc-foreign-target.ts matrix
+check-ifc-foreign-telling-verschil.ts los
 check-ifc-globalid.ts matrix
 check-ifc-kalendertijd.ts matrix
 check-ifc-legacy-arity.ts matrix
@@ -193,6 +203,7 @@ check-ifc-lexical-boundaries.ts matrix
 check-ifc-literaltimes-behoud.ts matrix
 check-ifc-lopend-100.ts matrix
 check-ifc-nesting-index.ts matrix
+check-ifc-own-file-replace.ts matrix
 check-ifc-prepared-write.ts matrix
 check-ifc-projectdatum-corpus.ts los
 check-ifc-projectdatum-tijd.ts matrix
@@ -242,6 +253,7 @@ check-mijlpaal-afmelden.ts matrix
 check-milestone-drag.ts matrix
 check-milestone-duration-render.ts matrix
 check-milestone-report-status.ts matrix
+check-milestone-run-rows.ts matrix
 check-minmax-spread.ts matrix
 check-minute-model-boundaries.ts matrix
 check-minute-model-compat.ts matrix
@@ -298,7 +310,9 @@ check-p6xml-writer-labels.ts matrix
 check-p6xml-writer-p6.ts matrix
 check-p6xml-xer-parity.ts matrix
 check-paste-references.ts matrix
+check-place-file-exclusive.ts matrix
 check-placement-load.ts matrix
+check-print-bar-dates.ts matrix
 check-print-bar-moments.ts matrix
 check-print-compress-week-banding.ts matrix
 check-print-raster-export-streaming.ts matrix
@@ -315,6 +329,7 @@ check-progress-sheet-values.ts matrix
 check-progress-sinds-export.ts matrix
 check-progress-xlsx-writer.ts matrix
 check-project-start-anchor.ts matrix
+check-project-template-i18n.ts matrix
 check-raster-datum-ongewijzigd.ts matrix
 check-recent-open.ts matrix
 check-recorded-bak4-differential.ts matrix
@@ -344,6 +359,7 @@ check-relation-ribbon-trace.ts matrix
 check-relation-routes.ts matrix
 check-relation-rules.ts matrix
 check-relation-set-plan.ts matrix
+check-relation-step.ts matrix
 check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
@@ -371,7 +387,9 @@ check-restwerk-duurwijziging.ts matrix
 check-ribbon-overlays.ts matrix
 check-row-drag-intent.ts matrix
 check-run-ts-cleanup.ts matrix
+check-save-dialog-extension.ts matrix
 check-save-failure-status.ts matrix
+check-save-worker.ts matrix
 check-saved-filters.ts matrix
 check-schedule-errors.ts matrix
 check-schedule-warnings.ts matrix
@@ -380,10 +398,12 @@ check-scheduling-profile-draft.ts matrix
 check-scheduling-profile-notice.ts matrix
 check-scheduling-profile-roundtrip.ts matrix
 check-scratch-document.ts matrix
+check-selection-after-collapse-delete.ts matrix
 check-session-history-boundaries.ts matrix
 check-session-history-migration.ts matrix
 check-session-history-model.ts matrix
 check-session-history-store.ts matrix
+check-settings-search.ts matrix
 check-settings-storage-blocked.ts matrix
 check-shift-explanation.ts matrix
 check-short-hour-task-load.ts matrix
@@ -399,6 +419,7 @@ check-split-smoke.ts matrix
 check-split-solver-placement.ts matrix
 check-split-walk.ts matrix
 check-start-snet.ts matrix
+check-startup-window.ts matrix
 check-statusdatum-lijn.ts matrix
 check-statusdatum-tijd.ts matrix
 check-step-strings.ts matrix
@@ -440,6 +461,7 @@ check-task-resource-scope.ts matrix
 check-task-slice.ts matrix
 check-task-tree.ts matrix
 check-task-trigger-changes.ts matrix
+check-tauri-capability-scopes.ts matrix
 check-tauri-refresh-evidence.ts matrix
 check-text-asset.ts matrix
 check-theme-bar-contrast.ts matrix
@@ -451,6 +473,7 @@ check-translate-apply.ts matrix
 check-translate-docs.ts matrix
 check-translate-gates.ts matrix
 check-translate-labels.ts matrix
+check-translate-night.ts matrix
 check-translate-prepare.ts matrix
 check-translate-tbx.ts matrix
 check-translate-termfix.ts matrix
@@ -458,6 +481,7 @@ check-tutorial-project.ts matrix
 check-undo-bound.ts matrix
 check-undo-coalesce-grid.ts matrix
 check-undo-memory-cap.ts matrix
+check-updater-zip.ts matrix
 check-uren-f5a-adapters.ts matrix
 check-uren-f5a2-adapters.ts matrix
 check-uren-f5b-adapters.ts matrix

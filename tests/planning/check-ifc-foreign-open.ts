@@ -19,6 +19,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { brokenNameFiles, dataKopBestanden, paramDataFile } from './ifcDoelBestanden';
+import { fakeScanWorker, fakeScanWorkerStats, type FakeScanWorkerMode } from './fakeScanWorker';
 import { oldHeaderTable, compareOldHeaderTable, type OldHeaderRow } from './ifcOudeKopVergelijking';
 import { oudeKop, oudeKopVelden, oudeWand } from './ifcOudeKop';
 import { indexOfStepDataSection } from '@/services/ifc/stepDataSection';
@@ -49,7 +50,6 @@ const { capturePayload } = await import('@/state/documentContract');
 const { createSnapshot } = await import('@/state/snapshot');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
 const contexts = new WeakMap<Store, ReturnType<typeof createAppStoreContext>>();
-type ForeignScanWorker = import('@/services/ifc/foreign/foreignScanRunner').ForeignScanWorker;
 
 let checks = 0;
 const diffs: string[] = [];
@@ -172,7 +172,9 @@ function modelGlobalIds(bytes: Uint8Array): string[] {
     await state.saveFile();
     eq(`${label}: schrijven of blokkeren`, writes.length, wall ? 0 : 1);
     if (wall) {
-      eq(`${label}: bestaand lokaal modeldoel krijgt de Opslaan-als-melding`, store.getState().ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignReplaceBlocked']);
+      // Knownbug 1131 stap 2: Ctrl+S via de handle weigert niet meer vóór de merge. Deze proef registreert geen
+      // herstelronde, dus de komende versie ligt niet vast in het herstelmanifest en de app schrijft niet (1764).
+      eq(`${label}: zonder herstelronde geen vervanging van het modeldoel`, store.getState().ui.notifications.map(n => n.messageKey), ['notifications.ifcForeignReplaceNotRecorded']);
       eq(`${label}: volledige bron inclusief wand intact`, data, text);
     }
     // Ctrl+S bevestigt ook de bestaande minutenomzetting; vergelijk met de daardoor vastgelegde toestand.
@@ -393,6 +395,9 @@ for (const [name, text] of [
   eq('eigen-plus-model met flag: aantal objecten in het vreemde deel (C + A + V)', on.getState().ifcSource?.foreignObjectCount, 13 + 0 + 77);
   const b = await open(true, 'bonsai-4d.ifc', bonsai);
   eq('bonsai-4d met flag: aantal objecten in het vreemde deel (C + A + V)', b.getState().ifcSource?.foreignObjectCount, 15 + 13 + 127);
+  // Review van #1002 ronde 2: de bron draagt of er een gebouwmodel is, uit de scan die haar accepteerde.
+  eq('eigen-plus-model met flag: de bron heeft een gebouwmodel', on.getState().ifcSource?.buildingModel, true);
+  eq('bonsai-4d met flag: de bron heeft een gebouwmodel', b.getState().ifcSource?.buildingModel, true);
   const scan = scanForeign(bonsai);
   eq('bonsai-4d met flag: de taken van selectPlanning', b.getState().tasks.length, scan.ok ? scan.selection.tasks.length : -1);
 }
@@ -467,7 +472,7 @@ for (const pad of ownFiles) {
   eq(`${pad}: meldingen met en zonder flag`, notices(on), notices(off));
   if (!opened(off, name)) continue;
   // Ook v2026.7.12 O'Hara krijgt nu een bron: de smalle kopherkenning verandert de planning/opslag niet.
-  ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0);
+  ok(`${pad}: met flag een bron zonder vreemd deel`, src !== null && src.foreign === false && src.foreignObjectCount === 0 && !src.buildingModel);
   ok(`${pad}: met flag opslaan toegestaan`, !ifcSaveBlocked(on.getState()));
   eq(`${pad}: zonder flag geen bron`, off.getState().ifcSource, null);
   const a = saved(on);
@@ -495,14 +500,20 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   await S().saveFileAs();
   const ifcExport = await S().exportAs('ifc');
   eq('opslaan: IFC-export telt als geannuleerd', ifcExport, { ok: true, warnings: [], cancelled: true });
+  // PR 13: de export met bibliotheek is zonder gebouwmodel en vraagt eerst; nee telt als geannuleerd, zonder melding.
+  const { setPlanOnlyAsker, resetPlanOnlyAsker } = await import('@/services/ifc/planOnlyQuestion');
+  const asked: string[] = [];
+  setPlanOnlyAsker(async reason => { asked.push(reason); return false; });
   const pool = await S().exportProjectWithPool();
-  eq('opslaan: pool-export telt als geannuleerd', pool, { ok: true, warnings: [], cancelled: true });
-  eq('opslaan: drie mergeweigeringen en één poolweigering', [mergeNotices()[0]?.count, blockedNotices()[0]?.count], [3, 1]);
+  resetPlanOnlyAsker();
+  eq('opslaan: pool-export vraagt eerst en telt na nee als geannuleerd', [pool, asked],
+    [{ ok: true, warnings: [], cancelled: true }, ['exportWithPool']]);
+  eq('opslaan: drie mergeweigeringen en geen opslagweigering', [mergeNotices()[0]?.count, blockedNotices().length], [3, 0]);
   eq('opslaan: geen opslagdialoog geopend', pickerCalls, 0);
   eq('opslaan: het document blijft gewijzigd en houdt zijn doel', [S().isDirty, S().filePath], [dirty, 'bonsai-4d.ifc']);
   // Andere formaten dragen alleen planning en blijven mogelijk: de CSV-export komt tot de opslagdialoog.
   await S().exportAs('csv');
-  eq('opslaan: CSV-export komt tot de opslagdialoog, zonder nieuwe melding', [pickerCalls, blockedNotices().length], [1, 1]);
+  eq('opslaan: CSV-export komt tot de opslagdialoog, zonder nieuwe melding', [pickerCalls, blockedNotices().length], [1, 0]);
   pickerCalls = 0;
   // Zonder vreemd deel wordt niets geweigerd: Opslaan als komt tot de dialoog.
   const own = await open(true, 'showcase.ifc', fileBytes('public/examples/showcase-verbouwing-eengezinswoning.ifc'));
@@ -663,7 +674,8 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
           const outcome = scanForeign(msg.bytes);
           if (!outcome.ok) throw new Error(outcome.message);
           const data = { id: msg.id, outcome: { ...outcome, selection: { ...outcome.selection, resources: Int32Array.of(-1) } } };
-          queueMicrotask(() => this.onmessage?.({ data }));
+          // Eerst de startbevestiging, zoals `foreignScan.worker.ts`; anders valt de runner na de starttijd terug.
+          queueMicrotask(() => { this.onmessage?.({ data: { id: msg.id, started: true } }); this.onmessage?.({ data }); });
         }
       }
       globalThis.Worker = DifferentSelectionWorker as unknown as typeof Worker;
@@ -759,33 +771,8 @@ ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijk
 
 // ── 8. Worker en terugval ──────────────────────────────────────────────────────────────────────────────────────
 {
-  const { foreignScanTransferables } = await import('@/services/ifc/foreign/foreignScan');
-  /** Een nep-Worker zoals de echte: kopie van de bytes via `structuredClone`, antwoord async met `transfer`, de indeling in
-   *  de "Worker". */
-  let terminated = 0;
-  const fakeWorker = (mode: 'ok' | 'transport' | 'indeling' | 'stil'): ForeignScanWorker => {
-    const w: ForeignScanWorker = {
-      onmessage: null, onerror: null, onmessageerror: null,
-      terminate: () => { terminated++; },
-      postMessage: (msg: { id: number; bytes: Uint8Array }) => {
-        const copy = structuredClone(msg);
-        setTimeout(() => {
-          if (mode === 'stil') return;
-          if (mode === 'transport') {
-            (w.onerror as unknown as (e: { message: string; preventDefault: () => void }) => void)?.({ message: 'start mislukt', preventDefault: () => {} });
-            return;
-          }
-          const deliver = (data: unknown, transfer: ArrayBuffer[] = []) =>
-            (w.onmessage as unknown as (e: { data: unknown }) => void)?.({ data: structuredClone(data, { transfer }) });
-          if (mode === 'indeling') { deliver({ id: copy.id, error: 'indeling faalt' }); return; }
-          // Zoals `foreignScan.worker.ts`: de typed arrays gaan over met `transfer`, niet als kopie.
-          const outcome = scanForeign(copy.bytes);
-          deliver({ id: copy.id, outcome }, foreignScanTransferables(outcome));
-        }, 0);
-      },
-    } as unknown as ForeignScanWorker;
-    return w;
-  };
+  const stats = fakeScanWorkerStats();
+  const fakeWorker = (mode: FakeScanWorkerMode) => fakeScanWorker(mode, stats);
   const sourceOf = async (opts: Parameters<typeof readIfcBytesDetailed>[2]) => {
     reseed(0x804);
     const r = await readIfcBytesDetailed(bonsai, {}, opts);
@@ -796,12 +783,13 @@ ok('Projectinstellingen: keuze gebonden aan vreemd deel, met reden en letterlijk
   const without = await sourceOf({ createWorker: () => null });
   eq('Worker: met Worker hetzelfde als zonder', sha(await sourceOf({ createWorker: () => fakeWorker('ok') })), sha(without));
   eq('Worker: een transportfout valt terug, met dezelfde uitkomst', sha(await sourceOf({ createWorker: () => fakeWorker('transport') })), sha(without));
-  eq('Worker: geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), timeoutMs: 20 })), sha(without));
+  eq('Worker: geen start op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('stil'), startTimeoutMs: 20 })), sha(without));
+  eq('Worker: gestart, geen antwoord op tijd valt terug', sha(await sourceOf({ createWorker: () => fakeWorker('gestart-stil'), timeoutMs: 20 })), sha(without));
   eq('Worker: een fout bij het maken valt terug', sha(await sourceOf({ createWorker: () => { throw new Error('CSP'); } })), sha(without));
   let failure = '';
   try { await readIfcBytesDetailed(bonsai, {}, { createWorker: () => fakeWorker('indeling') }); } catch (e) { failure = (e as Error).message; }
   eq('Worker: een fout in de indeling zelf valt niet terug', failure, 'indeling faalt');
-  eq('Worker: elke Worker is gestopt', terminated, 4);
+  eq('Worker: elke Worker is gestopt', stats.terminated, 5);
 }
 
 // #885 / review Sol (#889): twee waarden met dezelfde codetekst in één type. De writer zet dan het waarde-id naast de

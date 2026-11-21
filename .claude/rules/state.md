@@ -51,20 +51,53 @@ Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CP
 | `documentContract.ts` | `DOCUMENT_FIELDS` — één descriptorlijst met per veld: waar het in de live state woont (`get`/`set`), de verse default (`fresh`), de rol in de undo-snapshot (`data` = muteerbare projectdata, `derived` = afgeleid resultaat/scalar, beide per referentie bewaard; `none` = niet in de snapshot), en optioneel een leesmigratie. `capturePayload`/`hydratePayload`/`freshPayload` lopen key-gedreven over die ene lijst, dus capture en hydrate kúnnen niet divergeren. Een nieuw veld in `DocumentPayload` dat de lijst mist geeft een **compile-fout**. |
 | `snapshot.ts` | de undo/redo-snapshot als expliciete `Pick<>`-subset van datzelfde contract, gestuurd door de `snapshot`-rol per veld. |
 | `transaction.ts` | compatibele re-export (`createStoreRuntime`, `MAX_UNDO`, `markScheduleStale`/`markDateMutation`); het muteer-ritueel zelf zit in `runtime/storeRuntime.ts`: `beginUndoable` legt de vóór-snapshot vast, `finishMutation` roept `markDocumentEdited` (`isDirty`) en bij `stale` `markDateMutation` aan en sluit af via `finishUndoable`, dat het event in de sessiechronologie `historyEvents` zet (geen aparte redo-stapel) — op één plek in plaats van per actie. |
-| `ifcSaveInput.ts` | `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. `buildWriteIFCInput(src, mode)` en `buildExportIFCInput(src, mode)` eisen `'merge'` of `'planOnly'`; het clonebare veld `writeMode` bewaart de keuze tot de schrijver, zonder de huidige uitvoer te veranderen. De modus is routemetadata en telt niet als planningsverschil. De gedeelde ingang `prepareIfcOutput` handelt de modus af: merge met een vreemd deel gaat door de voorbereiding; planOnly wordt daar geweigerd. |
+| `ifcSaveInput.ts` | `IFCSaveSource`/`IFC_SAVE_KEYS` dragen de round-trip-velden en `ifcSource`; `IFC_DIRTY_KEYS` sluit alleen die bronidentiteit uit. Beide lijsten hebben compile-asserts. De gewone writer-invoer bevat geen bronbytes. `buildWriteIFCInput(src, mode)` en `buildExportIFCInput(src, mode)` eisen `'merge'` of `'planOnly'`; het clonebare veld `writeMode` bewaart de keuze tot de schrijver, zonder de huidige uitvoer te veranderen. De modus is routemetadata en telt niet als planningsverschil. De gedeelde ingang `prepareIfcOutput` handelt de modus af: merge met een vreemd deel gaat door de voorbereiding; planOnly met een vreemd deel of een ontbrekende bron gaat alleen door met een ongebruikt ja op de vraag "alleen de planning" (zie hieronder), anders geweigerd. |
 | `defaults.ts` | de `fresh`-fabrieken (`createDefaultProject`/`createDefaultView`) als **bladmodule**: hij importeert niets uit `slices/`. Dat is geen stijlkeuze — stonden ze in hun slice, dan ontstaat de cyclus `projectSlice → transaction → snapshot → documentContract → projectSlice`, die alleen werkt zolang het function *declarations* zijn (hoisting). `npm run verify:cycles` bewaakt dat. |
 
 Voeg je projectdata toe, dan hoort die dus in `DOCUMENT_FIELDS` — anders overleeft hij geen documentwissel, geen undo, geen crashherstel en geen opslaan. `tests/planning/check-document-contract.ts` bewaakt de keten.
 
-Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(id, savedSource, destination?, prepared?)`.
+**De opslagstand** (#804 stap 5, besluit eigenaar 17 november 2026, voor elk document): de statusbalk toont "Opslaan…"
+zolang een gevraagde opslag van het document loopt of wacht (`trackSave` in `fileSlice.ts`, van de vraag tot en met het
+einde van de hele werkgang, ook na annuleren, weigering of fout weg), daarna "Opgeslagen 14:32" en "Niet opgeslagen"
+zodra het weer gewijzigd is. Hij leeft op `DocumentEntry.saveState` (`documentSaveState.ts`), sessie-UI zoals
+`pendingWorkRuleSettle`, niet in `DOCUMENT_FIELDS`; `commitSavedDocument` zet de tijd, en een nieuwe inhoud in hetzelfde
+tabblad wist hem (zie de inhoudsidentiteit hieronder).
+
+**De identiteit van de inhoud** (fixronde 1 van #1020, `documentSaveState.ts`): een opslag hoort bij de inhoud waarvoor
+ze gevraagd werd (`DocumentContentRef`: document-id plus `DocumentEntry.content`), niet bij het tabblad. Alleen
+`replaceDocumentContent` laat haar wisselen: een ander project in hetzelfde tabblad (`applyLoadedProject` zonder
+bewerking met een ander project-id, dus ook `api.data.loadProject`, openen in het lege tabblad en een voorbeeld),
+`newProject` en `createNewProject`. Een lees-wijzig-laad van hetzelfde project houdt haar (en dus ook "Opslaan…"); dan
+beslist de bestaande inhoudsvergelijking (`sameIFCSource`) of het document schoon is. `refuseChangedDocumentWrite` toetst
+haar vlak vóór elke schrijfactie, ook voor de gewone writer en in `stopBeforeWrite`, en nog eens op het laatste veilige
+punt van de schrijflaag (`refuseBeforePlace`, knownbug 1896, zie `tauri-ifc.md`); `commitSavedDocument(ref, …)` legt
+niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de nieuwe inhoud krijgt geen doel, bron,
+"opgeslagen" of tijd). De wachtende Ctrl+S (`waitingSaves`), de opslagstand en `markAutoSaveVersionSaved` (de kandidaat
+van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
+`DOCUMENT_FIELDS`: het hoort bij het open tabblad, niet bij het bestand, en hoeft geen undo, herstel of opslag te overleven.
+
+Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?)`.
 Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes samen vastgelegd, voor actief of slapend
 document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
 de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
+`sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
+taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
+naam van een ongebruikte werksoort (`renameUnusedProjectTaskType`, #804 keuze 7) geen inhoudsverschil voor opslaan, AutoSave en herstel.
 PR 11a sluit documentroutes aan en PR 11b IFC-export en app-MCP, via `ifcFullWriteBlocked`.
 `state/prepareIfcOutput.ts` bewaakt de modus en deelt één voorbereiding zonder I/O of documentcommit.
 De gewone documentroute onthoudt alleen voor haar commit de letterlijke kalenderkeuzes; exports doen dit niet.
-`ifcSaveBlocked` houdt pool, planOnly, paneel, dev-bridge en AutoSave dicht.
-De site-uitzondering in `refusedWriteTarget` bindt document-id, bronidentiteit, kenmerk en basisversie op één plek; exports geven haar niet mee. De voorbereiding
-loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd.
-Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit.
+`ifcSaveBlocked` houdt paneel en dev-bridge dicht, en AutoSave met de flag uit of zonder bron; met de flag aan schrijft AutoSave via de vervanging van Ctrl+S (#804 stap 8, `settings-autosave.md`).
+**De vraag "alleen de planning"** (#804 PR 9e en 13) is één vraag met een reden (`PlanOnlyReason` in
+`services/ifc/planOnlyQuestion.ts`): Opslaan als bij een ontbrekend gebouwmodel (`missingSourceSaveAs`), Exporteren → IFC
+met het vinkje Zonder gebouwmodel (`export`) en de export met de resourcebibliotheek (`exportWithPool`). Alleen
+`askPlanOnly` maakt een bevestiging; `prepareIfcOutput(state, input, planOnly)` laat haar één keer gelden en alleen als
+`planOnlyQuestionApplies(state, reason)` klopt (flag aan; bij ontbrekend model alleen Opslaan als, de twee exports alleen
+met een aanwezig model). Zonder bevestiging (MCP, kern, paneel, dev-bridge) blijft planOnly met een vreemd deel
+geweigerd. De exports vragen vóór de bestandskiezer en schrijven niet als het document tijdens de vraag veranderde
+(`refuseExportBeforePicker` onder het schrijfslot); ze raken het document niet. Een export naar een ander formaat dan IFC vraagt niets vooraf; met een gebouwmodel (`hasBuildingModel` in `ifcSource.ts`, flag aan) krijgt de melding na afloop de regel `exportPlanOnly` via `withPlanOnlyExportSentence` (`fileSlice.ts`, de enige plek; knownbug 1740): onder de laatste melding van de export (die blijft bij de grens `MAX_NOTIFICATIONS` staan), zonder andere melding een eigen melding.
+De uitzondering "eigen doel" in `refusedWriteTarget` (`ownVersion`) bindt document-id, bronidentiteit en kenmerk op één plek; exports en Opslaan als geven haar niet mee. Site: met de basisversie. Handle (1131 stap 2, alleen Ctrl+S via `documentTargetCheck(…, true)`): dezelfde handle als document en kenmerk (`isSameEntry`); een ander open document met dat bestand als bron blijft geweigerd. Pad (1131 stap 5b, alleen Ctrl+S en *Opslaan* in de sluitvraag): precies het pad van document en kenmerk, zonder handle; hetzelfde voor een ander open document. Bij een pad hangt de sluitbeslissing aan de boolean van `commitSavedDocument`, niet aan "geen fout"; na de eerste herstelronde loopt dezelfde `documentTargetCheck` nog een keer (fixronde 1 van #1008). *Opslaan* in de sluitvraag sluit, voor elk document, alleen als de opslag `true` gaf én hetzelfde document vlak vóór het sluiten schoon is. Dat beslist `closeDocument(id, { onlyIfClean: true })` op één plek, in de volgorde open veldinvoer afronden → schooncontrole → verwijderen (fixronde 2; `closeDocumentAfterSaves` wacht alleen en geeft de uitkomst door); `ui.closeQuestionSaving` houdt intussen de knoppen en Escape (`edit.deselect`) tegen. De routes staan in `tauri-ifc.md`. De voorbereiding
+loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór schrijven hercontroleerd, op het document van
+de momentopname en niet op het actieve document (#804 stap 3): een tabbladwissel tijdens de opslag weigert niet, en de
+commit gaat naar dat document. Na de momentopname leest een opslag het actieve document niet meer.
+Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit. Uitzondering (knownbug 1768): bij een document met een gebouwmodel (`hasBuildingModel(ifcSource)`: de bron draagt `buildingModel`, gezet door de scan die haar accepteerde, bij openen en na de merge; niet elke vreemde inhoud) commit de download die Ctrl+S geeft als de browser de schrijftoestemming op de eigen handle weigert niets; het document blijft gewijzigd, Ctrl+S geeft `false` (de sluitvraag sluit niet) en de melding `ifcForeignDownloadCopy` noemt de kopie. De kopiemelding (`downloadCopyNotice` in `ifcForeignGuard.ts`) is een gewone informatiemelding zoals `savedViaDownload`, één voor de hele app die een nieuwe kopie ververst (1843); de bescherming is de dirty-vlag. Een complexe instantie telt altijd als gebouwmodel (de index kent haar deeltypen niet, 1845). Opslaan als en Ctrl+S zonder handle zetten het nog op opgeslagen (1830).

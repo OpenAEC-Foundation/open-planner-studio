@@ -98,8 +98,8 @@ interface CellRectangle {
   columns: TaskColumnId[];
 }
 
-function selectionRectangle(environment: TaskGridClipboardEnvironment): CellRectangle | null {
-  const cells = gridSelectionCells(environment.selection, environment.rowIndex, environment.columns);
+function selectionRectangle(environment: TaskGridClipboardEnvironment, withRuns = false): CellRectangle | null {
+  const cells = gridSelectionCells(environment.selection, environment.rowIndex, environment.columns, withRuns);
   if (cells.length === 0) return null;
   const rows: string[] = [];
   const columns: TaskColumnId[] = [];
@@ -121,20 +121,24 @@ function selectionRectangle(environment: TaskGridClipboardEnvironment): CellRect
 export function copyTaskGridSelection(
   environment: TaskGridClipboardEnvironment,
 ): GridResult<string, readonly CellValidationError[]> {
-  const rectangle = selectionRectangle(environment);
+  // Een ingeklapte mijlpalenreeks (#868) kopieert als haar mijlpalen, één regel per mijlpaal, zoals uitgeklapt.
+  const rectangle = selectionRectangle(environment, true);
   if (!rectangle) return fail('selection');
   const matrix: string[][] = [];
   for (const rowKey of rectangle.rows) {
-    const row = environment.rowIndex.taskByRowKey.get(rowKey)!;
-    const values: string[] = [];
-    for (const columnId of rectangle.columns) {
-      const descriptor = environment.descriptors.get(columnId);
-      if (!descriptor || !descriptor.available(environment.context)) return fail('plannerNotAvailable', columnId);
-      values.push(copyGridEditorValue(
-        descriptor, row.task, environment.context, environment.dateNotation, environment.booleanLabels,
-      ));
+    const tasks = environment.rowIndex.runByRowKey.get(rowKey)?.tasks
+      ?? [environment.rowIndex.taskByRowKey.get(rowKey)!.task];
+    for (const task of tasks) {
+      const values: string[] = [];
+      for (const columnId of rectangle.columns) {
+        const descriptor = environment.descriptors.get(columnId);
+        if (!descriptor || !descriptor.available(environment.context)) return fail('plannerNotAvailable', columnId);
+        values.push(copyGridEditorValue(
+          descriptor, task, environment.context, environment.dateNotation, environment.booleanLabels,
+        ));
+      }
+      matrix.push(values);
     }
-    matrix.push(values);
   }
   return { ok: true, value: serializeTaskGridTsv(matrix) };
 }

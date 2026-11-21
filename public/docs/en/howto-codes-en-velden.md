@@ -26,7 +26,7 @@ The window has no OK button: every change applies at once. You cannot change a f
 You have two places.
 
 - **In the *Properties* panel** (or in the window you open with F2). At the bottom is the *Codes & fields* block: a pick list per code type, an input per field. The block only appears once there is at least one code type or field.
-- **As a column in the task list.** Click the **+** on the right of the table header (*Add column*) and, under *Custom*, choose the code type or field. In a code type's cell you type the code, for example `N`, or pick from the list. A code that does not exist gives *Choose a value from this activity code.*
+- **As a column in the task list.** Click the **+** on the right of the table header (*Add column*) and, under *Custom*, choose the code type or field. A code type's cell is a pick list, like *Codes & fields* in the panel: press Enter or start typing, and pick a value. The list shows the values in the order from the window; *—* clears the cell. Type a letter and the list jumps to the first value that starts with it. If you paste a code that does not exist, you get *Choose a value from this activity code.*
 
 ### Using them
 
@@ -38,7 +38,7 @@ For the bar colour choose *View › Bars › Bar colors*, then *By category* and
 
 **Deleting removes the values on the tasks.** If you delete a code type, a value or a field with the bin, the app does not ask for confirmation, and the assignments on all tasks disappear with it. A grouping or sorting on that code type or field lapses too. *Undo* (Ctrl+Z, close the window first) brings back the code type, value or field and the filled-in values, but not the grouping or sorting: you set those up again.
 
-**Two values with the same code.** *Add value* numbers on from the number of values there are. If you delete one and add one, a code can therefore occur twice. If you type that code in a column cell, the app refuses with *This activity code value occurs more than once. Choose it from the list.* Give every value its own code.
+**Two values with the same code.** *Add value* numbers on from the number of values there are. If you delete one and add one, a code can therefore occur twice. If you paste that code into a column cell, the app refuses with *This activity code value occurs more than once. Choose it from the list.* Give every value its own code.
 
 **Templates do not take codes and fields along.** See [Saving and inserting WBS templates](docs://howto-wbs-sjablonen). If you paste tasks into another document, the app clears codes and fields that do not exist there and tells you.
 

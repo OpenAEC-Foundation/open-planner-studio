@@ -73,7 +73,7 @@ Zet je het weer uit, dan blijft het een gewone taak met duur 0: vul zelf een duu
 
 De kopie heeft dezelfde naam, dezelfde datums en dezelfde voortgang. Hij komt als zustertaak van de geselecteerde taak (bij meer taken: de eerst aangeklikte), onderaan bij die zusters. Is er niets geselecteerd, dan komt hij onderaan de lijst. De gekopieerde taken zijn daarna geselecteerd, de WBS-codes (het nummer van elke taak in de boom, zoals 1.2; zie [Structuur aanpassen](docs://howto-structuur-aanpassen)) worden opnieuw bepaald en de planning is verouderd.
 
-Het klembord geldt voor de hele app, dus je kunt ook in een ander document plakken. Wat daar niet bestaat, zoals een taakkalender, een eigen werksoort, een activity code of een eigen veld, maakt de app leeg en hij meldt dat.
+Het klembord geldt voor de hele app, dus je kunt ook in een ander document plakken. Dat kan ook vanuit de kolommen links van de Gantt of de *Tabel*: klik in een cel van de taak, druk op Ctrl+C, klik in de andere planning in een cel en druk op Ctrl+V. In dezelfde planning plakt Ctrl+V in de kolommen alleen de celwaarden. Wat daar niet bestaat, zoals een taakkalender, een eigen werksoort, een activity code of een eigen veld, maakt de app leeg en hij meldt dat.
 
 ### Daarna
 

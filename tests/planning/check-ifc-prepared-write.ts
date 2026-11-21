@@ -9,7 +9,7 @@ import { prepareIfcWrite, MergeNeedsPhase2Error } from '@/services/ifc/foreign/m
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { scanForeignStep } from '@/services/ifc/foreign/oldOwnHeader';
 import { classify } from '@/services/ifc/foreign/classify';
-import { cloneDomain, concat, mergeProblems, openForeign, sameBytes, recalculated } from './ifcMergeKern';
+import { cloneDomain, mergeProblems, openForeign, sameBytes, recalculated } from './ifcMergeKern';
 import { openInStore, storeEdit, lengthen, lengthenedTask, TRIAS_FILES } from './ifcAppRoute';
 import { generatedModel } from './ifcGeneratedModel';
 import { installDeterminism } from './ifcPariteitKern';
@@ -30,7 +30,7 @@ async function check(label: string, run: () => Promise<void>) {
 }
 
 async function sourceProof(result: PreparedIfcWrite, input: WriteIFCInput) {
-  const bytes = concat(result.parts), source = result.source;
+  const bytes = result.bytes, source = result.source;
   assert.deepEqual(source.bytes, bytes);
   assert.equal(result.sha256, hash(bytes));
   assert.equal(source.sha256, result.sha256);
@@ -52,8 +52,9 @@ async function sourceProof(result: PreparedIfcWrite, input: WriteIFCInput) {
   assert.equal(source.schemaName, reopened.schemaName);
   assert.equal(source.foreign, reopened.foreign);
   assert.equal(source.foreignObjectCount, reopened.foreignObjectCount);
+  assert.equal(source.buildingModel, reopened.buildingModel, 'de merge zet het gebouwmodel zoals openen');
   assert.equal(source.lineEnding, reopened.lineEnding);
-  assert(result.parts.every(part => part.buffer === source.bytes.buffer), 'delen houden alleen de nieuwe bronbuffer vast');
+  assert(result.bytes === source.bytes, 'de uitvoer is de nieuwe bronbuffer zelf');
 }
 
 for (const [label, bytes] of [
@@ -87,10 +88,10 @@ for (const [label, bytes] of [
       reseed(0x8a + step);
       const inputReopen = await edit(cloneDomain(reopened), step === 1 ? newId : undefined);
       const viaReopen = await prepareIfcWrite(inputReopen, reopened.ifcSource!);
-      const left = new TextDecoder().decode(concat(result.parts)).split('\n');
-      const right = new TextDecoder().decode(concat(viaReopen.parts)).split('\n');
+      const left = new TextDecoder().decode(result.bytes).split('\n');
+      const right = new TextDecoder().decode(viaReopen.bytes).split('\n');
       const at = left.findIndex((line, i) => line !== right[i]);
-      assert(sameBytes(concat(result.parts), concat(viaReopen.parts)), `${label}, stap ${step}: ${left[at]} != ${right[at]}; invoer: ${readbackDifference(input, inputReopen)}`);
+      assert(sameBytes(result.bytes, viaReopen.bytes), `${label}, stap ${step}: ${left[at]} != ${right[at]}; invoer: ${readbackDifference(input, inputReopen)}`);
       source = result.source;
       previous = source.bytes;
       assert.deepEqual(input, frozenBefore, 'de aanroeper is niet gewijzigd');
@@ -102,7 +103,7 @@ for (const [label, bytes] of [
     const opened = await openForeign(bytes);
     const result = await prepareIfcWrite(cloneDomain(opened), opened.ifcSource!);
     assert.strictEqual(result.source, opened.ifcSource);
-    assert.deepEqual(concat(result.parts), bytes);
+    assert.deepEqual(result.bytes, bytes);
     assert.equal(result.sha256, hash(bytes));
   });
 }
@@ -126,21 +127,20 @@ await check('7b met 8a: vier echte resource-/kalenderhandelingen schrijven; zond
       assert.equal(changedScopes(form.input, basis.input).keys.size, 0, `${mode}: dezelfde planning in bronvorm`);
       const result = await prepareIfcWrite(input, source);
       assert(result.source === source, `${mode}: zonder wijziging blijft de bron dezelfde`);
-      assert.equal(result.parts.length, 1);
-      assert(result.parts[0] === source.bytes, `${mode}: zonder wijziging zijn het letterlijk de bronbytes`);
+      assert(result.bytes === source.bytes, `${mode}: zonder wijziging zijn het letterlijk de bronbytes`);
       console.log(`OK E27 ${mode}: scopes/canon/bronvorm gelijk en letterlijke bronretour`);
     }
   };
   const save = async (label: string, verify: (actual: WriteIFCInput, input: WriteIFCInput) => void) => {
     const input = cloneDomain(snapshot(store)), before = source;
-    const result = await prepareIfcWrite(input, before), written = concat(result.parts);
+    const result = await prepareIfcWrite(input, before), written = result.bytes;
     const otherMode = { ...input, writeMode: 'planOnly' as const };
     const alternative = await prepareIfcWrite(otherMode, before);
     assert.equal(alternative.sha256, result.sha256, `${label}: alleen modus verandert de uitvoerhash niet`);
-    assert(sameBytes(concat(alternative.parts), written), `${label}: alleen modus geeft dezelfde bytes, zonder weigering`);
+    assert(sameBytes(alternative.bytes, written), `${label}: alleen modus geeft dezelfde bytes, zonder weigering`);
     const afterAlternative = await prepareIfcWrite(input, alternative.source);
     assert(afterAlternative.source === alternative.source, `${label}: planOnly-bron en merge-invoer blijven ongewijzigd`);
-    assert(afterAlternative.parts[0] === alternative.source.bytes, `${label}: ook andersom letterlijke bronretour`);
+    assert(afterAlternative.bytes === alternative.source.bytes, `${label}: ook andersom letterlijke bronretour`);
     console.log(`OK E27 ${label}: merge/planOnly bytegelijk, daarna dezelfde bron in beide richtingen`);
     assert.notStrictEqual(result.source, before, `${label}: nieuwe bron, geen snelle bronretour`);
     assert(!sameBytes(written, before.bytes), `${label}: gewijzigde bytes`);
@@ -197,8 +197,8 @@ await check('losse kalender en baseline: eerste voorbereiding schrijft, tweede g
     } else store.getState().saveBaseline('Baseline herhaald opslaan');
     const input = cloneDomain(snapshot(store)), first = await prepareIfcWrite(input, source);
     assert.notStrictEqual(first.source, source);
-    assert(!sameBytes(concat(first.parts), source.bytes));
-    const reopened = await openForeign(concat(first.parts));
+    assert(!sameBytes(first.bytes, source.bytes));
+    const reopened = await openForeign(first.bytes);
     if (kind === 'kalender') {
       const expected = input.resourceCalendars!.find(c => c.name === 'Losse kalender herhaald opslaan')!;
       const actual = reopened.resourceCalendars!.find(c => c.name === expected.name)!;
@@ -206,8 +206,8 @@ await check('losse kalender en baseline: eerste voorbereiding schrijft, tweede g
     } else assert.deepEqual(reopened.baselines, input.baselines);
     const second = await prepareIfcWrite(cloneDomain(snapshot(store)), first.source);
     assert.strictEqual(second.source, first.source);
-    assert.strictEqual(second.parts[0], first.source.bytes);
-    assert.deepEqual(mergeProblems(source.bytes, concat(second.parts)), []);
+    assert.strictEqual(second.bytes, first.source.bytes);
+    assert.deepEqual(mergeProblems(source.bytes, second.bytes), []);
     console.log(`OK fix2 ${kind}: toevoegen/vastleggen → voorbereiden → zonder wijziging bronbytes`);
   }
 });
@@ -247,7 +247,7 @@ await check('vreemde herkomst: niets wijzigen bewaart de bron; wijzigen blijft v
   const opened = await openForeign(bytes), input = cloneDomain(opened);
   const result = await prepareIfcWrite(input, opened.ifcSource!);
   assert.strictEqual(result.source, opened.ifcSource);
-  assert.deepEqual(concat(result.parts), bytes);
+  assert.deepEqual(result.bytes, bytes);
   const edited = await storeEdit(input, state => { state.setProject({ name: 'Bewerkt' }); });
   await assert.rejects(prepareIfcWrite(edited, opened.ifcSource!), (e: unknown) => e instanceof MergeNeedsPhase2Error
     && e.cases.some(c => c.kind === 'vreemde-herkomst'));
@@ -261,7 +261,7 @@ await check('bewerking en undo: de oorspronkelijke bytes terug', async () => {
   store.getState().undo();
   const opened = snapshot(store), result = await prepareIfcWrite(cloneDomain(opened), opened.ifcSource!);
   assert.strictEqual(result.source, opened.ifcSource);
-  assert.deepEqual(concat(result.parts), bytes);
+  assert.deepEqual(result.bytes, bytes);
 });
 
 await check('stuk 1 doorloopt dezelfde vaste uitvoercontrole', async () => {
@@ -286,7 +286,7 @@ await check('E13: nieuwe uurtaak maakt kalender letterlijk; wissen met het resul
   const deleted = await storeEdit(carried, state => { state.deleteTask(added); });
   const second = await prepareIfcWrite(deleted, first.source);
   assert(second.literalCalendarIds.includes(cal));
-  const reopened = await openForeign(concat(second.parts));
+  const reopened = await openForeign(second.bytes);
   assert(reopened.ifcLiteralCalendarIds?.includes(cal));
   assert(new TextDecoder().decode(second.source.bytes).includes("'LiteralTimes',$,IFCBOOLEAN(.T.)"));
 });
@@ -308,11 +308,33 @@ await check('zonder vreemd deel: gewone writer met en zonder bewerking, ook op o
     assert.equal(opened.ifcSource!.foreign, false);
     for (const input of [cloneDomain(opened), await lengthen(cloneDomain(opened), lengthenedTask(opened).id)]) {
       const result = await prepareIfcWrite(input, opened.ifcSource!);
-      assert.deepEqual(concat(result.parts), new TextEncoder().encode(writeIFC(input)));
+      assert.deepEqual(result.bytes, new TextEncoder().encode(writeIFC(input)));
       assert.notStrictEqual(result.source, opened.ifcSource);
       await sourceProof(result, input);
     }
   }
+});
+
+// #804, opslag van een groot gebouwmodel (ingreep 3): de sha256 van de uitvoer wordt één keer berekend, op de uitvoerbuffer
+// zelf, en vóór de uitvoercontrole. `observe` loopt in `prepareIfcWrite` direct vóór die controle (en haar uitvoerindex);
+// `crypto.subtle.digest` neemt een kopie van de bytes, die zo niet meer bovenop de controle staat.
+await check('de sha256 van de uitvoer: één keer, op de uitvoerbuffer, vóór de uitvoercontrole', async () => {
+  const opened = await openForeign(read('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const input = await lengthen(cloneDomain(opened), lengthenedTask(opened).id);
+  const subtle = Object.getPrototypeOf(globalThis.crypto.subtle) as SubtleCrypto;
+  const digest = subtle.digest;
+  const events: (Uint8Array | 'controle')[] = [];
+  subtle.digest = function (this: SubtleCrypto, algorithm: AlgorithmIdentifier, data: BufferSource) {
+    if (data instanceof Uint8Array) events.push(data);
+    return digest.call(this, algorithm, data);
+  } as SubtleCrypto['digest'];
+  let result: PreparedIfcWrite;
+  try { result = await prepareIfcWrite(input, opened.ifcSource!, undefined, () => { events.push('controle'); }); }
+  finally { subtle.digest = digest; }
+  const output = events.filter((e): e is Uint8Array => e !== 'controle' && e.length === result.bytes.length);
+  assert.equal(output.length, 1, 'één berekening over een buffer van de lengte van de uitvoer');
+  assert(output[0] === result.bytes, 'berekend op de uitvoerbuffer zelf, niet op een kopie');
+  assert(events.indexOf(output[0]) < events.indexOf('controle'), 'berekend vóór de uitvoercontrole');
 });
 
 console.log(`Voorbereid schrijfresultaat: ${passed} geslaagd, ${failed} mislukt.`);

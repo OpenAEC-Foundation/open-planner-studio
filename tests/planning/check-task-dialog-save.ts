@@ -1,7 +1,7 @@
 // F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // "Taak bewerken" → Opslaan, headless tegen de ECHTE store. Opslaan loopt via `createTaskDialogSave`,
-// net als in `TaskDialog.tsx`. De dialoog zet voortgang op de concepttaak met `planProgressEntry`;
-// deze test bouwt de concepttaak met de `draftWith*`-helpers uit `taskDialogSave.ts`.
+// net als in `TaskDialog.tsx`. Percentage-invoer doorloopt `planProgressEntry` met dezelfde
+// geplande start als de echte dialoog. De losse datumproeven gebruiken de `draftWith*`-helpers.
 //
 // Bevinding 4 (taakmutaties-audit): de dialoog schreef completion/actualStart/actualFinish kaal via
 // `updateTask` weg, zonder de voortgangsregels (`applyProgressInvariants`) die het paneel, het raster
@@ -22,7 +22,7 @@
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import {
-  createTaskDialogSave, draftWithActualFinish, draftWithActualStart, draftWithProgress,
+  createTaskDialogSave, draftWithActualFinish, draftWithActualStart, planTaskDialogProgress,
   type TaskDialogSaveInput,
 } from '@/state/taskDialogSave';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
@@ -65,7 +65,7 @@ function fixture(names: string[]): Fixture & { ids: string[] } {
     save: createTaskDialogSave(ctx),
     open: (id) => {
       const t = task(id);
-      return { editingTaskId: id, draft: { ...t, time: { ...t.time } }, startDate: t.time.earlyStart || t.time.scheduleStart };
+      return { editingTaskId: id, draft: { ...t, time: { ...t.time } } };
     },
     undoDepth: () => historyDepthsForActiveScope(S()).undoDepth,
   };
@@ -82,6 +82,56 @@ function progressOf(t: Task) {
   };
 }
 
+function draftWithPercentage(f: Fixture, draft: Task, value: number, startDate?: string): Task {
+  const plan = planTaskDialogProgress(f.S(), draft, startDate, { field: 'completion', value }, { today: '2026-03-06' });
+  if (!plan.ok) throw new Error(`Dialoog weigerde ${value * 100}%: ${plan.reason}`);
+  return plan.change?.task ?? draft;
+}
+
+// Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.
+for (const explicit of [true, false]) {
+  const f = fixture(['A', 'B']);
+  const [a, b] = f.ids;
+  f.S().updateTask(a, { time: { ...f.task(a).time, scheduleDuration: 1 } });
+  f.S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  if (!explicit) f.S().updateTask(b, { constraint: { type: 'SNLT', date: '2026-03-31' } });
+  f.S().runCPM();
+  const input = f.open(b);
+  const startDate = '2026-03-23';
+  const draft = explicit ? { ...input.draft, constraint: { type: 'SNET' as const, date: '2026-03-05' } } : input.draft;
+  f.save({ ...input, startDate, draft: draftWithPercentage(f, draft, 0.01, startDate) });
+  const task = f.task(b);
+  eq(`#998 start en voortgang met ${explicit ? 'expliciete' : 'bestaande'} beperking`,
+    [task.time.actualStart, task.time.scheduleStart, task.constraint?.type, task.constraint?.date?.slice(0, 10)],
+    explicit
+      ? ['2026-03-05T07:00', '2026-03-23T07:00', 'SNET', '2026-03-05']
+      : ['2026-03-03T07:00', input.draft.time.scheduleStart, 'SNLT', '2026-03-31']);
+}
+
+{
+  const f = fixture(['A', 'B']);
+  const [a, b] = f.ids;
+  f.S().updateTask(a, { time: { ...f.task(a).time, scheduleDuration: 1 } });
+  f.S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  f.S().setActualStart(b, '2026-03-03');
+  f.S().runCPM();
+  const input = f.open(b);
+  const cleared = draftWithActualStart(input.draft, undefined, '2026-03-06');
+  if (!cleared) throw new Error('de werkelijke start kon niet worden gewist');
+  const startDate = { date: '2026-03-23', completion: cleared.time.completion };
+  const edit = { field: 'completion', value: 0.01 } as const;
+  const plan = planTaskDialogProgress(f.S(), cleared, startDate, edit, { today: '2026-03-06' });
+  eq('#998 na het wissen van de werkelijke start telt een getypte toekomstige datum mee',
+    plan.ok ? 'ok' : plan.reason, 'needsActualStart');
+  const answered = planTaskDialogProgress(f.S(), cleared, startDate, edit, { today: '2026-03-06', actualStart: '2026-03-04' });
+  if (!answered.ok || !answered.change) throw new Error('de expliciete werkelijke start is niet toegepast');
+  f.save({ ...input, startDate, draft: answered.change.task });
+  const task = f.task(b);
+  eq('#998 ook op een heropende taak houdt Opslaan beide ingevoerde datums',
+    [task.time.actualStart, task.time.scheduleStart, task.constraint?.date],
+    ['2026-03-04T07:00', '2026-03-23T07:00', '2026-03-23T07:00']);
+}
+
 // ── 1. Voortgang na eerdere paneelvoortgang (het r5-scenario): 20% in week 1, dan 60% en 100% ─────
 {
   const f = fixture(['Paneel', 'Dialoog']);
@@ -95,7 +145,7 @@ function progressOf(t: Task) {
   for (const target of [0.6, 1]) {
     f.S().setTaskProgress(panel, target);
     const input = f.open(dialog);
-    f.save({ ...input, draft: draftWithProgress(input.draft, target, f.S().project.statusDate) });
+    f.save({ ...input, draft: draftWithPercentage(f, input.draft, target) });
     f.S().runCPM();
     eq(`1.${target * 100} dialoog = paneel (voortgang, status, resterend, einde)`, progressOf(f.task(dialog)), progressOf(f.task(panel)));
   }
@@ -108,12 +158,15 @@ function progressOf(t: Task) {
 {
   const f = fixture(['Paneel', 'Dialoog']);
   const [panel, dialog] = f.ids;
+  eq('2.0 voorwaarde: de taak staat na herberekenen op de statusdag', f.task(dialog).time.earlyStart, '2026-03-06T07:00');
   for (const target of [0.4, 1]) {
-    f.S().setTaskProgress(panel, target);
+    const entered = f.S().enterTaskProgress(panel, { field: 'completion', value: target }, { today: '2026-03-06' });
+    eq(`2.${target * 100} paneel: percentage aanvaard`, entered.ok, true);
     const input = f.open(dialog);
-    f.save({ ...input, draft: draftWithProgress(input.draft, target, f.S().project.statusDate) });
+    f.save({ ...input, draft: draftWithPercentage(f, input.draft, target) });
     f.S().runCPM();
     eq(`2.${target * 100} dialoog = paneel`, progressOf(f.task(dialog)), progressOf(f.task(panel)));
+    eq(`2.${target * 100} dialoog: start = oorspronkelijk gepland begin`, f.task(dialog).time.actualStart, '2026-03-02T07:00');
   }
   eq('2.x dialoog op 100%: voltooid', f.task(dialog).status, 'COMPLETED');
 }
@@ -181,7 +234,7 @@ function progressOf(t: Task) {
   const before = { name: f.task(id).name, parentId: f.task(id).parentId, ...progressOf(f.task(id)) };
   const depth0 = f.undoDepth();
   const input = f.open(id);
-  const draft = draftWithProgress({ ...input.draft, name: 'Taak (hernoemd)', parentId: phase }, 0.5, f.S().project.statusDate);
+  const draft = draftWithPercentage(f, { ...input.draft, name: 'Taak (hernoemd)', parentId: phase }, 0.5);
   f.save({ ...input, draft });
   eq('5a opgeslagen: naam, ouder, voortgang', {
     name: f.task(id).name, parentId: f.task(id).parentId, completion: f.task(id).time.completion, status: f.task(id).status,
@@ -237,7 +290,7 @@ function progressOf(t: Task) {
   // 6b. Eerst voortgang, dan mijlpaal (de transitie op de draft neemt de voortgang mee).
   {
     const input = f.open(progressFirst);
-    f.save({ ...input, draft: milestoneOn(draftWithProgress(input.draft, 1, statusDate())) });
+    f.save({ ...input, draft: milestoneOn(draftWithPercentage(f, input.draft, 1)) });
   }
   eq('6b voortgang, dan mijlpaal: voortgang blijft', {
     isMilestone: f.task(progressFirst).isMilestone, completion: f.task(progressFirst).time.completion, status: f.task(progressFirst).status,

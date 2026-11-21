@@ -1,9 +1,11 @@
-//! Native commands van de Rust-schil — precies één, en dat is opzet.
+//! Native commands van de Rust-schil — zo weinig mogelijk, en dat is opzet.
 //!
 //! Alle bestand-I/O loopt via de JS-plugins `@tauri-apps/plugin-fs` +
-//! `@tauri-apps/plugin-dialog` (zie `src/services/fileAccess/`). Het enige
-//! `invoke()` in de hele frontend staat in
-//! `src/services/updater/updaterService.ts` en roept `install_kind` aan.
+//! `@tauri-apps/plugin-dialog` (zie `src/services/fileAccess/`). `install_kind`
+//! staat hieronder; `place_file_exclusive` (module [`place_file`]) is de enige
+//! uitzondering op de regel hierboven: één exclusieve hernoemstap binnen één map,
+//! met padvalidatie en de scopecontrole van plugin-fs, omdat plugin-fs geen
+//! hernoemstap kent die een bestaand doel laat staan (#804, knownbug 1131).
 //!
 //! Hier stonden ook `read_file`/`write_file`: ongebruikte "escape hatch"-commands
 //! voor native bestand-I/O. Ze zijn verwijderd bij onderhoudbaarheidsbevinding
@@ -16,6 +18,8 @@
 //! zonder dat één regel productiecode ze nodig had. Heb je ooit native
 //! bestand-I/O nodig, breid dan `src/services/fileAccess/` uit (of voeg een
 //! command toe MÉT padvalidatie), niet deze module.
+
+pub mod place_file;
 
 /// Detecteer hoe de app op deze machine geïnstalleerd is, zodat de frontend kan
 /// beslissen óf en hoe de in-app updater mag werken.

@@ -17,7 +17,7 @@ The schedule calculates something you do not understand, a button does not do wh
 7. *Retake* makes a new screenshot and clears your annotations. *Remove* removes the screenshot and turns the checkbox off.
 8. Look at the grey line *Sent along* under the form. It shows what the app sends along itself: the version, the operating system and the language, for example *Sent along: v2026.10.1 · Windows · English*.
 9. Click *Send*. While sending, the button says *Sending…*.
-10. You see *Thank you, your report has been sent.* If an issue on GitHub was made for your report, there is also the button *View on GitHub*. Click *Close*.
+10. You see *Thank you, your report has been sent.* If an issue on GitHub was made for your report, below it you see *Your report is now an issue on GitHub. You can read our reply there:* with the link to that issue. Click the link to open the issue in your browser, or keep it to look back later. Click *Close*.
 
 ## Where your report goes
 

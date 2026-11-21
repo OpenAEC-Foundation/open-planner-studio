@@ -10,6 +10,8 @@ import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab, UIState } from '@/state/slices/types';
 import { BaselineOverlaySplitButton } from './BaselineOverlaySplitButton';
+import { applySetting } from '@/components/settings/applySetting';
+import { saveShowBarDates } from '@/utils/settingsStore';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -282,6 +284,27 @@ const editGroup: RibbonGroupSpec = {
         {
           kind: 'small', id: 'delete', icon: <Icon id="edit.delete" size={16} />, labelKey: 'menu:ribbon.delete', danger: true,
           use: () => useCommandBinding(COMMANDS.delete),
+        },
+      ],
+    },
+    {
+      // Dissolve (issue #887) naast Verwijderen: dezelfde selectie, maar de keten blijft heel.
+      // Alleen een lintknop en een menu-item, geen sneltoets; daarom niet in `COMMANDS`.
+      kind: 'stack', id: 'editStack2', items: [
+        {
+          kind: 'small', id: 'dissolve', icon: <Icon id="planning.relations-menu" size={16} />, labelKey: 'menu:ribbon.dissolve',
+          use: () => {
+            const { t } = useTranslation('menu');
+            const hasSelection = useAppStore(s => s.selectedTaskIds.length > 0);
+            return {
+              title: t('ribbon.dissolveTitle'),
+              disabled: !hasSelection,
+              onClick: () => {
+                const s = useAppStore.getState();
+                s.dissolveTasksBulk(s.selectedTaskIds);
+              },
+            };
+          },
         },
       ],
     },
@@ -828,6 +851,15 @@ const beeldTab: RibbonTabConfig = [
               const showRelations = useAppStore(s => s.view.showRelations ?? true);
               const setShowRelations = useAppStore(s => s.setShowRelations);
               return { active: showRelations, onClick: () => setShowRelations(!showRelations) };
+            },
+          },
+          {
+            // Issue #868: begindatum links en einddatum rechts van elke balk. Een instelling van de
+            // planner (`ops-showBarDates`), standaard uit; geen layoutdeel.
+            kind: 'small', id: 'toggleBarDates', icon: <Icon id="status.recorded-dates" size={16} />, labelKey: 'menu:ribbon.toggleBarDates',
+            use: () => {
+              const showBarDates = useAppStore(s => s.ui.showBarDates);
+              return { active: showBarDates, onClick: () => applySetting('showBarDates', !showBarDates, saveShowBarDates) };
             },
           },
         ],
