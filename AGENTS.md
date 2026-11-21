@@ -412,7 +412,11 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   output buffers come back transferred, content errors arrive as the same error class, transport failures as
   `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). A worker that sends no `started` within the fixed start limit (10 s,
   the same for every worker) did not start. A plain request then computes on the main thread, as on main, and plain
-  requests stay there for the rest of the session; with the flag off this is the only kind of request. A merge falls
+  requests stay there for the rest of the session; with the flag off for the whole session this is the only kind of
+  request and the behaviour is main's. One difference (knownbug 2025): after an earlier merge in the same session (flag
+  on, a refusal too) that worker is gone, so a plain request starts a fresh one where main reused the started one; if
+  it does not start, plain requests compute on the main thread for the rest of the session, after waiting up to the
+  10 s start limit when it stays silent. A merge falls
   back only while no worker has started yet in this session; after that its start failure is an error (`not-started`),
   never the main thread. A crash, timeout or unreadable answer after the start is an error, never a retry on the main
   thread; so is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save

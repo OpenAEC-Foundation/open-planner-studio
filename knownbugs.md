@@ -3285,6 +3285,18 @@ en noem het in je rapport of PR-tekst.
      bewerking en zien of de stand zakt; met de webinspecteur een heap-snapshot na de tweede opslag om te zien of oude
      bronnen bereikbaar zijn en via wie. — S (meting desktop; de verklaring is vermoed)
 
+2025. **Na een eerdere modelmerge kan een gewoon verzoek met de flag uit trager zijn dan op main, en daarna de rest van
+     de sessie op de hoofdthread rekenen (#804, knownbug 1936).** De opslagworker stopt na elk antwoord op een merge,
+     ook na een weigering (`ifcSaveWorker.ts`). Kwam er in een sessie eerst met de flag aan een modelmerge en staat de
+     flag daarna uit, dan start het volgende gewone verzoek (een planning zonder gebouwmodel, Ctrl+S of
+     Automatisch opslaan) een verse worker; main hergebruikte de gestarte. Start die verse niet, dan rekent de hoofdthread
+     zoals op main, en ook bij alle volgende gewone verzoeken in die sessie (`unavailable`). Blijft hij stil, dan komt
+     er tot 10 s wachttijd bij (de starttijd). Bestandsinhoud en meldingen zijn gelijk aan main. Met de flag de hele
+     sessie uit gebeurt dit niet. Bron: review ronde 2 van #1111, met `tests/planning/check-save-worker.ts` (het blok
+     "een latere startfout", geval "na een merge") en een storeproef van de reviewer met Ctrl+S en Automatisch opslaan
+     (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
+     die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
+
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
      het geschatte aantal stukken, en `IntBuf.done()` geeft een `subarray` terug, zodat de hele buffer blijft staan. De

@@ -157,8 +157,11 @@ startte niet). De gewone writer houdt zijn recht op overschrijven (`saveFileDial
 opslag); `saveNewBytesDialog` blijft de exclusieve route van de merge. Heen gaat de bron als kopie, terug de uitvoerbuffers overgedragen (`ifcSaveProtocol.ts`); een inhoudelijke
 fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). Meldt de
 worker geen `started` binnen de vaste starttijd (10 s, voor elke worker dezelfde), dan startte hij niet. Een gewoon verzoek
-rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; met de flag uit is
-dit de enige soort verzoek. Een merge valt alleen terug zolang er in deze sessie nog nooit een worker startte; daarna is
+rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; staat de flag de hele
+sessie uit, dan is dit de enige soort verzoek en is het gedrag dat van main. Eén verschil (knownbug 2025): na een eerdere
+merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt, dus start een gewoon verzoek een verse waar
+main de gestarte hergebruikte; start die niet, dan rekent de hoofdthread de rest van de sessie voor gewone verzoeken, en
+blijft hij stil, dan wacht dat verzoek eerst tot de starttijd van 10 s voorbij is. Een merge valt alleen terug zolang er in deze sessie nog nooit een worker startte; daarna is
 een startfout bij een merge een fout (`not-started`), nooit de hoofdthread. Sterft hij na de start, of verloopt de
 rekentijd (60 s plus 1 s per MiB bron), dan is het ook een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
 mislukte opslag of export van vóór elke I/O, met één melding (`ifcSaveWorkerFailed`). De worker laadt
