@@ -1,15 +1,19 @@
-import { solveInputFor } from '@/engine/scheduler/solveInput';
+import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { cloneTasksForSolve, plannedDatesBeforeStatusShift, solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
-import { CPMSolver } from '@/engine/scheduler/CPMSolver';
+import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
+import { settleDurationAftermath } from '@/engine/work/workRuleApply';
 import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import type { Task } from '@/types/task';
-import { taskTriggerChanges } from '@/utils/taskDefaults';
+import { clearLevelingGaps, hourInputFinishBasis, taskCalendarHoursPerDay, taskTriggerChanges, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import { sameValue } from '@/utils/sameValue';
+import type { Snapshot } from './snapshot';
 import type { AppState } from './appStore';
 
 type ProgressPlanning = Pick<AppState,
   'tasks' | 'sequences' | 'project' | 'calendar' | 'calendars'
-  | 'cpmResult' | 'datesAsRecorded' | 'scheduleStale'>;
+  | 'cpmResult' | 'datesAsRecorded' | 'scheduleStale'>
+  & Partial<Pick<AppState, 'activeDocumentId' | 'historyEvents'>>;
 
 /** Reken op een kopie zonder de statusdatumvloer voor open werk. */
 function progressSolveInput(state: ProgressPlanning) {
@@ -24,16 +28,88 @@ function solveProgressPlacement(state: ProgressPlanning): ReturnType<typeof solv
   return solveProject(progressSolveInput(state));
 }
 
+/** De taak zoals ze vóór nog niet doorgerekende eigen voortgang stond. De andere taken
+ * blijven bij een nieuwe berekening op hun actuele stand, ook als een voorganger veranderde. */
+function earlierProgressTask(state: ProgressPlanning, task: Task): { before: Snapshot; task: Task } | undefined {
+  const events = state.historyEvents;
+  if (!events || !state.scheduleStale || !task.time.actualStart || task.time.actualFinish) return undefined;
+  const index = state.tasks.findIndex(item => item.id === task.id);
+  let current = task;
+  let project = state.project;
+  let earlier: { before: Snapshot; task: Task } | undefined;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i];
+    if (event.state !== 'applied') continue;
+    const delta = event.deltas.find(item => item.kind === 'document-data' && item.documentId === state.activeDocumentId);
+    if (delta?.kind !== 'document-data') continue;
+    const { before } = delta;
+    if (before.cpmResult !== state.cpmResult || before.calendar !== state.calendar
+      || before.calendars !== state.calendars || before.sequences !== state.sequences) break;
+    const previous = before.tasks[index];
+    if (previous?.id !== task.id) break;
+    const hasProgressEdit = taskPlacementChanged(previous, current);
+    const placement = { ...previous };
+    if (hasProgressEdit && !sameValue(previous.splitGaps, current.splitGaps)) clearLevelingGaps(placement);
+    if (progressLocationChanged(placement, current)) break;
+    const options = solveOptionsFor(project);
+    const previousOptions = solveOptionsFor(before.project);
+    // De eerste voortgang mag tegelijk automatisch de statusdatum op vandaag hebben gezet.
+    if (hasProgressEdit && !previousOptions.dataDate) options.dataDate = undefined;
+    if (!sameValue(options, previousOptions)) break;
+    if (hasProgressEdit) {
+      earlier = { before, task: previous };
+      if (!previous.time.actualStart) break;
+    }
+    current = previous;
+    project = before.project;
+  }
+  return earlier;
+}
+
+function progressLocationChanged(before: Task, after: Task): boolean {
+  const { actualStart, actualFinish, completion, remainingTime, remainingMinutes } = before.time;
+  const placement = { ...after, time: { ...after.time, actualStart, actualFinish, completion, remainingTime, remainingMinutes } };
+  return taskPlacementChanged(before, placement)
+    || before.parentId !== after.parentId || !sameValue(before.childIds, after.childIds)
+    || before.manuallyScheduled !== after.manuallyScheduled || !sameValue(before.resourceIds, after.resourceIds)
+    || before.time.resume !== after.time.resume
+    || before.levelingDelay !== after.levelingDelay || before.levelingDelayMinutes !== after.levelingDelayMinutes
+    || before.levelingDelayElapsed !== after.levelingDelayElapsed
+    || !sameValue(before.splitGaps, after.splitGaps)
+    || !sameValue(before.externalLinks, after.externalLinks)
+    || !sameValue(before.timephasedDurationWalks, after.timephasedDurationWalks)
+    || before.timephasedStartAnchor !== after.timephasedStartAnchor || before.timephasedFinishFloor !== after.timephasedFinishFloor;
+}
+
 /** De eerste afleiding rekent zo nodig op een kopie, gedeeld door alle taken in deze invoer. */
 export function progressPlannedDates(
-  state: ProgressPlanning, placementEdited = false,
+  state: ProgressPlanning, placementEdited = false, forward?: ProgressForwardPass, solved?: CPMResult,
 ): (task: Task) => PlannedProgressDates | undefined {
   if (state.datesAsRecorded && !placementEdited) return () => undefined;
-  if (!placementEdited && !state.scheduleStale && state.cpmResult) {
-    return task => plannedDatesBeforeStatusShift(state.cpmResult, task);
-  }
-  let result: ReturnType<typeof solveProject> | undefined;
+  let result = solved;
   return task => {
+    const earlier = earlierProgressTask(state, task);
+    if (earlier) {
+      const { before } = earlier;
+      const othersUnchanged = before.tasks.length === state.tasks.length
+        && before.tasks.every((item, i) => {
+          const latest = state.tasks[i];
+          return item === latest || item.id === latest.id && (item.id === task.id
+            || (!taskPlacementChanged(item, latest) && !progressLocationChanged(item, latest)));
+        });
+      if (othersUnchanged && !placementEdited) {
+        return progressPlannedDates(before)(earlier.task) ?? earlier.task.time;
+      }
+      const tasks = state.tasks.map(item => item.id === task.id ? earlier.task : item);
+      const result = solveProgressPlacement({ ...state, tasks });
+      return result.error ? undefined : result.tasks.get(task.id);
+    }
+    if (solved) return solved.tasks.get(task.id);
+    const placed = task.time.completion < 1 ? forward?.earlyDates(task.id) : undefined;
+    if (placed) return placed;
+    if (!placementEdited && !state.scheduleStale && state.cpmResult) {
+      return plannedDatesBeforeStatusShift(state.cpmResult, task);
+    }
     result ??= solveProgressPlacement(state);
     return result.error ? undefined : result.tasks.get(task.id);
   };
@@ -74,20 +150,13 @@ interface LiveProgressPlan {
 
 const liveProgressStarts = new WeakMap<AppState, LiveProgressPlan>();
 
-function lookupWithForward(state: ProgressPlanning, forward?: ProgressForwardPass, placementEdited = false) {
-  const fallback = progressPlannedDates(state, placementEdited);
-  return (task: Task): PlannedProgressDates | undefined => (
-    (task.time.completion < 1 ? forward?.earlyDates(task.id) : undefined) ?? fallback(task)
-  );
-}
-
 /** Hergebruik de rekenstand voor dezelfde momentopname. */
 export function liveProgressPlannedDates(state: AppState): ReturnType<typeof progressPlannedDates> {
   let plan = liveProgressStarts.get(state);
   if (!plan) {
     const forward = !state.datesAsRecorded && (state.scheduleStale || !state.cpmResult)
       ? createProgressForwardPass(state) : undefined;
-    plan = { lookup: lookupWithForward(state, forward), forward };
+    plan = { lookup: progressPlannedDates(state, false, forward), forward };
     liveProgressStarts.set(state, plan);
   }
   return plan.lookup;
@@ -107,7 +176,7 @@ export function carryLiveProgressPlan(before: AppState, after: AppState, taskId:
     || !forward.accept(task)) return;
   // Verplaats de rekenstand. Een vorige momentopname kan later via Ctrl+Z terugkomen.
   liveProgressStarts.delete(before);
-  liveProgressStarts.set(after, { lookup: lookupWithForward(after, forward), forward });
+  liveProgressStarts.set(after, { lookup: progressPlannedDates(after, false, forward), forward });
 }
 
 export function taskPlacementChanged(before: Task, after: Task): boolean {
@@ -140,9 +209,7 @@ export function progressPlacementForBatch(
 
   const tasks = [...state.tasks];
   const indexes = new Map(tasks.map((task, index) => [task.id, index]));
-  let lookup = initial && !state.datesAsRecorded
-    ? (task: Task) => initial.tasks.get(task.id)
-    : lookupWithForward(state, forward);
+  let lookup = progressPlannedDates(state, false, forward, initial);
   let activeStatusDate = state.project.statusDate;
   const order = (forward?.order ?? [...initial!.tasks.keys()]).filter(id => ids.has(id));
   return {
@@ -157,7 +224,7 @@ export function progressPlacementForBatch(
         if (activeStatusDate !== statusDate) forward = createProgressForwardPass(updated);
         else if (forward && !forward.accept(after)) forward = undefined;
         activeStatusDate = statusDate;
-        lookup = lookupWithForward(updated, forward, true);
+        lookup = progressPlannedDates(updated, true, forward);
       }
     },
   };
@@ -170,6 +237,12 @@ export function progressPlannedDatesAfterEdit(state: AppState, before: Task, edi
     ? { ...edited, status: before.status, time: { ...edited.time, completion, actualStart, actualFinish } }
     : edited;
   if (!taskPlacementChanged(before, placement)) return progressPlannedDates(state)(placement);
-  const tasks = state.tasks.map(task => task.id === placement.id ? placement : task);
-  return progressPlannedDates({ ...state, tasks }, true)(placement);
+  const updated = { ...placement };
+  const changes = taskTriggerChanges(before, updated);
+  if (changes.timeBase) {
+    const hoursPerDay = taskCalendarHoursPerDay(before, state.calendars, state.calendar);
+    settleDurationAftermath(updated, state, taskWorkMinutesOf(before, hoursPerDay), hourInputFinishBasis(before));
+  } else if (changes.levelingGaps) clearLevelingGaps(updated);
+  const tasks = state.tasks.map(task => task.id === updated.id ? updated : task);
+  return progressPlannedDates({ ...state, tasks }, true)(updated);
 }

@@ -61,6 +61,7 @@ for (const [day, start, finish, ownCalendar] of [
   const label = `P1 ${route} ${start}${ownCalendar ? ' eigen 09–17' : ''}`;
   eq(label + ': start toegestaan', f.S().setActualStart(f.id, start), true);
   f.S().setTaskProgress(f.id, 0.5);
+  f.S().runCPM();
   eq(label + ': start vastgelegd', f.task().time.actualStart, start);
   let actual = f.task();
   if (route === 'paneel') eq(label + ': toegestaan', f.S().setTaskProgress(f.id, 1), true);
@@ -296,6 +297,7 @@ for (const route of ['raster', 'plakken', 'plakken-met-naam']) for (const [field
   f.S().updateTask(f.id, { status: 'STARTED', time: {
     ...f.task().time, actualStart: '2026-06-02T10:00', completion: 0.5,
   } });
+  f.S().runCPM();
   const edit = f.cell(field, value);
   const label = `P3 ${route} ${field}`;
   const writes = route === 'plakken-met-naam'

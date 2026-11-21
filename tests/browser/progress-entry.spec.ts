@@ -231,6 +231,23 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
 
+  // Twee afzonderlijke bedieningen met handmatig rekenen gebruiken hetzelfde geplande venster.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: false }));
+  const partialBox = (await slider.boundingBox())!;
+  await page.mouse.click(partialBox.x + partialBox.width / 2, partialBox.y + partialBox.height / 2);
+  const partial = await readProgressDates(page, B);
+  expect(Math.abs(partial.percent - 50)).toBeLessThan(5);
+  expect(partial).toEqual({ ...original, percent: partial.percent });
+  await slider.focus();
+  await page.keyboard.press('End');
+  expect(await readProgressDates(page, B)).toEqual(completed);
+  await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
+  await page.keyboard.press('Control+z');
+  expect(await readProgressDates(page, B)).toEqual(partial);
+  await page.keyboard.press('Control+z');
+  expect(await readProgressDates(page, B)).toEqual(original);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
+
   // Wanneer de statusdatum al berekend is, is de zichtbare start van de open taak opgeschoven.
   // Dezelfde schuif moet haar oorspronkelijke, door Fundering bepaalde, start vastleggen.
   await page.evaluate(date => {

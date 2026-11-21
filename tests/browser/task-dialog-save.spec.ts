@@ -174,11 +174,8 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
     await recalculate(page);
     expect((await readTask(page, dialogId)).earlyFinish).toBe(finish);
   }
-  // Review #563: bij 100% blijft een vastgelegde start staan, ook ná het afgeleide blokeinde.
-  for (const [actualStart, actualFinish] of [
-    ['2026-06-03T10:00', '2026-06-03T16:00'],
-    ['2026-06-03T18:00', '2026-06-03T18:00'],
-  ]) {
+  // Bij 100% geldt het geplande einde, met de vastgelegde start als ondergrens.
+  for (const actualStart of ['2026-06-03T10:00', '2026-06-03T18:00']) {
     await page.evaluate(({ ids, actualStart }) => {
       const s = window.__OPS__!.store.getState();
       s.setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
@@ -195,6 +192,10 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
       after.setViewStartDate('2026-06-01');
       after.setScroll(0, 0);
     }, { ids: [panelId, dialogId], actualStart });
+    const plannedFinish = (await readTask(page, panelId)).earlyFinish;
+    if (!plannedFinish) throw new Error('De taak heeft geen gepland einde');
+    expect((await readTask(page, dialogId)).earlyFinish).toBe(plannedFinish);
+    const actualFinish = plannedFinish > actualStart ? plannedFinish : actualStart;
     // Na de fixturewissel kan de vorige balkgeometrie nog staan; de rasterrij heeft een vaste plek.
     await page.locator(`[data-grid-row-key="${panelId}"] [data-grid-column-id="task.name"]`).first().click();
     await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });

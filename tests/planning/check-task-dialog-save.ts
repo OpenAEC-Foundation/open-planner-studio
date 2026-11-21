@@ -88,6 +88,25 @@ function draftWithPercentage(f: Fixture, draft: Task, value: number, startDate?:
   return plan.change?.task ?? draft;
 }
 
+{
+  const f = fixture(['Genivelleerd']);
+  const [id] = f.ids;
+  f.S().setProject({ startDate: '2026-10-28', statusDate: '2026-11-18' });
+  f.S().updateTask(id, { time: { ...f.task(id).time, scheduleStart: '2026-10-28', scheduleDuration: 5 } });
+  f.ctx.store.setState(s => {
+    s.tasks[0].splitGaps = [{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' }];
+  });
+  f.S().runCPM();
+  const input = f.open(id);
+  const initialDuration = { unit: 'days', scheduleDuration: 5 } as const;
+  const draft = { ...input.draft, time: { ...input.draft.time, scheduleDuration: 3 } };
+  const plan = planTaskDialogProgress(f.S(), draft, undefined, { field: 'completion', value: 1 },
+    { today: '2026-11-18', initialDuration });
+  if (plan.ok && plan.change) f.save({ ...input, draft: plan.change.task, initialDuration });
+  eq('#998 inkorten en afmelden: het gewiste nivelleergat telt niet mee',
+    [f.task(id).time.actualFinish, f.task(id).splitGaps], ['2026-10-30T16:00', undefined]);
+}
+
 // Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.
 for (const explicit of [true, false]) {
   const f = fixture(['A', 'B']);

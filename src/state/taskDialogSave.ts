@@ -2,7 +2,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { appStoreContext, type AppState, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate,
+  applyActualDateEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -62,16 +62,6 @@ import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
  *    de gebruiker hem in deze sessie wijzigde (`initialDuration`) — anders zou Opslaan een duur die de
  *    werkdriehoek intussen via de toewijzingssectie veranderde stil terugdraaien.
  */
-
-const clampCompletion = (raw: number) => Math.max(0, Math.min(1, raw));
-
-/** Schuif "% voltooid" op de concept: dezelfde regel als `setTaskProgress`. */
-export function draftWithProgress(draft: Task, raw: number, statusDate: string | undefined, calendar?: WorkCalendar): Task {
-  const next: Task = { ...draft, time: { ...draft.time } };
-  applyCompletionEdit(next, clampCompletion(raw), statusDate, calendar);
-  applyProgressInvariants(next, statusDate, calendar);
-  return next;
-}
 
 function draftWithActualDate(
   draft: Task,

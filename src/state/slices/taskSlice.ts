@@ -916,16 +916,8 @@ function commitProgressEdit(
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
   const base = originalAppState(s);
-  const plannedDates = ctx.plannedDates ?? (() => {
-    // Tijdens het slepen wordt de voortgang al geschreven, maar de berekening blijft staan.
-    // Gebruik dan het venster van vóór die schuifstappen, inclusief een eventuele statusdatumvloer.
-    const before = base && opts?.coalesceKey ? runtime.coalescedDocumentBefore(base, opts.coalesceKey) : undefined;
-    const originalTask = before?.tasks[index];
-    if (before && originalTask?.id === taskId) {
-      return progressPlannedDates(before)(originalTask) ?? originalTask.time;
-    }
-    return base ? liveProgressPlannedDates(base)(task) : progressPlannedDates(s)(task);
-  });
+  const plannedDates = ctx.plannedDates
+    ?? (() => base ? liveProgressPlannedDates(base)(task) : progressPlannedDates(s)(task));
   const plan = planStoredProgressEdit(s, task, edit, { ...ctx, plannedDates });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };

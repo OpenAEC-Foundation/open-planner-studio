@@ -43,7 +43,7 @@ import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { makeBands } from '@/utils/effectiveWorkTime';
-import { draftWithProgress, saveTaskDialog } from '@/state/taskDialogSave';
+import { planTaskDialogProgress, saveTaskDialog } from '@/state/taskDialogSave';
 import { shownStart } from '@/utils/taskDates';
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
@@ -664,10 +664,12 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
   const saveDialog = (name: string, days: number): boolean => {
     const t = taskNamed(name);
     const duration = t.time.durationUnit === 'hours' ? { scheduleDuration: days, durationMinutes: days * 480 } : { scheduleDuration: days };
-    const edited = draftWithProgress({ ...t, time: { ...t.time, ...duration } }, 1, S().project.statusDate, S().calendar);
-    return saveTaskDialog({
-      editingTaskId: t.id, draft: edited, startDate: shownStart(t),
-      initialDuration: { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes },
+    const startDate = shownStart(t);
+    const initialDuration = { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes };
+    const plan = planTaskDialogProgress(S(), { ...t, time: { ...t.time, ...duration } }, startDate,
+      { field: 'completion', value: 1 }, { initialDuration });
+    return plan.ok && !!plan.change && saveTaskDialog({
+      editingTaskId: t.id, draft: plan.change.task, startDate, initialDuration,
     });
   };
   const pair = (name: string) => ({ work: work(name), units: own(name).unitsPerDay, load: r4(load(name)) });

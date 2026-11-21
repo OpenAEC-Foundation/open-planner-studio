@@ -1014,10 +1014,6 @@ en noem het in je rapport of PR-tekst.
      `TaskTypeField.tsx` bouwt de lijst met de uitgestelde naam met een `map` over alle projectwerksoorten; één
      voorwaarde volstaat om dat over te slaan zolang er niets wacht. Geen fout in gedrag. Gevonden door de review van
      #999, ronde 2. — B (review)
-1850. **VERVOLG: tests gebruiken nog een tweede percentagepad voor de taakdialoog.** `draftWithProgress`
-      in `src/state/taskDialogSave.ts` heeft alleen testaanroepers. De app gebruikt `planProgressEntry`.
-      Laat de resterende tests die route gebruiken en verwijder de oude hulpfunctie. Uit de review van
-      #1003 (GPT-6.2-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 1851. **VERVOLG: één MCP-verzoek berekent de planning opnieuw na voortgang op meerdere voorgangers.**
       De echte dispatcher deed in een plan met 1.000 taken voor 80 percentage-updates op losse taken
       2 volledige berekeningen in 0,26 s. Met 80 onafhankelijke FS-paren waren het 81 berekeningen in
