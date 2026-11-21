@@ -364,8 +364,12 @@ en noem het in je rapport of PR-tekst.
 874. **VERVOLG: de geëiste finish van een dagtaak na een FF-lag staat op twee plekken.** `dayTaskRequiredFinish`
      (`src/engine/scheduler/relationMath.ts`) heeft één aanroeper, de externe voorganger; de interne FF-tak in
      `forwardHour` houdt dezelfde twee stappen (`previousBlockEndIfSame`, dan `workdayFinishNotBefore`) apart.
-     Voorstel: de interne tak laten aanroepen wat de externe gebruikt, met de batterijen `cases-hours-blokgrenzen`
-     en `cases-advanced-cpm` als bewijs. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
+     Voorstel: deel de helper alleen voor werkende FF-lag die daadwerkelijk verschuift, met een dagenmaat-opvolger
+     en zonder de speciale voorgangergrens `predEndsBeginOfDay`. Alleen daar zijn ook de twee ondergrenzen gelijk:
+     `predResult.ef` voor terugschuiven en `lagEng.prevWorkInstant(lagged)` voor de uiteindelijke finish.
+     Bij effectieve nul-lag gebruikt intern juist de rauwe `predResult.ef` als laatste ondergrens; laat ook het
+     aparte kalendertijdpad en de mijlpaalafhandeling intact. Draai vóór een motorwijziging `cases-hours-blokgrenzen`,
+     `cases-advanced-cpm`, `check-external-lag-calendar.ts` en de profiel/corpusmeting. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
 875. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
      `tests/planning/check-external-lag-calendar.ts` test de vier lagkalenders, alle types, mijlpalen en een korte
      vrijdag met één koppeling op de solver. Een koppeling verwijderen (de melding verdwijnt), twee koppelingen op
