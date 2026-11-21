@@ -1,1 +1,1 @@
---geheugen --proef=telling,lijsten,sha,telling+lijsten+sha --proef-snel=telling+lijsten --proef-runs=2
+--refs=basis:44782103d7f2f1d4619e5f4c589d170974771338,pr1100:a833f055789c1dc91936d0953102bd1a3a35e0e7,pr1103:4486009e676ceab1e1ab6457829cb420a44d6daf --refs-runs=3

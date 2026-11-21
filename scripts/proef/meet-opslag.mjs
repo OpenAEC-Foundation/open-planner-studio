@@ -19,7 +19,7 @@
 //   node scripts/proef/meet-opslag.mjs --mb=10 --runs=1 --heap=2048 --out=/tmp/x.json        # lokaal
 //   node scripts/proef/meet-opslag.mjs --mb=50,150,300 --runs=3 --out=meting-opslag.json --dir=meting-opslag   # CI
 import { execFileSync, spawnSync } from 'node:child_process';
-import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -47,6 +47,21 @@ const geheugen = opts.geheugen === '1';
 const proefSets = (opts.proef ?? '').split(',').filter(Boolean).map(s => s.replace(/\+/g, ','));
 const proefSetsSnel = (opts['proef-snel'] ?? '').split(',').filter(Boolean).map(s => s.replace(/\+/g, ','));
 const proefRuns = Number(opts['proef-runs'] ?? 2);
+// --refs=basis:<sha>,a:<sha>,…: per opgegeven commit de broncode van die commit (`src/`, de testhelpers in
+// `tests/planning/`, `tsconfig.json`, `package.json`) uit git halen, apart bundelen en daarop de opslag meten zonder
+// meethaak: per grootte en per weg --refs-runs ronden, in elke ronde elke commit één keer in een eigen Node-proces, om
+// en om (basis, a, b, basis, a, b). Het meetscript, de generator en het gezette invoerbestand blijven die van deze
+// branch, dus de invoer is voor alle commits byte-gelijk. Eis: de sha256 van de uitvoer is per grootte en weg gelijk
+// voor alle commits; een afwijking komt in het resultaat (`shaGelijk: false`) en maakt de run rood, maar de meting
+// gaat door. `node_modules` wordt gedeeld via een link in de map van elke commit.
+const refs = (opts.refs ?? '').split(',').filter(Boolean).map(r => {
+  const m = /^([\w-]+):([0-9a-f]{7,40})$/.exec(r);
+  if (!m) throw new Error(`--refs verwacht naam:sha, kreeg ${r}`);
+  return { name: m[1], sha: m[2] };
+});
+const refsRuns = Number(opts['refs-runs'] ?? 2);
+if (refs.length && (geheugen || proefSets.length)) throw new Error('--refs niet samen met --geheugen of --proef');
+if (new Set(refs.map(r => r.name)).size !== refs.length) throw new Error('--refs: dubbele naam');
 if (sizes.some(s => !(s > 0)) || !(runs >= 0)) throw new Error('--mb verwacht getallen, --runs minstens 1');
 if (sizes.some(s => s > 10) && process.env.CI !== 'true') {
   console.error('Boven 10 MB alleen in CI (gedeelde kantoor-pc). Gebruik de handmatige job in ifc-foreign.yml.');
@@ -62,8 +77,9 @@ const UNICODE_TRIE = join(dirname(createRequire(fontkit).resolve('unicode-proper
 const ESBUILD_ARGS = [`--alias:#binary-trie=${UNICODE_TRIE}`, '--log-level=error', '--bundle', '--platform=node', '--format=esm',
   `--alias:@=${join(ROOT, 'src')}`, '--external:react-dom/server', '--define:import.meta.env.DEV=false',
   '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"', '--define:__OPS_DEV_INSTANCE__="test"'];
-const T = p => JSON.stringify(join(ROOT, p));
-writeFileSync(join(work, 'opslag-entry.ts'), `
+const entryText = srcRoot => {
+const T = p => JSON.stringify(join(srcRoot, p));
+return `
 import { copyFileSync, createReadStream, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
@@ -250,8 +266,32 @@ if (mode === 'met') {
   rmSync(target, { force: true });
 }
 emit({ klaar: true, ...mem() });
-`);
-execFileSync(ESBUILD, [join(work, 'opslag-entry.ts'), ...ESBUILD_ARGS, `--outfile=${join(work, 'opslag.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+`;
+};
+/** Bundel de opslag-entry op de broncode onder `srcRoot` (de branch zelf of de map van een commit). */
+function bundle(srcRoot, name) {
+  writeFileSync(join(work, `${name}-entry.ts`), entryText(srcRoot));
+  const args = ESBUILD_ARGS.map(a => a.startsWith('--alias:@=') ? `--alias:@=${join(srcRoot, 'src')}` : a);
+  execFileSync(ESBUILD, [join(work, `${name}-entry.ts`), ...args, `--outfile=${join(work, `${name}.mjs`)}`], { cwd: srcRoot, stdio: 'inherit' });
+  return join(work, `${name}.mjs`);
+}
+bundle(ROOT, 'opslag');
+
+// ── De broncode van elke commit uit --refs: ophalen (in CI ondiep), uitpakken, node_modules delen, bundelen ─────────
+const git = (args, opt = {}) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', ...opt });
+for (const ref of refs) {
+  try { git(['cat-file', '-e', `${ref.sha}^{commit}`], { stdio: 'ignore' }); }
+  catch { git(['fetch', '--quiet', '--depth=1', 'origin', ref.sha], { stdio: 'inherit', timeout: 300_000 }); }
+  ref.sha = git(['rev-parse', `${ref.sha}^{commit}`]).trim();
+  ref.dir = join(work, `bron-${ref.name}`);
+  mkdirSync(ref.dir, { recursive: true });
+  const tar = execFileSync('git', ['archive', '--format=tar', ref.sha, 'src', 'tests/planning', 'tsconfig.json', 'package.json'], { cwd: ROOT, maxBuffer: 1 << 30 });
+  execFileSync('tar', ['-x', '-C', ref.dir], { input: tar });
+  symlinkSync(join(ROOT, 'node_modules'), join(ref.dir, 'node_modules'));
+  ref.bundle = bundle(ref.dir, `opslag-${ref.name}`);
+  ref.commit = git(['log', '-1', '--format=%H %s', ref.sha]).trim();
+  console.error(`# commit ${ref.name}: ${ref.commit}`);
+}
 
 // ── De generator: letterlijk `makeFile` uit meet-scanner.mjs (zoals ifcGeneratedModel.ts) ─────────────────────────
 const generator = readFileSync(join(ROOT, 'scripts/proef/meet-scanner.mjs'), 'utf8');
@@ -270,9 +310,9 @@ const BASE_TEXT = readFileSync(probe, 'utf8').split('\n')
 rmSync(probe, { force: true });
 
 // ── Een kindproces: alle JSON-regels, en bij een fout de laatste stap en het einde van stderr ─────────────────────
-function child(mode, file, extra = [], env = {}) {
+function child(mode, file, extra = [], env = {}, bundlePath = join(work, 'opslag.mjs')) {
   const t0 = Date.now();
-  const r = spawnSync(process.execPath, ['--expose-gc', `--max-old-space-size=${heap}`, ...extra, join(work, 'opslag.mjs'), mode, file, work],
+  const r = spawnSync(process.execPath, ['--expose-gc', `--max-old-space-size=${heap}`, ...extra, bundlePath, mode, file, work],
     { encoding: 'utf8', maxBuffer: 1 << 28, timeout: childTimeoutMs, killSignal: 'SIGKILL', env: { ...process.env, OPS_METING: '', OPS_PROEF: '', ...env } });
   const lines = (r.stdout || '').trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return { tekst: l }; } });
   const steps = lines.filter(l => l.stap);
@@ -341,6 +381,39 @@ for (const mb of sizes) {
   const walls = makeFile(fileMb, file, 'model', BASE_TEXT);
   const row = { mb, fileMb, bytes: statSync(file).size, walls, met: [], snel: [] };
   console.error(`# ${mb} MB: ${row.bytes} bytes, ${walls} wanden`);
+  if (refs.length) {
+    row.refs = {};
+    for (const mode of ['met', 'snel']) {
+      const runsByRef = Object.fromEntries(refs.map(r => [r.name, []]));
+      for (let k = 0; k < refsRuns; k++) {
+        for (const ref of refs) {
+          const res = child(mode, file, [], {}, ref.bundle);
+          const ms = name => res.steps.find(s => s.stap.startsWith(name))?.ms;
+          const opslagMs = res.steps.filter(s => /^3[abcd] /.test(s.stap) || s.stap.startsWith('4 vervangroute')).reduce((a, s) => a + s.ms, 0);
+          const run = { ref: ref.name, ronde: k + 1, ok: res.ok, status: res.status, signal: res.signal, wandMs: res.wandMs,
+            ms3b: ms('3b '), opslagMs: Math.round(opslagMs * 10) / 10, openenMs: ms('1c '), piekRssMB: res.maxRssMB,
+            uitvoerBytes: res.uitvoerBytes, uitvoerSha256: res.uitvoerSha256, shaKlopt: res.opgegevenSha256 === res.uitvoerSha256,
+            uitkomst: res.uitkomst, vervanging: res.vervanging, doelGelijkAanUitvoer: res.doelGelijkAanUitvoer,
+            ...(res.ok ? {} : { fout: res.fout, laatsteBegonnenStap: res.laatsteBegonnenStap, stderr: res.stderr }) };
+          runsByRef[ref.name].push(run);
+          console.error(`# ${mb} MB ${mode} ${ref.name} ronde ${k + 1}: ${res.ok ? 'ok' : 'MISLUKT'}, 3b ${run.ms3b} ms, opslag ${run.opslagMs} ms, piek ${run.piekRssMB} MB, sha ${run.uitvoerSha256?.slice(0, 12)}`);
+          writeFileSync(join(outDir, `ruw-${mb}mb-${mode}-${ref.name}-${k + 1}.json`), `${JSON.stringify({ ...res, ref: ref.name, sha: ref.sha }, null, 2)}\n`);
+        }
+      }
+      const median = xs => { const v = xs.filter(x => typeof x === 'number').sort((a, b) => a - b); return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : null; };
+      const shas = new Set(Object.values(runsByRef).flat().map(r => r.uitvoerSha256 ?? 'geen'));
+      row.refs[mode] = { shaGelijk: shas.size === 1 && !shas.has('geen'), shas: [...shas], perRef: Object.fromEntries(refs.map(ref => {
+        const rs = runsByRef[ref.name];
+        return [ref.name, { sha: ref.sha, runs: rs, middel3bMs: median(rs.map(r => r.ms3b)), middelOpslagMs: median(rs.map(r => r.opslagMs)), middelPiekRssMB: median(rs.map(r => r.piekRssMB)) }];
+      })) };
+      console.error(`# ${mb} MB ${mode}: sha256 ${row.refs[mode].shaGelijk ? 'GELIJK voor alle commits' : 'ANDERS: ' + [...shas].join(' ')}`);
+      for (const ref of refs) { const p = row.refs[mode].perRef[ref.name]; console.error(`#   ${ref.name}: 3b ${p.runs.map(r => r.ms3b).join(' / ')} (middel ${p.middel3bMs}), opslag middel ${p.middelOpslagMs}, piek ${p.runs.map(r => r.piekRssMB).join(' / ')} MB`); }
+    }
+    rmSync(file, { force: true });
+    results.push(row);
+    writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, refs: refs.map(({ name, sha, commit }) => ({ name, sha, commit })), refsRuns, heap, results }, null, 2)}\n`);
+    continue;
+  }
   if (geheugen) {
     row.geheugen = {};
     for (const mode of ['met', 'snel']) {
@@ -388,9 +461,12 @@ for (const mb of sizes) {
   results.push(row);
   writeFileSync(join(outDir, 'meting-opslag.json'), `${JSON.stringify({ node: process.version, runs, heap, results }, null, 2)}\n`);
 }
-if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ node: process.version, runs, heap, results }, null, 2)}\n`);
+if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ node: process.version, runs, heap, ...(refs.length ? { refs: refs.map(({ name, sha, commit }) => ({ name, sha, commit })), refsRuns } : {}), results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
-const failed = results.flatMap(row => row.geheugen
+const failed = results.flatMap(row => row.refs
+  ? Object.entries(row.refs).flatMap(([mode, v]) => [...(v.shaGelijk ? [] : [`${row.mb} MB ${mode}: sha256 verschilt tussen de commits`]),
+    ...Object.values(v.perRef).flatMap(p => p.runs).filter(r => !r.ok).map(r => `${row.mb} MB ${mode} ${r.ref} ronde ${r.ronde}`)])
+  : row.geheugen
   ? Object.values(row.geheugen).flatMap(v => Object.entries(v)).filter(([, r]) => !r.ok || !r.zelfdeBytes).map(([name, r]) => `${row.mb} MB ${r.mode} ${name}${r.ok ? ' (andere bytes)' : ''}`)
   : [...row.met, ...row.snel, row.profiel, row.profielSnel].filter(r => !r.ok).map(r => `${row.mb} MB ${r.mode}`));
 if (failed.length) {
