@@ -32,6 +32,25 @@ const eq = (msg: string, got: unknown, want: unknown) => {
   if (a !== b) fail(`${msg}\n   kreeg  ${a}\n   wilde  ${b}`);
 };
 
+/** Nep-tekenvlak voor de renderproeven: houdt de stijl bij, meet tekst als 4,5 px per teken en laat elke
+ * tekenopdracht leeg, behalve wat `on` opneemt. */
+function fakeDraw2D(on: (d: Draw2D) => Partial<Draw2D>): Draw2D {
+  const d: Draw2D = {
+    font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline,
+    setLineDash() {}, fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {}, stroke() {},
+    roundRect() {}, fillText() {},
+    measureText(text) { return { width: text.length * 4.5 }; },
+  };
+  return Object.assign(d, on(d));
+}
+
+/** De afdrukinstellingen die alle renderproeven delen; elke proef zet daarop alleen wat ze toetst. */
+const RENDER_BASE = {
+  showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
+  showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
+  locale: 'nl', reportFontScale: 100,
+} as const;
+
 // ── 1. Opslag ───────────────────────────────────────────────────────────────────────────────────────
 {
   eq('standaard: de hele planning', DEFAULT_REPORT_SETTINGS.period, { preset: 'project' });
@@ -207,29 +226,17 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
     const segments: { pts: [number, number][]; lw: number }[] = [];
     const fills: [number, number][][] = [];
     let cur: [number, number][] = [];
-    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
-    const d2d: Draw2D = {
-      get font() { return st.font; }, set font(v) { st.font = v; },
-      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
-      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
-      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
-      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
-      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
-      setLineDash() {}, fillRect() {}, strokeRect() {},
+    const d2d = fakeDraw2D(d => ({
       beginPath() { cur = []; },
       moveTo(x, y) { cur.push([Number.NaN, Number.NaN], [x, y]); },
       lineTo(x, y) { cur.push([x, y]); },
-      closePath() {},
       fill() { fills.push(cur.filter(p => !Number.isNaN(p[0]))); },
-      stroke() { segments.push({ pts: cur.slice(), lw: st.lineWidth }); },
-      roundRect() { cur = []; }, fillText() {},
-      measureText(text) { return { width: text.length * 4.5 }; },
-    };
+      stroke() { segments.push({ pts: cur.slice(), lw: d.lineWidth }); },
+      roundRect() { cur = []; },
+    }));
     const rows = taskTreeRows([fase, a, b, c, m]);
     const dims = renderReport(() => d2d, [fase, a, b, c, m], sequences, calendar, 'P', {
-      showCritical: false, showFloat: false, showDeps: true, showWeekends: true, showLegend: false, showTaskNames: false,
-      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
-      locale: 'nl', reportFontScale: 100, rows, ...options,
+      ...RENDER_BASE, showDeps: true, rows, ...options,
     } as PrintOptions);
     const chartTop = dims.headerHeight;
     const chartBottom = dims.height - dims.footerHeight;
@@ -266,23 +273,10 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   const maandag = task('ma', 'Maandagwerk', '2026-09-28', '2026-09-28', { parentId: undefined });
   const bars = (options: Partial<PrintOptions>) => {
     const rects: { x: number; y: number; w: number }[] = [];
-    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
-    const d2d: Draw2D = {
-      get font() { return st.font; }, set font(v) { st.font = v; },
-      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
-      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
-      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
-      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
-      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
-      setLineDash() {}, fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {}, stroke() {},
-      roundRect(x, y, w) { rects.push({ x, y, w }); }, fillText() {},
-      measureText(text) { return { width: text.length * 4.5 }; },
-    };
+    const d2d = fakeDraw2D(() => ({ roundRect(x, y, w) { rects.push({ x, y, w }); } }));
     const tasksHere = [zondag, maandag];
     const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
-      showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
-      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
-      locale: 'nl', reportFontScale: 100, rows: taskTreeRows(tasksHere), compressNonWorkdays: true, ...options,
+      ...RENDER_BASE, rows: taskTreeRows(tasksHere), compressNonWorkdays: true, ...options,
     } as PrintOptions);
     const chartBottom = dims.height - dims.footerHeight;
     const inChart = rects.filter(r => r.y > dims.headerHeight && r.y < chartBottom && r.x >= dims.tableWidth - 1e-6 && r.x + r.w <= dims.width + 1e-6);
@@ -301,26 +295,15 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
   const vrijdag = task('vr', 'Vrijdagwerk', '2026-09-25', '2026-09-25', { parentId: undefined });
   const maxX = (options: Partial<PrintOptions>) => {
     const xs: { x: number; y: number }[] = [];
-    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
-    const d2d: Draw2D = {
-      get font() { return st.font; }, set font(v) { st.font = v; },
-      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
-      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
-      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
-      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
-      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
-      setLineDash() {}, strokeRect() {}, beginPath() {}, closePath() {}, fill() {}, stroke() {},
+    const d2d = fakeDraw2D(() => ({
       fillRect(x, y, w) { xs.push({ x: x + w, y }); },
       moveTo(x, y) { xs.push({ x, y }); },
       lineTo(x, y) { xs.push({ x, y }); },
-      roundRect(x, y, w) { xs.push({ x: x + w, y }); }, fillText() {},
-      measureText(text) { return { width: text.length * 4.5 }; },
-    };
+      roundRect(x, y, w) { xs.push({ x: x + w, y }); },
+    }));
     const tasksHere = [vrijdag, zondagFase];
     const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
-      showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
-      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
-      locale: 'nl', reportFontScale: 100, rows: taskTreeRows(tasksHere), compressNonWorkdays: true, ...options,
+      ...RENDER_BASE, rows: taskTreeRows(tasksHere), compressNonWorkdays: true, ...options,
     } as PrintOptions);
     const chartBottom = dims.height - dims.footerHeight;
     const inChart = xs.filter(p => p.y > dims.headerHeight && p.y < chartBottom && Number.isFinite(p.x));
@@ -338,27 +321,17 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group' ? 
     const strokes: { pts: [number, number][]; lw: number; style: string }[] = [];
     const texts: string[] = [];
     let cur: [number, number][] = [];
-    const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
-    const d2d: Draw2D = {
-      get font() { return st.font; }, set font(v) { st.font = v; },
-      get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
-      get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
-      get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
-      get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
-      get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
-      setLineDash() {}, fillRect() {}, strokeRect() {}, closePath() {},
+    const d2d = fakeDraw2D(d => ({
       beginPath() { cur = []; },
       moveTo(x, y) { cur.push([x, y]); },
       lineTo(x, y) { cur.push([x, y]); },
       fill() { fills.push(cur.slice()); },
-      stroke() { strokes.push({ pts: cur.slice(), lw: st.lineWidth, style: st.strokeStyle }); },
-      roundRect() { cur = []; }, fillText(text) { texts.push(text); },
-      measureText(text) { return { width: text.length * 4.5 }; },
-    };
+      stroke() { strokes.push({ pts: cur.slice(), lw: d.lineWidth, style: d.strokeStyle }); },
+      roundRect() { cur = []; },
+      fillText(text) { texts.push(text); },
+    }));
     const dims = renderReport(() => d2d, tasksHere, [], calendar, 'P', {
-      showCritical: false, showFloat: false, showDeps: false, showWeekends: true, showLegend: false, showTaskNames: false,
-      showCompletion: false, autoFit: true, customZoom: 22, paperSize: 'A4', orientation: 'landscape', companyName: '',
-      locale: 'nl', reportFontScale: 100, rows: treeRowsInPeriod(tasksHere, window), timeWindow: window, ...options,
+      ...RENDER_BASE, rows: treeRowsInPeriod(tasksHere, window), timeWindow: window, ...options,
     } as PrintOptions);
     const chartBottom = dims.height - dims.footerHeight;
     const inChart = ([, y]: [number, number]) => y > dims.headerHeight && y < chartBottom;

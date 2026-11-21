@@ -821,9 +821,6 @@ en noem het in je rapport of PR-tekst.
     (`reportPeriodRows.ts`) eist een begin- én einddatum; een mijlpaal met alleen een startdatum staat bij *Hele project*
     op papier en ontbreekt bij een tijdvak dat haar dag bevat. De tekenaar kent die vorm al (`milestoneMoment`). Richting:
     voor mijlpalen hetzelfde moment als de ruit. Gevonden door de review van #1005 (Sol, ronde 4). — B
-1865. **VERVOLG (#997, opruimen): `check-report-gantt-period.ts` heeft vier eigen tekenopnames.** De bestaande
-    `SvgRecordingDraw2D` (`src/services/pdf/svgDraw2d.ts`) levert paden, lijnstijlen en tekst; dan blijven per scenario
-    alleen invoer en controles over. Gevonden door de review van #1005 (Sol, ronde 4). — B
 1866. **VERVOLG (#997): op een smal blad valt het statuslabel weg.** Bij een tijdvak van één dag op een vaste schaal van
     22 px per dag tekent de afdruk de statuslijn zonder datumlabel: `reserveHeaderLineLabel` (`printPreview.ts`) geeft de
     reservering op zodra de tekst niet past. Richting: de bestaande afkortlogica gebruiken als een korter label past.
