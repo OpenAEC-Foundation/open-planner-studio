@@ -11,7 +11,7 @@
 import type { AppState } from './appStore';
 import { selectUndoHistoryEvent } from './sessionHistory';
 import type { Snapshot } from './snapshot';
-import type { NotificationAction, NotifyInput } from './slices/types';
+import type { AppNotification, NotificationAction, NotifyInput } from './slices/types';
 import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 import { isHourTask, workRuleApplies } from '@/engine/work/workRuleApply';
 import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
@@ -62,6 +62,11 @@ export function canRunNotificationUndo(
   action: NotificationAction,
 ): boolean {
   return action.kind === 'undoHistoryEvent' && latestUndoEventId(state) === action.eventId;
+}
+
+/** Staat de melding nu op het scherm? (Rood bewijs ronde 4: nog het oude gedrag, altijd.) */
+export function isNotificationCurrent(_n: AppNotification, _latestUndoId: string | null): boolean {
+  return true;
 }
 
 /**

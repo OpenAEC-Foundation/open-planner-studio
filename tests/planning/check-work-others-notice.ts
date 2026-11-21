@@ -8,7 +8,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
-import { canRunNotificationUndo, OTHER_WORK_NOTICE_KEY } from '@/state/otherWorkNotice';
+import { canRunNotificationUndo, isNotificationCurrent, latestUndoEventId, OTHER_WORK_NOTICE_KEY } from '@/state/otherWorkNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
 import type { AppNotification, NotificationAction } from '@/state/slices/types';
@@ -253,6 +253,36 @@ console.log('-- (k) Ctrl+Z zet de stap terug: de melding verdwijnt --');
   eq('k0 melding staat', summary(notice()) !== null, true);
   S().undo();
   eq('k1 na Ctrl+Z: duur 10 en de melding is weg', [task(t).time.scheduleDuration, summary(notice())], [10, null]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (l) een volgende bewerking achterhaalt de cijfers: de hele melding verdwijnt --');
+{
+  // Review #1120 ronde 4: na een duurcorrectie in het paneel bleef "Taak duurt nu 20 dagen. Anna: 80 → 160 u"
+  // staan, alleen de knop verdween. De melding staat er zolang haar stap de stap van Ctrl+Z is.
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  const n = notice();
+  eq('l0 de melding is te zien', n !== undefined && isNotificationCurrent(n, latestUndoEventId(S())), true);
+  S().updateTask(t, { time: { ...task(t).time, scheduleDuration: 12 } });
+  eq('l1 na de duurcorrectie naar 12 dagen is de melding niet meer te zien',
+    [task(t).time.scheduleDuration, n !== undefined && isNotificationCurrent(n, latestUndoEventId(S()))], [12, false]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (m) twee toewijzingen van dezelfde resource: dat is geen ander persoon --');
+{
+  // Review #1120 ronde 4: een IFC kan één resource twee keer op een taak zetten. Een inzetwijziging op de
+  // eerste regel meldde de tweede als "Bram: 80 → 160 u".
+  const { t, r } = seed('FIXED_RATE', 10, { Anna: 1, Bram: 1 });
+  useAppStore.setState((s) => {
+    const first = s.assignments.find((a) => a.taskId === t && a.resourceId === r.Bram)!;
+    s.assignments.push({ ...first, id: 'bram-tweede-regel' });
+  });
+  S().updateAssignment(asg(t, r.Bram).id, { unitsPerDay: 0.5 });
+  eq('m1 Bram 50 %: 20 dagen, alleen Anna in de melding', [task(t).time.scheduleDuration, summary(notice())], [20, {
+    key: 'notifications.otherWork.durationDays', duration: 20, lines: [['Anna', 80, 160]], action: 'undoHistoryEvent',
+  }]);
 }
 
 if (diffs.length) {

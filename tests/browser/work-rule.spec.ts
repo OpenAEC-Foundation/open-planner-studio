@@ -164,6 +164,19 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   st = await taskState(page, taskId);
   expect(st).toMatchObject({ duration: 8, work: 64 * 60 });
   await expect(undoInNotice).toHaveCount(0);
+
+  // Review #1120 ronde 4: corrigeer je daarna in hetzelfde paneel de duur, dan kloppen de cijfers van de
+  // melding niet meer. De hele melding verdwijnt, niet alleen de knop.
+  await crewWork.fill('128');
+  await crewWork.press('Enter');
+  await expect(notice).toContainText(/Anna: 64 → 128 (u|h)/);
+  const durationInput = page.locator('[data-ops-task-duration] [data-ops-duration-value]').first();
+  await expect(durationInput).toHaveValue('128');
+  await durationInput.fill('96');
+  await durationInput.press('Enter');
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(12);
+  await expect(page.locator('.ops-toast').filter({ hasText: /Anna: 64 → 128/ })).toHaveCount(0);
 });
 
 test('taakdialoog: werkregel kiezen commit direct, werk typen in dezelfde dialoog rekent met die regel, Opslaan draait de duur niet terug', async ({ page, ops: _ops }) => {
