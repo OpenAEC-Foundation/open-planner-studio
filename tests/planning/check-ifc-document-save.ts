@@ -3042,48 +3042,96 @@ await check('knownbug 1903: desktopexport IFC met gebouwmodel, direct na de kiez
 
 // Knownbug 1903 in de browser (met knownbug 1899): de opslaankiezer van Chromium maakt een gekozen bestaand bestand al
 // leeg bij het kiezen. Weigerde de doelcontrole daarna om een tabbladwissel, dan bleef dat bestand leeg. Nu krijgt het de
-// bytes van A. Een intussen bewerkte A schrijft de export nog steeds niet; dan blijft het bestand leeg, zoals bij elke
-// weigering na deze kiezer (1899).
-for (const change of ['none', 'edit'] as const) {
-  await check(`knownbug 1903: browserexport IFC naar een handle, ${change === 'none' ? 'direct na de kiezer naar B, krijgt de bytes van A' : 'na de kiezer A bewerkt en naar B, schrijft A niet'}`, async () => {
+// bytes van A. Een A die na de kiezer verandert, schrijft de export niet; dan blijft het bestand leeg, zoals bij elke
+// weigering na deze kiezer (1899). Fixronde 2 van #1097 (keuze (b) van de technisch beslisser): staat A na de kiezer niet
+// meer vooraan, dan moet A ook tot aan `close()` ongewijzigd blijven, anders `abort()`. `change`:
+// - `edit-at-picker`: A bewerkt vóór de doelcontrole, dan naar B;
+// - `back-and-edit`: naar B bij de kiezer; tijdens de write terug naar A, een taak bewerkt, weer naar B;
+// - `rename-library`: naar B bij de kiezer; tijdens de write de bibliotheek van A hernoemd terwijl B vooraan blijft
+//   (`renameCompany` wijzigt `project.companyName` in het slapende A, en die naam gaat mee in het IFC);
+// - `no-switch-edit`: geen wissel, A tijdens de write bewerkt. Dat is het late venster van main (knownbug 1958): de
+//   export plaatst de planning van vóór de wijziging en meldt succes. Bewust niet veranderd; deze proef legt main vast.
+const BROWSER_CHANGES = ['none', 'edit-at-picker', 'back-and-edit', 'rename-library', 'no-switch-edit'] as const;
+const browserCases = [false, true].flatMap(withPool => BROWSER_CHANGES
+  .filter(change => !withPool || change === 'none' || change === 'back-and-edit' || change === 'rename-library')
+  .map(change => ({ withPool, change })));
+for (const { withPool, change } of browserCases) {
+  const label = {
+    'none': 'direct na de kiezer naar B, krijgt de bytes van A',
+    'edit-at-picker': 'na de kiezer A bewerkt en naar B, schrijft A niet',
+    'back-and-edit': 'naar B, tijdens de write A bewerkt, breekt af vóór close',
+    'rename-library': 'naar B, tijdens de write de bibliotheek van A hernoemd, breekt af vóór close',
+    'no-switch-edit': 'zonder wissel A bewerkt tijdens de write, plaatst de oude bytes zoals main (knownbug 1958)',
+  }[change];
+  await check(`knownbug 1903: browserexport ${withPool ? 'met resourcebibliotheek' : 'IFC'} naar een handle, ${label}`, async () => {
     const { createAppStoreContext } = await loadStore();
     const sw = saveWorker();
     const { store } = createAppStoreContext({ ifcSaveCompute: sw.compute });
     const browser = browserDownload();
     const win = window as unknown as Record<string, unknown>;
-    const name = `browser-wissel-${change}-${++handleCount}.ifc`;
+    const name = `browser-wissel-${withPool}-${change}-${++handleCount}.ifc`, library = `${name}-bibliotheek.ifc`;
+    const switchAtPicker = change !== 'no-switch-edit';
     try {
       await store.getState().openOpenedFile({ name: 'gewoon.ifc', content: plainText(plainBytes()), ref: null });
       const first = store.getState().activeDocumentId;
+      const companyId = store.getState().seedDemoLibrary();
+      store.getState().setProject({ companyId, companyName: 'Bedrijf van A' });
       const second = store.getState().newDocument();
       store.getState().switchDocument(first);
       longer(store);
       clearNotices(store);
-      const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), 'merge')));
+      const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), withPool ? 'planOnly' : 'merge')));
       handleFiles.set(name, new TextEncoder().encode('Versie vóór export'));
       win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+      let picks = 0;
       win.showSaveFilePicker = async () => {
+        if (++picks === 2) { handleFiles.set(library, new Uint8Array()); return new FakeHandle(library); }
         handleFiles.set(name, new Uint8Array()); // Chromium kapt het gekozen bestand af vóór de kiezer terugkomt.
-        if (change === 'edit') longer(store);
-        store.getState().switchDocument(second);
+        if (change === 'edit-at-picker') longer(store);
+        if (switchAtPicker) store.getState().switchDocument(second);
         return new FakeHandle(name);
       };
+      let changedDuringWrite = false;
+      handleFaults.set(name, { onWrite: () => {
+        if (changedDuringWrite) return;
+        changedDuringWrite = true;
+        if (change === 'back-and-edit') {
+          store.getState().switchDocument(first);
+          longer(store);
+          store.getState().switchDocument(second);
+        }
+        if (change === 'rename-library') {
+          assert.equal(store.getState().activeDocumentId, second);
+          store.getState().renameCompany(companyId, 'Bibliotheek hernoemd 1097');
+          assert.equal(payloadOf(store, first).project.companyName, 'Bibliotheek hernoemd 1097', 'het slapende A veranderde');
+        }
+        if (change === 'no-switch-edit') longer(store);
+      } });
       writableLog.length = 0;
-      const result = await store.getState().exportAs('ifc');
-      assert.equal(store.getState().activeDocumentId, second);
+      const result = withPool ? await store.getState().exportProjectWithPool() : await store.getState().exportAs('ifc');
+      const projectLog = writableLog.filter(entry => entry.split(' ')[1] === name).map(entry => entry.split(' ')[0]);
+      const recent = store.getState().recentFiles.some(file => file.name === name);
+      assert.equal(store.getState().activeDocumentId, switchAtPicker ? second : first);
       assert.equal(browser.downloads.length, 0, 'geen download ernaast');
-      if (change === 'none') {
-        assert(result.ok && !result.cancelled, 'een tabbladwissel is geen wijziging van de planning');
-        assert(Buffer.from(fileOf(name)).equals(Buffer.from(expected)), 'het gekozen bestand krijgt precies de bytes van A, niet 0 bytes');
-        assert.deepEqual(writableLog.map(entry => entry.split(' ')[0]), ['create', 'close']);
+      if (change === 'none' || change === 'no-switch-edit') {
+        assert(result.ok && !result.cancelled, change === 'none' ? 'een tabbladwissel is geen wijziging van de planning' : 'main: de export slaagt');
+        assert(Buffer.from(fileOf(name)).equals(Buffer.from(expected)), 'het gekozen bestand krijgt precies de bytes van A (van de momentopname)');
+        assert.deepEqual(projectLog, ['create', 'close']);
+        assert.equal(recent, true);
         assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error'), []);
+        if (withPool) assert(fileOf(library).byteLength > 0, 'de bibliotheek ernaast');
+        if (change === 'no-switch-edit') assert(changedDuringWrite, 'A veranderde tijdens de write');
       } else {
-        assert(result.ok && result.cancelled, 'een bewerkte A wordt niet geëxporteerd');
-        assert.equal(fileOf(name).byteLength, 0, 'de kiezer had het bestand al leeggemaakt (1899)');
-        assert.deepEqual(writableLog, [], 'niets geschreven');
+        assert(result.ok && result.cancelled, 'een veranderde A wordt niet geëxporteerd');
+        assert.equal(fileOf(name).byteLength, 0, 'de kiezer had het bestand al leeggemaakt (1899); niet de oude bytes van A');
+        assert.deepEqual(projectLog, change === 'edit-at-picker' ? [] : ['create', 'abort'], 'afgebroken vóór close');
+        assert.equal(change === 'edit-at-picker' || changedDuringWrite, true);
+        assert.equal(recent, false, 'niets in Recent');
+        assert.equal(handleFiles.has(library), false, 'geen bibliotheek');
         assertNotice(store, 'notifications.ifcExportChangedWhileWaiting');
       }
     } finally {
+      handleFaults.delete(name);
       delete win.showOpenFilePicker;
       browser.dispose();
       sw.client.dispose();

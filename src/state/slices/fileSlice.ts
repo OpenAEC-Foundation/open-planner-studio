@@ -946,7 +946,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const options = {
       refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
-      refuseBeforePlace: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
+      // Niet op de handle uit de opslaankiezer van de browser: die is al leeg, een weigering liet 0 bytes (knownbug 1899).
+      refuseBeforePlace: isTauri() ? () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs) : null,
     };
     // De merge: alleen een nieuwe naam. De gewone writer overschrijft een bestaand bestand zoals altijd, atomair
     // (`saveDataDialog`, #804 stap 6: met de bytes van de worker).
@@ -1372,6 +1373,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
+  /** De late controle van een IFC-export (`refuseBeforePlace`). Desktop: altijd, vlak vóór de plaatsing. Browser, op de
+   *  handle uit de opslaankiezer: die heeft een bestaand doel al leeggemaakt (knownbug 1899), dus een weigering laat daar
+   *  0 bytes staan. Daar alleen als het geëxporteerde document niet meer vooraan staat (fixronde 2 van #1097, keuze (b)
+   *  van de technisch beslisser): na een tabbladwissel moet het tot aan `close()` ongewijzigd blijven. Zonder wissel doet
+   *  de browser wat main deed (knownbug 1958). */
+  const exportBeforePlace = (snapshot: AppState) => () =>
+    (isTauri() || get().activeDocumentId !== snapshot.activeDocumentId) && refuseChangedExport(snapshot);
 
   /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
    *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
@@ -2594,7 +2602,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Review #872 ronde 7 (Terra): ook de download-terugval na een geweigerde kiezer controleert de bron nog eens.
       const refuseDownload = ext === 'ifc' ? () => refuseExportBeforePicker(state) : null;
       // Knownbug 1896 (review van #1027): op de desktop dezelfde controle vlak vóór de plaatsing.
-      const refuseBeforePlace = ext === 'ifc' ? () => refuseChangedExport(state) : null;
+      const refuseBeforePlace = ext === 'ifc' ? exportBeforePlace(state) : null;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
         : { refuseTarget, refuseDownload, refuseBeforePlace };
@@ -2717,7 +2725,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = await runProjectFileWrite(async () => {
         if (refuseExportBeforePicker(state)) return null; // ook zonder doel (download), zie `exportAs`
         const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
-          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace: () => refuseChangedExport(state) });
+          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace: exportBeforePlace(state) });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         if (written && exportContentReplaced(state)) return null; // zie `exportAs`
         return written;
