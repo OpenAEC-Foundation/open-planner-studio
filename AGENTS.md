@@ -396,7 +396,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
 - **Save worker (#804 steps 4 to 6).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
-  plain writer, or the merge with a foreign part) in one reusable Web Worker. The mounted app owns one client
+  plain writer, or the merge with a foreign part) in a Web Worker. The plain writer reuses it; after every answer to a
+  merge (a result or a refusal) it stops and the next request starts a fresh one (knownbug 1936: a worker keeps the
+  garbage of its source copy and indexes, about 2 GB on the desktop at 157 MB). The mounted app owns one client
   (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
   `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
   close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
@@ -409,8 +411,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
   output buffers come back transferred, content errors arrive as the same error class, transport failures as
   `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
-  `started` message); after a crash, timeout or unreadable answer it is an error, never a retry on the main thread;
-  neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  `started` message) and none has started yet in this session; a later start failure (`not-started`; a later worker has
+  the request's time limit to start, not the short start limit), a crash, timeout or unreadable answer is an error, never
+  a retry on the main thread; neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
   before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
   bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
   stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an

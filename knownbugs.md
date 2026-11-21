@@ -3255,6 +3255,24 @@ en noem het in je rapport of PR-tekst.
      1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
      en 1922 (het ritme van Automatisch opslaan: een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
+2024. **Na elke opslag van een groot gebouwmodel staat de desktopapp ongeveer één bestand hoger, ook met een gestopte
+     opslagworker (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux bij 157 MB: na de eerste,
+     tweede en derde opslag 0,45 → 0,60 → 0,78 GB, telkens nadat de worker gestopt was. Bij vijf opslagen zou dat
+     ongeveer 0,8 GB zijn (niet gemeten). De opslagroute zelf houdt dat niet vast: in Node (dezelfde store, de echte
+     Ctrl+S met `saveFile`, de bediening van de worker, de vervangroute en een herstelronde, model van 10 MB en 4 MB)
+     staat na drie opslagen en een volledige gc alleen de nieuwe bron met haar indexen; een heap-snapshot direct na de
+     tweede opslag toont twee bronnen, de nieuwe via de store en de vorige alleen via de stack van de lopende proef
+     zelf (`scripts/proef/meet-na-opslag.ts` op de meet-branch leest `store.getState().ifcSource` in een lusvariabele).
+     De extra kopie die die proef "vanaf de tweede opslag" zag, is dus van de proef en niet van de app. Ongedaan maken
+     neemt de bron niet mee (`snapshot: 'none'` in `documentContract.ts`). Niet in de proef: de React-schermen en de
+     WebKit-kant. Vermoed: (a) JavaScriptCore ruimt de oude bron op de hoofdthread pas op als daar weer veel wordt
+     aangemaakt, of de vrije ruimte gaat niet terug naar het systeem; (b) `IFCPanel.tsx` en `ProjectInfoPanelContent.tsx`
+     selecteren `ifcSource` als object, en React houdt na een nieuwe stand de vorige waarde in de tweede kopie van het
+     onderdeel tot dat onderdeel weer tekent (hoogstens één oude bron, dus geen groei per opslag). Richting: op de
+     desktop vijf keer Ctrl+S en daarna een paar minuten wachten met af en toe een bewerking, en zien of de stand zakt;
+     met de webinspecteur een heap-snapshot na de derde opslag om te zien of oude bronnen bereikbaar zijn en via wie.
+     — S (meting desktop; de verklaring is vermoed)
+
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer
      het geschatte aantal stukken, en `IntBuf.done()` geeft een `subarray` terug, zodat de hele buffer blijft staan. De

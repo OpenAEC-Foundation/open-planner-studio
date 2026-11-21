@@ -71,8 +71,9 @@ export const IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotic
 export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
 });
-/** #804 stap 5: de opslagworker stierf, antwoordde niet op tijd of onleesbaar (`IfcSaveWorkerError`). Een mislukte opslag
- *  of export, geen weigering: er is niets geschreven en de hoofdthread rekent niet opnieuw. */
+/** #804 stap 5: de opslagworker stierf, antwoordde niet op tijd of onleesbaar, of een latere worker startte niet
+ *  (`IfcSaveWorkerError`, knownbug 1936). Een mislukte opslag of export, geen weigering: er is niets geschreven en de
+ *  hoofdthread rekent niet opnieuw; de volgende poging start een nieuwe worker. */
 export const IFC_SAVE_WORKER_FAILED_NOTICE: NotifyInput = {
   severity: 'error', messageKey: 'notifications.ifcSaveWorkerFailed', dedupeKey: 'ifc-save-worker-failed', replaceOnDedupe: true,
 };
