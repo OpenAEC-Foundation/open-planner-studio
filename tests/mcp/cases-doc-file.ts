@@ -550,6 +550,37 @@ test('export_ifc: `overwritten` meldt de WERKELIJKHEID, niet de meegestuurde vla
   assertEq(again.overwritten, true, 'een bestaand bestand vervangen ⇒ overwritten:true');
 });
 
+// Knownbug 1907 (vervolg op #1022): met `overwrite: true` verving export_ifc het bestand van een ander open document
+// zonder melding; dat tabblad wees er nog naar. Nu dezelfde doelcontrole als Opslaan als in de app: geweigerd, ook via een
+// andere schrijfwijze van hetzelfde bestand. Het eigen bestand van het actieve document en een vrije naam blijven gewoon.
+test('export_ifc met overwrite: true over het bestand van een ander open document: geweigerd, doel bytegelijk (knownbug 1907)', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Tabblad B');
+  const other = `${HOME}/tabblad-b.ifc`;
+  const otherText = 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n';
+  files.set(other, otherText);
+  useAppStore.setState({ filePath: other });
+  S().newDocument();
+  loadSmallProject('Tabblad A');
+  const own = `${HOME}/tabblad-a.ifc`;
+  files.set(own, 'ISO-10303-21;\n');
+  useAppStore.setState({ filePath: own });
+  aliases.set(`${HOME}/Tabblad-B.ifc`, other);
+  for (const path of [other, `${HOME}/Tabblad-B.ifc`]) {
+    const error = await callErr('planner_export_ifc', { path, overwrite: true });
+    assertEq(error.code, 'VALIDATION', `${path}: het bestand van een ander open document ⇒ validatiefout`);
+    assert(error.error.includes('another open document') && error.error.includes('another path'),
+      `${path}: de Engelse fout zegt waarom en wat wel kan (${error.error})`);
+    assertEq(files.get(other), otherText, `${path}: het bestand van het andere document is bytegelijk`);
+  }
+  const ownExport = await callOk('planner_export_ifc', { path: own, overwrite: true });
+  assertEq(ownExport.overwritten, true, 'het eigen bestand van het actieve document: vervangen zoals main');
+  await callOk('planner_export_ifc', { path: `${HOME}/vrij.ifc` });
+  assert(files.get(`${HOME}/vrij.ifc`)?.startsWith('ISO-10303-21') === true, 'een vrije naam: geschreven');
+  assertEq(files.get(other), otherText, 'het bestand van het andere document blijft bytegelijk');
+});
+
 test('export_ifc over het eigen bestand legt de letterlijke kalenders vast (knownbug 1026, review #872 ronde 3)', async () => {
   const fs = installFakeFs();
   resetToSingleEmptyDocument();
@@ -1157,9 +1188,18 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     // Fixronde 1: niet over het bronbestand van het andere open document met een vreemd deel.
     const sourceError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
     assertEq(sourceError.code, 'VALIDATION', 'het bronbestand van een document met een vreemd deel ⇒ validatiefout');
-    assert(sourceError.error.includes('source file of an open document') && sourceError.error.includes('another path'),
+    // Fixronde 1 van #1071, punt 3: het open tabblad gaat voor (was de fout over het bronbestand van een open document).
+    assert(sourceError.error.includes('file of another open document') && sourceError.error.includes('another path'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
+    // Fixronde 2 van #1071: met de flag uit (het modeltabblad blijft open) de reden en de tekst van main.
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    const offError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    assertEq(offError.code, 'VALIDATION', 'flag uit: validatiefout');
+    assert(offError.error.includes('source file of an open document') && offError.error.includes('another path'),
+      `flag uit: de tekst van main (${offError.error})`);
+    assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'flag uit: het modelbestand is niet veranderd');
     await callOk('planner_export_ifc', { path: target, overwrite: true });
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
 

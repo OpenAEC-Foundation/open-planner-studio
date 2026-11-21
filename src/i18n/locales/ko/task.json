@@ -47,6 +47,8 @@
     "recentColumns": "최근 사용한 열",
     "noColumns": "+로 열을 추가하세요.",
     "toggleSummary": "요약 작업 펼치기 또는 접기",
+    "toggleMilestones": "마일스톤 펼치기 또는 접기",
+    "milestonesRun": "마일스톤 ({{n}})",
     "calculatedReadOnly": "이 계산 열은 편집할 수 없습니다."
   },
   "taskGrid": {
@@ -322,7 +324,11 @@
     "rename": "편집",
     "remove": "삭제",
     "addToMine": "내 공종에 추가",
-    "confirmRemove": "이 공종은 열린 프로젝트에서 사용 중입니다. 내 공종에서 삭제하시겠습니까? 프로젝트 사본은 유지됩니다."
+    "confirmRemove": "이 공종은 열린 프로젝트에서 사용 중입니다. 내 공종에서 삭제하시겠습니까? 프로젝트 사본은 유지됩니다.",
+    "renameInProjectTitle": "이 프로젝트에서도 이름을 바꾸시겠습니까?",
+    "renameInProjectMessage": "공종 “{{oldName}}”은(는) 이 프로젝트에서도 사용됩니다. 여기에서도 “{{newName}}”(으)로 부르시겠습니까?",
+    "renameInProjectYes": "이 프로젝트에도",
+    "renameInProjectNo": "내 목록에서만"
   },
   "duration": {
     "label": "기간",

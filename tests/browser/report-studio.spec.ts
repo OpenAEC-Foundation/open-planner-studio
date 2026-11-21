@@ -6,7 +6,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
-import fontkit from '@pdf-lib/fontkit';
+import { fontkit } from '@/services/pdf/fontkit';
 import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, type PDFPage } from 'pdf-lib';
 import type { Download, Page } from '@playwright/test';
 import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';

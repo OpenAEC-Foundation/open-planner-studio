@@ -37,7 +37,13 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     texts: [
       'common:ifcExportWithoutModel.*',
       'common:ifcMissingSourceSaveAs.*',
+      'common:notifications.exportPlanOnly',
       'common:notifications.ifc2x3PlanningOnly',
+      'common:notifications.ifcForeignAutoSaveNotRecorded',
+      'common:notifications.ifcForeignAutoSaveRemnant',
+      'common:notifications.ifcForeignAutoSaveSaveAsOnly',
+      'common:notifications.ifcForeignAutoSaveTargetChanged',
+      'common:notifications.ifcForeignDownloadCopy',
       'common:notifications.ifcForeignMergeRefused',
       'common:notifications.ifcForeignNewTargetOnly',
       'common:notifications.ifcForeignOpenSchema',

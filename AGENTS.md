@@ -242,13 +242,14 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
-  `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
+  `commitSavedDocument(ref, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
   bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
-  Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
+  Pool, planOnly, paneel en dev-bridge blijven bij vreemde inhoud geblokkeerd; bestands-AutoSave schrijft sinds #804
+  stap 8 met de flag aan via de vervanging van Ctrl+S (zie *Auto-save with a building model*).
 - **IFC-bytes naar een nieuw doel (#804, T1; 1131 stap 4).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
   accepteert één `Uint8Array`. Tauri (`writeNewUserBytes`, ook voor `planner_export_ifc`) schrijft die met `createNew`
   in één aanroep naar een eigen `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de
@@ -290,7 +291,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`); desktop paths still refuse.
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane and dev-bridge blocked, and file AutoSave with the flag off or the source missing. Local existing targets remain refused (1131), except Ctrl+S and Auto-save (#804 step 8) on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark
@@ -394,11 +395,51 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
+- **Save worker (#804 steps 4 to 6).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
+  plain writer, or the merge with a foreign part) in one reusable Web Worker. The mounted app owns one client
+  (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
+  `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
+  close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
+  (`fileAutoSave.ts`, `compute` from `useAutoSave`; it checks its target after the computation, in the same write turn,
+  like Ctrl+S). Headless, scratch and test contexts, crash recovery and
+  `planner_export_ifc` stay on the main thread. A plain writer answer carries the worker's bytes; they go straight to
+  the write layer (`FileData`, `saveDataDialog`, `saveToRef`), never through text; the text only exists when the main
+  thread computed (the worker did not start). The plain writer keeps its right to overwrite (`saveFileDialog` /
+  `saveBytesDialog`, the atomic replace); `saveNewBytesDialog` stays the merge's exclusive route. `prepareIfcOutput`
+  keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
+  output buffers come back transferred, content errors arrive as the same error class, transport failures as
+  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
+  `started` message); after a crash, timeout or unreadable answer it is an error, never a retry on the main thread;
+  neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
+  bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
+  stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
+  injected worker), `save-worker-production.spec.ts` (the production config, its modules incl. dynamic chunks) and
+  `settings-tabs.spec.ts` (the app starts the worker itself on a real Ctrl+S, for a model and a plain file).
+- **Save status in the status bar** (#804 step 5, every document): "Saving…" from the request (Ctrl+S, Save As, *Save*
+  in the close question) through the end of the whole save, then "Saved 14:32", and "Unsaved" once the document changes
+  again. It lives on the document registry (`DocumentEntry.saveState`, `src/state/documentSaveState.ts`), not in
+  `DOCUMENT_FIELDS`; `commitSavedDocument` stamps the time. A failure is a normal notice, never a status.
+- **Document content identity** (#1020 fix round 1): a save belongs to the content it was requested for
+  (`DocumentContentRef`: document id plus `DocumentEntry.content`), not to the tab. Only `replaceDocumentContent`
+  changes it: another project in the same tab (`applyLoadedProject` without edit and with another project id, which
+  includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
+  read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
+  for the plain writer and in `stopBeforeWrite`) and again at the last safe point of the write layer
+  (`RefuseBeforePlace`: before `close()` of an existing browser handle, directly next to `close()` for the merge
+  handle, before setting an existing name aside, before the exclusive placement, before the atomic rename and the site
+  write, also for both IFC exports; a refusal leaves the target unchanged and returns "not written"). A handle fresh
+  from the browser's save picker gets no late check: Chromium already emptied an existing target when it was picked
+  (knownbug 1899), so the save finishes the requested file and only the commit, Recent and an export's success and
+  calendar choice are withheld, `commitSavedDocument` takes the ref and commits nothing to replaced content, and the waiting Ctrl+S,
+  the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
+  not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
   Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
-  1–5 plus the historical unversioned web `docIds` form. With `ifcForeignContent`, an optional per-document
+  1–5 plus the historical unversioned web `docIds` form. A desktop replacement of the own file (knownbug 1131 step 5)
+  keeps its own record `recovery[.<slug>].replace.<id>.json` outside the manifest (`replaceRecords.ts`). With `ifcForeignContent`, an optional per-document
   `ifcSource` reference (sha256, byteLength, foreign, optional browser handle and, while a replacement runs,
   `pendingSha256`) restores a foreign source through the ordinary bytes-open route after hash verification against
   either hash; the snapshot supplies the edited planning. Foreign documents
@@ -416,6 +457,31 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   and `recoveryStore.ts`; upgrade/blocking/error limits are in `docs/xer-recovery-guardrails.md`.
   A blocked web upgrade completes startup with a persistent storage warning; recovery refuses further DB
   access until reload, even after unblocking. There is no fallback to writing an older DB version.
+- **Auto-save with a building model (#804 step 8).** With `ifcForeignContent` on and the source present, a document with
+  a foreign part takes part in Auto-save through the same replacement as Ctrl+S on its own target
+  (`replaceOwnHandleWithRecovery` / `replaceOwnPathWithRecovery` in `src/state/ownFileReplace.ts`, never
+  `saveToRefWithoutPrompt`, never the site or a download), inside one `runYieldingProjectFileWrite`
+  (`writeCoordinator.ts`): content check, target and source check, merge in the save worker, the check again, the
+  replacement with its recovery record, and the commit. Its own rhythm per document (`modelAutoSaveRhythm.ts`, clock
+  injectable): 30 s of rest, at most 5 min after the first unsaved change, and never sooner than ten times the measured
+  duration of the previous round after its start; typing in open field input (`state/textEntryActivity.ts`) restarts the
+  rest. The timers live in `fileAutoSaveTimers.ts`; only the model timer puts a model up for its turn (`flushModels`),
+  the ordinary 10 s round knows no model, and the rhythm is checked again at the turn in the queue. Every
+  other request for the write queue (`runProjectFileWrite`: Ctrl+S, Save As, exports, MCP), every wait on it
+  (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export over its whole
+  sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
+  is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
+  `YieldingTurn.pass()`, once recovery is recorded); an export pins its document at the call and waits for a round past
+  that boundary (`whenProjectFilePlacementSettled`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a
+  round yield: it waits its turn and writes right after the model round, so a model round always gets its turn. The
+  write coordinator is the one place that assigns these turns. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
+  Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
+  a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
+  changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
+  stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
+  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.
+  Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,
   see `src/state/immerDraft.ts`). Bumping is a deliberate, separately reviewed change.

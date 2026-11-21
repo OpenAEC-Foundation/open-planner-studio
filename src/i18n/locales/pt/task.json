@@ -47,6 +47,8 @@
     "recentColumns": "Usadas recentemente",
     "noColumns": "Adicione uma coluna com +.",
     "toggleSummary": "Expandir ou recolher tarefa de resumo",
+    "toggleMilestones": "Expandir ou recolher marcos",
+    "milestonesRun": "Marcos ({{n}})",
     "calculatedReadOnly": "Esta coluna calculada não pode ser editada."
   },
   "taskGrid": {
@@ -330,7 +332,11 @@
     "rename": "Editar",
     "remove": "Remover",
     "addToMine": "Adicionar às minhas categorias de trabalho",
-    "confirmRemove": "Esta categoria de trabalho é usada no projeto aberto. Pretende removê-la de «As minhas categorias de trabalho»? A cópia do projeto permanece."
+    "confirmRemove": "Esta categoria de trabalho é usada no projeto aberto. Pretende removê-la de «As minhas categorias de trabalho»? A cópia do projeto permanece.",
+    "renameInProjectTitle": "Alterar o nome também neste projeto?",
+    "renameInProjectMessage": "A categoria de trabalho «{{oldName}}» também está neste projeto. Deseja chamar-lhe «{{newName}}» também aqui?",
+    "renameInProjectYes": "Também neste projeto",
+    "renameInProjectNo": "Só na minha lista"
   },
   "duration": {
     "label": "Duração",

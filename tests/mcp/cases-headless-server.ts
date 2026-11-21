@@ -12,7 +12,7 @@ import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
 import { test as registerTest, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -607,6 +607,29 @@ test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of
       await ok(client, 'planner_export_ifc', { path, overwrite: true });
       assert(readFileSync(path, 'utf8').includes('IFCTASK('), `${name}: geschreven`);
     }
+  } finally { await client.close(); }
+});
+
+// Knownbug 1907 (review van #1064, besluit van de orkestrator): ook headless kan meerdere IFC's open hebben. Export van B
+// naar het bestand van A weigert, ook met `overwrite: true`; A blijft bytegelijk. B naar B en naar een vrije naam mag.
+test('A knownbug 1907: export_ifc over het bestand van een ander open document weigert; het eigen bestand en een vrije naam niet', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const fileA = join(rootA, 'open-a.ifc'), fileB = join(rootA, 'open-b.ifc');
+    copyFileSync(join(PUBLIC, 'examples', '05-brugvervanging-n279.ifc'), fileA);
+    copyFileSync(EXAMPLE, fileB);
+    for (const path of [fileA, fileB]) await ok(client, 'planner_import_schedule', { path });
+    const open = app.store.getState().getOpenDocumentPayloads().map(d => d.payload.filePath);
+    assert(open.includes(fileA) && open.includes(fileB), 'A en B staan allebei open');
+    assertEq(app.store.getState().filePath, fileB, 'B is het actieve document');
+    const before = readFileSync(fileA);
+    const r = await refused(client, 'planner_export_ifc', { path: fileA, overwrite: true }, 'VALIDATION', 'B naar A');
+    assert(String(r.s.error).includes('another open document'), `de fout zegt waarom: ${r.s.error}`);
+    assert(readFileSync(fileA).equals(before), 'A is bytegelijk');
+    await ok(client, 'planner_export_ifc', { path: fileB, overwrite: true });
+    await ok(client, 'planner_export_ifc', { path: join(rootA, 'open-vrij.ifc') });
+    assert(readFileSync(join(rootA, 'open-vrij.ifc'), 'utf8').includes('IFCTASK('), 'een vrije naam: geschreven');
+    assert(readFileSync(fileA).equals(before), 'A blijft bytegelijk');
   } finally { await client.close(); }
 });
 

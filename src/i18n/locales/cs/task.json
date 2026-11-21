@@ -47,6 +47,8 @@
     "recentColumns": "Naposledy použité",
     "noColumns": "Pomocí + přidejte sloupec.",
     "toggleSummary": "Rozbalit nebo sbalit souhrnný úkol",
+    "toggleMilestones": "Rozbalit nebo sbalit milníky",
+    "milestonesRun": "Milníky ({{n}})",
     "calculatedReadOnly": "Tento vypočítaný sloupec nelze upravit."
   },
   "taskGrid": {
@@ -334,7 +336,11 @@
     "rename": "Upravit",
     "remove": "Odstranit",
     "addToMine": "Přidat do mých druhů práce",
-    "confirmRemove": "Tento druh práce se používá v otevřeném projektu. Odebrat jej ze seznamu „Moje druhy práce“? Kopie v projektu zůstane zachována."
+    "confirmRemove": "Tento druh práce se používá v otevřeném projektu. Odebrat jej ze seznamu „Moje druhy práce“? Kopie v projektu zůstane zachována.",
+    "renameInProjectTitle": "Přejmenovat i v tomto projektu?",
+    "renameInProjectMessage": "Druh práce „{{oldName}}“ se používá i v tomto projektu. Chcete jej zde také pojmenovat „{{newName}}“?",
+    "renameInProjectYes": "Také v tomto projektu",
+    "renameInProjectNo": "Pouze v mém seznamu"
   },
   "duration": {
     "label": "Doba trvání",

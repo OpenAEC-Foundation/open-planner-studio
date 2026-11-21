@@ -332,7 +332,11 @@
     "rename": "Modifier",
     "remove": "Supprimer",
     "addToMine": "Ajouter à mes catégories de travaux",
-    "confirmRemove": "Cette catégorie de travaux est utilisée dans le projet ouvert. La supprimer de « Mes catégories de travaux » ? La copie du projet reste disponible."
+    "confirmRemove": "Cette catégorie de travaux est utilisée dans le projet ouvert. La supprimer de « Mes catégories de travaux » ? La copie du projet reste disponible.",
+    "renameInProjectTitle": "Renommer aussi dans ce projet ?",
+    "renameInProjectMessage": "La catégorie de travaux « {{oldName}} » est aussi utilisée dans ce projet. Voulez-vous lui donner ici aussi le nom « {{newName}} » ?",
+    "renameInProjectYes": "Aussi dans ce projet",
+    "renameInProjectNo": "Seulement dans ma liste"
   },
   "duration": {
     "label": "Durée",

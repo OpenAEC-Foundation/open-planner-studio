@@ -42,9 +42,10 @@ const BAND = [{ start: 480, end: 1020 }];
  * Een voorganger van 20 werkdagen (of 160 uur) met daarachter `rows` taken van 5 werkdagen (of 16 uur)
  * via FS. Met een statusdatum op 10 juni liggen die opvolgers dus ruim ná de statusdatum: precies de
  * situatie waarin "100%" een einde (= statusdatum) vóór de geplande start oplevert. `statusDate`
- * `undefined` ⇒ geen statusdatum.
+ * `undefined` ⇒ geen statusdatum. Met `standaloneStart` krijgen de taken een eigen gepland begin
+ * en is er geen voorganger.
  */
-function setup(kind: Kind, statusDate: string | undefined, rows = 1, withPredecessor = true) {
+function setup(kind: Kind, statusDate: string | undefined, rows = 1, standaloneStart?: string) {
   const store = createAppStore();
   const S = () => store.getState();
   S().setProject({ startDate: '2026-06-01', ...(statusDate ? { statusDate } : {}) });
@@ -54,10 +55,11 @@ function setup(kind: Kind, statusDate: string | undefined, rows = 1, withPredece
       workTime: { byWeekday: { 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND, 6: [], 7: [] } },
     } as WorkCalendar);
   }
+  const plannedStart = standaloneStart ?? '2026-06-01';
   const time = (days: number) => kind === 'uur'
-    ? createDefaultTaskTime('2026-06-01', days * 8, 'hours')
-    : createDefaultTaskTime('2026-06-01', days);
-  const pre = withPredecessor ? S().addTask({ name: 'Voorganger', time: time(20) }) : undefined;
+    ? createDefaultTaskTime(plannedStart, days * 8, 'hours')
+    : createDefaultTaskTime(plannedStart, days);
+  const pre = standaloneStart ? undefined : S().addTask({ name: 'Voorganger', time: time(20) });
   const ids = Array.from({ length: rows }, (_, i) => S().addTask({ name: `T${i + 1}`, time: time(5) }));
   if (pre) {
     for (const id of ids) S().addSequence({ predecessorId: pre, successorId: id, type: 'FINISH_START', lagDays: 0 });
@@ -259,7 +261,7 @@ for (const { kind, statusDate } of SCENARIOS) {
 // 9. F1/D6: een datumloze status op de startdag geeft het werkelijke einde van die werkdag.
 //    De afgeleide start krijgt D1; het paar blijft geldig zonder klem naar middernacht.
 {
-  const { S, ids, time$, status$ } = setup('uur', '2026-06-10', 1, false);
+  const { S, ids, time$, status$ } = setup('uur', '2026-06-10', 1, '2026-06-10');
   const t = ids[0]!;
   eq('uur zelfde dag: voorwaarde vroege start op de statusdag, ná middernacht', time$(t).earlyStart, '2026-06-10T08:00');
   eq('uur zelfde dag: raster enkel 100% geaccepteerd',
@@ -272,12 +274,27 @@ for (const { kind, statusDate } of SCENARIOS) {
 }
 {
   // Dagtaak op dezelfde dag: de geplande start blijft vóór het afgeleide einde.
-  const { S, ids, time$, status$ } = setup('dag', '2026-06-10', 1, false);
+  const { S, ids, time$, status$ } = setup('dag', '2026-06-10', 1, '2026-06-10');
   const t = ids[0]!;
   eq('dag zelfde dag: vroege start volgt D1 van de statusdag', time$(t).earlyStart, '2026-06-10T07:00');
   S().setTaskProgress(t, 1);
   // De start lag al vóór het afgeleide einde: D1 blijft 07:00, er is geen klem nodig.
   expectClamped('dag zelfde dag: store setTaskProgress(1)', time$(t), status$(t), '2026-06-10', '2026-06-10T07:00');
+}
+
+// #998: de statusdatum kan de taak op de statusdag laten lijken terwijl haar anker eerder ligt.
+// Als alleen het percentage wordt ingevuld, geldt dat oorspronkelijke begin als werkelijke start.
+for (const { kind, start, finish } of [
+  { kind: 'uur', start: '2026-06-01T08:00', finish: '2026-06-10T17:00' },
+  { kind: 'dag', start: '2026-06-01T07:00', finish: '2026-06-10T16:00' },
+] as const) {
+  const { S, ids, time$ } = setup(kind, '2026-06-10', 1, '2026-06-01');
+  const t = ids[0]!;
+  eq(`${kind} #998: geplande taak is opgeschoven`, time$(t).earlyStart.slice(0, 10), '2026-06-10');
+  const result = S().runGridMutation([cell(t, 'task.time.completion', 'task-progress', 1)]);
+  eq(`${kind} #998: 100% houdt oorspronkelijk begin en einde op statusdatum`,
+    { accepted: result.ok, start: time$(t).actualStart, finish: time$(t).actualFinish },
+    { accepted: true, start, finish });
 }
 
 // 10. Geen onnodige klem: zonder statusdatum is het afgeleide einde de eigen geplande finish, die ná

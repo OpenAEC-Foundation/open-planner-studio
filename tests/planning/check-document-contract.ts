@@ -1063,7 +1063,7 @@ eq('i mutatie na undo wist de redo-stack', S().historyEvents.filter(event => eve
   const source = {
     bytes: new Uint8Array([73, 83, 79]), sha256: 'sha', schemaName: 'IFC4', chunkStarts: new Uint32Array([0, 3]),
     chunkIds: new Int32Array([-1]), classes: new Uint8Array([0]), stepIds: {}, foreignMembers: [], foreign: true,
-    foreignObjectCount: 1, lineEnding: '\n' as const,
+    foreignObjectCount: 1, buildingModel: true, lineEnding: '\n' as const,
   };
   useAppStore.setState((s) => { s.ifcSource = source; });
   const held = S().ifcSource;

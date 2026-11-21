@@ -3,6 +3,7 @@ import { projectForIfcExport } from '@/services/ifc/ifcSchemaQuestion';
 import type { WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
 import type { DocumentPayload } from './documentContract';
 import { unrecordedExportFields } from './recordedDatesSelectors';
+import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 
 /**
  * De round-trip-velden en de bronidentiteit die een IFC-save nodig heeft. De bronbytes staan
@@ -163,7 +164,17 @@ void _assertDirtyKeysNoExtras;
  *  `ifcSource` telt niet mee; de AutoSave-kandidaat bewaakt haar identiteit afzonderlijk. Gebruikt
  *  door `saveFile`/`saveFileAs` om te bepalen of `isDirty` gewist mag worden ná een opslaan-dialoog
  *  die minuten open kan hebben gestaan (stil `isDirty=false` zetten terwijl de gebruiker intussen
- *  wijzigde, is stil dataverlies). */
+ *  wijzigde, is stil dataverlies), en door AutoSave, het herstel en de MCP-bestandstools.
+ *  Eén uitzondering: een andere werksoortcatalogus telt alleen als de door taken gebruikte definities
+ *  verschillen (`savedCustomTaskTypes`, dezelfde selectie als de IFC-schrijver). Een ongebruikte
+ *  definitie gaat niet mee in het bestand, dus haar stille nieuwe naam (#804 keuze 7) is geen wijziging. */
 export function sameIFCSource(a: IFCSaveSource, b: IFCSaveSource): boolean {
-  return IFC_DIRTY_KEYS.every((k) => a[k] === b[k]);
+  return IFC_DIRTY_KEYS.every((k) => a[k] === b[k]
+    || (k === 'customTaskTypes' && a.tasks === b.tasks && sameSavedCustomTaskTypes(a, b)));
+}
+
+/** Zoals de schrijver ze vastlegt (`JSON.stringify` van de definities): elk veld telt mee. */
+function sameSavedCustomTaskTypes(a: IFCSaveSource, b: IFCSaveSource): boolean {
+  return JSON.stringify(savedCustomTaskTypes(a.tasks, a.customTaskTypes))
+    === JSON.stringify(savedCustomTaskTypes(b.tasks, b.customTaskTypes));
 }

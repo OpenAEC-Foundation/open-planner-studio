@@ -142,7 +142,7 @@ const {
   saveRecovery, loadRecovery, clearRecovery, fullRecoverySave, planTauriV3RecoverySave, parseRecoveryManifest, recoverySiteMeta,
 } = await import('@/services/recovery/recoveryStore');
 const { planRecoveryDelta, persistedRecoveryState } = await import('@/services/recovery/recoveryDelta');
-const { recoveryNames } = await import('@/hooks/recoveryPaths');
+const { recoveryNames } = await import('@/services/recovery/recoveryPaths');
 const { setSiteOpenAsker, setSiteSaveAsker, resetSiteAskers } = await import('@/services/fileAccess/siteDialogs');
 const { useAppStore } = await import('@/state/appStore');
 const { isActivePristine, siteSaveDefaultName, siteVersionCopyName } = await import('@/state/slices/fileSlice');

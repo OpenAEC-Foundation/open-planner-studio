@@ -20,6 +20,27 @@ export const FORBIDDEN_INPUTS = [
   'node_modules/@tauri-apps/',
 ];
 
+/** De bron van `zustand` zonder React: `create` geeft een functie-object met de store-API, net als zustand zelf, maar
+ *  zonder `useSyncExternalStore`; de hook gooit pas bij gebruik. Ook gebruikt voor de workerbundels van Vite
+ *  (`vite.config.ts`: de opslagworker laadt de storefabriek). */
+export function zustandWithoutReactSource(label) {
+  return `
+          import { createStore } from 'zustand/vanilla';
+          const bind = (api) => Object.assign(() => {
+            throw new Error(${JSON.stringify(`React hooks are not available in ${label}`)});
+          }, api);
+          export const create = (init) => (init ? bind(createStore(init)) : (i) => bind(createStore(i)));
+          export { createStore };`;
+}
+
+/** De bron van een module uit `STUBBED`: laden mag, gebruiken gooit. Ook gebruikt voor de workerbundels van Vite. */
+export function stubModuleSource(path, label) {
+  return `
+          const fail = () => { throw new Error(${JSON.stringify(`"${path}" is not available in ${label}`)}); };
+          const stub = new Proxy(function () {}, { get: (_t, k) => (k === '__esModule' ? true : k === 'then' ? undefined : fail()), apply: fail, construct: fail });
+          export default stub;`;
+}
+
 /** esbuild-plugin: zustand zonder React-hook, en een gooiende stub voor elke module uit `STUBBED`. */
 export function headlessStubPlugin(root, label) {
   return {
@@ -30,22 +51,13 @@ export function headlessStubPlugin(root, label) {
       build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-core-zustand' }));
       build.onLoad({ filter: /.*/, namespace: 'ops-core-zustand' }, () => ({
         resolveDir: root,
-        contents: `
-          import { createStore } from 'zustand/vanilla';
-          const bind = (api) => Object.assign(() => {
-            throw new Error(${JSON.stringify(`React hooks are not available in ${label}`)});
-          }, api);
-          export const create = (init) => (init ? bind(createStore(init)) : (i) => bind(createStore(i)));
-          export { createStore };`,
+        contents: zustandWithoutReactSource(label),
       }));
       for (const filter of STUBBED) {
         build.onResolve({ filter }, (args) => ({ path: args.path, namespace: 'ops-core-stub' }));
       }
       build.onLoad({ filter: /.*/, namespace: 'ops-core-stub' }, (args) => ({
-        contents: `
-          const fail = () => { throw new Error(${JSON.stringify(`"${args.path}" is not available in ${label}`)}); };
-          const stub = new Proxy(function () {}, { get: (_t, k) => (k === '__esModule' ? true : k === 'then' ? undefined : fail()), apply: fail, construct: fail });
-          export default stub;`,
+        contents: stubModuleSource(args.path, label),
       }));
     },
   };
