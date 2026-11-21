@@ -1144,6 +1144,20 @@ en noem het in je rapport of PR-tekst.
       main. De urenmelding van #954 verdwijnt bij zo'n verversing, zodat haar knop dit niet doet. Bevestigd door de
       review, niet zelf nagespeeld. — B
 
+2056. **VERVOLG (review van #1120 ronde 6): de bewaker van de urenmelding legt de stand één publicatie te laat
+      vast.** `watchNotice` (`src/state/otherWorkNotice.ts`) leest de projectdata pas nadat `notify` zijn abonnees
+      heeft aangeroepen. Wijzigt een abonnee precies op dat moment synchroon projectdata (in de proef een
+      testabonnement dat de bibliotheekkalender van 8 naar 6 uur zette), dan blijft de melding op 20 dagen staan
+      en zet haar knop ook de kalenderkopie terug. In de app bestaat zo'n route nu niet. Richting: de referenties
+      vastleggen vóór de publicatie en dezelfde toets vlak vóór de klikactie. Bevestigd door de review. — B
+
+2057. **VERVOLG (review van #1120 ronde 6): een andere resource met twee toewijzingen op de taak krijgt twee regels
+      in de urenmelding.** Een IFC kan één resource twee keer op een taak zetten. Zet Bram op 50 %, dan meldt de app
+      bij een tweede, dubbele Anna `Anna: 80 → 160 u` én `Anna: 40 → 80 u`, omdat de vergelijking per toewijzing loopt
+      (`src/state/otherWorkNotice.ts`). Richting: de werkminuten per resource optellen vóór afronden en vergelijken,
+      zodat er één regel `Anna: 120 → 240 u` staat. De bewerkte resource zelf staat er sinds ronde 4 al niet meer in.
+      Bevestigd door de review. — B
+
 1870. **VERVOLG (#1004): *Voorgangers/Opvolgers toewijzen…* blijft in de presentatiemodus hangen.** In de
       presentatie staat de rechterrail er niet (`App.tsx`), maar het rechtsklikmenu van een balk biedt de twee
       items wel (`GanttCanvas.tsx`, `onAssignRelation`). Kies je er een, dan verschijnt er niets; pas na het

@@ -553,8 +553,8 @@ export type NotificationActionLabelKey =
  *  - `openBackstageSection`: open Bestand › `section` (rekenprofielen, tutorials);
  *  - `showScheduleShift`: open het paneel Verschuivingen; de melding blijft staan (#742);
  *  - `undoScheduleShift`: draai de herberekening terug; alleen zichtbaar zolang dat kan (#742);
- *  - `undoHistoryEvent`: zet precies dit event uit de geschiedenis terug; alleen zichtbaar zolang
- *    het de stap is die Ctrl+Z nu zou terugzetten (`canRunNotificationUndo`, #954);
+ *  - `undoHistoryEvent`: zet precies dit event uit de geschiedenis terug; de melding staat er alleen
+ *    zolang het document in de stand van die stap staat (`watchNotice` in `otherWorkNotice.ts`, #954);
  *  - `clearViewArrangement`: wis filter, groepering en sortering van het ACTIEVE document
  *    (eigenaarsbesluit 2026-10-19 5a). Veilig omdat een weigering bij een documentwissel verdwijnt
  *    (5b, `clearRefusals` in uiSlice): de knop staat dus nooit boven een ander document. */
