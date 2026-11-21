@@ -50,6 +50,11 @@ interface LaunchFilesStore {
   getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads'>;
 }
 
+/** Het pad van het open document `id` als lokaal bestand, of `null` (dicht, geen pad). */
+function openFilePath(store: LaunchFilesStore, id: string): string | null {
+  return store.getState().getOpenDocumentPayloads().find((doc) => doc.id === id)?.payload.filePath ?? null;
+}
+
 export interface LaunchFileOptions {
   readOptions?: FormatReadOptions;
   identityFs?: () => Promise<FileIdentityFs | undefined>;
@@ -84,20 +89,33 @@ export async function openLaunchFiles(
   let pending: readonly string[] = paths;
   while (pending.length > 0) {
     const reread: string[] = [];
-    const files = droppedFilesFromPaths(pending, io, options.readOptions).map((file, index): DroppedFile => {
-      const path = pending[index];
-      let viaIdentity: string | null = null;
+    const files = pending.map((path): DroppedFile => {
       let writesAtRead = -1;
+      let viaIdentity: { id: string; filePath: string } | null = null;
+      // De teller vlak vóór het echte lezen: `readOpenedTauriPath` wacht eerst op een lopende schrijfbeurt, en die
+      // hoeft dan geen tweede lezing te geven.
+      const mark = () => { writesAtRead = projectFileWriteTurns(); };
+      const fileIo: TauriOpenIO = {
+        ...io,
+        readTextFile: (p) => { mark(); return io.readTextFile(p); },
+        readFile: (p) => { mark(); return io.readFile(p); },
+      };
+      const [file] = droppedFilesFromPaths([path], fileIo, options.readOptions);
       return {
         name: file.name,
         read: async () => {
-          writesAtRead = projectFileWriteTurns();
           const opened = await file.read();
-          viaIdentity = await openDocumentIdForPath(store.getState(), path, identityFs).catch(() => null);
+          // De paden van de tabbladen vóór de controle: wisselt een tabblad tijdens de `stat` van naam, dan telt het niet.
+          const pathsBefore = new Map(store.getState().getOpenDocumentPayloads().map((doc) => [doc.id, doc.payload.filePath]));
+          const id = await openDocumentIdForPath(store.getState(), path, identityFs).catch(() => null);
+          const filePath = id === null ? null : pathsBefore.get(id) ?? null;
+          viaIdentity = id !== null && filePath !== null ? { id, filePath } : null;
           return opened;
         },
         existingDocument: () => {
-          if (viaIdentity !== null && store.getState().getOpenDocumentPayloads().some(({ id }) => id === viaIdentity)) return viaIdentity;
+          // Het tabblad van de identiteitscontrole telt alleen als het nog open is én nog naar hetzelfde bestand wijst
+          // (niet na *Opslaan als* naar een andere naam).
+          if (viaIdentity !== null && openFilePath(store, viaIdentity.id) === viaIdentity.filePath) return viaIdentity.id;
           return openDocumentIdForPathText(store.getState(), path);
         },
         stale: () => {

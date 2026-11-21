@@ -307,5 +307,28 @@ const freshTab = (label: string) => {
   check(same(reads, ['/home/a/bewaar.ifc', '/home/a/bewaar.ifc']), `opslaan in de sluitvraag: na de schrijfbeurt opnieuw gelezen (${reads.join(', ')})`);
 }
 
+// ── K. Opslaan als tijdens de identiteitscontrole (review ronde 5 van #1116) ────────────────────────────────────
+{
+  // Het startbestand komt via een link binnen; het tabblad met hetzelfde bestand gaat tijdens de `stat` via Opslaan als
+  // naar een andere naam. Dat tabblad is dan niet meer het startbestand: het bestand opent in een eigen tabblad.
+  freshTab('opslaan als tijdens de controle');
+  files.set('/home/a/orig.ifc', ifcText);
+  files.set('/home/a/link3/orig.ifc', ifcText);
+  await openLaunchFiles(useAppStore, ['/home/a/orig.ifc'], io, labels, () => false);
+  const origId = S().activeDocumentId;
+  freshTab('opslaan als tijdens de controle, ander tabblad vooraan');
+  const identity = { stat: async (p: string) => {
+    if (p === '/home/a/orig.ifc') {
+      // Opslaan als van het tabblad met orig.ifc naar kopie.ifc, precies nu.
+      useAppStore.setState((s) => { const doc = s.documents.find((d) => d.id === origId); if (doc?.payload) doc.payload.filePath = '/home/a/kopie.ifc'; });
+    }
+    if (p === '/home/a/link3/orig.ifc' || p === '/home/a/orig.ifc') return { isFile: true, dev: 1, ino: 77 };
+    throw new Error(`failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`);
+  } };
+  await openLaunchFiles(useAppStore, ['/home/a/link3/orig.ifc'], io, labels, () => false, { identityFs: async () => identity });
+  check(S().activeDocumentId !== origId && S().filePath === '/home/a/link3/orig.ifc',
+    `opslaan als tijdens de controle: het startbestand opent zelf, niet het tabblad dat nu kopie.ifc is (${S().filePath})`);
+}
+
 console.log(failures === 0 ? 'launch-files: alles groen' : `launch-files: ${failures} fout(en)`);
 process.exit(failures === 0 ? 0 : 1);
