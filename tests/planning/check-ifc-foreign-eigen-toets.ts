@@ -1081,6 +1081,20 @@ async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, ed
   // Een slot dat (b) terugzet en dat de planner wijzigde, weigert zoals tot nu: een onbekend veld in de typedefinities (JSON,
   // de lezer draagt een deel) en een nieuw type (blok 2, "grens: onbekend definitieveld, typegroei").
   await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+  // De review van #1095, punt 2: met een omschrijving op `OPS_StructureMeta` valt die groep in de verliescontrole helemaal
+  // buiten de toets, zoals op de basis. Het eerste eigen veld toevoegen en een activiteitscodetype hernoemen weigeren daar
+  // (`IfcRelDeclares` en de templatelijst verschillen, en geen oude verklaring dekt dat), en dat blijft zo.
+  {
+    const described = withPsetDescription(single, PSET.StructureMeta);
+    for (const [what, edit] of [
+      ['het eerste eigen veld toevoegen', se(s => { s.addCustomField('Kostencode voor de review', 'text'); })],
+      ['een activiteitscodetype hernoemen', se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Code andere naam'); })],
+    ] as const) {
+      const { o } = await one(`per groep: omschrijving op OPS_StructureMeta, ${what}`, described, edit, 'weigert');
+      if (!o.ok) ok(`per groep: omschrijving op OPS_StructureMeta, ${what}: weigert in de verliescontrole, zoals op de basis`,
+        o.kinds.join(',') === 'niet-gedragen', `${o.kinds.join(',')}: ${o.detail}`);
+    }
+  }
   // Een omschrijving op een property waarvan de handeling de waarde zet (`ModifiedAt` verandert bij elke bewerking): de
   // waarde komt van de writer, de omschrijving zet (b) terug en blijft staan (ook op de basis); (c) toetst alleen dat slot niet.
   {

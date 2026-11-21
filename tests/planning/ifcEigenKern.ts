@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
+import { parseOutLine, refsOutsideText, type OutLine } from '@/services/ifc/foreign/lossCheck';
 import type { RestoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { generateId } from '@/utils/id';
@@ -160,6 +160,19 @@ export const withPsetDescription = (bytes: Uint8Array, pset: string, token = DES
 export const withPropertyDescription = (bytes: Uint8Array, pset: string, prop: string, token = DESCRIPTION) =>
   withSlot(bytes, `omschrijving op ${pset}.${prop}`, (l, all) => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0].trim() === `'${prop}'`
     && all.some(p => psetNamed(p, pset) && p.args[4].trim().slice(1, -1).split(',').map(x => x.trim()).includes(`#${l.id}`)), 1, token);
+/** De `IfcSimplePropertyTemplate` met naam `name` onder het `IfcPropertySetTemplate` `pset`. */
+export const templateIn = (ls: readonly OutLine[], pset: string, name: string) => {
+  const owner = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${pset}'`);
+  const ids = refsOutsideText(owner?.args[6] ?? '');
+  const found = ls.filter(l => ids.includes(l.id) && l.type === 'IFCSIMPLEPROPERTYTEMPLATE' && l.args[2].trim() === `'${name}'`);
+  assert(found.length === 1, `${pset} / ${name}: ${found.length} templates`);
+  return found[0];
+};
+/** Een omschrijving van een ander programma op de template `name` van `pset` (`IfcSimplePropertyTemplate`, argument 3). */
+export const withTemplateDescription = (bytes: Uint8Array, pset: string, name: string, token = DESCRIPTION) => {
+  const id = templateIn(linesOfBytes(bytes), pset, name).id;
+  return withSlot(bytes, `omschrijving op de template ${pset} / ${name}`, l => l.id === id, 3, token);
+};
 /** De plaats van de omschrijving van de pset in de boom van (c) (`restoredOwnSlots`). */
 export const psetDescriptionPlace = (pset: string) => `${pset}|IFCRELDEFINESBYPROPERTIES/5:IFCPROPERTYSET('${pset}')#3`;
 /** De plaats van de omschrijving van een property van de pset. */

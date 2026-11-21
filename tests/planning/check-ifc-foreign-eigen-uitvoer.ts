@@ -44,7 +44,8 @@ import {
 } from './ifcMergeKern';
 import {
   BASE, DESCRIPTION, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, linesOfBytes, ok,
-  save, se, summary, withForeignMember, withLabelOnUntypedTask, withLines, withPropertyDescription, withPsetDescription, type S,
+  save, se, summary, templateIn, withForeignMember, withLabelOnUntypedTask, withLines, withPropertyDescription, withPsetDescription,
+  withTemplateDescription, type S,
 } from './ifcEigenKern';
 
 const clockStart = () => clock.start();
@@ -824,10 +825,10 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   const firstProperty = (pset: string) => (ls: OutLine[]) => membersIn(ls, pset)[0];
   const psetLine = (pset: string) => (ls: OutLine[]) => psetOf(ls, pset);
   /** 'alleen (c)': de verliescontrole en de uitvoercontrole zonder (c) laten hem door, (c) vangt hem. 'ook (c)': de
-   *  uitvoercontrole zonder (c) laat hem door en (c) vangt hem; de verliescontrole vangt hem ook (een stuk buiten de toets).
-   *  'grens': het teruggezette slot zelf, dat (c) niet toetst. 'terugval': de groep valt terug op het gedrag van vóór PR A:
-   *  (c) slaat haar over en de verliescontrole vangt hem, zoals op de basis. */
-  type Proof = [string, Fault, 'alleen (c)' | 'ook (c)' | 'weigert' | 'grens' | 'terugval'];
+   *  uitvoercontrole zonder (c) laat hem door en (c) vangt hem; de verliescontrole vangt hem ook. '(c)': de uitvoercontrole
+   *  zonder (c) laat hem door en (c) vangt hem (wat de verliescontrole zegt, telt hier niet). 'terugval': de groep valt
+   *  terug op het gedrag van vóór PR A: (c) slaat haar over en de verliescontrole vangt hem, zoals op de basis. */
+  type Proof = [string, Fault, 'alleen (c)' | 'ook (c)' | '(c)' | 'weigert' | 'terugval'];
   async function perSlotProofs(label: string, start: Uint8Array, slotted: Uint8Array, edit: (d: Domain) => Promise<Domain> | Domain, proofs: readonly Proof[]) {
     const b = await base(`per slot: ${label}`, slotted, edit, true);
     const p = await lossProbe(b.source.bytes, b.input, b.bytes, true);
@@ -840,19 +841,24 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
       if (want === 'alleen (c)') ok(`${name}: alleen (c) vangt hem`, found.length === 0 && withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
       else if (want === 'weigert') ok(`${name}: geweigerd`, withC !== 'laat door', withC);
       else if (want === 'ook (c)') ok(`${name}: (c) vangt hem, de verliescontrole ook`, found.length > 0 && withoutC === 'laat door' && withC === 'eigen-uitvoer', `${found.length} / ${withoutC} / ${withC}`);
-      else if (want === 'terugval') ok(`${name}: (c) slaat de groep over, de verliescontrole vangt hem (zoals op de basis)`, found.length > 0 && withC === 'laat door', `${found.length} / ${withC}: ${lastDetail}`);
-      else ok(`${name}: laat door (het teruggezette slot zelf, grens van het masker)`, withC === 'laat door', `${withC}: ${lastDetail}`);
+      else if (want === '(c)') ok(`${name}: (c) vangt hem`, withoutC === 'laat door' && withC === 'eigen-uitvoer', `${withoutC} / ${withC}`);
+      else ok(`${name}: (c) slaat de groep over, de verliescontrole vangt hem (zoals op de basis)`, found.length > 0 && withC === 'laat door', `${found.length} / ${withC}: ${lastDetail}`);
     }
   }
-  /** In elke groep: een ander slot van de groep vangt (c), het teruggezette slot zelf niet. */
+  /** Het teruggezette slot zelf, in de uitvoer achteraf anders of leeg (punt 5 van de review van #1095): (c) vangt het. */
+  const restoredSlot = (what: string, pick: (ls: OutLine[]) => OutLine, arg: number): Proof[] => [
+    [`het teruggezette slot zelf: ${what} anders`, slotOf(pick, arg, "'Andere omschrijving'"), '(c)'],
+    [`het teruggezette slot zelf: ${what} leeg`, slotOf(pick, arg, '$'), '(c)'],
+  ];
+  /** In elke groep: een ander slot van de groep vangt (c), en het teruggezette slot zelf ook. */
   const inGroup = (pset: string): Proof[] => [
     [`een ander slot van ${pset}: de omschrijving van een property`, slotOf(firstProperty(pset), 1), 'alleen (c)'],
-    [`het teruggezette slot zelf: de omschrijving van ${pset} anders`, slotOf(psetLine(pset), 3, "'Andere omschrijving'"), 'grens'],
+    ...restoredSlot(`de omschrijving van ${pset}`, psetLine(pset), 3),
   ];
   const tweedeCode = se(s => { const c = s.addActivityCodeType('Code per slot'); s.addActivityCodeValue(c, { code: 'P', description: 'Per slot' }); });
   const SM = PSET.StructureMeta, TT = PSET.TaskTypes, BL = PSET.Baselines, PS = PSET.ProjectSettings;
   await perSlotProofs('omschrijving op OPS_StructureMeta, tweede code (1953)', single, withPsetDescription(single, SM), tweedeCode, [
-    ['de nieuwe codetemplate weg', templateGone('Code per slot'), 'alleen (c)'],
+    ['de nieuwe codetemplate weg (punt 3 van de review: de nacontrole)', templateGone('Code per slot'), 'ook (c)'],
     ['structure terug op de bronwaarde', back(SM, PROP.StructureMeta.structure), 'weigert'],
     ...inGroup(SM),
   ]);
@@ -876,7 +882,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     await perSlotProofs('omschrijving op OPS_Baselines, taak en baseline erbij', single, withPsetDescription(single, BL), se(s => {
       added = addTask(s, 'Taak per slot'); s.saveBaseline('Baseline per slot');
     }), [
-      ['de nieuwe TaskGuids-regel weg', inJson(PROP.Baselines.TaskGuids, v => { delete v[added]; }), 'alleen (c)'],
+      ['de nieuwe TaskGuids-regel weg (punt 3 van de review: de nacontrole)', inJson(PROP.Baselines.TaskGuids, v => { delete v[added]; }), 'ook (c)'],
       ['TaskGuids: de nieuwe GUID verkeerd', inJson(PROP.Baselines.TaskGuids, v => { v[added] = '0000000000000000000001'; }), 'alleen (c)'],
       ['Baselines terug op de bronwaarde', back(BL, PROP.Baselines.Baselines), 'weigert'],
       ...inGroup(BL),
@@ -904,15 +910,15 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   await perSlotProofs('twee slots in OPS_ProjectSettings, statusdatum zetten', single,
     withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum, [
       ['een derde slot: de omschrijving van InternalProjectId', slotOf(ls => membersIn(ls, PS).find(l => l.args[0].trim() === `'${PROP.ProjectSettings.InternalProjectId}'`)!, 1), 'alleen (c)'],
-      ['het tweede teruggezette slot zelf: de omschrijving van IfcSchemaConfirmed anders', slotOf(confirmed, 1, "'Andere omschrijving'"), 'grens'],
-      ['het teruggezette slot zelf: de omschrijving van OPS_ProjectSettings anders', slotOf(psetLine(PS), 3, "'Andere omschrijving'"), 'grens'],
+      ...restoredSlot('de omschrijving van IfcSchemaConfirmed', confirmed, 1),
+      ...restoredSlot('de omschrijving van OPS_ProjectSettings', psetLine(PS), 3),
     ]);
   // Een slot in de ene groep sluit een andere groep niet uit en maskeert er niets: de omschrijving op `OPS_TaskTypes`, de
   // handeling in `OPS_StructureMeta`; hetzelfde argument (de omschrijving, 3) op de andere pset toetst (c) wel.
   await perSlotProofs('omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, TT), tweedeCode, [
     ['de nieuwe codetemplate weg (andere groep)', templateGone('Code per slot'), 'alleen (c)'],
     ['de omschrijving van OPS_StructureMeta (hetzelfde argument, andere groep)', slotOf(psetLine(SM), 3), 'alleen (c)'],
-    ['het teruggezette slot zelf: de omschrijving van OPS_TaskTypes anders', slotOf(psetLine(TT), 3, "'Andere omschrijving'"), 'grens'],
+    ...restoredSlot('de omschrijving van OPS_TaskTypes', psetLine(TT), 3),
   ]);
   // Een slot op een tweede vorm: een omschrijving of een vreemde `Creators` op één kop, een typenaam op een taak zonder type.
   // De koppen en de typenaam op de taak vallen niet onder de toets (a), dus daar vangt ook de verliescontrole een fout in een
@@ -927,7 +933,7 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
   const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving, per slot' }); });
   await perSlotProofs('omschrijving op een kop, projectbeschrijving', cat, withHeadSlot(3, DESCRIPTION), beschrijving, [
     ['de omschrijving van een andere kop', slotOf(byGuid(otherHead.args[0]), 3), 'ook (c)'],
-    ['het teruggezette slot zelf: de omschrijving van die kop anders', slotOf(byGuid(head.args[0]), 3, "'Andere omschrijving'"), 'grens'],
+    ...restoredSlot('de omschrijving van die kop', byGuid(head.args[0]), 3),
   ]);
   await perSlotProofs('vreemde Creators op een kop, projectbeschrijving', cat,
     withHeadSlot(7, '(#95300)', ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]), beschrijving, [
@@ -940,9 +946,40 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     const untyped = (ls: OutLine[]) => ls.find(l => l.type === 'IFCTASK' && l.args[4].trim() === "'Type 0 7d'" && l.args[12]?.trim() !== '.USERDEFINED.')!;
     await perSlotProofs('typenaam op een taak zonder type, projectbeschrijving', cat, labelled, beschrijving, [
       ['een verkeerde typenaam op een getypeerde taak', slotOf(typed, 4, "'Verkeerde typenaam'"), 'ook (c)'],
-      ['het teruggezette slot zelf: een andere typenaam op die taak', slotOf(untyped, 4, "'Andere typenaam'"), 'grens'],
+      ...restoredSlot('de typenaam op die taak', untyped, 4),
     ]);
   }
+  // Een activiteitscodetype en een eigen veld met dezelfde naam (de review van #1095, punt 1 en 4): twee templates met
+  // dezelfde naam, onder een ander `IfcPropertySetTemplate`. (b) zet de omschrijving op de codetemplate terug. Een fout in de
+  // omschrijving van de gelijknamige veldtemplate vangt (c) (punt 4). De twee templates verwisseld (elk houdt zijn id en
+  // GlobalId, de lijsten wijzen kruiselings), met een andere omschrijving op de vervangende codetemplate: dan staat de
+  // bronwaarde niet meer op de regel waar (b) haar terugzette, en (c) vangt het (punt 1).
+  const shared = 'Code A 7d';
+  const both = await (async () => {
+    nextCase();
+    const opened = await openForeign(single);
+    const o = await save(await se(s => { s.addCustomField(shared, 'text'); })(cloneDomain(opened)), opened.ifcSource!);
+    assert(o.ok, 'voorbereiding: een eigen veld met de naam van de code schrijft');
+    return o.bytes;
+  })();
+  const codeTemplate = (ls: OutLine[]) => templateIn(ls, PSET.ActivityCodes, shared);
+  const fieldTemplate = (ls: OutLine[]) => templateIn(ls, PSET.CustomFields, shared);
+  const refTo = (token: string, from: number, to: number) => token.replace(new RegExp(`#${from}(?!\\d)`), `#${to}`);
+  const swapped: Fault = bytes => mutated(bytes, ls => {
+    const code = codeTemplate(ls), field = fieldTemplate(ls), codeArgs = [...code.args], fieldArgs = [...field.args];
+    fieldArgs.forEach((a, k) => { if (k > 0) setArg(code, k, a); });
+    codeArgs.forEach((a, k) => { if (k > 0) setArg(field, k, k === 3 ? "'Waarde zonder bewerking'" : a); });
+    const codes = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${PSET.ActivityCodes}'`)!;
+    const fields = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${PSET.CustomFields}'`)!;
+    setArg(codes, 6, refTo(codes.args[6], code.id, field.id));
+    setArg(fields, 6, refTo(fields.args[6], field.id, code.id));
+  });
+  await perSlotProofs('omschrijving op een codetemplate naast een gelijknamig eigen veld, projectbeschrijving', both,
+    withTemplateDescription(both, PSET.ActivityCodes, shared), beschrijving, [
+      ['de omschrijving van de gelijknamige veldtemplate (punt 4)', slotOf(fieldTemplate, 3), '(c)'],
+      ['de twee templates verwisseld, een andere omschrijving op de vervangende codetemplate (punt 1)', swapped, '(c)'],
+      ...restoredSlot('de omschrijving van de codetemplate', codeTemplate, 3),
+    ]);
 }
 
 finish();
