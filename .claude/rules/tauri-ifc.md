@@ -210,16 +210,25 @@ zonder levende taak de GlobalId waarmee hij haar zocht in `ImportResult.baseline
 (`assumedRowGuid` en `withOrphanRowGuids` in `foreign/sourceForm.ts`), zonder eigen afleiding. Het veld is geen documentveld:
 `payloadFromImport` neemt het niet over. Alleen verwijzingen buiten tekst naar een eigen regel of het `IfcProject` tellen: een vreemd lid
 van een pset, template of relatie niet. Een pset of `IfcRelDeclares` met een niet-lege ledenlijst van uitsluitend
-vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: groepen waar (b) bronwaarden terugzette, en de bronbytes zelf.
+vreemde leden (die de merge schrijft om ze te bewaren) is geen groep; een lege lijst of minstens één eigen lid wel. Niet getoetst: de slots die (b) terugzette (hieronder, per slot), en de bronbytes zelf.
 Een verschil weigert met `eigen-uitvoer`. De controle kan alleen extra weigeren. Proef: `check-ifc-foreign-eigen-uitvoer.ts`.
 
 De andere toets in de verliescontrole (PR 12b, `ownGroups` in `LossCheckInput`, `openedOwnGroups` in `mergeWriter.ts`):
 een verschil in O1 in een eigen groep op projectniveau (dezelfde indeling, op de bronregels) hoeft geen bewerking te
-verklaren als de groep in de bron gedragen is (a: geen stuk dat de herleestoets (b) nodig had; een vreemd lid sluit de groep
+verklaren als het in de bron gedragen is (a: het ligt niet in een slot dat de herleestoets (b) terugzette; een vreemd lid sluit de groep
 niet uit, stap 5 deel 1: de merge houdt het lid, ook in een pset met alleen vreemde leden als de writer de pset niet meer
 schrijft, en controle 1 bewaakt het lidmaatschap) en het openen hem niet veranderde (a′: de writer op de lezing van de bron en op `ifcSource.opened`
 schrijft in die groep hetzelfde, in de bronvorm van `sourceFormWhereUnchanged`; alleen met `opened`). Dan toetsen (c) en
-de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main. De baselinekop (PR 12c,
+de controle na openen de echte uitvoer. Geldt (a) of (a′) niet, dan blijft de controle van main.
+Per slot (stap 5 deel 2, PR A): een slot dat (b) terugzette, sluit alleen zichzelf uit van (a) en (c), niet de rest van zijn
+groep. `restoredOwnSlots` (`ownGroups.ts`) wijst het aan op zijn plaats in de boom van (c): de groep, de weg via typen en
+namen, en het argument (`OPS_ProjectSettings|IFCRELDEFINESBYPROPERTIES/5:IFCPROPERTYSET('OPS_ProjectSettings')#3`). De
+verliescontrole wijst ze aan (`ownSlots` in `LossCheckInput`) en geeft ze terug (`own`); `ownOutputProblem` maskeert ze in
+beide bomen. Is de plaats niet eenduidig (twee properties of psets met dezelfde naam, twee koppen of taken met dezelfde
+GlobalId, het slot is de naam of de GlobalId, de waarde wijst naar een eigen regel), ligt het slot in een andere groep dan in
+de bron, of is de bronwaarde van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst; de lezer leest haar
+mee, dus de rest van de groep kan na heropenen anders teruglezen, knownbug 1770), dan valt de hele groep buiten (a) en (c),
+zoals vóór PR A. Proef van het aanwijzen: `check-ifc-foreign-slotplaats.ts`. De baselinekop (PR 12c,
 E1, `headsFollowBaselines`): valt `OPS_Baselines` onder de toets, veranderde het openen ook de koppen
 niet en zette (b) geen kop terug, dan mag in de aggregatie van het eigen werkplan een kop met zijn baseline wegvallen of
 erbij komen (hooguit zoveel als de planner wiste of maakte); de rest van die aggregatie blijft exact en in volgorde. (c)
@@ -228,10 +237,12 @@ bewaakt van de koppen het aantal, de inhoud, de plaats en de GlobalId per baseli
 en zette (b) geen typenaam terug, dan mag slot 4 (`ObjectType`) veranderen van een eigen taak die in de bron en in O1
 `.USERDEFINED.` is, met hetzelfde type als bij openen, waarvan de definitie nu een andere naam heeft (een hernoemd type).
 Elk ander slot van de taakregel blijft onder de controle van main. De waarde toetst (c), per taak op GlobalId; zette (b)
-ergens een typenaam terug, dan toetst (c) geen typenaam (knownbug 1747). Beide tweede vormen staan in `SECOND_FORMS`
+een typenaam terug, dan toetst (c) alleen dat slot van die taak niet. Beide vormen blijven per groep: zette (b) iets terug in
+de pset van de vorm of in de vorm zelf, dan beweegt de vorm niet mee (knownbug 1747). Beide tweede vormen staan in `SECOND_FORMS`
 (`ownGroups.ts`: pset en vorm; `lossCheck.ts`: wat de vorm mag dragen); `openedOwnGroups` geeft per pset of het openen de
 vorm niet veranderde (`secondFormsUnchanged`). Buiten de toets: alles buiten de eigen
-projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen blijven tot stap 5. Proef:
+projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen (lijst A) en de nacontrole blijven tot PR B van
+stap 5 deel 2 (knownbug 1953). Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 
 ### Vergelijkingsklok (#804 fase 1c)
