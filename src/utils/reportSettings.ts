@@ -214,9 +214,8 @@ export interface ReportSettings {
    */
   period: ReportingPeriod;
   /**
-   * De oude periode van het resourcediagram (vóór #997) bij een EIGEN layout als bron. Of die layout op resource
-   * groepeerde, en de periode dus op het papier stond, weet pas het Rapport-tabblad als de layouts gelezen zijn; tot
-   * dan blijft de periode hier bewaard, en daarna haalt het tabblad haar weg (`legacyPeriodPatch`).
+   * De oude periode van het resourcediagram (vóór #997), zolang een andere bron dan het Resourcediagram gekozen is. Ze
+   * blijft bewaard tot een resourcebron haar overneemt (`legacyPeriodPatch`) of de planner zelf een periode kiest.
    */
   legacyResourcePeriod?: ReportingPeriod;
   tableReports: TableReportOptions;

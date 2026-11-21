@@ -652,6 +652,27 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await periodPicker.click();
   await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
   await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
+  // Een oude opslag (vóór #997) met een periode bij het Resourcediagram terwijl *Alle taken* de bron is: de periode
+  // blijft bewaard, ook als intussen een andere instelling wordt opgeslagen, en staat er weer zodra het
+  // Resourcediagram de bron is (review Sol #1005, rondes 7 en 8).
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('');
+  const oldPeriod = { preset: 'custom', from: '2026-09-07', to: '2026-09-18' };
+  await refreshStored({ period: undefined, resourceGantt: { ...(await saved()).resourceGantt, period: oldPeriod } });
+  await expect(periodPicker).toHaveAttribute('data-value', 'project');
+  const depsBefore = (await saved()).showDeps;
+  await openStep(page, 'bars');
+  await page.locator('[data-rs-switch="showDeps"]').click();
+  await expect.poll(async () => (await saved()).showDeps).toBe(!depsBefore);
+  await page.locator('[data-rs-switch="showDeps"]').click();
+  await expect.poll(async () => (await saved()).showDeps).toBe(depsBefore);
+  await openStep(page, 'tasks');
+  await rdChoice.click();
+  await expect(periodPicker).toHaveAttribute('data-value', 'custom');
+  await expect.poll(async () => { const s = await saved(); return [s.period, s.legacyResourcePeriod]; }).toEqual([oldPeriod, undefined]);
+  await periodPicker.click();
+  await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'project' });
   // Een oude opslag kent het Resourcediagram alleen als rapporttype: die opent als de layout, en ook die keuze
   // overleeft een uitstap naar een ander rapport.
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
