@@ -96,16 +96,15 @@ for (const kleur of RESOURCE_PALETTE) {
 }
 
 // ── barColors: modi, segmenten, randen (#21, ontwerp §4) ───────────────────────────────────────
-import { barCategoryDisplayColor, computeBarColors } from '@/services/print/barColors';
+import { computeBarColors } from '@/services/print/barColors';
 import type { BarPalette } from '@/services/print/barColors';
 import {
   effectiveBarColorSelection,
   resolveBarCategoryValues,
   visibleBarColorCategories,
-  type BarCategoryValue,
   type BarColorContext,
 } from '@/services/print/barColorCategories';
-import { TASK_TYPES, type Task, type TaskTime } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 
 const PAL: BarPalette = {
@@ -371,12 +370,14 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
 }
 
 // 11. Eigen werkcategorieën (issue #856): elk een eigen sleutel, naam en kleur — niet de kleur van
-//     "Overig". De kleur ligt vast per categorie-id, botst niet met een vaste categorie en niet met
-//     een andere eigen categorie (zolang er vrije paletplekken zijn), en verspringt niet als er een
-//     categorie bij komt of de volgorde van de catalogus verandert.
+//     "Overig". De kleur is die van de werksoort zelf (bewaard in bibliotheek en IFC, besluit
+//     21 november 2026); de toekenning bewaakt `check-custom-task-type-colors.ts`.
 {
   const TYPE_FIELD = { src: 'builtin', key: 'taskType' } as const;
-  const custom = [{ id: 'ctt-a', name: 'Asbest' }, { id: 'ctt-b', name: 'Groen' }, { id: 'ctt-c', name: 'Meubilair' }];
+  const custom = [
+    { id: 'ctt-a', name: 'Asbest', color: '#0D9488' }, { id: 'ctt-b', name: 'Groen', color: '#12ab9F' },
+    { id: 'ctt-c', name: 'Meubilair', color: '#0D9488' },
+  ];
   const ctx: BarColorContext = { ...CTX, customTaskTypes: custom, taskTypeLabels: { ...CTX.taskTypeLabels, USERDEFINED: 'Overig' } };
   const valueOf = (task: Task, c: BarColorContext = ctx) => resolveBarCategoryValues(task, TYPE_FIELD, c)[0];
   const other = valueOf(mkTask('o', { taskType: 'USERDEFINED' }));
@@ -388,19 +389,9 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(asbest.label === 'Asbest' && groen.label === 'Groen', `eigen categorie toont haar naam (kreeg ${asbest.label}, ${groen.label})`);
   ok(asbest.key !== other.key && asbest.key !== groen.key, 'eigen categorie heeft een eigen sleutel (eigen legendaregel)');
   ok(asbest.key === asbest2.key, 'twee taken met dezelfde eigen categorie delen sleutel en legendaregel');
-  const color = (v: BarCategoryValue) => barCategoryDisplayColor(v, PAL);
-  const builtinColors = new Set(TASK_TYPES.map(type => color(valueOf(mkTask(`b-${type}`, { taskType: type })))));
-  const customColors = [asbest, groen, meubel].map(color);
-  ok(new Set(customColors).size === 3, `drie eigen categorieën, drie kleuren (kreeg ${customColors.join(', ')})`);
-  ok(customColors.every(c => !builtinColors.has(c)), `eigen kleur botst niet met een vaste categorie (kreeg ${customColors.join(', ')})`);
-  ok(customColors.every(c => RESOURCE_PALETTE.includes(c)), 'eigen kleur komt uit het printvriendelijke palet');
-  // Vast per categorie: een vierde categorie erbij, of een andere volgorde, verandert niets aan de eerste drie.
-  const grown: BarColorContext = { ...ctx, customTaskTypes: [...custom, { id: 'ctt-d', name: 'Sloop binnen' }] };
-  const reordered: BarColorContext = { ...ctx, customTaskTypes: [...custom].reverse() };
-  for (const [label, c] of [['categorie erbij', grown], ['andere volgorde', reordered]] as const) {
-    const again = ['ctt-a', 'ctt-b', 'ctt-c'].map(id => color(valueOf(mkTask(`y-${id}`, { taskType: 'USERDEFINED', customTaskTypeId: id }), c)));
-    ok(again.join() === customColors.join(), `${label}: kleuren blijven ${customColors.join(', ')} (kreeg ${again.join(', ')})`);
-  }
+  ok(asbest.key !== meubel.key, 'twee eigen categorieën met dezelfde kleur houden elk een eigen legendaregel');
+  const got = [asbest, groen, meubel].map(v => v.color);
+  ok(got.join() === custom.map(t => t.color).join(), `eigen categorie krijgt haar bewaarde kleur, precies (kreeg ${got.join(', ')})`);
   // Een id dat niet (meer) in de catalogus staat, valt terug op "Overig" — geen lege naam.
   const orphan = valueOf(mkTask('x5', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-weg' }));
   ok(orphan.key === other.key && orphan.label === 'Overig', 'onbekende eigen categorie ⇒ Overig');

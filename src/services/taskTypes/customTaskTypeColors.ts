@@ -42,6 +42,16 @@ export function withTaskTypeColors(
   return drafts.map(({ id, name, color }) => ({ id, name, color: isTaskTypeColor(color) ? color : assigned.get(id)! }));
 }
 
+/** De definities zoals het IFC-bestand ze draagt (`OPS_TaskTypes`). Geeft het lezen (`withTaskTypeColors` op de definities
+ *  zonder kleur) precies deze kleuren, dan blijft het veld weg: dan staat er hetzelfde als in een bestand van vóór het
+ *  veld, en leest elk openen dezelfde kleuren terug. Anders staat bij elke definitie haar kleur, precies zoals ze is.
+ *  Zo verandert opslaan een oud bestand niet zolang de werksoorten gelijk blijven, en gaat er nooit een kleur verloren. */
+export function taskTypeDefinitionsForFile(types: readonly CustomTaskType[]): CustomTaskTypeDraft[] {
+  const bare = types.map(({ id, name }) => ({ id, name }));
+  const derived = withTaskTypeColors(bare);
+  return derived.every((type, i) => type.color === types[i].color) ? bare : types.map(({ id, name, color }) => ({ id, name, color }));
+}
+
 function compareIds(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }

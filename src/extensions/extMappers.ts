@@ -346,7 +346,8 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     description: t.description,
     wbsCode: t.wbsCode,
     taskType: t.taskType,
-    ...(t.customTaskTypeId ? { customTaskType: customTaskType ?? { id: t.customTaskTypeId } } : {}),
+    // Het contract kent id en naam; de kleur van de werksoort (#856) hoort er niet bij.
+    ...(t.customTaskTypeId ? { customTaskType: customTaskType ? { id: customTaskType.id, name: customTaskType.name } : { id: t.customTaskTypeId } } : {}),
     status: t.status,
     isMilestone: t.isMilestone,
     milestoneKind: t.milestoneKind,

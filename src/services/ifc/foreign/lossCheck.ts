@@ -95,7 +95,7 @@
 import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
-import type { CustomTaskType } from '@/types/taskType';
+import { taskTypeDefinitionsForFile } from '@/services/taskTypes/customTaskTypeColors';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
@@ -1825,22 +1825,6 @@ function mapJson(token: string, decode: (quoted: string) => string): unknown {
   if (!m) return undefined;
   try { return JSON.parse(decode(m[1])); } catch { return undefined; }
 }
-/** De brondefinities met de kleur van het openen erbij, als er minstens één zonder `color` was en het openen haar
- *  een kleur gaf (#856); anders `undefined`. Alleen een ontbrekend veld wordt aangevuld: een definitie met een ander
- *  veld of een andere waarde blijft zoals in de bron, zodat de vergelijking daarna haar gewone werk doet. */
-function definitionsColouredAtOpen(definitions: unknown, opened: readonly CustomTaskType[]): unknown[] | undefined {
-  if (!Array.isArray(definitions)) return undefined;
-  const colour = new Map(opened.map(t => [t.id, t.color]));
-  let added = false;
-  const result = definitions.map((definition: unknown) => {
-    if (!jsonObject(definition) || 'color' in definition || typeof definition.id !== 'string') return definition;
-    const color = colour.get(definition.id.trim());
-    if (!color) return definition;
-    added = true;
-    return { ...definition, color };
-  });
-  return added ? result : undefined;
-}
 /** De writer bewaart de domeinvolgorde. Alle bestaande definities blijven exact op hun plaats;
  * alleen werkelijk nieuwe ids mogen achteraan, met precies de domeininhoud. */
 function ownDefinitionsGrow(before: readonly unknown[], domain: readonly { id: string }[], after: unknown): boolean {
@@ -1934,25 +1918,21 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     if (!expected.size) return undefined;
     return ownMapGrows(ctx, d, before, after, expected) ? 'nieuwe baselinekoppelingen' : false;
   }
-  const opened = input.opened ?? input.pristine;
-  const oldTasks = new Map(opened.tasks.map(t => [t.id, t]));
-  // #856: een definitie zonder kleur (een bron van vóór het veld) kreeg bij openen een vaste kleur. Die kleur
-  // schrijven is geen verlies: de bron telt hier als de definities met de kleur van het openen erbij.
-  const colouredAtOpen = jsonObject(before) ? definitionsColouredAtOpen(before.definitions, opened.customTaskTypes ?? []) : undefined;
-  // Zonder typehandeling en zonder aangevulde kleur is er geen verwachte wijziging. Een gedeeltelijk gedragen
-  // bron mag dan haar onbekende inhoud via (b) behouden; een werkelijk uitvoerverschil blijft gewoon onverklaard.
-  if (!ctx.plannerChanged.has('customTaskTypes') && !colouredAtOpen
+  const oldTasks = new Map((input.opened ?? input.pristine).tasks.map(t => [t.id, t]));
+  // Zonder typehandeling is er geen verwachte wijziging. Een gedeeltelijk gedragen bron mag dan
+  // haar onbekende inhoud via (b) behouden; een werkelijk uitvoerverschil blijft gewoon onverklaard.
+  if (!ctx.plannerChanged.has('customTaskTypes')
     && !input.domain.tasks.some(t => t.customTaskTypeId !== oldTasks.get(t.id)?.customTaskTypeId)) return undefined;
   if (!jsonObject(before) || !jsonObject(after)
     || Object.keys(before).sort().join(',') !== 'definitions,taskTypeIds'
     || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
     || !Array.isArray(before.definitions) || !stringMap(before.taskTypeIds) || !stringMap(after.taskTypeIds)) return undefined;
-  const beforeDefinitions = colouredAtOpen ?? before.definitions;
   const used = new Set(input.domain.tasks.map(t => t.customTaskTypeId).filter(Boolean));
-  const definitions = (input.domain.customTaskTypes ?? []).filter(t => used.has(t.id));
-  const grows = definitions.length > beforeDefinitions.length;
-  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(beforeDefinitions, definitions, after.definitions)
-    : JSON.stringify(beforeDefinitions) !== JSON.stringify(after.definitions)
+  // Zoals de writer ze schrijft (#856: de kleur alleen als het lezen haar anders niet terug zou geven).
+  const definitions = taskTypeDefinitionsForFile((input.domain.customTaskTypes ?? []).filter(t => used.has(t.id)));
+  const grows = definitions.length > before.definitions.length;
+  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(before.definitions, definitions, after.definitions)
+    : JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
       || JSON.stringify(definitions) !== JSON.stringify(after.definitions)) return false;
   const valid = new Set(definitions.map(t => t.id));
   const replacements = new Map<string, string | undefined>();
@@ -1966,10 +1946,7 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     if (Object.prototype.hasOwnProperty.call(before.taskTypeIds, guid)) replacements.set(guid, typeId);
     else if (typeId) expected.set(guid, typeId);
   }
-  if (!grows && !replacements.size && !expected.size) {
-    return colouredAtOpen && ownMapGrows(ctx, d, before.taskTypeIds, after.taskTypeIds, expected)
-      ? 'kleur van eigen werksoorten bij openen aangevuld' : undefined;
-  }
+  if (!grows && !replacements.size && !expected.size) return undefined;
   const unchanged: Record<string, string> = { ...before.taskTypeIds };
   for (const [guid, type] of replacements) {
     delete unchanged[guid];

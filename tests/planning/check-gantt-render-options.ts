@@ -501,7 +501,7 @@ const baseInput: GanttRenderOptionsInput = {
   }],
   customFieldDefs: [{ id: 'zone', name: 'Zone', type: 'text' }],
   taskTypeLabels: { CONSTRUCTION: 'Constructie', INSTALLATION: 'Installatie' },
-  customTaskTypes: [{ id: 'ctt-asbest', name: 'Asbest' }],
+  customTaskTypes: [{ id: 'ctt-asbest', name: 'Asbest', color: '#0D9488' }],
   barColorNoneLabel: '(geen-test)',
   showBaselineOverlay: true,
   baselineOverlay: buildBaselineOverlay(baselines, 'bl1'),

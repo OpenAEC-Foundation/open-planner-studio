@@ -63,12 +63,20 @@ ok('oud bestand: geen kleur van een vaste werkcategorie', colors(opened.customTa
 eq('oud bestand: elke keer openen dezelfde kleuren', colors(readIFC(oldFile).customTaskTypes), colors(opened.customTaskTypes));
 // Een andere catalogusvolgorde in het bestand verandert de kleur per werksoort niet.
 const reordered = withoutColorField(write([typed[2], typed[0], typed[1]]));
-const byId = (types: readonly CustomTaskType[] | undefined) => Object.fromEntries((types ?? []).map(type => [type.id, type.color]));
+const byId = (types: readonly { id: string; color?: string }[] | undefined) =>
+  Object.fromEntries((types ?? []).map(type => [type.id, type.color]).sort(([a], [b]) => (a! < b! ? -1 : 1)));
 eq('oud bestand: kleur per werksoort los van de volgorde', byId(readIFC(reordered).customTaskTypes), byId(opened.customTaskTypes));
 // Opslaan schrijft de toegekende kleur; daarna blijft ze bij elk openen en opslaan gelijk.
 const savedOnce = write(opened.customTaskTypes!);
 eq('oud bestand: na opslaan staat de kleur in het bestand', byId(readIFC(savedOnce).customTaskTypes), byId(opened.customTaskTypes));
 eq('oud bestand: tweede opslaan identiek', write(readIFC(savedOnce).customTaskTypes!), savedOnce);
+// Volgen de kleuren uit het lezen, dan blijft het veld weg: opslaan verandert een oud bestand dan niet.
+eq('oud bestand: opslaan zonder bewerking geeft hetzelfde bestand', savedOnce, oldFile);
+// Volgen ze er niet uit (hier: een werksoort weg, dan schuift het lezen), dan staat elke kleur er.
+const fewerFile = writeIFC({ project, calendar, tasks: tasks.filter(task => task.customTaskTypeId !== 'ctt-a'), sequences: [], resources: [], assignments: [], customTaskTypes: opened.customTaskTypes! });
+ok('een werksoort minder: het kleurveld staat erin', fewerFile.includes('"color"'));
+eq('een werksoort minder: de anderen houden hun kleur', byId(readIFC(fewerFile).customTaskTypes),
+  byId(opened.customTaskTypes!.filter(type => type.id !== 'ctt-a')));
 
 // ── 2. Een bestand met het veld houdt precies die kleur ───────────────────────────────────────
 const exact: CustomTaskType[] = [
@@ -117,7 +125,7 @@ eq('document: opslaan bewaart de kleur', readIFC(writeIFC(buildWriteIFCInput(S()
 
 // ── 6. De balk krijgt de bewaarde kleur ───────────────────────────────────────────────────────
 const [value] = resolveBarCategoryValues(taskOf('t9', 'ctt-b'), TASK_TYPE_BAR_COLOR_FIELD, {
-  tasks: [], resources: [], assignments: [], activityCodeTypes: [], customFieldDefs: [], noneLabel: '—', customTaskTypes: exact,
+  resources: [], assignments: [], activityCodeTypes: [], customFieldDefs: [], noneLabel: '—', customTaskTypes: exact,
 });
 eq('balk: de bewaarde kleur', value?.color, '#12ab9F');
 
