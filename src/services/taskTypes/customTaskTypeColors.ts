@@ -5,7 +5,7 @@
 // Een definitie zonder geldige kleur (een oud bestand, een andere schrijver, een import, een oude
 // bibliotheek) krijgt de eerste vrije kleur. De ontbrekende kleuren gaan op volgorde van id, dus
 // hetzelfde bestand geeft bij elk openen dezelfde kleuren, ongeacht de volgorde van de catalogus.
-import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
+import { BUILTIN_TASK_TYPE_COLORS, CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
 
 /** Een bewaarde werksoortkleur is `#RRGGBB`. Iets anders telt als geen kleur. */
@@ -13,9 +13,12 @@ export function isTaskTypeColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
-/** De eerste kleur die nog niet in gebruik is; zijn ze alle in gebruik, dan de minst gebruikte. */
+/** De eerste kleur die nog niet in gebruik is; zijn ze alle in gebruik, dan de minst gebruikte. De kleuren van
+ *  de vaste werkcategorieën tellen altijd als in gebruik, ook als geen taak ze nu heeft: zo deelt een eigen werksoort
+ *  pas een kleur met een vaste als elke eigen kleur minstens zo vaak gebruikt is (review ronde 3 van #952). */
 export function freeTaskTypeColor(taken: Iterable<string>): string {
   const uses = new Map<string, number>();
+  for (const color of BUILTIN_TASK_TYPE_COLORS) uses.set(color.toUpperCase(), (uses.get(color.toUpperCase()) ?? 0) + 1);
   for (const color of taken) uses.set(color.toUpperCase(), (uses.get(color.toUpperCase()) ?? 0) + 1);
   let best = CUSTOM_TASK_TYPE_COLOR_ORDER[0];
   let bestUses = Infinity;

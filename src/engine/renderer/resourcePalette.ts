@@ -66,6 +66,8 @@ export function paletteColorForId(id: string): string {
 // thema is die bijna kritiek-rood (zie de paletkop). Geen van de tinten is kritiek-rood (#DC2626).
 const CRITICAL_LOOKALIKE_SLOT = 1;
 const BUILTIN_TASK_TYPE_SLOTS = new Set(TASK_TYPES.map(type => hashId(type) % RESOURCE_PALETTE.length));
+/** De balkkleuren van de vaste werkcategorieën (ook *Overig*), zoals de balkkleuring ze kiest. */
+export const BUILTIN_TASK_TYPE_COLORS: readonly string[] = TASK_TYPES.map(type => paletteColorForId(type));
 const CUSTOM_TASK_TYPE_EXTRA_COLORS: readonly string[] = [
   '#7E22CE', // purple-700
   '#0E7490', // cyan-700

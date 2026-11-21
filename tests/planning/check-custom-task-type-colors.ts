@@ -101,6 +101,9 @@ eq('ongeldige kleur: krijgt de eerste vrije kleur', broken[0].color, CUSTOM_TASK
 const twelve = withTaskTypeColors(Array.from({ length: 12 }, (_, i) => ({ id: `w-${String(i).padStart(2, '0')}`, name: `W${i}` })));
 eq('twaalf eigen werksoorten: twaalf verschillende kleuren', new Set(twelve.map(type => type.color)).size, 12);
 ok('twaalf eigen werksoorten: geen kleur van een vaste werkcategorie', twelve.every(type => !builtinColors.has(type.color)));
+// De dertiende: alle twaalf eigen kleuren zijn bezet, maar een vaste kleur (Bouw, Renovatie, …) komt pas als laatste.
+const thirteenth = withTaskTypeColors([{ id: 'w-12', name: 'W12' }], twelve)[0];
+ok(`de dertiende eigen werksoort deelt een eigen kleur, geen vaste (kreeg ${thirteenth.color})`, !builtinColors.has(thirteenth.color));
 ok('de kleuren zijn geen kritiek-rood', !CUSTOM_TASK_TYPE_COLOR_ORDER.includes('#DC2626') && !CUSTOM_TASK_TYPE_COLOR_ORDER.includes('#B91C1C'));
 
 // ── 3. Import zonder kleur (CSV) ──────────────────────────────────────────────────────────────

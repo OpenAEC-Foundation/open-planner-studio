@@ -10,6 +10,7 @@ import {
   applyEdit, cloneDomain, fixedCatalogEdits, mergeProblems, openForeign, ordinaryEdits, plannerEdits, savedCatalogStart,
   type Domain, type EditKind, type Opened,
 } from './ifcMergeKern';
+import { asciiJson } from '@/services/ifc/ifcPsets';
 import { SOURCES, bytesOf, clock, finish, idsAt, latin1, ok, read, save, se, summary, withWall } from './ifcEigenKern';
 
 const colorsOf = (d: Domain) => Object.fromEntries((d.customTaskTypes ?? []).map(t => [t.id, t.color]).sort(([a], [b]) => (a < b ? -1 : 1)));
@@ -30,6 +31,19 @@ ok('bron met eigen kleuren: beide kleuren staan erin', latin1(custom).includes('
 const oldWriter = withWall(read('tests/planning/fixtures/ifc-arity-oude-writer.ifc'));
 const taskTypesLine = (b: Uint8Array) => /'TaskTypes',\$,IFCTEXT\([^\n]*/.exec(latin1(b))?.[0] ?? '';
 ok('oude writer: definities zonder kleurveld', taskTypesLine(oldWriter).includes('"definitions":[{') && !taskTypesLine(oldWriter).includes('"color"'));
+
+// Een naam met een niet-ASCII-teken: de writer schrijft het als `\u00e9` (`asciiJson`). Die vorm moet de verliescontrole
+// als verliesloos herkennen.
+const accented = bytesOf(latin1(old).replace('"name":"Type 0 7d"', '"name":"Sloop \\\\u00e9n afvoer"')
+  .replaceAll("'Type 0 7d'", "'Sloop \\X2\\00E9\\X0\\n afvoer'")); // ook de typenaam op de taak (ObjectType)
+ok('bron met accent: de naam staat er als JSON-escape', latin1(accented).includes('Sloop \\\\u00e9n afvoer'));
+// Een dubbele sleutel in een definitie (een ander programma, of met de hand): de lezer houdt alleen de laatste naam. De
+// aangevulde kleur mag die eerste naam nooit stil laten verdwijnen (review ronde 2 van optie 2, punt 1).
+const doubled = bytesOf(latin1(old).replace('"name":"Type 0 7d"', '"name":"Oorspronkelijke naam","name":"Type 0 7d"'));
+ok('bron met dubbele sleutel: beide namen staan erin', latin1(doubled).includes('"name":"Oorspronkelijke naam","name":"Type 0 7d"'));
+
+/** Hoe de writer een JSON-waarde in de STEP-tekst zet: `asciiJson`, dan elke backslash verdubbeld. */
+const stepJson = (value: unknown) => asciiJson(JSON.stringify(value)).replace(/\\/g, '\\\\');
 
 let n = 1;
 async function attempt(label: string, source: Uint8Array, edit: (d: Domain, o: Opened) => Promise<Domain> | Domain) {
@@ -53,7 +67,7 @@ async function attempt(label: string, source: Uint8Array, edit: (d: Domain, o: O
   const used = new Set(d.tasks.map(t => t.customTaskTypeId).filter(Boolean));
   const written = (d.customTaskTypes ?? []).filter(t => used.has(t.id));
   ok(`${label}: elke gebruikte werksoort staat met haar kleur in het bestand`,
-    written.every(t => latin1(o.bytes).includes(`"id":"${t.id}","name":"${t.name}","color":"${t.color}"`)));
+    written.every(t => latin1(o.bytes).includes(stepJson({ id: t.id, name: t.name, color: t.color }))));
 }
 
 const beschrijving = se(s => { s.setProject({ description: 'Alleen de projectbeschrijving is gewijzigd' }); });
@@ -74,6 +88,16 @@ for (const [name, source] of [['oude bron', old], ['bron van nu', standard], ['b
   await attempt(`${name}, nieuwe werksoort`, source, nieuwType);
   await attempt(`${name}, taak wisselt van werksoort`, source, wisselen);
   await attempt(`${name}, werksoort hernoemd`, source, hernoemd);
+}
+await attempt('bron met accent, nieuwe werksoort', accented, nieuwType);
+await attempt('bron met accent, niets aan de werksoorten', accented, beschrijving);
+for (const [label, edit] of [['niets aan de werksoorten', beschrijving], ['nieuwe werksoort', nieuwType]] as const) {
+  idsAt(++n * 50_000); clock.start();
+  const opened = await openForeign(doubled);
+  const o = await save(await edit(cloneDomain(opened)), opened.ifcSource!);
+  console.log(`UITKOMST bron met dubbele sleutel, ${label}: ${summary(o)}`);
+  ok(`bron met dubbele sleutel, ${label}: weigert, of houdt de eerste naam`, !o.ok || latin1(o.bytes).includes('Oorspronkelijke naam'),
+    o.ok ? 'geschreven zonder de eerste naam' : '');
 }
 for (const kind of ['relatie-erbij', 'taak-erbij', 'taak-wissen'] as const) {
   await attempt(`oude writer, ${kind}`, oldWriter, ordinary(kind));
