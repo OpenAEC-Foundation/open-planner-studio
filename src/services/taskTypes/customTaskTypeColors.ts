@@ -42,14 +42,19 @@ export function withTaskTypeColors(
   return drafts.map(({ id, name, color }) => ({ id, name, color: isTaskTypeColor(color) ? color : assigned.get(id)! }));
 }
 
-/** De definities zoals het IFC-bestand ze draagt (`OPS_TaskTypes`). Geeft het lezen (`withTaskTypeColors` op de definities
- *  zonder kleur) precies deze kleuren, dan blijft het veld weg: dan staat er hetzelfde als in een bestand van vóór het
- *  veld, en leest elk openen dezelfde kleuren terug. Anders staat bij elke definitie haar kleur, precies zoals ze is.
- *  Zo verandert opslaan een oud bestand niet zolang de werksoorten gelijk blijven, en gaat er nooit een kleur verloren. */
-export function taskTypeDefinitionsForFile(types: readonly CustomTaskType[]): CustomTaskTypeDraft[] {
-  const bare = types.map(({ id, name }) => ({ id, name }));
-  const derived = withTaskTypeColors(bare);
-  return derived.every((type, i) => type.color === types[i].color) ? bare : types.map(({ id, name, color }) => ({ id, name, color }));
+/** Brondefinities van `OPS_TaskTypes` met de kleur die het openen gaf erbij, voor wie er geen had (`opened`: de lezing van
+ *  dezelfde bron). Alleen een ontbrekend `color` wordt aangevuld; id, naam, een bestaande kleur en elk ander veld blijven
+ *  zoals in de bron. Voor de verliescontrole van IFC met vreemde inhoud: zo telt een bron van vóór het veld als gelijk aan
+ *  wat de writer schrijft, zolang alleen de kleur van het openen erbij kwam. */
+export function withOpenedColors(definitions: unknown, opened: readonly CustomTaskType[]): unknown {
+  if (!Array.isArray(definitions)) return definitions;
+  const color = new Map(opened.map(type => [type.id, type.color]));
+  return definitions.map((definition: unknown) => {
+    if (!definition || typeof definition !== 'object' || Array.isArray(definition) || 'color' in definition) return definition;
+    const id = (definition as { id?: unknown }).id;
+    const added = typeof id === 'string' ? color.get(id.trim()) : undefined;
+    return added ? { ...definition, color: added } : definition;
+  });
 }
 
 function compareIds(a: string, b: string): number {

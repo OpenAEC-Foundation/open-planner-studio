@@ -15,6 +15,7 @@ import { CUSTOM_TASK_TYPE_COLOR_ORDER, paletteColorForId } from '@/engine/render
 import { TASK_TYPES, type Task } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
 import { addPersonalTaskType, getPersonalTaskTypes, renamePersonalTaskType } from '@/services/taskTypes/personalTaskTypes';
+import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { resolveBarCategoryValues } from '@/services/print/barColorCategories';
 import { TASK_TYPE_BAR_COLOR_FIELD } from '@/types/barColor';
 
@@ -70,11 +71,10 @@ eq('oud bestand: kleur per werksoort los van de volgorde', byId(readIFC(reordere
 const savedOnce = write(opened.customTaskTypes!);
 eq('oud bestand: na opslaan staat de kleur in het bestand', byId(readIFC(savedOnce).customTaskTypes), byId(opened.customTaskTypes));
 eq('oud bestand: tweede opslaan identiek', write(readIFC(savedOnce).customTaskTypes!), savedOnce);
-// Volgen de kleuren uit het lezen, dan blijft het veld weg: opslaan verandert een oud bestand dan niet.
-const taskTypesLine = (ifc: string) => /IFCPROPERTYSINGLEVALUE\('TaskTypes'[^\n]*/.exec(ifc)?.[0];
-ok('oud bestand: de werksoortregel is te vinden', !!taskTypesLine(oldFile));
-eq('oud bestand: opslaan zonder bewerking geeft dezelfde werksoortregel', taskTypesLine(savedOnce), taskTypesLine(oldFile));
-// Volgen ze er niet uit (hier: een werksoort weg, dan schuift het lezen), dan staat elke kleur er.
+// De kleur staat er altijd, ook als het lezen haar zelf zou afleiden: het bestand hangt dan niet meer van die afleiding af.
+ok('oud bestand: na opslaan staat elke kleur letterlijk in het bestand',
+  opened.customTaskTypes!.every(type => savedOnce.includes(`"id":"${type.id}","name":"${type.name}","color":"${type.color}"`)));
+// Een werksoort minder: het lezen zou de kleuren van de anderen anders afleiden, maar ze staan er en blijven.
 const fewerFile = writeIFC({ project, calendar, tasks: tasks.filter(task => task.customTaskTypeId !== 'ctt-a'), sequences: [], resources: [], assignments: [], customTaskTypes: opened.customTaskTypes! });
 ok('een werksoort minder: het kleurveld staat erin', fewerFile.includes('"color"'));
 eq('een werksoort minder: de anderen houden hun kleur', byId(readIFC(fewerFile).customTaskTypes),
@@ -97,6 +97,12 @@ const broken = readIFC(brokenFile).customTaskTypes!;
 eq('ongeldige kleur: andere werksoorten houden hun kleur', colors(broken).slice(1), [CUSTOM_TASK_TYPE_COLOR_ORDER[0], CUSTOM_TASK_TYPE_COLOR_ORDER[0]]);
 eq('ongeldige kleur: krijgt de eerste vrije kleur', broken[0].color, CUSTOM_TASK_TYPE_COLOR_ORDER[1]);
 
+// ── 2b. Genoeg kleuren: twaalf eigen werksoorten, twaalf kleuren, geen van een vaste werkcategorie ──
+const twelve = withTaskTypeColors(Array.from({ length: 12 }, (_, i) => ({ id: `w-${String(i).padStart(2, '0')}`, name: `W${i}` })));
+eq('twaalf eigen werksoorten: twaalf verschillende kleuren', new Set(twelve.map(type => type.color)).size, 12);
+ok('twaalf eigen werksoorten: geen kleur van een vaste werkcategorie', twelve.every(type => !builtinColors.has(type.color)));
+ok('de kleuren zijn geen kritiek-rood', !CUSTOM_TASK_TYPE_COLOR_ORDER.includes('#DC2626') && !CUSTOM_TASK_TYPE_COLOR_ORDER.includes('#B91C1C'));
+
 // ── 3. Import zonder kleur (CSV) ──────────────────────────────────────────────────────────────
 const csv = readCSV('Name;Task Type\nA;Sloopwerk\nB;Grondwerk\n');
 eq('CSV: twee vrije, verschillende kleuren', colors(csv.customTaskTypes).length === 2 && new Set(colors(csv.customTaskTypes)).size, 2);
@@ -108,9 +114,11 @@ const library = getPersonalTaskTypes();
 eq('bibliotheek: oude werksoorten krijgen vrije kleuren op volgorde van id', byId(library),
   { 'lib-1': CUSTOM_TASK_TYPE_COLOR_ORDER[0], 'lib-2': CUSTOM_TASK_TYPE_COLOR_ORDER[1] });
 eq('bibliotheek: de kleur is meteen bewaard', byId(JSON.parse(localStorage.getItem('ops-personalTaskTypes')!)), byId(library));
-const added = addPersonalTaskType('Stucwerk');
-eq('bibliotheek: een nieuwe werksoort krijgt de eerste vrije kleur', added?.color, CUSTOM_TASK_TYPE_COLOR_ORDER[2]);
-eq('bibliotheek: hernoemen houdt de kleur', renamePersonalTaskType(added!.id, 'Stukadoorswerk')?.color, CUSTOM_TASK_TYPE_COLOR_ORDER[2]);
+// Aanmaken vanuit een taak: vrij in de bibliotheek én in het geopende document (review ronde 2, punt 2).
+const inDocument: CustomTaskType[] = [{ id: 'doc-keuring', name: 'Keuring', color: CUSTOM_TASK_TYPE_COLOR_ORDER[2] }];
+const added = addPersonalTaskType('Stucwerk', undefined, undefined, inDocument);
+eq('bibliotheek: een nieuwe werksoort slaat ook de kleuren van het document over', added?.color, CUSTOM_TASK_TYPE_COLOR_ORDER[3]);
+eq('bibliotheek: hernoemen houdt de kleur', renamePersonalTaskType(added!.id, 'Stukadoorswerk')?.color, CUSTOM_TASK_TYPE_COLOR_ORDER[3]);
 eq('bibliotheek: met een gegeven kleur blijft die kleur', addPersonalTaskType('Glaswerk', 'lib-glas', '#ABCDEF')?.color, '#ABCDEF');
 
 // ── 5. Het document ───────────────────────────────────────────────────────────────────────────

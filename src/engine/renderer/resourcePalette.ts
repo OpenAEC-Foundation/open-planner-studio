@@ -60,16 +60,29 @@ export function paletteColorForId(id: string): string {
 // Een eigen werkcategorie krijgt één keer een kleur, die daarna bij haar bewaard blijft (in de
 // bibliotheek en in het IFC-bestand; besluit Ethan 21 november 2026, toekenning in
 // `src/services/taskTypes/customTaskTypeColors.ts`). Dit is de volgorde waarin die kleuren vrij komen:
-// eerst de plekken die geen vaste categorie gebruikt, daarna de rest. Plek 1 (rood-700) doet niet mee:
-// in het donkere thema is die bijna kritiek-rood (zie de paletkop).
+// eerst de paletplekken die geen vaste categorie gebruikt, dan acht eigen tinten die in geen enkel palet
+// hierboven staan (zo zijn er twaalf kleuren voordat een eigen werksoort de kleur van een vaste deelt),
+// en pas daarna de plekken van de vaste categorieën. Plek 1 (rood-700) doet niet mee: in het donkere
+// thema is die bijna kritiek-rood (zie de paletkop). Geen van de tinten is kritiek-rood (#DC2626).
 const CRITICAL_LOOKALIKE_SLOT = 1;
 const BUILTIN_TASK_TYPE_SLOTS = new Set(TASK_TYPES.map(type => hashId(type) % RESOURCE_PALETTE.length));
+const CUSTOM_TASK_TYPE_EXTRA_COLORS: readonly string[] = [
+  '#7E22CE', // purple-700
+  '#0E7490', // cyan-700
+  '#15803D', // green-700
+  '#CA8A04', // yellow-600
+  '#F472B6', // pink-400
+  '#2563EB', // blue-600
+  '#7C2D12', // orange-900
+  '#94A3B8', // slate-400
+];
 export const CUSTOM_TASK_TYPE_COLOR_ORDER: readonly string[] = (() => {
   const usable = RESOURCE_PALETTE.map((_, slot) => slot).filter(slot => slot !== CRITICAL_LOOKALIKE_SLOT);
   return [
-    ...usable.filter(slot => !BUILTIN_TASK_TYPE_SLOTS.has(slot)),
-    ...usable.filter(slot => BUILTIN_TASK_TYPE_SLOTS.has(slot)),
-  ].map(slot => RESOURCE_PALETTE[slot]);
+    ...usable.filter(slot => !BUILTIN_TASK_TYPE_SLOTS.has(slot)).map(slot => RESOURCE_PALETTE[slot]),
+    ...CUSTOM_TASK_TYPE_EXTRA_COLORS,
+    ...usable.filter(slot => BUILTIN_TASK_TYPE_SLOTS.has(slot)).map(slot => RESOURCE_PALETTE[slot]),
+  ];
 })();
 
 /**

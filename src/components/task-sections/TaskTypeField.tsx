@@ -103,7 +103,8 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
     onChange({ taskType: 'USERDEFINED', customTaskTypeId: type.id });
   };
   const create = () => {
-    const type = addPersonalTaskType(name);
+    // Een kleur die vrij is in je lijst én in dit project (#856).
+    const type = addPersonalTaskType(name, undefined, undefined, storedProject);
     if (!type) return;
     chooseCustom(type);
     setName('');

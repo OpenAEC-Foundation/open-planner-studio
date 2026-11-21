@@ -16,7 +16,6 @@ import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } f
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
-import { taskTypeDefinitionsForFile } from '@/services/taskTypes/customTaskTypeColors';
 import {
   canonicalizeBands, clockToMinutes, deriveHoursPerDay, hoursPerDayDiffers, effectiveCalendarByTask, minutesToClock, minutesToIsoDuration,
   taskMinutesForWrite,
@@ -787,13 +786,12 @@ function writeXerSourceArchive(
 }
 
 /** Eigen taaktypen blijven IFC-geldig: de taak zelf is `.USERDEFINED.` met een ObjectType-label;
- * deze project-pset bewaart de stabiele OPS-id, de projectkopie en de kleur (#856, zie
- * `taskTypeDefinitionsForFile`: het veld `color` staat er als het lezen de kleuren anders niet terug zou geven). */
+ * deze project-pset bewaart de stabiele OPS-id, de projectkopie en de kleur (`color`, #856). */
 function writeTaskTypeMeta(
   ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
 ): void {
   if (!tasks.some(t => t.customTaskTypeId)) return;
-  const definitions = taskTypeDefinitionsForFile(savedCustomTaskTypes(tasks, customTaskTypes));
+  const definitions = savedCustomTaskTypes(tasks, customTaskTypes);
   const taskTypeIds: Record<string, string> = {};
   for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });

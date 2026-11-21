@@ -1000,13 +1000,6 @@ en noem het in je rapport of PR-tekst.
      cursor landt op B/R1 in plaats van B/R2, want B kreeg WBS 1 en geen pad deelt het begin `["2"]`. Voorstel: ook
      gelijke groepswaarden op latere posities meetellen. Uit de review van #947 (GPT-6.1-Sol, xhigh, ronde 6,
      BEVESTIGD, VERVOLG). — B
-1676. **Een oude IFC met vreemde inhoud weigert bij een nieuwe werksoort waarvan de kleur niet uit het lezen volgt.**
-     De writer laat het veld `color` in `OPS_TaskTypes` weg zolang het lezen dezelfde kleuren afleidt
-     (`taskTypeDefinitionsForFile`, #856). Komt er in een oud bestand met een vreemd deel (flag `ifcForeignContent`) een
-     werksoort bij die daar niet in past (bijvoorbeeld een werksoort uit *Mijn werksoorten* met een ouder id), dan krijgt
-     elke definitie haar kleur, en ziet de verliescontrole de bestaande definities veranderen: opslaan weigert
-     (`merge-needs-phase2`). Er gaat niets verloren. Voorstel: in `explainOwnMapGrowth` (`lossCheck.ts`) een bestaande
-     definitie gelijk laten tellen als alleen haar kleur erbij kwam, en die kleur dezelfde is als bij openen. — S
 1677. **CSV, MS Project XML en P6 XML dragen de kleur van een eigen werksoort niet.** Ze schrijven alleen id en naam
      (`encodeCustomTaskType`, de CSV-kolom); bij inlezen krijgt de werksoort weer een vrije kleur, die kan afwijken van
      de kleur in het project. Gezien bij #856, dat de kleur alleen in de bibliotheek en het IFC-bestand bewaart (besluit

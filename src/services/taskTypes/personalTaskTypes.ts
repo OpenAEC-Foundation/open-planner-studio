@@ -74,8 +74,11 @@ export function subscribePersonalTaskTypes(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 /** Voegt een werksoort toe. Een gegeven geldige kleur (bijvoorbeeld van de projectkopie) blijft; anders
- *  krijgt ze de eerste kleur die in de bibliotheek nog vrij is (#856). */
-export function addPersonalTaskType(name: string, preferredId?: string, color?: string): CustomTaskType | null {
+ *  krijgt ze de eerste kleur die vrij is in de bibliotheek én in `inUse` (de werksoorten van het geopende
+ *  document, #856). */
+export function addPersonalTaskType(
+  name: string, preferredId?: string, color?: string, inUse: readonly CustomTaskType[] = [],
+): CustomTaskType | null {
   const clean = name.trim();
   if (!clean) return null;
   const all = load();
@@ -83,7 +86,7 @@ export function addPersonalTaskType(name: string, preferredId?: string, color?: 
   if (existingById) return sameTaskTypeName(existingById.name, clean) ? existingById : null;
   const existing = all.find(t => sameTaskTypeName(t.name, clean));
   if (existing) return preferredId && existing.id !== preferredId ? null : existing;
-  const [type] = withTaskTypeColors([{ id: preferredId ?? generateId('tasktype'), name: clean, color }], all);
+  const [type] = withTaskTypeColors([{ id: preferredId ?? generateId('tasktype'), name: clean, color }], [...all, ...inUse]);
   save([...all, type]);
   return type;
 }

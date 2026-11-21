@@ -95,7 +95,7 @@
 import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
-import { taskTypeDefinitionsForFile } from '@/services/taskTypes/customTaskTypeColors';
+import { withOpenedColors } from '@/services/taskTypes/customTaskTypeColors';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
@@ -1045,6 +1045,20 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     });
   };
 
+  /** De werksoortkleur (#856): een definitie in `OPS_TaskTypes` zonder `color` (een bron van vóór het veld) krijgt bij
+   *  openen een vaste kleur, en de writer schrijft die. Dat telt als dezelfde waarde als de bron met precies die kleur
+   *  erbij (`withOpenedColors`, de lezing van de bron); elk ander verschil (id, naam, koppeling, een bestaande kleur, een
+   *  onbekend veld) blijft een verschil. */
+  const isTaskTypesSlot = (s: number, type: string, k2: number) => type === 'IFCPROPERTYSINGLEVALUE' && k2 === 2
+    && index.name(s) === PROP.TaskTypes.TaskTypes && psetNameOf(index, s) === PSET.TaskTypes;
+  const sameTaskTypes = (s: number, a: string, b: string): boolean => {
+    if (same(s, a, b, false)) return true;
+    const before = mapJson(a, q => index.tokenText(s, q)), after = mapJson(b, outDecode);
+    if (!jsonObject(before) || after === undefined) return false;
+    const upgraded = { ...before, definitions: withOpenedColors(before.definitions, input.pristine.customTaskTypes ?? []) };
+    return JSON.stringify(upgraded) === JSON.stringify(after);
+  };
+
   for (const [s, o] of pairs) {
     const line = out.get(o);
     const type = index.type(s);
@@ -1069,6 +1083,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
         : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
+        : isTaskTypesSlot(s, type, k2) ? sameTaskTypes(s, at, bt)
         : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
@@ -1928,11 +1943,12 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
     || !Array.isArray(before.definitions) || !stringMap(before.taskTypeIds) || !stringMap(after.taskTypeIds)) return undefined;
   const used = new Set(input.domain.tasks.map(t => t.customTaskTypeId).filter(Boolean));
-  // Zoals de writer ze schrijft (#856: de kleur alleen als het lezen haar anders niet terug zou geven).
-  const definitions = taskTypeDefinitionsForFile((input.domain.customTaskTypes ?? []).filter(t => used.has(t.id)));
-  const grows = definitions.length > before.definitions.length;
-  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(before.definitions, definitions, after.definitions)
-    : JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
+  const definitions = (input.domain.customTaskTypes ?? []).filter(t => used.has(t.id));
+  // Een brondefinitie zonder kleur telt met de kleur van het openen (#856, zie `sameTaskTypes` in `compareOutput`).
+  const beforeDefinitions = withOpenedColors(before.definitions, input.pristine.customTaskTypes ?? []) as unknown[];
+  const grows = definitions.length > beforeDefinitions.length;
+  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(beforeDefinitions, definitions, after.definitions)
+    : JSON.stringify(beforeDefinitions) !== JSON.stringify(after.definitions)
       || JSON.stringify(definitions) !== JSON.stringify(after.definitions)) return false;
   const valid = new Set(definitions.map(t => t.id));
   const replacements = new Map<string, string | undefined>();

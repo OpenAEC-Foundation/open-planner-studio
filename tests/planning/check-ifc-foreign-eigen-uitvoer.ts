@@ -870,18 +870,14 @@ function hasKey(x: unknown, key: string, seen = new Set<object>()): boolean {
     s.ensureProjectTaskType({ id: 'type-slot', name: 'Type per slot' });
     s.updateTask(leaves(s).find((t: any) => !t.customTaskTypeId).id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-slot' });
   }), [
-    // Met een eigen kleur (#856): een definitie zonder kleur zou bij lezen de afgeleide kleuren van de andere verschuiven,
-    // en dan vangt de controle na openen haar al vóór (c).
-    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd', color: '#000000' }); }), 'ook (c)'],
+    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'ook (c)'],
     ['TaskTypes terug op de bronwaarde', back(TT, PROP.TaskTypes.TaskTypes), 'weigert'],
     ...inGroup(TT),
   ]);
   await perSlotProofs('omschrijving op OPS_TaskTypes, type wisselen', cat, withPsetDescription(cat, TT), se(s => {
     s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-b' });
   }), [
-    // Met een eigen kleur (#856): een definitie zonder kleur zou bij lezen de afgeleide kleuren van de andere verschuiven,
-    // en dan vangt de controle na openen haar al vóór (c).
-    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd', color: '#000000' }); }), 'ook (c)'],
+    ['TaskTypes: extra definitie zonder handeling', inJson(PROP.TaskTypes.TaskTypes, v => { v.definitions.push({ id: 'ongevraagd', name: 'Ongevraagd' }); }), 'ook (c)'],
     ['TaskTypes terug op de bronwaarde', back(TT, PROP.TaskTypes.TaskTypes), 'weigert'],
     ...inGroup(TT),
   ]);
