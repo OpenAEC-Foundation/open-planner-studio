@@ -33,6 +33,7 @@ import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
+import { useLaunchFiles } from '@/hooks/useLaunchFiles';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
 import { useExternalSourceCheck } from '@/hooks/useExternalSourceCheck';
 import { useDependentProjectsAutoSearch } from '@/hooks/useDependentProjectsAutoSearch';
@@ -213,6 +214,9 @@ function AppContent() {
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
+  // Desktop: een bestand dat bij het starten is meegegeven, of door een tweede start (issue #1091). Ook pas
+  // na de herstelkeuze; tot dan houdt Rust de paden vast.
+  useLaunchFiles(recoveryResolved, recovery);
   // Dev-link `?open=<pad>` (alleen de browser op de dev-server, docs/dev-link.md): opent na de
   // herstelkeuze een bestand uit de repo, bijv. `examples/…`, via de gewone openroute. Niet in Tauri-dev. Valt
   // met de dynamische import uit elke productiebouw, net als de haken in main.tsx.

@@ -26,6 +26,8 @@ interface FileDropStore {
  * openroute. `isBlocked` is dezelfde poort als Ctrl+O (een open dialoog, een wachtende vraag).
  *
  * - Bij het neerzetten: is de poort dicht, dan wordt niets gelezen en geeft de app één melding.
+ *   Met `waitWhenBlocked` (een bestand dat bij het starten is meegegeven, issue #1091) weigert
+ *   de app dan niet: het bestand wacht, net als hieronder, tot de poort open is.
  * - Vlak vóór het activeren van elk document: is de poort dan dicht, of staat de uitleg over het
  *   formaat van het vorige bestand nog klaar, dan wacht dit bestand tot die weg is. Zo gooit een
  *   documentwissel nooit de invoer weg van een dialoog die de planner tijdens het lezen opende, en
@@ -36,9 +38,10 @@ export async function openDroppedFiles(
   files: readonly DroppedFile[],
   labels: ImportLabels,
   isBlocked: () => boolean,
+  options: { waitWhenBlocked?: boolean } = {},
 ): Promise<void> {
   if (files.length === 0) return;
-  if (isBlocked()) {
+  if (!options.waitWhenBlocked && isBlocked()) {
     store.getState().notify({
       severity: 'error',
       messageKey: 'notifications.fileDropBlocked',

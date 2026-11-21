@@ -235,6 +235,7 @@ check-kalender-ms-wandeling.ts matrix
 check-keyboard-event-routing.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
+check-launch-files.ts matrix
 check-layout-presets.ts matrix
 check-leveler-candidate-axis.ts matrix
 check-leveler-ceiling.ts matrix
