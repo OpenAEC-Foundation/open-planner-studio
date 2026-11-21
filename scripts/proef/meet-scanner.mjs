@@ -35,6 +35,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { closeSync, createReadStream, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,8 +58,13 @@ if (sizes.some(s => s > 50) && process.env.CI !== 'true') {
 }
 
 const work = mkdtempSync(join(tmpdir(), 'ops-meet-scanner-'));
+// Meet-branch: dezelfde defines en alias als tests/planning/run.sh (`__OPS_DEV_INSTANCE__`, de trie van fontkit); zonder
+// de define faalt de bundel met de store sinds de laatste meetrun (ReferenceError in recoveryPaths.ts).
+const fontkitPath = createRequire(join(ROOT, 'tests/planning/x.js')).resolve('fontkit');
+const UNICODE_TRIE = join(dirname(createRequire(fontkitPath).resolve('unicode-properties')), 'binaryTrie.browser.js');
 const ESBUILD_COMMON = ['--bundle', `--alias:@=${join(ROOT, 'src')}`, '--log-level=error', '--external:react-dom/server',
-  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"'];
+  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"',
+  '--define:__OPS_DEV_INSTANCE__="test"', `--alias:#binary-trie=${UNICODE_TRIE}`];
 
 // ── Bundels ──────────────────────────────────────────────────────────────────────────────────────────────────────
 writeFileSync(join(work, 'node-entry.ts'), `
