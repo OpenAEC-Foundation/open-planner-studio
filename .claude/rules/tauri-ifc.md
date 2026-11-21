@@ -282,6 +282,16 @@ geen vergelijkingsdatum mee. Projectdatums en bestaande baseline-aanmaakdatums b
 ontbrekende datums met de echte klok vullen. `check-ifc-foreign-klok.ts` bewaakt beide klokgrenzen,
 bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkingsdatum.
 
+### De grens van de bytes-route (#804, knownbug 1936)
+
+`IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`) is de enige plek van de grens: 150 MiB (binair, sinds 21 november 2026,
+besluit van de eigenaar). Openen (`ifcBytesRoute.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`), de doelscan bij opslaan
+(`targetForeignScan.ts`) en de headless MCP-server lezen hem; een bestand van precies de grens valt eronder (`>`).
+Boven de grens gaat openen via de gewone route; weigert die om een vreemd deel in een schema uit
+`FOREIGN_CONTENT_SCHEMAS`, dan is de fout `IfcForeignTooLargeError` (melding `ifcForeignOpenTooLarge`, de grens in MB).
+De uitvoer van opslaan heeft geen grens (knownbug 2043); een bestaand doel boven de grens is onleesbaar (2044).
+Bewaakt in `check-ifc-foreign-open.ts` (deel 7a) en `check-ifc-foreign-target.ts` (deel 9c).
+
 ### Auteur en bedrijf (#804 fase 1c)
 
 De bytes-route geeft `selectPlanning` mee via de bestaande leesopties. Alleen daar kiest `extractProject` voor auteur en

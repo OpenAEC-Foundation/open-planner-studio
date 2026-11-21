@@ -571,7 +571,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 6. **Terugval naar de huidige route (v21, fase 1a; afwijking 7).** De bytes-route valt terug op de route van nu: de bytes
    als UTF-8-tekst naar `readIFC`, met de modelweigering en zonder `ifcSource`. Dat gebeurt in vier gevallen
    (`src/services/ifc/foreign/ifcBytesRoute.ts:77-96`):
-   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, §4.13);
+   - de bron is groter dan de grens van `IFC_BYTES_ROUTE_MAX_BYTES` (150 MiB sinds 21 november 2026, eerder 300 MiB; §4.13);
    - de scanner weigert de bytes (§4.1), ook als `readIFC` het bestand wel opent;
    - de kopnaam is geen van de herkende namen van §4.11;
    - de lezer kiest andere taken, resources, kalenders, een ander werkplan of een ander werkschema dan `selectPlanning`
@@ -909,6 +909,10 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
 - Voorlopige grens: 150 MB, gecontroleerd vóór het volledig lezen. De echte grens volgt uit de meting in fase 0.
+- Grens sinds 21 november 2026: 150 MiB (binair), één constante (`IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts`) voor
+  openen en de doelscan bij opslaan (besluit van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen"; knownbug
+  1936). Fase 0 liet 300 MiB toe; opslaan van 157 MB piekte op de desktop op 3,45 tot 3,93 GB. Boven de grens weigert
+  openen een bestand met een vreemd deel met een melding die de grens noemt.
 
 ### 4.14 Herstel en een ontbrekende bron
 
