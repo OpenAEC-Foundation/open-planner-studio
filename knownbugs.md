@@ -1019,6 +1019,17 @@ en noem het in je rapport of PR-tekst.
      werksoort in één planning in beeld. Gezien in review ronde 4 van optie 2 op #952. Voorstel: elke berekende tint
      toetsen aan de echte Gantt-achtergronden en een te zwakke overslaan. — B (code)
 
+1680. **VERVOLG (#856): een werksoort met een expliciete kleur van een vaste werkcategorie houdt die kleur in een nieuw
+     project.** Een bestand mag een eigen werksoort de kleur van *Bouw* (`#1E293B`) geven; die blijft bij openen precies.
+     Zet je haar in *Mijn werksoorten* en kies je haar in een andere planning naast *Bouw*, dan houdt de projectkopie die
+     kleur: `enteringDocument` (`customTaskTypeColors.ts`) kijkt bij een meegegeven kleur alleen naar de eigen
+     werksoorten van het document, niet naar de vaste kleuren. Gezien in review ronde 5 van optie 2 op #952.
+     Voorstel: daar ook de vaste kleuren meetellen; `enteringDocument` kan dan met `some` en één `freeTaskTypeColor`. — B (code)
+
+1681. **VERVOLG (#856): de berekende reeks werksoortkleuren is begrensd.** Na 2.181 verschillende kleuren geeft
+     `freeTaskTypeColor` weer de eerste kleur van de reeks (`#DB2777`). De terugval heeft nog geen gerichte test. Gezien
+     in review ronde 5 van optie 2 op #952. Voorstel: een test die de terugval vastlegt. — B (code)
+
 1827. **VERVOLG (#804 keuze 7, werksoorten): verwijderen van een werksoort die het project gebruikt vraagt via `window.confirm`.**
      `deleteType` in `src/components/task-sections/TaskTypeField.tsx` toont de vraag `taskType.confirmRemove` met de
      browservraag in plaats van de eigen `Dialog`/`ConfirmDialog` van de app; die ziet er anders uit dan de rest, volgt
