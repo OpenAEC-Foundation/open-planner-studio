@@ -10,10 +10,10 @@
 // Daarom kijkt de wissel vlak vóór het activeren synchroon of het gevonden tabblad nog hetzelfde bestand heeft
 // (review #1121): *Opslaan als*, sluiten of hernoemen tijdens de toets of tijdens een wachtende neerzetting laat het
 // gevraagde bestand dan gewoon openen, zoals main.
-import type { FileRef } from '@/services/fileAccess';
+import { readBytesFromRef, readFromRef, readOpenedPath, type FileRef, type OpenedFile } from '@/services/fileAccess';
+import { projectFileWriteTurns } from '@/services/fileAccess/writeCoordinator';
 import { sameEntry } from '@/services/fileAccess/foreignSourceTarget';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { openDocumentIdForPath, type WriteTargetState } from './ifcForeignGuard';
 import type { AppState } from './appStoreFactory';
 import type { DocumentPayload } from './documentContract';
@@ -61,47 +61,88 @@ export async function openDocumentFor(
   return null;
 }
 
-/** `openDocumentFor`, alleen met de flag aan. Met de flag uit `null` zonder belofte, zodat de openroute geen await
- *  krijgt en precies main blijft. */
-export function alreadyOpenDocument(
-  s: WriteTargetState,
-  ref: FileRef | null,
-  identityFs: () => Promise<FileIdentityFs | undefined>,
-): Promise<OpenDocumentMatch | null> | null {
-  return ifcForeignContentEnabled(s.ui.featureFlags) ? openDocumentFor(s, ref, identityFs) : null;
-}
-
 export const FILE_ALREADY_OPEN_NOTICE: NotifyInput = {
   severity: 'info',
   messageKey: 'notifications.fileAlreadyOpen',
   dedupeKey: 'file-already-open',
 };
 
-/**
- * Ga naar het tabblad van `match`, met de melding; synchroon, in dezelfde stap als waarin de openroute anders zou
- * activeren. `false` als dat tabblad intussen gesloten is of een ander bestand heeft (*Opslaan als*, hernoemen): dan
- * opent de route het gevraagde bestand gewoon, zodat het niet stil verdwijnt en de app niet naar een ander bestand gaat.
- */
-export function switchToOpenDocument(
-  s: Pick<AppState, 'getOpenDocumentPayloads' | 'switchDocument' | 'notify'>,
-  match: OpenDocumentMatch,
-): boolean {
-  const now = s.getOpenDocumentPayloads().find(d => d.id === match.id)?.payload;
-  if (!now || now.filePath !== match.file.filePath || now.fileHandle !== match.file.fileHandle
-    || now.siteFileId !== match.file.siteFileId) return false;
-  s.switchDocument(match.id);
-  s.notify(FILE_ALREADY_OPEN_NOTICE);
-  return true;
+/** Hoe vaak een openactie met `waitWhile` opnieuw kijkt. De poort van slepen leest ook de dialoogstapel buiten de store
+ *  (`isAnyDialogOpen`), dus een abonnement op de store is niet genoeg. */
+export const OPEN_WAIT_POLL_MS = 200;
+
+type OpenState = Pick<AppState, 'getOpenDocumentPayloads' | 'switchDocument' | 'notify'>;
+
+/** Het bestand van elk open tabblad: waar de uitkomst van de toets van afhangt. */
+const tabFiles = (s: Pick<AppState, 'getOpenDocumentPayloads'>) =>
+  s.getOpenDocumentPayloads().map(({ id, payload }) => ({ id, ...fileOf(payload) }));
+const sameTabFiles = (a: ReturnType<typeof tabFiles>, b: ReturnType<typeof tabFiles>) => a.length === b.length
+  && a.every((t, i) => t.id === b[i].id && t.filePath === b[i].filePath && t.fileHandle === b[i].fileHandle
+    && t.siteFileId === b[i].siteFileId);
+
+export interface OpenOrSwitchSteps {
+  /** `projectFileWriteTurns()` van vóór het lezen van wat de route opent. */
+  readonly writes: number;
+  /** Wacht vóór het activeren zolang dit waar geeft (de poort van slepen en van een startbestand). */
+  readonly waitWhile?: () => boolean;
+  /** Synchroon, vlak vóór het wisselen of openen: mag de route nog iets doen (pauze, alleen-lezen van MCP)? */
+  readonly ready?: () => boolean;
+  /** Lees en parse het bestand opnieuw; zonder (de site) opent de route wat ze las. */
+  readonly reread?: () => Promise<void>;
+  /** Open het bestand in een eigen tabblad, synchroon; `false` als de route er toch van afziet. */
+  readonly open: () => boolean;
 }
 
 /**
- * Ga naar het tabblad `id` dat de startroute vond (`existingDocument`, #1091): met de flag aan met dezelfde melding als
- * `switchToOpenDocument`, met de flag uit zonder, zoals main.
+ * Knownbug 1957, met de flag `ifcForeignContent`: open `ref`, of ga naar het tabblad dat het al open heeft. De toets is
+ * asynchroon (`stat`, `isSameEntry`); haar uitkomst geldt alleen zolang waar ze op rust niet veranderde (review #1121,
+ * ronde 1 en 2): het bestand van elk tabblad, en geen schrijfbeurt sinds het lezen (`projectFileWriteTurns`). In één
+ * synchrone stap na alle wachtmomenten, met het activeren:
+ *  - kreeg een tabblad intussen een ander bestand, ging er een open of een dicht ⇒ de toets opnieuw;
+ *  - een treffer ⇒ naar dat tabblad, met de melding; het houdt zijn inhoud;
+ *  - geen treffer, maar wel een schrijfbeurt (bijvoorbeeld *Opslaan als* naar dit bestand in een tabblad dat daarna
+ *    dichtging) ⇒ het gelezene kan oud zijn: opnieuw lezen en weer toetsen;
+ *  - anders ⇒ openen (`open`).
+ * `'switched'`, `'opened'`, of `'skipped'` als `ready` of `open` nee zei. Met de flag uit roept geen route dit aan.
  */
-export function switchToExistingDocument(
-  s: Pick<AppState, 'switchDocument' | 'notify' | 'ui'>,
-  id: string,
-): void {
-  s.switchDocument(id);
-  if (ifcForeignContentEnabled(s.ui.featureFlags)) s.notify(FILE_ALREADY_OPEN_NOTICE);
+export async function openOrSwitch(
+  get: () => OpenState,
+  ref: FileRef,
+  identityFs: () => Promise<FileIdentityFs | undefined>,
+  steps: OpenOrSwitchSteps,
+): Promise<'switched' | 'opened' | 'skipped'> {
+  let writes = steps.writes;
+  for (;;) {
+    const tabs = tabFiles(get());
+    const match = await openDocumentFor(get(), ref, identityFs);
+    if (steps.waitWhile) while (steps.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
+    // Vanaf hier synchroon tot en met het activeren.
+    const s = get();
+    if (!sameTabFiles(tabFiles(s), tabs)) continue;
+    if (match) {
+      if (steps.ready && !steps.ready()) return 'skipped';
+      s.switchDocument(match.id);
+      s.notify(FILE_ALREADY_OPEN_NOTICE);
+      return 'switched';
+    }
+    if (steps.reread && projectFileWriteTurns() !== writes) {
+      writes = projectFileWriteTurns();
+      await steps.reread();
+      continue;
+    }
+    if (steps.ready && !steps.ready()) return 'skipped';
+    return steps.open() ? 'opened' : 'skipped';
+  }
+}
+
+/** Lees `opened` opnieuw via zijn ref, met dezelfde bytekeuze (de leesroute van Recent). `null` zonder pad of handle. */
+export async function rereadOpened(opened: OpenedFile): Promise<OpenedFile | null> {
+  const ref = opened.ref;
+  const asBytes = opened.bytes !== undefined;
+  if (ref?.kind === 'path') return { ...await readOpenedPath(ref.path, asBytes), name: opened.name };
+  if (ref?.kind !== 'handle') return null;
+  const content = asBytes ? null : await readFromRef(ref);
+  const bytes = asBytes ? await readBytesFromRef(ref) : null;
+  if (content === null && bytes === null) throw new Error(`'${opened.name}' could not be read again`);
+  return { name: opened.name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
 }

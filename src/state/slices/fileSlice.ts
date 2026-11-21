@@ -101,7 +101,8 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { alreadyOpenDocument, switchToExistingDocument, switchToOpenDocument } from '../openDocumentFor';
+import { OPEN_WAIT_POLL_MS, openOrSwitch, rereadOpened } from '../openDocumentFor';
+import { projectFileWriteTurns } from '@/services/fileAccess/writeCoordinator';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -141,9 +142,7 @@ export function isActivePristine(s: AppState): boolean {
  * ("failed to open file at path: … Permission denied (os error 13)"); `(err as Error).message` gaf
  * daar `undefined` en de gebruiker zag alleen "Opslaan mislukt" zonder reden.
  */
-/** Hoe vaak `openOpenedFile` met `waitWhile` opnieuw kijkt. De poort van slepen leest ook de
- *  dialoogstapel buiten de store (`isAnyDialogOpen`), dus een abonnement op de store is niet genoeg. */
-export const OPEN_WAIT_POLL_MS = 200;
+export { OPEN_WAIT_POLL_MS } from '../openDocumentFor';
 
 export function saveErrorDetail(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -1477,9 +1476,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
     if (choice.version === undefined) {
       // Knownbug 1957 (met de flag): staat dit sitebestand al open, dan naar dat tabblad; het houdt zijn eigen basis.
-      const lookup = alreadyOpenDocument(get(), opened.ref, fileIdentityFs);
-      const match = lookup && await lookup;
-      if (match && switchToOpenDocument(get(), match)) {
+      // Geen herlezing: een oudere basis geeft bij opslaan een conflict of een kopie op de site, geen stille overschrijving.
+      if (opened.ref && ifcForeignContentEnabled(get().ui.featureFlags)) {
+        await openOrSwitch(get, opened.ref, fileIdentityFs, {
+          writes: projectFileWriteTurns(),
+          open: () => {
+            get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
+            offerFormatNotice(opened.name, opened.content);
+            return true;
+          },
+        });
         await pushRecent(opened.ref, opened.name);
         return;
       }
@@ -2430,27 +2436,39 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
+        const writes = projectFileWriteTurns();
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
-        // Knownbug 1957 (met de flag): staat dit bestand al in een tabblad open? Vóór het wachten, want de toets is
-        // asynchroon en het activeren hieronder moet in één synchrone stap blijven. Met de flag uit geen await.
-        const lookup = alreadyOpenDocument(get(), opened.ref, fileIdentityFs);
-        const match = lookup && await lookup;
+        // Knownbug 1957 (met de flag): staat dit bestand al in een tabblad open, dan naar dat tabblad
+        // (`openOrSwitch`). Met de flag uit precies main: geen toets, geen extra await.
+        if (opened.ref && ifcForeignContentEnabled(get().ui.featureFlags)) {
+          let current = { opened, parsed };
+          const outcome = await openOrSwitch(get, opened.ref, fileIdentityFs, {
+            writes,
+            waitWhile: options?.waitWhile,
+            reread: async () => {
+              const again = (await rereadOpened(current.opened)) ?? current.opened;
+              current = { opened: again, parsed: await parseOpenedFile({ name: again.name, text: again.content, bytes: again.bytes }, labels, formatReadOptions()) };
+            },
+            // Een startbestand dat intussen een schrijfbeurt kruiste, leest de startroute zelf opnieuw (`stale`).
+            open: () => {
+              if (options?.stale?.()) return false;
+              get().openAsDocument(current.parsed, { name: current.opened.name, ref: current.opened.ref });
+              offerFormatNotice(current.opened.name, current.opened.content);
+              return true;
+            },
+          });
+          if (outcome !== 'skipped') await pushRecent(opened.ref, opened.name);
+          return;
+        }
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
-        // Naar het tabblad dat al open is; het houdt zijn inhoud. Sloot de planner het tijdens het wachten, of heeft het
-        // intussen een ander bestand (Opslaan als), dan opent het gevraagde bestand gewoon.
-        if (match && switchToOpenDocument(get(), match)) {
-          await pushRecent(opened.ref, opened.name);
-          return;
-        }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
-        // Met de flag aan met de melding van de toets hierboven (knownbug 1957); met de flag uit zoals main.
         const existing = options?.existingDocument?.() ?? null;
         if (existing !== null) {
-          switchToExistingDocument(get(), existing);
+          get().switchDocument(existing);
           return;
         }
         if (options?.stale?.()) return;
