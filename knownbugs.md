@@ -1123,6 +1123,12 @@ en noem het in je rapport of PR-tekst.
      vergelijkt alle acht namen opnieuw. Voor later: die stap in hetzelfde scenario, met de bestaande hulp
      `chooseLocale`. Gevonden door de review van #943. — B
 
+1881. **VERVOLG (#992): een oudere app kan Boliviaanse feestdagen niet opnieuw genereren.** De lezer van
+      v2026.47.0 neemt de nieuwe IFC-herkomstcode `BO` over. Bij hergeneratie heeft die versie geen bijbehorende
+      feestdagenset en geeft `materializeHolidays` een TypeError op `defs`. Bevestigd in reviewronde 1 met de
+      generator uit die release. Richting voor toekomstige uitbreidingen: bied hergeneratie alleen aan voor
+      een bekende set. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -3220,6 +3226,11 @@ en noem het in je rapport of PR-tekst.
       app-instellingen. De stapscript-test (`tests/browser/tutorials/tut-5.ts`, stap `werkregel`) is
       bijgewerkt, maar de tekst van tutorial 5 staat in de tutorials-extensie, buiten deze repo, en is
       niet nagelopen. Richting: de tekst daar controleren op "tabblad Planning" / "Planning tab". — S
+
+1880. **VERVOLG (#992): de Spaanse Help noemt de nieuwe keuze Bolivia nog niet.** Het aanwezige Spaanse
+      artikel `public/docs/es/howto-feestdagen-genereren.md` toont de oude landenlijst. De Help kiest dit
+      artikel boven de bijgewerkte Engelse versie. Bevestigd in reviewronde 1. Werk het bij via de
+      bestaande vertaalroute voor Help. — B
 
 ## Teksten en helpteksten
 
