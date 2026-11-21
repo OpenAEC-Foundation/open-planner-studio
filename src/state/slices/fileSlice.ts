@@ -1368,10 +1368,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const refuseExportBeforePlace = (snapshot: AppState): boolean => {
     const now = get();
     if (now.activeDocumentId === snapshot.activeDocumentId) return refuseChangedExport(snapshot);
+    const foreign = hasForeignContent(snapshot.ifcSource);
     const exported = sameDocumentContent(now, snapshotContent(snapshot)) ? saveSourceForDocument(now, snapshot.activeDocumentId) : null;
-    if (exported && sameIFCSource(snapshot, exported)
-      && (!hasForeignContent(snapshot.ifcSource) || exported.ifcSource === snapshot.ifcSource)) {
-      if (!hasForeignContent(snapshot.ifcSource)) return false;
+    if (exported && sameIFCSource(snapshot, exported) && (!foreign || exported.ifcSource === snapshot.ifcSource)) {
+      if (!foreign) return false;
       const doc = { ifcSource: exported.ifcSource, foreignSourceMark: exported.foreignSourceMark, ui: now.ui };
       if (!ifcFullWriteBlocked(doc)) return false;
       now.notify(ifcWriteBlockedNotice(doc));
