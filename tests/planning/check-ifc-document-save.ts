@@ -3916,7 +3916,7 @@ for (const flag of ['aan', 'uit'] as const) {
   });
 }
 
-// ── Knownbug 1939: de coördinator beslist over voorrang en toelating van timerwerk ───────────────────────────────────
+// ── Knownbug 1939: de coördinator beslist over volgorde en toelating van timerwerk ───────────────────────────────────
 /** Elke plaatsing op deze handles, met het moment op de nagebootste klok (`afterClose` van de dubbel). */
 function placementsOf(timed: ReturnType<typeof fakeSchedule>, names: Record<string, string>) {
   const placed: string[] = [];
@@ -3927,12 +3927,12 @@ function placementsOf(timed: ReturnType<typeof fakeSchedule>, names: Record<stri
 }
 const MANUAL_TASK = 'Handmatig op te slaan';
 
-// Knownbug 1937 (proef van de reviewer, ronde 4): de modelronde rekent vanaf 32 s, de gewone tik van 40 s wacht erachter
-// (hij rekent twee nagebootste seconden), en op 43 s komt Ctrl+S in een derde tabblad. Ctrl+S laat de modelronde wijken en
-// krijgt als volgende de beurt: hij schrijft op 43 s, de gewone tik daarna. Met de flag uit (geen modelronde) schreef de tik
-// al op 42 s en schrijft Ctrl+S ook op 43 s, zoals main.
+// Knownbug 1937 (proef van de reviewer, ronde 4; blijft open, fixronde 2 van de review van #1093): de modelronde rekent
+// vanaf 32 s, de gewone tik van 40 s wacht erachter (hij rekent twee nagebootste seconden), en op 43 s komt Ctrl+S in een
+// derde tabblad. Ctrl+S laat de modelronde wijken; de tik vroeg eerder om de rij en schrijft eerst, op 45 s, daarna
+// Ctrl+S, zoals main. Met de flag uit (geen modelronde) schreef de tik al op 42 s en schrijft Ctrl+S op 43 s.
 for (const flag of ['aan', 'uit'] as const) {
-  await check(`1939 stap 1: Ctrl+S terwijl een gewone tik achter een modelronde wacht, schrijft meteen; de tik daarna (flag ${flag})`, async () => {
+  await check(`1937: Ctrl+S terwijl een gewone tik achter een modelronde wacht, schrijft na de tik, zoals main (flag ${flag})`, async () => {
     const sw = saveWorker('manual');
     let timed: ReturnType<typeof fakeSchedule> | undefined;
     const compute: IfcOutputCompute = async (job, stop) => {
@@ -3976,8 +3976,8 @@ for (const flag of ['aan', 'uit'] as const) {
       assert.equal(dirty(manual), false);
       assert.equal(hash(fileOf(name)), hash(bytes), 'het gebouwmodel onveranderd: de ronde week');
       assert.deepEqual(files.placed, ['gewoon 10000', 'gewoon 20000', 'gewoon 30000',
-        ...flag === 'aan' ? ['handmatig 43000', 'gewoon 45000'] : ['gewoon 42000', 'handmatig 43000']],
-      'Ctrl+S schrijft op 43 s; de gewone tik schrijft daarna (flag aan) of was al klaar (flag uit)');
+        ...flag === 'aan' ? ['gewoon 45000', 'handmatig 45000'] : ['gewoon 42000', 'handmatig 43000']],
+      'de gewone tik schrijft eerst (flag aan: op 45 s, daarna Ctrl+S) of was al klaar (flag uit)');
     } finally { files.dispose(); timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
   });
 }
@@ -4340,6 +4340,137 @@ await check('1939 fixronde 1, punt 2: desktop, drie gewone documenten (flag uit)
     rmSync(appData, { recursive: true, force: true });
   }
 });
+
+// Review van #1093, ronde 2 (de proef van de reviewer) en het restant van knownbug 1893: een gebouwmodel rekent, de
+// gewone doorgang van A wacht achter die modelronde op haar plek, en dan komt de handmatige actie in B. Eén rij op
+// aankomst, zoals main: de doorgang vroeg eerder om de rij, dus A schrijft eerst en de versie van B blijft op het bestand
+// staan. Varianten: in de browser Opslaan als vanuit B naar het bestand van A (1893), en op de desktop hetzelfde gewone
+// bestand twee keer via Openen (knownbug 1957) met Ctrl+S in B, met de flag aan en met de flag die tijdens het rekenen
+// uitgaat. `BEWIJS ronde 2` drukt eindbestand, meldingen en herstel af om met main te vergelijken.
+for (const scenario of ['browser, Opslaan als naar het bestand van A', 'desktop, twee keer Openen, Ctrl+S in B',
+  'desktop, twee keer Openen, flag uit tijdens het rekenen, Ctrl+S in B'] as const) {
+  await check(`1939 fixronde 2: de doorgang van A wacht achter een modelronde; ${scenario}; de versie van B blijft staan`, async () => {
+    const isDesktop = scenario.startsWith('desktop');
+    const flagOff = scenario.includes('flag uit');
+    const appData = isDesktop ? mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-')) : undefined;
+    const ipc = isDesktop ? desktop(appData) : null;
+    const browser = isDesktop ? null : browserDownload();
+    const events: string[] = [];
+    reseed(1893);
+    const sw = saveWorker('manual');
+    const input = plainBytes();
+    const runId = ++handleCount;
+    const aName = `fix1093-r2-${runId}-A.ifc`, bName = `fix1093-r2-${runId}-B.ifc`, modelName = `fix1093-r2-${runId}-model.ifc`;
+    const aPath = join(dir, aName);
+    const onTarget = () => {
+      const data = isDesktop ? new Uint8Array(readFileSync(aPath)) : fileOf(aName);
+      return ['A', 'B'].find(label => plainText(data).includes(`'Review1893 ${label}'`)) ?? 'invoer';
+    };
+    const compute: IfcOutputCompute = async (job, stop) => {
+      if (job.kind === 'merge') {
+        events.push('model rekent');
+        stop?.addEventListener('abort', () => events.push('model wijkt'), { once: true });
+        return sw.compute(job, stop);
+      }
+      const label = job.input.tasks.find(task => task.name.startsWith('Review1893 '))?.name ?? 'onbekend';
+      events.push(`${label} rekent; op het bestand: ${onTarget()}`);
+      return computeIfcOutputHere(job);
+    };
+    const { createAppStoreContext } = await loadStore();
+    const { store } = createAppStoreContext({ ifcSaveCompute: compute });
+    store.setState(state => { state.ui.featureFlags = { ifcForeignContent: true }; });
+    const unregister = recoveryRounds(store);
+    let picked = '';
+    const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> };
+      showSaveFilePicker?: () => Promise<FakeHandle>; showOpenFilePicker?: () => never };
+    const invoke = ipc ? win.__TAURI_INTERNALS__.invoke : undefined;
+    const open = async (name: string, data: Uint8Array) => {
+      if (ipc) {
+        // Openen via de bestandskiezer van de desktop, zoals de planner het doet.
+        picked = join(dir, name);
+        if (!existsSync(picked)) writeFileSync(picked, data);
+        await store.getState().openFile();
+      } else {
+        handleFiles.set(name, data);
+        await store.getState().openOpenedFile({ name, content: '', bytes: data,
+          ref: { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle } });
+      }
+      return store.getState().activeDocumentId;
+    };
+    try {
+      if (ipc && invoke) win.__TAURI_INTERNALS__.invoke = async (...args) => args[0] === 'plugin:dialog|open' ? picked : invoke(...args);
+      const model = await open(modelName, bytes);
+      assert(hasForeignContent(store.getState().ifcSource));
+      const a = await open(aName, input);
+      const b = await open(isDesktop ? aName : bName, input);
+      assert.equal(new Set([model, a, b]).size, 3, 'drie tabbladen');
+      if (isDesktop) assert.deepEqual([payloadOf(store, a).filePath, payloadOf(store, b).filePath], [aPath, aPath],
+        'Openen opent hetzelfde bestand een tweede keer (knownbug 1957)');
+      store.getState().switchDocument(model);
+      store.getState().setAutoSaveToFile(true);
+      longer(store);
+      store.getState().switchDocument(a);
+      store.getState().setAutoSaveToFile(true);
+      store.getState().updateTask(leaf(store).id, { name: 'Review1893 A' });
+      store.getState().runCPM();
+      store.getState().switchDocument(b);
+      store.getState().setAutoSaveToFile(false);
+      store.getState().updateTask(leaf(store).id, { name: 'Review1893 B' });
+      store.getState().runCPM();
+      if (!isDesktop) {
+        win.showOpenFilePicker = () => { throw new Error('Openen via de kiezer hoort hier niet'); };
+        win.showSaveFilePicker = async () => {
+          events.push(`kiezer kiest A; op het bestand: ${onTarget()}`);
+          handleFiles.set(aName, new Uint8Array());
+          return new FakeHandle(aName);
+        };
+      }
+      clearNotices(store);
+      const labels = new Map([[model, 'model'], [a, 'A'], [b, 'B']]);
+      const tracker = new RecoveryDeltaTracker();
+      const clock = autoClock();
+      const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute, now: clock.now });
+      controller.observe(); clock.rest();
+      const modelRound = controller.flushModels();
+      await mergeArrives(sw, 1);
+      sw.workers[0]!.start();
+      if (flagOff) {
+        store.getState().setUI({ featureFlags: { ifcForeignContent: false } });
+        controller.observe();
+        assert.equal(controller.nextModelRoundAt(), null, 'met de flag uit komt er geen volgende modelronde');
+      }
+      const tick = controller.flush();
+      await someTurns();
+      assert(isProjectFileWriteBusy() && payloadOf(store, a).isDirty, 'de doorgang van A wacht achter de modelronde');
+      assert.deepEqual(events, ['model rekent']);
+      const manual = (isDesktop ? ctrlS(store) : store.getState().saveFileAs()).then(result => {
+        events.push(`handmatig klaar; op het bestand: ${onTarget()}`);
+        return result;
+      });
+      const [manualResult] = await Promise.all([manual, tick, modelRound]);
+      await turnUntil(() => !isProjectFileWriteBusy() && !controller.isSaving(), 'de rij is leeg');
+      const data = isDesktop ? new Uint8Array(readFileSync(aPath)) : fileOf(aName);
+      const finalTask = (await reopenOrdinary(data, true)).tasks.find(task => task.name.startsWith('Review1893 '))?.name;
+      const notices = noticesOf(store);
+      const recovery = await recoveryOf(store, tracker, !flagOff, labels, 'Review1893 ');
+      console.log(`BEWIJS ronde 2 (${scenario}): ${JSON.stringify({ events, finalTask, sha256: hash(data), notices, recovery })}`);
+      assert.deepEqual(events, ['model rekent', 'model wijkt', 'Review1893 A rekent; op het bestand: invoer',
+        'Review1893 B rekent; op het bestand: A', ...isDesktop ? [] : ['kiezer kiest A; op het bestand: A'],
+        'handmatig klaar; op het bestand: B'], 'A schrijft eerst, daarna B, zoals main');
+      assert.equal(finalTask, 'Review1893 B', 'de versie van B blijft op het bestand staan');
+      if (isDesktop) assert.equal(manualResult, true);
+      assert.deepEqual([payloadOf(store, a).isDirty, payloadOf(store, b).isDirty], [false, false]);
+      assert.deepEqual(notices, flagOff ? [['error', 'notifications.ifcForeignSaveBlocked', 1]] : [], 'meldingen als op main');
+      if (browser) assert.equal(browser.downloads.length, 0);
+    } finally {
+      unregister(); sw.client.dispose(); browser?.dispose();
+      delete win.showOpenFilePicker;
+      await clearRecovery();
+      ipc?.dispose();
+      if (appData) rmSync(appData, { recursive: true, force: true });
+    }
+  });
+}
 
 await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen model begint niet als er intussen getypt is', async () => {
   const sw = saveWorker('manual'), { store, name: firstName } = await openHandle(bytes, sw.compute), unregister = recoveryRounds(store);

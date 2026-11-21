@@ -3091,7 +3091,10 @@ en noem het in je rapport of PR-tekst.
      geen eigen aanduiding. Sinds knownbug 1939 houdt een schrijftoestemming die blijft hangen (`canWrite`, in de
      browser `queryPermission`) binnen een open gewone doorgang van Automatisch opslaan ook de rondes met een
      gebouwmodel tegen; een handmatige actie en het afsluiten niet (wie voorgaat, laat de modelronde wijken, en een
-     geweken modelronde maakt haar beurt af zonder te schrijven; `check-actual-autosave.ts` 22f).
+     geweken modelronde maakt haar beurt af zonder te schrijven; `check-actual-autosave.ts` 22f). Moest die doorgang
+     eerst achter een modelronde op haar plek wachten, dan houdt ze bij haar beurt het slot vast tot haar eerste write
+     (zoals op main de tik die zijn write al had aangevraagd): blijft haar schrijftoestemming dan hangen, dan wachten een
+     latere handmatige actie en het sluiten van een tabblad mee; de laatste fase van afsluiten en de updater niet (22i).
      Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
      tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
 1814. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
@@ -4150,6 +4153,24 @@ en noem het in je rapport of PR-tekst.
       als, een export, een tabblad of de app sluiten), niet meer voor een gewone tik; de verlenging geldt dan na zo'n
       actie. Hoort bij 1922. — B (proef van de reviewer)
 
+1937. **VERVOLG (review #1033, ronde 4): een gewone tik die nog wacht, gaat vóór Ctrl+S.** "De modelworker begon op 32
+      s, de gewone tik kwam op 40 s in de rij, en Ctrl+S op een ander tabblad liet de modelworker op 43 s meteen wijken.
+      De gewone tik begon toen pas te rekenen en hield Ctrl+S tot 45 s tegen. Op main en met de vlag uit was dezelfde
+      gewone tik al klaar toen ik Ctrl+S aanriep. Die schreef daar op 43 s. De twee seconden rekentijd zijn nagebootst.
+      Dit is een verschuiving van punt 3 uit ronde 3 en zit in de structuur. `runProjectFileWrite` breekt het modelwerk
+      af, waarna de volgorde van aankomst de nog wachtende gewone tik voorlaat. Ook main wacht als een gewone write al
+      loopt (knownbug 1904). Geef de handmatige actie als volgende de beurt vóór wachtend timerwerk. Laat een al
+      begonnen gewone write of plaatsing veilig aflopen." (`writeCoordinator.ts`.) Besluit technisch beslisser: VERVOLG,
+      er gaat niets verloren en het is een zeldzame volgorde. Blijft open sinds #1093 (knownbug 1939): het advies
+      hierboven kan zo niet gebouwd worden zonder een toets op een gedeeld doel. Wie een handmatige actie vóór een
+      wachtende tik zet, laat de automatische opslag van een ander tabblad ná de handmatige opslag komen zodra twee
+      tabbladen hetzelfde bestand als doel hebben (Opslaan als naar het bestand van een ander tabblad in de browser,
+      1893; hetzelfde bestand twee keer geopend, 1957); de handmatig gekozen versie wordt dan stil overschreven (review
+      van #1093, ronde 1 en 2). Het is wachttijd, geen verlies. Besluit technisch beslisser, 21 november 2026: "Wachttijd
+      tegen stil verlies wint verlies." De coördinator houdt één rij op aankomst, zoals main; de klokproef
+      (`check-ifc-document-save.ts`, "1937: …") verwacht wat main doet: Ctrl+S op 45 s, na de tik. — B (proef van de
+      reviewer)
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -5169,11 +5190,19 @@ en noem het in je rapport of PR-tekst.
      of het andere tabblad zijn bestand laten loslaten zodat zijn Ctrl+S Opslaan als wordt; of de keuze in de browser
      anders laten lopen (de richting van 1899). Een nieuwe vraag of melding is een keuze voor de eigenaar. Hetzelfde geldt
      voor *Exporteren*: op de desktop weigert het sinds 1907 een bestand dat in een ander tabblad open staat, in de
-     browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. Sinds #1093
-     (knownbug 1939) komt er in de browser met de flag aan één geval bij: wacht de gewone doorgang van het andere tabblad
-     achter een modelronde op haar plek, dan komt ze ná deze Opslaan als en schrijft ze de planning van dat tabblad terug
-     over de gekozen versie, zonder melding; vóór #1093 schreef die tik eerst en bleef de gekozen versie staan (gezien met
-     een tijdelijke proef op de PR en op de bron van main). — B (proef)
+     browser vergelijkt de doelcontrole ook daar geen handles en schrijft de export het bestand helemaal. — B (proef)
+
+1957. **Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.** Kiest de planner op de
+     desktop via *Openen* een bestand dat al in een tabblad open staat, dan opent de app het nog eens, in een nieuw
+     tabblad, zonder melding en zonder naar het open tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde
+     pad; slaat de planner het ene op (Ctrl+S of Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg.
+     Dezelfde familie als 1893. Gezien met een proef voor de bestandskiezer op de desktop (`check-ifc-document-save.ts`,
+     "1939 fixronde 2 … twee keer Openen"). Uit de code: Recent (`openRecentFile`), een bestand op het venster slepen
+     (`openDroppedFiles`) en `planner_import_schedule` lopen door dezelfde route (`openOpenedFile` of direct
+     `openAsDocument`), en die kijkt niet of het doel al in een tabblad open staat. In de browser evenmin: een handle uit
+     de kiezer of van een sleep wordt niet met de open tabbladen vergeleken (`isSameEntry` dient alleen om de lijst van
+     Recent te ontdubbelen, `recentFiles.ts`); niet met een proef nagegaan. Voorstel: het tweede Openen wisselt naar het
+     open tabblad. Een keuze voor de eigenaar, samen met 1893. — B (proef, bestandskiezer op de desktop)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2

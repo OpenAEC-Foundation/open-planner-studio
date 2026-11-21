@@ -314,11 +314,11 @@ const admitted = async () => {
   await runAutoSaveRound('model', async () => { listed = true; });
   return listed;
 };
-/** Een gewone tik zoals in productie: zijn write binnen een gewone doorgang (`runAutoSaveRound`). Geeft de uitkomst van de
- *  write. */
-const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T | undefined> => {
+/** Een gewone tik zoals in productie: zijn write binnen een gewone doorgang (`runAutoSaveRound`). `listed` loopt waar de
+ *  doorgang haar lijst maakt. Geeft de uitkomst van de write. */
+const plainTick = async <T>(work: () => Promise<T>, closed: () => T, listed?: () => void): Promise<T | undefined> => {
   let result: T | undefined;
-  await runAutoSaveRound('tick', async () => { result = await runAutoSaveTickWrite(work, closed); });
+  await runAutoSaveRound('tick', async () => { listed?.(); result = await runAutoSaveTickWrite(work, closed); });
   return result;
 };
 
@@ -389,9 +389,9 @@ const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T 
   eq('21i daarna weer wel', [await manualWrite, await admitted()], ['ok', true]);
 }
 
-// 22. Knownbug 1939: de coördinator beslist over voorrang en toelating van timerwerk. Een handmatige actie gaat vóór wat
-//     nog niet begon: een gewone doorgang die op haar plek wacht (knownbug 1937) en een modelronde; een begonnen beurt loopt
-//     af.
+// 22. Knownbug 1939 en fixronde 2 van de review van #1093: de coördinator beslist over volgorde en toelating van
+//     timerwerk. Eén rij op aankomst, zoals main: wie eerder om de rij vroeg, gaat eerder, ook een gewone doorgang die op
+//     haar plek wacht (knownbug 1937 blijft daarom open); een begonnen beurt loopt af.
 {
   const order: string[] = [];
   let finishModel: (() => void) | null = null;
@@ -403,13 +403,14 @@ const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T 
     return 'geschreven';
   }, () => 'dicht');
   await Promise.resolve(); await Promise.resolve();
-  const tick = plainTick(async () => { order.push('tik'); return 'ok'; }, () => 'dicht');
+  const tick = plainTick(async () => { order.push('tik'); return 'ok'; }, () => 'dicht', () => order.push('lijst'));
   await Promise.resolve();
   const manualAfter = runProjectFileWrite(async () => { order.push('handmatig'); return 'ok'; }, () => 'dicht');
   await Promise.resolve();
   (finishModel as (() => void) | null)?.();
-  eq('22a een handmatige actie gaat vóór een doorgang die op haar plek wacht', [await model, await manualAfter, await tick, order],
-    ['geschreven', 'ok', 'ok', ['model', 'handmatig', 'tik']]);
+  // Twee meetpunten: de lijst en de write van de doorgang komen allebei vóór de handmatige actie die later kwam.
+  eq('22a de doorgang die op haar plek wacht, maakt haar lijst en schrijft vóór een latere handmatige actie',
+    [await model, await manualAfter, await tick, order], ['geschreven', 'ok', 'ok', ['model', 'lijst', 'tik', 'handmatig']]);
   // Een tik die al loopt, wordt niet onderbroken: de handmatige actie wacht erop (zoals main, knownbug 1904).
   const started: string[] = [];
   let finishTick: (() => void) | null = null;
@@ -428,10 +429,10 @@ const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T 
   truthy('22b de rij is daarna weer vrij', !isProjectFileWriteBusy());
 }
 
-// 22c–22g. Knownbug 1938/1939: elke doorgang van de controller (één lijst plus haar writes) loopt via de coördinator
-//     (`runAutoSaveRound`). Een gewone doorgang krijgt een plek in de timerrij, maakt haar lijst pas als die plek aan de
-//     beurt is, en houdt zolang ze loopt andere timerbeurten tegen; een handmatige actie mag ertussen, op volgorde van
-//     aankomst met haar writes. De toelating geldt per doorgang, ook bij een herhaalronde.
+// 22c–22i. Knownbug 1938/1939: elke doorgang van de controller (één lijst plus haar writes) loopt via de coördinator
+//     (`runAutoSaveRound`). Een gewone doorgang krijgt een plek in de rij, op volgorde van aankomst, maakt haar lijst pas
+//     als die plek aan de beurt is, en houdt zolang ze loopt modelbeurten tegen; een handmatige actie mag ertussen, op
+//     volgorde van aankomst met haar writes. De toelating geldt per doorgang, ook bij een herhaalronde.
 {
   const turns = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve)); };
   const candidate = (id: string, version = 1): ActualAutoSaveCandidate =>
@@ -519,8 +520,9 @@ const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T 
   eq('22e ook niet later in dezelfde run', [lists, isProjectFileWriteBusy()], [1, false]);
 
   // 22f. Knownbug 1813: een schrijftoestemming die blijft hangen binnen een open gewone doorgang houdt modelbeurten tegen,
-  //      maar geen handmatige actie en niet het afsluiten: wie voorgaat, laat de modelronde wijken, en een geweken
-  //      modelronde maakt haar beurt af zonder te schrijven.
+  //      maar geen handmatige actie en niet het afsluiten (de doorgang kreeg haar plek meteen en houdt niets vast): een
+  //      handmatige actie laat de modelronde wijken, en een geweken modelronde maakt haar beurt af zonder te schrijven,
+  //      op haar plek in de rij (ze stond er eerder dan de handmatige actie).
   let releaseHang: (() => void) | null = null;
   const events: string[] = [];
   const hanging = createActualAutoSaveController({
@@ -539,9 +541,10 @@ const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T 
   const blocked = modelRound();
   await turns();
   eq('22f de modelronde wacht op de open doorgang', events, []);
-  eq('22f een handmatige actie gaat voor', await runProjectFileWrite(async () => { events.push('handmatig'); return 'ok'; },
-    () => 'dicht'), 'ok');
-  eq('22f de modelronde week en maakte haar beurt af', [await blocked, events], ['yielded', ['handmatig', 'model geweken']]);
+  eq('22f een handmatige actie loopt ondanks de hangende vraag',
+    await runProjectFileWrite(async () => { events.push('handmatig'); return 'ok'; }, () => 'dicht'), 'ok');
+  eq('22f de modelronde week en maakte haar beurt af, vóór de handmatige actie die later kwam', [await blocked, events],
+    ['yielded', ['model geweken', 'handmatig']]);
   const blockedAgain = modelRound();
   await turns();
   const reopen = await closeProjectFileWrites();
@@ -584,6 +587,64 @@ const plainTick = async <T>(work: () => Promise<T>, closed: () => T): Promise<T 
   await Promise.all([pass, manualFirst, manualLater]);
   eq('22g de write die al wachtte, gaat vóór de handmatige actie die later komt', [arrival, isProjectFileWriteBusy()],
     [['write 1', 'handmatig 1', 'write 2', 'handmatig 2'], false]);
+
+  // 22h. Fixronde 2 van de review van #1093: de toelating zoals main. Een doorgang die al op haar plek wachtte toen een
+  //      handmatige actie kwam, loopt (op main stond die tik al in de rij); een doorgang die pas om de rij vraagt terwijl
+  //      een handmatige actie in de rij staat, maakt geen lijst.
+  const admission: string[] = [];
+  let finishPlacing: (() => void) | null = null;
+  const placingModel = runYieldingProjectFileWrite(async turn => {
+    turn.pass();
+    await new Promise<void>(resolve => { finishPlacing = resolve; });
+    admission.push('model');
+    return 'ok';
+  }, () => 'dicht');
+  await turns();
+  const waitingPass = runAutoSaveRound('tick', async () => { admission.push('lijst die wachtte'); });
+  await turns();
+  const queuedManual = runProjectFileWrite(async () => { admission.push('handmatig'); return 'ok'; }, () => 'dicht');
+  await runAutoSaveRound('tick', async () => { admission.push('lijst die later vroeg'); });
+  eq('22h een doorgang die pas vraagt terwijl een handmatige actie in de rij staat, maakt geen lijst', admission, []);
+  (finishPlacing as (() => void) | null)?.();
+  await Promise.all([placingModel, waitingPass, queuedManual]);
+  eq('22h de doorgang die al op haar plek wachtte, maakt haar lijst, vóór de handmatige actie', admission,
+    ['model', 'lijst die wachtte', 'handmatig']);
+
+  // 22i. Een doorgang die op haar plek moest wachten, houdt bij haar beurt het slot vast tot haar eerste write: wat na haar
+  //      om de rij vroeg, komt na die write. Blijft haar schrijftoestemming hangen, dan wacht de laatste fase van afsluiten
+  //      daar niet op (knownbug 1813): de plek valt weg, de al toegelaten handmatige actie loopt af en de doorgang schrijft
+  //      niets.
+  const held: string[] = [];
+  let finishHeldModel: (() => void) | null = null;
+  let releaseHeld: (() => void) | null = null;
+  const heldModel = runYieldingProjectFileWrite(async turn => {
+    turn.pass();
+    await new Promise<void>(resolve => { finishHeldModel = resolve; });
+    return 'ok';
+  }, () => 'dicht');
+  await turns();
+  const holding = createActualAutoSaveController({
+    round: tickRound,
+    listCandidates: () => [candidate('v')],
+    canWrite: () => new Promise<boolean>(resolve => { releaseHeld = () => resolve(true); }),
+    write: c => runAutoSaveTickWrite<ActualAutoSaveWrite>(async () => { held.push(`tik ${c.id}`); return true; }, () => 'refused'),
+    onFailure: () => {},
+  });
+  const holdingFlush = holding.flush();
+  await turns();
+  const heldManual = runProjectFileWrite(async () => { held.push('handmatig'); return 'ok'; }, () => 'dicht');
+  (finishHeldModel as (() => void) | null)?.();
+  await heldModel;
+  await turns();
+  eq('22i de handmatige actie wacht op de eerste write van de doorgang die haar plek kreeg', [held, isProjectFileWriteBusy()],
+    [[], true]);
+  const closingReopen = await closeProjectFileWrites();
+  eq('22i de laatste fase van afsluiten wacht niet op de hangende vraag; de toegelaten handmatige actie liep af',
+    [await heldManual, held], ['ok', ['handmatig']]);
+  (releaseHeld as (() => void) | null)?.();
+  await holdingFlush;
+  closingReopen();
+  eq('22i de doorgang schreef niets', [held, isProjectFileWriteBusy()], [['handmatig'], false]);
 }
 
 if (diffs.length === 0) {

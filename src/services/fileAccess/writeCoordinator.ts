@@ -4,9 +4,8 @@
 //
 // De ene plek die over de schrijfbeurten beslist (fixronde 3 van de review van #1033 en knownbug 1939, besluiten technisch
 // beslisser 19, 20 en 21 november 2026): welke beurt eerst komt, en of Automatisch opslaan om een beurt vraagt. Eén beurt
-// tegelijk; een begonnen beurt loopt af. Een write die al om het slot vroeg, houdt zijn plek: handmatige acties en de
-// writes van de open gewone doorgang wachten in één rij, op volgorde van aankomst. Handmatig gaat alleen voor op wat nog
-// niet begon: een gewone doorgang die op haar plek wacht en een modelronde. Drie soorten beurten:
+// tegelijk, één rij op volgorde van aankomst, zoals main: wie eerder om de rij vroeg, gaat eerder, ook een gewone doorgang
+// die op haar plek wacht. Een begonnen beurt loopt af. Drie soorten beurten:
 // - een handmatige actie (`runProjectFileWrite`: Ctrl+S, Opslaan als, een export, MCP): een ronde van Automatisch opslaan
 //   met een gebouwmodel die nog vóór haar grens is, wijkt (ook wie op de rij wacht of een export die voorrang claimt, laat
 //   haar wijken);
@@ -15,22 +14,26 @@
 // - een ronde met een gebouwmodel (`runYieldingProjectFileWrite`) krijgt haar beurt en wijkt alleen voor een handmatige
 //   actie; na haar grens (`YieldingTurn.pass`) loopt ze af.
 // De toelating van timerwerk staat ook hier (`runAutoSaveRound`): staat er een handmatige actie in de rij of loopt ze, of
-// is de laatste fase begonnen, dan maakt Automatisch opslaan geen lijst. Met de flag uit bestaan er geen modelrondes en
-// wacht een doorgang nooit op haar plek, dus is de volgorde die van vóór stap 8.
+// is de laatste fase begonnen, dan maakt Automatisch opslaan geen lijst. Een handmatige actie gaat dus niet vóór
+// wachtend gewoon timerwerk (knownbug 1937 blijft open): wijzen twee tabbladen naar hetzelfde bestand, dan zou de
+// automatische opslag van het ene ná de handmatige van het andere komen en de gekozen versie stil overschrijven.
 /** Een wachtende beurt: `grant` geeft haar het slot (een gewone doorgang: haar plek). `yielded`: het signaal van een
  *  modelronde. */
 interface Waiting { grant: () => void; yielded?: AbortSignal }
 /** Een beurt houdt het slot. */
 let running = false;
-/** Wie op het slot wacht, elk op volgorde van aankomst: de writes die al om het slot vroegen (handmatige acties en de
- *  writes van de open gewone doorgang), en het timerwerk dat nog niet begon (modelrondes, gewone doorgangen die op hun
- *  plek wachten). */
-const writeWaiting: Waiting[] = [];
-const timerWaiting: Waiting[] = [];
+/** Wie op het slot wacht, op volgorde van aankomst: handmatige acties, writes van Automatisch opslaan, rondes met een
+ *  gebouwmodel en gewone doorgangen die op hun plek wachten. */
+const waiting: Waiting[] = [];
 /** Knownbug 1939: een gewone doorgang van Automatisch opslaan is aan de beurt (`runAutoSaveRound`). Zolang ze loopt,
- *  begint geen ander timerwerk; alleen een modelronde die al week, maakt haar beurt af (ze schrijft niets), zodat wie op
- *  een lege rij wacht niet op deze doorgang wacht. */
+ *  begint geen modelronde; alleen een modelronde die al week, maakt haar beurt af (ze schrijft niets), zodat wie op een
+ *  lege rij wacht niet op deze doorgang wacht. */
 let roundOpen = false;
+/** Fixronde 2 van de review van #1093: een gewone doorgang die op haar plek moest wachten, houdt bij haar beurt het slot
+ *  tot haar eerste write (die het overneemt) of tot ze zonder write eindigt. Wat na haar om de rij vroeg, komt zo ook
+ *  na die write, zoals op main na de tik die zijn write al had aangevraagd. Kreeg ze haar plek meteen, dan houdt ze niets
+ *  vast (zoals main, ook tijdens haar schrijftoestemming). */
+let placeHeld = false;
 /** Wie op een lege rij wacht (`whenProjectFileWritesIdle`); kijkt na elke verandering in de rij opnieuw. */
 let idleWaiters: (() => void)[] = [];
 /** Hoeveel afsluitfasen de poort dicht houden (afsluiten en de updater kunnen elkaar overlappen). */
@@ -96,7 +99,7 @@ export function claimProjectFileWrite(): ProjectFileWriteClaim {
 
 /** Loopt er een beurt of wacht er een? */
 export function isProjectFileWriteBusy(): boolean {
-  return running || writeWaiting.length > 0 || timerWaiting.length > 0;
+  return running || waiting.length > 0;
 }
 
 /**
@@ -108,6 +111,9 @@ export function whenProjectFileWritesIdle(): Promise<void> | null {
   // #804 stap 8: wie op de rij wacht (een tabblad sluiten, de laatste fase van afsluiten of de updater, een pad openen
   // op de desktop), wacht niet op het rekenen van een ronde van Automatisch opslaan.
   yieldBackgroundWrites();
+  // De laatste fase wacht ook niet op de schrijftoestemming van een doorgang die haar plek vasthoudt (knownbug 1813); haar
+  // write krijgt daarna de gesloten uitkomst.
+  if (closers > 0) releasePlace();
   // Een geweken modelronde maakt haar beurt af, ook achter een open gewone doorgang.
   grantFree();
   if (!isProjectFileWriteBusy()) return null;
@@ -147,9 +153,8 @@ export async function runProjectFileWrite<T>(work: () => Promise<T>, closed: () 
 
 /**
  * Fixronde 3 van de review van #1033: een write van de open gewone doorgang van Automatisch opslaan (`runAutoSaveRound`,
- * een document zonder gebouwmodel). Hij laat geen ronde wijken en wacht in dezelfde rij als de handmatige acties, op
- * volgorde van aankomst: een handmatige actie die er al stond, gaat voor, een latere niet (fixronde 1 van de review van
- * #1093). Verder gelijk aan `runProjectFileWrite`.
+ * een document zonder gebouwmodel). Hij laat geen ronde wijken en wacht in de rij op volgorde van aankomst; de eerste
+ * write van een doorgang die haar plek vasthoudt, krijgt het slot meteen. Verder gelijk aan `runProjectFileWrite`.
  */
 export async function runAutoSaveTickWrite<T>(work: () => Promise<T>, closed: () => T): Promise<T> {
   return enqueue('write', work, closed);
@@ -158,30 +163,43 @@ export async function runAutoSaveTickWrite<T>(work: () => Promise<T>, closed: ()
 /**
  * Knownbug 1939: één doorgang van Automatisch opslaan (één lijst plus haar writes; `createActualAutoSaveController` laat
  * elke doorgang, ook een herhaalronde, hierdoor lopen). Staat er een handmatige actie in de rij of loopt ze, of is de
- * laatste fase begonnen, dan loopt de doorgang niet: geen lijst, zoals vóór stap 8 met een bezette rij. Een modeldoorgang
- * (`'model'`) loopt anders meteen; haar rondes wachten elk op hun beurt (`runYieldingProjectFileWrite`). Een gewone
- * doorgang (`'tick'`) krijgt een plek in de timerrij en maakt haar lijst pas als die plek aan de beurt is: ze leest de
- * actuele kandidaat en bestemming, en verder typen kost haar die plek niet (knownbug 1938). Zolang ze loopt, begint geen
- * ander timerwerk; een handmatige actie mag ertussen, op volgorde van aankomst met haar writes. De plek geldt voor één
- * doorgang: een herhaalronde vraagt opnieuw, zodat een groot gewoon plan met doortypen een modelronde niet blijvend
- * tegenhoudt.
+ * laatste fase begonnen, dan loopt de doorgang niet: geen lijst, zoals vóór stap 8 met een bezette rij. Een doorgang die al
+ * op haar plek wachtte, loopt wel als er intussen een handmatige actie bijkwam: op main stond die tik al in de rij. Een
+ * modeldoorgang (`'model'`) loopt meteen; haar rondes wachten elk op hun beurt (`runYieldingProjectFileWrite`). Een gewone
+ * doorgang (`'tick'`) krijgt een plek in de rij, op volgorde van aankomst, en maakt haar lijst pas als die plek aan de
+ * beurt is: ze leest de actuele kandidaat en bestemming, en verder typen kost haar die plek niet (knownbug 1938). Moest ze
+ * op die plek wachten, dan houdt ze het slot tot haar eerste write (`placeHeld`). Zolang ze loopt, begint geen
+ * modelronde. De plek geldt voor één doorgang: een herhaalronde vraagt opnieuw, zodat een groot gewoon plan met doortypen
+ * een modelronde niet blijvend tegenhoudt.
  */
 export async function runAutoSaveRound(kind: 'tick' | 'model', pass: () => Promise<void>): Promise<void> {
   if (manual > 0 || closers > 0) return;
   if (kind === 'model') return pass();
   let granted = false;
   let resume: (() => void) | undefined;
-  timerWaiting.push({ grant: () => { roundOpen = true; granted = true; resume?.(); } });
+  waiting.push({ grant: () => {
+    roundOpen = true;
+    granted = true;
+    // `resume` bestaat alleen als de doorgang moest wachten: dan houdt ze het slot vast.
+    if (resume) { running = true; placeHeld = true; resume(); }
+  } });
   pump();
-  // Zonder ander timerwerk (met de flag uit altijd) is de plek meteen vrij en maakt de doorgang haar lijst in dezelfde
-  // beurt, zoals vóór stap 8.
+  // Is de plek meteen vrij (met de flag uit altijd), dan maakt de doorgang haar lijst in dezelfde beurt, zoals vóór stap 8.
   if (!granted) await new Promise<void>(resolve => { resume = resolve; });
   try {
     if (closers === 0) await pass();
   } finally {
+    releasePlace();
     roundOpen = false;
     pump();
   }
+}
+
+/** Een doorgang die haar plek vasthield en geen write meer doet (of de laatste fase begon), geeft het slot vrij. */
+function releasePlace(): void {
+  if (!placeHeld) return;
+  placeHeld = false;
+  running = false;
 }
 
 /** De beurt van een wijkende ronde (`runYieldingProjectFileWrite`). */
@@ -230,16 +248,14 @@ export async function runYieldingProjectFileWrite<T>(work: (turn: YieldingTurn) 
   }
 }
 
-/** Wie krijgt het vrije slot: de oudste write die al om het slot vroeg; anders het oudste timerwerk, of bij een open
- *  gewone doorgang alleen een geweken modelronde. */
+/** Wie krijgt het vrije slot: de oudste in de rij; bij een open gewone doorgang de oudste die geen modelronde is of een
+ *  modelronde die al week. */
 function nextTurn(): Waiting | undefined {
-  if (writeWaiting.length > 0) return writeWaiting.shift();
-  if (!roundOpen) return timerWaiting.shift();
-  const yielded = timerWaiting.findIndex(waiting => waiting.yielded?.aborted);
-  return yielded < 0 ? undefined : timerWaiting.splice(yielded, 1)[0];
+  const next = roundOpen ? waiting.findIndex(turn => !turn.yielded || turn.yielded.aborted) : 0;
+  return next < 0 ? undefined : waiting.splice(next, 1)[0];
 }
 
-/** Geeft het vrije slot weg (een gewone doorgang die haar plek krijgt, houdt het slot niet). */
+/** Geeft het vrije slot weg (een gewone doorgang die haar plek meteen krijgt, houdt het slot niet). */
 function grantFree(): void {
   while (!running) {
     const turn = nextTurn();
@@ -256,15 +272,16 @@ function pump(): void {
   for (const wake of waiters) wake();
 }
 
-/** Zet een beurt in de rij: een handmatige actie (`'manual'`) en een write van de open gewone doorgang (`'write'`) bij de
- *  writes, een modelronde (`'model'`, met haar signaal) bij het timerwerk. */
+/** Zet een beurt in de rij: een handmatige actie (`'manual'`), een write van de open gewone doorgang (`'write'`; de eerste
+ *  van een doorgang die haar plek vasthoudt, neemt het slot over) of een modelronde (`'model'`, met haar signaal). */
 async function enqueue<T>(kind: 'manual' | 'write' | 'model', work: () => Promise<T>, closed: () => T,
   yielded?: AbortSignal): Promise<T> {
   if (closers > 0) return closed();
   const isManual = kind === 'manual';
   if (isManual) manual++;
-  await new Promise<void>(resolve => {
-    (kind === 'model' ? timerWaiting : writeWaiting).push({ grant: () => { running = true; resolve(); }, yielded });
+  if (kind === 'write' && placeHeld) placeHeld = false;
+  else await new Promise<void>(resolve => {
+    waiting.push({ grant: () => { running = true; resolve(); }, yielded });
     pump();
   });
   try {
