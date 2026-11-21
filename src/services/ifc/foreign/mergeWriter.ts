@@ -831,18 +831,22 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // ── 9. Bewaking (eigen zoektocht van 1b): een fout hier is een fout in deze module, geen geval van fase 2; er is dan
   // niets geschreven. Elk vast id is een P-stuk van de bron (anders botst het met een bewaard stuk), en elke verwijzing
   // uit het P-blok gaat naar een stuk dat in de uitvoer staat (geen `#0` en geen verwijzing naar een weggelaten regel).
-  const chunkOfId = new Map<number, number>();
-  for (let i = 0; i < n; i++) if (index.isEntity(i)) chunkOfId.set(sid(i), i);
+  // Het stuk van een id komt uit de index (`chunkOf`: alleen een entiteit, de scanner weigert dubbele ids), niet uit een
+  // kaart van alle ids: bij een groot model is dat 5,2 miljoen sleutels (#804, meting 21 november 2026).
   for (const id of [...keep.values(), ...keptHeads]) {
-    const c = chunkOfId.get(id);
-    if (c === undefined || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
+    const c = index.chunkOf(String(id));
+    if (c < 0 || !isP(c)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `het vaste id #${id} is geen P-stuk van de bron` }]);
   }
-  const present = new Set<number>(emitted);
-  for (let i = 0; i < n; i++) if (index.isEntity(i) && !isP(i)) present.add(sid(i));
+  // In de uitvoer staat: wat de writer schrijft, en elk niet-P-stuk van de bron.
+  const present = (id: number) => {
+    if (emitted.has(id)) return true;
+    const c = index.chunkOf(String(id));
+    return c >= 0 && !isP(c);
+  };
   for (const line of lines) {
     if (line.drop) continue;
     for (const target of refsInText(line.text)) {
-      if (!present.has(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
+      if (!present(target)) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `#${line.id} wijst naar #${target}, dat niet in de uitvoer staat` }]);
     }
   }
   async function checkedOutput(candidate: readonly OutLine[]): Promise<PreparedIfcWrite> {
@@ -862,10 +866,12 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     observe?.(own);
     const actual = await checkedBytes(assembled, input, source, index, cls, source.opened ?? pristine, probe, own);
     const written = new Set(candidate.map(line => line.id));
-    const classes = Uint8Array.from(actual.scan.chunkIds, id => {
-      if (id < 0) return 0;
-      return written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
-    });
+    // Een gewone lus: `Uint8Array.from` met een functie maakt bij een groot model miljoenen tijdelijke waarden (#804).
+    const ids = actual.scan.chunkIds, classes = new Uint8Array(ids.length);
+    for (let k = 0; k < ids.length; k++) {
+      const id = ids[k];
+      if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
+    }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
     const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
@@ -1270,9 +1276,9 @@ function psetRel(index: StepIndex, pset: number): number {
 
 /** De bron moet de bron zijn waaruit `ifcSource` kwam: dezelfde stukken met dezelfde ids en klassen. */
 function assertSameSource(index: StepIndex, cls: Classification, source: IfcSource): void {
-  const same = index.count === source.classes.length
-    && cls.classes.every((c, i) => c === source.classes[i])
-    && Array.from({ length: index.count }, (_, i) => i).every(i => (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i]);
+  let same = index.count === source.classes.length && cls.classes.every((c, i) => c === source.classes[i]);
+  // Een gewone lus, zonder lijst van alle stuknummers (#804).
+  for (let i = 0; same && i < index.count; i++) same = (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i];
   if (!same) throw new Error('mergeWriter: de bronbytes passen niet bij ifcSource');
 }
 
