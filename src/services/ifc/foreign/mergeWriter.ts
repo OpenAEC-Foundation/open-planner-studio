@@ -354,9 +354,11 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     const next = await writtenSource(input, bytes, scan, writerStepIds(input, metadata.idMap), classes, []);
     return { bytes, sha256: next.sha256, source: next, literalCalendarIds: written.literalCalendarIds };
   }
+  (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('merge: begin, bron scannen'); // METING
   const index = scanForeignStep(source.bytes);
   const cls = classify(index);
   assertSameSource(index, cls, source);
+  (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('merge: bron gescand en ingedeeld'); // METING
   // Stuk 1: de canon is dezelfde maat als de verliesbewaking. Ook teruggedraaide bewerkingen
   // mogen de bron letterlijk teruggeven; dit staat vóór herkomst-/project-/verstopt-stukregels.
   if (source.opened && planningCanon(input) === planningCanon(source.opened)) {
@@ -855,7 +857,9 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     // stap stond die kopie bovenop de hele uitvoercontrole (#804). `precomputeSha256` onthoudt hem per buffer; niets
     // verandert deze bytes nog, dus `writtenSource` krijgt dezelfde waarde zonder tweede berekening. Bij een weigering
     // blijft er niets van over: de buffer en zijn plek in die `WeakMap` vallen samen weg.
+    (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('merge: uitvoer samengesteld'); // METING
     await precomputeSha256(assembled);
+    (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('merge: sha256 van de uitvoer klaar'); // METING
     // PR 7 behoudt de regelvolgorde. Draag zijn hernummering door naar de writerkaart,
     // zonder een tweede koppelalgoritme of domein-ids van een nieuwe lezing te gebruiken.
     if (candidate.length !== block.length) throw new Error('mergeWriter: hernummering veranderde de regelaantallen');
@@ -879,6 +883,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
     }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
     const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members);
+    (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('merge: nieuwe bron klaar'); // METING
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
@@ -965,10 +970,13 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
   try {
+    (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('controle: uitvoer scannen'); // METING
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
+    (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('controle: uitvoer gescand en vergeleken'); // METING
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
     parsed = await pristineFromScan(outputScan, bytes, opened.project) as WriteIFCInput;
+    (globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804?.('controle: uitvoer heropend'); // METING
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');

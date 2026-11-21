@@ -29,6 +29,7 @@ import { sourceTargetContentOfPathTauri } from './tauriBackend';
 import { placeFileExclusive, type PlaceFileOutcome } from './placeFileExclusive';
 import type { SourceTargetContent } from './sourceTargetContent';
 import type { ReplaceRecord } from './replaceRecords';
+import { meting804, metingPauze } from '@/services/debug/meting804'; // METING
 
 /** De bestandsbewerkingen van de vervanging; injecteerbaar voor de proeven (`tests/planning/nodeFileIpc.ts`). */
 export interface OwnFileReplaceFs {
@@ -145,12 +146,16 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
   };
 
   // Stap 1. Geen terugval naar een directe aanmaak: dit is geen nieuwe naam.
+  await metingPauze('pauze-voor-schrijven'); // METING
+  meting804(`vervanging stap 1: tijdelijk bestand schrijven begin (${bytes.length} bytes)`); // METING
   const created = await createOwnTemp(fs, temp, bytes, input.mode);
+  meting804(`vervanging stap 1: tijdelijk bestand schrijven eind (${created.failed ?? 'gelukt'})`); // METING
   if (created.failed === 'forbidden') return { code: 'save-as-only', why: 'forbidden path', nothingWritten: true };
   if (created.failed) return { code: 'failed', detail: created.cause instanceof Error ? created.cause.message : String(created.cause) };
 
   // Stap 2.
   const content = await fs.content(path, source);
+  meting804(`vervanging stap 2: doel vergeleken (${content})`); // METING
   if (content !== 'same') {
     await removeOwnTemp();
     return { code: 'target-changed', content };
@@ -169,8 +174,10 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     return { code: 'failed', detail: describePlace(aside) };
   }
 
+  meting804(`vervanging stap 3: doel opzij (${aside.code})`); // METING
   // Stap 4.
   const placed = await fs.place(temp, path);
+  meting804(`vervanging stap 4: nieuw bestand geplaatst (${placed.code})`); // METING
   if (!placedOk(placed)) {
     if (placed.code === 'source-changed') return { code: 'unknown' };
     if (placed.code === 'target-exists') return { code: 'target-taken', target: path, temp, previous };
@@ -184,6 +191,7 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
 
   // Stap 5.
   const before = await fs.content(previous, source);
+  meting804(`vervanging stap 5: vorige versie vergeleken (${before})`); // METING
   if (before === 'missing') return { code: 'replaced', otherVersion: null, leftOver: null };
   if (before === 'same') {
     try {

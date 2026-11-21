@@ -5,11 +5,17 @@ import '@/state/appStoreFactory';
 import { handleIfcSaveRequest, type IfcSaveRequest, type IfcSaveResponse } from './ifcSaveProtocol';
 
 const post = (response: IfcSaveResponse, transfer: ArrayBuffer[] = []) => self.postMessage(response, { transfer });
+// METING #804: de haak van de rekencode; de hoofdthread schrijft de regel (`ifcSaveWorker.ts`), met deze klok.
+const meting = (label: string) => self.postMessage({ meting804: label, t: Date.now() });
+(globalThis as { __opsMeting804?: (label: string) => void }).__opsMeting804 = meting; // METING
 
 async function answer(request: IfcSaveRequest): Promise<void> {
+  meting('verzoek ontvangen (kopie van de bron staat in de worker)'); // METING
   const { response, transfer } = await handleIfcSaveRequest(request);
+  meting('klaar met rekenen, antwoord versturen'); // METING
   try {
     post(response, transfer);
+    meting('antwoord verstuurd'); // METING
   } catch (error) {
     // Een veld van een fout dat niet over de grens kan: dan de fout zonder dat veld, nooit zonder antwoord.
     if (!('error' in response)) throw error;

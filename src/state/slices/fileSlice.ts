@@ -19,6 +19,7 @@ import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
+import { meting804, metingNaOpslag } from '@/services/debug/meting804'; // METING
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -1614,6 +1615,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     ref: Extract<FileRef, { kind: 'path' }>, failureNoticeKey: string,
   ): Promise<boolean> => {
     let committed = false;
+    meting804('Ctrl+S eigen pad: vervanging begint (uitvoer is binnen)'); // METING
     try {
       const result = await replaceOwnPathWithRecovery({
         documentId, path: ref.path, prepared,
@@ -1623,6 +1625,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
         commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
       });
+      meting804(`Ctrl+S eigen pad: vervanging klaar (${result.code}, vastgelegd ${committed})`); // METING
+      if (result.code === 'replaced') void metingNaOpslag(); // METING
       for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
       return committed;
     } catch (err) {
@@ -2429,7 +2433,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    saveFile: async () => { await saveActiveDocument(); },
+    saveFile: async () => { meting804('Ctrl+S begin'); await saveActiveDocument(); meting804('Ctrl+S eind'); }, // METING
     saveFileForDocument: (documentId) => saveActiveDocument(documentId),
 
     saveFileAs: async () => {

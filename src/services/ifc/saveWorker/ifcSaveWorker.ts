@@ -21,6 +21,7 @@ import {
   errorFromWire, outputFromResult, resultFits, wireErrorFits, type IfcSaveRequest, type IfcSaveResponse, type IfcSaveResult,
 } from './ifcSaveProtocol';
 import { IfcSaveWorkerError } from './ifcSaveWorkerError';
+import { meting804 } from '@/services/debug/meting804'; // METING
 
 export type IfcSaveWorkerPort = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>;
 
@@ -53,7 +54,14 @@ export interface IfcSaveWorker {
 
 export function defaultCreateIfcSaveWorker(): IfcSaveWorkerPort | null {
   if (typeof Worker === 'undefined') return null;
-  return new Worker(new URL('./ifcSave.worker.ts', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./ifcSave.worker.ts', import.meta.url), { type: 'module' });
+  meting804('worker aangemaakt'); // METING
+  // METING #804: de meetregels van de worker, met zijn eigen klok; naast `onmessage` van `ask`.
+  worker.addEventListener('message', ({ data }: MessageEvent) => {
+    const m = data as { meting804?: unknown; t?: unknown } | null;
+    if (m && typeof m.meting804 === 'string' && typeof m.t === 'number') meting804(`worker: ${m.meting804}`, m.t);
+  });
+  return worker;
 }
 
 export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWorker {
@@ -72,6 +80,12 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
     worker?.terminate();
     worker = null;
     started = false;
+  };
+  // METING #804 (optie `stop-worker-na`): de worker na een opslag stoppen, zonder lopend verzoek.
+  (globalThis as { __opsMeting804StopWorker?: () => boolean }).__opsMeting804StopWorker = () => {
+    if (!worker || abortActive) return false;
+    stopWorker();
+    return true;
   };
   const disposedError = () => new IfcSaveWorkerError('disposed', 'De opslagworker is gestopt.');
 
@@ -100,6 +114,7 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
           return;
         }
         if (data.id !== id) return;
+        meting804('antwoord van de worker ontvangen'); // METING
         // Het juiste nummer, maar een antwoord dat niet bij dit verzoek past: transport, nooit een uitkomst.
         if ('error' in data && wireErrorFits(data.error)) reject(errorFromWire(data.error));
         else if ('result' in data && resultFits(job, data.result)) resolve(data.result);
@@ -114,7 +129,9 @@ export function createIfcSaveWorker(opts: IfcSaveWorkerOptions = {}): IfcSaveWor
       arm();
       try {
         // Een kopie, nooit een overdracht: de hoofdthread blijft eigenaar van de bronbytes.
+        meting804(`verzoek naar de worker (${job.kind}) begin`); // METING
         port.postMessage({ id, job } satisfies IfcSaveRequest);
+        meting804('verzoek naar de worker verstuurd'); // METING
       } catch (error) {
         reject(new IfcSaveWorkerError('transport', `Het opslagverzoek kon niet naar de worker: ${error instanceof Error ? error.message : String(error)}`));
       }
