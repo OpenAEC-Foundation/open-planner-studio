@@ -667,42 +667,54 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
     eq('grens, één byte erboven: de melding noemt de grootte', [notice.severity, notice.messageKey], ['error', 'notifications.ifcForeignOpenTooLarge']);
     const atLimit = new IfcForeignOpenError({ kind: 'te-groot', size: IFC_BYTES_ROUTE_MAX_BYTES + 1, limit: IFC_BYTES_ROUTE_MAX_BYTES });
     eq('grens: de melding noemt 150 MB, uit de constante', importFailureNotice(atLimit, '').params, { limit: 150 });
-    // Boven de grens is de grootte alleen de reden als het bestand eronder zou openen: IFC2X3 met een model houdt de
-    // modelweigering van onder de grens.
+    // IFC2X3 met een model: eronder de modelweigering van de lezer, erboven de melding over de grootte, zonder scan. Een
+    // kleiner bestand helpt hier niet; die minder precieze reden in een zeldzaam geval is aanvaard (besluit 21 november).
     const ifc2x3 = fileBytes(`${FOREIGN}/model-ifc2x3.ifc`);
-    const legacyOver = await readIfcBytesDetailed(ifc2x3, {}, { maxBytes: ifc2x3.length - 1 }).catch((e: unknown) => e);
+    let legacyScans = 0;
+    const legacyOver = await readIfcBytesDetailed(ifc2x3, {}, { maxBytes: ifc2x3.length - 1, createWorker: () => { legacyScans++; return null; } })
+      .catch((e: unknown) => e);
     const legacyBelow = await readIfcBytesDetailed(ifc2x3).catch((e: unknown) => e);
-    eq('grens: IFC2X3 met model houdt boven de grens dezelfde weigering', importFailureNotice(legacyOver, saveErrorDetail(legacyOver)),
-      importFailureNotice(legacyBelow, saveErrorDetail(legacyBelow)));
-    // Fixronde 1 van #1127 (review Sol): de meldreden volgt de echte uitkomst van scanner en schema, op één plek. Boven
-    // de grens is de uitkomst die van onder de grens, behalve waar de bytes-route de bron zou bewaren: daar 'te-groot'.
-    const outcome = (bytes: Uint8Array, maxBytes: number) => readIfcBytesDetailed(bytes, {}, { maxBytes }).then(
-      r => ({ fallback: r.fallback?.kind ?? null, source: !!r.result.ifcSource, legacy: !!r.result.ifcLegacySchemaLoss, tasks: r.result.tasks.length }),
-      (e: unknown) => { const n = importFailureNotice(e, saveErrorDetail(e)); return { messageKey: n.messageKey, detail: n.detail }; });
+    eq('grens: IFC2X3 met model, eronder en erboven', [importFailureNotice(legacyBelow, '').messageKey,
+      importFailureNotice(legacyOver, '').messageKey, legacyScans], ['notifications.openFailed', 'notifications.ifcForeignOpenTooLarge', 0]);
+    // Fixronde 2 van #1127 (besluit 21 november 2026): boven de grens start geen indeling voor bronbehoud en geen tekst
+    // voor de lezer. De gewone route doet wat main boven de oude grens deed: weigert de lezer een gebouwmodel, dan volgt
+    // geen scan en noemt de melding de grens; een planning zonder model leest eerst en opent pas als de scan erna niets
+    // vreemds vindt, anders dezelfde melding. Geteld: het aantal scans (`createWorker` per scan, hier zonder Worker).
+    let scans = 0;
+    const outcome = (bytes: Uint8Array, maxBytes: number) => {
+      scans = 0;
+      return readIfcBytesDetailed(bytes, {}, { maxBytes, createWorker: () => { scans++; return null; } }).then(
+        r => ({ fallback: r.fallback?.kind ?? null, source: !!r.result.ifcSource, legacy: !!r.result.ifcLegacySchemaLoss, tasks: r.result.tasks.length > 0, scans }),
+        (e: unknown) => ({ messageKey: importFailureNotice(e, saveErrorDetail(e)).messageKey, scans }));
+    };
     const inSchema = (text: string, schema: string) => text.replace(/FILE_SCHEMA\(\('[^']+'/i, `FILE_SCHEMA(('${schema}'`);
     const plainPset = withPset(plain);
     const eigenText = dec(eigenPlus);
-    const cases: Array<[string, Uint8Array, boolean]> = [
-      ['IFC4X3 met model', eigenPlus, true],
-      ['IFC4X3 met een vreemde pset', enc.encode(plainPset), true],
-      ['een kop van ruim 1 MiB vóór FILE_SCHEMA', enc.encode(eigenText.replace('FILE_SCHEMA', `/*${' '.repeat((1 << 20) + 64)}*/\nFILE_SCHEMA`)), true],
-      ['IFC2X3 met een vreemde pset zonder model', enc.encode(inSchema(plainPset, 'IFC2X3')), false],
-      ['een onbekend schema met een vreemde pset', enc.encode(inSchema(plainPset, 'ONBEKEND')), false],
-      ['een model met een #id boven 2147483647 (id-te-groot)', enc.encode(eigenText.replace(/\nDATA;\r?\n/, '\nDATA;\n#2147483648=IFCCARTESIANPOINT((0.,0.,0.));\n')), false],
+    const hiddenWall = (text: string) => text.replace(/^DATA;\r?\n/m,
+      line => `${line}/* a *\n/ #999999=IFCWALL('3vB2YO$MX4xv5uCqZZG05x',$,$,$,$,$,$,$,$); /* b */\n`);
+    const tooLarge = (n: number) => ({ messageKey: 'notifications.ifcForeignOpenTooLarge', scans: n });
+    const cases: Array<[string, Uint8Array, unknown, unknown]> = [
+      ['IFC4X3 met model', eigenPlus, { fallback: null, source: true, legacy: false, tasks: true, scans: 1 }, tooLarge(0)],
+      ['IFC4X3 met een vreemde pset', enc.encode(plainPset), { fallback: null, source: true, legacy: false, tasks: true, scans: 1 }, tooLarge(1)],
+      ['een kop van ruim 1 MiB vóór FILE_SCHEMA', enc.encode(eigenText.replace('FILE_SCHEMA', `/*${' '.repeat((1 << 20) + 64)}*/\nFILE_SCHEMA`)),
+        { fallback: null, source: true, legacy: false, tasks: true, scans: 1 }, tooLarge(0)],
+      ['IFC2X3 met een vreemde pset zonder model', enc.encode(inSchema(plainPset, 'IFC2X3')),
+        { fallback: 'schema', source: false, legacy: true, tasks: true, scans: 1 }, tooLarge(1)],
+      ['IFC2X3 zonder vreemd deel', enc.encode(inSchema(plain, 'IFC2X3')),
+        { fallback: 'schema', source: false, legacy: true, tasks: true, scans: 1 }, { fallback: 'te-groot', source: false, legacy: false, tasks: true, scans: 1 }],
+      ['een onbekend schema met een vreemde pset', enc.encode(inSchema(plainPset, 'ONBEKEND')),
+        { messageKey: 'notifications.ifcForeignOpenSchema', scans: 1 }, tooLarge(1)],
+      ['een model met een #id boven 2147483647 (id-te-groot)', enc.encode(eigenText.replace(/\nDATA;\r?\n/, '\nDATA;\n#2147483648=IFCCARTESIANPOINT((0.,0.,0.));\n')),
+        { messageKey: 'notifications.openFailed', scans: 1 }, tooLarge(0)],
+      ['een verborgen wand (knownbug 1151)', enc.encode(hiddenWall(eigenText)), { messageKey: 'notifications.openFailed', scans: 1 }, tooLarge(0)],
+      ['een gewone planning', enc.encode(plain), { fallback: null, source: true, legacy: false, tasks: true, scans: 1 },
+        { fallback: 'te-groot', source: false, legacy: false, tasks: true, scans: 1 }],
     ];
-    for (const [label, bytes, keepsSource] of cases) {
-      const below = await outcome(bytes, bytes.length);
-      const over = await outcome(bytes, bytes.length - 1);
-      if (keepsSource) {
-        eq(`grens, ${label}: onder de grens met bron`, [below as { source?: boolean }].map(b => b.source), [true]);
-        eq(`grens, ${label}: erboven de melding over de grootte`, (over as { messageKey?: string }).messageKey, 'notifications.ifcForeignOpenTooLarge');
-      } else {
-        eq(`grens, ${label}: erboven dezelfde uitkomst als eronder`, over, below);
-      }
+    for (const [label, bytes, wantBelow, wantOver] of cases) {
+      eq(`grens, ${label}: precies op de grens`, await outcome(bytes, bytes.length), wantBelow);
+      eq(`grens, ${label}: één byte erboven, zoals main boven de oude grens`, await outcome(bytes, bytes.length - 1), wantOver);
     }
-    eq('grens: id-te-groot is een scannerweigering', (() => { const r = scanForeign(cases[5][1]); return r.ok ? 'ok' : r.reason; })(), 'id-te-groot');
-    eq('grens: IFC2X3 met een vreemde pset opent boven de grens als planning met verliesmelding, zoals main',
-      await outcome(cases[3][1], cases[3][1].length - 1).then(o => [(o as { legacy?: boolean }).legacy, (o as { fallback?: string }).fallback]), [true, 'schema']);
+    eq('grens: id-te-groot is een scannerweigering', (() => { const r = scanForeign(cases[6][1]); return r.ok ? 'ok' : r.reason; })(), 'id-te-groot');
   }
   // Dezelfde hele DATA-staart met een kapotte oude kop: zonder vreemd deel bruikbaar, met vreemd deel geweigerd.
   for (const foreign of [false, true]) {

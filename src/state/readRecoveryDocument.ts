@@ -1,5 +1,4 @@
 import { readRecoverySourceCopy } from '@/services/recovery/recoverySourceCopies';
-import { clearRecovery, holdRecoveryForLater } from '@/services/recovery/recoveryStore';
 import { readIfcFromText } from '@/services/formatRegistry';
 import { readBytesFromRef } from '@/services/fileAccess';
 import type { ImportLabels } from '@/services/importTypes';
@@ -9,15 +8,6 @@ import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { isTauri } from '@/utils/platform';
 import { createAppStoreContext } from './appStoreFactory';
 import { recoveryInputFromParsed, type RecoveryDocInput } from './documentContract';
-import type { AppState } from './appStore';
-
-/** De bron is te groot voor de bytes-route (knownbug 1936): het model kan niet terug, de herstelset moet blijven. */
-class RecoverySourceTooLargeError extends Error {
-  constructor(readonly limit: number) {
-    super('Herstelbron is groter dan de grens voor een IFC-bestand met een gebouwmodel.');
-    this.name = 'RecoverySourceTooLargeError';
-  }
-}
 
 /** Bronbytes + planningstekst: dezelfde bytes-openroute als Bestand → Openen, daarna de
  * snapshot als bewerkte stand, los van bron-I/O. De MCP-backup is een apart onderdeel 9c.
@@ -36,10 +26,9 @@ export async function recoveryDocumentWithSource(
   if (!known) throw mismatch();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels);
-  // De open-route kiest de reden van een weigering (`importErrorMessageKey`) en meldt die in deze tijdelijke store.
-  const tooLarge = store.getState().ui.notifications.find(n => n.messageKey === 'notifications.ifcForeignOpenTooLarge');
-  if (tooLarge) throw new RecoverySourceTooLargeError(Number(tooLarge.params?.limit));
+  // Zonder de grens voor openen (knownbug 1936, ontwerp §4.13): dit zijn de eigen, hierboven gecontroleerde bytes die de app
+  // al had aanvaard, en het herstel kost het geheugen dat het document vóór de crash ook kostte.
+  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels, { ifcMaxBytes: Infinity });
   const source = store.getState().ifcSource;
   if (!source?.foreign || !source.opened) throw new Error('Herstelbron kon niet als volledig IFC worden geopend.');
   return { ...snapshot, ifcSource: source, sourceRestored: true,
@@ -86,10 +75,7 @@ export async function readRecoveryDocument(
         const bytes = await readBytesFromRef(ref);
         if (bytes) return await recoveryDocumentWithSource(bytes, snapshot, reference, labels);
       }
-      catch (error) {
-        if (error instanceof RecoverySourceTooLargeError) throw error;
-        /* Geen leesrecht of andere bron: probeer de bewaarde kopie, als die bestaat. */
-      }
+      catch { /* Geen leesrecht of andere bron: probeer de bewaarde kopie, als die bestaat. */ }
     }
     if (isTauri() || !document.sourceCopyDocumentKey) return snapshot;
     const copy = await readRecoverySourceCopy(document.sourceCopyDocumentKey, reference.sha256);
@@ -97,35 +83,7 @@ export async function readRecoveryDocument(
     const siteFileId = snapshot.foreignSource?.siteFileId;
     const withSite = { ...snapshot, siteFileVersion: siteFileId && copy.siteFileId === siteFileId ? copy.siteFileVersion : null };
     return await recoveryDocumentWithSource(copy.bytes, withSite, reference, labels);
-  } catch (error) {
-    // Knownbug 1936: een bron boven de grens geeft alleen de planning terug, met een eigen uitkomst. Herstellen meldt
-    // het en houdt de herstelset vast (`restoreRecoveredDocuments`). Andere weigeringen: knownbug 2046.
-    return error instanceof RecoverySourceTooLargeError ? { ...snapshot, sourceNotRestored: { limit: error.limit } } : snapshot;
+  } catch {
+    return snapshot;
   }
-}
-
-/**
- * *Herstellen* in de herstelvraag (`useRecoveryRestore`): de documenten in de store, een melding per document waarvan
- * het gebouwmodel niet terugkwam, en opruimen alleen als alles volledig is meegenomen. Anders blijft de herstelset
- * staan tot de planner haar verwerpt (`holdRecoveryForLater`), ook de bronkopie in de browser. Een document zonder
- * model krijgt op de desktop geen vrijgave voor opruimen. `onRestored` draait vóór de opruimactie. Gooit bij een fout
- * van de opslag; de hook meldt die.
- */
-export async function restoreRecoveredDocuments(
-  store: { getState(): Pick<AppState, 'restoreDocuments' | 'notify'> },
-  restored: readonly RecoveryDocInput[], activeDocumentId: string | null, failed: number,
-  titles: ReadonlyMap<string, string>, onRestored: () => void = () => {},
-): Promise<void> {
-  const skipped = restored.length > 0 ? store.getState().restoreDocuments([...restored], activeDocumentId).skippedIds : [];
-  const withoutModel = restored.filter(doc => doc.sourceNotRestored && !skipped.includes(doc.id));
-  for (const doc of withoutModel) {
-    store.getState().notify({
-      severity: 'error', sticky: true, messageKey: 'notifications.recoveryModelNotRestored',
-      params: { name: titles.get(doc.id) ?? doc.project.name, limit: doc.sourceNotRestored!.limit },
-    });
-  }
-  // Het herstel zelf is klaar: de hook sluit de dialoog vóór de opruimactie (bestands-I/O).
-  onRestored();
-  if (failed === 0 && skipped.length === 0 && withoutModel.length === 0) await clearRecovery();
-  else await holdRecoveryForLater(restored.filter(doc => !skipped.includes(doc.id) && !doc.sourceNotRestored).map(doc => doc.id));
 }

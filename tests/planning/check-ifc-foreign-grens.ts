@@ -1,18 +1,20 @@
-// De grens van 150 MiB (#804, knownbug 1936) met een verlaagde productieconstante, door de echte routes. Fixronde 1 van
-// #1127 (review Sol): crashherstel van een bron boven de grens, Ctrl+S van een gewone planning boven de grens met de flag
-// uit en aan, en de doelscan als stroom precies op de grens. Een bestand van 150 MiB is daarvoor niet nodig.
+// De grens van 150 MiB (#804, knownbug 1936) met een verlaagde productieconstante, door de echte routes. Fixronde 2 van
+// #1127: crashherstel van een eigen bron boven de grens (browser zonder en met handle, sitebestand, desktop met
+// nagebootste Tauri-IPC, twee tabbladen), Bestand → Openen boven de grens, Ctrl+S van een gewone planning boven de grens
+// met de flag uit en aan, en de doelscan als stroom precies op de grens. Een bestand van 150 MiB is daarvoor niet nodig.
 //
 // Hoe: deze check bundelt `ifcGrensProef.ts` met dezelfde esbuild-instellingen als run.sh, maar vervangt in
 // `foreignScan.ts` de ene regel `= 150 * 1024 * 1024;` door de proefgrens (64 KiB). Staat die regel er niet precies zo,
 // dan faalt de check: zo blijft de verlaging gekoppeld aan de enige plek van de grens. De waarde zelf (150 MiB) toetst
 // `check-ifc-foreign-open.ts`.
 //
-// Mutatiebewijs: in `readRecoveryDocument.ts` de uitkomst `sourceNotRestored` weglaten (stil herstel) ⇒ deel 1 rood; in
-// `restoreRecoveredDocuments` opruimen ondanks een niet herstelde bron ⇒ de bronkopie is weg, deel 1 rood.
+// Mutatiebewijs: in `readRecoveryDocument.ts` de grens voor openen op het herstel laten gelden (`{ ifcMaxBytes: Infinity }`
+// weg) ⇒ deel 1 rood, in de browser en op de desktop.
 //
-// Draait via run.sh (esbuild-bundel), één keer, buiten de tijdzone-matrix. Exit 0 = alles groen.
+// Draait via run.sh (esbuild-bundel), één keer, buiten de tijdzone-matrix: de bundel twee keer, `web` en `desktop` (met
+// een eigen tijdelijke map als appData). Exit 0 = alles groen.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -50,7 +52,15 @@ try {
     }],
   });
   if (replaced !== 1) throw new Error('de grens is niet verlaagd: foreignScan.ts kwam niet in de bundel');
-  execFileSync(process.execPath, [outfile], { cwd: root, stdio: 'inherit' });
+  const appData = join(work, 'appdata');
+  mkdirSync(appData);
+  // Beide vormen draaien altijd, ook als de eerste rood is; elke vorm meldt zelf zijn afwijkingen.
+  let failed = 0;
+  for (const args of [['web'], ['desktop', appData]]) {
+    try { execFileSync(process.execPath, [outfile, ...args], { cwd: root, stdio: 'inherit' }); }
+    catch { failed++; }
+  }
+  if (failed > 0) throw new Error(`${failed} van de 2 vormen rood`);
 } catch (error) {
   console.log(`XX  ifc-foreign-grens: ${(error as Error).message.split('\n')[0]}`);
   process.exitCode = 1;

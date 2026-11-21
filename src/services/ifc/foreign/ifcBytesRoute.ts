@@ -36,7 +36,7 @@ const FOREIGN_CONTENT_SCHEMAS: ReadonlySet<string> = new Set(['IFC4', 'IFC4X3', 
 
 /** Waarom de bytes-route terugviel op de huidige route. */
 export type IfcBytesFallback =
-  /** Alleen als de bytes-route de bron onder de grens zou bewaren (scanner en schema in orde); `limit` in bytes. */
+  /** Groter dan de grens, en de lezer of de scan erna weigert; `limit` in bytes. */
   | { kind: 'te-groot'; size: number; limit: number }
   | { kind: 'scanner'; reason: StepScanReason; message: string }
   | { kind: 'schema'; schemaName: string | undefined }
@@ -61,7 +61,8 @@ export class IfcForeignOpenError extends Error {
 
 /** De Worker-keuze voor tests, en de herstelnaad voor een XER-archiefverwijzing (crashherstel, zoals de huidige route). */
 export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> & {
-  /** Proefnaad binnen de bestaande leesopties: alleen lager dan de productiegrens, nooit hoger. */
+  /** De grens voor deze lezing, standaard `IFC_BYTES_ROUTE_MAX_BYTES`. Proeven geven een lagere. Alleen het crashherstel
+   *  van zijn eigen, op lengte en SHA-256 gecontroleerde bron geeft `Infinity`: de app aanvaardde die bytes al (§4.13). */
   maxBytes?: number;
 };
 
@@ -82,7 +83,7 @@ async function currentRoute(
   try {
     result = await readIFCWithXerReconstruction(text, labels, xerOptions(opts));
   } catch (error) {
-    // Boven de grens is de grootte de reden, niet het model: onder de grens bewaart de bytes-route de bron.
+    // Boven de grens noemt de melding de grens: onder de grens kan de bytes-route het model met zijn bron openen.
     if (fallback.kind === 'te-groot' && error instanceof IfcParseError && error.reason === 'building-model') {
       throw new IfcForeignOpenError(fallback);
     }
@@ -106,6 +107,12 @@ export async function readIfcBytesDetailed(
   labels: ImportLabels = {},
   opts: IfcBytesRouteOptions = {},
 ): Promise<IfcBytesRead> {
+  // De grootte eerst (knownbug 1936): boven de grens start geen indeling voor bronbehoud en geen tekst voor de lezer. De
+  // gewone route doet wat main boven de oude grens deed: weigert de lezer een gebouwmodel, dan volgt geen scan; een gewone
+  // planning opent pas als de scan na het lezen geen vreemd deel vindt. Bij een weigering noemt de melding de grens
+  // (`te-groot`), ook in het zeldzame geval van knownbug 1151 (aanvaard).
+  const limit = opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES;
+  if (bytes.length > limit) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length, limit });
   const scan = await runForeignScan(bytes, opts);
   if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message }, scan);
 
@@ -114,10 +121,6 @@ export async function readIfcBytesDetailed(
   if (schemaName === undefined || !FOREIGN_CONTENT_SCHEMAS.has(schemaName)) {
     return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName }, scan);
   }
-  // De ene plek van de grootteweigering: na de scanner en het schema, met dezelfde uitkomsten als onder de grens. Zo
-  // krijgt alleen een bestand dat de bytes-route met zijn bron zou openen de melding over de grens (knownbug 1936).
-  const limit = Math.min(opts.maxBytes ?? IFC_BYTES_ROUTE_MAX_BYTES, IFC_BYTES_ROUTE_MAX_BYTES);
-  if (bytes.length > limit) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length, limit }, scan);
 
   const stepIdsOut: Record<string, string> = {};
   // Knownbug 1151: de modelweigering draait ook hier, op de tekst van de lezer (zonder V). Ziet de grammatica daar een

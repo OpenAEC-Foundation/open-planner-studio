@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { readRecoveryDocument, restoreRecoveredDocuments } from '@/state/readRecoveryDocument';
+import { readRecoveryDocument } from '@/state/readRecoveryDocument';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { documentTitle } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
@@ -133,10 +133,18 @@ export function useRecoveryRestore(): RecoveryRestore {
               try {
                 // `restoreDocuments` gooit niet op een corrupt-maar-parseerbaar document (bv. een
                 // cyclische WBS-relatie die de solver laat gooien) — het slaat zo'n document zelf
-                // over en geeft de overgeslagen id's terug. Alleen wissen als ALLES is meegenomen: ook
-                // vooraf onleesbare snapshots en een gebouwmodel dat niet terugkwam (knownbug 1936) tellen
-                // mee. Anders blijft de volledige snapshotset staan — er is geen selectieve delete in
-                // `recoveryStore`, en de enige kopie wissen zou het bewijs met de data weggooien.
+                // over en geeft de overgeslagen id's terug.
+                const skipped = restored.length > 0
+                  ? useAppStore.getState().restoreDocuments(restored, loaded.activeDocumentId).skippedIds
+                  : [];
+                // Dialoog meteen weg zodra het herstel zelf klaar is — de opruimactie eronder is
+                // bestands-I/O en mag de gebruiker niet laten wachten.
+                setRecovery(null);
+                // Alleen wissen als ALLES is meegenomen: ook vooraf onleesbare snapshots tellen
+                // mee, niet alleen documenten die restoreDocuments oversloeg. Anders blijft de
+                // volledige snapshotset staan — er is geen selectieve delete in `recoveryStore`, en
+                // de enige kopie van een overgeslagen document wissen zou het bewijs met de data
+                // weggooien (zelfde afweging als de parse-fout hierboven in de detectiefase).
                 //
                 // Prijs: de volgende start kan dezelfde set en foutmelding opnieuw tonen.
                 // "Verwerpen" blijft de expliciete uitweg. De herstelde documenten blijven open;
@@ -144,10 +152,8 @@ export function useRecoveryRestore(): RecoveryRestore {
                 // gezonde generatie opruimen. De mislukte generatie
                 // blijft beschermd via holdRecoveryForLater (web: vastgehouden generatie; Tauri:
                 // overgenomen manifestregels die elke ronde meegaan, ook bij een v1-manifest).
-                // Dialoog meteen weg zodra het herstel zelf klaar is — de opruimactie erna is
-                // bestands-I/O en mag de gebruiker niet laten wachten.
-                await restoreRecoveredDocuments(useAppStore, restored, loaded.activeDocumentId, failed,
-                  new Map(entries.map(entry => [entry.id, entry.name])), () => setRecovery(null));
+                if (failed === 0 && skipped.length === 0) await clearRecovery();
+                else await holdRecoveryForLater(restored.filter(doc => !skipped.includes(doc.id)).map(doc => doc.id));
               } catch (err) {
                 // Snapshots blijven staan. `finish()` gaat bewust wél door: de auto-save-poort
                 // dichthouden zou betekenen dat vanaf nu NIETS meer wordt weggeschreven — een

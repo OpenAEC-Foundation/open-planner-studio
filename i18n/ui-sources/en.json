@@ -83,7 +83,6 @@
     "notifications.recoveryStorageBlocked": "e405ecc25943f5d0",
     "notifications.recoveryReadFailed": "f0c59bf2764629f7",
     "notifications.recoveryRestoreFailed": "e955d8d5e451d23d",
-    "notifications.recoveryModelNotRestored": "2c3ae4a3e7795609",
     "notifications.hostSettingsUnavailable": "efdca862087d36fa",
     "notifications.hostThemeUntilRestart": "faa7bcf98db811da",
     "notifications.settingsLoadedLate": "d115e1b238faeedd",

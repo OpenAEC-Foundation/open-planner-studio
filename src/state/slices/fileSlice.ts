@@ -564,6 +564,9 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
+  /** De grens van de bytes-route voor deze lezing (`FormatReadOptions.ifcMaxBytes`). Alleen het crashherstel van zijn
+   *  eigen, gecontroleerde bron geeft `Infinity` (`readRecoveryDocument`, ontwerp §4.13). */
+  ifcMaxBytes?: number;
 }
 
 export interface FileSlice {
@@ -2422,7 +2425,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels,
+          { ...formatReadOptions(), ifcMaxBytes: options?.ifcMaxBytes });
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {

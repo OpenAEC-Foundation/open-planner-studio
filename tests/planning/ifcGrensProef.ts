@@ -1,22 +1,35 @@
 // De proef achter `check-ifc-foreign-grens.ts`: draait alleen in een bundel waarin die check de productiegrens
-// `IFC_FOREIGN_SCAN_MAX_BYTES` verlaagt tot `GRENS` (64 KiB). Zo lopen de echte routes (crashherstel, Ctrl+S, de doelscan
-// als stroom) over de grens zonder een bestand van 150 MiB. Fixronde 1 van #1127 (review Sol). Exit 0 = alles groen.
+// `IFC_FOREIGN_SCAN_MAX_BYTES` verlaagt tot `GRENS` (64 KiB). Zo lopen de echte routes (crashherstel, Bestand → Openen,
+// Ctrl+S, de doelscan als stroom) over de grens zonder een bestand van 150 MiB. Fixronde 2 van #1127. Exit 0 = groen.
+//
+// `node grens.mjs web`: browser (nagebootste IndexedDB), delen 1 tot 4. `node grens.mjs desktop <map>`: nagebootste
+// Tauri-IPC op die map, deel 1 voor een bron op schijf. De desktopvorm draait apart, omdat `isTauri()` dan overal waar is.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
+import { installNodeFileIpc } from './nodeFileIpc';
 
 export const GRENS = 65536;
+const mode = process.argv[2] === 'desktop' ? 'desktop' : 'web';
+const appData = process.argv[3] ?? '';
 
 installBrowserStubs();
 const reseed = installDeterminism();
 const db = installFakeRecoveryIndexedDb();
+if (mode === 'desktop') installNodeFileIpc({ appDataDir: appData });
 console.error = () => {};
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
-const { readRecoveryDocument, restoreRecoveredDocuments } = await import('@/state/readRecoveryDocument');
+const { readRecoveryDocument } = await import('@/state/readRecoveryDocument');
+const { recoverySourceDocument } = await import('@/state/recoverySourceDocument');
 const { clearRecovery, loadRecovery, saveRecovery, fullRecoverySave } = await import('@/services/recovery/recoveryStore');
-const { readRecoverySourceCopy, SOURCE_COPY_DB } = await import('@/services/recovery/recoverySourceCopies');
+const { runRecoveryTick } = await import('@/services/recovery/recoverySnapshot');
+const { RecoveryDeltaTracker } = await import('@/services/recovery/recoveryDelta');
+const { ownRecoveryNames } = await import('@/services/recovery/recoveryPaths');
+const { SOURCE_COPY_DB } = await import('@/services/recovery/recoverySourceCopies');
+const { saveTargetRef } = await import('@/services/fileAccess');
 const { IFC_FOREIGN_SCAN_MAX_BYTES } = await import('@/services/ifc/foreign/foreignScan');
 const { scanForeignTargetSource } = await import('@/services/ifc/foreign/targetForeignScan');
 const { readsAsBytes } = await import('@/services/formatRegistry');
@@ -46,54 +59,127 @@ const newStore = (flag: boolean) => {
   store.setState(s => { s.ui.featureFlags = flag ? { ifcForeignContent: true } : {}; });
   return store;
 };
+type Store = ReturnType<typeof newStore>;
+type Recovered = Awaited<ReturnType<typeof loadRecovery>>['docs'][number];
+/** Een handle die de opslagronde net als een echte `FileSystemFileHandle` kan klonen: de methoden staan op het prototype.
+ *  Na het klonen ontbreken ze; het herstel krijgt daarom elke keer een verse handle (`withHandle`). */
+class FakeHandle {
+  readonly kind = 'file';
+  readonly name = 'model.ifc';
+  constructor(readonly bytes: Uint8Array) {}
+  async queryPermission() { return 'granted'; }
+  async requestPermission() { return 'granted'; }
+  async getFile() { return new File([this.bytes as BlobPart], this.name); }
+}
+const handleOf = (bytes: Uint8Array) => new FakeHandle(bytes) as unknown as FileSystemFileHandle;
+const snapshotOf = (name: string) => plan.replace("'Refurbishment & Extension of a Family Home'", `'${name}'`);
 
-// ── 1. Crashherstel van een bron boven de grens: de planning terug, een melding, en de herstelset blijft ─────────────
-// Een oude herstelset (zoals de app hem vóór de lagere grens schreef): planning, manifestverwijzing en de bronkopie.
-const recoveryCases = [
-  { label: 'browser zonder handle', over: true, site: false, handle: false },
-  { label: 'browser met een handle naar het bestand', over: true, site: false, handle: true },
-  { label: 'sitebestand', over: true, site: true, handle: false },
-  { label: 'onder de grens (controle)', over: false, site: false, handle: false },
-];
-for (const c of recoveryCases) {
-  const bytes = pad(model, c.over ? GRENS + 1 : GRENS);
+/** *Herstellen* zoals `useRecoveryRestore` op main: elk document lezen, in de store zetten, en opruimen als alles terugkwam. */
+async function restore(withRecord: (doc: Recovered) => Recovered = d => d) {
+  const loaded = await loadRecovery();
+  const input = await Promise.all(loaded.docs.map(d => readRecoveryDocument(withRecord(d), loaded.archives, true)));
+  const app = newStore(true);
+  const skipped = app.getState().restoreDocuments(input, loaded.activeDocumentId).skippedIds;
+  if (skipped.length === 0) await clearRecovery();
+  return { app, input, skipped };
+}
+/** Een nieuwe crashsnapshot van alle open tabbladen, via de gewone opslagronde. */
+async function snapshot(app: Store, tracker = new RecoveryDeltaTracker()) {
+  const s = app.getState();
+  await runRecoveryTick(tracker, s.activeDocumentId, s.getOpenDocumentPayloads().map(({ id, payload }) => recoverySourceDocument(id, payload, true)));
+}
+/** Wat de planner na *Herstellen* heeft: het gebouwmodel (bronhash) en de planning. */
+const restoredState = (app: Store) => {
+  const s = app.getState();
+  return { model: s.ifcSource?.sha256 ?? null, buildingModel: s.ifcSource?.buildingModel ?? false,
+    sourceMissing: s.foreignSourceMark?.sourceMissing ?? false, project: s.project.name, firstTask: s.tasks[0]?.name ?? null, dirty: s.isDirty };
+};
+
+// ── 1. Crashherstel van een eigen bron boven de grens: model en planning terug, ook na een tweede *Herstellen* ───────
+// Fixronde 2 (besluit 21 november 2026): het herstel leest zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder de
+// grens voor openen. Daarna een bewerking, een nieuwe crashsnapshot en nog eens *Herstellen*; opruimen zoals main.
+const bytes = pad(model, GRENS + 1);
+const reference = { foreign: true as const, byteLength: bytes.length, sha256: sha(bytes) };
+const cases = mode === 'desktop'
+  ? [{ label: 'desktop, bron op schijf', site: false, handle: false, disk: true }]
+  : [
+    { label: 'browser zonder handle', site: false, handle: false, disk: false },
+    { label: 'browser met een handle naar het bestand', site: false, handle: true, disk: false },
+    { label: 'sitebestand', site: true, handle: false, disk: false },
+  ];
+for (const c of cases) {
+  await clearRecovery();
   const documentId = `grens-${c.label}`;
-  const reference = { foreign: true as const, byteLength: bytes.length, sha256: sha(bytes) };
-  const snapshot = plan.replace("'Refurbishment & Extension of a Family Home'", "'Gecrasht tabblad'");
+  const diskPath = join(appData, 'model.ifc');
+  if (c.disk) writeFileSync(diskPath, bytes);
   await saveRecovery({
     ...fullRecoverySave(documentId, [{
-      id: documentId, isDirty: true, datesAsRecorded: false, filePath: null, ifc: snapshot, ifcSource: reference,
+      id: documentId, isDirty: true, datesAsRecorded: false, filePath: null, ifc: snapshotOf('Gecrasht tabblad'), ifcSource: reference,
       ...(c.site ? { siteFileId: 'site-model', siteFileVersion: 'v1', foreignSource: { filePath: null, siteFileId: 'site-model' } } : {}),
+      ...(c.disk ? { foreignSource: { filePath: diskPath, siteFileId: null } } : {}),
     }]),
-    ifcSourceCopies: new Map([[documentId, { bytes, siteFileId: c.site ? 'site-model' : null, siteFileVersion: c.site ? 'v1' : null }]]),
+    // Met een handle geen bronkopie: dan kan alleen de handle de bytes geven.
+    ...(c.disk || c.handle ? {} : { ifcSourceCopies: new Map([[documentId, { bytes, siteFileId: c.site ? 'site-model' : null, siteFileVersion: c.site ? 'v1' : null }]]) }),
   });
-  const loaded = await loadRecovery();
-  eq(`herstel ${c.label}: één document`, loaded.docs.length, 1);
-  const handle = { kind: 'file', name: 'model.ifc', queryPermission: async () => 'granted', requestPermission: async () => 'granted',
-    getFile: async () => new File([bytes], 'model.ifc') } as unknown as FileSystemFileHandle;
-  const record = c.handle ? { ...loaded.docs[0], ifcSource: { ...loaded.docs[0].ifcSource!, handle } } : loaded.docs[0];
-  const input = await readRecoveryDocument(record, loaded.archives, true);
-  eq(`herstel ${c.label}: uitkomst van de lezing`, [input.sourceRestored ?? false, input.sourceNotRestored ?? null],
-    c.over ? [false, { limit: Math.floor(GRENS / (1024 * 1024)) }] : [true, null]);
-  const app = newStore(true);
-  await restoreRecoveredDocuments(app, [input], loaded.activeDocumentId, 0, new Map([[documentId, 'model.ifc']]));
-  const s = app.getState();
-  eq(`herstel ${c.label}: de planning is hersteld`, [s.tasks.length > 0, s.project.name, s.isDirty], [true, 'Gecrasht tabblad', true]);
-  eq(`herstel ${c.label}: het model`, [s.ifcSource?.sha256 ?? null, s.foreignSourceMark?.sourceMissing ?? false],
-    c.over ? [null, true] : [reference.sha256, false]);
-  eq(`herstel ${c.label}: de melding`, s.ui.notifications.map(n => [n.messageKey, n.severity, n.sticky, n.params]),
-    c.over ? [['notifications.recoveryModelNotRestored', 'error', true, { name: 'model.ifc', limit: 0 }]] : []);
-  const copy = record.sourceCopyDocumentKey ? await readRecoverySourceCopy(record.sourceCopyDocumentKey, reference.sha256) : null;
-  eq(`herstel ${c.label}: de bronkopie na Herstellen`, copy ? sha(copy.bytes) : null, c.over ? reference.sha256 : null);
-  if (c.over) {
-    // Bij een volgende start komt dezelfde set terug; Verwerpen ruimt haar op.
-    const again = await loadRecovery();
-    eq(`herstel ${c.label}: bij de volgende start opnieuw aangeboden`, again.docs.map(d => d.id).includes(documentId), true);
-    await clearRecovery();
-    eq(`herstel ${c.label}: na Verwerpen is de kopie weg`, db.store('sources', SOURCE_COPY_DB).size, 0);
-  }
+  // Op de desktop komt de set van een vorige start: een andere eigenaar in het manifest.
+  const previousStart = () => {
+    if (!c.disk) return;
+    const manifest = join(appData, ownRecoveryNames.manifest);
+    writeFileSync(manifest, JSON.stringify({ ...JSON.parse(readFileSync(manifest, 'utf8')), ownerId: 'vorige-start' }));
+  };
+  previousStart();
+  const withHandle = (d: Recovered) => (c.handle && d.ifcSource ? { ...d, ifcSource: { ...d.ifcSource, handle: handleOf(bytes) } } : d);
+  const first = await restore(withHandle);
+  eq(`herstel ${c.label}: de bron is gelezen`, [first.input.map(i => i.sourceRestored ?? false), first.skipped], [[true], []]);
+  eq(`herstel ${c.label}: model en planning terug`, restoredState(first.app),
+    { model: reference.sha256, buildingModel: true, sourceMissing: false, project: 'Gecrasht tabblad', firstTask: first.app.getState().tasks[0]?.name ?? null, dirty: true });
+  if (c.disk) eq(`herstel ${c.label}: het opslagdoel is het bestand`, [first.app.getState().filePath, saveTargetRef(first.app.getState())?.kind ?? null], [diskPath, 'path']);
+  eq(`herstel ${c.label}: na Herstellen opgeruimd zoals main`, (await loadRecovery()).docs.length, 0);
+
+  // Een bewerking, een nieuwe crashsnapshot en een tweede *Herstellen*.
+  first.app.getState().updateTask(first.app.getState().tasks[0].id, { name: 'Bewerkt na herstel' });
+  await snapshot(first.app);
+  previousStart();
+  const next = await loadRecovery();
+  eq(`herstel ${c.label}: de nieuwe snapshot draagt bewerking en bron`, next.docs.map(d => [d.ifc.includes('Bewerkt na herstel'), d.ifcSource?.sha256 ?? null]),
+    [[true, reference.sha256]]);
+  const second = await restore(withHandle);
+  eq(`herstel ${c.label}: tweede Herstellen, model en planning terug`, restoredState(second.app),
+    { model: reference.sha256, buildingModel: true, sourceMissing: false, project: 'Gecrasht tabblad', firstTask: 'Bewerkt na herstel', dirty: true });
+  eq(`herstel ${c.label}: na het tweede Herstellen opgeruimd`, [(await loadRecovery()).docs.length, mode === 'web' ? db.store('sources', SOURCE_COPY_DB).size : 0], [0, 0]);
+  if (c.disk) eq(`herstel ${c.label}: het bestand op schijf ongewijzigd`, sha(readFileSync(diskPath)), reference.sha256);
 }
 
+if (mode === 'web') {
+  // ── 1b. Twee tabbladen, één met een bron boven de grens: na Herstellen en sluiten komt het andere niet terug ────────
+  await clearRecovery();
+  await saveRecovery({
+    ...fullRecoverySave('groot', [
+      { id: 'groot', isDirty: true, datesAsRecorded: false, filePath: null, ifc: snapshotOf('Groot tabblad'), ifcSource: reference },
+      { id: 'gezond', isDirty: true, datesAsRecorded: false, filePath: null, ifc: snapshotOf('Gezond tabblad') },
+    ]),
+    ifcSourceCopies: new Map([['groot', { bytes, siteFileId: null, siteFileVersion: null }]]),
+  });
+  const both = await restore();
+  eq('twee tabbladen: allebei terug, het grote met zijn model', [both.app.getState().documents.length, both.input.map(i => i.sourceRestored ?? false)],
+    [2, [true, false]]);
+  const tracker = new RecoveryDeltaTracker();
+  await snapshot(both.app, tracker);
+  assert(both.app.getState().closeDocument('gezond'));
+  await snapshot(both.app, tracker);
+  const afterClosing = await loadRecovery();
+  eq('twee tabbladen: na sluiten alleen het grote tabblad, met zijn bron', afterClosing.docs.map(d => [d.id, d.ifcSource?.sha256 ?? null]),
+    [['groot', reference.sha256]]);
+  await clearRecovery();
+
+  // ── 1c. Bestand → Openen van hetzelfde bestand boven de grens weigert nog steeds ──────────────────────────────────
+  const opener = newStore(true);
+  await opener.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes, ref: null });
+  eq('openen boven de grens: geweigerd met de melding over de grootte', [opener.getState().filePath, opener.getState().ifcSource,
+    opener.getState().ui.notifications.map(n => [n.messageKey, n.params])], [null, null, [['notifications.ifcForeignOpenTooLarge', { limit: 0 }]]]);
+}
+
+if (mode === 'web') {
 // ── 2. Ctrl+S van een gewone planning boven de grens, via de echte opslagroute ─────────────────────────────────────
 // Met de flag uit precies main: één schrijfactie met de wijziging. Met de flag aan weigert de doelscan het bestaande
 // bestand boven de grens (knownbug 2044): niets geschreven, het bestand ongewijzigd, het document blijft gewijzigd.
@@ -143,10 +229,11 @@ for (const [label, size, want] of [['precies de grens', GRENS, 'no-model'], ['é
   };
   eq(`stroom ${label}`, await scanForeignTargetSource(source, { createWorker: () => null }), want);
 }
+}
 
 if (diffs.length) {
-  console.log(`XX  ifc-foreign-grens: ${diffs.length} afwijking(en) van ${checks}`);
+  console.log(`XX  ifc-foreign-grens (${mode}): ${diffs.length} afwijking(en) van ${checks}`);
   for (const d of diffs) console.log(`   - ${d}`);
   process.exit(1);
 }
-console.log(`OK  ifc-foreign-grens: alle checks groen (${checks}; grens verlaagd tot ${GRENS} bytes)`);
+console.log(`OK  ifc-foreign-grens (${mode}): alle checks groen (${checks}; grens verlaagd tot ${GRENS} bytes)`);

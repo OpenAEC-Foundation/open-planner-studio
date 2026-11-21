@@ -36,6 +36,9 @@ export interface FormatReadOptions {
   /** De flag `ifcForeignContent` staat aan (#804 fase 1a): IFC leest als bytes, via de scanner en de indeling. Zonder
    *  deze optie is alles zoals vóór #804. De open-routes geven hem mee met `ifcForeignContentEnabled(ui.featureFlags)`. */
   ifcBytes?: boolean;
+  /** De grens van de bytes-route (`maxBytes` van `readIfcBytes`). Alleen het crashherstel van zijn eigen, gecontroleerde
+   *  bron geeft `Infinity` (`readRecoveryDocument`); elke andere route laat hem weg. */
+  ifcMaxBytes?: number;
 }
 
 /** Het root-element van een XML-document: lokale naam (zonder prefix) en de namespace die voor dat
@@ -134,16 +137,20 @@ const IFC_FORMAT: ReadFormat = {
   read: async (i, labels, opts) => {
     if (!opts?.ifcBytes) return readIFCWithXerReconstruction(i.text ?? '', labels);
     // Flag `ifcForeignContent` (#804 fase 1a): de bytes-route. Een route die toch tekst gaf, gaat via `TextEncoder`.
-    return i.bytes ? readIfcViaBytesRoute(i.bytes, labels) : readIfcFromText(i.text ?? '', labels, opts);
+    return i.bytes ? readIfcViaBytesRoute(i.bytes, labels, opts) : readIfcFromText(i.text ?? '', labels, opts);
   },
 };
 
 /** IFC-bytes via de bytes-route (#804 fase 1a), lui geladen: scanner en indeling blijven buiten de hoofdbundel. */
 async function readIfcViaBytesRoute(
-  bytes: Uint8Array, labels?: ImportLabels, options: Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> = {},
+  bytes: Uint8Array, labels?: ImportLabels,
+  options: Pick<FormatReadOptions, 'ifcMaxBytes'> & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> = {},
 ): Promise<ImportResult> {
   const { readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
-  return readIfcBytes(bytes, labels, options.resolveXerArchiveReference ? { resolveXerArchiveReference: options.resolveXerArchiveReference } : {});
+  return readIfcBytes(bytes, labels, {
+    ...(options.resolveXerArchiveReference ? { resolveXerArchiveReference: options.resolveXerArchiveReference } : {}),
+    ...(options.ifcMaxBytes !== undefined ? { maxBytes: options.ifcMaxBytes } : {}),
+  });
 }
 
 /**

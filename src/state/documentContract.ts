@@ -161,9 +161,6 @@ export interface DocumentPayload {
 export type RecoveryDocInput = ImportResult & {
   /** Alleen gezet na teruglezen en hashcontrole van de volledige bron. Geen manifestveld. */
   sourceRestored?: true;
-  /** De bron is gevonden maar groter dan de grens van de bytes-route (knownbug 1936): alleen de planning is hersteld.
-   *  `limit` in hele MB, voor de melding. Geen manifestveld. */
-  sourceNotRestored?: { limit: number };
   fileHandle?: FileSystemFileHandle | null;
   id: string;
   filePath: string | null;
