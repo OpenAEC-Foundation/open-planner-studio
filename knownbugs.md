@@ -1128,6 +1128,7 @@ en noem het in je rapport of PR-tekst.
       de andere documentwissels zonder muis annuleren het venster wel (#1004). Mogelijke oplossing: een
       uitzondering voor de documentknoppen in de klik-buiten-handler. Uit de review van #1004 (GPT-6.2-Sol,
       xhigh, ronde 11, BEVESTIGD, VERVOLG). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
