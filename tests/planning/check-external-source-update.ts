@@ -643,6 +643,62 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('13c daarna geeft open versie 2 met een ander anker ⇒ opnieuw gelezen, een balk', [reads, S().ui.externalSourceUpdates.map(u => u.key)], [2, ['site:s1']]);
 }
 
+// Knownbug 992: een gewijzigde datum uit versie 1 mag niet onder versie 2 worden aangeboden.
+{
+  const { store, S, a } = plan();
+  const base = link('site-link', undefined, '2027-03-05T16:00', '0');
+  S().updateTask(a, { externalLinks: [{ ...base, sourceRef: { ...base.sourceRef, siteFileId: 's1' } }] });
+  S().runCPM();
+  let advertised: SiteVersionInfo = { version: '2', label: 'Tweede versie', author: 'Planner 2' };
+  let openVersion: string | undefined = '1';
+  let finish = '2027-03-08T16:00';
+  let reads = 0;
+  store.setState({
+    externalSiteSourceVersion: async () => advertised,
+    parseExternalSiteSource: async (id: string) => {
+      reads++;
+      return { projectId: 'installateur', siteFileId: id, tasks: [sourceTask(finish)], version: openVersion };
+    },
+  });
+  const bars = () => S().ui.externalSourceUpdates;
+  const anchor = () => {
+    const link = S().tasks.find(task => task.id === a)!.externalLinks![0];
+    return [link.anchorDate, link.sourceVersion];
+  };
+  await S().checkExternalSources();
+  eq('992 achterlopende open met gewijzigde datum ⇒ één lezing, geen balk en niets overgenomen',
+    [reads, bars().length, anchor()], [1, 0, ['2027-03-05T16:00', '0']]);
+  S().dismissExternalSourceUpdate('site:s1');
+  openVersion = '2';
+  finish = '2027-03-10T16:00';
+  await S().checkExternalSources();
+  const update = bars()[0];
+  eq('992 zodra versies gelijk zijn komt het voorstel alsnog met juist label en auteur',
+    [reads, update?.version, update?.siteVersionLabel, update?.author, anchor()],
+    [2, '2', 'Tweede versie', 'Planner 2', ['2027-03-05T16:00', '0']]);
+
+  advertised = { version: '3', label: 'Derde versie', author: 'Planner 3' };
+  openVersion = '1';
+  finish = '2027-03-08T16:00';
+  await S().checkExternalSources();
+  eq('992 een tijdelijk verkeerde lezing houdt het eerder bevestigde voorstel', bars().map(u => u.version), ['2']);
+  eq('992 Bekijken toont geen andere versie onder het label van het eerdere voorstel',
+    update ? await S().readExternalSourceUpdate(update) : 'geen voorstel', null);
+  openVersion = '2';
+  finish = '2027-03-10T16:00';
+  const approved = update ? await S().readExternalSourceUpdate(update) : null;
+  eq('992 Bekijken kan weer lezen als de versie klopt', approved?.version, '2');
+  eq('992 alleen expliciet accepteren zet de datum en versie', approved ? S().acceptExternalSourceUpdate(approved) : false, true);
+  eq('992 datum en versie na accepteren', anchor(), ['2027-03-10T16:00', '2']);
+
+  openVersion = undefined;
+  finish = '2027-03-12T16:00';
+  await S().checkExternalSources();
+  const versionless = bars()[0];
+  eq('992 open zonder versie houdt de oude terugval op versiemetadata', versionless?.version, '3');
+  eq('992 Bekijken van versie-loze bron blijft mogelijk', !!(versionless && await S().readExternalSourceUpdate(versionless)), true);
+}
+
 // (12) Een bron van de site: geen pad, het site-id en de versie op de site.
 {
   const { S } = plan();
