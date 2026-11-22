@@ -5,7 +5,7 @@ import { useAppStore } from '@/state/appStore';
 import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
-import { externalSourceScope, refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { externalSourceScope, refreshExternalAnchors, type ExternalSourceDoc, type ExternalSourceLocator } from '@/engine/externalLinks';
 import { previewExternalRefresh, type ExternalRefreshPreview } from '@/engine/externalRefreshPreview';
 import { externalSourceSide } from '@/engine/taskGrid/relationFormat';
 import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -16,7 +16,7 @@ import type { ExternalLink } from '@/types/task';
 type ReviewState =
   | { kind: 'reading' }
   | { kind: 'failed' }
-  | { kind: 'read'; source: ExternalSourceDoc };
+  | { kind: 'read'; source: ExternalSourceDoc; locator: ExternalSourceLocator; version: string };
 
 /**
  * *Bekijken* bij een nieuwe versie van een bron (keuze 1, Ethan 2026-11-03; stap 1.5 in
@@ -60,22 +60,22 @@ export function ExternalSourceReviewDialog() {
   const version = update?.version;
   const openDocumentId = update?.openDocumentId;
   useEffect(() => {
-    if (!locator || !documentId) return;
+    if (!locator || !documentId || version === undefined) return;
     let cancelled = false;
     setState({ kind: 'reading' });
     void (async () => {
-      const src = await useAppStore.getState().readExternalSourceUpdate({ locator, openDocumentId }, buildImportLabels(tCommon));
+      const src = await useAppStore.getState().readExternalSourceUpdate({ locator, openDocumentId, version }, buildImportLabels(tCommon));
       if (cancelled) return;
       if (!src) { setState({ kind: 'failed' }); return; }
       if (useAppStore.getState().activeDocumentId !== documentId) return;
-      setState({ kind: 'read', source: src });
+      setState({ kind: 'read', source: src, locator, version });
     })();
     return () => { cancelled = true; };
   }, [locator, documentId, version, openDocumentId, tCommon]);
 
   // Het voorstel volgt de stand van het document. Rekent de planner opnieuw (F5) terwijl het venster open
   // staat, dan vergelijkt het met de nieuwe berekening, met de al gelezen bron (review #811 ronde 2).
-  const source = state.kind === 'read' ? state.source : null;
+  const source = state.kind === 'read' && state.locator === locator && state.version === version ? state.source : null;
   const preview = useMemo(() => {
     if (!source) return null;
     // Alleen de koppelingen naar dít bestand, of zonder pad naar dit project, net als de balk
