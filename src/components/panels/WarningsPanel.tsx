@@ -103,7 +103,7 @@ export function WarningsPanel() {
         deadline: dateOfTask(warningTaskId(w), f.deadline, 'end', false),
         finish: dateOfTask(warningTaskId(w), f.finish, 'end', true),
       });
-      case 'violatedConstraint': return t('warnings.kind.violatedConstraint', { constraint: constraintLabel(f, warningTaskId(w)) });
+      case 'violatedConstraint': return t('warnings.kind.constraintLogicConflict', { constraint: constraintLabel(f, warningTaskId(w)) });
       case 'externalSuccessorViolated': {
         const relType = f.relType ?? 'FS';
         const taskId = warningTaskId(w);
