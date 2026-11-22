@@ -708,7 +708,7 @@ export interface FileSlice {
    * site (`readExternalSourceAt`).
    */
   readExternalSourceUpdate: (
-    update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId'>, labels?: ImportLabels,
+    update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId' | 'version'>, labels?: ImportLabels,
   ) => Promise<ExternalSourceRead | null>;
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
@@ -1203,6 +1203,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!src) continue;
       // Intussen veranderde een route deze bron: de gelezen uitkomst is achterhaald (geen balk, niets afgehandeld).
       if (stale(key)) { discarded = true; continue; }
+      // De site kan versie Y al melden terwijl open(id) nog versie X geeft. Wacht in dat geval op een
+      // volgende controle: geen verkeerd gelabeld voorstel en Y niet als afgehandeld opslaan (knownbug 992).
+      // Zonder versie in open(id) houdt de bestaande terugval op de metadata stand.
+      if (locator.kind === 'site' && src.version !== undefined && src.version !== version) continue;
       const tasks = get().tasks;
       // Alleen de koppelingen naar dít bestand (met pad of site-id), of zonder pad naar dit project: een kopie
       // met hetzelfde project-id elders telt niet mee.
@@ -1211,12 +1215,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // vastgelegde versie (anker uit een geopend document, stap 1.7) houdt dat tot de volgende echte wijziging.
       const changes = externalAnchorChanges(tasks, result.tasks);
       const changedLinks = changes.length;
-      // Op de site telt de versie uit `versions(id)`: de balk vergelijkt daarmee, ook als `open` geen versie gaf.
-      const readVersion = locator.kind === 'site' ? version : src.version ?? version;
+      const readVersion = src.version ?? version;
       if (changedLinks === 0) {
-        // Afgehandeld is de versie die de app echt las. Gaf `open(id)` een andere versie dan `versions(id)` (de
-        // site loopt achter), dan leest de volgende controle opnieuw (review #859 ronde 1).
-        settledSourceVersions.set(sourceKey(documentId, key), src.version ?? version);
+        settledSourceVersions.set(sourceKey(documentId, key), readVersion);
         settled.add(key);
         continue;
       }
@@ -3137,7 +3138,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     readExternalSourceUpdate: async (update, labels) => {
-      if (update.openDocumentId === undefined) return get().readExternalSourceAt(update.locator, labels);
+      if (update.openDocumentId === undefined) {
+        const src = await get().readExternalSourceAt(update.locator, labels);
+        // De host kan nu een andere versie geven dan toen de balk ontstond. Toon en accepteer haar niet
+        // onder het versielabel van die balk.
+        if (update.locator.kind === 'site' && src?.version !== undefined && src.version !== update.version) return null;
+        return src;
+      }
       // Stap 1.7: alleen zolang het document nog open staat, nog deze bron is en nog niet-opgeslagen wijzigingen heeft.
       const open = openDirtySource(update.locator);
       return open?.id === update.openDocumentId ? readOpenSource(open, update.locator, labels) : null;
