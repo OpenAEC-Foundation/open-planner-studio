@@ -658,6 +658,60 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('12d zonder versie van de site ⇒ geen versie', noVersion.version, undefined);
 }
 
+// Knownbug 884: Later kiezen terwijl dezelfde bronronde op een tweede lezing wacht.
+{
+  const { store, S, a, b } = plan();
+  S().updateTask(b, { externalLinks: [link('x884', COPY, '2027-03-05T16:00', 'v1')] });
+  let copyVersion = 'v1';
+  const versionChecks: string[] = [];
+  const fileReads: string[] = [];
+  let entered = () => {};
+  let release = () => {};
+  const copyEntered = new Promise<void>(resolve => { entered = resolve; });
+  const copyGate = new Promise<void>(resolve => { release = resolve; });
+  store.setState({
+    externalSourceVersion: async filePath => {
+      versionChecks.push(filePath);
+      return filePath === PATH ? 'v2' : copyVersion;
+    },
+    parseExternalSource: async (filePath): Promise<ExternalSourceRead | null> => {
+      fileReads.push(filePath);
+      if (filePath === COPY) {
+        entered();
+        await copyGate;
+      }
+      return { projectId: 'installateur', filePath, tasks: [sourceTask('2027-03-10T16:00')],
+        version: 'v2', readAt: '2026-11-03T10:00:00.000Z' };
+    },
+  });
+  const notices = () => S().ui.externalSourceUpdates.map(u => [u.key, u.version, u.changedLinks]);
+  const sourceState = () => [a, b].map(id => S().tasks.find(t => t.id === id)?.externalLinks?.map(l => [l.anchorDate, l.sourceVersion]));
+  const before = sourceState();
+  await S().checkExternalSources();
+  eq('884 opzet: alleen de balk van de eerste bron staat er', notices(), [[PATH, 'v2', 1]]);
+  eq('884 opzet: alleen eerste bron gelezen', fileReads, [PATH]);
+
+  versionChecks.length = 0;
+  copyVersion = 'v2';
+  const pending = S().checkExternalSources();
+  const reached = await Promise.race([copyEntered.then(() => true), pending.then(() => false)]);
+  try {
+    eq('884 de ronde wacht daadwerkelijk in de tweede lezing', reached, true);
+    eq('884 de eerste bron is al langsgekomen', versionChecks.slice(0, 2), [PATH, COPY]);
+    eq('884 terwijl de lezing wacht staat de eerste balk er nog', notices(), [[PATH, 'v2', 1]]);
+    S().dismissExternalSourceUpdate(PATH);
+    eq('884 Later haalt die eerste balk meteen weg', notices(), []);
+  } finally {
+    release();
+    await pending;
+  }
+  eq('884 na afronden: alleen de tweede balk verschijnt', notices(), [[COPY, 'v2', 1]]);
+  await S().checkExternalSources();
+  eq('884 ook de volgende controle laat de eerste balk weg', notices(), [[COPY, 'v2', 1]]);
+  eq('884 beide bestanden precies eenmaal gelezen', fileReads, [PATH, COPY]);
+  eq('884 geen van de ankers of bronversies in het plan is aangepast', sourceState(), before);
+}
+
 if (failures.length) {
   console.error(`XX external-source-update: ${failures.length}/${checks}\n${failures.join('\n')}`);
   process.exit(1);
