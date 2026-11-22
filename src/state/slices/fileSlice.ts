@@ -699,6 +699,7 @@ export interface FileSlice {
   /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron.
    *  Parset de bron read-only, herberekent de ankers + `sourceMissing`, en herrekent de planning. */
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
+  refreshExternalProjectAnchors: (taskId: string, linkId: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
   /** Projectbrede ververs-actie ("Ververs externe ankers"): ververs elke gerefereerde bron één keer. */
   refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<ExternalRefreshAllResult>;
   /**
@@ -2837,6 +2838,31 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const key = normalizeExternalSourcePath(filePath);
       if (key !== null) dropSourceUpdates(targetDocumentId, new Set([key]));
       announceUnsavedOpenSources(targetDocumentId, [{ kind: 'path', filePath }]);
+      return { refreshed: result.refreshed, missing: result.missing };
+    },
+
+    refreshExternalProjectAnchors: async (taskId, linkId, labels) => {
+      if (isTauri() || siteStorageAvailable()) return null;
+      const documentId = get().activeDocumentId;
+      const currentLocator = () => {
+        const link = get().tasks.find(task => task.id === taskId)?.externalLinks?.find(candidate => candidate.id === linkId);
+        return link ? externalSourceLocatorOf(link.sourceRef) : null;
+      };
+      const locator = currentLocator();
+      if (locator?.kind !== 'project') return null;
+      const { projectId } = locator;
+      const key = externalSourceKey(locator)!;
+      const generation = sourceGeneration(documentId, key);
+      const src = await readPreferringOpen(locator, labels,
+        () => get().parseExternalProjectSource(projectId, { prompt: true }, labels));
+      if (!src || src.projectId !== projectId || src.filePath || src.siteFileId) return null;
+      const current = currentLocator();
+      if (get().activeDocumentId !== documentId || current?.kind !== 'project' || current.projectId !== projectId
+        || sourceGeneration(documentId, key) !== generation) return null;
+      const result = refreshExternalAnchors(get().tasks, src, 'project-without-path');
+      if (result.changed) applyRefreshedTasks(documentId, result.tasks);
+      dropSourceUpdates(documentId, new Set([key]));
+      announceUnsavedOpenSources(documentId, [locator]);
       return { refreshed: result.refreshed, missing: result.missing };
     },
 
