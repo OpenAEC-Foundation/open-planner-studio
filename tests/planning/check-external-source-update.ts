@@ -680,7 +680,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
         entered();
         await copyGate;
       }
-      return { projectId: 'installateur', filePath, tasks: [sourceTask('2027-03-10T16:00')],
+      return { projectId: 'installateur', projectName: 'Installateur', filePath, tasks: [sourceTask('2027-03-10T16:00')],
         version: 'v2', readAt: '2026-11-03T10:00:00.000Z' };
     },
   });
