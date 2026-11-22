@@ -439,26 +439,37 @@ eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
     constraint: { type: 'MSO', date: '2026-06-08', hard: true },
   });
   S().addSequence({ predecessorId: pre, successorId: pinnedTask, type: 'FINISH_START', lagDays: 0 });
-  const external = (anchorDate: string, taskId: string) => ({
+  const external = (anchorDate: string, taskId: string, sourceVersion: string, anchorReadAt: string) => ({
     direction: 'predecessor' as const, relType: 'FS' as const, lagDays: 0, anchorDate, sourceMissing: false,
-    sourceRef: { projectId: 'leverancier', projectName: 'Leverancier', taskId, filePath: '/projecten/leverancier.ifc' },
+    sourceVersion, anchorReadAt,
+    sourceRef: { projectId: 'leverancier', projectName: 'Leverancier', taskId,
+      filePath: '/projecten/leverancier.ifc', siteFileId: 'bronbestand-48' },
   });
-  S().addExternalLink(pinnedTask, external('2026-06-05T16:00', 'l-1'));
-  S().addExternalLink(pinnedTask, external('2026-05-29T16:00', 'l-2'));
+  S().addExternalLink(pinnedTask, external('2026-06-05T16:00', 'l-1', '48', '2026-05-27T09:30:00.000Z'));
+  S().addExternalLink(pinnedTask, external('2026-05-29T16:00', 'l-2', '47', '2026-05-26T08:15:00.000Z'));
   S().runCPM();
   const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
   const warnedTasks = () => collectScheduleWarnings({
     tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
   }).filter(w => w.kind === 'violatedConstraint').map(w => w.id);
   const anchors = () => S().tasks.find(t => t.id === pinnedTask)!.externalLinks!.map(l => l.anchorDate);
+  // Knownbug 878: herkomst blijft bij het onverschoven bronanker horen, ook in de store-historie.
+  const provenance = () => S().tasks.find(t => t.id === pinnedTask)!.externalLinks!.map(l =>
+    [l.sourceRef.taskId, l.sourceVersion, l.anchorReadAt, l.sourceRef.siteFileId]);
+  const expectedProvenance = [
+    ['l-1', '48', '2026-05-27T09:30:00.000Z', 'bronbestand-48'],
+    ['l-2', '47', '2026-05-26T08:15:00.000Z', 'bronbestand-48'],
+  ];
   const montageStart = () => S().tasks.find(t => t.id === pinnedTask)!.time.earlyStart;
   eq('160 opzet: Montage start op de pin, ma 8 juni 07:00', montageStart(), '2026-06-08T07:00');
   eq('161 opzet: geen schending', violated(), []);
+  eq('878 opzet: beide ankers hebben herkomst', provenance(), expectedProvenance);
 
   const moved = S().moveProject('2026-05-25');
   eq('162 verplaatst naar 25 mei', [moved.moved, S().project.startDate], [true, '2026-05-25']);
   eq('163 de pin schuift mee: Montage start ma 1 juni 07:00', montageStart(), '2026-06-01T07:00');
   eq('164 de ankers blijven staan', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
+  eq('878 verplaatsen behoudt herkomst van beide ankers', provenance(), expectedProvenance);
   eq('165 de externe voorganger is geschonden: Montage staat bij de geschonden constraints', violated(), [pinnedTask]);
   eq('166 en het paneel Waarschuwingen toont het', warnedTasks(), [`violatedConstraint:${pinnedTask}`]);
 
@@ -467,9 +478,11 @@ eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
   eq('167 ongedaan maken: Montage weer op 8 juni', montageStart(), '2026-06-08T07:00');
   eq('168 ongedaan maken: geen schending meer', violated(), []);
   eq('169 ongedaan maken: de ankers zijn niet veranderd', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
+  eq('878 Undo behoudt herkomst van beide ankers', provenance(), expectedProvenance);
 
   // Alleen de koppeling met het eerdere anker (29 mei): na verplaatsen naar 25 mei is er geen schending.
   S().redo();
+  eq('878 Redo behoudt herkomst van beide ankers', provenance(), expectedProvenance);
   S().removeExternalLink(pinnedTask, S().tasks.find(t => t.id === pinnedTask)!.externalLinks![0].id);
   S().runCPM();
   eq('170 een extern anker vóór de pin is geen schending', violated(), []);
