@@ -657,7 +657,10 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     externalSiteSourceVersion: async () => advertised,
     parseExternalSiteSource: async (id: string) => {
       reads++;
-      return { projectId: 'installateur', siteFileId: id, tasks: [sourceTask(finish)], version: openVersion };
+      return {
+        projectId: 'installateur', projectName: 'Installateur', siteFileId: id, tasks: [sourceTask(finish)],
+        ...(openVersion !== undefined ? { version: openVersion } : {}),
+      };
     },
   });
   const bars = () => S().ui.externalSourceUpdates;
