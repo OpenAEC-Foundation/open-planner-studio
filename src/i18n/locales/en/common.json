@@ -912,6 +912,7 @@
       "scheduleError": "The schedule could not be calculated: {{message}}",
       "missedDeadline": "Deadline {{deadline}} missed — early finish {{finish}}",
       "violatedConstraint": "Constraint {{constraint}} is overridden by the logic (negative float)",
+      "constraintLogicConflict": "Constraint {{constraint}} conflicts with the scheduling logic",
       "externalSuccessorViolatedSF": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it finishes no later than {{anchor}}, this task starts only on {{own}}",
       "externalSuccessorViolatedFF": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it finishes no later than {{anchor}}, this task finishes only on {{own}}",
       "externalSuccessorViolatedSS": "Too tight for external successor {{task}} ({{project}}, {{relation}}): it starts no later than {{anchor}}, this task starts only on {{own}}",
