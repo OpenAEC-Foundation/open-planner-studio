@@ -11,7 +11,7 @@ import {
   clearOwnRecovery, clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   RECOVERY_MANIFEST_VERSION, RecoveryManifestError,
 } from '@/services/recovery/recoveryStore';
-import { IndexedDbUpgradeBlockedError, openDbStores } from '@/utils/idb';
+import { IndexedDbUpgradeBlockedError, openDb, openDbStores } from '@/utils/idb';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -679,7 +679,7 @@ Reflect.deleteProperty(globalThis, 'window');
 // ── Openaanvraag-lifecycle: echte browserblokkade staat in de bestaande browserroute. ─────────
 // Hier ook de defensieve gebeurtenisvolgordes die de browser niet deterministisch kan leveren:
 // blocked → retry → late upgrade/error/success. Geen oude aanvraag mag een nieuwe verbinding wissen.
-const openings = Array.from({ length: 6 }, () => {
+const makeOpening = () => {
   const observed = { closes: 0, aborts: 0, schemaWrites: 0, transactions: 0, unique: false };
   const store = {
     indexNames: { contains: () => false },
@@ -702,7 +702,8 @@ const openings = Array.from({ length: 6 }, () => {
     transaction: { abort: () => { observed.aborts++; }, objectStore: () => store },
   };
   return { observed, request };
-});
+};
+let openings = Array.from({ length: 6 }, makeOpening);
 let openCount = 0;
 Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: {
   open: () => openings[openCount++]!.request,
@@ -746,6 +747,31 @@ openings[5]!.request.onsuccess?.();
 await afterClose;
 eq('IDB onverwacht sluiten: volgende aanroep opent opnieuw', openCount, 6);
 openings[5]!.request.result.onversionchange?.();
+
+// Knownbug 990: ook de helper met één store houdt de nieuwe aanvraag na een late fout van de oude.
+openings = Array.from({ length: 3 }, makeOpening);
+openCount = 0;
+const openSingle = () => openDb('single-store-open-lifecycle', 'records');
+const blockedSingle = openSingle().catch((error: unknown) => error);
+openings[0]!.request.onblocked?.();
+const firstError = await blockedSingle;
+eq('990 openDb: blocked wijst de eerste aanvraag direct af',
+  firstError instanceof Error && firstError.message.includes('openen geblokkeerd'), true);
+const retrySingle = openSingle();
+eq('990 openDb: een tweede aanvraag start na blocked', openCount, 2);
+openings[0]!.request.onerror?.();
+const stillRetry = openSingle();
+eq('990 openDb: late fout kan de nieuwe aanvraag niet uit de cache halen', [stillRetry === retrySingle, openCount], [true, 2]);
+openings[1]!.request.onsuccess?.();
+eq('990 openDb: de nieuwe verbinding blijft beschikbaar',
+  [await retrySingle === openings[1]!.request.result, openSingle() === retrySingle], [true, true]);
+// Laat ook bij een regressie geen onafgehandelde derde aanvraag achter.
+if (stillRetry !== retrySingle) {
+  openings[2]!.request.onsuccess?.();
+  await stillRetry;
+  openings[2]!.request.result.onversionchange?.();
+}
+openings[1]!.request.result.onversionchange?.();
 
 if (diffs.length === 0) {
   console.log(`OK  recovery-web-hold: alle checks groen (${checks})`);
