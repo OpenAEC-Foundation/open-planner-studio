@@ -1394,7 +1394,9 @@ export function TaskGridSurface({
                     ? await refreshExternalAnchorsFrom(filePath, labels)
                     : await refreshExternalProjectAnchors(taskId, relationId, labels);
                   if (!result && useAppStore.getState().activeDocumentId === activeDocumentId) {
-                    setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
+                    setSurfaceError(filePath
+                      ? tTask('externalLinks.notAvailableWeb')
+                      : tTask('externalLinks.reviewReadFailed'));
                   }
                 })();
               }}
