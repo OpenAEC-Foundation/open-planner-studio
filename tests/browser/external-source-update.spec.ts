@@ -259,7 +259,7 @@ test('bronbestand kiezen in de browser: koppelen zonder pad, balk bij een nieuwe
   };
   await refreshFromMenu();
   await expect.poll(permissionRequests).toBe(1);
-  await expect(page.getByText("Reading source files is desktop-only; use the manual fallback.", { exact: true })).toBeVisible();
+  await expect(page.getByText("The source could not be read. The schedule stays as it is.", { exact: true })).toBeVisible();
   expect((await linkOf())!.anchorDate).toBe('2027-01-04T07:00');
   await page.evaluate(() => { (window as unknown as { __allowRefresh: boolean }).__allowRefresh = true; });
   await refreshFromMenu();
