@@ -912,6 +912,7 @@
       "scheduleError": "Planning kon niet worden berekend: {{message}}",
       "missedDeadline": "Deadline {{deadline}} overschreden — vroegste einde {{finish}}",
       "violatedConstraint": "Constraint {{constraint}} wordt door de logica overschreden (negatieve speling)",
+      "constraintLogicConflict": "Constraint {{constraint}} botst met de planningslogica",
       "externalSuccessorViolatedSF": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die is uiterlijk klaar op {{anchor}}, deze taak begint pas op {{own}}",
       "externalSuccessorViolatedFF": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die is uiterlijk klaar op {{anchor}}, deze taak is pas klaar op {{own}}",
       "externalSuccessorViolatedSS": "Te krap voor externe opvolger {{task}} ({{project}}, {{relation}}): die begint uiterlijk op {{anchor}}, deze taak begint pas op {{own}}",
