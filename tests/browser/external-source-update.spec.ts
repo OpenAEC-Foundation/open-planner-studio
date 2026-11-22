@@ -277,7 +277,8 @@ test('bronbestand kiezen in de browser: koppelen zonder pad, balk bij een nieuwe
 // krijgt vooraf twee projecten: *Aannemer* (het eigen project) en *Installateur* (de bron). Een nieuwe versie van
 // de bron slaat de test op via de host, zoals een andere planner dat op de site doet. De klikken blijven echte
 // klikken.
-test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe versie, vernieuwen en een bron die weg is', async ({ page, ops }) => {
+for (const shape of ['storage', 'supercloud'] as const) {
+test(`bron op de site (${shape}): koppelen, balk bij een nieuwe versie, vernieuwen en een bron die weg is`, async ({ page, ops }) => {
   test.setTimeout(120_000);
   // Aan het eind is de bron weg van de site: de app logt dat lezen mislukte en telt de bron als niet gelezen.
   ops.acceptError(/parseExternalSiteSource: kon de bron op de site niet lezen: site-installateur/);
@@ -307,7 +308,7 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
     db.close();
   }, { own, source });
   // Het nieuwste bestand (Aannemer) is het startbestand.
-  await page.goto('/?fakeSite=1&fakeSiteInitial=1');
+  await page.goto(`/?fakeSite=1&fakeSiteInitial=1&fakeSiteShape=${shape}`);
   await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().siteFileId ?? null), { timeout: 30_000 }).toBe('site-aannemer');
   await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().cpmResult?.projectEnd ?? ''), { timeout: 30_000 }).not.toBe('');
 
@@ -335,16 +336,23 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
   // Review #859 ronde 1: de planner kiest snel een andere bron en die lezing duurt. Zolang de nieuwe bron niet
   // gelezen is, kan hij niets toevoegen: anders zou de koppeling de vorige bron, taak en het vorige anker krijgen.
   // De nep-site houdt `open` voor Tweede.ifc vast tot de test hem loslaat.
-  await page.evaluate(() => {
-    const storage = (window.openaecHost as { storage: { open: (id: string, version?: string) => Promise<unknown> } }).storage;
-    const open = storage.open.bind(storage);
-    const w = window as unknown as { __releaseSiteOpen?: () => void };
+  await page.evaluate(hostShape => {
+    type TestHost = { open: (id: string, version?: string | number) => Promise<Record<string, unknown>> };
+    const host = window.openaecHost as unknown as TestHost & { storage: TestHost };
+    const layer = hostShape === 'supercloud' ? host : host.storage;
+    const open = layer.open.bind(layer);
+    const w = window as unknown as { __releaseSiteOpen?: () => void; __sourceOpenVersion?: unknown; __sourceReadOnly?: boolean };
     const gate = new Promise<void>((resolve) => { w.__releaseSiteOpen = resolve; });
-    storage.open = async (id, version) => {
+    layer.open = async (id, version) => {
       if (id === 'site-tweede') await gate;
-      return open(id, version);
+      const reply = version === undefined ? await open(id) : await open(id, version);
+      if (hostShape !== 'supercloud' || id !== 'site-installateur') return reply;
+      // Een alleen-lezen bron heeft wél leesrecht. Alleen de bron is zo gemarkeerd, niet het plan dat we bewerken.
+      w.__sourceOpenVersion = reply.version;
+      w.__sourceReadOnly = true;
+      return { ...reply, readOnly: true };
     };
-  });
+  }, shape);
   await picker.selectOption({ label: 'Tweede.ifc' });
   await expect(addButton).toBeDisabled();
   await page.keyboard.press('Enter');
@@ -362,6 +370,12 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
   expect(created.sourceRef.filePath).toBeUndefined();
   expect(created.sourceRef.projectName).toBe('Installateur');
   expect(created.sourceVersion).toBe('1');
+  if (shape === 'supercloud') {
+    expect(await page.evaluate(() => {
+      const w = window as unknown as { __sourceOpenVersion?: unknown; __sourceReadOnly?: boolean };
+      return [w.__sourceOpenVersion, w.__sourceReadOnly];
+    })).toEqual([1, true]);
+  }
   expect(typeof created.anchorReadAt).toBe('string');
   const freshAnchor = created.anchorDate;
   // De bron is alleen gelezen, niet als document geopend.
@@ -378,10 +392,17 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   };
   await makeOld();
-  await page.evaluate(async (text) => {
-    const host = window.openaecHost as { storage: { save: (r: { id: string; name: string; data: Blob; baseVersion: string }) => Promise<unknown> } };
-    await host.storage.save({ id: 'site-installateur', name: 'Installateur.ifc', data: new Blob([text]), baseVersion: '1' });
-  }, source);
+  await page.evaluate(async ({ text, hostShape }) => {
+    const host = window.openaecHost as unknown as {
+      storage: { save: (r: { id: string; name: string; data: Blob; baseVersion: string }) => Promise<unknown> };
+      save: (bytes: Uint8Array, options: { id: string; expectedVersion: number }) => Promise<unknown>;
+    };
+    if (hostShape === 'supercloud') {
+      await host.save(new TextEncoder().encode(text), { id: 'site-installateur', expectedVersion: 1 });
+    } else {
+      await host.storage.save({ id: 'site-installateur', name: 'Installateur.ifc', data: new Blob([text]), baseVersion: '1' });
+    }
+  }, { text: source, hostShape: shape });
   await focusWindow();
   const strip = page.locator('[data-ops-external-source-update="site:site-installateur"]');
   await expect(strip).toHaveCount(1, { timeout: 15_000 });
@@ -425,6 +446,7 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
   await expect(status).toContainText('2 sources not read.');
   expect((await linkOf())!.anchorDate).toBe('2027-01-04T07:00');
 });
+}
 
 test('bronproject: afhankelijke projecten zoeken, het resultaat bij de taak en de vraag vóór opslaan', async ({ page, ops: _ops }) => {
   test.setTimeout(90_000);
