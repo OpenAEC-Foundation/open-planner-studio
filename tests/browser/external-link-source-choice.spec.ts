@@ -56,7 +56,8 @@ for (const mode of ['toevoegen', 'bewerken'] as const) {
       expect(before).toHaveLength(1);
       await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
       const chip = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${ownTaskId}"]`)
-        .locator('[data-grid-column-id="relation.predecessors"] .task-grid-relation-chip');
+        .locator('[data-grid-column-id="relation.predecessors"] .task-grid-relation-chip')
+        .filter({ hasText: 'Installateur / Installatie' });
       await chip.click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Edit external relationship…', exact: true }).click();
     } else {
