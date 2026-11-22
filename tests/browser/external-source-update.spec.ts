@@ -217,14 +217,15 @@ test('bronbestand kiezen in de browser: koppelen zonder pad, balk bij een nieuwe
 
   // Toestemming `prompt`: het vangnet vraagt niets en toont geen balk.
   await page.evaluate(() => {
-    const w = window as unknown as { __permissionRequests: number };
+    const w = window as unknown as { __permissionRequests: number; __allowRefresh: boolean };
     w.__permissionRequests = 0;
+    w.__allowRefresh = false;
     const proto = FileSystemHandle.prototype as unknown as {
       queryPermission: () => Promise<PermissionState>;
       requestPermission: () => Promise<PermissionState>;
     };
     proto.queryPermission = async () => 'prompt';
-    proto.requestPermission = async () => { w.__permissionRequests++; return 'granted'; };
+    proto.requestPermission = async () => { w.__permissionRequests++; return w.__allowRefresh ? 'granted' : 'denied'; };
   });
   const permissionRequests = () => page.evaluate(() => (window as unknown as { __permissionRequests: number }).__permissionRequests);
   await makeOld();
@@ -232,6 +233,42 @@ test('bronbestand kiezen in de browser: koppelen zonder pad, balk bij een nieuwe
   await page.waitForTimeout(1_500);
   await expect(page.locator(STRIP)).toHaveCount(0);
   expect(await permissionRequests()).toBe(0);
+
+  // Knownbug 971: hetzelfde handvat, maar het echte rechtermuisknopmenu van één relatiecel.
+  const pathAnchors = () => page.evaluate(() => window.__OPS__!.store.getState().tasks.flatMap(task =>
+    (task.externalLinks ?? []).filter(link => !!link.sourceRef.filePath)
+      .map(link => [link.id, link.sourceRef.filePath, link.anchorDate, link.sourceVersion])));
+  const beforePathAnchors = await pathAnchors();
+  expect(beforePathAnchors.length).toBeGreaterThan(0);
+  const relationColumn = created.direction === 'successor' ? 'relation.successors' : 'relation.predecessors';
+  await page.evaluate(columnId => {
+    const s = window.__OPS__!.store.getState();
+    const columns = s.taskGridSurfaces['full-task-grid'].columns;
+    if (!columns.some(column => column.id === columnId)) {
+      s.setTaskGridColumns('full-task-grid', [
+        ...columns, { id: columnId, width: 160, pinned: false } as unknown as (typeof columns)[number],
+      ]);
+    }
+  }, relationColumn);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const relation = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${ownTaskId}"]`)
+    .locator(`[data-grid-column-id="${relationColumn}"] .task-grid-relation-chip`);
+  const refreshFromMenu = async () => {
+    await relation.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Refresh source', exact: true }).click();
+  };
+  await refreshFromMenu();
+  await expect.poll(permissionRequests).toBe(1);
+  await expect(page.getByText("Reading source files is desktop-only; use the manual fallback.", { exact: true })).toBeVisible();
+  expect((await linkOf())!.anchorDate).toBe('2027-01-04T07:00');
+  await page.evaluate(() => { (window as unknown as { __allowRefresh: boolean }).__allowRefresh = true; });
+  await refreshFromMenu();
+  await expect.poll(permissionRequests).toBe(2);
+  await expect.poll(async () => (await linkOf())?.anchorDate).toBe(freshAnchor);
+  expect(await pathAnchors()).toEqual(beforePathAnchors);
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await linkOf())?.anchorDate).toBe('2027-01-04T07:00');
+  await page.evaluate(() => { (window as unknown as { __permissionRequests: number }).__permissionRequests = 0; });
 
   // Alle externe relaties vernieuwen: de klik vraagt toestemming en leest de bron. De bron met pad leest de
   // browser niet; de uitslag zegt dat.
