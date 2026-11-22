@@ -398,13 +398,6 @@ en noem het in je rapport of PR-tekst.
      externe melding noemt de koppeling. Alleen de tekst van de pinmelding klopt dan niet. Zo ook op main
      (`7f0207182`). Oplossing: een tekst voor een pin die de logica doorbreekt, zonder "negatieve speling"; de
      externe melding blijft. Uit de review van #810 ronde 3 (GPT-6.1-Sol, xhigh, op `568ce4a10`). — B
-884. **VERVOLG: geen test voor *Later* terwijl een broncontrole nog loopt.**
-     `src/state/slices/fileSlice.ts:632` (`checkExternalSourcesOnce`) zet een bestaande balk niet meer vast in `found`;
-     de eindfilter leest de actuele balken. Zo komt een balk waarop de planner tijdens de controle *Later* koos, niet
-     terug. `tests/planning/check-external-source-update.ts:147` wacht de controle helemaal af vóór *Later* en raakt
-     dat pad dus niet. Voorstel: twee bronnen, de controle laten wachten op de tweede (vertraagde lezing), intussen
-     *Later* voor de eerste, de controle laten eindigen, en controleren dat de eerste balk wegblijft. Uit de review
-     van #811 ronde 3 (GPT-6.1-Sol, xhigh, op `6407277d5`, VERVOLG). — S
 970. **VERVOLG: *Bronbestand kiezen…* is niet getest in de echte desktop-app.**
      Stap 1.8 opent op de desktop de kiezer van `@tauri-apps/plugin-dialog` (`open`, filter IFC) in
      `chooseExternalSourceFile` (`src/state/slices/fileSlice.ts`); het pad gaat daarna door `parseExternalSource`.
