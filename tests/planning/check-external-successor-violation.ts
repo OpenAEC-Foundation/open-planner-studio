@@ -340,6 +340,23 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Knownbug 882: a hard pin can conflict with an external link even when total float is zero.
+{
+  const pin = '2026-06-02T08:00';
+  const { tasks, sequences } = plan([successor('x882', 'SS', pin, { lagMinutes: 60 })]);
+  tasks[1].constraint = { type: 'MSO', date: pin, hard: true };
+  const schedulingOptions = { ...effectiveSchedulingOptions({}), lagCalendar: '24hour' as const };
+  const result = new CPMSolver(tasks, sequences, calendar, [], { schedulingOptions }).solve();
+  if (result.error) throw new Error(result.error);
+  const a = result.tasks.get('A');
+  eq('882 pin blijft staan en heeft nul minuten totale speling', [a?.earlyStart, a?.totalFloatMinutes], [pin, 0]);
+  const warningIds = collectScheduleWarnings({ tasks, sequences, resources: [], cpmResult: result, resourceLoadResult: null })
+    .map(w => w.id);
+  eq('882 zowel een constraintmelding als een specifieke externe melding',
+    warningIds.filter(id => id === 'violatedConstraint:A' || id.startsWith('externalSuccessorViolated:A:')),
+    ['violatedConstraint:A', 'externalSuccessorViolated:A:x882']);
+}
+
 if (failures.length) {
   console.error(`XX external-successor-violation: ${failures.length}/${checks}\n${failures.join('\n')}`);
   process.exit(1);
