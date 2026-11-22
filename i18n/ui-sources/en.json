@@ -751,6 +751,7 @@
     "warnings.kind.scheduleError": "3dc2baeaca944380",
     "warnings.kind.missedDeadline": "cf5dcbaca6d45e36",
     "warnings.kind.violatedConstraint": "35fa9f9e5485359b",
+    "warnings.kind.constraintLogicConflict": "03bf424b0289e780",
     "warnings.kind.externalSuccessorViolatedSF": "49873ae444a49681",
     "warnings.kind.externalSuccessorViolatedFF": "cedad1d06769fc15",
     "warnings.kind.externalSuccessorViolatedSS": "1fa4eb74bb46d3e8",
