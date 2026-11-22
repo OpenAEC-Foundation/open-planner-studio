@@ -364,6 +364,26 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     anchorOf(a).anchorDate, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
   ], ['2027-03-10T16:00', '2027-03-05T16:00', PATH]);
   S().undo();
+  // Knownbug 971: één bron uit het relatiecelmenu, zonder pad, leest alleen het onthouden handvat.
+  prompts.length = 0;
+  const undoCount = () => S().historyEvents.filter(event => event.state === 'applied').length;
+  const undoBefore = undoCount();
+  const one = await S().refreshExternalProjectAnchors(a, anchorOf(a).id);
+  eq('971 één padloze bron lezen met toestemmingsvraag', [one, prompts], [{ refreshed: 1, missing: 0 }, [true]]);
+  eq('971 zelfde project-id maar bron met pad blijft apart', [
+    anchorOf(a).anchorDate, anchorOf(a).sourceVersion, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
+  ], ['2027-03-10T16:00', 'v4', '2027-03-05T16:00', PATH]);
+  eq('971 één undo-stap', undoCount(), undoBefore + 1);
+  S().undo();
+  eq('971 Undo zet het oorspronkelijke anker terug', anchorOf(a).anchorDate, '2027-03-05T16:00');
+  prompts.length = 0;
+  eq('971 een koppeling met pad mag niet via het handvat lezen',
+    [await S().refreshExternalProjectAnchors(c, anchorOf(c).id), prompts], [null, []]);
+  store.setState({ parseExternalProjectSource: async (_id, opts) => { prompts.push(opts.prompt); return null; } });
+  eq('971 geen toegang: geen mutatie of undo-stap',
+    [await S().refreshExternalProjectAnchors(a, anchorOf(a).id), prompts, anchorOf(a).anchorDate, undoCount()],
+    [null, [true], '2027-03-05T16:00', undoBefore]);
+
   // Geweigerd: niet gelezen, geteld, en het anker blijft.
   store.setState({ readExternalProjectSources: async (projectIds: readonly string[]) => new Map(projectIds.map(id => [id, null] as const)) });
   const refused = await S().refreshAllExternalAnchors();
