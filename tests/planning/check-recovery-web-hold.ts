@@ -764,7 +764,7 @@ const stillRetry = openSingle();
 eq('990 openDb: late fout kan de nieuwe aanvraag niet uit de cache halen', [stillRetry === retrySingle, openCount], [true, 2]);
 openings[1]!.request.onsuccess?.();
 eq('990 openDb: de nieuwe verbinding blijft beschikbaar',
-  [await retrySingle === openings[1]!.request.result, openSingle() === retrySingle], [true, true]);
+  [Object.is(await retrySingle, openings[1]!.request.result), openSingle() === retrySingle], [true, true]);
 // Laat ook bij een regressie geen onafgehandelde derde aanvraag achter.
 if (stillRetry !== retrySingle) {
   openings[2]!.request.onsuccess?.();
