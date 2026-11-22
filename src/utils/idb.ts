@@ -15,15 +15,17 @@ export function openDb(dbName: string, storeName: string, keyPath = 'id'): Promi
   const cacheKey = `${dbName}::${storeName}`;
   const existing = dbPromises.get(cacheKey);
   if (existing) return existing;
-  const p = new Promise<IDBDatabase>((resolve, reject) => {
+  const p: Promise<IDBDatabase> = new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, 1);
+    // Een late gebeurtenis hoort bij deze aanvraag, niet bij een intussen gestarte poging.
+    const forget = () => { if (dbPromises.get(cacheKey) === p) dbPromises.delete(cacheKey); };
     // Geblokkeerd (een andere verbinding houdt de aanmaak tegen): meteen een fout, zodat de `idb*`-helpers hun
     // stille terugval nemen in plaats van eindeloos te wachten. Opent hij later toch, dan sluiten we die
     // verbinding; de volgende aanroep opent opnieuw (review #858).
     let blocked = false;
     req.onblocked = () => {
       blocked = true;
-      dbPromises.delete(cacheKey);
+      forget();
       reject(new Error(`IndexedDB ${dbName}: openen geblokkeerd`));
     };
     req.onupgradeneeded = () => {
@@ -38,12 +40,12 @@ export function openDb(dbName: string, storeName: string, keyPath = 'id'): Promi
       // Sluit de verbinding als een andere tab een versie-upgrade wil (voorkomt blocking).
       db.onversionchange = () => {
         db.close();
-        dbPromises.delete(cacheKey);
+        forget();
       };
       resolve(db);
     };
     req.onerror = () => {
-      dbPromises.delete(cacheKey);
+      forget();
       reject(req.error);
     };
   });
