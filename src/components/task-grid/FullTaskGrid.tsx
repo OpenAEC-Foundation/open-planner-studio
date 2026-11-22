@@ -79,6 +79,9 @@ import { liveSelectionAnchor, pastesGridTaskCopy, shiftAnchor } from '@/state/sl
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { externalSourceLocatorOf } from '@/engine/externalLinks';
+import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
+import { isTauri } from '@/utils/platform';
 import type { DataGridCellModel, DataGridDataRowModel } from './taskGridContext';
 import type { GridEditorCommitResult } from './GridEditorHost';
 import type { Task } from '@/types/task';
@@ -113,6 +116,7 @@ interface ExternalRelationMenuState {
   taskId: string;
   relationId: string;
   filePath?: string;
+  browserSource?: boolean;
   trigger: HTMLElement;
 }
 
@@ -327,6 +331,7 @@ export function TaskGridSurface({
   const focusOnTask = useAppStore(state => state.focusOnTask);
   const removeExternalLink = useAppStore(state => state.removeExternalLink);
   const refreshExternalAnchorsFrom = useAppStore(state => state.refreshExternalAnchorsFrom);
+  const refreshExternalProjectAnchors = useAppStore(state => state.refreshExternalProjectAnchors);
   const addTask = useAppStore(state => state.addTask);
   const pasteTasks = useAppStore(state => state.pasteTasks);
   const copyTasks = useAppStore(state => state.copyTasks);
@@ -1176,6 +1181,7 @@ export function TaskGridSurface({
               trigger: event.currentTarget.closest<HTMLElement>('[role="gridcell"]')
                 ?? event.currentTarget,
               ...(external.sourceRef.filePath ? { filePath: external.sourceRef.filePath } : {}),
+              browserSource: !isTauri() && !siteStorageAvailable() && externalSourceLocatorOf(external.sourceRef)?.kind === 'project',
             });
           }}
         />
@@ -1375,21 +1381,21 @@ export function TaskGridSurface({
           >
             {tTask('externalLinks.edit')}
           </button>
-          {externalRelationMenu.filePath && (
+          {(externalRelationMenu.filePath || externalRelationMenu.browserSource) && (
             <button
               type="button"
               role="menuitem"
               onClick={() => {
-                const filePath = externalRelationMenu.filePath!;
+                const { taskId, relationId, filePath } = externalRelationMenu;
                 closeExternalRelationMenu(false);
                 void (async () => {
-                const result = await refreshExternalAnchorsFrom(
-                  filePath,
-                  buildImportLabels(tCommon),
-                );
-                if (!result && useAppStore.getState().activeDocumentId === activeDocumentId) {
-                  setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
-                }
+                  const labels = buildImportLabels(tCommon);
+                  const result = filePath
+                    ? await refreshExternalAnchorsFrom(filePath, labels)
+                    : await refreshExternalProjectAnchors(taskId, relationId, labels);
+                  if (!result && useAppStore.getState().activeDocumentId === activeDocumentId) {
+                    setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
+                  }
                 })();
               }}
             >
