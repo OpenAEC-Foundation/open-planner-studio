@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
 import type { Task } from '@/types/task';
@@ -24,11 +25,11 @@ export interface ProgressPlanDeps {
   planEdits: (
     task: Task,
     edits: readonly CellEditIntent[],
-    plannedStart?: (task: Task) => string | undefined,
+    plannedDates?: (task: Task) => PlannedProgressDates | undefined,
   ) => GridResult<PlannedTaskEdit, readonly CellValidationError[]>;
   preparePlacement?: (ids: ReadonlySet<string>) => {
     order: readonly string[];
-    plannedStart: (task: Task) => string | undefined;
+    plannedDates: (task: Task) => PlannedProgressDates | undefined;
     accept: (before: Task, after: Task) => void;
   } | undefined;
 }
@@ -350,7 +351,7 @@ export function buildProgressImportPlan(
     }
 
     // 6. De echte (of gestubde) planner.
-    const planned = deps.planEdits(task, edits, placement?.plannedStart);
+    const planned = deps.planEdits(task, edits, placement?.plannedDates);
     if (!planned.ok) {
       const plannerCode = planned.errors[0]?.code;
       const reason: ProgressRowReason = plannerCode && KNOWN_PLANNER_REASONS.has(plannerCode)
