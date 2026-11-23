@@ -13,10 +13,9 @@ import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/
  *  `read()`: een geweigerd bestand wordt nooit gelezen. */
 export interface DroppedFile {
   name: string;
-  /** `beforeRead` (#804, knownbug 1957): synchroon aangeroepen vlak vóór het lezen, met het bestand als dat een pad
-   *  of handle is (browser: de handle uit het event; desktop: het pad, via `desktopDroppedFiles`). De toets "staat al
-   *  open" start daar; niemand wacht erop. Mag niet gooien. */
-  read(beforeRead?: (ref: Extract<FileRef, { kind: 'path' | 'handle' }>) => void): Promise<OpenedFile>;
+  /** `beforeRead` (#804, knownbug 1957): alleen in de browser, synchroon aangeroepen vlak vóór het lezen, met de handle
+   *  uit het event. De toets "staat al open" start daar; niemand wacht erop. Mag niet gooien. */
+  read(beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void): Promise<OpenedFile>;
   /** Zie `OpenOpenedFileOptions.existingDocument` en `.stale`: alleen een startbestand (#1091) zet ze. */
   existingDocument?: () => string | null;
   stale?: () => boolean;
@@ -48,17 +47,14 @@ function handleOf(item: Pick<DataTransferItem, 'getAsFileSystemHandle'>): Promis
   }
 }
 
-/** Alleen een bestandshandle is een opslagdoel; zonder handle (Firefox/Safari, of een geweigerde vraag) is dit dezelfde
- *  vorm als de `<input type=file>`-terugval van de bestandskiezer. */
-function refOf(h: FileSystemHandle | null): Extract<FileRef, { kind: 'handle' }> | null {
-  return h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } : null;
-}
-
 function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>, readOptions?: FormatReadOptions): DroppedFile {
   return {
     name: file.name,
     read: async (beforeRead) => {
-      const ref = refOf(await handle);
+      const h = await handle;
+      // Alleen een bestandshandle is een opslagdoel; zonder handle (Firefox/Safari, of een geweigerde
+      // vraag) is dit dezelfde vorm als de `<input type=file>`-terugval van de bestandskiezer.
+      const ref = h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } as const : null;
       if (ref) beforeRead?.(ref);
       return openedFromFile(file, ref, { binaryExtensions: binaryExtensions(readOptions) });
     },

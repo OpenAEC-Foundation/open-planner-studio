@@ -4,10 +4,12 @@ import { buildImportLabels } from '@/i18n/importLabels';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { isDocumentLeaveBlocked } from '@/hooks/keyboard/shortcutRegistry';
-import { dragCarriesFiles, droppedFilesFromDataTransfer, type DroppedFile } from '@/services/fileAccess/fileDrop';
+import {
+  dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, type DroppedFile,
+} from '@/services/fileAccess/fileDrop';
 import { tauriOpenIO } from '@/services/fileAccess/tauriOpenPath';
 import type { FormatReadOptions } from '@/services/formatRegistry';
-import { desktopDroppedFiles, openDroppedFiles } from '@/state/fileDrop';
+import { openDroppedFiles } from '@/state/fileDrop';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** De leeskeuze van een neerzetting (#804 fase 1a): met de flag `ifcForeignContent` leest IFC als bytes. */
@@ -59,7 +61,7 @@ export function useFileDrop(): boolean {
           } else if (payload.type === 'drop') {
             setActive(false);
             const readOptions = dropReadOptions();
-            openDropped(desktopDroppedFiles(payload.paths, io, readOptions), readOptions);
+            openDropped(droppedFilesFromPaths(payload.paths, io, readOptions), readOptions);
           }
         });
         if (disposed) stop();

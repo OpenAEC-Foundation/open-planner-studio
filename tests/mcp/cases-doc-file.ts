@@ -1096,7 +1096,7 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
   const ifc = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   files.set(path, ifc);
   files.set(link, ifc);
-  aliases.set(link, path); // dezelfde dev/ino als het pad
+  aliases.set(link, path); // dezelfde dev/ino als het pad; telt niet meer (knownbug 2063)
   try {
     useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
     S().newDocument();
@@ -1110,10 +1110,11 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
     loadSmallProject('Ander project');
     const docsBefore = S().documents.length;
     const history = [S().historyEvents, S().nextHistorySequence];
-    for (const [label, via] of [['hetzelfde pad', path], ['een link', link]] as const) {
+    {
+      const label = 'hetzelfde pad';
       S().switchDocument(masterId);
       const ctx2 = makeCtx({ expectedDocId: masterId });
-      const again = await callOk('planner_import_schedule', { path: via }, ctx2);
+      const again = await callOk('planner_import_schedule', { path }, ctx2);
       assertEq(S().documents.length, docsBefore, `${label}: geen nieuw document`);
       assertEq([S().activeDocumentId, again.documentId], [kantoorId, kantoorId], `${label}: het open document is actief en teruggegeven`);
       assertEq([again.alreadyOpen, again.documentsOpened, again.reusedActiveTab], [true, 0, false], `${label}: alreadyOpen, niets geopend`);
@@ -1126,37 +1127,49 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
       assertEq(S().ui.notifications.at(-1)?.messageKey, 'notifications.fileAlreadyOpen', `${label}: de app toont de melding`);
     }
 
-    // Review #1121 ronde 1: krijgt het gevonden tabblad tijdens de toets een ander bestand (zoals de commit van *Opslaan
-    // als*), dan opent de import het gevraagde pad gewoon, zonder `alreadyOpen`.
-    const elsewhere = `${HOME}/kantoor-nieuwe-naam.ifc`;
+    // Review #1121 ronde 6 (besluit D, knownbug 2063): een link naar hetzelfde bestand is een andere padtekst. De import
+    // kijkt niet naar de schijf (geen `stat`) en opent een eigen document, zoals main; er gaat niets verloren.
     const stat = fs.stat;
-    fs.stat = async (p) => {
-      fs.stat = stat;
+    let stats = 0;
+    fs.stat = async (p) => { stats++; return stat(p); };
+    S().switchDocument(masterId);
+    const viaLink = await callOk('planner_import_schedule', { path: link }, makeCtx({ expectedDocId: masterId }));
+    assertEq([S().documents.length, stats, 'alreadyOpen' in viaLink], [docsBefore + 1, 0, false],
+      'een link: een eigen document, geen stat, geen alreadyOpen');
+    assertEq(S().getOpenDocumentPayloads().find(d => d.id === kantoorId)?.payload.filePath, path, 'een link: Kantoor onaangeroerd');
+    S().closeDocument(viaLink.documentId as string);
+    fs.stat = stat;
+
+    // Review #1121 ronde 1: krijgt het tabblad tijdens het lezen een ander bestand (zoals de commit van *Opslaan als*),
+    // dan opent de import het gevraagde pad gewoon, zonder `alreadyOpen`.
+    const elsewhere = `${HOME}/kantoor-nieuwe-naam.ifc`;
+    const readFile = fs.readFile;
+    fs.readFile = async (p) => {
+      fs.readFile = readFile;
       S().switchDocument(kantoorId);
       useAppStore.setState((st) => { st.filePath = elsewhere; });
       S().switchDocument(masterId);
-      return stat(p);
+      return readFile(p);
     };
     S().switchDocument(masterId);
     const moved = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
-    assertEq(S().documents.length, docsBefore + 1, 'ander bestand tijdens de toets: een nieuw document');
+    assertEq(S().documents.length, docsBefore + 1, 'ander bestand tijdens het lezen: een nieuw document');
     assert(moved.documentId !== kantoorId && !('alreadyOpen' in moved), 'een ander document, zonder alreadyOpen');
     assertEq([S().filePath, S().tasks.some(t => t.name === 'Onopgeslagen werk')], [path, false], 'de inhoud van het gevraagde bestand');
     assertEq(S().getOpenDocumentPayloads().find(d => d.id === kantoorId)?.payload.filePath, elsewhere, 'het oude tabblad houdt zijn nieuwe naam');
     S().closeDocument(moved.documentId as string);
 
-    // Review #1121 ronde 2 (BLOKKEERT): geen treffer bij de toets, maar intussen zet *Opslaan als* het actieve tabblad op
-    // dit pad. De synchrone eindbeslissing na het parsen ziet dat: de import gaat naar dat tabblad (`alreadyOpen`), geen
-    // tweede.
+    // Review #1121 ronde 2 (BLOKKEERT): intussen zet *Opslaan als* het actieve tabblad op dit pad. De synchrone
+    // eindbeslissing na het parsen ziet dat: de import gaat naar dat tabblad (`alreadyOpen`), geen tweede.
     S().switchDocument(masterId);
-    fs.stat = async (p) => {
-      fs.stat = stat;
+    fs.readFile = async (p) => {
+      fs.readFile = readFile;
       useAppStore.setState((st) => { st.filePath = path; });
-      return stat(p);
+      return readFile(p);
     };
     const saved = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
     assertEq([S().documents.length, saved.documentId, saved.alreadyOpen], [docsBefore, masterId, true],
-      'Opslaan als tijdens de toets: het tabblad dat nu op het pad staat, geen tweede');
+      'Opslaan als tijdens het lezen: het tabblad dat nu op het pad staat, geen tweede');
     assertEq(S().getOpenDocumentPayloads().filter(d => d.payload.filePath === path).length, 1, 'één tabblad op het pad');
     useAppStore.setState((st) => { st.filePath = null; });
 

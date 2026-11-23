@@ -7,12 +7,10 @@
 // een dialoog openstaat krijgen elk één melding met de bestandsnamen.
 import type { AppState } from '@/state/appStoreFactory';
 import type { ImportLabels } from '@/services/importTypes';
-import { droppedFilesFromPaths, splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
-import { fileIdentityFs } from '@/services/fileAccess';
-import type { TauriOpenIO } from '@/services/fileAccess/tauriBackend';
-import type { FormatReadOptions } from '@/services/formatRegistry';
+import { splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
+import { readFormatForFile, type FormatReadOptions } from '@/services/formatRegistry';
 import { openFailureNotices } from '@/state/slices/fileSlice';
-import { startOpenLookup, type LocalRef, type OpenLookup } from '@/state/openDocumentFor';
+import { startOpenLookup, type HandleRef, type OpenLookup } from '@/state/openDocumentFor';
 
 /** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
  *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
@@ -23,15 +21,6 @@ export function fileNameList(names: readonly string[]): string {
 
 interface FileDropStore {
   getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads'>;
-}
-
-/** Desktop: de gesleepte paden; `read` geeft vlak vóór het lezen het pad aan `beforeRead` (#804, knownbug 1957: daar
- *  start de toets "staat al open"). Het lezen zelf blijft `droppedFilesFromPaths`. */
-export function desktopDroppedFiles(paths: readonly string[], io: TauriOpenIO, readOptions?: FormatReadOptions): DroppedFile[] {
-  return droppedFilesFromPaths(paths, io, readOptions).map((file, index) => {
-    const path = paths[index];
-    return { ...file, read: (beforeRead) => { beforeRead?.({ kind: 'path', path }); return file.read(); } };
-  });
 }
 
 /**
@@ -77,13 +66,16 @@ export async function openDroppedFiles(
     });
   }
   const waitWhile = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
-  // #804, knownbug 1957: met de flag (de leeskeuze van de neerzetting) start de toets "staat al open" per bestand vlak
-  // vóór het lezen, en niemand wacht erop. Een startbestand geeft geen `readOptions` mee: dat houdt de toets van main.
+  // #804, knownbug 1957: de keuze voor "staat al open" ligt bij het neerzetten vast (de leeskeuze van de neerzetting, ook
+  // als de flag uit staat). In de browser start de toets per bestand vlak vóór het lezen, en niemand wacht erop; de
+  // desktop vergelijkt alleen de padtekst, na het parsen. Een startbestand geeft geen `readOptions` mee: dat houdt de
+  // toets van main.
   const readOptions = options.readOptions;
+  const oneTab = !!readOptions?.ifcBytes;
   for (const file of openable) {
     let lookup: OpenLookup | null = null;
-    const beforeRead = readOptions?.ifcBytes
-      ? (ref: LocalRef) => { lookup = startOpenLookup(store.getState(), ref, fileIdentityFs); }
+    const beforeRead = oneTab && readFormatForFile(file.name).canBeSaveTarget
+      ? (ref: HandleRef) => { lookup = startOpenLookup(store.getState(), ref); }
       : undefined;
     let opened;
     try {
@@ -96,7 +88,7 @@ export async function openDroppedFiles(
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.
     await store.getState().openOpenedFile(opened, labels, {
       waitWhile, existingDocument: file.existingDocument, stale: file.stale,
-      ...(readOptions?.ifcBytes ? { readOptions, lookup } : {}),
+      ...(readOptions ? { oneTab, ...(oneTab ? { readOptions, lookup } : {}) } : {}),
     });
   }
 }

@@ -2,7 +2,7 @@ import { isTauri } from '@/utils/platform';
 import {
   saveDataDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
   fileIdentityFsTauri, scanTargetPathTauri, sourceTargetContentOfPathTauri,
-  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri, pickOpenPathTauri, readsPathAsBytes,
+  saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
 import type { FileIdentityFs } from './fileIdentity';
@@ -85,7 +85,7 @@ export interface OpenDialogOpts {
   binaryExtensions?: string[];
   /** Alleen de browser (`openFileDialogWeb`): synchroon aangeroepen tussen de kiezer en het lezen, met de gekozen
    *  handle (#804, knownbug 1957: de toets "staat al open" start daar; niemand wacht erop). Mag niet gooien. De desktop
-   *  kiest en leest apart (`pickOpenPath`, `readOpenedPath`). */
+   *  leest het niet: daar vergelijkt de app alleen de padtekst, na het parsen. */
   beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void;
 }
 
@@ -171,10 +171,6 @@ export function supportsHandles(): boolean {
 export function supportsRecentFiles(): boolean {
   return supportsHandles() || siteStorageAvailable();
 }
-
-/** Desktop (#804, knownbug 1957): `pickOpenPath` kiest alleen het pad (`null` = geannuleerd); lezen gaat met
- *  `readOpenedPath` en `readsPathAsBytes`, zoals `openFileDialogTauri` het samen doet. Zo start de toets vlak vóór het lezen, zonder dat iets erop wacht. */
-export { pickOpenPathTauri as pickOpenPath, readsPathAsBytes };
 
 /** Openen via picker/input. `null` = geannuleerd. */
 export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {

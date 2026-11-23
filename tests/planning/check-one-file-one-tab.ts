@@ -42,13 +42,13 @@ const realError = console.error;
 console.error = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
-const { openDocumentFor, existingDocument } = await import('@/state/openDocumentFor');
+const { startOpenLookup, existingDocument } = await import('@/state/openDocumentFor');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { writeCSV } = await import('@/services/csv/csvWriter');
 const { buildImportLabels } = await import('@/i18n/importLabels');
-const { openDroppedFiles, desktopDroppedFiles } = await import('@/state/fileDrop');
-const { droppedFilesFromDataTransfer } = await import('@/services/fileAccess/fileDrop');
+const { openDroppedFiles } = await import('@/state/fileDrop');
+const { droppedFilesFromDataTransfer, droppedFilesFromPaths } = await import('@/services/fileAccess/fileDrop');
 const { tauriOpenIO } = await import('@/services/fileAccess/tauriOpenPath');
 const { readOpenedPath, fileIdentityFs } = await import('@/services/fileAccess');
 const { ifcForeignContentEnabled } = await import('@/utils/featureFlags');
@@ -57,7 +57,6 @@ const { fileToolDeps, realFs } = await import('@/services/mcp/tools/fileTools');
 const { getTool } = await import('@/services/mcp/toolRegistry');
 const { createMcpTransactions } = await import('@/state/runtime/createMcpTransactions');
 type Store = ReturnType<typeof createAppStoreContext>['store'];
-type FileIdentityInfo = import('@/services/fileAccess/fileIdentity').FileIdentityInfo;
 
 let checks = 0;
 const diffs: string[] = [];
@@ -138,33 +137,33 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
 // ═══ A. De identiteit ═════════════════════════════════════════════════════════════════════════════
 {
   type Payload = { filePath: string | null; fileHandle: FileSystemFileHandle | null; siteFileId: string | null };
-  const handleFor = (name: string, opts: { throws?: boolean } = {}) => ({
+  type Tab = { id: string; payload: Payload };
+  const calls: string[] = [];
+  /** Een nep-handle: `isSameEntry` op de naam; legt vast wie met wie vergeleken wordt. */
+  const handleFor = (name: string, opts: { throws?: boolean; hold?: Promise<void> } = {}) => ({
     kind: 'file', name,
     isSameEntry: async (other: { name?: string }) => {
+      calls.push(`${name}→${other.name}`);
+      if (opts.hold) await opts.hold;
       if (opts.throws) throw new DOMException('weg', 'NotFoundError');
       return other.name === name;
     },
   }) as unknown as FileSystemFileHandle;
-  const state = (docs: Array<[string, Partial<Payload>]>) => docs.map(([id, p]) => ({
+  const state = (docs: Array<[string, Partial<Payload>]>): Tab[] => docs.map(([id, p]) => ({
     id, payload: { filePath: null, fileHandle: null, siteFileId: null, ...p },
-  })) as Parameters<typeof openDocumentFor>[0];
-  /** De synchrone eindbeslissing op deze tabbladen, zonder toets. */
-  const decide = (tabs: Parameters<typeof openDocumentFor>[0], ref: Parameters<typeof existingDocument>[1]) =>
-    existingDocument({ getOpenDocumentPayloads: () => tabs } as unknown as Parameters<typeof existingDocument>[0], ref, null);
-  /** De id van de match, of `null`. */
-  const findId = (...args: Parameters<typeof openDocumentFor>) => openDocumentFor(...args);
-  const ids = new Map<string, [number, number]>([['/plan/a.ifc', [1, 10]], ['/plan/link-a.ifc', [1, 10]], ['/plan/b.ifc', [1, 11]]]);
-  let stats = 0;
-  const fs = {
-    stat: async (path: string): Promise<FileIdentityInfo> => {
-      stats++;
-      const id = ids.get(path);
-      if (!id) throw new Error(`failed to get metadata of path: ${path} with error: geen (os error 2)`);
-      return { isFile: true, dev: id[0], ino: id[1] };
-    },
+  }));
+  const asTabs = (tabs: Tab[]) => ({ getOpenDocumentPayloads: () => tabs }) as unknown as Parameters<typeof existingDocument>[0];
+  /** De synchrone eindbeslissing op deze tabbladen, zonder toets (de desktop, de site). */
+  const decide = (tabs: Tab[], ref: Parameters<typeof existingDocument>[1]) => existingDocument(asTabs(tabs), ref, null);
+  const settle = async <T extends { settled: boolean }>(lookup: T): Promise<T> => {
+    for (let i = 0; i < 50 && !lookup.settled; i++) await new Promise<void>((r) => setTimeout(r, 0));
+    return lookup;
   };
-  const withFs = async () => fs;
-  const noFs = async () => undefined;
+  /** De browsertoets: de id van de treffer, `null`, of 'open' als ze nog niet beslist is. */
+  const findId = async (tabs: Tab[], handle: FileSystemFileHandle) => {
+    const lookup = await settle(startOpenLookup(asTabs(tabs), { kind: 'handle', handle }));
+    return lookup.settled ? lookup.id : 'open';
+  };
   const path = (p: string) => ({ kind: 'path' as const, path: p });
   const handleA = handleFor('a.ifc');
   const docs = state([
@@ -173,62 +172,62 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ['doc-handle', { filePath: 'h.ifc', fileHandle: handleA }],
     ['doc-site', { filePath: 's.ifc', siteFileId: 'site-1' }],
     ['doc-site-handle', { filePath: 'sh.ifc', fileHandle: handleFor('sh.ifc'), siteFileId: 'site-2' }],
-    ['doc-gooit', { filePath: 'g.ifc', fileHandle: handleFor('g.ifc', { throws: true }) }],
     ['doc-csv', { filePath: null }],
   ]);
-  eq('A1 hetzelfde pad', await findId(docs, path('/plan/a.ifc'), noFs), 'doc-pad');
-  eq('A2 ander pad, zelfde dev/ino (link)', await findId(docs, path('/plan/link-a.ifc'), withFs), 'doc-pad');
-  eq('A2b zonder bestandsidentiteit ziet de link niet', await findId(docs, path('/plan/link-a.ifc'), noFs), null);
-  eq('A3 ander bestand', await findId(docs, path('/plan/b.ifc'), withFs), null);
-  eq('A4 POSIX is hoofdlettergevoelig', await findId(docs, path('/plan/A.ifc'), noFs), null);
-  eq('A5 Windows: stationsletter en . lexicaal', await findId(docs, path('c:\\Werk\\.\\Plan.ifc'), noFs), 'doc-win');
-  eq('A6 handle: isSameEntry waar, ander object', await findId(docs, { kind: 'handle', handle: handleFor('a.ifc') }, noFs), 'doc-handle');
-  eq('A7 handle: isSameEntry onwaar', await findId(docs, { kind: 'handle', handle: handleFor('x.ifc') }, noFs), null);
-  eq('A8 handle: isSameEntry gooit ⇒ anders', await findId(docs, { kind: 'handle', handle: handleFor('g.ifc') }, noFs), null);
-  // De site heeft geen asynchrone toets: de synchrone beslissing vergelijkt het id.
+  // Besluit D (review #1121 ronde 6): de desktop vergelijkt alleen de letterlijke padtekst, synchroon, zonder `stat`.
+  eq('A1 hetzelfde pad', decide(docs, path('/plan/a.ifc')), 'doc-pad');
+  eq('A2 een link (een andere padtekst) telt niet (knownbug 2063)', decide(docs, path('/plan/link-a.ifc')), null);
+  eq('A4 POSIX is hoofdlettergevoelig', decide(docs, path('/plan/A.ifc')), null);
+  eq('A5 geen normalisatie: een anders geschreven pad telt niet (ook op Windows)',
+    [decide(docs, path('/plan/./a.ifc')), decide(docs, path('/plan/x/../a.ifc')), decide(docs, path('c:\\Werk\\.\\Plan.ifc'))], [null, null, null]);
+  eq('A11 een tabblad met een handle telt niet voor een pad', decide(docs, path('h.ifc')), null);
   eq('A9 site: hetzelfde id', decide(docs, { kind: 'site', id: 'site-1' }), 'doc-site');
   eq('A9b site: ander id', decide(docs, { kind: 'site', id: 'site-9' }), null);
-  eq('A9c site wint van de handle van hetzelfde document', await findId(docs, { kind: 'handle', handle: handleFor('sh.ifc') }, noFs), null);
-  eq('A11 een tabblad met een handle telt niet voor een pad', await findId(docs, path('h.ifc'), noFs), null);
-  eq('A12 een tabblad met een pad telt niet voor een handle', await findId(docs, { kind: 'handle', handle: handleFor('/plan/a.ifc') }, noFs), null);
-  eq('A13 een pad dat niet meer bestaat', await findId(state([['d', { filePath: '/plan/weg.ifc' }]]), path('/plan/weg.ifc'), withFs), null);
-  // Review #1121: `/plan/x/../a.ifc` is lexicaal `/plan/a.ifc`, maar via een maplink een ander bestand. Een betrouwbare
-  // bestandsidentiteit gaat voor; zonder identiteit (Windows, een stat-fout) blijft de lexicale vergelijking.
-  ids.set('/plan/x/../a.ifc', [1, 12]);
-  eq('A16 lexicaal gelijk, andere dev/ino: een ander bestand', await findId(docs, path('/plan/x/../a.ifc'), withFs), null);
-  eq('A16b zonder identiteit: lexicaal', await findId(docs, path('/plan/x/../a.ifc'), noFs), 'doc-pad');
-  // Review #1121 ronde 4: de synchrone beslissing (een tabblad dat ná de toets een pad kreeg) kijkt alleen naar dezelfde
-  // letterlijke padtekst; een genormaliseerd pad kan op POSIX een ander bestand zijn.
-  eq('A17 synchroon: dezelfde padtekst', decide(docs, path('/plan/a.ifc')), 'doc-pad');
-  eq('A17b synchroon: een ander geschreven pad telt niet', [decide(docs, path('/plan/./a.ifc')), decide(docs, path('/plan/x/../a.ifc'))], [null, null]);
-  // De identiteit van het gevraagde pad één keer, per tabblad alleen diens eigen `stat`.
-  ids.set('/plan/c.ifc', [1, 13]);
-  stats = 0;
-  eq('A18 geen treffer bij twee padtabbladen', await findId(state([['x', { filePath: '/plan/b.ifc' }], ['y', { filePath: '/plan/c.ifc' }]]), path('/plan/a.ifc'), withFs), null);
-  eq('A18 één stat voor het gevraagde pad, één per tabblad', stats, 3);
-  // Route P (review #1121 ronde 5): in de browser krijgt alleen een tabblad met dezelfde bestandsnaam een `isSameEntry`
-  // (synchroon voorsorteren; dezelfde entry heeft altijd dezelfde naam). De treffer komt alleen van `isSameEntry`: twee
-  // bestanden met dezelfde naam in verschillende mappen worden niet verward.
+  // De browser: `isSameEntry` per tabblad met een handle (zonder site-id), in de richting gevraagd → tabblad.
+  calls.length = 0;
+  eq('A6 handle: isSameEntry waar, ander object', await findId(docs, handleFor('a.ifc')), 'doc-handle');
+  eq('A6 richting: gevraagd.isSameEntry(tabblad), niet voor een site-tabblad', calls, ['a.ifc→a.ifc']);
+  eq('A7 handle: isSameEntry onwaar', await findId(docs, handleFor('x.ifc')), null);
+  eq('A8 handle: isSameEntry gooit ⇒ anders', await findId(docs, handleFor('a.ifc', { throws: true })), null);
+  eq('A9c site wint van de handle van hetzelfde document', await findId(docs, handleFor('sh.ifc')), null);
+  eq('A12 een tabblad met een pad telt niet voor een handle', await findId(state([['p', { filePath: '/plan/a.ifc' }]]), handleFor('/plan/a.ifc')), null);
+  // Review #1121 ronde 6: de vergelijkingen starten tegelijk (zoals B3 mat), zonder voorsorteren op naam. Een
+  // vastgehouden eerste kandidaat houdt de treffer op de laatste niet op; "geen treffer" pas als alle binnen zijn.
   {
-    let calls: string[] = [];
-    const at = (dirName: string, name: string) => ({
-      kind: 'file', name,
-      isSameEntry: async (other: { dirName?: string; name?: string }) => { calls.push(dirName); return other.dirName === dirName && other.name === name; },
-      dirName,
-    }) as unknown as FileSystemFileHandle;
+    const hold = gate();
     const tabs = state([
-      ['ander', { filePath: 'b.ifc', fileHandle: at('plan', 'b.ifc') }],
-      ['zelfde-naam', { filePath: 'a.ifc', fileHandle: at('elders', 'a.ifc') }],
-      ['zelfde', { filePath: 'a.ifc', fileHandle: at('plan', 'a.ifc') }],
+      ['traag', { filePath: 'x.ifc', fileHandle: handleFor('x.ifc') }],
+      ['ander', { filePath: 'y.ifc', fileHandle: handleFor('y.ifc') }],
+      ['zelfde', { filePath: 'a.ifc', fileHandle: handleFor('a.ifc') }],
     ]);
-    eq('A19 voorsorteren: de treffer is het zelfde bestand', await findId(tabs, { kind: 'handle', handle: at('plan', 'a.ifc') }, noFs), 'zelfde');
-    eq('A19 voorsorteren: geen isSameEntry voor een andere naam', [...calls].sort(), ['elders', 'plan']);
-    calls = [];
-    eq('A19b dezelfde naam in een andere map: geen treffer', await findId(state([
-      ['zelfde-naam', { filePath: 'a.ifc', fileHandle: at('elders', 'a.ifc') }],
-    ]), { kind: 'handle', handle: at('plan', 'a.ifc') }, noFs), null);
-    eq('A19b één isSameEntry, voor de kandidaat met dezelfde naam', calls, ['elders']);
+    calls.length = 0;
+    const gevraagd = handleFor('a.ifc', { hold: hold.wait });
+    const lookup = startOpenLookup(asTabs(tabs), { kind: 'handle', handle: gevraagd });
+    eq('A19 tegelijk: alle drie de vergelijkingen direct gestart, ook voor een andere naam', [...calls].sort(), ['a.ifc→a.ifc', 'a.ifc→x.ifc', 'a.ifc→y.ifc']);
+    await settle(lookup);
+    eq('A19 zolang ze vastzitten: nog niet beslist', lookup.settled, false);
+    hold.open();
+    await settle(lookup);
+    eq('A19 de treffer op de laatste plaats', [lookup.settled, lookup.id], [true, 'zelfde']);
+    // Eén vergelijking zit vast, de treffer is al binnen: dan telt die meteen.
+    const stuck = gate();
+    const slowTabs = state([
+      ['vast', { filePath: 'x.ifc', fileHandle: { kind: 'file', name: 'x.ifc' } as unknown as FileSystemFileHandle }],
+      ['zelfde', { filePath: 'a.ifc', fileHandle: handleFor('a.ifc') }],
+    ]);
+    const req = { kind: 'file', name: 'a.ifc',
+      isSameEntry: async (other: { name?: string }) => { if (other.name === 'x.ifc') { await stuck.wait; return false; } return other.name === 'a.ifc'; },
+    } as unknown as FileSystemFileHandle;
+    const early = await settle(startOpenLookup(asTabs(slowTabs), { kind: 'handle', handle: req }));
+    eq('A19b een treffer telt zodra hij binnen is, ook als een andere vergelijking nog loopt', [early.settled, early.id], [true, 'zelfde']);
+    const none = startOpenLookup(asTabs(slowTabs.slice(0, 1)), { kind: 'handle', handle: req });
+    await settle(none);
+    eq('A19b "geen treffer" pas als alle vergelijkingen binnen zijn', none.settled, false);
+    stuck.open();
+    await settle(none);
+    eq('A19b daarna: geen treffer', [none.settled, none.id], [true, null]);
   }
+  eq('A17 synchroon: dezelfde padtekst', decide(docs, path('/plan/a.ifc')), 'doc-pad');
 }
 
 // ═══ B. Desktop ═══════════════════════════════════════════════════════════════════════════════════
@@ -272,8 +271,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
       await store.getState().openRecentFile(entry.id, labels);
     } else {
-      // Zoals de hook (`useFileDrop`): met het pad als `target` en de leeskeuze van de neerzetting.
-      await openDroppedFiles(store, desktopDroppedFiles([file], io, readOptions(store)), labels, () => false, { readOptions: readOptions(store) });
+      // Zoals de hook (`useFileDrop`): de lezers van main en de leeskeuze van de neerzetting.
+      await openDroppedFiles(store, droppedFilesFromPaths([file], io, readOptions(store)), labels, () => false, { readOptions: readOptions(store) });
     }
   };
   try {
@@ -292,7 +291,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       [2, true, { project: 'Kantoor', tasks: ['Fundering', 'Onopgeslagen werk'], isDirty: true, filePath: kantoor }]);
     const tabA = tab(store, a);
     const historyBefore = history(store);
-    for (const how of ['openen', 'link', 'recent', 'slepen'] as const) {
+    for (const how of ['openen', 'recent', 'slepen'] as const) {
       S().switchDocument(b);
       clearNotices(store);
       await openVia(store, how);
@@ -301,9 +300,22 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq(`B1 ${how}: dat tabblad houdt zijn werk`, tab(store, a), tabA);
       eq(`B1 ${how}: ongedaan maken onveranderd`, history(store), historyBefore);
       eq(`B1 ${how}: één melding`, notices(store), [['info', ALREADY_OPEN]]);
-      // Recent krijgt wat de planner koos: via de link het pad van de link, zoals main.
-      eq(`B1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.ref, { kind: 'path', path: how === 'link' ? link : kantoor });
+      eq(`B1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.ref, { kind: 'path', path: kantoor });
       eq(`B1 ${how}: B onveranderd`, tab(store, b), { project: 'School', tasks: ['Dak'], isDirty: false, filePath: school });
+    }
+    // Besluit D (ronde 6, knownbug 2063): via een link is het een andere padtekst. De app kijkt niet naar de schijf en opent
+    // een eigen tabblad, zoals main; A houdt zijn werk.
+    {
+      S().switchDocument(b);
+      clearNotices(store);
+      await openVia(store, 'link');
+      const viaLink = S().activeDocumentId;
+      eq('B1 link: een eigen tabblad met de inhoud van het bestand, geen melding', [
+        S().documents.length, ![a, b].includes(viaLink), S().filePath, S().tasks.map(t => t.name), notices(store).filter(n => n[1] === ALREADY_OPEN),
+      ], [3, true, link, ['Fundering'], []]);
+      eq('B1 link: A houdt zijn werk', tab(store, a), tabA);
+      S().closeDocument(viaLink);
+      S().switchDocument(a);
     }
     // Ongedaan maken werkt na de wissel nog op het werk van A.
     S().undo();
@@ -313,7 +325,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     // Een kopie met dezelfde inhoud is een ander bestand; twee keer dezelfde kopie in één neerzetting geeft één
     // tabblad en één melding.
     clearNotices(store);
-    await openDroppedFiles(store, desktopDroppedFiles([kopie, kopie], io, { ifcBytes: true }), labels, () => false, { readOptions: { ifcBytes: true } });
+    await openDroppedFiles(store, droppedFilesFromPaths([kopie, kopie], io, { ifcBytes: true }), labels, () => false, { readOptions: { ifcBytes: true } });
     const c = S().activeDocumentId;
     eq('B3 kopie: een eigen tabblad', [S().documents.length, tab(store, c)?.filePath, tab(store, c)?.project], [3, kopie, 'School']);
     eq('B3 tweede neerzetting van dezelfde kopie: één melding', notices(store), [['info', ALREADY_OPEN]]);
@@ -394,7 +406,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         let calls = 0;
         let blocked = true;
         release = () => { blocked = false; };
-        opening = openDroppedFiles(st, desktopDroppedFiles([kantoor], io, readOptions(st)), labels, () => {
+        opening = openDroppedFiles(st, droppedFilesFromPaths([kantoor], io, readOptions(st)), labels, () => {
           if (++calls === 1) return false; // de poort bij het neerzetten
           resolve();
           return blocked;
@@ -419,8 +431,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     }
 
     // Review #1121 ronde 1 (VERVOLG): een pad met `..` door een maplink wijst op POSIX naar een ander bestand dan wat
-    // er lexicaal staat. Bij het openen gaat een betrouwbare bestandsidentiteit (`dev`/`ino`) voor op de lexicale
-    // gelijkheid: `maplink/../kantoor.ifc` is hier een ander bestand (planning School) en opent in een eigen tabblad.
+    // er lexicaal staat. Met besluit D (ronde 6) telt alleen de letterlijke padtekst: `maplink/../kantoor.ifc` (hier een
+    // ander bestand, planning School) en `./kantoor.ifc` (hetzelfde bestand) openen elk een eigen tabblad (knownbug 2063).
     {
       const st = newStore(true);
       const T = () => st.getState();
@@ -440,13 +452,11 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         statSync(viaLink).ino !== statSync(kantoor).ino, T().activeDocumentId !== first, T().project.name, T().documents.length,
       ], [true, true, 'School', 2]);
       eq('B9 maplink/..: geen melding "staat al open"', notices(st).filter(n => n[1] === ALREADY_OPEN), []);
-      // Wijst het pad wel naar hetzelfde bestand (hier `.` en een overbodige `/`), dan nog steeds het open tabblad.
       dialogAnswer = `${dir}/./kantoor.ifc`;
       await T().openFile(labels);
-      eq('B9 ./kantoor.ifc: hetzelfde bestand, naar het open tabblad', [T().activeDocumentId, T().documents.length], [first, 2]);
-
-      // (B9 laat, ronde 4, verviel in ronde 5: met route P houdt de toets de openactie niet meer vast; A17 dekt de
-      // synchrone vergelijking op dezelfde padtekst.)
+      eq('B9 ./kantoor.ifc: een andere padtekst, een eigen tabblad (2063); kantoor houdt zijn werk', [
+        T().activeDocumentId !== first, T().documents.length, tab(st, first)?.tasks,
+      ], [true, 3, ['Fundering', 'Werk in kantoor']]);
     }
 
     // Review #1121 ronde 2: met de flag uit is er geen toets; *Opslaan als* begint op het moment van de eerste `stat` van
@@ -511,55 +521,45 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Route P (review #1121 ronde 5): de PR voegt geen enkel wachtmoment toe aan de openactie. De proef houdt de toets
-    // vast (de `stat` van het gevraagde pad, ook in de bestandslaag van MCP). De openactie is dan klaar zonder op de toets
-    // te wachten: via de link (alleen via de identiteit te herkennen) een eigen tabblad, zonder melding; via dezelfde
-    // padtekst naar het open tabblad (synchroon te zien). Een uitkomst die daarna binnenkomt, doet niets meer.
+    // Review #1121 ronde 6 (BLOKKEERT 2), de proef van Sol als vaste proef: School staat open; een `stat` van het pad van
+    // School houdt de bestandslaag vast (zoals een trage netwerkschijf de native draad), en elke andere bestandsaanroep
+    // die daarna komt ook. Openen, Recent, slepen en MCP van het lokale kantoor.ifc zijn binnen 120 ms klaar, zonder een
+    // `stat`, zoals main (`native-wachtrij-main.log`).
     {
       const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-      for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) for (const via of ['link', 'pad'] as const) {
+      for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
         writeFileSync(kantoor, kantoorIfc);
         const app = newApp(true);
         const st = app.store;
         const T = () => st.getState();
-        dialogAnswer = kantoor;
-        await T().openFile(labels);
-        const kantoorTab = T().activeDocumentId;
-        T().newDocument();
-        dialogAnswer = school;
-        await T().openFile(labels);
-        const schoolTab = T().activeDocumentId;
-        const requested = via === 'link' ? link : kantoor;
-        st.setState(s => { s.recentFiles = [{ id: 'p', ref: { kind: 'path', path: requested }, name: 'kantoor.ifc', addedAt: 1 }]; });
-        const hold = gate();
-        let held = false;
-        const holdStat = async (path: string) => { if (!held && path === requested) { held = true; await hold.wait; } };
+        await openVia(st, 'openen', school);
+        st.setState(s => { s.recentFiles = [{ id: 'k', ref: { kind: 'path', path: kantoor }, name: 'kantoor.ifc', addedAt: 1 }]; });
+        const release = gate();
+        let running = false, stats = 0;
+        const holdStat = async (path: string) => {
+          stats++;
+          if (path === school && !running) { running = true; await release.wait; running = false; }
+        };
         const outer = internals.invoke;
         internals.invoke = async (command, args, options) => {
           if (command === 'plugin:fs|stat') await holdStat((args as { path?: string }).path ?? '');
+          else if (command.startsWith('plugin:fs|') && running) await release.wait;
           return outer(command, args, options);
         };
         const getFs = fileToolDeps.getFs;
         const fs = await realFs();
         fileToolDeps.getFs = async () => ({ ...fs, homeDir: async () => dir, stat: async (path: string) => { await holdStat(path); return fs.stat(path); } });
-        clearNotices(st);
-        const count = T().documents.length;
         let opening: Promise<unknown>;
-        if (route === 'MCP') opening = Promise.resolve(getTool('planner_import_schedule')!.handler({ path: requested }, mcpContext(app, schoolTab)));
-        else if (route === 'recent') opening = T().openRecentFile('p', labels);
-        else opening = openVia(st, route, requested);
+        if (route === 'MCP') opening = Promise.resolve(getTool('planner_import_schedule')!.handler({ path: kantoor }, mcpContext(app, T().activeDocumentId)));
+        else if (route === 'recent') opening = T().openRecentFile('k', labels);
+        else opening = openVia(st, route, kantoor);
         try {
-          const done = await Promise.race([opening.then(() => true), sleep(300).then(() => false)]);
-          const atDone = [T().activeDocumentId === kantoorTab, T().documents.length - count, notices(st).filter(n => n[1] === ALREADY_OPEN).length];
-          eq(`P1 ${route} via ${via}: toets vastgehouden; de openactie wacht er niet op`, [held, done, ...atDone],
-            [true, true, via === 'pad', via === 'link' ? 1 : 0, via === 'pad' ? 1 : 0]);
-          hold.open();
-          await opening;
-          await sleep(20);
-          eq(`P1 ${route} via ${via}: de late uitkomst van de toets doet niets meer`,
-            [T().activeDocumentId === kantoorTab, T().documents.length - count, notices(st).filter(n => n[1] === ALREADY_OPEN).length], atDone);
+          const done = await Promise.race([opening.then(() => true), sleep(120).then(() => false)]);
+          eq(`D3 ${route} (Sol, ronde 6): een vastgehouden stat van een ander tabblad houdt het openen niet op; geen stat`, [
+            done, stats, T().project.name,
+          ], [true, 0, 'Kantoor']);
         } finally {
-          hold.open();
+          release.open();
           internals.invoke = outer;
           fileToolDeps.getFs = getFs;
           await opening.catch(() => undefined);
@@ -568,8 +568,61 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Review #1121 ronde 5 (BLOKKEERT 1), de proef van Sol: `planner_import_schedule` voor kantoor terwijl de `stat` van
-    // de toets vastzit; 120 ms later *Opslaan als* van School met *Net opgeslagen werk* over kantoor.ifc, met de plaatsing
+    // Review #1121 ronde 6 (BLOKKEERT 1), de proef van Sol als vaste proef: Kantoor staat open; `planner_import_schedule`
+    // van een link naar kantoor.ifc, en terwijl de import leest gaat de link naar school.ifc. De import leest School en
+    // opent School, zoals main: de bewerking en de export blijven bij School, Ctrl+S ook, en kantoor.ifc is bytegelijk
+    // (`alias-tijdens-lezing-main.log`).
+    {
+      const { readFileSync, unlinkSync } = await import('node:fs');
+      writeFileSync(kantoor, kantoorIfc);
+      const app = newApp(true);
+      const st = app.store;
+      const T = () => st.getState();
+      await openVia(st, 'openen', kantoor);
+      const kantoorTab = T().activeDocumentId;
+      const getFs = fileToolDeps.getFs;
+      const fs = await realFs();
+      let readProject = '';
+      fileToolDeps.getFs = async () => ({
+        ...fs, homeDir: async () => dir,
+        readFile: async (path: string) => {
+          if (path === link) {
+            await new Promise<void>(resolve => setImmediate(resolve));
+            unlinkSync(link);
+            symlinkSync(school, link);
+            readProject = readFileSync(path, 'utf8') === schoolIfc ? 'School' : 'anders';
+          }
+          return fs.readFile(path);
+        },
+      });
+      try {
+        const ctx = mcpContext(app, kantoorTab);
+        const result = await getTool('planner_import_schedule')!.handler({ path: link }, ctx);
+        const data = result.ok ? result.data as { documentId: string; alreadyOpen?: boolean } : null;
+        const updated = await getTool('planner_update_project')!.handler({ name: 'Nieuwe projectnaam' }, ctx);
+        const exportedPath = join(dir, 'uitvoer-d2.ifc');
+        const exported = await getTool('planner_export_ifc')!.handler({ path: exportedPath }, ctx);
+        const bytes = readFileSync(exportedPath, 'utf8');
+        const deleted = await getTool('planner_delete_tasks')!.handler({ ids: [T().tasks[0].id] }, ctx);
+        await T().saveFile();
+        const kantoorAfter = readFileSync(kantoor, 'utf8');
+        eq('D2 MCP, een link die tijdens het lezen naar School gaat (Sol, ronde 6): alles blijft bij School, zoals main', [
+          readProject, result.ok, data?.documentId === kantoorTab, data?.alreadyOpen, ctx.expectedDocId === data?.documentId,
+          updated.ok, exported.ok, bytes.includes('Dak'), bytes.includes('Fundering'), deleted.ok,
+          tab(st, kantoorTab)?.project, kantoorAfter === kantoorIfc,
+        ], ['School', true, false, undefined, true, true, true, true, false, true, 'Kantoor', true]);
+      } finally {
+        fileToolDeps.getFs = getFs;
+        unlinkSync(link);
+        symlinkSync(kantoor, link);
+      }
+      // Ctrl+S schreef School via de link naar school.ifc (ook op main): de volgende proeven verwachten het origineel.
+      writeFileSync(school, schoolIfc);
+      writeFileSync(kantoor, kantoorIfc);
+    }
+
+    // Review #1121 ronde 5 (BLOKKEERT 1), de proef van Sol: `planner_import_schedule` voor kantoor (een `stat` van kantoor
+    // zou de proef vasthouden; met besluit D is er geen); 120 ms later *Opslaan als* van School met *Net opgeslagen werk* over kantoor.ifc, met de plaatsing
     // vastgehouden. Met route P wacht MCP niet op de toets: de import is klaar, *Opslaan als* weigert, School blijft
     // gewijzigd, kantoor.ifc bytegelijk; één lezing; na *Vervolgwerk* + Ctrl+S in het geïmporteerde tabblad geen melding.
     // Precies wat main doet (Sols meting op main, `mcp-lopende-opslag-main.log`).
@@ -633,8 +686,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     }
 
     // Review #1121 ronde 5 (BLOKKEERT 2), de proef van Sol: Kantoor en School staan open; Openen of Recent van kantoor
-    // terwijl de `stat` van de toets vastzit; 150 ms later in School een taak kiezen en F2. Met route P is de openactie
-    // dan al klaar, zoals op main: de taakdialoog blijft open, op dezelfde taak, in School.
+    // (een `stat` van kantoor zou de proef vasthouden; met besluit D is er geen); 150 ms later in School een taak kiezen en
+    // F2. De openactie is dan al klaar, zoals op main: de taakdialoog blijft open, op dezelfde taak, in School.
     {
       if (typeof (globalThis as { document?: unknown }).document === 'undefined') {
         Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: {} } });
@@ -680,8 +733,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     }
 
     // Review #1121 ronde 5 (VERVOLG), het geval van Sol: School is open via `maplink/../kantoor.ifc` (een ander bestand
-    // dan kantoor.ifc); het bestand achter dat aliaspad verdwijnt; dan Openen van het gewone kantoor.ifc. Een bewezen
-    // ontbrekende kandidaat valt niet terug op de padtekst: Kantoor opent, zoals main.
+    // dan kantoor.ifc); het bestand achter dat aliaspad verdwijnt; dan Openen van het gewone kantoor.ifc. Een andere
+    // padtekst telt niet (besluit D): Kantoor opent, zoals main.
     {
       const { realpathSync, unlinkSync } = await import('node:fs');
       const other = join(dir, 'andere-map');
@@ -704,6 +757,89 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq('B11 verdwenen alias: Kantoor opent, niet het tabblad van de alias', [
         ...precondition, T().activeDocumentId === aliasId, T().project.name, T().filePath, notices(st),
       ], [true, 'School', false, 'Kantoor', kantoor, []]);
+    }
+
+    // Review #1121 ronde 6 (VERVOLG), het geval van Sol: een openactie die met de flag uit begon, terwijl de flag tijdens
+    // het lezen aangaat. De keuze voor "staat al open" ligt bij het begin vast: geen wissel, een derde tabblad, zoals
+    // main (`vlag-gaat-aan-main.log`). De parseerkeuze blijft die van main.
+    for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
+      writeFileSync(kantoor, kantoorIfc);
+      const app = newApp(false);
+      const st = app.store;
+      const T = () => st.getState();
+      await openVia(st, 'openen', kantoor);
+      const kantoorTab = T().activeDocumentId;
+      await openVia(st, 'openen', school);
+      st.setState(s => { s.recentFiles = [{ id: 'k', ref: { kind: 'path', path: kantoor }, name: 'kantoor.ifc', addedAt: 1 }]; });
+      clearNotices(st);
+      const reading = gate(), release = gate();
+      let reads = 0, stats = 0;
+      const outer = internals.invoke;
+      internals.invoke = async (command, args, options) => {
+        const at = (args as { path?: string } | undefined)?.path;
+        if (command === 'plugin:fs|stat') stats++;
+        if (at === kantoor && /^plugin:fs\|read_(text_)?file$/.test(command)) { reads++; reading.open(); await release.wait; }
+        return outer(command, args, options);
+      };
+      const getFs = fileToolDeps.getFs;
+      fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
+      let opening: Promise<unknown>;
+      if (route === 'MCP') opening = Promise.resolve(getTool('planner_import_schedule')!.handler({ path: kantoor }, mcpContext(app, T().activeDocumentId)));
+      else if (route === 'recent') opening = T().openRecentFile('k', labels);
+      else opening = openVia(st, route, kantoor);
+      try {
+        await reading.wait;
+        st.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+        release.open();
+        await opening;
+        eq(`P4 ${route} (Sol, ronde 6): de flag gaat aan tijdens het lezen; geen wissel, zoals main`, [
+          reads, stats, T().activeDocumentId === kantoorTab, T().documents.length, T().project.name, notices(st).filter(n => n[1] === ALREADY_OPEN),
+        ], [1, 0, false, 3, 'Kantoor', []]);
+      } finally {
+        release.open();
+        internals.invoke = outer;
+        fileToolDeps.getFs = getFs;
+      }
+    }
+
+    // Review #1121 ronde 6 (VERVOLG), het geval van Sol: een formaat zonder opslagdoel (CSV) toetst en wisselt nooit, ook
+    // niet via een hardlink naar het IFC-bestand van een open tabblad, en ook niet als een tabblad dezelfde padtekst
+    // draagt. Zoals main (`niet-ifc-main.log`): een eigen tabblad, zonder opslagdoel.
+    {
+      const { linkSync } = await import('node:fs');
+      writeFileSync(kantoor, kantoorIfc);
+      const st = newStore(true);
+      const T = () => st.getState();
+      await openVia(st, 'openen', kantoor);
+      const kantoorTab = T().activeDocumentId;
+      let stats = 0;
+      const outer = internals.invoke;
+      internals.invoke = async (command, args, options) => {
+        if (command === 'plugin:fs|stat') stats++;
+        return outer(command, args, options);
+      };
+      try {
+        clearNotices(st);
+        await openVia(st, 'openen', csv);
+        const plain = [T().activeDocumentId !== kantoorTab, T().filePath, T().tasks.map(t => t.name)];
+        const csvAlias = join(dir, 'kantoor-als.csv');
+        linkSync(kantoor, csvAlias);
+        writeFileSync(csvAlias, csvText);
+        await openVia(st, 'openen', csvAlias);
+        const viaHardlink = [T().activeDocumentId !== kantoorTab, T().filePath, T().tasks.map(t => t.name)];
+        // Draagt een tabblad dezelfde padtekst als de CSV, dan nog steeds een eigen tabblad (de regel op het formaat).
+        st.setState(s => { s.filePath = null; });
+        T().switchDocument(kantoorTab);
+        st.setState(s => { s.filePath = csv; });
+        await openVia(st, 'openen', csv);
+        const samePathText = [T().activeDocumentId !== kantoorTab, T().filePath];
+        eq('P5 CSV (Sol, ronde 6): geen stat, geen wissel, een eigen tabblad zonder opslagdoel, zoals main', [
+          stats, plain, viaHardlink, samePathText, notices(st).filter(n => n[1] === ALREADY_OPEN),
+        ], [0, [true, null, ['Rij']], [true, null, ['Rij']], [true, null], []]);
+      } finally {
+        internals.invoke = outer;
+        writeFileSync(kantoor, kantoorIfc);
+      }
     }
 
     // Samenloop met #1127 (knownbug 2043): een model dat al in een tabblad open staat en intussen boven de productgrens
@@ -979,8 +1115,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq('R5 kruisend: beide eindstanden gezien', [...seen].sort(), ['Kantoor', 'School']);
     }
 
-    // Knownbug 2041: drie openacties van kantoor (Openen, Recent, slepen) staan tegelijk in hun toets; geen ervan ziet
-    // kantoor open. De eerste die activeert opent kantoor; de andere twee zien dat tabblad in hun synchrone eindbeslissing
+    // Knownbug 2041: drie openacties van kantoor (Openen, Recent, slepen) lezen tegelijk; geen ervan ziet kantoor open. De eerste die activeert opent kantoor; de andere twee zien dat tabblad in hun synchrone eindbeslissing
     // (hetzelfde pad) en gaan erheen. Eén tabblad op kantoor.
     {
       writeFileSync(kantoor, kantoorIfc);
@@ -994,7 +1129,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       let held = 0;
       const outer = internals.invoke;
       internals.invoke = async (command, args, options) => {
-        if (command === 'plugin:fs|stat' && (args as { path?: string }).path === kantoor && held < 3) {
+        if (/^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string }).path === kantoor && held < 3) {
           if (++held === 3) three.open();
           await all.wait;
         }
@@ -1009,7 +1144,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         all.open();
         await Promise.all(opening);
       } finally { internals.invoke = outer; all.open(); }
-      eq('R6 2041: drie openacties tegelijk in hun toets; één tabblad op kantoor, de melding één keer (zelfde dedupeKey)', [
+      eq('R6 2041: drie openacties lezen tegelijk; één tabblad op kantoor, de melding één keer (zelfde dedupeKey)', [
         held, T().getOpenDocumentPayloads().filter(d => d.payload.filePath === kantoor).length, T().documents.length,
         notices(st).filter(n => n[1] === ALREADY_OPEN).length,
       ], [3, 1, 2, 1]);
@@ -1134,11 +1269,12 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
-    // Review #1121 ronde 3: waar de toets staat, per desktoproute. Met de flag aan: één keer lezen, dan de toets (`stat`),
-    // dan parsen, en tussen parsen en activeren niets. Met de flag uit: geen toets en één lezing, zoals main (dezelfde proef
-    // op de productiecode van main: log `r3-…-main`). Het startbestand houdt de toets van main, met en zonder flag.
+    // Review #1121 ronde 6 (besluit D): per desktoproute met de flag aan precies de bestandsaanroepen van main (dezelfde
+    // reeks als met de flag uit, tot het activeren; IFC leest alleen als bytes in plaats van tekst), geen `stat` en één
+    // lezing: lezen, parsen, activeren. Het startbestand houdt de toets van main (lezen, `stat`, parsen), met en zonder flag.
     {
       const { openLaunchFiles } = await import('@/state/launchFiles');
+      const ipcFlagOn = new Map<string, string[]>();
       for (const flag of [true, false]) for (const route of ['openen', 'recent', 'slepen', 'MCP', 'start'] as const) {
         const app = newApp(flag);
         const st = app.store;
@@ -1150,13 +1286,16 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         await T().openFile(labels);
         st.setState(s => { s.recentFiles = [{ id: 'r', ref: { kind: 'path', path: kantoor }, name: 'kantoor.ifc', addedAt: 1 }]; });
         const outer = internals.invoke;
+        const ipcSeen: string[] = [];
+        let active = false;
         internals.invoke = async (command, args, options) => {
           const at = (args as { path?: string } | undefined)?.path;
-          if (at === kantoor && command === 'plugin:fs|stat') record('toets');
+          if (!active && events) ipcSeen.push(`${command.replace(/read_text_file$/, 'read_file')} ${at === kantoor ? 'kantoor' : at ?? ''}`);
+          if (command === 'plugin:fs|stat') record('toets');
           if (at === kantoor && /^plugin:fs\|read_(text_)?file$/.test(command)) record('lees');
           return outer(command, args, options);
         };
-        const unsubscribe = st.subscribe((next, previous) => { if (next.activeDocumentId !== previous.activeDocumentId) record('actief'); });
+        const unsubscribe = st.subscribe((next, previous) => { if (next.activeDocumentId !== previous.activeDocumentId) { record('actief'); active = true; } });
         const getFs = fileToolDeps.getFs;
         fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
         events = [];
@@ -1173,14 +1312,14 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         const seq = events;
         events = null;
         console.log(JSON.stringify({ proef: 'T1 volgorde', route, flag, seq }));
-        // Route P (ronde 5): de toets start bij het lezen en niemand wacht erop; zonder de toets is de volgorde die van
-        // main. Het startbestand houdt de toets van main, na het lezen.
         if (route === 'start') {
           eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: lezen, toets, parsen, activeren (main)`, orderOf(seq), ['lees', 'toets', 'parse', 'actief']);
         } else {
-          eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: lezen, parsen, activeren zoals main; de toets ${flag ? 'gestart' : 'niet'} vóór het activeren`, [
-            orderOf(seq.filter(e => e !== 'toets')), seq.slice(0, seq.indexOf('actief')).includes('toets'),
-          ], [['lees', 'parse', 'actief'], flag]);
+          eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: lezen, parsen, activeren zoals main; geen stat in de hele actie`, [
+            orderOf(seq), seq.includes('toets'),
+          ], [['lees', 'parse', 'actief'], false]);
+          if (flag) ipcFlagOn.set(route, ipcSeen);
+          else eq(`D1 ${route}: met de flag aan dezelfde bestandsaanroepen als met de flag uit (main), tot het activeren`, ipcFlagOn.get(route), ipcSeen);
         }
         eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: één lezing in de hele actie`, seq.filter(e => e === 'lees').length, 1);
       }
@@ -1272,13 +1411,15 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq(`C1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.name, 'kantoor.ifc');
   }
 
-  // Een `isSameEntry` die gooit, telt als een ander bestand: een nieuw tabblad, geen melding.
+  // Een `isSameEntry` die gooit, telt als een ander bestand: een nieuw tabblad, geen melding. De toets vraagt het aan het
+  // gekozen handle (gevraagd.isSameEntry(tabblad)), dus dat gooit hier.
   files.set('los.ifc', enc.encode(kantoorIfc));
-  await S().openOpenedFile({ name: 'los.ifc', content: '', bytes: files.get('los.ifc'), ref: { kind: 'handle', handle: asHandle(new FakeHandle('los.ifc', true)) } }, labels);
+  await S().openOpenedFile({ name: 'los.ifc', content: '', bytes: files.get('los.ifc'), ref: { kind: 'handle', handle: asHandle(new FakeHandle('los.ifc')) } }, labels);
   const los = S().activeDocumentId;
   S().addTask({ name: 'Werk in los' });
   clearNotices(store);
-  await openVia(store, 'openen', 'los.ifc');
+  picked = new FakeHandle('los.ifc', true);
+  await S().openFile(labels);
   eq('C2 isSameEntry gooit: een nieuw tabblad, geen melding', [S().documents.length, S().activeDocumentId !== los, notices(store)], [4, true, []]);
 
   // Firefox/Safari: geen handle, dus geen identiteit: twee tabbladen.
@@ -1288,6 +1429,29 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   S().addTask({ name: 'Werk' });
   await S().openOpenedFile(ff, labels);
   eq('C3 zonder handle: telkens een nieuw tabblad', [S().documents.length, notices(store).filter(n => n[1] === ALREADY_OPEN)], [6, []]);
+
+  // Review #1121 ronde 6 (VERVOLG): een formaat zonder opslagdoel start geen toets (geen `isSameEntry`) en wisselt nooit.
+  {
+    files.set('lijst.csv', enc.encode(csvText));
+    const sameEntry = FakeHandle.prototype.isSameEntry;
+    let calls = 0;
+    FakeHandle.prototype.isSameEntry = function (this: FakeHandle, other: unknown) { calls++; return sameEntry.call(this, other); };
+    try {
+      const count = S().documents.length;
+      clearNotices(store);
+      for (const how of ['openen', 'recent', 'slepen'] as const) {
+        await openVia(store, how, 'lijst.csv');
+        // De formaatuitleg sluiten (*Begrepen*): anders wacht de neerzetting daar terecht op.
+        store.setState(s => { s.ui.pendingFormatNotice = null; });
+      }
+      eq('C5 CSV in de browser: geen isSameEntry vóór het activeren, telkens een eigen tabblad', [
+        calls, S().documents.length - count, notices(store).filter(n => n[1] === ALREADY_OPEN),
+      ], [0, 3, []]);
+    } finally {
+      FakeHandle.prototype.isSameEntry = sameEntry;
+    }
+    store.setState(s => { s.ui.pendingFormatNotice = null; });
+  }
 
   // Review #1121 ronde 3 en 5: waar de toets staat, per browserroute. Met de flag aan start `isSameEntry` bij het lezen
   // (route P), en niemand wacht erop: zonder de toets is de volgorde lezen, parsen, activeren, zoals main. Met de flag

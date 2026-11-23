@@ -36,7 +36,7 @@ import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
-import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
 import { refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
@@ -55,7 +55,7 @@ import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
-import { existingDocument, startOpenLookup, switchToOpenDocument, type OpenLookup } from '@/state/openDocumentFor';
+import { existingDocument, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -528,16 +528,13 @@ export const fileTools: McpToolDef[] = [
       // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
       let readOptions: FormatReadOptions = {};
-      let lookup: OpenLookup | null = null;
       try {
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
         readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
-        // Knownbug 1957 (met de flag, besluit T2): staat dit pad al in een tabblad open? De toets start bij het lezen en
-        // niemand wacht erop (`openDocumentFor.ts`, gooit niet); de beslissing valt hieronder synchroon met het activeren.
-        // Met de flag uit geen toets, zodat het antwoord en de volgorde gelijk blijven aan main.
-        if (readOptions.ifcBytes) lookup = startOpenLookup(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
+        // Knownbug 1957 (besluit T2): deze leeskeuze is ook de keuze voor "staat al open", vastgelegd bij het begin, ook
+        // als de flag uit staat. Geen toets: de beslissing hieronder vergelijkt synchroon de padtekst.
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
@@ -573,7 +570,10 @@ export const fileTools: McpToolDef[] = [
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
       // In dezelfde synchrone stap: wisselen of openen, en het document van het antwoord vastleggen.
-      const existing = lookup ? existingDocument(ctx.app.store.getState(), { kind: 'path', path }, lookup) : null;
+      // Alleen dezelfde letterlijke padtekst, en alleen voor een formaat dat een opslagdoel kan zijn (vraag P2). Met de flag
+      // uit nooit, zodat het antwoord gelijk blijft aan main.
+      const existing = readOptions.ifcBytes && readFormatForFile(path).canBeSaveTarget
+        ? existingDocument(ctx.app.store.getState(), { kind: 'path', path }, null) : null;
       if (existing !== null) switchToOpenDocument(ctx.app.store.getState(), existing);
       const opened = existing !== null ? null : ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
