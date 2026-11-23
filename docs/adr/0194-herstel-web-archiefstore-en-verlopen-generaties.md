@@ -7,12 +7,13 @@ haalt daarna alleen de blobs op die een leesbaar manifest noemt, en `saveWeb` en
 alleen de sleutels. Een blob kan groot zijn; twaalf documenten uit één bestand delen er één
 (`docs/xer-recovery-guardrails.md`).
 
-Staat er in de database een manifest dat deze versie niet kan lezen, dan verwijdert `saveWeb` geen records van andere
-generaties en geen archiefblobs, ook niet van een generatie die anders zou verlopen. Een onbekend manifest kan naar
-records en blobs verwijzen op een manier die deze versie niet kent. De precieze regel voor verlopen en voor onbekende
-kandidaten staat in `docs/xer-recovery-guardrails.md`; de proeven in `check-recovery-web-hold.ts` (de blokken over
-vreemde en onbekende kandidaten).
+Het opruimen van records van andere generaties en van archiefblobs in `saveWeb` begint bij de toestand
+`unknownManifest`. Is die waar (er staat een manifest dat deze versie niet kan lezen), dan slaat `saveWeb` beide over,
+ook voor een generatie die anders zou verlopen en ook voor een generatie zonder eigen manifest: een onbekend manifest
+kan naar records en blobs verwijzen op een manier die deze versie niet kent. De precieze regel voor verlopen en voor
+onbekende kandidaten staat in `docs/xer-recovery-guardrails.md`; de proeven in `check-recovery-web-hold.ts` (de blokken
+over vreemde en onbekende kandidaten).
 
-Een generatie zonder manifest mag daar weg omdat `loadWeb` een document alleen aanbiedt via een manifest van zijn
-generatie, en `saveWeb` de records en het manifest van een generatie in één transactie schrijft. Een andere tab die
-tijdens een herstelronde schrijft, ziet daardoor geen half gepubliceerde generatie als losse records.
+Is `unknownManifest` onwaar, dan mag een generatie zonder manifest weg omdat `loadWeb` een document alleen aanbiedt via
+een manifest van zijn generatie, en `saveWeb` de records en het manifest van een generatie in één transactie schrijft.
+Een andere tab die tijdens een herstelronde schrijft, ziet daardoor geen half gepubliceerde generatie als losse records.

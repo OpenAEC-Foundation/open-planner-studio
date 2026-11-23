@@ -43,7 +43,7 @@ Drie routes ruimen op, elk met een eigen reden:
   van `loadTauri` op de mapscan (ADR 0192) opnieuw als herstelkandidaat verschijnen, ook als het manifest haar niet
   noemde. Welke bestanden weggaan, bepaalt `planRecoveryClear`; dat kunnen ook bestanden zijn die de planner niet
   aangeboden kreeg.
-- De schone afsluiting (`planRecoveryExitClear` via `clearOwnTauri`; 8a tot en met 8f, 9p en 9q): alleen wat deze
-  instantie zelf schreef komt voor verwijdering in aanmerking, een overgenomen snapshot niet. Wat er bij een mislukte
+- De schone afsluiting (`planRecoveryExitClear` via `clearOwnTauri`; 8a tot en met 8f, 9p en 9q): `planRecoveryExitClear`
+  ruimt snapshotnamen uit `ownWritten` op en beschermt namen in `adoptedIfc`. Wat er bij een mislukte
   mapscan met het manifest gebeurt, staat in knownbug 1994. Bij afsluiten kunnen er uitgestelde of nog niet aangeboden
   snapshots staan, en daarover koos de planner niet.
