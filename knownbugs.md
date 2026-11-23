@@ -653,7 +653,14 @@ en noem het in je rapport of PR-tekst.
      aan, maar niet `settleEditedDuration` (`src/engine/work/workRuleApply.ts`), de stap die bij een duurbewerking op
      een lopende taak de rest met het duurverschil verschuift. `followRemainingOfUnstartedTask` in
      `settleDurationEdit` werkt alleen op een taak zonder voortgang en zonder werkelijke datums. Gezien in de code; spec
-     taaktypes §3.5 noemt dezelfde uitzondering (VERVOLG op #380). Niet nagespeeld. — S
+     taaktypes §3.5 noemt dezelfde uitzondering (VERVOLG op #380). Proef van de reviewer (GPT-6.2-Sol, review van
+     #1173): een taak van 4 d op 50 %; `setTaskSplits` maakte de duur 5 d terwijl restduur en restwerk op 2 d en
+     960 min bleven, en `updateTask` gaf op dezelfde uitgangstoestand 3 d en 1440 min. — B
+2000. **Voortgang terugzetten kan het totale werk van een toewijzing laten groeien.** `settleProgressWork`
+     (`src/engine/work/workRuleApply.ts`) schaalt het restwerk met de nieuwe restduur en zet het verrichte werk op wat
+     van het oude totaal overblijft, met 0 als ondergrens. Proef van de reviewer (GPT-6.2-Sol, review van #1173): een
+     taak van 4 werkdagen op 50 %, restwerk op 24 u gezet (16 u verricht, 24 u rest); daarna voortgang naar 0 % gaf
+     0 u verricht en 48 u rest, ook na herlezen van de geschreven IFC. — B
 
 ## Tabel, invoer en bediening
 
