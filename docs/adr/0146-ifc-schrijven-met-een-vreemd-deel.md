@@ -1,8 +1,8 @@
 # De IFC-writer met een vreemd deel: vaste ids en de vorm van de bron
 
-Bij een bestand met een gebouwmodel of andere vreemde gegevens (#804, ontwerp
+Bij een gewijzigde planning in een bestand met een gebouwmodel of andere vreemde gegevens (#804, ontwerp
 `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`) schrijft de writer de eigen
-planningsstukken opnieuw; `foreign/mergeWriter.ts` zet ze tussen de bronstukken. De writer krijgt daarvoor een plan
+planningsstukken opnieuw (een ongewijzigde planning geeft de bytes van de bron terug); `foreign/mergeWriter.ts` zet ze tussen de bronstukken. De writer krijgt daarvoor een plan
 (`WriterMergeIds`) en levert dan alleen zijn entiteitregels (`writeIfcMergeLines`), zonder kop en staart. Zonder plan
 nummert hij vanaf `#1`. Twee besluiten dragen dit. De domeinstukken van de bron houden hun `#id`, zodat verwijzingen
 van het model ernaar blijven kloppen. En een waarde die OPS zelf in een oudere vorm schreef, blijft in die vorm staan
