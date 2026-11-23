@@ -181,7 +181,11 @@ export function levelResources(
     : { ...t, time: { ...t.time } });
   const workById = new Map(workTasks.map(t => [t.id, t]));
 
-  const baseline = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
+  const statusFloorAnchors = cpmOptions.dataDate && !cpmOptions.schedulingOptions.unstartedIgnoresStatusDate
+    ? new Map<string, Date>() : undefined;
+  const placementSolver = () =>
+    new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions, statusFloorAnchors);
+  const baseline = placementSolver().solve();
   if (baseline.error) {
     const end = cpmResult.projectEnd;
     return {
@@ -415,18 +419,18 @@ export function levelResources(
   };
   const pfFor = (id: string): Date => {
     if (!LEVELER_TEST_HOOKS.incremental) {
-      return computePF(id, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
+      const result = placementSolver().solve();
+      return parseInstant(result.tasks.get(id)?.earlyStart ?? workById.get(id)!.time.earlyStart);
     }
     if (!forward && !globalDeps && globallyStale) {
-      forward = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).createIncrementalForwardPass();
+      forward = placementSolver().createIncrementalForwardPass();
       if (forward) globallyStale = false;
     }
     if (forward) {
       return parseInstant(forward.earlyStart(id) ?? workById.get(id)!.time.earlyStart);
     }
     if (globallyStale) {
-      const solver = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
-      pfEarlyStart = new Map([...solver.solve().tasks].map(([taskId, r]) => [taskId, r.earlyStart]));
+      pfEarlyStart = new Map([...placementSolver().solve().tasks].map(([taskId, r]) => [taskId, r.earlyStart]));
       globallyStale = false;
     }
     const es = pfEarlyStart.get(id);
@@ -500,6 +504,19 @@ export function levelResources(
       delay = pickEngine.workDaysBetween(parseDate(formatDate(pf)), parseDate(formatDate(startDate))) - 1;
     }
     if (delay > 0) {
+      const beforeFloor = statusFloorAnchors?.get(pick);
+      if (beforeFloor) {
+        if (pickedTask.time.durationType === 'ELAPSEDTIME') {
+          delay = diffCalendarDays(beforeFloor, startDate);
+          delayMin = Math.round((startDate.getTime() - beforeFloor.getTime()) / 60_000);
+        } else {
+          const anchor = nextCandidateFor(pickedTask, beforeFloor);
+          const anchorDay = workdayDateOfInstant(pickEngine, anchor, 'start') ?? anchor;
+          const targetDay = workdayDateOfInstant(pickEngine, startDate, 'start') ?? startDate;
+          delay = Math.max(delay, pickEngine.signedWorkDaysBetween(anchorDay, targetDay));
+          if (pickEngine.isHourMode) delayMin = Math.round(pickEngine.workMinutesBetween(anchor, startDate));
+        }
+      }
       delays[pick] = delay;
       if (delayMin !== undefined && delayMin > 0) delayMinutes[pick] = delayMin;
     }
@@ -764,18 +781,4 @@ export function levelResources(
     }
     return { gaps: null, skipped, horizonExhausted: true };
   }
-}
-
-function computePF(
-  taskId: string,
-  workTasks: Task[],
-  sequences: Sequence[],
-  projectCalendar: WorkCalendar,
-  registry: WorkCalendar[],
-  cpmOptions: CPMOptions,
-): Date {
-  const solver = new CPMSolver(workTasks, sequences, projectCalendar, registry, cpmOptions);
-  const res = solver.solve();
-  const r = res.tasks.get(taskId);
-  return parseInstant(r?.earlyStart ?? workTasks.find(t => t.id === taskId)!.time.earlyStart);
 }

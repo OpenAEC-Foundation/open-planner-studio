@@ -314,6 +314,7 @@ export class CPMSolver {
     projectCalendar: WorkCalendar,
     registry: WorkCalendar[] = [],
     options: CPMOptions,
+    private readonly statusFloorAnchors?: Map<string, Date>,
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
@@ -1014,6 +1015,7 @@ export class CPMSolver {
     this.cappedTaskIds = [];
     this.externalLagCalendarFallbackIds.clear();
     this.plannedFloorTraceByTaskId = {};
+    this.statusFloorAnchors?.clear();
     this.backwardFloatTrace = this.options.schedulingOptions?.p6CompletedDataDateWindow === true
       ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
       : undefined;
@@ -1320,6 +1322,7 @@ export class CPMSolver {
   ): Map<string, { es: Date; ef: Date }> {
     const drivers = this.dateDrivers;
     for (const taskId of order) {
+      this.statusFloorAnchors?.delete(taskId);
       const task = this.tasks.get(taskId)!;
       const cal = this.calendarFor(task);
       const preds = this.predecessors.get(taskId) || [];
@@ -1521,15 +1524,6 @@ export class CPMSolver {
         );
       }
 
-      const dataDate = this.dataDate;
-      const statusFloor = task.time.completion === 0
-        && !this.options.schedulingOptions?.unstartedIgnoresStatusDate ? dataDate : null;
-      if (statusFloor && earlyStart < statusFloor && (task.levelingDelay ?? 0) > 0
-        && !isPinnedInProgress(task.time)) {
-        earlyStart = statusFloor;
-        driver = DRIVER.statusDate;
-      }
-
       const undelayedEarlyStart = earlyStart;
       if (task.levelingDelay) {
         earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
@@ -1547,6 +1541,7 @@ export class CPMSolver {
       }
       if (earlyStart.getTime() !== undelayedEarlyStart.getTime()) driver = DRIVER.leveling;
 
+      const dataDate = this.dataDate;
       const progressCal = this.progressCalendarFor(task, cal);
       this.recordCompletedOutOfSequenceWindow(task, preds, results, progressCal);
       const physicalPoint = this.recordCompletedPhysicalPoint(task, preds, results, progressCal);
@@ -1666,8 +1661,12 @@ export class CPMSolver {
           results.set(taskId, { es: displayedEarlyStart, ef });
           continue;
         }
-        if (statusFloor && earlyStart < statusFloor) {
-          earlyStart = statusFloor;
+        if (
+          dataDate && t.completion === 0 && earlyStart < dataDate
+          && !this.options.schedulingOptions?.unstartedIgnoresStatusDate
+        ) {
+          this.statusFloorAnchors?.set(taskId, undelayedEarlyStart);
+          earlyStart = dataDate;
           driver = DRIVER.statusDate;
         }
       }

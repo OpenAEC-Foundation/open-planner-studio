@@ -8,9 +8,9 @@ kandidaten en hun minuten lopen, staat in `nextCandidateFor` en `candidateAxis`;
 `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.11. De vertraging gaat ook als minuten naar de solver
 (`delayMinutes`, ADR 0017), omdat een overgeslagen korte werkdag minder werktijd is dan een volle.
 
-Wanneer het profiel de statusdatum als ondergrens voor niet-gestart werk gebruikt, telt de solver een positieve
-nivelleervertraging in werkdagen vanaf die ondergrens als die later ligt dan het netwerkanker. Zo rekenen de
-kandidaatscan en de solver vanaf dezelfde basis (#1161).
+Wanneer de statusdatum de vroegste start opschuift, zoekt de nivelleerder vanaf die latere start. Bij een gevonden
+verschuiving meet hij de te schrijven vertraging vanaf het startanker vóór de statusdatumvloer. Daarmee bereikt de
+solver de getoetste kandidaat via dezelfde rekenregel die ook bestaande IFC-vertragingen toepast (#1161).
 
 ## Gevolgen
 
