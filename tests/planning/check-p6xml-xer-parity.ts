@@ -261,6 +261,53 @@ for (const variant of VARIANTS) {
   }
 }
 
+{
+  const source = synthetic({}, 'RETAINED_LOGIC');
+  const xml = xmlText(source);
+  const withDates = (stop: string, resume: string) => xml.replace(/<Activity>([\s\S]*?)<\/Activity>/g,
+    whole => whole.includes('<Id>A</Id>')
+      ? whole.replace('</Activity>', `<SuspendDate>${stop}</SuspendDate><ResumeDate>${resume}</ResumeDate></Activity>`) : whole);
+  const readFirst = (stop: string, resume: string) => readP6XML(withDates(stop, resume)).tasks.find(t => t.wbsCode === 'A')!;
+  const valid = readFirst('2026-03-03T10:15:00', '2026-03-05T14:30:00');
+  eq('621 bronmomenten met P6-opt-in', [valid.time.stop, valid.time.resume, valid.p6SuspendResume],
+    ['2026-03-03T10:15', '2026-03-05T14:30', true]);
+  const reversed = readFirst('2026-03-05T14:30:00', '2026-03-03T10:15:00');
+  eq('621 omgekeerde datums activeren P6 niet', [reversed.time.stop, reversed.time.resume, reversed.p6SuspendResume],
+    ['2026-03-05T14:30', '2026-03-03T10:15', undefined]);
+  const partial = readFirst('2026-03-03', 'ongeldig');
+  eq('621 onleesbaar einde wordt niet verzonnen', [partial.time.stop, partial.time.resume, partial.p6SuspendResume],
+    ['2026-03-03', undefined, undefined]);
+}
+
+{
+  const source = synthetic({}, 'RETAINED_LOGIC');
+  source.calendar = withWorkBlocks(source.calendar);
+  const running = source.tasks.find(t => t.wbsCode === 'B')!;
+  running.p6ProjectId = 'P1';
+  running.p6SuspendResume = true;
+  running.time.stop = '2026-03-10T12:00';
+  running.time.resume = '2026-03-18T09:00';
+  source.tasks = [running];
+  source.sequences = [];
+  source.calendars = [];
+  const xml = xmlText(source).replace(/<Activity>([\s\S]*?)<\/Activity>/g, whole =>
+    whole.includes('<Id>B</Id>') ? whole.replace('</Activity>',
+      '<SuspendDate>2026-03-10T12:00:00</SuspendDate><ResumeDate>2026-03-18T09:00:00</ResumeDate></Activity>') : whole);
+  const x = openXer(xerText(source));
+  const p = openXml(xml);
+  const pTask = p.tasks.find(t => t.wbsCode === 'B')!;
+  const xTask = x.tasks.find(t => t.wbsCode === 'B')!;
+  eq('621 beide formaten lezen dezelfde onderbreking',
+    [pTask.time.stop, pTask.time.resume, pTask.p6SuspendResume],
+    [xTask.time.stop, xTask.time.resume, xTask.p6SuspendResume]);
+  eq('621 XER met onderbreking rekent', solve(x), undefined);
+  eq('621 XML met onderbreking rekent', solve(p), undefined);
+  eq('621 XER en XML geven dezelfde geplande taakuitkomst', schedule(p).get('B'), schedule(x).get('B'));
+  const noResume = openXml(xml.replace('<ResumeDate>2026-03-18T09:00:00</ResumeDate>', ''));
+  eq('621 XML zonder volledig paar rekent', solve(noResume), undefined);
+  eq('621 onderbreking beïnvloedt de taakuitkomst', schedule(p).get('B') === schedule(noResume).get('B'), false);
+}
+
 // ── P3: P6-eigen waarden in <ScheduleOptions> ↔ XER-tokens ──────────────────────────────────────
 {
   const base = synthetic({}, 'RETAINED_LOGIC');
