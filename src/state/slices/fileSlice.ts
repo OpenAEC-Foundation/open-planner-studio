@@ -35,7 +35,7 @@ import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
-import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, importErrorParams, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
+import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, IFC_UNREADABLE_TARGET_EXPORT_NOTICE,
@@ -81,6 +81,7 @@ import {
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
+import { IfcModelOpenTooLargeError, refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -328,7 +329,10 @@ export function importFailureNotice(err: unknown, detail: string): NotifyInput {
       helpArticleId: P6XML_IMPORT_HELP_ARTICLE_ID,
     };
   }
-  return { severity: 'error', messageKey: importErrorMessageKey(err), ...importErrorParams(err), detail };
+  if (err instanceof IfcModelOpenTooLargeError) {
+    return { severity: 'error', messageKey: 'notifications.ifcForeignOpenTooLarge', params: { limit: Math.floor(err.limit / (1024 * 1024)) }, detail };
+  }
+  return { severity: 'error', messageKey: importErrorMessageKey(err), detail };
 }
 
 /**
@@ -564,9 +568,9 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
-  /** De grens van de bytes-route voor deze lezing (`FormatReadOptions.ifcMaxBytes`). Alleen het crashherstel van zijn
-   *  eigen, gecontroleerde bron geeft `Infinity` (`readRecoveryDocument`, ontwerp §4.13). */
-  ifcMaxBytes?: number;
+  /** De productgrens voor het openen van een model geldt (`refuseModelAboveOpenLimit`): elke route waarmee de planner
+   *  een bestand opent, zet dit. Het crashherstel niet: dat leest zijn eigen, gecontroleerde bron zoals main. */
+  modelOpenLimit?: boolean;
 }
 
 export interface FileSlice {
@@ -1469,6 +1473,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const readOptions = formatReadOptions();
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+    refuseModelAboveOpenLimit(parsed);
     if (choice.version === undefined && opened.readOnly) {
       get().openAsDocument(parsed, { name: opened.name, ref: null });
       offerFormatNotice(opened.name, opened.content);
@@ -2418,15 +2423,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
-      if (opened) await get().openOpenedFile(opened, labels);
+      if (opened) await get().openOpenedFile(opened, labels, { modelOpenLimit: true });
     },
 
     openOpenedFile: async (opened, labels, options) => {
       try {
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels,
-          { ...formatReadOptions(), ifcMaxBytes: options?.ifcMaxBytes });
+        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+        if (options?.modelOpenLimit) refuseModelAboveOpenLimit(parsed);
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
@@ -3176,7 +3181,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`), gekoppeld laden en het
         // verversen van Recent komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
-        await get().openOpenedFile(opened, labels);
+        await get().openOpenedFile(opened, labels, { modelOpenLimit: true });
       } catch (err) {
         console.error('Failed to open recent file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);

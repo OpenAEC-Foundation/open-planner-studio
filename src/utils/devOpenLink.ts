@@ -50,7 +50,7 @@ async function openDevFile(raw: string): Promise<void> {
   // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
   const ifcBytes = ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags);
   const opened = await fetchDevFile('open', raw, binaryExtensions({ ifcBytes }));
-  await useAppStore.getState().openOpenedFile(opened, buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
+  await useAppStore.getState().openOpenedFile(opened, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), { modelOpenLimit: true });
 }
 
 /**

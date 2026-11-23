@@ -1,15 +1,15 @@
-// De grens van 150 MiB (#804, knownbug 1936) met een verlaagde productieconstante, door de echte routes. Fixronde 2 van
-// #1127: crashherstel van een eigen bron boven de grens (browser zonder en met handle, sitebestand, desktop met
-// nagebootste Tauri-IPC, twee tabbladen), Bestand → Openen boven de grens, Ctrl+S van een gewone planning boven de grens
-// met de flag uit en aan, en de doelscan als stroom precies op de grens. Een bestand van 150 MiB is daarvoor niet nodig.
+// De productgrens van 150 MiB voor het openen van een model (#804, fixronde 3 van #1127, route A) door de echte routes:
+// openen per route, het geval met de gemengde IFC-tekst, het crashherstel door de echte herstelvraag (browser zonder en
+// met handle, sitebestand, twee tabbladen, desktop met nagebootste Tauri-IPC) en een onderbroken opslag. Een bestand van
+// 150 MiB is daarvoor niet nodig: de proef verlaagt de productgrens met haar proefnaad; de technische grens blijft die
+// van main.
 //
-// Hoe: deze check bundelt `ifcGrensProef.ts` met dezelfde esbuild-instellingen als run.sh, maar vervangt in
-// `foreignScan.ts` de ene regel `= 150 * 1024 * 1024;` door de proefgrens (64 KiB). Staat die regel er niet precies zo,
-// dan faalt de check: zo blijft de verlaging gekoppeld aan de enige plek van de grens. De waarde zelf (150 MiB) toetst
-// `check-ifc-foreign-open.ts`.
+// Hoe: deze check bundelt `ifcGrensProef.ts` met dezelfde esbuild-instellingen als run.sh, en zet in
+// `useRecoveryRestore.ts` `reactHookDouble.ts` in plaats van `react` en `react-i18next` (elk precies één keer, anders
+// faalt de check).
 //
-// Mutatiebewijs: in `readRecoveryDocument.ts` de grens voor openen op het herstel laten gelden (`{ ifcMaxBytes: Infinity }`
-// weg) ⇒ deel 1 rood, in de browser en op de desktop.
+// Mutatiebewijs: de controle uit `openOpenedFile` halen ⇒ deel 1 en 2 rood; de controle ook zonder `modelOpenLimit`
+// laten gelden ⇒ het herstel (deel 3) rood, in de browser en op de desktop.
 //
 // Draait via run.sh (esbuild-bundel), één keer, buiten de tijdzone-matrix: de bundel twee keer, `web` en `desktop` (met
 // een eigen tijdelijke map als appData). Exit 0 = alles groen.
@@ -25,7 +25,8 @@ const require = createRequire(join(root, 'package.json'));
 const esbuild = require('esbuild') as typeof import('esbuild');
 const fontkit = createRequire(join(root, 'tests/planning/x.js')).resolve('fontkit');
 const trie = join(dirname(createRequire(fontkit).resolve('unicode-properties')), 'binaryTrie.browser.js');
-const PRODUCTIE = '= 150 * 1024 * 1024;';
+const HOOK = /[\\/]src[\\/]hooks[\\/]useRecoveryRestore\.ts$/;
+const DOUBLE = join(root, 'tests/planning/reactHookDouble.ts');
 const work = mkdtempSync(join(tmpdir(), 'ops-grens-'));
 const outfile = join(work, 'grens.mjs');
 let replaced = 0;
@@ -37,21 +38,24 @@ try {
     external: ['react-dom/server'],
     define: {
       'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.MODE': '"production"',
-      '__OPS_DEV_INSTANCE__': '"test"',
+      '__OPS_DEV_INSTANCE__': '"test"', 'import.meta.env.BASE_URL': '"/"',
     },
     plugins: [{
-      name: 'ops-grens-verlagen',
+      name: 'ops-herstelhook-zonder-react',
       setup(build) {
-        build.onLoad({ filter: /[\\/]src[\\/]services[\\/]ifc[\\/]foreign[\\/]foreignScan\.ts$/ }, ({ path }) => {
-          const contents = readFileSync(path, 'utf8');
-          if (contents.split(PRODUCTIE).length !== 2) throw new Error(`foreignScan.ts heeft niet precies één regel ${PRODUCTIE}`);
+        build.onLoad({ filter: HOOK }, ({ path }) => {
+          let contents = readFileSync(path, 'utf8');
+          for (const from of ["from 'react'", "from 'react-i18next'"]) {
+            if (contents.split(from).length !== 2) throw new Error(`useRecoveryRestore.ts heeft niet precies één ${from}`);
+            contents = contents.replace(from, `from ${JSON.stringify(DOUBLE)}`);
+          }
           replaced++;
-          return { contents: contents.replace(PRODUCTIE, '= 65536;'), loader: 'ts' };
+          return { contents, loader: 'ts' };
         });
       },
     }],
   });
-  if (replaced !== 1) throw new Error('de grens is niet verlaagd: foreignScan.ts kwam niet in de bundel');
+  if (replaced !== 1) throw new Error('useRecoveryRestore.ts kwam niet in de bundel');
   const appData = join(work, 'appdata');
   mkdirSync(appData);
   // Beide vormen draaien altijd, ook als de eerste rood is; elke vorm meldt zelf zijn afwijkingen.

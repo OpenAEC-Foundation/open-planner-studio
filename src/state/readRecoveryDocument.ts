@@ -26,9 +26,7 @@ export async function recoveryDocumentWithSource(
   if (!known) throw mismatch();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  // Zonder de grens voor openen (knownbug 1936, ontwerp §4.13): dit zijn de eigen, hierboven gecontroleerde bytes die de app
-  // al had aanvaard, en het herstel kost het geheugen dat het document vóór de crash ook kostte.
-  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels, { ifcMaxBytes: Infinity });
+  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels);
   const source = store.getState().ifcSource;
   if (!source?.foreign || !source.opened) throw new Error('Herstelbron kon niet als volledig IFC worden geopend.');
   return { ...snapshot, ifcSource: source, sourceRestored: true,

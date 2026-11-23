@@ -37,6 +37,7 @@ import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -538,6 +539,7 @@ export const fileTools: McpToolDef[] = [
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
         parsed = await parseOpenedFile(input, undefined, readOptions);
+        refuseModelAboveOpenLimit(parsed);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }

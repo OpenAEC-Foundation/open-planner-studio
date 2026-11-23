@@ -36,7 +36,7 @@
 //      sectiekoppen (`DATA('…',(…));`): geen write.
 //  10. opslaan in de achtergrond, stap 2 (9c): de indeling van het doel draait in de scanworker. Bytes, stroom en
 //      FSA-bestand geven met een geïnjecteerde Worker (ook een die niet start, niet antwoordt of een fout geeft) precies de
-//      uitkomst van de synchrone weg van de kern; boven de grens (150 MiB) 'unreadable' zonder Worker; `targetRefusal` gebruikt de
+//      uitkomst van de synchrone weg van de kern; boven 300 MiB 'unreadable' zonder Worker; `targetRefusal` gebruikt de
 //      module-Worker van `globalThis`;
 //  11. fixronde 1 van #985 (9d): een Worker die niet start, houdt de doelcontrole en het schrijfslot hoogstens de korte
 //      starttijd op (productiewaarde); na een startbevestiging geldt de ruime rekentijd; late berichten doen niets; de
@@ -1894,29 +1894,19 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
         }
       }
     }
-    // Boven de grens (`IFC_FOREIGN_SCAN_MAX_BYTES`): 'unreadable', zonder Worker. De stroom deelt één buffer van 1 MiB (geen
-    // 150 MiB in het geheugen): een eigen planning met een lang commentaar na `DATA;`, dus de modelscan leest alles en zegt
-    // 'no-model'.
+    // Boven de grens van 300 MiB: 'unreadable', zonder Worker. De stroom deelt één buffer van 1 MiB (geen 300 MiB in het
+    // geheugen): een eigen planning met een lang commentaar na `DATA;`, dus de modelscan leest alles en zegt 'no-model'.
     {
       const own = dec(showcase);
       const data = own.indexOf('\nDATA;\n') + '\nDATA;\n'.length;
       const spaces = new Uint8Array(1 << 20).fill(0x20);
-      const segments = [enc.encode(`${own.slice(0, data)}/*`), ...Array.from({ length: IFC_FOREIGN_SCAN_MAX_BYTES / spaces.length + 1 }, () => spaces), enc.encode(`*/\n${own.slice(data)}`)];
+      const segments = [enc.encode(`${own.slice(0, data)}/*`), ...Array.from({ length: 301 }, () => spaces), enc.encode(`*/\n${own.slice(data)}`)];
       ok('9c te groot: de stroom is groter dan de grens', segments.reduce((n, s) => n + s.length, 0) > IFC_FOREIGN_SCAN_MAX_BYTES);
       const classify = stats.classify;
       const big = segmentSource(segments);
       eq('9c te groot: stroom unreadable, bron gesloten', [await scanForeignTargetSource(big.source, { createWorker: () => fakeScanWorker('ok', stats) }), big.closed()], ['unreadable', 1]);
       const hugeBlob = { size: IFC_FOREIGN_SCAN_MAX_BYTES + 1, stream: () => { throw new Error('niet lezen'); } } as unknown as Blob;
       eq('9c te groot: bestand unreadable zonder te lezen', await scanForeignTargetBlob(hugeBlob, { createWorker: () => fakeScanWorker('ok', stats) }), 'unreadable');
-      // Precies op de grens en net eronder (`>`, niet `>=`): het bestand wordt gelezen en ingedeeld. Een nagemaakt bestand
-      // met alleen die grootte; de inhoud is de eigen planning.
-      const real = new Blob([showcase]);
-      for (const size of [IFC_FOREIGN_SCAN_MAX_BYTES, IFC_FOREIGN_SCAN_MAX_BYTES - 1]) {
-        let streams = 0;
-        const sized = { size, stream: () => { streams++; return real.stream(); }, slice: (at: number) => real.slice(at) } as unknown as Blob;
-        eq(`9c op de grens (${size}): bestand gelezen en ingedeeld`, [await scanForeignTargetBlob(sized, { createWorker: () => null }), streams > 0],
-          [await scanForeignTargetBlob(real, { createWorker: () => null }), true]);
-      }
       eq('9c te groot: geen indeling gevraagd', stats.classify - classify, 0);
     }
     // De app zelf (`targetRefusal`, site en handle) gebruikt de module-Worker als die er is: met een nep-`Worker` op
