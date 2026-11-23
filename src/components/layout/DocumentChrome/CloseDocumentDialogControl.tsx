@@ -5,12 +5,13 @@ interface CloseDocumentDialogControlProps {
   body: string;
   cancelLabel: string;
   discardLabel: string;
-  saveLabel: string;
+  saveLabel?: string;
   busy: boolean;
   cancelButtonRef: Ref<HTMLButtonElement>;
   onCancel: () => void;
   onDiscard: () => void;
-  onSave: () => void;
+  onSave?: () => void;
+  dialogProps?: Record<string, unknown>;
 }
 
 /** Prop-gedreven dialooglaag, zodat de echte backdrop- en knopwiring gericht uitvoerbaar is. */
@@ -25,12 +26,14 @@ export function CloseDocumentDialogControl({
   onCancel,
   onDiscard,
   onSave,
+  dialogProps,
 }: CloseDocumentDialogControlProps) {
   return (
     <div
       onClick={busy ? undefined : onCancel}
       data-ops-close-dialog
       aria-busy={busy}
+      {...dialogProps}
       style={{
         position: 'absolute', inset: 0, zIndex: 80,
         background: 'rgba(15,16,20,0.55)', display: 'flex',
@@ -72,14 +75,16 @@ export function CloseDocumentDialogControl({
           >
             {discardLabel}
           </button>
-          <button
-            className="btn btn--primary btn--sm"
-            data-ops-close-choice="save"
-            disabled={busy}
-            onClick={busy ? undefined : onSave}
-          >
-            {saveLabel}
-          </button>
+          {onSave && (
+            <button
+              className="btn btn--primary btn--sm"
+              data-ops-close-choice="save"
+              disabled={busy}
+              onClick={busy ? undefined : onSave}
+            >
+              {saveLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

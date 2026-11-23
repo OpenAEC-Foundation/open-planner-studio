@@ -22,7 +22,7 @@ export interface DocumentSaveState {
   readonly savedAt: number | null;
 }
 
-type Registry = { documents: Array<{ id: string; content?: number; saveState?: DocumentSaveState }> };
+type Registry = { documents: Array<{ id: string; content?: number; saveState?: DocumentSaveState; changedOnDisk?: true }> };
 
 /** De inhoud van een document op één moment: het document en de identiteit van zijn inhoud. */
 export interface DocumentContentRef {
@@ -48,6 +48,7 @@ export function replaceDocumentContent(s: Registry, documentId: string): void {
   if (!entry) return;
   entry.content = (entry.content ?? 0) + 1;
   delete entry.saveState;
+  delete entry.changedOnDisk;
 }
 
 function update(s: Registry, ref: DocumentContentRef, change: (state: DocumentSaveState) => DocumentSaveState): void {
@@ -68,6 +69,17 @@ export function changeSaving(s: Registry, ref: DocumentContentRef, delta: 1 | -1
 /** Een opslag legde deze inhoud vast (`commitSavedDocument`). */
 export function stampSaved(s: Registry, ref: DocumentContentRef, at: number): void {
   update(s, ref, state => ({ ...state, savedAt: at }));
+  const entry = s.documents.find(document => document.id === ref.id);
+  if (entry && (entry.content ?? 0) === ref.content) delete entry.changedOnDisk;
+}
+
+export function markChangedOnDisk(s: Registry, documentId: string): void {
+  const entry = s.documents.find(document => document.id === documentId);
+  if (entry) entry.changedOnDisk = true;
+}
+
+export function hasChangedOnDisk(s: Readonly<Registry>, documentId: string): boolean {
+  return s.documents.find(document => document.id === documentId)?.changedOnDisk === true;
 }
 
 export type SaveStatus =

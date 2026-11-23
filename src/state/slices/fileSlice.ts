@@ -96,9 +96,10 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
-  changeSaving, documentContentOf, replaceDocumentContent, sameDocumentContent, stampSaved, type DocumentContentRef,
+  changeSaving, documentContentOf, hasChangedOnDisk, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
+  sameDocumentContent, stampSaved, type DocumentContentRef,
 } from '../documentSaveState';
-import { saveQuestionOpen } from '@/state/blockingDialogs';
+import { isBlockingDialogOpen, saveQuestionOpen } from '@/state/blockingDialogs';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightAnchorsIfSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
@@ -106,7 +107,6 @@ import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
 import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
-import { dismissChangedOnDiskNotice } from '../changedOnDiskNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -416,8 +416,10 @@ export interface FileSlice {
   hydrateRecentFiles: () => Promise<void>;
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
-  loadNewVersion: (documentId: string, labels?: ImportLabels) => void;
-  reloadFromTarget: (documentId: string, options?: { onlyIfClean?: boolean; labels?: ImportLabels }) => Promise<boolean>;
+  markChangedOnDisk: (documentId: string) => void;
+  loadNewVersion: (labels?: ImportLabels) => Promise<void>;
+  confirmReload: () => boolean;
+  cancelReload: () => void;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
@@ -482,7 +484,7 @@ export interface SaveDestination {
   siteFileVersion: string | null;
 }
 
-export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get, store) => {
+export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
@@ -1062,7 +1064,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const existing = opened.ref && readOptions.ifcBytes && readFormatForFile(opened.name).canBeSaveTarget
         ? openTabFor(get(), opened.ref, null, readVersionOf(opened.ref, parsed, opened.version)) : null;
       if (existing !== null) {
-        switchToOpenDocument(store, existing, opened.name);
+        switchToOpenDocument(get(), existing);
         await pushRecent(opened.ref, opened.name);
         return;
       }
@@ -1073,6 +1075,101 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
     get().openAsDocument(parsed, { name: siteVersionCopyName(opened.name, choice.version, choice.copyName), ref: null });
     offerFormatNotice(opened.name, opened.content);
+  };
+
+  const readLocalRef = async (ref: Exclude<FileRef, { kind: 'site' }>, name: string, readOptions: FormatReadOptions): Promise<OpenedFile | null> => {
+    const isBinary = readsAsBytes(name, readOptions);
+    if (ref.kind === 'path' && isTauri()) return { ...await readOpenedPath(ref.path, isBinary), name };
+    const content = isBinary ? null : await readFromRef(ref);
+    const bytes = isBinary ? await readBytesFromRef(ref) : null;
+    if (isBinary ? bytes === null : content === null) {
+      get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: name });
+      return null;
+    }
+    return { name, content: content ?? '', ...(bytes ? { bytes } : {}), ref };
+  };
+
+  interface ReloadStamp {
+    readonly content: number;
+    readonly savedAt: number | null;
+    readonly fingerprint: string | null;
+    readonly filePath: string | null;
+    readonly fileHandle: FileSystemFileHandle | null;
+    readonly siteFileId: string | null;
+    readonly siteFileVersion: string | null;
+  }
+  interface PreparedReload {
+    readonly documentId: string;
+    readonly stamp: ReloadStamp;
+    readonly parsed: OpenedImport;
+    readonly target: { filePath: string | null; fileHandle: FileSystemFileHandle | null; siteFileId: string | null };
+    readonly siteFileVersion: string | null;
+  }
+  let reloading: string | null = null;
+  let preparedReload: PreparedReload | null = null;
+
+  const reloadStamp = (s: AppState, documentId: string): ReloadStamp | null => {
+    const entry = s.documents.find(document => document.id === documentId);
+    if (!entry || s.activeDocumentId !== documentId) return null;
+    const known = s.knownTargetFingerprint;
+    return {
+      content: entry.content ?? 0, savedAt: entry.saveState?.savedAt ?? null,
+      fingerprint: known ? `${known.sha256}:${known.byteLength}` : null,
+      filePath: s.filePath, fileHandle: s.fileHandle, siteFileId: s.siteFileId, siteFileVersion: s.siteFileVersion,
+    };
+  };
+
+  const reloadStillValid = (s: AppState, documentId: string, stamp: ReloadStamp): boolean => {
+    if (!ifcForeignContentEnabled(s.ui.featureFlags) || isBlockingDialogOpen(s.ui) || !hasChangedOnDisk(s, documentId)) return false;
+    const now = reloadStamp(s, documentId);
+    return !!now && (Object.keys(stamp) as (keyof ReloadStamp)[]).every(key => now[key] === stamp[key]);
+  };
+
+  const readForReload = async (ref: FileRef, labels?: ImportLabels): Promise<{ parsed: OpenedImport; siteFileVersion: string | null } | null> => {
+    const readOptions = formatReadOptions();
+    let opened: OpenedFile;
+    let siteFileVersion: string | null = null;
+    try {
+      if (ref.kind === 'site') {
+        const site = await openSiteFile(ref.id, { binaryExtensions: binaryExtensions(readOptions) });
+        if (!site.ref || !readFormatForFile(site.name).canBeSaveTarget) {
+          get().notify(site.readOnly
+            ? { severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: site.name } }
+            : { severity: 'error', messageKey: 'notifications.openFailed', detail: site.name });
+          return null;
+        }
+        opened = site;
+        siteFileVersion = site.version;
+      } else {
+        const read = await readLocalRef(ref, ref.kind === 'handle' ? ref.handle.name : basename(ref.path), readOptions);
+        if (!read) return null;
+        opened = read;
+      }
+    } catch (err) {
+      console.error('Failed to reload file:', err);
+      for (const notice of openFailureNotices(err)) get().notify(notice);
+      return null;
+    }
+    for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
+    try {
+      const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+      refuseModelAboveOpenLimit(parsed);
+      return { parsed, siteFileVersion };
+    } catch (err) {
+      console.error('Failed to reload file:', err);
+      get().notify(importFailureNotice(err, saveErrorDetail(err)));
+      return null;
+    }
+  };
+
+  const applyReload = (prepared: PreparedReload) => {
+    get().applyOpenedImport(prepared.parsed, {
+      ...prepared.target,
+      siteFileVersion: prepared.target.siteFileId ? prepared.siteFileVersion : null,
+      recompute: true,
+      linkedOpen: true,
+      refillActiveTab: true,
+    });
   };
 
   const openRecentSiteFile = async (entry: RecentEntry, labels?: ImportLabels) => {
@@ -1798,13 +1895,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (options?.existingDocument) {
           const launched = options.existingDocument();
           if (launched !== null) {
-            switchToOpenDocument(store, launchTabFor(get(), launched, read), opened.name);
+            switchToOpenDocument(get(), launchTabFor(get(), launched, read));
             return;
           }
         } else if (oneTab && opened.ref && readFormatForFile(opened.name).canBeSaveTarget) {
           const existing = openTabFor(get(), opened.ref, options?.lookup ?? null, read);
           if (existing !== null) {
-            switchToOpenDocument(store, existing, opened.name);
+            switchToOpenDocument(get(), existing);
             await pushRecent(opened.ref, opened.name);
             return;
           }
@@ -2418,22 +2515,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       try {
         const readOptions = formatReadOptions();
-        const isBinary = readsAsBytes(entry.name, readOptions);
         const oneTab = !!readOptions.ifcBytes;
         const lookup = oneTab && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
           ? startOpenLookup(get(), entry.ref) : null;
-        let opened: OpenedFile;
-        if (entry.ref.kind === 'path' && isTauri()) {
-          opened = { ...await readOpenedPath(entry.ref.path, isBinary), name: entry.name };
-        } else {
-          const content = isBinary ? null : await readFromRef(entry.ref);
-          const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-          if (isBinary ? bytes === null : content === null) {
-            get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
-            return;
-          }
-          opened = { name: entry.name, content: content ?? '', ...(bytes ? { bytes } : {}), ref: entry.ref };
-        }
+        const opened = await readLocalRef(entry.ref, entry.name, readOptions);
+        if (!opened) return;
         await get().openOpenedFile(opened, labels, { oneTab, ...(oneTab ? { readOptions, lookup } : {}) });
       } catch (err) {
         console.error('Failed to open recent file:', err);
@@ -2441,78 +2527,54 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    loadNewVersion: (documentId, labels) => {
-      const saving = get().waitForSavesBeforeClose();
-      if (saving) {
-        void saving.then(() => get().loadNewVersion(documentId, labels));
-        return;
-      }
-      if (!get().documents.some(document => document.id === documentId)) return;
-      if (get().activeDocumentId !== documentId) get().switchDocument(documentId);
-      runtime.finishPendingTextEdits();
-      if (get().isDirty) get().setUI({ pendingReloadDocId: documentId });
-      else void get().reloadFromTarget(documentId, { labels });
+    markChangedOnDisk: (documentId) => {
+      set((s) => { markChangedOnDiskIn(s, documentId); });
     },
 
-    reloadFromTarget: async (documentId, options = {}) => {
-      for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
-      if (get().activeDocumentId !== documentId) return false;
-      runtime.finishPendingTextEdits();
+    loadNewVersion: async (labels) => {
       const start = get();
-      if (options.onlyIfClean && start.isDirty) return false;
-      const ref = saveTargetRef(start);
-      const content = documentContentOf(start, documentId);
-      if (!ref || !content) return false;
-      const target = { filePath: start.filePath, fileHandle: start.fileHandle, siteFileId: start.siteFileId };
-      const cleanAtStart = !start.isDirty;
-      const readOptions = formatReadOptions();
-      let opened: { name: string; content: string; bytes?: Uint8Array; version?: string | null };
+      const documentId = start.activeDocumentId;
+      if (!ifcForeignContentEnabled(start.ui.featureFlags) || isBlockingDialogOpen(start.ui)) return;
+      if (!hasChangedOnDisk(start, documentId) || reloading === documentId) return;
+      runtime.finishPendingTextEdits();
+      const before = get();
+      const stamp = reloadStamp(before, documentId);
+      const ref = saveTargetRef(before);
+      if (!stamp || !ref) return;
+      reloading = documentId;
       try {
-        if (ref.kind === 'site') {
-          const site = await openSiteFile(ref.id, { binaryExtensions: binaryExtensions(readOptions) });
-          opened = { name: site.name, content: site.content, ...(site.bytes ? { bytes: site.bytes } : {}), version: site.version };
-        } else {
-          const name = ref.kind === 'handle' ? ref.handle.name : basename(ref.path);
-          const isBinary = readsAsBytes(name, readOptions);
-          if (ref.kind === 'path' && isTauri()) {
-            opened = { ...await readOpenedPath(ref.path, isBinary), name };
-          } else {
-            const text = isBinary ? null : await readFromRef(ref);
-            const bytes = isBinary ? await readBytesFromRef(ref) : null;
-            if (isBinary ? bytes === null : text === null) {
-              get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: name });
-              return false;
-            }
-            opened = { name, content: text ?? '', ...(bytes ? { bytes } : {}) };
-          }
+        const read = await readForReload(ref, labels);
+        if (!read || !reloadStillValid(get(), documentId, stamp)) return;
+        runtime.finishPendingTextEdits();
+        const prepared: PreparedReload = {
+          documentId, stamp, parsed: read.parsed,
+          target: { filePath: before.filePath, fileHandle: before.fileHandle, siteFileId: before.siteFileId },
+          siteFileVersion: read.siteFileVersion,
+        };
+        if (!get().isDirty) {
+          applyReload(prepared);
+          return;
         }
-      } catch (err) {
-        console.error('Failed to reload file:', err);
-        for (const notice of openFailureNotices(err)) get().notify(notice);
-        return false;
+        preparedReload = prepared;
+        get().setUI({ pendingReloadDocId: documentId });
+      } finally {
+        if (reloading === documentId) reloading = null;
       }
-      let parsed: OpenedImport;
-      try {
-        parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, options.labels, readOptions);
-        refuseModelAboveOpenLimit(parsed);
-      } catch (err) {
-        console.error('Failed to reload file:', err);
-        get().notify(importFailureNotice(err, saveErrorDetail(err)));
-        return false;
-      }
-      const now = get();
-      if (now.activeDocumentId !== documentId || !sameDocumentContent(now, content)
-        || now.filePath !== target.filePath || now.fileHandle !== target.fileHandle || now.siteFileId !== target.siteFileId
-        || (cleanAtStart && now.isDirty)) return false;
-      get().applyOpenedImport(parsed, {
-        ...target,
-        siteFileVersion: target.siteFileId ? opened.version ?? null : null,
-        recompute: true,
-        linkedOpen: true,
-        refillActiveTab: true,
-      });
-      dismissChangedOnDiskNotice(get(), documentId);
+    },
+
+    confirmReload: () => {
+      const prepared = preparedReload;
+      preparedReload = null;
+      const asked = get().ui.pendingReloadDocId;
+      get().setUI({ pendingReloadDocId: null });
+      if (!prepared || asked !== prepared.documentId || !reloadStillValid(get(), prepared.documentId, prepared.stamp)) return false;
+      applyReload(prepared);
       return true;
+    },
+
+    cancelReload: () => {
+      preparedReload = null;
+      get().setUI({ pendingReloadDocId: null });
     },
 
     openFromSite: async (id, labels) => {

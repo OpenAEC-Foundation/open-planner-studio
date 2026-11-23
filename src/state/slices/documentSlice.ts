@@ -82,6 +82,7 @@ export interface DocumentEntry {
   /** De identiteit van de inhoud (fixronde 1 van #1020, `documentSaveState.ts`): omhoog als een andere inhoud dit
    *  tabblad hergebruikt (`replaceDocumentContent`); `undefined` = 0. Sessiegegeven, geen documentdata. */
   content?: number;
+  changedOnDisk?: true;
 }
 
 /**

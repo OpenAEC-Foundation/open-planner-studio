@@ -13,7 +13,6 @@
     "dismiss": "Close notification",
     "taskEditRevertBlocked": "A change by the MCP client or an extension came in between. The task edits made before it were not reverted and remain as ordinary steps under Undo.",
     "openFailed": "Failed to open file",
-    "fileChangedOnDisk": "{{name}} was changed outside this tab. This tab still shows the earlier version.",
     "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, XML, MPP, XER and CSV.",
     "fileDropBlocked": "Not opened: {{names}}. Close the open dialog first.",
     "csvInvalidDate": "CSV not opened: unrecognised date \"{{value}}\" in CSV row {{row}}, column \"{{column}}\". Use yyyy-mm-dd, dd-mm-yyyy or dd/mm/yyyy.",
@@ -194,8 +193,7 @@
     "actions": {
       "openProjectInfo": "Open calculation profile",
       "openHelp": "Open Help",
-      "undo": "Undo",
-      "loadNewVersion": "Load new version"
+      "undo": "Undo"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
@@ -782,6 +780,10 @@
     "closeTitle": "Unsaved changes",
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
     "dontSave": "Don't save",
+    "changedOnDiskDiscard": "Discard changes and load",
+    "changedOnDiskQuestion": "You have changes that have not been saved. If you load the new version, they will be lost. Choose Save As to keep them in a new file first.",
+    "changedOnDiskLoad": "Load new version",
+    "changedOnDisk": "{{name}} was changed outside this tab. This tab still shows the earlier version.",
     "stillSaving": "Still saving…"
   },
   "feedback": {

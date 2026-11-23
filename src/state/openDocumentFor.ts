@@ -3,7 +3,8 @@ import { sameEntry } from '@/services/fileAccess/foreignSourceTarget';
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import type { AppState } from './appStoreFactory';
 import type { DocumentPayload, TargetFingerprint } from './documentContract';
-import { notifyChangedOnDisk, type ChangedOnDiskStore } from './changedOnDiskNotice';
+import { hasChangedOnDisk } from './documentSaveState';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 type Tabs = Pick<AppState, 'getOpenDocumentPayloads'>;
 type TabFile = Pick<DocumentPayload, 'filePath' | 'fileHandle' | 'siteFileId' | 'siteFileVersion' | 'knownTargetFingerprint'>;
@@ -72,7 +73,11 @@ export function launchTabFor(s: Tabs, id: string, read: ReadVersion | null): Ope
   return { id, changedOnDisk: !!payload && sameVersion(payload, read) === false };
 }
 
-export function switchToOpenDocument(store: ChangedOnDiskStore, tab: OpenTab, name: string): void {
-  store.getState().switchDocument(tab.id);
-  if (tab.changedOnDisk) notifyChangedOnDisk(store, tab.id, name);
+export function switchToOpenDocument(s: Pick<AppState, 'switchDocument' | 'markChangedOnDisk'>, tab: OpenTab): void {
+  s.switchDocument(tab.id);
+  if (tab.changedOnDisk) s.markChangedOnDisk(tab.id);
+}
+
+export function changedOnDiskShown(s: Pick<AppState, 'ui' | 'documents' | 'activeDocumentId'>): boolean {
+  return ifcForeignContentEnabled(s.ui.featureFlags) && hasChangedOnDisk(s, s.activeDocumentId);
 }

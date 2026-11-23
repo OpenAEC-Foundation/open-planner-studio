@@ -43,7 +43,7 @@ import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
-import { basename, extensionOf } from '@/utils/filePath';
+import { extensionOf } from '@/utils/filePath';
 import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
@@ -485,7 +485,7 @@ export const fileTools: McpToolDef[] = [
       'setting "Open IFC with a building model" on, an IFC path that is already open in a tab (the same path text after it is resolved ' +
       'inside the home folder) switches to that tab instead and returns it with `alreadyOpen: true`; that tab keeps its own content. ' +
       'If the file differs from the version that tab last read or saved, the response also has `changedOnDisk: true` and the app ' +
-      'shows the user a notice with a button to load the new version. If the app does not know which version that tab has, the ' +
+      'shows the user a strip with a button to load the new version. If the app does not know which version that tab has, the ' +
       'file opens in a new tab. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
@@ -577,12 +577,8 @@ export const fileTools: McpToolDef[] = [
       const ref: FileRef = { kind: 'path', path };
       const tab = readOptions.ifcBytes && readFormatForFile(path).canBeSaveTarget
         ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
-      if (tab !== null) switchToOpenDocument(ctx.app.store, tab, basename(path));
-      const existing = tab?.id ?? null;
-      const opened = existing !== null ? null : ctx.app.store.getState().openAsDocument(parsed, {
-        name: path,
-        ref: { kind: 'path', path },
-      });
+      if (tab !== null) switchToOpenDocument(ctx.app.store.getState(), tab);
+      const opened = tab !== null ? null : ctx.app.store.getState().openAsDocument(parsed, { name: path, ref });
       // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
@@ -595,7 +591,7 @@ export const fileTools: McpToolDef[] = [
       // B5: het meldingenkanaal van de app bereikt een MCP-client niet. Dezelfde telling en grootste
       // verschuiving als `notifications.minuteModelConverted`, per document in de inventaris.
       const conversionById = new Map((opened?.minuteModelConversions ?? []).map(c => [c.documentId, c]));
-      const documents = (opened ? opened.documentIds : [existing!]).map(documentId => {
+      const documents = (opened?.documentIds ?? (tab ? [tab.id] : [])).map(documentId => {
         const payload = payloadById.get(documentId);
         if (!payload) throw new Error(`Opened document '${documentId}' is missing after the import`);
         const conversion = conversionById.get(documentId);
@@ -614,14 +610,14 @@ export const fileTools: McpToolDef[] = [
         };
       });
       const notices: string[] = [];
-      if (existing !== null) {
-        notices.push(tab?.changedOnDisk
+      if (tab !== null) {
+        notices.push(tab.changedOnDisk
           ? 'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
-            `(document '${existing}'). The file is now a different version than that tab has; the tab keeps its own ` +
-            'content, including unsaved changes, and the new version was not loaded. The app shows the user a notice ' +
-            'with a button to load the new version. Tell the user.'
+            `(document '${tab.id}'). The file is now a different version than that tab has; the tab keeps its own ` +
+            'content, including unsaved changes, and the new version was not loaded. The app shows the user a strip above that ' +
+            'tab with a button to load the new version. Tell the user.'
           : 'This file was already open in a tab with this same version, so nothing new was opened: the app switched ' +
-            `to that tab (document '${existing}'). That tab keeps its own content, including unsaved changes.`);
+            `to that tab (document '${tab.id}'). That tab keeps its own content, including unsaved changes.`);
       }
       for (const document of documents) {
         if (!document.minuteModelConversion) continue;

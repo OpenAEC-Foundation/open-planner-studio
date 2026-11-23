@@ -207,7 +207,6 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
-  | 'notifications.fileChangedOnDisk'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'
   // Eigen rapportlettertype (#770): zonder vette variant (vet in de gewone letter), of de kopie is weg (terug op Inter).
@@ -548,8 +547,7 @@ export type NotificationActionLabelKey =
   | 'view.filter.clear'
   | 'scheduleShift.why'
   | 'scheduleShift.undo'
-  | 'notifications.actions.undo'
-  | 'notifications.actions.loadNewVersion';
+  | 'notifications.actions.undo';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
@@ -566,8 +564,7 @@ export type NotificationAction =
   | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey }
   | { kind: 'showScheduleShift'; labelKey: NotificationActionLabelKey }
   | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey }
-  | { kind: 'undoHistoryEvent'; eventId: string; labelKey: NotificationActionLabelKey }
-  | { kind: 'loadNewVersion'; documentId: string; labelKey: NotificationActionLabelKey };
+  | { kind: 'undoHistoryEvent'; eventId: string; labelKey: NotificationActionLabelKey };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */

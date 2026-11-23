@@ -27,6 +27,7 @@ import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDialog';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
+import { ReloadVersionDialog } from '@/components/layout/DocumentChrome/ReloadVersionDialog';
 import { SavingBeforeCloseNotice } from '@/components/layout/DocumentChrome/SavingBeforeCloseNotice';
 import { useMacOSMenu } from '@/hooks/useMacOSMenu';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
@@ -60,6 +61,7 @@ import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { ExternalSourceNotice } from '@/components/layout/ExternalSourceNotice';
+import { ChangedOnDiskNotice } from '@/components/layout/ChangedOnDiskNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
@@ -402,6 +404,7 @@ function AppContent() {
 
         {/* Nieuwe versie van een bron (stap 1.5): per bron een strook met Bekijken en Later. */}
         <ExternalSourceNotice />
+        <ChangedOnDiskNotice />
       </div>
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
@@ -478,6 +481,7 @@ function AppContent() {
 
       {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
       <CloseDocumentDialog />
+      <ReloadVersionDialog />
       {/* "Wordt nog opgeslagen…": sluiten of afsluiten wacht op een lopende opslag (#804 stap 3). */}
       <SavingBeforeCloseNotice />
 

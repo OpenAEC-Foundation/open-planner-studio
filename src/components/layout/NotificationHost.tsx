@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
-import { buildImportLabels } from '@/i18n/importLabels';
 import type { AppNotification, NotificationAction } from '@/state/slices/types';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { notificationDetailText } from '@/utils/notificationDetail';
@@ -151,10 +150,6 @@ export function NotificationHost() {
       // documentwissel wist weigeringen (`clearRefusals`, 5b).
       clearViewArrangement(useAppStore.getState());
       dismissNotification(n.id);
-      return;
-    }
-    if (action.kind === 'loadNewVersion') {
-      useAppStore.getState().loadNewVersion(action.documentId, buildImportLabels(t));
       return;
     }
     if (action.kind === 'undoScheduleShift') {
