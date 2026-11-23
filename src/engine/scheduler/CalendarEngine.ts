@@ -770,6 +770,11 @@ export class CalendarEngine {
     return this.findContaining(t.getTime(), false) !== null;
   }
 
+  isFinishRangeWithinWorkBand(from: Date, through: Date): boolean {
+    const band = this.findContaining(from.getTime(), true);
+    return band !== null && band.end >= through.getTime();
+  }
+
   /** t als t ∈ `[bandstart, bandeind)`, anders de eerstvolgende bandstart > t. */
   nextWorkInstant(t: Date): Date {
     const tMs = t.getTime();

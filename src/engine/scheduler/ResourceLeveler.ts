@@ -7,8 +7,11 @@ import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
+import { applyCpmResult } from './applyCpmResult';
+import { cloneTasksForSolve } from './solveProject';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 import {
-  assignmentLoadOnPlacement, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement,
+  assignmentLoadOnPlacement, computeResourceLoad, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement, type DailyLoad,
 } from './ResourceLoad';
 import { hasManualPlacement, placementFollowsSpan, type PlacementResult } from './workPlacement';
 import { createTaskEngineCache } from './taskEngineCache';
@@ -181,7 +184,11 @@ export function levelResources(
     : { ...t, time: { ...t.time } });
   const workById = new Map(workTasks.map(t => [t.id, t]));
 
-  const baseline = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
+  const statusFloorAnchors = cpmOptions.dataDate && !cpmOptions.schedulingOptions.unstartedIgnoresStatusDate
+    ? new Map<string, Date>() : undefined;
+  const placementSolver = () =>
+    new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions, statusFloorAnchors);
+  const baseline = placementSolver().solve();
   if (baseline.error) {
     const end = cpmResult.projectEnd;
     return {
@@ -415,18 +422,18 @@ export function levelResources(
   };
   const pfFor = (id: string): Date => {
     if (!LEVELER_TEST_HOOKS.incremental) {
-      return computePF(id, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
+      const result = placementSolver().solve();
+      return parseInstant(result.tasks.get(id)?.earlyStart ?? workById.get(id)!.time.earlyStart);
     }
     if (!forward && !globalDeps && globallyStale) {
-      forward = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).createIncrementalForwardPass();
+      forward = placementSolver().createIncrementalForwardPass();
       if (forward) globallyStale = false;
     }
     if (forward) {
       return parseInstant(forward.earlyStart(id) ?? workById.get(id)!.time.earlyStart);
     }
     if (globallyStale) {
-      const solver = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
-      pfEarlyStart = new Map([...solver.solve().tasks].map(([taskId, r]) => [taskId, r.earlyStart]));
+      pfEarlyStart = new Map([...placementSolver().solve().tasks].map(([taskId, r]) => [taskId, r.earlyStart]));
       globallyStale = false;
     }
     const es = pfEarlyStart.get(id);
@@ -500,6 +507,19 @@ export function levelResources(
       delay = pickEngine.workDaysBetween(parseDate(formatDate(pf)), parseDate(formatDate(startDate))) - 1;
     }
     if (delay > 0) {
+      const beforeFloor = statusFloorAnchors?.get(pick);
+      if (beforeFloor) {
+        if (pickedTask.time.durationType === 'ELAPSEDTIME') {
+          delay = diffCalendarDays(beforeFloor, startDate);
+          delayMin = Math.round((startDate.getTime() - beforeFloor.getTime()) / 60_000);
+        } else {
+          const anchor = nextCandidateFor(pickedTask, beforeFloor);
+          const anchorDay = workdayDateOfInstant(pickEngine, anchor, 'start');
+          const targetDay = workdayDateOfInstant(pickEngine, startDate, 'start');
+          delay = Math.max(delay, pickEngine.signedWorkDaysBetween(anchorDay, targetDay));
+          if (pickEngine.isHourMode) delayMin = Math.round(pickEngine.workMinutesBetween(anchor, startDate));
+        }
+      }
       delays[pick] = delay;
       if (delayMin !== undefined && delayMin > 0) delayMinutes[pick] = delayMin;
     }
@@ -546,6 +566,57 @@ export function levelResources(
 
   const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
+
+  const resourcesWithFixedAssignments = new Set<string>();
+  if (scope && !options.preserveExistingLeveling) {
+    for (const assignment of assignments) {
+      const task = taskById.get(assignment.taskId);
+      if (task && !inScope(task.id) && selectedIds.has(assignment.resourceId)
+        && !task.isMilestone && !isSummaryTask(task)) resourcesWithFixedAssignments.add(assignment.resourceId);
+    }
+  }
+  if (!trial.error && resourcesWithFixedAssignments.size > 0
+    && (Object.keys(delays).length > 0 || Object.keys(gapsOut).length > 0
+      || tasks.some(task => inScope(task.id) && hasLevelingOutput(task)))) {
+    const beforeTasks = cloneTasksForSolve(tasks);
+    const before = new CPMSolver(beforeTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
+    if (!before.error) {
+      const calendars = { projectCalendar, calendars: resourceCalendars };
+      applyCpmResult(beforeTasks, before, calendars);
+      applyCpmResult(workTasks, trial, calendars);
+      const loadChanges = new Map<string, Map<string, DailyLoad>>();
+      const trackChange = (sign: -1 | 1) =>
+        (assignment: ResourceAssignment, { isos, units }: { isos: readonly string[]; units: readonly number[] }) => {
+          if (!resourcesWithFixedAssignments.has(assignment.resourceId)) return;
+          const byResource = loadChanges.get(assignment.taskId) ?? new Map<string, DailyLoad>();
+          loadChanges.set(assignment.taskId, byResource);
+          const change = byResource.get(assignment.resourceId) ?? {};
+          byResource.set(assignment.resourceId, change);
+          for (let i = 0; i < units.length && i < isos.length; i++) {
+            const day = isos[i];
+            change[day] = (change[day] ?? 0) + sign * units[i];
+          }
+        };
+      const beforeLoad = computeResourceLoad(
+        resources, assignments, beforeTasks, projectCalendar, resourceCalendars, placementOptions, trackChange(-1),
+      );
+      const afterLoad = computeResourceLoad(
+        resources, assignments, workTasks, projectCalendar, resourceCalendars, placementOptions, trackChange(1),
+      );
+      for (const [taskId, byResource] of loadChanges) {
+        const worsenedDays = new Set(unresolved[taskId]);
+        for (const [resourceId, change] of byResource) {
+          for (const [day, units] of Object.entries(change)) {
+            const limit = Math.max(beforeLoad.load[resourceId]?.[day] ?? 0, afterLoad.capacity[resourceId]?.[day] ?? 0);
+            if (exceedsCapacity(units, 0) && exceedsCapacity(afterLoad.load[resourceId]?.[day] ?? 0, limit)) {
+              worsenedDays.add(day);
+            }
+          }
+        }
+        if (worsenedDays.size > 0) unresolved[taskId] = [...worsenedDays].sort();
+      }
+    }
+  }
 
   const shifts: Record<string, LevelingShift> = {};
   for (const t of tasks) {
@@ -764,18 +835,4 @@ export function levelResources(
     }
     return { gaps: null, skipped, horizonExhausted: true };
   }
-}
-
-function computePF(
-  taskId: string,
-  workTasks: Task[],
-  sequences: Sequence[],
-  projectCalendar: WorkCalendar,
-  registry: WorkCalendar[],
-  cpmOptions: CPMOptions,
-): Date {
-  const solver = new CPMSolver(workTasks, sequences, projectCalendar, registry, cpmOptions);
-  const res = solver.solve();
-  const r = res.tasks.get(taskId);
-  return parseInstant(r?.earlyStart ?? workTasks.find(t => t.id === taskId)!.time.earlyStart);
 }

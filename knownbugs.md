@@ -624,14 +624,16 @@ en noem het in je rapport of PR-tekst.
      een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
      paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
      gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
-1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
-     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
-     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
-     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
-     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
-     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
-     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
-     resource overbezet (issue #1161). — B
+2108. **VERVOLG (#1166, ook op main): een nivelleerpauze kan bij een einde-eindetaak de gekozen werkdag wijzigen.**
+     In de gerichte storeproef met twee werkdagen uitloop en een gesloten kraankalender op dinsdag en donderdag
+     kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
+     gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
+     pauze voordat de vertraging wordt opgeslagen. — S
+2110. **VERVOLG (#1166, ook op main): de terugrekening kan bij een einde-einderelatie een geldige start op het
+     exacte dageinde overslaan.** Als de opvolger 480 minuten nivelleervertraging heeft, haalt een urentaak die
+     dinsdag om 16:00 begint diens eindgrens. Dinsdag 15:59 en woensdag 08:00 schenden de grens. Bij de laatstgenoemde
+     start geeft de terugrekening dinsdag 13:00 als late start. Deel de duurberekening met de voorwaartse pass
+     en toets het exacte dageinde als een afzonderlijke overgang. — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
      (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
      `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
@@ -641,19 +643,39 @@ en noem het in je rapport of PR-tekst.
      `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
-1986. **Vaste last buiten de scope van het nivelleren kan na toepassen op een andere dag liggen dan waar ze geboekt
-     is, met een nieuwe overbezetting die het voorstel niet meldt.** `levelResources`
-     (`src/engine/scheduler/ResourceLeveler.ts`) boekt een taak buiten de scope op haar start in de basis, terwijl de
-     proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
-     van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
-     de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
-     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 1993. **De gewone ALAP-stap met de duur van een niet-gestarte taak is niet tegen het P6-corpus gemeten.**
      `placeUnstartedAlap` (`src/engine/scheduler/CPMSolver.ts`) plaatst een niet-gestarte ALAP-taak sinds de aanval
      na #600 met haar duur tot de grens van haar opvolgers, niet meer in hele werkdagen. Onder het P6-profiel volgt
      een ALAP-taak op een kalender zonder eigen werkblokken die stap, omdat C14 daar niet geldt (ADR 0182). Het
      commentaar bij `p6AlapPositionedFromSuccessors` in `src/types/project.ts` meldde dat de corpusmeting daarvan
      openstond. — S
+
+1999. **Een splitsbewerking op een lopende taak met een expliciete restduur schuift de rest niet mee met de nieuwe
+     duur.** `applyTaskSplits` (`src/state/splitMutations.ts`) roept na een gewijzigde werkduur `settleDurationEdit`
+     aan, maar niet `settleEditedDuration` (`src/engine/work/workRuleApply.ts`), de stap die bij een duurbewerking op
+     een lopende taak de rest met het duurverschil verschuift. `followRemainingOfUnstartedTask` in
+     `settleDurationEdit` werkt alleen op een taak zonder voortgang en zonder werkelijke datums. Gezien in de code; spec
+     taaktypes §3.5 noemt dezelfde uitzondering (VERVOLG op #380). Proef van de reviewer (GPT-6.2-Sol, review van
+     #1173): een taak van 4 d op 50 %; `setTaskSplits` maakte de duur 5 d terwijl restduur en restwerk op 2 d en
+     960 min bleven, en `updateTask` gaf op dezelfde uitgangstoestand 3 d en 1440 min. — B
+
+2000. **Voortgang terugzetten kan het totale werk van een toewijzing laten groeien.** `settleProgressWork`
+     (`src/engine/work/workRuleApply.ts`) schaalt het restwerk met de nieuwe restduur en zet het verrichte werk op wat
+     van het oude totaal overblijft, met 0 als ondergrens. Proef van de reviewer (GPT-6.2-Sol, review van #1173): een
+     taak van 4 werkdagen op 50 %, restwerk op 24 u gezet (16 u verricht, 24 u rest); daarna voortgang naar 0 % gaf
+     0 u verricht en 48 u rest, ook na herlezen van de geschreven IFC. — B
+
+2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
+     `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
+     alleen een lokale resource raakt en `afterLoadByDay` alle boekingen op het gekozen poolitem bevat.
+     De geplande verdelerdialoog hoort een aanduiding van ontbrekende boekingen alleen te tonen wanneer
+     er werkelijk boekingen ontbreken. Het lokale tekort hoort Toepassen te blijven blokkeren. — S
+
+2109. **VERVOLG (#1167, ook op main): een taak met prioriteit 1000 kan Toepassen blokkeren terwijl haar lokale
+     conflict in de proefberekening verdwijnt.** Een gepinde taak met kraan en machine blijft op dinsdag, terwijl
+     een opvolger buiten de scope pas donderdag machinevraag heeft. De pincontrole van `ResourceLeveler` telt de
+     machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
+     de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
 
 ## Tabel, invoer en bediening
 

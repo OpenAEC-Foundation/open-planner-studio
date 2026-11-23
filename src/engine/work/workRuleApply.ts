@@ -1,19 +1,3 @@
-// workRuleApply.ts — de BRUG tussen de domeinobjecten (Task/ResourceAssignment/Resource) en de pure
-// rekenkern `workTriangle.ts`.
-//
-// Deze module weet wat de kern niet mag weten: welke regel voor een taak geldt (`Task.workRule`,
-// anders `Project.defaultWorkRule`, anders FIXED_DURATION_RATE), welk deel van de taak het
-// RESTANT is (voortgang), welke toewijzingen de duur sturen (materiaal niet), hoe een restduur in
-// minuten exact terugvertaalt naar `TaskTime` (ook breuken in werkdagen) en wanneer de regel van
-// toepassing is (alleen gewone bladtaken op werktijd en uurtaken — mijlpalen, hangmatten,
-// samenvattingen en ELAPSEDTIME-taken blijven ongemoeid).
-//
-// Aanroepvorm (store, MCP-tweeling, taakraster — allemaal dezelfde drie stappen):
-//   1. `triangleStateOf(task, toewijzingen, ctx)` VÓÓR de mutatie;
-//   2. één `apply…`-functie uit `workTriangle.ts`;
-//   3. `applyTriangleResult(task, toewijzingen, uitkomst, ctx)` schrijft duur, inzet en werkvelden
-//      terug (in-place, Immer-draft-stijl) en zegt of de taakduur veranderde (⇒ planning verouderd).
-// Geen store-import: de aanroeper bepaalt snapshot, `isDirty`, `scheduleStale` en meldingen.
 import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import { isCostResource, resourceDrivesDuration, type Resource, type ResourceAssignment } from '@/types/resource';
@@ -28,9 +12,6 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { durationHoursPerDay, effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
-// `contourKeepsWork` en `effectiveEffortDriven`
-// lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
-// geen conventie. Ze wonen daarom in `utils/taskDefaults.ts`, buiten `src/engine/` (verify:conventions).
 import {
   applyDurationChangeRules, contourKeepsWork, effectiveEffortDriven,
   hourInputFinishBasis, reconcileHourInputFinish, rescaleTaskContours,
@@ -42,22 +23,15 @@ import {
 } from '@/engine/work/workTriangle';
 
 export interface WorkRuleContext {
-  /** Effectieve uren per werkdag van de taak (taakkalender, anders projectkalender). */
   hoursPerDay: number;
-  /** `Project.defaultWorkRule`; afwezig ⇒ FIXED_DURATION_RATE. */
   defaultWorkRule?: WorkRule;
-  /** Resource-opzoek voor de materiaalgrens. Onbekend ⇒ telt als werkresource. */
   resourceById?: (id: string) => Resource | undefined;
 }
 
-/** De regel die voor deze taak geldt: eigen veld, anders projectstandaard, anders
- *  FIXED_DURATION_RATE. */
 export function effectiveWorkRule(task: Pick<Task, 'workRule'>, defaultWorkRule?: WorkRule): WorkRule {
   return task.workRule ?? defaultWorkRule ?? DEFAULT_WORK_RULE;
 }
 
-/** Blijft bewaard restwerk van deze taak staan bij een duurbewerking? Dezelfde regel en dezelfde
- *  effort-driven-uitzondering als {@link triangleStateOf} → `applyDurationEdit` (besluit V10). */
 export function durationEditKeepsWorkOf(
   task: Pick<Task, 'workRule' | 'mspTaskType' | 'effortDriven'>,
   defaultWorkRule?: WorkRule,
@@ -65,7 +39,6 @@ export function durationEditKeepsWorkOf(
   return durationEditKeepsWork(effectiveWorkRule(task, defaultWorkRule), effectiveEffortDriven(task));
 }
 
-/** De regel werkt alleen op gewone bladtaken op werktijd (dag- én uurmodus). */
 export function workRuleApplies(task: Task): boolean {
   return task.childIds.length === 0
     && !task.isMilestone
@@ -73,19 +46,10 @@ export function workRuleApplies(task: Task): boolean {
     && task.time.durationType !== 'ELAPSEDTIME';
 }
 
-/** Werkminuten per werkdag van de taak. */
 export function slotMinutesOf(ctx: Pick<WorkRuleContext, 'hoursPerDay'>): number {
   return Math.max(1, ctx.hoursPerDay * 60);
 }
 
-/**
- * De RESTduur van de taak in werkminuten — dezelfde afleiding als de solver (`CPMSolver.ts`'s
- * voortgangstak): uurmodus `remainingMinutes ?? duur × (1 − voortgang)`, dagmodus
- * `remainingTime ?? duur × (1 − voortgang)` (dagen), beide vanuit de blijvende taak-eenheid.
- */
-/** Uurtaak mét minutenbron — dezelfde test voor lezen (`remainingMinutesOf`) en schrijven
- *  (`applyTriangleResult`), zodat een 'hours'-taak zonder `durationMinutes` in beide richtingen als
- *  dagtaak wordt behandeld. */
 export function isHourTask(t: Task['time']): t is Task['time'] & { durationMinutes: number } {
   return t.durationUnit === 'hours' && typeof t.durationMinutes === 'number' && Number.isFinite(t.durationMinutes);
 }
@@ -101,7 +65,6 @@ export function remainingMinutesOf(task: Task, ctx: Pick<WorkRuleContext, 'hours
   return Math.max(0, days) * slot;
 }
 
-/** Totale werkminuten van de taak (`taskWorkMinutes`) — het verrichte deel is totaal − rest. */
 export function totalMinutesOf(task: Task, ctx: Pick<WorkRuleContext, 'hoursPerDay'>): number {
   return taskWorkMinutes(task.time, ctx.hoursPerDay);
 }
@@ -110,19 +73,14 @@ function drivesDuration(assignment: ResourceAssignment, ctx: WorkRuleContext): b
   return resourceDrivesDuration(ctx.resourceById?.(assignment.resourceId));
 }
 
-/** De koppellijst voor de contour: zonder kostentoewijzingen, dezelfde regel als `contourSiblings`
- *  (issue #815). Een kostentoewijzing mag de legacy-koppeling niet veranderen. */
 function contourOwn(own: readonly ResourceAssignment[], ctx: WorkRuleContext): ResourceAssignment[] {
   return own.filter(a => !isCostResource(ctx.resourceById?.(a.resourceId)));
 }
 
-/** Een toewijzing aan een kostenresource (issue #815) doet niet mee in de werkdriehoek: ze heeft
- *  geen inzet, geen werk en stuurt nooit de duur. Onbekende resource ⇒ doet wel mee. */
 function inTriangle(resourceId: string, ctx: WorkRuleContext): boolean {
   return ctx.resourceById?.(resourceId)?.type !== 'COST';
 }
 
-/** Stap 1: de resterende toestand van de taak als invoer voor de rekenkern. */
 export function triangleStateOf(task: Task, assignments: readonly ResourceAssignment[], ctx: WorkRuleContext): TriangleState {
   return {
     rule: effectiveWorkRule(task, ctx.defaultWorkRule),
@@ -141,22 +99,10 @@ export function triangleStateOf(task: Task, assignments: readonly ResourceAssign
 }
 
 export interface TriangleWriteBack {
-  /** De taakduur is gewijzigd (⇒ de aanroeper zet de planning verouderd en herschaalt contouren). */
   durationChanged: boolean;
-  /** Toewijzingen waarvan inzet, restwerk of afgeleid verricht werk is geschreven. */
   changedAssignmentIds: string[];
 }
 
-/**
- * Stap 3: de uitkomst van de kern terugschrijven. De taakduur wordt ALLEEN aangeraakt wanneer de
- * kern een andere restduur teruggeeft dan hij kreeg (`before`), en dan als
- * `verricht deel + nieuwe rest` — het verrichte deel is een feit. Beide maten houden breuken;
- * dagenmaat schrijft werkdagen, urenmaat schrijft minuten zonder afronding (T14).
- * Een aanwezig `remainingTime`/`remainingMinutes` volgt de nieuwe rest. Toewijzingen: `unitsPerDay`
- * en `remainingWorkMinutes` volgen de kern. Zodra verricht werk is vastgelegd, wordt ook het
- * restwerk opgeslagen (zonder kernveld: nieuwe restduur × nieuwe inzet), zodat een volgende
- * voortgangsboeking beide velden bijwerkt. Muteert in-place; retourneert wat er veranderde.
- */
 export function applyTriangleResult(
   task: Task,
   assignments: ResourceAssignment[],
@@ -171,14 +117,9 @@ export function applyTriangleResult(
     const a = assignments.find((x) => x.id === next.id);
     if (!a) continue;
     const unitsChanged = Math.abs(a.unitsPerDay - next.unitsPerDay) > 1e-9;
-    // De momentopname komt van vóór de mutatie: afgeleid verricht werk mag niet met de nieuwe
-    // inzet of duur worden herberekend. Een nieuwe werkresource op een gestarte taak heeft geen
-    // verleden; aangeleverde expliciete actuals (ook nul) blijven de bron. Dit geldt ook bij plakken.
     const newcomer = next.drivesDuration && started && !before.assignments.some(x => x.id === a.id);
     const actual = opts?.actualWork?.get(a.id) ?? (newcomer ? 0 : undefined);
     const actualChanged = a.actualWorkMinutes === undefined && actual !== undefined;
-    // Vastgelegd verricht werk en onderhouden restwerk vormen één paar, onder elke regel.
-    // Zonder dit restveld slaat settleProgressWork de volgende boeking over.
     const work = next.remainingWorkMinutes
       ?? (next.drivesDuration && (a.actualWorkMinutes !== undefined || actual !== undefined)
         ? after.remainingMinutes * next.unitsPerDay : undefined);
@@ -187,7 +128,6 @@ export function applyTriangleResult(
         && Math.abs(a.remainingWorkMinutes - work) > 1e-6);
     if (!unitsChanged && !workChanged && !actualChanged) continue;
     if (actualChanged) a.actualWorkMinutes = actual;
-    // Ook afgeleide inzet blijft exact: anders zijn W en R × I na terugschrijven ongelijk.
     if (unitsChanged) a.unitsPerDay = next.unitsPerDay;
     if (work === undefined) delete a.remainingWorkMinutes;
     else a.remainingWorkMinutes = work;
@@ -203,12 +143,6 @@ export function applyTriangleResult(
     const doneMinutes = Math.max(0, total - before.remainingMinutes);
     const newTotal = doneMinutes + after.remainingMinutes;
     const t = task.time;
-    // Gestarte taak: het verrichte deel is een feit en de REST is wat de kern teruggeeft. Zonder
-    // expliciet restveld zou de solver de rest opnieuw afleiden als `nieuwe duur × (1 − completion)`
-    // — en dan schuift het verrichte deel mee met de nieuwe duur en drift een heen-en-weer-bewerking.
-    // Daarom wordt de rest bij voortgang > 0 (of een al aanwezig restveld) expliciet geschreven, en
-    // volgt `completion` daaruit (percentage = verricht ÷ nieuwe duur — zie
-    // `syncCompletionToRemaining`). Een ongestarte taak krijgt geen extra veld.
     const started = (t.completion ?? 0) > 0 || !!t.actualStart;
     if (isHourTask(t)) {
       t.durationMinutes = newTotal;
@@ -231,14 +165,6 @@ export function applyTriangleResult(
   return { durationChanged, changedAssignmentIds: changed };
 }
 
-/**
- * Zodra de brug de REST expliciet
- * schrijft, volgt het voortgangspercentage daaruit — `completion` = 1 − rest ÷ duur — zodat de
- * Gantt-voortgangsbalk (tekent uit `completion`), de solver (plant op de rest) en de rapportage
- * één waarheid delen. Dezelfde formule en dezelfde randafspraken als een restbewerking in het
- * taakraster (`taskEditPlan.ts`, route `task-progress`): duur 0 ⇒ 100 %, een percentage > 0 zet
- * `actualStart` als die ontbrak, een percentage < 1 wist `actualFinish`. Niets zonder restveld.
- */
 export function syncCompletionToRemaining(task: Task): void {
   const t = task.time;
   let completion: number;
@@ -254,13 +180,6 @@ export function syncCompletionToRemaining(task: Task): void {
   if (completion < 1) t.actualFinish = undefined;
 }
 
-/**
- * "Vorm blijft, hoogte zakt": verandert de kern het RESTwerk van een
- * toewijzing die een opgeslagen contour heeft, dan schalen de `remaining`-periodes van die contour
- * in hoogte mee zodat hun som weer het nieuwe restwerk is — de as en de `actual`-periodes blijven
- * staan (de as volgt pas een duurwijziging, via `rescaleTaskContours`). Zonder contour, zonder
- * werkveld of bij een al kloppende som: niets.
- */
 function reconcileContourWork(
   task: Task,
   assignments: readonly ResourceAssignment[],
@@ -287,16 +206,6 @@ function reconcileContourWork(
   if (next !== contours) task.timephasedContours = next;
 }
 
-// ── Hoog-niveau "settle"-API voor store, raster en MCP-tweeling ─────────────────────────────────
-//
-// Dezelfde drie stappen als hierboven, maar ingepakt per bewerking zodat de vier aanroepplekken
-// (taskSlice/resourceSlice, gridTransaction, createMcpTransactions) letterlijk dezelfde regels
-// delen. Elke functie muteert in-place en retourneert een `TriangleWriteBack`; `null` betekent
-// "de regel is hier niet van toepassing of de kern weigerde" — de aanroeper laat dan zijn
-// eigen gedrag staan.
-
-/** De storevelden die de brug nodig heeft — bewust een `Pick`, zodat elke draft (store, MCP,
- *  geïsoleerde griddraft) 'm kan leveren zonder de hele `AppState`. */
 export interface WorkRuleDeps {
   calendars: readonly WorkCalendar[];
   calendar: WorkCalendar;
@@ -307,8 +216,6 @@ export interface WorkRuleDeps {
 export function workRuleContextOf(task: Task, deps: WorkRuleDeps): WorkRuleContext {
   const resources = deps.resources;
   return {
-    // De EFFECTIEVE uren per dag (op een uurkalender uit de banden afgeleid), dezelfde
-    // slot als het raster (`environment.effectiveHoursPerDay`) en de contourreferentie.
     hoursPerDay: effHoursPerDay(resolveCalendar(task.calendarId, deps.calendars as WorkCalendar[], deps.calendar)),
     ...(deps.project.defaultWorkRule !== undefined ? { defaultWorkRule: deps.project.defaultWorkRule } : {}),
     resourceById: (id) => resources.find((r) => r.id === id),
@@ -318,30 +225,16 @@ export function workRuleContextOf(task: Task, deps: WorkRuleDeps): WorkRuleConte
 export interface CapturedTriangle {
   state: TriangleState;
   ctx: WorkRuleContext;
-  /** Totale werkminuten van de taak op het moment van de momentopname — de poort van
-   *  `settleDurationEdit` (alleen een DUURwijziging is een duurbewerking). */
   totalMinutes: number;
-  /** De basis van het ingevoerde einde (`hourInputFinishBasis`) op het moment van de momentopname —
-   *  voor `settleDurationAftermath` wanneer de driehoek de duur verandert. */
   finishBasis: HourInputFinishBasis;
-  /** Kopie van `task.time` op het moment van de momentopname — `settleDurationEdit` ziet daaraan of
-   *  de bewerking de voortgang zelf aanraakte en of de taak nog niet gestart was. */
   time: TaskTime;
-  /** De toewijzingen van DEZE taak: dezelfde objecten (in een draft: dezelfde proxies) als in de lijst
-   *  bij `captureTriangle`, in die volgorde. `settleDurationEdit` schrijft hierin terug, zodat een
-   *  duurbewerking niet nog eens over alle toewijzingen van het project loopt (rehab-2: 52.640 per
-   *  geplakte rij). Geldig zolang de aanroeper tussen momentopname en settle geen toewijzing
-   *  toevoegt, verwijdert of vervangt; alle aanroepers muteren daar alleen de taak. */
   assignments: ResourceAssignment[];
-  /** Afgeleid verricht resourcewerk in de OUDE toestand, los van de pure resterende driehoek. */
   actualWork: ReadonlyMap<string, number>;
 }
 
-/** Stap 1 als momentopname VÓÓR een mutatie; `null` wanneer de regel niet op deze taak werkt. */
 export function captureTriangle(task: Task, assignments: readonly ResourceAssignment[], deps: WorkRuleDeps): CapturedTriangle | null {
   if (!workRuleApplies(task)) return null;
   const ctx = workRuleContextOf(task, deps);
-  // Eén keer filteren; `triangleStateOf` filtert daarna alleen deze korte lijst.
   const own = assignments.filter((a) => a.taskId === task.id);
   const state = triangleStateOf(task, own, ctx);
   const totalMinutes = totalMinutesOf(task, ctx);
@@ -353,7 +246,6 @@ export function captureTriangle(task: Task, assignments: readonly ResourceAssign
     const idx = contourIndexForAssignment(task.timephasedContours, contourList, a.id);
     const periods = idx < 0 ? [] : task.timephasedContours![idx].periods;
     const actuals = periods.filter(p => p.kind === 'actual');
-    // Bestaande actual-periodes zijn feiten; zonder zulke periodes geldt de oude duur × inzet.
     const done = actuals.length > 0
       ? actuals.reduce((sum, p) => sum + p.workMinutes, 0)
       : doneMinutes * a.unitsPerDay;
@@ -367,12 +259,6 @@ export function captureTriangle(task: Task, assignments: readonly ResourceAssign
 
 const NO_CHANGE: TriangleWriteBack = { durationChanged: false, changedAssignmentIds: [] };
 
-/** Een voltooide taak zonder restduur heeft geen resterende driehoek om te herleiden.
- *  Inzet wijzigen of een resource toevoegen legt wel het oude verrichte werk vast; het restwerk blijft
- *  zoals het staat. Dit pad rekent geen duur, voortgang of inzet uit; ongeldige inzet valt erbuiten.
- *  Ook een tegenstrijdig restwerk (bv. uit een import: 100 % met nog 120 min rest en geen verricht werk)
- *  valt eronder (knownbug 239): anders kreeg een voltooide taak een nieuwe duur en < 100 % (vast werk,
- *  vaste inzet), of telde het verleden opnieuw met de nieuwe inzet (vaste duur). */
 function settleCompletedWork(
   task: Task,
   assignments: ResourceAssignment[],
@@ -386,69 +272,28 @@ function settleCompletedWork(
   });
 }
 
-/** Eén toewijzing waarvan een duurbewerking een BEWAARD restwerk herschreef dat afweek van
- *  inzet × restduur (het criterium van het waarschuwingsteken, `storedWorkDeviates`). Zo'n waarde
- *  kwam uit het bestand (P6 `remain_qty`, MSP `RemainingWork`) of uit een eerdere bewerking; de
- *  aanroeper meldt het (eigenaarsbesluit 2026-10-19, spec taaktypes §3.5). */
 export interface RecomputedRemainingWork {
   taskId: string;
   taskName: string;
   assignmentId: string;
   resourceId: string;
-  /** Restwerk vóór en ná de bewerking, in werkminuten. */
   beforeMinutes: number;
   afterMinutes: number;
 }
 
 export interface DurationEditWriteBack extends TriangleWriteBack {
-  /** De herschreven afwijkende restwerken; leeg als er niets te melden is. */
   recomputedWork: RecomputedRemainingWork[];
 }
 
 const NO_DURATION_CHANGE: DurationEditWriteBack = { ...NO_CHANGE, recomputedWork: [] };
 
-/**
- * Duur gewijzigd — aanroepen NÁDAT de aanroeper `task.time` heeft gezet, met de momentopname van
- * daarvóór. De ENE plek voor alle routes (`taskSlice.updateTask` = paneel, dialoog, Gantt-sleep en
- * extensies; het taakraster: cel, plakken, doorvullen; de MCP-draft; splitsen). Drie stappen:
- *
- *  1. De restduur volgt de duur. Een NIET-gestarte taak (0 %, geen werkelijke datums) met een
- *     expliciet restveld krijgt rest = volledige nieuwe duur, zonder afronding (B3).
- *     Zonder deze stap bleef een uit het bestand gelezen restveld (P6
- *     `remain_drtn_hr_cnt`, MSP `RemainingDuration`) op de oude duur staan: *Resterend* en de balk
- *     liepen uiteen, de driehoek zag geen wijziging, en een latere werkelijke start op 0 % liet het
- *     restwerk alsnog springen. Een LOPENDE taak hoort dit al gehad te hebben
- *     (`settleEditedDuration`, vóór deze stap: `updateTask`, raster, MCP-draft). Gaf de
- *     bewerking zelf voortgang of een restduur op, dan wint die opgave.
- *     UITZONDERING (ook op main): `applyTaskSplits` (splitMutations.ts) roept de meeschuifstap niet
- *     aan. Op een GESTARTE taak met een expliciet restveld blijft de rest bij een splitsbewerking dus
- *     staan, en volgen inzet en werk niet. VERVOLG op #380.
- *  2. De kern verdeelt inzet en werk naar de nieuwe restduur volgens de regel van de taak
- *     (`applyDurationEdit`): werk beschermd ⇒ inzet = W ÷ R'; anders wordt een aanwezig werkveld
- *     R' × inzet — óók als het uit het bestand kwam en afweek (P6 doet dat zonder vraag,
- *     eigenaarsbesluit 2026-10-19). De duur zelf wordt hier NIET herschreven (die is al gezet).
- *  3. Elk bewaard restwerk dat afweek van inzet × restduur en nu herschreven is, komt terug in
- *     `recomputedWork`; de aanroeper meldt het één keer per transactie.
- *
- * Maakt de bewerking de taak voltooid doordat de nieuwe duur precies het gedane deel is (rest 0,
- * 100 %), dan is er geen resterende driehoek: de kern zou rest 0 weigeren. Dat geval handelt
- * {@link completedByDurationEdit} af, onder elke regel. Een bewerking die een ANDERE duur en zelf
- * 100 % opgeeft, valt daar bewust buiten (knownbug 367): de kern weigert dan en het werk blijft staan.
- *
- * Onder FIXED_DURATION_RATE zonder werkvelden en zonder voortgang verandert er aan de toewijzingen
- * niets; op een gestarte taak legt `applyTriangleResult` het verrichte werk en het restwerk vast.
- */
 export function settleDurationEdit(task: Task, captured: CapturedTriangle | null): DurationEditWriteBack {
   if (!captured) return NO_DURATION_CHANGE;
-  // Poort: een voortgangsbewerking (`completion`/`remainingTime`) verandert de REST maar niet
-  // de duur — dat is geen duurbewerking en raakt de driehoek niet.
   const newTotal = totalMinutesOf(task, captured.ctx);
   if (Math.abs(newTotal - captured.totalMinutes) < 1e-6) return NO_DURATION_CHANGE;
   followRemainingOfUnstartedTask(task, captured.time);
   const newRemaining = remainingMinutesOf(task, captured.ctx);
   if (Math.abs(newRemaining - captured.state.remainingMinutes) < 1e-6) return NO_DURATION_CHANGE;
-  // Vóór de positieve-restvalidatie van de kern: is de nieuwe duur precies het gedane deel van vóór de
-  // bewerking, dan is rest 0 op de voltooide taak een voltooiing door verkorting.
   const doneBefore = captured.totalMinutes - captured.state.remainingMinutes;
   const completedByShortening = newRemaining < 1e-6 && task.time.completion >= 1
     && Math.abs(newTotal - doneBefore) < 1e-6;
@@ -456,8 +301,6 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
     ? completedByDurationEdit(captured.state)
     : applyDurationEdit(captured.state, newRemaining);
   if (!result.ok) return NO_DURATION_CHANGE;
-  // Alleen de toewijzingen van deze taak (uit de momentopname): de terugschrijfstap en het
-  // afwijkcriterium zoeken dan in een handvol objecten, niet in alle toewijzingen van het project.
   const own = captured.assignments;
   const deviating = deviatingStoredWork(task, contourOwn(own, captured.ctx), captured.state);
   const written = applyTriangleResult(task, own, captured.state, result.state, captured.ctx, { skipDuration: true, actualWork: captured.actualWork });
@@ -465,7 +308,7 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
   for (const before of deviating) {
     const after = own.find((a) => a.id === before.id);
     if (!after || after.remainingWorkMinutes === undefined) continue;
-    if (Math.abs(after.remainingWorkMinutes - before.minutes) <= 1e-6) continue; // werk beschermd: bleef staan
+    if (Math.abs(after.remainingWorkMinutes - before.minutes) <= 1e-6) continue;
     recomputedWork.push({
       taskId: task.id, taskName: task.name, assignmentId: after.id, resourceId: after.resourceId,
       beforeMinutes: before.minutes, afterMinutes: after.remainingWorkMinutes,
@@ -474,18 +317,6 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
   return { ...written, recomputedWork };
 }
 
-/**
- * Voltooid door een duurbewerking: de nieuwe duur is precies het gedane deel, dus de rest is 0. Elke
- * werkresource houdt haar verrichte werk en krijgt restwerk 0, onder elke regel; inzet en materiaal
- * blijven staan. Het vervallen restwerk wordt NIET als verricht geboekt (dat doet alleen een
- * voortgangsboeking, `settleProgressWork`). `applyTriangleResult` legt daarna het verrichte werk uit
- * de momentopname vast waar het nog ontbrak. Alleen als de nieuwe totale duur gelijk is aan het
- * gedane deel van vóór de bewerking; een opslag met een andere duur én 100 % (dialoog, MCP-draft)
- * komt hier niet: daar zou nulstellen het werk van het extra gedane deel wissen (knownbug 367).
- * Zonder deze stap weigerde de kern rest 0, bleef het opgeslagen restwerk staan en telde de
- * belasting het nog mee (aanval a03 na #600: 4 d op 50 %, verlengd tot 6 d en terug naar 2 d gaf
- * 100 % met 32 u restwerk).
- */
 function completedByDurationEdit(state: TriangleState): { ok: true; state: TriangleState } {
   return {
     ok: true,
@@ -497,14 +328,6 @@ function completedByDurationEdit(state: TriangleState): { ok: true; state: Trian
   };
 }
 
-/**
- * Stap 1 van {@link settleDurationEdit}: een niet-gestarte taak met een expliciet restveld krijgt
- * rest = volledige nieuwe duur. Niet-gestart = 0 % en geen werkelijke start of einde, vóór én ná de
- * bewerking (een lopende taak regelt `settleEditedDuration`, een voltooide houdt rest 0).
- * Niet als de bewerking zelf een voortgangsveld of restduur wijzigde (die opgave wint), en niet op een
- * mijlpaal (die blijft zonder restveld, zoals in `settleEditedDuration`). Zonder
- * restveld hoeft er niets: de rest is dan al de afleiding uit de duur.
- */
 function followRemainingOfUnstartedTask(task: Task, before: TaskTime): void {
   const t = task.time;
   if (task.isMilestone) return;
@@ -514,17 +337,12 @@ function followRemainingOfUnstartedTask(task: Task, before: TaskTime): void {
   const progressTouched = t.completion !== before.completion
     || t.remainingTime !== before.remainingTime || t.remainingMinutes !== before.remainingMinutes;
   if (progressTouched) return;
-  // B3: de brug schrijft exact. De gedeelde voortgangsregel wordt door F2 aangepast.
   if (isHourTask(t)) {
     t.remainingMinutes = t.durationMinutes;
     t.remainingTime = hourRemainingDays(t, t.remainingMinutes);
   } else t.remainingTime = t.scheduleDuration;
 }
 
-/** De werkresources van de taak waarvan het BEWAARDE restwerk vóór de bewerking afweek van
- *  inzet × restduur — hetzelfde criterium als het waarschuwingsteken (`assignmentWorkDeviation`):
- *  materiaal en een toewijzing met contour tellen niet mee. `own` = de koppellijst voor de contour:
- *  de toewijzingen van de taak zonder kostentoewijzingen (`contourOwn`). */
 function deviatingStoredWork(
   task: Task,
   own: readonly ResourceAssignment[],
@@ -541,11 +359,6 @@ function deviatingStoredWork(
   return out;
 }
 
-/**
- * Inzet van één toewijzing gewijzigd — aanroepen NÁDAT de aanroeper de nieuwe
- * `unitsPerDay` heeft geschreven (zodat de exacte invoer staat), met de momentopname van
- * daarvóór. Kan de taakduur veranderen (FIXED_WORK/FIXED_RATE) ⇒ `durationChanged`.
- */
 export function settleUnitsEdit(
   task: Task,
   assignments: ResourceAssignment[],
@@ -561,15 +374,11 @@ export function settleUnitsEdit(
   return applyTriangleResult(task, assignments, captured.state, result.state, captured.ctx, { actualWork: captured.actualWork });
 }
 
-/** Een doorgerekende maar nog niet geschreven uitkomst: plannen kan vóór de undo-snapshot, zodat
- *  een weigering geen lege undo-stap achterlaat; `commitTrianglePlan` schrijft daarna. */
 export interface TrianglePlan {
   captured: CapturedTriangle;
   after: TriangleState;
 }
 
-/** Resterend werk van één toewijzing gezet, zonder te schrijven.
- *  `null` ⇒ geweigerd (werk ≤ 0, onbekende toewijzing) of niet van toepassing. */
 export function planWorkEdit(
   task: Task,
   assignments: readonly ResourceAssignment[],
@@ -588,7 +397,6 @@ export function commitTrianglePlan(task: Task, assignments: ResourceAssignment[]
   return applyTriangleResult(task, assignments, plan.captured.state, plan.after, plan.captured.ctx, { actualWork: plan.captured.actualWork });
 }
 
-/** `planWorkEdit` + `commitTrianglePlan` in één stap (raster/MCP, waar de snapshot al staat). */
 export function settleWorkEdit(
   task: Task,
   assignments: ResourceAssignment[],
@@ -600,8 +408,6 @@ export function settleWorkEdit(
   return plan ? commitTrianglePlan(task, assignments, plan) : null;
 }
 
-/** Resource erbij — aanroepen NÁDAT de nieuwe toewijzing in `assignments` staat,
- *  met de momentopname van daarvóór (zonder de nieuwe). */
 export function settleAssignmentAdded(
   task: Task,
   assignments: ResourceAssignment[],
@@ -609,7 +415,6 @@ export function settleAssignmentAdded(
   added: ResourceAssignment,
 ): TriangleWriteBack {
   if (!captured) return NO_CHANGE;
-  // Kostentoewijzing (issue #815): geen inzet, geen werk, geen duur — de driehoek blijft gelijk.
   if (!inTriangle(added.resourceId, captured.ctx)) return NO_CHANGE;
   const completed = settleCompletedWork(task, assignments, captured);
   if (completed) return completed;
@@ -621,8 +426,6 @@ export function settleAssignmentAdded(
   return applyTriangleResult(task, assignments, captured.state, result.state, captured.ctx, { actualWork: captured.actualWork });
 }
 
-/** Resource eraf — momentopname MÉT de te verwijderen toewijzing, aanroepen NÁDAT
- *  ze uit `assignments` is; de kern verdeelt haar werk over de blijvers waar de regel dat wil. */
 export function settleAssignmentRemoved(
   task: Task,
   assignments: ResourceAssignment[],
@@ -636,18 +439,9 @@ export function settleAssignmentRemoved(
 }
 
 export interface RuleChangeWriteBack extends TriangleWriteBack {
-  /** Feitelijke maatwijziging (B1a). De aanroeper behandelt dit als planningsbewerking (spec §5.2,
-   *  geval 11c): de modus "datums zoals opgeslagen" gaat uit en de planning wordt verouderd, in
-   *  dezelfde undo-stap als de wissel (`markDateMutation` via `finishMutation`). Het doorrekenen volgt
-   *  daarna de gewone regel: in de UI `useExitRecordedDates` na het verlaten van de modus, in MCP de
-   *  transactie zelf (`recordedDateRuleChange` telt de wissel dan niet als datumneutraal). */
   durationUnitChanged: boolean;
 }
 
-/** Typewissel: schrijft `task.workRule` en legt onder een werkbeschermende regel het
- *  huidige restwerk vast. B1a: vast werk maakt een gewone dagenmaat-taak urenmaat, met
- *  minuten = werkdagen × effectieve werktijd per dag, onafhankelijk van de plaatsing (T14).
- *  `undefined` = terug naar de projectstandaard. De maatwijziging wordt apart geretourneerd. */
 export function settleRuleChange(
   task: Task,
   assignments: ResourceAssignment[],
@@ -662,34 +456,22 @@ export function settleRuleChange(
 
 const NO_RULE_CHANGE: RuleChangeWriteBack = { ...NO_CHANGE, durationUnitChanged: false };
 
-/**
- * Wissel van de projectstandaard (`Project.defaultWorkRule`) voor één taak ZONDER eigen regel: zij erft
- * de standaard, dus voor haar is dit een typewissel, met dezelfde brug als `settleRuleChange` (ook B1a:
- * vast werk maakt een dagenmaat-taak urenmaat). `deps` beschrijft de toestand van VÓÓR de wissel (de
- * oude standaard); `nextDefault` is de nieuwe. Een taak met een eigen regel, een taak waarop de regel
- * niet werkt en een taak waarvoor de effectieve regel gelijk blijft, blijven ongemoeid. De terugweg
- * (van vast werk naar een andere regel) laat de urenmaat staan, net als een typewissel op de taak.
- */
 export function settleDefaultRuleChange(
   task: Task,
   assignments: ResourceAssignment[],
   deps: WorkRuleDeps,
   nextDefault: WorkRule | undefined,
 ): RuleChangeWriteBack {
-  // Vroeg eruit: een eigen regel wint van elke standaard (dat zegt ook de gelijkheidstoets hieronder).
   if (task.workRule !== undefined) return NO_RULE_CHANGE;
   const captured = captureTriangle(task, assignments, deps);
   if (!captured) return NO_RULE_CHANGE;
   const rule = effectiveWorkRule(task, nextDefault);
   if (rule === effectiveWorkRule(task, captured.ctx.defaultWorkRule)) return NO_RULE_CHANGE;
-  // Na de wissel geldt de nieuwe standaard ook voor het terugschrijven.
   const ctx: WorkRuleContext = { ...captured.ctx };
   if (nextDefault === undefined) delete ctx.defaultWorkRule; else ctx.defaultWorkRule = nextDefault;
   return settleEffectiveRuleChange(task, assignments, { ...captured, ctx }, rule);
 }
 
-/** B1a: de dagenmaat-taak wordt urenmaat met `totalMinutes` (werkdagen × werktijd per dag). De rest komt
- *  uit de blijvende dagenbron van VÓÓR de omzetting (`remainingMinutes`), ook bij een voltooide taak. */
 function writeHourMeasure(task: Task, totalMinutes: number, remainingMinutes: number): void {
   const t = task.time;
   t.durationUnit = 'hours';
@@ -700,24 +482,14 @@ function writeHourMeasure(task: Task, totalMinutes: number, remainingMinutes: nu
   } else delete t.remainingMinutes;
 }
 
-/**
- * B1a aan de laadgrens (review #581 r2): een gewone taak onder vast werk, met een eigen regel of een
- * geërfde, die nog in de dagenmaat staat (een bestand van vóór B1a), wordt urenmaat. Dezelfde omzetting
- * als een typewissel (`writeHourMeasure`), maar zonder de werkdriehoek: inzet, restwerk en verricht werk
- * van de toewijzingen blijven zoals ze in het bestand staan, en de rest van de taak blijft gelijk.
- * Mijlpalen, samenvattingen, hangmatten en ELAPSEDTIME-taken vallen erbuiten (`workRuleApplies`).
- * Muteert `task.time`; geeft `true` als de taak is omgezet.
- */
 export function settleFixedWorkMeasure(task: Task, deps: WorkRuleDeps): boolean {
   if (task.time.durationUnit === 'hours') return false;
-  // Eerst de regel: zonder vast werk leest de laadgrens verder niets van de taak.
   if (effectiveWorkRule(task, deps.project.defaultWorkRule) !== 'FIXED_WORK' || !workRuleApplies(task)) return false;
   const ctx = workRuleContextOf(task, deps);
   writeHourMeasure(task, totalMinutesOf(task, ctx), remainingMinutesOf(task, ctx));
   return true;
 }
 
-/** Het gedeelde deel van een typewissel: de taak krijgt `effectiveRule` (eigen veld of standaard). */
 function settleEffectiveRuleChange(
   task: Task,
   assignments: ResourceAssignment[],
@@ -733,19 +505,6 @@ function settleEffectiveRuleChange(
   return { ...written, durationUnitChanged };
 }
 
-/**
- * B1a (spec §3.2, §3.12): vast werk is altijd urenmaat. Een duur in werkdagen op een taak onder vast
- * werk gaat naar de urenbron: minuten = werkdagen × werktijd per dag van de taakkalender (T14), en de
- * taak blijft (of wordt) urenmaat. "5d" geeft zo 5 × de werktijd per dag; geen invoer maakt de taak
- * dagenmaat.
- *
- * Een duur in werkdagen is: de bewerking zet de maat op dagen, of verandert `scheduleDuration`
- * zonder `durationMinutes`. Een bewerking die de duur niet raakt, verandert niets (een naam
- * wijzigen zet een oude dagtaak onder vast werk dus niet om). `task` is de taak zoals de bewerking
- * haar achterlaat (de regel en de mijlpaalvlag van ná de bewerking); `after` is haar nieuwe tijd en
- * wordt hier gemuteerd, vóór het schrijven. Geeft `true` als de duur naar de urenbron ging.
- * Eén regel voor store (`updateTask`), raster (`gridTransaction`) en de MCP-draft.
- */
 export function routeFixedWorkDurationToHours(
   task: Task,
   before: TaskTime,
@@ -762,12 +521,6 @@ export function routeFixedWorkDurationToHours(
   return writeDaysAsHours(after, hoursPerDay);
 }
 
-/**
- * Zet een duur in werkdagen om naar de urenmaat: minuten = werkdagen × werktijd per dag × 60 (T14), en
- * `scheduleDuration` blijft het afgeleide dagengetal. Muteert `time`. Geeft `false` (en verandert niets)
- * bij een ongeldige werktijd per dag of een ongeldige duur. Gedeeld door de B1a-routering hierboven en
- * de standaardmaat van een nieuwe taak (`state/newTaskMeasure.ts`).
- */
 export function writeDaysAsHours(time: TaskTime, hoursPerDay: number): boolean {
   if (!(Number.isFinite(hoursPerDay) && hoursPerDay > 0)) return false;
   if (!Number.isFinite(time.scheduleDuration) || time.scheduleDuration < 0) return false;
@@ -778,34 +531,10 @@ export function writeDaysAsHours(time: TaskTime, hoursPerDay: number): boolean {
   return true;
 }
 
-/** De drie duurvelden van een tijd, om de urenbron van {@link routeFixedWorkDurationToHours} in een
- *  patch over te nemen. */
 export function hourSourceOf(time: TaskTime): Pick<TaskTime, 'durationUnit' | 'durationMinutes' | 'scheduleDuration'> {
   return { durationUnit: time.durationUnit, durationMinutes: time.durationMinutes, scheduleDuration: time.scheduleDuration };
 }
 
-/**
- * Nazorg wanneer de werkdriehoek de TAAKduur verandert (inzet/werk/resource erbij-eraf onder
- * FIXED_WORK/FIXED_RATE, of een kalenderwissel) — dezelfde als bij een duurbewerking in
- * `taskSlice.updateTask`, in dezelfde volgorde: contour én importsplits herschalen (werkbehoud
- * volgens de regel), het timephased-venster (laag 3) en bevroren duur-walks (laag 4) wissen, dan
- * de nivelleergaten wissen (`clearLevelingGaps`: een duurwijziging verzet de werkminuten-as waar
- * ze op liggen) en pas DAARNA het ingevoerde einde van een niet-gestarte urentaak herleiden
- * (`reconcileHourInputFinish`: de solve schrijft `scheduleFinish` niet terug, dus elke
- * invoerbewerking die de duur verandert moet dat zelf doen — en ná `clearLevelingGaps`, anders telt
- * het einde gewiste gaten mee).
- *
- * `finishBasis` is `hourInputFinishBasis(task)` van VÓÓR de bewerking (vóór `applyTriangleResult`
- * of de kalenderwissel) — met een basis van ná de bewerking ziet de reconcile "geen invoer-
- * wijziging" en blijft het einde oud. Leg hem vast naast `oldWorkMinutes`, of gebruik
- * `CapturedTriangle.finishBasis`/`CalendarCapture.finishBasis`.
- *
- * Eén definitie voor store, raster en MCP. Retourneert of er timephased-sturing verloren ging
- * (⇒ de aanroeper meldt); het wissen van nivelleergaten telt daar bewust niet in mee (app-eigen
- * afgeleide uitvoer,
- * geen importverlies — zie `taskSlice.updateTask`). `scheduleStale` en de snapshot blijven aan de
- * aanroeper.
- */
 export function settleDurationAftermath(
   task: Task,
   deps: WorkRuleDeps,
@@ -813,11 +542,6 @@ export function settleDurationAftermath(
   finishBasis: HourInputFinishBasis,
 ): boolean {
   const hpd = workRuleContextOf(task, deps).hoursPerDay;
-  // De regels zelf staan in ÉÉN kern,
-  // `applyDurationChangeRules` (taskDefaults.ts) — contour/importsplits herschalen (werkbehoud
-  // volgens de regel), bij een duurKRIMP zonder herschaling de gebruikersgaten afknippen,
-  // laag 3 en bevroren laag 4 ontkoppelen, nivelleergaten wissen. Hier komt alleen het ingevoerde
-  // uur-einde erbij, ná het wissen van de nivelleergaten.
   const lost = applyDurationChangeRules(task, oldWorkMinutes, hpd, {
     keepWork: contourKeepsWork(task, deps.project.defaultWorkRule),
   });
@@ -825,19 +549,9 @@ export function settleDurationAftermath(
   return lost;
 }
 
-/**
- * Kalenderwissel: momentopname VÓÓR de wissel — de werkdriehoek plus de werkminuten van de taak in
- * de OUDE slot (de referentie waar de contour-as tegen herschaald wordt; `oudeDagen × nieuwe slot`
- * is de verkeerde referentie).
- */
 export interface CalendarCapture {
   triangle: CapturedTriangle | null;
-  /** `taskWorkMinutes` in de oude slot — ook voor taken waar de regel niet op werkt (dan blijft de
-   *  contour-as met rust; zie `settleCalendarChange`). */
   oldWorkMinutes: number;
-  /** De basis van het ingevoerde einde VÓÓR de wissel (`settleDurationAftermath`). Uurtaken slaat
-   *  `settleCalendarChange` over, dus hier is de reconcile in de praktijk een no-op; de basis staat er
-   *  voor het contract (nooit een basis van ná de bewerking). */
   finishBasis: HourInputFinishBasis;
 }
 
@@ -850,31 +564,12 @@ export function captureCalendarChange(task: Task, assignments: readonly Resource
 }
 
 export interface CalendarSettle {
-  /** De regel heeft de duur (in dagen) van de taak gewijzigd (Vast werk / Vaste inzet). */
   durationChanged: boolean;
-  /** De nazorg (`settleDurationAftermath`) heeft het timephased-venster of bevroren duur-walks
-   *  gewist — de aanroeper meldt dat (`notifyTimephasedLoss`/`recordTimephasedLoss`). */
   timephasedLost: boolean;
 }
 
 const NO_CALENDAR_CHANGE: CalendarSettle = { durationChanged: false, timephasedLost: false };
 
-/**
- * Kalenderwissel: aanroepen NÁDAT de kalender van de taak (of de
- * inhoud van haar kalender) is gewijzigd, met de momentopname van daarvóór. Alleen de slotgrootte
- * (uren per dag) telt; de restduur in dagen blijft, en de regel beslist (`applySlotChange`).
- * Uurtaken ⇒ alleen hun verborgen dagengetal volgt de nieuwe werktijd per dag; een ongewijzigde slot ⇒ niets. Eén definitie voor store, raster, MCP, project-
- * kalender, kalenderinhoud en de hele bibliotheek (`commitCalendarLibrary` = de kalenderdialoog,
- * `removeCalendar`; via `state/calendarTasks.ts`), inclusief de nazorg:
- *  - verandert de duur ⇒ `settleDurationAftermath` met de OUDE werkminuten als referentie (contour
- *    en importsplits herschalen, timephased-venster en bevroren walks wissen);
- *  - verandert de duur NIET maar de slot wél (FIXED_DURATION_*) ⇒ alleen de contour-as herschalen:
- *    dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werkminuten, en de as leeft op
- *    de werkminuten.
- * De rest wordt bij een gestarte taak expliciet geschreven door `applyTriangleResult` en
- * `completion` volgt daaruit, ook op dit pad. Taken buiten `workRuleApplies` (mijlpaal,
- * verzameltaak, hangmat, ELAPSEDTIME) blijven hier ongemoeid — óók hun contour-as.
- */
 export function settleCalendarChange(
   task: Task,
   assignments: ResourceAssignment[],
@@ -883,14 +578,9 @@ export function settleCalendarChange(
 ): CalendarSettle {
   const { triangle } = captured;
   if (isHourTask(task.time)) {
-    // Een urentaak houdt haar werkminuten; alleen haar verborgen dagengetal volgt de werktijd per dag
-    // van de nieuwe kalender(inhoud) — zie `hourTaskScheduleDuration`. Een verzameltaak of hangmat
-    // krijgt haar duur uit de doorrekening (`writeDerivedSpan`) en blijft hier ongemoeid. (Immer
-    // markeert een toewijzing met dezelfde waarde niet als wijziging; een wachter is niet nodig.)
     if (task.childIds.length === 0 && !task.isHammock) {
       task.time.scheduleDuration = hourTaskScheduleDuration(task.time.durationMinutes,
         resolveCalendar(task.calendarId, deps.calendars as WorkCalendar[], deps.calendar));
-      // De restduur in dagen heeft dezelfde vorm (`hourRemainingDays`); de restminuten blijven.
       if (task.time.remainingTime !== undefined && task.time.remainingMinutes !== undefined) {
         task.time.remainingTime = hourRemainingDays(task.time, task.time.remainingMinutes);
       }
@@ -904,12 +594,6 @@ export function settleCalendarChange(
   const remainingDays = triangle.state.remainingMinutes / triangle.state.slotMinutes;
   const newRemaining = remainingDays * newSlot;
   const result = applySlotChange(triangle.state, newSlot, newRemaining);
-  // Contour-as éérst naar de nieuwe slot (dezelfde dagen, andere werkminuten), met de HOOGTE die
-  // meeschaalt (werk = R' × I, de afgeleide lezing). De regel-specifieke hoogte komt daarna niet uit
-  // een regelconstante maar uit de toewijzingen zelf: `reconcileContourWork` zet elke contour met een
-  // opgeslagen werkveld op precies dát werk (een regelvlag hier zou dubbel schalen onder de
-  // standaardregel en onder FIXED_RATE contour en toewijzing laten uiteenlopen). Zonder
-  // werkveld ís R' × I het werk, dus dan klopt de meegeschaalde hoogte al.
   rescaleTaskContours(task, captured.oldWorkMinutes, ctx.hoursPerDay, false);
   const slotWorkMinutes = totalMinutesOf(task, ctx);
   let durationChanged = false;
@@ -926,36 +610,6 @@ export function settleCalendarChange(
   return { durationChanged, timephasedLost };
 }
 
-/**
- * Duurbewerking op een LOPENDE taak: het verrichte deel is een feit, dus wat de gebruiker aan de duur
- * toevoegt of afhaalt landt in de rest (Microsoft: Remaining Duration = Duration − Actual Duration).
- *
- * - LOPEND: gestart (werkelijke start of voortgang > 0 %) en nog niet voltooid. Ook een gestarte taak
- *   op 0 % telt mee: haar gedane werk is 0, dus haar restduur volgt de nieuwe duur. Uitgesloten zijn
- *   taken zonder eigen bewerkbare duur: verzameltaken en hangmatten (wél elk
- *   duurtype, ook ELAPSEDTIME — dit is een duur-identiteit, geen driehoeksregel).
- * - Alleen als de bewerking de voortgang zelf NIET wijzigt: geeft dezelfde bewerking ook een nieuw
- *   percentage, een nieuwe restduur of een nieuwe werkelijke datum op ("Taak bewerken" met duur én
- *   voortgang, een geplakte rij), dan wint die opgave.
- * - EXACT, zonder afrondingsdrift: de restduur schuift in de eigen eenheid van de taak met precies het
- *   duurverschil (dagtaak: `remainingTime` in werkdagen; urentaak: `remainingMinutes` in minuten met
- *   de werkdagfractie van `hourRemainingDays`). Ontbreekt een expliciet restveld, dan is de rest vóór
- *   de bewerking de exacte afleiding uit het percentage (B3) — die wordt
- *   geschreven, anders zou de solver hem opnieuw als `nieuwe duur × (1 − %)` afleiden en schuift het
- *   gedane werk mee. Het percentage wordt NIET afgerond: oud % × oude duur ÷ nieuwe duur, zodat
- *   % × duur (het gedane werk) gelijk blijft; de weergave rondt pas af (IFC schrijft verliesvrij, zie
- *   `ifcCompletionReal`).
- * - Een eenheidswissel (dagen ↔ uren) rekent via de minuten in de maat van de taak: het gedane werk
- *   blijft gelijk en de restduur volgt de gewone regel in de nieuwe eenheid. De dag telt de functie zelf
- *   uit het duurtype: bij kalendertijd (`ELAPSEDTIME`) 24 klokuren (`durationHoursPerDay`), anders
- *   `workHoursPerDay`. Zo telt een kalendertijdtaak van 2 d als 2880 klokminuten, op elke route.
- * - Nieuwe duur KORTER dan het gedane werk: geweigerd (`refused`), niets geraden. Precies gelijk
- *   ⇒ 100 %: de voortgangsinvarianten leiden dan het werkelijke einde af.
- *
- * `null` = de regel is niet van toepassing. Pure functie op de tijd van VÓÓR en NÁ de bewerking;
- * `workHoursPerDay` is de werktijd per dag van de taakkalender. Bij kalendertijd vervangt de functie
- * die zelf door 24 u, zodat geen aanroeper (store, dialoog, raster, MCP) dat hoeft te weten.
- */
 export type DurationEditProgress =
   | { refused: true; done: number; unit: 'days' | 'hours' }
   | { refused: false; completion: number; remainingTime: number; remainingMinutes?: number };
@@ -968,8 +622,6 @@ export function durationEditProgress(
 ): DurationEditProgress | null {
   if (task.childIds.length > 0 || task.isHammock === true) return null;
   if (!Number.isFinite(workHoursPerDay) || workHoursPerDay <= 0) return null;
-  // De dag in de maat van de taak: 24 klokuren bij kalendertijd. Het duurtype na de bewerking telt;
-  // een wissel van alleen het duurtype is dan geen duurwijziging (beide kanten met dezelfde factor).
   const hoursPerDay = durationHoursPerDay({ time: after }, workHoursPerDay);
   const running = (before.completion > 0 || !!before.actualStart) && before.completion < 1 && !before.actualFinish;
   if (!running) return null;
@@ -1007,7 +659,6 @@ export function durationEditProgress(
     const minutes = Math.max(0, remainingMinutes);
     return { refused: false, completion, remainingMinutes: minutes, remainingTime: hourRemainingDays(after, minutes) };
   }
-  // Eenheidswissel: via de werkminuten; de restduur volgt de gewone regel in de nieuwe eenheid.
   const completion = newWork > 0 ? cap((c * oldWork) / newWork) : c;
   const oldRemaining = unitBefore === 'hours'
     ? before.remainingMinutes ?? oldWork * (1 - c)
@@ -1025,13 +676,6 @@ function timeUnit(time: TaskTime): 'days' | 'hours' {
   return taskDurationUnit({ time } as Task);
 }
 
-/**
- * De weigering vooraf: zou deze duurbewerking de duur van een
- * lopende taak korter maken dan het gedane werk? Store (`updateTask`, met melding), "Taak bewerken"
- * (niets opgeslagen), MCP-draft (zachte weigering per item) en extensie-API (via `updateTask`)
- * vragen dit VÓÓR de mutatie — dus zonder snapshot; het raster krijgt dezelfde uitkomst uit
- * {@link settleEditedDuration} als celfout `durationBelowDoneWork`.
- */
 export function durationEditRefusal(
   task: Pick<Task, 'childIds' | 'isHammock' | 'time'>,
   after: TaskTime,
@@ -1041,9 +685,6 @@ export function durationEditRefusal(
   return change?.refused ? change : null;
 }
 
-/** Bij afmelden met een gewijzigde duur op een lopende taak telt het definitieve taakvenster.
- *  Roep dit aan na het verwerken van actuals en het aanpassen van de splits op de nieuwe duur.
- *  De kalenderwandeling is dezelfde als in CPM. De statusdatum blijft de bovengrens. */
 export function durationCompletionDates(
   task: Task, before: TaskTime, calendar: WorkCalendar | undefined, workdayDurationMeasure: boolean,
 ): PlannedProgressDates | undefined {
@@ -1062,7 +703,6 @@ export function durationCompletionDates(
   return { earlyStart, earlyFinish: formatInstant(finish, 'hour') };
 }
 
-/** Sluit een duurbewerking af als zij zelf de taak voltooide en er geen andere voortgang volgt. */
 export function finishDurationProgress(
   task: Task, before: TaskTime, statusDate: string | undefined, calendar: WorkCalendar | undefined,
   workdayDurationMeasure: boolean,
@@ -1070,8 +710,6 @@ export function finishDurationProgress(
   applyProgressInvariants(task, statusDate, calendar, durationCompletionDates(task, before, calendar, workdayDurationMeasure));
 }
 
-/** Verwerk restwerk, splits en afmelding van één duurbewerking vóór de werkdriehoek de rest leest.
- *  Bij weigering blijft de taak ongemoeid. De afmelding volgt de nieuwe duur en de behouden splits. */
 export function settleEditedDuration(
   task: Task, before: TaskTime, workHoursPerDay: number,
   { statusDate, calendar, workdayDurationMeasure, keepWork, rescaleContours, deferCompletion }: {
@@ -1081,7 +719,6 @@ export function settleEditedDuration(
 ): { progress: DurationEditProgress | null; timephasedLost: boolean } {
   const change = durationEditProgress(task, before, task.time, workHoursPerDay);
   if (change?.refused) return { progress: change, timephasedLost: false };
-  // Een mijlpaal houdt geen restveld. Met gedaan werk weigert de duurregel hierboven al.
   const progress = task.isMilestone ? null : change;
   if (progress) {
     task.time.completion = progress.completion;
@@ -1098,48 +735,18 @@ export function settleEditedDuration(
   return { progress, timephasedLost };
 }
 
-/**
- * Voortgangsbewerking en opgeslagen werk.
- * Een voortgangsbewerking is geen duurbewerking (de driehoek blijft erbuiten), maar ze verplaatst
- * wél werk van RESTANT naar VERRICHT: de identiteit rest = begroot − verricht (P6: Remaining Units =
- * At Completion − Actual bij elke actual) moet in beide richtingen blijven gelden. Zonder
- * deze stap blijft `remainingWorkMinutes` op de oude waarde staan terwijl `assignmentDayUnits` het
- * verrichte deel óók uit de voortgang afleidt — het histogram telt dan dubbel (10 d, W 4800, 50 %
- * ⇒ 15 eenheid-dagen) en de driehoek rekent daarna met het te grote restwerk.
- *
- * Regel per toewijzing MET een opgeslagen restveld (zonder veld verandert er niets — dan is alles
- * afgeleid en schuift het vanzelf mee):
- *  - verricht vóór = `actualWorkMinutes` als dat er is, anders afgeleid als verrichte duur × inzet
- *    (dezelfde afleiding als laag 3 van `assignmentDayUnits`);
- *  - nieuw restwerk = restwerk × nieuwe restduur ÷ oude restduur (het resttempo per restdag blijft —
- *    ook voor een niet-sturende toewijzing met W_i / I_i < R); stond de rest op 0 (heropenen na
- *    100 %), dan is er geen tempo en wordt het totaal (verricht + rest) naar rato van de restduur
- *    over de hele duur verdeeld;
- *  - nieuw verricht = verricht vóór + (restwerk − nieuw restwerk): het TOTAAL blijft, er schuift
- *    alleen werk tussen de twee velden. Het verrichte veld wordt dus geschreven, ook als het er nog
- *    niet stond — een voortgangsboeking is verricht-werkinvoer.
- * De contour blijft ongemoeid: haar periodes zijn de vorm en worden door een voortgangsboeking niet
- * hertypeerd; het histogram leest bij een contour laag 1, niet de velden.
- * Poort: alleen wanneer de TOTALE duur gelijk bleef en de rest veranderde (anders is het een
- * duurbewerking en regelt `settleDurationEdit`/`settleEditedDuration` de rest).
- * Eén definitie voor store (`setTaskProgress`/`setActualStart`/`setActualFinish`/`updateTask`/
- * `applyProgressImport`), taakraster, MCP-`updateTaskFields` en MCP-`progress.applyProgressUpdate`.
- */
 export interface ProgressWorkCapture {
   restMinutes: number;
   totalMinutes: number;
   ctx: WorkRuleContext;
 }
 
-/** Momentopname VÓÓR een voortgangsbewerking; `null` voor een verzameltaak (afgeleide voortgang). */
 export function captureProgressWork(task: Task, deps: WorkRuleDeps): ProgressWorkCapture | null {
   if (task.childIds.length > 0) return null;
   const ctx = workRuleContextOf(task, deps);
   return { restMinutes: remainingMinutesOf(task, ctx), totalMinutes: totalMinutesOf(task, ctx), ctx };
 }
 
-/** Aanroepen NÁDAT de voortgang (en `applyProgressInvariants`) op de taak staat. Retourneert de ids
- *  van de toewijzingen waarvan de werkvelden zijn herschreven. */
 export function settleProgressWork(task: Task, assignments: ResourceAssignment[], captured: ProgressWorkCapture | null): string[] {
   if (!captured) return [];
   const total = totalMinutesOf(task, captured.ctx);
@@ -1167,28 +774,12 @@ export function settleProgressWork(task: Task, assignments: ResourceAssignment[]
   return changed;
 }
 
-/**
- * Contourbewerking en opgeslagen werk. Invariant: staan contour en werkveld allebei, dan is de som
- * van de `remaining`-periodes gelijk aan `remainingWorkMinutes`, idem actual. Zet de gebruiker een
- * eigen urenverdeling (`setAssignmentContour`), dan IS die som het werk: een aanwezig restveld wordt
- * de som van de `remaining`-periodes, een aanwezig verricht-veld de som van de `actual`-periodes.
- * Zonder die stap blijft het oude veld staan, wint het bij de volgende duurwijziging
- * (`applyDurationEdit` rekent I = W_oud / R) en zet `reconcileContourWork` de
- * contour stil terug naar het oude werkgetal. Afwezige velden blijven afwezig (zonder veld is de
- * contoursom al het afgeleide werk); loslaten (`null`) raakt de velden niet: de
- * laatst bewerkte som blijft het werk. Geen duurwijziging (een contour raakt geen datum).
- */
 export function syncAssignmentWorkToContour(
   assignment: ResourceAssignment,
   periods: readonly { kind?: string; workMinutes: number }[] | null,
 ): boolean {
   if (periods === null) return false;
   let changed = false;
-  // Een EERSTE urenverdeling op een gestarte taak heeft nog geen
-  // `actual`-periodes — `ContourDialog` vult een nieuwe verdeling met de hele belasting en
-  // `buildEditedContourPeriods` neemt alleen bestaande actual-periodes over. Dan is de contoursom
-  // het TOTAAL: het verricht-veld blijft staan en de rest = som − verricht (geklemd op 0). Zonder
-  // deze tak wordt verricht 0 en rest het hele totaal, en verdubbelt Vast werk de restduur.
   const hasActualPeriods = periods.some((p) => p.kind === 'actual');
   if (!hasActualPeriods && assignment.actualWorkMinutes !== undefined && assignment.actualWorkMinutes > 0) {
     if (assignment.remainingWorkMinutes !== undefined) {
@@ -1209,18 +800,11 @@ export function syncAssignmentWorkToContour(
   return changed;
 }
 
-/** Eén taakraster-/MCP-batchwijziging op de toewijzingen van één taak, als reeks kernstappen. */
 export type AssignmentSettleOp =
   | { kind: 'remove'; assignmentId: string }
   | { kind: 'update'; assignmentId: string; unitsPerDay: number }
   | { kind: 'add'; assignmentId: string; unitsPerDay: number; resourceId: string };
 
-/**
- * Meerdere toewijzingsbewerkingen op één taak in één keer (taakraster: de cel "Resources" kan
- * tegelijk verwijderen, inzet wijzigen en toevoegen; `assignmentPlan.ts`). Aanroepen NÁDAT het
- * plan op `assignments` is toegepast, met de momentopname van daarvóór: de kern loopt de stappen
- * in de toepassingsvolgorde (verwijderen → inzet → toevoegen) door en er volgt één terugschrijf.
- */
 export function settleAssignmentPlan(
   task: Task,
   assignments: ResourceAssignment[],
@@ -1229,14 +813,7 @@ export function settleAssignmentPlan(
 ): TriangleWriteBack {
   if (!captured || ops.length === 0) return NO_CHANGE;
   let state = captured.state;
-  // Volgorde = de toepassingsvolgorde van `applyTaskAssignmentPlan` (verwijderen → inzet →
-  // toevoegen). Dat is een BEREDENEERDE keuze: bij "r1 eraf + r2 erbij" in
-  // één Resources-cel onder FIXED_WORK gaat het werk van r1 eerst naar de blijvers en wordt daarna
-  // naar rato met r2 gedeeld — hetzelfde als twee losse bewerkingen in die volgorde. Bewaakt in
-  // `check-work-rule-store.ts` (sectie e).
   const order = { remove: 0, update: 1, add: 2 } as const;
-  // Een kostentoewijzing (issue #815) staat niet in de driehoek (`triangleStateOf`): een
-  // verwijdering of inzetstap op een id buiten de momentopname slaat de kern over.
   const known = new Set(captured.state.assignments.map(a => a.id));
   for (const op of [...ops].sort((a, b) => order[a.kind] - order[b.kind])) {
     if (op.kind !== 'add' && !known.has(op.assignmentId)) continue;
