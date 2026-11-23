@@ -14,7 +14,7 @@ import {
 import {
   durationMinutesOf, elapsedMinutesOf, elapsedMilliseconds, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
-  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress, isElapsedTask,
+  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress, isElapsedTask, finishOfTaskDuration,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import { deadlineBound } from './deadlineBound';
@@ -983,21 +983,14 @@ export class CPMSolver {
     return natural;
   }
   private finishFromStart(eng: CalendarEngine, start: Date, task: Task): Date {
-    if (isZeroDurationMilestone(task)) return new Date(start.getTime());
-    if (task.time.durationType === 'ELAPSEDTIME') {
-      return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
-    }
-    if (this.countsInWorkdays(task)) {
-      const totalDays = splitTotalSpanDays(task, eng);
-      if (totalDays <= 0) return new Date(start.getTime());
-      return eng.addMeasuredWorkdays(start, totalDays);
-    }
-    const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-    const walkStart = totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
+    const workdays = this.countsInWorkdays(task);
+    const walkStart = !workdays && !isZeroDurationMilestone(task) && !isElapsedTask(task)
+      && this.p6FinishBoundaryStartTaskIds.has(task.id)
       && this.isExactBandEnd(eng, start)
+      && splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng)) > 0
       ? eng.nextWorkInstantAfter(start)
       : start;
-    return eng.addWorkMinutes(walkStart, totalMinutes);
+    return finishOfTaskDuration(task, eng, walkStart, workdays);
   }
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return signedElapsedSpan(a, b, eng);
@@ -1098,6 +1091,7 @@ export class CPMSolver {
     order: readonly string[];
     markChanged: (taskId: string) => void;
     earlyStart: (taskId: string) => string | undefined;
+    earlyDates: (taskId: string) => Pick<CPMTaskResult, 'earlyStart' | 'earlyFinish'> | undefined;
   } | null {
     if ([...this.tasks.values()].some(t => t.isHammock
       || t.constraint?.type === 'ALAP' || t.constraint2?.type === 'ALAP'
@@ -1115,25 +1109,39 @@ export class CPMSolver {
       dirty.add(rank);
       queue.push(rank);
     };
+    const readEarly = (taskId: string) => {
+      const target = rankOf.get(taskId);
+      if (target === undefined) return undefined;
+      for (let rank = queue.peek(); rank !== undefined && rank <= target; rank = queue.peek()) {
+        queue.pop();
+        dirty.delete(rank);
+        const id = order[rank];
+        // Deze voorganger-vensters zijn forward-invoer voor opvolgers. Wis alleen de opnieuw
+        // berekende taak; de vensters van onaangeraakte voorgangers blijven geldig.
+        this.completedOutOfSequenceEs.delete(id);
+        this.completedOutOfSequenceRelation.delete(id);
+        this.completedPhysicalPoints.delete(id);
+        for (const seq of this.predecessors.get(id) ?? []) this.seqConstraint.delete(seq.id);
+        this.forwardPass([id], results, projectStart);
+        // Ook bij gelijke ES/EF doorgeven: een voltooid P6-venster kan veranderen zonder dat de
+        // actuals veranderen. Dezelfde forward-logica bepaalt de relatiegrens voor de opvolger.
+        for (const seq of this.successors.get(id) ?? []) markChanged(seq.successorId);
+      }
+      return results.get(taskId);
+    };
     return {
       order,
       markChanged,
-      earlyStart: (taskId: string) => {
-        const target = rankOf.get(taskId);
-        if (target === undefined) return undefined;
-        for (let rank = queue.peek(); rank !== undefined && rank <= target; rank = queue.peek()) {
-          queue.pop();
-          dirty.delete(rank);
-          const id = order[rank];
-          this.completedOutOfSequenceEs.delete(id);
-          this.completedOutOfSequenceRelation.delete(id);
-          this.completedPhysicalPoints.delete(id);
-          for (const seq of this.predecessors.get(id) ?? []) this.seqConstraint.delete(seq.id);
-          this.forwardPass([id], results, projectStart);
-          for (const seq of this.successors.get(id) ?? []) markChanged(seq.successorId);
-        }
-        const early = results.get(taskId);
+      earlyStart: taskId => {
+        const early = readEarly(taskId);
         return early ? formatInstant(early.es, 'hour') : undefined;
+      },
+      earlyDates: taskId => {
+        const early = readEarly(taskId);
+        return early && {
+          earlyStart: formatInstant(early.es, 'hour'),
+          earlyFinish: formatInstant(early.ef, 'hour'),
+        };
       },
     };
   }
