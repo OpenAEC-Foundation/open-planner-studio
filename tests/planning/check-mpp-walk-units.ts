@@ -175,7 +175,6 @@ const ASSIGNMENTS: [number, number, number, number, number][] = [
   // D — twee werkresources, één met inzet 0 (ruw < 0,1 ⇒ 0, MPXJ FieldMap.java DataType.UNITS).
   [40, 504, 1, 10000, 960_000],
   [41, 504, 2, 0, 480_000],
-  // Knownbug 440: precies één toewijzing, dezelfde vieruurskalender, alleen het resourcetype varieert.
   [50, 505, 5, 10000, 480_000],
   [60, 506, 6, 10000, 480_000],
   [70, 507, 7, 10000, 480_000],
