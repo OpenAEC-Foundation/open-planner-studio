@@ -10,7 +10,7 @@
  * gecontroleerde bron. De site en `planner_import_schedule` in de app parsen buiten `openOpenedFile` en roepen
  * `refuseModelAboveOpenLimit` zelf aan; de headless MCP-server niet (zijn bestandslaag zet `enforcesModelOpenLimit` niet),
  * zodat headless gelijk blijft aan main. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze grens
- * niet, en ook een IFC2X3-bestand niet: dat opent via de schematerugval zonder bron (§4.11).
+ * niet, en ook een IFC2X3-bestand zonder gebouwmodel niet: dat opent via de schematerugval zonder bron (§4.11).
  */
 import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 

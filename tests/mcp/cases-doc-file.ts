@@ -108,8 +108,6 @@ function installFakeFs(): McpFileFs {
   aliases = new Map<string, string>();
   readFileCalls.length = 0;
   const fs: McpFileFs = {
-    // Zoals `realFs` van de app: de productgrens voor het openen van een model geldt (#804).
-    enforcesModelOpenLimit: true,
     homeDir: async () => HOME,
     exists: async (p) => files.has(aliases.get(p) ?? p) || binFiles.has(aliases.get(p) ?? p),
     stat: async (p) => {
@@ -1260,17 +1258,22 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
 });
 
 // #804, PR #1127 (route A): de productgrens voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB) geldt ook
-// voor `planner_import_schedule` in de app. De proefnaad verlaagt haar tot de grootte van het bestand: precies op de grens
-// opent het model, één byte eronder weigert de tool met VALIDATION en blijft de store zoals hij was.
-test('import_schedule: een model boven de productgrens weigert, op de grens opent het (#804, #1127)', async () => {
-  installFakeFs();
+// voor `planner_import_schedule` in de app. Op de echte bestandslaag van de app (`realFs`, via de plugin-fs-client en de
+// nagebootste IPC), niet de fake: zo valt het op als `realFs` de markering `enforcesModelOpenLimit` verliest (review van
+// #1127, ronde 5). De proefnaad verlaagt de grens tot de grootte van het bestand: precies op de grens opent het model,
+// één byte eronder weigert de tool met VALIDATION en blijft de store zoals hij was.
+test('import_schedule in de app: een model boven de productgrens weigert, op de grens opent het (#804, #1127)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'ops-mcp-grens-'));
+  const ipc = installNodeFileIpc();
+  const previousGetFs = fileToolDeps.getFs;
   resetToSingleEmptyDocument();
-  const model = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
-  const path = `${HOME}/groot-model.ifc`;
-  setBinaryFile(path, model);
-  files.set(path, new TextDecoder().decode(model));
   useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
   try {
+    // De echte app-naad; alleen de thuismap (de scope) en het lezen bij openen komen uit Node.
+    const fs: McpFileFs = { ...(await realFs()), homeDir: async () => root, readFile: async p => new Uint8Array(readFileSync(p)) };
+    fileToolDeps.getFs = async () => fs;
+    const model = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+    const path = join(root, 'groot-model.ifc'); writeFileSync(path, model);
     lowerModelOpenLimitForTests(model.length - 1);
     const refused = await callErr('planner_import_schedule', { path });
     assertEq(refused.code, 'VALIDATION', 'boven de productgrens ⇒ validatiefout');
@@ -1282,7 +1285,9 @@ test('import_schedule: een model boven de productgrens weigert, op de grens open
     assertEq(S().ifcSource?.foreign, true, 'precies op de grens opent het model met zijn bron');
   } finally {
     lowerModelOpenLimitForTests();
-    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    ipc.dispose(); fileToolDeps.getFs = previousGetFs;
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
