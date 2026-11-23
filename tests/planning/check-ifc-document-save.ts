@@ -20,6 +20,7 @@ import { refusedWriteTarget, ifcFullWriteBlocked, ifcSaveBlocked } from '@/state
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
 import { closeProjectFileWrites, isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
+import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
@@ -518,11 +519,35 @@ await check('IFC-export desktop: volledig bestand, document intact, daarna Opsla
   } finally { ipc.dispose(); }
 });
 
-for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
-  const target = join(dir, `export-${kind}.ifc`);
+await check('IFC-export bestaand: de planning op die naam vervangen, het document intact', async () => {
+  const target = join(dir, 'export-bestaand.ifc');
   const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-  writeFileSync(target, kind === 'bestaand' ? plain : bytes);
-  const store = kind === 'bestaand' ? (await openInStore(bytes)).store : await openAt({ kind: 'path', path: target });
+  writeFileSync(target, plain);
+  const appData = mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
+  const { store } = await openInStore(bytes);
+  longer(store); const before = preserved(store), literal = store.getState().ifcLiteralCalendarIds, ipc = desktop(appData);
+  ipc.choose(target);
+  try {
+    clearNotices(store);
+    const expected = await prepareIfcWrite(buildExportIFCInput(store.getState(), 'merge'), before.source!);
+    const result = await store.getState().exportAs('ifc');
+    assert(result.ok && !result.cancelled, 'de export slaagt');
+    const output = new Uint8Array(readFileSync(target));
+    assert.equal(hash(output), hash(expected.bytes), 'precies de uitvoer van de export');
+    assert.deepEqual(mergeProblems(bytes, output), []);
+    unchanged(store, before);
+    assert(store.getState().ifcLiteralCalendarIds === literal, 'export legt geen letterlijke kalenders vast');
+    assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
+    assert(store.getState().recentFiles.some(r => r.ref.kind === 'path' && r.ref.path === target), 'Recent kent het exportbestand');
+    assert.deepEqual(readdirSync(dir).filter(name => name.includes('.ops-')), [], 'geen hulpbestand');
+    assert.deepEqual(readdirSync(appData).filter(name => replaceRecordId(name) !== null), [], 'geen herstelrecord');
+  } finally { ipc.dispose(); }
+});
+
+for (const kind of ['eigen-bron', 'andere-bron'] as const) await check(`IFC-export ${kind}: nul bytes, één melding`, async () => {
+  const target = join(dir, `export-${kind}.ifc`);
+  writeFileSync(target, bytes);
+  const store = await openAt({ kind: 'path', path: target });
   if (kind === 'andere-bron') {
     store.getState().newDocument();
     await store.getState().openOpenedFile({ name: 'ander.ifc', content: '', bytes, ref: null });
@@ -533,12 +558,10 @@ for (const kind of ['bestaand', 'eigen-bron', 'andere-bron'] as const) await che
     clearNotices(store); const result = await store.getState().exportAs('ifc');
     assert(result.ok && result.cancelled); unchanged(store, before);
     assert.equal(hash(new Uint8Array(readFileSync(target))), oldHash);
-    // Een bestaand doel: alleen het eigen tijdelijke bestand werd geschreven, de plaatsing weigerde en het is weer weg.
-    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), kind === 'bestaand' ? [true] : []);
+    assert.deepEqual(ipc.calls.filter(c => c.wrote).map(c => isTemp(c.path)), []);
     assert.deepEqual(tempLeft(), []);
     // Fixronde 1 van #1071, punt 3: de bron van een ander open document is het bestand van een open tabblad.
-    assertNotice(store, kind === 'bestaand' ? 'notifications.ifcForeignNewTargetOnly'
-      : kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.ifcForeignTargetExport');
+    assertNotice(store, kind === 'andere-bron' ? 'notifications.exportTargetOpenInTab' : 'notifications.exportTargetOwnFile');
   } finally { ipc.dispose(); }
 });
 
@@ -702,9 +725,13 @@ for (const flag of [true, false]) await check(`gewone IFC-export, flag ${flag}: 
   try {
     const { buildExportIFCInput } = await import('@/state/ifcSaveInput');
     const expected = new TextEncoder().encode(writeIFC(buildExportIFCInput(store.getState(), 'merge')));
+    const from = ipc.calls.length;
     const result = await store.getState().exportAs('ifc'); assert(result.ok && !result.cancelled);
     const output = new Uint8Array(readFileSync(target)); assert.equal(hash(output), hash(expected)); await openForeign(output);
     unchanged(store, before);
+    if (!flag) assert.deepEqual(ipc.calls.slice(from).map(c => [c.command, c.path === target ? 'doel' : isTemp(c.path) ? 'eigen hulpbestand' : c.path ?? null, c.wrote]),
+      [['plugin:fs|lstat', 'doel', false], ['plugin:fs|write_text_file', 'eigen hulpbestand', true], ['plugin:fs|rename', null, false],
+        ['plugin:fs|stat', 'doel', false], ['plugin:fs|stat', 'bron.ifc', false]], 'flag uit: precies de aanroepen aan de bestandsrand van main');
   } finally { ipc.dispose(); }
 });
 
