@@ -1254,8 +1254,8 @@ en noem het in je rapport of PR-tekst.
 1973. **Rond de jaarwisseling hebben twee buurweken dezelfde weekband.** Met *Alleen werkbare dagen tonen* aan
       krijgen de kolommen van oneven weeknummers een band (`drawGridBackground` in `GanttRenderer.ts`, ADR 0130). Na
       een jaar met week 53 volgt week 1: twee oneven weken achter elkaar met dezelfde band. Vanaf 2 px per dag
-      markeert de weeklijn die grens nog (`gridDensityForZoom`); daaronder staan alleen maandlijnen en is de grens
-      niet te zien. Gelezen in de code (`getWeekNumberFor`) en door een tekenproef van de reviewer bevestigd. — B
+      markeert de weeklijn die grens nog (`gridDensityForZoom`); daaronder vervalt de weeklijn en is de grens alleen
+      te zien waar een maandlijn ermee samenvalt. Gelezen in de code (`getWeekNumberFor`) en door een tekenproef van de reviewer bevestigd. — B
 1974. **Op een near-critical balk tekent het duurpilletje zich slecht af.** Het pilletje tijdens het rekken heeft de
       accentkleur (licht #D97706); een near-critical balk is amber #F59E0B (`BRAND.nearCritical` in
       `themePalette.ts`). Met de analyse aan is de kleurverhouding van pilvlak tegen balk 1,48:1, dus het vlak valt

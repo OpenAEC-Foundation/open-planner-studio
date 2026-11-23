@@ -3,8 +3,8 @@
 Tijdens het rekken van een balkrand toont de Gantt de nieuwe duur in een pilletje tegen die rand (issue #51). De
 renderer tekent het zelf (`drawDragDurationBadge`) en niet als DOM-laag erboven. De x van een balkrand komt uit
 `barGeometry` op de gedeelde, mogelijk gecomprimeerde as; daarbuiten zou die geometrie een tweede keer moeten
-bestaan. In de renderer verschijnt het pilletje in dezelfde paint als de balk, en de tekenvolgorde (na de balken,
-voor de kop) knipt het vanzelf tegen de tijdschaalkop.
+bestaan. In de renderer verschijnt het pilletje in dezelfde paint als de balk, en de tekenvolgorde (na de balken en
+na de feestdagnamen, voor de kop) knipt het vanzelf tegen de tijdschaalkop en legt het over een feestdagnaam heen.
 
 ## Gevolgen
 

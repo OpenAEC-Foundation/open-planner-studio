@@ -17,7 +17,8 @@ taak zonder split is één doorlopend stuk.
 - De insnoering deelt het zichtbare deel op, met een marge van een dagbreedte en een dag. Een uurtaak van meer dan een jaar werd anders
   na de scangrens van `workIntervalsBetween` afgekapt, en elk frame bouwde de werkblokken van de hele looptijd
   (`check-split-bar-render`). Een stuk dat tegen de knip ligt, loopt door tot de echte balkrand; valt het zichtbare
-  deel helemaal in een gat, dan staat er in beeld alleen de verbindingslijn.
+  deel helemaal in een gat, dan staat er in beeld geen balkvulling en loopt de verbindingslijn door; de selectiering
+  van een geselecteerde taak blijft ook dan zichtbaar.
 - De verbindingslijn door de gaten is dun, op halve hoogte en halve dekking. Voortgang, selectiering, rode rand en
   de zichtbaarheidstest gelden voor de hele balk, niet per stuk (`check-split-bar-render`).
 - De hittest (`getTaskBarBounds`) leest de stukken die de laatste render tekende (`splitSegmentsByTask`), zolang de
