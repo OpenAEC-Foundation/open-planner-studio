@@ -709,22 +709,28 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
       eq(`${name}: uitgangspunt verricht en rest`, work(name), [960, 1920]);
       const t = taskNamed(name);
       const duration = { scheduleDuration: 8 };
-      const edited = draftWithProgress({ ...t, time: { ...t.time, ...duration } },
-        completion, S().project.statusDate, S().calendar);
-      if (route === 'dialog') {
-        ok(`${name}: opgeslagen`, saveTaskDialog({
-          editingTaskId: t.id, draft: edited, startDate: shownStart(t),
-          initialDuration: { unit: t.time.durationUnit, scheduleDuration: 6, durationMinutes: t.time.durationMinutes },
-        }));
-      } else if (route === 'sequential') {
+      if (route === 'sequential') {
         setDays(name, 8, 'store');
         S().setTaskProgress(t.id, completion);
       } else {
-        const changed = runInMcpTransaction(() => {
-          if (route === 'mcp-update') draft.updateTaskFields(t.id, { time: edited.time });
-          else draft.patchTaskFields(t.id, { time: edited.time }, duration);
-        });
-        ok(`${name}: conceptcommit geslaagd`, changed.ok);
+        const startDate = shownStart(t);
+        const initialDuration = { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes };
+        const plan = planTaskDialogProgress(S(), { ...t, time: { ...t.time, ...duration } }, startDate,
+          { field: 'completion', value: completion }, { initialDuration });
+        if (!plan.ok || !plan.change) {
+          ok(`${name}: voortgang voorbereid`, false);
+          continue;
+        }
+        const edited = plan.change.task;
+        if (route === 'dialog') {
+          ok(`${name}: opgeslagen`, saveTaskDialog({ editingTaskId: t.id, draft: edited, startDate, initialDuration }));
+        } else {
+          const changed = runInMcpTransaction(() => {
+            if (route === 'mcp-update') draft.updateTaskFields(t.id, { time: edited.time });
+            else draft.patchTaskFields(t.id, { time: edited.time }, duration);
+          });
+          ok(`${name}: conceptcommit geslaagd`, changed.ok);
+        }
       }
       eq(`${name}: duur en voortgang opgeslagen`,
         [taskNamed(name).time.scheduleDuration, taskNamed(name).time.completion], [8, completion]);
