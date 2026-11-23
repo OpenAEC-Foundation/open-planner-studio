@@ -138,8 +138,6 @@ const calView = (p: DocumentPayload) => Object.fromEntries([p.calendar, ...p.cal
   same('§3 tweede rondgang: kalenders en F5 ongewijzigd', [calView(again), dates(again)], [calView(before), dates(before)]);
 }
 
-// Knownbug 443: dezelfde taak met oude versus herberekende MPP-walks in IFC.
-// Bootst de opgeslagen data na; importeert het oorspronkelijke .mpp-bestand niet.
 {
   const source = openAndRecalc(await parseOpenedFile({ name: 'walk-basis.xml', text: XML }));
   const summary = [];
