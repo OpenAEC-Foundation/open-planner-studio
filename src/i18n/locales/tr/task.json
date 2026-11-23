@@ -385,7 +385,15 @@
       "resourceShorter": "Ek bir kaynak görevi kısaltır.",
       "resourceAddsWorkSameDuration": "Ek bir kaynak iş ekler; süre aynı kalır."
     },
-    "info": "Görev türü hakkında açıklama"
+    "info": "Görev türü hakkında açıklama",
+    "hint": {
+      "intro": "Görev türü, süre, birim (gün başına kişi) ya da iş (saat) değiştirdiğinizde uygulamanın neyi ayarlayacağını belirler.",
+      "FIXED_DURATION_RATE": "Süre ve birim sabit kalır, iş buna göre hesaplanır. Örnek: 2 kişi, 8 saatlik 5 gün = 80 saat.",
+      "FIXED_DURATION_WORK": "Süre ve iş sabit kalır, birim buna göre hesaplanır. Örnek: 80 saat iş, 5 gün, günde 8 saat = gün başına 2 kişi.",
+      "FIXED_WORK": "İş sabit kalır, süre buna göre hesaplanır. Örnek: 80 saat, 2 kişiyle 5 gün; 4 kişiyle 2,5 gün.",
+      "FIXED_RATE": "Birim sabit kalır, iş süreyi belirler. Örnek: 1 vinç, 40 saat iş = 5 gün; 80 saat iş = 10 gün.",
+      "projectDefault": "Projenin varsayılan olarak kullandığı görev türünü izler."
+    }
   },
   "properties": {
     "task": "Görev",
@@ -457,6 +465,10 @@
     "interferingFloat": "Müdahale bolluğu:",
     "criticalPath": "Kritik yol:",
     "dependencies": "İlişkiler",
+    "predecessors_one": "{{count}} öncül",
+    "predecessors_other": "{{count}} öncül",
+    "successors_one": "{{count}} ardıl",
+    "successors_other": "{{count}} ardıl",
     "addRelation": "İlişki ekle",
     "addRelationSearch": "Görev ara…",
     "addRelationConfirm": "İlişkiyi oluştur",

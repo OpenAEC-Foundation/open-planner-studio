@@ -22,9 +22,9 @@ import { loadStore } from './ifcAppRoute';
 import { installNodeFileIpc, type PlaceAnswer } from './nodeFileIpc';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
-import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { projectFileWriteTurns, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
-  previousVersionPath, replaceCopyPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
+  placeUniqueReplaceCopy, previousVersionPath, replaceCopyPath, tauriOwnFileReplaceFs, type OwnFileReplaceFs, type ReplaceRemnantsFs,
 } from '@/services/fileAccess/ownFileReplace';
 import {
   parseReplaceRecord, pendingReplaceFor, replaceRecordId, replaceRecordName, serializeReplaceRecord, settlePendingReplaces,
@@ -528,6 +528,54 @@ await check('stap 4 faalt en terugzetten ook: het record blijft, en de volgende 
 });
 
 
+await check('1816: andere programmaversie krijgt een vrije naam zonder bestaande kopieën te raken', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (versie van ander programma 2026-11-17 14.32 2).ifc';
+    const third = 'model (versie van ander programma 2026-11-17 14.32 3).ifc';
+    writeFileSync(join(c.dir, OTHER_COPY), bytes);
+    writeFileSync(join(c.dir, second), otherNew);
+    const { result } = await replace(c, await aroundPlace(1, 'before', () => writeFileSync(c.path, otherProgram)));
+    assert.deepEqual(result, { code: 'replaced', otherVersion: join(c.dir, third), leftOver: null });
+    assert.deepEqual(disk(c), { 'model.ifc': c.prepared.sha256, [OTHER_COPY]: hash(bytes), [second]: hash(otherNew), [third]: hash(otherProgram) });
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
+
+await check('1816: alleen botsing herhalen, andere uitkomsten stoppen en aantal pogingen is begrensd', async () => {
+  let attempts = 0;
+  const collision = { place: async () => { attempts++; return { code: 'target-exists' as const }; } };
+  assert.equal(await placeUniqueReplaceCopy(collision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 100);
+  attempts = 0;
+  const syncWarning = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const }
+      : { code: 'dir-not-synced' as const, message: 'test' };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(syncWarning, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'),
+    '/map/model (kopie 2).ifc');
+  assert.equal(attempts, 2, 'een geplaatste kopie niet opnieuw verplaatsen');
+  attempts = 0;
+  const uncertainAfterCollision = { place: async () => {
+    attempts++;
+    return attempts === 1 ? { code: 'target-exists' as const } : { code: 'source-changed' as const };
+  } };
+  assert.equal(await placeUniqueReplaceCopy(uncertainAfterCollision, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+  assert.equal(attempts, 2, 'onzekere toestand na botsing niet opnieuw proberen');
+  for (const code of ['source-changed', 'io', 'refused', 'unsupported'] as const) {
+    attempts = 0;
+    const fs = { place: async () => {
+      attempts++;
+      if (code === 'io' || code === 'unsupported') return { code, message: 'test' };
+      if (code === 'refused') return { code, reason: 'scope' as const };
+      return { code };
+    } };
+    assert.equal(await placeUniqueReplaceCopy(fs, '/map/save-a.ops-save.tmp', '/map/model.ifc', 'kopie'), null);
+    assert.equal(attempts, 1, code);
+  }
+});
+
 await check('1832: een aangetroffen link onder de vorige naam blijft staan zonder hem te lezen', async () => {
   const c = await opened();
   try {
@@ -645,6 +693,21 @@ function fullVersionOnTarget(c: Case, restored: Awaited<ReturnType<typeof recove
   assert.equal(restored.filePath, c.path, 'en geeft het doel terug');
 }
 const sourceNow = (c: Case) => c.state.ifcSource!.sha256;
+
+await check('1816: niet opgeslagen planning krijgt bij botsing een vrije naam', async () => {
+  const c = await opened();
+  try {
+    const second = 'model (niet opgeslagen planning 2026-11-17 14.32 2).ifc';
+    writeFileSync(join(c.dir, UNSAVED_COPY), otherProgram);
+    await crashAt(c, (_b, crash) => ({ content: crash }));
+    const { notices } = await recover(c);
+    assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: hash(otherProgram), [second]: c.prepared.sha256 });
+    assert.deepEqual(notices.map(n => [n.messageKey, n.params]), [
+      ['notifications.ifcForeignReplaceUnsavedCopy', { file: c.path, copy: join(c.dir, second) }],
+    ]);
+    assert.deepEqual(recordsOnDisk(), []);
+  } finally { await tidy(c); }
+});
 
 await check('crash na stap 0: herstel vindt de oude versie; er is niets op te ruimen en het record gaat weg', async () => {
   const c = await opened();
@@ -2757,15 +2820,36 @@ for (const flag of [false, true]) {
     const projectPath = join(t.dir, 'uitgewisseld.ifc'), poolPath = join(t.dir, 'bibliotheek.ifc'), loose = join(t.dir, 'los.ifc');
     writeFileSync(loose, changedPlain);
     let outcome: ExportResult | undefined;
+    // Review ronde 5 van #1116: beide bibliotheekbestanden in de ene schrijfrij, zodat een startbestand dat intussen
+    // gelezen werd opnieuw gelezen wordt (`projectFileWriteTurns`, `check-launch-files.ts` deel J).
+    const turnsBefore = projectFileWriteTurns();
     await withPicks([projectPath, poolPath], async () => { outcome = await t.store.getState().exportProjectWithPool(); });
     assert.deepEqual(outcome, { ok: true, warnings: [] }, 'een voltooide export');
+    assert.equal(projectFileWriteTurns() - turnsBefore, 2, 'met de resourcebibliotheek: twee beurten in de schrijfrij, ook voor de bibliotheek');
+    const turnsLoose = projectFileWriteTurns();
     await withPicks([loose], () => t.store.getState().exportLibrary(t.companyId));
+    assert.equal(projectFileWriteTurns() - turnsLoose, 1, 'Bibliotheek → Exporteren: één beurt in de schrijfrij');
     assert.deepEqual(t.errors(), [], 'geen melding');
     for (const path of [poolPath, loose]) assert(readFileSync(path).toString('latin1').includes('OPS_Library'), `${basename(path)}: de bibliotheek`);
     assert.equal(hash(readFileSync(t.path)), hash(plain), 'het bestand van A is onaangeroerd');
     assert.equal(hash(readFileSync(t.target)), hash(changedPlain), 'het bestand van B is onaangeroerd');
   });
 }
+
+// Review ronde 6 van #1116: CSV, MSPDI, P6-XML en XER opent de app ook. Hun export loopt door de ene schrijfrij, net als
+// IFC: een startbestand dat tijdens de export gelezen wordt, leest daarna opnieuw (`check-launch-files.ts` deel J en L),
+// en afsluiten en de updater wachten op de export.
+await check('Exporteren naar CSV, MSPDI, P6-XML en XER onder een vrije naam: elke export is één beurt in de schrijfrij', async () => {
+  const t = await twoPlainTabs(false);
+  for (const [format, name] of [['csv', 'plan.csv'], ['mspdi', 'plan-msp.xml'], ['p6', 'plan-p6.xml'], ['xer', 'plan.xer']] as const) {
+    const path = join(t.dir, name);
+    const turns = projectFileWriteTurns();
+    await exportTo(t.store, path, format);
+    assert.equal(projectFileWriteTurns() - turns, 1, `${format}: één beurt in de schrijfrij`);
+    assert(readFileSync(path).toString('latin1').includes('Werk in tabblad A'), `${format}: de planning van A staat in het bestand`);
+  }
+  assert.deepEqual(t.errors(), [], 'geen melding');
+});
 
 await check('Knownbug 1907, flag aan: Exporteren → IFC van een document met een gebouwmodel over het bestand van een ander tabblad: geweigerd, niets geschreven', async () => {
   const t = await twoPlainTabs(true, bytes);

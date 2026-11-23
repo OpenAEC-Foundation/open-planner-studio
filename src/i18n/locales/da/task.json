@@ -385,7 +385,15 @@
       "resourceShorter": "En ekstra ressource gør opgaven kortere.",
       "resourceAddsWorkSameDuration": "En ekstra ressource tilføjer arbejde; varigheden forbliver den samme."
     },
-    "info": "Forklaring af opgavetypen"
+    "info": "Forklaring af opgavetypen",
+    "hint": {
+      "intro": "Opgavetypen afgør, hvad appen justerer, når du ændrer varigheden, tildelingsenhederne (personer pr. dag) eller arbejdet (timer).",
+      "FIXED_DURATION_RATE": "Varighed og tildelingsenheder forbliver, arbejdet følger med. Eksempel: 2 personer, 5 dage à 8 timer = 80 timer.",
+      "FIXED_DURATION_WORK": "Varighed og arbejde forbliver, tildelingsenhederne følger med. Eksempel: 80 timer på 5 dage à 8 timer = 2 personer pr. dag.",
+      "FIXED_WORK": "Arbejdet forbliver, varigheden følger med. Eksempel: 80 timer med 2 personer = 5 dage, med 4 personer 2,5 dage.",
+      "FIXED_RATE": "Tildelingsenhederne forbliver, arbejdet bestemmer varigheden. Eksempel: 1 kran, 40 timers arbejde = 5 dage, 80 timers arbejde = 10 dage.",
+      "projectDefault": "Følger den opgavetype, projektet bruger som standard."
+    }
   },
   "properties": {
     "task": "Opgave",
@@ -457,6 +465,10 @@
     "interferingFloat": "Interfererende slæk:",
     "criticalPath": "Kritisk vej:",
     "dependencies": "Afhængigheder",
+    "predecessors_one": "{{count}} foregående opgave",
+    "predecessors_other": "{{count}} foregående opgaver",
+    "successors_one": "{{count}} efterfølgende opgave",
+    "successors_other": "{{count}} efterfølgende opgaver",
     "addRelation": "Tilføj afhængighed",
     "addRelationSearch": "Søg opgave…",
     "addRelationConfirm": "Gem afhængighed",

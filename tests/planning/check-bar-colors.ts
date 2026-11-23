@@ -369,5 +369,33 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(r3.color === nextFreePaletteColor([r1, r2]), `addResource: derde resource slaat de bezette kleuren over (got ${r3.color})`);
 }
 
+// 11. Eigen werkcategorieën (issue #856): elk een eigen sleutel, naam en kleur — niet de kleur van
+//     "Overig". De kleur is die van de werksoort zelf (bewaard in bibliotheek en IFC, besluit
+//     21 november 2026); de toekenning bewaakt `check-custom-task-type-colors.ts`.
+{
+  const TYPE_FIELD = { src: 'builtin', key: 'taskType' } as const;
+  const custom = [
+    { id: 'ctt-a', name: 'Asbest', color: '#0D9488' }, { id: 'ctt-b', name: 'Groen', color: '#12ab9F' },
+    { id: 'ctt-c', name: 'Meubilair', color: '#0D9488' },
+  ];
+  const ctx: BarColorContext = { ...CTX, customTaskTypes: custom, taskTypeLabels: { ...CTX.taskTypeLabels, USERDEFINED: 'Overig' } };
+  const valueOf = (task: Task, c: BarColorContext = ctx) => resolveBarCategoryValues(task, TYPE_FIELD, c)[0];
+  const other = valueOf(mkTask('o', { taskType: 'USERDEFINED' }));
+  const asbest = valueOf(mkTask('x1', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-a' }));
+  const asbest2 = valueOf(mkTask('x2', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-a' }));
+  const groen = valueOf(mkTask('x3', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-b' }));
+  const meubel = valueOf(mkTask('x4', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-c' }));
+  ok(other.label === 'Overig' && other.key === 'USERDEFINED', 'USERDEFINED zonder eigen categorie blijft "Overig"');
+  ok(asbest.label === 'Asbest' && groen.label === 'Groen', `eigen categorie toont haar naam (kreeg ${asbest.label}, ${groen.label})`);
+  ok(asbest.key !== other.key && asbest.key !== groen.key, 'eigen categorie heeft een eigen sleutel (eigen legendaregel)');
+  ok(asbest.key === asbest2.key, 'twee taken met dezelfde eigen categorie delen sleutel en legendaregel');
+  ok(asbest.key !== meubel.key, 'twee eigen categorieën met dezelfde kleur houden elk een eigen legendaregel');
+  const got = [asbest, groen, meubel].map(v => v.color);
+  ok(got.join() === custom.map(t => t.color).join(), `eigen categorie krijgt haar bewaarde kleur, precies (kreeg ${got.join(', ')})`);
+  // Een id dat niet (meer) in de catalogus staat, valt terug op "Overig" — geen lege naam.
+  const orphan = valueOf(mkTask('x5', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-weg' }));
+  ok(orphan.key === other.key && orphan.label === 'Overig', 'onbekende eigen categorie ⇒ Overig');
+}
+
 if (failures > 0) { console.log(`bar-colors: ${failures} faalregels`); process.exit(1); }
 console.log('bar-colors: alles groen');
