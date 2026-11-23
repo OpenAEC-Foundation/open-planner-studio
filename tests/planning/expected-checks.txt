@@ -190,6 +190,7 @@ check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
 check-ifc-foreign-klok.ts matrix
 check-ifc-foreign-merge-telling.ts los
+check-ifc-foreign-ongebruikte-sleutels.ts matrix
 check-ifc-foreign-open.ts matrix
 check-ifc-foreign-oude-eigen.ts matrix
 check-ifc-foreign-pariteit.ts los

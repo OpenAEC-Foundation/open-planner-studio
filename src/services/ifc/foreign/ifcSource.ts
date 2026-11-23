@@ -28,6 +28,11 @@ export interface PreparedIfcWrite {
   readonly outputIndex?: StepIndex;
 }
 
+export interface UnusedKeysOfTask {
+  readonly taskStepId: number;
+  readonly propertyStepIds: readonly number[];
+}
+
 export interface IfcSource {
   /** De bronbytes zoals gelezen. Nooit wijzigen: sha256, stukgrenzen en klassen horen erbij. */
   readonly bytes: Uint8Array;
@@ -46,6 +51,7 @@ export interface IfcSource {
   readonly stepIds: Readonly<Record<string, number>>;
   /** Properties in een eigen pset (of property-templates in een eigen template) die de lezer niet leest (stukken). */
   readonly foreignMembers: readonly number[];
+  readonly unusedKeys?: readonly UnusedKeysOfTask[];
   /** Is er een vreemd deel: een entiteit die niet P is (§3)? */
   readonly foreign: boolean;
   /** Aantal entiteiten dat niet P is (C, A en V), voor de melding van §4.15. */

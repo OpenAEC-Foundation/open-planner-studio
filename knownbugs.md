@@ -3700,6 +3700,18 @@ en noem het in je rapport of PR-tekst.
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
      verschijnt, niet welke versie. — B
 
+2210. **VERVOLG (#804 fase 2, PR 3): ongebruikte sleutels in `OPS_Assignments` blijven alleen in de merge bewaard, en
+     een paar bronvormen weigeren nog.** De merge (een document met een vreemd deel, flag `ifcForeignContent` aan) schrijft
+     ongebruikte sleutels terug na de eigen sleutels (`.claude/rules/tauri-ifc.md`, *Ongebruikte sleutels*). Twee grenzen:
+     (1) zonder vreemd deel, met of zonder flag, schrijft de gewone writer ze niet en vallen ze bij opslaan weg, zoals op
+     main: `prepareIfcOutput` geeft zo'n document de gewone writer zonder bron. (2) Opslaan weigert nog met `niet-gedragen`
+     of `niet-eenduidig` als de writer de pset van de bron niet letterlijk kan teruggeven: een ongebruikte sleutel vóór of
+     tussen de eigen sleutels, een kale sleutel vóór de `#n`-sleutels, of een bron waarin een ander programma een
+     toewijzing wegnam die niet de laatste was (de eigen sleutels krijgen dan een ander nummer). De verliesbewaking eist
+     dezelfde namen en dezelfde volgorde in de pset. Dat is veilig (niets gaat stil verloren), maar strenger dan nodig: de
+     lezer kijkt niet naar die volgorde. Richting: de verliesbewaking laat in `OPS_Assignments` een andere volgorde en de
+     hernummering van het ontwerp (§4.2) toe. Gemeten in `check-ifc-foreign-ongebruikte-sleutels.ts` (blok "grens"). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

@@ -22,6 +22,7 @@ import { ACTIVITY_CODE_ID_SUFFIX, OWN_PSET_PROPERTY_NAMES, OWN_TEMPLATE_NAMES, P
 import { IFC_TO_RESOURCE_TYPE } from '../ifcConstants';
 import { workControlSlots } from '../ifcWorkControlSlots';
 import { ifcDateTime, WRITER_ENTITY_TYPES } from '../ifcWriter';
+import { isAssignmentKeyName } from '../assignmentKeys';
 
 export type ChunkClass = 'P' | 'C' | 'A' | 'V';
 const CLASS_NAMES: readonly (ChunkClass | undefined)[] = [undefined, 'P', 'C', 'A', 'V'];
@@ -74,7 +75,7 @@ export function classOf(c: Classification, i: number): ChunkClass | undefined {
  * v2026.7.3", maar geen release-tag schreef ze (zie het evidence-document van fase 0).
  */
 export function isOwnAssignmentKey(name: string): boolean {
-  return /^[0-9A-Za-z_$]{22}(#\d+)?$/.test(name);
+  return isAssignmentKeyName(name);
 }
 
 /** De chunksleutels van het XER-bronarchief (`ByteChunk000000`, `DiagnosticsChunk000000`). */

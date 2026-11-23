@@ -2,6 +2,7 @@ import { stepStringEnd, skipStepComment, unescapeStepQuotes } from './stepLexica
 import { parseIfcDuration } from './isoDuration';
 import { ifcCalendarBandLayout, parseIfcClock } from './ifcClock';
 import { ACTIVITY_CODE_ID_SUFFIX, milestoneWasAtDayEnd } from './ifcPsets';
+import { isAssignmentKeyName } from './assignmentKeys';
 import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
@@ -85,6 +86,7 @@ export interface IfcReadOptions {
   literalStepIds?: ReadonlySet<string>;
   planningTaskStepIds?: ReadonlySet<string>;
   stepIdsOut?: Record<string, string>;
+  unusedAssignmentKeysOut?: Map<string, string[]>;
   projectDataInSettings?: boolean;
 }
 
@@ -191,7 +193,7 @@ export function readIFC(
     if (cal.ifcTimePeriods?.[0]) cal.ifcTimePeriods[0].layout = ifcCalendarBandLayout(cal);
   }
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
-  const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
+  const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap, options.unusedAssignmentKeysOut);
   normalizeCostResources(resources, assignments);
   reconstructResourceIds(tasks, assignments);
   const libraryPoolOut: { value: import('@/types/library').CompanyPool | undefined } = { value: undefined };
@@ -2593,9 +2595,12 @@ function extractAssignments(
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
   resourceStepIdMap: Map<string, string>,
+  unusedKeysOut?: Map<string, string[]>,
 ): ResourceAssignment[] {
   const metaByTask = new Map<string, TaskAssignmentMeta>();
   const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
+  const keysByTask = unusedKeysOut ? new Map<string, { prop: StepEntity; meta?: AssignmentMeta }[]>() : undefined;
+  const usedMeta = new Set<AssignmentMeta>();
   for (const { pset, name: psetName, objectRefs } of propertySetRelations(entities, entityMap)) {
 
     if (psetName === PSET.Timephased) {
@@ -2658,14 +2663,20 @@ function extractAssignments(
         metaByTask.set(objRef, taskMeta);
       }
       const indexed: { guid: string; index: number; meta: AssignmentMeta }[] = [];
+      let taskKeys = keysByTask?.get(objRef);
+      if (keysByTask && !taskKeys) keysByTask.set(objRef, taskKeys = []);
       for (const prop of props) {
         const propName = stripQuotes(prop.args[0] || '');
         const value = parseTypedValue(prop.args[2] || '');
-        if (typeof value !== 'string') continue;
+        if (typeof value !== 'string') {
+          taskKeys?.push({ prop });
+          continue;
+        }
         const [unitsRaw, curveRaw] = value.split('|');
         const unitsPerDay = parseFloat(unitsRaw);
         const curve = isResourceCurve(curveRaw) ? curveRaw : undefined;
         const meta: AssignmentMeta = { unitsPerDay: Number.isFinite(unitsPerDay) ? unitsPerDay : 1, curve };
+        taskKeys?.push({ prop, meta });
         const m = propName.match(/^(.+)#(\d+)$/);
         if (m) {
           indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
@@ -2700,6 +2711,7 @@ function extractAssignments(
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[0] || '') : '';
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
+      if (meta) usedMeta.add(meta);
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
 
       assignments.push({
@@ -2720,6 +2732,13 @@ function extractAssignments(
     }
   }
 
+  for (const [taskRef, keys] of keysByTask ?? []) {
+    if (!taskStepIdMap.has(taskRef)) continue;
+    const unused = keys
+      .filter(({ prop, meta }) => !(meta && usedMeta.has(meta)) && isAssignmentKeyName(stripQuotes(prop.args[0] || '')))
+      .map(({ prop }) => prop.id);
+    if (unused.length > 0) unusedKeysOut!.set(taskRef, unused);
+  }
   return assignments;
 }
 

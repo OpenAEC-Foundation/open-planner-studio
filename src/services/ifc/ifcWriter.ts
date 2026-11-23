@@ -23,6 +23,7 @@ import {
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import type { ForeignSourceRecord } from './foreign/foreignSourceMark';
+import { unusedAssignmentKeyNames, type UnusedAssignmentKey } from './assignmentKeys';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
@@ -192,6 +193,7 @@ export interface WriterMergeIds {
   readonly sourceDayLagIds?: ReadonlySet<string>;
   readonly sourceBandCalendarIds?: ReadonlySet<string>;
   readonly sourceBaselineHeadGuids?: ReadonlyMap<string, string>;
+  readonly unusedAssignmentKeys?: ReadonlyMap<string, readonly UnusedAssignmentKey[]>;
 }
 
 export interface SourceTaskTime {
@@ -1496,15 +1498,22 @@ function writeAssignmentMeta(
 ): void {
   const byTask = writtenAssignmentsByTask(ctx, assignments);
   for (const task of tasks) {
-    const list = byTask.get(task.id);
-    if (!list) continue;
+    const list = byTask.get(task.id) ?? [];
+    const unused = ctx.merge?.unusedAssignmentKeys?.get(task.id) ?? [];
+    if (list.length === 0 && unused.length === 0) continue;
+    const ownNames: string[] = [];
     const props = list.map((a, index) => {
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
+      ownNames.push(propName);
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
       const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
         `IFCPROPERTYSINGLEVALUE(${ifcStr(propName)},$,IFCTEXT(${ifcStr(val)}),$)`);
       return `#${propId}`;
+    });
+    const unusedNames = unusedAssignmentKeyNames(ownNames, unused.map(key => key.name));
+    unused.forEach((key, k) => {
+      props.push(`#${addLine(ctx, `_asgn_unused_${task.id}_${k}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(unusedNames[k])},$,${key.value},$)`)}`);
     });
     const setId = addLine(ctx, `_pset_asgn_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_asgn_' + task.id))},#${ownerHistId},${ifcStr(PSET.Assignments)},$,(${props.join(',')}))`);

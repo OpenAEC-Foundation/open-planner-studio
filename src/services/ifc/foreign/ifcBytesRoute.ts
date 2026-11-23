@@ -24,6 +24,7 @@ import { readerBytes, readerOptions, type ForeignScanResult, type ForeignScanOut
 import { runForeignScan, type ForeignScanRunOptions } from './foreignScanRunner';
 import type { IfcSource } from './ifcSource';
 import type { StepScanReason } from './stepScanner';
+import { unusedKeysFromRead } from './unusedKeys';
 
 /** Grootste bron voor de bytes-route: 300 MiB. De meting van fase 0 (vraag 4) liep tot 300 MB zonder harde grens;
  *  daarboven alleen de gewone route als bewezen is dat er geen vreemd deel is. Geen nieuwe grens zonder meting. */
@@ -104,11 +105,12 @@ export async function readIfcBytesDetailed(
   }
 
   const stepIdsOut: Record<string, string> = {};
+  const unusedAssignmentKeysOut = new Map<string, string[]>();
   // Knownbug 1151: de modelweigering draait ook hier, op de tekst van de lezer (zonder V). Ziet de grammatica daar een
   // modeltype dat de scanner niet als V telde (bijv. een wand na `*⏎/`, voor de scanner commentaar), dan weigert
   // openen zoals zonder flag. Anders zou opslaan in een later fase dat stuk herschrijven en de wand wissen.
   const result = await readIFCWithXerReconstruction(readerText, labels, {
-    ...xerOptions(opts), ...readerOptions(scan), stepIdsOut,
+    ...xerOptions(opts), ...readerOptions(scan), stepIdsOut, unusedAssignmentKeysOut,
   });
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
   if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch }, scan);
@@ -117,6 +119,7 @@ export async function readIfcBytesDetailed(
   const foreignObjectCount = C + A + V;
   const stepIds: Record<string, number> = {};
   for (const [key, id] of Object.entries(stepIdsOut)) stepIds[key] = Number(id);
+  const unusedKeys = unusedKeysFromRead(unusedAssignmentKeysOut);
   const ifcSource: IfcSource = {
     bytes,
     sha256: await precomputeSha256(bytes),
@@ -126,6 +129,7 @@ export async function readIfcBytesDetailed(
     classes: scan.classes,
     stepIds,
     foreignMembers: Array.from(scan.foreignMembers),
+    ...(unusedKeys ? { unusedKeys } : {}),
     foreign: foreignObjectCount > 0,
     foreignObjectCount,
     buildingModel: scan.buildingModel,

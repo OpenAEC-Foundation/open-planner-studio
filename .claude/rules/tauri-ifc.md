@@ -290,6 +290,22 @@ projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen (li
 is PR B van stap 5 deel 2, geparkeerd (knownbug 1953). Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 
+### Ongebruikte sleutels in `OPS_Assignments` (#804 fase 2, PR 3)
+
+Een sleutel in GlobalId-vorm (`isAssignmentKeyName` in `src/services/ifc/assignmentKeys.ts`, ook de herkenner achter
+`isOwnAssignmentKey` in `classify.ts`) die de lezer aan geen toewijzing koppelt, is ongebruikt: meer `#n`-sleutels dan
+toewijzingen van die resource, een kale sleutel naast genoeg `#n`-sleutels, of een waarde die geen tekst is.
+`extractAssignments` meldt ze via `unusedAssignmentKeysOut`; de bytes-route zet ze in `ifcSource.unusedKeys` (taak-`#id`
+met de property-`#id`'s, in psetvolgorde). Alleen de merge schrijft ze terug: `unusedKeysForWriter`
+(`foreign/unusedKeys.ts`) leest naam en waardetoken uit de bron, en `writeAssignmentMeta` schrijft ze na de eigen sleutels,
+met de namen van `unusedAssignmentKeyNames`: een `#n` onder de nummers die de writer zelf schrijft, schuift naar het
+eerste vrije nummer erboven, zodat de wachtrij van de lezer niet verschuift; een kale sleutel houdt haar naam. Heeft de
+taak geen toewijzingen meer, dan krijgt ze een pset met alleen deze sleutels. `unusedKeysProblem` in `checkedBytes` eist
+per bestaande taak dezelfde waarden in de herlezing van de uitvoer (anders `uitvoer-controle`); de nieuwe bron neemt de
+lijst uit die herlezing. Een gewiste taak neemt haar sleutels mee; melding en `detached` volgen in PR 6 en 7. Zonder vreemd
+deel schrijft de gewone writer ze niet, zoals op main; een paar bronvormen weigeren nog (knownbug 2210). Proef:
+`check-ifc-foreign-ongebruikte-sleutels.ts`.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,

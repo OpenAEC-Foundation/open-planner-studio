@@ -51,7 +51,8 @@ import {
 } from './lossCheck';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
-import type { IfcSource, PreparedIfcWrite } from './ifcSource';
+import type { IfcSource, PreparedIfcWrite, UnusedKeysOfTask } from './ifcSource';
+import { unusedKeysForWriter, unusedKeysFromRead, unusedKeysProblem } from './unusedKeys';
 import { readFileSchemaName } from '../ifcReader';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { scanForeignStep } from './oldOwnHeader';
@@ -381,7 +382,8 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
   // ── 1. Wat de bron zelf al uitsluit ──
   for (const i of cls.foreignOrigin) caseAt('vreemde-herkomst', i, `${label(i)} heeft de owner history van een ander programma`);
   const ids = mergeIdPlan(index, cls, source.stepIds, input.calendar.id, source.bytes);
-  const { plan, keep, bySource, reserved, baselineHeads, projects } = ids;
+  const { keep, bySource, reserved, baselineHeads, projects } = ids;
+  const plan: WriterMergeIds = { ...ids.plan, unusedAssignmentKeys: unusedKeysForWriter(source, index) };
   if (projects.length > 1) caseAt('meer-projecten', projects[1], `${projects.length} keer IfcProject`);
   // Een verstopt stuk vóór een P-stuk (#886): het commentaar ervóór gaat met het P-stuk weg.
   for (let i = 0; i < n; i++) {
@@ -878,7 +880,7 @@ export async function prepareIfcWrite(input: WriteIFCInput, source: IfcSource, p
       if (id >= 0) classes[k] = written.has(id) ? 1 : cls.classes[index.chunkOf(String(id))];
     }
     const members = cls.foreignMembers.map(c => actual.index.chunkOf(index.id(c)));
-    const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members);
+    const next = await writtenSource(input, actual.bytes, actual.scan, stepIds, classes, members, actual.unusedKeys);
     // Alleen de nieuwe buffer blijft via het resultaat vastgehouden; de oude bron kan na commit weg.
     return { bytes: actual.bytes, sha256: next.sha256, source: next, literalCalendarIds: built.literalCalendarIds };
   }
@@ -917,13 +919,14 @@ function writerStepIds(input: WriteIFCInput, idMap: ReadonlyMap<string, number>,
 
 /** De scanner levert grenzen; eigendom, leden en sessie-identiteit komen van het schrijfplan. */
 async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: ForeignScanResult,
-  stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[]): Promise<IfcSource> {
+  stepIds: Readonly<Record<string, number>>, classes: Uint8Array, foreignMembers: readonly number[],
+  unusedKeys?: readonly UnusedKeysOfTask[]): Promise<IfcSource> {
   const schemaName = readFileSchemaName(new TextDecoder().decode(bytes.subarray(0, scan.chunkStarts[1])));
   if (!schemaName) throw new Error('mergeWriter: de geschreven kop mist het schema');
   const foreignObjectCount = classes.reduce((count, c) => count + (c > 1 ? 1 : 0), 0);
   return {
     bytes, sha256: await precomputeSha256(bytes), schemaName,
-    chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
+    chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers, ...(unusedKeys ? { unusedKeys } : {}),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }
@@ -964,11 +967,12 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   let shown: WriteIFCInput, wanted: WriteIFCInput;
   let parsed: WriteIFCInput;
   let outputScan: ForeignScanResult;
+  const writtenUnusedKeys = new Map<string, string[]>();
   try {
     actual = validateMergeOutput(index, cls, source.bytes, bytes);
     if (actual.problems.length) throw new MergeNeedsPhase2Error(actual.problems.map(detail => ({ kind: 'uitvoer-controle', detail })));
     outputScan = foreignScanFrom(actual.index, actual.classification, bytes);
-    parsed = await pristineFromScan(outputScan, bytes, opened.project) as WriteIFCInput;
+    parsed = await pristineFromScan(outputScan, bytes, opened.project, writtenUnusedKeys) as WriteIFCInput;
     // ImportResult draagt ook TimeModel en opgeslagen datums: de echte openactie beslist daarover.
     shown = openMergePlanning(freeze(structuredClone(parsed), true), 'uitvoer');
     wanted = openMergePlanning(input, 'domein');
@@ -976,6 +980,9 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
     if (e instanceof MergeNeedsPhase2Error) throw e;
     throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: `uitvoer scannen of heropenen: ${String(e)}` }]);
   }
+  const unusedKeys = unusedKeysFromRead(writtenUnusedKeys);
+  const unusedProblem = own && unusedKeysProblem(source, index, input.tasks.map(t => t.id), unusedKeys, actual.index, own.stepIds);
+  if (unusedProblem) throw new MergeNeedsPhase2Error([{ kind: 'uitvoer-controle', detail: unusedProblem }]);
   if (probe) {
     for (const [side, probeOpened] of [['uitvoer', shown], ['domein', wanted]] as const) {
       const copy = freeze(structuredClone(probeOpened), true);
@@ -1001,7 +1008,7 @@ async function checkedBytes(bytes: Uint8Array, input: WriteIFCInput, source: Ifc
   // (c), als laatste: wat hiervoor al weigerde, houdt zijn soort.
   const problem = own ? ownOutputProblem(bytes, actual.index, actual.classification, index, cls, parsed, input, own) : undefined;
   if (problem) throw new MergeNeedsPhase2Error([{ kind: 'eigen-uitvoer', detail: problem }]);
-  return { bytes, index: actual.index, scan: outputScan };
+  return { bytes, index: actual.index, scan: outputScan, unusedKeys };
 }
 
 /**
