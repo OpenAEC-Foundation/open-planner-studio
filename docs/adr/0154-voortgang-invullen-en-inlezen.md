@@ -16,7 +16,7 @@ commit, `commitProgressEdit`. Wat een bewerking met de taak doet, beslist `planP
   op de invoer. Het contextmenu toetst opvolgers op dezelfde uitkomst. Reden: een selectie kan taken bevatten die al op
   de gekozen waarde staan, en een slider of datumveld meldt dezelfde waarde soms nog eens. Een bewerking zonder
   wijziging maakt dan geen undo-stap en raakt de undo-samenvoeging niet, zodat een lopende slidersleep één stap
-  blijft. Wanneer de commit geen wijziging ziet, staat in `planStoredProgressEdit`.
+  blijft.
 - Gaat de statusdatum op vandaag, dan gebeurt dat in dezelfde undo-stap als de voortgang; de melding
   `statusDateSetToday` volgt na de producer.
 - We maken de planning bij een vastgelegde voortgangswijziging verouderd, ook zonder statusdatum, omdat voortgang
@@ -29,5 +29,7 @@ commit, `commitProgressEdit`. Wat een bewerking met de taak doet, beslist `planP
   staat in de functie; een botsing zonder keuze houdt het hele blad tegen (eigenaarsbesluit 2026-10-30, regel
   `import-export`).
 - Met `today` (`ProgressImportEntryOptions`, de route van `ProgressImportDialog`) gelden voor het blad de regels van
-  `progressImportDeps`, met dezelfde vraag naar een werkelijke start (`actualStartQuestionFor`) als bij invullen.
+  `progressImportDeps`, met dezelfde toets op een ontbrekende werkelijke start (`actualStartQuestionFor`) als bij
+  invullen. De uitkomst verschilt: bij invullen vraagt het paneel om de datum, bij het blad wordt de rij geweigerd
+  (`actualStartRequired`), want de werkelijke start hoort dan in het blad te staan.
 - Tests: `check-progress-entry.ts`, `check-progress-import.ts`.

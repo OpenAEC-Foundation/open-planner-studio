@@ -2,7 +2,7 @@
 
 De boom van een planning staat op drie plekken: `parentId` per taak, de `childIds` van een ouder en de volgorde van
 de rauwe lijst `tasks`. Ze worden elk door iets anders gelezen. De weergave (`computeViewRows` in
-`engine/view/visibleRows.ts`) neemt de kinderen van een ouder in de volgorde van `childIds` en de taken op het hoogste
+`engine/view/visibleRows.ts`) neemt in de zuivere boomweergave, zonder actieve sortering, de kinderen van een ouder in de volgorde van `childIds` en de taken op het hoogste
 niveau in de volgorde van de rauwe lijst. De WBS-nummering loopt via `flattenOrder` (`utils/wbs.ts`), die kinderen op
 `parentId` groepeert in de volgorde van de rauwe lijst en `childIds` niet leest. We houden die drie plekken en kiezen
 niet één bron, omdat de weergave en de nummering elk op hun eigen bron leunen. Een actie die de volgorde verandert,
