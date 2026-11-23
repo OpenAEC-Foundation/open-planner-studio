@@ -898,16 +898,19 @@ export class CPMSolver {
     return Math.max(0, totalAxisMinutes - completedAxisMinutes) / perUnit;
   }
 
+  private levelingDelayMinutesUseElapsedTime(task: Task): boolean {
+    return isElapsedTask(task) || task.levelingDelayElapsed === true;
+  }
+
   private shiftByLevelingDelay(eng: CalendarEngine, task: Task, date: Date, sign: 1 | -1): Date {
-    const taskElapsed = isElapsedTask(task);
     if (task.levelingDelayMinutes) {
-      if (taskElapsed || task.levelingDelayElapsed) {
+      if (this.levelingDelayMinutesUseElapsedTime(task)) {
         return addElapsedMinutes(date, sign * task.levelingDelayMinutes);
       }
       return eng.addWorkingMinutesSigned(date, sign * task.levelingDelayMinutes);
     }
     if (task.levelingDelay) {
-      return taskElapsed
+      return isElapsedTask(task)
         ? addElapsedMinutes(date, sign * task.levelingDelay * 24 * 60)
         : eng.addWorkingDaysSigned(date, sign * task.levelingDelay);
     }
@@ -922,7 +925,9 @@ export class CPMSolver {
     if (!hasPredecessors || !task.levelingDelayMinutes) return start;
     const shifted = this.shiftByLevelingDelay(eng, task, start, 1);
     if (isElapsedTask(task)) return shifted;
-    return task.levelingDelayElapsed ? this.snapOnOrAfter(eng, shifted) : this.snapSuccessorEarlyStart(eng, shifted, task);
+    return this.levelingDelayMinutesUseElapsedTime(task)
+      ? this.snapOnOrAfter(eng, shifted)
+      : this.snapSuccessorEarlyStart(eng, shifted, task);
   }
 
   private leveledFinishConstraint(
@@ -935,8 +940,9 @@ export class CPMSolver {
     if ((!startFinish && seq.type !== 'FINISH_FINISH') || !early || !dataDate
       || this.options.schedulingOptions.unstartedIgnoresStatusDate
       || pred.time.completion !== 0 || pred.time.actualStart || pred.time.actualFinish
-      || (succ.levelingDelay ?? 0) <= 0 || (succ.levelingDelayMinutes ?? 0) <= 0 || succ.levelingDelayElapsed
-      || succ.manuallyScheduled || succ.time.completion !== 0 || succ.time.actualStart
+      || (succ.levelingDelay ?? 0) <= 0 || (succ.levelingDelayMinutes ?? 0) <= 0
+      || this.levelingDelayMinutesUseElapsedTime(succ)
+      || !this.seqConstraint.has(seq.id) || succ.time.completion !== 0 || succ.time.actualStart
       || isZeroDurationMilestone(succ) || (succ.isMilestone && succ.milestoneKind === 'START') || !this.countsInWorkdays(succ)
       || this.hardPinStart(succ, succCal) || this.hardPinFinish(succ, succCal)
       || dataDate > late.ls || this.finishFromStart(succCal, dataDate, succ) > late.lf) return undefined;
