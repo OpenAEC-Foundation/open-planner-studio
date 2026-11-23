@@ -624,14 +624,6 @@ en noem het in je rapport of PR-tekst.
      een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
      paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
      gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
-1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
-     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
-     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
-     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
-     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
-     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
-     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
-     resource overbezet (issue #1161). — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
      (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
      `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
