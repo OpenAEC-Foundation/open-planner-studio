@@ -19,10 +19,11 @@ Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootst
   de code staan.
 - Je beoordeelt elk blok zelf, met de code erbij. Weghalen zonder lezen is geen uitvoering van deze skill.
 - Kennis gaat niet verloren. Een besluit dat nergens anders staat, staat in een ADR vóór het commentaar weg is.
-- Een ADR beweert alleen wat je in de code hebt gezien, met de grens erbij: dag of moment, eerste of laatste, welke
-  tak, welke route. Tien precieze commentaren samenvatten tot één algemene regel geeft een regel die net niet
-  klopt. Liever een smalle, ware regel dan een algemene garantie; toets elke stellige zin aan de code en aan de test
-  die het gedrag vasthoudt.
+- Een ADR legt het besluit en de reden vast. Voor de precieze regel verwijst hij naar de functie, de toets of het
+  contract (een gids in `docs/`, een regel in `.claude/rules/`); hij vertelt die regel niet in eigen woorden na, want
+  zo'n samenvatting is algemener dan de code. Wat je toch beweert, heb je zelf in de code gezien, met de grens erbij:
+  welk geval, welke tak, welke route.
+- Geen regelnummers in een ADR of in `knownbugs.md`: noem de functie of het bestand.
 - Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
 
 ## Stap 1. Meten en lezen
