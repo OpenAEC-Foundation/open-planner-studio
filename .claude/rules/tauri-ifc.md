@@ -122,6 +122,15 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 
 **GlobalIds** (audit 2026-09-26). Eén uitgiftepunt: `guidOf` in `ifcWriter.ts`, voor objecten via `objectGuid(ctx, soort, id)` met seed `ifcObjectSeed(soort, id)` (`task:`, `res:`, `cal:`, `seq:`, `proj:`): uit XER kunnen taak, relatie en kalender hetzelfde kale getal als id dragen, en zonder soort deelden ze een GlobalId. Elk object uit een ingelezen IFC houdt zijn GlobalId uit dat bestand: `readIFC` levert `ifcGlobalIds` (seed → GlobalId), dat reist als documentveld mee en `buildWriteIFCInput` geeft het aan de writer. Nieuwe objecten krijgen `ifcGuid128(seed)`: 128 bits, IFC-vorm, deterministisch (dus bij elk opslaan gelijk). Hulpentiteiten (`guidOf`: psets, rels, werkschema's) en de projectkalender (`cal-default`, in elk project hetzelfde id) hashen met het project-id als zout (`auxSalt`), zodat twee projecten geen GlobalId delen; geen lezer rekent die na. Id's: taken via OPS_TaskIdentity of `task-ifc-<GlobalId>`; resources, bibliotheekkalenders en relaties via `stableIdFromGuid` (`res-ifc-`, `rescal-ifc-`, `seq-ifc-<GlobalId>`, dubbel ⇒ `-dup-N`), dus gelijk bij elk openen; de projectkalender blijft `cal-default`. Een in de app gemaakt object krijgt bij het eerste heropenen zo nog één keer een ander id; verwijzingen daarnaar in JSON (contour, nivelleren) lopen via `mappedResourceId` (zelfde id, anders `ifcGuid128`, anders de oude 32-bits `ifcGuid` voor bestanden van vóór deze wijziging). Toets: `check-ifc-globalid`.
 
+### De IFC-lezer (`ifcReader.ts`)
+
+Besluiten van de lezer: `docs/adr/0040-ifc-lezen-integriteitspoort.md`, `0041-step-tekstscan-quote-bewust.md`,
+`0042-ifc-lezen-leeg-is-een-uitspraak.md`, `0043-ifc-lezen-uurmodus-kalender.md`,
+`0044-ifc-lezen-welke-taken-en-kalenders.md`, `0045-ifc-lezen-toewijzingen.md`,
+`0046-ifc-lezen-verwijzingen-terugvinden.md`, `0047-ifc-lezen-ops-sequences-een-bron.md`,
+`0048-xer-vastlegging-via-bronreconstructie.md`, `0049-ifc-lezen-opties-van-de-bytesroute.md` en
+`0050-ifc-lezen-oude-en-vreemde-vormen.md`.
+
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
