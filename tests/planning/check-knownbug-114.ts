@@ -1,4 +1,3 @@
-// Knownbug 114: diagnose van STARTED op 100%, met expliciete rest en zonder werkelijk einde.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
