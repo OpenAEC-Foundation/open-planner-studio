@@ -17,7 +17,6 @@ export function openDb(dbName: string, storeName: string, keyPath = 'id'): Promi
   if (existing) return existing;
   const p: Promise<IDBDatabase> = new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, 1);
-    // Een late gebeurtenis hoort bij deze aanvraag, niet bij een intussen gestarte poging.
     const forget = () => { if (dbPromises.get(cacheKey) === p) dbPromises.delete(cacheKey); };
     // Geblokkeerd (een andere verbinding houdt de aanmaak tegen): meteen een fout, zodat de `idb*`-helpers hun
     // stille terugval nemen in plaats van eindeloos te wachten. Opent hij later toch, dan sluiten we die

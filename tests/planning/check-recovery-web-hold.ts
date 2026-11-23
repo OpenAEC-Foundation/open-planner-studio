@@ -748,7 +748,6 @@ await afterClose;
 eq('IDB onverwacht sluiten: volgende aanroep opent opnieuw', openCount, 6);
 openings[5]!.request.result.onversionchange?.();
 
-// Knownbug 990: ook de helper met één store houdt de nieuwe aanvraag na een late fout van de oude.
 openings = Array.from({ length: 3 }, makeOpening);
 openCount = 0;
 const openSingle = () => openDb('single-store-open-lifecycle', 'records');
@@ -765,7 +764,6 @@ eq('990 openDb: late fout kan de nieuwe aanvraag niet uit de cache halen', [stil
 openings[1]!.request.onsuccess?.();
 eq('990 openDb: de nieuwe verbinding blijft beschikbaar',
   [Object.is(await retrySingle, openings[1]!.request.result), openSingle() === retrySingle], [true, true]);
-// Laat ook bij een regressie geen onafgehandelde derde aanvraag achter.
 if (stillRetry !== retrySingle) {
   openings[2]!.request.onsuccess?.();
   await stillRetry;
