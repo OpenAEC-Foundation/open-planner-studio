@@ -1314,6 +1314,43 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq(`T2 ${how} flag ${flag ? 'aan' : 'uit'}: één lezing`, seq.filter(e => e === 'lees').length, 1);
   }
 
+  // Route P (review #1121 ronde 5) in de browser: de proef houdt de `isSameEntry` van de toets vast (tot het activeren;
+  // `pushRecent` daarna gaat zoals main). De openactie wacht er niet op: met een nieuw handle-object (Openen, Recent,
+  // slepen) is er zonder identiteit geen treffer, dus een eigen tabblad, zonder melding; de late uitkomst doet niets.
+  for (const how of ['openen', 'recent', 'slepen'] as const) {
+    const st = newStore(true);
+    const S = () => st.getState();
+    await openVia(st, 'openen');
+    st.getState().newDocument();
+    await openVia(st, 'openen', 'school.ifc');
+    const sameEntry = FakeHandle.prototype.isSameEntry;
+    const hold = gate();
+    let holding = true, held = 0;
+    FakeHandle.prototype.isSameEntry = async function (this: FakeHandle, other: unknown) {
+      if (holding) { held++; await hold.wait; }
+      return sameEntry.call(this, other);
+    };
+    const unsubscribe = st.subscribe((next, previous) => { if (next.activeDocumentId !== previous.activeDocumentId) holding = false; });
+    clearNotices(st);
+    const count = S().documents.length;
+    const opening = openVia(st, how);
+    try {
+      const done = await Promise.race([opening.then(() => true), new Promise<boolean>(r => setTimeout(() => r(false), 300))]);
+      const atDone = [S().documents.length - count, S().project.name, notices(st).filter(n => n[1] === ALREADY_OPEN).length];
+      eq(`P1 browser ${how}: isSameEntry vastgehouden; de openactie wacht er niet op`, [held > 0, done, ...atDone], [true, true, 1, 'Kantoor', 0]);
+      hold.open();
+      await opening;
+      await new Promise(r => setTimeout(r, 20));
+      eq(`P1 browser ${how}: de late uitkomst doet niets meer`,
+        [S().documents.length - count, S().project.name, notices(st).filter(n => n[1] === ALREADY_OPEN).length], atDone);
+    } finally {
+      hold.open();
+      FakeHandle.prototype.isSameEntry = sameEntry;
+      unsubscribe();
+      await opening.catch(() => undefined);
+    }
+  }
+
   // Met de flag uit: precies main.
   const offStore = newStore(false);
   const O = () => offStore.getState();
