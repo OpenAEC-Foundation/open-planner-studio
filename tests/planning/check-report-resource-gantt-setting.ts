@@ -28,7 +28,6 @@ expect('… en de overige voorkeuren blijven staan', zonderBlok.showLegend, fals
 localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { pageBreakPerResource: 'ja', includeUnassigned: true } }));
 const rommel = await loadReportSettings();
 expect('rommel in één veld ⇒ alleen dat veld terug op de default', rommel.resourceGantt, { pageBreakPerResource: false, includeUnassigned: true, groupByType: false, showAssignmentColumns: true });
-// De periode is sinds #997 het tijdvak van de hele Gantt-afdruk: `check-report-gantt-period.ts`.
 localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: 'aan' }));
 expect('rommel in het hele blok ⇒ defaults', (await loadReportSettings()).resourceGantt, DEFAULT_RESOURCE_GANTT_OPTIONS);
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceDiagram' }));

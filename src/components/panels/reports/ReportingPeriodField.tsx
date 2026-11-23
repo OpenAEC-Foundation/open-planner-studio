@@ -41,7 +41,6 @@ interface Props {
    * zijbalk van het Rapport-tabblad (#817; fixronde na council ronde 5).
    */
   compact?: boolean;
-  /** Dezelfde keuze opnieuw gekozen (de Gantt-afdruk: een openstaande oude periode wissen, #997). */
   onReselect?: (current: ReportingPeriod) => void;
 }
 

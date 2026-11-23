@@ -178,7 +178,6 @@ export function useStudioPrintOptions(
       companyName,
       taskNameColumnWidth: settings.truncateTaskNames ? settings.taskNameColumnWidth : (autoNameWidth ?? settings.taskNameColumnWidth),
       labels: {
-        // Resourcediagram zonder toewijzing, of niets in het tijdvak: zeg wat er ontbreekt, niet "geen taken".
         noTasks: resource && tasks.length > 0
           ? (resource.result.counts.inPeriod === 0 && resource.result.counts.outsidePeriod > 0 ? t('resourceGantt.emptyPeriod') : t('resourceGantt.empty'))
           : rowSource.window && tasks.length > 0 && reportRows?.length === 0 ? t('resourceGantt.emptyPeriod') : t('noTasks'),

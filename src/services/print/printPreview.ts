@@ -450,12 +450,6 @@ export interface PrintRow {
   assignment?: RowAssignment;
 }
 
-/**
- * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (volg-weergave) tekent het rapport
- * precies die rijen — filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders:
- * de volledige takenboom (`taskTreeRows`), met wezen zonder gevonden ouder achteraan.
- * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
- */
 export function buildPrintRows(
   tasks: Task[],
   rows: ViewRow[] | undefined,
@@ -916,17 +910,6 @@ export interface PrintOptions {
    * `timelineColumns` moet krijgen. Default 1 = alles op één paginabreedte.
    */
   timelineColumns?: number;
-  /**
-   * OPTIONEEL — het TIJDVAK van de Gantt-afdruk (#997; eerder alleen de rapportageperiode van het
-   * resourcediagram): de tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de
-   * gebruikelijke marge van 7/14 dagen, en balken, mijlpalen, speling, voortgang, baseline en
-   * relatielijnen worden op de chartrand afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf
-   * wordt geklemd (ook de 3 px-minimumbreedte van een balk en het middelpunt van een ruit; een
-   * relatielijn per recht stuk, een pijlpunt alleen als hij helemaal in het venster valt). Welke
-   * rijen in het venster horen beslist de rijenbron (`within` van `computeViewRows`, `treeRowsInPeriod` of `computeResourceGanttRows`
-   * bij het resourcediagram), niet de render; een rij die er toch buiten valt tekent gewoon geen
-   * balk. Afwezig ⇒ geen venster.
-   */
   timeWindow?: { from: string; to: string };
   /**
    * OPTIONEEL — TOEWIJZINGSKOLOMMEN (resourcediagram): twee extra
@@ -1324,8 +1307,6 @@ export function renderReport(
   const printRows = buildPrintRows(tasks, options.rows, assignmentColumns ? options.rowAssignments : undefined);
   const printedTasks = printRows.flatMap(r => (r.kind === 'task' && r.task ? [r.task] : []));
 
-  // Met een tijdvak kan er een ingeklapte groepsband zonder taakrij op papier staan (#997): dan is er wel iets te
-  // tekenen, en de tijdas komt uit het tijdvak.
   if (printedTasks.length === 0 && !(options.timeWindow && printRows.length > 0)) {
     const d2d = makeDraw2D(600, 200);
     d2d.fillStyle = PRINT_COLORS.bg;
@@ -1347,7 +1328,6 @@ export function renderReport(
   // Compute date range
   let minMs = 8640000000000000;
   let maxMs = 0;
-  // Over de taken uit de store (een bevroren taak komt uit de cache van `taskDayRange`).
   for (const row of printRows) {
     if (row.kind !== 'task' || !row.task) continue;
     const days = taskDayRange(row.task);
@@ -1444,15 +1424,10 @@ export function renderReport(
   // is dit de identiteit.
   const windowed = !!options.timeWindow;
   const clampX = (x: number) => (windowed ? Math.min(canvasWidth, Math.max(m.tableWidth, x)) : x);
-  // Tijdvenster: valt een stuk [start, einde) in de TIJD binnen het venster? Beslis dat niet op de geklemde x:
-  // op de werkdagas valt een stuk in niet-werktijd (een zondagtaak op een weekendkalender) tot één punt samen.
-  // Het hoort dan wel in het venster en krijgt de minimumbreedte, net als zonder venster.
   const windowFromMs = minDate.getTime();
   const windowToMs = maxDate.getTime();
   const inWindowTime = (start: Date, endExclusive: Date) => endExclusive.getTime() > windowFromMs && start.getTime() < windowToMs;
   const barInWindow = (bar: TaskBarSpan | null) => !!bar && inWindowTime(bar.start, bar.hourMode ? bar.end : addCalendarDays(bar.end, 1));
-  // Een mijlpaal: een tijdstip in [van, tot), of een dag die in het venster valt. Ook hier beslist de tijd: op de
-  // werkdagas valt een zondag samen met de rand, en het dagmidden ligt dan buiten het chartgebied.
   const momentInWindow = (moment: { date: Date; hourMode: boolean } | null) => !!moment && (moment.hourMode
     ? moment.date.getTime() >= windowFromMs && moment.date.getTime() < windowToMs
     : inWindowTime(moment.date, addCalendarDays(moment.date, 1)));
@@ -1644,14 +1619,9 @@ export function renderReport(
     const statusDay = parseDate(options.statusDate);
     const statusInstant = statusDateInstant(options.statusDate, statusUsesTime);
     const rawStatusX = dateToX(statusInstant);
-    // Bij een tijdvak beslist de datum, niet de x: op de werkdagas valt een zondag samen met de maandag erna, dus een
-    // statusdatum vlak vóór het tijdvak lag op de linkerrand en een zondag als laatste dag op de rechterrand. Een
-    // statusdatum in het tijdvak staat er altijd, op de rand geklemd. Zonder tijdvak de zichtbaarheidsregel van vandaag.
     const statusVisible = windowed
       ? momentInWindow({ date: statusUsesTime ? statusInstant : statusDay, hourMode: statusUsesTime })
       : rawStatusX > m.tableWidth && rawStatusX < canvasWidth;
-    // Geklemd met de halve lijndikte (1,5) plus de halve tabelrand (1) naar binnen: de tabel en haar rand worden ná
-    // de lijn getekend en overschilderden een lijn precies op de rand (statusdatum op de eerste dag).
     const statusInset = 1.25;
     statusLineX = windowed ? Math.min(canvasWidth - statusInset, Math.max(m.tableWidth + statusInset, rawStatusX)) : rawStatusX;
     if (statusVisible) {
@@ -1790,10 +1760,6 @@ export function renderReport(
       const x = milestoneAnchorX(task, dateToX, zoom) ?? Number.NaN;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
-      // Tijdvenster: valt het moment van de mijlpaal buiten het venster, dan geen ruit (een naar binnen
-      // geklemde ruit zou een dag suggereren waarop ze niet valt). Valt het erin, dan wordt een ruit op de
-      // rand met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of over de
-      // rechterrand hangt; op de werkdagas ligt een zondag op de rand en haar dagmidden erbuiten.
       const inWindow = !windowed || momentInWindow(milestoneMoment(task));
       const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
@@ -1826,12 +1792,10 @@ export function renderReport(
       const rawX1 = bar?.x1 ?? Number.NaN;
       const rawX2 = bar?.x2 ?? Number.NaN;
       // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
-      // een echt begin/einde suggereren). Valt de hele haak in de tijd buiten het venster, dan niets.
+      // een echt begin/einde suggereren). Valt de hele haak buiten het venster, dan niets.
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
       if (windowed && !barInWindow(bar)) continue;
-      // Bij een venster dezelfde minimumbreedte als een gewone balk: naar binnen geschoven, niet afgeknepen. De
-      // haakjes blijven ook binnen het chartgebied.
       let sx1 = x1;
       let width = windowed ? x2 - x1 : Math.max(x2 - x1, 3);
       if (windowed && width < 3) {
@@ -1886,8 +1850,8 @@ export function renderReport(
       const rawX2 = bar?.x2 ?? Number.NaN;
       const width = Math.max(rawX2 - rawX1, 3);
       // Tijdvenster: de balkuiteinden geklemd op het chartgebied; de voortgangsgrens en de
-      // speling hieronder klemmen op dezelfde manier. Een balk die in de tijd helemaal buiten het
-      // venster valt tekent niets (ook geen label).
+      // speling hieronder klemmen op dezelfde manier. Een balk die helemaal buiten het venster
+      // valt tekent niets (ook geen label).
       const x1 = clampX(rawX1);
       const x2 = clampX(rawX2);
       if (windowed && !barInWindow(bar)) continue;
@@ -1908,12 +1872,9 @@ export function renderReport(
         const rx2 = i === segments.length - 1 ? rawX2 : dateToX(s.end);
         return { rx1, rx2, x1: clampX(rx1), x2: clampX(rx2) };
       });
-      // Bij één stuk besliste `barInWindow` al; een werkblok van een onderbroken balk telt in de tijd.
       const segs = allSegs.filter((s, i) => !windowed || segments.length === 1 || s.x2 > s.x1 || inWindowTime(segments[i].start, segments[i].end));
       const split = allSegs.length > 1;
 
-      // De verbindingslijn loopt van het eerste tot het laatste werkblok van de hele taak, en wordt bij een venster
-      // apart afgekapt: een tijdvak dat in een onderbreking begint of eindigt, houdt het zichtbare stuk ervan.
       if (split) {
         const lineFrom = allSegs[0].x2;
         const lineTo = allSegs[allSegs.length - 1].x1;
@@ -2044,7 +2005,6 @@ export function renderReport(
   // In de vector-PDF staat tekst sowieso boven alle vormen (vormen gaan in het gedeelde
   // Form-XObject, tekst wordt daarná per tegel geëmit); deze volgorde brengt de RASTER-preview
   // daarmee in lijn, want die twee horen WYSIWYG te zijn.
-  // Bij een tijdvenster kapt `drawDependencies` elke lijn af op het chartgebied (#997).
   if (options.showDeps) {
     // Volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
     // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
@@ -2452,8 +2412,6 @@ function drawTimelineHeader(
       const x = dateToX(date);
       const dow = isoDayOfWeek(date);
       const dayNum = date.getUTCDate();
-      // Weekenddagen krijgen een cijfer op de werkdagas en bij een tijdvak (anders zijn een afdruk van alleen zaterdag
-      // en een van alleen zondag gelijk); op de gewone kalenderas van de hele planning niet.
       if (compressed || options.timeWindow || (dow !== 6 && dow !== 7)) {
         d2d.fillStyle = PRINT_COLORS.textSecondary;
         d2d.font = m.font(7);
@@ -2746,7 +2704,6 @@ function drawDependencies(
   rowIndexOf: Map<string, number>,
   /** Rijvenster: tekent de relatie tussen de rijen `lo` en `hi` (lo ≤ hi)? Ontbreekt ⇒ alles. */
   spanDrawn?: (lo: number, hi: number) => boolean,
-  /** Tijdvenster: de x-grenzen van het chartgebied; elke lijn wordt daarop afgekapt. Ontbreekt ⇒ niet afkappen. */
   clipX?: readonly [number, number],
 ) {
   d2d.lineWidth = 1.2;
@@ -2834,8 +2791,7 @@ function drawDependencies(
     if (!strokeRoute(d2d, route, clipX)) continue;
 
     // Arrowhead (filled triangle) — een `fill` negeert het dash-patroon, dus ook een niet-bepalende
-    // relatie houdt een massieve pijlpunt (net als op het scherm). Bij een tijdvenster alleen als hij
-    // er helemaal in valt: een halve pijlpunt aan de rand wijst nergens heen.
+    // relatie houdt een massieve pijlpunt (net als op het scherm).
     const headX = toX + dirIn * 5;
     if (clipX && (Math.min(toX, headX) < clipX[0] || Math.max(toX, headX) > clipX[1])) continue;
     d2d.beginPath();
@@ -2853,12 +2809,6 @@ function drawDependencies(
 }
 
 
-/**
- * Tekent een relatieroute: een reeks rechte stukken, elk horizontaal of verticaal. Met `clipX` (tijdvenster) wordt
- * elk stuk op [x0, x1] afgekapt: een verticaal stuk erbuiten valt weg, een horizontaal stuk wordt ingekort. Waar
- * de route het venster verlaat en weer binnenkomt, begint een nieuw subpad. Geeft `false` als er niets in het
- * venster viel (dan ook geen pijlpunt).
- */
 function strokeRoute(d2d: Draw2D, route: readonly [number, number][], clipX: readonly [number, number] | undefined): boolean {
   d2d.beginPath();
   let pen: [number, number] | null = null;

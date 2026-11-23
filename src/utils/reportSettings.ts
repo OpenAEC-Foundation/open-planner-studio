@@ -106,16 +106,6 @@ export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
 export const TABLE_REPORT_PERIOD_KEYS = ['lookAheadPeriod', 'progressPeriod', 'resourceLoadPeriod', 'resourceAssignmentPeriod'] as const;
 export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
 
-/**
- * Opties van het resourcediagram. `pageBreakPerResource` = "een blad per persoon":
- * elke resource begint op een nieuwe pagina, zodat je per ploeg of medewerker één vel kunt
- * uitdelen; uit = één doorlopend overlegdocument. `includeUnassigned` neemt de taken zonder
- * resource als laatste band mee — handig om in een overleg te zien wat nog niemand heeft.
- * `groupByType` zet er een laag boven: eerst een band per resourcetype (arbeid, ploeg,
- * onderaannemer, materieel, materiaal), daarbinnen per resource. Het tijdvak is sinds #997 dat van de hele
- * Gantt-afdruk (`ReportSettings.period`), niet meer een eigen optie van dit diagram. `showAssignmentColumns` zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
- * de band — standaard aan: dat is de informatie waarvoor je dit rapport uitdeelt.
- */
 export interface ResourceGanttReportOptions {
   pageBreakPerResource: boolean;
   includeUnassigned: boolean;
@@ -207,16 +197,7 @@ export interface ReportSettings {
    * `reportType: 'resourceGantt'` opent als die layout. Zie `reportTaskSource`.
    */
   layoutId: string;
-  /**
-   * Het tijdvak van de Gantt-afdruk (issue #997), voor elke rijenbron: alleen taken die het raken staan op het
-   * papier, en de tijdas loopt precies over het tijdvak (`PrintOptions.timeWindow`). Standaard `project` = de
-   * hele planning. Dezelfde `ReportingPeriod` als de tabelrapporten; bewaard per apparaat, zoals de rest hier.
-   */
   period: ReportingPeriod;
-  /**
-   * De oude periode van het resourcediagram (vóór #997). Ze blijft bewaard tot een bron die op resource groepeert haar
-   * overneemt (`legacyPeriodPatch`), de planner zelf een periode kiest of de stap Taken op standaard zet.
-   */
   legacyResourcePeriod?: ReportingPeriod;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
@@ -398,14 +379,6 @@ export function parseTableReportOptions(raw: unknown): TableReportOptions {
   };
 }
 
-/**
- * Het tijdvak van de Gantt-afdruk en, bij een opslag van vóór #997, de oude periode van het resourcediagram. Die
- * stond alleen op het papier als de bron op resource groepeerde, maar bleef bewaard bij een andere bron en gold weer
- * zodra de planner terugschakelde. Het meegeleverde Resourcediagram (of het oude rapporttype) neemt haar meteen over;
- * anders blijft ze apart bewaard (`legacyResourcePeriod`) tot een bron die op resource groepeert haar overneemt of de
- * planner zelf een tijdvak kiest (review Sol #1005, ronde 7). De oude sleutel `resourceGantt.period` wordt niet meer
- * teruggeschreven.
- */
 function parseGanttPeriod(s: Record<string, unknown>): Pick<ReportSettings, 'period' | 'legacyResourcePeriod'> {
   const project: ReportingPeriod = { preset: 'project' };
   const period = s.period !== undefined ? parseReportingPeriod(s.period, project) : project;
@@ -419,20 +392,11 @@ function parseGanttPeriod(s: Record<string, unknown>): Pick<ReportSettings, 'per
   return { period, legacyResourcePeriod: legacy };
 }
 
-/**
- * Wat het tabblad schrijft zodra de gekozen bron op resource groepeert: de bewaarde oude periode wordt het tijdvak.
- * `null` als er niets over te nemen is; bij een andere bron blijft ze bewaard.
- */
 export function legacyPeriodPatch(settings: Pick<ReportSettings, 'legacyResourcePeriod'>, resourceSource: boolean): Partial<ReportSettings> | null {
   if (!settings.legacyResourcePeriod || !resourceSource) return null;
   return { period: settings.legacyResourcePeriod, legacyResourcePeriod: undefined };
 }
 
-/**
- * Een eigen keuze van een tijdvak, ook *Hele project*: wint van een openstaande oude periode, in dezelfde
- * schrijfactie (review Sol #1005, ronde 2: koos de planner terwijl de layouts nog laadden, dan schreef de overgang
- * er daarna de oude periode overheen).
- */
 export function periodChoicePatch(period: ReportingPeriod): Partial<ReportSettings> {
   return { period, legacyResourcePeriod: undefined };
 }

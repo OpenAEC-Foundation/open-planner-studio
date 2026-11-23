@@ -63,7 +63,6 @@ export function milestoneAnchorX(task: Task, dateToX: (date: Date) => number, zo
   return dateToX(moment.date) + anchor;
 }
 
-/** Het moment van een mijlpaal: een tijdstip, of het begin van haar dag (`hourMode` onwaar). */
 export function milestoneMoment(task: Task): { date: Date; hourMode: boolean } | null {
   const startStr = shownStart(task) || shownFinish(task);
   if (!startStr) return null;

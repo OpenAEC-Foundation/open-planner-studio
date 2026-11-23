@@ -513,9 +513,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(rowSource).toEqual(['gantt', '', false]);
 
-  // Zelf het tijdvak kiezen (#997): van 21 tot en met 30 september. Fundering storten (7–18 september) valt erbuiten
-  // en staat niet op het papier; Wanden metselen loopt door tot 9 oktober en blijft, afgekapt aan de rand.
-  // "Hele project tonen" zet de hele planning in één klik terug.
   const ganttPeriod = page.locator('[data-ops-report-period="ganttPeriod"]');
   await page.getByLabel(/^(Reporting period|Rapportageperiode)$/).click();
   await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
@@ -532,7 +529,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page0.locator('text', { hasText: /^Fundering storten$/ })).toHaveCount(0);
   await expect(page0.locator('text', { hasText: /^Wanden metselen$/ }).first()).toBeAttached();
   await expect(page.locator('[data-rs-period-outside]')).toHaveText(/1/);
-  // Dicht noemt de stap het tijdvak, zodat je ook zonder de stap te openen ziet dat het papier niet alles toont.
   await page.locator('[data-rs-step-head="tasks"]').click();
   await expect(page.locator('[data-rs-summary="tasks"]')).toContainText(/21.*30/);
   await page.locator('[data-rs-step-head="tasks"]').click();
@@ -652,12 +648,8 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await periodPicker.click();
   await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
   await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
-  // Een oude opslag (vóór #997) met een periode bij het Resourcediagram terwijl *Alle taken* de bron is: de periode
-  // blijft bewaard, ook als intussen een andere instelling wordt opgeslagen, en staat er weer zodra het
-  // Resourcediagram de bron is (review Sol #1005, rondes 7 en 8).
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(async () => (await saved()).layoutId).toBe('');
-  // De oude periode begint niet op de projectstart (7 september), zodat een blijvende *Van* opvalt.
   const oldPeriod = { preset: 'custom', from: '2026-09-08', to: '2026-09-18' };
   await refreshStored({ period: undefined, resourceGantt: { ...(await saved()).resourceGantt, period: oldPeriod } });
   await expect(periodPicker).toHaveAttribute('data-value', 'project');
@@ -671,7 +663,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await rdChoice.click();
   await expect(periodPicker).toHaveAttribute('data-value', 'custom');
   await expect.poll(async () => { const s = await saved(); return [s.period, s.legacyResourcePeriod]; }).toEqual([oldPeriod, undefined]);
-  // Ook de datumvelden tonen de oude periode (ze houden een eigen kladwaarde bij).
   for (const [which, day] of [[/^(From|Van)$/, '08'], [/^(To|Tot)$/, '18']] as const) {
     const parts = page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: which }).getByRole('textbox');
     await expect(parts.nth(0)).toHaveValue(day);

@@ -25,11 +25,9 @@ export interface LayoutReportInput {
   ctx: ViewContext;
 }
 
-/** De opties van het oude rapporttype Resourcediagram (alleen gelezen bij een resourcegroepering), plus het tijdvak. */
 export interface LayoutResourceOptions {
   includeUnassigned: boolean;
   groupByType: boolean;
-  /** Het tijdvak (#997), voor elke groepering: alleen de bladtaken die het raken, vóór groeperen. */
   window?: ResourceGanttRowsOptions['window'];
   /** De app-taal: bandvolgorde en gelijke namen. */
   locale: string;

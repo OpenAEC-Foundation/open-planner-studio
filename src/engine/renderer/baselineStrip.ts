@@ -45,7 +45,6 @@ export interface BaselineSpan {
 /** Plaats van één baseline op de tijdas: een strook of een mijlpaal. */
 export type BaselineSpanX = { kind: 'bar'; x1: number; x2: number } | { kind: 'milestone'; x: number; moment: string };
 
-/** Het begin van een baseline: een tijdstip (`hourMode`), of het begin van een dag. Voor een mijlpaal haar moment. */
 export function baselineStart(span: BaselineSpan): { date: Date; hourMode: boolean } | null {
   const startStr = span.start || span.finish;
   const finishStr = span.finish || span.start;

@@ -92,8 +92,6 @@ const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM 
 
 /** Welke velden "Herstel standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
-  // De keuze (alle taken, weergave of layout; een oude `reportType: 'resourceGantt'` hoort bij de layout
-  // Resourcediagram), het tijdvak en de opties van het Resourcediagram.
   tasks: ['followView', 'layoutId', 'reportType', 'period', 'legacyResourcePeriod', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
   bars: ['showTaskNames', 'showBarDates', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'barColors', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
@@ -271,14 +269,9 @@ export function GanttReportStudio() {
   }, [layoutsLoaded, source, chosenLayout, remember]);
 
   const resourceOptions = settings.resourceGantt;
-  // Het tijdvak (#997) geldt voor elke bron, vóór groeperen en inklappen (zie `reportPeriodRows.ts`). Hele
-  // project = geen venster, dus het papier van vóór #997.
   const resolvedPeriod = useResolvedPeriod(settings.period);
   const bandShape = chosenLayout ? resourceBandShape(chosenLayout.group) : null;
   const periodWindow = settings.period.preset !== 'project' ? resolvedPeriod : undefined;
-  // Een opslag van vóór #997: de oude periode van het resourcediagram gaat over zodra de bron op resource groepeert
-  // (ook na een wissel van bron), zodra de eigen layouts gelezen zijn. Een eigen keuze van een tijdvak wist haar in
-  // dezelfde schrijfactie (`choosePeriod`); hier beslist de nieuwste opslag met haar eigen bron, niet deze render.
   const { legacyResourcePeriod } = settings;
   useEffect(() => {
     if (!layoutsLoaded || !legacyResourcePeriod) return;
@@ -313,11 +306,7 @@ export function GanttReportStudio() {
       resource: null,
     };
     if (!periodWindow) return { rowSource: { ...base, window: undefined }, outsidePeriod: 0 };
-    // Het resourcediagram filtert zelf en telt in zijn eigen blok (`counts.outsidePeriod`).
     if (base.resource) return { rowSource: { ...base, window: periodWindow }, outsidePeriod: 0 };
-    // Een layout kreeg het tijdvak al mee. *Zoals de weergave* bouwt de rijen van het scherm opnieuw, met het
-    // tijdvak vóór groeperen en inklappen, zodat banden, tellingen en ingeklapte rijen alleen over het tijdvak gaan.
-    // De melding telt de bladtaken die het filter van de bron halen.
     const within = (task: Task) => taskInPeriod(task, periodWindow);
     let rows: ViewRow[];
     let passes: ((leaf: Task) => boolean) | undefined;
@@ -624,7 +613,6 @@ export function GanttReportStudio() {
   const shownRows = rowSource.rows ? rowSource.rows.length : tasks.length;
   const sourceSummary = chosenLayout ? t('studio.tasks.summaryLayout', { layout: chosenLayout.name, count: shownRows })
     : source.kind === 'view' ? t('studio.tasks.summaryView', { count: shownRows }) : t('studio.tasks.summaryAll', { count: shownRows });
-  // Met een tijdvak staat het ook in de samenvatting: dicht of ingeklapt moet je zien dat het papier niet alles toont.
   const rowsSummary = periodWindow
     ? [sourceSummary, `${dd.date(periodWindow.from)} – ${dd.date(periodWindow.to)}`].join(listSep)
     : sourceSummary;
