@@ -1139,7 +1139,6 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
     const actualStart = parseTaskDate(actualStartRaw);
     const actualFinish = parseTaskDate(actualFinishRaw);
-    // Deze P6-bronvelden zijn geen OPS-anker: bewaar hun tijd onafhankelijk van de kalender.
     const stop = importDateTimeOrUndefined(getElementText(actEl, 'SuspendDate'), true);
     const resume = importDateTimeOrUndefined(getElementText(actEl, 'ResumeDate'), true);
     // Duur en rest (alleen uren §3.10; `readMeasure`). Urenmaat ⇒ minuten (`uren × 60`, op de hele minuut)

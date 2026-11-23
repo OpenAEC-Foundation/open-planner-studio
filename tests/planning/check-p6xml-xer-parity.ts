@@ -261,8 +261,6 @@ for (const variant of VARIANTS) {
   }
 }
 
-// 621: bronmomenten van een P6-onderbreking blijven ook op een scalaire kalender behouden.
-// Ongeldige of incomplete paren bewaren alleen de leesbare ruwe datum, zonder P6-opt-in.
 {
   const source = synthetic({}, 'RETAINED_LOGIC');
   const xml = xmlText(source);
@@ -281,8 +279,6 @@ for (const variant of VARIANTS) {
     ['2026-03-03', undefined, undefined]);
 }
 
-// 621: dezelfde lopende onderbreking moet via XER en P6 XML hetzelfde rekenen. De XML-writer
-// schrijft deze P6-velden nog niet, dus de fixture vult ze in zoals een P6-bronbestand kan doen.
 {
   const source = synthetic({}, 'RETAINED_LOGIC');
   source.calendar = withWorkBlocks(source.calendar);
