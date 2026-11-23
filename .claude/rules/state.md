@@ -91,11 +91,14 @@ een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of h
 `commitSavedDocument` zet het opnieuw: met `prepared` uit de merge, anders uit `written` (de opslagworker rekent de hash
 als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precomputeSha256` vóór het schrijven en wacht de
 route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
-download, op de site en met de flag uit: `null`. Een export die het eigen bestand raakt (`recordOwnFileExport`,
-ook de bibliotheek via `saveLibraryFile`; `planner_export_ifc`) maakt het `null` (`forgetKnownTargetFingerprint`). Een
-geweigerde opslag laat het staan. Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) maakt het
-`null`: de directe terugval van `replaceUserFile` kan het doel al geraakt hebben.
-Proef: `check-tabblad-schijfversie.ts`; grenzen: knownbug 2065, 2066, 2200 en 2201.
+download, op de site en met de flag uit: `null`. Na een geschreven export
+(`recordOwnFileExport`, ook de bibliotheek via `saveLibraryFile`; `planner_export_ifc`) vergelijkt `exportTargetMatch`
+het doel met het eigen doel: alleen `same` maakt het `null` (`forgetKnownTargetFingerprint`), `different` en `unknown`
+(Windows zonder identiteit, een falende `isSameEntry`) laten het staan; de letterlijke kalenders tellen alles behalve
+`different` als treffer (`exportHitsOwnFile`). Een geannuleerde of geweigerde export of opslag laat het staan. Een
+mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
+(`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
+Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066, 2200, 2201 en 2202.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
