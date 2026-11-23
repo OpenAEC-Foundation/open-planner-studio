@@ -616,13 +616,31 @@ en noem het in je rapport of PR-tekst.
      vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender. Bij een taakkalender met andere
      werkblokken is die vroege start geen geldig startmoment van de taak (zie `msp-06` in `cases-msp-pariteit.json`).
      In de code gezien. — B
-1982. **De zoekgrens van de nivelleerder is een schatting; een taak kan `NO_WINDOW_IN_HORIZON` krijgen terwijl er
-     verderop wel een venster is.** `levelResources` (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de
-     som van de `scheduleDuration` van alle taken plus een marge (`Math.max(totalWork + 10, 30)`), geteld in
-     kandidaatstappen. Twee dingen tellen niet mee: een kalendertijdtaak stapt per kalenderdag, dus een weekend kost
-     stappen zonder werkdag, en de pauzedagen van een gesplitste taak zitten niet in haar `scheduleDuration`. Het oude
-     commentaar noemde de marge "geen wiskundig bewijs"; een geval dat de grens raakt, is niet gezien. Gelezen in de
-     code, niet nagespeeld. — S
+1982. **De zoekgrens van de nivelleerder volgt de taakduren, niet de lengte van een periode zonder capaciteit; een
+     taak kan `NO_WINDOW_IN_HORIZON` krijgen terwijl er verderop wel een venster is.** `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de som van de `scheduleDuration` van alle taken plus
+     een marge (`Math.max(totalWork + 10, 30)`), geteld in kandidaatstappen. Ligt het eerste vrije venster na een
+     lange periode zonder capaciteit, dan stopt de scan eerder. Proef van de reviewer (GPT-6.2-Sol, review van #1160):
+     een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
+     paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
+     gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
+1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
+     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
+     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
+     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
+     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
+     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
+     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
+     resource overbezet (issue #1161). — B
+1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
+     (`src/engine/scheduler/ResourceLeveler.ts`) kiest `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster
+     ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
+     als geen van de gescande kandidaten op de kalender paste, vóór de uitgeputte zoekgrens. Proeven van de reviewer
+     (GPT-6.2-Sol, review van #1160): via `computeDistribution` boekte een gepind document de kraan op 3 augustus vol,
+     en een tweede document had een taak met een deadline op 1 juni. Met een plafond van 5 dagen kwam
+     `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
+     werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
+     `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
 
 ## Tabel, invoer en bediening
 
@@ -4065,6 +4083,14 @@ en noem het in je rapport of PR-tekst.
      commentaar gaf als reden dat de vertaalbestanden niet aangeraakt mochten worden. Voorstel: een eigen sleutel met
      `{{name}}` voor een mislukt voorbeeld. — B
 
+1985. **De taakreferentie zegt dat nivelleren een taak met prioriteit 1000 nooit verschuift.**
+     `public/docs/nl/ref-taak-eigenschappen.md` (*Nivelleerprioriteit*: "1000 zet de taak vast, zodat nivelleren hem
+     nooit verschuift") en `public/docs/en/ref-taak-eigenschappen.md` ("1000 pins the task, so that leveling never
+     moves it"). Een pin scant niet voor capaciteit, maar volgt haar voorgangers: `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) boekt haar op de eerste kandidaat vanaf de vroegste start volgens de
+     relaties (`pinnedSet`, `nextCandidateFor`), en de proefsolve verschuift haar mee. `howto-overbezetting-oplossen.md`
+     zegt het goed, in beide talen ("Ook een taak met prioriteit 1000 volgt haar voorgangers"). — B
+
 ## Tests
 
 720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**
@@ -4727,16 +4753,13 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
-1990. **De check van de opslagworker faalt af en toe in CI op een stap die van de klok afhangt.** In
-      `tests/planning/check-save-worker.ts`, het blok "knownbug 1936: een latere startfout", faalde de stap "na een
-      verlopen verzoek, dan load-fails: de merge daarna" met `IfcSaveWorkerError` waar de check een andere uitkomst
-      verwachtte. Het gebeurde in één van de vijf tijdzoneruns (TZ UTC); de andere vier runs van dezelfde check in
-      dezelfde job waren groen, en de PR raakte de opslagworker niet (#1158: alleen commentaar uit `taskSlice.ts`). De
-      stap laat eerst een verzoek verlopen (een grens van 40 ms) en verwacht daarna een startfout, dus de volgorde
-      hangt aan een tijdgrens.
-      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45179505349/job/137709575181. Eén
-      keer gezien; de oorzaak is niet uitgezocht. Richting: de tijdgrens in de check injecteren in plaats van op de
-      echte klok te wachten. — S
+1990. **De check van de opslagworker faalde één keer in CI.** In `tests/planning/check-save-worker.ts`, het blok
+      "knownbug 1936: een latere startfout", faalde de stap "na een verlopen verzoek, dan load-fails: de merge daarna"
+      met `IfcSaveWorkerError` waar de check een andere uitkomst verwachtte. Alleen in de tijdzonerun TZ UTC; de andere
+      vier runs van dezelfde check in dezelfde job waren groen, en de PR raakte de opslagworker niet (#1158: alleen
+      commentaar uit `taskSlice.ts`).
+      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45179505349/job/137709575181. De
+      oorzaak is niet uitgezocht. — S
 
 ## Wensen en open taken (geen bug)
 
