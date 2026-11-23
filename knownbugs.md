@@ -3565,6 +3565,22 @@ en noem het in je rapport of PR-tekst.
      code en de echte herstelcallback (reviewer van #1127); een processtop is niet opgewekt. — B (code en proef van de
      reviewer; geen processtop nagespeeld)
 
+2064. **VERVOLG, zo op main (desktop, ook met de featureflag uit): een startbestand dat al open staat en buiten de app
+     is vervangen, wisselt naar het oude tabblad; een volgende Ctrl+S overschrijft de nieuwere versie.** Staat
+     `kantoor.ifc` open en vervangt een ander programma (of een collega via een gedeelde map) het bestand op hetzelfde
+     pad door een nieuwere versie, en opent de planner het daarna via een dubbelklik, *Openen met* of een tweede
+     start, dan leest de startroute de nieuwe versie wel (`src/state/launchFiles.ts`, `read`, rond regel 100–118),
+     maar `existingDocument` kiest het open tabblad met hetzelfde bestand (identiteit of padtekst) en `openOpenedFile`
+     wisselt daarheen (`src/state/slices/fileSlice.ts`, `switchDocument(existing)`). De zojuist gelezen inhoud
+     vervalt, zonder melding; het tabblad toont de oude stand. Bij een gewone planning (zonder vreemd deel) bewaakt
+     Ctrl+S het doel niet: de opslag vervangt de nieuwere versie en het extern opgeslagen werk is weg. De herlezing
+     van de startroute (`stale`, knownbug 2036) telt alleen schrijfbeurten van de app zelf, geen wijziging van buiten.
+     Via Bestand → Openen, Recent en slepen opent main in dit geval een tweede tabblad met de nieuwe versie. Zelfde
+     familie als 1957. Dezelfde volgorde blokkeerde PR #1121 in reviewronde 7; daar is zij nagespeeld voor Openen,
+     Recent, slepen en MCP, de startroute zelf niet. Richting: het tabblad laten onthouden welke versie van zijn
+     bestand op schijf staat (een hash, bijgewerkt bij elke eigen opslag) en alleen wisselen als de gelezen versie
+     dezelfde is. — B (code gelezen; niet nagespeeld)
+
 
 
 
