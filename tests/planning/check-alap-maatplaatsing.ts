@@ -379,6 +379,43 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
+{
+  const split = [{ start: 480, end: 720 }, { start: 780, end: 1080 }];
+  const splitTen: WorkCalendar = {
+    ...TEN, id: 'split-ten', hoursPerDay: 9,
+    workTime: { byWeekday: { 1: split, 2: split, 3: split, 4: split, 5: split, 6: [], 7: [] } },
+  } as WorkCalendar;
+  const a = task('A', 1, { alap: true, unit: 'hours' });
+  a.time = { ...a.time, durationType: 'ELAPSEDTIME', durationMinutes: 36 * 60 };
+  const b = { ...task('B', 1), calendarId: TEN.id, constraint: { type: 'SNET', date: '2026-06-05T12:30' } } as Task;
+  const d = { ...task('D', 1), calendarId: splitTen.id, constraint: { type: 'SNET', date: '2026-06-05T14:00' } } as Task;
+  const tasks = [a, b, d];
+  const seqs: Sequence[] = ['B', 'D'].map((successorId) => ({
+    id: `A-${successorId}`, predecessorId: 'A', successorId, type: 'FINISH_FINISH', lagDays: 0,
+  }));
+  const solve = (input: Task[]) => run('ops', input, seqs, SCALAR, 'successor', [TEN, splitTen]);
+  const result = solve(tasks);
+  const placement = result.tasks.get('A')!;
+  const windows = (r: typeof result) => ['B', 'D'].map((id) => {
+    const t = r.tasks.get(id)!;
+    return [t.earlyStart, t.earlyFinish];
+  });
+  const base = windows(result);
+  const summary = [placement.earlyStart, '2026-06-05T00:00', '2026-06-06T00:00',
+    '2026-06-07T00:00', '2026-06-07T01:00'].map((start, i) => {
+    const replay = solve(withoutAlapAt(tasks, 'A', start));
+    const ar = replay.tasks.get('A')!;
+    eq(`376 herberekening ${i}: zelfde start`, ar.earlyStart, start);
+    eq(`376 herberekening ${i}: 36 klokuren`, Date.parse(`${ar.earlyFinish}Z`) - Date.parse(`${ar.earlyStart}Z`), 36 * 3_600_000);
+    return { a: ar.earlyStart, ae: ar.earlyFinish, successors: windows(replay), end: replay.projectEnd };
+  });
+  const measure = { placed: [placement.earlyStart, placement.earlyFinish], successors: base, end: result.projectEnd, replay: summary };
+  console.log(`KNOWNBUG376_SUMMARY ${JSON.stringify(measure)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 376::${JSON.stringify(measure)}`);
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  alap-maatplaatsing: alle checks groen (${checks})`);
   process.exit(0);
