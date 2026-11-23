@@ -75,7 +75,6 @@ for (const mode of ['toevoegen', 'bewerken'] as const) {
     await expect(picked).toHaveText('Bron-A.ifc');
     await expect(save).toBeEnabled();
 
-    // Annuleren van de tweede keuze houdt A; een mislukte lezing van B wist A.
     await choose.click();
     await expect(choose).toBeEnabled();
     await expect(picked).toHaveText('Bron-A.ifc');
@@ -84,7 +83,6 @@ for (const mode of ['toevoegen', 'bewerken'] as const) {
     await expect(dialog.getByText('This file cannot be read.', { exact: true })).toBeVisible();
     await expect(picked).toHaveCount(0);
     await expect(save).toBeDisabled();
-    // Focus niet op de bestandskiezer: Enter probeert nu het formulier te bewaren.
     await dialog.getByTestId('external-link-add').evaluate(el => el.ownerDocument.activeElement instanceof HTMLElement
       && el.ownerDocument.activeElement.blur());
     await page.keyboard.press('Enter');
