@@ -447,7 +447,6 @@ for (const minutes of [0, 0.000001, 0.000008]) {
     [time.lateStart, time.lateFinish, time.totalFloatMinutes], ['2026-05-29T16:00', '2026-05-29T16:00', 0]);
 }
 
-// Knownbug 399: synthetisch sub-ms split-gat in de afgeronde spanne; geen UI-invoerroute.
 {
   const summary = [];
   const engine = new CalendarEngine(DAY);
