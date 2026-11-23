@@ -550,19 +550,21 @@ export function levelResources(
   const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
 
-  const fixedOutsideScope = fixedLoadIds.filter(id => !inScope(id));
+  const assignedOutsideScope = scope ? tasks.filter(task =>
+    !inScope(task.id) && selectedAssignmentsByTask.has(task.id) && !task.isMilestone && !isSummaryTask(task),
+  ).map(task => task.id) : [];
   const placementChanged = (before: CPMResult, id: string): boolean => {
     const oldDates = before.tasks.get(id);
     const newDates = trial.tasks.get(id);
     return !!oldDates && !!newDates
       && (oldDates.earlyStart !== newDates.earlyStart || oldDates.earlyFinish !== newDates.earlyFinish);
   };
-  if (!trial.error && !options.preserveExistingLeveling && fixedOutsideScope.length > 0
-    && (fixedOutsideScope.some(id => placementChanged(baseline, id))
+  if (!trial.error && !options.preserveExistingLeveling && assignedOutsideScope.length > 0
+    && (assignedOutsideScope.some(id => placementChanged(baseline, id))
       || tasks.some(task => inScope(task.id) && hasLevelingOutput(task)))) {
     const beforeTasks = cloneTasksForSolve(tasks);
     const before = new CPMSolver(beforeTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
-    const loadChanges = new Map(fixedOutsideScope.filter(id => placementChanged(before, id))
+    const loadChanges = new Map(assignedOutsideScope.filter(id => placementChanged(before, id))
       .map(id => [id, new Map<string, DailyLoad>()]));
     if (loadChanges.size > 0) {
       const calendars = { projectCalendar, calendars: resourceCalendars };

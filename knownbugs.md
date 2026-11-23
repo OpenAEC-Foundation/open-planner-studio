@@ -642,6 +642,12 @@ en noem het in je rapport of PR-tekst.
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
 
+2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
+     `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
+     alleen een lokale resource raakt en `afterLoadByDay` alle boekingen op het gekozen poolitem bevat.
+     De geplande verdelerdialoog hoort een aanduiding van ontbrekende boekingen alleen te tonen wanneer
+     er werkelijk boekingen ontbreken. Het lokale tekort hoort Toepassen te blijven blokkeren. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
