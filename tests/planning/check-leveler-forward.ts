@@ -142,8 +142,11 @@ for (const prefix of [false, true]) {
     eq(`P2 voorstel prefix=${prefix}/actualStart=${actualStart}`, fast.result, reference.result);
     eq(`P2 poolboekingen prefix=${prefix}/actualStart=${actualStart}`, fast.bookings, reference.bookings);
     if (!prefix) {
-      eq('P2 verwachte vertraging', fast.result.delays, { b: 2 });
+      eq('P2 vertraging vanaf het startanker', fast.result.delays, { b: 9 });
+      eq('P2 minutenvertraging vanaf het startanker', fast.result.delayMinutes, { b: 4320 });
       eq('P2 eerste boeking op statusdatum', fast.bookings[0], ['pool', '2026-06-10', 1]);
+      eq('P2 verschuiving komt op eerste vrije boekingsdag', fast.result.shifts.b?.newStart, '2026-06-12T08:00');
+      eq('P2 eerste boeking na het voltooidvenster', fast.bookings[2], ['pool', '2026-06-12', 1]);
     }
     eq('voltooid zonder einde vereist volledige solve',
       new CPMSolver(tasks, [], hour, [hour], options).createIncrementalForwardPass(), null);
