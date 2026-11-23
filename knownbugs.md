@@ -3566,6 +3566,57 @@ en noem het in je rapport of PR-tekst.
      commentaar in `src/state/slices/taskSlice.ts`, dat dit geval noemde. Richting: de lezer weigert of breekt een
      kring bij het inlezen. — S (code gelezen, niet nagespeeld)
 
+1994. **Een mislukte mapscan in het herstel op de desktop haalt uitgestelde of vreemde herstelregels uit het aanbod.**
+     `listAppDataTauri` in `src/services/recovery/recoveryStore.ts` geeft bij een fout van `readDir` een lege lijst.
+     Twee routes lezen die lijst als "dit bestand staat er niet". In een auto-saveronde draagt `planRecoveryCleanup` een
+     regel van een vreemd of overgenomen manifest alleen mee als zijn snapshot in de lijst staat, dus `saveTauri`
+     schrijft een manifest zonder die regels. Bij de schone afsluiting houdt `planRecoveryExitClear` alleen overgenomen
+     regels die in de lijst staan, dus `clearOwnTauri` verwijdert het eigen manifest, ook als het nog een uitgestelde
+     regel had. In beide gevallen blijft de snapshot op schijf, maar `loadTauri` biedt haar bij de volgende start niet aan: met
+     eigen regels in het manifest of zonder manifest valt het niet terug op de mapscan, en een generatiesnapshot (versie
+     3 en later) valt ook buiten die scan. Gezien met een script op `planRecoveryCleanup` (dezelfde vreemde regel komt
+     met zijn snapshot in de lijst mee in `carryOver`, met een lege lijst niet) en in een proef van de reviewer
+     (GPT-6.2-Sol, review van #1170) via `saveRecovery`, `clearOwnRecovery` en `loadRecovery`. Of `readDir` op de
+     appDataDir in de praktijk faalt, is niet nagegaan. — B
+
+1995. **Een mislukte verwijdering in het herstel op de desktop telt als "al weg".** In `saveTauri`, `clearTauri` en
+     `clearOwnTauri` (`src/services/recovery/recoveryStore.ts`) vangt een lege `catch` elke fout van `remove` op, en
+     daarna haalt de code de naam uit `ownWritten` en de andere boekhoudingssets. Een bestand dat om een andere reden
+     bleef staan (rechten, een vergrendeld bestand), valt zo uit de eigen boekhouding en blijft op schijf tot een
+     volgende `planRecoveryClear` het op naamvorm vindt. In `clearOwnTauri` gaat het manifest eerst: mislukt het
+     weghalen daarvan, dan worden de eigen snapshots daarna toch verwijderd en noemt het manifest bij de volgende start
+     snapshots die er niet meer zijn. `loadTauri` geeft die als `readFailures`, dus een herstelkeuze met leesfouten na
+     een schone afsluiting. Nagespeeld in een proef van de reviewer (GPT-6.2-Sol, review van #1170): na een geweigerde
+     verwijdering van het manifest gaf de volgende lezing die leesfouten. — B
+
+1996. **Zonder Web Locks of `sessionStorage` scheidt het webherstel een gedupliceerd tabblad niet.** `claimLock` in
+     `src/services/recovery/recoveryStore.ts` geeft `true` als `navigator.locks` ontbreekt, en `resolveSessionId` geeft
+     de vaste id `default` zonder claim als `sessionStorage` gooit. Dan delen twee tabbladen dezelfde sessie-id: een
+     gedupliceerd tabblad, en met `default` elk tabblad. `saveWeb` van het ene tabblad verwijdert dan elke ronde de
+     documentrecords van die id die het zelf niet open heeft, en `clearRecovery` wist ook de records van het andere. De
+     Web Locks API is volgens de specificatie alleen beschikbaar in een beveiligde context, dus niet op een gewoon
+     HTTP-adres buiten localhost. Nagespeeld in een proef van de reviewer (GPT-6.2-Sol, review van #1170): twee
+     gescheiden paginacontexten met gedeelde testopslag wisten elkaars records, zowel zonder Web Locks als met een fout
+     bij het lezen van `sessionStorage`. Een echte browser is niet gebruikt. — B
+
+1997. **Uitstellen in de browser verliest de uitgestelde snapshots als de lijst met vastgehouden sessies niet te
+     schrijven is.** `holdWeb` in `src/services/recovery/recoveryStore.ts` zet de huidige sessie-id in de lijst onder
+     `HELD_KEY` via `writeHeldSessionIds`, dat een fout van `sessionStorage.setItem` stil opvangt, en schrijft daarna een
+     verse sessie-id. Faalt alleen de eerste schrijfactie, dan slaagt Uitstellen, staat de oude snapshot nog in
+     IndexedDB, maar leest een volgende paginastart haar niet: haar id is niet de eigen id en staat niet in de lijst. Er
+     komt geen melding. Nagespeeld in een proef van de reviewer (GPT-6.2-Sol, review van #1170) waarin alleen de
+     schrijfactie voor die lijst faalde. — B
+
+1998. **Met twee vastgehouden versies van één document biedt het webherstel de oudste aan.** `loadWeb` in
+     `src/services/recovery/recoveryStore.ts` leest de eigen generatie en daarna de vastgehouden generaties in de
+     volgorde van de lijst onder `HELD_KEY`; `holdWeb` zet een nieuwe vastgehouden id achteraan, dus de oudste staat
+     vooraan. Van een document dat in meer generaties staat, biedt `loadWeb` alleen de versie uit de eerste aan. Staat
+     hetzelfde document in twee vastgehouden generaties, dan komt dus de oudere snapshot terug en niet het latere werk.
+     Route in een proef van de reviewer (GPT-6.2-Sol, review van #1170): gedeeltelijk herstel (`holdWeb` houdt de hele
+     generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
+     kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
+     verschijnt, niet welke versie. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
