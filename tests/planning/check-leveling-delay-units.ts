@@ -203,13 +203,15 @@ eq('en meldt het verlies (eerste keer voor dit document)',
 {
   const start = '2026-06-01T08:00';
   const finish = '2026-06-01T16:00';
-  const staleEnd = '2099-01-01T08:00';
   const noHours: WorkCalendar = { ...PROJECT_CAL, id: 'no-hours-507', hoursPerDay: 0 };
   const opts = legacyCpmOptions();
   const freshTask = (calendarId?: string) => task('t507', start, finish, 1, { calendarId });
+  const previousTask = task('t507', start, '2026-06-02T16:00', 2, { calendarId: PROJECT_CAL.id });
+  const previous = new CPMSolver([previousTask], [], PROJECT_CAL, [PROJECT_CAL], opts).solve();
+  ok('507 controle: eerdere geldige CPM bevat dezelfde taak', !previous.error && previous.tasks.has('t507'));
   const level = (t: Task, project: WorkCalendar, registry: WorkCalendar[]) =>
     levelResources([t], [], [res('r507')], [assign('a507', t.id, 'r507', 1)],
-      project, registry, stubCpmResult(staleEnd), LEVEL_OPTS, opts);
+      project, registry, previous, LEVEL_OPTS, opts);
 
   const hourTask = freshTask(noHours.id);
   hourTask.time.durationUnit = 'hours';
@@ -229,13 +231,13 @@ eq('en meldt het verlies (eerste keer voor dit document)',
     eq(`507 ${label}: leeg nivelleervoorstel met ongewijzigde referentie`,
       level(t, project, [...cal]), {
         delays: {}, delayMinutes: {}, unresolved: {}, unresolvedReasons: {}, shifts: {},
-        projectEndBefore: staleEnd, projectEndAfter: staleEnd, gaps: {},
+        projectEndBefore: previous.projectEnd, projectEndAfter: previous.projectEnd, gaps: {},
       });
   }
 
   const consistent = freshTask(PROJECT_CAL.id);
   const good = new CPMSolver([consistent], [], PROJECT_CAL, [PROJECT_CAL], opts).solve();
-  ok('507 controle: geldige CPM heeft een projecteinde', !good.error && !!good.projectEnd && good.projectEnd !== staleEnd);
+  ok('507 controle: geldige CPM heeft een projecteinde', !good.error && !!good.projectEnd && good.projectEnd !== previous.projectEnd);
   eq('507 controle: geldige kalender levert wel een proefberekening',
     level(consistent, PROJECT_CAL, [PROJECT_CAL]).projectEndAfter, good.projectEnd);
 
