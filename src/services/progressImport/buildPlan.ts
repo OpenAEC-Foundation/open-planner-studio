@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
 import type { Task } from '@/types/task';
@@ -24,7 +25,13 @@ export interface ProgressPlanDeps {
   planEdits: (
     task: Task,
     edits: readonly CellEditIntent[],
+    plannedDates?: (task: Task) => PlannedProgressDates | undefined,
   ) => GridResult<PlannedTaskEdit, readonly CellValidationError[]>;
+  preparePlacement?: (ids: ReadonlySet<string>) => {
+    order: readonly string[];
+    plannedDates: (task: Task) => PlannedProgressDates | undefined;
+    accept: (before: Task, after: Task) => void;
+  } | undefined;
 }
 
 /** Plannerfoutcodes die de preview als hun EIGEN reden toont; alle andere plannerfouten vallen op
@@ -169,7 +176,17 @@ export function buildProgressImportPlan(
   let latestExportedAt: string | undefined;
   const claimedTaskIds = new Set<string>();
 
-  const planRows: ProgressPlanRow[] = rows.map((row): ProgressPlanRow => {
+  const candidates = new Set<string>();
+  if (deps.preparePlacement) {
+    for (const row of rows) {
+      const id = matchByRowNumber.get(row.rowNumber)?.taskId;
+      if (id && (row.completion?.kind === 'value' || row.actualStart?.kind === 'value' || row.actualFinish?.kind === 'value')) {
+        candidates.add(id);
+      }
+    }
+  }
+  const placement = deps.preparePlacement?.(candidates);
+  const planRow = (row: ProgressRow): ProgressPlanRow => {
     const match = matchByRowNumber.get(row.rowNumber);
     const needsConfirmation = match?.match === 'wbs' ? true : undefined;
     if (needsConfirmation) needsConfirmationCount++;
@@ -334,7 +351,7 @@ export function buildProgressImportPlan(
     }
 
     // 6. De echte (of gestubde) planner.
-    const planned = deps.planEdits(task, edits);
+    const planned = deps.planEdits(task, edits, placement?.plannedDates);
     if (!planned.ok) {
       const plannerCode = planned.errors[0]?.code;
       const reason: ProgressRowReason = plannerCode && KNOWN_PLANNER_REASONS.has(plannerCode)
@@ -378,12 +395,23 @@ export function buildProgressImportPlan(
     }
 
     appliedCount++;
+    placement?.accept(task, planned.value.task);
     return {
       rowNumber: row.rowNumber, outcome: 'apply',
       match: match.match, needsConfirmation, taskId, taskLabel: label,
       changes, plannedTask: planned.value.task, ...sinceExport,
     };
-  });
+  };
+  // Toets de voorganger eerst. De voorvertoning en het uiteindelijke plan houden de bladvolgorde.
+  let planRows: ProgressPlanRow[];
+  if (placement) {
+    const rank = new Map(placement.order.map((id, index) => [id, index]));
+    const orderOf = (row: ProgressRow) => rank.get(matchByRowNumber.get(row.rowNumber)?.taskId ?? '') ?? rank.size;
+    const ordered = rows.map((row, index) => ({ row, index }))
+      .sort((left, right) => orderOf(left.row) - orderOf(right.row));
+    planRows = new Array(rows.length);
+    for (const { row, index } of ordered) planRows[index] = planRow(row);
+  } else planRows = rows.map(planRow);
 
   const untouchedTaskCount = tasks.reduce(
     (count, task) => count + (claimedTaskIds.has(task.id) ? 0 : 1), 0,

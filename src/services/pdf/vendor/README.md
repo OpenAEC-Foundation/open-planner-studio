@@ -4,7 +4,7 @@
 
 De HarfBuzz `hb-subset`-bibliotheek, gecompileerd naar WebAssembly. Gebruikt door
 [`../hbSubset.ts`](../hbSubset.ts) als pre-subsetter voor CJK-fonts vóór de pdf-lib-embedding
-(`embedFont(bytes, { subset:false })`), omdat pdf-lib's eigen `subset:true` (via `@pdf-lib/fontkit`)
+(`embedFont(bytes, { subset:false })`), omdat pdf-lib's eigen `subset:true` (toen via `@pdf-lib/fontkit`)
 corrupte glyf-coördinaten schrijft (spike 2026-07-22). De wasm heeft **0 imports** en wordt met kale
 `WebAssembly.instantiate(bytes, {})` geïnstantieerd.
 

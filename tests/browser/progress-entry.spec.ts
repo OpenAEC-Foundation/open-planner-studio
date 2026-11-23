@@ -10,7 +10,9 @@
 // De brug zet alleen fixtures (taken, relaties, weergave) en leest state; de geteste handelingen
 // gaan via muis en toetsenbord. Headless tegenhanger: tests/planning/check-progress-entry.ts.
 import type { Locator, Page } from '@playwright/test';
+import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { computeEffectiveViewStart } from '@/utils/ganttViewport';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import { barPoint, expect, state, test } from './fixtures/ops';
 
 /** Vandaag in de browser, zoals de gebruiker hem in het statusdatumveld typt (lokale kalenderdag). */
@@ -61,6 +63,16 @@ function readProgress(page: Page, taskId: string) {
       actualStart: task.time.actualStart ?? null,
     };
   }, taskId);
+}
+
+async function readProgressDates(page: Page, taskId: string) {
+  const task = await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!, taskId);
+  return {
+    percent: Math.round(task.time.completion * 100),
+    start: shownStart(task),
+    finish: shownFinish(task),
+    duration: task.time.scheduleDuration,
+  };
 }
 
 /** De datum zoals de melding hem toont (standaardnotatie dd-mm-jjjj). */
@@ -164,8 +176,10 @@ async function rejectReversedDates(page: Page, scope: Locator, taskId: string): 
 }
 
 test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt dat, en is één Ctrl+Z', async ({ page, ops: _ops }) => {
+  await page.clock.setFixedTime(new Date('2026-11-18T12:00:00Z'));
   const today = await browserToday(page);
   const { B } = await seedChain(page, -28);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
   expect(await readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
 
   const point = await barPoint(page, B);
@@ -173,14 +187,34 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   const slider = page.locator('[data-ops-progress-slider]').first();
   await expect(slider).toHaveValue('0');
   const before = await state(page);
-  await slider.focus();
-  await page.keyboard.press('ArrowRight');
+  const original = await readProgressDates(page, B);
+  expect(original).toEqual({
+    percent: 0, start: '2026-10-28T07:00', finish: '2026-10-30T16:00', duration: 3,
+  });
+  await slider.scrollIntoViewIfNeeded();
+  const box = (await slider.boundingBox())!;
+  const yCenter = box.y + box.height / 2;
+  await page.mouse.move(box.x + 2, yCenter);
+  await page.mouse.down();
+  const toast = page.locator('.ops-toast', { hasText: shown(today) });
+  for (const fraction of [0.25, 0.5, 0.75]) {
+    await page.mouse.move(box.x + box.width * fraction, yCenter, { steps: 4 });
+    if (fraction === 0.25) await expect(toast).toBeVisible();
+    const step = await readProgressDates(page, B);
+    expect(Math.abs(step.percent - fraction * 100)).toBeLessThan(5);
+    expect(step).toEqual({ ...original, percent: step.percent });
+    console.log('Schuif zonder statusdatum', step);
+  }
+  await page.mouse.move(box.x + box.width - 2, yCenter, { steps: 4 });
+  await expect(slider).toHaveValue('100');
+  const completed = await readProgressDates(page, B);
+  console.log('Schuif zonder statusdatum op 100%', { original, completed });
+  expect(completed).toEqual({ ...original, percent: 100 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  expect(await readProgressDates(page, B)).toEqual(completed);
 
   await expect.poll(() => readProgress(page, B).then(p => p.statusDate)).toBe(today);
-  expect((await readProgress(page, B)).completion).toBe(0.01);
-  // De melding via het ene meldkanaal, met de datum van vandaag.
-  const toast = page.locator('.ops-toast', { hasText: shown(today) });
-  await expect(toast).toBeVisible();
   // Het statusdatumveld in het lint toont hem ook (Planning-tab).
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' }));
   const [y, m, d] = today.split('-');
@@ -195,6 +229,66 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.mouse.click(point.x, point.y);
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
+
+  // Twee afzonderlijke bedieningen met handmatig rekenen gebruiken hetzelfde geplande venster,
+  // ook als de planner tussendoor twee andere taken aan elkaar koppelt.
+  const [unrelatedA, unrelatedB] = await page.evaluate(() => {
+    const store = window.__OPS__!.store.getState();
+    store.setUI({ autoCalcCPM: false });
+    const ids = [store.addTask({ name: 'Steiger' }), store.addTask({ name: 'Bouwplaats opruimen' })];
+    store.runCPM();
+    return ids;
+  });
+  const partialBox = (await slider.boundingBox())!;
+  await page.mouse.click(partialBox.x + partialBox.width / 2, partialBox.y + partialBox.height / 2);
+  const partial = await readProgressDates(page, B);
+  expect(Math.abs(partial.percent - 50)).toBeLessThan(5);
+  expect(partial).toEqual({ ...original, percent: partial.percent });
+  const first = await barPoint(page, unrelatedA);
+  const second = await barPoint(page, unrelatedB);
+  await page.mouse.click(first.x, first.y);
+  await page.keyboard.down('Control');
+  await page.mouse.click(second.x, second.y);
+  await page.keyboard.up('Control');
+  await page.getByRole('button', { name: /^(Relatie|Link)$/ }).click();
+  await page.getByRole('menuitem', { name: /^(Geselecteerde taken koppelen|Link selected tasks)$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().sequences.length)).toBe(2);
+  await page.mouse.click(point.x, point.y);
+  await expect(slider).toHaveValue(String(partial.percent));
+  await slider.focus();
+  await page.keyboard.press('End');
+  expect(await readProgressDates(page, B)).toEqual(completed);
+  await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
+  await page.keyboard.press('Control+z');
+  expect(await readProgressDates(page, B)).toEqual(partial);
+  await page.keyboard.press('Control+z'); // De koppeling van de andere taken.
+  await page.keyboard.press('Control+z');
+  expect(await readProgressDates(page, B)).toEqual(original);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
+
+  // Wanneer de statusdatum al berekend is, is de zichtbare start van de open taak opgeschoven.
+  // Dezelfde schuif moet haar oorspronkelijke, door Fundering bepaalde, start vastleggen.
+  await page.evaluate(date => {
+    const s = window.__OPS__!.store.getState();
+    s.setProject({ statusDate: date });
+    s.runCPM();
+  }, today);
+  const shifted = await readProgressDates(page, B);
+  expect(shifted.start > original.start).toBe(true);
+  await slider.scrollIntoViewIfNeeded();
+  const shiftedBox = (await slider.boundingBox())!;
+  const shiftedY = shiftedBox.y + shiftedBox.height / 2;
+  await page.mouse.move(shiftedBox.x + 2, shiftedY);
+  await page.mouse.down();
+  await page.mouse.move(shiftedBox.x + shiftedBox.width / 2, shiftedY, { steps: 4 });
+  await page.mouse.move(shiftedBox.x + shiftedBox.width - 2, shiftedY, { steps: 4 });
+  await page.mouse.up();
+  await expect(slider).toHaveValue('100');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  const afterShift = await readProgressDates(page, B);
+  console.log('Schuif na statusdatumverschuiving', { shifted, afterShift });
+  expect(afterShift).toEqual(completed);
+
   await seedActualDates(page, B);
   await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
   await rejectReversedDates(page, page.locator('body'), B);
@@ -211,6 +305,35 @@ test('Regel 1, contextmenu: 50 % zonder statusdatum zet hem op vandaag', async (
 
   await expect.poll(() => readProgress(page, B)).toMatchObject({ statusDate: today, completion: 0.5 });
   await expect(page.locator('.ops-toast', { hasText: shown(today) })).toBeVisible();
+});
+
+test('#998 contextmenu: opvolger gebruikt de planning nadat het nivelleergat verdwijnt', async ({ page, ops: _ops }) => {
+  const statusDate = '2026-06-10';
+  const { A, B } = await page.evaluate((date) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: false });
+    s.setProject({ startDate: '2026-06-08', statusDate: date });
+    const A = s.addTask({
+      name: 'Grondwerk', time: { scheduleDuration: 4 } as never,
+      splitGaps: [{ afterMinutes: 1440, gapMinutes: 960, source: 'leveling' }],
+    });
+    const B = s.addTask({ name: 'Fundering', time: { scheduleDuration: 2 } as never });
+    s.addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: -4 });
+    s.runCPM();
+    s.setViewStartDate('2026-06-08');
+    s.selectTasks([B, A], false);
+    return { A, B };
+  }, statusDate);
+  const gaps = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.splitGaps?.length ?? 0, A);
+  expect(await gaps()).toBe(1);
+  await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${B}"][data-grid-column-id="task.name"]`)
+    .click({ button: 'right' });
+  await page.getByText(/^(Progress|Voortgang)$/).hover();
+  await page.getByRole('button', { name: '50%', exact: true }).click();
+  await expect(page.locator('[data-ops-actual-start-dialog]')).toBeHidden();
+  expect(await gaps()).toBe(0);
+  expect(await readProgress(page, A)).toMatchObject({ completion: 0.5, actualStart: '2026-06-08T07:00' });
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-08T07:00' });
 });
 
 // ── Regel 2 (Z1b): voortgang op een taak die pas na de statusdatum begint ⇒ eerst vragen ─────────
@@ -505,6 +628,50 @@ test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de inv
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart: `${actualStart}T07:00` });
+});
+
+test('#998, taakraster: plakken van een latere voorganger en voortgang vraagt vóór het schrijven om de start', async ({ page, context, ops: _ops }) => {
+  await page.clock.setFixedTime(new Date('2026-06-10T12:00:00Z'));
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { A, B } = await seedChain(page, -9);
+  const statusDate = '2026-06-10';
+  const columns = [
+    { id: taskColumnId('task.name'), width: 180, pinned: true },
+    ...['task.constraint.type', 'task.constraint.date', 'task.time.completion'].map(id => (
+      { id: taskColumnId(id), width: 120, pinned: false }
+    )),
+  ];
+  await page.evaluate(({ statusDate, columns }) => {
+    const s = window.__OPS__!.store.getState();
+    s.setStatusDate(statusDate);
+    s.runCPM();
+    s.setUI({ activeRibbonTab: 'table' });
+    s.commitTaskGridColumns('full-task-grid', 'Beperkingen en voortgang', columns);
+  }, { statusDate, columns });
+
+  const paste = async (column: string, text: string) => {
+    await page.evaluate(value => navigator.clipboard.writeText(value), text);
+    await page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${A}"] [data-grid-column-id="${column}"]`).click();
+    await page.keyboard.press('Control+V');
+  };
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  await paste('task.time.completion', '100%\n50%');
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-08T07:00' });
+  expect(await readProgressDates(page, A)).toMatchObject({ percent: 100, finish: '2026-06-05T16:00' });
+  await expect(question).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => readProgress(page, A)).toEqual({ statusDate, completion: 0, actualStart: null });
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
+
+  const constraint = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.constraint ?? null, A);
+  await paste('task.constraint.type', 'SNET\t22-06-2026\t0%\nASAP\t\t50%');
+  await expect(question).toBeVisible();
+  expect(await constraint()).toBeNull();
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
+  await fillQuestionDate(page, 'Metselwerk', '2026-06-09');
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-09T07:00' });
+  expect(await constraint()).toMatchObject({ type: 'SNET', date: '2026-06-22T07:00' });
 });
 
 test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt alleen de vraag', async ({ page, ops: _ops }) => {

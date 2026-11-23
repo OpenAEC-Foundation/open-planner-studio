@@ -1,12 +1,13 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
+import type { FileData, FileFilter, FileRef, OpenDialogOpts, OpenedFile, PickedSaveTarget, RefuseBeforePlace, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import {
-  isForbiddenPathError, writeUserBytesTauri, writeUserTextFileTauri, writeNewUserBytesTauri,
+  isForbiddenPathError, writeUserFileTauri, writeNewUserBytesTauri,
 } from '@/services/fileAccess/atomicWrite';
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
 import type { RemnantEvent } from './ownFileReplace';
+import { whenProjectFileWritesIdle } from './writeCoordinator';
 
 /** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
 export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
@@ -108,8 +109,13 @@ export class ReadAfterSettleError extends Error {
  * (de dialoog, neerzetten en Recent). Eerst een onafgeronde vervanging van dat pad afhandelen (zonder herstelrecord
  * voor het pad raakt dat de projectmap niet), dan pas lezen. `asBytes` kiest de aanroeper, zoals voorheen per route
  * (`readsPathAsBytes`, of `readsAsBytes` voor Recent); binaire bronformaten lopen dus nooit via `readTextFile` en
- * houden hun oorspronkelijke bytes. */
+ * houden hun oorspronkelijke bytes.
+ * Fixronde 1 van #1008: eerst wachten tot er geen projectbestand meer geschreven wordt (`whenProjectFileWritesIdle`).
+ * Zo leest een tabblad dat tijdens Ctrl+S op hetzelfde bestand opengaat de versie ná de vervanging, en nooit een oude
+ * bron die de vervanging daarna overschrijft. Geen opslagroute leest via deze functie (de vervanging leest het doel met
+ * `sourceTargetContent`), dus de schrijfrij wacht nooit op zichzelf. */
 export async function readOpenedTauriPath(path: string, asBytes: boolean, io: TauriOpenIO): Promise<OpenedFile> {
+  await whenProjectFileWritesIdle();
   const remnants = await io.settle(path);
   const replaceRemnants = remnants.length > 0 ? { replaceRemnants: remnants } : {};
   try {
@@ -177,33 +183,23 @@ async function needsOwnDialogRound(path: string): Promise<boolean> {
   }
 }
 
-export async function saveFileDialogTauri(
-  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+/** Opslaan als / export via de kiezer, met tekst of bytes (`writeUserFileTauri` kiest het commando van plugin-fs). Geen
+ *  `viaDownload`: op de desktop bestaat die route niet. De native kiezer geeft alleen een pad terug en opent het bestand
+ *  niet (plugin-dialog `save`), dus de late controle (`refuseBeforePlace`) laat een bestaand doel echt ongewijzigd. */
+export async function saveDataDialogTauri(
+  defaultName: string, data: FileData, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
   // #804 fixronde 1: het gekozen pad vóór het schrijven controleren (bijv. het bronbestand van een gebouwmodel).
   if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  await writeUserTextFileTauri(savedPath, content);
+  if (!(await writeUserFileTauri(savedPath, data, opts?.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
-/** Binaire tegenhanger van `saveFileDialogTauri`: zelfde kiezer, `writeFile` i.p.v.
- *  `writeTextFile`. Geen `viaDownload` — op desktop bestaat die route niet. */
-export async function saveBytesDialogTauri(
-  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
-): Promise<SaveOutcome | null> {
-  const savedPath = await pickSavePathTauri(defaultName, filters, opts);
-  if (!savedPath) return null;
-  if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  await writeUserBytesTauri(savedPath, bytes);
-  return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
-}
-
-export async function saveToRefTauri(ref: FileRef, content: string): Promise<boolean> {
+export async function saveToRefTauri(ref: FileRef, data: FileData, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind !== 'path') return false;
-  await writeUserTextFileTauri(ref.path, content);
-  return true;
+  return writeUserFileTauri(ref.path, data, refuseBeforePlace);
 }
 
 /** Strikte byte-ingang: dezelfde kiezer/doelcontrole, uitsluitend exclusieve nieuwe aanmaak. */
@@ -213,14 +209,28 @@ export async function saveNewBytesDialogTauri(
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
   if (await opts.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
-  await writeNewUserBytesTauri(savedPath, bytes);
+  if (!(await writeNewUserBytesTauri(savedPath, bytes, opts.refuseBeforePlace))) return null;
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
-export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array): Promise<boolean> {
+/** Zie `PickedSaveTarget` in `index.ts`. */
+export async function pickSaveTargetTauri(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
+  const path = await pickSavePathTauri(defaultName, filters);
+  return path ? { path, current: await existingRegularFileTauri(path) } : null;
+}
+
+/** De inhoud van een gewoon bestand op `path`, zonder een link te volgen. `null` als daar niets staat, een link of map,
+ *  of als `lstat` faalt (dan de exclusieve aanmaakroute, zoals main); `'unreadable'` als een gewoon bestand niet te lezen
+ *  is (de doelcontrole weigert dat, zoals voorheen de doelscan van het pad). */
+async function existingRegularFileTauri(path: string): Promise<Uint8Array | 'unreadable' | null> {
+  const { lstat, readFile } = await import('@tauri-apps/plugin-fs');
+  try { if (!(await lstat(path)).isFile) return null; } catch { return null; }
+  try { return await readFile(path); } catch { return 'unreadable'; }
+}
+
+export async function saveNewBytesToRefTauri(ref: FileRef, bytes: Uint8Array, refuseBeforePlace?: RefuseBeforePlace | null): Promise<boolean> {
   if (ref.kind !== 'path') return false;
-  await writeNewUserBytesTauri(ref.path, bytes);
-  return true;
+  return writeNewUserBytesTauri(ref.path, bytes, refuseBeforePlace);
 }
 
 export async function readFromRefTauri(ref: FileRef): Promise<string | null> {

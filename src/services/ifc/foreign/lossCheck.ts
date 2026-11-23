@@ -95,11 +95,13 @@
 import { isStrictIsoDateTime, parseInstant } from '@/utils/dateUtils';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
+import { withOpenedColors } from '@/services/taskTypes/customTaskTypeColors';
+import { savedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { scalarHourFromClock } from '@/services/subdayIo';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { WriteIFCInput } from '../ifcWriter';
-import { PER_TASK_PSET_BY_NAME, PROP, PSET, ifcJson } from '../ifcPsets';
+import { PER_TASK_PSET_BY_NAME, PROP, PSET, asciiJson, ifcJson } from '../ifcPsets';
 import { WORK_CALENDAR_ARITY, WORK_CONTROL_ARITY, workCalendarSlots, workControlSlots } from '../ifcWorkControlSlots';
 import { lagValueSlot } from '../ifcLagTimeSlots';
 import { decodeStepText, stepTextIsValid } from '../stepText';
@@ -185,8 +187,10 @@ export interface SlotRestore {
   readonly kind: SlotKind;
 }
 
-/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. */
-export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number }
+/** Een wijziging die de merge in een regel van O1 aanbrengt: slot `arg` van regel `#id` wordt `token`. `partial`: de
+ *  bronwaarde is van een soort die de lezer deels draagt (lijst, JSON, samengestelde tekst); zo'n slot toetst (c) niet per
+ *  slot (`restoredOwnSlots` in `ownGroups.ts`). */
+export interface SlotEdit { readonly id: number; readonly arg: number; readonly token: string; readonly chunk: number; readonly partial?: true }
 
 export interface LossCheckInput {
   readonly index: StepIndex;
@@ -369,10 +373,13 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
   const carried = (chunk: number, outArg: number) => !notCarried.has(`${chunk}:${outArg}`);
   // De andere toets (PR 12b; onderzoek van 14 november 2026, vraag 2): een eigen groep op projectniveau die het openen niet
   // veranderde (a′, `input.ownGroups`) en die in de bron gedragen is (a: geen stuk ervan had (b) nodig), schrijft de writer
-  // uit de lezing van de bron precies zoals hij in de bron staat. Een verschil in O1 in die groep is dan wat de writer uit
-  // de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven groep terugleest tot precies wat de writer
-  // ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in `mergeWriter.ts`), en de controle na openen
-  // dat de planning gelijk blijft. Elke andere groep, en alles buiten de eigen groepen, blijft onder de controle hieronder.
+  // uit de lezing van de bron zoals hij in de bron staat. Dat geldt voor de eigen regels; een lid van een ander programma
+  // telt in geen groep mee, en de merge hangt het terug (stap 6 van `writeIfcMerge`; controle 1 toetst het). Een verschil in
+  // O1 in die groep is dan wat de writer uit de bewerking maakt; het hoeft geen bewerking te verklaren. Dat de geschreven
+  // groep terugleest tot precies wat de writer ervan maakt, toetst controle (c) op de echte uitvoer (`ownOutputProblem` in
+  // `mergeWriter.ts`), en de controle na openen dat de planning gelijk blijft. Elke andere groep (ook een groep met één slot
+  // van (b): die valt hier helemaal buiten, ook als (c) haar per slot toetst), en alles buiten de eigen groepen, blijft onder
+  // de controle hieronder.
   const uncarried = new Set(restores.map(r => input.ownGroups?.get(r.chunk)).filter((g): g is string => g !== undefined));
   const ownGroupCarries = (chunk: number) => { const g = input.ownGroups?.get(chunk); return g !== undefined && !uncarried.has(g); };
   // De tweede vormen (E1 de baselinekop, PR 12c; E2 de typenaam op de taak, PR 12d): valt de pset van een vorm onder de toets
@@ -443,7 +450,7 @@ export function lossCheck(input: LossCheckInput, report: (f: LossFinding) => voi
       if (normRefs(input, now, p1) === normRefs(input, line0.args[r.outArg], p0)) {
         const token = mapToken(input, r.token, p1);
         if (token === undefined) say(after, true); // een verwijzing van de bron heeft in O1 geen tegenhanger meer
-        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk });
+        else edits.push({ id: o1!, arg: r.outArg, token, chunk: r.chunk, ...(PARTIAL_KINDS.has(r.kind) ? { partial: true as const } : {}) });
       } else if (PARTIAL_KINDS.has(r.kind)) {
         say(after, true); // de writer schrijft hier iets anders, zonder dat het veld veranderde: weigeren
       }
@@ -1039,6 +1046,18 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
     });
   };
 
+  /** De werksoortkleur (#856): een definitie in `OPS_TaskTypes` zonder `color` (een bron van vóór het veld) krijgt bij
+   *  openen een vaste kleur, en de writer schrijft die. Dat telt als dezelfde waarde als de bron met precies die kleur
+   *  erbij, en alleen dat (`taskTypesWithOpenedColors`): de uitvoer moet teken voor teken de bron zijn met de ingevoegde
+   *  kleuren. Elk ander verschil (id, naam, koppeling, een bestaande kleur, een onbekend of dubbel veld) blijft een verschil. */
+  const isTaskTypesSlot = (s: number, type: string, k2: number) => type === 'IFCPROPERTYSINGLEVALUE' && k2 === 2
+    && index.name(s) === PROP.TaskTypes.TaskTypes && psetNameOf(index, s) === PSET.TaskTypes;
+  const sameTaskTypes = (s: number, a: string, b: string): boolean => {
+    if (same(s, a, b, false)) return true;
+    const before = taskTypesWithOpenedColors(input, a, q => index.tokenText(s, q)), after = jsonText(b, outDecode);
+    return before !== undefined && after !== undefined && asciiJson(JSON.stringify(before)) === after;
+  };
+
   for (const [s, o] of pairs) {
     const line = out.get(o);
     const type = index.type(s);
@@ -1063,6 +1082,7 @@ function compareOutput(input: LossCheckInput, p: Pairing, ownerOut: number | und
       if (k2 === 0 && isGuidToken(at) && isGuidToken(bt) && isRootLine(line) && ownAuxGuid(s)) continue;
       const ok = type === 'IFCPROPERTYSET' && k2 === 4 ? sameMembers(s, at, bt)
         : isIdListSlot(index, s, type, k2) ? sameIdList(s, at, bt)
+        : isTaskTypesSlot(s, type, k2) ? sameTaskTypes(s, at, bt)
         : same(s, at, bt, DURATION_SLOTS[type]?.includes(k2) === true);
       if (!ok) push({ chunk: s, arg: k, source: at, out: bt, outArg: k2 });
     }
@@ -1814,10 +1834,27 @@ function jsonObject(value: unknown): value is Record<string, unknown> {
 function stringMap(value: unknown): value is Record<string, string> {
   return jsonObject(value) && Object.values(value).every(v => typeof v === 'string');
 }
-function mapJson(token: string, decode: (quoted: string) => string): unknown {
+/** De tekst in een `IFCTEXT('…')`-token, gedecodeerd. */
+function jsonText(token: string, decode: (quoted: string) => string): string | undefined {
   const m = /^IFCTEXT\s*\(\s*('[\s\S]*')\s*\)$/.exec(token.trim());
-  if (!m) return undefined;
-  try { return JSON.parse(decode(m[1])); } catch { return undefined; }
+  return m ? decode(m[1]) : undefined;
+}
+/** De `OPS_TaskTypes`-waarde van de bron met de kleur van het openen erbij voor elke definitie zonder kleur (#856,
+ *  `withOpenedColors`), maar alleen als het lezen niets weggooide: de brontekst moet precies de vorm hebben die de
+ *  writer van haar lezing maakt (`asciiJson(JSON.stringify(…))`: geen dubbele sleutel, geen andere opmaak of volgorde).
+ *  Anders `undefined`. */
+function taskTypesWithOpenedColors(input: LossCheckInput, token: string, decode: (quoted: string) => string): unknown {
+  const text = jsonText(token, decode);
+  if (text === undefined) return undefined;
+  let value: unknown;
+  try { value = JSON.parse(text); } catch { return undefined; }
+  if (!jsonObject(value) || asciiJson(JSON.stringify(value)) !== text) return undefined;
+  return { ...value, definitions: withOpenedColors(value.definitions, input.pristine.customTaskTypes ?? []) };
+}
+function mapJson(token: string, decode: (quoted: string) => string): unknown {
+  const text = jsonText(token, decode);
+  if (text === undefined) return undefined;
+  try { return JSON.parse(text); } catch { return undefined; }
 }
 /** De writer bewaart de domeinvolgorde. Alle bestaande definities blijven exact op hun plaats;
  * alleen werkelijk nieuwe ids mogen achteraan, met precies de domeininhoud. */
@@ -1921,11 +1958,14 @@ function explainOwnMapGrowth(ctx: O1Context, d: LossDiff, way: string): string |
     || Object.keys(before).sort().join(',') !== 'definitions,taskTypeIds'
     || Object.keys(after).sort().join(',') !== 'definitions,taskTypeIds'
     || !Array.isArray(before.definitions) || !stringMap(before.taskTypeIds) || !stringMap(after.taskTypeIds)) return undefined;
-  const used = new Set(input.domain.tasks.map(t => t.customTaskTypeId).filter(Boolean));
-  const definitions = (input.domain.customTaskTypes ?? []).filter(t => used.has(t.id));
-  const grows = definitions.length > before.definitions.length;
-  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(before.definitions, definitions, after.definitions)
-    : JSON.stringify(before.definitions) !== JSON.stringify(after.definitions)
+  const definitions = savedCustomTaskTypes(input.domain.tasks, input.domain.customTaskTypes ?? []);
+  // Een brondefinitie zonder kleur telt met de kleur van het openen, alleen als dat verliesloos is (#856, zie
+  // `taskTypesWithOpenedColors`); anders de bron zoals ze is.
+  const colored = taskTypesWithOpenedColors(input, d.source, q => index.tokenText(d.chunk, q));
+  const beforeDefinitions = jsonObject(colored) && Array.isArray(colored.definitions) ? colored.definitions : before.definitions;
+  const grows = definitions.length > beforeDefinitions.length;
+  if (grows ? !ctx.plannerChanged.has('customTaskTypes') || !ownDefinitionsGrow(beforeDefinitions, definitions, after.definitions)
+    : JSON.stringify(beforeDefinitions) !== JSON.stringify(after.definitions)
       || JSON.stringify(definitions) !== JSON.stringify(after.definitions)) return false;
   const valid = new Set(definitions.map(t => t.id));
   const replacements = new Map<string, string | undefined>();
