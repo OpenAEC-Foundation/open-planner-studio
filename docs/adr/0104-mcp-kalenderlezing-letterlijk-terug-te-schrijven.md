@@ -19,7 +19,10 @@ liegen.
 - `generate` en `generation` bestaan naast elkaar en betekenen iets anders. `generate` is een actie: draai de
   generator over de spanne van dit project. `generation` schrijft alleen de herkomst van de dagen die meekomen. Samen
   zijn ze tegenstrijdig en worden ze geweigerd. Een sleutel van de generator (`country`, `bouwvak`) in `generation`
-  krijgt een weigering die de namen van de leesvorm noemt.
+  krijgt een weigering die de namen van de leesvorm noemt. Voor Bolivia nemen `generate.region` en
+  `generation.region` alleen de regiocodes van de app aan (`HOLIDAY_SETS.BO.regions`, `calendarRegionReason`); een
+  lezing met een andere code, bijvoorbeeld uit een IFC-bestand van een andere schrijver, wordt geweigerd en maakt of
+  wijzigt geen kalender.
 - `holidays` (de leesvorm) zet de lijst exact. Samenvoegen zou bij aanmaken de standaardfeestdagen met de bronlijst
   vermengen. Daarom niet samen met `rawHolidays`, `holidaysMode` of `generate`. Komt `generation` mee, dan blijft de
   kalender gegenereerd; anders is de overgezette lijst letterlijk.
