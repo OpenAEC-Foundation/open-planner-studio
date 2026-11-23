@@ -14,7 +14,7 @@ import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
 import { documentContentOf, sameDocumentContent, type DocumentContentRef } from '@/state/documentSaveState';
-import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, writtenData, type IfcOutputCompute } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, documentSaveCompute, prepareIfcOutput, writtenFingerprint, type IfcOutputCompute } from '@/state/prepareIfcOutput';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   canWriteToRefWithoutPrompt, fileIdentityFs, sameFileRef, saveTargetRef, saveToRefWithoutPrompt, sourceTargetContent,
@@ -385,11 +385,11 @@ export function createFileAutoSaveController(deps: {
       let replaced = false;
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
-      const plain = writtenData(ui.featureFlags, output);
-      const written = await saveToRefWithoutPrompt(candidate.ref!, plain.data, contentReplaced);
+      const hashing = writtenFingerprint(ui.featureFlags, output);
+      const written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
       if (replaced) return 'stale';
       if (!written) return false;
-      const fingerprint = plain.fingerprint instanceof Promise ? await plain.fingerprint : plain.fingerprint;
+      const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       // Binnen dezelfde schrijfbeurt vastleggen, zoals Ctrl+S: dirty alleen weg als precies deze versie nog actueel is.
       getState().markAutoSaveVersionSaved(document, current, undefined, fingerprint);
       return true;

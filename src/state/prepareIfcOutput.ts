@@ -6,7 +6,6 @@ import { hasForeignContent, type IfcSource, type PreparedIfcWrite } from '@/serv
 import { spendPlanOnlyConfirmation, type PlanOnlyConfirmation, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
-import type { FileData } from '@/services/fileAccess';
 import type { TargetFingerprint } from './documentContract';
 import { ifcFullWriteBlocked } from './ifcForeignGuard';
 import type { IFCSaveSource, IFCWriteInput } from './ifcSaveInput';
@@ -41,19 +40,12 @@ export function documentSaveCompute(featureFlags: FeatureFlags, compute: IfcOutp
   return (job, stop) => compute(job.kind === 'writer' ? { ...job, hashBytes: true } : job, stop);
 }
 
-export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput, bytes: Uint8Array): WrittenFingerprint {
+export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput, written?: Uint8Array): WrittenFingerprint {
   if (output.prepared || !ifcForeignContentEnabled(featureFlags)) return null;
+  const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
   const byteLength = bytes.byteLength;
   return output.sha256 !== undefined ? { sha256: output.sha256, byteLength }
     : precomputeSha256(bytes).then(sha256 => ({ sha256, byteLength }));
-}
-
-export function writtenData(
-  featureFlags: FeatureFlags, output: Extract<IfcOutput, { readonly content: string }>,
-): { readonly data: FileData; readonly fingerprint: WrittenFingerprint } {
-  if (!ifcForeignContentEnabled(featureFlags)) return { data: output.bytes ?? output.content, fingerprint: null };
-  const bytes = output.bytes ?? new TextEncoder().encode(output.content);
-  return { data: bytes, fingerprint: writtenFingerprint(featureFlags, output, bytes) };
 }
 
 export class IfcWriteBlockedError extends Error {

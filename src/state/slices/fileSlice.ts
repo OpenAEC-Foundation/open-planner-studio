@@ -51,7 +51,7 @@ import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/if
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
 import {
-  documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, writtenData, writtenFingerprint, IfcWriteBlockedError,
+  documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, writtenFingerprint, IfcWriteBlockedError,
   type IfcOutput, type IfcOutputCompute,
 } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
@@ -619,7 +619,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  dan een leeg bestand na (knownbug 1899, 1893). Hierlangs gaan de browser en, met de flag uit, de gewone planning op
    *  de desktop (zoals main). De merge op de desktop en met de flag elke planning op de desktop gaan via
    *  `saveAsOnDesktop`, de enige route met de toestemming van #804 keuze 4. */
-  const documentSaveDialog = (snapshot: AppState, write: IfcOutput, data: FileData | null, name: string, missingSourceSaveAs = false) => {
+  const documentSaveDialog = (snapshot: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false) => {
     const options = {
       refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
@@ -630,7 +630,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // (`saveDataDialog`, #804 stap 6: met de bytes van de worker).
     return write.prepared
       ? saveNewBytesDialog(name, write.prepared.bytes, IFC_FILE_FILTERS, options)
-      : saveDataDialog(name, data ?? writerData(write), IFC_FILE_FILTERS, options);
+      : saveDataDialog(name, writerData(write), IFC_FILE_FILTERS, options);
   };
 
   /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
@@ -1327,13 +1327,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         try {
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
-          const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
+          const hashing = writtenFingerprint(state.ui.featureFlags, write);
           const saved = write.prepared
             ? await saveNewBytesToRef(ref, write.prepared.bytes, last.refuse)
-            : await saveToRef(ref, plain!.data, last.refuse, ref.kind === 'handle');
+            : await saveToRef(ref, writerData(write), last.refuse, ref.kind === 'handle');
           if (last.refused()) return false;
           if (saved) {
-            const hashing = plain?.fingerprint ?? null;
             const fingerprint = hashing instanceof Promise ? await hashing : hashing;
             return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint);
           }
@@ -1361,14 +1360,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         await pushRecent(saved.outcome.ref, saved.outcome.name);
         return saved.committed;
       }
-      const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
-      const outcome = await documentSaveDialog(state, write, plain?.data ?? null, `${suggestedFileBase(state)}.ifc`);
+      const hashing = writtenFingerprint(state.ui.featureFlags, write);
+      const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
         return false;
       }
-      const hashing = plain?.fingerprint ?? null;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
@@ -1438,10 +1436,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
         return;
       }
-      const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
-      const outcome = await documentSaveDialog(state, write, plain?.data ?? null, defaultName, missingSourceSaveAs);
+      const hashing = writtenFingerprint(state.ui.featureFlags, write);
+      const outcome = await documentSaveDialog(state, write, defaultName, missingSourceSaveAs);
       if (!outcome) return;
-      const hashing = plain?.fingerprint ?? null;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
       else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
