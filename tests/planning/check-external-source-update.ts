@@ -643,7 +643,6 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('13c daarna geeft open versie 2 met een ander anker ⇒ opnieuw gelezen, een balk', [reads, S().ui.externalSourceUpdates.map(u => u.key)], [2, ['site:s1']]);
 }
 
-// Knownbug 992: een gewijzigde datum uit versie 1 mag niet onder versie 2 worden aangeboden.
 {
   const { store, S, a } = plan();
   const base = link('site-link', undefined, '2027-03-05T16:00', '0');

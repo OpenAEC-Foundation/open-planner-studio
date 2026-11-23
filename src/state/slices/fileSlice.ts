@@ -804,9 +804,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (get().activeDocumentId !== documentId) return;
       if (!src) continue;
       if (stale(key)) { discarded = true; continue; }
-      // De site kan versie Y al melden terwijl open(id) nog versie X geeft. Wacht in dat geval op een
-      // volgende controle: geen verkeerd gelabeld voorstel en Y niet als afgehandeld opslaan (knownbug 992).
-      // Zonder versie in open(id) houdt de bestaande terugval op de metadata stand.
       if (locator.kind === 'site' && src.version !== undefined && src.version !== version) continue;
       const tasks = get().tasks;
       const result = refreshExternalAnchors(tasks, src, externalSourceScopeOf(locator));
@@ -2314,12 +2311,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     readExternalSourceUpdate: async (update, labels) => {
       if (update.openDocumentId === undefined) {
         const src = await get().readExternalSourceAt(update.locator, labels);
-        // De host kan nu een andere versie geven dan toen de balk ontstond. Toon en accepteer haar niet
-        // onder het versielabel van die balk.
         if (update.locator.kind === 'site' && src?.version !== undefined && src.version !== update.version) return null;
         return src;
       }
-      // Stap 1.7: alleen zolang het document nog open staat, nog deze bron is en nog niet-opgeslagen wijzigingen heeft.
       const open = openDirtySource(update.locator);
       return open?.id === update.openDocumentId ? readOpenSource(open, update.locator, labels) : null;
     },
