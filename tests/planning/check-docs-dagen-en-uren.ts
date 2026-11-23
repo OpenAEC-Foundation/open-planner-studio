@@ -195,8 +195,6 @@ same('lag 1,5 blijft 1,5 werkdag', parseLagInput('1,5')?.lagDays, 1.5);
   same('2d op 75 % heeft 0,5d rest', f.taskOf(id).time.remainingTime, 0.5);
 }
 
-// Knownbug 55: voer legacy-datums bewust RAUW in. setActualFinish zou de datum al
-// normaliseren; ook updateTask normaliseert. De store-injectie test de solvertak direct.
 for (const profile of ['ops', 'msproject'] as const) {
   const f = fixture(profile, '2027-06-21');
   const id = f.hour('Voltooid', 8);
