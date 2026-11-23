@@ -204,10 +204,11 @@ const INIT_SCRIPT = `(() => {
     clean: s => !s.isDirty,
   };
   const paintAfter = t => nm.paintLog.find(p => p.s >= t && p.e != null) ?? null;
+  const paintAfterCpm = () => nm.paintLog.find((p, index) => index >= nm.cpmPaintIndex && p.e != null) ?? null;
   const conds = {
     // Taken in de store én daarna een complete Gantt-tekening.
     store: a => nm.storeAt != null && (!a.paint || !!paintAfter(nm.storeAt)),
-    levelApplied: () => nm.storeAt != null && nm.cpmAt != null && !!paintAfter(nm.cpmAt),
+    levelApplied: () => nm.storeAt != null && nm.cpmAt != null && !!paintAfterCpm(),
     paint: a => nm.paintLog.length > a.p0 && nm.paintLog[a.p0].e != null,
     levelDone: () => {
       const d = document.querySelector('[role="dialog"]');
@@ -222,6 +223,7 @@ const INIT_SCRIPT = `(() => {
     nm.p0 = nm.paintLog.length;
     nm.storeAt = null;
     nm.cpmAt = null;
+    nm.cpmPaintIndex = 0;
     if (nm.unsub) nm.unsub();
     nm.unsub = null;
     if (window.__OPS__) {
@@ -235,6 +237,7 @@ const INIT_SCRIPT = `(() => {
           }
           if (nm.storeAt != null && nm.cpmAt == null && st.cpmResult && st.cpmResult !== nm.refCpm) {
             nm.cpmAt = performance.now();
+            nm.cpmPaintIndex = nm.paintLog.length;
           }
         } else if (nm.storeAt == null && storeConds[kind](st, a)) nm.storeAt = performance.now();
       });
@@ -250,8 +253,8 @@ const INIT_SCRIPT = `(() => {
       let ok = false;
       try { ok = conds[name](a); } catch {}
       if (ok) {
-        const commitAt = name === 'levelApplied' ? nm.cpmAt : nm.storeAt;
-        const p = name === 'paint' ? nm.paintLog[a.p0] : (commitAt != null ? paintAfter(commitAt) : null);
+        const p = name === 'levelApplied' ? paintAfterCpm()
+          : name === 'paint' ? nm.paintLog[a.p0] : (nm.storeAt != null ? paintAfter(nm.storeAt) : null);
         resolve({ hit: performance.now(), storeAt: nm.storeAt, cpmAt: nm.cpmAt, paintStart: p ? p.s : null, paintEnd: p ? p.e : null });
         return;
       }
