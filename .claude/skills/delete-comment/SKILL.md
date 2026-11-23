@@ -20,10 +20,11 @@ Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootst
 - Je beoordeelt elk blok zelf, met de code erbij. Weghalen zonder lezen is geen uitvoering van deze skill.
 - Kennis gaat niet verloren. Een besluit dat nergens anders staat, staat in een ADR vóór het commentaar weg is.
 - Een ADR legt het besluit en de reden vast. Voor de precieze regel verwijst hij naar de functie, de toets of het
-  contract (een gids in `docs/`, een regel in `.claude/rules/`); hij vertelt die regel niet in eigen woorden na, want
-  zo'n samenvatting is algemener dan de code. Wat je toch beweert, heb je zelf in de code gezien, met de grens erbij:
-  welk geval, welke tak, welke route.
-- Geen regelnummers in een ADR of in `knownbugs.md`: noem de functie of het bestand.
+  contract (een gids in `docs/`, een regel in `.claude/rules/`); hij vertelt die regel niet in eigen woorden na. Wat
+  je toch beweert, heb je zelf in de code gezien, met de grens erbij: welk geval, welke tak, welke route. Noem je een
+  toets, ga dan na dat die de bewering ook dekt.
+- Geen regelnummers in een ADR: noem de functie of het bestand. In een punt voor `knownbugs.md` noem je altijd de
+  functie; een regelnummer alleen daarnaast.
 - Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
 
 ## Stap 1. Meten en lezen
@@ -55,8 +56,8 @@ Verouderd toets je mechanisch: elke naam tussen backticks en elk genoemd bestand
 Een ADR is voor een besluit dat moeilijk terug te draaien is, dat verrast zonder uitleg en waar een echte afweging
 achter zat. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") is geen ADR: houdt een test dat
 gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test op (`grep` op de functienaam in
-`tests/`). Is er geen test, dan neem je de regel op onder *Gevolgen* van de ADR van dat onderwerp. Een ontbrekende
-test is geen punt voor `knownbugs.md`.
+`tests/`). Is er geen test, dan noem je onder *Gevolgen* van de ADR van dat onderwerp de keuze, de reden en de
+functie waar ze staat, zonder de regel uit te schrijven. Een ontbrekende test is geen punt voor `knownbugs.md`.
 
 ## Stap 3. Besluiten vastleggen
 
