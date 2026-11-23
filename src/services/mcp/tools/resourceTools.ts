@@ -1,32 +1,3 @@
-// MCP-toolmodule — RESOURCEBEHEER (aanmaken / wijzigen / verwijderen).
-//
-// Naast lezen (`planner_list_resources`, `planner_get_resource_histogram`), toewijzen
-// (`planner_manage_assignments`) en nivelleren (`planner_level_resources`) is dit de enige route om
-// een resource aan te maken, te hernoemen, te verwijderen of zijn capaciteit/tarief/kalender/
-// beschikbaarheid te wijzigen ("zet er een tweede kraan bij").
-//
-// ONTWERPKEUZE — ÉÉN BULK-TOOL MET ACTIES, niet drie losse tools:
-//   * hij spiegelt `planner_manage_assignments`, de zustertool voor exact hetzelfde domein — een AI
-//     die de één kent, kent de ander;
-//   * create/update/delete delen bijna hun volledige parameterverzameling; drie losse tools zouden
-//     drie bijna identieke beschrijvingen aan de tool-keuze toevoegen (slechtere tool-selectie);
-//   * "vervang de grote kraan door twee kleine" is dan één call = ÉÉN ongedaan-maak-stap.
-//
-// SCHRIJFKANT SPREEKT DE LEESKANT (harde eis van dit oppervlak): elk veld heet hier exact zoals
-// `planner_list_resources` het teruggeeft — `name`, `type`, `maxUnits`, `costPerHour`,
-// `unitOfMeasure`, `calendarId`, `description`, `parentId`, `availabilitySteps`; zie de noot in
-// `readTools.ts` bij `listResources`.
-//
-// Conventies (zie de kop van `taskTools.ts` en `calendarResourceTools.ts`):
-//   1. driedeling `parseX` (vormvalidatie) / `xCore` (synchrone, transactie-vrije kern ⇒
-//      `MutationOutcome`) / `handler` (guards + backup + transactie), zodat de tool zowel los als
-//      als batch-stap draait met exact één implementatie van de mutatie;
-//   2. ZACHTE per-item-weigeringen (`itemRejections`) — één rot item rolt de bulk nooit terug;
-//   3. LEGE-BATCH-SNELPAD — statisch nul uitvoerbare items betreedt géén transactie (geen spurious
-//      undo-snapshot, geen redo-wipe door een AI-no-op);
-//   4. `enrichOk` — de respons-`data` wordt ná de transactie uit de VERSE store opgebouwd;
-//   5. nooit `ok` zonder effect: een update zonder velden, een onbekend id en een onbekende sleutel
-//      worden geweigerd met een boodschap die de sleutel én het alternatief noemt.
 import type { McpContext, McpToolOk } from '../contracts';
 import {
   runMutateTool,
@@ -34,15 +5,12 @@ import {
   McpStepError,
   type MutationOutcome,
 } from './runtime';
-// Alleen als TYPE: wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
 import {
   booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
 } from './helpers';
 import type { AppState } from '@/state/appStore';
 import { RESOURCE_TYPES as ALL_RESOURCE_TYPES, type AvailabilityStep, type Resource, type ResourceType } from '@/types/resource';
-// Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
-// slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
@@ -50,26 +18,14 @@ import { hasLevelingOutput } from '@/utils/taskDefaults';
 type Rejection = { id: string; reason: string };
 type StoreState = AppState;
 
-/** Het volledige `ResourceType`-domein (types/resource.ts). Hoofdlettergevoelig, net als elders. */
 const RESOURCE_TYPES: readonly ResourceType[] = ALL_RESOURCE_TYPES;
 
-/**
- * De SCHRIJFBARE velden. Bewust exact het oppervlak dat de mens in het resourcepaneel heeft
- * (`ResourcePanel.tsx`: naam, type, max. eenheden, kalender, uurtarief, meeteenheid, ploeg,
- * beschikbaarheidsstappen) plus `description` — dat veld zit in het `Resource`-type, round-trippt
- * door IFC (`IFCxxxRESOURCE` argument 4) en is aan de leeskant zichtbaar, maar heeft in het paneel
- * geen kolom. Het toevoegen kost niets en maakt de bridge niet gevaarlijker.
- *
- * NIET schrijfbaar: `id` (de store genereert hem) en `availability` (deprecated, vervangen door
- * `maxUnits`; alleen nog gelezen bij migratie van oude bestanden).
- */
 const RESOURCE_FIELD_KEYS = [
   'name', 'type', 'description', 'maxUnits', 'costPerHour', 'unitOfMeasure',
   'calendarId', 'parentId', 'availabilitySteps',
 ] as const;
 type ResourceFieldKey = (typeof RESOURCE_FIELD_KEYS)[number];
 
-/** Toegestane sleutels per actie (structuur + velden). Alles daarbuiten is een zachte weigering. */
 const ALLOWED_KEYS: Record<string, string[]> = {
   create: ['action', 'tempId', ...RESOURCE_FIELD_KEYS],
   update: ['action', 'id', ...RESOURCE_FIELD_KEYS],
@@ -78,11 +34,6 @@ const ALLOWED_KEYS: Record<string, string[]> = {
 
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Een geparste veldpatch. Een sleutel MET waarde `undefined` betekent WISSEN (de aanroeper gaf
- * `null`); een afwezige sleutel betekent "niet aanraken". `draft.updateResource` vertaalt de eerste
- * naar een echte `delete` op het object.
- */
 type FieldPatch = Partial<Record<ResourceFieldKey, unknown>>;
 
 interface CreateAction { action: 'create'; tempId?: string; [k: string]: unknown }
@@ -90,11 +41,6 @@ interface UpdateAction { action: 'update'; id: string; [k: string]: unknown }
 interface DeleteAction { action: 'delete'; id: string; cascade?: boolean }
 type ResourceAction = CreateAction | UpdateAction | DeleteAction;
 
-// =================================================================================================
-// Vormvalidatie van één item
-// =================================================================================================
-
-/** Onbekende sleutels ⇒ leesbare reden die de sleutel ÉN het toegestane alternatief noemt. */
 function unknownKeyReason(item: Record<string, unknown>, action: string): string | null {
   const allowed = ALLOWED_KEYS[action];
   const bad = Object.keys(item).filter((k) => !allowed.includes(k));
@@ -103,7 +49,6 @@ function unknownKeyReason(item: Record<string, unknown>, action: string): string
     `${allowed.join(', ')}`;
 }
 
-/** Vormvalidatie van de `availabilitySteps`-lijst; string = reden, anders de genormaliseerde lijst. */
 function parseAvailabilitySteps(raw: unknown): AvailabilityStep[] | string {
   if (!Array.isArray(raw)) return '`availabilitySteps` must be an array (or `null` to clear them)';
   const seen = new Set<string>();
@@ -119,8 +64,6 @@ function parseAvailabilitySteps(raw: unknown): AvailabilityStep[] | string {
     if (typeof step.from !== 'string' || !ISO_DATE_ONLY.test(step.from)) {
       return `\`availabilitySteps.from\` must be an ISO date (YYYY-MM-DD), got '${String(step.from)}'`;
     }
-    // 0 = niet beschikbaar vanaf `from` (een periode buiten de MS Project-beschikbaarheid, een P6-tarief met 0);
-    // alleen de vlakke `maxUnits` moet groter dan 0 zijn.
     if (!isFiniteNumber(step.maxUnits) || step.maxUnits < 0) {
       return `\`availabilitySteps.maxUnits\` must be a number >= 0 (units per working day), got '${String(step.maxUnits)}'`;
     }
@@ -128,14 +71,9 @@ function parseAvailabilitySteps(raw: unknown): AvailabilityStep[] | string {
     seen.add(step.from);
     out.push({ from: step.from, maxUnits: step.maxUnits });
   }
-  // Chronologisch: de engine leest "de laatste stap ≤ peildatum" (types/resource.ts).
   return out.sort((a, b) => a.from.localeCompare(b.from));
 }
 
-/**
- * Vormvalidatie van de VELDEN van één create/update-item (nog zonder verwijzings-checks — die
- * hebben de gesimuleerde verzameling nodig en staan in `classifyResources`). String = reden.
- */
 function parseFields(item: Record<string, unknown>): FieldPatch | string {
   const patch: FieldPatch = {};
 
@@ -188,19 +126,12 @@ function parseFields(item: Record<string, unknown>): FieldPatch | string {
     else {
       const steps = parseAvailabilitySteps(item.availabilitySteps);
       if (typeof steps === 'string') return steps;
-      // Een LEGE lijst wist de stappen (vlakke `maxUnits` geldt dan weer altijd) — dat is een echt
-      // effect, geen no-op, en dus toegestaan.
       patch.availabilitySteps = steps.length > 0 ? steps : undefined;
     }
   }
   return patch;
 }
 
-// =================================================================================================
-// Classificatie (gedeeld door het lege-batch-snelpad en de transactie-kern)
-// =================================================================================================
-
-/** Gesimuleerde resource tijdens de pre-validatie (alleen wat de guards lezen). */
 interface SimResource { id: string; type: ResourceType; parentId?: string }
 
 type ResourcePlan =
@@ -208,34 +139,6 @@ type ResourcePlan =
   | { mode: 'update'; index: number; id: string; fields: FieldPatch }
   | { mode: 'delete'; index: number; id: string };
 
-/**
- * Statische classificatie van een resource-batch. Draait tegen een MEEGROEIENDE simulatie, zodat
- * verwijzingen binnen dezelfde call kloppen: een `create` met `tempId` mag door een latere actie als
- * `parentId` worden gebruikt, en een `delete` haalt de resource uit de simulatie zodat een daarna
- * volgende verwijzing ernaar correct wordt geweigerd.
- */
-/**
- * BIBLIOTHEEK-GATING. Een resource die uit een resourcebibliotheek komt draagt een
- * herkomststempel; de bibliotheek bepaalt dan WAT die resource is (naam/type/omschrijving/tarief/
- * eenheid — `RESOURCE_DIFF_FIELDS`) en het project bepaalt hoeveel en wanneer (`maxUnits`,
- * `availabilitySteps`, `calendarId`). Het resourcepaneel rendert die eerste groep daarom als platte
- * tekst: een mens KAN ze op zo'n rij niet wijzigen.
- *
- * Deze tool spiegelt dat slot: anders schrijft de bridge velden die de gebruiker zelf niet kan
- * schrijven, en volgt er bij de eerstvolgende verversgrens een afwijkingsvraag die de bewerking
- * stilzwijgend kan terugdraaien. Een weigering die de twee echte routes noemt helpt meer.
- *
- * De gating leunt op EXACT dezelfde twee bronnen als de UI — `onOpenStatusForResource` +
- * `isResourceFieldLocked` voor de vraag "geldt hier een bibliotheekherkomst", en `RESOURCE_DIFF_FIELDS`
- * voor de vraag "welke velden". Er is dus geen tweede, mee-te-onderhouden lijst: verhuist een veld
- * ooit van bedrijfsafspraak naar projectinzet, dan bewegen paneel en bridge samen mee.
- *
- * Buiten schot blijven bewust: een stempel van een ÁNDER bedrijf dan het geopende en een 'removed'-wees
- * (beide leveren `isResourceFieldLocked === false`, precies zoals de rij in het paneel gewoon
- * bewerkbaar blijft), en `delete` — "Verwijder uit project" is in de UI óók een gewone rijactie.
- *
- * Retourneert `null` wanneer er niets te weigeren valt.
- */
 function libraryLockReason(s: StoreState, resourceId: string, fields: FieldPatch): string | null {
   if (!isResourceFieldLocked(s.onOpenStatusForResource(resourceId))) return null;
   const geraakt = RESOURCE_DIFF_FIELDS.filter((f) => f in fields);
@@ -264,31 +167,22 @@ function classifyResources(
   const plans: ResourcePlan[] = [];
   const rejections: Rejection[] = [];
   let sim: SimResource[] = s.resources.map((r) => ({ id: r.id, type: r.type, parentId: r.parentId }));
-  // Toewijzingen per resource — nodig voor de cascade-poort bij `delete`. Groeit niet mee: deze tool
-  // maakt of verwijdert zelf geen toewijzingen (dat doet `planner_manage_assignments`).
   const assignmentsOf = (id: string) => s.assignments.filter((a) => a.resourceId === id);
   const calendarIds = new Set(s.calendars.map((c) => c.id));
 
-  /** Loopt de ploeg-keten omhoog vanaf `parentId`; true zodra hij op `selfId` uitkomt. */
   const wouldCycle = (selfId: string, parentId: string): boolean => {
     const seen = new Set<string>();
     let cur: string | undefined = parentId;
     while (cur !== undefined) {
       if (cur === selfId) return true;
-      if (seen.has(cur)) return false; // reeds bestaande kring: niet ónze schuld, niet blokkeren
+      if (seen.has(cur)) return false;
       seen.add(cur);
       cur = sim.find((r) => r.id === cur)?.parentId;
     }
     return false;
   };
 
-  /**
-   * Verwijzings-checks die de simulatie nodig hebben (kalender, ploeg, meeteenheid-op-materiaal).
-   * `selfId` is het (sim-)id van de resource zelf; `effectiveType` het type ná deze patch.
-   */
   const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType, currentType?: ResourceType): string | null => {
-    // Kostenresource (issue #815): geen typewissel over de COST-grens met toewijzingen, en geen
-    // tarief, eenheid, kalender, stappen, ploeg of max. eenheden ≠ 1.
     if (currentType !== undefined && patch.type !== undefined && patch.type !== currentType
       && (currentType === 'COST' || patch.type === 'COST') && assignmentsOf(selfId).length > 0) {
       return `resource '${selfId}' still has ${assignmentsOf(selfId).length} assignment(s); a type change to or from ` +
@@ -372,8 +266,6 @@ function classifyResources(
       }
       const fields = parseFields(item);
       if (typeof fields === 'string') { rejections.push({ id: label, reason: fields }); return; }
-      // Een placeholder-id dat NIETS kan matchen wanneer er geen tempId is (geen collisiegevaar met
-      // echte id's, en geen enkele latere actie kan er per ongeluk naar verwijzen).
       const simId = typeof item.tempId === 'string' ? item.tempId : `\u0000new-${index}`;
       const effectiveType = (fields.type as ResourceType) ?? 'LABOR';
       const refBad = referenceReason(fields, simId, effectiveType);
@@ -402,23 +294,17 @@ function classifyResources(
         });
         return;
       }
-      // Bibliotheek-gating vóór de verwijzingscontroles: raakt de update een veld dat de bibliotheek
-      // bepaalt, dan wordt het HELE item geweigerd — niet half toegepast. Een gedeeltelijke toepassing
-      // ("maxUnits landde, costPerHour niet") is precies de stille-no-op-klasse die dit oppervlak
-      // uitsluit.
       const lockBad = libraryLockReason(s, item.id, fields);
       if (lockBad) { rejections.push({ id: item.id, reason: lockBad }); return; }
       const effectiveType = (fields.type as ResourceType) ?? cur.type;
       const refBad = referenceReason(fields, cur.id, effectiveType, cur.type);
       if (refBad) { rejections.push({ id: item.id, reason: refBad }); return; }
-      // Simulatie bijwerken zodat latere items tegen de NIEUWE stand valideren.
       cur.type = effectiveType;
       if ('parentId' in fields) cur.parentId = fields.parentId as string | undefined;
       plans.push({ mode: 'update', index, id: item.id, fields });
       return;
     }
 
-    // action === 'delete'
     if (typeof item.id !== 'string' || item.id === '') {
       rejections.push({ id: at, reason: '`delete` requires a non-empty string `id`' });
       return;
@@ -436,10 +322,6 @@ function classifyResources(
       rejections.push({ id: item.id, reason: 'a resource created in the same call cannot be deleted in that same call' });
       return;
     }
-    // CASCADE-POORT. Een resource verwijderen sloopt óók toewijzingen op taken die de aanroeper
-    // helemaal niet noemde — anders dan bij `delete_tasks`, waar de meegewiste subboom logisch
-    // ONDER het gevraagde object hangt. Daarom hier: bevestiging vereist, met de exacte omvang in de
-    // weigering, zodat de AI in één ronde met `cascade: true` kan terugkomen.
     const attached = assignmentsOf(item.id);
     if (attached.length > 0 && item.cascade !== true) {
       const taskCount = new Set(attached.map((a) => a.taskId)).size;
@@ -452,7 +334,6 @@ function classifyResources(
       return;
     }
     sim = sim.filter((r) => r.id !== item.id);
-    // Leden van de verwijderde ploeg verliezen hun lidmaatschap — ook in de simulatie.
     for (const r of sim) if (r.parentId === item.id) r.parentId = undefined;
     plans.push({ mode: 'delete', index, id: item.id });
   });
@@ -460,11 +341,6 @@ function classifyResources(
   return { plans, rejections };
 }
 
-// =================================================================================================
-// Kern + tooldefinitie
-// =================================================================================================
-
-/** Vormvalidatie van `manage_resources`; string = foutboodschap. */
 function parseManageResources(args: unknown): ResourceAction[] | string {
   const a = (args ?? {}) as { actions?: unknown };
   if (!Array.isArray(a.actions) || a.actions.length === 0) {
@@ -473,7 +349,6 @@ function parseManageResources(args: unknown): ResourceAction[] | string {
   return a.actions as ResourceAction[];
 }
 
-/** Bouw het `Resource`-object voor een `create`; afwezige velden krijgen de app-default. */
 function buildNewResource(fields: FieldPatch): Omit<Resource, 'id'> {
   const res: Omit<Resource, 'id'> = {
     name: fields.name as string,
@@ -481,8 +356,6 @@ function buildNewResource(fields: FieldPatch): Omit<Resource, 'id'> {
     description: (fields.description as string) ?? '',
     maxUnits: (fields.maxUnits as number) ?? 1,
   };
-  // Een sleutel met waarde `undefined` (de aanroeper gaf `null`) betekent bij AANMAAK simpelweg
-  // "niet gezet" — dus alleen echte waarden overnemen; dat houdt het object schoon voor IFC.
   if (fields.costPerHour !== undefined) res.costPerHour = fields.costPerHour as number;
   if (fields.unitOfMeasure !== undefined) res.unitOfMeasure = fields.unitOfMeasure as string;
   if (fields.calendarId !== undefined) res.calendarId = fields.calendarId as string;
@@ -491,15 +364,13 @@ function buildNewResource(fields: FieldPatch): Omit<Resource, 'id'> {
   return res;
 }
 
-/** Synchrone, transactie-vrije kern van `manage_resources` (zie de batchStep-noot in taskTools.ts). */
 function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): MutationOutcome {
   const { plans, rejections } = classifyResources(ctx.app.store.getState(), actions);
 
-  const created: Record<string, string> = {}; // tempId → echt id (batch-contract, batchTool.ts)
+  const created: Record<string, string> = {};
   const createdRows: Record<string, unknown>[] = [];
   const updatedRows: Record<string, unknown>[] = [];
   const deletedRows: Record<string, unknown>[] = [];
-  /** tempId → echt id, voor `parentId`-verwijzingen binnen dezelfde call. */
   const tempToReal = new Map<string, string>();
 
   const asgBefore = ctx.app.store.getState().assignments.length;
@@ -507,7 +378,6 @@ function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): Mutati
   for (const plan of plans) {
     if (plan.mode === 'create') {
       const fields = { ...plan.fields };
-      // Een `parentId` die naar een tempId uit DEZE call wijst, nu vertalen naar het echte id.
       if (typeof fields.parentId === 'string' && tempToReal.has(fields.parentId)) {
         fields.parentId = tempToReal.get(fields.parentId)!;
       }
@@ -527,10 +397,8 @@ function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): Mutati
       continue;
     }
 
-    // delete — het VOLLEDIGE voor/na-verschil komt uit het draft-primitief zelf.
     const before = ctx.app.store.getState().resources.find((r) => r.id === plan.id);
     if (!before) {
-      // Kan alleen bij een defect in de classificatie — harde stapfout i.p.v. stil doorgaan.
       throw new McpStepError('NOT_FOUND', `resource '${plan.id}' does not exist (after classification)`);
     }
     const name = before.name;
@@ -549,8 +417,6 @@ function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): Mutati
 
   return {
     data: {
-      // `created` is het batch-contract (batchTool.ts → collectCreated): een volgende stap in
-      // dezelfde `planner_batch` kan de tempId gebruiken als `resourceId` in manage_assignments.
       created,
       resources: createdRows,
       updated: updatedRows,
@@ -561,7 +427,6 @@ function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): Mutati
   };
 }
 
-/** De lege-respons-vorm; gedeeld door het snelpad zodat de sleutels altijd hetzelfde zijn. */
 const EMPTY_DATA = { created: {}, resources: [], updated: [], deleted: [], removedAssignmentCount: 0 };
 
 const manageResources: BatchStepTool = {
@@ -576,7 +441,6 @@ const manageResources: BatchStepTool = {
     'load or leveling; no type change to or from COST while it has assignments.',
   kind: 'mutate',
   batchable: true,
-  // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
@@ -628,16 +492,12 @@ const manageResources: BatchStepTool = {
     required: ['actions'],
     additionalProperties: false,
   },
-  // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
-  // dus overbodig binnen een batch (die bezit de transactie al).
   batchStep: parsedBatchStep(parseManageResources, manageResourcesCore),
   async handler(args, ctx) {
     const parsed = parseManageResources(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const actions = parsed;
 
-    // Lege-batch-snelpad: statisch nul uitvoerbare items ⇒ direct Ok mét de weigeringen, zónder
-    // transactie/backup/snapshot/redo-wipe.
     {
       const state = ctx.app.store.getState();
       const pre = classifyResources(state, actions);
@@ -670,12 +530,6 @@ const manageResources: BatchStepTool = {
           `${orphaned.join(', ')}); their \`parentId\` is now empty.`,
         );
       }
-      // Nivellering: de nivelleeruitvoer (vertraging, ook sub-dag-precisie uit een `.mpp`, en
-      // ingevoegde pauzedagen) staat op de TAKEN en blijft na een capaciteits-/kalender-/
-      // toewijzingswijziging gewoon staan — de eind-`runCPM` rekent die oude nivellering dus door op
-      // een gewijzigde capaciteit. Dat is geen fout, maar het mag niet stil blijven. "Staat er
-      // nivellering op?" is de ENE gedeelde definitie `hasLevelingOutput` (`utils/taskDefaults.ts`),
-      // dezelfde als achter "Nivellering wissen" — geen eigen, smallere controle hier.
       const capacityTouched =
         totalRemoved > 0 ||
         data.updated.some((u) => u.changedFields.some((f) => f === 'maxUnits' || f === 'availabilitySteps' || f === 'calendarId'));
@@ -691,5 +545,4 @@ const manageResources: BatchStepTool = {
   },
 };
 
-/** Alle resource-beheer-tools van deze module (registratie via `toolRegistry.ts`). */
 export const resourceTools: BatchStepTool[] = [manageResources];

@@ -349,6 +349,7 @@
       "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost",
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
+      "visualDetails": "Task and resource colours and resource descriptions are not included",
       "projectDetails": "Project author and company"
     },
     "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
@@ -360,6 +361,7 @@
     "reportFontMissing": "Your own font {{name}} is no longer on this device. The report uses Inter again.",
     "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
     "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
+    "ifcForeignOpenTooLarge": "This IFC file is larger than {{limit}} MB. An IFC file with a building model or with data from another application can be opened up to {{limit}} MB.",
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
     "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving.",
     "ifcForeignReplaceBlocked": "Not saved. This is the file you have open. Use Save to update it, or Save As with a new name for a copy.",

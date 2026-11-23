@@ -393,7 +393,15 @@
       "resourceShorter": "Ďalší zdroj skráti úlohu.",
       "resourceAddsWorkSameDuration": "Ďalší zdroj pridáva prácu; trvanie zostáva rovnaké."
     },
-    "info": "Vysvetlenie typu úlohy"
+    "info": "Vysvetlenie typu úlohy",
+    "hint": {
+      "intro": "Typ úlohy určuje, čo aplikácia upraví, keď zmeníte trvanie, jednotky priradenia (ľudia na deň) alebo prácu (hodiny).",
+      "FIXED_DURATION_RATE": "Trvanie a jednotky priradenia zostávajú, práca sa prepočíta. Príklad: 2 ľudia, 5 dní po 8 hodinách = 80 hodín.",
+      "FIXED_DURATION_WORK": "Trvanie a práca zostávajú, jednotky priradenia sa prepočítajú. Príklad: 80 hodín v 5 dňoch po 8 hodinách = 2 ľudia na deň.",
+      "FIXED_WORK": "Práca zostáva, trvanie sa prepočíta. Príklad: 80 hodín s 2 ľuďmi = 5 dní, so 4 ľuďmi 2,5 dňa.",
+      "FIXED_RATE": "Jednotky priradenia zostávajú, práca určí trvanie. Príklad: 1 žeriav, 40 hodín práce = 5 dní, 80 hodín práce = 10 dní.",
+      "projectDefault": "Riadi sa typom úlohy, ktorý má projekt nastavený ako predvolený."
+    }
   },
   "properties": {
     "task": "Úloha",
@@ -465,6 +473,14 @@
     "interferingFloat": "Interferujúca časová rezerva:",
     "criticalPath": "Kritická cesta:",
     "dependencies": "Závislosti",
+    "predecessors_one": "{{count}} predchádzajúca úloha",
+    "predecessors_few": "{{count}} predchádzajúce úlohy",
+    "predecessors_many": "{{count}} predchádzajúcej úlohy",
+    "predecessors_other": "{{count}} predchádzajúcich úloh",
+    "successors_one": "{{count}} nasledujúca úloha",
+    "successors_few": "{{count}} nasledujúce úlohy",
+    "successors_many": "{{count}} nasledujúcej úlohy",
+    "successors_other": "{{count}} nasledujúcich úloh",
     "addRelation": "Pridať závislosť",
     "addRelationSearch": "Hľadať úlohu…",
     "addRelationConfirm": "Vytvoriť závislosť",
