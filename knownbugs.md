@@ -3533,6 +3533,13 @@ en noem het in je rapport of PR-tekst.
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
      de versie die het tabblad van zijn bestand kent. — B (code gelezen, ook door de reviewer van #1153; niet
      nagespeeld)
+1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
+     zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
+     afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
+     kringtoetsen op de boom (`isSelfOrDescendant`, `ancestorIds`, `flattenOrder`) zijn daar tegen bestand en lopen
+     niet vast; of elke andere lezer van de boom dat ook is, is niet nagegaan. Gezien bij het opruimen van het
+     commentaar in `src/state/slices/taskSlice.ts`, dat dit geval noemde. Richting: de lezer weigert of breekt een
+     kring bij het inlezen. — S (code gelezen, niet nagespeeld)
 
 ## Rondleiding, Help en extensie-gidsen
 

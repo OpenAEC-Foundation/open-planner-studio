@@ -105,3 +105,7 @@ Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vla
 **Besluiten in `fileSlice.ts`** staan in `docs/adr/`: externe bronnen controleren en verversen (0070), één melding per
 geopend bestand (0071), openen laadt gekoppeld en de andere laadroutes los (0072), opslagdoel en melding per
 opslagpoging (0073) en de keuzes van de exportroute (0074).
+
+**Besluiten in `taskSlice.ts`** staan in `docs/adr/`: de volgorde van taken op drie plekken (0150), verhangen eerst op
+een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
+(0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
