@@ -31,4 +31,5 @@ functie die de actie uitvoert, en weigert hij vóór er een undo-stap of mutatie
   verkeerde plek.
 - Inspringen in een meervoudige selectie slaat geselecteerde voorgaande siblings over als kandidaat-ouder, zodat een
   aaneengesloten blok als geheel inspringt. Uitspringen doorloopt de selectie in omgekeerde `flattenOrder`: een geselecteerd
-  kind komt zo vóór zijn geselecteerde ouder aan de beurt en schuift maar één niveau op.
+  kind komt zo vóór zijn geselecteerde ouder aan de beurt, zodat de ouder het niet al meeneemt vóór zijn eigen beurt.
+  Waar het kind daarna eindigt, hangt af van wat er verder geselecteerd is (`outdentEdit`).
