@@ -380,8 +380,6 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Knownbug 276: FNET met expliciete tijd NA het laatste werkblok. Deze probe legt vast
-// welke profielen het moment behouden zonder de nog te toetsen native semantiek vast te pinnen.
 {
   const date = '2026-06-02T18:00';
   const observed = [];
