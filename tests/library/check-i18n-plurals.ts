@@ -137,4 +137,4 @@ async function main() {
   process.exit(fails > 0 ? 1 : 0);
 }
 
-main();
+await main();
