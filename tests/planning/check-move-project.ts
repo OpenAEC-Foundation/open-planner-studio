@@ -466,6 +466,7 @@ eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
 
   const moved = S().moveProject('2026-05-25');
   eq('162 verplaatst naar 25 mei', [moved.moved, S().project.startDate], [true, '2026-05-25']);
+  const movedPin = S().tasks.find(t => t.id === pinnedTask)!.constraint!.date;
   eq('163 de pin schuift mee: Montage start ma 1 juni 07:00', montageStart(), '2026-06-01T07:00');
   eq('164 de ankers blijven staan', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
   eq('878 verplaatsen behoudt herkomst van beide ankers', provenance(), expectedProvenance);
@@ -481,6 +482,8 @@ eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
 
   // Alleen de koppeling met het eerdere anker (29 mei): na verplaatsen naar 25 mei is er geen schending.
   S().redo();
+  eq('878 Redo verplaatst de projectstart en pin opnieuw',
+    [S().project.startDate, S().tasks.find(t => t.id === pinnedTask)!.constraint!.date], ['2026-05-25', movedPin]);
   eq('878 Redo behoudt herkomst van beide ankers', provenance(), expectedProvenance);
   S().removeExternalLink(pinnedTask, S().tasks.find(t => t.id === pinnedTask)!.externalLinks![0].id);
   S().runCPM();
