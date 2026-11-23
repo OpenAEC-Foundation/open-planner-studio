@@ -343,6 +343,25 @@ eq('fileSlice foutpad: dubbele id hydrateert niets gedeeltelijk', {
   errorKey: useAppStore.getState().ui.notifications.at(-1)?.messageKey,
 }, { ...beforeRejectedOpen, errorKey: 'notifications.xerDuplicateId' });
 
+{
+  resetDevDocuments();
+  useAppStore.getState().setUI({ featureFlags: { ifcForeignContent: true } });
+  const modelBytes = new Uint8Array(readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const calls: string[] = [];
+  let outcome: string;
+  try {
+    await openFromPathWithIO('/tmp/model.ifc', {
+      readTextFile: async () => { calls.push('text'); return new TextDecoder('latin1').decode(modelBytes); },
+      readFile: async () => { calls.push('bytes'); return modelBytes; },
+    });
+    outcome = 'geopend';
+  } catch (error) { outcome = String(error); }
+  eq('dev bridge, flag aan: een IFC met gebouwmodel leest als bytes en opent met zijn bron', {
+    outcome, calls, source: useAppStore.getState().ifcSource?.bytes.length,
+  }, { outcome: 'geopend', calls: ['bytes'], source: modelBytes.length });
+  useAppStore.getState().setUI({ featureFlags: {} });
+}
+
 if (diffs.length > 0) {
   console.error(`XER-bytepaden: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX  ${diff}`);

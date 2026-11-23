@@ -18,6 +18,7 @@ import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/service
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { switchToHeadlessNote } from '../../../integrations/claude-desktop/src/proxy';
+import { OUTSIDE_FILE_NAME, readScope } from './persistedScope.mjs';
 
 const OPS_DIR = process.env.OPS_TEST_DIR ?? join(homedir(), '.local/share/org.openaec.planner/ops-test');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -44,6 +45,27 @@ async function ops(op: string, args?: Record<string, unknown>): Promise<any> {
         }
       } catch (error) {
         if (error instanceof SyntaxError) { /* half geschreven; opnieuw lezen */ } else throw error;
+      }
+    }
+    await sleep(100);
+  }
+  throw new Error(`ops ${op}: geen antwoord binnen 30 s`);
+}
+
+async function opsError(op: string, args?: Record<string, unknown>): Promise<string> {
+  const resPath = join(OPS_DIR, 'res.json');
+  rmSync(resPath, { force: true });
+  writeFileSync(join(OPS_DIR, 'cmd.tmp'), JSON.stringify({ id: `mcp-real-${++seq}`, op, args }));
+  renameSync(join(OPS_DIR, 'cmd.tmp'), join(OPS_DIR, 'cmd.json'));
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (existsSync(resPath)) {
+      try {
+        const res = JSON.parse(readFileSync(resPath, 'utf8')) as { ok?: boolean; error?: string };
+        if (res.ok === true) throw new Error(`ops ${op} slaagde`);
+        if (res.ok === false) return res.error ?? '';
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
       }
     }
     await sleep(100);
@@ -288,6 +310,39 @@ test('echte app: een .xer openen leest de bytes via plugin-fs readFile', async (
     assert(opened.tasks > 0, `geen taken na openen van de .xer: ${JSON.stringify(opened)}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('echte app: Ctrl+S met een gebouwmodel buiten de thuismap, met alleen het bestand vrijgegeven (#804, route e)', async () => {
+  const dir = process.env.OPS_REAL_APP_OUTSIDE_DIR ?? '';
+  assert(dir !== '', 'run.sh gaf geen map buiten de thuismap door (OPS_REAL_APP_OUTSIDE_DIR)');
+  assert(!resolve(dir).startsWith(`${homedir()}/`), `de map ligt buiten de thuismap: ${dir}`);
+  const model = join(dir, OUTSIDE_FILE_NAME), sibling = join(dir, 'ander.ifc');
+  const fixture = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  await ops('dispatch', { action: 'setUI', args: [{ featureFlags: { ifcForeignContent: true } }] });
+  try {
+    writeFileSync(model, fixture);
+    writeFileSync(sibling, fixture);
+    await ops('open', { path: model });
+    const marker = 'Opslaanproef buiten de thuismap';
+    await ops('dispatch', { action: 'addTask', args: [{ name: marker }] });
+    const saved = (await ops('dispatch', { action: 'saveFile', args: [] })) as { state: { isDirty: boolean } };
+    const written = readFileSync(model, 'latin1');
+    assert(written.includes(marker), 'Ctrl+S schreef de nieuwe taak niet naar het bestand buiten de thuismap');
+    for (const wall of ["IFCWALL('242F3AJ$ylGv3IUzUFH5GZ'", "IFCWALL('2cdMVgOra3Bc6Xi_El57on'"]) {
+      assert(written.includes(wall), `het gebouwmodel is bewaard: ${wall}`);
+    }
+    assertEq(saved.state.isDirty, false, 'het document is opgeslagen');
+    assertEq(readdirSync(dir).sort(), ['ander.ifc', OUTSIDE_FILE_NAME], 'geen hulpbestand en geen kopie naast het bestand');
+    const refused = await opsError('open', { path: sibling });
+    assert(refused.includes('forbidden path'), `een ander bestand in die map blijft dicht: ${refused}`);
+    const scope = readScope(readFileSync(join(OPS_DIR, '..', '.persisted-scope')));
+    assert(scope.allowed.every(pattern => !pattern.endsWith('*') && !/\.ops-(vervang|vorige|save)/.test(pattern)),
+      `het scopebestand kreeg geen map en geen hulpnaam: ${JSON.stringify(scope.allowed)}`);
+  } finally {
+    await ops('dispatch', { action: 'setUI', args: [{ featureFlags: {} }] });
+    rmSync(model, { force: true });
+    rmSync(sibling, { force: true });
   }
 });
 

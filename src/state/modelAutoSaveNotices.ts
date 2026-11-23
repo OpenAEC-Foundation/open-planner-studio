@@ -10,8 +10,6 @@ import type { NotifyInput } from './slices/types';
 export const MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignAutoSaveTargetChanged', dedupeKey: 'ifc-foreign-autosave-target-changed',
 });
-/** Vervangen kan op deze plek niet veilig: buiten de thuismap op de desktop (knownbug 1762), een link, of een
- *  bestandssysteem zonder de exclusieve stap. */
 export const MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignAutoSaveSaveAsOnly', dedupeKey: 'ifc-foreign-autosave-save-as-only',
 });

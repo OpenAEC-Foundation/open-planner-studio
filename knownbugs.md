@@ -2652,9 +2652,10 @@ en noem het in je rapport of PR-tekst.
      weigeren (met een omschrijving op `OPS_StructureMeta` het eerste eigen veld toevoegen, of een activiteitscodetype
      hernoemen; punt 2), en viel daar de nacontrole weg. Dat is teruggedraaid; beide handelingen staan als vaste proef in
      `check-ifc-foreign-eigen-toets.ts` blok 9, en de writerfouten in blok 10 van eigen-uitvoer (de verliescontrole zelf
-     weigert). Lijst A en de nacontrole weghalen is PR B: geparkeerd tot de voorwaarden voor de flag klaar zijn (1939 en
-     1762), en dan met een besluit over punt 2 (mag (a) per slot de opslaggrens verschuiven?) en een onafhankelijke
-     inhoudstoets voor de templates en `TaskGuids` als eis. Lijst B krijgt een eigen stap met een eigen meting. (c) slaat
+     weigert). Lijst A en de nacontrole weghalen is PR B: geparkeerd tot de voorwaarden voor de flag klaar zijn (1939, en
+     1762, opslaan buiten de thuismap: 1131 punt 7), en dan met een besluit over punt 2 (mag (a) per
+     slot de opslaggrens verschuiven?) en een onafhankelijke inhoudstoets voor de templates en `TaskGuids` als eis.
+     Lijst B krijgt een eigen stap met een eigen meting. (c) slaat
      een groep nog helemaal over als ze het slot niet eenduidig aanwijst (twee properties of psets met dezelfde naam, het
      slot is de naam of de GlobalId, een verwijzing in de waarde), of als de bronwaarde van een soort is die de lezer deels
      draagt (lijst, JSON, samengestelde tekst: een vreemde `Creators` op een kop, het baseline-JSON van een oud bestand,
@@ -3076,7 +3077,21 @@ en noem het in je rapport of PR-tekst.
            niet; `planner_export_ifc` weigert nog steeds een bestaand pad. Niet gemeten in een echte desktopapp.
      6. Open: teksten en handleiding, met de eigenaar (de uitleg bij de flag en `ref-instellingen` zijn in 5b alleen
         feitelijk bijgewerkt; zie ook 1836).
-     7. Open: Ctrl+S buiten de thuismap (nu `ifcForeignReplaceSaveAsOnly`, alleen Opslaan als; 1762).
+     7. Gebouwd (was 1762; besluit van de eigenaar, 23 november 2026: "opslaan buiten de thuismap vraagt nooit",
+        route (e)): Ctrl+S, Opslaan als over een bestaand bestand en Automatisch opslaan buiten de thuismap. De
+        vervanging gebruikt twee eigen hulpnamen, `save-<id>.ops-vervang.tmp` en `save-<id>.ops-vorige-<id>`; een vaste
+        capability (`src-tauri/capabilities/hulpnamen-unix.json` en `hulpnamen-windows.json`) laat plugin-fs precies die
+        twee namen op elke plek gebruiken, per commando alleen wat de vervanging en het herstel ermee doen. Het bestand
+        zelf staat in de scope door de bestandskiezer, slepen of Recent (`persisted-scope`). Er komt geen map in de
+        scope en de app geeft tijdens het werk niets vrij, dus opslaan verandert het scopebestand niet. De kopieën
+        (versie van ander programma, niet opgeslagen planning) zet `place_file_exclusive` met `beside` naast het doel,
+        zonder dat de kopienaam in de scope staat. De gewone opslag houdt `save-<id>.ops-save.tmp`, buiten de
+        capability: buiten de thuismap schrijft die direct, zoals main (1752). Herstelrecord versie 3; versie 1 en 2
+        kennen nog `save-<id>.ops-save.tmp` als tijdelijk bestand. Grens: een map met een punt vooraan op Linux en macOS
+        (2067). Proeven: `cargo test place_file` (de capability per commando op Ubuntu, macOS en Windows, ook achter
+        `\\?\` en UNC, door de echte plugin-fs, en de kopieregel), `check-ifc-own-file-replace.ts` en
+        `check-ifc-document-save.ts` (met de nabootsing in `nodeFileIpc.ts`) en `run-real-app.ts` (Linux, CI). Niet
+        gemeten: een echte netwerkschijf, en Windows en macOS in de echte app.
      8. Gebouwd (stap 8, #1019; tweede deel na het besluit van de eigenaar van 19 november 2026): *Opslaan als* over een
         andere bestaande naam op de desktop (keuze 4), met de flag aan; ook de bestandskiezer van Ctrl+S bij een
         document zonder opslagdoel (fixronde 1 van #1071). Die route draagt de keuze zelf (`saveAsOnDesktop` in
@@ -3099,12 +3114,13 @@ en noem het in je rapport of PR-tekst.
         bestand (de exclusieve aanmaak: `ifcForeignNewTargetOnly`; met de flag uit schrijft de gewone opslag erdoor, zoals
         main), een doel dat na de kiezer een andere versie kreeg (`ifcForeignTargetChanged`; schreef een ander programma
         pas na de vergelijking van stap 2, dan blijft die versie als kopie, `ifcForeignReplaceOtherVersion`), en waar de
-        vervanging niet kan (`save-as-only`: buiten de scope van de kiezer (1762), een harde link, ook op Windows via
-        `nNumberOfLinks` in `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam
-        (`ifcForeignNewTargetOnly`), zonder terugval. Met de flag uit zijn volgorde, meldingen en bestandsaanroepen
-        die van main. Of er een bestand staat, stelt de kiezer direct na zijn terugkeer
-        vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam (weigeren nog; de
-        vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
+        vervanging niet kan (`save-as-only`: een harde link, ook op Windows via `nNumberOfLinks` in
+        `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam (`ifcForeignNewTargetOnly`),
+        zonder terugval. Buiten de thuismap loopt hetzelfde (punt 7). Met de flag uit zijn volgorde, meldingen en
+        bestandsaanroepen die van main.
+        Of er een bestand staat, stelt de kiezer direct na zijn
+        terugkeer vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam
+        (weigeren nog; de vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
@@ -3115,17 +3131,6 @@ en noem het in je rapport of PR-tekst.
      `check-ifc-own-file-replace.ts` deel c (vanaf `saveFileAs`, ook een crash na elke stap met een nooit geopend doel)
      en `check-ifc-document-save.ts` (zonder herstelronde). Crash, stroomuitval en externe
      padwissels in een echte app niet gemeten. — B (code/proef)
-
-1762. **VERVOLG (#804, desktop): Ctrl+S met een gebouwmodel kan met het ontwerp niet buiten de thuismap.**
-     De bestandsdialoog voegt alleen het gekozen bestand aan de scope van plugin-fs toe, niet de map
-     (`tauri-plugin-dialog-2.7.0/src/commands.rs:195-212, 252-254`); een hulpbestand naast een model op een tweede
-     schijf of netwerkschijf valt erbuiten (`atomicWrite.ts:71-74`). Daar kan dan alleen Opslaan als. Hetzelfde geldt
-     sinds keuze 4, tweede deel (#1071), voor *Opslaan als* over een bestaand bestand buiten de thuismap: de vervanging
-     kan het tijdelijke bestand niet naast het doel maken, het doel blijft bytegelijk en de melding
-     (`ifcForeignNewTargetOnly`) wijst naar een nieuwe naam (review van #1071, ronde 2, twijfel (c)). Richting:
-     productkeuze 1 uit het onderzoek naar 1131. **Voorwaarde (besluit van Trias, 19 november 2026): de featureflag
-     gaat niet aan voordat dit punt is opgelost.** Het achterblijvende herstelrecord na zo'n weigering (was 1902) is
-     opgelost in #804 stap 6. — B (code), geen proef in de app
 
 1752. **VERVOLG (plugin-fs 2.7.1, desktop): in een map in de thuismap die via een link naar buiten wijst, schrijft Opslaan direct over het bestand.**
      Bijvoorbeeld `~/projecten` → `/data/projecten`. Sinds plugin-fs 2.7.0 toetst de scope het echte pad: de dialoog
@@ -3139,8 +3144,29 @@ en noem het in je rapport of PR-tekst.
      extensie zelf aan en blijft het één venster. Blijft zoals onder 2.5.0: een bestand dat hier ooit zonder eigen
      toestemming voor de naam met extensie ontstond (de eerste opslag zonder extensie vóór #979), kan Ctrl+S niet
      vervangen. Proeven: `check-user-file-write.ts` blok 7 (`link buiten`: route `createNew:geweigerd` →
-     `direct:geschreven`) en `check-save-dialog-extension.ts` (g), per regel van plugin-fs. Richting: dezelfde
-     oplossing als 1762 (Ctrl+S overal via een tijdelijk bestand, later). Gevonden door de review van #978. — B (proef)
+     `direct:geschreven`) en `check-save-dialog-extension.ts` (g), per regel van plugin-fs. Stand sinds 1131 punt 7
+     (route e): met de flag `ifcForeignContent` aan vervangt de app hier een bestand met een gebouwmodel (Ctrl+S,
+     Opslaan als over een bestaand bestand, Automatisch opslaan) via de twee hulpnamen van de vervanging, die de
+     capability op elke plek toelaat (VERMOED voor zo'n gelinkte map: plugin-fs toetst het echte pad, niet gemeten met
+     een echte link). Ctrl+S op een gewone planning, en alles met de flag uit, schrijft hier nog direct, zoals main:
+     het tijdelijke bestand van de gewone opslag valt niet onder de capability. Richting: de gewone opslag ook via een
+     eigen hulpnaam, als eigen keuze. Gevonden door de review van #978. — B (proef)
+
+2068. **VERVOLG (dev-brug): een opdracht van het ops-test-kanaal die een fout gooit, komt terug zonder haar `id`.**
+     `startOpsTestPoller` in `src/utils/devBridge.ts` schrijft na een fout `{ ok: false, error }` naar `res.json`, zonder
+     het `id` uit `cmd.json`. `ops()` in `tests/mcp/realApp/run-real-app.ts` wacht op dat `id` en ziet dan alleen een
+     time-out van 30 s. Gevonden toen de echte-app-proef van #1124 een geweigerd openen wilde zien (run 45262925004);
+     die proef leest het foutantwoord nu met `opsError`. Richting: het `id` ook bij een fout meegeven. — B (code, CI)
+
+2067. **VERVOLG (#804, Linux en macOS): in een map met een punt vooraan vervangt de app een bestand met een gebouwmodel niet.**
+     De capability voor de twee hulpnamen (`hulpnamen-unix.json`, `/**/save-*…`) volgt de globregel van plugin-fs: `**`
+     loopt op Unix niet door een padstuk dat met een punt begint (`requireLiteralLeadingDot`, standaard aan; glob
+     0.3.3). Staat het bestand in zo'n map buiten de thuismap, bijvoorbeeld `/mnt/data/.archief/plan.ifc`, dan mag het
+     tijdelijke bestand niet ontstaan. Ctrl+S en Opslaan als over een bestaand bestand schrijven dan niets en melden
+     "Kies Opslaan als" (`ifcForeignReplaceSaveAsOnly`, `ifcForeignNewTargetOnly`); Automatisch opslaan stopt met
+     `ifcForeignAutoSaveSaveAsOnly`. Binnen de thuismap geldt op main dezelfde grens (`$HOME/**`). Op Windows speelt het
+     niet. Proeven: `place_file_hulpnamen_capability_geldt_alleen_voor_de_twee_hulpnamen` (Unix),
+     `check-ifc-own-file-replace.ts` en `check-ifc-document-save.ts`. — B (proef)
 
 1764. **VERVOLG (#804, besloten): zonder vastgelegd herstelmanifest weigert Ctrl+S via de handle.**
      `replaceWithRecoveryPending` vervangt alleen als `pendingSha256` aantoonbaar in het manifest staat. Kan de app geen
@@ -3505,12 +3531,13 @@ en noem het in je rapport of PR-tekst.
      (bijvoorbeeld baselines) niet meer, zodat het verlies blijvend wordt. Gezien in de code. — S
 2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
      opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
-     fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
-     gewone leesfout (`forbidden path`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf toestaat.
-     Bewust zo gelaten: bij 1762 koos Ethan voor "één keer per map om toegang vragen", zonder Rust-commando, en dat
-     bouwt #804 op branch `feat/804-opslaan-buiten-thuismap`. Richting: een meegegeven pad dat op `forbidden path`
-     stuit, sluit straks aan op die toegangsvraag; #1091 krijgt geen eigen vraag. — B (code: plugin-fs toetst elk
-     pad tegen de scope)
+     fs-scope. De grens is dus de bestaande scope: een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een
+     netwerkschijf, geeft de gewone leesfout (`forbidden path`), tenzij dat bestand al in de scope staat (eerder gekozen
+     of gesleept, bewaard door `persisted-scope`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf
+     toestaat.
+     Blijft zo na 1131 punt 7 (besluit van de eigenaar, 23 november 2026: "opslaan buiten de thuismap vraagt nooit"):
+     die geeft alleen de twee hulpnamen van de vervanging vrij, geen gekozen of meegegeven pad. Richting: een eigen
+     keuze voor startbestanden. — B (code: plugin-fs toetst elk pad tegen de scope)
 2031. **VERVOLG (#1091, desktop): na een herstart door de updater opent het startbestand nog een keer.**
      `tauri::process::restart` start de app met dezelfde argumenten als de eerste start (`tauri-2.12.3/src/process.rs`),
      dus een app die met een bestand gestart was, opent dat bestand na de update opnieuw in een eigen tabblad. Niets

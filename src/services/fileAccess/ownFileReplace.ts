@@ -4,8 +4,6 @@
  * de app vervangen", stappen 1 tot en met 5; stap 0 en 6 zijn het herstelrecord (`replaceRecords.ts`), het
  * herstelmanifest en de broncommit, `state/ownFileReplace.ts`).
  *
- * 1. De hele uitvoer in één `createNew`-aanroep naar `save-<id>.ops-save.tmp` in dezelfde map (geen directe aanmaak
- *    als terugval: dit is geen nieuwe naam).
  * 2. Het doel opnieuw vergelijken met de bron in het geheugen (`sourceTargetContent`, in stukken van 1 MiB). Daarna
  *    de laatste controle van de aanroeper (`refuseBeforePlace`, knownbug 1896): hoort de opslag nog bij de inhoud van
  *    het document? Zo niet, dan stopt de vervanging hier, met het doel ongemoeid.
@@ -36,17 +34,21 @@ export interface OwnFileReplaceFs {
   /** Zie `UserFileFs.createNew`: alleen een `OwnFileWriteError` geeft eigendom van een onvolledig bestand. */
   createNew(path: string, data: Uint8Array, mode?: number): Promise<void>;
   remove(path: string): Promise<void>;
-  place(from: string, to: string): Promise<PlaceFileOutcome>;
+  place(from: string, to: string, beside?: string): Promise<PlaceFileOutcome>;
   /** Staat op `path` precies `expected`? (`sourceTargetContent`) */
   content(path: string, expected: Uint8Array): Promise<SourceTargetContent>;
 }
 
-/** De vorige versie van het doel tijdens een vervanging: `save-<id>.ops-vorige-<id>`, naast het doel en naast het
- *  tijdelijke bestand `save-<id>.ops-save.tmp`. Kort en los van de doelnaam (fixronde 3 van #1071): achter een geldige
- *  naam van 240 bytes paste `<naam>.ops-vorige-<id>` niet meer. Binnen de regel van `place_file.rs` (`is_helper_name`:
- *  een niet-lege naam, dan `.ops-vorige-<id>`). */
 export function previousVersionPath(path: string, id: string): string {
   return `${userFileDir(path)}save-${id}.ops-vorige-${id}`;
+}
+
+export function replaceTempPath(path: string, id: string): string {
+  return `${userFileDir(path)}save-${id}.ops-vervang.tmp`;
+}
+
+export function recordTempPath(record: Pick<ReplaceRecord, 'path' | 'id' | 'legacyTempName'>): string {
+  return record.legacyTempName ? userFileTempPath(record.path, record.id) : replaceTempPath(record.path, record.id);
 }
 
 /** De vorige versie van `record` op schijf: in een record van vóór fixronde 3 van #1071 (`legacyPreviousName`, record
@@ -81,7 +83,7 @@ const placedOk = (outcome: PlaceFileOutcome) => outcome.code === 'placed' || out
 /** Alleen target-exists garandeert dat beide namen onaangeroerd zijn. Andere uitkomsten
  * (vooral source-changed of io op een netwerkvolume) nooit opnieuw proberen. */
 export async function placeUniqueReplaceCopy(
-  fs: { place(from: string, to: string): Promise<PlaceFileOutcome> },
+  fs: { place(from: string, to: string, beside?: string): Promise<PlaceFileOutcome> },
   from: string,
   path: string,
   label: string,
@@ -89,7 +91,7 @@ export async function placeUniqueReplaceCopy(
   // Begrens ook bij een map vol bestaande namen; hulpbestand blijft bij falen staan.
   for (let n = 1; n <= 100; n++) {
     const copy = replaceCopyPath(path, n === 1 ? label : `${label} ${n}`);
-    const outcome = await fs.place(from, copy);
+    const outcome = await fs.place(from, copy, path);
     if (placedOk(outcome)) return copy;
     if (outcome.code !== 'target-exists') return null;
   }
@@ -158,7 +160,7 @@ export async function linkedOwnFile(fs: Pick<OwnFileReplaceFs, 'lstat'>, path: s
  *  functie niets op. */
 export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileReplaceInput): Promise<OwnFileReplaceOutcome> {
   const { path, id, bytes, source } = input;
-  const temp = userFileTempPath(path, id), previous = previousVersionPath(path, id);
+  const temp = replaceTempPath(path, id), previous = previousVersionPath(path, id);
   const removeOwnTemp = async () => {
     try { await fs.remove(temp); } catch { /* blijft achter; het herstelrecord blijft dan ook, herstel handelt het af */ }
   };
@@ -232,7 +234,7 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
  *  weg. De naam zelf telt (`lstat`, geen link volgen): een link naar een verdwenen bestand staat er nog. Elke andere
  *  fout dan "bestaat niet" telt als aanwezig. */
 export async function replaceHelpersGone(fs: Pick<OwnFileReplaceFs, 'lstat'>, path: string, id: string): Promise<boolean> {
-  for (const helper of [userFileTempPath(path, id), previousVersionPath(path, id)]) {
+  for (const helper of [replaceTempPath(path, id), previousVersionPath(path, id)]) {
     try {
       await fs.lstat(helper);
       return false;
@@ -247,7 +249,7 @@ export interface ReplaceRemnantsFs {
   /** De inhoud van een gewoon bestand; `null` als er niets staat. Een link of een leesfout gooit. */
   read(path: string): Promise<Uint8Array | null>;
   remove(path: string): Promise<void>;
-  place(from: string, to: string): Promise<PlaceFileOutcome>;
+  place(from: string, to: string, beside?: string): Promise<PlaceFileOutcome>;
 }
 
 /** Wat het afhandelen deed; alleen dat wat de planner moet weten. */
@@ -262,10 +264,6 @@ export type RemnantEvent =
 type Seen = string | 'missing' | 'unreadable' | 'forbidden';
 
 /**
- * De restbestanden van één onderbroken vervanging afhandelen. Alleen `save-<id>.ops-save.tmp` en de vorige versie
- * (`save-<id>.ops-vorige-<id>`, in een record van een oudere versie `<naam>.ops-vorige-<id>`: `recordPreviousPath`)
- * met het id uit het record; een bestand met een ander id raakt dit niet aan. De naam bewijst
- * niets: eigendom volgt uit de inhoud (sha256) en de stand van het doel.
  * - `.ops-vorige` met `vorigeSha256` en het doel weg: de versie die stap 3 opzijzette, terwijl stap 4 niet op het doel
  *   kwam. Exclusief terug op het doel.
  * - `.ops-vorige` met `vorigeSha256` en een doel dat bestaat, met welke inhoud ook: blijft staan, met een melding. Ook
@@ -288,8 +286,8 @@ type Seen = string | 'missing' | 'unreadable' | 'forbidden';
 export async function settleReplaceRemnants(
   fs: ReplaceRemnantsFs, record: ReplaceRecord, label: ReplaceCopyLabel, sha256: (bytes: Uint8Array) => Promise<string>,
 ): Promise<{ events: RemnantEvent[]; resolved: boolean }> {
-  const { path, id, vorigeSha256, pendingSha256 } = record;
-  const temp = userFileTempPath(path, id), previous = recordPreviousPath(record);
+  const { path, vorigeSha256, pendingSha256 } = record;
+  const temp = recordTempPath(record), previous = recordPreviousPath(record);
   const events: RemnantEvent[] = [];
   const see = async (file: string): Promise<Seen> => {
     try {

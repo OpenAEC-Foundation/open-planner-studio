@@ -126,11 +126,15 @@ pub enum RefusalReason {
 // `atomicWrite.ts` maakt het tijdelijke bestand als `${generateId('save')}.ops-save.tmp`; `generateId`
 // (`src/utils/id.ts`) geeft `save-` + `Date.now()` in grondtal 36 + tot vier tekens uit
 // `Math.random()` in grondtal 36 + een teller in cijfers. Het `<id>` is dus kleine letters en cijfers.
-// De vorige versie krijgt `<naam>.ops-vorige-<id>` met hetzelfde soort `<id>` (ontwerp §4.10, stap 3).
+// De vervanging van een eigen bestand (`ownFileReplace.ts`) maakt haar tijdelijke bestand als
+// `save-<id>.ops-vervang.tmp` en haar vorige versie als `save-<id>.ops-vorige-<id>`; die twee staan in
+// de capabilities `hulpnamen-*.json` op elke plek, de naam van de gewone opslag niet. Een record van
+// een oudere versie noemt de vorige versie nog `<naam>.ops-vorige-<id>` (ontwerp §4.10, stap 3).
 // De naamvorm bewijst geen eigendom; herstelcode mag dat er niet uit afleiden.
 
 const SAVE_TMP_PREFIX: &str = "save-";
 const SAVE_TMP_SUFFIX: &str = ".ops-save.tmp";
+const REPLACE_TMP_SUFFIX: &str = ".ops-vervang.tmp";
 const PREVIOUS_MARKER: &str = ".ops-vorige-";
 /// Ruim boven wat `generateId` maakt (rond de 15 tekens); houdt de naam begrensd.
 const MAX_HELPER_ID_LEN: usize = 64;
@@ -143,15 +147,15 @@ fn is_helper_id(id: &str) -> bool {
             .all(|b| b.is_ascii_digit() || b.is_ascii_lowercase())
 }
 
-/// Is `name` een eigen hulpbestand: `save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`?
+/// Is `name` een eigen hulpbestand: `save-<id>.ops-save.tmp` (de gewone opslag),
+/// `save-<id>.ops-vervang.tmp` (de vervanging) of `<naam>.ops-vorige-<id>`?
 fn is_helper_name(name: &str) -> bool {
-    if let Some(id) = name
-        .strip_prefix(SAVE_TMP_PREFIX)
-        .and_then(|rest| rest.strip_suffix(SAVE_TMP_SUFFIX))
-    {
-        if is_helper_id(id) {
-            return true;
-        }
+    let tmp_id = name.strip_prefix(SAVE_TMP_PREFIX).and_then(|rest| {
+        rest.strip_suffix(SAVE_TMP_SUFFIX)
+            .or_else(|| rest.strip_suffix(REPLACE_TMP_SUFFIX))
+    });
+    if tmp_id.is_some_and(is_helper_id) {
+        return true;
     }
     match name.rfind(PREVIOUS_MARKER) {
         Some(at) if at > 0 => is_helper_id(&name[at + PREVIOUS_MARKER.len()..]),
@@ -889,6 +893,80 @@ impl FsRenameScope {
             .any(|scope| denied(*scope, path) || denied(*scope, &real))
             && scopes.iter().any(|scope| scope.is_allowed(&real))
     }
+
+    /// Verbiedt een van beide scopes `path`, op het pad zoals gegeven of op het echte pad? Een pad
+    /// waarvan het echte pad niet te bepalen is, geldt als verboden.
+    pub(crate) fn denies(&self, path: &Path) -> bool {
+        let Ok(real) = real_path(path) else {
+            return true;
+        };
+        let options = glob::MatchOptions {
+            require_literal_separator: true,
+            require_literal_leading_dot: self.require_literal_leading_dot.unwrap_or(cfg!(unix)),
+            ..Default::default()
+        };
+        self.runtime.iter().chain([&self.configured]).any(|scope| {
+            [path.components().collect::<PathBuf>(), real.clone()]
+                .iter()
+                .any(|p| {
+                    scope
+                        .forbidden_patterns()
+                        .iter()
+                        .any(|pattern| pattern.matches_path_with(p, options))
+                })
+        })
+    }
+}
+
+/// De kopie naast een doel (`replaceCopyPath` in `ownFileReplace.ts`): `<stam> (<label>)<ext>` in de
+/// map van `beside`, met een niet-leeg begin van de stam van `beside` (de app kort een lange stam in)
+/// en een label zonder haakje sluiten aan het eind. `beside` moet in de scope staan; de kopienaam zelf
+/// niet. Zo kan de vervanging de versie van een ander programma en de niet opgeslagen planning naast
+/// een vrijgegeven bestand zetten zonder dat de map vrij is.
+struct CopyBeside {
+    dirs: [PathBuf; 2],
+    stem: String,
+    ext: String,
+}
+
+impl CopyBeside {
+    fn new(beside: &str, scope: &FsRenameScope) -> Option<Self> {
+        let (dir, name) = plain_path(beside)?;
+        if is_helper_name(name) || !scope.allows(Path::new(beside)) {
+            return None;
+        }
+        let (stem, ext) = match name.rfind('.') {
+            Some(at) if at > 0 => (&name[..at], &name[at..]),
+            _ => (name, ""),
+        };
+        let dir = PathBuf::from(dir);
+        let real = real_path(&dir).ok()?;
+        Some(Self {
+            dirs: [dir, real],
+            stem: stem.to_owned(),
+            ext: ext.to_owned(),
+        })
+    }
+
+    fn admits(&self, path: &Path) -> bool {
+        let (Some(parent), Some(name)) = (path.parent(), path.file_name().and_then(|n| n.to_str()))
+        else {
+            return false;
+        };
+        if !self.dirs.iter().any(|dir| dir == parent) || is_helper_name(name) {
+            return false;
+        }
+        let Some(core) = name
+            .strip_suffix(self.ext.as_str())
+            .and_then(|rest| rest.strip_suffix(')'))
+        else {
+            return false;
+        };
+        core.match_indices(" (").any(|(at, _)| {
+            let label = &core[at + 2..];
+            at > 0 && self.stem.starts_with(&core[..at]) && !label.is_empty()
+        })
+    }
 }
 
 /// Het pad waarop het systeem werkt, zoals `resolve_real_path` van plugin-fs
@@ -937,16 +1015,29 @@ fn real_path_inner(path: &Path, followed: usize) -> io::Result<PathBuf> {
     }
 }
 
-/// Het Tauri-commando. Het werk (fsync kan even duren) draait buiten de hoofdthread.
+/// Het Tauri-commando. Het werk (fsync kan even duren) draait buiten de hoofdthread. Met `beside`
+/// (het doel van een vervanging) mag `to` ook een kopienaam naast dat doel zijn die zelf niet in de
+/// scope staat ([`CopyBeside`]); een verbod op die naam blijft gelden.
 #[tauri::command]
 pub async fn place_file_exclusive<R: tauri::Runtime>(
     webview: tauri::Webview<R>,
     from: String,
     to: String,
+    beside: Option<String>,
 ) -> Result<PlaceOutcome, PlaceError> {
     let scope = FsRenameScope::new(&webview);
     tauri::async_runtime::spawn_blocking(move || {
-        let in_scope = |path: &Path| scope.as_ref().is_some_and(|scope| scope.allows(path));
+        let copy = scope
+            .as_ref()
+            .and_then(|scope| CopyBeside::new(beside.as_deref()?, scope));
+        let in_scope = |path: &Path| {
+            scope.as_ref().is_some_and(|scope| {
+                scope.allows(path)
+                    || copy
+                        .as_ref()
+                        .is_some_and(|copy| copy.admits(path) && !scope.denies(path))
+            })
+        };
         place(&from, &to, &in_scope, &SystemOps)
     })
     .await
@@ -1094,6 +1185,10 @@ mod tests {
         assert!(is_helper_name("save-mhx1q2k91.ops-save.tmp"));
         assert!(is_helper_name("doel.ifc.ops-vorige-mhx1q2k9ab3"));
         assert!(is_helper_name("x.ops-vorige-1"));
+        assert!(is_helper_name("save-mhx1q2k9ab3.ops-vervang.tmp"));
+        assert!(!is_helper_name("save-.ops-vervang.tmp"));
+        assert!(!is_helper_name("save-MHX1.ops-vervang.tmp"));
+        assert!(!is_helper_name("doel.ifc.ops-vervang.tmp"));
         assert!(!is_helper_name("doel.ifc"));
         assert!(!is_helper_name("save-.ops-save.tmp"));
         assert!(!is_helper_name("save-MHX1.ops-save.tmp"));
@@ -2262,6 +2357,369 @@ mod tests {
                 assert!(verboden.is_empty(), "{command}: {verboden:?}");
             }
         }
+    }
+
+    fn map_buiten_de_thuismap(app: &MockApp, proef: &str) -> PathBuf {
+        use tauri::Manager;
+        let thuis = std::fs::canonicalize(app.path().home_dir().unwrap()).unwrap();
+        let basis = [
+            std::env::temp_dir(),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target"),
+        ]
+        .into_iter()
+        .filter_map(|p| std::fs::canonicalize(p).ok())
+        .find(|p| !p.starts_with(&thuis))
+        .unwrap_or_else(|| panic!("geen bestaande map buiten de thuismap {thuis:?}"));
+        let map = basis.join(format!("ops-hulpnamen-{proef}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&map);
+        std::fs::create_dir_all(map.join("submap")).unwrap();
+        std::fs::canonicalize(&map).unwrap()
+    }
+
+    const HULP_VERVANG: &str = "save-mhx1q2k9ab3.ops-vervang.tmp";
+    const HULP_VORIGE: &str = "save-mhx1q2k9ab3.ops-vorige-mhx1q2k9ab3";
+    const GEEN_HULPNAAM_VAN_DE_CAPABILITY: [&str; 5] = [
+        DOEL,
+        TMP,
+        VORIGE,
+        "doel (versie van ander programma 2026-11-21 14.32).ifc",
+        "save-mhx1q2k9ab3.ops-vervang.tmp.ifc",
+    ];
+    const HULPNAMEN_PER_COMMANDO: [(&str, &[&str]); 7] = [
+        ("write_file", &[HULP_VERVANG]),
+        ("lstat", &[HULP_VERVANG, HULP_VORIGE]),
+        ("stat", &[HULP_VORIGE]),
+        ("open", &[HULP_VERVANG, HULP_VORIGE]),
+        ("read_file", &[HULP_VERVANG, HULP_VORIGE]),
+        ("remove", &[HULP_VERVANG, HULP_VORIGE]),
+        ("rename", &[HULP_VERVANG, HULP_VORIGE]),
+    ];
+
+    #[test]
+    fn place_file_hulpnamen_capability_geldt_alleen_voor_de_twee_hulpnamen() {
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let map = map_buiten_de_thuismap(&app, "scope");
+        let _opruimen = Opruimen(vec![map.clone()]);
+        #[cfg(windows)]
+        assert!(
+            text(&map).starts_with(r"\\?\") && !text(&map).starts_with(r"\\?\UNC\"),
+            "het echte pad van een map op een station: {map:?}"
+        );
+        let zonder_voorvoegsel =
+            cfg!(windows).then(|| PathBuf::from(text(&map).trim_start_matches(r"\\?\")));
+        let plekken: Vec<PathBuf> = [
+            Some(map.clone()),
+            Some(map.join("submap")),
+            zonder_voorvoegsel,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        for (commando, toegestaan) in HULPNAMEN_PER_COMMANDO {
+            let scope = scope_voor(webview, commando, true)
+                .unwrap_or_else(|| panic!("de capability laat fs {commando} toe"));
+            for plek in &plekken {
+                for naam in [HULP_VERVANG, HULP_VORIGE] {
+                    assert_eq!(
+                        scope.allows(&plek.join(naam)),
+                        toegestaan.contains(&naam),
+                        "fs {commando}: {:?}",
+                        plek.join(naam)
+                    );
+                }
+                for naam in GEEN_HULPNAAM_VAN_DE_CAPABILITY {
+                    assert!(
+                        !scope.allows(&plek.join(naam)),
+                        "fs {commando}: {:?}",
+                        plek.join(naam)
+                    );
+                }
+                assert!(!scope.allows(plek), "fs {commando}: de map {plek:?}");
+            }
+            #[cfg(unix)]
+            for naam in [HULP_VERVANG, HULP_VORIGE] {
+                assert!(
+                    !scope.allows(&map.join(".verborgen").join(naam)),
+                    "fs {commando}: een map met een punt vooraan (knownbug 2067)"
+                );
+            }
+            #[cfg(windows)]
+            for naam in [HULP_VERVANG, HULP_VORIGE] {
+                assert_eq!(
+                    scope.allows(&map.join(".verborgen").join(naam)),
+                    toegestaan.contains(&naam),
+                    "fs {commando}: een map met een punt vooraan op Windows"
+                );
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn place_file_hulpnamen_capability_geldt_achter_unc() {
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let map = map_buiten_de_thuismap(&app, "unc");
+        let _opruimen = Opruimen(vec![map.clone()]);
+        let station = text(&map);
+        let (letter, rest) = station
+            .trim_start_matches(r"\\?\")
+            .split_once(r":\")
+            .unwrap_or_else(|| panic!("een pad op een station: {station}"));
+        let unc = PathBuf::from(format!(r"\\?\UNC\localhost\{letter}$\{rest}"));
+        for (commando, toegestaan) in HULPNAMEN_PER_COMMANDO {
+            let scope = scope_voor(webview, commando, true)
+                .unwrap_or_else(|| panic!("de capability laat fs {commando} toe"));
+            for naam in [HULP_VERVANG, HULP_VORIGE] {
+                assert_eq!(
+                    scope.configured.is_allowed(unc.join(naam)),
+                    toegestaan.contains(&naam),
+                    "fs {commando}: {:?}",
+                    unc.join(naam)
+                );
+            }
+            for naam in GEEN_HULPNAAM_VAN_DE_CAPABILITY {
+                assert!(
+                    !scope.configured.is_allowed(unc.join(naam)),
+                    "fs {commando}: {:?}",
+                    unc.join(naam)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn place_file_hulpnamen_capability_kost_per_aanroep_geen_netwerk() {
+        let (_app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let rondes: u32 = 50;
+        let begin = std::time::Instant::now();
+        for _ in 0..rondes {
+            for (commando, _) in HULPNAMEN_PER_COMMANDO {
+                scope_voor(webview, commando, true)
+                    .unwrap_or_else(|| panic!("de capability laat fs {commando} toe"));
+            }
+        }
+        let per_scope = begin.elapsed() / (rondes * HULPNAMEN_PER_COMMANDO.len() as u32);
+        eprintln!("scope van een fs-commando opgebouwd in gemiddeld {per_scope:?}");
+        assert!(
+            per_scope < std::time::Duration::from_millis(200),
+            "de scope van een fs-commando kost {per_scope:?} per aanroep"
+        );
+    }
+
+    #[test]
+    fn place_file_hulpnamen_capability_door_de_echte_plugin_fs() {
+        use serde_json::json;
+        use tauri_plugin_fs::FsExt;
+        let (app, window) = echte_app();
+        let map = map_buiten_de_thuismap(&app, "ipc");
+        let _opruimen = Opruimen(vec![map.clone()]);
+        let vervang = map.join(HULP_VERVANG);
+        let vorige = map.join(HULP_VORIGE);
+        let tweede_vorige = map.join("save-mhx1q2k9ab4.ops-vorige-mhx1q2k9ab4");
+        let doel = map.join(DOEL);
+        let kopie = map.join("doel (versie van ander programma 2026-11-23 21.04).ifc");
+        let gewoon_tijdelijk = map.join(TMP);
+        let maak_nieuw = |pad: &Path, bytes: &[u8]| {
+            let mut headers = tauri::http::HeaderMap::new();
+            headers.insert(
+                "path",
+                tauri::http::HeaderValue::from_str(&text(pad)).unwrap(),
+            );
+            headers.insert(
+                "options",
+                tauri::http::HeaderValue::from_static(r#"{"createNew":true}"#),
+            );
+            ipc_met(
+                &window,
+                "plugin:fs|write_file",
+                tauri::ipc::InvokeBody::Raw(bytes.to_vec()),
+                headers,
+            )
+        };
+        let plaats = |from: &Path, to: &Path, beside: Option<&Path>| {
+            ipc(
+                &window,
+                "place_file_exclusive",
+                json!({ "from": text(from), "to": text(to), "beside": beside.map(text) }),
+            )
+        };
+        let geweigerd = |uitkomst: &Result<serde_json::Value, serde_json::Value>| matches!(uitkomst, Err(serde_json::Value::String(fout)) if fout.contains("forbidden path"));
+        let buiten_scope = Err(json!({ "code": "refused", "reason": "scope" }));
+        let geplaatst = Ok(json!({ "code": "placed" }));
+
+        let uitkomst = maak_nieuw(&gewoon_tijdelijk, b"gewoon");
+        assert!(
+            geweigerd(&uitkomst),
+            "de gewone opslag buiten de thuismap: {uitkomst:?}"
+        );
+        assert!(!exists(&gewoon_tijdelijk));
+
+        assert_eq!(maak_nieuw(&vervang, b"nieuw"), Ok(serde_json::Value::Null));
+        assert_eq!(std::fs::read(&vervang).unwrap(), b"nieuw");
+        let uitkomst = maak_nieuw(&vervang, b"tweede");
+        assert!(
+            uitkomst.is_err() && !geweigerd(&uitkomst),
+            "createNew op een bestaand hulpbestand: {uitkomst:?}"
+        );
+        assert_eq!(std::fs::read(&vervang).unwrap(), b"nieuw");
+        assert!(ipc(
+            &window,
+            "plugin:fs|lstat",
+            json!({ "path": text(&vervang) })
+        )
+        .is_ok());
+
+        std::fs::write(&doel, b"oud").unwrap();
+        let uitkomst = ipc(&window, "plugin:fs|lstat", json!({ "path": text(&doel) }));
+        assert!(
+            geweigerd(&uitkomst),
+            "het doel zonder vrijgave: {uitkomst:?}"
+        );
+        assert_eq!(
+            plaats(&doel, &vorige, None),
+            buiten_scope,
+            "het doel zonder vrijgave van de bestandskiezer"
+        );
+        assert_eq!(std::fs::read(&doel).unwrap(), b"oud");
+
+        app.try_fs_scope()
+            .expect("plugin-fs geregistreerd")
+            .allow_file(&doel)
+            .unwrap();
+        assert_eq!(plaats(&doel, &vorige, None), geplaatst);
+        assert_eq!(std::fs::read(&vorige).unwrap(), b"oud");
+        assert_eq!(plaats(&vervang, &doel, None), geplaatst);
+        assert_eq!(std::fs::read(&doel).unwrap(), b"nieuw");
+        assert!(!exists(&vervang));
+        assert!(ipc(&window, "plugin:fs|stat", json!({ "path": text(&vorige) })).is_ok());
+        assert!(ipc(&window, "plugin:fs|lstat", json!({ "path": text(&vorige) })).is_ok());
+
+        assert_eq!(
+            plaats(&vorige, &kopie, None),
+            buiten_scope,
+            "een kopie zonder beside"
+        );
+        let ander = map.join("ander.ifc");
+        std::fs::write(&ander, b"ander").unwrap();
+        assert_eq!(
+            plaats(&vorige, &kopie, Some(&ander)),
+            buiten_scope,
+            "beside buiten de scope"
+        );
+        assert_eq!(
+            plaats(&vorige, &map.join("ander (x).ifc"), Some(&doel)),
+            buiten_scope,
+            "een naam die niet bij beside hoort"
+        );
+        assert_eq!(
+            plaats(&vorige, &map.join("doel (x).txt"), Some(&doel)),
+            buiten_scope,
+            "een andere extensie"
+        );
+        assert_eq!(plaats(&vorige, &kopie, Some(&doel)), geplaatst);
+        assert_eq!(std::fs::read(&kopie).unwrap(), b"oud");
+        assert!(!exists(&vorige));
+        std::fs::write(&tweede_vorige, b"later").unwrap();
+        assert_eq!(
+            plaats(&tweede_vorige, &kopie, Some(&doel)),
+            Err(json!({ "code": "target-exists" })),
+            "een kopie overschrijft nooit"
+        );
+        assert_eq!(std::fs::read(&kopie).unwrap(), b"oud");
+        assert_eq!(
+            ipc(
+                &window,
+                "plugin:fs|remove",
+                json!({ "path": text(&tweede_vorige) })
+            ),
+            Ok(serde_json::Value::Null)
+        );
+        assert!(!exists(&tweede_vorige));
+
+        for (commando, argumenten) in [
+            ("plugin:fs|read_file", json!({ "path": text(&ander) })),
+            ("plugin:fs|lstat", json!({ "path": text(&ander) })),
+            ("plugin:fs|lstat", json!({ "path": text(&kopie) })),
+            ("plugin:fs|remove", json!({ "path": text(&ander) })),
+            ("plugin:fs|remove", json!({ "path": text(&kopie) })),
+            (
+                "plugin:fs|remove",
+                json!({ "path": text(&map), "options": { "recursive": true } }),
+            ),
+            (
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&ander), "newPath": text(&vorige) }),
+            ),
+            (
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&doel), "newPath": text(&ander) }),
+            ),
+        ] {
+            let uitkomst = ipc(&window, commando, argumenten);
+            assert!(geweigerd(&uitkomst), "{commando}: {uitkomst:?}");
+        }
+        assert_eq!(std::fs::read(&ander).unwrap(), b"ander");
+        assert_eq!(std::fs::read(&doel).unwrap(), b"nieuw");
+        assert_eq!(std::fs::read(&kopie).unwrap(), b"oud");
+    }
+
+    #[test]
+    fn place_file_kopie_naast_het_doel_volgt_replace_copy_path() {
+        #[cfg(unix)]
+        let (map, echt, elders) = (
+            PathBuf::from("/data/project/"),
+            PathBuf::from("/mnt/data/project"),
+            PathBuf::from("/data/ander/"),
+        );
+        #[cfg(windows)]
+        let (map, echt, elders) = (
+            PathBuf::from(r"D:\project\"),
+            PathBuf::from(r"\\?\D:\project"),
+            PathBuf::from(r"D:\ander\"),
+        );
+        let kopie = CopyBeside {
+            dirs: [map.clone(), echt.clone()],
+            stem: "plan".into(),
+            ext: ".ifc".into(),
+        };
+        for naam in [
+            "plan (versie van ander programma 2026-11-23 21.04).ifc",
+            "plan (niet opgeslagen planning 2026-11-23 21.04 2).ifc",
+            "pl (een ingekorte stam).ifc",
+            "plan (a (b)).ifc",
+        ] {
+            assert!(kopie.admits(&map.join(naam)), "{naam}");
+            assert!(kopie.admits(&echt.join(naam)), "{naam} op het echte pad");
+            assert!(
+                !kopie.admits(&elders.join(naam)),
+                "{naam} in een andere map"
+            );
+        }
+        for naam in [
+            "plan.ifc",
+            "ander (x).ifc",
+            "planx (x).ifc",
+            " (x).ifc",
+            "plan ().ifc",
+            "plan (x).IFC",
+            "plan (x).txt",
+            "plan (x)",
+            "plan x).ifc",
+            "plan (x).ifc.ifc",
+            "save-ab.ops-vorige-ab",
+        ] {
+            assert!(!kopie.admits(&map.join(naam)), "{naam}");
+        }
+        let zonder_extensie = CopyBeside {
+            dirs: [map.clone(), echt],
+            stem: "plan".into(),
+            ext: String::new(),
+        };
+        assert!(zonder_extensie.admits(&map.join("plan (x)")));
+        assert!(!zonder_extensie.admits(&map.join("plan (x).ifc")));
     }
 
     // De struikeldraad van #975 omgekeerd (knownbug 1797): `fs:default` van tauri-plugin-fs 2.7.1 verbiedt

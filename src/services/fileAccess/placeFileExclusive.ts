@@ -1,32 +1,3 @@
-/**
- * Ingang van het Rust-commando `place_file_exclusive` (#804, knownbug 1131, stap 3):
- * één bestand exclusief onder een nieuwe naam in dezelfde map plaatsen. Faalt als er op de nieuwe
- * naam al iets staat, in één systeemstap; nooit een terugval (`src-tauri/src/commands/place_file.rs`).
- *
- * Het commando weigert tenzij beide paden absoluut zijn, in dezelfde map staan, precies één van beide
- * namen een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`; de vervanging gebruikt
- * `save-<id>.ops-vorige-<id>`, `previousVersionPath`) en plugin-fs
- * `rename` beide paden voor deze webview toelaat, en de bron een gewoon bestand is waarvoor het bestandssysteem
- * precies één naam meldt. Meldt het er meer, dan weigert het commando met `hard-linked` (besluit van de technisch
- * beslisser van 18 november 2026: anders lopen de twee namen na een vervanging stil uiteen); nul namen geeft
- * `source-changed`. Het commando leest het aantal van de open bron, ook op Windows, waar plugin-fs `nlink: null`
- * geeft. De weigering geldt dus alleen waar het bestandssysteem het aantal namen eerlijk meldt: SSHFS en andere FUSE-
- * of netwerkmounts die harde links verbergen, vallen erbuiten, zonder detectie (knownbug 1823).
- * Buiten Tauri: altijd `unsupported`.
- *
- * De grens van het commando (besluit van de technisch beslisser, 16 november 2026):
- * - nooit een bestaand doel vervangen;
- * - nooit een pad toelaten dat plugin-fs weigert (de oorspronkelijke `from`/`to`-tekst plus de echte map);
- * - een fout van de stap blijft een fout (`EEXIST` is `target-exists`, ook bij hetzelfde inode);
- * - na de stap hoogstens één verplaatsing, geen herstel.
- * Buiten de grens (knownbug 1799): op Unix kan een partij met hernoemrechten in die map tussen controle
- * en stap een ander object onder de hulpnaam zetten. Het commando meldt `source-changed` als het dat
- * achteraf ziet, en kan het missen bij een wissel-terug. Op Windows speelt dit niet.
- *
- * Gebruikt door de nieuwe-naamroute `writeNewUserBytes` in `atomicWrite.ts` (Opslaan als, Exporteren → IFC en
- * `planner_export_ifc` op de desktop; knownbug 1131 stap 4). Ctrl+S op de desktop (stap 5) bouwt erop.
- */
-
 import { isTauri } from '@/utils/platform';
 
 /** Welke controle van het commando weigerde. Gelijk aan `RefusalReason` in `place_file.rs`. */
@@ -85,11 +56,11 @@ function toPlaceFileOutcome(value: unknown): PlaceFileOutcome {
 }
 
 /** Verplaats `from` exclusief naar `to` (beide absolute paden in dezelfde map). */
-export async function placeFileExclusive(from: string, to: string): Promise<PlaceFileOutcome> {
+export async function placeFileExclusive(from: string, to: string, beside?: string): Promise<PlaceFileOutcome> {
   if (!isTauri()) return { code: 'unsupported', message: 'not-tauri' };
   const { invoke } = await import('@tauri-apps/api/core');
   try {
-    return toPlaceFileOutcome(await invoke('place_file_exclusive', { from, to }));
+    return toPlaceFileOutcome(await invoke('place_file_exclusive', beside === undefined ? { from, to } : { from, to, beside }));
   } catch (error) {
     return toPlaceFileOutcome(error);
   }

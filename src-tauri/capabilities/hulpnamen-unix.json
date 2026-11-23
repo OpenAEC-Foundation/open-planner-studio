@@ -1,0 +1,37 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "hulpnamen-unix",
+  "description": "Laat de fs-commando's de twee hulpnamen van de vervanging van een eigen bestand (#804) op elke plek gebruiken, ook buiten de thuismap: het tijdelijke bestand save-<id>.ops-vervang.tmp en de vorige versie save-<id>.ops-vorige-<id>. Per commando alleen wat de vervanging en het herstel na een crash met die naam doen; fs:allow-write-file geeft in plugin-fs 2.7.1 ook open en write, dus het tijdelijke bestand is ook te openen. Het tijdelijke bestand van de gewone opslag (save-<id>.ops-save.tmp) valt er niet onder. Een map met een punt vooraan valt erbuiten (knownbug 2067). De grens staat in .claude/rules/tauri-ifc.md.",
+  "windows": ["main"],
+  "platforms": ["linux", "macOS"],
+  "permissions": [
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "/**/save-*.ops-vervang.tmp" }]
+    },
+    {
+      "identifier": "fs:allow-lstat",
+      "allow": [{ "path": "/**/save-*.ops-vervang.tmp" }, { "path": "/**/save-*.ops-vorige-*" }]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "/**/save-*.ops-vorige-*" }]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [{ "path": "/**/save-*.ops-vorige-*" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "/**/save-*.ops-vervang.tmp" }, { "path": "/**/save-*.ops-vorige-*" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [{ "path": "/**/save-*.ops-vervang.tmp" }, { "path": "/**/save-*.ops-vorige-*" }]
+    },
+    {
+      "identifier": "fs:allow-rename",
+      "allow": [{ "path": "/**/save-*.ops-vervang.tmp" }, { "path": "/**/save-*.ops-vorige-*" }]
+    }
+  ]
+}

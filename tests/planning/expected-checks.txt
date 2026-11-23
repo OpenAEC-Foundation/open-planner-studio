@@ -131,6 +131,7 @@ check-float-band-end.ts matrix
 check-float-remaining-text.ts matrix
 check-focus-task.ts matrix
 check-format-notice.ts matrix
+check-fs-remove-calls.ts matrix
 check-full-task-grid-surface.ts matrix
 check-gantt-arrow-clip.ts matrix
 check-gantt-bar-dates.ts matrix

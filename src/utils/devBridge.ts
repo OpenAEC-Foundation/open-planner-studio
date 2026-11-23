@@ -23,6 +23,7 @@ import {
 import { setConsentAsker, resetConsentAsker, type ConsentAsker } from '@/extensions';
 import { copyScreenshotToClipboard } from '@/services/feedback/feedbackService';
 import { isTauri } from '@/utils/platform';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { loadMcpPort, loadMcpToken } from '@/utils/settingsStore';
 import { registerHelpArticles, resetRegisteredHelpArticles } from '@/utils/helpArticleRegistry';
 import { dateX, lastSize, paintCount, taskBarPoint, taskSegmentCount } from '@/utils/ganttTestDriver';
@@ -114,8 +115,9 @@ async function saveToPath(path: string) {
  *  formatRegistry, dus ook `.xml`). Tauri-only. Binaire formaten worden als bytes gelezen i.p.v.
  *  tekst. */
 export async function openFromPathWithIO(path: string, io: FormatIO) {
-  const input = await readFormatInput(path, io);
-  const parsed = await parseOpenedFile(input);
+  const options = { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) };
+  const input = await readFormatInput(path, io, options);
+  const parsed = await parseOpenedFile(input, undefined, options);
   const target = saveTargetFor(readFormatForFile(path), { kind: 'path', path }, path);
   const opened = useAppStore.getState().applyOpenedImport(parsed, {
     filePath: target.filePath,
