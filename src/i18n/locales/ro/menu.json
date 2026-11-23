@@ -322,6 +322,8 @@
     "scale": "Scară:",
     "zoom": "Zoom: {{level}} px/zi",
     "unsaved": "Nesalvat",
+    "saving": "Se salvează…",
+    "saved": "Salvat la {{time}}",
     "scheduleStale": "Învechit — recalculați (F5)"
   },
   "backstage": {

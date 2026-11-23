@@ -320,6 +320,8 @@
     "scale": "Maßstab:",
     "zoom": "Zoom: {{level}}px/Tag",
     "unsaved": "Nicht gespeichert",
+    "saving": "Speichern…",
+    "saved": "Gespeichert {{time}}",
     "scheduleStale": "Veraltet — neu berechnen (F5)"
   },
   "backstage": {

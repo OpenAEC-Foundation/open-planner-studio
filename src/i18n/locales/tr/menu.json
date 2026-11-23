@@ -320,6 +320,8 @@
     "scale": "Ölçek:",
     "zoom": "Yakınlaştırma: {{level}}px/gün",
     "unsaved": "Kaydedilmedi",
+    "saving": "Kaydediliyor…",
+    "saved": "Kaydedildi {{time}}",
     "scheduleStale": "Güncel değil — yeniden hesaplayın (F5)"
   },
   "backstage": {
