@@ -31,6 +31,10 @@ een bewerking de tijdbasis verzet, beslist `taskTriggerChanges` op de waarde (AD
 - `resourceSlice.removeCalendar` en `commitCalendarLibrary` zetten `calendarId` rechtstreeks leeg, buiten
   `setTaskCalendar` om, en roepen daarom zelf `clearTimephasedWindow` en `clearLevelingGaps` aan.
 - Voor gewiste sturing komt geen herberekende lijst in de plaats.
+- `invalidateForTimeBaseChange` en `invalidateForAssignmentChange` wissen ook `progressBeforeRecalculation`, de
+  voortgang van vóór de eerste nog niet doorgerekende voortgangsinvoer. Zolang die basis staat, leidt
+  `progressPlannedDates` (`state/progressPlannedDates.ts`) bij een taak met `actualStart` en zonder `actualFinish` de
+  geplande datums af uit de taak met die oude voortgang.
 - Nivelleergaten hebben een ruimere aanleiding dan laag 3 (`LEVELING_GAP_TIME_TRIGGERS`,
   `LEVELING_GAP_TASK_TRIGGERS`): ook voortgang (`completion`, `actualStart`, `actualFinish`) en `constraint` en
   `constraint2`. Een nivelleergat ligt op de werkas van de taak (`TaskSplitGap.afterMinutes`), en voortgang verzet die

@@ -32,8 +32,11 @@ de volgende. Het einde van een urentaak houdt daarom de invoerkant bij: `reconci
   (`splitTotalSpanMinutes`). Het geeft `undefined` bij een onleesbare start of, bij werktijd, een kalender zonder
   uurmodus; dan laat de aanroeper het einde staan.
 - In `taskSlice.addTask` en `draft.addTask` wint een meegegeven einde, behalve als de taak daar naar urenmaat ging
-  (ADR 0156). `api.data.addTask` haalt bij een meebewegende urentaak zonder `scheduleFinish` ook een meegegeven
-  `earlyFinish` en `lateFinish` weg (`fromExtTaskAddInput` in `extMappers.ts`), zodat de store het einde afleidt.
+  (ADR 0156). Zonder meegegeven `scheduleFinish` zet `seedNewHourTaskFinish` `earlyFinish` en `lateFinish` alleen op
+  het afgeleide einde als de aanroeper ze niet meegaf; buiten die omzetting blijft een meegegeven `earlyFinish` of
+  `lateFinish` dan staan. `api.data.addTask` haalt bij een meebewegende urentaak zonder `scheduleFinish` ook een
+  meegegeven `earlyFinish` en `lateFinish` weg (`fromExtTaskAddInput` in `extMappers.ts`), zodat de store het einde
+  afleidt.
 - `createDefaultTaskTime` gebruikt het einde van `hourTaskInputFinish` alleen bij een urentaak met kalender, en als
   dat een einde geeft; anders rekent het de duur als werkdagen. De XER-lezer roept het zonder kalender aan en zet
   daarna het einde uit de bron.

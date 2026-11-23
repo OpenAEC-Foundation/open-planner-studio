@@ -2,9 +2,11 @@
 
 `mergeTaskTime` (`utils/taskDefaults.ts`) voegt een gedeeltelijke `TaskTime` samen met een basis. Een aanroeper buiten
 de typechecker kan een onvolledig object sturen; de extensie-sandbox draait bijvoorbeeld ongetypeerde code. In
-`taskSlice.addTask` en `draft.addTask` is de basis een verse `createDefaultTaskTime` (ADR 0211). In `updateTask` en de
-MCP-draft is ze de bestaande tijd van de taak (via `mergeTaskUpdate`), want een verse standaard zou bij een patch met
-alleen `scheduleStart` de voortgang en de speling wissen (ADR 0153).
+`taskSlice.addTask` en `draft.addTask` is de basis een verse `createDefaultTaskTime` (ADR 0211). In `updateTask` en
+`draft.updateTaskFields` is ze de bestaande tijd van de taak (via `mergeTaskUpdate`), want een verse standaard zou bij
+een patch met alleen `scheduleStart` de voortgang en de speling wissen (ADR 0153). `draft.patchTaskFields` gebruikt
+`mergeTaskTime` niet. `planner_update_tasks` (`taskTools.ts`) roept het aan zonder `top.time`; dan kopieert het de
+bestaande tijd en zet het alleen de losse duursleutels (`patchTime` in `createMcpTransactions.ts`).
 
 Een verplicht veld neemt de patch over met `??`, zodat `false` en `0` blijven staan; `durationUnit` heeft een eigen
 afleiding (hieronder). Een optioneel veld neemt de patch over als de sleutel in de patch staat (`'veld' in partial`),

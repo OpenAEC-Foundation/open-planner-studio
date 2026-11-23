@@ -20,9 +20,14 @@ ADR 0200). De aanroeper geeft de werkduur van vóór de mutatie mee, gemeten op 
 - Het raster geeft `rescaleContours: false` als de werktijd per dag niet bruikbaar is (`finishDurationEdit`); dan
   geldt de stap met de gebruikersgaten zoals zonder herschaling.
 - Bij een gelijke werkduur herschaalt `rescaleTaskContours` niets (`rescaleFactor` geeft dan geen factor), dus ook een
-  verplaatsing in de tijd niet. Een kalenderwissel herschaalt de contour buiten deze functie, in
-  `settleCalendarChange`, en alleen bij een taak met een momentopname van de werkdriehoek (`captureTriangle`) en een
-  andere slotgrootte; voor een urentaak keert die functie eerder terug.
+  verplaatsing in de tijd niet. Bij een kalenderwissel kan in twee stappen herschaald worden, allebei vanuit
+  `settleCalendarChange` en alleen bij een taak met een momentopname van de werkdriehoek (`captureTriangle`) en een
+  andere slotgrootte; voor een urentaak keert die functie eerder terug. Eerst roept het `rescaleTaskContours` aan met
+  de werktijd per dag van de nieuwe kalender. Slaagt de werkdriehoek daarna (`result.ok`) en verandert ze de duur
+  (`written.durationChanged`), dan roept het `settleDurationAftermath` aan, en `applyDurationChangeRules` herschaalt
+  de contour nogmaals als de taak een contour heeft en de werkduur op de as verandert (`rescaleFactor`). Toets:
+  `check-work-rule-store.ts`, r7 (vast werk van 4 dagen van 8 naar 6 uur per dag: duur 16/3 dagen, as en werk 1920
+  minuten).
 - `setTaskSplits` geeft `keepGaps: true` aan `rescaleTaskContours` (`splitMutations.ts`): de gatenlijst komt daar uit
   het stukkenmodel en is al op de nieuwe werkduur gerekend, dus herschalen zou haar twee keer schalen.
 - Werkbehoud bij het herschalen volgt de werkregel (`contourKeepsWork`, regel `contour`); zonder argument gebruikt
