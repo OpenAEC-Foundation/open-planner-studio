@@ -1251,6 +1251,32 @@ en noem het in je rapport of PR-tekst.
       lagveld alleen die waarde (`SequenceLagInput.tsx`), en met de zoeklijst nog open kiest Enter eerst de
       gemarkeerde treffer. Laat stap 6 in beide talen naar het vinkje verwijzen. Staat ook zo op main.
       Uit de review van #1004 (GPT-6.2-Sol, xhigh, ronde 20, BEVESTIGD, VERVOLG). — B
+1973. **Rond de jaarwisseling hebben twee buurweken dezelfde weekband.** Met *Alleen werkbare dagen tonen* aan
+      krijgen de kolommen van oneven weeknummers een band (`drawGridBackground` in `GanttRenderer.ts`, ADR 0130). Na
+      een jaar met week 53 volgt week 1: twee oneven weken achter elkaar, dus geen wisseling van band. De dikke
+      weeklijn markeert die grens wel. Gelezen in de code (`getWeekNumberFor`); al zo bedoeld in het weggehaalde
+      commentaar. — B
+1974. **Op een near-critical balk tekent het duurpilletje zich slecht af.** Het pilletje tijdens het rekken heeft de
+      accentkleur (licht #D97706); een near-critical balk is amber #F59E0B (`BRAND.nearCritical` in
+      `themePalette.ts`). Met de analyse aan liggen die twee zo dicht bij elkaar dat het vlak van het pilletje bijna
+      wegvalt; de tekst blijft leesbaar door de witte letters en de rand in de paneelkleur
+      (`drawDragDurationBadge`, ADR 0136). Een dikkere rand hielp volgens het weggehaalde commentaar niet. — S
+1975. **Een relatiepijl kan onder een balk lopen als er geen vrije kolom is.** `pickColumn` in `GanttRenderer.ts`
+      zoekt een verticale kolom zonder balk in de rijen tussen voorganger en opvolger, alleen in de corridor tussen
+      de twee eigen kolommen. Is daar geen gat, dan neemt hij toch de eerste kolom, en het stuk onder een
+      tussenliggende balk is onzichtbaar, omdat pijlen vóór de balken worden getekend (ADR 0132). Gelezen in de
+      code. — B
+1976. **Een baselineruit dekt een relatiepijl in de goot af.** Pijlen reizen horizontaal op de rijgrens
+      (ADR 0132), en de baselinestrook ligt onder in de rij. Bij rijhoogte 32 zonder resource-accent loopt de strook
+      van 26,6 tot 31,6 px en steekt een baselineruit (halve diagonaal 4 px, `baselineDiamondSize`) tot 33,1 px, dus
+      over de rijgrens. Omdat de baseline na de pijlen wordt getekend, valt de pijl daar weg. Uitgerekend uit
+      `barLayout` (`rowGeometry.ts`) en `drawBaselineOverlay`. — B
+1977. **Constraintpin en aantekeningstip staan bij een uurtaak op de dagrand, niet op de balkrand.**
+      `drawConstraintMarkers` en `drawNotesIndicator` in `GanttRenderer.ts` rekenen met `parseDate(shownStart/
+      shownFinish)`, dat de tijd weglaat: een pin aan de startkant staat op 00:00 van de startdag, een pin aan de
+      eindkant en de tip op het einde van de einddag. De balk zelf staat op het tijdstip (`barGeometry`). Een taak
+      van 10:00 tot 12:00 heeft zo bij 40 px per dag een startpin ongeveer 17 px links van de balk, een eindpin
+      ongeveer 20 px en de tip ongeveer 14 px rechts ervan. Gelezen in de code, niet in de app nagespeeld. — S
 
 ## Kalenders
 
