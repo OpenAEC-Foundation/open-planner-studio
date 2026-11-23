@@ -74,6 +74,8 @@ gemeten (het corpus staat niet in de repository). Verruim een poort alleen met e
   harde finishpin, een lag in kalendertijd, de dagmodus en een hammock zijn voorzorg en niet gemeten.
 - C14 (`p6AlapPositionedFromSuccessors`): Oracle P6 Help beschrijft *As Late As Possible* als zo laat als kan zonder
   de opvolgers te vertragen; empirisch in HarbourPointe (een ALAP-keten). De beperkingen zijn geijkt op het corpus,
-  niet op een bron: alleen een kalender met eigen werkblokken, en alleen niet-gestarte taken. Zonder die grenzen kwam
-  EC1030 in HarbourPointe verder van P6 te liggen (`2026-09-22-rekenprofielen-overdracht.md`, brok 5). Dat bij een botsing van een tweede constraint de ondergrens wint (ADR 0030), is
+  niet op een bron, en hebben elk een eigen reden. Alleen niet-gestarte taken: zonder die grens kwam EC1030 in
+  HarbourPointe verder van P6 te liggen (`2026-09-22-rekenprofielen-overdracht.md`, brok 5). Alleen een kalender met
+  eigen werkblokken: het corpus heeft geen door P6 doorgerekende ALAP-taak op een dagkalender, dus daar is niets
+  gemeten (`2026-08-20-plan-xer-p6-lezer.md`, de landfixes van 2026-09-24). Dat bij een botsing van een tweede constraint de ondergrens wint (ADR 0030), is
   een eigen keuze en niet tegen P6 geijkt. Voor MS Project is niet gemeten hoe het ALAP plant.
