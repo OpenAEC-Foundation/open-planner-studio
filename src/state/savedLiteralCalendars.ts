@@ -5,7 +5,7 @@
 // die het nodig had, en bij de volgende opslag schoven de eindtijden toch naar `T07:00:00`. Een kalender die letterlijk
 // werd maar nooit zo is opgeslagen, telt niet: het bestand had hem nooit letterlijk.
 import type { FileRef } from '@/services/fileAccess';
-import { compareFilePaths, type FileIdentityComparison, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
+import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { IFCSaveSource } from './ifcSaveInput';
 
 /** Per momentopname die naar het eigen bestand ging: de kalenders die de writer letterlijk schreef. */
@@ -28,22 +28,18 @@ export function literalCalendarIdsWritten(source: IFCSaveSource): readonly strin
  * ander bestand telt niet. Bij twijfel (geen identiteit te lezen) telt het: hooguit een kalender te veel letterlijk, de
  * veilige richting.
  */
-export function exportHitsOwnFile(match: FileIdentityComparison): boolean {
-  return match !== 'different';
-}
-
-export async function exportTargetMatch(
+export async function exportHitsOwnFile(
   own: FileRef | null, target: FileRef | null | undefined, identity?: FileIdentityFs,
-): Promise<FileIdentityComparison> {
-  if (!own || !target) return 'different';
-  if (own.kind === 'site') return target.kind === 'site' && target.id === own.id ? 'same' : 'different';
+): Promise<boolean> {
+  if (!own || !target) return false;
+  if (own.kind === 'site') return target.kind === 'site' && target.id === own.id;
   if (own.kind === 'handle') {
-    if (target.kind !== 'handle') return 'different';
-    try { return await target.handle.isSameEntry(own.handle) ? 'same' : 'different'; } catch { return 'unknown'; }
+    if (target.kind !== 'handle') return false;
+    try { return await target.handle.isSameEntry(own.handle); } catch { return true; }
   }
-  if (target.kind !== 'path') return 'different';
-  if (!identity) return target.path === own.path ? 'same' : 'different';
-  return compareFilePaths(identity, target.path, own.path);
+  if (target.kind !== 'path') return false;
+  if (!identity) return target.path === own.path;
+  return (await compareFilePaths(identity, target.path, own.path)) !== 'different';
 }
 
 /** `current` met `add` erbij. Dezelfde referentie als er niets bijkomt: de lijst wordt nooit kleiner. */

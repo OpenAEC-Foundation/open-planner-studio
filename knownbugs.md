@@ -3634,13 +3634,14 @@ en noem het in je rapport of PR-tekst.
      versie noemen die niet meer op schijf staat.** Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint`
      onbekend als hun schrijfactie naar het eigen pad een fout geeft (de directe terugval van `replaceUserFile` in
      `atomicWrite.ts` kan het doel al afgekapt hebben), en ook als de vervanging met herstel van een gebouwmodel
-     `unknown`, `previous-stranded` of `target-taken` geeft. Drie gevallen laten het veld staan. Opslaan als over een
-     bestaand bestand (`replaceExistingPath`) met zo'n onzekere uitkomst: het gekozen pad kan het eigen bestand zijn,
-     maar de route vergelijkt dat niet. Een export over het eigen pad (Exporteren → IFC, de export met de
-     resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`) die een fout geeft. En in de browser de
-     opslaankiezer uit knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna
-     mislukt. Herstel: in die drie routes het veld wissen als het doel het eigen bestand kan zijn. — S (code gelezen,
-     niet nagespeeld)
+     `unknown`, `previous-stranded` of `target-taken` geeft. Na een geslaagde export vergelijkt
+     `settleFingerprintAfterExport` het eigen doel met de geschreven bytes. Drie gevallen laten het veld staan.
+     Een export die mislukt nadat hij het eigen bestand al raakte: op het eigen doel staat dan iets wat de export niet
+     (helemaal) schreef. De vingerafdruk blijft staan, de komende bewaking weigert de volgende Ctrl+S, en er gaat
+     niets verloren. Opslaan als over een bestaand bestand (`replaceExistingPath`) met een onzekere uitkomst: het
+     gekozen pad kan het eigen bestand zijn, maar de route kijkt daar niet naar. En in de browser de opslaankiezer uit
+     knownbug 1899: die kan de eigen handle al leeggemaakt hebben als de schrijfactie daarna mislukt. — S (code
+     gelezen, niet nagespeeld)
 
 2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
      komen.** Openen, Recent en een browser-drop kiezen vóór het lezen of een `.ifc` als tekst of als bytes binnenkomt
@@ -3653,26 +3654,6 @@ en noem het in je rapport of PR-tekst.
      De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren, dan blijft het veld
      `null`. — B (code gelezen in de reviews van #1168, niet nagespeeld)
 
-2201. **VERVOLG (#804, de versie op het eigen doel): met de flag uit wist elke geschreven export het veld, ook naar
-     een ander bestand.** Met `ifcForeignContent` uit is `knownTargetFingerprint` alleen gevuld als het uit een eerdere
-     periode met de flag aan komt. Om dan geen extra `await` te maken, wissen Exporteren → IFC, de export met de
-     resourcebibliotheek, Bestand → Bibliotheek en `planner_export_ifc` het veld na een geschreven export zonder het
-     doel te vergelijken; een geannuleerde of geweigerde export doet niets. Netter is het veld één keer voor alle
-     tabbladen te wissen als de flag uitgaat; daar is nog geen plek voor, want de flag verandert via de algemene
-     `setUI` en de instellingen. Dan hoeven de exports met de flag uit niets meer. De planner merkt er niets van. — B
-     (code gelezen)
-
-2202. **VERVOLG (#804, de versie op het eigen doel): op Windows laat een export via een alias van het eigen bestand
-     een verouderde vingerafdruk staan.** Na een export vergelijkt `exportTargetMatch` het gekozen doel met het eigen
-     doel. Alleen `same` (dezelfde padtekst, dezelfde identiteit, of `isSameEntry`) wist de vingerafdruk; `different`
-     en `unknown` laten haar staan. Op Windows geeft plugin-fs 2.7.1 geen `dev` en `ino`, dus een andere padtekst geeft
-     `unknown`. Dat is het gewone geval van elke export naar een andere naam. Schrijft de planner via een andere
-     schrijfwijze van hetzelfde bestand (hoofdletters, een link, een netwerkpad), dan blijft de oude vingerafdruk
-     staan. De bibliotheekroutes weigeren zo'n alias op Windows ook niet vooraf. De afweging: een verouderde
-     vingerafdruk laat de volgende Ctrl+S hooguit één keer onterecht weigeren, met de bestaande melding, en er gaat
-     niets verloren; wissen zou de bewaking de volgende opslag laten overslaan, en dan kan een wijziging van buiten
-     stil overschreven worden. De kalenders tellen `unknown` wel als treffer (knownbug 1026, de veilige richting
-     daar). — B (`check-tabblad-schijfversie.ts`, A2-tabel windows, alias)
 
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een

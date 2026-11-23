@@ -1,5 +1,5 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
-import { exportHitsOwnFile, exportTargetMatch, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
+import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
@@ -403,6 +403,9 @@ export interface FileSlice {
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
   forgetKnownTargetFingerprint: (documentId: string) => void;
+  settleFingerprintAfterExport: (
+    snapshot: Pick<AppState, 'activeDocumentId' | 'knownTargetFingerprint' | 'filePath' | 'fileHandle' | 'siteFileId'>, written: FileData,
+  ) => Promise<void> | undefined;
   foreignTargetCheck: (exceptDocumentId: string | null) => SaveTargetCheck;
   exportLibrary: (companyId: string) => Promise<void>;
   recentFiles: RecentEntry[];
@@ -660,9 +663,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
   const saveLibraryFile = (state: AppState, name: string, content: string) => runProjectFileWrite(() => {
     const written = saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
-    if (!ifcForeignContentEnabled(state.ui.featureFlags)) return written;
+    if (!ifcForeignContentEnabled(state.ui.featureFlags) || !state.knownTargetFingerprint) return written;
     return written.then(async outcome => {
-      if (outcome) await recordOwnFileExport(state, outcome, []);
+      if (outcome) await recordOwnFileExport(state, outcome, [], content);
       return outcome;
     });
   }, () => null);
@@ -940,19 +943,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return unchanged;
   };
 
-  const recordOwnFileExport = async (state: AppState, outcome: SaveOutcome, ids: readonly string[]): Promise<void> => {
-    const tracked = ifcForeignContentEnabled(get().ui.featureFlags);
-    if (!tracked) get().forgetKnownTargetFingerprint(state.activeDocumentId);
-    if (ids.length === 0 && !tracked) return;
-    const match = await exportTargetMatch(saveTargetRef(state), outcome.ref, await fileIdentityFs());
-    if (tracked && match === 'same') get().forgetKnownTargetFingerprint(state.activeDocumentId);
-    if (ids.length > 0 && exportHitsOwnFile(match) && !exportContentReplaced(state)) {
-      get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
-    }
-  };
-
-  const forgetAfterUntrackedExport = (state: AppState) => {
-    if (!ifcForeignContentEnabled(state.ui.featureFlags)) get().forgetKnownTargetFingerprint(state.activeDocumentId);
+  const recordOwnFileExport = async (
+    state: AppState, outcome: SaveOutcome, ids: readonly string[], written: FileData,
+  ): Promise<void> => {
+    const settling = outcome.viaDownload ? undefined : get().settleFingerprintAfterExport(state, written);
+    if (settling) await settling;
+    if (ids.length === 0) return;
+    const hitsOwnFile = await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs());
+    if (hitsOwnFile && !exportContentReplaced(state)) get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
   };
 
   const exportContentReplaced = (state: AppState): boolean => !sameDocumentContent(get(), snapshotContent(state));
@@ -1950,7 +1948,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             ?? refusalNotice({ messageKey: 'notifications.saveFailed', dedupeKey: 'ifc-export-write-failed' }));
           return null;
         }
-        if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral);
+        if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral, payload);
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };
@@ -2008,6 +2006,25 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return { ok: true, warnings };
     },
 
+    settleFingerprintAfterExport: (snapshot, written) => {
+      const before = snapshot.knownTargetFingerprint;
+      const ref = saveTargetRef(snapshot);
+      if (!before || !ref || ref.kind === 'site' || !ifcForeignContentEnabled(get().ui.featureFlags)) return undefined;
+      const own = ref;
+      const bytes = typeof written === 'string' ? new TextEncoder().encode(written) : written;
+      return (async () => {
+        if (await sourceTargetContent(own, bytes) !== 'same') return;
+        const sha256 = await precomputeSha256(bytes);
+        set((s) => {
+          const target = s.activeDocumentId === snapshot.activeDocumentId ? s
+            : s.documents.find(document => document.id === snapshot.activeDocumentId)?.payload;
+          const now = target?.knownTargetFingerprint;
+          if (!target || !now || now.sha256 !== before.sha256 || now.byteLength !== before.byteLength) return;
+          target.knownTargetFingerprint = { sha256, byteLength: bytes.byteLength };
+        });
+      })();
+    },
+
     forgetKnownTargetFingerprint: (documentId) => {
       set((state) => {
         if (state.activeDocumentId === documentId) {
@@ -2050,7 +2067,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (refuseExportBeforePicker(state)) return null;
         const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
           { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace });
-        if (written) await recordOwnFileExport(state, written, planOnly ? [] : project.literalCalendarIds);
+        if (written) await recordOwnFileExport(state, written, planOnly ? [] : project.literalCalendarIds, projectData);
         if (written && exportContentReplaced(state)) return null;
         return written;
       }, () => null);
@@ -2063,7 +2080,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!poolContent) return { ok: true, warnings: [] };
       const poolOutcome = await saveLibraryFile(state, `${base}-${exportFileSuffix('library')}.ifc`, poolContent);
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
-      forgetAfterUntrackedExport(state);
       noticeIfDownloaded(poolOutcome);
       return { ok: true, warnings: [] };
     },
@@ -2075,9 +2091,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const company = state.companies.find(c => c.id === companyId);
       const content = state.exportPoolIFC(companyId);
       if (!company || !content) return;
-      const outcome = await saveLibraryFile(state, `bibliotheek-${company.name}.ifc`, content);
-      if (outcome) forgetAfterUntrackedExport(state);
-      noticeIfDownloaded(outcome);
+      noticeIfDownloaded(await saveLibraryFile(state, `bibliotheek-${company.name}.ifc`, content));
     },
 
     recentFiles: [],

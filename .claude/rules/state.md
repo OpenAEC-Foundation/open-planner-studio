@@ -92,13 +92,15 @@ een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of h
 als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precomputeSha256` vóór het schrijven en wacht de
 route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
 download, op de site en met de flag uit: `null`. Na een geschreven export
-(`recordOwnFileExport`, ook de bibliotheek via `saveLibraryFile`; `planner_export_ifc`) vergelijkt `exportTargetMatch`
-het doel met het eigen doel: alleen `same` maakt het `null` (`forgetKnownTargetFingerprint`), `different` en `unknown`
-(Windows zonder identiteit, een falende `isSameEntry`) laten het staan; de letterlijke kalenders tellen alles behalve
-`different` als treffer (`exportHitsOwnFile`). Een geannuleerde of geweigerde export of opslag laat het staan. Een
-mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
+(Exporteren → IFC, beide delen van de export met de resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`)
+roept de route `settleFingerprintAfterExport(snapshot, written)` aan (via `recordOwnFileExport` of direct). Alleen met de
+flag aan en een bekende vingerafdruk vergelijkt die het eigen doel met de geschreven bytes (`sourceTargetContent`:
+eerst de grootte, bij gelijke grootte byte voor byte). Gelijk: de vingerafdruk wordt die van de geschreven bytes, als
+ze intussen niet veranderde; anders blijft ze. Er wordt geen pad vergeleken. Met de flag uit of bij annuleren gebeurt
+niets, ook geen `stat`. De letterlijke kalenders houden `exportHitsOwnFile`. Een geweigerde opslag laat het veld staan.
+Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) en een onzekere vervanging met herstel
 (`unknown`, `previous-stranded`, `target-taken`) maken het `null`; een rekenfout vóór het schrijven niet.
-Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066, 2200, 2201 en 2202.
+Proef: `check-tabblad-schijfversie.ts` (de A2-tabel); grenzen: knownbug 2065, 2066 en 2200.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
