@@ -23,8 +23,8 @@ Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootst
   contract (een gids in `docs/`, een regel in `.claude/rules/`); hij vertelt die regel niet in eigen woorden na. Wat
   je toch beweert, heb je zelf in de code gezien, met de grens erbij: welk geval, welke tak, welke route. Noem je een
   toets, ga dan na dat die de bewering ook dekt.
-- Geen regelnummers in een ADR: noem de functie of het bestand. In een punt voor `knownbugs.md` noem je altijd de
-  functie; een regelnummer alleen daarnaast.
+- Geen regelnummers in een ADR: noem de functie of het bestand. In een punt voor `knownbugs.md` noem je de functie
+  waar die aan te wijzen is; een regelnummer alleen daarnaast.
 - Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
 
 ## Stap 1. Meten en lezen
