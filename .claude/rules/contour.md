@@ -19,6 +19,9 @@ paths:
 Besluiten van dit onderdeel: `docs/adr/0002-contour-is-data-op-de-taakas.md`,
 `0003-contour-herschalen-bij-duurwijziging.md`, `0004-contourfasen-zijn-weergave.md` en
 `0005-curveweergave-los-van-verdeling.md`. De code van `src/engine/contour/` heeft geen commentaar meer.
+Besluiten van de nivelleerder (`src/engine/scheduler/ResourceLeveler.ts`, zonder commentaar): `docs/adr/0160` tot en
+met `0165` (eigen verse planning, vaste last en pins, kandidaten op de taakkalender, het poolgrootboek, venster en
+reden, onderbrekingen).
 
 `src/engine/contour/contourEngine.ts` (puur, 2026-09) is de rekenkern voor **resource-contouring**:
 een contourprofiel (`Task.timephasedContours`, periodes op de cumulatieve werkminuten-as van de taak

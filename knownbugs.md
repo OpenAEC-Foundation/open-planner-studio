@@ -616,6 +616,38 @@ en noem het in je rapport of PR-tekst.
      vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender. Bij een taakkalender met andere
      werkblokken is die vroege start geen geldig startmoment van de taak (zie `msp-06` in `cases-msp-pariteit.json`).
      In de code gezien. — B
+1982. **De zoekgrens van de nivelleerder volgt de taakduren, niet de lengte van een periode zonder capaciteit; een
+     taak kan `NO_WINDOW_IN_HORIZON` krijgen terwijl er verderop wel een venster is.** `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de som van de `scheduleDuration` van de taken in `tasks`,
+     mijlpalen niet meegeteld, plus een marge (`Math.max(totalWork + 10, 30)`), geteld in kandidaatstappen. Ligt het eerste vrije venster na een
+     lange periode zonder capaciteit, dan stopt de scan eerder. Proef van de reviewer (GPT-6.2-Sol, review van #1160):
+     een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
+     paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
+     gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
+1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
+     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
+     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
+     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
+     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
+     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
+     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
+     resource overbezet (issue #1161). — B
+1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
+     (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
+     `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
+     als geen van de gescande kandidaten op de kalender paste, vóór de uitgeputte zoekgrens. Proeven van de reviewer
+     (GPT-6.2-Sol, review van #1160): via `computeDistribution` boekte een gepind document de kraan op 3 augustus vol,
+     en een tweede document had een taak met een deadline op 1 juni. Met een plafond van 5 dagen kwam
+     `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
+     werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
+     `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
+1986. **Vaste last buiten de scope van het nivelleren kan na toepassen op een andere dag liggen dan waar ze geboekt
+     is, met een nieuwe overbezetting die het voorstel niet meldt.** `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) boekt een taak buiten de scope op haar start in de basis, terwijl de
+     proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
+     van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
+     de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
+     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 
 ## Tabel, invoer en bediening
 
@@ -1586,6 +1618,20 @@ en noem het in je rapport of PR-tekst.
      schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
      (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
      terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
+1991. **Koppelen zonder bestaand projectitem zet het document op *Niet opgeslagen*.** `linkRecognizedItems`
+     (`src/state/slices/librarySlice.ts`) toetst vóór `beginUndoable` alleen of het poolitem van een link nog
+     bestaat, niet het projectitem. Bestaat het projectitem niet meer, dan verandert er niets, maar `finishMutation`
+     loopt wel en zet `isDirty`. Gezien met een proef op de echte store: een link met een onbekend `projectId` en een
+     bestaand `poolId` geeft `isDirty: true`, geen undo-event en geen nieuwe resource. Op een schoon heropend
+     IFC-bestand wist dezelfde route ook `importPristine` (`markDocumentEdited` in `src/state/documentEdited.ts`), en na
+     schrijven en teruglezen bleef die vlag weg (proef van de reviewer, GPT-6.2-Sol, review van #1164). Hoe vaak het
+     afwijkingenscherm zo'n link stuurt, is niet nagegaan. — B
+1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
+     (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
+     `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
+     eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
+     gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
+     wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
 
 ## Bestanden en herstel
 
@@ -2097,13 +2143,6 @@ en noem het in je rapport of PR-tekst.
      nagegaan of die nu hangen. Richting: hetzelfde vangnet, of een `await` op het hoogste niveau. Gevonden in #864
      (fixronde 1). — B
 
-1014. **Opslaan als in de browser meldt een fout als `getFile()` na het schrijven faalt.** `saveDataDialogWeb`
-     (`src/services/fileAccess/webBackend.ts`) schrijft het bestand en vraagt daarna `handle.getFile()`, alleen voor de
-     naam. Faalt die lezing (bijvoorbeeld omdat een ander programma het bestand net vergrendelde), dan geeft de route de
-     fout door. De app meldt dan dat opslaan mislukte en zet het doel niet, maar het bestand is wel geschreven.
-     `handle.name` geeft dezelfde naam zonder te lezen. Gezien met een nep-handle in
-     `tests/planning/check-ifc-foreign-target.ts` (#864, fixronde 2); niet nagegaan in een echte browser. — S
-
 1015. Ctrl+S en Opslaan als naar een site-bestand lezen met de flag `ifcForeignContent` aan elke keer het hele bestand van
      de host (de doelcontrole van #864; de host geeft geen stroom, `src/services/fileAccess/index.ts:138`). AutoSave naar de
      site staat uit (besluit #309, `src/services/actualAutosave/fileAutoSave.ts:49-53`), dus er is geen volle download per
@@ -2143,17 +2182,6 @@ en noem het in je rapport of PR-tekst.
      liet (de testhulp van `check-ifc-target-model-scan.ts` stopte na 10^8 stukken); niet gezien met een echt bestand.
      Richting: een werkgrens in beide; in de doelcontrole met de uitkomst 'model' (niet schrijven). Gevonden in #864
      (fixronde 4). — S
-
-1019. **VERVOLG: de doelcontrole vertrouwt erop dat `seek` echt terugspoelt.** Boven 16 MiB leest
-     `src/services/ifc/foreign/targetModelScan.ts` de bron opnieuw vanaf een eerdere positie na een mislukte entiteit.
-     De eindcontrole (`targetModelScan.ts:206`) ziet alleen een bron die te vroeg eindigt. Een `seek` die succes meldt
-     maar de positie niet verandert, valt daar niet op; de Tauri-lezer kijkt niet naar de positie die `seek` teruggeeft
-     (`src/services/fileAccess/tauriBackend.ts:34`). Gezien met een nagebootste bron (Terra, ronde 5 van #864): een
-     mislukte entiteit met `IFCWALL`, ruim 18 MiB tekst en daarna nog 20 MiB; correct terugspoelen geeft `model`, de
-     nagebootste `seek` geeft `no-model` en de doelcontrole laat schrijven toe. Niet gezien met de echte plugin-fs; die
-     zou daarmee haar contract breken. De test in `tests/planning/check-ifc-target-model-scan.ts` dekt het niet: zijn bron
-     eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
-     en de lange variant in de test. Uit #864 (fase 1a). — S
 
 1020. **De writer schrijft stil `#0` bij een sleutel die hij niet kent.** `ref()` (`src/services/ifc/ifcWriter.ts:323`)
      geeft `#${idMap.get(key) || 0}`. Ontbreekt de sleutel, dan staat er een verwijzing naar `#0` in de uitvoer, zonder
@@ -4082,6 +4110,14 @@ en noem het in je rapport of PR-tekst.
      commentaar gaf als reden dat de vertaalbestanden niet aangeraakt mochten worden. Voorstel: een eigen sleutel met
      `{{name}}` voor een mislukt voorbeeld. — B
 
+1985. **De taakreferentie zegt dat nivelleren een taak met prioriteit 1000 nooit verschuift.**
+     `public/docs/nl/ref-taak-eigenschappen.md` (*Nivelleerprioriteit*: "1000 zet de taak vast, zodat nivelleren hem
+     nooit verschuift") en `public/docs/en/ref-taak-eigenschappen.md` ("1000 pins the task, so that leveling never
+     moves it"). Een pin scant niet voor capaciteit, maar volgt haar voorgangers: `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) boekt haar op de eerste kandidaat vanaf de vroegste start volgens de
+     relaties (`pinnedSet`, `nextCandidateFor`), en de proefsolve verschuift haar mee. `howto-overbezetting-oplossen.md`
+     zegt het goed, in beide talen ("Ook een taak met prioriteit 1000 volgt haar voorgangers"). — B
+
 ## Tests
 
 720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**
@@ -4762,17 +4798,6 @@ en noem het in je rapport of PR-tekst.
     zonder naar de volgende kolom te gaan. Bij snel invoeren via de spookregel (typ naam, Tab, typ duur)
     verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
     vader, punt 1. — B
-555. **De AUR-uitzondering van de release-skill eist `Push to AUR = skipped`, maar dat volgt al uit de notice.**
-     `.claude/skills/release/referentie.md`, *Ontbrekend AUR-secret*, punt 2. In `aur.yml` zet de stap *Decide on
-     publishing* `publish=false` in dezelfde tak als de notice, dus een run met de echte notice slaat de push altijd
-     over. Voorstel: laat punt 2 en de stapconclusie uit de eerste bewijsopdracht weg. Gevonden in review van #759
-     (GPT-6.1-Sol), in `aur.yml` nagelezen. — B
-556. **De terugval in het AUR-bewijs bewaakt met de pijp alleen `grep`.** `.claude/skills/release/referentie.md`,
-     *Ontbrekend AUR-secret*. In een foutproef schreef de eerste poging een passende regel en eindigde met exit 1,
-     de terugval faalde ook, en toch gaf de pijp exit 0. Uitvoer van de eerste poging blijft staan, dus regels
-     kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
-     Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
-     (GPT-6.1-Sol). — S
 558. **`release-ci-check.mjs` leest alleen de eerste pagina van de runs.** `scripts/release-ci-check.mjs`, `runsOf`: het script
      vraagt 100 runs per event en pagineert niet. Staan er sinds vrijdag 22:00 meer dan 100 handmatige runs op main, dan
      kan het bewijs op pagina 2 staan en meldt het script `geen browserrun`. De gate stopt dan; hij gaat niet stil door.
@@ -4813,11 +4838,6 @@ en noem het in je rapport of PR-tekst.
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
      De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
-
-592. **De P6 XML-export meldt kleuren en resourcebeschrijvingen niet als verlies.** `src/state/p6XmlExportNotice.ts` kijkt er niet
-     naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
-     komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
-     zelf geëxporteerd door de reviewer. — B
 
 601. **VERVOLG: de nieuwe buiten-dienstregel (503) is alleen op de dagkalender getoetst.** In
      `tests/planning/check-mijlpaal-afmelden.ts`, sectie 8h, staan de gevallen ma 18:00 en ma 05:00 alleen op de
@@ -5691,14 +5711,6 @@ en noem het in je rapport of PR-tekst.
      krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
      het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
      schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
-1838. **Het kruisje van een tabblad kijkt naar de wijzigingsvlag vóór het afronden van open veldinvoer.**
-     `requestCloseDocument` (`documentSlice.ts`) leest `isDirty` en sluit een schoon document meteen via
-     `closeDocument`; die rondt pas daarna de open veldinvoer af. Staat er in een veld een getypte waarde zonder blur
-     (bijvoorbeeld op macOS, waar een klik op een knop in WebKit de focus niet verplaatst), dan wordt die waarde
-     verwerkt en direct met het tabblad weggegooid, zonder sluitvraag. Op main net zo. Afsluiten van de app rondt de
-     invoer wel eerst af (`finishPendingInput` in `appQuitController.ts`). Richting: `requestCloseDocument` rondt de
-     invoer af vóór de controle, zoals het afsluiten. Gevonden bij fixronde 2 van #1008, uit de code; niet beproefd
-     in een echte webview. — S
 1847. **VERVOLG (opruimen): de schooncontrole bij het sluiten bouwt de titels van alle tabbladen op.**
      `closeDocument(id, { onlyIfClean })` (`documentSlice.ts`) vraagt via `getOpenDocuments` de titel en het volgnummer
      van elk open document op om van één document de wijzigingsvlag te lezen. Eén zoekactie naar het doel-id, gevolgd
