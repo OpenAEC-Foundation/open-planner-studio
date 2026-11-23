@@ -3945,7 +3945,7 @@ en noem het in je rapport of PR-tekst.
      via de termenstraat. In deze release blijft de termbase ongewijzigd. — S
 
 1964. **Een mislukt geopend voorbeeldproject meldt niet welk bestand het was.**
-     `src/state/slices/fileSlice.ts:2174` (`openExampleFromString`): de melding is `notifications.openFailed` met
+     `src/state/slices/fileSlice.ts` (`openExampleFromString`): de melding is `notifications.openFailed` met
      alleen de technische reden als detail; de naam van het voorbeeld staat alleen in de console. De tekst
      `common.json` (nl) `"openFailed": "Bestand openen mislukt"` heeft geen plek voor een naam. Het weggehaalde
      commentaar gaf als reden dat de vertaalbestanden niet aangeraakt mochten worden. Voorstel: een eigen sleutel met

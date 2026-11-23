@@ -6,8 +6,8 @@ uitzondering: een IFC-export die het eigen bestand van het
 document overschrijft, legt de letterlijk geschreven kalenders vast in het document, zoals Opslaan
 (`recordLiteralCalendarsWritten`). Daarom schrijft een IFC-export, ook die met de resourcebibliotheek, onder hetzelfde
 schrijfslot als Opslaan als (`check-ifc-literaltimes-behoud.ts` 7). De andere formaten en het losse bibliotheekbestand
-lopen door dezelfde schrijfrij (`runProjectFileWrite`), omdat een startbestand dat tijdens de export gelezen wordt een
-nieuwere versie alleen aan een beurt in die rij herkent. Een paar keuzes per formaat verrassen zonder uitleg en staan
+lopen door dezelfde schrijfrij (`runProjectFileWrite`): begon er tussen het lezen en het activeren van een startbestand
+een schrijfbeurt, dan leest de app dat bestand opnieuw. Een paar keuzes per formaat verrassen zonder uitleg en staan
 hier.
 
 ## Gevolgen
