@@ -254,6 +254,7 @@ export function createFileAutoSaveController(deps: {
         // Een onbekende stand of hulpbestanden die blijven staan, met hun record: de melding van Ctrl+S, en stoppen.
         const notices = ownPathReplaceNotices(result, ref.path);
         for (const notice of notices) getState().notify(notice);
+        getState().forgetKnownTargetFingerprint(candidate.id);
         stopFor(candidate.id, ref, null);
         return 'refused';
       }
@@ -386,7 +387,13 @@ export function createFileAutoSaveController(deps: {
       const contentReplaced = () => (replaced = !sameDocumentContent(getState(), document));
       if (contentReplaced()) return 'stale';
       const hashing = writtenFingerprint(ui.featureFlags, output);
-      const written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+      let written: Awaited<ReturnType<typeof saveToRefWithoutPrompt>>;
+      try {
+        written = await saveToRefWithoutPrompt(candidate.ref!, output.bytes ?? output.content, contentReplaced);
+      } catch (error) {
+        if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
+        throw error;
+      }
       if (replaced) return 'stale';
       if (!written) return false;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
@@ -394,9 +401,8 @@ export function createFileAutoSaveController(deps: {
       getState().markAutoSaveVersionSaved(document, current, undefined, fingerprint);
       return true;
     }, () => 'refused'),
-    onFailure: (candidate, error) => {
+    onFailure: (_candidate, error) => {
       console.error('Werkelijke AutoSave mislukt:', error);
-      if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
       // #804 stap 6: de opslagworker stierf of verliep; niets geschreven, dezelfde melding als bij Ctrl+S.
       if (error instanceof IfcSaveWorkerError) {
         getState().notify(IFC_SAVE_WORKER_FAILED_NOTICE);

@@ -1,5 +1,5 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
-import { exportHitsOwnFile, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
+import { exportHitsOwnFile, exportTargetMatch, literalCalendarIdsWritten, mergeLiteralCalendarIds, rememberLiteralCalendarsWritten } from '../savedLiteralCalendars';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
@@ -660,10 +660,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
   const saveLibraryFile = (state: AppState, name: string, content: string) => runProjectFileWrite(() => {
     const written = saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
-    if (!ifcForeignContentEnabled(state.ui.featureFlags)) {
-      get().forgetKnownTargetFingerprint(state.activeDocumentId);
-      return written;
-    }
+    if (!ifcForeignContentEnabled(state.ui.featureFlags)) return written;
     return written.then(async outcome => {
       if (outcome) await recordOwnFileExport(state, outcome, []);
       return outcome;
@@ -947,10 +944,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const tracked = ifcForeignContentEnabled(get().ui.featureFlags);
     if (!tracked) get().forgetKnownTargetFingerprint(state.activeDocumentId);
     if (ids.length === 0 && !tracked) return;
-    const hitsOwnFile = await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs());
-    if (!hitsOwnFile) return;
-    if (tracked) get().forgetKnownTargetFingerprint(state.activeDocumentId);
-    if (ids.length > 0 && !exportContentReplaced(state)) get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
+    const match = await exportTargetMatch(saveTargetRef(state), outcome.ref, await fileIdentityFs());
+    if (tracked && match === 'same') get().forgetKnownTargetFingerprint(state.activeDocumentId);
+    if (ids.length > 0 && exportHitsOwnFile(match) && !exportContentReplaced(state)) {
+      get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
+    }
+  };
+
+  const forgetAfterUntrackedExport = (state: AppState) => {
+    if (!ifcForeignContentEnabled(state.ui.featureFlags)) get().forgetKnownTargetFingerprint(state.activeDocumentId);
   };
 
   const exportContentReplaced = (state: AppState): boolean => !sameDocumentContent(get(), snapshotContent(state));
@@ -1148,6 +1150,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         commit: () => { committed = commitSavedDocument(snapshotContent(state), state, undefined, prepared); },
       });
       for (const notice of ownPathReplaceNotices(result, ref.path)) get().notify(notice);
+      if (result.code === 'unknown' || result.code === 'previous-stranded' || result.code === 'target-taken') {
+        get().forgetKnownTargetFingerprint(documentId);
+      }
       return committed;
     } catch (err) {
       console.error('Save failed:', err);
@@ -2058,6 +2063,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!poolContent) return { ok: true, warnings: [] };
       const poolOutcome = await saveLibraryFile(state, `${base}-${exportFileSuffix('library')}.ifc`, poolContent);
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
+      forgetAfterUntrackedExport(state);
       noticeIfDownloaded(poolOutcome);
       return { ok: true, warnings: [] };
     },
@@ -2069,7 +2075,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const company = state.companies.find(c => c.id === companyId);
       const content = state.exportPoolIFC(companyId);
       if (!company || !content) return;
-      noticeIfDownloaded(await saveLibraryFile(state, `bibliotheek-${company.name}.ifc`, content));
+      const outcome = await saveLibraryFile(state, `bibliotheek-${company.name}.ifc`, content);
+      if (outcome) forgetAfterUntrackedExport(state);
+      noticeIfDownloaded(outcome);
     },
 
     recentFiles: [],
