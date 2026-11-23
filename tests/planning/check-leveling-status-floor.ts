@@ -327,9 +327,10 @@ const tiedFinishDates: Array<Array<string | number | undefined>> = [];
 for (const finishStartFirst of [false, true]) {
   const schedule = createAppStoreContext().store.getState;
   schedule().setProject({ startDate: '2026-06-01' });
-  const workWeek = (start: number, end: number): WorkCalendar['workTime'] => ({
-    byWeekday: Object.fromEntries([1, 2, 3, 4, 5].map(day => [day, [{ start, end }]])),
-  });
+  const workWeek = (start: number, end: number): WorkCalendar['workTime'] => {
+    const work = [{ start, end }];
+    return { byWeekday: { 1: work, 2: work, 3: work, 4: work, 5: work, 6: [], 7: [] } };
+  };
   const projectCalendar = { ...standard, workTime: workWeek(480, 960) };
   const crewCalendar = { ...crew, workTime: workWeek(600, 1080) };
   schedule().commitCalendarLibrary([projectCalendar, crewCalendar, craneCalendar], projectCalendar.id);
