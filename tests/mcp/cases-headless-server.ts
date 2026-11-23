@@ -1,4 +1,6 @@
 import { fileToolDeps } from '@/services/mcp/tools/fileTools';
+import { lowerModelOpenLimitForTests } from '@/services/ifc/modelOpenLimit';
+import { createHash } from 'node:crypto';
 // Headless MCP-server (issue #570, `headless/mcp-server/`): de `planner_*`-tools zonder app, op Node.
 //
 // Twee routes, beide met de OFFICIËLE MCP-client (`@modelcontextprotocol/sdk`):
@@ -12,7 +14,7 @@ import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
 import { test as registerTest, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -577,6 +579,35 @@ test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder b
   }
 });
 
+// #804, PR #1127 (ronde 4): de productgrens voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`) geldt alleen in de
+// app. Headless blijft main: hetzelfde model boven de (verlaagde) productgrens en onder de technische grens opent met de
+// flag aan met zijn bron, zoals main; met de flag uit blijft de bestaande modelweigering. De app-kant staat in
+// `cases-doc-file.ts` (de brug weigert op de productgrens).
+test('A productgrens: headless opent met en zonder flag zoals main', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const model = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const path = join(rootA, 'productgrens-model.ifc');
+  writeFileSync(path, model);
+  const flags = app.store.getState().ui.featureFlags;
+  try {
+    lowerModelOpenLimitForTests(model.length - 1);
+    // Met de flag uit (de standaard van headless): de bestaande modelweigering, zoals main.
+    const off = await refused(client, 'planner_import_schedule', { path }, 'VALIDATION', 'flag uit');
+    assert(String(off.s.error).includes('building model') && !String(off.s.error).includes('above the limit'),
+      `flag uit: de modelweigering van main (${off.s.error})`);
+    // Met de flag aan (zoals de host hem uit `ops-featureFlags` inleest): het model opent met zijn bron, zoals main.
+    app.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
+    await ok(client, 'planner_import_schedule', { path });
+    const source = app.store.getState().ifcSource;
+    assertEq([source?.foreign, source?.sha256], [true, createHash('sha256').update(model).digest('hex')],
+      'flag aan: het model opent met zijn geverifieerde bron, ook boven de productgrens');
+  } finally {
+    lowerModelOpenLimitForTests();
+    app.store.setState((s) => { s.ui.featureFlags = flags; });
+    await client.close();
+  }
+});
+
 test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of draaiende app', async () => {
   const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
   try {
@@ -607,6 +638,29 @@ test('A doelbescherming: model en externe pset blijven bytegelijk zonder flag of
       await ok(client, 'planner_export_ifc', { path, overwrite: true });
       assert(readFileSync(path, 'utf8').includes('IFCTASK('), `${name}: geschreven`);
     }
+  } finally { await client.close(); }
+});
+
+// Knownbug 1907 (review van #1064, besluit van de orkestrator): ook headless kan meerdere IFC's open hebben. Export van B
+// naar het bestand van A weigert, ook met `overwrite: true`; A blijft bytegelijk. B naar B en naar een vrije naam mag.
+test('A knownbug 1907: export_ifc over het bestand van een ander open document weigert; het eigen bestand en een vrije naam niet', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    const fileA = join(rootA, 'open-a.ifc'), fileB = join(rootA, 'open-b.ifc');
+    copyFileSync(join(PUBLIC, 'examples', '05-brugvervanging-n279.ifc'), fileA);
+    copyFileSync(EXAMPLE, fileB);
+    for (const path of [fileA, fileB]) await ok(client, 'planner_import_schedule', { path });
+    const open = app.store.getState().getOpenDocumentPayloads().map(d => d.payload.filePath);
+    assert(open.includes(fileA) && open.includes(fileB), 'A en B staan allebei open');
+    assertEq(app.store.getState().filePath, fileB, 'B is het actieve document');
+    const before = readFileSync(fileA);
+    const r = await refused(client, 'planner_export_ifc', { path: fileA, overwrite: true }, 'VALIDATION', 'B naar A');
+    assert(String(r.s.error).includes('another open document'), `de fout zegt waarom: ${r.s.error}`);
+    assert(readFileSync(fileA).equals(before), 'A is bytegelijk');
+    await ok(client, 'planner_export_ifc', { path: fileB, overwrite: true });
+    await ok(client, 'planner_export_ifc', { path: join(rootA, 'open-vrij.ifc') });
+    assert(readFileSync(join(rootA, 'open-vrij.ifc'), 'utf8').includes('IFCTASK('), 'een vrije naam: geschreven');
+    assert(readFileSync(fileA).equals(before), 'A blijft bytegelijk');
   } finally { await client.close(); }
 });
 

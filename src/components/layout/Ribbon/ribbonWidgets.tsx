@@ -52,8 +52,8 @@ import {
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
-import { createRelationWithFeedback } from '@/state/relationActions';
-import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
+import { chainOrder, linkTasksInChain, requestRelationAssign, selectionInView } from '@/state/relationActions';
+import { isGanttWorkspaceVisible, isTaskListInView } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
@@ -337,24 +337,34 @@ export function MilestoneDropdown() {
 
 export interface RelationActionAvailability {
   linkSelected: boolean;
+  /** Voorgangers of opvolgers toewijzen in het paneel (issue #1000): voor precies één taak. */
+  assign: boolean;
   addExternal: boolean;
   refreshExternal: boolean;
 }
 
-/** Pure beschikbaarheidsregels achter de vier vaste dropdownacties. */
+/** Pure beschikbaarheidsregels achter de vaste dropdownacties. Koppelen en toewijzen alleen met
+ *  de takenlijst in beeld (`isTaskListInView`): onder het volledige resourcepaneel is de selectie
+ *  onzichtbaar en staat het eigenschappenpaneel er niet (review #1004). */
 export function relationActionAvailability(
   selectedTaskCount: number,
   externalRelationCount: number,
+  taskListInView: boolean,
+  selectionVisible: boolean,
+  chainOrderFixed: boolean,
 ): RelationActionAvailability {
   return {
-    linkSelected: selectedTaskCount === 2,
+    // Twee of meer: de selectie wordt een keten (issue #1000, Ctrl+F2 in MS Project). Alleen als
+    // elke gekozen taak in beeld staat (`selectionInView`) en hun volgorde vastligt (`chainOrder`).
+    linkSelected: taskListInView && selectionVisible && chainOrderFixed && selectedTaskCount >= 2,
+    assign: taskListInView && selectedTaskCount === 1,
     addExternal: selectedTaskCount === 1,
     refreshExternal: externalRelationCount > 0,
   };
 }
 
 /**
- * Relatie is bewust een keuzemenu met vier vaste betekenissen. De selectie bepaalt alleen of een
+ * Relatie is bewust een keuzemenu met vaste betekenissen. De selectie bepaalt alleen of een
  * actie beschikbaar is; de hoofdknop verandert nooit stil van gedrag.
  */
 export function RelationDropdown() {
@@ -368,6 +378,9 @@ export function RelationDropdown() {
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
   // Tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
   const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
+  const taskListInView = useAppStore(s => isTaskListInView(s.ui));
+  const selectionVisible = useAppStore(selectionInView);
+  const chainOrderFixed = useAppStore(s => chainOrder(s.viewRows, s.selectedTaskIds) !== null);
   const externalRelationCount = useAppStore(s => s.tasks.reduce(
     (count, task) => count + (task.externalLinks?.length ?? 0),
     0,
@@ -379,10 +392,12 @@ export function RelationDropdown() {
   // De app onthoudt welke bronnen zonder pad nog openstaan, en hoeveel bronnen met pad niet gelezen zijn.
   const [unreadSources, setUnreadSources] = useState<{ projectIds: string[]; others: number }>({ projectIds: [], others: 0 });
   const canChooseSources = unreadSources.projectIds.length > 0 && !isTauri() && !siteStorageAvailable();
-  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
+  const availability = relationActionAvailability(
+    selectedTaskIds.length, externalRelationCount, taskListInView, selectionVisible, chainOrderFixed,
+  );
 
   const items: Array<{
-    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal' | 'findDependents';
+    key: 'draw' | 'linkSelected' | 'assignPredecessors' | 'assignSuccessors' | 'addExternal' | 'refreshExternal' | 'findDependents';
     label: string;
     disabled: boolean;
     title: string;
@@ -405,14 +420,30 @@ export function RelationDropdown() {
       key: 'linkSelected',
       label: tMenu('ribbon.relationLinkSelected'),
       disabled: !availability.linkSelected,
-      title: availability.linkSelected
-        ? tMenu('ribbon.relationLinkSelectedHint')
-        : tMenu('ribbon.relationSelectExactlyTwo'),
+      title: availability.linkSelected ? tMenu('ribbon.relationLinkSelectedHint')
+        : !taskListInView ? tMenu('ribbon.taskListOnlyHint')
+        : selectedTaskIds.length < 2 ? tMenu('ribbon.relationSelectAtLeastTwo')
+        : !selectionVisible ? tMenu('ribbon.relationSelectionHidden')
+        : tMenu('ribbon.relationChainOrderUnclear'),
       onClick: () => {
-        createRelationWithFeedback(selectedTaskIds[0], selectedTaskIds[1], 'FINISH_START');
+        linkTasksInChain(selectedTaskIds);
         setOpen(false);
       },
     },
+    // Zoals Assign in Primavera (issue #1000): kies de andere taken uit een doorzoekbare lijst in
+    // het relatiepaneel, met type en lag. Het paneel gaat open met de richting al gekozen.
+    ...(['predecessor', 'successor'] as const).map(direction => ({
+      key: direction === 'predecessor' ? 'assignPredecessors' as const : 'assignSuccessors' as const,
+      label: tCommon(direction === 'predecessor' ? 'context.assignPredecessors' : 'context.assignSuccessors'),
+      disabled: !availability.assign,
+      title: !taskListInView ? tMenu('ribbon.taskListOnlyHint')
+        : !availability.assign ? tMenu('ribbon.relationSelectOne')
+        : tMenu(direction === 'predecessor' ? 'ribbon.relationAssignPredecessorsHint' : 'ribbon.relationAssignSuccessorsHint'),
+      onClick: () => {
+        requestRelationAssign(selectedTaskIds[0], direction);
+        setOpen(false);
+      },
+    })),
     {
       key: 'addExternal',
       label: tMenu('ribbon.relationAddExternal'),

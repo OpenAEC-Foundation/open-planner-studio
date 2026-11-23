@@ -28,6 +28,9 @@ export interface ActualAutoSaveCandidate {
   source: IFCSaveSource;
 }
 
+/** De uitkomst van één ronde voor één kandidaat (zie `write` hieronder). */
+export type ActualAutoSaveWrite = boolean | 'stale' | 'refused' | 'yielded';
+
 export interface ActualAutoSaveController {
   /** Start één run, of markeert tijdens een write dat de nieuwste staat nog moet volgen. */
   flush: () => Promise<void>;
@@ -51,8 +54,10 @@ export function createActualAutoSaveController(deps: {
    *  betekent geen beschikbaar schrijfdoel, `'stale'` dat de inhoud intussen gewijzigd is (niets geschreven, geen fout —
    *  een nieuwe ronde pakt de actuele inhoud op), `'refused'` dat de doelcontrole het doel weigerde (#804 fixronde 2:
    *  niets geschreven, het document blijft gewijzigd; de aanroeper heeft het al gemeld) of dat de laatste fase van
-   *  afsluiten of van de updater al begonnen was (#804 stap 3: niets geschreven, niets te melden). */
-  write: (candidate: ActualAutoSaveCandidate) => Promise<boolean | 'stale' | 'refused'>;
+   *  afsluiten of van de updater al begonnen was (#804 stap 3: niets geschreven, niets te melden). `'yielded'` (#804 stap 8):
+   *  de ronde van een document met een gebouwmodel week voor een handmatige actie; niets geschreven, geen melding, het
+   *  ritme probeert het na de volgende rustperiode opnieuw. */
+  write: (candidate: ActualAutoSaveCandidate) => Promise<ActualAutoSaveWrite>;
   onFailure: (candidate: ActualAutoSaveCandidate, error: unknown) => void;
 }): ActualAutoSaveController {
   let saving = false;
@@ -70,8 +75,8 @@ export function createActualAutoSaveController(deps: {
         try {
           if (!await deps.canWrite(candidate.ref)) continue;
           const written = await deps.write(candidate);
-          if (written === 'refused') {
-            // Geweigerd doel: geen write, geen "opgeslagen", geen tweede foutmelding.
+          if (written === 'refused' || written === 'yielded') {
+            // Geweigerd doel of geweken voor een handmatige actie: geen write, geen "opgeslagen", geen tweede melding.
             continue;
           }
           if (written === 'stale') {

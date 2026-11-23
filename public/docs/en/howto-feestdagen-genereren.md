@@ -14,7 +14,7 @@ The **construction holiday** (*bouwvak*) is the collective holiday in the Dutch 
 
 1. Choose *Planning › Calendar › Calendar* and pick on the left the calendar the holidays must go into.
 2. Click *Generate holidays…*. Under the button a block with the choices opens.
-3. Choose the *Country*: Netherlands, Germany, Belgium, France, United Kingdom, Austria, Switzerland, United States, or *No holidays*. For a number of countries a *Region* list appears as well, for example a federal state in Germany. *National* leaves only the holidays that apply everywhere.
+3. Choose the *Country*: Netherlands, Germany, Belgium, France, United Kingdom, Austria, Switzerland, United States, Bolivia, or *No holidays*. For a number of countries a *Region* list appears as well, for example a federal state in Germany. *National* leaves only the holidays that apply everywhere.
 4. For the Netherlands, choose the *Construction holiday*: *None* (default), *North*, *Central* or *South*. The construction holiday appears as one period in the list, for example *Bouwvak (Noord)*, three weeks from Monday to Friday. You only see this choice if *Construction mode* is on.
 5. Under the choices is a summary, such as *21 holidays, 2026–2028*. Click it to see the dates.
 6. Click *Generate*. The *Holidays* list is now filled.
@@ -24,11 +24,13 @@ For the Netherlands the app puts Nieuwjaar, Goede Vrijdag, Pasen (two days), Kon
 
 For the United States the app puts the 11 federal holidays in the list each year: New Year's Day, Martin Luther King Jr. Day, Washington's Birthday (Presidents' Day), Memorial Day, Juneteenth (from 2021), Independence Day, Labor Day, Columbus Day, Veterans Day, Thanksgiving Day and Christmas Day. If a fixed date falls on a Saturday, the day off is the Friday before; on a Sunday, it is the Monday after. So in 2026 Independence Day is on Friday 3 July. This is the rule for federal employees. Private companies do not have to follow it, and not every company gives all 11 days off; Columbus Day and Veterans Day in particular are often worked. Check the list with your client or union agreement and remove the days your project works. State holidays and Inauguration Day (only in the Washington DC area) are not included; add them yourself as a day off if your project needs them.
 
+For Bolivia, *National* lists the nationwide public holidays. Choose *La Paz*, *Potosí*, or *Santa Cruz* to add the public holidays of that department. In Potosí, for example, the list includes 10 November 2026. The generator uses the recurring rules and includes the known temporary changes for 2026, such as the move from 22 to 23 January. Check the local dates for other years and departments and edit the list where needed.
+
 The years follow the project period: from the year before the start date through the year after the later of the entered end date and the last calculated project end. If both are missing, up to three years after the start year. This also applies to *Generate holidays…* and *Regenerate* in the *Resource calendar* window. If you have changed tasks, press **Calculate** (F5) first to use their new end. You adjust the start and entered end date under *Settings › Project › Project settings*.
 
 ### Regenerating after a new project period
 
-If your project shifts, or gets a later end date, the holidays no longer cover the new years. The app says so in the *Calendars* window, for example *Holidays cover 2025–2028; regenerate through 2030?* Then click *Regenerate*. The app uses the same choices as last time (country, region, construction holiday) for the years of the project. Then click *Apply*. You only see this message for a calendar whose holidays were generated earlier.
+If your project shifts, or gets a later end date, the holidays no longer cover the new years. The app says so in the *Calendars* window, for example *Holidays cover 2025–2028; regenerate through 2030?* Then click *Regenerate*. The app uses the same choices as last time (country, region, construction holiday) for the years of the project. If the list differs from the previously generated list, the app asks before replacing the days off. Choose *Cancel* to keep your edited list. Then click *Apply*. The message about the years only appears for a calendar whose holidays were generated earlier.
 
 ### Adding a day or period off of your own
 

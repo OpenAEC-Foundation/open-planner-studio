@@ -13,7 +13,7 @@ selecteerbare/doorzoekbare vectortekst in Latijnse, Cyrillische en Griekse scrip
 UI-font-pakket (CSS/woff2 voor de schermweergave — geen bron voor deze TTF's, zie
 `Inter-OFL.txt`/de OFL-tekst hieronder voor waarom een aparte raw-TTF nodig was).
 
-**Waarvoor**: PDF-embedding via `pdf-lib` + `@pdf-lib/fontkit` (`fontLoader.ts`), zodat de
+**Waarvoor**: PDF-embedding via `pdf-lib` + `fontkit` 3 (`fontkit.ts`, `fontLoader.ts`; tot #1050 `@pdf-lib/fontkit`), zodat de
 Gantt-/mijlpalen-/variance-export vectorgrafisch en met selecteerbare tekst kan renderen in
 plaats van als ingebedde raster-afbeelding. Zie `docs/superpowers/specs/2026-07-22-vector-pdf-export-design.md`
 voor het volledige ontwerp en `docs/CHANGELOG.md` voor het gebruikersgerichte resultaat.
