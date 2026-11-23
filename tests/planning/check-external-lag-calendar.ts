@@ -371,7 +371,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Knownbug 846: werkt het verschil ook door in een gewone interne FS-opvolger?
 const sfSuccessors = (['ops', 'p6', 'msproject'] as const).map(base => {
   const seq: Sequence = { id: 'l-n', predecessorId: 'L', successorId: 'N', type: 'FINISH_START', lagDays: 0 };
   const suffix = () => [task('N', '2026-06-01', 1, 'project'), tail()];
