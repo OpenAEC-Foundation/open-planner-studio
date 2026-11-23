@@ -23,8 +23,6 @@ export type HolidayRule =
   | { kind: 'nth-weekday'; month: number; weekday: 1 | 2 | 3 | 4 | 5 | 6 | 7;
       nth: 1 | 2 | 3 | 4 | 'last' }
   | { kind: 'weekday-before'; month: number; day: number; weekday: number }
-  // Eerste `weekday` op of na `month/day` (Zweedse Midsommar = vr 19–25/6, Finse
-  // Juhannuspäivä = za 20–26/6, Alla helgons dag / Pyhäinpäivä = za 31/10–6/11).
   | { kind: 'weekday-on-after'; month: number; day: number; weekday: number };
 
 export interface HolidayDef {
@@ -43,8 +41,8 @@ export interface HolidayDef {
   lustrumOnly?: boolean;
   /** Alleen genereren vanaf dit jaar (de feestdag bestaat pas sinds dan) — US Juneteenth (2021). */
   fromYear?: number;
-  /** Alleen genereren t/m dit jaar (de feestdag is daarna afgeschaft) — DK Store bededag (2024). */
   untilYear?: number;
+  excludedYears?: readonly number[];
 }
 
 export interface HolidaySet {
@@ -180,6 +178,7 @@ export function generateHolidays(
       if (def.lustrumOnly && y % 5 !== 0) continue;
       if (def.fromYear !== undefined && y < def.fromYear) continue;
       if (def.untilYear !== undefined && y > def.untilYear) continue;
+      if (def.excludedYears?.includes(y)) continue;
       if (def.onlyYear !== undefined && y !== def.onlyYear) continue;
       const h = materialize(def, y);
       if (h) out.push(h);
@@ -399,9 +398,6 @@ const BO_SET: HolidaySet = {
 };
 
 export const ES_SET: HolidaySet = {
-  // Alleen de tien NATIONALE feestdagen (fiestas de ámbito general). De 17 autonome
-  // gemeenschappen kennen elk eigen feestdagen (bv. 23/4 Sant Jordi in Catalonië, 9/10 in
-  // Valencia) — die zitten er bewust niet in, net als bij CH de kantons.
   country: 'ES',
   defs: [
     { id: 'es-ano-nuevo', name: 'Año Nuevo', rule: { kind: 'fixed', month: 1, day: 1 } },
@@ -418,21 +414,18 @@ export const ES_SET: HolidaySet = {
 };
 
 export const IT_SET: HolidaySet = {
-  // Landelijke feestdagen (festività nazionali). Regionale dagen (patroonheiligen per stad,
-  // bv. 7/12 Sant'Ambrogio in Milaan) zitten er bewust niet in.
   country: 'IT',
   defs: [
     { id: 'it-capodanno', name: 'Capodanno', rule: { kind: 'fixed', month: 1, day: 1 } },
     { id: 'it-epifania', name: 'Epifania', rule: { kind: 'fixed', month: 1, day: 6 } },
-    // Pasqua (zondag) + Lunedì dell'Angelo (Pasquetta, maandag).
     { id: 'it-pasqua', name: 'Pasqua', rule: { kind: 'easter', offset: 0, days: 2 } },
     { id: 'it-liberazione', name: 'Festa della Liberazione', rule: { kind: 'fixed', month: 4, day: 25 } },
     { id: 'it-lavoratori', name: 'Festa dei Lavoratori', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'it-repubblica', name: 'Festa della Repubblica', rule: { kind: 'fixed', month: 6, day: 2 } },
     { id: 'it-ferragosto', name: 'Ferragosto', rule: { kind: 'fixed', month: 8, day: 15 } },
+    { id: 'it-san-francesco', name: "San Francesco d'Assisi", rule: { kind: 'fixed', month: 10, day: 4 }, fromYear: 2026 },
     { id: 'it-ognissanti', name: 'Ognissanti', rule: { kind: 'fixed', month: 11, day: 1 } },
     { id: 'it-immacolata', name: 'Immacolata Concezione', rule: { kind: 'fixed', month: 12, day: 8 } },
-    // Natale 25/12 + Santo Stefano 26/12.
     { id: 'it-natale', name: 'Natale', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
@@ -441,24 +434,23 @@ export const PL_SET: HolidaySet = {
   country: 'PL',
   defs: [
     { id: 'pl-nowy-rok', name: 'Nowy Rok', rule: { kind: 'fixed', month: 1, day: 1 } },
-    // Driekoningen (Epifanie) is sinds 2011 weer een vrije dag.
     { id: 'pl-trzech-kroli', name: 'Trzech Króli', rule: { kind: 'fixed', month: 1, day: 6 }, fromYear: 2011 },
-    // Wielkanoc: zondag + poniedziałek wielkanocny.
     { id: 'pl-wielkanoc', name: 'Wielkanoc', rule: { kind: 'easter', offset: 0, days: 2 } },
     { id: 'pl-swieto-pracy', name: 'Święto Pracy', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'pl-konstytucja-3-maja', name: 'Święto Konstytucji 3 Maja', rule: { kind: 'fixed', month: 5, day: 3 } },
+    { id: 'pl-zielone-swiatki', name: 'Zielone Świątki', rule: { kind: 'easter', offset: 49 } },
     { id: 'pl-boze-cialo', name: 'Boże Ciało', rule: { kind: 'easter', offset: 60 } },
     { id: 'pl-wniebowziecie', name: 'Wniebowzięcie Najświętszej Maryi Panny', rule: { kind: 'fixed', month: 8, day: 15 } },
     { id: 'pl-wszystkich-swietych', name: 'Wszystkich Świętych', rule: { kind: 'fixed', month: 11, day: 1 } },
     { id: 'pl-niepodleglosci', name: 'Narodowe Święto Niepodległości', rule: { kind: 'fixed', month: 11, day: 11 } },
+    { id: 'pl-wigilia', name: 'Wigilia Bożego Narodzenia', rule: { kind: 'fixed', month: 12, day: 24 }, fromYear: 2025 },
     { id: 'pl-boze-narodzenie', name: 'Boże Narodzenie', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
 
+const PT_SUSPENDED_HOLIDAY_YEARS = [2013, 2014, 2015] as const;
+
 export const PT_SET: HolidaySet = {
-  // De 13 landelijke feestdagen. Corpus Christi, 1 november en 8 december waren van 2013
-  // t/m 2015 geschrapt en sinds 2016 weer van kracht (`fromYear`). 1 december (Restauração
-  // da Independência) geldt sinds 2016 alleen in Lissabon en Porto — hier niet.
   country: 'PT',
   defs: [
     { id: 'pt-ano-novo', name: 'Ano Novo', rule: { kind: 'fixed', month: 1, day: 1 } },
@@ -467,21 +459,21 @@ export const PT_SET: HolidaySet = {
     { id: 'pt-25-de-abril', name: 'Dia da Liberdade', rule: { kind: 'fixed', month: 4, day: 25 } },
     { id: 'pt-dia-do-trabalhador', name: 'Dia do Trabalhador', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'pt-dia-de-portugal', name: 'Dia de Portugal, de Camões e das Comunidades', rule: { kind: 'fixed', month: 6, day: 10 } },
-    { id: 'pt-corpo-de-deus', name: 'Corpo de Deus', rule: { kind: 'easter', offset: 60 }, fromYear: 2016 },
+    { id: 'pt-corpo-de-deus', name: 'Corpo de Deus', rule: { kind: 'easter', offset: 60 }, excludedYears: PT_SUSPENDED_HOLIDAY_YEARS },
     { id: 'pt-assuncao', name: 'Assunção de Nossa Senhora', rule: { kind: 'fixed', month: 8, day: 15 } },
-    { id: 'pt-implantacao-republica', name: 'Implantação da República', rule: { kind: 'fixed', month: 10, day: 5 } },
-    { id: 'pt-todos-os-santos', name: 'Todos os Santos', rule: { kind: 'fixed', month: 11, day: 1 }, fromYear: 2016 },
-    { id: 'pt-imaculada-conceicao', name: 'Imaculada Conceição', rule: { kind: 'fixed', month: 12, day: 8 }, fromYear: 2016 },
+    { id: 'pt-implantacao-republica', name: 'Implantação da República', rule: { kind: 'fixed', month: 10, day: 5 }, excludedYears: PT_SUSPENDED_HOLIDAY_YEARS },
+    { id: 'pt-todos-os-santos', name: 'Todos os Santos', rule: { kind: 'fixed', month: 11, day: 1 }, excludedYears: PT_SUSPENDED_HOLIDAY_YEARS },
+    { id: 'pt-restauracao-independencia', name: 'Restauração da Independência', rule: { kind: 'fixed', month: 12, day: 1 }, excludedYears: PT_SUSPENDED_HOLIDAY_YEARS },
+    { id: 'pt-imaculada-conceicao', name: 'Imaculada Conceição', rule: { kind: 'fixed', month: 12, day: 8 } },
     { id: 'pt-natal', name: 'Natal', rule: { kind: 'fixed', month: 12, day: 25 } },
   ],
 };
 
 export const CZ_SET: HolidaySet = {
-  // De dertien vrije dagen (svátky, incl. Štědrý den 24/12).
   country: 'CZ',
   defs: [
     { id: 'cs-den-vzniku-statu', name: 'Den vzniku samostatného českého státu', rule: { kind: 'fixed', month: 1, day: 1 } },
-    { id: 'cs-velky-patek', name: 'Velký pátek', rule: { kind: 'easter', offset: -2 } },
+    { id: 'cs-velky-patek', name: 'Velký pátek', rule: { kind: 'easter', offset: -2 }, fromYear: 2016 },
     { id: 'cs-velikonocni-pondeli', name: 'Velikonoční pondělí', rule: { kind: 'easter', offset: 1 } },
     { id: 'cs-svatek-prace', name: 'Svátek práce', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'cs-den-vitezstvi', name: 'Den vítězství', rule: { kind: 'fixed', month: 5, day: 8 } },
@@ -491,51 +483,39 @@ export const CZ_SET: HolidaySet = {
     { id: 'cs-den-nezavislosti', name: 'Den vzniku samostatného československého státu', rule: { kind: 'fixed', month: 10, day: 28 } },
     { id: 'cs-den-svobody', name: 'Den boje za svobodu a demokracii', rule: { kind: 'fixed', month: 11, day: 17 } },
     { id: 'cs-stedry-den', name: 'Štědrý den', rule: { kind: 'fixed', month: 12, day: 24 } },
-    // 1. a 2. svátek vánoční (25 + 26/12).
     { id: 'cs-vanocni-svatek', name: '1. a 2. svátek vánoční', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
 
 export const SE_SET: HolidaySet = {
-  // Landelijke "röda dagar". Midsommar (vr 19–25/6) en Alla helgons dag (za 31/10–6/11) vallen
-  // op een vaste weekdag ín een window — daarvoor dient de regel `weekday-on-after`.
-  // 2. pingstdag is sinds 2005 afgeschaft (alleen pinkstdagen-zondag); nationaldagen is een
-  // rode dag sinds 2005.
   country: 'SE',
   defs: [
     { id: 'sv-nyarsdagen', name: 'Nyårsdagen', rule: { kind: 'fixed', month: 1, day: 1 } },
     { id: 'sv-trettondedag-jul', name: 'Trettondedag jul', rule: { kind: 'fixed', month: 1, day: 6 } },
     { id: 'sv-langfredag', name: 'Långfredagen', rule: { kind: 'easter', offset: -2 } },
-    // Påskdagen: zondag + måndag (beide rode dagar in Zweden).
     { id: 'sv-paskdagen', name: 'Påskdagen', rule: { kind: 'easter', offset: 0, days: 2 } },
     { id: 'sv-forsta-maj', name: 'Första maj', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'sv-kristi-himmelsfard', name: 'Kristi himmelsfärdsdag', rule: { kind: 'easter', offset: 39 } },
     { id: 'sv-pingstdagen', name: 'Pingstdagen', rule: { kind: 'easter', offset: 49 } },
+    { id: 'sv-annandag-pingst', name: 'Annandag pingst', rule: { kind: 'easter', offset: 50 }, untilYear: 2004 },
     { id: 'sv-nationaldag', name: 'Sveriges nationaldag', rule: { kind: 'fixed', month: 6, day: 6 }, fromYear: 2005 },
-    { id: 'sv-midsommar', name: 'Midsommar', rule: { kind: 'weekday-on-after', month: 6, day: 19, weekday: 5 } },
+    { id: 'sv-midsommardagen', name: 'Midsommardagen', rule: { kind: 'weekday-on-after', month: 6, day: 20, weekday: 6 } },
     { id: 'sv-alla-helgons-dag', name: 'Alla helgons dag', rule: { kind: 'weekday-on-after', month: 10, day: 31, weekday: 6 } },
-    // Juledagen: 25 + 26/12 (annandag jul).
     { id: 'sv-juldagen', name: 'Juledagen', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
 
 export const DK_SET: HolidaySet = {
-  // De Deense helligdage. Store bededag (4e vrijdag na Pasen = Pasen + 26) is bij wet
-  // AFGESCHAFT vanaf 2024 — vandaar `untilYear: 2023`. Grundlovsdag (5/6) is officieel een
-  // halve vrije dag, hier als opt-in gemarkeerd.
   country: 'DK',
   defs: [
     { id: 'dk-nytaarsdag', name: 'Nytårsdag', rule: { kind: 'fixed', month: 1, day: 1 } },
     { id: 'dk-skaertorsdag', name: 'Skærtorsdag', rule: { kind: 'easter', offset: -3 } },
     { id: 'dk-langfredag', name: 'Langfredag', rule: { kind: 'easter', offset: -2 } },
-    // Påskedag: 1. + 2. påskedag.
     { id: 'dk-paaskedag', name: 'Påskedag', rule: { kind: 'easter', offset: 0, days: 2 } },
     { id: 'dk-store-bededag', name: 'Store bededag', rule: { kind: 'easter', offset: 26 }, untilYear: 2023 },
-    { id: 'dk-kristi-himmelsfardsdag', name: 'Kristi himmelsfärdsdag', rule: { kind: 'easter', offset: 39 } },
+    { id: 'dk-kristi-himmelfartsdag', name: 'Kristi himmelfartsdag', rule: { kind: 'easter', offset: 39 } },
     { id: 'dk-pinsedag', name: 'Pinsedag', rule: { kind: 'easter', offset: 49 } },
     { id: 'dk-anden-pinsedag', name: '2. pinsedag', rule: { kind: 'easter', offset: 50 } },
-    { id: 'dk-grundlovsdag', name: 'Grundlovsdag', rule: { kind: 'fixed', month: 6, day: 5 }, optional: true },
-    // Juledag: 1. + 2. juledag (25 + 26/12).
     { id: 'dk-juledag', name: 'Juledag', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
@@ -546,22 +526,17 @@ export const NO_SET: HolidaySet = {
     { id: 'no-nyttaarsdag', name: 'Nyttårsdag', rule: { kind: 'fixed', month: 1, day: 1 } },
     { id: 'no-skjaertorsdag', name: 'Skjærtorsdag', rule: { kind: 'easter', offset: -3 } },
     { id: 'no-langfredag', name: 'Langfredag', rule: { kind: 'easter', offset: -2 } },
-    // Påskedag: 1. + 2. påskedag.
     { id: 'no-paskedag', name: 'Påskedag', rule: { kind: 'easter', offset: 0, days: 2 } },
     { id: 'no-arbeidernes-dag', name: 'Arbeidernes dag', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'no-grunnlovsdag', name: 'Grunnlovsdag', rule: { kind: 'fixed', month: 5, day: 17 } },
-    { id: 'no-kristi-himmelsfardsdag', name: 'Kristi himmelsfärdsdag', rule: { kind: 'easter', offset: 39 } },
+    { id: 'no-kristi-himmelfartsdag', name: 'Kristi himmelfartsdag', rule: { kind: 'easter', offset: 39 } },
     { id: 'no-pinsedag', name: 'Pinsedag', rule: { kind: 'easter', offset: 49 } },
     { id: 'no-anden-pinsedag', name: 'Andre pinsedag', rule: { kind: 'easter', offset: 50 } },
-    // Juledag: 1. + 2. juledag (25 + 26/12).
     { id: 'no-juledag', name: 'Juledag', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
 
 export const FI_SET: HolidaySet = {
-  // De Finse "punaiset päivät". Juhannuspäivä = zaterdag 20–26/6 en Pyhäinpäivä =
-  // zaterdag 31/10–6/11 (beide via `weekday-on-after`). Pääsiäinen dekt 1. + 2.
-  // pääsiäispäivä (zondag + maandag).
   country: 'FI',
   defs: [
     { id: 'fi-uudenvuodenpaiva', name: 'Uudenvuodenpäivä', rule: { kind: 'fixed', month: 1, day: 1 } },
@@ -570,10 +545,10 @@ export const FI_SET: HolidaySet = {
     { id: 'fi-paasiainen', name: 'Pääsiäinen', rule: { kind: 'easter', offset: 0, days: 2 } },
     { id: 'fi-vappu', name: 'Vappu', rule: { kind: 'fixed', month: 5, day: 1 } },
     { id: 'fi-helatorstai', name: 'Helatorstai', rule: { kind: 'easter', offset: 39 } },
+    { id: 'fi-helluntai', name: 'Helluntai', rule: { kind: 'easter', offset: 49 } },
     { id: 'fi-juhannuspaiva', name: 'Juhannuspäivä', rule: { kind: 'weekday-on-after', month: 6, day: 20, weekday: 6 } },
     { id: 'fi-pyhainpaiva', name: 'Pyhäinpäivä', rule: { kind: 'weekday-on-after', month: 10, day: 31, weekday: 6 } },
     { id: 'fi-itsenaisyyspaiva', name: 'Itsenäisyyspäivä', rule: { kind: 'fixed', month: 12, day: 6 } },
-    // Joulupäivä 25/12 + Tapaninpäivä 26/12.
     { id: 'fi-joulupaiva', name: 'Joulupäivä', rule: { kind: 'fixed', month: 12, day: 25, days: 2 } },
   ],
 };
