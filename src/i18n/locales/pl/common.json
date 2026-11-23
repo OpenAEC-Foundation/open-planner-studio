@@ -100,6 +100,7 @@
     "importDatesAsRecorded_other": "{{count}} zadania pokazują daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
     "xerExportLoss": "Eksport do {{format}} powoduje utratę informacji źródłowych XER.",
     "exportDataLoss": "Przy eksporcie do {{format}} giną dane, których {{format}} nie może przechować, np. notatki lub ograniczenie drugorzędne. Plik projektu IFC zachowuje wszystko.",
+    "exportPlanOnly": "Wyeksportowano tylko harmonogram; model budynku nie należy do tego formatu.",
     "mppLegacy": "Ten plik .mpp używa starszego formatu (Project 2007 lub starszy). Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "mppInvalidContainer": "Ten plik MPP ma nieprawidłową strukturę i nie można go otworzyć.",
     "xmlUnknownSchedule": "Nieznany format harmonogramu XML. Otwórz MS Project XML (Project) lub Primavera P6 XML (APIBusinessObjects).",
@@ -113,6 +114,10 @@
     "ifcUnreadableTargetSave": "Aplikacja nie może poprawnie odczytać tego pliku; może zawierać model budynku. Wybierz inny plik, aby zapisać.",
     "ifcUnreadableTargetExport": "Aplikacja nie może poprawnie odczytać tego pliku; może zawierać model budynku. Wybierz inny plik, aby wyeksportować.",
     "ifcUnreadableTargetAutoSave": "Autozapis został zatrzymany: aplikacja nie może poprawnie odczytać tego pliku; może zawierać model budynku. Wybierz inny plik, aby zapisać.",
+    "ifcForeignAutoSaveTargetChanged": "Automatyczny zapis został zatrzymany: plik został tymczasem zmieniony, przeniesiony lub usunięty. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatyczny zapis został zatrzymany: tego pliku nie można bezpiecznie zastąpić w tym miejscu. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignAutoSaveNotRecorded": "Automatyczny zapis został zatrzymany: plik nie może teraz bezpiecznie zostać zastąpiony, ponieważ odzyskiwanie po awarii nie może zostać zaktualizowane. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignAutoSaveRemnant": "Automatyczny zapis został zatrzymany: wcześniejszy zapis tego pliku nie został ukończony. Twoje zmiany są nadal w aplikacji. Zapisz klawiszami Ctrl+S; po ponownym uruchomieniu aplikacja dokończy tamten zapis.",
     "ambiguousThousands": "„{{text}}” jest niejednoznaczne: liczba dziesiętna czy tysiące? Wpisz część dziesiętną z „{{separator}}” (1{{separator}}5), a tysiące bez separatora (1500). Wartość nie została zmieniona.",
     "siteSaveConflict": "Nie zapisano: '{{name}}' został w międzyczasie zmieniony w witrynie przez kogoś innego. Twoje zmiany nadal są w aplikacji. Wybierz Zapisz jako, aby zachować je jako nowy plik.",
     "siteSaveConflictCopy": "'{{original}}' zostało w międzyczasie zmienione w witrynie przez kogoś innego. Twoja praca znajduje się dlatego w kopii: '{{name}}'. Polecenie Zapisz od teraz zapisuje do tej kopii.",
@@ -142,6 +147,7 @@
     "relationDuplicate": "Taka relacja już istnieje",
     "relationAncestorEndpoint": "Relacja między zadaniem a jego własnym nadrzędnym zadaniem sumarycznym jest niedozwolona.",
     "relationCycle": "Ta relacja utworzyłaby cykl w harmonogramie ({{cycle}}) i nie została utworzona.",
+    "relationChainOrderUnclear": "Zadania nie zostały połączone: ich kolejność na liście nie jest ustalona. Wybrane zadanie znajduje się zarówno przed, jak i po innym (grupowanie), albo dwa wybrane kamienie milowe dzielą zwinięty ciąg. Usuń grupowanie, rozwiń ciąg albo wybierz poprzedników poleceniem Przypisz poprzedników.",
     "hierarchyCycle": "To przeniesienie utworzyłoby cykl w harmonogramie ({{cycle}}): relacje zadania sumarycznego dotyczą również jego podzadań. Niczego nie przeniesiono.",
     "relationsExcludedByHierarchy_one": "Po przeniesieniu {{count}} relacja łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie jest już uwzględniana w obliczeniach.",
     "relationsExcludedByHierarchy_few": "Po przeniesieniu {{count}} relacje łączą zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są już uwzględniane w obliczeniach.",
@@ -264,7 +270,8 @@
     "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
     "actions": {
       "openProjectInfo": "Otwórz profil obliczeń",
-      "openHelp": "Otwórz pomoc"
+      "openHelp": "Otwórz pomoc",
+      "undo": "Cofnij"
     },
     "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
     "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",
@@ -553,13 +560,44 @@
     "reportFontMissing": "Twoja czcionka {{name}} nie jest już dostępna na tym urządzeniu. Raport znów używa czcionki Inter.",
     "layoutsNotSaved": "Nie udało się zapisać układów. Nic nie zostało zmienione. Spróbuj ponownie.",
     "ifcForeignOpenSchema": "Ten plik IFC zawiera dane z innego programu i ma nieznany lub brakujący schemat. Otwieranie zostało zatrzymane, aby zapobiec utracie danych przy zapisie.",
+    "ifcForeignOpenTooLarge": "Ten plik IFC jest większy niż {{limit}} MB. Plik IFC z modelem budynku lub z danymi z innego programu można otworzyć do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Nie można bezpiecznie sklasyfikować tego pliku IFC. Otwieranie zostało zatrzymane, aby zapobiec utracie danych przy zapisie.",
     "ifc2x3PlanningOnly": "IFC2X3 został otwarty jako harmonogram. Dane z innych programów nie zostaną uwzględnione przy zapisie.",
-    "ifcForeignReplaceBlocked": "Nie zapisano. Zapis nad istniejącym plikiem z modelem budynku nie jest jeszcze bezpieczny. Użyj „Zapisz jako” i wybierz nową nazwę.",
+    "ifcForeignReplaceBlocked": "Nie zapisano. To jest plik, który masz otwarty. Użyj „Zapisz”, aby go zaktualizować, albo „Zapisz jako” z nową nazwą, aby zapisać kopię.",
+    "ifcForeignTargetChanged": "Nie zapisano. Plik został tymczasem zmieniony przez inny program. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignTargetGone": "Nie zapisano. Plik został przeniesiony lub usunięty albo nie można go już odczytać. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignReplaceNotRecorded": "Nie zapisano. Plik nie może teraz bezpiecznie zostać zastąpiony, ponieważ odzyskiwanie po awarii nie może zostać zaktualizowane. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignDownloadCopy": "Kopia pobrana jako {{file}}. Otwarty plik nie został zaktualizowany; zmiany pozostają oznaczone jako niezapisane.",
+    "ifcForeignReplaceFailed": "Nie zapisano. Plik nie mógł zostać zapisany. Twoje zmiany są nadal w aplikacji. Spróbuj zapisać ponownie albo wybierz Zapisz jako, aby zachować je w nowym pliku.",
     "ifcForeignMergeRefused": "Plik IFC nie został zapisany. Model budynku albo dane z innego programu inaczej nie zostałyby w pełni zachowane. Cofnij ostatnią zmianę albo wyeksportuj tylko harmonogram: do IFC z opcją „Bez modelu budynku” albo do innego formatu.",
     "ifcSaveChangedWhileWaiting": "Nie zapisano. Dokument albo źródło modelu budynku zmieniło się podczas przygotowania. Spróbuj zapisać ponownie.",
+    "ifcSaveWorkerFailed": "Plik IFC nie został zapisany: przygotowanie w tle zostało przerwane. Twoje zmiany są nadal w aplikacji. Spróbuj ponownie.",
+    "ifcForeignNewTargetOnly": "Ten plik IFC można zapisać tylko pod nową nazwą pliku. Wybierz nazwę, która jeszcze nie istnieje.",
+    "ifcForeignTargetOpenInTab": "Nie zapisano. Ten plik jest otwarty w innej karcie. Zamknij tę kartę lub wybierz inną nazwę.",
+    "exportTargetOpenInTab": "Nie wyeksportowano. Ten plik jest otwarty w innej karcie. Zamknij tę kartę lub wybierz inną nazwę.",
+    "exportTargetOpenDocument": "Nie wyeksportowano. Ten plik jest otwarty w karcie. Wybierz inną nazwę lub najpierw zamknij tę kartę.",
+    "ifcForeignPlaceUnknown": "Aplikacja nie wie, czy plik został poprawnie zapisany: podczas zapisu w folderze coś się zmieniło. Twoje zmiany są nadal w aplikacji. Sprawdź, czy plik jest poprawny, albo zapisz ponownie pod nową nazwą.",
+    "ifcForeignReplaceOtherVersion": "Inny program zmienił {{file}}, gdy aplikacja go zapisywała. Ta wersja została zachowana jako {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Wcześniejszy zapis {{file}} nie został dokończony. Harmonogram, który wtedy zapisywano, znajduje się w {{copy}}. Usuń ten plik, jeśli nie jest ci już potrzebny.",
+    "ifcForeignReplaceTargetTaken": "Nie zapisano. Podczas zapisywania inny program umieścił nowy plik pod {{target}}. Są teraz trzy pliki: ten nowy plik pod {{target}}, twój harmonogram w {{temp}} i poprzednia wersja w {{previous}}. Twoje zmiany są nadal w aplikacji.",
+    "ifcForeignReplacePreviousStranded": "Nie zapisano, a poprzedniej wersji pliku nie udało się przywrócić na jej miejsce. Znajduje się teraz w {{previous}}. Twoje zmiany są nadal w aplikacji. Wybierz Zapisz jako, aby zachować je w nowym pliku.",
+    "ifcForeignReplaceSaveAsOnly": "Nie zapisano. Tego pliku nie można w tej lokalizacji bezpiecznie zastąpić. Plik się nie zmienił. Wybierz Zapisz jako, aby zachować swoje zmiany w nowym pliku.",
+    "ifcForeignReplaceLeftOver": "Z przerwanego zapisu {{file}} pozostał ten plik: {{path}}. Sprawdź, czy jeszcze go potrzebujesz.",
     "ifcSourceCopyFailed": "Harmonogram jest zapisywany na potrzeby odzyskiwania po awarii, ale kopii modelu budynku nie udało się zapisać. Po awarii model budynku może brakować. Zapisz samodzielnie cały projekt jako pełny plik IFC.",
-    "ifcForeignSourceMissing": "Nie zapisano. Nie znaleziono modelu budynku ani danych z innego programu. Użyj „Zapisz jako”, aby zapisać tylko harmonogram w nowym pliku. Otwórz pierwotny plik IFC, aby znów pracować z pełnym plikiem."
+    "ifcForeignSourceMissing": "Nie zapisano. Nie znaleziono modelu budynku ani danych z innego programu. Użyj „Zapisz jako”, aby zapisać tylko harmonogram w nowym pliku. Otwórz pierwotny plik IFC, aby znów pracować z pełnym plikiem.",
+    "taskTypeRenameNameTaken": "W tym projekcie nazwa pozostaje „{{oldName}}”: inny rodzaj robót w tym projekcie nazywa się już „{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Zadanie trwa teraz {{days}} dzień.",
+      "durationDays_few": "Zadanie trwa teraz {{days}} dni.",
+      "durationDays_many": "Zadanie trwa teraz {{days}} dni.",
+      "durationDays_other": "Zadanie trwa teraz {{days}} dnia.",
+      "durationHours_one": "Zadanie trwa teraz {{hours}} godzinę.",
+      "durationHours_few": "Zadanie trwa teraz {{hours}} godziny.",
+      "durationHours_many": "Zadanie trwa teraz {{hours}} godzin.",
+      "durationHours_other": "Zadanie trwa teraz {{hours}} godziny.",
+      "durationSame": "Czas trwania pozostaje bez zmian. Godziny pozostałych zostały zmienione.",
+      "line": "{{name}}: {{before}} → {{after}} godz."
+    }
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -601,6 +639,8 @@
     "addSubtask": "Dodaj podzadanie",
     "addMilestone": "Dodaj kamień milowy",
     "addRelation": "Dodaj relację",
+    "assignPredecessors": "Przypisz poprzedników…",
+    "assignSuccessors": "Przypisz następników…",
     "dissolve": "Dissolve (zachowaj łańcuch)",
     "delete": "Usuń",
     "newTask": "Nowe zadanie",
@@ -667,7 +707,7 @@
     "demoTopbarAnimation": "Demo: animacja na górnym pasku",
     "demoTopbarAnimationHint": "Spokojna pomarańczowa fala połysku na górnym pasku. Pokazuje, jak działa eksperymentalny przełącznik.",
     "ifcForeignContent": "Otwieranie IFC z modelem budynku",
-    "ifcForeignContentHint": "Otwiera też plik IFC z modelem budynku albo danymi z innych programów. Możesz użyć „Zapisz jako” do nowego pliku, zapisu na stronie, pobrania w przeglądarce oraz „Eksportuj → IFC”, także bez modelu budynku lub z biblioteką zasobów obok (wtedy tylko z harmonogramem). Zapis nad istniejącym plikiem lokalnym nie jest jeszcze możliwy. Odzyskanie modelu budynku po awarii wymaga dostępu do pierwotnego pliku albo zapisanej kopii w przeglądarce.",
+    "ifcForeignContentHint": "Otwiera też plik IFC z modelem budynku lub danymi z innych programów. Możesz użyć „Zapisz jako” do nowego pliku, zapisu na stronie, pobrania w przeglądarce i „Eksportuj → IFC”, także bez modelu budynku albo gdy obok jest biblioteka zasobów (wtedy tylko z harmonogramem). W Chrome i Edge „Zapisz” zapisuje też sam otwarty plik. Jeśli inny program zmieni ten plik dokładnie podczas zapisu, ta zmiana może zostać utracona. W aplikacji desktopowej „Zapisz” zapisuje też otwarty plik, jeśli leży w twoim katalogu domowym. Jeśli w międzyczasie inny program zmienił plik, zapis się zatrzymuje albo aplikacja zachowuje tę wersję jako osobną kopię obok pliku; tylko zmiana w dokładnie tym samym momencie może jeszcze zostać utracona. „Zapisz jako” nad innym istniejącym plikiem w twoim katalogu domowym zastępuje ten plik w ten sam sposób, także gdy sam zawiera model budynku lub dane z innego programu. Również harmonogram bez modelu budynku może zastąpić taki plik. Nie zastępuje się pliku, którego aplikacja nie może odczytać, ani pliku o drugiej nazwie (dowiązania). Tuż przed zastąpieniem aplikacja porównuje plik z wersją, którą odczytała po twoim wyborze: jeśli się zmienił, zapis się zatrzymuje i plik zostaje taki, jaki jest. Jeśli wersja odsunięta przez aplikację okaże się jednak inna, zachowa ją jako osobną kopię obok pliku, z komunikatem. Odzyskanie modelu budynku po awarii wymaga dostępu do pierwotnego pliku albo zapisanej kopii w przeglądarce.",
     "tourHint": "Powtórz wprowadzającą wycieczkę po aplikacji.",
     "theme": "Motyw",
     "themeHint": "Schemat kolorów interfejsu.",
@@ -946,7 +986,8 @@
     "confirmClose": "Ten dokument ma niezapisane zmiany. Zamknąć mimo to?",
     "closeTitle": "Niezapisane zmiany",
     "closeBody": "„{{name}}” ma zmiany, które nie zostały jeszcze zapisane.",
-    "dontSave": "Nie zapisuj"
+    "dontSave": "Nie zapisuj",
+    "stillSaving": "Wciąż się zapisuje…"
   },
   "feedback": {
     "buttonTooltip": "Wyślij opinię",
@@ -1390,7 +1431,9 @@
     },
     "regen": {
       "hint": "Święta obejmują {{from}}–{{to}}. Wygenerować ponownie do {{year}} włącznie?",
-      "button": "Generuj ponownie"
+      "button": "Generuj ponownie",
+      "confirmMessage": "Twoja lista dni wolnych różni się od wcześniej wygenerowanej listy. Jeśli zastąpisz listę, Twoje ręczne zmiany przepadną.",
+      "confirmReplace": "Zastąp dni wolne"
     },
     "countryName": {
       "NL": "Holandia",
@@ -1401,6 +1444,7 @@
       "AT": "Austria",
       "CH": "Szwajcaria",
       "US": "Stany Zjednoczone",
+      "BO": "Boliwia",
       "none": "Bez świąt"
     },
     "preset": {
@@ -1613,7 +1657,8 @@
     "edit": {
       "copy": "Kopiuj",
       "deselect": "Usuń zaznaczenie",
-      "selectAll": "Zaznacz wszystko"
+      "selectAll": "Zaznacz wszystko",
+      "linkSelected": "Połącz wybrane zadania w łańcuch"
     },
     "structure": {
       "moveUp": "Przesuń zadanie w górę",
@@ -2276,5 +2321,9 @@
     "bodyWithPool": "Plik projektu będzie zawierać tylko harmonogram; biblioteka zasobów trafi do drugiego pliku. Model budynku i dane z innego programu nie zostaną dołączone. Otwarty plik pozostanie bez zmian. Czy chcesz kontynuować?",
     "continue": "Eksportuj",
     "cancel": "Anuluj"
+  },
+  "replaceCopy": {
+    "otherProgram": "wersja z innego programu {{when}}",
+    "unsavedSchedule": "niezapisany harmonogram {{when}}"
   }
 }

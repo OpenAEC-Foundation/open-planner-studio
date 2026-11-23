@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} görev, dosyada kayıtlı tarihleri gösteriyor (yeniden hesaplanmadı).",
     "xerExportLoss": "{{format}} biçimine dışa aktarma XER kaynak bilgilerini kaybeder.",
     "exportDataLoss": "{{format}} biçimine dışa aktarıldığında, {{format}} biçiminin bilmediği veriler kaybolur, örneğin notlar veya ikincil kısıtlama. IFC proje dosyası her şeyi saklar.",
+    "exportPlanOnly": "Yalnızca planlama dışa aktarıldı; yapı modeli bu biçimde yer almıyor.",
     "mppLegacy": "Bu .mpp dosyası eski bir biçim kullanıyor (Project 2007 veya daha eski). MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
     "mppInvalidContainer": "Bu MPP dosyasının yapısı geçersiz. Dosya açılamaz.",
     "xmlUnknownSchedule": "Bilinmeyen XML planlama biçimi. Bir MS Project XML (Project) veya Primavera P6 XML (APIBusinessObjects) açın.",
@@ -83,6 +84,10 @@
     "ifcUnreadableTargetSave": "Uygulama bu dosyayı düzgün okuyamıyor; bir yapı modeli içeriyor olabilir. Kaydetmek için başka bir dosya seçin.",
     "ifcUnreadableTargetExport": "Uygulama bu dosyayı düzgün okuyamıyor; bir yapı modeli içeriyor olabilir. Dışa aktarmak için başka bir dosya seçin.",
     "ifcUnreadableTargetAutoSave": "Otomatik kaydetme durdu: uygulama bu dosyayı düzgün okuyamıyor; bir yapı modeli içeriyor olabilir. Kaydetmek için başka bir dosya seçin.",
+    "ifcForeignAutoSaveTargetChanged": "Otomatik kaydetme durdu: dosya bu sırada değiştirildi, taşındı veya silindi. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosyada saklamak için Farklı kaydet seçin.",
+    "ifcForeignAutoSaveSaveAsOnly": "Otomatik kaydetme durdu: bu dosya bu konumda güvenli biçimde değiştirilemez. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosyada saklamak için Farklı kaydet seçin.",
+    "ifcForeignAutoSaveNotRecorded": "Otomatik kaydetme durdu: çökme kurtarma güncellenemediği için dosya şu anda güvenli biçimde değiştirilemiyor. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosyada saklamak için Farklı kaydet seçin.",
+    "ifcForeignAutoSaveRemnant": "Otomatik kaydetme durdu: dosyanın önceki bir kaydı tamamlanmadı. Değişiklikleriniz hâlâ uygulamada. Ctrl+S ile kaydedin; uygulama yeniden başlatıldıktan sonra o önceki kaydı tamamlar.",
     "ambiguousThousands": "\"{{text}}\" belirsiz: ondalık sayı mı, binler mi? Ondalıkları \"{{separator}}\" ile (1{{separator}}5), binleri ayırıcı olmadan (1500) yazın. Değer değiştirilmedi.",
     "siteSaveConflict": "Kaydedilmedi: '{{name}}' bu arada sitede başka biri tarafından değiştirildi. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosya olarak saklamak için Farklı kaydet komutunu kullanın.",
     "siteSaveConflictCopy": "'{{original}}' sitede bu arada başka biri tarafından değiştirildi. Bu yüzden çalışmanız şu kopyada tutuluyor: '{{name}}'. Bundan sonra Kaydet bu kopyaya yazar.",
@@ -110,6 +115,7 @@
     "relationDuplicate": "Bu ilişki zaten var",
     "relationAncestorEndpoint": "Bir görev ile kendi üst özet görevi arasında ilişki kurulmasına izin verilmez.",
     "relationCycle": "Bu ilişki programda bir döngü oluşturur ({{cycle}}); ilişki oluşturulmadı.",
+    "relationChainOrderUnclear": "Görevler arasında ilişki oluşturulmadı: listedeki sıraları sabit değil. Seçili bir görev başka bir görevin hem önünde hem arkasında yer alıyor (gruplama) ya da iki seçili kilometre taşı daraltılmış bir dizide yer alıyor. Gruplamayı kaldırın, diziyi genişletin veya Öncülleri ata ile öncülü seçin.",
     "hierarchyCycle": "Bu taşıma programda bir döngü oluşturur ({{cycle}}): bir özet görevin ilişkileri alt görevleri için de geçerlidir. Hiçbir şey taşınmadı.",
     "relationsExcludedByHierarchy_one": "Taşımadan sonra {{count}} ilişki bir görevi kendi üst özet görevine bağlıyor; artık hesaplamaya dahil edilmiyor.",
     "relationsExcludedByHierarchy_other": "Taşımadan sonra {{count}} ilişki bir görevi kendi üst özet görevine bağlıyor; artık hesaplamaya dahil edilmiyor.",
@@ -186,7 +192,8 @@
     "schedulingProfileShifted_other": "Uygulamadan sonra {{count}} görev kaydı.",
     "actions": {
       "openProjectInfo": "Hesaplama profilini aç",
-      "openHelp": "Yardımı aç"
+      "openHelp": "Yardımı aç",
+      "undo": "Geri al"
     },
     "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
     "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",
@@ -353,13 +360,40 @@
     "reportFontMissing": "Kendi yazı tipiniz {{name}} artık bu cihazda yok. Rapor yeniden Inter kullanıyor.",
     "layoutsNotSaved": "Düzenler kaydedilemedi. Hiçbir şey değişmedi. Lütfen yeniden deneyin.",
     "ifcForeignOpenSchema": "Bu IFC-dosyası başka bir programın verilerini içeriyor ve şeması bilinmiyor ya da eksik. Kaydederken veri kaybını önlemek için açma durduruldu.",
+    "ifcForeignOpenTooLarge": "Bu IFC dosyası {{limit}} MB'tan büyük. Yapı modeli veya başka bir programın verisini içeren bir IFC dosyası en fazla {{limit}} MB'a kadar açılabilir.",
     "ifcForeignOpenUnsafe": "Bu IFC-dosyası güvenli şekilde sınıflandırılamıyor. Kaydederken veri kaybını önlemek için açma durduruldu.",
     "ifc2x3PlanningOnly": "IFC2X3 planlama olarak açıldı. Kaydederken diğer programların verileri dahil edilmeyecek.",
-    "ifcForeignReplaceBlocked": "Kaydedilmedi. Yapı modeli içeren mevcut bir dosyanın üzerine yazmak henüz güvenli değil. Farklı kaydet seçeneğini kullanın ve yeni bir ad seçin.",
+    "ifcForeignReplaceBlocked": "Kaydedilmedi. Bu, açık olan dosyanız. Güncellemek için Kaydet'i, kopya için yeni bir adla Farklı kaydet'i kullanın.",
+    "ifcForeignTargetChanged": "Kaydedilmedi. Dosya bu sırada başka bir program tarafından değiştirildi. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosyada saklamak için Farklı kaydet seçin.",
+    "ifcForeignTargetGone": "Kaydedilmedi. Dosya taşındı, silindi veya artık okunamıyor. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosyada saklamak için Farklı kaydet seçin.",
+    "ifcForeignReplaceNotRecorded": "Kaydedilmedi. Çökme kurtarma güncellenemediği için dosya şu anda güvenli biçimde değiştirilemiyor. Değişiklikleriniz hâlâ uygulamada. Yeni bir dosyada saklamak için Farklı kaydet seçin.",
+    "ifcForeignDownloadCopy": "Kopya {{file}} olarak indirildi. Açılan dosya güncellenmedi; değişiklikler kaydedilmemiş olarak işaretli kalır.",
+    "ifcForeignReplaceFailed": "Kaydedilmedi. Dosya yazılamadı. Değişiklikleriniz hâlâ uygulamada. Tekrar kaydetmeyi deneyin veya yeni bir dosyada saklamak için Farklı kaydet seçin.",
     "ifcForeignMergeRefused": "IFC-dosyası yazılmadı. Yapı modeli veya başka bir programın verileri aksi halde tam olarak korunmazdı. Son değişikliği geri alın ya da yalnızca planlamayı dışa aktarın: IFC'ye Yapı modeli olmadan seçeneğiyle veya başka bir biçime.",
     "ifcSaveChangedWhileWaiting": "Kaydedilmedi. Belge veya yapı modelinin kaynağı hazırlık sırasında değişti. Yeniden kaydetmeyi deneyin.",
+    "ifcSaveWorkerFailed": "IFC dosyası yazılmadı: arka planda hazırlama kesildi. Değişiklikleriniz hâlâ uygulamada. Lütfen tekrar deneyin.",
+    "ifcForeignNewTargetOnly": "Bu IFC dosyası yalnızca yeni bir dosya adına yazılabilir. Henüz var olmayan bir ad seçin.",
+    "ifcForeignTargetOpenInTab": "Kaydedilmedi. Bu dosya başka bir sekmede açık. Bu sekmeyi kapatın veya başka bir ad seçin.",
+    "exportTargetOpenInTab": "Dışa aktarılmadı. Bu dosya başka bir sekmede açık. Bu sekmeyi kapatın veya başka bir ad seçin.",
+    "exportTargetOpenDocument": "Dışa aktarılmadı. Bu dosya bir sekmede açık. Başka bir ad seçin veya önce bu sekmeyi kapatın.",
+    "ifcForeignPlaceUnknown": "Uygulama dosyanın doğru kaydedilip kaydedilmediğini bilmiyor: kayıt sırasında klasörde bir şey değişti. Değişiklikleriniz hâlâ uygulamada. Dosyanın doğru olup olmadığını kontrol edin veya yeni bir adla tekrar kaydedin.",
+    "ifcForeignReplaceOtherVersion": "Uygulama kaydederken başka bir program {{file}} dosyasını değiştirdi. Bu sürüm {{copy}} olarak saklandı.",
+    "ifcForeignReplaceUnsavedCopy": "{{file}} dosyasının önceki kaydı tamamlanmadı. Kaydedilmekte olan planlama {{copy}} içinde. Artık ihtiyacınız yoksa bu dosyayı silin.",
+    "ifcForeignReplaceTargetTaken": "Kaydedilmedi. Kaydetme sırasında başka bir program {{target}} konumuna yeni bir dosya koydu. Şu anda üç dosya var: {{target}} konumundaki yeni dosya, {{temp}} içindeki planlamanız ve {{previous}} içindeki önceki sürüm. Değişiklikleriniz hâlâ uygulamada.",
+    "ifcForeignReplacePreviousStranded": "Kaydedilmedi; dosyanın önceki sürümü yerine geri konamadı. Şu anda {{previous}} içinde. Değişiklikleriniz hâlâ uygulamada. Bunları yeni bir dosyada saklamak için “Farklı kaydet” seçin.",
+    "ifcForeignReplaceSaveAsOnly": "Kaydedilmedi. Bu dosya bu konumda güvenli şekilde değiştirilemez. Dosya değişmedi. Değişikliklerinizi yeni bir dosyada saklamak için “Farklı kaydet” seçin.",
+    "ifcForeignReplaceLeftOver": "Yarıda kalan {{file}} kaydından bu dosya kaldı: {{path}}. Hâlâ ihtiyacınız olup olmadığını kontrol edin.",
     "ifcSourceCopyFailed": "Planlama çökme kurtarma için kaydediliyor, ancak yapı modelinin kopyası kaydedilemedi. Bir çökmeden sonra yapı modeli eksik olabilir. Çalışmanızı kendiniz tam bir IFC-dosyası olarak kaydedin.",
-    "ifcForeignSourceMissing": "Kaydedilmedi. Yapı modeli veya başka bir programın verileri bulunamadı. Yalnızca planlamayı yeni bir dosyada kaydetmek için Farklı kaydet kullanın. Dosyayla yeniden tam olarak çalışmak için özgün IFC-dosyasını açın."
+    "ifcForeignSourceMissing": "Kaydedilmedi. Yapı modeli veya başka bir programın verileri bulunamadı. Yalnızca planlamayı yeni bir dosyada kaydetmek için Farklı kaydet kullanın. Dosyayla yeniden tam olarak çalışmak için özgün IFC-dosyasını açın.",
+    "taskTypeRenameNameTaken": "Bu projede “{{oldName}}” adı korunur: bu projedeki başka bir iş kategorisi zaten “{{takenName}}” adını kullanıyor.",
+    "otherWork": {
+      "durationDays_one": "Görev artık {{days}} gün sürüyor.",
+      "durationDays_other": "Görev artık {{days}} gün sürüyor.",
+      "durationHours_one": "Görev artık {{hours}} saat sürüyor.",
+      "durationHours_other": "Görev artık {{hours}} saat sürüyor.",
+      "durationSame": "Süre aynı kalıyor. Diğerlerinin saatleri ayarlandı.",
+      "line": "{{name}}: {{before}} → {{after}} sa"
+    }
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -399,6 +433,8 @@
     "addSubtask": "Alt görev ekle",
     "addMilestone": "Kilometre taşı ekle",
     "addRelation": "İlişki ekle",
+    "assignPredecessors": "Öncülleri ata…",
+    "assignSuccessors": "Ardılları ata…",
     "dissolve": "Dissolve (zinciri koru)",
     "delete": "Sil",
     "newTask": "Yeni görev",
@@ -465,7 +501,7 @@
     "demoTopbarAnimation": "Demo: üst çubukta animasyon",
     "demoTopbarAnimationHint": "Üst çubukta yumuşak bir turuncu parlama. Deneysel bir anahtarın nasıl çalıştığını gösterir.",
     "ifcForeignContent": "Yapı modeli içeren IFC'yi aç",
-    "ifcForeignContentHint": "Yapı modeli veya başka programların verilerini içeren bir IFC-dosyasını da açar. Yeni bir dosyaya Farklı kaydet, siteye kaydetme, tarayıcıda indirme ve Dışa aktar → IFC kullanabilirsiniz; yapı modeli olmadan ya da yanında kaynak kitaplığıyla da (o zaman yalnızca planlamayla). Mevcut yerel bir dosyanın üzerine kaydetmek henüz mümkün değil. Bir çökmeden sonra yapı modelini geri yüklemek, özgün dosyaya erişim ya da tarayıcıda kaydedilmiş bir kopya gerektirir.",
+    "ifcForeignContentHint": "Yapı modeli veya başka programların verilerini içeren bir IFC dosyasını da açar. Yeni bir dosyaya Farklı kaydet, siteye kaydetme, tarayıcıda indirme ve Dışa aktar → IFC kullanabilirsiniz; yapı modeli olmadan veya yanında kaynak kitaplığı varken de (o zaman yalnızca planlamayla). Chrome ve Edge'de Kaydet, açık dosyanın kendisini de kaydeder. Kaydetme sırasında başka bir program bu dosyayı tam o anda değiştirirse, o değişiklik kaybolabilir. Masaüstü uygulamasında, dosya ana klasörünüzdeyse Kaydet açık dosyanın kendisini kaydeder. Başka bir program dosyayı bu arada değiştirdiyse, kaydetme durur ya da uygulama o sürümü dosyanın yanında ayrı bir kopya olarak saklar; yalnızca tam aynı anda yapılan bir değişiklik yine kaybolabilir. Ana klasörünüzdeki başka bir mevcut dosyanın üzerine Farklı kaydet ile kaydetmek, o dosyanın üzerine aynı şekilde yazar; dosyanın kendisi bir yapı modeli ya da başka bir programın verilerini içerse bile. Yapı modeli olmayan bir planlama da böyle bir dosyanın üzerine yazabilir. Uygulamanın okuyamadığı dosyanın ve ikinci bir adı olan dosyanın (bir sabit bağlantı) üzerine yazılmaz. Üzerine yazmadan hemen önce uygulama dosyayı, seçiminizden sonra okuduğu sürümle karşılaştırır; dosya değiştiyse kaydetme durur ve dosya olduğu gibi kalır. Uygulamanın kenara aldığı sürüm yine de farklı çıkarsa, onu bir bildirimle birlikte dosyanın yanında ayrı bir kopya olarak saklar. Bir çökmeden sonra yapı modelini geri yüklemek, özgün dosyaya ya da tarayıcıda saklanan bir kopyaya erişim gerektirir.",
     "tourHint": "Uygulamanın tanıtım turunu tekrar yapın.",
     "theme": "Tema",
     "themeHint": "Arayüzün renk şeması.",
@@ -742,7 +778,8 @@
     "confirmClose": "Bu belgede kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?",
     "closeTitle": "Kaydedilmemiş değişiklikler",
     "closeBody": "'{{name}}' belgesinde henüz kaydedilmemiş değişiklikler var.",
-    "dontSave": "Kaydetme"
+    "dontSave": "Kaydetme",
+    "stillSaving": "Hâlâ kaydediliyor…"
   },
   "feedback": {
     "buttonTooltip": "Geri bildirim gönder",
@@ -1170,7 +1207,9 @@
     },
     "regen": {
       "hint": "Tatiller {{from}}–{{to}} aralığını kapsıyor. {{year}} yılına kadar yeniden oluşturulsun mu?",
-      "button": "Yeniden oluştur"
+      "button": "Yeniden oluştur",
+      "confirmMessage": "Tatil günleri listeniz daha önce oluşturulan listeden farklı. Listeyi değiştirdiğinizde elle yaptığınız değişiklikler kaybolur.",
+      "confirmReplace": "Tatil günlerini değiştirin"
     },
     "countryName": {
       "NL": "Hollanda",
@@ -1181,6 +1220,7 @@
       "AT": "Avusturya",
       "CH": "İsviçre",
       "US": "ABD",
+      "BO": "Bolivya",
       "none": "Tatil yok"
     },
     "preset": {
@@ -1389,7 +1429,8 @@
     "edit": {
       "copy": "Kopyala",
       "deselect": "Seçimi kaldır",
-      "selectAll": "Tümünü seç"
+      "selectAll": "Tümünü seç",
+      "linkSelected": "Seçili görevlerle zincir ilişkisi oluşturun"
     },
     "structure": {
       "moveUp": "Görevi yukarı taşı",
@@ -2018,5 +2059,9 @@
     "bodyWithPool": "Proje dosyası yalnızca planlamayı içerecek; kaynak kitaplığı ikinci bir dosyaya gidecek. Yapı modeli ve başka bir programın verileri dahil edilmeyecek. Açık dosya değişmeden kalacak. Devam etmek istiyor musunuz?",
     "continue": "Dışa aktar",
     "cancel": "İptal"
+  },
+  "replaceCopy": {
+    "otherProgram": "başka bir programdan sürüm {{when}}",
+    "unsavedSchedule": "kaydedilmemiş planlama {{when}}"
   }
 }
