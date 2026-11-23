@@ -648,6 +648,12 @@ en noem het in je rapport of PR-tekst.
      van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
      de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
      dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
+1993. **De gewone ALAP-stap met de duur van een niet-gestarte taak is niet tegen het P6-corpus gemeten.**
+     `placeUnstartedAlap` (`src/engine/scheduler/CPMSolver.ts`) plaatst een niet-gestarte ALAP-taak sinds de aanval
+     na #600 met haar duur tot de grens van haar opvolgers, niet meer in hele werkdagen. Onder het P6-profiel volgt
+     een ALAP-taak op een kalender zonder eigen werkblokken die stap, omdat C14 daar niet geldt (ADR 0182). Het
+     commentaar bij `p6AlapPositionedFromSuccessors` in `src/types/project.ts` meldde dat de corpusmeting daarvan
+     openstond. — S
 
 ## Tabel, invoer en bediening
 
