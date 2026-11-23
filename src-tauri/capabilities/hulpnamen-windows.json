@@ -8,58 +8,58 @@
     {
       "identifier": "fs:allow-write-file",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vervang.tmp" }
+        { "path": "//?/?:/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/UNC/**/save-*.ops-vervang.tmp" }
       ]
     },
     {
       "identifier": "fs:allow-lstat",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vorige-*" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vorige-*" }
+        { "path": "//?/?:/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/UNC/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/?:/**/save-*.ops-vorige-*" },
+        { "path": "//?/UNC/**/save-*.ops-vorige-*" }
       ]
     },
     {
       "identifier": "fs:allow-stat",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vorige-*" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vorige-*" }
+        { "path": "//?/?:/**/save-*.ops-vorige-*" },
+        { "path": "//?/UNC/**/save-*.ops-vorige-*" }
       ]
     },
     {
       "identifier": "fs:allow-open",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vorige-*" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vorige-*" }
+        { "path": "//?/?:/**/save-*.ops-vorige-*" },
+        { "path": "//?/UNC/**/save-*.ops-vorige-*" }
       ]
     },
     {
       "identifier": "fs:allow-read-file",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vorige-*" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vorige-*" }
+        { "path": "//?/?:/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/UNC/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/?:/**/save-*.ops-vorige-*" },
+        { "path": "//?/UNC/**/save-*.ops-vorige-*" }
       ]
     },
     {
       "identifier": "fs:allow-remove",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vorige-*" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vorige-*" }
+        { "path": "//?/?:/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/UNC/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/?:/**/save-*.ops-vorige-*" },
+        { "path": "//?/UNC/**/save-*.ops-vorige-*" }
       ]
     },
     {
       "identifier": "fs:allow-rename",
       "allow": [
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vervang.tmp" },
-        { "path": "\\\\?\\?:\\**\\save-*.ops-vorige-*" },
-        { "path": "\\\\?\\UNC\\**\\save-*.ops-vorige-*" }
+        { "path": "//?/?:/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/UNC/**/save-*.ops-vervang.tmp" },
+        { "path": "//?/?:/**/save-*.ops-vorige-*" },
+        { "path": "//?/UNC/**/save-*.ops-vorige-*" }
       ]
     }
   ]
