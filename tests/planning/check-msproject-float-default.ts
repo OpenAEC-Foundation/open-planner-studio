@@ -90,7 +90,6 @@ const tfSmallest = tfOf({ totalFloatMode: 'smallest' });
 eq('09 MSP-standaard rekent voor een gestarte taak de finish-speling', tfAuto, tfFinish);
 eq('10 …met de hand: automatisch 14 wd (finish), kleinste 10 wd (start)', [tfAuto, tfSmallest], [14, 10]);
 
-// Knownbug 47: hergebruik exact hetzelfde project met en zonder statusdatum.
 const autoModes = [
   ['automatisch', undefined], ['start', { totalFloatMode: 'start' }],
   ['finish', { totalFloatMode: 'finish' }], ['kleinste', { totalFloatMode: 'smallest' }],
