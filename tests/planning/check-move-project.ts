@@ -453,7 +453,6 @@ eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
     tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
   }).filter(w => w.kind === 'violatedConstraint').map(w => w.id);
   const anchors = () => S().tasks.find(t => t.id === pinnedTask)!.externalLinks!.map(l => l.anchorDate);
-  // Knownbug 878: herkomst blijft bij het onverschoven bronanker horen, ook in de store-historie.
   const provenance = () => S().tasks.find(t => t.id === pinnedTask)!.externalLinks!.map(l =>
     [l.sourceRef.taskId, l.sourceVersion, l.anchorReadAt, l.sourceRef.siteFileId]);
   const expectedProvenance = [
