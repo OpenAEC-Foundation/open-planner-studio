@@ -385,7 +385,15 @@
       "resourceShorter": "Eine zusätzliche Ressource verkürzt den Vorgang.",
       "resourceAddsWorkSameDuration": "Eine zusätzliche Ressource fügt Arbeit hinzu; die Dauer bleibt gleich."
     },
-    "info": "Erläuterung zur Vorgangsart"
+    "info": "Erläuterung zur Vorgangsart",
+    "hint": {
+      "intro": "Die Vorgangsart legt fest, was die App anpasst, wenn Sie die Dauer, die Einheiten (Personen pro Tag) oder die Arbeit (Stunden) ändern.",
+      "FIXED_DURATION_RATE": "Dauer und Einheiten bleiben, die Arbeit wird mitberechnet. Beispiel: 2 Personen, 5 Tage à 8 Stunden = 80 Stunden.",
+      "FIXED_DURATION_WORK": "Dauer und Arbeit bleiben, die Einheiten werden mitberechnet. Beispiel: 80 Stunden in 5 Tagen à 8 Stunden = 2 Personen pro Tag.",
+      "FIXED_WORK": "Die Arbeit bleibt, die Dauer wird mitberechnet. Beispiel: 80 Stunden mit 2 Personen = 5 Tage, mit 4 Personen 2,5 Tage.",
+      "FIXED_RATE": "Die Einheiten bleiben, die Arbeit bestimmt die Dauer. Beispiel: 1 Kran, 40 Stunden Arbeit = 5 Tage, 80 Stunden Arbeit = 10 Tage.",
+      "projectDefault": "Folgt der Vorgangsart, die das Projekt als Standard hat."
+    }
   },
   "properties": {
     "task": "Vorgang",
@@ -457,6 +465,10 @@
     "interferingFloat": "Interferierender Puffer:",
     "criticalPath": "Kritischer Pfad:",
     "dependencies": "Abhängigkeiten",
+    "predecessors_one": "{{count}} Vorgänger",
+    "predecessors_other": "{{count}} Vorgänger",
+    "successors_one": "{{count}} Nachfolger",
+    "successors_other": "{{count}} Nachfolger",
     "addRelation": "Verknüpfung hinzufügen",
     "addRelationSearch": "Vorgang suchen…",
     "addRelationConfirm": "Verknüpfung anlegen",
