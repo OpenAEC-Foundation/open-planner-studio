@@ -25,6 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
+import { changedKnownTarget } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
@@ -378,6 +379,11 @@ export function createFileAutoSaveController(deps: {
           getState().notify(reason === 'unreadable-target'
             ? IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE : IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE);
         }
+        return 'refused';
+      }
+      const known = payloadOf(candidate.id)?.knownTargetFingerprint ?? null;
+      if (await changedKnownTarget(getState().ui.featureFlags, known, candidate.ref!)) {
+        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE);
         return 'refused';
       }
       rememberLiteralCalendarsWritten(current, output.literalCalendarIds);

@@ -71,6 +71,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
+import { changedKnownTarget } from '../knownTargetGuard';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -1098,6 +1099,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const ownTargetContentNotice = (content: Exclude<SourceTargetContent, 'same'>): NotifyInput =>
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
 
+  const refuseChangedKnownTarget = async (documentId: string, ref: FileRef): Promise<boolean> => {
+    const known = saveSourceForDocument(get(), documentId)?.knownTargetFingerprint ?? null;
+    const change = await changedKnownTarget(get().ui.featureFlags, known, ref);
+    if (change) get().notify(ownTargetContentNotice(change));
+    return change !== null;
+  };
+
   const replaceOwnHandle = async (
     documentId: string, state: AppState, prepared: PreparedIfcWrite, write: IfcOutput,
     ref: Extract<FileRef, { kind: 'handle' }>, failureNoticeKey: string,
@@ -1325,6 +1333,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (ref && !handleRefused && !(write.prepared && ref.kind === 'handle')) {
         try {
+          if (!write.prepared && await refuseChangedKnownTarget(documentId, ref)) return false;
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
           const hashing = writtenFingerprint(state.ui.featureFlags, write);

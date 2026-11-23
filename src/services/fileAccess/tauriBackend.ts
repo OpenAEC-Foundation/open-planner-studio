@@ -6,6 +6,7 @@ import {
 import { missingTarget, type FileIdentityFs } from './fileIdentity';
 import { scanForeignTargetSource, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { compareTargetChunks, TARGET_CHUNK_BYTES, type SourceTargetContent } from './sourceTargetContent';
+import { compareKnownTarget, type KnownTargetBytes } from './knownTargetContent';
 import type { RemnantEvent } from './ownFileReplace';
 import { whenProjectFileWritesIdle } from './writeCoordinator';
 
@@ -86,6 +87,11 @@ export async function sourceTargetContentOfPathTauri(path: string, expected: Uin
   } finally {
     await chunks.close();
   }
+}
+
+export async function knownTargetContentOfPathTauri(path: string, known: KnownTargetBytes): Promise<SourceTargetContent> {
+  const { stat, readFile } = await import('@tauri-apps/plugin-fs');
+  return compareKnownTarget({ size: async () => (await stat(path)).size, bytes: () => readFile(path), missing: missingTarget }, known);
 }
 
 export interface TauriOpenIO {
