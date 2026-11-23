@@ -57,7 +57,7 @@ export function createFixture(size: number, count: number, route: InsertRoute, a
     s.project.startDate = '2026-03-02'; s.project.wbsAutoNumber = auto;
     s.tasks = tasks; s.sequences = sequences;
     s.calendars = [{ ...s.calendar, id: 'bronkalender' }];
-    s.customTaskTypes = [{ id: 'brontype', name: 'Eigen type' }];
+    s.customTaskTypes = [{ id: 'brontype', name: 'Eigen type', color: '#0D9488' }];
     s.activityCodeTypes = [{ id: 'locatie', name: 'Locatie', values: [{ id: 'hier', code: 'H' }] }];
     s.customFieldDefs = [{ id: 'volume', name: 'Volume', type: 'number' }];
     s.resources = [{ id: 'r', name: 'Bekend', type: 'LABOR', description: '', maxUnits: 1 }];

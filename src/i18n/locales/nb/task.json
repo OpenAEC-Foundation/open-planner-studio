@@ -385,7 +385,15 @@
       "resourceShorter": "En ekstra ressurs gjør aktiviteten kortere.",
       "resourceAddsWorkSameDuration": "En ekstra ressurs legger til arbeid; varigheten er uendret."
     },
-    "info": "Forklaring av aktivitetstype"
+    "info": "Forklaring av aktivitetstype",
+    "hint": {
+      "intro": "Aktivitetstypen bestemmer hva appen endrer når du endrer varigheten, tildelingsenhetene (personer per dag) eller arbeidet (timer).",
+      "FIXED_DURATION_RATE": "Varigheten og tildelingsenhetene blir de samme, arbeidet følger med. Eksempel: 2 personer, 5 dager à 8 timer = 80 timer.",
+      "FIXED_DURATION_WORK": "Varigheten og arbeidet blir de samme, tildelingsenhetene følger med. Eksempel: 80 timer på 5 dager à 8 timer = 2 personer per dag.",
+      "FIXED_WORK": "Arbeidet blir det samme, varigheten følger med. Eksempel: 80 timer med 2 personer = 5 dager, med 4 personer 2,5 dager.",
+      "FIXED_RATE": "Tildelingsenheten blir den samme, arbeidet bestemmer varigheten. Eksempel: 1 kran, 40 timer arbeid = 5 dager, 80 timer arbeid = 10 dager.",
+      "projectDefault": "Følger aktivitetstypen som prosjektet har som standard."
+    }
   },
   "properties": {
     "task": "Aktivitet",
@@ -457,6 +465,10 @@
     "interferingFloat": "Interfererende slakk:",
     "criticalPath": "Kritisk linje:",
     "dependencies": "Avhengigheter",
+    "predecessors_one": "{{count}} forgjenger",
+    "predecessors_other": "{{count}} forgjengere",
+    "successors_one": "{{count}} etterfølger",
+    "successors_other": "{{count}} etterfølgere",
     "addRelation": "Legg til avhengighet",
     "addRelationSearch": "Søk etter aktivitet…",
     "addRelationConfirm": "Lagre avhengighet",

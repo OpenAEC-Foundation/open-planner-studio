@@ -37,7 +37,7 @@ import {
 } from '@/engine/calendar/workdayRules';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { progress } from '@/state/mcpValidation';
-import { createTaskDialogSave, draftWithActualFinish, draftWithActualStart, draftWithProgress } from '@/state/taskDialogSave';
+import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { makeBands } from '@/utils/effectiveWorkTime';
 import { calendarClock, taskDateLabel } from '@/utils/taskDateLabel';
@@ -201,11 +201,11 @@ function enter(f: Entry, route: Route, id: string, field: Field, value: string, 
     return result.ok ? f.taskOf(id).time[field] : 'geweigerd';
   }
   if (route === 'dialoog') {
-    const draft = field === 'actualStart'
-      ? draftWithActualStart(task, value, status, calendar)
-      : draftWithActualFinish(task, value, status, calendar);
-    if (!draft) return 'geweigerd';
-    const ok = createTaskDialogSave(f.context)({ editingTaskId: id, draft, startDate: task.time.scheduleStart });
+    const plan = planTaskDialogProgress(S(), task, undefined, { field, value }, { today: '2026-06-10' });
+    if (!plan.ok) return 'geweigerd';
+    const ok = !plan.change || createTaskDialogSave(f.context)({
+      editingTaskId: id, draft: plan.change.task, today: '2026-06-10',
+    });
     return ok ? f.taskOf(id).time[field] : 'geweigerd';
   }
   if (route === 'MCP') {
@@ -281,16 +281,19 @@ for (const profile of PROFILES) {
   eq(`${profile}: en via MCP op 5-6-2026 ook`, enter(f, 'MCP', f.oplevering, 'actualFinish', '2026-06-05'), '2026-06-05T09:30');
 }
 
-// ── 3. 100 % zonder datum (contextmenu Voltooid, schuif): het afgeleide einde is de statusdatum, met de
-// klokketijd uit de planning.
+// ── 3. 100 % zonder datum: de mijlpaal houdt het oorspronkelijke geplande moment (#998).
 for (const profile of PROFILES) {
   const f = fixture(profile);
   const lone = f.los['zonder soort'];
   const clock = clockOf(f.taskOf(lone).time.earlyStart);
   eq(`${profile}: 100 % op een losse mijlpaal zonder soort`, f.S().setTaskProgress(lone, 1), true);
-  eq(`${profile}: werkelijk einde = statusdatum om ${clock}`, f.taskOf(lone).time.actualFinish, `${STATUS}T${clock}`);
+  eq(`${profile}: losse mijlpaal houdt het geplande moment`,
+    [f.taskOf(lone).time.actualStart, f.taskOf(lone).time.actualFinish],
+    [`2026-06-01T${clock}`, `2026-06-01T${clock}`]);
   eq(`${profile}: 100 % op Oplevering`, f.S().setTaskProgress(f.oplevering, 1), true);
-  eq(`${profile}: werkelijk einde = statusdatum om 16:00`, f.taskOf(f.oplevering).time.actualFinish, `${STATUS}T16:00`);
+  eq(`${profile}: Oplevering houdt het geplande moment`,
+    [f.taskOf(f.oplevering).time.actualStart, f.taskOf(f.oplevering).time.actualFinish],
+    ['2026-06-01T16:00', '2026-06-01T16:00']);
 }
 
 // ── 4. De klem op het statusmoment blijft ───────────────────────────────────────────────────────
@@ -1278,14 +1281,19 @@ for (const profile of PROFILES) mondayHealth('gedeelde rand', profile, () => mon
 console.log(`Vaste gevallen: ${FIXED.length} op helperniveau, ${FIXED_LITERAL.length} letterlijk, ${fixedRouteCases} langs de routes`);
 
 // Knownbug 317: de startvraag gebruikt de werkdagzijde van de mijlpaalsoort.
-for (const [label, cal, moment, nextStart] of [
-  ['24 uur', day24, '2026-06-04T00:00', '2026-06-04T00:00'],
-  ['nacht', night, '2026-06-04T06:00', '2026-06-04T22:00'],
+for (const [label, cal, predecessorHours, moment, nextStart] of [
+  ['24 uur', day24, 72, '2026-06-04T00:00', '2026-06-04T00:00'],
+  ['nacht', night, 24, '2026-06-04T06:00', '2026-06-04T22:00'],
 ] as const) {
   const f = fixture('ops', cal, { midden: false, los: false, taak: false });
   const id = f.milestone('Test einde', 'FINISH');
-  const original = f.taskOf(id);
-  const before: Task = { ...original, time: { ...original.time, earlyStart: moment, scheduleStart: moment, completion: 0, actualStart: undefined, actualFinish: undefined } };
+  // Laat de voorganger de mijlpaal echt op de eindrand van woensdag plaatsen. Een los startanker
+  // op donderdag 00:00 plant een losse FINISH-mijlpaal in OPS op het einde van donderdag.
+  f.fs(f.hours('Werk voor de eindmijlpaal', predecessorHours), id);
+  f.S().setStatusDate(undefined);
+  f.S().runCPM();
+  const before = f.taskOf(id);
+  eq(`317 ${label}: de berekende mijlpaal valt op de eindrand`, shownStart(before), moment);
   const after: Task = { ...before, time: { ...before.time, completion: 1, actualStart: moment, actualFinish: moment } };
   const status = '2026-06-03';
   eq(`317 ${label}: FINISH op einde statuswerkdag vraagt geen start`,
@@ -1298,7 +1306,7 @@ for (const [label, cal, moment, nextStart] of [
   const result = planProgressEntry(before, { field: 'completion', value: 1 },
     { statusDate: status, today: '2026-06-05', calendar: f.calendar() });
   eq(`317 ${label}: 100 procent UI-invoer wordt niet geweigerd`, result.ok, true);
-  f.context.store.setState(state => { const target = state.tasks.find(t => t.id === id)!; target.time = { ...before.time }; state.project.statusDate = status; });
+  f.S().setStatusDate(status);
   const draft = structuredClone({ tasks: f.S().tasks, sequences: f.S().sequences, assignments: f.S().assignments, resources: f.S().resources, calendars: f.S().calendars, calendar: f.S().calendar, project: f.S().project });
   eq(`317 ${label}: MCP 100 procent slaagt`, progress.applyProgressUpdate(draft, id, { completion: 100 }, status).applied, true);
   eq(`317 ${label}: echte UI-invoer slaagt`, f.S().enterTaskProgress(id, { field: 'completion', value: 1 }, { today: '2026-06-05' }).ok, true);
@@ -1307,8 +1315,10 @@ for (const [label, cal, moment, nextStart] of [
   const grid = f.S().runGridMutation([{ kind: 'cell-edit', taskId: id, columnId: 'task.time.completion' as CellEditIntent['columnId'], route: 'task-progress', value: 1 }], { progressEntry: { today: '2026-06-05' } });
   eq(`317 ${label}: raster 100 procent slaagt`, grid.ok, true);
   reset();
-  const dialogDraft = draftWithProgress(f.taskOf(id), 1, status, f.calendar());
-  const dialogSaved = createTaskDialogSave(f.context)({ editingTaskId: id, draft: dialogDraft, startDate: moment });
+  const dialogPlan = planTaskDialogProgress(f.S(), f.taskOf(id), undefined, { field: 'completion', value: 1 }, { today: '2026-06-05' });
+  eq(`317 ${label}: dialoog vraagt geen start`, dialogPlan.ok, true);
+  const dialogSaved = dialogPlan.ok && dialogPlan.change !== null
+    && createTaskDialogSave(f.context)({ editingTaskId: id, draft: dialogPlan.change.task, today: '2026-06-05' });
   eq(`317 ${label}: dialoog 100 procent slaagt`, dialogSaved, true);
 }
 

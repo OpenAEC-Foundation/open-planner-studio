@@ -38,9 +38,7 @@ dat wordt per run door GitHub zelf uitgegeven.
 | `SNAPCRAFT_STORE_CREDENTIALS` | `snap.yml` (publish-stap) | Publiceren naar het `stable`-kanaal van de Snap Store | Herstelbaar: opnieuw exporteren. Verlopen credentials laten de publish-stap falen terwijl de rest van de release slaagt |
 | `DEPLOY_SSH_KEY` | `live.yml` (deploy-job) | `rsync` van `dist/` naar `open-planner-studio.open-aec.com` | Herstelbaar: nieuw sleutelpaar, publieke helft op de server |
 
-| `AUR_SSH_PRIVATE_KEY` | `aur.yml` (push-stap) | Pushen van `open-planner-studio-bin` naar `ssh://aur@aur.archlinux.org/open-planner-studio-bin.git` | Herstelbaar: nieuw sleutelpaar, publieke helft in het AUR-account. Ontbreekt hij, dan bouwt en test `aur.yml` het pakket wel, maar pusht niet |
-
-Van deze achttien is er precies één die je niet opnieuw kunt maken: de minisign-sleutel (twee secrets: sleutel en wachtwoord).
+Van deze zeventien is er precies één die je niet opnieuw kunt maken: de minisign-sleutel (twee secrets: sleutel en wachtwoord).
 
 ## 2. De minisign-sleutel — de enige echte SPOF
 
@@ -142,25 +140,7 @@ Nuttig bij het lezen van een gefaalde release:
 - **Ontbrekende deploy-sleutel** — `live.yml` faalt in de deploy-job. De site
   blijft op de vorige versie staan, wat veiliger is dan half deployen.
 
-- **Ontbrekende AUR-sleutel** — `aur.yml` bouwt en test het pakket (artefact
-  `aur-package`) en slaat alleen de push over, met een melding in de job-samenvatting.
-  Bewust: geen sleutel betekent geen publicatie, geen fout.
-
-## 5. De AUR-sleutel instellen
-
-1. Maak een AUR-account voor de OpenAEC Foundation op `aur.archlinux.org`.
-2. Maak een eigen sleutelpaar, alleen hiervoor: `ssh-keygen -t ed25519 -C aur-open-planner-studio -f aur_ops`.
-3. Zet de publieke helft (`aur_ops.pub`) in het AUR-account (My Account → SSH Public Key).
-4. Zet de privéhelft (`aur_ops`, de hele tekst) als Actions-secret `AUR_SSH_PRIVATE_KEY`.
-5. Eerste publicatie: start `aur.yml` met de hand met de laatste stabiele tag en `publish` aan. De
-   eerste push maakt het pakket `open-planner-studio-bin` aan.
-
-| | |
-|---|---|
-| AUR-account | ⟨IN TE VULLEN⟩ |
-| Privésleutel bewaard in | ⟨IN TE VULLEN⟩ |
-
-## 6. Zie ook
+## 5. Zie ook
 
 - [`SECURITY.md`](../SECURITY.md) — kwetsbaarheden melden.
 - `.claude/rules/ci-release.md` §*Auto-update & releases* — hoe de releaseketen in elkaar zit.
