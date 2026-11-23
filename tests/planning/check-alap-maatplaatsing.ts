@@ -340,8 +340,6 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   expectFeasible(label, profile, tasks, seqs, cal, 'A', 'successor', [TEN]);
 }
 
-// Knownbug 369: §8 test de gewone stap. Houd profiel, kalender en invoer gelijk en wissel
-// alleen C14. Meet de kalendergrens én herbereken A zonder ALAP op dezelfde start.
 {
   const summary = [];
   for (const c14 of [false, true]) {
