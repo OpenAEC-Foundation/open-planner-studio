@@ -7,7 +7,8 @@ en herrekent daarna, na `markChanged`, alleen de taak en wat er stroomafwaarts v
 wachtrij tot aan de gevraagde taak. Hergebruik geldt alleen zolang graaf, kalenders, duurbronnen, ankers,
 constraints en opties vaststaan: alleen vertraging, splits en voortgang van bestaande taken mogen veranderen. De
 graaf, de volgorde en de projectstartvloer worden bij het bouwen één keer bepaald. Twee aanroepers gebruiken hem: de
-nivelleerder (`ResourceLeveler.ts`) en de geplande start bij voortgang (`src/state/progressPlannedStart.ts`), die
+nivelleerder (`ResourceLeveler.ts`, alleen de vroege start) en de geplande datums bij voortgang
+(`src/state/progressPlannedDates.ts`, de vroege start en via `earlyDates` ook de vroege finish, voor afmelden op 100 %), die
 een wijziging weigert (opnieuw bouwen) als bij een taak het anker, de geplande finish, de duurbron, het duurtype of de
 duureenheid verandert. `check-leveler-differential.ts` houdt het incrementele en het volledige pad byte-gelijk.
 

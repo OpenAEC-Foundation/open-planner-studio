@@ -602,17 +602,17 @@ en noem het in je rapport of PR-tekst.
      20:00: geen werkmoment, wel de dag die MS Project opsloeg. Het oude commentaar noemde dit een ongetoetste
      voortzetting van de dagregel; geen corpusbestand heeft zo'n datum. Gelezen in de code, niet nagespeeld. — S
 1966. **Met `startToStartLagFrom` = `actualStart` begrenst een SS-relatie de lopende voorganger achterwaarts niet,
-     terwijl P6 hier niet gemeten is.** `src/engine/scheduler/CPMSolver.ts:2511` slaat zo'n relatie in de late pass
-     over, omdat ze voorwaarts aan de statusdatum hangt (`inProgressStartLagAnchor`, `:465`). Geen P6-orakel heeft
+     terwijl P6 hier niet gemeten is.** `src/engine/scheduler/CPMSolver.ts` slaat zo'n relatie in de late pass
+     over, omdat ze voorwaarts aan de statusdatum hangt (`inProgressStartLagAnchor`). Geen P6-orakel heeft
      `sched_lag_early_start_flag` = N; het oude commentaar noemde het "[VERMOED] intern consistent". — S
 1967. **Een hammock die tegelijk mijlpaal is, volgt de MSP-regel voor momenten niet.** `hammockEarlyStart`
-     (`src/engine/scheduler/CPMSolver.ts:1732`) eindigt met de kale `snapOnOrAfter` (`:1751`), niet met de
+     (`src/engine/scheduler/CPMSolver.ts`) eindigt met de kale `snapOnOrAfter`, niet met de
      mijlpaalbewuste `snapSuccessorEarlyStart`; een moment op een blokeinde schuift zo naar het volgende blokbegin.
      Het oude commentaar noemde de combinatie pathologisch en "bewust niet gefixt"; `.mpp` en MSPDI schrijven haar
      niet. Gelezen in de code, niet nagespeeld. — S
 1968. **De statusdatumvloer van een niet-gestarte taak snapt in de projectkalender, niet in de kalender van de
-     taak.** `prepareSolve` snapt de statusdatum op de projectengine (`src/engine/scheduler/CPMSolver.ts:1075`), en de
-     vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender (`:1657`). Bij een taakkalender met andere
+     taak.** `prepareSolve` snapt de statusdatum op de projectengine (`src/engine/scheduler/CPMSolver.ts`), en de
+     vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender. Bij een taakkalender met andere
      werkblokken is die vroege start geen geldig startmoment van de taak (zie `msp-06` in `cases-msp-pariteit.json`).
      In de code gezien. — B
 
