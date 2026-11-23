@@ -23,12 +23,12 @@ LOG="$LOG_DIR/tauri-dev.log"
 BOOT_TIMEOUT="${MCP_REAL_APP_BOOT_TIMEOUT:-1800}"
 mkdir -p "$LOG_DIR"
 
-# Eén eigen datamap per run (review van #1124): het opdrachtkanaal `ops-test` en een `.persisted-scope` met een map
-# buiten de thuismap die de planner eerder vrijgaf (#804, knownbug 1762; run-real-app.ts doet er Ctrl+S). Een herhaling
-# begint zo leeg; de opruiming hieronder haalt beide mappen weg.
-{ read -r RUN_DATA; read -r OPS_DIR; read -r GRANTED; } < <(node "$DIR/runData.mjs" create)
-[ -n "${GRANTED:-}" ] || { echo "runData.mjs gaf geen datamap" >&2; exit 1; }
-export OPS_TEST_DIR="$OPS_DIR" OPS_REAL_APP_GRANTED_DIR="$GRANTED"
+# Eén eigen datamap per run (review van #1124): het opdrachtkanaal `ops-test` en een `.persisted-scope` met alleen een
+# bestand in een map buiten de thuismap, zoals de bestandskiezer het achterlaat (#804, route e; run-real-app.ts doet er
+# Ctrl+S). Een herhaling begint zo leeg; de opruiming hieronder haalt beide mappen weg.
+{ read -r RUN_DATA; read -r OPS_DIR; read -r OUTSIDE; } < <(node "$DIR/runData.mjs" create)
+[ -n "${OUTSIDE:-}" ] || { echo "runData.mjs gaf geen datamap" >&2; exit 1; }
+export OPS_TEST_DIR="$OPS_DIR" OPS_REAL_APP_OUTSIDE_DIR="$OUTSIDE"
 APP_PID=""
 cleanup() {
   if [ -n "$APP_PID" ]; then
@@ -36,7 +36,7 @@ cleanup() {
     # Eerst de app weg, anders schrijft ze nog in de datamap die hierna verdwijnt.
     for _ in $(seq 50); do kill -0 -- "-$APP_PID" 2>/dev/null || break; sleep 0.2; done
   fi
-  node "$DIR/runData.mjs" remove "$RUN_DATA" "$GRANTED"
+  node "$DIR/runData.mjs" remove "$RUN_DATA" "$OUTSIDE"
 }
 trap cleanup EXIT
 

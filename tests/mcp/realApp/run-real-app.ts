@@ -18,6 +18,7 @@ import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/service
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { switchToHeadlessNote } from '../../../integrations/claude-desktop/src/proxy';
+import { OUTSIDE_FILE_NAME, readScope } from './persistedScope.mjs';
 
 const OPS_DIR = process.env.OPS_TEST_DIR ?? join(homedir(), '.local/share/org.openaec.planner/ops-test');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -291,14 +292,16 @@ test('echte app: een .xer openen leest de bytes via plugin-fs readFile', async (
   }
 });
 
-test('echte app: Ctrl+S met een gebouwmodel in een vrijgegeven map buiten de thuismap (knownbug 1762)', async () => {
-  const dir = process.env.OPS_REAL_APP_GRANTED_DIR ?? '';
-  assert(dir !== '', 'run.sh gaf geen vrijgegeven map door (OPS_REAL_APP_GRANTED_DIR)');
+test('echte app: Ctrl+S met een gebouwmodel buiten de thuismap, met alleen het bestand vrijgegeven (#804, route e)', async () => {
+  const dir = process.env.OPS_REAL_APP_OUTSIDE_DIR ?? '';
+  assert(dir !== '', 'run.sh gaf geen map buiten de thuismap door (OPS_REAL_APP_OUTSIDE_DIR)');
   assert(!resolve(dir).startsWith(`${homedir()}/`), `de map ligt buiten de thuismap: ${dir}`);
-  const model = join(dir, 'model.ifc');
+  const model = join(dir, OUTSIDE_FILE_NAME), sibling = join(dir, 'ander.ifc');
+  const fixture = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
   await ops('dispatch', { action: 'setUI', args: [{ featureFlags: { ifcForeignContent: true } }] });
   try {
-    writeFileSync(model, readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+    writeFileSync(model, fixture);
+    writeFileSync(sibling, fixture);
     await ops('open', { path: model });
     const marker = 'Opslaanproef buiten de thuismap';
     await ops('dispatch', { action: 'addTask', args: [{ name: marker }] });
@@ -309,10 +312,17 @@ test('echte app: Ctrl+S met een gebouwmodel in een vrijgegeven map buiten de thu
       assert(written.includes(wall), `het gebouwmodel is bewaard: ${wall}`);
     }
     assertEq(saved.state.isDirty, false, 'het document is opgeslagen');
-    assertEq(readdirSync(dir), ['model.ifc'], 'geen hulpbestand en geen kopie naast het bestand');
+    assertEq(readdirSync(dir).sort(), ['ander.ifc', OUTSIDE_FILE_NAME], 'geen hulpbestand en geen kopie naast het bestand');
+    let refused = '';
+    try { await ops('open', { path: sibling }); } catch (error) { refused = String(error); }
+    assert(refused.includes('forbidden path'), `een ander bestand in die map blijft dicht: ${refused || 'geopend'}`);
+    const scope = readScope(readFileSync(join(OPS_DIR, '..', '.persisted-scope')));
+    assert(scope.allowed.every(pattern => !pattern.endsWith('*') && !/\.ops-(vervang|vorige|save)/.test(pattern)),
+      `het scopebestand kreeg geen map en geen hulpnaam: ${JSON.stringify(scope.allowed)}`);
   } finally {
     await ops('dispatch', { action: 'setUI', args: [{ featureFlags: {} }] });
     rmSync(model, { force: true });
+    rmSync(sibling, { force: true });
   }
 });
 
