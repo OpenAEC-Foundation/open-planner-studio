@@ -115,8 +115,10 @@ export interface SaveDialogOpts {
   /**
    * Knownbug 1896 (#804 stap 6): de laatste controle van de aanroeper, op het laatste punt waar de opslag nog kan
    * stoppen zonder het einddoel te wijzigen. Zie `RefuseBeforePlace`. De dialoog geeft bij een weigering `null`, zoals
-   * bij annuleren. Niet op een handle uit de opslaankiezer van de browser: die heeft een bestaand doel al leeggemaakt
-   * (knownbug 1899), dus daar maakt de dialoog het bestand af en beslist de aanroeper alleen nog over de commit.
+   * bij annuleren. Op een handle uit de opslaankiezer van de browser geldt hij vóór `close()`, maar die kiezer heeft een
+   * bestaand doel al leeggemaakt (knownbug 1899): een weigering laat daar 0 bytes staan. Geef hem in de browser dus alleen
+   * mee als dat beter is dan de uitvoer (`exportTargetChecks` in `fileSlice.ts`); anders maakt de dialoog het bestand af
+   * en beslist de aanroeper alleen nog over de commit.
    */
   refuseBeforePlace?: RefuseBeforePlace | null;
 }

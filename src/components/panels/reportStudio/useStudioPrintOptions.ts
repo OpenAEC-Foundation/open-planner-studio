@@ -56,6 +56,7 @@ export function useStudioPrintOptions(
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const cpmResult = useAppStore(s => s.cpmResult);
   const resources = useAppStore(s => s.resources);
+  const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const assignments = useAppStore(s => s.assignments);
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
@@ -220,6 +221,7 @@ export function useStudioPrintOptions(
       activityCodeTypes: fieldCtx.activityCodeTypes,
       customFieldDefs: fieldCtx.customFieldDefs,
       taskTypeLabels,
+      customTaskTypes,
       barColorNoneLabel: tTask('structure.none'),
       statusLine: settings.statusLine,
       statusDate: project.statusDate,
@@ -252,7 +254,7 @@ export function useStudioPrintOptions(
     settings.compressNonWorkdays, settings.timelineColumns, settings.reportFontScale, settings.statusLine,
     companyName, autoNameWidth, t, tTask, tableHeaders, daySuffix, locale, project.startDate,
     project.endDate, project.author, project.statusDate, dateNotation, timeNotation, weekStartDay, cpmResult, barColorSelection,
-    fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, resources, assignments, baselineOverlay,
+    fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, customTaskTypes, resources, assignments, baselineOverlay,
     baselineComparisons, baselineNames, columnWidths, tableColumns, durationDisplay, durationSuffixes, calendars,
     workdayDurationMeasure, fontStack, rowFields, resource, curveLabels, curveColumnWidth, tasks.length]);
 }

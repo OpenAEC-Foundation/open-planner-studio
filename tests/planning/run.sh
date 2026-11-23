@@ -572,6 +572,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804, knownbug 1936: de telling op het verschil tegen de volledige telling, op ruim 3000 gemuteerde uitvoeren. Rekent
+  # niet met datums: één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
+  IFCFOREIGNTELLINGVERSCHIL="$DIR/.ifc-foreign-telling-verschil.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-telling-verschil.ts" "$IFCFOREIGNTELLINGVERSCHIL"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNTELLINGVERSCHIL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
@@ -798,6 +806,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SITESTARTORDERCHECK="$DIR/.site-start-order.mjs"
   if bundle_check "$DIR/check-site-start-order.ts" "$SITESTARTORDERCHECK"; then
     node "$SITESTARTORDERCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # #804, knownbug 1936: de productgrens van 150 MiB voor het openen van een model door de echte routes (openen per
+  # route, de echte herstelvraag, een onderbroken opslag). Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone
+  # af: één keer, buiten de tijdzonematrix.
+  IFCFOREIGNGRENSCHECK="$DIR/.ifc-foreign-grens.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-grens.ts" "$IFCFOREIGNGRENSCHECK"; then
+    node "$IFCFOREIGNGRENSCHECK" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
 
