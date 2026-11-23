@@ -4,7 +4,10 @@
 // US federale feestdagen (nth-weekday, zaterdag/zondag-substitutie, Juneteenth vanaf 2021).
 //
 // Draait via run.sh (esbuild-bundel, zoals harness.ts). Exit 0 = alles groen.
-import { easterSunday, generateHolidays, HOLIDAY_SETS, NL_SET, DE_SET, UK_SET, US_SET } from '@/engine/calendar/holidays';
+import {
+  easterSunday, generateHolidays, HOLIDAY_COUNTRIES, HOLIDAY_SETS,
+  NL_SET, DE_SET, UK_SET, US_SET, type HolidayCountry,
+} from '@/engine/calendar/holidays';
 import { formatDate } from '@/utils/dateUtils';
 
 const diffs: string[] = [];
@@ -136,6 +139,101 @@ eq('fronleichnam BE afwezig', has(generateHolidays(DE_SET, 'BE', 2026, 2026), 'F
   eq('us juneteenth 2021 (za→vr 18/6)', startOf(generateHolidays(US_SET, undefined, 2021, 2021), 'Juneteenth'), '2021-06-18');
   eq('us new year 2023 (zo→ma)', startOf(generateHolidays(US_SET, undefined, 2023, 2023), "New Year's Day"), '2023-01-02');
 }
+
+{
+  const dates = (country: HolidayCountry, year: number) =>
+    generateHolidays(HOLIDAY_SETS[country], undefined, year, year)
+      .map(h => h.startDate === h.endDate ? h.startDate : `${h.startDate}/${h.endDate}`)
+      .sort();
+  const list = (xs: string[]) => xs.sort().join(',');
+  eq('ES 2026', dates('ES', 2026).join(','), list([
+    '2026-01-01', '2026-01-06', '2026-04-03', '2026-05-01', '2026-08-15', '2026-10-12',
+    '2026-11-01', '2026-12-06', '2026-12-08', '2026-12-25',
+  ]));
+  eq('IT 2026', dates('IT', 2026).join(','), list([
+    '2026-01-01', '2026-01-06', '2026-04-05/2026-04-06', '2026-04-25', '2026-05-01', '2026-06-02',
+    '2026-08-15', '2026-10-04', '2026-11-01', '2026-12-08', '2026-12-25/2026-12-26',
+  ]));
+  eq('PL 2026', dates('PL', 2026).join(','), list([
+    '2026-01-01', '2026-01-06', '2026-04-05/2026-04-06', '2026-05-01', '2026-05-03', '2026-05-24',
+    '2026-06-04', '2026-08-15', '2026-11-01', '2026-11-11', '2026-12-24', '2026-12-25/2026-12-26',
+  ]));
+  eq('PT 2026', dates('PT', 2026).join(','), list([
+    '2026-01-01', '2026-04-03', '2026-04-05', '2026-04-25', '2026-05-01', '2026-06-04', '2026-06-10',
+    '2026-08-15', '2026-10-05', '2026-11-01', '2026-12-01', '2026-12-08', '2026-12-25',
+  ]));
+  eq('CZ 2026', dates('CZ', 2026).join(','), list([
+    '2026-01-01', '2026-04-03', '2026-04-06', '2026-05-01', '2026-05-08', '2026-07-05', '2026-07-06',
+    '2026-09-28', '2026-10-28', '2026-11-17', '2026-12-24', '2026-12-25/2026-12-26',
+  ]));
+  eq('SE 2026', dates('SE', 2026).join(','), list([
+    '2026-01-01', '2026-01-06', '2026-04-03', '2026-04-05/2026-04-06', '2026-05-01', '2026-05-14',
+    '2026-05-24', '2026-06-06', '2026-06-20', '2026-10-31', '2026-12-25/2026-12-26',
+  ]));
+  eq('DK 2026 (zonder Store bededag en Grundlovsdag)', dates('DK', 2026).join(','), list([
+    '2026-01-01', '2026-04-02', '2026-04-03', '2026-04-05/2026-04-06', '2026-05-14', '2026-05-24',
+    '2026-05-25', '2026-12-25/2026-12-26',
+  ]));
+  eq('NO 2026', dates('NO', 2026).join(','), list([
+    '2026-01-01', '2026-04-02', '2026-04-03', '2026-04-05/2026-04-06', '2026-05-01', '2026-05-14',
+    '2026-05-17', '2026-05-24', '2026-05-25', '2026-12-25/2026-12-26',
+  ]));
+  eq('FI 2026', dates('FI', 2026).join(','), list([
+    '2026-01-01', '2026-01-06', '2026-04-03', '2026-04-05/2026-04-06', '2026-05-01', '2026-05-14',
+    '2026-05-24', '2026-06-20', '2026-10-31', '2026-12-06', '2026-12-25/2026-12-26',
+  ]));
+}
+
+{
+  const se2027 = generateHolidays(HOLIDAY_SETS.SE, undefined, 2027, 2027);
+  eq('SE midsommar 2027', startOf(se2027, 'Midsommardagen'), '2027-06-26');
+  eq('SE alla helgons dag 2027', startOf(se2027, 'Alla helgons dag'), '2027-11-06');
+  const fi2027 = generateHolidays(HOLIDAY_SETS.FI, undefined, 2027, 2027);
+  eq('FI juhannuspäivä 2027', startOf(fi2027, 'Juhannuspäivä'), '2027-06-26');
+  eq('FI pyhäinpäivä 2027', startOf(fi2027, 'Pyhäinpäivä'), '2027-11-06');
+  const se2026 = generateHolidays(HOLIDAY_SETS.SE, undefined, 2026, 2026);
+  eq('SE midsommar 2026 (20/6=za)', startOf(se2026, 'Midsommardagen'), '2026-06-20');
+  eq('FI juhannuspäivä 2026 (20/6=za)', startOf(generateHolidays(HOLIDAY_SETS.FI, undefined, 2026, 2026), 'Juhannuspäivä'), '2026-06-20');
+}
+
+eq('DK store bededag 2023 aanwezig', startOf(generateHolidays(HOLIDAY_SETS.DK, undefined, 2023, 2023), 'Store bededag'), '2023-05-05');
+eq('DK store bededag 2024 afwezig', has(generateHolidays(HOLIDAY_SETS.DK, undefined, 2024, 2024), 'Store bededag'), false);
+
+eq('PL Trzech Króli 2010 afwezig', has(generateHolidays(HOLIDAY_SETS.PL, undefined, 2010, 2010), 'Trzech Króli'), false);
+eq('PL Trzech Króli 2011 aanwezig', startOf(generateHolidays(HOLIDAY_SETS.PL, undefined, 2011, 2011), 'Trzech Króli'), '2011-01-06');
+eq('SE nationaldag 2004 afwezig', has(generateHolidays(HOLIDAY_SETS.SE, undefined, 2004, 2004), 'Sveriges nationaldag'), false);
+eq('SE nationaldag 2005 aanwezig', startOf(generateHolidays(HOLIDAY_SETS.SE, undefined, 2005, 2005), 'Sveriges nationaldag'), '2005-06-06');
+
+eq('PL kerstavond 2024 afwezig', startOf(generateHolidays(HOLIDAY_SETS.PL, undefined, 2024, 2024), 'Wigilia Bożego Narodzenia'), null);
+eq('PL kerstavond 2025 aanwezig', startOf(generateHolidays(HOLIDAY_SETS.PL, undefined, 2025, 2025), 'Wigilia Bożego Narodzenia'), '2025-12-24');
+eq("IT San Francesco d'Assisi 2025 afwezig", startOf(generateHolidays(HOLIDAY_SETS.IT, undefined, 2025, 2025), "San Francesco d'Assisi"), null);
+eq("IT San Francesco d'Assisi 2026 aanwezig", startOf(generateHolidays(HOLIDAY_SETS.IT, undefined, 2026, 2026), "San Francesco d'Assisi"), '2026-10-04');
+
+const portugueseHolidayGap = [
+  ['Corpo de Deus', '2012-06-07', '2016-05-26'],
+  ['Implantação da República', '2012-10-05', '2016-10-05'],
+  ['Todos os Santos', '2012-11-01', '2016-11-01'],
+  ['Restauração da Independência', '2012-12-01', '2016-12-01'],
+] as const;
+for (const year of [2012, 2013, 2014, 2015, 2016]) {
+  const holidays = generateHolidays(HOLIDAY_SETS.PT, undefined, year, year);
+  for (const [name, date2012, date2016] of portugueseHolidayGap) {
+    eq(`PT ${name} ${year}`, startOf(holidays, name), year === 2012 ? date2012 : year === 2016 ? date2016 : null);
+  }
+  eq(`PT Imaculada Conceição ${year}`, startOf(holidays, 'Imaculada Conceição'), `${year}-12-08`);
+}
+
+eq('SE tweede pinksterdag 2004 aanwezig', startOf(generateHolidays(HOLIDAY_SETS.SE, undefined, 2004, 2004), 'Annandag pingst'), '2004-05-31');
+eq('SE tweede pinksterdag 2005 afwezig', startOf(generateHolidays(HOLIDAY_SETS.SE, undefined, 2005, 2005), 'Annandag pingst'), null);
+eq('CZ Goede Vrijdag 2015 afwezig', startOf(generateHolidays(HOLIDAY_SETS.CZ, undefined, 2015, 2015), 'Velký pátek'), null);
+eq('CZ Goede Vrijdag 2016 aanwezig', startOf(generateHolidays(HOLIDAY_SETS.CZ, undefined, 2016, 2016), 'Velký pátek'), '2016-03-25');
+for (const country of ['DK', 'NO'] as const) {
+  eq(`${country} Hemelvaart 2026`, startOf(generateHolidays(HOLIDAY_SETS[country], undefined, 2026, 2026), 'Kristi himmelfartsdag'), '2026-05-14');
+}
+
+eq('HOLIDAY_COUNTRIES = sleutels van HOLIDAY_SETS',
+  [...HOLIDAY_COUNTRIES].sort().join(','), Object.keys(HOLIDAY_SETS).sort().join(','));
+eq('aantal ondersteunde landen', HOLIDAY_COUNTRIES.length, 18);
 
 if (diffs.length === 0) {
   console.log('OK  holidays-check: alle checks groen');

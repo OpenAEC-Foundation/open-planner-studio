@@ -31,6 +31,11 @@ De webdatabase is v3: een niet-unieke index `records.kind` vindt alle `kind: 'ma
 
 De zware IFC-serialisatie loopt op één herbruikbare Web Worker (`recoverySnapshotSerializer.ts`), met dezelfde writer als terugval zonder Worker. Alleen writer-invoer en archiefverwijzing gaan over die grens, nooit filehandles of archiefbytes. Een herstelronde houdt delta, immutable documentbron, serialisatie en manifestcommit in één volgorde. De stoppoort wordt na workerwerk opnieuw getoetst vóór `saveRecovery`, zodat een late workerrespons geen gewiste snapshots terugzet. `flushRecoveryNow` wacht de volledige lopende ronde en een aangevraagde vervolgversie af; unmount beëindigt de worker.
 
+Besluiten van de herstelopslag (`recoveryStore.ts`): `docs/adr/0190-herstel-desktop-opruimen-binnen-eigen-boekhouding.md`,
+`0191-herstel-volgorde-en-commitpunt.md`, `0192-herstel-desktop-lezen-en-terugval.md`,
+`0193-herstel-web-sessie-per-tabblad.md`, `0194-herstel-web-archiefstore-en-verlopen-generaties.md` en
+`0195-herstelmanifest-optionele-velden.md`.
+
 Voor #804 fase 1c gebruikt de inhoudsvergelijking `IFC_DIRTY_KEYS`: een vervangen `ifcSource` maakt geen nieuwe
 herstelsnapshot of bestands-AutoSave nodig. Een bestaande AutoSave-kandidaat toetst die bronidentiteit juist wél,
 onder het schrijfslot vóór I/O. Sinds #804 stap 6 is de hele ronde één schrijfbeurt (`write` in `actualAutoSave.ts`):

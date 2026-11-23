@@ -123,3 +123,5 @@ opslagpoging (0073) en de keuzes van de exportroute (0074).
 **Besluiten in `taskSlice.ts`** staan in `docs/adr/`: de volgorde van taken op drie plekken (0150), verhangen eerst op
 een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
 (0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
+
+**De WBS-nummering van een geladen bestand** (`Project.wbsAutoNumber`): `docs/adr/0185-wbs-nummering-van-een-geladen-bestand.md`.
