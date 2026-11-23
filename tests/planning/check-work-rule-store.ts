@@ -1203,7 +1203,6 @@ console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houd
     [true, 7 * mpd, true]);
 }
 
-// Knownbug 358: positieve bewerking gevolgd door nulduur, met en zonder werkelijke start.
 {
   const start = '2026-06-01';
   const outcomes = [];
