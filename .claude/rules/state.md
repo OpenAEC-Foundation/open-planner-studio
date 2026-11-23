@@ -86,14 +86,16 @@ de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde co
 herstelmanifest) is `{ sha256, byteLength }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen handle
 staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat een
 latere bewaking een ander bestand zonder lezen herkennen. Alleen met de flag `ifcForeignContent`. Openen neemt hash en
-grootte van `ifcSource` (geen extra hashwerk); IFC toepassen houdt het veld; laden in hetzelfde tabblad (`loadState`),
+grootte van `ifcSource` (geen extra hashwerk), alleen als de flag bij het activeren aan staat; IFC toepassen houdt het veld; laden in hetzelfde tabblad (`loadState`),
 een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of handle geven `null`. Elke
 `commitSavedDocument` zet het opnieuw: met `prepared` uit de merge, anders uit `written` (de opslagworker rekent de hash
 als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precomputeSha256` vóór het schrijven en wacht de
 route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
 download, op de site en met de flag uit: `null`. Een export die het eigen bestand raakt (`recordOwnFileExport`,
-`planner_export_ifc`) maakt het `null` (`forgetKnownTargetFingerprint`). Een mislukte of geweigerde opslag laat het staan.
-Proef: `check-tabblad-schijfversie.ts`; grens: knownbug 2065.
+ook de bibliotheek via `saveLibraryFile`; `planner_export_ifc`) maakt het `null` (`forgetKnownTargetFingerprint`). Een
+geweigerde opslag laat het staan. Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) maakt het
+`null`: de directe terugval van `replaceUserFile` kan het doel al geraakt hebben.
+Proef: `check-tabblad-schijfversie.ts`; grenzen: knownbug 2065, 2066, 2200 en 2201.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille
