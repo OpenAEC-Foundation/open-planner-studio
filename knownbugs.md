@@ -3360,6 +3360,27 @@ en noem het in je rapport of PR-tekst.
      `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
      want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
      geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
+1961. **Een werkvenster kan na opslaan en openen bij een andere toewijzing van dezelfde resource terugkomen.** De
+     writer sleutelt `OPS_Timephased` op `<resource-GlobalId>#<index>`, met de index over alle toewijzingen van de taak,
+     en slaat een toewijzing zonder venster, curvewaarden, werk of bedrag over (`ifcWriter.ts:2238`). De lezer sorteert
+     de records per resource, gooit de index weg en geeft het eerste aanwezige record aan de eerste toewijzing van die
+     resource (`ifcReader.ts:2617` en `:2685`). Proef: een taak met twee toewijzingen aan dezelfde resource, alleen de
+     tweede (inzet 0,5) met venster 2026-03-04 tot 2026-03-05. Het bestand draagt alleen `…#1`; na `readIFC` heeft de
+     eerste toewijzing (inzet 1) het venster en de tweede geen. De rondgangtest zet het venster op de eerste toewijzing
+     (toewijzing `a1` in `check-ifc-roundtrip.ts`) en raakt dit niet. Richting: bij het lezen de index uit de sleutel bewaren en per
+     toewijzing aan de positie in de taak koppelen, zoals de writer hem telt. Gevonden door de review van #1085 (Sol).
+     — B (proef met `writeIFC`/`readIFC`)
+1962. **Werktijden met een datum in `WorkingTimes` leest OPS nog niet.** `buildCalendarFromEntity` (`ifcReader.ts:2267`)
+     laat een `IfcWorkTime` met StartDate of FinishDate buiten de week; alleen als alle werktijden een datum hebben, neemt
+     de lezer het eerste patroon met een datum als gewone week. Een zomer- en winterweek of een losse werkzaterdag uit een
+     ander programma gaat zo verloren of geldt elke week. Staat ook als "(nog)" in `docs/ifc-round-trip.md`. Gezien in de
+     code. — B
+1963. **Corrupte JSON in een OPS-pset valt bij het lezen stil weg, zonder melding.** De lege `catch` in
+     `readTaskTypeDefinitions`, `extractSequenceMeta`, `extractStructure` (structuurdefinities en bibliotheekpool),
+     `extractResourceMeta`, `extractCalendarLibraryOrigin`, `extractBaselines`, `extractSchedulingProfile` en
+     `extractSchedulingOptions` (`ifcReader.ts`) laat de waarde weg. Bij het XER-archief komt er wel
+     een melding ("openen met melding"). Vermoed, niet nagegaan: de volgende opslag schrijft de weggevallen gegevens
+     (bijvoorbeeld baselines) niet meer, zodat het verlies blijvend wordt. Gezien in de code. — S
 2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
      opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
      fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
