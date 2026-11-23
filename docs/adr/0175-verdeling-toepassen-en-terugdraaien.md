@@ -1,13 +1,13 @@
 # Een verdeling toepassen en weer terugdraaien
 
-`applyDistribution` in `librarySlice.ts` schrijft een verdelingsvoorstel in elk deelnemend geopend document, en
+`applyDistribution` in `librarySlice.ts` schrijft een verdelingsvoorstel in de deelnemende geopende documenten, en
 `undoDistribution` draait dat in één keer terug (`docs/library.md`, *Bekende beperkingen* punt 5). We kozen ervoor
 dat een vastgelopen ronde in een slapend document de hele actie afbreekt voordat er iets geschreven is, en dat
-Toepassen in elk geschreven document een gewone undo-stap achterlaat in de sessiegeschiedenis van de app. Die stap
-kiest Ctrl+Z dan ook in dat document (`tests/library/check-apply-distribution.ts`, geval 10), en "alles
-terugdraaien" draait precies die stappen terug.
+Toepassen in een document dat het verandert een gewone undo-stap achterlaat in de sessiegeschiedenis van de app. Die
+stap kiest Ctrl+Z dan ook in dat document (`tests/library/check-apply-distribution.ts`, geval 10), en "alles
+terugdraaien" draait die stappen terug met de poort hieronder.
 
-Een slapend document heeft geen live state. Daarom draait `applyDistribution` voor elk slapend document eerst de
+Een slapend document heeft geen live state. Daarom draait `applyDistribution` voor de slapende documenten eerst de
 echte actie (`applyLeveling`) in een wegwerpcontext (`runInScratchDocument`), buiten de producer en voordat er iets
 in `documents` geschreven is. Gooit zo'n ronde een fout, of geeft de `runCPM` daarin een `cpmResult.error`, dan
 stopt de hele actie met `scratch-failed`: het actieve document is dan nog niet aan de beurt geweest en de eerdere
@@ -16,16 +16,13 @@ route van `applyLeveling`, en pas dan schrijft één producer de nieuwe slapende
 
 ## Gevolgen
 
-- `applyDistribution` begint met `resetUndoCoalescing`. Anders kan `finishUndoable` het `after` van een ouder,
-  lopend event bijwerken in plaats van een eigen event te maken, en is er geen event voor het record.
 - De wegwerpcontext krijgt het echte document-id mee, omdat `applyLeveling` zijn eenmalige afrondingsmelding op
   `activeDocumentId` vastlegt (`tests/planning/check-scratch-document.ts`, geval 5b).
 - Meldingen uit de wegwerprondes gaan pas naar het gewone kanaal als Toepassen gelukt is. Bij een afgebroken actie
-  zouden ze een document beschrijven dat niet veranderd is.
+  zouden ze een document beschrijven dat niet veranderd is. Wat een afgebroken actie bij een latere herpoging met de
+  afrondingsmelding doet, staat als knownbug 1992.
 - Het event van het actieve document zoekt `latestDocumentDataEventSince` op vanaf `nextHistorySequence` van vlak
-  vóór `applyLeveling`; die teller loopt door na het opruimen van oude events, een index of diepte niet. Het neemt
-  het jongste event en niet het eerste, omdat `runCPM` na `applyLeveling` in *datums zoals opgeslagen* een tweede
-  event kan maken.
+  vóór `applyLeveling`; die teller loopt door na het opruimen van oude events, een index of diepte niet.
 - Eén producer schrijft per slapend document de payload en registreert het event (`recordSessionHistoryDeltas`). Een
   document dat intussen gesloten of actief werd (`payload === null`), slaat hij over. Het record bevat alleen
   documenten met een event; zonder zulke documenten is de uitkomst `nothing-to-write`.

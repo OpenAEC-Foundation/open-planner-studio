@@ -1590,8 +1590,16 @@ en noem het in je rapport of PR-tekst.
      (`src/state/slices/librarySlice.ts`) toetst vóór `beginUndoable` alleen of het poolitem van een link nog
      bestaat, niet het projectitem. Bestaat het projectitem niet meer, dan verandert er niets, maar `finishMutation`
      loopt wel en zet `isDirty`. Gezien met een proef op de echte store: een link met een onbekend `projectId` en een
-     bestaand `poolId` geeft `isDirty: true`, geen undo-event en geen nieuwe resource. Hoe vaak het afwijkingenscherm
-     zo'n link stuurt, is niet nagegaan. — B
+     bestaand `poolId` geeft `isDirty: true`, geen undo-event en geen nieuwe resource. Op een schoon heropend
+     IFC-bestand wist dezelfde route ook `importPristine` (`markDocumentEdited` in `src/state/documentEdited.ts`), en na
+     schrijven en teruglezen bleef die vlag weg (proef van de reviewer, GPT-6.2-Sol, review van #1164). Hoe vaak het
+     afwijkingenscherm zo'n link stuurt, is niet nagegaan. — B
+1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
+     (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
+     `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
+     eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
+     gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
+     wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
 
 ## Bestanden en herstel
 

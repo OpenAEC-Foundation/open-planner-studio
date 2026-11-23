@@ -1,4 +1,4 @@
-# Bibliotheekacties op het project: een undo-stap alleen bij een echte wijziging
+# Bibliotheekacties op het project die niets veranderen
 
 Welke bibliotheekacties op het project met Ctrl+Z terug te draaien zijn, staat in `docs/library.md`
 (*Ctrl+Z/verversing-eigenaardigheid*). In `librarySlice.ts` kozen we ervoor dat deze acties in de gevallen hieronder
