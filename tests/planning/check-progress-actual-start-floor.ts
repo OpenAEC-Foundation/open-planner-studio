@@ -23,6 +23,19 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     failures++;
     console.log(`XX ${profile}: verwacht ${JSON.stringify(expected)}, kreeg ${JSON.stringify(actual)}`);
   }
+  if (profile === 'msproject') continue;
+  S().setStatusDate('2026-06-05T18:00');
+  ctx.store.setState(s => {
+    const t = s.tasks.find(t => t.id === id)!;
+    t.time.actualStart = '2026-06-08T10:00';
+  });
+  S().runCPM();
+  const afterWeekend = [task().time.earlyStart, task().time.earlyFinish];
+  const expectedAfterWeekend = [profile === 'p6' ? '2026-06-08T07:00' : '2026-06-08T10:00', '2026-06-08T11:00'];
+  if (JSON.stringify(afterWeekend) !== JSON.stringify(expectedAfterWeekend)) {
+    failures++;
+    console.log(`XX ${profile}: statusdatum op vrijdag, verwacht ${JSON.stringify(expectedAfterWeekend)}, kreeg ${JSON.stringify(afterWeekend)}`);
+  }
 }
 if (failures) process.exit(1);
 console.log('OK restwerk begint niet vóór de werkelijke start');
