@@ -149,7 +149,7 @@
     "groupByType": "Kaynak türüne göre grupla",
     "showAssignmentColumns": "Birim/gün ve eğriyi göster",
     "columnsDropped": "Birim/g ve Eğri sütunları çıkarıldı: tablo zaman ekseni için çok az yer bırakıyordu. Daha büyük veya yatay kâğıt, daha küçük yazı boyutu ya da daha dar bir tablo daha fazla yer sağlar.",
-    "emptyPeriod": "Rapor döneminde görev yok — başka bir dönem veya Tüm proje seçin.",
+    "emptyPeriod": "Özel dönemde görev yok — başka tarihler seçin veya Özel dönem seçeneğini kapatın.",
     "outsidePeriod": "Dönem dışında:",
     "empty": "Kaynak ataması yok — önce görevlere kaynak atayın.",
     "resources": "Kaynaklar:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} sayfa",
     "pages_other": "{{count}} sayfa",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Rapor dönemi",
     "tasks": {
       "title": "Hangi görevler",
       "all": "Tüm görevler",
@@ -646,6 +645,12 @@
       "chart": "Çubuklar ve zaman çizelgesi",
       "footer": "Açıklama ve alt bilgi",
       "page": "Sayfa"
+    },
+    "period": {
+      "hint": "Raporda yalnızca bu dönemdeki görevler yer alır. Zaman çizelgesi tam olarak dönemi kapsar; dönemin dışına taşan bir çubuk kenarda kesilir.",
+      "outside_one": "{{count}} görev dönemin dışında kalıyor ve raporda yer almıyor.",
+      "outside_other": "{{count}} görev dönemin dışında kalıyor ve raporda yer almıyor.",
+      "own": "Özel dönem"
     }
   },
   "customFont": {

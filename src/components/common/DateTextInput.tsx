@@ -555,7 +555,7 @@ export function DateTextInput({
           if (target.tagName !== 'INPUT') { e.preventDefault(); focusEntry(); }
         }}
         style={{
-          display: 'flex', alignItems: 'center', minWidth: 0,
+          display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden',
           cursor: disabled ? 'not-allowed' : 'text',
           ...style,
           ...groupBorder,
@@ -580,7 +580,7 @@ export function DateTextInput({
               maxLength={def.maxLen}
               // Iets ruimer dan strikt nodig voor 2 cijfers, zodat de letter-placeholders
               // (`dd`/`mm`/`jjjj` — bredere glyphs dan cijfers) volledig passen.
-              style={{ ...SEG_STYLE, width: `${def.maxLen === 4 ? 4.9 : 2.9}ch` }}
+              style={{ ...SEG_STYLE, width: `${def.maxLen === 4 ? 4.9 : 2.9}ch`, minWidth: `${def.maxLen}ch` }}
               onFocus={() => setActiveKind(def.kind)}
               onMouseUp={e => {
                 // Klik in een GEVULD segment (geen sleep-selectie) ⇒ selecteer de volledige inhoud, zodat
@@ -595,6 +595,7 @@ export function DateTextInput({
             />
           </Fragment>
         ))}
+        <span aria-hidden="true" className="ops-date-input__gap" />
         <button
           ref={pickerButtonRef}
           type="button"

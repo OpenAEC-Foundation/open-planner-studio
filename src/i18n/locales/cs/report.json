@@ -153,7 +153,7 @@
     "groupByType": "Seskupit podle typu zdroje",
     "showAssignmentColumns": "Zobrazit jednotky/den a křivku",
     "columnsDropped": "Sloupce Jedn./d a Křivka jsou vynechány: tabulka ponechala pro časovou osu příliš málo místa. Více místa získáte větším papírem nebo režimem na šířku, menší velikostí písma nebo užší tabulkou.",
-    "emptyPeriod": "V sestavovaném období nejsou žádné úkoly — zvolte jiné období nebo Celý projekt.",
+    "emptyPeriod": "Ve vlastním období nejsou žádné úkoly — zvolte jiná data nebo vypněte Vlastní období.",
     "outsidePeriod": "Mimo období:",
     "empty": "Žádná přiřazení zdrojů — nejprve přiřaďte zdroje k úkolům.",
     "resources": "Zdroje:",
@@ -475,7 +475,6 @@
     "pages_many": "{{count}} stránky",
     "pages_other": "{{count}} stránek",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Období sestavy",
     "tasks": {
       "title": "Které úkoly",
       "all": "Všechny úkoly",
@@ -696,6 +695,14 @@
       "chart": "Pruhy a časová osa",
       "footer": "Legenda a zápatí",
       "page": "Stránka"
+    },
+    "period": {
+      "hint": "V sestavě jsou jen úkoly z tohoto období. Časová osa pokrývá přesně toto období; pruh, který ho přesahuje, se na okraji ořízne.",
+      "outside_one": "{{count}} úkol je mimo období a v sestavě není.",
+      "outside_few": "{{count}} úkoly jsou mimo období a v sestavě nejsou.",
+      "outside_many": "{{count}} úkolu je mimo období a v sestavě není.",
+      "outside_other": "{{count}} úkolů je mimo období a v sestavě nejsou.",
+      "own": "Vlastní období"
     }
   },
   "customFont": {

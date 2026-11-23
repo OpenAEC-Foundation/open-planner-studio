@@ -110,3 +110,6 @@ ontsluit stil), één keer per document (`taskTypesNotice.ts`); selector `taskTy
 in globals.css, kop en regels als subgrid), en de rasterkolommen `task.workRule` en
 `assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
 Gidsen: `public/docs/{nl,en}/howto-werkregel-kiezen.md` en het veld *Taaktype* in `ref-taak-eigenschappen.md`; browserspec `tests/browser/work-rule.spec.ts`.
+
+Besluiten in de werkregelbrug (`workRuleApply.ts`) staan in `docs/adr/`: momentopname, bewerking en terugschrijven
+(0200), verricht en resterend werk per toewijzing (0201) en vast werk als urenmaat, ook bij openen (0202).
