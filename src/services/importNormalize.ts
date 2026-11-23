@@ -2,11 +2,19 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { ResourceAssignment } from '@/types/resource';
 import type { ImportResult } from '@/services/importTypes';
-import { applyRemainingDuration, defaultActualFinish, defaultActualStart, normalizeLoadedActualDate } from '@/engine/taskMutationRules';
+import { applyRemainingDuration, defaultActualStart, normalizeLoadedActualDate } from '@/engine/taskMutationRules';
 import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 import { minOf } from '@/utils/collections';
+
+/** Bij het openen van een bestand met 100% en een ontbrekend einde blijft de laadregel gelden. */
+export function defaultImportedActualFinish(
+  time: Pick<Task['time'], 'earlyFinish' | 'scheduleFinish'>,
+  statusDate: string | undefined,
+): string {
+  return statusDate || time.earlyFinish || time.scheduleFinish;
+}
 
 /**
  * De WERKREGEL afleiden uit de bewaarde importvelden, één keer, in elke lezer die zulke velden zet
@@ -84,7 +92,7 @@ export function normalizeImportedProgress(
     }
 
     // Voortgang-invarianten (spiegel van applyProgressInvariants, engine/taskMutationRules.ts). De
-    // AF-default is niet gespiegeld maar GEDEELD (`defaultActualFinish`): statusdatum, anders de
+    // AF-default bij het openen (`defaultImportedActualFinish`): statusdatum, anders de
     // eigen geplande finish — nooit de leesdatum.
     if (t.actualFinish) {
       t.completion = 1;
@@ -104,7 +112,7 @@ export function normalizeImportedProgress(
       // eigen geplande start, niet AS = AF — anders krimpt de voltooide balk), dan de AF-default.
       const startWasDerived = !t.actualStart;
       if (startWasDerived) t.actualStart = defaultActualStart(t);
-      t.actualFinish = defaultActualFinish(t, statusDate);
+      t.actualFinish = defaultImportedActualFinish(t, statusDate);
       if (!startWasDerived && !isDateOnly(t.actualStart!)) {
         t.actualFinish = normalizeLoadedActualDate(task, 'actualFinish', t.actualFinish, statusDate, calendar);
       }
