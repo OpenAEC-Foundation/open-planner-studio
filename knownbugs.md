@@ -3560,6 +3560,34 @@ en noem het in je rapport of PR-tekst.
      commentaar in `src/state/slices/taskSlice.ts`, dat dit geval noemde. Richting: de lezer weigert of breekt een
      kring bij het inlezen. — S (code gelezen, niet nagespeeld)
 
+1994. **Een mislukte mapscan in een herstelronde op de desktop haalt meegedragen herstelregels uit het manifest.**
+     `listAppDataTauri` in `src/services/recovery/recoveryStore.ts` geeft bij een fout van `readDir` een lege lijst.
+     `planRecoveryCleanup` draagt een regel van een vreemd of overgenomen manifest alleen mee als zijn snapshot in die
+     lijst staat, dus met de lege lijst valt elke meegedragen regel weg en schrijft `saveTauri` een manifest zonder die
+     regels. De snapshots blijven op schijf, maar `loadTauri` biedt ze bij de volgende start niet meer aan: met eigen regels
+     in het manifest valt het niet terug op de mapscan, en een generatiesnapshot (versie 3 en later) valt ook buiten
+     die scan. Zo verdwijnt een herstelset van een vorige start die nog niet hersteld of gewist was uit het aanbod. Gezien met een
+     script op `planRecoveryCleanup`: dezelfde vreemde regel komt met zijn snapshot in de lijst mee in `carryOver`, en
+     met een lege lijst niet. Of `readDir` op de appDataDir in de praktijk faalt, is niet nagegaan. Gevonden bij het
+     opruimen van het commentaar in `recoveryStore.ts`, dat zei dat het opruimen dan terugvalt op het manifest. — B
+
+1995. **Een mislukte verwijdering in het herstel op de desktop telt als "al weg".** In `saveTauri`, `clearTauri` en
+     `clearOwnTauri` (`src/services/recovery/recoveryStore.ts`) vangt een lege `catch` elke fout van `remove` op, en
+     daarna haalt de code de naam uit `ownWritten` en de andere boekhoudingssets. Een bestand dat om een andere reden
+     bleef staan (rechten, een vergrendeld bestand), valt zo uit de eigen boekhouding en blijft op schijf tot een
+     volgende `planRecoveryClear` het op naamvorm vindt. In `clearOwnTauri` gaat het manifest eerst: mislukt het
+     weghalen daarvan, dan worden de eigen snapshots daarna toch verwijderd en noemt het manifest bij de volgende start
+     snapshots die er niet meer zijn. `loadTauri` geeft die als `readFailures`, dus een herstelkeuze na een schone
+     afsluiting. — S (code gelezen, niet nagespeeld)
+
+1996. **Zonder Web Locks of `sessionStorage` scheidt het webherstel een gedupliceerd tabblad niet.** `claimLock` in
+     `src/services/recovery/recoveryStore.ts` geeft `true` als `navigator.locks` ontbreekt, en `resolveSessionId` geeft
+     de vaste id `default` zonder claim als `sessionStorage` gooit. Dan delen twee tabbladen dezelfde sessie-id: een
+     gedupliceerd tabblad, en met `default` elk tabblad. `saveWeb` van het ene tabblad verwijdert dan elke ronde de
+     documentrecords van die id die het zelf niet open heeft, en `clearRecovery` wist ook de records van het andere. De
+     Web Locks API is volgens de specificatie alleen beschikbaar in een beveiligde context, dus niet op een gewoon
+     HTTP-adres buiten localhost. — S (code gelezen, niet nagespeeld in een browser)
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
