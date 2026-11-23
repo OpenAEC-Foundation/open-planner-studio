@@ -48,8 +48,19 @@ BUNDLES=()
 # hieronder zet hem, en die wordt al aangeroepen vóór dat punt.
 STATUS=0
 
+# fontkit 3 (#1050) gebruikt `unicode-properties`, dat op Node zijn tabel naast zijn eigen bron leest
+# (`readFileSync(new URL('./data.trie', import.meta.url))`). In een bundel wijst dat pad naar de map van de bundel.
+# De browservariant van die ene interne import draagt dezelfde tabel in de code; de bundel neemt die. Het pad komt
+# van de fontkit die de bundel echt gebruikt.
+UNICODE_TRIE="$(node -e "
+const { createRequire } = require('node:module'); const path = require('node:path');
+const fontkit = createRequire(path.join(process.argv[1], 'x.js')).resolve('fontkit');
+console.log(path.join(path.dirname(createRequire(fontkit).resolve('unicode-properties')), 'binaryTrie.browser.js'));
+" "$DIR")"
+
 # De ene definitie van de bundel: run.sh gebruikt hem hier, planning-pool.mjs krijgt hem via het plan.
 ESBUILD_ARGS=(
+  --alias:#binary-trie="$UNICODE_TRIE"
   --log-level=error
   --bundle --platform=node --format=esm --alias:@="$ROOT/src"
   --external:react-dom/server
@@ -561,6 +572,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #804, knownbug 1936: de telling op het verschil tegen de volledige telling, op ruim 3000 gemuteerde uitvoeren. Rekent
+  # niet met datums: één keer, buiten de matrix, met dezelfde vaste tijdzone als de andere checks van #804 hierboven.
+  IFCFOREIGNTELLINGVERSCHIL="$DIR/.ifc-foreign-telling-verschil.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-telling-verschil.ts" "$IFCFOREIGNTELLINGVERSCHIL"; then
+    TZ=Europe/Amsterdam node "$IFCFOREIGNTELLINGVERSCHIL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
@@ -787,6 +806,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SITESTARTORDERCHECK="$DIR/.site-start-order.mjs"
   if bundle_check "$DIR/check-site-start-order.ts" "$SITESTARTORDERCHECK"; then
     node "$SITESTARTORDERCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # #804, knownbug 1936: de productgrens van 150 MiB voor het openen van een model door de echte routes (openen per
+  # route, de echte herstelvraag, een onderbroken opslag). Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone
+  # af: één keer, buiten de tijdzonematrix.
+  IFCFOREIGNGRENSCHECK="$DIR/.ifc-foreign-grens.mjs"
+  if bundle_check "$DIR/check-ifc-foreign-grens.ts" "$IFCFOREIGNGRENSCHECK"; then
+    node "$IFCFOREIGNGRENSCHECK" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
 

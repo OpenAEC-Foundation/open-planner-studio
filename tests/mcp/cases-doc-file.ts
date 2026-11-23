@@ -25,6 +25,7 @@ import { installNodeFileIpc } from '../planning/nodeFileIpc';
 import { mergeProblems, openForeign } from '../planning/ifcMergeKern';
 import { createHash } from 'node:crypto';
 import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
+import { lowerModelOpenLimitForTests } from '@/services/ifc/modelOpenLimit';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -1188,9 +1189,18 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     // Fixronde 1: niet over het bronbestand van het andere open document met een vreemd deel.
     const sourceError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
     assertEq(sourceError.code, 'VALIDATION', 'het bronbestand van een document met een vreemd deel ⇒ validatiefout');
-    assert(sourceError.error.includes('source file of an open document') && sourceError.error.includes('another path'),
+    // Fixronde 1 van #1071, punt 3: het open tabblad gaat voor (was de fout over het bronbestand van een open document).
+    assert(sourceError.error.includes('file of another open document') && sourceError.error.includes('another path'),
       'de Engelse fout zegt waarom en wat wel kan');
     assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
+    // Fixronde 2 van #1071: met de flag uit (het modeltabblad blijft open) de reden en de tekst van main.
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+    const offError = await callErr('planner_export_ifc', { path: bonsaiPath, overwrite: true });
+    useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    assertEq(offError.code, 'VALIDATION', 'flag uit: validatiefout');
+    assert(offError.error.includes('source file of an open document') && offError.error.includes('another path'),
+      `flag uit: de tekst van main (${offError.error})`);
+    assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'flag uit: het modelbestand is niet veranderd');
     await callOk('planner_export_ifc', { path: target, overwrite: true });
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
 
@@ -1244,6 +1254,40 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
   } finally {
     delete fakeFs.scanTarget;
     useAppStore.setState((s) => { s.ui.featureFlags = {}; });
+  }
+});
+
+// #804, PR #1127 (route A): de productgrens voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB) geldt ook
+// voor `planner_import_schedule` in de app. Op de echte bestandslaag van de app (`realFs`, via de plugin-fs-client en de
+// nagebootste IPC), niet de fake: zo valt het op als `realFs` de markering `enforcesModelOpenLimit` verliest (review van
+// #1127, ronde 5). De proefnaad verlaagt de grens tot de grootte van het bestand: precies op de grens opent het model,
+// één byte eronder weigert de tool met VALIDATION en blijft de store zoals hij was.
+test('import_schedule in de app: een model boven de productgrens weigert, op de grens opent het (#804, #1127)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'ops-mcp-grens-'));
+  const ipc = installNodeFileIpc();
+  const previousGetFs = fileToolDeps.getFs;
+  resetToSingleEmptyDocument();
+  useAppStore.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  try {
+    // De echte app-naad; alleen de thuismap (de scope) en het lezen bij openen komen uit Node.
+    const fs: McpFileFs = { ...(await realFs()), homeDir: async () => root, readFile: async p => new Uint8Array(readFileSync(p)) };
+    fileToolDeps.getFs = async () => fs;
+    const model = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+    const path = join(root, 'groot-model.ifc'); writeFileSync(path, model);
+    lowerModelOpenLimitForTests(model.length - 1);
+    const refused = await callErr('planner_import_schedule', { path });
+    assertEq(refused.code, 'VALIDATION', 'boven de productgrens ⇒ validatiefout');
+    assert(refused.error.includes(`${model.length} bytes is above the limit of ${model.length - 1} bytes`) && refused.error.includes('building model'),
+      `de Engelse fout noemt de grootte en de grens (${refused.error})`);
+    assertEq(S().ifcSource, null, 'geen document met het model geopend');
+    lowerModelOpenLimitForTests(model.length);
+    await callOk('planner_import_schedule', { path });
+    assertEq(S().ifcSource?.foreign, true, 'precies op de grens opent het model met zijn bron');
+  } finally {
+    lowerModelOpenLimitForTests();
+    ipc.dispose(); fileToolDeps.getFs = previousGetFs;
+    useAppStore.setState((s) => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
