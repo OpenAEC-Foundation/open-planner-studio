@@ -174,11 +174,8 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
     await recalculate(page);
     expect((await readTask(page, dialogId)).earlyFinish).toBe(finish);
   }
-  // Review #563: bij 100% blijft een vastgelegde start staan, ook ná het afgeleide blokeinde.
-  for (const [actualStart, actualFinish] of [
-    ['2026-06-03T10:00', '2026-06-03T16:00'],
-    ['2026-06-03T18:00', '2026-06-03T18:00'],
-  ]) {
+  // Bij 100% geldt het geplande einde, met de vastgelegde start als ondergrens.
+  for (const actualStart of ['2026-06-03T10:00', '2026-06-03T18:00']) {
     await page.evaluate(({ ids, actualStart }) => {
       const s = window.__OPS__!.store.getState();
       s.setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
@@ -187,7 +184,7 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
         s.updateTask(id, { status: 'STARTED', time: {
           ...task.time, scheduleStart: '2026-06-03T08:00', durationUnit: 'hours',
           durationMinutes: 480, scheduleDuration: 1, completion: 0.5,
-          actualStart, actualFinish: undefined,
+          remainingMinutes: 240, remainingTime: 0.5, actualStart, actualFinish: undefined,
         } });
       }
       const after = window.__OPS__!.store.getState();
@@ -195,6 +192,10 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
       after.setViewStartDate('2026-06-01');
       after.setScroll(0, 0);
     }, { ids: [panelId, dialogId], actualStart });
+    const plannedFinish = (await readTask(page, panelId)).earlyFinish;
+    if (!plannedFinish) throw new Error('De taak heeft geen gepland einde');
+    expect((await readTask(page, dialogId)).earlyFinish).toBe(plannedFinish);
+    const actualFinish = plannedFinish > actualStart ? plannedFinish : actualStart;
     // Na de fixturewissel kan de vorige balkgeometrie nog staan; de rasterrij heeft een vaste plek.
     await page.locator(`[data-grid-row-key="${panelId}"] [data-grid-column-id="task.name"]`).first().click();
     await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
@@ -224,8 +225,8 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    // Onbegonnen werk staat na de statusdatum (6 maart) gepland; de afgeleide start volgt die.
-    completion: 0.4, status: 'STARTED', actualStart: "2026-03-06T07:00", actualFinish: null, remainingTime: 6,
+    // #998: de taak was naar 6 maart geschoven. Het percentage legt haar geplande begin op 2 maart vast.
+    completion: 0.4, status: 'STARTED', actualStart: "2026-03-02T07:00", actualFinish: null, remainingTime: 6,
   });
 
   dialog = await openDialogByDoubleClick(page, taskId);
@@ -233,8 +234,156 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    completion: 1, status: 'COMPLETED', actualStart: "2026-03-06T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
+    completion: 1, status: 'COMPLETED', actualStart: "2026-03-02T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
+
+  // Het al in de dialoog afgeleide einde moet de daarna getypte duur volgen.
+  await page.evaluate(id => {
+    const store = window.__OPS__!.store.getState();
+    const task = store.tasks.find(candidate => candidate.id === id)!;
+    store.setProject({ statusDate: '2026-03-20' });
+    store.updateTask(id, { status: 'NOT_STARTED', time: {
+      ...task.time, completion: 0, actualStart: undefined, actualFinish: undefined,
+    } });
+    store.runCPM();
+  }, taskId);
+  await page.locator(`[data-grid-row-key="${taskId}"] [data-grid-column-id="task.name"]`).first().click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+  dialog = page.locator('[data-ops-task-dialog]');
+  await expect(dialog).toBeVisible();
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+  await expect(dialog.locator('[data-ops-progress-slider]')).toHaveValue('100');
+  const duration = dialog.locator('[data-ops-duration-value]');
+  await duration.fill('3');
+  await duration.press('Tab');
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 1, actualFinish: '2026-03-04T16:00' });
+});
+
+test('Taak bewerken: voortgang en startanker volgen de actuele planning na het verwijderen van een voorganger', async ({ page, ops: _ops }) => {
+  const [predecessor, taskId] = await seedTenDayTasks(page, ['Grondwerk', 'Fundering']);
+  await page.evaluate(({ predecessor, taskId }) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: true, dateNotation: 'dmy' });
+    const first = s.tasks.find(task => task.id === predecessor)!;
+    s.updateTask(predecessor, { time: { ...first.time, scheduleDuration: 1 } });
+    s.addSequence({ predecessorId: predecessor, successorId: taskId, type: 'FINISH_START', lagDays: 0 });
+    s.runCPM();
+  }, { predecessor, taskId });
+  const dates = () => page.evaluate((id) => {
+    const time = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time;
+    return { anchor: time.scheduleStart, calculated: time.earlyStart };
+  }, taskId);
+  const original = await dates();
+  expect(original.calculated).not.toBe(original.anchor);
+  const open = async () => {
+    await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${taskId}"][data-grid-column-id="task.name"]`)
+      .click({ button: 'right' });
+    await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+    const dialog = page.locator('[data-ops-task-dialog]');
+    await expect(dialog).toBeVisible();
+    return dialog;
+  };
+
+  let dialog = await open();
+  const startInput = dialog.locator('[data-ops-task-date-time="dialog-start"] input').first();
+  await startInput.click();
+  await page.keyboard.type('23032026');
+  await page.keyboard.press('Tab');
+  await expect(startInput).toHaveValue('23');
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { right: 1 });
+
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  await expect(question).toBeVisible();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 0, actualStart: null });
+  await question.getByRole('group', { name: /Fundering/ }).getByRole('textbox').first().fill('04');
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect(question).toBeHidden();
+  await expect(dialog.locator('[data-ops-progress-slider]')).toHaveValue('1');
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 0.01, actualStart: '2026-03-04T07:00' });
+  expect(await page.evaluate(id => {
+    const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
+    return { anchor: task.time.scheduleStart, constraint: task.constraint };
+  }, taskId)).toEqual({
+    anchor: '2026-03-23T07:00', constraint: { type: 'SNET', date: '2026-03-23T07:00' },
+  });
+  await page.locator('.quick-access-toolbar').getByTitle(/^(Undo|Ongedaan maken) \(Ctrl\+Z\)$/).click();
+  await expect.poll(dates).toEqual(original);
+
+  dialog = await open();
+  await dialog.locator('.dependency-remove-button').click();
+  await expect.poll(dates).toEqual({ anchor: original.anchor, calculated: '2026-03-06T07:00' });
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect((await dates()).anchor).toBe(original.anchor);
+
+  await page.evaluate(({ predecessor, taskId }) => {
+    const s = window.__OPS__!.store.getState();
+    s.addSequence({ predecessorId: predecessor, successorId: taskId, type: 'FINISH_START', lagDays: 0 });
+    s.runCPM();
+  }, { predecessor, taskId });
+  await expect.poll(dates).toEqual(original);
+  dialog = await open();
+  await dialog.locator('.dependency-remove-button').click();
+  await expect.poll(dates).toEqual({ anchor: original.anchor, calculated: '2026-03-06T07:00' });
+  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+  await expect(page.locator('[data-ops-actual-start-dialog]')).toHaveCount(0);
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect(await readTask(page, taskId)).toMatchObject({ completion: 1, actualStart: original.anchor });
+  expect((await dates()).anchor).toBe(original.anchor);
+});
+
+test('#998 Taak bewerken: voortgang toetst de actuele toegewezen duur', async ({ page, ops: _ops }) => {
+  const id = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: true, dateNotation: 'dmy' });
+    s.setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
+    const task = s.addTask({
+      name: 'Fundering', time: { scheduleDuration: 10 } as never,
+      constraint: { type: 'MFO', date: '2026-06-22', hard: true },
+    });
+    const crane = s.addResource({ name: 'Kraan', type: 'LABOR', description: '', maxUnits: 1 });
+    s.assignResource(task, crane, 1);
+    s.setTaskWorkRule(task, 'FIXED_RATE');
+    s.runCPM();
+    s.setViewStartDate('2026-06-08');
+    return task;
+  });
+  const planning = () => page.evaluate(taskId => {
+    const time = window.__OPS__!.store.getState().tasks.find(task => task.id === taskId)!.time;
+    return { start: time.earlyStart, duration: time.scheduleDuration };
+  }, id);
+  await page.locator(`[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.name"]`)
+    .click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+  const dialog = page.locator('[data-ops-task-dialog]');
+  const work = dialog.locator('[data-ops-assignment-work] input').first();
+  await expect(work).toHaveValue('80');
+  await work.fill('8');
+  await work.press('Tab');
+  await expect.poll(planning).toEqual({ start: '2026-06-22T07:00', duration: 1 });
+
+  const slider = dialog.locator('[data-ops-progress-slider]');
+  await pressSlider(page, slider, { right: 1 });
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  await expect(question).toBeVisible();
+  expect((await readTask(page, id)).actualStart).toBeNull();
+  await question.getByRole('group', { name: /Fundering/ }).getByRole('textbox').first().fill('09');
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect(slider).toHaveValue('1');
+
+  // Een tweede wijziging via de toewijzing blijft ook na de voortgang van kracht bij Opslaan.
+  await work.fill('16');
+  await work.press('Tab');
+  await expect.poll(() => planning().then(value => value.duration)).toBe(2);
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toBeHidden();
+  expect((await planning()).duration).toBe(2);
+  expect(await readTask(page, id)).toMatchObject({ completion: 0.01, actualStart: '2026-06-09T07:00' });
 });
 
 test('Taak bewerken: één keer Opslaan (naam, ouder, nieuw taaktype, voortgang) is één Ctrl+Z', async ({ page, ops: _ops }) => {

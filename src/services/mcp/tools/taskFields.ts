@@ -36,7 +36,7 @@ import type {
   TaskType,
 } from '@/types/task';
 import { TASK_TYPES } from '@/types/task';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
 import { isRecord } from '@/utils/guards';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
@@ -64,7 +64,7 @@ export interface TaskTimePatch {
 export interface TaskFieldPatch {
   top: Partial<Task>;
   time?: TaskTimePatch;
-  customTaskType?: CustomTaskType;
+  customTaskType?: CustomTaskTypeDraft;
   /** De werkregel loopt NIET via de kale veld-merge maar via `draft.setTaskWorkRule` — een
    *  werkbeschermende regel legt bij het zetten het huidige restwerk van de toewijzingen vast. `null`
    *  = terug naar de projectstandaard. */
@@ -282,7 +282,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
 
   const top: Partial<Task> = {};
   const time: TaskTimePatch = {};
-  let customTaskType: CustomTaskType | undefined;
+  let customTaskType: CustomTaskTypeDraft | undefined;
 
   // Effectieve mijlpaal-status: wat er ná deze patch geldt (de duur-0-invariant hangt daaraan).
   const effMilestone = 'isMilestone' in raw ? raw.isMilestone === true : ctx.currentIsMilestone;
