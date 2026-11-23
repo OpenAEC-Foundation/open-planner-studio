@@ -303,7 +303,7 @@ export function dayslotLoad(
 
 /** Belasting per werkdag van één toewijzing: op de plaatsing van haar taak (`placed`, één keer per
  *  taak berekend), of in dagmodus op het dagslotcontract. */
-export function assignmentDaily(
+function assignmentDaily(
   task: Task,
   assignment: ResourceAssignment,
   engine: CalendarEngine,
@@ -404,6 +404,7 @@ export function computeResourceLoad(
   projectCalendar: WorkCalendar,
   resourceCalendars: WorkCalendar[],
   options: LoadOptions,
+  onAssignmentLoad?: (assignment: ResourceAssignment, daily: { isos: readonly string[]; units: readonly number[] }) => void,
 ): ResourceLoadResult {
   const load: Record<string, DailyLoad> = {};
   const capacity: Record<string, DailyLoad> = {};
@@ -440,8 +441,10 @@ export function computeResourceLoad(
     const taskEngine = engineForTask(task);
     const contour = contourOf(task, a);
     const placed = placedOf(task);
-    const { isos: workDayIsos, units: days } = assignmentDaily(task, a, taskEngine, contour, placed);
+    const daily = assignmentDaily(task, a, taskEngine, contour, placed);
+    const { isos: workDayIsos, units: days } = daily;
     if (days.length === 0) continue;
+    onAssignmentLoad?.(a, daily);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];

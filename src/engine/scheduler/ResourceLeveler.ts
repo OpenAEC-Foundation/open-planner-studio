@@ -8,8 +8,10 @@ import { LevelingQueue } from './levelingQueue';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { applyCpmResult } from './applyCpmResult';
+import { cloneTasksForSolve } from './solveProject';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 import {
-  assignmentDaily, assignmentLoadOnPlacement, computeResourceLoad, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement,
+  assignmentLoadOnPlacement, computeResourceLoad, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement, type DailyLoad,
 } from './ResourceLoad';
 import { hasManualPlacement, placementFollowsSpan, type PlacementResult } from './workPlacement';
 import { createTaskEngineCache } from './taskEngineCache';
@@ -548,32 +550,53 @@ export function levelResources(
   const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
 
-  const movedFixedIds = fixedLoadIds.filter(id => {
-    if (trial.error || inScope(id)) return false;
-    const before = baseline.tasks.get(id);
-    const after = trial.tasks.get(id);
-    return before && after && (before.earlyStart !== after.earlyStart || before.earlyFinish !== after.earlyFinish);
-  });
-  if (movedFixedIds.length > 0) {
-    applyCpmResult(workTasks, trial, { projectCalendar, calendars: resourceCalendars });
-    const { overallocatedDays } = computeResourceLoad(
-      resources, assignments, workTasks, projectCalendar, resourceCalendars, placementOptions,
-    );
-    const overloadedByResource = new Map(Object.entries(overallocatedDays).map(([id, days]) => [id, new Set(days)]));
-    for (const taskId of movedFixedIds) {
-      const task = workById.get(taskId)!;
-      const engine = engineForTask(task);
-      const placement = taskLoadPlacement(task, engine, placementOptions);
-      const days = new Set<string>();
-      for (const assignment of selectedAssignmentsByTask.get(taskId) ?? []) {
-        const overloaded = overloadedByResource.get(assignment.resourceId);
-        if (!overloaded) continue;
-        const demand = assignmentDaily(task, assignment, engine, contourOf(task, assignment), placement);
-        demand.isos.forEach((day, i) => {
-          if (demand.units[i] > 0 && overloaded.has(day)) days.add(day);
-        });
+  const fixedOutsideScope = fixedLoadIds.filter(id => !inScope(id));
+  const placementChanged = (before: CPMResult, id: string): boolean => {
+    const oldDates = before.tasks.get(id);
+    const newDates = trial.tasks.get(id);
+    return !!oldDates && !!newDates
+      && (oldDates.earlyStart !== newDates.earlyStart || oldDates.earlyFinish !== newDates.earlyFinish);
+  };
+  if (!trial.error && !options.preserveExistingLeveling && fixedOutsideScope.length > 0
+    && (fixedOutsideScope.some(id => placementChanged(baseline, id))
+      || tasks.some(task => inScope(task.id) && hasLevelingOutput(task)))) {
+    const beforeTasks = cloneTasksForSolve(tasks);
+    const before = new CPMSolver(beforeTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
+    const loadChanges = new Map(fixedOutsideScope.filter(id => placementChanged(before, id))
+      .map(id => [id, new Map<string, DailyLoad>()]));
+    if (loadChanges.size > 0) {
+      const calendars = { projectCalendar, calendars: resourceCalendars };
+      applyCpmResult(beforeTasks, before, calendars);
+      applyCpmResult(workTasks, trial, calendars);
+      const trackChange = (sign: -1 | 1) =>
+        (assignment: ResourceAssignment, { isos, units }: { isos: readonly string[]; units: readonly number[] }) => {
+          const byResource = loadChanges.get(assignment.taskId);
+          if (!byResource || !selectedIds.has(assignment.resourceId)) return;
+          const change = byResource.get(assignment.resourceId) ?? {};
+          byResource.set(assignment.resourceId, change);
+          for (let i = 0; i < units.length && i < isos.length; i++) {
+            const day = isos[i];
+            change[day] = (change[day] ?? 0) + sign * units[i];
+          }
+        };
+      const beforeLoad = computeResourceLoad(
+        resources, assignments, beforeTasks, projectCalendar, resourceCalendars, placementOptions, trackChange(-1),
+      );
+      const afterLoad = computeResourceLoad(
+        resources, assignments, workTasks, projectCalendar, resourceCalendars, placementOptions, trackChange(1),
+      );
+      for (const [taskId, byResource] of loadChanges) {
+        const worsenedDays = new Set<string>();
+        for (const [resourceId, change] of byResource) {
+          for (const [day, units] of Object.entries(change)) {
+            const limit = Math.max(beforeLoad.load[resourceId]?.[day] ?? 0, afterLoad.capacity[resourceId]?.[day] ?? 0);
+            if (exceedsCapacity(units, 0) && exceedsCapacity(afterLoad.load[resourceId]?.[day] ?? 0, limit)) {
+              worsenedDays.add(day);
+            }
+          }
+        }
+        if (worsenedDays.size > 0) unresolved[taskId] = [...worsenedDays].sort();
       }
-      if (days.size > 0) unresolved[taskId] = [...days].sort();
     }
   }
 

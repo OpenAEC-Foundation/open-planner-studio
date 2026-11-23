@@ -33,6 +33,7 @@ klopt. Wat de planner hiervan ziet, staat in de gids `howto-overbezetting-oploss
   Welke toets bij welke taak hoort, staat in die lus. Zo'n conflict krijgt geen reden in `unresolvedReasons`: de taak
   is niet verplaatst, dus er is geen scanreden.
 
-- Schuift vaste last buiten de scope mee met een gewijzigde planning, dan controleert het voorstel ook haar
-  berekende plaatsing op plaatselijke overbezetting. Die controle gebruikt dezelfde belastingberekening als
-  het histogram na toepassen en meldt de dagen waarop de meeschuivende taak aan de overbezetting bijdraagt (#1162).
+- Schuift vaste last buiten de scope mee, dan vergelijkt het voorstel de doorgerekende planning met de bestaande
+  vertragingen en gaten met de proefberekening. Beide gebruiken dezelfde dagbelasting als het histogram.
+  Het voorstel meldt een overbezette dag wanneer de totale belasting stijgt en de meeschuivende taak op die dag
+  meer inzet vraagt (#1162).
