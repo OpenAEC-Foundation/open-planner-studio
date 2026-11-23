@@ -33,4 +33,6 @@ Draagt een taak minuten, dan verschuift `shiftByLevelingDelay` met de minuten en
   zoveel speling als de vertraging, terwijl ze kritiek is.
 - Voor een relatie die aan het einde van een dagenmaat-opvolger bindt, kan een vertraging over de statusdatumvloer
   de taak op werkdagen van verschillende lengte leggen. De voorganger krijgt dan als relatiegrens het einde
-  berekend vanaf de teruggeschoven start, op de kalender van de opvolger (#1161).
+  berekend vanaf de teruggeschoven start, op de kalender van de opvolger. Een begin-einderelatie bewaart daarnaast
+  de afzonderlijke eindgrens van de relatie. Zoals in de voorwaartse pass telt de laatste van die twee momenten,
+  ook wanneer de eindgrens in een pauze valt (#1161).

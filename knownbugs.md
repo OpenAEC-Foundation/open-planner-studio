@@ -641,6 +641,12 @@ en noem het in je rapport of PR-tekst.
      de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
      dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 
+2108. **VERVOLG (#1166, ook op main): een nivelleerpauze kan bij een einde-eindetaak de gekozen werkdag wijzigen.**
+     In de gerichte storeproef met twee werkdagen uitloop en een gesloten kraankalender op dinsdag en donderdag
+     kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
+     gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
+     pauze voordat de vertraging wordt opgeslagen. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

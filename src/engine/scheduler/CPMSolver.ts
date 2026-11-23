@@ -314,7 +314,7 @@ export class CPMSolver {
     projectCalendar: WorkCalendar,
     registry: WorkCalendar[] = [],
     options: CPMOptions,
-    private readonly statusFloorAnchors?: Map<string, Date>,
+    private readonly statusFloorAnchors = new Map<string, Date>(),
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
@@ -922,17 +922,15 @@ export class CPMSolver {
     earlyStart: Date | undefined,
   ): { ls: Date; lf: Date } {
     const ls = this.shiftByLevelingDelay(cal, task, late.ls, -1);
+    const lf = this.shiftByLevelingDelay(cal, task, late.lf, -1);
     const usesFinish = relation === 'FINISH_FINISH' || relation === 'START_FINISH';
-    const dataDate = this.dataDate;
     const levelingCrossesStatusFloor = usesFinish && (task.levelingDelay ?? 0) > 0 && (task.levelingDelayMinutes ?? 0) > 0
       && !task.levelingDelayElapsed && !isZeroDurationMilestone(task)
-      && task.time.completion === 0 && !task.time.actualStart && this.countsInWorkdays(task)
-      && dataDate && earlyStart && earlyStart > dataDate && !this.options.schedulingOptions.unstartedIgnoresStatusDate
-      && this.shiftByLevelingDelay(cal, task, earlyStart, -1) < dataDate;
-    const lf = levelingCrossesStatusFloor
-      ? this.finishFromStart(cal, ls, task)
-      : this.shiftByLevelingDelay(cal, task, late.lf, -1);
-    return { ls, lf };
+      && this.countsInWorkdays(task) && this.statusFloorAnchors.has(task.id)
+      && this.dataDate && earlyStart && earlyStart > this.dataDate;
+    if (!levelingCrossesStatusFloor) return { ls, lf };
+    const durationFinish = this.finishFromStart(cal, ls, task);
+    return { ls, lf: relation === 'START_FINISH' && lf > durationFinish ? lf : durationFinish };
   }
 
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
@@ -1036,7 +1034,7 @@ export class CPMSolver {
     this.cappedTaskIds = [];
     this.externalLagCalendarFallbackIds.clear();
     this.plannedFloorTraceByTaskId = {};
-    this.statusFloorAnchors?.clear();
+    this.statusFloorAnchors.clear();
     this.backwardFloatTrace = this.options.schedulingOptions?.p6CompletedDataDateWindow === true
       ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
       : undefined;
@@ -1343,7 +1341,7 @@ export class CPMSolver {
   ): Map<string, { es: Date; ef: Date }> {
     const drivers = this.dateDrivers;
     for (const taskId of order) {
-      this.statusFloorAnchors?.delete(taskId);
+      if (this.dataDate) this.statusFloorAnchors.delete(taskId);
       const task = this.tasks.get(taskId)!;
       const cal = this.calendarFor(task);
       const preds = this.predecessors.get(taskId) || [];
@@ -1682,13 +1680,12 @@ export class CPMSolver {
           results.set(taskId, { es: displayedEarlyStart, ef });
           continue;
         }
-        if (
-          dataDate && t.completion === 0 && earlyStart < dataDate
-          && !this.options.schedulingOptions?.unstartedIgnoresStatusDate
-        ) {
-          this.statusFloorAnchors?.set(taskId, undelayedEarlyStart);
-          earlyStart = dataDate;
-          driver = DRIVER.statusDate;
+        if (dataDate && t.completion === 0 && !this.options.schedulingOptions?.unstartedIgnoresStatusDate) {
+          if (undelayedEarlyStart < dataDate) this.statusFloorAnchors.set(taskId, undelayedEarlyStart);
+          if (earlyStart < dataDate) {
+            earlyStart = dataDate;
+            driver = DRIVER.statusDate;
+          }
         }
       }
 

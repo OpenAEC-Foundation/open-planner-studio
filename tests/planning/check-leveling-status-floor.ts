@@ -133,3 +133,66 @@ assertRelatedPlacement(related());
 assertRelatedPlacement(relatedReopened());
 relatedReopened().runCPM();
 assertRelatedPlacement(relatedReopened());
+
+const acrossBreak = createAppStoreContext().store.getState;
+acrossBreak().setProject({ startDate: '2026-06-01' });
+const projectBand = [{ start: 480, end: 1200 }];
+const projectCalendar: WorkCalendar = {
+  ...standard,
+  workTime: { byWeekday: {
+    1: projectBand, 2: projectBand, 3: projectBand, 4: projectBand, 5: projectBand, 6: [], 7: [],
+  } },
+};
+const longBand = [{ start: 480, end: 1080 }];
+const breakCalendar: WorkCalendar = {
+  ...crew,
+  workTime: { byWeekday: {
+    1: regular, 2: [{ start: 480, end: 720 }, { start: 780, end: 1020 }],
+    3: longBand, 4: longBand, 5: regular, 6: [], 7: [],
+  } },
+};
+acrossBreak().commitCalendarLibrary([projectCalendar, breakCalendar, craneCalendar], projectCalendar.id);
+acrossBreak().addTask({ name: 'Start project', time: createDefaultTaskTime('2026-06-01T08:00', 1, 'hours') });
+const breakStart = acrossBreak().addTask({
+  name: 'Voorganger', time: createDefaultTaskTime('2026-06-02T12:30', 1, 'hours'),
+});
+const breakFinish = acrossBreak().addTask({
+  name: 'Opvolger', calendarId: breakCalendar.id, time: createDefaultTaskTime('2026-06-01T08:00', 0.5),
+});
+acrossBreak().addSequence({ predecessorId: breakStart, successorId: breakFinish, type: 'START_FINISH', lagDays: 0 });
+const breakCrane = acrossBreak().addResource({
+  name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, calendarId: craneCalendar.id,
+});
+acrossBreak().assignResource(breakFinish, breakCrane, 1, 'UNIFORM');
+acrossBreak().runCPM();
+const breakProposal = acrossBreak().levelResources({ constrainToFloat: false });
+assert.equal(breakProposal.delayMinutes?.[breakFinish], 480);
+acrossBreak().applyLeveling(breakProposal);
+
+const assertBreakPlacement = (current: ReturnType<typeof acrossBreak>) => {
+  const pred = current.tasks.find(task => task.name === 'Voorganger')?.time;
+  const succ = current.tasks.find(task => task.name === 'Opvolger')?.time;
+  assert.deepEqual({
+    successorStart: succ?.earlyStart,
+    predecessorStart: pred?.earlyStart,
+    predecessorLateStart: pred?.lateStart,
+    predecessorFloatMinutes: pred?.totalFloatMinutes,
+    overloaded: current.resourceLoadResult?.overallocatedDays,
+  }, {
+    successorStart: '2026-06-03T08:00',
+    predecessorStart: '2026-06-02T12:30',
+    predecessorLateStart: '2026-06-02T14:00',
+    predecessorFloatMinutes: 90,
+    overloaded: {},
+  });
+};
+assertBreakPlacement(acrossBreak());
+acrossBreak().setStatusDate('2026-06-02T12:30');
+acrossBreak().runCPM();
+const breakIfc = writeIFC(buildWriteIFCInput(acrossBreak(), 'planOnly'));
+const breakReopened = createAppStoreContext().store.getState;
+await breakReopened().openOpenedFile({ name: 'nivelleren-begin-einde.ifc', content: breakIfc, ref: null });
+assertBreakPlacement(acrossBreak());
+assertBreakPlacement(breakReopened());
+breakReopened().runCPM();
+assertBreakPlacement(breakReopened());
