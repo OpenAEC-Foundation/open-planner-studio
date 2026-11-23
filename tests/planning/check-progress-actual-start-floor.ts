@@ -1,4 +1,3 @@
-// Knownbug 232: een statusdatum vóór de werkelijke start mag het restwerk niet terugtrekken.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
@@ -19,7 +18,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   });
   S().runCPM();
   const actual = [task().time.earlyStart, task().time.earlyFinish];
-  // MSP telt ook het reeds verstreken deel vóór het restwerk (resumeFromActualElapsed).
   const expected = ['2026-06-03T18:00', profile === 'msproject' ? '2026-06-04T16:00' : '2026-06-04T11:00'];
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     failures++;
