@@ -318,6 +318,8 @@
     "scale": "スケール：",
     "zoom": "ズーム：{{level}}px/日",
     "unsaved": "未保存",
+    "saving": "保存中…",
+    "saved": "{{time}} に保存しました",
     "scheduleStale": "古くなっています — 再計算してください（F5）"
   },
   "backstage": {

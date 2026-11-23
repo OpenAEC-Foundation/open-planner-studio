@@ -318,6 +318,8 @@
     "scale": "척도:",
     "zoom": "확대/축소: {{level}}px/일",
     "unsaved": "저장되지 않음",
+    "saving": "저장 중…",
+    "saved": "{{time}} 저장됨",
     "scheduleStale": "오래됨 — 다시 계산하세요 (F5)"
   },
   "backstage": {

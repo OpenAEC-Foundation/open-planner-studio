@@ -320,6 +320,8 @@
     "scale": "Mittakaava:",
     "zoom": "Zoom: {{level}} px/päivä",
     "unsaved": "Tallentamaton",
+    "saving": "Tallennetaan…",
+    "saved": "Tallennettu {{time}}",
     "scheduleStale": "Vanhentunut — laske uudelleen (F5)"
   },
   "backstage": {
