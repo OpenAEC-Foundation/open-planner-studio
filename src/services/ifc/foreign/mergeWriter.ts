@@ -49,6 +49,7 @@ import {
   changedScopes, dateTimeTexts, decimalKey, durationTexts, LAG_VALUE_FIELDS, lossCheck, parseOutLine, partialDateTime, preserveAuxiliaryIdentities, pristineDomain, pristineFromScan, taskField,
   taskTimeSlotFields, type LossCheckInput, type LossDiff, type OutLine,
 } from './lossCheck';
+import { elementLinksByTask } from './elementLinks';
 import { foreignScanFrom, type ForeignScanResult } from './foreignScan';
 import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
 import type { IfcSource, PreparedIfcWrite } from './ifcSource';
@@ -924,6 +925,7 @@ async function writtenSource(input: WriteIFCInput, bytes: Uint8Array, scan: Fore
   return {
     bytes, sha256: await precomputeSha256(bytes), schemaName,
     chunkStarts: scan.chunkStarts, chunkIds: scan.chunkIds, classes, stepIds, foreignMembers,
+    elementLinks: elementLinksByTask(scan.stepElementLinks, stepIds),
     foreign: foreignObjectCount > 0, foreignObjectCount, buildingModel: scan.buildingModel, lineEnding: scan.lineEnding, opened: input,
   };
 }

@@ -10,6 +10,7 @@ import { COMPLEX_TYPE, StepScanError, type StepIndex, type StepScanReason } from
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
+import { scanElementLinks, type StepElementLink } from './elementLinks';
 
 /** De technische grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting). Niet de productgrens voor het
  *  openen van een model: die staat apart, in `../modelOpenLimit.ts` (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB). */
@@ -57,6 +58,7 @@ export interface ForeignScanResult {
   readonly lineEnding: '\r\n' | '\n';
   /** Heeft de bron een gebouwmodel (`hasBuildingModelEntity`)? */
   readonly buildingModel: boolean;
+  readonly stepElementLinks: readonly StepElementLink[];
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -131,6 +133,7 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
     buildingModel: hasBuildingModelEntity(index),
+    stepElementLinks: scanElementLinks(index),
   };
 }
 

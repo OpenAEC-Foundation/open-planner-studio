@@ -67,7 +67,7 @@ function sameError(viaWorker: unknown, main: unknown, label: string) {
   assert.equal(viaWorker.name, main.name, `${label}: dezelfde naam`);
   assert.deepEqual(ownFields(viaWorker), ownFields(main), `${label}: dezelfde gegevens`);
 }
-const SOURCE_FIELDS = ['sha256', 'schemaName', 'chunkStarts', 'chunkIds', 'classes', 'stepIds', 'foreignMembers', 'foreign',
+const SOURCE_FIELDS = ['sha256', 'schemaName', 'chunkStarts', 'chunkIds', 'classes', 'stepIds', 'foreignMembers', 'elementLinks', 'foreign',
   'foreignObjectCount', 'buildingModel', 'lineEnding', 'opened'] as const;
 /** Dezelfde uitkomst, of dezelfde fout. Geeft de soort terug voor de telling. */
 function sameOutcome(viaWorker: Outcome, main: Outcome, label: string): 'writer' | 'merge' | 'geweigerd' | 'fout' {

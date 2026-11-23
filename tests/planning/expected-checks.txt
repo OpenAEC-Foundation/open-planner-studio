@@ -179,6 +179,7 @@ check-ifc-datumvorm.ts matrix
 check-ifc-document-save.ts matrix
 check-ifc-duur-lezen.ts matrix
 check-ifc-duurvormen.ts matrix
+check-ifc-element-links.ts matrix
 check-ifc-empty-date-slots.ts matrix
 check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
