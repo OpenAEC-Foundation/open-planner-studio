@@ -14,7 +14,10 @@
 //  C. Browser (nep-FSA-handles): Openen (`showOpenFilePicker`, telkens een nieuw handle-object), Recent, slepen
 //     (`droppedFilesFromDataTransfer`), een `isSameEntry` die gooit, Firefox zonder handle. Met de flag uit: twee
 //     tabbladen.
-// De site staat in `check-site-storage.ts` (G16), `planner_import_schedule` in `tests/mcp/cases-doc-file.ts` en
+//  R, T. Review #1121: *Opslaan als* tijdens de toets of na het parsen (R1, R2, R4), MCP en Openen tegelijk (R5), drie
+//     openacties tegelijk in hun toets (R6), en per route de volgorde lezen → toets → parsen → activeren (T1 desktop en
+//     MCP, T2 browser; met de flag uit geen toets en één lezing, zoals main).
+// De site staat in `check-site-storage.ts` (G16, G17), `planner_import_schedule` ook in `tests/mcp/cases-doc-file.ts` en
 // `cases-headless-server.ts`.
 //
 // Draait via run.sh. Exit 0 = alles groen; alleen de exitcode telt.
@@ -658,6 +661,42 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
       // Beide volgordes kwamen voor: soms wint MCP de laatste wissel, soms Openen.
       eq('R5 kruisend: beide eindstanden gezien', [...seen].sort(), ['Kantoor', 'School']);
+    }
+
+    // Knownbug 2041: drie openacties van kantoor (Openen, Recent, slepen) staan tegelijk in hun toets; geen ervan ziet
+    // kantoor open. De eerste die activeert opent kantoor; de andere twee zien dat tabblad in hun synchrone eindbeslissing
+    // (hetzelfde pad) en gaan erheen. Eén tabblad op kantoor.
+    {
+      writeFileSync(kantoor, kantoorIfc);
+      const st = newStore(true);
+      const T = () => st.getState();
+      dialogAnswer = school;
+      await T().openFile(labels);
+      st.setState(s => { s.recentFiles = [{ id: 'r', ref: { kind: 'path', path: kantoor }, name: 'kantoor.ifc', addedAt: 1 }]; });
+      const all = gate();
+      const three = gate();
+      let held = 0;
+      const outer = internals.invoke;
+      internals.invoke = async (command, args, options) => {
+        if (command === 'plugin:fs|stat' && (args as { path?: string }).path === kantoor && held < 3) {
+          if (++held === 3) three.open();
+          await all.wait;
+        }
+        return outer(command, args, options);
+      };
+      clearNotices(st);
+      let opening: Promise<unknown>[];
+      try {
+        dialogAnswer = kantoor;
+        opening = [T().openFile(labels), T().openRecentFile('r', labels), openVia(st, 'slepen')];
+        await three.wait;
+        all.open();
+        await Promise.all(opening);
+      } finally { internals.invoke = outer; all.open(); }
+      eq('R6 2041: drie openacties tegelijk in hun toets; één tabblad op kantoor, de melding één keer (zelfde dedupeKey)', [
+        held, T().getOpenDocumentPayloads().filter(d => d.payload.filePath === kantoor).length, T().documents.length,
+        notices(st).filter(n => n[1] === ALREADY_OPEN).length,
+      ], [3, 1, 2, 1]);
     }
 
     // #1116/#1091: een startbestand (eerste start, of een tweede start: de planner dubbelklikt op een bestand dat al open

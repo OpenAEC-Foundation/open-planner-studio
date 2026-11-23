@@ -414,13 +414,16 @@ bestandsaanroepen, ook als er na het uitzetten nog een tabblad met een gebouwmod
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen gaat met de flag aan naar het tabblad dat een
-bestand al open heeft (`openOrSwitch` in `openDocumentFor.ts`, knownbug 1957; de lus `openDocumentIdForPath` met
-`dev`/`ino` vóór het lexicale pad, `isSameEntry` voor handles). De uitkomst van die asynchrone toets geldt alleen als het
-bestand van elk tabblad tot het activeren gelijk bleef (anders opnieuw), en zonder treffer na een schrijfbeurt sinds het
-lezen leest de route het bestand opnieuw; de laatste controle en het activeren zijn één synchrone stap. Een startbestand
-(#1091) loopt met de flag aan door dezelfde toets; met de flag uit wisselt de startroute zelf (`existingDocument`), zoals
-main. Een tweede tabblad op hetzelfde bestand kan er nog zijn (crashherstel, de flag pas later aan, Windows zonder
-`dev`/`ino`: knownbug 2040; twee kruisende openacties: knownbug 2041), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
+bestand al open heeft (`openDocumentFor.ts`, knownbug 1957). Het asynchrone deel (`lookupOpenDocument`: de lus
+`openDocumentIdForPath` met `dev`/`ino` vóór het lexicale pad, `isSameEntry` voor handles) staat in het leesvenster,
+direct na het lezen en vóór het parsen, in `openOpenedFile` en `planner_import_schedule`; de leesfuncties in
+`src/services/fileAccess/` veranderen niet. Na het parsen beslist `existingDocument` synchroon, in de stap van het
+activeren: het tabblad van de toets als het nog hetzelfde bestand heeft, anders een tabblad dat het bestand ná de toets
+kreeg (hetzelfde pad als tekst, dezelfde handle of hetzelfde site-id). Geen herlezing en geen schrijfteller in deze
+routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
+(`openLaunchFiles`); met de flag aan komen daar de melding en Recent bij. Een tweede tabblad op hetzelfde bestand kan er
+nog zijn (crashherstel, de flag pas later aan, de lexicale grenzen van knownbug 2040, kruisende openacties in de browser
+of via een link: knownbug 2041), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document
 blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907, de bibliotheek),
 `check-ifc-foreign-target.ts` (#1022 browser), `cases-doc-file.ts` en `cases-headless-server.ts` (`planner_export_ifc`).
