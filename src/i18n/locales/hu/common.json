@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} tevékenység a fájlban rögzített dátumokat mutatja (nem lett újraszámítva).",
     "xerExportLoss": "A(z) {{format}} formátumba történő exportáláskor elvesznek a XER-forrásadatok.",
     "exportDataLoss": "Exportálásnál olyan adatok vesznek el, amelyeket a(z) {{format}} nem tud tárolni, például jegyzetek vagy másodlagos korlátozás. Az IFC-projektfájl mindent megőriz.",
+    "exportPlanOnly": "Csak az ütemezés lett exportálva; az épületmodell nem része ennek a formátumnak.",
     "mppLegacy": "Ez a .mpp-fájl régi formátumot használ (Project 2007 vagy korábbi). Exportálja MS Project-ben XML-ként (Fájl → Mentés másként → XML), és nyissa meg azt a fájlt.",
     "mppInvalidContainer": "Ez az MPP-fájl szerkezete érvénytelen, ezért nem nyitható meg.",
     "xmlUnknownSchedule": "Ismeretlen XML-ütemezési formátum. Nyisson meg MS Project XML-fájlt (Project) vagy Primavera P6 XML-fájlt (APIBusinessObjects).",
@@ -83,6 +84,10 @@
     "ifcUnreadableTargetSave": "Az alkalmazás nem tudja megfelelően olvasni ezt a fájlt; épületmodellt tartalmazhat. Válasszon másik fájlt a mentéshez.",
     "ifcUnreadableTargetExport": "Az alkalmazás nem tudja megfelelően olvasni ezt a fájlt; épületmodellt tartalmazhat. Válasszon másik fájlt az exportáláshoz.",
     "ifcUnreadableTargetAutoSave": "Az automatikus mentés leállt: az alkalmazás nem tudja megfelelően olvasni ezt a fájlt; épületmodellt tartalmazhat. Válasszon másik fájlt a mentéshez.",
+    "ifcForeignAutoSaveTargetChanged": "Az automatikus mentés leállt: a fájl közben megváltozott, át lett helyezve vagy törölve. A módosításai még az alkalmazásban vannak. Válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
+    "ifcForeignAutoSaveSaveAsOnly": "Az automatikus mentés leállt: ez a fájl ezen a helyen nem cserélhető le biztonságosan. A módosításai még az alkalmazásban vannak. Válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
+    "ifcForeignAutoSaveNotRecorded": "Az automatikus mentés leállt: a fájl most nem cserélhető le biztonságosan, mert a visszaállás összeomlás után nem frissíthető. A módosításai még az alkalmazásban vannak. Válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
+    "ifcForeignAutoSaveRemnant": "Az automatikus mentés leállt: a fájl egy korábbi mentése nem fejeződött be. A módosításai még az alkalmazásban vannak. Mentsen a Ctrl+S billentyűkombinációval; újraindítás után az alkalmazás befejezi azt a korábbi mentést.",
     "ambiguousThousands": "„{{text}}” kétértelmű: decimális számra vagy ezresekre gondol? Tizedesjegyeket a(z) „{{separator}}” jellel írjon (1{{separator}}5), ezreseket elválasztójel nélkül (1500). Az érték nem változott.",
     "siteSaveConflict": "Nem mentve: „{{name}}” közben valaki más módosította a webhelyen. A módosításai még benne vannak az alkalmazásban. Válassza a „Mentés másként” parancsot, ha új fájlként szeretné megőrizni őket.",
     "siteSaveConflictCopy": "„{{original}}” a webhelyen közben valaki más módosította. A módosításai ezért egy másolatban vannak: „{{name}}”. A „Mentés” mostantól erre a másolatra ír.",
@@ -110,6 +115,7 @@
     "relationDuplicate": "Ez a kapcsolat már létezik",
     "relationAncestorEndpoint": "Nem engedélyezett kapcsolat egy tevékenység és a saját szülő- vagy nagyszülő-összefoglaló tevékenysége között.",
     "relationCycle": "Ez a kapcsolat ciklust hozna létre az ütemezésben ({{cycle}}), ezért nem jött létre.",
+    "relationChainOrderUnclear": "A tevékenységek nincsenek összekapcsolva: sorrendjük a listában nincs rögzítve. Egy kiválasztott tevékenység egy másik előtt és után is áll (csoportosítás), vagy két kiválasztott mérföldkő egy összecsukott sorozatot oszt meg. Szüntesse meg a csoportosítást, bontsa ki a sorozatot, vagy válassza ki az elődöket az „Előd hozzárendelése” paranccsal.",
     "hierarchyCycle": "Ez az áthelyezés ciklust hozna létre az ütemezésben ({{cycle}}): egy összefoglaló tevékenység kapcsolatai az altevékenységeire is vonatkoznak. Semmi nem lett áthelyezve.",
     "relationsExcludedByHierarchy_one": "Az áthelyezés után {{count}} kapcsolat köt össze egy tevékenységet a saját összefoglaló tevékenységével. Ez már nem számít bele a számításba.",
     "relationsExcludedByHierarchy_other": "Az áthelyezés után {{count}} kapcsolat köt össze tevékenységet a saját összefoglaló tevékenységével. Ezek már nem számítanak bele a számításba.",
@@ -186,7 +192,8 @@
     "schedulingProfileShifted_other": "Az alkalmazás után {{count}} tevékenység tolódott el.",
     "actions": {
       "openProjectInfo": "Számítási profil megnyitása",
-      "openHelp": "Súgó megnyitása"
+      "openHelp": "Súgó megnyitása",
+      "undo": "Visszavonás"
     },
     "xerArchiveUnusable": "Az XER-forrásarchívum ebben a fájlban használhatatlan, ezért kimaradt; maga a projekt teljes egészében megnyílt.",
     "xerArchiveUnusableLine": "Az XER-forrásarchívum ebben a fájlban használhatatlan volt, ezért kimaradt.",
@@ -353,11 +360,23 @@
     "reportFontMissing": "Az Ön saját betűtípusa, „{{name}}”, már nincs meg ezen az eszközön. A jelentés ismét az Inter betűtípust használja.",
     "layoutsNotSaved": "Az elrendezéseket nem lehetett menteni. Semmi nem változott. Próbálja újra.",
     "ifcForeignOpenSchema": "Ez az IFC-fájl más alkalmazás adatait tartalmazza, és ismeretlen vagy hiányzó sémával rendelkezik. A megnyitás le lett állítva, hogy megelőzze az adatvesztést mentéskor.",
+    "ifcForeignOpenTooLarge": "Ez az IFC-fájl nagyobb, mint {{limit}} MB. Az épületmodellt vagy más program adatait tartalmazó IFC-fájl legfeljebb {{limit}} MB méretig nyitható meg.",
     "ifcForeignOpenUnsafe": "Ez az IFC-fájl nem sorolható be biztonságosan. A megnyitás le lett állítva, hogy megelőzze az adatvesztést mentéskor.",
     "ifc2x3PlanningOnly": "Az IFC2X3 ütemezésként lett megnyitva. Más program adatai nem kerülnek bele mentéskor.",
-    "ifcForeignReplaceBlocked": "A fájl nem lett mentve. Egy épületmodellt tartalmazó meglévő fájl felülírása még nem biztonságos. Használja a „Mentés másként” parancsot, és válasszon új nevet.",
+    "ifcForeignReplaceBlocked": "Nem lett mentve. Ez a megnyitott fájl. A frissítéshez használja a „Mentés” parancsot, másolathoz pedig a „Mentés másként” parancsot új névvel.",
+    "ifcForeignTargetChanged": "Nincs mentve. A fájlt közben egy másik program módosította. A módosításai még az alkalmazásban vannak. Válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
+    "ifcForeignTargetGone": "Nincs mentve. A fájlt áthelyezték vagy törölték, vagy már nem olvasható. A módosításai még az alkalmazásban vannak. Válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
+    "ifcForeignReplaceNotRecorded": "Nincs mentve. A fájlt most nem lehet biztonságosan lecserélni, mert a visszaállás összeomlás után nem frissíthető. A módosításai még az alkalmazásban vannak. Válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
+    "ifcForeignDownloadCopy": "A másolat letöltve: {{file}}. A megnyitott fájl nem lett frissítve; a módosítások továbbra is nincsenek elmentve.",
+    "ifcForeignReplaceFailed": "Nincs mentve. A fájlt nem lehetett írni. A módosításai még az alkalmazásban vannak. Próbálja meg újra menteni, vagy válassza a „Mentés másként” lehetőséget, hogy új fájlban megőrizze őket.",
     "ifcForeignMergeRefused": "Az IFC-fájl nem lett megírva. Az épületmodell vagy más program adatai különben nem maradnának teljesen megőrizve. Vonja vissza az utolsó módosítást, vagy csak az ütemezést exportálja: IFC-be az „Épületmodell nélkül” beállítással, vagy más formátumba.",
     "ifcSaveChangedWhileWaiting": "A fájl nem lett mentve. A dokumentum vagy az épületmodell forrása megváltozott az előkészítés alatt. Próbálja meg újra menteni.",
+    "ifcSaveWorkerFailed": "Az IFC-fájl nem lett kiírva: a háttérben történő előkészítés megszakadt. A módosításai továbbra is az alkalmazásban vannak. Kérjük, próbálja újra.",
+    "ifcForeignNewTargetOnly": "Ez az IFC-fájl csak új fájlnévre írható. Válasszon olyan nevet, amely még nem létezik.",
+    "ifcForeignTargetOpenInTab": "Nem mentve. Ez a fájl egy másik lapon van megnyitva. Zárja be azt a lapot, vagy válasszon másik nevet.",
+    "exportTargetOpenInTab": "Nem exportálva. Ez a fájl egy másik lapon van megnyitva. Zárja be azt a lapot, vagy válasszon másik nevet.",
+    "exportTargetOpenDocument": "Nem exportálva. Ez a fájl egy lapon meg van nyitva. Válasszon másik nevet, vagy zárja be előbb azt a lapot.",
+    "ifcForeignPlaceUnknown": "Az alkalmazás nem tudja, hogy a fájl helyesen lett-e mentve: mentés közben változott valami a mappában. A módosításai még az alkalmazásban vannak. Ellenőrizze, hogy a fájl rendben van-e, vagy mentsen újra új néven.",
     "ifcForeignReplaceOtherVersion": "Egy másik program módosította a(z) {{file}} fájlt, miközben az alkalmazás mentette. Ezt a verziót megőriztük itt: {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "A(z) {{file}} korábbi mentése nem fejeződött be. A mentés alatt álló ütemezés a(z) {{copy}} fájlban van. Ha már nincs rá szükség, törölje ezt a fájlt.",
     "ifcForeignReplaceTargetTaken": "Nem mentve. Mentés közben egy másik program új fájlt helyezett el ezen a helyen: {{target}}. Most három fájl van: az új fájl itt: {{target}}, az ütemezés itt: {{temp}}, az előző verzió itt: {{previous}}. A módosításai továbbra is megvannak az alkalmazásban.",
@@ -366,7 +385,15 @@
     "ifcForeignReplaceLeftOver": "Egy megszakadt mentés a(z) {{file}} fájlhoz ezt a fájlt hagyta hátra: {{path}}. Ellenőrizze, hogy szükség van-e még rá.",
     "ifcSourceCopyFailed": "Az ütemezés a visszaállás összeomlás után céljából van mentve, de az épületmodell másolatát nem lehetett elmenteni. Összeomlás után az épületmodell hiányozhat. Mentse el maga is a dokumentumot teljes IFC-fájlként.",
     "ifcForeignSourceMissing": "A fájl nem lett mentve. Az épületmodell vagy más program adatai nem találhatók. Használja a „Mentés másként” parancsot, ha csak az ütemezést szeretné új fájlba menteni. Nyissa meg az eredeti IFC-fájlt, hogy ismét a teljes fájllal dolgozhasson.",
-    "taskTypeRenameNameTaken": "Ebben a projektben a név továbbra is „{{oldName}}” marad: egy másik munkanem már „{{takenName}}” nevet viseli ebben a projektben."
+    "taskTypeRenameNameTaken": "Ebben a projektben a név továbbra is „{{oldName}}” marad: egy másik munkanem már „{{takenName}}” nevet viseli ebben a projektben.",
+    "otherWork": {
+      "durationDays_one": "A tevékenység időtartama most {{days}} nap.",
+      "durationDays_other": "A tevékenység időtartama most {{days}} nap.",
+      "durationHours_one": "A tevékenység időtartama most {{hours}} óra.",
+      "durationHours_other": "A tevékenység időtartama most {{hours}} óra.",
+      "durationSame": "Az időtartam ugyanaz marad. A többiek óraszáma módosult.",
+      "line": "{{name}}: {{before}} → {{after}} ó"
+    }
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -406,6 +433,8 @@
     "addSubtask": "Altevékenység hozzáadása",
     "addMilestone": "Mérföldkő hozzáadása",
     "addRelation": "Kapcsolat hozzáadása",
+    "assignPredecessors": "Előd hozzárendelése…",
+    "assignSuccessors": "Utód hozzárendelése…",
     "dissolve": "Dissolve (lánc megtartása)",
     "delete": "Törlés",
     "newTask": "Új tevékenység",
@@ -472,7 +501,7 @@
     "demoTopbarAnimation": "Demó: animáció a felső sávban",
     "demoTopbarAnimationHint": "Egy finom narancssárga fényhullám fut végig a felső sávon. Megmutatja, hogyan működik egy kísérleti kapcsoló.",
     "ifcForeignContent": "IFC megnyitása épületmodellel",
-    "ifcForeignContentHint": "Olyan IFC-fájl megnyitását is engedélyezi, amely épületmodellt vagy más programok adatait tartalmazza. Használhatja a „Mentés másként” parancsot új fájlhoz, a webhelyre mentést, a böngészőbeli letöltést és az „Exportálás → IFC” parancsot is, akár épületmodell nélkül, akár az erőforrástár mellett (ekkor csak az ütemezéssel). Meglévő helyi fájl fölé mentés még nem lehetséges. Az épületmodell visszaállás összeomlás után esetén az eredeti fájlhoz való hozzáférést vagy a böngészőben tárolt másolatot igényli.",
+    "ifcForeignContentHint": "Olyan IFC-fájlt is megnyit, amely épületmodellt vagy más programok adatait tartalmazza. Használhatja a „Mentés másként” parancsot új fájlhoz, a webhelyre mentést, a böngészőből történő letöltést és az „Exportálás → IFC” parancsot is, akár épületmodell nélkül, akár az erőforrástár mellett (ekkor csak az ütemezéssel). A Chrome-ban és az Edge-ben a „Mentés” a megnyitott fájlt is közvetlenül menti. Ha egy másik program pontosan a mentés közben módosítja ezt a fájlt, ez a módosítás elveszhet. Az asztali alkalmazásban a „Mentés” a megnyitott fájlt is közvetlenül menti, ha az a felhasználó otthoni mappájában van. Ha egy másik program közben módosította a fájlt, a mentés leáll, vagy az alkalmazás ezt a változatot külön másolatként a fájl mellett megőrzi; csak egy pontosan ugyanabban a pillanatban történő módosítás veszhet még el. A „Mentés másként” egy másik, a felhasználó otthoni mappájában lévő meglévő fájl fölött ugyanígy lecseréli azt a fájlt, akkor is, ha az maga is épületmodellt vagy más program adatait tartalmazza. Egy épületmodell nélküli ütemezés is lecserélhet ilyen fájlt. Nem cserélhető le az a fájl, amelyet az alkalmazás nem tud beolvasni, és a második nevű fájl (kemény link). A csere előtt az alkalmazás összehasonlítja a fájlt azzal a változattal, amelyet a választása után olvasott be: ha megváltozott, a mentés leáll, és a fájl változatlan marad. Ha az alkalmazás félretett változata mégis eltér, azt külön másolatként a fájl mellett megőrzi, és értesítést jelenít meg. Az épületmodell összeomlás utáni helyreállításához hozzáférés szükséges az eredeti fájlhoz vagy a böngészőben tárolt mentett másolathoz.",
     "tourHint": "Indítsa újra az alkalmazás bevezető bemutatóját.",
     "theme": "Téma",
     "themeHint": "A felület színsémája.",
@@ -1178,7 +1207,9 @@
     },
     "regen": {
       "hint": "Az ünnepnapok a(z) {{from}}–{{to}} időszakot fedik le; újragenerálja {{year}}-ig?",
-      "button": "Újragenerálás"
+      "button": "Újragenerálás",
+      "confirmMessage": "Az ünnepnapok listája eltér a korábban generált listától. Ha a listát lecseréli, a kézzel végzett módosításai elvesznek.",
+      "confirmReplace": "Ünnepnapok cseréje"
     },
     "countryName": {
       "NL": "Hollandia",
@@ -1189,6 +1220,7 @@
       "AT": "Ausztria",
       "CH": "Svájc",
       "US": "Egyesült Államok",
+      "BO": "Bolívia",
       "none": "Nincs ünnepnap"
     },
     "preset": {
@@ -1397,7 +1429,8 @@
     "edit": {
       "copy": "Másolás",
       "deselect": "Kijelölés törlése",
-      "selectAll": "Összes kijelölése"
+      "selectAll": "Összes kijelölése",
+      "linkSelected": "A kiválasztott tevékenységek összekapcsolása láncként"
     },
     "structure": {
       "moveUp": "Tevékenység mozgatása felfelé",
