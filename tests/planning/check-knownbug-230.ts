@@ -1,4 +1,3 @@
-// Knownbug 230: measure criticality and backward dates separately for an FF milestone.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
