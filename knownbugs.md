@@ -1279,6 +1279,13 @@ en noem het in je rapport of PR-tekst.
       van 10:00 tot 12:00 heeft zo bij 40 px per dag een startpin ongeveer 17 px links van de balk, een eindpin
       ongeveer 20 px en de tip ongeveer 14 px rechts ervan. Gelezen in de code en bevestigd door een tekenproef van
       de reviewer. — B
+1981. **Na inspringen kan een groep in een andere volgorde landen dan zij zichtbaar stond.** Inspringen
+      (`indentEdit` in `src/state/slices/taskSlice.ts`) zet de taak achteraan in de `childIds` van haar nieuwe ouder,
+      maar laat haar plek in de rauwe takenlijst staan. De weergave leest `childIds`, `flattenOrder` (WBS) en
+      `moveTasksTo` lezen de rauwe lijst. Proef: hoofdtaak P, hoofdtaak X, subtaak A onder P; X inspringen. Onder P staat
+      dan zichtbaar A (WBS 1.2) vóór X (WBS 1.1). Sleep A en X samen onder een andere fase: daar staat X vóór A, omdat
+      `moveTasksToEdit` de groep op `flattenOrder` sorteert. Bron: proef van de reviewer in de store, bij de opruiming
+      van het commentaar in `taskSlice.ts`. Zie ADR 0150 en 0151. — B
 
 ## Kalenders
 

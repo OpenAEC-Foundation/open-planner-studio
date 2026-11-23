@@ -2,11 +2,11 @@
 
 Een taak onder een andere ouder hangen kan een kring in de relaties maken zoals de solver ze uitvouwt, ook als de
 boom zelf geen kring krijgt. Die kring zie je pas na de wijziging. Daarom zijn de vijf verhangacties in
-`taskSlice.ts` (`moveTask`, `moveTaskTo`, `moveTasksTo`, `indentTasks`, `outdentTasks`) elk een `HierarchyEdit`: de boomwijziging als
-functie op een takenlijst. `applyHierarchyEdit` draait die functie eerst op een kopie (`hierarchyChangeVerdict` in
-`state/hierarchyChange.ts`) en pas daarna op de draft. Zo toetst de kringregel precies wat de actie gaat doen, en
-weigert hij vóór er een undo-stap of mutatie is. Een geweigerde verhanging geeft een melding die de kring noemt
-(`notifyHierarchyCycle`) en verandert niets.
+`taskSlice.ts` (`moveTask`, `moveTaskTo`, `moveTasksTo`, `indentTasks`, `outdentTasks`) elk een `HierarchyEdit`: de
+boomwijziging als functie op een takenlijst. `applyHierarchyEdit` draait die functie eerst op een kopie
+(`hierarchyChangeVerdict` in `state/hierarchyChange.ts`) en pas daarna op de draft. Zo toetst de kringregel dezelfde
+functie die de actie uitvoert, en weigert hij vóór er een undo-stap of mutatie is, met een melding die de kring noemt
+(`notifyHierarchyCycle`).
 
 ## Gevolgen
 
@@ -15,14 +15,19 @@ weigert hij vóór er een undo-stap of mutatie is. Een geweigerde verhanging gee
   vóór de mutatie.
 - `updateTask` werkt `childIds` niet bij. Taak bewerken verandert de ouder daarom met `moveTask` en niet in de patch
   van `updateTask` (`state/taskDialogSave.ts`).
-- Ook de vraag over toewijzingen bij een nieuwe samenvattingstaak leest dezelfde boomwijziging (`hierarchyPhaseGains`,
-  ADR 0152), zodat die vraag voor elke verhangroute klopt.
+- De vraag over toewijzingen bij een nieuwe samenvattingstaak leest dezelfde `HierarchyEdit` (`hierarchyPhaseGains`,
+  ADR 0152), zodat vraag en actie over dezelfde boomwijziging gaan.
 - `moveTask`, inspringen en uitspringen maken de planning verouderd. `moveTaskTo` en `moveTasksTo` doen dat alleen als
-  een taak een andere ouder krijgt; een herordening binnen dezelfde ouder niet.
-- `moveTaskTo` doet niets als de taak al op de doelplek staat: geen undo-stap en geen gewijzigd document.
-- `moveTasksTo` verplaatst een selectie naar één doelplek. Een geselecteerde taak met een geselecteerde voorouder valt
-  weg, want ze verhuist al met die voorouder mee. De groep komt neer in de weergavevolgorde, niet in de volgorde van
-  aanklikken. Ligt de doelouder in de groep of onder een taak uit de groep, dan gebeurt er niets, ook niet voor de
-  rest van de groep. De selectie blijft na het slepen dezelfde.
+  een taak een andere ouder krijgt, omdat een herordening binnen dezelfde ouder geen samenvattingstaak verandert.
+- Slepen naar de eigen plek is geen handeling: `moveTaskTo` vraagt `planTaskPlacement` om een plek die verschilt van de
+  huidige (`rejectNoOp`).
+- `moveTasksTo` laat een geselecteerde taak met een geselecteerde voorouder weg, want die verhuist al met haar
+  voorouder mee. De groep wordt op `flattenOrder` gesorteerd en niet op de volgorde van aanklikken; die volgorde kan
+  afwijken van de zichtbare (knownbug 1981). Ligt de doelouder in de groep of onder een taak uit de groep, dan gebeurt
+  er niets, ook niet voor de rest van de groep. De selectie blijft na het slepen dezelfde.
+- In `moveTasksTo` landt elke taak achter de vorige taak van de groep. Een taak die al op haar plek staat, wordt niet
+  verplaatst maar telt wel als die vorige taak. Daarom vraagt `moveTasksTo` het plan zonder `rejectNoOp` en toetst hij
+  zelf of een taak al goed staat: met `rejectNoOp` kwam er voor zo'n taak geen plan en landde de volgende op de
+  verkeerde plek.
 - Inspringen in een meervoudige selectie slaat geselecteerde voorgaande siblings over als kandidaat-ouder, zodat een
-  aaneengesloten blok als geheel inspringt. Uitspringen werkt de diepste taken eerst af.
+  aaneengesloten blok als geheel inspringt. Uitspringen doorloopt de selectie in omgekeerde `flattenOrder`.
