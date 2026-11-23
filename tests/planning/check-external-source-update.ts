@@ -407,6 +407,46 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   ], ['2027-03-08T16:00', 'pad-v2', PATH]);
 }
 
+for (const edit of ['eigen anker', 'andere brontaak', 'ander anker in dezelfde bron', 'losse taak'] as const) {
+  const { store, S, a } = plan();
+  const peer = S().addTask({ name: 'Tweede koppeling naar dezelfde bron' });
+  const loose = S().addTask({ name: 'Losse taak' });
+  S().updateTask(a, { externalLinks: [link('selected', undefined, '2027-03-05T16:00', 'v1')] });
+  S().updateTask(peer, { externalLinks: [link('peer', undefined, '2027-03-05T16:00', 'v1')] });
+  const current = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+  const historySize = () => S().historyEvents.filter(event => event.state === 'applied').length;
+  let readStarted!: () => void;
+  const started = new Promise<void>(resolve => { readStarted = resolve; });
+  let finishRead!: (source: ExternalSourceRead) => void;
+  const resultFromFile = new Promise<ExternalSourceRead>(resolve => { finishRead = resolve; });
+  store.setState({ parseExternalProjectSource: () => { readStarted(); return resultFromFile; } });
+  const pending = S().refreshExternalProjectAnchors(a, 'selected');
+  await started;
+  if (edit === 'losse taak') {
+    S().updateTask(loose, { name: 'Intussen hernoemd' });
+  } else {
+    const editedTask = edit === 'ander anker in dezelfde bron' ? peer : a;
+    const previous = current(editedTask);
+    const patch = edit === 'andere brontaak'
+      ? { ...previous, sourceRef: { ...previous.sourceRef, taskId: 'b2' } }
+      : { ...previous, anchorDate: '2027-03-12T16:00' };
+    eq(`971 ${edit}: wijziging opgeslagen`, S().updateExternalLink(editedTask, previous.id, patch), true);
+  }
+  const afterEdit = [current(a), current(peer)];
+  const historyAfterEdit = historySize();
+  finishRead({
+    projectId: 'installateur', tasks: [sourceTask('2027-03-10T16:00'), { ...sourceTask('2027-03-11T16:00'), id: 'b2' }],
+    version: 'v2',
+  });
+  if (edit === 'losse taak') {
+    eq('971 andere taak bewerken laat vernieuwen doorgaan', [await pending, current(a).sourceVersion, current(peer).sourceVersion],
+      [{ refreshed: 2, missing: 0 }, 'v2', 'v2']);
+  } else {
+    eq(`971 ${edit}: oude lezing schrijft geen link of undo-stap`,
+      [await pending, current(a), current(peer), historySize()], [null, ...afterEdit, historyAfterEdit]);
+  }
+}
+
 // (7) Een bestand dat de planner in de browser koos: geen pad, de versie is `lastModified`.
 {
   const { S } = plan();
