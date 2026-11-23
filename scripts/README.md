@@ -615,21 +615,7 @@ Let op in Git Bash op Windows: die zet een argument als `/pad/` om naar een Wind
 | `verify-release.mjs` | `.github/workflows/release-verify.yml` (Linux-jobs); met de hand: `node scripts/verify-release.mjs [<tag>] [--dir <map>] [--out <rapport.md>]` | controleert de assets van één release: elke updater-`.sig` (minisign, tegen de pubkey in `tauri.conf.json`), `latest.json` (URL → asset, signature = asset-`.sig`), sha256 tegen de GitHub-`digest`, en informatief de codesign in de macOS-`app.tar.gz`. Markdown-rapport; exit 0 OK, 1 FOUT, 2 crash. Uitleg: `docs/release-verificatie.md`. Unit-test: `tests/dev-server/verify-release.test.mjs` |
 | `release-check.ps1` | `.github/workflows/release-verify.yml` (Windows-job, dot-source) | `Record` (zelfde TSV-log als `release-check.sh`) en `Test-Alive`: start een programma en registreert alleen OK als er na de wachttijd echt een proces draait; een mislukte start is FOUT. Test: `tests/dev-server/release-check.test.mjs` (als `pwsh` er is) |
 | `release-check.sh` | `.github/workflows/release-verify.yml` | boekhouding per job: `run`/`alive`/`record` leggen een controle vast zonder de job te stoppen; `finish` schrijft de tabel naar de job-samenvatting en faalt alleen bij een FOUT in strenge modus (`RELEASE_VERIFY_STRICT=1`); `valid-tag` keurt een tag als hele waarde. Exit 3 = kapotte infrastructuur (commando weg, exit 126/127, syntaxfout), ook in rapportmodus hard. Test: `tests/dev-server/release-check.test.mjs` |
-| `aur/render-pkgbuild.mjs` | `.github/workflows/aur.yml` | vult `packaging/aur/PKGBUILD` in (pkgver, pkgrel, sha256) voor een stabiele release en biedt een lokale vergelijking van twee `.SRCINFO`-bestanden. De push-stap vergelijkt versies met systeemgereedschap en voert geen uitgecheckte scripts uit met de SSH-sleutel in de omgeving. Test: `node --test scripts/aur/render-pkgbuild.test.mjs` |
-| `aur/build-in-container.sh` | `.github/workflows/aur.yml`, in de container `archlinux:base-devel` | `makepkg` als gewone gebruiker, `.SRCINFO`, `namcap` (een `E:` is fout), het pakket installeren, `ldd` zonder ontbrekende bibliotheken, en pacman bezit `/usr/bin/open-planner-studio` |
 | `publish-stats-branch.sh` | `.github/workflows/download-stats.yml`, direct na het genereren | schrijft `download-stats.json` als `downloads.json` naar de `stats`-databranch met git-plumbing (`hash-object` → `mktree` → `commit-tree` → gewone push, dus geen checkout en geen force). Vaste leeslocatie: `https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio/stats/downloads.json` — hetzelfde raw-patroon als de extensiecatalogus, CORS-vrij, en een push naar `stats` triggert geen CI of deploy. Regressietest tegen een tijdelijke bare repo: `tests/dev-server/publish-stats-branch.test.mjs` |
-
-### AUR-pakket
-
-`aur.yml` vult `packaging/aur/PKGBUILD` in na een stabiele release, test hem in een
-`archlinux`-container en pusht alleen met het secret `AUR_SSH_PRIVATE_KEY`.
-
-Een pakketreparatie bij dezelfde release: zet `pkgver` in `packaging/aur/PKGBUILD` eerst op
-de releaseversie en verhoog daarna `pkgrel`. Bij een afwijkende sjabloonversie zet de renderer
-`pkgrel` namelijk terug op 1.
-
-Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
-`actionlint .github/workflows/aur.yml`.
 
 ## Overig
 

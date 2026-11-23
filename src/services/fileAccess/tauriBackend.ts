@@ -22,6 +22,11 @@ interface PathChunksTauri {
   close(): Promise<void>;
 }
 
+export async function seekToExactPosition(seek: (offset: number) => Promise<number>, offset: number): Promise<void> {
+  const actual = await seek(offset);
+  if (actual !== offset) throw new Error(`Terugspoelen mislukt: verwacht ${offset}, kreeg ${actual}`);
+}
+
 /**
  * Een bestaand pad openen als stroom van stukken van 1 MiB via plugin-fs (toegestaan via `fs:allow-home-read-recursive`,
  * dat `read-all` bevat). Elk stuk krijgt een eigen buffer: de doelscan houdt stukken vast om terug te spoelen. `seek`
@@ -44,7 +49,7 @@ async function openPathChunksTauri(path: string): Promise<PathChunksTauri | null
       const n = await handle.read(buffer);
       return n === null || n === 0 ? null : buffer.subarray(0, n);
     },
-    seek: async (offset) => { await handle.seek(offset, SeekMode.Start); },
+    seek: (offset) => seekToExactPosition(n => handle.seek(n, SeekMode.Start), offset),
     close: async () => { try { await handle.close(); } catch { /* al dicht */ } },
   };
 }
