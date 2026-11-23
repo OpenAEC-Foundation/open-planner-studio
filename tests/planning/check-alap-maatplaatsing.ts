@@ -379,8 +379,6 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
-// Knownbug 361: de uitzondering raakt de oude ALAP-stap voor gestart werk; #660 dekt
-// alleen niet-gestart werk. Meet dezelfde taak met en zonder ALAP, met en zonder korte vrijdag.
 {
   const dataDate = '2026-06-01T16:00';
   const actualStart = '2026-06-01T08:00';
