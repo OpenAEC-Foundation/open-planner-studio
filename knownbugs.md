@@ -3507,28 +3507,29 @@ en noem het in je rapport of PR-tekst.
      meer. Stand op de release v2026.48.0 (main `e50c0f98a`), gemeten op 23 november 2026 in de desktopapp op Linux
      (WebKitGTK) met het pakket van de release zelf (`.deb`), featureflag aan, Automatisch opslaan uit, een model uit
      dezelfde generator net onder de grens (157.184.144 bytes, 149,9 MiB), zes keer een duur gewijzigd en Ctrl+S met
-     telkens 30 s rust: alle zes de opslagen slaagden. Piek van de hele app 3.547 MB, bereikt bij de eerste opslag; de
-     piekteller van de cgroup is cumulatief en steeg daarna niet meer, dus de opslagen 2 tot en met 6 bleven elk op of
-     onder 3.547 MB (hoogste stand in de metingen per seconde: 3.349 / 3.295 / 3.420 / 3.348 / 3.198 / 3.466 MB). Tot
-     het plafond op de app (`MemoryMax=4G`, 4.096 MB) is er 549 MB over. Dertig seconden na de opslag staat de app op
-     572 tot 788 MB; duur 32,2 tot 35,5 s; het Rust-proces springt bij het schrijven tot hoogstens 610 MB. De stijging
-     per opslag van 21 november kwam niet terug. Waarom niet, is niet uitgezocht: het programma (pakket van de release
-     tegenover een eigen build zonder LTO), de code (main is verder) en het model (106 KB kleiner) verschillen alle
-     drie. Eén run, niet herhaald. De MB zijn de standen van de cgroup (binair); de getallen in GB van de meting na
-     #1111 zijn zulke standen gedeeld door duizend (3.438 MB staat er als 3,44 GB). Openen van een model boven 150 MiB
-     weigert sinds 21 november 2026 (de productgrens `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127);
-     de technische grens van de bytes-route blijft 300 MiB, en de uitvoer van opslaan heeft geen grens (2043).
-     Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB, en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat
-     dit niet: openen van een bestand met een gebouwmodel wordt geweigerd, op main en in v2026.47.0 gelijk (157 MB en
-     87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel slaat op beide in 0,7 s op. Niet gemeten: meer dan
-     zes opslagen, Automatisch opslaan, Windows en macOS, 300 MiB op de desktop, het model van 87 MB na de ingrepen en
-     een model uit een modelleerprogramma. Besluit technisch beslisser (21 november 2026): de maat voor haalbaar is
-     hoogstens 4 GB voor de desktopapp bij de grens; dit punt is een voorwaarde voor het standaard aanzetten van de
-     featureflag. Met de meting van 23 november is die maat op Linux gehaald voor zes opslagen achter elkaar; Windows
-     en macOS zijn niet gemeten. Keuze van de eigenaar (21 november 2026): "tot 150 mb, later kunnen we dat nog
-     uitbouwen". Zie ook 1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de
-     buffers van de scanner) en het ritme van Automatisch opslaan (een ronde duurt bij 52 MB nu 14,0 s). — B (meting,
-     desktop Linux)
+     telkens 30 s rust: alle zes de opslagen slaagden. De afgelezen cgroup-piek van de hele app kwam bij de eerste
+     opslag op 3.547 MB en bleef daar tot het einde van de meting; de teller is cumulatief (hoogste stand in de
+     metingen per seconde: 3.349 / 3.295 / 3.420 / 3.348 / 3.198 / 3.466 MB). Tot het plafond op de app
+     (`MemoryMax=4G`, 4.096 MB) is er 549 MB over. Dertig seconden na de opslag staat de app op 572 tot 788 MB; duur
+     32,2 tot 35,5 s; bij het Rust-proces is tijdens het schrijven maximaal 610 MB RSS gemeten (één monster per
+     seconde). De stijging per opslag van 21 november kwam niet terug. Waarom niet, is niet uitgezocht: het programma
+     (pakket van de release tegenover een eigen build zonder LTO), de code (main is verder) en het model (106 KB
+     kleiner) verschillen alle drie. Eén run, niet herhaald. De MB in de desktopmetingen van dit punt zijn binair
+     (MiB) en afgekapt op hele eenheden: voor de hele app de standen van de cgroup, voor het Rust-proces de RSS van
+     dat ene proces. De getallen in GB van de meting na #1111 zijn zulke cgroup-standen gedeeld door duizend (3.438 MB
+     staat er als 3,44 GB). Openen van een model boven 150 MiB weigert sinds 21 november 2026 (de productgrens
+     `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische grens van de bytes-route blijft 300
+     MiB, en de uitvoer van opslaan heeft geen grens (2043). Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
+     en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
+     geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
+     slaat op beide in 0,7 s op. Niet gemeten: meer dan zes opslagen, Automatisch opslaan, Windows en macOS, 300 MiB
+     op de desktop, het model van 87 MB na de ingrepen en een model uit een modelleerprogramma. Besluit technisch
+     beslisser (21 november 2026): de maat voor haalbaar is hoogstens 4 GB voor de desktopapp bij de grens; dit punt
+     is een voorwaarde voor het standaard aanzetten van de featureflag. Met de meting van 23 november is die maat op
+     Linux gehaald voor zes opslagen achter elkaar; Windows en macOS zijn niet gemeten. Keuze van de eigenaar (21
+     november 2026): "tot 150 mb, later kunnen we dat nog uitbouwen". Zie ook 1021 (de merge scant de bron opnieuw; de
+     eis van 10 november is niet gehaald), 1950 (de buffers van de scanner) en het ritme van Automatisch opslaan (een
+     ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
 2024. **Na een opslag van een groot gebouwmodel staat de desktopapp ongeveer één bestand hoger, ook met een gestopte
      opslagworker (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux bij 157 MB (run V van de
