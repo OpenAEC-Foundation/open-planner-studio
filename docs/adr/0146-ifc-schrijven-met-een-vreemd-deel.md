@@ -6,16 +6,18 @@ planningsstukken opnieuw; `foreign/mergeWriter.ts` zet ze tussen de bronstukken.
 (`WriterMergeIds`) en levert dan alleen zijn entiteitregels (`writeIfcMergeLines`), zonder kop en staart. Zonder plan
 nummert hij vanaf `#1`. Twee besluiten dragen dit. De domeinstukken van de bron houden hun `#id`, zodat verwijzingen
 van het model ernaar blijven kloppen. En een waarde die OPS zelf in een oudere vorm schreef, blijft in die vorm staan
-als de planner het veld niet wijzigde (besluit Trias, 10 november 2026), met één uitzondering hieronder. "Niet
+als de planner het veld niet wijzigde (besluit Trias, 10 november 2026), onder de voorwaarden hieronder. "Niet
 gewijzigd" betekent: gelijk aan wat de app na het openen liet zien (`IfcSource.opened`), niet gelijk aan de lezing van
 de bron. Wat alleen het openen veranderde (de omzetting naar het minutenmodel, de herberekening), zet
-`sourceFormWhereUnchanged` (`foreign/sourceForm.ts`) terug naar de lezing van de bron voordat de writer schrijft.
+`sourceFormWhereUnchanged` (`foreign/sourceForm.ts`) terug naar de lezing van de bron voordat de writer schrijft, maar
+alleen als die bronwaarde bij heropenen met de taak en de kalender van nu weer dezelfde waarde geeft; anders blijft de
+waarde van nu staan.
 Zonder deze regel weigerde de merge eigen bestanden van oudere OPS-versies, of veranderde hij waarden die niemand
 aanraakte.
 
 ## Gevolgen
 
-- De uitzondering: een kalender die bij deze opslag voor het eerst letterlijk wordt (`minuteModelWriteView`, bijvoorbeeld
+- Een kalender die bij deze opslag voor het eerst letterlijk wordt (`minuteModelWriteView`, bijvoorbeeld
   doordat de planner een taakduur een breuk gaf of een datum na doorrekenen op geen daganker meer valt), schrijft de
   writer met tijdstippen. Dan krijgen alle taakdatums op die kalender, en de baselines met een taak op die kalender (is het de
   projectkalender, dan alle baselines), de vorm van de huidige writer (`literalLeaves` in `sourceForm.ts`), ook de datums die de planner niet wijzigde; de dagvorm van de bron zou anders terug lezen. De merge
@@ -37,8 +39,8 @@ aanraakte.
     duur niet letterlijk; een datum die niet op een anker past, doet dat nog wel.
   - `sourceDayLagIds`: een lag die de bron als gebroken dag in de oude vorm had (`IFCDURATION('P0.30000000000000004D')`)
     schrijft de writer exact zo, zonder record in `DayMeasureLags`.
-  - `sourceBandCalendarIds`: een scalaire kalender die de bron met één werkweek van meer blokken had (de vorm van OPS
-    van v2026.7.7 tot en met v2026.43.0 bij een urentaak), krijgt die blokken weer. Een urentaak op die kalender maakt
+  - `sourceBandCalendarIds`: een scalaire kalender die de bron met één werkweek van meer blokken had (een vorm die
+    oudere OPS-versies bij een urentaak schreven), krijgt die blokken weer. Een urentaak op die kalender maakt
     hem dan niet letterlijk.
   - `sourceBaselineHeadGuids`: OPS tot en met v2026.9.x hashte een baselinekop zonder zout. De kop krijgt dat GlobalId
     terug, en houdt zo via `baselineHeads` ook zijn id.

@@ -1,8 +1,7 @@
 # Hoe de IFC-writer taakdatums, duren en lags schrijft
 
-Welke vorm een duur, rest, werkelijke duur, lag of speling krijgt (hele dagen `P{n}D`, een breuk als `PT…` met een
-record in `DayMeasureDurations`, `ExactMinutes`, `ExactFloat` of `DayMeasureLags`), en wat v2026.9.0 ervan leest,
-staat in *Dagenmaat met een breuk, lagmaat en speling* in `docs/ifc-round-trip.md`; dat is het contract. De lijst van
+Welke vorm een duur, rest, werkelijke duur, lag of speling krijgt, per veld verschillend, en wat v2026.9.0 ervan
+leest, staat in *Dagenmaat met een breuk, lagmaat en speling* in `docs/ifc-round-trip.md`; dat is het contract. De lijst van
 taakslots staat in `ifcTaskSlots.ts`; writer en lezer gebruiken dezelfde lijst, zodat de plek van een slot niet kan
 uiteenlopen. Hier staan de keuzes daaromheen die een lezer zonder uitleg zou terugdraaien.
 

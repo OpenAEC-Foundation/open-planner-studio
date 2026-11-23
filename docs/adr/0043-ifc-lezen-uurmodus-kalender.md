@@ -19,8 +19,9 @@ de kalenders die de eerste stap niet al besliste.
     dagsom van de tijdvakken; een `HoursPerDay` uit de pset wint daarna weer.
   - `IsHourCalendar = .F.`: de tijdvakken zijn de afgeleide blokken van een scalaire kalender (een urentaak gebruikte
     hem), of de ene periode van een dagkalender die de lezer anders als afwijkend zou zien (ADR 0144). De kalender
-    promoveert ook in stap 2 nooit. Een urentaak erop leest toch minuutprecies, een dagtaak
-    dagprecies.
+    promoveert ook in stap 2 nooit. Een urentaak erop leest toch minuutprecies. Een dagtaak erop leest dagprecies,
+    behalve als de kalender ook `LiteralTimes = .T.` draagt: dan bewaart de lezer ook voor een dagtaak de
+    tijdstippen (`literalTimeCalendars`, `check-ifc-dagenmaat.ts`).
   - Geen markering en geen `WorkStartHour`/`WorkEndHour`: de herkenning van een oude scalaire kalender, hieronder.
 - Stap 2: een kalender die nog geen uurkalender is en niet scalair gemarkeerd, wordt uurkalender bij een afwijking in
   zijn tijdvakken (meer dan één op een werkdag, over middernacht, of een hele dag) of bij sub-dag-informatie van een
