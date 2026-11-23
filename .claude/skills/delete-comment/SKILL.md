@@ -1,0 +1,114 @@
+---
+name: delete-comment
+description: Use ONLY when the user explicitly invokes /delete-comment, or in their own words asks to judge and remove the code comments of a part of Open Planner Studio. Classifies every comment in the given path (tautology, stale, excuse, decision record), removes them, and moves decisions to docs/adr/ and known limits to knownbugs.md. NEVER auto-trigger, and never as a side job inside another PR.
+---
+
+# Delete-comment: het commentaar van één onderdeel beoordelen en weghalen
+
+Code in deze repo heeft geen commentaar (`docs/adr/0001-geen-commentaar-in-code.md`). Wat er nog staat, wacht op
+deze skill. Je doet per keer één onderdeel: een map of een
+paar bestanden die bij elkaar horen. Eén onderdeel is één PR.
+
+Aanroep: `/delete-comment <pad>`. Zonder pad vraag je welk onderdeel. De grootste staan bovenaan in
+`node scripts/verify-comments.mjs --stats <pad>` per map.
+
+## Regels
+
+- Je verandert geen gedrag. Een kleine opruiming die een smoes overbodig maakt (een dubbele functie samenvoegen,
+  een ongebruikte hulpfunctie weg) doe je in dezelfde PR, met de gerichte test erbij. Is het niet klein, dan laat je
+  de code staan.
+- Je beoordeelt elk blok zelf, met de code erbij. Weghalen zonder lezen is geen uitvoering van deze skill.
+- Kennis gaat niet verloren. Een besluit dat nergens anders staat, staat in een ADR vóór het commentaar weg is.
+- Een ADR legt het besluit en de reden vast. Voor de precieze regel verwijst hij naar de functie, de toets of het
+  contract (een gids in `docs/`, een regel in `.claude/rules/`); hij vertelt die regel niet in eigen woorden na. Wat
+  je toch beweert, heb je zelf in de code gezien, met de grens erbij: welk geval, welke tak, welke route. Noem je een
+  toets, ga dan na dat die de bewering ook dekt.
+- Geen regelnummers in een ADR: noem de functie of het bestand. In een punt voor `knownbugs.md` noem je de functie
+  waar die aan te wijzen is; een regelnummer alleen daarnaast.
+- Je schrijft geen nieuw commentaar en maakt geen bestaand commentaar langer.
+
+## Stap 1. Meten en lezen
+
+```bash
+node scripts/verify-comments.mjs --stats <pad>
+node scripts/verify-comments.mjs --list <pad> > <scratch>/blokken.json
+```
+
+`--list` geeft elk blok met `file`, `line`, `endLine`, `kind` en `text`. Lees elk bestand van het onderdeel
+helemaal, met de regel van het onderdeel in `.claude/rules/` en de ADR's in `docs/adr/` die erover gaan.
+
+## Stap 2. Elk blok indelen
+
+| soort | herken je aan | wat je doet |
+|---|---|---|
+| **Herhaling** | zegt wat de naam, het type of de regel eronder al zegt; sectiekoppen en lijnen; een JSDoc die de signatuur naspreekt | weg |
+| **Verouderd** | noemt een naam, bestand of gedrag dat niet meer bestaat; vertelt de geschiedenis ("fixronde 3", "eerst deed dit X", "niet meer nodig") | weg |
+| **Smoes** | legt uit waarom een noodgreep mag: een benadering, een dubbele kopie, een ingeslikte fout, "niet nagemeten", "tijdelijk", "voor nu" | weg; klein: opruimen in deze PR; een bekende grens of zeldzaam geval: een punt in `knownbugs.md` |
+| **Besluit** | een keuze die een lezer zonder uitleg zou terugdraaien, met een echte afweging erachter | naar een ADR, dan weg |
+
+Twijfel tussen herhaling en besluit: zou een goede collega de code "verbeteren" naar het tegendeel als de zin er
+niet stond? Dan is het een besluit. Staat het besluit al in `.claude/rules/`, een ADR of een gids, dan is het
+commentaar een herhaling.
+
+Verouderd toets je mechanisch: elke naam tussen backticks en elk genoemd bestand zoek je op (`grep -rw`,
+`git ls-files`). Een knownbug-nummer zoek je op in `knownbugs.md`.
+
+Een ADR is voor een besluit dat moeilijk terug te draaien is, dat verrast zonder uitleg en waar een echte afweging
+achter zat. Een keuze op één regel ("`!has` en niet `set`, want de eerste telt") is geen ADR: houdt een test dat
+gedrag vast, dan herhaalt het commentaar de test en gaat het weg. Zoek die test op (`grep` op de functienaam in
+`tests/`). Is er geen test, dan noem je onder *Gevolgen* van de ADR van dat onderwerp de keuze, de reden en de
+functie waar ze staat, zonder de regel uit te schrijven. Een ontbrekende test is geen punt voor `knownbugs.md`.
+
+## Stap 3. Besluiten vastleggen
+
+Eén ADR per besluit, niet per commentaar: meerdere blokken over hetzelfde onderwerp worden één ADR. Vorm en
+nummering: `docs/adr/NNNN-korte-naam.md`, het volgende vrije nummer, Nederlands. Eerste alinea: de situatie, wat
+we kozen en waarom, in een paar zinnen. Daarna alleen als het iets toevoegt `## Gevolgen` of `## Overwogen`.
+Schrijf wat nu geldt; geen geschiedenis van reviewrondes. Noem bestanden en functies alleen als ze het besluit
+dragen.
+
+Zet in de regel van het onderdeel (`.claude/rules/<onderdeel>.md`) een verwijzing naar de nieuwe ADR's.
+
+## Stap 4. Smoezen afhandelen
+
+Op `knownbugs.md` komt alleen een zeldzaam geval of een bekende grens die je onderweg vindt (besluit eigenaar
+2026-11-20). Testwensen en opruimpunten komen er niet op: klein doe je ze in deze PR, anders vervallen ze. Elk punt
+volgens de kop van dat bestand: wat er misgaat, waar, en **B** (zelf nagegaan in de
+code of met een test) of **S** (alleen gelezen). Nummers komen uit het blok van je sessie; heb je er geen, vraag
+het aan Trias.
+
+## Stap 5. Weghalen
+
+```bash
+node scripts/verify-comments.mjs --strip <pad>
+```
+
+Een blok dat een licentie of copyright noemt, laat `--strip` staan en meldt het als handwerk. Schrijf zo'n
+vermelding daarna als één regel in de vorm die de poort herkent: `// Bron: <werk> (<licentie-id>, <vindplaats>).`
+Draai dan `--list <bestand>`: de regel hoort er niet meer in te staan.
+
+`--strip` haalt de blokken weg, ruimt de lege regel op de naad op en weigert een bestand als de code-tokens of de
+regeleindes tussen tokens erdoor zouden veranderen. Aanwijzingen voor gereedschap blijven staan. Wat het meldt als
+"met de hand" (JSX-commentaar tussen tekst, commentaar met een regeleinde midden in een regel code, JSDoc met
+een tag in een JavaScript-bestand, JSDoc met `@deprecated` of `@internal` in TypeScript) pas je zelf aan: in JSDoc
+haal je alleen de uitleg weg en laat je de tag staan die het gereedschap leest; een kale `/** @deprecated */` of
+`/** @internal */` is voor de poort geen commentaar. De gemelde regelnummers zijn die van vóór het weghalen: draai
+daarna `--list <pad>` voor de plek van nu. Controleer handwerk met de gerichte test. `--strip` neemt altijd alle blokken van het pad; moet een blok blijven tot een latere ronde, zet het dan met
+de hand terug uit `git diff`. Een onderdeel in delen doe je per bestand of map, niet per regelnummer.
+
+Zoek daarna naar verwijzingen die nu nergens meer heen wijzen ("zie het docblok bij", "zie de kop van") in de
+rest van de repo en in `.claude/rules/`, en laat ze naar de ADR wijzen of haal ze weg.
+
+## Stap 6. Controleren en vastleggen
+
+```bash
+npm run verify:comments
+npm run verify:docs
+```
+
+Plus de gerichte test van het onderdeel uit de tabel *Which check after which change* in `AGENTS.md`.
+
+## Stap 7. Rapport
+
+In de PR-tekst: het onderdeel, het aantal blokken per soort, de regels minder, de nieuwe ADR's, de
+knownbug-nummers, en wat je met de hand deed.

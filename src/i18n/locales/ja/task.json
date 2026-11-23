@@ -381,7 +381,15 @@
       "resourceShorter": "追加のリソースにより、タスクが短くなります。",
       "resourceAddsWorkSameDuration": "追加のリソースは作業を増やします。期間は同じままです。"
     },
-    "info": "タスク種類の説明"
+    "info": "タスク種類の説明",
+    "hint": {
+      "intro": "タスク種類は、期間、単位数（1日あたりの人数）、または作業（時間）を変更したとき、アプリが何を調整するかを決めます。",
+      "FIXED_DURATION_RATE": "期間と単位数は変わらず、作業が再計算されます。例: 2人、1日8時間の5日 = 80時間。",
+      "FIXED_DURATION_WORK": "期間と作業は変わらず、単位数が再計算されます。例: 80時間を1日8時間の5日で行う = 1日あたり2人。",
+      "FIXED_WORK": "作業は変わらず、期間が再計算されます。例: 2人で80時間 = 5日、4人で2.5日。",
+      "FIXED_RATE": "単位数は変わらず、作業が期間を決めます。例: クレーン1台、作業40時間 = 5日、作業80時間 = 10日。",
+      "projectDefault": "プロジェクトが既定として使っているタスク種類に従います。"
+    }
   },
   "properties": {
     "task": "タスク",
@@ -453,6 +461,8 @@
     "interferingFloat": "干渉フロート:",
     "criticalPath": "クリティカルパス：",
     "dependencies": "依存関係",
+    "predecessors_other": "{{count}} 件の先行タスク",
+    "successors_other": "{{count}} 件の後続タスク",
     "addRelation": "関係を追加",
     "addRelationSearch": "タスクを検索…",
     "addRelationConfirm": "関係を作成",
