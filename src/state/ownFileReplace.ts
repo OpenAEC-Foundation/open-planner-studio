@@ -18,8 +18,9 @@ import { replaceHandleWithBytes, sourceTargetContent, type FileRef, type RefuseB
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { replaceCopyLabel } from '@/i18n/replaceCopyName';
 import {
-  IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE, IFC_FOREIGN_TARGET_CHANGED_NOTICE,
-  IFC_FOREIGN_TARGET_GONE_NOTICE,
+  EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE, EXPORT_REPLACE_NOT_RECORDED_NOTICE, EXPORT_REPLACE_TARGET_CHANGED_NOTICE,
+  EXPORT_REPLACE_TARGET_GONE_NOTICE, IFC_FOREIGN_PLACE_UNKNOWN_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
+  IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE,
 } from './ifcForeignGuard';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
@@ -192,6 +193,31 @@ export function ownPathReplaceNotices(result: OwnPathReplaceResult, path: string
     }];
   }
 }
+
+export function exportReplaceNotices(result: OwnPathReplaceResult, path: string): NotifyInput[] {
+  switch (result.code) {
+    case 'not-recorded': return [EXPORT_REPLACE_NOT_RECORDED_NOTICE];
+    case 'target-changed': return [result.content === 'changed' ? EXPORT_REPLACE_TARGET_CHANGED_NOTICE : EXPORT_REPLACE_TARGET_GONE_NOTICE];
+    case 'save-as-only': return [EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE];
+    case 'failed': return [exportReplaceFailedNotice(result.detail)];
+    case 'target-taken': return [{
+      severity: 'error', messageKey: 'notifications.exportReplaceTargetTaken',
+      params: { target: result.target, temp: result.temp, previous: result.previous },
+    }];
+    case 'previous-stranded': return [{
+      severity: 'error', messageKey: 'notifications.exportReplacePreviousStranded',
+      params: { previous: result.previous }, detail: result.detail,
+    }];
+    case 'replaced':
+    case 'stopped':
+    case 'unknown': return ownPathReplaceNotices(result, path);
+  }
+}
+
+export const exportReplaceFailedNotice = (detail: string | undefined): NotifyInput => ({
+  severity: 'error', messageKey: 'notifications.exportReplaceFailed', detail,
+  dedupeKey: 'export-replace-failed', replaceOnDedupe: true,
+});
 
 // Geen weigering maar een feit over bestanden op schijf: rood, en het blijft staan tot het kruisje (ook na een
 // documentwissel), want het noemt een pad dat de planner moet kunnen terugvinden.

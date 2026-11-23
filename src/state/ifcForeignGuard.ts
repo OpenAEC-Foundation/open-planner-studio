@@ -159,6 +159,26 @@ export const EXPORT_TARGET_OPEN_DOCUMENT_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'export-target-open-document',
 });
 
+export const EXPORT_TARGET_OWN_FILE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOwnFile', dedupeKey: 'export-target-own-file',
+});
+export const EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceNewTargetOnly', dedupeKey: 'export-replace-new-target-only',
+});
+export const EXPORT_REPLACE_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceTargetChanged', dedupeKey: 'export-replace-target-changed',
+});
+export const EXPORT_REPLACE_TARGET_GONE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceTargetGone', dedupeKey: 'export-replace-target-gone',
+});
+export const EXPORT_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportReplaceNotRecorded', dedupeKey: 'export-replace-not-recorded',
+});
+
+export function exportNewTargetWriteNotice(error: unknown): NotifyInput | null {
+  return error instanceof ByteWriteError && error.reason === 'create-new' ? EXPORT_REPLACE_NEW_TARGET_ONLY_NOTICE : newTargetWriteNotice(error);
+}
+
 /** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
 export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignTargetExport',

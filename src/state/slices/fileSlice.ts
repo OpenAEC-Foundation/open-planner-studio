@@ -16,9 +16,12 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type RefuseBeforePlace, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
-import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
+import {
+  exportReplaceFailedNotice, exportReplaceNotices, ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery,
+  type OwnPathReplaceResult,
+} from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -44,6 +47,7 @@ import {
   IFC_FOREIGN_TARGET_CHANGED_NOTICE, IFC_FOREIGN_TARGET_GONE_NOTICE, IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE,
   refusedWriteTarget, newTargetWriteNotice, downloadCopyNotice, IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE,
   IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE, EXPORT_TARGET_OPEN_IN_TAB_NOTICE, EXPORT_TARGET_OPEN_DOCUMENT_NOTICE,
+  EXPORT_TARGET_OWN_FILE_NOTICE, exportNewTargetWriteNotice,
 } from '../ifcForeignGuard';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQuestion';
@@ -646,14 +650,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     });
   };
 
-  const foreignTargetCheck = (exceptDocumentId: string | null): SaveTargetCheck => async (target) => {
-    const reason = await refusedWriteTarget(get(), target,
-      { identityFs: fileIdentityFs, readers: writeTargetReaders, openDocumentsExcept: exceptDocumentId });
-    if (!reason) return false;
-    get().notify(reason === 'open-document'
-      ? exceptDocumentId === null ? EXPORT_TARGET_OPEN_DOCUMENT_NOTICE : EXPORT_TARGET_OPEN_IN_TAB_NOTICE
-      : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_EXPORT_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
-    return true;
+  const foreignTargetCheck = (exceptDocumentId: string | null, chosenTarget?: PickedSaveTarget): SaveTargetCheck => {
+    const readers = chosenTarget ? capturedTargetReaders(chosenTarget.current) : writeTargetReaders;
+    return async (target) => {
+      const reason = await refusedWriteTarget(get(), target,
+        { identityFs: fileIdentityFs, readers, openDocumentsExcept: exceptDocumentId, ...(chosenTarget ? { chosenTarget } : {}) });
+      if (!reason) return false;
+      get().notify(reason === 'open-document'
+        ? exceptDocumentId === null ? EXPORT_TARGET_OPEN_DOCUMENT_NOTICE : EXPORT_TARGET_OPEN_IN_TAB_NOTICE
+        : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_EXPORT_NOTICE
+          : chosenTarget && reason === 'open-source' ? EXPORT_TARGET_OWN_FILE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
+      return true;
+    };
   };
 
   // In de ene schrijfrij, zoals elke schrijfactie naar een projectbestand (inclusief de kiezer, zoals `exportAs`): een
@@ -993,8 +1001,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  vooraan (waar main nog weigerde, knownbug 1903), dan loopt ze vlak vóór `close()`, welk tabblad dan ook vooraan
    *  staat (keuze (b) van de technisch beslisser, fixronde 3 van #1097). Stond het er wel vooraan, dan niet: de browser
    *  doet wat main deed, ook bij een wissel daarna (knownbug 1958). */
-  const exportTargetChecks = (snapshot: AppState) => {
-    const foreignCheck = foreignTargetCheck(snapshot.activeDocumentId);
+  const exportTargetChecks = (snapshot: AppState, chosenTarget?: PickedSaveTarget) => {
+    const foreignCheck = foreignTargetCheck(snapshot.activeDocumentId, chosenTarget);
     let inactiveAtTarget = false;
     const refuseTarget: SaveTargetCheck = async target => {
       if ((await foreignCheck(target)) || refuseChangedExport(snapshot)) return true;
@@ -1185,26 +1193,84 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const saveAsOnDesktop = async (
     documentId: string, state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false,
   ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
-    const picked = await pickSaveTarget(name, IFC_FILE_FILTERS);
+    const bytes = writeBytes(write);
+    const saved = await placeOnDesktop<boolean>({
+      name, filters: IFC_FILE_FILTERS, bytes,
+      targetCheck: picked => documentTargetCheck(state, write, false, {
+        readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
+      }),
+      refuseBeforePlace: () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs),
+      replacement: {
+        documentId: write.prepared ? documentId : null,
+        sha256: async () => write.prepared?.sha256 ?? write.sha256 ?? precomputeSha256(bytes),
+        commit: (path, written) => commitSavedDocument(snapshotContent(state), state,
+          localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, missingSourceSaveAs, written),
+        notices: (result, path) => result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path),
+        failed: err => {
+          console.error('Save As failed:', err);
+          return { severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err) };
+        },
+      },
+      create: async (place, outcome) => {
+        const hashing = writtenFingerprint(state.ui.featureFlags, write, bytes);
+        if (!(await place())) return null;
+        const fingerprint = hashing instanceof Promise ? await hashing : hashing;
+        return commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, missingSourceSaveAs, fingerprint);
+      },
+    });
+    return saved && { outcome: saved.outcome, committed: saved.placed };
+  };
+
+  const exportOnDesktop = async (state: AppState, name: string, filters: FileFilter[], prepared: PreparedIfcWrite): Promise<SaveOutcome | null> => {
+    const exported = await placeOnDesktop<true>({
+      name, filters, bytes: prepared.bytes,
+      targetCheck: picked => exportTargetChecks(state, picked).refuseTarget,
+      refuseBeforePlace: () => refuseChangedExport(state),
+      replacement: {
+        documentId: null,
+        sha256: async () => prepared.sha256,
+        commit: () => true,
+        notices: exportReplaceNotices,
+        failed: err => {
+          console.error('Export failed:', err);
+          return exportReplaceFailedNotice(saveErrorDetail(err));
+        },
+      },
+      create: async place => (await place()) || null,
+    });
+    return exported && exported.outcome;
+  };
+
+  type DesktopPlacement<T> = {
+    readonly name: string;
+    readonly filters: FileFilter[];
+    readonly bytes: Uint8Array;
+    readonly targetCheck: (picked: PickedSaveTarget) => SaveTargetCheck;
+    readonly refuseBeforePlace: RefuseBeforePlace;
+    readonly replacement: {
+      readonly documentId: string | null;
+      readonly sha256: () => Promise<string>;
+      readonly commit: (path: string, written: TargetFingerprint) => T;
+      readonly notices: (result: OwnPathReplaceResult, path: string) => NotifyInput[];
+      readonly failed: (error: unknown) => NotifyInput;
+    };
+    readonly create: (place: () => Promise<boolean>, outcome: SaveOutcome) => Promise<T | null>;
+  };
+
+  const placeOnDesktop = async <T,>(placement: DesktopPlacement<T>): Promise<{ outcome: SaveOutcome; placed: T } | null> => {
+    const picked = await pickSaveTarget(placement.name, placement.filters);
     if (!picked) return null;
     const ref = { kind: 'path', path: picked.path } as const, outcome = { ref, name: basename(picked.path) };
-    const check = documentTargetCheck(state, write, false, {
-      readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
-    });
+    const check = placement.targetCheck(picked);
     if (await check(ref)) return null;
     // De doelcontrole weigert een onleesbaar doel al (met haar melding); dit houdt de route er ook zonder haar vanaf.
     if (picked.current === 'unreadable') return null;
     if (picked.current) {
-      const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref), missingSourceSaveAs);
-      return replaced && { outcome, committed: replaced.committed };
+      const replaced = await replaceExistingPath(placement, picked.path, picked.current, () => check(ref));
+      return replaced && { outcome, placed: replaced.placed };
     }
-    const bytes = writeBytes(write), hashing = writtenFingerprint(state.ui.featureFlags, write, bytes);
-    if (!(await saveNewBytesToRef(ref, bytes, () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs)))) return null;
-    const fingerprint = hashing instanceof Promise ? await hashing : hashing;
-    return {
-      outcome,
-      committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, missingSourceSaveAs, fingerprint),
-    };
+    const placed = await placement.create(() => saveNewBytesToRef(ref, placement.bytes, placement.refuseBeforePlace), outcome);
+    return placed === null ? null : { outcome, placed };
   };
 
   /** De bytes van een documentopslag: de voorbereide merge, of de uitvoer van de gewone writer (tekst als UTF-8, zoals
@@ -1232,32 +1298,25 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * commit met de inhoud van de momentopname (`snapshotContent`), zodat een intussen geladen ander project geen pad of bron
    * krijgt. `null`: niet vervangen; anders vervangen, met de uitkomst van de commit (`committed`: het document is schoon).
    */
-  const replaceExistingPath = async (
-    documentId: string, state: AppState, write: IfcOutput, path: string, current: Uint8Array,
-    stopBeforeWrite: () => Promise<boolean>, missingSourceSaveAs: boolean,
-  ): Promise<{ committed: boolean } | null> => {
-    let committed = false;
+  const replaceExistingPath = async <T,>(
+    placement: DesktopPlacement<T>, path: string, current: Uint8Array, stopBeforeWrite: () => Promise<boolean>,
+  ): Promise<{ placed: T } | null> => {
+    const { replacement } = placement;
+    let placed = undefined as { placed: T } | undefined;
     try {
-      const bytes = writeBytes(write);
-      const replacement = write.prepared ?? { bytes, sha256: write.sha256 ?? await precomputeSha256(bytes) };
+      const prepared = { bytes: placement.bytes, sha256: await replacement.sha256() };
       const result = await replaceOwnPathWithRecovery({
-        documentId: write.prepared ? documentId : null, path,
-        prepared: replacement,
+        documentId: replacement.documentId, path, prepared,
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
-        refuseBeforePlace: () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs),
+        refuseBeforePlace: placement.refuseBeforePlace,
         commit: () => {
-          committed = commitSavedDocument(snapshotContent(state), state,
-            localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, missingSourceSaveAs,
-            { sha256: replacement.sha256, byteLength: replacement.bytes.byteLength });
+          placed = { placed: replacement.commit(path, { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength }) };
         },
       });
-      for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
-        get().notify(notice);
-      }
-      return result.code === 'replaced' ? { committed } : null;
+      for (const notice of replacement.notices(result, path)) get().notify(notice);
+      return result.code === 'replaced' && placed ? placed : null;
     } catch (err) {
-      console.error('Save As failed:', err);
-      get().notify({ severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err) });
+      get().notify(replacement.failed(err));
       return null;
     }
   };
@@ -1941,12 +2000,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (ext === 'ifc' && refuseExportBeforePicker(state)) return null;
         let written: SaveOutcome | null;
         try {
-          written = preparedExport
-            ? await saveNewBytesDialog(defaultName, preparedExport.bytes, filters, dialogOpts)
-            : await saveDataDialog(defaultName, payload, filters, dialogOpts);
+          written = !preparedExport ? await saveDataDialog(defaultName, payload, filters, dialogOpts)
+            : isTauri() ? await exportOnDesktop(state, defaultName, filters, preparedExport)
+              : await saveNewBytesDialog(defaultName, preparedExport.bytes, filters, dialogOpts);
         } catch (error) {
           if (!preparedExport) throw error;
-          get().notify(newTargetWriteNotice(error)
+          get().notify(exportNewTargetWriteNotice(error)
             ?? refusalNotice({ messageKey: 'notifications.saveFailed', dedupeKey: 'ifc-export-write-failed' }));
           return null;
         }
