@@ -5,17 +5,19 @@ import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { spendPlanOnlyConfirmation, type PlanOnlyConfirmation, type PlanOnlyReason } from '@/services/ifc/planOnlyQuestion';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { precomputeSha256 } from '@/services/xerSourceArchive';
+import type { TargetFingerprint } from './documentContract';
 import { ifcFullWriteBlocked } from './ifcForeignGuard';
 import type { IFCSaveSource, IFCWriteInput } from './ifcSaveInput';
 
 export type IfcOutput =
   /** `bytes`: de UTF-8 van `content`, als het rekenen die al maakte (de opslagworker, #804 stap 4). Dezelfde tekst. */
-  | { readonly content: string; readonly bytes?: Uint8Array; readonly literalCalendarIds: readonly string[]; readonly prepared?: never }
-  | { readonly content?: never; readonly bytes?: never; readonly literalCalendarIds: readonly string[]; readonly prepared: PreparedIfcWrite };
+  | { readonly content: string; readonly bytes?: Uint8Array; readonly sha256?: string; readonly literalCalendarIds: readonly string[]; readonly prepared?: never }
+  | { readonly content?: never; readonly bytes?: never; readonly sha256?: never; readonly literalCalendarIds: readonly string[]; readonly prepared: PreparedIfcWrite };
 
 /** De twee gevallen van `prepareIfcOutput` die rekenen, nadat de bewaking hieronder besliste welk. */
 export type IfcSaveJob =
-  | { readonly kind: 'writer'; readonly input: IFCWriteInput }
+  | { readonly kind: 'writer'; readonly input: IFCWriteInput; readonly hashBytes?: true }
   | { readonly kind: 'merge'; readonly input: IFCWriteInput; readonly source: IfcSource };
 
 /** Rekent één beslist geval. Standaard op deze thread (`computeIfcOutputHere`); de opslagworker
@@ -28,6 +30,22 @@ export async function computeIfcOutputHere(job: IfcSaveJob): Promise<IfcOutput> 
   if (job.kind === 'writer') return writeIFCWithChoices(job.input);
   const prepared = await prepareIfcWrite(job.input, job.source);
   return { prepared, literalCalendarIds: prepared.literalCalendarIds };
+}
+
+export type WrittenFingerprint = TargetFingerprint | Promise<TargetFingerprint> | null;
+type FeatureFlags = Parameters<typeof ifcForeignContentEnabled>[0];
+
+export function documentSaveCompute(featureFlags: FeatureFlags, compute: IfcOutputCompute = computeIfcOutputHere): IfcOutputCompute {
+  if (!ifcForeignContentEnabled(featureFlags)) return compute;
+  return (job, stop) => compute(job.kind === 'writer' ? { ...job, hashBytes: true } : job, stop);
+}
+
+export function writtenFingerprint(featureFlags: FeatureFlags, output: IfcOutput, written?: Uint8Array): WrittenFingerprint {
+  if (output.prepared || !ifcForeignContentEnabled(featureFlags)) return null;
+  const bytes = written ?? output.bytes ?? new TextEncoder().encode(output.content);
+  const byteLength = bytes.byteLength;
+  return output.sha256 !== undefined ? { sha256: output.sha256, byteLength }
+    : precomputeSha256(bytes).then(sha256 => ({ sha256, byteLength }));
 }
 
 export class IfcWriteBlockedError extends Error {

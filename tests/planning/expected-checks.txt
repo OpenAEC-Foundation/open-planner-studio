@@ -444,6 +444,7 @@ check-summary-relation-expansion.ts matrix
 check-summary-relation-prune.ts matrix
 check-svg-sanitizer.ts matrix
 check-system-theme.ts matrix
+check-tabblad-schijfversie.ts matrix
 check-table-shown-dates.ts matrix
 check-task-cell-editor.ts matrix
 check-task-column-registry.ts matrix

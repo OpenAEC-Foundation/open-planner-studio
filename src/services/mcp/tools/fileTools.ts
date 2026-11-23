@@ -443,8 +443,12 @@ export const fileTools: McpToolDef[] = [
           const cause = e instanceof ByteWriteError && e.cause !== undefined ? e.cause : e;
           return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${cause instanceof Error ? cause.message : String(cause)}`);
         }
-        if (!output.prepared && output.literalCalendarIds.length > 0 && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
-          ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
+        const tracked = ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags);
+        if (!tracked) ctx.app.store.getState().forgetKnownTargetFingerprint(state.activeDocumentId);
+        const record = !output.prepared && output.literalCalendarIds.length > 0;
+        if ((record || tracked) && await exportHitsOwnFile(saveTargetRef(state, true), { kind: 'path', path }, fs)) {
+          if (tracked) ctx.app.store.getState().forgetKnownTargetFingerprint(state.activeDocumentId);
+          if (record) ctx.app.store.getState().recordLiteralCalendarsWritten(state.activeDocumentId, output.literalCalendarIds);
         }
         return null;
       }, () => toolError(ctx, 'VALIDATION', 'The app is closing or installing an update. Nothing was written.'));
