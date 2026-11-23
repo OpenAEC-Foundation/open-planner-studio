@@ -208,9 +208,6 @@ measureCase('twee gaten vanaf wo 11:00', 'ops', task('g4', '2026-06-03T11:00', 3
   eq('halve minuut: geen werkminuut na het einde (vr 07:00–12:31 = 331 min)', placed.days.at(-1)?.minutes, 331);
 }
 
-// Knownbug 255: op de korte vrijdag zet elk dagslotminuut 0,75 kalenderwerkminuut.
-// Twee gaten van 62 na 122 werkminuten per stuk leveren herhaalde halve-minuutgrenzen.
-// Hetzelfde aantal gaten, maar zonder breuk in de fysieke minuut, is de controle.
 {
   const start = '2026-06-05T07:00';
   const cases: Array<[string, TaskSplitGap[]]> = [
