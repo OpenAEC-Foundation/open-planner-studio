@@ -172,10 +172,6 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   expect(afterDrop.tasks.length).toBeGreaterThan(0);
   await expect(page.locator('[data-ops-tabstrip]')).toContainText('gesleept');
 
-  // #804, knownbug 1957: met de featureflag `ifcForeignContent` opent een bestand dat al open staat geen tweede
-  // tabblad. Een echte bestandshandle uit OPFS; de kiezer geeft elke keer een NIEUW handle-object voor hetzelfde
-  // bestand, zoals Chromium, dus de app moet `isSameEntry` gebruiken. De flag en de kiezer zijn de fixture; Openen
-  // en het wisselen van tabblad zijn echte klikken.
   await page.evaluate(async (text) => {
     window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
     const root = await navigator.storage.getDirectory();
@@ -183,7 +179,6 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
     const writable = await handle.createWritable();
     await writable.write(text);
     await writable.close();
-    // De headless shell meldt de kiezer via `featurePolicy` als geblokkeerd; zoals in `ifc-schema.spec.ts`.
     Object.defineProperty(document, 'featurePolicy', { configurable: true, value: undefined });
     Object.defineProperty(window, 'showOpenFilePicker', {
       configurable: true, writable: true,

@@ -687,9 +687,6 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
   const S = () => store.getState();
   const aId = S().activeDocumentId;
   S().setAutoSaveToFile(true);
-  // Een ander programma vervangt het bestand door een versie met model, en document B heeft dat bestand ook. Met de flag
-  // opent Openen geen tweede tabblad op dit bestand meer (#804, knownbug 1957); de proef zet B neer zoals het na
-  // crashherstel of twee kruisende openacties nog kan bestaan.
   shared.replace(bonsai);
   const copyOfB = fakeHandle('planning-kopie.ifc', bonsai);
   await openSecondTabOn(store, { kind: 'handle', handle: shared.handle, name: 'planning.ifc' },

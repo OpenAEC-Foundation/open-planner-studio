@@ -762,10 +762,6 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   S().switchDocument(tabA);
   eq('G15 A houdt zijn eigen basis', S().siteFileVersion, 'v1');
 
-  // G16 — #804, knownbug 1957: met de featureflag `ifcForeignContent` opent een sitebestand dat al open staat geen
-  // tweede tabblad. Openen van de site, Recent en het startbestand (`openFromSite`) gaan naar het tabblad dat al open
-  // is, met één melding; dat tabblad houdt zijn werk en zijn eigen basis, ook als een collega intussen opsloeg (geen
-  // herladen, vraag P3). G15 hierboven is dezelfde stap met de flag uit: twee tabbladen, zoals main.
   useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
   site.put('y', 'Eén.ifc', [ifc]);
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y' }));
@@ -773,7 +769,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   await S().openFile();
   const tabY = S().activeDocumentId;
   S().addTask({ name: 'Werk in Y' });
-  site.otherUserSaves('y'); // collega slaat v2 op
+  site.otherUserSaves('y');
   const workY = JSON.stringify([S().tasks.map((t) => t.name), S().isDirty, S().siteFileVersion]);
   const recentY = () => S().recentFiles.find((e) => e.ref.kind === 'site' && e.ref.id === 'y');
   const routes: Array<[string, () => Promise<unknown>]> = [
@@ -791,10 +787,6 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     eq(`G16 ${route}: één melding`, S().ui.notifications.map((n) => [n.severity, n.messageKey]), [['info', 'notifications.fileAlreadyOpen']]);
     eq(`G16 ${route}: Recent bovenaan`, S().recentFiles[0]?.ref, { kind: 'site', id: 'y' });
   }
-  // G17 — review #1121 ronde 2 tot en met 4: de site vergelijkt het id synchroon, ná het parsen, in de stap van het
-  // activeren. Tab Y doet *Opslaan als* op de site (een kopie met een eigen id); de host heeft opgeslagen, de commit in de
-  // store wacht tot het openen van het origineel aan het parsen is en gebeurt dan, met de echte opslagroute. De beslissing
-  // ziet dat: het origineel opent in een eigen tabblad, de kopie houdt haar id en haar werk, de site wordt één keer gelezen.
   {
     const { allReadFormats } = await import('@/services/formatRegistry');
     const ifcFormat = allReadFormats().find((f) => f.extensions.includes('ifc'))!;
@@ -840,8 +832,6 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       opens() - opensBefore,
     ], [true, count + 1, true, 'y', true, true, 0, 1]);
   }
-  // G18 — review #1121 ronde 4: de flag gaat uit terwijl de site leest. De keuze ligt bij het lezen vast: de app gaat
-  // toch naar het tabblad dat 'y' al open heeft, met de melding, zoals bij een stabiele flag.
   {
     const tabOriginal = S().activeDocumentId;
     S().newDocument();
@@ -863,7 +853,6 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileAlreadyOpen').length,
     ], [true, tabOriginal, count, 1]);
   }
-  // Een oudere versie opent bewust als kopie zonder opslagdoel: geen identiteit, dus een eigen tabblad.
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
   await S().openFile();

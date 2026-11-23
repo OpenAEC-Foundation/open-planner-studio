@@ -1455,7 +1455,6 @@ await check('handle: een ander open document met hetzelfde bestand als bron blij
   const { store, name } = await openHandle(), unregister = recoveryRounds(store);
   try {
     store.getState().newDocument();
-    // #804, knownbug 1957: met de flag opent Openen geen tweede tabblad op dit bestand meer; de proef zet het neer.
     await openSecondTabOn(store, { kind: 'handle', handle: new FakeHandle(name) as unknown as FileSystemFileHandle, name },
       () => store.getState().openOpenedFile({ name, content: '', bytes, ref: { kind: 'handle', handle: new FakeHandle(`${name}.kopie`) as unknown as FileSystemFileHandle } }));
     longer(store); clearNotices(store); writableLog.length = 0;
@@ -1495,7 +1494,6 @@ await check('doelcontrole: de uitzondering "eigen doel" alleen voor de eigen han
     'een ander pad: geen uitzondering (zonder lezer is het doel onleesbaar)');
   // Een ander open document met hetzelfde bestand als bron.
   onPath.getState().newDocument();
-  // #804, knownbug 1957: met de flag opent Openen geen tweede tabblad op dit pad meer; de proef zet het neer.
   await openSecondTabOn(onPath, { kind: 'path', path },
     () => onPath.getState().openOpenedFile({ name: 'bron.ifc', content: '', bytes, ref: { kind: 'path', path: `${path}.kopie` } }));
   const twice = onPath.getState();

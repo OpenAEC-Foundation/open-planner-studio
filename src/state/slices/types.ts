@@ -207,7 +207,6 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
-  // #804, knownbug 1957: het bestand stond al open; de app ging naar dat tabblad (`openDocumentFor.ts`).
   | 'notifications.fileAlreadyOpen'
   // Rapport-tabblad (#861): de gekozen layout is verwijderd; het rapport valt terug op alle taken.
   | 'notifications.reportLayoutGone'

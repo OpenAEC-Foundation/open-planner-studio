@@ -66,10 +66,6 @@ export async function openDroppedFiles(
     });
   }
   const waitWhile = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
-  // #804, knownbug 1957: de keuze voor "staat al open" ligt bij het neerzetten vast (de leeskeuze van de neerzetting, ook
-  // als de flag uit staat). In de browser start de toets per bestand vlak vóór het lezen, en niemand wacht erop; de
-  // desktop vergelijkt alleen de padtekst, na het parsen. Een startbestand geeft geen `readOptions` mee: dat houdt de
-  // toets van main.
   const readOptions = options.readOptions;
   const oneTab = !!readOptions?.ifcBytes;
   for (const file of openable) {

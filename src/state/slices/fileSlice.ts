@@ -385,14 +385,8 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
-  /** #804, knownbug 1957: de keuze voor "staat al open", vastgelegd bij het begin van de openactie (de flag
-   *  `ifcForeignContent`), ook als zij uit staat: een openactie die met de flag uit begon, wisselt nooit. Zonder: de
-   *  leeskeuze hieronder (een startbestand). */
   oneTab?: boolean;
-  /** #804: de leeskeuze van deze openactie, vastgelegd vóór het lezen (alleen met de flag aan). Zonder: de huidige stand,
-   *  zoals main. */
   readOptions?: FormatReadOptions;
-  /** #804, knownbug 1957: de toets die in de browser bij het lezen startte (`startOpenLookup`); `null` zonder toets. */
   lookup?: OpenLookup | null;
   /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
    *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
@@ -1757,8 +1751,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return;
           }
         }
-        // Knownbug 1957: de keuze voor "staat al open" ligt hier vast, ook als de flag uit staat. Alleen de browser
-        // toetst, tussen kiezen en lezen, en niemand wacht erop; de desktop leest het `beforeRead` niet.
         readOptions = formatReadOptions();
         opened = await openFileDialog(openDialogFilters(), {
           binaryExtensions: binaryExtensions(readOptions),
@@ -1778,19 +1770,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     openOpenedFile: async (opened, labels, options) => {
       try {
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        // Knownbug 1957: de leeskeuze en de keuze voor "staat al open" van de openactie, vastgelegd bij de aanroeper. In de
-        // browser startte de toets bij het lezen (`options.lookup`) en telt hieronder alleen als ze al binnen is; de
-        // desktop vergelijkt alleen de padtekst. Een startbestand heeft de toets van main.
         const readOptions = options?.readOptions ?? formatReadOptions();
         const oneTab = options?.oneTab ?? !!readOptions.ifcBytes;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
-        // #1127: de productgrens direct op het parseerresultaat, synchroon, vóór de tabbeslissing (knownbug 2043).
         if (!options?.restoringVerifiedIfcSource) refuseModelAboveOpenLimit(parsed);
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
-        // Alleen een formaat dat een opslagdoel kan zijn: een CSV, XER, MS Project- of P6 XML-bestand opent opnieuw (P2).
         const existing = oneTab && opened.ref && !options?.existingDocument && readFormatForFile(opened.name).canBeSaveTarget
           ? existingDocument(get(), opened.ref, options?.lookup ?? null)
           : options?.existingDocument?.() ?? null;
@@ -2412,9 +2399,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         const readOptions = formatReadOptions();
         const isBinary = readsAsBytes(entry.name, readOptions);
-        // Knownbug 1957: de keuze voor "staat al open" ligt hier vast, ook als de flag uit staat. In de browser start de
-        // toets hier, vóór de vraag om leesrechten in `readFromRef`/`readBytesFromRef`, en niemand wacht erop; de desktop
-        // vergelijkt alleen de padtekst, na het parsen.
         const oneTab = !!readOptions.ifcBytes;
         const lookup = oneTab && entry.ref.kind === 'handle' && readFormatForFile(entry.name).canBeSaveTarget
           ? startOpenLookup(get(), entry.ref) : null;

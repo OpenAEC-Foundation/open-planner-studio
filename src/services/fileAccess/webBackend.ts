@@ -289,7 +289,6 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
     try {
       const [handle] = await window.showOpenFilePicker!({ multiple: false, types: toAcceptTypes(filters) });
       const ref = { kind: 'handle', handle } as const;
-      // #804: de toets "staat al open" start hier, synchroon (`OpenDialogOpts.beforeRead`, alleen met de flag).
       opts?.beforeRead?.(ref);
       // `await` binnen de try: een weigering tijdens het lezen moet de catch hieronder bereiken.
       return await openedFromFile(await handle.getFile(), ref, opts);

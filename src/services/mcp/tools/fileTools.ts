@@ -537,8 +537,6 @@ export const fileTools: McpToolDef[] = [
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
         readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
-        // Knownbug 1957 (besluit T2): deze leeskeuze is ook de keuze voor "staat al open", vastgelegd bij het begin, ook
-        // als de flag uit staat. Geen toets: de beslissing hieronder vergelijkt synchroon de padtekst.
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
@@ -573,9 +571,6 @@ export const fileTools: McpToolDef[] = [
       // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
-      // In dezelfde synchrone stap: wisselen of openen, en het document van het antwoord vastleggen.
-      // Alleen dezelfde letterlijke padtekst, en alleen voor een formaat dat een opslagdoel kan zijn (vraag P2). Met de flag
-      // uit nooit, zodat het antwoord gelijk blijft aan main.
       const existing = readOptions.ifcBytes && readFormatForFile(path).canBeSaveTarget
         ? existingDocument(ctx.app.store.getState(), { kind: 'path', path }, null) : null;
       if (existing !== null) switchToOpenDocument(ctx.app.store.getState(), existing);
@@ -632,7 +627,6 @@ export const fileTools: McpToolDef[] = [
           'new dates; planner_undo restores the recorded dates (Dates as recorded). Tell the user.',
         );
       }
-      // De formaatuitleg hoort alleen bij een echte import; een tabblad dat al open stond, kreeg niets nieuws.
       if (opened) {
         if (format === 'CSV') {
           notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
@@ -661,7 +655,6 @@ export const fileTools: McpToolDef[] = [
           path,
           format,
           reusedActiveTab: opened?.reusedActiveTab ?? false,
-          // Alleen als het pad al open stond (knownbug 1957); met de flag uit nooit, zodat het antwoord gelijk blijft.
           ...(existing !== null ? { alreadyOpen: true } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */
           filePath: after.filePath,

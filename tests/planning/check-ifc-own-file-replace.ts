@@ -1260,13 +1260,8 @@ const openViaDrop = async (c: Case) => {
 };
 const otherTab = (c: Case) => c.store.getState().getOpenDocumentPayloads()
   .find(d => d.id !== c.id && d.payload.foreignSourceMark?.filePath === c.path);
-/** #804, knownbug 1957: met de flag aan opent Openen geen tweede tabblad op `c.path` meer; zo'n tabblad kan er nog zijn
- *  (crashherstel, de flag pas later aan, kruisende openacties, knownbug 2041). De proef zet het neer: de openactie met
- *  bytes op een ander pad (zonder de leesroute, dus ook binnen een herstelronde), daarna op `c.path`. */
 const secondTab = (c: Case, content: Uint8Array = bytes) => openSecondTabOn(c.store, { kind: 'path', path: c.path },
   () => c.store.getState().openOpenedFile({ name: basename(c.path), content: '', bytes: content, ref: { kind: 'path', path: `${c.path}.kopie` } }));
-/** De versie die de leesroute aan de openacties op `c.path` gaf (hash van wat `openOpenedFile` binnenkreeg), zodat een
- *  proef toont welke versie déze openactie las; de leesroute zelf blijft ongemoeid. `stop` zet de actie terug. */
 const openedVersions = (c: Case) => {
   const original = c.store.getState().openOpenedFile;
   const versions: string[] = [];
@@ -1312,7 +1307,6 @@ await check('een vooraf geopend tweede tabblad met hetzelfde bestand stopt Ctrl+
   } finally { await tidy(c); }
 });
 
-// #804, knownbug 1957: met de flag aan gaat het openen daarna naar het tabblad dat opsloeg; er komt geen tweede tabblad.
 await check('een opening die tijdens de eerste herstelronde begint, wacht tot de vervanging klaar is en gaat dan naar het open tabblad', async () => {
   const c = await opened();
   let opening: Promise<void> | undefined;
@@ -1370,7 +1364,6 @@ const throughRecent = (c: Case) => {
   return c.store.getState().openRecentFile('review-recent');
 };
 for (const route of ['dialoog', 'Recent'] as const) {
-  // #804, knownbug 1957: met de flag aan gaat de opening daarna naar het tabblad dat opsloeg; er komt geen tweede tabblad.
   await check(`${route}: opening tijdens herstel wacht tot Ctrl+S klaar is en gaat naar het open tabblad`, async () => {
     const c = await opened();
     const invoke = internal.invoke;
@@ -1401,8 +1394,6 @@ for (const route of ['dialoog', 'Recent'] as const) {
   });
 }
 
-// #804, knownbug 1957: met de flag aan gaat zo'n lezing daarna naar het tabblad dat opsloeg, dus de oude bron komt niet
-// in een tabblad. De grens van 1837 blijft voor een tabblad met de oude bron dat er toch is (`secondTab`).
 await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabblad met de oude bron weigert Ctrl+S, ook nadat het eerste dicht is', async () => {
   const c = await opened();
   const read = deferredOpen(), release = deferredOpen();

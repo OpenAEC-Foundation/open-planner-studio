@@ -13,8 +13,6 @@ import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/
  *  `read()`: een geweigerd bestand wordt nooit gelezen. */
 export interface DroppedFile {
   name: string;
-  /** `beforeRead` (#804, knownbug 1957): alleen in de browser, synchroon aangeroepen vlak vóór het lezen, met de handle
-   *  uit het event. De toets "staat al open" start daar; niemand wacht erop. Mag niet gooien. */
   read(beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void): Promise<OpenedFile>;
   /** Zie `OpenOpenedFileOptions.existingDocument` en `.stale`: alleen een startbestand (#1091) zet ze. */
   existingDocument?: () => string | null;

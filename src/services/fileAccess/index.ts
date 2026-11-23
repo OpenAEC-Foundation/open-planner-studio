@@ -83,9 +83,6 @@ export interface OpenedFile {
 export interface OpenDialogOpts {
   /** Extensies (zonder punt, lowercase) die als bytes gelezen moeten worden i.p.v. tekst. */
   binaryExtensions?: string[];
-  /** Alleen de browser (`openFileDialogWeb`): synchroon aangeroepen tussen de kiezer en het lezen, met de gekozen
-   *  handle (#804, knownbug 1957: de toets "staat al open" start daar; niemand wacht erop). Mag niet gooien. De desktop
-   *  leest het niet: daar vergelijkt de app alleen de padtekst, na het parsen. */
   beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void;
 }
 

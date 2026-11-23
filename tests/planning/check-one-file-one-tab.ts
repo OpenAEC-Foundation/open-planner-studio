@@ -1,29 +1,3 @@
-// #804, knownbug 1957: één bestand, één tabblad (besluit van de eigenaar, 21 november 2026; T1: achter de flag
-// `ifcForeignContent`). Opent de planner een bestand dat al in een tabblad open staat, dan komt er geen tweede tabblad:
-// de app gaat naar dat tabblad, met één melding, en dat tabblad houdt al zijn werk (taken, gewijzigd-stand, ongedaan
-// maken). Met de flag uit: een tweede tabblad, zoals main.
-//
-//  A. De identiteit (besluit D, review #1121 ronde 6): de desktop alleen de letterlijke padtekst, synchroon (A1–A5,
-//     A11, A17: een link, een andere schrijfwijze of hoofdletters tellen niet), de site het id (A9), de browser
-//     `startOpenLookup` met `gevraagd.isSameEntry(tabblad)` (A6–A8, A9c, A12), alle vergelijkingen tegelijk gestart (A19,
-//     A19b). Met de flag uit roept geen openroute de toets aan (B6, C4: main).
-//  B. Desktop, op echte bestanden (plugin-fs-JS met nep-IPC naar Node-fs): Bestand → Openen (`openFile()` met de
-//     kiezer), Recent, slepen; via een link een eigen tabblad (2063); twee keer hetzelfde bestand in één neerzetting; een
-//     kopie met dezelfde inhoud is een ander bestand; CSV opent opnieuw (vraag P2); het tabblad dat tijdens het wachten
-//     van een neerzetting sluit, laat het bestand gewoon openen. Met de flag uit: telkens een tweede tabblad.
-//  C. Browser (nep-FSA-handles): Openen (`showOpenFilePicker`, telkens een nieuw handle-object), Recent, slepen
-//     (`droppedFilesFromDataTransfer`), een `isSameEntry` die gooit, Firefox zonder handle, CSV zonder toets (C5). Met
-//     de flag uit: twee tabbladen. P1 browser: een vastgehouden `isSameEntry` houdt de openactie niet op.
-//  D, P, R, T. Review #1121: geen `stat` en dezelfde bestandsaanroepen als main per desktoproute (D1, T1), een
-//     vastgehouden `stat` van een ander tabblad houdt het openen niet op (D3), een link die tijdens het lezen van doel
-//     verandert (D2, MCP: alles blijft bij wat gelezen is), MCP en een lopende opslag zoals main (P2), F2 tijdens Openen
-//     en Recent (P3), de flag die tijdens het lezen aangaat (P4), CSV via een hardlink of met dezelfde padtekst (P5), een
-//     verdwenen alias (B11), *Opslaan als* na het parsen (R2, R4), MCP en Openen tegelijk (R5), drie openacties
-//     tegelijk (R6), de flag die tijdens het lezen uitgaat (R7). Het startbestand houdt de toets van main (T1, B10).
-// De site staat in `check-site-storage.ts` (G16, G17, G18), `planner_import_schedule` ook in `tests/mcp/cases-doc-file.ts` en
-// `cases-headless-server.ts`.
-//
-// Draait via run.sh. Exit 0 = alles groen; alleen de exitcode telt.
 import { copyFileSync, mkdirSync, mkdtempSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -67,8 +41,6 @@ const labels = buildImportLabels((key) => key);
 const ALREADY_OPEN = 'notifications.fileAlreadyOpen';
 const enc = new TextEncoder();
 
-// Review #1121 ronde 3: de volgorde van lezen, toets, parsen en activeren in één openactie (T1, T2). De leesfunctie van
-// het IFC-formaat meldt het begin van het parsen; de proef zelf meldt lezen, toets en activeren.
 let events: string[] | null = null;
 const record = (event: string) => { events?.push(event); };
 {
@@ -76,7 +48,6 @@ const record = (event: string) => { events?.push(event); };
   const parse = ifcFormat.read;
   ifcFormat.read = (input, l, o) => { record('parse'); return parse(input, l, o); };
 }
-/** De volgorde tot en met het eerste activeren; opeenvolgende gelijke toetsstappen tellen één keer. */
 const orderOf = (seq: string[]) => {
   const upto = seq.slice(0, seq.indexOf('actief') + 1);
   return upto.filter((e, i) => e !== 'toets' || upto[i - 1] !== 'toets');
@@ -89,19 +60,16 @@ function newApp(flag: boolean) {
   return app;
 }
 const newStore = (flag: boolean): Store => newApp(flag).store;
-/** Een poort die de proef zelf opent. */
 function gate() {
   let open!: () => void;
   const wait = new Promise<void>((resolve) => { open = resolve; });
   return { wait, open: () => open() };
 }
-/** De MCP-context zoals de brug hem per aanroep bouwt. */
 const mcpContext = (app: ReturnType<typeof createAppStoreContext>, expectedDocId: string | null) => ({
   app, transactions: createMcpTransactions(app), expectedDocId, tempIdMap: new Map(),
   paused: false, readOnly: false, ensureBackup: async () => null, markDuplicateBorn: () => {},
 });
 
-/** Een planning als IFC-tekst, met één taak. */
 function planIfc(name: string, task: string): string {
   const store = newStore(false);
   store.getState().newProject();
@@ -120,23 +88,19 @@ const csvText = (() => {
   return writeCSV(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments);
 })();
 
-/** De leeskeuze van de app bij slepen: IFC als bytes alleen met de flag (`dropReadOptions`). */
 const readOptions = (store: Store) => ({ ifcBytes: ifcForeignContentEnabled(store.getState().ui.featureFlags) });
 const notices = (store: Store) => store.getState().ui.notifications.map(n => [n.severity, n.messageKey]);
 const clearNotices = (store: Store) => store.setState(s => { s.ui.notifications = []; });
-/** Wat het tabblad `id` draagt: naam, taken, gewijzigd, bestand. Ook voor het slapende tabblad. */
 function tab(store: Store, id: string) {
   const doc = store.getState().getOpenDocumentPayloads().find(d => d.id === id)?.payload;
   return doc ? { project: doc.project.name, tasks: doc.tasks.map(t => t.name), isDirty: doc.isDirty, filePath: doc.filePath } : null;
 }
 const history = (store: Store) => JSON.stringify([store.getState().historyEvents, store.getState().nextHistorySequence]);
 
-// ═══ A. De identiteit ═════════════════════════════════════════════════════════════════════════════
 {
   type Payload = { filePath: string | null; fileHandle: FileSystemFileHandle | null; siteFileId: string | null };
   type Tab = { id: string; payload: Payload };
   const calls: string[] = [];
-  /** Een nep-handle: `isSameEntry` op de naam; legt vast wie met wie vergeleken wordt. */
   const handleFor = (name: string, opts: { throws?: boolean; hold?: Promise<void> } = {}) => ({
     kind: 'file', name,
     isSameEntry: async (other: { name?: string }) => {
@@ -150,13 +114,11 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     id, payload: { filePath: null, fileHandle: null, siteFileId: null, ...p },
   }));
   const asTabs = (tabs: Tab[]) => ({ getOpenDocumentPayloads: () => tabs }) as unknown as Parameters<typeof existingDocument>[0];
-  /** De synchrone eindbeslissing op deze tabbladen, zonder toets (de desktop, de site). */
   const decide = (tabs: Tab[], ref: Parameters<typeof existingDocument>[1]) => existingDocument(asTabs(tabs), ref, null);
   const settle = async <T extends { settled: boolean }>(lookup: T): Promise<T> => {
     for (let i = 0; i < 50 && !lookup.settled; i++) await new Promise<void>((r) => setTimeout(r, 0));
     return lookup;
   };
-  /** De browsertoets: de id van de treffer, `null`, of 'open' als ze nog niet beslist is. */
   const findId = async (tabs: Tab[], handle: FileSystemFileHandle) => {
     const lookup = await settle(startOpenLookup(asTabs(tabs), { kind: 'handle', handle }));
     return lookup.settled ? lookup.id : 'open';
@@ -171,7 +133,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ['doc-site-handle', { filePath: 'sh.ifc', fileHandle: handleFor('sh.ifc'), siteFileId: 'site-2' }],
     ['doc-csv', { filePath: null }],
   ]);
-  // Besluit D (review #1121 ronde 6): de desktop vergelijkt alleen de letterlijke padtekst, synchroon, zonder `stat`.
   eq('A1 hetzelfde pad', decide(docs, path('/plan/a.ifc')), 'doc-pad');
   eq('A2 een link (een andere padtekst) telt niet (knownbug 2063)', decide(docs, path('/plan/link-a.ifc')), null);
   eq('A4 POSIX is hoofdlettergevoelig', decide(docs, path('/plan/A.ifc')), null);
@@ -180,7 +141,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   eq('A11 een tabblad met een handle telt niet voor een pad', decide(docs, path('h.ifc')), null);
   eq('A9 site: hetzelfde id', decide(docs, { kind: 'site', id: 'site-1' }), 'doc-site');
   eq('A9b site: ander id', decide(docs, { kind: 'site', id: 'site-9' }), null);
-  // De browser: `isSameEntry` per tabblad met een handle (zonder site-id), in de richting gevraagd → tabblad.
   calls.length = 0;
   eq('A6 handle: isSameEntry waar, ander object', await findId(docs, handleFor('a.ifc')), 'doc-handle');
   eq('A6 richting: gevraagd.isSameEntry(tabblad), niet voor een site-tabblad', calls, ['a.ifc→a.ifc']);
@@ -188,8 +148,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   eq('A8 handle: isSameEntry gooit ⇒ anders', await findId(docs, handleFor('a.ifc', { throws: true })), null);
   eq('A9c site wint van de handle van hetzelfde document', await findId(docs, handleFor('sh.ifc')), null);
   eq('A12 een tabblad met een pad telt niet voor een handle', await findId(state([['p', { filePath: '/plan/a.ifc' }]]), handleFor('/plan/a.ifc')), null);
-  // Review #1121 ronde 6: de vergelijkingen starten tegelijk (zoals B3 mat), zonder voorsorteren op naam. Een
-  // vastgehouden eerste kandidaat houdt de treffer op de laatste niet op; "geen treffer" pas als alle binnen zijn.
   {
     const hold = gate();
     const tabs = state([
@@ -206,7 +164,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     hold.open();
     await settle(lookup);
     eq('A19 de treffer op de laatste plaats', [lookup.settled, lookup.id], [true, 'zelfde']);
-    // Eén vergelijking zit vast, de treffer is al binnen: dan telt die meteen.
     const stuck = gate();
     const slowTabs = state([
       ['vast', { filePath: 'x.ifc', fileHandle: { kind: 'file', name: 'x.ifc' } as unknown as FileSystemFileHandle }],
@@ -227,7 +184,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   eq('A17 synchroon: dezelfde padtekst', decide(docs, path('/plan/a.ifc')), 'doc-pad');
 }
 
-// ═══ B. Desktop ═══════════════════════════════════════════════════════════════════════════════════
 {
   const dir = mkdtempSync(join(tmpdir(), 'ops-1957-'));
   const kantoor = join(dir, 'kantoor.ifc');
@@ -258,8 +214,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       dialogAnswer = how === 'link' ? link : file;
       await store.getState().openFile(labels);
     } else if (how === 'recent') {
-      // Recent is één gedeelde lijst van tien, met de vaste klok van deze batterij zonder vaste volgorde: staat het bestand
-      // er niet (meer) in, dan zet de proef het er zelf in, zoals de planner het in Recent ziet staan.
       let entry = store.getState().recentFiles.find(e => e.ref.kind === 'path' && e.ref.path === file);
       if (!entry) {
         entry = { id: `recent-${file}`, ref: { kind: 'path', path: file }, name: file.split('/').pop()!, addedAt: 1 };
@@ -268,12 +222,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
       await store.getState().openRecentFile(entry.id, labels);
     } else {
-      // Zoals de hook (`useFileDrop`): de lezers van main en de leeskeuze van de neerzetting.
       await openDroppedFiles(store, droppedFilesFromPaths([file], io, readOptions(store)), labels, () => false, { readOptions: readOptions(store) });
     }
   };
   try {
-    // Met de flag aan: kantoor open in A, met onopgeslagen werk; school in B (actief).
     const store = newStore(true);
     const S = () => store.getState();
     dialogAnswer = kantoor;
@@ -300,8 +252,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq(`B1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.ref, { kind: 'path', path: kantoor });
       eq(`B1 ${how}: B onveranderd`, tab(store, b), { project: 'School', tasks: ['Dak'], isDirty: false, filePath: school });
     }
-    // Besluit D (ronde 6, knownbug 2063): via een link is het een andere padtekst. De app kijkt niet naar de schijf en opent
-    // een eigen tabblad, zoals main; A houdt zijn werk.
     {
       S().switchDocument(b);
       clearNotices(store);
@@ -314,20 +264,16 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       S().closeDocument(viaLink);
       S().switchDocument(a);
     }
-    // Ongedaan maken werkt na de wissel nog op het werk van A.
     S().undo();
     eq('B2 ongedaan maken in A na de wissel', S().tasks.map(t => t.name), ['Fundering']);
     S().redo();
 
-    // Een kopie met dezelfde inhoud is een ander bestand; twee keer dezelfde kopie in één neerzetting geeft één
-    // tabblad en één melding.
     clearNotices(store);
     await openDroppedFiles(store, droppedFilesFromPaths([kopie, kopie], io, { ifcBytes: true }), labels, () => false, { readOptions: { ifcBytes: true } });
     const c = S().activeDocumentId;
     eq('B3 kopie: een eigen tabblad', [S().documents.length, tab(store, c)?.filePath, tab(store, c)?.project], [3, kopie, 'School']);
     eq('B3 tweede neerzetting van dezelfde kopie: één melding', notices(store), [['info', ALREADY_OPEN]]);
 
-    // CSV heeft geen opslagdoel: opnieuw openen geeft een nieuw tabblad (vraag P2).
     S().addTask({ name: 'Werk in de kopie' });
     clearNotices(store);
     dialogAnswer = csv;
@@ -335,11 +281,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     S().addTask({ name: 'Werk in de CSV' });
     await S().openFile(labels);
     eq('B4 CSV twee keer: twee tabbladen, geen melding', [S().documents.length, notices(store).filter(n => n[1] === ALREADY_OPEN)], [5, []]);
-    // De formaatuitleg van de CSV sluiten (*Begrepen*): anders wacht een volgende neerzetting daar terecht op.
     store.setState(s => { s.ui.pendingFormatNotice = null; });
 
-    // Een neerzetting die moet wachten (een dialoog staat open), terwijl de planner het tabblad met kantoor sluit:
-    // het bestand opent dan gewoon, in een eigen tabblad, en verdwijnt niet.
     S().switchDocument(b);
     clearNotices(store);
     const opened = await readOpenedPath(kantoor, true);
@@ -357,9 +300,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ], [false, true, { project: 'Kantoor', tasks: ['Fundering'], isDirty: false, filePath: kantoor }]);
     eq('B5 geen melding "staat al open"', notices(store).filter(n => n[1] === ALREADY_OPEN), []);
 
-    // Knownbug 1909: een Openen van doel.ifc loopt nog (het bestand is gelezen, het tabblad nog niet geregistreerd)
-    // terwijl een ander tabblad *Opslaan als* over doel.ifc doet. De toets na het lezen ziet dat doel.ifc nu open staat
-    // in het tabblad dat opsloeg, en gaat daarheen: geen tweede tabblad met de oude inhoud van doel.ifc.
     const doel = join(dir, 'doel.ifc');
     writeFileSync(doel, schoolIfc);
     const oud = await readOpenedPath(doel, true);
@@ -381,10 +321,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq('B7 1909: het tabblad dat opsloeg, met zijn werk', tab(store, saver), { project: 'Opslaander', tasks: ['Nieuw werk'], isDirty: false, filePath: doel });
     eq('B7 1909: één melding', notices(store), [['info', ALREADY_OPEN]]);
 
-    // Review #1121 ronde 1 (BLOKKEERT): *Opslaan als* zet het gevonden tabblad op een ander bestand terwijl de
-    // neerzetting wacht op de dialoogpoort. De wissel kijkt vlak vóór het activeren of dat tabblad nog naar het
-    // gevraagde bestand wijst; zo niet, dan opent het gevraagde bestand gewoon, zoals main. (De volgorde "trage `stat`"
-    // verviel in ronde 5: met route P wacht de openactie niet op de toets.)
     for (const during of ['wachtende neerzetting'] as const) {
       const st = newStore(true);
       const T = () => st.getState();
@@ -404,7 +340,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         let blocked = true;
         release = () => { blocked = false; };
         opening = openDroppedFiles(st, droppedFilesFromPaths([kantoor], io, readOptions(st)), labels, () => {
-          if (++calls === 1) return false; // de poort bij het neerzetten
+          if (++calls === 1) return false;
           resolve();
           return blocked;
         }, { readOptions: readOptions(st) });
@@ -427,9 +363,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       });
     }
 
-    // Review #1121 ronde 1 (VERVOLG): een pad met `..` door een maplink wijst op POSIX naar een ander bestand dan wat
-    // er lexicaal staat. Met besluit D (ronde 6) telt alleen de letterlijke padtekst: `maplink/../kantoor.ifc` (hier een
-    // ander bestand, planning School) en `./kantoor.ifc` (hetzelfde bestand) openen elk een eigen tabblad (knownbug 2063).
     {
       const st = newStore(true);
       const T = () => st.getState();
@@ -456,9 +389,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       ], [true, 3, ['Fundering', 'Werk in kantoor']]);
     }
 
-    // Review #1121 ronde 2: met de flag uit is er geen toets; *Opslaan als* begint op het moment van de eerste `stat` van
-    // kantoor tijdens de openactie (bij main die van de schrijfrij of het lezen) en weigert, zoals main. (R1 en R3, met
-    // *Opslaan als* en sluiten tijdens de toets, vervielen in ronde 5: met route P wacht de openactie niet op de toets.)
     {
       const { readFileSync } = await import('node:fs');
       type Route = 'openen' | 'recent' | 'slepen' | 'MCP';
@@ -478,8 +408,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           await T().saveFileAs();
           if (closeAfterSave && !T().isDirty) T().closeDocument(saving);
         };
-        // De eerste `stat` van kantoor tijdens de openactie is die van de toets. Daarin Opslaan als (en sluiten).
-        // `reads` telt de leesacties van de openactie, niet die van Opslaan als zelf (die leest het doel voor de eigen-bestandtoets).
         let gated = false, inSave = false, reads = 0;
         const outer = internals.invoke;
         internals.invoke = async (command, args, options) => {
@@ -518,10 +446,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Review #1121 ronde 6 (BLOKKEERT 2), de proef van Sol als vaste proef: School staat open; een `stat` van het pad van
-    // School houdt de bestandslaag vast (zoals een trage netwerkschijf de native draad), en elke andere bestandsaanroep
-    // die daarna komt ook. Openen, Recent, slepen en MCP van het lokale kantoor.ifc zijn binnen 120 ms klaar, zonder een
-    // `stat`, zoals main (`native-wachtrij-main.log`).
     {
       const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
       for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
@@ -565,10 +489,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Review #1121 ronde 6 (BLOKKEERT 1), de proef van Sol als vaste proef: Kantoor staat open; `planner_import_schedule`
-    // van een link naar kantoor.ifc, en terwijl de import leest gaat de link naar school.ifc. De import leest School en
-    // opent School, zoals main: de bewerking en de export blijven bij School, Ctrl+S ook, en kantoor.ifc is bytegelijk
-    // (`alias-tijdens-lezing-main.log`).
     {
       const { readFileSync, unlinkSync } = await import('node:fs');
       writeFileSync(kantoor, kantoorIfc);
@@ -613,16 +533,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         unlinkSync(link);
         symlinkSync(kantoor, link);
       }
-      // Ctrl+S schreef School via de link naar school.ifc (ook op main): de volgende proeven verwachten het origineel.
       writeFileSync(school, schoolIfc);
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Review #1121 ronde 5 (BLOKKEERT 1), de proef van Sol: `planner_import_schedule` voor kantoor (een `stat` van kantoor
-    // zou de proef vasthouden; met besluit D is er geen); 120 ms later *Opslaan als* van School met *Net opgeslagen werk* over kantoor.ifc, met de plaatsing
-    // vastgehouden. Met route P wacht MCP niet op de toets: de import is klaar, *Opslaan als* weigert, School blijft
-    // gewijzigd, kantoor.ifc bytegelijk; één lezing; na *Vervolgwerk* + Ctrl+S in het geïmporteerde tabblad geen melding.
-    // Precies wat main doet (Sols meting op main, `mcp-lopende-opslag-main.log`).
     {
       const { readFileSync } = await import('node:fs');
       writeFileSync(kantoor, kantoorIfc);
@@ -682,9 +596,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Review #1121 ronde 5 (BLOKKEERT 2), de proef van Sol: Kantoor en School staan open; Openen of Recent van kantoor
-    // (een `stat` van kantoor zou de proef vasthouden; met besluit D is er geen); 150 ms later in School een taak kiezen en
-    // F2. De openactie is dan al klaar, zoals op main: de taakdialoog blijft open, op dezelfde taak, in School.
     {
       if (typeof (globalThis as { document?: unknown }).document === 'undefined') {
         Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: {} } });
@@ -729,9 +640,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
-    // Review #1121 ronde 5 (VERVOLG), het geval van Sol: School is open via `maplink/../kantoor.ifc` (een ander bestand
-    // dan kantoor.ifc); het bestand achter dat aliaspad verdwijnt; dan Openen van het gewone kantoor.ifc. Een andere
-    // padtekst telt niet (besluit D): Kantoor opent, zoals main.
     {
       const { realpathSync, unlinkSync } = await import('node:fs');
       const other = join(dir, 'andere-map');
@@ -756,9 +664,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       ], [true, 'School', false, 'Kantoor', kantoor, []]);
     }
 
-    // Review #1121 ronde 6 (VERVOLG), het geval van Sol: een openactie die met de flag uit begon, terwijl de flag tijdens
-    // het lezen aangaat. De keuze voor "staat al open" ligt bij het begin vast: geen wissel, een derde tabblad, zoals
-    // main (`vlag-gaat-aan-main.log`). De parseerkeuze blijft die van main.
     for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
       writeFileSync(kantoor, kantoorIfc);
       const app = newApp(false);
@@ -799,9 +704,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
-    // Review #1121 ronde 6 (VERVOLG), het geval van Sol: een formaat zonder opslagdoel (CSV) toetst en wisselt nooit, ook
-    // niet via een hardlink naar het IFC-bestand van een open tabblad, en ook niet als een tabblad dezelfde padtekst
-    // draagt. Zoals main (`niet-ifc-main.log`): een eigen tabblad, zonder opslagdoel.
     {
       const { linkSync } = await import('node:fs');
       writeFileSync(kantoor, kantoorIfc);
@@ -824,7 +726,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         writeFileSync(csvAlias, csvText);
         await openVia(st, 'openen', csvAlias);
         const viaHardlink = [T().activeDocumentId !== kantoorTab, T().filePath, T().tasks.map(t => t.name)];
-        // Draagt een tabblad dezelfde padtekst als de CSV, dan nog steeds een eigen tabblad (de regel op het formaat).
         st.setState(s => { s.filePath = null; });
         T().switchDocument(kantoorTab);
         st.setState(s => { s.filePath = csv; });
@@ -839,9 +740,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
-    // Samenloop met #1127 (knownbug 2043): een model dat al in een tabblad open staat en intussen boven de productgrens
-    // valt (hier: de grens verlaagd tot onder zijn grootte). De groottecontrole volgt direct op het parsen, vóór de
-    // synchrone tabbeslissing: opnieuw openen geeft de groottemelding, geen wissel en geen tweede tabblad.
     {
       const { readFileSync } = await import('node:fs');
       const { lowerModelOpenLimitForTests } = await import('@/services/ifc/modelOpenLimit');
@@ -888,14 +786,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         lowerModelOpenLimitForTests();
         fileToolDeps.getFs = getFs;
       }
-      // Recent is één gedeelde lijst van tien (met de vaste klok van deze batterij zonder volgorde): haal het model eruit,
-      // zodat de proeven hierna dezelfde lijst zien als zonder dit blok.
       const { removeRecent } = await import('@/services/fileAccess/recentFiles');
       for (const e of T().recentFiles.filter(e => e.ref.kind === 'path' && e.ref.path === groot)) await removeRecent(e.id);
     }
 
-    // Review #1121 ronde 4 (VERVOLG): de flag gaat uit terwijl de openactie loopt (hier: tijdens het lezen, ronde 5). De
-    // leeskeuze ligt vóór het lezen vast, dus de IFC opent zoals bij een stabiele flag: Kantoor, zonder `openFailed`.
     for (const route of ['openen', 'recent', 'slepen'] as const) {
       writeFileSync(kantoor, kantoorIfc);
       const st = newStore(true);
@@ -923,13 +817,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       ], [true, 'Kantoor', ['Fundering'], kantoor, []]);
     }
 
-    // Review #1121 ronde 3 (BLOKKEERT 1): `planner_import_schedule` heeft Kantoor geparst; direct daarna slaat de planner
-    // School op als kantoor.ifc, en die opslag zou vlak vóór het plaatsen wachten. Na het parsen staat er geen wachtmoment
-    // meer: MCP beslist en activeert Kantoor in dezelfde synchrone stap. De uitkomst is die van main (met de flag uit is
-    // dit de code van main; Sol mat main met de flag aan en uit, `review-1121-sol-r3/mcp-plaatsing-main.log`): Opslaan als
-    // wordt geweigerd, School blijft gewijzigd, kantoor.ifc blijft bytegelijk en MCP leest kantoor één keer.
-    // "Direct na het parsen" meet de proef zonder haak in de app: ze omwikkelt de leesfunctie van het IFC-formaat.
-    // Een `stat` van kantoor ná het parsen (een toets daar, zoals in ronde 2) houdt ze vast tot de opslag plaatst.
     {
       const { readFileSync } = await import('node:fs');
       const ifcFormat = allReadFormats().find(f => f.extensions.includes('ifc'))!;
@@ -952,8 +839,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           const result = await parse(input, l, o);
           if (input.name === kantoor && !parsed) {
             parsed = true;
-            // Ronde 4: bij de eerste macrotaak na het parsen moet Kantoor al actief zijn. Een wachtmoment van de PR na het
-            // parsen (ook met de flag aan) laat dit zien, los van hoe snel de opslag zelf is.
             setImmediate(() => { openAtFirstTurn = T().getOpenDocumentPayloads().some(d => d.payload.filePath === kantoor); });
             setImmediate(() => {
               saveStarted = true;
@@ -1017,19 +902,11 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       writeFileSync(kantoor, kantoorIfc);
     }
 
-    // Review #1121 ronde 3 (BLOKKEERT 2): `planner_import_schedule` voor Kantoor en Bestand → Openen voor School kruisen
-    // elkaar; beide staan al open. MCP legt het document van zijn antwoord en het driftanker vast in de synchrone stap
-    // waarin het wisselt: het antwoord noemt Kantoor, en wisselt Openen daarna naar School, dan weigert de volgende
-    // `planner_update_project` en `planner_export_ifc` met DOC_DRIFT (of ze werken op Kantoor). School blijft onaangeroerd.
-    // De proef houdt de eerste lezing van kantoor (MCP) vast, en daarna de eerste lezing van Openen (school óf kantoor; met
-    // route P, ronde 5, houdt een `stat` de openactie niet meer vast), en laat ze los met
-    // 0 tot 12 microtaken verschil in beide richtingen, en ook na elkaar (de een helemaal klaar vóór de ander verder mag).
     {
       const { readFileSync } = await import('node:fs');
       const releaseAfter = (n: number, open: () => void) => { if (n <= 0) open(); else queueMicrotask(() => releaseAfter(n - 1, open)); };
       const seen = new Set<string>();
       const orders: (number | 'Openen eerst klaar' | 'MCP eerst klaar')[] = [...Array.from({ length: 25 }, (_, i) => i - 12), 'Openen eerst klaar', 'MCP eerst klaar'];
-      // Alleen de lezing van school: de variant met de `stat` van het tabblad kantoor verviel met route P (ronde 5).
       for (const uiAt of [school]) for (const offset of orders) {
         writeFileSync(kantoor, kantoorIfc);
         writeFileSync(school, schoolIfc);
@@ -1108,12 +985,9 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           fileToolDeps.getFs = getFs;
         }
       }
-      // Beide volgordes kwamen voor: soms wint MCP de laatste wissel, soms Openen.
       eq('R5 kruisend: beide eindstanden gezien', [...seen].sort(), ['Kantoor', 'School']);
     }
 
-    // Knownbug 2041: drie openacties van kantoor (Openen, Recent, slepen) lezen tegelijk; geen ervan ziet kantoor open. De eerste die activeert opent kantoor; de andere twee zien dat tabblad in hun synchrone eindbeslissing
-    // (hetzelfde pad) en gaan erheen. Eén tabblad op kantoor.
     {
       writeFileSync(kantoor, kantoorIfc);
       const st = newStore(true);
@@ -1147,13 +1021,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       ], [3, 1, 2, 1]);
     }
 
-    // #1116/#1091: een startbestand (eerste start, of een tweede start: de planner dubbelklikt op een bestand dat al open
-    // staat) loopt door `openLaunchFiles` met de toets van main, met en zonder flag. Met de flag aan geeft de wissel de
-    // melding en werkt hij Recent bij, ook voor een tabblad dat pas tijdens het wachten opengaat. Met de flag uit zoals
-    // main: de startroute wisselt, zonder melding.
     {
       const { openLaunchFiles } = await import('@/state/launchFiles');
-      // Zoals de desktop-hook (`useLaunchFiles`): met de bestandsidentiteit.
       const launchOptions = (store: Store) => ({ readOptions: readOptions(store), identityFs: fileIdentityFs });
       const launchCase = async (flag: boolean) => {
         const st = newStore(flag);
@@ -1182,7 +1051,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         eq(`B10 tweede start, ${how}: het andere tabblad onveranderd`, tab(st, other)?.filePath, school);
       }
       {
-        // Het tabblad met kantoor gaat pas open terwijl het startbestand wacht (een dialoog staat open).
         const st = newStore(true);
         const T = () => st.getState();
         dialogAnswer = school;
@@ -1196,7 +1064,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         dialogAnswer = kantoor;
         await T().openFile(labels);
         const late = T().activeDocumentId;
-        // School weer bovenaan Recent (Openen van school gaat naar zijn tabblad).
         dialogAnswer = school;
         await T().openFile(labels);
         eq('B10 voorwaarde: school bovenaan Recent', T().recentFiles[0]?.ref, { kind: 'path', path: school });
@@ -1206,11 +1073,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         eq('B10 tabblad dat tijdens het wachten opende: daarheen, met de melding', [
           T().activeDocumentId, T().documents.length, notices(st),
         ], [late, 2, [['info', ALREADY_OPEN]]]);
-        // Review #1121 ronde 2: ook de late wissel werkt Recent bij, zoals de eerste.
         eq('B10 tabblad dat tijdens het wachten opende: Recent bijgewerkt', T().recentFiles[0]?.ref, { kind: 'path', path: kantoor });
       }
-      // Review #1121 ronde 3 (VERVOLG): een opslag van School terwijl het startbestand Kantoor wacht. De startroute van main
-      // leest dan opnieuw (`stale`, #1091): twee lezingen, met en zonder flag (de vorige versie van deze PR las er drie).
       for (const flag of [true, false]) {
         const st = newStore(flag);
         const T = () => st.getState();
@@ -1232,9 +1096,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         ], [kantoor, 'Kantoor', false, 2]);
         writeFileSync(school, schoolIfc);
       }
-      // Review #1121 ronde 3 (VERVOLG): de flag gaat uit terwijl het bestand geparst wordt. De keuze ligt één keer per
-      // openactie vast, bij het begin: een startlink en Openen naar een open bestand gaan toch naar dat tabblad, met de
-      // melding, omdat de flag bij het begin aan stond.
       {
         const ifcFormat = allReadFormats().find(f => f.extensions.includes('ifc'))!;
         const parse = ifcFormat.read;
@@ -1266,9 +1127,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
-    // Review #1121 ronde 6 (besluit D): per desktoproute met de flag aan precies de bestandsaanroepen van main (dezelfde
-    // reeks als met de flag uit, tot het activeren; IFC leest alleen als bytes in plaats van tekst), geen `stat` en één
-    // lezing: lezen, parsen, activeren. Het startbestand houdt de toets van main (lezen, `stat`, parsen), met en zonder flag.
     {
       const { openLaunchFiles } = await import('@/state/launchFiles');
       const ipcFlagOn = new Map<string, string[]>();
@@ -1322,7 +1180,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
-    // Met de flag uit: precies main, elke weg geeft een tweede tabblad op hetzelfde bestand.
     const offStore = newStore(false);
     const O = () => offStore.getState();
     dialogAnswer = kantoor;
@@ -1345,11 +1202,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   }
 }
 
-// ═══ C. Browser ═══════════════════════════════════════════════════════════════════════════════════
 {
   const files = new Map<string, Uint8Array>([['kantoor.ifc', enc.encode(kantoorIfc)], ['school.ifc', enc.encode(schoolIfc)]]);
-  /** Een nep-FSA-handle: `isSameEntry` op de naam, zoals twee handles voor hetzelfde bestand (een nieuw object na elke
-   *  kiezer of uit Recent). */
   class FakeHandle {
     readonly kind = 'file';
     constructor(readonly name: string, readonly throws = false) {}
@@ -1374,7 +1228,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       await store.getState().openRecentFile(entry.id, labels);
     } else {
       const handle = new FakeHandle(name);
-      // Het lezen zelf (de inhoud van de `File`), niet `getAsFile`: dat gebeurt al tijdens het event.
       const dropped = new File([new Uint8Array(files.get(name)!).buffer], name);
       const content = { arrayBuffer: dropped.arrayBuffer.bind(dropped), text: dropped.text.bind(dropped) };
       dropped.arrayBuffer = () => { if (name === 'kantoor.ifc') record('lees'); return content.arrayBuffer(); };
@@ -1408,8 +1261,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq(`C1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.name, 'kantoor.ifc');
   }
 
-  // Een `isSameEntry` die gooit, telt als een ander bestand: een nieuw tabblad, geen melding. De toets vraagt het aan het
-  // gekozen handle (gevraagd.isSameEntry(tabblad)), dus dat gooit hier.
   files.set('los.ifc', enc.encode(kantoorIfc));
   await S().openOpenedFile({ name: 'los.ifc', content: '', bytes: files.get('los.ifc'), ref: { kind: 'handle', handle: asHandle(new FakeHandle('los.ifc')) } }, labels);
   const los = S().activeDocumentId;
@@ -1419,7 +1270,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   await S().openFile(labels);
   eq('C2 isSameEntry gooit: een nieuw tabblad, geen melding', [S().documents.length, S().activeDocumentId !== los, notices(store)], [4, true, []]);
 
-  // Firefox/Safari: geen handle, dus geen identiteit: twee tabbladen.
   const ff = { name: 'kantoor.ifc', content: '', bytes: files.get('kantoor.ifc'), ref: null };
   S().addTask({ name: 'Werk' });
   await S().openOpenedFile(ff, labels);
@@ -1427,7 +1277,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   await S().openOpenedFile(ff, labels);
   eq('C3 zonder handle: telkens een nieuw tabblad', [S().documents.length, notices(store).filter(n => n[1] === ALREADY_OPEN)], [6, []]);
 
-  // Review #1121 ronde 6 (VERVOLG): een formaat zonder opslagdoel start geen toets (geen `isSameEntry`) en wisselt nooit.
   {
     files.set('lijst.csv', enc.encode(csvText));
     const sameEntry = FakeHandle.prototype.isSameEntry;
@@ -1438,7 +1287,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       clearNotices(store);
       for (const how of ['openen', 'recent', 'slepen'] as const) {
         await openVia(store, how, 'lijst.csv');
-        // De formaatuitleg sluiten (*Begrepen*): anders wacht de neerzetting daar terecht op.
         store.setState(s => { s.ui.pendingFormatNotice = null; });
       }
       eq('C5 CSV in de browser: geen isSameEntry vóór het activeren, telkens een eigen tabblad', [
@@ -1450,9 +1298,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     store.setState(s => { s.ui.pendingFormatNotice = null; });
   }
 
-  // Review #1121 ronde 3 en 5: waar de toets staat, per browserroute. Met de flag aan start `isSameEntry` bij het lezen
-  // (route P), en niemand wacht erop: zonder de toets is de volgorde lezen, parsen, activeren, zoals main. Met de flag
-  // uit geen `isSameEntry` vóór het activeren, zoals main (Recent roept daarna nog `isSameEntry` aan in `pushRecent`).
   for (const flag of [true, false]) for (const how of ['openen', 'recent', 'slepen'] as const) {
     const st = newStore(flag);
     await openVia(st, 'openen');
@@ -1478,9 +1323,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq(`T2 ${how} flag ${flag ? 'aan' : 'uit'}: één lezing`, seq.filter(e => e === 'lees').length, 1);
   }
 
-  // Route P (review #1121 ronde 5) in de browser: de proef houdt de `isSameEntry` van de toets vast (tot het activeren;
-  // `pushRecent` daarna gaat zoals main). De openactie wacht er niet op: met een nieuw handle-object (Openen, Recent,
-  // slepen) is er zonder identiteit geen treffer, dus een eigen tabblad, zonder melding; de late uitkomst doet niets.
   for (const how of ['openen', 'recent', 'slepen'] as const) {
     const st = newStore(true);
     const S = () => st.getState();
@@ -1515,7 +1357,6 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     }
   }
 
-  // Met de flag uit: precies main.
   const offStore = newStore(false);
   const O = () => offStore.getState();
   await openVia(offStore, 'openen');
