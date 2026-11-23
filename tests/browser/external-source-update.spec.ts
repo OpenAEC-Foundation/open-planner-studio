@@ -347,7 +347,6 @@ test(`bron op de site (${shape}): koppelen, balk bij een nieuwe versie, vernieuw
       if (id === 'site-tweede') await gate;
       const reply = version === undefined ? await open(id) : await open(id, version);
       if (hostShape !== 'supercloud' || id !== 'site-installateur') return reply;
-      // Een alleen-lezen bron heeft wél leesrecht. Alleen de bron is zo gemarkeerd, niet het plan dat we bewerken.
       w.__sourceOpenVersion = reply.version;
       w.__sourceReadOnly = true;
       return { ...reply, readOnly: true };
