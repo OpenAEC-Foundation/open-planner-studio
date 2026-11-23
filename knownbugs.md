@@ -4001,6 +4001,13 @@ en noem het in je rapport of PR-tekst.
      laat de term in een afzonderlijke termbase-opdracht beoordelen en verwerk een eventuele wijziging
      via de termenstraat. In deze release blijft de termbase ongewijzigd. — S
 
+1964. **Een mislukt geopend voorbeeldproject meldt niet welk bestand het was.**
+     `src/state/slices/fileSlice.ts` (`openExampleFromString`): de melding is `notifications.openFailed` met
+     alleen de technische reden als detail; de naam van het voorbeeld staat alleen in de console. De tekst
+     `common.json` (nl) `"openFailed": "Bestand openen mislukt"` heeft geen plek voor een naam. Het weggehaalde
+     commentaar gaf als reden dat de vertaalbestanden niet aangeraakt mochten worden. Voorstel: een eigen sleutel met
+     `{{name}}` voor een mislukt voorbeeld. — B
+
 ## Tests
 
 720. **Ook een wijziging aan een ander scenario in `table-editor.spec.ts` start de taakselectiemeting.**
