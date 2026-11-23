@@ -1304,12 +1304,18 @@ export class CPMSolver {
     for (const t of this.tasks.values()) {
       if ((this.predecessors.get(t.id) || []).length > 0) continue;
       const eng = this.calendarFor(t);
-      const milestone = isZeroDurationMilestone(t);
-      const rawAnchor = parseInstant(t.time.scheduleStart);
-      const finishAtDayEnd = milestone && t.milestoneKind === 'FINISH' && this.isExactBandEnd(eng, rawAnchor);
-      const anchor = milestone && ((!eng.hasOwnWorkBlocks && taskDurationUnit(t) !== 'hours') || finishAtDayEnd)
-        ? this.dayFirstBandStart(eng, rawAnchor)?.toISOString().slice(0, 16) ?? t.time.scheduleStart
-        : t.time.scheduleStart;
+      let anchor = t.time.scheduleStart;
+      if (isZeroDurationMilestone(t)) {
+        const rawAnchor = parseInstant(anchor);
+        const finishWorkday = t.milestoneKind === 'FINISH' && anchor.includes('T')
+          ? workdayDateOfInstant(eng, rawAnchor, 'end')
+          : undefined;
+        const finishAtDayEnd = finishWorkday && this.dayLastBandEnd(eng, finishWorkday)?.getTime() === rawAnchor.getTime();
+        if (finishAtDayEnd || (!eng.hasOwnWorkBlocks && taskDurationUnit(t) !== 'hours')) {
+          const workday = finishAtDayEnd ? finishWorkday : rawAnchor;
+          anchor = this.dayFirstBandStart(eng, workday)?.toISOString().slice(0, 16) ?? anchor;
+        }
+      }
       const s = this.rootFloor(eng, anchor, isElapsedTask(t));
       if (!projectStart || s < projectStart) projectStart = s;
     }

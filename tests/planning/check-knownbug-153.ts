@@ -71,4 +71,28 @@ for(const profile of ['ops','p6','msproject'] as const){
  equal(`${profile} eigen opvolgerkalender`,[mixed.tasks.get('B')!.earlyStart,mixed.tasks.get('B')!.earlyFinish],['2026-06-01T08:00','2026-06-02T17:00']);
 }
 
+const nightBands = [{ start: 1320, end: 1800 }];
+const night: WorkCalendar = {
+  ...cal, workStartHour: 22, workEndHour: 24,
+  workTime: { byWeekday: { 1: nightBands, 2: nightBands, 3: nightBands, 4: nightBands, 5: nightBands, 6: [], 7: [] } },
+};
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  const { store } = createAppStoreContext();
+  const S = store.getState;
+  S().setCalendar(night);
+  S().setProject({ startDate: '2026-06-01', schedulingProfile: builtInProfile(profile) });
+  const milestone = S().addTask({ name: 'Eindmijlpaal om 06:00', isMilestone: true, milestoneKind: 'FINISH' });
+  const successor = S().addTask({ name: 'SF-opvolger van 16 uur' });
+  const time = (id: string) => S().tasks.find(t => t.id === id)!.time;
+  S().updateTask(milestone, { time: { ...time(milestone), scheduleStart: '2026-06-05T06:00', scheduleDuration: 0 } });
+  S().updateTask(successor, { time: {
+    ...time(successor), scheduleStart: '2026-06-01T22:00', durationUnit: 'hours', durationMinutes: 960, scheduleDuration: 2,
+  } });
+  S().addSequence({ predecessorId: milestone, successorId: successor, type: 'START_FINISH', lagDays: 0 });
+  S().runCPM();
+  equal(`${profile} eindmijlpaal telt de werkdag van de nachtband`,
+    [time(milestone).earlyStart, time(successor).earlyStart, time(successor).earlyFinish],
+    ['2026-06-05T06:00', '2026-06-04T22:00', '2026-06-06T06:00']);
+}
+
 console.log(`Knownbug 153: ${errors} fouten`); process.exitCode=errors?1:0;
