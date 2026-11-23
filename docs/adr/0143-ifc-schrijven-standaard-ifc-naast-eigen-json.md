@@ -12,7 +12,8 @@ en de writer houdt het schemageldig in plaats van volledig.
   (`P_SINGLEVALUE` met `PrimaryMeasureType` voor eigen velden, `P_ENUMERATEDVALUE` met `IFCPROPERTYENUMERATION` voor
   codetypes), gedeclareerd aan het project met `IFCRELDECLARES`. Daarnaast één `OPS_StructureMeta` met de volledige
   definitie-JSON. De waarden per taak staan in `OPS_CustomFields` en `OPS_ActivityCodes`, met de naam van het veld of
-  codetype als propertynaam; de lezer koppelt die namen via de meta-JSON terug aan ids.
+  codetype als propertynaam; de lezer koppelt die namen via de meta-JSON terug aan ids. Levert de meta-JSON geen
+  definitie op, dan leest de lezer de definities uit de templates (route 3 in `docs/ifc-round-trip.md`).
 - Een codetype zonder waarden krijgt geen `IFCPROPERTYENUMERATION` (Enumerators `$`), want `EnumerationValues` is een
   `LIST [1:?]`.
 - De codetekst is de interoperabele vorm van een codewaarde, maar de app staat dubbele codes in één type toe. Alleen
@@ -24,10 +25,14 @@ en de writer houdt het schemageldig in plaats van volledig.
   vergeleken baselines. De vergeleken baselines alleen als er minstens één gekozen is. `StartTime` en `CreationDate`
   zijn in het schema verplicht: `StartTime` is de vroegste taakstart in de baseline, anders de planstart van het
   werkschema; een baseline zonder aanmaakdatum krijgt het schrijfmoment. De eigen lezer leest die slots niet.
-- `OPS_SchedulingOptions`, `OPS_SchedulingProfile` en `OPS_Library` (alleen in een poolbestand) zijn elk één
-  JSON-property zonder standaard-IFC-spoor. `OPS_SchedulingProfile` staat er alleen bij een ander profiel dan het
-  standaardprofiel (`carriesProfile`).
+- De bedrijfspool (`writePoolIFC` in `src/services/library/libraryIfc.ts`) heeft beide sporen: de resources en
+  kalenders van de pool staan als gewone IFC-entiteiten in het bestand, zodat andere pakketten ze kunnen lezen, en
+  `OPS_Library` op het project draagt de volledige pool als JSON, waaruit OPS hem leest. Een gewoon projectbestand
+  heeft geen `OPS_Library`.
+- `OPS_SchedulingOptions` en `OPS_SchedulingProfile` zijn elk één JSON-property zonder standaard-IFC-spoor.
+  `OPS_SchedulingOptions` staat er alleen bij een niet-leeg optieblok, `OPS_SchedulingProfile` alleen bij een ander
+  profiel dan het standaardprofiel (`carriesProfile`).
 - `OPS_ImportProvenance` draagt `UnchangedSinceImport` alleen als de vlag aan staat en `SourceFormat` alleen als het
   bronformaat bekend is; zonder een van beide geen pset. Een ontbrekende vlag leest als uit.
-- JSON gaat via `asciiJson` of `ifcJson`, niet via kale `ifcStr(JSON.stringify(…))` (*Tekst in IFC is STEP-gecodeerd*
-  in `.claude/rules/tauri-ifc.md`).
+- De JSON-properties van deze writer gaan via `asciiJson` of `ifcJson`, niet via kale `ifcStr(JSON.stringify(…))`
+  (*Tekst in IFC is STEP-gecodeerd* in `.claude/rules/tauri-ifc.md`).

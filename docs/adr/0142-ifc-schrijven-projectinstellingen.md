@@ -18,15 +18,17 @@ lezer anders terugvalt op een andere bron en daarmee een waarde verzint. Een leg
 - `CreatedAt` en `ModifiedAt` staan hier als letterlijke ISO-tekst, en niet in de slots van `IfcOwnerHistory`
   (`IfcTimeStamp`). De owner history draagt al het schrijfmoment, dus teruglezen uit die slots zou `createdAt` van elk
   bestaand bestand veranderen, en `IfcTimeStamp` kapt de milliseconden af. Beide alleen als ze gezet zijn.
-- Van de schemavraag (`ifcSchemaQuestion.ts`) staat er steeds één: `IfcSchemaUnconfirmed` met het schema van het
-  geopende bestand zolang de vraag openstaat (na automatisch opslaan, crashherstel of een MCP-backup, ook als dat
-  schema niet in de kop past, zoals IFC2X3), anders `IfcSchemaConfirmed`. Zo vraagt een bewust als IFC4 bewaard
-  bestand bij heropenen niet opnieuw. Een bestand zonder een van beide (een oudere versie of een ander pakket) vraagt
-  het één keer.
+- Van de schemavraag (`ifcSchemaQuestion.ts`, besluit eigenaar 2026-10-13) staat er steeds één: `IfcSchemaUnconfirmed`
+  met het schema van het geopende bestand zolang de vraag openstaat (na automatisch opslaan, crashherstel of een
+  MCP-backup, ook als dat schema niet in de kop past, zoals IFC2X3), anders `IfcSchemaConfirmed`. Zo vraagt een bewust
+  als IFC4 bewaard bestand bij heropenen niet opnieuw. Bij een bestand zonder een van beide (een oudere versie of een
+  ander pakket) beslist de kop (`ifcSchemaUnconfirmedOnRead`): alleen een schemanaam in de kop (letters, cijfers en
+  `_`, `cleanIfcSchemaName`) die afwijkt van `IFC4X3_ADD2` geeft bij het eerste expliciete opslaan de vraag. Een document met een vreemd deel krijgt de vraag niet
+  (*Bestandsschema per project* in `.claude/rules/tauri-ifc.md`).
 - Schrijft de writer geen eigen `IfcProject` omdat het project van de bron niet tot de planning hoort (ADR 0146), dan
   staan `ProjectName`, `ProjectDescription`, `Author` en `Organization` hier, ook leeg. Anders viel de lezer bij een
-  lege auteur terug op de eerste owner history, en die is na de merge van het model. Zonder vreemd deel schrijft de
-  writer deze vier niet.
+  lege auteur terug op de eerste owner history, en die is na de merge van het model. Schrijft de writer wel een eigen
+  `IfcProject`, ook in een merge, dan schrijft hij deze vier niet.
 - `ProgressMode` alleen als hij afwijkt van `RETAINED_LOGIC`. De andere velden (`wbsAutoNumber`, de standaardeenheid en
   standaardwerkregel, `StatusDate`, `CompanyId`, `CompanyName`, `P6ProjectCode`, `DependentProjectsFolder` en
   `AnchorsFromOpenDocuments`) alleen als ze gezet zijn, `AnchorsFromOpenDocuments` alleen als hij aan staat.

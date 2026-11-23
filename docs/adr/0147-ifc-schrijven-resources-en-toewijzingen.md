@@ -23,8 +23,8 @@ pset op de taak, gesleuteld als `<resource-GlobalId>#<index>`. Hoe de lezer dat 
   `null`), slaat de writer over. Anders crashte elke opslag en elke AutoSave van dat document. Voor een gezond document
   valt er niets weg. Eén functie (`writtenAssignmentsByTask`) bepaalt welke toewijzingen meedoen en in welke volgorde,
   want die volgorde is de `<index>` in de sleutels van `OPS_Assignments` en `OPS_Timephased`.
-- `OPS_Assignments` houdt één tekst per toewijzing, `"unitsPerDay|curve"`, met `UNIFORM` als er geen curve is. Al het
-  andere per toewijzing (venster, curvewaarden, begroot, verricht en resterend werk, begroot tempo, het bedrag van een
+- `OPS_Assignments` houdt één tekst per toewijzing, `"unitsPerDay|curve"`, met `UNIFORM` als er geen curve is. De
+  overige velden die de writer per toewijzing bewaart (venster, curvewaarden, begroot, verricht en resterend werk, begroot tempo, het bedrag van een
   kostentoewijzing) staat als één JSON in `OPS_Timephased` met dezelfde sleutel. De writer breidt het pipe-formaat
   niet uit, zodat oudere lezers het blijven lezen. Een toewijzing zonder een van die velden staat niet in de JSON, en
   een taak zonder zulke toewijzingen krijgt geen `OPS_Timephased`.

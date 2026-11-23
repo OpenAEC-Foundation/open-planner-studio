@@ -4,8 +4,9 @@ Waar een GlobalId vandaan komt (bewaard uit het ingelezen bestand, anders `ifcGu
 voorvoegsel, met het project-id als zout voor hulpentiteiten en de projectkalender) staat onder *GlobalIds* in
 `.claude/rules/tauri-ifc.md`. Hier staat wat de writer doet als twee objecten op hetzelfde GlobalId uitkomen. Een
 hash kan botsen, en een bewaard GlobalId uit een ander programma kan toevallig gelijk zijn aan de hash van een nieuw
-object. Twee entiteiten met hetzelfde GlobalId in één bestand breken elke lezer die op GlobalId koppelt, ook de
-onze. Daarom geeft `issueGuid` in `ifcWriter.ts` alle GlobalIds van één schrijfronde uit en houdt het ze uniek.
+object. Twee entiteiten met hetzelfde GlobalId in één bestand breken een lezer die op GlobalId koppelt, ook de
+onze. Daarom geven alle GlobalIds die deze writer in één schrijfronde uitgeeft (`objectGuid` en `guidOf`) via
+`issueGuid` in `ifcWriter.ts`, dat ze uniek houdt.
 
 ## Gevolgen
 
@@ -22,6 +23,7 @@ onze. Daarom geeft `issueGuid` in `ifcWriter.ts` alle GlobalIds van één schrij
 - `ifcGuid`, de oude 32-bits afleiding, gebruikt de writer niet meer. Hij blijft geëxporteerd omdat de lezer hem
   herberekent voor bestanden van vóór audit 2026-09-26.
 - De soorten `wp` en `ws` zijn het werkplan en het werkschema (niet de baselinekoppen) van het project, met het
-  project-id als sleutel. Het werkschema is het object waar 4D-koppelingen in andere pakketten aan hangen, dus het
-  houdt zijn GlobalId bij elk opslaan.
+  project-id als sleutel. Het werkschema is het object waar 4D-koppelingen in andere pakketten aan hangen. De lezer
+  bewaart zijn GlobalId (`ifcGlobalIds` onder `ws:<project-id>`), en zonder bewaard GlobalId geeft hetzelfde
+  project-id dezelfde hash; zo houdt het zijn GlobalId over opslaan en heropenen heen.
 - Toets: `check-ifc-globalid.ts`.
