@@ -616,6 +616,38 @@ en noem het in je rapport of PR-tekst.
      vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender. Bij een taakkalender met andere
      werkblokken is die vroege start geen geldig startmoment van de taak (zie `msp-06` in `cases-msp-pariteit.json`).
      In de code gezien. — B
+1982. **De zoekgrens van de nivelleerder volgt de taakduren, niet de lengte van een periode zonder capaciteit; een
+     taak kan `NO_WINDOW_IN_HORIZON` krijgen terwijl er verderop wel een venster is.** `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de som van de `scheduleDuration` van de taken in `tasks`,
+     mijlpalen niet meegeteld, plus een marge (`Math.max(totalWork + 10, 30)`), geteld in kandidaatstappen. Ligt het eerste vrije venster na een
+     lange periode zonder capaciteit, dan stopt de scan eerder. Proef van de reviewer (GPT-6.2-Sol, review van #1160):
+     een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
+     paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
+     gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
+1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
+     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
+     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
+     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
+     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
+     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
+     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
+     resource overbezet (issue #1161). — B
+1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
+     (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
+     `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
+     als geen van de gescande kandidaten op de kalender paste, vóór de uitgeputte zoekgrens. Proeven van de reviewer
+     (GPT-6.2-Sol, review van #1160): via `computeDistribution` boekte een gepind document de kraan op 3 augustus vol,
+     en een tweede document had een taak met een deadline op 1 juni. Met een plafond van 5 dagen kwam
+     `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
+     werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
+     `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
+1986. **Vaste last buiten de scope van het nivelleren kan na toepassen op een andere dag liggen dan waar ze geboekt
+     is, met een nieuwe overbezetting die het voorstel niet meldt.** `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) boekt een taak buiten de scope op haar start in de basis, terwijl de
+     proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
+     van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
+     de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
+     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 
 ## Tabel, invoer en bediening
 
@@ -4071,6 +4103,14 @@ en noem het in je rapport of PR-tekst.
      `common.json` (nl) `"openFailed": "Bestand openen mislukt"` heeft geen plek voor een naam. Het weggehaalde
      commentaar gaf als reden dat de vertaalbestanden niet aangeraakt mochten worden. Voorstel: een eigen sleutel met
      `{{name}}` voor een mislukt voorbeeld. — B
+
+1985. **De taakreferentie zegt dat nivelleren een taak met prioriteit 1000 nooit verschuift.**
+     `public/docs/nl/ref-taak-eigenschappen.md` (*Nivelleerprioriteit*: "1000 zet de taak vast, zodat nivelleren hem
+     nooit verschuift") en `public/docs/en/ref-taak-eigenschappen.md` ("1000 pins the task, so that leveling never
+     moves it"). Een pin scant niet voor capaciteit, maar volgt haar voorgangers: `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) boekt haar op de eerste kandidaat vanaf de vroegste start volgens de
+     relaties (`pinnedSet`, `nextCandidateFor`), en de proefsolve verschuift haar mee. `howto-overbezetting-oplossen.md`
+     zegt het goed, in beide talen ("Ook een taak met prioriteit 1000 volgt haar voorgangers"). — B
 
 ## Tests
 
