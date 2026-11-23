@@ -184,6 +184,7 @@ check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
 check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
+check-ifc-foreign-grens.ts los
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
@@ -235,6 +236,7 @@ check-just-updated.ts matrix
 check-kalender-ms-randen.ts matrix
 check-kalender-ms-wandeling.ts matrix
 check-keyboard-event-routing.ts matrix
+check-knownbug-114.ts matrix
 check-knownbug-4.ts matrix
 check-knownbug-7.ts matrix
 check-lag-format.ts matrix

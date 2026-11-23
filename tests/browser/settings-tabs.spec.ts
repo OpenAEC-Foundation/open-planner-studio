@@ -769,6 +769,8 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect((await readSaved()).text, 'het bestand bleef staan').toBe(autoSavedText);
       await expectNoNewSaveWorker('verder typen in de cel');
       await nameInput.press('Escape');
+      // Escape legt niets vast: hier mag nog geen opslag beginnen, anders telt die later als de ronde na de rusttijd.
+      await expectNoNewSaveWorker('direct na Escape');
       await page.clock.fastForward(31_000);
       await page.clock.resume();
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { timeout: 20_000 }).toBe(false);
