@@ -624,6 +624,11 @@ en noem het in je rapport of PR-tekst.
      een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
      paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
      gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
+2108. **VERVOLG (#1166, ook op main): een nivelleerpauze kan bij een einde-eindetaak de gekozen werkdag wijzigen.**
+     In de gerichte storeproef met twee werkdagen uitloop en een gesloten kraankalender op dinsdag en donderdag
+     kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
+     gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
+     pauze voordat de vertraging wordt opgeslagen. — S
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
      (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
      `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
@@ -646,12 +651,6 @@ en noem het in je rapport of PR-tekst.
      een ALAP-taak op een kalender zonder eigen werkblokken die stap, omdat C14 daar niet geldt (ADR 0182). Het
      commentaar bij `p6AlapPositionedFromSuccessors` in `src/types/project.ts` meldde dat de corpusmeting daarvan
      openstond. — S
-
-2108. **VERVOLG (#1166, ook op main): een nivelleerpauze kan bij een einde-eindetaak de gekozen werkdag wijzigen.**
-     In de gerichte storeproef met twee werkdagen uitloop en een gesloten kraankalender op dinsdag en donderdag
-     kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
-     gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
-     pauze voordat de vertraging wordt opgeslagen. — S
 
 ## Tabel, invoer en bediening
 
