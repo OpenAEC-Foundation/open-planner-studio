@@ -379,8 +379,6 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
-// Knownbug 377: loop de opgeslagen 1,5 werkdag opnieuw voorwaarts vanaf de ALAP-start.
-// De oorspronkelijke split-invoer is niet beschreven. Een vrijdag met pauze is een aparte controle.
 {
   const summary = [];
   for (const splitFriday of [false, true]) {
