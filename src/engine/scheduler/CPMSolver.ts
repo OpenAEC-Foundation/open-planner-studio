@@ -34,7 +34,7 @@ import {
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, type RelationDeps,
-  dayTaskRequiredFinish, finishStartLaggedStart, previousBlockEndIfSame,
+  dayTaskRequiredFinish, finishStartLaggedStart, previousBlockEndIfSame, keepsElapsedFsBoundary,
 } from './relationMath';
 import { taskCountsInWorkdays, lagCountsInWorkdays } from './conventions/durationMeasure';
 import { isFiniteNumber } from '@/utils/guards';
@@ -2497,6 +2497,7 @@ export class CPMSolver {
       let lateFinish = this.usesLastProjectDayStart(task, taskId, earlyDates.get(taskId)?.es)
         ? this.lastProjectDayStart(predCal, projectEnd, projectEndOpensDay) : projectEnd;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
+      let keepClockBoundary = false;
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
         const succTask = this.tasks.get(seq.successorId);
@@ -2529,12 +2530,15 @@ export class CPMSolver {
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;
           lateFinishSource = 'successorConstraint';
+          keepClockBoundary = keepsElapsedFsBoundary(this.relDeps, lateSeq, remainingTask, succTask);
+        } else if (keepClockBoundary && constraintDate.getTime() === lateFinish.getTime()) {
+          keepClockBoundary = keepsElapsedFsBoundary(this.relDeps, lateSeq, remainingTask, succTask);
         }
       }
 
       const successorBound = lateFinish;
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
-      if (lateFinishSource === 'successorConstraint' && lateFinish.getTime() === successorBound.getTime()) {
+      if (!keepClockBoundary && lateFinishSource === 'successorConstraint' && lateFinish.getTime() === successorBound.getTime()) {
         lateFinish = this.lateFinishOnOwnCalendar(predCal, lateFinish);
       }
       if (this.p6ZeroDurationActivityUsesBoundaryPair(task, predCal)) {

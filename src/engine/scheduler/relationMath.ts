@@ -266,7 +266,13 @@ export function backwardConstraint(
   const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'
     ? { ...boundaryFlags, succIsStartMs: false }
     : boundaryFlags;
-  return backwardHour(deps, succResult, seq, predTask, predEng, succEng, flags);
+  return backwardHour(deps, succResult, seq, predTask, predEng, succEng, flags,
+    keepsElapsedFsBoundary(deps, seq, predTask, succTask));
+}
+
+export function keepsElapsedFsBoundary(deps: RelationDeps, seq: Sequence, predTask: Task, succTask: Task): boolean {
+  return seq.type === 'FINISH_START' && seq.lagUnit === 'ELAPSEDTIME'
+    && isElapsedTask(predTask) && isElapsedTask(succTask) && deps.resolveElapsedMinutes(seq, predTask) > 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -600,6 +606,7 @@ function backwardHour(
   pe: CalendarEngine,
   se: CalendarEngine,
   flags: RelationBoundaryFlags,
+  keepElapsedFsBoundary: boolean,
 ): Date {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
@@ -648,8 +655,8 @@ function backwardHour(
     case 'FINISH_START':
     default: {
       if (elapsed) {
-        // Klok-minuten terug vanaf succ.LS, dan achteruit-snap in de voorganger.
-        return deps.snapOnOrBefore(pe, new Date(succResult.ls.getTime() - elapsedMin()));
+        const target = new Date(succResult.ls.getTime() - elapsedMin());
+        return keepElapsedFsBoundary ? target : deps.snapOnOrBefore(pe, target);
       }
       // B1 (`p6StartAtPredecessorFinishBoundary`) heeft backward GEEN eigen tak: de gewone
       // FS-backward hieronder legt de late finish van de voorganger al op de finishgrens op of vóór

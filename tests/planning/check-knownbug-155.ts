@@ -48,5 +48,28 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     }
   }
 }
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  const a = task('a', 480);
+  const b = task('b', 480);
+  a.time.scheduleStart = '2026-06-04T10:00';
+  a.time.durationType = 'ELAPSEDTIME';
+  b.time.durationType = 'ELAPSEDTIME';
+  const link: Sequence = {
+    id: 'ab', type: 'FINISH_START', predecessorId: 'a', successorId: 'b', lagDays: 1, lagUnit: 'ELAPSEDTIME',
+  };
+  const result = new CPMSolver([a, b], [link], calendar, [], {
+    projectStartDate: '2026-06-04',
+    schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(profile) }),
+  }).solve();
+  const ar = result.tasks.get('a');
+  const br = result.tasks.get('b');
+  if (result.error || !ar || !br) throw new Error('Knownbug 155: no result: ' + (result.error ?? profile));
+  if (ar.earlyFinish !== '2026-06-04T18:00' || br.earlyStart !== '2026-06-05T18:00'
+      || ar.lateFinish !== ar.earlyFinish || ar.totalFloatMinutes !== 0) {
+    failures.push(JSON.stringify({ profile, predFinish: ar.earlyFinish, succStart: br.earlyStart,
+      predLateFinish: ar.lateFinish, predFloatMinutes: ar.totalFloatMinutes }));
+  }
+  cases++;
+}
 console.log('KNOWNBUG155_SUMMARY', JSON.stringify({ cases, failures: failures.length }));
 if (failures.length) throw new Error('KNOWNBUG155: ' + failures.join('\n'));
