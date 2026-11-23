@@ -196,24 +196,6 @@ export function forwardConstraint(
  * ES-kandidaat van elke relatie een ondergrens is) — `CPMSolver.forwardPass` neemt 'm mee als extra
  * `max()`-term NAAST de gewone `ES + duur`-berekening, ZONDER de ES-berekening zelf aan te raken.
  *
- * WAAROM ALLEEN `START_FINISH` (`null` voor alle andere typen, nadrukkelijk óók niet voor
- * `FINISH_FINISH`). De vloer verschuift `earlyFinish` uitsluitend over een
- * NUL-WERK-gat (het hele punt van de vloer is dat `ES + duur` daar precies op vastloopt) — binnen
- * dat gat verandert geen enkele werkminuut, dus elke WERKMINUUT-gebaseerde grootheid (float, tf/ff,
- * kritiek-pad) is INVARIANT onder de vloer, zelf als de vloer vuurt. Het verschil tussen SF en FF
- * zit in WAAR `reqFinish` landt t.o.v. een bandgrens: SF ankert op `predResult.es`, en bij lag 0 is
- * dat een bandSTART (het `(start,end)`-forward-anker) — `startFromFinish` (terug) gevolgd door
- * `addDuration` (weer vooruit) is dan NIET inverteerbaar (zie het scenario hierboven: terug landt op
- * de vorige werkdag-START, vooruit vanaf díe START landt op diens EIND, niet terug op `reqFinish`).
- * FF ankert op `predResult.ef`, een bandEIND (het `(start,end]`-finish-anker) — daar ROND-TRIPT
- * `startFromFinish`/`addDuration` WEL exact (het finish-anker is zelf al het punt waar de
- * duur-optelling normaliter uitkomt), dus een FF-vloer zou daar sowieso nooit vuren: geen
- * gedragswijziging, geen risico, maar ook geen enkele reden om 'm er toch bij te bouwen. De
- * UITZONDERING die dit bewust doorbreekt is EXPLICIET geklemd, niet stilzwijgend: `CPMSolver.
- * forwardPass` slaat de vloer over zodra de taak een HARDE finish-pin heeft (MFO/MSO hard,
- * `hardPinFinish`) — dát pad belooft een EIGEN, hardere invariant (EF=LF=pin, tf=0) die vóór de
- * vloer gaat (`msp-36-z10-sf-hardpin-wint`).
- *
  * BEWUSTE SCOPE-GRENZEN (niet gefixt):
  *  - **Taken met actuals.** `CPMSolver.forwardPass`s VOLTOOID-/IN-PROGRESS-takken (`t.actualFinish`/
  *    `t.actualStart`/`t.completion>0`) `continue`n VÓÓR de vloer ooit toegepast wordt — een taak die
@@ -239,6 +221,11 @@ export function forwardFinishFloor(
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
 ): Date | null {
+  if (seq.type === 'FINISH_FINISH' && seq.lagUnit === 'ELAPSEDTIME'
+      && deps.resolveElapsedMinutes(seq, predTask) === 0
+      && predTask.time.actualFinish && predTask.time.completion >= 1
+      && !isZeroDurationMilestone(successor) && !isElapsedTask(successor)
+      && !isDayTaskOnBands(deps, successor)) return predResult.ef;
   if (seq.type !== 'START_FINISH') return null;
   const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
   return sfReqFinishHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
