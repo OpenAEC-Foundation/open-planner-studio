@@ -27,7 +27,7 @@ De drie keuzes:
 
 **De app vraagt het maar één keer per bestand.** Je keuze staat in het bestand zelf. Open je het later weer, dan vraagt de app het niet opnieuw. Kies je zelf een schema in *Projectinstellingen* en klik je op *Toepassen*, dan vraagt de app ook niets meer.
 
-**Een schema dat de app niet kan schrijven**, zoals IFC2X3, opent de app wel. Bij de eerste keer opslaan zegt de vraag dat, en kies je een van de drie schema's hierboven.
+**Een schema dat de app niet kan schrijven**, zoals IFC2X3, opent de app wel bij een planning zonder gebouwmodel. Een IFC2X3-bestand met een gebouwmodel opent niet. Bij de eerste keer opslaan zegt de vraag dat, en kies je een van de drie schema's hierboven.
 
 **Automatisch opslaan en crashherstel vragen niets.** Ze schrijven het schema van het bestand en bewaren de vraag voor de eerste keer dat je zelf opslaat. Bij een schema dat de app niet kan schrijven, schrijft *AutoSave* niet naar het bestand tot je de vraag hebt beantwoord.
 

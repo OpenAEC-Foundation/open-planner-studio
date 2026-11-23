@@ -27,7 +27,7 @@ The three choices:
 
 **The app asks only once per file.** Your choice is stored in the file itself. If you open it again later, the app does not ask again. If you choose a schema yourself in *Project settings* and click *Apply*, the app does not ask either.
 
-**A schema that the app cannot write**, such as IFC2X3, opens in the app. The first time you save, the question says so, and you choose one of the three schemas above.
+**A schema that the app cannot write**, such as IFC2X3, opens in the app for a schedule without a building model. An IFC2X3 file with a building model does not open. The first time you save, the question says so, and you choose one of the three schemas above.
 
 **Auto-save and crash recovery ask nothing.** They write the schema of the file and keep the question for the first time you save yourself. For a schema that the app cannot write, *AutoSave* does not write to the file until you have answered the question.
 

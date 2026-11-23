@@ -293,7 +293,7 @@ Twee getallen, elk op één plek (besluit van de technisch beslisser, 21 novembe
   crashherstel valt erbuiten, met `restoringVerifiedIfcSource: true` in `readRecoveryDocument.ts` voor zijn eigen, op
   lengte en SHA-256 gecontroleerde bron. De site (`openSiteChoice`) en `planner_import_schedule` parsen buiten
   `openOpenedFile` en toetsen zelf; die tool alleen in de app (`McpFileFs.enforcesModelOpenLimit`, gezet door `realFs`),
-  niet in de headless server, die gelijk blijft aan main. Een IFC2X3-bestand met vreemde gegevens opent via de
+  niet in de headless server, die gelijk blijft aan main. Een IFC2X3-bestand zonder gebouwmodel opent via de
   schematerugval zonder bron en valt er niet onder (ontwerp §4.11).
 - **De technische grens** `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`): 300 MiB, zoals
   main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd.

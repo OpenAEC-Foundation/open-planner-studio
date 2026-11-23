@@ -577,13 +577,10 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
    - de lezer kiest andere taken, resources, kalenders, een ander werkplan of een ander werkschema dan `selectPlanning`
      (een controle na het lezen).
 
-   Waarom: de scanner is strenger dan `readIFC` (bijvoorbeeld bij
-   een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007). Een bestand dat nu opent, mag met de flag niet
-   geweigerd worden. Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft dus
-   geweigerd. Voorbeeld: een eigen bestand met een losse `#2147483648=IFCPERSON(...)` opent zoals nu, zonder bron, en
-   opslaan mag. `bonsai-4d.ifc` met dezelfde regel krijgt de modelweigering. Met `#2147483647` gaan beide door de
-   bytes-route. Een terugval opent alleen als de indeling daarna geen C, A of V vindt; anders weigert openen. De
-   uitzondering voor een schema (IFC2X3 zonder model) staat in §4.11. Test: `tests/planning/check-ifc-foreign-open.ts`,
+   De scanner is strenger dan `readIFC` (bijvoorbeeld bij een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007).
+   Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft geweigerd. Een terugval
+   opent alleen als de indeling daarna geen C, A of V vindt; anders weigert openen. De uitzondering voor een schema
+   (IFC2X3 zonder model) staat in §4.11. Test: `tests/planning/check-ifc-foreign-open.ts`,
    deel 7.
 
    Uitwerking van punt 4 in fase 1a: de lezer krijgt ook het stuk van het enige `IfcProject` als dat V is (§4.2,
@@ -914,7 +911,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     alsnog te doen later." Openen weigert een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft
     en groter is dan 150 MiB, met een melding die de grens noemt. Dat gebeurt na het lezen: een model tussen 150 en
     300 MiB wordt eerst gescand en dan geweigerd. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze
-    grens niet, en een IFC2X3-bestand met vreemde gegevens evenmin: dat opent via de schematerugval zonder `ifcSource`,
+    grens niet, en een IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`,
     met de bestaande verliesmelding (§4.11). Alleen bij openen in de app: `openOpenedFile` toetst altijd, het
     crashherstel valt erbuiten met een benoemde optie voor zijn eigen, gecontroleerde bron, en de site en
     `planner_import_schedule` in de app toetsen zelf. Niet bij het crashherstel, de doelscan, opslaan of headless.

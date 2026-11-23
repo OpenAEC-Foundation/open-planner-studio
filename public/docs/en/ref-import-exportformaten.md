@@ -20,7 +20,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## IFC
 
-**Open** — yes, `.ifc`. The app reads IFC4 and IFC 4.3 (also ADD2). A file in another schema, such as IFC2X3, opens too. At the first save you then choose a schema that the app can write (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). Calculation profile: the one in the file.
+**Open** — yes, `.ifc`. The app reads IFC4 and IFC 4.3 (also ADD2). A schedule without a building model in another schema, such as IFC2X3, opens too. An IFC2X3 file with a building model does not open. At the first save you then choose a schema that the app can write (see [Choosing the IFC schema](docs://howto-ifc-schema-kiezen)). Calculation profile: the one in the file.
 
 **Save** — yes, and it is the only format that saves. *Save* writes your whole project as an IFC file, in the IFC schema of the project (IFC 4.3 ADD2 by default). The file becomes the save target.
 

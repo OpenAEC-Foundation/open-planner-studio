@@ -206,14 +206,11 @@ if (mode === 'web') {
     useAppStore.setState(s => { s.ui.notifications = []; });
   }
   {
-    // De grens geldt standaard in `openOpenedFile`: een nieuwe aanroeper zonder optie weigert. Alleen de benoemde
-    // uitzondering van het herstel (`restoringVerifiedIfcSource`) opent hetzelfde model.
+    // De grens geldt standaard in `openOpenedFile`: een nieuwe aanroeper zonder optie weigert. De benoemde uitzondering
+    // van het herstel (`restoringVerifiedIfcSource`) toetst deel 3, via de echte herstelvraag.
     const plainCall = newStore();
     await plainCall.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: over, ref: null }, {});
     eq('openOpenedFile zonder optie: geweigerd', [plainCall.getState().ifcSource?.sha256 ?? null, notices(plainCall)], [null, TOO_LARGE]);
-    const restoring = newStore();
-    await restoring.getState().openOpenedFile({ name: 'model.ifc', content: '', bytes: over, ref: null }, {}, { restoringVerifiedIfcSource: true });
-    eq('openOpenedFile met restoringVerifiedIfcSource: opent met zijn bron', restoring.getState().ifcSource?.sha256 ?? null, sha(over));
   }
   {
     // Met de flag uit: precies main. Een model weigert de lezer om het gebouwmodel (niet om de grootte), en een planning
