@@ -641,19 +641,24 @@ en noem het in je rapport of PR-tekst.
      `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
-1986. **Vaste last buiten de scope van het nivelleren kan na toepassen op een andere dag liggen dan waar ze geboekt
-     is, met een nieuwe overbezetting die het voorstel niet meldt.** `levelResources`
-     (`src/engine/scheduler/ResourceLeveler.ts`) boekt een taak buiten de scope op haar start in de basis, terwijl de
-     proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
-     van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
-     de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
-     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 1993. **De gewone ALAP-stap met de duur van een niet-gestarte taak is niet tegen het P6-corpus gemeten.**
      `placeUnstartedAlap` (`src/engine/scheduler/CPMSolver.ts`) plaatst een niet-gestarte ALAP-taak sinds de aanval
      na #600 met haar duur tot de grens van haar opvolgers, niet meer in hele werkdagen. Onder het P6-profiel volgt
      een ALAP-taak op een kalender zonder eigen werkblokken die stap, omdat C14 daar niet geldt (ADR 0182). Het
      commentaar bij `p6AlapPositionedFromSuccessors` in `src/types/project.ts` meldde dat de corpusmeting daarvan
      openstond. — S
+
+2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
+     `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
+     alleen een lokale resource raakt en `afterLoadByDay` alle boekingen op het gekozen poolitem bevat.
+     De geplande verdelerdialoog hoort een aanduiding van ontbrekende boekingen alleen te tonen wanneer
+     er werkelijk boekingen ontbreken. Het lokale tekort hoort Toepassen te blijven blokkeren. — S
+
+2109. **VERVOLG (#1167, ook op main): een taak met prioriteit 1000 kan Toepassen blokkeren terwijl haar lokale
+     conflict in de proefberekening verdwijnt.** Een gepinde taak met kraan en machine blijft op dinsdag, terwijl
+     een opvolger buiten de scope pas donderdag machinevraag heeft. De pincontrole van `ResourceLeveler` telt de
+     machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
+     de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
 
 ## Tabel, invoer en bediening
 
