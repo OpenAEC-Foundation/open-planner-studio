@@ -78,6 +78,11 @@ géén descriptor hebben (`OPS_ProjectSettings`, `OPS_Resource`, `OPS_Assignment
 hebben een afwijkende vorm — per resource, per kalender, of één blob op het schedule — en delen
 alleen de naam. Schrijf een nieuwe naam dus in `PSET`, nooit als losse string in de writer.
 
+Bij het lezen van `OPS_Resource` telt `Color` alleen als `#rrggbb` (zes hexadecimale cijfers); een andere
+waarde laat de kleur leeg. `ParentGuid` is een vangnet voor het ploeglidmaatschap: de lezer zoekt die GlobalId
+op tussen de resources en zet de ploeg alleen als die nog leeg is, en een `IFCRELNESTS` tussen resources
+overschrijft dat daarna.
+
 Twee dingen om te weten:
 
 - **De volgorde in de lijst is bindend.** De writer schrijft de psets in array-volgorde; dat is wat de
@@ -107,6 +112,17 @@ profiel ≠ het standaardprofiel (OPS zonder afwijkingen), zodat bestaande besta
 blijven. De lezer geeft hem voorrang op het (gemigreerde) `OPS_SchedulingOptions`-blok
 (`profileAfterRead` in `schedulingOptionsRead.ts`, migratie in `schedulingProfileMigration.ts`). Een nieuwe
 conventie heeft hier geen extra werk nodig (zie `docs/recepten/conventie.md`).
+
+De eigen taaktypes staan als JSON in `OPS_TaskTypes` (`definitions` en `taskTypeIds`). De lezer trimt id en
+naam van elke definitie en laat een definitie weg met een lege id of naam, een id die al voorkwam of een naam
+die al voorkwam (ongeacht hoofdletters); een taak krijgt haar type alleen via een niet-lege string in
+`taskTypeIds`.
+
+Levert `OPS_StructureMeta` geen enkel activity-code-type en geen enkele custom-field-definitie op (de pset
+ontbreekt, de JSON is corrupt of beide lijsten zijn leeg), dan leest de lezer de definities uit de sjablonen:
+`IFCPROPERTYSETTEMPLATE` `OPS_CustomFields` met `P_SINGLEVALUE`-sjablonen en `OPS_ActivityCodes` met
+`P_ENUMERATEDVALUE`-sjablonen, elk met een nieuwe id. Het veldtype volgt de meeteenheid van het sjabloon, anders
+wordt het `text`.
 
 Verliesloos en simpel, maar het is **ondoorzichtig voor andere programma's**. Gebruik deze route
 alleen als 1 en 2 niet kunnen, en niet omdat het sneller opschiet.

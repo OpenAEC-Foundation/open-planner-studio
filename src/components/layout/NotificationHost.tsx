@@ -156,6 +156,12 @@ export function NotificationHost() {
       useAppStore.getState().undoScheduleShift();
       return;
     }
+    if (action.kind === 'undoHistoryEvent') {
+      // De melding staat er alleen zolang haar stap de stap van Ctrl+Z is (`otherWorkNotice.ts`, #954).
+      useAppStore.getState().undoHistoryEvent(action.eventId);
+      dismissNotification(n.id);
+      return;
+    }
     if (action.kind === 'showScheduleShift') {
       const { ui } = useAppStore.getState();
       const open = () => {
