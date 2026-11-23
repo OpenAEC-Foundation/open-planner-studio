@@ -29,13 +29,13 @@
 // En (docs/TODO.md, sessie-brede latch zonder uitweg, 2026-09-04):
 //  11. `SecurityError` ("geen geldige gebruikersactivatie") is een eenmalige makke van díe ene
 //      aanroep, geen omgevingseigenschap — hij latcht in geen van de drie schrijfroutes
-//      (`saveFileDialogWeb`, `saveToRefWeb`, `saveToRefWithoutPromptWeb`), en de eerstvolgende
+//      (`saveDataDialogWeb`, `saveToRefWeb`, `saveToRefWithoutPromptWeb`), en de eerstvolgende
 //      poging (ook zonder gebruikersgebaar, zoals de autosave-timer) probeert gewoon weer
 //      in-place. `NotAllowedError` blijft wél latchen, zoals voorheen.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import {
-  saveFileDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
+  saveDataDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
   openFileDialogWeb, webReadRefusedByPlatform, resetWebReadRefusalForTests,
 } from '@/services/fileAccess/webBackend';
 import type { FileRef } from '@/services/fileAccess';
@@ -179,7 +179,7 @@ async function main() {
   resetWebWriteRefusalForTests();
   downloads.length = 0;
   installWindow(makeHandle({ writeError: refused() }));
-  let outcome = await saveFileDialogWeb('plan.ifc', 'IFC-DATA', FILTERS);
+  let outcome = await saveDataDialogWeb('plan.ifc', 'IFC-DATA', FILTERS);
   eq('1a weigering gooit niet maar levert een uitkomst', outcome !== null, true);
   eq('1b uitkomst is als download gemarkeerd', outcome?.viaDownload, true);
   eq('1c geen herbruikbare ref na een download', outcome?.ref, null);
@@ -189,7 +189,7 @@ async function main() {
   // ── 2. Na de weigering geen kansloze kiezer meer ─────────────────────────────────────────
   downloads.length = 0;
   installWindow(makeHandle({ writeError: refused() }));
-  outcome = await saveFileDialogWeb('plan2.ifc', 'IFC', FILTERS);
+  outcome = await saveDataDialogWeb('plan2.ifc', 'IFC', FILTERS);
   eq('2a kiezer wordt overgeslagen zodra de omgeving geweigerd heeft', pickerCalls, 0);
   eq('2b het bestand komt er alsnog', downloads.map(d => d.name), ['plan2.ifc']);
 
@@ -218,7 +218,7 @@ async function main() {
   resetWebWriteRefusalForTests();
   downloads.length = 0;
   installWindow(null, new DOMException('The user aborted a request.', 'AbortError'));
-  eq('4a annuleren geeft null', await saveFileDialogWeb('plan.ifc', 'IFC', FILTERS), null);
+  eq('4a annuleren geeft null', await saveDataDialogWeb('plan.ifc', 'IFC', FILTERS), null);
   eq('4b annuleren downloadt niets', downloads.length, 0);
   eq('4c annuleren zet de omgeving niet op geweigerd', webWriteRefusedByPlatform(), false);
 
@@ -228,7 +228,7 @@ async function main() {
   installWindow(makeHandle({ writeError: new DOMException('disk full', 'QuotaExceededError') }));
   let threw = '';
   try {
-    await saveFileDialogWeb('plan.ifc', 'IFC', FILTERS);
+    await saveDataDialogWeb('plan.ifc', 'IFC', FILTERS);
   } catch (err) {
     threw = (err as DOMException).name;
   }
@@ -240,15 +240,15 @@ async function main() {
   resetWebWriteRefusalForTests();
   downloads.length = 0;
   g.window = {};
-  outcome = await saveFileDialogWeb('plan.ifc', 'IFC', FILTERS);
+  outcome = await saveDataDialogWeb('plan.ifc', 'IFC', FILTERS);
   eq('6a download-terugval zonder FSA', downloads.map(d => d.name), ['plan.ifc']);
   eq('6b ook daar als download gemarkeerd', outcome?.viaDownload, true);
 
-  // ── 6c. saveFileDialogWeb: SecurityError valt ook terug op downloaden, maar latcht niet ──
+  // ── 6c. saveDataDialogWeb: SecurityError valt ook terug op downloaden, maar latcht niet ──
   resetWebWriteRefusalForTests();
   downloads.length = 0;
   installWindow(makeHandle({ writeError: refusedSecurity() }));
-  outcome = await saveFileDialogWeb('plan.ifc', 'IFC', FILTERS);
+  outcome = await saveDataDialogWeb('plan.ifc', 'IFC', FILTERS);
   eq('6c SecurityError levert alsnog een download op', outcome?.viaDownload, true);
   eq('6d maar de omgeving geldt niet als blijvend geweigerd', webWriteRefusedByPlatform(), false);
   // Volgende poging probeert dus weer eerst de echte picker (geen latch onthouden). Nieuwe,
@@ -256,7 +256,7 @@ async function main() {
   // (terecht) mislukken en niets bewijzen over de latch.
   downloads.length = 0;
   installWindow(makeHandle({}));
-  outcome = await saveFileDialogWeb('plan3.ifc', 'IFC', FILTERS);
+  outcome = await saveDataDialogWeb('plan3.ifc', 'IFC', FILTERS);
   eq('6e eerstvolgende poging probeert de picker weer', pickerCalls, 1);
   eq('6f en die slaagt gewoon in-place (geen download)', downloads.length, 0);
   eq('6g dus geen viaDownload meer', outcome?.viaDownload, undefined);
@@ -411,6 +411,18 @@ async function main() {
   eq('10b de picker is precies één keer geprobeerd', openPickerCalls, 1);
   eq('10c annuleren triggert géén input-terugval (dus geen tweede kiezer)', createdTags.includes('input'), false);
   eq('10d annuleren zet de open-weigering niet aan', webReadRefusedByPlatform(), false);
+
+  for (const kind of ['text', 'bytes'] as const) {
+    resetWebWriteRefusalForTests();
+    const handle = makeHandle({ getFileError: new DOMException('locked', 'NotReadableError') });
+    installWindow(handle);
+    const before = downloads.length;
+    const data = kind === 'text' ? 'content' : new Uint8Array([1, 2]);
+    const outcome = await saveDataDialogWeb('default.ifc', data, FILTERS);
+    eq(`1014 ${kind}: gekozen naam`, outcome?.name, 'project.ifc');
+    eq(`1014 ${kind}: gekozen handle behouden`, outcome?.ref?.kind === 'handle' && outcome.ref.handle === handle, true);
+    eq(`1014 ${kind}: geen extra download`, downloads.length, before);
+  }
 
   // ── Rapport ───────────────────────────────────────────────────────────────────────────────
   reported = true;

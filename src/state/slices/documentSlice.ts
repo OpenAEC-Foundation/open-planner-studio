@@ -100,6 +100,10 @@ export interface DocumentEntry {
 function resetDocumentScopedUI(s: AppState): void {
   s.ui.showTaskDialog = false;
   s.ui.editingTaskId = null;
+  // Shift-anker en toewijsverzoek wijzen naar taken en rijen van het uitgaande document; een variant
+  // deelt taak-id's en rijsleutels met zijn bron (review #1004, ronde 5).
+  s.ui.selectionAnchor = null;
+  s.ui.pendingRelationAssign = null;
   // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: de activatiegrens zet deze
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
@@ -614,6 +618,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       void saving.then(() => get().requestCloseDocument(id));
       return;
     }
+    if (!get().documents.some((document) => document.id === id)) return;
+    runtime.finishPendingTextEdits();
     const doc = get().getOpenDocuments().find((d) => d.id === id);
     if (!doc) return;
     if (doc.isDirty) get().setUI({ pendingCloseDocId: id });

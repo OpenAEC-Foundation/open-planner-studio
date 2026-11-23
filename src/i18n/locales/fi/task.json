@@ -47,6 +47,8 @@
     "recentColumns": "Viimeksi käytetyt",
     "noColumns": "Lisää sarake painikkeella +.",
     "toggleSummary": "Laajenna tai tiivistä yhteenvetotehtävä",
+    "toggleMilestones": "Laajenna tai supista välitavoitteet",
+    "milestonesRun": "Välitavoitteet ({{n}})",
     "calculatedReadOnly": "Tätä laskettua saraketta ei voi muokata."
   },
   "taskGrid": {
@@ -326,7 +328,11 @@
     "rename": "Muokkaa",
     "remove": "Poista",
     "addToMine": "Lisää kohtaan Omat työlajit",
-    "confirmRemove": "Tätä työlajia käytetään avoinna olevassa projektissa. Poistetaanko se kohdasta Omat työlajit? Projektin kopio säilyy."
+    "confirmRemove": "Tätä työlajia käytetään avoinna olevassa projektissa. Poistetaanko se kohdasta Omat työlajit? Projektin kopio säilyy.",
+    "renameInProjectTitle": "Muutetaanko nimi myös tässä projektissa?",
+    "renameInProjectMessage": "Työlaji ”{{oldName}}” on käytössä myös tässä projektissa. Annetaanko sille täälläkin nimi ”{{newName}}”?",
+    "renameInProjectYes": "Myös tässä projektissa",
+    "renameInProjectNo": "Vain omassa luettelossa"
   },
   "duration": {
     "label": "Kesto",
@@ -379,7 +385,15 @@
       "resourceShorter": "Lisäresurssi lyhentää tehtävää.",
       "resourceAddsWorkSameDuration": "Lisäresurssi lisää työtä; kesto pysyy samana."
     },
-    "info": "Tehtävätyypin selitys"
+    "info": "Tehtävätyypin selitys",
+    "hint": {
+      "intro": "Tehtävätyyppi määrittää, mitä sovellus muuttaa, kun kestoa, kuormitusastetta (henkilöitä päivässä) tai työtä (tunteja) muutetaan.",
+      "FIXED_DURATION_RATE": "Kesto ja kuormitusaste pysyvät, työ lasketaan mukaan. Esimerkki: 2 henkilöä, 5 päivää à 8 tuntia = 80 tuntia.",
+      "FIXED_DURATION_WORK": "Kesto ja työ pysyvät, kuormitusaste lasketaan mukaan. Esimerkki: 80 tuntia 5 päivässä à 8 tuntia = 2 henkilöä päivässä.",
+      "FIXED_WORK": "Työ pysyy, kesto lasketaan mukaan. Esimerkki: 80 tuntia 2 henkilöllä = 5 päivää, 4 henkilöllä 2,5 päivää.",
+      "FIXED_RATE": "Kuormitusaste pysyy, työ määrittää keston. Esimerkki: 1 nosturi, 40 tuntia työtä = 5 päivää, 80 tuntia = 10 päivää.",
+      "projectDefault": "Noudattaa tehtävätyyppiä, jonka projekti käyttää oletuksena."
+    }
   },
   "properties": {
     "task": "Tehtävä",
@@ -451,6 +465,10 @@
     "interferingFloat": "Häiritsevä pelivara:",
     "criticalPath": "Kriittinen polku:",
     "dependencies": "Riippuvuudet",
+    "predecessors_one": "{{count}} edeltäjä",
+    "predecessors_other": "{{count}} edeltäjää",
+    "successors_one": "{{count}} seuraaja",
+    "successors_other": "{{count}} seuraajaa",
     "addRelation": "Lisää riippuvuus",
     "addRelationSearch": "Hae tehtävää…",
     "addRelationConfirm": "Luo riippuvuus",

@@ -1,6 +1,7 @@
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
 import { generateId } from '@/utils/id';
 import { sameTaskTypeName } from './customTaskTypeRules';
+import { isTaskTypeColor, withTaskTypeColors } from './customTaskTypeColors';
 import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 
 const KEY = 'ops-personalTaskTypes';
@@ -11,34 +12,43 @@ function normalize(raw: unknown): CustomTaskType[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const ids = new Set<string>();
-  const result: CustomTaskType[] = [];
+  const result: CustomTaskTypeDraft[] = [];
   for (const value of raw) {
     if (!value || typeof value !== 'object') continue;
-    const candidate = value as { id?: unknown; name?: unknown };
+    const candidate = value as { id?: unknown; name?: unknown; color?: unknown };
     const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
     const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
     const key = name.toLocaleLowerCase();
     if (!id || !name || seen.has(key) || ids.has(id)) continue;
     seen.add(key);
     ids.add(id);
-    result.push({ id, name });
+    result.push({ id, name, ...(isTaskTypeColor(candidate.color) ? { color: candidate.color } : {}) });
   }
-  return result.sort((a, b) => a.name.localeCompare(b.name));
+  // Een werksoort van vóór de kleur (#856) krijgt hier de eerste vrije, op volgorde van id; `save` bewaart haar.
+  return withTaskTypeColors(result).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function load(): CustomTaskType[] {
   if (cached) return cached;
-  try { cached = normalize(JSON.parse(localStorage.getItem(KEY) ?? '[]')); }
-  catch { cached = []; }
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+    // Lezen schrijft niets: ingebed zou dat de lijst naar de host sturen voordat die geantwoord heeft (#818). De
+    // toegekende kleur hangt alleen af van de inhoud, dus elk lezen geeft dezelfde; de eerste wijziging bewaart haar.
+    cached = normalize(raw);
+  } catch { cached = []; }
   return cached;
 }
 
-function save(next: CustomTaskType[]): void {
-  cached = normalize(next);
+function persist(types: CustomTaskType[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(cached));
+    localStorage.setItem(KEY, JSON.stringify(types));
     noteSiteHostSettingChanged(KEY); // ingebed ook bij de host bewaren (#818)
   } catch { /* opslag kan geblokkeerd zijn */ }
+}
+
+function save(next: CustomTaskTypeDraft[]): void {
+  cached = normalize(next);
+  persist(cached);
   for (const listener of listeners) listener();
 }
 
@@ -58,7 +68,12 @@ export function subscribePersonalTaskTypes(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
-export function addPersonalTaskType(name: string, preferredId?: string): CustomTaskType | null {
+/** Voegt een werksoort toe. Een gegeven geldige kleur (bijvoorbeeld van de projectkopie) blijft; anders
+ *  krijgt ze de eerste kleur die vrij is in de bibliotheek én in `inUse` (de werksoorten van het geopende
+ *  document, #856). */
+export function addPersonalTaskType(
+  name: string, preferredId?: string, color?: string, inUse: readonly CustomTaskType[] = [],
+): CustomTaskType | null {
   const clean = name.trim();
   if (!clean) return null;
   const all = load();
@@ -66,7 +81,7 @@ export function addPersonalTaskType(name: string, preferredId?: string): CustomT
   if (existingById) return sameTaskTypeName(existingById.name, clean) ? existingById : null;
   const existing = all.find(t => sameTaskTypeName(t.name, clean));
   if (existing) return preferredId && existing.id !== preferredId ? null : existing;
-  const type = { id: preferredId ?? generateId('tasktype'), name: clean };
+  const [type] = withTaskTypeColors([{ id: preferredId ?? generateId('tasktype'), name: clean, color }], [...all, ...inUse]);
   save([...all, type]);
   return type;
 }
