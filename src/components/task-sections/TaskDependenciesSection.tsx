@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
@@ -14,14 +14,13 @@ import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationsWithFeedback } from '@/state/relationActions';
 import { relationStepTarget, type RelationStepDirection } from '@/state/relationStep';
 import { Icon } from '@/components/icons';
+import type { RelationAssignDirection } from '@/state/slices/types';
 
 interface HoverState { x: number; y: number; task: Task; }
 
-/** Richting van de conceptrelatie, gezien vanuit de GEKOZEN taak t.o.v. de huidige taak. */
-type DraftDirection = 'predecessor' | 'successor';
-
 interface RelationDraft {
-  direction: DraftDirection;
+  /** Richting van de conceptrelatie, gezien vanuit de GEKOZEN taak t.o.v. de huidige taak. */
+  direction: RelationAssignDirection;
   /** De aangevinkte tegenpartijen, in de volgorde van kiezen (issue #888: meerdere tegelijk). */
   picked: string[];
   /** Staat de trefferlijst open? Dicht na een keuze met Enter; typen opent hem weer. */
@@ -49,7 +48,9 @@ const EMPTY_DRAFT: RelationDraft = {
 
 /**
  * Afhankelijkheden (relatietabel: type + lag + driving-badge + verwijderen) — sectie van
- * `TaskPropertiesPanel`. RELATIONEEL/storeful: roept `updateSequence`/
+ * `TaskPropertiesPanel`. Issue #989: de relaties staan in twee aparte lijsten (voorgangers en
+ * opvolgers, elk met een eigen kop), in plaats van één gemengde lijst waarin alleen de kleur van
+ * de markering de richting verraadt. RELATIONEEL/storeful: roept `updateSequence`/
  * `removeSequence` rechtstreeks aan, identiek in paneel én dialoog (dialoog heeft altijd een
  * bestaand `task.id`).
  *
@@ -130,10 +131,34 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
 
   // Zelfde reden als de spooktooltip hieronder: een selectiewissel (pijltoets, Ctrl+Z, AI) mag geen
   // half ingevulde conceptrij van de vórige taak laten staan — die zou bij bevestigen op de nieuwe
-  // taak landen.
+  // taak landen. Ook niet na een documentwissel: een variant draagt dezelfde taak-id's, en het concept
+  // landde dan in het andere document (review #1004, ronde 6).
+  const documentId = useAppStore(s => s.activeDocumentId);
   useEffect(() => {
     setDraft(null);
-  }, [taskId]);
+  }, [taskId, documentId]);
+
+  // "Voorgangers/Opvolgers toewijzen…" uit het rechtsklikmenu of het lint (issue #1000, Assign in
+  // Primavera): open de conceptrij met die richting. Na de reset hierboven, zodat een verzoek dat
+  // samen met de selectiewissel komt blijft staan. Alleen het paneel (`interactive`) handelt het af.
+  const assignRequest = useAppStore(s => s.ui.pendingRelationAssign);
+  const draftRef = useRef<HTMLDivElement>(null);
+  const revealDraft = useRef(false);
+  useEffect(() => {
+    if (!interactive || !assignRequest || assignRequest.taskId !== taskId) return;
+    revealDraft.current = true;
+    setDraft({ ...EMPTY_DRAFT, direction: assignRequest.direction });
+    useAppStore.getState().setUI({ pendingRelationAssign: null });
+  }, [assignRequest, interactive, taskId]);
+  // De sectie staat onderaan het paneel, vaak buiten beeld: schuif de hele conceptrij (zoekveld,
+  // type en lag) erin. De focus gaat expliciet naar het zoekveld: `autoFocus` werkt alleen als de
+  // rij nieuw verschijnt, niet bij een tweede verzoek terwijl ze al openstaat.
+  useLayoutEffect(() => {
+    if (!draft || !revealDraft.current) return;
+    revealDraft.current = false;
+    draftRef.current?.scrollIntoView({ block: 'nearest' });
+    draftRef.current?.querySelector<HTMLInputElement>('[data-ops-dependency-search]')?.focus();
+  }, [draft]);
 
   // Alleen zoekinvoer bepaalt de treffers; pijlen, type, richting en lag wijzigen het concept ook.
   const query = draft?.query;
@@ -147,6 +172,15 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     s => s.predecessorId === taskId || s.successorId === taskId
   );
   if (taskSequences.length === 0 && !interactive) return null;
+
+  // Issue #989: voorgangers en opvolgers als twee aparte lijsten met elk een eigen kop. De twee
+  // kolommen staan naast elkaar zolang de sectie breed genoeg is; op een smalle rail stapelt de
+  // CSS ze onder elkaar (zie .dependency-cols in globals.css).
+  const COLUMN_KEYS = { predecessor: 'properties.predecessors', successor: 'properties.successors' } as const;
+  const sequenceColumns = (['predecessor', 'successor'] as const).map(role => ({
+    role,
+    seqs: taskSequences.filter(seq => (seq.predecessorId === taskId ? 'successor' : 'predecessor') === role),
+  }));
 
   const pickedTasks = (draft?.picked ?? [])
     .map(id => tasks.find(t => t.id === id))
@@ -216,8 +250,14 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           </span>
         )}
       </div>
-      <div className="dependency-list">
-        {taskSequences.map(seq => {
+      <div className="dependency-cols">
+        {sequenceColumns.map(({ role, seqs }) => (
+          <div className="dependency-col" key={role} data-ops-dependency-col={role}>
+            <div className="dependency-col-head" data-ops-dependency-col-head={role}>
+              {t(COLUMN_KEYS[role], { count: seqs.length })}
+            </div>
+            <div className="dependency-list">
+        {seqs.map(seq => {
         const other = seq.predecessorId === taskId
           ? tasks.find(t => t.id === seq.successorId)
           : tasks.find(t => t.id === seq.predecessorId);
@@ -309,9 +349,12 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           </div>
         );
         })}
+            </div>
+          </div>
+        ))}
       </div>
       {interactive && (draft ? (
-        <div className="dependency-draft" data-ops-dependency-draft>
+        <div ref={draftRef} className="dependency-draft" data-ops-dependency-draft>
           <div className="dependency-draft-head">
             <span className="dependency-draft-direction" data-ops-dependency-direction={draft.direction}>
               <Select
@@ -322,7 +365,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   { value: 'successor', label: t('relations.successor') },
                 ]}
                 onChange={value => setDraft(current => (current
-                  ? { ...current, direction: value as DraftDirection }
+                  ? { ...current, direction: value as RelationAssignDirection }
                   : current))}
                 className="ops-select__trigger--compact"
               />

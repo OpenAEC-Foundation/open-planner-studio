@@ -2,7 +2,7 @@ import { fieldsEqual, groupFieldList } from '@/components/viewControls/fieldCata
 import { TASK_TYPE_BAR_COLOR_FIELD, type BarColorSelection } from '@/types/barColor';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
-import type { Task } from '@/types/task';
+import type { CustomTaskType, Task } from '@/types/task';
 import type { FieldRef } from '@/types/view';
 
 /** Minimale projectcontext waarmee de gedeelde Group-veldlijst en fallback bepaald worden. */
@@ -16,6 +16,8 @@ export interface BarColorContext extends BarColorFieldContext {
   resources: ReadonlyArray<Resource>;
   assignments: ReadonlyArray<ResourceAssignment>;
   taskTypeLabels?: Readonly<Record<string, string>>;
+  /** Catalogus van eigen werkcategorieën van het project: naam en kleur per `customTaskTypeId`. */
+  customTaskTypes?: ReadonlyArray<CustomTaskType>;
   noneLabel: string;
 }
 
@@ -140,6 +142,19 @@ export function resolveBarCategoryValues(
   const rawValue = field.key === 'wbsCode' ? task.wbsCode : task.taskType;
   if (rawValue === undefined || rawValue === null || rawValue === '') {
     return [noneValue(field, ctx.noneLabel)];
+  }
+  // Eigen werkcategorie: eigen sleutel, naam en bewaarde kleur in plaats van die van "Overig" (issue #856).
+  const customType = field.key === 'taskType' && rawValue === 'USERDEFINED' && task.customTaskTypeId
+    ? ctx.customTaskTypes?.find(candidate => candidate.id === task.customTaskTypeId)
+    : undefined;
+  if (customType) {
+    return [{
+      key: `customTaskType:${customType.id}`,
+      label: customType.name,
+      color: customType.color,
+      weight: 1,
+      isNone: false,
+    }];
   }
   const value = String(rawValue);
   return [{

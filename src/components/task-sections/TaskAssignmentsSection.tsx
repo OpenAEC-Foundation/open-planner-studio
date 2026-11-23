@@ -12,7 +12,8 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
 import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
-import { effectiveWorkRule, remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply';
+import { effectiveWorkRule, workRuleApplies } from '@/engine/work/workRuleApply';
+import { shownRemainingWorkMinutes, shownWorkHours } from '@/engine/work/shownWork';
 import { assignmentWorkDeviation, workDeviationEffectKey } from '@/engine/work/assignmentWorkDeviation';
 import { ruleProtectsWork } from '@/engine/work/workTriangle';
 import { taskTypesUnlocked } from '@/state/taskTypesVisibility';
@@ -146,16 +147,9 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   // De werkkolom alleen waar de regel werkt (geen hangmat/ELAPSEDTIME — de kern zou stil weigeren).
   const showWork = unlocked && workRuleApplies(task);
   const hoursPerDay = taskCalendarHoursPerDay(task, calendars, projectCalendar);
-  /** Resterend werk in uren: opgeslagen, anders de som van de `remaining`-periodes van een contour,
-   *  anders afgeleid als restduur × inzet. */
-  const remainingHoursOf = (assignmentId: string, unitsPerDay: number, stored: number | undefined): number => {
-    const contour = contourOf.get(assignmentId);
-    const contourRemaining = contour
-      ? contour.periods.reduce((sum, p) => sum + (p.kind === 'actual' ? 0 : p.workMinutes), 0)
-      : undefined;
-    const minutes = stored ?? contourRemaining ?? remainingMinutesOf(task, { hoursPerDay }) * unitsPerDay;
-    return Math.round((minutes / 60) * 100) / 100;
-  };
+  /** Resterend werk in uren, zoals ook de melding over de uren van anderen het leest (`shownWork.ts`). */
+  const remainingHoursOf = (assignmentId: string, unitsPerDay: number, stored: number | undefined): number =>
+    shownWorkHours(shownRemainingWorkMinutes(task, { unitsPerDay, remainingWorkMinutes: stored }, contourOf.get(assignmentId), hoursPerDay));
   const lockTitle = t('properties.assignments.locked', { rule: t(`workRule.${rule}`) });
   const toggleExpanded = (id: string) => setExpanded(prev => {
     const next = new Set(prev);

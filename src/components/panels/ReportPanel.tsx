@@ -204,8 +204,9 @@ export function ReportPanel() {
       await saveBytesDialog(
         defaultName, pdfBytes,
         [{ name: 'PDF Document', extensions: ['pdf'] }],
-        // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel.
-        { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck('export') },
+        // #804 fixronde 1: niet over het bronbestand van een document met een gebouwmodel. Een rapport bevat de planning
+        // niet, dus ook niet over het bestand van een open document, ook het actieve niet (review van #1064).
+        { mime: 'application/pdf', refuseTarget: useAppStore.getState().foreignTargetCheck(null) },
       );
     } catch (err) {
       useAppStore.getState().notify({
