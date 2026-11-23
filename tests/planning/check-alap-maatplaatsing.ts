@@ -306,8 +306,6 @@ for (const profile of PROFILES) {
     ['2026-06-02T08:00', '2026-06-02T16:00', 0, false]);
 }
 
-// Knownbug 384 (was 373): §6 dekt de gewone stap. Vergelijk bij gelijkblijvend P6-profiel
-// C14 aan/uit voor een deadline, FNLT en geen grens, alle op dezelfde eigen werkblokken.
 {
   const summary = [];
   const date = '2026-06-02T16:00';
