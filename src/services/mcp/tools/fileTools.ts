@@ -55,7 +55,7 @@ import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
-import { existingDocument, lookupOpenDocument, switchToOpenDocument, type OpenLookup } from '@/state/openDocumentFor';
+import { existingDocument, startOpenLookup, switchToOpenDocument, type OpenLookup } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -477,8 +477,9 @@ export const fileTools: McpToolDef[] = [
     name: 'planner_import_schedule',
     description:
       'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
-      'new active tab (an empty, unchanged active tab is reused); nothing is merged. If the app has the file already open ' +
-      'in a tab, it may switch to that tab instead and return it with `alreadyOpen: true`; that tab keeps its own content. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'new active tab (an empty, unchanged active tab is reused); nothing is merged. In the app, with the experimental ' +
+      'setting "Open IFC with a building model" on, a file that is already open in a tab may switch to that tab instead and ' +
+      'return it with `alreadyOpen: true`; that tab keeps its own content. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
       'document; rebuild calendars with planner_update_calendar.',
@@ -533,10 +534,10 @@ export const fileTools: McpToolDef[] = [
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
         readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
-        // Knownbug 1957 (met de flag, besluit T2): staat dit pad al in een tabblad open? De toets vóór het lezen
-        // (`openDocumentFor.ts`, gooit niet); de beslissing valt hieronder synchroon met het activeren. Met de flag uit
-        // geen toets, zodat het antwoord en de volgorde gelijk blijven aan main.
-        if (readOptions.ifcBytes) lookup = await lookupOpenDocument(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
+        // Knownbug 1957 (met de flag, besluit T2): staat dit pad al in een tabblad open? De toets start bij het lezen en
+        // niemand wacht erop (`openDocumentFor.ts`, gooit niet); de beslissing valt hieronder synchroon met het activeren.
+        // Met de flag uit geen toets, zodat het antwoord en de volgorde gelijk blijven aan main.
+        if (readOptions.ifcBytes) lookup = startOpenLookup(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';

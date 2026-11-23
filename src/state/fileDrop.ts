@@ -12,7 +12,7 @@ import { fileIdentityFs } from '@/services/fileAccess';
 import type { TauriOpenIO } from '@/services/fileAccess/tauriBackend';
 import type { FormatReadOptions } from '@/services/formatRegistry';
 import { openFailureNotices } from '@/state/slices/fileSlice';
-import { lookupOpenDocument, type OpenLookup } from '@/state/openDocumentFor';
+import { startOpenLookup, type LocalRef, type OpenLookup } from '@/state/openDocumentFor';
 
 /** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
  *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
@@ -25,12 +25,12 @@ interface FileDropStore {
   getState(): Pick<AppState, 'openOpenedFile' | 'notify' | 'ui' | 'getOpenDocumentPayloads'>;
 }
 
-/** Desktop: de gesleepte paden, elk met zijn pad als `target` (#804, knownbug 1957: de toets "staat al open" vóór het
- *  lezen). Het lezen zelf blijft `droppedFilesFromPaths`. */
+/** Desktop: de gesleepte paden; `read` geeft vlak vóór het lezen het pad aan `beforeRead` (#804, knownbug 1957: daar
+ *  start de toets "staat al open"). Het lezen zelf blijft `droppedFilesFromPaths`. */
 export function desktopDroppedFiles(paths: readonly string[], io: TauriOpenIO, readOptions?: FormatReadOptions): DroppedFile[] {
   return droppedFilesFromPaths(paths, io, readOptions).map((file, index) => {
     const path = paths[index];
-    return { ...file, target: async () => ({ kind: 'path' as const, path }) };
+    return { ...file, read: (beforeRead) => { beforeRead?.({ kind: 'path', path }); return file.read(); } };
   });
 }
 
@@ -77,18 +77,17 @@ export async function openDroppedFiles(
     });
   }
   const waitWhile = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
-  // #804, knownbug 1957: met de flag (de leeskeuze van de neerzetting) de toets "staat al open" per bestand vóór het
-  // lezen. Een startbestand geeft geen `readOptions` en geen `target` mee: dat houdt de toets van main.
+  // #804, knownbug 1957: met de flag (de leeskeuze van de neerzetting) start de toets "staat al open" per bestand vlak
+  // vóór het lezen, en niemand wacht erop. Een startbestand geeft geen `readOptions` mee: dat houdt de toets van main.
   const readOptions = options.readOptions;
   for (const file of openable) {
     let lookup: OpenLookup | null = null;
-    if (readOptions?.ifcBytes && file.target) {
-      const target = await file.target().catch(() => null);
-      if (target && target.kind !== 'site') lookup = await lookupOpenDocument(store.getState(), target, fileIdentityFs);
-    }
+    const beforeRead = readOptions?.ifcBytes
+      ? (ref: LocalRef) => { lookup = startOpenLookup(store.getState(), ref, fileIdentityFs); }
+      : undefined;
     let opened;
     try {
-      opened = await file.read();
+      opened = await file.read(beforeRead);
     } catch (err) {
       console.error('Failed to read dropped file:', err);
       for (const notice of openFailureNotices(err)) store.getState().notify(notice);

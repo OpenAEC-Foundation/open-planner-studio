@@ -102,7 +102,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { existingDocument, lookupOpenDocument, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
+import { existingDocument, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -572,7 +572,7 @@ export interface OpenOpenedFileOptions {
   /** #804, knownbug 1957: de leeskeuze van deze openactie, vastgelegd vóór het lezen; `ifcBytes` is ook de keuze voor
    *  de toets "staat al open". Zonder: de huidige stand, zoals main. */
   readOptions?: FormatReadOptions;
-  /** #804, knownbug 1957: wat de toets vóór het lezen vond (`lookupOpenDocument`); `null` als er niets te toetsen viel. */
+  /** #804, knownbug 1957: de toets die bij het lezen startte (`startOpenLookup`); `null` als er niets te toetsen viel. */
   lookup?: OpenLookup | null;
   /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
    *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
@@ -2439,18 +2439,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (!readOptions.ifcBytes) {
           opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(readOptions) });
         } else if (isTauri()) {
-          // Knownbug 1957 (met de flag): de toets "staat al open" tussen kiezen en lezen. De desktop kiest en leest met
-          // dezelfde twee stappen als `openFileDialogTauri`; na het lezen geen wachtmoment van deze toets meer.
+          // Knownbug 1957 (met de flag): de toets "staat al open" start tussen kiezen en lezen, en niemand wacht erop. De
+          // desktop kiest en leest met dezelfde twee stappen als `openFileDialogTauri`.
           const path = await pickOpenPath(openDialogFilters());
           if (path === null) return;
-          found.lookup = await lookupOpenDocument(get(), { kind: 'path', path }, fileIdentityFs);
+          found.lookup = startOpenLookup(get(), { kind: 'path', path }, fileIdentityFs);
           opened = await readOpenedPath(path, readsPathAsBytes(path, { binaryExtensions: binaryExtensions(readOptions) }));
         } else {
           opened = await openFileDialog(openDialogFilters(), {
             binaryExtensions: binaryExtensions(readOptions),
-            beforeRead: async (ref) => {
-              if (ref.kind !== 'site') found.lookup = await lookupOpenDocument(get(), ref, fileIdentityFs);
-            },
+            beforeRead: (ref) => { found.lookup = startOpenLookup(get(), ref, fileIdentityFs); },
           });
         }
       } catch (err) {
@@ -3212,8 +3210,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         const readOptions = formatReadOptions();
         // De bytekeuze van Recent: op de naam, met de IFC-terugval voor een onbekende extensie (`readsAsBytes`).
         const isBinary = readsAsBytes(entry.name, readOptions);
-        // Knownbug 1957 (met de flag): de toets "staat al open" vóór het lezen.
-        const lookup = readOptions.ifcBytes ? await lookupOpenDocument(get(), entry.ref, fileIdentityFs) : null;
+        // Knownbug 1957 (met de flag): de toets "staat al open" start vóór het lezen; niemand wacht erop.
+        const lookup = readOptions.ifcBytes ? startOpenLookup(get(), entry.ref, fileIdentityFs) : null;
         let opened: OpenedFile;
         if (entry.ref.kind === 'path' && isTauri()) {
           // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen

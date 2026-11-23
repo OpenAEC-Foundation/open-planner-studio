@@ -4,12 +4,13 @@
 // buiten de app veranderde. Alleen met de featureflag `ifcForeignContent` (besluit T1 van de technisch beslisser): met
 // de flag uit opent het bestand een tweede tabblad, zoals main.
 //
-// Twee delen (route B van de technisch beslisser, review #1121 ronde 4): geen wachtmoment van deze PR tussen het
-// binnenkomen van de bytes en het activeren.
-//  - `lookupOpenDocument`, asynchroon (`stat`, `isSameEntry`), vóór het lezen: de aanroeper kent het pad of de handle
-//    al (Openen, Recent, slepen, `planner_import_schedule`). Het onthoudt het gevonden tabblad en het bestand van elk
-//    tabblad op dat moment.
-//  - `existingDocument`, synchroon, ná het lezen en parsen, in dezelfde stap als het activeren.
+// Twee delen (route P van de technisch beslisser, review #1121 ronde 5): de PR voegt geen enkel wachtmoment toe aan de
+// openactie.
+//  - `startOpenLookup`, synchroon gestart bij het begin van het lezen, zonder dat iemand erop wacht: de aanroeper kent
+//    het pad of de handle al (Openen, Recent, slepen, `planner_import_schedule`). Hij legt het bestand van elk tabblad
+//    vast en vult de uitkomst (`stat`, `isSameEntry`) later in.
+//  - `existingDocument`, synchroon, ná het lezen en parsen, in dezelfde stap als het activeren. De uitkomst van de toets
+//    telt alleen als zij er dan al is; anders alleen wat synchroon te zien is. Wat later binnenkomt, doet niets meer.
 // De site vergelijkt alleen het id, synchroon, na het parsen. Het startbestand (`openLaunchFiles`) houdt de toets van
 // main.
 import type { FileRef } from '@/services/fileAccess';
@@ -44,7 +45,8 @@ async function identityOf(fs: FileIdentityFs, path: string): Promise<FileIdentit
  *  - pad (desktop): een betrouwbare `dev`/`ino` gaat voor op het pad (een link is hetzelfde bestand; `maplink/../a.ifc`
  *    kan een ander zijn). Zonder betrouwbare identiteit, zoals op Windows, het genormaliseerde pad (knownbug 2040). Een
  *    pad waar aantoonbaar niets staat, is van geen tabblad. De identiteit van `ref` wordt één keer opgehaald.
- *  - handle (browser): `isSameEntry`; een fout telt als een ander bestand.
+ *  - handle (browser): alleen een tabblad met dezelfde bestandsnaam krijgt `isSameEntry`; een fout telt als een ander
+ *    bestand.
  * Een bestand van een formaat zonder opslagdoel (XER, CSV, MS Project, P6 XML) heeft geen doel in zijn tabblad, dus
  * telt dat tabblad nooit mee (vraag P2). Twee kopieën met dezelfde inhoud zijn twee bestanden.
  */
@@ -52,8 +54,11 @@ export async function openDocumentFor(
   tabs: readonly OpenTab[], ref: LocalRef, identityFs: () => Promise<FileIdentityFs | undefined>,
 ): Promise<string | null> {
   if (ref.kind === 'handle') {
+    // Eerst synchroon op naam voorsorteren: dezelfde entry heeft altijd dezelfde naam (WHATWG File System: `isSameEntry`
+    // vergelijkt de locator, `name` is het laatste deel van zijn pad). De treffer komt alleen van `isSameEntry`.
     for (const { id, payload } of tabs) {
-      if (payload.fileHandle && !payload.siteFileId && await sameEntry(payload.fileHandle, ref.handle)) return id;
+      if (payload.fileHandle && !payload.siteFileId && payload.fileHandle.name === ref.handle.name
+        && await sameEntry(payload.fileHandle, ref.handle)) return id;
     }
     return null;
   }
@@ -67,7 +72,10 @@ export async function openDocumentFor(
   for (const tab of paths) {
     if (tab.path === ref.path) return tab.id;
     const other = fs && wanted ? await identityOf(fs, tab.path) : null;
-    if (wanted && other && other !== 'missing') {
+    // Op het pad van dit tabblad staat aantoonbaar niets (bijvoorbeeld een verdwenen alias): niet dit bestand, en niet
+    // terugvallen op de padtekst.
+    if (other === 'missing') continue;
+    if (wanted && other) {
       if (wanted.dev === other.dev && wanted.ino === other.ino) return tab.id;
     } else if (samePath(ref.path, tab.path)) {
       return tab.id;
@@ -76,21 +84,25 @@ export async function openDocumentFor(
   return null;
 }
 
-/** Wat de toets vóór het lezen vond: het tabblad (of `null`) en het bestand van elk tabblad op dat moment. */
+/** De toets van één openactie: het bestand van elk tabblad bij de start, en de uitkomst zodra die binnen is. */
 export interface OpenLookup {
-  readonly id: string | null;
   readonly seen: ReadonlyMap<string, TabFile>;
+  /** Is de uitkomst binnen? Een fout laat dit onwaar: dan telt alleen wat synchroon te zien is. */
+  readonly settled: boolean;
+  readonly id: string | null;
 }
 
-/** De toets vóór het lezen: één momentopname van de tabbladen. Gooit nooit; een fout is "geen treffer". */
-export async function lookupOpenDocument(
-  s: Tabs, ref: LocalRef, identityFs: () => Promise<FileIdentityFs | undefined>,
-): Promise<OpenLookup> {
+/**
+ * Start de toets en wacht er niet op: één momentopname van de tabbladen, de vergelijking loopt ernaast. Gooit nooit.
+ * De aanroeper geeft het object door aan `existingDocument`; wat later binnenkomt, leest niemand meer.
+ */
+export function startOpenLookup(s: Tabs, ref: LocalRef, identityFs: () => Promise<FileIdentityFs | undefined>): OpenLookup {
   const tabs = s.getOpenDocumentPayloads().map(({ id, payload }) => ({
     id, payload: { filePath: payload.filePath, fileHandle: payload.fileHandle, siteFileId: payload.siteFileId },
   }));
-  const seen = new Map(tabs.map(({ id, payload }) => [id, payload]));
-  return { id: await openDocumentFor(tabs, ref, identityFs).catch(() => null), seen };
+  const lookup = { seen: new Map(tabs.map(({ id, payload }) => [id, payload])), settled: false, id: null as string | null };
+  void openDocumentFor(tabs, ref, identityFs).then((id) => { lookup.id = id; lookup.settled = true; }, () => {});
+  return lookup;
 }
 
 /** Heeft dit tabblad `ref` als bestand, synchroon te zien? Pad: dezelfde letterlijke tekst (een genormaliseerd pad kan
@@ -103,21 +115,24 @@ function holds(ref: FileRef, payload: TabFile): boolean {
 }
 
 /**
- * De eindbeslissing, synchroon, in dezelfde stap als het activeren: het open tabblad met `ref`, of `null`.
- *  - Het tabblad van de toets telt als het nog open is en nog hetzelfde bestand heeft.
+ * De eindbeslissing, synchroon, in dezelfde stap als het activeren: het open tabblad met `ref`, of `null`. Bij twijfel
+ * geen treffer: een tweede tabblad is minder erg dan een verkeerde wissel.
+ *  - Is de uitkomst van de toets binnen, dan telt haar tabblad als het nog open is en nog hetzelfde bestand heeft.
  *  - Een tabblad dat de toets niet zo zag (het ging pas open, of kreeg intussen een ander bestand, bijvoorbeeld via
- *    *Opslaan als*) telt als het `ref` synchroon zichtbaar heeft (`holds`). Een tabblad dat de toets wel zo zag, houdt
- *    haar uitkomst.
- * Zonder toets (`lookup` `null`: de site, of een route die het bestand pas bij het lezen kent) telt elk tabblad via
- * `holds`. Een tabblad dat intussen sloot, telt niet: dan opent het bestand gewoon.
+ *    *Opslaan als*) telt als het `ref` synchroon zichtbaar heeft (`holds`). Een tabblad dat een binnengekomen toets wel
+ *    zo zag, houdt haar uitkomst.
+ * Is de uitkomst er nog niet, faalde de toets, of was er geen (`lookup` `null`: de site, of een route die het bestand
+ * pas bij het lezen kent), dan telt elk tabblad via `holds`. Een tabblad dat intussen sloot, telt niet: dan opent het
+ * bestand gewoon.
  */
 export function existingDocument(s: Tabs, ref: FileRef, lookup: OpenLookup | null): string | null {
   const documents = s.getOpenDocumentPayloads();
+  const settled = lookup?.settled ? lookup : null;
   const seenAsNow = (id: string, payload: TabFile) => {
-    const before = lookup?.seen.get(id);
+    const before = settled?.seen.get(id);
     return !!before && sameTabFile(before, payload);
   };
-  const found = lookup?.id == null ? undefined : documents.find(({ id }) => id === lookup.id);
+  const found = settled?.id == null ? undefined : documents.find(({ id }) => id === settled.id);
   if (found && seenAsNow(found.id, found.payload)) return found.id;
   return documents.find(({ id, payload }) => !seenAsNow(id, payload) && holds(ref, payload))?.id ?? null;
 }

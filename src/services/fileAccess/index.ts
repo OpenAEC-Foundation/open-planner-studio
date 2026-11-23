@@ -83,10 +83,10 @@ export interface OpenedFile {
 export interface OpenDialogOpts {
   /** Extensies (zonder punt, lowercase) die als bytes gelezen moeten worden i.p.v. tekst. */
   binaryExtensions?: string[];
-  /** Alleen de browser (`openFileDialogWeb`): tussen de kiezer en het lezen, met de gekozen handle (#804, knownbug
-   *  1957: de toets "staat al open" vóór het lezen). Moet zelf elke fout afvangen. De desktop kiest en leest apart
-   *  (`pickOpenPath`, `readOpenedPath`). */
-  beforeRead?: (ref: FileRef) => Promise<void>;
+  /** Alleen de browser (`openFileDialogWeb`): synchroon aangeroepen tussen de kiezer en het lezen, met de gekozen
+   *  handle (#804, knownbug 1957: de toets "staat al open" start daar; niemand wacht erop). Mag niet gooien. De desktop
+   *  kiest en leest apart (`pickOpenPath`, `readOpenedPath`). */
+  beforeRead?: (ref: Extract<FileRef, { kind: 'handle' }>) => void;
 }
 
 /** Extra sturing voor `saveFileDialog` — optioneel (o.a. de voortgangsblad-export).
@@ -172,14 +172,9 @@ export function supportsRecentFiles(): boolean {
   return supportsHandles() || siteStorageAvailable();
 }
 
-/** Desktop: alleen het pad kiezen, zonder te lezen (`null` = geannuleerd); lezen gaat met `readOpenedPath`, zoals
- *  `openFileDialogTauri` het samen doet. Voor een toets tussen kiezen en lezen (#804, knownbug 1957). */
-export function pickOpenPath(filters: FileFilter[]): Promise<string | null> {
-  return pickOpenPathTauri(filters);
-}
-
-/** Leest de desktopdialoog `path` als bytes? Dezelfde regel als `openFileDialogTauri`. */
-export { readsPathAsBytes };
+/** Desktop (#804, knownbug 1957): `pickOpenPath` kiest alleen het pad (`null` = geannuleerd); lezen gaat met
+ *  `readOpenedPath` en `readsPathAsBytes`, zoals `openFileDialogTauri` het samen doet. Zo start de toets vóór het lezen. */
+export { pickOpenPathTauri as pickOpenPath, readsPathAsBytes };
 
 /** Openen via picker/input. `null` = geannuleerd. */
 export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {

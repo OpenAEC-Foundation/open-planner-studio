@@ -203,6 +203,29 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   stats = 0;
   eq('A18 geen treffer bij twee padtabbladen', await findId(state([['x', { filePath: '/plan/b.ifc' }], ['y', { filePath: '/plan/c.ifc' }]]), path('/plan/a.ifc'), withFs), null);
   eq('A18 één stat voor het gevraagde pad, één per tabblad', stats, 3);
+  // Route P (review #1121 ronde 5): in de browser krijgt alleen een tabblad met dezelfde bestandsnaam een `isSameEntry`
+  // (synchroon voorsorteren; dezelfde entry heeft altijd dezelfde naam). De treffer komt alleen van `isSameEntry`: twee
+  // bestanden met dezelfde naam in verschillende mappen worden niet verward.
+  {
+    let calls: string[] = [];
+    const at = (dirName: string, name: string) => ({
+      kind: 'file', name,
+      isSameEntry: async (other: { dirName?: string; name?: string }) => { calls.push(dirName); return other.dirName === dirName && other.name === name; },
+      dirName,
+    }) as unknown as FileSystemFileHandle;
+    const tabs = state([
+      ['ander', { filePath: 'b.ifc', fileHandle: at('plan', 'b.ifc') }],
+      ['zelfde-naam', { filePath: 'a.ifc', fileHandle: at('elders', 'a.ifc') }],
+      ['zelfde', { filePath: 'a.ifc', fileHandle: at('plan', 'a.ifc') }],
+    ]);
+    eq('A19 voorsorteren: de treffer is het zelfde bestand', await findId(tabs, { kind: 'handle', handle: at('plan', 'a.ifc') }, noFs), 'zelfde');
+    eq('A19 voorsorteren: geen isSameEntry voor een andere naam', [...calls].sort(), ['elders', 'plan']);
+    calls = [];
+    eq('A19b dezelfde naam in een andere map: geen treffer', await findId(state([
+      ['zelfde-naam', { filePath: 'a.ifc', fileHandle: at('elders', 'a.ifc') }],
+    ]), { kind: 'handle', handle: at('plan', 'a.ifc') }, noFs), null);
+    eq('A19b één isSameEntry, voor de kandidaat met dezelfde naam', calls, ['elders']);
+  }
 }
 
 // ═══ B. Desktop ═══════════════════════════════════════════════════════════════════════════════════
@@ -236,8 +259,14 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       dialogAnswer = how === 'link' ? link : file;
       await store.getState().openFile(labels);
     } else if (how === 'recent') {
-      const entry = store.getState().recentFiles.find(e => e.ref.kind === 'path' && e.ref.path === file);
-      if (!entry) throw new Error(`geen recent voor ${file}`);
+      // Recent is één gedeelde lijst van tien, met de vaste klok van deze batterij zonder vaste volgorde: staat het bestand
+      // er niet (meer) in, dan zet de proef het er zelf in, zoals de planner het in Recent ziet staan.
+      let entry = store.getState().recentFiles.find(e => e.ref.kind === 'path' && e.ref.path === file);
+      if (!entry) {
+        entry = { id: `recent-${file}`, ref: { kind: 'path', path: file }, name: file.split('/').pop()!, addedAt: 1 };
+        const own = entry;
+        store.setState(s => { s.recentFiles = [own, ...s.recentFiles]; });
+      }
       await store.getState().openRecentFile(entry.id, labels);
     } else {
       // Zoals de hook (`useFileDrop`): met het pad als `target` en de leeskeuze van de neerzetting.
@@ -340,11 +369,11 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq('B7 1909: het tabblad dat opsloeg, met zijn werk', tab(store, saver), { project: 'Opslaander', tasks: ['Nieuw werk'], isDirty: false, filePath: doel });
     eq('B7 1909: één melding', notices(store), [['info', ALREADY_OPEN]]);
 
-    // Review #1121 ronde 1 (BLOKKEERT): *Opslaan als* zet het gevonden tabblad op een ander bestand terwijl de toets of
-    // de wachtende neerzetting nog loopt. De wissel kijkt vlak vóór het activeren of dat tabblad nog naar het gevraagde
-    // bestand wijst; zo niet, dan opent het gevraagde bestand gewoon, zoals main. Twee volgordes: (1) een neerzetting
-    // die wacht op de dialoogpoort, (2) een trage `stat` in de toets zelf, zonder wachtlus.
-    for (const during of ['wachtende neerzetting', 'trage stat'] as const) {
+    // Review #1121 ronde 1 (BLOKKEERT): *Opslaan als* zet het gevonden tabblad op een ander bestand terwijl de
+    // neerzetting wacht op de dialoogpoort. De wissel kijkt vlak vóór het activeren of dat tabblad nog naar het
+    // gevraagde bestand wijst; zo niet, dan opent het gevraagde bestand gewoon, zoals main. (De volgorde "trage `stat`"
+    // verviel in ronde 5: met route P wacht de openactie niet op de toets.)
+    for (const during of ['wachtende neerzetting'] as const) {
       const st = newStore(true);
       const T = () => st.getState();
       dialogAnswer = kantoor;
@@ -355,36 +384,18 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       dialogAnswer = school;
       await T().openFile(labels);
       const b = T().activeDocumentId;
-      const renamed = join(dir, during === 'trage stat' ? 'nieuwe-naam-stat.ifc' : 'nieuwe-naam-wacht.ifc');
+      const renamed = join(dir, 'nieuwe-naam-wacht.ifc');
       let opening: Promise<void>;
       let release: () => void = () => undefined;
       const halted = new Promise<void>((resolve) => {
-        if (during === 'wachtende neerzetting') {
-          let calls = 0;
-          let blocked = true;
-          release = () => { blocked = false; };
-          opening = openDroppedFiles(st, desktopDroppedFiles([kantoor], io, readOptions(st)), labels, () => {
-            if (++calls === 1) return false; // de poort bij het neerzetten
-            resolve();
-            return blocked;
-          }, { readOptions: readOptions(st) });
-        } else {
-          let statMayReturn: () => void = () => undefined;
-          const gate = new Promise<void>((r) => { statMayReturn = r; });
-          release = () => statMayReturn();
-          const outer = internals.invoke;
-          internals.invoke = async (command, args, options) => {
-            if (command === 'plugin:fs|stat' && (args as { path?: string }).path === kantoor) {
-              internals.invoke = outer;
-              resolve();
-              await gate;
-            }
-            return outer(command, args, options);
-          };
-          // De trage `stat` is die van de toets: Bestand → Openen heeft gekozen, maar nog niet gelezen.
-          dialogAnswer = kantoor;
-          opening = T().openFile(labels);
-        }
+        let calls = 0;
+        let blocked = true;
+        release = () => { blocked = false; };
+        opening = openDroppedFiles(st, desktopDroppedFiles([kantoor], io, readOptions(st)), labels, () => {
+          if (++calls === 1) return false; // de poort bij het neerzetten
+          resolve();
+          return blocked;
+        }, { readOptions: readOptions(st) });
       });
       await halted;
       T().switchDocument(a);
@@ -431,41 +442,13 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       await T().openFile(labels);
       eq('B9 ./kantoor.ifc: hetzelfde bestand, naar het open tabblad', [T().activeDocumentId, T().documents.length], [first, 2]);
 
-      // Review #1121 ronde 4 (VERVOLG): het tabblad met het echte kantoor.ifc gaat pas open terwijl de toets van
-      // `maplink/../kantoor.ifc` loopt. De synchrone beslissing kijkt alleen naar dezelfde letterlijke padtekst, dus geen
-      // wissel naar het andere bestand: School opent in een eigen tabblad.
-      const late = newStore(true);
-      const L = () => late.getState();
-      // Een tabblad met een pad, anders hoeft de toets niets te vergelijken en vraagt ze geen `stat`.
-      dialogAnswer = school;
-      await L().openFile(labels);
-      let held = false;
-      const outer = internals.invoke;
-      internals.invoke = async (command, args, options) => {
-        if (!held && command === 'plugin:fs|stat' && (args as { path?: string }).path === viaLink) {
-          held = true;
-          dialogAnswer = kantoor;
-          await L().openFile(labels);
-        }
-        return outer(command, args, options);
-      };
-      clearNotices(late);
-      try {
-        dialogAnswer = viaLink;
-        await L().openFile(labels);
-      } finally { internals.invoke = outer; }
-      eq('B9 laat tabblad met het andere bestand: geen wissel, School in een eigen tabblad', [
-        held, L().project.name, L().filePath, L().documents.length, notices(late).filter(n => n[1] === ALREADY_OPEN),
-      ], [true, 'School', viaLink, 3, []]);
+      // (B9 laat, ronde 4, verviel in ronde 5: met route P houdt de toets de openactie niet meer vast; A17 dekt de
+      // synchrone vergelijking op dezelfde padtekst.)
     }
 
-    // Review #1121 ronde 2 en 4 (BLOKKEERT): de toets van een openactie loopt (vóór het lezen), en intussen slaat de
-    // planner een ander tabblad op als het bestand dat geopend wordt.
-    //  - R1: dat tabblad blijft open. De synchrone eindbeslissing ziet het op dat pad: de app gaat daarheen, met de
-    //    melding, en het opgeslagen werk blijft op schijf, ook na Ctrl+S.
-    //  - R3 (ronde 4, het geval van Sol): dat tabblad gaat daarna dicht. De app leest pas na de toets, dus de nieuwe
-    //    versie: het nieuwe tabblad toont *Net opgeslagen werk*, en na *Vervolgwerk* + Ctrl+S staan beide op schijf.
-    //  - R2: met de flag uit is er geen toets; dan is kantoor al open als Opslaan als begint en weigert het, zoals main.
+    // Review #1121 ronde 2: met de flag uit is er geen toets; *Opslaan als* begint op het moment van de eerste `stat` van
+    // kantoor tijdens de openactie (bij main die van de schrijfrij of het lezen) en weigert, zoals main. (R1 en R3, met
+    // *Opslaan als* en sluiten tijdens de toets, vervielen in ronde 5: met route P wacht de openactie niet op de toets.)
     {
       const { readFileSync } = await import('node:fs');
       type Route = 'openen' | 'recent' | 'slepen' | 'MCP';
@@ -512,36 +495,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         if (!gated) await saveAs();
         return { st, T, saving, gated, reads };
       };
-      for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) {
-        if (route !== 'MCP') {
-          const { st, T, saving, gated } = await race(true, route, false);
-          const onKantoor = T().getOpenDocumentPayloads().filter(d => d.payload.filePath === kantoor);
-          eq(`R1 ${route}: Opslaan als tijdens de toets; één tabblad op kantoor, het opgeslagen tabblad, met de melding`, [
-            gated, onKantoor.map(d => d.id), T().activeDocumentId, notices(st),
-          ], [true, [saving], saving, [['info', ALREADY_OPEN]]]);
-          eq(`R1 ${route}: het opgeslagen werk staat op schijf`, readFileSync(kantoor, 'utf8').includes('Net opgeslagen werk'), true);
-          T().addTask({ name: 'Daarna in het actieve tabblad' });
-          await T().saveFile();
-          const written = readFileSync(kantoor, 'utf8');
-          eq(`R1 ${route}: ook na Ctrl+S`, [written.includes('Net opgeslagen werk'), written.includes('Daarna in het actieve tabblad')], [true, true]);
-        }
+      for (const route of ['openen', 'recent', 'slepen'] as const) {
         {
-          const { st, T, saving, gated, reads } = await race(true, route, true);
-          const onKantoor = T().getOpenDocumentPayloads().filter(d => d.payload.filePath === kantoor);
-          eq(`R3 ${route}: opgeslagen en gesloten tijdens de toets; het nieuwe tabblad toont de opgeslagen versie`, [
-            gated, T().getOpenDocumentPayloads().some(d => d.id === saving), onKantoor.length, T().filePath,
-            T().tasks.some(t => t.name === 'Net opgeslagen werk'), reads,
-            notices(st).filter(n => n[1] === ALREADY_OPEN).length,
-          ], [true, false, 1, kantoor, true, 1, 0]);
-          T().addTask({ name: 'Vervolgwerk' });
-          clearNotices(st);
-          await T().saveFile();
-          const written = readFileSync(kantoor, 'utf8');
-          eq(`R3 ${route}: na Vervolgwerk en Ctrl+S staan beide op schijf`, [
-            written.includes('Net opgeslagen werk'), written.includes('Vervolgwerk'), T().isDirty,
-          ], [true, true, false]);
-        }
-        if (route !== 'MCP') {
           const { st, T, saving } = await race(false, route, false);
           eq(`R2 ${route} flag uit: zoals main weigert Opslaan als, het werk blijft gewijzigd, het bestand bytegelijk`, [
             readFileSync(kantoor, 'utf8') === kantoorIfc, tab(st, saving)?.isDirty,
@@ -551,6 +506,201 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         }
       }
       writeFileSync(kantoor, kantoorIfc);
+    }
+
+    // Route P (review #1121 ronde 5): de PR voegt geen enkel wachtmoment toe aan de openactie. De proef houdt de toets
+    // vast (de `stat` van het gevraagde pad, ook in de bestandslaag van MCP). De openactie is dan klaar zonder op de toets
+    // te wachten: via de link (alleen via de identiteit te herkennen) een eigen tabblad, zonder melding; via dezelfde
+    // padtekst naar het open tabblad (synchroon te zien). Een uitkomst die daarna binnenkomt, doet niets meer.
+    {
+      const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+      for (const route of ['openen', 'recent', 'slepen', 'MCP'] as const) for (const via of ['link', 'pad'] as const) {
+        writeFileSync(kantoor, kantoorIfc);
+        const app = newApp(true);
+        const st = app.store;
+        const T = () => st.getState();
+        dialogAnswer = kantoor;
+        await T().openFile(labels);
+        const kantoorTab = T().activeDocumentId;
+        T().newDocument();
+        dialogAnswer = school;
+        await T().openFile(labels);
+        const schoolTab = T().activeDocumentId;
+        const requested = via === 'link' ? link : kantoor;
+        st.setState(s => { s.recentFiles = [{ id: 'p', ref: { kind: 'path', path: requested }, name: 'kantoor.ifc', addedAt: 1 }]; });
+        const hold = gate();
+        let held = false;
+        const holdStat = async (path: string) => { if (!held && path === requested) { held = true; await hold.wait; } };
+        const outer = internals.invoke;
+        internals.invoke = async (command, args, options) => {
+          if (command === 'plugin:fs|stat') await holdStat((args as { path?: string }).path ?? '');
+          return outer(command, args, options);
+        };
+        const getFs = fileToolDeps.getFs;
+        const fs = await realFs();
+        fileToolDeps.getFs = async () => ({ ...fs, homeDir: async () => dir, stat: async (path: string) => { await holdStat(path); return fs.stat(path); } });
+        clearNotices(st);
+        const count = T().documents.length;
+        let opening: Promise<unknown>;
+        if (route === 'MCP') opening = Promise.resolve(getTool('planner_import_schedule')!.handler({ path: requested }, mcpContext(app, schoolTab)));
+        else if (route === 'recent') opening = T().openRecentFile('p', labels);
+        else opening = openVia(st, route, requested);
+        try {
+          const done = await Promise.race([opening.then(() => true), sleep(300).then(() => false)]);
+          const atDone = [T().activeDocumentId === kantoorTab, T().documents.length - count, notices(st).filter(n => n[1] === ALREADY_OPEN).length];
+          eq(`P1 ${route} via ${via}: toets vastgehouden; de openactie wacht er niet op`, [held, done, ...atDone],
+            [true, true, via === 'pad', via === 'link' ? 1 : 0, via === 'pad' ? 1 : 0]);
+          hold.open();
+          await opening;
+          await sleep(20);
+          eq(`P1 ${route} via ${via}: de late uitkomst van de toets doet niets meer`,
+            [T().activeDocumentId === kantoorTab, T().documents.length - count, notices(st).filter(n => n[1] === ALREADY_OPEN).length], atDone);
+        } finally {
+          hold.open();
+          internals.invoke = outer;
+          fileToolDeps.getFs = getFs;
+          await opening.catch(() => undefined);
+        }
+      }
+      writeFileSync(kantoor, kantoorIfc);
+    }
+
+    // Review #1121 ronde 5 (BLOKKEERT 1), de proef van Sol: `planner_import_schedule` voor kantoor terwijl de `stat` van
+    // de toets vastzit; 120 ms later *Opslaan als* van School met *Net opgeslagen werk* over kantoor.ifc, met de plaatsing
+    // vastgehouden. Met route P wacht MCP niet op de toets: de import is klaar, *Opslaan als* weigert, School blijft
+    // gewijzigd, kantoor.ifc bytegelijk; één lezing; na *Vervolgwerk* + Ctrl+S in het geïmporteerde tabblad geen melding.
+    // Precies wat main doet (Sols meting op main, `mcp-lopende-opslag-main.log`).
+    {
+      const { readFileSync } = await import('node:fs');
+      writeFileSync(kantoor, kantoorIfc);
+      const app = newApp(true);
+      const st = app.store;
+      const T = () => st.getState();
+      await openVia(st, 'openen', school);
+      const writerId = T().activeDocumentId;
+      T().addTask({ name: 'Net opgeslagen werk' });
+      clearNotices(st);
+      const releaseLookup = gate(), placement = gate(), releasePlacement = gate();
+      const getFs = fileToolDeps.getFs;
+      let waitingAtStat = false, placing = false, reads = 0;
+      const fs = await realFs();
+      fileToolDeps.getFs = async () => ({
+        ...fs, homeDir: async () => dir,
+        stat: async (path: string) => { if (path === kantoor && !waitingAtStat) { waitingAtStat = true; await releaseLookup.wait; } return fs.stat(path); },
+        readFile: (path: string) => { if (path === kantoor) reads++; return fs.readFile(path); },
+      });
+      ipc.faults.place = async (from) => {
+        if (from === kantoor && !placing) { placing = true; placement.open(); await releasePlacement.wait; }
+        return undefined;
+      };
+      try {
+        let importDone = false;
+        const importing = Promise.resolve(getTool('planner_import_schedule')!.handler({ path: kantoor }, mcpContext(app, writerId))).finally(() => { importDone = true; });
+        await new Promise<void>(r => setTimeout(r, 120));
+        const first = importDone ? 'import voltooid' : waitingAtStat ? 'toets wacht' : 'onverwachte fase';
+        const openBeforeSave = T().getOpenDocumentPayloads().some(d => d.payload.filePath === kantoor);
+        T().switchDocument(writerId);
+        saveAnswer = kantoor;
+        const saving = T().saveFileAs();
+        const writeStage = await Promise.race([saving.then(() => 'opslag terug'), placement.wait.then(() => 'plaatsing wacht')]);
+        releaseLookup.open();
+        const response = await importing as { ok: boolean; data?: { documentId: string } };
+        releasePlacement.open();
+        await saving;
+        const savedBytes = readFileSync(kantoor, 'utf8');
+        const saveNotices = notices(st).map(n => n[1]);
+        const atTarget = T().getOpenDocumentPayloads().filter(d => d.payload.filePath === kantoor).length;
+        const writerDirty = tab(st, writerId)?.isDirty;
+        T().switchDocument(response.data!.documentId);
+        T().addTask({ name: 'Vervolgwerk' });
+        clearNotices(st);
+        await T().saveFile();
+        const final = readFileSync(kantoor, 'utf8');
+        eq('P2 MCP en een lopende opslag (Sol, ronde 5): zoals main', [
+          first, writeStage, openBeforeSave, response.ok, savedBytes === kantoorIfc, saveNotices.includes('notifications.ifcForeignTargetOpenInTab'),
+          atTarget, writerDirty, reads, final.includes('Vervolgwerk'), final.includes('Net opgeslagen werk'), notices(st),
+        ], ['import voltooid', 'opslag terug', true, true, true, true, 1, true, 1, true, false, []]);
+      } finally {
+        releaseLookup.open();
+        releasePlacement.open();
+        ipc.faults.place = null;
+        fileToolDeps.getFs = getFs;
+      }
+      writeFileSync(kantoor, kantoorIfc);
+    }
+
+    // Review #1121 ronde 5 (BLOKKEERT 2), de proef van Sol: Kantoor en School staan open; Openen of Recent van kantoor
+    // terwijl de `stat` van de toets vastzit; 150 ms later in School een taak kiezen en F2. Met route P is de openactie
+    // dan al klaar, zoals op main: de taakdialoog blijft open, op dezelfde taak, in School.
+    {
+      if (typeof (globalThis as { document?: unknown }).document === 'undefined') {
+        Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: {} } });
+      }
+      const { SHORTCUTS } = await import('@/hooks/keyboard/shortcutRegistry');
+      const editTask = SHORTCUTS.find(shortcut => shortcut.id === 'edit.editTask')!;
+      for (const route of ['openen', 'recent'] as const) {
+        writeFileSync(kantoor, kantoorIfc);
+        const st = newStore(true);
+        const T = () => st.getState();
+        await openVia(st, 'openen', kantoor);
+        await openVia(st, 'openen', school);
+        const schoolId = T().activeDocumentId;
+        st.setState(s => { s.recentFiles = [{ id: 'k', ref: { kind: 'path', path: kantoor }, name: 'kantoor.ifc', addedAt: 1 }]; });
+        const release = gate();
+        let waiting = false;
+        const outer = internals.invoke;
+        internals.invoke = async (command, args, options) => {
+          if ((args as { path?: string } | undefined)?.path === kantoor && command === 'plugin:fs|stat' && !waiting) { waiting = true; await release.wait; }
+          return outer(command, args, options);
+        };
+        let done = false;
+        const opening = (route === 'recent' ? T().openRecentFile('k', labels) : openVia(st, 'openen', kantoor)).finally(() => { done = true; });
+        try {
+          await new Promise<void>(r => setTimeout(r, 150));
+          const doneAtF2 = done;
+          T().switchDocument(schoolId);
+          const taskId = T().tasks[0].id;
+          T().selectTask(taskId);
+          editTask.run(T());
+          const dialogAtF2 = T().ui.showTaskDialog;
+          release.open();
+          await opening;
+          eq(`P3 ${route} (Sol, ronde 5): F2 terwijl de toets vastzit; de openactie was klaar, de taakdialoog blijft open`, [
+            doneAtF2, dialogAtF2, T().ui.showTaskDialog, T().ui.editingTaskId === taskId, T().activeDocumentId === schoolId,
+          ], [true, true, true, true, true]);
+          T().setUI({ showTaskDialog: false, editingTaskId: null });
+        } finally {
+          release.open();
+          internals.invoke = outer;
+        }
+      }
+    }
+
+    // Review #1121 ronde 5 (VERVOLG), het geval van Sol: School is open via `maplink/../kantoor.ifc` (een ander bestand
+    // dan kantoor.ifc); het bestand achter dat aliaspad verdwijnt; dan Openen van het gewone kantoor.ifc. Een bewezen
+    // ontbrekende kandidaat valt niet terug op de padtekst: Kantoor opent, zoals main.
+    {
+      const { realpathSync, unlinkSync } = await import('node:fs');
+      const other = join(dir, 'andere-map');
+      mkdirSync(join(other, 'sub'), { recursive: true });
+      symlinkSync(join(other, 'sub'), join(dir, 'maplink2'));
+      const alias = `${dir}/maplink2/../kantoor.ifc`;
+      const aliasTarget = join(other, 'kantoor.ifc');
+      writeFileSync(aliasTarget, schoolIfc);
+      writeFileSync(kantoor, kantoorIfc);
+      const st = newStore(true);
+      const T = () => st.getState();
+      await openVia(st, 'openen', alias);
+      const aliasId = T().activeDocumentId;
+      const precondition = [realpathSync.native(alias) !== realpathSync.native(kantoor), T().project.name];
+      T().newDocument();
+      await openVia(st, 'openen', school);
+      clearNotices(st);
+      unlinkSync(aliasTarget);
+      await openVia(st, 'openen', kantoor);
+      eq('B11 verdwenen alias: Kantoor opent, niet het tabblad van de alias', [
+        ...precondition, T().activeDocumentId === aliasId, T().project.name, T().filePath, notices(st),
+      ], [true, 'School', false, 'Kantoor', kantoor, []]);
     }
 
     // Samenloop met #1127 (knownbug 2043): een model dat al in een tabblad open staat en intussen boven de productgrens
@@ -585,6 +735,9 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           if (route === 'MCP') {
             const r = await getTool('planner_import_schedule')!.handler({ path: groot }, mcpContext(app, schoolTab)) as { ok: boolean; code?: string; error?: string };
             mcpError = r.ok ? null : `${r.code}: ${r.error ?? ''}`;
+          } else if (route === 'recent') {
+            st.setState(s => { s.recentFiles = [{ id: 'g', ref: { kind: 'path', path: groot }, name: 'model-groot.ifc', addedAt: 1 }]; });
+            await T().openRecentFile('g', labels);
           } else {
             await openVia(st, route, groot);
           }
@@ -605,8 +758,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       for (const e of T().recentFiles.filter(e => e.ref.kind === 'path' && e.ref.path === groot)) await removeRecent(e.id);
     }
 
-    // Review #1121 ronde 4 (VERVOLG): de flag gaat uit terwijl de toets loopt. De leeskeuze ligt vóór de toets vast, dus
-    // de IFC opent zoals bij een stabiele flag: Kantoor, zonder `openFailed`.
+    // Review #1121 ronde 4 (VERVOLG): de flag gaat uit terwijl de openactie loopt (hier: tijdens het lezen, ronde 5). De
+    // leeskeuze ligt vóór het lezen vast, dus de IFC opent zoals bij een stabiele flag: Kantoor, zonder `openFailed`.
     for (const route of ['openen', 'recent', 'slepen'] as const) {
       writeFileSync(kantoor, kantoorIfc);
       const st = newStore(true);
@@ -617,7 +770,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       let flipped = false;
       const outer = internals.invoke;
       internals.invoke = async (command, args, options) => {
-        if (!flipped && command === 'plugin:fs|stat' && (args as { path?: string }).path === kantoor) {
+        if (!flipped && /^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string }).path === kantoor) {
           flipped = true;
           st.setState(s => { s.ui.featureFlags = {}; });
         }
@@ -628,7 +781,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         if (route === 'recent') await T().openRecentFile('r', labels);
         else await openVia(st, route);
       } finally { internals.invoke = outer; }
-      eq(`R7 ${route}: flag uit tijdens de toets; Kantoor opent, geen openFailed`, [
+      eq(`R7 ${route}: flag uit tijdens het lezen; Kantoor opent, geen openFailed`, [
         flipped, T().project.name, T().tasks.map(t => t.name), T().filePath,
         notices(st).filter(n => n[0] === 'error').map(n => n[1]),
       ], [true, 'Kantoor', ['Fundering'], kantoor, []]);
@@ -732,15 +885,16 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     // elkaar; beide staan al open. MCP legt het document van zijn antwoord en het driftanker vast in de synchrone stap
     // waarin het wisselt: het antwoord noemt Kantoor, en wisselt Openen daarna naar School, dan weigert de volgende
     // `planner_update_project` en `planner_export_ifc` met DOC_DRIFT (of ze werken op Kantoor). School blijft onaangeroerd.
-    // De proef houdt de eerste `stat` van kantoor (MCP) vast, en daarna de eerste `stat` van Openen voor school óf voor het
-    // tabblad met kantoor (het punt uit Sols proef), en laat ze los met
+    // De proef houdt de eerste lezing van kantoor (MCP) vast, en daarna de eerste lezing van Openen (school óf kantoor; met
+    // route P, ronde 5, houdt een `stat` de openactie niet meer vast), en laat ze los met
     // 0 tot 12 microtaken verschil in beide richtingen, en ook na elkaar (de een helemaal klaar vóór de ander verder mag).
     {
       const { readFileSync } = await import('node:fs');
       const releaseAfter = (n: number, open: () => void) => { if (n <= 0) open(); else queueMicrotask(() => releaseAfter(n - 1, open)); };
       const seen = new Set<string>();
       const orders: (number | 'Openen eerst klaar' | 'MCP eerst klaar')[] = [...Array.from({ length: 25 }, (_, i) => i - 12), 'Openen eerst klaar', 'MCP eerst klaar'];
-      for (const uiAt of [school, kantoor]) for (const offset of orders) {
+      // Alleen de lezing van school: de variant met de `stat` van het tabblad kantoor verviel met route P (ronde 5).
+      for (const uiAt of [school]) for (const offset of orders) {
         writeFileSync(kantoor, kantoorIfc);
         writeFileSync(school, schoolIfc);
         const app = newApp(true);
@@ -760,9 +914,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         const outer = internals.invoke;
         internals.invoke = async (command, args, options) => {
           const at = (args as { path?: string } | undefined)?.path;
-          if (command === 'plugin:fs|stat' && !heldMcp && at === kantoor) {
+          const reading = /^plugin:fs\|read_(text_)?file$/.test(command);
+          if (reading && !heldMcp && at === kantoor) {
             heldMcp = true; reachedMcp.open(); await releaseMcp.wait;
-          } else if (command === 'plugin:fs|stat' && heldMcp && !heldUi && at === uiAt) {
+          } else if (reading && heldMcp && !heldUi && at === uiAt) {
             heldUi = true; reachedUi.open(); await releaseUi.wait;
           }
           return outer(command, args, options);
@@ -1015,9 +1170,15 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         const seq = events;
         events = null;
         console.log(JSON.stringify({ proef: 'T1 volgorde', route, flag, seq }));
-        // Route B (ronde 4): de toets vóór het lezen; het startbestand houdt de toets van main, na het lezen.
-        eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: toets, lezen, parsen, activeren`, orderOf(seq),
-          route === 'start' ? ['lees', 'toets', 'parse', 'actief'] : flag ? ['toets', 'lees', 'parse', 'actief'] : ['lees', 'parse', 'actief']);
+        // Route P (ronde 5): de toets start bij het lezen en niemand wacht erop; zonder de toets is de volgorde die van
+        // main. Het startbestand houdt de toets van main, na het lezen.
+        if (route === 'start') {
+          eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: lezen, toets, parsen, activeren (main)`, orderOf(seq), ['lees', 'toets', 'parse', 'actief']);
+        } else {
+          eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: lezen, parsen, activeren zoals main; de toets ${flag ? 'gestart' : 'niet'} vóór het activeren`, [
+            orderOf(seq.filter(e => e !== 'toets')), seq.slice(0, seq.indexOf('actief')).includes('toets'),
+          ], [['lees', 'parse', 'actief'], flag]);
+        }
         eq(`T1 ${route} flag ${flag ? 'aan' : 'uit'}: één lezing in de hele actie`, seq.filter(e => e === 'lees').length, 1);
       }
     }
@@ -1125,10 +1286,9 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   await S().openOpenedFile(ff, labels);
   eq('C3 zonder handle: telkens een nieuw tabblad', [S().documents.length, notices(store).filter(n => n[1] === ALREADY_OPEN)], [6, []]);
 
-  // Review #1121 ronde 3: waar de toets staat, per browserroute. Met de flag aan: lezen (`getFile`, bij slepen
-  // `getAsFile`), dan `isSameEntry`,
-  // dan parsen, en tussen parsen en activeren niets. Met de flag uit geen `isSameEntry` vóór het activeren, zoals main
-  // (Recent roept daarna nog `isSameEntry` aan in `pushRecent`, zoals main).
+  // Review #1121 ronde 3 en 5: waar de toets staat, per browserroute. Met de flag aan start `isSameEntry` bij het lezen
+  // (route P), en niemand wacht erop: zonder de toets is de volgorde lezen, parsen, activeren, zoals main. Met de flag
+  // uit geen `isSameEntry` vóór het activeren, zoals main (Recent roept daarna nog `isSameEntry` aan in `pushRecent`).
   for (const flag of [true, false]) for (const how of ['openen', 'recent', 'slepen'] as const) {
     const st = newStore(flag);
     await openVia(st, 'openen');
@@ -1148,8 +1308,9 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     const seq = events;
     events = null;
     console.log(JSON.stringify({ proef: 'T2 volgorde', how, flag, seq }));
-    eq(`T2 ${how} flag ${flag ? 'aan' : 'uit'}: toets, lezen, parsen, activeren`, orderOf(seq),
-      flag ? ['toets', 'lees', 'parse', 'actief'] : ['lees', 'parse', 'actief']);
+    eq(`T2 ${how} flag ${flag ? 'aan' : 'uit'}: lezen, parsen, activeren zoals main; de toets ${flag ? 'gestart' : 'niet'} vóór het activeren`, [
+      orderOf(seq.filter(e => e !== 'toets')), seq.slice(0, seq.indexOf('actief')).includes('toets'),
+    ], [['lees', 'parse', 'actief'], flag]);
     eq(`T2 ${how} flag ${flag ? 'aan' : 'uit'}: één lezing`, seq.filter(e => e === 'lees').length, 1);
   }
 
