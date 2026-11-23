@@ -77,6 +77,25 @@ export function replaceCopyPath(path: string, label: string): string {
 }
 
 const placedOk = (outcome: PlaceFileOutcome) => outcome.code === 'placed' || outcome.code === 'dir-not-synced';
+
+/** Alleen target-exists garandeert dat beide namen onaangeroerd zijn. Andere uitkomsten
+ * (vooral source-changed of io op een netwerkvolume) nooit opnieuw proberen. */
+export async function placeUniqueReplaceCopy(
+  fs: { place(from: string, to: string): Promise<PlaceFileOutcome> },
+  from: string,
+  path: string,
+  label: string,
+): Promise<string | null> {
+  // Begrens ook bij een map vol bestaande namen; hulpbestand blijft bij falen staan.
+  for (let n = 1; n <= 100; n++) {
+    const copy = replaceCopyPath(path, n === 1 ? label : `${label} ${n}`);
+    const outcome = await fs.place(from, copy);
+    if (placedOk(outcome)) return copy;
+    if (outcome.code !== 'target-exists') return null;
+  }
+  return null;
+}
+
 const describePlace = (outcome: PlaceFileOutcome) =>
   `place_file_exclusive: ${outcome.code}${outcome.code === 'refused' ? ` (${outcome.reason})` : ''}`
   + ('message' in outcome ? `: ${outcome.message}` : '');
@@ -182,7 +201,14 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     return { code: 'failed', detail: describePlace(placed) };
   }
 
-  // Stap 5.
+  // Stap 5. Een aangetroffen symlink niet volgen of verwijderen. Dit is geen atomaire
+  // check: een wissel ná lstat blijft mogelijk (knownbug 1832).
+  try {
+    if ((await fs.lstat(previous)).isSymlink) return { code: 'replaced', otherVersion: null, leftOver: previous };
+  } catch (error) {
+    if (missingTarget(error)) return { code: 'replaced', otherVersion: null, leftOver: null };
+    return { code: 'replaced', otherVersion: null, leftOver: previous };
+  }
   const before = await fs.content(previous, source);
   if (before === 'missing') return { code: 'replaced', otherVersion: null, leftOver: null };
   if (before === 'same') {
@@ -194,8 +220,8 @@ export async function replaceOwnFileBytes(fs: OwnFileReplaceFs, input: OwnFileRe
     }
   }
   if (before === 'changed') {
-    const copy = replaceCopyPath(path, input.label('other-program'));
-    if (placedOk(await fs.place(previous, copy))) return { code: 'replaced', otherVersion: copy, leftOver: null };
+    const copy = await placeUniqueReplaceCopy(fs, previous, path, input.label('other-program'));
+    if (copy) return { code: 'replaced', otherVersion: copy, leftOver: null };
   }
   return { code: 'replaced', otherVersion: null, leftOver: previous };
 }
@@ -291,8 +317,8 @@ export async function settleReplaceRemnants(
   if (written === pendingSha256 && target === pendingSha256) {
     await removeOrLeave(temp);
   } else if (written === pendingSha256) {
-    const copy = replaceCopyPath(path, label('unsaved-schedule'));
-    if (placedOk(await fs.place(temp, copy))) events.push({ kind: 'unsaved-schedule', target: path, copy });
+    const copy = await placeUniqueReplaceCopy(fs, temp, path, label('unsaved-schedule'));
+    if (copy) events.push({ kind: 'unsaved-schedule', target: path, copy });
     else leave(temp);
   } else if (written !== 'missing') leave(temp);
   return { events, resolved: !events.some(event => event.kind === 'left-over') };

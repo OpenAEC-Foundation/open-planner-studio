@@ -9,7 +9,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
-import { parseOutLine } from '@/services/ifc/foreign/lossCheck';
+import { parseOutLine, refsOutsideText, type OutLine } from '@/services/ifc/foreign/lossCheck';
+import type { RestoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
 import { MergeNeedsPhase2Error, prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { generateId } from '@/utils/id';
 import { storeWith } from './ifcAppRoute';
@@ -88,13 +89,16 @@ export const deleteAll = (s: S) => {
   for (const t of [...s.tasks].filter((t: any) => !t.parentId)) if (s.tasks.some((x: any) => x.id === t.id)) s.deleteTask(t.id);
 };
 
-export type Outcome = { ok: true; bytes: Uint8Array; next: IfcSource } | { ok: false; kinds: string[]; detail: string };
+/** `restored`: wat (c) bij deze opslag doet met de slots die (b) terugzette (#804 stap 5, PR A; `observe` van
+ *  `prepareIfcWrite`). Ontbreekt als de opslag de bronbytes teruggaf (stuk 1) of als de code het niet meldt (de basis). */
+export type Outcome = { ok: true; bytes: Uint8Array; next: IfcSource; restored?: RestoredOwnSlots } | { ok: false; kinds: string[]; detail: string };
 /** Opslaan zoals de app: `prepareIfcWrite`, met de klok op de begintijd. */
 export async function save(d: Domain, source: IfcSource): Promise<Outcome> {
   clock.start();
+  let restored: RestoredOwnSlots | undefined;
   try {
-    const prepared = await prepareIfcWrite(d, source);
-    return { ok: true, bytes: prepared.bytes, next: prepared.source };
+    const prepared = await prepareIfcWrite(d, source, undefined, r => { restored = r; });
+    return { ok: true, bytes: prepared.bytes, next: prepared.source, ...(restored ? { restored } : {}) };
   } catch (e) {
     if (!(e instanceof MergeNeedsPhase2Error)) throw e;
     return { ok: false, kinds: [...new Set(e.cases.map(c => c.kind))].sort(), detail: e.cases[0]?.detail.slice(0, 300) ?? '' };
@@ -127,6 +131,52 @@ export function withForeignMember(bytes: Uint8Array, pset: string): Uint8Array {
 /** Staat het vreemde lid van `withForeignMember` nog in een pset met deze naam? */
 export const foreignMemberKept = (text: string, pset: string) => text.includes("#95000=IFCPROPERTYSINGLEVALUE('VendorNote'")
   && new RegExp(`=IFCPROPERTYSET\\('[^']*',#\\d+,'${pset}',\\$,\\([^)]*#95000[,)]`).test(text);
+
+export const DESCRIPTION = "'Omschrijving van een ander programma'";
+/** De regels van een bestand. */
+export const linesOfBytes = (b: Uint8Array) => latin1(b).split('\n').map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+/** Zet slot `arg` van de regels waarvoor `pick` geldt op `token` (dat slot moet `$` zijn); de rest byte voor byte gelijk.
+ *  `count`: zoveel regels moeten het zijn. */
+function withSlot(bytes: Uint8Array, what: string, pick: (l: OutLine, all: readonly OutLine[]) => boolean, arg: number, token: string, count = 1): Uint8Array {
+  const all = linesOfBytes(bytes);
+  let n = 0;
+  const text = latin1(bytes).split('\n').map(t => {
+    const l = parseOutLine(t.replace(/\r$/, ''));
+    if (!l || !pick(l, all)) return t;
+    assert(l.args[arg]?.trim() === '$', `${what}: slot ${arg} is al gezet (${l.args[arg]})`);
+    n++;
+    return `#${l.id}=${l.type}(${l.args.map((a, k) => k === arg ? token : a).join(',')});${t.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(n === count, `${what}: ${n} regels in plaats van ${count}`);
+  return bytesOf(text);
+}
+/** Is dit een pset met deze naam? */
+const psetNamed = (l: OutLine, pset: string) => l.type === 'IFCPROPERTYSET' && l.args[2].trim() === `'${pset}'`;
+/** Een omschrijving van een ander programma op de pset (`IfcPropertySet`, argument 3): de lezer leest haar niet, dus de
+ *  herleestoets (b) zet haar terug (#804 stap 5, PR A; knownbug 1953). */
+export const withPsetDescription = (bytes: Uint8Array, pset: string, token = DESCRIPTION) =>
+  withSlot(bytes, `omschrijving op ${pset}`, l => psetNamed(l, pset), 3, token);
+/** Een omschrijving van een ander programma op property `prop` van de pset (`IfcPropertySingleValue`, argument 1). */
+export const withPropertyDescription = (bytes: Uint8Array, pset: string, prop: string, token = DESCRIPTION) =>
+  withSlot(bytes, `omschrijving op ${pset}.${prop}`, (l, all) => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0].trim() === `'${prop}'`
+    && all.some(p => psetNamed(p, pset) && p.args[4].trim().slice(1, -1).split(',').map(x => x.trim()).includes(`#${l.id}`)), 1, token);
+/** De `IfcSimplePropertyTemplate` met naam `name` onder het `IfcPropertySetTemplate` `pset`. */
+export const templateIn = (ls: readonly OutLine[], pset: string, name: string) => {
+  const owner = ls.find(l => l.type === 'IFCPROPERTYSETTEMPLATE' && l.args[2].trim() === `'${pset}'`);
+  const ids = refsOutsideText(owner?.args[6] ?? '');
+  const found = ls.filter(l => ids.includes(l.id) && l.type === 'IFCSIMPLEPROPERTYTEMPLATE' && l.args[2].trim() === `'${name}'`);
+  assert(found.length === 1, `${pset} / ${name}: ${found.length} templates`);
+  return found[0];
+};
+/** Een omschrijving van een ander programma op de template `name` van `pset` (`IfcSimplePropertyTemplate`, argument 3). */
+export const withTemplateDescription = (bytes: Uint8Array, pset: string, name: string, token = DESCRIPTION) => {
+  const id = templateIn(linesOfBytes(bytes), pset, name).id;
+  return withSlot(bytes, `omschrijving op de template ${pset} / ${name}`, l => l.id === id, 3, token);
+};
+/** De plaats van de omschrijving van de pset in de boom van (c) (`restoredOwnSlots`). */
+export const psetDescriptionPlace = (pset: string) => `${pset}|IFCRELDEFINESBYPROPERTIES/5:IFCPROPERTYSET('${pset}')#3`;
+/** De plaats van de omschrijving van een property van de pset. */
+export const propertyDescriptionPlace = (pset: string, prop: string) => `${pset}|IFCRELDEFINESBYPROPERTIES/5:IFCPROPERTYSET('${pset}')/4:IFCPROPERTYSINGLEVALUE('${prop}')#1`;
 
 /** Een typenaam (`ObjectType`) op de eerste eigen taak zonder eigen type, waar de writer `$` schrijft; de rest byte voor byte
  *  gelijk. De lezer leest dat slot niet, dus de herleestoets (b) zet hem terug (PR 12d). */

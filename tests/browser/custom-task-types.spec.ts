@@ -38,6 +38,8 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   }, taskId);
   expect(created.personal).toHaveLength(1);
   expect(created.personal[0].name).toBe('Engineering');
+  // Eén keer een kleur (#856); die blijft bij hernoemen, ook in de projectkopie.
+  expect(created.personal[0].color).toMatch(/^#[0-9A-F]{6}$/i);
   expect(created.catalog).toEqual(created.personal);
   expect(created.task?.taskType).toBe('USERDEFINED');
   expect(created.task?.customTaskTypeId).toBe(created.personal[0].id);
@@ -81,8 +83,8 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
     project: window.__OPS__!.store.getState().customTaskTypes,
   }));
   expect(await names()).toEqual({
-    personal: [{ id: created.personal[0].id, name: 'Werkvoorbereiding' }],
-    project: [{ id: created.personal[0].id, name: 'Engineering' }],
+    personal: [{ id: created.personal[0].id, name: 'Werkvoorbereiding', color: created.personal[0].color }],
+    project: [{ id: created.personal[0].id, name: 'Engineering', color: created.personal[0].color }],
   });
 
   // Nogmaals opslaan met dezelfde naam vraagt het opnieuw, want het project heet nog anders.
@@ -92,8 +94,8 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await question.getByRole('button', { name: /^(Also in this project|Ook in dit project)$/ }).click();
   await expect(question).toBeHidden();
   expect(await names()).toEqual({
-    personal: [{ id: created.personal[0].id, name: 'Werkvoorbereiding' }],
-    project: [{ id: created.personal[0].id, name: 'Werkvoorbereiding' }],
+    personal: [{ id: created.personal[0].id, name: 'Werkvoorbereiding', color: created.personal[0].color }],
+    project: [{ id: created.personal[0].id, name: 'Werkvoorbereiding', color: created.personal[0].color }],
   });
   expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(true);
   await manager.getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
@@ -103,9 +105,9 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   // Ctrl+Z zet de naam in het project terug; de persoonlijke naam blijft.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Control+z');
-  await expect.poll(async () => (await names()).project).toEqual([{ id: created.personal[0].id, name: 'Engineering' }]);
+  await expect.poll(async () => (await names()).project).toEqual([{ id: created.personal[0].id, name: 'Engineering', color: created.personal[0].color }]);
   await expect(select.getByRole('button')).toContainText('Engineering');
-  expect((await names()).personal).toEqual([{ id: created.personal[0].id, name: 'Werkvoorbereiding' }]);
+  expect((await names()).personal).toEqual([{ id: created.personal[0].id, name: 'Werkvoorbereiding', color: created.personal[0].color }]);
 
   await select.getByRole('button').click();
   await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
@@ -146,8 +148,8 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await expect(manager).toContainText('Ontwerp');
   await expect(question).toHaveCount(0);
   expect(await names()).toEqual({
-    personal: [{ id: created.personal[0].id, name: 'Ontwerp' }],
-    project: [{ id: created.personal[0].id, name: 'Ontwerp' }],
+    personal: [{ id: created.personal[0].id, name: 'Ontwerp', color: created.personal[0].color }],
+    project: [{ id: created.personal[0].id, name: 'Ontwerp', color: created.personal[0].color }],
   });
   expect(await page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
