@@ -39,6 +39,10 @@ import { doneBarTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { profileCountsWorkdays } from '@/utils/taskDuration';
 
 const S = () => useAppStore.getState();
 
@@ -271,6 +275,51 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
   const connectorLines = lines.filter(l => Math.abs(l.y - rowMidY(0)) < 0.01);
   eq('necking-connector: exact 1 moveTo + 1 lineTo op halve rijhoogte', connectorLines.length, 2);
   ok('connector: eerst moveTo dan lineTo', connectorLines[0]?.kind === 'move' && connectorLines[1]?.kind === 'line');
+}
+
+// ── Knownbug 243. Revisie van geval 3 uit check-split-solver-placement, ditmaal via canvas.
+// Vrijdag 07–13, de andere werkdagen 07–15. Een dagtaak begint vr 07:00, met een gat van
+// 240 min op aspositie 120. In OPS zijn dat 0,25 + 0,5 dagslot (vr 08:30–11:30).
+// In P6/MSP zijn het 120 + 240 werkminuten (vr 09:00–13:00). De laatste rand volgt CPM.
+console.log('-- split-bar-render: knownbug 243, profiel bepaalt de splitranden van een dagtaak --');
+{
+  const long = [{ start: 420, end: 900 }];
+  const cal: WorkCalendar = {
+    ...HOUR_CAL, id: 'short-friday', workStartHour: 7, workEndHour: 15,
+    workTime: { byWeekday: { 1: long, 2: long, 3: long, 4: long, 5: [{ start: 420, end: 780 }], 6: [], 7: [] } },
+  };
+  const start = '2026-06-05T07:00';
+  for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+    const project = { schedulingProfile: { id: baseId, baseId, name: baseId, overrides: {} } };
+    const daysMeasure = baseId === 'ops';
+    const workdayDurationMeasure = profileCountsWorkdays(project);
+    eq(`${baseId}: profielmaat voor Gantt`, workdayDurationMeasure, daysMeasure);
+    const task: Task = {
+      ...base, id: 'row0',
+      time: { ...createDefaultTaskTime(start, 1), durationUnit: 'days' },
+      splitGaps: [{ afterMinutes: 120, gapMinutes: 240 }],
+    };
+    const result = solveProject({ tasks: [task], sequences: [], calendar: cal, calendars: [],
+      schedulingOptions: effectiveSchedulingOptions(project) });
+    eq(`${baseId}: doorrekening zonder fout`, result.error ?? null, null);
+    eq(`${baseId}: start motor`, task.time.earlyStart, start);
+    eq(`${baseId}: einde motor`, task.time.earlyFinish, daysMeasure ? '2026-06-08T11:00' : '2026-06-08T13:00');
+    const { rects } = renderRows([{ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }], {
+      calendar: cal, effectiveCalById: new Map([[task.id, cal]]), workdayDurationMeasure,
+      compressNonWorkdays: false, barSplitMode: 'never',
+      view: { ...view, viewStartDate: '2026-06-05', zoom: 240 },
+    });
+    const pieces = rects.filter(r => inRow(r, 0));
+    eq(`${baseId}: twee zichtbare stukken`, pieces.length, 2);
+    // 10 px/uur vanaf vrijdag 00:00; maandag begint daardoor op x=720.
+    if (pieces.length === 2) {
+      const [first, second] = pieces;
+      near(`${baseId}: balkstart`, first.x, 70);
+      near(`${baseId}: begin pauze`, first.x + first.w, daysMeasure ? 85 : 90);
+      near(`${baseId}: einde pauze`, second.x, daysMeasure ? 115 : 130);
+      near(`${baseId}: balkeinde = einde motor`, second.x + second.w, daysMeasure ? 830 : 850);
+    }
+  }
 }
 
 // ── 2. Dezelfde assertie in DAG-modus, op de reviewer-reproductie: 3 zuivere werkdagen met twee

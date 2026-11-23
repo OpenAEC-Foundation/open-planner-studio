@@ -6,7 +6,8 @@ import { calendarExceptionKey, calendarExceptionKeyFromClocks } from './calendar
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
+import { isTaskTypeColor, withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
@@ -248,6 +249,10 @@ export function readIFC(
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
   if (!project.startDate && !projectStartRecorded.value) project.startDate = startAnchor;
 
+  // Alleen bladtaken volgen de voortgang-invarianten — ná extractStructure zodat
+  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als fallback voor een ontbrekend werkelijk einde bij openen.
+  // `runningStatusIds`: taken met `IfcTask.Status` = 'STARTED' — een lopende taak op 100 % blijft
+  // dan lopend (eigenaarsbesluit 2026-10-14). Oude bestanden (`$`) lezen als voorheen.
   normalizeImportedProgress(tasks.filter(isLeafTask), project.statusDate, runningStatusIds);
   for (const task of tasks) {
     if (!isSummaryTask(task)) continue;
@@ -1363,6 +1368,10 @@ function extractTasks(
   return { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds };
 }
 
+/** Lees de OPS-catalogus defensief. Zonder metadata blijft een extern/oud USERDEFINED-bestand
+ * gewoon USERDEFINED; ObjectType wordt daarbij niet als id geraden. Een geldige `color` blijft precies
+ * zoals ze in het bestand staat; zonder (oud bestand, andere schrijver) krijgt de definitie een vaste,
+ * vrije kleur (`withTaskTypeColors`, #856), die het volgende opslaan meeschrijft. */
 function extractTaskTypeMeta(
   entities: StepEntity[], entityMap: Map<string, StepEntity>, tasks: Task[], taskStepIdMap: Map<string, string>,
 ): CustomTaskType[] {
@@ -1376,9 +1385,16 @@ function extractTaskTypeMeta(
     }
   }
   if (typeof raw !== 'string') return [];
+  const definitions = readTaskTypeDefinitions(raw, entityMap, tasks, taskStepIdMap);
+  return withTaskTypeColors(definitions);
+}
+
+function readTaskTypeDefinitions(
+  raw: string, entityMap: Map<string, StepEntity>, tasks: Task[], taskStepIdMap: Map<string, string>,
+): CustomTaskTypeDraft[] {
   try {
     const parsed = JSON.parse(raw) as { definitions?: unknown; taskTypeIds?: unknown };
-    const definitions: CustomTaskType[] = [];
+    const definitions: CustomTaskTypeDraft[] = [];
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
     if (Array.isArray(parsed.definitions)) {
@@ -1386,9 +1402,11 @@ function extractTaskTypeMeta(
         if (!rawDefinition || typeof rawDefinition !== 'object'
           || typeof (rawDefinition as CustomTaskType).id !== 'string'
           || typeof (rawDefinition as CustomTaskType).name !== 'string') continue;
-        const definition = {
+        const color = (rawDefinition as { color?: unknown }).color;
+        const definition: CustomTaskTypeDraft = {
           id: (rawDefinition as CustomTaskType).id.trim(),
           name: (rawDefinition as CustomTaskType).name.trim(),
+          ...(isTaskTypeColor(color) ? { color } : {}),
         };
         const nameKey = definition.name.toLocaleLowerCase();
         if (!definition.id || !definition.name || seenIds.has(definition.id) || seenNames.has(nameKey)) continue;

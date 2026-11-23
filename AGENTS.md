@@ -228,7 +228,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799) and mounts that hide hard links (knownbug 1823), is in the header of
   `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
   one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
-  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Files passed on the command line, at the first start and by a second start (single-instance callback, its own cwd), go to the webview as the event `ops:open-files` once it emits `ops:open-files-ready` (`src-tauri/src/launch_files.rs`, `src/state/launchFiles.ts`, #1091); they open through the drop route, so like File → Open. No command, and the fs scope is unchanged: a path outside `$HOME` fails (knownbug 2030). The installer associates no file type. The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
   of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
   `$APPDATA`, plus the files `cookies` and `hsts-storage.sqlite`) and `$APPLOCALDATA/EBWebView/**` on Windows; the
@@ -375,7 +375,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
 - **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
-  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
+  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Every write to a file
+  the app opens goes through it, every export format included: a launch file (#1091) reads again when a turn started
+  since it was read (`projectFileWriteTurns`); what still writes outside it is listed in knownbug 2033. Quitting the app, closing
   a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
   opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
   `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`
@@ -401,7 +403,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
 - **Save worker (#804 steps 4 to 6).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
-  plain writer, or the merge with a foreign part) in one reusable Web Worker. The mounted app owns one client
+  plain writer, or the merge with a foreign part) in a Web Worker. The plain writer reuses it; after every answer to a
+  merge (a result or a refusal) it stops and the next request starts a fresh one (knownbug 1936: a worker keeps the
+  garbage of its source copy and indexes, about 2 GB on the desktop at 157 MB). The mounted app owns one client
   (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
   `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
   close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
@@ -413,9 +417,16 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `saveBytesDialog`, the atomic replace); `saveNewBytesDialog` stays the merge's exclusive route. `prepareIfcOutput`
   keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
   output buffers come back transferred, content errors arrive as the same error class, transport failures as
-  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). The main thread computes only when the worker does not start (no
-  `started` message); after a crash, timeout or unreadable answer it is an error, never a retry on the main thread;
-  neither is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). A worker that sends no `started` within the fixed start limit (10 s,
+  the same for every worker) did not start. A plain request then computes on the main thread, as on main, and plain
+  requests stay there for the rest of the session; with the flag off for the whole session this is the only kind of
+  request and the behaviour is main's. One difference (knownbug 2025): after an earlier merge in the same session (flag
+  on, a refusal too) that worker is gone, so after an answer of a merge worker the next plain request can start a fresh
+  one, as long as the plain route is still available, where main reused the started one; if it does not start, plain requests compute on the main thread for the rest of the session, after waiting up to the
+  10 s start limit when it stays silent. A merge falls
+  back only while no worker has started yet in this session; after that its start failure is an error (`not-started`),
+  never the main thread. A crash, timeout or unreadable answer after the start is an error, never a retry on the main
+  thread; so is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
   before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
   bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
   stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
@@ -485,7 +496,8 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
   changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
   stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
-  picks another target. A plain document keeps its 10 s throttle and its route; with the flag off nothing changes.
+  picks another target. With the flag off a plain document keeps its 10 s throttle and its write route (for the save
+  worker after a model merge see knownbug 2025).
   Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,

@@ -188,13 +188,18 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await expect(slider).toHaveValue('0');
   const before = await state(page);
   const original = await readProgressDates(page, B);
+  expect(original).toEqual({
+    percent: 0, start: '2026-10-28T07:00', finish: '2026-10-30T16:00', duration: 3,
+  });
   await slider.scrollIntoViewIfNeeded();
   const box = (await slider.boundingBox())!;
   const yCenter = box.y + box.height / 2;
   await page.mouse.move(box.x + 2, yCenter);
   await page.mouse.down();
+  const toast = page.locator('.ops-toast', { hasText: shown(today) });
   for (const fraction of [0.25, 0.5, 0.75]) {
     await page.mouse.move(box.x + box.width * fraction, yCenter, { steps: 4 });
+    if (fraction === 0.25) await expect(toast).toBeVisible();
     const step = await readProgressDates(page, B);
     expect(Math.abs(step.percent - fraction * 100)).toBeLessThan(5);
     expect(step).toEqual({ ...original, percent: step.percent });
@@ -204,15 +209,12 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await expect(slider).toHaveValue('100');
   const completed = await readProgressDates(page, B);
   console.log('Schuif zonder statusdatum op 100%', { original, completed });
-  expect(completed).toEqual({ ...original, percent: 100, finish: `${today}T16:00` });
+  expect(completed).toEqual({ ...original, percent: 100 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
   expect(await readProgressDates(page, B)).toEqual(completed);
 
   await expect.poll(() => readProgress(page, B).then(p => p.statusDate)).toBe(today);
-  // De melding via het ene meldkanaal, met de datum van vandaag.
-  const toast = page.locator('.ops-toast', { hasText: shown(today) });
-  await expect(toast).toBeVisible();
   // Het statusdatumveld in het lint toont hem ook (Planning-tab).
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' }));
   const [y, m, d] = today.split('-');
@@ -228,6 +230,42 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
 
+  // Twee afzonderlijke bedieningen met handmatig rekenen gebruiken hetzelfde geplande venster,
+  // ook als de planner tussendoor twee andere taken aan elkaar koppelt.
+  const [unrelatedA, unrelatedB] = await page.evaluate(() => {
+    const store = window.__OPS__!.store.getState();
+    store.setUI({ autoCalcCPM: false });
+    const ids = [store.addTask({ name: 'Steiger' }), store.addTask({ name: 'Bouwplaats opruimen' })];
+    store.runCPM();
+    return ids;
+  });
+  const partialBox = (await slider.boundingBox())!;
+  await page.mouse.click(partialBox.x + partialBox.width / 2, partialBox.y + partialBox.height / 2);
+  const partial = await readProgressDates(page, B);
+  expect(Math.abs(partial.percent - 50)).toBeLessThan(5);
+  expect(partial).toEqual({ ...original, percent: partial.percent });
+  const first = await barPoint(page, unrelatedA);
+  const second = await barPoint(page, unrelatedB);
+  await page.mouse.click(first.x, first.y);
+  await page.keyboard.down('Control');
+  await page.mouse.click(second.x, second.y);
+  await page.keyboard.up('Control');
+  await page.getByRole('button', { name: /^(Relatie|Link)$/ }).click();
+  await page.getByRole('menuitem', { name: /^(Geselecteerde taken koppelen|Link selected tasks)$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().sequences.length)).toBe(2);
+  await page.mouse.click(point.x, point.y);
+  await expect(slider).toHaveValue(String(partial.percent));
+  await slider.focus();
+  await page.keyboard.press('End');
+  expect(await readProgressDates(page, B)).toEqual(completed);
+  await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
+  await page.keyboard.press('Control+z');
+  expect(await readProgressDates(page, B)).toEqual(partial);
+  await page.keyboard.press('Control+z'); // De koppeling van de andere taken.
+  await page.keyboard.press('Control+z');
+  expect(await readProgressDates(page, B)).toEqual(original);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
+
   // Wanneer de statusdatum al berekend is, is de zichtbare start van de open taak opgeschoven.
   // Dezelfde schuif moet haar oorspronkelijke, door Fundering bepaalde, start vastleggen.
   await page.evaluate(date => {
@@ -237,8 +275,16 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   }, today);
   const shifted = await readProgressDates(page, B);
   expect(shifted.start > original.start).toBe(true);
-  await slider.focus();
-  await page.keyboard.press('End');
+  await slider.scrollIntoViewIfNeeded();
+  const shiftedBox = (await slider.boundingBox())!;
+  const shiftedY = shiftedBox.y + shiftedBox.height / 2;
+  await page.mouse.move(shiftedBox.x + 2, shiftedY);
+  await page.mouse.down();
+  await page.mouse.move(shiftedBox.x + shiftedBox.width / 2, shiftedY, { steps: 4 });
+  await page.mouse.move(shiftedBox.x + shiftedBox.width - 2, shiftedY, { steps: 4 });
+  await page.mouse.up();
+  await expect(slider).toHaveValue('100');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
   const afterShift = await readProgressDates(page, B);
   console.log('Schuif na statusdatumverschuiving', { shifted, afterShift });
   expect(afterShift).toEqual(completed);
@@ -610,11 +656,12 @@ test('#998, taakraster: plakken van een latere voorganger en voortgang vraagt vÃ
   };
   const question = page.locator('[data-ops-actual-start-dialog]');
   await paste('task.time.completion', '100%\n50%');
-  await expect(question).toBeVisible();
-  expect(await readProgress(page, A)).toEqual({ statusDate, completion: 0, actualStart: null });
-  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
-  await question.locator('[data-ops-actual-start-cancel]').click();
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-08T07:00' });
+  expect(await readProgressDates(page, A)).toMatchObject({ percent: 100, finish: '2026-06-05T16:00' });
   await expect(question).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => readProgress(page, A)).toEqual({ statusDate, completion: 0, actualStart: null });
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
 
   const constraint = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.constraint ?? null, A);
   await paste('task.constraint.type', 'SNET\t22-06-2026\t0%\nASAP\t\t50%');
