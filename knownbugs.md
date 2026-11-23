@@ -648,6 +648,12 @@ en noem het in je rapport of PR-tekst.
      De geplande verdelerdialoog hoort een aanduiding van ontbrekende boekingen alleen te tonen wanneer
      er werkelijk boekingen ontbreken. Het lokale tekort hoort Toepassen te blijven blokkeren. — S
 
+2109. **VERVOLG (#1167, ook op main): een taak met prioriteit 1000 kan Toepassen blokkeren terwijl haar lokale
+     conflict in de proefberekening verdwijnt.** Een gepinde taak met kraan en machine blijft op dinsdag, terwijl
+     een opvolger buiten de scope pas donderdag machinevraag heeft. De pincontrole van `ResourceLeveler` telt de
+     machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
+     de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
