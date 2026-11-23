@@ -72,6 +72,13 @@ test('eigenschappenpaneel: uitlegzin alleen onder de relatie met focus', async (
   await item.scrollIntoViewIfNeeded();
   await expect(item.locator('[data-ops-relation-sentence]')).toHaveCount(0);
 
+  // Issue #989: de enige relatie (Fundering → Metselwerk) staat in de lijst met voorgangers;
+  // de lijst met opvolgers staat leeg met een kop die dat meldt.
+  await expect(page.locator('[data-ops-dependency-col="predecessor"] .dependency-item')).toHaveCount(1);
+  await expect(page.locator('[data-ops-dependency-col="predecessor"] [data-ops-dependency-col-head]')).toHaveText('1 predecessor');
+  await expect(page.locator('[data-ops-dependency-col="successor"] .dependency-item')).toHaveCount(0);
+  await expect(page.locator('[data-ops-dependency-col="successor"] [data-ops-dependency-col-head]')).toHaveText('0 successors');
+
   const type = item.locator('.dependency-type-field .ops-select__trigger');
   await type.click();
   await expect(item.locator('[data-ops-relation-sentence]'))

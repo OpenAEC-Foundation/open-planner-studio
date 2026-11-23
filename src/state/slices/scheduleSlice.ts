@@ -28,7 +28,7 @@ import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
 
-/** TaskTime bevat alleen scalars. Vergelijk nul en -nul als dezelfde waarde, net als de
+/** Vergelijk nul en -nul als dezelfde waarde, net als de
  *  Immer-setter: kalenderberekeningen kunnen -0 leveren zonder dat de planning verandert. */
 function sameTaskTime(a: TaskTime, b: TaskTime): boolean {
   const keys = Object.keys(a) as (keyof TaskTime)[];
@@ -121,7 +121,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     const before = get();
     const tasks = cloneTasksForSolve(before.tasks);
     const input = solveInputFor(before.project, tasks, before.sequences, before.calendar, before.calendars);
-    const result = solveProject({ ...input, traceDateDrivers: options?.traceDateDrivers });
+    const result = solveProject({ ...input, traceDateDrivers: options?.traceDateDrivers }, before.tasks);
     // De belasting leest dezelfde maatconventie als de solver (het profiel van het project).
     const resourceLoad = computeReliableResourceLoad(
       result, before.resources, before.assignments, tasks, before.calendar, before.calendars, input.schedulingOptions,

@@ -422,3 +422,19 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
   await expect(dialogDuration.locator('[data-ops-duration-value]')).toHaveValue('12');
   expect(await notificationCount()).toBe(notificationsBefore);
 });
+
+test('hammock zonder einddriver toont nul duur na Bereken', async ({ page, ops: _ops }) => {
+  const id = await seedDurationTask(page, 'days', 1);
+  const panelDuration = page.locator('[data-ops-duration-value]').first();
+  await expect(panelDuration).toHaveValue('1');
+  await page.locator('[data-ops-hammock-toggle]').check();
+  await page.evaluate(() => { window.__OPS__!.store.getState().runCPM(); });
+  const warning = /No finish driver \(FF\/SF\)|Geen finish-driver \(FF\/SF\)/;
+  await expect(page.getByText(warning).first()).toBeVisible();
+  await expect(panelDuration).toHaveValue('0');
+  await page.evaluate(() => { window.__OPS__!.store.getState().runCPM(); });
+  await openDialog(page, id);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText(warning)).toBeVisible();
+  await expect(dialog.locator('[data-ops-duration-value]')).toHaveValue('0');
+});

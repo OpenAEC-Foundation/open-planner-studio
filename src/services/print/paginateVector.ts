@@ -17,12 +17,13 @@
  * `hbSubset.ts`), zodat deze module ook headless bundelbaar is.
  */
 import {
-  PDFDocument, PDFName, PDFRef, type PDFFont, type PDFOperator,
+  PDFDocument, PDFName, PDFRef, StandardFonts, type PDFFont, type PDFOperator,
   pushGraphicsState, popGraphicsState,
   concatTransformationMatrix, drawObject, rectangle, clip, endPath,
   setFillingRgbColor, beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
+import { fontkit } from '@/services/pdf/fontkit';
+import { embedReportFont } from '@/services/pdf/embedReportFont';
 import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts, type CjkVectorFont } from '@/services/pdf/pdfVectorDraw2d';
 import { getCjkFontProviders, type CjkFontProvider } from '@/services/pdf/fontRegistry';
 import { appLog } from '@/services/debug/appLog';
@@ -101,6 +102,9 @@ export interface ArabicFontBytes {
   bold: Uint8Array;
 }
 
+/** Font-sleutel van het paginanummer in Helvetica (alleen als de rapportletter het label niet dekt), naast F0/F1 en verder. */
+const PAGE_NUMBER_FONT_KEY = 'FP';
+
 /**
  * Gegooid door {@link paginateVectorToPdfBytes} zodra de te tekenen tekst codepoints bevat die de
  * ingebedde rapportletter (standaard Inter) en geen enkel terugvalfont dekt (CJK/RTL/…). Zonder
@@ -145,14 +149,14 @@ export async function paginateVectorToPdfBytes(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
-  // BEWUST `subset: false` (volledige glyf-embed). pdf-lib 1.17.1's subsetter (via @pdf-lib/fontkit)
+  // BEWUST `subset: false` (volledige glyf-embed, `embedReportFont`). pdf-lib 1.17.1's subsetter (via fontkit)
   // levert een subset waarvan de glyphs in pdfium/Chrome NIET renderen (tekst wordt deels onzichtbaar),
   // hoewel de ToUnicode-extractie klopt — empirisch aangetoond (pdfium + Chromium-screenshots). Volledig
   // inbedden rendert correct in álle viewers. Inter-Regular+Bold ≈ 0,4 MB (Flate) in de PDF; voor een
   // print-artefact (geen app-bundle) acceptabel. CJK-fonts (5–16 MB) worden wél gesubset, maar via
   // HarfBuzz (`subsetFont`), niet via pdf-lib.
-  const regular = await doc.embedFont(fontBytes.regular, { subset: false });
-  const bold = await doc.embedFont(fontBytes.bold, { subset: false });
+  const regular = await embedReportFont(doc, fontBytes.regular);
+  const bold = await embedReportFont(doc, fontBytes.bold);
 
   const pool = createResourcePool(doc, regular, bold);
 
@@ -270,6 +274,7 @@ export async function paginateVectorToPdfBytes(
   let notoRegular: PDFFont | undefined;
   let notoBold: PDFFont | undefined;
   if (d2d.usedArabic) {
+    // Gewone volledige embedding: het RTL-pad zet de geshapte glyphs zelf neer, niet via `layoutPdfText`.
     notoRegular = await doc.embedFont(arabicBytes.regular, { subset: false });
     notoBold = await doc.embedFont(arabicBytes.bold, { subset: false });
     pool.setArabicFonts(notoRegular, notoBold);
@@ -289,8 +294,8 @@ export async function paginateVectorToPdfBytes(
         const keyBold = `F${5 + 2 * i}`;
         const subReg = await opts.subsetFont(cjkPreload[i].regBytes, cps);
         const subBold = await opts.subsetFont(cjkPreload[i].boldBytes, cps);
-        const embReg = await doc.embedFont(subReg, { subset: false });
-        const embBold = await doc.embedFont(subBold, { subset: false });
+        const embReg = await embedReportFont(doc, subReg);
+        const embBold = await embedReportFont(doc, subBold);
         pool.setCjkFont(keyRegular, embReg);
         pool.setCjkFont(keyBold, embBold);
         base.embed = { regular: embReg, bold: embBold, keyRegular, keyBold };
@@ -409,6 +414,13 @@ export async function paginateVectorToPdfBytes(
   const bodyTopYUp = pageH - bodyTopPt;
   const footerTopYUp = pageH - footerTopPt;
 
+  // Het paginanummer staat in de rapportletter. Een eigen lettertype hoeft geen cijfers of '/' te hebben (Noto Sans
+  // Coptic heeft ze niet; issue #1050), en dit vaste label loopt niet door de dekkingscontrole van de tekenaar: dan
+  // Helvetica, een standaardletter die elke PDF-lezer heeft. Anders blijft `pageNumberFont` leeg.
+  const regularFk = fontkit.create(fontBytes.regular);
+  const pageNumberFont = [...'0123456789 /'].every(c => regularFk.hasGlyphForCodePoint(c.codePointAt(0)!))
+    ? undefined
+    : await doc.embedFont(StandardFonts.Helvetica);
   let pageIndex = 0;
   for (const row of layout.bodyRows) {
     for (const column of layout.columns) {
@@ -447,17 +459,20 @@ export async function paginateVectorToPdfBytes(
         drawTile(pageOps, footerWindow.srcX, repeatFooterSrcY, footerWindow.srcW, repeatFooterPx, footerWindow.pageX, footerTopYUp);
       }
 
-      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject.
+      // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject. In de
+      // rapportletter (F0); alleen als die een teken van het label mist, in Helvetica (zie `pageNumberFont`).
       const label = `${pageIndex} / ${totalPages}`;
-      const labelW = regular.widthOfTextAtSize(label, 8);
+      const labelFont = pageNumberFont ?? regular;
+      const labelW = labelFont.widthOfTextAtSize(label, 8);
       const labelX = (pageW - marginPt) - labelW;
       const labelYUp = marginPt * 0.5;
+      if (pageNumberFont) leaf.setFontDictionary(PDFName.of(PAGE_NUMBER_FONT_KEY), pageNumberFont.ref);
       pageOps.push(
         setFillingRgbColor(0.6, 0.6, 0.6),
         beginText(),
-        setFontAndSize('F0', 8),
+        setFontAndSize(pageNumberFont ? PAGE_NUMBER_FONT_KEY : 'F0', 8),
         setTextMatrix(1, 0, 0, 1, labelX, labelYUp),
-        showText(regular.encodeText(label)),
+        showText(labelFont.encodeText(label)),
         endText(),
       );
 

@@ -10,8 +10,9 @@ import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySn
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryClear, registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { hasPendingIfcSource } from '@/services/recovery/recoveryPendingSource';
-import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
+import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
+import { onTextEntry } from '@/state/textEntryActivity';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
@@ -133,20 +134,17 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     const controller = createFileAutoSaveController({
       getState: () => useAppStore.getState(),
       enabled: () => autoSaveEnabled.current,
+      // #804 stap 6: dezelfde berekenfunctie als Ctrl+S, dus de opslagworker.
+      compute: appStoreContext.runtime.ifcSaveCompute,
     });
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let lastRunAt = 0;
-    const request = () => {
-      if (timer) return;
-      timer = setTimeout(() => {
-        timer = null;
-        lastRunAt = Date.now();
-        void controller.flush();
-      }, actualAutoSaveDelay(lastRunAt, Date.now()));
-    };
-    const unsub = useAppStore.subscribe(request);
-    return () => { if (timer) clearTimeout(timer); unsub(); };
+    // De wekkers (het gewone ritme van 10 s en, #804 stap 8, dat van een document met een gebouwmodel) staan in
+    // `fileAutoSaveTimers.ts`, zodat een test ze met een nagebootste klok kan draaien.
+    const schedule = scheduleFileAutoSave(controller);
+    const unsub = useAppStore.subscribe(schedule.request);
+    // Typen in een cel van de taakgrid staat pas bij Enter in de store; het telt wel als werken (fixronde 1 van #1033).
+    const unsubTextEntry = onTextEntry(schedule.textEntry);
+    return () => { schedule.dispose(); unsub(); unsubTextEntry(); };
   }, [autoSaveEnabled]);
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er

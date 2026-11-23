@@ -15,7 +15,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { installNodeFileIpc, realPath, writeFileCall } from './nodeFileIpc';
 import {
-  saveNewBytesDialogTauri, saveBytesDialogTauri, saveFileDialogTauri,
+  saveNewBytesDialogTauri, saveDataDialogTauri,
 } from '@/services/fileAccess/tauriBackend';
 import type { FileRef, SaveOutcome } from '@/services/fileAccess';
 
@@ -119,8 +119,8 @@ async function main() {
       rounds = script;
       const opts = { refuseTarget: refuseTarget ?? null };
       let outcome: SaveOutcome | null;
-      if (variant === 'tekst') outcome = await saveFileDialogTauri('standaard.ifc', NEW_TEXT, FILTERS, opts);
-      else if (variant === 'bytes') outcome = await saveBytesDialogTauri('standaard.ifc', Buffer.from(NEW_TEXT), FILTERS, opts);
+      if (variant === 'tekst') outcome = await saveDataDialogTauri('standaard.ifc', NEW_TEXT, FILTERS, opts);
+      else if (variant === 'bytes') outcome = await saveDataDialogTauri('standaard.ifc', Buffer.from(NEW_TEXT), FILTERS, opts);
       else outcome = await saveNewBytesDialogTauri('standaard.ifc', Buffer.from(NEW_TEXT), FILTERS, opts);
       assert.equal(rounds.length, 0, 'elk verwacht venster is getoond');
       return outcome;

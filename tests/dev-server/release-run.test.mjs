@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { DroogStop, ReleaseStop, ReleaseTaak, slotregel } from '../../scripts/release/uitkomst.mjs';
 import { BEGIN, EIND, inWeekendstop, volgRun, verslagTekst } from '../../scripts/release/github.mjs';
 import {
-  ciCheck, controleerOrigin, gewijzigdePaden, isAfgeschreven, kiesKandidaat, lever, vervolgRun, originTags, release, teksten, vergelijk, vervangBlok, wachtOpReparatie, zetCijfers,
+  ciCheck, controleerOrigin, gewijzigdePaden, isAfgeschreven, kiesKandidaat, lever, vervolgRun, originTags, release, teksten, vergelijk, vervangBlok, wachtOpReparatie, website, websiteBlokkenLive, zetCijfers,
 } from '../../scripts/release/stappen.mjs';
 import { claudeArgs, maakContext, neemSlot } from '../../scripts/release/run.mjs';
 import { execFileSync } from 'node:child_process';
@@ -98,7 +98,7 @@ const HTTP = {
   'https://dl/1': '',
   [`https://github.com/${REPO}/releases/latest/download/latest.json`]: '{"version":"2026.47.0"}',
   'https://raw.githubusercontent.com/wiki/OpenAEC-Foundation/open-planner-studio/Changelog.md': '# Changelog\n\n## v2026.47.0 — 2026-11-16\n',
-  'https://open-aec.com/open-planner-studio/': '<section id="whats-new">New in v2026.47.0</section>',
+  'https://open-aec.com/open-planner-studio/': '<section id="whats-new">New in v2026.47.0</section><!-- rn:start -->v2026.47.0<!-- rn:end -->',
 };
 
 const GIT_BASIS = [
@@ -241,6 +241,33 @@ test('cijfers: alleen de stats van het eigen blok', () => {
   assert.match(nieuw, /'2026\.48\.0': \{\n {4}primary: \{\},\n {4}stats: \{ daysSincePrevious: 7, commitsSincePrevious: 300, addedCodeLines: 1234 \},/);
   assert.match(nieuw, /daysSincePrevious: 7, commitsSincePrevious: 712, addedCodeLines: 86292/);
   assert.throws(() => zetCijfers(tekst, '2026.49.0', { daysSincePrevious: 1, commitsSincePrevious: 1, addedCodeLines: 1 }), e => e.code === 'tekst-checks');
+});
+
+test('website: beide unieke liveblokken moeten de exacte versie noemen', () => {
+  const nieuw = '<section class="x" id="whats-new">Nieuw v2026.47.0</section>';
+  const tijdlijn = '<!-- rn:start -->v2026.47.0<!-- rn:end -->';
+  assert.equal(websiteBlokkenLive(nieuw + tijdlijn, '2026.47.0'), true);
+  assert.equal(websiteBlokkenLive('<footer>v2026.47.0</footer>', '2026.47.0'), false);
+  assert.equal(websiteBlokkenLive(nieuw + '<footer>v2026.47.0</footer>', '2026.47.0'), false);
+  assert.equal(websiteBlokkenLive(tijdlijn + '<footer>v2026.47.0</footer>', '2026.47.0'), false);
+  assert.equal(websiteBlokkenLive(nieuw + tijdlijn.replace('v2026.47.0', 'v2026.47.01'), '2026.47.0'), false);
+  assert.equal(websiteBlokkenLive(nieuw + nieuw + tijdlijn, '2026.47.0'), false);
+  assert.equal(websiteBlokkenLive(nieuw + tijdlijn + tijdlijn, '2026.47.0'), false);
+});
+
+test('website: livecontrole beïnvloedt de echte beslissing, zonder schrijfstap', () => {
+  const url = 'https://open-aec.com/open-planner-studio/';
+  const gh = [...GH_BASIS, ['--head release/', [{ state: 'CLOSED', url: 'https://voorbeeld/pr' }]]];
+  for (const [html, open] of [
+    [HTTP[url], false],
+    ['<footer>v2026.47.0</footer>', true],
+    ['<section id="whats-new">v2026.47.0</section>', true],
+    ['<!-- rn:start -->v2026.47.0<!-- rn:end -->', true],
+  ]) {
+    const { ctx, spoor } = nep({ gh, http: { ...HTTP, [url]: html } });
+    assert.equal(website(ctx, { tag: 'v2026.47.0', versie: '2026.47.0' }).open, open);
+    assert.deepEqual(spoor.acts, []);
+  }
 });
 
 test('website: precies één blok vervangen, anders een fout', () => {

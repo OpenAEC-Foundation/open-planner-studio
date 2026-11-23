@@ -6,7 +6,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
-import fontkit from '@pdf-lib/fontkit';
+import { fontkit } from '@/services/pdf/fontkit';
 import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, type PDFPage } from 'pdf-lib';
 import type { Download, Page } from '@playwright/test';
 import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
@@ -1276,6 +1276,10 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
     const request = indexedDB.deleteDatabase('ops-report-font');
     request.onsuccess = request.onerror = request.onblocked = () => resolve(null);
   }));
+  await page.evaluate(() => {
+    const settings = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ ...settings, studioStep: 'none' }));
+  });
   await page.reload();
   await waitForOps(page);
   await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
@@ -1283,8 +1287,33 @@ test('rapport-studio: de gekozen rapportletter staat in de PDF en blijft na een 
   await waitForWelcomeDialog(page);
   await page.evaluate(() => { window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }); });
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
-  await openStep(page, 'page');
-  await expect(studioFontPicker).toContainText(/^Inter/);
+  // De pagina-instellingen zijn dicht: de controle mag niet afhankelijk zijn van de keuzelijst.
+  await expect(studioFontPicker).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
     .filter(n => n.messageKey === 'notifications.reportFontMissing').map(n => n.params?.name))).toEqual(['Carlito']);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').reportFontFamily)).toBe('inter');
+  await openStep(page, 'page');
+  await expect(studioFontPicker).toContainText(/^Inter/);
 });
+
+for (const reportType of ['milestones', 'lookAhead'] as const) {
+  test(`ontbrekend eigen lettertype valt ook bij ${reportType} terug`, async ({ page, ops: _ops }) => {
+    await page.evaluate(type => {
+      const settings = JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}');
+      localStorage.setItem('ops-reportSettings', JSON.stringify({
+        ...settings, reportType: type, reportFontFamily: 'custom',
+        customReportFont: { name: 'Verdwenen letter', rev: 123 },
+      }));
+    }, reportType);
+    await page.reload();
+    await waitForOps(page);
+    await waitForWelcomeDialog(page);
+    await page.evaluate(() => {
+      window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });
+    });
+    await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').reportFontFamily)).toBe('inter');
+    await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+      .filter(n => n.messageKey === 'notifications.reportFontMissing').map(n => n.params?.name))).toEqual(['Verdwenen letter']);
+  });
+}

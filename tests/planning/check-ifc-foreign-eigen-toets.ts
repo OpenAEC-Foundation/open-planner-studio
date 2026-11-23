@@ -15,7 +15,7 @@
 // 2. Wat blijft weigeren: 1588 en een onbekend definitieveld (de groep is niet gedragen; een typedefinitie hernoemen
 //    schrijft sinds PR 12d, blok 6), de backup met herstelkenmerk (a′, knownbug 1703), en alles buiten de eigen groepen (de r7sol-bestanden, de
 //    volgorde in `IfcRelNests`).
-// 3. Een vreemd lid in een eigen pset.
+// 3. Een vreemd lid in een eigen pset: het blijft staan, ook als het laatste eigen lid wegvalt (stap 5 deel 1, was knownbug 1707).
 // 4. De klok: de reeksen en de sessieketen ook met een lopende klok.
 // 5. PR 12c, de baselinekop (E1): een kop in de aggregatie van het werkplan beweegt mee met zijn baseline (1581, 1700, de
 //    baselinestappen van de reeksen en de sessieketen); de rest van die aggregatie blijft exact en in volgorde, ook in de
@@ -29,10 +29,21 @@
 //    opslaan en heropenen, en `OPS_Baselines` blijft daarna gedragen; daardoor schrijft de keten op het oude bestand nu ook
 //    de stappen na "taak wissen". Op de oude showcase houdt de weesrij haar GlobalId (haar taak-id wordt één keer de interne
 //    id uit de bron, knownbug 1770), en blijft `OPS_Baselines` niet gedragen, zoals op het onbewerkte bestand.
+// 8. Stap 5 deel 1 (was knownbug 1707): na "het laatste eigen lid weg" heropenen, zonder bewerking (dezelfde bytes) en met de
+//    handeling andersom (het vreemde lid weer in de eigen pset); het vreemde lid niet achteraan in de ledenlijst (weigert,
+//    zoals op de basis); een vreemde `Creators`-verwijzing in een kop.
+// 9. Stap 5, PR A: (c) per slot. Een omschrijving van een ander programma op een eigen pset (die zet (b) terug), dan de
+//    gewone handeling: schrijft en is heel, (c) toetst precies dat ene slot apart (op regel en bronwaarde) en de rest van de
+//    groep gewoon, en in de verliescontrole valt die groep helemaal buiten de toets: een oude verklaring draagt het verschil,
+//    zoals op de basis. Daarna de slotgevallen: twee slots in één groep, een slot in een andere groep, een kop, een typenaam,
+//    een omschrijving op `ModifiedAt`, wat terugvalt op de hele groep (wat niet eenduidig aan te wijzen is, en een bronwaarde
+//    van een soort die de lezer deels draagt: een vreemde `Creators`, een lijst), en de twee handelingen van de review van
+//    #1095 (punt 2) die met een omschrijving op `OPS_StructureMeta` weigeren, zoals op de basis.
 import assert from 'node:assert/strict';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import { parseOutLine, type OutLine } from '@/services/ifc/foreign/lossCheck';
-import { PSET, ifcJson } from '@/services/ifc/ifcPsets';
+import { PROP, PSET, ifcJson } from '@/services/ifc/ifcPsets';
+import type { RestoredOwnSlots } from '@/services/ifc/foreign/ownGroups';
 import { decodeStepText } from '@/services/ifc/stepText';
 import { readIfcBytesDetailed } from '@/services/ifc/foreign/ifcBytesRoute';
 import {
@@ -40,8 +51,9 @@ import {
   reopenPlain, sameBytes, savedCatalogStart, savedSequenceStart, shownAfterOpen, type Domain,
 } from './ifcMergeKern';
 import {
-  SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, ok, read, save, se, summary,
-  withForeignMember, withLabelOnUntypedTask, withLines, withWall, type Outcome, type S,
+  DESCRIPTION, SOURCES, addTask, bytesOf, clock, deleteAll, finish, foreignMemberKept, idsAt, latin1, leaves, linesOfBytes, ok,
+  propertyDescriptionPlace, psetDescriptionPlace, read, save, se, summary, withForeignMember, withLabelOnUntypedTask, withLines,
+  withPropertyDescription, withPsetDescription, withWall, type Outcome, type S,
 } from './ifcEigenKern';
 
 type Expect = 'schrijft' | 'weigert';
@@ -214,7 +226,8 @@ await one('1700 één baseline wissen', cat, se(s => { s.deleteBaseline(s.baseli
 await one('1586 een taaktypedefinitie hernoemen (stap 4)', cat, d => { d.customTaskTypes![0].name = 'Hernoemd projecttype'; return d; }, 'schrijft');
 await one('1588 ongebruikte brondefinitie, alleen de projectbeschrijving', unused, beschrijving, 'weigert');
 await one('1588 ongebruikte brondefinitie, nieuw type', unused, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
-// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken; (c) toetst zo'n groep niet.
+// (a): een groep met een bronwaarde van (b) is niet gedragen, ook niet in zijn andere stukken. (c) toetst de rest van zo'n
+// groep, en het slot zelf apart (PR A).
 await one('niet gedragen: omschrijving op de codetemplates, alleen de projectbeschrijving', describedTemplates, beschrijving, 'schrijft');
 await one('niet gedragen: omschrijving op de codetemplates, code hernoemen (1585)', describedTemplates, se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Hernoemde code'); }), 'weigert');
 await one('grens: onbekend definitieveld, typegroei', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
@@ -357,6 +370,30 @@ for (const mode of ['vast', 'lopend'] as const) {
 clock.mode = 'vast';
 
 // ── 3. Een vreemd lid in een eigen pset: blijft staan waar de writer de pset schrijft ──
+const linesOf = (text: string) => text.split('\n').map(l => parseOutLine(l.replace(/\r$/, ''))).filter((l): l is OutLine => !!l);
+/**
+ * Na "het laatste eigen lid weg": de uitvoer heeft precies één pset `pset`, met alleen het vreemde lid `#95000`, met de
+ * GlobalId van de pset uit de bron, en een `IfcRelDefinesByProperties` met de GlobalId van de bronrelatie op hetzelfde
+ * object (op GlobalId). Leeg: zo is het; anders wat er anders is.
+ */
+function onlyForeignMember(out: string, source: string, pset: string): string {
+  const named = (ls: OutLine[]) => ls.filter(l => l.type === 'IFCPROPERTYSET' && l.args[2] === `'${pset}'`);
+  const relOf = (ls: OutLine[], p: OutLine) => ls.find(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.args[5].trim() === `#${p.id}`);
+  const guidOf = (ls: OutLine[], ref: string) => ls.find(l => `#${l.id}` === ref.trim())?.args[0];
+  const src = linesOf(source), dst = linesOf(out);
+  const sp = named(src).find(l => /[(,]#95000[,)]/.test(l.args[4])), ps = named(dst);
+  if (!sp) return 'bron: geen pset met het vreemde lid';
+  if (ps.length !== 1) return `${ps.length} psets ${pset} in de uitvoer`;
+  const [p] = ps, sr = relOf(src, sp), r = relOf(dst, p);
+  if (p.args[4].trim() !== '(#95000)') return `leden ${p.args[4]}`;
+  if (p.args[0] !== sp.args[0]) return `GlobalId van de pset ${p.args[0]} in plaats van ${sp.args[0]}`;
+  if (!sr || !r) return 'geen relatie bij de pset';
+  if (r.args[0] !== sr.args[0]) return `GlobalId van de relatie ${r.args[0]} in plaats van ${sr.args[0]}`;
+  if (guidOf(dst, r.args[4].slice(1, -1)) !== guidOf(src, sr.args[4].slice(1, -1))) return `ander object: ${r.args[4]}`;
+  return '';
+}
+/** De uitvoer van elk geval "het laatste eigen lid weg", voor de vervolgstap in blok 8. */
+const lastOwnGoneOutputs: { label: string; bytes: Uint8Array; pset: string; reverse: Edit }[] = [];
 {
   const bl = withForeignMember(eigen, PSET.Baselines);
   const types = withForeignMember(seq, PSET.TaskTypes);
@@ -371,14 +408,27 @@ clock.mode = 'vast';
   await kept('vreemd lid in OPS_Baselines: projectbeschrijving', bl, PSET.Baselines, beschrijving, 'schrijft');
   await kept('vreemd lid in OPS_Baselines: baseline erbij', bl, PSET.Baselines, se(s => s.saveBaseline('Met vreemd lid')), 'schrijft');
   await kept('vreemd lid in OPS_StructureMeta: tweede code', meta, PSET.StructureMeta, se(s => { const c = s.addActivityCodeType('Code met vreemd lid'); s.addActivityCodeValue(c, { code: 'V', description: 'V' }); }), 'schrijft');
-  // Het laatste eigen lid valt weg: alleen het vreemde lid blijft in de pset over. Een groep met een vreemd lid is niet
-  // gedragen (de writer schrijft dat lid niet): de controle van main weigert, zoals op de basis. Dan beweegt ook de
-  // baselinekop niet mee (E1 eist een gedragen `OPS_Baselines`).
-  await kept('vreemd lid in OPS_Baselines: alle baselines wissen', bl, PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'weigert');
-  await kept('vreemd lid in OPS_TaskTypes: type weghalen bij de laatste taak', types, PSET.TaskTypes, se(s => {
+  // Het laatste eigen lid valt weg (was knownbug 1707, stap 5 deel 1): een vreemd lid maakt een groep niet meer ongedragen;
+  // (a) is alleen nog "geen stuk had (b) nodig". De writer schrijft de pset niet meer, en de merge zet een pset met alleen
+  // het vreemde lid neer, met de GlobalIds van de bron (`extraPsets` in `mergeWriter.ts`, zoals bij een notitie per taak).
+  // De vervolgstap op de uitvoer (heropenen en de handeling andersom) staat in blok 8.
+  const lastOwnGone = async (label: string, bytes: Uint8Array, pset: string, edit: Edit, reverse: Edit) => {
+    const o = await kept(label, bytes, pset, edit, 'schrijft');
+    if (!o.ok) return;
+    const only = onlyForeignMember(latin1(o.bytes), latin1(bytes), pset);
+    ok(`${label}: een pset ${pset} met alleen het vreemde lid, met de GlobalIds van de bron`, only === '', only);
+    lastOwnGoneOutputs.push({ label, bytes: o.bytes, pset, reverse });
+  };
+  await lastOwnGone('vreemd lid in OPS_Baselines: alle baselines wissen', bl, PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }),
+    se(s => { s.saveBaseline('Baseline terug na wissen'); }));
+  await lastOwnGone('vreemd lid in OPS_TaskTypes: type weghalen bij de laatste taak', types, PSET.TaskTypes, se(s => {
     const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7c'); s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
-  }), 'weigert');
-  await kept('vreemd lid in OPS_StructureMeta: de laatste code wissen', meta, PSET.StructureMeta, se(s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); }), 'weigert');
+  }), se(s => {
+    s.ensureProjectTaskType({ id: 'type-terug', name: 'Type terug na weghalen' });
+    s.updateTask(leaves(s)[0].id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-terug' });
+  }));
+  await lastOwnGone('vreemd lid in OPS_StructureMeta: de laatste code wissen', meta, PSET.StructureMeta, se(s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); }),
+    se(s => { const c = s.addActivityCodeType('Code terug na wissen'), v = s.addActivityCodeValue(c, { code: 'T', description: 'Terug' }); s.setTaskActivityCode(leaves(s)[0].id, c, v); }));
 }
 
 // ── 5. PR 12c: de baselinekop beweegt mee met zijn baseline (E1) ──
@@ -468,10 +518,12 @@ await one('1708 arity met koppen in writervorm: alle baselines wissen (a′ op d
   const omschrijving = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 3 ? "'Omschrijving van een ander programma'" : a) }]);
   await one('kop: omschrijving van een ander programma op een kop, projectbeschrijving', omschrijving, beschrijving, 'schrijft');
   await one('kop: omschrijving van een ander programma op een kop, de andere baseline wissen', omschrijving, wisEen, 'weigert');
-  // `OPS_Baselines` niet gedragen: een vreemd lid in de pset.
+  // Een vreemd lid in `OPS_Baselines` maakt de groep niet meer ongedragen (stap 5 deel 1, was knownbug 1707): de kop beweegt
+  // mee, en het vreemde lid blijft in de pset.
   const vreemdePset = withForeignMember(cat, PSET.Baselines);
   await one('kop: vreemd lid in OPS_Baselines, projectbeschrijving', vreemdePset, beschrijving, 'schrijft');
-  await one('kop: vreemd lid in OPS_Baselines, één baseline wissen', vreemdePset, wisEen, 'weigert');
+  const een = await one('kop: vreemd lid in OPS_Baselines, één baseline wissen', vreemdePset, wisEen, 'schrijft');
+  if (een.o.ok) ok('kop: vreemd lid in OPS_Baselines, één baseline wissen: het vreemde lid blijft staan', foreignMemberKept(latin1(een.o.bytes), PSET.Baselines));
 }
 
 // Wat moet blijven weigeren: de verliescontrole zelf, op een nagebootste fout van de writer in O1 (`lossProbe`, met de
@@ -512,14 +564,27 @@ async function probe(label: string, bytes: Uint8Array, edit: Edit) {
     .map(l => l === agg ? withMembers(l, m.filter(id => id !== head)) : l));
 }
 {
-  // `OPS_Baselines` niet gedragen (een vreemd lid in de pset): dan beweegt geen kop mee. Bij een echte opslag weigert de
-  // controle van main dan al op het JSON van de gewiste baseline; hier valt alleen de kop weg en blijft het JSON staan
-  // (een nagebootste fout van de writer), zodat alleen deze voorwaarde de weigering draagt.
-  const { p, agg, refuses } = await probe('kop: vreemd lid in OPS_Baselines, projectbeschrijving', withForeignMember(cat, PSET.Baselines), beschrijving);
+  // De koppen niet gedragen (een omschrijving van een ander programma op een kop: (b) zet haar terug): dan beweegt geen kop
+  // mee. Bij een echte opslag weigert "één baseline wissen" dan al (hierboven); hier valt alleen de kop van de gewiste
+  // baseline weg en blijft het JSON staan (een nagebootste fout van de writer), zodat alleen deze voorwaarde de weigering
+  // draagt. Tot stap 5 deel 1 stond deze proef op een vreemd lid in `OPS_Baselines`; dat maakt de groep niet meer ongedragen.
+  // `lossProbe` neemt de bron als O0, en dan zet (b) niets terug; de proef geeft daarom een O0 in de vorm van de writer
+  // mee (de bron zonder de omschrijving, zoals de writer de kop schrijft). Met de bron als O0 beweegt de kop wel mee: dat
+  // is de tegenhanger, en zo draagt de herstelde omschrijving de weigering.
+  const ls = parsedLines(cat), m0 = membersOf(planAggregate(ls)), described = ls.find(l => `#${l.id}` === m0[2])!;
+  const omschrijving = replaced(cat, [{ ...described, args: described.args.map((a, k) => k === 3 ? "'Omschrijving van een ander programma'" : a) }]);
+  const { p, agg } = await probe('kop: omschrijving van een ander programma op een kop, projectbeschrijving (verliesproef)', omschrijving, beschrijving);
+  const writerO0 = ls, chunk = p.index.chunkOf(String(agg.id));
+  ok('verliesproef kop niet gedragen: met O0 in de vorm van de writer slaagt de echte O1', p.run(p.o1, undefined, writerO0).length === 0);
   const m = membersOf(agg), head = m[1];
-  const deleted = await wisEen(cloneDomain(p.opened));
-  refuses('niet gedragen: de kop van een gewiste baseline valt weg, het JSON niet', p.o1.filter(l => `#${l.id}` !== head)
-    .map(l => l === agg ? withMembers(l, m.filter(id => id !== head)) : l), deleted);
+  // Het domein van O1 (de projectbeschrijving) plus de gewiste baseline: dan is de kop het enige verschil zonder bewerking.
+  const deleted = await wisEen(await beschrijving(cloneDomain(p.opened)));
+  const lines = p.o1.filter(l => `#${l.id}` !== head).map(l => l === agg ? withMembers(l, m.filter(id => id !== head)) : l);
+  const where = (found: number[]) => found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR';
+  const notCarried = p.run(lines, deleted, writerO0), carried = p.run(lines, deleted);
+  console.log(`VERLIESPROEF kop niet gedragen: de kop van een gewiste baseline valt weg, het JSON niet: O0 in writervorm ${where(notCarried)}; O0 = bron ${where(carried)}`);
+  ok('verliesproef kop niet gedragen: de kop van een gewiste baseline valt weg, het JSON niet: weigert op de aggregatie', notCarried.includes(chunk));
+  ok('verliesproef kop niet gedragen: tegenhanger met de bron als O0 (niets hersteld): de kop beweegt mee', !carried.includes(chunk));
 }
 {
   // Welke kop bij welke baseline hoort, ziet de verliescontrole niet: zij telt de koppen die wegvallen. Staat na het wissen
@@ -605,11 +670,15 @@ for (const mode of ['vast', 'lopend'] as const) {
 }
 clock.mode = 'vast';
 
-// Wat moet blijven weigeren: `OPS_TaskTypes` niet gedragen (1588, een onbekend definitieveld, een vreemd lid), en een
+// Wat moet blijven weigeren: `OPS_TaskTypes` niet gedragen (1588, een onbekend definitieveld), en een
 // typenaam die de herleestoets (b) terugzet (dan beweegt de typenaam niet mee: (c) toetst die groep niet).
 await one('typenaam: 1588 ongebruikte brondefinitie, type A hernoemen', unused, hernoemA, 'weigert');
 await one('typenaam: onbekend definitieveld, dat type hernoemen', unknownField, hernoemA, 'weigert');
-await one('typenaam: vreemd lid in OPS_TaskTypes, type A hernoemen', withForeignMember(cat, PSET.TaskTypes), hernoemA, 'weigert');
+{
+  // Een vreemd lid in `OPS_TaskTypes` maakt de groep niet meer ongedragen (stap 5 deel 1): de typenaam beweegt mee.
+  const r = await one('typenaam: vreemd lid in OPS_TaskTypes, type A hernoemen', withForeignMember(cat, PSET.TaskTypes), hernoemA, 'schrijft');
+  if (r.o.ok) ok('typenaam: vreemd lid in OPS_TaskTypes, type A hernoemen: het vreemde lid blijft staan', foreignMemberKept(latin1(r.o.bytes), PSET.TaskTypes));
+}
 const labelZonderType = withLabelOnUntypedTask(cat, 'Type 0 7d');
 await one('typenaam: typenaam op een taak zonder type (b), projectbeschrijving', labelZonderType, beschrijving, 'schrijft');
 await one('typenaam: typenaam op een taak zonder type (b), type A hernoemen', labelZonderType, hernoemA, 'weigert');
@@ -649,18 +718,26 @@ const setSlot = (ls: readonly OutLine[], target: OutLine, k: number, v: string) 
   ok('verliesproef typenaam: zonder hernoeming verandert een typenaam: weigert op de taak', found.includes(p.index.chunkOf(String(a1.id))));
 }
 {
-  // `OPS_TaskTypes` niet gedragen (een vreemd lid in de pset): dan beweegt geen typenaam mee. Een echte hernoeming weigert dan
-  // al op het JSON; hier verandert in O1 alleen de typenaam (een nagebootste fout van de writer), bij een domein waarin het
-  // type wel hernoemd is, zodat alleen deze voorwaarde de weigering draagt.
-  const bytes = withForeignMember(cat, PSET.TaskTypes);
-  const { o, d } = await one('typenaam: verliesproef, vreemd lid in OPS_TaskTypes, projectbeschrijving', bytes, beschrijving, 'schrijft');
+  // De typenaam niet gedragen (een typenaam op een taak zonder type: (b) zet hem terug): dan beweegt geen typenaam mee. Een
+  // echte hernoeming weigert dan al (hierboven); hier verandert in O1 alleen de typenaam van de A-taken (een nagebootste fout
+  // van de writer), bij een domein waarin het type wel hernoemd is, zodat alleen deze voorwaarde de weigering draagt. Tot
+  // stap 5 deel 1 stond deze proef op een vreemd lid in `OPS_TaskTypes`; dat maakt de groep niet meer ongedragen. Zoals bij
+  // de kop: `lossProbe` neemt de bron als O0 (dan zet (b) niets terug), dus de proef geeft een O0 in de vorm van de writer
+  // mee (de bron zonder die typenaam), met de bron als O0 als tegenhanger.
+  const { o, d } = await one('typenaam: verliesproef, typenaam op een taak zonder type (b), projectbeschrijving', labelZonderType, beschrijving, 'schrijft');
   assert(o.ok, 'verliesproef typenaam: de opslag schrijft');
-  const p = await lossProbe(bytes, d, o.bytes, true);
-  const lines = taskLines(p.o1, 'Type 0 7d');
+  const p = await lossProbe(labelZonderType, d, o.bytes, true);
+  const writerO0 = parsedLines(cat);
+  ok('verliesproef typenaam niet gedragen: met O0 in de vorm van de writer slaagt de echte O1', p.run(p.o1, undefined, writerO0).length === 0);
+  const lines = taskLines(p.o1, 'Type 0 7d').filter(l => l.args[12]?.trim() === '.USERDEFINED.');
+  assert(lines.length === 2, 'verliesproef typenaam: twee A-taken');
   const mutated = p.o1.map(l => lines.includes(l) ? { ...l, args: l.args.map((a, i) => i === 4 ? "'Hernoemd type A'" : a) } : l);
-  const found = p.run(mutated, await hernoemA(structuredClone(d)));
-  console.log(`VERLIESPROEF typenaam: niet gedragen, de typenaam beweegt zonder JSON: ${found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR'}`);
-  ok('verliesproef typenaam: niet gedragen: de typenaam weigert op de taak', found.includes(p.index.chunkOf(String(lines[0].id))));
+  const renamed = await hernoemA(structuredClone(d)), chunk = p.index.chunkOf(String(lines[0].id));
+  const where = (found: number[]) => found.length ? `geweigerd op ${found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', ')}` : 'LAAT DOOR';
+  const notCarried = p.run(mutated, renamed, writerO0), carried = p.run(mutated, renamed);
+  console.log(`VERLIESPROEF typenaam: niet gedragen, de typenaam beweegt zonder JSON: O0 in writervorm ${where(notCarried)}; O0 = bron ${where(carried)}`);
+  ok('verliesproef typenaam: niet gedragen: de typenaam weigert op de taak', notCarried.includes(chunk));
+  ok('verliesproef typenaam: tegenhanger met de bron als O0 (niets hersteld): de typenaam beweegt mee', !carried.includes(chunk));
 }
 
 // ── 7. PR 12e: de weesrij houdt haar identiteit (knownbug 1702) ──
@@ -814,6 +891,229 @@ await settleMeasured();
   assert(wiped.ok, 'weesrij showcase: taak wissen schrijft');
   await measured('weesrij showcase', false)('1 een taak uit de baseline wissen', showcase, wiped.bytes);
   await settleMeasured();
+}
+
+// ── 8. Stap 5 deel 1 (was knownbug 1707): de vervolgstap na "het laatste eigen lid weg", het vreemde lid in het midden van de
+// ledenlijst, en een vreemde verwijzing in een kop ──
+/** Het vreemde lid staat in een pset `pset` met minstens één eigen lid, en er is maar één pset met die naam. */
+const inOwnPset = (text: string, pset: string) => {
+  const ps = linesOf(text).filter(l => l.type === 'IFCPROPERTYSET' && l.args[2] === `'${pset}'`);
+  const refs = ps[0]?.args[4].trim().slice(1, -1).split(',').map(x => x.trim()) ?? [];
+  return ps.length === 1 && refs.includes('#95000') && refs.length > 1 ? '' : `${ps.length} psets: ${ps.map(l => l.args[4]).join(' | ')}`;
+};
+/** Opnieuw opslaan zonder bewerking geeft dezelfde bytes. */
+async function sameWithoutEdit(label: string, bytes: Uint8Array) {
+  nextCase();
+  const opened = await openForeign(bytes);
+  const o = await save(cloneDomain(opened), opened.ifcSource!);
+  console.log(`UITKOMST ${clock.mode} ${label}: ${summary(o)}`);
+  ok(`${label}: niets bewerkt geeft dezelfde bytes`, o.ok && sameBytes(o.bytes, bytes), o.ok ? 'andere bytes' : `${o.kinds.join(',')}: ${o.detail}`);
+}
+for (const { label, bytes, pset, reverse } of lastOwnGoneOutputs) {
+  await sameWithoutEdit(`${label}, heropend`, bytes);
+  const { o } = await one(`${label}, heropend: de handeling andersom`, bytes, reverse, 'schrijft');
+  if (!o.ok) continue;
+  const where = inOwnPset(latin1(o.bytes), pset);
+  ok(`${label}, heropend: de handeling andersom: het vreemde lid staat weer in de eigen pset`, where === '', where);
+  await sameWithoutEdit(`${label}, heropend: de handeling andersom, heropend`, o.bytes);
+}
+/** Als `withForeignMember`, maar niet achteraan in de ledenlijst: na het eerste eigen lid, en vooraan in een pset met één
+ *  eigen lid (`OPS_TaskTypes` en `OPS_StructureMeta` hebben er één). */
+function withForeignMemberInMiddle(bytes: Uint8Array, pset: string): Uint8Array {
+  let n = 0;
+  const text = latin1(bytes).split('\n').map(t => {
+    const l = parseOutLine(t.replace(/\r$/, ''));
+    if (l?.type !== 'IFCPROPERTYSET' || l.args[2] !== `'${pset}'`) return t;
+    const refs = l.args[4].trim().slice(1, -1).split(',');
+    const at = refs.length >= 2 ? 1 : 0;
+    n++;
+    return `#${l.id}=${l.type}(${l.args.map((a, k) => k === 4 ? `(${[...refs.slice(0, at), '#95000', ...refs.slice(at)].join(',')})` : a).join(',')});${t.endsWith('\r') ? '\r' : ''}`;
+  }).join('\n');
+  assert(n === 1, `pset ${pset} niet gevonden`);
+  return bytesOf(withLines(text, ["#95000=IFCPROPERTYSINGLEVALUE('VendorNote',$,IFCTEXT('van een ander programma'),$);"]));
+}
+// Het vreemde lid niet achteraan: de merge hangt het achteraan (`mergeWriter.ts`, stap 6), dus de pset leest anders dan
+// de bron. Dit legt vast wat er gebeurt.
+{
+  const cases: [string, Uint8Array, string, Edit, Expect][] = [
+    ['OPS_Baselines', withForeignMemberInMiddle(eigen, PSET.Baselines), PSET.Baselines, se(s => { for (const b of [...s.baselines]) s.deleteBaseline(b.id); }), 'weigert'],
+    ['OPS_TaskTypes', withForeignMemberInMiddle(seq, PSET.TaskTypes), PSET.TaskTypes, se(s => {
+      const t = s.tasks.find((t: any) => t.customTaskTypeId === 'type-7c'); s.updateTask(t.id, { taskType: 'CONSTRUCTION', customTaskTypeId: undefined });
+    }), 'weigert'],
+    ['OPS_StructureMeta', withForeignMemberInMiddle(cat, PSET.StructureMeta), PSET.StructureMeta, se(s => { for (const c of [...s.activityCodeTypes]) s.removeActivityCodeType(c.id); }), 'weigert'],
+  ];
+  for (const [name, bytes, pset, lastGone, expect] of cases) {
+    await sameWithoutEdit(`vreemd lid in het midden van ${name}`, bytes);
+    for (const [what, edit, want] of [['projectbeschrijving', beschrijving, 'weigert'], ['het laatste eigen lid weg', lastGone, expect]] as const) {
+      const { o } = await one(`vreemd lid in het midden van ${name}: ${what}`, bytes, edit, want);
+      if (o.ok) ok(`vreemd lid in het midden van ${name}: ${what}: het vreemde lid blijft staan`, foreignMemberKept(latin1(o.bytes), pset));
+      else console.log(`MIDDEN ${name}: ${what}: ${o.kinds.join(',')}: ${o.detail.slice(0, 200)}`);
+    }
+  }
+}
+// Een vreemde verwijzing in een kop (`Creators`, slot 7, naar een persoon van een ander programma): de lezer leest dat slot
+// niet. Bij een opslag die de baselines niet raakt, zet (b) het terug (de verwijzing blijft staan), en dan beweegt de kop niet
+// mee, zoals bij een omschrijving van een ander programma (blok 5). Wist de planner een baseline, dan zet (b) het slot niet
+// terug en zou de verwijzing wegvallen: dat weigert de controle op de kop zelf, ook als de vorm wel mee zou bewegen (gemeten
+// met een mutatie in de PR). Tot stap 5 deel 1 sloot ook de voorwaarde "geen vreemd lid" deze vorm uit.
+{
+  const ls = parsedLines(cat), m = membersOf(planAggregate(ls)), head = ls.find(l => `#${l.id}` === m[2])!;
+  const creators = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 7 ? '(#95300)' : a) }],
+    ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]);
+  await one('kop: vreemde Creators op een kop, projectbeschrijving', creators, beschrijving, 'schrijft');
+  await one('kop: vreemde Creators op een kop, de andere baseline wissen', creators, wisEen, 'weigert');
+}
+
+// ── 9. Stap 5, PR A: (c) per slot (knownbugs 1953 en 1747) ──
+// Zette (b) een slot terug, dan toetst (c) dat slot apart en de rest van zijn groep gewoon. Het slot staat op zijn plaats in de
+// boom van (c): de groep, de weg via typen en namen vanaf de wortel, en het argument, zonder id's (`restoredOwnSlots` in
+// `ownGroups.ts`); daar eist (c) de regel waarop (b) de bronwaarde zette, met precies die bronwaarde. Is die plaats niet
+// eenduidig, dan slaat (c) de groep helemaal over, zoals op de basis. De toets (a) blijft per groep: de groep met het slot valt
+// in de verliescontrole helemaal buiten de toets. Per geval: het schrijft en is heel, de omschrijving blijft staan, (c) slaat
+// geen groep over en toetst precies de verwachte slots apart (`restored`, zoals de opslag het meldt), heropenen en zonder
+// bewerking opnieuw opslaan geeft dezelfde bytes, en de verliescontrole zelf (`lossProbe`, met O0 in de vorm van de writer,
+// zodat (b) het slot terugzet zoals bij opslaan) laat de echte O1 door, met een oude verklaring (lijst A) in de groep met het
+// slot, zoals op de basis. De tegenproeven op de echte uitvoer staan in `check-ifc-foreign-eigen-uitvoer.ts`, blok 10.
+const restoredText = (r: RestoredOwnSlots | undefined) => r
+  ? `overslaan: ${[...r.skip].join(', ') || 'niets'}; apart: ${r.slots.map(s => s.place).join(' + ') || 'niets'}` : 'niet gemeld';
+const sameSet = (a: ReadonlySet<string> | undefined, b: readonly string[]) => !!a && a.size === b.length && b.every(x => a.has(x));
+/** De plaatsen van de slots die (c) apart toetst. */
+const placesOf = (r: RestoredOwnSlots | undefined) => r && new Set(r.slots.map(s => s.place));
+const descriptions = (b: Uint8Array) => latin1(b).split(DESCRIPTION).length - 1;
+/**
+ * Eén geval per slot: `start` in de vorm van de writer, `slotted` met de slots van een ander programma erin (die zet (b)
+ * terug), `edit` de handeling. `places`: de slots die (c) apart toetst. `perGroup`: de groepen met zo'n slot; daar valt de
+ * groep in de verliescontrole helemaal buiten de toets, zoals op de basis, en draagt een oude verklaring (lijst A) het
+ * verschil. `carried`: groepen zonder zo'n slot; daar draagt de toets, zonder oude verklaring.
+ */
+async function perSlot(label: string, start: Uint8Array, slotted: Uint8Array, edit: Edit, places: readonly string[],
+  perGroup: readonly string[], carried: readonly string[] = []) {
+  const { o, d } = await one(label, slotted, edit, 'schrijft');
+  if (!o.ok) return undefined;
+  console.log(`SLOT ${label}: ${restoredText(o.restored)}`);
+  ok(`${label}: (c) slaat geen groep over`, o.restored?.skip.size === 0, restoredText(o.restored));
+  ok(`${label}: (c) toetst precies het teruggezette slot apart`, sameSet(placesOf(o.restored), places), restoredText(o.restored));
+  ok(`${label}: de omschrijving van het andere programma blijft staan`, descriptions(o.bytes) === descriptions(slotted), `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
+  await sameWithoutEdit(`${label}, heropend`, o.bytes);
+  const p = await lossProbe(slotted, d, o.bytes, true);
+  const old = new Map<string, string[]>();
+  const found = p.run(p.o1, undefined, linesOfBytes(start), (c, why) => {
+    const g = p.ownGroups?.get(c);
+    if (g !== undefined) old.set(g, [...old.get(g) ?? [], `${p.index.type(c)} #${p.index.id(c)}: ${why}`]);
+  });
+  ok(`verliesproef ${label}: de echte O1 slaagt, met (b) zoals bij opslaan`, found.length === 0, found.map(c => `${p.index.type(c)} #${p.index.id(c)}`).join(', '));
+  console.log(`OUDE VERKLARING ${label}: ${[...old].map(([g, w]) => `${g}: ${w.join(' | ')}`).join(' || ') || 'geen'}`);
+  for (const g of perGroup) ok(`verliesproef ${label}: in ${g} draagt een oude verklaring het verschil, zoals op de basis`, (old.get(g)?.length ?? 0) > 0);
+  for (const g of carried) ok(`verliesproef ${label}: in ${g} draagt de toets, zonder oude verklaring`, !old.has(g), old.get(g)?.slice(0, 3).join(' | '));
+  return o;
+}
+{
+  const single = prepared.get('eigen')!.single;
+  const SEVEN: [string, Uint8Array, string, Edit][] = [
+    ['OPS_StructureMeta: tweede code (1953)', single, PSET.StructureMeta, se(s => {
+      const c = s.addActivityCodeType('Code per slot'); s.addActivityCodeValue(c, { code: 'P', description: 'Per slot' });
+    })],
+    ['OPS_TaskTypes: nieuw type en toewijzen', single, PSET.TaskTypes, se(s => {
+      s.ensureProjectTaskType({ id: 'type-slot', name: 'Type per slot' });
+      s.updateTask(leaves(s).find((t: any) => !t.customTaskTypeId).id, { taskType: 'USERDEFINED', customTaskTypeId: 'type-slot' });
+    })],
+    ['OPS_TaskTypes: type wisselen', cat, PSET.TaskTypes, se(s => {
+      s.updateTask(s.tasks.find((t: any) => t.customTaskTypeId === 'type-7d-a').id, { customTaskTypeId: 'type-7d-b' });
+    })],
+    ['OPS_Baselines: taak en baseline erbij', single, PSET.Baselines, se(s => { addTask(s, 'Taak per slot'); s.saveBaseline('Baseline per slot'); })],
+    ['OPS_Baselines: andere baseline actief', single, PSET.Baselines, se(s => { s.setActiveBaseline(s.baselines.find((b: any) => b.id !== s.activeBaselineId).id); })],
+    ['OPS_ProjectSettings: statusdatum zetten', single, PSET.ProjectSettings, se(s => { s.setStatusDate('2026-12-01'); })],
+    ['OPS_ProjectSettings: WBS-nummering uit', single, PSET.ProjectSettings, se(s => { s.setWbsAutoNumber(false); })],
+  ];
+  for (const [label, start, pset, edit] of SEVEN) {
+    await perSlot(`per slot: omschrijving op ${label}`, start, withPsetDescription(start, pset), edit, [psetDescriptionPlace(pset)], [pset]);
+  }
+  // Twee slots in één groep: de omschrijving op de pset en op een property die de handeling niet raakt.
+  const PS = PSET.ProjectSettings, statusdatum = se(s => { s.setStatusDate('2026-12-01'); });
+  await perSlot('per slot: twee slots in OPS_ProjectSettings, statusdatum zetten', single,
+    withPropertyDescription(withPsetDescription(single, PS), PS, PROP.ProjectSettings.IfcSchemaConfirmed), statusdatum,
+    [psetDescriptionPlace(PS), propertyDescriptionPlace(PS, PROP.ProjectSettings.IfcSchemaConfirmed)], [PS]);
+  // Een slot in de ene groep sluit een andere groep niet uit: de omschrijving op `OPS_TaskTypes`, de handeling in
+  // `OPS_StructureMeta`; die groep draagt de toets (de tegenproef dat (c) haar helemaal toetst, staat in eigen-uitvoer).
+  await perSlot('per slot: omschrijving op OPS_TaskTypes, tweede code', single, withPsetDescription(single, PSET.TaskTypes), SEVEN[0][3],
+    [psetDescriptionPlace(PSET.TaskTypes)], [], [PSET.StructureMeta]);
+  // Een slot op een tweede vorm: de typenaam op een taak zonder type, en een omschrijving op een kop. (c) toetst dan dat ene
+  // slot van die ene taak of kop apart (was knownbug 1747: de hele vorm niet). De vorm zelf beweegt niet mee (blok 5 en 6,
+  // hierboven): dat blijft per vorm. Een vreemde `Creators` op een kop is een lijst, een soort die de lezer deels draagt: daar
+  // slaat (c) de koppen over, zoals op de basis, en het slot blijft staan.
+  const guidOf = (b: Uint8Array, pick: (l: OutLine) => boolean) => linesOfBytes(b).find(pick)!.args[0].trim();
+  {
+    const labelled = withLabelOnUntypedTask(cat, 'Type 0 7d');
+    const task = guidOf(labelled, l => l.type === 'IFCTASK' && l.args[4].trim() === "'Type 0 7d'" && l.args[12]?.trim() !== '.USERDEFINED.');
+    for (const [what, edit] of [['projectbeschrijving', beschrijving], ['typewissel (1747)', (d: Domain) => applyEdit(fixedCatalogEdits(d)[2], d)]] as const) {
+      await perSlot(`per slot: typenaam op een taak zonder type, ${what}`, cat, labelled, edit, [`taak:ObjectType|${task}#4`], []);
+    }
+  }
+  {
+    const ls = parsedLines(cat), m = membersOf(planAggregate(ls)), head = ls.find(l => `#${l.id}` === m[2])!;
+    const described = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 3 ? DESCRIPTION : a) }]);
+    await perSlot('per slot: omschrijving op een kop, projectbeschrijving', cat, described, beschrijving, [`kop:OPS_Baselines|${head.args[0].trim()}#3`], []);
+    const creators = replaced(cat, [{ ...head, args: head.args.map((a, k) => k === 7 ? '(#95300)' : a) }],
+      ["#95300=IFCPERSON($,'Planner van een ander programma',$,$,$,$,$,$);"]);
+    nextCase();
+    const opened = await openForeign(creators);
+    const r = await attempt('per slot: vreemde Creators op een kop, projectbeschrijving', creators, opened.ifcSource!, await beschrijving(cloneDomain(opened)), 'schrijft');
+    if (r.ok) {
+      console.log(`SLOT vreemde Creators op een kop: ${restoredText(r.restored)}`);
+      ok('per slot: vreemde Creators op een kop: een lijst, dus (c) slaat de koppen over zoals op de basis',
+        sameSet(r.restored?.skip ?? new Set(), ['kop:OPS_Baselines']) && r.restored?.slots.length === 0, restoredText(r.restored));
+      ok('per slot: vreemde Creators op een kop: de verwijzing blijft staan', /=IFCWORKSCHEDULE\([^\n]*\(#95300\)/.test(latin1(r.bytes)));
+    }
+  }
+  // Wat (c) niet eenduidig kan aanwijzen, komt niet bij (c): twee eigen properties met dezelfde naam, en twee eigen psets met
+  // dezelfde naam, paren in de verliescontrole niet eenduidig of hebben geen tegenhanger in O0. Dat weigert, zoals op de
+  // basis. Wat `restoredOwnSlots` doet als het toch zo ver komt (de hele groep buiten (c)), toetst
+  // `check-ifc-foreign-slotplaats.ts` los.
+  {
+    const ls = linesOfBytes(single);
+    const settings = ls.find(l => l.type === 'IFCPROPERTYSET' && l.args[2].trim() === `'${PS}'`)!;
+    const confirmed = ls.find(l => l.type === 'IFCPROPERTYSINGLEVALUE' && l.args[0].trim() === `'${PROP.ProjectSettings.IfcSchemaConfirmed}'`)!;
+    const twice = replaced(withPsetDescription(single, PS), [{ ...settings, args: settings.args.map((a, k) => k === 3 ? DESCRIPTION : k === 4 ? a.replace(/\)$/, ',#95400)') : a) }],
+      [`#95400=IFCPROPERTYSINGLEVALUE(${confirmed.args.join(',')});`]);
+    await one('per slot: twee properties met dezelfde naam in OPS_ProjectSettings, statusdatum zetten', twice, statusdatum, 'weigert');
+    const rel = ls.find(l => l.type === 'IFCRELDEFINESBYPROPERTIES' && l.args[5].trim() === `#${settings.id}`)!;
+    const second = replaced(withPsetDescription(single, PS), [], [
+      `#95401=IFCPROPERTYSET('0R804SLOTTWEEDEPSET000',${settings.args[1]},'${PS}',$,(#95402));`,
+      `#95402=IFCPROPERTYSINGLEVALUE(${confirmed.args.join(',')});`,
+      `#95403=IFCRELDEFINESBYPROPERTIES('0R804SLOTTWEEDEREL0000',${rel.args[1]},$,$,${rel.args[4]},#95401);`,
+    ]);
+    await one('per slot: twee psets OPS_ProjectSettings op het project, statusdatum zetten', second, statusdatum, 'weigert');
+  }
+  // Een slot dat (b) terugzet en dat de planner wijzigde, weigert zoals tot nu: een onbekend veld in de typedefinities (JSON,
+  // de lezer draagt een deel) en een nieuw type (blok 2, "grens: onbekend definitieveld, typegroei").
+  await one('per slot: onbekend definitieveld (b) en een nieuw type', unknownField, d => applyEdit(fixedCatalogEdits(d)[1], d), 'weigert');
+  // De review van #1095, punt 2: met een omschrijving op `OPS_StructureMeta` valt die groep in de verliescontrole helemaal
+  // buiten de toets, zoals op de basis. Het eerste eigen veld toevoegen en een activiteitscodetype hernoemen weigeren daar
+  // (`IfcRelDeclares` en de templatelijst verschillen, en geen oude verklaring dekt dat), en dat blijft zo.
+  {
+    const described = withPsetDescription(single, PSET.StructureMeta);
+    for (const [what, edit] of [
+      ['het eerste eigen veld toevoegen', se(s => { s.addCustomField('Kostencode voor de review', 'text'); })],
+      ['een activiteitscodetype hernoemen', se(s => { s.renameActivityCodeType(s.activityCodeTypes[0].id, 'Code andere naam'); })],
+    ] as const) {
+      const { o } = await one(`per groep: omschrijving op OPS_StructureMeta, ${what}`, described, edit, 'weigert');
+      if (!o.ok) ok(`per groep: omschrijving op OPS_StructureMeta, ${what}: weigert in de verliescontrole, zoals op de basis`,
+        o.kinds.join(',') === 'niet-gedragen', `${o.kinds.join(',')}: ${o.detail}`);
+    }
+  }
+  // Een omschrijving op een property waarvan de handeling de waarde zet (`ModifiedAt` verandert bij elke bewerking): de
+  // waarde komt van de writer, de omschrijving zet (b) terug en blijft staan (ook op de basis); (c) toetst alleen dat slot apart.
+  {
+    const slotted = withPropertyDescription(single, PS, PROP.ProjectSettings.ModifiedAt);
+    const { o } = await one('per slot: omschrijving op ModifiedAt, statusdatum zetten', slotted, statusdatum, 'schrijft');
+    if (o.ok) {
+      console.log(`SLOT omschrijving op ModifiedAt, statusdatum zetten: ${restoredText(o.restored)}`);
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: de omschrijving blijft staan',
+        descriptions(slotted) === 1 && descriptions(o.bytes) === 1, `${descriptions(o.bytes)} van ${descriptions(slotted)}`);
+      ok('per slot: omschrijving op ModifiedAt, statusdatum zetten: (c) toetst alleen dat slot apart',
+        o.restored?.skip.size === 0 && sameSet(placesOf(o.restored), [propertyDescriptionPlace(PS, PROP.ProjectSettings.ModifiedAt)]), restoredText(o.restored));
+    }
+  }
 }
 
 finish();
