@@ -290,6 +290,22 @@ projectgroepen (taken, relaties, kalenders, resources). De oude verklaringen (li
 is PR B van stap 5 deel 2, geparkeerd (knownbug 1953). Proef:
 `check-ifc-foreign-eigen-toets.ts`; de verliescontrole los op een nagebootste fout in O1: `lossProbe` in `ifcMergeKern.ts`.
 
+### Koppelingen taak↔bouwdeel (#804 fase 2, `elementLinks`)
+
+`ifcSource.elementLinks` (ontwerp §4.6) is een afgeleide, alleen-lezen weergave per taak-id: `{ direction, target, found }[]`,
+geen domein- en geen documentveld. `foreign/elementLinks.ts` leest de koppelingen uit de `StepIndex` van de scan
+(`scanElementLinks` in `foreignScanFrom`, dus in de Worker bij openen en ook op de uitvoer van de merge):
+`IfcRelAssignsToProcess` met een `IfcTask` als relating geeft `input` naar elk lid met een modeltype
+(`IFC_BUILDING_MODEL_TYPES`), `IfcRelAssignsToProduct` geeft `output` aan elk `IfcTask`-lid. Een verwijzing naar een `#id`
+dat niet in het bestand staat, is `found: false` met `target` = `#<id>`; een bestaand doel zonder modeltype (een resource,
+een kostenpost) is geen koppeling. De scan levert ze op STEP-id (`stepElementLinks`); `elementLinksByTask` zet ze om met de
+kaart domein-id → `#id`: bij openen die van de lezer (`ifcBytesRoute.ts`), na een merge die van de writer (`writtenSource`,
+§4.8), nooit met domein-ids van een nieuwe indeling. Niet via `parseSTEP` van de lezer: de doelen zijn V en staan niet in de
+tekst die de lezer krijgt. De app schrijft niets aan de koppelingen; de A-stukken blijven bytegelijk. Het taakpaneel
+(`TaskElementLinksNotice`) en `planner_get_task` lezen ze alleen met de flag aan, via `state/taskElementLinks.ts`; een
+bouwdeel dat zowel invoer als uitvoer is, telt één keer. IFCX (§6.4) hoort bij fase 3 en 4. Proeven:
+`check-ifc-element-links.ts`, `tests/mcp/cases-element-links.ts` en de stap met `bonsai-4d.ifc` in `settings-tabs.spec.ts`.
+
 ### Vergelijkingsklok (#804 fase 1c)
 
 `planningCanon` gebruikt alleen `writeIFCForComparison`: één vaste datum via de interne schrijfkern,

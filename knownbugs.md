@@ -1721,6 +1721,14 @@ en noem het in je rapport of PR-tekst.
      eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
      gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
      wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
+2211. **Een taak met heel veel gekoppelde bouwdelen kan `planner_get_task` op de site te groot maken.** Sinds #804
+     fase 2 geeft `planner_get_task` (`elementLinkFields` in `src/services/mcp/tools/readTools.ts`) bij een IFC-bestand
+     met een gebouwmodel elke koppeling taak↔bouwdeel mee, ongeveer 60 tekens per koppeling, zonder `limit`. De
+     assistent van de site weigert een leesantwoord boven 30.000 tekens (`siteAppTools.ts`), en `planner_get_task` heeft
+     daar geen uitweg (`narrowHint`). Een taak met enkele honderden koppelingen zou dus geweigerd worden. Afgeleid uit
+     de grootte van een regel; niet gemeten met een echt model, en niet nagegaan of de flag `ifcForeignContent` op de
+     site gebruikt wordt. Richting: de lijst optioneel pagineren, of alleen `elements` en `notFound` geven boven een
+     grens. — S
 
 ## Bestanden en herstel
 
