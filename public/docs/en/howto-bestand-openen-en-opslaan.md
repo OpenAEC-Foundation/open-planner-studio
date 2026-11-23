@@ -32,6 +32,12 @@ A file in a format that the app does not know, such as a `.pdf`, does not open. 
 
 If a dialog or question is open, dragging opens nothing. If you open a dialog while the app is still reading a large file, that file opens only when you close the dialog. In the browser, the mouse pointer then shows a no-entry sign. In the desktop app, the message *Not opened: plan.ifc. Close the open dialog first.* appears.
 
+### Opening a file with a double-click (desktop app)
+
+The installer does not associate `.ifc` with the app. To open a file with a double-click, associate the format yourself: on Windows, right-click the file, choose *Open with* and *Choose another app*. The app then opens the file as with *Open*, in its own tab. If the app is already running, the file opens in that window. This also works from the command line, with the path as an argument.
+
+If a dialog is open when the app starts, such as the welcome dialog, the file opens as soon as you close that dialog. If the file does not exist, or is in a format the app does not know, you see the usual message and the app stays open. The app cannot yet read a file outside your home folder this way; open it with *Open* instead.
+
 ### Opening a recent project
 
 Choose *Home › File › Recent* and click a file in the list, or choose *File › Recent*. The list keeps the last ten files that you opened, saved or exported. Here too, a file that is not IFC is followed by the explanation of its format. The desktop app shows the path for each file, a browser only the name.
@@ -51,7 +57,7 @@ Choose *Home › File › Save* or *File › Save*, or press Ctrl+S. What happen
 3. If your browser only saves through a download (such as Firefox), the file lands in your downloads folder, and every save creates a new download. The first time in a session you see the message *Saved as a download: 'name.ifc' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.*
 4. If limited file access prevents your browser from writing back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
 
-After saving, the *Unsaved* marker disappears: the dot on the tab, the asterisk before the project name at the top and the text *Unsaved* at the bottom right of the status bar.
+While saving, the status bar shows *Saving…* at the bottom right; you can keep working in the meantime. After saving, the *Unsaved* marker disappears: the dot on the tab and the asterisk before the project name at the top. The status bar then shows *Saved* with the time, for example *Saved 14:32*. Anything you changed while saving is not in the file: after that it shows *Unsaved* again.
 
 ### Saving under another name
 
@@ -59,7 +65,7 @@ Choose *Home › File › Save As* or *File › Save As*, or press Ctrl+Shift+S.
 
 ### Closing a project
 
-Click the cross on the tab, or choose *File › Close project*. If the project has changes that you did not save, the app asks: *Unsaved changes: 'name' has changes that haven't been saved yet.* You choose *Cancel* (the project stays open), *Don't save* (the project closes and your changes are gone) or *Save* (save first, then close). If you close the whole app on the desktop (with the close button, Alt+F4 or your operating system's menu), it asks this for every project with changes; *Cancel*, or a save that fails, stops the closing. After such a normal close the app cleans up the recovery copies of that session, so the recovery window only appears after a real crash. If a project has changes and you close the browser tab or window, the browser asks for confirmation.
+Click the cross on the tab, or choose *File › Close project*. If the project has changes that you did not save, the app asks: *Unsaved changes: 'name' has changes that haven't been saved yet.* You choose *Cancel* (the project stays open), *Don't save* (the project closes and your changes are gone) or *Save* (save first, then close). If a save is still running, closing waits for it: the screen shows *Still saving…*, and as soon as the save is done, closing continues. The same applies to quitting the app. Installing an update also waits until the save is done. If you close the whole app on the desktop (with the close button, Alt+F4 or your operating system's menu), it asks this for every project with changes; *Cancel*, or a save that fails, stops the closing. After such a normal close the app cleans up the recovery copies of that session, so the recovery window only appears after a real crash. If a project has changes and you close the browser tab or window, the browser asks for confirmation.
 
 ## Pitfalls and what the app does then
 

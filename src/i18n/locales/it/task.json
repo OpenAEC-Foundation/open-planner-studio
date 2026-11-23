@@ -47,6 +47,8 @@
     "recentColumns": "Usate di recente",
     "noColumns": "Aggiungi una colonna con +.",
     "toggleSummary": "Espandi o comprimi l’attività di riepilogo",
+    "toggleMilestones": "Espandi o comprimi i cardini",
+    "milestonesRun": "Cardini ({{n}})",
     "calculatedReadOnly": "Questa colonna calcolata non può essere modificata."
   },
   "taskGrid": {
@@ -330,7 +332,11 @@
     "rename": "Modifica",
     "remove": "Rimuovi",
     "addToMine": "Aggiungi alle mie categorie di lavoro",
-    "confirmRemove": "Questa categoria di lavoro è usata nel progetto aperto. Vuoi rimuoverla da «Le mie categorie di lavoro»? La copia del progetto resta."
+    "confirmRemove": "Questa categoria di lavoro è usata nel progetto aperto. Vuoi rimuoverla da «Le mie categorie di lavoro»? La copia del progetto resta.",
+    "renameInProjectTitle": "Rinominarla anche in questo progetto?",
+    "renameInProjectMessage": "La categoria di lavoro «{{oldName}}» è usata anche in questo progetto. Vuoi chiamarla anche qui «{{newName}}»?",
+    "renameInProjectYes": "Anche in questo progetto",
+    "renameInProjectNo": "Solo nella mia lista"
   },
   "duration": {
     "label": "Durata",
@@ -383,7 +389,15 @@
       "resourceShorter": "Una risorsa in più rende l'attività più breve.",
       "resourceAddsWorkSameDuration": "Una risorsa in più aggiunge lavoro; la durata resta uguale."
     },
-    "info": "Spiegazione del tipo di attività"
+    "info": "Spiegazione del tipo di attività",
+    "hint": {
+      "intro": "Il tipo di attività decide cosa l'app adegua quando modifichi la durata, le unità (persone al giorno) o il lavoro (ore).",
+      "FIXED_DURATION_RATE": "La durata e le unità restano, il lavoro segue. Esempio: 2 persone, 5 giorni di 8 ore = 80 ore.",
+      "FIXED_DURATION_WORK": "La durata e il lavoro restano, le unità seguono. Esempio: 80 ore in 5 giorni di 8 ore = 2 persone al giorno.",
+      "FIXED_WORK": "Il lavoro resta, la durata segue. Esempio: 80 ore con 2 persone = 5 giorni, con 4 persone 2,5 giorni.",
+      "FIXED_RATE": "Le unità restano, il lavoro determina la durata. Esempio: 1 gru, 40 ore di lavoro = 5 giorni, 80 ore di lavoro = 10 giorni.",
+      "projectDefault": "Segue il tipo di attività che il progetto usa come predefinito."
+    }
   },
   "properties": {
     "task": "Attività",
@@ -455,6 +469,12 @@
     "interferingFloat": "Margine interferente:",
     "criticalPath": "Percorso critico:",
     "dependencies": "Dipendenze",
+    "predecessors_one": "{{count}} predecessore",
+    "predecessors_many": "{{count}} predecessori",
+    "predecessors_other": "{{count}} predecessori",
+    "successors_one": "{{count}} successore",
+    "successors_many": "{{count}} successori",
+    "successors_other": "{{count}} successori",
     "addRelation": "Aggiungi relazione",
     "addRelationSearch": "Cerca attività…",
     "addRelationConfirm": "Crea relazione",

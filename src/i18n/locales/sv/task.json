@@ -47,6 +47,8 @@
     "recentColumns": "Senast använda",
     "noColumns": "Lägg till en kolumn med +.",
     "toggleSummary": "Fälla ut eller fälla ihop sammanfattningsuppgift",
+    "toggleMilestones": "Expandera eller komprimera milstolpar",
+    "milestonesRun": "Milstolpar ({{n}})",
     "calculatedReadOnly": "Den här beräknade kolumnen kan inte redigeras."
   },
   "taskGrid": {
@@ -326,7 +328,11 @@
     "rename": "Redigera",
     "remove": "Ta bort",
     "addToMine": "Lägg till i mina arbetskategorier",
-    "confirmRemove": "Den här arbetskategorin används i det öppna projektet. Ta bort den från Mina arbetskategorier? Projektkopian finns kvar."
+    "confirmRemove": "Den här arbetskategorin används i det öppna projektet. Ta bort den från Mina arbetskategorier? Projektkopian finns kvar.",
+    "renameInProjectTitle": "Byt namn även i det här projektet?",
+    "renameInProjectMessage": "Arbetskategorin ”{{oldName}}” används även i det här projektet. Vill du att den även här ska heta ”{{newName}}”?",
+    "renameInProjectYes": "Även i det här projektet",
+    "renameInProjectNo": "Bara i min lista"
   },
   "duration": {
     "label": "Varaktighet",
@@ -379,7 +385,15 @@
       "resourceShorter": "En extra resurs gör uppgiften kortare.",
       "resourceAddsWorkSameDuration": "En extra resurs lägger till arbete; varaktigheten förblir densamma."
     },
-    "info": "Förklaring till uppgiftstypen"
+    "info": "Förklaring till uppgiftstypen",
+    "hint": {
+      "intro": "Uppgiftstypen avgör vad appen justerar när du ändrar varaktigheten, tilldelningsenheten (personer per dag) eller arbetet (timmar).",
+      "FIXED_DURATION_RATE": "Varaktighet och tilldelningsenhet står kvar, arbetet räknas om. Exempel: 2 personer, 5 dagar à 8 timmar = 80 timmar.",
+      "FIXED_DURATION_WORK": "Varaktighet och arbete står kvar, tilldelningsenheten räknas om. Exempel: 80 timmar på 5 dagar à 8 timmar = 2 personer per dag.",
+      "FIXED_WORK": "Arbetet står kvar, varaktigheten räknas om. Exempel: 80 timmar med 2 personer = 5 dagar, med 4 personer 2,5 dagar.",
+      "FIXED_RATE": "Tilldelningsenheten står kvar, arbetet bestämmer varaktigheten. Exempel: 1 kran, 40 timmars arbete = 5 dagar, 80 timmars arbete = 10 dagar.",
+      "projectDefault": "Följer den uppgiftstyp som projektet använder som standard."
+    }
   },
   "properties": {
     "task": "Uppgift",
@@ -451,6 +465,10 @@
     "interferingFloat": "Interfererande slack:",
     "criticalPath": "Kritisk linje:",
     "dependencies": "Samband",
+    "predecessors_one": "{{count}} föregående",
+    "predecessors_other": "{{count}} föregående",
+    "successors_one": "{{count}} efterföljande",
+    "successors_other": "{{count}} efterföljande",
     "addRelation": "Lägg till samband",
     "addRelationSearch": "Sök uppgift…",
     "addRelationConfirm": "Skapa samband",

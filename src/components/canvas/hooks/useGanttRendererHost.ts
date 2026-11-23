@@ -150,6 +150,7 @@ export function useGanttRendererHost(
   useCanvasLayer({
     canvasRef: histogramCanvasRef,
     containerRef: input.containers.histogramContainerRef,
+    containerNode: input.containers.histogramContainer,
     draw: drawHistogram,
     enabled: input.histogram !== undefined,
     renderRevision: input.renderRevision,

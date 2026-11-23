@@ -4,28 +4,20 @@
 // als, AutoSave naar het bestand, een IFC-export over dat bestand). Anders kwam 1026 binnen één sessie terug: opslaan met `LiteralTimes`, de taak wissen
 // die het nodig had, en bij de volgende opslag schoven de eindtijden toch naar `T07:00:00`. Een kalender die letterlijk
 // werd maar nooit zo is opgeslagen, telt niet: het bestand had hem nooit letterlijk.
-import { writeIFCWithChoices } from '@/services/ifc/ifcWriter';
 import type { FileRef } from '@/services/fileAccess';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { buildWriteIFCInput, type IFCSaveSource, type IFCWriteInput } from './ifcSaveInput';
+import type { IFCSaveSource } from './ifcSaveInput';
 
 /** Per momentopname die naar het eigen bestand ging: de kalenders die de writer letterlijk schreef. */
 const written = new WeakMap<object, readonly string[]>();
 
-/** De IFC-tekst van een opslag naar het eigen bestand. Onthoudt welke kalenders letterlijk werden, voor het vastleggen
- *  van die opslag (`literalCalendarIdsWritten`). */
-export function serializeForSave(source: IFCSaveSource, input: IFCWriteInput = buildWriteIFCInput(source, 'merge')): string {
-  const { content, literalCalendarIds } = writeIFCWithChoices(input);
-  rememberLiteralCalendarsWritten(source, literalCalendarIds);
-  return content;
-}
-
-/** Onthoud de gewone voorbereiding voor de latere documentcommit; exports roepen dit niet aan. */
+/** Onthoud welke kalenders de gewone writer letterlijk schreef (Opslaan, Opslaan als, AutoSave; in de opslagworker of op
+ *  deze thread), voor de latere documentcommit (`literalCalendarIdsWritten`); exports roepen dit niet aan. */
 export function rememberLiteralCalendarsWritten(source: IFCSaveSource, ids: readonly string[]): void {
   written.set(source, ids);
 }
 
-/** De kalenders die de opslag van `source` letterlijk schreef; leeg als `source` niet via `serializeForSave` ging. */
+/** De kalenders die de opslag van `source` letterlijk schreef; leeg als niemand ze voor `source` onthield. */
 export function literalCalendarIdsWritten(source: IFCSaveSource): readonly string[] {
   return written.get(source) ?? [];
 }

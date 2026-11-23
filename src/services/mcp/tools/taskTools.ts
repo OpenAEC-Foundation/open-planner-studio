@@ -27,7 +27,7 @@ import {
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
-import { progressCanShiftOtherTasks, progressPlannedStarts, taskPlacementChanged } from '@/state/progressPlannedStart';
+import { progressCanShiftOtherTasks, progressPlannedDates, taskPlacementChanged } from '@/state/progressPlannedDates';
 import {
   parseProgress,
   parseTaskFields,
@@ -35,12 +35,11 @@ import {
   SUMMARY_DURATION_READ_ONLY,
   TASK_FIELD_SCHEMA_PROPERTIES,
   TASK_FIELD_SCHEMA_PROPERTIES_BARE,
-  type ProgressPatch,
   type TaskFieldContext,
   type TaskFieldPatch,
 } from './taskFields';
 import type { SequenceType } from '@/types/sequence';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { isAncestorRelation, relationKey } from '@/state/relationRules';
 import { moveTaskVerdict } from '@/state/slices/taskSlice';
@@ -62,6 +61,8 @@ import type { PhaseTransitionReport } from '@/state/structuralTransition';
 import { watchAncestorRelations } from '@/state/hierarchyRelationNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { finishDurationProgress } from '@/engine/work/workRuleApply';
 import { localTodayIso } from '@/utils/dateUtils';
 import { ancestorIds } from '@/utils/wbs';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
@@ -376,9 +377,9 @@ function durationBelowDoneWorkReason(refused: { done: number; unit: 'days' | 'ho
 function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; progress?: any }[]): MutationOutcome {
   const initial = ctx.app.store.getState();
   const statusDate = initial.project.statusDate;
-  let plannedStart = progressPlannedStarts(initial);
+  let plannedDates = progressPlannedDates(initial);
   let canShiftOtherTasks: ((id: string) => boolean) | undefined;
-  const refreshPlannedStart = (before: Task | undefined, progressOnly = false): void => {
+  const refreshPlannedDates = (before: Task | undefined, progressOnly = false): void => {
     if (!before) return;
     const updated = ctx.app.store.getState();
     const after = updated.tasks.find(task => task.id === before.id);
@@ -387,7 +388,7 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       canShiftOtherTasks ??= progressCanShiftOtherTasks(updated);
       if (!canShiftOtherTasks(before.id)) return;
     } else if (!progressOnly) canShiftOtherTasks = undefined;
-    plannedStart = progressPlannedStarts(updated, true);
+    plannedDates = progressPlannedDates(updated, true);
   };
   const rejections: { id: string; reason: string }[] = [];
   const applied: string[] = [];
@@ -399,6 +400,7 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
     if (exists) { rejections.push(exists); continue; }
     let touched = false;
     let rejectedHere = false;
+    let beforeDuration: TaskTime | undefined;
     if (u.fields !== undefined) {
       const res = resolveFieldsPatch(ctx.app.store.getState(), id, u.fields);
       if (!res.ok) { rejections.push({ id, reason: res.reason }); rejectedHere = true; }
@@ -407,7 +409,7 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
         // ook het persoonlijke taaktype weg — geen halve merge.
         const before = beforeState.tasks.find(task => task.id === id);
         const completionBefore = before?.time.completion ?? 0;
-        const outcome = ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        const outcome = ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time, u.progress !== undefined);
         if (outcome && 'refused' in outcome) {
           rejections.push({ id, reason: durationBelowDoneWorkReason(outcome.refused, completionBefore) });
           rejectedHere = true;
@@ -417,8 +419,9 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
           // `duration` onder de OUDE regel wordt verwerkt en de nieuwe regel het restwerk van dát moment
           // vastlegt).
           if (res.patch.workRule !== undefined) ctx.transactions.draft.setTaskWorkRule(id, res.patch.workRule ?? undefined);
-          refreshPlannedStart(before);
+          refreshPlannedDates(before);
           if (outcome && 'progress' in outcome) {
+            beforeDuration = before?.time;
             const hours = outcome.progress.remainingMinutes !== undefined;
             progressAdjusted.push({
               id,
@@ -437,19 +440,23 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       // niets gebeurt. Een onbekende sleutel of een leeg blok is daarom een ZACHTE weigering met naam
       // en reden.
       const shape = parseProgress(u.progress);
-      if (!shape.ok) { rejections.push({ id, reason: shape.reason }); rejectedHere = true; }
-      else {
-        const patch: ProgressPatch = shape.value;
-        const before = ctx.app.store.getState().tasks.find(task => task.id === id);
-        let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'not executed' };
-        ctx.app.store.setState((s) => {
-          pr = progress.applyProgressUpdate(s, id, patch, statusDate, plannedStart);
-        });
-        if (pr.applied) {
-          touched = true;
-          refreshPlannedStart(before, true);
-        } else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
-      }
+      const before = ctx.app.store.getState().tasks.find(task => task.id === id);
+      let refusal = shape.ok ? undefined : shape.reason;
+      ctx.app.store.setState((s) => {
+        if (shape.ok) {
+          const update = progress.applyProgressUpdate(s, id, shape.value, statusDate, plannedDates, beforeDuration);
+          if (!update.applied) refusal = update.reason;
+        }
+        // Een geweigerd voortgangsblok laat een aanvaarde duurbewerking wel doorgaan.
+        if (refusal && beforeDuration && before && before.time.completion >= 1 && !before.time.actualFinish) {
+          const task = s.tasks.find(task => task.id === id)!;
+          finishDurationProgress(task, beforeDuration, statusDate, resolveCalendar(task.calendarId, s.calendars, s.calendar),
+            effectiveSchedulingOptions(s.project).workdayDurationMeasure === true);
+        }
+      });
+      if (refusal) { rejections.push({ id, reason: refusal }); rejectedHere = true; }
+      else touched = true;
+      refreshPlannedDates(before, true);
     }
     if (touched) applied.push(id);
     else if (!rejectedHere) rejections.push({ id, reason: 'no `fields` or `progress` given' });

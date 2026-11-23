@@ -27,6 +27,7 @@
 //    niets als een route de bron intussen veranderde, met pad en op de site, ook met het vinkje aan (14, 15); en een
 //    controle tijdens *Later* of *Accepteren* (16, 17).
 import { createAppStoreContext } from '@/state/appStore';
+import { documentContentOf } from '@/state/documentSaveState';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { refreshExternalAnchors, type ExternalSourceLocator } from '@/engine/externalLinks';
@@ -205,7 +206,7 @@ const saveSource = (s: App, version: string) => {
   S().runCPM();
   s.disk.text = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   s.disk.version = version;
-  S().markAutoSaveVersionSaved(s.sourceDocumentId, S());
+  S().markAutoSaveVersionSaved(documentContentOf(S(), s.sourceDocumentId)!, S());
   S().switchDocument(s.targetDocumentId);
 };
 

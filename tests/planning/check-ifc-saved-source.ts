@@ -2,6 +2,7 @@
 // Vergelijk bronidentiteit als boolean: een assert-diff op de volledige bron maakt van
 // ieder bronbyte een regel en kan bij een verwachte rode proef veel geheugen vragen.
 import assert from 'node:assert/strict';
+import { documentContentOf } from '@/state/documentSaveState';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
@@ -75,7 +76,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
         publications.push({ source: current.ifcSource, dirty: current.isDirty, path: current.filePath });
       });
       const destination = { filePath: `${name}-${step}.ifc`, fileHandle: null, siteFileId: null, siteFileVersion: null };
-      const unchanged = store.getState().commitSavedDocument(id, saved, destination, prepared);
+      const unchanged = store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, saved, destination, prepared);
       unsubscribe();
       assert.equal(unchanged, true);
       assert.equal(publications.length, 1, 'één atomaire publicatie');
@@ -105,7 +106,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
     const lateName = `${store.getState().tasks.find(t => t.id === task)!.name} (tijdens schrijven)`;
     store.getState().updateTask(task, { name: lateName });
     const other = sleeping ? store.getState().newDocument() : id;
-    store.getState().markAutoSaveVersionSaved(id, saved, prepared);
+    store.getState().markAutoSaveVersionSaved(documentContentOf(store.getState(), id)!, saved, prepared);
     const current = payload(store, id);
     assert(current.ifcSource === prepared.source, 'de bron is het voorbereide object');
     assert.equal(current.isDirty, true, 'een tussentijdse bewerking blijft ongeopgeslagen');
@@ -114,7 +115,7 @@ for (const [name, bytes] of sources) for (const sleeping of [false, true]) {
     const reopened = await openForeign(next.bytes);
     assert.equal(reopened.tasks.find(t => t.id === task)!.name, lateName, 'de volgende opslag draagt het tussentijdse werk');
     assert.deepEqual(mergeProblems(bytes, next.source.bytes), []);
-    store.getState().markAutoSaveVersionSaved(id, current, next);
+    store.getState().markAutoSaveVersionSaved(documentContentOf(store.getState(), id)!, current, next);
     assert.equal(payload(store, id).isDirty, false);
     assert.equal(store.getState().activeDocumentId, other);
   });
@@ -124,11 +125,11 @@ await check('alleen een nieuwe bron: niet dirty, geen herstelsnapshot, geen Auto
   const { store } = await openInStore(office);
   const id = store.getState().activeDocumentId;
   const first = payload(store), primed = await prepareIfcWrite(buildWriteIFCInput(first, 'merge'), first.ifcSource!);
-  store.getState().commitSavedDocument(id, first, undefined, primed);
+  store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, first, undefined, primed);
   store.getState().setAutoSaveToFile(true);
   const before = payload(store), baseline = persistedRecoveryState(id, [recoveryDoc(store, id)]);
   const prepared = await prepareIfcWrite(buildWriteIFCInput(before, 'merge'), before.ifcSource!);
-  store.getState().commitSavedDocument(id, before, undefined, prepared);
+  store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, before, undefined, prepared);
   const after = payload(store);
   assert(after.ifcSource !== before.ifcSource, 'de bron is vervangen');
   assert(sameIFCSource(before, after), 'bronidentiteit is geen inhoudsverschil');
@@ -174,7 +175,7 @@ await check('AutoSave: een kandidaat van de oude bron schrijft niet na een opsla
     if (fired) return;
     fired = true;
     own.setBytes(prepared.source.bytes); // De geslaagde handmatige write vóór zijn commit.
-    store.getState().commitSavedDocument(id, saved, undefined, prepared);
+    store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, saved, undefined, prepared);
   });
   store.setState(s => { s.fileHandle = own.handle; s.autoSaveToFile = true; });
   const saved = payload(store), prepared = await prepareIfcWrite(buildWriteIFCInput(saved, 'merge'), saved.ifcSource!);
@@ -194,7 +195,7 @@ await check('E13: kalenderkeuze vastleggen, uurtaak wissen, volgende opslag blij
   store.getState().runCPM();
   const saved = payload(store), prepared = await prepareIfcWrite(buildWriteIFCInput(saved, 'merge'), saved.ifcSource!);
   assert(prepared.literalCalendarIds.includes(cal));
-  store.getState().commitSavedDocument(id, saved, undefined, prepared);
+  store.getState().commitSavedDocument(documentContentOf(store.getState(), id)!, saved, undefined, prepared);
   assert(payload(store).ifcLiteralCalendarIds?.includes(cal));
   store.getState().deleteTask(added); store.getState().runCPM();
   const current = payload(store), next = await prepareIfcWrite(buildWriteIFCInput(current, 'merge'), current.ifcSource!);
