@@ -32,9 +32,8 @@ klopt. Wat de planner hiervan ziet, staat in de gids `howto-overbezetting-oploss
   taak zonder alternatief boekt: ook de eerst geboekte pin moet het conflict met een later geboekte pin terugkrijgen.
   Welke toets bij welke taak hoort, staat in die lus. Zo'n conflict krijgt geen reden in `unresolvedReasons`: de taak
   is niet verplaatst, dus er is geen scanreden.
-- Schuift vaste last buiten de scope mee, dan vergelijkt het voorstel de doorgerekende planning met de bestaande
-  vertragingen en gaten met de proefberekening. Toewijzingen buiten de scope tellen mee vanaf de eerste dag waarop
-  ze vraag krijgen, ook bij een hamertaak die in de planning vooraf nul dagen duurde. Beide berekeningen gebruiken
-  dezelfde dagbelasting als het histogram.
-  Het voorstel meldt een overbezette dag wanneer de totale belasting stijgt en de meeschuivende taak op die dag
-  meer inzet vraagt (#1162).
+- Voor resources met toewijzingen buiten de scope vergelijkt het voorstel de doorgerekende planning met de
+  bestaande vertragingen en gaten met de proefberekening. Beide berekeningen gebruiken de dagbelasting van alle
+  toewijzingen op die resource, ook als een taak vóór het nivelleren nul dagen duurde of haar datum behoudt. Het
+  voorstel meldt een overbezette dag wanneer de totale belasting stijgt en vermeldt de taken die op die dag meer
+  inzet vragen (#1162).

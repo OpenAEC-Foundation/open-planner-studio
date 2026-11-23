@@ -290,5 +290,29 @@ check('R3 hamertaak buiten scope gaat voor het eerst de lokale machine bezetten'
   });
 });
 
+check('R4 vaste woensdaglast blijft staan terwijl een tweede kraantaak opschuift', () => {
+  const { state, moving, machine, machineTask, propose, start, machineConflicts } = distributionWithLocalMachine(1);
+  const first = propose();
+  assert(state().applyDistribution(first.proposal, first.writeScope).ok);
+  const wednesday = '2026-06-03';
+  assert.equal(start(), wednesday);
+  const secondCrane = machineTask('Tweede taak met kraan en machine', '2026-06-02', 1);
+  const crane = state().resources.find(resource => resource.libraryOrigin?.libraryItemId === 'kraan');
+  assert(crane);
+  state().assignResource(secondCrane, crane.id, 1);
+  const second = propose();
+  assert.equal(state().resourceLoadResult?.load[machine]?.[wednesday], 1);
+  assert.deepEqual(machineConflicts(), []);
+
+  const shortfalls = second.proposal.docs.find(doc => doc.docId === moving.docId)?.shortfalls;
+  const write = state().applyDistribution(second.proposal, second.writeScope);
+  assert.deepEqual({
+    shortfalls, applied: write.ok ? 'applied' : write.reason, after: state().resourceLoadResult?.load[machine]?.[wednesday],
+  }, {
+    shortfalls: [{ taskId: secondCrane, reason: undefined, days: [wednesday] }], applied: 'shortfall', after: 1,
+  });
+  assert.equal(start(), wednesday);
+});
+
 console.log(`${cases} ketens, ${failures} afwijkingen`);
 process.exitCode = failures ? 1 : 0;
