@@ -307,7 +307,6 @@ async function main(): Promise<void> {
       assignmentBaseline('2026-03-02T08:00:00', '2026-03-05T17:00:00', { assignmentNumber }).msProjectReport, undefined);
   }
 
-  // Knownbug 441: toets resourcebetekenis ná MSPDI-import, via dezelfde store-actie als Werk.
   {
     const summary = [];
     for (const rule of ['FIXED_WORK', 'FIXED_RATE'] as const) {
