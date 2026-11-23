@@ -340,6 +340,41 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   expectFeasible(label, profile, tasks, seqs, cal, 'A', 'successor', [TEN]);
 }
 
+{
+  const summary = [];
+  for (const c14 of [false, true]) {
+    const project = {
+      startDate: '2026-06-01',
+      schedulingProfile: { ...builtInProfile('p6'), overrides: { p6AlapPositionedFromSuccessors: c14 } },
+      schedulingOptions: { lagCalendar: 'successor' },
+    } as Parameters<typeof solveInputFor>[0];
+    const cal = SHORT_FRIDAY_BLOCKS;
+    const tasks = [task('A', 2, { alap: true }), task('X', 5), { ...task('B', 1), calendarId: 'ten' } as Task];
+    const seqs: Sequence[] = [
+      { id: 'ab', predecessorId: 'A', successorId: 'B', type: 'FINISH_FINISH', lagDays: 1.5 }, fs('X', 'B'),
+    ];
+    const input = solveInputFor(project, structuredClone(tasks), seqs, cal, [cal, TEN]);
+    eq(`C14=${c14}: effectieve optie`, input.schedulingOptions.p6AlapPositionedFromSuccessors, c14);
+    const first = solveProject(input);
+    const placed = first.tasks.get('A')!;
+    const replay = solveProject(solveInputFor(project, withoutAlapAt(tasks, 'A', placed.earlyStart), seqs, cal, [cal, TEN]));
+    const replayed = replay.tasks.get('A')!;
+    eq(`C14=${c14}: geen rekenfout`, Boolean(first.error || replay.error), false);
+    eq(`C14=${c14}: herberekening op dezelfde start`, replayed.earlyStart, placed.earlyStart);
+    const end = new Date(`${placed.earlyFinish}Z`);
+    summary.push({
+      c14, es: placed.earlyStart, ef: placed.earlyFinish, tf: placed.totalFloatMinutes,
+      validEnd: new CalendarEngine(cal).prevWorkInstant(end).getTime() === end.getTime(),
+      replayEf: replayed.earlyFinish,
+      b: first.tasks.get('B')!.earlyFinish, replayB: replay.tasks.get('B')!.earlyFinish,
+    });
+  }
+  console.log(`KNOWNBUG369_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 369::${JSON.stringify(summary)}`);
+  }
+}
+
 // ── 9. Relatiematrix: uitvoerbaar, en geen achtergebleven speling ───────────────────────────────
 // Naar de probe van de review (ronde 1). A 2 d ALAP —relatie→ B 1 d op 08–18; X 5 d —FS0→ B. "Speling
 // over" = A een kalenderdag later zonder ALAP laat B en het projecteinde gelijk.
