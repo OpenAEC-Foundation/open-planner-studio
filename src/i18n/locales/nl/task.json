@@ -385,7 +385,15 @@
       "resourceShorter": "Een extra resource maakt de taak korter.",
       "resourceAddsWorkSameDuration": "Een extra resource voegt werk toe; de duur blijft gelijk."
     },
-    "info": "Uitleg bij het taaktype"
+    "info": "Uitleg bij het taaktype",
+    "hint": {
+      "intro": "Het taaktype bepaalt wat de app aanpast als je de duur, de inzet (mensen per dag) of het werk (uren) wijzigt.",
+      "FIXED_DURATION_RATE": "Duur en inzet blijven, het werk rekent mee. Voorbeeld: 2 mensen, 5 dagen van 8 uur = 80 uur.",
+      "FIXED_DURATION_WORK": "Duur en werk blijven, de inzet rekent mee. Voorbeeld: 80 uur in 5 dagen van 8 uur = 2 mensen per dag.",
+      "FIXED_WORK": "Het werk blijft, de duur rekent mee. Voorbeeld: 80 uur met 2 mensen = 5 dagen, met 4 mensen 2,5 dagen.",
+      "FIXED_RATE": "De inzet blijft, het werk bepaalt de duur. Voorbeeld: 1 kraan, 40 uur werk = 5 dagen, 80 uur werk = 10 dagen.",
+      "projectDefault": "Volgt het taaktype dat het project als standaard heeft."
+    }
   },
   "properties": {
     "task": "Taak",
@@ -457,6 +465,10 @@
     "interferingFloat": "Interfererende speling:",
     "criticalPath": "Kritiek pad:",
     "dependencies": "Afhankelijkheden",
+    "predecessors_one": "{{count}} voorganger",
+    "predecessors_other": "{{count}} voorgangers",
+    "successors_one": "{{count}} opvolger",
+    "successors_other": "{{count}} opvolgers",
     "addRelation": "Relatie toevoegen",
     "addRelationSearch": "Zoek taak…",
     "addRelationConfirm": "Relatie vastleggen",

@@ -26,7 +26,7 @@ export async function recoveryDocumentWithSource(
   if (!known) throw mismatch();
   const { store } = createAppStoreContext();
   store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
-  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels);
+  await store.getState().openOpenedFile({ name: 'herstelbron.ifc', content: '', bytes, ref: null }, labels, { restoringVerifiedIfcSource: true });
   const source = store.getState().ifcSource;
   if (!source?.foreign || !source.opened) throw new Error('Herstelbron kon niet als volledig IFC worden geopend.');
   return { ...snapshot, ifcSource: source, sourceRestored: true,
