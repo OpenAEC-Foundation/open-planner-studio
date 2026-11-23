@@ -659,8 +659,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   // In de ene schrijfrij, zoals elke schrijfactie naar een projectbestand (inclusief de kiezer, zoals `exportAs`): een
   // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
-  const saveLibraryFile = (name: string, content: string) => runProjectFileWrite(
-    () => saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) }), () => null);
+  const saveLibraryFile = (state: AppState, name: string, content: string) => runProjectFileWrite(() => {
+    const written = saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) });
+    if (!ifcForeignContentEnabled(state.ui.featureFlags)) {
+      get().forgetKnownTargetFingerprint(state.activeDocumentId);
+      return written;
+    }
+    return written.then(async outcome => {
+      if (outcome) await recordOwnFileExport(state, outcome, []);
+      return outcome;
+    });
+  }, () => null);
 
   const settledSourceVersions = new Map<string, string>();
   const settledProposals = new Map<string, string>();
@@ -1346,6 +1355,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint);
           }
         } catch (err) {
+          if (ref.kind === 'path') get().forgetKnownTargetFingerprint(documentId);
           if (write.prepared || isTauri() || ref.kind !== 'handle') throw err;
           handleWriteFailed = true;
           notifyWriteError(err);
@@ -1544,8 +1554,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         payload.siteFileId = null;
         payload.siteFileVersion = null;
       }
-      payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint : inheritsTarget || !ownSource ? null
-        : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength });
+      payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint
+        : inheritsTarget || !ownSource || !ifcForeignContentEnabled(current.ui.featureFlags) ? null
+          : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength });
       if (!opts.linkedOpen && !editing) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload);
@@ -2054,7 +2065,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
       if (!poolContent) return { ok: true, warnings: [] };
-      const poolOutcome = await saveLibraryFile(`${base}-${exportFileSuffix('library')}.ifc`, poolContent);
+      const poolOutcome = await saveLibraryFile(state, `${base}-${exportFileSuffix('library')}.ifc`, poolContent);
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
       noticeIfDownloaded(poolOutcome);
       return { ok: true, warnings: [] };
@@ -2063,10 +2074,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     foreignTargetCheck,
 
     exportLibrary: async (companyId) => {
-      const company = get().companies.find(c => c.id === companyId);
-      const content = get().exportPoolIFC(companyId);
+      const state = get();
+      const company = state.companies.find(c => c.id === companyId);
+      const content = state.exportPoolIFC(companyId);
       if (!company || !content) return;
-      noticeIfDownloaded(await saveLibraryFile(`bibliotheek-${company.name}.ifc`, content));
+      noticeIfDownloaded(await saveLibraryFile(state, `bibliotheek-${company.name}.ifc`, content));
     },
 
     recentFiles: [],

@@ -13,8 +13,8 @@ de app schreven `IFC4X3`.
   de kop zet. Bij een document met een vreemd deel ligt de kopnaam vast in `ifcSource.schemaName` (regel `tauri-ifc`).
 - Zolang voor een document een schemavraag openstaat (`Project.ifcSchemaUnconfirmed`) en het geen vreemd deel heeft,
   stelt het eerste expliciete opslaan die vraag eerst (`ifcSchemaQuestionFor` in `ifcSchemaQuestion.ts`; besluit
-  eigenaar 2026-10-13: "we veranderen niet zomaar bestandstypes"). Wanneer een vraag openstaat, welke keuzes ze
-  biedt en hoe een bewaarde keuze haar bij heropenen voorkomt, staat in ADR 0142 en in
-  `check-ifc-schema-question.ts`. Welke routes niet vragen en welke kop ze dan schrijven, staat in de regel
+  eigenaar 2026-10-13: "we veranderen niet zomaar bestandstypes"). Wanneer een vraag openstaat en hoe een
+  bewaarde keuze haar bij heropenen voorkomt, staat in ADR 0142 en in `check-ifc-schema-question.ts`; welke keuzes
+  de vraag biedt, staat in de gids `howto-ifc-schema-kiezen.md`. Welke routes niet vragen en welke kop ze dan schrijven, staat in de regel
   `tauri-ifc` en in dezelfde check: een export vraagt niets, en bij een schema dat de app niet schrijft, zoals
   IFC2X3, krijgt de export de kop `IFC4X3_ADD2` terwijl het document zijn vraag houdt (deel E).

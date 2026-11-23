@@ -641,19 +641,24 @@ en noem het in je rapport of PR-tekst.
      `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
-1986. **Vaste last buiten de scope van het nivelleren kan na toepassen op een andere dag liggen dan waar ze geboekt
-     is, met een nieuwe overbezetting die het voorstel niet meldt.** `levelResources`
-     (`src/engine/scheduler/ResourceLeveler.ts`) boekt een taak buiten de scope op haar start in de basis, terwijl de
-     proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
-     van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
-     de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
-     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 1993. **De gewone ALAP-stap met de duur van een niet-gestarte taak is niet tegen het P6-corpus gemeten.**
      `placeUnstartedAlap` (`src/engine/scheduler/CPMSolver.ts`) plaatst een niet-gestarte ALAP-taak sinds de aanval
      na #600 met haar duur tot de grens van haar opvolgers, niet meer in hele werkdagen. Onder het P6-profiel volgt
      een ALAP-taak op een kalender zonder eigen werkblokken die stap, omdat C14 daar niet geldt (ADR 0182). Het
      commentaar bij `p6AlapPositionedFromSuccessors` in `src/types/project.ts` meldde dat de corpusmeting daarvan
      openstond. — S
+
+2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
+     `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
+     alleen een lokale resource raakt en `afterLoadByDay` alle boekingen op het gekozen poolitem bevat.
+     De geplande verdelerdialoog hoort een aanduiding van ontbrekende boekingen alleen te tonen wanneer
+     er werkelijk boekingen ontbreken. Het lokale tekort hoort Toepassen te blijven blokkeren. — S
+
+2109. **VERVOLG (#1167, ook op main): een taak met prioriteit 1000 kan Toepassen blokkeren terwijl haar lokale
+     conflict in de proefberekening verdwijnt.** Een gepinde taak met kraan en machine blijft op dinsdag, terwijl
+     een opvolger buiten de scope pas donderdag machinevraag heeft. De pincontrole van `ResourceLeveler` telt de
+     machinevraag van de opvolger mee uit de voorlopige dinsdagboeking en laat die conflictmelding staan. Toets
+     de lokale pinmelding op de proefbezetting met behoud van de afzonderlijke pooltoets. — S
 
 ## Tabel, invoer en bediening
 
@@ -3574,6 +3579,33 @@ en noem het in je rapport of PR-tekst.
      van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
      gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
      schrijvers niet nagespeeld)
+
+2066. **VERVOLG (#804, de versie op het eigen doel): een mislukte export over het eigen pad laat het veld staan.**
+     Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint` onbekend als hun schrijfactie naar het eigen pad
+     mislukt. Bij een gelinkt doel of een scopeterugval schrijft `replaceUserFile` (`atomicWrite.ts`) direct naar het
+     doel, en een fout daarna kan het bestand al afgekapt hebben. Een export die over het eigen pad schrijft
+     (Exporteren → IFC, de export met de resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`) en dan
+     mislukt, laat het veld staan: het tabblad kent dan een versie die misschien niet meer op schijf staat. Herstel:
+     bij een geworpen fout van zo'n export het veld wissen als het doel het eigen pad kan zijn. — S (code gelezen,
+     niet nagespeeld)
+
+2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
+     komen.** Een browser-drop legt bij het neerzetten vast of een `.ifc` als tekst of als bytes gelezen wordt
+     (`useFileDrop.ts`). Gaat de flag `ifcForeignContent` aan tussen het neerzetten en het openen, dan komt het bestand
+     als tekst binnen. `File.text()` laat een UTF-8-BOM weg en vervangt ongeldige bytes, en `readIfcFromText` codeert
+     de tekst opnieuw. `applyLoadedProject` koppelt de hash en grootte van die nieuwe bytes aan de handle; met een BOM
+     is de grootte drie bytes te klein. Herstel: `openOpenedFile` geeft door of de bytes van het doel zelf kwamen
+     (`opened.bytes`), en `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap
+     (openen wisselt) bouwt. De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren,
+     dan blijft het veld `null`. — B (code gelezen in de review van #1168, niet nagespeeld)
+
+2201. **VERVOLG (#804, de versie op het eigen doel): met de flag uit wist elke export het veld, ook naar een ander
+     bestand.** Met `ifcForeignContent` uit is `knownTargetFingerprint` alleen gevuld als het uit een eerdere periode
+     met de flag aan komt. Om dan geen extra `await` te maken, wissen Exporteren → IFC, de export met de
+     resourcebibliotheek, Bestand → Bibliotheek en `planner_export_ifc` het veld zonder het doel te vergelijken. Netter is
+     het veld één keer voor alle tabbladen te wissen als de flag uitgaat; daar is nog geen plek voor, want de flag
+     verandert via de algemene `setUI` en de instellingen. Dan hoeven de exports met de flag uit niets meer. De planner
+     merkt er niets van. — B (code gelezen)
 
 2069. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan bij een gewone planning): tussen de toets en het
      schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of

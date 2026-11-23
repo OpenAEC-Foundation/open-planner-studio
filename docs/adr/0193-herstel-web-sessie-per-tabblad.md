@@ -32,7 +32,8 @@ wissen. De ene nieuwe poging is er voor die herlaad.
   houdt vast voordat de auto-save weer aangaat.
 - `loadWeb` leest de eigen generatie eerst en daarna de vastgehouden in de volgorde van die lijst, de oudste eerst; van
   een document dat in meer generaties staat, biedt het alleen de versie uit de eerste aan. De eigen generatie gaat voor
-  omdat zij de snapshots draagt die dit tabblad als laatste schreef. Voor de volgorde binnen de vastgehouden generaties
+  omdat zij de snapshots draagt die dit tabblad als laatste schreef; `loadWeb` neemt in die volgorde de eerste
+  `activeDocumentId` die is ingevuld. Voor de volgorde binnen de vastgehouden generaties
   is geen reden vastgelegd; wat zij doet met twee vastgehouden versies van één document, staat in knownbug 1998.
 - `newRecoveryId` valt terug op 128 willekeurige bits uit `crypto.getRandomValues` als `crypto.randomUUID` ontbreekt of
   gooit, zoals op een HTTP-adres (`check-recovery-web-hold.ts`, het begin van het webdeel). Dezelfde functie maakt de
