@@ -252,6 +252,7 @@ await check('elke foutsoort van de grens komt terug als zichzelf, met haar gegev
 
 await checkWithTimers('de worker start niet: de hoofdthread rekent en geeft hetzelfde', async () => {
   const main = { writer: await outcome(() => computeIfcOutputHere(writerJob)), merge: await outcome(() => computeIfcOutputHere(mergeJob)) };
+  const jobs: readonly IfcSaveJob[] = [writerJob, mergeJob];
   const silent = new InProcessWorker('silent');
   const failing = new InProcessWorker('manual');
   const factories: Array<[string, () => IfcSaveWorkerPort | null, InProcessWorker?]> = [
@@ -263,7 +264,7 @@ await checkWithTimers('de worker start niet: de hoofdthread rekent en geeft hetz
   for (const [label, factory, port] of factories) {
     let created = 0;
     const client = createIfcSaveWorker({ createWorker: () => { created++; return factory(); }, startTimeoutMs });
-    for (const job of [writerJob, mergeJob]) {
+    for (const job of jobs) {
       const run = outcome(() => client.compute(job));
       if (port === silent && job === writerJob) {
         await turn();
