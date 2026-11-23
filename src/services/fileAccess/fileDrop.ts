@@ -14,6 +14,9 @@ import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/
 export interface DroppedFile {
   name: string;
   read(): Promise<OpenedFile>;
+  /** Zie `OpenOpenedFileOptions.existingDocument` en `.stale`: alleen een startbestand (#1091) zet ze. */
+  existingDocument?: () => string | null;
+  stale?: () => boolean;
 }
 
 /** De delen van `DataTransfer` die hier gelezen worden; structureel, zodat de headless test een

@@ -138,6 +138,45 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   st = await taskState(page, taskId);
   expect(st.workRule).toBeUndefined();
   expect(st.work).toBe(64 * 60);
+
+  // #954 (besluit eigenaar 2026-11-21): onder Vaste inzet maakt meer werk voor de ploeg de taak langer
+  // en groeien de uren van Anna mee. De app meldt dat, en Ongedaan maken in de melding zet de hele
+  // stap terug, ook de duur. Fixture: een tweede resource via de brug (onder de standaardregel raakt
+  // dat niemand); de geteste handelingen zijn het werkveld en de knop in de melding.
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    s.assignResource(id, s.addResource({ name: 'Anna', type: 'LABOR', description: '', maxUnits: 1 }), 1);
+  }, taskId);
+  await chooseWorkRule(page, page, 'FIXED_RATE');
+  const undoInNotice = page.locator('[data-ops-notification-action="undoHistoryEvent"]');
+  await expect(undoInNotice).toHaveCount(0);
+  // Werk van de ploeg 64 → 128 u bij inzet 1: de taak gaat van 8 naar 16 dagen, Anna van 64 naar 128 u.
+  const crewWork = page.locator('[data-ops-assignment-row]').first().locator('[data-ops-assignment-work] input');
+  await crewWork.fill('128');
+  await crewWork.press('Enter');
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(16);
+  const notice = page.locator('.ops-toast').filter({ has: undoInNotice });
+  // Vast werk maakte de taak eerder in dit scenario een urentaak (B1a): de duur staat in uren, 16 d × 8 u.
+  await expect(notice).toContainText(/128 (hours|uur)/);
+  await expect(notice).toContainText(/Anna: 64 → 128 (u|h)/);
+  await undoInNotice.click();
+  st = await taskState(page, taskId);
+  expect(st).toMatchObject({ duration: 8, work: 64 * 60 });
+  await expect(undoInNotice).toHaveCount(0);
+
+  // Review #1120 ronde 4: corrigeer je daarna in hetzelfde paneel de duur, dan kloppen de cijfers van de
+  // melding niet meer. De hele melding verdwijnt, niet alleen de knop.
+  await crewWork.fill('128');
+  await crewWork.press('Enter');
+  await expect(notice).toContainText(/Anna: 64 → 128 (u|h)/);
+  const durationInput = page.locator('[data-ops-task-duration] [data-ops-duration-value]').first();
+  await expect(durationInput).toHaveValue('128');
+  await durationInput.fill('96');
+  await durationInput.press('Enter');
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(12);
+  await expect(page.locator('.ops-toast').filter({ hasText: /Anna: 64 → 128/ })).toHaveCount(0);
 });
 
 test('taakdialoog: werkregel kiezen commit direct, werk typen in dezelfde dialoog rekent met die regel, Opslaan draait de duur niet terug', async ({ page, ops: _ops }) => {
@@ -345,6 +384,30 @@ test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één un
   st = await taskState(page, taskId);
   const name = await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.name, taskId);
   expect([st.workRule, st.units, st.work, name]).toEqual([undefined, 1, undefined, 'Metselwerk']);
+
+  // #954, review #1120 ronde 1 t/m 3: Taak bewerken bundelt meerdere bewerkingen tot één stap; daar komt
+  // geen melding over de uren van anderen (Annuleren is daar de weg terug, knownbug 2054). Fixture: een
+  // tweede resource via de brug; de geteste handelingen zijn de velden van de dialoog, Opslaan en Ctrl+Z.
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    s.assignResource(id, s.addResource({ name: 'Anna', type: 'LABOR', description: '', maxUnits: 1 }), 1);
+  }, taskId);
+  dialog = await open();
+  await chooseWorkRule(page, dialog, 'FIXED_RATE');
+  // Werk van de ploeg 32 → 64 u bij inzet 1: de taak gaat van 4 naar 8 dagen, Anna van 32 naar 64 u.
+  const crewWork = dialog.locator('[data-ops-assignment-row]').first().locator('[data-ops-assignment-work] input');
+  await crewWork.fill('64');
+  await crewWork.press('Enter');
+  expect((await taskState(page, taskId)).duration).toBe(8);
+  const undoInNotice = page.locator('[data-ops-notification-action="undoHistoryEvent"]');
+  await expect(undoInNotice).toHaveCount(0);
+  await dialog.locator('[data-ops-task-save]').click();
+  st = await taskState(page, taskId);
+  expect([st.workRule, st.duration]).toEqual(['FIXED_RATE', 8]);
+  await expect(undoInNotice).toHaveCount(0);
+  await page.keyboard.press('Control+z');
+  st = await taskState(page, taskId);
+  expect([st.workRule, st.duration, st.units]).toEqual([undefined, 4, 1]);
 });
 
 // Gebruikstest #170, E5/G6: de instelling heet "Taaktypes gebruiken" (eigenaar 2026-10-17), staat onder Berekenen
@@ -443,12 +506,13 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   expect(Math.abs(ib.width - ib.height)).toBeLessThanOrEqual(1);
   await info.hover();
   await expect(tip).toBeVisible();
-  await expect(tip.locator('strong')).toHaveText(nl ? 'Het werk volgt uit de duur en de inzet.' : 'Work follows from duration and units.');
+  // Voorstel #954 deel 2: eerst wat een taaktype is (vet), dan het taaktype dat nu geldt met een voorbeeld.
+  await expect(tip.locator('strong')).toHaveText(nl ? 'Het taaktype bepaalt wat de app aanpast als je de duur, de inzet (mensen per dag) of het werk (uren) wijzigt.' : 'The task type decides what the app adjusts when you change the duration, the units (people per day) or the work (hours).');
   await expectTipAtIcon(tip, info);
   // Elke zin een eigen regel: geen spatie als scheiding tussen zinnen (zh/ja, review #359, punt 5).
   await expect(tip.locator('.ops-tooltip__line')).toHaveText(nl
-    ? ['Wijzig je het werk, dan past de inzet zich aan.', 'Een extra resource voegt werk toe.']
-    : ['If you change the work, the units adjust.', 'An extra resource adds work.']);
+    ? ['Duur en inzet blijven, het werk rekent mee. Voorbeeld: 2 mensen, 5 dagen van 8 uur = 80 uur.', 'Wijzig je het werk, dan past de inzet zich aan.', 'Een extra resource voegt werk toe.']
+    : ['Duration and units stay, the work follows. Example: 2 people, 5 days of 8 hours = 80 hours.', 'If you change the work, the units adjust.', 'An extra resource adds work.']);
   await page.mouse.move(0, 0);
   await expect(tip).toHaveCount(0);
 
@@ -502,12 +566,30 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   await expect(info).toHaveAttribute('data-ops-work-rule-info', 'FIXED_RATE');
   await info.focus();
   await expect(tip).toBeVisible();
-  await expect(tip.locator('strong')).toHaveText(nl ? 'De duur volgt uit het werk en de inzet.' : 'Duration follows from work and units.');
+  await expect(tip.locator('strong')).toHaveText(nl ? 'Het taaktype bepaalt wat de app aanpast als je de duur, de inzet (mensen per dag) of het werk (uren) wijzigt.' : 'The task type decides what the app adjusts when you change the duration, the units (people per day) or the work (hours).');
+  await expect(tip.locator('.ops-tooltip__line').first()).toHaveText(nl ? 'De inzet blijft, het werk bepaalt de duur. Voorbeeld: 1 kraan, 40 uur werk = 5 dagen, 80 uur werk = 10 dagen.' : 'The units stay, the work sets the duration. Example: 1 crane, 40 hours of work = 5 days, 80 hours = 10 days.');
   await expect(tip).toContainText(nl ? 'Wijzig je de duur, dan past het werk zich aan.' : 'If you change the duration, the work adjusts.');
   // B1 (spec "alleen uren" T14, F3a): de werkdriehoek rondt een dagtaak niet meer af op hele werkdagen.
   // De zin "afgerond op hele dagen" (sleutel `resourceShorterWholeDays`) bestaat daarom niet meer; ook een
   // dagtaak krijgt de korte zin.
   await expect(tip.locator('.ops-tooltip__line').last()).toHaveText(nl ? 'Een extra resource maakt de taak korter.' : 'An extra resource makes the task shorter.');
+
+  // Review #1123: bij 125 % tekst en weinig ruimte onder het veld scrolt de lijst; de rijen met een
+  // voorbeeldzin krimpen niet in elkaar. Anders lag de volgende rij over de voorbeeldzin van Vast werk,
+  // en koos een klik daarop Vaste inzet. Fixture: tekstgrootte via de brug, het scherm net onder het veld.
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontScale: 125 }));
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--ui-font-scale'))).toBe('1.25');
+  const tb = (await trigger.boundingBox())!;
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.ceil(tb.y + tb.height + 170) });
+  await trigger.click();
+  await expect(menu).toBeVisible();
+  const workHint = menu.locator('[role="option"][data-value="FIXED_WORK"] .ops-select__option-hint');
+  await workHint.scrollIntoViewIfNeeded();
+  const hb = (await workHint.boundingBox())!;
+  await page.mouse.click(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await expect(menu).toHaveCount(0);
+  expect((await taskState(page, taskId)).workRule).toBe('FIXED_WORK');
 });
 
 // Besluit eigenaar 2026-10-15: "afgerond op hele dagen" alleen bij een dagtaak. Een urentaak rondt af op
@@ -564,26 +646,29 @@ test('werkregel: na Ctrl+Z met de tooltip open toont het i-icoon de regel die nu
   const nl = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl');
   const tip = page.locator('.ops-tooltip[role="tooltip"]');
   const info = page.locator('[data-ops-work-rule-info]');
-  const fdr = nl ? 'Het werk volgt uit de duur en de inzet.' : 'Work follows from duration and units.';
-  const fw = nl ? 'De duur volgt uit het werk en de inzet.' : 'Duration follows from work and units.';
+  // Voorstel #954 deel 2: de vette regel is overal dezelfde (wat een taaktype is); de regel daaronder
+  // noemt het taaktype dat nu geldt.
+  const fdr = nl ? 'Duur en inzet blijven, het werk rekent mee. Voorbeeld: 2 mensen, 5 dagen van 8 uur = 80 uur.' : 'Duration and units stay, the work follows. Example: 2 people, 5 days of 8 hours = 80 hours.';
+  const fw = nl ? 'Het werk blijft, de duur rekent mee. Voorbeeld: 80 uur met 2 mensen = 5 dagen, met 4 mensen 2,5 dagen.' : 'The work stays, the duration follows. Example: 80 hours with 2 people = 5 days, with 4 people 2.5 days.';
+  const ruleLine = tip.locator('.ops-tooltip__line').first();
   for (const how of ['hover', 'focus'] as const) {
     await chooseWorkRule(page, page, 'FIXED_WORK');
     expect((await taskState(page, taskId)).workRule).toBe('FIXED_WORK');
     if (how === 'hover') await info.hover(); else await info.focus();
-    await expect(tip.locator('strong')).toHaveText(fw);
+    await expect(ruleLine).toHaveText(fw);
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await taskState(page, taskId)).workRule).toBeUndefined();
     await expect(info).toHaveAttribute('data-ops-work-rule-info', 'FIXED_DURATION_RATE');
     // Zichtbare tooltip volgt meteen; na sluiten staat het nieuwe `title` op de knop.
-    await expect(tip.locator('strong')).toHaveText(fdr);
+    await expect(ruleLine).toHaveText(fdr);
     await page.mouse.move(0, 0);
     // Een tooltip door focus sluit met Escape (TooltipHost slikt die Escape; zonder tooltip zou
     // Escape de selectie opheffen).
     if (how === 'focus') await page.keyboard.press('Escape');
     await expect(tip).toHaveCount(0);
-    await expect.poll(async () => (await info.getAttribute('title'))?.startsWith(fdr)).toBe(true);
+    await expect.poll(async () => (await info.getAttribute('title'))?.includes(fdr)).toBe(true);
     await info.hover();
-    await expect(tip.locator('strong')).toHaveText(fdr);
+    await expect(ruleLine).toHaveText(fdr);
     await page.mouse.move(0, 0);
   }
 });

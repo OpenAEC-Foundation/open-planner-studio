@@ -20,7 +20,7 @@ import {
 
 /** Wat herstel van één vervanging moet weten: het doel, het id van de hulpnamen en de twee versies. */
 export interface ReplaceRecord {
-  /** Het id van `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>`. */
+  /** Het id van `save-<id>.ops-save.tmp` en `save-<id>.ops-vorige-<id>`. */
   id: string;
   /** Het doel: het eigen bestand van het document. */
   path: string;
@@ -28,6 +28,9 @@ export interface ReplaceRecord {
   vorigeSha256: string;
   /** De versie die op het doel zou komen (de voorbereide uitvoer). */
   pendingSha256: string;
+  /** Geschreven door een versie van vóór fixronde 3 van #1071 (record versie 1): de vorige versie heet daar
+   *  `<naam>.ops-vorige-<id>` (`recordPreviousPath`). Alleen het herstel leest deze vorm; een nieuw record heeft haar niet. */
+  legacyPreviousName?: true;
 }
 
 export interface ReplaceRecordStore {
@@ -38,7 +41,11 @@ export interface ReplaceRecordStore {
 }
 
 const RECORD_KIND = 'ops-replace';
-const RECORD_VERSION = 1;
+/** Versie 2 (fixronde 3 van #1071): de vorige versie heet `save-<id>.ops-vorige-<id>`. Versie 1 (`<naam>.ops-vorige-<id>`)
+ *  leest het herstel nog (`legacyPreviousName`). Een oudere app laat een record van versie 2 staan (`parseReplaceRecord`
+ *  geeft daar `null`), zodat ze nooit een hulpbestand onder een naam zoekt die er niet bij hoort. */
+const RECORD_VERSION = 2;
+const LEGACY_RECORD_VERSION = 1;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 /** Gelijk aan `is_helper_id` in `place_file.rs`. */
 const HELPER_ID = /^[0-9a-z]{1,64}$/;
@@ -57,7 +64,8 @@ export function replaceRecordId(name: string): string | null {
 }
 
 export function serializeReplaceRecord(record: ReplaceRecord): string {
-  return JSON.stringify({ kind: RECORD_KIND, version: RECORD_VERSION, ...record });
+  const { id, path, vorigeSha256, pendingSha256 } = record;
+  return JSON.stringify({ kind: RECORD_KIND, version: RECORD_VERSION, id, path, vorigeSha256, pendingSha256 });
 }
 
 /** Een record uit zijn tekst; `null` bij een andere vorm (dan blijft het bestand staan en doet herstel er niets mee). */
@@ -66,11 +74,11 @@ export function parseReplaceRecord(text: string): ReplaceRecord | null {
   try { value = JSON.parse(text); } catch { return null; }
   if (!value || typeof value !== 'object') return null;
   const { kind, version, id, path, vorigeSha256, pendingSha256 } = value as Record<string, unknown>;
-  if (kind !== RECORD_KIND || version !== RECORD_VERSION) return null;
+  if (kind !== RECORD_KIND || (version !== RECORD_VERSION && version !== LEGACY_RECORD_VERSION)) return null;
   if (typeof id !== 'string' || !HELPER_ID.test(id) || typeof path !== 'string' || path === '') return null;
   if (typeof vorigeSha256 !== 'string' || !SHA256_HEX.test(vorigeSha256)) return null;
   if (typeof pendingSha256 !== 'string' || !SHA256_HEX.test(pendingSha256)) return null;
-  return { id, path, vorigeSha256, pendingSha256 };
+  return { id, path, vorigeSha256, pendingSha256, ...(version === LEGACY_RECORD_VERSION ? { legacyPreviousName: true as const } : {}) };
 }
 
 /** De records in de appDataDir, via plugin-fs; atomair geschreven zoals het manifest (`writeTextFileAtomic`). */

@@ -344,6 +344,7 @@ const TM = {
     actualStart: '2026-07-24T00:00', actualFinish: '2026-07-24T00:00', actualDuration: 0,
     remainingTime: 0, remainingMinutes: 0, // remainingMinutes: (b) uur-modus-gap
     completion: 1,
+    progressBeforeRecalculation: { status: 'STARTED', completion: 0.2, actualStart: '2026-07-24T00:00' },
     resume: '2026-07-24', stop: '2026-07-24', // Z14: round-tript sinds OPS_Resume, zie TIME_CANON
   },
 } satisfies Required<Task> & { time: Required<TaskTime> };
@@ -691,6 +692,7 @@ const TIME_CANON = {
   actualStart: KEEP, actualFinish: KEEP, actualDuration: KEEP, remainingTime: KEEP,
   remainingMinutes: KEEP,
   completion: KEEP,
+  progressBeforeRecalculation: { skip: 'tijdelijke rekenbasis tot F5, geen planningsdata voor IFC' },
   // Z14 (Z12-herwerk-signaal): resume/stop round-trippen sinds Z14 via het `OPS_Resume`-pset
   // (ifcPsets.ts) — echte KEEP-vergelijking i.p.v. de vroegere skip-cel. MSPDI/P6-export blijven
   // ze WEL warnen-en-weglaten (native `<Resume>`/`<Stop>` zonder terugleesbaarheid, zelfde
@@ -959,6 +961,8 @@ const expectedInput: ImportResult = { ...fixture, resourceCalendars: (fixture.re
 const firstIfc = writeIFC(fixture);
 const rt1 = readIFC(firstIfc);
 const rt2 = readIFC(writeIFC(rt1));
+assert(rt1.tasks.every(task => !task.time.progressBeforeRecalculation),
+  'de tijdelijke rekenbasis voor voortgang wordt niet in IFC bewaard');
 
 const hasP6BoundarySequence = (input: ImportResult) =>
   input.sequences.some(sequence => sequence.p6StartAtPredecessorFinishBoundary === true);
