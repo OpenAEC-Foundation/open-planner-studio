@@ -4841,7 +4841,9 @@ en noem het in je rapport of PR-tekst.
      verloren. Voorstel: de terugvallen als één regel in de openingsmelding. VERVOLG uit #775. — B
 
 621. **VERVOLG: de P6 XML-lezer leest `ResourceList` nog niet.** Een XER draagt de resourcelijst wel. De
-     onderbrekingsdatums zijn afzonderlijk aangepakt; de resourcelijst blijft een open punt. — S
+     onderbrekingsdatums worden gelezen. Bij een omgekeerd paar binnen één minuut kan `p6xmlReader.ts` beide
+     bronmomenten naar hetzelfde minuutmoment afkappen en de P6-hervattingsregel toch activeren. Bevestigd met
+     `SuspendDate` 12:00:45 en `ResumeDate` 12:00:10. De resourcelijst blijft een open punt. — B (tijdpaar), S (resourcelijst)
 
 622. **De dialoogtekst `formatNotice.formats.p6xml.limited` is verouderd in 26 talen.** #775 paste nl en en aan ("rekent als
      Primavera P6, met de rekenopties uit het bestand"). De andere talen zeggen nog dat het project met het OPS-profiel
