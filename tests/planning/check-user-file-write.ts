@@ -14,7 +14,7 @@ import { installNodeFileIpc, realPath, writeFileCall as fileWrite } from './node
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  replaceUserFile, isForbiddenPathError, OwnFileWriteError, USER_FILE_TMP_SUFFIX, writeUserTextFileTauri, writeUserBytesTauri,
+  replaceUserFile, isForbiddenPathError, OwnFileWriteError, USER_FILE_TMP_SUFFIX, writeUserTextFileTauri, writeUserFileTauri,
   type UserFileFs,
 } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityInfo, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
@@ -222,7 +222,7 @@ for (const kind of ['text', 'bytes'] as const) {
   const ipc = installNodeFileIpc();
   const payload = kind === 'text' ? new TextEncoder().encode('NIEUW – bouw 🏗\u0000 einde') : new Uint8Array([0, 255, 128, 1, 13, 10, 254, 42]);
   const save = (p: string) => kind === 'text'
-    ? writeUserTextFileTauri(p, new TextDecoder().decode(payload)) : writeUserBytesTauri(p, payload);
+    ? writeUserTextFileTauri(p, new TextDecoder().decode(payload)) : writeUserFileTauri(p, payload);
   const source = join(root, 'bron.ifc');
   const target = join(root, 'kopie.ifc');
   const legacy = target + USER_FILE_TMP_SUFFIX;
@@ -419,7 +419,7 @@ for (const kind of ['text', 'bytes'] as const) {
     reset();
     writeFileSync(target, OUD);
     if (kind === 'text') await writeUserTextFileTauri(target, '');
-    else await writeUserBytesTauri(target, new Uint8Array());
+    else await writeUserFileTauri(target, new Uint8Array());
     eq(`7 ${kind}/leeg: oude inhoud volledig vervangen`, read(target), []);
     eq(`7 ${kind}/leeg: geen resten of handles`, [readdirSync(root).sort(), ipc.openHandles()], [['bron.ifc', 'kopie.ifc'], 0]);
 
@@ -450,7 +450,7 @@ for (const kind of ['text', 'bytes'] as const) {
       }
     }
     reset();
-    await Promise.all([save(target), kind === 'text' ? writeUserTextFileTauri(target, 'TWEEDE') : writeUserBytesTauri(target, new Uint8Array([9, 8]))]);
+    await Promise.all([save(target), kind === 'text' ? writeUserTextFileTauri(target, 'TWEEDE') : writeUserFileTauri(target, new Uint8Array([9, 8]))]);
     const temps = ipc.calls.filter(created).map(c => c.path);
     eq(`7 ${kind}/gelijktijdig: twee eigen tijdelijke paden`, new Set(temps).size, 2);
     truthy(`7 ${kind}/gelijktijdig: één complete save op het doel`, [J([...payload]), J(kind === 'text' ? [...new TextEncoder().encode('TWEEDE')] : [9, 8])].includes(J(read(target))));
@@ -468,8 +468,9 @@ for (const kind of ['text', 'bytes'] as const) {
   const read = (rel: string) => readFileSync(join(here, '..', '..', 'src', rel), 'utf8');
   const backend = read('services/fileAccess/tauriBackend.ts');
   truthy('8a tauriBackend: geen kale writeTextFile( of writeFile(', !/\b(writeTextFile|writeFile)\(/.test(backend));
-  truthy('8b tauriBackend: Opslaan, Opslaan als en export via writeUser…Tauri',
-    (backend.match(/writeUserTextFileTauri\(/g) ?? []).length >= 2 && backend.includes('writeUserBytesTauri('));
+  // #804 stap 6: tekst en bytes gaan door één hulp met de laatste controle (`writeUserFileTauri`).
+  truthy('8b tauriBackend: Opslaan, Opslaan als en export via writeUserFileTauri',
+    (backend.match(/writeUserFileTauri\(/g) ?? []).length >= 2);
   const fileTools = read('services/mcp/tools/fileTools.ts');
   truthy('8c MCP export_ifc (overwrite) via writeUserTextFileTauri', fileTools.includes('writeUserTextFileTauri(')
     && !/\bwriteTextFile\(p,/.test(fileTools));

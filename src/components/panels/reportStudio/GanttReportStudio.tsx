@@ -483,8 +483,9 @@ export function GanttReportStudio() {
       });
       await saveBytesDialog(cur.fileName, bytes, [{ name: 'PDF Document', extensions: ['pdf'] }], {
         mime: 'application/pdf',
-        // Zelfde doelcontrole als het oude rapportpaneel (#804): geen PDF over een geopend bestand heen.
-        refuseTarget: useAppStore.getState().foreignTargetCheck('export'),
+        // Zelfde doelcontrole als het oude rapportpaneel (#804): geen PDF over een geopend bestand heen, ook niet over dat
+        // van het actieve document (review van #1064).
+        refuseTarget: useAppStore.getState().foreignTargetCheck(null),
       });
     } catch (err) {
       useAppStore.getState().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });

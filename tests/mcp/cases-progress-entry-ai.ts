@@ -10,6 +10,9 @@
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { TaskTime } from '@/types/task';
 
@@ -95,17 +98,57 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
 
-test('knownbug 81: voltooien na F5 gebruikt het geplande begin van vóór de statusdatumverschuiving', async () => {
-  const { V } = setup(undefined);
-  const originalStart = timeOf(V).earlyStart;
-  await rpc('planner_update_project', { statusDate: '2026-06-10' });
-  S().runCPM();
-  assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
-  const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 100 } }] });
-  assertEq(reasons(res), [], 'geen weigering');
-  assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
-  assertEq(timeOf(V).actualFinish, '2026-06-10T16:00', 'afgeleid einde = statusdatum');
-});
+for (const completionValues of [[100], [50, 100]]) {
+  test(`#998: voltooien na F5 bewaart de geplande datums (${completionValues.join(' → ')}%)`, async () => {
+    const { V, L } = setup(undefined);
+    S().addSequence({ predecessorId: V, successorId: L, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    const { earlyStart: originalStart, earlyFinish: originalFinish } = timeOf(V);
+    await rpc('planner_update_project', { statusDate: '2026-06-10' });
+    S().runCPM();
+    assert(timeOf(V).earlyStart > originalStart, 'voorwaarde: de statusdatum schoof open werk op');
+    const res = await rpc('planner_update_tasks', { updates: completionValues.map(completion => ({ id: V, progress: { completion } })) });
+    assertEq(reasons(res), [], 'geen weigering');
+    assertEq(timeOf(V).actualStart, originalStart, 'afgeleide start = geplande start vóór verschuiven');
+    assertEq(timeOf(V).actualFinish, originalFinish, 'afgeleid einde = geplande einde vóór verschuiven');
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks.find(task => task.name === 'Vroeg');
+    assertEq(reopened?.time.actualFinish?.slice(0, 10), originalFinish.slice(0, 10), 'IFC bewaart de oorspronkelijke einddag');
+  });
+}
+
+for (const scenario of [
+  { label: 'startdatum', progress: { actualStart: '2026-11-04' }, dates: ['2026-11-04', '2026-11-05'] },
+  { label: 'startdatum en 100%', progress: { actualStart: '2026-11-04', completion: 100 }, dates: ['2026-11-04', '2026-11-05'] },
+  { label: 'twee geldige datums', progress: { actualStart: '2026-11-04', actualFinish: '2026-11-06' }, dates: ['2026-11-04', '2026-11-06'] },
+  { label: 'ongeldig datumpaar', progress: { actualStart: '2026-11-04', actualFinish: '2026-11-03' }, dates: ['2026-10-28', '2026-10-29'], refusal: /before actualStart/ },
+  { label: 'ongeldig voortgangsveld', progress: { percent: 100 }, dates: ['2026-10-28', '2026-10-29'], refusal: /percent/ },
+]) {
+  test(`#998: inkorten in één MCP-item met ${scenario.label}`, async () => {
+    S().newProject();
+    const today = '2026-11-18';
+    S().setProject({ startDate: '2026-10-28', statusDate: today });
+    const id = S().addTask({ name: 'Montage', time: createDefaultTaskTime('2026-10-28', 4) });
+    S().runCPM();
+    S().enterTaskProgress(id, { field: 'completion', value: 0.5 }, { today });
+    S().runCPM();
+    const result = await rpc('planner_update_tasks', { updates: [{ id,
+      fields: { duration: 2, durationUnit: 'days' }, progress: scenario.progress,
+    }] });
+    const facts = () => {
+      const { actualStart, actualFinish, completion, scheduleDuration } = S().tasks.find(task => task.name === 'Montage')!.time;
+      return [actualStart?.slice(0, 10), actualFinish?.slice(0, 10), completion, scheduleDuration];
+    };
+    const expected = [...scenario.dates, 1, 2];
+    const recorded = facts();
+    const reopened = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
+    S().applyLoadedProject(reopened, { linkedOpen: true, recompute: true, filePath: null });
+    const refusals = reasons(result);
+    assertEq({ recorded, reopened: facts() }, { recorded: expected, reopened: expected },
+      'aanvaarde datums en duur blijven na IFC-heropening');
+    assertEq(refusals.length, scenario.refusal ? 1 : 0, `weigeringen: ${refusals.join(', ')}`);
+    if (scenario.refusal) assert(scenario.refusal.test(refusals[0]), `verwachte reden: ${refusals[0]}`);
+  });
+}
 
 test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', async () => {
   const { L } = setup('2026-06-10');
@@ -171,7 +214,7 @@ test('#998: een opgegeven werkelijk einde van een voorganger telt mee in hetzelf
 });
 
 for (const batch of [false, true]) {
-  for (const change of ['completion', 'milestoneKind'] as const) {
+  for (const change of ['actualFinish', 'milestoneKind'] as const) {
     test(`#998: ${change} van voorganger telt mee (batch: ${batch})`, async () => {
       S().newProject();
       S().setProject({ startDate: '2026-06-08', statusDate: '2026-06-10' });
@@ -182,7 +225,7 @@ for (const batch of [false, true]) {
       S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
       S().runCPM();
       const args = { updates: [
-        milestone ? { id: A, fields: { milestoneKind: 'FINISH' } } : { id: A, progress: { completion: 100 } },
+        milestone ? { id: A, fields: { milestoneKind: 'FINISH' } } : { id: A, progress: { actualStart: '2026-06-08', actualFinish: '2026-06-10' } },
         { id: B, progress: { completion: 50 } },
       ] };
       if (batch) await rpc('planner_batch', { steps: [{ tool: 'planner_update_tasks', args }] });
