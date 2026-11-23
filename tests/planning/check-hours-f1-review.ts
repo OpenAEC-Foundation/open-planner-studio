@@ -262,8 +262,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Knownbug 231: FF +0 elapsed mag een gewone opvolger niet vóór het werkelijk
-// einde van een voltooide voorganger laten eindigen, ook niet buiten werktijd.
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   const f = fixture();
   f.S().setProject({ schedulingProfile: { id: profile, baseId: profile, name: '', overrides: {} } });
@@ -298,8 +296,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   eq(label + ': FS-opvolger start niet vóór FF-einde', nextStart >= after, true);
 }
 
-// Dezelfde FF-grens met een andere opvolgerkalender en een geïmporteerd, ouder
-// timephased-venster: het venster mag de relatie-eis niet terugtrekken.
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   const f = fixture();
   f.S().setProject({ schedulingProfile: { id: profile, baseId: profile, name: '', overrides: {} } });
@@ -325,8 +321,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     f.S().tasks.find(t => t.id === id)!.time.earlyFinish >= '2026-06-03T18:00', true);
 }
 
-// C1 gebruikt het effectieve relatievenster, niet de latere echte finish. Met een harde
-// finishpin wint de eigen pin juist van de relatievloer (de relatie kan dan conflicteren).
 for (const variant of ['p6-c1', 'harde-pin'] as const) {
   const f = fixture();
   f.S().setProject({ schedulingProfile: { id: 'p6', baseId: 'p6', name: '',
@@ -344,8 +338,6 @@ for (const variant of ['p6-c1', 'harde-pin'] as const) {
     lagDays: 0, lagMinutes: 0, lagUnit: 'ELAPSEDTIME' });
   if (variant === 'harde-pin') {
     f.S().updateTask(id, { constraint: { type: 'MFO', date: '2026-06-02T14:00', hard: true } });
-    // De afzonderlijke statusdatumvloer kan een harde pin vóór die datum overschrijven;
-    // test hier uitsluitend de interactie tussen de FF-vloer en de pin.
     f.context.store.setState(s => { s.project.statusDate = undefined; });
     eq(label + ': pin opgeslagen', f.S().tasks.find(t => t.id === id)!.constraint?.hard, true);
   }

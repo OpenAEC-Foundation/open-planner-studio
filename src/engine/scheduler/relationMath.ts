@@ -196,25 +196,6 @@ export function forwardConstraint(
  * ES-kandidaat van elke relatie een ondergrens is) — `CPMSolver.forwardPass` neemt 'm mee als extra
  * `max()`-term NAAST de gewone `ES + duur`-berekening, ZONDER de ES-berekening zelf aan te raken.
  *
- * WAAROM IN HET ALGEMEEN ALLEEN `START_FINISH`: de vloer verschuift `earlyFinish` uitsluitend over een
- * NUL-WERK-gat (het hele punt van de vloer is dat `ES + duur` daar precies op vastloopt) — binnen
- * dat gat verandert geen enkele werkminuut, dus elke WERKMINUUT-gebaseerde grootheid (float, tf/ff,
- * kritiek-pad) is INVARIANT onder de vloer, zelf als de vloer vuurt. Het verschil tussen SF en FF
- * zit in WAAR `reqFinish` landt t.o.v. een bandgrens: SF ankert op `predResult.es`, en bij lag 0 is
- * dat een bandSTART (het `(start,end)`-forward-anker) — `startFromFinish` (terug) gevolgd door
- * `addDuration` (weer vooruit) is dan NIET inverteerbaar (zie het scenario hierboven: terug landt op
- * de vorige werkdag-START, vooruit vanaf díe START landt op diens EIND, niet terug op `reqFinish`).
- * FF ankert op `predResult.ef`, een bandEIND (het `(start,end]`-finish-anker) — daar ROND-TRIPT
- * `startFromFinish`/`addDuration` WEL exact (het finish-anker is zelf al het punt waar de
- * duur-optelling normaliter uitkomt), dus een FF-vloer zou daar sowieso nooit vuren: geen
- * gedragswijziging bij een normale voorganger. Een voltooide voorganger met een werkelijk einde
- * buiten werktijd is hierop een uitzondering: knownbug 231 bewaart voor FF +0 kalendertijd
- * de onbewerkte relatiegrens voor een gewone urentaak als aparte vloer. De
- * UITZONDERING die dit bewust doorbreekt is EXPLICIET geklemd, niet stilzwijgend: `CPMSolver.
- * forwardPass` slaat de vloer over zodra de taak een HARDE finish-pin heeft (MFO/MSO hard,
- * `hardPinFinish`) — dát pad belooft een EIGEN, hardere invariant (EF=LF=pin, tf=0) die vóór de
- * vloer gaat (`msp-36-z10-sf-hardpin-wint`).
- *
  * BEWUSTE SCOPE-GRENZEN (niet gefixt):
  *  - **Taken met actuals.** `CPMSolver.forwardPass`s VOLTOOID-/IN-PROGRESS-takken (`t.actualFinish`/
  *    `t.actualStart`/`t.completion>0`) `continue`n VÓÓR de vloer ooit toegepast wordt — een taak die
@@ -240,10 +221,6 @@ export function forwardFinishFloor(
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
 ): Date | null {
-  // FF +0 kalendertijd bij een voltooide voorganger kan buiten werktijd ankeren.
-  // Terugtellen en vooruitrekenen over de opvolgerkalender verliest dan het gat, waardoor
-  // EF vóór de relatiegrens uitkomt. Bewaar het effectieve voorgangervenster (incl. P6-C1),
-  // niet blind de actualFinish. Overige lag- en dag/mijlpaalgevallen blijven ongewijzigd.
   if (seq.type === 'FINISH_FINISH' && seq.lagUnit === 'ELAPSEDTIME'
       && deps.resolveElapsedMinutes(seq, predTask) === 0
       && predTask.time.actualFinish && predTask.time.completion >= 1

@@ -7,6 +7,8 @@ precies een niet-werkperiode overspant (`mpp14relations.mpp`, "Task 5"). De vloe
 finish eronder blijft. Een harde finishpin wint van die vloer (ADR 0021), en een timephased venster telt de vloer
 als ondergrens mee (ADR 0026).
 
+Bij FF met nul minuten kalendertijd geldt ook een vloer wanneer een voltooide voorganger een werkelijk einde heeft. Voor een gewone urentaak is dat het vroege einde uit het effectieve relatievenster. Een harde eindpin van de opvolger gaat voor deze vloer.
+
 ## Gevolgen
 
 - In welke maat een lag telt (werkminuten, gemeten werkdagen met `workdayDurationMeasure`, of klokminuten bij
