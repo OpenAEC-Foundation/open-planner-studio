@@ -338,8 +338,6 @@ const own = (data: string) => enc.encode(OWN_HEAD + data + TAIL);
     } catch (e) { badError = (e as Error).message; }
     eq(`stroom: ${label}: een leesfout, de bron gaat dicht`, [badError.startsWith('De bron eindigt na terugspoelen'), badClosed], [true, 1]);
   }
-  // plugin-fs rapporteert de bereikte positie. Ook als na een mislukte seek nog genoeg bytes volgen
-  // moet de bron weigeren, in plaats van op een verkeerde positie verder te lezen (knownbug 1019).
   const longRewind = own(`#1=IFCTASK('a',\n${' '.repeat(18 << 20)}#9=IFCWALL('x',$);\n${' '.repeat(20 << 20)}`);
   for (const works of [true, false]) {
     let at = 0;

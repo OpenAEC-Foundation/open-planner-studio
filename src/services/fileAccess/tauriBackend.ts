@@ -22,7 +22,6 @@ interface PathChunksTauri {
   close(): Promise<void>;
 }
 
-/** plugin-fs geeft de bereikte positie terug; een afwijking is een leesfout, geen veilige doelcontrole. */
 export async function seekToExactPosition(seek: (offset: number) => Promise<number>, offset: number): Promise<void> {
   const actual = await seek(offset);
   if (actual !== offset) throw new Error(`Terugspoelen mislukt: verwacht ${offset}, kreeg ${actual}`);
