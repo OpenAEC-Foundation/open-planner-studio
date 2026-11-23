@@ -2264,67 +2264,294 @@ mod tests {
         }
     }
 
-    // Knownbug 1762 (#804, T5 van de technisch beslisser, 20 november 2026): buiten de thuismap geeft de planner de map
-    // van het bestand vrij met de mapkiezer van plugin-dialog, en die doet `allow_directory(map, false)`
-    // (`tauri-plugin-dialog-2.7.0/src/commands.rs:152-181`; `recursive` staat standaard uit). Daarna laten dit commando
-    // en plugin-fs `exists` (de toets van de app vóór en na de mapkiezer, `replaceFolderAccess.ts`) de hulpnamen en de
-    // kopieën in die map toe, en niets in een submap: de vervanging blijft in de map van het doel. Alleen paden, geen
-    // bestanden: de scope toetst een pad dat niet bestaat via de dichtstbijzijnde bestaande map.
+    fn map_buiten_de_thuismap(app: &MockApp, proef: &str) -> PathBuf {
+        use tauri::Manager;
+        let thuis = std::fs::canonicalize(app.path().home_dir().unwrap()).unwrap();
+        let basis = [
+            std::env::temp_dir(),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target"),
+        ]
+        .into_iter()
+        .filter_map(|p| std::fs::canonicalize(p).ok())
+        .find(|p| !p.starts_with(&thuis))
+        .unwrap_or_else(|| panic!("geen bestaande map buiten de thuismap {thuis:?}"));
+        let map = basis.join(format!("ops-hulpnamen-{proef}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&map);
+        std::fs::create_dir_all(map.join("submap")).unwrap();
+        std::fs::canonicalize(&map).unwrap()
+    }
+
+    const HULP_VERVANG: &str = "save-mhx1q2k9ab3.ops-vervang.tmp";
+    const HULP_VORIGE: &str = "save-mhx1q2k9ab3.ops-vorige-mhx1q2k9ab3";
+    const GEEN_HULPNAAM_VAN_DE_CAPABILITY: [&str; 5] = [
+        DOEL,
+        TMP,
+        VORIGE,
+        "doel (versie van ander programma 2026-11-21 14.32).ifc",
+        "save-mhx1q2k9ab3.ops-vervang.tmp.ifc",
+    ];
+    const HULPNAMEN_PER_COMMANDO: [(&str, &[&str]); 7] = [
+        ("write_file", &[HULP_VERVANG]),
+        ("lstat", &[HULP_VERVANG, HULP_VORIGE]),
+        ("stat", &[HULP_VORIGE]),
+        ("open", &[HULP_VORIGE]),
+        ("read_file", &[HULP_VERVANG, HULP_VORIGE]),
+        ("remove", &[HULP_VERVANG, HULP_VORIGE]),
+        ("rename", &[HULP_VERVANG, HULP_VORIGE]),
+    ];
+
     #[test]
-    fn place_file_mapkiezer_geeft_de_map_niet_recursief_vrij() {
+    fn place_file_hulpnamen_capability_geldt_alleen_voor_de_twee_hulpnamen() {
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let map = map_buiten_de_thuismap(&app, "scope");
+        let _opruimen = Opruimen(vec![map.clone()]);
+        #[cfg(windows)]
+        assert!(
+            text(&map).starts_with(r"\\?\") && !text(&map).starts_with(r"\\?\UNC\"),
+            "het echte pad van een map op een station: {map:?}"
+        );
+        let zonder_voorvoegsel =
+            cfg!(windows).then(|| PathBuf::from(text(&map).trim_start_matches(r"\\?\")));
+        let plekken: Vec<PathBuf> = [
+            Some(map.clone()),
+            Some(map.join("submap")),
+            zonder_voorvoegsel,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        for (commando, toegestaan) in HULPNAMEN_PER_COMMANDO {
+            let scope = scope_voor(webview, commando, true)
+                .unwrap_or_else(|| panic!("de capability laat fs {commando} toe"));
+            for plek in &plekken {
+                for naam in [HULP_VERVANG, HULP_VORIGE] {
+                    assert_eq!(
+                        scope.allows(&plek.join(naam)),
+                        toegestaan.contains(&naam),
+                        "fs {commando}: {:?}",
+                        plek.join(naam)
+                    );
+                }
+                for naam in GEEN_HULPNAAM_VAN_DE_CAPABILITY {
+                    assert!(
+                        !scope.allows(&plek.join(naam)),
+                        "fs {commando}: {:?}",
+                        plek.join(naam)
+                    );
+                }
+                assert!(!scope.allows(plek), "fs {commando}: de map {plek:?}");
+            }
+            #[cfg(unix)]
+            for naam in [HULP_VERVANG, HULP_VORIGE] {
+                assert!(
+                    !scope.allows(&map.join(".verborgen").join(naam)),
+                    "fs {commando}: een map met een punt vooraan (knownbug 2067)"
+                );
+            }
+            #[cfg(windows)]
+            for naam in [HULP_VERVANG, HULP_VORIGE] {
+                assert_eq!(
+                    scope.allows(&map.join(".verborgen").join(naam)),
+                    toegestaan.contains(&naam),
+                    "fs {commando}: een map met een punt vooraan op Windows"
+                );
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn place_file_hulpnamen_capability_geldt_achter_unc() {
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let map = map_buiten_de_thuismap(&app, "unc");
+        let _opruimen = Opruimen(vec![map.clone()]);
+        let station = text(&map);
+        let (letter, rest) = station
+            .trim_start_matches(r"\\?\")
+            .split_once(r":\")
+            .unwrap_or_else(|| panic!("een pad op een station: {station}"));
+        let unc = PathBuf::from(format!(r"\\?\UNC\localhost\{letter}$\{rest}"));
+        for (commando, toegestaan) in HULPNAMEN_PER_COMMANDO {
+            let scope = scope_voor(webview, commando, true)
+                .unwrap_or_else(|| panic!("de capability laat fs {commando} toe"));
+            for naam in [HULP_VERVANG, HULP_VORIGE] {
+                assert_eq!(
+                    scope.configured.is_allowed(unc.join(naam)),
+                    toegestaan.contains(&naam),
+                    "fs {commando}: {:?}",
+                    unc.join(naam)
+                );
+            }
+            for naam in GEEN_HULPNAAM_VAN_DE_CAPABILITY {
+                assert!(
+                    !scope.configured.is_allowed(unc.join(naam)),
+                    "fs {commando}: {:?}",
+                    unc.join(naam)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn place_file_hulpnamen_capability_kost_per_aanroep_geen_netwerk() {
+        let (_app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let rondes: u32 = 50;
+        let begin = std::time::Instant::now();
+        for _ in 0..rondes {
+            for (commando, _) in HULPNAMEN_PER_COMMANDO {
+                scope_voor(webview, commando, true)
+                    .unwrap_or_else(|| panic!("de capability laat fs {commando} toe"));
+            }
+        }
+        let per_scope = begin.elapsed() / (rondes * HULPNAMEN_PER_COMMANDO.len() as u32);
+        eprintln!("scope van een fs-commando opgebouwd in gemiddeld {per_scope:?}");
+        assert!(
+            per_scope < std::time::Duration::from_millis(200),
+            "de scope van een fs-commando kost {per_scope:?} per aanroep"
+        );
+    }
+
+    #[test]
+    fn place_file_hulpnamen_capability_door_de_echte_plugin_fs() {
         use serde_json::json;
         use tauri_plugin_fs::FsExt;
         let (app, window) = echte_app();
-        let webview: &tauri::Webview<_> = window.as_ref();
-        let scope = FsRenameScope::new(webview).expect("de capability laat fs rename toe");
-        #[cfg(unix)]
-        let map = PathBuf::from(format!("/ops-place-file-map-{}", std::process::id()));
-        #[cfg(windows)]
-        let map = PathBuf::from(format!(r"C:\ops-place-file-map-{}", std::process::id()));
-        assert!(!map.exists(), "de map bestaat niet: {map:?}");
-        let namen = [
-            DOEL,
-            TMP,
-            "save-mhx1q2k9ab3.ops-vorige-mhx1q2k9ab3",
-            "doel (versie van ander programma 2026-11-21 14.32).ifc",
-            "doel (niet opgeslagen planning 2026-11-21 14.32).ifc",
-        ];
-        let geweigerd = |pad: &Path| {
-            matches!(
-                ipc(&window, "plugin:fs|exists", json!({ "path": text(pad) })),
-                Err(serde_json::Value::String(fout)) if fout.contains("forbidden path")
+        let map = map_buiten_de_thuismap(&app, "ipc");
+        let _opruimen = Opruimen(vec![map.clone()]);
+        let vervang = map.join(HULP_VERVANG);
+        let vorige = map.join(HULP_VORIGE);
+        let tweede_vorige = map.join("save-mhx1q2k9ab4.ops-vorige-mhx1q2k9ab4");
+        let doel = map.join(DOEL);
+        let gewoon_tijdelijk = map.join(TMP);
+        let maak_nieuw = |pad: &Path, bytes: &[u8]| {
+            let mut headers = tauri::http::HeaderMap::new();
+            headers.insert(
+                "path",
+                tauri::http::HeaderValue::from_str(&text(pad)).unwrap(),
+            );
+            headers.insert(
+                "options",
+                tauri::http::HeaderValue::from_static(r#"{"createNew":true}"#),
+            );
+            ipc_met(
+                &window,
+                "plugin:fs|write_file",
+                tauri::ipc::InvokeBody::Raw(bytes.to_vec()),
+                headers,
             )
         };
-        for naam in namen {
-            assert!(!scope.allows(&map.join(naam)), "vóór de mapkiezer: {naam}");
-        }
-        assert!(
-            geweigerd(&map.join(TMP)),
-            "vóór de mapkiezer weigert plugin-fs exists de hulpnaam"
-        );
+        let geweigerd = |uitkomst: &Result<serde_json::Value, serde_json::Value>| matches!(uitkomst, Err(serde_json::Value::String(fout)) if fout.contains("forbidden path"));
 
-        let runtime = app.try_fs_scope().expect("plugin-fs geregistreerd");
-        runtime.allow_directory(&map, false).unwrap();
-        for naam in namen {
-            assert!(scope.allows(&map.join(naam)), "na de mapkiezer: {naam}");
-        }
+        let uitkomst = maak_nieuw(&gewoon_tijdelijk, b"gewoon");
+        assert!(
+            geweigerd(&uitkomst),
+            "de gewone opslag buiten de thuismap: {uitkomst:?}"
+        );
+        assert!(!exists(&gewoon_tijdelijk));
+
+        assert_eq!(maak_nieuw(&vervang, b"nieuw"), Ok(serde_json::Value::Null));
+        assert_eq!(std::fs::read(&vervang).unwrap(), b"nieuw");
+        let uitkomst = maak_nieuw(&vervang, b"tweede");
+        assert!(
+            uitkomst.is_err() && !geweigerd(&uitkomst),
+            "createNew op een bestaand hulpbestand: {uitkomst:?}"
+        );
+        assert_eq!(std::fs::read(&vervang).unwrap(), b"nieuw");
+        assert!(ipc(
+            &window,
+            "plugin:fs|lstat",
+            json!({ "path": text(&vervang) })
+        )
+        .is_ok());
+
+        std::fs::write(&doel, b"oud").unwrap();
+        let uitkomst = ipc(&window, "plugin:fs|lstat", json!({ "path": text(&doel) }));
+        assert!(
+            geweigerd(&uitkomst),
+            "het doel zonder vrijgave: {uitkomst:?}"
+        );
         assert_eq!(
             ipc(
                 &window,
-                "plugin:fs|exists",
-                json!({ "path": text(&map.join(TMP)) })
+                "place_file_exclusive",
+                json!({ "from": text(&doel), "to": text(&vorige) })
             ),
-            Ok(serde_json::Value::Bool(false)),
-            "na de mapkiezer neemt plugin-fs exists de hulpnaam aan"
+            Err(json!({ "code": "refused", "reason": "scope" })),
+            "het doel zonder vrijgave van de bestandskiezer"
         );
-        let sub = map.join("submap");
-        for naam in [DOEL, TMP] {
-            assert!(!scope.allows(&sub.join(naam)), "in een submap: {naam}");
+        assert_eq!(std::fs::read(&doel).unwrap(), b"oud");
+
+        app.try_fs_scope()
+            .expect("plugin-fs geregistreerd")
+            .allow_file(&doel)
+            .unwrap();
+        assert_eq!(
+            ipc(
+                &window,
+                "place_file_exclusive",
+                json!({ "from": text(&doel), "to": text(&vorige) })
+            ),
+            Ok(json!({ "code": "placed" }))
+        );
+        assert!(!exists(&doel));
+        assert_eq!(std::fs::read(&vorige).unwrap(), b"oud");
+        assert!(ipc(&window, "plugin:fs|stat", json!({ "path": text(&vorige) })).is_ok());
+        assert!(ipc(&window, "plugin:fs|lstat", json!({ "path": text(&vorige) })).is_ok());
+        assert_eq!(
+            ipc(
+                &window,
+                "place_file_exclusive",
+                json!({ "from": text(&vorige), "to": text(&doel) })
+            ),
+            Ok(json!({ "code": "placed" }))
+        );
+        assert_eq!(std::fs::read(&doel).unwrap(), b"oud");
+
+        assert_eq!(
+            ipc(
+                &window,
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&vervang), "newPath": text(&tweede_vorige) })
+            ),
+            Ok(serde_json::Value::Null)
+        );
+        assert_eq!(
+            ipc(
+                &window,
+                "plugin:fs|remove",
+                json!({ "path": text(&tweede_vorige) })
+            ),
+            Ok(serde_json::Value::Null)
+        );
+        assert!(!exists(&tweede_vorige));
+
+        let ander = map.join("ander.ifc");
+        std::fs::write(&ander, b"ander").unwrap();
+        for (commando, argumenten) in [
+            ("plugin:fs|read_file", json!({ "path": text(&ander) })),
+            ("plugin:fs|lstat", json!({ "path": text(&ander) })),
+            ("plugin:fs|remove", json!({ "path": text(&ander) })),
+            (
+                "plugin:fs|remove",
+                json!({ "path": text(&map), "options": { "recursive": true } }),
+            ),
+            (
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&ander), "newPath": text(&vorige) }),
+            ),
+            (
+                "plugin:fs|rename",
+                json!({ "oldPath": text(&doel), "newPath": text(&ander) }),
+            ),
+        ] {
+            let uitkomst = ipc(&window, commando, argumenten);
+            assert!(geweigerd(&uitkomst), "{commando}: {uitkomst:?}");
         }
-        assert!(
-            geweigerd(&sub.join(TMP)),
-            "plugin-fs exists weigert een hulpnaam in een submap"
-        );
+        assert_eq!(std::fs::read(&ander).unwrap(), b"ander");
+        assert_eq!(std::fs::read(&doel).unwrap(), b"oud");
     }
 
     // De struikeldraad van #975 omgekeerd (knownbug 1797): `fs:default` van tauri-plugin-fs 2.7.1 verbiedt
