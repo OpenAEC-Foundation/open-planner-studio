@@ -269,9 +269,15 @@ test('echte app: planner_export_ifc met een gebouwmodel naar een nieuwe naam (pl
     assertEq(ways.length, 1, `precies één weg voor dit doel; het kanaal: ${JSON.stringify(lines)}`);
     assert(['geplaatst (placed)', 'geplaatst (dir-not-synced)'].includes(ways[0]),
       `het echte place_file_exclusive plaatste het bestand, geen directe aanmaak: ${ways[0]}`);
-    const again = await call('planner_export_ifc', { path: target, overwrite: true });
-    assert(!again.ok, 'een bestaande naam weigert, ook met overwrite');
-    assert(readFileSync(target).equals(bytes), 'het bestaande exportbestand blijft bytegelijk');
+    const refused = await call('planner_export_ifc', { path: target, overwrite: false });
+    assert(!refused.ok, 'zonder overwrite weigert een bestaande naam');
+    const previous = join(dir, 'vorige-week.ifc');
+    copyFileSync(join(ROOT, 'public/examples/03-kantoorgebouw-zuidas.ifc'), previous);
+    const replaced = await call('planner_export_ifc', { path: previous, overwrite: true });
+    assert(replaced.ok, `met overwrite vervangen: ${replaced.error}`);
+    assertEq(replaced.data?.overwritten, true, 'het antwoord meldt het vervangen');
+    assert(readFileSync(previous).equals(bytes), 'het bestaande bestand heeft nu precies de export');
+    assertEq(readdirSync(dir).sort(), ['export.ifc', 'model.ifc', 'vorige-week.ifc'], 'geen hulpbestand van de vervanging');
   } finally {
     await client.close();
     await ops('dispatch', { action: 'setUI', args: [{ featureFlags: {} }] });

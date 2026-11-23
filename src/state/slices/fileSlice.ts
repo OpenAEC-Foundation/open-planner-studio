@@ -59,8 +59,7 @@ import {
   type IfcOutput, type IfcOutputCompute,
 } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
-import type { TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
-import { scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
+import { capturedTargetReaders, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -637,21 +636,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       : saveDataDialog(name, writerData(write), IFC_FILE_FILTERS, options);
   };
 
-  /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
-   *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Zonder vastgelegde
-   *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. Een onleesbaar bestand blijft
-   *  een onleesbaar doel. */
-  const capturedTargetReaders = (current: PickedSaveTarget['current']): (() => TargetReaders) => {
-    if (current === null) return writeTargetReaders;
-    let scan: Promise<TargetForeignScan> | undefined;
-    return () => ({
-      ...writeTargetReaders(),
-      scanPath: async () => current === 'unreadable' ? 'unreadable' : (scan ??= scanForeignTargetBytesAsync(current)),
-    });
-  };
-
   const foreignTargetCheck = (exceptDocumentId: string | null, chosenTarget?: PickedSaveTarget): SaveTargetCheck => {
-    const readers = chosenTarget ? capturedTargetReaders(chosenTarget.current) : writeTargetReaders;
+    const readers = chosenTarget ? capturedTargetReaders(chosenTarget.current, writeTargetReaders) : writeTargetReaders;
     return async (target) => {
       const reason = await refusedWriteTarget(get(), target,
         { identityFs: fileIdentityFs, readers, openDocumentsExcept: exceptDocumentId, ...(chosenTarget ? { chosenTarget } : {}) });
@@ -1197,7 +1183,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const saved = await placeOnDesktop<boolean>({
       name, filters: IFC_FILE_FILTERS, bytes,
       targetCheck: picked => documentTargetCheck(state, write, false, {
-        readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
+        readers: capturedTargetReaders(picked.current, writeTargetReaders), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
       }),
       refuseBeforePlace: () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs),
       replacement: {

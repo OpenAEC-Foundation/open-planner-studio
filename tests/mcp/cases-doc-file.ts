@@ -18,10 +18,11 @@ import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { installDOMParser } from '../planning/xmldom-shim';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, linkSync, readlinkSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
+import { replaceRecordId } from '@/services/fileAccess/replaceRecords';
 import { mergeProblems, openForeign } from '../planning/ifcMergeKern';
 import { createHash } from 'node:crypto';
 import { scanForeignTargetBytes } from '@/services/ifc/foreign/targetForeignScan';
@@ -1617,7 +1618,8 @@ test('export_ifc in de app: nieuwe naam via eigen tijdelijk bestand en place_fil
     const busy = join(subdir, 'intussen.ifc');
     ipc.faults.place = (_from, to, real) => { writeFileSync(to, 'VAN EEN ANDER'); return real(); };
     const taken = await exportRpc(busy, false, ctx);
-    assert(!taken.ok && taken.code === 'VALIDATION' && taken.error.includes('new file name'), 'bezette naam weigert getypeerd');
+    assert(!taken.ok && taken.code === 'VALIDATION' && taken.error.includes('exists now') && taken.error.includes('overwrite: true'),
+      'bezette naam weigert getypeerd');
     assertEq(readFileSync(busy, 'utf8'), 'VAN EEN ANDER', 'het vreemde bestand blijft bytegelijk');
     assertEq(readdirSync(subdir).sort(), ['intussen.ifc', 'nieuw.ifc'], 'geen hulpbestand achtergebleven');
 
@@ -1629,6 +1631,96 @@ test('export_ifc in de app: nieuwe naam via eigen tijdelijk bestand en place_fil
     ipc.faults.place = null; ipc.dispose(); fileToolDeps.getFs = previousGetFs;
     useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('export_ifc in de app met een gebouwmodel over een bestaande naam: alleen met overwrite: true, langs de vervanging van Opslaan als (#804)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'ops-mcp-vervangen-'));
+  const appData = mkdtempSync(join(tmpdir(), 'ops-mcp-vervangen-appdata-'));
+  const ipc = installNodeFileIpc({ appDataDir: appData });
+  const previousGetFs = fileToolDeps.getFs;
+  const hash = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
+  useAppStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  try {
+    const fs: McpFileFs = { ...(await realFs()), homeDir: async () => root, readFile: async p => new Uint8Array(readFileSync(p)) };
+    fileToolDeps.getFs = async () => fs;
+    const bytes = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
+    const plain = new Uint8Array(readFileSync(join(MCP_ROOT, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
+    const otherModel = new Uint8Array(bytes); otherModel[Buffer.from(otherModel).indexOf("FILE_NAME('") + 11] ^= 1;
+    const original = join(root, 'Kantoor Zuidas.ifc'); writeFileSync(original, bytes);
+    const ctx = makeCtx(); await callOk('planner_import_schedule', { path: original }, ctx);
+    assert(S().ifcSource?.foreign === true, 'het document heeft een gebouwmodel');
+    const target = join(root, 'Stand voor aannemer.ifc');
+    const first = await exportRpc(target, false, ctx);
+    assert(first.ok, `de eerste export naar een nieuwe naam: ${first.ok ? '' : first.error}`);
+    const task = S().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    S().updateTask(task.id, { name: 'Stand van deze vrijdag' }); S().runCPM();
+    const helpers = () => readdirSync(root).filter(name => name.includes('.ops-'));
+    const records = () => readdirSync(appData).filter(name => replaceRecordId(name) !== null);
+    const before = { source: S().ifcSource, mark: S().foreignSourceMark, literal: S().ifcLiteralCalendarIds, path: S().filePath, dirty: S().isDirty };
+    const unchanged = (label: string) => {
+      const now = S();
+      assert(now.ifcSource === before.source && now.foreignSourceMark === before.mark && now.ifcLiteralCalendarIds === before.literal,
+        `${label}: bron, kenmerk en kalenderkeuzes intact`);
+      assertEq([now.filePath, now.isDirty], [before.path, before.dirty], `${label}: doel en dirty intact`);
+    };
+    const wrote = () => ipc.calls.filter(c => c.wrote).length;
+    const previous = hash(new Uint8Array(readFileSync(target))), writes = wrote();
+    const denied = await exportRpc(target, false, ctx);
+    assert(!denied.ok && denied.code === 'VALIDATION' && denied.error.includes("Pass 'overwrite': true"), 'zonder overwrite de bestaande weigering');
+    assertEq([wrote(), hash(new Uint8Array(readFileSync(target)))], [writes, previous], 'zonder overwrite nul schrijfacties');
+
+    for (const [label, content] of [['een eerdere export', null], ['een modelbestand van een ander programma', otherModel], ['een gewone planning', plain]] as const) {
+      if (content) writeFileSync(target, content);
+      const stood = hash(new Uint8Array(readFileSync(target)));
+      const replaced = await exportRpc(target, true, ctx);
+      assert(replaced.ok, `${label}: vervangen: ${replaced.ok ? '' : replaced.error}`);
+      const data = (replaced as McpToolOk).data as { byteLength?: number; overwritten: boolean };
+      const output = new Uint8Array(readFileSync(target));
+      assertEq([data.overwritten, data.byteLength], [true, output.byteLength], `${label}: overwritten en byteLength`);
+      assert(hash(output) !== stood, `${label}: het bestand is vervangen`);
+      assertEq(mergeProblems(bytes, output).length, 0, `${label}: het gebouwmodel bytegelijk`);
+      assert((await openForeign(output)).tasks.some(t => t.name === 'Stand van deze vrijdag'), `${label}: de nieuwe stand`);
+      assertEq([helpers(), records()], [[], []], `${label}: geen hulpbestand, geen herstelrecord`);
+      unchanged(label);
+    }
+
+    const changed = new Uint8Array([...plain, 10]);
+    writeFileSync(target, plain);
+    const isTemp = (p: string | undefined) => /[\\/]save-[0-9a-z]+\.ops-save\.tmp$/.test(p ?? '');
+    ipc.faults.beforeOpen = p => { if (isTemp(p)) { writeFileSync(target, changed); ipc.faults.beforeOpen = null; } };
+    const raced = await exportRpc(target, true, ctx);
+    ipc.faults.beforeOpen = null;
+    assert(!raced.ok && raced.code === 'VALIDATION' && raced.error.includes('changed'), 'een doel dat na het lezen verandert: VALIDATION');
+    assertEq(hash(new Uint8Array(readFileSync(target))), hash(changed), 'het doel houdt de versie van de ander');
+    assertEq([helpers(), records()], [[], []], 'geen hulpbestand, geen herstelrecord');
+    unchanged('veranderd doel');
+
+    for (const via of ['symbolische link', 'harde link'] as const) {
+      const link = join(root, `${via === 'harde link' ? 'hard' : 'sym'}.ifc`);
+      if (via === 'harde link') linkSync(target, link); else symlinkSync(target, link);
+      const refused = await exportRpc(link, true, ctx);
+      assert(!refused.ok && refused.code === 'VALIDATION' && refused.error.includes('cannot be replaced safely'), `${via}: geweigerd`);
+      assertEq(hash(new Uint8Array(readFileSync(target))), hash(changed), `${via}: het bestand bytegelijk`);
+      assertEq([helpers(), records()], [[], []], `${via}: geen hulpbestand, geen herstelrecord`);
+      rmSync(link);
+    }
+
+    const own = await exportRpc(original, true, ctx);
+    assert(!own.ok && own.code === 'VALIDATION' && own.error.includes('file of the active document itself'), 'het eigen bestand blijft geweigerd');
+    assertEq(hash(new Uint8Array(readFileSync(original))), hash(bytes), 'het eigen bestand bytegelijk');
+
+    const id = S().activeDocumentId, second = join(root, 'tweede.ifc'); writeFileSync(second, plain);
+    await callOk('planner_import_schedule', { path: second }, ctx);
+    S().switchDocument(id);
+    const inTab = await exportRpc(second, true, makeCtx());
+    assert(!inTab.ok && inTab.code === 'VALIDATION' && inTab.error.includes('another open document'), 'het bestand van een ander tabblad blijft geweigerd');
+    assertEq(hash(new Uint8Array(readFileSync(second))), hash(plain), 'het bestand van het andere tabblad bytegelijk');
+    assertEq([helpers(), records()], [[], []]);
+  } finally {
+    ipc.faults.beforeOpen = null; ipc.dispose(); fileToolDeps.getFs = previousGetFs;
+    useAppStore.setState(s => { s.ui.featureFlags = {}; }); resetToSingleEmptyDocument();
+    rmSync(root, { recursive: true, force: true }); rmSync(appData, { recursive: true, force: true });
   }
 });
 
