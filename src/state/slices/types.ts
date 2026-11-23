@@ -466,6 +466,12 @@ export type NotificationMessageKey =
   // Een kalenderwissel loopt door de werkregel; wanneer dat de
   // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
   | 'notifications.workRuleDurationsChanged'
+  // Een bewerking aan één toewijzing veranderde de uren van de andere resources op die taak (#954);
+  // zie `otherWorkNotice.ts`. Hoofdregel met of zonder nieuwe duur, één regel per resource.
+  | 'notifications.otherWork.durationDays'
+  | 'notifications.otherWork.durationHours'
+  | 'notifications.otherWork.durationSame'
+  | 'notifications.otherWork.line'
   // Onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
   | 'notifications.exportSplitsLost'
@@ -540,13 +546,16 @@ export type NotificationActionLabelKey =
   | 'notifications.actions.openHelp'
   | 'view.filter.clear'
   | 'scheduleShift.why'
-  | 'scheduleShift.undo';
+  | 'scheduleShift.undo'
+  | 'notifications.actions.undo';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
  *  - `openBackstageSection`: open Bestand › `section` (rekenprofielen, tutorials);
  *  - `showScheduleShift`: open het paneel Verschuivingen; de melding blijft staan (#742);
  *  - `undoScheduleShift`: draai de herberekening terug; alleen zichtbaar zolang dat kan (#742);
+ *  - `undoHistoryEvent`: zet precies dit event uit de geschiedenis terug; de melding staat er alleen
+ *    zolang het document in de stand van die stap staat (`watchNotice` in `otherWorkNotice.ts`, #954);
  *  - `clearViewArrangement`: wis filter, groepering en sortering van het ACTIEVE document
  *    (eigenaarsbesluit 2026-10-19 5a). Veilig omdat een weigering bij een documentwissel verdwijnt
  *    (5b, `clearRefusals` in uiSlice): de knop staat dus nooit boven een ander document. */
@@ -554,7 +563,8 @@ export type NotificationAction =
   | { kind: 'openBackstageSection'; section: BackstageSection; labelKey: NotificationActionLabelKey }
   | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey }
   | { kind: 'showScheduleShift'; labelKey: NotificationActionLabelKey }
-  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey };
+  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey }
+  | { kind: 'undoHistoryEvent'; eventId: string; labelKey: NotificationActionLabelKey };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
