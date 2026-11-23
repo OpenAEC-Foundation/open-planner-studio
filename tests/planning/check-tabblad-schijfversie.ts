@@ -9,7 +9,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIfcFromText } from '@/services/formatRegistry';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { IfcSaveResponse, IfcSaveResult } from '@/services/ifc/saveWorker/ifcSaveProtocol';
-import type { IfcOutputCompute, IfcSaveJob } from '@/state/prepareIfcOutput';
+import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
 import type { FileRef } from '@/services/fileAccess';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { resetSiteAskers, setSiteSaveAsker } from '@/services/fileAccess/siteDialogs';
@@ -252,6 +252,33 @@ for (const route of ['opslagworker', 'hoofdthread', 'worker start niet'] as cons
     } finally { ipc.dispose(); sw?.dispose(); fallback?.dispose(); }
   });
 }
+
+await check('rij 8, Ctrl+S die eindigt terwijl het tabblad slaapt: de hash komt in het slapende tabblad', async () => {
+  const ipc = desktop(), path = fileAt('ctrl-s-slapend.ifc', plainBytes());
+  let armed = false, reached!: () => void, release!: () => void;
+  const atGate = new Promise<void>(resolve => { reached = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const held: IfcOutputCompute = async job => {
+    if (armed) { reached(); await gate; }
+    return computeIfcOutputHere(job);
+  };
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes(), held);
+    const sleeping = store.getState().activeDocumentId, before = onDisk(path).byteLength;
+    edit(store);
+    armed = true;
+    const saved = ctrlS(store);
+    await atGate;
+    const other = store.getState().duplicateDocument();
+    assert.equal(store.getState().activeDocumentId, other, 'het tabblad slaapt tijdens het rekenen');
+    release();
+    assert.equal(await saved, true);
+    assert.notEqual(onDisk(path).byteLength, before, 'de grootte veranderde');
+    assert.deepEqual(known(store, sleeping), onDisk(path), 'het slapende tabblad kent de nieuwe versie');
+    assert.deepEqual(known(store, other), null, 'de kopie heeft geen eigen bestand');
+    assert.deepEqual(errors(store), []);
+  } finally { ipc.dispose(); }
+});
 
 await check('rij 8, Ctrl+S van een gewone planning via de eigen handle, met en zonder opslagworker', async () => {
   for (const sw of [saveWorker(), null]) {
