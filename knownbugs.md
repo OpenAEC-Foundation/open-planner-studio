@@ -3568,6 +3568,34 @@ en noem het in je rapport of PR-tekst.
      van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
      gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
      schrijvers niet nagespeeld)
+
+2066. **VERVOLG (#804, de versie op het eigen doel): een mislukte export over het eigen pad laat het veld staan.**
+     Ctrl+S en Automatisch opslaan maken `knownTargetFingerprint` onbekend als hun schrijfactie naar het eigen pad
+     mislukt. Bij een gelinkt doel of een scopeterugval schrijft `replaceUserFile` (`atomicWrite.ts`) direct naar het
+     doel, en een fout daarna kan het bestand al afgekapt hebben. Een export die over het eigen pad schrijft
+     (Exporteren → IFC, de export met de resourcebibliotheek, Bestand → Bibliotheek, `planner_export_ifc`) en dan
+     mislukt, laat het veld staan: het tabblad kent dan een versie die misschien niet meer op schijf staat. Herstel:
+     bij een geworpen fout van zo'n export het veld wissen als het doel het eigen pad kan zijn. — S (code gelezen,
+     niet nagespeeld)
+
+2200. **VERVOLG (#804, de versie op het eigen doel): bij openen kan de vingerafdruk van opnieuw gecodeerde tekst
+     komen.** Een browser-drop legt bij het neerzetten vast of een `.ifc` als tekst of als bytes gelezen wordt
+     (`useFileDrop.ts`). Gaat de flag `ifcForeignContent` aan tussen het neerzetten en het openen, dan komt het bestand
+     als tekst binnen. `File.text()` laat een UTF-8-BOM weg en vervangt ongeldige bytes, en `readIfcFromText` codeert
+     de tekst opnieuw. `applyLoadedProject` koppelt de hash en grootte van die nieuwe bytes aan de handle; met een BOM
+     is de grootte drie bytes te klein. Herstel: `openOpenedFile` geeft door of de bytes van het doel zelf kwamen
+     (`opened.bytes`), en `applyLoadedProject` zet bij tekst `null`. Dat raakt de openroute, waar de volgende stap
+     (openen wisselt) bouwt. De omgekeerde volgorde is gedicht: gaat de flag uit tussen het lezen en het activeren,
+     dan blijft het veld `null`. — B (code gelezen in de review van #1168, niet nagespeeld)
+
+2201. **VERVOLG (#804, de versie op het eigen doel): met de flag uit wist elke export het veld, ook naar een ander
+     bestand.** Met `ifcForeignContent` uit is `knownTargetFingerprint` alleen gevuld als het uit een eerdere periode
+     met de flag aan komt. Om dan geen extra `await` te maken, wissen Exporteren → IFC, de export met de
+     resourcebibliotheek, Bestand → Bibliotheek en `planner_export_ifc` het veld zonder het doel te vergelijken. Netter is
+     het veld één keer voor alle tabbladen te wissen als de flag uitgaat; daar is nog geen plek voor, want de flag
+     verandert via de algemene `setUI` en de instellingen. Dan hoeven de exports met de flag uit niets meer. De planner
+     merkt er niets van. — B (code gelezen)
+
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De

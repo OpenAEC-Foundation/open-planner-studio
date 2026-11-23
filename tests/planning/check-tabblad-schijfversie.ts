@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -451,12 +451,17 @@ for (const route of ['opslagworker', 'hoofdthread'] as const) {
       const { store } = await openAt({ kind: 'path', path }, plainBytes(), sw?.compute);
       const opened = known(store);
       store.getState().setAutoSaveToFile(true);
-      edit(store);
-      await createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: sw?.compute }).flush();
-      assert.equal(store.getState().isDirty, false, 'de ronde schreef');
-      assert.notDeepEqual(onDisk(path), opened);
-      assert.deepEqual(known(store), onDisk(path));
-      if (sw) assert.deepEqual(sw.jobs().map(job => job.kind === 'writer' && job.hashBytes), [true]);
+      const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: sw?.compute });
+      for (const round of [1, 2]) {
+        const before = onDisk(path).byteLength;
+        edit(store);
+        await controller.flush();
+        assert.equal(store.getState().isDirty, false, `ronde ${round} schreef`);
+        assert.notEqual(onDisk(path).byteLength, before, `ronde ${round}: de grootte veranderde`);
+        assert.deepEqual(known(store), onDisk(path), `ronde ${round}`);
+      }
+      assert.notDeepEqual(known(store), opened);
+      if (sw) assert.deepEqual(sw.jobs().map(job => job.kind === 'writer' && job.hashBytes), [true, true]);
     } finally { ipc.dispose(); sw?.dispose(); }
   });
 }
@@ -546,6 +551,59 @@ await check('A2, planner_export_ifc met overwrite over het eigen bestand: onbeke
   } finally { fileToolDeps.getFs = previous; ipc.dispose(); }
 });
 
+await check('A2, de resourcebibliotheek over de eigen handle in de browser (Bestand → Bibliotheek en de export met de resourcebibliotheek): onbekend', async () => {
+  const win = window as unknown as Record<string, unknown>, answers: FakeHandle[] = [];
+  win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+  win.showSaveFilePicker = async () => answers.shift()!;
+  const own = newHandle(plainBytes()), other = newHandle(new Uint8Array());
+  const text = (handle: FakeHandle) => new TextDecoder().decode(handleFiles.get(handle.name)!);
+  try {
+    const { store } = await openAt(handleRef(own), plainBytes());
+    const companyId = store.getState().seedDemoLibrary();
+    store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(known(store), onHandle(own));
+    assert.equal(text(own).includes('IFCTASK('), true, 'eerst staat de planning op de eigen handle');
+    answers.push(own);
+    await store.getState().exportLibrary(companyId);
+    assert.equal(answers.length, 0, 'de kiezer gaf de eigen handle');
+    assert.equal(text(own).includes('IFCTASK('), false, 'nu staat de bibliotheek, zonder taken, op de eigen handle');
+    assert.deepEqual(known(store), null, 'Bestand → Bibliotheek');
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(known(store), onHandle(own));
+    answers.push(other, own);
+    const pooled = await store.getState().exportProjectWithPool();
+    assert(pooled.ok && !pooled.cancelled);
+    assert.equal(answers.length, 0, 'twee kiezers: het projectbestand en de bibliotheek');
+    assert.equal(text(other).includes('IFCTASK('), true, 'het projectbestand staat op de andere handle');
+    assert.equal(text(own).includes('IFCTASK('), false, 'de bibliotheek staat op de eigen handle');
+    assert.deepEqual(known(store), null, 'export met de resourcebibliotheek');
+    assert.deepEqual(errors(store), []);
+  } finally { delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
+});
+
+await check('openen: gaat de flag uit tussen het lezen van de bytes en het activeren, dan onbekend', async () => {
+  const ipc = desktop(), path = fileAt('open-flag-wissel.ifc', plainBytes());
+  try {
+    const { createAppStoreContext } = await loadStore(), { store } = createAppStoreContext();
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    let waited = false;
+    await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: plainBytes(), ref: { kind: 'path', path } }, undefined, {
+      waitWhile: () => {
+        if (waited) return false;
+        waited = true;
+        store.setState(s => { s.ui.featureFlags = {}; });
+        return true;
+      },
+    });
+    assert.equal(waited, true);
+    assert.equal(store.getState().filePath, path);
+    assert.deepEqual(known(store), null);
+  } finally { ipc.dispose(); }
+});
+
 await check('met de flag uit: geen hash in verzoek of antwoord van de worker, het veld blijft onbekend, de bytes zoals main ze schrijft', async () => {
   const sw = saveWorker(), ipc = desktop(), own = fileAt('flag-uit.ifc', plainBytes());
   try {
@@ -591,17 +649,34 @@ await check('de flag gaat midden in de sessie aan: onbekend tot de eerste opslag
   } finally { ipc.dispose(); }
 });
 
-await check('een mislukte of geweigerde opslag laat het veld staan; het beschrijft dan nog de laatste eigen schrijfactie', async () => {
+await check('een mislukte schrijfactie naar het eigen pad maakt het veld onbekend; een geweigerde opslag laat het staan', async () => {
   const ipc = desktop(), own = fileAt('mislukt.ifc', plainBytes());
   try {
     const { store } = await openAt({ kind: 'path', path: own }, plainBytes());
-    const opened = known(store);
+    assert.deepEqual(known(store), onDisk(own));
     edit(store);
     ipc.faults.writeErrorAfter = 0;
     try { assert.equal(await quietly(() => ctrlS(store)), false); } finally { ipc.faults.writeErrorAfter = null; }
     assert.deepEqual(errors(store), ['notifications.saveFailed']);
-    assert.deepEqual(known(store), opened);
-    assert.deepEqual(onDisk(own), opened, 'het bestand is niet veranderd');
+    assert.deepEqual(onDisk(own), print(plainBytes()), 'via het halffabricaat bleef het bestand heel');
+    assert.deepEqual(known(store), null, 'Ctrl+S: na een mislukte schrijfactie weet de app niet wat er staat');
+    assert.equal(await ctrlS(store), true);
+    assert.deepEqual(known(store), onDisk(own));
+    store.getState().setAutoSaveToFile(true);
+    edit(store);
+    ipc.faults.writeErrorAfter = 0;
+    try { await quietly(() => createFileAutoSaveController({ getState: store.getState, enabled: () => true }).flush()); }
+    finally { ipc.faults.writeErrorAfter = null; }
+    assert.equal(store.getState().isDirty, true, 'de ronde schreef niet');
+    assert.deepEqual(known(store), null, 'Automatisch opslaan');
+    const real = fileAt('mislukt-echt.ifc', plainBytes()), link = join(dir, 'mislukt-link.ifc');
+    symlinkSync(real, link);
+    const { store: linked } = await openAt({ kind: 'path', path: link }, plainBytes());
+    assert.deepEqual(known(linked), onDisk(link));
+    edit(linked);
+    ipc.faults.directWriteError = 'proef: de directe schrijfactie op het gelinkte doel mislukt';
+    try { assert.equal(await quietly(() => ctrlS(linked)), false); } finally { ipc.faults.directWriteError = null; }
+    assert.deepEqual(known(linked), null, 'een gelinkt doel wordt direct geschreven');
   } finally { ipc.dispose(); }
   const handle = newHandle(modelBytes);
   const { store } = await openAt(handleRef(handle), modelBytes);

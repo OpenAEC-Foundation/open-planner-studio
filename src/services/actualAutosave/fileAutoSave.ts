@@ -394,8 +394,9 @@ export function createFileAutoSaveController(deps: {
       getState().markAutoSaveVersionSaved(document, current, undefined, fingerprint);
       return true;
     }, () => 'refused'),
-    onFailure: (_candidate, error) => {
+    onFailure: (candidate, error) => {
       console.error('Werkelijke AutoSave mislukt:', error);
+      if (candidate.ref?.kind === 'path') getState().forgetKnownTargetFingerprint(candidate.id);
       // #804 stap 6: de opslagworker stierf of verliep; niets geschreven, dezelfde melding als bij Ctrl+S.
       if (error instanceof IfcSaveWorkerError) {
         getState().notify(IFC_SAVE_WORKER_FAILED_NOTICE);
