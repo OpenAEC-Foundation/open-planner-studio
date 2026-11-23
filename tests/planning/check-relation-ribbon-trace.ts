@@ -80,17 +80,32 @@ ok('berekend zonder driving: gewone rollen, geen terugval naar sterke nadruk',
     && classifyTraceTask(calculatedEmpty, 'd') === 'successor');
 
 ok('zonder selectie zijn koppelen en extern toevoegen concreet niet beschikbaar', (() => {
-  const availability = relationActionAvailability(0, 0);
+  const availability = relationActionAvailability(0, 0, true, true, true);
   return !availability.linkSelected && !availability.addExternal && !availability.refreshExternal;
 })());
 ok('één selectie opent alleen de externe route', (() => {
-  const availability = relationActionAvailability(1, 0);
+  const availability = relationActionAvailability(1, 0, true, true, true);
   return !availability.linkSelected && availability.addExternal && !availability.refreshExternal;
 })());
 ok('twee selecties koppelen en bestaande externe links laten verversen', (() => {
-  const availability = relationActionAvailability(2, 1);
+  const availability = relationActionAvailability(2, 1, true, true, true);
   return availability.linkSelected && !availability.addExternal && availability.refreshExternal;
 })());
+// Issue #1000: koppelen werkt voor elke selectie van twee of meer taken (als keten), toewijzen
+// (voorgangers/opvolgers kiezen in het paneel, zoals in Primavera) voor precies één taak.
+ok('drie selecties koppelen als keten', relationActionAvailability(3, 0, true, true, true).linkSelected);
+ok('toewijzen alleen bij precies één taak', !relationActionAvailability(0, 0, true, true, true).assign
+  && relationActionAvailability(1, 0, true, true, true).assign && !relationActionAvailability(2, 0, true, true, true).assign);
+// Review #1004: zonder takenlijst in beeld (volledig resourcepaneel) koppelt en wijst het lint niets
+// toe: de selectie is dan onzichtbaar, en het eigenschappenpaneel staat er niet.
+ok('zonder takenlijst in beeld geen koppelen of toewijzen', (() => {
+  const availability = relationActionAvailability(3, 0, false, true, true);
+  const single = relationActionAvailability(1, 0, false, true, true);
+  return !availability.linkSelected && !single.assign && single.addExternal;
+})());
+// Review #1004, ronde 2: staat een gekozen taak niet in beeld (filter), dan koppelt het lint niet.
+ok('een verborgen geselecteerde taak zet koppelen uit', !relationActionAvailability(3, 0, true, false, true).linkSelected);
+ok('een volgorde die niet vastligt zet koppelen uit', !relationActionAvailability(3, 0, true, true, false).linkSelected);
 
 const beforeUi = useAppStore.getState();
 const selectionBefore = [...beforeUi.selectedTaskIds];
@@ -125,7 +140,10 @@ for (const action of ['draw', 'linkSelected', 'addExternal', 'refreshExternal'])
   ok(`relatiedropdown bevat actie ${action}`, new RegExp(`key:\\s*['\"]${action}['\"]`).test(widgets));
 }
 ok('geselecteerde taken koppelen gebruikt de bewaakte gedeelde actie',
-  /createRelationWithFeedback\(selectedTaskIds\[0\],\s*selectedTaskIds\[1\],\s*'FINISH_START'\)/.test(widgets));
+  /linkTasksInChain\(selectedTaskIds\)/.test(widgets));
+// Issue #1000: toewijzen in het lint gaat door dezelfde ingang als het rechtsklikmenu.
+ok('voorgangers en opvolgers toewijzen gebruikt de gedeelde ingang',
+  /requestRelationAssign\(selectedTaskIds\[0\],\s*direction\)/.test(widgets));
 ok('externe relatie opent de bestaande ExternalLinkDialog voor één taak',
   /<ExternalLinkDialog[\s\S]*taskId=\{externalTaskId\}/.test(widgets));
 ok('alle externe relaties vernieuwen gebruikt de bestaande refreshroute',

@@ -96,7 +96,7 @@ export function userFileTempPath(path: string, id: string = userFileHelperId()):
   return `${userFileDir(path)}save-${id}${USER_FILE_TMP_SUFFIX}`;
 }
 
-/** Een vers id voor de eigen hulpnamen (`save-<id>.ops-save.tmp`, `<naam>.ops-vorige-<id>`): kleine letters en cijfers,
+/** Een vers id voor de eigen hulpnamen (`save-<id>.ops-save.tmp`, `save-<id>.ops-vorige-<id>`): kleine letters en cijfers,
  *  zoals `place_file.rs` (`is_helper_id`) het eist. */
 export function userFileHelperId(): string {
   return generateId();
