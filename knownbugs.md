@@ -3497,8 +3497,10 @@ en noem het in je rapport of PR-tekst.
      (bijvoorbeeld baselines) niet meer, zodat het verlies blijvend wordt. Gezien in de code. — S
 2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
      opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
-     fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
-     gewone leesfout (`forbidden path`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf toestaat.
+     fs-scope. De grens is dus de bestaande scope: een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een
+     netwerkschijf, geeft de gewone leesfout (`forbidden path`), tenzij dat bestand al in de scope staat (eerder gekozen
+     of gesleept, bewaard door `persisted-scope`). Via Bestand → Openen lukt het wel, omdat de kiezer het pad zelf
+     toestaat.
      Blijft zo na 1131 punt 7 (besluit van de eigenaar, 23 november 2026: "opslaan buiten de thuismap vraagt nooit"):
      die geeft alleen de twee hulpnamen van de vervanging vrij, geen gekozen of meegegeven pad. Richting: een eigen
      keuze voor startbestanden. — B (code: plugin-fs toetst elk pad tegen de scope)
