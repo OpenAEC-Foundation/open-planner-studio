@@ -642,6 +642,27 @@ test('de drie instellingen-ingangen delen groepen, zoeken en verborgen, bewaarde
       expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.filter(n => n.refusal))).toEqual([]);
     }
     expect(await page.evaluate(() => JSON.stringify(window.__OPS__!.store.getState().tasks))).toBe(before.tasks);
+    if (fixture.path.endsWith('bonsai-4d.ifc')) {
+      await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showPropertiesPanel: true, rightPanelCollapsed: false }));
+      const nameCell = (name: string) => page.locator(
+        '[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-cell="true"][data-grid-column-id="task.name"]', { hasText: name });
+      const taskId = (name: string) => page.evaluate(n => window.__OPS__!.store.getState().tasks.find(t => t.name === n)!.id, name);
+      const linksNotice = page.locator('[data-ops-task-element-links]');
+      for (const [name, elements] of [['Wand A bouwen', 1], ['Ruwbouw', 0]] as const) {
+        await expect(nameCell(name), `${name} staat in de taaktabel`).toBeVisible();
+        await nameCell(name).click();
+        const id = await taskId(name);
+        await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeTaskId), `${name} is de actieve taak`).toBe(id);
+        if (elements === 0) {
+          await expect(linksNotice, `${name}: geen koppeling, geen blok`).toHaveCount(0);
+        } else {
+          await expect(linksNotice, `${name}: één wand, als invoer en als uitvoer`)
+            .toHaveText(/^(Gekoppeld aan 1 bouwdeel|Linked to 1 building element)$/);
+          await expect(linksNotice).toHaveAttribute('data-ops-task-element-links', String(elements));
+          await expect(linksNotice).toHaveAttribute('data-ops-task-element-links-not-found', '0');
+        }
+      }
+    }
     if (!fixture.foreign) {
       // #804 stap 6: een gewoon bestand rekent ook in de opslagworker van de app. Een echte bewerking, Ctrl+S; de statusbalk
       // toont "Opslaan…" en "Opgeslagen <tijd>", het antwoord van de worker is een writerantwoord, en het bestand achter de

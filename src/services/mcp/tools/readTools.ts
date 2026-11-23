@@ -53,6 +53,7 @@ import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { effectiveSchedulingOptions, resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { elementLinkCounts, taskElementLinks } from '@/state/taskElementLinks';
 
 /** De leesbare onderbrekingen van één taak (zie `splitFields.ts`). Leeg object bij een
  *  taak zonder onderbrekingen, zodat de detailrespons van gewone taken ongewijzigd blijft. */
@@ -660,7 +661,13 @@ function getTask(s: AppState, args: GetTaskArgs) {
       const inherited = inheritedExternalLinkViews(task, taskById);
       return inherited.length > 0 ? { inheritedExternalLinks: inherited } : {};
     })(),
+    ...elementLinkFields(s, task.id),
   };
+}
+
+function elementLinkFields(s: AppState, taskId: string) {
+  const links = taskElementLinks(s, taskId);
+  return links && links.length > 0 ? { elementLinks: { ...elementLinkCounts(links), links } } : {};
 }
 
 // ── 5. planner_get_critical_path ─────────────────────────────────────────────────────────────────
@@ -1201,7 +1208,10 @@ export const readTools: McpToolDef[] = [
       '`sourceMissing: true` = source task not found, the link keeps its anchor. Refresh with ' +
       'planner_refresh_external_links. A link on a summary task (phase) applies to every task in it ' +
       '(`inheritedExternalLinks`, with `fromTaskId`). `calendar.effectiveId` is written as `calendarId` (unless ' +
-      '`calendar.isProjectDefault`). Not errors: NEGATIVE `totalFloat` puts late dates before early ones; a ' +
+      '`calendar.isProjectDefault`). `elementLinks` (only for an IFC file with a building model, read-only): ' +
+      '`elements` = building elements linked to the task, `notFound` = how many of them are not in the file, `links` = ' +
+      'each link with `direction` (`input` from IfcRelAssignsToProcess, `output` from IfcRelAssignsToProduct), ' +
+      '`target` (GlobalId, or `#<id>` when not found) and `found`. Not errors: NEGATIVE `totalFloat` puts late dates before early ones; a ' +
       'completed task with `actualFinish` in non-working time ends on the previous working day ' +
       '(`progress.actualFinishAdjusted`).',
     kind: 'read',

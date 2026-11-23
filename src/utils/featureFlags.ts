@@ -66,6 +66,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcUnreadableTargetExport',
       'common:notifications.ifcUnreadableTargetSave',
       'menu:projectInfo.ifcSchema.foreignLocked',
+      'task:properties.elementLinks.*',
     ],
   },
 ];
