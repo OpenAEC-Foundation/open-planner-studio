@@ -618,8 +618,8 @@ en noem het in je rapport of PR-tekst.
      In de code gezien. — B
 1982. **De zoekgrens van de nivelleerder volgt de taakduren, niet de lengte van een periode zonder capaciteit; een
      taak kan `NO_WINDOW_IN_HORIZON` krijgen terwijl er verderop wel een venster is.** `levelResources`
-     (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de som van de `scheduleDuration` van alle taken plus
-     een marge (`Math.max(totalWork + 10, 30)`), geteld in kandidaatstappen. Ligt het eerste vrije venster na een
+     (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de som van de `scheduleDuration` van de taken in `tasks`,
+     mijlpalen niet meegeteld, plus een marge (`Math.max(totalWork + 10, 30)`), geteld in kandidaatstappen. Ligt het eerste vrije venster na een
      lange periode zonder capaciteit, dan stopt de scan eerder. Proef van de reviewer (GPT-6.2-Sol, review van #1160):
      een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
      paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
@@ -633,14 +633,21 @@ en noem het in je rapport of PR-tekst.
      met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
      resource overbezet (issue #1161). — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
-     (`src/engine/scheduler/ResourceLeveler.ts`) kiest `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster
-     ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
+     (`src/engine/scheduler/ResourceLeveler.ts`) kiest, na `INTRINSIC_OVERRUN`, `CEILING_UNREACHABLE` zodra de eerste
+     kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
      als geen van de gescande kandidaten op de kalender paste, vóór de uitgeputte zoekgrens. Proeven van de reviewer
      (GPT-6.2-Sol, review van #1160): via `computeDistribution` boekte een gepind document de kraan op 3 augustus vol,
      en een tweede document had een taak met een deadline op 1 juni. Met een plafond van 5 dagen kwam
      `CEILING_UNREACHABLE`, terwijl alleen het poolgrootboek die kandidaat afwees; met 60 dagen schoof de taak één
      werkdag en verdween het tekort. Een resourcekalender die op 20 juli weer opengaat, gaf bij een scan vanaf 1 juni
      `CALENDAR_MISMATCH`, terwijl dezelfde taak op 20 juli paste. Zie ook 1982. — B
+1986. **Vaste last buiten de scope van het nivelleren kan na toepassen op een andere dag liggen dan waar ze geboekt
+     is, met een nieuwe overbezetting die het voorstel niet meldt.** `levelResources`
+     (`src/engine/scheduler/ResourceLeveler.ts`) boekt een taak buiten de scope op haar start in de basis, terwijl de
+     proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
+     van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
+     de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
+     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel. — B
 
 ## Tabel, invoer en bediening
 
@@ -4753,12 +4760,16 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
-1990. **De check van de opslagworker faalde één keer in CI.** In `tests/planning/check-save-worker.ts`, het blok
+1990. **De check van de opslagworker faalde twee keer in CI, in PR's die de opslagworker niet raken.** In `tests/planning/check-save-worker.ts`, het blok
       "knownbug 1936: een latere startfout", faalde de stap "na een verlopen verzoek, dan load-fails: de merge daarna"
       met `IfcSaveWorkerError` waar de check een andere uitkomst verwachtte. Alleen in de tijdzonerun TZ UTC; de andere
       vier runs van dezelfde check in dezelfde job waren groen, en de PR raakte de opslagworker niet (#1158: alleen
       commentaar uit `taskSlice.ts`).
-      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45179505349/job/137709575181. De
+      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45179505349/job/137709575181.
+      Een tweede keer op #1160 (alleen commentaar uit `ResourceLeveler.ts`), in hetzelfde blok, de stap "na een
+      afgebroken ronde, dan throws: de merge daarna", met `IfcSaveWorkerError: De opslagworker startte niet op tijd`,
+      alleen in de tijdzonerun TZ Pacific/Midway.
+      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45184831754/job/137727836776. De
       oorzaak is niet uitgezocht. — S
 
 ## Wensen en open taken (geen bug)

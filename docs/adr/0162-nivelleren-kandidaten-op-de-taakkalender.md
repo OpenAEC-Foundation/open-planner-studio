@@ -28,6 +28,6 @@ dan kunnen de getoetste kandidaat en de toegepaste start uiteenlopen (knownbug 1
   staan in knownbug 370).
 - Een kandidaat met een lege dagenset telt niet als passend, omdat er dan niets te boeken valt; een korte
   kalendertijdtaak kan helemaal in een weekend vallen (`check-leveler-splits.ts`, geval 10).
-- `delays` draagt de vertraging daarnaast in hele werkdagen; *Nivellering toepassen* schrijft allebei
-  (`writeLevelingResult`, ADR 0017). De takken voor een kalender zonder werkblokken zijn niet meer bereikbaar
-  (knownbug 507).
+- `delays` draagt de vertraging daarnaast in hele dagen (bij kalendertijd kalenderdagen); *Nivellering toepassen*
+  schrijft allebei (`writeLevelingResult`, ADR 0017). De takken voor een kalender zonder werkblokken zijn niet meer
+  bereikbaar (knownbug 507).
