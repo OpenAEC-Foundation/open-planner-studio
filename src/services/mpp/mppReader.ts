@@ -1289,16 +1289,6 @@ export function deriveTimephasedContoursForTasks(
 //      vlakke `blockCount===0`-samenvattingsrecord telt NIET) ⇒ `timephasedFinishFloor`/
 //      `timephasedStartAnchor`: MSP's eigen `AssignmentField.FINISH`/`START` rechtstreeks gelezen
 //      (geen kalenderwandeling; 0 afwijkingen op de contour-taken in het corpus).
-//   4. Vlak, MAAR de toewijzing draagt een resourcekalender die afwijkt van de effectieve
-//      taakkalender (banden of gematerialiseerde uitzonderingen, `calendarDiffersIncludingExceptions`)
-//      ⇒ `timephasedDurationWalks`: verse herberekening. De finalisatielus van
-//      `deriveTimephasedWindowsForTasks` beschrijft de enkele en meervoudige toewijzing. Let op:
-//      de >1-tak wandelt een BEVROREN werktijd uit de import (`workMinutes`); daarom wissen
-//      `updateTask`/`updateTaskFields`/`patchTaskFields` (`taskDefaults.ts`) en elke duurwijziging uit
-//      de werkregelbrug (`settleDurationAftermath`) de lijst (`clearTimephasedDurationWalks`, gepoort
-//      op `timephasedDurationWalksHaveFrozenWork`) en valt de taak terug op punt 5 tot een volgende
-//      import. Zo volgt de walk het taaktype: verandert de regel de duur, dan vervalt hij; houdt de
-//      regel de duur vast (vaste duur), dan blijft de werktijd van de toewijzing ook juist.
 //   5. Anders ⇒ geen van beide velden, de gewone duurberekening.
 // Lagen 3 en 4 zijn MUTUEEL EXCLUSIEF per taak; lagen 1/2 zetten geen laag-3-veld, dus de
 // VOLTOOID-/IN-PROGRESS-takken van `CPMSolver.ts` hoeven dat niet te raadplegen.
@@ -1363,9 +1353,6 @@ function roundToMspDurationResolution(minutes: number): number {
   return Math.round(minutes * 10) / 10;
 }
 
-/** Decodeer totaalwerk (actual + remaining), niet werktijd; zie de laag-4-finalisatie voor werk ÷ inzet.
- *  De fallback voor de vlakke remaining-decoder gebruikt `taskStart + 1 min` als het eindanker ontbreekt.
- *  Geen gedecodeerd werk ⇒ `null`; de aanroeper kiest dan geen gedeeltelijke wandeling. */
 export function decodeAssignmentWorkMinutes(
   raw: AssignmentTimephasedRaw, taskStart: Date, assignmentFinish: Date | null,
 ): number | null {

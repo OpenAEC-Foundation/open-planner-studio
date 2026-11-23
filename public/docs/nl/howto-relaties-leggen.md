@@ -18,15 +18,15 @@ Twijfel je welk type je nodig hebt? Onder de keuze van het type staat een zin me
 
 Er zijn vier manieren om een relatie te leggen. Ze maken dezelfde relatie; kies wat het handigst is voor je situatie.
 
-### Twee geselecteerde taken koppelen
+### Geselecteerde taken koppelen
 
-Handig als je in de takenlijst werkt.
+Handig als je in de takenlijst werkt, of een reeks taken in één keer achter elkaar wilt zetten.
 
-1. Klik in de takenlijst op de taak die eerst moet: de voorganger.
-2. Houd Ctrl (op een Mac ⌘) ingedrukt en klik op de taak die daarna komt: de opvolger.
-3. Kies *Start › Taken › Relatie ▾ › Geselecteerde taken koppelen*. Dezelfde knop staat ook op *Planning › Relaties*.
+1. Zet de taken in de takenlijst in de volgorde van de keten: de voorganger boven de opvolger.
+2. Klik op de eerste taak, houd Ctrl (op een Mac ⌘) ingedrukt en klik op de andere taken. Taken die onder elkaar staan, selecteer je ook met Shift.
+3. Druk op Ctrl+F2 (op een Mac ⌘+F2), of kies *Start › Taken › Relatie ▾ › Geselecteerde taken koppelen*. Dezelfde knop staat ook op *Planning › Relaties*.
 
-De app legt een Eind-Start-relatie zonder lag. Je ziet hem als pijl in de Gantt en in de kolom *Voorgangers*; een melding komt er alleen als de app de relatie weigert. De knop werkt alleen met precies twee geselecteerde taken.
+De app legt tussen elke taak en de volgende een Eind-Start-relatie zonder lag, in de volgorde van de lijst op je scherm: de bovenste wordt voorganger van de volgende, die van de daaropvolgende, enzovoort. De volgorde waarin je klikt telt niet. Je ziet ze als pijlen in de Gantt en in de kolom *Voorgangers*; een melding komt er alleen als de app een relatie weigert. Bestaat een van de relaties al, dan meldt de app dat en komen de andere er wel bij. Eén keer *Ongedaan* haalt ze allemaal weg. De knop werkt vanaf twee geselecteerde taken.
 
 ### Een relatie tekenen in de Gantt
 
@@ -44,8 +44,8 @@ Druk je in het venster *Type relatie* op Esc, dan wordt er niets vastgelegd. Voo
 
 Handig als je één taak bekijkt en de voorgangers of opvolgers ervan wilt aanvullen.
 
-1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
-2. Klik in het blok *Afhankelijkheden* op *Relatie toevoegen*.
+1. Klik met de rechtermuisknop op de taak, in de takenlijst of op haar balk, en kies *Voorgangers toewijzen…* of *Opvolgers toewijzen…*. Dezelfde twee staan in *Start › Taken › Relatie ▾* als er één taak geselecteerd is. Het paneel *Eigenschappen* gaat open, het blok *Afhankelijkheden* schuift in beeld en de richting staat al goed. Ga verder bij stap 4.
+2. Of: selecteer de taak en klik in het blok *Afhankelijkheden* van het paneel *Eigenschappen* op *Relatie toevoegen*. Zie je het paneel niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
 3. Laat de richting op *Voorganger* staan als de andere taak eerst komt, of kies *Opvolger*.
 4. Typ een deel van de naam van de andere taak. Kies de juiste met de pijltjestoetsen en Enter, of klik erop.
 5. Kies het type (standaard FS) en vul zo nodig een lag in.
@@ -87,7 +87,7 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd �
 
 ## Valkuilen en wat de app dan doet
 
-**Omgekeerde volgorde.** Bij *Geselecteerde taken koppelen* telt de volgorde waarin je klikt, niet die in de lijst. Klik je eerst de latere taak aan, dan staat de relatie verkeerd om. Verwijder hem in *Afhankelijkheden* met het prullenbakje en leg hem opnieuw.
+**De keten volgt de lijst.** *Geselecteerde taken koppelen* koppelt van boven naar beneden zoals de lijst nu staat, ook als je hem sorteert of groepeert. Moet een latere taak juist voorganger worden, sorteer dan anders, of kies *Voorgangers toewijzen…* of *Opvolgers toewijzen…* in het rechtermuismenu. Bij groeperen op resource staat een taak in elke ploeg. Staat een gekozen taak zo zowel boven als onder een andere gekozen taak, dan ligt de volgorde niet vast en koppelt de app niets; je krijgt dan een melding. Hetzelfde geldt voor twee gekozen mijlpalen in één ingeklapte mijlpalenreeks: klap de reeks dan eerst uit.
 
 **Typen in de kolom wist wat er stond.** Staat in de cel `3.4 FS; 3.2 FS` en typ je alleen `3.2 FS`, dan is de relatie met 3.4 weg, zonder melding. Typ alle voorgangers mee, gebruik Enter of F2 om aan te vullen, of zet het terug met Ctrl+Z.
 
