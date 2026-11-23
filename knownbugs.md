@@ -665,6 +665,28 @@ en noem het in je rapport of PR-tekst.
      taak van 4 werkdagen op 50 %, restwerk op 24 u gezet (16 u verricht, 24 u rest); daarna voortgang naar 0 % gaf
      0 u verricht en 48 u rest, ook na herlezen van de geschreven IFC. — B
 
+2001. **Een tijdpatch laat `progressBeforeRecalculation` vallen.** `mergeTaskTime` (`src/utils/taskDefaults.ts`) somt
+     de velden op die het samenvoegt, en `progressBeforeRecalculation` staat er niet bij. Een script gaf voor een basis
+     met dat veld geen `progressBeforeRecalculation` terug, met een patch `{ completion: 0.6 }` en ook met een patch die
+     het veld zelf meestuurt. `taskSlice.updateTask` en `draft.updateTaskFields` (`createMcpTransactions.ts`) zetten bij
+     een tijdpatch de samengevoegde tijd (`mergeTaskUpdate`); Taak bewerken zet het veld met
+     `rememberProgressBeforeRecalculation` op de tijd die het aan `updateTask` geeft (`state/taskDialogSave.ts`). De
+     voortgangsroute van het eigenschappenpaneel (`commitProgressEdit` in `taskSlice.ts`) en `draft.patchTaskFields`
+     gebruiken `mergeTaskTime` niet. Een proef via de schrijffuncties liet de basis verdwijnen via de opslag van Taak
+     bewerken en via `draft.updateTaskFields` met een tijdpatch, en staan via het paneel en via `draft.patchTaskFields`
+     met een patch die duur en kalender niet verandert (een andere `calendarId` wist het daar met
+     `invalidateForTimeBaseChange`, punt 2002). Wat dat in de planning doet, is niet nagespeeld. — B
+
+2002. **Een kalenderwissel van een urentaak wist de bevroren kalenderwandelingen via de ene route wel en via de andere
+     niet.** `taskSlice.updateTask`, `draft.updateTaskFields` en `draft.patchTaskFields` (`createMcpTransactions.ts`)
+     roepen bij een andere `calendarId` `invalidateForTimeBaseChange` aan, dat `timephasedDurationWalks` met
+     `workMinutes` en `progressBeforeRecalculation` wist. `setTaskCalendar` roept zelf `clearTimephasedWindow` en
+     `clearLevelingGaps` aan, en `settleCalendarChange` keert voor een urentaak terug zonder iets te wissen. Een proef
+     via de schrijffuncties op een urentaak met bevroren wandelingen: `setTaskCalendar` hield de wandelingen en de
+     voortgangsbasis en wiste de nivelleergaten; de drie andere routes wisten wandelingen en voortgangsbasis. Bij een
+     dagtaak waarvan de werkdriehoek de duur verandert, bereikt `setTaskCalendar` via `settleDurationAftermath` wel
+     `invalidateForTimeBaseChange`; dat is niet nagespeeld. — B
+
 2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
      `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
      alleen een lokale resource raakt en `afterLoadByDay` alle boekingen op het gekozen poolitem bevat.
