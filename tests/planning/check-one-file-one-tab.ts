@@ -700,9 +700,9 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     }
 
     // #1116/#1091: een startbestand (eerste start, of een tweede start: de planner dubbelklikt op een bestand dat al open
-    // staat) loopt door `openLaunchFiles` met zijn eigen toets en `existingDocument`, zoals main. Met de flag aan geeft de
-    // wissel de melding en werkt hij Recent bij, ook voor een tabblad dat pas tijdens het wachten opengaat. Met de flag
-    // uit zoals main: de startroute wisselt, zonder melding.
+    // staat) loopt door `openLaunchFiles` met de toets van main, met en zonder flag. Met de flag aan geeft de wissel de
+    // melding en werkt hij Recent bij, ook voor een tabblad dat pas tijdens het wachten opengaat. Met de flag uit zoals
+    // main: de startroute wisselt, zonder melding.
     {
       const { openLaunchFiles } = await import('@/state/launchFiles');
       // Zoals de desktop-hook (`useLaunchFiles`): met de bestandsidentiteit.
@@ -783,6 +783,29 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           T().filePath, T().project.name, T().isDirty, reads,
         ], [kantoor, 'Kantoor', false, 2]);
         writeFileSync(school, schoolIfc);
+      }
+      // Review #1121 ronde 3 (VERVOLG): de flag gaat uit terwijl het bestand geparst wordt. De keuze ligt één keer per
+      // openactie vast, bij het begin: een startlink en Openen naar een open bestand gaan toch naar dat tabblad, met de
+      // melding, omdat de flag bij het begin aan stond.
+      {
+        const ifcFormat = allReadFormats().find(f => f.extensions.includes('ifc'))!;
+        const parse = ifcFormat.read;
+        for (const route of ['startlink', 'openen'] as const) {
+          const { st, T, first } = await launchCase(true);
+          clearNotices(st);
+          ifcFormat.read = async (input, l, o) => {
+            st.setState(s => { s.ui.featureFlags = {}; });
+            return parse(input, l, o);
+          };
+          try {
+            if (route === 'startlink') await openLaunchFiles(st, [link], io, labels, () => false, launchOptions(st));
+            else await openVia(st, 'openen');
+          } finally { ifcFormat.read = parse; }
+          eq(`B10 flag uit tijdens het parsen, ${route}: naar het open tabblad, geen tweede`, [
+            T().activeDocumentId, T().documents.length, ifcForeignContentEnabled(T().ui.featureFlags),
+            notices(st).filter(n => n[1] === ALREADY_OPEN).length,
+          ], [first, 2, false, 1]);
+        }
       }
       {
         const { st, T, first, before } = await launchCase(false);
