@@ -4727,6 +4727,16 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
+1990. **De check van de opslagworker faalt af en toe in CI op een stap die van de klok afhangt.** In
+      `tests/planning/check-save-worker.ts`, het blok "knownbug 1936: een latere startfout", faalde de stap "na een
+      verlopen verzoek, dan load-fails: de merge daarna" met `IfcSaveWorkerError` waar de check een andere uitkomst
+      verwachtte. Het gebeurde in één van de vijf tijdzoneruns (TZ UTC); de andere vier runs van dezelfde check in
+      dezelfde job waren groen, en de PR raakte de opslagworker niet (#1158: alleen commentaar uit `taskSlice.ts`). De
+      stap laat eerst een verzoek verlopen (een grens van 40 ms) en verwacht daarna een startfout, dus de volgorde
+      hangt aan een tijdgrens.
+      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45179505349/job/137709575181. Eén
+      keer gezien; de oorzaak is niet uitgezocht. Richting: de tijdgrens in de check injecteren in plaats van op de
+      echte klok te wachten. — S
 
 ## Wensen en open taken (geen bug)
 
