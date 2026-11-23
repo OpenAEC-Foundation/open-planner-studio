@@ -492,11 +492,6 @@ en noem het in je rapport of PR-tekst.
      opent dan een derde verbinding (review #858, ronde 2, nagebootst). Geen dataverlies of gewoon optreden
      aangetoond. Voorstel: alleen verwijderen als de cache nog naar deze aanvraag wijst, zoals `openDbStores` al
      doet. — B
-991. **VERVOLG: de gedeeltelijke herkeuze van bronbestanden heeft geen test van de gebruikersroute.** De planning-check
-     test alleen `remainingUnreadSources`; het browserscenario kiest de enige bron zonder pad opnieuw. Niet getoetst:
-     twee bronnen zonder pad, alleen A kiezen ⇒ B blijft geteld en *Bronbestanden kiezen…* blijft; daarna B kiezen
-     ⇒ de knop verdwijnt (review #858, ronde 2). Voorstel: het bestaande browserblok in
-     `tests/browser/external-source-update.spec.ts` zo uitbreiden. — B
 992. **VERVOLG: de balk op de site kan een versie noemen die de app niet las.** In de controle op nieuwe versies
      (`fileSlice.ts`, rond regel 782) krijgt de balk op de site de versie uit `versions(id)`, ook als `open(id)` een
      oudere versie met een ander anker gaf. *Later* zet dan die nieuwere versie op afgehandeld, en de volgende

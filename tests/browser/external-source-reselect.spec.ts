@@ -61,6 +61,6 @@ test('bronbestanden één voor één kiezen laat de andere bron geteld en sluit 
   await chooseOne('Installateur-B.ifc', ifcB);
   await expect(choose).toHaveCount(0);
   await expect(status).toContainText('1 anchor(s) refreshed');
-  await expect(status).not.toContainText('source not read');
+  await expect(status).not.toContainText(/\bsources? not read\b/);
   expect(await anchors()).toEqual(['2027-03-23T16:00', '2027-03-05T16:00']);
 });
