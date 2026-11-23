@@ -303,7 +303,7 @@ export function dayslotLoad(
 
 /** Belasting per werkdag van één toewijzing: op de plaatsing van haar taak (`placed`, één keer per
  *  taak berekend), of in dagmodus op het dagslotcontract. */
-function assignmentDaily(
+export function assignmentDaily(
   task: Task,
   assignment: ResourceAssignment,
   engine: CalendarEngine,

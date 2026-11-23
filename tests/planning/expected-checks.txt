@@ -252,6 +252,7 @@ check-leveler-seam.ts matrix
 check-leveler-splitmode.ts matrix
 check-leveler-splits.ts matrix
 check-leveling-delay-units.ts matrix
+check-leveling-fixed-load.ts matrix
 check-leveling-input.ts los
 check-load-profile.ts matrix
 check-local-time-parsing.ts matrix

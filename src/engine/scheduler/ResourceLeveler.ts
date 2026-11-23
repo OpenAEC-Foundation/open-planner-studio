@@ -50,8 +50,9 @@ import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
+import { applyCpmResult } from './applyCpmResult';
 import {
-  assignmentLoadOnPlacement, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement,
+  assignmentDaily, assignmentLoadOnPlacement, computeResourceLoad, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement,
 } from './ResourceLoad';
 import { hasManualPlacement, placementFollowsSpan, type PlacementResult } from './workPlacement';
 import { createTaskEngineCache } from './taskEngineCache';
@@ -938,6 +939,35 @@ export function levelResources(
   // Bevat óók niet-geresourcete opvolgers die enkel meeschuiven.
   const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
+
+  const movedFixedIds = fixedLoadIds.filter(id => {
+    if (trial.error || inScope(id)) return false;
+    const before = baseline.tasks.get(id);
+    const after = trial.tasks.get(id);
+    return before && after && (before.earlyStart !== after.earlyStart || before.earlyFinish !== after.earlyFinish);
+  });
+  if (movedFixedIds.length > 0) {
+    applyCpmResult(workTasks, trial, { projectCalendar, calendars: resourceCalendars });
+    const { overallocatedDays } = computeResourceLoad(
+      resources, assignments, workTasks, projectCalendar, resourceCalendars, placementOptions,
+    );
+    const overloadedByResource = new Map(Object.entries(overallocatedDays).map(([id, days]) => [id, new Set(days)]));
+    for (const taskId of movedFixedIds) {
+      const task = workById.get(taskId)!;
+      const engine = engineForTask(task);
+      const placement = taskLoadPlacement(task, engine, placementOptions);
+      const days = new Set<string>();
+      for (const assignment of selectedAssignmentsByTask.get(taskId) ?? []) {
+        const overloaded = overloadedByResource.get(assignment.resourceId);
+        if (!overloaded) continue;
+        const demand = assignmentDaily(task, assignment, engine, contourOf(task, assignment), placement);
+        demand.isos.forEach((day, i) => {
+          if (demand.units[i] > 0 && overloaded.has(day)) days.add(day);
+        });
+      }
+      if (days.size > 0) unresolved[taskId] = [...days].sort();
+    }
+  }
 
   const shifts: Record<string, LevelingShift> = {};
   for (const t of tasks) {
