@@ -13,6 +13,7 @@ IFC-bestand blijven staan. De nivelleerder rekent er niet mee.
   via `deriveXerScheduleOptions`) en in `p6xmlScheduleOptions.ts`; de toetsen zijn `check-xer-schedule-options.ts` en
   `check-xer-schedule-options-wiring.ts`. Welke eigen grootheid bij een prioriteitssleutel hoort en hoe een resource-id
   zonder resource wordt gemeld, staat in `src/services/leveling/levelingInput.ts` (`check-leveling-input.ts`).
-- De MSPDI-export meldt het blok als verlies, behalve als het precies de standaard van de P6-dialoog draagt
-  (`isP6DialogDefaultLeveling`, `check-leveling-input.ts`, deel 3). Zo'n blok zegt niets wat een ontvanger zonder
+- De MSPDI-export meldt het blok als verlies, behalve als het precies de standaard van de P6-dialoog draagt. De
+  writer beslist dat in `mspdiWriter.ts` met `isP6DialogDefaultLeveling`; `check-leveling-input.ts`, deel 3, toetst
+  de herkenning van die standaard. Zo'n blok zegt niets wat een ontvanger zonder
   blok niet al aanneemt, dus een export zonder het blok verliest dan niets.

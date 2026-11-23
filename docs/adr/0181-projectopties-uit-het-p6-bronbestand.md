@@ -23,7 +23,7 @@ keuzes in de lezer die een lezer zonder uitleg zou terugdraaien, en de grens van
   waar is: `sched_retained_logic` leeg of Y, en `sched_progress_override` leeg of N. In elk ander geval zet hij A21
   uit.
 - `startToStartLagFrom` komt uit `SCHEDOPTIONS.sched_lag_early_start_flag`: N geeft `actualStart`; Y, leeg of een
-  onbekende waarde geeft `earlyStart`, de laatste met een melding (`booleanValue`). Bron voor de twee varianten:
+  onbekende waarde geeft `earlyStart`, de laatste bij een XER met een melding (`booleanValue`). Bron voor de twee varianten:
   Oracle P6 Help, *Calculate Start-to-Start lag from* (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm). De
   achterwaartse kant van `actualStart` is niet tegen P6 gemeten (knownbug 1966). Het is een projectoptie en geen conventie, omdat de keuze per bestand verschilt.
 - `criticalDefinition.thresholdHours` bewaart een P6-drempel in bronuren en gaat voor `threshold` als beide gezet

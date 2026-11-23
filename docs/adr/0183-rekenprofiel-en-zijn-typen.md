@@ -27,4 +27,3 @@ gelden de keuzes hieronder, die een lezer zonder uitleg zou terugdraaien.
   (`services/ifc/schedulingProfileMigration.ts`), die het naar een profiel omzet.
 - Of een duur, rest of lag in de dagenmaat telt (conventie `workdayDurationMeasure`), vraag je aan
   `taskCountsInWorkdays` en `lagCountsInWorkdays` in `conventions/durationMeasure.ts`, niet zelf aan `durationUnit`.
-  Hoe kalendertijd en een procentlag daar uitvallen, staat in die twee functies.
