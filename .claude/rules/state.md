@@ -131,4 +131,8 @@ opslagpoging (0073) en de keuzes van de exportroute (0074).
 een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
 (0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
 
+**Besluiten in `utils/taskDefaults.ts`** staan in `docs/adr/`: het ingevoerde einde van een urentaak (0210), de verse
+tijd en de velden van een nieuwe taak (0211), een tijdpatch samenvoegen (0212), een bewerking laat afgeleide sturing
+los (0213), de gevolgen van een duurwijziging (0214) en MSP-herkomst in bewerkregels (0215).
+
 **De WBS-nummering van een geladen bestand** (`Project.wbsAutoNumber`): `docs/adr/0185-wbs-nummering-van-een-geladen-bestand.md`.
