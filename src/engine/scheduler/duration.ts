@@ -1,4 +1,5 @@
 import type { Task, TaskSplitGap, TaskTime } from '@/types/task';
+import type { CalendarEngine } from './CalendarEngine';
 
 /** VOLTOOID zoals `CPMSolver.forwardPass` hem vastpint (tak 1): werkelijk einde én completion 1.
  *  Nivelleerder en resourcebelasting moeten exact dezelfde grens trekken. */
@@ -43,7 +44,7 @@ export function taskDurationUnit(task: Task): 'days' | 'hours' {
  * `succIsFinishMs`/`succIsStartMs`) gebruiken deze ene definitie: een kale `isMilestone`-check
  * verschuift een ELAPSEDTIME-taak met `milestone:true` + reële duur een dag (msp-30/msp-31).
  */
-export function isZeroDurationMilestone(task: Task): boolean {
+export function isZeroDurationMilestone(task: Pick<Task, 'isMilestone' | 'time'>): boolean {
   return task.isMilestone && task.time.scheduleDuration === 0;
 }
 
@@ -319,4 +320,17 @@ export function splitTotalSpanDays(task: Task, eng: DurationCalendar): number {
   const workMinutes = durationMinutesOf(task, eng);
   const extraMinutes = splitTotalSpanMinutes(task.splitGaps, workMinutes) - workMinutes;
   return base + extraMinutes / (eng.hoursPerDay * 60);
+}
+
+/** Het volledige taakvenster vanaf een gegeven start, inclusief de overgebleven splits. */
+export function finishOfTaskDuration(task: Task, eng: CalendarEngine, start: Date, workdays: boolean): Date {
+  if (isZeroDurationMilestone(task)) return new Date(start.getTime());
+  if (isElapsedTask(task)) return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
+  if (workdays) {
+    const days = splitTotalSpanDays(task, eng);
+    return days > 0 ? eng.addMeasuredWorkdays(start, days) : new Date(start.getTime());
+  }
+  const minutes = durationMinutesOf(task, eng);
+  const work = taskDurationUnit(task) === 'hours' ? minutes : Math.round(minutes);
+  return eng.addWorkMinutes(start, splitTotalSpanMinutes(task.splitGaps, work));
 }

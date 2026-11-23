@@ -11,8 +11,9 @@ export interface CloseDocumentDialogActionDependencies {
   pendingId: string;
   getActiveDocumentId: () => string;
   switchDocument: (id: string) => void;
-  /** In de app `closeDocumentAfterSaves`: sluit pas als er geen opslag meer loopt of wacht (#804 stap 3). */
-  closeDocument: (id: string) => void | Promise<void>;
+  /** In de app `closeDocumentAfterSaves`: sluit pas als er geen opslag meer loopt of wacht (#804 stap 3). Met
+   *  `onlyIfClean` alleen een document dat na het afronden van open veldinvoer schoon is; `false` = niet gesloten. */
+  closeDocument: (id: string, options?: { onlyIfClean?: boolean }) => void | boolean | Promise<void | boolean>;
   saveFile: () => Promise<boolean>;
   clearPending: () => void;
   restoreOpenerFocus: () => void;
@@ -28,6 +29,11 @@ export interface CloseDocumentDialogActions {
 /**
  * De drie sluitkeuzes als uitvoerbare productieacties. Alleen een succesvolle Save die de actieve
  * state schoon achterlaat mag sluiten; annuleren of falen sluit wel de dialoog en herstelt focus.
+ * Ook na een geslaagde opslag kijkt het sluiten vlak vóór het feitelijke sluiten nog eens of het document schoon is
+ * (`onlyIfClean`, fixronde 1 en 2 van #1008; de beslissing valt in `closeDocument`, ná het afronden van open veldinvoer):
+ * een bewerking na de broncommit (de opslag loopt dan nog, bijvoorbeeld het wissen van het herstelrecord), ook een
+ * waarde die in een veld getypt is, houdt het tabblad open, zoals een opslag die het document gewijzigd liet. Dit
+ * geldt voor het tabblad en de app (die dezelfde sluitvraag gebruikt). *Niet opslaan* geeft geen `onlyIfClean` mee.
  */
 export function createCloseDocumentDialogActions(
   dependencies: CloseDocumentDialogActionDependencies,
@@ -68,10 +74,7 @@ export function createCloseDocumentDialogActions(
       onSavePendingChange(true);
       try {
         const saved = await saveFile();
-        if (saved) {
-          await closeDocument(pendingId);
-          closed = true;
-        }
+        if (saved) closed = (await closeDocument(pendingId, { onlyIfClean: true })) !== false;
       } catch {
         // `saveFile` vangt normale opslagfouten zelf; ook een onverwachte reject mag geen document
         // sluiten of de bevestiging boven de app laten hangen.

@@ -236,8 +236,8 @@ function loadMetrics(key: string, id: ReportFontChoice, baseDir: 'ltr' | 'rtl'):
   if (pending) return pending;
   pending = (async () => {
     try {
-      const [{ default: fontkit }, regular, bold, arabicRegular, arabicBold, interRegular, interBold] = await Promise.all([
-        import('@pdf-lib/fontkit'),
+      const [{ fontkit }, regular, bold, arabicRegular, arabicBold, interRegular, interBold] = await Promise.all([
+        import('@/services/pdf/fontkit'),
         getReportFontBytes(id, 400),
         getReportFontBytes(id, 700),
         getArabicFontBytes(400),

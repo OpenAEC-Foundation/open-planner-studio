@@ -44,6 +44,10 @@ let nextCallback = 0;
 const edge = {
   install: { entered: deferred(), release: deferred(), started: false, fails: true },
   clear: { hold: false, entered: deferred(), release: deferred() },
+  /** Het wissen van het herstelrecord van een vervanging (de laatste stap van Ctrl+S op een bestand met een model). */
+  record: { hold: false, entered: deferred(), release: deferred() },
+  /** Vlak vóór elke `place_file_exclusive`, met het doel. */
+  place: null as ((to: string) => void) | null,
   destroyFails: false,
   destroys: [] as Array<{ dirty: boolean; recoveryFiles: number }>,
 };
@@ -84,11 +88,22 @@ Object.assign(win.__TAURI_INTERNALS__, {
       }));
       case 'plugin:fs|read_text_file': return readFileSync(args.path as string);
       case 'plugin:fs|remove':
+        if (/\.replace\.[0-9a-z]+\.json$/.test(String(args.path))) {
+          if (edge.record.hold) {
+            edge.record.hold = false;
+            edge.record.entered.resolve();
+            await edge.record.release.promise;
+          }
+          return nativeInvoke(command, args, options);
+        }
         if (edge.clear.hold) {
           edge.clear.hold = false;
           edge.clear.entered.resolve();
           await edge.clear.release.promise;
         }
+        return nativeInvoke(command, args, options);
+      case 'place_file_exclusive':
+        edge.place?.(String(args.to));
         return nativeInvoke(command, args, options);
       case 'plugin:dialog|save': throw new Error('De proef heeft al een schrijfdoel');
       default: return nativeInvoke(command, args, options);
@@ -120,6 +135,8 @@ const modules: Record<string, unknown> = {
   '@/services/recovery/recoveryPendingSource': await import('@/services/recovery/recoveryPendingSource'),
   '@/services/actualAutosave/actualAutoSave': await import('@/services/actualAutosave/actualAutoSave'),
   '@/services/actualAutosave/fileAutoSave': await import('@/services/actualAutosave/fileAutoSave'),
+  '@/services/actualAutosave/fileAutoSaveTimers': await import('@/services/actualAutosave/fileAutoSaveTimers'),
+  '@/state/textEntryActivity': await import('@/state/textEntryActivity'),
   '@/state/recoveryManifestNotice': await import('@/state/recoveryManifestNotice'),
   '@/services/appQuit/appQuitController': await import('@/services/appQuit/appQuitController'),
   '@/services/appQuit/appQuitDependencies': await import('@/services/appQuit/appQuitDependencies'),
@@ -216,11 +233,14 @@ const closeQuestion = (id: string) => createCloseDocumentDialogActions({
   saveFile: () => state().saveFileForDocument(id),
   clearPending: () => state().setUI({ pendingCloseDocId: null }),
   restoreOpenerFocus: () => undefined,
-  onSavePendingChange: () => undefined,
+  // Zoals `CloseDocumentDialog`: de lopende opslag van de sluitvraag staat in de store (de knoppen en Escape lezen haar).
+  onSavePendingChange: (pending) => state().setUI({ closeQuestionSaving: pending }),
 });
 const resetEdge = () => {
   edge.install = { entered: deferred(), release: deferred(), started: false, fails: true };
   edge.clear = { hold: false, entered: deferred(), release: deferred() };
+  edge.record = { hold: false, entered: deferred(), release: deferred() };
+  edge.place = null;
   edge.destroyFails = false;
   edge.destroys.length = 0;
 };
@@ -238,6 +258,8 @@ async function check(name: string, action: () => Promise<void>) {
   finally {
     edge.install.release.resolve();
     edge.clear.release.resolve();
+    edge.record.release.resolve();
+    useAppStore.setState((st) => { st.ui.featureFlags = {}; });
     state().setUI({ showBaselineDialog: false, showUpdateDialog: false, pendingCloseDocId: null });
     await until(() => false, 20);
     unmount();
@@ -362,6 +384,291 @@ await check('na een geweigerde destroy werkt het hervatte crashherstel weer (kno
   assert.deepEqual(docs.map((d) => d.id).sort(), [one.id, two].sort(), 'een volledige herstelronde');
   assert.ok(docs.find((d) => d.id === two)!.ifc.includes('Bewerking na het geweigerde sluiten'));
 });
+
+// #804, knownbug 1131 stap 5b: Ctrl+S en *Opslaan* in de sluitvraag op het eigen bestand met een gebouwmodel.
+const modelFile = new Uint8Array(readFileSync('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+const recordFiles = () => readdirSync(appDataDir).filter((name) => /\.replace\.[0-9a-z]+\.json$/.test(name));
+const errorKeys = () => state().ui.notifications.filter((n) => n.severity === 'error').map((n) => n.messageKey);
+const renameTask = (name: string) => {
+  const task = state().tasks.find((t) => !t.childIds.length && !t.isMilestone)!;
+  state().updateTask(task.id, { name });
+};
+/** Eén document met een gebouwmodel uit een eigen bestand (flag aan), met een bewerking; de rest gaat dicht. */
+const foreignDocument = async () => {
+  useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
+  const empty = state().newDocument();
+  for (const other of state().getOpenDocumentPayloads().map((d) => d.id)) if (other !== empty) state().closeDocument(other);
+  const target = join(dir, `model-${++fileNumber}.ifc`);
+  writeFileSync(target, modelFile);
+  await state().openOpenedFile({ name: 'model.ifc', content: '', bytes: modelFile, ref: { kind: 'path', path: target } });
+  assert.ok(state().ifcSource?.foreign, 'geopend met een gebouwmodel');
+  assert.equal(state().filePath, target);
+  renameTask('Een bewerking in het model');
+  state().setUI({ pendingCloseDocId: null });
+  useAppStore.setState((st) => { st.ui.notifications = []; });
+  await flushRecoveryNow();
+  return { id: state().activeDocumentId, target };
+};
+
+await check('gebouwmodel: afsluiten wacht op een lopende vervanging tot ook het record weg is; Ctrl+S in de laatste fase weigert stil; Opslaan in de sluitvraag vervangt en sluit', async () => {
+  const { id, target } = await foreignDocument();
+  const before = fileHash(target);
+  edge.record.hold = true;
+  const saving = state().saveFileForDocument(id);
+  await Promise.race([edge.record.entered.promise, saving.then((ok) => {
+    throw new Error(`de opslag eindigde (${ok}) zonder een herstelrecord te wissen`);
+  })]);
+  assert.notEqual(fileHash(target), before, 'het bestand is al vervangen');
+  assert.equal(recordFiles().length, 1, 'alleen het wissen van het record loopt nog');
+  await nativeClose();
+  await until(() => false, 40);
+  assert.deepEqual([edge.destroys.length, state().ui.pendingCloseDocId, state().ui.appQuitPending], [0, null, true],
+    'het afsluiten wacht, zonder sluitvraag');
+  edge.clear.hold = true;
+  edge.record.release.resolve();
+  assert.equal(await saving, true, 'de vervanging is geslaagd');
+  assert.deepEqual(recordFiles(), [], 'het record is weg');
+  await edge.clear.entered.promise;
+  assert.equal(state().ui.appClosing, true, 'de laatste fase');
+  // Een bewerking en Ctrl+S in de laatste fase: geweigerd, zonder melding van een mislukte opslag.
+  const saved = fileHash(target);
+  renameTask('Bewerking in de laatste fase');
+  const from = ipc.calls.length;
+  assert.equal(await state().saveFileForDocument(id), false);
+  assert.deepEqual(errorKeys(), [], 'geen melding');
+  assert.deepEqual(ipc.calls.slice(from).filter((call) => call.wrote || call.command === 'place_file_exclusive'), [], 'niets geschreven');
+  assert.deepEqual([fileHash(target), recordFiles().length], [saved, 0]);
+  edge.clear.release.resolve();
+  // Het vangnet: met een gewijzigd document gaat het venster niet dicht; de gewone sluitvraag volgt.
+  await until(() => state().ui.pendingCloseDocId !== null, 400);
+  assert.equal(state().ui.pendingCloseDocId, id);
+  assert.deepEqual(edge.destroys.filter((d) => d.dirty), []);
+  await closeQuestion(id).save();
+  await until(() => edge.destroys.length > 0, 400);
+  assert.ok(readFileSync(target).toString('latin1').includes('Bewerking in de laatste fase'), 'Opslaan in de sluitvraag vervangt het bestand');
+  assert.deepEqual(errorKeys(), []);
+  assert.deepEqual(edge.destroys, [{ dirty: false, recoveryFiles: 0 }], 'dicht, zonder herstelbestanden of record');
+});
+
+for (const outcome of ['een ander programma wijzigde het bestand', 'bewerken tijdens de opslag'] as const) {
+  await check(`gebouwmodel, Opslaan in de sluitvraag van de app: ${outcome}; de app sluit niet`, async () => {
+    const { id, target } = await foreignDocument();
+    if (outcome === 'een ander programma wijzigde het bestand') writeFileSync(target, new Uint8Array([...modelFile, 10]));
+    else edge.place = (to) => { if (to === target) renameTask('Tijdens het opslaan'); };
+    const before = fileHash(target);
+    await nativeClose();
+    assert.equal(state().ui.pendingCloseDocId, id, 'de sluitvraag');
+    await closeQuestion(id).save();
+    await until(() => !state().ui.appQuitPending, 400);
+    assert.deepEqual([edge.destroys.length, state().ui.appQuitPending, state().isDirty], [0, false, true],
+      'het afsluiten is afgebroken; het document blijft gewijzigd');
+    assert.ok(state().getOpenDocumentPayloads().some((d) => d.id === id));
+    if (outcome === 'een ander programma wijzigde het bestand') {
+      assert.equal(fileHash(target), before, 'niets vervangen');
+      assert.deepEqual(errorKeys(), ['notifications.ifcForeignTargetChanged']);
+    } else {
+      assert.notEqual(fileHash(target), before, 'de momentopname staat in het bestand');
+      assert.equal(readFileSync(target).toString('latin1').includes('Tijdens het opslaan'), false);
+      assert.deepEqual(errorKeys(), []);
+    }
+    assert.deepEqual(recordFiles(), []);
+  });
+}
+
+// Fixronde 1 van #1008 (review Sol, bevinding 1): *Opslaan* in de sluitvraag sluit alleen een document dat vlak vóór
+// het sluiten nog schoon is, en Escape verbergt de sluitvraag niet terwijl haar opslag loopt. Proef van de reviewer.
+await check('gebouwmodel: Escape tijdens de laatste opslagstap verbergt de sluitvraag niet, en een latere bewerking houdt het tabblad open', async () => {
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: {} } });
+  const { SHORTCUTS, canRunShortcut, matchesCombo } = await import('@/hooks/keyboard/shortcutRegistry');
+  const { id, target } = await foreignDocument();
+  state().requestCloseDocument(id);
+  assert.equal(state().ui.pendingCloseDocId, id, 'de echte tabbladactie opent de sluitvraag');
+  edge.record.hold = true;
+  const saving = closeQuestion(id).save();
+  await Promise.race([edge.record.entered.promise, saving.then(() => {
+    throw new Error('de opslag eindigde zonder een herstelrecord te wissen');
+  })]);
+  assert.equal(state().isDirty, false, 'de broncommit is al geweest');
+  assert.equal(state().ui.pendingCloseDocId, id, 'de sluitvraag staat nog open tijdens het opruimen');
+  // Escape zoals `useKeyboardShortcuts`: de eerste sneltoets die past en mag lopen.
+  const escapeEvent = { key: 'Escape', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false } as KeyboardEvent;
+  SHORTCUTS.find(entry => matchesCombo(escapeEvent, entry.combo) && canRunShortcut(entry, false))?.run(state());
+  assert.equal(state().ui.pendingCloseDocId, id, 'Escape verbergt de sluitvraag niet terwijl haar opslag loopt');
+  // Een bewerking langs een andere weg (de store-actie) tijdens de laatste stap: het tabblad mag dan niet dicht.
+  renameTask('Nieuwe bewerking tijdens de laatste stap');
+  assert.equal(state().isDirty, true);
+  edge.record.release.resolve();
+  await saving;
+  const current = state().getOpenDocumentPayloads().find(d => d.id === id);
+  assert.ok(current, 'het tabblad blijft open');
+  assert.equal(current.payload.isDirty, true, 'met de nog niet opgeslagen bewerking');
+  assert.equal(readFileSync(target).toString('latin1').includes('Nieuwe bewerking tijdens de laatste stap'), false);
+  assert.equal(state().ui.pendingCloseDocId, null, 'de sluitvraag is weg, zoals na een opslag die het document gewijzigd liet');
+});
+
+await check('gebouwmodel: de updater wacht op het wissen van het herstelrecord en geeft na een installatiefout de schrijfpoort terug', async () => {
+  const { claimShutdown } = await import('@/services/appQuit/shutdownPhase');
+  const { id, target } = await foreignDocument();
+  const before = fileHash(target);
+  edge.record.hold = true;
+  const storing = state().saveFile();
+  await Promise.race([edge.record.entered.promise, storing.then(() => { throw new Error('geen herstelrecord gewist'); })]);
+  assert.notEqual(fileHash(target), before);
+  assert.equal(recordFiles().length, 1);
+  const statuses: string[] = [];
+  const updating = downloadAndInstall(status => { statuses.push(status.kind); });
+  const updaterOwnsPhase = () => {
+    const release = claimShutdown('quit');
+    if (!release) return true;
+    release();
+    return false;
+  };
+  await until(updaterOwnsPhase, 400);
+  assert.ok(updaterOwnsPhase(), 'de updater bezit de afsluitfase');
+  assert.equal(edge.install.started, false);
+  const from = ipc.calls.length;
+  assert.equal(await state().saveFileForDocument(id), false, 'de schrijfpoort weigert al');
+  assert.equal(ipc.calls.slice(from).filter(call => call.wrote || call.command === 'place_file_exclusive').length, 0);
+  edge.record.release.resolve();
+  await storing;
+  await edge.install.entered.promise;
+  assert.deepEqual(recordFiles(), []);
+  edge.install.release.resolve();
+  await updating;
+  assert.equal(statuses.at(-1), 'error');
+  renameTask('Bewerking na updatefout');
+  assert.equal(await state().saveFileForDocument(id), true);
+  assert.ok(readFileSync(target).toString('latin1').includes('Bewerking na updatefout'));
+});
+
+// Fixronde 2 van #1008 (review Sol ronde 2, bevinding 1): open veldinvoer die tijdens *Opslaan* in de sluitvraag getypt
+// is, rondt de sluitactie eerst af; daarna kijkt dezelfde actie of het document schoon is (`closeDocument` met
+// `onlyIfClean`). De invoer blijft dus in het open tabblad, en het venster gaat niet dicht. Proeven van de reviewer.
+modules['@/state/pendingTextEdits'] = await import('@/state/pendingTextEdits');
+modules['@/utils/decimalInput'] = await import('@/utils/decimalInput');
+const { readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
+async function assignmentOnDisk(target: string, resourceName: string) {
+  const parsed = await readIfcBytes(new Uint8Array(readFileSync(target)));
+  const resource = parsed.resources.find(r => r.name === resourceName);
+  return parsed.assignments.find(a => a.resourceId === resource?.id)?.unitsPerDay;
+}
+
+// UnitsInput is de echte component. Alleen React-hooks en de bezorging van het change-event zijn nagebootst.
+const draftInput = (assignmentId: string, seen: Array<{ value: number; dirty: boolean }>) => {
+  const cleanups: Array<() => void> = [];
+  const react = {
+    useEffect: (effect: () => void | (() => void)) => { const off = effect(); if (off) cleanups.push(off); },
+    useRef: <V,>(value: V) => ({ current: value }),
+    useState: <V,>(value: V) => [value, () => undefined],
+  };
+  type Rendered = { type: (props: unknown) => { props: { onChange: (event: { target: { value: string } }) => void } }; props: unknown };
+  const { UnitsInput } = loadModule<{ UnitsInput: (props: unknown) => Rendered }>('src/components/common/UnitsInput.tsx', react);
+  const component = UnitsInput({
+    value: 1, locale: 'nl', commitOnBlur: true,
+    onCommit: (unitsPerDay: number) => {
+      state().updateAssignment(assignmentId, { unitsPerDay });
+      seen.push({ value: state().assignments.find(a => a.id === assignmentId)!.unitsPerDay, dirty: state().isDirty });
+    },
+  });
+  const field = component.type(component.props);
+  return { type: (value: string) => field.props.onChange({ target: { value } }), dispose: () => { for (const off of cleanups.reverse()) off(); } };
+};
+
+for (const route of ['tabblad', 'app'] as const) {
+  await check(`${route}: Opslaan in de sluitvraag bewaart een open, pas na de broncommit getypte inzet`, async () => {
+    const { id, target } = await foreignDocument();
+    const resourceName = 'Ploeg voor proef open veldinvoer';
+    const task = state().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    const resource = state().addResource({ name: resourceName, type: 'LABOR', description: '', maxUnits: 4 });
+    state().assignResource(task.id, resource, 1);
+    const assignment = state().assignments.find(a => a.resourceId === resource)!;
+    assert.ok(assignment);
+    if (route === 'app') await nativeClose();
+    else state().requestCloseDocument(id);
+    assert.equal(state().ui.pendingCloseDocId, id);
+    const seen: Array<{ value: number; dirty: boolean }> = [];
+    const field = draftInput(assignment.id, seen);
+    try {
+      edge.record.hold = true;
+      const saving = closeQuestion(id).save();
+      await Promise.race([edge.record.entered.promise, saving.then(() => { throw new Error('geen broncommit bereikt'); })]);
+      assert.equal(state().isDirty, false);
+      assert.equal(await assignmentOnDisk(target, resourceName), 1);
+      field.type('3');
+      assert.equal(state().isDirty, false, 'het veld wacht op blur/afronden');
+      assert.deepEqual(seen, []);
+      edge.record.release.resolve();
+      await saving;
+      if (route === 'app') await until(() => edge.destroys.length > 0 || !state().ui.appQuitPending, 400);
+      const current = state().getOpenDocumentPayloads().find(d => d.id === id);
+      const observed = {
+        commits: seen, unitsOnDisk: await assignmentOnDisk(target, resourceName), tabOpen: !!current,
+        documentDirty: current?.payload.isDirty ?? null, windowDestroyed: edge.destroys.length,
+      };
+      console.log('VELDINVOER', route, JSON.stringify(observed));
+      assert.deepEqual(observed, {
+        commits: [{ value: 3, dirty: true }], unitsOnDisk: 1, tabOpen: true, documentDirty: true, windowDestroyed: 0,
+      });
+    } finally {
+      field.dispose();
+    }
+  });
+}
+
+for (const outcome of ['annuleren', 'fout'] as const) {
+  await check(`gewoon document: na ${outcome} van de bestandsdialoog werkt een nieuwe sluitvraag en Escape weer`, async () => {
+    const { id } = freshDocument(true);
+    useAppStore.setState(st => { st.filePath = null; });
+    const originalInvoke = win.__TAURI_INTERNALS__.invoke;
+    win.__TAURI_INTERNALS__.invoke = async (cmd, ...args) => {
+      if (cmd !== 'plugin:dialog|save') return originalInvoke(cmd, ...args);
+      if (outcome === 'fout') throw new Error('Reviewer: de bestandskiezer faalt');
+      return null;
+    };
+    try {
+      state().requestCloseDocument(id);
+      assert.equal(state().ui.pendingCloseDocId, id);
+      await closeQuestion(id).save();
+      assert.deepEqual([state().isDirty, state().ui.pendingCloseDocId, state().ui.closeQuestionSaving], [true, null, false]);
+      state().requestCloseDocument(id);
+      assert.equal(state().ui.pendingCloseDocId, id);
+      const { SHORTCUTS, canRunShortcut } = await import('@/hooks/keyboard/shortcutRegistry');
+      const escape = SHORTCUTS.find(shortcut => shortcut.id === 'edit.deselect')!;
+      assert.equal(canRunShortcut(escape, false), true);
+      escape.run(state());
+      assert.deepEqual([state().isDirty, state().ui.pendingCloseDocId, state().ui.closeQuestionSaving], [true, null, false]);
+    } finally {
+      win.__TAURI_INTERNALS__.invoke = originalInvoke;
+    }
+  });
+}
+
+// *Niet opslaan* gooit de wijzigingen weg, ook open veldinvoer: die houdt het sluiten niet tegen (tabblad en venster).
+for (const route of ['tabblad', 'app'] as const) {
+  await check(`${route}: Niet opslaan in de sluitvraag sluit ook met open veldinvoer`, async () => {
+    const { id } = freshDocument(true);
+    const task = state().tasks.find(t => !t.childIds.length && !t.isMilestone)!;
+    const resource = state().addResource({ name: 'Ploeg voor Niet opslaan', type: 'LABOR', description: '', maxUnits: 4 });
+    state().assignResource(task.id, resource, 1);
+    const assignment = state().assignments.find(a => a.resourceId === resource)!;
+    if (route === 'app') await nativeClose();
+    else state().requestCloseDocument(id);
+    assert.equal(state().ui.pendingCloseDocId, id);
+    const seen: Array<{ value: number; dirty: boolean }> = [];
+    const field = draftInput(assignment.id, seen);
+    try {
+      field.type('3');
+      await closeQuestion(id).discard();
+      if (route === 'app') await until(() => edge.destroys.length > 0 || !state().ui.appQuitPending, 400);
+      assert.deepEqual(seen, [{ value: 3, dirty: true }], 'de open invoer is afgerond en daarna weggegooid');
+      assert.equal(state().getOpenDocumentPayloads().some(d => d.id === id), false, 'het tabblad is dicht');
+      assert.equal(edge.destroys.length, route === 'app' ? 1 : 0, 'het venster gaat dicht na Niet opslaan');
+    } finally {
+      field.dispose();
+    }
+  });
+}
+
 
 ipc.dispose();
 rmSync(dir, { recursive: true, force: true });

@@ -41,6 +41,7 @@ const expected: Record<string, string[]> = {
   'src/core/index.ts': ['bereken'],
   'src/engine/externalRefreshPreview.ts': ['solveProject'], // vluchtig: Bekijken rekent voor en na op een kopie (stap 1.5)
   'src/engine/reports/dcmaAssessment.ts': ['solveProject'], // vluchtig rapport, nooit terugschrijven
+  'src/engine/scheduler/solveProject.ts': ['solveProject'], // vluchtige kopie zonder statusdatumvloer, voor de geplande start bij voortgang (#998)
   'src/extensions/extensionApi.ts': ['bereken'],
   'src/extensions/retainActiveDocument.ts': ['bereken'], // na de laadgrens
   'src/hooks/keyboard/shortcutRegistry.ts': ['bereken'],
@@ -51,6 +52,7 @@ const expected: Record<string, string[]> = {
   'src/services/mcp/freshness.ts': ['bereken'], // verhuisd uit staleGuard.ts (#572)
   'src/services/mcp/tools/batchTool.ts': ['bewerking'],
   'src/state/documentActivation.ts': ['solveProject', 'solveProject'], // vluchtige teller; laadgrens
+  'src/state/progressPlannedDates.ts': ['solveProject'], // vluchtige berekening van samengestelde voortgangsinvoer (#998)
   'src/state/runtime/createMcpTransactions.ts': ['bewerking'],
   'src/state/slices/documentSlice.ts': ['solveProject'], // slaat omzetting open over
   'src/state/slices/fileSlice.ts': ['bewerking', 'bereken', 'bereken'], // `applyRefreshedTasks` (verversen, accepteren); openen
