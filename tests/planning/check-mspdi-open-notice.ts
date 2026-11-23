@@ -138,7 +138,7 @@ async function main(): Promise<void> {
   // (4) Een bestand dat de app zelf schreef: haar transportvelden (duureenheid, soort mijlpaal,
   //     eigen taaktype) zijn geen verloren eigen velden.
   const own = readMSPDI(CLEAN);
-  const customTaskTypes = [{ id: 'ctt-1', name: 'Keuring' }];
+  const customTaskTypes = [{ id: 'ctt-1', name: 'Keuring', color: '#0D9488' }];
   own.tasks[0]!.customTaskTypeId = 'ctt-1';
   own.tasks[0]!.taskType = 'USERDEFINED';
   own.tasks[1]!.isMilestone = true;

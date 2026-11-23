@@ -1,6 +1,6 @@
 [package]
 name = "open-planner-studio"
-version = "2026.47.0"
+version = "2026.48.0"
 edition = "2021"
 
 [dependencies]
@@ -44,6 +44,11 @@ glob = "0.3.3"
 # van andere crates; dezelfde versies, geen nieuwe crate.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.186"
+
+# Linux: het randloze venster krijgt een schaduw van GTK (zie `setup` in main.rs). Dezelfde
+# gtk-versie die tauri/wry al meebrengt (Cargo.lock), geen nieuwe crate.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }

@@ -1,7 +1,7 @@
 // F1: dezelfde statusregel in dialoog, paneel, raster en MCP. Werkelijke tijden blijven feiten.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
-import { createTaskDialogSave, draftWithActualFinish } from '@/state/taskDialogSave';
+import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
 import { planProgressEntry } from '@/engine/progressEntry';
 import { isActualPastStatusDate, normalizeActualDate } from '@/engine/taskMutationRules';
 import { cpmResultFromRecorded } from '@/engine/scheduler/recordedDates';
@@ -50,11 +50,11 @@ for (const c of cases) for (const route of ['dialoog', 'paneel', 'raster', 'plak
   const before = JSON.stringify(f.task());
   let accepted: boolean;
   if (route === 'dialoog') {
-    const draft = draftWithActualFinish(f.task(), c.value, c.status, f.calendar);
-    accepted = draft !== null;
-    if (draft) accepted = createTaskDialogSave(f.context)({
-      editingTaskId: f.id, draft, startDate: f.task().time.scheduleStart,
-    });
+    const today = c.status.slice(0, 10);
+    const plan = planTaskDialogProgress(f.S(), f.task(), undefined, { field: 'actualFinish', value: c.value }, { today });
+    accepted = plan.ok && (!plan.change || createTaskDialogSave(f.context)({
+      editingTaskId: f.id, draft: plan.change.task, today,
+    }));
   } else if (route === 'paneel') {
     accepted = f.S().setActualFinish(f.id, c.value);
   } else if (route === 'MCP') {
@@ -84,11 +84,20 @@ for (const c of cases) for (const route of ['dialoog', 'paneel', 'raster', 'plak
     }
   }
 }
+for (const [plannedFinish, finish] of [
+  ['2026-06-01T16:00', '2026-06-01T16:00'],
+  ['2026-06-04T16:00', '2026-06-03T16:00'],
+] as const) {
+  const f = fixture('2026-06-03');
+  const plan = planProgressEntry(f.task(), { field: 'completion', value: 1 }, {
+    statusDate: '2026-06-03', calendar: f.calendar,
+    plannedDates: () => ({ earlyStart: f.task().time.earlyStart, earlyFinish: plannedFinish }),
+  });
+  eq(`100% gebruikt gepland einde ${plannedFinish} tot de statusgrens (D6)`,
+    plan.ok && plan.change?.task.time.actualFinish, finish);
+}
 {
   const f = fixture('2026-06-03');
-  const plan = planProgressEntry(f.task(), { field: 'completion', value: 1 },
-    { statusDate: '2026-06-03', calendar: f.calendar });
-  eq('100% leidt D6 af', plan.ok && plan.change?.task.time.actualFinish, '2026-06-03T16:00');
   eq('Nachtfeit hoort bij statuswerkdag', isActualPastStatusDate('2026-06-04T02:00',
     '2026-06-03', { ...f.calendar, workTime: makeBands([1, 2, 3, 4, 5], [{ start: 1320, end: 1800 }]) }, 'end'), false);
 }
