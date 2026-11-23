@@ -31,6 +31,8 @@ import { insertTaskRelativeToScope, addTaskNearSelection } from '@/state/taskIns
 import { computeScrollToDate } from '@/utils/ganttViewport';
 // De acties die het lint EN het toetsenbord delen, staan één keer gedefinieerd.
 import { COMMANDS } from '@/state/commands';
+import { linkTasksInChain, selectionInView } from '@/state/relationActions';
+import { isTaskListInView } from '@/state/ganttVisibility';
 import i18n from '@/i18n/config';
 import { isTauri } from '@/utils/platform';
 
@@ -85,10 +87,13 @@ export function isShortcutBlockedByDialog(): boolean {
  * uitgevoerde handeling. Intussen voert GEEN globale app-sneltoets iets uit (ook F5/Ctrl+S niet),
  * ook wanneer de startvraag tijdelijk voor Help verborgen is. Dezelfde pending-poort schermt de
  * achtergrondbediening in de shell af; de vraag en Help houden hun eigen toetsen.
- * Andere dialogen behouden hun bestaande toetscontract.
+ * Andere dialogen behouden hun bestaande toetscontract. Ook "Wordt nog opgeslagen…" (#804 stap 3)
+ * zet alles stil: afsluiten of sluiten wacht, en niets mag de ronde intussen laten veranderen. En de laatste fase van
+ * afsluiten (`appClosing`): het venster gaat weg, er wordt niets meer opgeslagen.
  */
 export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
-  return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null;
+  return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null
+    || ui.savingBeforeClose || ui.appClosing;
 }
 
 /**
@@ -112,23 +117,9 @@ function isEditShortcutBlocked(): boolean {
   return isAnyDialogOpen() || hasBlockingDialogOpen({ ...ui, presentationMode: false });
 }
 
-/**
- * Delete/Backspace/Ctrl+C/Ctrl+V werken alleen als de planning in beeld is. In Backstage (tabblad
- * `file`), op de tabbladen Rapport en IFC en onder het VOLLEDIGE resourcepaneel staat de takenlijst
- * niet in beeld; daar verwijderde Delete met de focus op bv. *Terug*, *Exporteer PDF* of de lintknop
- * *Resources* een taak die de gebruiker niet zag, en ving Ctrl+C het kopiëren van gidstekst weg.
- * Ctrl+Z blijft daar wel werken (Projectinstellingen in Backstage leunt erop). De presentatie toont
- * altijd de Gantt.
- *
- * Bewust niet `isGanttWorkspaceVisible` (`state/ganttVisibility.ts`): die is ook `false` op het
- * tabblad Tabel, en daar staat de takenlijst juist wél in beeld. Wel dezelfde paneelregel: een
- * gedockt resourcepaneel deelt de werkruimte met de planning, een volledig paneel vervangt hem.
- */
+/** Zie `isTaskListInView` (`state/ganttVisibility.ts`), gedeeld met het lint. */
 function isTaskListOutOfView(): boolean {
-  const ui = useAppStore.getState().ui;
-  if (ui.presentationMode) return false;
-  if (ui.showResourcePanel && !ui.resourcePanelDocked) return true;
-  return ui.activeRibbonTab === 'file' || ui.activeRibbonTab === 'report' || ui.activeRibbonTab === 'ifc';
+  return !isTaskListInView(useAppStore.getState().ui);
 }
 
 /** De ene taak waarop F2 en Alt+↑/↓ werken: de eerste gekozen. Niets als die een ruitje deelt met andere
@@ -320,6 +311,9 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'edit',
     labelKey: 'shortcuts.edit.deselect',
     skipPreventDefault: true, // geen e.preventDefault() voor de gewone Escape
+    // Fixronde 1 van #1008: dezelfde blokkering als de knoppen van de sluitvraag. Anders verborg Escape de vraag terwijl
+    // haar opslag liep, en kon een nieuwe bewerking samen met het tabblad verdwijnen.
+    when: () => !useAppStore.getState().ui.closeQuestionSaving,
     run: (store) => {
       store.deselectAll();
       store.setUI({
@@ -462,6 +456,20 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'shortcuts.edit.selectAll',
     when: () => !isShortcutBlockedByDialog(),
     run: (store) => store.selectAllTasks(),
+  },
+  {
+    // Issue #1000: zoals Ctrl+F2 in MS Project. Koppelt de selectie als keten (Eind-Start), in de
+    // volgorde op het scherm — dezelfde functie als "Geselecteerde taken koppelen" in het lint.
+    id: 'edit.linkSelected',
+    combo: { key: 'F2', mod: true },
+    category: 'edit',
+    labelKey: 'shortcuts.edit.linkSelected',
+    // Zelfde poorten als Delete: niet in een dialoog en alleen met de takenlijst in beeld, anders
+    // koppelt hij een selectie die de planner niet ziet (review #1004, vanuit Rapport).
+    // En alleen als de hele selectie in beeld staat: een weggefilterde taak hoort niet in de keten.
+    when: () => useAppStore.getState().selectedTaskIds.length >= 2 && !isEditShortcutBlocked() && !isTaskListOutOfView()
+      && selectionInView(useAppStore.getState()),
+    run: (store) => { linkTasksInChain(store.selectedTaskIds); },
   },
 
   // --- Weergave: zoom (Ctrl+=/-) + rapport-navigatie + sneltoetsen-overzicht ---

@@ -1,10 +1,11 @@
-import { isElapsedTask } from '@/engine/scheduler/duration';
+import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task, TaskTime } from '@/types/task';
 import { sameValue } from '@/utils/sameValue';
 import {
-  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualFinishBeforeStart,
-  isActualPastStatusDate, isTaskActualPastStatusDate, normalizeActualDate,
+  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, datesForProgress, isActualFinishBeforeStart,
+  isActualPastStatusDate, isTaskActualPastStatusDate, normalizeActualDate, rememberProgressBeforeRecalculation,
+  type PlannedProgressDates,
 } from '@/engine/taskMutationRules';
 
 /**
@@ -53,21 +54,22 @@ export function applyProgressEdit(
   statusDate: string | undefined,
   actualStart?: string,
   calendar?: WorkCalendar,
+  planned?: PlannedProgressDates,
 ): void {
   if (actualStart) task.time.actualStart = actualStart;
   if (edit.field === 'completion') {
-    applyCompletionEdit(task, Math.max(0, Math.min(1, edit.value)), statusDate, calendar);
-    applyProgressInvariants(task, statusDate, calendar);
+    applyCompletionEdit(task, Math.max(0, Math.min(1, edit.value)), statusDate, calendar, planned);
+    applyProgressInvariants(task, statusDate, calendar, planned);
   } else {
-    applyActualDateEdit(task, edit.field, edit.value, statusDate, calendar);
+    applyActualDateEdit(task, edit.field, edit.value, statusDate, calendar, planned);
   }
 }
 
 /**
  * De vraag naar de werkelijke start ("startvraag"). Voortgang op een taak zonder
- * vastgelegde werkelijke start, waarvan de geplande start (de getoonde: `earlyStart`, anders
- * `scheduleStart` — dezelfde keuze als `fillMissingActualStart`) NA de statusdatum ligt, laat de app
- * NIET de werkelijke start verzinnen: ze vraagt ernaar vóór de voortgang wordt toegepast.
+ * vastgelegde werkelijke start, waarvan de geplande start NA de statusdatum ligt, vraagt eerst om
+ * een werkelijke start. Bij een percentage voor een gewone taak geldt de start van vóór de
+ * statusdatumvloer, als die bekend is. Anders geldt `earlyStart` of `scheduleStart`.
  */
 export interface ActualStartQuestion {
   taskId: string;
@@ -93,15 +95,17 @@ export interface ActualStartQuestion {
  */
 export function actualStartQuestionFor(
   before: Pick<Task, 'time'>,
-  after: Pick<Task, 'id' | 'isMilestone' | 'time'>,
+  after: Task,
   statusDate: string | undefined,
   supplied: { actualStart?: boolean; actualFinish?: boolean },
   calendar?: WorkCalendar,
+  plannedStart?: () => string | undefined,
 ): ActualStartQuestion | null {
   if (!statusDate || before.time.actualStart || supplied.actualStart || !after.time.actualStart) return null;
   if (after.isMilestone && supplied.actualFinish) return null;
-  const planned = after.time.earlyStart || after.time.scheduleStart;
-  if (!planned || !isActualPastStatusDate(planned, statusDate, calendar, 'start')) return null;
+  const originalStart = isZeroDurationMilestone(after) && after.time.completion < 1 ? undefined : plannedStart?.();
+  const planned = originalStart ?? (after.time.earlyStart || after.time.scheduleStart);
+  if (!planned || !isTaskActualPastStatusDate(after, 'actualStart', planned, statusDate, calendar)) return null;
   const latest = supplied.actualFinish && after.time.actualFinish ? after.time.actualFinish : statusDate;
   return { taskId: after.id, statusDate, latest };
 }
@@ -128,6 +132,8 @@ export interface ProgressEntryContext {
   actualStart?: string;
   /** Effectieve taakkalender voor D1/D2 en de statuswerkdag. */
   calendar?: WorkCalendar;
+  /** Geplande datums vóór de vloer voor open werk, indien beschikbaar. */
+  plannedDates?: (task: Task) => PlannedProgressDates | undefined;
 }
 
 /** Waarom voortgang invullen geweigerd wordt, in de vorm die de UI toont of beantwoordt. */
@@ -186,9 +192,15 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
       return { ok: false, reason: 'afterStatusDate' };
     }
   }
+  const actualStart = edit.field === 'actualStart' ? edit.value : answer ?? task.time.actualStart;
+  const plannedTask = actualStart === task.time.actualStart ? task : { ...task, time: { ...task.time, actualStart } };
+  const planned = edit.field === 'completion'
+    ? datesForProgress(task, edit.value, () => ctx.plannedDates?.(plannedTask))
+    : edit.field === 'actualStart' && task.time.completion >= 1 && !task.time.actualFinish
+      ? ctx.plannedDates?.(plannedTask) : undefined;
   const run = (date: string | undefined): Task => {
     const next: Task = { ...task, time: { ...task.time } };
-    applyProgressEdit(next, edit, date, answer, ctx.calendar);
+    applyProgressEdit(next, edit, date, answer, ctx.calendar, planned);
     return next;
   };
   let next = run(statusDate);
@@ -198,7 +210,7 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
     const question = actualStartQuestionFor(task, next, statusDate, {
       actualStart: !!answer || (edit.field === 'actualStart' && !!edit.value),
       actualFinish: edit.field === 'actualFinish' && !!edit.value,
-    }, isElapsedTask(task) ? undefined : ctx.calendar);
+    }, isElapsedTask(task) ? undefined : ctx.calendar, () => planned?.earlyStart);
     if (question) return { ok: false, reason: 'needsActualStart', question };
   }
   const statusDateToday = !ctx.statusDate && ctx.today && hasRecordedProgress(next.time) ? ctx.today : undefined;
@@ -207,5 +219,6 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
     next = run(undefined);
     if (sameValue(task, next)) return { ok: true, change: null };
   }
+  rememberProgressBeforeRecalculation(task, next);
   return { ok: true, change: statusDateToday ? { task: next, statusDateToday } : { task: next } };
 }

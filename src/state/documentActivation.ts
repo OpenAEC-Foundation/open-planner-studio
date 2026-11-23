@@ -273,11 +273,12 @@ export function prepareLoadedPayload(
   syncProjectCalendar(payload);
   if (!options.recompute || payload.cpmResult !== null) return payload;
 
-  payload.tasks = cloneTasksForSolve(payload.tasks);
+  const originalTasks = payload.tasks;
+  payload.tasks = cloneTasksForSolve(originalTasks);
   // Dezelfde volledige invoer als F5 (C5), óók het projecteinde — een slapend XER-document met
   // `useProjectEndDateForFloat` rekent bij laden met het projecteinde-anker.
   payload.cpmResult = solveProject(
-    solveInputFor(payload.project, payload.tasks, payload.sequences, payload.calendar, payload.calendars));
+    solveInputFor(payload.project, payload.tasks, payload.sequences, payload.calendar, payload.calendars), originalTasks);
   payload.scheduleStale = false;
   return payload;
 }

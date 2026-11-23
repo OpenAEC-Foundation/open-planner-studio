@@ -8,6 +8,7 @@ import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { installPlanOnlyAsker } from '@/state/planOnlyQuestionBridge';
+import { endWindowDragsForDocumentSwitch } from '@/hooks/listenWindowDrag';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
@@ -26,12 +27,14 @@ import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDialog';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
+import { SavingBeforeCloseNotice } from '@/components/layout/DocumentChrome/SavingBeforeCloseNotice';
 import { useMacOSMenu } from '@/hooks/useMacOSMenu';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
+import { useLaunchFiles } from '@/hooks/useLaunchFiles';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
 import { useExternalSourceCheck } from '@/hooks/useExternalSourceCheck';
 import { useDependentProjectsAutoSearch } from '@/hooks/useDependentProjectsAutoSearch';
@@ -124,6 +127,9 @@ function AppContent() {
 
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const questionPending = useAppStore(s => isGlobalShortcutFrozen(s.ui));
+  // De laatste fase van afsluiten (#804 stap 3, fixronde 2): de hele app is inert, ook een dialoog die al openstond en
+  // het werkvlak. Alles blijft gemount; breekt het afsluiten af, dan staat alles er weer met zijn invoer.
+  const appClosing = useAppStore(s => s.ui.appClosing);
   const showProjectInfoDialog = useAppStore(s => s.ui.showProjectInfoDialog);
   const showNewProjectDialog = useAppStore(s => s.ui.showNewProjectDialog);
   const showNewOrOpenProjectDialog = useAppStore(s => s.ui.showNewOrOpenProjectDialog);
@@ -203,12 +209,20 @@ function AppContent() {
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
   useEffect(() => { installIfcSchemaAsker(); installPlanOnlyAsker(); }, []);
+  // Een lopend sleepgebaar hoort bij zijn document (review #1004, ronde 12): een documentwissel
+  // beëindigt het, synchroon binnen de wissel.
+  useEffect(() => useAppStore.subscribe((state, previous) => {
+    if (state.activeDocumentId !== previous.activeDocumentId) endWindowDragsForDocumentSwitch();
+  }), []);
   // De waarschuwing vóór opslaan over te krappe ankers van afhankelijke projecten (stap 1.11). Zonder
   // deze registratie slaat de app zonder vraag op.
   useEffect(() => { installDependentAnchorAsker(); }, []);
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
+  // Desktop: een bestand dat bij het starten is meegegeven, of door een tweede start (issue #1091). Ook pas
+  // na de herstelkeuze; tot dan houdt Rust de paden vast.
+  useLaunchFiles(recoveryResolved, recovery);
   // Dev-link `?open=<pad>` (alleen de browser op de dev-server, docs/dev-link.md): opent na de
   // herstelkeuze een bestand uit de repo, bijv. `examples/…`, via de gewone openroute. Niet in Tauri-dev. Valt
   // met de dynamische import uit elke productiebouw, net als de haken in main.tsx.
@@ -343,7 +357,7 @@ function AppContent() {
   // StatusBar/Backstage) valt weg; alleen de Gantt-kaart full-bleed (+ mini-map, indien aan) blijft.
   if (presentationMode) {
     return (
-      <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary" inert={appClosing} data-ops-app-root>
         <div className="flex-1 flex overflow-hidden">
           <GanttWorkspace />
         </div>
@@ -358,7 +372,7 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary" inert={appClosing} data-ops-app-root>
       {/* De Help-pauze heft de modaliteit van de vraag niet op. Scherm achtergrondbediening per
           shellgebied af, inclusief toekomstige knoppen; Help en de vraag staan buiten deze grenzen. */}
       <div className="contents" inert={questionPending} data-ops-background-controls="title">
@@ -464,6 +478,8 @@ function AppContent() {
 
       {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
       <CloseDocumentDialog />
+      {/* "Wordt nog opgeslagen…": sluiten of afsluiten wacht op een lopende opslag (#804 stap 3). */}
+      <SavingBeforeCloseNotice />
 
       {/* Dialogs — lazy geladen; één Suspense-grens rond het hele blok. Alle dialogs
           zijn standaard verborgen (gated of intern `return null`), dus een null-fallback tijdens het

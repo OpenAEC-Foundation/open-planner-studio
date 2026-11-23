@@ -77,6 +77,8 @@ const brokenRoot = fixture({
     "import { createAppStoreContext } from '@/state/appStore';",
     'export const ctx = createAppStoreContext();',
   ].join('\n'),
+  // De opslagworker laadt de fabriek, nooit de singleton (#804 stap 4).
+  'src/services/ifc/saveWorker/leak.worker.ts': "import { useAppStore } from '@/state/appStore';\nexport const hook = useAppStore;\n",
 });
 try {
   const broken = run(brokenRoot);
@@ -86,6 +88,8 @@ try {
   ok('3b rapport noemt de verboden singletonbinding', output.includes('appStoreContext'), output.trim());
   ok('3d een appStore-waarde-import in de headless kern wordt gemeld',
     output.includes('src/core/leak.ts') && output.includes('createAppStoreContext'), output.trim());
+  ok('3e een appStore-waarde-import in de opslagworker wordt gemeld',
+    output.includes('src/services/ifc/saveWorker/leak.worker.ts') && output.includes('useAppStore'), output.trim());
   ok('3c adapterlogica wordt afzonderlijk gemeld',
     output.includes('src/state/batchTransaction.ts') && output.includes('.getState('), output.trim());
 } finally {

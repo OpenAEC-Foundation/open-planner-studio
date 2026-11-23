@@ -45,8 +45,9 @@ function isHelperName(name: string): boolean {
 
 /**
  * Nabootsing van `place_file_exclusive` (#804, 1131 stap 3) op echte bestanden, in de volgorde van het commando:
- * vorm (absoluut, dezelfde map), hulpnaam, scope (`forbidden` op beide paden), een gewoon bestand als bron, dan de
- * exclusieve stap. Node kent geen `renameat2`; `link` + `unlink` faalt net zo met `EEXIST` als er op het doel iets
+ * vorm (absoluut, dezelfde map), hulpnaam, scope (`forbidden` op beide paden), een gewoon bestand met precies één naam
+ * als bron (meer namen `hard-linked`, nul `source-changed`; Node leest het aantal op naam, dus nul komt hier alleen via
+ * `faults.place` voor; het commando leest van de open bron), dan de exclusieve stap. Node kent geen `renameat2`; `link` + `unlink` faalt net zo met `EEXIST` als er op het doel iets
  * staat en vervangt nooit. Bewijst de route in TypeScript; dat de stap echt exclusief en atomair is, bewijst
  * `cargo test place_file` per platform.
  */
@@ -58,7 +59,10 @@ function placeOnDisk(from: string, to: string, forbidden: ((path: string) => boo
   if (isHelperName(nodePath.basename(from)) === isHelperName(nodePath.basename(to))) return refused('helper-name');
   if (forbidden?.(from) || forbidden?.(to)) return refused('scope');
   try {
-    if (!fs.lstatSync(from).isFile()) return refused('not-regular-file');
+    const source = fs.lstatSync(from);
+    if (!source.isFile()) return refused('not-regular-file');
+    if (source.nlink > 1) return refused('hard-linked');
+    if (source.nlink === 0) return { reject: { code: 'source-changed' } };
     fs.linkSync(from, to);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return { reject: { code: 'target-exists' } };
@@ -143,7 +147,11 @@ function openFlags(o: OpenOptions): number {
   return flags;
 }
 
-export function installNodeFileIpc() {
+/** `appDataDir`: beantwoord ook `plugin:path` (`appDataDir`, `join`) en `read_dir`, zodat het crashherstel van de desktop
+ *  (`recoveryStore`, Tauri-tak) op echte bestanden in die map draait. Zonder deze optie blijven die commando's
+ *  onverwacht, zoals voorheen. `read_file` en `read_text_file` beantwoordt de adapter altijd, zoals plugin-fs: de
+ *  bestandskiezer van Opslaan als op de desktop leest het gekozen doel (`pickSaveTarget`, fixronde 1 van #1071). */
+export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const handles = new Map<number, { fd: number; path: string; written: number; readAt: number }>();
   let nextRid = 1;
@@ -153,6 +161,9 @@ export function installNodeFileIpc() {
     beforeOpen: null as ((path: string) => void) | null,
     /** Paden buiten de scope: `open` en `write_file` weigeren ze met de tekst van plugin-fs. */
     forbidden: null as ((path: string) => boolean) | null,
+    /** Ook `stat` en `lstat` toetsen `forbidden`, zoals plugin-fs elke aanroep aan dezelfde scope toetst (knownbug 1902).
+     *  Standaard uit, zodat de oudere proeven hun nabootsing houden. */
+    forbiddenMeta: false,
     writeErrorAfter: null as number | null,
     renameError: null as unknown,
     removeError: null as unknown,
@@ -180,6 +191,7 @@ export function installNodeFileIpc() {
       case 'plugin:fs|stat':
       case 'plugin:fs|lstat': {
         let st: fs.Stats;
+        if (faults.forbiddenMeta && faults.forbidden?.(String(path))) throw `forbidden path: ${path}`;
         try {
           st = command === 'plugin:fs|stat' ? fs.statSync(String(path)) : fs.lstatSync(String(path));
         } catch (error) {
@@ -322,8 +334,26 @@ export function installNodeFileIpc() {
         if ('reject' in answer) throw answer.reject;
         return answer.resolve;
       }
-      default: throw new Error(`Onverwacht Tauri-commando in Node-fs-adapter: ${command}`);
+      case 'plugin:path|resolve_directory':
+        if (options.appDataDir === undefined) break;
+        return options.appDataDir;
+      case 'plugin:path|join':
+        if (options.appDataDir === undefined) break;
+        return nodePath.join(...(a.paths as string[]));
+      case 'plugin:fs|read_dir':
+        if (options.appDataDir === undefined) break;
+        return fs.readdirSync(String(path), { withFileTypes: true }).map(e => ({
+          name: e.name, isDirectory: e.isDirectory(), isFile: e.isFile(), isSymlink: e.isSymbolicLink(),
+        }));
+      case 'plugin:fs|read_file':
+      case 'plugin:fs|read_text_file': {
+        if (faults.readError !== null) throw faults.readError;
+        const data = new Uint8Array(fs.readFileSync(String(path)));
+        bytesRead += data.length;
+        return data;
+      }
     }
+    throw new Error(`Onverwacht Tauri-commando in Node-fs-adapter: ${command}`);
   };
   Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: {
     __TAURI_INTERNALS__: { invoke },

@@ -230,6 +230,7 @@ export type NotificationMessageKey =
   // #804 fase 1a: opslaan van een document met een gebouwmodel is nog geweigerd (`state/ifcForeignGuard.ts`).
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
+  | 'notifications.ifcForeignOpenTooLarge'
   | 'notifications.ifc2x3PlanningOnly'
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignSourceMissing'
@@ -239,12 +240,30 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignTargetChanged'
   | 'notifications.ifcForeignTargetGone'
   | 'notifications.ifcForeignReplaceNotRecorded'
+  | 'notifications.ifcForeignDownloadCopy'
+  | 'notifications.exportPlanOnly'
   | 'notifications.ifcForeignReplaceFailed'
   | 'notifications.ifcForeignMergeRefused'
   // Knownbug 1131 stap 4: de nieuwe naam bestond al, of de plaatsing liet een onbekende stand op schijf achter.
   | 'notifications.ifcForeignNewTargetOnly'
+  // Fixronde 1 van #1019: Opslaan als over een bestaande naam koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.ifcForeignTargetOpenInTab'
+  // Knownbug 1907: Exporteren koos een bestand dat in een ander tabblad open staat.
+  | 'notifications.exportTargetOpenInTab'
+  // Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open staat.
+  | 'notifications.exportTargetOpenDocument'
   | 'notifications.ifcForeignPlaceUnknown'
+  // Knownbug 1131 stap 5: het eigen bestand vervangen op de desktop (`state/ownFileReplace.ts`) en de restbestanden na
+  // een crash. Parameters: paden (`file`, `copy`, `target`, `temp`, `previous`, `path`).
+  | 'notifications.ifcForeignReplaceOtherVersion'
+  | 'notifications.ifcForeignReplaceUnsavedCopy'
+  | 'notifications.ifcForeignReplaceTargetTaken'
+  | 'notifications.ifcForeignReplacePreviousStranded'
+  | 'notifications.ifcForeignReplaceSaveAsOnly'
+  | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
+  // #804 stap 5: de opslagworker faalde (`IfcSaveWorkerError`); niets geschreven.
+  | 'notifications.ifcSaveWorkerFailed'
   | 'notifications.ifcForeignTargetSave'
   | 'notifications.ifcForeignTargetExport'
   | 'notifications.ifcExportChangedWhileWaiting'
@@ -252,6 +271,11 @@ export type NotificationMessageKey =
   | 'notifications.ifcUnreadableTargetSave'
   | 'notifications.ifcUnreadableTargetExport'
   | 'notifications.ifcUnreadableTargetAutoSave'
+  // #804 stap 8: Automatisch opslaan bij een gebouwmodel stopt veilig (`state/modelAutoSaveNotices.ts`).
+  | 'notifications.ifcForeignAutoSaveTargetChanged'
+  | 'notifications.ifcForeignAutoSaveSaveAsOnly'
+  | 'notifications.ifcForeignAutoSaveNotRecorded'
+  | 'notifications.ifcForeignAutoSaveRemnant'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).
@@ -300,6 +324,9 @@ export type NotificationMessageKey =
   // De store-route weigert een relatie die een kring sluit (net als raster en MCP). Parameter
   // `cycle`: de taaknamen van de kring, "A → B → A".
   | 'notifications.relationCycle'
+  // Ctrl+F2 / Geselecteerde taken koppelen: een gekozen taak staat meer dan eens in de lijst (groeperen op
+  // resource), voor én na een andere gekozen taak. De keten wordt niet gelegd (review #1004, ronde 6).
+  | 'notifications.relationChainOrderUnclear'
   // Verhangen maakte een bestaande relatie tot voorouder-relatie (telt niet meer mee) — zie
   // `hierarchyRelationNotice.ts`. Meervoud, `count`.
   | 'notifications.relationsExcludedByHierarchy'
@@ -410,6 +437,8 @@ export type NotificationMessageKey =
   | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
+  // Een eigen werksoort ook in het project hernoemen botst met een andere werksoort daar (#804 keuze 7).
+  | 'notifications.taskTypeRenameNameTaken'
   // Nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
@@ -437,6 +466,12 @@ export type NotificationMessageKey =
   // Een kalenderwissel loopt door de werkregel; wanneer dat de
   // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
   | 'notifications.workRuleDurationsChanged'
+  // Een bewerking aan één toewijzing veranderde de uren van de andere resources op die taak (#954);
+  // zie `otherWorkNotice.ts`. Hoofdregel met of zonder nieuwe duur, één regel per resource.
+  | 'notifications.otherWork.durationDays'
+  | 'notifications.otherWork.durationHours'
+  | 'notifications.otherWork.durationSame'
+  | 'notifications.otherWork.line'
   // Onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
   | 'notifications.exportSplitsLost'
@@ -511,13 +546,16 @@ export type NotificationActionLabelKey =
   | 'notifications.actions.openHelp'
   | 'view.filter.clear'
   | 'scheduleShift.why'
-  | 'scheduleShift.undo';
+  | 'scheduleShift.undo'
+  | 'notifications.actions.undo';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
  *  - `openBackstageSection`: open Bestand › `section` (rekenprofielen, tutorials);
  *  - `showScheduleShift`: open het paneel Verschuivingen; de melding blijft staan (#742);
  *  - `undoScheduleShift`: draai de herberekening terug; alleen zichtbaar zolang dat kan (#742);
+ *  - `undoHistoryEvent`: zet precies dit event uit de geschiedenis terug; de melding staat er alleen
+ *    zolang het document in de stand van die stap staat (`watchNotice` in `otherWorkNotice.ts`, #954);
  *  - `clearViewArrangement`: wis filter, groepering en sortering van het ACTIEVE document
  *    (eigenaarsbesluit 2026-10-19 5a). Veilig omdat een weigering bij een documentwissel verdwijnt
  *    (5b, `clearRefusals` in uiSlice): de knop staat dus nooit boven een ander document. */
@@ -525,7 +563,8 @@ export type NotificationAction =
   | { kind: 'openBackstageSection'; section: BackstageSection; labelKey: NotificationActionLabelKey }
   | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey }
   | { kind: 'showScheduleShift'; labelKey: NotificationActionLabelKey }
-  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey };
+  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey }
+  | { kind: 'undoHistoryEvent'; eventId: string; labelKey: NotificationActionLabelKey };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
@@ -690,6 +729,19 @@ export interface ExternalSourceUpdate {
   changedLinks: number;
 }
 
+/** De rij van de laatste klik zonder Shift, in de tijdlijn of de takenlijst, en de taken die daar
+ *  gekozen werden (een groepsruitje #868: zijn leden; een rij in de takenlijst: haar taken). Shift
+ *  begint hier, in beide oppervlakken, ook na uitvinken met Ctrl, zoals in een bestandsverkenner. */
+export interface SelectionAnchor { rowKey: string; taskIds: readonly string[] }
+
+/** Het anker zoals de store het bewaart: met de selectie waarvoor het geldt. Verandert de selectie
+ *  langs een andere weg (plakken, inklappen, Ctrl+A, MCP), dan geldt het niet meer
+ *  (`liveSelectionAnchor`); zo hoeft niet elke schrijver van de selectie het anker te kennen. */
+export interface StoredSelectionAnchor extends SelectionAnchor { selection: readonly string[] }
+
+/** Richting van een toe te wijzen relatie, gezien vanuit de taak waarvoor je kiest (issue #1000). */
+export type RelationAssignDirection = 'predecessor' | 'successor';
+
 export interface UIState {
   showTaskDialog: boolean;
   editingTaskId: string | null;
@@ -715,8 +767,12 @@ export interface UIState {
   backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   /** Rij (`ViewRow.rowKey`) van de celcursor in het taakraster; sessiestand, niet opgeslagen. In een
-   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899). */
+   *  groepering staat een taak meer dan eens: verwijderen kiest de buur vanaf déze rij (issue #899).
+   *  Een klik in de tijdlijn zet hier de aangeklikte rij, en de takenlijst volgt (review #1004). */
   gridActiveRowKey: string | null;
+  /** Beginpunt van Shift-klik, gedeeld door tijdlijn en takenlijst (review #1004). Sessiestand.
+   *  Lees het via `liveSelectionAnchor`. */
+  selectionAnchor: StoredSelectionAnchor | null;
   showSettingsDialog: boolean;
   /** Directe link naar één instelling (`openSettingsAt`): het instellingenpaneel opent op die
    *  instelling, laat hem oplichten en zet dit daarna terug op `null`. Sessiewerk, niet bewaard. */
@@ -750,14 +806,30 @@ export interface UIState {
   ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  /** Session — *Opslaan* in de sluitvraag loopt (fixronde 1 van #1008). De knoppen van de sluitvraag én Escape
+   *  (`edit.deselect`) lezen deze ene vlag: tijdens die opslag verbergt niets de vraag. Alleen via de sluitvraag
+   *  (`onSavePendingChange` van `createCloseDocumentDialogActions`). */
+  closeQuestionSaving: boolean;
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
    *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
   appQuitPending: boolean;
+  /** Session — afsluiten, een document sluiten of de sluitvraag wacht op een lopende of wachtende projectopslag
+   *  (#804 stap 3): "Wordt nog opgeslagen…" (`SavingBeforeCloseNotice`). Zet de schil stil zoals een wachtende vraag.
+   *  Alleen via `waitForSavesBeforeClose` (documentSlice). */
+  savingBeforeClose: boolean;
+  /** Session — de laatste fase van afsluiten (#804 stap 3, fixronde 1): niets meer ongeopgeslagen, de poort voor
+   *  projectopslag is dicht en het venster gaat weg. Zet de schil stil tot het venster weg is, zonder eigen melding.
+   *  Alleen via `appQuitDependencies` (`closeWrites`). */
+  appClosing: boolean;
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
   showNewOrOpenProjectDialog: boolean;
   /** Een pas gemaakte taak krijgt éénmalig de naamfocus in het eigenschappenpaneel. */
   pendingTaskNameFocusId: string | null;
+  /** Session — "Voorgangers/Opvolgers toewijzen…" (issue #1000, zoals Assign in Primavera): het
+   *  relatiepaneel opent éénmalig de keuzerij bij deze taak, met de richting al gekozen. Alleen via
+   *  `requestRelationAssign` (`state/relationActions.ts`); `TaskDependenciesSection` wist het. */
+  pendingRelationAssign: { taskId: string; direction: RelationAssignDirection } | null;
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
   /** persisted (`ops-feedbackEmail`) — het optionele e-mailadres uit de feedbackdialoog, onthouden na
    *  een geslaagde melding. Geen paneelinstelling: het hoort bij het formulier zelf. */

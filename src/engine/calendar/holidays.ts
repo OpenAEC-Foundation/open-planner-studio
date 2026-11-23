@@ -10,11 +10,12 @@
 import type { Holiday } from '@/types/calendar';
 import { addCalendarDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 
-export type HolidayCountry = 'NL' | 'DE' | 'BE' | 'FR' | 'UK' | 'AT' | 'CH' | 'US';
+export const HOLIDAY_COUNTRIES = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'BO'] as const;
+export type HolidayCountry = typeof HOLIDAY_COUNTRIES[number];
 
 export type HolidayRule =
   | { kind: 'fixed'; month: number; day: number; days?: number;
-      substitute?: 'nl-kingsday' | 'uk-monday' | 'us-federal' }
+      substitute?: 'nl-kingsday' | 'uk-monday' | 'us-federal' | 'sunday-to-monday' }
   | { kind: 'easter'; offset: number; days?: number }
   | { kind: 'nth-weekday'; month: number; weekday: 1 | 2 | 3 | 4 | 5 | 6 | 7;
       nth: 1 | 2 | 3 | 4 | 'last' }
@@ -24,6 +25,10 @@ export interface HolidayDef {
   id: string;
   name: string;
   rule: HolidayRule;
+  /** Een decreet kan de gewone regel in één jaar vervangen. */
+  ruleByYear?: Readonly<Partial<Record<number, HolidayRule>>>;
+  /** Eenmalige feestdag. */
+  onlyYear?: number;
   /** Leeg/undefined = landelijk; anders alleen genereren voor deze regio-id's. */
   regions?: string[];
   /** In de UI als opt-in te markeren (dag is niet overal/altijd vrij). */
@@ -92,7 +97,7 @@ function weekdayBefore(y: number, month1: number, day: number, weekday: number):
 
 /** Materialiseer één regel naar (meestal) één Holiday voor een jaar. */
 function materialize(def: HolidayDef, y: number): Holiday | null {
-  const r = def.rule;
+  const r = def.ruleByYear?.[y] ?? def.rule;
   switch (r.kind) {
     case 'fixed': {
       let d = utc(y, r.month, r.day);
@@ -103,6 +108,8 @@ function materialize(def: HolidayDef, y: number): Holiday | null {
         // Weekend → eerstvolgende maandag (New Year / Christmas Day, single-day).
         if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, 2);
         else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
+      } else if (r.substitute === 'sunday-to-monday') {
+        if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
       } else if (r.substitute === 'us-federal') {
         // Federale regel: zaterdag → vrijdag ervoor (5 U.S.C. § 6103(b)), zondag → maandag erna
         // (Executive Order 11582, § 3(a)). Geldt voor maandag-t/m-vrijdagwerkers; zie de Help-tekst.
@@ -159,6 +166,7 @@ export function generateHolidays(
       }
       if (def.lustrumOnly && y % 5 !== 0) continue;
       if (def.fromYear !== undefined && y < def.fromYear) continue;
+      if (def.onlyYear !== undefined && y !== def.onlyYear) continue;
       const h = materialize(def, y);
       if (h) out.push(h);
     }
@@ -337,9 +345,48 @@ export const US_SET: HolidaySet = {
   ],
 };
 
+const BO_SET: HolidaySet = {
+  country: 'BO',
+  regions: [{ id: 'L', name: 'La Paz' }, { id: 'P', name: 'Potosí' }, { id: 'S', name: 'Santa Cruz' }],
+  defs: [
+    // DS 2750 art. 2–3, gewijzigd door DS 5019. 2 november blijft op de vaste datum,
+    // tenzij een afzonderlijk decreet de dag verplaatst. In 2026 regelt DS 5521 de
+    // verplaatsing van 22 januari en 21 juni en de extra dagen op 5 juni en 7 augustus.
+    // https://intranet.mineria.gob.bo/wp-content/uploads/2026/01/DS-5521.pdf
+    { id: 'bo-new-year', name: 'Año Nuevo', rule: { kind: 'fixed', month: 1, day: 1, substitute: 'sunday-to-monday' } },
+    // https://mintrabajo.gob.bo/index.php/nota_prensa/la-paz-12/
+    { id: 'bo-new-year-2026', name: 'Feriado adicional de Año Nuevo', rule: { kind: 'fixed', month: 1, day: 2 }, onlyYear: 2026 },
+    { id: 'bo-state', name: 'Día de la Creación del Estado Plurinacional de Bolivia',
+      rule: { kind: 'fixed', month: 1, day: 22, substitute: 'sunday-to-monday' },
+      ruleByYear: { 2026: { kind: 'fixed', month: 1, day: 23 } } },
+    { id: 'bo-carnaval', name: 'Carnaval', rule: { kind: 'easter', offset: -48, days: 2 } },
+    { id: 'bo-viernes-santo', name: 'Viernes Santo', rule: { kind: 'easter', offset: -2 } },
+    { id: 'bo-trabajo', name: 'Día del Trabajo', rule: { kind: 'fixed', month: 5, day: 1, substitute: 'sunday-to-monday' } },
+    { id: 'bo-corpus', name: 'Corpus Christi', rule: { kind: 'easter', offset: 60 } },
+    { id: 'bo-corpus-2026', name: 'Feriado adicional de Corpus Christi', rule: { kind: 'fixed', month: 6, day: 5 }, onlyYear: 2026 },
+    { id: 'bo-andino', name: 'Año Nuevo Andino Amazónico Chaqueño',
+      rule: { kind: 'fixed', month: 6, day: 21, substitute: 'sunday-to-monday' } },
+    { id: 'bo-independencia', name: 'Día de la Independencia de Bolivia',
+      rule: { kind: 'fixed', month: 8, day: 6, substitute: 'sunday-to-monday' } },
+    { id: 'bo-independencia-2026', name: 'Feriado adicional de la Independencia', rule: { kind: 'fixed', month: 8, day: 7 }, onlyYear: 2026 },
+    { id: 'bo-difuntos', name: 'Día de Todos los Difuntos', rule: { kind: 'fixed', month: 11, day: 2 } },
+    { id: 'bo-navidad', name: 'Navidad', rule: { kind: 'fixed', month: 12, day: 25, substitute: 'sunday-to-monday' } },
+    // Departementale feestdagen uit #992, bevestigd in de MTEPS-comunicados van 2026.
+    { id: 'bo-la-paz', name: 'Gesta Libertaria de La Paz',
+      rule: { kind: 'fixed', month: 7, day: 16, substitute: 'sunday-to-monday' }, regions: ['L'] },
+    { id: 'bo-potosi', name: 'Gesta Libertaria de Potosí',
+      rule: { kind: 'fixed', month: 11, day: 10, substitute: 'sunday-to-monday' }, regions: ['P'] },
+    { id: 'bo-santa-cruz', name: 'Gesta Libertaria de Santa Cruz',
+      rule: { kind: 'fixed', month: 9, day: 24, substitute: 'sunday-to-monday' }, regions: ['S'] },
+    // https://mintrabajo.gob.bo/index.php/lista-comunicados-page/page/2/
+    { id: 'bo-santa-cruz-2026', name: 'Feriado adicional de Santa Cruz',
+      rule: { kind: 'fixed', month: 9, day: 25 }, regions: ['S'], onlyYear: 2026 },
+  ],
+};
+
 /** Alle landensets, geïndexeerd op land-code (voor de wizard/dialoog). */
 export const HOLIDAY_SETS: Record<HolidayCountry, HolidaySet> = {
-  NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET, US: US_SET,
+  NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET, US: US_SET, BO: BO_SET,
 };
 
 // ── Bouwvak-datatabel (opt-in, default GEEN) ──────────────────────────────────────────────────

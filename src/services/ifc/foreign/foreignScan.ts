@@ -6,11 +6,13 @@
  * keuze van `selectPlanning` als stukindexen. Puur: geen store, DOM, bestandstoegang of Tauri. De Worker
  * (`foreignScan.worker.ts`) en de synchrone terugval (`foreignScanRunner.ts`) roepen dezelfde functie aan.
  */
-import { StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { COMPLEX_TYPE, StepScanError, type StepIndex, type StepScanReason } from './stepScanner';
+import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { scanForeignStep } from './oldOwnHeader';
 import { classify, REGISTER_PSET_NAMES, type Classification } from './classify';
 
-/** Bestaande grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting; geen nieuwe grens). */
+/** De technische grens van de bytes-route en de doelindeling: 300 MiB (fase-0-meting). Niet de productgrens voor het
+ *  openen van een model: die staat apart, in `../modelOpenLimit.ts` (`IFC_MODEL_OPEN_MAX_BYTES`, 150 MiB). */
 export const IFC_FOREIGN_SCAN_MAX_BYTES = 300 * 1024 * 1024;
 
 /** De keuze van de lezer (§4.2 stap 1) als stukindexen in bronvolgorde. */
@@ -53,6 +55,8 @@ export interface ForeignScanResult {
   /** Properties in een eigen pset die de lezer niet leest (stukindexen). */
   readonly foreignMembers: Int32Array;
   readonly lineEnding: '\r\n' | '\n';
+  /** Heeft de bron een gebouwmodel (`hasBuildingModelEntity`)? */
+  readonly buildingModel: boolean;
 }
 
 /** De scanner weigerde de invoer (ongeschikte of onvolledige STEP); de bytes-route valt dan terug (afwijking 7). */
@@ -126,7 +130,25 @@ export function foreignScanFrom(index: StepIndex, cls: Classification, bytes: Ui
     counts: { ...cls.counts },
     foreignMembers: Int32Array.from(cls.foreignMembers),
     lineEnding: index.lineEnding,
+    buildingModel: hasBuildingModelEntity(index),
   };
+}
+
+/**
+ * Heeft de bron een gebouwmodel (#804, review van #1002 ronde 2 en 3)? Een entiteit met een modeltype: dezelfde lijst als
+ * de modelweigering bij openen en de doelscan (`IFC_BUILDING_MODEL_TYPES`), uit de index die deze scan al heeft, dus bij
+ * openen en bij de controle van de uitvoer. Vreemde inhoud zonder modeltype (alleen een eigenschappenset van een ander
+ * programma) is geen gebouwmodel. Van een complexe instantie kent de index alleen `(COMPLEX)` en niet haar deeltypen; die
+ * telt daarom altijd als gebouwmodel, zonder de tekst te lezen (de veilige kant: het document blijft na een kopie
+ * gewijzigd, de exportzin staat erbij). Een complexe instantie zonder modeltype krijgt dus ook de zin (knownbug 1845).
+ */
+function hasBuildingModelEntity(index: StepIndex): boolean {
+  for (let i = 0; i < index.count; i++) {
+    if (!index.isEntity(i)) continue;
+    const type = index.type(i);
+    if (type === COMPLEX_TYPE || IFC_BUILDING_MODEL_TYPES.has(type)) return true;
+  }
+  return false;
 }
 
 /** §4.6 b: de V-stukken van een pset uit het register onder een gemengde `IfcRelDefinesByProperties` (A, met een D-object

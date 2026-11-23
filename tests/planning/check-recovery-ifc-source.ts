@@ -22,7 +22,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
-import { ownRecoveryNames } from '@/hooks/recoveryPaths';
+import { ownRecoveryNames } from '@/services/recovery/recoveryPaths';
 import { planTauriV3RecoverySave, parseRecoveryManifest } from '@/services/recovery/recoveryStore';
 import { checkRecoveryDocuments, checkRecoveryManifestVersion } from '@/services/recovery/recoveryManifest';
 import { readRecoveryDocument } from '@/state/readRecoveryDocument';
@@ -30,6 +30,9 @@ import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { pendingIfcSourceSha256, replaceWithRecoveryPending } from '@/services/recovery/recoveryPendingSource';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { castDraft } from 'immer';
+
+/** Deze proeven kennen geen afsluiten of update: de poort van de schrijfrij staat altijd open. */
+const noFinalPhase = (): never => { throw new Error('de laatste fase van afsluiten of de updater is hier niet begonnen'); };
 
 installDeterminism();
 await loadStore();
@@ -593,7 +596,7 @@ for (const route of ['desktop', 'handle'] as const) {
       return true;
     },
     commit: () => { replacing.setState(s => { s.ifcSource = castDraft(nextSource); }); },
-  })));
+  }), noFinalPhase));
   assert.equal(outcome, 'replaced', route);
   // Vastleggen vóór de vervanging: de oude bron plus de komende versie.
   assert.equal(manifestDoc(duringReplace, id).ifcSource?.sha256, hash(bytes), route);
@@ -647,7 +650,8 @@ await two.getState().openOpenedFile({ name: 'helper-a.ifc', content: '', bytes, 
 durationEdit(two);
 const helperId = two.getState().activeDocumentId!;
 const helper = (replace: () => Promise<boolean>) => withFlush(two, () => runProjectFileWrite(() =>
-  replaceWithRecoveryPending(helperId, hash(nextVersion), { replace, commit: () => { two.setState(s => { s.ifcSource = castDraft(nextSource); }); } })));
+  replaceWithRecoveryPending(helperId, hash(nextVersion), { replace, commit: () => { two.setState(s => { s.ifcSource = castDraft(nextSource); }); } }),
+  noFinalPhase));
 await tick(two);
 const otherBefore = manifestDoc(await loadRecovery(), otherId).ifcSource;
 let seenDuring: Awaited<ReturnType<typeof loadRecovery>> | undefined;
@@ -667,7 +671,7 @@ assert.equal(replaced, 0, 'manifest niet te schrijven: geen vervanging');
 assert.equal(hash(readFileSync(helperPath)), hash(bytes));
 assert.equal(pendingIfcSourceSha256(helperId), undefined);
 assert.equal(await runProjectFileWrite(() => replaceWithRecoveryPending(helperId, hash(nextVersion), {
-  replace: async () => { replaced++; return true; }, commit: () => {} })), 'not-recorded', 'geen herstelronde: geen vervanging');
+  replace: async () => { replaced++; return true; }, commit: () => {} }), noFinalPhase), 'not-recorded', 'geen herstelronde: geen vervanging');
 assert.equal(replaced, 0);
 await assert.rejects(replaceWithRecoveryPending(helperId, hash(nextVersion), { replace: async () => true, commit: () => {} }),
   /runProjectFileWrite/, 'buiten de schrijfvolgorde geweigerd');

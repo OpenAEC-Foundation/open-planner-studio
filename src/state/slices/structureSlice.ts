@@ -1,8 +1,12 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
-import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
-import type { CustomTaskType } from '@/types/taskType';
+import { customTaskTypeClashes, customTaskTypeInUse, renamedCustomTaskTypes } from '@/services/taskTypes/customTaskTypeRules';
+import type { CustomTaskType, CustomTaskTypeDraft } from '@/types/taskType';
+import { enteringDocument } from '@/services/taskTypes/customTaskTypeColors';
 import { generateId } from '@/utils/id';
+import { rewriteDocumentHistorySnapshots } from '../sessionHistory';
+import type { Snapshot } from '../snapshot';
+import type { AppState } from '../appStore';
 import type { AppSliceFactory } from './types';
 
 /**
@@ -40,7 +44,55 @@ export interface StructureSlice {
   removeCustomField: (id: string) => void;
   /** Zet een veldwaarde op een taak (null = waarde weghalen). */
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
-  ensureProjectTaskType: (type: CustomTaskType) => void;
+  /** Neemt een werksoort op in het document. Haar kleur gaat mee; zonder kleur de eerste vrije (#856). */
+  ensureProjectTaskType: (type: CustomTaskTypeDraft) => void;
+  /**
+   * Hernoemt de projectkopie van een eigen taaktype (#804 keuze 7): één ongedaan-maakstap, document
+   * gewijzigd, de naam gaat mee in het IFC en het herstel. Alleen in `documentId`, het document waarin de
+   * planner het bevestigde (is een ander document actief: niets), en alleen als een taak het type gebruikt
+   * (een ongebruikte definitie bewaart IFC/herstel niet; die gaat via `renameUnusedProjectTaskType`).
+   * Dezelfde botsingsregel als `ensureProjectTaskType`; een geweigerde of overbodige hernoeming verandert
+   * niets.
+   */
+  renameProjectTaskType: (documentId: string, id: string, name: string) => RenameProjectTaskTypeResult;
+  /**
+   * De tegenhanger voor een projectkopie die GEEN taak gebruikt (eigenaarsbesluit 18 november 2026): die
+   * krijgt de nieuwe naam stil. IFC en herstel bewaren zo'n definitie niet, dus wat bewaard wordt verandert
+   * niet: geen ongedaan-maakstap en het document wordt niet gewijzigd. Ook de oudere momentopnames van dit
+   * document waarin de kopie ongebruikt is, krijgen de naam, zodat ongedaan maken haar niet terugdraait;
+   * een stand waarin een taak haar gebruikte, houdt de naam van toen. Dezelfde regels als
+   * `renameProjectTaskType`; een gebruikte kopie (`inUse`) of een botsende naam verandert niets.
+   */
+  renameUnusedProjectTaskType: (documentId: string, id: string, name: string) => RenameProjectTaskTypeResult;
+}
+
+/** Uitkomst van `renameProjectTaskType`. `nameTaken` noemt de naam van het ándere type, zodat de
+ *  planner ziet waarom de naam in het project niet veranderde. */
+export type RenameProjectTaskTypeResult =
+  | { status: 'renamed' }
+  | { status: 'unchanged' }
+  | { status: 'missing' }
+  | { status: 'empty' }
+  | { status: 'unused' }
+  | { status: 'inUse' }
+  | { status: 'otherDocument' }
+  | { status: 'nameTaken'; takenName: string };
+
+/** De regels van beide hernoemacties, in deze volgorde: het document waarin de planner hernoemde, een
+ *  niet-lege naam, een type dat in het project staat, het gebruik dat bij de actie hoort (`used`), geen
+ *  ánder type met die naam en een echte wijziging. Geeft de getrimde naam of de weigering. */
+function checkProjectTaskTypeRename(
+  state: AppState, documentId: string, id: string, name: string, used: boolean,
+): { status: 'allowed'; name: string } | RenameProjectTaskTypeResult {
+  if (state.activeDocumentId !== documentId) return { status: 'otherDocument' };
+  const clean = name.trim();
+  if (!clean) return { status: 'empty' };
+  const { sameId, sameNameOtherId } = customTaskTypeClashes(state.customTaskTypes, { id, name: clean });
+  if (!sameId) return { status: 'missing' };
+  if (customTaskTypeInUse(state.tasks, id) !== used) return { status: used ? 'unused' : 'inUse' };
+  if (sameNameOtherId) return { status: 'nameTaken', takenName: sameNameOtherId.name };
+  if (sameId.name === clean) return { status: 'unchanged' };
+  return { status: 'allowed', name: clean };
 }
 
 export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) => (set, get) => ({
@@ -55,9 +107,43 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const { sameId, sameNameOtherId } = customTaskTypeClashes(s.customTaskTypes, { id, name });
       if (sameId || sameNameOtherId || !id || !name) return;
       runtime.beginUndoable(s);
-      s.customTaskTypes.push({ id, name });
+      s.customTaskTypes.push(enteringDocument({ id, name, color: type.color }, s.customTaskTypes));
       runtime.finishMutation(s);
     });
+  },
+
+  renameProjectTaskType: (documentId, id, name) => {
+    const check = checkProjectTaskTypeRename(get(), documentId, id, name, true);
+    if (check.status !== 'allowed') return check;
+    set((s) => {
+      runtime.beginUndoable(s);
+      s.customTaskTypes = s.customTaskTypes.map(type => type.id === id ? { ...type, name: check.name } : type);
+      runtime.finishMutation(s);
+    });
+    get().recomputeViewRows();
+    return { status: 'renamed' };
+  },
+
+  renameUnusedProjectTaskType: (documentId, id, name) => {
+    const state = get();
+    const check = checkProjectTaskTypeRename(state, documentId, id, name, false);
+    if (check.status !== 'allowed') return check;
+    // Buiten `beginUndoable`/`finishMutation`: geen stap en geen `isDirty`. Dezelfde typelijst krijgt
+    // overal dezelfde nieuwe lijst, zodat gedeelde referenties tussen momentopnames gedeeld blijven.
+    const renamed = new Map<readonly CustomTaskType[], CustomTaskType[] | null>();
+    const rename = (types: readonly CustomTaskType[]): CustomTaskType[] | null => {
+      if (!renamed.has(types)) renamed.set(types, renamedCustomTaskTypes(types, id, check.name));
+      return renamed.get(types)!;
+    };
+    const historyEvents = rewriteDocumentHistorySnapshots(state.historyEvents, documentId, (snapshot: Snapshot) => {
+      if (customTaskTypeInUse(snapshot.tasks, id)) return snapshot;
+      const customTaskTypes = rename(snapshot.customTaskTypes);
+      return customTaskTypes ? { ...snapshot, customTaskTypes } : snapshot;
+    });
+    // Geen `recomputeViewRows`: de rijen lezen de werksoortcatalogus niet (`viewRowInputs`); de Tabel en
+    // het werksoortveld volgen haar rechtstreeks.
+    set({ customTaskTypes: rename(state.customTaskTypes)!, historyEvents });
+    return { status: 'renamed' };
   },
 
   addActivityCodeType: (name) => {

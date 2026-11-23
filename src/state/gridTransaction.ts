@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { constraintDateField, DayClockCache, normalizeTaskDateInput, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
 import { workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
 import { normalizeActualDate } from '@/engine/taskMutationRules';
@@ -36,10 +37,11 @@ import {
   captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
 } from '@/engine/work/workRuleApply';
 import { remainingWorkRecomputedNotice } from './remainingWorkNotice';
-import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import { contourKeepsWork, taskCalendarHoursPerDay, taskTriggerChanges, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
 import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
+import { progressPlacementForBatch, progressPlannedDates } from './progressPlannedDates';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -562,16 +564,20 @@ function applyCellEdits(
   // Bepaalt een voorganger de start van deze taak? Lui en per transactie gedeeld (zie
   // `prepareGridMutation`), want alleen een getypte start heeft het nodig.
   startDrivenByPredecessor: (taskId: string) => boolean,
+  plannedDates: (task: Task) => PlannedProgressDates | undefined,
   // De toewijzingen van deze taak (uit de callerindex, O(1)), voor de
   // werkdriehoek bij een duurbewerking.
   assignmentsForTask: readonly AppState['assignments'][number][] = [],
   // Met `GridMutationOptions.progressEntry`: de statusdatum waarmee de cellen gepland worden als het
   // project er nog geen heeft — vandaag. De draft zelf krijgt hem pas als de uitkomst hem houdt.
   statusDateOverride?: string,
+  deferDurationCompletion?: boolean,
 ): GridResult<{
   timephasedGuidanceLost: boolean;
   skippedReadOnlyCount: number;
   startNotice?: StartEditNotice;
+  /** Dezelfde datum voor de afleiding en voor de startvraag na toepassen van de plak. */
+  progressStart?: string;
   /** Bewaard, afwijkend restwerk dat een duurcel opnieuw uitrekende (`settleDurationEdit`). */
   recomputedWork?: readonly RecomputedRemainingWork[];
 }, readonly CellValidationError[]> {
@@ -640,6 +646,7 @@ function applyCellEdits(
     : task;
   const environment: TaskEditPlanEnvironment = {
     ...buildTaskEditPlanEnvironment(state, taskForCalendar),
+    deferDurationCompletion,
     ...(statusDateOverride ? { statusDate: statusDateOverride } : {}),
     ...(validatedEdits.some(edit => TYPED_START_COLUMN_IDS.has(String(edit.columnId)))
       ? { startDrivenByPredecessor: startDrivenByPredecessor(task.id) }
@@ -823,7 +830,15 @@ function applyCellEdits(
   // Een voortgangscel verplaatst opgeslagen werk van rest naar verricht.
   const progressWork = captureProgressWork(current, state);
   const workRuleBefore = current.workRule;
-  const planned = planTaskCellEdits(current, remainingEdits, environment);
+  let progressStart: string | undefined;
+  const planned = planTaskCellEdits(current, remainingEdits, {
+    ...environment,
+    plannedDates: edited => {
+      const dates = plannedDates(edited);
+      progressStart = dates?.earlyStart;
+      return dates;
+    },
+  });
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     changed = true;
@@ -857,15 +872,82 @@ function applyCellEdits(
       : undefined;
   return {
     ok: true,
-    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice, recomputedWork },
+    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice, recomputedWork, progressStart },
   };
 }
 
-export function prepareGridMutation(
+/** Bepaal starts met de nieuwe plaatsing en de voortgang van eerdere taken in de relatiegraaf. */
+function plannedDatesForGrid(
+  state: Readonly<AppState>,
+  writes: readonly GridWriteIntent[],
+  skipReadOnlyCells: boolean,
+  today: string | undefined,
+): (task: Task) => PlannedProgressDates | undefined {
+  const placementWrites = writes.filter(write => write.kind !== 'cell-edit'
+    || write.route === 'task-schedule' || write.route === 'task-constraint'
+    || write.route === 'task-milestone' || write.route === 'task-hammock'
+    || String(write.columnId) === 'task.workRule');
+  const progressByTask = new Map<string, CellEditIntent[]>();
+  for (const write of writes) {
+    if (write.kind !== 'cell-edit' || write.route !== 'task-progress') continue;
+    const group = progressByTask.get(write.taskId);
+    if (group) group.push(write);
+    else progressByTask.set(write.taskId, [write]);
+  }
+  const placement = placementWrites.length > 0 ? prepareGridWrites(state, [{
+    kind: 'paste', writes: placementWrites, allowSkippingReadOnlyCells: skipReadOnlyCells,
+  }], undefined, progressByTask) : undefined;
+  const placed = placement?.ok ? placement.value.isolated : state;
+  const base = progressPlannedDates(placed);
+  const statusDate = placed.project.statusDate || today;
+  const batch = progressPlacementForBatch(placed, new Set(progressByTask.keys()), statusDate);
+  if (!batch) return base;
+
+  const dates = new Map<string, PlannedProgressDates | undefined>();
+  const tasksById = new Map(placed.tasks.map(task => [task.id, task]));
+  const originalById = placed === state ? tasksById : new Map(state.tasks.map(task => [task.id, task]));
+  for (const id of batch.order) {
+    const edits = progressByTask.get(id)!;
+    const before = tasksById.get(id)!;
+    const original = originalById.get(id);
+    const beforeDuration = original && original !== before && taskTriggerChanges(original, before).timeBase
+      ? original.time : undefined;
+    const environment = buildTaskEditPlanEnvironment(placed, before);
+    const plan = planTaskCellEdits(before, edits, {
+      ...environment,
+      statusDate,
+      plannedDates: task => {
+        const placement = batch.plannedDates(task);
+        dates.set(id, placement);
+        return placement;
+      },
+    }, beforeDuration);
+    if (!plan.ok || !plan.value.changed) continue;
+    const after = plan.value.task;
+    if (today && progressStartQuestion(before, after, edits, statusDate, placed, dates.get(id)?.earlyStart)) continue;
+    batch.accept(before, after);
+  }
+  return task => dates.has(task.id) ? dates.get(task.id) : base(task);
+}
+
+function progressStartQuestion(
+  before: Task, after: Task, edits: readonly CellEditIntent[], statusDate: string | undefined,
+  state: Pick<AppState, 'calendar' | 'calendars'>, plannedStart: string | undefined,
+) {
+  const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
+  return actualStartQuestionFor(before, after, statusDate, {
+    actualStart: wrote('task.time.actualStart'),
+    actualFinish: wrote('task.time.actualFinish'),
+  }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, state.calendars, state.calendar),
+  () => plannedStart);
+}
+
+function prepareGridWrites(
   state: Readonly<AppState>,
   intents: readonly GridIntent[],
   options?: GridMutationOptions,
-): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
+  progressAfterPlacement?: ReadonlyMap<string, readonly CellEditIntent[]>,
+): GridResult<Omit<PreparedGridMutation, 'derivedAfter' | 'before' | 'after'> & { isolated: AppState }, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
   const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
@@ -896,12 +978,17 @@ export function prepareGridMutation(
     0,
   );
 
+  let lookup: ((task: Task) => PlannedProgressDates | undefined) | undefined;
+  const plannedDates = (task: Task): PlannedProgressDates | undefined => {
+    lookup ??= plannedDatesForGrid(state, orderedWrites, skipReadOnlyCells, today);
+    return lookup(task);
+  };
+
   const runtime = buildGridColumnRuntime(state);
   let relationWriteCount = 0;
   for (const write of orderedWrites) {
     if (write.kind === 'relation-set') relationWriteCount++;
   }
-  const before = createSnapshot(state as AppState);
   let errors: CellValidationError[] = [];
   const timephasedLossTaskIds = new Set<string>();
   const assignmentValidationTaskIds = new Set<string>();
@@ -951,15 +1038,17 @@ export function prepareGridMutation(
       else cellWritesByTaskId.set(write.taskId, [write]);
     }
     const appliedCellTaskIds = new Set<string>();
+    const progressStarts = new Map<string, string>();
     for (const write of orderedWrites) {
       if (write.kind === 'cell-edit') {
         if (appliedCellTaskIds.has(write.taskId)) continue;
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
         const applied = applyCellEdits(
-          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor,
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor, plannedDates,
           draftAssignmentsByTaskId.get(write.taskId) ?? [],
           plansStatusDateToday ? today : undefined,
+          progressAfterPlacement?.has(write.taskId),
         );
         if (!applied.ok) errors.push(...applied.errors);
         else {
@@ -973,6 +1062,7 @@ export function prepareGridMutation(
           if (taskWrites.length > applied.value.skippedReadOnlyCount) wroteTaskIds.add(write.taskId);
           if (applied.value.startNotice) startNotices.push(applied.value.startNotice);
           if (applied.value.recomputedWork) recomputedWork.push(...applied.value.recomputedWork);
+          if (applied.value.progressStart) progressStarts.set(write.taskId, applied.value.progressStart);
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
@@ -1053,11 +1143,7 @@ export function prepareGridMutation(
         const after = draftTasksById.get(taskId);
         if (!before || !after) continue;
         const writes = cellWritesByTaskId.get(taskId) ?? [];
-        const wrote = (columnId: string) => writes.some(write => String(write.columnId) === columnId && !!write.value);
-        const question = actualStartQuestionFor(before, after, entryStatusDate, {
-          actualStart: wrote('task.time.actualStart'),
-          actualFinish: wrote('task.time.actualFinish'),
-        }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar));
+        const question = progressStartQuestion(before, after, writes, entryStatusDate, draft, progressStarts.get(taskId));
         if (question) {
           errors.push(validationError('actualStartRequired', { taskId }, {
             statusDate: question.statusDate, latest: question.latest,
@@ -1103,7 +1189,29 @@ export function prepareGridMutation(
   const workNotice = remainingWorkRecomputedNotice(recomputedWork);
   if (workNotice) notifications.push(workNotice);
 
-  const after = createSnapshot(isolated);
+  return {
+    ok: true,
+    value: {
+      isolated,
+      documentId: state.activeDocumentId,
+      notifications: [...notifications, ...startEditNotifications(startNotices, state.ui.dateNotation, state.ui.timeNotation)],
+      timephasedLossCount: timephasedLossTaskIds.size,
+      skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
+      skippedReadOnlyUntouchedTaskIds: [...skippedReadOnlyTaskIds].filter(id => !wroteTaskIds.has(id)),
+      skippedReadOnlyPartialTaskIds: [...skippedReadOnlyTaskIds].filter(id => wroteTaskIds.has(id)),
+      label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
+    },
+  };
+}
+
+export function prepareGridMutation(
+  state: Readonly<AppState>,
+  intents: readonly GridIntent[],
+  options?: GridMutationOptions,
+): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
+  const prepared = prepareGridWrites(state, intents, options);
+  if (!prepared.ok) return prepared;
+  const { isolated, ...mutation } = prepared.value;
   let viewRows: readonly ViewRow[];
   let resourceLoadResult: ResourceLoadResult | null;
   try {
@@ -1113,7 +1221,7 @@ export function prepareGridMutation(
     resourceLoadResult = state.resourceLoadResult !== null && resourceLoadInputsUnchanged(state, isolated)
       ? state.resourceLoadResult
       : computeReliableResourceLoad(
-      after.cpmResult,
+      isolated.cpmResult,
       isolated.resources,
       isolated.assignments,
       isolated.tasks,
@@ -1127,16 +1235,10 @@ export function prepareGridMutation(
   return {
     ok: true,
     value: {
-      documentId: state.activeDocumentId,
-      before,
-      after,
+      ...mutation,
+      before: createSnapshot(state as AppState),
+      after: createSnapshot(isolated),
       derivedAfter: { viewRows, resourceLoadResult },
-      notifications: [...notifications, ...startEditNotifications(startNotices, state.ui.dateNotation, state.ui.timeNotation)],
-      timephasedLossCount: timephasedLossTaskIds.size,
-      skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
-      skippedReadOnlyUntouchedTaskIds: [...skippedReadOnlyTaskIds].filter(id => !wroteTaskIds.has(id)),
-      skippedReadOnlyPartialTaskIds: [...skippedReadOnlyTaskIds].filter(id => wroteTaskIds.has(id)),
-      label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
     },
   };
 }

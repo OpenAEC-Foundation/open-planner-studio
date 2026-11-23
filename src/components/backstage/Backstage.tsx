@@ -71,7 +71,6 @@ export function Backstage() {
   // sluit-bevestiging, schoon sluit meteen.
   const { closeWithGuard } = useDocumentActions();
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
-  const isDirty = useAppStore(s => s.isDirty); // top-level = het actieve document
 
   const closeBackstage = useCallback(() => {
     // Terug naar Start-tab
@@ -112,7 +111,7 @@ export function Backstage() {
     // Backstage éérst dicht: de sluit-bevestiging hoort boven de gewone werkruimte te staan, niet
     // achter/onder het File-menu dat de hele body overneemt.
     closeBackstage();
-    closeWithGuard({ id: activeDocumentId, isDirty });
+    closeWithGuard({ id: activeDocumentId });
   };
 
   // Esc sluit backstage — niet terwijl er een dialoog boven staat (die handelt zijn eigen Escape af,

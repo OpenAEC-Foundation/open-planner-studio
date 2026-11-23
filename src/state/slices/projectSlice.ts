@@ -44,6 +44,7 @@ import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark
 import { createDefaultProject } from '../defaults';
 import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
+import { replaceDocumentContent } from '../documentSaveState';
 import { copyProfile, normalizeOptions, normalizeProfile } from '../schedulingProfileDraft';
 export { createDefaultProject };
 
@@ -509,6 +510,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     // project). hydratePayload promoveert + synct de projectkalender.
     set((s) => {
       removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
+      replaceDocumentContent(s, s.activeDocumentId);
       hydratePayload(s, freshPayload());
       // Zelfde reset als newDocument()/closeDocument() in documentSlice.ts:
       // showLibraryLinkDialog/libraryRefreshNotice zijn APP-globaal en worden door hydratePayload
@@ -539,6 +541,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
 
     set((s) => {
       removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
+      replaceDocumentContent(s, s.activeDocumentId);
       const proj = createDefaultProject();
       proj.name = opts.name.trim() || proj.name;
       proj.description = opts.description ?? '';

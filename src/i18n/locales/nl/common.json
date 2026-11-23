@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} taken tonen de datums zoals ze in het bestand staan (niet herberekend).",
     "xerExportLoss": "Bij export naar {{format}} gaat XER-broninformatie verloren.",
     "exportDataLoss": "Bij export naar {{format}} gaan gegevens verloren die {{format}} niet kent, zoals notities of een tweede constraint. Het IFC-projectbestand bewaart alles.",
+    "exportPlanOnly": "Alleen de planning is geëxporteerd; het gebouwmodel zit niet in dit formaat.",
     "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "mppInvalidContainer": "Dit MPP-bestand heeft een ongeldige bestandsstructuur en kan niet worden geopend.",
     "xmlUnknownSchedule": "Onbekend XML-planningsformaat. Open een MS Project-XML (Project) of Primavera P6-XML (APIBusinessObjects).",
@@ -83,6 +84,10 @@
     "ifcUnreadableTargetSave": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
     "ifcUnreadableTargetExport": "De app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om naar te exporteren.",
     "ifcUnreadableTargetAutoSave": "Automatisch opslaan is gestopt: de app kan dit bestand niet goed lezen; het kan een gebouwmodel bevatten. Kies een ander bestand om op te slaan.",
+    "ifcForeignAutoSaveTargetChanged": "Automatisch opslaan is gestopt: het bestand is intussen gewijzigd, verplaatst of verwijderd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatisch opslaan is gestopt: dit bestand kan op deze plek niet veilig worden vervangen. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
+    "ifcForeignAutoSaveNotRecorded": "Automatisch opslaan is gestopt: het bestand kan nu niet veilig worden vervangen, omdat het crashherstel niet kan worden bijgewerkt. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
+    "ifcForeignAutoSaveRemnant": "Automatisch opslaan is gestopt: een eerdere opslag van dit bestand is niet afgerond. Je wijzigingen staan nog in de app. Sla op met Ctrl+S; na een herstart handelt de app die eerdere opslag af.",
     "ambiguousThousands": "\"{{text}}\" is dubbelzinnig: bedoel je een decimaal getal of duizendtallen? Typ decimalen met \"{{separator}}\" (1{{separator}}5) en duizendtallen zonder scheidingsteken (1500). De waarde is niet gewijzigd.",
     "siteSaveConflict": "Niet opgeslagen: '{{name}}' is op de site intussen door iemand anders gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze als nieuw bestand te bewaren.",
     "siteSaveConflictCopy": "'{{original}}' is op de site intussen door iemand anders gewijzigd. Je werk staat daarom in een kopie: '{{name}}'. Opslaan schrijft vanaf nu naar die kopie.",
@@ -110,6 +115,7 @@
     "relationDuplicate": "Deze relatie bestaat al",
     "relationAncestorEndpoint": "Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.",
     "relationCycle": "Deze relatie zou een kring in de planning maken ({{cycle}}) en is niet aangemaakt.",
+    "relationChainOrderUnclear": "De taken zijn niet gekoppeld: hun volgorde in de lijst ligt niet vast. Een gekozen taak staat vóór én na een andere (groepering), of twee gekozen mijlpalen delen een ingeklapte reeks. Hef de groepering op, klap de reeks uit, of kies de voorganger via Voorgangers toewijzen.",
     "hierarchyCycle": "Deze verplaatsing zou een kring in de planning maken ({{cycle}}): de relaties van een samenvattingstaak gelden ook voor haar subtaken. Er is niets verplaatst.",
     "relationsExcludedByHierarchy_one": "Na het verplaatsen verbindt {{count}} relatie een taak met zijn eigen samenvattingstaak; die telt niet meer mee in de berekening.",
     "relationsExcludedByHierarchy_other": "Na het verplaatsen verbinden {{count}} relaties een taak met zijn eigen samenvattingstaak; die tellen niet meer mee in de berekening.",
@@ -186,7 +192,8 @@
     "schedulingProfileShifted_other": "Na het toepassen zijn {{count}} taken verschoven.",
     "actions": {
       "openProjectInfo": "Rekenprofiel openen",
-      "openHelp": "Help openen"
+      "openHelp": "Help openen",
+      "undo": "Ongedaan maken"
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
@@ -353,19 +360,40 @@
     "reportFontMissing": "Het eigen lettertype {{name}} is niet meer op dit apparaat. Het rapport gebruikt weer Inter.",
     "layoutsNotSaved": "De layouts konden niet worden opgeslagen. Er is niets veranderd. Probeer het opnieuw.",
     "ifcForeignOpenSchema": "Dit IFC-bestand bevat gegevens van een ander programma en heeft een onbekend of ontbrekend schema. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
+    "ifcForeignOpenTooLarge": "Dit IFC-bestand is groter dan {{limit}} MB. Een IFC-bestand met een gebouwmodel of met gegevens van een ander programma kan tot {{limit}} MB worden geopend.",
     "ifcForeignOpenUnsafe": "Dit IFC-bestand kan niet veilig worden ingedeeld. Openen is gestopt om gegevensverlies bij opslaan te voorkomen.",
     "ifc2x3PlanningOnly": "IFC2X3 is geopend als planning. Gegevens van andere programma’s worden niet meegenomen bij opslaan.",
-    "ifcForeignReplaceBlocked": "Niet opgeslagen. Opslaan over een bestaand bestand met een gebouwmodel kan nog niet veilig. Gebruik Opslaan als en kies een nieuwe naam.",
+    "ifcForeignReplaceBlocked": "Niet opgeslagen. Dit is het bestand dat je open hebt. Gebruik Opslaan om het bij te werken, of Opslaan als met een nieuwe naam voor een kopie.",
     "ifcForeignTargetChanged": "Niet opgeslagen. Het bestand is intussen door een ander programma gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignTargetGone": "Niet opgeslagen. Het bestand is verplaatst, verwijderd of niet meer te lezen. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignReplaceNotRecorded": "Niet opgeslagen. Het bestand kan nu niet veilig worden vervangen, omdat het crashherstel niet kan worden bijgewerkt. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
+    "ifcForeignDownloadCopy": "Kopie gedownload als {{file}}. Het geopende bestand is niet bijgewerkt; de wijzigingen blijven als niet opgeslagen staan.",
     "ifcForeignReplaceFailed": "Niet opgeslagen. Het bestand kon niet worden geschreven. Je wijzigingen staan nog in de app. Probeer opnieuw op te slaan, of kies Opslaan als om ze in een nieuw bestand te bewaren.",
     "ifcForeignMergeRefused": "Het IFC-bestand is niet geschreven. Het gebouwmodel of de gegevens van een ander programma zouden anders niet volledig behouden blijven. Maak de laatste wijziging ongedaan, of exporteer alleen de planning: naar IFC met Zonder gebouwmodel, of naar een ander formaat.",
     "ifcSaveChangedWhileWaiting": "Niet opgeslagen. Het document of de bron van het gebouwmodel is tijdens het voorbereiden veranderd. Probeer opnieuw op te slaan.",
+    "ifcSaveWorkerFailed": "Het IFC-bestand is niet geschreven: het voorbereiden in de achtergrond is onderbroken. Je wijzigingen staan nog in de app. Probeer het opnieuw.",
     "ifcForeignNewTargetOnly": "Dit IFC-bestand kan alleen naar een nieuwe bestandsnaam worden geschreven. Kies een naam die nog niet bestaat.",
+    "ifcForeignTargetOpenInTab": "Niet opgeslagen. Dit bestand staat open in een ander tabblad. Sluit dat tabblad of kies een andere naam.",
+    "exportTargetOpenInTab": "Niet geëxporteerd. Dit bestand staat open in een ander tabblad. Sluit dat tabblad of kies een andere naam.",
+    "exportTargetOpenDocument": "Niet geëxporteerd. Dit bestand staat open in een tabblad. Kies een andere naam, of sluit eerst dat tabblad.",
     "ifcForeignPlaceUnknown": "De app weet niet of het bestand goed is opgeslagen: tijdens het opslaan veranderde er iets in de map. Je wijzigingen staan nog in de app. Kijk of het bestand klopt, of sla opnieuw op onder een nieuwe naam.",
+    "ifcForeignReplaceOtherVersion": "Een ander programma heeft {{file}} gewijzigd terwijl de app het opsloeg. Die versie is bewaard als {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Een eerdere opslag van {{file}} is niet afgemaakt. De planning die toen werd opgeslagen, staat in {{copy}}. Gooi dat bestand weg als je het niet meer nodig hebt.",
+    "ifcForeignReplaceTargetTaken": "Niet opgeslagen. Tijdens het opslaan zette een ander programma een nieuw bestand op {{target}}. Er staan nu drie bestanden: dat nieuwe bestand op {{target}}, je planning in {{temp}} en de vorige versie in {{previous}}. Je wijzigingen staan ook nog in de app.",
+    "ifcForeignReplacePreviousStranded": "Niet opgeslagen, en de vorige versie van het bestand kon niet terug op haar plek. Ze staat nu in {{previous}}. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.",
+    "ifcForeignReplaceSaveAsOnly": "Niet opgeslagen. Dit bestand kan op deze plek niet veilig worden vervangen. Het bestand is niet veranderd. Kies Opslaan als om je wijzigingen in een nieuw bestand te bewaren.",
+    "ifcForeignReplaceLeftOver": "Van een onderbroken opslag van {{file}} bleef dit bestand staan: {{path}}. Kijk of je het nog nodig hebt.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
-    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken."
+    "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.",
+    "taskTypeRenameNameTaken": "In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Taak duurt nu {{days}} dag.",
+      "durationDays_other": "Taak duurt nu {{days}} dagen.",
+      "durationHours_one": "Taak duurt nu {{hours}} uur.",
+      "durationHours_other": "Taak duurt nu {{hours}} uur.",
+      "durationSame": "De duur blijft gelijk. De uren van de anderen zijn aangepast.",
+      "line": "{{name}}: {{before}} → {{after}} u"
+    }
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -405,6 +433,8 @@
     "addSubtask": "Subtaak toevoegen",
     "addMilestone": "Mijlpaal toevoegen",
     "addRelation": "Relatie toevoegen",
+    "assignPredecessors": "Voorgangers toewijzen…",
+    "assignSuccessors": "Opvolgers toewijzen…",
     "dissolve": "Dissolve (keten behouden)",
     "delete": "Verwijderen",
     "newTask": "Nieuwe taak",
@@ -471,7 +501,7 @@
     "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "ifcForeignContent": "IFC met gebouwmodel openen",
-    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken, ook zonder gebouwmodel of met de resourcebibliotheek ernaast (dan met alleen de planning). In Chrome en Edge slaat Opslaan ook het geopende bestand zelf op. Wijzigt een ander programma dit bestand precies tijdens het opslaan, dan kan die wijziging verloren gaan. In de desktop-app is opslaan over een bestaand bestand nog niet mogelijk. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.",
+    "ifcForeignContentHint": "Opent ook een IFC-bestand met een gebouwmodel of gegevens van andere programma's. Je kunt Opslaan als naar een nieuw bestand, opslaan op de site, downloaden in de browser en Exporteren → IFC gebruiken, ook zonder gebouwmodel of met de resourcebibliotheek ernaast (dan met alleen de planning). In Chrome en Edge slaat Opslaan ook het geopende bestand zelf op. Wijzigt een ander programma dit bestand precies tijdens het opslaan, dan kan die wijziging verloren gaan. In de desktop-app slaat Opslaan het geopende bestand zelf op als het in je thuismap staat. Wijzigde een ander programma het bestand intussen, dan stopt het opslaan of bewaart de app die versie als aparte kopie naast het bestand; alleen een wijziging op precies hetzelfde ogenblik kan nog verloren gaan. Opslaan als over een ander bestaand bestand in je thuismap vervangt dat bestand op dezelfde manier, ook als het zelf een gebouwmodel of gegevens van een ander programma bevat. Ook een planning zonder gebouwmodel mag zo'n bestand vervangen. Niet vervangen worden een bestand dat de app niet kan lezen en een bestand met een tweede naam (een link). Vlak voor het vervangen vergelijkt de app het bestand met de versie die ze na je keuze las: is het veranderd, dan stopt het opslaan en blijft het bestand zoals het is. Blijkt de versie die de app opzijzette toch anders, dan bewaart ze die als aparte kopie naast het bestand, met een melding. Herstel van het gebouwmodel na een crash vraagt toegang tot het oorspronkelijke bestand of een bewaarde kopie in de browser.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
@@ -748,7 +778,8 @@
     "confirmClose": "Dit document heeft niet-opgeslagen wijzigingen. Toch sluiten?",
     "closeTitle": "Niet-opgeslagen wijzigingen",
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
-    "dontSave": "Niet opslaan"
+    "dontSave": "Niet opslaan",
+    "stillSaving": "Wordt nog opgeslagen…"
   },
   "feedback": {
     "buttonTooltip": "Feedback geven",
@@ -1176,7 +1207,9 @@
     },
     "regen": {
       "hint": "Feestdagen dekken {{from}}–{{to}}; opnieuw genereren tot en met {{year}}?",
-      "button": "Opnieuw genereren"
+      "button": "Opnieuw genereren",
+      "confirmMessage": "Je lijst met vrije dagen wijkt af van de eerder gegenereerde lijst. Als je de lijst vervangt, vervallen je handmatige wijzigingen.",
+      "confirmReplace": "Vrije dagen vervangen"
     },
     "countryName": {
       "NL": "Nederland",
@@ -1187,6 +1220,7 @@
       "AT": "Oostenrijk",
       "CH": "Zwitserland",
       "US": "Verenigde Staten",
+      "BO": "Bolivia",
       "none": "Geen feestdagen"
     },
     "preset": {
@@ -1395,7 +1429,8 @@
     "edit": {
       "copy": "Kopiëren",
       "deselect": "Selectie opheffen",
-      "selectAll": "Alles selecteren"
+      "selectAll": "Alles selecteren",
+      "linkSelected": "Geselecteerde taken als keten koppelen"
     },
     "structure": {
       "moveUp": "Taak omhoog verplaatsen",
@@ -2024,5 +2059,9 @@
     "bodyWithPool": "Het projectbestand bevat alleen de planning; de resourcebibliotheek komt in een tweede bestand. Het gebouwmodel en de gegevens van een ander programma gaan niet mee. Het geopende bestand blijft ongewijzigd. Wil je doorgaan?",
     "continue": "Exporteren",
     "cancel": "Annuleren"
+  },
+  "replaceCopy": {
+    "otherProgram": "versie van ander programma {{when}}",
+    "unsavedSchedule": "niet opgeslagen planning {{when}}"
   }
 }
