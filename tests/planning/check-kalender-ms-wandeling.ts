@@ -289,7 +289,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// (f) Knownbug 392: isoleer de dagenmaat van fysieke werkminuten bij dezelfde exacte kloklag.
 {
   const start = '2026-06-01T08:00';
   const storeRows = [];
