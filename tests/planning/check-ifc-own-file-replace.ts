@@ -200,7 +200,6 @@ const tidy = async (c: Case) => {
   for (const name of readdirSync(appData)) if (replaceRecordId(name) !== null) rmSync(join(appData, name));
 };
 const noticeKeys = (result: OwnPathReplaceResult, path: string) => ownPathReplaceNotices(result, path).map(n => n.messageKey);
-/** De mapkiezers (`plugin:dialog|open`) sinds `from`, met de opties van de app (knownbug 1762). */
 const folderPicks = (from: number) => ipc.calls.slice(from).filter(call => call.command === 'plugin:dialog|open').map(call => call.dialog);
 const tempOf = (c: Case, id: string) => userFileTempPath(c.path, id);
 const helperId = (c: Case) => {
@@ -1502,8 +1501,6 @@ const otherFile = (c: Case, content: Uint8Array = plain, name = 'ander.ifc'): Ot
   writeFileSync(path, content);
   return { path, content };
 };
-/** *Opslaan als* (Ctrl+Shift+S) met `path` als keuze in de bestandskiezer. Die geeft het gekozen bestand vrij, zoals
- *  plugin-dialog (`allow_file`); dat telt alleen als de scope een map buiten laat (knownbug 1762). */
 async function saveAsTo(store: Case['store'], path: string): Promise<void> {
   ipc.scope.allowFile(path);
   const invoke = internal.invoke;
@@ -2446,8 +2443,6 @@ for (const [who, own] of [['een gewone planning', plain], ['een document met een
   });
 }
 
-// Knownbug 1762: in een map waar het tijdelijke bestand niet mag ontstaan, vraagt de app eerst de map vrij te geven; deze
-// proef heeft geen vrager, dus de vraag annuleert en de melding zegt dat de map niet vrijgegeven is.
 for (const [label, prepare, notice] of [
   ['een map waar het tijdelijke bestand niet mag ontstaan (forbidden path)', () => { ipc.faults.forbidden = isTempPath; },
     'notifications.ifcForeignFolderAccessMissing'],
@@ -3080,8 +3075,6 @@ const outsideHome = (c: { dir: string }) => {
   ipc.faults.forbiddenMeta = true;
 };
 
-// Knownbug 1762: buiten de thuismap vraagt de app nu eerst de map vrij te geven. Deze proef heeft geen vrager (zoals
-// zonder UI): de vraag annuleert, dan de melding dat de map niet vrijgegeven is, zonder mapkiezer.
 for (const route of ['Opslaan als over een bestaande naam', 'Ctrl+S op het eigen pad'] as const) {
   await check(`1902, ${route} buiten de thuismap zonder toegang tot de map: niets geschreven, geen herstelrecord; de volgende start meldt niets`, async () => {
     const c = await opened();
@@ -3220,17 +3213,11 @@ await check('stap 8: een ronde van Automatisch opslaan terwijl een ander program
   } finally { await tidy(c); }
 });
 
-// ── #804, knownbug 1762: Ctrl+S en Opslaan als buiten de thuismap. De planner geeft de map eenmalig vrij met de gewone
-// mapkiezer (oplossing f; besluit van de eigenaar, 21 november 2026), daarna loopt dezelfde vervanging. De scope is hier
-// een toestand (`ipc.scope`): de capability (`$HOME/**`) laat de map van het geval buiten, de bestandskiezer gaf het
-// geopende bestand vrij (`allow_file`) en de nagebootste mapkiezer geeft een map vrij zoals `allow_directory(p, false)`. ──
-/** De map van het geval ligt buiten de capability; het geopende bestand gaf de bestandskiezer vrij, zoals in de app. */
 const outsideCapability = (c: Case) => {
   const real = realpathSync(c.dir);
   ipc.scope.outside = path => path === real || path.startsWith(`${real}/`);
   ipc.scope.allowFile(c.path);
 };
-/** Weigert plugin-fs dit pad (`exists` toetst eerst de scope)? */
 const refusedByScope = async (path: string) => {
   const { exists } = await import('@tauri-apps/plugin-fs');
   try { await exists(path); return false; } catch (error) { if (isForbiddenPathError(error)) return true; throw error; }
@@ -3274,7 +3261,6 @@ await check('1762, de map in de vraag: zonder het scheidingsteken achteraan, ook
   assert.equal(replaceFolder('/model.ifc'), '/');
 });
 
-// Fixronde 1 van #1124: één uitkomst (`true` = verder, `false` = niet vrijgegeven), met een eigen proef per weg.
 const accessCase = async () => {
   const c = await opened();
   const questions: string[] = [];
@@ -3346,10 +3332,6 @@ await check('1762, de vraag om toegang: de map van het bestand gekozen; daarna g
   } finally { resetFolderAccessAsker(); await tidy(c); }
 });
 
-// Fixronde 1 van #1124 (VERVOLG van de reviewer): een map waarvan de naam op `**` eindigt (op Unix toegestaan). Tauri
-// bewaart haar letterlijk (`Project[*][*]` en `Project[*][*]/*`), maar persisted-scope 2.4.3 zet bij de start eerst de
-// sterretjes terug en ziet dan aan het achtervoegsel `**` een recursieve map. Na een herstart zou de hele boom eronder
-// vrij zijn. Daarom vraagt de app daar niets: de vervanging weigert zoals vóór de vraag, met de verwijzing naar Opslaan als.
 for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande naam'] as const) {
   await check(`1762, ${route} in een map waarvan de naam op ** eindigt: geen vraag en geen mapkiezer, de weigering van vóór de vraag`, async () => {
     const c = await opened(bytes, undefined, 'Project**/model.ifc');
@@ -3377,10 +3359,6 @@ for (const route of ['Ctrl+S op het eigen pad', 'Opslaan als over een bestaande 
   });
 }
 
-// Fixronde 1 van #1124 (VERVOLG van de reviewer): een tweede Ctrl+S terwijl de eerste al aan de beurt is en de toets op
-// de scope nog loopt. De vraag is dan nog dicht, dus de sneltoets is niet bevroren, en de tweede opslag gaat in de rij.
-// Het antwoord op de vraag geldt ook voor die al wachtende opslag van hetzelfde document en dezelfde map. Een nieuwe
-// Ctrl+S na Annuleren mag opnieuw vragen.
 await check('1762, een tweede Ctrl+S die al wachtte toen de planner annuleerde: geen tweede vraag en één melding; een nieuwe Ctrl+S daarna vraagt wel', async () => {
   const c = await opened();
   const asked: string[] = [];
@@ -3391,7 +3369,6 @@ await check('1762, een tweede Ctrl+S die al wachtte toen de planner annuleerde: 
     clearNotices(c);
     let second: Promise<void> | null = null;
     internal.invoke = (command, ...args) => {
-      // De eerste toets op de scope (een hulpnaam naast het doel): de eerste opslag is aan de beurt, de vraag nog dicht.
       if (second === null && command === 'plugin:fs|exists' && JSON.stringify(args).includes('.ops-save.tmp')) {
         second = c.store.getState().saveFile();
       }
@@ -3536,7 +3513,6 @@ await check('1762, met de flag uit: geen vraag, geen venster en geen aanroep aan
     const from = ipc.calls.length;
     assert.equal(await refusedReplaceFolderAccess({}, c.path, notice => notices.push(notice)), false, 'de poort weigert niets');
     assert.deepEqual([asked, notices, ipc.calls.slice(from)], [[], [], []], 'zonder vraag, melding of aanroep');
-    // De route: Ctrl+S met de flag uit (na het openen uitgezet) buiten de thuismap, de weigering van main.
     c.store.setState(st => { st.ui.featureFlags = {}; });
     clearNotices(c);
     const route = ipc.calls.length;
@@ -3547,9 +3523,6 @@ await check('1762, met de flag uit: geen vraag, geen venster en geen aanroep aan
   } finally { resetFolderAccessAsker(); await tidy(c); }
 });
 
-// Knownbug 1762 (stap 6 van de voorbereiding): het herstel na een crash in een map buiten de thuismap die de planner
-// vrijgaf. `persisted-scope` zet de map bij de start terug; dan handelt de start een onderbroken vervanging af zoals in de
-// thuismap. Zonder de map (bijvoorbeeld een ander apparaat of een gewist `.persisted-scope`) blijft het herstel uitgesteld.
 await check('1762, herstel na een onderbroken vervanging in een vrijgegeven map buiten de thuismap: zonder de map uitgesteld, met de map zoals in de thuismap', async () => {
   const c = await opened();
   try {
@@ -3564,13 +3537,11 @@ await check('1762, herstel na een onderbroken vervanging in een vrijgegeven map 
     };
     assert.deepEqual(disk(c), stranded, 'het doel stond opzij en de nieuwe planning was nog niet geplaatst');
     ipc.faults.place = null;
-    // Een start zonder de vrijgegeven map: uitgesteld, geen melding, het record blijft.
     ipc.scope.reset();
     outsideCapability(c);
     assert.deepEqual(await nextRound(), [], 'zonder toegang geen melding');
     assert.equal(recordsOnDisk().length, 1, 'het record blijft');
     assert.deepEqual(disk(c), stranded, 'beide versies staan nog op schijf');
-    // Een start met de map (persisted-scope): terugzetten en de niet opgeslagen planning als kopie, zoals in de thuismap.
     ipc.scope.allowDirectory(c.dir, false);
     const restored = await nextRound();
     assert.deepEqual(disk(c), { 'model.ifc': hash(bytes), [UNSAVED_COPY]: c.prepared.sha256 }, 'het doel terug, de planning als kopie');

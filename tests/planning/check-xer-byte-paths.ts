@@ -343,9 +343,6 @@ eq('fileSlice foutpad: dubbele id hydrateert niets gedeeltelijk', {
   errorKey: useAppStore.getState().ui.notifications.at(-1)?.messageKey,
 }, { ...beforeRejectedOpen, errorKey: 'notifications.xerDuplicateId' });
 
-// #804, knownbug 1762 (de echte-app-proef): met de flag `ifcForeignContent` aan leest de dev-route `open` een IFC als
-// bytes, zoals elke open-route van de app (`formatReadOptions` in fileSlice); dan opent een model met zijn bron. Zonder
-// de optie weigerde de lezer het model ("building-model").
 {
   resetDevDocuments();
   useAppStore.getState().setUI({ featureFlags: { ifcForeignContent: true } });

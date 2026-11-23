@@ -984,9 +984,6 @@ export interface UIState {
   /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
    *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
   pendingPlanOnlyQuestion: PlanOnlyReason | null;
-  /** session — de openstaande vraag om toegang tot een map vóór de mapkiezer (#804, knownbug 1762,
-   *  `services/fileAccess/replaceFolderAccess.ts`), met die map, of `null`. Het antwoord gaat via
-   *  `state/folderAccessQuestionBridge.ts`. Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingFolderAccessQuestion: string | null;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).

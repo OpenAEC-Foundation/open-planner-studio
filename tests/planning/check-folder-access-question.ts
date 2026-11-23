@@ -1,9 +1,3 @@
-// #804, knownbug 1762: de vraag om toegang tot een map vóór de mapkiezer, langs de bedrading van de app
-// (`state/folderAccessQuestionBridge.ts` op de gemounte store). Wat de dialoog ziet (`ui.pendingFolderAccessQuestion`),
-// dat de vraag de rest van de app stilzet zoals de vraag "alleen de planning", en dat een antwoord de juiste vraag
-// beantwoordt. De opslagroutes zelf staan in `check-ifc-own-file-replace.ts` en `check-ifc-document-save.ts`.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import './domStub';
 import assert from 'node:assert/strict';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
@@ -18,7 +12,6 @@ import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { installNodeFileIpc } from './nodeFileIpc';
 
 let ok = 0, failed = 0;
-/** Na elke proef, ook een mislukte: geen open vraag meer en de scope van het begin. */
 function tidy() {
   if (pending() !== null) answerFolderAccessQuestion(false);
   ipc.scope.reset();
@@ -35,9 +28,7 @@ const target = join(work, 'model.ifc');
 const pending = () => useAppStore.getState().ui.pendingFolderAccessQuestion;
 tidy();
 const settle = () => new Promise<void>(resolve => setImmediate(resolve));
-/** Het antwoord, of `hangt` als het na 2 s nog niet kwam. */
 const within = <T>(answer: Promise<T>) => Promise.race([answer, new Promise<'hangt'>(r => setTimeout(() => r('hangt'), 2000))]);
-/** Wacht tot de vraag openstaat (de toets op de scope gaat eerst langs plugin-fs). */
 async function questionOpen(): Promise<void> {
   for (let i = 0; i < 100 && pending() === null; i++) await settle();
   assert.equal(pending(), work, 'de vraag staat open, met de map');

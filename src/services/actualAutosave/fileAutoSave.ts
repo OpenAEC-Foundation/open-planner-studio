@@ -245,8 +245,6 @@ export function createFileAutoSaveController(deps: {
       case 'stopped': return stoppedBy ?? 'stale';
       case 'not-recorded': stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE); return 'refused';
       case 'target-changed': stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE); return 'refused';
-      // `nothingWritten`: het tijdelijke bestand mocht niet ontstaan (buiten de scope, knownbug 1902). Dan helpt één keer
-      // zelf opslaan (die vraagt de map); voor een link of een bestandssysteem zonder exclusieve stap alleen Opslaan als.
       case 'save-as-only':
         stopFor(candidate.id, ref, result.nothingWritten ? MODEL_AUTOSAVE_FOLDER_ACCESS_NOTICE : MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE);
         return 'refused';

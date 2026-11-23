@@ -29,8 +29,6 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     // De schemavraag bij opslaan wacht op een keuze; de opslaanroute houdt intussen de
     // schrijfvergrendeling vast.
     ui.pendingIfcSchemaQuestion !== null || ui.pendingPlanOnlyQuestion !== null ||
-    // De vraag om toegang tot een map (#804, knownbug 1762) wacht op een keuze; de opslaanroute houdt intussen de
-    // schrijfvergrendeling vast.
     ui.pendingFolderAccessQuestion !== null ||
     // De vraag over te krappe ankers van afhankelijke projecten (stap 1.11) wacht op een keuze; de
     // opslaanroute houdt intussen de schrijfvergrendeling vast.
@@ -51,7 +49,7 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
 }
 
 /** Een vraag waarop een opslag onder het schrijfslot wacht (site, IFC-schema, alleen de planning, afhankelijke
- *  projecten, toegang tot een map). Zolang die openstaat start Ctrl+S geen nieuwe opslag, en staat "Wordt nog opgeslagen…" er niet overheen:
+ *  projecten). Zolang die openstaat start Ctrl+S geen nieuwe opslag, en staat "Wordt nog opgeslagen…" er niet overheen:
  *  het wachten hangt dan aan het antwoord van de planner (#804 stap 3). */
 export function saveQuestionOpen(ui: UIState): boolean {
   return ui.pendingSiteSave !== null || ui.pendingSiteOpen !== null || ui.pendingIfcSchemaQuestion !== null

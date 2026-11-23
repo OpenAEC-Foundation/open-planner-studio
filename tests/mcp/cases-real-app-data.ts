@@ -1,7 +1,3 @@
-// Review van #1124: de echte-app-proef (`realApp/run.sh`) begint elke run met een eigen, lege datamap, ook een
-// herhaling op dezelfde machine, en ruimt die na de run op, samen met de vrijgegeven map. Dit toetst
-// `realApp/runData.mjs` zonder app: twee runs na elkaar, elk met een eigen `.persisted-scope` die precies de eigen
-// vrijgegeven map noemt. Of de app die map echt leest, toetst `run-real-app.ts` (CI, Linux).
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -12,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 const script = join(dirname(fileURLToPath(import.meta.url)), 'realApp', 'runData.mjs');
 const runData = (...args: string[]) => execFileSync(process.execPath, [script, ...args], { encoding: 'utf8' });
 
-/** `.persisted-scope` (bincode van persisted-scope 2.4.3): de toegestane en de verboden patronen. */
 function readScope(bytes: Buffer): { allowed: string[]; forbidden: string[] } {
   let at = 0;
   const u64 = () => { const n = Number(bytes.readBigUInt64LE(at)); at += 8; return n; };
@@ -37,7 +32,6 @@ try {
     assert(!granted.startsWith(`${homedir()}/`), 'de vrijgegeven map ligt buiten de thuismap');
     assert.deepEqual(readScope(readFileSync(join(data, 'org.openaec.planner', '.persisted-scope'))),
       { allowed: [granted, `${granted}/*`], forbidden: [] }, `run ${i + 1}: de scope noemt precies de eigen map, zoals de mapkiezer`);
-    // Wat een run achterlaat (de app en de proef): de volgende run mag het niet zien.
     writeFileSync(join(opsDir, 'ready.json'), '{}');
     writeFileSync(join(granted, 'model.ifc'), 'x');
   }

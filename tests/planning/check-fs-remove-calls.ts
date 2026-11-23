@@ -1,20 +1,10 @@
-// #804, knownbug 2027: de app wist met plugin-fs nooit een map met inhoud. De toestemming voor een map (de mapkiezer
-// bij Ctrl+S buiten de thuismap) geldt voor alle bestandsopdrachten die de app heeft, ook `remove`, en plugin-fs toetst
-// daarbij alleen het opgegeven pad: met `recursive` wist het de hele boom eronder (`remove_dir_all`), zonder alleen een
-// lege map (`remove_dir`). Deze broncontrole bewaakt die grens: nergens in `src/` een `remove(…, { recursive })`, en elke
-// `remove` in een bestand dat plugin-fs gebruikt staat op de lijst hieronder, met wat ze wist. Een nieuwe aanroep is dan
-// een bewuste keuze, met een regel erbij.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import type * as Ts from 'typescript';
 const ts = createRequire(import.meta.url)('typescript') as typeof Ts;
 
-/** Per bestand met plugin-fs: het eerste argument van elke `remove`-aanroep, in volgorde. */
 const actual: Record<string, string[]> = {};
-/** Elke `remove` in `src/` met een optie `recursive`, ook buiten de bestanden met plugin-fs. */
 const recursive: string[] = [];
 
 const calleeName = (node: Ts.CallExpression) => ts.isIdentifier(node.expression) ? node.expression.text
@@ -43,22 +33,12 @@ function scan(dir: string): void {
 scan('src');
 
 const expected: Record<string, string[]> = {
-  // Het eigen tijdelijke bestand naast het doel (`save-<id>.ops-save.tmp`), twee keer de doorgeefluiken van `TauriFs`,
-  // en een eigen onvolledig bestand na een mislukte exclusieve aanmaak.
   'src/services/fileAccess/atomicWrite.ts': ['tmp', 'p', 'tmp', 'tmp', 'p', 'path', 'path'],
-  // De vervanging: het eigen tijdelijke bestand, de opzijgezette versie (`.ops-vorige-<id>`), een restbestand bij het
-  // herstel, en het doorgeefluik.
   'src/services/fileAccess/ownFileReplace.ts': ['temp', 'previous', 'file', 'p'],
-  // Herstelrecords van de vervanging in de app-datamap.
   'src/services/fileAccess/replaceRecords.ts': ['await join(dir, replaceRecordName(id))', 'record.id'],
-  // MCP-backups in de eigen app-datamap: oude backupbestanden, en `dir`: een LEGE map van een nooit opgeslagen document
-  // (zonder `recursive` weigert plugin-fs een map met inhoud).
   'src/services/mcp/backupService.ts': ['await fs.join(dir, name)', 'dir', 'p'],
-  // De ontdekkingsbestanden van de MCP-bridge (app-datamap): een eigen halffabricaat en een eigen bestand.
   'src/services/mcp/discoveryFiles.ts': ['tmp', 'name', 'path'],
-  // Herstelsnapshots, manifesten en het oude manifest in de herstelmap.
   'src/services/recovery/recoveryStore.ts': ['await join(dir, name)', 'await join(dir, name)', 'manifestPath', 'legacyPath', 'manifestPath', 'await join(dir, name)'],
-  // De dev-brug: het verwerkte opdrachtbestand `cmd.json`.
   'src/utils/devBridge.ts': ['cmdPath'],
 };
 

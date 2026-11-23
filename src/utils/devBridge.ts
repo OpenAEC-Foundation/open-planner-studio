@@ -115,8 +115,6 @@ async function saveToPath(path: string) {
  *  formatRegistry, dus ook `.xml`). Tauri-only. Binaire formaten worden als bytes gelezen i.p.v.
  *  tekst. */
 export async function openFromPathWithIO(path: string, io: FormatIO) {
-  // Dezelfde leesoptie als elke open-route van de app (`formatReadOptions` in fileSlice): met de flag
-  // `ifcForeignContent` aan leest IFC als bytes, zodat ook een model met zijn bron opent (#804, knownbug 1762).
   const options = { ifcBytes: ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags) };
   const input = await readFormatInput(path, io, options);
   const parsed = await parseOpenedFile(input, undefined, options);

@@ -291,13 +291,6 @@ test('echte app: een .xer openen leest de bytes via plugin-fs readFile', async (
   }
 });
 
-// #804, knownbug 1762: Ctrl+S met een gebouwmodel in een map buiten de thuismap die de planner eerder vrijgaf. `run.sh`
-// schreef vóór de start een `.persisted-scope` zoals de mapkiezer van plugin-dialog die achterlaat (de map, niet-recursief);
-// de echte persisted-scope zet hem bij de start terug. Dan vraagt de app niets en vervangt ze het bestand langs de vervanging
-// met hulpbestanden en het echte place_file_exclusive: met een gebouwmodel schrijft Ctrl+S het eigen pad nooit direct, en
-// zonder de vrijgegeven map zou de vraag openstaan en kwam er binnen 30 s geen antwoord. De vraag en de mapkiezer zelf
-// toetst deze proef niet (geen klik in het venster van het systeem onder xvfb); dat blijft de handmatige controle. Als
-// laatste, zodat een openstaande vraag geen andere proef raakt.
 test('echte app: Ctrl+S met een gebouwmodel in een vrijgegeven map buiten de thuismap (knownbug 1762)', async () => {
   const dir = process.env.OPS_REAL_APP_GRANTED_DIR ?? '';
   assert(dir !== '', 'run.sh gaf geen vrijgegeven map door (OPS_REAL_APP_GRANTED_DIR)');

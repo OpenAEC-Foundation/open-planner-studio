@@ -472,8 +472,6 @@ export interface SaveDestination {
   siteFileVersion: string | null;
 }
 
-/** Eén opslag van Ctrl+S (`saveActiveDocument`). `refusedFolder` (#804, knownbug 1762): de planner gaf die map niet
- *  vrij terwijl deze opslag al wachtte (review van #1124). */
 interface SaveAttempt { readonly documentId: string; refusedFolder: string | null }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
@@ -1160,8 +1158,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const check = documentTargetCheck(state, write, false, {
       readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
     });
-    // #804, knownbug 1762: buiten de thuismap eerst eenmalig toegang tot de map van een bestaand doel; de doelcontrole
-    // hieronder beslist daarna, op de stand van ná de vraag.
     if (picked.current && picked.current !== 'unreadable'
       && await refusedReplaceFolderAccess(state.ui.featureFlags, picked.path, notice => get().notify(notice))) return null;
     if (await check(ref)) return null;
@@ -1237,7 +1233,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   let saveAttemptSequence = 0;
-  /** `onTurn`: deze opslag is aan de beurt (hij wacht niet meer, zie `saveActiveDocument`). */
   const writeActiveDocument = (requested: DocumentContentRef, onTurn: () => void, attempt: SaveAttempt): Promise<boolean> => runProjectFileWrite(async () => {
     onTurn();
     const documentId = requested.id;
@@ -1275,9 +1270,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
         if (ref.kind === 'path') {
-          // #804, knownbug 1762: buiten de thuismap eerst eenmalig toegang tot de map, vóór de merge. Gaf de planner deze
-          // map niet vrij terwijl deze opslag al wachtte, dan geldt dat antwoord ook hier, zonder tweede vraag of melding
-          // (review van #1124). Een nieuwe Ctrl+S daarna vraagt opnieuw.
           const folder = replaceFolder(ref.path);
           if (attempt.refusedFolder === folder) return false;
           if (await refusedReplaceFolderAccess(state.ui.featureFlags, ref.path, notice => get().notify(notice))) {
@@ -1442,9 +1434,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
-  /** #804 stap 3: per document hoogstens één wachtende opslag. Een Ctrl+S terwijl er voor dit document al een opslag
-   *  wacht (niet: loopt), sluit zich daarbij aan; die pakt bij zijn beurt een verse momentopname, dus er gaat niets
-   *  verloren. Een lopende opslag telt niet mee: die schrijft een oudere momentopname. */
   const waitingSaves = new Map<string, { save: Promise<boolean>; attempt: SaveAttempt }>();
   const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => {
     if (siteQuestionOpen()) return Promise.resolve(false);
@@ -1457,7 +1446,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const forget = () => { if (waitingSaves.get(key)?.attempt === attempt) waitingSaves.delete(key); };
     const save: Promise<boolean> = trackSave(requested, writeActiveDocument(requested, forget, attempt));
     waitingSaves.set(key, { save, attempt });
-    // Een opslag die nooit aan de beurt kwam (de laatste fase weigerde hem), wacht ook niet meer.
     void save.then(forget, forget);
     return save;
   };

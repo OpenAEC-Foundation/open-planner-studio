@@ -172,7 +172,6 @@ const REFUSAL_KEYS = [
   'ifcForeignTargetChanged', 'ifcForeignTargetGone', 'ifcForeignReplaceNotRecorded',
   // Knownbug 1131 stap 5: vervangen kan hier niet veilig (gelinkt doel, buiten de scope, geen exclusieve stap).
   'ifcForeignReplaceSaveAsOnly',
-  // Knownbug 1762: buiten de thuismap gaf de planner de map niet vrij (geannuleerd of een andere map).
   'ifcForeignFolderAccessMissing',
   'ifcForeignMergeRefused',
   'ifcSaveChangedWhileWaiting',

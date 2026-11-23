@@ -21,11 +21,9 @@ interface IpcCall {
   wrote: boolean;
   /** `writeFile`/`writeTextFile`: de opties in de kop waren niet te lezen; de aanroep faalde. */
   optionsError?: string;
-  /** `plugin:dialog|open`: de opties die de app meegaf. */
   dialog?: FolderPickOptions;
 }
 
-/** De opties van `open()` uit plugin-dialog die de nagebootste mapkiezer leest. */
 export interface FolderPickOptions { directory?: boolean; recursive?: boolean; defaultPath?: string; multiple?: boolean; title?: string }
 
 /** `writeFile`/`writeTextFile`: de bytes als hele payload, met de opties in de kop. */
@@ -179,15 +177,6 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
      *  crash na. `undefined` laat de echte stap lopen. */
     place: null as ((from: string, to: string, real: () => PlaceAnswer) => PlaceAnswer | undefined | Promise<PlaceAnswer | undefined>) | null,
   };
-  /**
-   * #804, knownbug 1762: de scope van plugin-fs als toestand, naast de vaste weigering `faults.forbidden` van de oudere
-   * proeven. `outside`: valt dit echte pad buiten de capability (`$HOME/**`)? `null` (standaard): alles valt erbinnen,
-   * zoals voorheen. Daarbuiten mag alleen wat een kiezer tijdens het draaien vrijgaf, zoals tauri 2.12.3 (`scope/fs.rs`):
-   * `allow_file(p)` geeft `p`, `allow_directory(p, false)` geeft `p` en `p/*` (de bestanden erin, geen submappen;
-   * `require_literal_separator`), `allow_directory(p, true)` geeft `p` en `p/**`. Een patroon geldt ook in zijn echte
-   * vorm (`canonicalize_parent`), en plugin-fs 2.7.1 toetst bij elke aanroep het echte pad (`resolve_real_path`). Elke
-   * bestandsopdracht hieronder en `place_file_exclusive` (beide paden) toetsen deze scope. Op Unix-paden.
-   */
   const files = new Set<string>();
   const folders: { path: string; recursive: boolean }[] = [];
   const scope = {
@@ -206,12 +195,8 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     return !folders.some(f => real === f.path
       || (f.recursive ? real.startsWith(`${f.path}/`) : nodePath.dirname(real) === f.path));
   };
-  /** Zoals plugin-fs elke aanroep weigert: de vaste weigering van de oudere proeven, of buiten de scope. */
   const denied = (path: string): boolean => faults.forbidden?.(path) === true || outsideScope(path);
   const dialog = {
-    /** De nagebootste mapkiezer (`plugin:dialog|open` met `directory: true`, plugin-dialog 2.7.0 `commands.rs`): krijgt
-     *  de opties van de app en geeft de gekozen map, of `null` (geannuleerd). Een gekozen map geeft hij vrij zoals het
-     *  commando: `allow_directory(map, recursive)`. `null` (standaard): een mapkiezer is in deze proef onverwacht. */
     pickFolder: null as ((options: FolderPickOptions) => string | null) | null,
   };
   const checkScope = (...paths: unknown[]) => {

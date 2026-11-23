@@ -3342,7 +3342,6 @@ for (const backend of ['browser', 'desktop'] as const) {
   });
 }
 
-// Fixronde 1 van #1124: zonder toegang tot de map een eigen melding (één keer zelf opslaan, dan vraagt de app de map).
 await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, geen herstelrecord dat blijft, één melding over de toegang tot de map', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'buiten-'));
@@ -3370,7 +3369,6 @@ await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, g
   } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
-// De gewone zin blijft waar Opslaan als de uitweg is: een bestand met een tweede naam (harde link).
 await check('stap 8, desktop: het eigen bestand heeft een tweede naam (harde link); niets geschreven, de melding van Opslaan als', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'link-'));
@@ -4230,17 +4228,12 @@ await check('stap 8, fixronde 2: het ritme geldt bij de beurt; een al gekozen mo
   } finally { timed.dispose(); unregister(); sw.client.dispose(); await clearRecovery(); }
 });
 
-// ── #804, knownbug 1762: Ctrl+S en Opslaan als buiten de thuismap. Vanaf de productie-ingang, met de scope als toestand
-// (`nodeFileIpc.ts`): de map ligt buiten de capability, de bestandskiezer gaf het bestand vrij, en de planner geeft de
-// map eenmalig vrij met de nagebootste mapkiezer. De vraag in de app staat vóór de merge, binnen dezelfde opslagbeurt. ──
 type DesktopIpc = ReturnType<typeof desktop>;
-/** `folder` ligt buiten de thuismap; `chosen` gaf een bestandskiezer vrij (het geopende bestand). */
 function outsideHomeScope(ipc: DesktopIpc, folder: string, ...chosen: string[]) {
   const real = realpathSync(folder);
   ipc.scope.outside = path => path === real || path.startsWith(`${real}/`);
   for (const file of chosen) ipc.scope.allowFile(file);
 }
-/** De vraag in de app: onthoudt de map en antwoordt met `answer`, dat tijdens de vraag iets mag doen. */
 function folderQuestion(answer: (folder: string) => boolean | Promise<boolean>) {
   const asked: string[] = [];
   setFolderAccessAsker(async folder => { asked.push(folder); return answer(folder); });
@@ -4280,7 +4273,6 @@ await check('knownbug 1762, Ctrl+S buiten de thuismap: één vraag en één mapk
       assert.deepEqual([asked.length, folderPicks(ipc, second)], [1, []], 'vraagt niets meer');
       assert.notEqual(hash(new Uint8Array(readFileSync(own))), hash(output), 'en vervangt weer');
     } finally { unregister(); await clearRecovery(); }
-    // Een herstart: `persisted-scope` zet de vrijgegeven map terug (hier: dezelfde scope), het bestand opent opnieuw.
     const reopened = new Uint8Array(readFileSync(own));
     const again = await openAt({ kind: 'path', path: own }, reopened, sw.compute), unregisterAgain = recoveryRounds(again);
     try {
@@ -4402,7 +4394,6 @@ await check('knownbug 1762, Automatisch opslaan buiten de thuismap vraagt nooit:
       assert.deepEqual(readdirSync(folder), ['model.ifc']);
       assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
       assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
-      // De planner slaat zelf op: één vraag, en de map is vrijgegeven.
       clearNotices(store);
       assert.equal(await ctrlS(store), true, 'Ctrl+S slaat op');
       assert.deepEqual(asked, [folder]);

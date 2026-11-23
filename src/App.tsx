@@ -211,8 +211,6 @@ function AppContent() {
   // De schemavraag bij opslaan (issue #292): zonder deze registratie houdt opslaan stil het schema van
   // het bestand (de veilige terugval), maar dan krijgt de gebruiker de keuze niet.
   useEffect(() => { installIfcSchemaAsker(); installPlanOnlyAsker(); }, []);
-  // De vraag om toegang tot een map buiten de thuismap vóór de mapkiezer (#804, knownbug 1762). Zonder deze registratie
-  // annuleert de vraag: niets opgeslagen, met de melding, en nooit een mapkiezer zonder uitleg.
   useEffect(() => { installFolderAccessAsker(); }, []);
   // Een lopend sleepgebaar hoort bij zijn document (review #1004, ronde 12): een documentwissel
   // beëindigt het, synchroon binnen de wissel.
@@ -546,7 +544,6 @@ function AppContent() {
         {/* De schemavraag bij opslaan (issue #292): rendert alleen bij `ui.pendingIfcSchemaQuestion`. */}
         <IfcSchemaQuestionDialog />
         <PlanOnlyQuestionDialog />
-        {/* De vraag om toegang tot een map vóór de mapkiezer (#804, knownbug 1762). */}
         <FolderAccessQuestionDialog />
         {/* Te krappe ankers van afhankelijke projecten vóór opslaan (stap 1.11). */}
         {pendingDependentAnchorWarning && <DependentAnchorWarningDialog />}

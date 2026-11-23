@@ -89,8 +89,7 @@ export function isShortcutBlockedByDialog(): boolean {
  * achtergrondbediening in de shell af; de vraag en Help houden hun eigen toetsen.
  * Andere dialogen behouden hun bestaande toetscontract. Ook "Wordt nog opgeslagen…" (#804 stap 3)
  * zet alles stil: afsluiten of sluiten wacht, en niets mag de ronde intussen laten veranderen. En de laatste fase van
- * afsluiten (`appClosing`): het venster gaat weg, er wordt niets meer opgeslagen. De vraag om toegang tot een map (#804,
- * knownbug 1762) wacht net als "alleen de planning" midden in een opslag.
+ * afsluiten (`appClosing`): het venster gaat weg, er wordt niets meer opgeslagen.
  */
 export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
   return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null

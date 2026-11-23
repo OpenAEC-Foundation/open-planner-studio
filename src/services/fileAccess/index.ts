@@ -271,9 +271,6 @@ export function pickSaveTarget(defaultName: string, filters: FileFilter[]): Prom
   return pickSaveTargetTauri(defaultName, filters);
 }
 
-/** Desktop (#804, knownbug 1762): mag de vervanging van het bestaande bestand op `path` haar hulpbestanden ernaast zetten?
- *  Zo niet, dan vraagt de app de planner eenmalig de map vrij te geven (`replaceFolderAccess.ts`). `false` = niet
- *  vrijgegeven. */
 export function requestReplaceFolderAccess(path: string): Promise<boolean> {
   if (!isTauri()) return Promise.reject(new Error('Toegang tot een map vragen bestaat alleen op de desktop.'));
   return requestReplaceFolderAccessTauri(path);
