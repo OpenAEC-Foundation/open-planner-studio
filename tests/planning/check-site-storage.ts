@@ -871,6 +871,26 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       S().siteFileId, S().siteFileVersion === latest, S().ui.notifications.some((n) => n.messageKey === 'notifications.fileChangedOnDisk'),
     ], [[true, ['notifications.fileChangedOnDisk']], true, true, true, false, false, 'y', true, false]);
   }
+  {
+    const { writeCSV } = await import('@/services/csv/csvWriter');
+    const state = S();
+    const csv = writeCSV(state.project, state.calendar, state.tasks, state.sequences, state.resources, state.assignments);
+    const f = site.files.get('y')!;
+    const ifcName = f.name;
+    f.name = 'lijst.csv';
+    f.versions.push({ version: `v${f.versions.length + 1}`, data: csv });
+    S().switchDocument(tabB);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    await S().openFromSite('y');
+    eq('G20 (Sol, ronde 7): een CSV onder het id van een open IFC-tabblad ⇒ een eigen tabblad zonder opslagdoel, zoals main', [
+      S().documents.length - count, S().siteFileId, S().filePath,
+      S().ui.notifications.some((n) => n.messageKey === 'notifications.fileChangedOnDisk'),
+    ], [1, null, null, false]);
+    f.name = ifcName;
+    f.versions.pop();
+    useAppStore.setState((st) => { st.ui.pendingFormatNotice = null; });
+  }
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
   await S().openFile();
