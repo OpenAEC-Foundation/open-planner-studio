@@ -379,8 +379,6 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
-// Knownbug 378: SF kan het einde van B veranderen zonder zijn start te verplaatsen.
-// Meet beide grenzen apart bij herberekening na ALAP, met SF0 en een FS0-controle.
 {
   const summary = [];
   for (const type of ['START_FINISH', 'FINISH_START'] as const) {
