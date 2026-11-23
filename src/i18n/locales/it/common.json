@@ -85,6 +85,7 @@
     "importDatesAsRecorded_other": "{{count}} attività mostrano le date come registrate nel file (non ricalcolate).",
     "xerExportLoss": "L’esportazione in {{format}} perde informazioni di origine XER.",
     "exportDataLoss": "Esportando in {{format}} si perdono dati che {{format}} non supporta, come note o un vincolo secondario. Il file di progetto IFC conserva tutto.",
+    "exportPlanOnly": "È stata esportata solo la pianificazione; il modello dell'edificio non fa parte di questo formato.",
     "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "mppInvalidContainer": "Questo file MPP ha una struttura di file non valida e non può essere aperto.",
     "xmlUnknownSchedule": "Formato XML di pianificazione sconosciuto. Apri un XML di MS Project (Project) o un XML di Primavera P6 (APIBusinessObjects).",
@@ -98,6 +99,10 @@
     "ifcUnreadableTargetSave": "L'app non riesce a leggere correttamente questo file; potrebbe contenere un modello di edificio. Scegli un altro file in cui salvare.",
     "ifcUnreadableTargetExport": "L'app non riesce a leggere correttamente questo file; potrebbe contenere un modello di edificio. Scegli un altro file in cui esportare.",
     "ifcUnreadableTargetAutoSave": "Il salvataggio automatico si è fermato: l'app non riesce a leggere correttamente questo file; potrebbe contenere un modello di edificio. Scegli un altro file in cui salvare.",
+    "ifcForeignAutoSaveTargetChanged": "Salvataggio automatico interrotto: il file nel frattempo è stato modificato, spostato o eliminato. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignAutoSaveSaveAsOnly": "Salvataggio automatico interrotto: questo file non può essere sostituito in sicurezza in questa posizione. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignAutoSaveNotRecorded": "Salvataggio automatico interrotto: il file non può essere sostituito in sicurezza al momento, perché il recupero dopo un crash non può essere aggiornato. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignAutoSaveRemnant": "Salvataggio automatico interrotto: un salvataggio precedente di questo file non è stato completato. Le tue modifiche sono ancora nell'app. Salva con Ctrl+S; dopo un riavvio l'app completa quel salvataggio precedente.",
     "ambiguousThousands": "«{{text}}» è ambiguo: numero decimale o migliaia? Scrivi i decimali con «{{separator}}» (1{{separator}}5) e le migliaia senza separatore (1500). Il valore non è stato modificato.",
     "siteSaveConflict": "Non salvato: '{{name}}' è stato modificato nel frattempo sul sito da qualcun altro. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle come nuovo file.",
     "siteSaveConflictCopy": "'{{original}}' è stato modificato nel frattempo sul sito da qualcun altro. Il tuo lavoro si trova quindi in una copia: '{{name}}'. Da ora in poi, «Salva» scrive in quella copia.",
@@ -126,6 +131,7 @@
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
     "relationCycle": "Questa relazione creerebbe un ciclo nella pianificazione ({{cycle}}) e non è stata creata.",
+    "relationChainOrderUnclear": "Le attività non sono collegate: il loro ordine nell'elenco non è fisso. Un'attività selezionata si trova sia prima sia dopo un'altra (raggruppamento), oppure due cardini selezionati condividono una serie compressa. Annulla il raggruppamento, espandi la serie oppure scegli il predecessore con «Assegna predecessori».",
     "hierarchyCycle": "Questo spostamento creerebbe un ciclo nella pianificazione ({{cycle}}): le relazioni di un'attività di riepilogo valgono anche per le sue sottoattività. Non è stato spostato nulla.",
     "relationsExcludedByHierarchy_one": "Dopo lo spostamento, {{count}} relazione collega un'attività alla propria attività di riepilogo antenata; non viene più considerata nel calcolo.",
     "relationsExcludedByHierarchy_many": "Dopo lo spostamento, {{count}} relazioni collegano un'attività alla propria attività di riepilogo antenata; non vengono più considerate nel calcolo.",
@@ -225,7 +231,8 @@
     "schedulingProfileShifted_other": "Dopo l’applicazione sono state spostate {{count}} attività.",
     "actions": {
       "openProjectInfo": "Apri profilo di calcolo",
-      "openHelp": "Apri la guida"
+      "openHelp": "Apri la guida",
+      "undo": "Annulla"
     },
     "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
     "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",
@@ -453,15 +460,23 @@
     "reportFontMissing": "Il tuo carattere {{name}} non è più su questo dispositivo. Il report usa di nuovo Inter.",
     "layoutsNotSaved": "I layout non si sono potuti salvare. Non è cambiato nulla. Riprova.",
     "ifcForeignOpenSchema": "Questo file IFC contiene dati di un'altra applicazione e ha uno schema sconosciuto o mancante. L'apertura è stata interrotta per evitare la perdita di dati al salvataggio.",
+    "ifcForeignOpenTooLarge": "Questo file IFC è più grande di {{limit}} MB. Un file IFC con un modello dell'edificio o con dati di un'altra applicazione può essere aperto fino a {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Questo file IFC non può essere classificato in modo sicuro. L'apertura è stata interrotta per evitare la perdita di dati al salvataggio.",
     "ifc2x3PlanningOnly": "IFC2X3 è stato aperto come pianificazione. I dati di altri programmi non verranno inclusi al salvataggio.",
-    "ifcForeignReplaceBlocked": "Non salvato. Sovrascrivere un file esistente con un modello di edificio non è ancora sicuro. Usa «Salva come» e scegli un nuovo nome.",
+    "ifcForeignReplaceBlocked": "Non salvato. Questo è il file che hai aperto. Usa «Salva» per aggiornarlo, oppure «Salva come» con un nuovo nome per una copia.",
+    "ifcForeignTargetChanged": "Non salvato. Il file nel frattempo è stato modificato da un altro programma. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignTargetGone": "Non salvato. Il file è stato spostato o eliminato, oppure non è più leggibile. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignReplaceNotRecorded": "Non salvato. Il file non può essere sostituito in sicurezza al momento, perché il recupero dopo un crash non può essere aggiornato. Le tue modifiche sono ancora nell'app. Scegli Salva come per conservarle in un nuovo file.",
+    "ifcForeignDownloadCopy": "Copia scaricata come {{file}}. Il file aperto non è stato aggiornato; le modifiche restano segnate come non salvate.",
+    "ifcForeignReplaceFailed": "Non salvato. Il file non ha potuto essere scritto. Le tue modifiche sono ancora nell'app. Riprova a salvare, oppure scegli Salva come per conservarle in un nuovo file.",
     "ifcForeignMergeRefused": "Il file IFC non è stato scritto. Il modello di edificio o i dati di un altro programma non verrebbero altrimenti conservati interamente. Annulla l'ultima modifica, oppure esporta solo la pianificazione: in IFC con «Senza modello di edificio», oppure in un altro formato.",
     "ifcSaveChangedWhileWaiting": "Non salvato. Il documento o la fonte del modello di edificio è cambiata durante la preparazione. Riprova a salvare.",
     "ifcSaveWorkerFailed": "Il file IFC non è stato scritto: la preparazione in background è stata interrotta. Le tue modifiche sono ancora nell'app. Riprova.",
+    "ifcForeignNewTargetOnly": "Questo file IFC può essere scritto solo con un nuovo nome di file. Scegli un nome che non esiste ancora.",
     "ifcForeignTargetOpenInTab": "Non salvato. Questo file è aperto in un'altra scheda. Chiudi quella scheda o scegli un altro nome.",
     "exportTargetOpenInTab": "Non esportato. Questo file è aperto in un'altra scheda. Chiudi quella scheda o scegli un altro nome.",
     "exportTargetOpenDocument": "Non esportato. Questo file è aperto in una scheda. Scegli un altro nome oppure chiudi prima quella scheda.",
+    "ifcForeignPlaceUnknown": "L'app non sa se il file è stato salvato correttamente: durante il salvataggio nella cartella è cambiato qualcosa. Le tue modifiche sono ancora nell'app. Controlla se il file è corretto, oppure salva di nuovo con un nuovo nome.",
     "ifcForeignReplaceOtherVersion": "Un altro programma ha modificato {{file}} mentre l'app lo stava salvando. Quella versione è stata conservata come {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Un salvataggio precedente di {{file}} non è stato completato. La pianificazione che si stava salvando è in {{copy}}. Elimina quel file se non ti serve più.",
     "ifcForeignReplaceTargetTaken": "Non salvato. Durante il salvataggio un altro programma ha messo un nuovo file in {{target}}. Ora ci sono tre file: quel nuovo file in {{target}}, la tua pianificazione in {{temp}} e la versione precedente in {{previous}}. Le tue modifiche sono ancora nell'app.",
@@ -470,7 +485,17 @@
     "ifcForeignReplaceLeftOver": "Di un salvataggio interrotto di {{file}} è rimasto questo file: {{path}}. Controlla se ti serve ancora.",
     "ifcSourceCopyFailed": "La pianificazione viene salvata per il recupero da crash, ma la copia del modello di edificio non è stata salvata. Dopo un crash il modello di edificio potrebbe mancare. Salva tu stesso il lavoro come file IFC completo.",
     "ifcForeignSourceMissing": "Non salvato. Il modello di edificio o i dati di un altro programma non sono stati trovati. Usa «Salva come» per salvare solo la pianificazione in un nuovo file. Apri il file IFC originale per lavorare di nuovo con il file completo.",
-    "taskTypeRenameNameTaken": "In questo progetto il nome resta «{{oldName}}»: un'altra categoria di lavoro in questo progetto si chiama già «{{takenName}}»."
+    "taskTypeRenameNameTaken": "In questo progetto il nome resta «{{oldName}}»: un'altra categoria di lavoro in questo progetto si chiama già «{{takenName}}».",
+    "otherWork": {
+      "durationDays_one": "Ora l'attività dura {{days}} giorno.",
+      "durationDays_many": "Ora l'attività dura {{days}} giorni.",
+      "durationDays_other": "Ora l'attività dura {{days}} giorni.",
+      "durationHours_one": "Ora l'attività dura {{hours}} ora.",
+      "durationHours_many": "Ora l'attività dura {{hours}} ore.",
+      "durationHours_other": "Ora l'attività dura {{hours}} ore.",
+      "durationSame": "La durata resta uguale. Le ore degli altri sono cambiate.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -511,6 +536,8 @@
     "addSubtask": "Aggiungi sottoattività",
     "addMilestone": "Aggiungi cardine",
     "addRelation": "Aggiungi relazione",
+    "assignPredecessors": "Assegna predecessori…",
+    "assignSuccessors": "Assegna successori…",
     "dissolve": "Dissolve (mantieni la catena)",
     "delete": "Elimina",
     "newTask": "Nuova attività",
@@ -577,7 +604,7 @@
     "demoTopbarAnimation": "Demo: animazione barra superiore",
     "demoTopbarAnimationHint": "Un tenue bagliore arancione che scorre nella barra superiore. Mostra come funziona un interruttore sperimentale.",
     "ifcForeignContent": "Apri IFC con modello di edificio",
-    "ifcForeignContentHint": "Apre anche un file IFC con un modello di edificio o dati di altri programmi. Puoi usare «Salva come» per salvare in un nuovo file, salvare sul sito, scaricare nel browser ed «Esporta» → «IFC», anche senza modello di edificio o con la libreria di risorse accanto (allora solo con la pianificazione). Salvare su un file locale esistente non è ancora possibile. Il recupero del modello di edificio dopo un crash richiede l'accesso al file originale o a una copia salvata nel browser.",
+    "ifcForeignContentHint": "Apre anche un file IFC con un modello di edificio o con dati di altri programmi. Puoi usare «Salva come» in un nuovo file, salvare sul sito, scaricare nel browser ed «Esporta» → «IFC», anche senza modello di edificio o con la libreria di risorse accanto (allora solo con la pianificazione). In Chrome ed Edge «Salva» salva anche il file aperto stesso. Se un altro programma modifica questo file esattamente durante il salvataggio, quella modifica può andare persa. Nell'app desktop «Salva» salva anche il file aperto stesso, se si trova nella tua cartella personale. Se nel frattempo un altro programma ha modificato il file, il salvataggio si ferma oppure l'app conserva quella versione come copia separata accanto al file; solo una modifica nello stesso identico istante può ancora andare persa. «Salva come» su un altro file esistente nella tua cartella personale sostituisce quel file allo stesso modo, anche se quel file contiene a sua volta un modello di edificio o dati di un altro programma. Anche una pianificazione senza modello di edificio può sostituire un file così. Non vengono sostituiti un file che l'app non sa leggere né un file con un secondo nome (un hard link). Subito prima di sostituirlo, l'app confronta il file con la versione letta dopo la tua scelta: se è cambiato, il salvataggio si ferma e il file resta com'è. Se la versione che l'app ha messo da parte risulta invece diversa, la conserva come copia separata accanto al file, con un avviso. Il ripristino del modello di edificio dopo un crash richiede l'accesso al file originale o a una copia salvata nel browser.",
     "tourHint": "Rifai il tour introduttivo dell'app.",
     "theme": "Tema",
     "themeHint": "Lo schema di colori dell'interfaccia.",
@@ -1292,7 +1319,9 @@
     },
     "regen": {
       "hint": "Le festività coprono {{from}}–{{to}}; vuoi rigenerarle fino al {{year}} compreso?",
-      "button": "Rigenera"
+      "button": "Rigenera",
+      "confirmMessage": "La lista delle festività si discosta dalla lista generata in precedenza. Se sostituisci la lista, le tue modifiche manuali andranno perse.",
+      "confirmReplace": "Sostituisci festività"
     },
     "countryName": {
       "NL": "Paesi Bassi",
@@ -1303,6 +1332,7 @@
       "AT": "Austria",
       "CH": "Svizzera",
       "US": "Stati Uniti",
+      "BO": "Bolivia",
       "none": "Nessuna festività"
     },
     "preset": {
@@ -1513,7 +1543,8 @@
     "edit": {
       "copy": "Copia",
       "deselect": "Deseleziona",
-      "selectAll": "Seleziona tutto"
+      "selectAll": "Seleziona tutto",
+      "linkSelected": "Collega le attività selezionate in una catena"
     },
     "structure": {
       "moveUp": "Sposta attività in alto",

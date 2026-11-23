@@ -618,6 +618,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       void saving.then(() => get().requestCloseDocument(id));
       return;
     }
+    if (!get().documents.some((document) => document.id === id)) return;
+    runtime.finishPendingTextEdits();
     const doc = get().getOpenDocuments().find((d) => d.id === id);
     if (!doc) return;
     if (doc.isDirty) get().setUI({ pendingCloseDocId: id });

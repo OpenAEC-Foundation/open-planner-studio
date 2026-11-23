@@ -202,6 +202,29 @@ for (const profile of PROFILES) {
   expectFeasible(label, profile, tasks, seqs, SCALAR, 'A', '24hour');
 }
 
+{
+  const observations = [];
+  const seqs: Sequence[] = [{ id: 's', predecessorId: 'A', successorId: 'B', type: 'START_START', lagDays: 1.5 }];
+  for (const profile of PROFILES) {
+    for (const unit of ['days', 'hours'] as const) {
+      for (const lagCalendar of ['24hour', 'predecessor'] as const) {
+        const label = `${profile}/${unit}/${lagCalendar}`;
+        const tasks = [task('A', 2, { unit }), task('B', 1, { unit: 'hours' })];
+        const first = run(profile, tasks, seqs, SCALAR, lagCalendar);
+        const a = first.tasks.get('A')!, b = first.tasks.get('B')!;
+        const replay = run(profile, withoutAlapAt(tasks, 'A', a.lateStart), seqs, SCALAR, lagCalendar);
+        const a2 = replay.tasks.get('A')!, b2 = replay.tasks.get('B')!;
+        eq(`345 ${label}: A begint bij herberekenen echt op LS`, a2.earlyStart, a.lateStart);
+        observations.push({ label, a: a.earlyStart, ls: a.lateStart, tf: a.totalFloatMinutes,
+          critical: a.isCritical, b: b.earlyStart, lb: b.lateStart, replayB: b2.earlyStart });
+      }
+    }
+  }
+  const summary = JSON.stringify(observations);
+  console.log('KNOWNBUG345_SUMMARY', summary);
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=Knownbug 345::${summary}`);
+}
+
 // ── 4. Knownbug 273: losse START-mijlpaal met ALAP naast een taak van 3 d ───────────────────────
 // Kalender 7–16 met een uur pauze (8 u per dag). Vóór de fix: M op wo 10:00 met 0,625 d (300 min)
 // totale en vrije speling; de late start is wo 16:00.
@@ -306,6 +329,40 @@ for (const profile of PROFILES) {
     ['2026-06-02T08:00', '2026-06-02T16:00', 0, false]);
 }
 
+{
+  const summary = [];
+  const date = '2026-06-02T16:00';
+  for (const c14 of [false, true]) {
+    const project = {
+      startDate: '2026-06-01',
+      schedulingProfile: { ...builtInProfile('p6'), overrides: { p6AlapPositionedFromSuccessors: c14 } },
+      schedulingOptions: {},
+    } as Parameters<typeof solveInputFor>[0];
+    for (const kind of ['deadline', 'FNLT', 'geen'] as const) {
+      const a = task('A', 1, { alap: true });
+      if (kind === 'deadline') a.deadline = date;
+      if (kind === 'FNLT') a.constraint2 = { type: 'FNLT', date };
+      const tasks = [a, task('X', 2.5), task('B', 1)];
+      const seqs = [fs('A', 'B'), fs('X', 'B')];
+      const input = solveInputFor(project, tasks, seqs, OWN_BLOCKS, [OWN_BLOCKS]);
+      const label = `C14=${c14}/${kind}`;
+      eq(`${label}: effectieve optie`, input.schedulingOptions.p6AlapPositionedFromSuccessors, c14);
+      const r = solveProject(input);
+      eq(`${label}: geen rekenfout`, Boolean(r.error), false);
+      const ar = r.tasks.get('A')!;
+      summary.push({
+        c14, kind, es: ar.earlyStart, ef: ar.earlyFinish, lf: ar.lateFinish,
+        tf: ar.totalFloatMinutes, b: r.tasks.get('B')!.earlyStart,
+      });
+    }
+  }
+  eq('knownbug 384: aantal gevallen', summary.length, 6);
+  console.log(`KNOWNBUG384_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 384::${JSON.stringify(summary)}`);
+  }
+}
+
 // ── 7. Een onuitvoerbare eerste plek geeft niet elke verschuiving op ────────────────────────────
 // A 1 d ALAP (08–16) —SS0→ B op 08–18 met SNET vr 5 juni 17:00. Vrijdag is uitvoerbaar (zonder ALAP op
 // vr 08:00 blijft B gelijk). B = 480 min (het projecteinde begrenst A) en B = 2400 min (dan moet de
@@ -338,6 +395,41 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   const ef = new Date(`${r.tasks.get('A')!.earlyFinish}Z`);
   eq(`${label}: einde op een eindmoment van A`, new CalendarEngine(cal).prevWorkInstant(ef).getTime(), ef.getTime());
   expectFeasible(label, profile, tasks, seqs, cal, 'A', 'successor', [TEN]);
+}
+
+{
+  const summary = [];
+  for (const c14 of [false, true]) {
+    const project = {
+      startDate: '2026-06-01',
+      schedulingProfile: { ...builtInProfile('p6'), overrides: { p6AlapPositionedFromSuccessors: c14 } },
+      schedulingOptions: { lagCalendar: 'successor' },
+    } as Parameters<typeof solveInputFor>[0];
+    const cal = SHORT_FRIDAY_BLOCKS;
+    const tasks = [task('A', 2, { alap: true }), task('X', 5), { ...task('B', 1), calendarId: 'ten' } as Task];
+    const seqs: Sequence[] = [
+      { id: 'ab', predecessorId: 'A', successorId: 'B', type: 'FINISH_FINISH', lagDays: 1.5 }, fs('X', 'B'),
+    ];
+    const input = solveInputFor(project, structuredClone(tasks), seqs, cal, [cal, TEN]);
+    eq(`C14=${c14}: effectieve optie`, input.schedulingOptions.p6AlapPositionedFromSuccessors, c14);
+    const first = solveProject(input);
+    const placed = first.tasks.get('A')!;
+    const replay = solveProject(solveInputFor(project, withoutAlapAt(tasks, 'A', placed.earlyStart), seqs, cal, [cal, TEN]));
+    const replayed = replay.tasks.get('A')!;
+    eq(`C14=${c14}: geen rekenfout`, Boolean(first.error || replay.error), false);
+    eq(`C14=${c14}: herberekening op dezelfde start`, replayed.earlyStart, placed.earlyStart);
+    const end = new Date(`${placed.earlyFinish}Z`);
+    summary.push({
+      c14, es: placed.earlyStart, ef: placed.earlyFinish, tf: placed.totalFloatMinutes,
+      validEnd: new CalendarEngine(cal).prevWorkInstant(end).getTime() === end.getTime(),
+      replayEf: replayed.earlyFinish,
+      b: first.tasks.get('B')!.earlyFinish, replayB: replay.tasks.get('B')!.earlyFinish,
+    });
+  }
+  console.log(`KNOWNBUG369_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 369::${JSON.stringify(summary)}`);
+  }
 }
 
 // ── 9. Relatiematrix: uitvoerbaar, en geen achtergebleven speling ───────────────────────────────
@@ -377,6 +469,43 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
     }
   }
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
+}
+
+{
+  const dataDate = '2026-06-01T16:00';
+  const actualStart = '2026-06-01T08:00';
+  const summary = [];
+  for (const profile of PROFILES) {
+    const project = {
+      startDate: '2026-06-01', statusDate: dataDate, schedulingProfile: builtInProfile(profile),
+    } as Parameters<typeof solveInputFor>[0];
+    for (const [calendarName, calendar] of [['kort', SHORT_FRIDAY_EXCEPTION], ['normaal', SCALAR]] as const) {
+      for (const alap of [false, true]) {
+        const a = task('A', 2, { alap });
+        a.status = 'STARTED';
+        a.time = { ...a.time, actualStart, completion: 0.5 };
+        const input = solveInputFor(project, [a, task('E', 5)], [], calendar, [calendar]);
+        const r = solveProject(input);
+        const placed = r.tasks.get('A')!;
+        const label = `${profile}/${calendarName}/${alap ? 'alap' : 'normaal'}`;
+        eq(`${label}: statusdatum doorgespeeld`, input.dataDate, dataDate);
+        eq(`${label}: rekenfout`, Boolean(r.error), false);
+        const finish = placed.earlyFinish;
+        const friday = finish.startsWith('2026-06-05T');
+        const afterShortFriday = calendarName === 'kort' && friday && finish.slice(11, 16) > '14:00';
+        summary.push({
+          label, es: placed.earlyStart, ef: finish, ls: placed.lateStart, lf: placed.lateFinish,
+          tf: placed.totalFloatMinutes, ff: placed.freeFloatMinutes, end: r.tasks.get('E')!.earlyFinish,
+          afterShortFriday,
+        });
+      }
+    }
+  }
+  eq('knownbug 361: aantal gevallen', summary.length, 12);
+  console.log(`KNOWNBUG361_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 361::${JSON.stringify(summary)}`);
+  }
 }
 
 if (diffs.length === 0) {

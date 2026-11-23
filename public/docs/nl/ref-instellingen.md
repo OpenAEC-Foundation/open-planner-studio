@@ -89,7 +89,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 ## Over de app
 
-**Versie** — het versienummer van de app, met twee knoppen. *Controleren op updates* opent het updatevenster. *Wat is er nieuw* toont de nieuwigheden van de huidige versie. Bij een AUR-installatie (Arch Linux) werk je bij via je pakketbeheer (bijv. `yay -Syu`), niet via de app. Waar: [Over de app](settings://version).
+**Versie** — het versienummer van de app, met twee knoppen. *Controleren op updates* opent het updatevenster. *Wat is er nieuw* toont de nieuwigheden van de huidige versie. Waar: [Over de app](settings://version).
 
 Een automatisch gevonden update wacht tot de welkomstschermen en een lopende tutorialbegeleiding gesloten zijn. Handmatig controleren via de knop blijft mogelijk.
 

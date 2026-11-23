@@ -101,3 +101,13 @@ loopt vóór de bestandskiezer; document-id en bronidentiteit worden vlak vóór
 de momentopname en niet op het actieve document (#804 stap 3): een tabbladwissel tijdens de opslag weigert niet, en de
 commit gaat naar dat document. Na de momentopname leest een opslag het actieve document niet meer.
 Een download houdt het openingsdoel, de bron en het kenmerk; alleen de dirty-vlag volgt de bestaande opslagcommit. Uitzondering (knownbug 1768): bij een document met een gebouwmodel (`hasBuildingModel(ifcSource)`: de bron draagt `buildingModel`, gezet door de scan die haar accepteerde, bij openen en na de merge; niet elke vreemde inhoud) commit de download die Ctrl+S geeft als de browser de schrijftoestemming op de eigen handle weigert niets; het document blijft gewijzigd, Ctrl+S geeft `false` (de sluitvraag sluit niet) en de melding `ifcForeignDownloadCopy` noemt de kopie. De kopiemelding (`downloadCopyNotice` in `ifcForeignGuard.ts`) is een gewone informatiemelding zoals `savedViaDownload`, één voor de hele app die een nieuwe kopie ververst (1843); de bescherming is de dirty-vlag. Een complexe instantie telt altijd als gebouwmodel (de index kent haar deeltypen niet, 1845). Opslaan als en Ctrl+S zonder handle zetten het nog op opgeslagen (1830).
+
+**Besluiten in `fileSlice.ts`** staan in `docs/adr/`: externe bronnen controleren en verversen (0070), één melding per
+geopend bestand (0071), openen laadt gekoppeld en de andere laadroutes los (0072), opslagdoel en melding per
+opslagpoging (0073) en de keuzes van de exportroute (0074).
+
+**Besluiten in `taskSlice.ts`** staan in `docs/adr/`: de volgorde van taken op drie plekken (0150), verhangen eerst op
+een proefkopie (0151), de vraag bij een nieuwe samenvattingstaak (0152), een taakbewerking telt op haar uitkomst
+(0153), voortgang invullen en inlezen (0154), taken opheffen (0155) en taken toevoegen, invoegen en verwijderen (0156).
+
+**De WBS-nummering van een geladen bestand** (`Project.wbsAutoNumber`): `docs/adr/0185-wbs-nummering-van-een-geladen-bestand.md`.

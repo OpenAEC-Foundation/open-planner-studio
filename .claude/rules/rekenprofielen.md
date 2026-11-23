@@ -61,6 +61,14 @@ opties-object via een helper in een ander bestand onder een neutrale naam, of vi
 Recept: `docs/recepten/conventie.md`; gidsen: `public/docs/{nl,en}/uitleg-rekenprofielen.md` en `ref-rekenopties-en-conventies.md`; spec:
 `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`; regel A en B:
 `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`.
+Besluiten in de solver (`CPMSolver.ts`) staan in `docs/adr/0010` tot en met `0031`: invoer en fouten (0010),
+projectstart en eigen anker (0011), projecteinde (0012), werkelijke datums (0013), blokgrenzen en mijlpalen (0014),
+splitgaten (0015), kalendertijd (0016), nivelleervertraging (0017), de voorwaartse pass voor de nivelleerder (0018),
+zijsporen (0019), late kant, driving en vrije speling (0020), constraints en harde pinnen (0021), externe koppelingen
+(0022), hammocks (0023), handmatig gepland (0024), voortgang zoals MS Project (0025), timephased vensters (0026),
+P6: voltooid werk (0027), lopende taken (0028), relatie- en mijlpaalgrenzen (0029), ALAP (0030), de SF-finishvloer
+(0031). Besluiten bij de typen in `src/types/project.ts`: nivelleerinstellingen als data (0180), projectopties uit het
+P6-bronbestand (0181), het bewijs achter de conventies (0182) en het rekenprofiel en zijn typen (0183).
 
 ### Het nivelleringsfundament (projectoptie `leveling`)
 
@@ -83,3 +91,4 @@ nivelleerdialoog rekent in een Web Worker (`src/engine/scheduler/levelingWorker.
 `src/services/leveling/backgroundLeveling.ts`, met `setTimeout`-terugval zonder Worker) op de invoer van
 `scheduleSlice.levelingInput`, met Stoppen; een uitkomst op verouderde store-invoer wordt niet toegepast.
 De MCP-tool en de store-actie blijven synchroon (planner_batch rekent op een synchrone bridge).
+Besluiten van de nivelleerder: `docs/adr/0160` tot en met `0165`.

@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} Vorgänge zeigen die in der Datei gespeicherten Termine (nicht neu berechnet).",
     "xerExportLoss": "Beim Export nach {{format}} gehen XER-Quellinformationen verloren.",
     "exportDataLoss": "Beim Export nach {{format}} gehen Daten verloren, die {{format}} nicht speichern kann, zum Beispiel Notizen oder eine sekundäre Einschränkung. Die IFC-Projektdatei bewahrt alles auf.",
+    "exportPlanOnly": "Nur der Terminplan wurde exportiert; das Gebäudemodell ist in diesem Format nicht enthalten.",
     "mppLegacy": "Diese .mpp-Datei verwendet ein altes Format (Project 2007 oder älter). Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "mppInvalidContainer": "Diese MPP-Datei hat eine ungültige Dateistruktur und kann nicht geöffnet werden.",
     "xmlUnknownSchedule": "Unbekanntes XML-Format für Terminpläne. Öffnen Sie eine XML-Datei von MS Project (Project) oder eine XML-Datei von Primavera P6 (APIBusinessObjects).",
@@ -83,6 +84,10 @@
     "ifcUnreadableTargetSave": "Die App kann diese Datei nicht richtig lesen; sie enthält möglicherweise ein Gebäudemodell. Wählen Sie eine andere Datei zum Speichern aus.",
     "ifcUnreadableTargetExport": "Die App kann diese Datei nicht richtig lesen; sie enthält möglicherweise ein Gebäudemodell. Wählen Sie eine andere Datei für den Export aus.",
     "ifcUnreadableTargetAutoSave": "Automatisches Speichern wurde angehalten: Die App kann diese Datei nicht richtig lesen; sie enthält möglicherweise ein Gebäudemodell. Wählen Sie eine andere Datei zum Speichern aus.",
+    "ifcForeignAutoSaveTargetChanged": "Automatisches Speichern wurde gestoppt: Die Datei wurde inzwischen geändert, verschoben oder gelöscht. Ihre Änderungen sind weiterhin in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatisches Speichern wurde gestoppt: Diese Datei kann an dieser Stelle nicht sicher ersetzt werden. Ihre Änderungen sind weiterhin in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
+    "ifcForeignAutoSaveNotRecorded": "Automatisches Speichern wurde gestoppt: Die Datei kann im Moment nicht sicher ersetzt werden, weil die Wiederherstellung nach einem Absturz nicht aktualisiert werden kann. Ihre Änderungen sind weiterhin in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
+    "ifcForeignAutoSaveRemnant": "Automatisches Speichern wurde gestoppt: Eine frühere Speicherung dieser Datei wurde nicht abgeschlossen. Ihre Änderungen sind weiterhin in der App. Speichern Sie mit Strg+S; nach einem Neustart erledigt die App diese frühere Speicherung.",
     "ambiguousThousands": "„{{text}}“ ist mehrdeutig: Dezimalzahl oder Tausender? Geben Sie Dezimalstellen mit „{{separator}}“ (1{{separator}}5) und Tausender ohne Trennzeichen (1500) ein. Der Wert wurde nicht geändert.",
     "siteSaveConflict": "Nicht gespeichert: '{{name}}' wurde inzwischen auf der Website von jemand anderem geändert. Ihre Änderungen sind noch in der App. Wählen Sie „Speichern unter“, um sie als neue Datei zu behalten.",
     "siteSaveConflictCopy": "'{{original}}' wurde inzwischen auf der Site von jemand anderem geändert. Ihre Arbeit wird daher in einer Kopie gespeichert: '{{name}}'. Ab jetzt schreibt Speichern in diese Kopie.",
@@ -110,6 +115,7 @@
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einem Vorgang und seinem eigenen übergeordneten Sammelvorgang ist nicht zulässig.",
     "relationCycle": "Diese Beziehung würde einen Zyklus im Terminplan erzeugen ({{cycle}}) und wurde nicht erstellt.",
+    "relationChainOrderUnclear": "Die Vorgänge wurden nicht verknüpft: Ihre Reihenfolge in der Liste ist nicht festgelegt. Ein ausgewählter Vorgang steht sowohl vor als auch nach einem anderen Vorgang (Gruppierung), oder zwei ausgewählte Meilensteine liegen in einer eingeklappten Reihe. Heben Sie die Gruppierung auf, klappen Sie die Reihe aus, oder wählen Sie den Vorgänger über „Vorgänger zuweisen“.",
     "hierarchyCycle": "Diese Verschiebung würde einen Zyklus im Terminplan erzeugen ({{cycle}}): Die Beziehungen eines Sammelvorgangs gelten auch für seine Teilvorgänge. Es wurde nichts verschoben.",
     "relationsExcludedByHierarchy_one": "Nach dem Verschieben verbindet {{count}} Beziehung einen Vorgang mit seinem eigenen übergeordneten Sammelvorgang; sie fließt nicht mehr in die Berechnung ein.",
     "relationsExcludedByHierarchy_other": "Nach dem Verschieben verbinden {{count}} Beziehungen einen Vorgang mit seinem eigenen übergeordneten Sammelvorgang; sie fließen nicht mehr in die Berechnung ein.",
@@ -186,7 +192,8 @@
     "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
     "actions": {
       "openProjectInfo": "Berechnungsprofil öffnen",
-      "openHelp": "Hilfe öffnen"
+      "openHelp": "Hilfe öffnen",
+      "undo": "Rückgängig machen"
     },
     "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
     "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",
@@ -353,15 +360,23 @@
     "reportFontMissing": "Die eigene Schriftart {{name}} ist auf diesem Gerät nicht mehr vorhanden. Der Bericht verwendet wieder Inter.",
     "layoutsNotSaved": "Die Layouts konnten nicht gespeichert werden. Es wurde nichts geändert. Bitte versuchen Sie es erneut.",
     "ifcForeignOpenSchema": "Diese IFC-Datei enthält Daten eines anderen Programms und hat ein unbekanntes oder fehlendes Schema. Das Öffnen wurde angehalten, um Datenverlust beim Speichern zu verhindern.",
+    "ifcForeignOpenTooLarge": "Diese IFC-Datei ist größer als {{limit}} MB. Eine IFC-Datei mit einem Gebäudemodell oder mit Daten eines anderen Programms kann bis zu {{limit}} MB geöffnet werden.",
     "ifcForeignOpenUnsafe": "Diese IFC-Datei kann nicht sicher eingeordnet werden. Das Öffnen wurde angehalten, um Datenverlust beim Speichern zu verhindern.",
     "ifc2x3PlanningOnly": "IFC2X3 wurde als Terminplan geöffnet. Daten anderer Programme werden beim Speichern nicht übernommen.",
-    "ifcForeignReplaceBlocked": "Nicht gespeichert. Das Überschreiben einer bestehenden Datei mit einem Gebäudemodell ist noch nicht sicher möglich. Verwenden Sie „Speichern unter“ und wählen Sie einen neuen Namen.",
+    "ifcForeignReplaceBlocked": "Nicht gespeichert. Dies ist die Datei, die Sie geöffnet haben. Verwenden Sie Speichern, um sie zu aktualisieren, oder „Speichern unter“ mit einem neuen Namen für eine Kopie.",
+    "ifcForeignTargetChanged": "Nicht gespeichert. Die Datei wurde inzwischen von einem anderen Programm geändert. Ihre Änderungen sind weiterhin in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
+    "ifcForeignTargetGone": "Nicht gespeichert. Die Datei wurde verschoben, gelöscht oder kann nicht mehr gelesen werden. Ihre Änderungen sind weiterhin in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
+    "ifcForeignReplaceNotRecorded": "Nicht gespeichert. Die Datei kann im Moment nicht sicher ersetzt werden, weil die Wiederherstellung nach einem Absturz nicht aktualisiert werden kann. Ihre Änderungen sind weiterhin in der App. Wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
+    "ifcForeignDownloadCopy": "Kopie heruntergeladen als {{file}}. Die geöffnete Datei wurde nicht aktualisiert; die Änderungen bleiben als nicht gespeichert markiert.",
+    "ifcForeignReplaceFailed": "Nicht gespeichert. Die Datei konnte nicht geschrieben werden. Ihre Änderungen sind weiterhin in der App. Versuchen Sie erneut zu speichern oder wählen Sie „Speichern unter“, um sie in einer neuen Datei zu sichern.",
     "ifcForeignMergeRefused": "Die IFC-Datei wurde nicht geschrieben. Das Gebäudemodell oder die Daten eines anderen Programms würden sonst nicht vollständig erhalten bleiben. Machen Sie die letzte Änderung rückgängig oder exportieren Sie nur den Terminplan: nach IFC mit Ohne Gebäudemodell oder in ein anderes Format.",
     "ifcSaveChangedWhileWaiting": "Nicht gespeichert. Das Dokument oder die Quelle des Gebäudemodells hat sich während der Vorbereitung geändert. Versuchen Sie erneut zu speichern.",
     "ifcSaveWorkerFailed": "Die IFC-Datei wurde nicht geschrieben: Die Vorbereitung im Hintergrund wurde unterbrochen. Ihre Änderungen sind noch in der App. Versuchen Sie es erneut.",
+    "ifcForeignNewTargetOnly": "Diese IFC-Datei kann nur unter einem neuen Dateinamen geschrieben werden. Wählen Sie einen Namen, den es noch nicht gibt.",
     "ifcForeignTargetOpenInTab": "Nicht gespeichert. Diese Datei ist in einem anderen Tab geöffnet. Schließen Sie diesen Tab oder wählen Sie einen anderen Namen.",
     "exportTargetOpenInTab": "Nicht exportiert. Diese Datei ist in einem anderen Tab geöffnet. Schließen Sie diesen Tab oder wählen Sie einen anderen Namen.",
     "exportTargetOpenDocument": "Nicht exportiert. Diese Datei ist in einem Tab geöffnet. Wählen Sie einen anderen Namen oder schließen Sie zuerst diesen Tab.",
+    "ifcForeignPlaceUnknown": "Die App weiß nicht, ob die Datei richtig gespeichert wurde: Beim Speichern hat sich etwas im Ordner geändert. Ihre Änderungen sind weiterhin in der App. Prüfen Sie, ob die Datei stimmt, oder speichern Sie erneut unter einem neuen Namen.",
     "ifcForeignReplaceOtherVersion": "Ein anderes Programm hat {{file}} geändert, während die App sie speicherte. Diese Version wurde als {{copy}} aufbewahrt.",
     "ifcForeignReplaceUnsavedCopy": "Ein früheres Speichern von {{file}} wurde nicht abgeschlossen. Der Terminplan, der damals gespeichert werden sollte, befindet sich in {{copy}}. Löschen Sie diese Datei, wenn Sie sie nicht mehr brauchen.",
     "ifcForeignReplaceTargetTaken": "Nicht gespeichert. Während des Speicherns hat ein anderes Programm eine neue Datei unter {{target}} abgelegt. Jetzt gibt es drei Dateien: diese neue Datei unter {{target}}, Ihr Terminplan in {{temp}} und die vorherige Version in {{previous}}. Ihre Änderungen sind außerdem noch in der App.",
@@ -370,7 +385,15 @@
     "ifcForeignReplaceLeftOver": "Von einem unterbrochenen Speichern von {{file}} ist diese Datei übrig geblieben: {{path}}. Prüfen Sie, ob Sie sie noch brauchen.",
     "ifcSourceCopyFailed": "Der Terminplan wird für die Wiederherstellung nach einem Absturz gespeichert, aber die Kopie des Gebäudemodells konnte nicht gespeichert werden. Nach einem Absturz kann das Gebäudemodell fehlen. Speichern Sie Ihre Arbeit selbst als vollständige IFC-Datei.",
     "ifcForeignSourceMissing": "Nicht gespeichert. Das Gebäudemodell oder die Daten eines anderen Programms wurden nicht gefunden. Verwenden Sie „Speichern unter“, um nur den Terminplan in einer neuen Datei zu speichern. Öffnen Sie die ursprüngliche IFC-Datei, um wieder mit der vollständigen Datei zu arbeiten.",
-    "taskTypeRenameNameTaken": "In diesem Projekt bleibt der Name „{{oldName}}“: Eine andere Arbeitskategorie in diesem Projekt heißt bereits „{{takenName}}“."
+    "taskTypeRenameNameTaken": "In diesem Projekt bleibt der Name „{{oldName}}“: Eine andere Arbeitskategorie in diesem Projekt heißt bereits „{{takenName}}“.",
+    "otherWork": {
+      "durationDays_one": "Vorgang dauert jetzt {{days}} Tag.",
+      "durationDays_other": "Vorgang dauert jetzt {{days}} Tage.",
+      "durationHours_one": "Vorgang dauert jetzt {{hours}} Stunde.",
+      "durationHours_other": "Vorgang dauert jetzt {{hours}} Stunden.",
+      "durationSame": "Die Dauer bleibt gleich. Die Stunden der übrigen Vorgänge wurden angepasst.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
@@ -410,6 +433,8 @@
     "addSubtask": "Teilvorgang hinzufügen",
     "addMilestone": "Meilenstein hinzufügen",
     "addRelation": "Beziehung hinzufügen",
+    "assignPredecessors": "Vorgänger zuweisen…",
+    "assignSuccessors": "Nachfolger zuweisen…",
     "dissolve": "Dissolve (Kette erhalten)",
     "delete": "Löschen",
     "newTask": "Neuer Vorgang",
@@ -476,7 +501,7 @@
     "demoTopbarAnimation": "Demo: Animation in der oberen Leiste",
     "demoTopbarAnimationHint": "Ein sanfter oranger Glanzeffekt über die obere Leiste. Zeigt, wie ein experimenteller Schalter funktioniert.",
     "ifcForeignContent": "IFC mit Gebäudemodell öffnen",
-    "ifcForeignContentHint": "Öffnet auch eine IFC-Datei mit einem Gebäudemodell oder Daten anderer Programme. Sie können „Speichern unter“ für eine neue Datei, Speichern auf der Website, Herunterladen im Browser und Exportieren → IFC verwenden, auch ohne Gebäudemodell oder mit der Ressourcenbibliothek daneben (dann nur mit dem Terminplan). Das Überschreiben einer bestehenden lokalen Datei ist noch nicht möglich. Die Wiederherstellung des Gebäudemodells nach einem Absturz erfordert Zugriff auf die ursprüngliche Datei oder eine gespeicherte Kopie im Browser.",
+    "ifcForeignContentHint": "Öffnet auch eine IFC-Datei mit einem Gebäudemodell oder Daten anderer Programme. Sie können „Speichern unter“ für eine neue Datei, Speichern auf der Website, Herunterladen im Browser und Exportieren → IFC verwenden, auch ohne Gebäudemodell oder mit der Ressourcenbibliothek daneben (dann nur mit dem Terminplan). In Chrome und Edge speichert Speichern auch die geöffnete Datei selbst. Ändert ein anderes Programm diese Datei genau während des Speicherns, kann diese Änderung verloren gehen. In der Desktop-App speichert Speichern die geöffnete Datei selbst, wenn sie in Ihrem Benutzerordner liegt. Hat ein anderes Programm die Datei inzwischen geändert, bricht das Speichern ab, oder die App bewahrt diese Version als separate Kopie neben der Datei auf; nur eine Änderung im selben Augenblick kann noch verloren gehen. „Speichern unter“ über eine andere bestehende Datei in Ihrem Benutzerordner ersetzt diese Datei auf dieselbe Weise, auch wenn sie selbst ein Gebäudemodell oder Daten eines anderen Programms enthält. Auch ein Terminplan ohne Gebäudemodell darf eine solche Datei ersetzen. Nicht ersetzt werden eine Datei, die die App nicht lesen kann, und eine Datei mit einem zweiten Namen (einem Link). Unmittelbar vor dem Ersetzen vergleicht die App die Datei mit der Version, die sie nach Ihrer Auswahl gelesen hat: Wurde sie geändert, bricht das Speichern ab und die Datei bleibt, wie sie ist. Stellt sich die Version, die die App beiseitegelegt hat, doch als anders heraus, bewahrt sie diese als separate Kopie neben der Datei auf, mit einem Hinweis. Die Wiederherstellung des Gebäudemodells nach einem Absturz erfordert Zugriff auf die ursprüngliche Datei oder eine gespeicherte Kopie im Browser.",
     "tourHint": "Wiederhole die einführende Tour durch die App.",
     "theme": "Design",
     "themeHint": "Das Farbschema der Benutzeroberfläche.",
@@ -1182,7 +1207,9 @@
     },
     "regen": {
       "hint": "Feiertage decken {{from}}–{{to}} ab; bis {{year}} neu generieren?",
-      "button": "Neu generieren"
+      "button": "Neu generieren",
+      "confirmMessage": "Ihre Liste mit freien Tagen weicht von der zuvor erstellten Liste ab. Wenn Sie die Liste ersetzen, gehen Ihre manuellen Änderungen verloren.",
+      "confirmReplace": "Freie Tage ersetzen"
     },
     "countryName": {
       "NL": "Niederlande",
@@ -1193,6 +1220,7 @@
       "AT": "Österreich",
       "CH": "Schweiz",
       "US": "Vereinigte Staaten",
+      "BO": "Bolivien",
       "none": "Keine Feiertage"
     },
     "preset": {
@@ -1401,7 +1429,8 @@
     "edit": {
       "copy": "Kopieren",
       "deselect": "Auswahl aufheben",
-      "selectAll": "Alles auswählen"
+      "selectAll": "Alles auswählen",
+      "linkSelected": "Ausgewählte Vorgänge als Kette verknüpfen"
     },
     "structure": {
       "moveUp": "Vorgang nach oben verschieben",
