@@ -1275,7 +1275,7 @@ const openedVersions = (c: Case) => {
   });
   return { versions, stop: () => c.store.setState({ openOpenedFile: original }) };
 };
-const changedOnDiskNotices = (c: Case) => c.store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.fileChangedOnDisk').length;
+const changedOnDiskNotices = (c: Case) => c.store.getState().documents.filter(d => d.changedOnDisk).length;
 /** De herstelronde van `opened`, met `during` één keer in de eerste ronde binnen de vervanging (`pendingSha256` staat dan
  *  in het manifest; de controle na de herstelronde komt daarna). */
 function firstPendingRound(c: Case, during: () => void | Promise<void>) {

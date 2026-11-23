@@ -1127,7 +1127,7 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
       assertEq({ tasks: S().tasks.map(t => t.name), isDirty: S().isDirty }, work, `${label}: het document houdt zijn werk`);
       assert(S().historyEvents === history[0] && S().nextHistorySequence === history[1], `${label}: ongedaan maken onveranderd`);
       assertEq(ctx2.expectedDocId, kantoorId, `${label}: het drift-anker wijst naar het open document`);
-      assertEq([again.changedOnDisk, S().ui.notifications.some(n => n.messageKey === 'notifications.fileChangedOnDisk')], [undefined, false],
+      assertEq([again.changedOnDisk, S().documents.some(d => d.changedOnDisk)], [undefined, false],
         `${label}: dezelfde versie, geen melding`);
     }
 

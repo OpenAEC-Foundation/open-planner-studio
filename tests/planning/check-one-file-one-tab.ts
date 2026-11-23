@@ -13,7 +13,9 @@ const realError = console.error;
 console.error = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
-const { startOpenLookup, openTabFor } = await import('@/state/openDocumentFor');
+const { startOpenLookup, openTabFor, changedOnDiskShown } = await import('@/state/openDocumentFor');
+const { hasChangedOnDisk } = await import('@/state/documentSaveState');
+const { isBlockingDialogOpen } = await import('@/state/blockingDialogs');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { writeCSV } = await import('@/services/csv/csvWriter');
@@ -38,7 +40,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (g !== w) diffs.push(`${label}: ${g?.slice(0, 300)} ≠ ${w?.slice(0, 300)}`);
 };
 const labels = buildImportLabels((key) => key);
-const CHANGED = 'notifications.fileChangedOnDisk';
+const CHANGED = 'buiten dit tabblad gewijzigd';
 const enc = new TextEncoder();
 
 let events: string[] | null = null;
@@ -89,7 +91,10 @@ const csvText = (() => {
 })();
 
 const readOptions = (store: Store) => ({ ifcBytes: ifcForeignContentEnabled(store.getState().ui.featureFlags) });
-const notices = (store: Store) => store.getState().ui.notifications.map(n => [n.severity, n.messageKey]);
+const notices = (store: Store): string[][] => [
+  ...store.getState().ui.notifications.map(n => [n.severity, n.messageKey]),
+  ...store.getState().documents.filter(d => d.changedOnDisk).map(() => ['tabblad', CHANGED]),
+];
 const clearNotices = (store: Store) => store.setState(s => { s.ui.notifications = []; });
 function tab(store: Store, id: string) {
   const doc = store.getState().getOpenDocumentPayloads().find(d => d.id === id)?.payload;
@@ -357,7 +362,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     await opening;
     eq('B7 1909: geen tweede tabblad met de oude inhoud', [S().documents.length, S().activeDocumentId], [countBefore, saver]);
     eq('B7 1909: het tabblad dat opsloeg, met zijn werk', tab(store, saver), { project: 'Opslaander', tasks: ['Nieuw werk'], isDirty: false, filePath: doel });
-    eq('B7 1909: de lezing is ouder dan wat het tabblad opsloeg; de melding met de knop', notices(store), [['info', CHANGED]]);
+    eq('B7 1909: de lezing is ouder dan wat het tabblad opsloeg; de melding met de knop', notices(store), [['tabblad', CHANGED]]);
 
     for (const during of ['wachtende neerzetting'] as const) {
       const st = newStore(true);
@@ -1222,13 +1227,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       const { readFileSync, unlinkSync } = await import('node:fs');
       const { createHash } = await import('node:crypto');
       const { openLaunchFiles } = await import('@/state/launchFiles');
-      const { createCloseDocumentDialogActions } = await import('@/components/layout/DocumentChrome/closeDocumentActions');
       const changedIfc = planIfc('Kantoor', 'Extern opgeslagen werk');
       const onDisk = () => createHash('sha256').update(readFileSync(kantoor)).digest('hex');
-      const until = async (cond: () => boolean) => {
-        for (let i = 0; i < 400 && !cond(); i++) await new Promise<void>(r => setTimeout(r, 5));
-        return cond();
-      };
       type App = ReturnType<typeof newApp>;
       type Route = 'openen' | 'recent' | 'slepen' | 'MCP' | 'start';
       const reopen = async (app: App, route: Route): Promise<Record<string, unknown> | null> => {
@@ -1244,21 +1244,44 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         } else await openVia(st, route);
         return null;
       };
-      const setup = async (flagAtOpen = true) => {
+      const setup = async (flagAtOpen = true, work = true) => {
         writeFileSync(kantoor, kantoorIfc);
         const app = newApp(flagAtOpen);
         const st = app.store;
         const T = () => st.getState();
         await openVia(st, 'openen', kantoor);
         const a = T().activeDocumentId;
-        T().addTask({ name: 'Eigen werk' });
+        if (work) T().addTask({ name: 'Eigen werk' });
         T().newDocument();
         await openVia(st, 'openen', school);
         st.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
         clearNotices(st);
         return { app, st, T, a, count: T().documents.length };
       };
-      const changedNotice = (st: Store) => st.getState().ui.notifications.find(n => n.messageKey === CHANGED) ?? null;
+      const marked = (st: Store, id: string) => hasChangedOnDisk(st.getState(), id);
+      const shown = (st: Store) => changedOnDiskShown(st.getState());
+      const holdRead = () => {
+        const release = gate(), reached = gate();
+        let held = false, reads = 0;
+        const outer = internals.invoke;
+        internals.invoke = async (command, args, options) => {
+          if (/^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string } | undefined)?.path === kantoor) {
+            reads++;
+            if (!held) { held = true; reached.open(); await release.wait; }
+          }
+          return outer(command, args, options);
+        };
+        return { reached: reached.wait, release: release.open, reads: () => reads, stop: () => { internals.invoke = outer; } };
+      };
+      const { SHORTCUTS } = await import('@/hooks/keyboard/shortcutRegistry');
+      const escape = SHORTCUTS.find(shortcut => shortcut.id === 'edit.deselect')!;
+      const changedTab = async (dirty: boolean) => {
+        const ctx = await setup(true, dirty);
+        writeFileSync(kantoor, changedIfc);
+        await openVia(ctx.st, 'openen', kantoor);
+        clearNotices(ctx.st);
+        return ctx;
+      };
       const getFs = fileToolDeps.getFs;
       fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
       try {
@@ -1275,16 +1298,12 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
             const { app, st, T, a, count } = await setup();
             writeFileSync(kantoor, changedIfc);
             const data = await reopen(app, route);
-            const notice = changedNotice(st);
-            eq(`V5 ${route}: een andere versie op schijf ⇒ naar het tabblad, met de melding en de knop; het werk blijft`, [
-              T().activeDocumentId === a, T().documents.length - count, notices(st),
-              notice?.sticky, notice?.params, notice?.action, tab(st, a)?.tasks, tab(st, a)?.isDirty,
-              route === 'MCP' ? [data?.alreadyOpen, data?.changedOnDisk] : null,
-            ], [true, 0, [['info', CHANGED]], true, { name: 'kantoor.ifc' },
-              { kind: 'loadNewVersion', documentId: a, labelKey: 'notifications.actions.loadNewVersion' },
-              ['Fundering', 'Eigen werk'], true, route === 'MCP' ? [true, true] : null]);
+            eq(`V5 ${route}: een andere versie op schijf ⇒ naar het tabblad, met de strook en de knop; het werk blijft`, [
+              T().activeDocumentId === a, T().documents.length - count, notices(st), shown(st),
+              tab(st, a)?.tasks, tab(st, a)?.isDirty, route === 'MCP' ? [data?.alreadyOpen, data?.changedOnDisk] : null,
+            ], [true, 0, [['tabblad', CHANGED]], true, ['Fundering', 'Eigen werk'], true, route === 'MCP' ? [true, true] : null]);
             await reopen(app, route);
-            eq(`V5 ${route}: nog eens openen ⇒ één melding (dedupeKey per tabblad)`, notices(st), [['info', CHANGED]]);
+            eq(`V5 ${route}: nog eens openen ⇒ nog steeds één strook`, notices(st), [['tabblad', CHANGED]]);
           }
           {
             const { app, st, T, a, count } = await setup(false);
@@ -1322,96 +1341,155 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         }
 
         {
-          writeFileSync(kantoor, kantoorIfc);
-          const app = newApp(true);
-          const st = app.store;
-          const T = () => st.getState();
-          await openVia(st, 'openen', kantoor);
-          const a = T().activeDocumentId;
-          T().newDocument();
-          await openVia(st, 'openen', school);
-          writeFileSync(kantoor, changedIfc);
-          clearNotices(st);
-          await openVia(st, 'openen', kantoor);
-          const notice = changedNotice(st);
-          T().loadNewVersion(a, labels);
-          const loaded = await until(() => T().tasks.some(t => t.name === 'Extern opgeslagen werk'));
-          const after = [loaded, T().activeDocumentId === a, T().documents.length, T().filePath, T().isDirty,
-            T().knownTargetFingerprint?.sha256 === onDisk(), T().ui.pendingReloadDocId, changedNotice(st)];
+          const { st, T, a } = await changedTab(false);
+          const before = [T().activeDocumentId === a, shown(st), T().isDirty];
+          await T().loadNewVersion(labels);
+          const after = [T().activeDocumentId === a, T().documents.length, T().filePath, T().isDirty,
+            T().knownTargetFingerprint?.sha256 === onDisk(), T().ui.pendingReloadDocId, marked(st, a), shown(st)];
           T().undo();
-          eq('K1 schoon tabblad: de knop vult hetzelfde tabblad met de nieuwe versie; lege geschiedenis, de melding weg', [
-            !!notice, ...after, T().tasks.map(t => t.name),
-          ], [true, true, true, 2, kantoor, false, true, null, null, ['Extern opgeslagen werk']]);
+          eq('K1 schoon tabblad: de knop vult hetzelfde tabblad met de nieuwe versie, zonder vraag; lege geschiedenis, de strook weg', [
+            ...before, ...after, T().tasks.map(t => t.name),
+          ], [true, true, false, true, 2, kantoor, false, true, null, false, false, ['Extern opgeslagen werk']]);
           T().switchDocument(T().documents.find(d => d.id !== a)!.id);
           await openVia(st, 'openen', kantoor);
-          eq('K1 daarna opnieuw openen ⇒ naar het tabblad, geen melding', [T().activeDocumentId === a, notices(st)], [true, []]);
+          eq('K1 daarna opnieuw openen ⇒ naar het tabblad, geen strook', [T().activeDocumentId === a, notices(st)], [true, []]);
         }
 
-        for (const choice of ['annuleren', 'niet opslaan', 'opslaan'] as const) {
-          const { st, T, a } = await setup();
-          writeFileSync(kantoor, changedIfc);
-          await openVia(st, 'openen', kantoor);
-          T().loadNewVersion(a, labels);
-          const asked = [T().ui.pendingReloadDocId === a, T().tasks.map(t => t.name)];
-          const actions = createCloseDocumentDialogActions({
-            pendingId: a,
-            getActiveDocumentId: () => T().activeDocumentId,
-            switchDocument: (id) => T().switchDocument(id),
-            closeDocument: (id, options) => T().reloadFromTarget(id, { ...options, labels }),
-            saveFile: () => T().saveFileForDocument(a),
-            clearPending: () => T().setUI({ pendingReloadDocId: null }),
-            restoreOpenerFocus: () => {},
-            onSavePendingChange: () => {},
-          });
-          if (choice === 'annuleren') actions.cancel();
-          else if (choice === 'niet opslaan') await actions.discard();
-          else await actions.save();
+        for (const choice of ['annuleren', 'weggooien'] as const) {
+          const { st, T, a } = await changedTab(true);
+          await T().loadNewVersion(labels);
+          const asked = [T().ui.pendingReloadDocId === a, T().tasks.map(t => t.name), isBlockingDialogOpen(T().ui)];
+          if (choice === 'annuleren') T().cancelReload();
+          else T().confirmReload();
           const want = {
-            annuleren: [['Fundering', 'Eigen werk'], true, false, true],
-            'niet opslaan': [['Extern opgeslagen werk'], false, false, false],
-            opslaan: [['Fundering', 'Eigen werk'], false, true, false],
+            annuleren: [['Fundering', 'Eigen werk'], true, true, true],
+            weggooien: [['Extern opgeslagen werk'], false, false, false],
           }[choice];
-          eq(`K2 gewijzigd tabblad, ${choice}: eerst de sluitvraag, daarna ${choice === 'annuleren' ? 'alles zoals het was' : 'dit tabblad met wat op schijf staat'}`, [
-            asked, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty,
-            readFileSync(kantoor, 'utf8').includes('Eigen werk'), !!changedNotice(st), T().ui.pendingReloadDocId,
-          ], [[true, ['Fundering', 'Eigen werk']], true, ...want, null]);
+          eq(`K2 gewijzigd tabblad, ${choice}: pas na het lezen de vraag; daarna ${choice === 'annuleren' ? 'alles zoals het was' : 'dit tabblad met wat op schijf staat'}`, [
+            asked, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, marked(st, a), shown(st), T().ui.pendingReloadDocId,
+            readFileSync(kantoor, 'utf8').includes('Eigen werk'),
+          ], [[true, ['Fundering', 'Eigen werk'], true], true, ...want, null, false]);
+          if (choice === 'annuleren') {
+            eq('K2 annuleren: een akkoord daarna doet niets', [T().confirmReload(), T().tasks.map(t => t.name)], [false, ['Fundering', 'Eigen werk']]);
+          }
+        }
+
+        {
+          const { st, T, a } = await changedTab(true);
+          const hold = holdRead();
+          const loading = T().loadNewVersion(labels);
+          await hold.reached;
+          T().addTask({ name: 'Tijdens het lezen' });
+          const second = T().loadNewVersion(labels);
+          hold.release();
+          await Promise.all([loading, second]);
+          hold.stop();
+          const asked = [T().ui.pendingReloadDocId === a, T().tasks.map(t => t.name), hold.reads()];
+          escape.run(T());
+          T().addTask({ name: 'Na Escape' });
+          eq('R8-1a (Sol, ronde 8): gewijzigd tabblad, doorwerken tijdens het lezen, Escape, doorwerken: zonder akkoord verdwijnt niets', [
+            asked, T().ui.pendingReloadDocId, T().confirmReload(), T().tasks.map(t => t.name), T().isDirty, marked(st, a),
+            readFileSync(kantoor, 'utf8').includes('Extern opgeslagen werk'),
+          ], [[true, ['Fundering', 'Eigen werk', 'Tijdens het lezen'], 1], null, false,
+            ['Fundering', 'Eigen werk', 'Tijdens het lezen', 'Na Escape'], true, true, true]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(false);
+          const hold = holdRead();
+          const loading = T().loadNewVersion(labels);
+          await hold.reached;
+          T().addTask({ name: 'Opgeslagen tijdens het lezen' });
+          await T().saveFile();
+          hold.release();
+          await loading;
+          hold.stop();
+          eq('R8-1b (Sol, ronde 8): schoon tabblad, bewerkt en opgeslagen tijdens het lezen ⇒ de knop breekt af; de taak blijft, ook op schijf', [
+            T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, T().ui.pendingReloadDocId,
+            readFileSync(kantoor, 'utf8').includes('Opgeslagen tijdens het lezen'), marked(st, a),
+          ], [true, ['Fundering', 'Opgeslagen tijdens het lezen'], false, null, true, false]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(true);
+          const school = T().documents.find(d => d.id !== a)!.id;
+          T().switchDocument(school);
+          const inSchool = [shown(st), marked(st, a)];
+          await T().loadNewVersion(labels);
+          const schoolTask = T().tasks[0].id;
+          T().setUI({ showTaskDialog: true, editingTaskId: schoolTask });
+          await T().loadNewVersion(labels);
+          const afterSchool = [T().activeDocumentId === school, T().ui.showTaskDialog, T().ui.editingTaskId === schoolTask];
+          T().setUI({ showTaskDialog: false, editingTaskId: null });
+          T().switchDocument(a);
+          T().setUI({ showTaskDialog: true, editingTaskId: T().tasks[0].id });
+          await T().loadNewVersion(labels);
+          eq('R8-2 (Sol, ronde 8): de strook van Kantoor is in School niet zichtbaar en niet bedienbaar; een open taakdialoog blijft', [
+            inSchool, afterSchool, T().ui.showTaskDialog, T().ui.pendingReloadDocId, T().tasks.map(t => t.name), marked(st, a),
+          ], [[false, true], [true, true, true], true, null, ['Fundering', 'Eigen werk'], true]);
+          T().setUI({ showTaskDialog: false, editingTaskId: null });
         }
 
         {
           const { st, T, a } = await setup();
+          for (const name of ['een.xml', 'twee.xml', 'drie.xml']) T().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: name });
           writeFileSync(kantoor, changedIfc);
-          await openVia(st, 'openen', kantoor);
-          clearNotices(st);
-          await openVia(st, 'openen', kantoor);
+          await reopen({ store: st } as App, 'recent');
+          eq('R8-3 (Sol, ronde 8): drie blijvende foutmeldingen en dan een wissel met een andere versie ⇒ de strook staat er', [
+            T().activeDocumentId === a, shown(st), T().ui.notifications.filter(n => n.severity === 'error').length,
+          ], [true, true, 3]);
+        }
+
+        {
+          const { st, T, a } = await changedTab(true);
           unlinkSync(kantoor);
           const errorsBefore = notices(st).filter(n => n[0] === 'error').length;
-          await T().reloadFromTarget(a, { labels });
-          eq('K3 mislukt lezen (bestand weg): het tabblad blijft zoals het was, met de gewone foutmelding; de melding met de knop blijft', [
+          await T().loadNewVersion(labels);
+          eq('K3 mislukt lezen (bestand weg): het tabblad blijft zoals het was, met de gewone foutmelding; de strook blijft', [
             T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, notices(st).filter(n => n[0] === 'error').length - errorsBefore,
-            !!changedNotice(st),
-          ], [true, ['Fundering', 'Eigen werk'], true, 1, true]);
+            shown(st), T().ui.pendingReloadDocId,
+          ], [true, ['Fundering', 'Eigen werk'], true, 1, true, null]);
           writeFileSync(kantoor, kantoorIfc);
         }
 
         {
-          const { st, T, a } = await setup();
-          writeFileSync(kantoor, changedIfc);
-          await openVia(st, 'openen', kantoor);
-          const visible = !!changedNotice(st);
+          const { st, T, a } = await changedTab(true);
+          const visible = shown(st);
           saveAnswer = join(dir, 'kantoor-ander-doel.ifc');
           await T().saveFileAs();
-          const afterSaveAs = !!changedNotice(st);
+          const afterSaveAs = [shown(st), marked(st, a)];
           T().newDocument();
           await openVia(st, 'openen', kantoor);
           const b = T().activeDocumentId;
           writeFileSync(kantoor, kantoorIfc);
-          T().switchDocument(T().documents.find(d => d.id !== b && d.id !== a)!.id);
+          T().switchDocument(a);
           await openVia(st, 'openen', kantoor);
-          const visibleB = !!changedNotice(st);
+          const visibleB = [T().activeDocumentId === b, shown(st)];
           T().closeDocument(b);
-          eq('K4 de melding verdwijnt na Opslaan als naar een ander doel en na het sluiten van het tabblad', [
-            visible, afterSaveAs, visibleB, !!changedNotice(st),
-          ], [true, false, true, false]);
+          eq('K4 de strook verdwijnt na Opslaan als naar een ander doel en met het sluiten van het tabblad', [
+            visible, afterSaveAs, visibleB, T().documents.some(d => d.changedOnDisk),
+          ], [true, [false, false], [true, true], false]);
+          writeFileSync(kantoor, kantoorIfc);
+        }
+
+        {
+          const { st, T, a } = await changedTab(false);
+          st.setState(s => { s.ui.featureFlags = {}; });
+          await T().loadNewVersion(labels);
+          eq('K5 de flag gaat uit ⇒ de strook is weg en de knop doet niets', [shown(st), T().tasks.map(t => t.name), T().activeDocumentId === a],
+            [false, ['Fundering'], true]);
+        }
+
+        {
+          const legacy = readFileSync('tests/planning/fixtures/b5-lopend-oude-writer.ifc', 'utf8');
+          const { st, T, a } = await setup(true, false);
+          writeFileSync(kantoor, legacy);
+          await openVia(st, 'openen', kantoor);
+          const historyBefore = T().historyEvents.length;
+          await T().loadNewVersion(labels);
+          eq('K6 (VERVOLG 6, 2204): een oud bestand waarvan de minutenomzetting taken verschuift ⇒ na het laden gewijzigd, met een stap om terug te zetten', [
+            T().activeDocumentId === a, marked(st, a), T().isDirty, T().historyEvents.length > historyBefore,
+          ], [true, false, true, true]);
           writeFileSync(kantoor, kantoorIfc);
         }
       } finally {
