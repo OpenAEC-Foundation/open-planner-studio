@@ -12,7 +12,7 @@
  *  - Schrijven loopt alleen via `saveSiteFileVersion`/`saveNewSiteFile`, vanuit de opslaanroute van de
  *    store. De algemene `FileRef`-functies in `fileAccess/index.ts` schrijven nooit naar de site.
  */
-import type { OpenDialogOpts, OpenedFile } from './index';
+import type { FileData, OpenDialogOpts, OpenedFile } from './index';
 import { getSiteStorage, type SiteFileInfo, type SiteStorage, type SiteVersionInfo } from './siteHost';
 import { isConflictCopyAnswer } from './superCloudHost';
 import { extensionOf } from '@/utils/filePath';
@@ -173,9 +173,10 @@ function checkedSaveAnswer(answer: SiteFileInfo | null | undefined, name: string
   return { id, name: nonEmpty(answer?.name) ?? name, version, ...(conflictCopy ? { conflictCopy: true as const } : {}) };
 }
 
-/** Sla een NIEUW bestand op de site op (geen `id`). Gooit bij een fout of een onvolledig antwoord. */
-export async function saveNewSiteFile(name: string, content: string): Promise<SavedSiteFile> {
-  const answer = await requireStorage().save({ name, data: new Blob([content], { type: SITE_SAVE_MIME }) });
+/** Sla een NIEUW bestand op de site op (geen `id`), als tekst of als de bytes van de opslagworker (#804 stap 6; de
+ *  `Blob` heeft dezelfde bytes). Gooit bij een fout of een onvolledig antwoord. */
+export async function saveNewSiteFile(name: string, data: FileData): Promise<SavedSiteFile> {
+  const answer = await requireStorage().save({ name, data: new Blob([data as BlobPart], { type: SITE_SAVE_MIME }) });
   return checkedSaveAnswer(answer, name);
 }
 
@@ -207,13 +208,13 @@ export async function saveSiteFileVersionBytes(
 export async function saveSiteFileVersion(
   id: string,
   name: string,
-  content: string,
+  data: FileData,
   baseVersion: string | null,
 ): Promise<SavedSiteFile> {
   const answer = await requireStorage().save({
     id,
     name,
-    data: new Blob([content], { type: SITE_SAVE_MIME }),
+    data: new Blob([data as BlobPart], { type: SITE_SAVE_MIME }),
     ...(baseVersion ? { baseVersion } : {}),
   });
   return checkedSaveAnswer(answer, name, id);

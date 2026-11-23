@@ -42,6 +42,7 @@ import type { IFCSaveSource } from '../ifcSaveInput';
 import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { clearRefusals } from '../refusalNotice';
+import type { DocumentContentRef, DocumentSaveState } from '../documentSaveState';
 import {
   mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
 } from '../calendarTasks';
@@ -74,6 +75,12 @@ export interface DocumentEntry {
    *  volgt bij activering, bij het document waar ze over gaat. Sessie-UI, geen documentdata: hoort
    *  daarom niet in de payload/het documentcontract en verdwijnt met het document. */
   pendingWorkRuleSettle?: CalendarLibrarySettle;
+  /** De opslagstand voor de statusbalk (#804 stap 5, `documentSaveState.ts`). Sessie-UI, geen documentdata, net als
+   *  `pendingWorkRuleSettle`. */
+  saveState?: DocumentSaveState;
+  /** De identiteit van de inhoud (fixronde 1 van #1020, `documentSaveState.ts`): omhoog als een andere inhoud dit
+   *  tabblad hergebruikt (`replaceDocumentContent`); `undefined` = 0. Sessiegegeven, geen documentdata. */
+  content?: number;
 }
 
 /**
@@ -93,6 +100,10 @@ export interface DocumentEntry {
 function resetDocumentScopedUI(s: AppState): void {
   s.ui.showTaskDialog = false;
   s.ui.editingTaskId = null;
+  // Shift-anker en toewijsverzoek wijzen naar taken en rijen van het uitgaande document; een variant
+  // deelt taak-id's en rijsleutels met zijn bron (review #1004, ronde 5).
+  s.ui.selectionAnchor = null;
+  s.ui.pendingRelationAssign = null;
   // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: de activatiegrens zet deze
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
@@ -211,7 +222,7 @@ export interface DocumentSlice {
   /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
   setAutoSaveToFile: (enabled: boolean) => void;
   /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
-  markAutoSaveVersionSaved: (id: string, source: IFCSaveSource, prepared?: PreparedIfcWrite) => void;
+  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite) => void;
 }
 
 /** Diepe JSON-kloon (de projectdata is JSON-veilig). */
@@ -650,8 +661,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     set((s) => { s.autoSaveToFile = enabled; });
   },
 
-  markAutoSaveVersionSaved: (id, source, prepared) => {
-    get().commitSavedDocument(id, source, undefined, prepared);
+  markAutoSaveVersionSaved: (document, source, prepared) => {
+    get().commitSavedDocument(document, source, undefined, prepared);
   },
 
   restoreDocuments: (docs, activeId) => {
