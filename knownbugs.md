@@ -3387,6 +3387,27 @@ en noem het in je rapport of PR-tekst.
      `tests/browser/baseline-old-day.spec.ts` oefent de Enter-stap bij de baselinedialoog geen bevestigingshandler uit,
      want die dialoog heeft alleen `onCancel` (`BaselineDialog.tsx`); de klik en Escape toetsen wel iets. Opruimwerk,
      geen fout in gedrag. Gevonden door de review van #987 (Sol, ronde 3). — B (review)
+1961. **Een werkvenster kan na opslaan en openen bij een andere toewijzing van dezelfde resource terugkomen.** De
+     writer sleutelt `OPS_Timephased` op `<resource-GlobalId>#<index>`, met de index over alle toewijzingen van de taak,
+     en slaat een toewijzing zonder venster, curvewaarden, werk of bedrag over (`ifcWriter.ts:2238`). De lezer sorteert
+     de records per resource, gooit de index weg en geeft het eerste aanwezige record aan de eerste toewijzing van die
+     resource (`ifcReader.ts:2617` en `:2685`). Proef: een taak met twee toewijzingen aan dezelfde resource, alleen de
+     tweede (inzet 0,5) met venster 2026-03-04 tot 2026-03-05. Het bestand draagt alleen `…#1`; na `readIFC` heeft de
+     eerste toewijzing (inzet 1) het venster en de tweede geen. De rondgangtest zet het venster op de eerste toewijzing
+     (toewijzing `a1` in `check-ifc-roundtrip.ts`) en raakt dit niet. Richting: bij het lezen de index uit de sleutel bewaren en per
+     toewijzing aan de positie in de taak koppelen, zoals de writer hem telt. Gevonden door de review van #1085 (Sol).
+     — B (proef met `writeIFC`/`readIFC`)
+1962. **Werktijden met een datum in `WorkingTimes` leest OPS nog niet.** `buildCalendarFromEntity` (`ifcReader.ts:2267`)
+     laat een `IfcWorkTime` met StartDate of FinishDate buiten de week; alleen als alle werktijden een datum hebben, neemt
+     de lezer het eerste patroon met een datum als gewone week. Een zomer- en winterweek of een losse werkzaterdag uit een
+     ander programma gaat zo verloren of geldt elke week. Staat ook als "(nog)" in `docs/ifc-round-trip.md`. Gezien in de
+     code. — B
+1963. **Corrupte JSON in een OPS-pset valt bij het lezen stil weg, zonder melding.** De lege `catch` in
+     `readTaskTypeDefinitions`, `extractSequenceMeta`, `extractStructure` (structuurdefinities en bibliotheekpool),
+     `extractResourceMeta`, `extractCalendarLibraryOrigin`, `extractBaselines`, `extractSchedulingProfile` en
+     `extractSchedulingOptions` (`ifcReader.ts`) laat de waarde weg. Bij het XER-archief komt er wel
+     een melding ("openen met melding"). Vermoed, niet nagegaan: de volgende opslag schrijft de weggevallen gegevens
+     (bijvoorbeeld baselines) niet meer, zodat het verlies blijvend wordt. Gezien in de code. — S
 2030. **VERVOLG (#1091, desktop): een startbestand buiten de thuismap opent niet.** De webview leest de paden uit de
      opdrachtregel en uit een tweede start (`src-tauri/src/launch_files.rs`) met plugin-fs, dus binnen de bestaande
      fs-scope. Een dubbelklik op `D:\Projecten\plan.ifc`, of op een bestand op een netwerkschijf, geeft daardoor de
@@ -3513,39 +3534,55 @@ en noem het in je rapport of PR-tekst.
      bytes-route van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, de meting van fase 0); meting en besluit bij 1936. VERVOLG
      (docs): de versieverwijzing in het ontwerp gelijkzetten. — B
 
-1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,44 tot 3,69 GB
-     over drie opslagen, onder de maat van 4 GB, en de piek loopt per opslag nog op (#804, flag aan).** Gemeten op
-     21 november 2026 in de desktopapp op Linux (WebKitGTK), featureflag `ifcForeignContent` aan, met een geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan
-     Ctrl+S, met modellen uit de generator van `scripts/proef/meet-scanner.mjs`. Stand na de drie ingrepen van #1100 en
-     #1103, build van main `cbc998123`: 52 MB in 14,0 s met een piek van 1,81 GB; 157 MB in 33,6 s, geslaagd, met een
-     piek van 3,70 GB. Bij 157 MB loopt het rekenen tot 3,13 GB; bij het schrijven van het tijdelijke bestand komt er
-     0,56 GB bij, en na de opslag blijft de app op 3,0 GB staan. Vóór de ingrepen (main `1830e5e67`): 52 MB in 24,5 s
-     met 2,08 GB; een model van 87 MB met vooral losse punten in 22,4 s met 2,52 GB (zonder wijziging 16,8 s en
-     1,97 GB); bij 157 MB stond het proces na 51 s op 4,09 GB en stopte de kernel de webview, vóór er iets geschreven
-     was (het bestand bleef byte-gelijk en crashherstel zette de wijziging terug). In Node kost dezelfde opslag veel
-     minder (CI-run 44895156035, het werk van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB
-     in 16,97 s met 2.239 MB (vóór de ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen
-     dus niet of een model in de desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van
-     1,68 GB. Stand na #1111 (de opslagworker stopt na een opslag met gebouwmodel), gemeten op 21 november 2026 in de
-     desktopapp op Linux (WebKitGTK), main `2d585a295`, hetzelfde model van 157 MB (157.290.012 bytes), drie keer een
-     duur gewijzigd en Ctrl+S met telkens 30 s rust: piek van de hele app 3,44 / 3,54 / 3,69 GB (vóór #1111, run W:
-     3,45 / 3,93 / 3,87 GB); dertig seconden na de opslag staat de app op 0,86 / 0,67 / 0,68 GB (vóór #1111 bleef
-     2,5 GB staan); duur 34,6 / 33,3 / 33,5 s. Het schrijven gebeurt nu op ongeveer 1,0 GB; de piek ligt aan het eind
-     van het rekenen. Het Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg),
-     maar telt niet meer mee voor de piek. Bij de derde opslag is er 0,31 GB over tot de maat van 4 GB. **Open punt:**
-     de piek loopt per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
-     niet oploopt; niet verklaard. Het proefmodel is 3,6 KB groter dan 150 MiB. Openen van een model boven 150 MiB weigert
-     sinds 21 november 2026 (de productgrens `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische
-     grens van de bytes-route blijft 300 MiB, en de uitvoer van opslaan heeft geen grens (2043).
-     Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB, en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
+1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij de grens van 150 MiB een piek van
+     3.547 MB over zes opslagen, 549 MB onder het plafond van 4 GB; alleen op Linux gemeten (#804, flag aan).**
+     Gemeten op 21 november 2026 in de desktopapp op Linux (WebKitGTK), featureflag `ifcForeignContent` aan, met een
+     geheugenplafond van 4 GB op de app. Telkens één duur gewijzigd en dan Ctrl+S, met modellen uit de generator van
+     `scripts/proef/meet-scanner.mjs`. Stand na de drie ingrepen van #1100 en #1103, build van main `cbc998123`: 52 MB
+     in 14,0 s met een piek van 1,81 GB; 157 MB in 33,6 s, geslaagd, met een piek van 3,70 GB. Bij 157 MB loopt het
+     rekenen tot 3,13 GB; bij het schrijven van het tijdelijke bestand komt er 0,56 GB bij, en na de opslag blijft de
+     app op 3,0 GB staan. Vóór de ingrepen (main `1830e5e67`): 52 MB in 24,5 s met 2,08 GB; een model van 87 MB met
+     vooral losse punten in 22,4 s met 2,52 GB (zonder wijziging 16,8 s en 1,97 GB); bij 157 MB stond het proces na 51
+     s op 4,09 GB en stopte de kernel de webview, vóór er iets geschreven was (het bestand bleef byte-gelijk en
+     crashherstel zette de wijziging terug). In Node kost dezelfde opslag veel minder (CI-run 44895156035, het werk
+     van de opslagworker, met wijziging): 150 MiB in 9,18 s met 1.228 MB, 300 MiB in 16,97 s met 2.239 MB (vóór de
+     ingrepen 17,35 s en 1.708 MB, en 33,23 s en 3.155 MB). De cijfers uit Node zeggen dus niet of een model in de
+     desktopapp past. Openen is het probleem niet: 157 MB opent in 12,4 s met een piek van 1,68 GB. Stand na #1111 (de
+     opslagworker stopt na een opslag met gebouwmodel), gemeten op 21 november 2026 in de desktopapp op Linux
+     (WebKitGTK), main `2d585a295`, hetzelfde model van 157 MB (157.290.012 bytes), drie keer een duur gewijzigd en
+     Ctrl+S met telkens 30 s rust: piek van de hele app 3,44 / 3,54 / 3,69 GB (vóór #1111, run W: 3,45 / 3,93 / 3,87
+     GB); dertig seconden na de opslag staat de app op 0,86 / 0,67 / 0,68 GB (vóór #1111 bleef 2,5 GB staan); duur
+     34,6 / 33,3 / 33,5 s. Het schrijven gebeurt nu op ongeveer 1,0 GB; de piek ligt aan het eind van het rekenen. Het
+     Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg), maar telt niet meer
+     mee voor de piek. Bij de derde opslag (3.688 MB) is er 408 MB over tot het plafond van 4.096 MB. In die meting
+     liep de piek per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
+     niet oploopt; niet verklaard. Dat proefmodel is 3,6 KB groter dan 150 MiB en opent sinds de productgrens niet
+     meer. Stand op de release v2026.48.0 (main `e50c0f98a`), gemeten op 23 november 2026 in de desktopapp op Linux
+     (WebKitGTK) met het pakket van de release zelf (`.deb`), featureflag aan, Automatisch opslaan uit, een model uit
+     dezelfde generator net onder de grens (157.184.144 bytes, 149,9 MiB), zes keer een duur gewijzigd en Ctrl+S met
+     telkens 30 s rust: alle zes de opslagen slaagden. De afgelezen cgroup-piek van de hele app kwam bij de eerste
+     opslag op 3.547 MB en bleef daar tot het einde van de meting; de teller is cumulatief (hoogste stand in de
+     metingen per seconde: 3.349 / 3.295 / 3.420 / 3.348 / 3.198 / 3.466 MB). Tot het plafond op de app
+     (`MemoryMax=4G`, 4.096 MB) is er 549 MB over. Dertig seconden na de opslag staat de app op 572 tot 788 MB; duur
+     32,2 tot 35,5 s; bij het Rust-proces is tijdens het schrijven maximaal 610 MB RSS gemeten (één monster per
+     seconde). De stijging per opslag van 21 november kwam niet terug. Waarom niet, is niet uitgezocht: het programma
+     (pakket van de release tegenover een eigen build zonder LTO), de code (main is verder) en het model (106 KB
+     kleiner) verschillen alle drie. Eén run, niet herhaald. De MB in de desktopmetingen van dit punt zijn binair
+     (MiB) en afgekapt op hele eenheden: voor de hele app de standen van de cgroup, voor het Rust-proces de RSS van
+     dat ene proces. De getallen in GB van de meting na #1111 zijn zulke cgroup-standen gedeeld door duizend (3.438 MB
+     staat er als 3,44 GB). Openen van een model boven 150 MiB weigert sinds 21 november 2026 (de productgrens
+     `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische grens van de bytes-route blijft 300
+     MiB, en de uitvoer van opslaan heeft geen grens (2043). Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB,
+     en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
      geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
-     slaat op beide in 0,7 s op. Niet gemeten: een vierde en latere opslag, Automatisch opslaan, Windows en macOS, 300 MiB
-     op de desktop, het model van 87 MB na de ingrepen en een model uit een modelleerprogramma.
-     Besluit technisch beslisser (21 november 2026): de maat voor haalbaar is hoogstens 4 GB voor de desktopapp bij de
-     grens; dit punt is een voorwaarde voor het standaard aanzetten van de featureflag. Keuze van de eigenaar
-     (21 november 2026): "tot 150 mb, later kunnen we dat nog uitbouwen". Zie ook
-     1021 (de merge scant de bron opnieuw; de eis van 10 november is niet gehaald), 1950 (de buffers van de scanner)
-     en het ritme van Automatisch opslaan (een ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
+     slaat op beide in 0,7 s op. Niet gemeten: meer dan zes opslagen, Automatisch opslaan, Windows en macOS, 300 MiB
+     op de desktop, het model van 87 MB na de ingrepen en een model uit een modelleerprogramma. Besluit technisch
+     beslisser (21 november 2026): de maat voor haalbaar is hoogstens 4 GB voor de desktopapp bij de grens; dit punt
+     is een voorwaarde voor het standaard aanzetten van de featureflag. Met de meting van 23 november is die maat op
+     Linux gehaald voor zes opslagen achter elkaar; Windows en macOS zijn niet gemeten. Keuze van de eigenaar (21
+     november 2026): "tot 150 mb, later kunnen we dat nog uitbouwen". Zie ook 1021 (de merge scant de bron opnieuw; de
+     eis van 10 november is niet gehaald), 1950 (de buffers van de scanner) en het ritme van Automatisch opslaan (een
+     ronde duurt bij 52 MB nu 14,0 s). — B (meting, desktop Linux)
 
 2024. **Na een opslag van een groot gebouwmodel staat de desktopapp ongeveer één bestand hoger, ook met een gestopte
      opslagworker (#804, flag aan).** Gemeten op 21 november 2026 in de desktopapp op Linux bij 157 MB (run V van de
