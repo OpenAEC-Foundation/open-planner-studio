@@ -550,7 +550,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 
 1. **Openen als bytes.** Elke open-route voor IFC leest bytes: Openen (`tauriBackend.ts:22`, `webBackend.ts:124`,
    `siteBackend.ts:43`), Recent (`tauriBackend.ts:87-90`, `fileSlice.ts:1658`) en externe bronnen
-   (`parseExternalSource`, `fileSlice.ts:1500`). De grootte wordt vóór het lezen gecontroleerd (§4.13).
+   (`parseExternalSource`, `fileSlice.ts:1500`). De grenzen staan in §4.13.
    `openExampleFromString` (voorbeelden, `helpApi.ts:104`, `useDemoStartExample.ts:49`, `qaScenes.ts:89`) blijft tekst:
    het zijn eigen bestanden in UTF-8. Een voorbeeld met een model (`bouwmodel-ifc4.ifc` in de QA-scènes) gaat via
    dezelfde route met `TextEncoder`; dat is byte-gelijk voor geldige UTF-8.
@@ -571,19 +571,16 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 6. **Terugval naar de huidige route (v21, fase 1a; afwijking 7).** De bytes-route valt terug op de route van nu: de bytes
    als UTF-8-tekst naar `readIFC`, met de modelweigering en zonder `ifcSource`. Dat gebeurt in vier gevallen
    (`src/services/ifc/foreign/ifcBytesRoute.ts:77-96`):
-   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, §4.13);
+   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, de technische grens, §4.13);
    - de scanner weigert de bytes (§4.1), ook als `readIFC` het bestand wel opent;
    - de kopnaam is geen van de herkende namen van §4.11;
    - de lezer kiest andere taken, resources, kalenders, een ander werkplan of een ander werkschema dan `selectPlanning`
      (een controle na het lezen).
 
-   De uitkomst is dan precies die van de app zonder flag. Waarom: de scanner is strenger dan `readIFC` (bijvoorbeeld bij
-   een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007). Een bestand dat nu opent, mag met de flag niet
-   geweigerd worden. Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft dus
-   geweigerd. Voorbeeld: een eigen bestand met een losse `#2147483648=IFCPERSON(...)` opent zoals nu, zonder bron, en
-   opslaan mag. `bonsai-4d.ifc` met dezelfde regel krijgt de modelweigering. Met `#2147483647` gaan beide door de
-   bytes-route. Gevolg voor §4.11: een onbekend schema met een vreemd deel zonder `IfcProduct` opent zoals nu (zonder
-   bron, dus zonder bewaking); met een model blijft het geweigerd. Test: `tests/planning/check-ifc-foreign-open.ts`,
+   De scanner is strenger dan `readIFC` (bijvoorbeeld bij een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007).
+   Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft geweigerd. Een terugval
+   opent alleen als de indeling daarna geen C, A of V vindt; anders weigert openen. De uitzondering voor een schema
+   (IFC2X3 zonder model) staat in §4.11. Test: `tests/planning/check-ifc-foreign-open.ts`,
    deel 7.
 
    Uitwerking van punt 4 in fase 1a: de lezer krijgt ook het stuk van het enige `IfcProject` als dat V is (§4.2,
@@ -917,7 +914,25 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
-- Voorlopige grens: 150 MB, gecontroleerd vóór het volledig lezen. De echte grens volgt uit de meting in fase 0.
+- Twee grenzen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A; knownbug 1936):
+  - **De productgrens**: 150 MiB (binair, 157.286.400 bytes), `IFC_MODEL_OPEN_MAX_BYTES` in `modelOpenLimit.ts`. Besluit
+    van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen, zorg dat de architectuur flexibel genoeg is om dat
+    alsnog te doen later." Openen weigert een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft
+    en groter is dan 150 MiB, met een melding die de grens noemt. Dat gebeurt na het lezen: een model tussen 150 en
+    300 MiB wordt eerst gescand en dan geweigerd. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze
+    grens niet, en een IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`,
+    met de bestaande verliesmelding (§4.11). Alleen bij openen in de app: `openOpenedFile` toetst altijd, het
+    crashherstel valt erbuiten met een benoemde optie voor zijn eigen, gecontroleerde bron, en de site en
+    `planner_import_schedule` in de app toetsen zelf. Niet bij het crashherstel, de doelscan, opslaan of headless.
+  - **De technische grens van de bytes-route**: 300 MiB, `IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts` (de meting van
+    fase 0). Daarboven de terugval `te-groot` (§4.9 punt 6). De doelscan, het crashherstel en headless gebruiken alleen
+    deze grens.
+  Waarom twee: opslaan van een model van 157 MB piekte in de desktopapp op Linux na #1111 op 3,44 / 3,54 / 3,69 GB over
+  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wil
+  een model tot 150 MB. Eén
+  verlaagde technische grens schoof ook de terugval voor een planning zonder model, het herstel en de doelscan naar
+  150 MiB, en daar verloor de app wat main bewaart (review van #1127, ronde 1 tot 3). De uitvoer van opslaan heeft geen
+  grens (knownbug 2043).
 
 ### 4.14 Herstel en een ontbrekende bron
 

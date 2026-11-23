@@ -50,6 +50,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'common:notifications.ifcForeignMergeRefused',
       'common:notifications.ifcForeignNewTargetOnly',
       'common:notifications.ifcForeignOpenSchema',
+      'common:notifications.ifcForeignOpenTooLarge',
       'common:notifications.ifcForeignOpenUnsafe',
       'common:notifications.ifcForeignPlaceUnknown',
       'common:notifications.ifcForeignReplaceBlocked',

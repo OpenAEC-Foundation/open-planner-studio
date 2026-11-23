@@ -122,6 +122,23 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 
 **GlobalIds** (audit 2026-09-26). Eén uitgiftepunt: `guidOf` in `ifcWriter.ts`, voor objecten via `objectGuid(ctx, soort, id)` met seed `ifcObjectSeed(soort, id)` (`task:`, `res:`, `cal:`, `seq:`, `proj:`): uit XER kunnen taak, relatie en kalender hetzelfde kale getal als id dragen, en zonder soort deelden ze een GlobalId. Elk object uit een ingelezen IFC houdt zijn GlobalId uit dat bestand: `readIFC` levert `ifcGlobalIds` (seed → GlobalId), dat reist als documentveld mee en `buildWriteIFCInput` geeft het aan de writer. Nieuwe objecten krijgen `ifcGuid128(seed)`: 128 bits, IFC-vorm, deterministisch (dus bij elk opslaan gelijk). Hulpentiteiten (`guidOf`: psets, rels, werkschema's) en de projectkalender (`cal-default`, in elk project hetzelfde id) hashen met het project-id als zout (`auxSalt`), zodat twee projecten geen GlobalId delen; geen lezer rekent die na. Id's: taken via OPS_TaskIdentity of `task-ifc-<GlobalId>`; resources, bibliotheekkalenders en relaties via `stableIdFromGuid` (`res-ifc-`, `rescal-ifc-`, `seq-ifc-<GlobalId>`, dubbel ⇒ `-dup-N`), dus gelijk bij elk openen; de projectkalender blijft `cal-default`. Een in de app gemaakt object krijgt bij het eerste heropenen zo nog één keer een ander id; verwijzingen daarnaar in JSON (contour, nivelleren) lopen via `mappedResourceId` (zelfde id, anders `ifcGuid128`, anders de oude 32-bits `ifcGuid` voor bestanden van vóór deze wijziging). Toets: `check-ifc-globalid`.
 
+### De IFC-lezer (`ifcReader.ts`)
+
+Besluiten van de lezer: `docs/adr/0040-ifc-lezen-integriteitspoort.md`, `0041-step-tekstscan-quote-bewust.md`,
+`0042-ifc-lezen-leeg-is-een-uitspraak.md`, `0043-ifc-lezen-uurmodus-kalender.md`,
+`0044-ifc-lezen-welke-taken-en-kalenders.md`, `0045-ifc-lezen-toewijzingen.md`,
+`0046-ifc-lezen-verwijzingen-terugvinden.md`, `0047-ifc-lezen-ops-sequences-een-bron.md`,
+`0048-xer-vastlegging-via-bronreconstructie.md`, `0049-ifc-lezen-opties-van-de-bytesroute.md` en
+`0050-ifc-lezen-oude-en-vreemde-vormen.md`.
+
+### De IFC-writer (`ifcWriter.ts`)
+
+Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestand.md`,
+`0141-ifc-schrijven-kop-en-verplichte-tekst.md`, `0142-ifc-schrijven-projectinstellingen.md`,
+`0143-ifc-schrijven-standaard-ifc-naast-eigen-json.md`, `0144-ifc-schrijven-kalenders.md`,
+`0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
+`0147-ifc-schrijven-resources-en-toewijzingen.md` en `0148-ifc-schrijven-een-invoerobject.md`.
+
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
@@ -159,8 +176,9 @@ fout komt aan als dezelfde foutsoort, een transportfout als `IfcSaveWorkerError`
 worker geen `started` binnen de vaste starttijd (10 s, voor elke worker dezelfde), dan startte hij niet. Een gewoon verzoek
 rekent dan op de hoofdthread, zoals op main, en gewone verzoeken blijven daar de rest van de sessie; staat de flag de hele
 sessie uit, dan is dit de enige soort verzoek en is het gedrag dat van main. Eén verschil (knownbug 2025): na een eerdere
-merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt, dus start een gewoon verzoek een verse waar
-main de gestarte hergebruikte; start die niet, dan rekent de hoofdthread de rest van de sessie voor gewone verzoeken, en
+merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt: na een antwoord van een mergeworker kan het
+volgende gewone verzoek een verse worker starten, zolang de gewone route nog beschikbaar is, waar main de gestarte
+hergebruikte; start die niet, dan rekent de hoofdthread de rest van de sessie voor gewone verzoeken, en
 blijft hij stil, dan wacht dat verzoek eerst tot de starttijd van 10 s voorbij is. Een merge valt alleen terug zolang er in deze sessie nog nooit een worker startte; daarna is
 een startfout bij een merge een fout (`not-started`), nooit de hoofdthread. Sterft hij na de start, of verloopt de
 rekentijd (60 s plus 1 s per MiB bron), dan is het ook een fout en rekent de hoofdthread niet opnieuw. `prepareAppIfcWrite` (`fileSlice.ts`) maakt daar een
@@ -280,6 +298,27 @@ geen vergelijkingsdatum mee. Projectdatums en bestaande baseline-aanmaakdatums b
 `OPS_ProjectSettings.CreatedAt/ModifiedAt` overschrijven die wanneer aanwezig. Gewoon openen blijft
 ontbrekende datums met de echte klok vullen. `check-ifc-foreign-klok.ts` bewaakt beide klokgrenzen,
 bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkingsdatum.
+
+### Twee grenzen: de productgrens en de technische grens (#804, knownbug 1936)
+
+Twee getallen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A):
+- **De productgrens** `IFC_MODEL_OPEN_MAX_BYTES` (`src/services/ifc/modelOpenLimit.ts`): 150 MiB (binair, besluit van de
+  eigenaar). Eén controle, `refuseModelAboveOpenLimit`: openen weigert een gelezen document waarvan de bron een
+  gebouwmodel of vreemde gegevens heeft (`ifcSource.foreign`, de uitkomst van de scan) en groter is dan de grens (`>`),
+  met `IfcModelOpenTooLargeError` en de melding `ifcForeignOpenTooLarge`. `openOpenedFile` toetst altijd (Bestand →
+  Openen, Recent, slepen en het startbestand, de dev-link): een nieuwe openroute hoeft niets te doen. Alleen het
+  crashherstel valt erbuiten, met `restoringVerifiedIfcSource: true` in `readRecoveryDocument.ts` voor zijn eigen, op
+  lengte en SHA-256 gecontroleerde bron. De site (`openSiteChoice`) en `planner_import_schedule` parsen buiten
+  `openOpenedFile` en toetsen zelf; die tool alleen in de app (`McpFileFs.enforcesModelOpenLimit`, gezet door `realFs`),
+  niet in de headless server, die gelijk blijft aan main. Een IFC2X3-bestand zonder gebouwmodel opent via de
+  schematerugval zonder bron en valt er niet onder (ontwerp §4.11).
+- **De technische grens** `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`): 300 MiB, zoals
+  main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd.
+
+Een planning zonder gebouwmodel en zonder vreemde gegevens heeft de productgrens niet. De uitvoer van opslaan heeft geen
+grens (knownbug 2043). Bewaakt in `check-ifc-foreign-grens.ts` (de productgrens verlaagd met de proefnaad
+`lowerModelOpenLimitForTests`, door de echte routes en de echte herstelvraag), `tests/mcp/cases-doc-file.ts` (de app)
+en `tests/mcp/cases-headless-server.ts` (headless zoals main).
 
 ### Auteur en bedrijf (#804 fase 1c)
 
