@@ -665,18 +665,25 @@ en noem het in je rapport of PR-tekst.
      taak van 4 werkdagen op 50 %, restwerk op 24 u gezet (16 u verricht, 24 u rest); daarna voortgang naar 0 % gaf
      0 u verricht en 48 u rest, ook na herlezen van de geschreven IFC. — B
 
-2001. **Een tijdpatch laat `progressBeforeRecalculation` vallen.** `mergeTaskTime` (`src/utils/taskDefaults.ts`) noemt
-     elk veld van `TaskTime` met naam, maar `progressBeforeRecalculation` staat er niet bij. Een script gaf voor een
-     basis met dat veld geen `progressBeforeRecalculation` terug, met een patch `{ completion: 0.6 }` en ook met een
-     patch die het veld zelf meestuurt. `taskSlice.updateTask` zet `task.time` op de samengevoegde tijd
-     (`mergeTaskUpdate`); Taak bewerken zet het veld met `rememberProgressBeforeRecalculation` op de tijd die het aan
-     `updateTask` geeft (`state/taskDialogSave.ts`). Wat dat in de planning doet, is niet nagespeeld. — B
+2001. **Een tijdpatch laat `progressBeforeRecalculation` vallen.** `mergeTaskTime` (`src/utils/taskDefaults.ts`) somt
+     de velden op die het samenvoegt, en `progressBeforeRecalculation` staat er niet bij. Een script gaf voor een basis
+     met dat veld geen `progressBeforeRecalculation` terug, met een patch `{ completion: 0.6 }` en ook met een patch die
+     het veld zelf meestuurt. `taskSlice.updateTask` zet `task.time` op de samengevoegde tijd (`mergeTaskUpdate`); Taak
+     bewerken zet het veld met `rememberProgressBeforeRecalculation` op de tijd die het aan `updateTask` geeft
+     (`state/taskDialogSave.ts`). De voortgangsroute van het eigenschappenpaneel (`commitProgressEdit` in
+     `taskSlice.ts`) zet de tijd zonder `mergeTaskTime` en houdt het veld; de reviewer (GPT-6.2-Sol, review van #1176)
+     zag de basis via Taak bewerken verdwijnen en via het paneel blijven. Wat dat in de planning doet, is niet
+     nagespeeld. — B
 
-2002. **Een kalenderwissel wist bevroren kalenderwandelingen via de ene route wel en via de andere niet.**
-     `taskSlice.updateTask` en de MCP-draft (`createMcpTransactions.ts`) roepen bij een andere `calendarId`
-     `invalidateForTimeBaseChange` aan, dat ook `timephasedDurationWalks` met `workMinutes` en
-     `progressBeforeRecalculation` wist; `setTaskCalendar` roept zelf alleen `clearTimephasedWindow` aan. Gezien in de
-     code; de uitkomst voor één `.mpp`-taak via beide routes is niet nagespeeld. — S
+2002. **Een kalenderwissel van een urentaak wist de bevroren kalenderwandelingen via de ene route wel en via de andere
+     niet.** `taskSlice.updateTask`, `draft.updateTaskFields` en `draft.patchTaskFields` (`createMcpTransactions.ts`)
+     roepen bij een andere `calendarId` `invalidateForTimeBaseChange` aan, dat `timephasedDurationWalks` met
+     `workMinutes` en `progressBeforeRecalculation` wist. `setTaskCalendar` roept zelf alleen `clearTimephasedWindow`
+     aan, en `settleCalendarChange` keert voor een urentaak terug zonder iets te wissen. Bij een dagtaak waarvan de
+     werkdriehoek de duur verandert, bereikt `setTaskCalendar` via `settleDurationAftermath` wel
+     `invalidateForTimeBaseChange`. Proef van de reviewer (GPT-6.2-Sol, review van #1176) op een urentaak met bevroren
+     wandelingen: `setTaskCalendar` hield wandelingen en voortgangsbasis, de drie andere routes wisten beide; zelf in de
+     code nagelopen. — B
 
 2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
      `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
