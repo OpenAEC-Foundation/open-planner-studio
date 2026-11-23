@@ -89,7 +89,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 ## About
 
-**Version** — the version number of the app, with two buttons. *Check for updates* opens the update window. *What's new* shows the news of the current version. With an AUR installation (Arch Linux), update through your package manager (for example `yay -Syu`), rather than through the app. Where: [About](settings://version).
+**Version** — the version number of the app, with two buttons. *Check for updates* opens the update window. *What's new* shows the news of the current version. Where: [About](settings://version).
 
 An automatically detected update waits until the welcome screens and any active tutorial guide have closed. You can still check manually using the button.
 
