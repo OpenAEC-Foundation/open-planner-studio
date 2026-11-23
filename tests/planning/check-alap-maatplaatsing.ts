@@ -202,7 +202,6 @@ for (const profile of PROFILES) {
   expectFeasible(label, profile, tasks, seqs, SCALAR, 'A', '24hour');
 }
 
-// Knownbug 345: gewone (niet-ALAP) voorganger op zijn berekende late start opnieuw afspelen.
 {
   const observations = [];
   const seqs: Sequence[] = [{ id: 's', predecessorId: 'A', successorId: 'B', type: 'START_START', lagDays: 1.5 }];
