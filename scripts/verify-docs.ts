@@ -354,8 +354,6 @@ function checkAgentDocs(diffs: string[]): void {
   for (const file of readdirSync(releaseDir)) {
     if (file.endsWith('.md')) releaseDocs[`.claude/skills/release/${file}`] = readFileSync(join(releaseDir, file), 'utf8');
   }
-  //     De release heeft geen eindtijd (Ethan, 2026-11-09). Ook in de reparatieskill
-  //     geldt dat voor de release zelf; de eigen stop van de reparatie blijft toegestaan.
   for (const [name, text] of Object.entries(releaseDocs)) {
     const hit = staleReleaseDocLine(name, text);
     if (hit !== undefined) diffs.push(`${name}:${hit} noemt nog de zaterdag of een eindtijd (14:00, deadline) voor de release (die draait op maandag en stopt niet op een tijd)`);

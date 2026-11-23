@@ -1,7 +1,5 @@
 export const REPAIR_SKILL = ".claude/skills/browsertests-repareren/SKILL.md";
 
-// Alleen de bestaande regels die aantoonbaar over de eigen reparatiestop gaan.
-// Gebruik geen uitzondering voor een heel bestand, kopje of alinea.
 const repairStopLines = new Set([
   "door tot uiterlijk **14:00**. Controleer de tijd vóór elke rerun, delegatie, merge en dispatch. Om 14:00 stop je: volg",
   "*Stoppen om 14:00*. Het issue blijft dan open en de release wacht erop; de release zelf heeft geen eindtijd",
@@ -15,7 +13,6 @@ const safeStandalone = /^(?:de release(?: zelf)? (?:heeft|kent) geen (?:vaste )?
 const staleReleaseDay = /zaterdagjob|zaterdagmandaat|volgende zaterdag|draait op zaterdag|Saturday job|next Saturday|(?:alongside|for) (?:that|the next) Saturday/i;
 const staleReleaseEnd = /14:00|\bdeadline\b/i;
 
-/** Geeft de eerste verdachte regel terug (ééngebaseerd), of undefined. */
 export function staleReleaseDocLine(path: string, text: string): number | undefined {
   const index = text.split(/\r?\n/).findIndex(line =>
     staleReleaseDay.test(line) || (staleReleaseEnd.test(line)
