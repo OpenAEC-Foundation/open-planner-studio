@@ -96,15 +96,19 @@ ook de bibliotheek via `saveLibraryFile`; `planner_export_ifc`) maakt het `null`
 geweigerde opslag laat het staan. Een mislukte schrijfactie naar het eigen pad (Ctrl+S, Automatisch opslaan) maakt het
 `null`: de directe terugval van `replaceUserFile` kan het doel al geraakt hebben.
 Proef: `check-tabblad-schijfversie.ts`; grenzen: knownbug 2065, 2066, 2200 en 2201.
-**De bewaking die het leest** (`knownTargetGuard.ts`, `changedKnownTarget`): met de flag toetst Ctrl+S zonder
-`prepared` (`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone
-ronde van Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het
-veld, niet die van de momentopname. `null`, de site of de flag uit: niet bewaken; het bestand weg: schrijven zoals main;
-een andere grootte: veranderd; dezelfde grootte: lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Veranderd of
+**De bewaking die het leest** (`knownTargetGuard.ts`): met de flag toetst Ctrl+S zonder `prepared`
+(`writeActiveDocument`, vlak vóór `refuseChangedDocumentWrite`; ook *Opslaan* in de sluitvraag) en elke gewone ronde van
+Automatisch opslaan (na `refusedWriteTarget`) het eigen pad of de eigen handle tegen de actuele waarde van het veld, niet
+die van de momentopname. Eerst synchroon `guardedKnownTarget`: flag uit, `null` of de site geeft `null` en dan wacht de
+aanroeper nergens op, zoals main. Anders `changedKnownTarget`: het bestand weg is schrijven zoals main; een andere
+grootte is veranderd; dezelfde grootte is lezen en SHA-256 (`knownTargetContent` in `fileAccess`). Na de vergelijking
+telt een weigering alleen als `guardedKnownTarget` nog dezelfde versie geeft (de flag ging niet uit). Veranderd of
 onleesbaar: niet schrijven, de melding van een gebouwmodel (`ownTargetContentNotice`; Automatisch opslaan
-`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor`). Geen wijzigingstijd: lezen en hashen van 11,8 MB kostte 24 ms
-(mediaan, Node, 23 november 2026). Opslaan als en exports bewaakt ze niet. Proef: `check-bewaakte-opslag.ts`; het gat
-tussen toets en plaatsen: knownbug 2069.
+`MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE` en `stopFor` met die versie). Die stop vervalt zodra `guardedKnownTarget` een
+andere waarde geeft: een vastgelegde eigen opslag (een nieuw object, ook als er intussen nieuw werk is), de flag uit of
+een onbekende versie; daarnaast de bestaande voorwaarden (niet gewijzigd, ander doel). Geen wijzigingstijd: lezen en
+hashen van 11,8 MB kostte in Node 24 ms (knownbug 2203 voor de doelscan ernaast). Opslaan als en exports bewaakt ze
+niet. Proef: `check-bewaakte-opslag.ts`; het gat tussen toets en plaatsen: knownbug 2069.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille

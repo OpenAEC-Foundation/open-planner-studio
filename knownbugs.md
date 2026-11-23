@@ -3674,6 +3674,28 @@ en noem het in je rapport of PR-tekst.
      gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
      (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
      S (code gelezen, niet nagespeeld)
+
+2203. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan): met de featureflag aan leest de bestaande
+     doelscan vóór elke Ctrl+S en elke ronde het hele eigen bestand, en daarna leest de toets van de bekende versie het
+     nog eens.** `refusedWriteTarget` in `src/state/ifcForeignGuard.ts` laat `targetRefusal`
+     (`src/services/fileAccess/foreignSourceTarget.ts`) het doel ook bij een gewone planning helemaal indelen; daarna
+     leest `changedKnownTarget` (`src/state/knownTargetGuard.ts`) het bij gelijke grootte opnieuw en rekent de SHA-256.
+     Gemeten in Node op aia09-mp50 (23 november 2026, mediaan van 15): voor een planning van 10.000 taken (11.821.500
+     bytes) kost de doelscan alleen al in het geheugen 1.732 ms, de toets 23,5 ms; voor het grootste voorbeeld (481.752
+     bytes) 74 ms tegen 2 ms. In de app (lezen via de Tauri-plugin of `getFile()`, en op een netwerkschijf) is het niet
+     gemeten. Richting: scan en hash in één lezing. Besluit technisch beslisser (23 november 2026): dit hoort bij de
+     voorwaarden voordat de flag standaard aan mag. — B (gemeten in Node, meetlog
+     `bewaakte-opslag-logs/07-meting.log` van #1174)
+
+2206. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan in de browser): een aanraking tijdens het lezen van
+     de eigen handle kan een onterechte weigering geven.** `knownTargetContentOfHandle` in
+     `src/services/fileAccess/knownTargetContent.ts` haalt één `File` op met `getFile()` en leest daarna de grootte en de
+     bytes (`arrayBuffer()`). Verandert het bestand tussen die twee stappen, ook alleen de wijzigingstijd, dan kan
+     Chromium het al opgehaalde `File` onleesbaar maken (`NotReadableError`). De toets geeft dan `unreadable`: Ctrl+S
+     weigert met "verplaatst, verwijderd of niet meer te lezen" en Automatisch opslaan stopt, ook als de bytes niet
+     veranderden. Er gaat niets verloren; opnieuw opslaan lukt. Richting: bij `NotReadableError` één keer opnieuw
+     `getFile()` en lezen. Gevonden door de review van #1174 (Sol, ronde 1). — S (niet nagespeeld met een echte
+     Chromium-handle)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De
