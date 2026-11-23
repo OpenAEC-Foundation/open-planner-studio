@@ -36,6 +36,15 @@ let claims = 0;
 let manual = 0;
 /** De ronde die over haar grens ging en nog plaatst; de rij is serieel, dus hoogstens één. */
 let placing: Promise<void> | null = null;
+/** Hoeveel schrijfbeurten er begonnen zijn (elke soort). Alleen om te zien óf er sinds een moment geschreven is. */
+let turnsStarted = 0;
+
+/** Het aantal begonnen schrijfbeurten. Een bestand dat bij het starten is meegegeven (#1091), leest de app opnieuw als
+ *  dit getal tussen lezen en activeren veranderde: misschien schreef *Opslaan* in de sluitvraag intussen een nieuwere
+ *  versie naar hetzelfde bestand (review ronde 4 van #1116). */
+export function projectFileWriteTurns(): number {
+  return turnsStarted;
+}
 
 /** Besluit technisch beslisser, 19 november 2026: "Een handmatige actie gaat altijd voor." */
 function yieldBackgroundWrites(): void {
@@ -189,6 +198,7 @@ async function enqueue<T>(work: () => Promise<T>, closed: () => T, kind: 'manual
   const mine = previous.then(() => turn);
   tail = mine;
   await previous;
+  turnsStarted++;
   try {
     return await work();
   } finally {

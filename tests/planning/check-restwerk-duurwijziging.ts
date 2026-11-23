@@ -43,7 +43,7 @@ import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { makeBands } from '@/utils/effectiveWorkTime';
-import { draftWithProgress, saveTaskDialog } from '@/state/taskDialogSave';
+import { planTaskDialogProgress, saveTaskDialog } from '@/state/taskDialogSave';
 import { shownStart } from '@/utils/taskDates';
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
@@ -383,7 +383,7 @@ openFixture();
 console.log('-- (n) contract: de restregel van settleDurationEdit raakt alleen niet-gestarte taken --');
 openFixture();
 {
-  // Een gestarte taak krijgt haar nieuwe rest van `carryRemainingThroughDurationEdit`, vóór deze stap.
+  // Een gestarte taak krijgt haar nieuwe rest van `settleEditedDuration`, vóór deze stap.
   // Roept een route `settleDurationEdit` aan zonder die stap, dan zet de restregel hier niets
   // (geen rest = duur × (1 − %), dat zou het gedane werk verschuiven).
   const t = byCode('E-1050');
@@ -614,6 +614,7 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
   const completed = (name: string, label: string): void => {
     const t = taskNamed(name).time;
     eq(`${label}: 100 % en taakrest 0`, [t.completion, t.remainingTime], [1, 0]);
+    eq(`${label}: afgemeld op het einde van de nieuwe tweedaagse duur`, t.actualFinish, '2026-06-02T16:00');
     eq(`${label}: verricht 960 blijft, restwerk 0`, work(name), [960, 0]);
     eq(`${label}: belasting is het verrichte werk van 16 u`, r4(load(name)), 960);
   };
@@ -664,10 +665,12 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
   const saveDialog = (name: string, days: number): boolean => {
     const t = taskNamed(name);
     const duration = t.time.durationUnit === 'hours' ? { scheduleDuration: days, durationMinutes: days * 480 } : { scheduleDuration: days };
-    const edited = draftWithProgress({ ...t, time: { ...t.time, ...duration } }, 1, S().project.statusDate, S().calendar);
-    return saveTaskDialog({
-      editingTaskId: t.id, draft: edited, startDate: shownStart(t),
-      initialDuration: { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes },
+    const startDate = shownStart(t);
+    const initialDuration = { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes };
+    const plan = planTaskDialogProgress(S(), { ...t, time: { ...t.time, ...duration } }, startDate,
+      { field: 'completion', value: 1 }, { initialDuration });
+    return plan.ok && !!plan.change && saveTaskDialog({
+      editingTaskId: t.id, draft: plan.change.task, startDate, initialDuration,
     });
   };
   const pair = (name: string) => ({ work: work(name), units: own(name).unitsPerDay, load: r4(load(name)) });

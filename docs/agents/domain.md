@@ -2,7 +2,7 @@
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 
-**Layout: single-context.** One `GLOSSARY.md` and one `docs/adr/` at the repo root. Neither exists yet;
+**Layout: single-context.** One `GLOSSARY.md` and one `docs/adr/` at the repo root. `docs/adr/` exists; the glossary does not yet;
 `/domain-modeling` creates them when a term or decision gets resolved. Until then, `AGENTS.md` and the
 `.claude/rules/` files are the closest thing to a glossary (e.g. the user term is "resourcebibliotheek").
 
