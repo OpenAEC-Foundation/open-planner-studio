@@ -81,6 +81,7 @@ import {
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
+import { IfcModelOpenTooLargeError, refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -329,6 +330,9 @@ export function importFailureNotice(err: unknown, detail: string): NotifyInput {
       helpArticleId: P6XML_IMPORT_HELP_ARTICLE_ID,
     };
   }
+  if (err instanceof IfcModelOpenTooLargeError) {
+    return { severity: 'error', messageKey: 'notifications.ifcForeignOpenTooLarge', params: { limit: Math.floor(err.limit / (1024 * 1024)) }, detail };
+  }
   return { severity: 'error', messageKey: importErrorMessageKey(err), detail };
 }
 
@@ -570,6 +574,10 @@ export interface OpenOpenedFileOptions {
   readOptions?: FormatReadOptions;
   /** #804, knownbug 1957: wat de toets vóór het lezen vond (`lookupOpenDocument`); `null` als er niets te toetsen viel. */
   lookup?: OpenLookup | null;
+  /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
+   *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
+   *  blijft aan main. Elke andere aanroeper laat dit weg en krijgt de grens. */
+  restoringVerifiedIfcSource?: boolean;
 }
 
 export interface FileSlice {
@@ -1472,6 +1480,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const readOptions = formatReadOptions();
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+    refuseModelAboveOpenLimit(parsed);
     if (choice.version === undefined && opened.readOnly) {
       get().openAsDocument(parsed, { name: opened.name, ref: null });
       offerFormatNotice(opened.name, opened.content);
@@ -2461,6 +2470,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         const readOptions = options?.readOptions ?? formatReadOptions();
         const oneTab = !!readOptions.ifcBytes;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+        // #1127: de productgrens direct op het parseerresultaat, synchroon, vóór de tabbeslissing (knownbug 2043).
+        if (!options?.restoringVerifiedIfcSource) refuseModelAboveOpenLimit(parsed);
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {

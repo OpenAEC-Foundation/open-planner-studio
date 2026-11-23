@@ -251,6 +251,7 @@
     "notifications.reportFontMissing": "b26598cb6b0ecfa6",
     "notifications.layoutsNotSaved": "8b1de60457879707",
     "notifications.ifcForeignOpenSchema": "8a168838cb4a20b7",
+    "notifications.ifcForeignOpenTooLarge": "5f6f8f06bf9a5d4d",
     "notifications.ifcForeignOpenUnsafe": "f9382d9df49fd628",
     "notifications.ifc2x3PlanningOnly": "d253d4894d260a33",
     "notifications.ifcForeignReplaceBlocked": "51a7a30b75f6ca9e",
