@@ -670,6 +670,13 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await rdChoice.click();
   await expect(periodPicker).toHaveAttribute('data-value', 'custom');
   await expect.poll(async () => { const s = await saved(); return [s.period, s.legacyResourcePeriod]; }).toEqual([oldPeriod, undefined]);
+  // Ook de datumvelden tonen de oude periode (ze houden een eigen kladwaarde bij).
+  const shownDay = (which: RegExp) => page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: which }).getByRole('textbox');
+  for (const [which, day] of [[/^(From|Van)$/, '07'], [/^(To|Tot)$/, '18']] as const) {
+    await expect(shownDay(which).nth(0)).toHaveValue(day);
+    await expect(shownDay(which).nth(1)).toHaveValue('09');
+    await expect(shownDay(which).nth(2)).toHaveValue('2026');
+  }
   await periodPicker.click();
   await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
   await expect.poll(async () => (await saved()).period).toEqual({ preset: 'project' });

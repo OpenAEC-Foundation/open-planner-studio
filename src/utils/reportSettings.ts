@@ -214,8 +214,8 @@ export interface ReportSettings {
    */
   period: ReportingPeriod;
   /**
-   * De oude periode van het resourcediagram (vóór #997), zolang een andere bron dan het Resourcediagram gekozen is. Ze
-   * blijft bewaard tot een resourcebron haar overneemt (`legacyPeriodPatch`) of de planner zelf een periode kiest.
+   * De oude periode van het resourcediagram (vóór #997). Ze blijft bewaard tot een bron die op resource groepeert haar
+   * overneemt (`legacyPeriodPatch`), de planner zelf een periode kiest of de stap Taken op standaard zet.
    */
   legacyResourcePeriod?: ReportingPeriod;
   tableReports: TableReportOptions;
