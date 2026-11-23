@@ -648,6 +648,12 @@ en noem het in je rapport of PR-tekst.
      van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
      de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
      dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
+1999. **Een splitsbewerking op een lopende taak met een expliciete restduur schuift de rest niet mee met de nieuwe
+     duur.** `applyTaskSplits` (`src/state/splitMutations.ts`) roept na een gewijzigde werkduur `settleDurationEdit`
+     aan, maar niet `settleEditedDuration` (`src/engine/work/workRuleApply.ts`), de stap die bij een duurbewerking op
+     een lopende taak de rest met het duurverschil verschuift. `followRemainingOfUnstartedTask` in
+     `settleDurationEdit` werkt alleen op een taak zonder voortgang en zonder werkelijke datums. Gezien in de code; spec
+     taaktypes §3.5 noemt dezelfde uitzondering (VERVOLG op #380). Niet nagespeeld. — S
 
 ## Tabel, invoer en bediening
 
