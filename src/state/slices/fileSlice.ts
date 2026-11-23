@@ -19,8 +19,6 @@ import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
-import { refusedReplaceFolderAccess } from '../replaceFolderAccess';
-import { replaceFolder } from '@/services/fileAccess/replaceFolderAccess';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
@@ -471,8 +469,6 @@ export interface SaveDestination {
   siteFileId: string | null;
   siteFileVersion: string | null;
 }
-
-interface SaveAttempt { readonly documentId: string; refusedFolder: string | null }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
@@ -1158,8 +1154,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const check = documentTargetCheck(state, write, false, {
       readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
     });
-    if (picked.current && picked.current !== 'unreadable'
-      && await refusedReplaceFolderAccess(state.ui.featureFlags, picked.path, notice => get().notify(notice))) return null;
     if (await check(ref)) return null;
     // De doelcontrole weigert een onleesbaar doel al (met haar melding); dit houdt de route er ook zonder haar vanaf.
     if (picked.current === 'unreadable') return null;
@@ -1233,7 +1227,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   let saveAttemptSequence = 0;
-  const writeActiveDocument = (requested: DocumentContentRef, onTurn: () => void, attempt: SaveAttempt): Promise<boolean> => runProjectFileWrite(async () => {
+  const writeActiveDocument = (requested: DocumentContentRef, onTurn: () => void): Promise<boolean> => runProjectFileWrite(async () => {
     onTurn();
     const documentId = requested.id;
     if (get().activeDocumentId !== documentId || !sameDocumentContent(get(), requested)) return false;
@@ -1269,15 +1263,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       if (hasForeignContent(state.ifcSource) && ref && ref.kind !== 'site') {
         if (await documentTargetCheck(state, undefined, true)(ref)) return false;
-        if (ref.kind === 'path') {
-          const folder = replaceFolder(ref.path);
-          if (attempt.refusedFolder === folder) return false;
-          if (await refusedReplaceFolderAccess(state.ui.featureFlags, ref.path, notice => get().notify(notice))) {
-            for (const waiting of waitingSaves.values()) if (waiting.attempt.documentId === documentId) waiting.attempt.refusedFolder = folder;
-            return false;
-          }
-          ownPath = ref;
-        } else if (await handleWritePermission(ref)) {
+        if (ref.kind === 'path') ownPath = ref;
+        else if (await handleWritePermission(ref)) {
           const content = await sourceTargetContent(ref, state.ifcSource!.bytes);
           if (content !== 'same') { get().notify(ownTargetContentNotice(content)); return false; }
           ownHandle = ref;
@@ -1434,18 +1421,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
-  const waitingSaves = new Map<string, { save: Promise<boolean>; attempt: SaveAttempt }>();
+  const waitingSaves = new Map<string, Promise<boolean>>();
   const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => {
     if (siteQuestionOpen()) return Promise.resolve(false);
     const requested = documentContentOf(get(), expectedDocumentId ?? get().activeDocumentId);
     if (!requested) return Promise.resolve(false);
     const key = `${requested.id}\u0000${requested.content}`;
     const waiting = waitingSaves.get(key);
-    if (waiting) return waiting.save;
-    const attempt: SaveAttempt = { documentId: requested.id, refusedFolder: null };
-    const forget = () => { if (waitingSaves.get(key)?.attempt === attempt) waitingSaves.delete(key); };
-    const save: Promise<boolean> = trackSave(requested, writeActiveDocument(requested, forget, attempt));
-    waitingSaves.set(key, { save, attempt });
+    if (waiting) return waiting;
+    const forget = () => { if (waitingSaves.get(key) === save) waitingSaves.delete(key); };
+    const save: Promise<boolean> = trackSave(requested, writeActiveDocument(requested, forget));
+    waitingSaves.set(key, save);
     void save.then(forget, forget);
     return save;
   };

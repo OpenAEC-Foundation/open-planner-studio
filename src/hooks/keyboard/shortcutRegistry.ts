@@ -93,7 +93,7 @@ export function isShortcutBlockedByDialog(): boolean {
  */
 export function isGlobalShortcutFrozen(ui: UIState = useAppStore.getState().ui): boolean {
   return ui.pendingActualStartQuestion !== null || ui.pendingPhaseAssignmentQuestion !== null || ui.pendingPlanOnlyQuestion !== null
-    || ui.pendingFolderAccessQuestion !== null || ui.savingBeforeClose || ui.appClosing;
+    || ui.savingBeforeClose || ui.appClosing;
 }
 
 /**

@@ -86,7 +86,6 @@
     "ifcUnreadableTargetAutoSave": "Autosave has stopped: the app cannot read this file properly; it may contain a building model. Choose another file to save to.",
     "ifcForeignAutoSaveTargetChanged": "Auto-save has stopped: the file was changed, moved or deleted in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignAutoSaveSaveAsOnly": "Auto-save has stopped: this file cannot be replaced safely in this location. Your changes are still in the app. Choose Save As to keep them in a new file.",
-    "ifcForeignAutoSaveFolderAccess": "Auto-save has stopped: the app has no access yet to the folder of this file. Your changes are still in the app. Save once yourself and choose that folder in the window; after that, auto-save continues.",
     "ifcForeignAutoSaveNotRecorded": "Auto-save has stopped: the file cannot be replaced safely right now, because crash recovery cannot be updated. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignAutoSaveRemnant": "Auto-save has stopped: an earlier save of this file did not finish. Your changes are still in the app. Save with Ctrl+S; after a restart the app handles that earlier save.",
     "ambiguousThousands": "\"{{text}}\" is ambiguous: do you mean a decimal or thousands? Type decimals with \"{{separator}}\" (1{{separator}}5) and thousands without a separator (1500). The value was not changed.",
@@ -384,7 +383,6 @@
     "ifcForeignReplaceTargetTaken": "Not saved. While saving, another program put a new file at {{target}}. There are now three files: that new file at {{target}}, your schedule in {{temp}} and the previous version in {{previous}}. Your changes are also still in the app.",
     "ifcForeignReplacePreviousStranded": "Not saved, and the previous version of the file could not be put back. It is now in {{previous}}. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignReplaceSaveAsOnly": "Not saved. This file cannot be replaced safely in this location. The file has not changed. Choose Save As to keep your changes in a new file.",
-    "ifcForeignFolderAccessMissing": "Not saved. The app has no access to the folder {{folder}}. Choose Save As, or save again and choose that folder in the window.",
     "ifcForeignReplaceLeftOver": "This file was left from an interrupted save of {{file}}: {{path}}. Check whether you still need it.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
     "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
@@ -504,7 +502,7 @@
     "demoTopbarAnimation": "Demo: top bar animation",
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
-    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). In Chrome and Edge, Save also saves the opened file itself. If another program changes this file exactly while saving, that change can be lost. In the desktop app, Save also saves the opened file itself. If it is outside your home folder, the app asks the first time for access to that folder; then choose that folder in the window. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file; only a change at exactly the same moment can still be lost. Save As over another existing file replaces that file in the same way, also when that file itself contains a building model or data from another program. A schedule without a building model can replace such a file too. The app does not replace a file it cannot read or a file with a second name (a link). Just before replacing, the app compares the file with the version it read after your choice: if it changed, saving stops and the file stays as it is. If the version the app moved aside turns out to be different after all, the app keeps it as a separate copy next to the file, with a message. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
+    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). In Chrome and Edge, Save also saves the opened file itself. If another program changes this file exactly while saving, that change can be lost. In the desktop app, Save also saves the opened file itself, also outside your home folder; only in a folder whose name starts with a dot, on Linux and macOS, choose Save As. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file; only a change at exactly the same moment can still be lost. Save As over another existing file replaces that file in the same way, also when that file itself contains a building model or data from another program. A schedule without a building model can replace such a file too. The app does not replace a file it cannot read or a file with a second name (a link). Just before replacing, the app compares the file with the version it read after your choice: if it changed, saving stops and the file stays as it is. If the version the app moved aside turns out to be different after all, the app keeps it as a separate copy next to the file, with a message. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -2075,11 +2073,5 @@
   "replaceCopy": {
     "otherProgram": "version from another program {{when}}",
     "unsavedSchedule": "unsaved schedule {{when}}"
-  },
-  "folderAccessQuestion": {
-    "title": "Access to this folder needed",
-    "body": "To save here safely, the app needs access to the folder {{folder}}. Choose that folder in the next window.",
-    "choose": "Choose folder",
-    "cancel": "Cancel"
   }
 }

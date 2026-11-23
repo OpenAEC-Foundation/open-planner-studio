@@ -5,7 +5,6 @@ import {
   saveNewBytesDialogTauri, saveNewBytesToRefTauri, pickSaveTargetTauri,
 } from './tauriBackend';
 import { openFileDialogTauri, readOpenedPathTauri } from './tauriOpenPath';
-import { requestReplaceFolderAccessTauri } from './replaceFolderAccess';
 import type { FileIdentityFs } from './fileIdentity';
 import type { RemnantEvent } from './ownFileReplace';
 import type { TargetReaders } from './foreignSourceTarget';
@@ -269,11 +268,6 @@ export interface PickedSaveTarget {
 export function pickSaveTarget(defaultName: string, filters: FileFilter[]): Promise<PickedSaveTarget | null> {
   if (!isTauri()) return Promise.reject(new Error('De bestandskiezer zonder schrijven bestaat alleen op de desktop.'));
   return pickSaveTargetTauri(defaultName, filters);
-}
-
-export function requestReplaceFolderAccess(path: string): Promise<boolean> {
-  if (!isTauri()) return Promise.reject(new Error('Toegang tot een map vragen bestaat alleen op de desktop.'));
-  return requestReplaceFolderAccessTauri(path);
 }
 
 /** Een nieuw lokaal doel; een bestaand pad of browserhandle geeft een ByteWriteError.

@@ -21,10 +21,7 @@ interface IpcCall {
   wrote: boolean;
   /** `writeFile`/`writeTextFile`: de opties in de kop waren niet te lezen; de aanroep faalde. */
   optionsError?: string;
-  dialog?: FolderPickOptions;
 }
-
-export interface FolderPickOptions { directory?: boolean; recursive?: boolean; defaultPath?: string; multiple?: boolean; title?: string }
 
 /** `writeFile`/`writeTextFile`: de bytes als hele payload, met de opties in de kop. */
 export const writeFileCall = (c: { command: string }): boolean =>
@@ -36,11 +33,9 @@ export const byteWrite = (c: { command: string }): boolean => c.command === 'plu
  *  zoals Tauri het `Result` van het commando doorgeeft (proef `place_file_uitkomsten_hebben_vaste_codes`). */
 export type PlaceAnswer = { resolve: unknown } | { reject: unknown };
 
-/** De regel voor de eigen hulpnamen uit `place_file.rs` (`is_helper_name`): `save-<id>.ops-save.tmp` of
- *  `<naam>.ops-vorige-<id>`, met `<id>` kleine letters en cijfers. */
 function isHelperName(name: string): boolean {
   const id = /^[0-9a-z]{1,64}$/;
-  const save = /^save-(.+)\.ops-save\.tmp$/.exec(name);
+  const save = /^save-(.+)\.ops-(?:save|vervang)\.tmp$/.exec(name);
   if (save && id.test(save[1])) return true;
   const at = name.lastIndexOf('.ops-vorige-');
   return at > 0 && id.test(name.slice(at + '.ops-vorige-'.length));
@@ -54,13 +49,30 @@ function isHelperName(name: string): boolean {
  * staat en vervangt nooit. Bewijst de route in TypeScript; dat de stap echt exclusief en atomair is, bewijst
  * `cargo test place_file` per platform.
  */
-function placeOnDisk(from: string, to: string, forbidden: (path: string) => boolean): PlaceAnswer {
+function copyBesideAdmits(beside: string, to: string): boolean {
+  const name = nodePath.basename(to), besideName = nodePath.basename(beside);
+  if (nodePath.dirname(beside) !== nodePath.dirname(to) || isHelperName(name) || isHelperName(besideName)) return false;
+  const dot = besideName.lastIndexOf('.');
+  const stem = dot > 0 ? besideName.slice(0, dot) : besideName, ext = dot > 0 ? besideName.slice(dot) : '';
+  if (!name.endsWith(`)${ext}`)) return false;
+  const core = name.slice(0, name.length - ext.length - 1);
+  for (let at = core.indexOf(' ('); at !== -1; at = core.indexOf(' (', at + 1)) {
+    if (at > 0 && stem.startsWith(core.slice(0, at)) && core.length > at + 2) return true;
+  }
+  return false;
+}
+
+function placeOnDisk(
+  from: string, to: string, beside: string | undefined,
+  scope: { denied(path: string): boolean; forbidden(path: string): boolean },
+): PlaceAnswer {
   const refused = (reason: string): PlaceAnswer => ({ reject: { code: 'refused', reason } });
   if (!nodePath.isAbsolute(from) || !nodePath.isAbsolute(to) || nodePath.dirname(from) !== nodePath.dirname(to)) {
     return refused('path-shape');
   }
   if (isHelperName(nodePath.basename(from)) === isHelperName(nodePath.basename(to))) return refused('helper-name');
-  if (forbidden(from) || forbidden(to)) return refused('scope');
+  const copy = beside !== undefined && !scope.denied(beside) && copyBesideAdmits(beside, to) && !scope.forbidden(to);
+  if (scope.denied(from) || (scope.denied(to) && !copy)) return refused('scope');
   try {
     const source = fs.lstatSync(from);
     if (!source.isFile()) return refused('not-regular-file');
@@ -73,6 +85,24 @@ function placeOnDisk(from: string, to: string, forbidden: (path: string) => bool
   }
   fs.unlinkSync(from);
   return { resolve: { code: 'placed' } };
+}
+
+const REPLACE_TEMP_NAME = /^save-[^/]*\.ops-vervang\.tmp$/;
+const PREVIOUS_VERSION_NAME = /^save-[^/]*\.ops-vorige-[^/]*$/;
+const HELPER_CAPABILITY: Readonly<Record<string, readonly RegExp[]>> = {
+  'plugin:fs|write_file': [REPLACE_TEMP_NAME],
+  'plugin:fs|open': [REPLACE_TEMP_NAME, PREVIOUS_VERSION_NAME],
+  'plugin:fs|stat': [PREVIOUS_VERSION_NAME],
+  'plugin:fs|lstat': [REPLACE_TEMP_NAME, PREVIOUS_VERSION_NAME],
+  'plugin:fs|read_file': [REPLACE_TEMP_NAME, PREVIOUS_VERSION_NAME],
+  'plugin:fs|remove': [REPLACE_TEMP_NAME, PREVIOUS_VERSION_NAME],
+  'plugin:fs|rename': [REPLACE_TEMP_NAME, PREVIOUS_VERSION_NAME],
+};
+
+function helperCapabilityAllows(command: string, real: string): boolean {
+  const parts = real.split('/');
+  const name = parts.pop() ?? '';
+  return !parts.some(part => part.startsWith('.')) && (HELPER_CAPABILITY[command] ?? []).some(pattern => pattern.test(name));
 }
 
 const isBytes = (value: unknown): boolean => value instanceof ArrayBuffer || ArrayBuffer.isView(value);
@@ -187,20 +217,17 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     },
     reset: () => { scope.outside = null; files.clear(); folders.length = 0; },
   };
-  const outsideScope = (path: string): boolean => {
+  const outsideScope = (command: string, path: string): boolean => {
     if (scope.outside === null) return false;
     let real: string;
     try { real = realPath(path); } catch { return true; }
-    if (!scope.outside(real) || files.has(real)) return false;
+    if (!scope.outside(real) || files.has(real) || helperCapabilityAllows(command, real)) return false;
     return !folders.some(f => real === f.path
       || (f.recursive ? real.startsWith(`${f.path}/`) : nodePath.dirname(real) === f.path));
   };
-  const denied = (path: string): boolean => faults.forbidden?.(path) === true || outsideScope(path);
-  const dialog = {
-    pickFolder: null as ((options: FolderPickOptions) => string | null) | null,
-  };
-  const checkScope = (...paths: unknown[]) => {
-    for (const p of paths) if (outsideScope(String(p))) throw `forbidden path: ${String(p)}`;
+  const denied = (command: string, path: string): boolean => faults.forbidden?.(path) === true || outsideScope(command, path);
+  const checkScope = (command: string, ...paths: unknown[]) => {
+    for (const p of paths) if (outsideScope(command, String(p))) throw `forbidden path: ${String(p)}`;
   };
   let bytesRead = 0;
   let seeks = 0;
@@ -220,7 +247,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
       case 'plugin:fs|lstat': {
         let st: fs.Stats;
         if (faults.forbiddenMeta && faults.forbidden?.(String(path))) throw `forbidden path: ${path}`;
-        checkScope(path);
+        checkScope(command, path);
         try {
           st = command === 'plugin:fs|stat' ? fs.statSync(String(path)) : fs.lstatSync(String(path));
         } catch (error) {
@@ -243,13 +270,13 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
         // plugin-fs `exists` (2.5.0 en 2.7.1 gelijk): eerst de scope (`resolve_path`, buiten de scope de fout "forbidden path"), dan
         // `Path::exists`, dat links volgt en elke andere fout als `false` teruggeeft.
         const p = String(path);
-        if (denied(p)) throw `forbidden path: ${p}`;
+        if (denied(command, p)) throw `forbidden path: ${p}`;
         return fs.existsSync(p);
       }
       case 'plugin:fs|open': {
         const p = String(path);
         faults.beforeOpen?.(p);
-        if (denied(p)) throw `forbidden path: ${p}`;
+        if (denied(command, p)) throw `forbidden path: ${p}`;
         const o = a.options as OpenOptions;
         const fd = fs.openSync(p, openFlags(o), o.mode);
         call.wrote = o.write === true;
@@ -322,7 +349,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
         if (sent.error !== undefined) throw sent.error;
         const p = String(path), o = writeFileOpenOptions(callOptions);
         faults.beforeOpen?.(p);
-        if (denied(p)) throw `forbidden path: ${p}`;
+        if (denied(command, p)) throw `forbidden path: ${p}`;
         if (!o.createNew && !o.append && faults.directWriteError !== null) throw faults.directWriteError;
         // De fouttekst van `write_file_inner`: openen en schrijven geven elk hun eigen begin.
         let fd: number;
@@ -345,23 +372,27 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
         return null;
       }
       case 'plugin:fs|rename':
-        checkScope(a.oldPath, a.newPath);
+        checkScope(command, a.oldPath, a.newPath);
         if (faults.renameError !== null) throw faults.renameError;
         fs.renameSync(String(a.oldPath), String(a.newPath));
         return null;
       case 'plugin:fs|mkdir':
-        checkScope(path);
+        checkScope(command, path);
         fs.mkdirSync(String(path), { recursive: (a.options as { recursive?: boolean } | undefined)?.recursive === true });
         return null;
       case 'plugin:fs|remove':
-        checkScope(path);
+        checkScope(command, path);
         if (faults.removeError !== null) throw faults.removeError;
         fs.unlinkSync(String(path));
         return null;
       case 'place_file_exclusive': {
         const from = String(a.from), to = String(a.to);
+        const beside = typeof a.beside === 'string' ? a.beside : undefined;
         call.path = to;
-        const real = () => placeOnDisk(from, to, denied);
+        const real = () => placeOnDisk(from, to, beside, {
+          denied: p => denied('plugin:fs|rename', p),
+          forbidden: p => faults.forbidden?.(p) === true,
+        });
         const answer = (await faults.place?.(from, to, real)) ?? real();
         if ('reject' in answer) throw answer.reject;
         return answer.resolve;
@@ -372,23 +403,15 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
       case 'plugin:path|join':
         if (options.appDataDir === undefined) break;
         return nodePath.join(...(a.paths as string[]));
-      case 'plugin:dialog|open': {
-        const o = (a.options ?? {}) as FolderPickOptions;
-        call.dialog = o;
-        if (!o.directory || o.multiple || dialog.pickFolder === null) break;
-        const chosen = dialog.pickFolder(o);
-        if (chosen !== null) scope.allowDirectory(chosen, o.recursive === true);
-        return chosen;
-      }
       case 'plugin:fs|read_dir':
         if (options.appDataDir === undefined) break;
-        checkScope(path);
+        checkScope(command, path);
         return fs.readdirSync(String(path), { withFileTypes: true }).map(e => ({
           name: e.name, isDirectory: e.isDirectory(), isFile: e.isFile(), isSymlink: e.isSymbolicLink(),
         }));
       case 'plugin:fs|read_file':
       case 'plugin:fs|read_text_file': {
-        checkScope(path);
+        checkScope(command, path);
         if (faults.readError !== null) throw faults.readError;
         const data = new Uint8Array(fs.readFileSync(String(path)));
         bytesRead += data.length;
@@ -401,7 +424,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     __TAURI_INTERNALS__: { invoke },
   } });
   return {
-    calls, faults, scope, dialog,
+    calls, faults, scope,
     openHandles: () => handles.size,
     /** Zoveel bytes las `plugin:fs|read` in totaal. */
     bytesRead: () => bytesRead,

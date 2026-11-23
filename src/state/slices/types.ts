@@ -260,7 +260,6 @@ export type NotificationMessageKey =
   | 'notifications.ifcForeignReplaceTargetTaken'
   | 'notifications.ifcForeignReplacePreviousStranded'
   | 'notifications.ifcForeignReplaceSaveAsOnly'
-  | 'notifications.ifcForeignFolderAccessMissing'
   | 'notifications.ifcForeignReplaceLeftOver'
   | 'notifications.ifcSaveChangedWhileWaiting'
   // #804 stap 5: de opslagworker faalde (`IfcSaveWorkerError`); niets geschreven.
@@ -275,7 +274,6 @@ export type NotificationMessageKey =
   // #804 stap 8: Automatisch opslaan bij een gebouwmodel stopt veilig (`state/modelAutoSaveNotices.ts`).
   | 'notifications.ifcForeignAutoSaveTargetChanged'
   | 'notifications.ifcForeignAutoSaveSaveAsOnly'
-  | 'notifications.ifcForeignAutoSaveFolderAccess'
   | 'notifications.ifcForeignAutoSaveNotRecorded'
   | 'notifications.ifcForeignAutoSaveRemnant'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
@@ -984,7 +982,6 @@ export interface UIState {
   /** session — de openstaande vraag "alleen de planning" met haar reden (`services/ifc/planOnlyQuestion.ts`), of `null`.
    *  Het antwoord gaat via `state/planOnlyQuestionBridge.ts`. Een wachtende modale vraag: bevriest sneltoetsen. */
   pendingPlanOnlyQuestion: PlanOnlyReason | null;
-  pendingFolderAccessQuestion: string | null;
   /** session — de uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`), of
    *  `null`. Alleen de open-routes van de gebruiker zetten hem (`fileSlice`, `formatNoticeToShow`).
    *  Bewust NIET blokkerend in `hasBlockingDialogOpen`: het project staat er al achter, de uitleg

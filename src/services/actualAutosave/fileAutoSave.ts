@@ -33,8 +33,8 @@ import { hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import { ownPathReplaceNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '@/state/ownFileReplace';
 import {
-  MODEL_AUTOSAVE_FOLDER_ACCESS_NOTICE, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE, MODEL_AUTOSAVE_REMNANT_NOTICE,
-  MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE,
+  MODEL_AUTOSAVE_NOT_RECORDED_NOTICE, MODEL_AUTOSAVE_REMNANT_NOTICE, MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE,
+  MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE,
 } from '@/state/modelAutoSaveNotices';
 import type { NotifyInput } from '@/state/slices/types';
 import {
@@ -245,9 +245,7 @@ export function createFileAutoSaveController(deps: {
       case 'stopped': return stoppedBy ?? 'stale';
       case 'not-recorded': stopFor(candidate.id, ref, MODEL_AUTOSAVE_NOT_RECORDED_NOTICE); return 'refused';
       case 'target-changed': stopFor(candidate.id, ref, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE); return 'refused';
-      case 'save-as-only':
-        stopFor(candidate.id, ref, result.nothingWritten ? MODEL_AUTOSAVE_FOLDER_ACCESS_NOTICE : MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE);
-        return 'refused';
+      case 'save-as-only': stopFor(candidate.id, ref, MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE); return 'refused';
       case 'failed':
         // Een mislukte ronde: de melding van Ctrl+S (één regel, ververst), en de volgende ronde probeert het opnieuw.
         for (const notice of ownPathReplaceNotices(result, ref.path)) getState().notify(notice);

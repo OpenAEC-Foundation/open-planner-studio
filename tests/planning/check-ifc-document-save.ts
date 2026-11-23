@@ -21,7 +21,6 @@ import { createFileAutoSaveController } from '@/services/actualAutosave/fileAuto
 import { scheduleFileAutoSave } from '@/services/actualAutosave/fileAutoSaveTimers';
 import { closeProjectFileWrites, isProjectFileWriteBusy } from '@/services/fileAccess/writeCoordinator';
 import { setSiteSaveAsker, resetSiteAskers } from '@/services/fileAccess/siteDialogs';
-import { resetFolderAccessAsker, setFolderAccessAsker } from '@/services/fileAccess/replaceFolderAccess';
 import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { openInStore, loadStore } from './ifcAppRoute';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
@@ -62,7 +61,7 @@ async function check(name: string, action: () => Promise<void>) {
   }
 }
 /** Het eigen tijdelijke bestand van de nieuwe-naamroute (knownbug 1131 stap 4). */
-const isTemp = (path: string | undefined) => /[\\/]save-[0-9a-z]+\.ops-save\.tmp$/.test(path ?? '');
+const isTemp = (path: string | undefined) => /[\\/]save-[0-9a-z]+\.ops-(?:save|vervang)\.tmp$/.test(path ?? '');
 const tempLeft = () => readdirSync(dir).filter(name => isTemp(join(dir, name)));
 /** Nam deze route de nieuwe weg: één `createNew` in het eigen tijdelijke bestand en één plaatsing op `target`? */
 function tookTempRoute(calls: readonly { command: string; path?: string; options?: { createNew?: boolean } }[], target: string) {
@@ -3342,7 +3341,7 @@ for (const backend of ['browser', 'desktop'] as const) {
   });
 }
 
-await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, geen herstelrecord dat blijft, één melding over de toegang tot de map', async () => {
+await check('stap 8, desktop waar plugin-fs de hulpnamen weigert (een map met een punt vooraan buiten de thuismap, 2067): niets geschreven, geen herstelrecord dat blijft, één melding', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'buiten-'));
   const ipc = desktop(appData), sw = saveWorker();
@@ -3360,11 +3359,11 @@ await check('stap 8, desktop buiten de thuismap (forbidden): niets geschreven, g
       assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
       assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
       assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
-      assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
       longer(store);
       await auto.round();
       assert.equal(sw.merges(), 1, 'geen tweede poging');
-      assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
     } finally { unregister(); await clearRecovery(); }
   } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
@@ -3865,7 +3864,7 @@ for (const exporter of ['Exporteren → IFC', 'IFC zonder gebouwmodel', 'Exporte
       let held = false;
       internals.invoke = async (...args: unknown[]) => {
         const [command, , options] = args as [string, unknown, { headers?: { path?: string } } | undefined];
-        if (!held && command === 'plugin:fs|write_file' && decodeURIComponent(options?.headers?.path ?? '').endsWith('.ops-save.tmp')) {
+        if (!held && command === 'plugin:fs|write_file' && /\.ops-(?:save|vervang)\.tmp$/.test(decodeURIComponent(options?.headers?.path ?? ''))) {
           const result = await invoke(...args);
           held = true; tempWritten.release(); await releaseTemp.held;
           return result;
@@ -4234,32 +4233,21 @@ function outsideHomeScope(ipc: DesktopIpc, folder: string, ...chosen: string[]) 
   ipc.scope.outside = path => path === real || path.startsWith(`${real}/`);
   for (const file of chosen) ipc.scope.allowFile(file);
 }
-function folderQuestion(answer: (folder: string) => boolean | Promise<boolean>) {
-  const asked: string[] = [];
-  setFolderAccessAsker(async folder => { asked.push(folder); return answer(folder); });
-  return asked;
-}
-const folderPicks = (ipc: DesktopIpc, from: number) => ipc.calls.slice(from).filter(c => c.command === 'plugin:dialog|open').map(c => c.dialog);
-const FOLDER_PICK = (folder: string) => ({ directory: true, multiple: false, recursive: false, defaultPath: folder });
+const dialogCalls = (ipc: DesktopIpc, from: number) => ipc.calls.slice(from).filter(c => c.command.startsWith('plugin:dialog|'));
 
-await check('knownbug 1762, Ctrl+S buiten de thuismap: één vraag en één mapkiezer vóór de merge; opgeslagen zonder hulpbestand; daarna en na een herstart geen vraag meer', async () => {
+await check('knownbug 1762, Ctrl+S buiten de thuismap: vervangen zonder vraag en zonder venster, het gebouwmodel bytegelijk; na een herstart net zo', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'buiten-'));
   const ipc = desktop(appData), sw = saveWorker();
-  let mergesAtQuestion = -1;
-  const asked = folderQuestion(() => { mergesAtQuestion = sw.merges(); return true; });
   try {
     const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
     outsideHomeScope(ipc, folder, own);
-    ipc.dialog.pickFolder = () => folder;
     const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
     try {
       longer(store); clearNotices(store);
       const from = ipc.calls.length;
       assert.equal(await ctrlS(store), true, 'opgeslagen');
-      assert.deepEqual(asked, [folder], 'één vraag, met de map van het bestand');
-      assert.equal(mergesAtQuestion, 0, 'de vraag kwam vóór de merge');
-      assert.deepEqual(folderPicks(ipc, from), [FOLDER_PICK(folder)], 'één mapkiezer, niet-recursief, op die map');
+      assert.deepEqual(dialogCalls(ipc, from), [], 'geen venster');
       const output = new Uint8Array(readFileSync(own));
       assert.deepEqual(mergeProblems(bytes, output), [], 'het gebouwmodel bytegelijk');
       assert.equal(store.getState().ifcSource!.sha256, hash(output), 'de geschreven versie is de bron');
@@ -4267,147 +4255,67 @@ await check('knownbug 1762, Ctrl+S buiten de thuismap: één vraag en één mapk
       assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord');
       assert.deepEqual(autoErrors(store), []);
       assert.equal(store.getState().isDirty, false);
-      longer(store);
-      const second = ipc.calls.length;
-      assert.equal(await ctrlS(store), true, 'een tweede Ctrl+S');
-      assert.deepEqual([asked.length, folderPicks(ipc, second)], [1, []], 'vraagt niets meer');
-      assert.notEqual(hash(new Uint8Array(readFileSync(own))), hash(output), 'en vervangt weer');
     } finally { unregister(); await clearRecovery(); }
+    ipc.scope.reset();
+    outsideHomeScope(ipc, folder, own);
     const reopened = new Uint8Array(readFileSync(own));
     const again = await openAt({ kind: 'path', path: own }, reopened, sw.compute), unregisterAgain = recoveryRounds(again);
     try {
       longer(again); clearNotices(again);
       const from = ipc.calls.length;
-      assert.equal(await ctrlS(again), true, 'na een herstart opgeslagen');
-      assert.deepEqual([asked.length, folderPicks(ipc, from)], [1, []], 'na een herstart geen vraag en geen mapkiezer');
+      assert.equal(await ctrlS(again), true, 'na een herstart opgeslagen, met alleen het bestand vrijgegeven');
+      assert.deepEqual(dialogCalls(ipc, from), []);
+      assert.notEqual(hash(new Uint8Array(readFileSync(own))), hash(reopened), 'en vervangen');
       assert.deepEqual(readdirSync(folder), ['model.ifc']);
     } finally { unregisterAgain(); await clearRecovery(); }
-  } finally { resetFolderAccessAsker(); ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
-for (const refusal of ['annuleren in de vraag', 'annuleren in de mapkiezer', 'een andere map gekozen'] as const) {
-  await check(`knownbug 1762, Ctrl+S buiten de thuismap, ${refusal}: het doel bytegelijk, geen hulpbestand en geen record, geen merge, één melding`, async () => {
-    const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
-    const folder = mkdtempSync(join(dir, 'buiten-'));
-    const ipc = desktop(appData), sw = saveWorker();
-    const asked = folderQuestion(() => refusal !== 'annuleren in de vraag');
-    try {
-      const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
-      outsideHomeScope(ipc, folder, own);
-      ipc.dialog.pickFolder = refusal === 'een andere map gekozen' ? () => dir : () => null;
-      const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
-      try {
-        longer(store); clearNotices(store);
-        const from = ipc.calls.length;
-        assert.equal(await ctrlS(store), false, 'niet opgeslagen');
-        assert.deepEqual(asked, [folder]);
-        assert.equal(folderPicks(ipc, from).length, refusal === 'annuleren in de vraag' ? 0 : 1);
-        assert.equal(sw.merges(), 0, 'geen merge');
-        assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'het doel bytegelijk');
-        assert.deepEqual(readdirSync(folder), ['model.ifc'], 'geen hulpbestand');
-        assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
-        assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord');
-        assertNotice(store, 'notifications.ifcForeignFolderAccessMissing');
-        assert.deepEqual(store.getState().ui.notifications.find(n => n.messageKey === 'notifications.ifcForeignFolderAccessMissing')?.params,
-          { folder }, 'de melding noemt de map');
-        assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
-      } finally { unregister(); await clearRecovery(); }
-    } finally { resetFolderAccessAsker(); ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
-  });
-}
-
-await check('knownbug 1762, Ctrl+S: tijdens de vraag bewerkt de planner het document en wisselt hij van tabblad; het bestand krijgt de stand van Ctrl+S, het andere tabblad blijft ongemoeid', async () => {
+await check('knownbug 1762, Automatisch opslaan buiten de thuismap: de ronde vervangt zonder vraag en zonder melding', async () => {
   const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
   const folder = mkdtempSync(join(dir, 'buiten-'));
   const ipc = desktop(appData), sw = saveWorker();
   try {
     const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
     outsideHomeScope(ipc, folder, own);
-    ipc.dialog.pickFolder = () => folder;
-    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
-    const model = store.getState().activeDocumentId, other = store.getState().newDocument();
-    store.getState().switchDocument(model);
-    try {
-      const task = longer(store); clearNotices(store);
-      const atCtrlS = await prepareIfcWrite(buildWriteIFCInput(store.getState(), 'merge'), store.getState().ifcSource!);
-      folderQuestion(() => {
-        store.getState().updateTask(task, { name: 'Tijdens de vraag' });
-        store.getState().switchDocument(other);
-        return true;
-      });
-      assert.equal(await ctrlS(store), false, 'opgeslagen, maar het document is intussen gewijzigd');
-      assert.equal(hash(new Uint8Array(readFileSync(own))), atCtrlS.sha256, 'het bestand heeft de stand van Ctrl+S');
-      assert(!readFileSync(own).toString('latin1').includes('Tijdens de vraag'), 'niet de bewerking van tijdens de vraag');
-      assert.equal(store.getState().activeDocumentId, other, 'het andere tabblad staat vooraan');
-      assert.equal(payloadOf(store, model).ifcSource!.sha256, atCtrlS.sha256, 'de geschreven versie is de bron van het model');
-      assert.equal(payloadOf(store, model).isDirty, true, 'het model blijft gewijzigd: de bewerking staat nog niet in het bestand');
-      assert.equal(payloadOf(store, other).filePath, null, 'het andere tabblad kreeg geen bestand');
-      assert.deepEqual(readdirSync(folder), ['model.ifc']);
-      assert.deepEqual(autoErrors(store), []);
-    } finally { unregister(); await clearRecovery(); }
-  } finally { resetFolderAccessAsker(); ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
-});
-
-await check('knownbug 1762, Ctrl+S: het tabblad gaat tijdens de vraag dicht; niets geschreven, de melding van een veranderde opslag', async () => {
-  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
-  const folder = mkdtempSync(join(dir, 'buiten-'));
-  const ipc = desktop(appData), sw = saveWorker();
-  try {
-    const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
-    outsideHomeScope(ipc, folder, own);
-    ipc.dialog.pickFolder = () => folder;
-    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
-    const model = store.getState().activeDocumentId;
-    store.getState().newDocument();
-    store.getState().switchDocument(model);
-    try {
-      longer(store); clearNotices(store);
-      folderQuestion(() => { store.getState().closeDocument(model); return true; });
-      const from = ipc.calls.length;
-      assert.equal(await ctrlS(store), false);
-      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
-      assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
-      assert.deepEqual(readdirSync(folder), ['model.ifc']);
-      assert.deepEqual(replaceRecordsIn(appData), []);
-      assertNotice(store, 'notifications.ifcSaveChangedWhileWaiting');
-    } finally { unregister(); await clearRecovery(); }
-  } finally { resetFolderAccessAsker(); ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
-});
-
-await check('knownbug 1762, Automatisch opslaan buiten de thuismap vraagt nooit: geen vraag, geen venster, de melding over de toegang tot de map; na Ctrl+S met toegang vervangt het', async () => {
-  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
-  const folder = mkdtempSync(join(dir, 'buiten-'));
-  const ipc = desktop(appData), sw = saveWorker();
-  const asked = folderQuestion(() => true);
-  try {
-    const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
-    outsideHomeScope(ipc, folder, own);
-    ipc.dialog.pickFolder = () => folder;
     const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
     try {
       longer(store); clearNotices(store);
       const from = ipc.calls.length;
-      const auto = modelAutoSave(store, sw.compute);
-      await auto.round();
-      assert.deepEqual([asked, folderPicks(ipc, from)], [[], []], 'geen vraag en geen mapkiezer');
-      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'niets geschreven');
-      assert.deepEqual(readdirSync(folder), ['model.ifc']);
-      assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord dat blijft staan');
-      assertNotice(store, 'notifications.ifcForeignAutoSaveFolderAccess');
-      clearNotices(store);
-      assert.equal(await ctrlS(store), true, 'Ctrl+S slaat op');
-      assert.deepEqual(asked, [folder]);
-      const saved = hash(new Uint8Array(readFileSync(own)));
-      longer(store);
-      const later = ipc.calls.length;
-      await auto.round();
-      assert.notEqual(hash(new Uint8Array(readFileSync(own))), saved, 'daarna vervangt Automatisch opslaan in die map');
-      assert.deepEqual([asked.length, folderPicks(ipc, later)], [1, []], 'zonder vraag');
+      await modelAutoSave(store, sw.compute).round();
+      assert.deepEqual(dialogCalls(ipc, from), [], 'geen venster');
+      assert.notEqual(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'vervangen');
       assert.deepEqual(readdirSync(folder), ['model.ifc'], 'geen hulpbestand');
-      assert.deepEqual(autoErrors(store), []);
+      assert.deepEqual(replaceRecordsIn(appData), []);
+      assert.deepEqual(store.getState().ui.notifications.map(n => n.messageKey), [], 'geen melding');
       assert.equal(store.getState().isDirty, false);
     } finally { unregister(); await clearRecovery(); }
-  } finally { resetFolderAccessAsker(); ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
+});
+
+await check('knownbug 2067, een map met een punt vooraan buiten de thuismap: Ctrl+S en Automatisch opslaan schrijven niets, met de melding van Opslaan als', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'ops-document-save-appdata-'));
+  const folder = mkdtempSync(join(dir, '.verborgen-'));
+  const ipc = desktop(appData), sw = saveWorker();
+  try {
+    const own = join(folder, 'model.ifc'); writeFileSync(own, bytes);
+    outsideHomeScope(ipc, folder, own);
+    const store = await openAt({ kind: 'path', path: own }, bytes, sw.compute), unregister = recoveryRounds(store);
+    try {
+      longer(store); clearNotices(store);
+      const from = ipc.calls.length;
+      assert.equal(await ctrlS(store), false, 'niet opgeslagen');
+      assertNotice(store, 'notifications.ifcForeignReplaceSaveAsOnly');
+      clearNotices(store);
+      await modelAutoSave(store, sw.compute).round();
+      assertNotice(store, 'notifications.ifcForeignAutoSaveSaveAsOnly');
+      assert.equal(hash(new Uint8Array(readFileSync(own))), hash(bytes), 'het bestand bytegelijk');
+      assert.deepEqual(readdirSync(folder), ['model.ifc'], 'geen hulpbestand');
+      assert.deepEqual(ipc.calls.slice(from).filter(c => c.wrote && c.path?.startsWith(folder)), [], 'nul schrijfacties in de map');
+      assert.deepEqual(replaceRecordsIn(appData), [], 'geen herstelrecord');
+      assert.equal(store.getState().isDirty, true, 'het document blijft gewijzigd');
+    } finally { unregister(); await clearRecovery(); }
+  } finally { ipc.dispose(); sw.client.dispose(); rmSync(appData, { recursive: true, force: true }); }
 });
 
 rmSync(dir, { recursive: true, force: true });

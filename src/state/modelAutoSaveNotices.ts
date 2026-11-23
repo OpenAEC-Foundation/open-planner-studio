@@ -13,9 +13,6 @@ export const MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE: NotifyInput = refusalNotice({
 export const MODEL_AUTOSAVE_SAVE_AS_ONLY_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignAutoSaveSaveAsOnly', dedupeKey: 'ifc-foreign-autosave-save-as-only',
 });
-export const MODEL_AUTOSAVE_FOLDER_ACCESS_NOTICE: NotifyInput = refusalNotice({
-  messageKey: 'notifications.ifcForeignAutoSaveFolderAccess', dedupeKey: 'ifc-foreign-autosave-folder-access',
-});
 /** Het herstelrecord of het herstelmanifest kon de komende versie niet vastleggen (knownbug 1764). */
 export const MODEL_AUTOSAVE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignAutoSaveNotRecorded', dedupeKey: 'ifc-foreign-autosave-not-recorded',
