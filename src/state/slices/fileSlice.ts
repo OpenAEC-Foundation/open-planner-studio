@@ -1368,7 +1368,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         get().notify(downloadCopyNotice(outcome.name));
         return false;
       }
-      const hashing = outcome.viaDownload ? null : plain?.fingerprint ?? null;
+      const hashing = plain?.fingerprint ?? null;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
@@ -1441,7 +1441,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
       const outcome = await documentSaveDialog(state, write, plain?.data ?? null, defaultName, missingSourceSaveAs);
       if (!outcome) return;
-      const hashing = outcome.viaDownload ? null : plain?.fingerprint ?? null;
+      const hashing = plain?.fingerprint ?? null;
       const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
       else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
