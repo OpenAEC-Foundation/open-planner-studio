@@ -1618,6 +1618,20 @@ en noem het in je rapport of PR-tekst.
      schuift. Onder het MS Project-profiel staat conventie A23 `unstartedIgnoresStatusDate` aan
      (`src/engine/scheduler/conventions/registry.ts`) en schuift het niet; `statusDateEffect.shifted` meldt dan
      terecht `false`. Gezien in de review van #1083 (GPT-6.2-Sol, proef met statusdatum 1 juni). — B
+1991. **Koppelen zonder bestaand projectitem zet het document op *Niet opgeslagen*.** `linkRecognizedItems`
+     (`src/state/slices/librarySlice.ts`) toetst vóór `beginUndoable` alleen of het poolitem van een link nog
+     bestaat, niet het projectitem. Bestaat het projectitem niet meer, dan verandert er niets, maar `finishMutation`
+     loopt wel en zet `isDirty`. Gezien met een proef op de echte store: een link met een onbekend `projectId` en een
+     bestaand `poolId` geeft `isDirty: true`, geen undo-event en geen nieuwe resource. Op een schoon heropend
+     IFC-bestand wist dezelfde route ook `importPristine` (`markDocumentEdited` in `src/state/documentEdited.ts`), en na
+     schrijven en teruglezen bleef die vlag weg (proef van de reviewer, GPT-6.2-Sol, review van #1164). Hoe vaak het
+     afwijkingenscherm zo'n link stuurt, is niet nagegaan. — B
+1992. **Een mislukte verdeling kan de afrondingsmelding van de herpoging opmaken.** In de verdeelroute
+     (`applyDistribution` in `src/state/slices/librarySlice.ts`, de eenmalige melding in
+     `src/state/timephasedLossNotice.ts`) kwam in de proef een slapend document met een vertraging in minuten als
+     eerste aan de beurt, en liet een tweede slapend document de schrijfronde afbreken. Bij de geslaagde herpoging
+     gingen de minuten verloren zonder melding; in dezelfde proef zonder eerdere afbreking meldde de app het verlies
+     wel. Proef van de reviewer (GPT-6.2-Sol, review van #1164). — B
 
 ## Bestanden en herstel
 
@@ -2129,13 +2143,6 @@ en noem het in je rapport of PR-tekst.
      nagegaan of die nu hangen. Richting: hetzelfde vangnet, of een `await` op het hoogste niveau. Gevonden in #864
      (fixronde 1). — B
 
-1014. **Opslaan als in de browser meldt een fout als `getFile()` na het schrijven faalt.** `saveDataDialogWeb`
-     (`src/services/fileAccess/webBackend.ts`) schrijft het bestand en vraagt daarna `handle.getFile()`, alleen voor de
-     naam. Faalt die lezing (bijvoorbeeld omdat een ander programma het bestand net vergrendelde), dan geeft de route de
-     fout door. De app meldt dan dat opslaan mislukte en zet het doel niet, maar het bestand is wel geschreven.
-     `handle.name` geeft dezelfde naam zonder te lezen. Gezien met een nep-handle in
-     `tests/planning/check-ifc-foreign-target.ts` (#864, fixronde 2); niet nagegaan in een echte browser. — S
-
 1015. Ctrl+S en Opslaan als naar een site-bestand lezen met de flag `ifcForeignContent` aan elke keer het hele bestand van
      de host (de doelcontrole van #864; de host geeft geen stroom, `src/services/fileAccess/index.ts:138`). AutoSave naar de
      site staat uit (besluit #309, `src/services/actualAutosave/fileAutoSave.ts:49-53`), dus er is geen volle download per
@@ -2175,17 +2182,6 @@ en noem het in je rapport of PR-tekst.
      liet (de testhulp van `check-ifc-target-model-scan.ts` stopte na 10^8 stukken); niet gezien met een echt bestand.
      Richting: een werkgrens in beide; in de doelcontrole met de uitkomst 'model' (niet schrijven). Gevonden in #864
      (fixronde 4). — S
-
-1019. **VERVOLG: de doelcontrole vertrouwt erop dat `seek` echt terugspoelt.** Boven 16 MiB leest
-     `src/services/ifc/foreign/targetModelScan.ts` de bron opnieuw vanaf een eerdere positie na een mislukte entiteit.
-     De eindcontrole (`targetModelScan.ts:206`) ziet alleen een bron die te vroeg eindigt. Een `seek` die succes meldt
-     maar de positie niet verandert, valt daar niet op; de Tauri-lezer kijkt niet naar de positie die `seek` teruggeeft
-     (`src/services/fileAccess/tauriBackend.ts:34`). Gezien met een nagebootste bron (Terra, ronde 5 van #864): een
-     mislukte entiteit met `IFCWALL`, ruim 18 MiB tekst en daarna nog 20 MiB; correct terugspoelen geeft `model`, de
-     nagebootste `seek` geeft `no-model` en de doelcontrole laat schrijven toe. Niet gezien met de echte plugin-fs; die
-     zou daarmee haar contract breken. De test in `tests/planning/check-ifc-target-model-scan.ts` dekt het niet: zijn bron
-     eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
-     en de lange variant in de test. Uit #864 (fase 1a). — S
 
 1020. **De writer schrijft stil `#0` bij een sleutel die hij niet kent.** `ref()` (`src/services/ifc/ifcWriter.ts:323`)
      geeft `#${idMap.get(key) || 0}`. Ontbreekt de sleutel, dan staat er een verwijzing naar `#0` in de uitvoer, zonder
@@ -4833,11 +4829,6 @@ en noem het in je rapport of PR-tekst.
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
      De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
 
-592. **De P6 XML-export meldt kleuren en resourcebeschrijvingen niet als verlies.** `src/state/p6XmlExportNotice.ts` kijkt er niet
-     naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
-     komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
-     zelf geëxporteerd door de reviewer. — B
-
 601. **VERVOLG: de nieuwe buiten-dienstregel (503) is alleen op de dagkalender getoetst.** In
      `tests/planning/check-mijlpaal-afmelden.ts`, sectie 8h, staan de gevallen ma 18:00 en ma 05:00 alleen op de
      kalender `dag`. Voeg een geval toe met een nachtdienst: ma 00:00–06:00 en di–vr 22:00–06:00. Een anker op ma
@@ -5709,14 +5700,6 @@ en noem het in je rapport of PR-tekst.
      krijgt. Er gaat niets verloren: Ctrl+S in dat tweede tabblad weigert dan met een melding (het eerste tabblad heeft
      het bestand als bron, en wat er staat is niet meer zijn bron), en Opslaan als blijft. Richting: het openen van een pad meldt zich bij de
      schrijfcoördinator zodat lezen en vervangen elkaar uitsluiten. Gevonden bij fixronde 1 van #1008, uit de code. — S
-1838. **Het kruisje van een tabblad kijkt naar de wijzigingsvlag vóór het afronden van open veldinvoer.**
-     `requestCloseDocument` (`documentSlice.ts`) leest `isDirty` en sluit een schoon document meteen via
-     `closeDocument`; die rondt pas daarna de open veldinvoer af. Staat er in een veld een getypte waarde zonder blur
-     (bijvoorbeeld op macOS, waar een klik op een knop in WebKit de focus niet verplaatst), dan wordt die waarde
-     verwerkt en direct met het tabblad weggegooid, zonder sluitvraag. Op main net zo. Afsluiten van de app rondt de
-     invoer wel eerst af (`finishPendingInput` in `appQuitController.ts`). Richting: `requestCloseDocument` rondt de
-     invoer af vóór de controle, zoals het afsluiten. Gevonden bij fixronde 2 van #1008, uit de code; niet beproefd
-     in een echte webview. — S
 1847. **VERVOLG (opruimen): de schooncontrole bij het sluiten bouwt de titels van alle tabbladen op.**
      `closeDocument(id, { onlyIfClean })` (`documentSlice.ts`) vraagt via `getOpenDocuments` de titel en het volgnummer
      van elk open document op om van één document de wijzigingsvlag te lezen. Eén zoekactie naar het doel-id, gevolgd

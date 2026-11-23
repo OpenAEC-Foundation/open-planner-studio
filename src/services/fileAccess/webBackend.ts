@@ -334,8 +334,7 @@ export async function saveDataDialogWeb(
       // maar laat 0 bytes staan (knownbug 1899). Daarom geeft de aanroeper hier alleen een late controle mee als een leeg
       // bestand beter is dan de uitvoer (fixronde 2 van #1097: een IFC-export na een tabbladwissel).
       if (!(await writeThroughHandle(handle, data, opts?.refuseBeforePlace))) return null;
-      const file = await handle.getFile();
-      return { ref: { kind: 'handle', handle }, name: file.name };
+      return { ref: { kind: 'handle', handle }, name: handle.name };
     } catch (err) {
       // Annuleren is geen fout — en mag dus ook geen download opleveren.
       if (isAbort(err)) return null;
