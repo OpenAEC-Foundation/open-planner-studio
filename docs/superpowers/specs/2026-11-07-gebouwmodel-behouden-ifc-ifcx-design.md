@@ -775,7 +775,10 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
     niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
     exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
-    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC (de planner in het venster) en `planner_export_ifc`
+    (alleen met `overwrite: true`) vervangen een bestaande naam bij een document met een vreemd deel langs dezelfde weg
+    (besluit van de eigenaar, 21 november 2026; #1179): zonder manifeststap, zonder vastleggen op het document, en niet
+    over het eigen bestand van het document.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het

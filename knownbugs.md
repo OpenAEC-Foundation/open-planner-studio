@@ -2503,14 +2503,6 @@ en noem het in je rapport of PR-tekst.
      `/tmp/fase1c-pr11b-bewijs/browser-eerste-run/`; geslaagde route en screenshot-herstel in
      `/tmp/fase1c-pr11b-bewijs/browser-vervolg-1/`. — B
 
-1569. **VERVOLG (#804, MCP-tekst): het advies van `planner_export_ifc` bij een bestaand doel klopt niet bij een vreemd
-     deel.** `src/services/mcp/tools/fileTools.ts` adviseert bij een bestaand doel zonder `overwrite` nog om
-     `overwrite: true` te sturen. Heeft het document een vreemd deel, dan blijft dat doel ook daarna geweigerd: de
-     route eist een nieuwe naam (via de dispatcher nagegaan, nul schrijfacties). De tekst van de bronweigering zegt
-     bovendien nog dat alleen planning zou worden geschreven. Richting: bij een vreemd deel meteen de uitleg "kies een
-     nieuwe naam" geven en zeggen dat veilig vervangen nog ontbreekt (1131); geen nieuwe foutklasse. Gevonden door de
-     review van #928. — B
-
 1563. **VERVOLG (#804, tekst): de algemene blokkademelding noemt de reden en de uitweg niet.**
      `notifications.ifcForeignSaveBlocked` zegt "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk." De
      planner ziet haar bij een geblokkeerde route (bijvoorbeeld pool-export of de flag uit), en ook
@@ -3142,8 +3134,9 @@ en noem het in je rapport of PR-tekst.
         `nNumberOfLinks` in `place_file_exclusive`, `unsupported`, `refused`) dezelfde zin als een bestaande naam
         (`ifcForeignNewTargetOnly`), zonder terugval. Met de flag uit zijn volgorde, meldingen en bestandsaanroepen
         die van main. Of er een bestand staat, stelt de kiezer direct na zijn terugkeer
-        vast (1890). Blijft open: Exporteren → IFC en `planner_export_ifc` over een bestaande naam (weigeren nog; de
-        vraag ligt bij de eigenaar). Niet gemeten in een echte desktopapp.
+        vast (1890). Exporteren → IFC en `planner_export_ifc` (alleen met `overwrite: true`) vervangen een bestaande
+        naam sinds #1179 langs dezelfde functie (`placeOnDesktop`, met `documentId: null`; besluit van de eigenaar, 21
+        november 2026); het eigen bestand van het document blijft daar geweigerd. Niet gemeten in een echte desktopapp.
      Proeven van stap 1: `check-file-ifc-bytes.ts` en `check-recovery-ifc-source.ts`; van stap 2:
      `check-ifc-document-save.ts` en `settings-tabs.spec.ts` (echte OPFS-handle); van stap 3: `cargo test place_file`
      en `check-place-file-exclusive.ts`; van stap 4: `check-file-ifc-bytes.ts` (elke uitkomst van het nagebootste
@@ -3732,6 +3725,15 @@ en noem het in je rapport of PR-tekst.
      generatie vast, ook de herstelde versie), doorwerken aan dat document, en bij de volgende herstelvraag uitstellen; daarna
      kwamen de oude IFC-bytes terug. `check-recovery-web-hold.ts` toetst bij een dubbel document alleen dat het één keer
      verschijnt, niet welke versie. — B
+
+2207. **VERVOLG (#804, tekst): na een crash tijdens Exporteren → IFC over een bestaande naam heet de bewaarde export
+     "niet opgeslagen planning".** De export vervangt een bestaand bestand langs dezelfde vervanging als Opslaan als
+     (`replaceOwnPathWithRecovery` met `documentId: null`). Crasht de app tussen het aanmaken van het tijdelijke bestand
+     en het plaatsen, dan zet de volgende start de vorige versie terug en bewaart de onvoltooide export als
+     `<naam> (niet opgeslagen planning <datum tijd>).ifc` (`settleReplaceRemnants`, `ifcForeignReplaceUnsavedCopy`). Er
+     gaat niets verloren en de planning in de app was niet opgeslagen, maar het woord past niet bij een export. Het
+     herstelrecord weet niet of het een export was; een eigen naam vraagt een veld in het record. Voorlopige keuze P5 van
+     de bouwopdracht van #1179; proef: de crashgevallen van Exporteren in `check-ifc-own-file-replace.ts`. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
