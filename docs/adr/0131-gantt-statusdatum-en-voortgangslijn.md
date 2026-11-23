@@ -18,8 +18,8 @@ zelf een lijn op dezelfde x in dezelfde kleur. Twee lijnen op elkaar gaven een s
 - De voortgangslijn tekent per zichtbare rij een eigen subpad. Zo begint het streepjespatroon per rij opnieuw en
   loopt een uitstulping vanaf het voortgangspunt naar de lijn, zodat er een streepje op de punt staat. Er is geen
   hoekverbinding: een `miter`-hoek stak bij een spitse uitstulping tot ongeveer 10 px voorbij de voortgangsgrens.
-- Alleen een bladtaak die geen nulduurmijlpaal is, stulpt uit; een mijlpaal met duur tekent als balk en stulpt dus
-  wel uit. Rijen van een samenvatting, een band of een nulduurmijlpaal volgen de lijn recht. Een taak stulpt niet
+- Een uitstulping kan er zijn bij een bladtaak die geen nulduurmijlpaal is; een mijlpaal met duur tekent als balk en
+  kan dus uitstulpen. Rijen van een samenvatting, een band of een nulduurmijlpaal volgen de lijn recht. Een taak stulpt niet
   uit als hij helemaal klaar is en uiterlijk op de statusdatum eindigt, of als hij geen voortgang heeft en op of na
   de statusdatum begint.
 - In dagmodus vergelijkt de voortgangslijn per UTC-dag (`utcDayStart`), in uurmodus op het tijdstip van balk en

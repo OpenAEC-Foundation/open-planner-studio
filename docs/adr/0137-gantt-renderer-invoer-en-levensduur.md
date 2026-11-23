@@ -1,12 +1,13 @@
 # Invoer en levensduur van de Gantt-renderer
 
 Elke tekening van een Gantt-pane maakt een nieuwe `GanttRenderer` (`renderGantt` in `useGanttRendererHost.ts`), met
-alles wat hij nodig heeft als opties uit `buildGanttRenderOptions`. De
-renderer leest geen store en geen CSS: de rijen zijn de gedeelde `viewRows` uit de store (hij vouwt zelf niets
-uit, zodat rij i in de tabel en in de Gantt dezelfde rij is, bandkoppen inbegrepen), het palet komt mee of uit
-`readGanttPalette()`, en lettertype en tekstschaal komen als `fontFamily` en `fontScale` mee, omdat een canvas geen
-CSS-variabelen leest. Zo is hij zonder DOM te testen. Wat tussen frames bewaard moet blijven, staat daarom op
-moduleniveau, niet op de instantie.
+alles wat hij nodig heeft als opties uit `buildGanttRenderOptions`. Wat tussen frames bewaard moet blijven, staat
+daarom op moduleniveau, niet op de instantie. De renderer leest de store niet zelf: de rijen zijn de gedeelde
+`viewRows` uit de store (hij vouwt zelf niets uit, zodat rij i in de tabel en in de Gantt dezelfde rij is,
+bandkoppen inbegrepen). Lettertype en tekstschaal komen als `fontFamily` en `fontScale` mee, omdat een canvas geen
+CSS-variabelen leest. Het palet komt mee als `palette`, of de constructor leest het met `readGanttPalette()`, dat de
+CSS-variabelen van `document.documentElement` opvraagt. De gewone Gantt geeft geen palet mee (`GanttCanvas`) en leest
+dus CSS; een test zonder DOM kan de renderer draaien als hij een palet meegeeft.
 
 ## Gevolgen
 
@@ -22,9 +23,6 @@ moduleniveau, niet op de instantie.
   `outsideNameSpans`) wordt per render geleegd en gaat dus over de laatste tekening.
 - De tijdas komt van buiten als `axis`: `GanttCanvas` geeft de primaire Gantt en de `HistogramRenderer` dezelfde
   instantie, anders staan de staafjes van de belasting onder andere kolommen dan de balken. Zonder `axis` (de tweede
-  pane, tests) bouwt de renderer er zelf een. Elke datum gaat via `dateToX` van die as.
+  pane, tests) bouwt de renderer er zelf een. De x van een datum komt van die as (`dateToX`).
 - `GanttCanvas` schaalt rij- en kophoogte met dezelfde factor als `fontScale`, zodat grotere tekst ook ruimte krijgt.
-  De renderer stelt elk font samen via `canvasFont` met een tekstrol (`font()`).
-- De tekenvolgorde in `render()` is: raster, vandaaglijn, relatiepijlen, balken, feestdagnamen, duurpilletje,
-  tijdschaalkop, voortgangslijn, statusdatumlijn en statusdatumlabel. De volgorde draagt de besluiten van
-  ADR 0130, 0131, 0132 en 0136.
+  De renderer stelt zijn fonts samen via `canvasFont` met een tekstrol (`font()`).

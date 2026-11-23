@@ -30,7 +30,15 @@ normale balk een rand. In licht en donker blijft de kleur het enige signaal.
   waarschuwing.
 - Een gedimde rij in een filter (de ouderketen) tekent op 0,45, een taak buiten een trace op 0,25.
 - In een ingeklapte mijlpalenreeks staan mijlpalen op dezelfde dag als één ruitje (`milestoneGroups.ts`). Dat
-  ruitje is gekozen als één lid gekozen is, gedimd als alle leden buiten de trace vallen, heeft de trace-tint van het
-  eerste lid in de trace en de kleur van een kritiek lid als er een is. De naam van een ruitje kapt af vóór het
+  ruitje is gekozen als één lid gekozen is, gedimd als alle leden buiten de trace vallen en heeft de trace-tint van
+  het eerste lid in de trace. Voor de tekenstijl gaat er in twee stappen een lid naar `drawMilestone`: eerst kiest
+  `drawMilestoneRun` een kritiek lid als er een is, anders de voorman; daarna volgt de vulling de gewone
+  mijlpaalregel voor dat lid. In de modus kritiek pad is dat de mijlpaalkleur, ook voor een kritiek lid; in een
+  andere modus het kleuradvies van `computeBarColors` voor dat lid. De naam van een ruitje kapt af vóór het
   volgende ruitje; de datum vervalt als hij daar niet past. Een mijlpaalnaam is hooguit 200 px breed.
+- Geeft het kleuradvies stukken (`segments`, zoals bij kleur per resource), dan lopen de kleurintervallen over de
+  hele balk, van begin tot einde. Een werkstuk van een gesplitste of ingesnoerde balk tekent alleen zijn overlap met die intervallen, zodat
+  een pauze open blijft en de kleurverdeling na een pauze niet opnieuw begint.
+- Een samenvattingsbalk draagt zijn naam rechts achter de balk, ook als hij erin past (issue #729): op de dunne
+  fasebalk is tekst slecht leesbaar.
 - Constraintpins en de aantekeningstip staan op de dagrand, ook bij een uurtaak (knownbug 1977).

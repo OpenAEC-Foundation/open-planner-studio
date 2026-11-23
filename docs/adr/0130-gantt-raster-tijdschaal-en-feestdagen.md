@@ -36,7 +36,7 @@ banden bij scrollen niet verspringen (`check-week-banding`).
 - Feestdagnamen (`drawHolidayLabels`) worden ná de taakbalken getekend: de naam verklaart een balk die over een
   feestdagblok is opgerekt, en een balk mag hem dus niet overschilderen. Een blok krijgt een naam vanaf drie
   dagbreedtes, als er minstens één dagbreedte van zichtbaar is. Vanaf 70 px staat de naam horizontaal: gecentreerd
-  als hij in het zichtbare deel past, anders links op de blokstart, zodat het begin van het woord leesbaar blijft.
-  Smaller staat hij verticaal langs de linkerrand. In beide gevallen wordt de naam op het zichtbare deel geknipt,
-  niet samengeknepen. Op de gecomprimeerde as tekent de renderer geen feestdagnamen: het blok heeft daar geen
+  in het zichtbare deel als hij daarin past; een langere naam begint op de oorspronkelijke blokstart en wordt op het
+  zichtbare deel afgeknipt, ook als die blokstart links buiten beeld ligt. Smaller staat hij verticaal langs de
+  linkerrand van het zichtbare deel. In beide gevallen wordt de naam geknipt, niet samengeknepen. Op de gecomprimeerde as tekent de renderer geen feestdagnamen: het blok heeft daar geen
   breedte.

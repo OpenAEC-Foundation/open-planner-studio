@@ -8,8 +8,8 @@ voor de kop) knipt het vanzelf tegen de tijdschaalkop.
 
 ## Gevolgen
 
-- `GanttCanvas` geeft `durationDrag` alleen door bij een randsleep. Bij verplaatsen verandert de duur niet, en een
-  meelopend cijfer zou suggereren dat het gebaar hem verandert.
+- `GanttCanvas` geeft `durationDrag` door bij een randsleep en niet bij verplaatsen, en alleen aan de primaire pane.
+  Bij verplaatsen verandert de duur niet, en een meelopend cijfer zou suggereren dat het gebaar hem verandert.
 - Plaatsing: bij de rechterrand in de balk, en erbuiten als het daar niet past; bij de linkerrand buiten de balk,
   want daarbinnen staat de naam, en erin als links geen ruimte is. Daarna geklemd op het canvas; is het canvas
   smaller dan het pilletje, dan wint de linkerkant.

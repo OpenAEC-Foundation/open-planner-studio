@@ -27,9 +27,10 @@ trap door de goten. Bewaking: `check-arrow-routing`.
   trace is fijn gestippeld én doorzichtig (0,15), zodat het onderscheid blijft waar alpha of kleur wegvalt (hoog
   contrast, geforceerde kleuren).
 - Het anker (`relationAnchorX`) ligt bij een taak met alleen datums op de dagcelrand: het begin van de startdag of
-  het einde van de einddag. Heeft start of einde een tijd, dan op de balkrand uit `barGeometry`. Een lid van een
-  groep mijlpalen op dezelfde dag ankert op het ruitje van de groep, en twee leden van dezelfde groep krijgen geen
-  pijl.
+  het einde van de einddag. Heeft start of einde een tijd, dan op de balkrand uit `barGeometry`. Dat geldt ook voor
+  een nulduurmijlpaal: een dagmijlpaal ankert op de rand van zijn dagcel, niet op het midden van de ruit. Voor een
+  lid van een groep mijlpalen op dezelfde dag neemt `relationAnchorX` eerst de voorman en rekent daarna met diens
+  dagcel- of balkrand. Twee leden van dezelfde groep krijgen geen pijl.
 - Staat een taak op meer rijen (groeperen), dan krijgt de eerste rij (`firstRowIndexByTask`) de pijlen en de rest
   niet.
 - Afkappen op de rij gebeurt vóór alles, met een marge van een halve rij plus 8 px: bij voorganger en opvolger op
