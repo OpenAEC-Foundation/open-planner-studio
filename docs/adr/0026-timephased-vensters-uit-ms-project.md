@@ -20,10 +20,11 @@ anders de gewone duur.
   klemt de finish op de start. In het corpus nooit gezien; vastgelegd in `cases-advanced-cpm.json`.
 - Een wandeling telt `workMinutes` als dat gezet is, anders de volle taakduur; het pad toetst dat per item, nooit aan
   de lengte van de lijst. Een resourcekalender zonder werktijd slaat het item over.
-- Met meerdere toewijzingen rekent de lezer de eigen werktijd uit voor elke toewijzing die de duur stuurt, via
-  `decodeAssignmentWorkMinutes` en `assignmentRemainingMinutes`. Een materiaal- of kostenresource telt daar niet
-  mee. Bij één toewijzing volgt de wandeling de actuele taakduur. Een bewerking die de duur verandert wist een
-  wandeling met bevroren importwerk via `clearTimephasedDurationWalks`.
+- `deriveTimephasedWindowsForTasks` telt kandidaten voor een wandeling, ook als de taak meer
+  toewijzingen heeft. Eén kandidaat wandelt de actuele taakduur. Bij meerdere kandidaten rekent de lezer via
+  `decodeAssignmentWorkMinutes` en `assignmentRemainingMinutes` de werktijd uit van elke kandidaat die
+  de duur stuurt. Dat geldt ook als er na het filteren één overblijft. Een duurbewerking wist een wandeling
+  met bevroren importwerk via `clearTimephasedDurationWalks`.
 - Een wortel met een gelezen toewijzingsstart start daar rauw: MS Project bewaart op toewijzingsniveau een ongesnapt
   moment dat buiten de taakkalender en binnen de resourcekalender kan liggen (een "Night Shift"-resource om 23:00);
   `ownAnchor` zou dat snappen. Uitzondering: is het eigen anker van de wortel een rauw blokeinde (ADR 0014), dan

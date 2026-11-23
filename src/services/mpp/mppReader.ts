@@ -1279,35 +1279,9 @@ export function deriveTimephasedContoursForTasks(
   return contoursByTask;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// GELAAGDE BESLISKOLOM per taak: timephased-venster (gelezen) vs. herberekening. Een gelezen
-// `AssignmentField.FINISH` reageert niet op latere edits; een onvoorwaardelijke venster-override
-// zou de motor ná import bevriezen en alleen de import naspiegelen. De regel, in volgorde:
-//   1. `time.completion >= 1` (VOLTOOID) ⇒ geen venster; `CPMSolver.ts` plant op actuals.
-//   2. `0 < completion < 1` (IN-PROGRESS) ⇒ geen venster; de resume/actuals-paden zijn de bron.
-//   3. ≥1 ÉCHTE gedecodeerde timephased-periode (Format A/B, zonder `referenceFinish`, dus het
-//      vlakke `blockCount===0`-samenvattingsrecord telt NIET) ⇒ `timephasedFinishFloor`/
-//      `timephasedStartAnchor`: MSP's eigen `AssignmentField.FINISH`/`START` rechtstreeks gelezen
-//      (geen kalenderwandeling; 0 afwijkingen op de contour-taken in het corpus).
-//   5. Anders ⇒ geen van beide velden, de gewone duurberekening.
-// Lagen 3 en 4 zijn MUTUEEL EXCLUSIEF per taak; lagen 1/2 zetten geen laag-3-veld, dus de
-// VOLTOOID-/IN-PROGRESS-takken van `CPMSolver.ts` hoeven dat niet te raadplegen.
-//
-// Weerlegd: (a) een onvoorwaardelijke venster-override; (b) een kalenderwandeling op de som van
-// `workMinutes` als vervanger van de duurwandeling voor de hele populatie — periodes dragen voor de
-// vlakke meerderheid alleen een totaalwerk, en MSPDI bevestigt dat `<Work>` en `<Duration>`
-// verschillende grootheden zijn (de werkverdeling bij >1 toewijzing is een andere vraag); (c) een
-// fout in de uid→taak-brug — de koppeling is een schone 1:1-reeks.
-//
-// SAMENVATTINGSTAKEN: uitgesloten — MSP toont geen contour-eigen venster op een WBS-samenvatting,
-// haar datums komen uit de rollup.
 export interface TimephasedWindowResult {
   finishFloor: Date | null;                 // laag 3
   startAnchor: Date | null;                 // lagen 3+4 (vroegste anker)
-  /** laag 4. `workMinutes` ONTBREEKT bij precies 1 toewijzing (de wandeling gebruikt dan de volle
-   *  `task.time.durationMinutes`) en is GEZET bij >1 toewijzing: de werktijd van die toewijzing in
-   *  werkminuten, haar gedecodeerde werk ÷ haar inzet (`decodeAssignmentWorkMinutes`,
-   *  `assignmentRemainingMinutes`). Bij inzet 1 is dat haar werk. */
   durationWalks: { anchor: Date; resourceCalendarId: string; workMinutes?: number }[];
 }
 
