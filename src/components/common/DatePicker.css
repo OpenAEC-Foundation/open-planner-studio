@@ -158,13 +158,16 @@
   background: var(--theme-hover);
 }
 
+.ops-date-input__gap {
+  flex: 1 0 var(--sp-1);
+}
+
 /* De knop in het datumveld zelf. */
 .ops-date-input__picker {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-inline-start: auto;
   padding: 0 2px;
   align-self: stretch;
   border: none;

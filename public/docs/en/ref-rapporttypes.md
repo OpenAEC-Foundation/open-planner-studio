@@ -34,13 +34,14 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Which tasks** — which rows go on paper. Choose from *All tasks*, *As in the view* and a layout. Default: *All tasks*. Effect: *All tasks* gives the whole task tree. *As in the view* takes the filter, grouping, sorting, collapsed groups, columns and bar colours of your Gantt chart. A layout sets the rows with its filter, grouping and sorting; your Gantt chart does not change.
 
-**Per resource** — only with a layout that groups by resource, like the built-in *Resource diagram*. Each resource gets its own band, with its tasks below it by start. The block counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The relation lines are then off, because a task can appear under more than one band, and *Critical path* stays on. With these four switches and the period:
+**Custom period** — the time span on paper, for every choice at *Which tasks*. Default: off, so the whole duration of the project. Effect: on gives *From* and *To*, starting at the first start and the last finish of the schedule. Then only the tasks that touch the period are on paper, and the time axis runs exactly over the period; a bar or relation line that runs beyond it is cut off at the edge. A phase stays as long as one of its tasks falls in it. Below it says how many tasks fall outside the period. If nothing is in the period, it says *No tasks in the custom period — choose other dates or turn off Custom period.* See [Choosing the reporting period](docs://howto-rapportageperiode-kiezen).
+
+**Per resource** — only with a layout that groups by resource, like the built-in *Resource diagram*. Each resource gets its own band, with its tasks below it by start. The block counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The relation lines are then off, because a task can appear under more than one band, and *Critical path* stays on. With these four switches:
 
 - **Each resource on a new page** — Default: off. Effect: each resource starts on a new page, so you can hand out one sheet per crew or employee.
 - **Include tasks without a resource** — Default: off. Effect: the tasks without a resource come as the last band, to see what nobody has yet.
 - **Group by resource type** — Default: off. Effect: first a band per resource type (labour, crew, subcontractor, equipment, material), within it per resource.
 - **Show units/day and curve** — Default: on. Effect: the *Units/d* and *Curve* columns after the task name. If there is too little room for the timeline, the report leaves the columns out and says *The Units/d and Curve columns were left out: …*.
-- **Reporting period** — Default: *Project duration*. Effect: only the tasks that touch the period, and the time axis runs exactly over the period. If nothing is in the period, it says *No tasks in the reporting period — choose another period or Project duration.*
 
 ### Columns
 
@@ -217,7 +218,7 @@ The columns include *WBS*, *Name*, *Start*, *Finish*, *Baseline start*, *Baselin
 
 ## Reporting period
 
-Four table reports and the Resource diagram layout of the Gantt chart work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Resource diagram*. Each report remembers its own period. Below the drop-down are *From* and *To*, with the dates the choice produces.
+Four table reports work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading* and *Resource assignments*. Each report remembers its own period. Below the drop-down are *From* and *To*, with the dates the choice produces. The Gantt chart, also with the Resource diagram layout, has no drop-down but the checkbox *Custom period* (see above).
 
 **Reference day.** A period with *Next* or *Last* counts from the status date of the project, or from today if there is no status date. Then the table reports say *No status date set — the report uses today (…).* If you move the status date, the window moves along. Both days count.
 

@@ -178,10 +178,9 @@ export function useStudioPrintOptions(
       companyName,
       taskNameColumnWidth: settings.truncateTaskNames ? settings.taskNameColumnWidth : (autoNameWidth ?? settings.taskNameColumnWidth),
       labels: {
-        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt, niet "geen taken".
         noTasks: resource && tasks.length > 0
           ? (resource.result.counts.inPeriod === 0 && resource.result.counts.outsidePeriod > 0 ? t('resourceGantt.emptyPeriod') : t('resourceGantt.empty'))
-          : t('noTasks'),
+          : rowSource.window && tasks.length > 0 && reportRows?.length === 0 ? t('resourceGantt.emptyPeriod') : t('noTasks'),
         printed: t('printed'),
         legend: {
           criticalPath: t('legend.criticalPath'),
@@ -256,5 +255,5 @@ export function useStudioPrintOptions(
     project.endDate, project.author, project.statusDate, dateNotation, timeNotation, weekStartDay, cpmResult, barColorSelection,
     fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, customTaskTypes, resources, assignments, baselineOverlay,
     baselineComparisons, baselineNames, columnWidths, tableColumns, durationDisplay, durationSuffixes, calendars,
-    workdayDurationMeasure, fontStack, rowFields, resource, curveLabels, curveColumnWidth, tasks.length]);
+    workdayDurationMeasure, fontStack, rowFields, resource, curveLabels, curveColumnWidth, tasks.length, rowSource.window, reportRows]);
 }

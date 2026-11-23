@@ -3,7 +3,8 @@ import { contourSiblings, isCostResource, type Resource, type ResourceAssignment
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
 import { RESOURCE_TYPE_BAND_ORDER, resourceTypeRank } from '@/engine/view/filterEval';
 import { type AssignmentCurveState, assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
-import { overlapsWindow, taskFinish, taskStart } from './reportCommon';
+import { taskStart } from './reportCommon';
+import { taskInPeriod } from './reportPeriodRows';
 import type { ResolvedPeriod } from './reportingPeriod';
 
 /**
@@ -185,11 +186,8 @@ export function computeResourceGanttRows(
   opts: ResourceGanttRowsOptions,
 ): ResourceGanttRowsResult {
   const allLeaves = ctx.tasks.filter(t => t.childIds.length === 0);
-  const inWindow = (t: Task): boolean => {
-    if (!opts.window) return true;
-    return taskStart(t) !== '' && taskFinish(t) !== '' && overlapsWindow(t, opts.window.from, opts.window.to);
-  };
-  const leaves = allLeaves.filter(inWindow);
+  const { window } = opts;
+  const leaves = window ? allLeaves.filter(t => taskInPeriod(t, window)) : allLeaves;
   const leafById = new Map(leaves.map(t => [t.id, t]));
   const resourceIds = new Set(ctx.resources.map(r => r.id));
 

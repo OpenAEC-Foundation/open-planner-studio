@@ -149,7 +149,7 @@
     "groupByType": "Gruppera efter resurstyp",
     "showAssignmentColumns": "Visa enh./d och kurva",
     "columnsDropped": "Kolumnerna Enh./d och Kurva är utelämnade: tabellen lämnade för lite utrymme för tidsaxeln. Mer utrymme ger större papper eller liggande läge, en mindre teckenstorlek eller en smalare tabell.",
-    "emptyPeriod": "Inga uppgifter i rapportperioden — välj en annan period eller Hela projektet.",
+    "emptyPeriod": "Inga uppgifter i den egna perioden — välj andra datum eller stäng av Egen period.",
     "outsidePeriod": "Utanför perioden:",
     "empty": "Inga resurstilldelningar — tilldela resurser till uppgifter först.",
     "resources": "Resurser:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} sida",
     "pages_other": "{{count}} sidor",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Rapporteringsperiod",
     "tasks": {
       "title": "Vilka uppgifter",
       "all": "Alla uppgifter",
@@ -646,6 +645,12 @@
       "chart": "Balkar och tidslinje",
       "footer": "Teckenförklaring och sidfot",
       "page": "Sida"
+    },
+    "period": {
+      "hint": "Endast uppgifter i den här perioden finns med i rapporten. Tidslinjen täcker exakt perioden; en stapel som sträcker sig utanför den kapas vid kanten.",
+      "outside_one": "{{count}} uppgift ligger utanför perioden och finns inte med i rapporten.",
+      "outside_other": "{{count}} uppgifter ligger utanför perioden och finns inte med i rapporten.",
+      "own": "Egen period"
     }
   },
   "customFont": {

@@ -151,7 +151,7 @@
     "groupByType": "Grupare pe tip de resursă",
     "showAssignmentColumns": "Afișare unități de atribuire/zi și curbă",
     "columnsDropped": "Coloanele Unit./zi și Curbă au fost omise: tabelul lăsa prea puțin spațiu pentru axa timpului. Mai mult spațiu oferă hârtie mai mare sau orizontală, o dimensiune de text mai mică sau un tabel mai îngust.",
-    "emptyPeriod": "Nicio activitate în perioada raportului — alegeți altă perioadă sau Întregul proiect.",
+    "emptyPeriod": "Nicio activitate în perioada proprie — alegeți alte date sau dezactivați Perioadă proprie.",
     "outsidePeriod": "În afara perioadei:",
     "empty": "Nicio atribuire de resurse — atribuiți mai întâi resurse activităților.",
     "resources": "Resurse:",
@@ -470,7 +470,6 @@
     "pages_few": "{{count}} pagini",
     "pages_other": "{{count}} de pagini",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Perioada raportului",
     "tasks": {
       "title": "Ce activități",
       "all": "Toate activitățile",
@@ -671,6 +670,13 @@
       "chart": "Bare și cronologie",
       "footer": "Legendă și subsol",
       "page": "Pagină"
+    },
+    "period": {
+      "hint": "În raport apar doar activitățile din această perioadă. Cronologia acoperă exact perioada; o bară care depășește perioada este tăiată la margine.",
+      "outside_one": "{{count}} activitate este în afara perioadei și nu apare în raport.",
+      "outside_few": "{{count}} activități sunt în afara perioadei și nu apar în raport.",
+      "outside_other": "{{count}} de activități sunt în afara perioadei și nu apar în raport.",
+      "own": "Perioadă proprie"
     }
   },
   "customFont": {

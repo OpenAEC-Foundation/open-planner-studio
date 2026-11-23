@@ -31,6 +31,7 @@ import {
 } from '@/engine/reports/reportingPeriod';
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontChoice } from '@/services/pdf/reportFont';
+import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 
 /** De `localStorage`-sleutel van de rapportinstellingen. */
 const LOCAL_KEY = 'ops-reportSettings';
@@ -105,22 +106,10 @@ export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
 export const TABLE_REPORT_PERIOD_KEYS = ['lookAheadPeriod', 'progressPeriod', 'resourceLoadPeriod', 'resourceAssignmentPeriod'] as const;
 export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
 
-/**
- * Opties van het resourcediagram. `pageBreakPerResource` = "een blad per persoon":
- * elke resource begint op een nieuwe pagina, zodat je per ploeg of medewerker één vel kunt
- * uitdelen; uit = één doorlopend overlegdocument. `includeUnassigned` neemt de taken zonder
- * resource als laatste band mee — handig om in een overleg te zien wat nog niemand heeft.
- * `groupByType` zet er een laag boven: eerst een band per resourcetype (arbeid, ploeg,
- * onderaannemer, materieel, materiaal), daarbinnen per resource. `period` is de gedeelde
- * rapportageperiode: alleen taken die het venster raken, en de tijdas exact op het venster; default
- * `project` = de hele projectspanne. `showAssignmentColumns` zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
- * de band — standaard aan: dat is de informatie waarvoor je dit rapport uitdeelt.
- */
 export interface ResourceGanttReportOptions {
   pageBreakPerResource: boolean;
   includeUnassigned: boolean;
   groupByType: boolean;
-  period: ReportingPeriod;
   showAssignmentColumns: boolean;
 }
 
@@ -128,7 +117,6 @@ export const DEFAULT_RESOURCE_GANTT_OPTIONS: ResourceGanttReportOptions = {
   pageBreakPerResource: false,
   includeUnassigned: false,
   groupByType: false,
-  period: { preset: 'project' },
   showAssignmentColumns: true,
 };
 
@@ -209,6 +197,8 @@ export interface ReportSettings {
    * `reportType: 'resourceGantt'` opent als die layout. Zie `reportTaskSource`.
    */
   layoutId: string;
+  period: ReportingPeriod;
+  legacyResourcePeriod?: ReportingPeriod;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
   /**
@@ -267,6 +257,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   statusLine: 'none',
   followView: false,
   layoutId: '',
+  period: { preset: 'project' },
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
@@ -388,6 +379,28 @@ export function parseTableReportOptions(raw: unknown): TableReportOptions {
   };
 }
 
+function parseGanttPeriod(s: Record<string, unknown>): Pick<ReportSettings, 'period' | 'legacyResourcePeriod'> {
+  const project: ReportingPeriod = { preset: 'project' };
+  const period = s.period !== undefined ? parseReportingPeriod(s.period, project) : project;
+  const pending = s.legacyResourcePeriod !== undefined ? parseReportingPeriod(s.legacyResourcePeriod, project) : undefined;
+  if (pending) return pending.preset === 'project' ? { period } : { period, legacyResourcePeriod: pending };
+  const rg = s.resourceGantt && typeof s.resourceGantt === 'object' ? s.resourceGantt as Record<string, unknown> : null;
+  if (s.period !== undefined || rg?.period === undefined) return { period };
+  const legacy = parseReportingPeriod(rg.period, project);
+  if (legacy.preset === 'project') return { period };
+  if (s.reportType === 'resourceGantt' || s.layoutId === RESOURCE_DIAGRAM_LAYOUT_ID) return { period: legacy };
+  return { period, legacyResourcePeriod: legacy };
+}
+
+export function legacyPeriodPatch(settings: Pick<ReportSettings, 'legacyResourcePeriod'>, resourceSource: boolean): Partial<ReportSettings> | null {
+  if (!settings.legacyResourcePeriod || !resourceSource) return null;
+  return { period: settings.legacyResourcePeriod, legacyResourcePeriod: undefined };
+}
+
+export function periodChoicePatch(period: ReportingPeriod): Partial<ReportSettings> {
+  return { period, legacyResourcePeriod: undefined };
+}
+
 function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
   const d = DEFAULT_RESOURCE_GANTT_OPTIONS;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...d };
@@ -396,7 +409,6 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
     pageBreakPerResource: parseBoolean(s.pageBreakPerResource) ?? d.pageBreakPerResource,
     includeUnassigned: parseBoolean(s.includeUnassigned) ?? d.includeUnassigned,
     groupByType: parseBoolean(s.groupByType) ?? d.groupByType,
-    period: parseReportingPeriod(s.period, d.period),
     showAssignmentColumns: parseBoolean(s.showAssignmentColumns) ?? d.showAssignmentColumns,
   };
 }
@@ -482,6 +494,7 @@ function parseReportSettings(raw: unknown): ReportSettings {
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
+    ...parseGanttPeriod(s),
     // `previewZoom` en `previewQuality` van de oude rasterpreview (vóór #817) lezen we niet meer; bij het
     // volgende opslaan vallen ze weg.
     tableReports: parseTableReportOptions(s.tableReports),
