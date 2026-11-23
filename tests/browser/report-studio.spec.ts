@@ -650,7 +650,8 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(async () => (await saved()).layoutId).toBe('');
-  const oldPeriod = { preset: 'custom', from: '2026-09-08', to: '2026-09-18' };
+  await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-14'));
+  const oldPeriod = { preset: 'next2Weeks' };
   await refreshStored({ period: undefined, resourceGantt: { ...(await saved()).resourceGantt, period: oldPeriod } });
   await expect(ownPeriod).not.toBeChecked();
   const depsBefore = (await saved()).showDeps;
@@ -663,26 +664,25 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await rdChoice.click();
   await expect(ownPeriod).toBeChecked();
   await expect.poll(async () => { const s = await saved(); return [s.period, s.legacyResourcePeriod]; }).toEqual([oldPeriod, undefined]);
-  for (const [which, day] of [[/^(From|Van)$/, '08'], [/^(To|Tot)$/, '18']] as const) {
-    const parts = page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: which }).getByRole('textbox');
-    await expect(parts.nth(0)).toHaveValue(day);
-    await expect(parts.nth(1)).toHaveValue('09');
-    await expect(parts.nth(2)).toHaveValue('2026');
-  }
   const shownFrom = ganttPeriod.getByRole('group', { name: /^(From|Van)$/ }).getByRole('textbox');
   const shownTo = ganttPeriod.getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
-  await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-14'));
-  await refreshStored({ period: { preset: 'next2Weeks' } });
-  await expect(ownPeriod).toBeChecked();
   await expect(shownFrom.nth(0)).toHaveValue('14');
+  await expect(shownFrom.nth(1)).toHaveValue('09');
+  await expect(shownFrom.nth(2)).toHaveValue('2026');
   await expect(shownTo.nth(0)).toHaveValue('27');
+  await expect(page0.locator('text', { hasText: /^September 2026$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^(October|Oktober) 2026$/ })).toHaveCount(0);
   await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-21'));
   await expect(shownFrom.nth(0)).toHaveValue('21');
   await expect(shownTo.nth(0)).toHaveValue('04');
   await expect(shownTo.nth(1)).toHaveValue('10');
+  await expect(page0.locator('text', { hasText: /^(October|Oktober) 2026$/ }).first()).toBeAttached();
   await refreshStored({});
   await expect(shownFrom.nth(0)).toHaveValue('21');
-  expect((await saved()).period).toEqual({ preset: 'next2Weeks' });
+  expect((await saved()).period).toEqual(oldPeriod);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await expect(page.locator('[data-rs-summary="tasks"]')).toContainText(/21.*04/);
+  await openStep(page, 'tasks');
   await shownTo.nth(0).fill('02');
   await page.keyboard.press('Tab');
   await expect.poll(async () => (await saved()).period).toEqual({ preset: 'custom', from: '2026-09-21', to: '2026-10-02' });
