@@ -8,9 +8,9 @@ en noem het in je rapport of PR-tekst.
 
 - Onderaan in de passende sectie, met het volgende vrije nummer. Nummers worden nooit hergebruikt, ook niet
   na een fix (andere teksten verwijzen ernaar).
-- Eén punt: **wat er misgaat** (vetgedrukt, kort), dan waar (de functie en het bestand, een scherm of een stap) en
-  hoe je het zag, en een voorstel als je er een hebt. Een regelnummer hoogstens daarnaast: het verschuift bij elke
-  merge. Sluit af met de zekerheid:
+- Eén punt: **wat er misgaat** (vetgedrukt, kort), dan waar (de functie en het bestand, bij een bestand zonder
+  functie de kop of de sleutel, een scherm of een stap) en hoe je het zag, en een voorstel als je er een hebt. Een
+  regelnummer is hoogstens aanvullend. Sluit af met de zekerheid:
   - **B** = bevestigd: nagespeeld in de app, met een test of script, of door een tweede agent in de code
     gecontroleerd.
   - **S** = alleen gemeld: gezien of afgeleid, maar niet onafhankelijk getoetst.
