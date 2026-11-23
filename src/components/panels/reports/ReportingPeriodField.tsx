@@ -135,7 +135,7 @@ export function CustomPeriodDates({ id, period, onChange, dataKey, compact = fal
               setDraft(next);
               if (which === 'from') commit(next, draftTo); else commit(draftFrom, next);
             }}
-            className={compact ? 'input w-full !text-small !leading-4 !px-2.5 !py-1.5' : 'input w-full !text-small !leading-4 !px-2 !py-1'}
+            className={compact ? 'input w-full !text-small !leading-4 !px-2 !py-1.5' : 'input w-full !text-small !leading-4 !px-2 !py-1'}
             invalid={invalid}
           />
         </span>

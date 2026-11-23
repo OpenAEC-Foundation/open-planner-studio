@@ -595,6 +595,7 @@ export function DateTextInput({
             />
           </Fragment>
         ))}
+        <span aria-hidden="true" className="ops-date-input__gap" />
         <button
           ref={pickerButtonRef}
           type="button"
