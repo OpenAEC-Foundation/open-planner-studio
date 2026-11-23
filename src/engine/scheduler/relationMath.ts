@@ -463,8 +463,10 @@ function forwardHour(
         // lag"-situatie als de WORKTIME-tak hieronder, zodat een elapsed-FS-eindmijlpaal op de rauwe
         // instant landt. Geen `lagIsZero`-vergelijking nodig: 0 klok-minuten is geen verschuiving.
         // Anker is het voorgangereinde rechtstreeks (`elapsed-day-to-hour` in cases-hours.json).
-        const target = new Date(predResult.ef.getTime() + elapsedMin());
-        if (succIsFinishMs && elapsedMin() === 0) return target;
+        const lagMinutes = elapsedMin();
+        const target = new Date(predResult.ef.getTime() + lagMinutes);
+        if (succElapsed && lagMinutes > 0) return target;
+        if (succIsFinishMs && lagMinutes === 0) return target;
         if (succIsFinishMs) {
           const back = deps.snapOnOrBefore(se, target);
           // Kalendertijd bewaart de kloktijdgrens: nul werkminuten maakt ma 16:00 en di 08:00
