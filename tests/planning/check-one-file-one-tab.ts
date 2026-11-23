@@ -1265,11 +1265,13 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         let held = false, reads = 0;
         const outer = internals.invoke;
         internals.invoke = async (command, args, options) => {
-          if (/^plugin:fs\|read_(text_)?file$/.test(command) && (args as { path?: string } | undefined)?.path === kantoor) {
-            reads++;
-            if (!held) { held = true; reached.open(); await release.wait; }
+          if (!/^plugin:fs\|read_(text_)?file$/.test(command) || (args as { path?: string } | undefined)?.path !== kantoor) {
+            return outer(command, args, options);
           }
-          return outer(command, args, options);
+          reads++;
+          const result = await outer(command, args, options);
+          if (!held) { held = true; reached.open(); await release.wait; }
+          return result;
         };
         return { reached: reached.wait, release: release.open, reads: () => reads, stop: () => { internals.invoke = outer; } };
       };
