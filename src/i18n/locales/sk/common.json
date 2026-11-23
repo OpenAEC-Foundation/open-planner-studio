@@ -100,6 +100,7 @@
     "importDatesAsRecorded_other": "{{count}} úloh zobrazuje dátumy tak, ako sú uvedené v súbore (bez prepočítania).",
     "xerExportLoss": "Pri exporte do {{format}} sa stratia údaje o pôvode XER.",
     "exportDataLoss": "Pri exporte do {{format}} sa stratia údaje, ktoré {{format}} nepodporuje, napríklad poznámky alebo sekundárne obmedzenie. Projektový súbor IFC uchováva všetko.",
+    "exportPlanOnly": "Exportovaný bol iba plán; stavebný model nie je súčasťou tohto formátu.",
     "mppLegacy": "Tento súbor .mpp používa starý formát (Project 2007 alebo starší). V programe MS Project ho exportujte ako XML (Súbor → Uložiť ako → XML) a otvorte tento súbor.",
     "mppInvalidContainer": "Tento súbor MPP má neplatnú štruktúru a nedá sa otvoriť.",
     "xmlUnknownSchedule": "Neznámy formát plánu XML. Otvorte XML programu MS Project (Project) alebo XML programu Primavera P6 (APIBusinessObjects).",
@@ -113,6 +114,10 @@
     "ifcUnreadableTargetSave": "Aplikácia tento súbor nedokáže správne prečítať; môže obsahovať stavebný model. Vyberte iný súbor, do ktorého sa uloží.",
     "ifcUnreadableTargetExport": "Aplikácia tento súbor nedokáže správne prečítať; môže obsahovať stavebný model. Vyberte iný súbor na export.",
     "ifcUnreadableTargetAutoSave": "Automatické ukladanie bolo zastavené: aplikácia tento súbor nedokáže správne prečítať; môže obsahovať stavebný model. Vyberte iný súbor, do ktorého sa uloží.",
+    "ifcForeignAutoSaveTargetChanged": "Automatické ukladanie bolo zastavené: súbor bol medzitým zmenený, presunutý alebo odstránený. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť do nového súboru, vyberte „Uložiť ako“.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatické ukladanie bolo zastavené: tento súbor sa na tomto mieste nedá bezpečne nahradiť. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť do nového súboru, vyberte „Uložiť ako“.",
+    "ifcForeignAutoSaveNotRecorded": "Automatické ukladanie bolo zastavené: súbor sa teraz nedá bezpečne nahradiť, pretože zotavenie zo zlyhania sa nedá aktualizovať. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť do nového súboru, vyberte „Uložiť ako“.",
+    "ifcForeignAutoSaveRemnant": "Automatické ukladanie bolo zastavené: predchádzajúce uloženie tohto súboru sa nedokončilo. Vaše zmeny sú stále v aplikácii. Uložte pomocou Ctrl+S; po reštarte aplikácia dokončí to predchádzajúce uloženie.",
     "ambiguousThousands": "„{{text}}“ je nejednoznačné: myslíte desatinné číslo, alebo tisíce? Desatinné čísla zapíšte so znakom „{{separator}}“ (1{{separator}}5) a tisíce bez oddeľovača (1500). Hodnota sa nezmenila.",
     "siteSaveConflict": "Neuložené: „{{name}}“ bol na webe medzitým zmenený iným používateľom. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť ako nový súbor, vyberte „Uložiť ako“.",
     "siteSaveConflictCopy": "„{{original}}“ na webe medzitým zmenil niekto iný. Vaša práca je preto v kópii: „{{name}}“. Uložiť odteraz zapisuje do tejto kópie.",
@@ -142,6 +147,7 @@
     "relationDuplicate": "Táto závislosť už existuje",
     "relationAncestorEndpoint": "Závislosť medzi úlohou a jej vlastnou súhrnnou úlohou (aj vyššou) nie je povolená.",
     "relationCycle": "Táto závislosť by v pláne vytvorila cyklus ({{cycle}}) a nebola vytvorená.",
+    "relationChainOrderUnclear": "Úlohy nie sú prepojené: ich poradie v zozname nie je pevné. Vybraná úloha je pred aj za inou úlohou (zoskupenie), alebo dva vybrané medzníky zdieľajú zbalenú postupnosť. Zrušte zoskupenie, rozbaľte postupnosť alebo vyberte predchádzajúcu úlohu cez „Priradiť predchádzajúce úlohy“.",
     "hierarchyCycle": "Toto presunutie by v pláne vytvorilo cyklus ({{cycle}}): závislosti súhrnnej úlohy platia aj pre jej čiastkové úlohy. Nič sa nepresunulo.",
     "relationsExcludedByHierarchy_one": "Po presune spája {{count}} závislosť úlohu s jej vlastnou súhrnnou úlohou; už sa nezapočíta do výpočtu.",
     "relationsExcludedByHierarchy_few": "Po presune spájajú {{count}} závislosti úlohu s jej vlastnou súhrnnou úlohou; už sa nezapočítavajú do výpočtu.",
@@ -264,7 +270,8 @@
     "schedulingProfileShifted_other": "Po použití bolo posunutých {{count}} úloh.",
     "actions": {
       "openProjectInfo": "Otvoriť profil výpočtu",
-      "openHelp": "Otvoriť pomoc"
+      "openHelp": "Otvoriť pomoc",
+      "undo": "Vrátiť späť"
     },
     "xerArchiveUnusable": "Zdrojový archív XER v tomto súbore nie je použiteľný a bol vynechaný; samotný projekt bol otvorený úplne.",
     "xerArchiveUnusableLine": "Zdrojový archív XER v tomto súbore nebol použiteľný a bol vynechaný.",
@@ -553,13 +560,44 @@
     "reportFontMissing": "Vlastné písmo {{name}} už na tomto zariadení nie je. Zostava znova používa Inter.",
     "layoutsNotSaved": "Rozloženia sa nepodarilo uložiť. Nič sa nezmenilo. Skúste to znova.",
     "ifcForeignOpenSchema": "Tento súbor IFC obsahuje údaje z iného programu a má neznámu alebo chýbajúcu schému. Otváranie bolo zastavené, aby sa pri ukladaní nestratili údaje.",
+    "ifcForeignOpenTooLarge": "Tento súbor IFC je väčší ako {{limit}} MB. Súbor IFC so stavebným modelom alebo s údajmi z iného programu možno otvoriť do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Tento súbor IFC sa nedá bezpečne zaradiť. Otváranie bolo zastavené, aby sa pri ukladaní nestratili údaje.",
     "ifc2x3PlanningOnly": "IFC2X3 bolo otvorené ako plán. Údaje z iných programov sa pri ukladaní nezahrnú.",
-    "ifcForeignReplaceBlocked": "Neuložené. Prepísanie existujúceho súboru so stavebným modelom zatiaľ nie je bezpečné. Použite „Uložiť ako“ a vyberte nový názov.",
+    "ifcForeignReplaceBlocked": "Neuložené. Toto je súbor, ktorý máte otvorený. Na jeho aktualizáciu použite „Uložiť“, alebo na kópiu „Uložiť ako“ s novým názvom.",
+    "ifcForeignTargetChanged": "Neuložené. Súbor medzitým zmenil iný program. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť do nového súboru, vyberte „Uložiť ako“.",
+    "ifcForeignTargetGone": "Neuložené. Súbor bol presunutý, odstránený alebo sa už nedá prečítať. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť do nového súboru, vyberte „Uložiť ako“.",
+    "ifcForeignReplaceNotRecorded": "Neuložené. Súbor sa teraz nedá bezpečne nahradiť, pretože zotavenie zo zlyhania sa nedá aktualizovať. Vaše zmeny sú stále v aplikácii. Ak ich chcete uložiť do nového súboru, vyberte „Uložiť ako“.",
+    "ifcForeignDownloadCopy": "Kópia stiahnutá ako „{{file}}“. Otvorený súbor nebol aktualizovaný; zmeny zostávajú označené ako neuložené.",
+    "ifcForeignReplaceFailed": "Neuložené. Súbor sa nedal zapísať. Vaše zmeny sú stále v aplikácii. Skúste uložiť znova, alebo vyberte „Uložiť ako“, aby ste ich uložili do nového súboru.",
     "ifcForeignMergeRefused": "Súbor IFC nebol zapísaný. Stavebný model alebo údaje z iného programu by inak nezostali úplne zachované. Vráťte poslednú zmenu, alebo exportujte len plán: do IFC s voľbou „Bez stavebného modelu“ alebo do iného formátu.",
     "ifcSaveChangedWhileWaiting": "Neuložené. Dokument alebo zdroj stavebného modelu sa počas prípravy zmenil. Skúste uložiť znova.",
+    "ifcSaveWorkerFailed": "Súbor IFC nebol zapísaný: príprava na pozadí bola prerušená. Vaše zmeny sú stále v aplikácii. Skúste to prosím znova.",
+    "ifcForeignNewTargetOnly": "Tento súbor IFC možno zapísať len pod novým názvom súboru. Vyberte názov, ktorý ešte neexistuje.",
+    "ifcForeignTargetOpenInTab": "Neuložené. Tento súbor je otvorený na inej karte. Zatvorte túto kartu alebo vyberte iný názov.",
+    "exportTargetOpenInTab": "Nebolo exportované. Tento súbor je otvorený na inej karte. Zatvorte túto kartu alebo vyberte iný názov.",
+    "exportTargetOpenDocument": "Nebolo exportované. Tento súbor je otvorený na karte. Vyberte iný názov alebo najprv zatvorte túto kartu.",
+    "ifcForeignPlaceUnknown": "Aplikácia nevie, či sa súbor uložil správne: počas ukladania sa niečo v priečinku zmenilo. Vaše zmeny sú stále v aplikácii. Skontrolujte, či je súbor v poriadku, alebo uložte znova pod novým názvom.",
+    "ifcForeignReplaceOtherVersion": "Iný program zmenil {{file}}, kým ho aplikácia ukladala. Táto verzia bola uchovaná ako {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Predchádzajúce uloženie súboru {{file}} sa nedokončilo. Plán, ktorý sa vtedy ukladal, je v {{copy}}. Ak ho už nepotrebujete, odstráňte tento súbor.",
+    "ifcForeignReplaceTargetTaken": "Neuložené. Počas ukladania iný program umiestnil nový súbor na {{target}}. Teraz sú tu tri súbory: tento nový súbor na {{target}}, váš plán v {{temp}} a predchádzajúca verzia v {{previous}}. Vaše zmeny sú stále v aplikácii.",
+    "ifcForeignReplacePreviousStranded": "Neuložené a predchádzajúcu verziu súboru sa nepodarilo vrátiť na jej miesto. Je teraz v {{previous}}. Vaše zmeny sú stále v aplikácii. Ak ich chcete uchovať v novom súbore, vyberte „Uložiť ako“.",
+    "ifcForeignReplaceSaveAsOnly": "Neuložené. Tento súbor sa na tomto mieste nedá bezpečne nahradiť. Súbor sa nezmenil. Ak chcete svoje zmeny uchovať v novom súbore, vyberte „Uložiť ako“.",
+    "ifcForeignReplaceLeftOver": "Z prerušeného ukladania súboru {{file}} zostal tento súbor: {{path}}. Skontrolujte, či ho ešte potrebujete.",
     "ifcSourceCopyFailed": "Plán sa ukladá na zotavenie zo zlyhania, ale kópiu stavebného modelu sa nepodarilo uložiť. Po zlyhaní môže stavebný model chýbať. Uložte svoju prácu sami ako úplný súbor IFC.",
-    "ifcForeignSourceMissing": "Neuložené. Stavebný model alebo údaje z iného programu sa nenašli. Použite „Uložiť ako“, ak chcete uložiť len plán do nového súboru. Otvorte pôvodný súbor IFC, aby ste mohli znova pracovať s úplným súborom."
+    "ifcForeignSourceMissing": "Neuložené. Stavebný model alebo údaje z iného programu sa nenašli. Použite „Uložiť ako“, ak chcete uložiť len plán do nového súboru. Otvorte pôvodný súbor IFC, aby ste mohli znova pracovať s úplným súborom.",
+    "taskTypeRenameNameTaken": "V tomto projekte zostáva názov „{{oldName}}“: iný druh prác v tomto projekte sa už volá „{{takenName}}“.",
+    "otherWork": {
+      "durationDays_one": "Úloha teraz trvá {{days}} deň.",
+      "durationDays_few": "Úloha teraz trvá {{days}} dni.",
+      "durationDays_many": "Úloha teraz trvá {{days}} dňa.",
+      "durationDays_other": "Úloha teraz trvá {{days}} dní.",
+      "durationHours_one": "Úloha teraz trvá {{hours}} hodinu.",
+      "durationHours_few": "Úloha teraz trvá {{hours}} hodiny.",
+      "durationHours_many": "Úloha teraz trvá {{hours}} hodiny.",
+      "durationHours_other": "Úloha teraz trvá {{hours}} hodín.",
+      "durationSame": "Trvanie zostáva rovnaké. Hodiny ostatných boli upravené.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Kruhová závislosť medzi úlohami: {{path}}",
@@ -601,6 +639,8 @@
     "addSubtask": "Pridať čiastkovú úlohu",
     "addMilestone": "Pridať medzník",
     "addRelation": "Pridať závislosť",
+    "assignPredecessors": "Priradiť predchádzajúce úlohy…",
+    "assignSuccessors": "Priradiť nasledujúce úlohy…",
     "dissolve": "Dissolve (zachovať reťaz)",
     "delete": "Odstrániť",
     "newTask": "Vytvoriť úlohu",
@@ -667,7 +707,7 @@
     "demoTopbarAnimation": "Demo: animácia v hornej lište",
     "demoTopbarAnimationHint": "Jemný oranžový lesk prechádzajúci hornou lištou. Ukazuje, ako funguje experimentálny prepínač.",
     "ifcForeignContent": "Otvoriť IFC so stavebným modelom",
-    "ifcForeignContentHint": "Otvorí aj súbor IFC so stavebným modelom alebo údajmi z iných programov. Môžete použiť „Uložiť ako“ do nového súboru, uložiť na web, stiahnuť v prehliadači a Exportovať → IFC, aj bez stavebného modelu alebo s knižnicou zdrojov vedľa (potom len s plánom). Uloženie cez existujúci lokálny súbor zatiaľ nie je možné. Zotavenie stavebného modelu zo zlyhania vyžaduje prístup k pôvodnému súboru alebo uloženej kópii v prehliadači.",
+    "ifcForeignContentHint": "Otvorí aj súbor IFC so stavebným modelom alebo údajmi z iných programov. Môžete použiť „Uložiť ako“ do nového súboru, uložiť na web, stiahnuť v prehliadači a „Exportovať → IFC“, aj bez stavebného modelu alebo s knižnicou zdrojov vedľa (potom len s plánom). V prehliadačoch Chrome a Edge „Uložiť“ uloží aj samotný otvorený súbor. Ak iný program tento súbor zmení práve počas ukladania, táto zmena sa môže stratiť. V aplikácii pre počítač uloží „Uložiť“ otvorený súbor sám, ak sa nachádza vo vašom domovskom priečinku. Ak iný program súbor medzitým zmenil, ukladanie sa zastaví, alebo aplikácia túto verziu uloží ako samostatnú kópiu vedľa súboru; stratiť sa môže už len zmena v presne tom istom okamihu. Ak cez „Uložiť ako“ nahradíte iný existujúci súbor vo vašom domovskom priečinku, nahradí sa rovnako, aj keď sám obsahuje stavebný model alebo údaje z iného programu. Takýto súbor môže byť nahradený aj plánom bez stavebného modelu. Nenahradí sa súbor, ktorý aplikácia nedokáže prečítať, ani súbor s druhým názvom (pevný odkaz). Tesne pred nahradením aplikácia porovná súbor s verziou, ktorú prečítala po vašom výbere: ak sa zmenil, ukladanie sa zastaví a súbor zostane taký, aký je. Ak sa ukáže, že verzia, ktorú aplikácia odložila bokom, je predsa iná, uloží ju ako samostatnú kópiu vedľa súboru, s upozornením. Obnovenie stavebného modelu po páde vyžaduje prístup k pôvodnému súboru alebo k uloženej kópii v prehliadači.",
     "tourHint": "Znova prejdite úvodnú prehliadku aplikácie.",
     "theme": "Motív",
     "themeHint": "Farebná schéma používateľského rozhrania.",
@@ -946,7 +986,8 @@
     "confirmClose": "Tento dokument obsahuje neuložené zmeny. Aj tak zavrieť?",
     "closeTitle": "Neuložené zmeny",
     "closeBody": "„{{name}}“ obsahuje zmeny, ktoré ešte nie sú uložené.",
-    "dontSave": "Neukladať"
+    "dontSave": "Neukladať",
+    "stillSaving": "Ešte sa ukladá…"
   },
   "feedback": {
     "buttonTooltip": "Odoslať spätnú väzbu",
@@ -1390,7 +1431,9 @@
     },
     "regen": {
       "hint": "Sviatky pokrývajú {{from}}–{{to}}; vygenerovať znova až do roku {{year}}?",
-      "button": "Vygenerovať znova"
+      "button": "Vygenerovať znova",
+      "confirmMessage": "Váš zoznam voľných dní sa líši od predtým vygenerovaného zoznamu. Ak zoznam nahradíte, vaše ručné zmeny sa stratia.",
+      "confirmReplace": "Nahradiť voľné dni"
     },
     "countryName": {
       "NL": "Holandsko",
@@ -1401,6 +1444,7 @@
       "AT": "Rakúsko",
       "CH": "Švajčiarsko",
       "US": "Spojené štáty americké",
+      "BO": "Bolívia",
       "none": "Žiadne sviatky"
     },
     "preset": {
@@ -1613,7 +1657,8 @@
     "edit": {
       "copy": "Kopírovať",
       "deselect": "Zrušiť výber",
-      "selectAll": "Vybrať všetko"
+      "selectAll": "Vybrať všetko",
+      "linkSelected": "Prepojiť vybrané úlohy do reťaze"
     },
     "structure": {
       "moveUp": "Presunúť úlohu nahor",
@@ -2276,5 +2321,9 @@
     "bodyWithPool": "Projektový súbor bude obsahovať len plán; knižnica zdrojov pôjde do druhého súboru. Stavebný model a údaje z iného programu sa nezahrnú. Otvorený súbor zostane nezmenený. Chcete pokračovať?",
     "continue": "Exportovať",
     "cancel": "Zrušiť"
+  },
+  "replaceCopy": {
+    "otherProgram": "verzia z iného programu {{when}}",
+    "unsavedSchedule": "neuložený plán {{when}}"
   }
 }
