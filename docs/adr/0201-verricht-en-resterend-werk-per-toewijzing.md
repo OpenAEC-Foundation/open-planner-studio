@@ -10,7 +10,10 @@ werkregelbewerking", in #581).
 ## Gevolgen
 
 - `captureTriangle` legt de afgeleide waarde vast in `CapturedTriangle.actualWork`, voor toewijzingen die de duur
-  sturen en geen `actualWorkMinutes` hebben. `applyTriangleResult` schrijft die waarde in een ontbrekend verricht veld.
+  sturen en geen `actualWorkMinutes` hebben, en alleen als die waarde groter is dan 0 of de contour van de toewijzing
+  `actual`-periodes heeft. Zonder die voorwaarde zou een duurbewerking op een niet-gestarte taak zonder
+  werkvelden die velden vastleggen, en zouden ze meegaan in het IFC. `applyTriangleResult` schrijft een vastgelegde waarde in een
+  ontbrekend verricht veld.
   Een toewijzing die de duur stuurt, niet in de momentopname stond en op een taak met `completion` > 0 of een
   `actualStart` staat, krijgt in een ontbrekend verricht veld 0 als `opts.actualWork` geen waarde voor haar heeft.
   Toetsen: `check-work-rule-actual-history.ts` en `check-work-rule-completed.ts`.
@@ -27,9 +30,10 @@ werkregelbewerking", in #581).
   het voorbeeld met 10 d, W 4800 en 50 %). Wanneer de functie werkt en hoe ze rekent, staat in de functie; de contour
   raakt ze niet. Wat ze doet als de voortgang wordt teruggezet, staat als knownbug 2000. Voor de voortgangsroutes in
   `taskSlice.ts` zie ADR 0154. Toets: `check-work-rule-actual-history.ts`.
-- Zet de planner een eigen urenverdeling (`setAssignmentContour`), dan schrijft `syncAssignmentWorkToContour` de
-  aanwezige werkvelden naar de sommen van de contour (regel `contour`). Reden: bleef het oude restveld staan, dan
+- Zet de planner een eigen urenverdeling (`setAssignmentContour`), dan werkt `syncAssignmentWorkToContour` de
+  aanwezige werkvelden bij uit de contour (regel `contour`). Reden: bleef het oude restveld staan, dan
   rekende de volgende duurwijziging onder Vast werk de inzet uit dat oude werk en zette `reconcileContourWork` de
   contour terug naar het oude getal (`check-work-rule-store.ts`, gevallen v1 en v2). Heeft de nieuwe verdeling geen
-  `actual`-periodes terwijl `actualWorkMinutes` groter is dan 0, dan laat de functie het verrichte veld staan en
-  schrijft ze alleen een aanwezig restveld (gevallen v8 en v9).
+  `actual`-periodes terwijl `actualWorkMinutes` groter is dan 0, dan kan de contour het totale werk bevatten, het
+  verrichte deel inbegrepen. De functie laat het verrichte veld dan staan en houdt er bij een aanwezig restveld
+  rekening mee; de berekening staat in `syncAssignmentWorkToContour` (gevallen v8 en v9).
