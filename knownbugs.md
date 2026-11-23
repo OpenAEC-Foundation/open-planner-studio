@@ -616,6 +616,13 @@ en noem het in je rapport of PR-tekst.
      vloer zet `earlyStart = dataDate` zonder snap in de eigen kalender. Bij een taakkalender met andere
      werkblokken is die vroege start geen geldig startmoment van de taak (zie `msp-06` in `cases-msp-pariteit.json`).
      In de code gezien. — B
+1982. **De zoekgrens van de nivelleerder is een schatting; een taak kan `NO_WINDOW_IN_HORIZON` krijgen terwijl er
+     verderop wel een venster is.** `levelResources` (`src/engine/scheduler/ResourceLeveler.ts`) zet `scanLimit` op de
+     som van de `scheduleDuration` van alle taken plus een marge (`Math.max(totalWork + 10, 30)`), geteld in
+     kandidaatstappen. Twee dingen tellen niet mee: een kalendertijdtaak stapt per kalenderdag, dus een weekend kost
+     stappen zonder werkdag, en de pauzedagen van een gesplitste taak zitten niet in haar `scheduleDuration`. Het oude
+     commentaar noemde de marge "geen wiskundig bewijs"; een geval dat de grens raakt, is niet gezien. Gelezen in de
+     code, niet nagespeeld. — S
 
 ## Tabel, invoer en bediening
 
