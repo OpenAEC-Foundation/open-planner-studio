@@ -9,9 +9,11 @@ van het model ernaar blijven kloppen. En een waarde die OPS zelf in een oudere v
 als de planner het veld niet wijzigde (besluit Trias, 10 november 2026), onder de voorwaarden hieronder. "Niet
 gewijzigd" betekent: gelijk aan wat de app na het openen liet zien (`IfcSource.opened`), niet gelijk aan de lezing van
 de bron. Wat alleen het openen veranderde (de omzetting naar het minutenmodel, de herberekening), zet
-`sourceFormWhereUnchanged` (`foreign/sourceForm.ts`) terug naar de lezing van de bron voordat de writer schrijft, maar
-alleen als die bronwaarde bij heropenen met de taak en de kalender van nu weer dezelfde waarde geeft; anders blijft de
-waarde van nu staan.
+`sourceFormWhereUnchanged` (`foreign/sourceForm.ts`) terug naar de lezing van de bron voordat de writer schrijft. Voor
+een veld dat de omzetting naar het minutenmodel veranderde, gaat de merge eerst na of dezelfde omzetting met de taak
+en de kalender van nu weer de getoonde waarde geeft; zo niet, dan blijft de waarde van nu staan. Een afgeleid
+taaktijdveld dat alleen de herberekening veranderde, kent die toets niet: het krijgt de bronwaarde terug en de app
+berekent het bij openen opnieuw, dus na een wijziging van de planner mag het bij heropenen een andere waarde tonen.
 Zonder deze regel weigerde de merge eigen bestanden van oudere OPS-versies, of veranderde hij waarden die niemand
 aanraakte.
 
