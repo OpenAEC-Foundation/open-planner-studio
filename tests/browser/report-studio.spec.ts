@@ -669,13 +669,23 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
     await expect(parts.nth(1)).toHaveValue('09');
     await expect(parts.nth(2)).toHaveValue('2026');
   }
+  const shownFrom = ganttPeriod.getByRole('group', { name: /^(From|Van)$/ }).getByRole('textbox');
+  const shownTo = ganttPeriod.getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
+  await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-14'));
   await refreshStored({ period: { preset: 'next2Weeks' } });
   await expect(ownPeriod).toBeChecked();
-  await expect.poll(async () => (await saved()).period.preset).toBe('custom');
-  const frozen = (await saved()).period as { from: string; to: string };
-  const shownFrom = ganttPeriod.getByRole('group', { name: /^(From|Van)$/ }).getByRole('textbox');
-  await expect(shownFrom.nth(0)).toHaveValue(frozen.from.slice(8, 10));
-  await expect(shownFrom.nth(1)).toHaveValue(frozen.from.slice(5, 7));
+  await expect(shownFrom.nth(0)).toHaveValue('14');
+  await expect(shownTo.nth(0)).toHaveValue('27');
+  await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-21'));
+  await expect(shownFrom.nth(0)).toHaveValue('21');
+  await expect(shownTo.nth(0)).toHaveValue('04');
+  await expect(shownTo.nth(1)).toHaveValue('10');
+  await refreshStored({});
+  await expect(shownFrom.nth(0)).toHaveValue('21');
+  expect((await saved()).period).toEqual({ preset: 'next2Weeks' });
+  await shownTo.nth(0).fill('02');
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'custom', from: '2026-09-21', to: '2026-10-02' });
   await ownPeriod.uncheck();
   await expect.poll(async () => (await saved()).period).toEqual({ preset: 'project' });
   // Een oude opslag kent het Resourcediagram alleen als rapporttype: die opent als de layout, en ook die keuze

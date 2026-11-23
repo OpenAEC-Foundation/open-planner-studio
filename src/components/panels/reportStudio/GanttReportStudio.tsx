@@ -283,11 +283,6 @@ export function GanttReportStudio() {
   }, [layoutsLoaded, legacyResourcePeriod, layouts, sourceKey, remember]);
   const choosePeriod = useCallback(
     (next: ReportingPeriod) => patch(periodChoicePatch(next), 'period'), [patch]);
-  const periodPreset = settings.period.preset;
-  useEffect(() => {
-    if (periodPreset === 'project' || periodPreset === 'custom') return;
-    remember({ period: { preset: 'custom', from: resolvedPeriod.from, to: resolvedPeriod.to } });
-  }, [periodPreset, resolvedPeriod.from, resolvedPeriod.to, remember]);
   const noneLabel = tTask('structure.none');
   const resourceTypeLabels = useResourceTypeLabels();
   const locale = i18n.language;
