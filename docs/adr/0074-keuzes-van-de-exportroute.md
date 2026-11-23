@@ -5,8 +5,10 @@ Afgezien van dat doorrekenen (`runCPM` als de planning verouderd is) verandert e
 uitzondering: een IFC-export die het eigen bestand van het
 document overschrijft, legt de letterlijk geschreven kalenders vast in het document, zoals Opslaan
 (`recordLiteralCalendarsWritten`). Daarom schrijft een IFC-export, ook die met de resourcebibliotheek, onder hetzelfde
-schrijfslot als Opslaan als (`check-ifc-literaltimes-behoud.ts` 7). Een paar keuzes per formaat verrassen zonder
-uitleg en staan hier.
+schrijfslot als Opslaan als (`check-ifc-literaltimes-behoud.ts` 7). De andere formaten en het losse bibliotheekbestand
+lopen door dezelfde schrijfrij (`runProjectFileWrite`), omdat een startbestand dat tijdens de export gelezen wordt een
+nieuwere versie alleen aan een beurt in die rij herkent. Een paar keuzes per formaat verrassen zonder uitleg en staan
+hier.
 
 ## Gevolgen
 

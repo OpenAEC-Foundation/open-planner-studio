@@ -23,9 +23,9 @@ oude doel. Een mislukte Ctrl+S geeft één melding per poging, ook als ook de te
   bij de merge gaat naar de gewone foutafhandeling. Slaagt die kopie, dan bewijst
   dat geen browserbeperking: de uitleg van `browserSaveNotice` komt dan alleen bij een download.
 - De uitvoer van de opslagworker draagt de bytes en een lui berekende tekst. De route geeft de bytes rechtstreeks aan
-  de schrijflaag en vraagt de tekst nooit op; ook het toevoegen van een eigenschap aan zo'n uitvoer kopieert de
-  eigenschapsbeschrijvingen in plaats van een spread, want een spread roept de getter aan en decodeert de bytes
-  alsnog.
+  de schrijflaag en vraagt de tekst nooit op. Daarom gaat de bevestiging "alleen de planning" van Opslaan als bij een
+  ontbrekende bron (`missingSourceSaveAs`) als los argument naast de uitvoer mee en niet als eigenschap erop: een kopie
+  van de uitvoer met een spread roept de getter aan en decodeert de bytes alsnog.
 - Staat er al een vraag bij opslaan of openen open (van de site, de schemavraag, de waarschuwing over afhankelijke
   projecten of de vraag "alleen de planning", `saveQuestionOpen`), dan begint Opslaan of Openen geen tweede ronde.
   Anders schreef Ctrl+S in het naamveld van "Opslaan op de site" na het antwoord nog een versie.
