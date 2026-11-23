@@ -332,7 +332,11 @@
     "rename": "Editar",
     "remove": "Remover",
     "addToMine": "Adicionar às minhas categorias de trabalho",
-    "confirmRemove": "Esta categoria de trabalho é usada no projeto aberto. Pretende removê-la de «As minhas categorias de trabalho»? A cópia do projeto permanece."
+    "confirmRemove": "Esta categoria de trabalho é usada no projeto aberto. Pretende removê-la de «As minhas categorias de trabalho»? A cópia do projeto permanece.",
+    "renameInProjectTitle": "Alterar o nome também neste projeto?",
+    "renameInProjectMessage": "A categoria de trabalho «{{oldName}}» também está neste projeto. Deseja chamar-lhe «{{newName}}» também aqui?",
+    "renameInProjectYes": "Também neste projeto",
+    "renameInProjectNo": "Só na minha lista"
   },
   "duration": {
     "label": "Duração",
@@ -385,7 +389,15 @@
       "resourceShorter": "Um recurso adicional torna a tarefa mais curta.",
       "resourceAddsWorkSameDuration": "Um recurso adicional acrescenta trabalho; a duração mantém-se igual."
     },
-    "info": "Explicação do tipo de tarefa"
+    "info": "Explicação do tipo de tarefa",
+    "hint": {
+      "intro": "O tipo de tarefa determina o que a aplicação ajusta quando altera a duração, as unidades (pessoas por dia) ou o trabalho (horas).",
+      "FIXED_DURATION_RATE": "A duração e as unidades ficam, o trabalho acompanha. Exemplo: 2 pessoas, 5 dias de 8 horas = 80 horas.",
+      "FIXED_DURATION_WORK": "A duração e o trabalho ficam, as unidades acompanham. Exemplo: 80 horas em 5 dias de 8 horas = 2 pessoas por dia.",
+      "FIXED_WORK": "O trabalho fica, a duração acompanha. Exemplo: 80 horas com 2 pessoas = 5 dias; com 4 pessoas, 2,5 dias.",
+      "FIXED_RATE": "As unidades ficam, o trabalho define a duração. Exemplo: 1 grua, 40 horas de trabalho = 5 dias; 80 horas = 10 dias.",
+      "projectDefault": "Segue o tipo de tarefa que o projeto usa como padrão."
+    }
   },
   "properties": {
     "task": "Tarefa",
@@ -457,6 +469,12 @@
     "interferingFloat": "Folga interferente:",
     "criticalPath": "Caminho crítico:",
     "dependencies": "Dependências",
+    "predecessors_one": "{{count}} predecessora",
+    "predecessors_many": "{{count}} de predecessoras",
+    "predecessors_other": "{{count}} predecessoras",
+    "successors_one": "{{count}} sucessora",
+    "successors_many": "{{count}} de sucessoras",
+    "successors_other": "{{count}} sucessoras",
     "addRelation": "Adicionar relação",
     "addRelationSearch": "Procurar tarefa…",
     "addRelationConfirm": "Criar relação",

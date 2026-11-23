@@ -37,6 +37,7 @@ import { isTauri } from '@/utils/platform';
 import { prepareIfcOutput, IfcWriteBlockedError } from '@/state/prepareIfcOutput';
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput, type FormatReadOptions } from '@/services/formatRegistry';
+import { refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { buildExportIFCInput, sameIFCSource } from '@/state/ifcSaveInput';
 import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -85,6 +86,9 @@ const UNREADABLE_TARGET_REFUSAL = (path: string) => `'${path}' is an IFC/STEP fi
 export interface McpFileFs extends FileIdentityFs {
   /** De headless host beschermt bestaande doelen ook zonder UI-flag. */
   readonly protectExistingTargets?: boolean;
+  /** De app (`realFs`): `planner_import_schedule` toetst de productgrens voor het openen van een model
+   *  (`refuseModelAboveOpenLimit`, #804). De headless host zet dit niet: daar blijft importeren gelijk aan main. */
+  readonly enforcesModelOpenLimit?: boolean;
   /** Wortel van de toegestane scope (`$HOME`). */
   homeDir(): Promise<string>;
   exists(path: string): Promise<boolean>;
@@ -120,6 +124,7 @@ export async function realFs(): Promise<McpFileFs> {
   const { exists, stat, readTextFile, readFile, mkdir } = await import('@tauri-apps/plugin-fs');
   const { homeDir } = await import('@tauri-apps/api/path');
   return {
+    enforcesModelOpenLimit: true,
     homeDir: () => homeDir(),
     exists: (p) => exists(p),
     stat: (p) => stat(p),
@@ -538,6 +543,7 @@ export const fileTools: McpToolDef[] = [
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
         // ImportLabels).
         parsed = await parseOpenedFile(input, undefined, readOptions);
+        if (fs.enforcesModelOpenLimit) refuseModelAboveOpenLimit(parsed);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }

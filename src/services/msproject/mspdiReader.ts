@@ -14,7 +14,8 @@ import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, 
 import { childElementNames, childElements, descendantText, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import { hasMsProjectImportLoss, type ImportResult } from '@/services/importTypes';
 import { scanMspdiImportLoss } from '@/services/msproject/mspdiImportLoss';
-import type { CustomTaskType } from '@/types/taskType';
+import type { CustomTaskTypeDraft } from '@/types/taskType';
+import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import {
   MSP_LINK_TYPE_CODE,
   OPS_CUSTOM_TASK_TYPE_FIELD_ID,
@@ -414,7 +415,7 @@ export function readMSPDI(content: string): ImportResult {
   // (OPS schrijft `Math.round`), of het is P6 "Physical 100 %". Zie `runningAtFullIds` in
   // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set.
   const runningAtFullIds = new Set<string>();
-  const customTaskTypes = new Map<string, CustomTaskType>();
+  const customTaskTypes = new Map<string, CustomTaskTypeDraft>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
   // `<OutlineLevel>` per taak, parallel aan `tasks` (undefined = element ontbreekt).
@@ -941,7 +942,7 @@ export function readMSPDI(content: string): ImportResult {
     assignments,
     resourceCalendars,
     ...(hasMsProjectImportLoss(msProjectReport) ? { msProjectReport } : {}),
-    customTaskTypes: [...customTaskTypes.values()],
+    customTaskTypes: withTaskTypeColors([...customTaskTypes.values()]),
     baselines,
     activeBaselineId,
     // Rekenprofielen: MSPDI opent als OPS.
