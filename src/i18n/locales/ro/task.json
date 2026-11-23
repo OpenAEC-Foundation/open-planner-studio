@@ -47,6 +47,8 @@
     "recentColumns": "Utilizate recent",
     "noColumns": "Adăugați o coloană cu +.",
     "toggleSummary": "Extindere sau restrângere activitate rezumat",
+    "toggleMilestones": "Extindere sau restrângere jaloane",
+    "milestonesRun": "Jaloane ({{n}})",
     "calculatedReadOnly": "Această coloană calculată nu poate fi editată."
   },
   "taskGrid": {
@@ -330,7 +332,11 @@
     "rename": "Editare",
     "remove": "Ștergere",
     "addToMine": "Adăugare la categoriile mele de lucrări",
-    "confirmRemove": "Această categorie de lucrări este folosită în proiectul deschis. Ștergeți-o din «Categoriile mele de lucrări»? Copia din proiect rămâne."
+    "confirmRemove": "Această categorie de lucrări este folosită în proiectul deschis. Ștergeți-o din «Categoriile mele de lucrări»? Copia din proiect rămâne.",
+    "renameInProjectTitle": "Doriți să schimbați numele și în acest proiect?",
+    "renameInProjectMessage": "Categoria de lucrări „{{oldName}}” apare și în acest proiect. Doriți să o denumiți și aici „{{newName}}”?",
+    "renameInProjectYes": "Și în acest proiect",
+    "renameInProjectNo": "Doar în lista mea"
   },
   "duration": {
     "label": "Durată",
@@ -383,7 +389,15 @@
       "resourceShorter": "O resursă suplimentară face activitatea mai scurtă.",
       "resourceAddsWorkSameDuration": "O resursă suplimentară adaugă lucru; durata rămâne aceeași."
     },
-    "info": "Explicație despre tipul de activitate"
+    "info": "Explicație despre tipul de activitate",
+    "hint": {
+      "intro": "Tipul de activitate decide ce ajustează aplicația atunci când modificați durata, unitățile de atribuire (persoane pe zi) sau lucrul (ore).",
+      "FIXED_DURATION_RATE": "Durata și unitățile de atribuire rămân, lucrul se calculează. Exemplu: 2 persoane, 5 zile de 8 ore = 80 de ore.",
+      "FIXED_DURATION_WORK": "Durata și lucrul rămân, unitățile de atribuire se calculează. Exemplu: 80 de ore în 5 zile de 8 ore = 2 persoane pe zi.",
+      "FIXED_WORK": "Lucrul rămâne, durata se calculează. Exemplu: 80 de ore cu 2 persoane = 5 zile, cu 4 persoane = 2,5 zile.",
+      "FIXED_RATE": "Unitățile de atribuire rămân, lucrul determină durata. Exemplu: 1 macara, 40 de ore de lucru = 5 zile, 80 de ore de lucru = 10 zile.",
+      "projectDefault": "Urmează tipul de activitate pe care proiectul îl are ca implicit."
+    }
   },
   "properties": {
     "task": "Activitate",
@@ -455,6 +469,12 @@
     "interferingFloat": "Marjă interferentă:",
     "criticalPath": "Drum critic:",
     "dependencies": "Dependențe",
+    "predecessors_one": "{{count}} predecesor",
+    "predecessors_few": "{{count}} predecesori",
+    "predecessors_other": "{{count}} de predecesori",
+    "successors_one": "{{count}} succesor",
+    "successors_few": "{{count}} succesori",
+    "successors_other": "{{count}} de succesori",
     "addRelation": "Adăugare dependență",
     "addRelationSearch": "Căutați o activitate…",
     "addRelationConfirm": "Creare dependență",

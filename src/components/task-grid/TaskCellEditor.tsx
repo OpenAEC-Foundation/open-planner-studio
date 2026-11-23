@@ -10,6 +10,7 @@ import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
 import {
   formatGridDate,
   formatGridDateTime,
+  opensListEditor,
   parseGridDate,
   parseGridDateTime,
 } from '@/engine/taskGrid/editors';
@@ -23,6 +24,7 @@ import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { Icon } from '@/components/icons';
 import { DATE_PICKER_ICONS, DatePickerPanel } from '@/components/common/DatePicker';
+import { noteTextEntry } from '@/state/textEntryActivity';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -143,8 +145,7 @@ export function TaskCellEditor({
   const descriptor = adapter.descriptorsById.get(cell.columnId);
   // Een keuzelijst (ja/nee, keuze, code) start altijd op de huidige waarde; een getypt teken springt
   // in de open lijst naar een passende optie (#970) in plaats van als waarde te gelden.
-  const isListEditor = descriptor?.editorKind === 'boolean'
-    || (descriptor?.editorKind === 'enum' && descriptor.editorOptions !== undefined);
+  const isListEditor = opensListEditor(descriptor);
   const listTypeahead = isListEditor && initialText ? initialText : undefined;
   const [text, setText] = useState(
     () => (isListEditor ? undefined : initialText) ?? initialCell?.editText ?? '',
@@ -231,6 +232,12 @@ export function TaskCellEditor({
       if (initialText === undefined) node.select();
       else node.setSelectionRange(node.value.length, node.value.length);
     }
+  }, [cell.rowKey, cell.columnId, initialText]);
+  // De eerste letter die vanuit een geselecteerde cel de editor start (`initialText`), is een gewone toetsaanslag: hij
+  // komt niet als `input`-event binnen, dus meldt de editor hem zelf aan de rustklok van Automatisch opslaan
+  // (`textEntryActivity.ts`, fixronde 2 van de review van #1033).
+  useEffect(() => {
+    if (initialText !== undefined) noteTextEntry();
   }, [cell.rowKey, cell.columnId, initialText]);
 
   const commit = useCallback((shiftKey = false): GridEditorCommitResult => {
