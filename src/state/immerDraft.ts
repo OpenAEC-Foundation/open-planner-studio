@@ -83,3 +83,12 @@ export function taskAssignmentDrafts(s: AppState, taskId: string): ResourceAssig
   }
   return s.assignments.filter((a) => a.taskId === taskId);
 }
+
+/**
+ * De lijst zelf, of — binnen een producer — haar basis. Elke toegang via een draft geeft een eigen
+ * proxy, dus de identiteit van een lijst (is dit nog dezelfde selectie?) is alleen op de basis te
+ * vergelijken. Alleen zinvol zolang de producer die lijst nog niet wijzigde.
+ */
+export function baseList(list: readonly string[]): readonly string[] {
+  return isDraft(list) ? original<string[]>(list as string[] & Draft<string[]>) ?? list : list;
+}

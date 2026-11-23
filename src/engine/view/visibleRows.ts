@@ -13,6 +13,7 @@ import {
 } from './filterEval';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 
 export type { ViewContext } from './filterEval';
 
@@ -449,6 +450,22 @@ export function taskRowsInRange(
   const start = Math.min(fromIndex, toIndex);
   const end = Math.max(fromIndex, toIndex);
   return rows.slice(start, end + 1).filter((row): row is TaskViewRow => row.kind === 'task');
+}
+
+/** De datum waarop het ruitje van een mijlpaal in een ingeklapte reeks staat (#868), dezelfde kant
+ *  als `milestoneAnchorX`. */
+export function milestoneAnchorDate(task: Task): string {
+  return shownStart(task) || shownFinish(task) || '';
+}
+
+/** De leden van een ingeklapte mijlpalenreeks zoals ze getekend staan: van links naar rechts.
+ *  Stabiel, dus gelijke momenten houden de volgorde van de reeks (review #1004, ronde 11). */
+export function milestonesInDrawnOrder(tasks: readonly Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    const left = milestoneAnchorDate(a);
+    const right = milestoneAnchorDate(b);
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
 }
 
 /** Geordende domeinselectie uit occurrences; een taak-id komt hoogstens één keer terug. */

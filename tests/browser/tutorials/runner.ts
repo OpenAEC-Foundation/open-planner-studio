@@ -143,9 +143,15 @@ async function act(page: Page, action: Action, opts: RunOptions, where: string):
       await el.focus();
       await el.selectOption({ label: option });
     } else {
-      // De eigen keuzelijst van de app (`aria-haspopup="listbox"`): openklikken, optie aanklikken.
+      // De eigen keuzelijst van de app (`aria-haspopup="listbox"`): openklikken, optie aanklikken. Een
+      // optie met een korte regel eronder (`hint`, bijv. bij *Taaktype*) heeft meer tekst dan haar label:
+      // die vinden we aan het label zelf.
       await el.click();
-      await page.locator('[role="option"]:visible', { hasText: exactRe(option) }).first().click();
+      const exact = exactRe(option);
+      const options = page.locator('[role="option"]:visible');
+      await options.filter({ hasText: exact })
+        .or(options.filter({ has: page.locator('.ops-select__option-label', { hasText: exact }) }))
+        .first().click();
     }
     return;
   }

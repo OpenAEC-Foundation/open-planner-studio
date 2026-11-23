@@ -1,16 +1,17 @@
 import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { Task, type ExternalLink } from '@/types/task';
 import { currentAppState, originalAppState, taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
-import { carryLiveProgressPlan, liveProgressPlannedStarts, progressPlacementForBatch, progressPlannedStarts } from '@/state/progressPlannedStart';
+import { carryLiveProgressPlan, liveProgressPlannedDates, progressPlacementForBatch, progressPlannedDates } from '@/state/progressPlannedDates';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
 import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
   mergeTaskUpdate, taskTriggerChanges, invalidateForTimeBaseChange, clearLevelingGaps,
-  taskCalendarHoursPerDay, taskWorkMinutesOf, applyDurationChangeRules,
+  taskCalendarHoursPerDay,
   contourKeepsWork, hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
@@ -19,7 +20,7 @@ import { parseDate, localTodayIso } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
-import { applyProgressInvariants } from '@/engine/taskMutationRules';
+import { applyProgressInvariants, type PlannedProgressDates } from '@/engine/taskMutationRules';
 import {
   actualStartQuestionFor, hasRecordedProgress, planProgressEntry, progressEntryStatusDate,
   type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan, type ProgressEntryResult,
@@ -47,7 +48,7 @@ import {
 import type { RelationTree } from '@/engine/scheduler/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, settleCalendarChange,
+  captureCalendarChange, captureTriangle, durationEditRefusal, settleCalendarChange, settleEditedDuration,
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
   hourSourceOf, routeFixedWorkDurationToHours,
 } from '@/engine/work/workRuleApply';
@@ -200,7 +201,7 @@ export interface TaskSlice {
   enterTaskProgress: (
     taskId: string,
     edit: ProgressEdit,
-    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedStart?: () => string | undefined },
+    opts: { today: string; actualStart?: string; coalesceKey?: string; plannedDates?: () => PlannedProgressDates | undefined },
   ) => ProgressEntryResult;
   /**
    * De ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
@@ -268,11 +269,11 @@ export interface ProgressImportEntryOptions {
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
 function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
   const statusDate = progressEntryStatusDate(s.project.statusDate, today);
-  const baseStart = progressPlannedStarts(s);
+  const baseDates = progressPlannedDates(s);
   return {
     preparePlacement: ids => progressPlacementForBatch(s, ids, statusDate),
-    planEdits: (task, edits, plannedStart = baseStart) => {
-      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedStart };
+    planEdits: (task, edits, plannedDates = baseDates) => {
+      const environment = { ...buildTaskEditPlanEnvironment(s, task), plannedDates };
       const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
       if (!planned.ok || !today) return planned;
       const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
@@ -280,7 +281,7 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
       }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar),
-      wrote('task.time.completion') ? () => plannedStart(task) : undefined);
+      wrote('task.time.completion') ? () => plannedDates(task)?.earlyStart : undefined);
       if (!question) return planned;
       return {
         ok: false,
@@ -906,7 +907,8 @@ function commitProgressEdit(
   ctx: Omit<ProgressEntryContext, 'statusDate'>,
   opts: { coalesceKey?: string } | undefined,
 ): ProgressEntryResult & { statusDateToday?: string } {
-  const task = s.tasks[taskIndexById(s, taskId)] as Task | undefined; // aan het begin van elke producer
+  const index = taskIndexById(s, taskId);
+  const task = s.tasks[index] as Task | undefined; // aan het begin van elke producer
   if (!task) return { ok: true }; // onbekende taak: stille no-op
   // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af uit
   // de bladen. Weigeren vóór elke mutatie, dus zonder snapshot (transaction.ts-patroon).
@@ -915,8 +917,9 @@ function commitProgressEdit(
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
   const base = originalAppState(s);
-  const plan = planStoredProgressEdit(s, task, edit, { ...ctx,
-    plannedStart: ctx.plannedStart ?? (() => base ? liveProgressPlannedStarts(base)(task) : progressPlannedStarts(s)(task)) });
+  const plannedDates = ctx.plannedDates
+    ?? (() => base ? liveProgressPlannedDates(base)(task) : progressPlannedDates(s)(task));
+  const plan = planStoredProgressEdit(s, task, edit, { ...ctx, plannedDates });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
@@ -1256,7 +1259,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Een nieuwe duur korter dan het gedane werk van een
       // lopende taak wordt geweigerd — vóór de snapshot, dus niets veranderd, met een melding
       // (paneel, Gantt, extensie-API). Dezelfde regel die hieronder de rest laat meeschuiven, zie
-      // `durationEditRefusal`/`carryRemainingThroughDurationEdit` in engine/work/workRuleApply.ts.
+      // `durationEditRefusal`/`settleEditedDuration` in engine/work/workRuleApply.ts.
       if (taskTriggerChanges(task, next).timeBase) {
         const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
         if (refusal) {
@@ -1294,7 +1297,6 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // De oude werkduur vóór de merge, voor de herschaling hieronder — ná de kalenderstap, zodat
       // een duur in dezelfde patch tegen de nieuwe slot rekent.
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       // Momentopname van de werkdriehoek VÓÓR de merge —
       // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
@@ -1306,20 +1308,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Een lopende taak houdt haar gedane werk — de rest schuift
-        // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
-        // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
-        // zelf voortgang opgaf: die wint.
-        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
-          resolveCalendar(task.calendarId, s.calendars, s.calendar));
-        // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
-        // afknippen, laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
-        // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in
-        // taskDefaults.ts (de kern van `settleDurationAftermath`). Een kale datumwijziging telt hier
-        // mee; de werkduur blijft dan gelijk, dus meeschalen en afknippen doen niets.
-        lostTimephasedGuidance = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
+        // De werkdriehoek leest de rest ná de gevolgen van de duurwijziging, ook bij afmelding.
+        const duration = settleEditedDuration(task, timeBefore, contourHpd, {
+          statusDate: s.project.statusDate,
+          calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar),
+          workdayDurationMeasure: effectiveSchedulingOptions(s.project).workdayDurationMeasure === true,
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
-        }) || lostTimephasedGuidance;
+        });
+        lostTimephasedGuidance = duration.timephasedLost || lostTimephasedGuidance;
         // De restduur van een niet-gestarte taak volgt de duur; daarna: werk beschermd ⇒
         // inzet = W / R', anders volgt een aanwezig werkveld de nieuwe restduur (ook een afwijkend
         // werk uit het bestand — dat meldt hij terug). Onder de standaardregel zonder werkvelden
@@ -1777,7 +1773,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     writeProgress(taskId, { field: 'actualFinish', value: date }, {}, opts).ok,
 
   enterTaskProgress: (taskId, edit, opts) =>
-    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedStart: opts.plannedStart }, opts),
+    writeProgress(taskId, edit, { today: opts.today, actualStart: opts.actualStart, plannedDates: opts.plannedDates }, opts),
 
   previewProgressImport: (rows, overrides, opts) => {
     const s = get();
