@@ -322,6 +322,8 @@
     "scale": "Escala:",
     "zoom": "Zoom: {{level}}px/dia",
     "unsaved": "Não guardado",
+    "saving": "A guardar…",
+    "saved": "Guardado {{time}}",
     "scheduleStale": "Desatualizado — recalcule (F5)"
   },
   "backstage": {

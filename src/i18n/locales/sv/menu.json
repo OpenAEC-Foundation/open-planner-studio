@@ -320,6 +320,8 @@
     "scale": "Skala:",
     "zoom": "Zoom: {{level}} px/dag",
     "unsaved": "Ej sparad",
+    "saving": "Sparar…",
+    "saved": "Sparad {{time}}",
     "scheduleStale": "Inaktuell — beräkna om (F5)"
   },
   "backstage": {

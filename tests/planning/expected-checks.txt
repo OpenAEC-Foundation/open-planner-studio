@@ -505,6 +505,7 @@ check-week-banding.ts matrix
 check-werkdag-einde.ts matrix
 check-wiki-links.ts matrix
 check-work-decimals.ts matrix
+check-work-others-notice.ts matrix
 check-work-rule-actual-history.ts matrix
 check-work-rule-completed.ts matrix
 check-work-rule-days-measure.ts matrix

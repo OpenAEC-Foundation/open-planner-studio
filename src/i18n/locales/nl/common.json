@@ -193,7 +193,8 @@
     "schedulingProfileShifted_other": "Na het toepassen zijn {{count}} taken verschoven.",
     "actions": {
       "openProjectInfo": "Rekenprofiel openen",
-      "openHelp": "Help openen"
+      "openHelp": "Help openen",
+      "undo": "Ongedaan maken"
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
@@ -384,7 +385,15 @@
     "ifcForeignReplaceLeftOver": "Van een onderbroken opslag van {{file}} bleef dit bestand staan: {{path}}. Kijk of je het nog nodig hebt.",
     "ifcSourceCopyFailed": "De planning wordt voor crashherstel bewaard, maar de kopie van het gebouwmodel kon niet worden bewaard. Na een crash kan het gebouwmodel ontbreken. Bewaar je werk zelf als volledig IFC-bestand.",
     "ifcForeignSourceMissing": "Niet opgeslagen. Het gebouwmodel of de gegevens van een ander programma zijn niet gevonden. Gebruik Opslaan als om alleen de planning in een nieuw bestand te bewaren. Open het oorspronkelijke IFC-bestand om weer met het volledige bestand te werken.",
-    "taskTypeRenameNameTaken": "In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”."
+    "taskTypeRenameNameTaken": "In dit project blijft de naam „{{oldName}}”: een andere werksoort in dit project heet al „{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Taak duurt nu {{days}} dag.",
+      "durationDays_other": "Taak duurt nu {{days}} dagen.",
+      "durationHours_one": "Taak duurt nu {{hours}} uur.",
+      "durationHours_other": "Taak duurt nu {{hours}} uur.",
+      "durationSame": "De duur blijft gelijk. De uren van de anderen zijn aangepast.",
+      "line": "{{name}}: {{before}} → {{after}} u"
+    }
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
