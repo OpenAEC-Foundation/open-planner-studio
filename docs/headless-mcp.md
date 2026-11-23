@@ -85,7 +85,7 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   opent een bestand als document; `planner_new_document`, `planner_switch_document` en de andere
   documenttools werken zoals in de app.
 - **Opslaan.** Er is geen opslagcommando en geen automatisch opslaan. De agent schrijft het actieve
-  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma. Wat niet
+  document met `planner_export_ifc`; `overwrite: true` vervangt alleen een doel zonder gebouwmodel of gegevens van een ander programma, en nooit het bestand van een ander open document (knownbug 1907). Wat niet
   geëxporteerd is, is weg als de server stopt.
 - **Paden.** In de toolbeschrijvingen staat "home folder". In de headless server is dat de werkmap:
   `~/plan.ifc` is `<werkmap>/plan.ifc`. Een absoluut pad moet in de werkmap liggen. Een relatief pad

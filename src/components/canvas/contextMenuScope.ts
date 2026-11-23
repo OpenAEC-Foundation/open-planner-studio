@@ -1,3 +1,4 @@
+import type { PlannedProgressDates } from '@/engine/taskMutationRules';
 import { useAppStore } from '@/state/appStore';
 import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
@@ -7,8 +8,8 @@ import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { localTodayIso } from '@/utils/dateUtils';
-import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { planProgressEntry } from '@/engine/progressEntry';
+import { planStoredProgressEdit } from '@/state/slices/taskSlice';
+import { progressPlacementForBatch, progressPlannedDates } from '@/state/progressPlannedDates';
 import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
 /**
@@ -152,21 +153,37 @@ export const contextMenuBulk = {
     }
     const ids = [...leafIds];
     const edit = { field: 'completion', value: completion } as const;
-    const questions = ids.flatMap((id) => {
-      const task = byId.get(id);
-      if (!task) return [];
-      const plan = planProgressEntry(task, edit, { statusDate: state.project.statusDate, today,
-        calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar) });
-      return !plan.ok && plan.reason === 'needsActualStart' ? [{ ...plan.question, taskName: task.name }] : [];
-    });
+    const dates = new Map<string, PlannedProgressDates | undefined>();
+    const baseDates = progressPlannedDates(state);
     let answers: ActualStartAnswers = {};
-    if (questions.length > 0) {
+    while (true) {
+      const batch = completion > 0
+        ? progressPlacementForBatch(state, leafIds, state.project.statusDate || today)
+        : undefined;
+      const plannedDates = batch?.plannedDates ?? baseDates;
+      const questions = [];
+      dates.clear();
+      for (const id of batch?.order ?? ids) {
+        const task = byId.get(id)!;
+        const plan = planStoredProgressEdit(state, task, edit, {
+          today, actualStart: answers[id],
+          plannedDates: () => {
+            const placement = plannedDates(task);
+            dates.set(id, placement);
+            return placement;
+          },
+        });
+        if (plan.ok && plan.change) batch?.accept(task, plan.change.task);
+        if (!plan.ok && plan.reason === 'needsActualStart') questions.push({ ...plan.question, taskName: task.name });
+      }
+      if (questions.length === 0) break;
       const given = await askActualStart(questions);
       if (!given) return;
-      answers = given;
+      answers = { ...answers, ...given };
     }
     appTaskBulkActions.applyToTaskIds(ids, (current, id) => {
-      current.enterTaskProgress(id, edit, { today, actualStart: answers[id] });
+      current.enterTaskProgress(id, edit, { today, actualStart: answers[id],
+        plannedDates: () => dates.get(id) });
     });
   },
 

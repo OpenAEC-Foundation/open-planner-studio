@@ -71,7 +71,8 @@ runs no verify of its own: it starts after a green ci.yml run on `main` (`workfl
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →
 `verify:i18n` → `verify:release-highlights-json` → `verify:store-boundaries` → `verify:conventions` →
-`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:icons` → `verify:core-package`.
+`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:icons` → `verify:core-package` →
+`verify:comments`.
 
 Separate gates (most are in `verify`): `npm run verify:examples` (examples load/compute),
 `npm run verify:docs` (in-app guides + the mechanical claims in this file), `npm run verify:i18n` (keys + CLDR
@@ -81,6 +82,9 @@ plural forms + no cast on a key + fixed formatting), `npm run verify:store-bound
 convention registry, provenance data gates pinned), `npm run verify:cycles` (circular imports after type erasure),
 `npm run verify:core-package` (builds the headless core package, `npm pack`, installs it in a temporary copy of
 `headless/consumer-example/`, runs and type-checks that consumer),
+`npm run verify:comments` (no new code comments: every comment line in a changed file must already exist on the base
+commit, the merge base with `origin/main` locally and the first parent of the merge commit in CI; it fails on a PR and
+locally, and only reports on a push to `main`; see *Conventions*),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:icons` (app icons match the approved logo in `docs/branding/`: source hash, sizes, web icons), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
@@ -181,6 +185,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
 | Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror` and without the app) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
+| any code change | `npm run verify:comments` (no new comments) |
 | before push | the targeted checks above; CI runs the rest of `npm run verify` on the PR, without the browser suite |
 
 ## Invariants that bite
@@ -223,7 +228,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   restore). Its boundary, including the Unix window it leaves open (knownbug 1799) and mounts that hide hard links (knownbug 1823), is in the header of
   `place_file.rs` and design §4.10. No fallback inside the command. TS entry `fileAccess/placeFileExclusive.ts`; its
   one caller is the new-name route `writeNewUserBytes` in `atomicWrite.ts` (knownbug 1131 step 4). The command-less
-  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Files passed on the command line, at the first start and by a second start (single-instance callback, its own cwd), go to the webview as the event `ops:open-files` once it emits `ops:open-files-ready` (`src-tauri/src/launch_files.rs`, `src/state/launchFiles.ts`, #1091); they open through the drop route, so like File → Open. No command, and the fs scope is unchanged: a path outside `$HOME` fails (knownbug 2030). The installer associates no file type. The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
   The webview's data is denied to every plugin-fs command and to `place_file_exclusive` from two sides: `fs:default`
   of plugin-fs 2.7.1 denies `folder/**` for the WebKitGTK folders in `$APPLOCALDATA` (on Linux the same folder as
   `$APPDATA`, plus the files `cookies` and `hsts-storage.sqlite`) and `$APPLOCALDATA/EBWebView/**` on Windows; the
@@ -242,13 +247,14 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   vreemde planning geeft de oorspronkelijke bytes en bron terug, met dezelfde onafhankelijke
   uitvoercontrole. Zonder vreemd deel blijven de bytes van de gewone writer. De indexplek in
   `PreparedIfcWrite` is voor PR 6; deze stap bewaart/hergebruikt de index nog niet.
-  `commitSavedDocument(id, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
+  `commitSavedDocument(ref, savedSource, destination?, prepared?)` legt na geslaagde I/O doel,
   bron, bronkenmerk en kalenderkeuzes in één publicatie vast, ook voor een slapend document en bij doorwerken.
   `markAutoSaveVersionSaved` gebruikt dezelfde commit. `IFC_DIRTY_KEYS` sluit `ifcSource` uit;
   verouderde AutoSave-kandidaten toetsen haar identiteit apart. Bronherstel hoort bij PR 9;
   PR 11a sluit de documentroutes aan; PR 11b deelt hun voorbereiding via `state/prepareIfcOutput.ts`
   met IFC-export en app-MCP. Exports schrijven volledige bytes naar een nieuw doel zonder documentcommit.
-  Pool, planOnly, paneel, dev-bridge en bestands-AutoSave blijven bij vreemde inhoud geblokkeerd.
+  Pool, planOnly, paneel en dev-bridge blijven bij vreemde inhoud geblokkeerd; bestands-AutoSave schrijft sinds #804
+  stap 8 met de flag aan via de vervanging van Ctrl+S (zie *Auto-save with a building model*).
 - **IFC-bytes naar een nieuw doel (#804, T1; 1131 stap 4).** De aparte ingang `saveNewBytesDialog`/`saveNewBytesToRef`
   accepteert één `Uint8Array`. Tauri (`writeNewUserBytes`, ook voor `planner_export_ifc`) schrijft die met `createNew`
   in één aanroep naar een eigen `save-<id>.ops-save.tmp` in dezelfde map en zet dat met `place_file_exclusive` op de
@@ -290,7 +296,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   part can use a prepared merge in document Save As to a new desktop name, browser download and site versions
   with a mandatory base version (1c PR 11a). IFC export and app-MCP export use the same preparation
   for complete files to new targets (PR 11b), without changing the document source, target or literal calendars.
-  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane, dev-bridge and file AutoSave blocked. Local existing targets remain refused (1131), except Ctrl+S on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
+  `ifcFullWriteBlocked` guards these routes; `ifcSaveBlocked` keeps pool, pane and dev-bridge blocked, and file AutoSave with the flag off or the source missing. Local existing targets remain refused (1131), except Ctrl+S and Auto-save (#804 step 8) on the document's own browser handle (1131 step 2: content check before the merge and just before `close()`, inside `replaceWithRecoveryPending`) and on the document's own desktop path (1131 step 5b: `replaceOwnPathWithRecovery` inside the save's one `runProjectFileWrite`, never a fallback to the ordinary write; the close question closes only on the boolean of `commitSavedDocument`).
   A successful document write commits source, target mark and literal calendars together; a download keeps the
   opening source and target. Missing source bytes block IFC output (`src/state/ifcForeignGuard.ts`); only explicit Save As with the flag on may
   write planning alone after a cancel-by-default question. The original target stays protected by the same mark
@@ -369,7 +375,9 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   surrounding shell controls are inert,
   including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
 - **Closing waits for saves.** `runProjectFileWrite` (`src/services/fileAccess/writeCoordinator.ts`) is the one project
-  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Quitting the app, closing
+  write lock; `whenProjectFileWritesIdle` is the one place to wait for it (never inside a write). Every write to a file
+  the app opens goes through it, every export format included: a launch file (#1091) reads again when a turn started
+  since it was read (`projectFileWriteTurns`); what still writes outside it is listed in knownbug 2033. Quitting the app, closing
   a document (`requestCloseDocument`, `closeDocumentAfterSaves`) and the updater wait for it, with "Wordt nog
   opgeslagen…" (#804, owner decision 2026-11-17). An empty queue is not enough: their final phase starts with
   `closeProjectFileWrites`, after which `runProjectFileWrite` admits nothing new and returns the route's own `closed`
@@ -394,6 +402,54 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   `src/utils/settingIds.ts`); it then appears in all three places (⚙, Settings tab, Backstage), in search, with
   the changed dot and reset, and `openSettingsAt(id)` / a Help `settings://<id>` link opens it.
   A remembered view choice via a ribbon button or dragging does not belong there.
+- **Save worker (#804 steps 4 to 6).** `src/services/ifc/saveWorker/` computes what `prepareIfcOutput` computes (the
+  plain writer, or the merge with a foreign part) in a Web Worker. The plain writer reuses it; after every answer to a
+  merge (a result or a refusal) it stops and the next request starts a fresh one (knownbug 1936: a worker keeps the
+  garbage of its source copy and indexes, about 2 GB on the desktop at 157 MB). The mounted app owns one client
+  (`appStore.ts`) and hands its compute function to the save routes unconditionally, through
+  `StoreRuntimeOptions.ifcSaveCompute`: the plain writer and the merge run in the worker for Ctrl+S (also *Save* in the
+  close question), Save As, Export → IFC, the export with the resource library and Auto-save to the file
+  (`fileAutoSave.ts`, `compute` from `useAutoSave`; it checks its target after the computation, in the same write turn,
+  like Ctrl+S). Headless, scratch and test contexts, crash recovery and
+  `planner_export_ifc` stay on the main thread. A plain writer answer carries the worker's bytes; they go straight to
+  the write layer (`FileData`, `saveDataDialog`, `saveToRef`), never through text; the text only exists when the main
+  thread computed (the worker did not start). The plain writer keeps its right to overwrite (`saveFileDialog` /
+  `saveBytesDialog`, the atomic replace); `saveNewBytesDialog` stays the merge's exclusive route. `prepareIfcOutput`
+  keeps the decision (mode, flag, guard, plan-only question). The source goes over as a copy (the main thread keeps the bytes),
+  output buffers come back transferred, content errors arrive as the same error class, transport failures as
+  `IfcSaveWorkerError` (`ifcSaveWorkerError.ts`). A worker that sends no `started` within the fixed start limit (10 s,
+  the same for every worker) did not start. A plain request then computes on the main thread, as on main, and plain
+  requests stay there for the rest of the session; with the flag off for the whole session this is the only kind of
+  request and the behaviour is main's. One difference (knownbug 2025): after an earlier merge in the same session (flag
+  on, a refusal too) that worker is gone, so after an answer of a merge worker the next plain request can start a fresh
+  one, as long as the plain route is still available, where main reused the started one; if it does not start, plain requests compute on the main thread for the rest of the session, after waiting up to the
+  10 s start limit when it stays silent. A merge falls
+  back only while no worker has started yet in this session; after that its start failure is an error (`not-started`),
+  never the main thread. A crash, timeout or unreadable answer after the start is an error, never a retry on the main
+  thread; so is an answer that does not fit the request (`resultFits`). The save routes treat that error as a failed save
+  before any I/O (one notice, `ifcSaveWorkerFailed`). The worker loads `appStoreFactory.ts`, never `appStore.ts`; worker
+  bundles get the headless-core boundary (`vite.config.ts`: `zustand` without React, `STUBBED` modules as throwing
+  stubs). Tests: `check-save-worker.ts` (bytes, errors, lifetime), `check-ifc-document-save.ts` (the routes with an
+  injected worker), `save-worker-production.spec.ts` (the production config, its modules incl. dynamic chunks) and
+  `settings-tabs.spec.ts` (the app starts the worker itself on a real Ctrl+S, for a model and a plain file).
+- **Save status in the status bar** (#804 step 5, every document): "Saving…" from the request (Ctrl+S, Save As, *Save*
+  in the close question) through the end of the whole save, then "Saved 14:32", and "Unsaved" once the document changes
+  again. It lives on the document registry (`DocumentEntry.saveState`, `src/state/documentSaveState.ts`), not in
+  `DOCUMENT_FIELDS`; `commitSavedDocument` stamps the time. A failure is a normal notice, never a status.
+- **Document content identity** (#1020 fix round 1): a save belongs to the content it was requested for
+  (`DocumentContentRef`: document id plus `DocumentEntry.content`), not to the tab. Only `replaceDocumentContent`
+  changes it: another project in the same tab (`applyLoadedProject` without edit and with another project id, which
+  includes `api.data.loadProject`, opening into the empty tab and examples), `newProject` and `createNewProject`; a
+  read-modify-load of the same project keeps it. `refuseChangedDocumentWrite` checks it right before every write (also
+  for the plain writer and in `stopBeforeWrite`) and again at the last safe point of the write layer
+  (`RefuseBeforePlace`: before `close()` of an existing browser handle, directly next to `close()` for the merge
+  handle, before setting an existing name aside, before the exclusive placement, before the atomic rename and the site
+  write, also for both IFC exports; a refusal leaves the target unchanged and returns "not written"). A handle fresh
+  from the browser's save picker gets no late check: Chromium already emptied an existing target when it was picked
+  (knownbug 1899), so the save finishes the requested file and only the commit, Recent and an export's success and
+  calendar choice are withheld, `commitSavedDocument` takes the ref and commits nothing to replaced content, and the waiting Ctrl+S,
+  the save status and `markAutoSaveVersionSaved` follow the same ref. Session data,
+  not in `DOCUMENT_FIELDS`.
 - **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
   serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
   references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
@@ -417,6 +473,32 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   and `recoveryStore.ts`; upgrade/blocking/error limits are in `docs/xer-recovery-guardrails.md`.
   A blocked web upgrade completes startup with a persistent storage warning; recovery refuses further DB
   access until reload, even after unblocking. There is no fallback to writing an older DB version.
+- **Auto-save with a building model (#804 step 8).** With `ifcForeignContent` on and the source present, a document with
+  a foreign part takes part in Auto-save through the same replacement as Ctrl+S on its own target
+  (`replaceOwnHandleWithRecovery` / `replaceOwnPathWithRecovery` in `src/state/ownFileReplace.ts`, never
+  `saveToRefWithoutPrompt`, never the site or a download), inside one `runYieldingProjectFileWrite`
+  (`writeCoordinator.ts`): content check, target and source check, merge in the save worker, the check again, the
+  replacement with its recovery record, and the commit. Its own rhythm per document (`modelAutoSaveRhythm.ts`, clock
+  injectable): 30 s of rest, at most 5 min after the first unsaved change, and never sooner than ten times the measured
+  duration of the previous round after its start; typing in open field input (`state/textEntryActivity.ts`) restarts the
+  rest. The timers live in `fileAutoSaveTimers.ts`; only the model timer puts a model up for its turn (`flushModels`),
+  the ordinary 10 s round knows no model, and the rhythm is checked again at the turn in the queue. Every
+  other request for the write queue (`runProjectFileWrite`: Ctrl+S, Save As, exports, MCP), every wait on it
+  (`whenProjectFileWritesIdle`: closing a tab, the last phase of quit or the updater) and an IFC export over its whole
+  sequence (`withIfcExportPriority`: `claimProjectFileWrite` from the source choice on, also while the plan-only question
+  is open) makes a round yield up to the boundary in the shared replacement (`stopBeforeWrite` with
+  `YieldingTurn.pass()`, once recovery is recorded); an export pins its document at the call and waits for a round past
+  that boundary (`whenProjectFilePlacementSettled`). An ordinary Auto-save tick (`runAutoSaveTickWrite`) never makes a
+  round yield: it waits its turn and writes right after the model round, so a model round always gets its turn. The
+  write coordinator is the one place that assigns these turns. On yielding, the worker stops that one job (`IfcOutputCompute`'s `stop` signal),
+  nothing is written or left behind, no notice, the document stays dirty, and the round returns after the next rest.
+  Past that boundary the round runs to its end. It never asks a question (no write permission, or a too-tight anchor of
+  a dependent project by the same assessment as Ctrl+S, `tightAnchorsIfSaved`: it skips the document). A
+  changed or missing own file, a target outside the scope (knownbug 1762), an unrecordable or leftover recovery record
+  stop it for that document with one notice per session (`state/modelAutoSaveNotices.ts`) until the planner saves or
+  picks another target. With the flag off a plain document keeps its 10 s throttle and its write route (for the save
+  worker after a model merge see knownbug 2025).
+  Tests: `check-actual-autosave.ts` (rhythm, yielding), `check-ifc-document-save.ts`, `check-ifc-own-file-replace.ts`.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,
   see `src/state/immerDraft.ts`). Bumping is a deliberate, separately reviewed change.
@@ -460,8 +542,15 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   removes its flag and the corresponding checks. List the flag's own UI texts in `texts` (`ns:path` or
   `ns:path.*`): the nightly translation skips them until the flag is gone, the release translates them.
   Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik 5 seconden snel achter elkaar op het versienummer).
-- **Working language is Dutch**: code comments, commit messages and the canonical source translations.
+- **Working language is Dutch**: commit messages, ADRs and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
+- **No comments in code** (`docs/adr/0001-geen-commentaar-in-code.md`). Do not write a comment in TypeScript or
+  JavaScript: say it with a name, a type or a test; record a decision that would surprise a reader in `docs/adr/`;
+  put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on every comment line
+  that was not on the base commit: you may delete or move an existing comment, never write or rewrite one. Directives the
+  tools themselves recognise (`@ts-expect-error`, `eslint-disable`, `/// <reference`, `@vite-ignore`, `@jsxImportSource`,
+  `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, a bare `/** @deprecated */` or `/** @internal */`, and a one-line licence or source notice are not
+  comments. Existing comments stay until the `delete-comment` skill has judged them.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
@@ -518,7 +607,7 @@ See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` (created lazily) and `docs/adr/` at the root. See `docs/agents/domain.md`.
 
 ## Where the depth lives
 
@@ -548,7 +637,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `delete-comment` (judge and remove the comments of one part of the code, on request), `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).

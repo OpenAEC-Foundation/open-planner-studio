@@ -29,7 +29,8 @@ lopende bewerking (`editHold.ts`) en na een mislukte berekening met ongewijzigde
 `BACKUP_RETENTION`: alles van de laatste 7 dagen (max. 20), daarna één per week tot 30 dagen, één per maand tot een jaar, daarna één per jaar) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 42
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
-temp-id-resolutie).
+temp-id-resolutie). Besluiten over de wijzigende tools voor resources, toewijzingen, kalenders, nivelleren en het
+project staan in `docs/adr/0100` tot en met `0107`.
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel
@@ -39,7 +40,7 @@ met alleen planning. MCP-export stelt die vraag nooit en blijft geblokkeerd tot 
 Met de flag uit blijft de bestaande backuproute gelijk. Opnieuw koppelen aan de actuele bron is 9c (1575).
 
 Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)
-is Engels; codecommentaar blijft Nederlands. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
+is Engels. Dat geldt ook voor wat `planner_get_planning_guide` levert: de
 agentgids `public/agent/planning-guide.md` (per principe de tools, niet het Help-artikel voor mensen) en de skills
 `public/skills/{goed-plannen,progress-update}/SKILL.md` (byte-identiek in `.claude/skills/`). Verandert een tool iets
 wat daar beschreven staat, werk dan ook die teksten bij; `verify:docs` (poort 9 en 11) bewaakt de kopieën en

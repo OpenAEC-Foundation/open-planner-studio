@@ -1,8 +1,8 @@
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { appStoreContext, type AppStoreContext } from '@/state/appStore';
+import { appStoreContext, type AppState, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate,
+  applyProgressInvariants, rememberProgressBeforeRecalculation,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -10,12 +10,14 @@ import {
   constraintBlockingStart, predecessorDrivenTaskIds, startConstraintAfterEdit,
 } from '@/engine/startEditConstraint';
 import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
-import { hasRecordedProgress } from '@/engine/progressEntry';
+import {
+  hasRecordedProgress, planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryPlan,
+} from '@/engine/progressEntry';
+import { progressPlannedDatesAfterEdit } from '@/state/progressPlannedDates';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import { durationEditRefusal } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
-import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
@@ -60,41 +62,6 @@ import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
  *    werkdriehoek intussen via de toewijzingssectie veranderde stil terugdraaien.
  */
 
-const clampCompletion = (raw: number) => Math.max(0, Math.min(1, raw));
-
-/** Schuif "% voltooid" op de concept: dezelfde regel als `setTaskProgress`. */
-export function draftWithProgress(draft: Task, raw: number, statusDate: string | undefined, calendar?: WorkCalendar): Task {
-  const next: Task = { ...draft, time: { ...draft.time } };
-  applyCompletionEdit(next, clampCompletion(raw), statusDate, calendar);
-  applyProgressInvariants(next, statusDate, calendar);
-  return next;
-}
-
-function draftWithActualDate(
-  draft: Task,
-  field: 'actualStart' | 'actualFinish',
-  date: string | undefined,
-  statusDate: string | undefined,
-  calendar?: WorkCalendar,
-): Task | null {
-  // Zelfde weigering als de paneelsetters: actuals nooit ná de statusdatum.
-  date = normalizeActualDate(draft, field, date, statusDate, calendar);
-  if (date && statusDate && isTaskActualPastStatusDate(draft, field, date, statusDate, calendar)) return null;
-  const next: Task = { ...draft, time: { ...draft.time } };
-  applyActualDateEdit(next, field, date, statusDate, calendar);
-  return next;
-}
-
-/** Werkelijke start op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualStart`. */
-export function draftWithActualStart(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
-  return draftWithActualDate(draft, 'actualStart', date, statusDate, calendar);
-}
-
-/** Werkelijk einde op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualFinish`. */
-export function draftWithActualFinish(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
-  return draftWithActualDate(draft, 'actualFinish', date, statusDate, calendar);
-}
-
 /** De duur van de taak bij het openen van de dialoog. */
 export interface TaskDialogInitialDuration {
   unit: 'days' | 'hours';
@@ -102,12 +69,27 @@ export interface TaskDialogInitialDuration {
   durationMinutes?: number;
 }
 
+/** De voortgang op het moment dat het bewerkbare startveld werd ingevuld. */
+export interface TaskDialogStartEdit {
+  date: string;
+  completion: number;
+}
+
+/** Afgeleide conceptdatums worden bij Opslaan opnieuw bepaald met de definitieve invoer. */
+export type TaskDialogDraft = Task & {
+  inferredActualStart?: true;
+  inferredActualFinish?: true;
+};
+
+type TaskDialogProgressPlan = Extract<ProgressEntryPlan, { ok: false }>
+  | { ok: true; change: { task: TaskDialogDraft; statusDateToday?: string } | null };
+
 export interface TaskDialogSaveInput {
   /** De bewerkte taak; `null` (of een inmiddels verdwenen id) ⇒ de "nieuwe taak"-tak. */
   editingTaskId: string | null;
-  draft: Task;
-  /** De in de dialoog getoonde startdatum. */
-  startDate: string;
+  draft: TaskDialogDraft;
+  /** Een expliciet gewijzigde startdatum. Zonder waarde blijft het anker van een bestaande taak staan. */
+  startDate?: string | TaskDialogStartEdit;
   /** De duur bij het openen; afwezig ⇒ de duur uit de concept telt altijd als bewerkt. */
   initialDuration?: TaskDialogInitialDuration | null;
   /** De open bewerksessie van de dialoog (`historyMark`); afwezig ⇒ één `withTransaction`. */
@@ -122,9 +104,111 @@ export interface TaskDialogSaveInput {
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
 
+/** De geplande start zoals de dialoog haar vóór de nieuwe voortgang verwerkt. */
+function planTaskDialogStart(
+  state: Pick<AppState, 'tasks' | 'sequences'>, editingTask: Task, draft: Task,
+  startDate: TaskDialogSaveInput['startDate'],
+): { anchor?: string; constraint: Task['constraint']; notice?: StartEditNotice } {
+  const unchanged = { constraint: draft.constraint };
+  if (!startDate) return unchanged;
+  const entered = typeof startDate === 'object' ? startDate : undefined;
+  const date = typeof startDate === 'string' ? startDate : startDate.date;
+  const timeBeforeProgress = entered
+    ? { ...editingTask.time, completion: entered.completion, actualStart: undefined }
+    : startIsActual(draft) ? editingTask.time : draft.time;
+  const hasActualStart = !entered && startIsActual({ ...editingTask, time: timeBeforeProgress });
+  const anchor = date && !hasActualStart ? startAnchorAfterEdit(editingTask, date) : undefined;
+  if (anchor === undefined) return unchanged;
+  // Een expliciet gekozen beperking wint van de SNET die typen van een start anders toevoegt.
+  const explicitConstraint = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
+    || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
+  const driven = !explicitConstraint && predecessorDrivenTaskIds(state.tasks, state.sequences).has(editingTask.id);
+  // De getypte start hoort bij de taak vóór de conceptvoortgang. Een werkelijke start die de
+  // schuif daarna afleidt of vraagt, mag het eerder getypte anker of de SNET niet wissen.
+  const prospective = { ...editingTask, isHammock: draft.isHammock, time: timeBeforeProgress };
+  const blocked = constraintBlockingStart(prospective, driven);
+  if (blocked) return {
+    ...unchanged, notice: { kind: 'blocked', name: draft.name, constraint: blocked, taskId: editingTask.id },
+  };
+  const snet = startConstraintAfterEdit(prospective, anchor, driven);
+  return {
+    anchor,
+    constraint: snet?.constraint ?? draft.constraint,
+    notice: snet ? { kind: 'snet', name: draft.name, date: anchor, change: snet.change } : undefined,
+  };
+}
+
+/** Toets conceptvoortgang met de actuele planning en dezelfde startregel als Opslaan. */
+export function planTaskDialogProgress(
+  state: AppState, draft: TaskDialogDraft, startDate: TaskDialogSaveInput['startDate'], edit: ProgressEdit,
+  { initialDuration, ...context }: Pick<ProgressEntryContext, 'today' | 'actualStart'>
+    & Pick<TaskDialogSaveInput, 'initialDuration'>,
+): TaskDialogProgressPlan {
+  const live = state.tasks.find(task => task.id === draft.id);
+  const start = live ? planTaskDialogStart(state, live, draft, startDate) : undefined;
+  const time = live ? savedTime(live, draft, initialDuration) : { ...draft.time };
+  const task = { ...draft, constraint: live ? start?.constraint : draft.constraint, time };
+  if (start?.anchor !== undefined) time.scheduleStart = start.anchor;
+  if (edit.field === 'completion') {
+    if (edit.value > 0 && draft.inferredActualStart) time.actualStart = undefined;
+  }
+  // Een automatisch einde is nog geen feit. Een gewijzigde werkelijke start wordt getoetst
+  // tegen het opnieuw afgeleide einde, met die start als ondergrens.
+  if (edit.field !== 'actualFinish' && draft.inferredActualFinish) time.actualFinish = undefined;
+  const plan = planProgressEntry(task, edit, {
+    ...context,
+    statusDate: state.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar),
+    plannedDates: live ? candidate => progressPlannedDatesAfterEdit(state, live, {
+      ...candidate, status: live.status, time: { ...candidate.time, completion: live.time.completion },
+    }, (edit.field === 'completion' ? edit.value : time.completion) >= 1) : undefined,
+  });
+  if (!plan.ok) return plan;
+  const next = plan.change?.task ?? task;
+  const { completion, actualStart, actualFinish, remainingTime, remainingMinutes } = next.time;
+  // Ook het expliciet aanvaarden van dezelfde datum verandert haar herkomst.
+  const inferredActualStart = actualStart && edit.field !== 'actualStart' && !context.actualStart
+    && (draft.inferredActualStart || (edit.field === 'completion' && !time.actualStart)) ? true : undefined;
+  const inferredActualFinish = actualFinish && edit.field !== 'actualFinish'
+    && (draft.inferredActualFinish || (edit.field === 'completion' && !time.actualFinish)) ? true : undefined;
+  if (!plan.change && draft.inferredActualStart === inferredActualStart
+    && draft.inferredActualFinish === inferredActualFinish) return { ok: true, change: null };
+  // Alleen de voortgang gaat terug naar het concept. De actuele duur en de afgeleide SNET
+  // zijn invoer voor de berekening, geen door de gebruiker gewijzigde conceptvelden.
+  return {
+    ok: true,
+    change: {
+      ...plan.change,
+      task: {
+        ...draft, status: next.status, inferredActualStart, inferredActualFinish,
+        time: { ...draft.time, completion, actualStart, actualFinish, remainingTime, remainingMinutes },
+      },
+    },
+  };
+}
+
+/** Dezelfde afleiding voor de schuif en voor Opslaan, na de laatste plaatsingsbewerking. */
+export function prepareTaskDialogSaveProgress(
+  state: AppState,
+  { draft, startDate, today, initialDuration }: Pick<TaskDialogSaveInput, 'draft' | 'startDate' | 'today' | 'initialDuration'>,
+  actualStart?: string,
+): TaskDialogProgressPlan {
+  if (!draft.inferredActualFinish && (!draft.inferredActualStart || draft.time.completion <= 0)) {
+    return { ok: true, change: null };
+  }
+  const plan = planTaskDialogProgress(state, draft, startDate, { field: 'completion', value: draft.time.completion },
+    { today, initialDuration, actualStart });
+  if (!plan.ok) return plan;
+  const ready = plan.change?.task ?? draft;
+  return { ok: true, change: {
+    ...plan.change,
+    task: { ...ready, inferredActualStart: undefined, inferredActualFinish: undefined },
+  } };
+}
+
 /**
- * De tijd die Opslaan op een bestaande taak schrijft, vóór het startanker. Gedeeld door de
- * weigering vooraf (duur korter dan het gedane werk) en `save`.
+ * De samengevoegde tijd vóór het startanker. Voortgang, de duurtoets en Opslaan rekenen met
+ * dezelfde actuele taak en dezelfde bewust gewijzigde conceptvelden.
  */
 function savedTime(
   editingTask: Task,
@@ -190,28 +274,9 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
     const editingTask = editingTaskId ? S().tasks.find(task => task.id === editingTaskId) : undefined;
     if (editingTask) {
       const time = savedTime(editingTask, draft, initialDuration);
-      // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
-      // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
-      // en de drift na herberekenen herintroduceren.
-      // Start is verplicht: het veld weigert leeg al (`required`), dit is het vangnet.
-      // Een gestarte taak (in de opgeslagen draft) begint op haar werkelijke start: het veld was
-      // alleen-lezen en er komt geen anker bij (eigenaarsbesluit 2026-10-12).
-      const anchor = startDate && !startIsActual(draft) ? startAnchorAfterEdit(editingTask, startDate) : undefined;
-      // Een getypte start op een taak met voorganger wordt een beperking "Start niet eerder dan"
-      // (dezelfde regel als Tabel, paneel en Gantt-sleep), in dezelfde `updateTask` en dus
-      // dezelfde undo-stap. Houdt een andere constraint de start tegen, dan wordt de start niet
-      // toegepast en volgt een melding. Koos de gebruiker in deze dialoog zelf een beperking, dan
-      // wint die expliciete keuze en doet de startregel niets.
-      const constraintEditedHere = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
-        || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
-      const driven = anchor !== undefined && !constraintEditedHere
-        && predecessorDrivenTaskIds(S().tasks, S().sequences).has(editingTask.id);
-      const prospective: Task = { ...editingTask, isHammock: draft.isHammock, time };
-      const blocking = constraintBlockingStart(prospective, driven);
-      const snet = anchor !== undefined && !blocking ? startConstraintAfterEdit(prospective, anchor, driven) : undefined;
-      if (anchor !== undefined && !blocking) time.scheduleStart = anchor;
-      if (blocking) notices.push({ kind: 'blocked', name: draft.name, constraint: blocking, taskId: editingTask.id });
-      else if (snet && anchor !== undefined) notices.push({ kind: 'snet', name: draft.name, date: anchor, change: snet.change });
+      const start = planTaskDialogStart(S(), editingTask, draft, startDate);
+      if (start.anchor !== undefined) time.scheduleStart = start.anchor;
+      if (start.notice) notices.push(start.notice);
       const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
@@ -223,7 +288,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         milestoneKind: draft.milestoneKind,
         mandatory: draft.mandatory,
         isHammock: draft.isHammock,
-        constraint: snet ? snet.constraint : draft.constraint,
+        constraint: start.constraint,
         constraint2: draft.constraint2,
         deadline: draft.deadline,
         notes: draft.notes,
@@ -244,8 +309,9 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
           statusDate = today;
         }
         // Met de kalender van de taak: het afgeleide einde wordt eerst een moment (D6), en pas dan
-        // vergeleken met de werkelijke start (zie `carryRemainingThroughDurationEdit`).
+        // vergeleken met de werkelijke start (zoals bij `settleEditedDuration`).
         applyProgressInvariants(merged, statusDate, resolveCalendar(merged.calendarId, S().calendars, S().calendar));
+        rememberProgressBeforeRecalculation(editingTask, merged);
         patch.status = merged.status;
       }
       S().updateTask(editingTask.id, patch);
@@ -257,6 +323,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       return;
     }
 
+    const newStart = (typeof startDate === 'object' ? startDate.date : startDate) ?? draft.time.scheduleStart;
     S().addTask({
       name: draft.name,
       description: draft.description,
@@ -274,12 +341,12 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         durationUnit: draft.isMilestone ? 'days' : draft.time.durationUnit,
         scheduleDuration: draft.isMilestone ? 0 : draft.time.scheduleDuration,
         durationMinutes: draft.isMilestone || draft.time.durationUnit === 'days' ? undefined : draft.time.durationMinutes,
-        scheduleStart: startDate,
-        scheduleFinish: startDate,
-        earlyStart: startDate,
-        earlyFinish: startDate,
-        lateStart: startDate,
-        lateFinish: startDate,
+        scheduleStart: newStart,
+        scheduleFinish: newStart,
+        earlyStart: newStart,
+        earlyFinish: newStart,
+        lateStart: newStart,
+        lateFinish: newStart,
         freeFloat: 0,
         totalFloat: 0,
         isCritical: false,
@@ -300,6 +367,11 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         S().notify(durationBelowDoneWorkNotice(current));
         return false;
       }
+    }
+    if (current) {
+      const progress = prepareTaskDialogSaveProgress(S(), input);
+      if (!progress.ok) return false;
+      if (progress.change) input = { ...input, draft: progress.change.task };
     }
     // Meldingen (startregel) pas ná de mutaties en de undo-stap, via het ene kanaal.
     const notices: StartEditNotice[] = [];
