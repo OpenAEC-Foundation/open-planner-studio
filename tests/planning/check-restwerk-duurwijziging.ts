@@ -700,7 +700,6 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
       eq(`r19 ${name}: IFC-heropening houdt het werkpaar`, pair(name), before);
     }
   }
-  // Knownbug 367: dezelfde eindinvoer in één opslag of twee afzonderlijke stappen.
   const observed = [];
   for (const route of ['dialog', 'mcp-update', 'mcp-patch', 'sequential'] as const) {
     for (const completion of [0.75, 1]) {
