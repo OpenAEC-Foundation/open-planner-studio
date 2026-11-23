@@ -436,19 +436,23 @@ bestandsaanroepen, ook als er na het uitzetten nog een tabblad met een gebouwmod
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen gaat met de flag aan naar het tabblad dat een
-bestand al open heeft (`openDocumentFor.ts`, knownbug 1957). Regel: geen wachtmoment van de PR tussen het binnenkomen
-van de bytes en het activeren. Het asynchrone deel (`lookupOpenDocument`: `dev`/`ino` vóór het lexicale pad, de
-identiteit van het gevraagde pad één keer; `isSameEntry` voor handles) staat vóór het lezen, bij de aanroeper die het
-doel al kent: `openFile` (desktop: `pickOpenPath`, toets, `readOpenedPath`; browser: de haak `beforeRead` van
-`openFileDialogWeb`), `openRecentFile`, `openDroppedFiles` (`DroppedFile.target`: browser uit de gesplitste
-`webDroppedFile`, desktop via `desktopDroppedFiles`) en `planner_import_schedule`. Met de flag uit gaat elke route langs
-de lijn van main. De keuze voor de flag ligt per openactie vast vóór het lezen (`OpenOpenedFileOptions.readOptions`).
-Na het parsen beslist `existingDocument` synchroon, in de stap van het activeren: het tabblad van de toets als het nog
-open is en nog hetzelfde bestand heeft, anders een tabblad dat het bestand ná de toets kreeg (hetzelfde pad als tekst,
-dezelfde handle of hetzelfde site-id). Geen herlezing en geen schrijfteller in deze routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
+bestand al open heeft (`openDocumentFor.ts`, knownbug 1957). Regel: de PR voegt geen enkel wachtmoment toe aan de
+openactie. Het asynchrone deel (`startOpenLookup`: `dev`/`ino` vóór het lexicale pad, de identiteit van het gevraagde
+pad één keer, een aantoonbaar ontbrekend tabbladpad telt niet en valt niet terug op de padtekst; `isSameEntry` voor
+handles, alleen bij dezelfde `handle.name`) start bij het begin van het lezen en niets wacht erop. Het staat bij de
+aanroeper die het doel kent: `openFile` (desktop: `pickOpenPath`, toets, `readOpenedPath`; browser: de synchrone haak
+`beforeRead` van `openFileDialogWeb`), `openRecentFile`, `openDroppedFiles` (de haak van `DroppedFile.read`: browser
+in `webDroppedFile`, desktop via `desktopDroppedFiles`) en `planner_import_schedule`. Op de desktop wacht het lezen
+zoals main op de schrijfrij (`whenProjectFileWritesIdle` in `tauriBackend.ts`); `planner_import_schedule` leest via
+`realFs` buiten die rij om, ook zoals main (knownbug 2060). Met de flag uit gaat elke route langs de lijn van main. De
+keuze voor de flag ligt per openactie vast vóór het lezen (`OpenOpenedFileOptions.readOptions`). Na het parsen beslist
+`existingDocument` synchroon, in de stap van het activeren: is de toets al binnen, het tabblad van de toets als het nog
+open is en nog hetzelfde bestand heeft; anders, of voor een tabblad dat het bestand ná de start kreeg, hetzelfde pad als
+tekst, dezelfde handle of hetzelfde site-id. Een late uitkomst doet niets meer: dan een eigen tabblad, zoals main
+(knownbug 2062). Geen herlezing en geen schrijfteller in deze routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
 (`openLaunchFiles`); met de flag aan komen daar de melding en Recent bij. Een tweede tabblad op hetzelfde bestand kan er
 nog zijn (crashherstel, de flag pas later aan, de lexicale grenzen van knownbug 2040, kruisende openacties in de browser
-of via een link: knownbug 2041), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
+of via een link: knownbug 2041; een late toets: 2062), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een
 nieuw sitebestand (geen `id`), dus daar is geen bestaand doel om te vergelijken. Het eigen bestand van het document
 blijft een gewoon doel. Proeven: `check-ifc-own-file-replace.ts` (#1022, knownbug 1907, de bibliotheek),
 `check-ifc-foreign-target.ts` (#1022 browser), `cases-doc-file.ts` en `cases-headless-server.ts` (`planner_export_ifc`).

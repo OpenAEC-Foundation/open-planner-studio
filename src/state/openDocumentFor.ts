@@ -23,7 +23,7 @@ import type { NotifyInput } from './slices/types';
 type Tabs = Pick<AppState, 'getOpenDocumentPayloads'>;
 type TabFile = Pick<DocumentPayload, 'filePath' | 'fileHandle' | 'siteFileId'>;
 type OpenTab = { readonly id: string; readonly payload: TabFile };
-/** Wat de toets vóór het lezen kan vergelijken: een lokaal pad of een browserhandle. */
+/** Wat de toets kan vergelijken: een lokaal pad of een browserhandle. */
 export type LocalRef = Extract<FileRef, { kind: 'path' | 'handle' }>;
 
 const sameTabFile = (a: TabFile, b: TabFile) =>

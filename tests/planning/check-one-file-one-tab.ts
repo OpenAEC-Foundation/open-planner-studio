@@ -3,10 +3,11 @@
 // de app gaat naar dat tabblad, met één melding, en dat tabblad houdt al zijn werk (taken, gewijzigd-stand, ongedaan
 // maken). Met de flag uit: een tweede tabblad, zoals main.
 //
-//  A. `openDocumentFor` (de toets vóór het lezen): pad (lexicaal, ook Windows; `dev`/`ino` via een link), handle
+//  A. `openDocumentFor` (de toets, die gelijk op loopt met het lezen): pad (lexicaal, ook Windows; `dev`/`ino` via een link), handle
 //     (`isSameEntry`, ook een ander object voor hetzelfde bestand; een fout telt als anders), `null`; een tabblad met een
 //     handle telt niet voor een pad en omgekeerd; een betrouwbare `dev`/`ino` gaat voor op het lexicale pad
-//     (`maplink/../a.ifc`); de identiteit van het gevraagde pad één keer (A18). `existingDocument` zonder toets: de site
+//     (`maplink/../a.ifc`); de identiteit van het gevraagde pad één keer (A18); in de browser alleen `isSameEntry` voor
+//     dezelfde bestandsnaam (A19, A19b). `existingDocument` zonder toets: de site
 //     op id, een pad alleen als dezelfde tekst (A17). Met de flag uit roept geen openroute de toets aan (B6, C4: main).
 //  B. Desktop, op echte bestanden (plugin-fs-JS met nep-IPC naar Node-fs): Bestand → Openen (`openFile()` met de
 //     kiezer), via een link, Recent, slepen; twee keer hetzelfde bestand in één neerzetting; een kopie met dezelfde
@@ -15,11 +16,13 @@
 //  C. Browser (nep-FSA-handles): Openen (`showOpenFilePicker`, telkens een nieuw handle-object), Recent, slepen
 //     (`droppedFilesFromDataTransfer`), een `isSameEntry` die gooit, Firefox zonder handle. Met de flag uit: twee
 //     tabbladen.
-//  R, T. Review #1121: *Opslaan als* tijdens de toets of na het parsen (R1, R2, R4), *Opslaan als* en het sluiten van
-//     dat tabblad tijdens de toets, met daarna Ctrl+S (R3, Openen, Recent, slepen, MCP), MCP en Openen tegelijk (R5),
-//     drie openacties tegelijk in hun toets (R6), de flag die tijdens de toets uitgaat (R7), en per route de volgorde
-//     toets → lezen → parsen → activeren (T1 desktop en MCP, T2 browser; het startbestand lezen → toets zoals main; met
-//     de flag uit geen toets en één lezing, zoals main).
+//  P, R, T. Review #1121: de regel van ronde 5 (de PR voegt geen wachtmoment toe aan de openactie): een vastgehouden
+//     toets houdt Openen, Recent, slepen en MCP niet op en een late uitkomst doet niets (P1, desktop en browser), MCP en
+//     een lopende opslag zoals main (P2), F2 tijdens Openen en Recent (P3); een verdwenen alias (B11). *Opslaan als* na
+//     het parsen (R2, R4), MCP en Openen tegelijk (R5), drie openacties tegelijk (R6), de flag die tijdens het lezen
+//     uitgaat (R7), en per route lezen → parsen → activeren zoals main, met de toets gestart vóór het activeren (T1
+//     desktop en MCP, T2 browser; het startbestand lezen → toets → parsen → activeren zoals main; met de flag uit geen
+//     toets en één lezing, zoals main).
 // De site staat in `check-site-storage.ts` (G16, G17, G18), `planner_import_schedule` ook in `tests/mcp/cases-doc-file.ts` en
 // `cases-headless-server.ts`.
 //

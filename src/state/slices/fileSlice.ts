@@ -2463,8 +2463,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        // Knownbug 1957: de leeskeuze van de openactie (met de flag ook de keuze voor "staat al open"); de toets zelf liep
-        // vóór het lezen, bij de aanroeper (`options.lookup`). Een startbestand heeft de toets van main.
+        // Knownbug 1957: de leeskeuze van de openactie (met de flag ook de keuze voor "staat al open"); de toets zelf startte
+        // bij het lezen, bij de aanroeper (`options.lookup`), en telt hieronder alleen als ze al binnen is. Een startbestand heeft de toets van main.
         const readOptions = options?.readOptions ?? formatReadOptions();
         const oneTab = !!readOptions.ifcBytes;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);

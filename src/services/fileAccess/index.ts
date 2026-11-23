@@ -173,7 +173,7 @@ export function supportsRecentFiles(): boolean {
 }
 
 /** Desktop (#804, knownbug 1957): `pickOpenPath` kiest alleen het pad (`null` = geannuleerd); lezen gaat met
- *  `readOpenedPath` en `readsPathAsBytes`, zoals `openFileDialogTauri` het samen doet. Zo start de toets vóór het lezen. */
+ *  `readOpenedPath` en `readsPathAsBytes`, zoals `openFileDialogTauri` het samen doet. Zo start de toets vlak vóór het lezen, zonder dat iets erop wacht. */
 export { pickOpenPathTauri as pickOpenPath, readsPathAsBytes };
 
 /** Openen via picker/input. `null` = geannuleerd. */
