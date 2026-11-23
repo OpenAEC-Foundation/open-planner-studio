@@ -379,6 +379,46 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
+{
+  const summary = [];
+  for (const splitFriday of [false, true]) {
+    const cal = {
+      ...OWN_BLOCKS, id: 'irregular',
+      workTime: { byWeekday: {
+        1: BAND, 2: BAND, 3: [{ start: 480, end: 600 }], 4: BAND,
+        5: splitFriday ? [{ start: 480, end: 600 }, { start: 660, end: 900 }] : SHORT,
+        6: [], 7: [],
+      } },
+    } as WorkCalendar;
+    const eng = new CalendarEngine(cal);
+    for (const anchorB of ['2026-06-05T08:00', '2026-06-05T10:00', '2026-06-05T12:00']) {
+      const a = { ...task('A', 1.5, { alap: true }), calendarId: cal.id };
+      const b = { ...task('B', 1), calendarId: SCALAR.id, constraint: { type: 'SNET', date: anchorB } } as Task;
+      const tasks = [a, b];
+      const seqs: Sequence[] = [{ id: 'ab', predecessorId: 'A', successorId: 'B', type: 'START_START', lagDays: 1.5 }];
+      const first = run('ops', tasks, seqs, cal, '24hour', [SCALAR]);
+      const placed = first.tasks.get('A')!;
+      const replay = run('ops', withoutAlapAt(tasks, 'A', placed.earlyStart), seqs, cal, '24hour', [SCALAR]);
+      const replayed = replay.tasks.get('A')!;
+      eq(`377: zelfde start ${splitFriday}/${anchorB}`, replayed.earlyStart, placed.earlyStart);
+      const start = new Date(`${placed.earlyStart}Z`);
+      const end = new Date(`${placed.earlyFinish}Z`);
+      const replayEnd = new Date(`${replayed.earlyFinish}Z`);
+      summary.push({
+        splitFriday, anchorB, es: placed.earlyStart, ef: placed.earlyFinish, replayEf: replayed.earlyFinish,
+        minutes: (end.getTime() - replayEnd.getTime()) / 60000,
+        days: eng.measuredWorkdaysBetween(start, end), replayDays: eng.measuredWorkdaysBetween(start, replayEnd),
+        b: first.tasks.get('B')!.earlyStart, replayB: replay.tasks.get('B')!.earlyStart,
+      });
+    }
+  }
+  eq('knownbug 377: aantal gevallen', summary.length, 6);
+  console.log(`KNOWNBUG377_SUMMARY ${JSON.stringify(summary)}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::notice title=Knownbug 377::${JSON.stringify(summary)}`);
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  alap-maatplaatsing: alle checks groen (${checks})`);
   process.exit(0);
