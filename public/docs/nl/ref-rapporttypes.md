@@ -34,7 +34,7 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 **Welke taken** — welke rijen op papier komen. Keuze uit *Alle taken*, *Zoals de weergave* en een layout. Standaard: *Alle taken*. Effect: *Alle taken* geeft de hele takenboom. *Zoals de weergave* neemt het filter, de groepering, de sortering, de ingeklapte groepen, de kolommen en de balkkleuren van je Gantt-diagram over. Een layout bepaalt de rijen met zijn filter, groepering en sortering; je Gantt-diagram verandert niet.
 
-**Rapportageperiode** — het tijdvak op papier, voor elke keuze bij *Welke taken*. Standaard: *Hele project*. Effect: alleen de taken die de periode raken, en de tijdas loopt exact over de periode; een balk of relatielijn die erbuiten doorloopt, wordt aan de rand afgekapt. Een fase blijft staan zolang een van haar taken erin valt. Eronder staat hoeveel taken buiten de periode vallen en de knop *Hele project tonen*. Is er niets in de periode, dan staat er *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
+**Eigen periode** — het tijdvak op papier, voor elke keuze bij *Welke taken*. Standaard: uit, dus de hele duur van het project. Effect: aan geeft *Van* en *Tot*, beginnend bij de eerste start en het laatste einde van de planning. Dan staan alleen de taken die de periode raken op papier, en de tijdas loopt exact over de periode; een balk of relatielijn die erbuiten doorloopt, wordt aan de rand afgekapt. Een fase blijft staan zolang een van haar taken erin valt. Eronder staat hoeveel taken buiten de periode vallen. Is er niets in de periode, dan staat er *Geen taken in de eigen periode — kies andere datums of zet Eigen periode uit.* Zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
 
 **Per resource** — alleen bij een layout die op resource groepeert, zoals het meegeleverde *Resourcediagram*. Elke resource krijgt een eigen band, daaronder zijn taken op start. Het blok telt *Resources:*, *Toewijzingen:* en *Zonder resource:* (bij een periode ook *Buiten de periode:*). De relatielijnen staan dan uit, want een taak kan onder meer banden staan, en *Kritiek pad* staat vast aan. Met deze vier schakelaars:
 
@@ -218,7 +218,7 @@ De kolommen zijn onder meer *WBS*, *Naam*, *Start*, *Einde*, *Baseline start*, *
 
 ## Rapportageperiode
 
-Vier tabelrapporten en de layout Resourcediagram van de Gantt-afdruk werken met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en het *Resourcediagram*. Elk rapport onthoudt zijn eigen periode. Onder de keuzelijst staan *Van* en *Tot*, met de datums die de keuze oplevert.
+Vier tabelrapporten werken met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting* en *Resourcetoewijzingen*. Elk rapport onthoudt zijn eigen periode. Onder de keuzelijst staan *Van* en *Tot*, met de datums die de keuze oplevert. De Gantt-afdruk, ook met de layout Resourcediagram, heeft geen keuzelijst maar het vinkje *Eigen periode* (zie hierboven).
 
 **Referentiedag.** Een periode met *Volgende* of *Afgelopen* telt vanaf de statusdatum van het project, of vanaf vandaag als er geen statusdatum is. Dan staat er in de tabelrapporten *Geen statusdatum ingesteld — het rapport rekent met vandaag (…).* Schuif je de statusdatum op, dan schuift het venster mee. Beide dagen tellen mee.
 

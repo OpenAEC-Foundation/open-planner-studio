@@ -48,7 +48,7 @@ import { evaluate } from '@/engine/view/filterEval';
 import { viewRowInputs } from '@/state/viewRows';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import { layoutIcon } from '@/components/viewControls/layoutIcons';
-import { ReportingPeriodField, useResolvedPeriod } from '@/components/panels/reports/ReportingPeriodField';
+import { CustomPeriodDates, useResolvedPeriod } from '@/components/panels/reports/ReportingPeriodField';
 import { useResourceTypeLabels } from '@/components/panels/reports/useResourceGanttLabels';
 import type { ResourceGanttReportOptions } from '@/utils/reportSettings';
 import { useReportColumnDomain } from './useReportColumnDomain';
@@ -283,6 +283,11 @@ export function GanttReportStudio() {
   }, [layoutsLoaded, legacyResourcePeriod, layouts, sourceKey, remember]);
   const choosePeriod = useCallback(
     (next: ReportingPeriod) => patch(periodChoicePatch(next), 'period'), [patch]);
+  const periodPreset = settings.period.preset;
+  useEffect(() => {
+    if (periodPreset === 'project' || periodPreset === 'custom') return;
+    remember({ period: { preset: 'custom', from: resolvedPeriod.from, to: resolvedPeriod.to } });
+  }, [periodPreset, resolvedPeriod.from, resolvedPeriod.to, remember]);
   const noneLabel = tTask('structure.none');
   const resourceTypeLabels = useResourceTypeLabels();
   const locale = i18n.language;
@@ -779,24 +784,20 @@ export function GanttReportStudio() {
               </StudioNotice>
             )}
             <div className="flex flex-col gap-1.5" data-rs-period>
-              <ReportingPeriodField
-                id="rs-period"
-                value={settings.period}
-                onChange={choosePeriod}
-                onReselect={legacyResourcePeriod ? choosePeriod : undefined}
-                dataKey="ganttPeriod"
-                compact
+              <StudioSwitch
+                checked={!!periodWindow}
+                onChange={on => choosePeriod(on ? { preset: 'custom', from: resolvedPeriod.from, to: resolvedPeriod.to } : { preset: 'project' })}
+                label={t('studio.period.own')}
+                dataKey="ownPeriod"
               />
               {periodWindow && (
-                <>
+                <div className="flex flex-col gap-1 min-w-0" data-ops-report-period="ganttPeriod">
+                  <CustomPeriodDates id="rs-period" period={periodWindow} onChange={choosePeriod} dataKey="ganttPeriod" compact />
                   <p className="rs-hint">{t('studio.period.hint')}</p>
                   {outsidePeriod > 0 && (
                     <p className="rs-hint" data-rs-period-outside>{t('studio.period.outside', { count: outsidePeriod })}</p>
                   )}
-                  <button type="button" className="ops-textlink self-start" onClick={() => choosePeriod({ preset: 'project' })} data-rs-period-all>
-                    {t('studio.period.showAll')}
-                  </button>
-                </>
+                </div>
               )}
             </div>
             {resourceResult && bandShape && (

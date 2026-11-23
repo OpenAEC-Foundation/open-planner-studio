@@ -149,7 +149,7 @@
     "groupByType": "Group by resource type",
     "showAssignmentColumns": "Show units/day and curve",
     "columnsDropped": "The Units/d and Curve columns were left out: the table left too little room for the time axis. A larger paper size or landscape, a smaller font size or a narrower table gives more room.",
-    "emptyPeriod": "No tasks in the reporting period — choose another period or Project duration.",
+    "emptyPeriod": "No tasks in the custom period — choose other dates or turn off Custom period.",
     "outsidePeriod": "Outside the period:",
     "empty": "No resource assignments — assign resources to tasks first.",
     "resources": "Resources:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} page",
     "pages_other": "{{count}} pages",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Reporting period",
     "tasks": {
       "title": "Which tasks",
       "all": "All tasks",
@@ -649,9 +648,9 @@
     },
     "period": {
       "hint": "Only tasks in this period are in the report. The timeline covers exactly the period; a bar that runs beyond it is cut off at the edge.",
-      "showAll": "Show the whole project",
       "outside_one": "{{count}} task falls outside the period and is not in the report.",
-      "outside_other": "{{count}} tasks fall outside the period and are not in the report."
+      "outside_other": "{{count}} tasks fall outside the period and are not in the report.",
+      "own": "Custom period"
     }
   },
   "customFont": {

@@ -149,7 +149,7 @@
     "groupByType": "Groeperen op resourcetype",
     "showAssignmentColumns": "Eenheden/dag en curve tonen",
     "columnsDropped": "De kolommen Eenh./d en Curve zijn weggelaten: de tabel liet te weinig ruimte voor de tijdlijn over. Meer ruimte geeft groter of liggend papier, een kleinere lettergrootte of een smallere tabel.",
-    "emptyPeriod": "Geen taken in de rapportageperiode — kies een andere periode of Hele project.",
+    "emptyPeriod": "Geen taken in de eigen periode — kies andere datums of zet Eigen periode uit.",
     "outsidePeriod": "Buiten de periode:",
     "empty": "Geen resourcetoewijzingen — wijs eerst resources toe aan taken.",
     "resources": "Resources:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} pagina",
     "pages_other": "{{count}} pagina's",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Rapportageperiode",
     "tasks": {
       "title": "Welke taken",
       "all": "Alle taken",
@@ -649,9 +648,9 @@
     },
     "period": {
       "hint": "Alleen taken in deze periode staan in het rapport. De tijdlijn loopt precies over de periode; een balk die erbuiten doorloopt, wordt aan de rand afgekapt.",
-      "showAll": "Hele project tonen",
       "outside_one": "{{count}} taak valt buiten de periode en staat niet in het rapport.",
-      "outside_other": "{{count}} taken vallen buiten de periode en staan niet in het rapport."
+      "outside_other": "{{count}} taken vallen buiten de periode en staan niet in het rapport.",
+      "own": "Eigen periode"
     }
   },
   "customFont": {

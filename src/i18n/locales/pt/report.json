@@ -151,7 +151,7 @@
     "groupByType": "Agrupar por tipo de recurso",
     "showAssignmentColumns": "Mostrar unidades/dia e curva",
     "columnsDropped": "As colunas Unid./d e Curva foram omitidas: a tabela deixava pouco espaço para o eixo do tempo. Um papel maior ou paisagem, uma fonte menor ou uma tabela mais estreita dão mais espaço.",
-    "emptyPeriod": "Nenhuma tarefa no período do relatório — escolha outro período ou Projeto inteiro.",
+    "emptyPeriod": "Nenhuma tarefa no período personalizado — escolha outras datas ou desative Período personalizado.",
     "outsidePeriod": "Fora do período:",
     "empty": "Sem atribuições de recursos — atribua primeiro recursos às tarefas.",
     "resources": "Recursos:",
@@ -470,7 +470,6 @@
     "pages_many": "{{count}} páginas",
     "pages_other": "{{count}} páginas",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Período de relatório",
     "tasks": {
       "title": "Quais tarefas",
       "all": "Todas as tarefas",
@@ -671,6 +670,13 @@
       "chart": "Barras e linha do tempo",
       "footer": "Legenda e rodapé",
       "page": "Página"
+    },
+    "period": {
+      "hint": "Apenas as tarefas deste período aparecem no relatório. A linha do tempo cobre exatamente o período; uma barra que se estende além dele é cortada na borda.",
+      "outside_one": "{{count}} tarefa está fora do período e não aparece no relatório.",
+      "outside_many": "{{count}} de tarefas estão fora do período e não aparecem no relatório.",
+      "outside_other": "{{count}} tarefas estão fora do período e não aparecem no relatório.",
+      "own": "Período personalizado"
     }
   },
   "customFont": {

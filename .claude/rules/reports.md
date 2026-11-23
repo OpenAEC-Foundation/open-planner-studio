@@ -56,12 +56,16 @@ UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePer
 — nooit een eigen weken-getal erbij bouwen.
 
 **Tijdvak van de Gantt-afdruk** (issue #997). Eén `ReportingPeriod` voor elke rijenbron van de stap Taken
-(`ReportSettings.period`, in de UI het gedeelde `ReportingPeriodField` onder de keuze van de rijen, met *Hele project
-tonen*); het resourcediagram heeft geen eigen periode meer. Een oude `resourceGantt.period` gaat bij het laden over
+(`ReportSettings.period`). Standaard `project`: de hele duur, zonder keuze. In de UI staat onder de keuze van de rijen
+één vinkje *Eigen periode* (`data-rs-option="ownPeriod"`, besluit eigenaar 2026-11-23: geen keuzelijst en geen vaste
+keuzes); aan zet `custom` met de projectspanne en toont *Van*/*Tot* via `CustomPeriodDates`, dat de tabelrapporten in
+`ReportingPeriodField` met hun keuzelijst delen; uit zet `project`. Een vaste keuze uit oudere opslag (bijv.
+`next4Weeks`) opent met het vinkje aan en wordt bij het tonen vastgezet tot `custom` met de datums van dat moment
+(`remember`, zonder undo). Het resourcediagram heeft geen eigen periode meer. Een oude `resourceGantt.period` gaat bij het laden over
 als het meegeleverde Resourcediagram de bron was (`parseGanttPeriod`); anders blijft zij apart bewaard
 (`legacyResourcePeriod`, zoals main haar bij een andere bron bewaarde) en maakt `legacyPeriodPatch` er het tijdvak van
 zodra de bron (in de nieuwste opslag) op resource groepeert, ook na een wissel van bron. Een eigen keuze, ook *Hele project*, wist haar in
-dezelfde schrijfactie (`periodChoicePatch`), ook bij opnieuw dezelfde keuze (`onReselect`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
+dezelfde schrijfactie (`periodChoicePatch`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
 tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen clip (ook de minimumbreedte en
 de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het
 venster). Of een balk of mijlpaal (ook een baselinemijlpaal) in het venster valt, beslist de TIJD (`barInWindow`,
