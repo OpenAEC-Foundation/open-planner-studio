@@ -46,6 +46,7 @@ export function useGanttPointerCoordinator(
     compressNonWorkdays,
     selectTask,
     selectTasks,
+    setGridActiveRowKey,
     deselectAll,
     updateTask,
     setTaskSplits,
@@ -90,6 +91,7 @@ export function useGanttPointerCoordinator(
     canvasRef,
     rendererRef,
     selectTasks,
+    setGridActiveRowKey,
     deselectAll,
     justBoxSelectedRef,
   });
@@ -224,23 +226,14 @@ export function useGanttPointerCoordinator(
       deselectAll();
       return;
     }
-    // Een groepsruitje (#868) kiest alle mijlpalen op die dag; Ctrl/Cmd zet ze samen aan of uit, Shift
-    // neemt ze allemaal mee in het bereik.
+    // De aangeklikte rij telt (review #1004): dezelfde taak kan in meer rijen staan (groeperen op
+    // resource). Een groepsruitje (#868) kiest al zijn mijlpalen; Ctrl/Cmd zet ze samen aan of uit.
     const group = renderer.getMilestoneGroup(task.id);
-    if (group) {
-      const ids = group.map(member => member.id);
-      if (event.shiftKey) {
-        selectTask(task.id, false, true);
-        selectTasks(ids, true);
-      } else if (!(event.ctrlKey || event.metaKey)) selectTasks(ids, false);
-      else if (ids.every(id => selectedTaskIds.includes(id))) ids.forEach(id => selectTask(id, true, false));
-      else selectTasks(ids, true);
-      return;
-    }
-    if (event.shiftKey) selectTask(task.id, false, true);
-    else if (event.ctrlKey || event.metaKey) selectTask(task.id, true, false);
-    else selectTask(task.id, false, false);
-  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, deselectAll, selectTask, selectTasks, selectedTaskIds]);
+    selectTask(task.id, event.ctrlKey || event.metaKey, event.shiftKey, {
+      rowKey: renderer.getRowAtY(y)?.rowKey,
+      taskIds: group?.map(member => member.id),
+    });
+  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, deselectAll, selectTask]);
 
   const onDoubleClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -291,7 +284,9 @@ export function useGanttPointerCoordinator(
       if (!group.every(member => selectedTaskIds.includes(member.id))) selectTasks(group.map(member => member.id), false);
       return;
     }
-    if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false);
+    // Op de aangeklikte rij, zoals een linkerklik: dezelfde taak kan in meer ploegen staan.
+    const rowKey = renderer.getRowAtY(y)?.rowKey;
+    if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false, false, { rowKey });
     // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
     // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.
@@ -313,6 +308,7 @@ export function useGanttPointerCoordinator(
       barHit: true,
       group: null,
       splitGapIndex,
+      rowKey,
     });
   }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask, selectTasks, effectiveCalendarByTaskId, calendar, viewport.sharedAxis]);
 
@@ -335,9 +331,11 @@ export function useGanttPointerCoordinator(
    * 8 iedere overige achtergrondroute start kaderselectie.
    */
   const onMouseDown = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
-    // Een nieuwe mousedown is onmiskenbaar een nieuwe interactie: een eventueel blijven hangen
-    // rijsleep-vlag (sleep geëindigd boven de grid, dus zonder canvas-click) vervalt hier.
+    // Een nieuwe mousedown is onmiskenbaar een nieuwe interactie: een blijven hangen vlag (sleep
+    // geëindigd buiten het canvas, dus zonder canvas-click) vervalt hier. Dat geldt ook voor die van
+    // kader en pan, die bij een documentwissel kan blijven staan (review #1004, ronde 13).
     justRowDraggedRef.current = false;
+    justBoxSelectedRef.current = false;
     // 1–2. Middelklik pant alleen wanneer geen enkel ander gebaar actief is.
     if (event.button === 1) {
       event.preventDefault();
@@ -562,6 +560,10 @@ export function useGanttPointerCoordinator(
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
+  const closeForDocumentSwitch = useCallback(() => {
+    setContextMenu(null);
+    setRelationPopover(null);
+  }, []);
 
   const cursor = pan.panState
       ? 'grabbing'
@@ -599,5 +601,6 @@ export function useGanttPointerCoordinator(
     tooltip: tooltip && tooltipTask ? { ...tooltip, task: tooltipTask, group: tooltipGroup } : null,
     closeContextMenu,
     closeRelationPopover,
+    closeForDocumentSwitch,
   };
 }

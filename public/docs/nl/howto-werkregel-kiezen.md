@@ -24,8 +24,8 @@ Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand
 
 1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
 2. Kies bij *Taaktype* een van de vijf opties: *Projectstandaard (Vaste duur en inzet)*, *Vaste duur en inzet*, *Vaste duur en werk*, *Vast werk* of *Vaste inzet*. Bij *Projectstandaard* volgt de taak de standaard van het project.
-3. Wil je weten wat een keuze doet? In de open keuzelijst staat achter elke keuze een i-icoon. Wijs het aan, klik of tik erop voor de uitleg. Klik je op het i-icoon, dan kiest de app dat taaktype nog niet.
-4. Naast het gesloten veld staat ook een i-icoon. Dat legt het taaktype uit dat nu geldt, bijvoorbeeld *De duur volgt uit het werk en de inzet.* Bij *Projectstandaard* is dat het taaktype tussen de haakjes.
+3. Wil je weten wat een keuze doet? In de open keuzelijst staat onder elke keuze een korte regel, bij de vier taaktypes met een voorbeeld, zoals *Het werk blijft, de duur rekent mee. Voorbeeld: 80 uur met 2 mensen = 5 dagen, met 4 mensen 2,5 dagen.* Achter elke keuze staat ook een i-icoon met de hele uitleg. Wijs het aan, klik of tik erop. Klik je op het i-icoon, dan kiest de app dat taaktype nog niet.
+4. Naast het gesloten veld staat ook een i-icoon. Dat zegt eerst wat een taaktype is, en legt dan met een voorbeeld het taaktype uit dat nu geldt. Bij *Projectstandaard* is dat het taaktype tussen de haakjes.
 
 *Projectstandaard* is de eerste keuze en staat er standaard. Tussen de haakjes staat het taaktype dat het project nu als standaard heeft. Kies bij *Instellingen › Projectinstellingen › Standaardtaaktype* een van de vier taaktypes en klik op *Toepassen*. Elke bestaande en nieuwe taak op *Projectstandaard* volgt die keuze. Taken met een eigen taaktype behouden hun keuze. De projectstandaard wordt in het IFC-bestand bewaard. Wil je voor één taak een ander taaktype, kies dat dan hier.
 
@@ -64,7 +64,9 @@ Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — h
 
 **Het werk klopt niet precies met inzet × duur.** Dat kan komen uit een bestand van P6 of MS Project, maar ook ontstaan als je zelf het werk van één resource wijzigt onder *Vast werk* of *Vaste inzet*. Bij een taak van 10 werkdagen van 8 uur kan één resource na eigen invoer 40 uur werk hebben bij inzet 1, terwijl een andere resource de duur op 10 werkdagen houdt. Inzet × resterende duur is dan 80 uur, maar het opgeslagen werk is 40 uur. In het veld *Werk (u)* verschijnt een waarschuwingsteken, *Wijkt af van inzet × duur*. Het histogram volgt het opgeslagen werk en spreidt die 40 uur over de taakduur.
 
-Onder *Vaste inzet* blijven de andere toewijzingen bij een inzet- of werkwijziging zoals ze zijn zolang de resterende taakduur gelijk blijft. Verandert die duur wel, dan volgt het werk van de andere resources hun inzet over de nieuwe duur.
+Onder *Vaste inzet* blijven de andere toewijzingen bij een inzet- of werkwijziging zoals ze zijn zolang de resterende taakduur gelijk blijft. Verandert die duur wel, dan volgt het werk van de andere resources hun inzet over de nieuwe duur. Een voorbeeld: Anna en Bram werken allebei 100 % op een taak van 10 werkdagen, dus elk 80 uur. Zet je Bram op 50 %, dan duurt de taak 20 werkdagen en krijgt Anna 160 uur.
+
+Veranderen zo de uren van een andere resource op de taak, dan meldt de app dat, bijvoorbeeld *Taak duurt nu 20 dagen.* met daaronder *Anna: 80 → 160 u*. Dat geldt onder elk taaktype en ook als je een resource toevoegt of weghaalt. Met *Ongedaan maken* in die melding zet je de hele wijziging in één keer terug, ook de duur. De melding staat er zolang je daarna niets anders wijzigt. In *Taak bewerken* komt er geen melding: daar zet *Annuleren* je wijzigingen aan de taak terug. Blijven de uren van de anderen gelijk, dan komt er geen melding.
 
 Wijzig je de duur zelf, dan volgt de app het taaktype. De tooltip bij het waarschuwingsteken zegt per taak of het restwerk opnieuw wordt uitgerekend als inzet × nieuwe resterende duur, of dat het werk blijft staan en de inzet zich aanpast. Bij het opnieuw uitrekenen van afwijkend opgeslagen restwerk verschijnt een melding. Met Ctrl+Z zet je de vorige waarde terug.
 

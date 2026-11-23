@@ -11,6 +11,15 @@ export interface TaskGridBooleanLabels {
   false: string;
 }
 
+/**
+ * Een cel met een keuzelijst (ja/nee, keuze, code) bewerkt in een open lijst in plaats van een tekstveld
+ * (#970). Een dubbelklik op zo'n cel opent die lijst meteen; op andere cellen opent hij het paneel.
+ */
+export function opensListEditor(descriptor: TaskColumnDescriptor | undefined): boolean {
+  return descriptor?.editorKind === 'boolean'
+    || (descriptor?.editorKind === 'enum' && descriptor.editorOptions !== undefined);
+}
+
 function normalizeBooleanLabel(value: string): string {
   return value.trim().toLocaleLowerCase();
 }

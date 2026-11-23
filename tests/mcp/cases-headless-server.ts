@@ -1,4 +1,6 @@
 import { fileToolDeps } from '@/services/mcp/tools/fileTools';
+import { lowerModelOpenLimitForTests } from '@/services/ifc/modelOpenLimit';
+import { createHash } from 'node:crypto';
 // Headless MCP-server (issue #570, `headless/mcp-server/`): de `planner_*`-tools zonder app, op Node.
 //
 // Twee routes, beide met de OFFICIËLE MCP-client (`@modelcontextprotocol/sdk`):
@@ -573,6 +575,35 @@ test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder b
     assertEq(readFileSync(ordinaryTarget, 'utf8'), 'OUD GEWOON', 'gewone fout behoudt origineel');
   } finally {
     fileToolDeps.getFs = originalGetFs;
+    await client.close();
+  }
+});
+
+// #804, PR #1127 (ronde 4): de productgrens voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`) geldt alleen in de
+// app. Headless blijft main: hetzelfde model boven de (verlaagde) productgrens en onder de technische grens opent met de
+// flag aan met zijn bron, zoals main; met de flag uit blijft de bestaande modelweigering. De app-kant staat in
+// `cases-doc-file.ts` (de brug weigert op de productgrens).
+test('A productgrens: headless opent met en zonder flag zoals main', async () => {
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  const model = readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc'));
+  const path = join(rootA, 'productgrens-model.ifc');
+  writeFileSync(path, model);
+  const flags = app.store.getState().ui.featureFlags;
+  try {
+    lowerModelOpenLimitForTests(model.length - 1);
+    // Met de flag uit (de standaard van headless): de bestaande modelweigering, zoals main.
+    const off = await refused(client, 'planner_import_schedule', { path }, 'VALIDATION', 'flag uit');
+    assert(String(off.s.error).includes('building model') && !String(off.s.error).includes('above the limit'),
+      `flag uit: de modelweigering van main (${off.s.error})`);
+    // Met de flag aan (zoals de host hem uit `ops-featureFlags` inleest): het model opent met zijn bron, zoals main.
+    app.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: true }; });
+    await ok(client, 'planner_import_schedule', { path });
+    const source = app.store.getState().ifcSource;
+    assertEq([source?.foreign, source?.sha256], [true, createHash('sha256').update(model).digest('hex')],
+      'flag aan: het model opent met zijn geverifieerde bron, ook boven de productgrens');
+  } finally {
+    lowerModelOpenLimitForTests();
+    app.store.setState((s) => { s.ui.featureFlags = flags; });
     await client.close();
   }
 });
