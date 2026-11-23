@@ -672,7 +672,9 @@ en noem het in je rapport of PR-tekst.
      een tijdpatch de samengevoegde tijd (`mergeTaskUpdate`); Taak bewerken zet het veld met
      `rememberProgressBeforeRecalculation` op de tijd die het aan `updateTask` geeft (`state/taskDialogSave.ts`). De
      voortgangsroute van het eigenschappenpaneel (`commitProgressEdit` in `taskSlice.ts`) en `draft.patchTaskFields`
-     gebruiken `mergeTaskTime` niet en houden het veld. Een proef via de schrijffuncties liet de basis verdwijnen via de
+     gebruiken `mergeTaskTime` niet; in de proef hielden ze het veld, bij `draft.patchTaskFields` met een patch die
+     duur en kalender niet verandert (een andere `calendarId` wist het daar met `invalidateForTimeBaseChange`, punt
+     2002). Een proef via de schrijffuncties liet de basis verdwijnen via de
      opslag van Taak bewerken en via `draft.updateTaskFields` met een tijdpatch, en staan via het paneel en via
      `draft.patchTaskFields`. Wat dat in de planning doet, is niet nagespeeld. — B
 

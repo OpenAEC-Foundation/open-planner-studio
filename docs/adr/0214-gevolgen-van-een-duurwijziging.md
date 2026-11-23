@@ -25,9 +25,10 @@ ADR 0200). De aanroeper geeft de werkduur van vóór de mutatie mee, gemeten op 
   andere slotgrootte; voor een urentaak keert die functie eerder terug. Eerst roept het `rescaleTaskContours` aan met
   de werktijd per dag van de nieuwe kalender. Slaagt de werkdriehoek daarna (`result.ok`) en verandert ze de duur
   (`written.durationChanged`), dan roept het `settleDurationAftermath` aan, en `applyDurationChangeRules` herschaalt
-  de contour nogmaals als de taak een contour heeft en de werkduur op de as verandert (`rescaleFactor`). Toets:
-  `check-work-rule-store.ts`, r7 (vast werk van 4 dagen van 8 naar 6 uur per dag: duur 16/3 dagen, as en werk 1920
-  minuten).
+  de contour nogmaals als de taak een contour heeft en de werkduur op de as verandert (`rescaleFactor`). Toets van
+  de uitkomst na beide stappen: `check-work-rule-store.ts`, geval `r10-FIXED_RATE` (een dagtaak van 4 dagen met Vaste
+  inzet, een contour en een opgeslagen werkveld, van 8 naar 6 uur per dag: de as is de duur maal 360 minuten en de
+  contour telt 1920 minuten werk).
 - `setTaskSplits` geeft `keepGaps: true` aan `rescaleTaskContours` (`splitMutations.ts`): de gatenlijst komt daar uit
   het stukkenmodel en is al op de nieuwe werkduur gerekend, dus herschalen zou haar twee keer schalen.
 - Werkbehoud bij het herschalen volgt de werkregel (`contourKeepsWork`, regel `contour`); zonder argument gebruikt
