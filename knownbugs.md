@@ -2183,17 +2183,6 @@ en noem het in je rapport of PR-tekst.
      Richting: een werkgrens in beide; in de doelcontrole met de uitkomst 'model' (niet schrijven). Gevonden in #864
      (fixronde 4). — S
 
-1019. **VERVOLG: de doelcontrole vertrouwt erop dat `seek` echt terugspoelt.** Boven 16 MiB leest
-     `src/services/ifc/foreign/targetModelScan.ts` de bron opnieuw vanaf een eerdere positie na een mislukte entiteit.
-     De eindcontrole (`targetModelScan.ts:206`) ziet alleen een bron die te vroeg eindigt. Een `seek` die succes meldt
-     maar de positie niet verandert, valt daar niet op; de Tauri-lezer kijkt niet naar de positie die `seek` teruggeeft
-     (`src/services/fileAccess/tauriBackend.ts:34`). Gezien met een nagebootste bron (Terra, ronde 5 van #864): een
-     mislukte entiteit met `IFCWALL`, ruim 18 MiB tekst en daarna nog 20 MiB; correct terugspoelen geeft `model`, de
-     nagebootste `seek` geeft `no-model` en de doelcontrole laat schrijven toe. Niet gezien met de echte plugin-fs; die
-     zou daarmee haar contract breken. De test in `tests/planning/check-ifc-target-model-scan.ts` dekt het niet: zijn bron
-     eindigt direct na het mislukte terugspoelen. Richting: de teruggegeven positie controleren (anders een leesfout)
-     en de lange variant in de test. Uit #864 (fase 1a). — S
-
 1020. **De writer schrijft stil `#0` bij een sleutel die hij niet kent.** `ref()` (`src/services/ifc/ifcWriter.ts:323`)
      geeft `#${idMap.get(key) || 0}`. Ontbreekt de sleutel, dan staat er een verwijzing naar `#0` in de uitvoer, zonder
      fout of melding. Gezien bij het lezen van de code (eigen zoektocht van fase 1b); geen geval bekend waarin het nu
