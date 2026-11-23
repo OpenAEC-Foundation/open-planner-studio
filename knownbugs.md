@@ -3536,16 +3536,22 @@ en noem het in je rapport of PR-tekst.
      review van #1116 (Sol, ronde 4 tot en met 7). — S (review)
 
 2064. **VERVOLG, zo op main (desktop, ook met de featureflag uit): een startbestand dat al open staat en buiten de app
-     is vervangen, wisselt naar het oude tabblad; een volgende Ctrl+S overschrijft de nieuwere versie.** Staat
+     is vervangen, wisselt naar het oude tabblad; met de featureflag uit overschrijft een volgende Ctrl+S de nieuwere
+     versie.** Staat
      `kantoor.ifc` open en vervangt een ander programma (of een collega via een gedeelde map) het bestand op hetzelfde
      pad door een nieuwere versie, en opent de planner het daarna via een dubbelklik, *Openen met* of een tweede
      start, dan leest de startroute de nieuwe versie wel (`src/state/launchFiles.ts`, `read`, rond regel 100–118),
      maar `existingDocument` kiest het open tabblad met hetzelfde bestand (identiteit of padtekst) en `openOpenedFile`
      wisselt daarheen (`src/state/slices/fileSlice.ts`, `switchDocument(existing)`). De zojuist gelezen inhoud
-     vervalt, zonder melding; het tabblad toont de oude stand. Bij een gewone planning (zonder vreemd deel) vergelijkt
-     Ctrl+S de versie op schijf niet met de versie van het tabblad: de opslag vervangt de nieuwere versie en het
-     extern opgeslagen werk is weg. Met de featureflag aan kan de doelscan een onleesbaar doel of een doel met vreemde
-     inhoud weigeren; een leesbare gewone planning komt erdoor, ook als zij intussen veranderd is. De herlezing van de
+     vervalt, zonder melding; het tabblad toont de oude stand. Met de featureflag uit vergelijkt Ctrl+S bij een gewone
+     planning (zonder vreemd deel) de versie op schijf niet met de versie van het tabblad: de opslag vervangt de
+     nieuwere versie en het extern opgeslagen werk is weg. Met de flag aan weigeren Ctrl+S en Automatisch opslaan dat
+     sinds #1174 met de bestaande melding ("Het bestand is intussen door een ander programma gewijzigd"), zolang het
+     tabblad de versie van zijn bestand kent (`knownTargetFingerprint`, `check-bewaakte-opslag.ts`). Wat daarvan
+     overblijft: kent het tabblad die versie niet (`null`: na een export over het eigen bestand, na crashherstel, na
+     laden in hetzelfde tabblad), dan schrijft Ctrl+S eroverheen zoals main; bij twee tabbladen op hetzelfde bestand
+     (1957) en bij de schrijvers die het tabblad niet ziet (2065) weigert de volgende opslag met dezelfde melding, ook
+     als de app zelf de schrijver was; en het gat tussen toets en schrijven (2069). Het wisselen hierboven blijft. De herlezing van de
      startroute (`stale`, knownbug 2036) telt alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
      Bestand → Openen, Recent en slepen opent main in dit geval een tweede tabblad met de nieuwe versie. Zelfde
      familie als 1957. Dezelfde volgorde blokkeerde PR #1121 in reviewronde 7; daar is zij nagespeeld voor Openen,
@@ -3562,6 +3568,18 @@ en noem het in je rapport of PR-tekst.
      van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
      gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
      schrijvers niet nagespeeld)
+
+2069. **VERVOLG (#804, de bewaking van Ctrl+S en Automatisch opslaan bij een gewone planning): tussen de toets en het
+     schrijven kan het bestand nog veranderen.** Met de featureflag `ifcForeignContent` vergelijkt de app het eigen pad of
+     de eigen handle vóór het schrijven met de versie die het tabblad kent (`changedKnownTarget` in
+     `src/state/knownTargetGuard.ts`, aangeroepen in `writeActiveDocument` in `fileSlice.ts` en in de gewone ronde van
+     `fileAutoSave.ts`). Daarna volgen zonder nieuwe lezing de inhoudscontrole van het document, op de desktop het
+     tijdelijke bestand en de `rename` (`replaceUserFile`), in de browser `createWritable()` en `close()`. Schrijft een
+     ander programma het bestand in die tijd (op de desktop ongeveer zo lang als het schrijven van het tijdelijke
+     bestand duurt), dan overschrijft de app die versie zonder melding, zoals main dat altijd doet. Een document met een
+     gebouwmodel heeft daar de vervanging met een tweede vergelijking vlak vóór het plaatsen
+     (`replaceOwnPathWithRecovery`); die route is voor een gewone planning bewust niet overgenomen (opdracht #804). —
+     S (code gelezen, niet nagespeeld)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De

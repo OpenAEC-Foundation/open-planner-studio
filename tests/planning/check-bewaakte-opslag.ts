@@ -315,6 +315,25 @@ await check('Automatisch opslaan via de eigen handle: een ander programma schree
   assert.deepEqual(errors(store), [AUTOSAVE_CHANGED]);
 });
 
+await check('twee tabbladen op hetzelfde pad (knownbug 1957): de opslag van het tweede tabblad weigert in plaats van stil te overschrijven', async () => {
+  const ipc = desktop(), path = fileAt('twee-tabbladen.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path }, plainBytes());
+    const first = store.getState().activeDocumentId;
+    await store.getState().openOpenedFile({ name: basename(path), content: '', bytes: plainBytes(), ref: { kind: 'path', path } });
+    assert.notEqual(store.getState().activeDocumentId, first, 'een tweede tabblad, zoals main');
+    edit(store);
+    assert.equal(await ctrlS(store), true);
+    const saved = onDisk(path);
+    store.getState().switchDocument(first);
+    edit(store);
+    assert.equal(await ctrlS(store), false);
+    assert.deepEqual(errors(store), [CHANGED]);
+    assert.deepEqual(onDisk(path), saved, 'de opslag van het andere tabblad staat er nog');
+    assert.equal(store.getState().isDirty, true);
+  } finally { ipc.dispose(); }
+});
+
 await check('de uitwegen blijven zoals main: Opslaan als over het gewijzigde eigen bestand en een export erover schrijven; daarna is de versie onbekend of nieuw', async () => {
   const ipc = desktop(), path = fileAt('uitweg.ifc', plainBytes());
   try {

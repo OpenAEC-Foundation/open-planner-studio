@@ -23,6 +23,8 @@ Chrome en Edge laten een bestand dat je opende eerst alleen lezen. De schakelaar
 
 **Het schrijven kan mislukken.** Is het bestand bijvoorbeeld verdwenen of vergrendeld, dan verschijnt de melding *Automatisch opslaan mislukt* met de reden erbij. Heeft de browser de toestemming om te schrijven niet (meer), dan slaat de app die ronde stil over: ze vraagt er niet om.
 
+**Wijzigde iemand anders het bestand intussen, dan stopt automatisch opslaan.** Dat geldt als de experimentele instelling *IFC met gebouwmodel openen* aan staat. De app kijkt voor elke ronde of het bestand nog is wat ze er zelf neerzette. Is het veranderd, dan verschijnt één keer *Automatisch opslaan is gestopt: het bestand is intussen gewijzigd, verplaatst of verwijderd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze in een nieuw bestand te bewaren.* Het begint weer als je met *Opslaan als* opslaat.
+
 **Het bestand krijgt ook wijzigingen die je liever niet bewaart.** Automatisch opslaan schrijft de stand van je project zoals hij op dat moment is. Draai je iets terug met Ctrl+Z, dan krijgt het bestand ook die teruggedraaide stand: binnen tien seconden, of bij een bestand met een gebouwmodel na de rust hieronder. Wil je een oudere versie houden, maak dan eerst een kopie met *Opslaan als*.
 
 **Een crash kost nog steeds de laatste seconden.** De app schrijft hoogstens eens per tien seconden (een bestand met een gebouwmodel minder vaak, zie hieronder), dus wat je in die tussentijd deed, staat nog niet in je bestand. Crashherstel schrijft hoogstens eens per tien seconden, ook bij een gebouwmodel.

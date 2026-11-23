@@ -23,6 +23,8 @@ Chrome and Edge first let you only read a file that you opened. The switch does 
 
 **The writing can fail.** If the file has disappeared or is locked, for example, the message *Auto-save failed* appears with the reason. If the browser does not (or no longer) have permission to write, the app skips that round silently: it does not ask for it.
 
+**If someone else changed the file in the meantime, AutoSave stops.** This applies when the experimental setting *Open IFC with a building model* is on. Before every round the app checks whether the file is still what it wrote there itself. If it changed, the message *Auto-save has stopped: the file was changed, moved or deleted in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.* appears once. It starts again when you save with *Save As*.
+
 **The file also gets changes you would rather not keep.** AutoSave writes the state of your project as it is at that moment. If you undo something with Ctrl+Z, the file gets that undone state too: within ten seconds, or for a file with a building model after the rest described below. If you want to keep an older version, first make a copy with *Save As*.
 
 **A crash still costs the last seconds.** The app writes at most once every ten seconds (a file with a building model less often, see below), so what you did in between is not in your file yet. Crash recovery writes at most once every ten seconds, also with a building model.

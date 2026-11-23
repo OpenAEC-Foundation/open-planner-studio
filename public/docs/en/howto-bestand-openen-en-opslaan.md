@@ -71,6 +71,8 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 
 **An opened IFC file is immediately your project's file.** *Save* overwrites that file, even if it comes from another program. If you want to keep the original, choose *Save As* first.
 
+**If someone else changed the file in the meantime, Save does not write over it.** This applies when the experimental setting *Open IFC with a building model* is on (see [App settings](docs://ref-instellingen)). If a colleague or another program replaces your file while you have it open, *Save* reports: *Not saved. The file was changed by another program in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.* Your project stays *Not saved*. If you do want to replace the other version, choose *Save As* and the same file. If the file has disappeared, *Save* simply writes it again. After an export over your own file, and after a recovery from a crash, the app does not check the next time you save. Without that setting, *Save* always writes over the file.
+
 **Other formats are never overwritten.** A `.csv`, `.xml`, `.mpp` or `.xer` has no file after opening. *Save* writes a new IFC file and leaves the original alone.
 
 **In Firefox every save makes a new file.** The app cannot write into your file there. It downloads a new file each time, with the project name as file name and not the name of the file you opened.
