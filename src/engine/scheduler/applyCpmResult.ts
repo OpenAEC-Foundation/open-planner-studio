@@ -79,6 +79,7 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     if (!r) continue;
     task.time.earlyStart = r.earlyStart;
     task.time.earlyFinish = r.earlyFinish;
+    if (task.time.progressBeforeRecalculation) task.time.progressBeforeRecalculation = undefined;
     task.time.lateStart = r.lateStart;
     task.time.lateFinish = r.lateFinish;
     task.time.totalFloat = r.totalFloat;

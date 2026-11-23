@@ -80,6 +80,7 @@ const TASK_TIME_VERDICTS = {
   remainingTime: 'n/a',           // duur
   remainingMinutes: 'n/a',        // duur
   completion: 'n/a',              // fractie
+  progressBeforeRecalculation: 'shift', // de werkelijke datums uit de tijdelijke rekenbasis
 } satisfies Record<keyof TaskTime, MoveVerdict>;
 
 const TASK_VERDICTS = {
@@ -285,6 +286,11 @@ export function shiftTask(task: Task, delta: number): Task {
       actualFinish: shiftIso(t.actualFinish, delta),
       resume: shiftIso(t.resume, delta),
       stop: shiftIso(t.stop, delta),
+      ...(t.progressBeforeRecalculation && { progressBeforeRecalculation: {
+        ...t.progressBeforeRecalculation,
+        actualStart: shiftIso(t.progressBeforeRecalculation.actualStart, delta),
+        actualFinish: shiftIso(t.progressBeforeRecalculation.actualFinish, delta),
+      } }),
     },
   };
   if (task.constraint) next.constraint = shiftConstraint(task.constraint, delta);
