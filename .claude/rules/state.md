@@ -76,10 +76,24 @@ niets vast op een vervangen inhoud (het bestand houdt de opgeslagen inhoud, de n
 van Automatisch opslaan onthoudt `content`) volgen dezelfde identiteit. Sessiegegeven op de documentregistratie, niet in
 `DOCUMENT_FIELDS`: het hoort bij het open tabblad, niet bij het bestand, en hoeft geen undo, herstel of opslag te overleven.
 
-Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?)`.
+Na geslaagde I/O gebruikt de opslagroute `commitSavedDocument(ref, savedSource, destination?, prepared?, missingSourceSaveAs?, written?)`.
 Met `PreparedIfcWrite` worden doel, `ifcSource` en letterlijke kalenderkeuzes samen vastgelegd, voor actief of slapend
 document. De inhoudsvergelijking gebeurt vóór de Immer-producer: tussentijds werk blijft dirty, maar de bron volgt
 de geschreven momentopname. `markAutoSaveVersionSaved` verwijst naar dezelfde commit. Exports gebruiken hem niet.
+
+**De versie op het eigen doel** (#804, bouwsteen voor knownbug 1957 en 2064; nog door niemand gelezen):
+`knownTargetFingerprint` (`DOCUMENT_FIELDS`, `snapshot: 'none'`, buiten `IFC_SAVE_KEYS`/`IFC_DIRTY_KEYS` en het
+herstelmanifest) is `{ sha256, byteLength }` van de bytes waarvan de app weet dat ze op het eigen pad of de eigen handle
+staan, of `null` (onbekend). Hash en grootte komen van dezelfde bytes en worden altijd samen gezet; de grootte laat een
+latere bewaking een ander bestand zonder lezen herkennen. Alleen met de flag `ifcForeignContent`. Openen neemt hash en
+grootte van `ifcSource` (geen extra hashwerk); IFC toepassen houdt het veld; laden in hetzelfde tabblad (`loadState`),
+een kopie, herstel, `setFilePath`, de site en een document zonder eigen pad of handle geven `null`. Elke
+`commitSavedDocument` zet het opnieuw: met `prepared` uit de merge, anders uit `written` (de opslagworker rekent de hash
+als de job `hashBytes` draagt, zie `tauri-ifc.md`; zonder worker start `precomputeSha256` vóór het schrijven en wacht de
+route er ná het bevestigde schrijven op, nooit tussen de laatste controle en het plaatsen). Zonder bekende bytes, na een
+download, op de site en met de flag uit: `null`. Een export die het eigen bestand raakt (`recordOwnFileExport`,
+`planner_export_ifc`) maakt het `null` (`forgetKnownTargetFingerprint`). Een mislukte of geweigerde opslag laat het staan.
+Proef: `check-tabblad-schijfversie.ts`; grens: knownbug 2065.
 Bronvervanging is geen undo-event en telt niet als inhoudsverschil (`sameIFCSource`, ook voor de recoverydelta).
 `sameIFCSource` vergelijkt per referentie, met één uitzondering: een andere werksoortcatalogus telt alleen als de door
 taken gebruikte definities verschillen (`savedCustomTaskTypes`, dezelfde selectie als `writeTaskTypeMeta`). Zo is de stille

@@ -14,13 +14,13 @@ import { IfcCalendarTimePrecisionError, IfcParseError } from '@/services/ifc/ifc
 import { MergeNeedsPhase2Error } from '@/services/ifc/foreign/mergeWriter';
 import { StepScanError } from '@/services/ifc/foreign/stepScanner';
 import type { PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
-import { XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
+import { precomputeSha256, XerSourceArchiveValidationError } from '@/services/xerSourceArchive';
 import { computeIfcOutputHere, type IfcOutput, type IfcSaveJob } from '@/state/prepareIfcOutput';
 
 export type IfcSaveRequest = { readonly id: number; readonly job: IfcSaveJob };
 
 export type IfcSaveResult =
-  | { readonly kind: 'writer'; readonly bytes: Uint8Array; readonly literalCalendarIds: readonly string[] }
+  | { readonly kind: 'writer'; readonly bytes: Uint8Array; readonly literalCalendarIds: readonly string[]; readonly sha256?: string }
   | { readonly kind: 'merge'; readonly prepared: PreparedIfcWrite }
   /** De merge gaf de bron zelf terug (ongewijzigde planning): de aanroeper heeft haar al. */
   | { readonly kind: 'merge-unchanged'; readonly literalCalendarIds: readonly string[] };
@@ -51,7 +51,8 @@ export interface IfcSaveWireError {
 export async function runIfcSaveJob(job: IfcSaveJob): Promise<IfcSaveResult> {
   const output = await computeIfcOutputHere(job);
   if (!output.prepared) {
-    return { kind: 'writer', bytes: new TextEncoder().encode(output.content), literalCalendarIds: output.literalCalendarIds };
+    const writer = { kind: 'writer', bytes: new TextEncoder().encode(output.content), literalCalendarIds: output.literalCalendarIds } as const;
+    return job.kind === 'writer' && job.hashBytes ? { ...writer, sha256: await precomputeSha256(writer.bytes) } : writer;
   }
   if (job.kind === 'merge' && output.prepared.source === job.source) {
     return { kind: 'merge-unchanged', literalCalendarIds: output.prepared.literalCalendarIds };
@@ -86,7 +87,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
  *  Alleen de vorm; de inhoud rekende de worker met dezelfde functies als de hoofdthread. */
 export function resultFits(job: IfcSaveJob, result: unknown): result is IfcSaveResult {
   if (!isRecord(result)) return false;
-  if (result.kind === 'writer') return job.kind === 'writer' && result.bytes instanceof Uint8Array && isStringList(result.literalCalendarIds);
+  if (result.kind === 'writer') return job.kind === 'writer' && result.bytes instanceof Uint8Array && isStringList(result.literalCalendarIds)
+    && (job.hashBytes ? typeof result.sha256 === 'string' : result.sha256 === undefined);
   if (job.kind !== 'merge') return false;
   if (result.kind === 'merge-unchanged') return isStringList(result.literalCalendarIds);
   if (result.kind !== 'merge' || !isRecord(result.prepared)) return false;
@@ -109,7 +111,7 @@ export function wireErrorFits(error: unknown): error is IfcSaveWireError {
 /** De uitkomst aan de kant van de aanroeper: dezelfde `IfcOutput` als `prepareIfcOutput` op deze thread. */
 export function outputFromResult(job: IfcSaveJob, result: IfcSaveResult): IfcOutput {
   // Alleen na `resultFits`: een writerantwoord hoort dan bij een writerverzoek.
-  if (result.kind === 'writer') return writerOutput(result.bytes, result.literalCalendarIds);
+  if (result.kind === 'writer') return writerOutput(result.bytes, result.literalCalendarIds, result.sha256);
   if (job.kind !== 'merge') throw new Error('Opslagworker: een merge-antwoord op een writer-verzoek.');
   if (result.kind === 'merge-unchanged') {
     const { source } = job;
@@ -122,9 +124,9 @@ export function outputFromResult(job: IfcSaveJob, result: IfcSaveResult): IfcOut
 }
 
 /** De gewone writer: de bytes zoals ze zijn; de tekst pas als een route erom vraagt, en dan één keer. */
-function writerOutput(bytes: Uint8Array, literalCalendarIds: readonly string[]): IfcOutput {
+function writerOutput(bytes: Uint8Array, literalCalendarIds: readonly string[], sha256: string | undefined): IfcOutput {
   let content: string | undefined;
-  return { bytes, literalCalendarIds, get content() { return content ??= new TextDecoder().decode(bytes); } };
+  return { bytes, literalCalendarIds, ...(sha256 === undefined ? {} : { sha256 }), get content() { return content ??= new TextDecoder().decode(bytes); } };
 }
 
 export function wireError(error: unknown): IfcSaveWireError {

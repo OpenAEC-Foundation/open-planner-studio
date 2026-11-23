@@ -3535,6 +3535,16 @@ en noem het in je rapport of PR-tekst.
      Recent, slepen en MCP, de startroute zelf niet. Richting: alleen wisselen als de gelezen versie overeenkomt met
      de versie die het tabblad van zijn bestand kent. — B (code gelezen, ook door de reviewer van #1153; niet
      nagespeeld)
+
+2065. **VERVOLG (#804, de versie op het eigen doel): het tabblad merkt niet elke schrijfactie van de app op zijn bestand.**
+     `knownTargetFingerprint` volgt de opslag en de exports van het tabblad zelf. Twee schrijvers van de app ziet het
+     niet: in de browser kan Opslaan als of een export uit een ander tabblad over de handle van dit tabblad schrijven
+     (de opslaankiezer wordt daar niet vergeleken, knownbug 1899), en een rapport (PDF) dat de planner over het eigen
+     `.ifc`-bestand opslaat. Het veld beschrijft dan de laatste opslag van het tabblad zelf, niet wat er op schijf staat,
+     zoals bij een wijziging buiten de app. Een tabblad uit crashherstel krijgt altijd `null`, ook als het herstel de bron
+     van het eigen pad las. Wie het veld gaat lezen (de bewaking van Ctrl+S en Automatisch opslaan), krijgt in deze
+     gevallen "het bestand is veranderd" of "onbekend". — B (code gelezen, `check-tabblad-schijfversie.ts`; de twee
+     schrijvers niet nagespeeld)
 1980. **Een IFC kan een kring in de takenboom meebrengen.** `extractNesting` in `src/services/ifc/ifcReader.ts`
      zet `parentId` en `childIds` uit elke `IFCRELNESTS` tussen twee taken, zonder te toetsen of de nieuwe ouder een
      afstammeling van het kind is. Twee nestrelaties die elkaars kind noemen, geven zo een `parentId`-kring. De

@@ -12,6 +12,7 @@ import {
   freshPayload,
   payloadFromInput,
   type DocumentPayload,
+  type TargetFingerprint,
   type RecoveryDocInput,
 } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -222,7 +223,7 @@ export interface DocumentSlice {
   /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
   setAutoSaveToFile: (enabled: boolean) => void;
   /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
-  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite) => void;
+  markAutoSaveVersionSaved: (document: DocumentContentRef, source: IFCSaveSource, prepared?: PreparedIfcWrite, written?: TargetFingerprint | null) => void;
 }
 
 /** Diepe JSON-kloon (de projectdata is JSON-veilig). */
@@ -462,6 +463,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // Ook het site-doel niet: anders schrijft Ctrl+S in de kopie een nieuwe versie van de bron.
       siteFileId: null,
       siteFileVersion: null,
+      knownTargetFingerprint: null,
       autoSaveToFile: false,
       isDirty: true,
       xerImportMetadata: src.xerImportMetadata
@@ -661,8 +663,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     set((s) => { s.autoSaveToFile = enabled; });
   },
 
-  markAutoSaveVersionSaved: (document, source, prepared) => {
-    get().commitSavedDocument(document, source, undefined, prepared);
+  markAutoSaveVersionSaved: (document, source, prepared, written = null) => {
+    get().commitSavedDocument(document, source, undefined, prepared, false, written);
   },
 
   restoreDocuments: (docs, activeId) => {

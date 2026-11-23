@@ -50,7 +50,10 @@ import { askPlanOnly, type PlanOnlyConfirmation } from '@/services/ifc/planOnlyQ
 import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { hasBuildingModel, hasForeignContent, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
 import { castDraft } from 'immer';
-import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
+import {
+  documentSaveCompute, prepareIfcOutput, planOnlyQuestionApplies, writtenData, writtenFingerprint, IfcWriteBlockedError,
+  type IfcOutput, type IfcOutputCompute,
+} from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import type { TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
@@ -67,7 +70,7 @@ import { refreshProjectCalendarCache } from '../syncProjectCalendar';
 import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
-import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
+import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload, type TargetFingerprint } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
@@ -395,10 +398,11 @@ export interface FileSlice {
   saveFile: () => Promise<void>;
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
-  commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean) => boolean;
+  commitSavedDocument: (document: DocumentContentRef, savedSource: IFCSaveSource, destination?: SaveDestination, prepared?: PreparedIfcWrite, missingSourceSaveAs?: boolean, written?: TargetFingerprint | null) => boolean;
   exportAs: (format: ExportFormat, options?: ExportOptions) => Promise<ExportResult>;
   exportProjectWithPool: () => Promise<ExportResult>;
   recordLiteralCalendarsWritten: (documentId: string, ids: readonly string[]) => void;
+  forgetKnownTargetFingerprint: (documentId: string) => void;
   foreignTargetCheck: (exceptDocumentId: string | null) => SaveTargetCheck;
   exportLibrary: (companyId: string) => Promise<void>;
   recentFiles: RecentEntry[];
@@ -482,8 +486,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const writerData = (write: Extract<IfcOutput, { readonly content: string }>): FileData => write.bytes ?? write.content;
   const missingSourceSaveAsAllowed = (state: Parameters<typeof ifcFullWriteBlocked>[0]) =>
     planOnlyQuestionApplies(state, 'missingSourceSaveAs');
-  const prepareAppIfcWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
-    try { return await prepareIfcOutput(state, input, planOnly, runtime.ifcSaveCompute); }
+  const prepareAppIfcWrite = async (
+    state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, compute: IfcOutputCompute | undefined = runtime.ifcSaveCompute,
+  ): Promise<IfcOutput | null> => {
+    try { return await prepareIfcOutput(state, input, planOnly, compute); }
     catch (error) {
       if (error instanceof IfcWriteBlockedError) get().notify(ifcWriteBlockedNotice(state));
       else if (error instanceof MergeNeedsPhase2Error) get().notify(IFC_FOREIGN_MERGE_REFUSED_NOTICE);
@@ -525,7 +531,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     } finally { release(); }
   };
   const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
-    const write = await prepareAppIfcWrite(state, input, planOnly);
+    const write = await prepareAppIfcWrite(state, input, planOnly, documentSaveCompute(state.ui.featureFlags, runtime.ifcSaveCompute));
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
   };
@@ -613,7 +619,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  dan een leeg bestand na (knownbug 1899, 1893). Hierlangs gaan de browser en, met de flag uit, de gewone planning op
    *  de desktop (zoals main). De merge op de desktop en met de flag elke planning op de desktop gaan via
    *  `saveAsOnDesktop`, de enige route met de toestemming van #804 keuze 4. */
-  const documentSaveDialog = (snapshot: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false) => {
+  const documentSaveDialog = (snapshot: AppState, write: IfcOutput, data: FileData | null, name: string, missingSourceSaveAs = false) => {
     const options = {
       refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs }),
       refuseDownload: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
@@ -624,7 +630,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     // (`saveDataDialog`, #804 stap 6: met de bytes van de worker).
     return write.prepared
       ? saveNewBytesDialog(name, write.prepared.bytes, IFC_FILE_FILTERS, options)
-      : saveDataDialog(name, writerData(write), IFC_FILE_FILTERS, options);
+      : saveDataDialog(name, data ?? writerData(write), IFC_FILE_FILTERS, options);
   };
 
   /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
@@ -859,6 +865,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     if (notice) get().notify(notice);
   };
 
+  const onOwnFile = (target: Parameters<typeof saveTargetRef>[0], fingerprint: TargetFingerprint | null): TargetFingerprint | null => {
+    const ref = saveTargetRef(target);
+    return ref && ref.kind !== 'site' ? fingerprint : null;
+  };
+
   const saveSourceForDocument = (state: AppState, documentId: string): AppState | DocumentPayload | null => {
     if (state.activeDocumentId === documentId) return state;
     return state.documents.find(document => document.id === documentId)?.payload ?? null;
@@ -870,6 +881,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     destination?: SaveDestination,
     prepared?: PreparedIfcWrite,
     missingSourceSaveAs = false,
+    written: TargetFingerprint | null = null,
   ): boolean => {
     if (!sameDocumentContent(get(), document)) return false;
     const documentId = document.id;
@@ -894,14 +906,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       target.ifcSource = castDraft(prepared.source);
       target.foreignSourceMark = foreignSourceMarkFor(prepared.source, target);
     };
-    const written = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
+    const literalIds = prepared?.literalCalendarIds ?? literalCalendarIdsWritten(savedSource);
+    const fingerprint = !ifcForeignContentEnabled(get().ui.featureFlags) ? null
+      : prepared ? { sha256: prepared.sha256, byteLength: prepared.bytes.byteLength } : written;
+    const applyKnownTarget = (target: Pick<AppState, keyof SaveDestination | 'knownTargetFingerprint'>) => {
+      target.knownTargetFingerprint = onOwnFile(target, fingerprint);
+    };
     const savedAt = Date.now();
     set((state) => {
       stampSaved(state, document, savedAt);
       if (state.activeDocumentId === documentId) {
         applyDestination(state);
         applyPrepared(state);
-        state.ifcLiteralCalendarIds = mergeLiteralCalendarIds(state.ifcLiteralCalendarIds, written);
+        applyKnownTarget(state);
+        state.ifcLiteralCalendarIds = mergeLiteralCalendarIds(state.ifcLiteralCalendarIds, literalIds);
         if (unchanged) state.isDirty = false;
         return;
       }
@@ -909,16 +927,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!entry?.payload) return;
       applyDestination(entry.payload);
       applyPrepared(entry.payload);
-      entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, written);
+      applyKnownTarget(entry.payload);
+      entry.payload.ifcLiteralCalendarIds = mergeLiteralCalendarIds(entry.payload.ifcLiteralCalendarIds, literalIds);
       if (unchanged) entry.payload.isDirty = false;
     });
     return unchanged;
   };
 
   const recordOwnFileExport = async (state: AppState, outcome: SaveOutcome, ids: readonly string[]): Promise<void> => {
-    if (ids.length === 0) return;
+    const tracked = ifcForeignContentEnabled(get().ui.featureFlags);
+    if (!tracked) get().forgetKnownTargetFingerprint(state.activeDocumentId);
+    if (ids.length === 0 && !tracked) return;
     const hitsOwnFile = await exportHitsOwnFile(saveTargetRef(state), outcome.ref, await fileIdentityFs());
-    if (hitsOwnFile && !exportContentReplaced(state)) get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
+    if (!hitsOwnFile) return;
+    if (tracked) get().forgetKnownTargetFingerprint(state.activeDocumentId);
+    if (ids.length > 0 && !exportContentReplaced(state)) get().recordLiteralCalendarsWritten(state.activeDocumentId, ids);
   };
 
   const exportContentReplaced = (state: AppState): boolean => !sameDocumentContent(get(), snapshotContent(state));
@@ -1161,10 +1184,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref), missingSourceSaveAs);
       return replaced && { outcome, committed: replaced.committed };
     }
-    if (!(await saveNewBytesToRef(ref, writeBytes(write), () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs)))) return null;
+    const bytes = writeBytes(write), hashing = writtenFingerprint(state.ui.featureFlags, write, bytes);
+    if (!(await saveNewBytesToRef(ref, bytes, () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs)))) return null;
+    const fingerprint = hashing instanceof Promise ? await hashing : hashing;
     return {
       outcome,
-      committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, missingSourceSaveAs),
+      committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, missingSourceSaveAs, fingerprint),
     };
   };
 
@@ -1200,14 +1225,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     let committed = false;
     try {
       const bytes = writeBytes(write);
+      const replacement = write.prepared ?? { bytes, sha256: write.sha256 ?? await precomputeSha256(bytes) };
       const result = await replaceOwnPathWithRecovery({
         documentId: write.prepared ? documentId : null, path,
-        prepared: write.prepared ?? { bytes, sha256: await precomputeSha256(bytes) },
+        prepared: replacement,
         source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
         refuseBeforePlace: () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs),
         commit: () => {
           committed = commitSavedDocument(snapshotContent(state), state,
-            localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, missingSourceSaveAs);
+            localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, missingSourceSaveAs,
+            { sha256: replacement.sha256, byteLength: replacement.bytes.byteLength });
         },
       });
       for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
@@ -1300,11 +1327,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         try {
           if (refuseChangedDocumentWrite(state, write)) return false;
           const last = lastWriteCheck(state, write);
+          const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
           const saved = write.prepared
             ? await saveNewBytesToRef(ref, write.prepared.bytes, last.refuse)
-            : await saveToRef(ref, writerData(write), last.refuse, ref.kind === 'handle');
+            : await saveToRef(ref, plain!.data, last.refuse, ref.kind === 'handle');
           if (last.refused()) return false;
-          if (saved) return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared);
+          if (saved) {
+            const hashing = plain?.fingerprint ?? null;
+            const fingerprint = hashing instanceof Promise ? await hashing : hashing;
+            return commitSavedDocument(snapshotContent(state), state, undefined, write.prepared, false, fingerprint);
+          }
         } catch (err) {
           if (write.prepared || isTauri() || ref.kind !== 'handle') throw err;
           handleWriteFailed = true;
@@ -1329,15 +1361,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         await pushRecent(saved.outcome.ref, saved.outcome.name);
         return saved.committed;
       }
-      const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
+      const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
+      const outcome = await documentSaveDialog(state, write, plain?.data ?? null, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
         get().notify(downloadCopyNotice(outcome.name));
         return false;
       }
+      const hashing = outcome.viaDownload ? null : plain?.fingerprint ?? null;
+      const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       const saved = write.prepared && outcome.viaDownload
         ? commitSavedDocument(snapshotContent(state), state)
-        : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared);
+        : commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, false, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return false;
       await pushRecent(outcome.ref, outcome.name);
       if (!isTauri() && (!handleWriteFailed || outcome.viaDownload)) {
@@ -1403,10 +1438,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
         return;
       }
-      const outcome = await documentSaveDialog(state, write, defaultName, missingSourceSaveAs);
+      const plain = write.prepared ? null : writtenData(state.ui.featureFlags, write);
+      const outcome = await documentSaveDialog(state, write, plain?.data ?? null, defaultName, missingSourceSaveAs);
       if (!outcome) return;
+      const hashing = outcome.viaDownload ? null : plain?.fingerprint ?? null;
+      const fingerprint = hashing instanceof Promise ? await hashing : hashing;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
-      else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs);
+      else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs, fingerprint);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
@@ -1500,6 +1538,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         payload.siteFileId = null;
         payload.siteFileVersion = null;
       }
+      payload.knownTargetFingerprint = editing ? current.knownTargetFingerprint : inheritsTarget || !ownSource ? null
+        : onOwnFile(payload, { sha256: ownSource.sha256, byteLength: ownSource.bytes.byteLength });
       if (!opts.linkedOpen && !editing) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload);
@@ -1897,7 +1937,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             ?? refusalNotice({ messageKey: 'notifications.saveFailed', dedupeKey: 'ifc-export-write-failed' }));
           return null;
         }
-        if (written && !preparedExport && !planOnly) await recordOwnFileExport(state, written, exportedLiteral);
+        if (written) await recordOwnFileExport(state, written, preparedExport || planOnly ? [] : exportedLiteral);
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };
@@ -1955,6 +1995,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return { ok: true, warnings };
     },
 
+    forgetKnownTargetFingerprint: (documentId) => {
+      set((state) => {
+        if (state.activeDocumentId === documentId) {
+          state.knownTargetFingerprint = null;
+          return;
+        }
+        const entry = state.documents.find(document => document.id === documentId);
+        if (entry?.payload) entry.payload.knownTargetFingerprint = null;
+      });
+    },
+
     recordLiteralCalendarsWritten: (documentId, ids) => {
       set((state) => {
         if (state.activeDocumentId === documentId) {
@@ -1986,7 +2037,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (refuseExportBeforePicker(state)) return null;
         const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
           { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace });
-        if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
+        if (written) await recordOwnFileExport(state, written, planOnly ? [] : project.literalCalendarIds);
         if (written && exportContentReplaced(state)) return null;
         return written;
       }, () => null);
