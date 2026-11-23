@@ -31,3 +31,9 @@ Draagt een taak minuten, dan verschuift `shiftByLevelingDelay` met de minuten en
   doorgifte de late datums van een vertraagde opvolger met haar vertraging terug voordat ze op de voorganger drukken
   (`shiftByLevelingDelay` met teken −1). Zonder die spiegel toont de voorganger in een keten P → A (vertraging) → S
   zoveel speling als de vertraging, terwijl ze kritiek is.
+- Met een actieve statusdatumvloer toetst de achterwaartse berekening een begin-einde- of einde-einderelatie naar
+  een niet-gestarte dagenmaat-opvolger met nivelleervertraging aan dezelfde relatieberekening als voorwaarts.
+  De relatiekalender, de vertraging en de duur op de opvolgerkalender bepalen samen of het moment past.
+  De berekening zoekt op hele minuten rond het huidige relatiemoment van de voorganger. Zij toetst de grens
+  en de minuut erna aan de late datums van de opvolger. Bij einde-einde kan een pauze vóór de gevonden grens
+  de duur al naar een latere werkdag duwen. Die eerste schending begrenst de speling (#1161).

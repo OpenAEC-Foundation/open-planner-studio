@@ -32,9 +32,7 @@ per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
 positie zonder vulgraaddrempel wint — een band direct onder een band (de optionele typelaag
 `groupByType`: eerst een band per resourcetype in de vaste volgorde `RESOURCE_TYPE_BAND_ORDER`) krijgt
-geen eigen gedwongen positie; optie *Rapportageperiode* = de gedeelde `ReportingPeriod` als
-`PrintOptions.timeWindow` (tijdas exact op het venster, geometrie geklemd op het chartgebied want
-`Draw2D` kent geen clip; de rijenbron filtert op overlap en telt `counts.outsidePeriod`); optie
+geen eigen gedwongen positie; de rijenbron filtert op het tijdvak (hieronder) en telt `counts.outsidePeriod`; optie
 *Eenheden/dag en curve tonen* = `PrintOptions.assignmentColumns` + `rowAssignments` (per `rowKey`
 uit `assignmentByRowKey`: eenheden opgeteld, curve alleen bij eensluidende records) als twee
 tabelkolommen achter de naam; de voet
@@ -56,6 +54,33 @@ tijdvenster (look-ahead, voortgang, belasting, toewijzingen) delen de **rapporta
 uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableReportOptions`, in de
 UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePeriodFor(ctx, period)`
 — nooit een eigen weken-getal erbij bouwen.
+
+**Tijdvak van de Gantt-afdruk** (issue #997). Eén `ReportingPeriod` voor elke rijenbron van de stap Taken
+(`ReportSettings.period`). Standaard `project`: de hele duur, zonder keuze. In de UI staat onder de keuze van de rijen
+één vinkje *Eigen periode* (`data-rs-option="ownPeriod"`, besluit eigenaar 2026-11-23: geen keuzelijst en geen vaste
+keuzes); aan zet `custom` met de projectspanne en toont *Van*/*Tot* via `CustomPeriodDates`, dat de tabelrapporten in
+`ReportingPeriodField` met hun keuzelijst delen; uit zet `project`. Een vaste keuze uit oudere opslag (bijv.
+`next4Weeks`) opent met het vinkje aan en blijft bewaard zoals ze is: *Van*/*Tot* tonen haar actuele datums en schuiven
+mee met de statusdatum, tot de planner een datum wijzigt (dan `custom`) of het vinkje uitzet. Openen schrijft niets
+(review ronde 13). Het resourcediagram heeft geen eigen periode meer. Een oude `resourceGantt.period` gaat bij het laden over
+als het meegeleverde Resourcediagram de bron was (`parseGanttPeriod`); anders blijft zij apart bewaard
+(`legacyResourcePeriod`, zoals main haar bij een andere bron bewaarde) en maakt `legacyPeriodPatch` er het tijdvak van
+zodra de bron (in de nieuwste opslag) op resource groepeert, ook na een wissel van bron. Een eigen keuze, ook *Hele project*, wist haar in
+dezelfde schrijfactie (`periodChoicePatch`). Niet `project` ⇒ `StudioRowSource.window` en `PrintOptions.timeWindow`: de
+tijdas exact op het venster, geometrie geklemd op het chartgebied want `Draw2D` kent geen clip (ook de minimumbreedte en
+de haakjes van een fase), relatielijnen per recht stuk afgekapt (`strokeRoute`; een pijlpunt alleen helemaal binnen het
+venster). Of een balk of mijlpaal (ook een baselinemijlpaal) in het venster valt, beslist de TIJD (`barInWindow`,
+`momentInWindow`), niet de x: op de werkdagas valt werk in niet-werktijd tot één punt samen en krijgt dan de
+minimumbreedte, en een ruit op de rand wordt naar binnen geklemd. Ook de status- en voortgangslijn staan er alleen als de statusdatum in het
+tijdvak valt, en dan altijd, net binnen de rand geklemd (de tabelrand wordt erna getekend); zonder tijdvak geldt de zichtbaarheidsregel van vandaag. Welke rijen erin horen, beslist de rijenbron, en
+altijd vóór groeperen en inklappen: alleen de bladtaken die het tijdvak raken (`taskInPeriod`), met hun ouders. Het
+resourcediagram via `window` van `computeResourceGanttRows`, *Zoals de weergave* en een layout via `within` van
+`computeViewRows` (stap 1, naast het filter; de ouders zijn dan niet gedimd), *Alle taken* via `treeRowsInPeriod`
+(`src/engine/reports/reportPeriodRows.ts`). Banden, tellingen, reeksen en ingeklapte rijen gaan zo alleen over het tijdvak;
+een ingeklapte reeks houdt haar sleutel. De melding onder de keuze telt de bladtaken die het filter van de bron halen en
+buiten het tijdvak vallen (`leavesOutsidePeriod`). Staat er alleen een ingeklapte band in het tijdvak, dan tekent de afdruk die band (geen leeg blad). Bij een tijdvak staan ook de dagcijfers van het weekend in de kop, en de verbindingslijn van een onderbroken taak wordt over de hele taak bepaald en daarna afgekapt. `buildPrintRows` zonder rijenlijst gebruikt `taskTreeRows` uit
+hetzelfde bestand. Rond middernacht spreken rijfilter (per dag) en render (per moment) elkaar nog tegen (knownbug 1860).
+Bewaking: `check-report-gantt-period.ts`.
 
 **Voortgangscurve** (issue #689, spec `docs/superpowers/specs/2026-10-27-voortgangscurve-rapport.md`) is
 een tabelrapport (`progressCurve`, rekenlaag `progressCurve.ts`) met twee extra blokken in dezelfde

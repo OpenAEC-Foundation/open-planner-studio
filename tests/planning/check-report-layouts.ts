@@ -165,9 +165,8 @@ for (const window of windows) {
       includeUnassigned: (bits & 2) !== 0,
       groupByType: (bits & 4) !== 0,
       showAssignmentColumns: (bits & 8) !== 0,
-      period: window ? { preset: 'custom', from: window.from, to: window.to } : { preset: 'project' },
     };
-    const name = `[${Object.entries(opts).filter(([k, v]) => k !== 'period' && v).map(([k]) => k).join(',') || 'geen opties'}${window ? ', periode' : ''}]`;
+    const name = `[${Object.entries(opts).filter(([, v]) => v).map(([k]) => k).join(',') || 'geen opties'}${window ? ', periode' : ''}]`;
 
     // Oud: het oude rapportpaneel bij reportType 'resourceGantt'.
     const old = computeResourceGanttRows({ tasks, resources, assignments }, {
@@ -186,7 +185,8 @@ for (const window of windows) {
     });
     const rowSource: StudioRowSource = {
       rows: fresh.rows, multiBand: fresh.multiBand,
-      resource: fresh.resource ? { result: fresh.resource, options: opts, window } : null,
+      resource: fresh.resource ? { result: fresh.resource, options: opts } : null,
+      window,
     };
     const newOptions = base(studioRowPrintFields(rowSource, { showDeps: true, showCritical: false }));
 
@@ -257,10 +257,10 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
   ok(r.resource === null && !r.multiBand, 'alleen een filter: geen resourcebouwer, relaties aan');
   ok(groupIsMultiBand([{ field: { src: 'resourceType' }, dir: 'asc' }]) && resourceBandShape([{ field: { src: 'resourceType' }, dir: 'asc' }]) === null,
     'alleen op resourcetype: relaties uit, maar de rijen van het scherm');
-  const fields = studioRowPrintFields({ rows: r.rows, multiBand: false, resource: null }, { showDeps: true, showCritical: false });
+  const fields = studioRowPrintFields({ rows: r.rows, multiBand: false, resource: null, window: undefined }, { showDeps: true, showCritical: false });
   eq('zonder resource volgen relaties en kritiek pad de planner', [fields.showDeps, fields.showCritical, fields.pageBreakBeforeGroups, fields.assignmentColumns], [true, false, false, false]);
   // Zoals de weergave, terwijl het scherm op resource groepeert: de rijen van het scherm, relaties uit, kritiek pad aan.
-  const banded = studioRowPrintFields({ rows: r.rows, multiBand: true, resource: null }, { showDeps: true, showCritical: false });
+  const banded = studioRowPrintFields({ rows: r.rows, multiBand: true, resource: null, window: undefined }, { showDeps: true, showCritical: false });
   eq('banden zonder resourcebouwer: relaties uit, kritiek pad aan, geen resourcevelden',
     [banded.showDeps, banded.showCritical, banded.pageBreakBeforeGroups, banded.assignmentColumns, banded.timeWindow], [false, true, false, false, undefined]);
 }

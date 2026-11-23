@@ -624,14 +624,16 @@ en noem het in je rapport of PR-tekst.
      een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
      paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
      gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
-1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
-     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
-     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
-     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
-     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
-     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
-     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
-     resource overbezet (issue #1161). — B
+2108. **VERVOLG (#1166, ook op main): een nivelleerpauze kan bij een einde-eindetaak de gekozen werkdag wijzigen.**
+     In de gerichte storeproef met twee werkdagen uitloop en een gesloten kraankalender op dinsdag en donderdag
+     kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
+     gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
+     pauze voordat de vertraging wordt opgeslagen. — S
+2110. **VERVOLG (#1166, ook op main): de terugrekening kan bij een einde-einderelatie een geldige start op het
+     exacte dageinde overslaan.** Als de opvolger 480 minuten nivelleervertraging heeft, haalt een urentaak die
+     dinsdag om 16:00 begint diens eindgrens. Dinsdag 15:59 en woensdag 08:00 schenden de grens. Bij de laatstgenoemde
+     start geeft de terugrekening dinsdag 13:00 als late start. Deel de duurberekening met de voorwaartse pass
+     en toets het exacte dageinde als een afzonderlijke overgang. — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
      (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
      `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
@@ -647,6 +649,21 @@ en noem het in je rapport of PR-tekst.
      een ALAP-taak op een kalender zonder eigen werkblokken die stap, omdat C14 daar niet geldt (ADR 0182). Het
      commentaar bij `p6AlapPositionedFromSuccessors` in `src/types/project.ts` meldde dat de corpusmeting daarvan
      openstond. — S
+
+1999. **Een splitsbewerking op een lopende taak met een expliciete restduur schuift de rest niet mee met de nieuwe
+     duur.** `applyTaskSplits` (`src/state/splitMutations.ts`) roept na een gewijzigde werkduur `settleDurationEdit`
+     aan, maar niet `settleEditedDuration` (`src/engine/work/workRuleApply.ts`), de stap die bij een duurbewerking op
+     een lopende taak de rest met het duurverschil verschuift. `followRemainingOfUnstartedTask` in
+     `settleDurationEdit` werkt alleen op een taak zonder voortgang en zonder werkelijke datums. Gezien in de code; spec
+     taaktypes §3.5 noemt dezelfde uitzondering (VERVOLG op #380). Proef van de reviewer (GPT-6.2-Sol, review van
+     #1173): een taak van 4 d op 50 %; `setTaskSplits` maakte de duur 5 d terwijl restduur en restwerk op 2 d en
+     960 min bleven, en `updateTask` gaf op dezelfde uitgangstoestand 3 d en 1440 min. — B
+
+2000. **Voortgang terugzetten kan het totale werk van een toewijzing laten groeien.** `settleProgressWork`
+     (`src/engine/work/workRuleApply.ts`) schaalt het restwerk met de nieuwe restduur en zet het verrichte werk op wat
+     van het oude totaal overblijft, met 0 als ondergrens. Proef van de reviewer (GPT-6.2-Sol, review van #1173): een
+     taak van 4 werkdagen op 50 %, restwerk op 24 u gezet (16 u verricht, 24 u rest); daarna voortgang naar 0 % gaf
+     0 u verricht en 48 u rest, ook na herlezen van de geschreven IFC. — B
 
 2107. **VERVOLG (#1167): een lokaal tekort markeert volledige boekingen op het poolitem als onvolledig.**
      `computeDistribution` zet `afterIncomplete` gelijk aan `hasShortfall`, ook als de overbezetting
@@ -840,6 +857,45 @@ en noem het in je rapport of PR-tekst.
     van een baselinemijlpaal op het begin van het tijdvenster maar half te zien (mijlpaal op
     2026-10-20T00:00 bij een rapport vanaf 20 oktober). Vervolgpunt uit review ronde 2 van PR #403
     (GPT-6.1-Sol). — B
+1860. **VERVOLG (#997): rond middernacht kiest het tijdvak van de Gantt-afdruk een rij waarvan de balk niet getekend wordt.**
+    Het rijfilter (`taskInPeriod` in `reportPeriodRows.ts`) vergelijkt datums per dag, de render (`barInWindow` in
+    `printPreview.ts`) per moment met een exclusief einde. Een nachttaak van 24 september 22.00 uur tot 25 september
+    00.00 uur krijgt bij een tijdvak vanaf 25 september een rij met een lege balk. Richting: voor beide dezelfde
+    intervalregel, met behoud van mijlpalen op de grens. Gevonden door de review van #1005 (Sol, ronde 2). — B
+1861. **VERVOLG (#997): *Buiten de periode* van het resourcediagram telt een taak mee die door een andere instelling al ontbreekt.**
+    `computeResourceGanttRows` (`resourceGantt.ts`) telt elke bladtaak buiten het tijdvak, ook een taak zonder resource
+    terwijl *Taken zonder resource meenemen* uit staat. Voorbeeld: één toegewezen taak in het tijdvak en één taak zonder
+    resource erbuiten; *Hele project* en het tijdvak drukken dezelfde taak af, toch staat er *Buiten de periode: 1*.
+    Richting: alleen taken tellen die met dezelfde broninstellingen op papier zouden komen. Gevonden door de review van
+    #1005 (Sol, ronde 3). — B
+1862. **VERVOLG (#997): met kleuren per resource kan de balk van een zichtbare taak op de rand van het tijdvak wegvallen.**
+    Een taak met twee ploegen van zondag 4 oktober 08.00 uur tot dinsdag 6 oktober 16.00 uur, tijdvak tot en met die
+    zondag, werkdagas: in de standaardkleur tekent de afdruk een balk van 3 px, met kleuren per resource geen, omdat de
+    kleurvakken (`advies.kind === 'segments'` in `printPreview.ts`) de minimumbreedte omzeilen. Richting: voor een smal
+    zichtbaar stuk de bestaande terugval naar één kleur. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1863. **VERVOLG (#997): een baselineruit steekt over de rand van het tijdvak en een fase kan een vals eindhaakje krijgen.**
+    De afdruk klemt van een baselineruit alleen het middelpunt (`clampX` in `printPreview.ts`), dus de ruit loopt tot
+    x = 1061,48 bij een rand op 1058,52. Een fase die op zondag eindigt, krijgt in een afdruk tot en met vrijdag een
+    eindhaakje, omdat beide grenzen op de werkdagas samenvallen. Richting: de ruit met haar halve diagonaal klemmen en het
+    eindhaakje uit het echte eindmoment afleiden. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1864. **VERVOLG (#997): een mijlpaal met maar één datum valt uit het tijdvak van de Gantt-afdruk.** `taskInPeriod`
+    (`reportPeriodRows.ts`) eist een begin- én einddatum; een mijlpaal met alleen een startdatum staat bij *Hele project*
+    op papier en ontbreekt bij een tijdvak dat haar dag bevat. De tekenaar kent die vorm al (`milestoneMoment`). Richting:
+    voor mijlpalen hetzelfde moment als de ruit. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1866. **VERVOLG (#997): op een smal blad valt het statuslabel weg.** Bij een tijdvak van één dag op een vaste schaal van
+    22 px per dag tekent de afdruk de statuslijn zonder datumlabel: `reserveHeaderLineLabel` (`printPreview.ts`) geeft de
+    reservering op zodra de tekst niet past. Richting: de bestaande afkortlogica gebruiken als een korter label past.
+    Gevonden door de review van #1005 (Sol, ronde 5). — B
+1867. **VERVOLG (#997): bij een tijdas van een paar pixels verdwijnen statuslijn en mijlpaalruit achter de tabel.** Met één
+    dag op een vaste schaal van 1 px per dag loopt de tijdas van x = 335 tot 336; de klem van de statuslijn
+    (`printPreview.ts`, 1,25 px binnen de rand) en die van de ruit gaan uit van meer ruimte, dus tabel en rand bedekken
+    ze. Richting: eerst de tekenbreedte op de beschikbare ruimte begrenzen, dan het middelpunt bepalen. Gevonden door de
+    review van #1005 (Sol, ronde 6). — B
+1868. **VERVOLG (#997): het dagcijfer van een weekenddag in een tijdvak zit vrijwel tegen het weeknummer.** Sinds #997
+    staan bij een tijdvak ook de weekenddagcijfers in de kop van de afdruk. Met zondag als weekstart en 16 px per dag
+    zit er 0,04 px tussen `W40` en `27`, op overlappende x-posities (`drawTimelineHeader` in `printPreview.ts`).
+    Richting: het dagcijfer voorrang geven als het weeknummer op die plek te weinig ruimte heeft. Gevonden door de
+    review van #1005 (Sol, ronde 7). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm
