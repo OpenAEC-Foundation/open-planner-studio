@@ -7,8 +7,11 @@ import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
+import { applyCpmResult } from './applyCpmResult';
+import { cloneTasksForSolve } from './solveProject';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 import {
-  assignmentLoadOnPlacement, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement,
+  assignmentLoadOnPlacement, computeResourceLoad, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement, type DailyLoad,
 } from './ResourceLoad';
 import { hasManualPlacement, placementFollowsSpan, type PlacementResult } from './workPlacement';
 import { createTaskEngineCache } from './taskEngineCache';
@@ -563,6 +566,57 @@ export function levelResources(
 
   const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
+
+  const resourcesWithFixedAssignments = new Set<string>();
+  if (scope && !options.preserveExistingLeveling) {
+    for (const assignment of assignments) {
+      const task = taskById.get(assignment.taskId);
+      if (task && !inScope(task.id) && selectedIds.has(assignment.resourceId)
+        && !task.isMilestone && !isSummaryTask(task)) resourcesWithFixedAssignments.add(assignment.resourceId);
+    }
+  }
+  if (!trial.error && resourcesWithFixedAssignments.size > 0
+    && (Object.keys(delays).length > 0 || Object.keys(gapsOut).length > 0
+      || tasks.some(task => inScope(task.id) && hasLevelingOutput(task)))) {
+    const beforeTasks = cloneTasksForSolve(tasks);
+    const before = new CPMSolver(beforeTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
+    if (!before.error) {
+      const calendars = { projectCalendar, calendars: resourceCalendars };
+      applyCpmResult(beforeTasks, before, calendars);
+      applyCpmResult(workTasks, trial, calendars);
+      const loadChanges = new Map<string, Map<string, DailyLoad>>();
+      const trackChange = (sign: -1 | 1) =>
+        (assignment: ResourceAssignment, { isos, units }: { isos: readonly string[]; units: readonly number[] }) => {
+          if (!resourcesWithFixedAssignments.has(assignment.resourceId)) return;
+          const byResource = loadChanges.get(assignment.taskId) ?? new Map<string, DailyLoad>();
+          loadChanges.set(assignment.taskId, byResource);
+          const change = byResource.get(assignment.resourceId) ?? {};
+          byResource.set(assignment.resourceId, change);
+          for (let i = 0; i < units.length && i < isos.length; i++) {
+            const day = isos[i];
+            change[day] = (change[day] ?? 0) + sign * units[i];
+          }
+        };
+      const beforeLoad = computeResourceLoad(
+        resources, assignments, beforeTasks, projectCalendar, resourceCalendars, placementOptions, trackChange(-1),
+      );
+      const afterLoad = computeResourceLoad(
+        resources, assignments, workTasks, projectCalendar, resourceCalendars, placementOptions, trackChange(1),
+      );
+      for (const [taskId, byResource] of loadChanges) {
+        const worsenedDays = new Set(unresolved[taskId]);
+        for (const [resourceId, change] of byResource) {
+          for (const [day, units] of Object.entries(change)) {
+            const limit = Math.max(beforeLoad.load[resourceId]?.[day] ?? 0, afterLoad.capacity[resourceId]?.[day] ?? 0);
+            if (exceedsCapacity(units, 0) && exceedsCapacity(afterLoad.load[resourceId]?.[day] ?? 0, limit)) {
+              worsenedDays.add(day);
+            }
+          }
+        }
+        if (worsenedDays.size > 0) unresolved[taskId] = [...worsenedDays].sort();
+      }
+    }
+  }
 
   const shifts: Record<string, LevelingShift> = {};
   for (const t of tasks) {

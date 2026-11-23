@@ -6,8 +6,7 @@ nivelleerder onderscheidt daarvoor het venster van de zoekgrens. Het venster is 
 een uitloopplafond (`overrunCeilingDays`) of het strengste van beide (`windowLimit`); een plafond van 0 en smoothing
 geven hetzelfde venster (`check-leveler-ceiling.ts`, geval 1). De zoekgrens is een rekengrens (`scanLimit`, verlengd
 door `horizonIso` en begrensd door `HARD_SCAN_CAP`). Dat een rekengrens op is, zegt niets over capaciteit; daarom
-bestaat er naast de capaciteitsredenen een eigen reden, `NO_WINDOW_IN_HORIZON`. Welke redenen in `reasonFor` vóór
-die reden gaan, staat daar (knownbug 1984).
+bestaat er naast de capaciteitsredenen een eigen reden, `NO_WINDOW_IN_HORIZON`.
 
 In de lus van `findSlot` staat de toets van het volgende moment tegen het venster vóór de toets tegen de zoekgrens,
 omdat het venster een keuze van de planner is en de zoekgrens een rekengrens. De eerste kandidaat toetst `findSlot`
