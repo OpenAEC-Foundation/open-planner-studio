@@ -457,7 +457,7 @@ bestandsaanroepen, ook als er na het uitzetten nog een tabblad met een gebouwmod
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen gaat met de flag aan altijd naar het tabblad dat een
-bestand al open heeft, met een melding als de gelezen versie verschilt (`openDocumentFor.ts`, knownbug 1957; de beslissing
+bestand al open heeft, met een strook als de gelezen versie verschilt (`openDocumentFor.ts`, knownbug 1957; de beslissing
 staat in `state.md`). Regel: de PR voegt geen wachtmoment en geen bestandsaanroep toe aan de openactie, ook niet aan de
 native kant (besluit D, review #1121 ronde 6). De desktop kijkt bij het openen niet naar de schijf: geen `stat`, geen
 `fileIdentityFs` in een openroute; Openen, Recent, slepen en `planner_import_schedule` lezen regel voor regel zoals main
