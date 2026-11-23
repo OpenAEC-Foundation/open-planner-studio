@@ -85,9 +85,13 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   opent een bestand als document; `planner_new_document`, `planner_switch_document` en de andere
   documenttools werken zoals in de app. In de app gaat `planner_import_schedule` met de featureflag
   `ifcForeignContent` naar het tabblad dat een pad al open heeft en antwoordt met `alreadyOpen: true`
-  (knownbug 1957). Alleen dezelfde letterlijke padtekst telt, na het parsen, zonder naar de schijf te
-  kijken: een link of een anders geschreven pad naar hetzelfde bestand opent een eigen document, zoals
-  main (knownbug 2063). Een CSV, XER, MS Project- of P6 XML-bestand opent altijd als nieuw document. Is
+  (knownbug 1957). Alleen dezelfde padtekst telt, na de omzetting van het invoerpad binnen de thuismap
+  (`checkScope`: `~/./kantoor.ifc` en het absolute pad zijn dan dezelfde tekst), na het parsen, zonder
+  naar de schijf te kijken: een link of een anders geschreven pad naar hetzelfde bestand opent een eigen
+  document, zoals main (knownbug 2063). Verschilt de gelezen versie (SHA-256 en grootte) van wat dat
+  tabblad als versie op schijf kent (`knownTargetFingerprint`), dan staat er ook `changedOnDisk: true`
+  in het antwoord en krijgt de planner in de app een melding met de knop *Nieuwe versie laden*. Kent het
+  tabblad zijn versie niet, dan opent het pad als nieuw document, zoals main. Een CSV, XER, MS Project- of P6 XML-bestand opent altijd als nieuw document. Is
   dat tabblad gesloten of heeft het intussen een ander bestand, dan opent het pad als nieuw document. De
   import leest buiten de schrijfrij van de app om, zoals main (knownbug 2060). De headless server zet geen flags, dus daar opent een tweede import van hetzelfde
   pad een tweede document (knownbug 2042).

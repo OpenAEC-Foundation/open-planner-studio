@@ -197,12 +197,40 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
   await expect(kantoor).toHaveAttribute('aria-selected', 'false');
   await openButton.click();
-  const alreadyOpen = page.locator('.ops-toast', { hasText: 'This file is already open. You have been taken to that tab.' });
-  await expect(alreadyOpen).toBeVisible();
   await expect(kantoor).toHaveAttribute('aria-selected', 'true');
   await expect(tabs).toHaveCount(tabsBefore + 1);
+  const changedOnDisk = page.locator('.ops-toast', { hasText: 'kantoor.ifc was changed outside this tab. This tab still shows the earlier version.' });
+  await expect(changedOnDisk).toHaveCount(0);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(true);
+
+  await page.evaluate(async (text) => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle('kantoor.ifc');
+    const writable = await handle.createWritable();
+    await writable.write(`${text}\n`);
+    await writable.close();
+  }, planning);
+  await page.locator('[data-ops-tabstrip] [role="tab"]', { hasText: 'gesleept' }).click();
+  await openButton.click();
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
+  await expect(changedOnDisk).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  await changedOnDisk.locator('[data-ops-notification-action="loadNewVersion"]').click();
+  const question = page.locator('[data-ops-close-dialog]');
+  await expect(question).toBeVisible();
+  await question.locator('[data-ops-close-choice="cancel"]').click();
+  await expect(question).toBeHidden();
+  await expect(changedOnDisk).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.name))).toEqual(kantoorWork);
+  await changedOnDisk.locator('[data-ops-notification-action="loadNewVersion"]').click();
+  await question.locator('[data-ops-close-choice="discard"]').click();
+  await expect(question).toBeHidden();
+  await expect(changedOnDisk).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.some(t => t.name === 'Onopgeslagen in kantoor'))).toBe(false);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
+  await expect(kantoor).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(tabsBefore + 1);
   await page.evaluate(() => window.__OPS__!.store.setState((s) => { s.ui.featureFlags = { ...s.ui.featureFlags, ifcForeignContent: false }; }));
 });
 
