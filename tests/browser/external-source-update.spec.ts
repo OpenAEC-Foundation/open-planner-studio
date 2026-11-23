@@ -234,7 +234,6 @@ test('bronbestand kiezen in de browser: koppelen zonder pad, balk bij een nieuwe
   await expect(page.locator(STRIP)).toHaveCount(0);
   expect(await permissionRequests()).toBe(0);
 
-  // Knownbug 971: hetzelfde handvat, maar het echte rechtermuisknopmenu van één relatiecel.
   const pathAnchors = () => page.evaluate(() => window.__OPS__!.store.getState().tasks.flatMap(task =>
     (task.externalLinks ?? []).filter(link => !!link.sourceRef.filePath)
       .map(link => [link.id, link.sourceRef.filePath, link.anchorDate, link.sourceVersion])));

@@ -364,7 +364,6 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     anchorOf(a).anchorDate, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
   ], ['2027-03-10T16:00', '2027-03-05T16:00', PATH]);
   S().undo();
-  // Knownbug 971: één bron uit het relatiecelmenu, zonder pad, leest alleen het onthouden handvat.
   prompts.length = 0;
   const undoCount = () => S().historyEvents.filter(event => event.state === 'applied').length;
   const undoBefore = undoCount();

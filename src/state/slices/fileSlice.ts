@@ -424,7 +424,6 @@ export interface FileSlice {
   refreshExternalAnchorsFromChosenFiles: (labels?: ImportLabels) => Promise<ChosenFilesRefresh | null>;
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
   refreshExternalProjectAnchors: (taskId: string, linkId: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
-  /** Projectbrede ververs-actie ("Ververs externe ankers"): ververs elke gerefereerde bron één keer. */
   refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<ExternalRefreshAllResult>;
   readExternalSourceUpdate: (
     update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId'>, labels?: ImportLabels,
