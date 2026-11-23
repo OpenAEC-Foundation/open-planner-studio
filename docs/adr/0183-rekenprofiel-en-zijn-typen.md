@@ -1,4 +1,4 @@
-# Een rekenprofiel draagt alleen zijn afwijkingen en wordt op id herkend
+# Een rekenprofiel bewaart zijn keuzes letterlijk en hoort op id bij zijn sjabloon
 
 Het tweelagenmodel (conventies in `Project.schedulingProfile`, projectopties in `Project.schedulingOptions`) en de
 eis dat de solver alleen `EffectiveSchedulingOptions` krijgt, staan in de regel `rekenprofielen`. De typen in
@@ -8,8 +8,13 @@ gelden de keuzes hieronder, die een lezer zonder uitleg zou terugdraaien.
 
 ## Gevolgen
 
-- Een `SchedulingProfile` bewaart een ingebouwde basis plus alleen de afwijkingen (`overrides`). De opgeloste set van
-  negenentwintig waarden rekent `resolveConventions` telkens uit; ze staat niet nog eens in de state.
+- Een `SchedulingProfile` bewaart een ingebouwde basis plus de letterlijke keuzes (`overrides`); de opgeloste set
+  van negenentwintig waarden rekent `resolveConventions` uit. Een keuze in `overrides` blijft staan, ook als ze gelijk
+  is aan de basis van het profiel waar het project nu op staat: bij een wissel van P6 met A13 uit naar OPS is
+  `clampNegativeFreeFloat: false` gelijk aan de OPS-basis, en die keuze moet bij de terugkeer naar P6 weer gelden
+  (besluit 2026-09-22, regel `rekenprofielen` bij `switchProfile`). Ze reist daarom letterlijk mee in het IFC-bestand
+  (`check-scheduling-profile-roundtrip.ts`, gevallen C2b-01 tot en met C2b-03). Ruim zulke keuzes dus niet op omdat ze
+  gelijk zijn aan de basis.
 - Een eigen profiel hoort op `id` bij zijn sjabloon, niet op naam: de keuze in de lijst (`choiceOf`) en de
   verhouding tot het sjabloon (`templateRelation`, beide in `state/schedulingProfileDraft.ts`) en het opslaan van een
   sjabloon (`upsertCustomProfileResult` in `services/schedulingProfiles/profileStore.ts`) zoeken op `id`. Een andere
@@ -22,4 +27,4 @@ gelden de keuzes hieronder, die een lezer zonder uitleg zou terugdraaien.
   (`services/ifc/schedulingProfileMigration.ts`), die het naar een profiel omzet.
 - Of een duur, rest of lag in de dagenmaat telt (conventie `workdayDurationMeasure`), vraag je aan
   `taskCountsInWorkdays` en `lagCountsInWorkdays` in `conventions/durationMeasure.ts`, niet zelf aan `durationUnit`.
-  Kalendertijd telt daar nooit in de dagenmaat; een procentlag volgt de maat van de voorganger.
+  Hoe kalendertijd en een procentlag daar uitvallen, staat in die twee functies.
