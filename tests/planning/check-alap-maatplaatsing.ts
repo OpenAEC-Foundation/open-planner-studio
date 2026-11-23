@@ -379,8 +379,6 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
-// Knownbug 374: C14 kan na een SS-plaatsing bij dezelfde start een latere opvolger opleveren.
-// X van vijf dagen houdt B op maandag; vergelijk dezelfde P6-basis met de gewone ALAP-stap.
 {
   const summary = [];
   const cal = SHORT_FRIDAY_BLOCKS;
