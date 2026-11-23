@@ -85,6 +85,7 @@
     "importDatesAsRecorded_other": "{{count}} tarefas mostram as datas tal como registadas no ficheiro (sem recalcular).",
     "xerExportLoss": "A exportação para {{format}} perde informações de origem XER.",
     "exportDataLoss": "Ao exportar para {{format}}, perdem-se dados que {{format}} não suporta, como notas ou uma restrição secundária. O ficheiro de projeto IFC guarda tudo.",
+    "exportPlanOnly": "Apenas o planeamento foi exportado; o modelo do edifício não faz parte deste formato.",
     "mppLegacy": "Este ficheiro .mpp usa um formato antigo (Project 2007 ou anterior). Exporte-o no MS Project como XML (Ficheiro → Guardar como → XML) e abra esse ficheiro.",
     "mppInvalidContainer": "Este ficheiro MPP tem uma estrutura de ficheiro inválida e não pode ser aberto.",
     "xmlUnknownSchedule": "Formato de planeamento XML desconhecido. Abra um XML do MS Project (Project) ou um XML do Primavera P6 (APIBusinessObjects).",
@@ -98,6 +99,10 @@
     "ifcUnreadableTargetSave": "A aplicação não consegue ler bem este ficheiro; pode conter um modelo de edifício. Escolha outro ficheiro para guardar.",
     "ifcUnreadableTargetExport": "A aplicação não consegue ler bem este ficheiro; pode conter um modelo de edifício. Escolha outro ficheiro para exportar.",
     "ifcUnreadableTargetAutoSave": "O guardar automático foi interrompido: a aplicação não consegue ler bem este ficheiro; pode conter um modelo de edifício. Escolha outro ficheiro para guardar.",
+    "ifcForeignAutoSaveTargetChanged": "A gravação automática foi interrompida: o ficheiro foi entretanto alterado, movido ou eliminado. As suas alterações continuam na aplicação. Escolha Guardar como para as guardar num novo ficheiro.",
+    "ifcForeignAutoSaveSaveAsOnly": "A gravação automática foi interrompida: este ficheiro não pode ser substituído com segurança neste local. As suas alterações continuam na aplicação. Escolha Guardar como para as guardar num novo ficheiro.",
+    "ifcForeignAutoSaveNotRecorded": "A gravação automática foi interrompida: o ficheiro não pode ser substituído com segurança neste momento, porque a recuperação após falhas não pode ser atualizada. As suas alterações continuam na aplicação. Escolha Guardar como para as guardar num novo ficheiro.",
+    "ifcForeignAutoSaveRemnant": "A gravação automática foi interrompida: uma gravação anterior deste ficheiro não foi concluída. As suas alterações continuam na aplicação. Guarde com Ctrl+S; após um reinício, a aplicação conclui essa gravação anterior.",
     "ambiguousThousands": "\"{{text}}\" é ambíguo: número decimal ou milhares? Escreva decimais com \"{{separator}}\" (1{{separator}}5) e milhares sem separador (1500). O valor não foi alterado.",
     "siteSaveConflict": "Não guardado: '{{name}}' foi entretanto alterado no site por outra pessoa. As suas alterações continuam na aplicação. Escolha Guardar como para as manter num novo ficheiro.",
     "siteSaveConflictCopy": "'{{original}}' foi entretanto alterado no site por outra pessoa. Por isso, o seu trabalho fica guardado numa cópia: '{{name}}'. A partir de agora, Guardar grava nessa cópia.",
@@ -126,6 +131,7 @@
     "relationDuplicate": "Essa relação já existe",
     "relationAncestorEndpoint": "Não é permitida uma relação entre uma tarefa e a sua própria tarefa de resumo ancestral.",
     "relationCycle": "Esta relação criaria um ciclo no planeamento ({{cycle}}) e não foi criada.",
+    "relationChainOrderUnclear": "As tarefas não foram vinculadas: a ordem delas na lista não está fixa. Uma tarefa selecionada aparece antes e depois de outra (agrupamento), ou dois marcos selecionados partilham uma série recolhida. Desfaça o agrupamento, expanda a série ou escolha a predecessora com Atribuir predecessoras.",
     "hierarchyCycle": "Esta mudança criaria um ciclo no planeamento ({{cycle}}): as relações de uma tarefa de resumo também se aplicam às suas subtarefas. Nada foi movido.",
     "relationsExcludedByHierarchy_one": "Após a mudança, {{count}} relação liga uma tarefa à sua própria tarefa de resumo ancestral; deixa de contar no cálculo.",
     "relationsExcludedByHierarchy_many": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",
@@ -225,7 +231,8 @@
     "schedulingProfileShifted_other": "Após aplicar, {{count}} tarefas foram deslocadas.",
     "actions": {
       "openProjectInfo": "Abrir perfil de cálculo",
-      "openHelp": "Abrir ajuda"
+      "openHelp": "Abrir ajuda",
+      "undo": "Desfazer"
     },
     "xerArchiveUnusable": "O ficheiro de origem XER deste ficheiro é inutilizável e foi omitido; o projeto em si foi aberto por completo.",
     "xerArchiveUnusableLine": "O ficheiro de origem XER deste ficheiro era inutilizável e foi omitido.",
@@ -453,13 +460,42 @@
     "reportFontMissing": "O seu tipo de letra {{name}} já não está neste dispositivo. O relatório volta a usar a Inter.",
     "layoutsNotSaved": "Não foi possível guardar os layouts. Nada foi alterado. Tente novamente.",
     "ifcForeignOpenSchema": "Este ficheiro IFC contém dados de outra aplicação e tem um esquema desconhecido ou em falta. A abertura foi interrompida para evitar perda de dados ao guardar.",
+    "ifcForeignOpenTooLarge": "Este ficheiro IFC tem mais de {{limit}} MB. Um ficheiro IFC com um modelo de edifício ou com dados de outro programa pode ser aberto até {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Este ficheiro IFC não pode ser classificado com segurança. A abertura foi interrompida para evitar perda de dados ao guardar.",
     "ifc2x3PlanningOnly": "O IFC2X3 foi aberto como planeamento. Os dados de outras aplicações não serão incluídos ao guardar.",
-    "ifcForeignReplaceBlocked": "Não guardado. Substituir um ficheiro existente com um modelo de edifício ainda não é seguro. Use «Guardar como» e escolha um novo nome.",
+    "ifcForeignReplaceBlocked": "Não guardado. Este é o ficheiro que tem aberto. Utilize «Guardar» para o atualizar, ou «Guardar como» com um novo nome para obter uma cópia.",
+    "ifcForeignTargetChanged": "Não guardado. O ficheiro foi entretanto alterado por outro programa. As suas alterações continuam na aplicação. Escolha Guardar como para as guardar num novo ficheiro.",
+    "ifcForeignTargetGone": "Não guardado. O ficheiro foi movido, eliminado ou já não pode ser lido. As suas alterações continuam na aplicação. Escolha Guardar como para as guardar num novo ficheiro.",
+    "ifcForeignReplaceNotRecorded": "Não guardado. O ficheiro não pode ser substituído com segurança neste momento, porque a recuperação após falhas não pode ser atualizada. As suas alterações continuam na aplicação. Escolha Guardar como para as guardar num novo ficheiro.",
+    "ifcForeignDownloadCopy": "Cópia transferida como {{file}}. O ficheiro aberto não foi atualizado; as alterações continuam marcadas como não guardadas.",
+    "ifcForeignReplaceFailed": "Não guardado. O ficheiro não pôde ser escrito. As suas alterações continuam na aplicação. Tente guardar de novo ou escolha Guardar como para as guardar num novo ficheiro.",
     "ifcForeignMergeRefused": "O ficheiro IFC não foi escrito. O modelo de edifício ou os dados de outro programa não ficariam totalmente preservados. Desfaça a última alteração, ou exporte apenas o planeamento: para IFC com «Sem modelo de edifício», ou para outro formato.",
     "ifcSaveChangedWhileWaiting": "Não guardado. O documento ou a fonte do modelo de edifício mudou durante a preparação. Tente guardar novamente.",
+    "ifcSaveWorkerFailed": "O ficheiro IFC não foi guardado: a preparação em segundo plano foi interrompida. As suas alterações continuam na aplicação. Tente novamente.",
+    "ifcForeignNewTargetOnly": "Este ficheiro IFC só pode ser escrito com um novo nome de ficheiro. Escolha um nome que ainda não exista.",
+    "ifcForeignTargetOpenInTab": "Não guardado. Este ficheiro está aberto noutro separador. Feche esse separador ou escolha outro nome.",
+    "exportTargetOpenInTab": "Não exportado. Este ficheiro está aberto noutro separador. Feche esse separador ou escolha outro nome.",
+    "exportTargetOpenDocument": "Não exportado. Este ficheiro está aberto num separador. Escolha outro nome ou feche primeiro esse separador.",
+    "ifcForeignPlaceUnknown": "A aplicação não sabe se o ficheiro foi guardado corretamente: durante a gravação mudou algo na pasta. As suas alterações continuam na aplicação. Verifique se o ficheiro está correto ou guarde de novo com um novo nome.",
+    "ifcForeignReplaceOtherVersion": "Outro programa alterou {{file}} enquanto a aplicação o guardava. Essa versão foi guardada como {{copy}}.",
+    "ifcForeignReplaceUnsavedCopy": "Uma gravação anterior de {{file}} não foi concluída. O planeamento que estava a ser guardado está em {{copy}}. Elimine esse ficheiro se já não precisar dele.",
+    "ifcForeignReplaceTargetTaken": "Não guardado. Enquanto se guardava, outro programa colocou um novo ficheiro em {{target}}. Existem agora três ficheiros: esse novo ficheiro em {{target}}, o seu planeamento em {{temp}} e a versão anterior em {{previous}}. As suas alterações continuam também na aplicação.",
+    "ifcForeignReplacePreviousStranded": "Não guardado, e a versão anterior do ficheiro não pôde ser reposta no seu lugar. Está agora em {{previous}}. As suas alterações continuam na aplicação. Escolha «Guardar como» para as guardar num novo ficheiro.",
+    "ifcForeignReplaceSaveAsOnly": "Não guardado. Este ficheiro não pode ser substituído com segurança neste local. O ficheiro não foi alterado. Escolha «Guardar como» para guardar as suas alterações num novo ficheiro.",
+    "ifcForeignReplaceLeftOver": "Ficou este ficheiro de um guardar interrompido de {{file}}: {{path}}. Verifique se ainda o precisa.",
     "ifcSourceCopyFailed": "O planeamento está a ser guardado para recuperação após falha, mas a cópia do modelo de edifício não pôde ser guardada. Depois de uma falha, o modelo de edifício pode estar em falta. Guarde você mesmo o seu trabalho como ficheiro IFC completo.",
-    "ifcForeignSourceMissing": "Não guardado. O modelo de edifício ou os dados de outro programa não foram encontrados. Use «Guardar como» para guardar apenas o planeamento num novo ficheiro. Abra o ficheiro IFC original para voltar a trabalhar com o ficheiro completo."
+    "ifcForeignSourceMissing": "Não guardado. O modelo de edifício ou os dados de outro programa não foram encontrados. Use «Guardar como» para guardar apenas o planeamento num novo ficheiro. Abra o ficheiro IFC original para voltar a trabalhar com o ficheiro completo.",
+    "taskTypeRenameNameTaken": "Neste projeto o nome mantém-se «{{oldName}}»: outra categoria de trabalho deste projeto já se chama «{{takenName}}».",
+    "otherWork": {
+      "durationDays_one": "A tarefa dura agora {{days}} dia.",
+      "durationDays_many": "A tarefa dura agora {{days}} dias.",
+      "durationDays_other": "A tarefa dura agora {{days}} dias.",
+      "durationHours_one": "A tarefa dura agora {{hours}} hora.",
+      "durationHours_many": "A tarefa dura agora {{hours}} horas.",
+      "durationHours_other": "A tarefa dura agora {{hours}} horas.",
+      "durationSame": "A duração mantém-se. As horas dos outros foram alteradas.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -500,6 +536,8 @@
     "addSubtask": "Adicionar subtarefa",
     "addMilestone": "Adicionar marco",
     "addRelation": "Adicionar relação",
+    "assignPredecessors": "Atribuir predecessoras…",
+    "assignSuccessors": "Atribuir sucessoras…",
     "dissolve": "Dissolve (manter cadeia)",
     "delete": "Eliminar",
     "newTask": "Nova tarefa",
@@ -566,7 +604,7 @@
     "demoTopbarAnimation": "Demo: animação no topo",
     "demoTopbarAnimationHint": "Um brilho laranja suave que percorre a barra superior. Mostra como funciona um interruptor experimental.",
     "ifcForeignContent": "Abrir IFC com modelo de edifício",
-    "ifcForeignContentHint": "Abre também um ficheiro IFC com modelo de edifício ou dados de outros programas. Pode usar «Guardar como» para um novo ficheiro, guardar no site, transferir no navegador e usar Exportar → IFC, também sem modelo de edifício ou com a biblioteca de recursos ao lado (então só com o planeamento). Guardar sobre um ficheiro local existente ainda não é possível. A recuperação do modelo de edifício após uma falha requer acesso ao ficheiro original ou a uma cópia guardada no navegador.",
+    "ifcForeignContentHint": "Abre também um ficheiro IFC com um modelo de edifício ou dados de outros programas. Pode usar «Guardar como» para um novo ficheiro, guardar no site, transferir no navegador e «Exportar → IFC», também sem modelo de edifício ou com a biblioteca de recursos ao lado (nesse caso só com o planeamento). No Chrome e no Edge, «Guardar» também guarda o próprio ficheiro aberto. Se outro programa alterar este ficheiro exatamente enquanto se guarda, essa alteração pode perder-se. Na aplicação de ambiente de trabalho, «Guardar» também guarda o próprio ficheiro aberto se estiver na sua pasta pessoal. Se outro programa tiver entretanto alterado o ficheiro, a gravação para ou a aplicação guarda essa versão como cópia separada ao lado do ficheiro; só uma alteração no mesmo instante pode ainda perder-se. «Guardar como» sobre outro ficheiro existente na sua pasta pessoal substitui esse ficheiro da mesma forma, mesmo que ele próprio contenha um modelo de edifício ou dados de outro programa. Também um planeamento sem modelo de edifício pode substituir um desses ficheiros. Não se substitui um ficheiro que a aplicação não consegue ler nem um ficheiro com um segundo nome (uma ligação). Imediatamente antes de substituir, a aplicação compara o ficheiro com a versão que leu depois da sua escolha: se tiver sido alterado, a gravação para e o ficheiro mantém-se como está. Se a versão que a aplicação pôs de lado afinal for diferente, guarda-a como cópia separada ao lado do ficheiro, com uma notificação. Recuperar o modelo de edifício após uma falha exige acesso ao ficheiro original ou a uma cópia guardada no navegador.",
     "tourHint": "Repita o tour introdutório da aplicação.",
     "theme": "Tema",
     "themeHint": "O esquema de cores da interface.",
@@ -844,7 +882,8 @@
     "confirmClose": "Este documento tem alterações não guardadas. Fechar mesmo assim?",
     "closeTitle": "Alterações não guardadas",
     "closeBody": "«{{name}}» tem alterações que ainda não foram guardadas.",
-    "dontSave": "Não guardar"
+    "dontSave": "Não guardar",
+    "stillSaving": "Ainda a guardar…"
   },
   "feedback": {
     "buttonTooltip": "Enviar feedback",
@@ -1280,7 +1319,9 @@
     },
     "regen": {
       "hint": "Os feriados cobrem {{from}}–{{to}}; gerar novamente até {{year}} inclusive?",
-      "button": "Gerar novamente"
+      "button": "Gerar novamente",
+      "confirmMessage": "A sua lista de dias de folga difere da lista gerada anteriormente. Se substituir a lista, perdem-se as suas alterações manuais.",
+      "confirmReplace": "Substituir dias de folga"
     },
     "countryName": {
       "NL": "Países Baixos",
@@ -1291,6 +1332,7 @@
       "AT": "Áustria",
       "CH": "Suíça",
       "US": "Estados Unidos",
+      "BO": "Bolívia",
       "none": "Sem feriados"
     },
     "preset": {
@@ -1501,7 +1543,8 @@
     "edit": {
       "copy": "Copiar",
       "deselect": "Limpar seleção",
-      "selectAll": "Selecionar tudo"
+      "selectAll": "Selecionar tudo",
+      "linkSelected": "Vincular as tarefas selecionadas em cadeia"
     },
     "structure": {
       "moveUp": "Mover tarefa para cima",
@@ -2147,5 +2190,9 @@
     "bodyWithPool": "O ficheiro do projeto contém apenas o planeamento; a biblioteca de recursos vai para um segundo ficheiro. O modelo de edifício e os dados de outro programa não são incluídos. O ficheiro aberto permanece inalterado. Deseja continuar?",
     "continue": "Exportar",
     "cancel": "Cancelar"
+  },
+  "replaceCopy": {
+    "otherProgram": "versão de outro programa {{when}}",
+    "unsavedSchedule": "planeamento não guardado {{when}}"
   }
 }

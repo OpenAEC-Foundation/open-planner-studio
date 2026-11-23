@@ -58,7 +58,8 @@ if (sizes.some(s => s > 50) && process.env.CI !== 'true') {
 
 const work = mkdtempSync(join(tmpdir(), 'ops-meet-scanner-'));
 const ESBUILD_COMMON = ['--bundle', `--alias:@=${join(ROOT, 'src')}`, '--log-level=error', '--external:react-dom/server',
-  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"'];
+  '--define:import.meta.env.DEV=false', '--define:import.meta.env.PROD=true', '--define:import.meta.env.MODE="production"',
+  '--define:__OPS_DEV_INSTANCE__="test"']; // zoals tests/planning/run.sh; de store leest hem in recoveryPaths.ts
 
 // ── Bundels ──────────────────────────────────────────────────────────────────────────────────────────────────────
 writeFileSync(join(work, 'node-entry.ts'), `
