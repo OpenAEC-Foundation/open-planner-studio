@@ -85,6 +85,7 @@
     "importDatesAsRecorded_other": "{{count}} tareas muestran las fechas tal como están registradas en el archivo (sin recalcular).",
     "xerExportLoss": "Al exportar a {{format}} se pierde información de origen XER.",
     "exportDataLoss": "Al exportar a {{format}} se pierden datos que {{format}} no admite, como notas o una restricción secundaria. El archivo de proyecto IFC conserva todo.",
+    "exportPlanOnly": "Solo se ha exportado la planificación; el modelo de edificio no forma parte de este formato.",
     "mppLegacy": "Este archivo .mpp usa un formato antiguo (Project 2007 o anterior). Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
     "mppInvalidContainer": "Este archivo MPP tiene una estructura no válida y no se puede abrir.",
     "xmlUnknownSchedule": "Formato de planificación XML desconocido. Abra un XML de MS Project (Project) o un XML de Primavera P6 (APIBusinessObjects).",
@@ -98,6 +99,10 @@
     "ifcUnreadableTargetSave": "La aplicación no puede leer bien este archivo; puede contener un modelo de edificio. Elija otro archivo en el que guardar.",
     "ifcUnreadableTargetExport": "La aplicación no puede leer bien este archivo; puede contener un modelo de edificio. Elija otro archivo al que exportar.",
     "ifcUnreadableTargetAutoSave": "El guardado automático se ha detenido: la aplicación no puede leer bien este archivo; puede contener un modelo de edificio. Elija otro archivo en el que guardar.",
+    "ifcForeignAutoSaveTargetChanged": "Se ha detenido el guardado automático: el archivo se ha modificado, movido o eliminado mientras tanto. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignAutoSaveSaveAsOnly": "Se ha detenido el guardado automático: este archivo no se puede reemplazar de forma segura en esta ubicación. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignAutoSaveNotRecorded": "Se ha detenido el guardado automático: el archivo no se puede reemplazar de forma segura en este momento, porque no se puede actualizar la recuperación ante fallos. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignAutoSaveRemnant": "Se ha detenido el guardado automático: un guardado anterior de este archivo no se ha completado. Sus cambios siguen en la aplicación. Guarde con Ctrl+S; tras un reinicio, la aplicación completa ese guardado anterior.",
     "ambiguousThousands": "«{{text}}» es ambiguo: ¿número decimal o miles? Escriba los decimales con «{{separator}}» (1{{separator}}5) y los miles sin separador (1500). El valor no se ha cambiado.",
     "siteSaveConflict": "No guardado: '{{name}}' fue modificado en el sitio por otra persona mientras tanto. Sus cambios siguen en la aplicación. Elija Guardar como para conservarlos como un archivo nuevo.",
     "siteSaveConflictCopy": "'{{original}}' ha sido modificado en el sitio por otra persona mientras tanto. Por eso su trabajo se guarda en una copia: '{{name}}'. A partir de ahora, Guardar escribe en esa copia.",
@@ -126,6 +131,7 @@
     "relationDuplicate": "Esa relación ya existe",
     "relationAncestorEndpoint": "No se permite una relación entre una tarea y su propia tarea de resumen antecesora.",
     "relationCycle": "Esta relación crearía un ciclo en la planificación ({{cycle}}) y no se ha creado.",
+    "relationChainOrderUnclear": "Las tareas no se han vinculado: su orden en la lista no está fijado. Una tarea seleccionada aparece tanto antes como después de otra (agrupación), o dos hitos seleccionados comparten una serie contraída. Quite la agrupación, expanda la serie o elija el predecesor con «Asignar predecesores».",
     "hierarchyCycle": "Este traslado crearía un ciclo en la planificación ({{cycle}}): las relaciones de una tarea de resumen también se aplican a sus subtareas. No se ha movido nada.",
     "relationsExcludedByHierarchy_one": "Tras el traslado, {{count}} relación vincula una tarea con su propia tarea de resumen antecesora; ya no se tiene en cuenta en el cálculo.",
     "relationsExcludedByHierarchy_many": "Tras el traslado, {{count}} relaciones vinculan una tarea con su propia tarea de resumen antecesora; ya no se tienen en cuenta en el cálculo.",
@@ -225,7 +231,8 @@
     "schedulingProfileShifted_other": "Tras aplicar, se movieron {{count}} tareas.",
     "actions": {
       "openProjectInfo": "Abrir perfil de cálculo",
-      "openHelp": "Abrir ayuda"
+      "openHelp": "Abrir ayuda",
+      "undo": "Deshacer"
     },
     "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
     "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",
@@ -453,11 +460,23 @@
     "reportFontMissing": "La fuente propia {{name}} ya no está en este dispositivo. El informe vuelve a usar Inter.",
     "layoutsNotSaved": "No se pudieron guardar los diseños. No se ha cambiado nada. Inténtelo de nuevo.",
     "ifcForeignOpenSchema": "Este archivo IFC contiene datos de otra aplicación y tiene un esquema desconocido o que falta. Se ha detenido la apertura para evitar la pérdida de datos al guardar.",
+    "ifcForeignOpenTooLarge": "Este archivo IFC es mayor de {{limit}} MB. Un archivo IFC con un modelo de edificio o con datos de otro programa puede abrirse hasta {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Este archivo IFC no se puede clasificar con seguridad. Se ha detenido la apertura para evitar la pérdida de datos al guardar.",
     "ifc2x3PlanningOnly": "IFC2X3 se ha abierto como planificación. Los datos de otros programas no se incluirán al guardar.",
-    "ifcForeignReplaceBlocked": "No se ha guardado. Sobrescribir un archivo existente con un modelo de edificio todavía no es seguro. Use «Guardar como» y elija un nombre nuevo.",
+    "ifcForeignReplaceBlocked": "No se ha guardado. Este es el archivo que tiene abierto. Use «Guardar» para actualizarlo, o «Guardar como» con un nombre nuevo para hacer una copia.",
+    "ifcForeignTargetChanged": "No guardado. Otro programa ha modificado el archivo mientras tanto. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignTargetGone": "No guardado. El archivo se ha movido o eliminado, o ya no se puede leer. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignReplaceNotRecorded": "No guardado. El archivo no se puede reemplazar de forma segura en este momento, porque no se puede actualizar la recuperación ante fallos. Sus cambios siguen en la aplicación. Elija «Guardar como» para conservarlos en un archivo nuevo.",
+    "ifcForeignDownloadCopy": "Copia descargada como {{file}}. El archivo abierto no se ha actualizado; los cambios siguen marcados como no guardados.",
+    "ifcForeignReplaceFailed": "No guardado. No se ha podido escribir el archivo. Sus cambios siguen en la aplicación. Vuelva a intentar guardar o elija «Guardar como» para conservarlos en un archivo nuevo.",
     "ifcForeignMergeRefused": "El archivo IFC no se ha escrito. De otro modo, el modelo de edificio o los datos de otro programa no se conservarían por completo. Deshaga la última modificación, o exporte solo la planificación: a IFC con «Sin modelo de edificio», o a otro formato.",
     "ifcSaveChangedWhileWaiting": "No se ha guardado. El documento o el origen del modelo de edificio cambió durante la preparación. Vuelva a intentar guardar.",
+    "ifcSaveWorkerFailed": "No se ha escrito el archivo IFC: la preparación en segundo plano se interrumpió. Sus cambios siguen en la aplicación. Inténtelo de nuevo.",
+    "ifcForeignNewTargetOnly": "Este archivo IFC solo se puede escribir con un nombre de archivo nuevo. Elija un nombre que todavía no exista.",
+    "ifcForeignTargetOpenInTab": "No guardado. Este archivo está abierto en otra pestaña. Cierre esa pestaña o elija otro nombre.",
+    "exportTargetOpenInTab": "No exportado. Este archivo está abierto en otra pestaña. Cierre esa pestaña o elija otro nombre.",
+    "exportTargetOpenDocument": "No exportado. Este archivo está abierto en una pestaña. Elija otro nombre o cierre antes esa pestaña.",
+    "ifcForeignPlaceUnknown": "La aplicación no sabe si el archivo se ha guardado correctamente: algo cambió en la carpeta durante el guardado. Sus cambios siguen en la aplicación. Compruebe si el archivo es correcto o vuelva a guardar con un nombre nuevo.",
     "ifcForeignReplaceOtherVersion": "Otro programa cambió {{file}} mientras la aplicación lo guardaba. Esa versión se ha conservado como {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Un guardado anterior de {{file}} no se completó. La planificación que se estaba guardando está en {{copy}}. Elimine ese archivo si ya no lo necesita.",
     "ifcForeignReplaceTargetTaken": "No guardado. Mientras se guardaba, otro programa colocó un archivo nuevo en {{target}}. Ahora hay tres archivos: ese archivo nuevo en {{target}}, su planificación en {{temp}} y la versión anterior en {{previous}}. Sus cambios también siguen en la aplicación.",
@@ -466,7 +485,17 @@
     "ifcForeignReplaceLeftOver": "De un guardado interrumpido de {{file}} quedó este archivo: {{path}}. Revise si todavía lo necesita.",
     "ifcSourceCopyFailed": "La planificación se guarda para la recuperación tras un cierre inesperado, pero no se pudo guardar la copia del modelo de edificio. Tras un cierre inesperado, el modelo de edificio podría faltar. Guarde usted mismo su trabajo como archivo IFC completo.",
     "ifcForeignSourceMissing": "No se ha guardado. No se encontró el modelo de edificio ni los datos de otro programa. Use «Guardar como» para guardar solo la planificación en un archivo nuevo. Abra el archivo IFC original para volver a trabajar con el archivo completo.",
-    "taskTypeRenameNameTaken": "En este proyecto el nombre sigue siendo «{{oldName}}»: otra categoría de trabajo de este proyecto ya se llama «{{takenName}}»."
+    "taskTypeRenameNameTaken": "En este proyecto el nombre sigue siendo «{{oldName}}»: otra categoría de trabajo de este proyecto ya se llama «{{takenName}}».",
+    "otherWork": {
+      "durationDays_one": "La tarea dura ahora {{days}} día.",
+      "durationDays_many": "La tarea dura ahora {{days}} de días.",
+      "durationDays_other": "La tarea dura ahora {{days}} días.",
+      "durationHours_one": "La tarea dura ahora {{hours}} hora.",
+      "durationHours_many": "La tarea dura ahora {{hours}} de horas.",
+      "durationHours_other": "La tarea dura ahora {{hours}} horas.",
+      "durationSame": "La duración no cambia. Las horas de los demás se han modificado.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Relación circular entre tareas: {{path}}",
@@ -507,6 +536,8 @@
     "addSubtask": "Añadir subtarea",
     "addMilestone": "Añadir hito",
     "addRelation": "Añadir relación",
+    "assignPredecessors": "Asignar predecesores…",
+    "assignSuccessors": "Asignar sucesores…",
     "dissolve": "Dissolve (conservar cadena)",
     "delete": "Eliminar",
     "newTask": "Nueva tarea",
@@ -573,7 +604,7 @@
     "demoTopbarAnimation": "Demo: animación en la barra superior",
     "demoTopbarAnimationHint": "Un brillo naranja suave que recorre la barra superior. Muestra cómo funciona un interruptor experimental.",
     "ifcForeignContent": "Abrir IFC con modelo de edificio",
-    "ifcForeignContentHint": "También abre un archivo IFC con un modelo de edificio o datos de otros programas. Puede usar «Guardar como» para un archivo nuevo, guardar en el sitio, descargar en el navegador y Exportar → IFC, también sin modelo de edificio o con la biblioteca de recursos al lado (entonces solo con la planificación). Guardar sobre un archivo local existente todavía no es posible. Recuperar el modelo de edificio tras un cierre inesperado requiere acceso al archivo original o a una copia guardada en el navegador.",
+    "ifcForeignContentHint": "También abre un archivo IFC con un modelo de edificio o con datos de otros programas. Puede usar «Guardar como» a un archivo nuevo, guardar en el sitio, descargar en el navegador y Exportar → IFC, también sin modelo de edificio o con la biblioteca de recursos al lado (entonces solo con la planificación). En Chrome y Edge, «Guardar» también guarda el propio archivo abierto. Si otro programa modifica este archivo justo durante el guardado, ese cambio se puede perder. En la aplicación de escritorio, «Guardar» también guarda el archivo abierto si está en su carpeta personal. Si otro programa ha modificado el archivo entretanto, el guardado se detiene o la aplicación conserva esa versión como copia aparte junto al archivo; solo un cambio en ese mismo instante puede perderse todavía. «Guardar como» sobre otro archivo existente en su carpeta personal sustituye ese archivo de la misma manera, también si él mismo contiene un modelo de edificio o datos de otro programa. También una planificación sin modelo de edificio puede sustituir a un archivo así. No se sustituye un archivo que la aplicación no puede leer ni un archivo con un segundo nombre (un enlace duro: el mismo archivo con dos nombres). Justo antes de sustituir, la aplicación compara el archivo con la versión que leyó después de su elección: si ha cambiado, el guardado se detiene y el archivo queda como está. Si la versión que la aplicación apartó resulta ser distinta, la conserva como copia aparte junto al archivo, con un aviso. Recuperar el modelo de edificio tras un fallo requiere acceso al archivo original o a una copia guardada en el navegador.",
     "tourHint": "Vuelve a hacer el recorrido introductorio de la aplicación.",
     "theme": "Tema",
     "themeHint": "El esquema de color de la interfaz.",
@@ -1288,7 +1319,9 @@
     },
     "regen": {
       "hint": "Los festivos cubren {{from}}–{{to}}. ¿Desea volver a generar hasta {{year}} inclusive?",
-      "button": "Regenerar"
+      "button": "Regenerar",
+      "confirmMessage": "Tu lista de días no laborables difiere de la lista generada anteriormente. Si la reemplazas, perderás los cambios manuales.",
+      "confirmReplace": "Reemplazar días no laborables"
     },
     "countryName": {
       "NL": "Países Bajos",
@@ -1299,6 +1332,7 @@
       "AT": "Austria",
       "CH": "Suiza",
       "US": "Estados Unidos",
+      "BO": "Bolivia",
       "none": "Sin festivos"
     },
     "preset": {
@@ -1509,7 +1543,8 @@
     "edit": {
       "copy": "Copiar",
       "deselect": "Deseleccionar",
-      "selectAll": "Seleccionar todo"
+      "selectAll": "Seleccionar todo",
+      "linkSelected": "Vincular las tareas seleccionadas en una cadena"
     },
     "structure": {
       "moveUp": "Mover tarea hacia arriba",
