@@ -14,6 +14,9 @@ import { binaryExtensions, isReadableFileName, type FormatReadOptions } from '@/
 export interface DroppedFile {
   name: string;
   read(): Promise<OpenedFile>;
+  /** Het bestand vóór het lezen, als de aanroeper het kent (#804, knownbug 1957: de toets "staat al open" vóór het
+   *  lezen). Browser: de handle van `read()`; desktop: het pad, gezet door `desktopDroppedFiles`. Gooit niet. */
+  target?: () => Promise<FileRef | null>;
   /** Zie `OpenOpenedFileOptions.existingDocument` en `.stale`: alleen een startbestand (#1091) zet ze. */
   existingDocument?: () => string | null;
   stale?: () => boolean;
@@ -45,16 +48,21 @@ function handleOf(item: Pick<DataTransferItem, 'getAsFileSystemHandle'>): Promis
   }
 }
 
+/** Alleen een bestandshandle is een opslagdoel; zonder handle (Firefox/Safari, of een geweigerde vraag) is dit dezelfde
+ *  vorm als de `<input type=file>`-terugval van de bestandskiezer. */
+function refOf(h: FileSystemHandle | null): FileRef | null {
+  return h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } : null;
+}
+
 function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>, readOptions?: FormatReadOptions): DroppedFile {
   return {
     name: file.name,
     read: async () => {
       const h = await handle;
-      // Alleen een bestandshandle is een opslagdoel; zonder handle (Firefox/Safari, of een geweigerde
-      // vraag) is dit dezelfde vorm als de `<input type=file>`-terugval van de bestandskiezer.
-      const ref: FileRef | null = h && h.kind === 'file' ? { kind: 'handle', handle: h as FileSystemFileHandle } : null;
-      return openedFromFile(file, ref, { binaryExtensions: binaryExtensions(readOptions) });
+      return openedFromFile(file, refOf(h), { binaryExtensions: binaryExtensions(readOptions) });
     },
+    // #804: dezelfde handle als `read()`, zonder te lezen (de belofte loopt al sinds het event).
+    target: async () => refOf(await handle),
   };
 }
 

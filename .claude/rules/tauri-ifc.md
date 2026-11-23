@@ -414,13 +414,16 @@ bestandsaanroepen, ook als er na het uitzetten nog een tabblad met een gebouwmod
 tabblad hem onthoudt (fixronde 2 van #1019; knownbug 1908). Op de desktop wijzigt de kiezer niets, dus er is dan niets
 geschreven. Alleen paden: een handle uit de opslaankiezer van de browser is al leeggemaakt (1899), dus daar vergelijkt de
 controle niets en maken Opslaan als en Exporteren het bestand af (knownbug 1893). Openen gaat met de flag aan naar het tabblad dat een
-bestand al open heeft (`openDocumentFor.ts`, knownbug 1957). Het asynchrone deel (`lookupOpenDocument`: de lus
-`openDocumentIdForPath` met `dev`/`ino` vóór het lexicale pad, `isSameEntry` voor handles) staat in het leesvenster,
-direct na het lezen en vóór het parsen, in `openOpenedFile` en `planner_import_schedule`; de leesfuncties in
-`src/services/fileAccess/` veranderen niet. Na het parsen beslist `existingDocument` synchroon, in de stap van het
-activeren: het tabblad van de toets als het nog hetzelfde bestand heeft, anders een tabblad dat het bestand ná de toets
-kreeg (hetzelfde pad als tekst, dezelfde handle of hetzelfde site-id). Geen herlezing en geen schrijfteller in deze
-routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
+bestand al open heeft (`openDocumentFor.ts`, knownbug 1957). Regel: geen wachtmoment van de PR tussen het binnenkomen
+van de bytes en het activeren. Het asynchrone deel (`lookupOpenDocument`: `dev`/`ino` vóór het lexicale pad, de
+identiteit van het gevraagde pad één keer; `isSameEntry` voor handles) staat vóór het lezen, bij de aanroeper die het
+doel al kent: `openFile` (desktop: `pickOpenPath`, toets, `readOpenedPath`; browser: de haak `beforeRead` van
+`openFileDialogWeb`), `openRecentFile`, `openDroppedFiles` (`DroppedFile.target`: browser uit de gesplitste
+`webDroppedFile`, desktop via `desktopDroppedFiles`) en `planner_import_schedule`. Met de flag uit gaat elke route langs
+de lijn van main. De keuze voor de flag ligt per openactie vast vóór het lezen (`OpenOpenedFileOptions.readOptions`).
+Na het parsen beslist `existingDocument` synchroon, in de stap van het activeren: het tabblad van de toets als het nog
+open is en nog hetzelfde bestand heeft, anders een tabblad dat het bestand ná de toets kreeg (hetzelfde pad als tekst,
+dezelfde handle of hetzelfde site-id). Geen herlezing en geen schrijfteller in deze routes. De site vergelijkt alleen het id, synchroon. Een startbestand (#1091) houdt de toets en herlezing van main
 (`openLaunchFiles`); met de flag aan komen daar de melding en Recent bij. Een tweede tabblad op hetzelfde bestand kan er
 nog zijn (crashherstel, de flag pas later aan, de lexicale grenzen van knownbug 2040, kruisende openacties in de browser
 of via een link: knownbug 2041), dus de doelbewaking blijft nodig. Opslaan als op de site maakt altijd een

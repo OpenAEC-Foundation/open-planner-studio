@@ -791,35 +791,77 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     eq(`G16 ${route}: één melding`, S().ui.notifications.map((n) => [n.severity, n.messageKey]), [['info', 'notifications.fileAlreadyOpen']]);
     eq(`G16 ${route}: Recent bovenaan`, S().recentFiles[0]?.ref, { kind: 'site', id: 'y' });
   }
-  // G17 — review #1121 ronde 2 en 3: de site vergelijkt het id synchroon, ná het parsen, in de stap van het activeren.
-  // Krijgt het open tabblad tijdens het parsen een ander sitebestand (de commit van *Opslaan als* maakt een kopie met een
-  // eigen id), dan ziet de beslissing dat: het gevraagde bestand opent in een eigen tabblad, de kopie houdt haar id, en de
-  // site wordt één keer gelezen. (De leesfunctie van het IFC-formaat gewikkeld: tijdens het parsen de commit.)
+  // G17 — review #1121 ronde 2 tot en met 4: de site vergelijkt het id synchroon, ná het parsen, in de stap van het
+  // activeren. Tab Y doet *Opslaan als* op de site (een kopie met een eigen id); de host heeft opgeslagen, de commit in de
+  // store wacht tot het openen van het origineel aan het parsen is en gebeurt dan, met de echte opslagroute. De beslissing
+  // ziet dat: het origineel opent in een eigen tabblad, de kopie houdt haar id en haar werk, de site wordt één keer gelezen.
   {
     const { allReadFormats } = await import('@/services/formatRegistry');
     const ifcFormat = allReadFormats().find((f) => f.extensions.includes('ifc'))!;
     const parse = ifcFormat.read;
+    const save = site.storage.save;
     S().switchDocument(tabY);
     useAppStore.setState((st) => { st.ui.notifications = []; });
     const count = S().documents.length;
     const opens = () => site.calls.filter((c) => c.fn === 'open').length;
+    let hostSaved!: () => void;
+    const savedOnHost = new Promise<void>((resolve) => { hostSaved = resolve; });
+    let commit!: () => void;
+    const commitMay = new Promise<void>((resolve) => { commit = resolve; });
+    setSiteSaveAsker(async () => ({ kind: 'site', name: 'Kopie.ifc' }));
+    site.storage.save = async (request) => {
+      const result = await save(request);
+      hostSaved();
+      await commitMay;
+      return result;
+    };
+    const saving = S().saveFileAs();
+    await savedOnHost;
     const opensBefore = opens();
-    let committed = false;
+    let committedDuringParse = false;
     ifcFormat.read = async (input, l, o) => {
-      if (!committed && input.name === 'Eén.ifc') {
-        committed = true;
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        useAppStore.setState((st) => { st.siteFileId = 'y-kopie'; });
+      if (!committedDuringParse && input.name === 'Eén.ifc') {
+        commit();
+        await saving;
+        committedDuringParse = S().getOpenDocumentPayloads().find((d) => d.id === tabY)?.payload.siteFileId !== 'y';
       }
       return parse(input, l, o);
     };
-    try { await S().openFromSite('y'); } finally { ifcFormat.read = parse; }
-    eq('G17 Opslaan als tijdens het parsen: het gevraagde bestand in een eigen tabblad, de kopie houdt haar id', [
-      committed, S().documents.length, S().activeDocumentId !== tabY, S().siteFileId,
-      S().getOpenDocumentPayloads().find((d) => d.id === tabY)?.payload.siteFileId,
+    try { await S().openFromSite('y'); } finally {
+      ifcFormat.read = parse;
+      site.storage.save = save;
+      resetSiteAskers();
+    }
+    const copy = S().getOpenDocumentPayloads().find((d) => d.id === tabY)?.payload;
+    eq('G17 Opslaan als op de site, commit tijdens het parsen: het origineel in een eigen tabblad, de kopie houdt haar id en werk', [
+      committedDuringParse, S().documents.length, S().activeDocumentId !== tabY, S().siteFileId,
+      !!copy?.siteFileId && copy.siteFileId !== 'y', copy?.tasks.some((t) => t.name === 'Werk in Y'),
       S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileAlreadyOpen').length,
       opens() - opensBefore,
-    ], [true, count + 1, true, 'y', 'y-kopie', 0, 1]);
+    ], [true, count + 1, true, 'y', true, true, 0, 1]);
+  }
+  // G18 — review #1121 ronde 4: de flag gaat uit terwijl de site leest. De keuze ligt bij het lezen vast: de app gaat
+  // toch naar het tabblad dat 'y' al open heeft, met de melding, zoals bij een stabiele flag.
+  {
+    const tabOriginal = S().activeDocumentId;
+    S().newDocument();
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    const count = S().documents.length;
+    const open = site.storage.open;
+    let flipped = false;
+    site.storage.open = async (...args: Parameters<typeof open>) => {
+      flipped = true;
+      useAppStore.setState((st) => { st.ui.featureFlags = {}; });
+      return open(...args);
+    };
+    try { await S().openFromSite('y'); } finally {
+      site.storage.open = open;
+      useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
+    }
+    eq('G18 flag uit tijdens het lezen van de site: naar het open tabblad, met de melding', [
+      flipped, S().activeDocumentId, S().documents.length,
+      S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileAlreadyOpen').length,
+    ], [true, tabOriginal, count, 1]);
   }
   // Een oudere versie opent bewust als kopie zonder opslagdoel: geen identiteit, dus een eigen tabblad.
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));

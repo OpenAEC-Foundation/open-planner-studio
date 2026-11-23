@@ -217,22 +217,31 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
-/** Het id van het open document (niet `exceptDocumentId`) waarvan het bestaande bestand op `path` het bestand is, ook
- *  een gewone planning zonder vreemd deel (die heeft geen bronkenmerk), of `null`. Dezelfde padvergelijking als de
- *  bronkenmerken (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op
- *  `path` geen bestand meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt
- *  (fixronde 2 van #1019). Ook een bestand dat bij het starten is meegegeven (#1091) en de toets "staat al open" bij het
- *  openen (`openDocumentFor`, knownbug 1957, met `identityFirst`, zie `ForeignSourceTargetDeps`) gebruiken deze lus. */
+/** Is het bestaande bestand op `path` het bestand van een open document (niet `exceptDocumentId`), ook een gewone
+ *  planning zonder vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken
+ *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
+ *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
+ *  #1019). */
+async function isOpenDocumentPath(
+  s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
+  exceptDocumentId: string | null,
+): Promise<boolean> {
+  return (await openDocumentIdForPath(s, path, identityFs, exceptDocumentId)) !== null;
+}
+
+/** Het id van het open document (niet `exceptDocumentId`) dat het bestaande bestand op `path` als bestand heeft, of
+ *  `null`. De vergelijking van `isOpenDocumentPath`; ook voor een bestand dat bij het starten is meegegeven (#1091):
+ *  staat het al open, dan wisselt de app naar dat tabblad. */
 export async function openDocumentIdForPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
-  exceptDocumentId: string | null = null, { identityFirst = false }: { identityFirst?: boolean } = {},
+  exceptDocumentId: string | null = null,
 ): Promise<string | null> {
   const docs = openFileDocuments(s, exceptDocumentId);
   if (docs.length === 0) return null;
   let fs: FileIdentityFs | undefined;
   try { fs = await identityFs(); } catch { fs = undefined; }
   if (fs && await missingFile(fs, path)) return null;
-  for (const doc of docs) if (await sameLocalFile(path, doc.path, fs ? { identityFs: fs, identityFirst } : {})) return doc.id;
+  for (const doc of docs) if (await sameLocalFile(path, doc.path, fs ? { identityFs: fs } : {})) return doc.id;
   return null;
 }
 
@@ -349,8 +358,7 @@ export async function refusedWriteTarget(
   // 'open-source' blijft over voor de bron van het document zelf (en voor routes die niet zeggen welk document schrijft).
   const flagOn = ifcForeignContentEnabled(s.ui.featureFlags);
   if (flagOn && deps.openDocumentsExcept !== undefined && target.kind !== 'site') {
-    if (target.kind === 'path'
-      && await openDocumentIdForPath(s, target.path, deps.identityFs, deps.openDocumentsExcept) !== null) {
+    if (target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
       return 'open-document';
     }
     if (await isOpenForeignSourceTarget(allBut(s, deps.openDocumentsExcept), target, deps.identityFs)) return 'open-document';
@@ -360,7 +368,7 @@ export async function refusedWriteTarget(
   if (isOwnVersion) return null;
   // Met de flag uit regel 3 hier, na regel 1, zoals main.
   if (!flagOn && deps.openDocumentsExcept !== undefined && target.kind === 'path'
-    && await openDocumentIdForPath(s, target.path, deps.identityFs, deps.openDocumentsExcept) !== null) {
+    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
     return 'open-document';
   }
   if (!deps.protectExistingTargets && !flagOn) return null;

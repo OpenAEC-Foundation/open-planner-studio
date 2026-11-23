@@ -16,7 +16,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, pickOpenPath, readsPathAsBytes, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
@@ -101,7 +101,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { existingDocument, lookupOpenDocument, switchToOpenDocument } from '../openDocumentFor';
+import { existingDocument, lookupOpenDocument, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -565,6 +565,11 @@ export interface OpenOpenedFileOptions {
   /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
    *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
   stale?: () => boolean;
+  /** #804, knownbug 1957: de leeskeuze van deze openactie, vastgelegd vóór het lezen; `ifcBytes` is ook de keuze voor
+   *  de toets "staat al open". Zonder: de huidige stand, zoals main. */
+  readOptions?: FormatReadOptions;
+  /** #804, knownbug 1957: wat de toets vóór het lezen vond (`lookupOpenDocument`); `null` als er niets te toetsen viel. */
+  lookup?: OpenLookup | null;
 }
 
 export interface FileSlice {
@@ -1476,9 +1481,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return;
     }
     if (choice.version === undefined) {
-      // Knownbug 1957 (met de flag): staat dit sitebestand al open, dan naar dat tabblad; het houdt zijn eigen basis. Het
-      // id vergelijkt synchroon, dus de beslissing valt in de stap van het activeren.
-      const existing = opened.ref && ifcForeignContentEnabled(get().ui.featureFlags) ? existingDocument(get(), opened.ref, null) : null;
+      // Knownbug 1957 (met de flag, de keuze van het lezen hierboven): staat dit sitebestand al open, dan naar dat
+      // tabblad; het houdt zijn eigen basis. Het id vergelijkt synchroon, dus de beslissing valt in de stap van het
+      // activeren.
+      const existing = opened.ref && readOptions.ifcBytes ? existingDocument(get(), opened.ref, null) : null;
       if (existing !== null) {
         switchToOpenDocument(get(), existing);
         await pushRecent(opened.ref, opened.name);
@@ -2406,6 +2412,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     openFile: async (labels) => {
       if (siteQuestionOpen()) return;
       let opened: OpenedFile | null;
+      let readOptions: FormatReadOptions = {};
+      const found: { lookup: OpenLookup | null } = { lookup: null };
       try {
         // Site-opslag aanwezig: eerst "Openen van de site" (met "Van deze pc…" voor de gewone
         // kiezer). Zonder site-opslag komt deze vraag nooit en blijft alles zoals het was.
@@ -2418,32 +2426,50 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return;
           }
         }
-        opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(formatReadOptions()) });
+        readOptions = formatReadOptions();
+        if (!readOptions.ifcBytes) {
+          opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(readOptions) });
+        } else if (isTauri()) {
+          // Knownbug 1957 (met de flag): de toets "staat al open" tussen kiezen en lezen. De desktop kiest en leest met
+          // dezelfde twee stappen als `openFileDialogTauri`; na het lezen geen wachtmoment van deze toets meer.
+          const path = await pickOpenPath(openDialogFilters());
+          if (path === null) return;
+          found.lookup = await lookupOpenDocument(get(), { kind: 'path', path }, fileIdentityFs);
+          opened = await readOpenedPath(path, readsPathAsBytes(path, { binaryExtensions: binaryExtensions(readOptions) }));
+        } else {
+          opened = await openFileDialog(openDialogFilters(), {
+            binaryExtensions: binaryExtensions(readOptions),
+            beforeRead: async (ref) => {
+              if (ref.kind !== 'site') found.lookup = await lookupOpenDocument(get(), ref, fileIdentityFs);
+            },
+          });
+        }
       } catch (err) {
         console.error('Failed to open file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);
         return;
       }
-      if (opened) await get().openOpenedFile(opened, labels);
+      if (opened) await get().openOpenedFile(opened, labels, readOptions.ifcBytes ? { readOptions, lookup: found.lookup } : undefined);
     },
 
     openOpenedFile: async (opened, labels, options) => {
       try {
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        // Knownbug 1957 (met de flag, één keer per openactie vastgelegd): staat dit bestand al in een tabblad open? Het
-        // asynchrone deel in het leesvenster, vóór het parsen; de beslissing hieronder synchroon met het activeren. Een
-        // startbestand heeft zijn eigen toets (`existingDocument` van `openLaunchFiles`), zoals main.
-        const oneTab = ifcForeignContentEnabled(get().ui.featureFlags);
-        const lookup = oneTab && opened.ref && !options?.existingDocument ? await lookupOpenDocument(get(), opened.ref, fileIdentityFs) : null;
-        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+        // Knownbug 1957: de leeskeuze van de openactie (met de flag ook de keuze voor "staat al open"); de toets zelf liep
+        // vóór het lezen, bij de aanroeper (`options.lookup`). Een startbestand heeft de toets van main.
+        const readOptions = options?.readOptions ?? formatReadOptions();
+        const oneTab = !!readOptions.ifcBytes;
+        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
-        const existing = lookup ? existingDocument(get(), opened.ref!, lookup) : options?.existingDocument?.() ?? null;
+        const existing = oneTab && opened.ref && !options?.existingDocument
+          ? existingDocument(get(), opened.ref, options?.lookup ?? null)
+          : options?.existingDocument?.() ?? null;
         if (existing !== null) {
           if (!oneTab) {
             get().switchDocument(existing);
@@ -3175,6 +3201,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         const readOptions = formatReadOptions();
         // De bytekeuze van Recent: op de naam, met de IFC-terugval voor een onbekende extensie (`readsAsBytes`).
         const isBinary = readsAsBytes(entry.name, readOptions);
+        // Knownbug 1957 (met de flag): de toets "staat al open" vóór het lezen.
+        const lookup = readOptions.ifcBytes ? await lookupOpenDocument(get(), entry.ref, fileIdentityFs) : null;
         let opened: OpenedFile;
         if (entry.ref.kind === 'path' && isTauri()) {
           // Dezelfde kern als de dialoog en neerzetten: eerst een onafgeronde vervanging van dit pad afhandelen
@@ -3191,7 +3219,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`), gekoppeld laden en het
         // verversen van Recent komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
-        await get().openOpenedFile(opened, labels);
+        await get().openOpenedFile(opened, labels, readOptions.ifcBytes ? { readOptions, lookup } : undefined);
       } catch (err) {
         console.error('Failed to open recent file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);

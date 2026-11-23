@@ -15,7 +15,7 @@ export interface FileIdentityFs {
 
 export type FileIdentityComparison = 'same' | 'different' | 'unknown';
 
-function usableIdentity(info: FileIdentityInfo): boolean {
+export function usableIdentity(info: FileIdentityInfo): boolean {
   // plugin-fs serialiseert u64 als JS-number. Afgeronde IDs mogen nooit bewijzen dat bestanden
   // verschillen. Windows levert null; een ontbrekende/ongeldige ID wordt geen padheuristiek.
   return info.isFile && info.dev !== null && info.ino !== null

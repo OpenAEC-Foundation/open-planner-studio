@@ -5549,21 +5549,25 @@ en noem het in je rapport of PR-tekst.
      **Met de flag aan opgelost** (#804, PR 1 van 2, besluit van de eigenaar 21 november 2026 "één bestand, één
      tabblad"): in de gewone routes gaat de app dan naar het tabblad dat al open is, met de melding "Dit bestand staat
      al open. Je bent naar dat tabblad gegaan."; dat tabblad houdt zijn inhoud. De toets staat in twee delen
-     (`src/state/openDocumentFor.ts`, route A van de technisch beslisser na ronde 3 van de review van #1121): het
-     asynchrone deel (`stat`, `isSameEntry`) direct na het lezen en vóór het parsen, en een synchrone eindbeslissing na
-     het parsen, in de stap van het activeren. Die beslissing ziet ook een tabblad dat ná de toets dit bestand
-     kreeg (via *Opslaan als* of een andere openactie, hetzelfde pad als tekst of dezelfde handle) en negeert een
-     tabblad dat intussen een ander bestand kreeg. De site vergelijkt het id, synchroon na het parsen. MCP legt het
-     document van zijn antwoord en het driftanker in die stap vast. Er wordt niet opnieuw gelezen. Een bestand dat bij
-     het starten is meegegeven (#1091, ook een tweede start) houdt de toets en de herlezing van main; met de flag aan
-     komen daar de melding en Recent bij. Proeven: `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent,
-     slepen, startbestand, MCP; de volgorde lezen, toets, parsen, activeren per route in T1 en T2; *Opslaan als* tijdens
-     de toets of het parsen in B8, R1 en R4; MCP en Openen tegelijk in R5; met de flag uit telkens een tweede tabblad en
-     dezelfde volgorde en lezingen als main), G16 en G17 in `check-site-storage.ts` (de site) en `cases-doc-file.ts`
+     (`src/state/openDocumentFor.ts`, route B van de technisch beslisser na ronde 4 van de review van #1121; geen
+     wachtmoment van de PR tussen het binnenkomen van de bytes en het activeren): het asynchrone deel (`stat`,
+     `isSameEntry`) vóór het lezen, bij de aanroeper die het pad of de handle al kent (Openen, Recent, slepen,
+     `planner_import_schedule`), en een synchrone eindbeslissing na het parsen, in de stap van het activeren. Die
+     beslissing ziet ook een tabblad dat ná de toets dit bestand kreeg, als het hetzelfde pad als tekst of dezelfde
+     handle heeft, en negeert een tabblad dat intussen een ander bestand kreeg. De site vergelijkt het id, synchroon na
+     het parsen. MCP legt het document van zijn antwoord en het driftanker in die stap vast. De keuze voor de flag ligt
+     per openactie vast vóór het lezen, ook voor hoe het bestand gelezen wordt. Een bestand dat bij het starten is
+     meegegeven (#1091, ook een tweede start) houdt de toets en de herlezing van main; daar gaat de app ook met de flag
+     uit naar het open tabblad, zonder melding, zoals main; met de flag aan komen de melding en Recent erbij. Proeven:
+     `check-one-file-one-tab.ts` (desktop en browser: Openen, Recent, slepen, startbestand, MCP; de volgorde toets,
+     lezen, parsen, activeren per route in T1 en T2; *Opslaan als* tijdens de toets of na het parsen in B8, R1 en R4;
+     *Opslaan als* en sluiten tijdens de toets, met daarna Ctrl+S, in R3; MCP en Openen tegelijk in R5; de flag die
+     tijdens de toets uitgaat in R7; met de flag uit een tweede tabblad, behalve het startbestand, en dezelfde
+     volgorde en lezingen als main), G16, G17 en G18 in `check-site-storage.ts` (de site) en `cases-doc-file.ts`
      (`planner_import_schedule`).
      Wat met de flag aan nog gaat zoals main: in de browser krijgt een tabblad dat ná de toets dit bestand krijgt
      (*Opslaan als* geeft daar een nieuw handle-object) een tweede tabblad ernaast (1893); een opslag die het bestand op
-     schijf vervangt terwijl het gelezen, getoetst of geparst wordt, blijft 1909.
+     schijf vervangt terwijl het gelezen of geparst wordt, blijft 1909.
      Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
      aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
      2029, 2040, 2041. — B (proef, met de flag uit)
@@ -5585,10 +5589,13 @@ en noem het in je rapport of PR-tekst.
      nieuwe versie. Zeldzaam: een leesactie en een opslag naar hetzelfde bestand moeten elkaar kruisen. Richting: laat
      een leesactie die een opslag kruiste het bestand opnieuw lezen vóór het document actief wordt. Proef van de
      reviewer: `proeven.ts` bij het rapport van review #1034. Met de featureflag `ifcForeignContent` aan (#804, knownbug
-     1957) toetst het openen ná het lezen of het bestand al in een tabblad open staat, en beslist het na het parsen: was
-     de opslag van het andere tabblad tegen die tijd klaar, dan gaat de app naar dat tabblad, met zijn nieuwe inhoud, en
-     komt er geen tweede tabblad met de oude inhoud (proeven B7, R1 en R4 in `check-one-file-one-tab.ts`). Een opslag
-     die dan nog niet klaar is, blijft zoals hierboven. Met de flag uit zoals hierboven. — B (proef van de reviewer)
+     1957) toetst het openen vóór het lezen of het bestand al in een tabblad open staat, en beslist het na het parsen.
+     Op de desktop wacht het lezen op een opslag van de app die al loopt. Begint *Opslaan als* van het andere tabblad
+     vóór het lezen, dan leest het openen de nieuwe versie: staat dat tabblad bij het activeren nog op dit bestand,
+     dan gaat de app daarheen; is het intussen gesloten, dan opent het bestand met de opgeslagen inhoud (proeven R1 en
+     R3 in `check-one-file-one-tab.ts`; R3 ook voor Recent, slepen en MCP, met daarna Ctrl+S). Gemeten op de desktop;
+     in de browser alleen de volgorde (T2). Een opslag die pas begint als het lezen al loopt, blijft zoals hierboven.
+     Met de flag uit zoals hierboven. — B (proef van de reviewer)
 
 2029. **Hetzelfde bestand in twee browsertabbladen van de website, of in de desktopapp en de website tegelijk: wie het laatst opslaat, wint.**
      De toets "staat al open" van #804 (knownbug 1957, met de featureflag `ifcForeignContent`) kijkt alleen naar de
@@ -5601,21 +5608,23 @@ en noem het in je rapport of PR-tekst.
      in de code gelezen. Richting: een melding als een ander venster hetzelfde bestand open heeft; een keuze voor de
      eigenaar. — S
 
-2040. **De toets "staat al open" valt op drie plekken terug op het lexicale pad.** (1) Windows levert in plugin-fs geen
-     `dev`/`ino` (`fileIdentity.ts`), dus `openDocumentIdForPath` (`ifcForeignGuard.ts`) ziet daar alleen hetzelfde pad
-     na normalisatie (stationsletter en UNC in kleine letters, `.` en `..` opgelost). Een junction, een gekoppelde
-     schijf tegenover hetzelfde UNC-pad of een 8.3-naam ziet hij niet: dan opent het bestand weer in een tweede tabblad,
-     zoals met de flag uit. Dezelfde grens geldt al voor de doelcontrole van Opslaan als (knownbug 1907). Alleen in de
-     code gelezen; niet op Windows gemeten. (2) De synchrone eindbeslissing na het parsen (`existingDocument` in
-     `openDocumentFor.ts`) vergelijkt een tabblad dat ná de toets een pad kreeg alleen lexicaal: kreeg het dit bestand
-     via een link, dan komt er een tweede tabblad, zoals main. (3) Het startbestand houdt de toets van main (#1091),
-     die het lexicale pad vóór de identiteit stelt: `maplink/../kantoor.ifc` wordt daar als `kantoor.ifc` gezien, ook
-     als een betrouwbare `dev`/`ino` zegt dat het een ander bestand is; met de flag aan dan met de melding. De gewone
-     routes stellen de identiteit voorop (proef B9). (2) en (3) gelden ook op main. — S
+2040. **De toets "staat al open" ziet een link of een anders geschreven pad op drie plekken niet.** (1) Windows levert in
+     plugin-fs geen `dev`/`ino` (`fileIdentity.ts`), dus de toets vóór het lezen (`openDocumentFor` in
+     `openDocumentFor.ts`) ziet daar alleen hetzelfde pad na normalisatie (stationsletter en UNC in kleine letters, `.`
+     en `..` opgelost). Een junction, een gekoppelde schijf tegenover hetzelfde UNC-pad of een 8.3-naam ziet hij niet:
+     dan opent het bestand weer in een tweede tabblad, zoals met de flag uit. Dezelfde grens geldt al voor de
+     doelcontrole van Opslaan als (knownbug 1907). Alleen in de code gelezen; niet op Windows gemeten. (2) De synchrone
+     eindbeslissing na het parsen (`existingDocument`) ziet een tabblad dat pas ná de toets een pad kreeg alleen als dat
+     pad dezelfde tekst is: kreeg het dit bestand via een link of een anders geschreven pad (`./kantoor.ifc`), dan komt
+     er een tweede tabblad, zoals main. Een genormaliseerd pad kan op POSIX een ander bestand zijn
+     (`maplink/../kantoor.ifc`), dus dat telt daar bewust niet (proeven A17 en B9). (3) Het startbestand houdt de toets
+     van main (#1091), die het lexicale pad vóór de identiteit stelt: `maplink/../kantoor.ifc` wordt daar als
+     `kantoor.ifc` gezien, ook als een betrouwbare `dev`/`ino` zegt dat het een ander bestand is; met de flag aan dan
+     met de melding. De gewone routes stellen de identiteit voorop (proef B9). (2) en (3) gelden ook op main. — S
 
 2041. **Twee keer tegelijk openen van hetzelfde bestand kan in de browser of via een link nog twee tabbladen geven.**
      Lopen twee openacties van hetzelfde bestand door elkaar (twee neerzettingen kort na elkaar, of een klik in Recent
-     terwijl Openen van hetzelfde bestand nog leest), dan kunnen beide toetsen (vóór het parsen, knownbug 1957) gebeuren
+     terwijl Openen van hetzelfde bestand nog leest), dan kunnen beide toetsen (vóór het lezen, knownbug 1957) gebeuren
      vóór een van beide activeert: beide zien niets open. De synchrone eindbeslissing na het parsen ziet het tabblad van
      de eerste wel als het hetzelfde pad als tekst heeft (desktop) of hetzelfde id (site): dan één tabblad (proef R6 in
      `check-one-file-one-tab.ts`: Openen, Recent en slepen tegelijk in hun toets). In de browser heeft elke openactie een

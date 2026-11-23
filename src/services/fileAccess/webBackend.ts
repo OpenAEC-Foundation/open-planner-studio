@@ -288,8 +288,11 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
   if (hasFSA() && !platformRefusesReads && !featurePolicyBlocksFSA()) {
     try {
       const [handle] = await window.showOpenFilePicker!({ multiple: false, types: toAcceptTypes(filters) });
+      const ref: FileRef = { kind: 'handle', handle };
+      // #804: de toets "staat al open" tussen kiezen en lezen (`OpenDialogOpts.beforeRead`, alleen met de flag).
+      if (opts?.beforeRead) await opts.beforeRead(ref);
       // `await` binnen de try: een weigering tijdens het lezen moet de catch hieronder bereiken.
-      return await openedFromFile(await handle.getFile(), { kind: 'handle', handle }, opts);
+      return await openedFromFile(await handle.getFile(), ref, opts);
     } catch (err) {
       // Annuleren blijft `null` — geen tweede picker via de input-terugval.
       if (isAbort(err)) return null;

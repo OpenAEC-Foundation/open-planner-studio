@@ -522,21 +522,21 @@ export const fileTools: McpToolDef[] = [
       // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
       let readOptions: FormatReadOptions = {};
+      let lookup: OpenLookup | null = null;
       try {
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
         readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
+        // Knownbug 1957 (met de flag, besluit T2): staat dit pad al in een tabblad open? De toets vóór het lezen
+        // (`openDocumentFor.ts`, gooit niet); de beslissing valt hieronder synchroon met het activeren. Met de flag uit
+        // geen toets, zodat het antwoord en de volgorde gelijk blijven aan main.
+        if (readOptions.ifcBytes) lookup = await lookupOpenDocument(ctx.app.store.getState(), { kind: 'path', path }, async () => fs);
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
-      // Knownbug 1957 (met de flag, besluit T2): staat dit pad al in een tabblad open? Het asynchrone deel in het
-      // leesvenster, vóór het parsen (`openDocumentFor.ts`); de beslissing valt hieronder synchroon met het activeren.
-      // Met de flag uit geen toets, zodat het antwoord en de volgorde gelijk blijven aan main.
-      const lookup: OpenLookup | null = readOptions.ifcBytes
-        ? await lookupOpenDocument(ctx.app.store.getState(), { kind: 'path', path }, async () => fs) : null;
       const content = input.text ?? '';
 
       let parsed: OpenedImport;
