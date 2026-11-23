@@ -1283,7 +1283,10 @@ function psetRel(index: StepIndex, pset: number): number {
 function assertSameSource(index: StepIndex, cls: Classification, source: IfcSource): void {
   let same = index.count === source.classes.length && cls.classes.every((c, i) => c === source.classes[i]);
   // Een gewone lus, zonder lijst van alle stuknummers (#804).
-  for (let i = 0; same && i < index.count; i++) same = (index.id(i) === '' ? -1 : Number(index.id(i))) === source.chunkIds[i];
+  for (let i = 0; same && i < index.count; i++) {
+    const id = index.id(i);
+    same = (id === '' ? -1 : Number(id)) === source.chunkIds[i];
+  }
   if (!same) throw new Error('mergeWriter: de bronbytes passen niet bij ifcSource');
 }
 

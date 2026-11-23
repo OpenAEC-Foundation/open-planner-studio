@@ -54,6 +54,30 @@ expectSource(
   /\.dependency-list\s*\{[\s\S]*?container-type:\s*inline-size;[\s\S]*?@container\s*\(max-width:\s*14rem\)[\s\S]*?"wbs wbs wbs wbs wbs"[\s\S]*?"\. driving type lag remove"/,
 );
 
+// Issue #989: de sectie splitst de relaties in twee aparte lijsten (voorgangers/opvolgers), elk
+// met een eigen kop met het aantal; de kolommen staan naast elkaar en stapelen alleen op een
+// smalle sectie.
+expectSource(
+  'relaties worden per rol in twee kolommen gegroepeerd (#989)',
+  component,
+  /sequenceColumns[\s\S]*?seq\.predecessorId\s*===\s*taskId\s*\?\s*'successor'\s*:\s*'predecessor'/,
+);
+expectSource(
+  'twee kolommen, elk met een kop met het aantal relaties (#989)',
+  component,
+  /className="dependency-cols"[\s\S]*?data-ops-dependency-col=\{role\}[\s\S]*?className="dependency-col-head"[\s\S]*?\{ count: seqs\.length \}/,
+);
+expectSource(
+  'kolommen delen de sectiebreedte in tweeën',
+  css,
+  /\.dependency-cols\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\);/,
+);
+expectSource(
+  'smalle sectie stapelt de twee lijsten onder elkaar (#989)',
+  css,
+  /@container\s*\(max-width:\s*22rem\)\s*\{\s*\.dependency-col\s*\{\s*grid-column:\s*1 \/ -1;/,
+);
+
 // Vanuit de geselecteerde taak gezien is `predecessorId === taskId` de ANDERE taak een opvolger.
 expectSource(
   'relatiekant wordt vanuit de geselecteerde taak correct afgeleid',

@@ -42,7 +42,7 @@ import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes,
 import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { RelationTypePopover } from './RelationTypePopover';
-import { createRelationDraftWithFeedback } from '@/state/relationActions';
+import { createRelationDraftWithFeedback, requestRelationAssign } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
 import { HoverTooltip } from './HoverTooltip';
 import { MilestoneGroupTooltipContent, TaskTooltipContent } from './TaskTooltipContent';
@@ -163,6 +163,7 @@ export function GanttCanvas({
   const endHistorySession = useAppStore(s => s.endHistorySession);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
+  const setGridActiveRowKey = useCallback((rowKey: string) => setUI({ gridActiveRowKey: rowKey }), [setUI]);
   // Store-acties die het contextmenu ontsluit. De muterende taak-acties (in-/uitspringen,
   // mijlpaal, kalender, voortgang, prioriteit, verwijderen) lopen via `contextMenuBulk` en worden
   // hier daarom niet los uit de store getrokken.
@@ -243,6 +244,7 @@ export function GanttCanvas({
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
@@ -318,10 +320,9 @@ export function GanttCanvas({
   // `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
   // strook (portal-doel `histogramHost` bestaat pas ná de eerste render, of de hele Gantt wordt
   // ver- en hermount bij een tabwissel naar Tabel/Backstage) wijzigt `.current` zonder dat React dat
-  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` moet de node zelf als afhankelijk-
-  // heid krijgen om zijn wheel-listener opnieuw te hechten, dus spiegelen we `.current` hier naar
-  // React-state via een callback-ref (overige consumenten van `histogramContainerRef`, zoals
-  // `useGanttRendererHost`, lezen via het ref-object).
+  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` (wheel-listener) en de
+  // observers van `useGanttRendererHost` moeten de node zelf als afhankelijkheid krijgen om opnieuw
+  // te hechten, dus spiegelen we `.current` hier naar React-state via een callback-ref.
   const [histogramContainerEl, setHistogramContainerEl] = useState<HTMLDivElement | null>(null);
   const setHistogramContainerNode = useCallback((node: HTMLDivElement | null) => {
     histogramContainerRef.current = node;
@@ -524,6 +525,7 @@ export function GanttCanvas({
     compressNonWorkdays,
     selectTask,
     selectTasks,
+    setGridActiveRowKey,
     deselectAll,
     updateTask,
     setTaskSplits,
@@ -658,6 +660,7 @@ export function GanttCanvas({
     activityCodeTypes,
     customFieldDefs,
     taskTypeLabels,
+    customTaskTypes,
     barColorNoneLabel: tTask('structure.none'),
     resources,
     assignments,
@@ -688,7 +691,7 @@ export function GanttCanvas({
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, showBarDates, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, durationDisplay, workdayDurationMeasure, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, showBarDates, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, customTaskTypes, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, durationDisplay, workdayDurationMeasure, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
   // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
@@ -713,6 +716,7 @@ export function GanttCanvas({
       activityCodeTypes,
       customFieldDefs,
       taskTypeLabels,
+      customTaskTypes,
       barColorNoneLabel: tTask('structure.none'),
       resources,
       assignments,
@@ -747,13 +751,14 @@ export function GanttCanvas({
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, showBarDates, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, workdayDurationMeasure, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, showBarDates, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, customTaskTypes, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, workdayDurationMeasure, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
       primaryContainerRef: containerRef,
       secondaryContainerRef,
       histogramContainerRef,
+      histogramContainer: histogramContainerEl,
     },
     primary: primaryRenderInput,
     secondary: secondaryRenderInput,
@@ -774,8 +779,13 @@ export function GanttCanvas({
     const y = e.clientY - rect.top;
     if (y < headerHeight) return;
     const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
-    if (task) selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey);
-    else deselectAll();
+    // Zoals het primaire paneel: de aangeklikte rij, en een groepsruitje (#868) met al zijn leden.
+    if (task) {
+      selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey, {
+        rowKey: renderer.getRowAtY(y)?.rowKey,
+        taskIds: renderer.getMilestoneGroup(task.id)?.map(member => member.id),
+      });
+    } else deselectAll();
   }, [secondaryCanvasRef, secondaryRendererRef, selectTask, deselectAll, headerHeight]);
 
   // Hover op de baselinestrook in het secundaire paneel: alleen de baselinetooltip (dit paneel kent
@@ -792,6 +802,10 @@ export function GanttCanvas({
   }, [secondaryCanvasRef, secondaryRendererRef, headerHeight]);
 
   const { contextMenu, relationPopover, tooltip } = pointer;
+  // Menu, relatiepopover en relatiesleep horen bij het document waarin ze begonnen (review #1004).
+  const activeDocumentId = useAppStore(s => s.activeDocumentId);
+  const { closeForDocumentSwitch } = pointer;
+  useEffect(() => { closeForDocumentSwitch(); }, [activeDocumentId, closeForDocumentSwitch]);
   const boxSelectState = pointer.overlays.boxSelect;
   const splitOverlay = pointer.overlays.split;
   const splitDragLabel = pointer.overlays.barSplitDrag;
@@ -945,7 +959,7 @@ export function GanttCanvas({
 
         {/* Box-selection kader: half-transparant rechthoekje tijdens de sleep,
             in viewport-coördinaten — hoeft niet mee te scrollen, de rij-intersectie zelf
-            wordt op het actuele moment berekend (getTaskIdsInYRange). */}
+            wordt op het actuele moment berekend (getRowsInYRange). */}
         {boxSelectState && (() => {
           const containerRect = containerRef.current?.getBoundingClientRect();
           const left = (containerRect?.left ?? 0);
@@ -1125,6 +1139,9 @@ export function GanttCanvas({
               selectTask(contextMenu.task.id, false);
               setUI({ showDependencyMode: true });
             }
+          }}
+          onAssignRelation={direction => {
+            if (contextMenu.task) requestRelationAssign(contextMenu.task.id, direction, contextMenu.rowKey);
           }}
           onSaveTemplate={() => {
             if (!contextMenu.task) return;
