@@ -5648,16 +5648,6 @@ en noem het in je rapport of PR-tekst.
      highlights en de documentatiecontrole. Richting: bij een gewijzigde inhoudsbasis de tekstagent de toegevoegde
      commits laten aanvullen. Gevonden door de review van #984 (Sol, ronde 2). — B
 
-1750. **VERVOLG (#963, fs-scope voor lettertypen): het Windows-pad `C:/Windows/Fonts/**` is op Linux en macOS een
-     relatief patroon, en niet gegarandeerd zonder effect.** `src-tauri/capabilities/default.json` (de drie
-     scopes `fs:allow-read-dir`, `fs:allow-open`, `fs:allow-read-file`). Tauri voegt via `push_pattern` en
-     `canonicalize_parent` (`tauri/src/scope/fs.rs`) ook een gecanonicaliseerd patroon toe. Bestaat onder de werkmap
-     van de app een map `C:/Windows/Fonts`, of is `Fonts` daar een symlink, dan komt die map (of het doel van de link)
-     in de scope van die drie opdrachten; voor `open` ook met `write: true`, binnen de rechten van het
-     besturingssysteem. Vraagt een ongebruikelijke mapstructuur. Richting: de Windows-toestemming met het
-     `platforms`-veld van een capability alleen op Windows laten gelden, de Unix-paden alleen op Linux/macOS.
-     Gevonden door de review van #963 (Sol, ronde 1), via de broncode, niet uitgevoerd. — B (code)
-
 1751. **VERVOLG (#963, `tests/planning/check-tauri-capability-scopes.ts`): de check bewaakt alleen `**` en backslashes,
      geen volledige globgeldigheid, en slaat scopepaden als string over.** Een patroon als `C:/Windows/Fonts/[` komt
      door alle drie de controles, terwijl de glob-parser het weigert (`invalid range pattern`) en daarmee dezelfde

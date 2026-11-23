@@ -1,12 +1,3 @@
-// Waar het eigen rapportlettertype vandaan komt (issue #770, besluit Ethan 14 november 2026, keuze 2c): de
-// lijst van de computer waar dat kan, en altijd een lettertypebestand als tweede weg.
-//
-// - Desktopapp (Windows, macOS, Linux): de app leest de lettertypemappen zelf, via plugin-fs, met een
-//   scope op die mappen voor alleen `read_dir`, `open` en `read_file` (`src-tauri/capabilities/default.json`). De webviews van macOS en Linux
-//   kennen `queryLocalFonts` niet, dus één route voor alle drie. Per bestand alleen kop, naamtabel en OS/2.
-// - Browser: alleen Chrome en Edge (`queryLocalFonts`, na een toestemmingsvraag van de browser).
-// - Overal: een `.ttf`/`.otf`/`.ttc` dat de planner kiest.
-// Alle drie eindigen in {@link PickedFont}: losse bestanden voor gewoon en (als die er is) vet.
 import {
   bytesReader, extractFace, groupFontFamilies, readFontFaces,
   type ByteReader, type FontFaceInfo, type FontFamilyChoice, type FontRefusal,
