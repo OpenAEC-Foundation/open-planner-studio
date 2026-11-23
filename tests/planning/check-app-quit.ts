@@ -170,8 +170,6 @@ function harness(initial: AppQuitDocument[]) {
   eq('6 geannuleerd', [s().ui.appQuitPending, controller.active], [false, false]);
 }
 
-// 1838: een tabkruisje kan op WebKit zonder blur worden aangeklikt.
-// De actieve draft moet vóór de dirty-controle worden vastgelegd, ook bij een ander doel.
 for (const closeActive of [true, false]) {
   const reg = createPendingTextEdits();
   const ctx = createAppStoreContext({ pendingTextEdits: reg });
