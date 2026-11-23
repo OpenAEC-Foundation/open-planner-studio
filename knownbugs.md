@@ -633,8 +633,8 @@ en noem het in je rapport of PR-tekst.
      met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
      resource overbezet (issue #1161). — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
-     (`src/engine/scheduler/ResourceLeveler.ts`) kiest, na `INTRINSIC_OVERRUN`, `CEILING_UNREACHABLE` zodra de eerste
-     kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
+     (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
+     `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
      als geen van de gescande kandidaten op de kalender paste, vóór de uitgeputte zoekgrens. Proeven van de reviewer
      (GPT-6.2-Sol, review van #1160): via `computeDistribution` boekte een gepind document de kraan op 3 augustus vol,
      en een tweede document had een taak met een deadline op 1 juni. Met een plafond van 5 dagen kwam
@@ -647,7 +647,7 @@ en noem het in je rapport of PR-tekst.
      proefsolve haar met een verschoven voorganger meeschuift (ADR 0161). Proef van de reviewer (GPT-6.2-Sol, review
      van #1160, via de verdeler van de resourcebibliotheek): de voorganger schoof één werkdag op; de opvolger buiten
      de scope was op dinsdag geboekt en lag na schrijven en herberekenen op woensdag, samen met een andere taak op
-     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel. — B
+     dezelfde lokale machine. Het voorstel meldde geen tekort, het histogram daarna wel (issue #1162). — B
 
 ## Tabel, invoer en bediening
 
