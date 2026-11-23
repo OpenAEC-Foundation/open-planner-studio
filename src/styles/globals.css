@@ -1946,6 +1946,36 @@ body {
   pointer-events: auto;
 }
 
+/* Issue #989: voorgangers en opvolgers als twee aparte lijsten, elk met een eigen kop. De twee
+   kolommen staan naast elkaar zodra de sectie breed genoeg is (elke kolom moet dan minstens
+   ~11rem kwijt kunnen aan de vaste bedieningskolommen van een rij); op een smalle rail stapelen
+   ze onder elkaar. */
+.dependency-cols {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+
+@container (max-width: 22rem) {
+  .dependency-col { grid-column: 1 / -1; }
+}
+
+.dependency-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.dependency-col-head {
+  font-size: var(--text-small);
+  line-height: 1rem;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+}
+
 /* Issue #65: alleen de WBS-kolom veert mee; de overige kolommen blijven over alle regels gelijk.
    De container-query is gekoppeld aan de echte paneelinhoud (niet het viewport): op de minimale
    railbreedte krijgt WBS een eigen regel, terwijl de vier bedieningselementen eronder uitlijnen. */
