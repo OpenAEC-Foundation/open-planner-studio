@@ -324,6 +324,7 @@ assert.deepEqual(calendarBoundaryResults, [
 ]);
 
 const tiedFinishDates: Array<Array<string | number | undefined>> = [];
+const pinnedDates: Array<Array<string | number | undefined>> = [];
 for (const finishStartFirst of [false, true]) {
   const schedule = createAppStoreContext().store.getState;
   schedule().setProject({ startDate: '2026-06-01' });
@@ -382,5 +383,23 @@ for (const finishStartFirst of [false, true]) {
     reopened().runCPM();
     assert.equal(reopened().cpmResult?.violatedConstraintTaskIds.includes(leveledId), expectedViolation);
   }
+  for (const [type, date] of [['MSO', '2026-06-03T08:00'], ['MFO', '2026-06-03T09:00']] as const) {
+    reopened().updateTask(prior().id, { constraint: { type, date, hard: true } });
+    reopened().runCPM();
+    const pinnedFile = writeIFC(buildWriteIFCInput(reopened(), 'planOnly'));
+    const reopenedPinned = createAppStoreContext().store.getState;
+    await reopenedPinned().openOpenedFile({ name: 'harde-datum.ifc', content: pinnedFile, ref: null });
+    const recordPinnedDates = () => {
+      const task = reopenedPinned().tasks.find(task => task.name === 'Voorganger')!;
+      assert.equal(task.constraint?.hard, true);
+      assert.equal(task.constraint?.type, type);
+      const { lateStart, lateFinish, totalFloatMinutes } = task.time;
+      pinnedDates.push([lateStart, lateFinish, totalFloatMinutes]);
+    };
+    recordPinnedDates();
+    reopenedPinned().runCPM();
+    recordPinnedDates();
+  }
 }
 assert.deepEqual(tiedFinishDates, Array.from({ length: 4 }, () => ['2026-06-02T16:00', '2026-06-03T09:00', 120]));
+assert.deepEqual(pinnedDates, Array.from({ length: 8 }, () => ['2026-06-03T08:00', '2026-06-03T09:00', 0]));

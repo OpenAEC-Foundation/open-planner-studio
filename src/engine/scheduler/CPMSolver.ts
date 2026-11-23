@@ -944,6 +944,7 @@ export class CPMSolver {
       || this.levelingDelayMinutesUseElapsedTime(succ)
       || !this.seqConstraint.has(seq.id) || succ.time.completion !== 0 || succ.time.actualStart
       || isZeroDurationMilestone(succ) || (succ.isMilestone && succ.milestoneKind === 'START') || !this.countsInWorkdays(succ)
+      || this.hardPinFinish(pred, predCal)
       || this.hardPinStart(succ, succCal) || this.hardPinFinish(succ, succCal)
       || dataDate > late.ls || this.finishFromStart(succCal, dataDate, succ) > late.lf) return undefined;
 
