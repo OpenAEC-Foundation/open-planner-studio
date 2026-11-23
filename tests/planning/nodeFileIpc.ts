@@ -164,6 +164,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
     /** Ook `stat` en `lstat` toetsen `forbidden`, zoals plugin-fs elke aanroep aan dezelfde scope toetst (knownbug 1902).
      *  Standaard uit, zodat de oudere proeven hun nabootsing houden. */
     forbiddenMeta: false,
+    noIdentity: false,
     writeErrorAfter: null as number | null,
     renameError: null as unknown,
     removeError: null as unknown,
@@ -206,7 +207,7 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
           isFile: st.isFile(), isDirectory: st.isDirectory(), isSymlink: st.isSymbolicLink(),
           size: st.size, mtime: st.mtimeMs, atime: st.atimeMs, birthtime: st.birthtimeMs,
           readonly: (st.mode & 0o222) === 0, fileAttributes: null,
-          dev: st.dev, ino: st.ino, mode: st.mode, nlink: st.nlink,
+          dev: faults.noIdentity ? null : st.dev, ino: faults.noIdentity ? null : st.ino, mode: st.mode, nlink: st.nlink,
           uid: st.uid, gid: st.gid, rdev: st.rdev, blksize: st.blksize, blocks: st.blocks,
         };
       }

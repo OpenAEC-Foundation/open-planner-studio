@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { isDeepStrictEqual } from 'node:util';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -10,6 +11,8 @@ import { readIfcFromText } from '@/services/formatRegistry';
 import { createIfcSaveWorker } from '@/services/ifc/saveWorker/ifcSaveWorker';
 import type { IfcSaveResponse, IfcSaveResult } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import { computeIfcOutputHere, type IfcOutputCompute, type IfcSaveJob } from '@/state/prepareIfcOutput';
+import { exportHitsOwnFile, exportTargetMatch } from '@/state/savedLiteralCalendars';
+import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import type { FileRef } from '@/services/fileAccess';
 import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { resetSiteAskers, setSiteSaveAsker } from '@/services/fileAccess/siteDialogs';
@@ -31,6 +34,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const modelBytes = new Uint8Array(readFileSync(join(root, 'tests/fixtures/ifc-foreign/eigen-plus-model.ifc')));
 const plainBytes = () => new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
 const otherPlainBytes = () => new Uint8Array(readFileSync(join(root, 'public/examples/10-villa-wassenaar.ifc')));
+const withoutLiteralBytes = () => new Uint8Array(readFileSync(join(root, 'public/examples/showcase-verbouwing-eengezinswoning.ifc')));
 const dir = mkdtempSync(join(tmpdir(), 'ops-schijfversie-'));
 const sha = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
 const print = (data: Uint8Array) => ({ sha256: sha(data), byteLength: data.byteLength });
@@ -686,6 +690,248 @@ await check('een mislukte schrijfactie naar het eigen pad maakt het veld onbeken
   assert.equal(await ctrlS(store), false, 'de doelbewaking weigert');
   assert.deepEqual(known(store), opened);
   assert.notDeepEqual(onHandle(handle), opened, 'een ander programma schreef het bestand; de app niet');
+});
+
+await check('de vergelijking na een export: same, different of unknown per soort doel; de kalenders tellen unknown als treffer', async () => {
+  const path = (p: string): FileRef => ({ kind: 'path', path: p });
+  const withIdentity = { stat: async (p: string) => ({ isFile: true, dev: 1, ino: p.endsWith('ander.ifc') ? 3 : 2 }) };
+  const withoutIdentity = { stat: async () => ({ isFile: true, dev: null, ino: null }) };
+  const mine = newHandle(new Uint8Array()), theirs = newHandle(new Uint8Array());
+  const broken = { kind: 'file', isSameEntry: async () => { throw new Error('proef: isSameEntry faalt'); } };
+  const cases: [string, FileRef | null, FileRef | null | undefined, typeof withIdentity | typeof withoutIdentity | undefined, string][] = [
+    ['pad, dezelfde padtekst, zonder identiteit', path('/m/eigen.ifc'), path('/m/eigen.ifc'), withoutIdentity, 'same'],
+    ['pad, alias met gelijke identiteit', path('/m/eigen.ifc'), path('/m/alias.ifc'), withIdentity, 'same'],
+    ['pad, ander bestand met identiteit', path('/m/eigen.ifc'), path('/m/ander.ifc'), withIdentity, 'different'],
+    ['pad, andere padtekst zonder identiteit (Windows)', path('C:\\m\\eigen.ifc'), path('C:\\m\\ander.ifc'), withoutIdentity, 'unknown'],
+    ['pad zonder identiteitslaag, andere padtekst', path('/m/eigen.ifc'), path('/m/ander.ifc'), undefined, 'different'],
+    ['handle, dezelfde', handleRef(mine), handleRef(mine), undefined, 'same'],
+    ['handle, een andere', handleRef(mine), handleRef(theirs), undefined, 'different'],
+    ['handle, isSameEntry faalt', handleRef(mine), { kind: 'handle', handle: broken as unknown as FileSystemFileHandle }, undefined, 'unknown'],
+    ['site, dezelfde', { kind: 'site', id: 'a' }, { kind: 'site', id: 'a' }, undefined, 'same'],
+    ['site, een andere', { kind: 'site', id: 'a' }, { kind: 'site', id: 'b' }, undefined, 'different'],
+    ['eigen pad, doel een handle', path('/m/eigen.ifc'), handleRef(mine), withIdentity, 'different'],
+    ['eigen handle, doel een pad', handleRef(mine), path('/m/eigen.ifc'), withIdentity, 'different'],
+    ['eigen pad, doel op de site', path('/m/eigen.ifc'), { kind: 'site', id: 'a' }, withIdentity, 'different'],
+    ['een download (geen doel)', path('/m/eigen.ifc'), null, withIdentity, 'different'],
+    ['geen eigen doel', null, path('/m/eigen.ifc'), withIdentity, 'different'],
+  ];
+  for (const [label, own, target, identity, expected] of cases) {
+    const match = await exportTargetMatch(own, target, identity);
+    assert.equal(match, expected, label);
+    assert.equal(exportHitsOwnFile(match), expected !== 'different', `${label}: de kalenders`);
+  }
+});
+
+type ExportRoute = 'exportAs' | 'pool-project' | 'pool-library' | 'library' | 'mcp';
+type ExportTarget = 'eigen' | 'alias' | 'ander' | 'annuleren';
+const exportRoutes: ExportRoute[] = ['exportAs', 'pool-project', 'pool-library', 'library', 'mcp'];
+const exportCells: Record<'linux' | 'windows', Record<ExportTarget, Record<ExportRoute, 'gewist' | 'behouden' | 'geweigerd' | 'n.v.t.'>>> = {
+  linux: {
+    eigen: { exportAs: 'gewist', 'pool-project': 'gewist', 'pool-library': 'geweigerd', library: 'geweigerd', mcp: 'gewist' },
+    alias: { exportAs: 'gewist', 'pool-project': 'gewist', 'pool-library': 'geweigerd', library: 'geweigerd', mcp: 'gewist' },
+    ander: { exportAs: 'behouden', 'pool-project': 'behouden', 'pool-library': 'behouden', library: 'behouden', mcp: 'behouden' },
+    annuleren: { exportAs: 'behouden', 'pool-project': 'behouden', 'pool-library': 'behouden', library: 'behouden', mcp: 'n.v.t.' },
+  },
+  windows: {
+    eigen: { exportAs: 'gewist', 'pool-project': 'gewist', 'pool-library': 'geweigerd', library: 'geweigerd', mcp: 'gewist' },
+    alias: { exportAs: 'behouden', 'pool-project': 'behouden', 'pool-library': 'behouden', library: 'behouden', mcp: 'behouden' },
+    ander: { exportAs: 'behouden', 'pool-project': 'behouden', 'pool-library': 'behouden', library: 'behouden', mcp: 'behouden' },
+    annuleren: { exportAs: 'behouden', 'pool-project': 'behouden', 'pool-library': 'behouden', library: 'behouden', mcp: 'n.v.t.' },
+  },
+};
+
+for (const platform of ['linux', 'windows'] as const) {
+  for (const flag of [true, false] as const) {
+    await check(`A2-tabel, desktop ${platform}${flag ? '' : ', flag uit'}: elke exportroute naar het eigen bestand, een alias, een ander bestand en annuleren`, async () => {
+      const { fileTools, fileToolDeps } = await import('@/services/mcp/tools/fileTools');
+      const { createMcpContext } = await import('@/services/mcp/context');
+      const { createMcpTransactions } = await import('@/state/runtime/createMcpTransactions');
+      const previousFs = fileToolDeps.getFs;
+      fileToolDeps.getFs = async () => ({
+        homeDir: async () => dir, exists: async (p: string) => existsSync(p),
+        stat: async (p: string) => {
+          const info = statSync(p);
+          return { isFile: info.isFile(), dev: platform === 'windows' ? null : info.dev, ino: platform === 'windows' ? null : info.ino };
+        },
+        scanTarget: async () => null,
+        writeTextFile: async (p: string, content: string) => { writeFileSync(p, content); },
+        readTextFile: async (p: string) => readFileSync(p, 'utf8'), readFile: async (p: string) => new Uint8Array(readFileSync(p)),
+      });
+      const ipc = desktop();
+      const seen: string[] = [];
+      try {
+        for (const target of ['eigen', 'alias', 'ander', 'annuleren'] as const) {
+          for (const route of exportRoutes) {
+            const expected = exportCells[platform][target][route];
+            if (expected === 'n.v.t.') continue;
+            const label = `${platform}, ${route}, ${target}${flag ? '' : ', flag uit'}`;
+            const own = fileAt(`tabel-${platform}-${flag}-${route}-${target}.ifc`, plainBytes());
+            const alias = join(dir, `tabel-${platform}-${flag}-${route}-${target}-alias.ifc`);
+            symlinkSync(own, alias);
+            const other = join(dir, `tabel-${platform}-${flag}-${route}-${target}-ander.ifc`);
+            const elsewhere = join(dir, `tabel-${platform}-${flag}-${route}-${target}-elders.ifc`);
+            const context = await openAt({ kind: 'path', path: own }, plainBytes(), undefined, flag);
+            const store = context.store;
+            const companyId = store.getState().seedDemoLibrary();
+            store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+            edit(store);
+            assert.equal(await ctrlS(store), true, `${label}: opslaan vooraf`);
+            if (!flag) store.setState(s => { s.knownTargetFingerprint = onDisk(own); });
+            const before = known(store), onDiskBefore = onDisk(own);
+            assert.deepEqual(before, onDiskBefore, `${label}: vooraf kent het tabblad zijn bestand`);
+            edit(store);
+            ipc.faults.noIdentity = platform === 'windows';
+            const chosen = target === 'eigen' ? own : target === 'alias' ? alias : target === 'ander' ? other : null;
+            const start = ipc.picks();
+            ipc.onPick(() => {});
+            try {
+              if (route === 'exportAs') { ipc.choose(chosen); await store.getState().exportAs('ifc'); }
+              if (route === 'pool-project') {
+                ipc.choose(chosen);
+                ipc.onPick(() => { if (ipc.picks() === start + 2) ipc.choose(null); });
+                await store.getState().exportProjectWithPool();
+              }
+              if (route === 'pool-library') {
+                ipc.choose(elsewhere);
+                ipc.onPick(() => { if (ipc.picks() === start + 2) ipc.choose(chosen); });
+                await store.getState().exportProjectWithPool();
+              }
+              if (route === 'library') { ipc.choose(chosen); await store.getState().exportLibrary(companyId); }
+              if (route === 'mcp') {
+                const tool = fileTools.find(t => t.name === 'planner_export_ifc')!;
+                await tool.handler({ path: chosen!, overwrite: true },
+                  createMcpContext(context, createMcpTransactions(context), { ensureBackup: async () => null, markDuplicateBorn: () => {} }));
+              }
+            } finally { ipc.faults.noIdentity = false; }
+            const ownChanged = !isDeepStrictEqual(onDisk(own), onDiskBefore);
+            if (target === 'ander') assert.equal(existsSync(other), true, `${label}: de export schreef het andere bestand`);
+            if (target === 'ander' || target === 'annuleren') assert.equal(ownChanged, false, `${label}: het eigen bestand is niet geschreven`);
+            if (target === 'eigen' || target === 'alias') assert.equal(ownChanged, expected !== 'geweigerd', `${label}: ${expected === 'geweigerd' ? 'geweigerd vóór het schrijven' : 'het eigen bestand is geschreven'}`);
+            const anythingWritten = route === 'pool-library' || (target !== 'annuleren' && expected !== 'geweigerd');
+            const wiped = flag ? expected === 'gewist' : anythingWritten;
+            assert.deepEqual(known(store), wiped ? null : before, `${label}: ${wiped ? 'gewist' : 'behouden'}`);
+            seen.push(`${label}: ${wiped ? 'gewist' : 'behouden'}`);
+          }
+        }
+      } finally { fileToolDeps.getFs = previousFs; ipc.dispose(); }
+      console.log(`TABEL ${seen.join(' | ')}`);
+    });
+  }
+}
+
+await check('A2-tabel, browser: de eigen handle wist; een andere handle, een falende isSameEntry, een download en annuleren behouden', async () => {
+  const win = window as unknown as Record<string, unknown>;
+  class BrokenHandle extends FakeHandle { override async isSameEntry(): Promise<boolean> { throw new Error('proef: isSameEntry faalt'); } }
+  const routes = ['exportAs', 'pool-project', 'pool-library', 'library'] as const;
+  for (const target of ['eigen', 'ander', 'werpt', 'download', 'annuleren'] as const) {
+    for (const route of routes) {
+      const label = `browser, ${route}, ${target}`;
+      const own = newHandle(plainBytes()), elsewhere = newHandle(new Uint8Array());
+      const chosen = target === 'eigen' ? own : target === 'ander' ? newHandle(new Uint8Array())
+        : target === 'werpt' ? new BrokenHandle(`kapot-${++handleCount}.ifc`) : null;
+      if (chosen && target === 'werpt') handleFiles.set(chosen.name, new Uint8Array());
+      const browser = target === 'download' ? browserDownload() : null;
+      const answers = route === 'pool-library' ? [elsewhere, chosen] : route === 'pool-project' ? [chosen, null] : [chosen];
+      if (target !== 'download') {
+        win.showOpenFilePicker = () => { throw new Error('niet gebruikt'); };
+        win.showSaveFilePicker = async () => {
+          const next = answers.shift();
+          if (!next) throw new DOMException('geannuleerd', 'AbortError');
+          return next;
+        };
+      }
+      try {
+        const { store } = await openAt(handleRef(own), plainBytes());
+        const companyId = store.getState().seedDemoLibrary();
+        store.getState().setProject({ companyId, companyName: 'Proefbedrijf' });
+        edit(store);
+        assert.equal(await ctrlS(store), true, `${label}: opslaan vooraf`);
+        const before = known(store);
+        assert.deepEqual(before, onHandle(own));
+        edit(store);
+        if (route === 'exportAs') await store.getState().exportAs('ifc');
+        if (route === 'pool-project' || route === 'pool-library') await store.getState().exportProjectWithPool();
+        if (route === 'library') await store.getState().exportLibrary(companyId);
+        if (target === 'eigen') assert.notDeepEqual(onHandle(own), before, `${label}: de export schreef de eigen handle`);
+        else assert.deepEqual(onHandle(own), before, `${label}: de eigen handle is niet geschreven`);
+        if (chosen && target !== 'eigen') assert.notEqual(handleFiles.get(chosen.name)!.byteLength, 0, `${label}: de export schreef het gekozen doel`);
+        if (browser && route !== 'pool-library') assert.notEqual(browser.downloads.length, 0, `${label}: een download`);
+        assert.deepEqual(known(store), target === 'eigen' ? null : before, label);
+      } finally { browser?.dispose(); delete win.showOpenFilePicker; delete win.showSaveFilePicker; }
+    }
+  }
+});
+
+await check('de kalenders blijven unknown als treffer tellen: op Windows legt een export naar een ander bestand ze vast, de vingerafdruk blijft', async () => {
+  for (const platform of ['linux', 'windows'] as const) {
+    const ipc = desktop(), own = fileAt(`kalender-${platform}.ifc`, withoutLiteralBytes()), other = join(dir, `kalender-${platform}-ander.ifc`);
+    try {
+      const { store } = await openAt({ kind: 'path', path: own }, withoutLiteralBytes());
+      edit(store);
+      assert.equal(await ctrlS(store), true);
+      assert.equal(store.getState().ifcLiteralCalendarIds, null, `${platform}: vooraf geen letterlijke kalender`);
+      const before = known(store);
+      store.getState().addTask({ name: 'Uurtaak', time: { ...store.getState().tasks[0]!.time, durationUnit: 'hours', durationMinutes: 240 } });
+      store.getState().runCPM();
+      ipc.faults.noIdentity = platform === 'windows';
+      ipc.choose(other);
+      try { assert((await store.getState().exportAs('ifc')).ok); } finally { ipc.faults.noIdentity = false; }
+      assert(readFileSync(other, 'utf8').includes("'LiteralTimes'"), `${platform}: de export schreef een letterlijke kalender`);
+      assert.deepEqual(store.getState().ifcLiteralCalendarIds, platform === 'windows' ? [store.getState().calendar.id] : null,
+        `${platform}: de kalenders tellen ${platform === 'windows' ? 'unknown als treffer' : 'een aantoonbaar ander bestand niet'}`);
+      assert.deepEqual(known(store), before, `${platform}: de vingerafdruk blijft`);
+    } finally { ipc.dispose(); }
+  }
+});
+
+await check('Automatisch opslaan: een rekenfout vóór het schrijven laat het veld staan', async () => {
+  const ipc = desktop(), own = fileAt('auto-rekenfout.ifc', plainBytes());
+  try {
+    const { store } = await openAt({ kind: 'path', path: own }, plainBytes());
+    const before = known(store);
+    store.getState().setAutoSaveToFile(true);
+    edit(store);
+    const failing: IfcOutputCompute = async () => { throw new IfcSaveWorkerError('crashed', 'proef: de opslagworker viel uit'); };
+    await quietly(() => createFileAutoSaveController({ getState: store.getState, enabled: () => true, compute: failing }).flush());
+    assert.equal(store.getState().isDirty, true, 'niets geschreven');
+    assert.deepEqual(onDisk(own), print(plainBytes()));
+    assert.deepEqual(known(store), before);
+  } finally { ipc.dispose(); }
+});
+
+await check('een onzekere plaatsing op het eigen pad (unknown, previous-stranded) maakt het veld onbekend', async () => {
+  const outcomes: [string, (n: number) => { reject: Record<string, string> } | undefined][] = [
+    ['unknown', n => n === 1 ? { reject: { code: 'source-changed' } } : undefined],
+    ['previous-stranded', n => n >= 2 ? { reject: { code: 'io', message: 'EIO' } } : undefined],
+  ];
+  for (const [label, answer] of outcomes) {
+    for (const route of ['Ctrl+S', 'Automatisch opslaan'] as const) {
+      const ipc = desktop(), path = fileAt(`onzeker-${label}-${route.replace(/[ +]/g, '-')}.ifc`, modelBytes);
+      try {
+        const { store } = await openAt({ kind: 'path', path }, modelBytes);
+        const unregister = recoveryRounds(store);
+        try {
+          assert.deepEqual(known(store), onDisk(path));
+          edit(store);
+          let n = 0;
+          ipc.faults.place = () => answer(++n);
+          try {
+            if (route === 'Ctrl+S') assert.equal(await quietly(() => ctrlS(store)), false, `${label}, ${route}: niet vastgelegd`);
+            else {
+              let now = 5_000_000;
+              store.getState().setAutoSaveToFile(true);
+              const controller = createFileAutoSaveController({ getState: store.getState, enabled: () => true, now: () => now });
+              controller.observe();
+              now += 31_000;
+              await quietly(() => controller.flushModels());
+            }
+          } finally { ipc.faults.place = null; }
+          assert.equal(store.getState().isDirty, true, `${label}, ${route}: niet opgeslagen`);
+          assert.deepEqual(known(store), null, `${label}, ${route}`);
+        } finally { unregister(); await clearRecovery(); }
+      } finally { ipc.dispose(); }
+    }
+  }
 });
 
 rmSync(dir, { recursive: true, force: true });
