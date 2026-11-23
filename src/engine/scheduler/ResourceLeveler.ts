@@ -511,8 +511,8 @@ export function levelResources(
           delayMin = Math.round((startDate.getTime() - beforeFloor.getTime()) / 60_000);
         } else {
           const anchor = nextCandidateFor(pickedTask, beforeFloor);
-          const anchorDay = workdayDateOfInstant(pickEngine, anchor, 'start') ?? anchor;
-          const targetDay = workdayDateOfInstant(pickEngine, startDate, 'start') ?? startDate;
+          const anchorDay = workdayDateOfInstant(pickEngine, anchor, 'start');
+          const targetDay = workdayDateOfInstant(pickEngine, startDate, 'start');
           delay = Math.max(delay, pickEngine.signedWorkDaysBetween(anchorDay, targetDay));
           if (pickEngine.isHourMode) delayMin = Math.round(pickEngine.workMinutesBetween(anchor, startDate));
         }

@@ -31,3 +31,6 @@ Draagt een taak minuten, dan verschuift `shiftByLevelingDelay` met de minuten en
   doorgifte de late datums van een vertraagde opvolger met haar vertraging terug voordat ze op de voorganger drukken
   (`shiftByLevelingDelay` met teken −1). Zonder die spiegel toont de voorganger in een keten P → A (vertraging) → S
   zoveel speling als de vertraging, terwijl ze kritiek is.
+- Voor een relatie die aan het einde van een dagenmaat-opvolger bindt, kan een vertraging over de statusdatumvloer
+  de taak op werkdagen van verschillende lengte leggen. De voorganger krijgt dan als relatiegrens het einde
+  berekend vanaf de teruggeschoven start, op de kalender van de opvolger (#1161).

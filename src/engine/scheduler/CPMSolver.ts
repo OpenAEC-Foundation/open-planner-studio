@@ -914,6 +914,27 @@ export class CPMSolver {
     return date;
   }
 
+  private successorDatesBeforeLeveling(
+    cal: CalendarEngine,
+    task: Task,
+    late: { ls: Date; lf: Date },
+    relation: Sequence['type'],
+    earlyStart: Date | undefined,
+  ): { ls: Date; lf: Date } {
+    const ls = this.shiftByLevelingDelay(cal, task, late.ls, -1);
+    const usesFinish = relation === 'FINISH_FINISH' || relation === 'START_FINISH';
+    const dataDate = this.dataDate;
+    const levelingCrossesStatusFloor = usesFinish && (task.levelingDelay ?? 0) > 0 && (task.levelingDelayMinutes ?? 0) > 0
+      && !task.levelingDelayElapsed && !isZeroDurationMilestone(task)
+      && task.time.completion === 0 && !task.time.actualStart && this.countsInWorkdays(task)
+      && dataDate && earlyStart && earlyStart > dataDate && !this.options.schedulingOptions.unstartedIgnoresStatusDate
+      && this.shiftByLevelingDelay(cal, task, earlyStart, -1) < dataDate;
+    const lf = levelingCrossesStatusFloor
+      ? this.finishFromStart(cal, ls, task)
+      : this.shiftByLevelingDelay(cal, task, late.lf, -1);
+    return { ls, lf };
+  }
+
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
     if (isFiniteNumber(seq.lagPercent)) {
       const predMin = isZeroDurationMilestone(predTask) ? 0 : durationMinutesOf(predTask, this.calendarFor(predTask));
@@ -2433,10 +2454,9 @@ export class CPMSolver {
             const effectiveSeq = succUsesRemainingWindow
               ? { ...seq, lagDays: 0, lagMinutes: 0, lagPercent: undefined }
               : this.completedRemainingLagSeq(percentResolvedSeq, task, lagEng);
-            const delayShiftedSuccResult = {
-              ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
-              lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
-            };
+            const delayShiftedSuccResult = this.successorDatesBeforeLeveling(
+              succCal, succTask, succResult, seq.type, earlyDates.get(succTask.id)?.es,
+            );
             const isStartSideRelation = seq.type === 'START_START' || seq.type === 'START_FINISH';
             const zeroRemainingPredTask: Task = isStartSideRelation
               ? {
@@ -2515,10 +2535,9 @@ export class CPMSolver {
         if (this.progressOverrideIgnoresRelation(task, succTask)) continue;
         if (succTask.isHammock) continue;
         const succCal = this.calendarFor(succTask);
-        const delayShiftedSuccResult = {
-          ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
-          lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
-        };
+        const delayShiftedSuccResult = this.successorDatesBeforeLeveling(
+          succCal, succTask, succResult, seq.type, earlyDates.get(succTask.id)?.es,
+        );
         const lateLagEng = this.relDeps.lagEngine(predCal, succCal);
         if (this.options.schedulingOptions?.startToStartLagFrom === 'actualStart'
           && this.dataDate !== null && this.inProgressStartLag(task, seq, lateLagEng)) continue;

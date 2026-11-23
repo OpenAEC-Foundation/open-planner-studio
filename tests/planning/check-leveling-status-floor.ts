@@ -3,6 +3,7 @@ import { createAppStoreContext } from '@/state/appStoreFactory';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import type { WorkCalendar } from '@/types/calendar';
 
 const { store } = createAppStoreContext();
 const state = store.getState;
@@ -69,3 +70,66 @@ const assertExistingPlacement = () => {
 assertExistingPlacement();
 reopened().runCPM();
 assertExistingPlacement();
+
+const related = createAppStoreContext().store.getState;
+related().setProject({ startDate: '2026-06-01' });
+related().setStatusDate('2026-06-02T13:00');
+const standard = related().calendar;
+const regular = [{ start: 480, end: 960 }];
+const crew: WorkCalendar = {
+  ...standard,
+  id: 'crew',
+  name: 'Ploeg',
+  workTime: { byWeekday: {
+    1: regular, 2: regular, 3: [{ start: 480, end: 1080 }], 4: [{ start: 480, end: 660 }],
+    5: regular, 6: [], 7: [],
+  } },
+};
+const craneCalendar: WorkCalendar = {
+  ...standard,
+  id: 'crane',
+  name: 'Kraankalender',
+  holidays: [{ name: 'Kraan niet beschikbaar', startDate: '2026-06-02', endDate: '2026-06-02' }],
+};
+related().commitCalendarLibrary([standard, crew, craneCalendar], standard.id);
+const predecessor = related().addTask({
+  name: 'Voorganger', calendarId: crew.id, time: createDefaultTaskTime('2026-06-01T09:00', 1, 'hours'),
+});
+const successor = related().addTask({
+  name: 'Opvolger', calendarId: crew.id, time: createDefaultTaskTime('2026-06-01T09:00', 1),
+});
+related().addSequence({ predecessorId: predecessor, successorId: successor, type: 'FINISH_FINISH', lagDays: 0 });
+const relatedCrane = related().addResource({
+  name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, calendarId: craneCalendar.id,
+});
+related().assignResource(successor, relatedCrane, 1, 'UNIFORM');
+related().runCPM();
+assert.deepEqual(related().resourceLoadResult?.overallocatedDays[relatedCrane], ['2026-06-02']);
+const withRelation = related().levelResources({ constrainToFloat: false });
+assert.equal(withRelation.shifts[successor]?.newStart, '2026-06-03T13:00');
+related().applyLeveling(withRelation);
+
+const assertRelatedPlacement = (current: ReturnType<typeof related>) => {
+  const pred = current.tasks.find(task => task.name === 'Voorganger')?.time;
+  const succ = current.tasks.find(task => task.name === 'Opvolger')?.time;
+  assert.deepEqual({
+    successorStart: succ?.earlyStart,
+    predecessorFinish: pred?.earlyFinish,
+    predecessorLateFinish: pred?.lateFinish,
+    predecessorFloatMinutes: pred?.totalFloatMinutes,
+    overloaded: current.resourceLoadResult?.overallocatedDays,
+  }, {
+    successorStart: '2026-06-03T13:00',
+    predecessorFinish: '2026-06-02T14:00',
+    predecessorLateFinish: '2026-06-02T14:00',
+    predecessorFloatMinutes: 0,
+    overloaded: {},
+  });
+};
+const relatedIfc = writeIFC(buildWriteIFCInput(related(), 'planOnly'));
+const relatedReopened = createAppStoreContext().store.getState;
+await relatedReopened().openOpenedFile({ name: 'nivelleren-einde-einde.ifc', content: relatedIfc, ref: null });
+assertRelatedPlacement(related());
+assertRelatedPlacement(relatedReopened());
+relatedReopened().runCPM();
+assertRelatedPlacement(relatedReopened());
