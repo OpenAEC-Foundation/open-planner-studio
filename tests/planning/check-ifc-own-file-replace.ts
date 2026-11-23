@@ -1433,8 +1433,8 @@ const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoor
 const MAIN_CALLS: Record<'aan' | 'uit', string[]> = {
   // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
   aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
-    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|lstat <map>/model.ifc',
-    'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
+    'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
+    'plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
   uit: ['plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
 };
 for (const flag of [true, false]) {

@@ -113,6 +113,7 @@ const tempAppData = () => mkdtempSync(join(tmpdir(), 'ops-804-appdata-'));
 const OPEN_IN_TAB_SAVE = 'notifications.ifcForeignTargetOpenInTab';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
 const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
+const KNOWN_TARGET_AUTOSAVE = 'notifications.ifcForeignAutoSaveTargetChanged';
 const UNREADABLE_SAVE = 'notifications.ifcUnreadableTargetSave';
 const UNREADABLE_AUTOSAVE = 'notifications.ifcUnreadableTargetAutoSave';
 const MODEL_KEYS = [SAVE_BLOCKED, SOURCE_MISSING, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
@@ -1723,10 +1724,11 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
     auto.replace(t.bytes);
     A().addTask({ name: 'Werk voor AutoSave' });
     await createFileAutoSaveController({ getState: A, enabled: () => true }).flush();
-    eq(`fixronde 4, handle, ${t.name}: AutoSave ${t.refuse ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
+    const otherVersion = sha(t.bytes) !== sha(showcase);
+    eq(`fixronde 4, handle, ${t.name}: AutoSave ${t.refuse ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : otherVersion ? 'stopt zonder modelweigering: het bestand is niet meer de bekende versie' : 'schrijft'}`,
       t.refuse ? [auto.writes.length, auto.text() === dec(t.bytes), A().isDirty, noticeCount(autoStore, autoKey)]
-        : [auto.writes.length, A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE) + noticeCount(autoStore, UNREADABLE_AUTOSAVE)],
-      t.refuse ? [0, true, true, 1] : [1, false, 0]);
+        : [auto.writes.length, A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE) + noticeCount(autoStore, UNREADABLE_AUTOSAVE), noticeCount(autoStore, KNOWN_TARGET_AUTOSAVE)],
+      t.refuse ? [0, true, true, 1] : otherVersion ? [0, true, 0, 1] : [1, false, 0, 0]);
   }
   // 9b. Tauri-pad: dezelfde doelen via de echte plugin-JS (`open`, `read`, `seek`) met nep-IPC naar Node-fs.
   const dir = mkdtempSync(join(tmpdir(), 'ops-804-r4-'));
@@ -1790,10 +1792,12 @@ for (const entry of ['herstel', 'backup'] as const) for (const route of ['handle
       writeFileSync(autoPath, t.bytes);
       A().addTask({ name: 'Werk voor AutoSave' });
       await createFileAutoSaveController({ getState: A, enabled: () => true }).flush();
-      eq(`fixronde 4, Tauri, ${t.name}: AutoSave ${t.refuse ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : 'schrijft'}`,
+      const otherVersion = sha(t.bytes) !== sha(showcase);
+      eq(`fixronde 4, Tauri, ${t.name}: AutoSave ${t.refuse ? 'schrijft niet, de bestaande tekst, A blijft gewijzigd, één melding' : otherVersion ? 'stopt zonder modelweigering: het bestand is niet meer de bekende versie' : 'schrijft'}`,
         t.refuse ? [sha(readFileSync(autoPath)), A().isDirty, noticeCount(autoStore, autoKey)]
-          : [readFileSync(autoPath, 'utf8').includes('Werk voor AutoSave'), A().isDirty, noticeCount(autoStore, TARGET_AUTOSAVE) + noticeCount(autoStore, UNREADABLE_AUTOSAVE)],
-        t.refuse ? [sha(t.bytes), true, 1] : [true, false, 0]);
+          : [otherVersion ? sha(readFileSync(autoPath)) === sha(t.bytes) : readFileSync(autoPath, 'utf8').includes('Werk voor AutoSave'), A().isDirty,
+            noticeCount(autoStore, TARGET_AUTOSAVE) + noticeCount(autoStore, UNREADABLE_AUTOSAVE), noticeCount(autoStore, KNOWN_TARGET_AUTOSAVE)],
+        t.refuse ? [sha(t.bytes), true, 1] : otherVersion ? [true, true, 0, 1] : [true, false, 0, 0]);
     }
     eq('fixronde 4, Tauri: de lezer sluit elk bestand', ipc.openHandles(), 0);
   } finally {
