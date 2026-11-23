@@ -4760,17 +4760,6 @@ en noem het in je rapport of PR-tekst.
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
       schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
       bewezen. — S
-1990. **De check van de opslagworker faalde twee keer in CI, in PR's die de opslagworker niet raken.** In `tests/planning/check-save-worker.ts`, het blok
-      "knownbug 1936: een latere startfout", faalde de stap "na een verlopen verzoek, dan load-fails: de merge daarna"
-      met `IfcSaveWorkerError` waar de check een andere uitkomst verwachtte. Alleen in de tijdzonerun TZ UTC; de andere
-      vier runs van dezelfde check in dezelfde job waren groen, en de PR raakte de opslagworker niet (#1158: alleen
-      commentaar uit `taskSlice.ts`).
-      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45179505349/job/137709575181.
-      Een tweede keer op #1160 (alleen commentaar uit `ResourceLeveler.ts`), in hetzelfde blok, de stap "na een
-      afgebroken ronde, dan throws: de merge daarna", met `IfcSaveWorkerError: De opslagworker startte niet op tijd`,
-      alleen in de tijdzonerun TZ Pacific/Midway.
-      Run: https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/45184831754/job/137727836776. De
-      oorzaak is niet uitgezocht. — S
 
 ## Wensen en open taken (geen bug)
 
