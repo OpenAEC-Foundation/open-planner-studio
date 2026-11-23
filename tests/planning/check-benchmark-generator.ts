@@ -40,7 +40,6 @@ const truthy = (label: string, got: boolean) => {
   if (!got) diffs.push(`${label}: verwacht waar, kreeg onwaar`);
 };
 
-// Ook kleine projecten mogen geen relaties naar niet-bestaande taken genereren.
 for (const size of [1, 2, 3]) {
   const g = generateBenchmarkProject(size, { seed: 0x1fc });
   const ids = new Set(g.tasks.map(t => t.id));

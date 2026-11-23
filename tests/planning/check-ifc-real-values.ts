@@ -25,8 +25,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   ok(`${label}: kreeg ${JSON.stringify(got)}, verwacht ${JSON.stringify(want)}`, JSON.stringify(got) === JSON.stringify(want));
 }
 
-// Een ongeldige verplichte verwijzing mag nooit stil als #0 in een IFC terechtkomen (knownbug 1020).
-// Onbekende WBS-kinderen werden al bewust overgeslagen en blijven dat.
 {
   const input = createIfcNestingFixture(20, 'breed');
   const sequence = input.sequences[0];

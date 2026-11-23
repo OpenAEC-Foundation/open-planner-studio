@@ -236,7 +236,6 @@ function ref(ctx: WriteContext, key: string): string {
   return `#${id}`;
 }
 
-/** Alleen gebruiken waar ontbrekende verwijzingen bewust worden overgeslagen. */
 function optionalRef(ctx: WriteContext, key: string): string | null {
   const id = ctx.idMap.get(key);
   return id === undefined ? null : `#${id}`;
