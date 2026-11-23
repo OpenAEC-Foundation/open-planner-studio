@@ -200,7 +200,6 @@ ok('clearLeveling pusht een undo-snapshot (geen stille no-op)',
 eq('en meldt het verlies (eerste keer voor dit document)',
   S().ui.notifications.filter(n => n.messageKey === notifKey).length, 1);
 
-// Knownbug 507: toets de verse baseline ook met een bewust geldige maar stale CPMResult.
 {
   const start = '2026-06-01T08:00';
   const finish = '2026-06-01T16:00';
@@ -240,9 +239,6 @@ eq('en meldt het verlies (eerste keer voor dit document)',
   eq('507 controle: geldige kalender levert wel een proefberekening',
     level(consistent, PROJECT_CAL, [PROJECT_CAL]).projectEndAfter, good.projectEnd);
 
-  // Directe aanroep met inconsistente data, GEEN geldige store-invoer: daar wordt de projectcache
-  // op de bibliotheek gesynchroniseerd. CPM gebruikt zijn reeds gecachte projectengine voor
-  // deze id; de nivelleerder resolveert de expliciete taakverwijzing opnieuw via de bibliotheek.
   const sameIdNoHours = { ...noHours, id: PROJECT_CAL.id };
   const direct = freshTask(PROJECT_CAL.id);
   eq('507 directe aanroep: de baseline accepteert een conflicterende kalender met dezelfde id',
