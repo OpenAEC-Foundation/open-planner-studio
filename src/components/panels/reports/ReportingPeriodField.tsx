@@ -35,12 +35,6 @@ interface Props {
   onChange: (next: ReportingPeriod) => void;
   /** `data-ops-report-option`-sleutel voor tests. */
   dataKey: string;
-  /**
-   * Dicht, zoals een veld in het eigenschappenpaneel: de labels klein en in hoofdletters zonder dubbele punt
-   * (`Field`, `.rs-field-label`) en de keuzelijst met de opvulling van de andere keuzelijsten. Alleen in de
-   * zijbalk van het Rapport-tabblad (#817; fixronde na council ronde 5).
-   */
-  compact?: boolean;
 }
 
 /** De referentiedag en projectspanne uit de live store — dezelfde bron als `useReportContext`.
@@ -56,63 +50,92 @@ export function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
   }, [period, tasks, statusDate, today]);
 }
 
-export function ReportingPeriodField({ id, value, onChange, dataKey, compact = false }: Props) {
+export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
   const { t } = useTranslation('report');
   const dd = useDisplayDate();
   const resolved = useResolvedPeriod(value);
   const isCustom = value.preset === 'custom';
-  // Kladwaarden van de datumvelden: de gebruiker mag een datum half intypen zonder dat elke
-  // toetsaanslag het rapport herrekent of het veld terugspringt; commit zodra beide geldig zijn.
-  const [draftFrom, setDraftFrom] = useState(resolved.from);
-  const [draftTo, setDraftTo] = useState(resolved.to);
-  useEffect(() => { setDraftFrom(resolved.from); setDraftTo(resolved.to); }, [resolved.from, resolved.to]);
-
-  const incomplete = isCustom && (!isIsoDay(draftFrom) || !isIsoDay(draftTo));
-  const invalidRange = isCustom && !incomplete && draftTo < draftFrom;
-  const invalid = incomplete || invalidRange;
-
-  const commitCustom = (from: string, to: string) => {
-    if (!isIsoDay(from) || !isIsoDay(to) || to < from) return;
-    if (from === value.from && to === value.to) return;
-    onChange({ preset: 'custom', from, to });
-  };
 
   const changePreset = (preset: ReportingPeriodPreset) => {
     if (preset === value.preset) return;
-    // Naar Aangepast: start met de datums die de vorige keuze opleverde (die staan al in beeld).
     if (preset === 'custom') onChange({ preset: 'custom', from: resolved.from, to: resolved.to });
     else onChange({ preset });
+  };
+
+  const shownDate = (which: 'from' | 'to') => (
+    <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: '11rem' }}>
+      <span className="text-text-secondary flex-shrink-0" data-ops-report-period-label={which}>
+        {t(which === 'from' ? 'tableReports.options.periodFrom' : 'tableReports.options.periodTo')}
+      </span>
+      <span className="flex-1 min-w-0 truncate" data-ops-report-option={`${dataKey}.${which}`} data-ops-readonly>
+        {dd.date(which === 'from' ? resolved.from : resolved.to)}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-1 min-w-0" data-ops-report-period={dataKey}>
+      <div className="flex flex-col gap-1 min-w-0">
+        <label className="text-text-secondary" htmlFor={id}>{t('tableReports.options.reportingPeriod')}</label>
+        <Select
+          id={id}
+          className="w-full min-w-0"
+          aria-label={t('tableReports.options.reportingPeriod')}
+          value={value.preset}
+          onChange={v => changePreset(v as ReportingPeriodPreset)}
+          options={REPORTING_PERIOD_PRESETS.map(p => ({ value: p, label: t(`tableReports.periodPresets.${p}`) }))}
+        />
+      </div>
+      {isCustom ? (
+        <CustomPeriodDates id={id} period={resolved} onChange={onChange} dataKey={dataKey} />
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+          {shownDate('from')}
+          {shownDate('to')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CustomPeriodDates({ id, period, onChange, dataKey, compact = false }: {
+  id: string;
+  period: ResolvedPeriod;
+  onChange: (next: ReportingPeriod) => void;
+  dataKey: string;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation('report');
+  const [draftFrom, setDraftFrom] = useState(period.from);
+  const [draftTo, setDraftTo] = useState(period.to);
+  useEffect(() => { setDraftFrom(period.from); setDraftTo(period.to); }, [period.from, period.to]);
+
+  const incomplete = !isIsoDay(draftFrom) || !isIsoDay(draftTo);
+  const invalidRange = !incomplete && draftTo < draftFrom;
+  const invalid = incomplete || invalidRange;
+
+  const commit = (from: string, to: string) => {
+    if (!isIsoDay(from) || !isIsoDay(to) || to < from) return;
+    if (from === period.from && to === period.to) return;
+    onChange({ preset: 'custom', from, to });
   };
 
   const dateInput = (which: 'from' | 'to') => {
     const draft = which === 'from' ? draftFrom : draftTo;
     const setDraft = which === 'from' ? setDraftFrom : setDraftTo;
     const label = t(which === 'from' ? 'tableReports.options.periodFrom' : 'tableReports.options.periodTo');
-    const labelClass = compact ? 'rs-field-label flex-shrink-0' : 'text-text-secondary flex-shrink-0';
-    if (!isCustom) {
-      return (
-        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: compact ? undefined : '11rem' }}>
-          <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
-          <span className="flex-1 min-w-0 truncate" data-ops-report-option={`${dataKey}.${which}`} data-ops-readonly>
-            {dd.date(which === 'from' ? resolved.from : resolved.to)}
-          </span>
-        </div>
-      );
-    }
-    // Het datumveld van de app, met de eigen kalender (#904): het commit pas bij Enter, bij het verlaten of
-    // bij een gekozen dag, en alleen een bestaande datum.
     return (
       <span className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: compact ? undefined : '11rem' }}>
-        <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
+        <span className={compact ? 'rs-field-label flex-shrink-0' : 'text-text-secondary flex-shrink-0'} data-ops-report-period-label={which}>{label}</span>
         <span className="flex-1 min-w-0" data-ops-report-option={`${dataKey}.${which}`}>
           <DateTextInput
             value={draft}
             ariaLabel={label}
             onCommit={next => {
               setDraft(next);
-              if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
+              if (which === 'from') commit(next, draftTo); else commit(draftFrom, next);
             }}
-            className={compact ? 'input w-full !text-small !leading-4 !px-2.5 !py-1.5' : 'input w-full !text-small !leading-4 !px-2 !py-1'}
+            className={compact ? 'input w-full !text-small !leading-4 !px-2 !py-1.5' : 'input w-full !text-small !leading-4 !px-2 !py-1'}
             invalid={invalid}
           />
         </span>
@@ -121,22 +144,7 @@ export function ReportingPeriodField({ id, value, onChange, dataKey, compact = f
   };
 
   return (
-    <div className="flex flex-col gap-1 min-w-0" data-ops-report-period={dataKey}>
-      {/* Label bóven de keuzelijst: naast een `w-32`-label blijven bij de standaardkolom 53 px over
-          en leest élke preset als "Hele pr…". */}
-      <div className="flex flex-col gap-1 min-w-0">
-        <label className={compact ? 'rs-field-label' : 'text-text-secondary'} htmlFor={id}>
-          {compact ? t('studio.reportingPeriod') : t('tableReports.options.reportingPeriod')}
-        </label>
-        <Select
-          id={id}
-          className={compact ? 'w-full min-w-0 !py-1.5 !px-2.5' : 'w-full min-w-0'}
-          aria-label={compact ? t('studio.reportingPeriod') : t('tableReports.options.reportingPeriod')}
-          value={value.preset}
-          onChange={v => changePreset(v as ReportingPeriodPreset)}
-          options={REPORTING_PERIOD_PRESETS.map(p => ({ value: p, label: t(`tableReports.periodPresets.${p}`) }))}
-        />
-      </div>
+    <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
         {dateInput('from')}
         {dateInput('to')}
@@ -146,6 +154,6 @@ export function ReportingPeriodField({ id, value, onChange, dataKey, compact = f
           {t(incomplete ? 'tableReports.options.periodIncomplete' : 'tableReports.options.periodInvalid')}
         </div>
       )}
-    </div>
+    </>
   );
 }

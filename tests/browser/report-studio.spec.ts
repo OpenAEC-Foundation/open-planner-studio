@@ -513,6 +513,33 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(rowSource).toEqual(['gantt', '', false]);
 
+  const ganttPeriod = page.locator('[data-ops-report-period="ganttPeriod"]');
+  const ownPeriod = page.locator('[data-rs-option="ownPeriod"]');
+  await expect(ownPeriod).not.toBeChecked();
+  await expect(ganttPeriod).toHaveCount(0);
+  await ownPeriod.check();
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'custom', from: '2026-09-07', to: '2026-10-09' });
+  const fillPeriodDay = async (which: RegExp, day: string, month: string) => {
+    const parts = ganttPeriod.getByRole('group', { name: which }).getByRole('textbox');
+    await parts.nth(0).fill(day);
+    await parts.nth(1).fill(month);
+    await parts.nth(2).fill('2026');
+    await page.keyboard.press('Enter');
+  };
+  await fillPeriodDay(/^(From|Van)$/, '21', '09');
+  await fillPeriodDay(/^(To|Tot)$/, '30', '09');
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'custom', from: '2026-09-21', to: '2026-09-30' });
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ })).toHaveCount(0);
+  await expect(page0.locator('text', { hasText: /^Wanden metselen$/ }).first()).toBeAttached();
+  await expect(page.locator('[data-rs-period-outside]')).toHaveText(/1/);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await expect(page.locator('[data-rs-summary="tasks"]')).toContainText(/21.*30/);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await ownPeriod.uncheck();
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'project' });
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
+  await expect(ganttPeriod).toHaveCount(0);
+
   // Voet op elke pagina, ook als de tijdlijn over twee vellen loopt: één rij hoog en twee vellen breed krijgt op
   // beide vellen de volle voetstrook. Zonder de optie heeft geen vel een los voetvenster, wel kop en body.
   await openStep(page, 'page');
@@ -586,7 +613,6 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   expect(await saved()).toMatchObject({ reportType: 'gantt', layoutId: 'builtin:resource-diagram' });
   const rdChoice = page.locator('[data-rs-layout="builtin:resource-diagram"]');
   const resourceCounts = page.locator('[data-rs-resource-counts]');
-  const periodPicker = page.getByLabel(/^(Reporting period|Rapportageperiode)$/);
   const reportTypePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
   const toOtherReportAndBack = async () => {
     await reportTypePicker.click();
@@ -600,9 +626,8 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   };
   // De periode loopt tot en met 18 september: alleen Fundering storten (Ploeg A) valt erin, Wanden metselen niet.
   await page.locator('[data-rs-step-head="tasks"]').click();
-  await periodPicker.click();
-  await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
-  const periodTo = page.locator('[data-ops-report-period="resourceGanttPeriod"]').getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
+  await ownPeriod.check();
+  const periodTo = page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
   await periodTo.nth(0).fill('18');
   await periodTo.nth(1).fill('09');
   await periodTo.nth(2).fill('2026');
@@ -615,15 +640,54 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await toOtherReportAndBack();
   await expect(rdChoice).toHaveAttribute('aria-checked', 'true');
   await expect(resourceCounts).toHaveText(countsInPeriod);
-  await expect(periodPicker).toHaveAttribute('data-value', 'custom');
+  await expect(ownPeriod).toBeChecked();
   await expect(page0.locator('text', { hasText: /^Ploeg A \(1\)$/ }).first()).toBeAttached();
   await expect(page0.locator('text', { hasText: /^Kraan/ })).toHaveCount(0);
   expect(await saved()).toMatchObject({
-    reportType: 'gantt', layoutId: 'builtin:resource-diagram', resourceGantt: { period: { preset: 'custom', to: '2026-09-18' } },
+    reportType: 'gantt', layoutId: 'builtin:resource-diagram', period: { preset: 'custom', to: '2026-09-18' },
   });
-  await periodPicker.click();
-  await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
+  await ownPeriod.uncheck();
   await expect(resourceCounts).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
+  await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('');
+  await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-14'));
+  const oldPeriod = { preset: 'next2Weeks' };
+  await refreshStored({ period: undefined, resourceGantt: { ...(await saved()).resourceGantt, period: oldPeriod } });
+  await expect(ownPeriod).not.toBeChecked();
+  const depsBefore = (await saved()).showDeps;
+  await openStep(page, 'bars');
+  await page.locator('[data-rs-switch="showDeps"]').click();
+  await expect.poll(async () => (await saved()).showDeps).toBe(!depsBefore);
+  await page.locator('[data-rs-switch="showDeps"]').click();
+  await expect.poll(async () => (await saved()).showDeps).toBe(depsBefore);
+  await openStep(page, 'tasks');
+  await rdChoice.click();
+  await expect(ownPeriod).toBeChecked();
+  await expect.poll(async () => { const s = await saved(); return [s.period, s.legacyResourcePeriod]; }).toEqual([oldPeriod, undefined]);
+  const shownFrom = ganttPeriod.getByRole('group', { name: /^(From|Van)$/ }).getByRole('textbox');
+  const shownTo = ganttPeriod.getByRole('group', { name: /^(To|Tot)$/ }).getByRole('textbox');
+  await expect(shownFrom.nth(0)).toHaveValue('14');
+  await expect(shownFrom.nth(1)).toHaveValue('09');
+  await expect(shownFrom.nth(2)).toHaveValue('2026');
+  await expect(shownTo.nth(0)).toHaveValue('27');
+  await expect(page0.locator('text', { hasText: /^September 2026$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^(October|Oktober) 2026$/ })).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setStatusDate('2026-09-21'));
+  await expect(shownFrom.nth(0)).toHaveValue('21');
+  await expect(shownTo.nth(0)).toHaveValue('04');
+  await expect(shownTo.nth(1)).toHaveValue('10');
+  await expect(page0.locator('text', { hasText: /^(October|Oktober) 2026$/ }).first()).toBeAttached();
+  await refreshStored({});
+  await expect(shownFrom.nth(0)).toHaveValue('21');
+  expect((await saved()).period).toEqual(oldPeriod);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await expect(page.locator('[data-rs-summary="tasks"]')).toContainText(/21.*04/);
+  await openStep(page, 'tasks');
+  await shownTo.nth(0).fill('02');
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'custom', from: '2026-09-21', to: '2026-10-02' });
+  await ownPeriod.uncheck();
+  await expect.poll(async () => (await saved()).period).toEqual({ preset: 'project' });
   // Een oude opslag kent het Resourcediagram alleen als rapporttype: die opent als de layout, en ook die keuze
   // overleeft een uitstap naar een ander rapport.
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
@@ -640,7 +704,7 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await writeStored({ resourceGantt: { ...(await saved()).resourceGantt, groupByType: true } });
   await page.locator('[data-rs-step="tasks"] [data-rs-reset="tasks"]').click();
   await expect.poll(async () => (await saved()).resourceGantt).toEqual({
-    pageBreakPerResource: false, includeUnassigned: false, groupByType: false, period: { preset: 'project' }, showAssignmentColumns: true,
+    pageBreakPerResource: false, includeUnassigned: false, groupByType: false, showAssignmentColumns: true,
   });
   expect(await rowSource()).toEqual(['gantt', '', false]);
   await page.locator('[data-rs-undo-button]').click();

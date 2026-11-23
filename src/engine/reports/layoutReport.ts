@@ -3,6 +3,7 @@ import type { GroupLevel, Layout, SortLevel } from '@/types/view';
 import { computeViewRows, sortTasks, type ViewContext, type ViewRow } from '@/engine/view/visibleRows';
 import { evaluate } from '@/engine/view/filterEval';
 import { computeResourceGanttRows, type ResourceGanttRowsOptions, type ResourceGanttRowsResult } from './resourceGantt';
+import { taskInPeriod } from './reportPeriodRows';
 
 /**
  * Een layout toegepast op de Gantt-afdruk (Rapport-tabblad, issue #861). Puur: geen React of store.
@@ -24,7 +25,6 @@ export interface LayoutReportInput {
   ctx: ViewContext;
 }
 
-/** De opties van het oude rapporttype Resourcediagram (alleen gelezen bij een resourcegroepering). */
 export interface LayoutResourceOptions {
   includeUnassigned: boolean;
   groupByType: boolean;
@@ -107,8 +107,10 @@ export function computeLayoutReportRows(
     );
     return { rows: resource.rows, resource, multiBand: true };
   }
+  const { window } = resourceOptions;
   const rows = computeViewRows(tasks, {
     filter, group, sort, collapsedTaskIds: new Set(), collapsedGroupKeys: new Set(),
+    within: window ? task => taskInPeriod(task, window) : undefined,
   }, ctx);
   return { rows, resource: null, multiBand: groupIsMultiBand(group) };
 }

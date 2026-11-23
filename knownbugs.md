@@ -857,6 +857,45 @@ en noem het in je rapport of PR-tekst.
     van een baselinemijlpaal op het begin van het tijdvenster maar half te zien (mijlpaal op
     2026-10-20T00:00 bij een rapport vanaf 20 oktober). Vervolgpunt uit review ronde 2 van PR #403
     (GPT-6.1-Sol). — B
+1860. **VERVOLG (#997): rond middernacht kiest het tijdvak van de Gantt-afdruk een rij waarvan de balk niet getekend wordt.**
+    Het rijfilter (`taskInPeriod` in `reportPeriodRows.ts`) vergelijkt datums per dag, de render (`barInWindow` in
+    `printPreview.ts`) per moment met een exclusief einde. Een nachttaak van 24 september 22.00 uur tot 25 september
+    00.00 uur krijgt bij een tijdvak vanaf 25 september een rij met een lege balk. Richting: voor beide dezelfde
+    intervalregel, met behoud van mijlpalen op de grens. Gevonden door de review van #1005 (Sol, ronde 2). — B
+1861. **VERVOLG (#997): *Buiten de periode* van het resourcediagram telt een taak mee die door een andere instelling al ontbreekt.**
+    `computeResourceGanttRows` (`resourceGantt.ts`) telt elke bladtaak buiten het tijdvak, ook een taak zonder resource
+    terwijl *Taken zonder resource meenemen* uit staat. Voorbeeld: één toegewezen taak in het tijdvak en één taak zonder
+    resource erbuiten; *Hele project* en het tijdvak drukken dezelfde taak af, toch staat er *Buiten de periode: 1*.
+    Richting: alleen taken tellen die met dezelfde broninstellingen op papier zouden komen. Gevonden door de review van
+    #1005 (Sol, ronde 3). — B
+1862. **VERVOLG (#997): met kleuren per resource kan de balk van een zichtbare taak op de rand van het tijdvak wegvallen.**
+    Een taak met twee ploegen van zondag 4 oktober 08.00 uur tot dinsdag 6 oktober 16.00 uur, tijdvak tot en met die
+    zondag, werkdagas: in de standaardkleur tekent de afdruk een balk van 3 px, met kleuren per resource geen, omdat de
+    kleurvakken (`advies.kind === 'segments'` in `printPreview.ts`) de minimumbreedte omzeilen. Richting: voor een smal
+    zichtbaar stuk de bestaande terugval naar één kleur. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1863. **VERVOLG (#997): een baselineruit steekt over de rand van het tijdvak en een fase kan een vals eindhaakje krijgen.**
+    De afdruk klemt van een baselineruit alleen het middelpunt (`clampX` in `printPreview.ts`), dus de ruit loopt tot
+    x = 1061,48 bij een rand op 1058,52. Een fase die op zondag eindigt, krijgt in een afdruk tot en met vrijdag een
+    eindhaakje, omdat beide grenzen op de werkdagas samenvallen. Richting: de ruit met haar halve diagonaal klemmen en het
+    eindhaakje uit het echte eindmoment afleiden. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1864. **VERVOLG (#997): een mijlpaal met maar één datum valt uit het tijdvak van de Gantt-afdruk.** `taskInPeriod`
+    (`reportPeriodRows.ts`) eist een begin- én einddatum; een mijlpaal met alleen een startdatum staat bij *Hele project*
+    op papier en ontbreekt bij een tijdvak dat haar dag bevat. De tekenaar kent die vorm al (`milestoneMoment`). Richting:
+    voor mijlpalen hetzelfde moment als de ruit. Gevonden door de review van #1005 (Sol, ronde 4). — B
+1866. **VERVOLG (#997): op een smal blad valt het statuslabel weg.** Bij een tijdvak van één dag op een vaste schaal van
+    22 px per dag tekent de afdruk de statuslijn zonder datumlabel: `reserveHeaderLineLabel` (`printPreview.ts`) geeft de
+    reservering op zodra de tekst niet past. Richting: de bestaande afkortlogica gebruiken als een korter label past.
+    Gevonden door de review van #1005 (Sol, ronde 5). — B
+1867. **VERVOLG (#997): bij een tijdas van een paar pixels verdwijnen statuslijn en mijlpaalruit achter de tabel.** Met één
+    dag op een vaste schaal van 1 px per dag loopt de tijdas van x = 335 tot 336; de klem van de statuslijn
+    (`printPreview.ts`, 1,25 px binnen de rand) en die van de ruit gaan uit van meer ruimte, dus tabel en rand bedekken
+    ze. Richting: eerst de tekenbreedte op de beschikbare ruimte begrenzen, dan het middelpunt bepalen. Gevonden door de
+    review van #1005 (Sol, ronde 6). — B
+1868. **VERVOLG (#997): het dagcijfer van een weekenddag in een tijdvak zit vrijwel tegen het weeknummer.** Sinds #997
+    staan bij een tijdvak ook de weekenddagcijfers in de kop van de afdruk. Met zondag als weekstart en 16 px per dag
+    zit er 0,04 px tussen `W40` en `27`, op overlappende x-posities (`drawTimelineHeader` in `printPreview.ts`).
+    Richting: het dagcijfer voorrang geven als het weeknummer op die plek te weinig ruimte heeft. Gevonden door de
+    review van #1005 (Sol, ronde 7). — B
 454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
     3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
     PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm

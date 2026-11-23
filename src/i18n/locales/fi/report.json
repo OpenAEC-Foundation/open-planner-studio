@@ -149,7 +149,7 @@
     "groupByType": "Ryhmittele resurssityypin mukaan",
     "showAssignmentColumns": "Näytä kuormitusaste/pv ja käyrä",
     "columnsDropped": "Sarakkeet Kuormitusaste/pv ja Käyrä on jätetty pois: taulukko jätti aikajanalle liian vähän tilaa. Suurempi paperi tai vaakasuunta, pienempi fonttikoko tai kapeampi taulukko antaa lisää tilaa.",
-    "emptyPeriod": "Ei tehtäviä aikajaksolla — valitse toinen aikajakso tai Koko projekti.",
+    "emptyPeriod": "Omalla aikajaksolla ei ole tehtäviä — valitse muut päivämäärät tai poista Oma aikajakso käytöstä.",
     "outsidePeriod": "Aikajakson ulkopuolella:",
     "empty": "Ei resurssikohdistuksia — kohdista ensin resursseja tehtäviin.",
     "resources": "Resurssit:",
@@ -465,7 +465,6 @@
     "pages_one": "{{count}} sivu",
     "pages_other": "{{count}} sivua",
     "mm": "{{value}} mm",
-    "reportingPeriod": "Raportointiaikajakso",
     "tasks": {
       "title": "Mitkä tehtävät",
       "all": "Kaikki tehtävät",
@@ -646,6 +645,12 @@
       "chart": "Palkit ja aikajana",
       "footer": "Selite ja alatunniste",
       "page": "Sivu"
+    },
+    "period": {
+      "hint": "Raportissa ovat vain tämän aikajakson tehtävät. Aikajana kattaa täsmälleen aikajakson; sen yli jatkuva palkki katkaistaan reunasta.",
+      "outside_one": "{{count}} tehtävä on aikajakson ulkopuolella eikä ole raportissa.",
+      "outside_other": "{{count}} tehtävää on aikajakson ulkopuolella eikä ole raportissa.",
+      "own": "Oma aikajakso"
     }
   },
   "customFont": {
