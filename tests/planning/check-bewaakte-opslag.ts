@@ -40,9 +40,13 @@ const AUTOSAVE_CHANGED = 'notifications.ifcForeignAutoSaveTargetChanged';
 const known = (store: Store) => store.getState().knownTargetFingerprint;
 let added = 0;
 const edit = (store: Store) => {
-  store.getState().addTask({ name: `Toegevoegd voor de bewaakte opslag ${++added}` });
+  const name = `Toegevoegd voor de bewaakte opslag ${++added}`;
+  store.getState().addTask({ name });
   store.getState().runCPM();
+  return name;
 };
+const holds = (path: string, name: string) => readFileSync(path, 'utf8').includes(`'${name}'`);
+const notices = (store: Store, key: string) => store.getState().ui.notifications.filter(n => n.messageKey === key).length;
 const ctrlS = (store: Store) => store.getState().saveFileForDocument(store.getState().activeDocumentId);
 const errors = (store: Store) => store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey);
 const sameSizeOtherContent = (data: Uint8Array): Uint8Array => {
@@ -89,11 +93,16 @@ function desktop() {
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
   const invoke = win.__TAURI_INTERNALS__.invoke;
   let answer: string | null = null;
+  let before: ((command: string) => void) | undefined;
   win.__TAURI_INTERNALS__.invoke = async (...args) => {
     if (args[0] === 'plugin:dialog|save') return answer;
+    before?.(String(args[0]));
     return invoke(...args);
   };
-  return { ...ipc, choose: (path: string | null) => { answer = path; } };
+  const once = (command: RegExp, action: () => void) => {
+    before = seen => { if (!command.test(seen)) return; before = undefined; action(); };
+  };
+  return { ...ipc, choose: (path: string | null) => { answer = path; }, once };
 }
 
 function saveWorker() {
@@ -356,6 +365,178 @@ await check('de uitwegen blijven zoals main: Opslaan als over het gewijzigde eig
     assert.deepEqual(known(store), onDisk(path));
     assert.deepEqual(errors(store), [CHANGED]);
   } finally { ipc.dispose(); }
+});
+
+async function stoppedAutoSave(name: string, failRead = false) {
+  const ipc = desktop(), path = fileAt(name, plainBytes());
+  const { store } = await openAt({ kind: 'path', path }, plainBytes());
+  const controller = autoSave(store);
+  edit(store);
+  const foreign = sameSizeOtherContent(plainBytes());
+  writeFileSync(path, foreign);
+  if (failRead) ipc.once(/^plugin:fs\|read_file$/, () => { throw new Error('leesfout voor de proef'); });
+  await controller.flush();
+  assert.equal(store.getState().isDirty, true, 'gestopt: niets geschreven');
+  assert.deepEqual(onDisk(path), print(foreign));
+  assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+  return { ipc, path, store, controller, foreign };
+}
+const roundWritesLaterWork = async (stopped: Awaited<ReturnType<typeof stoppedAutoSave>>) => {
+  const { store, controller, path } = stopped;
+  const later = edit(store);
+  await controller.flush();
+  return holds(path, later) && !store.getState().isDirty;
+};
+
+await check('stop van de bewaking × geen eigen opslag: de stop blijft, ook na een geweigerde Ctrl+S en een bestand dat weer klopt', async () => {
+  const stopped = await stoppedAutoSave('stop-blijft.ifc');
+  try {
+    const { store, path, foreign } = stopped;
+    assert.equal(await ctrlS(store), false, 'Ctrl+S weigert: het bestand is nog veranderd');
+    assert.equal(await roundWritesLaterWork(stopped), false);
+    assert.deepEqual(onDisk(path), print(foreign));
+    writeFileSync(path, plainBytes());
+    assert.equal(await roundWritesLaterWork(stopped), false, 'de planner sloeg niet zelf op');
+    assert.equal(notices(store, AUTOSAVE_CHANGED), 1);
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('stop van de bewaking × geslaagde Ctrl+S (ook Opslaan in de sluitvraag) met nieuw werk tijdens het schrijven: de stop vervalt', async () => {
+  const stopped = await stoppedAutoSave('stop-ctrl-s.ifc');
+  try {
+    const { store, path, ipc } = stopped;
+    writeFileSync(path, plainBytes());
+    let during = '';
+    ipc.once(/^plugin:fs\|write/, () => { during = edit(store); });
+    assert.equal(await ctrlS(store), false, 'de geschreven momentopname is niet het nieuwste werk');
+    assert(during && !holds(path, during), 'het werk tijdens het schrijven staat nog niet in het bestand');
+    assert.deepEqual(known(store), onDisk(path), 'de eigen opslag is vastgelegd');
+    assert.equal(store.getState().isDirty, true);
+    assert.equal(await roundWritesLaterWork(stopped), true);
+    assert(holds(path, during));
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('stop van de bewaking × Opslaan als naar hetzelfde pad met nieuw werk tijdens het schrijven: de stop vervalt', async () => {
+  const stopped = await stoppedAutoSave('stop-als-zelfde.ifc');
+  try {
+    const { store, path, ipc } = stopped;
+    ipc.choose(path);
+    let during = '';
+    ipc.once(/^plugin:fs\|write/, () => { during = edit(store); });
+    await store.getState().saveFileAs();
+    assert.equal(store.getState().filePath, path);
+    assert(during && !holds(path, during));
+    assert.deepEqual(known(store), onDisk(path));
+    assert.equal(store.getState().isDirty, true);
+    assert.equal(await roundWritesLaterWork(stopped), true);
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('stop van de bewaking × de flag gaat uit: de stop vervalt en de ronde schrijft zoals main', async () => {
+  const stopped = await stoppedAutoSave('stop-flag-uit.ifc');
+  try {
+    stopped.store.setState(s => { s.ui.featureFlags = {}; });
+    assert.equal(await roundWritesLaterWork(stopped), true);
+    assert.equal(notices(stopped.store, AUTOSAVE_CHANGED), 1);
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('stop van de bewaking × de versie wordt onbekend (export over het eigen bestand): de stop vervalt en de ronde schrijft zoals main', async () => {
+  const stopped = await stoppedAutoSave('stop-export.ifc');
+  try {
+    const { store, path, ipc } = stopped;
+    ipc.choose(path);
+    assert((await store.getState().exportAs('ifc')).ok);
+    assert.equal(known(store), null);
+    writeFileSync(path, otherPlainBytes());
+    assert.equal(await roundWritesLaterWork(stopped), true);
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('stop van de bewaking × een onleesbaar bestand: dezelfde stop, en hij vervalt op dezelfde regels', async () => {
+  const stopped = await stoppedAutoSave('stop-onleesbaar.ifc', true);
+  try {
+    assert.equal(await roundWritesLaterWork(stopped), false, 'gestopt');
+    stopped.store.setState(s => { s.ui.featureFlags = {}; });
+    assert.equal(await roundWritesLaterWork(stopped), true);
+  } finally { stopped.ipc.dispose(); }
+});
+
+await check('de flag gaat uit terwijl de vergelijking loopt: Automatisch opslaan legt geen stop vast en Ctrl+S weigert niet', async () => {
+  const ipc = desktop();
+  try {
+    const autoPath = fileAt('tijdens-auto.ifc', plainBytes());
+    const { store: auto } = await openAt({ kind: 'path', path: autoPath }, plainBytes());
+    const controller = autoSave(auto);
+    const work = edit(auto);
+    writeFileSync(autoPath, sameSizeOtherContent(plainBytes()));
+    ipc.once(/^plugin:fs\|read_file$/, () => { auto.setState(s => { s.ui.featureFlags = {}; }); });
+    await controller.flush();
+    assert(holds(autoPath, work), 'de ronde schrijft zoals main');
+    assert.equal(auto.getState().isDirty, false);
+    assert.equal(notices(auto, AUTOSAVE_CHANGED), 0);
+    const later = edit(auto);
+    await controller.flush();
+    assert(holds(autoPath, later), 'en er staat geen stop');
+    const savePath = fileAt('tijdens-ctrl-s.ifc', plainBytes());
+    const { store } = await openAt({ kind: 'path', path: savePath }, plainBytes());
+    const saved = edit(store);
+    writeFileSync(savePath, sameSizeOtherContent(plainBytes()));
+    ipc.once(/^plugin:fs\|read_file$/, () => { store.setState(s => { s.ui.featureFlags = {}; }); });
+    assert.equal(await ctrlS(store), true);
+    assert(holds(savePath, saved));
+    assert.deepEqual(errors(store), []);
+  } finally { ipc.dispose(); }
+});
+
+function flagProbe(on: boolean) {
+  const flags = {};
+  let yielded = true;
+  const writtenReads: boolean[] = [];
+  let guardReads = 0;
+  Object.defineProperty(flags, 'ifcForeignContent', {
+    enumerable: true,
+    get() {
+      const stack = new Error().stack ?? '';
+      if (/\bguardedKnownTarget\d*\b/.test(stack)) {
+        guardReads++;
+        yielded = false;
+        queueMicrotask(() => { yielded = true; });
+      } else if (/\bwrittenFingerprint\d*\b/.test(stack)) writtenReads.push(yielded);
+      return on;
+    },
+  });
+  return { flags, guardReads: () => guardReads, writtenAfterYield: () => writtenReads.at(-1) };
+}
+
+await check('geldt de bewaking niet (flag uit), dan wacht Ctrl+S en Automatisch opslaan nergens op tussen die toets en het schrijven, zoals main', async () => {
+  const limit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 50;
+  const ipc = desktop();
+  try {
+    for (const on of [false, true]) {
+      const savePath = fileAt(`volgorde-ctrl-s-${on}.ifc`, plainBytes());
+      const { store } = await openAt({ kind: 'path', path: savePath }, plainBytes());
+      assert.notEqual(known(store), null, 'het tabblad kent een versie');
+      const probe = flagProbe(on);
+      store.setState(s => { s.ui.featureFlags = probe.flags; });
+      edit(store);
+      assert.equal(await ctrlS(store), true);
+      assert(probe.guardReads() > 0, 'Ctrl+S las de flag in de toets');
+      assert.equal(probe.writtenAfterYield(), on, `Ctrl+S, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en schrijven`);
+      const autoPath = fileAt(`volgorde-auto-${on}.ifc`, plainBytes());
+      const { store: auto } = await openAt({ kind: 'path', path: autoPath }, plainBytes());
+      const controller = autoSave(auto);
+      const autoProbe = flagProbe(on);
+      auto.setState(s => { s.ui.featureFlags = autoProbe.flags; });
+      edit(auto);
+      await controller.flush();
+      assert.equal(auto.getState().isDirty, false);
+      assert(autoProbe.guardReads() > 0, 'de ronde las de flag in de toets');
+      assert.equal(autoProbe.writtenAfterYield(), on, `Automatisch opslaan, flag ${on ? 'aan: wel' : 'uit: geen'} wachtstap tussen toets en schrijven`);
+    }
+  } finally { ipc.dispose(); Error.stackTraceLimit = limit; }
 });
 
 rmSync(dir, { recursive: true, force: true });

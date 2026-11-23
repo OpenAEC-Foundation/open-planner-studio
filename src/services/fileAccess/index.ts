@@ -15,7 +15,8 @@ import {
 } from './webBackend';
 import { siteStorageAvailable } from './siteHost';
 import { sourceTargetContentOfHandle, type SourceTargetContent } from './sourceTargetContent';
-import { knownTargetContentOfHandle, type KnownTargetBytes } from './knownTargetContent';
+import { knownTargetContentOfHandle } from './knownTargetContent';
+import type { TargetFingerprint } from '@/state/documentContract';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
 export interface FileFilter {
@@ -200,7 +201,7 @@ export function sourceTargetContent(ref: LocalTargetRef, expected: Uint8Array): 
   return sourceTargetContentOfPathTauri(ref.path, expected);
 }
 
-export function knownTargetContent(ref: LocalTargetRef, known: KnownTargetBytes): Promise<SourceTargetContent> {
+export function knownTargetContent(ref: LocalTargetRef, known: TargetFingerprint): Promise<SourceTargetContent> {
   if (ref.kind === 'handle') return knownTargetContentOfHandle(ref.handle, known);
   if (!isTauri()) return Promise.reject(new Error('Een pad is in de browser geen doel om te vergelijken.'));
   return knownTargetContentOfPathTauri(ref.path, known);

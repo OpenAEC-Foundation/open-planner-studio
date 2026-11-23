@@ -1,10 +1,6 @@
 import { precomputeSha256 } from '@/services/xerSourceArchive';
+import type { TargetFingerprint } from '@/state/documentContract';
 import type { SourceTargetContent } from './sourceTargetContent';
-
-export interface KnownTargetBytes {
-  readonly sha256: string;
-  readonly byteLength: number;
-}
 
 export interface KnownTargetReader {
   size(): Promise<number>;
@@ -12,7 +8,7 @@ export interface KnownTargetReader {
   missing(error: unknown): boolean;
 }
 
-export async function compareKnownTarget(reader: KnownTargetReader, known: KnownTargetBytes): Promise<SourceTargetContent> {
+export async function compareKnownTarget(reader: KnownTargetReader, known: TargetFingerprint): Promise<SourceTargetContent> {
   const failed = (error: unknown): SourceTargetContent => (reader.missing(error) ? 'missing' : 'unreadable');
   let size: number;
   try { size = await reader.size(); } catch (error) { return failed(error); }
@@ -23,7 +19,7 @@ export async function compareKnownTarget(reader: KnownTargetReader, known: Known
   return (await precomputeSha256(bytes)) === known.sha256 ? 'same' : 'changed';
 }
 
-export function knownTargetContentOfHandle(handle: FileSystemFileHandle, known: KnownTargetBytes): Promise<SourceTargetContent> {
+export function knownTargetContentOfHandle(handle: FileSystemFileHandle, known: TargetFingerprint): Promise<SourceTargetContent> {
   let file: Promise<File> | undefined;
   const opened = () => (file ??= handle.getFile());
   return compareKnownTarget({

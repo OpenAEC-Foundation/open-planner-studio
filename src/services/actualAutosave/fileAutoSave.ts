@@ -9,7 +9,7 @@
 // met de flag uit houden hun route en hun ritme van vóór stap 8; hun tik wacht in de rij achter een modelronde
 // (`runAutoSaveTickWrite`, fixronde 3 van de review van #1033).
 import type { AppState } from '@/state/appStore';
-import type { DocumentPayload } from '@/state/documentContract';
+import type { DocumentPayload, TargetFingerprint } from '@/state/documentContract';
 import { rememberLiteralCalendarsWritten } from '@/state/savedLiteralCalendars';
 import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput, sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
@@ -25,7 +25,7 @@ import {
 } from '@/services/fileAccess/writeCoordinator';
 import { pendingReplaceFor, tauriReplaceRecords } from '@/services/fileAccess/replaceRecords';
 import { tightAnchorsIfSaved } from '@/state/dependentCandidates';
-import { changedKnownTarget } from '@/state/knownTargetGuard';
+import { changedKnownTarget, guardedKnownTarget, type KnownTargetState } from '@/state/knownTargetGuard';
 import {
   ifcFullWriteBlocked, ifcWriteBlockedNotice, IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE, IFC_SAVE_WORKER_FAILED_NOTICE,
   IFC_UNREADABLE_TARGET_AUTOSAVE_NOTICE, ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps,
@@ -105,17 +105,20 @@ export function createFileAutoSaveController(deps: {
   // Stap 8: met de bron van dat moment. Een handmatige opslag van een document met een gebouwmodel maakt de geschreven
   // versie de bron (een nieuw object); ook als de planner meteen weer typt, doet het document dan weer mee. Zonder
   // gebouwmodel verandert de bron bij opslaan niet, dus daar beslissen alleen de twee eerdere voorwaarden.
-  const refusedTarget = new Map<string, { ref: FileRef; source: IFCSaveSource['ifcSource'] }>();
+  const refusedTarget = new Map<string, { ref: FileRef; source: IFCSaveSource['ifcSource']; known?: TargetFingerprint }>();
   const targetNotified = new Set<string>();
   /** #804 stap 8: stoppen voor dit document tot de planner zelf opslaat of een ander doel kiest, met hoogstens één
    *  melding per document per sessie (`null`: de melding kwam al van de vervanging zelf). */
-  const stopFor = (id: string, ref: FileRef, notice: NotifyInput | null) => {
-    refusedTarget.set(id, { ref, source: payloadOf(id)?.ifcSource ?? null });
+  const stopFor = (id: string, ref: FileRef, notice: NotifyInput | null, known?: TargetFingerprint) => {
+    refusedTarget.set(id, { ref, source: payloadOf(id)?.ifcSource ?? null, ...(known ? { known } : {}) });
     if (targetNotified.has(id)) return;
     targetNotified.add(id);
     if (notice) getState().notify(notice);
   };
   const payloadOf = (id: string) => getState().getOpenDocumentPayloads().find(d => d.id === id)?.payload;
+  const knownTargetOf = (id: string): KnownTargetState => ({
+    featureFlags: getState().ui.featureFlags, known: payloadOf(id)?.knownTargetFingerprint ?? null,
+  });
 
   /**
    * #804 stap 8: de ronde van een document met een gebouwmodel, binnen één schrijfbeurt die wijkt: de controle dat de
@@ -265,7 +268,8 @@ export function createFileAutoSaveController(deps: {
    *  of een ander doel koos. */
   const settleRefusal = (id: string, payload: DocumentPayload, ref: FileRef | null) => {
     const refused = refusedTarget.get(id);
-    if (refused && (!payload.isDirty || !ref || !sameFileRef(refused.ref, ref) || payload.ifcSource !== refused.source)) {
+    if (refused && (!payload.isDirty || !ref || !sameFileRef(refused.ref, ref) || payload.ifcSource !== refused.source
+      || (refused.known && guardedKnownTarget({ featureFlags: getState().ui.featureFlags, known: payload.knownTargetFingerprint }, ref) !== refused.known))) {
       refusedTarget.delete(id);
     }
   };
@@ -381,9 +385,9 @@ export function createFileAutoSaveController(deps: {
         }
         return 'refused';
       }
-      const known = payloadOf(candidate.id)?.knownTargetFingerprint ?? null;
-      if (await changedKnownTarget(getState().ui.featureFlags, known, candidate.ref!)) {
-        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE);
+      const known = guardedKnownTarget(knownTargetOf(candidate.id), candidate.ref!);
+      if (known && await changedKnownTarget(() => knownTargetOf(candidate.id), known, candidate.ref!)) {
+        stopFor(candidate.id, candidate.ref!, MODEL_AUTOSAVE_TARGET_CHANGED_NOTICE, known);
         return 'refused';
       }
       rememberLiteralCalendarsWritten(current, output.literalCalendarIds);

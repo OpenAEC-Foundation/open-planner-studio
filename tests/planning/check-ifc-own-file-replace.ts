@@ -1430,7 +1430,7 @@ await check('Ctrl+S met de flag uit (na het openen uitgezet): dezelfde weigering
 });
 
 const plain = new Uint8Array(readFileSync(join(root, 'public/examples/03-kantoorgebouw-zuidas.ifc')));
-const MAIN_CALLS: Record<'aan' | 'uit', string[]> = {
+const PLAIN_SAVE_CALLS: Record<'aan' | 'uit', string[]> = {
   // Met de flag aan leest de doelcontrole eerst het bestaande doel (`refusedWriteTarget`), dan de gewone atomaire opslag.
   aan: ['plugin:fs|open <map>/model.ifc', 'plugin:fs|read ', 'plugin:fs|read ', 'plugin:fs|seek ', 'plugin:fs|read ',
     'plugin:fs|read ', 'plugin:resources|close ', 'plugin:fs|stat <map>/model.ifc', 'plugin:fs|read_file <map>/model.ifc',
@@ -1438,7 +1438,7 @@ const MAIN_CALLS: Record<'aan' | 'uit', string[]> = {
   uit: ['plugin:fs|lstat <map>/model.ifc', 'plugin:fs|write_text_file <map>/save-<id>.ops-save.tmp', 'plugin:fs|rename '],
 };
 for (const flag of [true, false]) {
-  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan' : 'uit'}: dezelfde route en dezelfde aanroepen aan de bestandsrand als main`, async () => {
+  await check(`Ctrl+S zonder gebouwmodel, flag ${flag ? 'aan: de route van main, vooraf de doelscan en de toets van de bekende versie' : 'uit: dezelfde route en dezelfde aanroepen aan de bestandsrand als main'}`, async () => {
     const dir = join(work, `geval-${++cases}`);
     mkdirSync(dir);
     const path = join(dir, 'model.ifc');
@@ -1454,7 +1454,7 @@ for (const flag of [true, false]) {
     const from = ipc.calls.length;
     await store.getState().saveFile();
     const seen = ipc.calls.slice(from).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seen, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
+    assert.deepEqual(seen, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seen));
     assert.deepEqual(store.getState().ui.notifications.filter(n => n.severity === 'error').map(n => n.messageKey), []);
     assert.equal(store.getState().isDirty, false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag'));
@@ -1477,7 +1477,7 @@ for (const flag of [true, false]) {
       onSavePendingChange: pending => store.getState().setUI({ closeQuestionSaving: pending }),
     }).save();
     const seenClose = ipc.calls.slice(fromClose).map(call => `${call.command} ${(call.path ?? '').replace(dir, '<map>').replace(/save-[0-9a-z]+\./, 'save-<id>.')}`);
-    assert.deepEqual(seenClose, MAIN_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
+    assert.deepEqual(seenClose, PLAIN_SAVE_CALLS[flag ? 'aan' : 'uit'], JSON.stringify(seenClose));
     assert.equal(closed, true, 'het tabblad gaat dicht');
     assert.equal(store.getState().getOpenDocumentPayloads().some(d => d.id === id), false);
     assert(readFileSync(path).toString('latin1').includes('Gewone opslag in de sluitvraag'));
