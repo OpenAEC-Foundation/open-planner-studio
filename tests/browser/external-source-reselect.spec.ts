@@ -1,4 +1,3 @@
-// Knownbug 991: na een gedeeltelijke herkeuze blijft alleen de andere padloze bron openstaan.
 import { expect, test } from './fixtures/ops';
 
 const DIR = 'tests/browser/fixtures/ifc/externe-bron';
@@ -9,7 +8,6 @@ test('bronbestanden één voor één kiezen laat de andere bron geteld en sluit 
   const src = await page.request.get(`/${DIR}/Installateur.ifc`);
   expect(src.ok()).toBe(true);
   const ifcA = await src.text();
-  // Twee echte IFC-lezingen: de taak-id's mogen gelijk zijn, de opgeslagen project-id's niet.
   expect(ifcA.split(SOURCE_A)).toHaveLength(2);
   const ifcB = ifcA.replace(SOURCE_A, SOURCE_B);
 
@@ -19,7 +17,6 @@ test('bronbestanden één voor één kiezen laat de andere bron geteld en sluit 
   const oldDates = await page.evaluate(({ a, b }) => {
     const s = window.__OPS__!.store.getState();
     s.setUI({ showWelcomeDialog: false, showTourOverlay: false });
-    // Geen echte handvatten: de browser heeft alleen de twee via het plan bekende project-id's.
     Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, value: undefined });
     const first = s.tasks.find(task => task.name === 'Afbouw');
     const second = s.tasks.find(task => task.name === 'Terreinafwerking');
