@@ -2294,7 +2294,7 @@ mod tests {
         ("write_file", &[HULP_VERVANG]),
         ("lstat", &[HULP_VERVANG, HULP_VORIGE]),
         ("stat", &[HULP_VORIGE]),
-        ("open", &[HULP_VORIGE]),
+        ("open", &[HULP_VERVANG, HULP_VORIGE]),
         ("read_file", &[HULP_VERVANG, HULP_VORIGE]),
         ("remove", &[HULP_VERVANG, HULP_VORIGE]),
         ("rename", &[HULP_VERVANG, HULP_VORIGE]),

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "hulpnamen-windows",
-  "description": "Laat de fs-commando's de twee hulpnamen van de vervanging van een eigen bestand (#804) op elke plek gebruiken, ook buiten de thuismap: het tijdelijke bestand save-<id>.ops-vervang.tmp en de vorige versie save-<id>.ops-vorige-<id>. plugin-fs toetst het echte pad, dat op Windows met \\\\?\\<station>: of \\\\?\\UNC\\ begint. Per commando alleen wat de vervanging en het herstel na een crash met die naam doen. Het tijdelijke bestand van de gewone opslag (save-<id>.ops-save.tmp) valt er niet onder. De grens staat in .claude/rules/tauri-ifc.md.",
+  "description": "Laat de fs-commando's de twee hulpnamen van de vervanging van een eigen bestand (#804) op elke plek gebruiken, ook buiten de thuismap: het tijdelijke bestand save-<id>.ops-vervang.tmp en de vorige versie save-<id>.ops-vorige-<id>. plugin-fs toetst het echte pad, dat op Windows met \\\\?\\<station>: of \\\\?\\UNC\\ begint. Per commando alleen wat de vervanging en het herstel na een crash met die naam doen; fs:allow-write-file geeft in plugin-fs 2.7.1 ook open en write, dus het tijdelijke bestand is ook te openen. Het tijdelijke bestand van de gewone opslag (save-<id>.ops-save.tmp) valt er niet onder. De grens staat in .claude/rules/tauri-ifc.md.",
   "windows": ["main"],
   "platforms": ["windows"],
   "permissions": [
