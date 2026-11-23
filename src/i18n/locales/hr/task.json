@@ -47,6 +47,8 @@
     "recentColumns": "Nedavno korišteno",
     "noColumns": "Dodajte stupac pomoću +.",
     "toggleSummary": "Proširi ili sažmi zadatak sažetka",
+    "toggleMilestones": "Proširi ili skupi kontrolne točke",
+    "milestonesRun": "Kontrolne točke ({{n}})",
     "calculatedReadOnly": "Ovaj izračunati stupac ne može se uređivati."
   },
   "taskGrid": {
@@ -330,7 +332,11 @@
     "rename": "Uredi",
     "remove": "Izbriši",
     "addToMine": "Dodaj u moje kategorije radova",
-    "confirmRemove": "Ova kategorija radova koristi se u otvorenom projektu. Želite li je ukloniti iz odjeljka „Moje kategorije radova“? Kopija u projektu ostaje."
+    "confirmRemove": "Ova kategorija radova koristi se u otvorenom projektu. Želite li je ukloniti iz odjeljka „Moje kategorije radova“? Kopija u projektu ostaje.",
+    "renameInProjectTitle": "Promijeniti naziv i u ovom projektu?",
+    "renameInProjectMessage": "Kategorija radova „{{oldName}}” koristi se i u ovom projektu. Želite li je ovdje nazvati „{{newName}}”?",
+    "renameInProjectYes": "I u ovom projektu",
+    "renameInProjectNo": "Samo u mom popisu"
   },
   "duration": {
     "label": "Trajanje",
@@ -383,7 +389,15 @@
       "resourceShorter": "Dodatni resurs skraćuje zadatak.",
       "resourceAddsWorkSameDuration": "Dodatni resurs dodaje rad; trajanje ostaje isto."
     },
-    "info": "Objašnjenje vrste zadatka"
+    "info": "Objašnjenje vrste zadatka",
+    "hint": {
+      "intro": "Vrsta zadatka određuje što aplikacija prilagođava kad promijenite trajanje, jedinice dodjele (broj ljudi po danu) ili rad (sate).",
+      "FIXED_DURATION_RATE": "Trajanje i jedinice dodjele ostaju, rad se prilagođava. Primjer: 2 osobe, 5 dana po 8 sati = 80 sati.",
+      "FIXED_DURATION_WORK": "Trajanje i rad ostaju, jedinice dodjele se prilagođavaju. Primjer: 80 sati u 5 dana po 8 sati = 2 osobe dnevno.",
+      "FIXED_WORK": "Rad ostaje, trajanje se prilagođava. Primjer: 80 sati s 2 osobe = 5 dana, s 4 osobe 2,5 dana.",
+      "FIXED_RATE": "Jedinice dodjele ostaju, rad određuje trajanje. Primjer: 1 dizalica, 40 sati rada = 5 dana, 80 sati rada = 10 dana.",
+      "projectDefault": "Slijedi vrstu zadatka koju projekt koristi kao zadanu."
+    }
   },
   "properties": {
     "task": "Zadatak",
@@ -455,6 +469,12 @@
     "interferingFloat": "Interferirajuća vremenska rezerva:",
     "criticalPath": "Kritični put:",
     "dependencies": "Ovisnosti",
+    "predecessors_one": "{{count}} prethodnik",
+    "predecessors_few": "{{count}} prethodnika",
+    "predecessors_other": "{{count}} prethodnika",
+    "successors_one": "{{count}} nasljednik",
+    "successors_few": "{{count}} nasljednika",
+    "successors_other": "{{count}} nasljednika",
     "addRelation": "Dodaj ovisnost",
     "addRelationSearch": "Traži zadatak…",
     "addRelationConfirm": "Spremi ovisnost",

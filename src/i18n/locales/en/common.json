@@ -84,6 +84,10 @@
     "ifcUnreadableTargetSave": "The app cannot read this file properly; it may contain a building model. Choose another file to save to.",
     "ifcUnreadableTargetExport": "The app cannot read this file properly; it may contain a building model. Choose another file to export to.",
     "ifcUnreadableTargetAutoSave": "Autosave has stopped: the app cannot read this file properly; it may contain a building model. Choose another file to save to.",
+    "ifcForeignAutoSaveTargetChanged": "Auto-save has stopped: the file was changed, moved or deleted in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.",
+    "ifcForeignAutoSaveSaveAsOnly": "Auto-save has stopped: this file cannot be replaced safely in this location. Your changes are still in the app. Choose Save As to keep them in a new file.",
+    "ifcForeignAutoSaveNotRecorded": "Auto-save has stopped: the file cannot be replaced safely right now, because crash recovery cannot be updated. Your changes are still in the app. Choose Save As to keep them in a new file.",
+    "ifcForeignAutoSaveRemnant": "Auto-save has stopped: an earlier save of this file did not finish. Your changes are still in the app. Save with Ctrl+S; after a restart the app handles that earlier save.",
     "ambiguousThousands": "\"{{text}}\" is ambiguous: do you mean a decimal or thousands? Type decimals with \"{{separator}}\" (1{{separator}}5) and thousands without a separator (1500). The value was not changed.",
     "siteSaveConflict": "Not saved: '{{name}}' was changed on the site by someone else in the meantime. Your changes are still in the app. Choose Save As to keep them as a new file.",
     "siteSaveConflictCopy": "'{{original}}' was changed on the site by someone else in the meantime. Your work is therefore saved in a copy: '{{name}}'. From now on, Save writes to that copy.",
@@ -111,6 +115,7 @@
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
     "relationCycle": "This relation would create a cycle in the schedule ({{cycle}}) and was not created.",
+    "relationChainOrderUnclear": "The tasks were not linked: their order in the list is not fixed. A selected task appears both before and after another (grouping), or two selected milestones share a collapsed series. Remove the grouping, expand the series, or choose the predecessor with Assign predecessors.",
     "hierarchyCycle": "This move would create a cycle in the schedule ({{cycle}}): a summary task's relations also apply to its subtasks. Nothing was moved.",
     "relationsExcludedByHierarchy_one": "After the move, {{count}} relation links a task to its own summary task; it no longer counts in the calculation.",
     "relationsExcludedByHierarchy_other": "After the move, {{count}} relations link a task to its own summary task; they no longer count in the calculation.",
@@ -187,7 +192,8 @@
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
       "openProjectInfo": "Open calculation profile",
-      "openHelp": "Open Help"
+      "openHelp": "Open Help",
+      "undo": "Undo"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
@@ -354,9 +360,10 @@
     "reportFontMissing": "Your own font {{name}} is no longer on this device. The report uses Inter again.",
     "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
     "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
+    "ifcForeignOpenTooLarge": "This IFC file is larger than {{limit}} MB. An IFC file with a building model or with data from another application can be opened up to {{limit}} MB.",
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
     "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving.",
-    "ifcForeignReplaceBlocked": "File not saved. Overwriting an existing file with a building model is not yet safe. Use Save As and choose a new name.",
+    "ifcForeignReplaceBlocked": "Not saved. This is the file you have open. Use Save to update it, or Save As with a new name for a copy.",
     "ifcForeignTargetChanged": "Not saved. The file was changed by another program in the meantime. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignTargetGone": "Not saved. The file was moved or deleted, or can no longer be read. Your changes are still in the app. Choose Save As to keep them in a new file.",
     "ifcForeignReplaceNotRecorded": "Not saved. The file cannot be replaced safely right now, because crash recovery cannot be updated. Your changes are still in the app. Choose Save As to keep them in a new file.",
@@ -367,6 +374,8 @@
     "ifcSaveWorkerFailed": "The IFC file was not written: preparing it in the background was interrupted. Your changes are still in the app. Please try again.",
     "ifcForeignNewTargetOnly": "This IFC file can only be written to a new file name. Choose a name that does not exist yet.",
     "ifcForeignTargetOpenInTab": "Not saved. This file is open in another tab. Close that tab or choose another name.",
+    "exportTargetOpenInTab": "Not exported. This file is open in another tab. Close that tab or choose another name.",
+    "exportTargetOpenDocument": "Not exported. This file is open in a tab. Choose another name, or close that tab first.",
     "ifcForeignPlaceUnknown": "The app does not know whether the file was saved correctly: something changed in the folder while saving. Your changes are still in the app. Check whether the file is correct, or save again under a new name.",
     "ifcForeignReplaceOtherVersion": "Another program changed {{file}} while the app was saving it. That version has been kept as {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "An earlier save of {{file}} did not finish. The schedule that was being saved is in {{copy}}. Delete that file if you no longer need it.",
@@ -376,7 +385,15 @@
     "ifcForeignReplaceLeftOver": "This file was left from an interrupted save of {{file}}: {{path}}. Check whether you still need it.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
     "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
-    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”."
+    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "The task now takes {{days}} day.",
+      "durationDays_other": "The task now takes {{days}} days.",
+      "durationHours_one": "The task now takes {{hours}} hour.",
+      "durationHours_other": "The task now takes {{hours}} hours.",
+      "durationSame": "The duration stays the same. The hours of the others have changed.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -416,6 +433,8 @@
     "addSubtask": "Add subtask",
     "addMilestone": "Add milestone",
     "addRelation": "Add relation",
+    "assignPredecessors": "Assign predecessors…",
+    "assignSuccessors": "Assign successors…",
     "dissolve": "Dissolve (keep chain)",
     "delete": "Delete",
     "newTask": "New task",
@@ -482,7 +501,7 @@
     "demoTopbarAnimation": "Demo: top bar animation",
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
     "ifcForeignContent": "Open IFC with a building model",
-    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). In Chrome and Edge, Save also saves the opened file itself. If another program changes this file exactly while saving, that change can be lost. In the desktop app, Save also saves the opened file itself if it is in your home folder. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file; only a change at exactly the same moment can still be lost. Save As over another existing file in your home folder replaces that file in the same way, unless that file itself contains a building model or data from another program. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
+    "ifcForeignContentHint": "Also opens an IFC file with a building model or data from other programs. You can use Save As to a new file, save to the site, download in the browser and Export → IFC, also without the building model or with the resource library alongside (then with the schedule only). In Chrome and Edge, Save also saves the opened file itself. If another program changes this file exactly while saving, that change can be lost. In the desktop app, Save also saves the opened file itself if it is in your home folder. If another program changed the file in the meantime, saving stops or the app keeps that version as a separate copy next to the file; only a change at exactly the same moment can still be lost. Save As over another existing file in your home folder replaces that file in the same way, also when that file itself contains a building model or data from another program. A schedule without a building model can replace such a file too. The app does not replace a file it cannot read or a file with a second name (a link). Just before replacing, the app compares the file with the version it read after your choice: if it changed, saving stops and the file stays as it is. If the version the app moved aside turns out to be different after all, the app keeps it as a separate copy next to the file, with a message. Recovering the building model after a crash requires access to the original file or a saved copy in the browser.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",
@@ -1188,7 +1207,9 @@
     },
     "regen": {
       "hint": "Holidays cover {{from}}–{{to}}; regenerate through {{year}}?",
-      "button": "Regenerate"
+      "button": "Regenerate",
+      "confirmMessage": "Your list of days off differs from the previously generated list. Replacing the list discards your manual changes.",
+      "confirmReplace": "Replace holidays"
     },
     "countryName": {
       "NL": "Netherlands",
@@ -1199,6 +1220,7 @@
       "AT": "Austria",
       "CH": "Switzerland",
       "US": "United States",
+      "BO": "Bolivia",
       "none": "No holidays"
     },
     "preset": {
@@ -1407,7 +1429,8 @@
     "edit": {
       "copy": "Copy",
       "deselect": "Clear selection",
-      "selectAll": "Select all"
+      "selectAll": "Select all",
+      "linkSelected": "Link selected tasks in a chain"
     },
     "structure": {
       "moveUp": "Move task up",

@@ -147,9 +147,10 @@ function openFlags(o: OpenOptions): number {
   return flags;
 }
 
-/** `appDataDir`: beantwoord ook `plugin:path` (`appDataDir`, `join`), `read_dir`, `read_file` en `read_text_file`, zodat
- *  het crashherstel van de desktop (`recoveryStore`, Tauri-tak) op echte bestanden in die map draait. Zonder deze optie
- *  blijven die commando's onverwacht, zoals voorheen. */
+/** `appDataDir`: beantwoord ook `plugin:path` (`appDataDir`, `join`) en `read_dir`, zodat het crashherstel van de desktop
+ *  (`recoveryStore`, Tauri-tak) op echte bestanden in die map draait. Zonder deze optie blijven die commando's
+ *  onverwacht, zoals voorheen. `read_file` en `read_text_file` beantwoordt de adapter altijd, zoals plugin-fs: de
+ *  bestandskiezer van Opslaan als op de desktop leest het gekozen doel (`pickSaveTarget`, fixronde 1 van #1071). */
 export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const handles = new Map<number, { fd: number; path: string; written: number; readAt: number }>();
@@ -346,7 +347,6 @@ export function installNodeFileIpc(options: { appDataDir?: string } = {}) {
         }));
       case 'plugin:fs|read_file':
       case 'plugin:fs|read_text_file': {
-        if (options.appDataDir === undefined) break;
         if (faults.readError !== null) throw faults.readError;
         const data = new Uint8Array(fs.readFileSync(String(path)));
         bytesRead += data.length;

@@ -7,6 +7,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import {
   appStoreContext,
   createAppStore,
@@ -267,7 +268,7 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
     customTaskType: { id: '  ops-engineering  ', name: '  Engineering  ' },
   });
   eq('18f extensie materialiseert getrimde custom id+naam in document B',
-    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering' }]);
+    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering', color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] }]);
   eq('18g extensie kent de custom classificatie aan de taak toe',
     B.getState().tasks.find(task => task.id === customId)?.customTaskTypeId, 'ops-engineering');
   eq('18h extensielezing geeft stabiele id plus projectsnapshotnaam terug',
@@ -288,13 +289,13 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('18l expliciete builtin via extensie wist alleen de taaktoewijzing',
     B.getState().tasks.find(task => task.id === customId)?.customTaskTypeId, undefined);
   eq('18m builtin-update behoudt de projectsnapshot',
-    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering' }]);
+    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering', color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] }]);
   api.data.updateTask(customId, { customTaskType: { id: 'ops-engineering' } });
   eq('18n bestaand custom id kan zonder herhaalde naam opnieuw worden toegewezen',
     B.getState().tasks.find(task => task.id === customId)?.customTaskTypeId, 'ops-engineering');
   api.data.updateTask('bestaat-niet', { customTaskType: { id: 'ops-wees', name: 'Wees' } });
   eq('18o onbekend update-id materialiseert geen wees in de projectcatalogus',
-    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering' }]);
+    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering', color: CUSTOM_TASK_TYPE_COLOR_ORDER[0] }]);
 
   A.setState({ scheduleStale: true });
   B.setState({ scheduleStale: true });

@@ -385,7 +385,15 @@
       "resourceShorter": "An extra resource makes the task shorter.",
       "resourceAddsWorkSameDuration": "An extra resource adds work; the duration stays the same."
     },
-    "info": "Explanation of the task type"
+    "info": "Explanation of the task type",
+    "hint": {
+      "intro": "The task type decides what the app adjusts when you change the duration, the units (people per day) or the work (hours).",
+      "FIXED_DURATION_RATE": "Duration and units stay, the work follows. Example: 2 people, 5 days of 8 hours = 80 hours.",
+      "FIXED_DURATION_WORK": "Duration and work stay, the units follow. Example: 80 hours in 5 days of 8 hours = 2 people per day.",
+      "FIXED_WORK": "The work stays, the duration follows. Example: 80 hours with 2 people = 5 days, with 4 people 2.5 days.",
+      "FIXED_RATE": "The units stay, the work sets the duration. Example: 1 crane, 40 hours of work = 5 days, 80 hours = 10 days.",
+      "projectDefault": "Follows the task type the project uses as its default."
+    }
   },
   "properties": {
     "task": "Task",
@@ -458,6 +466,10 @@
     "interferingFloat": "Interfering float:",
     "criticalPath": "Critical path:",
     "dependencies": "Dependencies",
+    "predecessors_one": "{{count}} predecessor",
+    "predecessors_other": "{{count}} predecessors",
+    "successors_one": "{{count}} successor",
+    "successors_other": "{{count}} successors",
     "addRelation": "Add relation",
     "addRelationSearch": "Search task…",
     "addRelationConfirm": "Create relation",

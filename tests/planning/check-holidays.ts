@@ -4,7 +4,7 @@
 // US federale feestdagen (nth-weekday, zaterdag/zondag-substitutie, Juneteenth vanaf 2021).
 //
 // Draait via run.sh (esbuild-bundel, zoals harness.ts). Exit 0 = alles groen.
-import { easterSunday, generateHolidays, NL_SET, DE_SET, UK_SET, US_SET } from '@/engine/calendar/holidays';
+import { easterSunday, generateHolidays, HOLIDAY_SETS, NL_SET, DE_SET, UK_SET, US_SET } from '@/engine/calendar/holidays';
 import { formatDate } from '@/utils/dateUtils';
 
 const diffs: string[] = [];
@@ -18,6 +18,34 @@ function startOf(list: { name: string; startDate: string }[], name: string): str
 }
 function has(list: { name: string }[], name: string): boolean {
   return list.some((h) => h.name === name);
+}
+
+// Bolivia: de landelijke kalender van 2026, inclusief de tijdelijke decreten,
+// en de drie departementen uit #992.
+{
+  const bolivia = Object.values(HOLIDAY_SETS).find(set => String(set.country) === 'BO');
+  eq('Bolivia beschikbaar in de feestdagengenerator', Boolean(bolivia), true);
+  if (bolivia) {
+    const dates = (year: number, region?: string) => generateHolidays(bolivia, region, year, year)
+      .map(h => h.startDate === h.endDate ? h.startDate : `${h.startDate}/${h.endDate}`)
+      .sort();
+    const national2026 = [
+      '2026-01-01', '2026-01-02', '2026-01-23', '2026-02-16/2026-02-17', '2026-04-03',
+      '2026-05-01', '2026-06-04', '2026-06-05', '2026-06-22', '2026-08-06', '2026-08-07',
+      '2026-11-02', '2026-12-25',
+    ];
+    const regional = (year: number, region: string) => dates(year, region).filter(date => !dates(year).includes(date));
+    eq('BO 2026: volledig landelijk', dates(2026).join(','), national2026.join(','));
+    eq('BO La Paz 2026: 16 juli', regional(2026, 'L').join(','), '2026-07-16');
+    eq('BO Potosí 2026: 10 november', regional(2026, 'P').join(','), '2026-11-10');
+    eq('BO Santa Cruz 2026: 24 én 25 september', regional(2026, 'S').join(','), '2026-09-24,2026-09-25');
+    eq('BO Santa Cruz 2027: alleen 24 september', regional(2027, 'S').join(','), '2027-09-24');
+    eq('BO La Paz 2028: zondag 16 juli verschuift naar maandag', regional(2028, 'L').join(','), '2028-07-17');
+    eq('BO 2027: weer 22 januari en Kerst blijft zaterdag', dates(2027).join(','), [
+      '2027-01-01', '2027-01-22', '2027-02-08/2027-02-09', '2027-03-26', '2027-05-01',
+      '2027-05-27', '2027-06-21', '2027-08-06', '2027-11-02', '2027-12-25',
+    ].join(','));
+  }
 }
 
 // 1) Pasen-jaartabel (Meeus/Jones/Butcher, bekende Gregoriaanse jaren).
