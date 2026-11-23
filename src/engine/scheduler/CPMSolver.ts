@@ -34,7 +34,7 @@ import {
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, type RelationDeps,
-  dayTaskRequiredFinish, finishFinishLag, finishStartLaggedStart, previousBlockEndIfSame,
+  dayTaskRequiredFinish, finishFinishRequirement, finishStartLaggedStart, previousBlockEndIfSame, relationBoundaryFlags,
 } from './relationMath';
 import { taskCountsInWorkdays, lagCountsInWorkdays } from './conventions/durationMeasure';
 import { isFiniteNumber } from '@/utils/guards';
@@ -929,71 +929,81 @@ export class CPMSolver {
     seq: Sequence,
     pred: Task, predCal: CalendarEngine, early: { es: Date; ef: Date } | undefined,
     succ: Task, succCal: CalendarEngine, late: { ls: Date; lf: Date },
-  ): Date | undefined {
+  ): { ls: Date; lf: Date } | undefined {
     const startFinish = seq.type === 'START_FINISH';
     const dataDate = this.dataDate;
     if ((!startFinish && seq.type !== 'FINISH_FINISH') || !early || !dataDate
       || this.options.schedulingOptions.unstartedIgnoresStatusDate
+      || pred.time.completion !== 0 || pred.time.actualStart || pred.time.actualFinish
       || (succ.levelingDelay ?? 0) <= 0 || (succ.levelingDelayMinutes ?? 0) <= 0 || succ.levelingDelayElapsed
       || succ.manuallyScheduled || succ.time.completion !== 0 || succ.time.actualStart
-      || isZeroDurationMilestone(succ) || !this.countsInWorkdays(succ)
+      || isZeroDurationMilestone(succ) || (succ.isMilestone && succ.milestoneKind === 'START') || !this.countsInWorkdays(succ)
       || this.hardPinStart(succ, succCal) || this.hardPinFinish(succ, succCal)
       || dataDate > late.ls || this.finishFromStart(succCal, dataDate, succ) > late.lf) return undefined;
 
-    const relationCal = this.relationEngineFor(pred);
-    const fits = (instant: number): boolean => {
-      const point = new Date(instant);
-      const dates = startFinish ? { ...early, es: point } : { ...early, ef: point };
-      const bound = forwardConstraint(this.relDeps, dates, pred, seq, succ, relationCal, succCal);
+    const origin = early.es.getTime();
+    const ownStart = !this.predecessors.get(pred.id)?.length;
+    const datesAt = (minutes: number): { es: Date; ef: Date } => {
+      if (minutes === 0) return early;
+      const point = new Date(origin + minutes * MS_PER_MIN);
+      const milestoneAtOwnStart = isZeroDurationMilestone(pred)
+        && (predCal.hasOwnWorkBlocks || taskDurationUnit(pred) === 'hours' || predCal.isWorkDay(point));
+      const acceptsRaw = isElapsedTask(pred) || (ownStart && (milestoneAtOwnStart || this.isExactBandEnd(predCal, point)));
+      const es = acceptsRaw ? point : this.snapOnOrAfter(predCal, point);
+      return es.getTime() === origin ? early : { es, ef: this.finishFromStart(predCal, es, pred) };
+    };
+    const startFits = (bound: Date): boolean => {
       const shiftedStart = this.leveledEarlyStart(succCal, succ, this.snapSuccessorEarlyStart(succCal, bound, succ), true);
       const start = shiftedStart < dataDate ? dataDate : shiftedStart;
-      if (start > late.ls || this.finishFromStart(succCal, start, succ) > late.lf) return false;
+      return start <= late.ls && this.finishFromStart(succCal, start, succ) <= late.lf;
+    };
+    const relationCal = this.relationEngineFor(pred);
+    const fits = (dates: { es: Date; ef: Date }): boolean => {
+      if (!startFits(forwardConstraint(this.relDeps, dates, pred, seq, succ, relationCal, succCal))) return false;
       const finishFloor = forwardFinishFloor(this.relDeps, dates, pred, seq, succ, relationCal, succCal);
       return !finishFloor || finishFloor <= late.lf;
     };
 
-    const origin = (startFinish ? early.es : early.ef).getTime();
-    const originFits = fits(origin);
-    let sameSide = origin;
-    let step = originFits ? MS_PER_MIN : -MS_PER_MIN;
-    let otherSide = origin + step;
-    while (!Number.isNaN(new Date(otherSide).getTime()) && fits(otherSide) === originFits) {
-      sameSide = otherSide;
-      step *= 2;
-      otherSide = origin + step;
-    }
-    if (Number.isNaN(new Date(otherSide).getTime())) return undefined;
-    const lastPassingMinute = (allowed: number, disallowed: number, passes: (instant: number) => boolean): number => {
-      while (disallowed - allowed > MS_PER_MIN) {
-        const middle = allowed + Math.floor((disallowed - allowed) / (2 * MS_PER_MIN)) * MS_PER_MIN;
-        if (passes(middle)) allowed = middle;
-        else disallowed = middle;
+    const lagCal = this.relDeps.lagEngine(relationCal, succCal);
+    const flags = relationBoundaryFlags(pred, succ);
+    const requirement = (finish: Date) =>
+      finishFinishRequirement(this.relDeps, finish, pred, seq, succ, lagCal, succCal, flags);
+    const endOfWorkday = (finish: Date) => succCal.measuredWorkdayEnd(succCal.nextWorkInstant(finish));
+    const finishFits = (finish: Date) => startFits(this.startFromFinish(succCal, finish, succ));
+    const originFits = fits(early);
+    const direction = originFits ? 1 : -1;
+    const staysOnSameSide = (from: { es: Date; ef: Date }, through: { es: Date; ef: Date }): boolean => {
+      if (startFinish) return fits(originFits ? through : from) === originFits;
+      const first = requirement(from.ef);
+      const last = requirement(through.ef);
+      if (!originFits && !finishFits(first.finish) && !finishFits(endOfWorkday(first.finish))) return true;
+      if (originFits && finishFits(last.finish) && finishFits(endOfWorkday(last.finish))) return true;
+      if (succCal.prevWorkInstant(first.finish) >= last.raw
+        || succCal.isFinishRangeWithinWorkBand(first.raw, last.raw)) {
+        return finishFits(originFits ? last.finish : first.finish) === originFits;
       }
-      return allowed;
+      if (succCal.prevWorkInstant(last.finish) < first.raw) {
+        return finishFits(endOfWorkday(originFits ? last.finish : first.finish)) === originFits;
+      }
+      return false;
     };
-    let allowed = lastPassingMinute(originFits ? sameSide : otherSide, originFits ? otherSide : sameSide, fits);
-    if (originFits && !startFinish && allowed > origin) {
-      const lagCal = this.relDeps.lagEngine(relationCal, succCal);
-      const required = (instant: number) =>
-        finishFinishLag(this.relDeps, lagCal, new Date(instant), seq, pred).required;
-      const firstRequired = required(origin);
-      const lastRequired = required(allowed);
-      const day = workdayDateOfInstant(succCal, lastRequired, 'end');
-      const blockEnds = [
-        succCal.prevWorkInstant(day).getTime(),
-        ...succCal.effectiveBandsOn(day).map(band => day.getTime() + band.end * MS_PER_MIN),
-      ];
-      for (const end of blockEnds) {
-        if (end < firstRequired.getTime() || end >= lastRequired.getTime()) continue;
-        const beforeGap = lastPassingMinute(origin, allowed, instant => required(instant).getTime() <= end);
-        if (!fits(beforeGap + MS_PER_MIN)) {
-          allowed = beforeGap;
-          break;
-        }
-      }
+    const firstChange = (near: number, far: number): number | undefined => {
+      if (near > far) return undefined;
+      const nearDates = datesAt(direction * near);
+      if (fits(nearDates) !== originFits) return near;
+      if (near === far) return undefined;
+      const farDates = datesAt(direction * far);
+      if (staysOnSameSide(originFits ? nearDates : farDates, originFits ? farDates : nearDates)) return undefined;
+      const middle = Math.floor((near + far) / 2);
+      return firstChange(near + 1, middle) ?? firstChange(middle + 1, far);
+    };
+    for (let size = 1; !Number.isNaN(new Date(origin + direction * (size * 2 - 1) * MS_PER_MIN).getTime()); size *= 2) {
+      const change = firstChange(size, size * 2 - 1);
+      if (change === undefined) continue;
+      const { es, ef } = datesAt(originFits ? change - 1 : -change);
+      return { ls: es, lf: ef };
     }
-    const anchor = new Date(allowed);
-    return startFinish ? this.finishFromStart(predCal, anchor, pred) : anchor;
+    return undefined;
   }
 
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
@@ -2569,6 +2579,7 @@ export class CPMSolver {
       const predCal = this.calendarFor(task);
       let lateFinish = this.usesLastProjectDayStart(task, taskId, earlyDates.get(taskId)?.es)
         ? this.lastProjectDayStart(predCal, projectEnd, projectEndOpensDay) : projectEnd;
+      let leveledLateStart: Date | undefined;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
@@ -2590,9 +2601,10 @@ export class CPMSolver {
         const lateSeq = this.inProgressStartLagSeq(task, seq, lateLagEng);
         const remainingTask = seq.type === 'START_START'
           ? this.remainingDurationTaskForStartRelation(task, predCal) : task;
-        const constraintDate = this.leveledFinishConstraint(
+        const leveled = this.leveledFinishConstraint(
           seq, task, predCal, earlyDates.get(taskId), succTask, succCal, succResult,
-        ) ?? backwardConstraint(
+        );
+        const constraintDate = leveled?.lf ?? backwardConstraint(
           this.relDeps, {
             ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
             lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
@@ -2602,7 +2614,11 @@ export class CPMSolver {
         );
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;
+          leveledLateStart = leveled?.ls;
           lateFinishSource = 'successorConstraint';
+        } else if (constraintDate.getTime() === lateFinish.getTime() && leveled && leveledLateStart
+          && leveled.ls < leveledLateStart) {
+          leveledLateStart = leveled.ls;
         }
       }
 
@@ -2620,7 +2636,9 @@ export class CPMSolver {
 
       const computedLateStart = useP6RemainingProgress
         ? this.subRemainingDuration(predCal, lateFinish, task)
-        : this.subDuration(predCal, lateFinish, task, earlyDates.get(taskId)?.es ?? null);
+        : leveledLateStart && lateFinish.getTime() === successorBound.getTime()
+          ? leveledLateStart
+          : this.subDuration(predCal, lateFinish, task, earlyDates.get(taskId)?.es ?? null);
       let lateStart = preserveActualDates && task.time.actualStart && task.time.completion < 1
           && this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true
         ? new Date(earlyDates.get(taskId)!.es.getTime())

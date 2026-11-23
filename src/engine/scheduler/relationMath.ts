@@ -346,16 +346,28 @@ export function dayTaskRequiredFinish(
   return workdayFinishNotBefore(se, reqFinish, lagEng.prevWorkInstant(lagged));
 }
 
-export function finishFinishLag(
-  deps: RelationDeps, lagEng: CalendarEngine, anchor: Date, seq: Sequence, predTask: Task,
-): { lagged: Date; required: Date; zeroLag: boolean } {
+export function finishFinishRequirement(
+  deps: RelationDeps, anchor: Date, predTask: Task, seq: Sequence, successor: Task,
+  lagEng: CalendarEngine, se: CalendarEngine, flags: RelationBoundaryFlags,
+): { finish: Date; raw: Date } {
+  const succElapsed = isElapsedTask(successor);
+  const dayTask = isDayTaskOnBands(deps, successor);
   if (seq.lagUnit === 'ELAPSEDTIME') {
-    const lagged = new Date(anchor.getTime() + elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask)));
-    return { lagged, required: lagged, zeroLag: lagged.getTime() === anchor.getTime() };
+    const raw = new Date(anchor.getTime() + elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask)));
+    const keepRaw = succElapsed || (dayTask && deps.snapOnOrBefore(se, raw).getTime() === raw.getTime());
+    return { finish: keepRaw ? raw : deps.snapOnOrAfter(se, raw), raw };
   }
   const lagged = deps.shiftLagPred(lagEng, anchor, seq, predTask, 1);
   const zeroLag = lagged.getTime() === deps.snapOnOrAfter(lagEng, anchor).getTime();
-  return { lagged, required: zeroLag ? anchor : lagEng.prevWorkInstant(lagged), zeroLag };
+  const raw = zeroLag ? anchor : lagEng.prevWorkInstant(lagged);
+  const isFinishMs = flags.succIsFinishMs || (isZeroDurationMilestone(successor) && !successor.milestoneKind);
+  if (zeroLag && (isFinishMs || (flags.succIsStartMs && isDayTaskOnBands(deps, predTask)) || succElapsed)) {
+    return { finish: anchor, raw };
+  }
+  return {
+    finish: !flags.predEndsBeginOfDay && dayTask ? previousBlockEndIfSame(deps, lagEng, se, lagged, anchor) : lagged,
+    raw,
+  };
 }
 
 function forwardHour(
@@ -411,35 +423,8 @@ function forwardHour(
       // landt een FF-eindmijlpaal nooit op de rauwe voorganger-finish. Zelfde `lagIsZero`-kortsluiting als de FS-tak
       // hieronder, hier tegen `predResult.ef` (de FF-relatie ankert al op de finish, geen aparte
       // dagrand-normalisatie nodig zoals FS se `predDone`).
-      let reqFinish: Date;
-      // De rauwe geëiste finish, vóór de normalisatie naar een werkmoment (dagenmaat-opvolger hieronder).
-      const { lagged, required: rawRequired, zeroLag: lagIsZero } = finishFinishLag(deps, lagEng, predResult.ef, seq, predTask);
-      if (elapsed) {
-        const raw = rawRequired;
-        reqFinish = succElapsed ? raw : deps.snapOnOrAfter(se, raw);
-        if (isDayTaskOnBands(deps, successor)) {
-          reqFinish = deps.snapOnOrBefore(se, raw).getTime() === raw.getTime() ? raw : reqFinish;
-        }
-      } else {
-        // Met lag is `lagged` een moment op de lagkalender; als eindmoment telt het vorige blokeinde
-        // daar (een lead landt op een blokbegin, en dat is het einde van de werkdag ervoor).
-        if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(deps, predTask)) || succElapsed) && lagIsZero) {
-          reqFinish = predResult.ef;
-        } else if (!predEndsBeginOfDay && isDayTaskOnBands(deps, successor)) {
-          // Knownbugs 142 van het ontwerp "alleen uren": `shiftLagPred` normaliseert vooruit, dus een
-          // geëiste finish op een blokeinde (vr 16:00) wordt bij lag 0 het volgende blokbegin
-          // (ma 07:00), en een lead kan op een blokbegin landen. `startFromFinish` leest die finish
-          // voor een dagtaak als kalenderdag (`utcDayStart`): één werkdag te laat. Als eindmoment
-          // hoort een blokbegin bij het vorige blokeinde, mits dat voor de opvolger dezelfde grens is
-          // en niet vóór de rauwe voorgangerfinish ligt (`previousBlockEndIfSame`). Een urentaak
-          // trekt zelf al achteruit af (`subtractWorkMinutes`), dus alleen de dagtaak.
-          // `bg142-*` in `cases-hours-blokgrenzen.json`.
-          reqFinish = previousBlockEndIfSame(deps, lagEng, se, lagged, predResult.ef);
-        } else {
-          reqFinish = lagged;
-        }
-      }
-      if (isDayTaskOnBands(deps, successor)) reqFinish = workdayFinishNotBefore(se, reqFinish, rawRequired);
+      const { finish, raw } = finishFinishRequirement(deps, predResult.ef, predTask, seq, successor, lagEng, se, flags);
+      const reqFinish = isDayTaskOnBands(deps, successor) ? workdayFinishNotBefore(se, finish, raw) : finish;
       if (succIsStartMs && !predEndsBeginOfDay) {
         // F3c: een dagenmaat-voorganger kan midden in een blok eindigen (0,375 d ⇒ ma 10:00). De
         // startmijlpaal staat dan op dat moment, niet op het volgende blokbegin (ma 13:00); een

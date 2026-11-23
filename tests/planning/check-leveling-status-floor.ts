@@ -214,8 +214,10 @@ assert.deepEqual(startFinishResults, [
 ]);
 
 const calendarBoundaryResults: Array<Array<number | string | undefined>> = [];
-for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successor-gap'] as const) {
+for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successor-gap', 'shared-gap', 'shared-gap-negative'] as const) {
   const schedule = createAppStoreContext().store.getState;
+  const sharedGap = mode === 'shared-gap' || mode === 'shared-gap-negative';
+  const gap = mode === 'successor-gap' || sharedGap;
   schedule().setProject({ startDate: '2026-06-01', schedulingOptions: {
     lagCalendar: mode === 'project-pause' ? 'projectDefault' : mode === 'work-lag' ? 'predecessor' : 'successor',
   } });
@@ -229,18 +231,20 @@ for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successo
       ? [{ start: 480, end: 765 }, { start: 840, end: 1200 }] : wide, wide, wide),
   };
   const predecessorCalendar: WorkCalendar = {
-    ...standard, id: 'predecessor', name: 'Kalender voorganger', workTime: week(regular, wide, wide, regular),
+    ...standard, id: 'predecessor', name: 'Kalender voorganger',
+    workTime: week(regular, sharedGap ? tuesdayBreak : wide, wide, regular),
   };
   const crewCalendar: WorkCalendar = {
     ...crew, workTime: week(regular, tuesdayBreak, short, mode === 'work-lag' ? regular : short),
   };
   schedule().commitCalendarLibrary([projectCalendar, predecessorCalendar, crewCalendar, craneCalendar], projectCalendar.id);
   schedule().addTask({ name: 'Start project', time: createDefaultTaskTime('2026-06-01T08:00', 1, 'hours') });
-  if (mode === 'work-lag' || mode === 'successor-gap') {
+  if (mode === 'work-lag' || gap) {
     schedule().addTask({ name: 'Einde project', time: createDefaultTaskTime('2026-06-05T08:00', 1, 'hours') });
   }
-  const finishFinish = mode === 'successor-calendar' || mode === 'successor-gap';
-  const start = finishFinish ? '2026-06-02T11:00' : '2026-06-02T12:30';
+  const finishFinish = mode === 'successor-calendar' || gap;
+  const dataDate = gap ? '2026-06-02T08:00' : '2026-06-02T09:00';
+  const start = mode === 'shared-gap-negative' ? dataDate : finishFinish ? '2026-06-02T11:00' : '2026-06-02T12:30';
   const prior = schedule().addTask({
     name: 'Voorganger', calendarId: predecessorCalendar.id, time: createDefaultTaskTime(start, 1, 'hours'),
   });
@@ -255,19 +259,21 @@ for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successo
     name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, calendarId: craneCalendar.id,
   });
   schedule().assignResource(next, crane, 1, 'UNIFORM');
+  if (mode === 'shared-gap-negative') schedule().setStatusDate(dataDate);
   schedule().runCPM();
   const proposal = schedule().levelResources({ constrainToFloat: false });
   assert(proposal.delayMinutes?.[next]);
+  if (mode === 'shared-gap-negative') assert.equal(proposal.delayMinutes?.[next], 660);
   schedule().applyLeveling(proposal);
-  const dataDate = mode === 'successor-gap' ? '2026-06-02T08:00' : '2026-06-02T09:00';
-  const limit = mode === 'work-lag' ? '2026-06-03T13:00' : mode === 'successor-gap' ? '2026-06-03T11:30' : '2026-06-03T11:00';
+  const limit = mode === 'work-lag' ? '2026-06-03T13:00' : gap ? '2026-06-03T11:30' : '2026-06-03T11:00';
   schedule().setStatusDate(dataDate);
   if (mode === 'work-lag') {
     schedule().updateSequence(link, { type: 'FINISH_FINISH', lagMinutes: 30, lagUnit: 'WORKTIME' });
   }
-  if (mode === 'work-lag' || mode === 'successor-gap') {
+  if (mode === 'work-lag' || gap) {
     const task = schedule().tasks.find(task => task.id === prior)!;
-    schedule().updateTask(prior, { time: { ...task.time, scheduleStart: dataDate } });
+    const scheduleStart = mode === 'shared-gap-negative' ? '2026-06-02T11:00' : dataDate;
+    schedule().updateTask(prior, { time: { ...task.time, scheduleStart } });
   }
   schedule().updateTask(next, { constraint: { type: 'FNLT', date: limit } });
   schedule().runCPM();
@@ -283,7 +289,8 @@ for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successo
   calendarBoundaryResults.push(takeSnapshot());
 
   const last = mode === 'project-pause' ? '2026-06-02T13:00'
-    : finishFinish ? '2026-06-02T11:00' : '2026-06-02T10:30';
+    : mode === 'shared-gap' ? '2026-06-02T11:30' : mode === 'shared-gap-negative' ? '2026-06-02T08:30'
+      : finishFinish ? '2026-06-02T11:00' : '2026-06-02T10:30';
   const after = last.slice(0, -1) + '1';
   for (const [scheduleStart, expectedViolation] of [[last, false], [after, true]] as const) {
     reopened().updateTask(pred().id, { time: { ...pred().time, scheduleStart } });
@@ -297,6 +304,12 @@ for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successo
     assert.equal(reopened().cpmResult?.violatedConstraintTaskIds.includes(succ.id), false);
     calendarBoundaryResults.push(takeSnapshot());
   }
+  if (mode === 'shared-gap-negative') {
+    reopened().updateTask(pred().id, { time: { ...pred().time, scheduleStart: '2026-06-02T11:01' } });
+    reopened().runCPM();
+    assert.equal(reopened().cpmResult?.violatedConstraintTaskIds.includes(succ.id), true);
+    calendarBoundaryResults.push(takeSnapshot());
+  }
 }
 
 assert.deepEqual(calendarBoundaryResults, [
@@ -305,4 +318,7 @@ assert.deepEqual(calendarBoundaryResults, [
   ['2026-06-02T10:30', 90], ['2026-06-02T10:30', 90], ['2026-06-02T10:30', 0], ['2026-06-02T10:30', -1],
   ['2026-06-02T11:00', 180], ['2026-06-02T11:00', 180], ['2026-06-02T11:00', 0], ['2026-06-02T11:00', -1],
   ['2026-06-02T12:30', 0],
+  ['2026-06-02T11:30', 210], ['2026-06-02T11:30', 210], ['2026-06-02T11:30', 0], ['2026-06-02T11:30', -1],
+  ['2026-06-02T08:30', -150], ['2026-06-02T08:30', -150], ['2026-06-02T08:30', 0], ['2026-06-02T08:30', -1],
+  ['2026-06-02T08:30', -151],
 ]);
