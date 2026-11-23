@@ -88,7 +88,6 @@ test('Tabel: fasevoortgang is alleen-lezen en volgt na kind-wijziging + F5', asy
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]')).toBeVisible();
 
-  // Een bestaande beperking blijft bewaard; de waarschuwing staat ook in de taakdialoog.
   await page.evaluate((id) => window.__OPS__!.store.getState().updateTask(id, {
     constraint: { type: 'SNET', date: '2026-09-15' }, deadline: '2026-09-18',
   }), ids.phase);
