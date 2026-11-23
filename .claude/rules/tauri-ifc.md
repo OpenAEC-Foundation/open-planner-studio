@@ -44,9 +44,9 @@ macOS `renameatx_np` met `RENAME_EXCL`, beide relatief aan de open map; Windows 
 `std::fs::rename` en vervangt een bestaand doel. Volgorde, bij de eerste weigering stopt het zonder wijziging: de padteksten van de aanroeper zoals plugin-fs `rename`
 ze toetst (`SafeFilePath`: geen `..`, geen URL; absoluut, gewone bestandsnaam; dan de scope van `from` en daarna van
 `to`), dezelfde map (de map van `from` één keer geopend en vastgehouden, die
-van `to` moet hetzelfde bestand zijn), precies één van beide namen een eigen hulpnaam (`save-<id>.ops-save.tmp` of
-`<naam>.ops-vorige-<id>`, `<id>` kleine letters en cijfers zoals `generateId`, één regel in `place_file.rs`; de vervanging
-gebruikt `save-<id>.ops-vorige-<id>`), de scope
+van `to` moet hetzelfde bestand zijn), precies één van beide namen een eigen hulpnaam (`save-<id>.ops-save.tmp` van de gewone opslag,
+`save-<id>.ops-vervang.tmp` van de vervanging of `<naam>.ops-vorige-<id>`, `<id>` kleine letters en cijfers zoals
+`generateId`, één regel in `place_file.rs`; de vervanging gebruikt `save-<id>.ops-vorige-<id>`), de scope
 ook op het echte pad van de open map (`FsRenameScope`: de capability via `Webview::resolve_command_scope` plus de
 runtime-scope; een verbod op de padtekst of op het echte pad wint, de toestemming geldt het echte pad, en het echte pad
 lost ook links in de bovenliggende mappen van een nog niet bestaand pad op, een lus weigert; zoals `resolve_path` en
@@ -57,7 +57,10 @@ ook `EEXIST`), een controle na de stap (op het doel staat de open bron, in de op
 én via het pad van de aanroeper; anders `source-changed` en geen verdere stap, geen terugzetten), fsync van de map.
 Uitkomsten op `code`: `placed`, `dir-not-synced` (wel verplaatst), `target-exists`, `unsupported`, `refused` met
 `reason` (`path-shape`, `helper-name`, `scope`, `not-regular-file`, `hard-linked`), `source-changed` (belooft geen stand op schijf),
-`io`. De grens van het commando staat letterlijk bovenaan `place_file.rs` en in ontwerp §4.10; op Unix blijft een
+`io`. Met het optionele `beside` (het doel van een vervanging) mag `to` ook een kopienaam naast dat doel zijn die zelf
+niet in de scope staat (`CopyBeside`: `<begin van de stam> (<label>)<ext>` in de map van `beside`, zoals
+`replaceCopyPath` hem maakt; `beside` in de scope en geen hulpnaam; een verbod op de kopienaam blijft gelden; de stap
+blijft exclusief). Zonder `beside` verandert er niets. De grens van het commando staat letterlijk bovenaan `place_file.rs` en in ontwerp §4.10; op Unix blijft een
 venster tussen controle en stap (knownbug 1799). Geen terugval: `link()` + `unlink()` en "eerst kijken, dan hernoemen" laten
 een bestand verdwijnen dat tussendoor op het doel komt (review #839, ronde 4); een bestandssysteem zonder gebonden
 exclusieve stap geeft `unsupported`. De controles staan in de code, want een app-commando zonder ACL-manifest is
@@ -387,25 +390,22 @@ Proeven: `check-ifc-document-save.ts` (nep-handle met echte herstelrondes) en `s
 alles vast: de doelcontrole met de uitzondering "eigen doel" (`refusedWriteTarget`, ook voor een pad: precies het pad
 van document en kenmerk, zonder handle; een ander open document met dat bestand als bron blijft
 `ifcForeignReplaceBlocked`), de merge, de vervanging, de broncommit, de laatste herstelronde en het wissen van het
-record. Afsluiten en de updater wachten erop (#987). Buiten de thuismap (knownbug 1762, alleen met de flag aan): mag
-plugin-fs een hulpnaam naast het doel niet toelaten, dan vraagt de app vóór de merge eenmalig toegang tot die map
-(`refusedReplaceFolderAccess` in `state/replaceFolderAccess.ts` → `requestReplaceFolderAccess` in
-`fileAccess/replaceFolderAccess.ts`: de toets `exists` op een hulpnaam, de vraag in de app `FolderAccessQuestionDialog`,
-de mapkiezer van plugin-dialog met `recursive: false` en de map als `defaultPath`, dan dezelfde toets opnieuw). Geen
-vergelijking van padteksten. Eén uitkomst: `true` = verder, `false` = niet vrijgegeven (annuleren of een andere map) ⇒
-`ifcForeignFolderAccessMissing`, niets geschreven. Een Ctrl+S die al wachtte toen de planner annuleerde, krijgt
-hetzelfde antwoord zonder tweede vraag (`SaveAttempt.refusedFolder` in `fileSlice.ts`); een nieuwe Ctrl+S vraagt
-opnieuw. Een map waarvan de naam op `**` eindigt: geen vraag, de weigering van vóór de vraag (`persisted-scope` 2.4.3
-leest zo'n map na een herstart als recursief). De mapkiezer geeft de map vrij zoals `allow_directory(map, false)`
-(namen in de map, geen namen in een submap), `persisted-scope` bewaart haar en `place_file_exclusive` neemt haar mee,
-zonder Rust-commando (`place_file_mapkiezer_geeft_de_map_niet_recursief_vrij`). Die toestemming geldt voor elke
-bestandsopdracht van de capability, ook `remove` op de map zelf met `recursive` (knownbug 2027; de app doet dat nooit,
-`check-fs-remove-calls.ts`), ook voor een verkeerd gekozen map, en ze blijft met de flag uit: dan schrijft ook de gewone
-opslag in die map via het hulpbestand (knownbug 2028). Opslaan als over een bestaand bestand vraagt hetzelfde, vlak
-vóór de doelcontrole na de kiezer (die dus beslist op de stand van ná de vraag); Automatisch opslaan en een nieuwe naam
-vragen nooit. De vraag blokkeert zoals "alleen de
-planning" (`isBlockingDialogOpen`, `saveQuestionOpen`, `isGlobalShortcutFrozen`; bedrading
-`state/folderAccessQuestionBridge.ts`, proef `check-folder-access-question.ts`). Na de eerste herstelronde, vóór de
+record. Afsluiten en de updater wachten erop (#987). Buiten de thuismap (1131 punt 7, route e; besluit van de eigenaar, 23 november
+2026: "opslaan buiten de thuismap vraagt nooit") loopt dezelfde vervanging zonder vraag en zonder vrijgave tijdens het
+werk. De vaste capabilities `capabilities/hulpnamen-unix.json` (`/**/save-*.ops-vervang.tmp`, `/**/save-*.ops-vorige-*`)
+en `hulpnamen-windows.json` (`//?/?:/**/…` en `//?/UNC/**/…`: plugin-fs toetst het echte pad, op Windows `\\?\C:\…` of
+`\\?\UNC\…`; geen backslash, `check-tauri-capability-scopes.ts`) laten plugin-fs de twee hulpnamen op elke plek gebruiken,
+per commando alleen wat de vervanging en het herstel doen: `write_file` het tijdelijke bestand (`fs:allow-write-file`
+geeft in plugin-fs 2.7.1 ook `open` en `write`), `stat` en `open` de vorige versie, `lstat`, `read_file`, `remove` en
+`rename` beide; niet `exists`, `mkdir` of `read_dir`. Het doel zelf staat in de scope door de bestandskiezer, slepen of
+Recent (`persisted-scope`); er komt geen map in de scope en het scopebestand verandert niet door opslaan. Het oppervlak:
+alles in het venster, ook een extensie, kan bestanden met die twee namen overal schrijven, lezen en wissen;
+`fs:allow-home-write-recursive` geeft hetzelfde venster al de hele thuismap. De gewone opslag (`replaceUserFile`,
+`writeNewUserBytes`) houdt `save-<id>.ops-save.tmp`, buiten de capability: buiten de thuismap mag dat niet ontstaan en
+schrijft ze direct, zoals main. Een map met een punt vooraan valt op Linux en macOS buiten de capability
+(`requireLiteralLeadingDot`): daar `save-as-only` (knownbug 2067). Proeven: `cargo test place_file`
+(`place_file_hulpnamen_capability_*` op Ubuntu, macOS en Windows), `nodeFileIpc.ts` (dezelfde capability per commando),
+`check-ifc-own-file-replace.ts`, `check-ifc-document-save.ts` en `run-real-app.ts`. Na de eerste herstelronde, vóór de
 eerste schrijfactie in de projectmap, `stopBeforeWrite` = dezelfde `documentTargetCheck(momentopname, write, true)` als
 vóór de merge (fixronde 1 van #1008): document en bron ongewijzigd (`refuseChangedDocumentWrite`), `saveTargetRef` nog
 dit pad (`movedOwnTarget`, `sameFileRef`) en geen ander open document met dit bestand als bron (`refusedWriteTarget`). Anders de melding van die
@@ -442,7 +442,7 @@ vreemd deel geeft `documentId: null`: alleen het herstelrecord, geen `pendingSha
 daar geen bron), met de bytes van de gewone writer. Een vrije naam, een link of een map ⇒ `saveNewBytesToRef`
 (exclusieve aanmaak; een bestaande naam ⇒ `ifcForeignNewTargetOnly`), dus ook een link naar een gewoon bestand schrijft
 de app niet meer door. Onleesbaar ⇒ de controle weigert. `commit` legt het nieuwe pad, de bron en het kenmerk vast zoals
-Opslaan als naar een nieuwe naam; daarna Recent. Buiten de thuismap eerst de vraag om toegang tot de map (zie hierboven).
+Opslaan als naar een nieuwe naam; daarna Recent. Buiten de thuismap hetzelfde, via de hulpnamen-capability (zie hierboven).
 `save-as-only` (een harde link, ook op Windows via `nNumberOfLinks` in `place_file_exclusive`; `unsupported`, `refused`) ⇒
 `ifcForeignNewTargetOnly`; de andere uitkomsten de meldingen van Ctrl+S. Met de flag uit gaat een document zonder vreemd
 deel langs de gewone kiezer van main (`documentSaveDialog`, `saveDataDialog` → `writeUserFileTauri`), zonder
@@ -483,10 +483,12 @@ link niet, `nlink: null`); de garantie geeft stap 3: `place_file_exclusive` weig
 `replaceWithRecoveryPending` voor `pendingSha256` in het manifest, dat versie 5 blijft; lukt een van de twee niet ⇒
 `not-recorded`, niets geschreven (1764). Stap 1–5 in `replaceOwnFileBytes` (`fileAccess/ownFileReplace.ts`, bewerkingen
 via `OwnFileReplaceFs`, op Tauri `tauriOwnFileReplaceFs`): `createOwnTemp` (gedeeld met `writeNewUserBytes`, zonder de
-directe terugval) naar `save-<id>.ops-save.tmp`, `sourceTargetContent` op het doel, `place_file_exclusive` doel →
+directe terugval) naar `save-<id>.ops-vervang.tmp` (`replaceTempPath`; herstelrecord versie 3, een record van versie 1
+of 2 noemt nog `save-<id>.ops-save.tmp`: `recordTempPath`), `sourceTargetContent` op het doel, `place_file_exclusive` doel →
 `save-<id>.ops-vorige-<id>` (`previousVersionPath`: kort en los van de doelnaam, fixronde 3 van #1071; het herstel leest
 de naam uit het record, `recordPreviousPath`, ook de oude vorm `<naam>.ops-vorige-<id>` van record versie 1) en tijdelijk → doel, `.ops-vorige` opnieuw vergelijken met de bron (gelijk: weg; anders
-exclusief naar `<naam> (versie van ander programma <JJJJ-MM-DD UU.mm>).ifc`, `i18n/replaceCopyName.ts`). Per uitkomst
+exclusief naar `<naam> (versie van ander programma <JJJJ-MM-DD UU.mm>).ifc`, `i18n/replaceCopyName.ts`, met `beside` =
+het doel). Per uitkomst
 (`ownPathReplaceNotices`): stap 1 `forbidden path` of een gelinkt doel, stap 3 `unsupported`/`refused` ⇒ `save-as-only`;
 stap 1 een schrijffout, stap 3 `target-exists`/`io` ⇒ `failed`, eigen tijdelijk bestand weg; stap 2 ⇒
 `ifcForeignTargetChanged`/`Gone`; `source-changed` ⇒ `unknown`, niets teruggezet of opgeruimd; stap 4 `target-exists` ⇒

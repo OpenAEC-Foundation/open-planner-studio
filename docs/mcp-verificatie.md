@@ -292,11 +292,12 @@ De echte-app-proef (`mcp-real-app.yml`) exporteert een gebouwmodel naar een nieu
 het ops-test-kanaal (`log`) de regel van `writeNewUserBytes` in het app-log (kanaal `nieuweNaam`): voor precies dat
 doel moet het echte `place_file_exclusive` `placed` of `dir-not-synced` hebben gegeven, zonder directe aanmaak.
 Elke run krijgt een eigen datamap in `/tmp` (`XDG_DATA_HOME`, `realApp/runData.mjs`; proef `cases-real-app-data.ts`),
-die de opruiming na de run weer weghaalt, samen met de vrijgegeven map; een herhaling op dezelfde machine begint zo leeg.
-Voor knownbug 1762 staat daarin vóór de start een `.persisted-scope` met een map in `/tmp`, zoals de mapkiezer van
-plugin-dialog die vrijgeeft (`allow_directory(map, false)`); de laatste proef doet daar Ctrl+S met een gebouwmodel en eist
-het bestand met de nieuwe taak en het gebouwmodel, zonder hulpbestand en zonder vraag. De vraag en de mapkiezer zelf
-toetst ze niet.
+die de opruiming na de run weer weghaalt, samen met de map buiten de thuismap; een herhaling op dezelfde machine begint
+zo leeg. Voor #804 (opslaan buiten de thuismap, knownbug 1131 punt 7) staat daarin vóór de start een `.persisted-scope`
+met alleen een bestand in een map in `/tmp`, zoals de bestandskiezer het vrijgeeft (`allow_file`). De laatste proef doet
+daar Ctrl+S met een gebouwmodel en eist het bestand met de nieuwe taak en het gebouwmodel, zonder hulpbestand; een ander
+bestand in die map blijft dicht (`forbidden path`), en het scopebestand krijgt geen map en geen hulpnaam
+(`realApp/persistedScope.mjs`).
 `cases-doc-file.ts` toetst via de dispatcher import, duuractie, export en volledige heropening, bronidentiteit,
 bestaande/eigen doelen, flag uit na openen, ontbrekende bron en Latin-1 zonder tekstrondgang.
 De headless server blijft tekst schrijven; de beperking en richting staan bij knownbug 1136 in `docs/headless-mcp.md`.

@@ -749,14 +749,13 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
     als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
     sluitvraag sluit dan niet. Automatisch opslaan naar het bestand gebruikt sinds #804 stap 8 dezelfde vervanging
-    (§4.12). Buiten de thuismap (knownbug 1762, besluit van de eigenaar van 21 november 2026): mag het tijdelijke
-    bestand naast het doel niet ontstaan, dan vraagt de app vóór de merge eenmalig toegang tot die map, eerst met een
-    korte vraag in de app en dan met de gewone mapkiezer op die map (`recursive: false`: namen in de map, geen namen in een
-    submap; wel voor elke bestandsopdracht van de app, ook het wissen van de map zelf, knownbug 2027).
-    `persisted-scope` bewaart de map over een herstart. Daarna loopt dezelfde vervanging, ook het herstel na een crash.
-    Na annuleren of een andere map: niet opgeslagen, met een melding die naar *Opslaan als* wijst; een andere map blijft
-    wel vrijgegeven (knownbug 2027). De vraag alleen met de flag aan; een vrijgegeven map blijft ook met de flag uit vrij
-    (knownbug 2028). Automatisch opslaan vraagt nooit.
+    (§4.12). Buiten de thuismap (knownbug 1131 punt 7, route e; besluit van de eigenaar van 23 november 2026: "opslaan
+    buiten de thuismap vraagt nooit") loopt dezelfde vervanging, zonder vraag. Een vaste capability laat plugin-fs de
+    twee hulpnamen van de vervanging, `save-<id>.ops-vervang.tmp` en `save-<id>.ops-vorige-<id>`, op elke plek
+    gebruiken, per commando alleen wat de vervanging en het herstel doen. Het doel zelf staat in de scope door de
+    bestandskiezer, slepen of Recent; er komt geen map in de scope, en opslaan verandert het scopebestand niet. De
+    gewone opslag houdt `save-<id>.ops-save.tmp`, buiten de capability. Een map met een punt vooraan valt op Linux en
+    macOS buiten de capability (knownbug 2067): daar alleen *Opslaan als*.
   - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
     vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
     als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
@@ -781,9 +780,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
     niet kan (een link of een harde link; een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
-    nieuwe naam kan; geen terugval. Buiten de thuismap vraagt de app eerst toegang tot de map, zoals bij Ctrl+S
-    (knownbug 1762); een nieuwe naam daar vraagt niets. Met de flag uit is alles zoals
-    voorheen, ook de volgorde van de weigerredenen, op een eerder vrijgegeven map na (knownbug 2028). Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    nieuwe naam kan; geen terugval. Buiten de thuismap hetzelfde, zoals bij Ctrl+S. Met de flag uit is alles zoals
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -854,8 +852,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     dan geen versie verloren, want de andere naam houdt de oude inhoud; detectie zou breekbaar zijn en Ctrl+S op
     elke SSHFS-map uitzetten.
   - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (een symlink, of een harde link die het
-    bestandssysteem meldt: een gemeld aantal namen groter dan één), buiten de fs-scope (als de planner de map niet
-    vrijgeeft, knownbug 1762), of als een stap faalt, schrijft
+    bestandssysteem meldt: een gemeld aantal namen groter dan één), buiten de fs-scope (een map met een punt vooraan,
+    knownbug 2067), of als een stap faalt, schrijft
     de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in `atomicWrite.ts:105-116, 155-160` past
     niet bij deze garantie). Een harde link die het bestandssysteem verbergt (SSHFS en andere FUSE- of netwerkmounts,
     knownbug 1823) ziet de app niet; daar stopt hij dus niet. Zonder vreemd deel blijft de huidige route.
@@ -1545,11 +1543,12 @@ profiel); daar geldt deze lijst.
 
 1. **Ctrl+S buiten de thuismap** bij een bestand met een gebouwmodel (knownbug 1762): overal, maar later. Nu alleen in
    de thuismap; daarbuiten verwijst de app naar *Opslaan als*. De uitbreiding is de laatste bouwtaak vóór de
-   featureflag standaard aan gaat. *Gebouwd na het besluit van 21 november 2026* (de eigenaar koos "één keer per map
-   vragen", de technisch beslisser op 20 november T1 tot en met T6): de app vraagt eenmalig per map toegang met de
-   gewone mapkiezer (`recursive: false`, bewaard over een herstart, ook met de flag uit; knownbugs 2027 en 2028), ook
-   voor *Opslaan als* over een bestaand bestand;
-   geen Rust-commando, `place_file_exclusive` neemt de vrijgegeven map mee (§4.10).
+   featureflag standaard aan gaat. *Gebouwd na het besluit van 23 november 2026* (de eigenaar koos "nooit vragen",
+   route e; dat vervangt zijn besluit van 21 november, één keer per map vragen): een vaste capability voor alleen de
+   twee hulpnamen van de vervanging, ook voor *Opslaan als* over een bestaand bestand en Automatisch opslaan. Geen
+   nieuw Rust-commando; `place_file_exclusive` kreeg het optionele `beside` voor de kopieën naast het doel (§4.10).
+   Waarom niet de map: de blokkerende punten van de reviews van #1124 kwamen alle uit de maptoegang via de scope, en
+   een vrijgave per opslag zou het scopebestand van `persisted-scope` bij elke opslag niet atomair herschrijven.
 2. **Automatisch opslaan** bij een bestand met een gebouwmodel: aan, met opslaan in de achtergrond, ook voor gewone
    bestanden. Gebouwd in #804 stap 8 (achter de flag); het ritme en de voorrang staan in §4.12.
 3. **Het bestand is intussen door een ander programma gewijzigd.** Na een onderzoek (16 november 2026): het gewone
