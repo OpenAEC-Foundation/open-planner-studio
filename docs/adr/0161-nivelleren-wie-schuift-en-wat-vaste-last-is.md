@@ -32,3 +32,7 @@ klopt. Wat de planner hiervan ziet, staat in de gids `howto-overbezetting-oploss
   taak zonder alternatief boekt: ook de eerst geboekte pin moet het conflict met een later geboekte pin terugkrijgen.
   Welke toets bij welke taak hoort, staat in die lus. Zo'n conflict krijgt geen reden in `unresolvedReasons`: de taak
   is niet verplaatst, dus er is geen scanreden.
+
+- Schuift vaste last buiten de scope mee met een gewijzigde planning, dan controleert het voorstel ook haar
+  berekende plaatsing op plaatselijke overbezetting. Die controle gebruikt dezelfde belastingberekening als
+  het histogram na toepassen en meldt de dagen waarop de meeschuivende taak aan de overbezetting bijdraagt (#1162).
