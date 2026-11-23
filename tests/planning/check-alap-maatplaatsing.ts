@@ -202,6 +202,29 @@ for (const profile of PROFILES) {
   expectFeasible(label, profile, tasks, seqs, SCALAR, 'A', '24hour');
 }
 
+{
+  const observations = [];
+  const seqs: Sequence[] = [{ id: 's', predecessorId: 'A', successorId: 'B', type: 'START_START', lagDays: 1.5 }];
+  for (const profile of PROFILES) {
+    for (const unit of ['days', 'hours'] as const) {
+      for (const lagCalendar of ['24hour', 'predecessor'] as const) {
+        const label = `${profile}/${unit}/${lagCalendar}`;
+        const tasks = [task('A', 2, { unit }), task('B', 1, { unit: 'hours' })];
+        const first = run(profile, tasks, seqs, SCALAR, lagCalendar);
+        const a = first.tasks.get('A')!, b = first.tasks.get('B')!;
+        const replay = run(profile, withoutAlapAt(tasks, 'A', a.lateStart), seqs, SCALAR, lagCalendar);
+        const a2 = replay.tasks.get('A')!, b2 = replay.tasks.get('B')!;
+        eq(`345 ${label}: A begint bij herberekenen echt op LS`, a2.earlyStart, a.lateStart);
+        observations.push({ label, a: a.earlyStart, ls: a.lateStart, tf: a.totalFloatMinutes,
+          critical: a.isCritical, b: b.earlyStart, lb: b.lateStart, replayB: b2.earlyStart });
+      }
+    }
+  }
+  const summary = JSON.stringify(observations);
+  console.log('KNOWNBUG345_SUMMARY', summary);
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=Knownbug 345::${summary}`);
+}
+
 // ── 4. Knownbug 273: losse START-mijlpaal met ALAP naast een taak van 3 d ───────────────────────
 // Kalender 7–16 met een uur pauze (8 u per dag). Vóór de fix: M op wo 10:00 met 0,625 d (300 min)
 // totale en vrije speling; de late start is wo 16:00.
