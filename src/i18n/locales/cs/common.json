@@ -100,6 +100,7 @@
     "importDatesAsRecorded_other": "{{count}} úkolů zobrazuje data tak, jak jsou uložena v souboru (bez přepočtu).",
     "xerExportLoss": "Při exportu do formátu {{format}} se ztratí zdrojové informace XER.",
     "exportDataLoss": "Při exportu do {{format}} se ztratí data, která {{format}} nedokáže uložit, například poznámky nebo sekundární omezení. Projektový soubor IFC uchová vše.",
+    "exportPlanOnly": "Exportován byl pouze plán; model budovy není součástí tohoto formátu.",
     "mppLegacy": "Tento soubor .mpp používá starý formát (Project 2007 nebo starší). Exportujte jej v MS Project jako XML (Soubor → Uložit jako → XML) a otevřete tento soubor.",
     "mppInvalidContainer": "Tento soubor MPP má neplatnou strukturu a nelze jej otevřít.",
     "xmlUnknownSchedule": "Neznámý formát plánu XML. Otevřete XML MS Project (Project) nebo XML Primavera P6 (APIBusinessObjects).",
@@ -113,6 +114,10 @@
     "ifcUnreadableTargetSave": "Aplikace tento soubor nedokáže správně přečíst; může obsahovat model budovy. Vyberte jiný soubor, do kterého chcete uložit.",
     "ifcUnreadableTargetExport": "Aplikace tento soubor nedokáže správně přečíst; může obsahovat model budovy. Vyberte jiný soubor, do kterého chcete exportovat.",
     "ifcUnreadableTargetAutoSave": "Automatické ukládání bylo zastaveno: aplikace tento soubor nedokáže správně přečíst; může obsahovat model budovy. Vyberte jiný soubor, do kterého chcete uložit.",
+    "ifcForeignAutoSaveTargetChanged": "Automatické ukládání bylo zastaveno: soubor byl mezitím změněn, přesunut nebo odstraněn. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, abyste je uložili do nového souboru.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatické ukládání bylo zastaveno: tento soubor nelze na tomto místě bezpečně nahradit. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, abyste je uložili do nového souboru.",
+    "ifcForeignAutoSaveNotRecorded": "Automatické ukládání bylo zastaveno: soubor nyní nelze bezpečně nahradit, protože nelze aktualizovat zotavení systému po chybě. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, abyste je uložili do nového souboru.",
+    "ifcForeignAutoSaveRemnant": "Automatické ukládání bylo zastaveno: předchozí uložení tohoto souboru neskončilo úspěšně. Vaše změny jsou stále v aplikaci. Uložte pomocí Ctrl+S; po restartu aplikace se předchozí uložení vyřídí.",
     "ambiguousThousands": "„{{text}}“ je nejednoznačné: myslíte desetinné číslo, nebo tisíce? Desetinná čísla zadejte pomocí „{{separator}}“ (1{{separator}}5) a tisíce bez oddělovače (1500). Hodnota nebyla změněna.",
     "siteSaveConflict": "Neuloženo: někdo jiný mezitím změnil „{{name}}“ na webu. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, pokud je chcete uložit jako nový soubor.",
     "siteSaveConflictCopy": "„{{original}}“ byl na webu mezitím změněn někým jiným. Vaše práce je proto uložena v kopii: „{{name}}“. Od této chvíle Uložit zapisuje do této kopie.",
@@ -142,6 +147,7 @@
     "relationDuplicate": "Tato závislost již existuje",
     "relationAncestorEndpoint": "Závislost mezi úkolem a jeho vlastním nadřazeným souhrnným úkolem (i vyšším) není povolena.",
     "relationCycle": "Tato závislost by v plánu vytvořila cyklus ({{cycle}}) a nebyla vytvořena.",
+    "relationChainOrderUnclear": "Úkoly nebyly propojeny: jejich pořadí v seznamu není pevně dané. Vybraný úkol je v seznamu zároveň před i za jiným úkolem (seskupení), nebo dva vybrané milníky sdílejí sbalenou řadu. Zrušte seskupení, rozbalte řadu, nebo vyberte předchůdce pomocí příkazu „Přiřadit předchůdce…“.",
     "hierarchyCycle": "Toto přesunutí by vytvořilo cyklus v plánu ({{cycle}}): závislosti souhrnného úkolu platí také pro jeho dílčí úkoly. Nic nebylo přesunuto.",
     "relationsExcludedByHierarchy_one": "Po přesunutí spojuje {{count}} závislost úkol s jeho vlastním souhrnným úkolem; ta se již do výpočtu nezapočítává.",
     "relationsExcludedByHierarchy_few": "Po přesunutí spojují {{count}} závislosti úkol s jeho vlastním souhrnným úkolem; ty se již do výpočtu nezapočítávají.",
@@ -264,7 +270,8 @@
     "schedulingProfileShifted_other": "Po použití se posunulo {{count}} úkolů.",
     "actions": {
       "openProjectInfo": "Otevřít profil výpočtu",
-      "openHelp": "Otevřít nápovědu"
+      "openHelp": "Otevřít nápovědu",
+      "undo": "Vrátit zpět"
     },
     "xerArchiveUnusable": "Zdrojový archiv XER v tomto souboru je nepoužitelný a byl vynechán; samotný projekt byl otevřen úplně.",
     "xerArchiveUnusableLine": "Zdrojový archiv XER v tomto souboru byl nepoužitelný a byl vynechán.",
@@ -553,11 +560,23 @@
     "reportFontMissing": "Vlastní písmo „{{name}}“ už na tomto zařízení není. Sestava opět používá písmo Inter.",
     "layoutsNotSaved": "Rozložení nebylo možné uložit. Nic se nezměnilo. Zkuste to znovu.",
     "ifcForeignOpenSchema": "Tento soubor IFC obsahuje data z jiné aplikace a má neznámé nebo chybějící schéma. Otevírání bylo zastaveno, aby se při uložení zabránilo ztrátě dat.",
+    "ifcForeignOpenTooLarge": "Tento soubor IFC je větší než {{limit}} MB. Soubor IFC s modelem budovy nebo s daty z jiného programu lze otevřít až do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Tento soubor IFC nelze bezpečně zařadit. Otevírání bylo zastaveno, aby se při uložení zabránilo ztrátě dat.",
     "ifc2x3PlanningOnly": "Soubor IFC2X3 byl otevřen jako plán. Data z jiných programů se při uložení nezahrnou.",
-    "ifcForeignReplaceBlocked": "Soubor nebyl uložen. Přepsání existujícího souboru s modelem budovy zatím není bezpečné. Použijte „Uložit jako“ a zvolte nový název.",
+    "ifcForeignReplaceBlocked": "Soubor nebyl uložen. Je to soubor, který máte otevřený. Pro jeho aktualizaci použijte „Uložit“, pro kopii „Uložit jako“ s novým názvem.",
+    "ifcForeignTargetChanged": "Neuloženo. Soubor byl mezitím změněn jiným programem. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, abyste je uložili do nového souboru.",
+    "ifcForeignTargetGone": "Neuloženo. Soubor byl přesunut, odstraněn nebo už nelze číst. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, abyste je uložili do nového souboru.",
+    "ifcForeignReplaceNotRecorded": "Neuloženo. Soubor nyní nelze bezpečně nahradit, protože nelze aktualizovat zotavení systému po chybě. Vaše změny jsou stále v aplikaci. Zvolte „Uložit jako“, abyste je uložili do nového souboru.",
+    "ifcForeignDownloadCopy": "Kopie byla stažena jako {{file}}. Otevřený soubor nebyl aktualizován; změny zůstávají označeny jako neuložené.",
+    "ifcForeignReplaceFailed": "Neuloženo. Soubor nelze zapsat. Vaše změny jsou stále v aplikaci. Zkuste uložit znovu, nebo zvolte „Uložit jako“, abyste je uložili do nového souboru.",
     "ifcForeignMergeRefused": "Soubor IFC nebyl zapsán. Model budovy nebo data z jiného programu by se jinak nezachovala úplně. Vraťte poslední změnu zpět, nebo exportujte pouze plán: do IFC pomocí „Bez modelu budovy“, nebo do jiného formátu.",
     "ifcSaveChangedWhileWaiting": "Soubor nebyl uložen. Dokument nebo zdroj modelu budovy se během přípravy změnil. Zkuste uložit znovu.",
+    "ifcSaveWorkerFailed": "Soubor IFC nebyl zapsán: příprava na pozadí byla přerušena. Vaše změny jsou stále v aplikaci. Zkuste to prosím znovu.",
+    "ifcForeignNewTargetOnly": "Tento soubor IFC lze zapsat pouze pod novým názvem souboru. Zvolte název, který ještě neexistuje.",
+    "ifcForeignTargetOpenInTab": "Neuloženo. Tento soubor je otevřen na jiné kartě. Zavřete tuto kartu nebo zvolte jiný název.",
+    "exportTargetOpenInTab": "Neexportováno. Tento soubor je otevřen na jiné kartě. Zavřete tuto kartu nebo zvolte jiný název.",
+    "exportTargetOpenDocument": "Neexportováno. Tento soubor je otevřen na kartě. Zvolte jiný název nebo nejprve zavřete tuto kartu.",
+    "ifcForeignPlaceUnknown": "Aplikace neví, zda byl soubor správně uložen: během ukládání se ve složce něco změnilo. Vaše změny jsou stále v aplikaci. Zkontrolujte, zda je soubor v pořádku, nebo uložte znovu pod novým názvem.",
     "ifcForeignReplaceOtherVersion": "Jiný program změnil {{file}}, zatímco ho aplikace ukládala. Tato verze byla uchována jako {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Dřívější uložení souboru {{file}} nebylo dokončeno. Plán, který se tehdy ukládal, je v {{copy}}. Pokud tento soubor už nepotřebujete, odstraňte jej.",
     "ifcForeignReplaceTargetTaken": "Neuloženo. Během ukládání umístil jiný program na {{target}} nový soubor. Nyní jsou k dispozici tři soubory: tento nový soubor na {{target}}, váš plán v {{temp}} a předchozí verze v {{previous}}. Vaše změny jsou stále v aplikaci.",
@@ -566,7 +585,19 @@
     "ifcForeignReplaceLeftOver": "Z přerušeného ukládání souboru {{file}} zůstal tento soubor: {{path}}. Zkontrolujte, zda jej ještě potřebujete.",
     "ifcSourceCopyFailed": "Plán se ukládá pro zotavení systému po chybě, ale kopii modelu budovy se nepodařilo uložit. Po chybě může model budovy chybět. Uložte svou práci sami jako úplný soubor IFC.",
     "ifcForeignSourceMissing": "Soubor nebyl uložen. Model budovy nebo data z jiného programu nebyla nalezena. Použijte „Uložit jako“ a uložte jen plán do nového souboru. Otevřete původní soubor IFC, abyste znovu pracovali s úplným souborem.",
-    "taskTypeRenameNameTaken": "V tomto projektu zůstane název „{{oldName}}“: jiný druh práce v tomto projektu se již jmenuje „{{takenName}}“."
+    "taskTypeRenameNameTaken": "V tomto projektu zůstane název „{{oldName}}“: jiný druh práce v tomto projektu se již jmenuje „{{takenName}}“.",
+    "otherWork": {
+      "durationDays_one": "Úkol nyní trvá {{days}} den.",
+      "durationDays_few": "Úkol nyní trvá {{days}} dny.",
+      "durationDays_many": "Úkol nyní trvá {{days}} dne.",
+      "durationDays_other": "Úkol nyní trvá {{days}} dnů.",
+      "durationHours_one": "Úkol nyní trvá {{hours}} hodinu.",
+      "durationHours_few": "Úkol nyní trvá {{hours}} hodiny.",
+      "durationHours_many": "Úkol nyní trvá {{hours}} hodiny.",
+      "durationHours_other": "Úkol nyní trvá {{hours}} hodin.",
+      "durationSame": "Doba trvání zůstává stejná. Hodiny ostatních byly upraveny.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Cyklus závislostí mezi úkoly: {{path}}",
@@ -608,6 +639,8 @@
     "addSubtask": "Přidat dílčí úkol",
     "addMilestone": "Přidat milník",
     "addRelation": "Přidat závislost",
+    "assignPredecessors": "Přiřadit předchůdce…",
+    "assignSuccessors": "Přiřadit následníky…",
     "dissolve": "Dissolve (zachovat řetěz)",
     "delete": "Smazat",
     "newTask": "Nový úkol",
@@ -674,7 +707,7 @@
     "demoTopbarAnimation": "Demo: animace v horní liště",
     "demoTopbarAnimationHint": "Jemný oranžový lesk přes horní lištu. Ukazuje, jak funguje experimentální přepínač.",
     "ifcForeignContent": "Otevírat IFC s modelem budovy",
-    "ifcForeignContentHint": "Otevře také soubor IFC s modelem budovy nebo daty z jiných programů. Můžete použít „Uložit jako“ pro nový soubor, uložit na web, stáhnout v prohlížeči a v nabídce Export → IFC, a to i bez modelu budovy, nebo když vedle něj existuje knihovna zdrojů (pak pouze s plánem). Přepsání existujícího místního souboru zatím není možné. Zotavení systému po chybě u modelu budovy vyžaduje přístup k původnímu souboru nebo k uložené kopii v prohlížeči.",
+    "ifcForeignContentHint": "Také otevře soubor IFC s modelem budovy nebo s daty z jiných programů. Můžete použít „Uložit jako“ pro nový soubor, uložit na web, stáhnout v prohlížeči a v nabídce Export → IFC, a to i bez modelu budovy nebo když vedle něj existuje knihovna zdrojů (pak jen s plánem). V prohlížeči Chrome a Edge ukládá „Uložit“ také otevřený soubor sám. Změní-li jiný program tento soubor přesně během ukládání, může se tato změna ztratit. V desktopové aplikaci ukládá „Uložit“ otevřený soubor sám, pokud je ve vaší domovské složce. Změnil-li mezitím jiný program soubor, ukládání se zastaví, nebo aplikace tuto verzi uloží jako samostatnou kopii vedle souboru; ztratit se může jen změna provedená přesně ve stejném okamžiku. „Uložit jako“ přes jiný existující soubor ve vaší domovské složce nahradí tento soubor stejným způsobem, i když sám obsahuje model budovy nebo data z jiného programu. Nahradit takový soubor může také plán bez modelu budovy. Soubor, který aplikace neumí přečíst, a soubor s druhým názvem se nenahradí. Těsně před nahrazením aplikace porovná soubor s verzí, kterou načetla po vaší volbě: pokud se změnil, ukládání se zastaví a soubor zůstane beze změny. Ukáže-li se, že verze, kterou aplikace odložila stranou, je přesto jiná, aplikace ji uloží jako samostatnou kopii vedle souboru a zobrazí upozornění. Obnova modelu budovy po pádu aplikace vyžaduje přístup k původnímu souboru nebo k uložené kopii v prohlížeči.",
     "tourHint": "Projděte si znovu úvodní prohlídku aplikace.",
     "theme": "Motiv",
     "themeHint": "Barevné schéma rozhraní.",
@@ -1398,7 +1431,9 @@
     },
     "regen": {
       "hint": "Svátky pokrývají {{from}}–{{to}}; vygenerovat znovu do {{year}} včetně?",
-      "button": "Vygenerovat znovu"
+      "button": "Vygenerovat znovu",
+      "confirmMessage": "Váš seznam volných dní se liší od dříve vygenerovaného seznamu. Nahrazením seznamu zaniknou vaše ruční změny.",
+      "confirmReplace": "Nahradit volné dny"
     },
     "countryName": {
       "NL": "Nizozemsko",
@@ -1409,6 +1444,7 @@
       "AT": "Rakousko",
       "CH": "Švýcarsko",
       "US": "Spojené státy americké",
+      "BO": "Bolívie",
       "none": "Žádné svátky"
     },
     "preset": {
@@ -1621,7 +1657,8 @@
     "edit": {
       "copy": "Kopírovat",
       "deselect": "Zrušit výběr",
-      "selectAll": "Vybrat vše"
+      "selectAll": "Vybrat vše",
+      "linkSelected": "Propojit vybrané úkoly do řetězce"
     },
     "structure": {
       "moveUp": "Přesunout úkol nahoru",
