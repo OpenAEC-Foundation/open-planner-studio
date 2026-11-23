@@ -190,7 +190,6 @@ function leesRelease(ctx, tag) {
 
 const gepubliceerd = rel => rel && rel.draft === false && rel.prerelease === false && Boolean(rel.published_at);
 
-/** Release-run, publicatie, verify, Snap, AUR, assets en wiki voor één tag. Website apart. */
 export function lever(ctx, { tag, sha }, regels) {
   const versie = tag.slice(1);
   // 1. release.yml
@@ -230,13 +229,11 @@ export function lever(ctx, { tag, sha }, regels) {
   if (snap.conclusion === 'success') {
     regels.push(`Snap: [${snap.id}](${snap.html_url}) groen, Publish to Snap Store gelukt.`);
   } else {
-    // Besluit wrakko, 2026-11-17: een verlopen Store-login is geen stop (zoals het AUR-secret); melden en door.
     const tekst = `Snap ${tag}: de .snap is gebouwd, maar de Snap Store weigert de verlopen login (${snap.html_url}); de Snap Store kreeg ${tag} niet.`;
     regels.push(tekst);
     ctx.meld('snap-login', tekst);
   }
 
-  regels.push(aur(ctx, { tag, versie, releaseRun }));
   regels.push(controleerAssets(ctx, { tag, versie, release }));
   regels.push(wiki(ctx, { tag, sha, versie }));
 }
@@ -261,16 +258,12 @@ export function jobLog(ctx, id) {
   try { return ctx.gh(['api', pad, '--allow-escape-sequences']); } catch { return ctx.gh(['api', pad]); }
 }
 
-/**
- * Een afgeronde vervolgrun hoort bij de tag als een gedraaide job de tag logt zoals de workflow hem uit
- * `workflow_run.head_branch` haalt: `HEAD_BRANCH: <tag>` (snap.yml, release-verify.yml) of `VERSION: <tag>` (aur.yml).
- */
 export function hoortBijTag(ctx, run, tag) {
   if (run.event === 'workflow_dispatch') return run.head_branch === tag;
   const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
-  const regel = new Set([`HEAD_BRANCH: ${tag}`, `VERSION: ${tag}`]);
+  const regel = `HEAD_BRANCH: ${tag}`;
   return jobs.filter(j => j.conclusion && j.conclusion !== 'skipped')
-    .some(j => jobLog(ctx, j.id).split('\n').some(r => regel.has(r.replace(/^\S+\s+/, '').trim())));
+    .some(j => jobLog(ctx, j.id).split('\n').some(r => r.replace(/^\S+\s+/, '').trim() === regel));
 }
 
 /**
@@ -283,36 +276,6 @@ export function snapLoginVerlopen(ctx, run) {
   const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
   const rood = jobs.flatMap(j => (j.steps ?? []).filter(st => st.conclusion === 'failure').map(st => ({ job: j, stap: st.name })));
   return rood.length === 1 && rood[0].stap === 'Publish to Snap Store' && jobLog(ctx, rood[0].job.id).includes(SNAP_LOGIN_VERLOPEN);
-}
-
-/** AUR: groen met push, of het bewezen ontbrekende secret (referentie.md, Ontbrekend AUR-secret). */
-function aur(ctx, { tag, versie, releaseRun }) {
-  const zoek = () => vervolgRun(ctx, 'aur.yml', { tag, releaseRun });
-  if (!wachtOfNull(ctx, `aur.yml voor ${tag} start`, () => zoek() ?? undefined, { maxMs: 30 * MINUUT })) {
-    ctx.act(`aur.yml starten voor ${tag} (publish=true)`, () =>
-      ctx.gh(['workflow', 'run', 'aur.yml', '--repo', ctx.repo, '--ref', tag, '-f', `version=${tag}`, '-f', 'publish=true']));
-    wacht(ctx, `aur.yml voor ${tag} start`, () => zoek() ?? undefined, { maxMs: UUR });
-  }
-  const run = volgRun(ctx, { label: `aur.yml ${tag}`, stopcode: 'aur-mislukt', zoek, bewijs: r => hoortBijTag(ctx, r, tag) });
-  const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
-  const job = jobs.find(j => j.name === 'aur');
-  const push = job?.steps?.find(s => s.name === 'Push to AUR')?.conclusion;
-  if (push === 'success') {
-    const info = ctx.httpJson('https://aur.archlinux.org/rpc/v5/info?arg[]=open-planner-studio-bin');
-    const aurVersie = info?.results?.[0]?.Version ?? '';
-    if (!aurVersie.startsWith(`${versie}-`)) throw new ReleaseStop('aur-mislukt', `AUR toont ${aurVersie || 'niets'}, verwacht ${versie}`);
-    return `AUR: [${run.id}](${run.html_url}) groen, AUR-pakket ${aurVersie}.`;
-  }
-  if (push === 'skipped' && job) {
-    const notices = api(ctx, `repos/${ctx.repo}/check-runs/${job.id}/annotations`)
-      .filter(a => a.annotation_level === 'notice').map(a => a.message);
-    const log = jobLog(ctx, job.id);
-    if (notices.includes('AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.')
-      && log.includes(`Open.Planner.Studio_${versie}_amd64.deb:`)) {
-      return `AUR: [${run.id}](${run.html_url}) groen; Arch kreeg nog geen pakket: secret \`AUR_SSH_PRIVATE_KEY\` ontbreekt.`;
-    }
-  }
-  throw new ReleaseStop('aur-mislukt', `aur.yml ${run.id}: Push to AUR = ${push ?? 'ontbreekt'}, zonder bewijs van het ontbrekende secret`);
 }
 
 /** Assets tegen de vorige release, `latest.json` van deze tag en de body (referentie.md, Uitlevering). */

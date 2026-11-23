@@ -20,8 +20,9 @@
  * - Een gewoon verzoek doet wat main deed: de hoofdthread rekent zelf, met `computeIfcOutputHere` (zoals
  *   `prepareIfcOutput` zonder worker), en gewone verzoeken doen dat de rest van de sessie (`unavailable`). Staat de
  *   flag de hele sessie uit, dan is dit de enige soort verzoek en is het gedrag dat van main. Eén verschil (knownbug
- *   2025): na een eerdere merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt, dus start een
- *   gewoon verzoek een verse waar main de gestarte hergebruikte. Start die niet, dan rekent de hoofdthread de rest van
+ *   2025): na een eerdere merge in dezelfde sessie (flag aan, ook een weigering) is die worker gestopt. Na een antwoord
+ *   van een mergeworker kan het volgende gewone verzoek een verse worker starten, zolang de gewone route nog beschikbaar
+ *   is (`unavailable` niet gezet); main hergebruikte de gestarte. Start die niet, dan rekent de hoofdthread de rest van
  *   de sessie voor gewone verzoeken; blijft hij stil, dan wacht dat verzoek eerst tot de starttijd (10 s) voorbij is.
  * - Een merge (een gebouwmodel, alleen met de flag aan) valt alleen zo terug zolang er in deze sessie nog nooit een
  *   worker startte. Startte er al eens een, dan is een startprobleem bij een merge een fout (`IfcSaveWorkerError`,
