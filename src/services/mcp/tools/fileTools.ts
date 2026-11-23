@@ -54,8 +54,7 @@ import { saveTargetRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
-import { openOrSwitch } from '@/state/openDocumentFor';
-import { projectFileWriteTurns } from '@/services/fileAccess/writeCoordinator';
+import { existingDocument, lookupOpenDocument, switchToOpenDocument, type OpenLookup } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -523,18 +522,21 @@ export const fileTools: McpToolDef[] = [
       // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
       let readOptions: FormatReadOptions = {};
-      let writes = 0;
       try {
         // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
         readOptions = { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) };
-        writes = projectFileWriteTurns();
         input = await readFormatInput(path, fs, readOptions);
       } catch (e) {
         const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
         return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
+      // Knownbug 1957 (met de flag, besluit T2): staat dit pad al in een tabblad open? Het asynchrone deel in het
+      // leesvenster, vóór het parsen (`openDocumentFor.ts`); de beslissing valt hieronder synchroon met het activeren.
+      // Met de flag uit geen toets, zodat het antwoord en de volgorde gelijk blijven aan main.
+      const lookup: OpenLookup | null = readOptions.ifcBytes
+        ? await lookupOpenDocument(ctx.app.store.getState(), { kind: 'path', path }, async () => fs) : null;
       const content = input.text ?? '';
 
       let parsed: OpenedImport;
@@ -559,34 +561,17 @@ export const fileTools: McpToolDef[] = [
       // herkomststempels uit het bronbestand wissen (`tests/mcp/cases-import-bibliotheek.ts`).
       // `formatOf` blijft puur het AI-facing label
       // (`format`, voor de respons en de notices).
-      // Knownbug 1957 (met de flag `ifcForeignContent`, besluit T2 van de technisch beslisser): staat dit pad al in
-      // een tabblad open, dan geen tweede document maar dat tabblad, zoals Bestand → Openen (`openDocumentFor.ts`).
-      // Met de flag uit geen await, zodat het antwoord en de volgorde gelijk blijven aan main.
-      const open = () => ctx.app.store.getState().openAsDocument(parsed, { name: path, ref: { kind: 'path', path } });
-      // Met de flag: de late controle op pauze/alleen-lezen/dialoog staat in de synchrone stap vlak vóór het wisselen of
-      // openen (`openOrSwitch`).
-      const step: { opened: ReturnType<typeof open> | null; blocked: ReturnType<typeof postAwaitGuards> } = { opened: null, blocked: null };
-      let alreadyOpen = false;
-      if (ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags)) {
-        const outcome = await openOrSwitch(() => ctx.app.store.getState(), { kind: 'path', path }, async () => fs, {
-          writes,
-          ready: () => { step.blocked = postAwaitGuards(ctx); return !step.blocked; },
-          reread: async () => {
-            input = await readFormatInput(path, fs, readOptions);
-            parsed = await parseOpenedFile(input, undefined, readOptions);
-          },
-          open: () => { step.opened = open(); return true; },
-        });
-        if (step.blocked) return step.blocked;
-        alreadyOpen = outcome === 'switched';
-      } else {
-        // Lezen en parsen kunnen seconden duren: controleer pauze/alleen-lezen/dialoog opnieuw vlak
-        // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
-        const lateBlocked = postAwaitGuards(ctx);
-        if (lateBlocked) return lateBlocked;
-        step.opened = open();
-      }
-      const opened = step.opened;
+      // Lezen en parsen kunnen seconden duren: controleer pauze/alleen-lezen/dialoog opnieuw vlak
+      // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
+      const lateBlocked = postAwaitGuards(ctx);
+      if (lateBlocked) return lateBlocked;
+      // In dezelfde synchrone stap: wisselen of openen, en het document van het antwoord vastleggen.
+      const existing = lookup ? existingDocument(ctx.app.store.getState(), { kind: 'path', path }, lookup) : null;
+      if (existing !== null) switchToOpenDocument(ctx.app.store.getState(), existing);
+      const opened = existing !== null ? null : ctx.app.store.getState().openAsDocument(parsed, {
+        name: path,
+        ref: { kind: 'path', path },
+      });
       // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
@@ -599,7 +584,7 @@ export const fileTools: McpToolDef[] = [
       // B5: het meldingenkanaal van de app bereikt een MCP-client niet. Dezelfde telling en grootste
       // verschuiving als `notifications.minuteModelConverted`, per document in de inventaris.
       const conversionById = new Map((opened?.minuteModelConversions ?? []).map(c => [c.documentId, c]));
-      const documents = (opened ? opened.documentIds : [after.activeDocumentId]).map(documentId => {
+      const documents = (opened ? opened.documentIds : [existing!]).map(documentId => {
         const payload = payloadById.get(documentId);
         if (!payload) throw new Error(`Opened document '${documentId}' is missing after the import`);
         const conversion = conversionById.get(documentId);
@@ -618,10 +603,10 @@ export const fileTools: McpToolDef[] = [
         };
       });
       const notices: string[] = [];
-      if (alreadyOpen) {
+      if (existing !== null) {
         notices.push(
           'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
-          `(document '${after.activeDocumentId}'). That tab keeps its own content, including unsaved changes; ` +
+          `(document '${existing}'). That tab keeps its own content, including unsaved changes; ` +
           'what is in the file now was not loaded into it. Tell the user.',
         );
       }
@@ -637,7 +622,7 @@ export const fileTools: McpToolDef[] = [
         );
       }
       // De formaatuitleg hoort alleen bij een echte import; een tabblad dat al open stond, kreeg niets nieuws.
-      if (!alreadyOpen) {
+      if (opened) {
         if (format === 'CSV') {
           notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
         } else if (format === 'P6-XML') {
@@ -666,7 +651,7 @@ export const fileTools: McpToolDef[] = [
           format,
           reusedActiveTab: opened?.reusedActiveTab ?? false,
           // Alleen als het pad al open stond (knownbug 1957); met de flag uit nooit, zodat het antwoord gelijk blijft.
-          ...(alreadyOpen ? { alreadyOpen: true } : {}),
+          ...(existing !== null ? { alreadyOpen: true } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */
           filePath: after.filePath,
           tasks: after.tasks.length,

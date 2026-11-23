@@ -101,8 +101,7 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { OPEN_WAIT_POLL_MS, openOrSwitch, rereadOpened } from '../openDocumentFor';
-import { projectFileWriteTurns } from '@/services/fileAccess/writeCoordinator';
+import { existingDocument, lookupOpenDocument, switchToOpenDocument } from '../openDocumentFor';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -142,7 +141,9 @@ export function isActivePristine(s: AppState): boolean {
  * ("failed to open file at path: … Permission denied (os error 13)"); `(err as Error).message` gaf
  * daar `undefined` en de gebruiker zag alleen "Opslaan mislukt" zonder reden.
  */
-export { OPEN_WAIT_POLL_MS } from '../openDocumentFor';
+/** Hoe vaak `openOpenedFile` met `waitWhile` opnieuw kijkt. De poort van slepen leest ook de
+ *  dialoogstapel buiten de store (`isAnyDialogOpen`), dus een abonnement op de store is niet genoeg. */
+export const OPEN_WAIT_POLL_MS = 200;
 
 export function saveErrorDetail(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -1475,17 +1476,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return;
     }
     if (choice.version === undefined) {
-      // Knownbug 1957 (met de flag): staat dit sitebestand al open, dan naar dat tabblad; het houdt zijn eigen basis.
-      // Geen herlezing: een oudere basis geeft bij opslaan een conflict of een kopie op de site, geen stille overschrijving.
-      if (opened.ref && ifcForeignContentEnabled(get().ui.featureFlags)) {
-        await openOrSwitch(get, opened.ref, fileIdentityFs, {
-          writes: projectFileWriteTurns(),
-          open: () => {
-            get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
-            offerFormatNotice(opened.name, opened.content);
-            return true;
-          },
-        });
+      // Knownbug 1957 (met de flag): staat dit sitebestand al open, dan naar dat tabblad; het houdt zijn eigen basis. Het
+      // id vergelijkt synchroon, dus de beslissing valt in de stap van het activeren.
+      const existing = opened.ref && ifcForeignContentEnabled(get().ui.featureFlags) ? existingDocument(get(), opened.ref, null) : null;
+      if (existing !== null) {
+        switchToOpenDocument(get(), existing);
         await pushRecent(opened.ref, opened.name);
         return;
       }
@@ -2436,39 +2431,26 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         // Knownbug 1131 stap 5: wat het afhandelen van een onafgeronde vervanging vóór het lezen deed.
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
-        const writes = projectFileWriteTurns();
+        // Knownbug 1957 (met de flag, één keer per openactie vastgelegd): staat dit bestand al in een tabblad open? Het
+        // asynchrone deel in het leesvenster, vóór het parsen; de beslissing hieronder synchroon met het activeren. Een
+        // startbestand heeft zijn eigen toets (`existingDocument` van `openLaunchFiles`), zoals main.
+        const oneTab = ifcForeignContentEnabled(get().ui.featureFlags);
+        const lookup = oneTab && opened.ref && !options?.existingDocument ? await lookupOpenDocument(get(), opened.ref, fileIdentityFs) : null;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
-        // Knownbug 1957 (met de flag): staat dit bestand al in een tabblad open, dan naar dat tabblad
-        // (`openOrSwitch`). Met de flag uit precies main: geen toets, geen extra await.
-        if (opened.ref && ifcForeignContentEnabled(get().ui.featureFlags)) {
-          let current = { opened, parsed };
-          const outcome = await openOrSwitch(get, opened.ref, fileIdentityFs, {
-            writes,
-            waitWhile: options?.waitWhile,
-            reread: async () => {
-              const again = (await rereadOpened(current.opened)) ?? current.opened;
-              current = { opened: again, parsed: await parseOpenedFile({ name: again.name, text: again.content, bytes: again.bytes }, labels, formatReadOptions()) };
-            },
-            // Een startbestand dat intussen een schrijfbeurt kruiste, leest de startroute zelf opnieuw (`stale`).
-            open: () => {
-              if (options?.stale?.()) return false;
-              get().openAsDocument(current.parsed, { name: current.opened.name, ref: current.opened.ref });
-              offerFormatNotice(current.opened.name, current.opened.content);
-              return true;
-            },
-          });
-          if (outcome !== 'skipped') await pushRecent(opened.ref, opened.name);
-          return;
-        }
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
-        const existing = options?.existingDocument?.() ?? null;
+        const existing = lookup ? existingDocument(get(), opened.ref!, lookup) : options?.existingDocument?.() ?? null;
         if (existing !== null) {
-          get().switchDocument(existing);
+          if (!oneTab) {
+            get().switchDocument(existing);
+            return;
+          }
+          switchToOpenDocument(get(), existing);
+          await pushRecent(opened.ref, opened.name);
           return;
         }
         if (options?.stale?.()) return;

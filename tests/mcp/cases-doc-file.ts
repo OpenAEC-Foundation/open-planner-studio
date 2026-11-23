@@ -1145,7 +1145,8 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
     S().closeDocument(moved.documentId as string);
 
     // Review #1121 ronde 2 (BLOKKEERT): geen treffer bij de toets, maar intussen zet *Opslaan als* het actieve tabblad op
-    // dit pad. De uitkomst "niet open" is vervallen: de import gaat naar dat tabblad (`alreadyOpen`), geen tweede.
+    // dit pad. De synchrone eindbeslissing na het parsen ziet dat: de import gaat naar dat tabblad (`alreadyOpen`), geen
+    // tweede.
     S().switchDocument(masterId);
     fs.stat = async (p) => {
       fs.stat = stat;
@@ -1157,23 +1158,6 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
       'Opslaan als tijdens de toets: het tabblad dat nu op het pad staat, geen tweede');
     assertEq(S().getOpenDocumentPayloads().filter(d => d.payload.filePath === path).length, 1, 'één tabblad op het pad');
     useAppStore.setState((st) => { st.filePath = null; });
-
-    // En zonder tabblad, maar met een schrijfbeurt naar het pad sinds het lezen: opnieuw lezen, geen oude bytes.
-    const scratch = S().newDocument();
-    loadSmallProject('Nieuwe versie');
-    const newer = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
-    S().closeDocument(scratch);
-    S().switchDocument(masterId);
-    fs.stat = async (p) => {
-      fs.stat = stat;
-      await runProjectFileWrite(async () => { files.set(path, newer); }, () => undefined);
-      return stat(p);
-    };
-    const reread = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));
-    assertEq([reread.alreadyOpen, S().filePath, S().project.name], [undefined, path, 'Nieuwe versie'],
-      'schrijfbeurt tijdens de toets: de import leest opnieuw en opent de nieuwe versie');
-    S().closeDocument(reread.documentId as string);
-    files.set(path, ifc);
 
     // Met de flag uit: zoals main, een tweede document en geen veld `alreadyOpen`.
     useAppStore.setState((s) => { s.ui.featureFlags = {}; });

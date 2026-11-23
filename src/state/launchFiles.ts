@@ -18,7 +18,6 @@ import { openDroppedFiles } from '@/state/fileDrop';
 import { openDocumentIdForPath, openDocumentIdForPathText } from '@/state/ifcForeignGuard';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { projectFileWriteTurns } from '@/services/fileAccess/writeCoordinator';
-import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** Rust → webview: een lijst paden om te openen. Dezelfde naam staat in `src-tauri/src/launch_files.rs`. */
 export const OPEN_FILES_EVENT = 'ops:open-files';
@@ -104,9 +103,6 @@ export async function openLaunchFiles(
           // beurt die al liep, wacht `readOpenedTauriPath` eerst af. Liever één lezing te veel dan een oude versie.
           writesAtRead = projectFileWriteTurns();
           const opened = await file.read();
-          // Met de flag `ifcForeignContent` toetst `openOpenedFile` zelf, tot het activeren (`openOrSwitch`, knownbug
-          // 1957); dan geen tweede `stat` hier, en `existingDocument` blijft ongebruikt.
-          if (ifcForeignContentEnabled(store.getState().ui.featureFlags)) return opened;
           // De paden van de tabbladen vóór de controle: wisselt een tabblad tijdens de `stat` van naam, dan telt het niet.
           const pathsBefore = new Map(store.getState().getOpenDocumentPayloads().map((doc) => [doc.id, doc.payload.filePath]));
           const id = await openDocumentIdForPath(store.getState(), path, identityFs).catch(() => null);
