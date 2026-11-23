@@ -192,7 +192,8 @@
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
       "openProjectInfo": "Open calculation profile",
-      "openHelp": "Open Help"
+      "openHelp": "Open Help",
+      "undo": "Undo"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
@@ -348,6 +349,7 @@
       "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost",
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
+      "visualDetails": "Task and resource colours and resource descriptions are not included",
       "projectDetails": "Project author and company"
     },
     "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
@@ -359,6 +361,7 @@
     "reportFontMissing": "Your own font {{name}} is no longer on this device. The report uses Inter again.",
     "layoutsNotSaved": "The layouts could not be saved. Nothing was changed. Please try again.",
     "ifcForeignOpenSchema": "This IFC file contains data from another application and has an unknown or missing schema. Opening was stopped to prevent data loss when saving.",
+    "ifcForeignOpenTooLarge": "This IFC file is larger than {{limit}} MB. An IFC file with a building model or with data from another application can be opened up to {{limit}} MB.",
     "ifcForeignOpenUnsafe": "This IFC file cannot be classified safely. Opening was stopped to prevent data loss when saving.",
     "ifc2x3PlanningOnly": "IFC2X3 was opened as a schedule. Data from other applications will not be included when saving.",
     "ifcForeignReplaceBlocked": "Not saved. This is the file you have open. Use Save to update it, or Save As with a new name for a copy.",
@@ -383,7 +386,15 @@
     "ifcForeignReplaceLeftOver": "This file was left from an interrupted save of {{file}}: {{path}}. Check whether you still need it.",
     "ifcSourceCopyFailed": "The schedule is being saved for crash recovery, but the building model copy could not be saved. The building model may be missing after a crash. Save your work yourself as a complete IFC file.",
     "ifcForeignSourceMissing": "File not saved. The building model or data from another program could not be found. Use Save As to save only the schedule in a new file. Open the original IFC file to work with the complete file again.",
-    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”."
+    "taskTypeRenameNameTaken": "In this project the name stays “{{oldName}}”: another work category in this project is already called “{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "The task now takes {{days}} day.",
+      "durationDays_other": "The task now takes {{days}} days.",
+      "durationHours_one": "The task now takes {{hours}} hour.",
+      "durationHours_other": "The task now takes {{hours}} hours.",
+      "durationSame": "The duration stays the same. The hours of the others have changed.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",

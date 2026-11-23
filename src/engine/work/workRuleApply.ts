@@ -18,12 +18,15 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import { isCostResource, resourceDrivesDuration, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { Task, TaskTime } from '@/types/task';
-import { applyProgressInvariants, hourRemainingDays } from '@/engine/taskMutationRules';
+import { applyProgressInvariants, defaultActualStart, hourRemainingDays, type PlannedProgressDates } from '@/engine/taskMutationRules';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { storedWorkDeviates } from '@/engine/work/workDeviation';
-import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { contourIndexForAssignment, taskAxisMinutes, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { finishOfTaskDuration, taskDurationUnit } from '@/engine/scheduler/duration';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { durationHoursPerDay, effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 // `contourKeepsWork` en `effectiveEffortDriven`
 // lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
@@ -415,7 +418,7 @@ const NO_DURATION_CHANGE: DurationEditWriteBack = { ...NO_CHANGE, recomputedWork
  *     `remain_drtn_hr_cnt`, MSP `RemainingDuration`) op de oude duur staan: *Resterend* en de balk
  *     liepen uiteen, de driehoek zag geen wijziging, en een latere werkelijke start op 0 % liet het
  *     restwerk alsnog springen. Een LOPENDE taak hoort dit al gehad te hebben
- *     (`carryRemainingThroughDurationEdit`, vóór deze stap: `updateTask`, raster, MCP-draft). Gaf de
+ *     (`settleEditedDuration`, vóór deze stap: `updateTask`, raster, MCP-draft). Gaf de
  *     bewerking zelf voortgang of een restduur op, dan wint die opgave.
  *     UITZONDERING (ook op main): `applyTaskSplits` (splitMutations.ts) roept de meeschuifstap niet
  *     aan. Op een GESTARTE taak met een expliciet restveld blijft de rest bij een splitsbewerking dus
@@ -497,9 +500,9 @@ function completedByDurationEdit(state: TriangleState): { ok: true; state: Trian
 /**
  * Stap 1 van {@link settleDurationEdit}: een niet-gestarte taak met een expliciet restveld krijgt
  * rest = volledige nieuwe duur. Niet-gestart = 0 % en geen werkelijke start of einde, vóór én ná de
- * bewerking (een lopende taak regelt `carryRemainingThroughDurationEdit`, een voltooide houdt rest 0).
+ * bewerking (een lopende taak regelt `settleEditedDuration`, een voltooide houdt rest 0).
  * Niet als de bewerking zelf een voortgangsveld of restduur wijzigde (die opgave wint), en niet op een
- * mijlpaal (die blijft zonder restveld, zoals in `carryRemainingThroughDurationEdit`). Zonder
+ * mijlpaal (die blijft zonder restveld, zoals in `settleEditedDuration`). Zonder
  * restveld hoeft er niets: de rest is dan al de afleiding uit de duur.
  */
 function followRemainingOfUnstartedTask(task: Task, before: TaskTime): void {
@@ -1027,7 +1030,7 @@ function timeUnit(time: TaskTime): 'days' | 'hours' {
  * lopende taak korter maken dan het gedane werk? Store (`updateTask`, met melding), "Taak bewerken"
  * (niets opgeslagen), MCP-draft (zachte weigering per item) en extensie-API (via `updateTask`)
  * vragen dit VÓÓR de mutatie — dus zonder snapshot; het raster krijgt dezelfde uitkomst uit
- * {@link carryRemainingThroughDurationEdit} als celfout `durationBelowDoneWork`.
+ * {@link settleEditedDuration} als celfout `durationBelowDoneWork`.
  */
 export function durationEditRefusal(
   task: Pick<Task, 'childIds' | 'isHammock' | 'time'>,
@@ -1038,39 +1041,61 @@ export function durationEditRefusal(
   return change?.refused ? change : null;
 }
 
-/**
- * Past {@link durationEditProgress} toe op `task` (muteert), NÁDAT de nieuwe duur is gezet, met een
- * kopie van de tijd van VÓÓR de bewerking. Eén definitie voor store (`updateTask`), raster
- * (`finishDurationEdit`) en MCP-draft (`updateTaskFields`/`patchTaskFields`); vóór de driehoekstap
- * (`settleDurationEdit` leest de rest) en vóór `applyDurationChangeRules`.
- *
- * Retourneert de uitkomst: `refused` ⇒ er is NIETS gemuteerd (het raster maakt er een celfout van;
- * store en MCP hebben al vooraf geweigerd via {@link durationEditRefusal}), anders het nieuwe
- * percentage en de nieuwe rest (de AI-koppeling meldt die als `progressAdjusted`). Bereikt het gedane
- * werk precies de nieuwe duur, dan is de taak voltooid en leiden de voortgangsinvarianten het
- * werkelijke einde af (`statusDate`). `calendar` is de effectieve kalender van de taak: daarmee wordt
- * dat einde eerst een moment (D6: het einde van de statuswerkdag) en pas daarna vergeleken met de
- * werkelijke start. Zonder kalender werd een start om 07:00 op de statusdag ook het einde.
- */
-export function carryRemainingThroughDurationEdit(
-  task: Task,
-  before: TaskTime,
-  workHoursPerDay: number,
-  statusDate: string | undefined,
-  calendar: WorkCalendar | undefined,
-): DurationEditProgress | null {
+/** Bij afmelden met een gewijzigde duur op een lopende taak telt het definitieve taakvenster.
+ *  Roep dit aan na het verwerken van actuals en het aanpassen van de splits op de nieuwe duur.
+ *  De kalenderwandeling is dezelfde als in CPM. De statusdatum blijft de bovengrens. */
+export function durationCompletionDates(
+  task: Task, before: TaskTime, calendar: WorkCalendar | undefined, workdayDurationMeasure: boolean,
+): PlannedProgressDates | undefined {
+  if (!calendar || task.isMilestone || task.isHammock || task.childIds.length > 0
+    || !(before.completion > 0 || before.actualStart) || before.completion >= 1 || before.actualFinish) return;
+  const unit = timeUnit(task.time);
+  if (unit === timeUnit(before) && (unit === 'hours'
+    ? task.time.durationMinutes === before.durationMinutes
+    : task.time.scheduleDuration === before.scheduleDuration)) return;
+  const earlyStart = task.time.actualStart ?? defaultActualStart(task.time);
+  const start = parseInstant(earlyStart);
+  if (!Number.isFinite(start.getTime())) return undefined;
+  const engine = new CalendarEngine(calendarForEngine(calendar));
+  const workdays = workdayDurationMeasure && taskDurationUnit(task) === 'days';
+  const finish = finishOfTaskDuration(task, engine, start, workdays);
+  return { earlyStart, earlyFinish: formatInstant(finish, 'hour') };
+}
+
+/** Sluit een duurbewerking af als zij zelf de taak voltooide en er geen andere voortgang volgt. */
+export function finishDurationProgress(
+  task: Task, before: TaskTime, statusDate: string | undefined, calendar: WorkCalendar | undefined,
+  workdayDurationMeasure: boolean,
+): void {
+  applyProgressInvariants(task, statusDate, calendar, durationCompletionDates(task, before, calendar, workdayDurationMeasure));
+}
+
+/** Verwerk restwerk, splits en afmelding van één duurbewerking vóór de werkdriehoek de rest leest.
+ *  Bij weigering blijft de taak ongemoeid. De afmelding volgt de nieuwe duur en de behouden splits. */
+export function settleEditedDuration(
+  task: Task, before: TaskTime, workHoursPerDay: number,
+  { statusDate, calendar, workdayDurationMeasure, keepWork, rescaleContours, deferCompletion }: {
+    statusDate?: string; calendar?: WorkCalendar; workdayDurationMeasure: boolean;
+    keepWork?: boolean; rescaleContours?: boolean; deferCompletion?: boolean;
+  },
+): { progress: DurationEditProgress | null; timephasedLost: boolean } {
   const change = durationEditProgress(task, before, task.time, workHoursPerDay);
-  if (!change || change.refused) return change;
-  // Mijlpaal aan op een gestarte taak zonder gedaan werk: niets mee te schuiven (duur 0; een
-  // mijlpaal blijft zonder restveld). Met gedaan werk weigerde de regel hierboven al.
-  if (task.isMilestone) return null;
-  const t = task.time;
-  t.completion = change.completion;
-  t.remainingTime = change.remainingTime;
-  if (change.remainingMinutes !== undefined) t.remainingMinutes = change.remainingMinutes;
-  else delete t.remainingMinutes;
-  if (change.completion >= 1) applyProgressInvariants(task, statusDate, calendar);
-  return change;
+  if (change?.refused) return { progress: change, timephasedLost: false };
+  // Een mijlpaal houdt geen restveld. Met gedaan werk weigert de duurregel hierboven al.
+  const progress = task.isMilestone ? null : change;
+  if (progress) {
+    task.time.completion = progress.completion;
+    task.time.remainingTime = progress.remainingTime;
+    if (progress.remainingMinutes !== undefined) task.time.remainingMinutes = progress.remainingMinutes;
+    else delete task.time.remainingMinutes;
+  }
+  const timephasedLost = applyDurationChangeRules(task, taskAxisMinutes(before, workHoursPerDay), workHoursPerDay, {
+    keepWork, rescaleContours,
+  });
+  if (progress && progress.completion >= 1 && !deferCompletion) {
+    finishDurationProgress(task, before, statusDate, calendar, workdayDurationMeasure);
+  }
+  return { progress, timephasedLost };
 }
 
 /**
@@ -1096,7 +1121,7 @@ export function carryRemainingThroughDurationEdit(
  * De contour blijft ongemoeid: haar periodes zijn de vorm en worden door een voortgangsboeking niet
  * hertypeerd; het histogram leest bij een contour laag 1, niet de velden.
  * Poort: alleen wanneer de TOTALE duur gelijk bleef en de rest veranderde (anders is het een
- * duurbewerking en regelt `settleDurationEdit`/`carryRemainingThroughDurationEdit` de rest).
+ * duurbewerking en regelt `settleDurationEdit`/`settleEditedDuration` de rest).
  * Eén definitie voor store (`setTaskProgress`/`setActualStart`/`setActualFinish`/`updateTask`/
  * `applyProgressImport`), taakraster, MCP-`updateTaskFields` en MCP-`progress.applyProgressUpdate`.
  */

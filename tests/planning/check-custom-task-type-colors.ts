@@ -71,7 +71,13 @@ eq('oud bestand: kleur per werksoort los van de volgorde', byId(readIFC(reordere
 // Opslaan schrijft de toegekende kleur; daarna blijft ze bij elk openen en opslaan gelijk.
 const savedOnce = write(opened.customTaskTypes!);
 eq('oud bestand: na opslaan staat de kleur in het bestand', byId(readIFC(savedOnce).customTaskTypes), byId(opened.customTaskTypes));
-eq('oud bestand: tweede opslaan identiek', write(readIFC(savedOnce).customTaskTypes!), savedOnce);
+// Zonder het tijdstip van opslaan (kop, eigenaarsgeschiedenis, werkplan en -schema): dat verspringt als de seconde
+// tussen de twee keer opslaan omgaat.
+const withoutTimestamps = (file: string) => {
+  const stamp = /^FILE_NAME\('[^']*','([^']*)'/m.exec(file)?.[1];
+  return (stamp ? file.split(`'${stamp}'`).join("''") : file).replace(/(IFCOWNERHISTORY\([^\n]*,)\d+\);/g, '$1);');
+};
+eq('oud bestand: tweede opslaan identiek', withoutTimestamps(write(readIFC(savedOnce).customTaskTypes!)), withoutTimestamps(savedOnce));
 // De kleur staat er altijd, ook als het lezen haar zelf zou afleiden: het bestand hangt dan niet meer van die afleiding af.
 ok('oud bestand: na opslaan staat elke kleur letterlijk in het bestand',
   opened.customTaskTypes!.every(type => savedOnce.includes(`"id":"${type.id}","name":"${type.name}","color":"${type.color}"`)));
@@ -130,7 +136,10 @@ localStorage.setItem('ops-personalTaskTypes', JSON.stringify([{ id: 'lib-2', nam
 const library = getPersonalTaskTypes();
 eq('bibliotheek: oude werksoorten krijgen vrije kleuren op volgorde van id', byId(library),
   { 'lib-1': CUSTOM_TASK_TYPE_COLOR_ORDER[0], 'lib-2': CUSTOM_TASK_TYPE_COLOR_ORDER[1] });
-eq('bibliotheek: de kleur is meteen bewaard', byId(JSON.parse(localStorage.getItem('ops-personalTaskTypes')!)), byId(library));
+// Lezen schrijft niets: ingebed zou dat de lijst naar de host sturen terwijl die nog moet antwoorden (welkomstdialoog).
+// De kleur hangt alleen af van de inhoud, dus elk lezen geeft dezelfde; de eerste wijziging bewaart haar.
+eq('bibliotheek: lezen schrijft niets naar de opslag', JSON.parse(localStorage.getItem('ops-personalTaskTypes')!),
+  [{ id: 'lib-2', name: 'Metselwerk' }, { id: 'lib-1', name: 'Dakwerk' }]);
 // Aanmaken vanuit een taak: vrij in de bibliotheek én in het geopende document (review ronde 2, punt 2).
 const inDocument: CustomTaskType[] = [{ id: 'doc-keuring', name: 'Keuring', color: CUSTOM_TASK_TYPE_COLOR_ORDER[2] }];
 const added = addPersonalTaskType('Stucwerk', undefined, undefined, inDocument);
