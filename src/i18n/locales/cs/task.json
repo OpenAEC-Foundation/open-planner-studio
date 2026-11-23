@@ -393,7 +393,15 @@
       "resourceShorter": "Další zdroj zkrátí úkol.",
       "resourceAddsWorkSameDuration": "Další zdroj přidá práci; doba trvání zůstane stejná."
     },
-    "info": "Vysvětlení typu úkolu"
+    "info": "Vysvětlení typu úkolu",
+    "hint": {
+      "intro": "Typ úkolu určuje, co aplikace upraví, když změníte dobu trvání, jednotky přiřazení (osoby za den) nebo práci (hodiny).",
+      "FIXED_DURATION_RATE": "Doba trvání a jednotky přiřazení zůstanou, práce se přepočítá. Příklad: 2 osoby, 5 dnů po 8 hodinách = 80 hodin.",
+      "FIXED_DURATION_WORK": "Doba trvání a práce zůstanou, jednotky přiřazení se přepočítají. Příklad: 80 hodin za 5 dnů po 8 hodinách = 2 osoby za den.",
+      "FIXED_WORK": "Práce zůstane, doba trvání se přepočítá. Příklad: 80 hodin se 2 osobami = 5 dnů, se 4 osobami 2,5 dne.",
+      "FIXED_RATE": "Jednotky přiřazení zůstanou, práce určuje dobu trvání. Příklad: 1 jeřáb, 40 hodin práce = 5 dnů, 80 hodin = 10 dnů.",
+      "projectDefault": "Řídí se typem úkolu, který má projekt jako výchozí."
+    }
   },
   "properties": {
     "task": "Úkol",
@@ -465,6 +473,14 @@
     "interferingFloat": "Interferující časová rezerva:",
     "criticalPath": "Kritická cesta:",
     "dependencies": "Závislosti",
+    "predecessors_one": "{{count}} předchůdce",
+    "predecessors_few": "{{count}} předchůdci",
+    "predecessors_many": "{{count}} předchůdce",
+    "predecessors_other": "{{count}} předchůdců",
+    "successors_one": "{{count}} následník",
+    "successors_few": "{{count}} následníci",
+    "successors_many": "{{count}} následníka",
+    "successors_other": "{{count}} následníků",
     "addRelation": "Přidat závislost",
     "addRelationSearch": "Hledat úkol…",
     "addRelationConfirm": "Vytvořit závislost",

@@ -184,6 +184,7 @@ check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
 check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
+check-ifc-foreign-grens.ts los
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix
@@ -504,6 +505,7 @@ check-week-banding.ts matrix
 check-werkdag-einde.ts matrix
 check-wiki-links.ts matrix
 check-work-decimals.ts matrix
+check-work-others-notice.ts matrix
 check-work-rule-actual-history.ts matrix
 check-work-rule-completed.ts matrix
 check-work-rule-days-measure.ts matrix

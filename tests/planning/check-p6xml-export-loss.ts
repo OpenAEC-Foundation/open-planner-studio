@@ -87,6 +87,9 @@ one('taken', { tasks: [
 ] }, [`${X}elapsedDurations:1`, `${X}manualTasks:1`, `${X}durationMilestones:1`, `${X}mandatoryMilestones:1`,
   `${X}levelingDelays:1`, `${P}suspendResume:1`, `${X}deadlines:1`, `${X}externalLinks:1`, `${X}activityCodes:1`, `${X}customFields:1`,
   `${X}taskCategories:1`, `${P}priorities:1`, `${P}notes:1`]);
+one('taakkleur', { tasks: [task('Kleur', { color: '#123456' })] }, [`${P}visualDetails`]);
+one('resourcekleur en -beschrijving samen één regel', { resources: [{ id: 'r', type: 'LABOR', color: '#abcdef', description: 'Graafmachine' }] as Resource[] }, [`${P}visualDetails`]);
+one('lege waarden geven geen verliesmelding', { tasks: [task('Leeg', { color: ' ' })], resources: [{ id: 'r', type: 'LABOR', color: '', description: ' ' }] as Resource[] }, []);
 one('resources en kalender', {
   resources: [{ id: 'c', type: 'CREW' }, { id: 'o', type: 'SUBCONTRACTOR' }, { id: 'l', type: 'LABOR', libraryOrigin: {} }] as unknown as Resource[],
   calendars: [{ ...calendar, holidays: [{ name: 'Kerst', startDate: '2026-12-25' }] } as unknown as WorkCalendar],
