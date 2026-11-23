@@ -33,9 +33,8 @@ sandbox-situatie waarin dat elke keer gebeurt, staat als knownbug 260.
 - `replacePool` en `importPoolAsNewCompany` rekenen eerst de openingsgrens van het actieve document uit
   (`materializeLibraryBoundary` met `'open-boundary'`) en schrijven daarna de pool, het actieve document en de
   signalen van het afwijkingenscherm in één `set`. Met twee losse publicaties ziet een abonnee tussendoor het
-  actieve project met zijn oude waarden tegen de nieuwe pool. In het blok over pool-import
-  in `check-library-slice.ts` tellen de asserts bij `importPoolAsNewCompany` de publicaties van de store en eisen ze
-  er één. Bij `replacePool` toetst het blok de eindstand, en dat de bron van de importdialoog de aanroep
-  `runOpenBoundary()` niet bevat.
+  actieve project met zijn oude waarden tegen de nieuwe pool. In `check-library-slice.ts` tellen
+  de asserts bij `importPoolAsNewCompany` de publicaties van de store en eisen ze er één. Bij `replacePool` toetst
+  de check de eindstand, en apart dat de bron van `PoolImportDialog` de aanroep `runOpenBoundary()` niet bevat.
 - `addCompany` valt bij een lege naam terug op de vertaalde standaardnaam, en op een vaste Nederlandse naam als
   i18next nog niet klaar is (knownbug 125).
