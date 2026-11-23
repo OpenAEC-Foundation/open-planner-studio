@@ -346,6 +346,18 @@ export function dayTaskRequiredFinish(
   return workdayFinishNotBefore(se, reqFinish, lagEng.prevWorkInstant(lagged));
 }
 
+export function finishFinishLag(
+  deps: RelationDeps, lagEng: CalendarEngine, anchor: Date, seq: Sequence, predTask: Task,
+): { lagged: Date; required: Date; zeroLag: boolean } {
+  if (seq.lagUnit === 'ELAPSEDTIME') {
+    const lagged = new Date(anchor.getTime() + elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask)));
+    return { lagged, required: lagged, zeroLag: lagged.getTime() === anchor.getTime() };
+  }
+  const lagged = deps.shiftLagPred(lagEng, anchor, seq, predTask, 1);
+  const zeroLag = lagged.getTime() === deps.snapOnOrAfter(lagEng, anchor).getTime();
+  return { lagged, required: zeroLag ? anchor : lagEng.prevWorkInstant(lagged), zeroLag };
+}
+
 function forwardHour(
   deps: RelationDeps,
   predResult: { es: Date; ef: Date },
@@ -401,20 +413,16 @@ function forwardHour(
       // dagrand-normalisatie nodig zoals FS se `predDone`).
       let reqFinish: Date;
       // De rauwe geëiste finish, vóór de normalisatie naar een werkmoment (dagenmaat-opvolger hieronder).
-      let rawRequired: Date;
+      const { lagged, required: rawRequired, zeroLag: lagIsZero } = finishFinishLag(deps, lagEng, predResult.ef, seq, predTask);
       if (elapsed) {
-        const raw = new Date(predResult.ef.getTime() + elapsedMin());
-        rawRequired = raw;
+        const raw = rawRequired;
         reqFinish = succElapsed ? raw : deps.snapOnOrAfter(se, raw);
         if (isDayTaskOnBands(deps, successor)) {
           reqFinish = deps.snapOnOrBefore(se, raw).getTime() === raw.getTime() ? raw : reqFinish;
         }
       } else {
-        const lagged = deps.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
-        const lagIsZero = lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime();
         // Met lag is `lagged` een moment op de lagkalender; als eindmoment telt het vorige blokeinde
         // daar (een lead landt op een blokbegin, en dat is het einde van de werkdag ervoor).
-        rawRequired = lagIsZero ? predResult.ef : lagEng.prevWorkInstant(lagged);
         if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(deps, predTask)) || succElapsed) && lagIsZero) {
           reqFinish = predResult.ef;
         } else if (!predEndsBeginOfDay && isDayTaskOnBands(deps, successor)) {

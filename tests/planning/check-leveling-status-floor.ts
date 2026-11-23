@@ -212,3 +212,97 @@ assert.deepEqual(startFinishResults, [
   ['2026-06-02T13:00', 30], ['2026-06-02T13:00', 30], ['2026-06-02T13:00', 0], ['2026-06-02T13:00', -1],
   ['2026-06-02T10:00', 0], ['2026-06-02T10:00', 0], ['2026-06-02T10:00', 0], ['2026-06-02T10:00', -1],
 ]);
+
+const calendarBoundaryResults: Array<Array<number | string | undefined>> = [];
+for (const mode of ['project-pause', 'successor-calendar', 'work-lag', 'successor-gap'] as const) {
+  const schedule = createAppStoreContext().store.getState;
+  schedule().setProject({ startDate: '2026-06-01', schedulingOptions: {
+    lagCalendar: mode === 'project-pause' ? 'projectDefault' : mode === 'work-lag' ? 'predecessor' : 'successor',
+  } });
+  const wide = [{ start: 480, end: 1200 }];
+  const short = [{ start: 480, end: 840 }];
+  const tuesdayBreak = [{ start: 480, end: 720 }, { start: 780, end: 1020 }];
+  const week = (monday: typeof regular, tuesday: typeof regular, wednesday: typeof regular, rest: typeof regular) =>
+    ({ byWeekday: { 1: monday, 2: tuesday, 3: wednesday, 4: rest, 5: rest, 6: [], 7: [] } });
+  const projectCalendar: WorkCalendar = {
+    ...standard, workTime: week(wide, mode === 'project-pause'
+      ? [{ start: 480, end: 765 }, { start: 840, end: 1200 }] : wide, wide, wide),
+  };
+  const predecessorCalendar: WorkCalendar = {
+    ...standard, id: 'predecessor', name: 'Kalender voorganger', workTime: week(regular, wide, wide, regular),
+  };
+  const crewCalendar: WorkCalendar = {
+    ...crew, workTime: week(regular, tuesdayBreak, short, mode === 'work-lag' ? regular : short),
+  };
+  schedule().commitCalendarLibrary([projectCalendar, predecessorCalendar, crewCalendar, craneCalendar], projectCalendar.id);
+  schedule().addTask({ name: 'Start project', time: createDefaultTaskTime('2026-06-01T08:00', 1, 'hours') });
+  if (mode === 'work-lag' || mode === 'successor-gap') {
+    schedule().addTask({ name: 'Einde project', time: createDefaultTaskTime('2026-06-05T08:00', 1, 'hours') });
+  }
+  const finishFinish = mode === 'successor-calendar' || mode === 'successor-gap';
+  const start = finishFinish ? '2026-06-02T11:00' : '2026-06-02T12:30';
+  const prior = schedule().addTask({
+    name: 'Voorganger', calendarId: predecessorCalendar.id, time: createDefaultTaskTime(start, 1, 'hours'),
+  });
+  const next = schedule().addTask({
+    name: 'Opvolger', calendarId: crewCalendar.id, time: createDefaultTaskTime('2026-06-01T08:00', 0.5),
+  });
+  const link = schedule().addSequence({
+    predecessorId: prior, successorId: next, type: finishFinish ? 'FINISH_FINISH' : 'START_FINISH', lagDays: 0,
+  });
+  assert(link);
+  const crane = schedule().addResource({
+    name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, calendarId: craneCalendar.id,
+  });
+  schedule().assignResource(next, crane, 1, 'UNIFORM');
+  schedule().runCPM();
+  const proposal = schedule().levelResources({ constrainToFloat: false });
+  assert(proposal.delayMinutes?.[next]);
+  schedule().applyLeveling(proposal);
+  const dataDate = mode === 'successor-gap' ? '2026-06-02T08:00' : '2026-06-02T09:00';
+  const limit = mode === 'work-lag' ? '2026-06-03T13:00' : mode === 'successor-gap' ? '2026-06-03T11:30' : '2026-06-03T11:00';
+  schedule().setStatusDate(dataDate);
+  if (mode === 'work-lag') {
+    schedule().updateSequence(link, { type: 'FINISH_FINISH', lagMinutes: 30, lagUnit: 'WORKTIME' });
+  }
+  if (mode === 'work-lag' || mode === 'successor-gap') {
+    const task = schedule().tasks.find(task => task.id === prior)!;
+    schedule().updateTask(prior, { time: { ...task.time, scheduleStart: dataDate } });
+  }
+  schedule().updateTask(next, { constraint: { type: 'FNLT', date: limit } });
+  schedule().runCPM();
+
+  const ifc = writeIFC(buildWriteIFCInput(schedule(), 'planOnly'));
+  const reopened = createAppStoreContext().store.getState;
+  await reopened().openOpenedFile({ name: 'nivelleren-relatiekalender.ifc', content: ifc, ref: null });
+  const pred = () => reopened().tasks.find(task => task.name === 'Voorganger')!;
+  const succ = reopened().tasks.find(task => task.name === 'Opvolger')!;
+  const takeSnapshot = () => [pred().time.lateStart, pred().time.totalFloatMinutes];
+  calendarBoundaryResults.push(takeSnapshot());
+  reopened().runCPM();
+  calendarBoundaryResults.push(takeSnapshot());
+
+  const last = mode === 'project-pause' ? '2026-06-02T13:00'
+    : finishFinish ? '2026-06-02T11:00' : '2026-06-02T10:30';
+  const after = last.slice(0, -1) + '1';
+  for (const [scheduleStart, expectedViolation] of [[last, false], [after, true]] as const) {
+    reopened().updateTask(pred().id, { time: { ...pred().time, scheduleStart } });
+    reopened().runCPM();
+    assert.equal(reopened().cpmResult?.violatedConstraintTaskIds.includes(succ.id), expectedViolation);
+    calendarBoundaryResults.push(takeSnapshot());
+  }
+  if (mode === 'successor-gap') {
+    reopened().updateTask(pred().id, { time: { ...pred().time, scheduleStart: '2026-06-02T12:30' } });
+    reopened().runCPM();
+    assert.equal(reopened().cpmResult?.violatedConstraintTaskIds.includes(succ.id), false);
+    calendarBoundaryResults.push(takeSnapshot());
+  }
+}
+
+assert.deepEqual(calendarBoundaryResults, [
+  ['2026-06-02T13:00', 30], ['2026-06-02T13:00', 30], ['2026-06-02T13:00', 0], ['2026-06-02T13:00', -1],
+  ['2026-06-02T11:00', 0], ['2026-06-02T11:00', 0], ['2026-06-02T11:00', 0], ['2026-06-02T11:00', -1],
+  ['2026-06-02T10:30', 90], ['2026-06-02T10:30', 90], ['2026-06-02T10:30', 0], ['2026-06-02T10:30', -1],
+  ['2026-06-02T11:00', 180], ['2026-06-02T11:00', 180], ['2026-06-02T11:00', 0], ['2026-06-02T11:00', -1],
+  ['2026-06-02T12:30', 0],
+]);

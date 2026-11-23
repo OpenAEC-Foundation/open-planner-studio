@@ -34,7 +34,7 @@ import {
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, type RelationDeps,
-  dayTaskRequiredFinish, finishStartLaggedStart, previousBlockEndIfSame,
+  dayTaskRequiredFinish, finishFinishLag, finishStartLaggedStart, previousBlockEndIfSame,
 } from './relationMath';
 import { taskCountsInWorkdays, lagCountsInWorkdays } from './conventions/durationMeasure';
 import { isFiniteNumber } from '@/utils/guards';
@@ -314,7 +314,7 @@ export class CPMSolver {
     projectCalendar: WorkCalendar,
     registry: WorkCalendar[] = [],
     options: CPMOptions,
-    private readonly statusFloorAnchors = new Map<string, Date>(),
+    private readonly statusFloorAnchors?: Map<string, Date>,
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
@@ -914,24 +914,86 @@ export class CPMSolver {
     return date;
   }
 
-  private successorDatesBeforeLeveling(
-    cal: CalendarEngine,
-    task: Task,
-    late: { ls: Date; lf: Date },
-    relation: Sequence['type'],
-    earlyStart: Date | undefined,
-  ): { ls: Date; lf: Date } {
-    const ls = this.shiftByLevelingDelay(cal, task, late.ls, -1);
-    const usesFinish = relation === 'FINISH_FINISH' || relation === 'START_FINISH';
-    const levelingCrossesStatusFloor = usesFinish && (task.levelingDelay ?? 0) > 0 && (task.levelingDelayMinutes ?? 0) > 0
-      && !task.levelingDelayElapsed && !isZeroDurationMilestone(task)
-      && this.countsInWorkdays(task) && this.statusFloorAnchors.has(task.id)
-      && this.dataDate && earlyStart && earlyStart > this.dataDate;
-    if (!levelingCrossesStatusFloor) return { ls, lf: this.shiftByLevelingDelay(cal, task, late.lf, -1) };
-    const durationFinish = this.finishFromStart(cal, ls, task);
-    if (relation === 'FINISH_FINISH') return { ls, lf: durationFinish };
-    const finishLimitFromStart = cal.nextWorkInstant(durationFinish);
-    return { ls, lf: finishLimitFromStart < late.lf ? finishLimitFromStart : late.lf };
+  private leveledEarlyStart(eng: CalendarEngine, task: Task, start: Date, hasPredecessors: boolean): Date {
+    if (task.levelingDelay) {
+      const shifted = this.shiftByLevelingDelay(eng, task, start, 1);
+      return isElapsedTask(task) ? shifted : this.snapSuccessorEarlyStart(eng, shifted, task);
+    }
+    if (!hasPredecessors || !task.levelingDelayMinutes) return start;
+    const shifted = this.shiftByLevelingDelay(eng, task, start, 1);
+    if (isElapsedTask(task)) return shifted;
+    return task.levelingDelayElapsed ? this.snapOnOrAfter(eng, shifted) : this.snapSuccessorEarlyStart(eng, shifted, task);
+  }
+
+  private leveledFinishConstraint(
+    seq: Sequence,
+    pred: Task, predCal: CalendarEngine, early: { es: Date; ef: Date } | undefined,
+    succ: Task, succCal: CalendarEngine, late: { ls: Date; lf: Date },
+  ): Date | undefined {
+    const startFinish = seq.type === 'START_FINISH';
+    const dataDate = this.dataDate;
+    if ((!startFinish && seq.type !== 'FINISH_FINISH') || !early || !dataDate
+      || this.options.schedulingOptions.unstartedIgnoresStatusDate
+      || (succ.levelingDelay ?? 0) <= 0 || (succ.levelingDelayMinutes ?? 0) <= 0 || succ.levelingDelayElapsed
+      || succ.manuallyScheduled || succ.time.completion !== 0 || succ.time.actualStart
+      || isZeroDurationMilestone(succ) || !this.countsInWorkdays(succ)
+      || this.hardPinStart(succ, succCal) || this.hardPinFinish(succ, succCal)
+      || dataDate > late.ls || this.finishFromStart(succCal, dataDate, succ) > late.lf) return undefined;
+
+    const relationCal = this.relationEngineFor(pred);
+    const fits = (instant: number): boolean => {
+      const point = new Date(instant);
+      const dates = startFinish ? { ...early, es: point } : { ...early, ef: point };
+      const bound = forwardConstraint(this.relDeps, dates, pred, seq, succ, relationCal, succCal);
+      const shiftedStart = this.leveledEarlyStart(succCal, succ, this.snapSuccessorEarlyStart(succCal, bound, succ), true);
+      const start = shiftedStart < dataDate ? dataDate : shiftedStart;
+      if (start > late.ls || this.finishFromStart(succCal, start, succ) > late.lf) return false;
+      const finishFloor = forwardFinishFloor(this.relDeps, dates, pred, seq, succ, relationCal, succCal);
+      return !finishFloor || finishFloor <= late.lf;
+    };
+
+    const origin = (startFinish ? early.es : early.ef).getTime();
+    const originFits = fits(origin);
+    let sameSide = origin;
+    let step = originFits ? MS_PER_MIN : -MS_PER_MIN;
+    let otherSide = origin + step;
+    while (!Number.isNaN(new Date(otherSide).getTime()) && fits(otherSide) === originFits) {
+      sameSide = otherSide;
+      step *= 2;
+      otherSide = origin + step;
+    }
+    if (Number.isNaN(new Date(otherSide).getTime())) return undefined;
+    const lastPassingMinute = (allowed: number, disallowed: number, passes: (instant: number) => boolean): number => {
+      while (disallowed - allowed > MS_PER_MIN) {
+        const middle = allowed + Math.floor((disallowed - allowed) / (2 * MS_PER_MIN)) * MS_PER_MIN;
+        if (passes(middle)) allowed = middle;
+        else disallowed = middle;
+      }
+      return allowed;
+    };
+    let allowed = lastPassingMinute(originFits ? sameSide : otherSide, originFits ? otherSide : sameSide, fits);
+    if (originFits && !startFinish && allowed > origin) {
+      const lagCal = this.relDeps.lagEngine(relationCal, succCal);
+      const required = (instant: number) =>
+        finishFinishLag(this.relDeps, lagCal, new Date(instant), seq, pred).required;
+      const firstRequired = required(origin);
+      const lastRequired = required(allowed);
+      const day = workdayDateOfInstant(succCal, lastRequired, 'end');
+      const blockEnds = [
+        succCal.prevWorkInstant(day).getTime(),
+        ...succCal.effectiveBandsOn(day).map(band => day.getTime() + band.end * MS_PER_MIN),
+      ];
+      for (const end of blockEnds) {
+        if (end < firstRequired.getTime() || end >= lastRequired.getTime()) continue;
+        const beforeGap = lastPassingMinute(origin, allowed, instant => required(instant).getTime() <= end);
+        if (!fits(beforeGap + MS_PER_MIN)) {
+          allowed = beforeGap;
+          break;
+        }
+      }
+    }
+    const anchor = new Date(allowed);
+    return startFinish ? this.finishFromStart(predCal, anchor, pred) : anchor;
   }
 
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
@@ -1035,7 +1097,7 @@ export class CPMSolver {
     this.cappedTaskIds = [];
     this.externalLagCalendarFallbackIds.clear();
     this.plannedFloorTraceByTaskId = {};
-    this.statusFloorAnchors.clear();
+    this.statusFloorAnchors?.clear();
     this.backwardFloatTrace = this.options.schedulingOptions?.p6CompletedDataDateWindow === true
       ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
       : undefined;
@@ -1342,7 +1404,7 @@ export class CPMSolver {
   ): Map<string, { es: Date; ef: Date }> {
     const drivers = this.dateDrivers;
     for (const taskId of order) {
-      if (this.dataDate) this.statusFloorAnchors.delete(taskId);
+      this.statusFloorAnchors?.delete(taskId);
       const task = this.tasks.get(taskId)!;
       const cal = this.calendarFor(task);
       const preds = this.predecessors.get(taskId) || [];
@@ -1545,20 +1607,7 @@ export class CPMSolver {
       }
 
       const undelayedEarlyStart = earlyStart;
-      if (task.levelingDelay) {
-        earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
-        if (!isElapsedTask(task)) {
-          earlyStart = this.snapSuccessorEarlyStart(cal, earlyStart, task);
-        }
-      } else if (!noPreds && task.levelingDelayMinutes) {
-        earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
-        const taskElapsedForSnap = isElapsedTask(task);
-        if (!taskElapsedForSnap && task.levelingDelayElapsed) {
-          earlyStart = this.snapOnOrAfter(cal, earlyStart);
-        } else if (!taskElapsedForSnap) {
-          earlyStart = this.snapSuccessorEarlyStart(cal, earlyStart, task);
-        }
-      }
+      earlyStart = this.leveledEarlyStart(cal, task, earlyStart, !noPreds);
       if (earlyStart.getTime() !== undelayedEarlyStart.getTime()) driver = DRIVER.leveling;
 
       const dataDate = this.dataDate;
@@ -1681,12 +1730,13 @@ export class CPMSolver {
           results.set(taskId, { es: displayedEarlyStart, ef });
           continue;
         }
-        if (dataDate && t.completion === 0 && !this.options.schedulingOptions?.unstartedIgnoresStatusDate) {
-          if (undelayedEarlyStart < dataDate) this.statusFloorAnchors.set(taskId, undelayedEarlyStart);
-          if (earlyStart < dataDate) {
-            earlyStart = dataDate;
-            driver = DRIVER.statusDate;
-          }
+        if (
+          dataDate && t.completion === 0 && earlyStart < dataDate
+          && !this.options.schedulingOptions?.unstartedIgnoresStatusDate
+        ) {
+          this.statusFloorAnchors?.set(taskId, undelayedEarlyStart);
+          earlyStart = dataDate;
+          driver = DRIVER.statusDate;
         }
       }
 
@@ -2452,9 +2502,10 @@ export class CPMSolver {
             const effectiveSeq = succUsesRemainingWindow
               ? { ...seq, lagDays: 0, lagMinutes: 0, lagPercent: undefined }
               : this.completedRemainingLagSeq(percentResolvedSeq, task, lagEng);
-            const delayShiftedSuccResult = this.successorDatesBeforeLeveling(
-              succCal, succTask, succResult, seq.type, earlyDates.get(succTask.id)?.es,
-            );
+            const delayShiftedSuccResult = {
+              ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
+              lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
+            };
             const isStartSideRelation = seq.type === 'START_START' || seq.type === 'START_FINISH';
             const zeroRemainingPredTask: Task = isStartSideRelation
               ? {
@@ -2533,17 +2584,19 @@ export class CPMSolver {
         if (this.progressOverrideIgnoresRelation(task, succTask)) continue;
         if (succTask.isHammock) continue;
         const succCal = this.calendarFor(succTask);
-        const delayShiftedSuccResult = this.successorDatesBeforeLeveling(
-          succCal, succTask, succResult, seq.type, earlyDates.get(succTask.id)?.es,
-        );
         const lateLagEng = this.relDeps.lagEngine(predCal, succCal);
         if (this.options.schedulingOptions?.startToStartLagFrom === 'actualStart'
           && this.dataDate !== null && this.inProgressStartLag(task, seq, lateLagEng)) continue;
         const lateSeq = this.inProgressStartLagSeq(task, seq, lateLagEng);
         const remainingTask = seq.type === 'START_START'
           ? this.remainingDurationTaskForStartRelation(task, predCal) : task;
-        const constraintDate = backwardConstraint(
-          this.relDeps, delayShiftedSuccResult, lateSeq, remainingTask, succTask, predCal, succCal,
+        const constraintDate = this.leveledFinishConstraint(
+          seq, task, predCal, earlyDates.get(taskId), succTask, succCal, succResult,
+        ) ?? backwardConstraint(
+          this.relDeps, {
+            ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
+            lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
+          }, lateSeq, remainingTask, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
           this.finishFinishAtStartMilestoneLateFinish(seq, succTask, predCal, succCal),
         );
