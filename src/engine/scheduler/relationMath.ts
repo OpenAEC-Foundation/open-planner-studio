@@ -465,8 +465,6 @@ function forwardHour(
         // Anker is het voorgangereinde rechtstreeks (`elapsed-day-to-hour` in cases-hours.json).
         const lagMinutes = elapsedMin();
         const target = new Date(predResult.ef.getTime() + lagMinutes);
-        // Een 24/7-taak hoeft na een positieve kloklag niet op de werkband te wachten.
-        // Nul-lag en leads behouden hun bestaande kalendergrenzen (knownbug 155).
         if (succElapsed && lagMinutes > 0) return target;
         if (succIsFinishMs && lagMinutes === 0) return target;
         if (succIsFinishMs) {

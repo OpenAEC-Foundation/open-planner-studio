@@ -1,4 +1,3 @@
-// Knownbug 155: compare identical clock lags on working-time and continuous tasks.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -37,8 +36,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       if (result.error || !ar || !br) throw new Error('Knownbug 155: no result: ' + (result.error ?? profile));
       console.log('KNOWNBUG155', JSON.stringify({ profile, type, lagDays, predFinish: ar.earlyFinish,
         succStart: br.earlyStart, succFinish: br.earlyFinish, driving: result.drivingSequenceIds }));
-      // Alleen de positieve kloklag buiten de werkband is hier het bekende defect.
-      // De negatieve lag wordt in deze fixture door de projectstart begrensd.
       const wantStart = type === 'ELAPSEDTIME' && lagDays === 1 ? '2026-06-06T16:00'
         : lagDays === -1 ? '2026-06-05T07:00' : '2026-06-08T07:00';
       const wantFinish = type === 'ELAPSEDTIME' && lagDays === 1 ? '2026-06-07T00:00'
