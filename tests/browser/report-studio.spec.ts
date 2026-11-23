@@ -657,7 +657,8 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   // Resourcediagram de bron is (review Sol #1005, rondes 7 en 8).
   await page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]').click();
   await expect.poll(async () => (await saved()).layoutId).toBe('');
-  const oldPeriod = { preset: 'custom', from: '2026-09-07', to: '2026-09-18' };
+  // De oude periode begint niet op de projectstart (7 september), zodat een blijvende *Van* opvalt.
+  const oldPeriod = { preset: 'custom', from: '2026-09-08', to: '2026-09-18' };
   await refreshStored({ period: undefined, resourceGantt: { ...(await saved()).resourceGantt, period: oldPeriod } });
   await expect(periodPicker).toHaveAttribute('data-value', 'project');
   const depsBefore = (await saved()).showDeps;
@@ -671,11 +672,11 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(periodPicker).toHaveAttribute('data-value', 'custom');
   await expect.poll(async () => { const s = await saved(); return [s.period, s.legacyResourcePeriod]; }).toEqual([oldPeriod, undefined]);
   // Ook de datumvelden tonen de oude periode (ze houden een eigen kladwaarde bij).
-  const shownDay = (which: RegExp) => page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: which }).getByRole('textbox');
-  for (const [which, day] of [[/^(From|Van)$/, '07'], [/^(To|Tot)$/, '18']] as const) {
-    await expect(shownDay(which).nth(0)).toHaveValue(day);
-    await expect(shownDay(which).nth(1)).toHaveValue('09');
-    await expect(shownDay(which).nth(2)).toHaveValue('2026');
+  for (const [which, day] of [[/^(From|Van)$/, '08'], [/^(To|Tot)$/, '18']] as const) {
+    const parts = page.locator('[data-ops-report-period="ganttPeriod"]').getByRole('group', { name: which }).getByRole('textbox');
+    await expect(parts.nth(0)).toHaveValue(day);
+    await expect(parts.nth(1)).toHaveValue('09');
+    await expect(parts.nth(2)).toHaveValue('2026');
   }
   await periodPicker.click();
   await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
