@@ -13,7 +13,7 @@ const realError = console.error;
 console.error = () => {};
 
 const { createAppStoreContext } = await import('@/state/appStoreFactory');
-const { startOpenLookup, existingDocument } = await import('@/state/openDocumentFor');
+const { startOpenLookup, openTabFor } = await import('@/state/openDocumentFor');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
 const { writeCSV } = await import('@/services/csv/csvWriter');
@@ -38,7 +38,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (g !== w) diffs.push(`${label}: ${g?.slice(0, 300)} ≠ ${w?.slice(0, 300)}`);
 };
 const labels = buildImportLabels((key) => key);
-const ALREADY_OPEN = 'notifications.fileAlreadyOpen';
+const CHANGED = 'notifications.fileChangedOnDisk';
 const enc = new TextEncoder();
 
 let events: string[] | null = null;
@@ -98,7 +98,8 @@ function tab(store: Store, id: string) {
 const history = (store: Store) => JSON.stringify([store.getState().historyEvents, store.getState().nextHistorySequence]);
 
 {
-  type Payload = { filePath: string | null; fileHandle: FileSystemFileHandle | null; siteFileId: string | null };
+  type Payload = { filePath: string | null; fileHandle: FileSystemFileHandle | null; siteFileId: string | null;
+    siteFileVersion: string | null; knownTargetFingerprint: { sha256: string; byteLength: number } | null };
   type Tab = { id: string; payload: Payload };
   const calls: string[] = [];
   const handleFor = (name: string, opts: { throws?: boolean; hold?: Promise<void> } = {}) => ({
@@ -110,18 +111,22 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       return other.name === name;
     },
   }) as unknown as FileSystemFileHandle;
+  const V1 = { sha256: 'aa', byteLength: 10 };
+  const V2 = { sha256: 'bb', byteLength: 10 };
+  const read = (fingerprint = V1) => ({ kind: 'bytes' as const, fingerprint });
   const state = (docs: Array<[string, Partial<Payload>]>): Tab[] => docs.map(([id, p]) => ({
-    id, payload: { filePath: null, fileHandle: null, siteFileId: null, ...p },
+    id, payload: { filePath: null, fileHandle: null, siteFileId: null, siteFileVersion: null, knownTargetFingerprint: V1, ...p },
   }));
-  const asTabs = (tabs: Tab[]) => ({ getOpenDocumentPayloads: () => tabs }) as unknown as Parameters<typeof existingDocument>[0];
-  const decide = (tabs: Tab[], ref: Parameters<typeof existingDocument>[1]) => existingDocument(asTabs(tabs), ref, null);
-  const settle = async <T extends { settled: boolean }>(lookup: T): Promise<T> => {
-    for (let i = 0; i < 50 && !lookup.settled; i++) await new Promise<void>((r) => setTimeout(r, 0));
-    return lookup;
-  };
+  const asTabs = (tabs: Tab[]) => ({ getOpenDocumentPayloads: () => tabs }) as unknown as Parameters<typeof openTabFor>[0];
+  type Ref = Parameters<typeof openTabFor>[1];
+  const choose = (tabs: Tab[], ref: Ref, version: Parameters<typeof openTabFor>[3] = read(), lookup: Parameters<typeof openTabFor>[2] = null) =>
+    openTabFor(asTabs(tabs), ref, lookup, version);
+  const decide = (tabs: Tab[], ref: Ref) => choose(tabs, ref)?.id ?? null;
+  const ticks = async () => { for (let i = 0; i < 20; i++) await new Promise<void>((r) => setTimeout(r, 0)); };
   const findId = async (tabs: Tab[], handle: FileSystemFileHandle) => {
-    const lookup = await settle(startOpenLookup(asTabs(tabs), { kind: 'handle', handle }));
-    return lookup.settled ? lookup.id : 'open';
+    const lookup = startOpenLookup(asTabs(tabs), { kind: 'handle', handle });
+    await ticks();
+    return choose(tabs, { kind: 'handle', handle }, read(), lookup)?.id ?? null;
   };
   const path = (p: string) => ({ kind: 'path' as const, path: p });
   const handleA = handleFor('a.ifc');
@@ -129,18 +134,39 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ['doc-pad', { filePath: '/plan/a.ifc' }],
     ['doc-win', { filePath: 'C:\\Werk\\Plan.ifc' }],
     ['doc-handle', { filePath: 'h.ifc', fileHandle: handleA }],
-    ['doc-site', { filePath: 's.ifc', siteFileId: 'site-1' }],
-    ['doc-site-handle', { filePath: 'sh.ifc', fileHandle: handleFor('sh.ifc'), siteFileId: 'site-2' }],
+    ['doc-site', { filePath: 's.ifc', siteFileId: 'site-1', siteFileVersion: 'v1', knownTargetFingerprint: null }],
+    ['doc-site-handle', { filePath: 'sh.ifc', fileHandle: handleFor('sh.ifc'), siteFileId: 'site-2', siteFileVersion: 'v1' }],
     ['doc-csv', { filePath: null }],
   ]);
-  eq('A1 hetzelfde pad', decide(docs, path('/plan/a.ifc')), 'doc-pad');
+  eq('A1 hetzelfde pad, dezelfde versie: wisselen zonder melding', choose(docs, path('/plan/a.ifc')), { id: 'doc-pad', changedOnDisk: false });
   eq('A2 een link (een andere padtekst) telt niet (knownbug 2063)', decide(docs, path('/plan/link-a.ifc')), null);
   eq('A4 POSIX is hoofdlettergevoelig', decide(docs, path('/plan/A.ifc')), null);
   eq('A5 geen normalisatie: een anders geschreven pad telt niet (ook op Windows)',
     [decide(docs, path('/plan/./a.ifc')), decide(docs, path('/plan/x/../a.ifc')), decide(docs, path('c:\\Werk\\.\\Plan.ifc'))], [null, null, null]);
   eq('A11 een tabblad met een handle telt niet voor een pad', decide(docs, path('h.ifc')), null);
-  eq('A9 site: hetzelfde id', decide(docs, { kind: 'site', id: 'site-1' }), 'doc-site');
-  eq('A9b site: ander id', decide(docs, { kind: 'site', id: 'site-9' }), null);
+  eq('A9 site: hetzelfde id en dezelfde versie', choose(docs, { kind: 'site', id: 'site-1' }, { kind: 'site', version: 'v1' }),
+    { id: 'doc-site', changedOnDisk: false });
+  eq('A9 site: een andere versie ⇒ wisselen met melding', choose(docs, { kind: 'site', id: 'site-1' }, { kind: 'site', version: 'v2' }),
+    { id: 'doc-site', changedOnDisk: true });
+  eq('A9 site: de versie van de lezing onbekend ⇒ geen wissel', choose(docs, { kind: 'site', id: 'site-1' }, null), null);
+  eq('A9b site: ander id', choose(docs, { kind: 'site', id: 'site-9' }, { kind: 'site', version: 'v1' }), null);
+  eq('V1 een andere hash ⇒ wisselen met melding', choose(docs, path('/plan/a.ifc'), read(V2)), { id: 'doc-pad', changedOnDisk: true });
+  eq('V1 dezelfde hash, een andere grootte ⇒ met melding', choose(docs, path('/plan/a.ifc'), read({ sha256: 'aa', byteLength: 11 })),
+    { id: 'doc-pad', changedOnDisk: true });
+  eq('V2 het tabblad kent zijn versie niet ⇒ geen wissel (tweede tabblad, zoals main)',
+    choose(state([['onbekend', { filePath: '/plan/a.ifc', knownTargetFingerprint: null }]]), path('/plan/a.ifc')), null);
+  eq('V2 de lezing heeft geen hash ⇒ geen wissel', choose(docs, path('/plan/a.ifc'), null), null);
+  eq('V3 een tabblad met dezelfde versie gaat voor een tabblad zonder of met een andere versie',
+    choose(state([
+      ['onbekend', { filePath: '/plan/a.ifc', knownTargetFingerprint: null }],
+      ['anders', { filePath: '/plan/a.ifc', knownTargetFingerprint: V2 }],
+      ['gelijk', { filePath: '/plan/a.ifc' }],
+    ]), path('/plan/a.ifc')), { id: 'gelijk', changedOnDisk: false });
+  eq('V3 zonder gelijke versie: het eerste tabblad met een bekende versie, met melding',
+    choose(state([
+      ['onbekend', { filePath: '/plan/a.ifc', knownTargetFingerprint: null }],
+      ['anders', { filePath: '/plan/a.ifc', knownTargetFingerprint: V2 }],
+    ]), path('/plan/a.ifc')), { id: 'anders', changedOnDisk: true });
   calls.length = 0;
   eq('A6 handle: isSameEntry waar, ander object', await findId(docs, handleFor('a.ifc')), 'doc-handle');
   eq('A6 richting: gevraagd.isSameEntry(tabblad), niet voor een site-tabblad', calls, ['a.ifc→a.ifc']);
@@ -157,13 +183,14 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     ]);
     calls.length = 0;
     const gevraagd = handleFor('a.ifc', { hold: hold.wait });
-    const lookup = startOpenLookup(asTabs(tabs), { kind: 'handle', handle: gevraagd });
+    const ref = { kind: 'handle' as const, handle: gevraagd };
+    const lookup = startOpenLookup(asTabs(tabs), ref);
     eq('A19 tegelijk: alle drie de vergelijkingen direct gestart, ook voor een andere naam', [...calls].sort(), ['a.ifc→a.ifc', 'a.ifc→x.ifc', 'a.ifc→y.ifc']);
-    await settle(lookup);
-    eq('A19 zolang ze vastzitten: nog niet beslist', lookup.settled, false);
+    await ticks();
+    eq('A19 zolang ze vastzitten: geen treffer', choose(tabs, ref, read(), lookup), null);
     hold.open();
-    await settle(lookup);
-    eq('A19 de treffer op de laatste plaats', [lookup.settled, lookup.id], [true, 'zelfde']);
+    await ticks();
+    eq('A19 de treffer op de laatste plaats', choose(tabs, ref, read(), lookup)?.id, 'zelfde');
     const stuck = gate();
     const slowTabs = state([
       ['vast', { filePath: 'x.ifc', fileHandle: { kind: 'file', name: 'x.ifc' } as unknown as FileSystemFileHandle }],
@@ -172,14 +199,25 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     const req = { kind: 'file', name: 'a.ifc',
       isSameEntry: async (other: { name?: string }) => { if (other.name === 'x.ifc') { await stuck.wait; return false; } return other.name === 'a.ifc'; },
     } as unknown as FileSystemFileHandle;
-    const early = await settle(startOpenLookup(asTabs(slowTabs), { kind: 'handle', handle: req }));
-    eq('A19b een treffer telt zodra hij binnen is, ook als een andere vergelijking nog loopt', [early.settled, early.id], [true, 'zelfde']);
-    const none = startOpenLookup(asTabs(slowTabs.slice(0, 1)), { kind: 'handle', handle: req });
-    await settle(none);
-    eq('A19b "geen treffer" pas als alle vergelijkingen binnen zijn', none.settled, false);
+    const early = startOpenLookup(asTabs(slowTabs), { kind: 'handle', handle: req });
+    await ticks();
+    eq('A19b een treffer telt zodra hij binnen is, ook als een andere vergelijking nog loopt',
+      choose(slowTabs, { kind: 'handle', handle: req }, read(), early)?.id, 'zelfde');
     stuck.open();
-    await settle(none);
-    eq('A19b daarna: geen treffer', [none.settled, none.id], [true, null]);
+  }
+  {
+    const tabs = state([
+      ['eerste', { filePath: 'a.ifc', fileHandle: handleFor('a.ifc') }],
+      ['tweede', { filePath: 'a.ifc', fileHandle: handleFor('a.ifc') }],
+    ]);
+    const ref = { kind: 'handle' as const, handle: handleFor('a.ifc') };
+    const lookup = startOpenLookup(asTabs(tabs), ref);
+    await ticks();
+    eq('A20 (Sol, ronde 7): twee bevestigde treffers; de eerste sluit vóór de beslissing ⇒ de tweede',
+      choose(tabs.slice(1), ref, read(), lookup)?.id, 'tweede');
+    const moved = [{ ...tabs[0], payload: { ...tabs[0].payload, fileHandle: handleFor('ander.ifc') } }];
+    eq('A20 een treffer telt niet meer als het tabblad intussen een andere handle kreeg (Opslaan als)',
+      choose(moved, ref, read(), lookup), null);
   }
   eq('A17 synchroon: dezelfde padtekst', decide(docs, path('/plan/a.ifc')), 'doc-pad');
 }
@@ -248,7 +286,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq(`B1 ${how}: het tabblad met kantoor is actief`, S().activeDocumentId, a);
       eq(`B1 ${how}: dat tabblad houdt zijn werk`, tab(store, a), tabA);
       eq(`B1 ${how}: ongedaan maken onveranderd`, history(store), historyBefore);
-      eq(`B1 ${how}: één melding`, notices(store), [['info', ALREADY_OPEN]]);
+      eq(`B1 ${how}: dezelfde versie, geen melding`, notices(store), []);
       eq(`B1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.ref, { kind: 'path', path: kantoor });
       eq(`B1 ${how}: B onveranderd`, tab(store, b), { project: 'School', tasks: ['Dak'], isDirty: false, filePath: school });
     }
@@ -258,7 +296,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       await openVia(store, 'link');
       const viaLink = S().activeDocumentId;
       eq('B1 link: een eigen tabblad met de inhoud van het bestand, geen melding', [
-        S().documents.length, ![a, b].includes(viaLink), S().filePath, S().tasks.map(t => t.name), notices(store).filter(n => n[1] === ALREADY_OPEN),
+        S().documents.length, ![a, b].includes(viaLink), S().filePath, S().tasks.map(t => t.name), notices(store).filter(n => n[1] === CHANGED),
       ], [3, true, link, ['Fundering'], []]);
       eq('B1 link: A houdt zijn werk', tab(store, a), tabA);
       S().closeDocument(viaLink);
@@ -272,7 +310,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     await openDroppedFiles(store, droppedFilesFromPaths([kopie, kopie], io, { ifcBytes: true }), labels, () => false, { readOptions: { ifcBytes: true } });
     const c = S().activeDocumentId;
     eq('B3 kopie: een eigen tabblad', [S().documents.length, tab(store, c)?.filePath, tab(store, c)?.project], [3, kopie, 'School']);
-    eq('B3 tweede neerzetting van dezelfde kopie: één melding', notices(store), [['info', ALREADY_OPEN]]);
+    eq('B3 tweede neerzetting van dezelfde kopie: naar dat tabblad, geen melding', [S().documents.length, notices(store)], [3, []]);
 
     S().addTask({ name: 'Werk in de kopie' });
     clearNotices(store);
@@ -280,7 +318,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     await S().openFile(labels);
     S().addTask({ name: 'Werk in de CSV' });
     await S().openFile(labels);
-    eq('B4 CSV twee keer: twee tabbladen, geen melding', [S().documents.length, notices(store).filter(n => n[1] === ALREADY_OPEN)], [5, []]);
+    eq('B4 CSV twee keer: twee tabbladen, geen melding', [S().documents.length, notices(store).filter(n => n[1] === CHANGED)], [5, []]);
     store.setState(s => { s.ui.pendingFormatNotice = null; });
 
     S().switchDocument(b);
@@ -298,7 +336,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq('B5 gesloten tijdens het wachten: het bestand opent in een eigen tabblad', [
       S().documents.some(d => d.id === a), reopened !== b, tab(store, reopened),
     ], [false, true, { project: 'Kantoor', tasks: ['Fundering'], isDirty: false, filePath: kantoor }]);
-    eq('B5 geen melding "staat al open"', notices(store).filter(n => n[1] === ALREADY_OPEN), []);
+    eq('B5 geen melding', notices(store).filter(n => n[1] === CHANGED), []);
 
     const doel = join(dir, 'doel.ifc');
     writeFileSync(doel, schoolIfc);
@@ -319,7 +357,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     await opening;
     eq('B7 1909: geen tweede tabblad met de oude inhoud', [S().documents.length, S().activeDocumentId], [countBefore, saver]);
     eq('B7 1909: het tabblad dat opsloeg, met zijn werk', tab(store, saver), { project: 'Opslaander', tasks: ['Nieuw werk'], isDirty: false, filePath: doel });
-    eq('B7 1909: één melding', notices(store), [['info', ALREADY_OPEN]]);
+    eq('B7 1909: de lezing is ouder dan wat het tabblad opsloeg; de melding met de knop', notices(store), [['info', CHANGED]]);
 
     for (const during of ['wachtende neerzetting'] as const) {
       const st = newStore(true);
@@ -357,7 +395,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq(`B8 ${during}: het gevraagde bestand opent in een eigen tabblad`, [
         ![a, b].includes(T().activeDocumentId), T().filePath, T().project.name, T().tasks.map(t => t.name), T().documents.length,
       ], [true, kantoor, 'Kantoor', ['Fundering'], 3]);
-      eq(`B8 ${during}: geen melding "staat al open"`, notices(st).filter(n => n[1] === ALREADY_OPEN), []);
+      eq(`B8 ${during}: geen melding`, notices(st).filter(n => n[1] === CHANGED), []);
       eq(`B8 ${during}: A houdt zijn nieuwe naam en zijn werk`, tab(st, a), {
         project: 'Kantoor', tasks: ['Fundering', 'Nieuwe versie'], isDirty: false, filePath: renamed,
       });
@@ -381,7 +419,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq('B9 maplink/..: een ander bestand, een eigen tabblad', [
         statSync(viaLink).ino !== statSync(kantoor).ino, T().activeDocumentId !== first, T().project.name, T().documents.length,
       ], [true, true, 'School', 2]);
-      eq('B9 maplink/..: geen melding "staat al open"', notices(st).filter(n => n[1] === ALREADY_OPEN), []);
+      eq('B9 maplink/..: geen melding', notices(st).filter(n => n[1] === CHANGED), []);
       dialogAnswer = `${dir}/./kantoor.ifc`;
       await T().openFile(labels);
       eq('B9 ./kantoor.ifc: een andere padtekst, een eigen tabblad (2063); kantoor houdt zijn werk', [
@@ -695,7 +733,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         release.open();
         await opening;
         eq(`P4 ${route} (Sol, ronde 6): de flag gaat aan tijdens het lezen; geen wissel, zoals main`, [
-          reads, stats, T().activeDocumentId === kantoorTab, T().documents.length, T().project.name, notices(st).filter(n => n[1] === ALREADY_OPEN),
+          reads, stats, T().activeDocumentId === kantoorTab, T().documents.length, T().project.name, notices(st).filter(n => n[1] === CHANGED),
         ], [1, 0, false, 3, 'Kantoor', []]);
       } finally {
         release.open();
@@ -732,7 +770,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         await openVia(st, 'openen', csv);
         const samePathText = [T().activeDocumentId !== kantoorTab, T().filePath];
         eq('P5 CSV (Sol, ronde 6): geen stat, geen wissel, een eigen tabblad zonder opslagdoel, zoals main', [
-          stats, plain, viaHardlink, samePathText, notices(st).filter(n => n[1] === ALREADY_OPEN),
+          stats, plain, viaHardlink, samePathText, notices(st).filter(n => n[1] === CHANGED),
         ], [0, [true, null, ['Rij']], [true, null, ['Rij']], [true, null], []]);
       } finally {
         internals.invoke = outer;
@@ -779,7 +817,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
             T().activeDocumentId === schoolTab, T().documents.length === count,
             T().getOpenDocumentPayloads().some(d => d.id === modelTab && d.payload.filePath === groot),
             route === 'MCP' ? /^VALIDATION: .*IFC open refused/.test(mcpError ?? '') : notices(st).some(n => n[1] === 'notifications.ifcForeignOpenTooLarge'),
-            notices(st).filter(n => n[1] === ALREADY_OPEN).length,
+            notices(st).filter(n => n[1] === CHANGED).length,
           ], [true, true, true, true, 0]);
         }
       } finally {
@@ -1015,10 +1053,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         all.open();
         await Promise.all(opening);
       } finally { internals.invoke = outer; all.open(); }
-      eq('R6 2041: drie openacties lezen tegelijk; één tabblad op kantoor, de melding één keer (zelfde dedupeKey)', [
+      eq('R6 2041: drie openacties lezen tegelijk; één tabblad op kantoor, geen melding (dezelfde versie)', [
         held, T().getOpenDocumentPayloads().filter(d => d.payload.filePath === kantoor).length, T().documents.length,
-        notices(st).filter(n => n[1] === ALREADY_OPEN).length,
-      ], [3, 1, 2, 1]);
+        notices(st).filter(n => n[1] === CHANGED).length,
+      ], [3, 1, 2, 0]);
     }
 
     {
@@ -1043,11 +1081,11 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         st.setState(s => { s.recentFiles = []; });
         clearNotices(st);
         await openLaunchFiles(st, [path], io, labels, () => false, launchOptions(st));
-        eq(`B10 tweede start, ${how}: naar het open tabblad, met de melding`, [
+        eq(`B10 tweede start, ${how}: naar het open tabblad, dezelfde versie, geen melding`, [
           T().activeDocumentId, T().documents.length, notices(st),
-        ], [first, 2, [['info', ALREADY_OPEN]]]);
+        ], [first, 2, []]);
         eq(`B10 tweede start, ${how}: dat tabblad houdt zijn inhoud`, tab(st, first), before);
-        eq(`B10 tweede start, ${how}: Recent bijgewerkt`, T().recentFiles[0]?.ref, { kind: 'path', path });
+        eq(`B10 tweede start, ${how}: Recent niet bijgewerkt, zoals main (Sol, ronde 7)`, T().recentFiles, []);
         eq(`B10 tweede start, ${how}: het andere tabblad onveranderd`, tab(st, other)?.filePath, school);
       }
       {
@@ -1070,10 +1108,10 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         clearNotices(st);
         blocked = false;
         await launching;
-        eq('B10 tabblad dat tijdens het wachten opende: daarheen, met de melding', [
+        eq('B10 tabblad dat tijdens het wachten opende: daarheen, geen melding', [
           T().activeDocumentId, T().documents.length, notices(st),
-        ], [late, 2, [['info', ALREADY_OPEN]]]);
-        eq('B10 tabblad dat tijdens het wachten opende: Recent bijgewerkt', T().recentFiles[0]?.ref, { kind: 'path', path: kantoor });
+        ], [late, 2, []]);
+        eq('B10 tabblad dat tijdens het wachten opende: Recent zoals main', T().recentFiles[0]?.ref, { kind: 'path', path: school });
       }
       for (const flag of [true, false]) {
         const st = newStore(flag);
@@ -1112,8 +1150,8 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
           } finally { ifcFormat.read = parse; }
           eq(`B10 flag uit tijdens het parsen, ${route}: naar het open tabblad, geen tweede`, [
             T().activeDocumentId, T().documents.length, ifcForeignContentEnabled(T().ui.featureFlags),
-            notices(st).filter(n => n[1] === ALREADY_OPEN).length,
-          ], [first, 2, false, 1]);
+            notices(st).filter(n => n[1] === CHANGED).length,
+          ], [first, 2, false, 0]);
         }
       }
       {
@@ -1121,7 +1159,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         clearNotices(st);
         await openLaunchFiles(st, [kantoor], io, labels, () => false, launchOptions(st));
         eq('B10 flag uit: de startroute wisselt zoals main, zonder melding', [
-          T().activeDocumentId, T().documents.length, notices(st).filter(n => n[1] === ALREADY_OPEN),
+          T().activeDocumentId, T().documents.length, notices(st).filter(n => n[1] === CHANGED),
         ], [first, 2, []]);
         eq('B10 flag uit: dat tabblad houdt zijn inhoud', tab(st, first), before);
       }
@@ -1180,6 +1218,208 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       }
     }
 
+    {
+      const { readFileSync, unlinkSync } = await import('node:fs');
+      const { createHash } = await import('node:crypto');
+      const { openLaunchFiles } = await import('@/state/launchFiles');
+      const { createCloseDocumentDialogActions } = await import('@/components/layout/DocumentChrome/closeDocumentActions');
+      const changedIfc = planIfc('Kantoor', 'Extern opgeslagen werk');
+      const onDisk = () => createHash('sha256').update(readFileSync(kantoor)).digest('hex');
+      const until = async (cond: () => boolean) => {
+        for (let i = 0; i < 400 && !cond(); i++) await new Promise<void>(r => setTimeout(r, 5));
+        return cond();
+      };
+      type App = ReturnType<typeof newApp>;
+      type Route = 'openen' | 'recent' | 'slepen' | 'MCP' | 'start';
+      const reopen = async (app: App, route: Route): Promise<Record<string, unknown> | null> => {
+        const st = app.store;
+        if (route === 'MCP') {
+          const r = await getTool('planner_import_schedule')!.handler({ path: kantoor }, mcpContext(app, st.getState().activeDocumentId));
+          return r.ok ? r.data as Record<string, unknown> : { fout: r };
+        }
+        if (route === 'start') await openLaunchFiles(st, [kantoor], io, labels, () => false, { readOptions: readOptions(st), identityFs: fileIdentityFs });
+        else if (route === 'recent') {
+          st.setState(s => { s.recentFiles = [{ id: 'v', ref: { kind: 'path', path: kantoor }, name: 'kantoor.ifc', addedAt: 1 }]; });
+          await st.getState().openRecentFile('v', labels);
+        } else await openVia(st, route);
+        return null;
+      };
+      const setup = async (flagAtOpen = true) => {
+        writeFileSync(kantoor, kantoorIfc);
+        const app = newApp(flagAtOpen);
+        const st = app.store;
+        const T = () => st.getState();
+        await openVia(st, 'openen', kantoor);
+        const a = T().activeDocumentId;
+        T().addTask({ name: 'Eigen werk' });
+        T().newDocument();
+        await openVia(st, 'openen', school);
+        st.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+        clearNotices(st);
+        return { app, st, T, a, count: T().documents.length };
+      };
+      const changedNotice = (st: Store) => st.getState().ui.notifications.find(n => n.messageKey === CHANGED) ?? null;
+      const getFs = fileToolDeps.getFs;
+      fileToolDeps.getFs = async () => ({ ...await realFs(), homeDir: async () => dir });
+      try {
+        for (const route of ['openen', 'recent', 'slepen', 'MCP', 'start'] as const) {
+          {
+            const { app, st, T, a, count } = await setup();
+            const data = await reopen(app, route);
+            eq(`V4 ${route}: dezelfde versie ⇒ naar het tabblad, geen melding`, [
+              T().activeDocumentId === a, T().documents.length - count, notices(st), tab(st, a)?.tasks,
+              route === 'MCP' ? [data?.alreadyOpen, data?.changedOnDisk] : null,
+            ], [true, 0, [], ['Fundering', 'Eigen werk'], route === 'MCP' ? [true, undefined] : null]);
+          }
+          {
+            const { app, st, T, a, count } = await setup();
+            writeFileSync(kantoor, changedIfc);
+            const data = await reopen(app, route);
+            const notice = changedNotice(st);
+            eq(`V5 ${route}: een andere versie op schijf ⇒ naar het tabblad, met de melding en de knop; het werk blijft`, [
+              T().activeDocumentId === a, T().documents.length - count, notices(st),
+              notice?.sticky, notice?.params, notice?.action, tab(st, a)?.tasks, tab(st, a)?.isDirty,
+              route === 'MCP' ? [data?.alreadyOpen, data?.changedOnDisk] : null,
+            ], [true, 0, [['info', CHANGED]], true, { name: 'kantoor.ifc' },
+              { kind: 'loadNewVersion', documentId: a, labelKey: 'notifications.actions.loadNewVersion' },
+              ['Fundering', 'Eigen werk'], true, route === 'MCP' ? [true, true] : null]);
+            await reopen(app, route);
+            eq(`V5 ${route}: nog eens openen ⇒ één melding (dedupeKey per tabblad)`, notices(st), [['info', CHANGED]]);
+          }
+          {
+            const { app, st, T, a, count } = await setup(false);
+            const data = await reopen(app, route);
+            if (route === 'start') {
+              eq('V6 start: het tabblad kent zijn versie niet ⇒ zoals main naar dat tabblad, geen melding (2064)', [
+                T().activeDocumentId === a, T().documents.length - count, notices(st),
+              ], [true, 0, []]);
+            } else {
+              eq(`V6 ${route}: het tabblad kent zijn versie niet ⇒ een tweede tabblad met het bestand, zoals main`, [
+                T().activeDocumentId !== a, T().documents.length - count, T().filePath, T().tasks.map(t => t.name), tab(st, a)?.tasks,
+                notices(st).filter(n => n[1] === CHANGED), route === 'MCP' ? data?.alreadyOpen : null,
+              ], [true, 1, kantoor, ['Fundering'], ['Fundering', 'Eigen werk'], [], route === 'MCP' ? undefined : null]);
+            }
+          }
+          {
+            writeFileSync(kantoor, kantoorIfc);
+            const app = newApp(true);
+            const st = app.store;
+            const T = () => st.getState();
+            await openVia(st, 'openen', kantoor);
+            const a = T().activeDocumentId;
+            T().addTask({ name: 'Opgeslagen werk' });
+            await T().saveFile();
+            const saved = [T().isDirty, readFileSync(kantoor, 'utf8').includes('Opgeslagen werk')];
+            T().newDocument();
+            await openVia(st, 'openen', school);
+            clearNotices(st);
+            const count = T().documents.length;
+            await reopen(app, route);
+            eq(`V7 ${route} (ronde 7): openen, bewerken, Ctrl+S, opnieuw openen ⇒ naar het tabblad, geen melding`, [
+              ...saved, T().activeDocumentId === a, T().documents.length - count, notices(st),
+            ], [false, true, true, 0, []]);
+          }
+        }
+
+        {
+          writeFileSync(kantoor, kantoorIfc);
+          const app = newApp(true);
+          const st = app.store;
+          const T = () => st.getState();
+          await openVia(st, 'openen', kantoor);
+          const a = T().activeDocumentId;
+          T().newDocument();
+          await openVia(st, 'openen', school);
+          writeFileSync(kantoor, changedIfc);
+          clearNotices(st);
+          await openVia(st, 'openen', kantoor);
+          const notice = changedNotice(st);
+          T().loadNewVersion(a, labels);
+          const loaded = await until(() => T().tasks.some(t => t.name === 'Extern opgeslagen werk'));
+          const after = [loaded, T().activeDocumentId === a, T().documents.length, T().filePath, T().isDirty,
+            T().knownTargetFingerprint?.sha256 === onDisk(), T().ui.pendingReloadDocId, changedNotice(st)];
+          T().undo();
+          eq('K1 schoon tabblad: de knop vult hetzelfde tabblad met de nieuwe versie; lege geschiedenis, de melding weg', [
+            !!notice, ...after, T().tasks.map(t => t.name),
+          ], [true, true, true, 2, kantoor, false, true, null, null, ['Extern opgeslagen werk']]);
+          T().switchDocument(T().documents.find(d => d.id !== a)!.id);
+          await openVia(st, 'openen', kantoor);
+          eq('K1 daarna opnieuw openen ⇒ naar het tabblad, geen melding', [T().activeDocumentId === a, notices(st)], [true, []]);
+        }
+
+        for (const choice of ['annuleren', 'niet opslaan', 'opslaan'] as const) {
+          const { st, T, a } = await setup();
+          writeFileSync(kantoor, changedIfc);
+          await openVia(st, 'openen', kantoor);
+          T().loadNewVersion(a, labels);
+          const asked = [T().ui.pendingReloadDocId === a, T().tasks.map(t => t.name)];
+          const actions = createCloseDocumentDialogActions({
+            pendingId: a,
+            getActiveDocumentId: () => T().activeDocumentId,
+            switchDocument: (id) => T().switchDocument(id),
+            closeDocument: (id, options) => T().reloadFromTarget(id, { ...options, labels }),
+            saveFile: () => T().saveFileForDocument(a),
+            clearPending: () => T().setUI({ pendingReloadDocId: null }),
+            restoreOpenerFocus: () => {},
+            onSavePendingChange: () => {},
+          });
+          if (choice === 'annuleren') actions.cancel();
+          else if (choice === 'niet opslaan') await actions.discard();
+          else await actions.save();
+          const want = {
+            annuleren: [['Fundering', 'Eigen werk'], true, false, true],
+            'niet opslaan': [['Extern opgeslagen werk'], false, false, false],
+            opslaan: [['Fundering', 'Eigen werk'], false, true, false],
+          }[choice];
+          eq(`K2 gewijzigd tabblad, ${choice}: eerst de sluitvraag, daarna ${choice === 'annuleren' ? 'alles zoals het was' : 'dit tabblad met wat op schijf staat'}`, [
+            asked, T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty,
+            readFileSync(kantoor, 'utf8').includes('Eigen werk'), !!changedNotice(st), T().ui.pendingReloadDocId,
+          ], [[true, ['Fundering', 'Eigen werk']], true, ...want, null]);
+        }
+
+        {
+          const { st, T, a } = await setup();
+          writeFileSync(kantoor, changedIfc);
+          await openVia(st, 'openen', kantoor);
+          clearNotices(st);
+          await openVia(st, 'openen', kantoor);
+          unlinkSync(kantoor);
+          const errorsBefore = notices(st).filter(n => n[0] === 'error').length;
+          await T().reloadFromTarget(a, { labels });
+          eq('K3 mislukt lezen (bestand weg): het tabblad blijft zoals het was, met de gewone foutmelding; de melding met de knop blijft', [
+            T().activeDocumentId === a, T().tasks.map(t => t.name), T().isDirty, notices(st).filter(n => n[0] === 'error').length - errorsBefore,
+            !!changedNotice(st),
+          ], [true, ['Fundering', 'Eigen werk'], true, 1, true]);
+          writeFileSync(kantoor, kantoorIfc);
+        }
+
+        {
+          const { st, T, a } = await setup();
+          writeFileSync(kantoor, changedIfc);
+          await openVia(st, 'openen', kantoor);
+          const visible = !!changedNotice(st);
+          saveAnswer = join(dir, 'kantoor-ander-doel.ifc');
+          await T().saveFileAs();
+          const afterSaveAs = !!changedNotice(st);
+          T().newDocument();
+          await openVia(st, 'openen', kantoor);
+          const b = T().activeDocumentId;
+          writeFileSync(kantoor, kantoorIfc);
+          T().switchDocument(T().documents.find(d => d.id !== b && d.id !== a)!.id);
+          await openVia(st, 'openen', kantoor);
+          const visibleB = !!changedNotice(st);
+          T().closeDocument(b);
+          eq('K4 de melding verdwijnt na Opslaan als naar een ander doel en na het sluiten van het tabblad', [
+            visible, afterSaveAs, visibleB, !!changedNotice(st),
+          ], [true, false, true, false]);
+          writeFileSync(kantoor, kantoorIfc);
+        }
+      } finally {
+        fileToolDeps.getFs = getFs;
+        writeFileSync(kantoor, kantoorIfc);
+      }
+    }
+
     const offStore = newStore(false);
     const O = () => offStore.getState();
     dialogAnswer = kantoor;
@@ -1193,7 +1433,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
       eq(`B6 flag uit, ${how}: een tweede tabblad`, O().documents.length, count);
       eq(`B6 flag uit, ${how}: het nieuwe tabblad is actief, met de inhoud van het bestand`,
         [O().tasks.map(t => t.name), O().isDirty], [['Fundering'], false]);
-      eq(`B6 flag uit, ${how}: geen melding "staat al open"`, notices(offStore).filter(n => n[1] === ALREADY_OPEN), []);
+      eq(`B6 flag uit, ${how}: geen melding`, notices(offStore).filter(n => n[1] === CHANGED), []);
     }
     eq('B6 flag uit: alle tabbladen wijzen naar kantoor (of de link)', O().getOpenDocumentPayloads().map(d => d.payload.filePath),
       [kantoor, kantoor, link, kantoor, kantoor]);
@@ -1257,7 +1497,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     eq(`C1 ${how}: het tabblad met kantoor is actief`, S().activeDocumentId, a);
     eq(`C1 ${how}: dat tabblad houdt zijn werk`, tab(store, a), tabA);
     eq(`C1 ${how}: ongedaan maken onveranderd`, history(store), historyBefore);
-    eq(`C1 ${how}: één melding`, notices(store), [['info', ALREADY_OPEN]]);
+    eq(`C1 ${how}: dezelfde versie, geen melding`, notices(store), []);
     eq(`C1 ${how}: Recent bijgewerkt`, S().recentFiles[0]?.name, 'kantoor.ifc');
   }
 
@@ -1275,7 +1515,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
   await S().openOpenedFile(ff, labels);
   S().addTask({ name: 'Werk' });
   await S().openOpenedFile(ff, labels);
-  eq('C3 zonder handle: telkens een nieuw tabblad', [S().documents.length, notices(store).filter(n => n[1] === ALREADY_OPEN)], [6, []]);
+  eq('C3 zonder handle: telkens een nieuw tabblad', [S().documents.length, notices(store).filter(n => n[1] === CHANGED)], [6, []]);
 
   {
     files.set('lijst.csv', enc.encode(csvText));
@@ -1290,7 +1530,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
         store.setState(s => { s.ui.pendingFormatNotice = null; });
       }
       eq('C5 CSV in de browser: geen isSameEntry vóór het activeren, telkens een eigen tabblad', [
-        calls, S().documents.length - count, notices(store).filter(n => n[1] === ALREADY_OPEN),
+        calls, S().documents.length - count, notices(store).filter(n => n[1] === CHANGED),
       ], [0, 3, []]);
     } finally {
       FakeHandle.prototype.isSameEntry = sameEntry;
@@ -1342,13 +1582,13 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     const opening = openVia(st, how);
     try {
       const done = await Promise.race([opening.then(() => true), new Promise<boolean>(r => setTimeout(() => r(false), 300))]);
-      const atDone = [S().documents.length - count, S().project.name, notices(st).filter(n => n[1] === ALREADY_OPEN).length];
+      const atDone = [S().documents.length - count, S().project.name, notices(st).filter(n => n[1] === CHANGED).length];
       eq(`P1 browser ${how}: isSameEntry vastgehouden; de openactie wacht er niet op`, [held > 0, done, ...atDone], [true, true, 1, 'Kantoor', 0]);
       hold.open();
       await opening;
       await new Promise(r => setTimeout(r, 20));
       eq(`P1 browser ${how}: de late uitkomst doet niets meer`,
-        [S().documents.length - count, S().project.name, notices(st).filter(n => n[1] === ALREADY_OPEN).length], atDone);
+        [S().documents.length - count, S().project.name, notices(st).filter(n => n[1] === CHANGED).length], atDone);
     } finally {
       hold.open();
       FakeHandle.prototype.isSameEntry = sameEntry;
@@ -1367,7 +1607,7 @@ const history = (store: Store) => JSON.stringify([store.getState().historyEvents
     await openVia(offStore, how);
     count++;
     eq(`C4 flag uit, ${how}: een tweede tabblad`, [O().documents.length, O().tasks.map(t => t.name), O().isDirty], [count, ['Fundering'], false]);
-    eq(`C4 flag uit, ${how}: geen melding "staat al open"`, notices(offStore).filter(n => n[1] === ALREADY_OPEN), []);
+    eq(`C4 flag uit, ${how}: geen melding`, notices(offStore).filter(n => n[1] === CHANGED), []);
   }
 }
 

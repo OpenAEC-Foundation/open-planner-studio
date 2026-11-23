@@ -1275,7 +1275,7 @@ const openedVersions = (c: Case) => {
   });
   return { versions, stop: () => c.store.setState({ openOpenedFile: original }) };
 };
-const alreadyOpenNotices = (c: Case) => c.store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.fileAlreadyOpen').length;
+const changedOnDiskNotices = (c: Case) => c.store.getState().ui.notifications.filter(n => n.messageKey === 'notifications.fileChangedOnDisk').length;
 /** De herstelronde van `opened`, met `during` één keer in de eerste ronde binnen de vervanging (`pendingSha256` staat dan
  *  in het manifest; de controle na de herstelronde komt daarna). */
 function firstPendingRound(c: Case, during: () => void | Promise<void>) {
@@ -1324,7 +1324,7 @@ await check('een opening die tijdens de eerste herstelronde begint, wacht tot de
       { result: true, changed: true, places: 2, errors: [] }, 'de opslag slaagt');
     assert.deepEqual(read.versions, [written], 'het openen las de geschreven versie, pas na de vervanging');
     assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
-    assert.deepEqual([c.store.getState().activeDocumentId, alreadyOpenNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg, met de melding');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 0], 'naar het tabblad dat opsloeg, dezelfde versie, geen melding');
   } finally { read.stop(); round.unregister(); await tidy(c); }
 });
 
@@ -1383,7 +1383,7 @@ for (const route of ['dialoog', 'Recent'] as const) {
       assert.notEqual(written, hash(bytes));
       assert.deepEqual(read.versions, [written], 'de opening las de geschreven versie, pas na de vervanging');
       assert.equal(otherTab(c), undefined, 'geen tweede tabblad');
-      assert.deepEqual([c.store.getState().activeDocumentId, alreadyOpenNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg, met de melding');
+      assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 0], 'naar het tabblad dat opsloeg, dezelfde versie, geen melding');
       assert.deepEqual(errorKeys(c), []);
     } finally {
       read.stop();
@@ -1422,7 +1422,7 @@ await check('1837: een al begonnen lezing gaat naar het open tabblad; een tabbla
     assert.deepEqual(versions.versions, [hash(bytes)], 'de lezing van vóór Ctrl+S kreeg de oude versie');
     versions.stop();
     assert.equal(otherTab(c), undefined, 'de oude bron kwam niet in een tabblad');
-    assert.deepEqual([c.store.getState().activeDocumentId, alreadyOpenNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg, met de melding');
+    assert.deepEqual([c.store.getState().activeDocumentId, changedOnDiskNotices(c)], [c.id, 1], 'naar het tabblad dat opsloeg; de lezing was ouder, dus de melding met de knop');
     const secondId = await secondTab(c, bytes);
     assert.equal(otherTab(c)?.payload.ifcSource?.sha256, hash(bytes), 'het tabblad met de oude bron');
     c.store.getState().closeDocument(c.id);

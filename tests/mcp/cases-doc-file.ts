@@ -1104,6 +1104,9 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
     const first = await callOk('planner_import_schedule', { path }, ctx);
     const kantoorId = first.documentId as string;
     assertEq(first.alreadyOpen, undefined, 'de eerste import is gewoon een import');
+    assertEq(S().knownTargetFingerprint, null, 'buiten de desktopapp is een pad geen opslagdoel: het tabblad kent zijn versie niet');
+    const known = { sha256: S().ifcSource!.sha256, byteLength: S().ifcSource!.bytes.byteLength };
+    useAppStore.setState((st) => { st.knownTargetFingerprint = known; });
     S().addTask({ name: 'Onopgeslagen werk' });
     const work = { tasks: S().tasks.map(t => t.name), isDirty: S().isDirty };
     const masterId = S().newDocument();
@@ -1124,7 +1127,8 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
       assertEq({ tasks: S().tasks.map(t => t.name), isDirty: S().isDirty }, work, `${label}: het document houdt zijn werk`);
       assert(S().historyEvents === history[0] && S().nextHistorySequence === history[1], `${label}: ongedaan maken onveranderd`);
       assertEq(ctx2.expectedDocId, kantoorId, `${label}: het drift-anker wijst naar het open document`);
-      assertEq(S().ui.notifications.at(-1)?.messageKey, 'notifications.fileAlreadyOpen', `${label}: de app toont de melding`);
+      assertEq([again.changedOnDisk, S().ui.notifications.some(n => n.messageKey === 'notifications.fileChangedOnDisk')], [undefined, false],
+        `${label}: dezelfde versie, geen melding`);
     }
 
     const stat = fs.stat;
@@ -1158,7 +1162,7 @@ test('import_schedule (#804, knownbug 1957): een pad dat al open is ⇒ met de f
     S().switchDocument(masterId);
     fs.readFile = async (p) => {
       fs.readFile = readFile;
-      useAppStore.setState((st) => { st.filePath = path; });
+      useAppStore.setState((st) => { st.filePath = path; st.knownTargetFingerprint = known; });
       return readFile(p);
     };
     const saved = await callOk('planner_import_schedule', { path }, makeCtx({ expectedDocId: masterId }));

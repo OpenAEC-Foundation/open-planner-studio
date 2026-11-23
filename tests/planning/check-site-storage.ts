@@ -784,7 +784,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     await open();
     eq(`G16 ${route}: geen tweede tabblad, naar het open tabblad`, [S().documents.length, S().activeDocumentId], [count, tabY]);
     eq(`G16 ${route}: het tabblad houdt zijn werk en basis v1`, JSON.stringify([S().tasks.map((t) => t.name), S().isDirty, S().siteFileVersion]), workY);
-    eq(`G16 ${route}: één melding`, S().ui.notifications.map((n) => [n.severity, n.messageKey]), [['info', 'notifications.fileAlreadyOpen']]);
+    eq(`G16 ${route}: een collega sloeg v2 op ⇒ de melding met de knop`, S().ui.notifications.map((n) => [n.severity, n.messageKey]), [['info', 'notifications.fileChangedOnDisk']]);
     eq(`G16 ${route}: Recent bovenaan`, S().recentFiles[0]?.ref, { kind: 'site', id: 'y' });
   }
   {
@@ -828,7 +828,7 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
     eq('G17 Opslaan als op de site, commit tijdens het parsen: het origineel in een eigen tabblad, de kopie houdt haar id en werk', [
       committedDuringParse, S().documents.length, S().activeDocumentId !== tabY, S().siteFileId,
       !!copy?.siteFileId && copy.siteFileId !== 'y', copy?.tasks.some((t) => t.name === 'Werk in Y'),
-      S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileAlreadyOpen').length,
+      S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileChangedOnDisk').length,
       opens() - opensBefore,
     ], [true, count + 1, true, 'y', true, true, 0, 1]);
   }
@@ -848,10 +848,28 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
       site.storage.open = open;
       useAppStore.setState((st) => { st.ui.featureFlags = { ifcForeignContent: true }; });
     }
-    eq('G18 flag uit tijdens het lezen van de site: naar het open tabblad, met de melding', [
+    eq('G18 flag uit tijdens het lezen van de site: naar het open tabblad, dezelfde versie, geen melding', [
       flipped, S().activeDocumentId, S().documents.length,
-      S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileAlreadyOpen').length,
-    ], [true, tabOriginal, count, 1]);
+      S().ui.notifications.filter((n) => n.messageKey === 'notifications.fileChangedOnDisk').length,
+    ], [true, tabOriginal, count, 0]);
+  }
+  {
+    const tabLoad = S().activeDocumentId;
+    S().addTask({ name: 'Werk vóór het laden' });
+    site.otherUserSaves('y');
+    S().switchDocument(tabB);
+    useAppStore.setState((st) => { st.ui.notifications = []; });
+    await S().openFromSite('y');
+    const noticed = [S().activeDocumentId === tabLoad, S().ui.notifications.map((n) => n.messageKey)];
+    S().loadNewVersion(tabLoad);
+    const asked = S().ui.pendingReloadDocId === tabLoad;
+    S().setUI({ pendingReloadDocId: null });
+    const latest = site.latest(site.files.get('y')!).version;
+    const loaded = await S().reloadFromTarget(tabLoad);
+    eq('G19 Nieuwe versie laden op de site: de melding, de vraag; Niet opslaan ⇒ dit tabblad met de nieuwste versie als basis', [
+      noticed, asked, loaded, S().activeDocumentId === tabLoad, S().tasks.some((t) => t.name === 'Werk vóór het laden'), S().isDirty,
+      S().siteFileId, S().siteFileVersion === latest, S().ui.notifications.some((n) => n.messageKey === 'notifications.fileChangedOnDisk'),
+    ], [[true, ['notifications.fileChangedOnDisk']], true, true, true, false, false, 'y', true, false]);
   }
   setSiteOpenAsker(async () => ({ kind: 'site', id: 'y', version: 'v1', copyName: 'Eén (versie v1)' }));
   const countCopy = S().documents.length;
