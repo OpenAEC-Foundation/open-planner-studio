@@ -283,10 +283,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
         if (ff !== undefined && ffMinutes !== undefined && ffMinutes < freeFloatMinutes) freeFloatMinutes = ffMinutes;
       }
-      // Bij een tegen de projectstart afgekapte FS-lead kan de relatie ruimte overhouden
-      // terwijl de voorganger zelf het projecteinde bepaalt. Begrens alleen de taakspeling:
-      // de relatie blijft non-driving. Gebruik het geplande einde, niet de late pass:
-      // deadlines en andere late grenzen mogen totale en vrije speling laten verschillen.
       if (hasTruncatedFsLead) {
         if (freeFloat > 0 && Number.isFinite(freeFloat)) {
           freeFloat = Math.min(freeFloat, signedFloat(early.ef, scheduleProjectEnd, cal, taskObj));

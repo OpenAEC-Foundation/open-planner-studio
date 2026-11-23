@@ -1,4 +1,3 @@
-// Knownbug 5: een afgekapte FS-lead geeft geen vrije taakspeling voorbij het projecteinde.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
