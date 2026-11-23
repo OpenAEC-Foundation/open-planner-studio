@@ -201,8 +201,6 @@ eq('3o de melding noemt de taak', [S().ui.notifications.find((n) => n.dedupeKey 
 eq('3p de gewone taak krijgt geen resultaat', S().cpmResult?.tasks.has(gewoon) ?? false, false);
 
 
-// Knownbug 508: een ontbrekende weekstructuur is niet hetzelfde als een opgeslagen,
-// expliciet lege week. Gebruik een geldige ma-vr werkdaglijst en geen feestdagen.
 {
   const normal: WorkCalendar = { ...createDefaultCalendar(2026), workDays: [1, 2, 3, 4, 5],
     workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [] };
@@ -243,8 +241,6 @@ eq('3p de gewone taak krijgt geen resultaat', S().cpmResult?.tasks.has(gewoon) ?
   eq('508 lege week met drie werkende uitzonderingsdagen: 2,5 werkdagen', dates(exception, 't508'), exact);
   eq('508 werkende uitzondering: geen cap', capped(exception, 't508'), false);
 
-  // De F5-route gebruikt dezelfde echte store-actie als de app. De kalender wordt direct in
-  // de teststore gezet; dit zegt niet of het dialoogvenster of een import deze invoer produceert.
   S().newProject();
   const id = S().addTask({ name: 'Taak van 2,5 werkdagen' });
   store.setState((s) => {
