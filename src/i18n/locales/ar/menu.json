@@ -328,6 +328,8 @@
     "scale": "المقياس:",
     "zoom": "تكبير: {{level}}بكسل/يوم",
     "unsaved": "غير محفوظ",
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم الحفظ {{time}}",
     "scheduleStale": "قديم — أعد الحساب (F5)"
   },
   "backstage": {

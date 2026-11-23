@@ -318,6 +318,8 @@
     "scale": "刻度：",
     "zoom": "缩放：{{level}}像素/天",
     "unsaved": "未保存",
+    "saving": "正在保存…",
+    "saved": "已保存 {{time}}",
     "scheduleStale": "已过期 — 请重新计算（F5）"
   },
   "backstage": {

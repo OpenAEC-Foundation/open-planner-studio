@@ -322,6 +322,8 @@
     "scale": "Mjerilo:",
     "zoom": "Zumiranje: {{level}}px/dan",
     "unsaved": "Nije spremljeno",
+    "saving": "Spremanje…",
+    "saved": "Spremljeno {{time}}",
     "scheduleStale": "Zastarjelo — ponovno izračunajte (F5)"
   },
   "backstage": {

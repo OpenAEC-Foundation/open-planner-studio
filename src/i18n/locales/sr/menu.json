@@ -322,6 +322,8 @@
     "scale": "Размера:",
     "zoom": "Зум: {{level}}px/дан",
     "unsaved": "Није сачувано",
+    "saving": "Чување…",
+    "saved": "Сачувано {{time}}",
     "scheduleStale": "Застарело — поново израчунајте (F5)"
   },
   "backstage": {

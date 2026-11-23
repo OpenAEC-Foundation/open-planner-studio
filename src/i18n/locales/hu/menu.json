@@ -320,6 +320,8 @@
     "scale": "Lépték:",
     "zoom": "Nagyítás: {{level}} px/nap",
     "unsaved": "Nincs mentve",
+    "saving": "Mentés…",
+    "saved": "Mentve {{time}}",
     "scheduleStale": "Elavult — újraszámítsa (F5)"
   },
   "backstage": {

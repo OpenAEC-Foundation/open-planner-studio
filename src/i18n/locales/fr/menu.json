@@ -322,6 +322,8 @@
     "scale": "Échelle :",
     "zoom": "Zoom : {{level}}px/jour",
     "unsaved": "Non enregistré",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré {{time}}",
     "scheduleStale": "Obsolète — recalculer (F5)"
   },
   "backstage": {
