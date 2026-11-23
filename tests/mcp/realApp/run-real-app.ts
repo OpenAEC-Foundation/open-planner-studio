@@ -52,6 +52,27 @@ async function ops(op: string, args?: Record<string, unknown>): Promise<any> {
   throw new Error(`ops ${op}: geen antwoord binnen 30 s`);
 }
 
+async function opsError(op: string, args?: Record<string, unknown>): Promise<string> {
+  const resPath = join(OPS_DIR, 'res.json');
+  rmSync(resPath, { force: true });
+  writeFileSync(join(OPS_DIR, 'cmd.tmp'), JSON.stringify({ id: `mcp-real-${++seq}`, op, args }));
+  renameSync(join(OPS_DIR, 'cmd.tmp'), join(OPS_DIR, 'cmd.json'));
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (existsSync(resPath)) {
+      try {
+        const res = JSON.parse(readFileSync(resPath, 'utf8')) as { ok?: boolean; error?: string };
+        if (res.ok === true) throw new Error(`ops ${op} slaagde`);
+        if (res.ok === false) return res.error ?? '';
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
+      }
+    }
+    await sleep(100);
+  }
+  throw new Error(`ops ${op}: geen antwoord binnen 30 s`);
+}
+
 const probe: AppProbe = {
   taskCount: async () => ((await ops('getState')) as { tasks: number }).tasks,
   undo: async () => { await ops('dispatch', { action: 'undo', args: [] }); },
@@ -313,9 +334,8 @@ test('echte app: Ctrl+S met een gebouwmodel buiten de thuismap, met alleen het b
     }
     assertEq(saved.state.isDirty, false, 'het document is opgeslagen');
     assertEq(readdirSync(dir).sort(), ['ander.ifc', OUTSIDE_FILE_NAME], 'geen hulpbestand en geen kopie naast het bestand');
-    let refused = '';
-    try { await ops('open', { path: sibling }); } catch (error) { refused = String(error); }
-    assert(refused.includes('forbidden path'), `een ander bestand in die map blijft dicht: ${refused || 'geopend'}`);
+    const refused = await opsError('open', { path: sibling });
+    assert(refused.includes('forbidden path'), `een ander bestand in die map blijft dicht: ${refused}`);
     const scope = readScope(readFileSync(join(OPS_DIR, '..', '.persisted-scope')));
     assert(scope.allowed.every(pattern => !pattern.endsWith('*') && !/\.ops-(vervang|vorige|save)/.test(pattern)),
       `het scopebestand kreeg geen map en geen hulpnaam: ${JSON.stringify(scope.allowed)}`);

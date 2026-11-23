@@ -3124,6 +3124,12 @@ en noem het in je rapport of PR-tekst.
      het tijdelijke bestand van de gewone opslag valt niet onder de capability. Richting: de gewone opslag ook via een
      eigen hulpnaam, als eigen keuze. Gevonden door de review van #978. — B (proef)
 
+2068. **VERVOLG (dev-brug): een opdracht van het ops-test-kanaal die een fout gooit, komt terug zonder haar `id`.**
+     `startOpsTestPoller` in `src/utils/devBridge.ts` schrijft na een fout `{ ok: false, error }` naar `res.json`, zonder
+     het `id` uit `cmd.json`. `ops()` in `tests/mcp/realApp/run-real-app.ts` wacht op dat `id` en ziet dan alleen een
+     time-out van 30 s. Gevonden toen de echte-app-proef van #1124 een geweigerd openen wilde zien (run 45262925004);
+     die proef leest het foutantwoord nu met `opsError`. Richting: het `id` ook bij een fout meegeven. — B (code, CI)
+
 2067. **VERVOLG (#804, Linux en macOS): in een map met een punt vooraan vervangt de app een bestand met een gebouwmodel niet.**
      De capability voor de twee hulpnamen (`hulpnamen-unix.json`, `/**/save-*…`) volgt de globregel van plugin-fs: `**`
      loopt op Unix niet door een padstuk dat met een punt begint (`requireLiteralLeadingDot`, standaard aan; glob
