@@ -16,7 +16,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveDataDialog, saveNewBytesDialog, saveNewBytesToRef, pickSaveTarget, saveToRef, readFromRef, readBytesFromRef, readOpenedPath, sameFileRef, saveTargetRef, fileIdentityFs, writeTargetReaders, sourceTargetContent, handleWritePermission, type FileData, type FileFilter, type FileRef, type OpenedFile, type PickedSaveTarget, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import type { SourceTargetContent } from '@/services/fileAccess/sourceTargetContent';
 import { ownPathReplaceNotices, remnantNotices, replaceOwnHandleWithRecovery, replaceOwnPathWithRecovery } from '../ownFileReplace';
 import { ReadAfterSettleError } from '@/services/fileAccess/tauriBackend';
@@ -53,7 +53,7 @@ import { castDraft } from 'immer';
 import { prepareIfcOutput, planOnlyQuestionApplies, IfcWriteBlockedError, type IfcOutput } from '../prepareIfcOutput';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import type { TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
-import { scanForeignTargetBytesAsync } from '@/services/ifc/foreign/targetForeignScan';
+import { scanForeignTargetBytesAsync, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -81,6 +81,7 @@ import {
 } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSiteSource, readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
+import { IfcModelOpenTooLargeError, refuseModelAboveOpenLimit } from '@/services/ifc/modelOpenLimit';
 import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
 import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -252,6 +253,9 @@ export function importFailureNotice(err: unknown, detail: string): NotifyInput {
       helpArticleId: P6XML_IMPORT_HELP_ARTICLE_ID,
     };
   }
+  if (err instanceof IfcModelOpenTooLargeError) {
+    return { severity: 'error', messageKey: 'notifications.ifcForeignOpenTooLarge', params: { limit: Math.floor(err.limit / (1024 * 1024)) }, detail };
+  }
   return { severity: 'error', messageKey: importErrorMessageKey(err), detail };
 }
 
@@ -366,10 +370,27 @@ export interface AppliedOpenedImport {
   minuteModelConversions: (Pick<MinuteModelTransition, 'shifted' | 'maxWorkdays'> & { documentId: string })[];
 }
 
+/** Opties van `openOpenedFile`. */
+export interface OpenOpenedFileOptions {
+  /** Wacht vóór het activeren zolang dit waar geeft (slepen: een open dialoog, de formaatuitleg van het vorige bestand). */
+  waitWhile?: () => boolean;
+  /** Het open tabblad met dit bestand, of `null`. Gevraagd in dezelfde synchrone stap als het activeren, na het wachten:
+   *  geeft het een tabblad, dan wisselt de app daarheen in plaats van het bestand nog eens te openen (een startbestand,
+   *  #1091; voor Openen, Recent en slepen blijft dat knownbug 1957). */
+  existingDocument?: () => string | null;
+  /** Is wat gelezen is intussen mogelijk verouderd? In dezelfde synchrone stap, na `existingDocument`: `true` ⇒ niets
+   *  activeren; de aanroeper leest opnieuw (een startbestand, #1091). */
+  stale?: () => boolean;
+  /** Alleen het crashherstel, voor zijn eigen bron na de controle op lengte en SHA-256 (`recoveryDocumentWithSource`):
+   *  de productgrens voor het openen van een model (`refuseModelAboveOpenLimit`) geldt dan niet, zodat herstel gelijk
+   *  blijft aan main. Elke andere aanroeper laat dit weg en krijgt de grens. */
+  restoringVerifiedIfcSource?: boolean;
+}
+
 export interface FileSlice {
   openFile: (labels?: ImportLabels) => Promise<void>;
   openOpenedFile: (
-    opened: OpenedFile, labels?: ImportLabels, options?: { waitWhile?: () => boolean },
+    opened: OpenedFile, labels?: ImportLabels, options?: OpenOpenedFileOptions,
   ) => Promise<void>;
   saveFile: () => Promise<void>;
   saveFileForDocument: (documentId: string) => Promise<boolean>;
@@ -436,6 +457,8 @@ export type ChosenExternalSource =
   | { kind: 'file'; source: ExternalSourceRead; handle: FileSystemFileHandle | null };
 
 const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
+/** De bestandskiezer van een IFC-projectbestand (Opslaan, Opslaan als, de bibliotheek). */
+const IFC_FILE_FILTERS: FileFilter[] = [{ name: 'IFC Files', extensions: ['ifc'] }];
 const IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE = {
   severity: 'error', messageKey: 'notifications.ifcExportChangedWhileWaiting', dedupeKey: 'ifc-export-changed',
 } as const;
@@ -456,10 +479,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  type DocumentWrite = IfcOutput & { readonly missingSourceSaveAs?: true };
-  const withMissingSourceSaveAs = (output: IfcOutput): DocumentWrite => Object.defineProperties({}, {
-    ...Object.getOwnPropertyDescriptors(output), missingSourceSaveAs: { value: true, enumerable: true },
-  }) as DocumentWrite;
   const writerData = (write: Extract<IfcOutput, { readonly content: string }>): FileData => write.bytes ?? write.content;
   const missingSourceSaveAsAllowed = (state: Parameters<typeof ifcFullWriteBlocked>[0]) =>
     planOnlyQuestionApplies(state, 'missingSourceSaveAs');
@@ -476,6 +495,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
+  /**
+   * #804 stap 8, fixronde 2 van de review van #1033: één volgorde voor een IFC-export, van de bronkeuze via de vraag
+   * "alleen de planning" en het rekenen tot en met het schrijven. Vanaf het begin houdt de export voorrang
+   * (`claimProjectFileWrite`): een ronde van Automatisch opslaan met een gebouwmodel die nog vóór haar grens is, wijkt
+   * meteen, en zolang de export loopt wijkt elke nieuwe ronde ook, ook terwijl de vraag open staat. Een ronde die al
+   * plaatst, maakt dat eerst af (`whenProjectFilePlacementSettled`); pas daarna neemt de export zijn bron op. Een
+   * wijziging van de planner zelf en een geannuleerde vraag doen wat ze deden (`refuseExportBeforePicker`). Zonder zo'n ronde
+   * (ook met de flag uit) begint de export zonder wachten, zoals vóór stap 8.
+   * Fixronde 3: de export legt bij de aanroep vast voor welk document en welke inhoud hij bedoeld is, vóór de wachtstap.
+   * Staat na de plaatsing een ander document in het actieve tabblad, of kreeg het tabblad een andere inhoud, dan weigert
+   * hij met de bestaande melding, vóór de bestandskiezer; nooit exporteert hij een ander document. Hetzelfde document
+   * exporteert hij met de bron van ná de plaatsing.
+   */
   const withIfcExportPriority = async (run: () => Promise<ExportResult>): Promise<ExportResult> => {
     const requested = snapshotContent(get());
     const release = claimProjectFileWrite();
@@ -492,7 +524,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return await run();
     } finally { release(); }
   };
-  const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<DocumentWrite | null> => {
+  const prepareDocumentWrite = async (state: AppState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation): Promise<IfcOutput | null> => {
     const write = await prepareAppIfcWrite(state, input, planOnly);
     if (write && !write.prepared) rememberLiteralCalendarsWritten(state, write.literalCalendarIds);
     return write;
@@ -500,16 +532,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const SAVE_CHANGED_NOTICE = refusalNotice({ messageKey: 'notifications.ifcSaveChangedWhileWaiting', dedupeKey: 'ifc-save-changed' });
   const snapshotContent = (snapshot: AppState): DocumentContentRef => documentContentOf(snapshot, snapshot.activeDocumentId)!;
-  const refuseChangedDocumentWrite = (snapshot: AppState, write: DocumentWrite): boolean => {
+  /** Na voorbereiding én na iedere wachtende doelcontrole opnieuw toetsen, vlak vóór I/O. #804 stap 3: dit kijkt naar
+   *  het document van de momentopname (`snapshot.activeDocumentId` is het document dat opgeslagen wordt), nooit naar het
+   *  document dat nu actief is. Bestaat het nog en is zijn bron hetzelfde object, dan gaat de opslag door, ook als de
+   *  planner intussen in een ander tabblad werkt; is het weg of is zijn bron vervangen, dan de weigering.
+   *  `missingSourceSaveAs`: Opslaan als met een ontbrekende bron, na het ja op "alleen de planning". De bevestiging gaat
+   *  los mee, naast de uitvoer: zo blijft de luie tekst van een workeruitvoer ongelezen (review van #1027). */
+  const refuseChangedDocumentWrite = (snapshot: AppState, write: IfcOutput, missingSourceSaveAs = false): boolean => {
     const app = get();
     if (!sameDocumentContent(app, snapshotContent(snapshot))) {
       app.notify(SAVE_CHANGED_NOTICE);
       return true;
     }
-    if (!write.missingSourceSaveAs && !write.prepared) return false;
+    if (!missingSourceSaveAs && !write.prepared) return false;
     const current = saveSourceForDocument(app, snapshot.activeDocumentId);
     const doc = current && { ifcSource: current.ifcSource, foreignSourceMark: current.foreignSourceMark, ui: app.ui };
-    if (write.missingSourceSaveAs) {
+    if (missingSourceSaveAs) {
       if (doc && doc.ifcSource === snapshot.ifcSource && doc.foreignSourceMark === snapshot.foreignSourceMark
         && missingSourceSaveAsAllowed(doc)) return false;
     } else if (doc && ifcFullWriteBlocked(doc)) {
@@ -520,22 +558,35 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  const lastWriteCheck = (snapshot: AppState, write: DocumentWrite) => {
+  const lastWriteCheck = (snapshot: AppState, write: IfcOutput) => {
     let refused = false;
     return { refuse: () => (refused = refuseChangedDocumentWrite(snapshot, write)), refused: () => refused };
   };
 
+  /** `ownTarget`: alleen Ctrl+S (en *Opslaan* in de sluitvraag) op het eigen doel van het document vraagt de
+   *  uitzondering "eigen doel" voor een pad of handle; `refusedWriteTarget` toetst haar (eigen handle of eigen pad).
+   *  Dan toetst hij ook of het actuele opslagdoel van het document nog `target` is (fixronde 1 van #1008). Dezelfde
+   *  controle draait vóór de merge, erna, en bij het eigen pad nog eens na de eerste herstelronde (`replaceOwnPath`),
+   *  zodat ook een tabblad dat intussen op hetzelfde bestand openging de vervanging tegenhoudt. Alleen voor *Opslaan als*
+   *  op de desktop (`saveAsOnDesktop`): `readers` scant de inhoud die de bestandskiezer vastlegde in plaats van het pad
+   *  (`capturedTargetReaders`). `openDocumentsExcept` (de bestandskiezer van Opslaan als en de
+   *  vervanging daarna, met de id van het document dat opslaat) weigert ook een bestaand pad dat een ander open document
+   *  als bestand heeft (fixronde 1 van #1019, #1022). `chosenTarget`: alleen *Opslaan als* op de desktop (#804 keuze 4, zie
+   *  `WriteTargetDeps.chosenTarget`): het gekozen pad en zijn gelezen versie. */
   const documentTargetCheck = (
-    snapshot: AppState, write?: DocumentWrite, ownTarget = false,
-    { readers = writeTargetReaders, openDocumentsExcept }: { readers?: () => TargetReaders; openDocumentsExcept?: string } = {},
+    snapshot: AppState, write?: IfcOutput, ownTarget = false,
+    { readers = writeTargetReaders, openDocumentsExcept, chosenTarget, missingSourceSaveAs }: {
+      readers?: () => TargetReaders; openDocumentsExcept?: string; chosenTarget?: PickedSaveTarget; missingSourceSaveAs?: boolean;
+    } = {},
   ): SaveTargetCheck => async target => {
-    if (write && refuseChangedDocumentWrite(snapshot, write)) return true;
+    if (write && refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs)) return true;
     const ownLocal = ownTarget && target.kind !== 'site' && hasForeignContent(snapshot.ifcSource);
     if (ownLocal && movedOwnTarget(snapshot, target)) return true;
     const ownVersion = write?.prepared && target.kind === 'site' && snapshot.siteFileId === target.id
       ? { documentId: snapshot.activeDocumentId, baseVersion: snapshot.siteFileVersion, source: snapshot.ifcSource! }
       : ownLocal ? { documentId: snapshot.activeDocumentId, source: snapshot.ifcSource! } : undefined;
-    const reason = await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers, openDocumentsExcept }, ownVersion);
+    const reason = await refusedWriteTarget(get(), target,
+      { identityFs: fileIdentityFs, readers, openDocumentsExcept, ...(chosenTarget ? { chosenTarget } : {}) }, ownVersion);
     if (reason) {
       get().notify(reason === 'open-document' ? IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE
         : hasForeignContent(snapshot.ifcSource) && reason === 'open-source' && target.kind !== 'site'
@@ -543,7 +594,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         : reason === 'unreadable-target' ? IFC_UNREADABLE_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_SAVE_NOTICE);
       return true;
     }
-    return write ? refuseChangedDocumentWrite(snapshot, write) : false;
+    return write ? refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs) : false;
   };
 
   const movedOwnTarget = (snapshot: AppState, target: FileRef): boolean => {
@@ -554,15 +605,39 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  const documentSaveDialog = (
-    snapshot: AppState, write: DocumentWrite, name: string, replaceExisting?: (path: string, current: Uint8Array) => Promise<void>,
-  ) => {
-    const options = { refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId }),
-      refuseDownload: () => refuseChangedDocumentWrite(snapshot, write), replaceExisting,
-      refuseBeforePlace: () => refuseChangedDocumentWrite(snapshot, write) };
+  /** De bestandskiezer van een document: Opslaan als, en Ctrl+S zonder bruikbaar doel (die is Opslaan als, fixronde 1
+   *  van #1071). De doelcontrole direct na de
+   *  kiezer weigert, voor elk document, ook een bestaand pad dat een ander open document als bestand heeft (#1022): op de
+   *  desktop wijzigt de kiezer het bestand niet, dus dan is er niets geschreven. Een handle uit de opslaankiezer van de
+   *  browser vergelijkt ze niet: die kiezer heeft een bestaand doel al leeggemaakt, en weigeren liet het andere tabblad
+   *  dan een leeg bestand na (knownbug 1899, 1893). Hierlangs gaan de browser en, met de flag uit, de gewone planning op
+   *  de desktop (zoals main). De merge op de desktop en met de flag elke planning op de desktop gaan via
+   *  `saveAsOnDesktop`, de enige route met de toestemming van #804 keuze 4. */
+  const documentSaveDialog = (snapshot: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false) => {
+    const options = {
+      refuseTarget: documentTargetCheck(snapshot, write, false, { openDocumentsExcept: snapshot.activeDocumentId, missingSourceSaveAs }),
+      refuseDownload: () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs),
+      // Niet op de handle uit de opslaankiezer van de browser: die is al leeg, een weigering liet 0 bytes (knownbug 1899).
+      refuseBeforePlace: isTauri() ? () => refuseChangedDocumentWrite(snapshot, write, missingSourceSaveAs) : null,
+    };
+    // De merge: alleen een nieuwe naam. De gewone writer overschrijft een bestaand bestand zoals altijd, atomair
+    // (`saveDataDialog`, #804 stap 6: met de bytes van de worker).
     return write.prepared
-      ? saveNewBytesDialog(name, write.prepared.bytes, [{ name: 'IFC Files', extensions: ['ifc'] }], options)
-      : saveDataDialog(name, writerData(write), [{ name: 'IFC Files', extensions: ['ifc'] }], options);
+      ? saveNewBytesDialog(name, write.prepared.bytes, IFC_FILE_FILTERS, options)
+      : saveDataDialog(name, writerData(write), IFC_FILE_FILTERS, options);
+  };
+
+  /** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
+   *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Zonder vastgelegde
+   *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. Een onleesbaar bestand blijft
+   *  een onleesbaar doel. */
+  const capturedTargetReaders = (current: PickedSaveTarget['current']): (() => TargetReaders) => {
+    if (current === null) return writeTargetReaders;
+    let scan: Promise<TargetForeignScan> | undefined;
+    return () => ({
+      ...writeTargetReaders(),
+      scanPath: async () => current === 'unreadable' ? 'unreadable' : (scan ??= scanForeignTargetBytesAsync(current)),
+    });
   };
 
   const foreignTargetCheck = (exceptDocumentId: string | null): SaveTargetCheck => async (target) => {
@@ -575,8 +650,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  const saveLibraryFile = (name: string, content: string) =>
-    saveFileDialog(name, content, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget: foreignTargetCheck(null) });
+  // In de ene schrijfrij, zoals elke schrijfactie naar een projectbestand (inclusief de kiezer, zoals `exportAs`): een
+  // startbestand dat intussen gelezen werd, leest de app dan opnieuw (`projectFileWriteTurns`, review ronde 5 van #1116).
+  const saveLibraryFile = (name: string, content: string) => runProjectFileWrite(
+    () => saveFileDialog(name, content, IFC_FILE_FILTERS, { refuseTarget: foreignTargetCheck(null) }), () => null);
 
   const settledSourceVersions = new Map<string, string>();
   const settledProposals = new Map<string, string>();
@@ -846,31 +923,57 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   const exportContentReplaced = (state: AppState): boolean => !sameDocumentContent(get(), snapshotContent(state));
 
+  /** Review #872 ronde 5 (Terra): een IFC-export maakt zijn tekst vóór hij op de schrijflock wacht. Veranderde het
+   *  document intussen (een opslag in de wachtrij legde de letterlijke kalenders vast, of de planner wijzigde iets), dan
+   *  zou de export oude inhoud over een nieuwere opslag schrijven. Daarom weigert deze controle, met een melding, na de
+   *  bestandskiezer (`refuseTarget`) en vlak vóór de plaatsing op de desktop (knownbug 1896). Ze kijkt naar het
+   *  geëxporteerde document, ook als dat intussen in een ander tabblad staat: een tabbladwissel is geen wijziging van de
+   *  planning (review van #1027 ronde 2, knownbug 1903). Weigeren: het document is gesloten of kreeg een andere inhoud
+   *  (`sameDocumentContent`), de te schrijven inhoud of (met een vreemd deel, `hasForeignContent`) het bronobject is niet
+   *  meer dat van de momentopname, of de app weigert nu de volledige IFC van dat document. `true` = weigeren (zoals `SaveTargetCheck`). */
   const refuseChangedExport = (snapshot: AppState): boolean => {
     const now = get();
-    if (hasForeignContent(snapshot.ifcSource) && refuseForeignDocumentWrite(now)) return true;
-    if (now.activeDocumentId === snapshot.activeDocumentId && sameIFCSource(snapshot, now)
-      && (!hasForeignContent(snapshot.ifcSource) || now.ifcSource === snapshot.ifcSource)) return false;
-    get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
-    return true;
-  };
-
-  const refuseExportBeforePlace = (snapshot: AppState): boolean => {
-    const now = get();
-    if (now.activeDocumentId === snapshot.activeDocumentId) return refuseChangedExport(snapshot);
+    const foreign = hasForeignContent(snapshot.ifcSource);
     const exported = sameDocumentContent(now, snapshotContent(snapshot)) ? saveSourceForDocument(now, snapshot.activeDocumentId) : null;
-    if (exported && sameIFCSource(snapshot, exported)
-      && (!hasForeignContent(snapshot.ifcSource) || exported.ifcSource === snapshot.ifcSource)) {
-      if (!hasForeignContent(snapshot.ifcSource)) return false;
-      const doc = { ifcSource: exported.ifcSource, foreignSourceMark: exported.foreignSourceMark, ui: now.ui };
-      if (!ifcFullWriteBlocked(doc)) return false;
+    const doc = exported && { ifcSource: exported.ifcSource, foreignSourceMark: exported.foreignSourceMark, ui: now.ui };
+    if (foreign && doc && ifcFullWriteBlocked(doc)) {
       now.notify(ifcWriteBlockedNotice(doc));
       return true;
     }
+    if (exported && sameIFCSource(snapshot, exported) && (!foreign || exported.ifcSource === snapshot.ifcSource)) return false;
     now.notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
     return true;
   };
+  /** Onder het schrijfslot vóór de bestandskiezer, en vóór een download (die komt in plaats van de kiezer):
+   *  `refuseChangedExport`, en het geëxporteerde document moet ook nog het actieve tabblad zijn. De kiezer opent anders
+   *  voor een document dat de planner niet ziet. `true` = weigeren, met de melding. */
+  const refuseExportBeforePicker = (snapshot: AppState): boolean => {
+    if (get().activeDocumentId === snapshot.activeDocumentId) return refuseChangedExport(snapshot);
+    get().notify(IFC_EXPORT_CHANGED_WHILE_WAITING_NOTICE);
+    return true;
+  };
+  /** De twee controles van één IFC-export na de bestandskiezer. `refuseTarget`: het gekozen doel en `refuseChangedExport`.
+   *  `refuseBeforePlace`, de late controle: op de desktop altijd, vlak vóór de plaatsing. In de browser, op de handle uit
+   *  de opslaankiezer, heeft de kiezer een bestaand doel al leeggemaakt (knownbug 1899) en laat een weigering daar 0 bytes
+   *  staan. Daarom wordt ze daar gekozen bij de geslaagde doelcontrole: stond het geëxporteerde document daar niet
+   *  vooraan (waar main nog weigerde, knownbug 1903), dan loopt ze vlak vóór `close()`, welk tabblad dan ook vooraan
+   *  staat (keuze (b) van de technisch beslisser, fixronde 3 van #1097). Stond het er wel vooraan, dan niet: de browser
+   *  doet wat main deed, ook bij een wissel daarna (knownbug 1958). */
+  const exportTargetChecks = (snapshot: AppState) => {
+    const foreignCheck = foreignTargetCheck(snapshot.activeDocumentId);
+    let inactiveAtTarget = false;
+    const refuseTarget: SaveTargetCheck = async target => {
+      if ((await foreignCheck(target)) || refuseChangedExport(snapshot)) return true;
+      inactiveAtTarget = get().activeDocumentId !== snapshot.activeDocumentId;
+      return false;
+    };
+    return { refuseTarget, refuseBeforePlace: () => (isTauri() || inactiveAtTarget) && refuseChangedExport(snapshot) };
+  };
 
+  /** De vraag "alleen de planning" vóór een IFC-export zonder gebouwmodel (#804 PR 13). `undefined`: geen vraag nodig
+   *  (geen gebouwmodel, de gewone route); `null`: de planner annuleerde. Het ja geldt voor de momentopname `state`: de
+   *  export bouwt daarop, en `refuseExportBeforePicker(state)` weigert onder het schrijfslot, vóór de bestandskiezer, als het
+   *  document tijdens de vraag veranderde. */
   const askPlanOnlyExport = (state: AppState, reason: 'export' | 'exportWithPool'): Promise<PlanOnlyConfirmation | null | undefined> =>
     planOnlyQuestionApplies(state, reason) ? askPlanOnly(reason) : Promise.resolve(undefined);
 
@@ -893,12 +996,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: siteErrorMessage(err), dedupeKey, replaceOnDedupe: true });
   };
 
-  const saveAsNewSiteFile = async (state: AppState, write: DocumentWrite, name: string): Promise<boolean> => {
-    if (refuseChangedDocumentWrite(state, write)) return false;
+  const saveAsNewSiteFile = async (state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false): Promise<boolean> => {
+    if (refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return false;
     const info = write.prepared ? await saveNewSiteFileBytes(name, write.prepared.bytes) : await saveNewSiteFile(name, writerData(write));
     const saved = commitSavedDocument(snapshotContent(state), state, {
       filePath: info.name, fileHandle: null, siteFileId: info.id, siteFileVersion: info.version,
-    }, write.prepared, write.missingSourceSaveAs);
+    }, write.prepared, missingSourceSaveAs);
     await pushRecent({ kind: 'site', id: info.id }, info.name);
     return saved;
   };
@@ -907,6 +1010,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const readOptions = formatReadOptions();
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
+    refuseModelAboveOpenLimit(parsed);
     if (choice.version === undefined && opened.readOnly) {
       get().openAsDocument(parsed, { name: opened.name, ref: null });
       offerFormatNotice(opened.name, opened.content);
@@ -972,7 +1076,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     content === 'changed' ? IFC_FOREIGN_TARGET_CHANGED_NOTICE : IFC_FOREIGN_TARGET_GONE_NOTICE;
 
   const replaceOwnHandle = async (
-    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: IfcOutput,
     ref: Extract<FileRef, { kind: 'handle' }>, failureNoticeKey: string,
   ): Promise<boolean> => {
     let committed = false;
@@ -999,7 +1103,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   const replaceOwnPath = async (
-    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
+    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: IfcOutput,
     ref: Extract<FileRef, { kind: 'path' }>, failureNoticeKey: string,
   ): Promise<boolean> => {
     let committed = false;
@@ -1023,32 +1127,98 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }
   };
 
-  const replaceExistingPath = (
-    documentId: string, state: AppState, prepared: PreparedIfcWrite, write: DocumentWrite,
-  ) => async (path: string, current: Uint8Array): Promise<void> => {
-    const ref = { kind: 'path', path } as const;
-    let replaced = false;
+  /**
+   * #804 keuze 4 (knownbug 1131 stap 8; was knownbug 1891): *Opslaan als* op de desktop van een document met een vreemd
+   * deel (de merge), en met de flag ook van een gewone planning; ook de bestandskiezer van Ctrl+S bij een document zonder
+   * opslagdoel (fixronde 1 van #1071). Eén doelwaarneming bepaalt wat er gebeurt (fixronde 2 van #1071): het pad en wat er
+   * direct na de terugkeer van de kiezer stond (`pickSaveTarget`), voor elk document en elke inhoud van het doel.
+   * - Een gewoon bestand dat de kiezer las: de planner bevestigde het vervangen van die versie, ook een gebouwmodel of
+   *   gegevens van een ander programma (besluit van de eigenaar, 19 november 2026). Dezelfde vervanging als Ctrl+S
+   *   (`replaceExistingPath`), met die bytes als verwachte versie: een andere inhoud op het doel stopt de opslag, en een
+   *   versie die een ander programma intussen schreef, blijft als kopie bewaard.
+   * - Niets, een link of een map: de exclusieve aanmaak van een nieuwe naam, die een bestaande naam weigert
+   *   (`target-exists`, ook knownbug 1890).
+   * - Onleesbaar: de doelcontrole weigert (besluit van de technisch beslisser, 20 november 2026).
+   * De doelcontrole direct na de kiezer en die na de eerste herstelronde zijn dezelfde (`check`, met de waarneming als
+   * `chosenTarget`) en delen één scan van de vastgelegde bytes. `null`: niets geschreven (geannuleerd, geweigerd of
+   * mislukt, met de melding). Anders is het document vastgelegd (pad, bron); `committed` is de uitkomst van
+   * `commitSavedDocument` (schoon). Een fout van de exclusieve aanmaak gooit, zoals bij elke andere route
+   * (`newTargetWriteNotice`).
+   */
+  const saveAsOnDesktop = async (
+    documentId: string, state: AppState, write: IfcOutput, name: string, missingSourceSaveAs = false,
+  ): Promise<{ outcome: SaveOutcome; committed: boolean } | null> => {
+    const picked = await pickSaveTarget(name, IFC_FILE_FILTERS);
+    if (!picked) return null;
+    const ref = { kind: 'path', path: picked.path } as const, outcome = { ref, name: basename(picked.path) };
+    const check = documentTargetCheck(state, write, false, {
+      readers: capturedTargetReaders(picked.current), openDocumentsExcept: documentId, chosenTarget: picked, missingSourceSaveAs,
+    });
+    if (await check(ref)) return null;
+    // De doelcontrole weigert een onleesbaar doel al (met haar melding); dit houdt de route er ook zonder haar vanaf.
+    if (picked.current === 'unreadable') return null;
+    if (picked.current) {
+      const replaced = await replaceExistingPath(documentId, state, write, picked.path, picked.current, () => check(ref), missingSourceSaveAs);
+      return replaced && { outcome, committed: replaced.committed };
+    }
+    if (!(await saveNewBytesToRef(ref, writeBytes(write), () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs)))) return null;
+    return {
+      outcome,
+      committed: commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared ?? undefined, missingSourceSaveAs),
+    };
+  };
+
+  /** De bytes van een documentopslag: de voorbereide merge, of de uitvoer van de gewone writer (tekst als UTF-8, zoals
+   *  plugin-fs `writeTextFile` die schrijft). */
+  const writeBytes = (write: IfcOutput): Uint8Array => {
+    if (write.prepared) return write.prepared.bytes;
+    const data = writerData(write);
+    return typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  };
+
+  /**
+   * De vervanging van een ANDER bestaand bestand bij *Opslaan als* (`saveAsOnDesktop`): dezelfde als Ctrl+S
+   * (`replaceOwnPathWithRecovery`, §4.10 stap 0–6), binnen dezelfde `runProjectFileWrite` van de opslag; alleen de verwachte
+   * inhoud is anders: de app opende dit bestand niet, dus het is wat de bestandskiezer vastlegde (`current`; zijn sha256
+   * is `vorigeSha256` in het herstelrecord). Staat er vlak vóór het opzijzetten iets anders (stap 2), dan stopt de opslag
+   * met de melding van Ctrl+S en blijft het doel zoals het is; schreef een ander programma daarna nog (stap 5), dan blijft
+   * die versie als kopie. Ook voor een document zonder vreemd deel (fixronde 2 van #1071): dan zonder de manifeststap
+   * (`documentId: null`), want zo'n document heeft geen bron in het herstelmanifest; het herstelrecord dekt de hulpnamen.
+   * `stopBeforeWrite` is de doelcontrole van de kiezer, opnieuw na de eerste herstelronde: document, open tabbladen en
+   * bronnen; de scan van `current` doet ze niet nog eens. Na een geslaagde vervanging is het document hetzelfde als na
+   * Opslaan als naar een nieuwe naam (nieuw pad; bij de merge de geschreven bytes als bron). Waar de vervanging niet kan
+   * (`save-as-only`: een map waar het tijdelijke bestand niet mag ontstaan, een link, een bestandssysteem zonder exclusieve
+   * stap) blijft de melding van een nieuwe naam. Geen terugval op een routine die het bestand overschrijft. De identiteit
+   * van de documentinhoud (#1020) toetst deze route twee keer: `stopBeforeWrite` (vóór het eigen tijdelijke bestand) en de
+   * commit met de inhoud van de momentopname (`snapshotContent`), zodat een intussen geladen ander project geen pad of bron
+   * krijgt. `null`: niet vervangen; anders vervangen, met de uitkomst van de commit (`committed`: het document is schoon).
+   */
+  const replaceExistingPath = async (
+    documentId: string, state: AppState, write: IfcOutput, path: string, current: Uint8Array,
+    stopBeforeWrite: () => Promise<boolean>, missingSourceSaveAs: boolean,
+  ): Promise<{ committed: boolean } | null> => {
+    let committed = false;
     try {
+      const bytes = writeBytes(write);
       const result = await replaceOwnPathWithRecovery({
-        documentId, path, prepared, source: { bytes: current, sha256: await precomputeSha256(current) },
-        stopBeforeWrite: () => documentTargetCheck(state, write, false, {
-          readers: () => ({ ...writeTargetReaders(), scanPath: () => scanForeignTargetBytesAsync(current) }),
-          openDocumentsExcept: state.activeDocumentId,
-        })(ref),
-        refuseBeforePlace: () => refuseChangedDocumentWrite(state, write),
+        documentId: write.prepared ? documentId : null, path,
+        prepared: write.prepared ?? { bytes, sha256: await precomputeSha256(bytes) },
+        source: { bytes: current, sha256: await precomputeSha256(current) }, stopBeforeWrite,
+        refuseBeforePlace: () => refuseChangedDocumentWrite(state, write, missingSourceSaveAs),
         commit: () => {
-          replaced = true;
-          commitSavedDocument(snapshotContent(state), state, { filePath: path, fileHandle: null, siteFileId: null, siteFileVersion: null }, prepared);
+          committed = commitSavedDocument(snapshotContent(state), state,
+            localDestination({ ref: { kind: 'path', path }, name: basename(path) }), write.prepared ?? undefined, missingSourceSaveAs);
         },
       });
       for (const notice of result.code === 'save-as-only' ? [IFC_FOREIGN_NEW_TARGET_ONLY_NOTICE] : ownPathReplaceNotices(result, path)) {
         get().notify(notice);
       }
+      return result.code === 'replaced' ? { committed } : null;
     } catch (err) {
       console.error('Save As failed:', err);
       get().notify({ severity: 'error', messageKey: 'notifications.ifcForeignReplaceFailed', detail: saveErrorDetail(err) });
+      return null;
     }
-    if (replaced) await pushRecent(ref, basename(path));
   };
 
   const trackSave = <T,>(requested: DocumentContentRef, save: Promise<T>): Promise<T> => {
@@ -1152,6 +1322,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
+      // Fixronde 1 van #1071: de bestandskiezer van Ctrl+S is Opslaan als, op de desktop met dezelfde bevestigde doelroute.
+      if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
+        const saved = await saveAsOnDesktop(documentId, state, write, `${suggestedFileBase(state)}.ifc`);
+        if (!saved || !sameDocumentContent(get(), snapshotContent(state))) return false;
+        await pushRecent(saved.outcome.ref, saved.outcome.name);
+        return saved.committed;
+      }
       const outcome = await documentSaveDialog(state, write, `${suggestedFileBase(state)}.ifc`);
       if (!outcome) return false;
       if (write.prepared && outcome.viaDownload && ref?.kind === 'handle' && hasBuildingModel(state.ifcSource)) {
@@ -1206,23 +1383,30 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     let siteName: string | null = null;
 
     try {
-      const output = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
-      const write: DocumentWrite | null = output && missingSourceSaveAs ? withMissingSourceSaveAs(output) : output;
-      if (!write || refuseChangedDocumentWrite(state, write)) return;
+      const write = await prepareDocumentWrite(state, buildWriteIFCInput(state, missingSourceSaveAs ? 'planOnly' : 'merge'), planOnly);
+      if (!write || refuseChangedDocumentWrite(state, write, missingSourceSaveAs)) return;
       if (siteStorageAvailable()) {
         const choice = await askSiteSave({ defaultName: siteSaveDefaultName(state) });
         if (!choice) return;
         if (choice.kind === 'site') {
           siteName = choice.name;
-          await saveAsNewSiteFile(state, write, choice.name);
+          await saveAsNewSiteFile(state, write, choice.name, missingSourceSaveAs);
           return;
         }
       }
-      const outcome = await documentSaveDialog(state, write, state.filePath ?? `${suggestedFileBase(state)}.ifc`,
-        write.prepared && replaceExistingPath(documentId, state, write.prepared, write));
+      const defaultName = state.filePath ?? `${suggestedFileBase(state)}.ifc`;
+      // Met de flag ook een gewone planning: de toestemming van de kiezer hoort bij het gekozen doel en zijn gelezen
+      // versie (fixronde 1 van #1071, A). Met de flag uit de route van main hieronder.
+      if (isTauri() && (write.prepared || ifcForeignContentEnabled(state.ui.featureFlags))) {
+        const saved = await saveAsOnDesktop(documentId, state, write, defaultName, missingSourceSaveAs);
+        // Zie hieronder: een vervangen inhoud krijgt geen Recent (knownbug 1899).
+        if (saved && sameDocumentContent(get(), snapshotContent(state))) await pushRecent(saved.outcome.ref, saved.outcome.name);
+        return;
+      }
+      const outcome = await documentSaveDialog(state, write, defaultName, missingSourceSaveAs);
       if (!outcome) return;
       if (write.prepared && outcome.viaDownload) commitSavedDocument(snapshotContent(state), state);
-      else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, write.missingSourceSaveAs);
+      else commitSavedDocument(snapshotContent(state), state, localDestination(outcome), write.prepared, missingSourceSaveAs);
       if (!sameDocumentContent(get(), snapshotContent(state))) return;
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
@@ -1531,9 +1715,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         for (const notice of remnantNotices(opened.replaceRemnants ?? [])) get().notify(notice);
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
+        if (!options?.restoringVerifiedIfcSource) refuseModelAboveOpenLimit(parsed);
         if (options?.waitWhile) {
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
+        // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
+        const existing = options?.existingDocument?.() ?? null;
+        if (existing !== null) {
+          get().switchDocument(existing);
+          return;
+        }
+        if (options?.stale?.()) return;
 
         get().openAsDocument(parsed, { name: opened.name, ref: opened.ref });
         offerFormatNotice(opened.name, opened.content);
@@ -1682,17 +1874,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
-      const foreignCheck = foreignTargetCheck(state.activeDocumentId);
-      const refuseTarget: SaveTargetCheck = ext === 'ifc'
-        ? async (target) => (await foreignCheck(target)) || refuseChangedExport(state)
-        : foreignCheck;
-      const refuseDownload = ext === 'ifc' ? () => refuseChangedExport(state) : null;
-      const refuseBeforePlace = ext === 'ifc' ? () => refuseExportBeforePlace(state) : null;
+      // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
+      // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel. Een
+      // IFC-export wacht op de schrijflock (hieronder): na de kiezer ook kijken of het document nog gelijk is, en
+      // (knownbug 1896) vlak vóór de plaatsing (`exportTargetChecks`).
+      const { refuseTarget, refuseBeforePlace } = ext === 'ifc'
+        ? exportTargetChecks(state) : { refuseTarget: foreignTargetCheck(state.activeDocumentId), refuseBeforePlace: null };
+      const refuseDownload = ext === 'ifc' ? () => refuseExportBeforePicker(state) : null;
       const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime, refuseTarget, refuseDownload }
         : { refuseTarget, refuseDownload, refuseBeforePlace };
       const writeAndRecord = async () => {
-        if (ext === 'ifc' && refuseChangedExport(state)) return null;
+        if (ext === 'ifc' && refuseExportBeforePicker(state)) return null;
         let written: SaveOutcome | null;
         try {
           written = preparedExport
@@ -1708,7 +1901,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (written && ext === 'ifc' && exportContentReplaced(state)) return null;
         return written;
       };
-      const outcome = ext === 'ifc' ? await runProjectFileWrite(writeAndRecord, () => null) : await writeAndRecord();
+      // Review #872 ronde 4 (Terra): een IFC-export kan het eigen bestand schrijven. Schrijven en vastleggen staan dan
+      // onder dezelfde lock als Opslaan als; anders schreef AutoSave er tussendoor de ankertekst en markeerde hij het
+      // document als opgeslagen (knownbug 1026). Elk ander formaat loopt door dezelfde rij (review ronde 6 van #1116):
+      // CSV, MSPDI, P6 en XER opent de app ook, en een startbestand dat tijdens de export gelezen wordt, herkent een
+      // nieuwere versie alleen aan een beurt in die rij; afsluiten en de updater wachten ook alleen op die rij.
+      // In de laatste fase van afsluiten of van de updater (fixronde 1) schrijft een export niets, net als na annuleren.
+      const outcome = await runProjectFileWrite(writeAndRecord, () => null);
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       const buildingModel = format !== 'ifc' && ifcForeignContentEnabled(state.ui.featureFlags) && hasBuildingModel(state.ifcSource);
@@ -1780,12 +1979,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!project || project.prepared) return { ok: true, warnings: [], cancelled: true };
       const projectData = writerData(project);
       const base = suggestedFileBase(state);
-      const foreignCheck = foreignTargetCheck(state.activeDocumentId);
-      const refuseTarget: SaveTargetCheck = async (target) => (await foreignCheck(target)) || refuseChangedExport(state);
+      const { refuseTarget, refuseBeforePlace } = exportTargetChecks(state);
+      // Review #872 ronde 4 (Terra): schrijven en vastleggen onder dezelfde lock als Opslaan als (zie `exportAs`); ronde 5:
+      // direct vóór de write kijken of het document nog gelijk is (`refuseExportBeforePicker`).
       const outcome = await runProjectFileWrite(async () => {
-        if (refuseChangedExport(state)) return null;
-        const written = await saveDataDialog(`${base}.ifc`, projectData, [{ name: 'IFC Files', extensions: ['ifc'] }],
-          { refuseTarget, refuseDownload: () => refuseChangedExport(state), refuseBeforePlace: () => refuseExportBeforePlace(state) });
+        if (refuseExportBeforePicker(state)) return null;
+        const written = await saveDataDialog(`${base}.ifc`, projectData, IFC_FILE_FILTERS,
+          { refuseTarget, refuseDownload: () => refuseExportBeforePicker(state), refuseBeforePlace });
         if (written && !planOnly) await recordOwnFileExport(state, written, project.literalCalendarIds);
         if (written && exportContentReplaced(state)) return null;
         return written;

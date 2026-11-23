@@ -387,6 +387,27 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(page.locator('[data-task-editor-kind="boolean"]')).toHaveCount(0);
   await expect(milestoneCell).toHaveText('No');
   expect((await taskOf()).milestone).toBe(false);
+
+  // Besluit 21 nov (#970): een dubbelklik op een keuzelijstcel opent meteen de lijst in de cel; op een
+  // andere cel opent hij nog steeds het eigenschappenpaneel.
+  const panelOpen = () => page.evaluate(() => window.__OPS__!.store.getState().ui.showPropertiesPanel);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showPropertiesPanel: false }));
+  await codeCell.dblclick();
+  await expect(page.locator('[data-task-editor-kind="enum"]')).toBeVisible();
+  await expect(menu(page)).toBeVisible();
+  await menu(page).getByRole('option', { name: 'Quote Received', exact: true }).click();
+  await expect(codeCell).toHaveText('Quote Received');
+  expect(await codeOf()).toBe(code.ids[2]);
+  await milestoneCell.dblclick();
+  await expect(page.locator('[data-task-editor-kind="boolean"]')).toBeVisible();
+  await expect(menu(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-task-editor-kind="boolean"]')).toHaveCount(0);
+  expect(await panelOpen()).toBe(false);
+  const nameCell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.name"]`);
+  await nameCell.dblclick();
+  await expect.poll(panelOpen).toBe(true);
+  await expect(page.locator('[data-task-editor-kind]')).toHaveCount(0);
 });
 
 test('Tabel: de al gekozen optie opnieuw kiezen (klik, Spatie, Enter) legt vast en sluit de editor', async ({ page, ops: _ops }) => {
