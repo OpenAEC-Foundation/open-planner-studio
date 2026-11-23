@@ -379,8 +379,6 @@ for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_F
   eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
-// Knownbug 376: een later eindvenster kan uitvoerbaar zijn na een tussenliggend gat.
-// Speel A zonder ALAP op gekozen momenten af; vergelijk beide opvolgers en het projecteinde.
 {
   const split = [{ start: 480, end: 720 }, { start: 780, end: 1080 }];
   const splitTen: WorkCalendar = {
