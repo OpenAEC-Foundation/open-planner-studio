@@ -322,3 +322,64 @@ assert.deepEqual(calendarBoundaryResults, [
   ['2026-06-02T08:30', -150], ['2026-06-02T08:30', -150], ['2026-06-02T08:30', 0], ['2026-06-02T08:30', -1],
   ['2026-06-02T08:30', -151],
 ]);
+
+const tiedFinishDates: Array<Array<string | number | undefined>> = [];
+for (const finishStartFirst of [false, true]) {
+  const schedule = createAppStoreContext().store.getState;
+  schedule().setProject({ startDate: '2026-06-01' });
+  const workWeek = (start: number, end: number): WorkCalendar['workTime'] => ({
+    byWeekday: Object.fromEntries([1, 2, 3, 4, 5].map(day => [day, [{ start, end }]])),
+  });
+  const projectCalendar = { ...standard, workTime: workWeek(480, 960) };
+  const crewCalendar = { ...crew, workTime: workWeek(600, 1080) };
+  schedule().commitCalendarLibrary([projectCalendar, crewCalendar, craneCalendar], projectCalendar.id);
+  schedule().addTask({ name: 'Start project', time: createDefaultTaskTime('2026-06-01T08:00', 1, 'hours') });
+  schedule().addTask({ name: 'Einde project', time: createDefaultTaskTime('2026-06-05T08:00', 1, 'hours') });
+  const predecessor = schedule().addTask({
+    name: 'Voorganger', time: createDefaultTaskTime('2026-06-02T14:00', 1, 'hours'),
+  });
+  const leveled = schedule().addTask({
+    name: 'Kraantaak', calendarId: crewCalendar.id, time: createDefaultTaskTime('2026-06-01T10:00', 0.5),
+  });
+  const other = schedule().addTask({
+    name: 'Tweede opvolger', time: createDefaultTaskTime('2026-06-01T08:00', 1, 'hours'),
+  });
+  const relations = [
+    { successorId: leveled, type: 'START_FINISH' },
+    { successorId: other, type: 'FINISH_START' },
+  ] as const;
+  for (const relation of finishStartFirst ? [...relations].reverse() : relations) {
+    schedule().addSequence({ ...relation, predecessorId: predecessor, lagDays: 0 });
+  }
+  const crane = schedule().addResource({
+    name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1, calendarId: craneCalendar.id,
+  });
+  schedule().assignResource(leveled, crane, 1, 'UNIFORM');
+  schedule().runCPM();
+  const proposal = schedule().levelResources({ constrainToFloat: false });
+  assert.equal(proposal.delayMinutes?.[leveled], 480);
+  schedule().applyLeveling(proposal);
+  schedule().setStatusDate('2026-06-02T08:00');
+  schedule().updateTask(other, { constraint: { type: 'SNLT', date: '2026-06-03T09:00' } });
+  schedule().updateTask(leveled, { constraint: { type: 'FNLT', date: '2026-06-03T16:00' } });
+  schedule().runCPM();
+
+  const content = writeIFC(buildWriteIFCInput(schedule(), 'planOnly'));
+  const reopened = createAppStoreContext().store.getState;
+  await reopened().openOpenedFile({ name: 'gelijke-eindgrenzen.ifc', content, ref: null });
+  const prior = () => reopened().tasks.find(task => task.name === 'Voorganger')!;
+  const recordLateDates = () => {
+    const { lateStart, lateFinish, totalFloatMinutes } = prior().time;
+    tiedFinishDates.push([lateStart, lateFinish, totalFloatMinutes]);
+  };
+  recordLateDates();
+  reopened().runCPM();
+  recordLateDates();
+  const leveledId = reopened().tasks.find(task => task.name === 'Kraantaak')!.id;
+  for (const [scheduleStart, expectedViolation] of [['2026-06-02T16:00', false], ['2026-06-03T08:00', true]] as const) {
+    reopened().updateTask(prior().id, { time: { ...prior().time, scheduleStart } });
+    reopened().runCPM();
+    assert.equal(reopened().cpmResult?.violatedConstraintTaskIds.includes(leveledId), expectedViolation);
+  }
+}
+assert.deepEqual(tiedFinishDates, Array.from({ length: 4 }, () => ['2026-06-02T16:00', '2026-06-03T09:00', 120]));

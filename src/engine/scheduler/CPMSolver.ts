@@ -2622,8 +2622,8 @@ export class CPMSolver {
           lateFinish = constraintDate;
           leveledLateStart = leveled?.ls;
           lateFinishSource = 'successorConstraint';
-        } else if (constraintDate.getTime() === lateFinish.getTime() && leveled && leveledLateStart
-          && leveled.ls < leveledLateStart) {
+        } else if (constraintDate.getTime() === lateFinish.getTime() && leveled
+          && (!leveledLateStart || leveled.ls < leveledLateStart)) {
           leveledLateStart = leveled.ls;
         }
       }

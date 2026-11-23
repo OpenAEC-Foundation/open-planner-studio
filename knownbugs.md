@@ -629,6 +629,11 @@ en noem het in je rapport of PR-tekst.
      kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
      gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
      pauze voordat de vertraging wordt opgeslagen. — S
+2110. **VERVOLG (#1166, ook op main): de terugrekening kan bij een einde-einderelatie een geldige start op het
+     exacte dageinde overslaan.** Als de opvolger 480 minuten nivelleervertraging heeft, haalt een urentaak die
+     dinsdag om 16:00 begint diens eindgrens. Dinsdag 15:59 en woensdag 08:00 schenden de grens. Bij de laatstgenoemde
+     start geeft de terugrekening dinsdag 13:00 als late start. Deel de duurberekening met de voorwaartse pass
+     en toets het exacte dageinde als een afzonderlijke overgang. — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
      (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
      `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
