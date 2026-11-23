@@ -624,14 +624,16 @@ en noem het in je rapport of PR-tekst.
      een taak vanaf 1 juni op een resource met capaciteit nul tot 20 juli gaf `NO_WINDOW_IN_HORIZON`, en op 20 juli
      paste dezelfde taak op dezelfde resource. Ook stapt een kalendertijdtaak per kalenderdag, en de pauzedagen van een
      gesplitste taak zitten niet in haar `scheduleDuration`. Zie ook 1984. — B
-1983. **Nivelleren met een statusdatum na de vroege start schrijft een vertraging die de overlap niet oplost.**
-     `forwardPass` (`src/engine/scheduler/CPMSolver.ts`) past `levelingDelay` toe vóór de statusdatumvloer van een
-     niet-gestarte taak, terwijl de nivelleerder (`pfFor` en `findSlot` in `src/engine/scheduler/ResourceLeveler.ts`)
-     zijn kandidaten en de vertraging meet vanaf de start na die vloer. Proef van de reviewer (GPT-6.2-Sol, review van
-     #1160, via de app-store): twee niet-gestarte taken op 1 juni met dezelfde resource en statusdatum 2 juni. Na
-     *Bereken* staan beide op 2 juni; *Nivelleren → Berekenen* geeft de tweede taak één dag en 480 minuten vertraging,
-     met een leeg overzicht van verschuivingen en conflicten; na *Toepassen* beginnen beide nog op 2 juni en blijft de
-     resource overbezet (issue #1161). — B
+2108. **VERVOLG (#1166, ook op main): een nivelleerpauze kan bij een einde-eindetaak de gekozen werkdag wijzigen.**
+     In de gerichte storeproef met twee werkdagen uitloop en een gesloten kraankalender op dinsdag en donderdag
+     kiest het voorstel woensdag en vrijdag. Na Toepassen werkt de taak op dinsdag en donderdag. De vertraging
+     gebruikt het startanker van vóór het invoegen van de pauze. Onderzoek de kandidaat opnieuw met de gekozen
+     pauze voordat de vertraging wordt opgeslagen. — S
+2110. **VERVOLG (#1166, ook op main): de terugrekening kan bij een einde-einderelatie een geldige start op het
+     exacte dageinde overslaan.** Als de opvolger 480 minuten nivelleervertraging heeft, haalt een urentaak die
+     dinsdag om 16:00 begint diens eindgrens. Dinsdag 15:59 en woensdag 08:00 schenden de grens. Bij de laatstgenoemde
+     start geeft de terugrekening dinsdag 13:00 als late start. Deel de duurberekening met de voorwaartse pass
+     en toets het exacte dageinde als een afzonderlijke overgang. — B
 1984. **De reden bij een onopgelost nivelleerconflict kan wijzen naar iets wat verderop wel past.** `reasonFor`
      (`src/engine/scheduler/ResourceLeveler.ts`) kiest bij een ingesteld uitloopplafond, na `INTRINSIC_OVERRUN`,
      `CEILING_UNREACHABLE` zodra de eerste kandidaat na het venster ligt, vóór de vraag of alleen het poolgrootboek de kandidaten afwees (`poolBlockedOnly`), en `CALENDAR_MISMATCH`
