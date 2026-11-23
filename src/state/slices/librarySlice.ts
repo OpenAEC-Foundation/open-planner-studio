@@ -34,19 +34,8 @@ import {
   applyCalendarLibraryChange, mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE,
 } from '../calendarTasks';
 
-/** Het history-label van een verdeling. Zelfde soort korte Nederlandse omschrijving als
- *  `gridTransaction.ts` gebruikt; labels zijn interne historie-omschrijvingen, geen UI-tekst. */
 const DISTRIBUTION_HISTORY_LABEL = 'Verdeling toepassen';
 
-/**
- * Het jongste toegepaste `document-data`-event voor dit document vanaf `minSequence`.
- *
- * `applyDistribution` gebruikt dit om het event terug te vinden dat `get().applyLeveling(...)` net
- * voor het ACTIEVE document heeft achtergelaten. `minSequence` is de `nextHistorySequence` van vlak
- * vóór die aanroep: die teller loopt door over `pruneSessionHistory` heen, dus hij is een
- * betrouwbaar anker waar een index of een diepte dat niet is. "Jongste" en niet "eerste", omdat
- * `applyLeveling` → `runCPM` in "datums zoals opgeslagen" twee events kán opleveren.
- */
 function latestDocumentDataEventSince(
   events: readonly SessionHistoryEvent[],
   documentId: string,
@@ -61,20 +50,6 @@ function latestDocumentDataEventSince(
   return selected === null ? null : { id: selected.id, sequence: selected.sequence };
 }
 
-/**
- * De poort van "alles terugdraaien": mag dit document nog terug?
- *
- * Drie eisen, samen precies de vraag die undo moet beantwoorden: het event bestaat nog, het staat
- * nog op `applied` (niemand heeft het al met Ctrl+Z teruggedraaid), en het is het event dat
- * `selectUndoHistoryEvent` voor DIT document NU zou kiezen. Die derde eis is de kern: staat er een
- * jonger toepasbaar event bovenop, dan heeft de gebruiker er sinds Toepassen zelf in gewerkt en zou
- * terugdraaien de verkeerde stap ongedaan maken. Een gesloten document valt hier vanzelf uit —
- * `removeSessionHistoryForDocument` heeft zijn events dan al verwijderd.
- *
- * NIET de mutatieteller/vingerafdruk (`proposalFingerprint.ts`): die bedienen de
- * VOORSTEL-invalidatie van de verdeeldialoog — "is het voorstel nog geldig" — en beantwoorden niet
- * de vraag welke undo-stap er nu bovenop ligt. Ze vervangen deze poort dus niet.
- */
 function distributionUndoTarget(
   events: readonly SessionHistoryEvent[],
   documentId: string,
@@ -89,7 +64,6 @@ export interface RecognitionCandidate {
   kind: 'resource' | 'calendar';
   projectId: string;
   projectName: string;
-  /** De unieke naam-match uit de pool, of null (geen/meerdere kandidaten ⇒ handmatige keuze). */
   suggestedPoolId: string | null;
   suggestedPoolName: string | null;
 }
@@ -99,212 +73,73 @@ export interface RecognitionLink {
   poolId: string;
 }
 
-/**
- * App-globale bedrijfsbibliotheek. NIET per-document (niet in DOCUMENT_FIELDS) — pools zijn
- * bedrijfsdata, gedeeld over alle documenten, net als `installedExtensions`. Persistentie loopt
- * ná elke mutatie via `saveLibrary` (fire-and-forget; de store is de bron van waarheid in-memory).
- */
 export interface LibrarySlice {
   companies: Company[];
   defaultCompanyId: string;
   pools: Record<string, CompanyPool>;
-  /** True zodra `initLibrary()` de opgeslagen bibliotheek heeft geladen (voorkomt vroege save). */
   libraryLoaded: boolean;
 
   initLibrary: () => Promise<void>;
   addCompany: (name: string) => string;
-  /** Seed (idempotent) de demo-resourcebibliotheek (showcase-voorbeelden delen één gedeelde pool,
-   *  "dezelfde ploeg in twee projecten"). Bestaat het bedrijf `DEMO_COMPANY_ID`
-   *  al, dan wordt er niets opnieuw aangemaakt en niets verwijderd; wél wordt een pool van een
-   *  OUDERE `DEMO_LIBRARY_SEED_VERSION` eenmalig bijgewerkt (capaciteiten/omschrijvingen op
-   *  naam-match, ontbrekende items erbij — id's ongemoeid, zie `migrateDemoLibrarySeed`). Loopt
-   *  door dezelfde `set`/`persist`-laag als `addCompany` — geen parallelle opslagroute.
-   *  Retourneert altijd `DEMO_COMPANY_ID`. */
   seedDemoLibrary: () => string;
   renameCompany: (id: string, name: string) => void;
-  /** Verwijder een bedrijf. Er blijft altijd ≥1 bedrijf (no-op op het laatste).
-   *  Ontkoppelt expliciet elk GEOPEND document (actief én slapend) dat aan dit bedrijf gekoppeld
-   *  was: companyId/companyName gewist, alle herkomststempels van dit bedrijf gestript. Opgeslagen
-   *  (niet-geopende) bestanden zijn hier niet bij betrokken — die gedragen zich bij later openen als
-   *  ontvangen bestanden (los). Zie `countDocumentsLinkedTo` voor de verwijder-bevestiging. */
   removeCompany: (id: string) => void;
-  /** Aantal GEOPENDE documenten (actief + slapend) gekoppeld aan dit bedrijf — voor de
-   *  verwijder-bevestiging. */
   countDocumentsLinkedTo: (companyId: string) => number;
   setDefaultCompany: (id: string) => void;
-  /** Promoveer een projectkalender naar de pool van een bedrijf (spiegel van de bestaande
-   *  calendar-`promote`). Voegt een POOL-kopie toe met een verse pool-id en bumpt de pool.
-   *  Retourneert de nieuwe pool-item-id, of `null` als het bedrijf (de pool) niet bestaat. Stempelt
-   *  bovendien het BRON-projectitem (indien aanwezig) met de nieuwe herkomst, zodat "bijwerken vanuit
-   *  bibliotheek" direct op het gepromoveerde item werkt. */
   promoteCalendarToPool: (companyId: string, calendar: import('@/types/calendar').WorkCalendar) => string | null;
-  /** Resource-variant van `promoteCalendarToPool` — óók de "naar de bibliotheek"-rijactie op een
-   *  ongestempelde Projectweergave-rij. Standaardgedrag (geen `opts`, of `dedupByName: false`):
-   *  altijd een NIEUW poolitem, ook als de pool al een gelijknamig item heeft (de herkenningsstap-test
-   *  zet zo bewust twee gelijknamige poolitems op om "ambigu ⇒ geen voorstel" te testen). Met
-   *  `opts.dedupByName: true` (de Resources-tab-rijactie): is er een UNIEKE genormaliseerde-naam-match
-   *  al in de pool (`matchByName`), dan wordt GEEN duplicaat gepusht — het bronitem koppelt
-   *  (stempelt) in plaats daarvan aan dat bestaande poolitem ("bestond al, gekoppeld"). Retourneert in
-   *  beide gevallen de resulterende pool-item-id (nieuw of bestaand), of `null` als het bedrijf (de
-   *  pool) niet bestaat. Met dedup: no-op op een reeds gestempeld bronitem. */
   promoteResourceToPool: (companyId: string, resource: import('@/types/resource').Resource, opts?: { dedupByName?: boolean }) => string | null;
-  /** Bewerk pool-inhoud rechtstreeks (Backstage). Elke wijziging bumpt de pool. */
   updatePoolCalendar: (companyId: string, calendarId: string, updates: Partial<import('@/types/calendar').WorkCalendar>) => void;
   updatePoolResource: (companyId: string, resourceId: string, updates: Partial<import('@/types/resource').Resource>) => void;
   removePoolCalendar: (companyId: string, calendarId: string) => void;
   removePoolResource: (companyId: string, resourceId: string) => void;
-  /** Bedrijfsweergave-CRUD: maak een NIEUW poolitem direct in het bedrijf. Raakt
-   *  UITSLUITEND s.pools (invariant); bumpt de pool. Retourneert de nieuwe pool-id. */
   addPoolResource: (companyId: string, resource: Omit<import('@/types/resource').Resource, 'id'>) => string | null;
   addPoolCalendar: (companyId: string, calendar: Omit<import('@/types/calendar').WorkCalendar, 'id'>) => string | null;
 
-  /** Bind het ACTIEVE project aan een bedrijf. Zet project.companyId + companyName; bij
-   *  OMkoppelen (ander bedrijf) worden vreemde stempels van het VORIGE bedrijf gestript,
-   *  zodat de herkenningsstap schoon herbegint. De strip-tak is undoable; een eerste bind of een
-   *  herbind naar hetzelfde bedrijf strip niets en pusht geen undo-snapshot. */
   bindProjectToCompany: (companyId: string) => void;
-  /** Kandidaten voor de herkenningsstap: elk NIET-gestempeld projectitem (resource/
-   *  kalender) met de unieke naam-match uit de eigen-bedrijf-pool (of null als er geen/meerdere zijn). */
   computeRecognition: () => RecognitionCandidate[];
-  /** Atomisch linken: stempel de gekozen projectitems, zet syncedHash, en ververs ze
-   *  naar de poolwaarden — alles in één set(). Undoable: een
-   *  verdwenen kandidaat (poolId niet meer in de pool) wordt stil overgeslagen, de rest
-   *  gaat door; zonder toepasbare link geen undo-snapshot. */
   linkRecognizedItems: (links: RecognitionLink[]) => void;
-  /** Ontkoppel het actieve project: wis companyId/companyName en STRIP alle stempels —
-   *  een los project heeft geen herkomst en ververst nergens vandaan. Undoable; no-op
-   *  (geen undo-snapshot) op een al-los project. */
   unbindProject: () => void;
-  /**
-   * Voeg een bibliotheek-kalender toe aan het ACTIEVE project: kopieer met stempel, dedup
-   * op herkomst. Retourneert `{ added, calendarId }` — `added: false` ⇒ item was er al ("al in project").
-   */
   addLibraryCalendarToProject: (companyId: string, poolCalendarId: string) => { added: boolean; calendarId: string | null };
-  /**
-   * Voeg een bibliotheek-resource toe aan het ACTIEVE project: kopieer met stempel, laat
-   * de eigen kalender meereizen (met dedup), dedup op herkomst. Bindt het project aan het bedrijf als
-   * het nog ongebonden was.
-   */
   addLibraryResourceToProject: (companyId: string, poolResourceId: string) => { added: boolean; resourceId: string | null };
 
-  /** Bereken de diff van een projectkalender t.o.v. zijn bibliotheekorigineel. */
   diffProjectCalendar: (calendarId: string) => import('@/services/library').ItemDiff | null;
   diffProjectResource: (resourceId: string) => import('@/services/library').ItemDiff | null;
-  /** Werk één projectkalender bij naar de bibliotheekwaarden. No-op als geen herkomst/pool. */
   updateProjectCalendarFromLibrary: (calendarId: string) => void;
   updateProjectResourceFromLibrary: (resourceId: string) => void;
 
-  /** Serialiseer de pool van een bedrijf naar een IFC-string (voor export/backup). */
   exportPoolIFC: (companyId: string) => string | null;
-  /** Vervang de HELE pool van een bedrijf door een geïmporteerde pool ná bevestiging.
-   *  De demping-waarschuwing zit in de UI (via `isPoolNewer`). Pool en open-boundary van het
-   *  actieve document worden samen gepubliceerd, zodat nooit een halve import zichtbaar is. */
   replacePool: (companyId: string, pool: import('@/types/library').CompanyPool) => void;
-  /**
-   * Importeer een geïmporteerde pool als NIEUW bedrijf — de veilige tegenhanger van `replacePool`
-   * in `PoolImportDialog` ("een bibliotheek importeren" hoort niet stil een bestaande bibliotheek
-   * te overschrijven). Anders dan
-   * `replacePool` (dat de HELE pool van een GEKOZEN bestaand bedrijf vervangt) maakt dit een NIEUW
-   * bedrijf aan met de inhoud van het bestand:
-   * - Naam: `pool.companyName` (met een onderscheidend " (2)"/" (3)"-achtervoegsel bij een lokale
-   *   naamsbotsing, via `resolveUniqueCompanyName`).
-   * - Id: behoudt `pool.companyId` uit het bestand als dat lokaal nog VRIJ is — dat is precies wat
-   *   een meegestuurd project (met stempels naar dat companyId) nodig heeft om zijn bibliotheek na
-   *   het delen te herkennen. Bestaat het id al lokaal, is het een RESERVED id (`isReservedCompanyId`
-   *   — `DEFAULT_COMPANY_ID`/`DEMO_COMPANY_ID`, GEEN identiteitsbewijs: vrijwel elke installatie deelt
-   *   ze), of is het geen veilige state-sleutel (`isSafeFileCompanyId` — een vijandig bestand-id
-   *   als `"__proto__"` mag nooit als Immer-draft-sleutel eindigen), dan een vers gegenereerd id
-   *   (het wordt dan een kopie náást de bestaande, net als bij een naamsbotsing).
-   * Bindt het ACTIEVE project NIET aan het nieuwe bedrijf — dat is een aparte, bewuste
-   * gebruikershandeling. Retourneert het nieuwe companyId.
-   */
   importPoolAsNewCompany: (pool: import('@/types/library').CompanyPool) => string;
-  /** True als de lokale pool nieuwer is dan een te importeren pool (demping). */
   isLocalPoolNewer: (companyId: string, imported: import('@/types/library').CompanyPool) => boolean;
 
-  /** Verversingsprimitief: werk UITSLUITEND 'behind'-items van het ACTIEVE document bij naar de
-   *  poolwaarden van het gegeven bedrijf. 'behind' = file == syncedHash én pool wijkt af; een
-   *  'deviated' (lokaal bewerkt) item blijft ongemoeid. Niet-undoable:
-   *  geen history-event, geen isDirty, wist botsende redo-history; raakte het een kalender, dan zet het
-   *  `scheduleStale` (geen runCPM). Retourneert het aantal gewijzigde items. */
   refreshBehindItems: (companyId: string) => number;
 
-  /** Ververs uitsluitend 'behind'-items van het gegeven bedrijf, in
-   *  het ACTIEVE document én in elke SLAPENDE document-payload, binnen één set(). 'deviated'-items
-   *  blijven ongemoeid. Slapende documenten herrekenen pas bij activering (geen recompute
-   *  hier); raakte de verversing een kalender, dan zet het `scheduleStale` (per document/payload),
-   *  ZONDER isDirty. Niet-undoable (wist botsende redo-history). Retourneert het totaal aantal gewijzigde items. */
   refreshAllDocumentsFromPool: (companyId: string) => number;
 
 
-  /** Openings-status van één projectitem t.o.v. zijn eigen-bedrijf-pool: drijft de
-   *  markeringen in de Projectweergave ("wijkt af — beslis" / "niet meer in het bedrijf"). Geen
-   *  eigen-bedrijf-stempel of bedrijf lokaal onbekend ⇒ null (geen markering; los-gedrag). */
   onOpenStatusForResource: (resourceId: string) => import('@/services/library').OnOpenStatus | null;
   onOpenStatusForCalendar: (calendarId: string) => import('@/services/library').OnOpenStatus | null;
 
-  /** Los één afwijking op (koppel-/afwijkingenscherm). 'company' = neem de poolwaarde over
-   *  (ververs het item, niet-undoable, wist botsende redo-history, geen isDirty). 'file' = neem de BESTANDSwaarde
-   *  over in het bedrijf: werk het poolitem bij (bumpt de pool — "geldt voor al je projecten") en
-   *  ververs de siblings; het net-geopende item krijgt de verse syncedHash zonder dubbele verversing. */
   resolveDeviation: (ref: { kind: 'resource' | 'calendar'; projectId: string }, choice: 'company' | 'file') => void;
 
-  /** "Losmaken van de bibliotheek" (Resources-tab, Projectweergave): verwijder de
-   *  `libraryOrigin`-stempel van PRECIES DIT ÉNE projectitem. Anders dan `unbindProject` (dat ALLE
-   *  stempels van het hele project strip) raakt dit uitsluitend de gekozen resource — de rest van het
-   *  project blijft gekoppeld. De resource zelf blijft gewoon in het project staan, maar wordt weer
-   *  volledig bewerkbaar (naam/type/tarief/eenheid zijn dan niet langer bibliotheekafspraken) en volgt
-   *  de pool niet meer (geen verversing/afwijkingsvraag meer voor dit item). Undoable
-   *  (beginUndoable/finishMutation-patroon). No-op (geen undo-snapshot) op een onbekend id of een
-   *  resource zonder stempel. */
   unlinkResourceFromLibrary: (resourceId: string) => void;
 
-  /** Toepassen van een verdeling. Schrijft het voorstel in élk deelnemend document — het
-   *  actieve via het gewone top-level-pad, de slapers via een headless scratch-instantie
-   *  (`runInScratchDocument`) — en geeft bij succes een record terug waarmee de "toegepast"-strook
-   *  alles in één keer kan terugdraaien.
-   *
-   *  Bij een mislukking komt de REDEN mee (`DistributionApplyResult`): geblokkeerd/tekort/
-   *  niets-te-doen uit `planDistributionWrites`, of `'scratch-failed'` wanneer de schrijfronde van
-   *  een slapend document vastliep, zodat de dialoog nooit geruisloos niets doet. Er is in geen
-   *  enkel `ok: false`-geval iets gemuteerd. */
   applyDistribution: (
     proposal: DistributionProposal,
     scopeTaskIdsByDoc: Record<string, string[]>,
   ) => DistributionApplyResult;
 
-  /** "Alles terugdraaien": draait per beschreven document precies de undo-stap terug die
-   *  `applyDistribution` daar heeft achtergelaten. Een document waarvan de undo-diepte intussen is
-   *  verschoven (de gebruiker werkte er zelf in verder) wordt overgeslagen — blind terugpoppen zou
-   *  daar de VERKEERDE stap ongedaan maken — en gemeld via `DistributionUndoReport.skippedDocIds`. */
   undoDistribution: (record: DistributionApplyRecord) => DistributionUndoReport;
 }
 
-/**
- * Normaliseer één pool defensief tegen vorm-invalide data (bijv. een handmatig bewerkt of door een
- * derde tool geproduceerd `OPS_Library`-bestand zonder `resources`/`calendars`). Dunne her-export van
- * de pure `normalizePoolShape` (`services/library/libraryOps.ts`, zodat ook `readPoolIFC` 'm
- * hergebruikt). Puur — geschikt voor losse unit-tests, en herbruikt door zowel het laden
- * van de opgeslagen bibliotheek (`normalizeLoadedLibrary`) als het importeren van één pool
- * (`replacePool`).
- */
 export function normalizePool(cid: string, raw: Partial<CompanyPool> | null | undefined, companies: Company[]): CompanyPool {
   return normalizePoolShape(cid, raw, companies);
 }
 
-/**
- * Normaliseer een geladen bibliotheek vóór gebruik (defensief tegen vorm-invalide opgeslagen data —
- * bijv. een handmatig bewerkt of ouder bestand). Nooit een TypeError: ontbrekende `companies`/`pools`
- * worden aangevuld (leeg ⇒ geseed met het standaardbedrijf), een `defaultCompanyId` die niet naar een
- * bestaand bedrijf wijst valt terug op het eerste bedrijf, en pools zonder bijbehorend bedrijf
- * (wezen) worden verwijderd. Puur — geen state, geschikt voor losse unit-tests.
- */
 export function normalizeLoadedLibrary(lib: Partial<CompanyLibrary> | null | undefined): CompanyLibrary {
   const companies = lib?.companies && lib.companies.length > 0 ? lib.companies : createDefaultLibrary().companies;
   const companyIds = new Set(companies.map((c) => c.id));
   const rawPools = lib?.pools ?? {};
-  // Wezen-pools opruimen: pools waarvan companyId niet (meer) bij een bedrijf hoort. Behouden pools
-  // óók structureel normaliseren via `normalizePool` (zie daar).
   const pools = Object.fromEntries(
     Object.entries(rawPools)
       .filter(([cid]) => companyIds.has(cid))
@@ -324,21 +159,10 @@ type LibraryPersistenceState = {
   notify: (notification: NotifyInput) => void;
 };
 
-/**
- * Serialiseer de huidige bibliotheek-state en persisteer hem.
- *
- * Een mislukte achtergrondopslag was eerder uitsluitend zichtbaar in de
- * debugterminal. Dat is onvoldoende: de gebruiker moet weten dat een zojuist
- * gewijzigde bibliotheek na herstart verloren kan gaan. De aparte
- * `library-save`-sleutel voorkomt tegelijk een toast-stapel bij een aanhoudende
- * opslagfout.
- */
 export async function persistLibrary(
   get: () => LibraryPersistenceState,
   save: (library: CompanyLibrary) => Promise<void> = saveLibrary,
 ): Promise<void> {
-  // Vóór initLibrary() is de state nog de verse seed; wegschrijven zou die door de async load heen
-  // laten overschrijven (of, erger, de echte opgeslagen bibliotheek voortijdig overschrijven).
   if (!get().libraryLoaded) return;
   const s = get();
   const lib: CompanyLibrary = { companies: s.companies, defaultCompanyId: s.defaultCompanyId, pools: s.pools };
@@ -355,12 +179,10 @@ export async function persistLibrary(
   }
 }
 
-/** Een typewissel naar of van COST op een resource met toewijzingen ging niet door (issue #815). */
 function notifyCostTypeChangeRefused(notify: (n: NotifyInput) => void): void {
   notify({ severity: 'info', messageKey: 'notifications.costTypeChangeRefused', dedupeKey: 'cost-type-change-refused' });
 }
 
-/** Fire-and-forget-oproep voor de synchronische slice-acties. */
 function persist(get: () => LibraryPersistenceState): void {
   void persistLibrary(get);
 }
@@ -368,10 +190,6 @@ function persist(get: () => LibraryPersistenceState): void {
 type LibrarySliceSet = Parameters<AppSlice<LibrarySlice>>[0];
 type LibrarySliceGet = Parameters<AppSlice<LibrarySlice>>[1];
 
-/** Strookgetal "datums zoals opgeslagen" na een kalenderverversing uit de bibliotheek
- *  (`recountShiftedAfterLibraryRefresh`), voor het actieve én slapende documenten. Rekent BUITEN de
- *  producer op de bevroren staat, zodat de doorrekening geen Immer-proxy's per taak maakt; daarna één
- *  `set` met alleen de nieuwe tellers. Geen undo, geen isDirty: de verversing zelf is dat ook niet. */
 function recountRecordedShift(set: LibrarySliceSet, get: LibrarySliceGet, documentIds: readonly string[]): void {
   const st = get();
   const updates: Array<[string, ReturnType<typeof recountShiftedAfterLibraryRefresh>]> = [];
@@ -409,7 +227,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       s.companies = lib.companies;
       s.defaultCompanyId = lib.defaultCompanyId;
       s.pools = lib.pools;
-      // Elk bedrijf moet een pool hebben (verse bedrijven / gemigreerde data).
       for (const c of s.companies) {
         if (!s.pools[c.id]) s.pools[c.id] = createEmptyPool(c);
       }
@@ -434,18 +251,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   seedDemoLibrary: () => {
-    // Idempotentie: bestaat het bedrijf al, dan niets aanmaken/overschrijven — alleen het
-    // vaste id teruggeven. Companies+pools horen 1-op-1 samen (invariant elders in deze slice), dus
-    // de aanwezigheid van het BEDRIJF is voldoende signaal.
-    //
-    // MAAR "niets overschrijven" zou betekenen dat een inhoudscorrectie in de seed een bestaande
-    // installatie nooit bereikt (bv. te krappe capaciteiten ⇒ een muur van rode rijen in het
-    // bezettingsoverzicht). Vandaar de INHOUDsversie
-    // (`DEMO_LIBRARY_SEED_VERSION`): een oudere demo-pool wordt eenmalig bijgewerkt
-    // (`migrateDemoLibrarySeed` — maxUnits/omschrijving op naam-match, ontbrekende items erbij,
-    // NIETS verwijderd, id's ongemoeid zodat stempels geldig blijven). Veranderde er inhoudelijk
-    // iets, dan bumpen we de pool zodat gekoppelde documenten hun classificatie herzien; veranderde
-    // er niets, dan alleen de versiemarkering zetten (geen loze bump).
     if (get().companies.some((c) => c.id === DEMO_COMPANY_ID)) {
       const existing = get().pools[DEMO_COMPANY_ID];
       if (existing && (existing.seedVersion ?? 0) < DEMO_LIBRARY_SEED_VERSION) {
@@ -469,12 +274,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const c = s.companies.find(c => c.id === id);
       if (!c) return;
       c.name = name.trim() || c.name;
-      // Gedenormaliseerde companyName in de pool meelopen.
       if (s.pools[id]) s.pools[id].companyName = c.name;
-      // …en in elk GEOPEND document dat aan deze bibliotheek gekoppeld is (actief én slapend), zoals
-      // `bindProjectToCompany` en `removeCompany` dat veld ook bijhouden. Anders schreef een opgeslagen
-      // IFC de oude bibliotheeknaam weg. Zelfde regime als
-      // `removeCompany`: bibliotheekbeheer is app-globaal, geen undo-stap en geen isDirty.
       if (s.project.companyId === id) s.project.companyName = c.name;
       for (const d of s.documents) {
         if (d.payload?.project.companyId !== id) continue;
@@ -485,20 +285,12 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   removeCompany: (id) => {
-    // Als het verwijderde bedrijf het bedrijf van het ACTIEVE project was,
-    // hoort bij de ontkoppeling ook het afwijkingenscherm/-signaal te resetten (patroon
-    // activatie/newDocument/closeDocument hierboven) — anders blijft een stale dialoog/melding
-    // van het net-verwijderde bedrijf staan. Vastleggen vóór de mutatie: de "laatste bedrijf blijft"
-    // no-op-tak hieronder mag deze reset niet triggeren als er niets daadwerkelijk verwijderd is.
     const wasActiveCompany = get().companies.length > 1 && get().project.companyId === id;
     set((s) => {
-      // Er moet altijd minstens één bedrijf blijven. Laatste verwijderen ⇒ no-op.
       if (s.companies.length <= 1) return;
       s.companies = s.companies.filter(c => c.id !== id);
       delete s.pools[id];
       if (s.defaultCompanyId === id) s.defaultCompanyId = s.companies[0].id;
-      // Ontkoppel gekoppelde OPEN documenten expliciet (stempels strippen). Opgeslagen
-      // bestanden gedragen zich bij later openen als ontvangen bestanden (los).
       if (s.project.companyId === id) {
         s.project.companyId = undefined;
         s.project.companyName = undefined;
@@ -507,16 +299,10 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       }
       for (const d of s.documents) {
         if (!d.payload) continue;
-        // Lokale const ná de null-guard: zie de identieke toelichting bij refreshAllDocumentsFromPool
-        // (TS narrowt `d.payload` niet door de `.find()`-callback hieronder heen).
         const payload = d.payload;
         if (payload.project.companyId !== id) continue;
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload, id);
-        // De gedenormaliseerde projectkalender-cache van een SLAPENDE
-        // payload moet de zojuist gestripte `calendars`-lijst meelopen — anders draagt de cache
-        // (waar de auto-save/writer uitsluitend uit leest, zonder hydrate) nog het herkomststempel
-        // van het net-verwijderde bedrijf. Spiegelt de actieve-document-tak hierboven.
         refreshProjectCalendarCache(payload);
       }
     });
@@ -541,71 +327,39 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   promoteCalendarToPool: (companyId, calendar) => {
-    // Return-eerlijkheid: mint de pool-id pas als de pool echt bestaat; anders `null`
-    // (geen id die nergens naar verwijst).
     let newId: string | null = null;
     set((s) => {
       const pool = s.pools[companyId];
       if (!pool) return;
       const id = generateId('cal');
-      // Verse pool-identiteit; strip een eventuele bestaande herkomst (dit wordt zelf een origineel).
       const { libraryOrigin: _drop, ...rest } = calendar;
       pool.calendars.push({ ...structuredClone(rest), id });
       const bumped = bumpPool(pool);
       s.pools[companyId] = bumped;
-      // Terug-stempel op het BRON-projectitem (indien aanwezig): eerst bumpen, dan stempelen met de
-      // NIEUWE versie (off-by-one-val).
       const src = s.calendars.find((c) => c.id === calendar.id);
       if (src) {
-        // De PROJECTSTEMPEL-mutatie is undo-BESCHERMD (de pool-mutatie hierboven blijft bewust
-        // app-globaal/niet-undoable — pools zijn geen projectdata). Zonder eigen undo-snapshot veegt
-        // een latere, volledig ongerelateerde undo de stempel stilzwijgend weg. `beginUndoable`
-        // legt de staat VÓÓR de stempel vast, zodat een undo van DEZE actie de stempel weer
-        // verwijdert (poolkopie blijft staan — bewust, zie docs/library.md "Bekende kleine
-        // punten"), maar een LATERE ongerelateerde undo 'm niet meer kan meesleuren.
         runtime.beginUndoable(s);
-        // Een net-gepromoveerd item is inhoudelijk identiek aan zijn
-        // poolitem — de back-stamp krijgt daarom meteen de hash VAN DAT POOLITEM mee, anders
-        // classificeert het projectitem in latere taken als 'deviated' (spurieuze afwijkingsvraag).
         const poolCal = bumped.calendars.find((c) => c.id === id)!;
         src.libraryOrigin = makeOrigin(bumped, id, computeCalendarHash(poolCal));
-        // De gedenormaliseerde projectkalender-cache (`s.calendar`) moet de zojuist gestempelde
-        // bibliotheek-entry weerspiegelen; anders schrijft de writer (leest uit `s.calendar`)
-        // de herkomst NIET weg als de PROJECTDEFAULT-kalender werd gepromoveerd → functieverlies bij
-        // herladen (geen bijwerken, dedup stuk). Onvoorwaardelijk & goedkoop (spiegel updateCalendar).
         syncProjectCalendar(s);
         runtime.finishMutation(s);
       }
       newId = id;
     });
     persist(get);
-    // Promote valt onder hetzelfde pool-bump-regime als
-    // updatePoolCalendar/removePoolCalendar — voor bestaande kopieën is dit een no-op behalve de
-    // onvoorwaardelijke redo-history-wis (er is nooit een 'behind'-item van het NET-gepromoveerde item,
-    // dat is per definitie in-sync met de pool die het zelf net gevoed heeft).
     get().refreshAllDocumentsFromPool(companyId);
     return newId;
   },
 
   promoteResourceToPool: (companyId, resource, opts) => {
     let newId: string | null = null;
-    // Dedup op naam ("naar de bibliotheek tillen" vanaf een projecteigen rij in de Resources-tab) —
-    // UITSLUITEND bij `opts.dedupByName: true` (de Resources-tab-rijactie): heeft de pool al een
-    // UNIEKE genormaliseerde-naam-match (zelfde matcher als de herkenningsstap, `matchByName`), dan
-    // wordt er GEEN duplicaat-poolitem gepusht — het bronprojectitem koppelt in plaats daarvan aan
-    // het bestaande poolitem ("bestond al, gekoppeld"). Ambigu (0 of >1 kandidaten) ⇒ gewoon een
-    // nieuw poolitem. Zonder de vlag (elke andere/bestaande aanroeper, incl. de
-    // herkenningsstap-test die bewust twee gelijknamige poolitems opzet): altijd een nieuw
-    // poolitem, nooit stilzwijgend koppelen.
     const existingPool = opts?.dedupByName ? get().pools[companyId] : undefined;
     const existingMatch = existingPool ? matchByName(resource.name, existingPool.resources) : null;
     if (existingMatch) {
-      // Boolean-vlag i.p.v. een Immer-draft-referentie vasthouden buiten
-      // de producer (`s.resources[idx]` is na `set()` een gerevoked proxy — nooit bewaren/uitlezen).
       let linked = false;
       set((s) => {
         const idx = s.resources.findIndex((r) => r.id === resource.id);
-        if (idx < 0 || s.resources[idx].libraryOrigin) return; // onbekend, of al gestempeld: no-op.
+        if (idx < 0 || s.resources[idx].libraryOrigin) return;
         runtime.beginUndoable(s);
         const pool = s.pools[companyId];
         s.resources[idx].libraryOrigin = makeOrigin(pool, existingMatch.id, computeResourceHash(existingMatch));
@@ -613,9 +367,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         linked = true;
       });
       if (linked) get().recomputeViewRows();
-      // De no-op-tak (onbekend bronitem, of al gestempeld) mag NIET
-      // `existingMatch.id` teruggeven alsof er iets gebeurde — dat zou de aanroeper (de "bestond
-      // al"-notice) laten liegen over een koppeling die niet plaatsvond.
       return linked ? existingMatch.id : null;
     }
     set((s) => {
@@ -623,17 +374,12 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       if (!pool) return;
       const id = generateId('res');
       const { libraryOrigin: _drop, parentId: _p, ...rest } = resource;
-      // Een gepromoveerde resource verwijst niet naar een project-lokale kalender-id.
       pool.resources.push({ ...structuredClone(rest), id, calendarId: undefined });
       const bumped = bumpPool(pool);
       s.pools[companyId] = bumped;
-      // Terug-stempel op het BRON-projectitem (indien aanwezig) met de zojuist gebumpte versie.
       const src = s.resources.find((r) => r.id === resource.id);
       if (src) {
-        // Undo-beschermde projectstempel-mutatie — zie de uitgebreide toelichting bij
-        // promoteCalendarToPool hierboven (identiek patroon, resource-variant).
         runtime.beginUndoable(s);
-        // Pool-hash meegeven: zelfde toelichting als promoteCalendarToPool hierboven.
         const poolRes = bumped.resources.find((r) => r.id === id)!;
         src.libraryOrigin = makeOrigin(bumped, id, computeResourceHash(poolRes));
         runtime.finishMutation(s);
@@ -641,9 +387,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       newId = id;
     });
     persist(get);
-    // Naamloze metadata-wijziging (herkomststempel) raakt geen histogram, wél eventueel de tabel.
     get().recomputeViewRows();
-    // Zelfde pool-bump-regime als promoteCalendarToPool hierboven.
     get().refreshAllDocumentsFromPool(companyId);
     return newId;
   },
@@ -654,9 +398,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const pool = s.pools[companyId];
       const idx = pool?.calendars.findIndex(c => c.id === calendarId) ?? -1;
       if (!pool || idx < 0) return;
-      // No-op-guard (spiegelt `updateCalendar`): de kalendereditor in de Bibliotheekweergave stuurt
-      // bij Toepassen de hele draft. Ongewijzigd ⇒ geen poolversie-bump, geen opslag en geen
-      // verversing (die wist onvoorwaardelijk de redo-geschiedenis van elk gekoppeld document).
       const currentCal = pool.calendars[idx] as unknown as Record<string, unknown>;
       if (Object.entries(updates).every(([k, v]) => sameValue(currentCal[k], v))) return;
       Object.assign(pool.calendars[idx], updates);
@@ -674,7 +415,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const idx = pool?.resources.findIndex(r => r.id === resourceId) ?? -1;
       if (!pool || idx < 0) return;
       Object.assign(pool.resources[idx], updates);
-      // Een kostenresource in de pool draagt geen tarief, kalender, eenheid, ploeg (issue #815).
       if (isCostResource(pool.resources[idx])) clearCostResourceFields(pool.resources[idx]);
       s.pools[companyId] = bumpPool(pool);
     });
@@ -698,8 +438,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const pool = s.pools[companyId];
       if (!pool) return;
       pool.resources = pool.resources.filter(r => r.id !== resourceId);
-      // Spiegelt resourceSlice.removeResource — leden van een verwijderde
-      // ploeg (CREW) vallen terug op geen ouder, anders houdt de pool een dangling parentId over.
       for (const r of pool.resources) {
         if (r.parentId === resourceId) r.parentId = undefined;
       }
@@ -716,9 +454,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       if (!pool) return;
       const id = generateId('res');
       const { libraryOrigin: _o, parentId: _p, calendarId: _c, ...rest } = resource as import('@/types/resource').Resource;
-      // Een nieuwe bibliotheekresource krijgt automatisch de eerste vrije paletkleur
-      // (tenzij de aanroeper er een meegaf). Promoties vanuit het project doen dat bewust NIET —
-      // die kunnen al een gekozen kleur dragen.
       const color = rest.color ?? nextFreePaletteColor(pool.resources);
       pool.resources.push({ ...structuredClone(rest), id, color });
       s.pools[companyId] = bumpPool(pool);
@@ -747,31 +482,20 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const company = s.companies.find(c => c.id === companyId);
       if (!company) return;
       const previous = s.project.companyId;
-      // Omkoppelen: alleen de strip-tak is een gebruikersgebaar dat undo-bare
-      // dataverlies veroorzaakt (stempels verdwijnen) — die krijgt een undo-snapshot. Een pure
-      // (her)bind naar hetzelfde bedrijf (of de EERSTE bind vanuit ongebonden) strip niets en mag dus
-      // GEEN loze undo-stap opleveren.
       const isRebind = !!previous && previous !== companyId;
       if (isRebind) runtime.beginUndoable(s);
       s.project.companyId = company.id;
       s.project.companyName = company.name;
       s.project.modifiedAt = new Date().toISOString();
-      // Omkoppelen: stempels van het VORIGE bedrijf zijn nu vreemd — strip ze zodat de
-      // herkenningsstap schoon herbegint. Matches worden daarna opnieuw voorgesteld/gelinkt.
       if (isRebind) {
         stripLibraryOrigins(s, previous);
         refreshProjectCalendarCache(s);
       }
-      // isDirty blijft onvoorwaardelijk (élke bind is een wijziging); scheduleStale blijft ongemoeid
-      // (strippen van een stempel raakt geen kalenderWAARDEN, dus geen datumimpact).
       runtime.finishMutation(s);
     });
   },
 
   addLibraryCalendarToProject: (companyId, poolCalendarId) => {
-    // Materialiseren gebeurt UITSLUITEND op een project dat al aan dit bedrijf gekoppeld is; een
-    // ongebonden project wordt nooit stil gebonden — de UI (Bedrijfsweergave) toont materialiseren
-    // alleen voor een gekoppeld project. Anders: no-op + warn.
     if (get().project.companyId !== companyId) {
       appLog.emit('warn', 'library', `materialisatie genegeerd: actief project niet aan bedrijf ${companyId} gekoppeld (project=${get().project.companyId ?? 'geen'})`);
       return { added: false, calendarId: null };
@@ -780,13 +504,10 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     set((s) => {
       const draftPool = s.pools[companyId];
       if (!draftPool) return;
-      // De copy-helper doet `structuredClone` op de bron-pool-items; een Immer-draft-proxy is niet
-      // kloonbaar (DataCloneError). `current()` levert een gewone snapshot van de (ongemuteerde) pool.
       const pool = current(draftPool);
       const copy = copyCalendarToProject(pool, poolCalendarId, s.calendars, generateId);
       if (!copy) return;
       if (copy.reused) {
-        // Hergebruik = geen mutatie ⇒ vóór beginUndoable terugkeren, geen loze undo-stap.
         result = { added: false, calendarId: copy.calendar.id };
         return;
       }
@@ -796,15 +517,11 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       result = { added: true, calendarId: copy.calendar.id };
       runtime.finishMutation(s);
     });
-    // Pure kalender-mutatie → histogram verversen (spiegel resourceSlice.addCalendar:224-225).
     get().recomputeResourceLoad();
     return result;
   },
 
   addLibraryResourceToProject: (companyId, poolResourceId) => {
-    // Materialiseren gebeurt UITSLUITEND op een project dat al aan dit bedrijf gekoppeld is; een
-    // ongebonden project wordt nooit stil gebonden — de UI (Bedrijfsweergave) toont materialiseren
-    // alleen voor een gekoppeld project. Anders: no-op + warn.
     if (get().project.companyId !== companyId) {
       appLog.emit('warn', 'library', `materialisatie genegeerd: actief project niet aan bedrijf ${companyId} gekoppeld (project=${get().project.companyId ?? 'geen'})`);
       return { added: false, resourceId: null };
@@ -813,18 +530,14 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     set((s) => {
       const draftPool = s.pools[companyId];
       if (!draftPool) return;
-      // Zie addLibraryCalendarToProject: snapshot de draft-pool voordat de copy-helper 'm kloont.
       const pool = current(draftPool);
       const copy = copyResourceToProject(pool, poolResourceId, s.resources, s.calendars, generateId);
       if (!copy) return;
       if (copy.reused) {
-        // Hergebruik = geen mutatie ⇒ vóór beginUndoable terugkeren, geen loze undo-stap.
-        // (Bij reused levert copyResourceToProject nooit een travelingCalendar, dus niets te doen.)
         result = { added: false, resourceId: copy.resource.id };
         return;
       }
       runtime.beginUndoable(s);
-      // Meereizende kalender toevoegen als hij vers is (dedup gaf `reused: true` ⇒ al aanwezig).
       if (copy.travelingCalendar && !copy.travelingCalendar.reused) {
         s.calendars = [...s.calendars, copy.travelingCalendar.calendar];
       }
@@ -832,7 +545,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       result = { added: true, resourceId: copy.resource.id };
       runtime.finishMutation(s);
     });
-    // Pure resource-mutatie → histogram + rijen verversen (spiegel resourceSlice.addResource:61-64).
     get().recomputeResourceLoad();
     get().recomputeViewRows();
     return result;
@@ -864,21 +576,15 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const companyId = cal?.libraryOrigin?.companyId;
       const draftPool = companyId ? s.pools[companyId] : undefined;
       if (!cal || !cal.libraryOrigin || !draftPool) return;
-      // Draft-snapshots: applyCalendarUpdate doet structuredClone op de pool-bron; een Immer-draft-proxy
-      // is niet kloonbaar (DataCloneError, zie de add-acties) → `current()`.
       const pool = current(draftPool);
       const snapCal = current(cal);
-      // Alleen écht bijwerken als er iets te bijwerken VALT ('changed') — vóór beginUndoable, geen
-      // loze undo-stap bij een no-op: dat geldt niet alleen voor 'removed' (origineel weg) maar ook
-      // voor 'up-to-date' (project is al gelijk aan de pool).
       if (diffCalendarVsPool(snapCal, pool).status !== 'changed') return;
       runtime.beginUndoable(s);
-      // Expliciet gebaar ⇒ de werkregel-settle zit in DEZELFDE undo-stap als de kalender.
       settled = applyCalendarLibraryChange(s, (d) => {
         d.calendars[idx] = applyCalendarUpdate(snapCal, pool);
-        syncProjectCalendar(d); // gedenormaliseerde projectkalender-cache in sync.
+        syncProjectCalendar(d);
       });
-      runtime.finishMutation(s, { stale: true }); // kalenderwijziging raakt datums.
+      runtime.finishMutation(s, { stale: true });
     });
     notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, settled);
     get().recomputeResourceLoad();
@@ -892,13 +598,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const companyId = res?.libraryOrigin?.companyId;
       const draftPool = companyId ? s.pools[companyId] : undefined;
       if (!res || !res.libraryOrigin || !draftPool) return;
-      // Zie updateProjectCalendarFromLibrary: snapshot de draft vóór applyResourceUpdate 'm kloont.
       const pool = current(draftPool);
       const snapRes = current(res);
-      // No-op vóór beginUndoable: alleen 'changed' rechtvaardigt een mutatie — 'removed'
-      // (origineel weg) én 'up-to-date' (al gelijk) leveren beide geen undo-stap op.
       if (diffResourceVsPool(snapRes, pool).status !== 'changed') return;
-      // Typewissel naar of van COST met toewijzingen: weigeren met melding (issue #815).
       if (resourceUpdateBlocked(snapRes, pool, s.assignments)) { refusedCostTypeChange = true; return; }
       runtime.beginUndoable(s);
       s.resources[idx] = applyResourceUpdate(snapRes, pool, s.assignments);
@@ -906,7 +608,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     });
     if (refusedCostTypeChange) notifyCostTypeChangeRefused(get().notify);
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
   },
 
   exportPoolIFC: (companyId) => {
@@ -918,10 +620,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const state = get();
     const company = state.companies.find(c => c.id === companyId);
     if (!company) return;
-    // De geïmporteerde pool krijgt het DOEL-companyId (import in een gekozen bedrijf).
-    // Eerst normaliseren: een vorm-invalide pool — bijv. een hand-gemaakt
-    // of door een derde tool geproduceerd OPS_Library-bestand zonder resources/calendars — mag na
-    // import nooit een TypeError geven op een latere `.push`/`.find` (promote, addLibrary*ToProject).
     const normalized = {
       ...normalizePool(companyId, pool, state.companies),
       companyName: company.name,
@@ -949,11 +647,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   importPoolAsNewCompany: (pool) => {
     const state = get();
     const name = resolveUniqueCompanyName(pool.companyName ?? '', state.companies.map((c) => c.name));
-    // Behoud het companyId uit het bestand ALLEEN als het (a) lokaal nog vrij is, (b) GEEN reserved
-    // id is (DEFAULT_COMPANY_ID/DEMO_COMPANY_ID zijn géén identiteitsbewijs, vrijwel elke
-    // installatie deelt ze) en (c) een veilige state-sleutel is (een vijandig
-    // bestand-id als "__proto__" mag nooit als Immer-draft-sleutel eindigen). Anders een vers id,
-    // net als bij een naamsbotsing (zie de uitgebreide toelichting bij de interface hierboven).
     const fileId = pool.companyId;
     const canKeepFileId = !!fileId
       && isSafeFileCompanyId(fileId)
@@ -962,10 +655,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const id = canKeepFileId ? fileId : generateId('company');
     const company: Company = { id, name };
     const companies = [...state.companies, company];
-    // Zelfde defensieve normalisatie als replacePool (vorm-invalide bestand ⇒ geen TypeError op
-    // een latere .push/.find in promote/add-acties); companyName wordt daarna overschreven met de
-    // (mogelijk gededupliceerde) `name` — normalizePoolShape zou anders het RUWE pool.companyName
-    // laten staan.
     const normalized = { ...normalizePoolShape(id, pool, companies), companyName: name };
     const pools = { ...state.pools, [id]: normalized };
     const activation = materializeLibraryBoundary({
@@ -986,8 +675,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     });
     notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
     persist(get);
-    // De actie koppelt het actieve project niet automatisch. Alleen een al in het bestand aanwezige
-    // binding met hetzelfde, behouden companyId kan hierdoor meteen zijn open-boundary doorlopen.
     return id;
   },
 
@@ -1019,8 +706,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   refreshAllDocumentsFromPool: (companyId) => {
     let changed = 0;
     let activeSettle = NO_CALENDAR_LIBRARY_SETTLE;
-    // Documenten waarvan een kalender ververste: hun strookgetal ("datums zoals opgeslagen") telt
-    // ná de producer opnieuw (`recountRecordedShift`), ook voor slapende documenten.
     const calendarRefreshed: string[] = [];
     set((s) => {
       if (!s.companies.some((c) => c.id === companyId)) return;
@@ -1028,13 +713,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       if (!draftPool) return;
       const pool = current(draftPool);
 
-      // Behind-only: alleen items waarvan het BESTAND ongewijzigd is (file == syncedHash) maar de
-      // pool wijkt af. 'deviated' blijft staan. Per-BESTEMMING tellers (niet gedeeld tussen het
-      // actieve document en elke slapende payload) — zo wijzen we
-      // `s.calendars`/`s.resources`/`doc.payload.*` alleen opnieuw toe, wissen we de botsende
-      // redo-history en zetten we scheduleStale alleen als er in DIE ENE bestemming ook echt iets
-      // ververst is. Geen identiteitschurn bij nul treffers, geen te-brede redo-wis over slapende
-      // documenten die deze pool-edit niet raakten.
       const refreshCalendars = (
         cals: import('@/types/calendar').WorkCalendar[],
       ): { items: import('@/types/calendar').WorkCalendar[]; calChanged: number } => {
@@ -1056,32 +734,19 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
           if (res.libraryOrigin?.companyId !== companyId) return res;
           if (classifyResourceOnOpen(res, pool) !== 'behind') return res;
           resChanged++;
-          // Een typewissel over de COST-grens met toewijzingen gaat niet door (issue #815): de
-          // resource blijft zoals hij is en staat daarna als afwijking (`applyResourceUpdate`).
           return applyResourceUpdate(res, pool, assignments);
         });
         return { items, resChanged };
       };
 
-      // Actief document (top-level) — alleen als het aan dit bedrijf gekoppeld is.
       if (s.project.companyId === companyId) {
         const cals = refreshCalendars(s.calendars.map((c) => current(c)));
         const ress = refreshResources(s.resources.map((r) => current(r)), s.assignments);
         const docChanged = cals.calChanged + ress.resChanged;
-        // De redo-history-wis is ONVOORWAARDELIJK voor elk document dat
-        // aan DIT bedrijf gebonden is, losgekoppeld van `docChanged` — een pool-bump (elke mutatie die
-        // hier binnenkomt via updatePool*/removePool*/promote*) mag een "opnieuw" op dit document nooit
-        // meer laten terugzetten naar een toestand van vóór de bump, ook als er toevallig nul 'behind'-
-        // items waren (bv. alle kopieën waren al 'deviated', of raakten alleen niet-gevolgde velden).
-        // De array-toewijzingen/scheduleStale/recomputes blijven wél achter hun tellers (geen
-        // identiteitschurn bij nul treffers).
         invalidateDocumentRedo(s, s.activeDocumentId);
         if (docChanged > 0) {
           if (ress.resChanged > 0) s.resources = ress.items;
           if (cals.calChanged > 0) {
-            // Zelfde regel als de kalenderdialoog: taken met een werkregel settelen op de nieuwe
-            // uren per dag. Net als de verversing zelf buiten undo en isDirty: heropenen zonder
-            // opslaan ververst en settelt opnieuw tot hetzelfde.
             activeSettle = applyCalendarLibraryChange(s, (d) => {
               d.calendars = cals.items;
               refreshProjectCalendarCache(d);
@@ -1089,45 +754,32 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
           }
           refreshProjectCalendarCache(s);
           if (cals.calChanged > 0) {
-            markScheduleStale(s); // kalenderwijziging raakt datums (geen isDirty, geen runCPM)
+            markScheduleStale(s);
             calendarRefreshed.push(s.activeDocumentId);
           }
           changed += docChanged;
         }
       }
 
-      // Slapende payloads: muteer binnen dezelfde set(); herrekening pas bij activering.
       for (const doc of s.documents) {
-        if (!doc.payload) continue; // actief document heeft payload===null.
-        // Lokale const ná de null-guard: TS narrowt `doc.payload` niet door de `.find()`-callback
-        // hieronder heen (property-narrowing overleeft geen geneste closure), een losse const wel.
+        if (!doc.payload) continue;
         const payload = doc.payload;
         if (payload.project.companyId !== companyId) continue;
         const cals = refreshCalendars(payload.calendars.map((c) => current(c)));
         const ress = refreshResources(payload.resources.map((r) => current(r)), payload.assignments);
         const docChanged = cals.calChanged + ress.resChanged;
-        // Zelfde onvoorwaardelijke redo-wis-garantie voor elke SLAPENDE payload die aan dit
-        // bedrijf gebonden is (zie toelichting bij de actieve-documenttak hierboven).
         invalidateDocumentRedo(s, doc.id);
         if (docChanged > 0) {
           if (ress.resChanged > 0) payload.resources = ress.items;
           if (cals.calChanged > 0) {
-            // Dezelfde settle op de EIGEN taken en toewijzingen van dit slapende document (zie de
-            // actieve tak). De melding wacht tot het document weer actief wordt — dan staat ze bij
-            // het document waar ze over gaat (`DocumentEntry.pendingWorkRuleSettle`, `switchDocument`).
             const settled = applyCalendarLibraryChange(payload, (p) => {
               p.calendars = cals.items;
-              // De gedenormaliseerde projectkalender-cache van deze
-              // SLAPENDE payload meesyncen met de zojuist ververste `calendars` — zonder dit blijft
-              // `payload.calendar` de OUDE (mogelijk stale) waarde dragen terwijl de auto-save die
-              // cache rechtstreeks serialiseert (geen hydrate), wat verkeerde uren in de recovery-IFC
-              // oplevert. Alleen binnen deze tak (calendars daadwerkelijk gewijzigd).
               refreshProjectCalendarCache(p);
             });
             if (settled.changed + settled.lost > 0) {
               doc.pendingWorkRuleSettle = mergeCalendarLibrarySettle(doc.pendingWorkRuleSettle ?? NO_CALENDAR_LIBRARY_SETTLE, settled);
             }
-            markScheduleStale(payload); // zichtbaar bij switchDocument/activering
+            markScheduleStale(payload);
             calendarRefreshed.push(doc.id);
           }
           changed += docChanged;
@@ -1147,7 +799,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const s = get();
     const res = s.resources.find((r) => r.id === resourceId);
     const companyId = res?.libraryOrigin?.companyId;
-    // Alleen eigen-bedrijf-stempels van een lokaal bestaand bedrijf.
     if (!res || !companyId || companyId !== s.project.companyId || !s.companies.some((c) => c.id === companyId)) return null;
     const pool = s.pools[companyId];
     return pool ? classifyResourceOnOpen(res, pool) : null;
@@ -1168,14 +819,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const pool = s.pools[companyId];
     if (!pool) return [];
     const out: RecognitionCandidate[] = [];
-    // Alleen binnen deze aanroep; volledig gestempelde itemsoorten hoeven geen index te bouwen.
     let matchResourceName: ReturnType<typeof createNameMatcher<typeof pool.resources[number]>> | undefined;
     let matchCalendarName: ReturnType<typeof createNameMatcher<typeof pool.calendars[number]>> | undefined;
     for (const r of s.resources) {
-      // Herkenning is UITSLUITEND voor stempel-loze items — een item
-      // met een stempel van een ANDER bedrijf (bijv. ná omkoppelen-zonder-undo, of een undo die de
-      // strip-tak ongedaan maakte terwijl het project inmiddels aan B gekoppeld is) hoort hier niet
-      // als kandidaat te verschijnen.
       if (r.libraryOrigin) continue;
       matchResourceName ??= createNameMatcher(pool.resources);
       const m = matchResourceName(r.name);
@@ -1198,32 +844,23 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const draftPool = s.pools[companyId];
       if (!draftPool) return;
       const pool = current(draftPool);
-      // Een verdwenen kandidaat (poolId niet meer in de pool — bv. een race met
-      // removePoolResource/removePoolCalendar) mag niet knallen; stille pre-scan zodat we (a) een
-      // link zonder geldig poolitem straks stil overslaan én (b) GEEN undo-snapshot pushen als er
-      // over de hele linkset niets toepasbaars overblijft (geen loze undo-stap).
       const anyApplicable = links.some((link) => link.kind === 'resource'
         ? pool.resources.some((r) => r.id === link.poolId)
         : pool.calendars.some((c) => c.id === link.poolId));
       if (!anyApplicable) return;
-      // Dit is een expliciet gebruikersgebaar — undoable, met de gebruikelijke
-      // slice-conventie (beginUndoable vóór, finishMutation ná de mutatie).
       runtime.beginUndoable(s);
       let calendarLinked = false;
-      // Alles in één set() — atomisch, geen half-gestempelde tussentoestand.
       for (const link of links) {
         if (link.kind !== 'resource') continue;
-        if (!pool.resources.some((r) => r.id === link.poolId)) continue; // verdwenen kandidaat ⇒ stille skip
+        if (!pool.resources.some((r) => r.id === link.poolId)) continue;
         const idx = s.resources.findIndex((r) => r.id === link.projectId);
         if (idx < 0) continue;
         const stamped = { ...current(s.resources[idx]), libraryOrigin: makeOrigin(pool, link.poolId) };
-        s.resources[idx] = applyResourceUpdate(stamped, pool, s.assignments); // stempelt + ververst + zet syncedHash
+        s.resources[idx] = applyResourceUpdate(stamped, pool, s.assignments);
       }
       const calendarLinks = links.filter((link) => link.kind === 'calendar'
-        && pool.calendars.some((c) => c.id === link.poolId)); // verdwenen kandidaat ⇒ stille skip
+        && pool.calendars.some((c) => c.id === link.poolId));
       if (calendarLinks.length > 0) {
-        // Koppelen neemt de bibliotheekwaarden over ⇒ taken met een werkregel settelen, in
-        // DEZELFDE undo-stap als het koppelen (expliciet gebaar).
         settled = applyCalendarLibraryChange(s, (d) => {
           for (const link of calendarLinks) {
             const idx = d.calendars.findIndex((c) => c.id === link.projectId);
@@ -1236,7 +873,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         });
       }
       refreshProjectCalendarCache(s);
-      // Een gelinkte kalender raakt datums ⇒ scheduleStale (patroon updateProjectCalendarFromLibrary).
       runtime.finishMutation(s, { stale: calendarLinked });
     });
     notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, settled);
@@ -1246,8 +882,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
 
   unbindProject: () => {
     set((s) => {
-      // Een al-los project (geen binding, dus per invariant ook geen stempels) is een
-      // no-op — geen loze undo-stap.
       if (!s.project.companyId) return;
       runtime.beginUndoable(s);
       s.project.companyId = undefined;
@@ -1264,7 +898,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const companyId = get().project.companyId;
     if (!companyId) return;
     if (choice === 'company') {
-      // Neem poolwaarde over: gerichte niet-undoable verversing van dit ene item.
       let refusedCostTypeChange = false;
       let settled = NO_CALENDAR_LIBRARY_SETTLE;
       let calendarRefreshed = false;
@@ -1275,18 +908,15 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         if (ref.kind === 'resource') {
           const idx = s.resources.findIndex((r) => r.id === ref.projectId);
           if (idx < 0 || diffResourceVsPool(current(s.resources[idx]), pool).status !== 'changed') return;
-          // Typewissel naar of van COST met toewijzingen: weigeren met melding (issue #815).
           if (resourceUpdateBlocked(current(s.resources[idx]), pool, s.assignments)) { refusedCostTypeChange = true; return; }
           s.resources[idx] = applyResourceUpdate(current(s.resources[idx]), pool, s.assignments);
         } else {
           const idx = s.calendars.findIndex((c) => c.id === ref.projectId);
           if (idx < 0 || diffCalendarVsPool(current(s.calendars[idx]), pool).status !== 'changed') return;
-          // De werkregel-settle hoort bij de verversing en is dus net zo niet-undoable.
           settled = applyCalendarLibraryChange(s, (d) => {
             d.calendars[idx] = applyCalendarUpdate(current(d.calendars[idx]), pool);
             refreshProjectCalendarCache(d);
           });
-          // Kalenderwaarden gewijzigd ⇒ scheduleStale (geen isDirty, geen runCPM).
           markScheduleStale(s);
           calendarRefreshed = true;
         }
@@ -1299,30 +929,18 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       get().recomputeViewRows();
       return;
     }
-    // choice === 'file': schrijf de BESTANDSwaarde naar het poolitem (bump), zet de verse syncedHash op
-    // het net-geopende item, en ververs de siblings (geen dubbele verversing van dit item).
     set((s) => {
       const draftPool = s.pools[companyId];
       if (!draftPool) return;
       if (ref.kind === 'resource') {
-        // findIndex + current(s.resources[idx]) (bewezen patroon elders in dit bestand, zie
-        // resolveDeviation('company')/linkRecognizedItems) — current() op het RESULTAAT van
-        // .find() zelf faalt onder Immer ("expects a draft"), dus altijd via de index.
         const rIdx = s.resources.findIndex((r) => r.id === ref.projectId);
         if (rIdx < 0) return;
         const item = current(s.resources[rIdx]);
         const libId = item.libraryOrigin?.libraryItemId;
         const pIdx = libId ? draftPool.resources.findIndex((r) => r.id === libId) : -1;
         if (pIdx < 0) return;
-        // Overschrijf de gevolgde velden van het poolitem met de bestandswaarden.
         for (const f of RESOURCE_DIFF_FIELDS_LOCAL) (draftPool.resources[pIdx] as unknown as Record<string, unknown>)[f] = (item as unknown as Record<string, unknown>)[f];
-        // Werd het poolitem zo een kostenresource, dan draagt het geen tarief, kalender, stappen,
-        // eenheid, ploeg of capaciteit meer van zijn vorige type (issue #815).
         if (isCostResource(draftPool.resources[pIdx])) clearCostResourceFields(draftPool.resources[pIdx]);
-        // Bewezen patroon (zie promoteResourceToPool hierboven): werk verder met de PLAIN
-        // `bumped`-return-waarde, niet met een current()-herlezing van s.pools[companyId] — die
-        // combinatie (plain top-level object met nog-proxied nested arrays) laat Immers current()
-        // stikken ("expects a draft, got: [object Object]").
         const bumped = bumpPool(draftPool);
         s.pools[companyId] = bumped;
         const newHash = computeResourceHash(bumped.resources[pIdx]);
@@ -1341,31 +959,20 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         s.calendars[cIdx] = { ...item, libraryOrigin: makeOrigin(bumped, libId!, newHash) };
         refreshProjectCalendarCache(s);
       }
-      // Niet-undoable (spiegel de 'company'-tak hierboven): wis botsende redo-history expliciet. Zonder dit
-      // overleeft een bestaande redo-entry het oplossen van precies één afwijking (de sibling-
-      // verversing hieronder wist 'm alleen bij docChanged>0) — "opnieuw" zou dan oude stempels
-      // over de zojuist gebumpte pool kunnen terugzetten.
       invalidateDocumentRedo(s, s.activeDocumentId);
     });
     persist(get);
-    // Siblings in alle open/slapende documenten volgen de nieuwe pool. Het net-opgeloste
-    // item is nu gelijk aan de pool (diff up-to-date) ⇒ refreshAllDocumentsFromPool raakt het niet.
     get().refreshAllDocumentsFromPool(companyId);
   },
 
   unlinkResourceFromLibrary: (resourceId) => {
     set((s) => {
       const idx = s.resources.findIndex((r) => r.id === resourceId);
-      if (idx < 0 || !s.resources[idx].libraryOrigin) return; // onbekend id of al stempel-loos: no-op.
+      if (idx < 0 || !s.resources[idx].libraryOrigin) return;
       runtime.beginUndoable(s);
       const calendarId = s.resources[idx].calendarId;
       const { libraryOrigin: _drop, ...rest } = s.resources[idx];
       s.resources[idx] = rest;
-      // "Losmaken" moet ook de MEEGEREISDE kalenderkopie loskoppelen —
-      // anders blijft die de pool volgen (bijwerken vanuit bibliotheek, afwijkingsvragen) terwijl de
-      // resource zelf al los is, precies wat losmaken hoort te voorkomen. Alleen strippen als geen
-      // ENKELE ANDERE, nog gestempelde resource dezelfde kalender gebruikt (anders trek je 'm onder
-      // een collega vandaan die 'm nog wél via de bibliotheek wil laten volgen). Zelfde undo-snapshot.
       if (calendarId) {
         const calIdx = s.calendars.findIndex((c) => c.id === calendarId);
         const cal = calIdx >= 0 ? s.calendars[calIdx] : undefined;
@@ -1376,61 +983,33 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
           if (!stillFollowed) {
             const { libraryOrigin: _calDrop, ...calRest } = cal;
             s.calendars[calIdx] = calRest;
-            // Gedenormaliseerde projectkalender-cache meesyncen als dit de projectdefault was.
             refreshProjectCalendarCache(s);
           }
         }
       }
       runtime.finishMutation(s);
     });
-    // Puur stempels weg: geen enkel bewaard VELD verandert (naam/type/tarief/eenheid/maxUnits/kalender-
-    // INHOUD blijven exact wat ze waren), dus geen datumimpact en geen belasting-/rijenherberekening
-    // nodig — anders dan updateResource/removeResource hierboven raakt dit geen CPM- of tabelinvoer.
   },
 
   applyDistribution: (proposal, scopeTaskIdsByDoc) => {
     const plan = planDistributionWrites(proposal, scopeTaskIdsByDoc);
     if (!plan.ok) return { ok: false, reason: plan.reason };
 
-    // Een lopende coalesce-reeks (Gantt-sleep, tikken in een invoerveld) mag deze samengestelde
-    // bewerking niet opslokken: `finishUndoable` zou het `after` van dát oudere event bijschrijven
-    // in plaats van een eigen event te maken, en dan is er geen event om in het record te zetten.
     runtime.resetUndoCoalescing();
 
     const state = get();
     const activeWrite = plan.writes.find((w) => w.docId === state.activeDocumentId);
     const sleepingWrites = plan.writes.filter((w) => w.docId !== state.activeDocumentId);
 
-    // Fase 1 — BUITEN de producer: draai elke slapende write in zijn eigen, wegwerpbare scratch-
-    // instantie (`runInScratchDocument`). Zolang hier niets geschreven is naar `s.documents`, is de
-    // hele actie nog terug te trekken — precies de atomiciteitsgarantie van
-    // `recalculateStaleSleepingDocuments`. De scratch-context draait de ECHTE actie (applyLeveling →
-    // wissen van sub-dag-vertragingen, `finishMutation({ stale: true })`, `runCPM`, meldingen);
-    // zijn EIGEN `historyEvents` worden weggegooid — het history-event voor dit document schrijven
-    // we hieronder zelf, in de app-globale sessiechronologie waar undo/redo daadwerkelijk uit
-    // kiest.
     const sleepingResults: { docId: string; before: DocumentPayload; after: DocumentPayload }[] = [];
-    // Meldingen uit de scratch-runs worden GEOOGST maar nog NIET gepusht. Ze horen bij een
-    // bewerking die pas in fase 2 werkelijkheid wordt; ze eerder tonen zou de gebruiker vertellen
-    // over een verlies (afronding van sub-dag-vertragingen) in een document dat na een afbreking
-    // hieronder ongewijzigd is gebleven. Pas ná fase 2 gaan ze het echte kanaal in.
     const pendingNotifications: NotifyInput[] = [];
     for (const w of sleepingWrites) {
       const entry = state.documents.find((d) => d.id === w.docId);
-      if (!entry?.payload) continue; // tussentijds gesloten/geactiveerd — dit document doet niet meer mee.
-      // Het ECHTE docId gaat mee de scratch-context in (derde singleton-rand, zie
-      // `runInScratchDocument`): `applyLeveling` sleutelt zijn eenmalige afrondingsmelding op
-      // `activeDocumentId`, en die gate is app-globale sessie-state. Zonder dit id claimde de
-      // scratch-run 'm voor een vreemd document.
+      if (!entry?.payload) continue;
       const out = runInScratchDocument(entry.payload, (s) => {
         s.applyLeveling(w.write, { scopeTaskIds: w.scopeTaskIds });
       }, w.docId);
       pendingNotifications.push(...out.notifications);
-      // Twee manieren waarop een slapende write kan vastlopen — zie `DistributionApplyResult`:
-      // `fn` gooide, óf de `runCPM` in de scratch leverde een `cpmResult.error` (relatiecyclus).
-      // Allebei blokkerend: er is nog NIETS gemuteerd (het actieve document komt pas hierna aan de
-      // beurt, en de eerdere scratch-runs schreven alleen naar hun eigen, weggegooide payload), dus
-      // de hele actie stopt hier zonder halve staat — en zonder de opgespaarde meldingen te pushen.
       const cpmError = out.ok ? out.payload.cpmResult?.error : undefined;
       if (!out.ok || cpmError) {
         return { ok: false, reason: 'scratch-failed', docId: w.docId, error: out.error ?? cpmError };
@@ -1438,14 +1017,8 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       sleepingResults.push({ docId: w.docId, before: entry.payload, after: out.payload });
     }
 
-    // Het actieve document (als het meedoet), via het GEWONE pad: `applyLeveling` opent zelf zijn
-    // undoable en draait zelf `runCPM` — precies dezelfde actie als een gebruiker zou triggeren.
-    // `runCPM` ververst daarna het `after` van datzelfde event (`refreshLatestDocumentDataHistoryAfter`),
-    // zodat de doorgerekende datums in dezelfde ene undo-stap zitten. Dat is gewenst.
     let activeEvent: { id: string; sequence: number } | null = null;
     if (activeWrite) {
-      // Anker: alles vanaf hier is ván deze aanroep. `nextHistorySequence` loopt door over pruning
-      // heen, dus dit is een betrouwbare ondergrens (anders dan een index of een diepte).
       const sequenceBefore = get().nextHistorySequence;
       get().applyLeveling(activeWrite.write, { scopeTaskIds: activeWrite.scopeTaskIds });
       activeEvent = latestDocumentDataEventSince(
@@ -1453,19 +1026,12 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       );
     }
 
-    // Fase 2 — ÉÉN producer: de nieuwe slaper-payloads terugschrijven ÉN per slaper het history-event
-    // registreren dat "alles terugdraaien" straks moet herkennen. Beide in dezelfde producer, want een
-    // payload zonder event zou onterugdraaibaar zijn en een event zonder payload zou een niet-bestaande
-    // wijziging beloven. Sla een document over dat intussen gesloten of geactiveerd is
-    // (`entry.payload === null`), exact zoals `recalculateStaleSleepingDocuments` dat doet.
     const sleepingEvents = new Map<string, { id: string; sequence: number }>();
     if (sleepingResults.length > 0) {
       set((s) => {
         for (const r of sleepingResults) {
           const entry = s.documents.find((d) => d.id === r.docId);
           if (!entry || entry.payload === null) continue;
-          // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen (zie
-          // `documentSlice` voor dezelfde reden).
           entry.payload = castDraft(r.after);
           const event = recordSessionHistoryDeltas(s, DISTRIBUTION_HISTORY_LABEL, [{
             kind: 'document-data',
@@ -1478,9 +1044,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       });
     }
 
-    // Bouw het record — alleen voor documenten die daadwerkelijk geschreven zijn (een tussentijds
-    // gesloten slaper werd hierboven al overgeslagen; een write die per saldo niets veranderde
-    // levert géén event en hoort dus ook niet in een "alles terugdraaien").
     const docs: DistributionApplyRecord['docs'] = [];
     if (activeWrite && activeEvent) {
       const docResult = proposal.docs.find((d) => d.docId === activeWrite.docId);
@@ -1502,8 +1065,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     }
     if (docs.length === 0) return { ok: false, reason: 'nothing-to-write' };
 
-    // Nú pas de opgespaarde scratch-meldingen (rand (b) in `scratchDocument.ts`): alles is
-    // geschreven, dus wat de slapers te melden hadden gáát ook echt over hun nieuwe staat.
     for (const n of pendingNotifications) get().notify(n);
 
     return {
@@ -1520,11 +1081,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const activeEntry = record.docs.find((d) => d.docId === state.activeDocumentId);
     const sleepingEntries = record.docs.filter((d) => d.docId !== state.activeDocumentId);
 
-    // Fase 1 — PUUR bepalen wie er terug mag. Per document geldt de poort van
-    // `distributionUndoTarget`: het event bestaat nog, staat op `applied`, en is het event dat een
-    // gewone Ctrl+Z in dát document NU zou kiezen. Is dat niet zo, dan heeft de gebruiker er
-    // intussen in gewerkt (of is het document gesloten — `removeSessionHistoryForDocument` haalt de
-    // events dan weg) en zou terugdraaien de VERKEERDE stap ongedaan maken.
     const restores: { docId: string; before: Snapshot; eventId: string }[] = [];
     for (const d of sleepingEntries) {
       const entry = state.documents.find((x) => x.id === d.docId);
@@ -1537,8 +1093,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       restores.push({ docId: d.docId, before: delta.before, eventId: event.id });
     }
 
-    // Het actieve document, via het gewone `undo()`-pad — dat kiest per constructie precies dit
-    // event zodra de poort hierboven slaagt.
     if (activeEntry) {
       if (distributionUndoTarget(state.historyEvents, activeEntry.docId, activeEntry.historyEventId)) {
         get().undo();
@@ -1548,14 +1102,6 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       }
     }
 
-    // Fase 2 — ÉÉN producer: de `before`-snapshot terug in de slapende payload, en het event op
-    // `undone`. Een slaper heeft geen live state om `restoreSnapshot` op te draaien, dus de snapshot
-    // wordt over de payload gespreid; hij komt uit `snapshotOfPayload` van diezelfde payloadvorm, dus
-    // er valt niets te migreren en `project.calendarId`/`calendars`/`calendar` blijven onderling
-    // consistent. `resourceLoadResult: null` omdat `switchDocument` bij activering tóch
-    // onvoorwaardelijk `recomputeResourceLoad()` draait (en viewRows daar afleidt); `isDirty: true`
-    // spiegelt `restoreSnapshot` op het actieve pad. Redo loopt daarna over het gewone `redo()`-pad
-    // zodra de gebruiker dat document activeert: het event staat dan als enige op `undone`.
     const restoredDocIds: string[] = [];
     if (restores.length > 0) {
       set((s) => {

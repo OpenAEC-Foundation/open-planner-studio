@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mock } from 'node:test';
 import type { IfcOutput, IfcSaveJob } from '@/state/prepareIfcOutput';
 import type { IfcSaveResponse } from '@/services/ifc/saveWorker/ifcSaveProtocol';
 import type { IfcSaveWorkerOptions, IfcSaveWorkerPort } from '@/services/ifc/saveWorker/ifcSaveWorker';
@@ -36,6 +37,15 @@ async function check(name: string, action: () => void | Promise<void>) {
   try { await action(); passed++; console.log(`OK ${name}`); }
   catch (error) { failed++; console.error(`XX ${name}: ${String(error instanceof Error ? error.stack : error).slice(0, 1500)}`); }
 }
+function checkWithTimers(name: string, action: () => Promise<void>) {
+  return check(name, async () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    try { await action(); }
+    finally { mock.timers.reset(); }
+  });
+}
+const startTimeoutMs = 50;
+const requestTimeoutMs = 3_000;
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const turn = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 const read = (rel: string) => new Uint8Array(readFileSync(join(root, rel)));
@@ -240,21 +250,27 @@ await check('elke foutsoort van de grens komt terug als zichzelf, met haar gegev
   assert.equal(thrown.message, 'tekst');
 });
 
-await check('de worker start niet: de hoofdthread rekent en geeft hetzelfde', async () => {
+await checkWithTimers('de worker start niet: de hoofdthread rekent en geeft hetzelfde', async () => {
   const main = { writer: await outcome(() => computeIfcOutputHere(writerJob)), merge: await outcome(() => computeIfcOutputHere(mergeJob)) };
+  const jobs: readonly IfcSaveJob[] = [writerJob, mergeJob];
   const silent = new InProcessWorker('silent');
   const failing = new InProcessWorker('manual');
   const factories: Array<[string, () => IfcSaveWorkerPort | null, InProcessWorker?]> = [
     ['geen Worker', () => null],
     ['constructor weigert (sandbox)', () => { throw new Error('SecurityError'); }],
     ['geen started binnen de starttijd', () => silent, silent],
-    ['fout bij het laden', () => { setTimeout(() => failing.fail('module laadt niet'), 0); return failing; }, failing],
+    ['fout bij het laden', () => { queueMicrotask(() => failing.fail('module laadt niet')); return failing; }, failing],
   ];
   for (const [label, factory, port] of factories) {
     let created = 0;
-    const client = createIfcSaveWorker({ createWorker: () => { created++; return factory(); }, startTimeoutMs: 30 });
-    for (const job of [writerJob, mergeJob]) {
-      const viaFallback = await outcome(() => client.compute(job));
+    const client = createIfcSaveWorker({ createWorker: () => { created++; return factory(); }, startTimeoutMs });
+    for (const job of jobs) {
+      const run = outcome(() => client.compute(job));
+      if (port === silent && job === writerJob) {
+        await turn();
+        mock.timers.tick(startTimeoutMs);
+      }
+      const viaFallback = await run;
       sameOutcome(viaFallback, job.kind === 'writer' ? main.writer : main.merge, `${label}, ${job.kind}`);
     }
     assert.equal(created, 1, `${label}: na een startprobleem rekent de rest van de sessie de hoofdthread`);
@@ -264,15 +280,15 @@ await check('de worker start niet: de hoofdthread rekent en geeft hetzelfde', as
   }
 });
 
-await check('de worker sterft, overschrijdt de tijd of antwoordt verkeerd: een fout, de hoofdthread rekent niet opnieuw', async () => {
+await checkWithTimers('de worker sterft, overschrijdt de tijd of antwoordt verkeerd: een fout, de hoofdthread rekent niet opnieuw', async () => {
   for (const [label, act, reason] of [
     ['sterft', (w: InProcessWorker) => w.fail('Out of memory'), 'crashed'],
-    ['geen antwoord', () => undefined, 'timeout'],
+    ['geen antwoord', () => mock.timers.tick(requestTimeoutMs), 'timeout'],
     ['onleesbaar antwoord', (w: InProcessWorker) => w.onmessageerror?.call(w as unknown as Worker, {} as MessageEvent), 'transport'],
   ] as const) {
     const workers: InProcessWorker[] = [];
     const client = createIfcSaveWorker({
-      createWorker: () => { const w = new InProcessWorker('manual'); workers.push(w); return w; }, timeoutMs: () => 40,
+      createWorker: () => { const w = new InProcessWorker('manual'); workers.push(w); return w; }, timeoutMs: () => requestTimeoutMs,
     });
     const run = client.compute(mergeJob);
     await turn();
@@ -363,12 +379,12 @@ type WorkerKind = 'auto' | 'manual' | 'silent' | 'load-fails' | 'throws' | 'null
 function scriptedClient(kinds: readonly WorkerKind[], options: Omit<IfcSaveWorkerOptions, 'createWorker'> = {}) {
   const workers: InProcessWorker[] = [];
   let created = 0;
-  const client = createIfcSaveWorker({ startTimeoutMs: 30, ...options, createWorker: () => {
+  const client = createIfcSaveWorker({ ...options, createWorker: () => {
     const kind = kinds[created++] ?? 'auto';
     if (kind === 'throws') throw new Error('SecurityError');
     if (kind === 'null') return null;
     const w = new InProcessWorker(kind === 'load-fails' ? 'manual' : kind);
-    if (kind === 'load-fails') setTimeout(() => w.fail('module laadt niet'), 0);
+    if (kind === 'load-fails') queueMicrotask(() => w.fail('module laadt niet'));
     workers.push(w);
     return w;
   } });
@@ -376,8 +392,19 @@ function scriptedClient(kinds: readonly WorkerKind[], options: Omit<IfcSaveWorke
 }
 /** De uitkomst van een verzoek, zonder `reseed`: de proef zet de klok zelf vlak voor het antwoord van de worker. */
 const settled = (run: Promise<IfcOutput>): Promise<Outcome> => run.then(output => ({ output }), error => ({ error }));
-const isWorkerError = (result: Outcome, reason: string) =>
+const isWorkerError = (result: Outcome, reason: string): result is { readonly error: InstanceType<typeof IfcSaveWorkerError> } =>
   'error' in result && result.error instanceof IfcSaveWorkerError && result.error.reason === reason;
+
+async function answerChangedMerge({ client, workers }: ReturnType<typeof scriptedClient>) {
+  const run = outcome(() => client.compute(changedMergeJob));
+  await turn();
+  const worker = workers.at(-1)!;
+  assert.equal(worker.requests.length, 1, 'de nieuwe worker heeft het verzoek ontvangen');
+  assert.equal(worker.terminated, false, 'de nieuwe worker kan nog antwoorden');
+  worker.start();
+  await worker.answer(0);
+  return run;
+}
 
 const mainOf = {
   merge: await outcome(() => computeIfcOutputHere(mergeJob)),
@@ -397,7 +424,7 @@ await check('knownbug 1936: na elk antwoord op een merge stopt de worker, pas al
     cases.push(['geweigerd', refusedMergeJob!, refused]);
   }
   for (const [label, job, main] of cases) {
-    const { client, workers } = scriptedClient(['manual', 'manual'], { timeoutMs: () => 5_000 });
+    const { client, workers } = scriptedClient(['manual', 'manual']);
     const run = settled(client.compute(job));
     await turn();
     workers[0]!.start();
@@ -470,13 +497,13 @@ await check('twee verzoeken in de rij: het tweede wacht zijn beurt af, krijgt na
 const onMainThread = (result: Outcome) => 'output' in result && !result.output.prepared && result.output.bytes === undefined
   && typeof result.output.content === 'string';
 
-await check('knownbug 1936: een latere startfout. Een gewoon verzoek valt terug zoals op main, een merge wordt een fout', async () => {
+await checkWithTimers('knownbug 1936: een latere startfout. Een gewoon verzoek valt terug zoals op main, een merge wordt een fout', async () => {
   const broken: WorkerKind[] = ['silent', 'load-fails', 'throws', 'null'];
   // Wat er vóór de mislukte start gebeurde, telkens met een gestarte worker: een merge (de worker stopte gewoon, het geval
   // van de review van #1111: daarna de flag uit en een gewone planning), of een verzoek dat stierf, verliep of afgebroken
   // werd (Automatisch opslaan wijkt). De nieuwe worker daarna start niet.
   const before: Array<[string, (client: ReturnType<typeof scriptedClient>) => Promise<void>]> = [
-    ['na een merge', async ({ client }) => { sameOutcome(await outcome(() => client.compute(changedMergeJob)), mainOf.changed, 'de merge vooraf'); }],
+    ['na een merge', async scripted => { sameOutcome(await answerChangedMerge(scripted), mainOf.changed, 'de merge vooraf'); }],
     ['na een gestorven verzoek', async ({ client, workers }) => {
       const run = settled(client.compute(writerJob));
       await turn(); workers[0]!.start(); workers[0]!.fail('Out of memory');
@@ -485,6 +512,7 @@ await check('knownbug 1936: een latere startfout. Een gewoon verzoek valt terug 
     ['na een verlopen verzoek', async ({ client, workers }) => {
       const run = settled(client.compute(mergeJob));
       await turn(); workers[0]!.start();
+      mock.timers.tick(requestTimeoutMs);
       assert.ok(isWorkerError(await run, 'timeout'));
     }],
     ['na een afgebroken ronde', async ({ client, workers }) => {
@@ -499,14 +527,19 @@ await check('knownbug 1936: een latere startfout. Een gewoon verzoek valt terug 
   for (const [when, act] of before) {
     for (const kind of broken) {
       const label = `${when}, dan ${kind}`;
-      let limit = when === 'na een verlopen verzoek' ? 40 : 60_000;
-      const scripted = scriptedClient([when === 'na een merge' ? 'auto' : 'manual', kind, kind, 'auto'], { timeoutMs: () => limit });
+      const scripted = scriptedClient(['manual', kind, kind, 'manual'], {
+        startTimeoutMs, timeoutMs: () => requestTimeoutMs,
+      });
       await act(scripted);
-      limit = 60_000;
       assert.equal(scripted.workers[0]!.terminated, true, `${label}: de eerste worker is gestopt`);
       const brokenPort = () => (kind === 'throws' || kind === 'null' ? undefined : scripted.workers.at(-1));
       // Een gewoon verzoek: de verse worker start niet, dus rekent de hoofdthread, met dezelfde uitkomst (main).
-      const plain = await outcome(() => scripted.client.compute(writerJob));
+      const plainRun = outcome(() => scripted.client.compute(writerJob));
+      if (kind === 'silent') {
+        await turn();
+        mock.timers.tick(startTimeoutMs);
+      }
+      const plain = await plainRun;
       sameOutcome(plain, mainOf.writer, `${label}, gewoon: de terugval`);
       assert.ok(onMainThread(plain), `${label}, gewoon: de hoofdthread rekende`);
       assert.equal(scripted.created(), 2, `${label}, gewoon: één poging`);
@@ -516,12 +549,20 @@ await check('knownbug 1936: een latere startfout. Een gewoon verzoek valt terug 
       assert.ok(onMainThread(again), `${label}, gewoon daarna: weer de hoofdthread`);
       assert.equal(scripted.created(), 2, `${label}, gewoon daarna: geen nieuwe worker`);
       // Een merge daarna: wel een nieuwe worker, en die start niet: een fout, nooit de hoofdthread.
-      const failed = await outcome(() => scripted.client.compute(mergeJob));
+      const failedRun = outcome(() => scripted.client.compute(mergeJob));
+      if (kind === 'silent') {
+        await turn();
+        mock.timers.tick(startTimeoutMs);
+      }
+      const failed = await failedRun;
       assert.ok(isWorkerError(failed, 'not-started'), `${label}, merge: een fout, geen terugval (${'error' in failed ? String(failed.error) : 'een uitkomst'})`);
+      if (kind === 'load-fails') {
+        assert.equal(failed.error.message, 'module laadt niet', `${label}: de laadfout bereikt de client`);
+      }
       assert.equal(scripted.created(), 3, `${label}, merge: een eigen poging`);
       if (brokenPort()) assert.equal(brokenPort()!.terminated, true, `${label}: de worker van de merge die niet startte is gestopt`);
       // De volgende merge probeert opnieuw, en rekent in de worker.
-      sameOutcome(await outcome(() => scripted.client.compute(changedMergeJob)), mainOf.changed, `${label}: de merge daarna`);
+      sameOutcome(await answerChangedMerge(scripted), mainOf.changed, `${label}: de merge daarna`);
       assert.equal(scripted.created(), 4, `${label}: een nieuwe aanmaak voor de merge`);
       assert.equal(scripted.workers.at(-1)!.requests.length, 1, `${label}: de nieuwe worker rekende de merge`);
       assert.equal(scripted.workers.at(-1)!.terminated, true, `${label}: en stopte daarna`);
@@ -534,40 +575,53 @@ await check('knownbug 1936: een latere startfout. Een gewoon verzoek valt terug 
   assert.equal(sha(mergeJob.source.bytes), mergeJob.source.sha256, 'bron intact');
 });
 
-await check('één starttijd voor elke worker; na started geldt de rekentijd', async () => {
+await checkWithTimers('één starttijd voor elke worker; na started geldt de rekentijd', async () => {
   // Hier 50 ms om te starten en 3 s om te rekenen. Een merge vooraf, zodat er in de sessie al een worker startte.
-  let limit = 3_000;
-  const scripted = scriptedClient(['auto', 'silent', 'manual', 'manual', 'silent'], { startTimeoutMs: 50, timeoutMs: () => limit });
-  sameOutcome(await outcome(() => scripted.client.compute(changedMergeJob)), mainOf.changed, 'de merge vooraf');
+  const scripted = scriptedClient(['manual', 'silent', 'manual', 'manual', 'silent'], {
+    startTimeoutMs, timeoutMs: () => requestTimeoutMs,
+  });
+  sameOutcome(await answerChangedMerge(scripted), mainOf.changed, 'de merge vooraf');
   // De tijd tot `started`: een latere worker die niet start, faalt na de starttijd, niet pas na de rekentijd.
-  let begin = performance.now();
-  const failed = await outcome(() => scripted.client.compute(mergeJob));
-  const startMs = performance.now() - begin;
-  assert.ok(isWorkerError(failed, 'not-started'), 'een merge: niet gestart');
-  assert.ok(startMs < 1_500, `na de starttijd, niet na de rekentijd (${Math.round(startMs)} ms)`);
+  const failed = settled(scripted.client.compute(mergeJob));
+  await turn();
+  mock.timers.tick(startTimeoutMs - 1);
+  await turn();
+  assert.equal(scripted.workers[1]!.terminated, false, 'vóór de starttijd wacht de client nog');
+  mock.timers.tick(1);
+  await turn();
+  assert.equal(scripted.workers[1]!.terminated, true, 'op de startgrens stopt de worker');
+  assert.ok(isWorkerError(await failed, 'not-started'), 'een merge: op de startgrens niet gestart');
   // De tijd daarna: gestart, en het antwoord komt ruim na de starttijd maar binnen de rekentijd. Dat slaagt.
   const slow = settled(scripted.client.compute(changedMergeJob));
   await turn();
   scripted.workers[2]!.start();
-  await new Promise(resolve => setTimeout(resolve, 200));
+  mock.timers.tick(4 * startTimeoutMs);
+  await turn();
   assert.equal(scripted.workers[2]!.terminated, false, 'na de start telt de starttijd niet meer');
   reseed(1);
   await scripted.workers[2]!.answer(0);
   sameOutcome(await slow, mainOf.changed, 'antwoord na vier keer de starttijd');
   // Na de start geldt de rekentijd: geen antwoord binnen die tijd is een fout.
-  limit = 80;
-  begin = performance.now();
   const late = settled(scripted.client.compute(mergeJob));
   await turn();
   scripted.workers[3]!.start();
+  mock.timers.tick(requestTimeoutMs - 1);
+  await turn();
+  assert.equal(scripted.workers[3]!.terminated, false, 'vóór de rekentijd wacht de client nog');
+  mock.timers.tick(1);
+  await turn();
+  assert.equal(scripted.workers[3]!.terminated, true, 'op de rekengrens stopt de worker');
   assert.ok(isWorkerError(await late, 'timeout'), 'geen antwoord binnen de rekentijd');
-  assert.ok(performance.now() - begin >= 75, 'pas na de rekentijd');
   // Een gewoon verzoek met een worker die niet start, valt na dezelfde starttijd terug.
-  limit = 3_000;
-  begin = performance.now();
-  const plain = await outcome(() => scripted.client.compute(writerJob));
-  assert.ok(onMainThread(plain), 'gewoon: de terugval');
-  assert.ok(performance.now() - begin < 1_500, 'gewoon: na de starttijd');
+  const plain = settled(scripted.client.compute(writerJob));
+  await turn();
+  mock.timers.tick(startTimeoutMs - 1);
+  await turn();
+  assert.equal(scripted.workers[4]!.terminated, false, 'gewoon: vóór de starttijd wacht de client nog');
+  mock.timers.tick(1);
+  await turn();
+  assert.equal(scripted.workers[4]!.terminated, true, 'gewoon: op de startgrens stopt de worker');
+  assert.ok(onMainThread(await plain), 'gewoon: de terugval op de startgrens');
   scripted.client.dispose();
 });
 
