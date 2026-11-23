@@ -288,15 +288,20 @@ Twee getallen, elk op één plek (besluit van de technisch beslisser, 21 novembe
 - **De productgrens** `IFC_MODEL_OPEN_MAX_BYTES` (`src/services/ifc/modelOpenLimit.ts`): 150 MiB (binair, besluit van de
   eigenaar). Eén controle, `refuseModelAboveOpenLimit`: openen weigert een gelezen document waarvan de bron een
   gebouwmodel of vreemde gegevens heeft (`ifcSource.foreign`, de uitkomst van de scan) en groter is dan de grens (`>`),
-  met `IfcModelOpenTooLargeError` en de melding `ifcForeignOpenTooLarge`. De openroutes roepen haar aan:
-  `openOpenedFile` met `modelOpenLimit: true` (Bestand → Openen, Recent, slepen en het startbestand, de dev-link), de
-  site (`openSiteChoice`) en `planner_import_schedule`. Een nieuwe openroute zet dit ook. Het crashherstel niet.
+  met `IfcModelOpenTooLargeError` en de melding `ifcForeignOpenTooLarge`. `openOpenedFile` toetst altijd (Bestand →
+  Openen, Recent, slepen en het startbestand, de dev-link): een nieuwe openroute hoeft niets te doen. Alleen het
+  crashherstel valt erbuiten, met `restoringVerifiedIfcSource: true` in `readRecoveryDocument.ts` voor zijn eigen, op
+  lengte en SHA-256 gecontroleerde bron. De site (`openSiteChoice`) en `planner_import_schedule` parsen buiten
+  `openOpenedFile` en toetsen zelf; die tool alleen in de app (`McpFileFs.enforcesModelOpenLimit`, gezet door `realFs`),
+  niet in de headless server, die gelijk blijft aan main. Een IFC2X3-bestand met vreemde gegevens opent via de
+  schematerugval zonder bron en valt er niet onder (ontwerp §4.11).
 - **De technische grens** `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`): 300 MiB, zoals
   main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd.
 
 Een planning zonder gebouwmodel en zonder vreemde gegevens heeft de productgrens niet. De uitvoer van opslaan heeft geen
 grens (knownbug 2043). Bewaakt in `check-ifc-foreign-grens.ts` (de productgrens verlaagd met de proefnaad
-`lowerModelOpenLimitForTests`, door de echte routes en de echte herstelvraag) en `tests/mcp/cases-doc-file.ts`.
+`lowerModelOpenLimitForTests`, door de echte routes en de echte herstelvraag), `tests/mcp/cases-doc-file.ts` (de app)
+en `tests/mcp/cases-headless-server.ts` (headless zoals main).
 
 ### Auteur en bedrijf (#804 fase 1c)
 

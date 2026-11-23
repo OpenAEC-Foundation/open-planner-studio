@@ -3537,10 +3537,10 @@ en noem het in je rapport of PR-tekst.
      neemt de nieuwe bytes als bron over). Opnieuw openen weigert het daarna, met de melding "Dit IFC-bestand is groter
      dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals main. Het crashherstel geeft het tot de
      technische grens van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`) terug met model en planning, zoals main
-     (`check-ifc-foreign-grens.ts` deel 3). Er gaat niets verloren: het bestand bevat model en planning. Met één bestand,
-     één tabblad (PR #1121) wisselt opnieuw kiezen van zo'n gegroeid model ook niet naar zijn open tabblad: de toets op
-     een open tabblad komt na het lezen, en de productgrens weigert dan al. Richting: vóór het schrijven de uitvoer tegen
-     de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
+     (`check-ifc-foreign-grens.ts` deel 3), mits de bron beschikbaar, passend (lengte en SHA-256) en leesbaar is. Er gaat
+     niets verloren: het bestand bevat model en planning. Met één bestand, één tabblad (PR #1121) geeft heropenen van
+     zo'n al open, inmiddels gegroeid model de groottemelding, en het huidige tabblad blijft actief. Richting: vóór het
+     schrijven de uitvoer tegen de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
 
 
 
