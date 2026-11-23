@@ -52,9 +52,7 @@ const ifc = doc.toIfc();              // IFC-tekst met de berekende datums
 **Vreemde invoer en de tekstgrens (T3, #804 fase 1c).** De kern en HTTP-API schrijven geen bestand; zij kunnen geen
 opslagdoel van hun afnemer bewaken. Voorheen verdween een externe pset zonder model stil uit `toIfc()`. De kernproef
 legt dat vast en eist nu een `PlannerCoreError` met de bestaande code `IFC_WRITE_FAILED` vóór uitvoer wanneer de
-C/A/V-indeling vreemde inhoud of een scanfout meldt. Een invoer van meer dan 150 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`)
-kan de indeling niet lezen: `toIfc()` geeft dan `IFC_WRITE_FAILED` met `reason: unreadable`, ook voor een planning
-zonder gebouwmodel (knownbug 2044, een bekende grens). `schedule()` blijft de planning kunnen samenvatten; modellen
+C/A/V-indeling vreemde inhoud of een scanfout meldt. `schedule()` blijft de planning kunnen samenvatten; modellen
 blijven door de lezer geweigerd. `src/core/api.ts` verandert niet. HTTP gebruikt dezelfde kern via zijn worker en
 krijgt daardoor dezelfde weigering bij IFC-uitvoer; de echte HTTP-integratie is voor deze tussenstand niet uitgevoerd.
 Volledige byte-invoer/-uitvoer blijft fase 2. De twee echte oude v2026.7.12-koppen met een apostrof of DATA; in de

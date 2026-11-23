@@ -3458,9 +3458,10 @@ en noem het in je rapport of PR-tekst.
 
 1127. **Ontwerp #804 noemt twee versies en twee groottewaarden.** Het ontwerpbestand
      `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` heet v20, maar §4.9 noemt
-     de tijdelijke terugval "v21, fase 1a". De grootte is gelijkgezet: §4.13 en `IFC_FOREIGN_SCAN_MAX_BYTES` zeggen
-     sinds 21 november 2026 allebei 150 MiB (was 300 MiB in de code; meting en besluit bij 1936). VERVOLG (docs): de
-     versieverwijzing in het ontwerp gelijkzetten. — B
+     de tijdelijke terugval "v21, fase 1a". De grootte is gelijkgezet (21 november 2026): §4.13 noemt twee getallen, de
+     productgrens van 150 MiB voor het openen van een model (`IFC_MODEL_OPEN_MAX_BYTES`) en de technische grens van de
+     bytes-route van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, de meting van fase 0); meting en besluit bij 1936. VERVOLG
+     (docs): de versieverwijzing in het ontwerp gelijkzetten. — B
 
 1936. **Opslaan van een groot gebouwmodel vraagt op de desktop veel geheugen: bij 157 MB een piek van 3,44 tot 3,69 GB
      over drie opslagen, onder de maat van 4 GB, en de piek loopt per opslag nog op (#804, flag aan).** Gemeten op
@@ -3483,8 +3484,9 @@ en noem het in je rapport of PR-tekst.
      van het rekenen. Het Rust-proces springt bij het schrijven nog tot 635 MB (dat haalt het geparkeerde #1110 weg),
      maar telt niet meer mee voor de piek. Bij de derde opslag is er 0,31 GB over tot de maat van 4 GB. **Open punt:**
      de piek loopt per opslag nog op (ongeveer 0,1 tot 0,15 GB), hoewel elke opslag een verse worker heeft en de rust
-     niet oploopt; niet verklaard. Het proefmodel is 3,6 KB groter dan 150 MiB. De grens voor openen en opslaan staat
-     sinds 21 november 2026 op 150 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`, besluit van de eigenaar; was 300 MiB, zie 1127).
+     niet oploopt; niet verklaard. Het proefmodel is 3,6 KB groter dan 150 MiB. Openen van een model boven 150 MiB weigert
+     sinds 21 november 2026 (de productgrens `IFC_MODEL_OPEN_MAX_BYTES`, besluit van de eigenaar, zie 1127); de technische
+     grens van de bytes-route blijft 300 MiB, en de uitvoer van opslaan heeft geen grens (2043).
      Vermoed, niet gemeten: de maat van 4 GB ligt rond 170 MB, en 300 MiB vraagt ruim 6 GB. Met de flag uit bestaat dit niet: openen van een bestand met een gebouwmodel wordt
      geweigerd, op main en in v2026.47.0 gelijk (157 MB en 87 MB gemeten), en een bestand van 87 MB zonder gebouwmodel
      slaat op beide in 0,7 s op. Niet gemeten: een vierde en latere opslag, Automatisch opslaan, Windows en macOS, 300 MiB
@@ -3527,85 +3529,21 @@ en noem het in je rapport of PR-tekst.
      (op main één worker, op de PR twee). Richting, als het nodig blijkt: de worker van gewone verzoeken los houden van
      die van de merge, zodat een gewoon verzoek zijn gestarte worker houdt zoals op main. — B (proef in Node)
 
-2043. **Een opgeslagen model kan boven de grens van 150 MiB uitkomen en opent daarna niet meer (#804, flag aan).**
+2043. **Een opgeslagen model kan boven de productgrens van 150 MiB uitkomen en opent daarna niet meer (#804, flag aan).**
      Opslaan (merge), *Opslaan als* en *Exporteren* van een document met een gebouwmodel kennen geen grens op de
-     uitvoer (`writeIfcMerge` in `mergeWriter.ts`; de grens staat alleen bij openen in `ifcBytesRoute.ts` en bij de
-     doelscan in `targetForeignScan.ts`). Groeit een model van net onder de grens door de planning (taken, relaties,
-     toewijzingen) tot boven `IFC_FOREIGN_SCAN_MAX_BYTES`, dan schrijft de app het bestand gewoon. Ctrl+S naar het eigen
-     bestand slaat de doelscan over (de uitzondering "eigen doel" in `refusedWriteTarget`). Openen weigert het daarna, met
-     de melding "Dit IFC-bestand is groter dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals
-     main. Er gaat niets verloren: het bestand bevat model en planning. Een volgende Ctrl+S in dezelfde sessie lukt nog
-     (de opslag neemt de nieuwe bytes als bron over; in de code nagegaan door de reviewer van #1127). Met één bestand,
-     één tabblad (PR #1121) wisselt opnieuw kiezen van zo'n in dezelfde sessie boven de grens gegroeid model ook niet
-     naar zijn open tabblad: de toets op een open tabblad komt na het parsen, en het parsen weigert. Een crash daarna
-     herstelt wel volledig: het herstel leest zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder de grens
-     (fixronde 2 van #1127, ontwerp §4.13; `check-ifc-foreign-grens.ts` deel 1, zie ook 2047). Richting:
-     vóór het schrijven de uitvoer tegen de grens houden, of de grens bij openen ruimer dan bij opslaan. — B (code
-     gelezen; niet met een bestand van 150 MiB nagespeeld)
+     uitvoer (`writeIfcMerge` in `mergeWriter.ts`). De productgrens `IFC_MODEL_OPEN_MAX_BYTES` (`modelOpenLimit.ts`)
+     geldt alleen bij openen. Groeit een open model door de planning (taken, relaties, toewijzingen) tot boven 150 MiB,
+     dan gaat opslaan goed: de app schrijft het bestand, en een volgende Ctrl+S in dezelfde sessie lukt ook (de opslag
+     neemt de nieuwe bytes als bron over). Opnieuw openen weigert het daarna, met de melding "Dit IFC-bestand is groter
+     dan 150 MB …"; met de flag uit weigert openen het om het gebouwmodel, zoals main. Het crashherstel geeft het tot de
+     technische grens van 300 MiB (`IFC_FOREIGN_SCAN_MAX_BYTES`) terug met model en planning, zoals main
+     (`check-ifc-foreign-grens.ts` deel 3). Er gaat niets verloren: het bestand bevat model en planning. Met één bestand,
+     één tabblad (PR #1121) wisselt opnieuw kiezen van zo'n gegroeid model ook niet naar zijn open tabblad: de toets op
+     een open tabblad komt na het lezen, en de productgrens weigert dan al. Richting: vóór het schrijven de uitvoer tegen
+     de productgrens houden. — B (code gelezen; niet met een bestand van 150 MiB nagespeeld)
 
-2044. **BEKENDE GRENS: een bestaand IFC-bestand of een IFC-tekstbron van meer dan 150 MiB is voor de doelscan onleesbaar,
-     ook zonder gebouwmodel (#804).** Besluit van de technisch beslisser (21 november 2026): één grens van 150 MiB,
-     ook voor de doelscan; dit blijft zo. De doelscan leest een bestand van meer dan `IFC_FOREIGN_SCAN_MAX_BYTES` niet
-     en geeft 'unreadable' (`scanForeignTargetBlob`, `readWhole` en `scanForeignTargetBytes` in `targetForeignScan.ts`;
-     headless `readChecked` met de grens in `headless/mcp-server/src/nodeFs.ts`, dat vóór het lezen stopt). Dit bestond
-     al boven 300 MiB; het geldt nu boven 150 MiB. De weigering zelf laat het bestand ongewijzigd en verliest niets
-     (zie wel 1899 hieronder). Drie routes:
-     - **De app met de flag aan.** De doelcontrole (`refusedWriteTarget`) weigert zo'n bestaand bestand voor Ctrl+S, ook
-       van een planning zonder gebouwmodel naar haar eigen bestand ("De app kan dit bestand niet goed lezen; het kan een
-       gebouwmodel bevatten. Kies een ander bestand om op te slaan."), voor *Exporteren* ("… Kies een ander bestand om
-       naar te exporteren.") en voor Automatisch opslaan ("Automatisch opslaan is gestopt: …"); het document blijft
-       gewijzigd. Niet geweigerd: de eigen modelversie (Ctrl+S van een document met een gebouwmodel naar zijn eigen
-       bestand slaat de doelscan over, zie 2043) en een nieuw doel. In de browser kan de kiezer van *Opslaan als* een
-       bestaand doel al leegmaken vóór de doelcontrole (1899). Met de flag uit verandert er in de app niets; openen van
-       zo'n planning werkt met en zonder flag zoals main. `check-ifc-foreign-grens.ts` deel 2 toont Ctrl+S met de flag
-       uit (geschreven) en aan (geweigerd, bestand ongewijzigd).
-     - **De headless MCP-server en de Claude Desktop-bundel** controleren bestaande doelen altijd
-       (`protectExistingTargets`), ook zonder flag: `planner_export_ifc` over zo'n bestand geeft een VALIDATION-fout
-       ("… cannot read reliably …") vóór elk schrijfverzoek.
-     - **De headless kern en de HTTP-API** weigeren uitvoer uit een bron van meer dan 150 MiB, ook zonder doelbestand:
-       `openIfc()` en `schedule()` werken, maar `toIfc()` geeft `IFC_WRITE_FAILED` met `reason: unreadable`
-       (`src/core/index.ts`, de scan van de invoer), en de HTTP-API geeft dan 500 `IFC_WRITE_FAILED` bij `output=ifc`.
-       De standaard uploadgrens van de HTTP-API is 20 MiB, dus daar alleen met een verhoogde `OPS_API_MAX_BODY_BYTES`.
-     De volgorde verschilt per route. De browser-Blob (`scanForeignTargetBlob`) en de headless server toetsen de grootte
-     vóór het lezen. De Tauri-stroom en de sitebytes (`scanForeignTargetSource`, `scanForeignTargetBytesAsync`) zoeken
-     eerst als stroom naar een model en vergelijken de grootte pas daarna in `readWhole`: een bestand boven de grens met
-     een herkend model geeft daar `model`, niet `unreadable`. Op de desktop staat de kiezer van *Opslaan als* zo'n als
-     model herkend doel na de bevestigde doelkeuze toe, net als onder de grens (besluit van 19 november 2026, met de
-     expliciete overschrijfbevestiging); alleen `unreadable` weigert vóór die toestemming. Door de reviewer van #1127
-     met echte tijdelijke bestanden en nagebootste Tauri-IPC op main en op de PR bevestigd.
-     Een planning zonder gebouwmodel van 150 MiB is uitzonderlijk groot (de grootste opgeslagen IFC in de repo is
-     481752 bytes). — B (code gelezen; `check-ifc-foreign-target.ts` deel 9c en `check-ifc-foreign-grens.ts`; de
-     kern door de reviewer van #1127 beproefd)
 
-2046. **Crashherstel laat een gevonden bron stil vallen als die om een andere reden dan de grootte niet opent (#804, flag
-     aan).** `readRecoveryDocument` (`src/state/readRecoveryDocument.ts`) vangt elke fout bij het teruglezen van de bron
-     af en geeft dan alleen de planning terug, met "bron ontbreekt": een afwijkende SHA-256 of lengte, een leesfout van
-     het pad of de handle, en een bron die de open-route weigert (bijvoorbeeld een scannerweigering, een onbekend schema
-     of een gewijzigde regel na een update). Herstellen meldt dat niet, en in de browser wist de opruimactie daarna de
-     herstelkopie van de bron als er niets anders misging. Bij een browserdocument zonder handle kan dat de enige kopie
-     zijn. Op main gelijk. De grootte is hier geen reden: het herstel leest zijn eigen, gecontroleerde bron zonder de
-     grens voor openen (fixronde 2 van #1127). Richting: een eigen uitkomst voor elke gevonden bron die niet opent (niet
-     voor een bron die echt weg is). — B (code gelezen; hetzelfde pad als de herstelproef van de reviewer van #1127)
 
-2047. **Crashherstel leest een groot gebouwmodel vóór de herstelvraag; komt de crash door geheugen, dan kan hij zich bij
-     elke start herhalen (#804, flag aan).** Het herstel leest zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder
-     de grens voor openen (besluit van 21 november 2026, ontwerp §4.13). Reden: de app aanvaardde die bytes zelf al, en
-     een herstel kost het geheugen dat het document vóór de crash ook kostte. Wat er bij de volgende start gebeurt, in de
-     code nagegaan: `useRecoveryRestore` leest elk document vóór het de vraag *Niet-opgeslagen werk herstellen* toont,
-     om naam en aantal taken te tonen. Daarbij opent `recoveryDocumentWithSource` de hele bron in een tijdelijke store
-     (scan, lezer, bron in het geheugen), voor alle documenten van de set na elkaar. De keuze *Verwerpen* komt pas daarna.
-     Wat de app zelf heeft: een fout bij dat lezen (ook een mislukte toewijzing die als fout terugkomt) vangt
-     `readRecoveryDocument` af; dan komt de vraag met alleen de planning (zie 2046), dus geen lus. Automatisch opslaan
-     blijft dicht tot de keuze, zodat de set niet wordt overschreven. Een noodrem op het geheugen heeft de app niet (de
-     rem van 2 GB zat alleen in het meetscript). Wat overblijft: stopt het webproces of de browsertab hard op geheugen
-     tijdens dat lezen, dan komt de vraag niet en leest de volgende start dezelfde bron opnieuw; *Verwerpen* is dan niet
-     bereikbaar. Uitwegen buiten de app: op de desktop het bronbestand verplaatsen (het herstel valt dan terug op de
-     planning, er is geen kopie), of de herstelbestanden in de appmap wissen; in de browser alleen de sitegegevens wissen.
-     Het herstel van één document vraagt ongeveer wat het openen ervan vroeg; opslaan piekt hoger (1936). Een lus
-     ontstaat dus vooral als er bij de start minder geheugen vrij is, of als de set meer grote tabbladen heeft (die leest
-     het herstel allemaal vóór de vraag). Op main gelijk voor bronnen tot 300 MiB. Richting: de bron pas na
-     *Herstellen* lezen, of een start zonder herstel aanbieden na een herstel dat niet afkwam. — S (code gelezen; geen
-     crash op geheugen nagespeeld)
 
 1950. **De scanner houdt voor `outArg` circa 2,32 keer de benodigde bufferruimte vast (#804).** `scanStep`
      (`src/services/ifc/foreign/stepScanner.ts`, rond regel 666–667) begint de buffers `refRaw` en `outArg` op drie keer

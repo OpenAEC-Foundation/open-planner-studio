@@ -809,9 +809,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
-  # #804, knownbug 1936: de grens van 150 MiB met een verlaagde productieconstante door de echte routes (crashherstel,
-  # Ctrl+S, de doelscan als stroom). Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone af: één keer, buiten de
-  # tijdzonematrix.
+  # #804, knownbug 1936: de productgrens van 150 MiB voor het openen van een model door de echte routes (openen per
+  # route, de echte herstelvraag, een onderbroken opslag). Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone
+  # af: één keer, buiten de tijdzonematrix.
   IFCFOREIGNGRENSCHECK="$DIR/.ifc-foreign-grens.mjs"
   if bundle_check "$DIR/check-ifc-foreign-grens.ts" "$IFCFOREIGNGRENSCHECK"; then
     node "$IFCFOREIGNGRENSCHECK" || STATUS=1

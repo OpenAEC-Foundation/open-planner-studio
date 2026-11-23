@@ -282,21 +282,21 @@ geen vergelijkingsdatum mee. Projectdatums en bestaande baseline-aanmaakdatums b
 ontbrekende datums met de echte klok vullen. `check-ifc-foreign-klok.ts` bewaakt beide klokgrenzen,
 bronidentieke bytes en de gewone/download-/site-uitvoer zonder vaste vergelijkingsdatum.
 
-### De grens van de bytes-route (#804, knownbug 1936)
+### Twee grenzen: de productgrens en de technische grens (#804, knownbug 1936)
 
-`IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`) is de enige plek van de grens: 150 MiB (binair, sinds 21 november 2026,
-besluit van de eigenaar). Openen (`ifcBytesRoute.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`), de doelscan bij opslaan
-(`targetForeignScan.ts`) en de headless MCP-server lezen hem; een bestand van precies de grens valt eronder (`>`).
-De grootte telt eerst, in `readIfcBytesDetailed`: boven de grens start geen indeling voor bronbehoud en geen tekst
-voor de lezer, en de gewone route doet wat main boven de oude grens deed. Weigert de lezer een gebouwmodel, of vindt de
-scan na het lezen van een gewone planning een vreemd deel, dan weigert openen met `IfcForeignOpenError` en reden
-`te-groot` (melding `ifcForeignOpenTooLarge`, de grens in MB); anders opent de planning zonder bron. Crashherstel leest
-zijn eigen, op lengte en SHA-256 gecontroleerde bron zonder de grens (`readRecoveryDocument` geeft `openOpenedFile`
-`ifcMaxBytes: Infinity`, naar `maxBytes` van de bytes-route) en geeft model en planning terug zoals main; de prijs staat
-in knownbug 2047. De uitvoer van opslaan heeft
-geen grens (knownbug 2043); een bestaand doel of een tekstbron boven de grens is onleesbaar (2044, bekende grens).
-Bewaakt in `check-ifc-foreign-open.ts` (deel 7a), `check-ifc-foreign-target.ts` (deel 9c) en `check-ifc-foreign-grens.ts`
-(een verlaagde productiegrens door de echte routes).
+Twee getallen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A):
+- **De productgrens** `IFC_MODEL_OPEN_MAX_BYTES` (`src/services/ifc/modelOpenLimit.ts`): 150 MiB (binair, besluit van de
+  eigenaar). Eén controle, `refuseModelAboveOpenLimit`: openen weigert een gelezen document waarvan de bron een
+  gebouwmodel of vreemde gegevens heeft (`ifcSource.foreign`, de uitkomst van de scan) en groter is dan de grens (`>`),
+  met `IfcModelOpenTooLargeError` en de melding `ifcForeignOpenTooLarge`. De openroutes roepen haar aan:
+  `openOpenedFile` met `modelOpenLimit: true` (Bestand → Openen, Recent, slepen en het startbestand, de dev-link), de
+  site (`openSiteChoice`) en `planner_import_schedule`. Een nieuwe openroute zet dit ook. Het crashherstel niet.
+- **De technische grens** `IFC_FOREIGN_SCAN_MAX_BYTES` (`foreignScan.ts`, ook `IFC_BYTES_ROUTE_MAX_BYTES`): 300 MiB, zoals
+  main. Bytes-route, scanner, doelscan, crashherstel en headless gebruiken alleen deze, ongewijzigd.
+
+Een planning zonder gebouwmodel en zonder vreemde gegevens heeft de productgrens niet. De uitvoer van opslaan heeft geen
+grens (knownbug 2043). Bewaakt in `check-ifc-foreign-grens.ts` (de productgrens verlaagd met de proefnaad
+`lowerModelOpenLimitForTests`, door de echte routes en de echte herstelvraag) en `tests/mcp/cases-doc-file.ts`.
 
 ### Auteur en bedrijf (#804 fase 1c)
 

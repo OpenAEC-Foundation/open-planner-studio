@@ -59,7 +59,7 @@ Een fout heeft altijd deze vorm. `code` is vast; `message` is Engels en voor men
 | 413 | `PAYLOAD_TOO_LARGE` | body groter dan de grens |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | verkeerd `Content-Type` |
 | 422 | `IFC_READ_FAILED`, `NO_TASKS`, `SCHEDULE_FAILED` | IFC, maar niet te plannen (bijv. een kring) |
-| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server; `IFC_WRITE_FAILED` ook bij `output=ifc` voor een IFC met vreemde inhoud of van meer dan 150 MiB (`details.reason`, zie `headless-kern.md`; knownbug 2044) |
+| 500 | `IFC_WRITE_FAILED`, `INTERNAL` | fout in de server |
 | 503 | `BUSY`, `TIMEOUT` | er loopt al een berekening of er komen al te veel bodies binnen (beslist vóór de body), of de berekening duurde te lang (met `Retry-After`) |
 
 De volgorde van de controles is: pad (404), methode (405), token (401), `output` (400), type (415),
