@@ -85,6 +85,7 @@
     "importDatesAsRecorded_other": "{{count}} de activități afișează datele așa cum sunt în fișier (nerecalculate).",
     "xerExportLoss": "La exportul în {{format}} se pierd informațiile sursă din XER.",
     "exportDataLoss": "La exportul în {{format}} se pierd date pe care {{format}} nu le poate păstra, cum sunt notele sau o restricție secundară. Fișierul de proiect IFC păstrează totul.",
+    "exportPlanOnly": "Doar planificarea a fost exportată; modelul clădirii nu face parte din acest format.",
     "mppLegacy": "Acest fișier .mpp are un format mai vechi (Project 2007 sau anterior). În MS Project, exportați-l ca XML (Fișier → Salvare ca → XML) și deschideți acel fișier.",
     "mppInvalidContainer": "Acest fișier MPP are o structură de fișier nevalidă și nu poate fi deschis.",
     "xmlUnknownSchedule": "Format XML de planificare necunoscut. Deschideți un XML MS Project (Project) sau un XML Primavera P6 (APIBusinessObjects).",
@@ -98,6 +99,10 @@
     "ifcUnreadableTargetSave": "Aplicația nu poate citi corect acest fișier; poate conține un model de clădire. Alegeți un alt fișier pentru salvare.",
     "ifcUnreadableTargetExport": "Aplicația nu poate citi corect acest fișier; poate conține un model de clădire. Alegeți un alt fișier pentru export.",
     "ifcUnreadableTargetAutoSave": "Salvarea automată s-a oprit: aplicația nu poate citi corect acest fișier; poate conține un model de clădire. Alegeți un alt fișier pentru salvare.",
+    "ifcForeignAutoSaveTargetChanged": "Salvarea automată s-a oprit: fișierul a fost între timp modificat, mutat sau șters. Modificările dumneavoastră rămân în aplicație. Alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
+    "ifcForeignAutoSaveSaveAsOnly": "Salvarea automată s-a oprit: acest fișier nu poate fi înlocuit în siguranță la această locație. Modificările dumneavoastră rămân în aplicație. Alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
+    "ifcForeignAutoSaveNotRecorded": "Salvarea automată s-a oprit: fișierul nu poate fi înlocuit în siguranță acum, deoarece refacerea în urma unei căderi nu poate fi actualizată. Modificările dumneavoastră rămân în aplicație. Alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
+    "ifcForeignAutoSaveRemnant": "Salvarea automată s-a oprit: o salvare anterioară a acestui fișier nu s-a încheiat. Modificările dumneavoastră rămân în aplicație. Salvați cu Ctrl+S; după o repornire, aplicația finalizează salvarea anterioară.",
     "ambiguousThousands": "\"{{text}}\" este ambiguu: doriți un număr zecimal sau un număr cu mii? Tastați zecimalele cu \"{{separator}}\" (1{{separator}}5) și miile fără separator (1500). Valoarea nu a fost modificată.",
     "siteSaveConflict": "Nesalvat: „{{name}}” a fost modificat între timp pe site de altcineva. Modificările dvs. există încă în aplicație. Selectați „Salvare ca” pentru a le păstra ca fișier nou.",
     "siteSaveConflictCopy": "„{{original}}” a fost între timp modificat pe site de altcineva. Modificările dumneavoastră sunt deci salvate într-o copie: „{{name}}”. De acum încolo, comanda Salvare scrie în acea copie.",
@@ -126,6 +131,7 @@
     "relationDuplicate": "Această dependență există deja",
     "relationAncestorEndpoint": "O dependență între o activitate și propria activitate rezumat părinte sau strămoș nu este permisă.",
     "relationCycle": "Această dependență ar crea un ciclu în planificare ({{cycle}}) și nu a fost creată.",
+    "relationChainOrderUnclear": "Activitățile nu au fost legate: ordinea lor în listă nu este fixă. O activitate selectată apare atât înaintea, cât și după o altă activitate (grupare), sau două jaloane selectate împart o serie restrânsă. Anulați gruparea, extindeți seria sau alegeți predecesorul prin „Atribuire predecesori”.",
     "hierarchyCycle": "Această mutare ar crea un ciclu în planificare ({{cycle}}): dependențele unei activități rezumat se aplică și subactivităților ei. Nimic nu a fost mutat.",
     "relationsExcludedByHierarchy_one": "După mutare, {{count}} dependență leagă o activitate de propria activitate rezumat; nu mai intră în calcul.",
     "relationsExcludedByHierarchy_few": "După mutare, {{count}} dependențe leagă activități de propriile activități rezumat; ele nu mai intră în calcul.",
@@ -225,7 +231,8 @@
     "schedulingProfileShifted_other": "După aplicare, {{count}} de activități au fost deplasate.",
     "actions": {
       "openProjectInfo": "Deschidere profil de calcul",
-      "openHelp": "Deschidere ajutor"
+      "openHelp": "Deschidere ajutor",
+      "undo": "Anulare"
     },
     "xerArchiveUnusable": "Arhiva sursă XER din acest fișier nu este utilizabilă și a fost omisă; proiectul în sine a fost deschis complet.",
     "xerArchiveUnusableLine": "Arhiva sursă XER din acest fișier nu era utilizabilă și a fost omisă.",
@@ -453,11 +460,23 @@
     "reportFontMissing": "Fontul propriu {{name}} nu mai este pe acest dispozitiv. Raportul folosește din nou Inter.",
     "layoutsNotSaved": "Aspectele nu au putut fi salvate. Nu s-a schimbat nimic. Încercați din nou.",
     "ifcForeignOpenSchema": "Acest fișier IFC conține date de la o altă aplicație și are o schemă necunoscută sau lipsă. Deschiderea s-a oprit ca să nu se piardă date la salvare.",
+    "ifcForeignOpenTooLarge": "Acest fișier IFC depășește {{limit}} MB. Un fișier IFC cu un model al clădirii sau cu date ale unui alt program poate fi deschis până la {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Acest fișier IFC nu poate fi clasificat în siguranță. Deschiderea s-a oprit ca să nu se piardă date la salvare.",
     "ifc2x3PlanningOnly": "IFC2X3 a fost deschis ca planificare. Datele de la alte aplicații nu sunt incluse la salvare.",
-    "ifcForeignReplaceBlocked": "Nu s-a salvat. Suprascrierea unui fișier existent cu un model de clădire nu este încă sigură. Folosiți „Salvare ca” și alegeți un nume nou.",
+    "ifcForeignReplaceBlocked": "Nu s-a salvat. Acesta este fișierul pe care îl aveți deschis. Folosiți „Salvare” pentru a-l actualiza sau „Salvare ca” cu un nume nou pentru o copie.",
+    "ifcForeignTargetChanged": "Nesalvat. Fișierul a fost între timp modificat de un alt program. Modificările dumneavoastră rămân în aplicație. Alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
+    "ifcForeignTargetGone": "Nesalvat. Fișierul a fost mutat, șters sau nu mai poate fi citit. Modificările dumneavoastră rămân în aplicație. Alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
+    "ifcForeignReplaceNotRecorded": "Nesalvat. Fișierul nu poate fi înlocuit în siguranță acum, deoarece refacerea în urma unei căderi nu poate fi actualizată. Modificările dumneavoastră rămân în aplicație. Alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
+    "ifcForeignDownloadCopy": "Copie descărcată ca {{file}}. Fișierul deschis nu a fost actualizat; modificările rămân marcate ca nesalvate.",
+    "ifcForeignReplaceFailed": "Nesalvat. Fișierul nu a putut fi scris. Modificările dumneavoastră rămân în aplicație. Încercați din nou să salvați sau alegeți „Salvare ca” pentru a le păstra într-un fișier nou.",
     "ifcForeignMergeRefused": "Fișierul IFC nu a fost scris. Modelul de clădire sau datele de la altă aplicație nu ar fi păstrate complet. Anulați ultima modificare sau exportați doar planificarea: în IFC cu „Fără model de clădire”, ori în alt format.",
     "ifcSaveChangedWhileWaiting": "Nu s-a salvat fișierul. Documentul sau sursa modelului de clădire s-a schimbat în timpul pregătirii. Încercați din nou să salvați.",
+    "ifcSaveWorkerFailed": "Fișierul IFC nu a fost scris: pregătirea în fundal a fost întreruptă. Modificările dvs. sunt încă în aplicație. Încercați din nou.",
+    "ifcForeignNewTargetOnly": "Acest fișier IFC poate fi scris doar sub un nume de fișier nou. Alegeți un nume care nu există încă.",
+    "ifcForeignTargetOpenInTab": "Nesalvat. Acest fișier este deschis într-o altă filă. Închideți acea filă sau alegeți un alt nume.",
+    "exportTargetOpenInTab": "Nu a fost exportat. Acest fișier este deschis într-o altă filă. Închideți acea filă sau alegeți un alt nume.",
+    "exportTargetOpenDocument": "Nu a fost exportat. Acest fișier este deschis într-o filă. Alegeți un alt nume sau închideți mai întâi acea filă.",
+    "ifcForeignPlaceUnknown": "Aplicația nu știe dacă fișierul a fost salvat corect: ceva s-a schimbat în dosar în timpul salvării. Modificările dumneavoastră rămân în aplicație. Verificați dacă fișierul este corect sau salvați din nou sub un nume nou.",
     "ifcForeignReplaceOtherVersion": "Un alt program a modificat {{file}} în timp ce aplicația îl salva. Această versiune a fost păstrată ca {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "O salvare anterioară a {{file}} nu s-a încheiat. Planificarea care era salvată se află în {{copy}}. Ștergeți acest fișier dacă nu mai aveți nevoie de el.",
     "ifcForeignReplaceTargetTaken": "Nesalvat. În timpul salvării, un alt program a pus un fișier nou la {{target}}. Acum există trei fișiere: acel fișier nou la {{target}}, planificarea dvs. în {{temp}} și versiunea anterioară în {{previous}}. Modificările dvs. rămân în aplicație.",
@@ -466,7 +485,17 @@
     "ifcForeignReplaceLeftOver": "Din salvarea întreruptă a {{file}} a rămas acest fișier: {{path}}. Verificați dacă mai aveți nevoie de el.",
     "ifcSourceCopyFailed": "Planificarea este salvată pentru refacerea în urma unei căderi, dar copia modelului de clădire nu a putut fi salvată. După o cădere, modelul de clădire ar putea lipsi. Salvați lucrul dumneavoastră ca fișier IFC complet.",
     "ifcForeignSourceMissing": "Nu s-a salvat. Modelul de clădire sau datele de la altă aplicație nu au fost găsite. Folosiți „Salvare ca” ca să salvați doar planificarea într-un fișier nou. Deschideți fișierul IFC original ca să continuați lucrul cu fișierul complet.",
-    "taskTypeRenameNameTaken": "În acest proiect numele rămâne „{{oldName}}”: o altă categorie de lucrări din acest proiect se numește deja „{{takenName}}”."
+    "taskTypeRenameNameTaken": "În acest proiect numele rămâne „{{oldName}}”: o altă categorie de lucrări din acest proiect se numește deja „{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Activitatea durează acum {{days}} zi.",
+      "durationDays_few": "Activitatea durează acum {{days}} zile.",
+      "durationDays_other": "Activitatea durează acum {{days}} de zile.",
+      "durationHours_one": "Activitatea durează acum {{hours}} oră.",
+      "durationHours_few": "Activitatea durează acum {{hours}} ore.",
+      "durationHours_other": "Activitatea durează acum {{hours}} de ore.",
+      "durationSame": "Durata rămâne aceeași. Orele celorlalți au fost modificate.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Dependență circulară între activități: {{path}}",
@@ -507,6 +536,8 @@
     "addSubtask": "Adăugare subactivitate",
     "addMilestone": "Adăugare jalon",
     "addRelation": "Adăugare dependență",
+    "assignPredecessors": "Atribuire predecesori…",
+    "assignSuccessors": "Atribuire succesori…",
     "dissolve": "Dissolve (păstrarea lanțului)",
     "delete": "Ștergere",
     "newTask": "Creare activitate",
@@ -573,7 +604,7 @@
     "demoTopbarAnimation": "Demo: animație în antet",
     "demoTopbarAnimationHint": "Un val luminos, portocaliu și discret, peste antet. Arată cum funcționează un comutator experimental.",
     "ifcForeignContent": "Deschidere IFC cu model de clădire",
-    "ifcForeignContentHint": "Deschide și un fișier IFC cu model de clădire sau date de la alte aplicații. Puteți folosi „Salvare ca” către un fișier nou, salvarea pe site, descărcarea în browser și Exportare → IFC, și fără model de clădire sau cu biblioteca de resurse alături (atunci doar planificarea). Salvarea peste un fișier local existent nu este încă posibilă. Refacerea modelului de clădire după o cădere cere acces la fișierul original sau la o copie salvată în browser.",
+    "ifcForeignContentHint": "Deschide și un fișier IFC cu un model de clădire sau date de la alte aplicații. Puteți folosi „Salvare ca” către un fișier nou, salvarea pe site, descărcarea în browser și Exportare → IFC, chiar și fără modelul de clădire sau cu biblioteca de resurse alături (atunci doar cu planificarea). În Chrome și Edge, „Salvare” salvează și fișierul deschis în sine. Dacă o altă aplicație modifică exact acest fișier în timpul salvării, modificarea respectivă se poate pierde. În aplicația desktop, „Salvare” salvează și fișierul deschis în sine, dacă acesta se află în directorul de acasă. Dacă între timp o altă aplicație a modificat fișierul, salvarea se oprește sau aplicația păstrează versiunea respectivă ca o copie separată, lângă fișier; doar o modificare în același moment exact mai poate fi pierdută. „Salvare ca” peste un alt fișier existent din directorul de acasă înlocuiește acel fișier în același mod, chiar dacă și acesta conține un model de clădire sau date de la alt program. Și o planificare fără model de clădire poate înlocui un astfel de fișier. Nu se înlocuiesc nici fișierele pe care aplicația nu le poate citi, nici cele cu un al doilea nume (o legătură). Chiar înainte de înlocuire, aplicația compară fișierul cu versiunea citită după alegerea făcută: dacă s-a schimbat, salvarea se oprește și fișierul rămâne așa cum este. Dacă versiunea pe care aplicația a pus-o deoparte se dovedește totuși diferită, aplicația o păstrează ca o copie separată lângă fișier, cu un mesaj. Recuperarea modelului de clădire după o cădere cere acces la fișierul original sau la o copie salvată în browser.",
     "tourHint": "Parcurgeți din nou turul de introducere al aplicației.",
     "theme": "Temă",
     "themeHint": "Schema de culori a interfeței.",
@@ -1288,7 +1319,9 @@
     },
     "regen": {
       "hint": "Sărbătorile acoperă {{from}}–{{to}}; regenerați până la {{year}} inclusiv?",
-      "button": "Regenerare"
+      "button": "Regenerare",
+      "confirmMessage": "Lista dumneavoastră de zile libere diferă de lista generată anterior. Dacă înlocuiți lista, modificările dumneavoastră manuale se pierd.",
+      "confirmReplace": "Înlocuire zile libere"
     },
     "countryName": {
       "NL": "Țările de Jos",
@@ -1299,6 +1332,7 @@
       "AT": "Austria",
       "CH": "Elveția",
       "US": "Statele Unite ale Americii",
+      "BO": "Bolivia",
       "none": "Fără sărbători"
     },
     "preset": {
@@ -1509,7 +1543,8 @@
     "edit": {
       "copy": "Copiere",
       "deselect": "Anulare selecție",
-      "selectAll": "Selectare tot"
+      "selectAll": "Selectare tot",
+      "linkSelected": "Legare activități selectate în lanț"
     },
     "structure": {
       "moveUp": "Mutare activitate în sus",

@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} uppgifter visar datumen så som de står i filen (inte beräknas om).",
     "xerExportLoss": "Export till {{format}} gör att XER-källinformation går förlorad.",
     "exportDataLoss": "Vid export till {{format}} går data förlorad som {{format}} inte kan lagra, till exempel anteckningar eller en sekundär restriktion. IFC-projektfilen behåller allt.",
+    "exportPlanOnly": "Endast tidsplanen exporterades; byggnadsmodellen ingår inte i det här formatet.",
     "mppLegacy": "Den här .mpp-filen använder ett äldre format (Project 2007 eller äldre). Exportera den från MS Project som XML (Arkiv → Spara som → XML) och öppna den filen.",
     "mppInvalidContainer": "Den här MPP-filen har en ogiltig filstruktur och kan inte öppnas.",
     "xmlUnknownSchedule": "Okänt XML-format för tidsplan. Öppna en MS Project-XML (Project) eller Primavera P6-XML (APIBusinessObjects).",
@@ -83,6 +84,10 @@
     "ifcUnreadableTargetSave": "Appen kan inte läsa den här filen ordentligt; den kan innehålla en byggnadsmodell. Välj en annan fil att spara till.",
     "ifcUnreadableTargetExport": "Appen kan inte läsa den här filen ordentligt; den kan innehålla en byggnadsmodell. Välj en annan fil att exportera till.",
     "ifcUnreadableTargetAutoSave": "Autospara har stoppats: appen kan inte läsa den här filen ordentligt; den kan innehålla en byggnadsmodell. Välj en annan fil att spara till.",
+    "ifcForeignAutoSaveTargetChanged": "Automatisk sparning har stoppats: filen har under tiden ändrats, flyttats eller tagits bort. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem i en ny fil.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatisk sparning har stoppats: den här filen kan inte ersättas säkert på den här platsen. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem i en ny fil.",
+    "ifcForeignAutoSaveNotRecorded": "Automatisk sparning har stoppats: filen kan just nu inte ersättas säkert, eftersom kraschskyddet inte kan uppdateras. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem i en ny fil.",
+    "ifcForeignAutoSaveRemnant": "Automatisk sparning har stoppats: en tidigare sparning av den här filen blev inte klar. Dina ändringar finns fortfarande i appen. Spara med Ctrl+S; efter en omstart slutför appen den tidigare sparningen.",
     "ambiguousThousands": "”{{text}}” är tvetydigt: menar du ett decimaltal eller tusental? Skriv decimaler med ”{{separator}}” (1{{separator}}5) och tusental utan skiljetecken (1500). Värdet har inte ändrats.",
     "siteSaveConflict": "Inte sparat: ”{{name}}” har ändrats på webbplatsen av någon annan under tiden. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem som en ny fil.",
     "siteSaveConflictCopy": "”{{original}}” har på webbplatsen ändrats av någon annan under tiden. Ditt arbete har därför sparats i en kopia: ”{{name}}”. Spara skriver från och med nu till den kopian.",
@@ -110,6 +115,7 @@
     "relationDuplicate": "Det här sambandet finns redan",
     "relationAncestorEndpoint": "Ett samband mellan en uppgift och en av dess sammanfattningsuppgifter högre upp är inte tillåtet.",
     "relationCycle": "Det här sambandet skulle ge ett cirkelberoende i tidsplanen ({{cycle}}). Det har inte skapats.",
+    "relationChainOrderUnclear": "Uppgifterna har inte länkats: deras ordning i listan är inte fast. En vald uppgift står både före och efter en annan (gruppering), eller två valda milstolpar delar en ihopfälld serie. Ta bort grupperingen, fäll ut serien eller välj föregående via Tilldela föregående.",
     "hierarchyCycle": "Den här flytten skulle skapa ett cirkelberoende i tidsplanen ({{cycle}}): samband för en sammanfattningsuppgift gäller även för dess underuppgifter. Ingenting har flyttats.",
     "relationsExcludedByHierarchy_one": "Efter flytten kopplar {{count}} samband en uppgift till dess egen sammanfattningsuppgift; det räknas inte längre med i beräkningen.",
     "relationsExcludedByHierarchy_other": "Efter flytten kopplar {{count}} samband uppgifter till sina egna sammanfattningsuppgifter; de räknas inte längre med i beräkningen.",
@@ -186,7 +192,8 @@
     "schedulingProfileShifted_other": "Efter tillämpning har {{count}} uppgifter flyttats.",
     "actions": {
       "openProjectInfo": "Öppna beräkningsprofil",
-      "openHelp": "Öppna hjälp"
+      "openHelp": "Öppna hjälp",
+      "undo": "Ångra"
     },
     "xerArchiveUnusable": "XER-källarkivet i den här filen är oanvändbart och har utelämnats. Projektet självt öppnades helt.",
     "xerArchiveUnusableLine": "XER-källarkivet i den här filen var oanvändbart och har utelämnats.",
@@ -353,11 +360,23 @@
     "reportFontMissing": "Ditt eget typsnitt ”{{name}}” finns inte längre på den här enheten. Rapporten använder Inter igen.",
     "layoutsNotSaved": "Layouter kunde inte sparas. Ingenting har ändrats. Försök igen.",
     "ifcForeignOpenSchema": "Den här IFC-filen innehåller data från ett annat program och har ett okänt eller saknat schema. Öppnandet har stoppats för att förhindra dataförlust när filen sparas.",
+    "ifcForeignOpenTooLarge": "Den här IFC-filen är större än {{limit}} MB. En IFC-fil med en byggnadsmodell eller med data från ett annat program kan öppnas upp till {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Den här IFC-filen kan inte klassificeras säkert. Öppnandet har stoppats för att förhindra dataförlust när filen sparas.",
     "ifc2x3PlanningOnly": "IFC2X3 öppnades som tidsplan. Data från andra program tas inte med vid sparning.",
-    "ifcForeignReplaceBlocked": "Inte sparad. Att spara över en befintlig fil med en byggnadsmodell är ännu inte säkert. Använd ”Spara som” och välj ett nytt namn.",
+    "ifcForeignReplaceBlocked": "Inte sparad. Det här är filen du har öppen. Använd Spara för att uppdatera den, eller Spara som med ett nytt namn för en kopia.",
+    "ifcForeignTargetChanged": "Inte sparat. Filen har under tiden ändrats av ett annat program. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem i en ny fil.",
+    "ifcForeignTargetGone": "Inte sparat. Filen har flyttats, tagits bort eller kan inte längre läsas. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem i en ny fil.",
+    "ifcForeignReplaceNotRecorded": "Inte sparat. Filen kan just nu inte ersättas säkert, eftersom kraschskyddet inte kan uppdateras. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem i en ny fil.",
+    "ifcForeignDownloadCopy": "Kopia hämtad som {{file}}. Den öppnade filen har inte uppdaterats; ändringarna står kvar som osparade.",
+    "ifcForeignReplaceFailed": "Inte sparat. Filen kunde inte skrivas. Dina ändringar finns fortfarande i appen. Försök spara igen, eller välj Spara som för att spara dem i en ny fil.",
     "ifcForeignMergeRefused": "IFC-filen skrevs inte. Byggnadsmodellen eller data från ett annat program skulle annars inte bevaras helt. Ångra den senaste ändringen, eller exportera bara tidsplanen: till IFC med ”Utan byggnadsmodell”, eller till ett annat format.",
     "ifcSaveChangedWhileWaiting": "Inte sparad. Dokumentet eller källan till byggnadsmodellen ändrades under förberedelsen. Försök spara igen.",
+    "ifcSaveWorkerFailed": "IFC-filen skrevs inte: förberedelsen i bakgrunden avbröts. Dina ändringar finns kvar i appen. Försök igen.",
+    "ifcForeignNewTargetOnly": "Den här IFC-filen kan bara skrivas till ett nytt filnamn. Välj ett namn som inte finns än.",
+    "ifcForeignTargetOpenInTab": "Sparades inte. Filen är öppen i en annan flik. Stäng den fliken eller välj ett annat namn.",
+    "exportTargetOpenInTab": "Exporterades inte. Filen är öppen i en annan flik. Stäng den fliken eller välj ett annat namn.",
+    "exportTargetOpenDocument": "Exporterades inte. Filen är öppen i en flik. Välj ett annat namn eller stäng den fliken först.",
+    "ifcForeignPlaceUnknown": "Appen vet inte säkert om filen har sparats korrekt: något ändrades i mappen under sparandet. Dina ändringar finns fortfarande i appen. Kontrollera att filen är korrekt, eller spara igen under ett nytt namn.",
     "ifcForeignReplaceOtherVersion": "Ett annat program ändrade {{file}} medan appen sparade den. Den versionen har sparats som {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "En tidigare sparning av {{file}} blev inte klar. Tidsplanen som skulle sparas finns i {{copy}}. Ta bort den filen om du inte längre behöver den.",
     "ifcForeignReplaceTargetTaken": "Inte sparat. Medan sparandet pågick placerade ett annat program en ny fil på {{target}}. Nu finns tre filer: den nya filen på {{target}}, din tidsplan i {{temp}} och den föregående versionen i {{previous}}. Dina ändringar finns också kvar i appen.",
@@ -366,7 +385,15 @@
     "ifcForeignReplaceLeftOver": "Den här filen blev kvar från en avbruten sparning av {{file}}: {{path}}. Kontrollera om du fortfarande behöver den.",
     "ifcSourceCopyFailed": "Tidsplanen sparas för kraschskydd, men kopian av byggnadsmodellen kunde inte sparas. Efter en krasch kan byggnadsmodellen saknas. Spara ditt projekt själv som en fullständig IFC-fil.",
     "ifcForeignSourceMissing": "Inte sparad. Byggnadsmodellen eller data från ett annat program hittades inte. Använd ”Spara som” för att bara spara tidsplanen i en ny fil. Öppna den ursprungliga IFC-filen för att arbeta med hela filen igen.",
-    "taskTypeRenameNameTaken": "I det här projektet behåller namnet ”{{oldName}}”: en annan arbetskategori i projektet heter redan ”{{takenName}}”."
+    "taskTypeRenameNameTaken": "I det här projektet behåller namnet ”{{oldName}}”: en annan arbetskategori i projektet heter redan ”{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Uppgiften varar nu {{days}} dag.",
+      "durationDays_other": "Uppgiften varar nu {{days}} dagar.",
+      "durationHours_one": "Uppgiften varar nu {{hours}} timme.",
+      "durationHours_other": "Uppgiften varar nu {{hours}} timmar.",
+      "durationSame": "Varaktigheten är oförändrad. Timmarna för de andra har ändrats.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -406,6 +433,8 @@
     "addSubtask": "Ny underuppgift",
     "addMilestone": "Lägg till milstolpe",
     "addRelation": "Lägg till samband",
+    "assignPredecessors": "Tilldela föregående…",
+    "assignSuccessors": "Tilldela efterföljande…",
     "dissolve": "Dissolve (behåll kedjan)",
     "delete": "Ta bort",
     "newTask": "Ny uppgift",
@@ -472,7 +501,7 @@
     "demoTopbarAnimation": "Demo: animation i övre fältet",
     "demoTopbarAnimationHint": "En lugn orange glansvåg över det övre fältet. Visar hur en experimentell brytare fungerar.",
     "ifcForeignContent": "Öppna IFC med en byggnadsmodell",
-    "ifcForeignContentHint": "Öppnar även en IFC-fil med en byggnadsmodell eller data från andra program. Du kan använda ”Spara som” till en ny fil, spara till webbplatsen, ladda ner i webbläsaren och använda Exportera → IFC, även utan byggnadsmodell eller med biblioteket bredvid (då bara med tidsplanen). Att spara över en befintlig lokal fil är ännu inte möjligt. Kraschskyddet för byggnadsmodellen kräver åtkomst till den ursprungliga filen eller en sparad kopia i webbläsaren.",
+    "ifcForeignContentHint": "Öppnar även en IFC-fil med en byggnadsmodell eller data från andra program. Du kan använda Spara som till en ny fil, spara på webbplatsen, ladda ner i webbläsaren och använda Exportera → IFC, även utan byggnadsmodell eller med biblioteket bredvid (då bara med tidsplanen). I Chrome och Edge sparar Spara också den öppnade filen själv. Ändrar ett annat program just den här filen medan du sparar, kan den ändringen gå förlorad. I skrivbordsappen sparar Spara också den öppnade filen själv om den ligger i din hemmapp. Har ett annat program ändrat filen under tiden, stoppar sparandet eller så behåller appen den versionen som en separat kopia bredvid filen; bara en ändring i exakt samma ögonblick kan ändå gå förlorad. Spara som över en annan befintlig fil i din hemmapp ersätter den filen på samma sätt, även om den filen själv innehåller en byggnadsmodell eller data från ett annat program. Även en tidsplan utan byggnadsmodell får ersätta en sådan fil. Filer som appen inte kan läsa och filer med ett andra namn (en länk) ersätts inte. Precis före ersättningen jämför appen filen med versionen den läste efter ditt val: har den ändrats stoppar sparandet och filen lämnas som den är. Visar sig versionen som appen flyttade undan ändå vara annorlunda, sparar appen den som en separat kopia bredvid filen, med ett meddelande. Återställning av byggnadsmodellen efter en krasch kräver åtkomst till den ursprungliga filen eller en sparad kopia i webbläsaren.",
     "tourHint": "Gå igenom appens introduktionsrundtur igen.",
     "theme": "Tema",
     "themeHint": "Gränssnittets färgschema.",
@@ -1178,7 +1207,9 @@
     },
     "regen": {
       "hint": "Helgdagar täcker {{from}}–{{to}}. Generera om till och med {{year}}?",
-      "button": "Generera om"
+      "button": "Generera om",
+      "confirmMessage": "Din lista med helgdagar skiljer sig från den tidigare genererade listan. Om du ersätter listan går dina manuella ändringar förlorade.",
+      "confirmReplace": "Ersätt helgdagar"
     },
     "countryName": {
       "NL": "Nederländerna",
@@ -1189,6 +1220,7 @@
       "AT": "Österrike",
       "CH": "Schweiz",
       "US": "Förenta staterna",
+      "BO": "Bolivia",
       "none": "Inga helgdagar"
     },
     "preset": {
@@ -1397,7 +1429,8 @@
     "edit": {
       "copy": "Kopiera",
       "deselect": "Avmarkera",
-      "selectAll": "Markera allt"
+      "selectAll": "Markera allt",
+      "linkSelected": "Länka valda uppgifter i en kedja"
     },
     "structure": {
       "moveUp": "Flytta uppgift uppåt",

@@ -76,7 +76,7 @@ minisign, `latest.json` en GitHub-digests. Een fout voorkomt `draft: false`.
 schone runners. Op een PR draait deze workflow alleen bij passende bestandspaden en in rapportmodus.
 Deze controle achteraf is geen vervanging voor een publicatiepoort. DEB-pakkethandtekeningen zijn daar
 `INFO`; Fedora draait `rpm -K --nosignature`, dus geen cryptografische RPM-signaturecontrole.
-Snap en AUR volgen de hoofdrelease via eigen workflows en staan buiten die laatste draftcontrole.
+Snap volgt de hoofdrelease via een eigen workflow en staat buiten die laatste draftcontrole.
 
 ### Website en aangeboden varianten
 
@@ -126,7 +126,6 @@ Alleen namen zijn opgevraagd, geen secretwaarden. De inventaris komt uit de work
 | Apple Developer ID en notarisatie | `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_KEY_CONTENT`, `APPLE_TEAM_ID` | Niet in de repositorylijst; organisatieovererving is niet vastgesteld. De bestaande release-run slaagde wel. |
 | Tauri/minisign updater | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Beide |
 | Snap Store | `SNAPCRAFT_STORE_CREDENTIALS` | Ja; een uploadcredential is geen OpenPGP-signingsleutel. |
-| AUR-publicatie | `AUR_SSH_PRIVATE_KEY` | Niet in de repositorylijst; een SSH-credential is geen pakketondertekening. |
 | Webdeploy | `DEPLOY_SSH_KEY` | Niet in de repositorylijst; staat los van installer-signing. |
 | GitHub-API | `GITHUB_TOKEN` / `github.token` | Automatisch workflowtoken; geen aan te maken signingsecret. |
 
@@ -168,7 +167,7 @@ controles blijven hard; pas na akkoord van Ethan wordt de aanvullende controle v
 | 3.2 | Breid de bestaande controle uit met de overeengekomen Team ID/bundle-identiteit. Houd `codesign --verify --deep --strict`, Gatekeeper en `stapler validate` als voorwaarden. | **Ethan:** akkoord op het beleid; **beheerder:** vertrouwde identiteiten bevestigen. |
 | 3.3 | Download naast de definitieve DMG ook de updater-`.app.tar.gz` uit de draft, pak die veilig uit en controleer de app met dezelfde native eisen. Alleen een aanwezige `CodeResources` is onvoldoende. | **Ethan:** akkoord op de extra macOS-CI-stap. Hergebruik de bestaande runner; verificatie behoeft geen privésleutel. |
 
-### 4. Linux: pakketten, GitHub-Snap, Store en AUR
+### 4. Linux: pakketten, GitHub-Snap en Store
 
 | Stap | Uitvoering | Nodig van Ethan / organisatiebeheerder |
 | --- | --- | --- |
@@ -176,7 +175,6 @@ controles blijven hard; pas na akkoord van Ethan wordt de aanvullende controle v
 | 4.2 | Native RPM-/DEB-signing is een afzonderlijke keuze. Als die verplicht wordt: eerst het pakket native tekenen, daarna updaterhandtekeningen, checksums en metadata opnieuw opbouwen. Verifieer RPM met signaturecontrole en afgesproken keyring; voor DEB eerst het toegestane verificatiemechanisme kiezen. | **Ethan:** besluit of detached OpenPGP voor deze downloads voldoende is of ingebedde pakketondertekening vereist is. **Beheerder:** bevestig ondersteunde sleutel/subkey en pakketbeleid. |
 | 4.3 | Bouw de losse Snap uit de gecontroleerde DEB terwijl de hoofdrelease nog draft is. Teken/verifieer de definitieve Snap en voeg hem samen met zijn `.asc` vóór de laatste draftcontrole toe. Verwijder de latere ongecontroleerde `--clobber`-uploadroute. | **Ethan:** akkoord op de aangepaste publicatievolgorde. De huidige `snap.yml` kan hiervoor niet ongewijzigd blijven. Geen signingstap starten in deze onderzoeks-PR. |
 | 4.4 | Behandel Store-upload en promotie naar `stable` apart. Controleer de OpenPGP-getekende input vóór upload; leg Store-revisie en digest vast en verifieer de bijbehorende assertion. Onderzoek eerst of de bestaande Store-toegang een nog niet vrijgegeven revisie kan laten downloaden en controleren, zodat promotie pas daarna plaatsvindt. Controleer na promotie de werkelijk aangeboden revisie opnieuw. | **Beheerder:** bevestig eigenaar, upload-/promotierechten en beschikbare route voor een niet vrijgegeven revisie. **Ethan:** akkoord op deze route vóór implementatie. Een `.asc` vervangt geen Store-assertion. Geen `--dangerous` gebruiken als bewijs van een vertrouwde Store-installatie. |
-| 4.5 | Laat AUR de ondertekende bron-DEB verifiëren voordat `PKGBUILD`/checksums worden gepubliceerd. Een SSH-sleutel en alleen SHA256 zijn geen OpenPGP-bronverificatie. Native Arch-pakketondertekening vereist een aparte distributiekeuze. | **Ethan:** bevestig gewenste AUR-dekking. **Beheerder:** alleen bestaande AUR-rechten bevestigen wanneer daadwerkelijk publiceren is opgedragen; de bestaande waiver voor een ontbrekend AUR-secret niet stilzwijgend wijzigen. |
 
 Canonical beschrijft [Snap-assertions](https://snapcraft.io/docs/explanation/security/assertions/) en het
 apart ophalen en erkennen daarvan. Er is in deze opdracht geen Snap geïnstalleerd en geen Store-upload gedaan.
