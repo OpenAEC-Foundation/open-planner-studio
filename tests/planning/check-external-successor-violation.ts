@@ -340,7 +340,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Knownbug 882: a hard pin can conflict with an external link even when total float is zero.
 {
   const pin = '2026-06-02T08:00';
   const { tasks, sequences } = plan([successor('x882', 'SS', pin, { lagMinutes: 60 })]);
