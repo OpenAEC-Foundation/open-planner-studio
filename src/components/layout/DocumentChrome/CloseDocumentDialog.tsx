@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { documentTitle } from '@/utils/documents';
+import { buildImportLabels } from '@/i18n/importLabels';
 import { CloseDocumentDialogControl } from './CloseDocumentDialogControl';
 import {
   createCloseDocumentActionGate,
@@ -21,7 +22,10 @@ import {
  */
 export function CloseDocumentDialog() {
   const { t } = useTranslation('common');
-  const pendingId = useAppStore((s) => s.ui.pendingCloseDocId);
+  const closeId = useAppStore((s) => s.ui.pendingCloseDocId);
+  const reloadId = useAppStore((s) => s.ui.pendingReloadDocId);
+  const pendingId = closeId ?? reloadId;
+  const reloading = closeId === null && reloadId !== null;
   const activeId = useAppStore((s) => s.activeDocumentId);
   const documents = useAppStore((s) => s.documents);
   const project = useAppStore((s) => s.project);
@@ -29,6 +33,7 @@ export function CloseDocumentDialog() {
   const activeCode = useAppStore((s) => documentProjectCode(s.project, s.xerImportMetadata));
   const setUI = useAppStore((s) => s.setUI);
   const closeDocumentAfterSaves = useAppStore((s) => s.closeDocumentAfterSaves);
+  const reloadFromTarget = useAppStore((s) => s.reloadFromTarget);
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -66,9 +71,11 @@ export function CloseDocumentDialog() {
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
     switchDocument,
-    closeDocument: closeDocumentAfterSaves,
+    closeDocument: reloading
+      ? (id, options) => reloadFromTarget(id, { ...options, labels: buildImportLabels(t) })
+      : closeDocumentAfterSaves,
     saveFile: () => saveFileForDocument(pendingId),
-    clearPending: () => { setUI({ pendingCloseDocId: null }); },
+    clearPending: () => { setUI(reloading ? { pendingReloadDocId: null } : { pendingCloseDocId: null }); },
     restoreOpenerFocus,
     onSavePendingChange: (pending) => { setUI({ closeQuestionSaving: pending }); },
   });

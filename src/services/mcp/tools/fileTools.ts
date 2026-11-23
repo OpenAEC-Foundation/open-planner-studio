@@ -43,7 +43,7 @@ import { exportHitsOwnFile } from '@/state/savedLiteralCalendars';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { ifcSchemaBlocksSilentWrite, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { DEFAULT_IFC_SCHEMA, projectIfcSchema } from '@/types/project';
-import { extensionOf } from '@/utils/filePath';
+import { basename, extensionOf } from '@/utils/filePath';
 import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
@@ -51,11 +51,11 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri, writeNewUserBytesTauri } from '@/services/fileAccess/atomicWrite';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import { saveTargetRef } from '@/services/fileAccess';
+import { saveTargetRef, type FileRef } from '@/services/fileAccess';
 import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
 import type { TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
 import { ifcFullWriteBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
-import { existingDocument, switchToOpenDocument } from '@/state/openDocumentFor';
+import { openTabFor, readVersionOf, switchToOpenDocument } from '@/state/openDocumentFor';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804: IFC-uitvoer blijft geweigerd met ontbrekende bronbytes of de flag uit (`state/ifcForeignGuard.ts`). */
@@ -482,8 +482,11 @@ export const fileTools: McpToolDef[] = [
     description:
       'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
       'new active tab (an empty, unchanged active tab is reused); nothing is merged. In the app, with the experimental ' +
-      'setting "Open IFC with a building model" on, an IFC path that is already open in a tab (the exact same path text) switches to that tab instead and ' +
-      'return it with `alreadyOpen: true`; that tab keeps its own content. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'setting "Open IFC with a building model" on, an IFC path that is already open in a tab (the same path text after it is resolved ' +
+      'inside the home folder) switches to that tab instead and returns it with `alreadyOpen: true`; that tab keeps its own content. ' +
+      'If the file differs from the version that tab last read or saved, the response also has `changedOnDisk: true` and the app ' +
+      'shows the user a notice with a button to load the new version. If the app does not know which version that tab has, the ' +
+      'file opens in a new tab. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
       'document; rebuild calendars with planner_update_calendar.',
@@ -571,9 +574,11 @@ export const fileTools: McpToolDef[] = [
       // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
       const lateBlocked = postAwaitGuards(ctx);
       if (lateBlocked) return lateBlocked;
-      const existing = readOptions.ifcBytes && readFormatForFile(path).canBeSaveTarget
-        ? existingDocument(ctx.app.store.getState(), { kind: 'path', path }, null) : null;
-      if (existing !== null) switchToOpenDocument(ctx.app.store.getState(), existing);
+      const ref: FileRef = { kind: 'path', path };
+      const tab = readOptions.ifcBytes && readFormatForFile(path).canBeSaveTarget
+        ? openTabFor(ctx.app.store.getState(), ref, null, readVersionOf(ref, parsed)) : null;
+      if (tab !== null) switchToOpenDocument(ctx.app.store, tab, basename(path));
+      const existing = tab?.id ?? null;
       const opened = existing !== null ? null : ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
         ref: { kind: 'path', path },
@@ -610,11 +615,13 @@ export const fileTools: McpToolDef[] = [
       });
       const notices: string[] = [];
       if (existing !== null) {
-        notices.push(
-          'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
-          `(document '${existing}'). That tab keeps its own content, including unsaved changes; ` +
-          'what is in the file now was not loaded into it. Tell the user.',
-        );
+        notices.push(tab?.changedOnDisk
+          ? 'This file was already open in a tab, so nothing new was opened: the app switched to that tab ' +
+            `(document '${existing}'). The file is now a different version than that tab has; the tab keeps its own ` +
+            'content, including unsaved changes, and the new version was not loaded. The app shows the user a notice ' +
+            'with a button to load the new version. Tell the user.'
+          : 'This file was already open in a tab with this same version, so nothing new was opened: the app switched ' +
+            `to that tab (document '${existing}'). That tab keeps its own content, including unsaved changes.`);
       }
       for (const document of documents) {
         if (!document.minuteModelConversion) continue;
@@ -655,7 +662,7 @@ export const fileTools: McpToolDef[] = [
           path,
           format,
           reusedActiveTab: opened?.reusedActiveTab ?? false,
-          ...(existing !== null ? { alreadyOpen: true } : {}),
+          ...(tab !== null ? { alreadyOpen: true, ...(tab.changedOnDisk ? { changedOnDisk: true } : {}) } : {}),
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */
           filePath: after.filePath,
           tasks: after.tasks.length,

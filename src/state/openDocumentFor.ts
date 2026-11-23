@@ -1,67 +1,78 @@
 import type { FileRef } from '@/services/fileAccess';
 import { sameEntry } from '@/services/fileAccess/foreignSourceTarget';
+import { isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
 import type { AppState } from './appStoreFactory';
-import type { DocumentPayload } from './documentContract';
-import type { NotifyInput } from './slices/types';
+import type { DocumentPayload, TargetFingerprint } from './documentContract';
+import { notifyChangedOnDisk, type ChangedOnDiskStore } from './changedOnDiskNotice';
 
 type Tabs = Pick<AppState, 'getOpenDocumentPayloads'>;
-type TabFile = Pick<DocumentPayload, 'filePath' | 'fileHandle' | 'siteFileId'>;
+type TabFile = Pick<DocumentPayload, 'filePath' | 'fileHandle' | 'siteFileId' | 'siteFileVersion' | 'knownTargetFingerprint'>;
 export type HandleRef = Extract<FileRef, { kind: 'handle' }>;
 
-const sameTabFile = (a: TabFile, b: TabFile) =>
-  a.filePath === b.filePath && a.fileHandle === b.fileHandle && a.siteFileId === b.siteFileId;
-
 export interface OpenLookup {
-  readonly seen: ReadonlyMap<string, TabFile>;
-  readonly settled: boolean;
-  readonly id: string | null;
+  readonly hits: readonly { readonly id: string; readonly handle: FileSystemFileHandle }[];
 }
 
 export function startOpenLookup(s: Tabs, ref: HandleRef): OpenLookup {
-  const tabs = s.getOpenDocumentPayloads().map(({ id, payload }) => ({
-    id, payload: { filePath: payload.filePath, fileHandle: payload.fileHandle, siteFileId: payload.siteFileId },
-  }));
-  const lookup = { seen: new Map(tabs.map(({ id, payload }) => [id, payload])), settled: false, id: null as string | null };
-  const candidates = tabs.filter(({ payload }) => payload.fileHandle && !payload.siteFileId);
-  let pending = candidates.length;
-  if (pending === 0) lookup.settled = true;
-  for (const { id, payload } of candidates) {
-    void sameEntry(ref.handle, payload.fileHandle!).then((same) => {
-      pending--;
-      if (lookup.settled) return;
-      if (same) lookup.id = id;
-      if (same || pending === 0) lookup.settled = true;
-    });
+  const hits: { id: string; handle: FileSystemFileHandle }[] = [];
+  for (const { id, payload } of s.getOpenDocumentPayloads()) {
+    const handle = payload.fileHandle;
+    if (!handle || payload.siteFileId) continue;
+    void sameEntry(ref.handle, handle).then((same) => { if (same) hits.push({ id, handle }); });
   }
-  return lookup;
+  return { hits };
 }
 
-function holds(ref: FileRef, payload: TabFile): boolean {
+export type ReadVersion =
+  | { readonly kind: 'site'; readonly version: string }
+  | { readonly kind: 'bytes'; readonly fingerprint: TargetFingerprint };
+
+export function readVersionOf(ref: FileRef, parsed: OpenedImport, siteVersion?: string | null): ReadVersion | null {
+  if (ref.kind === 'site') return siteVersion ? { kind: 'site', version: siteVersion } : null;
+  const source = isMultiDocumentImport(parsed) ? undefined : parsed.ifcSource;
+  return source ? { kind: 'bytes', fingerprint: { sha256: source.sha256, byteLength: source.bytes.byteLength } } : null;
+}
+
+function holds(ref: FileRef, id: string, payload: TabFile, lookup: OpenLookup | null): boolean {
   if (ref.kind === 'site') return payload.siteFileId === ref.id;
   if (payload.siteFileId) return false;
-  if (ref.kind === 'handle') return payload.fileHandle === ref.handle;
+  if (ref.kind === 'handle') {
+    return payload.fileHandle === ref.handle
+      || (!!payload.fileHandle && !!lookup?.hits.some(hit => hit.id === id && hit.handle === payload.fileHandle));
+  }
   return !payload.fileHandle && payload.filePath === ref.path;
 }
 
-export function existingDocument(s: Tabs, ref: FileRef, lookup: OpenLookup | null): string | null {
-  const documents = s.getOpenDocumentPayloads();
-  const settled = lookup?.settled ? lookup : null;
-  const seenAsNow = (id: string, payload: TabFile) => {
-    const before = settled?.seen.get(id);
-    return !!before && sameTabFile(before, payload);
-  };
-  const found = settled?.id == null ? undefined : documents.find(({ id }) => id === settled.id);
-  if (found && seenAsNow(found.id, found.payload)) return found.id;
-  return documents.find(({ id, payload }) => !seenAsNow(id, payload) && holds(ref, payload))?.id ?? null;
+function sameVersion(tab: TabFile, read: ReadVersion | null): boolean | null {
+  if (read === null) return null;
+  if (read.kind === 'site') return tab.siteFileVersion ? tab.siteFileVersion === read.version : null;
+  const known = tab.knownTargetFingerprint;
+  if (!known) return null;
+  return known.sha256 === read.fingerprint.sha256 && known.byteLength === read.fingerprint.byteLength;
 }
 
-const FILE_ALREADY_OPEN_NOTICE: NotifyInput = {
-  severity: 'info',
-  messageKey: 'notifications.fileAlreadyOpen',
-  dedupeKey: 'file-already-open',
-};
+export interface OpenTab {
+  readonly id: string;
+  readonly changedOnDisk: boolean;
+}
 
-export function switchToOpenDocument(s: Pick<AppState, 'switchDocument' | 'notify'>, id: string): void {
-  s.switchDocument(id);
-  s.notify(FILE_ALREADY_OPEN_NOTICE);
+export function openTabFor(s: Tabs, ref: FileRef, lookup: OpenLookup | null, read: ReadVersion | null): OpenTab | null {
+  let changed: string | null = null;
+  for (const { id, payload } of s.getOpenDocumentPayloads()) {
+    if (!holds(ref, id, payload, lookup)) continue;
+    const same = sameVersion(payload, read);
+    if (same) return { id, changedOnDisk: false };
+    if (same === false) changed ??= id;
+  }
+  return changed === null ? null : { id: changed, changedOnDisk: true };
+}
+
+export function launchTabFor(s: Tabs, id: string, read: ReadVersion | null): OpenTab {
+  const payload = s.getOpenDocumentPayloads().find(document => document.id === id)?.payload;
+  return { id, changedOnDisk: !!payload && sameVersion(payload, read) === false };
+}
+
+export function switchToOpenDocument(store: ChangedOnDiskStore, tab: OpenTab, name: string): void {
+  store.getState().switchDocument(tab.id);
+  if (tab.changedOnDisk) notifyChangedOnDisk(store, tab.id, name);
 }

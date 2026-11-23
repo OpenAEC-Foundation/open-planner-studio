@@ -318,7 +318,7 @@ export const SHORTCUTS: ShortcutDef[] = [
       store.deselectAll();
       store.setUI({
         showTaskDialog: false, editingTaskId: null, showDependencyMode: false, showSplitMode: false,
-        showProjectOverview: false, pendingCloseDocId: null, traceMode: 'off',
+        showProjectOverview: false, pendingCloseDocId: null, pendingReloadDocId: null, traceMode: 'off',
       });
     },
   },

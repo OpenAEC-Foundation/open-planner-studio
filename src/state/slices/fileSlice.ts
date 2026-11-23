@@ -105,7 +105,8 @@ import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
-import { existingDocument, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
+import { launchTabFor, openTabFor, readVersionOf, startOpenLookup, switchToOpenDocument, type OpenLookup } from '../openDocumentFor';
+import { dismissChangedOnDiskNotice } from '../changedOnDiskNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
@@ -358,6 +359,7 @@ export interface ApplyLoadedProjectOpts {
   linkedOpen?: boolean;
   viewStartDate?: string;
   deferTaskTypesNotice?: boolean;
+  refillActiveTab?: true;
 }
 
 export interface OpenedFileSource {
@@ -414,6 +416,8 @@ export interface FileSlice {
   hydrateRecentFiles: () => Promise<void>;
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
   openFromSite: (id: string, labels?: ImportLabels) => Promise<boolean>;
+  loadNewVersion: (documentId: string, labels?: ImportLabels) => void;
+  reloadFromTarget: (documentId: string, options?: { onlyIfClean?: boolean; labels?: ImportLabels }) => Promise<boolean>;
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   externalSourceVersion: (filePath: string) => Promise<string | undefined>;
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
@@ -478,7 +482,7 @@ export interface SaveDestination {
   siteFileVersion: string | null;
 }
 
-export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
+export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get, store) => {
   const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
 
   const refuseForeignDocumentWrite = (state: AppState = get()): boolean => {
@@ -1046,9 +1050,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       return;
     }
     if (choice.version === undefined) {
-      const existing = opened.ref && readOptions.ifcBytes ? existingDocument(get(), opened.ref, null) : null;
+      const existing = opened.ref && readOptions.ifcBytes && readFormatForFile(opened.name).canBeSaveTarget
+        ? openTabFor(get(), opened.ref, null, readVersionOf(opened.ref, parsed, opened.version)) : null;
       if (existing !== null) {
-        switchToOpenDocument(get(), existing);
+        switchToOpenDocument(store, existing, opened.name);
         await pushRecent(opened.ref, opened.name);
         return;
       }
@@ -1575,7 +1580,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (editing) runtime.beginUndoable(s, { label: 'IFC toepassen' });
         else {
           removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
-          if (replacesContent) replaceDocumentContent(s, s.activeDocumentId);
+          if (replacesContent || opts.refillActiveTab) replaceDocumentContent(s, s.activeDocumentId);
         }
         if (activation.invalidateRedoScope) {
           invalidateDocumentRedo(s, s.activeDocumentId);
@@ -1662,8 +1667,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let datesAsRecordedShownTotal = 0;
       let taskTypesUnlockedDocs = 0;
       let freshShownTotal = 0;
-      for (const result of results) {
-        if (!isActivePristine(get())) get().newDocument();
+      for (const [index, result] of results.entries()) {
+        if (!(opts.refillActiveTab && index === 0) && !isActivePristine(get())) get().newDocument();
         openedDocumentIds.push(get().activeDocumentId);
         const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
         if (conversion && conversion.shifted.length > 0) {
@@ -1778,17 +1783,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
         }
         // In dezelfde synchrone stap: staat dit bestand nu al in een tabblad, dan dat tabblad (een startbestand, #1091).
-        const existing = oneTab && opened.ref && !options?.existingDocument && readFormatForFile(opened.name).canBeSaveTarget
-          ? existingDocument(get(), opened.ref, options?.lookup ?? null)
-          : options?.existingDocument?.() ?? null;
-        if (existing !== null) {
-          if (!oneTab) {
-            get().switchDocument(existing);
+        const read = oneTab && opened.ref ? readVersionOf(opened.ref, parsed) : null;
+        if (options?.existingDocument) {
+          const launched = options.existingDocument();
+          if (launched !== null) {
+            switchToOpenDocument(store, launchTabFor(get(), launched, read), opened.name);
             return;
           }
-          switchToOpenDocument(get(), existing);
-          await pushRecent(opened.ref, opened.name);
-          return;
+        } else if (oneTab && opened.ref && readFormatForFile(opened.name).canBeSaveTarget) {
+          const existing = openTabFor(get(), opened.ref, options?.lookup ?? null, read);
+          if (existing !== null) {
+            switchToOpenDocument(store, existing, opened.name);
+            await pushRecent(opened.ref, opened.name);
+            return;
+          }
         }
         if (options?.stale?.()) return;
 
@@ -2419,6 +2427,80 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         console.error('Failed to open recent file:', err);
         for (const notice of openFailureNotices(err)) get().notify(notice);
       }
+    },
+
+    loadNewVersion: (documentId, labels) => {
+      const saving = get().waitForSavesBeforeClose();
+      if (saving) {
+        void saving.then(() => get().loadNewVersion(documentId, labels));
+        return;
+      }
+      if (!get().documents.some(document => document.id === documentId)) return;
+      if (get().activeDocumentId !== documentId) get().switchDocument(documentId);
+      runtime.finishPendingTextEdits();
+      if (get().isDirty) get().setUI({ pendingReloadDocId: documentId });
+      else void get().reloadFromTarget(documentId, { labels });
+    },
+
+    reloadFromTarget: async (documentId, options = {}) => {
+      for (let saving = get().waitForSavesBeforeClose(); saving; saving = get().waitForSavesBeforeClose()) await saving;
+      if (get().activeDocumentId !== documentId) return false;
+      runtime.finishPendingTextEdits();
+      const start = get();
+      if (options.onlyIfClean && start.isDirty) return false;
+      const ref = saveTargetRef(start);
+      const content = documentContentOf(start, documentId);
+      if (!ref || !content) return false;
+      const target = { filePath: start.filePath, fileHandle: start.fileHandle, siteFileId: start.siteFileId };
+      const cleanAtStart = !start.isDirty;
+      const readOptions = formatReadOptions();
+      let opened: { name: string; content: string; bytes?: Uint8Array; version?: string | null };
+      try {
+        if (ref.kind === 'site') {
+          const site = await openSiteFile(ref.id, { binaryExtensions: binaryExtensions(readOptions) });
+          opened = { name: site.name, content: site.content, ...(site.bytes ? { bytes: site.bytes } : {}), version: site.version };
+        } else {
+          const name = ref.kind === 'handle' ? ref.handle.name : basename(ref.path);
+          const isBinary = readsAsBytes(name, readOptions);
+          if (ref.kind === 'path' && isTauri()) {
+            opened = { ...await readOpenedPath(ref.path, isBinary), name };
+          } else {
+            const text = isBinary ? null : await readFromRef(ref);
+            const bytes = isBinary ? await readBytesFromRef(ref) : null;
+            if (isBinary ? bytes === null : text === null) {
+              get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: name });
+              return false;
+            }
+            opened = { name, content: text ?? '', ...(bytes ? { bytes } : {}) };
+          }
+        }
+      } catch (err) {
+        console.error('Failed to reload file:', err);
+        for (const notice of openFailureNotices(err)) get().notify(notice);
+        return false;
+      }
+      let parsed: OpenedImport;
+      try {
+        parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, options.labels, readOptions);
+        refuseModelAboveOpenLimit(parsed);
+      } catch (err) {
+        console.error('Failed to reload file:', err);
+        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        return false;
+      }
+      const now = get();
+      if (now.activeDocumentId !== documentId || !sameDocumentContent(now, content)
+        || now.filePath !== target.filePath || now.fileHandle !== target.fileHandle || now.siteFileId !== target.siteFileId
+        || (cleanAtStart && now.isDirty)) return false;
+      get().applyOpenedImport(parsed, {
+        ...target,
+        siteFileVersion: target.siteFileId ? opened.version ?? null : null,
+        recompute: true,
+        linkedOpen: true,
+        refillActiveTab: true,
+      });
+      dismissChangedOnDiskNotice(get(), documentId);
+      return true;
     },
 
     openFromSite: async (id, labels) => {

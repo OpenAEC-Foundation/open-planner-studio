@@ -36,6 +36,7 @@ export function isBlockingDialogOpen(ui: UIState): boolean {
     // niet op de dialoogstapel. Zonder deze vlag verwijderde Delete een taak terwijl de vraag
     // openstond, en zette *Opslaan* die verwijdering daarna in het bestand.
     ui.pendingCloseDocId !== null ||
+    ui.pendingReloadDocId !== null ||
     // "Wordt nog opgeslagen…" (#804 stap 3): afsluiten of sluiten wacht op een opslag; niets mag intussen wijzigen.
     ui.savingBeforeClose ||
     // De laatste fase van afsluiten (fixronde 1): de poort voor projectopslag is dicht, het venster gaat weg.

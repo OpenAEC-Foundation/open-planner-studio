@@ -13,7 +13,7 @@
     "dismiss": "Melding sluiten",
     "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
-    "fileAlreadyOpen": "Dit bestand staat al open. Je bent naar dat tabblad gegaan.",
+    "fileChangedOnDisk": "{{name}} is buiten dit tabblad gewijzigd. Dit tabblad toont nog de eerdere versie.",
     "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, XML, MPP, XER en CSV.",
     "fileDropBlocked": "Niet geopend: {{names}}. Sluit eerst het venster dat openstaat.",
     "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",
@@ -194,7 +194,8 @@
     "actions": {
       "openProjectInfo": "Rekenprofiel openen",
       "openHelp": "Help openen",
-      "undo": "Ongedaan maken"
+      "undo": "Ongedaan maken",
+      "loadNewVersion": "Nieuwe versie laden"
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
