@@ -1,7 +1,7 @@
 # Bij het lezen van IFC is een leeg tekst- of projectveld een uitspraak
 
 Een IFC-slot kan een waarde dragen, `$` zijn, een gequote lege string `''` zijn of ontbreken. De writer schrijft een
-leeg veld als `$`. Voor tekstvelden en voor de projectdatums behandelt de lezer leeg als wat het bestand zegt, niet
+leeg veld als `$`, behalve verplichte tekst, die hij als `''` schrijft (ADR 0141). Voor tekstvelden en voor de projectdatums behandelt de lezer leeg als wat het bestand zegt, niet
 als "onbekend", en vult hij geen tekst of projectdatum in die niet in het bestand staat. Een verzonnen waarde is geen
 invoer van de planner: een projectstart van vandaag tilt via de projectstartvloer van de solver taken met voorgangers
 naar de leesdatum, en een standaardtekst van deze machine maakt van een bewust lege omschrijving na heropenen een
