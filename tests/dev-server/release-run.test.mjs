@@ -70,8 +70,8 @@ const run = (over = {}) => ({
 const assets = versie => ['Open.Planner.Studio_<v>_amd64.deb', 'Open.Planner.Studio_<v>_x64-setup.exe', 'latest.json', 'open-planner-studio-<v>.mcpb']
   .map(n => ({ name: n.replace('<v>', versie) }));
 
-/** Een vorige tag die helemaal is uitgeleverd: alle runs groen, AUR met het bewezen ontbrekende secret. */
-function uitgeleverd({ snapLog = '  HEAD_BRANCH: v2026.47.0\n', snapStappen, snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' }), snapStap = 'success', aurStap = 'skipped', aurNotice = true } = {}) {
+/** Een vorige tag die helemaal is uitgeleverd: alle runs groen. */
+function uitgeleverd({ snapLog = '  HEAD_BRANCH: v2026.47.0\n', snapStappen, snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' }), snapStap = 'success' } = {}) {
   return [
     [/releases\/tags\/v2026\.47\.0$/, { draft: false, prerelease: false, published_at: '2026-11-17T04:29:30Z', assets: assets('2026.47.0'), body: '- a\n\n### Downloads' }],
     [/workflows\/release\.yml\/runs/, { workflow_runs: [run({ id: 10 })] }],
@@ -84,11 +84,6 @@ function uitgeleverd({ snapLog = '  HEAD_BRANCH: v2026.47.0\n', snapStappen, sna
     [/actions\/runs\/30$/, snap],
     [/actions\/runs\/30\/jobs/, { jobs: [{ id: 300, name: 'build-snap', conclusion: snap.conclusion, steps: snapStappen ?? [{ name: 'Publish to Snap Store', conclusion: snapStap }] }] }],
     [/actions\/jobs\/300\/logs/, snapLog],
-    [/workflows\/aur\.yml\/runs/, { workflow_runs: [run({ id: 40, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' })] }],
-    [/actions\/runs\/40$/, run({ id: 40, event: 'workflow_run' })],
-    [/actions\/runs\/40\/jobs/, { jobs: [{ id: 400, name: 'aur', conclusion: 'success', steps: [{ name: 'Push to AUR', conclusion: aurStap }] }] }],
-    [/check-runs\/400\/annotations/, aurNotice ? [{ annotation_level: 'notice', message: 'AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.' }] : []],
-    [/actions\/jobs\/400\/logs/, '2026-11-17T04:29:52.07Z   VERSION: v2026.47.0\nx Open.Planner.Studio_2026.47.0_amd64.deb: 123'],
     [/releases\?per_page=30/, [{ tag_name: 'v2026.45.0', draft: false, prerelease: false, published_at: '2026-11-09', assets: assets('2026.45.0') }]],
     ['release download v2026.47.0', { version: '2026.47.0', notes: '- a', platforms: { 'linux-x86_64': { url: 'https://dl/1' }, 'windows-x86_64': { url: 'https://dl/1' }, 'darwin-aarch64': { url: 'https://dl/1' } } }],
   ];
@@ -344,11 +339,6 @@ test('release: Snap groen maar de Store-stap overgeslagen is geen uitlevering', 
   assert.throws(() => release(ctx), e => e instanceof ReleaseStop && e.code === 'snap-mislukt');
 });
 
-test('release: AUR overgeslagen zonder de notice van het ontbrekende secret stopt', () => {
-  const { ctx } = nep({ git: GIT_BASIS, gh: [...GH_BASIS, ...uitgeleverd({ aurNotice: false }), [/issues\/969\/comments/, []]], run: RUN_BASIS, http: HTTP, droog: true });
-  assert.throws(() => release(ctx), e => e instanceof ReleaseStop && e.code === 'aur-mislukt');
-});
-
 test('release (droog): ontbrekende release zonder run stopt vóór de dispatch', () => {
   const gh = [...GH_BASIS, [/releases\/tags\/v2026\.47\.0$/, Object.assign(new Error('HTTP 404'), { stderr: 'gh: Not Found (HTTP 404)' })],
     [/workflows\/release\.yml\/runs/, { workflow_runs: [] }]];
@@ -367,7 +357,7 @@ test('lever: vlak na de tagpush wacht het script op de release-run en start geen
   const regels = [];
   lever(ctx, { tag: 'v2026.47.0', sha: SHA_TAG }, regels);
   assert.deepEqual(spoor.acts, []);
-  assert.equal(regels.length, 6);
+  assert.equal(regels.length, 5);
 });
 
 test('release: een draft zonder release-run is een stop, geen dispatch', () => {
@@ -453,8 +443,8 @@ test('vervolgRun: workflow_run op de SHA van main; een overgeslagen run van een 
   const nogNiet = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [overgeslagen] }]] });
   assert.equal(vervolgRun(nogNiet.ctx, 'snap.yml', { tag: 'v2026.47.0', releaseRun: run({ run_attempt: 2 }) }), null);
   const later = run({ id: 3, event: 'workflow_dispatch', head_branch: 'v2026.45.0', created_at: '2026-11-10T08:00:00Z' });
-  const alleenDispatch = nep({ gh: [[/aur\.yml\/runs/, { workflow_runs: [later] }]] });
-  assert.equal(vervolgRun(alleenDispatch.ctx, 'aur.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 3);
+  const alleenDispatch = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [later] }]] });
+  assert.equal(vervolgRun(alleenDispatch.ctx, 'snap.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 3);
 });
 
 test('lever: een vervolgrun zonder HEAD_BRANCH van de tag in zijn log wordt niet gevolgd en krijgt geen rerun', () => {

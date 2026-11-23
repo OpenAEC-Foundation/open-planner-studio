@@ -13,8 +13,6 @@ paths:
   - "scripts/bump*"
   - "scripts/*release-highlights*"
   - "snap/**"
-  - "packaging/aur/**"
-  - "scripts/aur/**"
   - "src/services/updater/**"
   - "public/release-highlights.json"
   - "package.json"
@@ -33,9 +31,3 @@ Versies volgen `JJJJ.W.N`: ISO-weekjaar, ISO-weeknummer zonder voorloopnul, volg
 De webbuild levert daarnaast `public/release-highlights.json` mee — gegenereerd uit de catalogus met `npm run gen:release-highlights-json`, bewaakt door `npm run verify:release-highlights-json` en geserveerd op `https://open-planner-studio.open-aec.com/release-highlights.json` als bron voor de releasetijdlijn op open-aec.com.
 
 **Releaseteksten hebben één bron.** `docs/release-notes/v<versie>.md` bevat alleen de "What's New"-inhoud; `scripts/release-notes.mjs` maakt daar de twee vormen van die de release nodig heeft: `--format=body` (markdown + het vaste Downloads-blok) voor de GitHub-releasepagina, en `--format=notes` (platte tekst — de updater-dialoog rendert geen markdown) voor het `notes`-veld in `latest.json`. `release.yml` roept dat op twee plekken aan: `create-release` voor de body, en `publish-release` voor `latest.json` vlak vóór publicatie. Ontbreekt het bestand, dan valt alles terug op het oude gedrag (generieke body, leeg `notes`-veld) en logt de gate een warning — een vergeten notesbestand breekt de release niet.
-
-## AUR-pakket
-
-`aur.yml` volgt een geslaagde `release.yml` (zoals `snap.yml`), vult `packaging/aur/PKGBUILD` in, test met `makepkg` + `namcap` in een `archlinux`-container en pusht naar de AUR alleen met het secret `AUR_SSH_PRIVATE_KEY`. De jobvoorwaarde weigert vóór checkout elke `workflow_run` uit een andere bronrepo of een ander bronevent dan `push` (met `v*`-prefix) en `workflow_dispatch`; de run moet geslaagd zijn. Wijzig het pakket in `packaging/aur/`, niet in de AUR-git.
-
-Besluit eigenaar, 2026-10-31: slaat `aur.yml` de push over omdat `AUR_SSH_PRIVATE_KEY` ontbreekt, dan is dat geen onafgerond werk en geen stopreden, ook niet voor een oudere tag. Het eindrapport zegt dat Arch nog geen pakket kreeg, en waarom. Een rode `aur.yml`, een mislukte push met secret of een pakket met de verkeerde versie stopt de release wel. Het vereiste bewijs staat in de `release`-skill, `referentie.md`, onder *Ontbrekend AUR-secret*.
