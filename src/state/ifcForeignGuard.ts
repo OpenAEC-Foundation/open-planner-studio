@@ -1,16 +1,18 @@
 // #804 fase 1c: de documentroutes schrijven een voorbereide merge naar nieuwe lokale doelen,
 // browserdownloads en siteversies met een verplichte basisversie. Ook IFC-export en app-MCP schrijven volledig
-// naar nieuwe doelen, zonder documentcommit. De andere IFC-routes en AutoSave
-// houden de strikte opslagblokkade. Ontbrekende bronbytes blokkeren IFC-opslag, ook met de flag uit. Met de flag aan
-// schrijven alleen na de vraag "alleen de planning" planning zonder model naar een ander doel: Opslaan als bij een
-// ontbrekende bron (PR 9e), en Exporteren → IFC zonder gebouwmodel en de export met bibliotheek (PR 13).
+// naar nieuwe doelen, zonder documentcommit. Automatisch opslaan schrijft met de flag aan een document met een
+// gebouwmodel naar zijn eigen bestand, via de vervanging van Ctrl+S (#804 stap 8, `fileAutoSave.ts`). De andere
+// IFC-routes houden de strikte opslagblokkade, en Automatisch opslaan ook met de flag uit. Ontbrekende bronbytes
+// blokkeren IFC-opslag, ook met de flag uit. Met de flag aan schrijven alleen na de vraag "alleen de planning"
+// planning zonder model naar een ander doel: Opslaan als bij een ontbrekende bron (PR 9e), en Exporteren → IFC
+// zonder gebouwmodel en de export met bibliotheek (PR 13).
 // Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget, sameEntry, sameLocalFile, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, sameEntry, sameLocalFile, samePath, targetRefusal, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
 import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import { missingTarget, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
-import type { FileRef } from '@/services/fileAccess';
+import type { FileRef, PickedSaveTarget } from '@/services/fileAccess';
 import { ByteWriteError } from '@/services/fileAccess/byteWrite';
 import type { DocumentPayload } from './documentContract';
 import { refusalNotice } from './refusalNotice';
@@ -41,7 +43,8 @@ export function ifcSaveBlocked(s: {
 }
 
 /** Documentopslag en IFC-export (ook de export met bibliotheek) gaan met de flag aan door de bewaakte voorbereiding.
- * Paneel, hersteldoel en AutoSave houden de strikte `ifcSaveBlocked` hierboven. */
+ * Automatisch opslaan gebruikt deze toets sinds #804 stap 8 ook (`fileAutoSave.ts`). Paneel, hersteldoel en de
+ * dev-bridge houden de strikte `ifcSaveBlocked` hierboven. */
 export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
   readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
 }): boolean {
@@ -49,6 +52,8 @@ export function ifcFullWriteBlocked(s: Parameters<typeof ifcSaveBlocked>[0] & {
     || (hasForeignContent(s.ifcSource) && !ifcForeignContentEnabled(s.ui.featureFlags));
 }
 
+/** Was knownbug 1897 (fixronde 1 van #1071): *Opslaan als* van een document met een vreemd deel koos zijn eigen bronbestand.
+ *  "Gebruik Opslaan om het bij te werken, of Opslaan als met een nieuwe naam voor een kopie." */
 export const IFC_FOREIGN_REPLACE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignReplaceBlocked', dedupeKey: 'ifc-foreign-replace-blocked',
 });
@@ -66,8 +71,9 @@ export const IFC_FOREIGN_REPLACE_NOT_RECORDED_NOTICE: NotifyInput = refusalNotic
 export const IFC_FOREIGN_MERGE_REFUSED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignMergeRefused', dedupeKey: 'ifc-foreign-merge-refused',
 });
-/** #804 stap 5: de opslagworker stierf, antwoordde niet op tijd of onleesbaar (`IfcSaveWorkerError`). Een mislukte opslag
- *  of export, geen weigering: er is niets geschreven en de hoofdthread rekent niet opnieuw. */
+/** #804 stap 5: de opslagworker stierf, antwoordde niet op tijd of onleesbaar, of de worker van een merge startte niet
+ *  terwijl er in de sessie al eens een startte (`IfcSaveWorkerError`, knownbug 1936). Een mislukte opslag of export, geen weigering: er is niets geschreven en de
+ *  hoofdthread rekent niet opnieuw; de volgende poging start een nieuwe worker. */
 export const IFC_SAVE_WORKER_FAILED_NOTICE: NotifyInput = {
   severity: 'error', messageKey: 'notifications.ifcSaveWorkerFailed', dedupeKey: 'ifc-save-worker-failed', replaceOnDedupe: true,
 };
@@ -140,6 +146,19 @@ export const IFC_FOREIGN_TARGET_OPEN_IN_TAB_NOTICE: NotifyInput = refusalNotice(
   dedupeKey: 'ifc-foreign-target-open-in-tab',
 });
 
+/** Knownbug 1907: Exporteren koos een bestand dat in een ander tabblad open staat. */
+export const EXPORT_TARGET_OPEN_IN_TAB_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOpenInTab',
+  dedupeKey: 'export-target-open-in-tab',
+});
+
+/** Review van #1064: een uitvoer zonder de planning (bibliotheek, rapport) koos een bestand dat in een tabblad open
+ *  staat, ook het actieve. */
+export const EXPORT_TARGET_OPEN_DOCUMENT_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.exportTargetOpenDocument',
+  dedupeKey: 'export-target-open-document',
+});
+
 /** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
 export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignTargetExport',
@@ -198,28 +217,54 @@ export async function isOpenForeignSourceTarget(
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }
 
-/** Is het bestaande bestand op `path` het bestand van een ANDER open document (niet `exceptDocumentId`), ook een gewone
+/** Is het bestaande bestand op `path` het bestand van een open document (niet `exceptDocumentId`), ook een gewone
  *  planning zonder vreemd deel (die heeft geen bronkenmerk)? Dezelfde padvergelijking als de bronkenmerken
  *  (`sameLocalFile`: hetzelfde pad of dezelfde bestandsidentiteit, dus ook via een link). Staat er op `path` geen bestand
  *  meer (buiten de app verwijderd), dan is de naam vrij, ook als een ander tabblad hem nog onthoudt (fixronde 2 van
  *  #1019). */
 async function isOpenDocumentPath(
   s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
-  exceptDocumentId: string,
+  exceptDocumentId: string | null,
 ): Promise<boolean> {
-  const paths = s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
-    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [payload.filePath] : []));
-  if (paths.length === 0) return false;
+  return (await openDocumentIdForPath(s, path, identityFs, exceptDocumentId)) !== null;
+}
+
+/** Het id van het open document (niet `exceptDocumentId`) dat het bestaande bestand op `path` als bestand heeft, of
+ *  `null`. De vergelijking van `isOpenDocumentPath`; ook voor een bestand dat bij het starten is meegegeven (#1091):
+ *  staat het al open, dan wisselt de app naar dat tabblad. */
+export async function openDocumentIdForPath(
+  s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string, identityFs: () => Promise<FileIdentityFs | undefined>,
+  exceptDocumentId: string | null = null,
+): Promise<string | null> {
+  const docs = openFileDocuments(s, exceptDocumentId);
+  if (docs.length === 0) return null;
   let fs: FileIdentityFs | undefined;
   try { fs = await identityFs(); } catch { fs = undefined; }
-  if (fs && await missingFile(fs, path)) return false;
-  for (const other of paths) if (await sameLocalFile(path, other, fs ? { identityFs: fs } : {})) return true;
-  return false;
+  if (fs && await missingFile(fs, path)) return null;
+  for (const doc of docs) if (await sameLocalFile(path, doc.path, fs ? { identityFs: fs } : {})) return doc.id;
+  return null;
+}
+
+/** Synchroon, alleen op de padtekst (`samePath`): het open document met dit pad, of `null`. Voor een controle in
+ *  dezelfde stap als het activeren, waar geen `stat` tussen past (#1091). */
+export function openDocumentIdForPathText(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, path: string): string | null {
+  return openFileDocuments(s, null).find((doc) => samePath(path, doc.path))?.id ?? null;
+}
+
+/** De open documenten met een lokaal pad als bestand (geen handle, geen site). */
+function openFileDocuments(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, exceptDocumentId: string | null): { id: string; path: string }[] {
+  return s.getOpenDocumentPayloads().flatMap(({ id, payload }) => (
+    id !== exceptDocumentId && payload.filePath && !payload.fileHandle && !payload.siteFileId ? [{ id, path: payload.filePath }] : []));
 }
 
 /** Staat er aantoonbaar niets op `path`? Een andere fout van `stat` telt als nee: de veilige kant. */
 async function missingFile(fs: FileIdentityFs, path: string): Promise<boolean> {
   try { await fs.stat(path); return false; } catch (error) { return missingTarget(error); }
+}
+
+/** De open documenten zonder het document met deze id (`null`: alle). */
+function allBut(s: Pick<WriteTargetState, 'getOpenDocumentPayloads'>, documentId: string | null): Pick<WriteTargetState, 'getOpenDocumentPayloads'> {
+  return documentId === null ? s : { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== documentId) };
 }
 
 /** Het eigen lokale bestand van een document (zie de uitzondering "eigen doel" bij `refusedWriteTarget`). */
@@ -247,10 +292,20 @@ export interface WriteTargetDeps {
   protectExistingTargets?: boolean;
   identityFs: () => Promise<FileIdentityFs | undefined>;
   readers: () => TargetReaders;
-  /** Alleen de bestandskiezer van een document (Opslaan als, #1022) en de vervanging bij Opslaan als over een bestaande
-   *  naam (#804 keuze 4, fixronde 1 van #1019): weiger ook een bestaand pad dat een ander open document dan
-   *  `exceptDocumentId` (het document dat opslaat) als bestand heeft, ook zonder vreemd deel (`'open-document'`). */
-  openDocumentPaths?: { readonly exceptDocumentId: string };
+  /** Weiger ook een bestaand pad dat een open document als bestand heeft, ook zonder vreemd deel (`'open-document'`),
+   *  behalve het document met deze id: het document dat opslaat of waarvan de planning in de uitvoer staat. `null`: geen
+   *  uitzondering, voor uitvoer zonder de planning (bibliotheek, rapport; review van #1064). Voor de bestandskiezer van
+   *  een document (Opslaan als, #1022), de vervanging bij Opslaan als over een bestaande naam (#804 keuze 4, fixronde 1
+   *  van #1019), elke export en `planner_export_ifc` (knownbug 1907). */
+  openDocumentsExcept?: string | null;
+  /** #804 keuze 4 (besluit van de eigenaar, 19 november 2026): de doelwaarneming van de bestandskiezer van *Opslaan als*
+   *  op de desktop (ook die van Ctrl+S bij een document zonder opslagdoel, fixronde 1 van #1071): het gekozen pad en wat
+   *  de kiezer daar direct na zijn terugkeer las (`pickSaveTarget`). De planner bevestigde in de kiezer het vervangen;
+   *  staat er op dit pad een gewoon bestand dat de kiezer las, dan weigert regel 2 daar geen gebouwmodel en geen
+   *  gegevens van een ander programma. De schrijfroute vervangt daarna alleen die gelezen versie (`replaceOwnFileBytes`,
+   *  fixronde 2 van #1071). Elke andere route (Ctrl+S met een opslagdoel, export, AutoSave, MCP, dev-bridge) geeft dit
+   *  niet. Regel 1 en 3 en een onleesbaar doel blijven weigeren. */
+  chosenTarget?: PickedSaveTarget;
 }
 
 /**
@@ -262,9 +317,15 @@ export interface WriteTargetDeps {
  *     wrakko 9 november 2026; `targetRefusal`), of een STEP-doel waarin de grammatica geen datasectie vindt
  *     ('unreadable-target', review van #870). Onleesbare bestaande doelen weigeren; bewezen nieuwe doelen mogen. Met
  *     de flag uit blijft dit weg, zodat de app byte-gelijk aan main blijft.
- *  3. alleen met `deps.openDocumentPaths` (Opslaan als): een bestaand pad dat een ander open document als bestand
- *     heeft, ook zonder vreemd deel en ook met de flag uit ('open-document'; fixronde 1 van #1019, #1022). Na regel 1,
+ *  3. alleen met `deps.openDocumentsExcept` (Opslaan als, Exporteren): een bestaand pad dat een ander open document als
+ *     bestand heeft, ook zonder vreemd deel en ook met de flag uit ('open-document'; #1022, knownbug 1907). Na regel 1,
  *     dus de bron van een document met een vreemd deel houdt haar eigen reden.
+ * Met `deps.chosenTarget` (alleen de bestandskiezer van Opslaan als op de desktop, #804 keuze 4) vervalt van regel 2
+ * voor het gekozen pad met een gelezen gewoon bestand alleen de weigering op inhoud ('building-model',
+ * 'foreign-content'); 'unreadable-target' blijft.
+ * Met de flag aan en `deps.openDocumentsExcept` gaat regel 3 vóór regel 1 en geldt ze ook voor de bron van een ander
+ * open document (fixronde 1 van #1071): 'open-document' noemt het open tabblad; 'open-source' is dan de bron van het
+ * document zelf. Met de flag uit blijft de volgorde van main (fixronde 2 van #1071).
  * Uitzondering "eigen doel" (`ownVersion`): alleen een volledige documentmerge naar het eigen bestand van het eigen
  * document, met de flag aan, zonder "bron ontbreekt" en met een kenmerk dat bij de bron hoort.
  *  - site: de eigen siteversie met de basisversie van het document; de host bewaakt die basis;
@@ -290,18 +351,31 @@ export async function refusedWriteTarget(
     && !!ownVersion.baseVersion && own.siteFileVersion === ownVersion.baseVersion
     && own.foreignSourceMark!.siteFileId === target.id;
   if (ownSource && !own.siteFileId && await isOwnLocalFile(own, target)) {
-    const others = { getOpenDocumentPayloads: () => s.getOpenDocumentPayloads().filter(d => d.id !== ownVersion.documentId) };
-    return await isOpenForeignSourceTarget(others, target, deps.identityFs) ? 'open-source' : null;
+    return await isOpenForeignSourceTarget(allBut(s, ownVersion.documentId), target, deps.identityFs) ? 'open-document' : null;
+  }
+  // Fixronde 1 van #1071, alleen met de flag aan (fixronde 2): het open tabblad gaat voor. Is het doel het bestand of de
+  // bron van een ANDER open document, dan is de reden 'open-document', ook als dat document een gebouwmodel heeft;
+  // 'open-source' blijft over voor de bron van het document zelf (en voor routes die niet zeggen welk document schrijft).
+  const flagOn = ifcForeignContentEnabled(s.ui.featureFlags);
+  if (flagOn && deps.openDocumentsExcept !== undefined && target.kind !== 'site') {
+    if (target.kind === 'path' && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
+      return 'open-document';
+    }
+    if (await isOpenForeignSourceTarget(allBut(s, deps.openDocumentsExcept), target, deps.identityFs)) return 'open-document';
   }
   const openSource = await isOpenForeignSourceTarget(s, target, deps.identityFs);
   if (openSource && !isOwnVersion) return 'open-source';
   if (isOwnVersion) return null;
-  if (deps.openDocumentPaths && target.kind === 'path'
-    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentPaths.exceptDocumentId)) {
+  // Met de flag uit regel 3 hier, na regel 1, zoals main.
+  if (!flagOn && deps.openDocumentsExcept !== undefined && target.kind === 'path'
+    && await isOpenDocumentPath(s, target.path, deps.identityFs, deps.openDocumentsExcept)) {
     return 'open-document';
   }
-  if (!deps.protectExistingTargets && !ifcForeignContentEnabled(s.ui.featureFlags)) return null;
+  if (!deps.protectExistingTargets && !flagOn) return null;
   const refusal = await targetRefusal(target, deps.readers());
-  return refusal === 'model' ? 'building-model' : refusal === 'foreign' ? 'foreign-content'
-    : refusal === 'unreadable' ? 'unreadable-target' : null;
+  if (refusal === 'unreadable') return 'unreadable-target';
+  if (refusal === null) return null;
+  const chosen = deps.chosenTarget;
+  if (target.kind === 'path' && chosen?.path === target.path && chosen.current instanceof Uint8Array) return null;
+  return refusal === 'model' ? 'building-model' : 'foreign-content';
 }

@@ -550,7 +550,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 
 1. **Openen als bytes.** Elke open-route voor IFC leest bytes: Openen (`tauriBackend.ts:22`, `webBackend.ts:124`,
    `siteBackend.ts:43`), Recent (`tauriBackend.ts:87-90`, `fileSlice.ts:1658`) en externe bronnen
-   (`parseExternalSource`, `fileSlice.ts:1500`). De grootte wordt vóór het lezen gecontroleerd (§4.13).
+   (`parseExternalSource`, `fileSlice.ts:1500`). De grenzen staan in §4.13.
    `openExampleFromString` (voorbeelden, `helpApi.ts:104`, `useDemoStartExample.ts:49`, `qaScenes.ts:89`) blijft tekst:
    het zijn eigen bestanden in UTF-8. Een voorbeeld met een model (`bouwmodel-ifc4.ifc` in de QA-scènes) gaat via
    dezelfde route met `TextEncoder`; dat is byte-gelijk voor geldige UTF-8.
@@ -571,19 +571,16 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 6. **Terugval naar de huidige route (v21, fase 1a; afwijking 7).** De bytes-route valt terug op de route van nu: de bytes
    als UTF-8-tekst naar `readIFC`, met de modelweigering en zonder `ifcSource`. Dat gebeurt in vier gevallen
    (`src/services/ifc/foreign/ifcBytesRoute.ts:77-96`):
-   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, §4.13);
+   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, de technische grens, §4.13);
    - de scanner weigert de bytes (§4.1), ook als `readIFC` het bestand wel opent;
    - de kopnaam is geen van de herkende namen van §4.11;
    - de lezer kiest andere taken, resources, kalenders, een ander werkplan of een ander werkschema dan `selectPlanning`
      (een controle na het lezen).
 
-   De uitkomst is dan precies die van de app zonder flag. Waarom: de scanner is strenger dan `readIFC` (bijvoorbeeld bij
-   een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007). Een bestand dat nu opent, mag met de flag niet
-   geweigerd worden. Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft dus
-   geweigerd. Voorbeeld: een eigen bestand met een losse `#2147483648=IFCPERSON(...)` opent zoals nu, zonder bron, en
-   opslaan mag. `bonsai-4d.ifc` met dezelfde regel krijgt de modelweigering. Met `#2147483647` gaan beide door de
-   bytes-route. Gevolg voor §4.11: een onbekend schema met een vreemd deel zonder `IfcProduct` opent zoals nu (zonder
-   bron, dus zonder bewaking); met een model blijft het geweigerd. Test: `tests/planning/check-ifc-foreign-open.ts`,
+   De scanner is strenger dan `readIFC` (bijvoorbeeld bij een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007).
+   Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft geweigerd. Een terugval
+   opent alleen als de indeling daarna geen C, A of V vindt; anders weigert openen. De uitzondering voor een schema
+   (IFC2X3 zonder model) staat in §4.11. Test: `tests/planning/check-ifc-foreign-open.ts`,
    deel 7.
 
    Uitwerking van punt 4 in fase 1a: de lezer krijgt ook het stuk van het enige `IfcProject` als dat V is (§4.2,
@@ -657,7 +654,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
     verdwijnen dat tussen de twee aanroepen op het doel kwam (Sol, review #839, ronde 4, met echte bestanden). Het
     commando controleert beide paden tegen de fs-scope van plugin-fs, en het accepteert alleen twee paden in dezelfde
-    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`): in stap
+    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`; de
+    vervanging gebruikt `save-<id>.ops-vorige-<id>`, zie stap 3): in stap
     3 is dat `to`, in stap 4 `from`. Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*);
     wrakko keurde het goed onder voorwaarden (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
     `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
@@ -750,22 +748,34 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     veld getypt is, houdt het tabblad en het venster open); Escape verbergt de sluitvraag niet zolang haar opslag loopt. Elke andere uitkomst dan een geslaagde vervanging stopt de opslag met haar
     melding, zonder terugval op de gewone schrijfroutine; een nieuwe naam is een eigen keuze van de planner (*Opslaan
     als*). Na een bewerking tijdens de opslag wordt de geschreven versie de bron en blijft het document gewijzigd; de
-    sluitvraag sluit dan niet. Nog niet via de vervanging: Automatisch opslaan naar het bestand (blijft geweigerd) en
-    Ctrl+S buiten de thuismap (alleen *Opslaan als*).
+    sluitvraag sluit dan niet. Automatisch opslaan naar het bestand gebruikt sinds #804 stap 8 dezelfde vervanging
+    (§4.12). Nog niet via de vervanging: Ctrl+S buiten de thuismap (alleen *Opslaan als*).
   - ***Opslaan als* over een andere bestaande naam** (keuze 4, §11; knownbug 1131 stap 8, #1019). Op de desktop, met een
     vreemd deel: de planner bevestigde het vervangen in de bestandskiezer, de app vraagt niets meer. Dezelfde vervanging
     als hierboven (stap 0–6, binnen dezelfde schrijfactie). De app opende dit bestand niet, dus de verwachte inhoud is
-    wat er bij het begin van de opslag op het doel stond (gelezen na de bestandskiezer en de doelcontrole; de sha256 is
-    `vorigeSha256`). Stap 2 vergelijkt het doel daarmee; staat er iets anders, dan stopt de opslag met de melding van
-    Ctrl+S en blijft het doel zoals het is. De doelbewaking na de eerste herstelronde scant die gelezen inhoud, niet het
-    pad opnieuw: wat stap 5 weghaalt, liet de doelbescherming toe. De doelbescherming zelf verandert niet: een bestaand
-    doel met een gebouwmodel of C/A/V-inhoud blijft geweigerd, net als de bron van een open document. Daarbij weigert
+    wat de bestandskiezer direct na zijn terugkeer op het doel vond (de sha256 is `vorigeSha256`). Stap 2 vergelijkt het
+    doel daarmee; staat er iets anders, dan stopt de opslag met de melding van Ctrl+S en blijft het doel zoals het is.
+    De bevestiging in de kiezer geldt voor wat er op het doel staat (besluit van de eigenaar, 19 november 2026): ook een
+    gewoon bestand met een gebouwmodel of C/A/V-inhoud wordt vervangen, zonder tweede vraag of melding. Ze hoort bij het
+    gekozen pad en de versie die de kiezer daar las (fixronde 1 van #1071). Met de flag aan is er één route voor elk
+    document en elke inhoud van het doel (fixronde 2 van #1071): een gewoon bestand dat de kiezer las, gaat langs deze
+    vervanging, met die versie als verwachte inhoud; een vrije naam, een link of een map langs de exclusieve aanmaak;
+    een onleesbaar doel wordt geweigerd. Een document zonder vreemd deel heeft geen bron in het herstelmanifest: zijn
+    vervanging legt alleen het herstelrecord vast (stap 0 zonder `pendingSha256` in het manifest, stap 6 vervalt). De
+    bestandskiezer van Ctrl+S bij een document zonder opslagdoel is dezelfde route. Van de doelscan blijft alleen
+    een onleesbaar doel over (ook een leesfout; besluit van de technisch beslisser, 20 november 2026: vervangen alleen
+    van wat de app gezien heeft); een leesbaar bestand dat geen IFC is, is een gewoon doel. Eén scan van de vastgelegde
+    bytes, gedeeld door de controle na de kiezer en die na de eerste herstelronde (was knownbug 1891). De eigen bron
+    blijft geweigerd, met een verwijzing naar *Opslaan*; het bestand of de bron van een ander open document krijgt de
+    melding van een open tabblad, net als bij Exporteren. Een link naar een modelbestand blijft geweigerd. Exporteren,
+    Ctrl+S met een opslagdoel, Automatisch opslaan en MCP krijgen die toestemming niet. Daarbij weigert
     de vervanging ook een bestand dat in een ander tabblad open staat, ook een gewone planning zonder vreemd deel
     (fixronde 1 van #1019): na de eerste herstelronde en vóór de eerste schrijfactie in de map. Een vrije naam die een
     ander tabblad nog als pad onthoudt, blijft een vrije naam (fixronde 2). Of er een bestand staat, stelt de app direct na de
     terugkeer van de bestandskiezer vast; een toen leeg pad houdt de exclusieve aanmaak (knownbug 1890). Waar de vervanging
-    niet kan (buiten de thuismap, een link, een bestandssysteem zonder exclusieve stap), blijft de melding dat alleen een
-    nieuwe naam kan; geen terugval. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
+    niet kan (buiten de scope van de kiezer, knownbug 1762; een link of een harde link; een bestandssysteem zonder
+    exclusieve stap), blijft de melding dat alleen een nieuwe naam kan; geen terugval. Met de flag uit is alles zoals
+    voorheen, ook de volgorde van de weigerredenen. Exporteren → IFC en `planner_export_ifc` blijven een bestaande naam weigeren.
   - **Stappen.** 0: een eigen herstelrecord voor deze vervanging, `recovery[.<slug>].replace.<id>.json` in de
     appDataDir, met `{ id, path, vorigeSha256, pendingSha256 }`, en in het manifest `pendingSha256` (§4.14). Het record
     staat bewust buiten het manifest (besluit van de technisch beslisser, 18 november 2026, na de review van #991): het
@@ -774,7 +784,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     beschikbaar of geblokkeerd), dan stopt opslaan hier: zonder record vindt herstel de restbestanden niet terug. De
     melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
     sha256 van de inhoud vergelijken; anders stopt opslaan (eerste punt hierboven). 3: het doel exclusief verplaatsen
-    naar `<naam>.ops-vorige-<id>`. 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
+    naar `save-<id>.ops-vorige-<id>` in dezelfde map: kort en los van de doelnaam, zoals het tijdelijke bestand (fixronde 3
+    van #1071: achter een geldige naam van 240 bytes paste `<naam>.ops-vorige-<id>` niet meer). 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
     `.ops-vorige` narekenen. Gelijk aan `vorigeSha256`: verwijderen. Anders (een programma schreef via een open handle in
     het oude bestand): exclusief verplaatsen naar `<naam> (versie van ander programma <datum tijd>).ifc` en melden. 6:
     het manifest bijwerken en `pendingSha256` wissen. Het record verdwijnt pas als er geen hulpbestand van de operatie
@@ -795,8 +806,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - **Restbestanden na een crash.** Bij de start, en vóór de app een lokaal pad leest om het te openen (de dialoog,
     neerzetten en Recent gaan door één kern, `readOpenedTauriPath`), handelt hij de records af; voor een pad alleen het
     record van dat pad, en zonder record raakt dat de projectmap niet. Het record van een vervanging die in deze sessie
-    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` met het id
-    uit het record; een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
+    nog loopt, laat hij met rust. Hij kijkt alleen naar `save-<id>.ops-save.tmp` en `save-<id>.ops-vorige-<id>` met het id
+    uit het record (een record van versie 1, van een oudere app, noemt de vorige versie nog `<naam>.ops-vorige-<id>`); een bestand met een ander id raakt hij niet aan. De naam bewijst geen eigendom (review van #991): de
     app leest de inhoud en vergelijkt de sha256 met het record.
     - `.ops-vorige` heeft `vorigeSha256` en het doel ontbreekt: dit is de versie die stap 3 opzijzette en stap 4 kwam
       niet op het doel. Exclusief terug op het doel; herstel neemt dan de oude bron.
@@ -826,7 +837,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   - **Garantie.** Met het commando vervangt of verwijdert de app geen versie van het bestand die hij niet zelf
     gecontroleerd heeft: elke versie die op het doelpad stond, staat daarna nog als bestand (op het doel, als
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
-    bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Op een
+    bestand schrijft na de controle in stap 5 en vóór het verwijderen; daartussen sluit de app alleen nog de leeshandle.
+    Op een
     bestandssysteem zonder atomaire exclusieve hernoemstap overschrijft de app het bestand niet; daar is alleen
     *Opslaan als* mogelijk. Dat een bestand met een harde link niet vervangen wordt, geldt waar het bestandssysteem het
     aantal namen eerlijk meldt (besluit van de technisch beslisser, 18 november 2026; knownbug 1823): op SSHFS en
@@ -876,7 +888,7 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 | Exporteren → IFC zonder gebouwmodel | `fileSlice.ts`, nieuw | Modus `planOnly`: alleen P (de huidige uitvoer). Vraag vooraf die dat zegt. |
 | `exportProjectWithPool` | `fileSlice.ts:1474` | Een export voor uitwisseling van resources: alleen planning en pool, zonder model, met een vraag vooraf. |
 | Opslaan als ander formaat (STEP↔IFCX, CSV, MSPDI, XER) | `fileSlice.ts` | Alleen planning; het model gaat niet mee. STEP↔IFCX: met een vraag vooraf. CSV, MSPDI, XER en het voortgangsblad: geen vraag; de melding na afloop zegt dat alleen de planning is geëxporteerd (besluit van de eigenaar, 16 november 2026; knownbug 1740). |
-| Echte AutoSave naar het bestand | `useAutoSave.ts:148` | Volledig bestand, in de achtergrond (besluit van de eigenaar, 16 november 2026; tot opslaan in de achtergrond er is, stopt AutoSave bij een vreemd deel met één melding, §4.10). Ritme met een vreemd deel (besluit van de eigenaar, 17 november 2026): opslaan na 30 s rust, en bij onafgebroken doorwerken uiterlijk na 5 minuten. Technische ondergrens: een opslag neemt nooit meer dan ongeveer een tiende van de tijd in. |
+| Echte AutoSave naar het bestand | `fileAutoSave.ts`, gepland door `useAutoSave.ts` | Volledig bestand, in de achtergrond (besluit van de eigenaar, 16 november 2026; gebouwd in #804 stap 8, achter de flag), via dezelfde vervanging als Ctrl+S (§4.10): browser via de handle, desktop via `replaceOwnPathWithRecovery`. Nooit naar de site en nooit als download. Ritme met een vreemd deel, per document (besluit van de eigenaar, 17 november 2026): opslaan na 30 s rust, en bij onafgebroken doorwerken uiterlijk 5 minuten na de eerste niet-opgeslagen wijziging. Technische ondergrens: een ronde neemt nooit meer dan een tiende van de tijd in; de volgende begint niet vóór tien keer de gemeten duur na het begin van de vorige (die gaat vóór de 5 minuten). Typen in een cel (nog niet vastgelegd) telt als werken: de rust begint opnieuw, de 5 minuten tellen door. Voorrang (besluit technisch beslisser, 19 november 2026): tot het herstel van de vervanging vastligt en er nog niets op het doel geschreven is (de grens `stopBeforeWrite` in de gedeelde vervanging), wijkt de ronde voor Ctrl+S, Opslaan als, een export (een IFC-export al vanaf zijn rekenen), het sluiten van een tabblad en de laatste fase van afsluiten of de updater, ook als die zich melden terwijl het herstel geschreven wordt; er is dan niets geschreven of achtergebleven, het document blijft gewijzigd, en de ronde probeert het na de volgende rustperiode opnieuw (fixronde 1 van de review van #1033). Waar Ctrl+S een vraag zou stellen (geen schrijftoestemming, een te krap anker van een afhankelijk project, dezelfde beoordeling als Ctrl+S), slaat de ronde het document over. De wekker van een gebouwmodel start alleen die documenten; een gewoon document houdt 10 s. |
 | Crashherstel (10 s) | `recoverySnapshotInput.ts` | Alleen P + verwijzing naar de bron (§4.14). |
 | MCP-backup | `backupService.ts:312` | P + de sha256 van de bron, geen modelkopie. Terugzetten = de planning uit de backup + het vreemde deel van de **huidige** bron van het open document; dat verandert tussen opslagrondes alleen via §4.6–4.7. D-objecten koppelen via de kaart van de huidige bron; een object dat daar niet meer staat, geldt als nieuw. Is er geen open document met een bron, dan zet de app alleen de planning terug, als nieuw document, met een melding. (Fable, ronde 5: met twee bewaarde bronnen was een backup van vóór een agentfout na twee AutoSaves zijn model kwijt.) |
 | MCP-bestandstools, `planner_export_ifc` | `mcp/tools/fileTools.ts` | Volledig bestand, zelfde controles. |
@@ -893,7 +905,25 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
 
 - Bronbytes één keer in het geheugen (§4.8). Uitvoer = verwijzingen naar de bron plus de P-stukken.
 - De Tauri-app draait op WebKit (JavaScriptCore) op Linux en macOS en op WebView2 (V8) op Windows; de browserbuild op V8.
-- Voorlopige grens: 150 MB, gecontroleerd vóór het volledig lezen. De echte grens volgt uit de meting in fase 0.
+- Twee grenzen, elk op één plek (besluit van de technisch beslisser, 21 november 2026, route A; knownbug 1936):
+  - **De productgrens**: 150 MiB (binair, 157.286.400 bytes), `IFC_MODEL_OPEN_MAX_BYTES` in `modelOpenLimit.ts`. Besluit
+    van de eigenaar: "tot 150 mb, later kunnen we dat nog uitbouwen, zorg dat de architectuur flexibel genoeg is om dat
+    alsnog te doen later." Openen weigert een bestand dat volgens de leesroute een gebouwmodel of vreemde gegevens heeft
+    en groter is dan 150 MiB, met een melding die de grens noemt. Dat gebeurt na het lezen: een model tussen 150 en
+    300 MiB wordt eerst gescand en dan geweigerd. Een planning zonder gebouwmodel en zonder vreemde gegevens heeft deze
+    grens niet, en een IFC2X3-bestand zonder gebouwmodel evenmin: dat opent via de schematerugval zonder `ifcSource`,
+    met de bestaande verliesmelding (§4.11). Alleen bij openen in de app: `openOpenedFile` toetst altijd, het
+    crashherstel valt erbuiten met een benoemde optie voor zijn eigen, gecontroleerde bron, en de site en
+    `planner_import_schedule` in de app toetsen zelf. Niet bij het crashherstel, de doelscan, opslaan of headless.
+  - **De technische grens van de bytes-route**: 300 MiB, `IFC_FOREIGN_SCAN_MAX_BYTES` in `foreignScan.ts` (de meting van
+    fase 0). Daarboven de terugval `te-groot` (§4.9 punt 6). De doelscan, het crashherstel en headless gebruiken alleen
+    deze grens.
+  Waarom twee: opslaan van een model van 157 MB piekte in de desktopapp op Linux na #1111 op 3,44 / 3,54 / 3,69 GB over
+  drie opslagen, bij een maat van 4 GB (meting van 21 november 2026 op main `2d585a295`, knownbug 1936); de eigenaar wil
+  een model tot 150 MB. Eén
+  verlaagde technische grens schoof ook de terugval voor een planning zonder model, het herstel en de doelscan naar
+  150 MiB, en daar verloor de app wat main bewaart (review van #1127, ronde 1 tot 3). De uitvoer van opslaan heeft geen
+  grens (knownbug 2043).
 
 ### 4.14 Herstel en een ontbrekende bron
 
@@ -1508,8 +1538,7 @@ profiel); daar geldt deze lijst.
    de thuismap; daarbuiten verwijst de app naar *Opslaan als*. De uitbreiding is de laatste bouwtaak vóór de
    featureflag standaard aan gaat.
 2. **Automatisch opslaan** bij een bestand met een gebouwmodel: aan, met opslaan in de achtergrond, ook voor gewone
-   bestanden. Tot dat er is, blijft de melding dat automatisch opslaan gestopt is (§4.10, §4.12). Het ritme staat in
-   §4.12.
+   bestanden. Gebouwd in #804 stap 8 (achter de flag); het ritme en de voorrang staan in §4.12.
 3. **Het bestand is intussen door een ander programma gewijzigd.** Na een onderzoek (16 november 2026): het gewone
    geval is een nieuwe export van de architect, zonder planning. Besloten:
    - de planner slaat standaard op in een eigen bestand, met het bestand van de architect als modelbron en een knop

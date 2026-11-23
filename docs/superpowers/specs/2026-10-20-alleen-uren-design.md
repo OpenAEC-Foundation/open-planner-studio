@@ -1028,8 +1028,9 @@ Zo zette de meting het ook om.
   - De klem op het statusmoment (statusregel 2 hieronder) en de andere controles blijven. Een datumloze invoer
     op de statuswerkdag na een statusmoment met tijd wordt dat statusmoment, ook als de planning later op de dag
     ligt.
-  - Ook het afgeleide einde bij 100 % zonder datum (`applyProgressInvariants`: de statusdatum zonder tijd) volgt
-    deze regel.
+  - Bij 100 % zonder werkelijk einde geldt sinds Ethans besluit van 2026-11-21 (#998) het geplande
+    moment. Ligt dat na de statusdatum, dan begrenst die de afmelding. Bij een statusdatum zonder tijd
+    volgt de afleiding hierboven de werkdag en klokketijd van de mijlpaal.
   - De statuscontrole leest een mijlpaal op zijn werkdag (statusregel 4 hieronder). Zo mag wat je op de
     statusdag afmeldt. Voorbeeld: nachtploeg ma–vr 22:00–06:00, een losse mijlpaal zonder soort staat in OPS op
     di 2 jun 06:00 en toont "01-06-2026". Met statusdatum wo 3 jun wordt 03-06-2026 do 4 jun 06:00, het einde
