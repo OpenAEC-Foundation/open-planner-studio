@@ -5689,6 +5689,41 @@ en noem het in je rapport of PR-tekst.
      round-trip te toetsen en moet dan een eigen manier krijgen (een tweede pad of een nieuw document). In de code
      gelezen. — B (code)
 
+2060. **VERVOLG, zo op main: `planner_import_schedule` in de app wacht niet op de schrijfrij, en kan daarna een opslag overschrijven.**
+     Openen, Recent en slepen op de desktop wachten met lezen tot een opslag van de app klaar is
+     (`whenProjectFileWritesIdle` in `tauriBackend.ts`, knownbug 1909). De MCP-tool leest via `realFs` en die rij
+     niet. Leest een import een bestand terwijl *Opslaan als* van een ander tabblad naar datzelfde bestand de
+     doelcontrole al voorbij is, dan krijgt de import de oude versie. Sluit de planner daarna het opgeslagen tabblad,
+     dan kan Ctrl+S in het geïmporteerde tabblad het opgeslagen werk overschrijven. Zeldzaam: een import en een opslag
+     naar hetzelfde bestand moeten elkaar kruisen. Gevonden in ronde 5 van de review van #1121 (Sol); #1121 doet hier
+     hetzelfde als main, met de flag aan en uit (proef P2 in `check-one-file-one-tab.ts`). Richting: de MCP-lezing in
+     de app ook op de schrijfrij laten wachten. — B (proef van de reviewer)
+
+2061. **VERVOLG, zo op main: een nieuw of gewisseld tabblad sluit een open taakdialoog, en het concept is weg.**
+     Wordt een tabblad nieuw of actief, dan zet `resetDocumentScopedUI` de documentgebonden schermen terug, ook de
+     taakdialoog. Opent de planner die dialoog (F2) terwijl een bestand nog gelezen of geparst wordt, dan sluit hij
+     zodra het bestand opent, en wat hij al had getypt is weg. Met de flag `ifcForeignContent` aan voegt #1121 hier
+     geen wachttijd aan toe: een openactie die naar een open tabblad gaat, wacht niet meer op de toets "staat al
+     open" (proef P3 in `check-one-file-one-tab.ts`, Openen en Recent). Gevonden in ronde 5 van de review van #1121.
+     Richting: de dialoog met een concept niet stil sluiten, of het openen pas activeren als de dialoog dicht is; een
+     keuze voor de eigenaar. — B (proef van de reviewer)
+
+2062. **VERVOLG, benoemde grens (#1121, flag aan): komt de identiteit in de browser later dan het lezen en parsen, dan opent hetzelfde bestand in een tweede tabblad.**
+     De toets "staat al open" (knownbug 1957) loopt gelijk op met het lezen en de openactie wacht er niet op (besluit
+     (P) na ronde 5 van de review van #1121). Is `isSameEntry` nog niet binnen als het parsen klaar is, dan telt alleen
+     hetzelfde handle-object, en de kiezer en een neerzetting geven telkens een nieuw object. Dan opent het bestand in een eigen
+     tabblad, zoals main; er gaat niets verloren, en de late uitkomst doet niets meer (proef P1 in
+     `check-one-file-one-tab.ts`). Gemeten in Chromium 158 (Chrome for Testing, `--headless=new`), tot na het echte
+     parsen, met de scanner in zijn Worker: bij een leeg project (5,1 KB) en een voorbeeld van 32 KB was de
+     identiteit in elke herhaling op tijd (twee reeksen; 420 van 420 met verschillende namen, 140 van 140 met tien
+     tabbladen met dezelfde naam), met een voorsprong van minstens 36,4 ms; de langste `isSameEntry` duurde 5,1 ms,
+     bij 5 MB 10,4 ms. Het parsen duurde minstens 35,7 ms, vooral door het starten van de Worker. Zonder het parsen
+     (alleen de bytes van een bestand dat al bij de neerzetting hoort) was ze bij een klein bestand met tien tabbladen
+     maar in 9 tot 10 van de 30 herhalingen op tijd. Kan zich dus voordoen bij een heel klein bestand dat wordt
+     gesleept, bij veel tabbladen met dezelfde bestandsnaam (alleen die krijgen een `isSameEntry`), of als het parsen
+     zonder module-Worker draait (niet gemeten). Beperking: de meting gebruikte handles uit de OPFS, geen handle uit de
+     bestandskiezer of een echte neerzetting. Metingen B1, B2 en B3 bij het rapport van fixronde 5 van #1121. — S
+
 1932. **VERVOLG (review #1064, tekst): de headless MCP-server adviseert een document te sluiten.** Weigert
      `planner_export_ifc` het bestand van een ander open document, dan eindigt de fout met "close that document first"
      (`src/services/mcp/tools/fileTools.ts`). De headless server biedt geen sluitactie aan (`tools/list`: openen,
