@@ -52,8 +52,6 @@ check('2 elk scopepad is op Windows een geldig globpatroon', windows.length === 
 const backslash = paths.filter((p) => p.path.includes('\\'));
 check('3 geen backslash in een scopepad (op Unix een letterteken, geen scheiding)', backslash.length === 0, backslash.map((p) => `${p.where} ${p.path}`).join(', '));
 
-// Knownbug 1750: de lettertypepaden mogen alleen in hun eigen platformcapability staan.
-// De volledige inventaris meenemen: een extra capability mag geen platformlek terugbrengen.
 const expectedFonts: Record<string, string[]> = {
   linux: ['/usr/share/fonts', '/usr/share/fonts/**', '/usr/local/share/fonts', '/usr/local/share/fonts/**'],
   macOS: ['/System/Library/Fonts', '/System/Library/Fonts/**', '/Library/Fonts', '/Library/Fonts/**'],
