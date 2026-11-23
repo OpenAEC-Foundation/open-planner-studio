@@ -2303,12 +2303,6 @@ en noem het in je rapport of PR-tekst.
      geen toestemming vraagt). Richting: een proef in een echte browser vóór de flag standaard aan gaat. Gevonden door de review van #929. — S
 
 
-1125. **VERVOLG: het commentaar bij `exactDays` in de writer loopt achter op #908.** In
-     `src/services/ifc/ifcWriter.ts` (bij de slots die de writer exact in de dagvorm van de bron schrijft) staat nog dat
-     duur en rest samen gaan en dat het om een gebroken dag gaat. Sinds #908 beslist de merge per slot (duur en rest
-     apart) en telt voor die twee slots ook een hele dag mee. Alleen tekst; de code doet wat #908 beschrijft. De gewone
-     writer mocht in #908 niet wijzigen. Gevonden door de review van #908 (Terra). — B
-
 1123. **VERVOLG (fase 2): een uurtaak met kale datums laat de merge weigeren.** Een taak met een duur in uren en datums
      zonder tijd (`'2027-03-01'`), een vorm die geen release van OPS schreef, krijgt bij openen een eindtijd; de writer
      schrijft dan een datum-tijd en de merge weigert getypeerd, zonder bytes (`niet-gedragen`,
