@@ -184,6 +184,7 @@ check-ifc-external-links.ts matrix
 check-ifc-foreign-classify.ts matrix
 check-ifc-foreign-eigen-toets.ts matrix
 check-ifc-foreign-eigen-uitvoer.ts matrix
+check-ifc-foreign-grens.ts los
 check-ifc-foreign-groot.ts los
 check-ifc-foreign-herleestoets.ts matrix
 check-ifc-foreign-hulp-identiteit.ts matrix

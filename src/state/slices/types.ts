@@ -230,6 +230,7 @@ export type NotificationMessageKey =
   // #804 fase 1a: opslaan van een document met een gebouwmodel is nog geweigerd (`state/ifcForeignGuard.ts`).
   | 'notifications.ifcForeignOpenSchema'
   | 'notifications.ifcForeignOpenUnsafe'
+  | 'notifications.ifcForeignOpenTooLarge'
   | 'notifications.ifc2x3PlanningOnly'
   | 'notifications.ifcForeignSaveBlocked'
   | 'notifications.ifcForeignSourceMissing'
@@ -430,7 +431,7 @@ export type NotificationMessageKey =
   // Na een geslaagde P6 XML-export (`state/p6XmlExportNotice.ts`): zelfde vorm als de XER-melding, met
   // de XER-regels die ook hier kloppen en deze eigen regels.
   | 'notifications.exportP6XmlLoss'
-  | `notifications.exportP6XmlLossItem.${'schedulingOptions' | 'baselines' | 'summaryRelations' | 'suspendResume' | 'priorities' | 'notes' | 'resourceTypes' | 'capacitySteps' | 'projectDetails'}`
+  | `notifications.exportP6XmlLossItem.${'schedulingOptions' | 'baselines' | 'summaryRelations' | 'suspendResume' | 'priorities' | 'notes' | 'resourceTypes' | 'capacitySteps' | 'projectDetails' | 'visualDetails'}`
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.taskEditRevertBlocked'
