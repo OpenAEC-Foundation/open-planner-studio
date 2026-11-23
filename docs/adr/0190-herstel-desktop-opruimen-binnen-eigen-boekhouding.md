@@ -11,7 +11,8 @@ bepaalt `planRecoveryCleanup` met de naamherkenning van `recoveryNames` in `reco
 De regels van een manifest met een andere `ownerId` (`foreign` in `manifestOwnership`) zijn geen opruimkandidaat en gaan
 mee in het nieuwe manifest (`carryOver`), omdat `loadTauri` bij een geldig manifest met regels alleen die regels
 aanbiedt (ADR 0192). `instanceId` is per proces nieuw, dus ook het manifest van een vorige start heeft een andere
-eigenaar.
+eigenaar. Het nieuwe manifest krijgt de eigen `ownerId`. Daarom onthoudt `saveTauri` de meegedragen snapshots in
+`adoptedIfc`: anders zijn het in de volgende ronde regels van een eigen manifest en dus opruimkandidaat.
 `heartbeatAt` wordt geschreven, maar beslist niet over wissen: een verse heartbeat is niet te onderscheiden tussen een
 tweede venster dat nu draait en een proces dat net crashte, precies het geval waarvoor herstel bestaat. Elke drempel
 kiest dus tussen het wissen van de bestanden van een levend venster en die van een crashslachtoffer. K5 stelde een
@@ -43,5 +44,6 @@ Drie routes ruimen op, elk met een eigen reden:
   noemde. Welke bestanden weggaan, bepaalt `planRecoveryClear`; dat kunnen ook bestanden zijn die de planner niet
   aangeboden kreeg.
 - De schone afsluiting (`planRecoveryExitClear` via `clearOwnTauri`; 8a tot en met 8f, 9p en 9q): alleen wat deze
-  instantie zelf schreef, nooit een overgenomen regel. Bij afsluiten kunnen er uitgestelde of nog niet aangeboden
+  instantie zelf schreef komt voor verwijdering in aanmerking, een overgenomen snapshot niet. Wat er bij een mislukte
+  mapscan met het manifest gebeurt, staat in knownbug 1994. Bij afsluiten kunnen er uitgestelde of nog niet aangeboden
   snapshots staan, en daarover koos de planner niet.

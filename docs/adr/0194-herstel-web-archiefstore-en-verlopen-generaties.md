@@ -12,3 +12,7 @@ generaties en geen archiefblobs, ook niet van een generatie die anders zou verlo
 records en blobs verwijzen op een manier die deze versie niet kent. De precieze regel voor verlopen en voor onbekende
 kandidaten staat in `docs/xer-recovery-guardrails.md`; de proeven in `check-recovery-web-hold.ts` (de blokken over
 vreemde en onbekende kandidaten).
+
+Een generatie zonder manifest mag daar weg omdat `loadWeb` een document alleen aanbiedt via een manifest van zijn
+generatie, en `saveWeb` de records en het manifest van een generatie in één transactie schrijft. Een andere tab die
+tijdens een herstelronde schrijft, ziet daardoor geen half gepubliceerde generatie als losse records.
