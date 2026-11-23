@@ -2693,7 +2693,7 @@ dependencies = [
 
 [[package]]
 name = "open-planner-studio"
-version = "2026.47.0"
+version = "2026.48.0"
 dependencies = [
  "glob",
  "gtk",
