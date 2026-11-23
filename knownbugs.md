@@ -3559,8 +3559,8 @@ en noem het in je rapport of PR-tekst.
      nieuwere versie en het extern opgeslagen werk is weg. Met de flag aan weigeren Ctrl+S en Automatisch opslaan dat
      sinds #1174 met de bestaande melding ("Het bestand is intussen door een ander programma gewijzigd"), zolang het
      tabblad de versie van zijn bestand kent (`knownTargetFingerprint`, `check-bewaakte-opslag.ts`). Wat daarvan
-     overblijft: kent het tabblad die versie niet (`null`: na een export over het eigen bestand, na crashherstel, na
-     laden in hetzelfde tabblad), dan schrijft Ctrl+S eroverheen zoals main; bij twee tabbladen op hetzelfde bestand
+     overblijft: kent het tabblad die versie niet (`null`: na een export over het eigen bestand, na een mislukte opslag
+     naar het eigen pad, na crashherstel, na laden in hetzelfde tabblad), dan schrijft Ctrl+S eroverheen zoals main; bij twee tabbladen op hetzelfde bestand
      (1957) en bij de schrijvers die het tabblad niet ziet (2065) weigert de volgende opslag met dezelfde melding, ook
      als de app zelf de schrijver was; en het gat tussen toets en schrijven (2069). Het wisselen hierboven blijft. De herlezing van de
      startroute (`stale`, knownbug 2036) telt alleen schrijfbeurten van de app zelf, geen wijziging van buiten. Via
