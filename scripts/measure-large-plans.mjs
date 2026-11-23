@@ -228,8 +228,6 @@ const INIT_SCRIPT = `(() => {
       nm.refCpm = S().cpmResult; nm.refTasks = S().tasks;
       if (kind) nm.unsub = window.__OPS__.store.subscribe(st => {
         if (kind === 'levelApply') {
-          // Eerst de taakmutatie (met undo), daarna de aparte commit van de herberekening.
-          // Een Gantt-tekening tussen die commits telt niet als het einde van Toepassen.
           const afterClick = nm.input.pointerdown >= nm.t0;
           if (!afterClick) return;
           if (nm.storeAt == null && st.tasks !== nm.refTasks && st.cpmResult === nm.refCpm) {
