@@ -71,7 +71,8 @@ runs no verify of its own: it starts after a green ci.yml run on `main` (`workfl
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →
 `verify:i18n` → `verify:release-highlights-json` → `verify:store-boundaries` → `verify:conventions` →
-`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:icons` → `verify:core-package`.
+`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:icons` → `verify:core-package` →
+`verify:comments`.
 
 Separate gates (most are in `verify`): `npm run verify:examples` (examples load/compute),
 `npm run verify:docs` (in-app guides + the mechanical claims in this file), `npm run verify:i18n` (keys + CLDR
@@ -81,6 +82,9 @@ plural forms + no cast on a key + fixed formatting), `npm run verify:store-bound
 convention registry, provenance data gates pinned), `npm run verify:cycles` (circular imports after type erasure),
 `npm run verify:core-package` (builds the headless core package, `npm pack`, installs it in a temporary copy of
 `headless/consumer-example/`, runs and type-checks that consumer),
+`npm run verify:comments` (no new code comments: every comment line in a changed file must already exist on the base
+commit, the merge base with `origin/main` locally and the first parent of the merge commit in CI; it fails on a PR and
+locally, and only reports on a push to `main`; see *Conventions*),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:icons` (app icons match the approved logo in `docs/branding/`: source hash, sizes, web icons), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
@@ -181,6 +185,7 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
 | Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror` and without the app) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
+| any code change | `npm run verify:comments` (no new comments) |
 | before push | the targeted checks above; CI runs the rest of `npm run verify` on the PR, without the browser suite |
 
 ## Invariants that bite
@@ -537,8 +542,15 @@ Windows for `place_file_exclusive`; runs when `src-tauri/` changes, or by hand).
   removes its flag and the corresponding checks. List the flag's own UI texts in `texts` (`ns:path` or
   `ns:path.*`): the nightly translation skips them until the flag is gone, the release translates them.
   Elke feature flag krijgt een schakelaar in het verborgen blok Experimenteel (klik 5 seconden snel achter elkaar op het versienummer).
-- **Working language is Dutch**: code comments, commit messages and the canonical source translations.
+- **Working language is Dutch**: commit messages, ADRs and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
+- **No comments in code** (`docs/adr/0001-geen-commentaar-in-code.md`). Do not write a comment in TypeScript or
+  JavaScript: say it with a name, a type or a test; record a decision that would surprise a reader in `docs/adr/`;
+  put a workaround or an unverified assumption in `knownbugs.md`. `verify:comments` fails on every comment line
+  that was not on the base commit: you may delete or move an existing comment, never write or rewrite one. Directives the
+  tools themselves recognise (`@ts-expect-error`, `eslint-disable`, `/// <reference`, `@vite-ignore`, `@jsxImportSource`,
+  `text-roles:`), JSDoc in `.mjs`/`.js` that holds type tags only, a bare `/** @deprecated */` or `/** @internal */`, and a one-line licence or source notice are not
+  comments. Existing comments stay until the `delete-comment` skill has judged them.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
   task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
@@ -595,7 +607,7 @@ See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` (created lazily) and `docs/adr/` at the root. See `docs/agents/domain.md`.
 
 ## Where the depth lives
 
@@ -625,7 +637,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `nachtvertalingen` (nightly UI translations of finished texts), `browsertests-repareren` (the repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `delete-comment` (judge and remove the comments of one part of the code, on request), `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).
