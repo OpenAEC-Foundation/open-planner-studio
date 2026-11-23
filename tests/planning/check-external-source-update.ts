@@ -658,7 +658,6 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('12d zonder versie van de site ⇒ geen versie', noVersion.version, undefined);
 }
 
-// Knownbug 884: Later kiezen terwijl dezelfde bronronde op een tweede lezing wacht.
 {
   const { store, S, a, b } = plan();
   S().updateTask(b, { externalLinks: [link('x884', COPY, '2027-03-05T16:00', 'v1')] });
