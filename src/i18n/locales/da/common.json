@@ -70,6 +70,7 @@
     "importDatesAsRecorded_other": "{{count}} opgaver viser datoerne, som de står i filen (ikke genberegnet).",
     "xerExportLoss": "Ved eksport til {{format}} går XER-kildeoplysninger tabt.",
     "exportDataLoss": "Ved eksport til {{format}} går data tabt, som {{format}} ikke kan gemme, fx noter eller en sekundær begrænsning. IFC-projektfilen gemmer alt.",
+    "exportPlanOnly": "Kun tidsplanen er eksporteret; bygningsmodellen indgår ikke i dette format.",
     "mppLegacy": "Denne .mpp-fil har et gammelt format (Project 2007 eller ældre). Eksportér den i MS Project som XML (Fil → Gem som → XML), og åbn den fil.",
     "mppInvalidContainer": "Denne MPP-fil har en ugyldig filstruktur og kan ikke åbnes.",
     "xmlUnknownSchedule": "Ukendt XML-tidsplanformat. Åbn en MS Project XML (Project) eller Primavera P6 XML (APIBusinessObjects).",
@@ -83,6 +84,10 @@
     "ifcUnreadableTargetSave": "Appen kan ikke læse denne fil ordentligt; den kan indeholde en bygningsmodel. Vælg en anden fil at gemme til.",
     "ifcUnreadableTargetExport": "Appen kan ikke læse denne fil ordentligt; den kan indeholde en bygningsmodel. Vælg en anden fil at eksportere til.",
     "ifcUnreadableTargetAutoSave": "Automatisk gemning er stoppet: appen kan ikke læse denne fil ordentligt; den kan indeholde en bygningsmodel. Vælg en anden fil at gemme til.",
+    "ifcForeignAutoSaveTargetChanged": "Automatisk gemning er stoppet: filen er i mellemtiden ændret, flyttet eller slettet. Dine ændringer er stadig i appen. Vælg »Gem som« for at gemme dem i en ny fil.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatisk gemning er stoppet: denne fil kan ikke sikkert erstattes på dette sted. Dine ændringer er stadig i appen. Vælg »Gem som« for at gemme dem i en ny fil.",
+    "ifcForeignAutoSaveNotRecorded": "Automatisk gemning er stoppet: filen kan lige nu ikke sikkert erstattes, fordi genoprettelse efter nedbrud ikke kan opdateres. Dine ændringer er stadig i appen. Vælg »Gem som« for at gemme dem i en ny fil.",
+    "ifcForeignAutoSaveRemnant": "Automatisk gemning er stoppet: en tidligere gemning af denne fil blev ikke afsluttet. Dine ændringer er stadig i appen. Gem med Ctrl+S; efter en genstart håndterer appen den tidligere gemning.",
     "ambiguousThousands": "\"{{text}}\" er tvetydig: mener du et decimaltal eller et tusindtal? Skriv decimaler med \"{{separator}}\" (1{{separator}}5) og tusindtal uden skilletegn (1500). Værdien er ikke ændret.",
     "siteSaveConflict": "Ikke gemt: '{{name}}' er i mellemtiden ændret på webstedet af en anden. Dine ændringer findes stadig i appen. Vælg Gem som for at gemme dem som ny fil.",
     "siteSaveConflictCopy": "'{{original}}' er i mellemtiden blevet ændret af en anden på webstedet. Dit arbejde er derfor gemt i en kopi: '{{name}}'. Gem skriver fra nu af til den kopi.",
@@ -110,6 +115,7 @@
     "relationDuplicate": "Denne afhængighed findes allerede",
     "relationAncestorEndpoint": "En afhængighed mellem en opgave og dens egen (over)ordnede hovedopgave er ikke tilladt.",
     "relationCycle": "Denne afhængighed ville skabe en cyklus i tidsplanen ({{cycle}}), og den er ikke oprettet.",
+    "relationChainOrderUnclear": "Opgaverne er ikke sammenkædet: deres rækkefølge på listen er ikke fast. En valgt opgave står både før og efter en anden (gruppering), eller to valgte milepæle deler en sammenfoldet serie. Ophæv grupperingen, fold serien ud, eller vælg den foregående opgave med »Tildel foregående opgaver«.",
     "hierarchyCycle": "Denne flytning ville skabe en cyklus i tidsplanen ({{cycle}}): afhængighederne for en hovedopgave gælder også for dens underopgaver. Der er ikke ændret noget.",
     "relationsExcludedByHierarchy_one": "Efter flytningen forbinder {{count}} afhængighed en opgave med sin egen hovedopgave; den tæller ikke længere med i beregningen.",
     "relationsExcludedByHierarchy_other": "Efter flytningen forbinder {{count}} afhængigheder en opgave med sin egen hovedopgave; de tæller ikke længere med i beregningen.",
@@ -186,7 +192,8 @@
     "schedulingProfileShifted_other": "Efter anvendelsen er {{count}} opgaver forskudt.",
     "actions": {
       "openProjectInfo": "Åbn beregningsprofil",
-      "openHelp": "Åbn Hjælp"
+      "openHelp": "Åbn Hjælp",
+      "undo": "Fortryd"
     },
     "xerArchiveUnusable": "XER-kildearkivet i denne fil er ubrugeligt og er udeladt. Selve projektet er fuldt åbnet.",
     "xerArchiveUnusableLine": "XER-kildearkivet i denne fil var ubrugeligt og er udeladt.",
@@ -353,15 +360,23 @@
     "reportFontMissing": "Din egen skrifttype {{name}} findes ikke længere på denne enhed. Rapporten bruger igen Inter.",
     "layoutsNotSaved": "Layouts kunne ikke gemmes. Intet er ændret. Prøv igen.",
     "ifcForeignOpenSchema": "Denne IFC-fil indeholder data fra et andet program og har et ukendt eller manglende skema. Åbningen er stoppet for at forhindre datatab ved gemning.",
+    "ifcForeignOpenTooLarge": "Denne IFC-fil er større end {{limit}} MB. En IFC-fil med en bygningsmodel eller med data fra et andet program kan åbnes med op til {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Denne IFC-fil kan ikke klassificeres sikkert. Åbningen er stoppet for at forhindre datatab ved gemning.",
     "ifc2x3PlanningOnly": "IFC2X3 er åbnet som tidsplan. Data fra andre programmer tages ikke med ved gemning.",
-    "ifcForeignReplaceBlocked": "Ikke gemt. Overskrivning af en eksisterende fil med en bygningsmodel er endnu ikke sikker. Brug »Gem som« og vælg et nyt navn.",
+    "ifcForeignReplaceBlocked": "Ikke gemt. Det er den fil, du har åben. Brug Gem for at opdatere den, eller Gem som med et nyt navn for en kopi.",
+    "ifcForeignTargetChanged": "Ikke gemt. Filen er i mellemtiden ændret af et andet program. Dine ændringer er stadig i appen. Vælg »Gem som« for at gemme dem i en ny fil.",
+    "ifcForeignTargetGone": "Ikke gemt. Filen er flyttet, slettet eller kan ikke længere læses. Dine ændringer er stadig i appen. Vælg »Gem som« for at gemme dem i en ny fil.",
+    "ifcForeignReplaceNotRecorded": "Ikke gemt. Filen kan lige nu ikke sikkert erstattes, fordi genoprettelse efter nedbrud ikke kan opdateres. Dine ændringer er stadig i appen. Vælg »Gem som« for at gemme dem i en ny fil.",
+    "ifcForeignDownloadCopy": "Kopi downloadet som {{file}}. Den åbnede fil er ikke opdateret; ændringerne står fortsat som ikke gemt.",
+    "ifcForeignReplaceFailed": "Ikke gemt. Filen kunne ikke skrives. Dine ændringer er stadig i appen. Prøv at gemme igen, eller vælg »Gem som« for at gemme dem i en ny fil.",
     "ifcForeignMergeRefused": "IFC-filen blev ikke skrevet. Bygningsmodellen eller data fra et andet program ville ellers ikke blive fuldt bevaret. Fortryd din sidste ændring, eller eksportér kun tidsplanen: til IFC med »Uden bygningsmodel«, eller til et andet format.",
     "ifcSaveChangedWhileWaiting": "Ikke gemt. Dokumentet eller kilden til bygningsmodellen ændrede sig under forberedelsen. Prøv at gemme igen.",
     "ifcSaveWorkerFailed": "IFC-filen blev ikke skrevet: forberedelsen i baggrunden blev afbrudt. Dine ændringer er stadig i appen. Prøv igen.",
+    "ifcForeignNewTargetOnly": "Denne IFC-fil kan kun skrives til et nyt filnavn. Vælg et navn, der ikke findes endnu.",
     "ifcForeignTargetOpenInTab": "Ikke gemt. Denne fil er åben i en anden fane. Luk den fane, eller vælg et andet navn.",
     "exportTargetOpenInTab": "Ikke eksporteret. Denne fil er åben i en anden fane. Luk den fane, eller vælg et andet navn.",
     "exportTargetOpenDocument": "Ikke eksporteret. Denne fil er åben i en fane. Vælg et andet navn, eller luk den fane først.",
+    "ifcForeignPlaceUnknown": "Appen ved ikke, om filen er gemt korrekt: mens der blev gemt, ændrede der sig noget i mappen. Dine ændringer er stadig i appen. Kontrollér, om filen er i orden, eller gem igen under et nyt navn.",
     "ifcForeignReplaceOtherVersion": "Et andet program ændrede {{file}}, mens appen gemte den. Den version er gemt som {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "En tidligere lagring af {{file}} blev ikke afsluttet. Tidsplanen, der blev gemt dengang, ligger i {{copy}}. Slet filen, hvis du ikke længere har brug for den.",
     "ifcForeignReplaceTargetTaken": "Ikke gemt. Mens der blev gemt, lagde et andet program en ny fil på {{target}}. Der er nu tre filer: den nye fil på {{target}}, din tidsplan i {{temp}} og den forrige version i {{previous}}. Dine ændringer er stadig i appen.",
@@ -370,7 +385,15 @@
     "ifcForeignReplaceLeftOver": "Denne fil blev efterladt af en afbrudt lagring af {{file}}: {{path}}. Tjek, om du stadig har brug for den.",
     "ifcSourceCopyFailed": "Tidsplanen gemmes til genoprettelse efter nedbrud, men kopien af bygningsmodellen kunne ikke gemmes. Efter et nedbrud kan bygningsmodellen mangle. Gem selv dit arbejde som en komplet IFC-fil.",
     "ifcForeignSourceMissing": "Ikke gemt. Bygningsmodellen eller data fra et andet program blev ikke fundet. Brug »Gem som« for kun at gemme tidsplanen i en ny fil. Åbn den oprindelige IFC-fil for igen at arbejde med hele filen.",
-    "taskTypeRenameNameTaken": "I dette projekt bliver navnet „{{oldName}}”: en anden arbejdskategori i dette projekt hedder allerede „{{takenName}}”."
+    "taskTypeRenameNameTaken": "I dette projekt bliver navnet „{{oldName}}”: en anden arbejdskategori i dette projekt hedder allerede „{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Opgaven varer nu {{days}} dag.",
+      "durationDays_other": "Opgaven varer nu {{days}} dage.",
+      "durationHours_one": "Opgaven varer nu {{hours}} time.",
+      "durationHours_other": "Opgaven varer nu {{hours}} timer.",
+      "durationSame": "Varigheden forbliver den samme. Timerne for de andre er ændret.",
+      "line": "{{name}}: {{before}} → {{after}} t"
+    }
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -410,6 +433,8 @@
     "addSubtask": "Tilføj underopgave",
     "addMilestone": "Tilføj milepæl",
     "addRelation": "Tilføj afhængighed",
+    "assignPredecessors": "Tildel foregående opgaver…",
+    "assignSuccessors": "Tildel efterfølgende opgaver…",
     "dissolve": "Dissolve (bevar kæden)",
     "delete": "Slet",
     "newTask": "Opret opgave",
@@ -476,7 +501,7 @@
     "demoTopbarAnimation": "Demo: animation i topbjælken",
     "demoTopbarAnimationHint": "En rolig orange glans over topbjælken. Viser hvordan en eksperimentel kontakt virker.",
     "ifcForeignContent": "Åbn IFC med bygningsmodel",
-    "ifcForeignContentHint": "Åbner også en IFC-fil med en bygningsmodel eller data fra andre programmer. Du kan bruge »Gem som« til en ny fil, gemme på webstedet, downloade i browseren og bruge Eksportér → IFC, også uden bygningsmodellen eller med ressourcebiblioteket ved siden af (så kun med tidsplanen). Gem over en eksisterende lokal fil er endnu ikke muligt. Genoprettelse efter nedbrud af bygningsmodellen kræver adgang til den oprindelige fil eller en gemt kopi i browseren.",
+    "ifcForeignContentHint": "Åbner også en IFC-fil med en bygningsmodel eller data fra andre programmer. Du kan bruge Gem som til en ny fil, gemme på webstedet, downloade i browseren og bruge Eksportér → IFC, også uden bygningsmodellen eller med ressourcebiblioteket ved siden af (så kun med tidsplanen). I Chrome og Edge gemmer Gem også selve den åbne fil. Ændrer et andet program denne fil præcis under gemningen, kan den ændring gå tabt. I desktop-appen gemmer Gem også selve den åbne fil, hvis den ligger i din hjemmemappe. Har et andet program ændret filen imens, stopper gemningen, eller også gemmer appen den version som en separat kopi ved siden af filen; kun en ændring på nøjagtig samme tidspunkt kan stadig gå tabt. Gem som over en anden eksisterende fil i din hjemmemappe erstatter den fil på samme måde, også når den selv indeholder en bygningsmodel eller data fra et andet program. Også en tidsplan uden bygningsmodel må erstatte sådan en fil. Filer, som appen ikke kan læse, og filer med et andet navn (et link), bliver ikke erstattet. Lige før erstatningen sammenligner appen filen med den version, den læste efter dit valg: er den ændret, stopper gemningen, og filen forbliver, som den er. Viser det sig, at den version appen flyttede til side alligevel er anderledes, gemmer appen den som separat kopi ved siden af filen, med en besked. Gendannelse af bygningsmodellen efter et nedbrud kræver adgang til den oprindelige fil eller en gemt kopi i browseren.",
     "tourHint": "Gennemgå appens introduktionsrundvisning igen.",
     "theme": "Tema",
     "themeHint": "Interfacets farveskema.",
@@ -1182,7 +1207,9 @@
     },
     "regen": {
       "hint": "Helligdage dækker {{from}}–{{to}}; generér igen til og med {{year}}?",
-      "button": "Generér igen"
+      "button": "Generér igen",
+      "confirmMessage": "Din liste over fridage afviger fra den tidligere genererede liste. Hvis du erstatter listen, går dine manuelle ændringer tabt.",
+      "confirmReplace": "Erstat fridage"
     },
     "countryName": {
       "NL": "Nederlandene",
@@ -1193,6 +1220,7 @@
       "AT": "Østrig",
       "CH": "Schweiz",
       "US": "USA",
+      "BO": "Bolivia",
       "none": "Ingen helligdage"
     },
     "preset": {
@@ -1401,7 +1429,8 @@
     "edit": {
       "copy": "Kopiér",
       "deselect": "Fjern markering",
-      "selectAll": "Vælg alt"
+      "selectAll": "Vælg alt",
+      "linkSelected": "Sammenkæd valgte opgaver i en kæde"
     },
     "structure": {
       "moveUp": "Flyt opgave op",
