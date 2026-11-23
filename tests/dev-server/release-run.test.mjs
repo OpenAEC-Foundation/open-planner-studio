@@ -70,7 +70,6 @@ const run = (over = {}) => ({
 const assets = versie => ['Open.Planner.Studio_<v>_amd64.deb', 'Open.Planner.Studio_<v>_x64-setup.exe', 'latest.json', 'open-planner-studio-<v>.mcpb']
   .map(n => ({ name: n.replace('<v>', versie) }));
 
-/** Een vorige tag die helemaal is uitgeleverd: alle runs groen. */
 function uitgeleverd({ snapLog = '  HEAD_BRANCH: v2026.47.0\n', snapStappen, snap = run({ id: 30, event: 'workflow_run', head_branch: 'main', head_sha: SHA_MAIN, created_at: '2026-11-17T04:29:37Z' }), snapStap = 'success' } = {}) {
   return [
     [/releases\/tags\/v2026\.47\.0$/, { draft: false, prerelease: false, published_at: '2026-11-17T04:29:30Z', assets: assets('2026.47.0'), body: '- a\n\n### Downloads' }],

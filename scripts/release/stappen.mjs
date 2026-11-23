@@ -190,7 +190,6 @@ function leesRelease(ctx, tag) {
 
 const gepubliceerd = rel => rel && rel.draft === false && rel.prerelease === false && Boolean(rel.published_at);
 
-/** Release-run, publicatie, verify, Snap, assets en wiki voor één tag. Website apart. */
 export function lever(ctx, { tag, sha }, regels) {
   const versie = tag.slice(1);
   // 1. release.yml
@@ -230,7 +229,6 @@ export function lever(ctx, { tag, sha }, regels) {
   if (snap.conclusion === 'success') {
     regels.push(`Snap: [${snap.id}](${snap.html_url}) groen, Publish to Snap Store gelukt.`);
   } else {
-    // Besluit wrakko, 2026-11-17: een verlopen Store-login is geen stop; melden en door.
     const tekst = `Snap ${tag}: de .snap is gebouwd, maar de Snap Store weigert de verlopen login (${snap.html_url}); de Snap Store kreeg ${tag} niet.`;
     regels.push(tekst);
     ctx.meld('snap-login', tekst);
@@ -260,10 +258,6 @@ export function jobLog(ctx, id) {
   try { return ctx.gh(['api', pad, '--allow-escape-sequences']); } catch { return ctx.gh(['api', pad]); }
 }
 
-/**
- * Een afgeronde vervolgrun hoort bij de tag als een gedraaide job de tag logt zoals de workflow hem uit
- * `workflow_run.head_branch` haalt: `HEAD_BRANCH: <tag>` (snap.yml, release-verify.yml).
- */
 export function hoortBijTag(ctx, run, tag) {
   if (run.event === 'workflow_dispatch') return run.head_branch === tag;
   const jobs = api(ctx, `repos/${ctx.repo}/actions/runs/${run.id}/jobs?per_page=100`).jobs ?? [];
