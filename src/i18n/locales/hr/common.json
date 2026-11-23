@@ -85,6 +85,7 @@
     "importDatesAsRecorded_other": "{{count}} zadataka prikazuje datume onako kako su zapisani u datoteci (nisu ponovno izračunati).",
     "xerExportLoss": "Izvoz u {{format}} gubi informacije o izvoru XER-a.",
     "exportDataLoss": "Pri izvozu u {{format}} gube se podaci koje {{format}} ne može zadržati, poput bilješki ili sekundarnog ograničenja. IFC-projektna datoteka zadržava sve.",
+    "exportPlanOnly": "Izvezen je samo raspored; građevinski model nije dio ovog formata.",
     "mppLegacy": "Ova .mpp datoteka koristi stariji format (Project 2007 ili stariji). Izvezite je u MS Project kao XML (Datoteka → Spremi kao → XML) i otvorite tu datoteku.",
     "mppInvalidContainer": "Ova MPP datoteka ima neispravnu strukturu datoteke i ne može se otvoriti.",
     "xmlUnknownSchedule": "Nepoznat format XML rasporeda. Otvorite MS Project XML (Project) ili Primavera P6 XML (APIBusinessObjects).",
@@ -98,6 +99,10 @@
     "ifcUnreadableTargetSave": "Aplikacija ne može ispravno pročitati ovu datoteku; može sadržavati model zgrade. Odaberite drugu datoteku za spremanje.",
     "ifcUnreadableTargetExport": "Aplikacija ne može ispravno pročitati ovu datoteku; može sadržavati model zgrade. Odaberite drugu datoteku za izvoz.",
     "ifcUnreadableTargetAutoSave": "Automatsko spremanje je zaustavljeno: aplikacija ne može ispravno pročitati ovu datoteku; može sadržavati model zgrade. Odaberite drugu datoteku za spremanje.",
+    "ifcForeignAutoSaveTargetChanged": "Automatsko spremanje je zaustavljeno: datoteka je u međuvremenu promijenjena, premještena ili obrisana. Vaše promjene su i dalje u aplikaciji. Odaberite „Spremi kao“ da ih spremite u novu datoteku.",
+    "ifcForeignAutoSaveSaveAsOnly": "Automatsko spremanje je zaustavljeno: ovu datoteku na ovom mjestu nije moguće sigurno zamijeniti. Vaše promjene su i dalje u aplikaciji. Odaberite „Spremi kao“ da ih spremite u novu datoteku.",
+    "ifcForeignAutoSaveNotRecorded": "Automatsko spremanje je zaustavljeno: datoteku trenutačno nije moguće sigurno zamijeniti jer se oporavak od pada ne može ažurirati. Vaše promjene su i dalje u aplikaciji. Odaberite „Spremi kao“ da ih spremite u novu datoteku.",
+    "ifcForeignAutoSaveRemnant": "Automatsko spremanje je zaustavljeno: prethodno spremanje ove datoteke nije dovršeno. Vaše promjene su i dalje u aplikaciji. Spremite pomoću Ctrl+S; nakon ponovnog pokretanja aplikacija dovršava to prethodno spremanje.",
     "ambiguousThousands": "\"{{text}}\" je dvosmislen: mislite li na decimalni broj ili na tisućice? Decimale upisujte s \"{{separator}}\" (1{{separator}}5), a tisućice bez razdjelnika (1500). Vrijednost nije promijenjena.",
     "siteSaveConflict": "Nije spremljeno: „{{name}}“ na lokaciji je u međuvremenu promijenila druga osoba. Vaše promjene su još u aplikaciji. Odaberite Spremi kao da biste ih spremili kao novu datoteku.",
     "siteSaveConflictCopy": "Na platformi je u međuvremenu netko drugi promijenio „{{original}}“. Zato su vaše promjene spremljene u kopiji: „{{name}}“. Od sada naredba „Spremi“ zapisuje u tu kopiju.",
@@ -126,6 +131,7 @@
     "relationDuplicate": "Ta ovisnost već postoji",
     "relationAncestorEndpoint": "Ovisnost između zadatka i njegovog vlastitog (pra)nadređenog zadatka sažetka nije dopuštena.",
     "relationCycle": "Ova ovisnost bi stvorila ciklus u rasporedu ({{cycle}}) i nije stvorena.",
+    "relationChainOrderUnclear": "Zadaci nisu povezani: njihov redoslijed na popisu nije fiksan. Odabrani zadatak nalazi se i ispred i iza drugog zadatka (grupiranje) ili dvije odabrane kontrolne točke dijele sažeti niz. Poništite grupiranje, proširite niz ili odaberite prethodnika naredbom „Dodijeli prethodnike“.",
     "hierarchyCycle": "Ovo premještanje bi stvorilo ciklus u rasporedu ({{cycle}}): ovisnosti zadatka sažetka vrijede i za njegove podzadatke. Ništa nije premješteno.",
     "relationsExcludedByHierarchy_one": "Nakon premještanja {{count}} ovisnost povezuje zadatak s njegovim vlastitim zadatkom sažetka; ona se više ne uzima u izračun.",
     "relationsExcludedByHierarchy_few": "Nakon premještanja {{count}} ovisnosti povezuju zadatak s njegovim vlastitim zadatkom sažetka; one se više ne uzimaju u izračun.",
@@ -225,7 +231,8 @@
     "schedulingProfileShifted_other": "Nakon primjene pomaknuto je {{count}} zadataka.",
     "actions": {
       "openProjectInfo": "Otvori profil izračuna",
-      "openHelp": "Otvori pomoć"
+      "openHelp": "Otvori pomoć",
+      "undo": "Poništi"
     },
     "xerArchiveUnusable": "Izvorni XER arhiv u ovoj datoteci je neupotrebljiv i izostavljen je; sam projekt je potpuno otvoren.",
     "xerArchiveUnusableLine": "Izvorni XER arhiv u ovoj datoteci bio je neupotrebljiv i izostavljen je.",
@@ -453,15 +460,23 @@
     "reportFontMissing": "Vaš font {{name}} više nije na ovom uređaju. Izvješće ponovo koristi Inter.",
     "layoutsNotSaved": "Izgledi nisu mogli biti spremljeni. Ništa nije promijenjeno. Pokušajte ponovo.",
     "ifcForeignOpenSchema": "Ova IFC-datoteka sadrži podatke drugog programa i ima nepoznatu ili nedostajuću shemu. Otvaranje je zaustavljeno kako bi se spriječio gubitak podataka pri spremanju.",
+    "ifcForeignOpenTooLarge": "Ova IFC datoteka veća je od {{limit}} MB. IFC datoteka s modelom zgrade ili s podacima drugog programa može se otvoriti do {{limit}} MB.",
     "ifcForeignOpenUnsafe": "Ova IFC-datoteka ne može se sigurno razvrstati. Otvaranje je zaustavljeno kako bi se spriječio gubitak podataka pri spremanju.",
     "ifc2x3PlanningOnly": "IFC2X3 je otvoren kao raspored. Podaci drugih programa neće biti uključeni pri spremanju.",
-    "ifcForeignReplaceBlocked": "Nije spremljeno. Spremanje preko postojeće datoteke s modelom zgrade još nije sigurno. Upotrijebite „Spremi kao“ i odaberite novi naziv.",
+    "ifcForeignReplaceBlocked": "Nije spremljeno. Ovo je datoteka koju imate otvorenu. Upotrijebite „Spremi“ za ažuriranje ili „Spremi kao“ s novim nazivom za kopiju.",
+    "ifcForeignTargetChanged": "Nije spremljeno. Datoteku je u međuvremenu promijenio drugi program. Vaše promjene su i dalje u aplikaciji. Odaberite „Spremi kao“ da ih spremite u novu datoteku.",
+    "ifcForeignTargetGone": "Nije spremljeno. Datoteka je premještena, obrisana ili se više ne može pročitati. Vaše promjene su i dalje u aplikaciji. Odaberite „Spremi kao“ da ih spremite u novu datoteku.",
+    "ifcForeignReplaceNotRecorded": "Nije spremljeno. Datoteku trenutačno nije moguće sigurno zamijeniti jer se oporavak od pada ne može ažurirati. Vaše promjene su i dalje u aplikaciji. Odaberite „Spremi kao“ da ih spremite u novu datoteku.",
+    "ifcForeignDownloadCopy": "Kopija preuzeta kao {{file}}. Otvorena datoteka nije ažurirana; promjene ostaju označene kao nespremljene.",
+    "ifcForeignReplaceFailed": "Nije spremljeno. Datoteku nije bilo moguće zapisati. Vaše promjene su i dalje u aplikaciji. Pokušajte ponovno spremiti ili odaberite „Spremi kao“ da ih spremite u novu datoteku.",
     "ifcForeignMergeRefused": "IFC-datoteka nije spremljena. Model zgrade ili podaci drugog programa inače ne bi ostali u potpunosti sačuvani. Poništite posljednju promjenu ili izvezite samo raspored: u IFC s opcijom „Bez modela zgrade“ ili u drugi format.",
     "ifcSaveChangedWhileWaiting": "Nije spremljeno. Dokument ili izvor modela zgrade promijenio se tijekom pripreme. Pokušajte ponovo spremiti.",
     "ifcSaveWorkerFailed": "IFC-datoteka nije zapisana: priprema u pozadini je prekinuta. Vaše promjene su i dalje u aplikaciji. Pokušajte ponovo.",
+    "ifcForeignNewTargetOnly": "Ovu IFC datoteku moguće je zapisati samo pod novim nazivom. Odaberite naziv koji još ne postoji.",
     "ifcForeignTargetOpenInTab": "Nije spremljeno. Ova datoteka je otvorena u drugoj kartici. Zatvorite tu karticu ili odaberite drugi naziv.",
     "exportTargetOpenInTab": "Nije izvezeno. Ova datoteka je otvorena u drugoj kartici. Zatvorite tu karticu ili odaberite drugi naziv.",
     "exportTargetOpenDocument": "Nije izvezeno. Ova datoteka je otvorena u kartici. Odaberite drugi naziv ili prvo zatvorite tu karticu.",
+    "ifcForeignPlaceUnknown": "Aplikacija ne zna je li datoteka ispravno spremljena: tijekom spremanja u mapi se nešto promijenilo. Vaše promjene su i dalje u aplikaciji. Provjerite je li datoteka ispravna ili spremite ponovno pod novim nazivom.",
     "ifcForeignReplaceOtherVersion": "Drugi program promijenio je {{file}} dok ga je aplikacija spremala. Ta verzija spremljena je kao {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Prethodno spremanje datoteke {{file}} nije dovršeno. Raspored koji se tada spremao nalazi se u {{copy}}. Izbrišite tu datoteku ako vam više nije potrebna.",
     "ifcForeignReplaceTargetTaken": "Nije spremljeno. Tijekom spremanja drugi je program na {{target}} stavio novu datoteku. Sada postoje tri datoteke: ta nova datoteka na {{target}}, vaš raspored u {{temp}} i prethodna verzija u {{previous}}. Vaše su promjene i dalje u aplikaciji.",
@@ -470,7 +485,17 @@
     "ifcForeignReplaceLeftOver": "Od prekinutog spremanja datoteke {{file}} ostala je ova datoteka: {{path}}. Provjerite je li vam još potrebna.",
     "ifcSourceCopyFailed": "Raspored se sprema za oporavak od pada, ali kopija modela zgrade nije mogla biti spremljena. Nakon pada model zgrade može nedostajati. Sami spremite svoj dokument kao cjelovitu IFC-datoteku.",
     "ifcForeignSourceMissing": "Nije spremljeno. Model zgrade ili podaci drugog programa nisu pronađeni. Upotrijebite „Spremi kao“ kako biste spremili samo raspored u novu datoteku. Otvorite izvornu IFC-datoteku da biste ponovo radili s cijelom datotekom.",
-    "taskTypeRenameNameTaken": "U ovom projektu naziv ostaje „{{oldName}}”: druga kategorija radova u ovom projektu već se zove „{{takenName}}”."
+    "taskTypeRenameNameTaken": "U ovom projektu naziv ostaje „{{oldName}}”: druga kategorija radova u ovom projektu već se zove „{{takenName}}”.",
+    "otherWork": {
+      "durationDays_one": "Zadatak sada traje {{days}} dan.",
+      "durationDays_few": "Zadatak sada traje {{days}} dana.",
+      "durationDays_other": "Zadatak sada traje {{days}} dana.",
+      "durationHours_one": "Zadatak sada traje {{hours}} sat.",
+      "durationHours_few": "Zadatak sada traje {{hours}} sata.",
+      "durationHours_other": "Zadatak sada traje {{hours}} sati.",
+      "durationSame": "Trajanje ostaje isto. Sati ostalih zadataka su promijenjeni.",
+      "line": "{{name}}: {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -511,6 +536,8 @@
     "addSubtask": "Dodaj podzadatak",
     "addMilestone": "Dodaj kontrolnu točku",
     "addRelation": "Dodaj ovisnost",
+    "assignPredecessors": "Dodijeli prethodnike…",
+    "assignSuccessors": "Dodijeli nasljednike…",
     "dissolve": "Dissolve (zadrži lanac)",
     "delete": "Izbriši",
     "newTask": "Novi zadatak",
@@ -577,7 +604,7 @@
     "demoTopbarAnimation": "Demo: animacija u gornjoj traci",
     "demoTopbarAnimationHint": "Nježan narančasti sjaj preko gornje trake. Pokazuje kako radi eksperimentalna sklopka.",
     "ifcForeignContent": "Otvaranje IFC-a s modelom zgrade",
-    "ifcForeignContentHint": "Otvara i IFC-datoteku s modelom zgrade ili podacima drugih programa. Možete spremiti u novu datoteku pomoću „Spremi kao“, spremiti na stranicu, preuzeti u pregledniku ili izvesti u IFC („Izvezi → IFC“), i to bez modela zgrade ili s bibliotekom resursa uz to (tada samo s rasporedom). Spremanje preko postojeće lokalne datoteke još nije moguće. Za oporavak od pada modela zgrade potreban je pristup izvornoj datoteci ili spremljenoj kopiji u pregledniku.",
+    "ifcForeignContentHint": "Otvara i IFC-datoteku s modelom zgrade ili podacima drugih programa. Možete koristiti „Spremi kao“ za novu datoteku, spremiti na stranicu, preuzeti u pregledniku i koristiti „Izvezi → IFC“, također bez modela zgrade ili uz biblioteku resursa (tada samo s rasporedom). U Chromeu i Edgeu „Spremi“ sprema i samu otvorenu datoteku. Ako drugi program promijeni ovu datoteku baš tijekom spremanja, ta promjena može se izgubiti. U aplikaciji za radnu površinu „Spremi“ sprema i otvorenu datoteku ako se nalazi u vašoj početnoj mapi. Ako je drugi program u međuvremenu promijenio datoteku, spremanje se zaustavlja ili aplikacija tu verziju čuva kao zasebnu kopiju pored datoteke; samo promjena u potpuno istom trenutku još može biti izgubljena. Ako „Spremi kao“ prepiše neku drugu postojeću datoteku u vašoj početnoj mapi, aplikacija tu datoteku zamijeni na isti način, i kad sama sadrži model zgrade ili podatke drugog programa. I raspored bez modela zgrade smije takvu datoteku zamijeniti. Ne zamjenjuje se datoteka koju aplikacija ne može pročitati niti datoteka s drugim nazivom (veza). Neposredno prije zamjene aplikacija uspoređuje datoteku s verzijom koju je pročitala nakon vašeg izbora: ako se promijenila, spremanje se zaustavlja i datoteka ostaje kakva jest. Ako se verzija koju je aplikacija odložila ipak razlikuje, čuva je kao zasebnu kopiju pored datoteke, uz obavijest. Za oporavak modela zgrade nakon pada aplikacije potreban je pristup izvornoj datoteci ili spremljenoj kopiji u pregledniku.",
     "tourHint": "Ponovno prođite uvodni obilazak aplikacije.",
     "theme": "Tema",
     "themeHint": "Shema boja sučelja.",
@@ -1292,7 +1319,9 @@
     },
     "regen": {
       "hint": "Praznici pokrivaju {{from}}–{{to}}; želite li ponovno generirati do uključivo {{year}}?",
-      "button": "Ponovno generiraj"
+      "button": "Ponovno generiraj",
+      "confirmMessage": "Vaš popis neradnih dana razlikuje se od ranije generiranog popisa. Ako zamijenite popis, vaše ručne izmjene bit će izgubljene.",
+      "confirmReplace": "Zamijeni neradne dane"
     },
     "countryName": {
       "NL": "Nizozemska",
@@ -1303,6 +1332,7 @@
       "AT": "Austrija",
       "CH": "Švicarska",
       "US": "Sjedinjene Američke Države",
+      "BO": "Bolivija",
       "none": "Bez praznika"
     },
     "preset": {
@@ -1513,7 +1543,8 @@
     "edit": {
       "copy": "Kopiraj",
       "deselect": "Poništi odabir",
-      "selectAll": "Odaberi sve"
+      "selectAll": "Odaberi sve",
+      "linkSelected": "Poveži odabrane zadatke u lanac"
     },
     "structure": {
       "moveUp": "Pomakni zadatak gore",

@@ -85,6 +85,7 @@
     "importDatesAsRecorded_other": "{{count}} tâches affichent les dates telles qu'enregistrées dans le fichier (non recalculées).",
     "xerExportLoss": "L’export vers {{format}} entraîne la perte d’informations source XER.",
     "exportDataLoss": "Lors de l'export vers {{format}}, des données que {{format}} ne peut pas contenir sont perdues, comme les notes ou une contrainte secondaire. Le fichier de projet IFC conserve tout.",
+    "exportPlanOnly": "Seul le planning a été exporté ; le modèle de bâtiment ne fait pas partie de ce format.",
     "mppLegacy": "Ce fichier .mpp utilise un ancien format (Project 2007 ou antérieur). Exportez-le depuis MS Project au format XML (Fichier → Enregistrer sous → XML) et ouvrez ce fichier.",
     "mppInvalidContainer": "Ce fichier MPP a une structure de fichier non valide et ne peut pas être ouvert.",
     "xmlUnknownSchedule": "Format de planning XML inconnu. Ouvrez un XML de MS Project (Project) ou un XML Primavera P6 (APIBusinessObjects).",
@@ -98,6 +99,10 @@
     "ifcUnreadableTargetSave": "L’application ne peut pas lire correctement ce fichier ; il peut contenir un modèle de bâtiment. Choisissez un autre fichier pour enregistrer.",
     "ifcUnreadableTargetExport": "L’application ne peut pas lire correctement ce fichier ; il peut contenir un modèle de bâtiment. Choisissez un autre fichier pour exporter.",
     "ifcUnreadableTargetAutoSave": "L’enregistrement automatique est arrêté : l’application ne peut pas lire correctement ce fichier ; il peut contenir un modèle de bâtiment. Choisissez un autre fichier pour enregistrer.",
+    "ifcForeignAutoSaveTargetChanged": "L'enregistrement automatique s'est arrêté : le fichier a entre-temps été modifié, déplacé ou supprimé. Vos modifications sont toujours dans l'application. Choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
+    "ifcForeignAutoSaveSaveAsOnly": "L'enregistrement automatique s'est arrêté : ce fichier ne peut pas être remplacé en toute sécurité à cet emplacement. Vos modifications sont toujours dans l'application. Choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
+    "ifcForeignAutoSaveNotRecorded": "L'enregistrement automatique s'est arrêté : le fichier ne peut pas être remplacé en toute sécurité pour le moment, car la récupération en cas de plantage ne peut pas être mise à jour. Vos modifications sont toujours dans l'application. Choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
+    "ifcForeignAutoSaveRemnant": "L'enregistrement automatique s'est arrêté : un enregistrement précédent de ce fichier n'a pas été terminé. Vos modifications sont toujours dans l'application. Enregistrez avec Ctrl+S ; après un redémarrage, l'application termine cet enregistrement précédent.",
     "ambiguousThousands": "« {{text}} » est ambigu : nombre décimal ou milliers ? Saisissez les décimales avec « {{separator}} » (1{{separator}}5) et les milliers sans séparateur (1500). La valeur n’a pas été modifiée.",
     "siteSaveConflict": "Non enregistré : '{{name}}' a été modifié entre-temps sur le site par quelqu’un d’autre. Vos modifications sont toujours dans l’application. Choisissez Enregistrer sous pour les conserver dans un nouveau fichier.",
     "siteSaveConflictCopy": "'{{original}}' a été modifié entre-temps sur le site par quelqu'un d'autre. Votre travail est donc enregistré dans une copie : '{{name}}'. À partir de maintenant, Enregistrer écrit dans cette copie.",
@@ -126,6 +131,7 @@
     "relationDuplicate": "Cette relation existe déjà",
     "relationAncestorEndpoint": "Une relation entre une tâche et sa propre tâche récapitulative parente (ou ancêtre) n'est pas autorisée.",
     "relationCycle": "Cette relation créerait un cycle dans la planification ({{cycle}}) et n'a pas été créée.",
+    "relationChainOrderUnclear": "Les tâches n'ont pas été liées : leur ordre dans la liste n'est pas fixe. Une tâche sélectionnée se trouve à la fois avant et après une autre (regroupement), ou deux jalons sélectionnés partagent une série réduite. Supprimez le regroupement, développez la série, ou choisissez le prédécesseur avec « Assigner les prédécesseurs ».",
     "hierarchyCycle": "Ce déplacement créerait un cycle dans la planification ({{cycle}}) : les relations d'une tâche récapitulative s'appliquent aussi à ses sous-tâches. Rien n'a été déplacé.",
     "relationsExcludedByHierarchy_one": "Après le déplacement, {{count}} relation relie une tâche à sa propre tâche récapitulative parente ; elle n'est plus prise en compte dans le calcul.",
     "relationsExcludedByHierarchy_many": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
@@ -225,7 +231,8 @@
     "schedulingProfileShifted_other": "Après application, {{count}} tâches ont été déplacées.",
     "actions": {
       "openProjectInfo": "Ouvrir le profil de calcul",
-      "openHelp": "Ouvrir l'aide"
+      "openHelp": "Ouvrir l'aide",
+      "undo": "Annuler"
     },
     "xerArchiveUnusable": "L'archive source XER de ce fichier est inutilisable et a été omise ; le projet lui-même s'est ouvert en entier.",
     "xerArchiveUnusableLine": "L'archive source XER de ce fichier était inutilisable et a été omise.",
@@ -453,15 +460,23 @@
     "reportFontMissing": "Votre police {{name}} n’est plus sur cet appareil. Le rapport utilise de nouveau Inter.",
     "layoutsNotSaved": "Les dispositions n’ont pas pu être enregistrées. Rien n’a changé. Veuillez réessayer.",
     "ifcForeignOpenSchema": "Ce fichier IFC contient des données d’un autre programme et a un schéma inconnu ou manquant. L’ouverture a été arrêtée pour éviter une perte de données lors de l’enregistrement.",
+    "ifcForeignOpenTooLarge": "Ce fichier IFC est plus grand que {{limit}} Mo. Un fichier IFC contenant un modèle de bâtiment ou des données d'un autre programme peut être ouvert jusqu'à {{limit}} Mo.",
     "ifcForeignOpenUnsafe": "Ce fichier IFC ne peut pas être classé en toute sécurité. L’ouverture a été arrêtée pour éviter une perte de données lors de l’enregistrement.",
     "ifc2x3PlanningOnly": "IFC2X3 a été ouvert comme planning. Les données d’autres programmes ne seront pas incluses lors de l’enregistrement.",
-    "ifcForeignReplaceBlocked": "Non enregistré. Remplacer un fichier existant contenant un modèle de bâtiment n’est pas encore sûr. Utilisez «Enregistrer sous» et choisissez un nouveau nom.",
+    "ifcForeignReplaceBlocked": "Non enregistré. Il s’agit du fichier que vous avez ouvert. Utilisez «Enregistrer» pour le mettre à jour, ou «Enregistrer sous» avec un nouveau nom pour une copie.",
+    "ifcForeignTargetChanged": "Non enregistré. Le fichier a entre-temps été modifié par un autre programme. Vos modifications sont toujours dans l'application. Choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
+    "ifcForeignTargetGone": "Non enregistré. Le fichier a été déplacé ou supprimé, ou ne peut plus être lu. Vos modifications sont toujours dans l'application. Choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
+    "ifcForeignReplaceNotRecorded": "Non enregistré. Le fichier ne peut pas être remplacé en toute sécurité pour le moment, car la récupération en cas de plantage ne peut pas être mise à jour. Vos modifications sont toujours dans l'application. Choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
+    "ifcForeignDownloadCopy": "Copie téléchargée sous {{file}}. Le fichier ouvert n'a pas été mis à jour ; les modifications restent marquées comme non enregistrées.",
+    "ifcForeignReplaceFailed": "Non enregistré. Le fichier n'a pas pu être écrit. Vos modifications sont toujours dans l'application. Réessayez d'enregistrer, ou choisissez « Enregistrer sous » pour les conserver dans un nouveau fichier.",
     "ifcForeignMergeRefused": "Le fichier IFC n’a pas été écrit. Le modèle de bâtiment ou les données d’un autre programme ne seraient pas entièrement conservés. Annulez la dernière modification, ou exportez seulement le planning : en IFC avec «Sans modèle de bâtiment», ou dans un autre format.",
     "ifcSaveChangedWhileWaiting": "Non enregistré. Le document ou le fichier source du modèle de bâtiment a changé pendant la préparation. Réessayez d’enregistrer.",
     "ifcSaveWorkerFailed": "Le fichier IFC n'a pas été écrit : la préparation en arrière-plan a été interrompue. Vos modifications sont toujours dans l'application. Veuillez réessayer.",
+    "ifcForeignNewTargetOnly": "Ce fichier IFC ne peut être écrit que sous un nouveau nom de fichier. Choisissez un nom qui n'existe pas encore.",
     "ifcForeignTargetOpenInTab": "Non enregistré. Ce fichier est ouvert dans un autre onglet. Fermez cet onglet ou choisissez un autre nom.",
     "exportTargetOpenInTab": "Non exporté. Ce fichier est ouvert dans un autre onglet. Fermez cet onglet ou choisissez un autre nom.",
     "exportTargetOpenDocument": "Non exporté. Ce fichier est ouvert dans un onglet. Choisissez un autre nom ou fermez d'abord cet onglet.",
+    "ifcForeignPlaceUnknown": "L'application ne sait pas si le fichier a été correctement enregistré : pendant l'enregistrement, quelque chose a changé dans le dossier. Vos modifications sont toujours dans l'application. Vérifiez si le fichier est correct, ou enregistrez à nouveau sous un nouveau nom.",
     "ifcForeignReplaceOtherVersion": "Un autre programme a modifié {{file}} pendant que l'application l'enregistrait. Cette version a été conservée sous {{copy}}.",
     "ifcForeignReplaceUnsavedCopy": "Un enregistrement précédent de {{file}} n'a pas abouti. Le planning en cours d'enregistrement se trouve dans {{copy}}. Supprimez ce fichier si vous n'en avez plus besoin.",
     "ifcForeignReplaceTargetTaken": "Non enregistré. Pendant l'enregistrement, un autre programme a placé un nouveau fichier à {{target}}. Il y a maintenant trois fichiers : ce nouveau fichier à {{target}}, votre planning dans {{temp}} et la version précédente dans {{previous}}. Vos modifications sont également toujours dans l'application.",
@@ -470,7 +485,17 @@
     "ifcForeignReplaceLeftOver": "Ce fichier est resté après un enregistrement interrompu de {{file}} : {{path}}. Vérifiez si vous en avez encore besoin.",
     "ifcSourceCopyFailed": "Le planning est enregistré pour la récupération après un plantage, mais la copie du modèle de bâtiment n’a pas pu être enregistrée. Après un plantage, le modèle de bâtiment peut manquer. Enregistrez vous-même votre travail comme fichier IFC complet.",
     "ifcForeignSourceMissing": "Non enregistré. Le modèle de bâtiment ou les données d’un autre programme n’ont pas été trouvés. Utilisez «Enregistrer sous» pour n’enregistrer que le planning dans un nouveau fichier. Ouvrez le fichier IFC d’origine pour travailler de nouveau avec le fichier complet.",
-    "taskTypeRenameNameTaken": "Dans ce projet, le nom reste « {{oldName}} » : une autre catégorie de travaux de ce projet s'appelle déjà « {{takenName}} »."
+    "taskTypeRenameNameTaken": "Dans ce projet, le nom reste « {{oldName}} » : une autre catégorie de travaux de ce projet s'appelle déjà « {{takenName}} ».",
+    "otherWork": {
+      "durationDays_one": "La tâche dure maintenant {{days}} jour.",
+      "durationDays_many": "La tâche dure maintenant {{days}} jours.",
+      "durationDays_other": "La tâche dure maintenant {{days}} jours.",
+      "durationHours_one": "La tâche dure maintenant {{hours}} heure.",
+      "durationHours_many": "La tâche dure maintenant {{hours}} heures.",
+      "durationHours_other": "La tâche dure maintenant {{hours}} heures.",
+      "durationSame": "La durée reste identique. Les heures des autres ont été modifiées.",
+      "line": "{{name}} : {{before}} → {{after}} h"
+    }
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -511,6 +536,8 @@
     "addSubtask": "Ajouter une sous-tâche",
     "addMilestone": "Ajouter un jalon",
     "addRelation": "Ajouter une relation",
+    "assignPredecessors": "Assigner les prédécesseurs…",
+    "assignSuccessors": "Assigner les successeurs…",
     "dissolve": "Dissolve (conserver la chaîne)",
     "delete": "Supprimer",
     "newTask": "Nouvelle tâche",
@@ -577,7 +604,7 @@
     "demoTopbarAnimation": "Démo : animation du bandeau",
     "demoTopbarAnimationHint": "Une douce vague lumineuse orange traverse le bandeau supérieur. Montre le fonctionnement d'un interrupteur expérimental.",
     "ifcForeignContent": "Ouvrir un IFC avec modèle de bâtiment",
-    "ifcForeignContentHint": "Ouvre aussi un fichier IFC avec un modèle de bâtiment ou des données d’autres programmes. Vous pouvez utiliser «Enregistrer sous» vers un nouveau fichier, enregistrer sur le site, télécharger dans le navigateur et Exporter → IFC, aussi sans modèle de bâtiment ou avec la bibliothèque de ressources à côté (alors avec le planning seul). Enregistrer par-dessus un fichier local existant n’est pas encore possible. La récupération du modèle de bâtiment après un plantage demande l’accès au fichier d’origine ou à une copie enregistrée dans le navigateur.",
+    "ifcForeignContentHint": "Ouvre aussi un fichier IFC avec un modèle de bâtiment ou des données d’autres programmes. Vous pouvez utiliser «Enregistrer sous» vers un nouveau fichier, enregistrer sur le site, télécharger dans le navigateur et utiliser Exporter → IFC, aussi sans modèle de bâtiment ou avec la bibliothèque de ressources à côté (alors avec le planning seul). Dans Chrome et Edge, «Enregistrer» enregistre aussi le fichier ouvert lui-même. Si un autre programme modifie ce fichier exactement pendant l’enregistrement, cette modification peut être perdue. Dans l’application de bureau, «Enregistrer» enregistre aussi le fichier ouvert lui-même s’il se trouve dans votre dossier personnel. Si un autre programme a entre-temps modifié le fichier, l’enregistrement s’arrête, ou l’application conserve cette version comme copie séparée à côté du fichier ; seule une modification au même instant précis peut encore être perdue. «Enregistrer sous» sur un autre fichier existant dans votre dossier personnel remplace ce fichier de la même manière, même si ce fichier contient lui-même un modèle de bâtiment ou des données d’un autre programme. Un planning sans modèle de bâtiment peut aussi remplacer un tel fichier. L’application ne remplace pas un fichier qu’elle ne peut pas lire, ni un fichier qui a un second nom (un lien physique). Juste avant le remplacement, l’application compare le fichier à la version qu’elle a lue après votre choix : s’il a changé, l’enregistrement s’arrête et le fichier reste tel quel. Si la version que l’application a mise de côté s’avère quand même différente, elle la conserve comme copie séparée à côté du fichier, avec un message. La récupération du modèle de bâtiment après un plantage demande l’accès au fichier d’origine ou à une copie enregistrée dans le navigateur.",
     "tourHint": "Refaites la visite guidée d'introduction de l'application.",
     "theme": "Thème",
     "themeHint": "Le schéma de couleurs de l'interface.",
@@ -1292,7 +1319,9 @@
     },
     "regen": {
       "hint": "Les jours fériés couvrent {{from}}–{{to}} ; régénérer jusqu'à {{year}} inclus ?",
-      "button": "Régénérer"
+      "button": "Régénérer",
+      "confirmMessage": "Votre liste de jours non travaillés diffère de la liste générée précédemment. Si vous remplacez la liste, vos modifications manuelles seront perdues.",
+      "confirmReplace": "Remplacer les jours chômés"
     },
     "countryName": {
       "NL": "Pays-Bas",
@@ -1303,6 +1332,7 @@
       "AT": "Autriche",
       "CH": "Suisse",
       "US": "États-Unis",
+      "BO": "Bolivie",
       "none": "Aucun jour férié"
     },
     "preset": {
@@ -1513,7 +1543,8 @@
     "edit": {
       "copy": "Copier",
       "deselect": "Désélectionner",
-      "selectAll": "Tout sélectionner"
+      "selectAll": "Tout sélectionner",
+      "linkSelected": "Lier les tâches sélectionnées en chaîne"
     },
     "structure": {
       "moveUp": "Déplacer la tâche vers le haut",
